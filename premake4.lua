@@ -4,7 +4,7 @@ solution "ponyc"
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
-    files { "**.h", "**.cpp" }
+    files { "**.h", "**.c", "**.cpp" }
     flags {
       "ExtraWarnings",
       "FatalWarnings",
