@@ -1,6 +1,5 @@
 #include "parser.h"
 #include "lexer.h"
-#include "error.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -103,6 +102,8 @@ static ast_t* rulealt( parser_t* parser, const alt_t* alt )
     {
       return alt->f( parser );
     }
+
+    alt++;
   }
 
   return NULL;
@@ -165,11 +166,11 @@ static ast_t* args( parser_t* parser );
 
 static ast_t* list( parser_t* parser )
 {
-  // LIST arg (COMMA arg)* RBRACE
+  // LIST arg (COMMA arg)* RBRACKET
   ast_t* ast = ast_new( TK_LIST );
   expect( parser, TK_LIST, ast, -1 );
   rulelist( parser, arg, TK_COMMA, ast, 0 );
-  expect( parser, TK_RBRACE, ast, -1 );
+  expect( parser, TK_RBRACKET, ast, -1 );
   return ast;
 }
 
@@ -202,7 +203,7 @@ static ast_t* atom( parser_t* parser )
 
 static ast_t* call( parser_t* parser )
 {
-  // (LPAREN expr RPAREN | atom) ((CALL ID)? args)?
+  // (LPAREN expr RPAREN | atom) ((CALL ID)? args)*
   ast_t* ast;
 
   if( current( parser ) == TK_LPAREN )
@@ -334,16 +335,21 @@ static ast_t* expr( parser_t* parser )
   return NULL;
 }
 
+// forward declarations
+static ast_t* block( parser_t* parser );
+static ast_t* oftype( parser_t* parser );
+
 static ast_t* arg( parser_t* parser )
 {
-  // expr (ASSIGN expr)?
+  // expr oftype (ASSIGN expr)?
   ast_t* ast = ast_new( TK_ARG );
 
   rule( parser, expr, ast, 0 );
+  rule( parser, oftype, ast, 1 );
 
   if( accept( parser, TK_ASSIGN, ast, -1 ) )
   {
-    rule( parser, expr, ast, 1 );
+    rule( parser, expr, ast, 2 );
   }
 
   return ast;
@@ -355,15 +361,15 @@ static ast_t* args( parser_t* parser )
   ast_t* ast = ast_new( TK_ARGS );
 
   expect( parser, TK_LPAREN, ast, -1 );
-  rulelist( parser, arg, TK_COMMA, ast, 0 );
-  expect( parser, TK_RPAREN, ast, -1 );
+
+  if( !accept( parser, TK_RPAREN, ast, -1 ) )
+  {
+    rulelist( parser, arg, TK_COMMA, ast, 0 );
+    expect( parser, TK_RPAREN, ast, -1 );
+  }
 
   return ast;
 }
-
-// forward declarations
-static ast_t* block( parser_t* parser );
-static ast_t* oftype( parser_t* parser );
 
 static ast_t* conditional( parser_t* parser )
 {
@@ -458,13 +464,19 @@ static ast_t* casevar( parser_t* parser )
 
 static ast_t* caseblock( parser_t* parser )
 {
-  // CASE casevar (COMMA casevar)* (IF expr)? block
+  // CASE (casevar (COMMA casevar)*)? (IF expr)? block
   ast_t* ast = ast_new( TK_CASE );
 
   expect( parser, TK_CASE, ast, -1 );
-  rulelist( parser, casevar, TK_COMMA, ast, 0 );
 
-  if( accept( parser, TK_ID, ast, -1 ) )
+  if( (current( parser ) != TK_IF)
+    && (current( parser ) != TK_LBRACE)
+    )
+  {
+    rulelist( parser, casevar, TK_COMMA, ast, 0 );
+  }
+
+  if( accept( parser, TK_IF, ast, -1 ) )
   {
     rule( parser, expr, ast, 1 );
   }
@@ -516,10 +528,41 @@ static ast_t* always( parser_t* parser )
   return ast;
 }
 
+static ast_t* lvalue( parser_t* parser )
+{
+  // (VAR ID oftype) | call
+  ast_t* ast;
+
+  if( accept( parser, TK_VAR, NULL, -1 ) )
+  {
+    ast = ast_new( TK_VAR );
+    expect( parser, TK_ID, ast, 0 );
+    rule( parser, oftype, ast, 1 );
+  } else {
+    ast = call( parser );
+  }
+
+  return ast;
+}
+
+static ast_t* assignment( parser_t* parser )
+{
+  // lvalue (COMMA lvalue)* (ASSIGN expr (COMMA expr)*)?
+  ast_t* ast = ast_new( TK_ASSIGN );
+  rulelist( parser, lvalue, TK_COMMA, ast, 0 );
+
+  if( accept( parser, TK_ASSIGN, ast, -1 ) )
+  {
+    rulelist( parser, expr, TK_COMMA, ast, 1 );
+  }
+
+  return ast;
+}
+
 static ast_t* block( parser_t* parser )
 {
-  // (block | conditional | forloop | whileloop | doloop | match | catchblock | assignment
-  // | RETURN | BREAK | CONTINUE | THROW)* always?
+  // LBRACE (block | conditional | forloop | whileloop | doloop | match | catchblock | assignment
+  // | RETURN | BREAK | CONTINUE | THROW)* always? RBRACE
   static const alt_t alt[] =
   {
     { TK_LBRACE, block },
@@ -529,15 +572,27 @@ static ast_t* block( parser_t* parser )
     { TK_DO, doloop },
     { TK_MATCH, match },
     { TK_CATCH, catchblock },
-    // FIX: assignment
     { TK_RETURN, tokenrule },
     { TK_BREAK, tokenrule },
     { TK_CONTINUE, tokenrule },
     { TK_THROW, tokenrule },
+
+    { TK_VAR, assignment },
+    { TK_THIS, assignment },
+    { TK_TRUE, assignment },
+    { TK_FALSE, assignment },
+    { TK_INT, assignment },
+    { TK_FLOAT, assignment },
+    { TK_STRING, assignment },
+    { TK_ID, assignment },
+    { TK_TYPEID, assignment },
+    { TK_LIST, assignment },
+
     { 0, NULL }
   };
 
   ast_t* ast = ast_new( TK_BLOCK );
+  expect( parser, TK_LBRACE, ast, -1 );
   rulealtlist( parser, alt, ast, 0 );
 
   if( current( parser ) == TK_ALWAYS )
@@ -545,6 +600,7 @@ static ast_t* block( parser_t* parser )
     rule( parser, always, ast, 1 );
   }
 
+  expect( parser, TK_RBRACE, ast, -1 );
   return ast;
 }
 
@@ -928,21 +984,43 @@ static ast_t* module( parser_t* parser )
 
 parser_t* parser_open( const char* file )
 {
+  // open the lexer
   lexer_t* lexer = lexer_open( file );
   if( lexer == NULL ) { return NULL; }
 
+  // create a parser and attach the lexer
   parser_t* parser = calloc( 1, sizeof(parser_t) );
   parser->lexer = lexer;
-  parser->ast = module( parser );
+  parser->t = lexer_next( lexer );
   parser->errors = errorlist_new();
+  parser->ast = module( parser );
+
+  errorlist_t* e = lexer_errors( lexer );
+
+  if( e->count > 0 )
+  {
+    parser->errors->count += e->count;
+    e->tail->next = parser->errors->head;
+    parser->errors->head = e->head;
+    e->head = NULL;
+    e->tail = NULL;
+  }
+
+  errorlist_free( e );
+  lexer_close( lexer );
+  parser->lexer = NULL;
 
   return parser;
+}
+
+errorlist_t* parser_errors( parser_t* parser )
+{
+  return parser->errors;
 }
 
 void parser_close( parser_t* parser )
 {
   if( parser == NULL ) { return; }
-  lexer_close( parser->lexer );
   errorlist_free( parser->errors );
   free( parser );
 }

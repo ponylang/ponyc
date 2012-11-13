@@ -1,6 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "error.h"
 #include <stddef.h>
 
 typedef struct lexer_t lexer_t;
@@ -129,6 +130,7 @@ lexer_t* lexer_open( const char* file );
 void lexer_close( lexer_t* lexer );
 
 token_t* lexer_next( lexer_t* lexer );
+errorlist_t* lexer_errors( lexer_t* lexer );
 void token_free( token_t* token );
 
 #endif

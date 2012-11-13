@@ -1,5 +1,4 @@
 #include "lexer.h"
-#include "error.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -149,12 +148,6 @@ static char look( lexer_t* lexer )
   return lexer->m[lexer->ptr];
 }
 
-static char lookahead( lexer_t* lexer )
-{
-  assert( lexer->len > 1 );
-  return lexer->m[lexer->ptr + 1];
-}
-
 static char* copy( lexer_t* lexer )
 {
   if( lexer->buflen == 0 ) { return NULL; }
@@ -260,13 +253,10 @@ static void lexer_newline( lexer_t* lexer )
 
 static void nested_comment( lexer_t* lexer )
 {
-  adv( lexer, 2 );
   size_t depth = 1;
 
   while( depth > 0 )
   {
-    size_t n = 1;
-
     if( lexer->len <= 1 )
     {
       error_new( lexer->errors, lexer->line, lexer->pos, "Nested comment doesn't terminate" );
@@ -274,22 +264,24 @@ static void nested_comment( lexer_t* lexer )
       lexer->len = 0;
       return;
     } if( look( lexer ) == '*' ) {
-      if( lookahead( lexer ) == '/' )
+      adv( lexer, 1 );
+
+      if( look( lexer ) == '/' )
       {
-        n++;
         depth--;
       }
     } else if( look( lexer ) == '/' ) {
-      if( lookahead( lexer ) == '*' )
+      adv( lexer, 1 );
+
+      if( look( lexer ) == '*' )
       {
-        n++;
         depth++;
       }
     } else if( look( lexer ) == '\n' ) {
       lexer_newline( lexer );
     }
 
-    adv( lexer, n );
+    adv( lexer, 1 );
   }
 }
 
@@ -303,13 +295,17 @@ static void line_comment( lexer_t* lexer )
 
 static token_t* lexer_slash( lexer_t* lexer )
 {
-  if( lexer->len > 1 )
+  adv( lexer, 1 );
+
+  if( lexer->len > 0 )
   {
-    if( lookahead( lexer ) == '*' )
+    if( look( lexer ) == '*' )
     {
+      adv( lexer, 1 );
       nested_comment( lexer );
       return NULL;
-    } else if( lookahead( lexer ) == '/' ) {
+    } else if( look( lexer ) == '/' ) {
+      adv( lexer, 1 );
       line_comment( lexer );
       return NULL;
     }
@@ -317,7 +313,6 @@ static token_t* lexer_slash( lexer_t* lexer )
 
   token_t* t = token_new(lexer );
   t->id = TK_DIVIDE;
-  adv( lexer, 1 );
 
   return t;
 }
@@ -347,8 +342,9 @@ static token_t* lexer_string( lexer_t* lexer )
         return NULL;
       }
 
-      char c = lookahead( lexer );
-      adv( lexer, 2 );
+      adv( lexer, 1 );
+      char c = look( lexer );
+      adv( lexer, 1 );
 
       switch( c )
       {
@@ -511,9 +507,11 @@ static token_t* lexer_id( lexer_t* lexer )
     }
   }
 
+  append( lexer, '\0' );
+
   for( const symbol_t* p = keywords; p->symbol != NULL; p++ )
   {
-    if( !strncmp( lexer->buffer, p->symbol, lexer->buflen ) )
+    if( !strcmp( lexer->buffer, p->symbol ) )
     {
       t->id = p->id;
       lexer->buflen = 0;
@@ -557,16 +555,19 @@ static token_t* lexer_symbol( lexer_t* lexer )
 
   if( lexer->len > 1 )
   {
-    sym[1] = lookahead( lexer );
+    sym[1] = look( lexer );
 
-    for( const symbol_t* p = symbols2; p->symbol != NULL; p++ )
+    if( issymbol( sym[1] ) )
     {
-      if( !strncmp( sym, p->symbol, 2 ) )
+      for( const symbol_t* p = symbols2; p->symbol != NULL; p++ )
       {
-        adv( lexer, 1 );
-        t = token_new( lexer );
-        t->id = p->id;
-        return t;
+        if( (sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]) )
+        {
+          adv( lexer, 1 );
+          t = token_new( lexer );
+          t->id = p->id;
+          return t;
+        }
       }
     }
   }
@@ -599,11 +600,12 @@ lexer_t* lexer_open( const char* file )
   size_t flen = ftell( fp );
   fseek( fp, 0, SEEK_SET );
   char* m = malloc( flen );
-  int r = fread( m, flen, 1, fp );
+  size_t r = fread( m, flen, 1, fp );
   fclose( fp );
 
   if( r != 1 )
   {
+    printf( "fread %ld %ld\n", flen, r );
     free( m );
     return NULL;
   }
@@ -680,6 +682,13 @@ token_t* lexer_next( lexer_t* lexer )
   }
 
   return t;
+}
+
+errorlist_t* lexer_errors( lexer_t* lexer )
+{
+  errorlist_t* e = lexer->errors;
+  lexer->errors = NULL;
+  return e;
 }
 
 void token_free( token_t* token )

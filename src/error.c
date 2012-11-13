@@ -4,8 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#define ERRORS_MAX 100
+
 error_t* error_new( errorlist_t* list, size_t line, size_t pos, const char* fmt, ... )
 {
+  if( (list != NULL) && (list->count >= ERRORS_MAX) ) { return NULL; }
+
   error_t* error = malloc( sizeof(error_t) );
   error->line = line;
   error->pos = pos;
@@ -32,6 +36,8 @@ error_t* error_new( errorlist_t* list, size_t line, size_t pos, const char* fmt,
 
   if( list != NULL )
   {
+    list->count++;
+
     if( list->tail != NULL )
     {
       list->tail->next = error;

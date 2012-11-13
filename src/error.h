@@ -13,6 +13,7 @@ typedef struct error_t
 
 typedef struct errorlist_t
 {
+  size_t count;
   error_t* head;
   error_t* tail;
 } errorlist_t;

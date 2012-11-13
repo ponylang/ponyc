@@ -19,7 +19,19 @@ bool do_file( const char* file )
     return false;
   }
 
-  // FIX:
+  errorlist_t* el = parser_errors( parser );
+
+  if( el->count > 0 )
+  {
+    printf( "%ld errors:\n", el->count );
+    error_t* e = el->head;
+
+    while( e != NULL )
+    {
+      printf( "[%ld:%ld] %s\n", e->line, e->pos, e->msg );
+      e = e->next;
+    }
+  }
 
   parser_close( parser );
   return true;
