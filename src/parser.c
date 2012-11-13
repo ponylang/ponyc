@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define AST_SLOTS 6
+#define AST_SLOTS 7
 
 struct ast_t
 {
@@ -164,19 +164,9 @@ static ast_t* expr( parser_t* parser );
 static ast_t* arg( parser_t* parser );
 static ast_t* args( parser_t* parser );
 
-static ast_t* list( parser_t* parser )
-{
-  // LIST arg (COMMA arg)* RBRACKET
-  ast_t* ast = ast_new( TK_LIST );
-  expect( parser, TK_LIST, ast, -1 );
-  rulelist( parser, arg, TK_COMMA, ast, 0 );
-  expect( parser, TK_RBRACKET, ast, -1 );
-  return ast;
-}
-
 static ast_t* atom( parser_t* parser )
 {
-  // THIS | TRUE | FALSE | INT | STRING | ID | typeclass | list
+  // THIS | TRUE | FALSE | INT | STRING | ID | typeclass
   static const alt_t alt[] =
   {
     { TK_THIS, tokenrule },
@@ -187,7 +177,6 @@ static ast_t* atom( parser_t* parser )
     { TK_STRING, tokenrule },
     { TK_ID, tokenrule },
     { TK_TYPEID, typeclass },
-    { TK_LIST, list },
     { 0, NULL }
   };
 
@@ -201,16 +190,19 @@ static ast_t* atom( parser_t* parser )
   return ast;
 }
 
-static ast_t* call( parser_t* parser )
+static ast_t* command( parser_t* parser )
 {
-  // (LPAREN expr RPAREN | atom) ((CALL ID)? args)*
+  // (LPAREN expr RPAREN | LBRACKET expr (COMMA expr)* RBRACKET | atom) ((CALL ID)? args)*
   ast_t* ast;
 
-  if( current( parser ) == TK_LPAREN )
+  if( accept( parser, TK_LPAREN, NULL, -1 ) )
   {
-    expect( parser, TK_LPAREN, NULL, -1 );
     ast = expr( parser );
     expect( parser, TK_RPAREN, NULL, -1 );
+  } else if( accept( parser, TK_LBRACKET, NULL, -1 ) ) {
+    ast = ast_new( TK_LIST );
+    rulelist( parser, arg, TK_COMMA, ast, 0 );
+    expect( parser, TK_RBRACKET, ast, -1 );
   } else {
     ast = atom( parser );
   }
@@ -262,7 +254,7 @@ static ast_t* unop( parser_t* parser )
 
 static ast_t* unary( parser_t* parser )
 {
-  // unop unary | lambda | call
+  // unop unary | lambda | command
   static const alt_t alt[] =
   {
     { TK_PARTIAL, unop },
@@ -276,7 +268,7 @@ static ast_t* unary( parser_t* parser )
 
   if( ast == NULL )
   {
-    ast = call( parser );
+    ast = command( parser );
 
     if( ast == NULL )
     {
@@ -530,7 +522,7 @@ static ast_t* always( parser_t* parser )
 
 static ast_t* lvalue( parser_t* parser )
 {
-  // (VAR ID oftype) | call
+  // (VAR ID oftype) | command
   ast_t* ast;
 
   if( accept( parser, TK_VAR, NULL, -1 ) )
@@ -539,7 +531,7 @@ static ast_t* lvalue( parser_t* parser )
     expect( parser, TK_ID, ast, 0 );
     rule( parser, oftype, ast, 1 );
   } else {
-    ast = call( parser );
+    ast = command( parser );
   }
 
   return ast;
@@ -586,7 +578,6 @@ static ast_t* block( parser_t* parser )
     { TK_STRING, assignment },
     { TK_ID, assignment },
     { TK_TYPEID, assignment },
-    { TK_LIST, assignment },
 
     { 0, NULL }
   };
@@ -638,9 +629,14 @@ static ast_t* typelambda( parser_t* parser )
 
 static ast_t* lambda( parser_t* parser )
 {
-  // LAMBDA annotation args (RESULTS args) THROWS? block
+  // LAMBDA annotation args (RESULTS args) THROWS? (IS block)?
   ast_t* ast = typelambda( parser );
-  rule( parser, block, ast, 4 );
+
+  if( accept( parser, TK_IS, ast, -1 ) )
+  {
+    rule( parser, block, ast, 4 );
+  }
+
   return ast;
 }
 
@@ -774,24 +770,25 @@ static ast_t* ambient( parser_t* parser )
 
 static ast_t* function( parser_t* parser )
 {
-  // FUNCTION ID? formalargs args (RESULTS args)? THROWS? block?
+  // FUNCTION annotation ID? formalargs args (RESULTS args)? THROWS? block?
   ast_t* ast = ast_new( TK_FUNCTION );
 
   expect( parser, TK_FUNCTION, ast, -1 );
-  accept( parser, TK_ID, ast, 0 );
-  rule( parser, formalargs, ast, 1 );
-  rule( parser, args, ast, 2 );
+  rule( parser, annotation, ast, 0 );
+  accept( parser, TK_ID, ast, 1 );
+  rule( parser, formalargs, ast, 2 );
+  rule( parser, args, ast, 3 );
 
   if( accept( parser, TK_RESULTS, ast, -1 ) )
   {
-    rule( parser, args, ast, 3 );
+    rule( parser, args, ast, 4 );
   }
 
-  accept( parser, TK_THROWS, ast, 4 );
+  accept( parser, TK_THROWS, ast, 5 );
 
   if( current( parser ) == TK_LBRACE )
   {
-    rule( parser, block, ast, 5 );
+    rule( parser, block, ast, 6 );
   }
 
   return ast;

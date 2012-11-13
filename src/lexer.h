@@ -30,7 +30,6 @@ typedef enum
   TK_OFTYPE,
   TK_PARTIAL,
   TK_ASSIGN,
-  TK_LIST,
   TK_BANG,
 
   TK_PLUS,
@@ -108,6 +107,7 @@ typedef enum
   TK_ARGS,
   TK_BLOCK,
   TK_CASEVAR,
+  TK_LIST,
 
   TK_EOF
 } token_id;

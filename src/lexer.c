@@ -34,7 +34,6 @@ static const symbol_t symbols2[] =
 {
   { "->", TK_RESULTS },
   { "::", TK_PACKAGE },
-  { "#[", TK_LIST },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
