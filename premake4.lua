@@ -3,12 +3,14 @@ solution "ponyc"
 
   project "ponyc"
     kind "ConsoleApp"
-    language "C++"
-    files { "**.h", "**.c", "**.cpp" }
+    language "C"
+    files { "**.h", "**.c" }
     flags {
       "ExtraWarnings",
       "FatalWarnings",
       }
+
+    buildoptions { "-std=gnu99" }
 
     configuration "Debug"
       flags { "Symbols" }
@@ -16,4 +18,3 @@ solution "ponyc"
     configuration "Release"
       defines { "NDEBUG" }
       flags { "Optimize" }
-

@@ -1,4 +1,6 @@
+#include "parser.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <dirent.h>
@@ -8,7 +10,18 @@
 
 bool do_file( const char* file )
 {
-  printf( "File %s\n", file );
+  printf( "File: %s\n", file );
+  parser_t* parser = parser_open( file );
+
+  if( parser == NULL )
+  {
+    printf( "Couldn't open: %s\n", file );
+    return false;
+  }
+
+  // FIX:
+
+  parser_close( parser );
   return true;
 }
 
@@ -29,8 +42,7 @@ bool do_path( const char* path )
       break;
 
     case ENOTDIR:
-      printf( "Not a directory: %s\n", path );
-      break;
+      return do_file( path );
 
     default:
       printf( "Unknown error: %s\n", path );
@@ -42,10 +54,12 @@ bool do_path( const char* path )
   struct dirent* d;
   bool r = true;
 
+  // this isn't thread-safe
   while( (d = readdir( dir )) != NULL )
   {
     if( d->d_type & DT_DIR )
     {
+      // skip ".", ".." and hidden directories
       if( d->d_name[0] == '.' ) { continue; }
 
       char fullpath[FILENAME_MAX];
@@ -55,6 +69,7 @@ bool do_path( const char* path )
 
       r &= do_path( fullpath );
     } else if( d->d_type & DT_REG ) {
+      // handle only files with the specified extension
       const char* p = strrchr( d->d_name, '.' );
       if( !p || strcmp( p, EXTENSION ) ) { continue; }
 
