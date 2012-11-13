@@ -1,0 +1,7 @@
+You will need premake to build this.
+
+premake4 gmake
+make
+
+The parser isn't finished yet.
+
