@@ -123,8 +123,6 @@ typedef struct token_t
     double flt;
     size_t integer;
   };
-
-  struct token_t* next;
 } token_t;
 
 lexer_t* lexer_open( const char* file );

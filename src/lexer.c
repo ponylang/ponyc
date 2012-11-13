@@ -245,11 +245,9 @@ static bool appendn( lexer_t* lexer, size_t len )
 
 static token_t* token_new( lexer_t* lexer )
 {
-  token_t* t = malloc( sizeof(token_t) );
+  token_t* t = calloc( 1, sizeof(token_t) );
   t->line = lexer->line;
   t->pos = lexer->pos;
-  t->string = NULL;
-  t->next = NULL;
 
   return t;
 }
