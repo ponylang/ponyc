@@ -429,6 +429,7 @@ static ast_t* doloop( parser_t* parser )
 
   expect( parser, TK_DO, ast, -1 );
   rule( parser, block, ast, 1 );
+  expect( parser, TK_WHILE, ast, -1 );
   rule( parser, expr, ast, 0 );
 
   return ast;
