@@ -1,7 +1,9 @@
 You will need premake to build this.
 
-premake4 gmake
-make
+http://industriousone.com/premake/download
 
-The parser isn't finished yet.
+This will build ponyc and run it against the files in the test directory:
 
+$ premake4 gmake
+$ make
+$ ./ponyc test/
