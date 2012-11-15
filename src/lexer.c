@@ -449,6 +449,7 @@ static token_t* lexer_float( lexer_t* lexer, token_t* t, size_t v )
     }
   }
 
+  // FIX: error if places == 0 or exp && e == 0?
   t->id = TK_FLOAT;
   t->flt = d / (places * 10);
 
@@ -587,33 +588,50 @@ static token_t* lexer_symbol( lexer_t* lexer )
 
 lexer_t* lexer_open( const char* file )
 {
-  FILE* fp = fopen( file, "rt" );
-  if( fp == NULL ) { return NULL; }
+  lexer_t* lexer = calloc( 1, sizeof(lexer_t) );
+  lexer->line = 1;
+  lexer->errors = errorlist_new();
 
-  if( fseek( fp, 0, SEEK_END ) != 0 )
+  FILE* fp = fopen( file, "rt" );
+
+  if( fp == NULL )
   {
-    fclose( fp );
-    return NULL;
+    error_new( lexer->errors, 0, 0, "Couldn't open %s", file );
+    return lexer;
   }
 
-  size_t flen = ftell( fp );
-  fseek( fp, 0, SEEK_SET );
-  char* m = malloc( flen );
-  size_t r = fread( m, flen, 1, fp );
+  if( fseeko( fp, 0, SEEK_END ) != 0 )
+  {
+    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
+    fclose( fp );
+    return lexer;
+  }
+
+  lexer->len = ftello( fp );
+
+  if( lexer->len == -1 )
+  {
+    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
+    fclose( fp );
+    return lexer;
+  }
+
+  if( fseeko( fp, 0, SEEK_SET ) != 0 )
+  {
+    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
+    fclose( fp );
+    return lexer;
+  }
+
+  lexer->m = malloc( lexer->len );
+  size_t r = fread( lexer->m, lexer->len, 1, fp );
   fclose( fp );
 
   if( r != 1 )
   {
-    printf( "fread %ld %ld\n", flen, r );
-    free( m );
-    return NULL;
+    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
+    return lexer;
   }
-
-  lexer_t* lexer = calloc( 1, sizeof(lexer_t) );
-  lexer->m = m;
-  lexer->len = flen;
-  lexer->line = 1;
-  lexer->errors = errorlist_new();
 
   return lexer;
 }

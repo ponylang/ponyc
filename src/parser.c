@@ -1,17 +1,7 @@
 #include "parser.h"
-#include "lexer.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
-
-#define AST_SLOTS 7
-
-struct ast_t
-{
-  token_id id;
-  struct ast_t* sibling;
-  void* child[AST_SLOTS];
-};
 
 struct parser_t
 {
@@ -36,6 +26,29 @@ static ast_t* ast_new( token_id id )
   return ast;
 }
 
+static void ast_free( ast_t* ast )
+{
+  if( ast == NULL ) { return; }
+
+  switch( ast->id )
+  {
+  case TK_STRING:
+  case TK_ID:
+  case TK_TYPEID:
+    if( ast->string != NULL ) { free( ast->string ); }
+    break;
+
+  default: {}
+  }
+
+  for( int i = 0; i < AST_SLOTS; i++ )
+  {
+    ast_free( ast->child[i] );
+  }
+
+  ast_free( ast->sibling );
+}
+
 static token_id current( parser_t* parser )
 {
   return parser->t->id;
@@ -48,11 +61,31 @@ static bool accept( parser_t* parser, token_id id, ast_t* ast, int slot )
   if( (ast != NULL) && (slot >= 0) )
   {
     assert( slot < AST_SLOTS );
-    ast->child[slot] = parser->t;
-  } else {
-    token_free( parser->t );
+    ast_t* child = ast_new( parser->t->id );
+    ast->child[slot] = child;
+
+    switch( parser->t->id )
+    {
+    case TK_INT:
+      child->integer = parser->t->integer;
+      break;
+
+    case TK_FLOAT:
+      child->flt = parser->t->flt;
+      break;
+
+    case TK_STRING:
+    case TK_ID:
+    case TK_TYPEID:
+      child->string = parser->t->string;
+      parser->t->string = NULL;
+      break;
+
+    default: {}
+    }
   }
 
+  token_free( parser->t );
   parser->t = lexer_next( parser->lexer );
   return true;
 }
@@ -68,6 +101,7 @@ static void rule( parser_t* parser, rule_t f, ast_t* ast, int slot )
 {
   assert( ast != NULL );
   assert( slot >= 0 );
+  assert( slot < AST_SLOTS );
 
   ast_t* child = f( parser );
   ast->child[slot] = child;
@@ -75,6 +109,10 @@ static void rule( parser_t* parser, rule_t f, ast_t* ast, int slot )
 
 static void rulelist( parser_t* parser, rule_t f, token_id sep, ast_t* ast, int slot )
 {
+  assert( ast != NULL );
+  assert( slot >= 0 );
+  assert( slot < AST_SLOTS );
+
   ast_t* last = NULL;
 
   while( true )
@@ -111,6 +149,10 @@ static ast_t* rulealt( parser_t* parser, const alt_t* alt )
 
 static void rulealtlist( parser_t* parser, const alt_t* alt, ast_t* ast, int slot )
 {
+  assert( ast != NULL );
+  assert( slot >= 0 );
+  assert( slot < AST_SLOTS );
+
   ast_t* last = NULL;
 
   while( true )
@@ -131,29 +173,24 @@ static void rulealtlist( parser_t* parser, const alt_t* alt, ast_t* ast, int slo
 
 static ast_t* tokenrule( parser_t* parser )
 {
-  assert( parser->t != NULL );
   ast_t* ast = ast_new( current( parser ) );
-  expect( parser, current( parser ), ast, -1 );
+  expect( parser, current( parser ), ast, 0 );
   return ast;
 }
 
 static ast_t* annotation( parser_t* parser )
 {
   // (BANG | UNIQ | READONLY | RECEIVER)?
-  ast_t* ast = ast_new( TK_ANNOTATION );
-
-  if( !accept( parser, TK_BANG, ast, 0 ) )
+  static const alt_t alt[] =
   {
-    if( !accept( parser, TK_UNIQ, ast, 0 ) )
-    {
-      if( !accept( parser, TK_READONLY, ast, 0 ) )
-      {
-        accept( parser, TK_RECEIVER, ast, 0 );
-      }
-    }
-  }
+    { TK_BANG, tokenrule },
+    { TK_UNIQ, tokenrule },
+    { TK_READONLY, tokenrule },
+    { TK_RECEIVER, tokenrule },
+    { 0, NULL }
+  };
 
-  return ast;
+  return rulealt( parser, alt );
 }
 
 // forward declarations
@@ -192,7 +229,7 @@ static ast_t* atom( parser_t* parser )
 
 static ast_t* command( parser_t* parser )
 {
-  // (LPAREN expr RPAREN | LBRACKET expr (COMMA expr)* RBRACKET | atom) ((CALL ID)? args)*
+  // (LPAREN expr RPAREN | LBRACKET arg (COMMA arg)* RBRACKET | atom) ((CALL ID)? args)*
   ast_t* ast;
 
   if( accept( parser, TK_LPAREN, NULL, -1 ) )
@@ -554,8 +591,8 @@ static ast_t* assignment( parser_t* parser )
 
 static ast_t* block( parser_t* parser )
 {
-  // LBRACE (block | conditional | forloop | whileloop | doloop | match | catchblock | assignment
-  // | RETURN | BREAK | CONTINUE | THROW)* always? RBRACE
+  // LBRACE (block | conditional | forloop | whileloop | doloop | match | assignment
+  // | RETURN | BREAK | CONTINUE | THROW)* catchblock? always? RBRACE
   static const alt_t alt[] =
   {
     { TK_LBRACE, block },
@@ -564,7 +601,6 @@ static ast_t* block( parser_t* parser )
     { TK_WHILE, whileloop },
     { TK_DO, doloop },
     { TK_MATCH, match },
-    { TK_CATCH, catchblock },
     { TK_RETURN, tokenrule },
     { TK_BREAK, tokenrule },
     { TK_CONTINUE, tokenrule },
@@ -587,9 +623,14 @@ static ast_t* block( parser_t* parser )
   expect( parser, TK_LBRACE, ast, -1 );
   rulealtlist( parser, alt, ast, 0 );
 
+  if( current( parser ) == TK_CATCH )
+  {
+    rule( parser, catchblock, ast, 1 );
+  }
+
   if( current( parser ) == TK_ALWAYS )
   {
-    rule( parser, always, ast, 1 );
+    rule( parser, always, ast, 2 );
   }
 
   expect( parser, TK_RBRACE, ast, -1 );
@@ -807,7 +848,7 @@ static ast_t* message( parser_t* parser )
 
   if( current( parser ) == TK_LBRACE )
   {
-    rule( parser, block, ast, 5 );
+    rule( parser, block, ast, 3 );
   }
 
   return ast;
@@ -1011,6 +1052,11 @@ parser_t* parser_open( const char* file )
   return parser;
 }
 
+ast_t* parser_ast( parser_t* parser )
+{
+  return parser->ast;
+}
+
 errorlist_t* parser_errors( parser_t* parser )
 {
   return parser->errors;
@@ -1019,6 +1065,7 @@ errorlist_t* parser_errors( parser_t* parser )
 void parser_close( parser_t* parser )
 {
   if( parser == NULL ) { return; }
+  ast_free( parser->ast );
   errorlist_free( parser->errors );
   free( parser );
 }

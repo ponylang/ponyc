@@ -31,7 +31,14 @@ bool do_file( const char* file )
       printf( "[%ld:%ld] %s\n", e->line, e->pos, e->msg );
       e = e->next;
     }
+
+    parser_close( parser );
+    return false;
   }
+
+  ast_t* ast = parser_ast( parser );
+  // FIX: do something with the ast
+  ast = NULL;
 
   parser_close( parser );
   return true;
