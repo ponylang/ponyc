@@ -11,6 +11,7 @@ solution "ponyc"
       }
 
     buildoptions { "-std=gnu99" }
+    links( "m" )
 
     configuration "Debug"
       flags { "Symbols" }
