@@ -244,7 +244,7 @@ static token_t* token_new( lexer_t* lexer )
   return t;
 }
 
-static void lexer_newline( lexer_t* lexer )
+static void newline( lexer_t* lexer )
 {
   lexer->line++;
   lexer->pos = 0;
@@ -277,7 +277,7 @@ static void nested_comment( lexer_t* lexer )
         depth++;
       }
     } else if( look( lexer ) == '\n' ) {
-      lexer_newline( lexer );
+      newline( lexer );
     }
 
     adv( lexer, 1 );
@@ -292,7 +292,7 @@ static void line_comment( lexer_t* lexer )
   }
 }
 
-static token_t* lexer_slash( lexer_t* lexer )
+static token_t* slash( lexer_t* lexer )
 {
   adv( lexer, 1 );
 
@@ -316,7 +316,7 @@ static token_t* lexer_slash( lexer_t* lexer )
   return t;
 }
 
-static token_t* lexer_string( lexer_t* lexer )
+static token_t* string( lexer_t* lexer )
 {
   adv( lexer, 1 );
   assert( lexer->buflen == 0 );
@@ -411,92 +411,267 @@ static token_t* lexer_string( lexer_t* lexer )
   return NULL;
 }
 
-static token_t* lexer_float( lexer_t* lexer, token_t* t, size_t v )
+static token_t* real( lexer_t* lexer, size_t v )
 {
   double d = v;
-  size_t places = 0;
-  bool exp = false;
-  bool expneg = false;
+  size_t digits = -1;
   int e = 0;
+  bool error = false;
+  char c;
 
-  if( !isdigit( look( lexer ) ) ) { return t; }
+  if( look( lexer ) == '.' )
+  {
+    adv( lexer, 1 );
+    digits = 0;
+  }
 
   while( lexer->len > 0 )
   {
-    char c = look( lexer );
+    c = look( lexer );
 
-    if( isdigit( c ) )
+    if( (c >= '0') && (c <= '9') )
     {
-      adv( lexer, 1 );
-
-      if( exp )
+      d = (d * 10) + (c - '0');
+      digits++;
+      e--;
+    } else if( (c == 'e') || (c == 'E') ) {
+      break;
+    } else if( c == '_' ) {
+      // skip
+    } else if( isalpha( c ) ) {
+      if( !error )
       {
-        e = (e * 10) + (c - '0');
-      } else {
-        d = (d * 10) + (c - '0');
-        places++;
+        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in real number: %c", c );
+        error = true;
       }
-    } else if( !exp && ((c == 'e') || (c == 'E')) ) {
-      adv( lexer, 1 );
-      exp = true;
-    } else if( exp && (e == 0) && (c == '+') ) {
-      adv( lexer, 1 );
-    } else if( exp && (e == 0) && (c == '-') ) {
-      adv( lexer, 1 );
-      expneg = true;
     } else {
       break;
     }
+
+    adv( lexer, 1 );
   }
 
-  // FIX: error if places == 0 or exp && e == 0?
-  t->id = TK_FLOAT;
-  t->flt = d / (places * 10);
-
-  if( exp )
+  if( digits == 0 )
   {
-    if( expneg ) { e = -e; }
-    t->flt *= pow( 10.0f, e );
+    error_new( lexer->errors, lexer->line, lexer->pos, "Real number has no digits following '.'" );
+    error = true;
   }
 
+  if( (lexer->len > 0) && ((look( lexer ) == 'e') || (look( lexer ) == 'E')) )
+  {
+    adv( lexer, 1 );
+    digits = 0;
+
+    if( lexer->len == 0 )
+    {
+      error_new( lexer->errors, lexer->line, lexer->pos, "Real number doesn't terminate" );
+      return NULL;
+    }
+
+    c = look( lexer );
+    bool neg = false;
+    int n = 0;
+
+    if( (c == '+') || (c == '-') )
+    {
+      adv( lexer, 1 );
+      neg = (c == '-');
+
+      if( lexer->len == 0 )
+      {
+        error_new( lexer->errors, lexer->line, lexer->pos, "Real number doesn't terminate" );
+        return NULL;
+      }
+    }
+
+    while( lexer->len > 0 )
+    {
+      c = look( lexer );
+
+      if( (c >= '0') && (c <= '9') )
+      {
+        n = (n * 10) + (c - '0');
+        digits++;
+      } else if( c == '_' ) {
+        // skip
+      } else if( isalpha( c ) ) {
+        if( !error )
+        {
+          error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in exponent: %c", c );
+          error = true;
+        }
+      } else {
+        break;
+      }
+
+      adv( lexer, 1 );
+    }
+
+    if( neg )
+    {
+      e -= n;
+    } else {
+      e += n;
+    }
+
+    if( digits == 0 )
+    {
+      error_new( lexer->errors, lexer->line, lexer->pos, "Exponent has no digits" );
+      error = true;
+    }
+  }
+
+  if( error ) { return NULL; }
+
+  token_t* t = token_new( lexer );
+  t->id = TK_FLOAT;
+  t->flt = d * pow( 10.0, e );
   return t;
 }
 
-static token_t* lexer_number( lexer_t* lexer )
+static token_t* hexadecimal( lexer_t* lexer )
 {
-  token_t* t = token_new( lexer );
-  t->id = TK_INT;
   size_t v = 0;
+  bool error = false;
+  char c;
 
   while( lexer->len > 0 )
   {
-    char c = look( lexer );
+    c = look( lexer );
 
-    if( isdigit( c ) )
+    if( (c >= '0') && (c <= '9') )
     {
-      v = (v * 10) + (c - '0');
-      adv( lexer, 1 );
-    } else if( c == '.' ) {
-      adv( lexer, 1 );
-      return lexer_float( lexer, t, v );
+      v = (v * 16) + (c - '0');
+    } else if( (c >= 'a') && (c <= 'z') ) {
+      v = (v * 16) + (c - 'a');
+    } else if( (c >= 'A') && (c <= 'Z') ) {
+      v = (v * 16) + (c - 'A');
+    } else if( c == '_' ) {
+      // skip
+    } else if( isalpha( c ) ) {
+      if( !error )
+      {
+        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in hexadecimal number: %c", c );
+        error = true;
+      }
     } else {
       break;
     }
+
+    adv( lexer, 1 );
   }
 
+  if( error ) { return NULL; }
+
+  token_t* t = token_new( lexer );
+  t->id = TK_INT;
   t->integer = v;
   return t;
 }
 
-static token_t* lexer_id( lexer_t* lexer )
+static token_t* decimal( lexer_t* lexer )
 {
-  token_t* t = token_new( lexer );
-  t->id = TK_ID;
-  assert( lexer->buflen == 0 );
+  size_t v = 0;
+  bool error = false;
+  char c;
 
   while( lexer->len > 0 )
   {
-    char c = look( lexer );
+    c = look( lexer );
+
+    if( (c >= '0') && (c <= '9') )
+    {
+      v = (v * 10) + (c - '0');
+    } else if( (c == '.') || (c == 'e') || (c == 'E') ) {
+      return real( lexer, v );
+    } else if( c == '_' ) {
+      // skip
+    } else if( isalnum( c ) ) {
+      if( !error )
+      {
+        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in decimal number: %c", c );
+        error = true;
+      }
+    } else {
+      break;
+    }
+
+    adv( lexer, 1 );
+  }
+
+  if( error ) { return NULL; }
+
+  token_t* t = token_new( lexer );
+  t->id = TK_INT;
+  t->integer = v;
+  return t;
+}
+
+static token_t* binary( lexer_t* lexer )
+{
+  size_t v = 0;
+  bool error = false;
+  char c;
+
+  while( lexer->len > 0 )
+  {
+    c = look( lexer );
+
+    if( (c >= '0') && (c <= '1') )
+    {
+      v = (v * 2) + (c - '0');
+    } else if( c == '_' ) {
+      // skip
+    } else if( isalnum( c ) ) {
+      if( !error )
+      {
+        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in binary number: %c", c );
+        error = true;
+      }
+    } else {
+      break;
+    }
+
+    adv( lexer, 1 );
+  }
+
+  if( error ) { return NULL; }
+
+  token_t* t = token_new( lexer );
+  t->id = TK_INT;
+  t->integer = v;
+  return t;
+}
+
+static token_t* number( lexer_t* lexer )
+{
+  if( look( lexer ) == '0' )
+  {
+    adv( lexer, 1 );
+
+    if( lexer->len > 0 )
+    {
+      char c = look( lexer );
+
+      switch( c )
+      {
+      case 'x': return hexadecimal( lexer );
+      case 'b': return binary( lexer );
+      default: return decimal( lexer );
+      }
+    }
+  }
+
+  return decimal( lexer );
+}
+
+static void read_id( lexer_t* lexer )
+{
+  char c;
+
+  while( lexer->len > 0 )
+  {
+    c = look( lexer );
 
     if( (c == '_') || isalnum( c ) )
     {
@@ -506,7 +681,13 @@ static token_t* lexer_id( lexer_t* lexer )
       break;
     }
   }
+}
 
+static token_t* identifier( lexer_t* lexer )
+{
+  token_t* t = token_new( lexer );
+
+  read_id( lexer );
   append( lexer, '\0' );
 
   for( const symbol_t* p = keywords; p->symbol != NULL; p++ )
@@ -519,33 +700,23 @@ static token_t* lexer_id( lexer_t* lexer )
     }
   }
 
+  t->id = TK_ID;
   t->string = copy( lexer );
   return t;
 }
 
-static token_t* lexer_typeid( lexer_t* lexer )
+static token_t* typeid( lexer_t* lexer )
 {
+  read_id( lexer );
+
   token_t* t = token_new( lexer );
   t->id = TK_TYPEID;
-
-  while( lexer->len > 0 )
-  {
-    char c = look( lexer );
-
-    if( isalnum( c ) )
-    {
-      append( lexer, c );
-      adv( lexer, 1 );
-    } else {
-      break;
-    }
-  }
-
   t->string = copy( lexer );
+
   return t;
 }
 
-static token_t* lexer_symbol( lexer_t* lexer )
+static token_t* symbol( lexer_t* lexer )
 {
   token_t* t;
   char sym[2];
@@ -657,7 +828,7 @@ token_t* lexer_next( lexer_t* lexer )
     switch( c )
     {
     case '\n':
-      lexer_newline( lexer );
+      newline( lexer );
       adv( lexer, 1 );
       break;
 
@@ -668,23 +839,23 @@ token_t* lexer_next( lexer_t* lexer )
       break;
 
     case '/':
-      t = lexer_slash( lexer );
+      t = slash( lexer );
       break;
 
     case '\"':
-      t = lexer_string( lexer );
+      t = string( lexer );
       break;
 
     default:
       if( isdigit( c ) )
       {
-        t = lexer_number( lexer );
+        t = number( lexer );
       } else if( islower( c ) || (c == '_') ) {
-        t = lexer_id( lexer );
+        t = identifier( lexer );
       } else if( isupper( c ) ) {
-        t = lexer_typeid( lexer );
+        t = typeid( lexer );
       } else if( issymbol( c ) ) {
-        t = lexer_symbol( lexer );
+        t = symbol( lexer );
       } else {
         error_new( lexer->errors, lexer->line, lexer->pos, "Unrecognized character: %c", c );
         adv( lexer, 1 );

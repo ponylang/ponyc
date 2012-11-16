@@ -5,7 +5,7 @@ trait Cloneable[T]
     for name, value in mirror.fields()
     {
       // FIX: can't do this!
-      this.name =
+//      this.name =
     }
   }
 

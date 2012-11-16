@@ -2,8 +2,8 @@ trait Pattern[T]
 {
   // var _fields:Map[String, Any]
 
-  new( a = Undefined, b = Undefined, ... )
-  new all( a = \A, b = \B, ... )
+  new( /* a = Undefined, b = Undefined, ... */ )
+  new all( /* a = \A, b = \B, ... */ )
 
   function# typename()->( r:String )
   /*

@@ -119,7 +119,7 @@ object Aardvark[F:Food, D:Drink] is Animal
     var q = "q"
     var c = None
     var m:Wombat|Devil, var s = Wombat.make( "bob" ), 99.0e12
-    var a, var b = (10).string(), (11.1).string()
+    var a, var b = (10).string(), (11.1e-10).string()
 
     /* this is a /* nested */ comment */
     // this is a line comment
