@@ -8,16 +8,9 @@
 
 typedef struct ast_t
 {
-  token_id id;
+  token_t* t;
   struct ast_t* sibling;
   struct ast_t* child[AST_SLOTS];
-
-  union
-  {
-    char* string;
-    double flt;
-    size_t integer;
-  };
 } ast_t;
 
 typedef struct parser_t parser_t;
