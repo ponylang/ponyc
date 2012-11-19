@@ -92,6 +92,7 @@ trait Stringable[T]
     {
       match value
       {
+        case as v:T { r.setfield( name, this ) }
         case as v:Stringable { r.setfield( name, v.string_pattern() ) }
         case { r.setfield( name, Undefined ) }
       }

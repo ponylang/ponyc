@@ -3,40 +3,46 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <assert.h>
 
 #define SYMTAB_SIZE (1 << 5)
 #define SYMTAB_MASK (SYMTAB_SIZE - 1)
 
-typedef struct symbol_t
+typedef struct symbol_t symbol_t;
+typedef struct symtab_t symtab_t;
+
+struct symbol_t
 {
   char* name;
-  struct symbol_t* next;
-} symbol_t;
+  token_id id;
+  symtab_t* st;
 
-typedef struct symtab_t
+  symbol_t* next;
+};
+
+struct symtab_t
 {
   symbol_t* symbols[SYMTAB_SIZE];
-  struct symtab_t* parent;
-} symtab_t;
+  symtab_t* parent;
+};
 
-static symbol_t* symbol_new( char* name )
+// forward declarations
+static void symtab_free( symtab_t* st );
+
+static symbol_t* symbol_new( char* name, token_id id )
 {
   symbol_t* sym = calloc( 1, sizeof(symbol_t) );
   sym->name = strdup( name );
+  sym->id = id;
+
   return sym;
 }
 
 static void symbol_free( symbol_t* sym )
 {
-  symbol_t* next;
-
-  while( sym != NULL )
-  {
-    next = sym->next;
-    if( sym->name != NULL ) { free( sym->name ); }
-    free( sym );
-    sym = next;
-  }
+  if( sym->name != NULL ) { free( sym->name ); }
+  symtab_free( sym->st );
+  free( sym );
 }
 
 static symtab_t* symtab_new( symtab_t* parent )
@@ -52,11 +58,19 @@ static void symtab_free( symtab_t* st )
 
   for( int i = 0; i < SYMTAB_SIZE; i++ )
   {
-    symbol_free( st->symbols[i] );
+    symbol_t* sym = st->symbols[i];
+    symbol_t* next;
+
+    while( sym != NULL )
+    {
+      next = sym->next;
+      symbol_free( sym );
+      sym = next;
+    }
   }
 }
 
-static bool addsym( errorlist_t* e, symtab_t* st, ast_t* ast, char* name )
+static symbol_t* addsym( errorlist_t* e, symtab_t* st, ast_t* ast, char* name, token_id id )
 {
   uint64_t h = strhash( name ) & SYMTAB_MASK;
   symtab_t* stp = st;
@@ -71,7 +85,7 @@ static bool addsym( errorlist_t* e, symtab_t* st, ast_t* ast, char* name )
       if( !strcmp( sym->name, name ) )
       {
         error_new( e, ast->t->line, ast->t->pos, "Symbol %s was defined previously", name );
-        return false;
+        return NULL;
       }
 
       sym = sym->next;
@@ -80,31 +94,38 @@ static bool addsym( errorlist_t* e, symtab_t* st, ast_t* ast, char* name )
     stp = stp->parent;
   }
 
-  sym = symbol_new( name );
+  sym = symbol_new( name, id );
   sym->next = st->symbols[h];
   st->symbols[h] = sym;
 
-  return true;
+  return sym;
 }
 
 static void type( errorlist_t* e, symtab_t* st, ast_t* ast )
 {
-  addsym( e, st, ast, ast->child[0]->t->string );
+  symbol_t* sym = addsym( e, st, ast, ast->child[0]->t->string, TK_TYPE );
+  if( sym == NULL ) { return; }
 }
 
 static void trait( errorlist_t* e, symtab_t* st, ast_t* ast )
 {
-  addsym( e, st, ast, ast->child[0]->t->string );
+  symbol_t* sym = addsym( e, st, ast, ast->child[0]->t->string, TK_TRAIT );
+  if( sym == NULL ) { return; }
 }
 
 static void object( errorlist_t* e, symtab_t* st, ast_t* ast )
 {
-  addsym( e, st, ast, ast->child[0]->t->string );
+  // TYPEID formalargs is typebody
+  symbol_t* sym = addsym( e, st, ast, ast->child[0]->t->string, TK_OBJECT );
+  if( sym == NULL ) { return; }
+
+  sym->st = symtab_new( st );
 }
 
 static void actor( errorlist_t* e, symtab_t* st, ast_t* ast )
 {
-  addsym( e, st, ast, ast->child[0]->t->string );
+  symbol_t* sym = addsym( e, st, ast, ast->child[0]->t->string, TK_ACTOR );
+  if( sym == NULL ) { return; }
 }
 
 static void module( errorlist_t* e, symtab_t* st, ast_t* ast )
@@ -126,7 +147,7 @@ static void module( errorlist_t* e, symtab_t* st, ast_t* ast )
     case TK_OBJECT: object( e, st, ast); break;
     case TK_ACTOR: actor( e, st, ast ); break;
 
-    default: assert( 0 );
+    default: abort();
     }
 
     ast = ast->sibling;
@@ -138,7 +159,7 @@ errorlist_t* typecheck( ast_t* ast )
   errorlist_t* e = errorlist_new();
   symtab_t* st = symtab_new( NULL );
 
-  assert( ast->t->id == TK_MODULE );
+  if( ast->t->id != TK_MODULE ) { abort(); }
   module( e, st, ast );
 
   symtab_free( st );
