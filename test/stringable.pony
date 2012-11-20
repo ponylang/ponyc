@@ -4,6 +4,7 @@ trait StringBuffer
   function appendn( a:String, n:U32 )
 }
 
+// FIX: should traits always be able to reference their concrete type?
 trait Stringable[T]
 {
   function string(

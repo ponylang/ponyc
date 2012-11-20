@@ -1,17 +1,8 @@
 trait Cloneable[T]
 {
-  new clone( mirror:\T, pattern:\T )
-  {
-    for name, value in mirror.fields()
-    {
-      // FIX: can't do this!
-//      this.name =
-    }
-  }
-
   function# clone( pattern = clone_pattern() )->( r:T )
   {
-    r = clone( reflect( pattern ), pattern )
+    r = pattern.clone( this )
   }
 
   function# clone_pattern()->( r:\T )
