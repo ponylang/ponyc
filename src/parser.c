@@ -19,27 +19,46 @@ typedef struct alt_t
   rule_t f;
 } alt_t;
 
-static ast_t* ast_new( token_id id )
+static token_id current( parser_t* parser )
+{
+  return parser->t->id;
+}
+
+static ast_t* ast_new( parser_t* parser, token_id id )
 {
   ast_t* ast = calloc( 1, sizeof(ast_t) );
-  ast->id = id;
+  ast->t = calloc( 1, sizeof(token_t) );
+  ast->t->id = id;
+  ast->t->line = parser->t->line;
+  ast->t->pos = parser->t->pos;
+
   return ast;
+}
+
+static ast_t* ast_token( parser_t* parser )
+{
+  ast_t* ast = calloc( 1, sizeof(ast_t) );
+  ast->t = parser->t;
+  parser->t = lexer_next( parser->lexer );
+
+  return ast;
+}
+
+static ast_t* ast_expect( parser_t* parser, token_id id )
+{
+  if( current( parser ) == id )
+  {
+    return ast_token( parser );
+  }
+
+  error_new( parser->errors, parser->t->line, parser->t->pos, "Expected %d, got %d", id, current( parser ) );
+  return NULL;
 }
 
 static void ast_free( ast_t* ast )
 {
   if( ast == NULL ) { return; }
-
-  switch( ast->id )
-  {
-  case TK_STRING:
-  case TK_ID:
-  case TK_TYPEID:
-    if( ast->string != NULL ) { free( ast->string ); }
-    break;
-
-  default: {}
-  }
+  if( ast->t != NULL ) { token_free( ast->t ); }
 
   for( int i = 0; i < AST_SLOTS; i++ )
   {
@@ -49,11 +68,6 @@ static void ast_free( ast_t* ast )
   ast_free( ast->sibling );
 }
 
-static token_id current( parser_t* parser )
-{
-  return parser->t->id;
-}
-
 static bool accept( parser_t* parser, token_id id, ast_t* ast, int slot )
 {
   if( current( parser ) != id ) { return false; }
@@ -61,32 +75,13 @@ static bool accept( parser_t* parser, token_id id, ast_t* ast, int slot )
   if( (ast != NULL) && (slot >= 0) )
   {
     assert( slot < AST_SLOTS );
-    ast_t* child = ast_new( parser->t->id );
+    ast_t* child = ast_token( parser );
     ast->child[slot] = child;
-
-    switch( parser->t->id )
-    {
-    case TK_INT:
-      child->integer = parser->t->integer;
-      break;
-
-    case TK_FLOAT:
-      child->flt = parser->t->flt;
-      break;
-
-    case TK_STRING:
-    case TK_ID:
-    case TK_TYPEID:
-      child->string = parser->t->string;
-      parser->t->string = NULL;
-      break;
-
-    default: {}
-    }
+  } else {
+    token_free( parser->t );
+    parser->t = lexer_next( parser->lexer );
   }
 
-  token_free( parser->t );
-  parser->t = lexer_next( parser->lexer );
   return true;
 }
 
@@ -171,22 +166,15 @@ static void rulealtlist( parser_t* parser, const alt_t* alt, ast_t* ast, int slo
   }
 }
 
-static ast_t* tokenrule( parser_t* parser )
-{
-  ast_t* ast = ast_new( current( parser ) );
-  expect( parser, current( parser ), ast, 0 );
-  return ast;
-}
-
 static ast_t* annotation( parser_t* parser )
 {
   // (BANG | UNIQ | READONLY | RECEIVER)?
   static const alt_t alt[] =
   {
-    { TK_BANG, tokenrule },
-    { TK_UNIQ, tokenrule },
-    { TK_READONLY, tokenrule },
-    { TK_RECEIVER, tokenrule },
+    { TK_BANG, ast_token },
+    { TK_UNIQ, ast_token },
+    { TK_READONLY, ast_token },
+    { TK_RECEIVER, ast_token },
     { 0, NULL }
   };
 
@@ -206,13 +194,13 @@ static ast_t* atom( parser_t* parser )
   // THIS | TRUE | FALSE | INT | STRING | ID | typeclass
   static const alt_t alt[] =
   {
-    { TK_THIS, tokenrule },
-    { TK_TRUE, tokenrule },
-    { TK_FALSE, tokenrule },
-    { TK_INT, tokenrule },
-    { TK_FLOAT, tokenrule },
-    { TK_STRING, tokenrule },
-    { TK_ID, tokenrule },
+    { TK_THIS, ast_token },
+    { TK_TRUE, ast_token },
+    { TK_FALSE, ast_token },
+    { TK_INT, ast_token },
+    { TK_FLOAT, ast_token },
+    { TK_STRING, ast_token },
+    { TK_ID, ast_token },
     { TK_TYPEID, typeclass },
     { 0, NULL }
   };
@@ -236,8 +224,9 @@ static ast_t* command( parser_t* parser )
   {
     ast = expr( parser );
     expect( parser, TK_RPAREN, NULL, -1 );
-  } else if( accept( parser, TK_LBRACKET, NULL, -1 ) ) {
-    ast = ast_new( TK_LIST );
+  } else if( current( parser ) == TK_LBRACKET ) {
+    ast = ast_token( parser );
+    ast->t->id = TK_LIST;
     rulelist( parser, arg, TK_COMMA, ast, 0 );
     expect( parser, TK_RBRACKET, ast, -1 );
   } else {
@@ -252,11 +241,10 @@ static ast_t* command( parser_t* parser )
       {
       case TK_CALL:
         {
-          ast_t* a = ast_new( TK_CALL );
+          ast_t* a = ast_token( parser );
           a->child[0] = ast;
           ast = a;
 
-          expect( parser, TK_CALL, ast, -1 );
           expect( parser, TK_ID, ast, 1 );
           rule( parser, args, ast, 2 );
         }
@@ -264,7 +252,7 @@ static ast_t* command( parser_t* parser )
 
       case TK_LPAREN:
         {
-          ast_t* a = ast_new( TK_CALL );
+          ast_t* a = ast_new( parser, TK_CALL );
           a->child[0] = ast;
           ast = a;
 
@@ -283,8 +271,7 @@ static ast_t* command( parser_t* parser )
 
 static ast_t* unop( parser_t* parser )
 {
-  ast_t* ast = ast_new( current( parser ) );
-  expect( parser, current( parser ), ast, -1 );
+  ast_t* ast = ast_token( parser );
   rule( parser, unary, ast, 0 );
   return ast;
 }
@@ -346,11 +333,10 @@ static ast_t* expr( parser_t* parser )
       case TK_AND:
       case TK_XOR:
         {
-          ast_t* binop = ast_new( current( parser ) );
+          ast_t* binop = ast_token( parser );
           binop->child[0] = ast;
           ast = binop;
 
-          expect( parser, current( parser ), ast, -1 );
           rule( parser, unary, ast, 1 );
         }
         break;
@@ -371,7 +357,7 @@ static ast_t* oftype( parser_t* parser );
 static ast_t* arg( parser_t* parser )
 {
   // expr oftype (ASSIGN expr)?
-  ast_t* ast = ast_new( TK_ARG );
+  ast_t* ast = ast_new( parser, TK_ARG );
 
   rule( parser, expr, ast, 0 );
   rule( parser, oftype, ast, 1 );
@@ -387,8 +373,7 @@ static ast_t* arg( parser_t* parser )
 static ast_t* args( parser_t* parser )
 {
   // LPAREN (arg (COMMA arg)*)? RPAREN
-  ast_t* ast = ast_new( TK_ARGS );
-
+  ast_t* ast = ast_new( parser, TK_ARGS );
   expect( parser, TK_LPAREN, ast, -1 );
 
   if( !accept( parser, TK_RPAREN, ast, -1 ) )
@@ -403,9 +388,8 @@ static ast_t* args( parser_t* parser )
 static ast_t* conditional( parser_t* parser )
 {
   // IF expr block (ELSE (conditional | block))?
-  ast_t* ast = ast_new( TK_IF );
+  ast_t* ast = ast_expect( parser, TK_IF );
 
-  expect( parser, TK_IF, ast, -1 );
   rule( parser, expr, ast, 0 );
   rule( parser, block, ast, 1 );
 
@@ -425,7 +409,7 @@ static ast_t* conditional( parser_t* parser )
 static ast_t* forvar( parser_t* parser )
 {
   // ID oftype
-  ast_t* ast = ast_new( TK_VAR );
+  ast_t* ast = ast_new( parser, TK_VAR );
 
   expect( parser, TK_ID, ast, 0 );
   rule( parser, oftype, ast, 1 );
@@ -436,9 +420,8 @@ static ast_t* forvar( parser_t* parser )
 static ast_t* forloop( parser_t* parser )
 {
   // FOR forvar (COMMA forvar)* IN expr block
-  ast_t* ast = ast_new( TK_FOR );
+  ast_t* ast = ast_expect( parser, TK_FOR );
 
-  expect( parser, TK_FOR, ast, -1 );
   rulelist( parser, forvar, TK_COMMA, ast, 0 );
   expect( parser, TK_IN, ast, -1 );
   rule( parser, expr, ast, 1 );
@@ -450,9 +433,8 @@ static ast_t* forloop( parser_t* parser )
 static ast_t* whileloop( parser_t* parser )
 {
   // WHILE expr block
-  ast_t* ast = ast_new( TK_WHILE );
+  ast_t* ast = ast_expect( parser, TK_WHILE );
 
-  expect( parser, TK_WHILE, ast, -1 );
   rule( parser, expr, ast, 0 );
   rule( parser, block, ast, 1 );
 
@@ -462,9 +444,8 @@ static ast_t* whileloop( parser_t* parser )
 static ast_t* doloop( parser_t* parser )
 {
   // DO block WHILE expr
-  ast_t* ast = ast_new( TK_DO );
+  ast_t* ast = ast_expect( parser, TK_DO );
 
-  expect( parser, TK_DO, ast, -1 );
   rule( parser, block, ast, 1 );
   expect( parser, TK_WHILE, ast, -1 );
   rule( parser, expr, ast, 0 );
@@ -475,7 +456,7 @@ static ast_t* doloop( parser_t* parser )
 static ast_t* casevar( parser_t* parser )
 {
   // AS forvar | expr (AS forvar)?
-  ast_t* ast = ast_new( TK_CASEVAR );
+  ast_t* ast = ast_new( parser, TK_CASEVAR );
 
   if( accept( parser, TK_AS, ast, -1 ) )
   {
@@ -495,9 +476,7 @@ static ast_t* casevar( parser_t* parser )
 static ast_t* caseblock( parser_t* parser )
 {
   // CASE (casevar (COMMA casevar)*)? (IF expr)? block
-  ast_t* ast = ast_new( TK_CASE );
-
-  expect( parser, TK_CASE, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_CASE );
 
   if( (current( parser ) != TK_IF)
     && (current( parser ) != TK_LBRACE)
@@ -525,9 +504,8 @@ static ast_t* match( parser_t* parser )
     { 0, NULL }
   };
 
-  ast_t* ast = ast_new( TK_MATCH );
+  ast_t* ast = ast_expect( parser, TK_MATCH );
 
-  expect( parser, TK_MATCH, ast, -1 );
   rulelist( parser, expr, TK_COMMA, ast, 0 );
   expect( parser, TK_LBRACE, ast, -1 );
   rulealtlist( parser, alt, ast, 1 );
@@ -539,22 +517,16 @@ static ast_t* match( parser_t* parser )
 static ast_t* catchblock( parser_t* parser )
 {
   // CATCH block
-  ast_t* ast = ast_new( TK_CATCH );
-
-  expect( parser, TK_CATCH, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_CATCH );
   rule( parser, block, ast, 0 );
-
   return ast;
 }
 
 static ast_t* always( parser_t* parser )
 {
   // ALWAYS block
-  ast_t* ast = ast_new( TK_ALWAYS );
-
-  expect( parser, TK_ALWAYS, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_ALWAYS );
   rule( parser, block, ast, 0 );
-
   return ast;
 }
 
@@ -563,9 +535,9 @@ static ast_t* lvalue( parser_t* parser )
   // (VAR ID oftype) | command
   ast_t* ast;
 
-  if( accept( parser, TK_VAR, NULL, -1 ) )
+  if( current( parser ) == TK_VAR )
   {
-    ast = ast_new( TK_VAR );
+    ast = ast_token( parser );
     expect( parser, TK_ID, ast, 0 );
     rule( parser, oftype, ast, 1 );
   } else {
@@ -578,7 +550,7 @@ static ast_t* lvalue( parser_t* parser )
 static ast_t* assignment( parser_t* parser )
 {
   // lvalue (COMMA lvalue)* (ASSIGN expr (COMMA expr)*)?
-  ast_t* ast = ast_new( TK_ASSIGN );
+  ast_t* ast = ast_new( parser, TK_ASSIGN );
   rulelist( parser, lvalue, TK_COMMA, ast, 0 );
 
   if( accept( parser, TK_ASSIGN, ast, -1 ) )
@@ -601,10 +573,10 @@ static ast_t* block( parser_t* parser )
     { TK_WHILE, whileloop },
     { TK_DO, doloop },
     { TK_MATCH, match },
-    { TK_RETURN, tokenrule },
-    { TK_BREAK, tokenrule },
-    { TK_CONTINUE, tokenrule },
-    { TK_THROW, tokenrule },
+    { TK_RETURN, ast_token },
+    { TK_BREAK, ast_token },
+    { TK_CONTINUE, ast_token },
+    { TK_THROW, ast_token },
 
     { TK_VAR, assignment },
     { TK_THIS, assignment },
@@ -619,7 +591,7 @@ static ast_t* block( parser_t* parser )
     { 0, NULL }
   };
 
-  ast_t* ast = ast_new( TK_BLOCK );
+  ast_t* ast = ast_new( parser, TK_BLOCK );
   expect( parser, TK_LBRACE, ast, -1 );
   rulealtlist( parser, alt, ast, 0 );
 
@@ -640,7 +612,7 @@ static ast_t* block( parser_t* parser )
 static ast_t* formalargs( parser_t* parser )
 {
   // (LBRACKET arg (COMMA arg)* RBRACKET)?
-  ast_t* ast = ast_new( TK_FORMALARGS );
+  ast_t* ast = ast_new( parser, TK_FORMALARGS );
 
   if( accept( parser, TK_LBRACKET, ast, -1 ) )
   {
@@ -654,9 +626,8 @@ static ast_t* formalargs( parser_t* parser )
 static ast_t* typelambda( parser_t* parser )
 {
   // LAMBDA annotation args (RESULTS args) THROWS?
-  ast_t* ast = ast_new( TK_LAMBDA );
+  ast_t* ast = ast_expect( parser, TK_LAMBDA );
 
-  expect( parser, TK_LAMBDA, ast, -1 );
   rule( parser, annotation, ast, 0 );
   rule( parser, args, ast, 1 );
 
@@ -685,7 +656,7 @@ static ast_t* lambda( parser_t* parser )
 static ast_t* typeclass( parser_t* parser )
 {
   // TYPEID (PACKAGE TYPEID)? annotation formalargs
-  ast_t* ast = ast_new( TK_TYPECLASS );
+  ast_t* ast = ast_new( parser, TK_TYPECLASS );
 
   expect( parser, TK_TYPEID, ast, 0 );
 
@@ -702,9 +673,7 @@ static ast_t* typeclass( parser_t* parser )
 static ast_t* partialtype( parser_t* parser )
 {
   // PARTIAL typeclass
-  ast_t* ast = ast_new( TK_PARTIAL );
-
-  expect( parser, TK_PARTIAL, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_PARTIAL );
   rule( parser, typeclass, ast, 0 );
   return ast;
 }
@@ -733,7 +702,7 @@ static ast_t* typeelement( parser_t* parser )
 static ast_t* oftype( parser_t* parser )
 {
   // (OFTYPE typeelement (OR typeelement)*)?
-  ast_t* ast = ast_new( TK_OFTYPE );
+  ast_t* ast = ast_new( parser, TK_OFTYPE );
 
   if( accept( parser, TK_OFTYPE, ast, -1 ) )
   {
@@ -746,7 +715,7 @@ static ast_t* oftype( parser_t* parser )
 static ast_t* field( parser_t* parser )
 {
   // VAR ID oftype (ASSIGN expr)?
-  ast_t* ast = ast_new( TK_FIELD );
+  ast_t* ast = ast_new( parser, TK_FIELD );
 
   expect( parser, TK_VAR, ast, -1 );
   expect( parser, TK_ID, ast, 0 );
@@ -763,21 +732,17 @@ static ast_t* field( parser_t* parser )
 static ast_t* delegate( parser_t* parser )
 {
   // DELEGATE ID oftype
-  ast_t* ast = ast_new( TK_DELEGATE );
-
-  expect( parser, TK_DELEGATE, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_DELEGATE );
   expect( parser, TK_ID, ast, 0 );
   rule( parser, oftype, ast, 1 );
-
   return ast;
 }
 
 static ast_t* constructor( parser_t* parser )
 {
   // NEW ID? formalargs args THROWS? block?
-  ast_t* ast = ast_new( TK_NEW );
+  ast_t* ast = ast_expect( parser, TK_NEW );
 
-  expect( parser, TK_NEW, ast, -1 );
   accept( parser, TK_ID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, args, ast, 2 );
@@ -794,9 +759,8 @@ static ast_t* constructor( parser_t* parser )
 static ast_t* ambient( parser_t* parser )
 {
   // AMBIENT ID? formalargs args THROWS? block?
-  ast_t* ast = ast_new( TK_AMBIENT );
+  ast_t* ast = ast_expect( parser, TK_AMBIENT );
 
-  expect( parser, TK_AMBIENT, ast, -1 );
   accept( parser, TK_ID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, args, ast, 2 );
@@ -813,9 +777,8 @@ static ast_t* ambient( parser_t* parser )
 static ast_t* function( parser_t* parser )
 {
   // FUNCTION annotation ID? formalargs args (RESULTS args)? THROWS? block?
-  ast_t* ast = ast_new( TK_FUNCTION );
+  ast_t* ast = ast_expect( parser, TK_FUNCTION );
 
-  expect( parser, TK_FUNCTION, ast, -1 );
   rule( parser, annotation, ast, 0 );
   accept( parser, TK_ID, ast, 1 );
   rule( parser, formalargs, ast, 2 );
@@ -839,9 +802,8 @@ static ast_t* function( parser_t* parser )
 static ast_t* message( parser_t* parser )
 {
   // MESSAGE ID? formalargs args block?
-  ast_t* ast = ast_new( TK_MESSAGE );
+  ast_t* ast = ast_expect( parser, TK_MESSAGE );
 
-  expect( parser, TK_MESSAGE, ast, -1 );
   accept( parser, TK_ID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, args, ast, 2 );
@@ -868,7 +830,7 @@ static ast_t* typebody( parser_t* parser )
     { 0, NULL }
   };
 
-  ast_t* ast = ast_new( TK_TYPEBODY );
+  ast_t* ast = ast_new( parser, TK_TYPEBODY );
 
   expect( parser, TK_LBRACE, ast, -1 );
   rulealtlist( parser, alt, ast, 0 );
@@ -880,7 +842,7 @@ static ast_t* typebody( parser_t* parser )
 static ast_t* is( parser_t* parser )
 {
   // (IS typeclass (COMMA typeclass)*)?
-  ast_t* ast = ast_new( TK_IS );
+  ast_t* ast = ast_new( parser, TK_IS );
 
   if( accept( parser, TK_IS, ast, -1 ) )
   {
@@ -893,9 +855,8 @@ static ast_t* is( parser_t* parser )
 static ast_t* trait( parser_t* parser )
 {
   // TRAIT TYPEID formalargs is typebody
-  ast_t* ast = ast_new( TK_TRAIT );
+  ast_t* ast = ast_expect( parser, TK_TRAIT );
 
-  expect( parser, TK_TRAIT, ast, -1 );
   expect( parser, TK_TYPEID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, is, ast, 2 );
@@ -907,9 +868,8 @@ static ast_t* trait( parser_t* parser )
 static ast_t* object( parser_t* parser )
 {
   // OBJECT TYPEID formalargs is typebody
-  ast_t* ast = ast_new( TK_OBJECT );
+  ast_t* ast = ast_expect( parser, TK_OBJECT );
 
-  expect( parser, TK_OBJECT, ast, -1 );
   expect( parser, TK_TYPEID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, is, ast, 2 );
@@ -921,9 +881,8 @@ static ast_t* object( parser_t* parser )
 static ast_t* actor( parser_t* parser )
 {
   // ACTOR TYPEID formalargs is typebody
-  ast_t* ast = ast_new( TK_ACTOR );
+  ast_t* ast = ast_expect( parser, TK_ACTOR );
 
-  expect( parser, TK_ACTOR, ast, -1 );
   expect( parser, TK_TYPEID, ast, 0 );
   rule( parser, formalargs, ast, 1 );
   rule( parser, is, ast, 2 );
@@ -935,9 +894,8 @@ static ast_t* actor( parser_t* parser )
 static ast_t* type( parser_t* parser )
 {
   // TYPE TYPEID oftype is
-  ast_t* ast = ast_new( TK_TYPE );
+  ast_t* ast = ast_expect( parser, TK_TYPE );
 
-  expect( parser, TK_TYPE, ast, -1 );
   expect( parser, TK_TYPEID, ast, 0 );
   rule( parser, oftype, ast, 1 );
   rule( parser, is, ast, 2 );
@@ -948,7 +906,7 @@ static ast_t* type( parser_t* parser )
 static ast_t* map( parser_t* parser )
 {
   // ID ASSIGN ID
-  ast_t* ast = ast_new( TK_MAP );
+  ast_t* ast = ast_new( parser, TK_MAP );
 
   expect( parser, TK_ID, ast, 0 );
   expect( parser, TK_ASSIGN, ast, -1 );
@@ -960,7 +918,7 @@ static ast_t* map( parser_t* parser )
 static ast_t* declaremap( parser_t* parser )
 {
   // (LBRACE map (COMMA map)* RBRACE)?
-  ast_t* ast = ast_new( TK_DECLAREMAP );
+  ast_t* ast = ast_new( parser, TK_DECLAREMAP );
 
   if( accept( parser, TK_LBRACE, ast, -1 ) )
   {
@@ -974,9 +932,8 @@ static ast_t* declaremap( parser_t* parser )
 static ast_t* declare( parser_t* parser )
 {
   // DECLARE typeclass is declaremap
-  ast_t* ast = ast_new( TK_DECLARE );
+  ast_t* ast = ast_expect( parser, TK_DECLARE );
 
-  expect( parser, TK_DECLARE, ast, -1 );
   rule( parser, typeclass, ast, 0 );
   rule( parser, is, ast, 1 );
   rule( parser, declaremap, ast, 2 );
@@ -987,9 +944,7 @@ static ast_t* declare( parser_t* parser )
 static ast_t* use( parser_t* parser )
 {
   // USE (TYPEID ASSIGN)? STRING
-  ast_t* ast = ast_new( TK_USE );
-
-  expect( parser, TK_USE, ast, -1 );
+  ast_t* ast = ast_expect( parser, TK_USE );
 
   if( accept( parser, TK_TYPEID, ast, 0 ) )
   {
@@ -1014,7 +969,7 @@ static ast_t* module( parser_t* parser )
     { 0, NULL }
   };
 
-  ast_t* ast = ast_new( TK_MODULE );
+  ast_t* ast = ast_new( parser, TK_MODULE );
   rulealtlist( parser, alt, ast, 0 );
   expect( parser, TK_EOF, ast, -1 );
 

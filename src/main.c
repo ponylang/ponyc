@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "typechecker.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
@@ -8,9 +9,19 @@
 
 #define EXTENSION ".pony"
 
+void print_errors( errorlist_t* el, const char* file )
+{
+  error_t* e = el->head;
+
+  while( e != NULL )
+  {
+    printf( "%s [%ld:%ld]: %s\n", file, e->line, e->pos, e->msg );
+    e = e->next;
+  }
+}
+
 bool do_file( const char* file )
 {
-  printf( "File: %s\n", file );
   parser_t* parser = parser_open( file );
 
   if( parser == NULL )
@@ -23,23 +34,23 @@ bool do_file( const char* file )
 
   if( el->count > 0 )
   {
-    printf( "%ld errors:\n", el->count );
-    error_t* e = el->head;
-
-    while( e != NULL )
-    {
-      printf( "[%ld:%ld] %s\n", e->line, e->pos, e->msg );
-      e = e->next;
-    }
-
+    print_errors( el, file );
     parser_close( parser );
     return false;
   }
 
   ast_t* ast = parser_ast( parser );
-  // FIX: do something with the ast
-  ast = NULL;
+  el = typecheck( ast );
 
+  if( el->count > 0 )
+  {
+    print_errors( el, file );
+    errorlist_free( el );
+    parser_close( parser );
+    return false;
+  }
+
+  errorlist_free( el );
   parser_close( parser );
   return true;
 }
