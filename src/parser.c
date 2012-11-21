@@ -217,7 +217,7 @@ static ast_t* atom( parser_t* parser )
 
 static ast_t* command( parser_t* parser )
 {
-  // (LPAREN expr RPAREN | LBRACKET arg (COMMA arg)* RBRACKET | atom) ((CALL ID)? args)*
+  // (LPAREN expr RPAREN | LBRACKET arg (COMMA arg)* RBRACKET | atom) ((CALL ID? formalargs)? args)*
   ast_t* ast;
 
   if( accept( parser, TK_LPAREN, NULL, -1 ) )
@@ -245,8 +245,9 @@ static ast_t* command( parser_t* parser )
           a->child[0] = ast;
           ast = a;
 
-          expect( parser, TK_ID, ast, 1 );
-          rule( parser, args, ast, 2 );
+          accept( parser, TK_ID, ast, 1 );
+          rule( parser, formalargs, ast, 2 );
+          rule( parser, args, ast, 3 );
         }
         break;
 

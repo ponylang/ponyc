@@ -4,7 +4,6 @@ trait StringBuffer
   function appendn( a:String, n:U32 )
 }
 
-// FIX: should traits always be able to reference their concrete type?
 trait Stringable[T]
 {
   function string(
@@ -85,18 +84,5 @@ trait Stringable[T]
     buffer.append( "}" )
   }
 
-  function string_pattern()->( r:\T )
-  {
-    r = reflect()
-
-    for name, value in r.fields()
-    {
-      match value
-      {
-        case as v:T { r.setfield( name, this ) }
-        case as v:Stringable { r.setfield( name, v.string_pattern() ) }
-        case { r.setfield( name, Undefined ) }
-      }
-    }
-  }
+  function string_pattern()->( Partial[T]( this ) )
 }

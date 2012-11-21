@@ -24,7 +24,7 @@ object SListIter[T] is Iterator[T]
     }
   }
 
-  function next()->( r:T ) throws
+  function next()->( r:T ) throws // FIX: want possibility of a T that isn't readonly
   {
     match _i
     {
