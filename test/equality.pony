@@ -1,14 +1,14 @@
 trait Equality[T]
 {
   // call on uniques as well? only with "can't capture" annotation
-  function# equals(
-    that:Any#,
-    pattern:Partial#|DontCare|DefaultPattern = equality_pattern()
+  function equals(
+    that:Any,
+    pattern:Partial|DontCare|DefaultPattern = equality_pattern()
     )->( r = false )
   {
     match pattern, that
     {
-      case as p:Partial#[T], as t:T#
+      case as p:\T, as t:T
       {
         // send our captured fields and the pattern to the other object
         // this doesn't leak capabilities because we are sending our fields
@@ -23,7 +23,7 @@ trait Equality[T]
       What if we want to match a Partial[Trait] and we are a Trait?
       */
 
-      case as p:Partial#[T], as t:Partial#[T]
+      case as p:\T, as t:\T
       {
         // reflect using the pattern, only fields we care about are populated
         var mirror = reflect( p )
@@ -67,13 +67,13 @@ trait Equality[T]
     r = true
   }
 
-  function# equality_pattern()->( r:Partial@[T] )
+  function equality_pattern()->( r:\T@ )
   {
     /*
     This should be able to create a useful "compare everything" pattern for any
     type, without the programmer having to define this function.
     */
-    r = Partial@[T]
+    r = \T@
 
     for name, _ in r.fields()
     {

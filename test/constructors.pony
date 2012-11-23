@@ -4,9 +4,9 @@ object SListIter[T, L:SList[T]] is Iterator[T]
 
   new( _next )
 
-  function# has_next()->( _next != None )
+  function has_next()->( _next != None )
 
-  function next()->( r:T ) throws
+  function~ next()->( r:T ) throws
   {
     match _next
     {
@@ -28,11 +28,11 @@ object SList[T] is List[T]
 
   new( _item, _next = None )
 
-  function# item()->( _item )
-  function set_item( _item )
+  function item()->( _item )
+  function~ set_item( _item )
 
-  function# next()->( _next )
-  function set_next( _next )
+  function next()->( _next )
+  function~ set_next( _next )
 
-  function# iterator()->( SListIter[T, SList?[T]]( this ) )
+  function iterator()->( SListIter[T, SList[:this][T]]( this ) )
 }

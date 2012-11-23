@@ -39,11 +39,11 @@ typeelement
   ;
 
 typeclass
-  :  TYPEID ('::' TYPEID)? annot? formalargs?
+  :  TYPEID ('::' TYPEID)? mode? formalargs?
   ;
 
 typelambda
-  :  'lambda' annot? args ('->' args)? 'throws'?
+  :  'lambda' mode? args ('->' args)? 'throws'?
   ;
 
 trait
@@ -71,15 +71,15 @@ delegate
   ;
 
 constructor
-  :  ('new' | 'ambient') ID? formalargs? args 'throws'? block?
+  :  ('new' | 'ambient') mode? ID? formalargs? args 'throws'? block?
   ;
 
 function
-  :  'function' annot? ID? formalargs? args ('->' args)? 'throws'? block?
+  :  'function' mode? ID? formalargs? args ('->' args)? 'throws'? block?
   ;
 
 message
-  :  'message' ID? formalargs? args block?
+  :  'message' mode? ID? formalargs? args block?
   ;
 
 statement
@@ -88,10 +88,8 @@ statement
   |  for_loop
   |  while_loop
   |  do_loop
-//  |  do_loop ';'
   |  match
   |  command
-//  |  command ';'
   |  'return'
   |  'break'
   |  'continue'
@@ -202,6 +200,10 @@ atom
 //  |  '[' arglist ']'
 //  |  '(' expr ')'
   ;
+  
+mode
+  : '!' | '@' | '~' | '[:'expr ']'
+  ;
 
 formalargs
   :  '[' arglist ']'
@@ -225,19 +227,14 @@ unop
   :  '-' | '!' | '\\'
   ;
 
-// FIX: != and #= could be wrong
+// FIX: != could be wrong
 // var a:Type!=Type!(thing)
-// var a:Type#=Type#(thing)
 binop
   :  '+' | '-' | '*' | '/' | '%'
   |  '<<' | '>>'
   |  '<' | '<=' | '>=' | '>'
-  |  '==' | '!=' | '#=' | '~='
+  |  '==' | '!='
   |  '|' | '&' | '^'
-  ;
-
-annot
-  : '!' | '@' | '#' | '?'    
   ;
 
 // Lexer

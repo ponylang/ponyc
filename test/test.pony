@@ -81,8 +81,8 @@ type Bear:Pooh|Paddington|None
 
 trait Animal is Vegetable, Mineral
 {
-  function eat( a:Food )->( b:Result, c:Error ) throws
-  function# name()->( r:String )
+  function~ eat( a:Food )->( b:Result, c:Error ) throws
+  function name()->( r:String )
   function! sendto( r:AnimalReceiver )
 }
 
@@ -114,7 +114,7 @@ object Aardvark[F:Food, D:Drink] is Animal
     _bar = Wombat( "fred" )
   }
 
-  function eat( a:Food )->( b:Result, c:Error|None )
+  function~ eat( a:Food )->( b:Result, c:Error|None )
   {
     var q = "q"
     var c = None
@@ -145,7 +145,7 @@ object Aardvark[F:Food, D:Drink] is Animal
     }
   }
 
-  function dot[T:Number, d:U32]( a:Vector#[T, d], b:Vector#[T, d] )->( r = Vector@[T, d] )
+  function dot[T:Number, d:U32]( a:Vector[T, d], b:Vector[T, d] )->( r = Vector@[T, d] )
   {
     for i in Range[U32]( 0, d - 1 )
     {
@@ -153,8 +153,9 @@ object Aardvark[F:Food, D:Drink] is Animal
     }
   }
 
-  function dot3( a:Vector#[F32, 3], b:Vector#[F32, 3] )->( dot( a, b ) )
-  function# name()->( name )
+  function dot3( a:Vector[F32, 3], b:Vector[F32, 3] )->( dot( a, b ) )
+
+  function name()->( name )
 
   function! sendto( a:AnimalReceiver )
   {
@@ -176,7 +177,7 @@ actor Console
 
 trait Named
 {
-  function# name()->( r:String )
+  function name()->( r:String )
 }
 
 type Term:Var|Fun|App is Named
@@ -186,7 +187,7 @@ object Var is Named
   var _name:String
 
   new( _name )
-  function# name()->( _name )
+  function name()->( _name )
 }
 
 object Fun is Named
@@ -195,13 +196,13 @@ object Fun is Named
   var _body:Term
 
   new( _arg, _body )
-  function# name()->( "^" + _arg + "." + _body.string() )
+  function name()->( "^" + _arg + "." + _body.string() )
 
-  function# identity()->( r = false )
+  function identity()->( r = false )
   {
     match _body
     {
-      case \Var as v { r = _arg == v.name() }
+      case as v:Var { r = _arg == v.name() }
       case {}
     }
   }
@@ -213,7 +214,7 @@ object App is Named
   var _v:Term
 
   new( _f, _v )
-  function# name()->( "(" + _f.string() + " " + _v.string() + ")" )
+  function name()->( "(" + _f.string() + " " + _v.string() + ")" )
 }
 
 object TermTest
@@ -227,10 +228,11 @@ object TermTest
   {
     match term
     {
-      case \Fun as f
+      case as f:Fun
       {
         r = f.identity()
       }
+
       case {}
     }
   }
@@ -239,8 +241,8 @@ object TermTest
 // tree
 trait Tree[T]
 {
-  function# item()->( r:T# )
-  function# depth()->( r:U32 )
+  function item()->( r:T[:this] )
+  function depth()->( r:U32 )
 }
 
 object Node[T] is Tree[T]
@@ -250,10 +252,10 @@ object Node[T] is Tree[T]
   var _right:Tree[T]
 
   new( _left, _item, _right )
-  function# left()->( _left )
-  function# item()->( _item )
-  function# right()->( _right )
-  function# depth()->( 1 + _left.depth().max( _right.depth() ) )
+  function left()->( _left )
+  function item()->( _item )
+  function right()->( _right )
+  function depth()->( 1 + _left.depth().max( _right.depth() ) )
 }
 
 object Leaf[T] is Tree[T]
@@ -261,43 +263,43 @@ object Leaf[T] is Tree[T]
   var _item:T
 
   new( _item )
-  function# item()->( _item )
-  function# depth()->( U32( 1 ) )
+  function item()->( _item )
+  function depth()->( U32( 1 ) )
 }
 
 object TreeUtil[U32]
 {
-  function# sum( t:Tree#[U32] )->( i:U32 )
+  function sum( t:Tree[U32] )->( i:U32 )
   {
     match t
     {
-      case \Node#[U32] as n
+      case as n:Node[U32]
       {
         match n.left(), n.right()
         {
-          case \Leaf#[U32] as l, \Leaf#[U32] as r
+          case as l:Leaf[U32], as r:Leaf[U32]
           {
             i = l.item() + n.item() + r.item()
           }
 
-          case \Leaf#[U32] as l, \Tree#[U32] as r
+          case as l:Leaf[U32], as r:Node[U32]
           {
             i = l.item() + n.item() + sum( r )
           }
 
-          case \Tree#[U32] as l, \Leaf#[U32] as r
+          case as l:Node[U32], as r:Leaf[U32]
           {
             i = sum( l ) + n.item() + r.item()
           }
 
-          case \Tree#[U32] as l, \Tree#[U32] as r
+          case as l:Node[U32], as r:Node[U32]
           {
             i = sum( l ) + n.item() + sum( r )
           }
         }
       }
 
-      case \Leaf#[U32] as n
+      case as n:Leaf[U32]
       {
         i = n.item()
       }
@@ -305,40 +307,18 @@ object TreeUtil[U32]
   }
 }
 
-// intersection types
-trait Clone
-{
-  function# clone()->( r:Clone# )
-}
-
-trait Reset
-{
-  function reset()
-}
-
-trait CloneReset is Clone, Reset {}
-
-object Foo
-{
-  function cloneAndReset( a:CloneReset )->( r:CloneReset )
-  {
-    r = a.clone()
-    a.reset()
-  }
-}
-
 object Log
 {
   var _fd:File
 
-  function log( list:List#[String|lambda()->( String )] )
+  function log( list:List[String|lambda()->( String )] )
   {
-    for s in list
+    for x in list
     {
-      match s
+      match x
       {
-        case \String as str { _fd.writeln( str ) }
-        case \lambda()->( String ) as f { _fd.writeln( f() ) }
+        case as s:String { _fd.writeln( s ) }
+        case as f:\lambda()->( String ) { _fd.writeln( f() ) }
       }
     }
   }
@@ -363,12 +343,12 @@ object SomeLog
 trait Iterator[T]
 {
   function has_next()->( r:Bool )
-  function next()->( r:T ) throws
+  function~ next()->( r:T ) throws
 }
 
 trait Iterable[T]
 {
-  function# iterator()->( r:Iterator[T] )
+  function iterator()->( r:Iterator~[T] )
 }
 
 // ranges
@@ -376,31 +356,32 @@ object RangeIter[T:Number] is Iterator[T]
 {
   var _min:T
   var _max:T
+  var _step:T
   var _i:T
 
-  new( _min, _max ) { _i = min }
+  new( _min, _max, _step = 1 ) { _i = min }
   function has_next()->( _i <= _max )
 
-  function next()->( r:T ) throws
+  function~ next()->( r:T ) throws
   {
     if _i <= _max
     {
       r = _i
-      _i = _i + 1
+      _i = _i + _step
     } else {
       throw
     }
   }
 }
 
-// any type with no members is a singleton type
 object Range[T:Number] is Iterable[T]
 {
   var _min:T
   var _max:T
+  var _step:T
 
-  new( _min, _max )
-  function# iterator()->( RangeIter[T]( _min, _max ) )
+  new( _min, _max, _step = 1 )
+  function iterator()->( RangeIter~[T]( _min, _max, _step ) )
 }
 
 // a fixed size (d) array of T
@@ -415,37 +396,11 @@ object Vector[T, d:U64]
   // init from a function
   new from( f:lambda( n:U64 )->( r:T ) )
 
-  function#( n:U64 )->( r:T )
-  function update( n:U64, o:T )
-}
-
-// list iterator
-object SListIter[T] is Iterator[T]
-{
-  var _i:SList#[T]|None
-
-  new( _i )
-
-  function# has_next()->( r:Bool )
-  {
-    match _i
-    {
-      case \SList#[T] { r = true }
-      case None { r = false }
-    }
-  }
-
-  function next()->( r:T ) throws
-  {
-    match _i
-    {
-      case \SList#[T] as l { r = l.first() _i = l.rest() }
-      case None { throw }
-    }
-  }
+  function( n:U64 )->( r:T )
+  function~ update( n:U64, o:T )
 }
 
 actor Main
 {
-  message begin( args:Array[String], env:Map[String, String], term:Console|None )
+  message begin( args:Array@[String], env:Map@[String, String], term:Console@|None )
 }
