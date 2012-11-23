@@ -17,6 +17,12 @@ trait Equality[T]
         if !t.equals( reflect( p ), p ) { return }
       }
 
+      /*
+      We are a T, so matching a Partial[T] is easy.
+      What if we want to match a Partial[T|...] ?
+      What if we want to match a Partial[Trait] and we are a Trait?
+      */
+
       case as p:Partial#[T], as t:Partial#[T]
       {
         // reflect using the pattern, only fields we care about are populated
