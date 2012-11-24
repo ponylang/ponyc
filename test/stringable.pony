@@ -1,7 +1,11 @@
 trait StringBuffer
 {
   function append( a:String )
-  function appendn( a:String, n:U32 )
+
+  function appendn[T:Integer]( a:String, n:T )
+  {
+    for _ in Range[T]( 1, n ) { append( a ) }
+  }
 }
 
 trait Stringable[T]
@@ -107,8 +111,17 @@ trait Stringable[T]
     buffer.append( "}" )
   }
 
-  function string_pattern()->( r:Partial[T] )
+  function string_pattern()->( r:Partial@[T] )
   {
-    // FIX:
+    /*
+    This should be able to create a useful "string everything" pattern for any
+    type, without the programmer having to define this function.
+    */
+    r = Partial@[T]
+
+    for name, _ in r.fields()
+    {
+      r.setfield( name, DefaultPattern )
+    }
   }
 }
