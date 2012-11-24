@@ -6,7 +6,6 @@ trait StringBuffer
   {
     for _ in Range[T]( 1, n ) { append( a ) }
   }
-  function appendn( a:String, n:U32 )
 }
 
 trait Stringable[T]
@@ -118,7 +117,7 @@ trait Stringable[T]
     This should be able to create a useful "string everything" pattern for any
     type, without the programmer having to define this function.
     */
-    r = Partial@[T]
+    r = \T@
 
     for name, _ in r.fields()
     {
