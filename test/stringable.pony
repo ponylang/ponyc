@@ -6,6 +6,7 @@ trait StringBuffer
   {
     for _ in Range[T]( 1, n ) { append( a ) }
   }
+  function appendn( a:String, n:U32 )
 }
 
 trait Stringable[T]
@@ -14,23 +15,23 @@ trait Stringable[T]
     pattern = string_pattern(),
     depth:U32 = 0,
     lead = "  ",
-    seen = Map[Stringable, List[String]],
+    seen = Map~[Stringable, List[String]],
     fqname = List[String]( ["this"] )
     )->( r:String )
   {
     // builds the string representation in a buffer and then turns the buffer
     // into an actual string
-    var buffer = StringBuffer
+    var buffer = StringBuffer~
     string_buffer( buffer, pattern, depth, lead, seen, fqname )
     r = buffer.string()
   }
 
   function string_buffer(
-    buffer:StringBuffer,
+    buffer:StringBuffer~,
     pattern = string_pattern(),
     depth:U32 = 0,
     lead = "  ",
-    seen = Map[Stringable, List[String]],
+    seen = Map~[Stringable, List[String]],
     fqname = List[String]( ["this"] )
     )
   {
@@ -111,7 +112,7 @@ trait Stringable[T]
     buffer.append( "}" )
   }
 
-  function string_pattern()->( r:Partial@[T] )
+  function string_pattern()->( r:\T@ )
   {
     /*
     This should be able to create a useful "string everything" pattern for any

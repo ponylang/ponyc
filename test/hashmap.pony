@@ -1,26 +1,26 @@
 trait Hashable
 {
-  function# hash()->( U64 )
+  function hash()->( U64 )
 }
 
 object Deleted {}
 
 object Hashmap[K:Hashable!, V]
 {
-  var _nodes:Array[Pair[K, V]|Deleted|None]
+  var _nodes:Array~[Pair~[K, V]|Deleted|None]
   var _count:U64
 
   new()
   {
-    _nodes = Array[Pair[K, V]|Deleted|None]
+    _nodes = Array~[Pair~[K, V]|Deleted|None]
     _count = 0
   }
 
-  function# size()->( _count )
+  function size()->( _count )
 
-  function# mod( h:U64 )->( h & (_nodes.length() - 1) )
+  function mod( h:U64 )->( h & (_nodes.length() - 1) )
 
-  function#( k:K )->( r:V?|None = None )
+  function( k:K )->( r:V[:this]|None = None )
   {
     if _count == 0 { return }
 
@@ -37,7 +37,7 @@ object Hashmap[K:Hashable!, V]
 
         case as p:Pair[K, V]
         {
-          if k #= p.first()
+          if k.equals( p.first() )
           {
             r = p.second()
             return
@@ -49,7 +49,7 @@ object Hashmap[K:Hashable!, V]
     } while h != first
   }
 
-  function update( k:K, v:V|None )->( r:V|None = None )
+  function~ update( k:K, v:V|None )->( r:V|None = None )
   {
     var h = mod( k.hash() )
     var first = h
@@ -66,14 +66,14 @@ object Hashmap[K:Hashable!, V]
 
         case None, as vv:V
         {
-          _nodes( h ) = Pair[K, V]( k, vv )
+          _nodes( h ) = Pair~[K, V]( k, vv )
           _count = _count + 1
           return
         }
 
-        case as p:Pair[K, V], None
+        case as p:Pair~[K, V], None
         {
-          if k #= p.first()
+          if k.equals( p.first() )
           {
             r = p.second()
             _nodes( h ) = Deleted
@@ -82,9 +82,9 @@ object Hashmap[K:Hashable!, V]
           }
         }
 
-        case as p:Pair[K, V], as vv:V
+        case as p:Pair~[K, V], as vv:V
         {
-          if k #= p.first()
+          if k.equals( p.first() )
           {
             r = p.second()
             p.set_second( vv )
@@ -103,7 +103,7 @@ object Hashmap[K:Hashable!, V]
       case as i:U64, as vv:V
       {
         // FIX: _nodes( i ) could theoretically throw, but won't
-        _nodes( i ) = Pair[K, V]( k, vv )
+        _nodes( i ) = Pair~[K, V]( k, vv )
         _count = _count + 1
         return
       }
