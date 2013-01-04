@@ -1,4 +1,4 @@
-grammar pony;
+grammar pony2;
 
 options
 {
@@ -9,15 +9,15 @@ options
 // Parser
 
 module
-  :  (use | declare | typedecl | trait | object | actor)*
+  :  (use | declare | typedecl | class_)*
   ;
 
 use
-  :  'use' (TYPEID '=')? STRING
+  :  'use' (ID '=')? STRING
   ;
 
 declare
-  :  'declare' typeclass is ('{' declaremap (',' declaremap)* '}')?
+  :  'declare' expr is ('{' declaremap (',' declaremap)* '}')?
   ;
 
 declaremap
@@ -25,46 +25,28 @@ declaremap
   ;
 
 typedecl
-  :  'type' TYPEID oftype is
+  :  'type' ID oftype is
   ;
 
 oftype
-  :  (':' typeelement ('|' typeelement)*)?
+  :  (':' expr)?
   ;
 
-typeelement
-  :	 '\\' typeclass
-  |	 typeclass
-  |  typelambda
+ofval
+  :  ('=' expr)?
   ;
 
-typeclass
-  :  TYPEID ('::' TYPEID)? mode? formalargs?
-  ;
-
-typelambda
-  :  'lambda' mode? args ('->' args)? 'throws'?
-  ;
-
-trait
-  :  'trait' TYPEID formalargs? is? '{' (constructor | function | message)* '}'
-  ;
-
-object
-  :  'object' TYPEID formalargs? is? '{' (field | delegate | constructor | function)* '}'
-  ;
-
-actor
-  :  'actor' TYPEID formalargs? is? '{' (field | delegate | constructor | function | message)* '}'
+class_
+  :  'actor'? ('class' | 'trait') ID formalargs? is? '{' (field | delegate | constructor | function | message)* '}'
   ;
 
 is
-  :  'is' typeclass (',' typeclass)*
+  :  'is' expr (',' expr)*
   ;
 
 field
-  :  'var' ID oftype ('=' expr)?
-  |  'val' ID oftype ('=' expr)?
+  :  'var' ID oftype ofval
+  |  'val' ID oftype ofval
   ;
 
 delegate
@@ -88,9 +70,9 @@ statement
   |  conditional
   |  for_loop
   |  while_loop
-  |  do_loop
+  |  do_loop ';'
   |  match
-  |  command
+  |  command ';'
   |  'return'
   |  'break'
   |  'continue'
@@ -129,9 +111,8 @@ match
   :  'match' expr_list '{' case_+ '}'
   ;
 
-// FIX: could make the block optional for multiple cases that execute the same block
 case_
-  :  'case' case_varlist ('if' expr)? block
+  :  'case' case_varlist ('if' expr)? block?
   ;
 
 case_varlist
@@ -159,13 +140,10 @@ lvalue_list
   :  lvalue (',' lvalue)*
   ;
 
-// FIX: this means an lvalue can't begin with a parenthesised expression or unop
-// because foo( bar ) could be two expressions
 lvalue
   :  'var' ID oftype
   |  'val' ID oftype
-  |  call
-//  |  expr
+  |  expr
   ;
 
 expr_list
@@ -178,47 +156,34 @@ expr
 
 unary
   :  unop unary
-  |  typelambda ('is' block)?
-  |  r_call
-//  |  call
-  ;
-
-r_call
-  :  r_atom
-  (  args
-  |  '.' ID? formalargs? args
-  )*
+  |  call
   ;
 
 call
   :  atom
-  (  args
-  |  '.' ID? formalargs? args
+  (  mode
+  |  formalargs args
+  |  args
+  |  '.' ID
   )*
-  ;
-
-r_atom
-  :  atom
-  |  '(' expr ')'
-  |  '[' arglist ']'
   ;
 
 atom
   :  ID
-  |  typeclass
   |  'this'
   |  'true'
   |  'false'
   |  INT
   |  FLOAT
   |  STRING
-//  |  '#[' arglist ']'
-//  |  '[' arglist ']'
-//  |  '(' expr ')'
+  |  '[' arglist ']'
+  |  '(' expr ')'
   ;
   
+// FIX: != could be wrong
+// var a:Type!=Type!(thing)
 mode
-  : '!' | '@' | '~' | '[:'expr ']'
+  :  '~' | '!' | '@' | '[:' expr ']'
   ;
 
 formalargs
@@ -236,15 +201,13 @@ arglist
 // the first expr is restricted to ID or ID:type if the assignment is present
 // the :type is allowed only if the first expr is ID
 arg
-  :  expr oftype ('=' expr)?
+  :  expr oftype ofval
   ;
 
 unop
   :  '-' | '!' | '\\'
   ;
 
-// FIX: != could be wrong
-// var a:Type!=Type!(thing)
 binop
   :  '+' | '-' | '*' | '/' | '%'
   |  '<<' | '>>'
@@ -256,11 +219,7 @@ binop
 // Lexer
 
 ID
-  :  ('a'..'z' | '_') (LETTER | DIGIT | '_')*
-  ;
-
-TYPEID
-  :  ('A'..'Z') (LETTER | DIGIT)*
+  :  ('a'..'z' | 'A'..'Z' | '_') (LETTER | DIGIT | '_')*
   ;
 
 INT
