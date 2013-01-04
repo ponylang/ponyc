@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  (use | declare | typedecl | class_)*
+  :  (use | declare | typedef_ | class_)*
   ;
 
 use
@@ -24,45 +24,38 @@ declaremap
   :  ID '=' ID
   ;
 
-typedecl
-  :  'type' ID oftype is
-  ;
-
-oftype
-  :  (':' expr)?
-  ;
-
-ofval
-  :  ('=' expr)?
+typedef_
+  :  'type' ID oftype? is
   ;
 
 class_
-  :  'actor'? ('class' | 'trait') ID formalargs? is? '{' (field | delegate | constructor | function | message)* '}'
+  :  'actor'? ('class' | 'trait') ID formalargs? is? '{' member* '}'
   ;
 
 is
   :  'is' expr (',' expr)*
   ;
 
-field
-  :  'var' ID oftype ofval
-  |  'val' ID oftype ofval
+member
+  :  'var' ID oftype? ofval?
+  |  'val' ID oftype? ofval?
+  |  'delegate' ID oftype
+  |  'new' signature
+  |  'ambient' signature
+  |  'function' signature
+  |  'message' signature
   ;
 
-delegate
-  :  'delegate' ID oftype
+signature
+  :	 mode? ID? formalargs? args ('->' args)? 'throws'? block?
   ;
 
-constructor
-  :  ('new' | 'ambient') mode? ID? formalargs? args 'throws'? block?
+oftype
+  :  ':' expr
   ;
 
-function
-  :  'function' mode? ID? formalargs? args ('->' args)? 'throws'? block?
-  ;
-
-message
-  :  'message' mode? ID? formalargs? args block?
+ofval
+  :  '=' expr
   ;
 
 statement
@@ -96,7 +89,7 @@ for_varlist
   ;
 
 for_var
-  :  ID oftype
+  :  ID oftype?
   ;
 
 while_loop
@@ -112,16 +105,20 @@ match
   ;
 
 case_
-  :  'case' case_varlist ('if' expr)? block?
+  :  'case' case_condlist? ('if' expr)? block?
   ;
 
-case_varlist
-  :  (case_var (',' case_var)*)?
+case_condlist
+  :  case_cond (',' case_cond)*
   ;
 
-case_var
-  :  expr ('as' ID oftype)?
-  |  'as' ID oftype
+case_cond
+  :  expr case_as?
+  |  case_as
+  ;
+
+case_as
+  :	  'as' ID oftype?
   ;
 
 catch_
@@ -141,8 +138,8 @@ lvalue_list
   ;
 
 lvalue
-  :  'var' ID oftype
-  |  'val' ID oftype
+  :  'var' ID oftype?
+  |  'val' ID oftype?
   |  expr
   ;
 
@@ -162,7 +159,7 @@ unary
 call
   :  atom
   (  mode
-  |  formalargs args
+  |  formalargs
   |  args
   |  '.' ID
   )*
@@ -198,10 +195,8 @@ arglist
   :  arg (',' arg)*
   ;
 
-// the first expr is restricted to ID or ID:type if the assignment is present
-// the :type is allowed only if the first expr is ID
 arg
-  :  expr oftype ofval
+  :  expr oftype? ofval?
   ;
 
 unop
