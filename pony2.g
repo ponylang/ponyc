@@ -66,10 +66,6 @@ statement
   |  do_loop ';'
   |  match
   |  command ';'
-  |  'return'
-  |  'break'
-  |  'continue'
-  |  'throw'
   ;
 
 block
@@ -131,6 +127,10 @@ always
 
 command
   :  lvalue_list ('=' expr_list)?
+  |  'continue'
+  |  'break'
+  |  'return'
+  |  'throw'
   ;
 
 lvalue_list
@@ -173,14 +173,13 @@ atom
   |  INT
   |  FLOAT
   |  STRING
-  |  '[' arglist ']'
-  |  '(' expr ')'
+  |  args
   ;
-  
+
 // FIX: != could be wrong
 // var a:Type!=Type!(thing)
 mode
-  :  '~' | '!' | '@' | '[:' expr ']'
+  :  '~' | '!' | '@'
   ;
 
 formalargs
