@@ -40,10 +40,12 @@ member
   :  'var' ID oftype? ofval?
   |  'val' ID oftype? ofval?
   |  'delegate' ID oftype
-  |  'new' signature
+  |  'private'?
+  (  'new' signature
   |  'ambient' signature
   |  'function' signature
   |  'message' signature
+  )
   ;
 
 signature
