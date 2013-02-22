@@ -180,7 +180,7 @@ atom
 // FIX: != could be wrong
 // var a:Type!=Type!(thing)
 mode
-  :  '~' | '!' | '@' | '[:' expr ']'
+  :  '~' | '!' | '@' /*| '[:' expr ']'*/
   ;
 
 formalargs

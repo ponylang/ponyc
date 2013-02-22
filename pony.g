@@ -1,3 +1,5 @@
+// FIX: hack up an in-between grammar: this, with semicolons
+
 grammar pony;
 
 options
