@@ -40,10 +40,12 @@ member
   :  'var' ID oftype? ofval?
   |  'val' ID oftype? ofval?
   |  'delegate' ID oftype
-  |  'new' signature
+  |  'private'?
+  (  'new' signature
   |  'ambient' signature
   |  'function' signature
   |  'message' signature
+  )
   ;
 
 signature
@@ -127,9 +129,9 @@ always
 
 command
   :  lvalue_list ('=' expr_list)?
-  |  'return'
   |  'continue'
   |  'break'
+  |  'return'
   |  'throw'
   ;
 
@@ -173,14 +175,13 @@ atom
   |  INT
   |  FLOAT
   |  STRING
-  |  '[' arglist ']'
-  |  '(' expr ')'
+  |  args
   ;
-  
+
 // FIX: != could be wrong
 // var a:Type!=Type!(thing)
 mode
-  :  '~' | '!' | '@' /*| '[:' expr ']'*/
+  :  '~' | '!' | '@'
   ;
 
 formalargs

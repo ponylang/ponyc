@@ -39,14 +39,14 @@ object Partial[T]
     value = _methods( name )
   */
 
-  function~ set_method( name:String, value:Any ) throws
+  function~ setmethod( name:String, value:Any ) throws
   /*
     // FIX: does it make any sense to set a method? we have no access to a receiver
     // throws if no name, or if type of value doesn't match method signature
     value = _methods( name )
   */
 
-  function methods()->( r:Iterator[Pair[String, Any?]] )
+  function methods()->( r:Iterator[Pair[String, Any[:this]]] )
   /*
     r = _methods.iterator()
   */
