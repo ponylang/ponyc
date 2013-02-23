@@ -1,3 +1,8 @@
+trait Constructable[T]
+{
+  private function construct_new() throws {}
+}
+
 trait Cloneable[T]
 {
   function clone( p:\T = clone_pattern() )->( r:T ) throws
@@ -19,7 +24,7 @@ trait Cloneable[T]
     r.clone_new();
   }
 
-  private function clone_new() throws {}
+  private function clone_new() throws { construct_new(); }
 
   private function clone_pattern()->( r:\T )
   {
@@ -57,7 +62,7 @@ trait Deserialisable[T]
     r.deserialise_new();
   }
 
-  private function deserialise_new() throws {}
+  private function deserialise_new() throws { construct_new(); }
 
   private function deserialise_pattern()->( r:\T )
   {
