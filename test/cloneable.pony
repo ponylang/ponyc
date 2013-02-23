@@ -3,20 +3,48 @@ trait Constructable[T]
   private function construct_new() throws {}
 }
 
+class Partial[T]
+{
+  function fields()->( r:Set[FieldID[T]] )
+
+  function field( f:FieldID[T] )->( r:FieldType[T, f] )
+
+  function setfield( f:FieldID[T], v:FieldType[T, f] )
+
+  function fieldof( f:String )->( r:FieldID[T]|None )
+}
+
 trait Cloneable[T]
 {
+  function clone( p:Partial = clone_pattern() )->( r:T ) throws
+  {
+    match p
+    {
+      case as pattern:Partial[T] { ... }
+      case { throw; }
+    }
+  }
+
   function clone( p:\T = clone_pattern() )->( r:T ) throws
   {
     var q = reflect();
 
-    for f, v in p.fields()
+    for f in p.fields()
     {
+      var pv:FieldType[T, f] = p.field( f );
+      var qv:FieldType[T, f] = q.field( f );
+
       match v
       {
         case None {}
+
         // FIX: need to type check v as \Tf
-        case as pv:Partial { q.setfield( f, q.field( f ).clone( pv ) ); }
-        case { q.setfield( f, q.field( f ).clone() ); }
+        case as pattern:\FieldType[T, f]
+        {
+          q.setfield( f, qv.clone( pattern ) );
+        }
+
+        case { q.setfield( f, qv.clone() ); }
       }
     }
 
@@ -52,8 +80,9 @@ trait Deserialisable[T]
       match v
       {
         case None {}
+
         // FIX: need to type check v as \Tf
-        case as pv:Partial { q.setfield( f, q.field( f ).deserialise( s, v ) ); }
+        case as pv:Partial { q.setfield( f, q.field( f ).deserialise( s, pv ) ); }
         case { q.setfield( f, q.field( f ).deserialise( s ) ); }
       }
     }
