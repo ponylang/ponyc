@@ -41,8 +41,7 @@ member
   |  'val' ID oftype? ofval?
   |  'delegate' ID oftype
   |  'private'?
-  (  'new' signature
-  |  'ambient' signature
+  (  'ambient'? 'new' signature
   |  'function' signature
   |  'message' signature
   )

@@ -1,18 +1,19 @@
-trait Constructable[T]
-{
-  private function construct_new() throws {}
-}
-
 class Partial[T]
 {
-  function fields()->( r:Set[FieldID[T]] )
+  function fields()->( r:Set[Field[T]] )
 
-  function field( f:FieldID[T] )->( r:FieldType[T, f] )
+  function field( f:Field[T] )->( r:FieldType[f] )
 
-  function setfield( f:FieldID[T], v:FieldType[T, f] )
-
-  function fieldof( f:String )->( r:FieldID[T]|None )
+  function setfield( f:Field[T], v:FieldType[f] )
 }
+
+// one instance per field in T
+class Field[T] is Stringable
+{
+  ambient new( s:String ) throws
+}
+
+type FieldType[Field[T]] : (type of field Field[T] of T)
 
 trait Cloneable[T]
 {
@@ -31,15 +32,14 @@ trait Cloneable[T]
 
     for f in p.fields()
     {
-      var pv:FieldType[T, f] = p.field( f );
-      var qv:FieldType[T, f] = q.field( f );
+      var pv:FieldType[f] = p.field( f );
+      var qv:FieldType[f] = q.field( f );
 
       match v
       {
         case None {}
 
-        // FIX: need to type check v as \Tf
-        case as pattern:\FieldType[T, f]
+        case as pattern:\FieldType[f]
         {
           q.setfield( f, qv.clone( pattern ) );
         }
@@ -71,9 +71,25 @@ trait Cloneable[T]
 
 trait Deserialisable[T]
 {
-  function deserialise( s:Stream, p:\T = deserialise_pattern() )->( r:T ) throws
+  function from_string( s:TokenStream, seen = Map[String, Any], p:\T = deserialise_pattern() )
+    ->( r:T ) throws
   {
     var q = reflect();
+    if s.next() != "{" { throw; }
+
+    var tok = s.next();
+
+    while tok != "}"
+    {
+      var f = Field[T]( tok );
+
+      if s.next() != ":" { throw; }
+
+      /*
+      get a type from the next string
+      see if that type is a subtype of f
+      */
+    }
 
     for f, v in p.fields()
     {
@@ -91,6 +107,8 @@ trait Deserialisable[T]
     r.deserialise_new();
   }
 
+  function from_packed( s:String, p:\T = deserialise_pattern() )
+
   private function deserialise_new() throws { construct_new(); }
 
   private function deserialise_pattern()->( r:\T )
@@ -106,4 +124,9 @@ trait Deserialisable[T]
       }
     }
   }
+}
+
+trait Constructable[T]
+{
+  private function construct_new() throws {}
 }
