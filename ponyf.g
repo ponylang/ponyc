@@ -17,12 +17,17 @@ use
   ;
 
 class_
-  :  'actor'? ('class' | 'trait') ID type_args ('is' types)? '{' member* '}'
+  :  ('actor' | 'class' | 'trait') ID type_params? ('is' types)? '{' member* '}'
   ;
 
 member
-  :  'var' arg
-  |  'function' ID '(' args? ')' type ('=' expr)?
+  :  'var' param
+  |  'val' param
+  |  'private'? ('def' | 'msg') ID type_params? params type ('=' expr)?
+  ;
+
+typedef_
+  :  'type' ID ('.' ID)? type_params? (':' type)? ('is' types)? ('{' (ID '=' ID)* '}')?
   ;
 
 types
@@ -30,40 +35,56 @@ types
   ;
 
 type
-  :  ID ('.' ID)? ('[' type_args? ']')?
+  :  base_type ('|' base_type)*
+  ;
+
+base_type
+  :  '\\'? ID ('.' ID)? type_args?
+  |  params result
+  ;
+
+type_params
+  :  '[' param (',' param)* ']'
   ;
 
 type_args
-  :  type_arg (',' type_arg)*
+  :  '[' arg (',' arg)* ']'
   ;
 
-type_arg
-  :  ID (':' type)?
+params
+  :  '(' (param (',' param)*)? ')'
+  ;
+
+param
+  :  ID (':' type)? ('=' expr)?
+  ;
+
+result
+  :  '(' type ')'
   ;
 
 args
-  :  arg (',' arg)*
+  :  '(' (arg (',' arg)*)? ')'
   ;
 
 arg
-  :  ID ':' type
-  ;
-
-expr_list
-  :  expr (',' expr)*
+  :  (ID '=') => ID '=' expr
+  |  expr
   ;
 
 expr
-  :  top (';' top)*
+  :  term (';' term)*
   ;
 
-top
-  :  'var' ID '=' top
-  |  'if' binary 'then' binary 'else' binary
-  |  'match' binary ('case' binary? ('as' arg)? ('if' binary)? '=' binary)+
-  |  'while' binary 'do' binary
-  |  'for' ID 'in' binary 'do' binary // { var x = e1.enumerator(); while x.has_next() do { var ID = x.next(); e2 } }
-  |  binary ('=' binary)?
+term
+  :  'var' ID '=' term
+  |  'val' ID '=' term
+  |  binary ('=' term)?
+  |  'def' type_params? params result '=' term
+  |  'if' expr 'then' term 'else' term
+  |  'while' expr 'do' term
+  |  'for' ID 'in' expr 'do' term // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }
+  |  'match' binary ('|' binary? ('as' ID ':' type)? ('if' binary)? '=' binary)+
   ;
 
 binary
@@ -72,61 +93,58 @@ binary
 
 unary
   :  unop unary
-  |  call
+  |  postfix
   ;
 
-call
+postfix
   :  primary
   (  '.' primary
-  |  '(' expr_list? ')'
+  |  type_args
+  |  args
   )*
   ;
 
 primary
   :  'this'
-  |  constant
-  |  ID
-  |  '{' expr '}'
-  |  'reflect'
-  |  'absorb' '(' expr ')'
-  |  'type' '(' ID ',' expr ')'
-  |  'field' '(' expr ',' expr ')'
-  |  'method' '(' expr ',' expr ')'
-  ;
-
-constant
-  :  'true'
+  |  'true'
   |  'false'
   |  INT
   |  FLOAT
   |  STRING
+  |  ID
+  |  '{' expr '}'
+  |  'reflect'
+  |  'absorb' args
+  |  'field' args
+  |  'method' args
   ;
 
 unop
-  :  'not'
-  |  '-'
-  |  '\\'
+  :  'not' | '-' | '\\'
   ;
 
 binop
-  :  'and'
-  |  'or'
+  :  'and' | 'or' | 'xor'
+  |  '+' | '-' | '*' | '/' | '%'
+  |  '<<' | '>>'
+  |  '==' | '<>' | '<' | '<=' | '>=' | '>'
   ;
 
 // Lexer
 
 ID
-  :  ('a'..'z' | 'A'..'Z' | '_') (LETTER | DIGIT | '_')*
+  :  (LETTER | '_') (LETTER | DIGIT | '_')*
   ;
 
 INT
-  :  ('0' | '1'..'9' DIGIT*)
-  |  '0' 'x' HEX_DIGIT+
+  :  '0'
+  |  '1'..'9' DIGIT*
+  |  '0' 'x' (HEX | '_') +
   |  '0' 'b' ('0' | '1' | '_')+
   ;
 
 FLOAT
-  :  DIGIT+ ('.' DIGIT+)? EXPONENT?
+  :  DIGIT+ ('.' DIGIT+)? EXP?
   ;
 
 LINECOMMENT
@@ -134,25 +152,25 @@ LINECOMMENT
   ;
 
 NESTEDCOMMENT
-  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/' {$channel=HIDDEN;}
+  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/'
   ;
 
 WS
-  :  ( ' ' | '\t' | '\r' | '\n' ) {$channel=HIDDEN;}
+  :  ' ' | '\t' | '\r' | '\n'
   ;
 
 STRING
-  :  '"' ( ESC_SEQ | ~('\\'|'"') )* '"'
+  :  '"' ( ESC | ~('\\'|'"') )* '"'
   ;
 
 fragment
-EXPONENT
+EXP
   :  ('e' | 'E') ('+' | '-')? DIGIT+
   ;
 
 fragment
 LETTER
-  :  ('a'..'z' | 'A'..'Z')
+  :  'a'..'z' | 'A'..'Z'
   ;
 
 fragment
@@ -161,12 +179,12 @@ DIGIT
   ;
 
 fragment
-HEX_DIGIT
-  :  (DIGIT | 'a'..'f' | 'A'..'F' | '_')
+HEX
+  :  DIGIT | 'a'..'f' | 'A'..'F'
   ;
 
 fragment
-ESC_SEQ
+ESC
   :  '\\' ('a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
   |  HEX_ESC
   |  UNICODE_ESC
@@ -175,15 +193,15 @@ ESC_SEQ
 
 fragment
 HEX_ESC
-  :  '\\' 'x' HEX_DIGIT HEX_DIGIT
+  :  '\\' 'x' HEX HEX
   ;
 
 fragment
 UNICODE_ESC
-  :  '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  :  '\\' 'u' HEX HEX HEX HEX
   ;
 
 fragment
 UNICODE2_ESC
-  :  '\\' 'U' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  :  '\\' 'U' HEX HEX HEX HEX HEX HEX
   ;
