@@ -2,7 +2,6 @@
 
 import argparse
 from pony_parser import PonyParser
-from pony_typer import PonyTyper
 
 args = argparse.ArgumentParser()
 args.add_argument('-f', '--filename', help='Pony file')
@@ -20,9 +19,8 @@ if ast == None:
   print('Failed to parse ' + arg.filename)
   sys.exit(-1)
 
+ast.typecheck()
+
 if arg.show:
   ast.show()
   print('\n')
-
-typer = PonyTyper()
-typer.typecheck(ast)

@@ -77,8 +77,8 @@ expr
   ;
 
 term
-  :  'var' ID '=' term
-  |  'val' ID '=' term
+  :  'var' ID (':' type)? '=' term
+  |  'val' ID (':' type)? '=' term
   |  binary ('=' term)?
   |  'def' type_params? params result '=' term
   |  'if' expr 'then' term 'else' term

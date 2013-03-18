@@ -11,6 +11,7 @@ class PonyParser(object):
   """
 
   def __init__(self, optimize=False, debug=False, debuglevel=0):
+    self.filename = None
     self.lexer = PonyLexer(self._error_func)
     self.lexer.build(optimize = optimize)
     self.tokens = self.lexer.tokens
@@ -122,6 +123,7 @@ class PonyParser(object):
     """
     member_list : member
       | member_list member
+      | empty
     """
     if len(p) == 2:
       p[0] = AST('member_list', [p[1]])
@@ -307,10 +309,10 @@ class PonyParser(object):
 
   def p_term_decl(self, p):
     """
-    term : VAR ID EQUALS term
-      | VAL ID EQUALS term
+    term : VAR ID type_opt EQUALS term
+      | VAL ID type_opt EQUALS term
     """
-    p[0] = AST(p[1], [p[2], p[4]])
+    p[0] = AST(p[1], [p[2], p[3], p[5]])
 
   def p_term_assign(self, p):
     """
@@ -346,42 +348,7 @@ class PonyParser(object):
     """
     term : FOR ID IN expr DO term
     """
-    # { var x = {expr}.iterator();
-    #   while x.has_next() do {
-    #     var ID = x.next();
-    #     term
-    #   }
-    # }
-    # FIX: need to pick an ID for 'x' that isn't in scope
-    # and also will not be introduced in expr or term
-    p[0] = AST('scope', [
-      AST('seq', [
-        AST('var', [
-          'x',
-          AST('call', [
-            AST('access', [p[4], AST('atom', ['iterator'])]),
-            None
-            ])
-          ]),
-        AST('while', [
-          AST('call', [
-            AST('access', [AST('atom', ['x'], AST('atom', ['has_next']))]),
-            None
-            ]),
-          AST('seq', [
-            AST('var', [
-              p[2],
-              AST('call', [
-                AST('access', [AST('atom', ['x']), AST('atom', ['has_next'])]),
-                None
-                ])
-              ]),
-            p[6]
-            ])
-          ])
-        ])
-      ])
-
+    p[0] = AST('for', [p[2], p[4], p[6]])
 
   def p_term_match(self, p):
     """

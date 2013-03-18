@@ -9,6 +9,7 @@ class PonyLexer(object):
   """
 
   def __init__(self, error_func):
+    self.lexer = None
     self.error_func = error_func
 
   def build(self, **kwargs):
@@ -21,8 +22,7 @@ class PonyLexer(object):
     self.lexer.input(text)
 
   def token(self):
-    g = self.lexer.token()
-    return g
+    return self.lexer.token()
 
   def column(self, token):
     last_nl = self.lexer.lexdata.rfind('\n', 0, token.lexpos)
