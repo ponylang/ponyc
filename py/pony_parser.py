@@ -282,7 +282,7 @@ class PonyParser(object):
 
   def p_default_opt(self, p):
     """
-    default_opt : EQUALS expr
+    default_opt : EQUALS term
       | empty
     """
     if len(p) == 3:

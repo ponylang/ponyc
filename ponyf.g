@@ -56,7 +56,7 @@ params
   ;
 
 param
-  :  ID (':' type)? ('=' expr)?
+  :  ID (':' type)? ('=' term)?
   ;
 
 result
@@ -68,8 +68,8 @@ args
   ;
 
 arg
-  :  (ID '=') => ID '=' expr
-  |  expr
+  :  (ID '=') => ID '=' term
+  |  term
   ;
 
 expr

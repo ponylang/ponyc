@@ -1,0 +1,6 @@
+Makefile
+ponyc
+ponyc.make
+__pycache__
+parsetab.py
+lextab.py

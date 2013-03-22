@@ -1,65 +1,16 @@
 import sys
+import scope
+import types
 
-class TypeError(object):
+class ASTError(Exception):
   pass
-
-class Type(object):
-  def __init__(self, name):
-    self.name = name
-    self.parameters = []
-    self.implements = []
-    self.fields = []
-    self.methods = []
-
-class Scope(object):
-  # FIX: these will have methods on them
-  builtins = (
-    'None', 'Bool', 'String', 'FieldID', 'MethodID',
-    'I8', 'I16', 'I32', 'I64', 'I128',
-    'U8', 'U16', 'U32', 'U64', 'U128',
-    'F32', 'F64',
-    'D32', 'D64'
-    )
-
-  def __init__(self, parent=None):
-    self.parent = parent
-    self.bound_packages = {}
-    self.bound_types = {}
-    self.bound_vars = {}
-    self.vars = {}
-    self.vals = {}
-    self.private_methods = {}
-    self.public_methods = {}
-    if parent == None:
-      for name in Scope.builtins:
-        self.bound_types[name] = Type(name)
-
-  def get_type(self, name, pkg=None):
-    if pkg:
-      if pkg in self.bound_packages:
-        return self.bound_packages[pkg].get_type(name)
-      elif self.parent:
-        return self.parent.get_type(name, pkg)
-    else:
-      if name in self.bound_types:
-        return self.bound_types[name]
-      elif self.parent:
-        return self.parent.get_type(name)
-    return None
-
-  def add_type(self, name):
-    if name in self.bound_types:
-      return None
-    typedesc = Type(name)
-    self.bound_types[name] = typedesc
-    return typedesc
 
 class AST(object):
   def __init__(self, name, children=None):
     self.name = name
     self.children = children or []
     self.type = None
-    self.containing_type = None
+    self.typedesc = None
     self.scope = None
 
   def __repr__(self):
@@ -92,9 +43,9 @@ class AST(object):
   def typecheck(self, parent=None):
     if parent:
       self.scope = parent.scope
-      self.containing_type = parent.containing_type
+      self.typedesc = parent.typedesc
     else:
-      self.scope = Scope()
+      self.scope = scope.Scope()
     getattr(self, '_tc_' + self.name, self._tc_default)()
 
   # Private
@@ -114,10 +65,9 @@ class AST(object):
     name = self.children[0]
     self.type = self.scope.add_type(name)
     if self.type == None:
-      self._tc_error('Redefinition of type %s' % name)
-      return False
-    self.containing_type = self.type
-    self.scope = Scope(self.scope)
+      raise ASTError('Redefinition of type %s' % name)
+    self.typedesc = self.type
+    self.scope = scope.Scope(self.scope)
     return self._resolve_type_params() and self._resolve_implements()
 
   def _resolve_type_params(self):
@@ -126,14 +76,15 @@ class AST(object):
         param_id = param.children[0]
         if param_id[0].isupper():
           if self.scope.get_type(param_id) != None:
-            self._tc_error('Type parameter %s is already bound' % param_id)
+            raise ASTError('Type parameter %s is already bound' % param_id)
             return False
           # FIX: type_opt, default_opt
         else:
           if param_id in self.scope.bound_vars:
-            self._tc_error('Value parameter %s is already bound' % param_id)
+            raise ASTError('Value parameter %s is already bound' % param_id)
             return False
           # FIX: type_opt, default_opt
+    return True
 
   def _resolve_implements(self):
     if self.children[2]:
@@ -144,27 +95,31 @@ class AST(object):
         pass
     return True
 
-  def _tc_error(self, msg):
-    raise TypeError(msg)
-
   def _tc_default(self):
     for n in self.children:
       if n:
         n.typecheck(self)
 
+  def _tc_module(self):
+    """
+    FIX: this should share a package scope with other modules in the package
+    """
+    self.scope = scopes.PackageScope()
+    self._tc_default()
+
   def _tc_use(self):
-    # FIX:
+    """
+    FIX: this should import packages into self.scope
+    """
     pass
 
   def _tc_type_def(self):
     pkg = self.children[0]
     if pkg:
       if pkg in scope.bound_packages:
-        self._tc_error('Unimplemented')
-        return
+        raise ASTError('Unimplemented')
       else:
-        self._tc_error('No package %s in scope' % pkg)
-        return
+        raise ASTError('No package %s in scope' % pkg)
     # FIX:
 
   def _tc_actor(self):
@@ -173,25 +128,41 @@ class AST(object):
         member.typecheck(self)
 
   def _tc_class(self):
-    if self._register_type():
-      for member in self.children[3].children:
-        if member.name == 'msg':
-          self._tc_error('Cannot have msg member in class')
-        else:
-          member.typecheck(self)
+    """
+    FIX: type scope vs type descriptor?
+
+
+    """
+    self.scope = scope.TypeScope(self.scope)
+    self.typedesc = types.Desc(self.scope, self)
+    for member in self.children[3].children:
+      if member.name == 'msg':
+        raise ASTError('Cannot have msg member in class')
+      else:
+        member.typecheck(self)
 
   def _tc_trait(self):
     if self._register_type():
       for member in self.children[3].children:
         if member.name == 'var':
-          self._tc_error('Cannot have var member in trait')
+          raise ASTError('Cannot have var member in trait')
         elif member.name == 'val':
-          self._tc_error('Cannot have val member in trait')
+          raise ASTError('Cannot have val member in trait')
         else:
           member.typecheck(self)
 
   def _tc_var(self):
-    pass
+    name = self.children[0]
+    if self.children[1] == None:
+      raise ASTError('Field %s must specify type' % name)
+    for f in self.typedesc.fields:
+      if f.name == name:
+        raise ASTError('Redefinition of field %s' % name)
+    typedesc = self.scope.resolve_type(self.children[1])
+    if typedesc == None:
+      raise ASTError('Unable to resolve type for field %s' % name)
+    f = Field(name, typedesc, false)
+    self.typedesc.fields.append(f)
 
   def _tc_val(self):
     pass

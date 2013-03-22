@@ -1,6 +1,5 @@
 import re
 import sys
-
 import ply.lex
 
 class PonyLexer(object):
