@@ -2,7 +2,7 @@ import re
 import sys
 import ply.lex
 
-class PonyLexer(object):
+class Lexer(object):
   """
   A lexer for the Pony language.
   """
@@ -97,20 +97,22 @@ class PonyLexer(object):
   esc_seq = r'[abfnrtv"\\0]'
   esc_hex = r'x'+hex_dig+hex_dig
   esc_uni = r'u'+hex_dig+hex_dig+hex_dig+hex_dig
-  esc_UNI = r'U'+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig
-  esc = r'\\(esc_seq|esc_hex|esc_uni|esc_UNI)'
+  esc_uni2 = r'U'+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig
+  esc = r'\\(esc_seq|esc_hex|esc_uni|esc_uni2)'
 
   def t_STRING(self, t):
     r'"(esc|[^\\"])*"'
+    t.lexer.lineno += t.value.count('\n')
     return t
 
   def t_BAD_STRING(self, t):
     r'"[^"]*"'
+    t.lexer.lineno += t.value.count('\n')
     msg = "String contains invalid escape sequence"
     self._error(msg, t)
 
   def t_FLOAT(self, t):
-    r'[0-9]+.[0-9]+([eE][-+]?[0-9]+)?'
+    r'[0-9]+\.[0-9]+([eE][-+]?[0-9]+)?'
     t.value = float(t.value)
     return t
 

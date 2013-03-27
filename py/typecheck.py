@@ -1,4 +1,4 @@
-class TypesError(Exception):
+class TypecheckError(Exception):
   pass
 
 class Param(object):
@@ -6,7 +6,7 @@ class Param(object):
   A formal parameter to a type.
 
   If the name starts with a capital letter, it is a type parameter. Otherwise,
-  it is a value parameter. The type is an optional TypeExpr indicating what a
+  it is a value parameter. The type is an optional Expr indicating what a
   type parameter must be a subtype of or what a value parameter must be an
   instance of. The default is an optional value for the parameter if it is left
   unspecified.
@@ -23,15 +23,13 @@ class Param(object):
     else:
       self.default = ast.children[2]
     if self.isvalue() and self.type == None:
-      raise TypesError('Formal value parameter must specify a type')
-    if self.default != None and
-      self.type != None and
-      not self.type.instance(self.default):
-      raise TypesError('Formal parameter default of invalid type')
+      raise TypecheckError('Formal value parameter must specify a type')
+    if self.default != None and self.type != None and not self.type.instance(self.default):
+      raise TypecheckError('Formal parameter default of invalid type')
 
   def accept(self, binding):
     """
-    Binding should be a TypeExpr for a type parameter and an AST for a value
+    Binding should be a Expr for a type parameter and an AST for a value
     parameter.
     """
     if self.istype():
@@ -49,14 +47,14 @@ class Desc(object):
   """
   Describes a class, trait or actor.
 
-  To have a complete type, a TypeBind is needed. It binds the formal parameter
+  To have a complete type, a Bind is needed. It binds the formal parameter
   types and values in self.parameters to actual types and values.
 
   self.name: string
-  self.parameters: list of TypeParam
-  self.implements: list of TypeExpr
-  self.fields: list of TypeField
-  self.methods: list of TypeMethod
+  self.parameters: list of Param
+  self.implements: list of Expr
+  self.fields: list of Field
+  self.methods: list of Method
   """
   def __init__(self, scope, ast):
     self.name = ast.children[0]
@@ -71,7 +69,7 @@ class Desc(object):
 
   def accept(self, parameters):
     """
-    Takes a list of parameters, which should each be a TypeExpr for a type
+    Takes a list of parameters, which should each be a Expr for a type
     parameter or an AST for a value parameter.
     """
     if len(self.parameters) != len(parameters):
@@ -101,31 +99,31 @@ class Expr(object):
   def subtype(self, sub):
     return False
 
-class Bind(TypeExpr):
+class Bind(Expr):
   """
   Describes a bound type.
 
-  This is a TypeDesc with bindings for the formal parameters. It is constructed
-  from a TypeDesc and a list of TypeExpr.
+  This is a Desc with bindings for the formal parameters. It is constructed
+  from a Desc and a list of Expr.
   """
   def __init__(self, scope, ast):
 
     self.typedesc = typedesc
     self.parameters = parameters or []
     if not typedesc.accept(self.parameters):
-      raise TypesError('Formal parameters not accepted')
+      raise TypecheckError('Formal parameters not accepted')
 
   def subtype(self, sub):
     """
-    For sub to be a subtype of self, it must either have the same TypeDesc and
+    For sub to be a subtype of self, it must either have the same Desc and
     the same formal bindings as self, or it must implement self with the same
     formal bindings. Formal bindings are invariant.
 
-    An ADT is never a subtype of a TypeBind.
+    An ADT is never a subtype of a Bind.
     """
     return False
 
-class Lambda(TypeExpr):
+class Lambda(Expr):
   def __init__(self, scope, ast):
     self.parameters = []
     for child in ast.children[0].children:
@@ -134,16 +132,16 @@ class Lambda(TypeExpr):
 
   def subtype(self, sub):
     """
-    For sub to be a subtype of self, it must be a TypeLambda where all
+    For sub to be a subtype of self, it must be a Lambda where all
     self.parameters are subtypes of all sub.parameters (contravariant) and all
     sub.results are subtypes of all self.results (covariant).
 
-    Also acceptable is a TypeDesc that implements a subtype of this TypeLambda.
-    An ADT is never a subtype of a TypeLambda.
+    Also acceptable is a Desc that implements a subtype of this Lambda.
+    An ADT is never a subtype of a Lambda.
     """
     return False
 
-class ADT(TypeExpr):
+class ADT(Expr):
   def __init__(self, scope, ast):
     self.typelist = []
     for child in ast.children:
@@ -151,7 +149,7 @@ class ADT(TypeExpr):
 
   def subtype(self, sub):
     """
-    For sub to be a subtype of self, it must be a TypeBind or TypeLambda that is
+    For sub to be a subtype of self, it must be a Bind or Lambda that is
     a subtype of an element of the ADT, or it must be an ADT where each element
     is a subtype of an element of the ADT.
     """

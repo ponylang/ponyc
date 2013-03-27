@@ -1,18 +1,19 @@
 import sys
 import ply.yacc
-from pony_lexer import PonyLexer
+import urllib.parse
+from lexer import Lexer
 from ast import AST
 
 class ParseError(Exception): pass
 
-class PonyParser(object):
+class Parser(object):
   """
   A parser for the Pony language.
   """
 
   def __init__(self, optimize=False, debug=False, debuglevel=0):
-    self.filename = None
-    self.lexer = PonyLexer(self._error_func)
+    self.url = None
+    self.lexer = Lexer(self._error_func)
     self.lexer.build(optimize = optimize)
     self.tokens = self.lexer.tokens
     self.debuglevel = debuglevel
@@ -23,18 +24,23 @@ class PonyParser(object):
       optimize=optimize,
       )
 
-  def parse(self, filename, text=None):
-    self.filename = filename
-    if text == None:
-      with open(filename, 'rU') as f:
-        text = f.read()
+  def parse(self, url):
+    """
+    Currently only handles file URLs
+    """
+    self.url = url
+    url = urllib.parse.urlparse(self.url)
+    if url.scheme != 'file' or url.netloc != '':
+      raise ParseError('Unable to load module: %s' % self.url)
+    with open(url.path, 'rU') as f:
+      text = f.read()
     self.lexer.reset()
     return self.parser.parse(text, lexer=self.lexer, debug=self.debuglevel)
 
   # Private
 
   def _error_func(self, line, col, msg):
-    raise ParseError('%s [%s:%s]: %s' % (self.filename, line, col, msg))
+    raise ParseError('%s [%s:%s]: %s' % (self.url, line, col, msg))
 
   # Grammar
 

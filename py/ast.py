@@ -1,5 +1,5 @@
 import sys
-import scope
+import scopes
 import types
 
 class ASTError(Exception):
@@ -38,14 +38,14 @@ class AST(object):
           buf.write('\n')
         else:
           buf.write(lead + '  ' + str(child) + '\n')
-      buf.write(lead + '  )')
+      buf.write(lead + '  )\n')
 
   def typecheck(self, parent=None):
     if parent:
       self.scope = parent.scope
       self.typedesc = parent.typedesc
     else:
-      self.scope = scope.Scope()
+      self.scope = scopes.Scope()
     getattr(self, '_tc_' + self.name, self._tc_default)()
 
   # Private
@@ -67,7 +67,7 @@ class AST(object):
     if self.type == None:
       raise ASTError('Redefinition of type %s' % name)
     self.typedesc = self.type
-    self.scope = scope.Scope(self.scope)
+    self.scope = scopes.Scope(self.scope)
     return self._resolve_type_params() and self._resolve_implements()
 
   def _resolve_type_params(self):
@@ -133,8 +133,8 @@ class AST(object):
 
 
     """
-    self.scope = scope.TypeScope(self.scope)
-    self.typedesc = types.Desc(self.scope, self)
+    self.scope = scopes.Scope(self.scope)
+    self.typedesc = typecheck.Desc(self.scope, self)
     for member in self.children[3].children:
       if member.name == 'msg':
         raise ASTError('Cannot have msg member in class')
