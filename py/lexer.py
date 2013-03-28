@@ -23,17 +23,17 @@ class Lexer(object):
   def token(self):
     return self.lexer.token()
 
-  def column(self, token):
-    last_nl = self.lexer.lexdata.rfind('\n', 0, token.lexpos)
+  def column(self, pos):
+    last_nl = self.lexer.lexdata.rfind('\n', 0, pos)
     if last_nl < 0:
       last_nl = 0
-    column = token.lexpos - last_nl
+    column = pos - last_nl
     return column
 
   # Private
 
   def _error(self, msg, token):
-    self.error_func(token.lineno, self.column(token), msg)
+    self.error_func(token.lineno, self.column(token.lexpos), msg)
     self.lexer.skip(1)
 
   # Keywords

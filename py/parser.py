@@ -1,6 +1,5 @@
 import sys
 import ply.yacc
-import urllib.parse
 from lexer import Lexer
 from ast import AST
 
@@ -12,7 +11,7 @@ class Parser(object):
   """
 
   def __init__(self, optimize=False, debug=False, debuglevel=0):
-    self.url = None
+    self.name = None
     self.lexer = Lexer(self._error_func)
     self.lexer.build(optimize = optimize)
     self.tokens = self.lexer.tokens
@@ -24,23 +23,15 @@ class Parser(object):
       optimize=optimize,
       )
 
-  def parse(self, url):
-    """
-    Currently only handles file URLs
-    """
-    self.url = url
-    url = urllib.parse.urlparse(self.url)
-    if url.scheme != 'file' or url.netloc != '':
-      raise ParseError('Unable to load module: %s' % self.url)
-    with open(url.path, 'rU') as f:
-      text = f.read()
+  def parse(self, name, text):
+    self.name = name
     self.lexer.reset()
     return self.parser.parse(text, lexer=self.lexer, debug=self.debuglevel)
 
   # Private
 
   def _error_func(self, line, col, msg):
-    raise ParseError('%s [%s:%s]: %s' % (self.url, line, col, msg))
+    raise ParseError('%s [%s:%s]: %s' % (self.name, line, col, msg))
 
   # Grammar
 
@@ -59,7 +50,7 @@ class Parser(object):
     """
     module : use_list type_def_list
     """
-    p[0] = AST('module', [p[1], p[2]])
+    p[0] = AST(p, 'module', [p[1], p[2]])
 
   def p_use_list(self, p):
     """
@@ -68,7 +59,7 @@ class Parser(object):
       | empty
     """
     if len(p) == 2:
-      p[0] = AST('use_list', [p[1]])
+      p[0] = AST(p, 'use_list', [p[1]])
     else:
       p[1].children.append(p[2])
       p[0] = p[1]
@@ -79,9 +70,9 @@ class Parser(object):
       | USE ID EQUALS STRING
     """
     if len(p) == 2:
-      p[0] = AST('use', [None, p[2]])
+      p[0] = AST(p, 'use', [None, p[2]])
     else:
-      p[0] = AST('use', [p[2], p[4]])
+      p[0] = AST(p, 'use', [p[2], p[4]])
 
   def p_type_def_list(self, p):
     """
@@ -92,7 +83,7 @@ class Parser(object):
       | empty
     """
     if len(p) == 2:
-      p[0] = AST('type_def_list', [p[1]])
+      p[0] = AST(p, 'type_def_list', [p[1]])
     else:
       p[1].children.append(p[2])
       p[0] = p[1]
@@ -103,9 +94,9 @@ class Parser(object):
     """
     # FIX: remap methods
     if p[3] == None:
-      p[0] = AST('type_def', [None, p[2], p[4], p[5], p[6]])
+      p[0] = AST(p, 'type_def', [None, p[2], p[4], p[5], p[6]])
     else:
-      p[0] = AST('type_def', [p[2], p[3], p[4], p[5], p[6]])
+      p[0] = AST(p, 'type_def', [p[2], p[3], p[4], p[5], p[6]])
 
   def p_type_decl(self, p):
     """
@@ -113,7 +104,7 @@ class Parser(object):
       | CLASS ID type_params_opt is LBRACE member_list RBRACE
       | TRAIT ID type_params_opt is LBRACE member_list RBRACE
     """
-    p[0] = AST(p[1], [p[2], p[3], p[4], p[6]])
+    p[0] = AST(p, p[1], [p[2], p[3], p[4], p[6]])
 
   def p_is(self, p):
     """
@@ -132,7 +123,7 @@ class Parser(object):
       | empty
     """
     if len(p) == 2:
-      p[0] = AST('member_list', [p[1]])
+      p[0] = AST(p, 'member_list', [p[1]])
     else:
       p[1].children.append(p[2])
       p[0] = p[1]
@@ -144,7 +135,7 @@ class Parser(object):
       | method
     """
     if len(p) == 3:
-      p[0] = AST(p[1], [p[2]])
+      p[0] = AST(p, p[1], [p[2]])
     else:
       p[0] = p[1]
 
@@ -154,9 +145,9 @@ class Parser(object):
       | def_or_msg ID type_params_opt params type body
     """
     if len(p) == 8:
-      p[0] = AST('private', [p[2], p[3], p[4], p[5], p[6], p[7]])
+      p[0] = AST(p, 'private', [p[2], p[3], p[4], p[5], p[6], p[7]])
     else:
-      p[0] = AST('public', [p[1], p[2], p[3], p[4], p[5], p[6]])
+      p[0] = AST(p, 'public', [p[1], p[2], p[3], p[4], p[5], p[6]])
 
   def p_def_or_msg(self, p):
     """
@@ -181,7 +172,7 @@ class Parser(object):
       | type_list COMMA type
     """
     if len(p) == 2:
-      p[0] = AST('type_list', [p[1]])
+      p[0] = AST(p, 'type_list', [p[1]])
     else:
       p[1].children.append(p[3])
       p[0] = p[1]
@@ -192,7 +183,7 @@ class Parser(object):
       | type CASE base_type
     """
     if len(p) == 2:
-      p[0] = AST('type', [p[1]])
+      p[0] = AST(p, 'type', [p[1]])
     else:
       p[1].children.append(p[3])
       p[0] = p[1]
@@ -205,16 +196,16 @@ class Parser(object):
     """
     if len(p) == 4:
       if p[2] == None:
-        p[0] = AST('base_type', [None, p[1], p[3]])
+        p[0] = AST(p, 'base_type', [None, p[1], p[3]])
       else:
-        p[0] = AST('base_type', [p[1], p[2], p[3]])
+        p[0] = AST(p, 'base_type', [p[1], p[2], p[3]])
     elif len(p) == 5:
       if p[3] == None:
-        p[0] = AST('partial_type', [None, p[2], p[4]])
+        p[0] = AST(p, 'partial_type', [None, p[2], p[4]])
       else:
-        p[0] = AST('partial_type', [p[2], p[3], p[4]])
+        p[0] = AST(p, 'partial_type', [p[2], p[3], p[4]])
     else:
-      p[0] = AST('lambda', [p[1], p[2]])
+      p[0] = AST(p, 'lambda', [p[1], p[2]])
 
   def p_id_opt(self, p):
     """
@@ -265,7 +256,7 @@ class Parser(object):
       | param_list COMMA param
     """
     if len(p) == 2:
-      p[0] = AST('params', [p[1]])
+      p[0] = AST(p, 'params', [p[1]])
     else:
       p[1].children.append(p[3])
       p[0] = p[1]
@@ -274,7 +265,7 @@ class Parser(object):
     """
     param : ID type_opt default_opt
     """
-    p[0] = AST('param', [p[1], p[2], p[3]])
+    p[0] = AST(p, 'param', [p[1], p[2], p[3]])
 
   def p_type_opt(self, p):
     """
@@ -308,7 +299,7 @@ class Parser(object):
       | seq SEMI expr
     """
     if len(p) == 2:
-      p[0] = AST('seq', [p[1]])
+      p[0] = AST(p, 'seq', [p[1]])
     else:
       p[1].children.append(p[3])
       p[0] = p[1]
@@ -318,13 +309,13 @@ class Parser(object):
     expr : VAR ID type_opt EQUALS expr
       | VAL ID type_opt EQUALS expr
     """
-    p[0] = AST(p[1], [p[2], p[3], p[5]])
+    p[0] = AST(p, p[1], [p[2], p[3], p[5]])
 
   def p_expr_assign(self, p):
     """
     expr : binary EQUALS expr
     """
-    p[0] = AST('assign', [p[1], p[3]])
+    p[0] = AST(p, 'assign', [p[1], p[3]])
 
   def p_expr_stat(self, p):
     """
@@ -336,31 +327,31 @@ class Parser(object):
     """
     expr : DEF type_params_opt params result EQUALS expr
     """
-    p[0] = AST('def', [None, p[2], p[3], p[4], p[6]])
+    p[0] = AST(p, 'def', [None, p[2], p[3], p[4], p[6]])
 
   def p_expr_if(self, p):
     """
     expr : IF seq THEN expr ELSE expr
     """
-    p[0] = AST('if', [p[2], p[4], p[6]])
+    p[0] = AST(p, 'if', [p[2], p[4], p[6]])
 
   def p_expr_while(self, p):
     """
     expr : WHILE seq DO expr
     """
-    p[0] = AST('while', [p[2], p[4]])
+    p[0] = AST(p, 'while', [p[2], p[4]])
 
   def p_expr_for(self, p):
     """
     expr : FOR ID IN seq DO expr
     """
-    p[0] = AST('for', [p[2], p[4], p[6]])
+    p[0] = AST(p, 'for', [p[2], p[4], p[6]])
 
   def p_expr_match(self, p):
     """
     expr : MATCH binary case_list
     """
-    p[0] = AST('match', [p[2], p[3]])
+    p[0] = AST(p, 'match', [p[2], p[3]])
 
   def p_case_list(self, p):
     """
@@ -368,7 +359,7 @@ class Parser(object):
       | case_list case
     """
     if len(p) == 2:
-      p[0] = AST('cases', [p[1]])
+      p[0] = AST(p, 'cases', [p[1]])
     else:
       p[1].children.append(p[2])
       p[0] = p[1]
@@ -377,7 +368,7 @@ class Parser(object):
     """
     case : CASE compare as guard EQUALS binary
     """
-    p[0] = AST('case', [p[2], p[3], p[4], p[6]])
+    p[0] = AST(p, 'case', [p[2], p[3], p[4], p[6]])
 
   def p_compare(self, p):
     """
@@ -392,7 +383,7 @@ class Parser(object):
       | empty
     """
     if len(p) == 5:
-      p[0] = AST('as', [p[2], p[4]])
+      p[0] = AST(p, 'as', [p[2], p[4]])
     else:
       p[0] = p[1]
 
@@ -414,7 +405,7 @@ class Parser(object):
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = AST('binop', [p[2], p[1], p[3]])
+      p[0] = AST(p, 'binop', [p[2], p[1], p[3]])
 
   def p_binop(self, p):
     """
@@ -445,7 +436,7 @@ class Parser(object):
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = AST('unop', [p[1], p[2]])
+      p[0] = AST(p, 'unop', [p[1], p[2]])
 
   def p_unop(self, p):
     """
@@ -464,15 +455,15 @@ class Parser(object):
     if len(p) == 2:
       p[0] = p[1]
     elif len(p) == 3:
-      p[0] = AST('call', [p[1], p[2]])
+      p[0] = AST(p, 'call', [p[1], p[2]])
     else:
-      p[0] = AST('access', [p[1], p[3]])
+      p[0] = AST(p, 'access', [p[1], p[3]])
 
   def p_postfix2(self, p):
     """
     postfix : postfix type_args
     """
-    p[0] = AST('type_args', [p[1], p[2]])
+    p[0] = AST(p, 'type_args', [p[1], p[2]])
 
   def p_args(self, p):
     """
@@ -487,7 +478,7 @@ class Parser(object):
       | arg_list COMMA arg
     """
     if len(p) == 2:
-      p[0] = AST('args', [p[1]])
+      p[0] = AST(p, 'args', [p[1]])
     else:
       p[1].children.append(p[3])
       p[0] = p[1]
@@ -500,7 +491,7 @@ class Parser(object):
     if len(p) == 2:
       p[0] = p[1]
     else:
-      p[0] = AST('optarg', [p[1], p[3]])
+      p[0] = AST(p, 'optarg', [p[1], p[3]])
 
   def p_primary(self, p):
     """
@@ -518,11 +509,11 @@ class Parser(object):
       | LBRACE seq RBRACE
     """
     if len(p) == 2:
-      p[0] = AST('atom', [p[1]])
+      p[0] = AST(p, 'atom', [p[1]])
     elif len(p) == 3:
-      p[0] = AST('refl', [p[1], p[2]])
+      p[0] = AST(p, 'refl', [p[1], p[2]])
     else:
-      p[0] = AST('scope', [p[2]])
+      p[0] = AST(p, 'scope', [p[2]])
 
   def p_empty(self, p):
     """
@@ -534,4 +525,4 @@ class Parser(object):
     if p == None:
       self._error_func('At end of input', '', 'Unexpected EOF')
     else:
-      self._error_func(p.lineno, self.lexer.column(p), 'before: %s' % p.value)
+      self._error_func(p.lineno, p.lexer.column(p.lexpos), 'before: %s' % p.value)

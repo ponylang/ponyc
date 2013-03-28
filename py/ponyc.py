@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import os.path
-import urllib.parse
-from scopes import *
+from program import Program
 
 args = argparse.ArgumentParser()
 args.add_argument('-p', '--project', help='Pony project URL', default='.')
@@ -13,28 +11,13 @@ args.add_argument('-o', '--optimize', help='Optimize the lexer and parser',
 args.add_argument('-s', '--show', help='Show AST', action="store_true")
 arg = args.parse_args()
 
-url = urllib.parse.urlparse(arg.project, scheme='file')
-path = url.path
-if url.scheme == 'file':
-  path = os.path.expanduser(path)
-  path = os.path.expandvars(path)
-  path = os.path.realpath(path)
-  if not os.path.isdir(path):
-    path = os.path.dirname(path) + '/'
-  url = urllib.parse.ParseResult(
-    url.scheme, url.netloc, path, url.params, url.query, url.fragment
-    )
-url = urllib.parse.urlunparse(url)
-
-program = ProgramScope(arg.debug)
-program.package(url)
+program = Program(arg.debug)
+program.add_package(arg.project)
+program.typecheck()
 
 """
 FIX:
-parse when loading packages
-insert type definitions
-  check for conflicts
-typecheck type parameters
-typecheck type bodies
+typecheck types
+typecheck bodies
 generate code
 """
