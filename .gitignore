@@ -4,3 +4,6 @@ ponyc.make
 __pycache__
 parsetab.py
 lextab.py
+lib
+obj
+output
