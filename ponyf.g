@@ -23,7 +23,7 @@ class_
 member
   :  'var' param
   |  'val' param
-  |  'private'? ('def' | 'msg') ID type_params? params type ('=' expr)?
+  |  'private'? ('def' | 'msg') ID type_params? params type ('=' seq)?
   ;
 
 typedef_
@@ -56,7 +56,7 @@ params
   ;
 
 param
-  :  ID (':' type)? ('=' term)?
+  :  ID (':' type)? ('=' expr)?
   ;
 
 result
@@ -68,22 +68,22 @@ args
   ;
 
 arg
-  :  (ID '=') => ID '=' term
-  |  term
+  :  (ID '=') => ID '=' expr
+  |  expr
+  ;
+
+seq
+  :  expr (';' expr)*
   ;
 
 expr
-  :  term (';' term)*
-  ;
-
-term
-  :  'var' ID (':' type)? '=' term
-  |  'val' ID (':' type)? '=' term
-  |  binary ('=' term)?
-  |  'def' type_params? params result '=' term
-  |  'if' expr 'then' term 'else' term
-  |  'while' expr 'do' term
-  |  'for' ID 'in' expr 'do' term // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }
+  :  'var' ID (':' type)? '=' expr
+  |  'val' ID (':' type)? '=' expr
+  |  binary ('=' expr)?
+  |  'def' type_params? params result '=' expr
+  |  'if' seq 'then' expr 'else' expr
+  |  'while' seq 'do' expr
+  |  'for' ID 'in' seq 'do' expr // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }
   |  'match' binary ('|' binary? ('as' ID ':' type)? ('if' binary)? '=' binary)+
   ;
 
@@ -112,7 +112,7 @@ primary
   |  FLOAT
   |  STRING
   |  ID
-  |  '{' expr '}'
+  |  '{' seq '}'
   |  'reflect'
   |  'absorb' args
   |  'field' args

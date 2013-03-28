@@ -167,7 +167,7 @@ class Parser(object):
 
   def p_body(self, p):
     """
-    body : EQUALS expr
+    body : EQUALS seq
       | empty
     """
     if len(p) == 3:
@@ -288,7 +288,7 @@ class Parser(object):
 
   def p_default_opt(self, p):
     """
-    default_opt : EQUALS term
+    default_opt : EQUALS expr
       | empty
     """
     if len(p) == 3:
@@ -302,10 +302,10 @@ class Parser(object):
     """
     p[0] = p[2]
 
-  def p_expr(self, p):
+  def p_seq(self, p):
     """
-    expr : term
-      | expr SEMI term
+    seq : expr
+      | seq SEMI expr
     """
     if len(p) == 2:
       p[0] = AST('seq', [p[1]])
@@ -313,52 +313,52 @@ class Parser(object):
       p[1].children.append(p[3])
       p[0] = p[1]
 
-  def p_term_decl(self, p):
+  def p_expr_decl(self, p):
     """
-    term : VAR ID type_opt EQUALS term
-      | VAL ID type_opt EQUALS term
+    expr : VAR ID type_opt EQUALS expr
+      | VAL ID type_opt EQUALS expr
     """
     p[0] = AST(p[1], [p[2], p[3], p[5]])
 
-  def p_term_assign(self, p):
+  def p_expr_assign(self, p):
     """
-    term : binary EQUALS term
+    expr : binary EQUALS expr
     """
     p[0] = AST('assign', [p[1], p[3]])
 
-  def p_term_stat(self, p):
+  def p_expr_stat(self, p):
     """
-    term : binary
+    expr : binary
     """
     p[0] = p[1]
 
-  def p_term_def(self, p):
+  def p_expr_def(self, p):
     """
-    term : DEF type_params_opt params result EQUALS term
+    expr : DEF type_params_opt params result EQUALS expr
     """
     p[0] = AST('def', [None, p[2], p[3], p[4], p[6]])
 
-  def p_term_if(self, p):
+  def p_expr_if(self, p):
     """
-    term : IF expr THEN term ELSE term
+    expr : IF seq THEN expr ELSE expr
     """
     p[0] = AST('if', [p[2], p[4], p[6]])
 
-  def p_term_while(self, p):
+  def p_expr_while(self, p):
     """
-    term : WHILE expr DO term
+    expr : WHILE seq DO expr
     """
     p[0] = AST('while', [p[2], p[4]])
 
-  def p_term_for(self, p):
+  def p_expr_for(self, p):
     """
-    term : FOR ID IN expr DO term
+    expr : FOR ID IN seq DO expr
     """
     p[0] = AST('for', [p[2], p[4], p[6]])
 
-  def p_term_match(self, p):
+  def p_expr_match(self, p):
     """
-    term : MATCH binary case_list
+    expr : MATCH binary case_list
     """
     p[0] = AST('match', [p[2], p[3]])
 
@@ -494,8 +494,8 @@ class Parser(object):
 
   def p_arg(self, p):
     """
-    arg : expr
-      | ID EQUALS expr
+    arg : seq
+      | ID EQUALS seq
     """
     if len(p) == 2:
       p[0] = p[1]
@@ -515,7 +515,7 @@ class Parser(object):
       | ABSORB args
       | FIELD args
       | METHOD args
-      | LBRACE expr RBRACE
+      | LBRACE seq RBRACE
     """
     if len(p) == 2:
       p[0] = AST('atom', [p[1]])

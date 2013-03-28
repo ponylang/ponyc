@@ -13,19 +13,35 @@ class ProgramScope(object):
   """
   Scope to hold all packages.
 
+  FIX: Built-in types should be a package that's imported first.
+
   parser: lexer, parser and AST generator
-  packages: map of URL to PackageScope
+  package_map: map of URL to PackageScope
+  package_list: list of PackageScope
   """
+  builtins = (
+    'None', 'Bool', 'String', 'FieldID', 'MethodID',
+    'I8', 'I16', 'I32', 'I64', 'I128',
+    'U8', 'U16', 'U32', 'U64', 'U128',
+    'F32', 'F64',
+    'D32', 'D64'
+    )
+
   def __init__(self, debuglevel=0):
     debug = True if debuglevel > 0 else False
     self.parser = Parser(debug=debug, debuglevel=debuglevel)
-    self.packages = {}
+    self.package_map = {}
+    self.package_list = []
 
   def package(self, url):
-    # FIX: canonicalize url?
-    if url not in self.packages:
-      self.packages[url] = PackageScope(self, url)
-    return self.packages[url]
+    """
+    FIX: use SHA1 to see if packages resolve to the same thing?
+    """
+    if url not in self.package_map:
+      pkg = PackageScope(self, len(self.package_list), url)
+      self.package_map[url] = pkg
+      self.package_list.append(pkg)
+    return self.package_map[url]
 
 class PackageScope(object):
   """
@@ -35,8 +51,9 @@ class PackageScope(object):
   url: full url to the package
   modules: list of ModuleScope
   """
-  def __init__(self, program, url):
+  def __init__(self, program, idx, url):
     self.program = program
+    self.idx = idx
     self.url = url
     self.modules = []
     self._load()
@@ -61,26 +78,17 @@ class ModuleScope(object):
   """
   Module scope contains imported packages and type definitions.
 
+  FIX: Import built-in types into local namespace by default.
+
   packages: map of string to list of PackageScope
   types: map of string to typecheck.Desc
-
-  Built-in types should be a package that's always imported.
   """
-  builtins = (
-    'None', 'Bool', 'String', 'FieldID', 'MethodID',
-    'I8', 'I16', 'I32', 'I64', 'I128',
-    'U8', 'U16', 'U32', 'U64', 'U128',
-    'F32', 'F64',
-    'D32', 'D64'
-    )
-
   def __init__(self, program, url):
     self.program = program
     self.url = url
     self.packages = {}
     self.types = {}
     self.ast = self.program.parser.parse(url)
-    self.ast.show()
 
   # Private
 
