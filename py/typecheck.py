@@ -1,7 +1,87 @@
 class TypecheckError(Exception):
   pass
 
-class Param(object):
+class TypeDesc(object):
+  """
+  Describes an actor, class or trait.
+
+  To have a complete type, a TypeBind is needed. It binds the formal parameter
+  types and values in self.parameters to actual types and values.
+
+  self.ast: AST
+  self.name: string
+  self.parameters: list of TypeParam
+  self.implements: list of TypeBind
+  self.fields: list of Field
+  self.methods: list of Method
+  """
+  def __init__(self, module, ast):
+    self.module = module
+    self.ast = ast
+    self.name = ast.children[0]
+    self.parameters = []
+    self.implements = []
+    self.fields = []
+    self.methods = []
+
+  def typecheck_params(self):
+    """
+    FIX:
+    """
+    if self.ast.children[1]:
+      for param in self.ast.children[1].children:
+        self.parameters.append(TypeParam(self.module, param))
+
+  def typecheck_type(self):
+    """
+    FIX: implements, fields, method signatures
+    """
+    pass
+
+  def typecheck_body(self):
+    """
+    FIX: method bodies
+    """
+    pass
+
+  def accept(self, parameters):
+    """
+    Takes a list of parameters, which should each be an ADT for a type parameter
+    or an AST for a value parameter.
+    """
+    if len(self.parameters) != len(parameters):
+      return False
+    for i in range(len(self.parameters)):
+      if not self.parameters[i].accept(parameters[i]):
+        return False
+    return True
+
+  def resolve_adt(self, ast):
+    """
+    If ast is None, return None. Otherwise, ast must be an AST('type'). Return
+    an ADT containing each type in ast.children.
+    """
+    if ast == None:
+      return None
+    else:
+      typelist = []
+      for child in ast.children:
+        typelist.append(self._resolve_type(child))
+      return ADT(typelist)
+
+  # Private
+
+  def _resolve_type(self, ast):
+    """
+    FIX:
+    The ast will be a base_type, a partial_type, or a lambda.
+    """
+    if ast.name == 'lambda':
+      return Lambda(self, ast)
+    else:
+      return Bind(self, ast)
+
+class TypeParam(object):
   """
   A formal parameter to a type.
 
@@ -12,25 +92,18 @@ class Param(object):
   unspecified.
 
   name: string
-  type: Expr
-  default: Expr or AST
+  type: ADT
+  FIX: default value using ast.children[2]
   """
-  def __init__(self, scope, ast):
+  def __init__(self, desc, ast):
     self.name = ast.children[0]
-    self.type = scope.resolve_type(ast.children[1])
-    if self.istype():
-      self.default = scope.resolve_type(ast.children[2])
-    else:
-      self.default = ast.children[2]
+    self.type = desc.resolve_adt(ast.children[1])
     if self.isvalue() and self.type == None:
       raise TypecheckError('Formal value parameter must specify a type')
-    if self.default != None and self.type != None and not self.type.instance(self.default):
-      raise TypecheckError('Formal parameter default of invalid type')
 
   def accept(self, binding):
     """
-    Binding should be a Expr for a type parameter and an AST for a value
-    parameter.
+    Binding is an ADT for a type parameter and an AST for a value parameter.
     """
     if self.istype():
       return self.type.subtype(binding)
@@ -43,42 +116,6 @@ class Param(object):
   def isvalue(self):
     return not self.istype()
 
-class Desc(object):
-  """
-  Describes a class, trait or actor.
-
-  To have a complete type, a Bind is needed. It binds the formal parameter
-  types and values in self.parameters to actual types and values.
-
-  self.name: string
-  self.parameters: list of Param
-  self.implements: list of Expr
-  self.fields: list of Field
-  self.methods: list of Method
-  """
-  def __init__(self, scope, ast):
-    self.name = ast.children[0]
-    self.parameters = []
-    self.implements = []
-    self.fields = []
-    self.methods = []
-    scope.package.add_type(self.name, self)
-    if ast.children[1]:
-      for param in ast.children[1].children:
-        self.parameters.append(Param(scope, param))
-
-  def accept(self, parameters):
-    """
-    Takes a list of parameters, which should each be a Expr for a type
-    parameter or an AST for a value parameter.
-    """
-    if len(self.parameters) != len(parameters):
-      return False
-    for i in len(self.parameters):
-      if not self.parameters[i].accept(parameters[i]):
-        return False
-    return True
-
 class Field(object):
   def __init__(self, name, binding, val):
     self.name = name
@@ -89,68 +126,133 @@ class Method(object):
   def __init__(self):
     pass
 
-class Expr(object):
+class ADT(object):
   """
-  Describes the type of an expression. This can be a Bind, Lambda or ADT.
+  typelist: list of Bind|Lambda
   """
-  def __init__(self):
-    pass
-
-  def subtype(self, sub):
-    return False
-
-class Bind(Expr):
-  """
-  Describes a bound type.
-
-  This is a Desc with bindings for the formal parameters. It is constructed
-  from a Desc and a list of Expr.
-  """
-  def __init__(self, scope, ast):
-
-    self.typedesc = typedesc
-    self.parameters = parameters or []
-    if not typedesc.accept(self.parameters):
-      raise TypecheckError('Formal parameters not accepted')
-
-  def subtype(self, sub):
-    """
-    For sub to be a subtype of self, it must either have the same Desc and
-    the same formal bindings as self, or it must implement self with the same
-    formal bindings. Formal bindings are invariant.
-
-    An ADT is never a subtype of a Bind.
-    """
-    return False
-
-class Lambda(Expr):
-  def __init__(self, scope, ast):
-    self.parameters = []
-    for child in ast.children[0].children:
-      self.parameters.append(scope.resolve_type(child))
-    self.result = scope.resolve_type(ast.children[1])
-
-  def subtype(self, sub):
-    """
-    For sub to be a subtype of self, it must be a Lambda where all
-    self.parameters are subtypes of all sub.parameters (contravariant) and all
-    sub.results are subtypes of all self.results (covariant).
-
-    Also acceptable is a Desc that implements a subtype of this Lambda.
-    An ADT is never a subtype of a Lambda.
-    """
-    return False
-
-class ADT(Expr):
-  def __init__(self, scope, ast):
+  def __init__(self, typelist):
     self.typelist = []
-    for child in ast.children:
-      self.typelist.append(scope.resolve_type(child))
+    for t in typelist:
+      self._add_type(self, t)
 
   def subtype(self, sub):
+    if isinstance(sub, ADT):
+      return self._sub_adt(sub)
+    else:
+      return self._sub_type(sub)
+
+  # Private
+
+  def _add_type(self, t):
+    if isinstance(t, ADT):
+      for elem in t.typelist:
+        self._add_type(elem)
+    else:
+      self.typelist.append(t)
+
+  def _sub_adt(self, sub):
     """
-    For sub to be a subtype of self, it must be a Bind or Lambda that is
-    a subtype of an element of the ADT, or it must be an ADT where each element
-    is a subtype of an element of the ADT.
+    An ADT is a subtype of this ADT if every element in that ADT is a subtype of
+    an element in this ADT.
+    """
+    for elem in sub.typelist:
+      if not self._sub_type(elem):
+        return False
+    return True
+
+  def _sub_type(self, sub):
+    """
+    A type is a subtype of an ADT if it is a subtype of an element of the ADT.
+    """
+    for elem in self.typelist:
+      if elem.subtype(sub):
+        return True
+    return False
+
+class Bind(object):
+  """
+  desc: TypeDesc
+  """
+  def __init__(self, desc, ast):
+    """
+    FIX: resolve using desc as the scope
+    """
+    self.partial = ast.name == 'partial_type'
+    self.desc = None
+
+  def subtype(self, sub):
+    if isinstance(sub, Bind):
+      return self._sub_bind(sub)
+    elif isinstance(sub, ADT):
+      return self._sub_adt(sub)
+    else:
+      return False
+
+  # Private
+
+  def _sub_bind(self, sub):
+    """
+    FIX: True if sub implements our Desc with the same formal parameters.
     """
     return False
+
+  def _sub_adt(self, sub):
+    """
+    True if all elements of the ADT are a subtype of this Bind.
+    """
+    for elem in sub.typelist:
+      if not self.subtype(elem):
+        return False
+    return True
+
+class Lambda(object):
+  """
+  parameters: list of ADT
+  result: ADT
+  """
+  def __init__(self, desc, ast):
+    self.parameters = []
+    if ast.children[0]:
+      for child in ast.children[0].children:
+        self.parameters.append(desc.resolve_adt(child))
+    self.result = desc.resolve_adt(ast.children[1])
+
+  def subtype(self, sub):
+    if isinstance(sub, Bind):
+      return self._sub_bind(sub)
+    elif isinstance(sub, Lambda):
+      return self._sub_lambda(sub)
+    elif isinstance(sub, ADT):
+      return self._sub_adt(sub)
+    else:
+      return False
+
+  # Private
+
+  def _sub_bind(self, sub):
+    """
+    FIX: True if sub implements this Lambda
+    """
+    return False
+
+  def _sub_lambda(self, sub):
+    """
+    True if all parameters are contravariant and all results are covariant.
+    """
+    if len(self.parameters) != len(sub.parameters):
+      return False
+    for i in range(len(self.parameters)):
+      if not sub.parameters[i].subtype(self.parameters[i]):
+        return False
+    if not self.result.subtype(sub.result):
+      return False
+    return True
+
+  def _sub_adt(self, sub):
+    """
+    True if all elements of the ADT are a subtype of this Lambda.
+    """
+    for elem in sub.typelist:
+      if not self.subtype(elem):
+        return False
+    return True

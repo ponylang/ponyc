@@ -3,6 +3,7 @@ import os
 import os.path
 import hashlib
 from module import Module
+from typecheck import TypeDesc
 
 class PackageError(Exception):
   pass
@@ -26,6 +27,10 @@ class Package(object):
     self.hash = hashlib.sha1()
     self._load()
 
+  def show(self, buf):
+    for module in self.modules:
+      module.show(buf)
+
   def update_hash(self, text):
     self.hash.update(text.encode('utf-8'))
 
@@ -35,7 +40,7 @@ class Package(object):
   def add_package(self, url):
     return self.program.add_package(self.url, url)
 
-  def add_type(self, name, ast):
+  def add_type(self, module, name, ast):
     if name in self.types:
       prev = self.types[name]
       raise PackageError(
@@ -46,23 +51,23 @@ class Package(object):
         (ast.module.url, ast.line, ast.col, name,
           prev.module.url, prev.line, prev.col, name)
         )
-    self.types[name] = ast
+    self.types[name] = TypeDesc(module, ast)
 
   def populate_types(self):
     for module in self.modules:
       module.populate_types()
 
+  def typecheck_params(self):
+    for desc in self.types.values():
+      desc.typecheck_params()
+
   def typecheck_types(self):
-    """
-    FIX:
-    """
-    pass
+    for desc in self.types.values():
+      desc.typecheck_type()
 
   def typecheck_bodies(self):
-    """
-    FIX:
-    """
-    pass
+    for desc in self.types.values():
+      desc.typecheck_body()
 
   # Private
 

@@ -10,10 +10,10 @@ class Module(object):
 
   FIX: Import built-in types into local namespace by default.
 
-  package: containing package
-  url: module url
-  packages: map of string to list of PackageScope
-  ast: module ast
+  package: Package
+  url: string
+  packages: map of string to list of Package
+  ast: AST
   """
   def __init__(self, package, url):
     self.package = package
@@ -22,6 +22,9 @@ class Module(object):
     text = self._load()
     package.update_hash(text)
     self.ast = package.parse(url, text)
+
+  def show(self, buf):
+    self.ast.show(buf)
 
   def import_packages(self):
     self.ast.import_packages(self)
@@ -40,7 +43,19 @@ class Module(object):
     self.ast.populate_types(self)
 
   def add_type(self, name, ast):
-    self.package.add_type(name, ast)
+    self.package.add_type(self, name, ast)
+
+  def resolve_type(self, ast):
+    """
+    FIX: AST(type)
+    """
+    if ast == None:
+      return None
+    for child in ast.children:
+      # base_type [pkg, ID, type_args_opt]
+      # partial_type [pkg, ID, type_args_opt]
+      # lambda [params, result]
+      return None
 
   # Private
 

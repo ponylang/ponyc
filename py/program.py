@@ -1,3 +1,4 @@
+import sys
 import urllib.parse
 import os.path
 from parser import Parser
@@ -21,11 +22,16 @@ class Program(object):
     'D32', 'D64'
     )
 
-  def __init__(self, debuglevel=0):
+  def __init__(self, optimize, debuglevel):
     debug = True if debuglevel > 0 else False
-    self.parser = Parser(debug=debug, debuglevel=debuglevel)
+    optimize = True if optimize else False
+    self.parser = Parser(optimize=optimize, debug=debug, debuglevel=debuglevel)
     self.package_map = {}
     self.package_list = []
+
+  def show(self, buf=sys.stdout):
+    for package in self.package_list:
+      package.show(buf)
 
   def add_package(self, base, url=None):
     """
@@ -56,6 +62,8 @@ class Program(object):
     for package in self.package_list:
       package.populate_types()
     for package in self.package_list:
+      package.typecheck_params()
+    for package in self.package_list:
       package.typecheck_types()
     for package in self.package_list:
       package.typecheck_bodies()
@@ -68,11 +76,10 @@ class Program(object):
   def _canonical_url(self, base, url):
     if url == None:
       url = base
+    elif url[0] == '/':
+      url = urllib.parse.urljoin(base, url)
     else:
-      if url[0] == '/':
-        url = urllib.parse.urljoin(base, url)
-      else:
-        url = base + '/' + url
+      url = base + '/' + url
     url = urllib.parse.urlparse(url, scheme='file')
     path = url.path
     if url.scheme == 'file':

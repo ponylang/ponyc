@@ -1,6 +1,7 @@
 import re
 import sys
 import ply.lex
+from ply.lex import TOKEN
 
 class Lexer(object):
   """
@@ -10,6 +11,7 @@ class Lexer(object):
   def __init__(self, error_func):
     self.lexer = None
     self.error_func = error_func
+    self.nesting = 0
 
   def build(self, **kwargs):
     self.lexer = ply.lex.lex(object=self, **kwargs)
@@ -35,6 +37,11 @@ class Lexer(object):
   def _error(self, msg, token):
     self.error_func(token.lineno, self.column(token.lexpos), msg)
     self.lexer.skip(1)
+
+  # State for nested comments
+  states = [
+    ('nested', 'exclusive')
+    ]
 
   # Keywords
 
@@ -92,16 +99,34 @@ class Lexer(object):
   t_PARTIAL = r'\\'
 
   t_ignore = ' \t'
+  t_nested_ignore = ''
 
   hex_dig = r'[0-9a-fA-F]'
   esc_seq = r'[abfnrtv"\\0]'
   esc_hex = r'x'+hex_dig+hex_dig
   esc_uni = r'u'+hex_dig+hex_dig+hex_dig+hex_dig
   esc_uni2 = r'U'+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig+hex_dig
-  esc = r'\\(esc_seq|esc_hex|esc_uni|esc_uni2)'
+  esc = r'\\('+esc_seq+'|'+esc_hex+'|'+esc_uni+'|'+esc_uni2+')'
 
+  def t_nested_begin(self, t):
+    r'/\*'
+    self.nesting += 1
+
+  def t_nested_end(self, t):
+    r'\*/'
+    self.nesting -= 1
+    if self.nesting == 0:
+      t.lexer.begin('INITIAL')
+
+  def t_nested_comment(self, t):
+    r'([^/*]|\*[^/]|/[^*])+'
+    t.lexer.lineno += t.value.count('\n')
+
+  def t_nested_error(self, t):
+    pass
+
+  @TOKEN(r'"('+esc+r'|[^\\"])*"')
   def t_STRING(self, t):
-    r'"(esc|[^\\"])*"'
     t.lexer.lineno += t.value.count('\n')
     return t
 
@@ -116,8 +141,30 @@ class Lexer(object):
     t.value = float(t.value)
     return t
 
+  def t_HEXINT(self, t):
+    r'0x[_0-9a-fA-F]+'
+    t.value = t.value.replace('_', '')
+    t.value = int(t.value, 16)
+    t.type = 'INT'
+    return t
+
+  def t_OCTINT(self, t):
+    r'0[_0-7]+'
+    t.value = t.value.replace('_', '')
+    t.value = int(t.value, 8)
+    t.type = 'INT'
+    return t
+
+  def t_BININT(self, t):
+    r'0b[_0-1]+'
+    t.value = t.value.replace('_', '')
+    t.value = int(t.value, 2)
+    t.type = 'INT'
+    return t
+
   def t_INT(self, t):
-    r'([0-9]+|0x[_0-9a-fA-F]+|0b[_0-1]+)'
+    r'[1-9][_0-9]*'
+    t.value = t.value.replace('_', '')
     t.value = int(t.value)
     return t
 
@@ -130,8 +177,9 @@ class Lexer(object):
     r'//[^\n]*'
 
   def t_blockcomment(self, t):
-    r'/\*([^\*]|\*[^/])*\*/'
-    t.lexer.lineno += t.value.count('\n')
+    r'/\*'
+    self.nesting += 1
+    t.lexer.begin('nested')
 
   def t_newline(self, t):
     r'\n+'

@@ -192,7 +192,8 @@ class Parser(object):
     """
     base_type : ID id_opt type_args_opt
       | PARTIAL ID id_opt type_args_opt
-      | params result
+      | LPAREN type_list RPAREN LPAREN type RPAREN
+      | LPAREN empty RPAREN LPAREN type RPAREN
     """
     if len(p) == 4:
       if p[2] == None:
@@ -205,7 +206,7 @@ class Parser(object):
       else:
         p[0] = AST(p, 'partial_type', [p[2], p[3], p[4]])
     else:
-      p[0] = AST(p, 'lambda', [p[1], p[2]])
+      p[0] = AST(p, 'lambda', [p[2], p[5]])
 
   def p_id_opt(self, p):
     """
@@ -287,12 +288,6 @@ class Parser(object):
     else:
       p[0] = p[1]
 
-  def p_result(self, p):
-    """
-    result : LPAREN type RPAREN
-    """
-    p[0] = p[2]
-
   def p_seq(self, p):
     """
     seq : expr
@@ -325,9 +320,9 @@ class Parser(object):
 
   def p_expr_def(self, p):
     """
-    expr : DEF type_params_opt params result EQUALS expr
+    expr : DEF type_params_opt params LPAREN type RPAREN EQUALS expr
     """
-    p[0] = AST(p, 'def', [None, p[2], p[3], p[4], p[6]])
+    p[0] = AST(p, 'def', [None, p[2], p[3], p[5], p[8]])
 
   def p_expr_if(self, p):
     """
@@ -400,33 +395,27 @@ class Parser(object):
   def p_binary(self, p):
     """
     binary : unary
-      | binary binop unary
+      | binary TIMES binary
+      | binary DIVIDE binary
+      | binary MOD binary
+      | binary PLUS binary
+      | binary MINUS binary
+      | binary LSHIFT binary
+      | binary RSHIFT binary
+      | binary LT binary
+      | binary LE binary
+      | binary GE binary
+      | binary GT binary
+      | binary EQ binary
+      | binary NE binary
+      | binary AND binary
+      | binary XOR binary
+      | binary OR binary
     """
     if len(p) == 2:
       p[0] = p[1]
     else:
       p[0] = AST(p, 'binop', [p[2], p[1], p[3]])
-
-  def p_binop(self, p):
-    """
-    binop : PLUS
-      | MINUS
-      | TIMES
-      | DIVIDE
-      | MOD
-      | LSHIFT
-      | RSHIFT
-      | LT
-      | LE
-      | EQ
-      | NE
-      | GE
-      | GT
-      | AND
-      | OR
-      | XOR
-    """
-    p[0] = p[1]
 
   def p_unary(self, p):
     """
@@ -485,8 +474,8 @@ class Parser(object):
 
   def p_arg(self, p):
     """
-    arg : seq
-      | ID EQUALS seq
+    arg : ID EQUALS expr
+      | expr
     """
     if len(p) == 2:
       p[0] = p[1]
@@ -525,4 +514,4 @@ class Parser(object):
     if p == None:
       self._error_func('At end of input', '', 'Unexpected EOF')
     else:
-      self._error_func(p.lineno, p.lexer.column(p.lexpos), 'before: %s' % p.value)
+      self._error_func(p.lineno, self.lexer.column(p.lexpos), 'before: %s' % p.value)
