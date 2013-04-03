@@ -5,17 +5,24 @@ class TypeDesc(object):
   """
   Describes an actor, class or trait.
 
-  To have a complete type, a TypeBind is needed. It binds the formal parameter
+  To have a complete type, a ClassType is needed. It binds the formal parameter
   types and values in self.parameters to actual types and values.
 
   self.ast: AST
   self.name: string
   self.parameters: list of TypeParam
-  self.implements: list of TypeBind
+  self.implements: list of ClassType|LambdaType
   self.fields: list of Field
   self.methods: list of Method
   """
+  state = (
+    'initial',
+    'checking_params',
+    'checked_params'
+    )
+
   def __init__(self, module, ast):
+    self.state = 'initial'
     self.module = module
     self.ast = ast
     self.name = ast.children[0]
@@ -25,12 +32,18 @@ class TypeDesc(object):
     self.methods = []
 
   def typecheck_params(self):
-    """
-    FIX:
-    """
+    if self.state == 'checking_params':
+      raise TypecheckError(
+        """
+  %s [%s:%s]: circular type dependency in %s
+        """ %
+        (self.ast.module.url, self.ast.line, self.ast.col, self.name)
+        )
+    self.state = 'checking_params'
     if self.ast.children[1]:
-      for param in self.ast.children[1].children:
-        self.parameters.append(TypeParam(self.module, param))
+      for ast in self.ast.children[1].children:
+        self.parameters.append(TypeParam(self, ast))
+    self.state = 'checked_params'
 
   def typecheck_type(self):
     """
@@ -73,13 +86,12 @@ class TypeDesc(object):
 
   def _resolve_type(self, ast):
     """
-    FIX:
     The ast will be a base_type, a partial_type, or a lambda.
     """
     if ast.name == 'lambda':
-      return Lambda(self, ast)
+      return LambdaType(self, ast)
     else:
-      return Bind(self, ast)
+      return ClassType(self, ast)
 
 class TypeParam(object):
   """
@@ -128,7 +140,7 @@ class Method(object):
 
 class ADT(object):
   """
-  typelist: list of Bind|Lambda
+  typelist: list of ClassType|LambdaType
   """
   def __init__(self, typelist):
     self.typelist = []
@@ -169,20 +181,32 @@ class ADT(object):
         return True
     return False
 
-class Bind(object):
+class ClassType(object):
   """
+  partial: Boolean
   desc: TypeDesc
   """
   def __init__(self, desc, ast):
     """
     FIX: resolve using desc as the scope
+
+    Need to be fully formed, but can use type parameters already defined in
+    desc. If we reference a type that hasn't checked its parameters yet, check
+    them. Need to keep track of recursion - if we come back to a type that is
+    in-progress, throw an exception.
+
+    What's stored?
+
+    Real type: desc, type parameter bindings
+      bindings are resolved from the desc we appear in, not our own
+    Type parameter: type param, which has no type parameters
     """
     self.partial = ast.name == 'partial_type'
     self.desc = None
 
   def subtype(self, sub):
-    if isinstance(sub, Bind):
-      return self._sub_bind(sub)
+    if isinstance(sub, ClassType):
+      return self._sub_class(sub)
     elif isinstance(sub, ADT):
       return self._sub_adt(sub)
     else:
@@ -190,22 +214,23 @@ class Bind(object):
 
   # Private
 
-  def _sub_bind(self, sub):
+  def _sub_class(self, sub):
     """
     FIX: True if sub implements our Desc with the same formal parameters.
+    What about if we are a partial type?
     """
     return False
 
   def _sub_adt(self, sub):
     """
-    True if all elements of the ADT are a subtype of this Bind.
+    True if all elements of the ADT are a subtype of this ClassType.
     """
     for elem in sub.typelist:
       if not self.subtype(elem):
         return False
     return True
 
-class Lambda(object):
+class LambdaType(object):
   """
   parameters: list of ADT
   result: ADT
@@ -218,9 +243,9 @@ class Lambda(object):
     self.result = desc.resolve_adt(ast.children[1])
 
   def subtype(self, sub):
-    if isinstance(sub, Bind):
-      return self._sub_bind(sub)
-    elif isinstance(sub, Lambda):
+    if isinstance(sub, ClassType):
+      return self._sub_class(sub)
+    elif isinstance(sub, LambdaType):
       return self._sub_lambda(sub)
     elif isinstance(sub, ADT):
       return self._sub_adt(sub)
@@ -229,9 +254,9 @@ class Lambda(object):
 
   # Private
 
-  def _sub_bind(self, sub):
+  def _sub_class(self, sub):
     """
-    FIX: True if sub implements this Lambda
+    FIX: True if sub implements this LambdaType
     """
     return False
 
