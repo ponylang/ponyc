@@ -1,36 +1,17 @@
 class ScopeError(Exception):
   pass
 
-class TypeScope(object):
-  """
-  Type scope contains bound formal parameters, fields and methods.
-
-  package: PackageScope
-  type: typecheck.Desc
-  vars: map of string to typecheck.Expr
-  vals: map of string to typecheck.Expr
-  private_methods: map of string to ?
-  public_methods: map of string to ?
-  """
-  def __init__(self, package, desc):
-    self.package = package
-    self.type = desc
-    self.vars = {}
-    self.vals = {}
-    self.private_methods = {}
-    self.public_methods = {}
-
 class Scope(object):
   """
   A lexical scope.
 
-  type: TypeScope
+  type: TypeDef
   parent: Scope
-  vars: map of string to typecheck.Expr
-  vals: map of string to typecheck.Expr
+  vars: map of string to ADT
+  vals: map of string to ADT
   """
-  def __init__(self, typescope, parent=None):
-    self.type = typescope
+  def __init__(self, typedef, parent=None):
+    self.type = typedef
     self.parent = parent
     self.vars = {}
     self.vals = {}

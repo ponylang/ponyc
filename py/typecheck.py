@@ -1,9 +1,9 @@
 class TypecheckError(Exception):
   pass
 
-class TypeDesc(object):
+class TypeDef(object):
   """
-  Describes an actor, class or trait.
+  Defines an actor, class or trait.
 
   To have a complete type, a ClassType is needed. It binds the formal parameter
   types and values in self.parameters to actual types and values.
@@ -107,9 +107,9 @@ class TypeParam(object):
   type: ADT
   FIX: default value using ast.children[2]
   """
-  def __init__(self, desc, ast):
+  def __init__(self, typedef, ast):
     self.name = ast.children[0]
-    self.type = desc.resolve_adt(ast.children[1])
+    self.type = typedef.resolve_adt(ast.children[1])
     if self.isvalue() and self.type == None:
       raise TypecheckError('Formal value parameter must specify a type')
 
@@ -184,25 +184,27 @@ class ADT(object):
 class ClassType(object):
   """
   partial: Boolean
-  desc: TypeDesc
+  type: TypeDef
+  parameters: list of ADT
   """
-  def __init__(self, desc, ast):
+  def __init__(self, typedef, ast):
     """
-    FIX: resolve using desc as the scope
+    FIX: resolve using typedef as the scope
 
     Need to be fully formed, but can use type parameters already defined in
-    desc. If we reference a type that hasn't checked its parameters yet, check
+    typedef. If we reference a type that hasn't checked its parameters yet, check
     them. Need to keep track of recursion - if we come back to a type that is
     in-progress, throw an exception.
 
     What's stored?
 
-    Real type: desc, type parameter bindings
-      bindings are resolved from the desc we appear in, not our own
+    Real type: typedef, type parameter bindings
+      bindings are resolved from the typedef we appear in, not our own
     Type parameter: type param, which has no type parameters
     """
     self.partial = ast.name == 'partial_type'
-    self.desc = None
+    self.type = None
+    self.parameters = []
 
   def subtype(self, sub):
     if isinstance(sub, ClassType):
@@ -216,7 +218,7 @@ class ClassType(object):
 
   def _sub_class(self, sub):
     """
-    FIX: True if sub implements our Desc with the same formal parameters.
+    FIX: True if sub implements our type with the same formal parameters.
     What about if we are a partial type?
     """
     return False
@@ -235,12 +237,12 @@ class LambdaType(object):
   parameters: list of ADT
   result: ADT
   """
-  def __init__(self, desc, ast):
+  def __init__(self, typedef, ast):
     self.parameters = []
     if ast.children[0]:
       for child in ast.children[0].children:
-        self.parameters.append(desc.resolve_adt(child))
-    self.result = desc.resolve_adt(ast.children[1])
+        self.parameters.append(typedef.resolve_adt(child))
+    self.result = typedef.resolve_adt(ast.children[1])
 
   def subtype(self, sub):
     if isinstance(sub, ClassType):
