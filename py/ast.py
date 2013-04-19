@@ -91,7 +91,7 @@ class AST(object):
 
   def _populate_type_def(self, module):
     """
-    FIX: type
+    FIX: populate type def
     """
     pass
 

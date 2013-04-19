@@ -35,15 +35,16 @@ class TypeDef(object):
     if self.state == 'checking_params':
       raise TypecheckError(
         """
-  %s [%s:%s]: circular type dependency in %s
+%s [%s:%s]: circular type dependency in %s
         """ %
         (self.ast.module.url, self.ast.line, self.ast.col, self.name)
         )
-    self.state = 'checking_params'
-    if self.ast.children[1]:
-      for ast in self.ast.children[1].children:
-        self.parameters.append(TypeParam(self, ast))
-    self.state = 'checked_params'
+    elif self.state == 'initial':
+      self.state = 'checking_params'
+      if self.ast.children[1]:
+        for ast in self.ast.children[1].children:
+          self.parameters.append(TypeParam(self, ast))
+      self.state = 'checked_params'
 
   def typecheck_type(self):
     """
@@ -87,6 +88,7 @@ class TypeDef(object):
   def _resolve_type(self, ast):
     """
     The ast will be a base_type, a partial_type, or a lambda.
+    FIX: later, will need to handle type_def as well
     """
     if ast.name == 'lambda':
       return LambdaType(self, ast)

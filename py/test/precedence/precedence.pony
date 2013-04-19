@@ -1,9 +1,8 @@
 class Precedence
 {
   /* nested
-  /* comment
-  */ not quite
-  done */
+  /* comments */
+  work */
   def assoc() I32 = 1_ + 77 * 2.0e-2 * 0xF_F / 0b1_1 % 01_2
 
   def assoc() F32 = 1 * 2 + 3
