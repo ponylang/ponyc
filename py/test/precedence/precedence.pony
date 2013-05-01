@@ -1,4 +1,9 @@
-class Precedence
+trait Test
+{
+
+}
+
+class Precedence[T:Test[N], U:Test|Test]
 {
   /* nested
   /* comments */

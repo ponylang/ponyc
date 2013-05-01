@@ -29,15 +29,19 @@ class Module(object):
   def import_packages(self):
     self.ast.import_packages(self)
 
-  def add_package(self, name, url):
+  def add_package(self, name, url, ast):
     """
     Add a package at module scope
     """
-    package = self.package.add_package(url)
     if name in self.packages:
-      self.packages[name].append(package)
+      raise ModuleError(
+        """
+%s [%s:%s]: redefinition of import %s
+        """ %
+        (self.url, ast.line, ast.col, name)
+        )
     else:
-      self.packages[name] = [package]
+      self.packages[name] = self.package.add_package(url)
 
   def populate_types(self):
     self.ast.populate_types(self)
@@ -45,16 +49,14 @@ class Module(object):
   def add_type(self, name, ast):
     self.package.add_type(self, name, ast)
 
-  def resolve_type(self, ast):
+  def resolve_typename(self, pkg, name):
     """
-    FIX: AST(type)
+    The pkg and name are strings.
     """
-    if ast == None:
-      return None
-    for child in ast.children:
-      # base_type [pkg, ID, type_args_opt]
-      # partial_type [pkg, ID, type_args_opt]
-      # lambda [params, result]
+    package = self.packages[pkg]
+    if package != None:
+      return package.resolve_typedef(name)
+    else:
       return None
 
   # Private

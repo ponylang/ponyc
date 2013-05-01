@@ -45,13 +45,14 @@ class Package(object):
       prev = self.types[name]
       raise PackageError(
         """
-  %s [%s:%s]: redefinition of type %s
-  %s [%s:%s]: original definition of type %s
+%s [%s:%s]: redefinition of type %s
+%s [%s:%s]: original definition of type %s
         """ %
-        (ast.module.url, ast.line, ast.col, name,
-          prev.module.url, prev.line, prev.col, name)
+        (module.url, ast.line, ast.col, name,
+          prev.module.url, prev.ast.line, prev.ast.col, name)
         )
-    self.types[name] = TypeDef(module, ast)
+    else:
+      self.types[name] = TypeDef(module, ast)
 
   def populate_types(self):
     for module in self.modules:
@@ -68,6 +69,9 @@ class Package(object):
   def typecheck_bodies(self):
     for t in self.types.values():
       t.typecheck_body()
+
+  def resolve_typedef(self, name):
+    return self.types[name]
 
   # Private
 

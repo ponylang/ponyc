@@ -79,7 +79,7 @@ class AST(object):
         use.import_packages(module)
 
   def _import_use(self, module):
-    module.add_package(self.children[0], self.children[1])
+    module.add_package(self.children[0], self.children[1], self)
 
   def _populate_module(self, module):
     self.children[1].populate_types(module)

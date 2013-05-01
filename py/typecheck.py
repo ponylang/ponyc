@@ -5,13 +5,13 @@ class TypeDef(object):
   """
   Defines an actor, class or trait.
 
-  To have a complete type, a ClassType is needed. It binds the formal parameter
+  To have a complete type, a ObjectType is needed. It binds the formal parameter
   types and values in self.parameters to actual types and values.
 
   self.ast: AST
   self.name: string
   self.parameters: list of TypeParam
-  self.implements: list of ClassType|LambdaType
+  self.implements: list of ObjectType|FunctionType
   self.fields: list of Field
   self.methods: list of Method
   """
@@ -27,6 +27,7 @@ class TypeDef(object):
     self.ast = ast
     self.name = ast.children[0]
     self.parameters = []
+    self.parameter_map = {}
     self.implements = []
     self.fields = []
     self.methods = []
@@ -43,18 +44,29 @@ class TypeDef(object):
       self.state = 'checking_params'
       if self.ast.children[1]:
         for ast in self.ast.children[1].children:
-          self.parameters.append(TypeParam(self, ast))
+          param = TypeParam(self, ast)
+          if param.name in self.parameter_map:
+            raise TypecheckError(
+              """
+%s [%s:%s]: redefinition of type parameter %s
+              """ %
+              (self.module.url, self.ast.line, self.ast.col, param.name)
+              )
+          else:
+            self.parameters.append(param)
+            self.parameter_map[param.name] = param
       self.state = 'checked_params'
 
   def typecheck_type(self):
     """
-    FIX: implements, fields, method signatures
+    FIX: implements, fields, method signatures, check methods allow us to
+    satisfy our implements.
     """
     pass
 
   def typecheck_body(self):
     """
-    FIX: method bodies
+    FIX: method bodies.
     """
     pass
 
@@ -72,28 +84,36 @@ class TypeDef(object):
 
   def resolve_adt(self, ast):
     """
-    If ast is None, return None. Otherwise, ast must be an AST('type'). Return
-    an ADT containing each type in ast.children.
+    The ast is an AST('type') or None. Return an ADT containing each type in
+    ast.children.
     """
-    if ast == None:
-      return None
-    else:
-      typelist = []
+    typelist = []
+    if ast != None:
       for child in ast.children:
         typelist.append(self._resolve_type(child))
-      return ADT(typelist)
+    return ADT(typelist)
+
+  def resolve_typedef(self, pkg, name):
+    """
+    The pkg and name are strings. We first check for them in our type params.
+    Then we check for them in our module. If we reference a type that hasn't
+    checked its parameters yet, check them.
+    """
+    if pkg == None and name in self.parameter_map:
+      return self.parameter_map[name].type
+    else:
+      return self.module.resolve_typedef(pkg, name)
 
   # Private
 
   def _resolve_type(self, ast):
     """
-    The ast will be a base_type, a partial_type, or a lambda.
-    FIX: later, will need to handle type_def as well
+    The ast is a base_type, a partial_type, or a lambda.
     """
     if ast.name == 'lambda':
-      return LambdaType(self, ast)
+      return FunctionType(self, ast)
     else:
-      return ClassType(self, ast)
+      return ObjectType(self, ast)
 
 class TypeParam(object):
   """
@@ -112,8 +132,6 @@ class TypeParam(object):
   def __init__(self, typedef, ast):
     self.name = ast.children[0]
     self.type = typedef.resolve_adt(ast.children[1])
-    if self.isvalue() and self.type == None:
-      raise TypecheckError('Formal value parameter must specify a type')
 
   def accept(self, binding):
     """
@@ -142,15 +160,22 @@ class Method(object):
 
 class ADT(object):
   """
-  typelist: list of ClassType|LambdaType
+  An ADT with no elements is the top type.
+
+  typelist: list of ObjectType|FunctionType
   """
   def __init__(self, typelist):
     self.typelist = []
     for t in typelist:
-      self._add_type(self, t)
+      self._add_type(t)
 
   def subtype(self, sub):
-    if isinstance(sub, ADT):
+    """
+    If this ADT is the top type, everything is a subtype.
+    """
+    if len(self.typelist) == 0:
+      return True
+    elif isinstance(sub, ADT):
       return self._sub_adt(sub)
     else:
       return self._sub_type(sub)
@@ -167,12 +192,12 @@ class ADT(object):
   def _sub_adt(self, sub):
     """
     An ADT is a subtype of this ADT if every element in that ADT is a subtype of
-    an element in this ADT.
+    an element in this ADT, and that ADT is not the top type.
     """
     for elem in sub.typelist:
       if not self._sub_type(elem):
         return False
-    return True
+    return len(sub.typelist) != 0
 
   def _sub_type(self, sub):
     """
@@ -183,7 +208,7 @@ class ADT(object):
         return True
     return False
 
-class ClassType(object):
+class ObjectType(object):
   """
   partial: Boolean
   type: TypeDef
@@ -191,26 +216,26 @@ class ClassType(object):
   """
   def __init__(self, typedef, ast):
     """
-    FIX: resolve using typedef as the scope
-
-    Need to be fully formed, but can use type parameters already defined in
-    typedef. If we reference a type that hasn't checked its parameters yet, check
-    them. Need to keep track of recursion - if we come back to a type that is
-    in-progress, throw an exception.
-
-    What's stored?
-
-    Real type: typedef, type parameter bindings
-      bindings are resolved from the typedef we appear in, not our own
-    Type parameter: type param, which has no type parameters
+    Resolve using typedef as the scope.
     """
     self.partial = ast.name == 'partial_type'
-    self.type = None
+    self.type = typedef.resolve_typedef(ast.children[0], ast.children[1])
     self.parameters = []
+    if self.type == None:
+      raise TypecheckError(
+        """
+%s [%s:%s]: cannot resolve type %s.%s
+        """ %
+        (typedef.module.url, ast.line, ast.col,
+          ast.children[0], ast.children[1])
+        )
+    self._extract_params(ast)
 
   def subtype(self, sub):
-    if isinstance(sub, ClassType):
-      return self._sub_class(sub)
+    if isinstance(sub, ObjectType):
+      return self._sub_object(sub)
+    elif isinstance(sub, FunctionType):
+      return self._sub_function(sub)
     elif isinstance(sub, ADT):
       return self._sub_adt(sub)
     else:
@@ -218,23 +243,49 @@ class ClassType(object):
 
   # Private
 
-  def _sub_class(self, sub):
+  def _extract_params(self, ast):
+    if ast.children[2] != None:
+      for param in ast.children[2].children:
+        self._extract_param(param)
+
+  def _extract_param(self, ast):
+    """
+    NEXTUP:
+    FIX: the ast is an expr. Need to determine if it is a type or a value.
+    """
+    pass
+
+  def _sub_object(self, sub):
     """
     FIX: True if sub implements our type with the same formal parameters.
     What about if we are a partial type?
     """
-    return False
+    if self.typedef == None:
+      return True
+    else:
+      return False
+
+  def _sub_function(self, sub):
+    """
+    A function is only a subtype of an object if the object has no typedef.
+    FIX: what about Any?
+    """
+    if self.typedef == None:
+      return True
+    else:
+      return False
 
   def _sub_adt(self, sub):
     """
-    True if all elements of the ADT are a subtype of this ClassType.
+    True if all elements of the ADT are a subtype of this ObjectType and the ADT
+    is not the top type.
     """
     for elem in sub.typelist:
       if not self.subtype(elem):
         return False
-    return True
+    return len(sub.typelist) != 0
 
-class LambdaType(object):
+class FunctionType(object):
   """
   parameters: list of ADT
   result: ADT
@@ -247,10 +298,10 @@ class LambdaType(object):
     self.result = typedef.resolve_adt(ast.children[1])
 
   def subtype(self, sub):
-    if isinstance(sub, ClassType):
-      return self._sub_class(sub)
-    elif isinstance(sub, LambdaType):
-      return self._sub_lambda(sub)
+    if isinstance(sub, ObjectType):
+      return self._sub_object(sub)
+    elif isinstance(sub, FunctionType):
+      return self._sub_function(sub)
     elif isinstance(sub, ADT):
       return self._sub_adt(sub)
     else:
@@ -258,13 +309,13 @@ class LambdaType(object):
 
   # Private
 
-  def _sub_class(self, sub):
+  def _sub_object(self, sub):
     """
-    FIX: True if sub implements this LambdaType
+    FIX: True if sub implements this FunctionType
     """
     return False
 
-  def _sub_lambda(self, sub):
+  def _sub_function(self, sub):
     """
     True if all parameters are contravariant and all results are covariant.
     """
@@ -279,9 +330,10 @@ class LambdaType(object):
 
   def _sub_adt(self, sub):
     """
-    True if all elements of the ADT are a subtype of this Lambda.
+    True if all elements of the ADT are a subtype of this FunctionType and the
+    ADT is not the top type.
     """
     for elem in sub.typelist:
       if not self.subtype(elem):
         return False
-    return True
+    return len(sub.typelist) != 0
