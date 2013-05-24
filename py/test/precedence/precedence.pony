@@ -17,3 +17,11 @@ class Precedence[T:Test[N], U:Test|Test]
   def optarg() None =
     obj.invoke(arg, opt=if 3 > 4 then "te\nst" else "real")
 }
+
+class Foo[T]
+{
+  var a:Aardvark[T]<wri>
+
+  def set<iso|wri>(a:Aardvark[T]<iso>) None = None
+  def get<wri|fro>() Aardvark[T]<this> = a
+}
