@@ -22,6 +22,6 @@ class Foo[T]
 {
   var a:Aardvark[T]<wri>
 
-  def set<iso|wri>(a:Aardvark[T]<iso>) None = None
+  def set<iso|wri>(a:Aardvark[T]<this>) None = None
   def get<wri|fro>() Aardvark[T]<this> = a
 }

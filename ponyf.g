@@ -13,21 +13,21 @@ module
   ;
 
 use
-  :  'use' (ID '=')? STRING
+  :  'use' STRING ('as' ID)?
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? ('is' types)? '{' member* '}'
+  :  'private'? ('actor' | 'class' | 'trait') ID type_params? mode_args? ('is' types)? '{' member* '}'
   ;
 
 member
   :  'var' param
   |  'val' param
-  |  'private'? ('def' | 'msg') ID type_params? params type ('=' seq)?
+  |  'private'? ('def' | 'msg') ID type_params? mode_args? params type ('=' seq)?
   ;
 
 typedef_
-  :  'type' ID ('.' ID)? type_params? (':' type)? ('is' types)? ('{' (ID '=' ID)* '}')?
+  :  'private'? 'type' ID ('.' ID)? type_params? (':' type)? ('is' types)? ('{' (ID '=' ID)* '}')?
   ;
 
 types
@@ -39,8 +39,8 @@ type
   ;
 
 base_type
-  :  '\\'? ID ('.' ID)? type_args?
-  |  params result
+  :  '\\'? ID ('.' ID)? type_args? mode_args?
+  |  params result mode_args?
   ;
 
 type_params
@@ -48,7 +48,20 @@ type_params
   ;
 
 type_args
-  :  '[' arg (',' arg)* ']'
+  :  '[' type_arg (',' type_arg)* ']'
+  ;
+
+type_arg
+  :	 (type) => type
+  |  expr
+  ;
+
+mode_args
+  :	 '<' mode ('|' mode)* '>'
+  ;
+
+mode
+  :	 'iso' | 'fro' | 'wri' | ID
   ;
 
 params
@@ -80,7 +93,7 @@ expr
   :  'var' ID (':' type)? '=' expr
   |  'val' ID (':' type)? '=' expr
   |  binary ('=' expr)?
-  |  'def' type_params? params result '=' expr
+  |  'def' type_params? mode_args? params result '=' expr
   |  'if' seq 'then' expr 'else' expr
   |  'while' seq 'do' expr
   |  'for' ID 'in' seq 'do' expr // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }
@@ -98,7 +111,7 @@ unary
 
 postfix
   :  primary
-  (  '.' primary
+  (  '.' ID
   |  type_args
   |  args
   )*
@@ -127,7 +140,7 @@ binop
   :  'and' | 'or' | 'xor'
   |  '+' | '-' | '*' | '/' | '%'
   |  '<<' | '>>'
-  |  '==' | '<>' | '<' | '<=' | '>=' | '>'
+  |  '==' | '!=' | '<' | '<=' | '>=' | '>'
   ;
 
 // Lexer

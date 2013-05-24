@@ -66,10 +66,10 @@ class Parser(object):
 
   def p_use(self, p):
     """
-    use : USE STRING
-      | USE ID EQUALS STRING
+    use : USE STRING AS ID
+      | USE STRING
     """
-    if len(p) == 2:
+    if len(p) == 3:
       p[0] = AST(p, 'use', [None, p[2]])
     else:
       p[0] = AST(p, 'use', [p[2], p[4]])
@@ -100,11 +100,11 @@ class Parser(object):
 
   def p_type_decl(self, p):
     """
-    type_decl : ACTOR ID type_params_opt is LBRACE member_list RBRACE
-      | CLASS ID type_params_opt is LBRACE member_list RBRACE
-      | TRAIT ID type_params_opt is LBRACE member_list RBRACE
+    type_decl : ACTOR ID type_params_opt mode_args_opt is LBRACE member_list RBRACE
+      | CLASS ID type_params_opt mode_args_opt is LBRACE member_list RBRACE
+      | TRAIT ID type_params_opt mode_args_opt is LBRACE member_list RBRACE
     """
-    p[0] = AST(p, p[1], [p[2], p[3], p[4], p[6]])
+    p[0] = AST(p, p[1], [p[2], p[3], p[4], p[5], p[7]])
 
   def p_is(self, p):
     """
@@ -141,13 +141,13 @@ class Parser(object):
 
   def p_method(self, p):
     """
-    method : PRIVATE def_or_msg ID type_params_opt params type body
-      | def_or_msg ID type_params_opt params type body
+    method : PRIVATE def_or_msg ID type_params_opt mode_args_opt params type body
+      | def_or_msg ID type_params_opt mode_args_opt params type body
     """
     if len(p) == 8:
-      p[0] = AST(p, 'private', [p[2], p[3], p[4], p[5], p[6], p[7]])
+      p[0] = AST(p, 'private', [p[2], p[3], p[4], p[5], p[6], p[7], p[8]])
     else:
-      p[0] = AST(p, 'public', [p[1], p[2], p[3], p[4], p[5], p[6]])
+      p[0] = AST(p, 'public', [p[1], p[2], p[3], p[4], p[5], p[6], p[7]])
 
   def p_def_or_msg(self, p):
     """
@@ -190,23 +190,23 @@ class Parser(object):
 
   def p_base_type(self, p):
     """
-    base_type : ID id_opt type_args_opt
-      | PARTIAL ID id_opt type_args_opt
-      | LPAREN type_list RPAREN LPAREN type RPAREN
-      | LPAREN empty RPAREN LPAREN type RPAREN
+    base_type : ID id_opt type_args_opt mode_args_opt
+      | PARTIAL ID id_opt type_args_opt mode_args_opt
+      | LPAREN type_list RPAREN LPAREN type RPAREN mode_args_opt
+      | LPAREN empty RPAREN LPAREN type RPAREN mode_args_opt
     """
-    if len(p) == 4:
+    if len(p) == 5:
       if p[2] == None:
-        p[0] = AST(p, 'base_type', [None, p[1], p[3]])
+        p[0] = AST(p, 'base_type', [None, p[1], p[3], p[4]])
       else:
-        p[0] = AST(p, 'base_type', [p[1], p[2], p[3]])
-    elif len(p) == 5:
+        p[0] = AST(p, 'base_type', [p[1], p[2], p[3], p[4]])
+    elif len(p) == 6:
       if p[3] == None:
-        p[0] = AST(p, 'partial_type', [None, p[2], p[4]])
+        p[0] = AST(p, 'partial_type', [None, p[2], p[4], p[5]])
       else:
-        p[0] = AST(p, 'partial_type', [p[2], p[3], p[4]])
+        p[0] = AST(p, 'partial_type', [p[2], p[3], p[4], p[5]])
     else:
-      p[0] = AST(p, 'lambda', [p[2], p[5]])
+      p[0] = AST(p, 'lambda', [p[2], p[5], p[7]])
 
   def p_id_opt(self, p):
     """
@@ -243,6 +243,58 @@ class Parser(object):
     type_args : LBRACKET arg_list RBRACKET
     """
     p[0] = p[2]
+
+  def p_type_arg_list(self, p):
+    """
+    type_arg_list : type_arg
+      | type_arg_list COMMA type_arg
+    """
+    if len(p) == 2:
+      p[0] = AST(p, 'type_args', [p[1]])
+    else:
+      p[1].children.append(p[3])
+      p[0] = p[1]
+
+  def p_type_arg(self, p):
+    """
+    type_arg : type
+      | expr
+    """
+    p[0] = p[1]
+
+  def p_mode_args_opt(self, p):
+    """
+    mode_args_opt : mode_args
+      | empty
+    """
+    p[0] = p[1]
+
+  def p_mode_args(self, p):
+    """
+    mode_args : LT mode_list GT
+    """
+    p[0] = p[2]
+
+  def p_mode_list(self, p):
+    """
+    mode_list : mode
+      | mode_list CASE mode
+    """
+    if len(p) == 2:
+      p[0] = AST(p, 'mode', [p[1]])
+    else:
+      p[1].children.append(p[3])
+      p[0] = p[1]
+
+  def p_mode(self, p):
+    """
+    mode : 'iso'
+      | 'fro'
+      | 'wri'
+      | 'opa'
+      | ID
+    """
+    p[0] = p[1]
 
   def p_params(self, p):
     """
@@ -320,9 +372,9 @@ class Parser(object):
 
   def p_expr_def(self, p):
     """
-    expr : DEF type_params_opt params LPAREN type RPAREN EQUALS expr
+    expr : DEF type_params_opt mode_args_opt params LPAREN type RPAREN EQUALS expr
     """
-    p[0] = AST(p, 'def', [None, p[2], p[3], p[5], p[8]])
+    p[0] = AST(p, 'def', [p[2], p[3], p[4], p[6], p[9]])
 
   def p_expr_if(self, p):
     """
@@ -453,6 +505,12 @@ class Parser(object):
     postfix : postfix type_args
     """
     p[0] = AST(p, 'type_args', [p[1], p[2]])
+
+  def p_postfix3(self, p):
+    """
+    postfix : postfix mode_args
+    """
+    p[0] = AST(p, 'mode_args', [p[1], p[2]])
 
   def p_args(self, p):
     """
