@@ -35,12 +35,16 @@ types
   ;
 
 type
-  :  base_type ('|' base_type)*
+  :  mode_type ('|' mode_type)*
+  ;
+
+mode_type
+  :  base_type mode_args? mode_mod?
   ;
 
 base_type
-  :  '\\'? ID ('.' ID)? type_args? mode_args?
-  |  params result mode_args?
+  :  '\\'? ID ('.' ID)? type_args?
+  |  params result
   ;
 
 type_params
@@ -58,6 +62,10 @@ type_arg
 
 mode_args
   :	 '<' mode ('|' mode)* '>'
+  ;
+
+mode_mod
+  :  '->' ID
   ;
 
 mode
@@ -93,7 +101,7 @@ expr
   :  'var' ID (':' type)? '=' expr
   |  'val' ID (':' type)? '=' expr
   |  binary ('=' expr)?
-  |  'def' type_params? mode_args? params result '=' expr
+  |  'def' mode_args? params result type_params? '=' expr
   |  'if' seq 'then' expr 'else' expr
   |  'while' seq 'do' expr
   |  'for' ID 'in' seq 'do' expr // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }
