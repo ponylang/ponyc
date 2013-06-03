@@ -1,10 +1,10 @@
-trait Iterator[A, p]
+trait Iterator[A, p]<wri>
 {
-  read has_next() Bool
-  write next() A->p
+  read has_next()->(Bool)
+  write next()->(A p)
 }
 
 trait Iterable[A]
 {
-  read iterator() Iterator[A, this]<write>
+  read iterator()->(Iterator[A, this])
 }

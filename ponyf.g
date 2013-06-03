@@ -23,7 +23,7 @@ class_
 member
   :  'var' param
   |  'val' param
-  |  'private'? ('def' | 'msg') ID type_params? mode_args? params type ('=' seq)?
+  |  'private'? ('new' | 'read' | 'write' | 'opaque' | 'msg') ID type_params? params ('->' result?) ('=' seq)?
   ;
 
 typedef_
@@ -44,7 +44,7 @@ mode_type
 
 base_type
   :  '\\'? ID ('.' ID)? type_args?
-  |  params result
+  |  'fun' params ('->' result)?
   ;
 
 type_params
@@ -65,17 +65,18 @@ mode_args
   ;
 
 mode_mod
-  :  '->' ID
+  :  'this' | ID
   ;
 
 mode
-  :	 'iso' | 'fro' | 'wri' | ID
+  :	 'iso' | 'fro' | 'wri' | 'opa' | ID
   ;
 
 params
   :  '(' (param (',' param)*)? ')'
   ;
 
+/* FIX: accept a mode as a type param? */
 param
   :  ID (':' type)? ('=' expr)?
   ;
@@ -101,7 +102,7 @@ expr
   :  'var' ID (':' type)? '=' expr
   |  'val' ID (':' type)? '=' expr
   |  binary ('=' expr)?
-  |  'def' mode_args? params result type_params? '=' expr
+  |  'fun' params ('->' result)? mode_args? '=' expr
   |  'if' seq 'then' expr 'else' expr
   |  'while' seq 'do' expr
   |  'for' ID 'in' seq 'do' expr // { var x = {e}.enumerator(); while x.has_next() do { var ID = x.next(); t } }

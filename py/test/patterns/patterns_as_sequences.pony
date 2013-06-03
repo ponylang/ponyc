@@ -32,66 +32,77 @@ pull pattern methods from the partial object?
 
 */
 
-trait Comparable[T]
+/*
+what about mode?
+
+we can't reflect an isolated object
+what happens when we reflect a frozen object?
+  all the fields are frozen, but the pattern shouldn't be
+  but it's clearly a different type
+  and absorbing it will work differently
+*/
+trait Comparable[A]
 {
-  def eq_with( that:T|\T, pattern:\T ) Bool =
-    { this == that } or {
-    match that
-      | as that:T = that.eq_with( reflect, pattern )
-      | as that:\T = this.eq_fields( that, pattern, 0 ) }
+  read eq_with(that:A|\A, pattern:\A)->(Bool) =
+    {this == that} or {
+      match that
+        | as that:A = that.eq_with(reflect, pattern)
+        | as that:\A = eq_fields(that, pattern, 0)
+      }
 
-  def lt_with( that:T|\T, pattern:\T ) Bool =
-    { this == that } or {
-    match that
-      | as that:T = that.lt_with( reflect, pattern )
-      | as that:\T = this.lt_fields( that, pattern, 0 ) }
+  read lt_with(that:A|\A, pattern:\A)->(Bool) =
+    {this == that} or {
+      match that
+        | as that:A = that.lt_with(reflect, pattern)
+        | as that:\A = lt_fields(that, pattern, 0)
+      }
 
-  def ne_with( a:T|\T, p:\T ) Bool = not this.eq_with( a, p )
+  read ne_with(that:A|\A, pattern:\A)->(Bool) = not eq_with(that, pattern)
 
-  def gt_with( a:T|\T, p:\T ) Bool =
-    not this.eq_with( a, p ) and not lt_with( a, p )
+  read gt_with(that:A|\A, pattern:\A)->(Bool) =
+    not eq_with(that, pattern) and not lt_with(that, pattern)
 
-  def le_with( a:T|\T, p:\T ) Bool =
-    this.eq_with( a, p ) or this.lt_with( a, p )
+  read le_with(that:A|\A, pattern:\A)->(Bool) =
+    eq_with(that, pattern) or lt_with(that, pattern)
 
-  def ge_with( a:T|\T, p:\T ) Bool = not this.lt_with( a, p )
+  read ge_with(that:A|\A, pattern:\A)->(Bool) = not lt_with(that,pattern)
 
-  def eq( a:T|\T ) Bool = this.eq_with( a, this.compare_pattern() )
-  def lt( a:T|\T ) Bool = this.lt_with( a, this.compare_pattern() )
-  def ne( a:T|\T ) Bool = not this.eq( a )
-  def gt( a:T|\T ) Bool = not this.eq( a ) and not this.lt( a )
-  def le( a:T|\T ) Bool = this.eq( a ) or this.lt( a )
-  def ge( a:T|\T ) Bool = not this.lt( a )
+  read eq(that:A|\A)->(Bool) = eq_with(that, compare_pattern())
+  read lt(that:A|\A)->(Bool) = lt_with(that, compare_pattern())
+  read ne(that:A|\A)->(Bool) = not eq(that)
+  read gt(that:A|\A)->(Bool) = not lt(that) and not eq(that)
+  read le(that:A|\A)->(Bool) = lt(that) or eq(that)
+  read ge(that:A|\A)->(Bool) = not lt(that)
 
-  private def eq_fields( that:\T, pattern:\T, i:Number ) Bool =
-    match field( pattern, i )
+  private read eq_fields(that:\A, pattern:\A, i:U64)->(Bool) =
+    match field(pattern, i)
       | None = true
-      | as f:FieldID[T] = {
+      | as f:FieldID[A] = {
         match that.f
           | None = true
           | = {
             match pattern.f
               | None = true
-              | as fpattern:\FieldType[T, f] =
-                this.f.eq_with( that.f, fpattern )
-              | = this.f.eq( that.f ) } }
-        and this.eq_field( i + 1, that, pattern )
+              | as fpattern:\FieldType[A, f] = f.eq_with(that.f, fpattern)
+              | = f.eq(that.f)
+            }
+        } and eq_fields(that, pattern, i + 1)
 
-  private def lt_fields( that:\T, pattern:\T, i:Number ) Bool =
-    match field( pattern, i )
+  private read lt_fields(that:\A, pattern:\A, i:U64)->(Bool) =
+    match field(pattern, i)
       | None = true
-      | as f:FieldID[T] = {
+      | as f:FieldID[A] = {
         match that.f
           | None = true
           | = {
             match pattern.f
               | None = true
-              | as fpattern:\FieldType[T, f] =
-                this.f.lt_with( that.f, fpattern )
-              | = this.f.lt( that.f ) } }
-        and this.lt_fields( that, pattern, i + 1 )
+              | as fpattern:\FieldType[A, f] = f.lt_with(that.f, fpattern)
+              | = f.lt( that.f )
+            }
+        } and lt_fields(that, pattern, i + 1)
 
-  private def compare_pattern() \T = reflect
+  private def compare_pattern()->(\A) = reflect
 }
 
 trait Constructable[T]
@@ -101,11 +112,11 @@ trait Constructable[T]
 
 trait Cloneable[T] is Constructable[T]
 {
-  def clone() T|None = this.clone_with( this.clone_pattern() )
+  def clone() T|None = clone_with( clone_pattern() )
 
   // FIX: cycles
   def clone_with( pattern:\T ) T|None =
-    match absorb( this.clone_fields( reflect, pattern, 0 ) )
+    match absorb( clone_fields( reflect, pattern, 0 ) )
       | None = None
       | as x:T = x.clone_new()
 
@@ -120,7 +131,7 @@ trait Cloneable[T] is Constructable[T]
               | as fpattern:\FieldType[T, f] = off.clonewith( fpattern )
               | = off.clone() }
           | = of.f }
-      and this.clone_fields( of, pattern, i + 1 )
+      and clone_fields( of, pattern, i + 1 )
 
   private def clone_new() T|None = construct()
 
@@ -130,16 +141,16 @@ trait Cloneable[T] is Constructable[T]
 trait Hashable[T]
 {
   // FIX: cycles
-  def hash( h:Number ) Number = this.hash_with( h, this.hash_pattern() )
+  def hash( h:Number ) Number = hash_with( h, hash_pattern() )
 
   def hash_with( h:Number, pattern:\T ) Number =
-    this.hash_fields( h, pattern, 0 )
+    hash_fields( h, pattern, 0 )
 
   private def hash_fields( h:Number, pattern:\T, i:Number ) Number =
     match field( pattern, i )
       | None = h
-      | as f:FieldID[T] = this.hash_fields( {
-        match this.f
+      | as f:FieldID[T] = hash_fields( {
+        match f
           | as x:Hashable[FieldType[T, f]] = {
             match pattern.f
               | None = h
@@ -153,10 +164,10 @@ trait Hashable[T]
 
 trait Testable[T]
 {
-  def test() Bool = this.test_with( this.test_pattern() )
+  def test() Bool = test_with( test_pattern() )
 
   def test_with( pattern:\T ) Bool =
-    this.test_methods( reflect, pattern, 0 )
+    test_methods( reflect, pattern, 0 )
 
   private def test_methods( mirror:\T, pattern:\T, i:Number ) Bool =
     match method( pattern, i )
@@ -168,7 +179,7 @@ trait Testable[T]
             match mirror.m
               | as f:()( Bool ) = f()
               | = true } }
-      and this.test_methods( mirror, pattern, i + 1 )
+      and test_methods( mirror, pattern, i + 1 )
 
   private def test_pattern() \T = test_pattern_methods( reflect, 0 )
 
@@ -205,11 +216,11 @@ class Person is Cloneable, Comparable, Testable
     x
 
   def test_parents() Bool =
-    this.mother.valid_mother( this ) and this.father.valid_father( this )
+    mother.valid_mother( this ) and father.valid_father( this )
 
   def valid_mother( a:Person ) Bool =
-    this.female == true and this.lt_with( a, this.compare_age() )
+    female == true and lt_with( a, compare_age() )
 
   def valid_father( a:Person ) Bool =
-    this.female == false and this.lt_with( a, this.compare_age() )
+    female == false and lt_with( a, compare_age() )
 }
