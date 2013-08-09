@@ -17,20 +17,19 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') mode? ID type_params? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? mode ('is' types)? protection member*
   ;
 
 member
   :  'var' ID oftype
   |  'val' ID oftype
-  |  ('fun' | 'msg') ID type_params? params oftype? ('=' expr)?
+  |  ('fun' | 'msg') mode ID type_params? params oftype? protection ('=' expr)?
   ;
 
 typedef_
   :  'type' ID ('.' ID)? type_params? oftype? ('is' types)? ('with' (ID '=' ID)+)?
   ;
 
-// FIX: add to types and functions
 protection
   :  ('private' | 'package')?
   ;
@@ -41,15 +40,19 @@ types
 
 type
   :  base_type
-  |  '(' base_type (('|' | '&') base_type)* ')'
+  |  '(' base_type (('|' | '&') type)* ')'
   ;
 
+// FIX: a function that takes a single ADT looks weird
+// fun{val}((I32|F32))
+// only a problem when writing the type, not an issue for a lambda or a signature due to ID
+// fun{val}(a:(I32|F32))
+// could wrap ADT in different delimeter: <> or {} or [], but it would make intersection types weird
 base_type
-  :  '\\'? ID ('.' ID)? type_args?
-  |  'fun' '(' types ')' oftype?
+  :  '\\'? ID ('.' ID)? type_args? mode
+  |  'fun' mode '(' types? ')' oftype?
   ;
 
-/* FIX: accept a mode as a type param? */
 type_params
   :  '[' param (',' param)* ']'
   ;
@@ -63,13 +66,12 @@ type_arg
   |  'val' expr
   ;
 
-// FIX: reference annotation
-mode_mod
-  :  (mode | ID) ('->' ('this' | ID))?
+mode
+  :  ('{' base_mode ('|' base_mode)* '}' ('->' ('this' | ID))?)?
   ;
 
-mode
-  :	 'isolated' | 'freezable' | 'frozen' | 'write' | 'read' | 'opaque'
+base_mode
+  :	 'one' | 'var' | 'val' | 'tag' | ID
   ;
 
 params
@@ -100,7 +102,7 @@ expr
   :  'var' ID oftype? '=' expr
   |  'val' ID oftype? '=' expr
   |  binary ('=' expr)?
-  |  'fun' mode_mod? params oftype? '=' expr
+  |  'fun' mode params oftype? '=' expr
   |  'if' expr 'then' expr ('else' expr | 'end') // without else clause: if e1 then {e2; None} else None
   |  'match' expr ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)+ 'end'
   |  'while' expr 'do' expr // value is None
@@ -109,6 +111,7 @@ expr
   |  'break' // only valid in a loop, exits the loop
   |  'continue' // only valid in a loop, short circuits the loop
   |  'return' expr // short circuits the function
+  |  ';'
   ;
 
 binary
@@ -136,7 +139,8 @@ primary
   |  FLOAT
   |  STRING
   |  ID
-  |  '{' seq '}'
+  |  '(' seq ')'
+  |  'swap' args
   |  'field' args
   |  'method' args
   ;
