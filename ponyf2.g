@@ -67,7 +67,7 @@ type_arg
   ;
 
 mode
-  :  ('{' base_mode ('|' base_mode)* '}' ('->' ('this' | ID))?)?
+  :  ('{' base_mode ('|' base_mode)* ('->' ('this' | ID))? '}')?
   ;
 
 base_mode
@@ -101,7 +101,7 @@ seq
 expr
   :  'var' ID oftype? '=' expr
   |  'val' ID oftype? '=' expr
-  |  binary ('=' expr)?
+  |  binary ('=' expr)? // return the value of binary, not expr. a = b returns a, b = a = b is a swap
   |  'fun' mode params oftype? '=' expr
   |  'if' expr 'then' expr ('else' expr | 'end') // without else clause: if e1 then (e2; None) else None
   |  'match' expr ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)+ 'end'

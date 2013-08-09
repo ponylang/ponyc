@@ -10,11 +10,11 @@ class List[A:Any{p}] is Iterable[A]
 
   fun{iso|var|val} item():A{p->this} = item
 
-  fun{iso|var} setitem(a:A):A = swap(a, item)
+  fun{iso|var} setitem(a:A):A = a = item
 
   fun{iso|var|val} next():(List[A]{var->this}|None) = next
 
-  fun{iso|var} setnext(a:(List[A]{var}|None) = None) = swap(a, next)
+  fun{iso|var} setnext(a:(List[A]{var}|None) = None) = a = next
 
   fun{var|val} iterator():ListIterator[A]{var} = ListIterator(this)
 
