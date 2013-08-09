@@ -71,7 +71,7 @@ mode
   ;
 
 base_mode
-  :	 'one' | 'var' | 'val' | 'tag' | ID
+  :	 'iso' | 'var' | 'val' | 'tag' | ID
   ;
 
 params
@@ -103,11 +103,11 @@ expr
   |  'val' ID oftype? '=' expr
   |  binary ('=' expr)?
   |  'fun' mode params oftype? '=' expr
-  |  'if' expr 'then' expr ('else' expr | 'end') // without else clause: if e1 then {e2; None} else None
+  |  'if' expr 'then' expr ('else' expr | 'end') // without else clause: if e1 then (e2; None) else None
   |  'match' expr ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)+ 'end'
   |  'while' expr 'do' expr // value is None
   |  'do' expr 'while' expr // value is None
-  |  'for' ID 'in' expr 'do' expr // { var x = {e1}.iterator(); while x.has_next() do { var ID = x.next(); e2 } }, value is None
+  |  'for' ID 'in' expr 'do' expr // (var x = (e1).iterator(); while x.has_next() do (var ID = x.next(); e2))
   |  'break' // only valid in a loop, exits the loop
   |  'continue' // only valid in a loop, short circuits the loop
   |  'return' expr // short circuits the function
