@@ -1,15 +1,8 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
+#include "ast.h"
 #include "error.h"
-
-typedef struct ast_t
-{
-  token_t* t;
-  struct ast_t* child;
-  struct ast_t* sibling;
-} ast_t;
 
 typedef struct parser_t parser_t;
 

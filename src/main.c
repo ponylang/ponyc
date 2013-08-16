@@ -35,21 +35,13 @@ bool do_file( const char* file )
   if( el->count > 0 )
   {
     print_errors( el, file );
-    parser_close( parser );
-    return false;
-  }
-
-  ast_t* ast = parser_ast( parser );
-  el = typecheck( ast );
-
-  if( el->count > 0 )
-  {
-    print_errors( el, file );
     errorlist_free( el );
     parser_close( parser );
     return false;
   }
 
+  ast_t* ast = parser_ast( parser );
+  ast_free( ast );
   errorlist_free( el );
   parser_close( parser );
   return true;
@@ -81,11 +73,12 @@ bool do_path( const char* path )
     return false;
   }
 
+  struct dirent dirent;
   struct dirent* d;
   bool r = true;
 
   // this isn't thread-safe
-  while( (d = readdir( dir )) != NULL )
+  while( !readdir_r( dir, &dirent, &d ) && (d != NULL) )
   {
     if( d->d_type & DT_DIR )
     {

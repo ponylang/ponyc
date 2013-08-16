@@ -62,7 +62,7 @@ type_arg
   ;
 
 mode
-  :  ('{' (base_mode ('|' base_mode)*)? ('->' ('this' | ID))? '}')?
+  :  ('{' base_mode ('|' base_mode)* '}')? ('->' ('this' | ID))?
   ;
 
 base_mode

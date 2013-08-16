@@ -12,11 +12,11 @@ class List[A:Any{p}] is Iterable[A]
   fun default(item:A{val}, next:(List[A]{val}|None) = None):List[A]{val} =
     \List[A](item->item, next->next).absorb()
 
-  fun{iso|var|val} get_item():A{p->this} = item
+  fun{iso|var|val} get_item():A{p}->this = item
 
   fun{iso|var} set_item(a:A):A = a = item
 
-  fun{iso|var|val} get_next():(List[A]{var->this}|None) = next
+  fun{iso|var|val} get_next():(List[A]{var}->this|None) = next
 
   fun{iso|var} set_next(a:(List[A]{var}|None) = None) = a = next
 
@@ -34,7 +34,7 @@ class ListIterator[A:Any{p}] is Iterator[A]
     | = true
     end
 
-  fun{iso|var} next():A{p->this} =
+  fun{iso|var} next():A{p}->this =
     var item = list.get();
     list = match list.get_next()
     | as a:List[A]{var|val} = a
