@@ -1,5 +1,79 @@
 #include "ast.h"
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+void print( ast_t* ast, size_t indent );
+
+size_t length( ast_t* ast, size_t indent )
+{
+  size_t len = (indent * 2) + strlen( token_string( ast->t ) );
+  ast_t* child = ast->child;
+
+  if( child != NULL ) { len += 2; }
+
+  while( child != NULL )
+  {
+    len += 1 + length( child, indent );
+    child = child->sibling;
+  }
+
+  return len;
+}
+
+void print_compact( ast_t* ast, size_t indent )
+{
+  for( size_t i = 0; i < indent; i++ ) { printf( "  " ); }
+  ast_t* child = ast->child;
+  bool parens = child != NULL;
+
+  if( parens ) { printf( "(" ); }
+  printf( "%s", token_string( ast->t ) );
+
+  while( child != NULL )
+  {
+    printf( " " );
+    print_compact( child, 0 );
+    child = child->sibling;
+  }
+
+  if( parens ) { printf( ")" ); }
+}
+
+void print_extended( ast_t* ast, size_t indent )
+{
+  for( size_t i = 0; i < indent; i++ ) { printf( "  " ); }
+  ast_t* child = ast->child;
+  bool parens = child != NULL;
+
+  if( parens ) { printf( "(" ); }
+  printf( "%s\n", token_string( ast->t ) );
+
+  while( child != NULL )
+  {
+    print( child, indent + 1 );
+    child = child->sibling;
+  }
+
+  if( parens )
+  {
+    for( size_t i = 0; i <= indent; i++ ) { printf( "  " ); }
+    printf( ")" );
+  }
+}
+
+void print( ast_t* ast, size_t indent )
+{
+  if( length( ast, indent ) <= 80 )
+  {
+    print_compact( ast, indent );
+  } else {
+    print_extended( ast, indent );
+  }
+
+  printf( "\n" );
+}
 
 ast_t* ast_new( token_id id, size_t line, size_t pos )
 {
@@ -23,14 +97,6 @@ void ast_free( ast_t* ast )
 
 void ast_print( ast_t* ast )
 {
-  /* FIX: print the ast
-  keep the text of every token?
-  get rid of unicode escape decoding and expect unicode in the text?
-    would mean all source files must be utf-8
-  get rid of other escapes as well?
-    currently, everything is allowed in a string
-    would make entering some escapes hard
-  keep the escape stuff, and keep a separate copy of the text of each token?
-    this may all be heavyweight just for ast printing
-  */
+  print( ast, 0 );
+  printf( "\n" );
 }

@@ -1,13 +1,11 @@
 class Pair[A, B]
-{
   var a:A
   var b:B
 
-  new default(a:A, b:B) = this
+  fun default(a:A, b:B) = this
 
-  read first()->(A this) = a
-  read second()->(B this) = b
+  fun{iso|var|val} first():A->this = a
+  fun{iso|var|val} second():B->this = b
 
-  write set_first(a_:A)->(A this) = swap(a, a_)
-  write set_second(b_:B)->(B this) = swap(b, b_)
-}
+  fun{iso|var} set_first(a_:A):A->this = a = a_
+  fun{iso|var} set_second(b_:B):B->this = b = b_

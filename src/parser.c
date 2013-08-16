@@ -20,7 +20,7 @@
 #define BAILOUT() \
   { \
     error_new( parser->errors, parser->t->line, parser->t->pos, \
-      "Unexpected: %d (%s, %d)", current( parser ), __FUNCTION__, __LINE__ ); \
+      "syntax error (%s, %d)", __FUNCTION__, __LINE__ ); \
     ast_free( ast ); \
     return NULL; \
   }
@@ -134,9 +134,7 @@
     ast = binop; \
   }
 
-#define DONE() \
-  ast_reverse( ast ); \
-  return ast
+#define DONE() return ast;
 
 /* The API for parser rules ends here */
 
@@ -188,11 +186,14 @@ static void ast_reverse( ast_t* ast )
 
   while( cur != NULL )
   {
+    ast_reverse( cur );
     next = cur->sibling;
     cur->sibling = last;
     last = cur;
     cur = next;
   }
+
+  ast->child = last;
 }
 
 static void insert( parser_t* parser, token_id id, ast_t* ast )
@@ -403,7 +404,7 @@ static ast_t* params( parser_t* parser )
 {
   // LPAREN (param (COMMA param)*)? RBRACKET
   AST( TK_PARAMS );
-  BLOCK( TK_PARAMS, TK_LPAREN, TK_RPAREN, TK_COMMA,
+  BLOCK( TK_NONE, TK_LPAREN, TK_RPAREN, TK_COMMA,
     { TK_NONE, param }
     );
   DONE();
@@ -792,7 +793,7 @@ static ast_t* field( parser_t* parser )
   // (VAR | VAL) ID COLON type
   AST_TOKEN();
   EXPECT( TK_ID );
-  EXPECT( TK_COLON );
+  EXPECT_DROP( TK_COLON );
   RULE( type );
   DONE();
 }
@@ -885,23 +886,9 @@ parser_t* parser_open( const char* file )
   parser_t* parser = calloc( 1, sizeof(parser_t) );
   parser->lexer = lexer;
   parser->t = lexer_next( lexer );
-  parser->errors = errorlist_new();
+  parser->errors = lexer_errors( lexer );
   parser->ast = module( parser );
-
-  errorlist_t* e = lexer_errors( lexer );
-
-  if( e->count > 0 )
-  {
-    parser->errors->count += e->count;
-    e->tail->next = parser->errors->head;
-    parser->errors->head = e->head;
-    e->head = NULL;
-    e->tail = NULL;
-  }
-
-  errorlist_free( e );
-  lexer_close( lexer );
-  parser->lexer = NULL;
+  ast_reverse( parser->ast );
 
   return parser;
 }
@@ -915,15 +902,19 @@ ast_t* parser_ast( parser_t* parser )
 
 errorlist_t* parser_errors( parser_t* parser )
 {
-  errorlist_t* e = parser->errors;
-  parser->errors = NULL;
-  return e;
+  return parser->errors;
+}
+
+void parser_printerrors( parser_t* parser )
+{
+  lexer_printerrors( parser->lexer );
 }
 
 void parser_close( parser_t* parser )
 {
   if( parser == NULL ) { return; }
+
+  lexer_close( parser->lexer );
   ast_free( parser->ast );
-  errorlist_free( parser->errors );
   free( parser );
 }

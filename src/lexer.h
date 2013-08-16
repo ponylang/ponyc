@@ -126,6 +126,9 @@ void lexer_close( lexer_t* lexer );
 
 token_t* lexer_next( lexer_t* lexer );
 errorlist_t* lexer_errors( lexer_t* lexer );
+void lexer_printerrors( lexer_t* lexer );
+
+const char* token_string( token_t* token );
 void token_free( token_t* token );
 
 #endif

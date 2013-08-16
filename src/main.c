@@ -9,17 +9,6 @@
 
 #define EXTENSION ".pony"
 
-void print_errors( errorlist_t* el, const char* file )
-{
-  error_t* e = el->head;
-
-  while( e != NULL )
-  {
-    printf( "%s [%ld:%ld]: %s\n", file, e->line, e->pos, e->msg );
-    e = e->next;
-  }
-}
-
 bool do_file( const char* file )
 {
   parser_t* parser = parser_open( file );
@@ -34,16 +23,15 @@ bool do_file( const char* file )
 
   if( el->count > 0 )
   {
-    print_errors( el, file );
-    errorlist_free( el );
+    parser_printerrors( parser );
     parser_close( parser );
     return false;
   }
 
   ast_t* ast = parser_ast( parser );
-  ast_free( ast );
-  errorlist_free( el );
+  ast_print( ast );
   parser_close( parser );
+
   return true;
 }
 

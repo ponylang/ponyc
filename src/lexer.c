@@ -10,6 +10,7 @@
 
 struct lexer_t
 {
+  char* file;
   char* m;
   size_t ptr;
   size_t len;
@@ -114,6 +115,25 @@ static const symbol_t keywords[] =
   { "private", TK_PRIVATE },
   { "package", TK_PACKAGE },
   { "infer", TK_INFER },
+
+  { NULL, 0 }
+};
+
+static const symbol_t abstract[] =
+{
+  { "module", TK_MODULE },
+  { "typeid", TK_TYPEID },
+  { "adt", TK_ADT },
+  { "partialtype", TK_PARTIALTYPE },
+  { "objecttype", TK_OBJECTTYPE },
+  { "functiontype", TK_FUNCTIONTYPE },
+  { "formalparams", TK_FORMALPARAMS },
+  { "mode", TK_MODE },
+  { "params", TK_PARAMS },
+  { "call", TK_CALL },
+  { "formalargs", TK_FORMALARGS },
+  { "args", TK_ARGS },
+  { "seq", TK_SEQ },
 
   { NULL, 0 }
 };
@@ -764,6 +784,7 @@ static token_t* symbol( lexer_t* lexer )
 lexer_t* lexer_open( const char* file )
 {
   lexer_t* lexer = calloc( 1, sizeof(lexer_t) );
+  lexer->file = strdup( file );
   lexer->line = 1;
   lexer->errors = errorlist_new();
 
@@ -814,6 +835,7 @@ lexer_t* lexer_open( const char* file )
 void lexer_close( lexer_t* lexer )
 {
   if( lexer == NULL ) { return; }
+  if( lexer->file != NULL ) { free( lexer->file ); }
   if( lexer->m != NULL ) { free( lexer->m ); }
   if( lexer->buffer != NULL ) { free( lexer->buffer ); }
 
@@ -877,9 +899,97 @@ token_t* lexer_next( lexer_t* lexer )
 
 errorlist_t* lexer_errors( lexer_t* lexer )
 {
-  errorlist_t* e = lexer->errors;
-  lexer->errors = NULL;
-  return e;
+  return lexer->errors;
+}
+
+void lexer_printerrors( lexer_t* lexer )
+{
+  error_t* e = lexer->errors->head;
+
+  while( e != NULL )
+  {
+    printf( "%s [%ld:%ld]: %s\n", lexer->file, e->line, e->pos, e->msg );
+    if( e->line == 0 ) { continue; }
+
+    size_t len = lexer->ptr + lexer->len;
+    size_t line = 1;
+    size_t pos = 0;
+
+    while( (line < e->line) && (pos < len) )
+    {
+      if( lexer->m[pos] == '\n' )
+      {
+        line++;
+      }
+
+      pos++;
+    }
+
+    size_t start = pos;
+
+    while( (lexer->m[pos] != '\n') && (pos < len) )
+    {
+      pos++;
+    }
+
+    size_t end = pos;
+
+    printf( "%.*s\n", (int)(end - start), &lexer->m[start] );
+
+    for( size_t i = 1; i < e->pos; i++ )
+    {
+      printf( " " );
+    }
+
+    printf( "^\n" );
+
+    e = e->next;
+  }
+}
+
+const char* token_string( token_t* token )
+{
+  switch( token->id )
+  {
+  case TK_NONE:
+    return "()";
+
+  case TK_STRING:
+  case TK_ID:
+    return token->string;
+
+  case TK_INT:
+    // FIX: int to string?
+    return "INT";
+
+  case TK_FLOAT:
+    // FIX: float to string?
+    return "FLOAT";
+
+  default: {}
+  }
+
+  for( const symbol_t* p = abstract; p->symbol != NULL; p++ )
+  {
+    if( token->id == p->id ) { return p->symbol; }
+  }
+
+  for( const symbol_t* p = keywords; p->symbol != NULL; p++ )
+  {
+    if( token->id == p->id ) { return p->symbol; }
+  }
+
+  for( const symbol_t* p = symbols1; p->symbol != NULL; p++ )
+  {
+    if( token->id == p->id ) { return p->symbol; }
+  }
+
+  for( const symbol_t* p = symbols2; p->symbol != NULL; p++ )
+  {
+    if( token->id == p->id ) { return p->symbol; }
+  }
+
+  return "UNKNOWN";
 }
 
 void token_free( token_t* token )
