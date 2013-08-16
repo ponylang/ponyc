@@ -413,7 +413,7 @@ static token_t* string( lexer_t* lexer )
 static token_t* real( lexer_t* lexer, size_t v )
 {
   double d = v;
-  size_t digits = -1;
+  size_t digits = 0;
   int e = 0;
   bool error = false;
   char c;
@@ -421,41 +421,40 @@ static token_t* real( lexer_t* lexer, size_t v )
   if( look( lexer ) == '.' )
   {
     adv( lexer, 1 );
-    digits = 0;
-  }
 
-  while( lexer->len > 0 )
-  {
-    c = look( lexer );
-
-    if( (c >= '0') && (c <= '9') )
+    while( lexer->len > 0 )
     {
-      d = (d * 10) + (c - '0');
-      digits++;
-      e--;
-    } else if( (c == 'e') || (c == 'E') ) {
-      break;
-    } else if( c == '_' ) {
-      // skip
-    } else if( isalpha( c ) ) {
-      if( !error )
+      c = look( lexer );
+
+      if( (c >= '0') && (c <= '9') )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid digit in real number: %c", c );
-        error = true;
+        d = (d * 10) + (c - '0');
+        digits++;
+        e--;
+      } else if( (c == 'e') || (c == 'E') ) {
+        break;
+      } else if( c == '_' ) {
+        // skip
+      } else if( isalpha( c ) ) {
+        if( !error )
+        {
+          error_new( lexer->errors, lexer->line, lexer->pos,
+            "Invalid digit in real number: %c", c );
+          error = true;
+        }
+      } else {
+        break;
       }
-    } else {
-      break;
+
+      adv( lexer, 1 );
     }
 
-    adv( lexer, 1 );
-  }
-
-  if( digits == 0 )
-  {
-    error_new( lexer->errors, lexer->line, lexer->pos,
-      "Real number has no digits following '.'" );
-    error = true;
+    if( digits == 0 )
+    {
+      error_new( lexer->errors, lexer->line, lexer->pos,
+        "Real number has no digits following '.'" );
+      error = true;
+    }
   }
 
   if( (lexer->len > 0) && ((look( lexer ) == 'e') || (look( lexer ) == 'E')) )
@@ -557,7 +556,7 @@ static token_t* hexadecimal( lexer_t* lexer )
       if( !error )
       {
         error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid digit in hexadecimal number: %c", c );
+          "Invalid character in hexadecimal number: %c", c );
         error = true;
       }
     } else {
@@ -596,7 +595,7 @@ static token_t* decimal( lexer_t* lexer )
       if( !error )
       {
         error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid digit in decimal number: %c", c );
+          "Invalid character in decimal number: %c", c );
         error = true;
       }
     } else {
@@ -633,7 +632,7 @@ static token_t* binary( lexer_t* lexer )
       if( !error )
       {
         error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid digit in binary number: %c", c );
+          "Invalid character in binary number: %c", c );
         error = true;
       }
     } else {
@@ -663,9 +662,16 @@ static token_t* number( lexer_t* lexer )
 
       switch( c )
       {
-      case 'x': return hexadecimal( lexer );
-      case 'b': return binary( lexer );
-      default: return decimal( lexer );
+      case 'x':
+        adv( lexer, 1 );
+        return hexadecimal( lexer );
+
+      case 'b':
+        adv( lexer, 1 );
+        return binary( lexer );
+
+      default:
+        return decimal( lexer );
       }
     }
   }

@@ -134,7 +134,9 @@
     ast = binop; \
   }
 
-#define DONE() return ast
+#define DONE() \
+  ast_reverse( ast ); \
+  return ast
 
 /* The API for parser rules ends here */
 
@@ -186,8 +188,6 @@ static void ast_reverse( ast_t* ast )
 
   while( cur != NULL )
   {
-    ast_reverse( cur );
-
     next = cur->sibling;
     cur->sibling = last;
     last = cur;
@@ -887,7 +887,6 @@ parser_t* parser_open( const char* file )
   parser->t = lexer_next( lexer );
   parser->errors = errorlist_new();
   parser->ast = module( parser );
-  ast_reverse( parser->ast );
 
   errorlist_t* e = lexer_errors( lexer );
 
