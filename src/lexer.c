@@ -959,11 +959,9 @@ const char* token_string( token_t* token )
     return token->string;
 
   case TK_INT:
-    // FIX: int to string?
     return "INT";
 
   case TK_FLOAT:
-    // FIX: float to string?
     return "FLOAT";
 
   default: {}
