@@ -32,16 +32,13 @@ typedef struct symbol_t
 
 static const symbol_t symbols2[] =
 {
-  { "->", TK_RESULTS },
-  { "::", TK_PACKAGE },
+  { "->", TK_ARROW },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
 
   { "==", TK_EQ },
-  { "!=", TK_NOTEQ },
-  { "#=", TK_STEQ },
-  { "~=", TK_NSTEQ },
+  { "!=", TK_NEQ },
 
   { "<=", TK_LE },
   { ">=", TK_GE },
@@ -59,11 +56,11 @@ static const symbol_t symbols1[] =
   { "]", TK_RBRACKET },
   { ",", TK_COMMA },
 
-  { ".", TK_CALL },
-  { ":", TK_OFTYPE },
-  { "\\", TK_PARTIAL },
-  { "=", TK_ASSIGN },
-  { "!", TK_BANG },
+  { ".", TK_DOT },
+  { ":", TK_COLON },
+  { ";", TK_SEMI },
+  { "\\", TK_BACKSLASH },
+  { "=", TK_EQUALS },
 
   { "+", TK_PLUS },
   { "-", TK_MINUS },
@@ -74,13 +71,8 @@ static const symbol_t symbols1[] =
   { "<", TK_LT },
   { ">", TK_GT },
 
-  { "|", TK_OR },
-  { "&", TK_AND },
-  { "^", TK_XOR },
-
-  { "@", TK_UNIQ },
-  { "#", TK_READONLY },
-  { "?", TK_RECEIVER },
+  { "|", TK_PIPE },
+  { "&", TK_AMP },
 
   { NULL, 0 }
 };
@@ -88,38 +80,40 @@ static const symbol_t symbols1[] =
 static const symbol_t keywords[] =
 {
   { "use", TK_USE },
-  { "declare", TK_DECLARE },
+  { "as", TK_AS },
   { "type", TK_TYPE },
-  { "lambda", TK_LAMBDA },
   { "trait", TK_TRAIT },
-  { "object", TK_OBJECT },
+  { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "is", TK_IS },
+  { "iso", TK_ISO },
   { "var", TK_VAR },
-  { "delegate", TK_DELEGATE },
-  { "new", TK_NEW },
-  { "ambient", TK_AMBIENT },
-  { "function", TK_FUNCTION },
-  { "message", TK_MESSAGE },
-  { "throws", TK_THROWS },
-  { "throw", TK_THROW },
+  { "val", TK_VAL },
+  { "tag", TK_TAG },
+  { "fun", TK_FUN },
+  { "msg", TK_MSG },
   { "return", TK_RETURN },
   { "break", TK_BREAK },
   { "continue", TK_CONTINUE },
   { "if", TK_IF },
+  { "then", TK_THEN },
   { "else", TK_ELSE },
+  { "end", TK_END },
   { "for", TK_FOR },
   { "in", TK_IN },
   { "while", TK_WHILE },
   { "do", TK_DO },
   { "match", TK_MATCH },
-  { "case", TK_CASE },
-  { "as", TK_AS },
-  { "catch", TK_CATCH },
-  { "always", TK_ALWAYS },
   { "this", TK_THIS },
   { "true", TK_TRUE },
   { "false", TK_FALSE },
+  { "not", TK_NOT },
+  { "and", TK_AND },
+  { "or", TK_OR },
+  { "xor", TK_XOR },
+  { "private", TK_PRIVATE },
+  { "package", TK_PACKAGE },
+  { "infer", TK_INFER },
 
   { NULL, 0 }
 };
@@ -160,7 +154,8 @@ static char* copy( lexer_t* lexer )
 
 static void string_terminate( lexer_t* lexer )
 {
-  error_new( lexer->errors, lexer->line, lexer->pos, "String doesn't terminate" );
+  error_new( lexer->errors, lexer->line, lexer->pos,
+    "String doesn't terminate" );
   lexer->ptr += lexer->len;
   lexer->len = 0;
   lexer->buflen = 0;
@@ -207,7 +202,8 @@ static bool appendn( lexer_t* lexer, size_t len )
     } else if( (m[i] >= 'A') && (m[i] <= 'F') ) {
       c += m[i] - 'a';
     } else {
-      error_new( lexer->errors, lexer->line, lexer->pos, "Escape sequence contains non-hexadecimal %c", c );
+      error_new( lexer->errors, lexer->line, lexer->pos,
+        "Escape sequence contains non-hexadecimal %c", c );
       return false;
     }
   }
@@ -228,7 +224,8 @@ static bool appendn( lexer_t* lexer, size_t len )
     append( lexer, 0x80 | ((c >> 6) & 0x3F) );
     append( lexer, 0x80 | (c & 0x3F) );
   } else {
-    error_new( lexer->errors, lexer->line, lexer->pos, "Escape sequence exceeds unicode range (0x10FFFF)" );
+    error_new( lexer->errors, lexer->line, lexer->pos,
+      "Escape sequence exceeds unicode range (0x10FFFF)" );
     return false;
   }
 
@@ -258,7 +255,8 @@ static void nested_comment( lexer_t* lexer )
   {
     if( lexer->len <= 1 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos, "Nested comment doesn't terminate" );
+      error_new( lexer->errors, lexer->line, lexer->pos,
+        "Nested comment doesn't terminate" );
       lexer->ptr += lexer->len;
       lexer->len = 0;
       return;
@@ -400,7 +398,8 @@ static token_t* string( lexer_t* lexer )
         break;
 
       default:
-        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid escape sequence: \\%c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Invalid escape sequence: \\%c", c );
       }
     } else {
       append( lexer, look( lexer ) );
@@ -441,7 +440,8 @@ static token_t* real( lexer_t* lexer, size_t v )
     } else if( isalpha( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in real number: %c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Invalid digit in real number: %c", c );
         error = true;
       }
     } else {
@@ -453,7 +453,8 @@ static token_t* real( lexer_t* lexer, size_t v )
 
   if( digits == 0 )
   {
-    error_new( lexer->errors, lexer->line, lexer->pos, "Real number has no digits following '.'" );
+    error_new( lexer->errors, lexer->line, lexer->pos,
+      "Real number has no digits following '.'" );
     error = true;
   }
 
@@ -464,7 +465,8 @@ static token_t* real( lexer_t* lexer, size_t v )
 
     if( lexer->len == 0 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos, "Real number doesn't terminate" );
+      error_new( lexer->errors, lexer->line, lexer->pos,
+        "Real number doesn't terminate" );
       return NULL;
     }
 
@@ -479,7 +481,8 @@ static token_t* real( lexer_t* lexer, size_t v )
 
       if( lexer->len == 0 )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Real number doesn't terminate" );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Real number doesn't terminate" );
         return NULL;
       }
     }
@@ -497,7 +500,8 @@ static token_t* real( lexer_t* lexer, size_t v )
       } else if( isalpha( c ) ) {
         if( !error )
         {
-          error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in exponent: %c", c );
+          error_new( lexer->errors, lexer->line, lexer->pos,
+            "Invalid digit in exponent: %c", c );
           error = true;
         }
       } else {
@@ -516,7 +520,8 @@ static token_t* real( lexer_t* lexer, size_t v )
 
     if( digits == 0 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos, "Exponent has no digits" );
+      error_new( lexer->errors, lexer->line, lexer->pos,
+        "Exponent has no digits" );
       error = true;
     }
   }
@@ -551,7 +556,8 @@ static token_t* hexadecimal( lexer_t* lexer )
     } else if( isalpha( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in hexadecimal number: %c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Invalid digit in hexadecimal number: %c", c );
         error = true;
       }
     } else {
@@ -589,7 +595,8 @@ static token_t* decimal( lexer_t* lexer )
     } else if( isalnum( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in decimal number: %c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Invalid digit in decimal number: %c", c );
         error = true;
       }
     } else {
@@ -625,7 +632,8 @@ static token_t* binary( lexer_t* lexer )
     } else if( isalnum( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Invalid digit in binary number: %c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Invalid digit in binary number: %c", c );
         error = true;
       }
     } else {
@@ -705,17 +713,6 @@ static token_t* identifier( lexer_t* lexer )
   return t;
 }
 
-static token_t* typeid( lexer_t* lexer )
-{
-  read_id( lexer );
-
-  token_t* t = token_new( lexer );
-  t->id = TK_TYPEID;
-  t->string = copy( lexer );
-
-  return t;
-}
-
 static token_t* symbol( lexer_t* lexer )
 {
   token_t* t;
@@ -753,7 +750,8 @@ static token_t* symbol( lexer_t* lexer )
     }
   }
 
-  error_new( lexer->errors, lexer->line, lexer->pos, "Unknown symbol: %c", sym[0] );
+  error_new( lexer->errors, lexer->line, lexer->pos,
+    "Unknown symbol: %c", sym[0] );
   return NULL;
 }
 
@@ -850,14 +848,13 @@ token_t* lexer_next( lexer_t* lexer )
       if( isdigit( c ) )
       {
         t = number( lexer );
-      } else if( islower( c ) || (c == '_') ) {
+      } else if( isalpha( c ) || (c == '_') ) {
         t = identifier( lexer );
-      } else if( isupper( c ) ) {
-        t = typeid( lexer );
       } else if( issymbol( c ) ) {
         t = symbol( lexer );
       } else {
-        error_new( lexer->errors, lexer->line, lexer->pos, "Unrecognized character: %c", c );
+        error_new( lexer->errors, lexer->line, lexer->pos,
+          "Unrecognized character: %c", c );
         adv( lexer, 1 );
       }
     }
@@ -887,7 +884,6 @@ void token_free( token_t* token )
   {
   case TK_STRING:
   case TK_ID:
-  case TK_TYPEID:
     if( token->string != NULL ) { free( token->string ); }
     break;
 

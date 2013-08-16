@@ -132,7 +132,7 @@ class TypeParam(object):
   def __init__(self, typedef, ast):
     self.name = ast.children[0]
     self.type = typedef.resolve_adt(ast.children[1])
-
+00
   def accept(self, binding):
     """
     Binding is an ADT for a type parameter and an AST for a value parameter.

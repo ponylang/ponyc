@@ -5,6 +5,7 @@
 #include <string.h>
 #include <assert.h>
 
+#if 0
 #define SYMTAB_SIZE (1 << 5)
 #define SYMTAB_MASK (SYMTAB_SIZE - 1)
 
@@ -153,15 +154,18 @@ static void module( errorlist_t* e, symtab_t* st, ast_t* ast )
     ast = ast->sibling;
   }
 }
+#endif
 
 errorlist_t* typecheck( ast_t* ast )
 {
   errorlist_t* e = errorlist_new();
+#if 0
   symtab_t* st = symtab_new( NULL );
 
   if( ast->t->id != TK_MODULE ) { abort(); }
   module( e, st, ast );
 
   symtab_free( st );
+#endif
   return e;
 }

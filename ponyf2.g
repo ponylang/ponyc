@@ -17,21 +17,20 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? mode ('is' types)? protection member*
+  :  ('actor' | 'class' | 'trait') ID type_params? mode protection ('is' types)? member*
   ;
 
 member
-  :  'var' ID oftype
-  |  'val' ID oftype
-  |  ('fun' | 'msg') mode ID type_params? params oftype? protection ('=' expr)?
+  :  ('var' | 'val') ID oftype
+  |  ('fun' | 'msg') mode ID type_params? params oftype? protection ('=' seq)?
   ;
 
 typedef_
-  :  'type' ID ('.' ID)? type_params? oftype? ('is' types)? ('with' (ID '=' ID)+)?
+  :  'type' ID ('.' ID)* type_params? oftype? ('is' types)? ('with' (ID '=' ID)*)?
   ;
 
 protection
-  :  ('private' | 'package')?
+  :  ('private' | 'package' | 'infer')?
   ;
 
 types
@@ -43,13 +42,8 @@ type
   |  '(' base_type (('|' | '&') type)* ')'
   ;
 
-// FIX: a function that takes a single ADT looks weird
-// fun{val}((I32|F32))
-// only a problem when writing the type, not an issue for a lambda or a signature due to ID
-// fun{val}(a:(I32|F32))
-// could wrap ADT in different delimeter: <> or {} or [], but it would make intersection types weird
 base_type
-  :  '\\'? ID ('.' ID)? type_args? mode
+  :  '\\'? ID ('.' ID)* type_args? mode
   |  'fun' mode '(' types? ')' oftype?
   ;
 
@@ -61,13 +55,14 @@ type_args
   :  '[' type_arg (',' type_arg)* ']'
   ;
 
+// FIX: '=' in front of expr type arg is unfortunate
 type_arg
   :	 type
-  |  'val' expr
+  |  '=' expr
   ;
 
 mode
-  :  ('{' base_mode ('|' base_mode)* ('->' ('this' | ID))? '}')?
+  :  ('{' (base_mode ('|' base_mode)*)? ('->' ('this' | ID))? '}')?
   ;
 
 base_mode
@@ -99,18 +94,29 @@ seq
   ;
 
 expr
-  :  'var' ID oftype? '=' expr
-  |  'val' ID oftype? '=' expr
-  |  binary ('=' expr)? // return the value of binary, not expr. a = b returns a, b = a = b is a swap
+  :  ('var' | 'val') ID oftype? '=' expr
+     // return the value of binary, not expr. a = b returns a, b = a = b is a swap
+  |  binary ('=' expr)?
+     // expr is in a new scope
   |  'fun' mode params oftype? '=' expr
-  |  'if' expr 'then' expr ('else' expr | 'end') // without else clause: if e1 then (e2; None) else None
-  |  'match' expr ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)+ 'end'
-  |  'while' expr 'do' expr // value is None
-  |  'do' expr 'while' expr // value is None
-  |  'for' ID 'in' expr 'do' expr // (var x = (e1).iterator(); while x.has_next() do (var ID = x.next(); e2))
-  |  'break' // only valid in a loop, exits the loop
-  |  'continue' // only valid in a loop, short circuits the loop
-  |  'return' expr // short circuits the function
+     // without else clause: if e1 then (e2; None) else None
+     // whole thing is a scope, each clause is a subscope
+  |  'if' seq 'then' expr ('else' expr | 'end')
+     // whole thing is a scope, each seq is a scope
+  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* 'end'
+     // value is None
+     // whole thing is a scope, expr is a subscope
+  |  'while' seq 'do' expr
+     // ((e1); (while e2 do (e1)))
+  |  'do' expr 'while' expr
+     // (var x = e1.iterator(); while x.has_next() do (var id = x.next(); e2))
+  |  'for' ID oftype? 'in' expr 'do' expr
+     // only valid in a while loop, exits the loop
+  |  'break'
+     // only valid in a while loop, short circuits the loop
+  |  'continue'
+     // short circuits the function
+  |  'return' expr
   |  ';'
   ;
 
@@ -140,9 +146,6 @@ primary
   |  STRING
   |  ID
   |  '(' seq ')'
-  |  'swap' args
-  |  'field' args
-  |  'method' args
   ;
 
 unop
