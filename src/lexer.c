@@ -106,8 +106,6 @@ static const symbol_t keywords[] =
   { "do", TK_DO },
   { "match", TK_MATCH },
   { "this", TK_THIS },
-  { "true", TK_TRUE },
-  { "false", TK_FALSE },
   { "not", TK_NOT },
   { "and", TK_AND },
   { "or", TK_OR },

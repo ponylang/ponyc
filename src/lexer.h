@@ -79,8 +79,6 @@ typedef enum
   TK_DO,
   TK_MATCH,
   TK_THIS,
-  TK_TRUE,
-  TK_FALSE,
   TK_NOT,
   TK_AND,
   TK_OR,

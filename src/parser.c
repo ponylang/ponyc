@@ -513,8 +513,6 @@ static ast_t* primary( parser_t* parser )
 {
   FORWARDALT(
     { TK_THIS, ast_token },
-    { TK_TRUE, ast_token },
-    { TK_FALSE, ast_token },
     { TK_INT, ast_token },
     { TK_FLOAT, ast_token },
     { TK_STRING, ast_token },
@@ -570,8 +568,8 @@ static ast_t* unary( parser_t* parser )
 static bool is_binary( parser_t* parser )
 {
   // any unary, postfix or primary can start a binary expression
-  return LOOK( TK_NOT, TK_MINUS, TK_BACKSLASH, TK_THIS, TK_TRUE, TK_FALSE,
-    TK_INT, TK_FLOAT, TK_STRING, TK_ID, TK_LPAREN );
+  return LOOK( TK_NOT, TK_MINUS, TK_BACKSLASH, TK_THIS, TK_INT, TK_FLOAT,
+    TK_STRING, TK_ID, TK_LPAREN );
 }
 
 static ast_t* binary( parser_t* parser )

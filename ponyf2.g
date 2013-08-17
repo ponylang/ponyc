@@ -89,10 +89,6 @@ arg
   :  expr ('->' ID)?
   ;
 
-seq
-  :  expr (';' expr)*
-  ;
-
 expr
   :  ('var' | 'val') ID oftype? '=' expr
      // return the value of binary, not expr. a = b returns a, b = a = b is a swap
@@ -103,7 +99,7 @@ expr
      // whole thing is a scope, each clause is a subscope
   |  'if' seq 'then' expr ('else' expr | 'end')
      // whole thing is a scope, each seq is a scope
-  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* 'end'
+  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* ('else' expr | 'end')
      // value is None
      // whole thing is a scope, expr is a subscope
   |  'while' seq 'do' expr
@@ -118,6 +114,10 @@ expr
      // short circuits the function
   |  'return' expr
   |  ';'
+  ;
+
+seq
+  :  expr (';' expr)*
   ;
 
 binary
@@ -139,8 +139,6 @@ postfix
 
 primary
   :  'this'
-  |  'true'
-  |  'false'
   |  INT
   |  FLOAT
   |  STRING

@@ -30,8 +30,8 @@ class ListIterator[A:Any{p}] is Iterator[A]
 
   fun{iso|var|val} has_next():Bool =
     match list.next()
-    | None = false
-    | = true
+    | None = False
+    | = True
     end
 
   fun{iso|var} next():A{p}->this =
