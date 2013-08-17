@@ -429,10 +429,9 @@ static token_t* string( lexer_t* lexer )
   return NULL;
 }
 
-static token_t* real( lexer_t* lexer, size_t v )
+static token_t* real( lexer_t* lexer, __int128_t v )
 {
-  double d = v;
-  size_t digits = 0;
+  int digits = 0;
   int e = 0;
   bool error = false;
   char c;
@@ -447,7 +446,7 @@ static token_t* real( lexer_t* lexer, size_t v )
 
       if( (c >= '0') && (c <= '9') )
       {
-        d = (d * 10) + (c - '0');
+        v = (v * 10) + (c - '0');
         digits++;
         e--;
       } else if( (c == 'e') || (c == 'E') ) {
@@ -548,13 +547,13 @@ static token_t* real( lexer_t* lexer, size_t v )
 
   token_t* t = token_new( lexer );
   t->id = TK_FLOAT;
-  t->flt = d * pow( 10.0, e );
+  t->real = v * pow( 10.0, e );
   return t;
 }
 
 static token_t* hexadecimal( lexer_t* lexer )
 {
-  size_t v = 0;
+  __int128_t v = 0;
   bool error = false;
   char c;
 
@@ -595,7 +594,7 @@ static token_t* hexadecimal( lexer_t* lexer )
 
 static token_t* decimal( lexer_t* lexer )
 {
-  size_t v = 0;
+  __int128_t v = 0;
   bool error = false;
   char c;
 
@@ -634,7 +633,7 @@ static token_t* decimal( lexer_t* lexer )
 
 static token_t* binary( lexer_t* lexer )
 {
-  size_t v = 0;
+  __int128_t v = 0;
   bool error = false;
   char c;
 

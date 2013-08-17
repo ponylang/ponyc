@@ -114,8 +114,8 @@ typedef struct token_t
   union
   {
     const char* string;
-    double flt;
-    size_t integer;
+    double real;
+    __int128_t integer;
   };
 } token_t;
 
