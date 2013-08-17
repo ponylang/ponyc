@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "stringtab.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -159,17 +160,6 @@ static char look( lexer_t* lexer )
   return lexer->m[lexer->ptr];
 }
 
-static char* copy( lexer_t* lexer )
-{
-  if( lexer->buflen == 0 ) { return NULL; }
-  char* m = malloc( lexer->buflen + 1 );
-  memcpy( m, lexer->buffer, lexer->buflen );
-  m[lexer->buflen] = '\0';
-  lexer->buflen = 0;
-
-  return m;
-}
-
 static void string_terminate( lexer_t* lexer )
 {
   error_new( lexer->errors, lexer->line, lexer->pos,
@@ -248,6 +238,17 @@ static bool appendn( lexer_t* lexer, size_t len )
   }
 
   return true;
+}
+
+static const char* copy( lexer_t* lexer )
+{
+  if( lexer->buflen == 0 ) { return NULL; }
+  append( lexer, '\0' );
+
+  const char* str = stringtab( lexer->buffer );
+  lexer->buflen = 0;
+
+  return str;
 }
 
 static token_t* token_new( lexer_t* lexer )
@@ -991,16 +992,5 @@ const char* token_string( token_t* token )
 void token_free( token_t* token )
 {
   if( token == NULL ) { return; }
-
-  switch( token->id )
-  {
-  case TK_STRING:
-  case TK_ID:
-    if( token->string != NULL ) { free( token->string ); }
-    break;
-
-  default: {}
-  }
-
   free( token );
 }

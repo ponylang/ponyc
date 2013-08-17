@@ -113,7 +113,7 @@ typedef struct token_t
 
   union
   {
-    char* string;
+    const char* string;
     double flt;
     size_t integer;
   };
