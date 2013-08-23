@@ -1,43 +1,46 @@
-class List[A:Any{p}] is Iterable[A]
+class List[A] is Iterable[A]
   var item:A
-  var next:(List[A]{var}|None)
+  var next:(List[A]|None)
 
-  fun default(item:A, next:(List[A]{var}|None) = None):List[A]{iso} =
+  fun default(item:A{iso}, next:(List[A]{iso}|None) = None):List[A]{iso} =
     var a = \List[A];
     a.item = item;
     a.next = next;
     a.absorb()
 //    \List[A](item->item, next->next).absorb()
 
+  fun default(item:A{var}, next:(List[A]{var}|None) = None):List[A]{var} =
+    \List[A](item->item, next->next).absorb()
+
   fun default(item:A{val}, next:(List[A]{val}|None) = None):List[A]{val} =
     \List[A](item->item, next->next).absorb()
 
-  fun{iso|var|val} get_item():A{p}->this = item
+  fun{iso|var|val} get_item():A->this = item
 
   fun{iso|var} set_item(a:A):A = a = item
 
-  fun{iso|var|val} get_next():(List[A]{var}->this|None) = next
+  fun{iso|var|val} get_next():(List[A]->this|None) = next
 
-  fun{iso|var} set_next(a:(List[A]{var}|None) = None) = a = next
+  fun{iso|var} set_next(a:(List[A]|None) = None) = a = next
 
-  fun{var|val} iterator():ListIterator[A]{var} = ListIterator(this)
+  fun{var|val} iterator():ListIterator[A, List[A]{this}] = ListIterator(this)
 
-class ListIterator[A:Any{p}] is Iterator[A]
-  var list:List[A]{var|val}
+class ListIterator[A, B:List[A]]{var} is Iterator[A]
+  var list:B
 
-  fun default(list:List[A]{var|val}) =
+  fun default(list:B) =
     \ListIterator(list->list).absorb()
 
-  fun{iso|var|val} has_next():Bool =
-    match list.next()
+  fun has_next():Bool =
+    match list.get_next()
     | None = False
     | = True
     end
 
-  fun{iso|var} next():A{p}->this =
+  fun next():A->list =
     var item = list.get();
     list = match list.get_next()
-    | as a:List[A]{var|val} = a
+    | as a:B = a
     | None = list
     end;
     item

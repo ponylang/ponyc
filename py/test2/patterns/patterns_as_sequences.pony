@@ -1,5 +1,4 @@
 /*
-
 Add to operational semantics:
 
 pattern matching
@@ -41,78 +40,88 @@ what happens when we reflect a frozen object?
   but it's clearly a different type
   and absorbing it will work differently
 */
-trait Comparable[A]
-{
-  read eq_with(that:A|\A, pattern:\A)->(Bool) =
-    {this == that} or {
+
+trait FieldID[A]
+class FieldID_CLASS_0 is FieldID[A]
+...
+
+trait FieldType[A, B:FieldID[A]]
+class FieldType_CLASS_F0:typeof(CLASS.F0) is FieldType[CLASS, F0]
+...
+
+type PartialField[A, B:FieldID[A]]:
+  (FieldType[A, B]
+  |Partial[FieldType[A, B]]
+  |NotPresent
+  )
+
+class Partial[A]
+  var f0:PartialField[A, F0]
+  ...
+
+  var f:List[FieldID[A]]
+
+  fun{var|val} apply[B:FieldID[A]](k:B):PartialField[A, B]->A =
+    // magic
+
+  fun{var} update[B:FieldID[A]](k:B, v:PartialField[A, B]->A):PartialField[A, B]->A =
+    // magic
+
+trait Reflectable
+  fun{var|val} reflect[A:FieldID[This]](k:A):FieldType[This, A]->this =
+    // magic
+
+  fun{var|val} reflect():Partial[This{this}] =
+    var p = Partial[This{this}];
+    for k in p do
+      p(k) = reflect(k);
+    p
+
+trait Comparable
+  fun{var|val} eq(that:(This{var|val}|Partial[This{var|val})]):Bool =
+    (this == that) or (
       match that
-        | as that:A = that.eq_with(reflect, pattern)
-        | as that:\A = eq_fields(that, pattern, 0)
-      }
+      | as a:This = a.eq(compare_pattern())
+      | as a:Partial[This{_}] =
+        for k in a do
+          match a(k)
+          | as a:NotPresent = None
+          | = if not reflect(k).eq(a(k)) then return false end
+          end;
+        true
+      end)
 
-  read lt_with(that:A|\A, pattern:\A)->(Bool) =
-    {this == that} or {
+  fun{var|val} lt(that:(This{var|val}|Partial[This{var|val})]):Bool =
+    (this != that) and (
       match that
-        | as that:A = that.lt_with(reflect, pattern)
-        | as that:\A = lt_fields(that, pattern, 0)
-      }
+      | as a:This = a.lt(compare_pattern())
+      | as a:Partial[This{_}] =
+        for k in a do
+          match a(k)
+          | as a:NotPresent = None
+          | = if not reflect(k).lt(a(k)) then return false end
+          end;
+        true
+      end)
 
-  read ne_with(that:A|\A, pattern:\A)->(Bool) = not eq_with(that, pattern)
+  fun{var|val} gt(that:(This{var|val}|Partial[This{var|val})]):Bool =
+    not lt(that) and not eq(that)
 
-  read gt_with(that:A|\A, pattern:\A)->(Bool) =
-    not eq_with(that, pattern) and not lt_with(that, pattern)
+  fun{var|val} le(that:(This{var|val}|Partial[This{var|val})]):Bool =
+    not gt(that)
 
-  read le_with(that:A|\A, pattern:\A)->(Bool) =
-    eq_with(that, pattern) or lt_with(that, pattern)
+  fun{var|val} ge(that:(This{var|val}|Partial[This{var|val})]):Bool =
+    not lt(that)
 
-  read ge_with(that:A|\A, pattern:\A)->(Bool) = not lt_with(that,pattern)
+  fun{var|val} compare_pattern():Partial[This{this}] = reflect()
 
-  read eq(that:A|\A)->(Bool) = eq_with(that, compare_pattern())
-  read lt(that:A|\A)->(Bool) = lt_with(that, compare_pattern())
-  read ne(that:A|\A)->(Bool) = not eq(that)
-  read gt(that:A|\A)->(Bool) = not lt(that) and not eq(that)
-  read le(that:A|\A)->(Bool) = lt(that) or eq(that)
-  read ge(that:A|\A)->(Bool) = not lt(that)
+trait Constructable
+  fun{none} construct(a:Partial[This]):Bool = true
 
-  private read eq_fields(that:\A, pattern:\A, i:U64)->(Bool) =
-    match field(pattern, i)
-      | None = true
-      | as f:FieldID[A] = {
-        match that.f
-          | None = true
-          | = {
-            match pattern.f
-              | None = true
-              | as fpattern:\FieldType[A, f] = f.eq_with(that.f, fpattern)
-              | = f.eq(that.f)
-            }
-        } and eq_fields(that, pattern, i + 1)
+trait Cloneable is Constructable
+  fun{val} clone():This{val} = this
 
-  private read lt_fields(that:\A, pattern:\A, i:U64)->(Bool) =
-    match field(pattern, i)
-      | None = true
-      | as f:FieldID[A] = {
-        match that.f
-          | None = true
-          | = {
-            match pattern.f
-              | None = true
-              | as fpattern:\FieldType[A, f] = f.lt_with(that.f, fpattern)
-              | = f.lt( that.f )
-            }
-        } and lt_fields(that, pattern, i + 1)
-
-  private def compare_pattern()->(\A) = reflect
-}
-
-trait Constructable[T]
-{
-  private def construct() T|None = this
-}
-
-trait Cloneable[T] is Constructable[T]
-{
-  def clone() T|None = clone_with( clone_pattern() )
+  fun{iso|var} clone(map:Map[Any, Any] = Map[Any, Any]):This{iso}|None =
 
   // FIX: cycles
   def clone_with( pattern:\T ) T|None =

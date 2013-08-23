@@ -2,8 +2,8 @@
 #define TYPECHECKER_H
 
 #include "error.h"
-#include "parser.h"
+#include "ast.h"
 
-errorlist_t* typecheck( ast_t* ast );
+bool typecheck( ast_t* ast, errorlist_t* errors );
 
 #endif

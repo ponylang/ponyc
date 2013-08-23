@@ -30,7 +30,7 @@
 /* The API for parser rules starts here */
 
 #define AST(ID) ast_t* ast = ast_new( ID, parser->t->line, parser->t->pos )
-#define AST_TOKEN() ast_t* ast = ast_token( parser )
+#define AST_TOKEN() ast_t* ast = consume( parser )
 #define AST_RULE(X) ast_t* ast = X( parser )
 #define INSERT(ID) insert( parser, ID, ast )
 
@@ -129,7 +129,7 @@
 
 #define BINOP_TOKEN() \
   { \
-    ast_t* binop = ast_token( parser ); \
+    ast_t* binop = consume( parser ); \
     binop->child = ast; \
     ast = binop; \
   }
@@ -162,38 +162,16 @@ typedef enum
   BLOCK_ERROR
 } block_t;
 
-static token_id current( parser_t* parser )
+static ast_t* consume( parser_t* parser )
 {
-  return parser->t->id;
-}
-
-static ast_t* ast_token( parser_t* parser )
-{
-  ast_t* ast = calloc( 1, sizeof(ast_t) );
-  ast->t = parser->t;
+  ast_t* ast = ast_token( parser->t );
   parser->t = lexer_next( parser->lexer );
-
   return ast;
 }
 
-static void ast_reverse( ast_t* ast )
+static token_id current( parser_t* parser )
 {
-  if( ast == NULL ) { return; }
-
-  ast_t* cur = ast->child;
-  ast_t* next;
-  ast_t* last = NULL;
-
-  while( cur != NULL )
-  {
-    ast_reverse( cur );
-    next = cur->sibling;
-    cur->sibling = last;
-    last = cur;
-    cur = next;
-  }
-
-  ast->child = last;
+  return parser->t->id;
 }
 
 static void insert( parser_t* parser, token_id id, ast_t* ast )
@@ -227,14 +205,14 @@ static bool acceptalt( parser_t* parser, const token_id* id, ast_t* ast )
 
   if( ast != NULL )
   {
-    ast_t* child = ast_token( parser );
+    ast_t* child = ast_token( parser->t );
     child->sibling = ast->child;
     ast->child = child;
   } else {
     token_free( parser->t );
-    parser->t = lexer_next( parser->lexer );
   }
 
+  parser->t = lexer_next( parser->lexer );
   return true;
 }
 
@@ -383,11 +361,11 @@ static ast_t* mode( parser_t* parser )
   // (LBRACE basemode (PIPE basemode)* RBRACE)? (ARROW (THIS | ID))?
   AST( TK_MODE );
   OPTBLOCK( TK_MODE, TK_LBRACE, TK_RBRACE, TK_PIPE,
-    { TK_ISO, ast_token },
-    { TK_VAR, ast_token },
-    { TK_VAL, ast_token },
-    { TK_TAG, ast_token },
-    { TK_ID, ast_token }
+    { TK_ISO, consume },
+    { TK_VAR, consume },
+    { TK_VAL, consume },
+    { TK_TAG, consume },
+    { TK_ID, consume }
     );
 
   if( ACCEPT_DROP( TK_ARROW ) )
@@ -422,11 +400,9 @@ static ast_t* formalparams( parser_t* parser )
 
 static ast_t* formalargs( parser_t* parser )
 {
-  // formalarg ::= EQUALS expr | type
-  // (LBRACKET formalarg (COMMA formalarg)* RBRACKET)?
+  // (LBRACKET type (COMMA type)* RBRACKET)?
   AST( TK_FORMALARGS );
   OPTBLOCK( TK_NONE, TK_LBRACKET, TK_RBRACKET, TK_COMMA,
-    { TK_EQUALS, assign },
     { TK_NONE, type }
     );
   DONE();
@@ -450,7 +426,7 @@ static ast_t* objecttype( parser_t* parser )
   // ID (DOT ID)* formalargs mode
   AST( TK_OBJECTTYPE );
   BLOCK( TK_TYPEID, TK_NONE, TK_NONE, TK_DOT,
-    { TK_ID, ast_token }
+    { TK_ID, consume }
     );
   RULE( formalargs );
   RULE( mode );
@@ -512,11 +488,11 @@ static ast_t* seq( parser_t* parser )
 static ast_t* primary( parser_t* parser )
 {
   FORWARDALT(
-    { TK_THIS, ast_token },
-    { TK_INT, ast_token },
-    { TK_FLOAT, ast_token },
-    { TK_STRING, ast_token },
-    { TK_ID, ast_token },
+    { TK_THIS, consume },
+    { TK_INT, consume },
+    { TK_FLOAT, consume },
+    { TK_STRING, consume },
+    { TK_ID, consume },
     { TK_LPAREN, seq }
     );
 }
@@ -753,10 +729,10 @@ static ast_t* expr( parser_t* parser )
     { TK_WHILE, whileloop },
     { TK_DO, doloop },
     { TK_FOR, forloop },
-    { TK_BREAK, ast_token },
-    { TK_CONTINUE, ast_token },
+    { TK_BREAK, consume },
+    { TK_CONTINUE, consume },
     { TK_RETURN, returnexpr },
-    { TK_SEMI, ast_token },
+    { TK_SEMI, consume },
     { TK_NONE, command }
     );
 }
@@ -835,7 +811,7 @@ static ast_t* typedecl( parser_t* parser )
   // TYPE ID (DOT ID)* (COLON type)? is
   AST_TOKEN();
   BLOCK( TK_TYPEID, TK_NONE, TK_NONE, TK_DOT,
-    { TK_ID, ast_token }
+    { TK_ID, consume }
     );
   RULE( oftype );
   RULE( is );

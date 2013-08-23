@@ -17,20 +17,17 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? mode protection ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? mode ('private' | 'infer')? ('is' types)? member*
   ;
 
 member
-  :  ('var' | 'val') ID oftype
-  |  ('fun' | 'msg') mode ID type_params? params oftype? protection ('=' seq)?
+  :  ('var' | 'val') ID (',' ID)* oftype // FIX: multiple declaration not in code yet
+  |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)? // FIX: 'throw' not in code yet
   ;
 
+// FIX: separate out retrofitting from aliasing?
 typedef_
-  :  'type' ID ('.' ID)* type_params? oftype? ('is' types)? ('with' (ID '=' ID)*)?
-  ;
-
-protection
-  :  ('private' | 'package' | 'infer')?
+  :  'type' ID ('.' ID)* type_params? oftype? ('is' types)? ('and' (ID '=' ID)*)?
   ;
 
 types
@@ -52,13 +49,7 @@ type_params
   ;
 
 type_args
-  :  '[' type_arg (',' type_arg)* ']'
-  ;
-
-// FIX: '=' in front of expr type arg is unfortunate
-type_arg
-  :	 type
-  |  '=' expr
+  :  '[' type (',' type)* ']'
   ;
 
 mode
@@ -73,8 +64,9 @@ params
   :  '(' (param (',' param)*)? ')'
   ;
 
+// FIX: this could be used in code to allow multiple declaration, ie (a, b: I32, c, d: String)
 param
-  :  ID (oftype ('=' expr)? | '=' expr)
+  :  ID oftype? ('=' expr)?
   ;
 
 oftype
@@ -98,14 +90,14 @@ expr
      // without else clause: if e1 then (e2; None) else None
      // whole thing is a scope, each clause is a subscope
   |  'if' seq 'then' expr ('else' expr | 'end')
-     // whole thing is a scope, each seq is a scope
+     // whole thing is a scope, each case is a scope
   |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* ('else' expr | 'end')
      // value is None
      // whole thing is a scope, expr is a subscope
   |  'while' seq 'do' expr
      // ((e1); (while e2 do (e1)))
   |  'do' expr 'while' expr
-     // (var x = e1.iterator(); while x.has_next() do (var id = x.next(); e2))
+     // (var x = e1.iterator(); while x.has_next() do (val id = x.next(); e2))
   |  'for' ID oftype? 'in' expr 'do' expr
      // only valid in a while loop, exits the loop
   |  'break'
@@ -113,7 +105,12 @@ expr
   |  'continue'
      // short circuits the function
   |  'return' expr
-  |  ';'
+     // FIX: not yet in the code
+  |  'try' expr ('else' expr)? ('then' expr | 'end')
+  |  'throw'
+     // (var ID = e1; try e2 then ID.dispose())
+     // FIX: is go's 'defer' the more general form of this?
+  |  'use' expr 'as' ID 'in' expr
   ;
 
 seq
@@ -160,7 +157,7 @@ binop
 // Lexer
 
 ID
-  :  (LETTER | '_') (LETTER | DIGIT | '_')*
+  :  (LETTER | '_') (LETTER | DIGIT | '_' | '\'')*
   ;
 
 INT

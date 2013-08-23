@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "ast.h"
 #include "hash.h"
+#include "stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -17,7 +18,7 @@
 
 typedef struct package_t
 {
-  char* path;
+  const char* path;
   bool ok;
   ast_t* module;
   struct package_t* next;
@@ -170,7 +171,7 @@ static package_t* package_get( program_t* program, package_t* from, const char* 
   }
 
   package_t* pkg = malloc( sizeof(package_t) );
-  pkg->path = strdup( file );
+  pkg->path = stringtab( file );
   pkg->next = program->package[hash];
   program->package[hash] = pkg;
   pkg->ok = do_path( pkg, file );
@@ -212,7 +213,6 @@ static void package_import( program_t* program, package_t* pkg )
 static void package_free( package_t* pkg )
 {
   if( pkg == NULL ) { return; }
-  free( pkg->path );
   ast_free( pkg->module );
   package_free( pkg->next );
   free( pkg );

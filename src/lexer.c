@@ -705,7 +705,7 @@ static void read_id( lexer_t* lexer )
   {
     c = look( lexer );
 
-    if( (c == '_') || isalnum( c ) )
+    if( (c == '_') || (c == '\'') || isalnum( c ) )
     {
       append( lexer, c );
       adv( lexer, 1 );

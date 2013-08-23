@@ -1,10 +1,6 @@
-trait Iterator[A, p]<wri>
-{
-  read has_next()->(Bool)
-  write next()->(A p)
-}
+trait Iterator[A]
+  fun has_next():Bool
+  fun next():A->this
 
 trait Iterable[A]
-{
-  read iterator()->(Iterator[A, this])
-}
+  fun{var|val} iterator():Iterator[A]

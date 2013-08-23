@@ -86,6 +86,40 @@ ast_t* ast_new( token_id id, size_t line, size_t pos )
   return ast;
 }
 
+ast_t* ast_token( token_t* t )
+{
+  ast_t* ast = calloc( 1, sizeof(ast_t) );
+  ast->t = t;
+
+  return ast;
+}
+
+void ast_reverse( ast_t* ast )
+{
+  if( ast == NULL ) { return; }
+
+  ast_t* cur = ast->child;
+  ast_t* next;
+  ast_t* last = NULL;
+
+  while( cur != NULL )
+  {
+    ast_reverse( cur );
+    next = cur->sibling;
+    cur->sibling = last;
+    last = cur;
+    cur = next;
+  }
+
+  ast->child = last;
+}
+
+void ast_print( ast_t* ast )
+{
+  print( ast, 0 );
+  printf( "\n" );
+}
+
 void ast_free( ast_t* ast )
 {
   if( ast == NULL ) { return; }
@@ -93,10 +127,4 @@ void ast_free( ast_t* ast )
 
   ast_free( ast->child );
   ast_free( ast->sibling );
-}
-
-void ast_print( ast_t* ast )
-{
-  print( ast, 0 );
-  printf( "\n" );
 }
