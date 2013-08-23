@@ -9,11 +9,11 @@ options
 // Parser
 
 module
-  :  (use | class_ | typedef_)*
+  :  (use | class_ | alias | typedef_)*
   ;
 
 use
-  :  'use' STRING ('as' ID)?
+  :  'use' STRING 'as' ID
   ;
 
 class_
@@ -25,9 +25,13 @@ member
   |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)? // FIX: 'throw' not in code yet
   ;
 
-// FIX: separate out retrofitting from aliasing?
+alias
+  :  'alias' ID type_params? oftype
+  ;
+
+// FIX: separate out retrofitting from aliasing, not in code yet
 typedef_
-  :  'type' ID ('.' ID)* type_params? oftype? ('is' types)? ('and' (ID '=' ID)*)?
+  :  'type' ID ('.' ID)* type_params? ('is' types)? ('where' member*)?
   ;
 
 types
@@ -36,7 +40,7 @@ types
 
 type
   :  base_type
-  |  '(' base_type (('|' | '&') type)* ')'
+  |  '(' base_type ('|' base_type)* ')'
   ;
 
 base_type
@@ -57,7 +61,7 @@ mode
   ;
 
 base_mode
-  :	 'iso' | 'var' | 'val' | 'tag' | ID
+  :	 'iso' | 'var' | 'val' | 'tag' | 'this' | ID
   ;
 
 params
@@ -106,7 +110,7 @@ expr
      // short circuits the function
   |  'return' expr
      // FIX: not yet in the code
-  |  'try' expr ('else' expr)? ('then' expr | 'end')
+  |  'try' expr ('catch' expr)? ('finally' expr | 'end')
   |  'throw'
      // (var ID = e1; try e2 then ID.dispose())
      // FIX: is go's 'defer' the more general form of this?

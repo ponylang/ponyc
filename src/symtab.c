@@ -9,62 +9,52 @@
 typedef struct symbol_t
 {
   const char* name;
-  const type_t* type;
+  void* value;
   struct symbol_t* next;
 } symbol_t;
 
 struct symtab_t
 {
   symbol_t* symbols[SYMTAB_SIZE];
-  uint64_t refcount;
-  struct symtab_t* parent;
 };
 
-static symbol_t* symbol( symtab_t* symtab, const char* name, uint64_t hash )
+static void* symbol_get( symtab_t* symtab, const char* name, uint64_t hash )
 {
-  if( symtab == NULL ) return NULL;
   symbol_t* cur = symtab->symbols[hash];
 
   while( cur != NULL )
   {
-    if( !strcmp( cur->name, name ) )
+    if( cur->name == name )
     {
-      return cur;
+      return cur->value;
     }
 
     cur = cur->next;
   }
 
-  return symbol( symtab->parent, name, hash );
+  return NULL;
 }
 
 static void symbol_free( symbol_t* sym )
 {
-  if( sym == NULL ) { return; }
-  free( sym );
+  symbol_t* next;
+
+  while( sym != NULL )
+  {
+    next = sym->next;
+    free( sym );
+    sym = next;
+  }
 }
 
-symtab_t* symtab_new( symtab_t* parent )
+symtab_t* symtab_new()
 {
-  if( parent != NULL ) { symtab_ref( parent ); }
-
-  symtab_t* symtab = calloc( 1, sizeof(symtab_t) );
-  symtab->refcount = 1;
-  symtab->parent = parent;
-
-  return symtab;
-}
-
-void symtab_ref( symtab_t* symtab )
-{
-  symtab->refcount++;
+  return calloc( 1, sizeof(symtab_t) );
 }
 
 void symtab_free( symtab_t* symtab )
 {
   if( symtab == NULL ) { return; }
-  if( (--symtab->refcount) > 0 ) { return; }
-  if( symtab->parent != NULL ) { symtab_free( symtab->parent ); }
 
   for( int i = 0; i < SYMTAB_SIZE; i++ )
   {
@@ -74,29 +64,26 @@ void symtab_free( symtab_t* symtab )
   free( symtab );
 }
 
-bool symtab_add( symtab_t* symtab, const char* name, const type_t* type )
+bool symtab_add( symtab_t* symtab, const char* name, void* value )
 {
-  uint64_t hash = strhash( name ) & SYMTAB_MASK;
+  uint64_t hash = ptrhash( name ) & SYMTAB_MASK;
 
-  if( symbol( symtab, name, hash ) != NULL )
+  if( symbol_get( symtab, name, hash ) != NULL )
   {
     return false;
   }
 
   symbol_t* sym = malloc( sizeof(symbol_t) );
   sym->name = name;
-  sym->type = type;
+  sym->value = value;
   sym->next = symtab->symbols[hash];
   symtab->symbols[hash] = sym;
 
   return true;
 }
 
-const type_t* symtab_get( symtab_t* symtab, const char* name )
+void* symtab_get( symtab_t* symtab, const char* name )
 {
-  uint64_t hash = strhash( name ) & SYMTAB_MASK;
-  symbol_t* sym = symbol( symtab, name, hash );
-
-  if( sym == NULL ) { return NULL; }
-  return sym->type;
+  if( symtab == NULL ) return NULL;
+  return symbol_get( symtab, name, ptrhash( name ) & SYMTAB_MASK );
 }

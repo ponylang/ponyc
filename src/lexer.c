@@ -83,7 +83,7 @@ static const symbol_t keywords[] =
 {
   { "use", TK_USE },
   { "as", TK_AS },
-  { "type", TK_TYPE },
+  { "alias", TK_ALIAS },
   { "trait", TK_TRAIT },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
@@ -251,13 +251,9 @@ static const char* copy( lexer_t* lexer )
   return str;
 }
 
-static token_t* token_new( lexer_t* lexer )
+static token_t* token( lexer_t* lexer )
 {
-  token_t* t = calloc( 1, sizeof(token_t) );
-  t->line = lexer->line;
-  t->pos = lexer->pos;
-
-  return t;
+  return token_new( 0, lexer->line, lexer->pos );
 }
 
 static void newline( lexer_t* lexer )
@@ -327,7 +323,7 @@ static token_t* slash( lexer_t* lexer )
     }
   }
 
-  token_t* t = token_new(lexer );
+  token_t* t = token(lexer );
   t->id = TK_DIVIDE;
 
   return t;
@@ -347,7 +343,7 @@ static token_t* string( lexer_t* lexer )
     } else if( look( lexer ) == '\"' ) {
       adv( lexer, 1 );
 
-      token_t* t = token_new( lexer );
+      token_t* t = token( lexer );
       t->id = TK_STRING;
       t->string = copy( lexer );
       return t;
@@ -545,7 +541,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
 
   if( error ) { return NULL; }
 
-  token_t* t = token_new( lexer );
+  token_t* t = token( lexer );
   t->id = TK_FLOAT;
   t->real = v * pow( 10.0, e );
   return t;
@@ -586,7 +582,7 @@ static token_t* hexadecimal( lexer_t* lexer )
 
   if( error ) { return NULL; }
 
-  token_t* t = token_new( lexer );
+  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
@@ -625,7 +621,7 @@ static token_t* decimal( lexer_t* lexer )
 
   if( error ) { return NULL; }
 
-  token_t* t = token_new( lexer );
+  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
@@ -662,7 +658,7 @@ static token_t* binary( lexer_t* lexer )
 
   if( error ) { return NULL; }
 
-  token_t* t = token_new( lexer );
+  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
@@ -717,7 +713,7 @@ static void read_id( lexer_t* lexer )
 
 static token_t* identifier( lexer_t* lexer )
 {
-  token_t* t = token_new( lexer );
+  token_t* t = token( lexer );
 
   read_id( lexer );
   append( lexer, '\0' );
@@ -756,7 +752,7 @@ static token_t* symbol( lexer_t* lexer )
         if( (sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]) )
         {
           adv( lexer, 1 );
-          t = token_new( lexer );
+          t = token( lexer );
           t->id = p->id;
           return t;
         }
@@ -768,7 +764,7 @@ static token_t* symbol( lexer_t* lexer )
   {
     if( sym[0] == p->symbol[0] )
     {
-      t = token_new( lexer );
+      t = token( lexer );
       t->id = p->id;
       return t;
     }
@@ -888,7 +884,7 @@ token_t* lexer_next( lexer_t* lexer )
 
   if( t == NULL )
   {
-    t = token_new( lexer );
+    t = token( lexer );
     t->id = TK_EOF;
   }
 
@@ -943,6 +939,16 @@ void lexer_printerrors( lexer_t* lexer )
 
     e = e->next;
   }
+}
+
+token_t* token_new( token_id id, size_t line, size_t pos )
+{
+  token_t* t = calloc( 1, sizeof(token_t) );
+  t->id = id;
+  t->line = line;
+  t->pos = pos;
+
+  return t;
 }
 
 const char* token_string( token_t* token )

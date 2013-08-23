@@ -1,8 +1,21 @@
 #include "ast.h"
+#include "symtab.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+
+struct ast_t
+{
+  token_t* t;
+  symtab_t* symtab;
+  void* data;
+
+  struct ast_t* parent;
+  struct ast_t* child;
+  struct ast_t* sibling;
+};
 
 void print( ast_t* ast, size_t indent );
 
@@ -75,15 +88,16 @@ void print( ast_t* ast, size_t indent )
   printf( "\n" );
 }
 
-ast_t* ast_new( token_id id, size_t line, size_t pos )
+ast_t* ast_new( token_id id, size_t line, size_t pos, void* data )
 {
-  ast_t* ast = calloc( 1, sizeof(ast_t) );
-  ast->t = calloc( 1, sizeof(token_t) );
-  ast->t->id = id;
-  ast->t->line = line;
-  ast->t->pos = pos;
-
+  ast_t* ast = ast_token( token_new( id, line, pos ) );
+  ast->data = data;
   return ast;
+}
+
+ast_t* ast_newid( token_id id )
+{
+  return ast_token( token_new( id, 0, 0 ) );
 }
 
 ast_t* ast_token( token_t* t )
@@ -92,6 +106,85 @@ ast_t* ast_token( token_t* t )
   ast->t = t;
 
   return ast;
+}
+
+token_id ast_id( ast_t* ast )
+{
+  return ast->t->id;
+}
+
+size_t ast_line( ast_t* ast )
+{
+  return ast->t->line;
+}
+
+size_t ast_pos( ast_t* ast )
+{
+  return ast->t->pos;
+}
+
+void* ast_data( ast_t* ast )
+{
+  return ast->data;
+}
+
+const char* ast_name( ast_t* ast )
+{
+  switch( ast->t->id )
+  {
+    case TK_ID:
+    case TK_STRING:
+      return ast->t->string;
+
+    default:
+      assert( 0 );
+      return NULL;
+  }
+}
+
+ast_t* ast_parent( ast_t* ast )
+{
+  return ast->parent;
+}
+
+ast_t* ast_child( ast_t* ast )
+{
+  return ast->child;
+}
+
+ast_t* ast_sibling( ast_t* ast )
+{
+  return ast->sibling;
+}
+
+void* ast_get( ast_t* ast, const char* name )
+{
+  void* value;
+
+  do
+  {
+    value = symtab_get( ast->symtab, name );
+    ast = ast->parent;
+  } while( (value == NULL) && (ast != NULL) );
+
+  return value;
+}
+
+bool ast_set( ast_t* ast, const char* name, void* value )
+{
+  if( ast->symtab == NULL )
+  {
+    ast->symtab = symtab_new();
+  }
+
+  return symtab_add( ast->symtab, name, value );
+}
+
+void ast_add( ast_t* parent, ast_t* child )
+{
+  child->parent = parent;
+  child->sibling = parent->child;
+  parent->child = child;
 }
 
 void ast_reverse( ast_t* ast )
@@ -123,8 +216,17 @@ void ast_print( ast_t* ast )
 void ast_free( ast_t* ast )
 {
   if( ast == NULL ) { return; }
-  if( ast->t != NULL ) { token_free( ast->t ); }
 
-  ast_free( ast->child );
-  ast_free( ast->sibling );
+  ast_t* child = ast->child;
+  ast_t* next;
+
+  while( child != NULL )
+  {
+    next = child->sibling;
+    ast_free( child );
+    child = next;
+  }
+
+  token_free( ast->t );
+  symtab_free( ast->symtab );
 }

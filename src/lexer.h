@@ -55,7 +55,7 @@ typedef enum
   // keywords
   TK_USE,
   TK_AS,
-  TK_TYPE,
+  TK_ALIAS,
   TK_TRAIT,
   TK_CLASS,
   TK_ACTOR,
@@ -88,6 +88,7 @@ typedef enum
   TK_INFER,
 
   // abstract
+  TK_PROGRAM,
   TK_MODULE,
   TK_TYPEID,
   TK_ADT,
@@ -126,6 +127,7 @@ token_t* lexer_next( lexer_t* lexer );
 errorlist_t* lexer_errors( lexer_t* lexer );
 void lexer_printerrors( lexer_t* lexer );
 
+token_t* token_new( token_id id, size_t line, size_t pos );
 const char* token_string( token_t* token );
 void token_free( token_t* token );
 

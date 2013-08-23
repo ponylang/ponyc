@@ -10,27 +10,11 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <errno.h>
+#include <assert.h>
 
 #define EXTENSION ".pony"
 
-#define HASH_SIZE 64
-#define HASH_MASK (HASH_SIZE - 1)
-
-typedef struct package_t
-{
-  const char* path;
-  bool ok;
-  ast_t* module;
-  struct package_t* next;
-} package_t;
-
-typedef struct program_t
-{
-  package_t* package[HASH_SIZE];
-  bool ok;
-} program_t;
-
-static bool do_file( package_t* pkg, const char* file )
+static bool do_file( ast_t* parent, const char* file )
 {
   parser_t* parser = parser_open( file );
 
@@ -50,15 +34,13 @@ static bool do_file( package_t* pkg, const char* file )
   }
 
   ast_t* ast = parser_ast( parser );
+  ast_add( parent, ast );
   parser_close( parser );
-
-  ast->sibling = pkg->module;
-  pkg->module = ast;
 
   return true;
 }
 
-static bool do_path( package_t* pkg, const char* path )
+static bool do_path( ast_t* parent, const char* path )
 {
   DIR* dir = opendir( path );
 
@@ -75,7 +57,7 @@ static bool do_path( package_t* pkg, const char* path )
       break;
 
     case ENOTDIR:
-      return do_file( pkg, path );
+      return do_file( parent, path );
 
     default:
       printf( "Unknown error: %s\n", path );
@@ -101,7 +83,7 @@ static bool do_path( package_t* pkg, const char* path )
       strcat( fullpath, "/" );
       strcat( fullpath, d->d_name );
 
-      r &= do_file( pkg, fullpath );
+      r &= do_file( parent, fullpath );
     }
   }
 
@@ -109,17 +91,72 @@ static bool do_path( package_t* pkg, const char* path )
   return r;
 }
 
-static package_t* package_get( program_t* program, package_t* from, const char* path )
+static bool use_prep( ast_t* use )
+{
+  ast_t* module = ast_parent( use );
+  ast_t* path = ast_child( use );
+  ast_t* id = ast_sibling( path );
+
+  if( !package_load( module, ast_name( path ) ) ) { return false; }
+
+  ast_t* package = ast_get( module, ast_name( path ) );
+
+  if( !ast_set( module, ast_name( id ), package ) )
+  {
+    printf( "Can't reuse import ID: %s\n", ast_name( id ) );
+    return false;
+  }
+
+  return true;
+}
+
+static bool module_prep( ast_t* module )
+{
+  bool ret = true;
+  ast_t* child = ast_child( module );
+
+  while( child != NULL )
+  {
+    switch( ast_id( child ) )
+    {
+      case TK_USE:
+        ret &= use_prep( child );
+        break;
+
+      case TK_ALIAS:
+        break;
+
+      case TK_CLASS:
+        break;
+
+      default: assert( 0 );
+    }
+
+    child = ast_sibling( child );
+  }
+
+  return ret;
+}
+
+bool package_load( ast_t* from, const char* path )
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
+  ast_t* program;
 
-  if( from != NULL )
+  if( ast_id( from ) == TK_PROGRAM )
   {
-    strcpy( composite, from->path );
-    strcat( composite, "/" );
-  } else {
+    program = from;
     composite[0] = '\0';
+  } else {
+    while( ast_id( from ) != TK_PACKAGE )
+    {
+      from = ast_parent( from );
+    }
+
+    program = ast_parent( from );
+    strcpy( composite, ast_data( from ) );
+    strcat( composite, "/" );
   }
 
   strcat( composite, path );
@@ -129,130 +166,68 @@ static package_t* package_get( program_t* program, package_t* from, const char* 
     switch( errno )
     {
     case EACCES:
-      printf( "Permission denied: %s\n", path );
+      printf( "Permission denied: %s\n", composite );
       break;
 
     case EINVAL:
     case ENOENT:
     case ENOTDIR:
-      printf( "Does not exist: %s\n", path );
+      printf( "Does not exist: %s\n", composite );
       break;
 
     case EIO:
-      printf( "I/O error: %s\n", path );
+      printf( "I/O error: %s\n", composite );
       break;
 
     case ELOOP:
-      printf( "Symbolic link loop: %s\n", path );
+      printf( "Symbolic link loop: %s\n", composite );
       break;
 
     case ENAMETOOLONG:
-      printf( "Path name too long: %s\n", path );
+      printf( "Path name too long: %s\n", composite );
       break;
 
     default:
-      printf( "Unknown error: %s\n", path );
+      printf( "Unknown error: %s\n", composite );
     }
 
-    return NULL;
+    return false;
   }
 
-  uint64_t hash = strhash( file ) & HASH_MASK;
-  package_t* cur = program->package[hash];
+  const char* name = stringtab( file );
 
-  while( cur != NULL )
+  if( ast_get( program, name ) != NULL ) { return true; }
+
+  ast_t* package = ast_new( TK_PACKAGE, 0, 0, (void*)name );
+  ast_add( program, package );
+  ast_set( program, name, package );
+
+  if( !do_path( package, name ) ) { return false; }
+
+  bool ret = true;
+
+  ast_t* module = ast_child( package );
+
+  while( module != NULL )
   {
-    if( !strcmp( cur->path, file ) )
-    {
-      return cur;
-    }
-
-    cur = cur->next;
+    ret &= module_prep( module );
+    module = ast_sibling( module );
   }
 
-  package_t* pkg = malloc( sizeof(package_t) );
-  pkg->path = stringtab( file );
-  pkg->next = program->package[hash];
-  program->package[hash] = pkg;
-  pkg->ok = do_path( pkg, file );
-  program->ok &= pkg->ok;
-
-  return pkg;
+  return ret;
 }
 
-static void package_import( program_t* program, package_t* pkg );
-
-static void module_import( program_t* program, package_t* pkg, ast_t* ast )
+bool package_start( const char* path )
 {
-  ast_t* child = ast->child;
-
-  while( child != NULL )
-  {
-    if( child->t->id == TK_USE )
-    {
-      package_t* use = package_get( program, pkg, child->child->t->string );
-      package_import( program, use );
-    }
-
-    child = child->sibling;
-  }
-}
-
-static void package_import( program_t* program, package_t* pkg )
-{
-  if( pkg == NULL ) { return; }
-  ast_t* ast = pkg->module;
-
-  while( ast != NULL )
-  {
-    module_import( program, pkg, ast );
-    ast = ast->sibling;
-  }
-}
-
-static void package_free( package_t* pkg )
-{
-  if( pkg == NULL ) { return; }
-  ast_free( pkg->module );
-  package_free( pkg->next );
-  free( pkg );
-}
-
-static void program_free( program_t* program )
-{
-  if( program == NULL ) { return; }
-
-  for( int i = 0; i < HASH_SIZE; i++ )
-  {
-    package_t* cur = program->package[i];
-    package_t* next;
-
-    while( cur != NULL )
-    {
-      next = cur->next;
-      package_free( cur );
-      cur = next;
-    }
-  }
-
-  free( program );
-}
-
-bool program_compile( const char* path )
-{
-  program_t* program = calloc( 1, sizeof(program_t) );
-  program->ok = true;
-
-  package_t* pkg = package_get( program, NULL, path );
-  package_import( program, pkg );
+  ast_t* program = ast_newid( TK_PROGRAM );
+  if( !package_load( program, path ) ) { return false; }
 
   /* FIX:
-   * symbol tables
+   * add types to package symbol table
    * type checking
    * code generation
    */
 
-  bool ret = program->ok;
-  program_free( program );
-  return ret;
+  ast_free( program );
+  return true;
 }

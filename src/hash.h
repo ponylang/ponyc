@@ -8,4 +8,6 @@ void MurmurHash3_x64_128( const void* key, const int len, const uint32_t seed,
 
 uint64_t strhash( const char* str );
 
+uint64_t ptrhash( const void* p );
+
 #endif

@@ -19,6 +19,6 @@ int main( int argc, char** argv )
     path = argv[1];
   }
 
-  if( !program_compile( path ) ) { return -1; }
+  if( !package_start( path ) ) { return -1; }
   return 0;
 }

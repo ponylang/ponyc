@@ -29,7 +29,7 @@
 
 /* The API for parser rules starts here */
 
-#define AST(ID) ast_t* ast = ast_new( ID, parser->t->line, parser->t->pos )
+#define AST(ID) ast_t* ast = ast_new( ID, parser->t->line, parser->t->pos, NULL )
 #define AST_TOKEN() ast_t* ast = consume( parser )
 #define AST_RULE(X) ast_t* ast = X( parser )
 #define INSERT(ID) insert( parser, ID, ast )
@@ -122,15 +122,15 @@
 
 #define BINOP(X) \
   { \
-    ast_t* binop = ast_new( X, parser->t->line, parser->t->pos ); \
-    binop->child = ast; \
+    ast_t* binop = ast_new( X, parser->t->line, parser->t->pos, NULL ); \
+    ast_add( binop, ast ); \
     ast = binop; \
   }
 
 #define BINOP_TOKEN() \
   { \
     ast_t* binop = consume( parser ); \
-    binop->child = ast; \
+    ast_add( binop, ast ); \
     ast = binop; \
   }
 
@@ -176,9 +176,8 @@ static token_id current( parser_t* parser )
 
 static void insert( parser_t* parser, token_id id, ast_t* ast )
 {
-  ast_t* child = ast_new( id, parser->t->line, parser->t->pos );
-  child->sibling = ast->child;
-  ast->child = child;
+  ast_t* child = ast_new( id, parser->t->line, parser->t->pos, NULL );
+  ast_add( ast, child );
 }
 
 static bool look( parser_t* parser, const token_id* id )
@@ -206,8 +205,7 @@ static bool acceptalt( parser_t* parser, const token_id* id, ast_t* ast )
   if( ast != NULL )
   {
     ast_t* child = ast_token( parser->t );
-    child->sibling = ast->child;
-    ast->child = child;
+    ast_add( ast, child );
   } else {
     token_free( parser->t );
   }
@@ -229,8 +227,7 @@ static bool rulealt( parser_t* parser, const alt_t* alt, ast_t* ast )
         return false;
       }
 
-      child->sibling = ast->child;
-      ast->child = child;
+      ast_add( ast, child );
       return true;
     }
 
@@ -251,9 +248,8 @@ static block_t block( parser_t* parser, const alt_t* alt, token_id name,
 
   if( name != TK_NONE )
   {
-    child = ast_new( name, parser->t->line, parser->t->pos );
-    child->sibling = ast->child;
-    ast->child = child;
+    child = ast_new( name, parser->t->line, parser->t->pos, NULL );
+    ast_add( ast, child );
   } else {
     child = ast;
   }
@@ -357,7 +353,7 @@ static ast_t* param( parser_t* parser )
 
 static ast_t* mode( parser_t* parser )
 {
-  // basemode ::= ISO | VAR | VAL | TAG | ID
+  // basemode ::= ISO | VAR | VAL | TAG | THIS | ID
   // (LBRACE basemode (PIPE basemode)* RBRACE)? (ARROW (THIS | ID))?
   AST( TK_MODE );
   OPTBLOCK( TK_MODE, TK_LBRACE, TK_RBRACE, TK_PIPE,
@@ -365,6 +361,7 @@ static ast_t* mode( parser_t* parser )
     { TK_VAR, consume },
     { TK_VAL, consume },
     { TK_TAG, consume },
+    { TK_THIS, consume },
     { TK_ID, consume }
     );
 
@@ -805,32 +802,23 @@ static ast_t* class( parser_t* parser )
   DONE();
 }
 
-static ast_t* typedecl( parser_t* parser )
+static ast_t* alias( parser_t* parser )
 {
-  // FIX: name remapping?
-  // TYPE ID (DOT ID)* (COLON type)? is
+  // ALIAS ID COLON type
   AST_TOKEN();
-  BLOCK( TK_TYPEID, TK_NONE, TK_NONE, TK_DOT,
-    { TK_ID, consume }
-    );
-  RULE( oftype );
-  RULE( is );
+  EXPECT( TK_ID );
+  EXPECT_DROP( TK_COLON );
+  RULE( type );
   DONE();
 }
 
 static ast_t* use( parser_t* parser )
 {
-  // USE STRING (AS ID)?
+  // USE STRING AS ID
   AST_TOKEN();
   EXPECT( TK_STRING );
-
-  if( ACCEPT_DROP( TK_AS ) )
-  {
-    EXPECT( TK_ID );
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  EXPECT_DROP( TK_AS );
+  EXPECT( TK_ID );
   DONE();
 }
 
@@ -840,7 +828,7 @@ static ast_t* module( parser_t* parser )
   AST( TK_MODULE );
   LIST(
     { TK_USE, use },
-    { TK_TYPE, typedecl },
+    { TK_ALIAS, alias },
     { TK_TRAIT, class },
     { TK_CLASS, class },
     { TK_ACTOR, class }
