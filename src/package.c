@@ -14,83 +14,6 @@
 
 #define EXTENSION ".pony"
 
-static bool do_file( ast_t* parent, const char* file )
-{
-  parser_t* parser = parser_open( file );
-
-  if( parser == NULL )
-  {
-    printf( "Couldn't open: %s\n", file );
-    return false;
-  }
-
-  errorlist_t* el = parser_errors( parser );
-
-  if( el->count > 0 )
-  {
-    parser_printerrors( parser );
-    parser_close( parser );
-    return false;
-  }
-
-  ast_t* ast = parser_ast( parser );
-  ast_add( parent, ast );
-  parser_close( parser );
-
-  return true;
-}
-
-static bool do_path( ast_t* parent, const char* path )
-{
-  DIR* dir = opendir( path );
-
-  if( dir == NULL )
-  {
-    switch( errno )
-    {
-    case EACCES:
-      printf( "Permission denied: %s\n", path );
-      break;
-
-    case ENOENT:
-      printf( "Does not exist: %s\n", path );
-      break;
-
-    case ENOTDIR:
-      return do_file( parent, path );
-
-    default:
-      printf( "Unknown error: %s\n", path );
-    }
-
-    return false;
-  }
-
-  struct dirent dirent;
-  struct dirent* d;
-  bool r = true;
-
-  while( !readdir_r( dir, &dirent, &d ) && (d != NULL) )
-  {
-    if( d->d_type & DT_REG )
-    {
-      // handle only files with the specified extension
-      const char* p = strrchr( d->d_name, '.' );
-      if( !p || strcmp( p, EXTENSION ) ) { continue; }
-
-      char fullpath[FILENAME_MAX];
-      strcpy( fullpath, path );
-      strcat( fullpath, "/" );
-      strcat( fullpath, d->d_name );
-
-      r &= do_file( parent, fullpath );
-    }
-  }
-
-  closedir( dir );
-  return r;
-}
-
 static bool use_prep( ast_t* use )
 {
   ast_t* module = ast_parent( use );
@@ -136,6 +59,89 @@ static bool module_prep( ast_t* module )
   }
 
   return ret;
+}
+
+static bool do_file( ast_t* package, const char* file )
+{
+  parser_t* parser = parser_open( file );
+
+  if( parser == NULL )
+  {
+    printf( "Couldn't open: %s\n", file );
+    return false;
+  }
+
+  errorlist_t* el = parser_errors( parser );
+
+  if( el->count > 0 )
+  {
+    parser_printerrors( parser );
+    parser_close( parser );
+    return false;
+  }
+
+  ast_t* module = parser_ast( parser );
+  ast_add( package, module );
+
+  if( !module_prep( module ) )
+  {
+    parser_close( parser );
+    return false;
+  }
+
+  parser_close( parser );
+  return true;
+}
+
+static bool do_path( ast_t* package, const char* path )
+{
+  DIR* dir = opendir( path );
+
+  if( dir == NULL )
+  {
+    switch( errno )
+    {
+    case EACCES:
+      printf( "Permission denied: %s\n", path );
+      break;
+
+    case ENOENT:
+      printf( "Does not exist: %s\n", path );
+      break;
+
+    case ENOTDIR:
+      return do_file( package, path );
+
+    default:
+      printf( "Unknown error: %s\n", path );
+    }
+
+    return false;
+  }
+
+  struct dirent dirent;
+  struct dirent* d;
+  bool r = true;
+
+  while( !readdir_r( dir, &dirent, &d ) && (d != NULL) )
+  {
+    if( d->d_type & DT_REG )
+    {
+      // handle only files with the specified extension
+      const char* p = strrchr( d->d_name, '.' );
+      if( !p || strcmp( p, EXTENSION ) ) { continue; }
+
+      char fullpath[FILENAME_MAX];
+      strcpy( fullpath, path );
+      strcat( fullpath, "/" );
+      strcat( fullpath, d->d_name );
+
+      r &= do_file( package, fullpath );
+    }
+  }
+
+  closedir( dir );
+  return r;
 }
 
 bool package_load( ast_t* from, const char* path )
@@ -202,19 +208,7 @@ bool package_load( ast_t* from, const char* path )
   ast_add( program, package );
   ast_set( program, name, package );
 
-  if( !do_path( package, name ) ) { return false; }
-
-  bool ret = true;
-
-  ast_t* module = ast_child( package );
-
-  while( module != NULL )
-  {
-    ret &= module_prep( module );
-    module = ast_sibling( module );
-  }
-
-  return ret;
+  return do_path( package, name );
 }
 
 bool package_start( const char* path )
@@ -223,6 +217,7 @@ bool package_start( const char* path )
   if( !package_load( program, path ) ) { return false; }
 
   /* FIX:
+   * new error system: possible to have line context during ast work?
    * add types to package symbol table
    * type checking
    * code generation
