@@ -4,6 +4,6 @@
 #include "error.h"
 #include "ast.h"
 
-bool typecheck( ast_t* ast, errorlist_t* errors );
+bool typecheck( ast_t* ast );
 
 #endif

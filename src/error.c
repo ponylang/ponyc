@@ -1,80 +1,75 @@
 #include "error.h"
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#define ERRORS_MAX 100
-
-error_t* error_new( errorlist_t* list, size_t line, size_t pos, const char* fmt, ... )
+void verror( source_t* source, size_t line, size_t pos, const char* fmt,
+  va_list ap )
 {
-  if( (list != NULL) && (list->count >= ERRORS_MAX) ) { return NULL; }
-
-  error_t* error = malloc( sizeof(error_t) );
-  error->line = line;
-  error->pos = pos;
-  error->next = NULL;
-
-  va_list ap;
-  char buffer[256];
-
-  va_start( ap, fmt );
-  int n = vsnprintf( buffer, 256, fmt, ap );
-  va_end( ap );
-
-  if( n < 0 )
+  if( source != NULL )
   {
-    error->msg = strdup( "PANIC" );
-  } else if( n < 256 ) {
-    error->msg = strdup( buffer );
-  } else {
-    error->msg = malloc( n + 1 );
-    va_start( ap, fmt );
-    vsnprintf( error->msg, n + 1, fmt, ap );
-    va_end( ap );
-  }
+    printf( "%s", source->file );
 
-  if( list != NULL )
-  {
-    list->count++;
-
-    if( list->tail != NULL )
+    if( line != 0 )
     {
-      list->tail->next = error;
-      list->tail = error;
-    } else {
-      list->head = error;
-      list->tail = error;
+      printf( " [%ld:%ld]", line, pos );
     }
+
+    printf( ": " );
   }
 
-  return error;
-}
+  vprintf( fmt, ap );
+  printf( "\n" );
 
-void error_free( error_t* error )
-{
-  if( error == NULL ) { return; }
-  if( error->msg != NULL ) { free( error->msg ); }
-  free( error );
-}
-
-errorlist_t* errorlist_new()
-{
-  return calloc( 1, sizeof(errorlist_t) );
-}
-
-void errorlist_free( errorlist_t* list )
-{
-  if( list == NULL ) { return; }
-  list->tail = NULL;
-
-  error_t* e;
-
-  while( (e = list->head) != NULL )
+  if( (source == NULL) || (line == 0) )
   {
-    list->head = e->next;
-    error_free( e );
+    return;
   }
 
-  free( list );
+  size_t tline = 1;
+  size_t tpos = 0;
+
+  while( (tline < line) && (tpos < source->len) )
+  {
+    if( source->m[tpos] == '\n' )
+    {
+      tline++;
+    }
+
+    tpos++;
+  }
+
+  size_t start = tpos;
+
+  while( (source->m[tpos] != '\n') && (tpos < source->len) )
+  {
+    tpos++;
+  }
+
+  size_t end = tpos;
+
+  printf( "%.*s\n", (int)(end - start), &source->m[start] );
+
+  for( size_t i = 1; i < pos; i++ )
+  {
+    printf( " " );
+  }
+
+  printf( "^\n" );
+}
+
+void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
+{
+  va_list ap;
+  va_start( ap, fmt );
+  verror( source, line, pos, fmt, ap );
+  va_end( ap );
+}
+
+void errorf( const char* file, const char* fmt, ... )
+{
+  va_list ap;
+  va_start( ap, fmt );
+  verror( NULL, 0, 0, fmt, ap );
+  va_end( ap );
 }

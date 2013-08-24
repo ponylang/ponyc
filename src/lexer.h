@@ -2,6 +2,7 @@
 #define LEXER_H
 
 #include "error.h"
+#include "source.h"
 #include <stddef.h>
 
 typedef struct lexer_t lexer_t;
@@ -120,12 +121,9 @@ typedef struct token_t
   };
 } token_t;
 
-lexer_t* lexer_open( const char* file );
+lexer_t* lexer_open( source_t* source );
 void lexer_close( lexer_t* lexer );
-
 token_t* lexer_next( lexer_t* lexer );
-errorlist_t* lexer_errors( lexer_t* lexer );
-void lexer_printerrors( lexer_t* lexer );
 
 token_t* token_new( token_id id, size_t line, size_t pos );
 const char* token_string( token_t* token );

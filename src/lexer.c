@@ -11,8 +11,7 @@
 
 struct lexer_t
 {
-  char* file;
-  char* m;
+  source_t* source;
   size_t ptr;
   size_t len;
 
@@ -22,8 +21,6 @@ struct lexer_t
   char* buffer;
   size_t buflen;
   size_t alloc;
-
-  errorlist_t* errors;
 };
 
 typedef struct symbol_t
@@ -137,6 +134,14 @@ static const symbol_t abstract[] =
   { NULL, 0 }
 };
 
+static void lexerror( lexer_t* lexer, const char* fmt, ... )
+{
+  va_list ap;
+  va_start( ap, fmt );
+  verror( lexer->source, lexer->line, lexer->pos, fmt, ap );
+  va_end( ap );
+}
+
 static bool issymbol( char c )
 {
   return ((c >= '!') && (c <= '.'))
@@ -157,13 +162,12 @@ static void adv( lexer_t* lexer, size_t count )
 static char look( lexer_t* lexer )
 {
   assert( lexer->len > 0 );
-  return lexer->m[lexer->ptr];
+  return lexer->source->m[lexer->ptr];
 }
 
 static void string_terminate( lexer_t* lexer )
 {
-  error_new( lexer->errors, lexer->line, lexer->pos,
-    "String doesn't terminate" );
+  lexerror( lexer, "String doesn't terminate" );
   lexer->ptr += lexer->len;
   lexer->len = 0;
   lexer->buflen = 0;
@@ -187,7 +191,7 @@ static void append( lexer_t* lexer, char c )
 
 static bool appendn( lexer_t* lexer, size_t len )
 {
-  char* m = &lexer->m[lexer->ptr];
+  char* m = &lexer->source->m[lexer->ptr];
   uint32_t c = 0;
 
   if( lexer->len < len )
@@ -210,8 +214,7 @@ static bool appendn( lexer_t* lexer, size_t len )
     } else if( (m[i] >= 'A') && (m[i] <= 'F') ) {
       c += m[i] - 'a';
     } else {
-      error_new( lexer->errors, lexer->line, lexer->pos,
-        "Escape sequence contains non-hexadecimal %c", c );
+      lexerror( lexer, "Escape sequence contains non-hexadecimal %c", c );
       return false;
     }
   }
@@ -232,8 +235,7 @@ static bool appendn( lexer_t* lexer, size_t len )
     append( lexer, 0x80 | ((c >> 6) & 0x3F) );
     append( lexer, 0x80 | (c & 0x3F) );
   } else {
-    error_new( lexer->errors, lexer->line, lexer->pos,
-      "Escape sequence exceeds unicode range (0x10FFFF)" );
+    lexerror( lexer, "Escape sequence exceeds unicode range (0x10FFFF)" );
     return false;
   }
 
@@ -270,8 +272,7 @@ static void nested_comment( lexer_t* lexer )
   {
     if( lexer->len <= 1 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos,
-        "Nested comment doesn't terminate" );
+      lexerror( lexer, "Nested comment doesn't terminate" );
       lexer->ptr += lexer->len;
       lexer->len = 0;
       return;
@@ -413,8 +414,7 @@ static token_t* string( lexer_t* lexer )
         break;
 
       default:
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid escape sequence: \\%c", c );
+        lexerror( lexer, "Invalid escape sequence: \\%c", c );
       }
     } else {
       append( lexer, look( lexer ) );
@@ -452,8 +452,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
       } else if( isalpha( c ) ) {
         if( !error )
         {
-          error_new( lexer->errors, lexer->line, lexer->pos,
-            "Invalid digit in real number: %c", c );
+          lexerror( lexer, "Invalid digit in real number: %c", c );
           error = true;
         }
       } else {
@@ -465,8 +464,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
 
     if( digits == 0 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos,
-        "Real number has no digits following '.'" );
+      lexerror( lexer, "Real number has no digits following '.'" );
       error = true;
     }
   }
@@ -478,8 +476,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
 
     if( lexer->len == 0 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos,
-        "Real number doesn't terminate" );
+      lexerror( lexer, "Real number doesn't terminate" );
       return NULL;
     }
 
@@ -494,8 +491,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
 
       if( lexer->len == 0 )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Real number doesn't terminate" );
+        lexerror( lexer, "Real number doesn't terminate" );
         return NULL;
       }
     }
@@ -513,8 +509,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
       } else if( isalpha( c ) ) {
         if( !error )
         {
-          error_new( lexer->errors, lexer->line, lexer->pos,
-            "Invalid digit in exponent: %c", c );
+          lexerror( lexer, "Invalid digit in exponent: %c", c );
           error = true;
         }
       } else {
@@ -533,8 +528,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
 
     if( digits == 0 )
     {
-      error_new( lexer->errors, lexer->line, lexer->pos,
-        "Exponent has no digits" );
+      lexerror( lexer, "Exponent has no digits" );
       error = true;
     }
   }
@@ -569,8 +563,7 @@ static token_t* hexadecimal( lexer_t* lexer )
     } else if( isalpha( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid character in hexadecimal number: %c", c );
+        lexerror( lexer, "Invalid character in hexadecimal number: %c", c );
         error = true;
       }
     } else {
@@ -608,8 +601,7 @@ static token_t* decimal( lexer_t* lexer )
     } else if( isalnum( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid character in decimal number: %c", c );
+        lexerror( lexer, "Invalid character in decimal number: %c", c );
         error = true;
       }
     } else {
@@ -645,8 +637,7 @@ static token_t* binary( lexer_t* lexer )
     } else if( isalnum( c ) ) {
       if( !error )
       {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Invalid character in binary number: %c", c );
+        lexerror( lexer, "Invalid character in binary number: %c", c );
         error = true;
       }
     } else {
@@ -770,58 +761,16 @@ static token_t* symbol( lexer_t* lexer )
     }
   }
 
-  error_new( lexer->errors, lexer->line, lexer->pos,
-    "Unknown symbol: %c", sym[0] );
+  lexerror( lexer, "Unknown symbol: %c", sym[0] );
   return NULL;
 }
 
-lexer_t* lexer_open( const char* file )
+lexer_t* lexer_open( source_t* source )
 {
   lexer_t* lexer = calloc( 1, sizeof(lexer_t) );
-  lexer->file = strdup( file );
+  lexer->source = source;
+  lexer->len = source->len;
   lexer->line = 1;
-  lexer->errors = errorlist_new();
-
-  FILE* fp = fopen( file, "rt" );
-
-  if( fp == NULL )
-  {
-    error_new( lexer->errors, 0, 0, "Couldn't open %s", file );
-    return lexer;
-  }
-
-  if( fseeko( fp, 0, SEEK_END ) != 0 )
-  {
-    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
-    fclose( fp );
-    return lexer;
-  }
-
-  lexer->len = ftello( fp );
-
-  if( lexer->len == -1 )
-  {
-    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
-    fclose( fp );
-    return lexer;
-  }
-
-  if( fseeko( fp, 0, SEEK_SET ) != 0 )
-  {
-    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
-    fclose( fp );
-    return lexer;
-  }
-
-  lexer->m = malloc( lexer->len );
-  size_t r = fread( lexer->m, lexer->len, 1, fp );
-  fclose( fp );
-
-  if( r != 1 )
-  {
-    error_new( lexer->errors, 0, 0, "Couldn't determine length of %s", file );
-    return lexer;
-  }
 
   return lexer;
 }
@@ -829,11 +778,7 @@ lexer_t* lexer_open( const char* file )
 void lexer_close( lexer_t* lexer )
 {
   if( lexer == NULL ) { return; }
-  if( lexer->file != NULL ) { free( lexer->file ); }
-  if( lexer->m != NULL ) { free( lexer->m ); }
   if( lexer->buffer != NULL ) { free( lexer->buffer ); }
-
-  errorlist_free( lexer->errors );
   free( lexer );
 }
 
@@ -875,8 +820,7 @@ token_t* lexer_next( lexer_t* lexer )
       } else if( issymbol( c ) ) {
         t = symbol( lexer );
       } else {
-        error_new( lexer->errors, lexer->line, lexer->pos,
-          "Unrecognized character: %c", c );
+        lexerror( lexer, "Unrecognized character: %c", c );
         adv( lexer, 1 );
       }
     }
@@ -889,56 +833,6 @@ token_t* lexer_next( lexer_t* lexer )
   }
 
   return t;
-}
-
-errorlist_t* lexer_errors( lexer_t* lexer )
-{
-  return lexer->errors;
-}
-
-void lexer_printerrors( lexer_t* lexer )
-{
-  error_t* e = lexer->errors->head;
-
-  while( e != NULL )
-  {
-    printf( "%s [%ld:%ld]: %s\n", lexer->file, e->line, e->pos, e->msg );
-    if( e->line == 0 ) { continue; }
-
-    size_t len = lexer->ptr + lexer->len;
-    size_t line = 1;
-    size_t pos = 0;
-
-    while( (line < e->line) && (pos < len) )
-    {
-      if( lexer->m[pos] == '\n' )
-      {
-        line++;
-      }
-
-      pos++;
-    }
-
-    size_t start = pos;
-
-    while( (lexer->m[pos] != '\n') && (pos < len) )
-    {
-      pos++;
-    }
-
-    size_t end = pos;
-
-    printf( "%.*s\n", (int)(end - start), &lexer->m[start] );
-
-    for( size_t i = 1; i < e->pos; i++ )
-    {
-      printf( " " );
-    }
-
-    printf( "^\n" );
-
-    e = e->next;
-  }
 }
 
 token_t* token_new( token_id id, size_t line, size_t pos )

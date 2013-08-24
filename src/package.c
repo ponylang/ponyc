@@ -26,7 +26,7 @@ static bool use_prep( ast_t* use )
 
   if( !ast_set( module, ast_name( id ), package ) )
   {
-    printf( "Can't reuse import ID: %s\n", ast_name( id ) );
+    ast_error( module, "Can't reuse import ID '%s'", ast_name( id ) );
     return false;
   }
 
@@ -63,34 +63,20 @@ static bool module_prep( ast_t* module )
 
 static bool do_file( ast_t* package, const char* file )
 {
-  parser_t* parser = parser_open( file );
+  source_t* source = source_open( file );
+  if( source == NULL ) { return false; }
 
-  if( parser == NULL )
+  ast_t* module = parse( source );
+
+  if( module == NULL )
   {
-    printf( "Couldn't open: %s\n", file );
+    source_close( source );
     return false;
   }
 
-  errorlist_t* el = parser_errors( parser );
-
-  if( el->count > 0 )
-  {
-    parser_printerrors( parser );
-    parser_close( parser );
-    return false;
-  }
-
-  ast_t* module = parser_ast( parser );
   ast_add( package, module );
 
-  if( !module_prep( module ) )
-  {
-    parser_close( parser );
-    return false;
-  }
-
-  parser_close( parser );
-  return true;
+  return module_prep( module );
 }
 
 static bool do_path( ast_t* package, const char* path )
@@ -102,18 +88,18 @@ static bool do_path( ast_t* package, const char* path )
     switch( errno )
     {
     case EACCES:
-      printf( "Permission denied: %s\n", path );
+      errorf( path, "permission denied" );
       break;
 
     case ENOENT:
-      printf( "Does not exist: %s\n", path );
+      errorf( path, "does not exist" );
       break;
 
     case ENOTDIR:
       return do_file( package, path );
 
     default:
-      printf( "Unknown error: %s\n", path );
+      errorf( path, "unknown error" );
     }
 
     return false;
@@ -155,11 +141,7 @@ bool package_load( ast_t* from, const char* path )
     program = from;
     composite[0] = '\0';
   } else {
-    while( ast_id( from ) != TK_PACKAGE )
-    {
-      from = ast_parent( from );
-    }
-
+    from = ast_nearest( from, TK_PACKAGE );
     program = ast_parent( from );
     strcpy( composite, ast_data( from ) );
     strcat( composite, "/" );
@@ -172,29 +154,29 @@ bool package_load( ast_t* from, const char* path )
     switch( errno )
     {
     case EACCES:
-      printf( "Permission denied: %s\n", composite );
+      errorf( composite, "permission denied" );
       break;
 
     case EINVAL:
     case ENOENT:
     case ENOTDIR:
-      printf( "Does not exist: %s\n", composite );
+      errorf( composite, "does not exist" );
       break;
 
     case EIO:
-      printf( "I/O error: %s\n", composite );
+      errorf( composite, "I/O error" );
       break;
 
     case ELOOP:
-      printf( "Symbolic link loop: %s\n", composite );
+      errorf( composite, "symbolic link loop" );
       break;
 
     case ENAMETOOLONG:
-      printf( "Path name too long: %s\n", composite );
+      errorf( composite, "path name too long" );
       break;
 
     default:
-      printf( "Unknown error: %s\n", composite );
+      errorf( composite, "unknown error" );
     }
 
     return false;
@@ -217,7 +199,6 @@ bool package_start( const char* path )
   if( !package_load( program, path ) ) { return false; }
 
   /* FIX:
-   * new error system: possible to have line context during ast work?
    * add types to package symbol table
    * type checking
    * code generation

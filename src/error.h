@@ -1,32 +1,17 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include "source.h"
 #include <stddef.h>
+#include <stdarg.h>
 
-typedef struct error_t
-{
-  size_t line;
-  size_t pos;
-  char *msg;
-  struct error_t* next;
-} error_t;
+void verror( source_t* source, size_t line, size_t pos, const char* fmt,
+  va_list ap );
 
-typedef struct errorlist_t
-{
-  size_t count;
-  error_t* head;
-  error_t* tail;
-} errorlist_t;
+void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
+  __attribute__ ((format (printf, 4, 5)));
 
-error_t* error_new(
-  errorlist_t* list,
-  size_t line,
-  size_t pos,
-  const char* fmt, ... ) __attribute__ ((format (printf, 4, 5)));
-
-void error_free( error_t* error );
-
-errorlist_t* errorlist_new();
-void errorlist_free( errorlist_t* list );
+void errorf( const char* file, const char* fmt, ... )
+  __attribute__ ((format (printf, 2, 3)));
 
 #endif

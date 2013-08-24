@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "error.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -19,7 +20,7 @@
 
 #define BAILOUT() \
   { \
-    error_new( parser->errors, parser->t->line, parser->t->pos, \
+    error( parser->source, parser->t->line, parser->t->pos, \
       "syntax error (%s, %d)", __FUNCTION__, __LINE__ ); \
     ast_free( ast ); \
     return NULL; \
@@ -138,13 +139,12 @@
 
 /* The API for parser rules ends here */
 
-struct parser_t
+typedef struct parser_t
 {
+  source_t* source;
   lexer_t* lexer;
   token_t* t;
-  ast_t* ast;
-  errorlist_t* errors;
-};
+} parser_t;
 
 typedef ast_t* (*rule_t)( parser_t* );
 
@@ -838,45 +838,29 @@ static ast_t* module( parser_t* parser )
 }
 
 // external API
-parser_t* parser_open( const char* file )
+ast_t* parse( source_t* source )
 {
   // open the lexer
-  lexer_t* lexer = lexer_open( file );
+  lexer_t* lexer = lexer_open( source );
   if( lexer == NULL ) { return NULL; }
 
   // create a parser and attach the lexer
   parser_t* parser = calloc( 1, sizeof(parser_t) );
+  parser->source = source;
   parser->lexer = lexer;
   parser->t = lexer_next( lexer );
-  parser->errors = lexer_errors( lexer );
-  parser->ast = module( parser );
-  ast_reverse( parser->ast );
 
-  return parser;
-}
+  ast_t* ast = module( parser );
 
-ast_t* parser_ast( parser_t* parser )
-{
-  ast_t* ast = parser->ast;
-  parser->ast = NULL;
-  return ast;
-}
+  if( ast != NULL )
+  {
+    ast_reverse( ast );
+    ast_attach( ast, source );
+  }
 
-errorlist_t* parser_errors( parser_t* parser )
-{
-  return parser->errors;
-}
-
-void parser_printerrors( parser_t* parser )
-{
-  lexer_printerrors( parser->lexer );
-}
-
-void parser_close( parser_t* parser )
-{
-  if( parser == NULL ) { return; }
-
-  lexer_close( parser->lexer );
-  ast_free( parser->ast );
+  lexer_close( lexer );
+  token_free( parser->t );
   free( parser );
+
+  return ast;
 }

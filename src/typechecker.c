@@ -91,7 +91,7 @@ static void module( errorlist_t* e, symtab_t* st, ast_t* ast )
 }
 #endif
 
-bool typecheck( ast_t* ast, errorlist_t* errors )
+bool typecheck( ast_t* ast )
 {
 #if 0
   symtab_t* st = symtab_new( NULL );

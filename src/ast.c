@@ -108,6 +108,12 @@ ast_t* ast_token( token_t* t )
   return ast;
 }
 
+void ast_attach( ast_t* ast, void* data )
+{
+  assert( ast->data == NULL );
+  ast->data = data;
+}
+
 token_id ast_id( ast_t* ast )
 {
   return ast->t->id;
@@ -140,6 +146,16 @@ const char* ast_name( ast_t* ast )
       assert( 0 );
       return NULL;
   }
+}
+
+ast_t* ast_nearest( ast_t* ast, token_id id )
+{
+  while( (ast != NULL) && (ast->t->id != id) )
+  {
+    ast = ast->parent;
+  }
+
+  return ast;
 }
 
 ast_t* ast_parent( ast_t* ast )
@@ -227,6 +243,26 @@ void ast_free( ast_t* ast )
     child = next;
   }
 
+  switch( ast->t->id )
+  {
+    case TK_MODULE:
+      source_close( ast->data );
+      break;
+
+    default: {}
+  }
+
   token_free( ast->t );
   symtab_free( ast->symtab );
+}
+
+void ast_error( ast_t* ast, const char* fmt, ... )
+{
+  ast_t* module = ast_nearest( ast, TK_MODULE );
+  source_t* source = (module != NULL) ? module->data : NULL;
+
+  va_list ap;
+  va_start( ap, fmt );
+  verror( source, ast->t->line, ast->t->pos, fmt, ap );
+  va_end( ap );
 }
