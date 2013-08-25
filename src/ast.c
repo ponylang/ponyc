@@ -263,6 +263,6 @@ void ast_error( ast_t* ast, const char* fmt, ... )
 
   va_list ap;
   va_start( ap, fmt );
-  verror( source, ast->t->line, ast->t->pos, fmt, ap );
+  errorv( source, ast->t->line, ast->t->pos, fmt, ap );
   va_end( ap );
 }

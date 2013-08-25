@@ -138,7 +138,7 @@ static void lexerror( lexer_t* lexer, const char* fmt, ... )
 {
   va_list ap;
   va_start( ap, fmt );
-  verror( lexer->source, lexer->line, lexer->pos, fmt, ap );
+  errorv( lexer->source, lexer->line, lexer->pos, fmt, ap );
   va_end( ap );
 }
 

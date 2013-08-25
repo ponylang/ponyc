@@ -19,6 +19,10 @@ int main( int argc, char** argv )
     path = argv[1];
   }
 
-  if( !package_start( path ) ) { return -1; }
+  ast_t* program = package_start( path );
+
+  if( program == NULL ) { return -1; }
+
+  ast_free( program );
   return 0;
 }

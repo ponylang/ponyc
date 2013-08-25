@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-void verror( source_t* source, size_t line, size_t pos, const char* fmt,
+void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap );
 
 void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )

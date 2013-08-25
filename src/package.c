@@ -19,10 +19,9 @@ static bool use_prep( ast_t* use )
   ast_t* module = ast_parent( use );
   ast_t* path = ast_child( use );
   ast_t* id = ast_sibling( path );
+  ast_t* package = package_load( module, ast_name( path ) );
 
-  if( !package_load( module, ast_name( path ) ) ) { return false; }
-
-  ast_t* package = ast_get( module, ast_name( path ) );
+  if( package == NULL ) { return false; }
 
   if( !ast_set( module, ast_name( id ), package ) )
   {
@@ -33,7 +32,7 @@ static bool use_prep( ast_t* use )
   return true;
 }
 
-static bool module_prep( ast_t* module )
+static bool module_prep( ast_t* package, ast_t* module )
 {
   bool ret = true;
   ast_t* child = ast_child( module );
@@ -47,6 +46,7 @@ static bool module_prep( ast_t* module )
         break;
 
       case TK_ALIAS:
+        // FIX: add alias name to package
         break;
 
       case TK_CLASS:
@@ -76,7 +76,7 @@ static bool do_file( ast_t* package, const char* file )
 
   ast_add( package, module );
 
-  return module_prep( module );
+  return module_prep( package, module );
 }
 
 static bool do_path( ast_t* package, const char* path )
@@ -130,7 +130,7 @@ static bool do_path( ast_t* package, const char* path )
   return r;
 }
 
-bool package_load( ast_t* from, const char* path )
+ast_t* package_load( ast_t* from, const char* path )
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
@@ -179,24 +179,32 @@ bool package_load( ast_t* from, const char* path )
       errorf( composite, "unknown error" );
     }
 
-    return false;
+    return NULL;
   }
 
   const char* name = stringtab( file );
+  ast_t* package = ast_get( program, name );
 
-  if( ast_get( program, name ) != NULL ) { return true; }
+  if( package != NULL ) { return package; }
 
-  ast_t* package = ast_new( TK_PACKAGE, 0, 0, (void*)name );
+  package = ast_new( TK_PACKAGE, 0, 0, (void*)name );
   ast_add( program, package );
   ast_set( program, name, package );
 
-  return do_path( package, name );
+  if( !do_path( package, name ) ) { return NULL; }
+
+  return package;
 }
 
-bool package_start( const char* path )
+ast_t* package_start( const char* path )
 {
   ast_t* program = ast_newid( TK_PROGRAM );
-  if( !package_load( program, path ) ) { return false; }
+
+  if( !package_load( program, path ) )
+  {
+    ast_free( program );
+    return NULL;
+  }
 
   /* FIX:
    * add types to package symbol table
@@ -204,6 +212,5 @@ bool package_start( const char* path )
    * code generation
    */
 
-  ast_free( program );
-  return true;
+  return program;
 }

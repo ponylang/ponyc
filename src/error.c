@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void verror( source_t* source, size_t line, size_t pos, const char* fmt,
+void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap )
 {
   if( source != NULL )
@@ -62,7 +62,7 @@ void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
 {
   va_list ap;
   va_start( ap, fmt );
-  verror( source, line, pos, fmt, ap );
+  errorv( source, line, pos, fmt, ap );
   va_end( ap );
 }
 
@@ -70,6 +70,6 @@ void errorf( const char* file, const char* fmt, ... )
 {
   va_list ap;
   va_start( ap, fmt );
-  verror( NULL, 0, 0, fmt, ap );
+  errorv( NULL, 0, 0, fmt, ap );
   va_end( ap );
 }
