@@ -11,46 +11,47 @@ program
   sibling: n/a
 
 package
-  symtab: ID -> type|class ast
-  child 1: path
-  child 2+: module
-  sibling: package
+  data: path
+  symtab: ID -> alias|class ast
+  child: module
 
 module
+  data: source
   symtab: ID -> package ast
   child: use|alias|class
-  sibling: module
 
 use
+  data: n/a
   symtab: n/a
   child 1: path
   child 2: ID
-  sibling: use|alias|class
 
 alias
+  data: ?
   symtab: n/a
   child 1: ID
-  child 2: type
-  sibling: use|alias|class
+  child 2: formalparams
+  child 3: type
 
 class
-  symtab: ID -> field|function ast
+  data: ?
+  symtab: ID -> field|function ast ?
   child 1: ID
   child 2: formalparams
   child 3: mode
   child 4: encapsulation
   child 5: is
-  child 6+: field|function // move to symtab?
-  sibling: use|alias|class
+  child 6+: field|function
 
 field
+  data: type expression ?
   symtab: n/a
   child 1: ID
   child 2: type
-  sibling: field|function
 
 function
-  symtab: ID -> type expression // parameters
+  data: type expression ?
+  symtab: ID -> type expression ?
   child 1: mode
   child 2: ID
   child 3: formalparams
@@ -58,9 +59,8 @@ function
   child 5: type
   child 6: encapsulation
   child 7: seq
-  sibling: field|function
 
-type
+type:(adttype|partialtype|functiontype|objecttype)
 is
 formalparams
 params
@@ -85,6 +85,7 @@ const char* ast_name( ast_t* ast );
 ast_t* ast_nearest( ast_t* ast, token_id id );
 ast_t* ast_parent( ast_t* ast );
 ast_t* ast_child( ast_t* ast );
+ast_t* ast_childidx( ast_t* ast, size_t idx );
 ast_t* ast_sibling( ast_t* ast );
 
 void* ast_get( ast_t* ast, const char* name );

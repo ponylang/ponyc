@@ -14,6 +14,91 @@
 
 #define EXTENSION ".pony"
 
+static bool member_prep( ast_t* class, ast_t* member, ast_t* id )
+{
+  const char* name = ast_name( id );
+  bool ret = true;
+
+  if( (name[0] >= 'A') && (name[0] <= 'Z') )
+  {
+    ast_error( id, "member name can't start A-Z" );
+    ret = false;
+  }
+
+  if( !ast_set( class, name, member ) )
+  {
+    ast_error( id, "can't reuse member name '%s'", name );
+    ret = false;
+  }
+
+  return ret;
+}
+
+static bool class_prep( ast_t* class )
+{
+  token_id class_id = ast_id( class );
+  ast_t* member = ast_childidx( class, 5 );
+  bool ret = true;
+
+  while( member != NULL )
+  {
+    switch( ast_id( member ) )
+    {
+      case TK_VAR:
+      case TK_VAL:
+        if( class_id == TK_TRAIT )
+        {
+          ast_error( member, "can't have a field in a trait" );
+          ret = false;
+        }
+
+        ret &= member_prep( class, member, ast_childidx( member, 0 ) );
+        break;
+
+      case TK_FUN:
+        ret &= member_prep( class, member, ast_childidx( member, 1 ) );
+        break;
+
+      case TK_MSG:
+        if( class_id == TK_CLASS )
+        {
+          ast_error( member, "can't have a msg in a class" );
+          ret = false;
+        }
+
+        ret &= member_prep( class, member, ast_childidx( member, 1 ) );
+        break;
+
+      default: assert( 0 );
+    }
+
+    member = ast_sibling( member );
+  }
+
+  return ret;
+}
+
+static bool type_prep( ast_t* package, ast_t* type )
+{
+  ast_t* id = ast_child( type );
+  const char* name = ast_name( id );
+  bool ret = true;
+
+  if( (name[0] < 'A') || (name[0] > 'Z') )
+  {
+    ast_error( id, "type name must start A-Z" );
+    ret = false;
+  }
+
+  if( !ast_set( package, name, type ) )
+  {
+    ast_error( id, "can't reuse type name '%s'", name );
+    ret = false;
+  }
+
+  return ret;
+}
+
 static bool use_prep( ast_t* use )
 {
   ast_t* module = ast_parent( use );
@@ -25,7 +110,7 @@ static bool use_prep( ast_t* use )
 
   if( !ast_set( module, ast_name( id ), package ) )
   {
-    ast_error( module, "Can't reuse import ID '%s'", ast_name( id ) );
+    ast_error( module, "can't reuse import ID '%s'", ast_name( id ) );
     return false;
   }
 
@@ -46,10 +131,12 @@ static bool module_prep( ast_t* package, ast_t* module )
         break;
 
       case TK_ALIAS:
-        // FIX: add alias name to package
+        ret &= type_prep( package, child );
         break;
 
       case TK_CLASS:
+        ret &= type_prep( package, child );
+        ret &= class_prep( child );
         break;
 
       default: assert( 0 );
@@ -207,7 +294,6 @@ ast_t* package_start( const char* path )
   }
 
   /* FIX:
-   * add types to package symbol table
    * type checking
    * code generation
    */

@@ -8,14 +8,14 @@ void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
 {
   if( source != NULL )
   {
-    printf( "%s", source->file );
+    printf( "%s:", source->file );
 
     if( line != 0 )
     {
-      printf( " [%ld:%ld]", line, pos );
+      printf( "%ld:%ld: ", line, pos );
+    } else {
+      printf( " " );
     }
-
-    printf( ": " );
   }
 
   vprintf( fmt, ap );

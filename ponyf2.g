@@ -22,7 +22,7 @@ class_
 
 member
   :  ('var' | 'val') ID (',' ID)* oftype // FIX: multiple declaration not in code yet
-  |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)? // FIX: 'throw' not in code yet
+  |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)?
   ;
 
 alias
@@ -95,26 +95,22 @@ expr
      // whole thing is a scope, each clause is a subscope
   |  'if' seq 'then' expr ('else' expr | 'end')
      // whole thing is a scope, each case is a scope
-  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* ('else' expr | 'end')
+  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? '=' seq)* ('else' expr | 'end') // FIX: else clause not yet in code
      // value is None
      // whole thing is a scope, expr is a subscope
   |  'while' seq 'do' expr
      // ((e1); (while e2 do (e1)))
-  |  'do' expr 'while' expr
+  |  'do' seq 'while' expr
      // (var x = e1.iterator(); while x.has_next() do (val id = x.next(); e2))
-  |  'for' ID oftype? 'in' expr 'do' expr
+  |  'for' ID oftype? 'in' seq 'do' expr
      // only valid in a while loop, exits the loop
   |  'break'
      // only valid in a while loop, short circuits the loop
   |  'continue'
      // short circuits the function
   |  'return' expr
-     // FIX: not yet in the code
-  |  'try' expr ('catch' expr)? ('finally' expr | 'end')
+  |  'try' seq ('else' seq)? ('then' expr | 'end')
   |  'throw'
-     // (var ID = e1; try e2 then ID.dispose())
-     // FIX: is go's 'defer' the more general form of this?
-  |  'use' expr 'as' ID 'in' expr
   ;
 
 seq

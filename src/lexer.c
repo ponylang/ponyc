@@ -103,13 +103,14 @@ static const symbol_t keywords[] =
   { "while", TK_WHILE },
   { "do", TK_DO },
   { "match", TK_MATCH },
+  { "try", TK_TRY },
+  { "throw", TK_THROW },
   { "this", TK_THIS },
   { "not", TK_NOT },
   { "and", TK_AND },
   { "or", TK_OR },
   { "xor", TK_XOR },
   { "private", TK_PRIVATE },
-  { "package", TK_PACKAGE },
   { "infer", TK_INFER },
 
   { NULL, 0 }

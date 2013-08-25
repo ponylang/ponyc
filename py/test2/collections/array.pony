@@ -3,7 +3,7 @@ class Array[A] is Iterable[A]
   var alloc:U64
   var ptr:POINTER[A]
 
-  new default() =
+  fun default() =
     size = 0;
     alloc = 0;
     ptr = POINTER[A](0);
@@ -14,14 +14,8 @@ class Array[A] is Iterable[A]
   fun{var|val} apply(i:U64):A->this throw =
     if i < size then ptr(i) else throw
 
-  fun{var} update(i:U64, v:A):A throw =
-    if i < size then ptr(i) = v else throw
-
-  fun{var|val} apply(i:U64, def:A->this):A->this =
-    if i < size then ptr(i) else def
-
-  fun{var} update(i:U64, v:A) =
-    if i < size then ptr(i) = v end
+  fun{var} update(i:U64, v:A):A =
+    if i < size then ptr(i) = v else v
 
   fun{iso|var} reserve(len:U64) =
     if alloc < len then

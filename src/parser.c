@@ -621,7 +621,7 @@ static ast_t* as( parser_t* parser )
 
 static ast_t* caseexpr( parser_t* parser )
 {
-  // PIPE binary? as (IF binary)? EQUALS SEQ
+  // PIPE binary? as (IF binary)? EQUALS seq
   AST_TOKEN();
 
   if( is_binary( parser ) )
@@ -665,9 +665,9 @@ static ast_t* whileloop( parser_t* parser )
 
 static ast_t* doloop( parser_t* parser )
 {
-  // DO expr WHILE expr
+  // DO seq WHILE expr
   AST_TOKEN();
-  RULE( expr );
+  RULE( seq );
   EXPECT_DROP( TK_WHILE );
   RULE( expr );
   DONE();
@@ -675,12 +675,12 @@ static ast_t* doloop( parser_t* parser )
 
 static ast_t* forloop( parser_t* parser )
 {
-  // FOR ID oftype IN expr DO expr
+  // FOR ID oftype IN seq DO expr
   AST_TOKEN();
   EXPECT( TK_ID );
   RULE( oftype );
   EXPECT_DROP( TK_IN );
-  RULE( expr );
+  RULE( seq );
   EXPECT_DROP( TK_DO );
   RULE( expr );
   DONE();
@@ -691,6 +691,29 @@ static ast_t* returnexpr( parser_t* parser )
   // RETURN expr
   AST_TOKEN();
   RULE( expr );
+  DONE();
+}
+
+static ast_t* try( parser_t* parser )
+{
+  // TRY seq (ELSE seq)? (THEN expr | END)
+  AST_TOKEN();
+  RULE( seq );
+
+  if( ACCEPT_DROP( TK_ELSE ) )
+  {
+    RULE( seq );
+  } else {
+    INSERT( TK_NONE );
+  }
+
+  if( ACCEPT_DROP( TK_ELSE ) )
+  {
+    RULE( expr );
+  } else {
+    EXPECT( TK_END );
+  }
+
   DONE();
 }
 
@@ -729,14 +752,15 @@ static ast_t* expr( parser_t* parser )
     { TK_BREAK, consume },
     { TK_CONTINUE, consume },
     { TK_RETURN, returnexpr },
-    { TK_SEMI, consume },
+    { TK_TRY, try },
+    { TK_THROW, consume },
     { TK_NONE, command }
     );
 }
 
 static ast_t* function( parser_t* parser )
 {
-  // (FUN | MSG) mode ID formalparams params oftype protection (EQUALS seq)?
+  // (FUN | MSG) mode ID formalparams params oftype private throw (EQUALS seq)?
   AST_TOKEN();
   RULE( mode );
   EXPECT( TK_ID );
@@ -744,7 +768,12 @@ static ast_t* function( parser_t* parser )
   RULE( params );
   RULE( oftype );
 
-  if( !ACCEPT( TK_PRIVATE, TK_PACKAGE ) )
+  if( !ACCEPT( TK_PRIVATE ) )
+  {
+    INSERT( TK_NONE );
+  }
+
+  if( !ACCEPT( TK_THROW ) )
   {
     INSERT( TK_NONE );
   }
@@ -781,13 +810,13 @@ static ast_t* is( parser_t* parser )
 
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID formalparams mode protection is (field | function)*
+  // (TRAIT | CLASS | ACTOR) ID formalparams mode private is (field | function)*
   AST_TOKEN();
   EXPECT( TK_ID );
   RULE( formalparams );
   RULE( mode );
 
-  if( !ACCEPT( TK_PRIVATE, TK_PACKAGE, TK_INFER ) )
+  if( !ACCEPT( TK_PRIVATE, TK_INFER ) )
   {
     INSERT( TK_NONE );
   }
@@ -804,9 +833,10 @@ static ast_t* class( parser_t* parser )
 
 static ast_t* alias( parser_t* parser )
 {
-  // ALIAS ID COLON type
+  // ALIAS ID formalparams COLON type
   AST_TOKEN();
   EXPECT( TK_ID );
+  RULE( formalparams );
   EXPECT_DROP( TK_COLON );
   RULE( type );
   DONE();

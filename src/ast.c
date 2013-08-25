@@ -168,6 +168,19 @@ ast_t* ast_child( ast_t* ast )
   return ast->child;
 }
 
+ast_t* ast_childidx( ast_t* ast, size_t idx )
+{
+  ast_t* child = ast->child;
+
+  while( (child != NULL) && (idx > 0) )
+  {
+    child = child->sibling;
+    idx--;
+  }
+
+  return child;
+}
+
 ast_t* ast_sibling( ast_t* ast )
 {
   return ast->sibling;
