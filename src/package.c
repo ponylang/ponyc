@@ -69,7 +69,9 @@ static bool class_prep( ast_t* class )
         ret &= member_prep( class, member, ast_childidx( member, 1 ) );
         break;
 
-      default: assert( 0 );
+      default:
+        ast_error( member, "unhandled '%s' at class scope", ast_name( member ) );
+        break;
     }
 
     member = ast_sibling( member );
@@ -106,11 +108,15 @@ static bool use_prep( ast_t* use )
   ast_t* id = ast_sibling( path );
   ast_t* package = package_load( module, ast_name( path ) );
 
-  if( package == NULL ) { return false; }
+  if( package == NULL )
+  {
+    ast_error( path, "can't load package '%s'", ast_name( path ) );
+    return false;
+  }
 
   if( !ast_set( module, ast_name( id ), package ) )
   {
-    ast_error( module, "can't reuse import ID '%s'", ast_name( id ) );
+    ast_error( id, "can't reuse import ID '%s'", ast_name( id ) );
     return false;
   }
 
@@ -134,12 +140,16 @@ static bool module_prep( ast_t* package, ast_t* module )
         ret &= type_prep( package, child );
         break;
 
+      case TK_TRAIT:
       case TK_CLASS:
+      case TK_ACTOR:
         ret &= type_prep( package, child );
         ret &= class_prep( child );
         break;
 
-      default: assert( 0 );
+      default:
+        ast_error( child, "unhandled '%s' at module scope", ast_name( child ) );
+        break;
     }
 
     child = ast_sibling( child );
@@ -223,7 +233,7 @@ ast_t* package_load( ast_t* from, const char* path )
   char file[FILENAME_MAX];
   ast_t* program;
 
-  if( ast_id( from ) == TK_PROGRAM )
+  if( (path[0] == '/') || (ast_id( from ) == TK_PROGRAM) )
   {
     program = from;
     composite[0] = '\0';
@@ -278,6 +288,7 @@ ast_t* package_load( ast_t* from, const char* path )
   ast_add( program, package );
   ast_set( program, name, package );
 
+  printf( "=== Building %s ===\n", name );
   if( !do_path( package, name ) ) { return NULL; }
 
   return package;
@@ -295,6 +306,8 @@ ast_t* package_start( const char* path )
 
   /* FIX:
    * type checking
+   * detect unused packages
+   *  might be the same code that detects unused vars, fields, etc?
    * code generation
    */
 

@@ -68,8 +68,15 @@ void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
 
 void errorf( const char* file, const char* fmt, ... )
 {
+  if( file != NULL )
+  {
+    printf( "%s: ", file );
+  }
+
   va_list ap;
   va_start( ap, fmt );
-  errorv( NULL, 0, 0, fmt, ap );
+  vprintf( fmt, ap );
   va_end( ap );
+
+  printf( "\n" );
 }

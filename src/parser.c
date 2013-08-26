@@ -482,6 +482,15 @@ static ast_t* seq( parser_t* parser )
   DONE();
 }
 
+static ast_t* parenseq( parser_t* parser )
+{
+  // LPAREN seq RPAREN
+  ACCEPT_DROP( TK_LPAREN );
+  AST_RULE( seq );
+  EXPECT_DROP( TK_RPAREN );
+  DONE();
+}
+
 static ast_t* primary( parser_t* parser )
 {
   FORWARDALT(
@@ -490,7 +499,7 @@ static ast_t* primary( parser_t* parser )
     { TK_FLOAT, consume },
     { TK_STRING, consume },
     { TK_ID, consume },
-    { TK_LPAREN, seq }
+    { TK_LPAREN, parenseq }
     );
 }
 

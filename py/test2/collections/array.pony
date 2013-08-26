@@ -9,7 +9,7 @@ class Array[A] is Iterable[A]
     ptr = POINTER[A](0);
     this
 
-  fun{iso|var|val} size():U64 = size
+  fun{iso|var|val} length():U64 = size
 
   fun{var|val} apply(i:U64):A->this throw =
     if i < size then ptr(i) else throw
@@ -19,8 +19,8 @@ class Array[A] is Iterable[A]
 
   fun{iso|var} reserve(len:U64) =
     if alloc < len then
-      alloc = len.max(8).next_pow2();
-      ptr = POINTER[A].from(ptr, alloc)
+      (alloc = len.max(8).next_pow2();
+      ptr = POINTER[A].from(ptr, alloc))
     end
 
   fun{iso|var} clear() = size = 0
@@ -30,7 +30,7 @@ class Array[A] is Iterable[A]
     ptr(size) = v;
     size = size + 1
 
-  fun{var} append(iter:Iterable[A]) = for v in iter do append(v)
+  fun{var} concat(iter:Iterable[A]) = for v in iter do append(v)
 
   fun{var|val} iterator():ArrayIterator[A, Array[A]{this}] =
     ArrayIterator(this)
@@ -39,7 +39,7 @@ class ArrayIterator[A, B:Array[A]]{var} is Iterator[A]
   var array:B
   var i:U64
 
-  new default(array:B) = i = 0; this
+  fun default(array:B) = i = 0; this
 
   fun has_next():Bool = i < array.size()
 

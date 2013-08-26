@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 
 struct ast_t
 {
@@ -110,7 +109,6 @@ ast_t* ast_token( token_t* t )
 
 void ast_attach( ast_t* ast, void* data )
 {
-  assert( ast->data == NULL );
   ast->data = data;
 }
 
@@ -136,16 +134,7 @@ void* ast_data( ast_t* ast )
 
 const char* ast_name( ast_t* ast )
 {
-  switch( ast->t->id )
-  {
-    case TK_ID:
-    case TK_STRING:
-      return ast->t->string;
-
-    default:
-      assert( 0 );
-      return NULL;
-  }
+  return token_string( ast->t );
 }
 
 ast_t* ast_nearest( ast_t* ast, token_id id )

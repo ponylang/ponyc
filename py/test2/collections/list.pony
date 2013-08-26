@@ -9,10 +9,10 @@ class List[A] is Iterable[A]
     a.absorb()
 //    \List[A](item->item, next->next).absorb()
 
-  fun default(item:A{var}, next:(List[A]{var}|None) = None):List[A]{var} =
+  fun mutable(item:A{var}, next:(List[A]{var}|None) = None):List[A]{var} =
     \List[A](item->item, next->next).absorb()
 
-  fun default(item:A{val}, next:(List[A]{val}|None) = None):List[A]{val} =
+  fun immutable(item:A{val}, next:(List[A]{val}|None) = None):List[A]{val} =
     \List[A](item->item, next->next).absorb()
 
   fun{iso|var|val} get_item():A->this = item
