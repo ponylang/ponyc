@@ -190,6 +190,8 @@ void* ast_get( ast_t* ast, const char* name )
 
 bool ast_set( ast_t* ast, const char* name, void* value )
 {
+  if( ast_get( ast, name ) != NULL ) { return false; }
+
   if( ast->symtab == NULL )
   {
     ast->symtab = symtab_new();
