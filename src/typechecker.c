@@ -18,6 +18,57 @@ static bool check_module( ast_t* module )
   return ret;
 }
 
+static bool set( ast_t* scope, ast_t* id, ast_t* ast )
+{
+  const char* name = ast_name( id );
+
+  if( !ast_set( scope, name, ast ) )
+  {
+    ast_error( id, "can't reuse name '%s'", name );
+    return false;
+  }
+
+  return true;
+}
+
+static bool check_id( ast_t* ast, bool type )
+{
+  const char* name = ast_name( ast );
+
+  if( type )
+  {
+    if( (name[0] < 'A') || (name[0] > 'Z') )
+    {
+      ast_error( ast, "type name must start A-Z" );
+      return false;
+    }
+  } else {
+    if( (name[0] >= 'A') && (name[0] <= 'Z') )
+    {
+      ast_error( ast, "identifier can't start A-Z" );
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool prep_params( ast_t* scope, ast_t* ast, bool type )
+{
+  ast_t* child = ast_child( ast );
+  bool ret = true;
+
+  while( child != NULL )
+  {
+    if( !check_id( child, type ) ) { ret = false; }
+    if( !set( scope, child, child ) ) { ret = false; }
+
+    child = ast_sibling( child );
+  }
+
+  return ret;
+}
+
 static bool prep_member( ast_t* class, ast_t* ast )
 {
   ast_t* id;
@@ -53,18 +104,17 @@ static bool prep_member( ast_t* class, ast_t* ast )
       return true;
   }
 
-  const char* name = ast_name( id );
+  if( !check_id( id, false ) ) { return false; }
+  if( !set( class, id, ast ) ) { return false; }
 
-  if( (name[0] >= 'A') && (name[0] <= 'Z') )
+  switch( ast_id( ast ) )
   {
-    ast_error( id, "member name can't start A-Z" );
-    return false;
-  }
+    case TK_FUN:
+    case TK_MSG:
+      return prep_params( ast, ast_childidx( ast, 2 ), true )
+        && prep_params( ast, ast_childidx( ast, 3 ), false );
 
-  if( !ast_set( class, name, ast ) )
-  {
-    ast_error( id, "can't reuse member name '%s'", name );
-    return false;
+    default: {}
   }
 
   return true;
@@ -72,8 +122,11 @@ static bool prep_member( ast_t* class, ast_t* ast )
 
 static bool prep_class( ast_t* ast )
 {
-  ast_t* child = ast_childidx( ast, 5 );
   bool ret = true;
+
+  if( !prep_params( ast, ast_childidx( ast, 1 ), true ) ) { ret = false; }
+
+  ast_t* child = ast_childidx( ast, 5 );
 
   while( child != NULL )
   {
@@ -87,21 +140,9 @@ static bool prep_class( ast_t* ast )
 static bool prep_type( ast_t* ast )
 {
   ast_t* id = ast_child( ast );
-  const char* name = ast_name( id );
 
-  if( (name[0] < 'A') || (name[0] > 'Z') )
-  {
-    ast_error( id, "type name must start A-Z" );
-    return false;
-  }
-
-  if( !ast_set( ast_nearest( ast, TK_PACKAGE ), name, ast ) )
-  {
-    ast_error( id, "can't reuse type name '%s'", name );
-    return false;
-  }
-
-  return true;
+  return check_id( id, true )
+    && set( ast_nearest( ast, TK_PACKAGE ), id, ast );
 }
 
 static bool prep_module_child( ast_t* ast )

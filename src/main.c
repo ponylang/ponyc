@@ -5,14 +5,9 @@
 int main( int argc, char** argv )
 {
   const char* path = ".";
-
-  if( argc > 1 )
-  {
-    path = argv[1];
-  }
+  if( argc > 1 ) { path = argv[1]; }
 
   ast_t* program = package_start( path );
-
   if( program == NULL ) { return -1; }
 
   /* FIX:

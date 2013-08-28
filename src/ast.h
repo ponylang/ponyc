@@ -6,18 +6,18 @@
 
 /*
 program
-  symtab: path -> package ast
+  symtab: path -> package
   child: package
   sibling: n/a
 
 package
   data: path
-  symtab: ID -> alias|class ast
+  symtab: ID -> alias|class
   child: module
 
 module
   data: source
-  symtab: ID -> package ast
+  symtab: ID -> package
   child: use|alias|class
 
 use
@@ -35,7 +35,7 @@ alias
 
 class
   data: ?
-  symtab: ID -> field|function ast ?
+  symtab: ID -> formal|field|function
   child 1: ID
   child 2: formalparams
   child 3: mode
@@ -51,7 +51,7 @@ field
 
 function
   data: type expression ?
-  symtab: ID -> type expression ?
+  symtab: ID -> formal|param
   child 1: mode
   child 2: ID
   child 3: formalparams
@@ -60,10 +60,14 @@ function
   child 6: encapsulation
   child 7: seq
 
-type:(adttype|partialtype|functiontype|objecttype)
-is
 formalparams
 params
+  data: ?
+  symtab: n/a
+  child: (ID type|INFER expr|NONE)
+
+type:(adttype|partialtype|functiontype|objecttype)
+is
 mode
 encapsulation
 seq

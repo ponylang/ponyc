@@ -2,7 +2,8 @@ class Pair[A, B]
   var a:A
   var b:B
 
-  fun default(a:A, b:B) = this
+  fun default(a':A, b':B) =
+    \Pair(a', b').absorb()
 
   fun{iso|var|val} first():A->this = a
   fun{iso|var|val} second():B->this = b

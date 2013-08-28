@@ -177,13 +177,16 @@ ast_t* ast_sibling( ast_t* ast )
 
 void* ast_get( ast_t* ast, const char* name )
 {
+  /* searches all parent scopes, but not the program scope, because the name
+   * space for paths is separate from the name space for all other IDs.
+   */
   void* value;
 
   do
   {
     value = symtab_get( ast->symtab, name );
     ast = ast->parent;
-  } while( (value == NULL) && (ast != NULL) );
+  } while( (value == NULL) && (ast != NULL) && (ast->t->id != TK_PROGRAM) );
 
   return value;
 }
