@@ -406,10 +406,10 @@ static ast_t* formalargs( parser_t* parser )
   DONE();
 }
 
-static ast_t* functiontype( parser_t* parser )
+static ast_t* funtype( parser_t* parser )
 {
   // FUN THROW? mode LPAREN (type (COMMA type)*)? RPAREN oftype
-  AST( TK_FUNCTIONTYPE );
+  AST( TK_FUNTYPE );
   EXPECT_DROP( TK_FUN );
 
   if( !ACCEPT( TK_THROW ) )
@@ -425,10 +425,10 @@ static ast_t* functiontype( parser_t* parser )
   DONE();
 }
 
-static ast_t* objecttype( parser_t* parser )
+static ast_t* objtype( parser_t* parser )
 {
   // ID (DOT ID)* formalargs mode
-  AST( TK_OBJECTTYPE );
+  AST( TK_OBJTYPE );
   BLOCK( TK_LIST, TK_NONE, TK_NONE, TK_DOT,
     { TK_ID, consume }
     );
@@ -449,11 +449,11 @@ static ast_t* adttype( parser_t* parser )
 
 static ast_t* type( parser_t* parser )
 {
-  // adttype | functiontype | objecttype
+  // adttype | funtype | objtype
   FORWARDALT(
     { TK_LPAREN, adttype },
-    { TK_FUN, functiontype },
-    { TK_ID, objecttype }
+    { TK_FUN, funtype },
+    { TK_ID, objtype }
     );
 }
 
