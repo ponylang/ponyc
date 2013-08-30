@@ -430,14 +430,6 @@ static ast_t* objecttype( parser_t* parser )
   DONE();
 }
 
-static ast_t* partialtype( parser_t* parser )
-{
-  // BACKSLASH objecttype
-  AST( TK_PARTIALTYPE );
-  RULE( objecttype );
-  DONE();
-}
-
 static ast_t* adttype( parser_t* parser )
 {
   // LPAREN type (PIPE type)* RPAREN
@@ -451,10 +443,9 @@ static ast_t* adttype( parser_t* parser )
 
 static ast_t* type( parser_t* parser )
 {
-  // adttype | partialtype | functiontype | objecttype
+  // adttype | functiontype | objecttype
   FORWARDALT(
     { TK_LPAREN, adttype },
-    { TK_BACKSLASH, partialtype },
     { TK_FUN, functiontype },
     { TK_ID, objecttype }
     );
@@ -542,7 +533,6 @@ static ast_t* unary( parser_t* parser )
   FORWARDALT(
     { TK_NOT, unop },
     { TK_MINUS, unop },
-    { TK_BACKSLASH, unop },
     { TK_NONE, postfix }
     );
 }
@@ -550,8 +540,8 @@ static ast_t* unary( parser_t* parser )
 static bool is_binary( parser_t* parser )
 {
   // any unary, postfix or primary can start a binary expression
-  return LOOK( TK_NOT, TK_MINUS, TK_BACKSLASH, TK_THIS, TK_INT, TK_FLOAT,
-    TK_STRING, TK_ID, TK_LPAREN );
+  return LOOK( TK_NOT, TK_MINUS, TK_THIS, TK_INT, TK_FLOAT, TK_STRING, TK_ID,
+    TK_LPAREN );
 }
 
 static ast_t* binary( parser_t* parser )

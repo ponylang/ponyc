@@ -3,17 +3,16 @@ class List[A] is Iterable[A]
   var next:(List[A]|None)
 
   fun default(item':A{iso}, next':(List[A]{iso}|None) = None):List[A]{iso} =
-    var a = \List[A];
+    var a = Partial[This];
     a.item = item';
     a.next = next';
     a.absorb()
-//    \List[A](item->item, next->next).absorb()
 
   fun mutable(item':A{var}, next':(List[A]{var}|None) = None):List[A]{var} =
-    \List[A](item'->item, next'->next).absorb()
+    Partial[This](item'->item, next'->next).absorb()
 
   fun immutable(item':A{val}, next':(List[A]{val}|None) = None):List[A]{val} =
-    \List[A](item'->item, next'->next).absorb()
+    Partial[This](item'->item, next'->next).absorb()
 
   fun{iso|var|val} get_item():A->this = item
 
@@ -29,7 +28,7 @@ class ListIterator[A, B:List[A]]{var} is Iterator[A]
   var list:B
 
   fun default(list':B) =
-    \ListIterator(list'->list).absorb()
+    Partial[This](list'->list).absorb()
 
   fun has_next():Bool =
     match list.get_next()

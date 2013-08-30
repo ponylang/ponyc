@@ -30,7 +30,6 @@ typedef enum
   TK_DOT,
   TK_COLON,
   TK_SEMI,
-  TK_BACKSLASH,
   TK_EQUALS,
 
   TK_PLUS,

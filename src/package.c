@@ -197,16 +197,3 @@ ast_t* package_load( ast_t* from, const char* path )
 
   return package;
 }
-
-ast_t* package_start( const char* path )
-{
-  ast_t* program = ast_newid( TK_PROGRAM );
-
-  if( package_load( program, path ) == NULL )
-  {
-    ast_free( program );
-    return NULL;
-  }
-
-  return program;
-}

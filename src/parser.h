@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #include "ast.h"
+#include "source.h"
 
 ast_t* parse( source_t* source );
 

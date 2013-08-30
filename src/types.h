@@ -11,7 +11,7 @@ typedef enum
 
 typedef enum
 {
-  T_INFER,
+  T_UNKNOWN,
   T_NONE,
   T_BOOL,
   T_I8,
@@ -30,17 +30,9 @@ typedef enum
   T_FLOAT,
   T_STRING,
   T_FUNCTION,
-  T_CLASS,
-  T_PARTIAL,
+  T_OBJECT,
   T_ADT
 } type_id;
-
-typedef enum
-{
-  O_TRAIT,
-  O_CLASS,
-  O_ACTOR
-} class_id;
 
 typedef struct type_t type_t;
 
@@ -50,24 +42,22 @@ typedef struct typelist_t
   struct typelist_t* next;
 } typelist_t;
 
-typedef struct functiontype_t
+typedef struct funtype_t
 {
+  typelist_t* formals;
   typelist_t* params;
   type_t* result;
+  bool private;
+  bool throws;
 } functiontype_t;
 
-typedef struct classdef_t
+typedef struct objtype_t
 {
-  class_id id;
-//  symtab_t* symtab;
-
-  struct classdef_t* next;
-} classdef_t;
-
-typedef struct classtype_t
-{
-  classdef_t* def;
-  typelist_t* formal;
+  ast_t* ast;
+  typelist_t* formals;
+  typelist_t* is;
+  bool private;
+  bool infer;
 } classtype_t;
 
 typedef struct adt_t
@@ -82,8 +72,8 @@ struct type_t
 
   union
   {
-    functiontype_t fun;
-    classtype_t obj;
+    funtype_t fun;
+    objtype_t obj;
     adt_t adt;
   };
 

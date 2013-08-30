@@ -40,7 +40,7 @@ class ArrayIterator[A, B:Array[A]]{var} is Iterator[A]
   var i:U64
 
   fun default(array':B) =
-    \This(array', i).absorb()
+    Partial[This](array', i).absorb()
 
   fun has_next():Bool = i < array.size()
 

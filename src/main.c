@@ -7,8 +7,13 @@ int main( int argc, char** argv )
   const char* path = ".";
   if( argc > 1 ) { path = argv[1]; }
 
-  ast_t* program = package_start( path );
-  if( program == NULL ) { return -1; }
+  ast_t* program = ast_newid( TK_PROGRAM );
+
+  if( !package_load( program, path ) )
+  {
+    ast_free( program );
+    return -1;
+  }
 
   /* FIX:
    * type checking

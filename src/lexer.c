@@ -58,7 +58,6 @@ static const symbol_t symbols1[] =
   { ".", TK_DOT },
   { ":", TK_COLON },
   { ";", TK_SEMI },
-  { "\\", TK_BACKSLASH },
   { "=", TK_EQUALS },
 
   { "+", TK_PLUS },

@@ -21,7 +21,8 @@ static inline uint64_t fmix( uint64_t k )
   return k;
 }
 
-void MurmurHash3_x64_128( const void* key, const int len, const uint32_t seed, void* out )
+static void MurmurHash3_x64_128( const void* key, const int len,
+  const uint32_t seed, void* out )
 {
   const uint8_t* data = (const uint8_t*)key;
   const int nblocks = len / 16;
@@ -94,7 +95,7 @@ void MurmurHash3_x64_128( const void* key, const int len, const uint32_t seed, v
     k1 = rotl64( k1, 31 );
     k1 *= c2;
     h1 ^= k1;
-  };
+  }
 
   h1 ^= len;
   h2 ^= len;
