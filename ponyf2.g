@@ -45,7 +45,7 @@ type
   ;
 
 base_type
-  :  ID ('.' ID)* type_args? mode
+  :  ID ('.' ID)? type_args? mode
   |  'fun' 'throw'? mode '(' types? ')' oftype? // FIX: indicate function can throw
   ;
 

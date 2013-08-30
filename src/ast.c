@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "symtab.h"
+#include "types.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -256,7 +257,8 @@ void ast_free( ast_t* ast )
       source_close( ast->data );
       break;
 
-    default: {}
+    default:
+      break;
   }
 
   token_free( ast->t );

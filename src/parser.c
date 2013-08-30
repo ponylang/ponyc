@@ -427,11 +427,17 @@ static ast_t* funtype( parser_t* parser )
 
 static ast_t* objtype( parser_t* parser )
 {
-  // ID (DOT ID)* formalargs mode
+  // ID (DOT ID)? formalargs mode
   AST( TK_OBJTYPE );
-  BLOCK( TK_LIST, TK_NONE, TK_NONE, TK_DOT,
-    { TK_ID, consume }
-    );
+  EXPECT( TK_ID );
+
+  if( ACCEPT_DROP( TK_DOT ) )
+  {
+    EXPECT( TK_ID );
+  } else {
+    INSERT( TK_NONE );
+  }
+
   RULE( formalargs );
   RULE( mode );
   DONE();

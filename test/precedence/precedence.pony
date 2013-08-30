@@ -1,7 +1,7 @@
 trait Test
 trait Test2
 
-class Precedence[T:Test[N], U:(Test|Test2)]
+class Precedence[T:Test, U:(Test|Test2), V:fun throw():I32]
   /* nested
   /* comments */
   work */

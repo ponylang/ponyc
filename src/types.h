@@ -2,7 +2,6 @@
 #define TYPES_H
 
 #include "ast.h"
-#include <stdint.h>
 #include <stdbool.h>
 
 typedef enum
@@ -31,7 +30,6 @@ typedef struct typelist_t
 
 typedef struct funtype_t
 {
-  uint64_t param_count;
   typelist_t* params;
   type_t* result;
   bool throws;
@@ -40,9 +38,7 @@ typedef struct funtype_t
 typedef struct objtype_t
 {
   ast_t* ast;
-  typelist_t* is;
-  typelist_t* functions;
-  bool infer;
+  typelist_t* params;
 } objtype_t;
 
 typedef struct adt_t
@@ -54,6 +50,7 @@ struct type_t
 {
   type_id id;
   mode_id mode;
+  // FIX: need mode viewpoint adaptation
 
   union
   {
@@ -69,6 +66,7 @@ void type_init();
 void type_done();
 
 type_t* type_ast( ast_t* ast );
+void type_free( type_t* type );
 bool type_sub( type_t* a, type_t* b );
 
 #endif

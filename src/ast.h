@@ -43,7 +43,7 @@ class
     list of param
     mode
     PRIVATE|INFER|NONE
-    is
+    list of type
     field|function*
 
 field
@@ -74,14 +74,9 @@ param
     type
     expr|NONE
 
-is
-  data: ?
-  symtab: ?
-  child: type*
+type:adt|funtype|objtype|INFER
 
-type:adttype|funtype|objtype|INFER
-
-adttype:
+adt:
   data: type_t
   symtab: n/a
   child: type*
@@ -99,7 +94,8 @@ objtype:
   data: type_t
   symtab: n/a
   child:
-    list of ID
+    ID
+    ID|NONE
     list of type
     mode
 
