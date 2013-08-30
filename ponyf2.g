@@ -22,7 +22,8 @@ class_
 
 member
   :  ('var' | 'val') ID (',' ID)* oftype // FIX: multiple declaration not in code yet
-  |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)?
+//  |  ('fun' | 'msg') mode ID type_params? params oftype? 'private'? 'throw'? ('=' seq)?
+  |  ('fun' | 'msg') 'private'? 'throw'? ID type_params? mode params oftype? ('=' seq)?
   ;
 
 alias
@@ -45,7 +46,7 @@ type
 
 base_type
   :  ID ('.' ID)* type_args? mode
-  |  'fun' mode '(' types? ')' oftype?
+  |  'fun' 'throw'? mode '(' types? ')' oftype? // FIX: indicate function can throw
   ;
 
 type_params
@@ -90,7 +91,7 @@ expr
      // return the value of binary, not expr. a = b returns a, b = a = b is a swap
   |  binary ('=' expr)?
      // expr is in a new scope
-  |  'fun' mode params oftype? '=' expr
+  |  'fun' 'throw'? mode params oftype? '=' expr // FIX: indicate function can throw
      // without else clause: if e1 then (e2; None) else None
      // whole thing is a scope, each clause is a subscope
   |  'if' seq 'then' expr ('else' expr | 'end')

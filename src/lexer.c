@@ -117,18 +117,16 @@ static const symbol_t keywords[] =
 
 static const symbol_t abstract[] =
 {
+  { "program", TK_PROGRAM },
+  { "package", TK_PACKAGE },
   { "module", TK_MODULE },
-  { "typeid", TK_TYPEID },
+  { "list", TK_LIST },
   { "adt", TK_ADT },
-  { "partialtype", TK_PARTIALTYPE },
   { "objecttype", TK_OBJECTTYPE },
   { "functiontype", TK_FUNCTIONTYPE },
-  { "formalparams", TK_FORMALPARAMS },
   { "mode", TK_MODE },
-  { "params", TK_PARAMS },
+  { "param", TK_PARAM },
   { "call", TK_CALL },
-  { "formalargs", TK_FORMALARGS },
-  { "args", TK_ARGS },
   { "seq", TK_SEQ },
 
   { NULL, 0 }
@@ -771,6 +769,7 @@ lexer_t* lexer_open( source_t* source )
   lexer->source = source;
   lexer->len = source->len;
   lexer->line = 1;
+  lexer->pos = 1;
 
   return lexer;
 }

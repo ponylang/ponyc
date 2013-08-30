@@ -13,63 +13,97 @@ program
 package
   data: path
   symtab: ID -> alias|class
-  child: module
+  child: module*
 
 module
   data: source
   symtab: ID -> package
-  child: use|alias|class
+  child: use|alias|class*
 
 use
   data: n/a
   symtab: n/a
-  child 1: path
-  child 2: ID
+  child:
+    path
+    ID
 
 alias
-  data: ?
-  symtab: n/a
-  child 1: ID
-  child 2: formalparams
-  child 3: type
+  data: adt_t using upper bounds ?
+  symtab: ID -> param
+  child:
+    ID
+    list of param
+    type
 
 class
-  data: ?
-  symtab: ID -> formal|field|function
-  child 1: ID
-  child 2: formalparams
-  child 3: mode
-  child 4: encapsulation
-  child 5: is
-  child 6+: field|function
+  data: objtype_t using upper bounds ?
+  symtab: ID -> param|field|function
+  child:
+    ID
+    list of param
+    mode
+    PRIVATE|INFER|NONE
+    is
+    field|function*
 
 field
-  data: type expression ?
+  data: type_t ?
   symtab: n/a
-  child 1: ID
-  child 2: type
+  child:
+    ID
+    type
 
 function
-  data: type expression ?
-  symtab: ID -> formal|param
-  child 1: mode
-  child 2: ID
-  child 3: formalparams
-  child 4: params
-  child 5: type
-  child 6: encapsulation
-  child 7: seq
+  data: type_t ?
+  symtab: ID -> param
+  child:
+    PRIVATE|NONE
+    THROW|NONE
+    ID
+    list of param
+    mode
+    list of param
+    type
+    seq
 
-formalparams
-params
-  data: ?
+param
+  data: type_t
   symtab: n/a
-  child: (ID type|INFER expr|NONE)
+  child:
+    ID
+    type
+    expr|NONE
 
-type:(adttype|partialtype|functiontype|objecttype)
 is
+  data: ?
+  symtab: ?
+  child: type*
+
+type:adttype|funtype|objtype|INFER
+
+adttype:
+  data: type_t
+  symtab: n/a
+  child: type*
+
+funtype:
+  data: type_t
+  symtab: n/a
+  child:
+    THROW|NONE
+    mode
+    list of type
+    type
+
+objtype:
+  data: type_t
+  symtab: n/a
+  child:
+    list of ID
+    list of type
+    mode
+
 mode
-encapsulation
 seq
 */
 

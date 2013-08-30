@@ -1,4 +1,6 @@
 /*
+
+/*
 Add to operational semantics:
 
 pattern matching
@@ -233,3 +235,5 @@ class Person is Cloneable, Comparable, Testable
   def valid_father( a:Person ) Bool =
     female == false and lt_with( a, compare_age() )
 }
+
+*/

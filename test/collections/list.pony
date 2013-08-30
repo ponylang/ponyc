@@ -14,15 +14,15 @@ class List[A] is Iterable[A]
   fun immutable(item':A{val}, next':(List[A]{val}|None) = None):List[A]{val} =
     Partial[This](item'->item, next'->next).absorb()
 
-  fun{iso|var|val} get_item():A->this = item
+  fun get_item{iso|var|val}():A->this = item
 
-  fun{iso|var} set_item(a:A):A = a = item
+  fun set_item{iso|var}(a:A):A = a = item
 
-  fun{iso|var|val} get_next():(List[A]->this|None) = next
+  fun get_next{iso|var|val}():(List[A]->this|None) = next
 
-  fun{iso|var} set_next(a:(List[A]|None) = None) = a = next
+  fun set_next{iso|var}(a:(List[A]|None) = None) = a = next
 
-  fun{var|val} iterator():ListIterator[A, List[A]{this}] = ListIterator(this)
+  fun iterator{var|val}():ListIterator[A, List[A]{this}] = ListIterator(this)
 
 class ListIterator[A, B:List[A]]{var} is Iterator[A]
   var list:B

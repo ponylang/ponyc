@@ -9,30 +9,30 @@ class Array[A] is Iterable[A]
     ptr = POINTER[A](0);
     this
 
-  fun{iso|var|val} length():U64 = size
+  fun length{iso|var|val}():U64 = size
 
-  fun{var|val} apply(i:U64):A->this throw =
+  fun throw apply{var|val}(i:U64):A->this =
     if i < size then ptr(i) else throw
 
-  fun{var} update(i:U64, v:A):A =
+  fun update{var}(i:U64, v:A):A =
     if i < size then ptr(i) = v else v
 
-  fun{iso|var} reserve(len:U64) =
+  fun reserve{iso|var}(len:U64) =
     if alloc < len then
       (alloc = len.max(8).next_pow2();
       ptr = POINTER[A].from(ptr, alloc))
     end
 
-  fun{iso|var} clear() = size = 0
+  fun clear{iso|var}() = size = 0
 
-  fun{var} append(v:A) =
+  fun append{var}(v:A) =
     reserve(size + 1);
     ptr(size) = v;
     size = size + 1
 
-  fun{var} concat(iter:Iterable[A]) = for v in iter do append(v)
+  fun concat{var}(iter:Iterable[A]) = for v in iter do append(v)
 
-  fun{var|val} iterator():ArrayIterator[A, Array[A]{this}] =
+  fun iterator{var|val}():ArrayIterator[A, Array[A]{this}] =
     ArrayIterator(this)
 
 class ArrayIterator[A, B:Array[A]]{var} is Iterator[A]

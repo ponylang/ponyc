@@ -22,7 +22,7 @@ static bool import_package( ast_t* use )
 
   if( (name[0] >= 'A') && (name[0] <= 'Z') )
   {
-    ast_error( id, "package name can't start A-Z" );
+    ast_error( id, "package name '%s' can't start A-Z", name );
     return false;
   }
 
@@ -30,7 +30,7 @@ static bool import_package( ast_t* use )
 
   if( package == NULL )
   {
-    ast_error( path, "can't load package '%s'", ast_name( path ) );
+    ast_error( use, "can't load package '%s'", ast_name( path ) );
     return false;
   }
 

@@ -44,3 +44,24 @@ const char* stringtab( const char* string )
 
   return cur->string;
 }
+
+void stringtab_done()
+{
+  string_t* cur;
+  string_t* next;
+
+  for( int i = 0; i < HASH_SIZE; i++ )
+  {
+    cur = table.string[i];
+
+    while( cur != NULL )
+    {
+      next = cur->next;
+      free( cur->string );
+      free( cur );
+      cur = next;
+    }
+  }
+
+  memset( table.string, 0, HASH_SIZE * sizeof(string_t*) );
+}

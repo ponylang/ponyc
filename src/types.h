@@ -1,6 +1,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "ast.h"
+#include <stdint.h>
+#include <stdbool.h>
+
 typedef enum
 {
   M_ISO = (1 << 0),
@@ -11,24 +15,7 @@ typedef enum
 
 typedef enum
 {
-  T_UNKNOWN,
-  T_NONE,
-  T_BOOL,
-  T_I8,
-  T_U8,
-  T_I16,
-  T_U16,
-  T_I32,
-  T_U32,
-  T_I64,
-  T_U64,
-  T_I128,
-  T_U128,
-  T_F32,
-  T_F64,
-  T_INT,
-  T_FLOAT,
-  T_STRING,
+  T_INFER,
   T_FUNCTION,
   T_OBJECT,
   T_ADT
@@ -44,21 +31,19 @@ typedef struct typelist_t
 
 typedef struct funtype_t
 {
-  typelist_t* formals;
+  uint64_t param_count;
   typelist_t* params;
   type_t* result;
-  bool private;
   bool throws;
-} functiontype_t;
+} funtype_t;
 
 typedef struct objtype_t
 {
   ast_t* ast;
-  typelist_t* formals;
   typelist_t* is;
-  bool private;
+  typelist_t* functions;
   bool infer;
-} classtype_t;
+} objtype_t;
 
 typedef struct adt_t
 {
@@ -79,5 +64,11 @@ struct type_t
 
   struct type_t* next;
 };
+
+void type_init();
+void type_done();
+
+type_t* type_ast( ast_t* ast );
+bool type_sub( type_t* a, type_t* b );
 
 #endif

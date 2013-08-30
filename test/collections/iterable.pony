@@ -3,4 +3,4 @@ trait Iterator[A]
   fun next():A->this
 
 trait Iterable[A]
-  fun{var|val} iterator():Iterator[A]
+  fun iterator{var|val}():Iterator[A]
