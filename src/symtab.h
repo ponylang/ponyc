@@ -10,5 +10,6 @@ void symtab_free( symtab_t* symtab );
 
 bool symtab_add( symtab_t* symtab, const char* name, void* value );
 void* symtab_get( symtab_t* symtab, const char* name );
+bool symtab_merge( symtab_t* dst, symtab_t* src );
 
 #endif

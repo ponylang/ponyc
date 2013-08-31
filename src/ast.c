@@ -204,6 +204,18 @@ bool ast_set( ast_t* ast, const char* name, void* value )
   return symtab_add( ast->symtab, name, value );
 }
 
+bool ast_merge( ast_t* dst, ast_t* src )
+{
+  if( src->symtab == NULL ) { return true; }
+
+  if( dst->symtab == NULL )
+  {
+    dst->symtab = symtab_new();
+  }
+
+  return symtab_merge( dst->symtab, src->symtab );
+}
+
 void ast_add( ast_t* parent, ast_t* child )
 {
   child->parent = parent;

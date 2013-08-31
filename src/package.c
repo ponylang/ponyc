@@ -17,15 +17,6 @@ static bool import_package( ast_t* use )
 {
   ast_t* module = ast_parent( use );
   ast_t* path = ast_child( use );
-  ast_t* id = ast_sibling( path );
-  const char* name = ast_name( id );
-
-  if( (name[0] >= 'A') && (name[0] <= 'Z') )
-  {
-    ast_error( id, "package name '%s' can't start A-Z", name );
-    return false;
-  }
-
   ast_t* package = package_load( module, ast_name( path ) );
 
   if( package == NULL )
@@ -34,10 +25,29 @@ static bool import_package( ast_t* use )
     return false;
   }
 
-  if( !ast_set( module, name, package ) )
+  ast_t* id = ast_sibling( path );
+
+  if( ast_id( id ) == TK_ID )
   {
-    ast_error( id, "can't reuse import ID '%s'", name );
-    return false;
+    const char* name = ast_name( id );
+
+    if( (name[0] >= 'A') && (name[0] <= 'Z') )
+    {
+      ast_error( id, "package name '%s' can't start A-Z", name );
+      return false;
+    }
+
+    if( !ast_set( module, name, package ) )
+    {
+      ast_error( id, "can't reuse import ID '%s'", name );
+      return false;
+    }
+  } else {
+    if( !ast_merge( module, package ) )
+    {
+      ast_error( use, "can't merge symbols from '%s'", ast_name( path ) );
+      return false;
+    }
   }
 
   return true;

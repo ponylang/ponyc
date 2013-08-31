@@ -17,7 +17,7 @@ package
 
 module
   data: source
-  symtab: ID -> package
+  symtab: ID -> package|alias|class
   child: use|alias|class*
 
 use
@@ -25,7 +25,7 @@ use
   symtab: n/a
   child:
     path
-    ID
+    ID|NONE
 
 alias
   data: adt_t using upper bounds ?
@@ -124,6 +124,7 @@ ast_t* ast_sibling( ast_t* ast );
 
 void* ast_get( ast_t* ast, const char* name );
 bool ast_set( ast_t* ast, const char* name, void* value );
+bool ast_merge( ast_t* dst, ast_t* src );
 
 void ast_add( ast_t* parent, ast_t* child );
 void ast_reverse( ast_t* ast );

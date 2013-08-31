@@ -5,5 +5,5 @@ http://industriousone.com/premake/download
 This will build ponyc and run it against the files in the test directory:
 
 $ premake4 gmake
-$ make
-$ ./ponyc test/
+$ make config=release
+$ ./bin/release/ponyc test

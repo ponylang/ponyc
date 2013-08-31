@@ -7,3 +7,5 @@ lextab.py
 lib
 obj
 output
+*.sublime-project
+*.sublime-workspace

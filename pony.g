@@ -1,5 +1,3 @@
-// FIX: hack up an in-between grammar: this, with semicolons
-
 grammar pony;
 
 options
@@ -11,268 +9,166 @@ options
 // Parser
 
 module
-  :  (use | declare | typedecl | trait | object | actor)*
+  :  (use | class_ | alias | typedef_)*
   ;
 
 use
-  :  'use' (TYPEID '=')? STRING
+  :  'use' STRING ('as' ID)?
   ;
 
-declare
-  :  'declare' typeclass is ('{' declaremap (',' declaremap)* '}')?
+class_
+  :  ('actor' | 'class' | 'trait') ID type_params? mode ('private' | 'infer')? ('is' types)? member*
   ;
 
-declaremap
-  :  ID '=' ID
+member
+  :  ('var' | 'val') ID (',' ID)* oftype // FIX: multiple declaration not in code yet
+  |  ('fun' | 'msg') 'private'? 'throw'? ID type_params? mode params oftype? ('=' seq)?
   ;
 
-typedecl
-  :  'type' TYPEID oftype is
+alias
+  :  'alias' ID type_params? oftype
+  ;
+
+// FIX: separate out retrofitting from aliasing, not in code yet
+typedef_
+  :  'type' ID ('.' ID)* type_params? ('is' types)? ('where' member*)?
+  ;
+
+types
+  :  type (',' type)*
+  ;
+
+type
+  :  base_type
+  |  '(' base_type ('|' base_type)* ')'
+  ;
+
+base_type
+  :  ID ('.' ID)? type_args? mode
+  |  'fun' 'throw'? mode '(' types? ')' oftype?
+  ;
+
+type_params
+  :  '[' param (',' param)* ']'
+  ;
+
+type_args
+  :  '[' type (',' type)* ']'
+  ;
+
+mode
+  :  ('{' base_mode ('|' base_mode)* '}')? ('->' ('this' | ID))?
+  ;
+
+base_mode
+  :	 'iso' | 'var' | 'val' | 'tag' | 'this' | ID
+  ;
+
+params
+  :  '(' (param (',' param)*)? ')'
+  ;
+
+// FIX: this could be used in code to allow multiple declaration, ie (a, b: I32, c, d: String)
+param
+  :  ID oftype? ('=' expr)?
   ;
 
 oftype
-  :  (':' typeelement ('|' typeelement)*)?
+  :  ':' type
   ;
 
-typeelement
-  :	 '\\' typeclass
-  |	 typeclass
-  |  typelambda
+args
+  :  '(' (arg (',' arg)*)? ')'
   ;
 
-typeclass
-  :  TYPEID ('::' TYPEID)? mode? formalargs?
-  ;
-
-typelambda
-  :  'lambda' mode? args ('->' args)? 'throws'?
-  ;
-
-trait
-  :  'trait' TYPEID formalargs? is? '{' (constructor | function | message)* '}'
-  ;
-
-object
-  :  'object' TYPEID formalargs? is? '{' (field | delegate | constructor | function)* '}'
-  ;
-
-actor
-  :  'actor' TYPEID formalargs? is? '{' (field | delegate | constructor | function | message)* '}'
-  ;
-
-is
-  :  'is' typeclass (',' typeclass)*
-  ;
-
-field
-  :  'var' ID oftype ('=' expr)?
-  |  'val' ID oftype ('=' expr)?
-  ;
-
-delegate
-  :  'delegate' ID oftype
-  ;
-
-constructor
-  :  ('new' | 'ambient') mode? ID? formalargs? args 'throws'? block?
-  ;
-
-function
-  :  'function' mode? ID? formalargs? args ('->' args)? 'throws'? block?
-  ;
-
-message
-  :  'message' mode? ID? formalargs? args block?
-  ;
-
-statement
-  :  block
-  |  conditional
-  |  for_loop
-  |  while_loop
-  |  do_loop
-  |  match
-  |  command
-  |  'return'
-  |  'break'
-  |  'continue'
-  |  'throw'
-  ;
-
-block
-  :  '{' statement* catch_? always? '}'
-  ;
-
-conditional
-  :  'if' expr block ('else' (block | conditional))?
-  ;
-
-for_loop
-  :  'for' for_varlist 'in' expr block
-  ;
-
-for_varlist
-  :  for_var (',' for_var)*
-  ;
-
-for_var
-  :  ID oftype
-  ;
-
-while_loop
-  :  'while' expr block
-  ;
-
-do_loop
-  :  'do' block 'while' expr
-  ;
-
-match
-  :  'match' expr_list '{' case_+ '}'
-  ;
-
-// FIX: could make the block optional for multiple cases that execute the same block
-case_
-  :  'case' case_varlist ('if' expr)? block
-  ;
-
-case_varlist
-  :  (case_var (',' case_var)*)?
-  ;
-
-case_var
-  :  expr ('as' ID oftype)?
-  |  'as' ID oftype
-  ;
-
-catch_
-  :  'catch' block
-  ;
-
-always
-  :  'always' block
-  ;
-
-command
-  :  lvalue_list ('=' expr_list)?
-  ;
-
-lvalue_list
-  :  lvalue (',' lvalue)*
-  ;
-
-// FIX: this means an lvalue can't begin with a parenthesised expression or unop
-// because foo( bar ) could be two expressions
-lvalue
-  :  'var' ID oftype
-  |  'val' ID oftype
-  |  call
-//  |  expr
-  ;
-
-expr_list
-  :  expr (',' expr)*
+arg
+  :  expr ('->' ID)?
   ;
 
 expr
+  :  ('var' | 'val') ID oftype? '=' expr
+     // return the value of binary, not expr. a = b returns a, b = a = b is a swap
+  |  binary ('=' expr)?
+     // expr is in a new scope
+  |  'fun' 'throw'? mode params oftype? '=' expr
+     // without else clause: if e1 then (e2; None) else None
+     // whole thing is a scope, each clause is a subscope
+  |  'if' seq 'then' expr ('else' expr | 'end')
+     // whole thing is a scope, each case is a scope
+  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? ('=' seq)?)* ('else' expr | 'end') // FIX: optional seq, else clause not yet in code
+     // value is None
+     // whole thing is a scope, expr is a subscope
+  |  'while' seq 'do' expr
+     // ((e1); (while e2 do (e1)))
+  |  'do' seq 'while' expr
+     // (var x = e1.iterator(); while x.has_next() do (val id = x.next(); e2))
+  |  'for' ID oftype? 'in' seq 'do' expr
+     // only valid in a while loop, exits the loop
+  |  'break'
+     // only valid in a while loop, short circuits the loop
+  |  'continue'
+     // short circuits the function
+  |  'return' expr
+  |  'try' seq ('else' seq)? ('then' expr | 'end')
+  |  'throw'
+  ;
+
+seq
+  :  expr (';' expr)*
+  ;
+
+binary
   :  unary (binop unary)*
   ;
 
 unary
   :  unop unary
-  |  typelambda ('is' block)?
-  |  r_call
-//  |  call
+  |  postfix
   ;
 
-r_call
-  :  r_atom
-  (  args
-  |  '.' ID? formalargs? args
+postfix
+  :  primary
+  (  '.' ID
+  |  type_args
+  |  args
   )*
   ;
 
-call
-  :  atom
-  (  args
-  |  '.' ID? formalargs? args
-  )*
-  ;
-
-r_atom
-  :  atom
-  |  '(' expr ')'
-  |  '[' arglist ']'
-  ;
-
-atom
-  :  ID
-  |  typeclass
-  |  'this'
-  |  'true'
-  |  'false'
+primary
+  :  'this'
   |  INT
   |  FLOAT
   |  STRING
-//  |  '#[' arglist ']'
-//  |  '[' arglist ']'
-//  |  '(' expr ')'
-  ;
-  
-mode
-  : '!' | '@' | '~' | '[:'expr ']'
-  ;
-
-formalargs
-  :  '[' arglist ']'
-  ;
-
-args
-  :  '(' arglist? ')'
-  ;
-
-arglist
-  :  arg (',' arg)*
-  ;
-
-// the first expr is restricted to ID or ID:type if the assignment is present
-// the :type is allowed only if the first expr is ID
-arg
-  :  expr oftype ('=' expr)?
+  |  ID
+  |  '(' seq ')'
   ;
 
 unop
-  :  '-' | '!' | '\\'
+  :  'not' | '-'
   ;
 
-// FIX: != could be wrong
-// var a:Type!=Type!(thing)
 binop
-  :  '+' | '-' | '*' | '/' | '%'
+  :  'and' | 'or' | 'xor'
+  |  '+' | '-' | '*' | '/' | '%'
   |  '<<' | '>>'
-  |  '<' | '<=' | '>=' | '>'
-  |  '==' | '!='
-  |  '|' | '&' | '^'
+  |  '==' | '!=' | '<' | '<=' | '>=' | '>'
   ;
 
 // Lexer
 
 ID
-  :  ('a'..'z' | '_') (LETTER | DIGIT | '_')*
-  ;
-
-TYPEID
-  :  ('A'..'Z') (LETTER | DIGIT)*
+  :  (LETTER | '_') (LETTER | DIGIT | '_' | '\'')*
   ;
 
 INT
-  :  ('0' | '1'..'9' DIGIT*)
-  |  '0' 'x' HEX_DIGIT+
+  :  '0'
+  |  '1'..'9' DIGIT*
+  |  '0' 'x' (HEX | '_') +
   |  '0' 'b' ('0' | '1' | '_')+
   ;
 
 FLOAT
-  :  DIGIT+ ('.' DIGIT+)? EXPONENT?
+  :  DIGIT+ ('.' DIGIT+)? EXP?
   ;
 
 LINECOMMENT
@@ -280,25 +176,25 @@ LINECOMMENT
   ;
 
 NESTEDCOMMENT
-  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/' {$channel=HIDDEN;}
+  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/'
   ;
 
 WS
-  :  ( ' ' | '\t' | '\r' | '\n' ) {$channel=HIDDEN;}
+  :  ' ' | '\t' | '\r' | '\n'
   ;
 
 STRING
-  :  '"' ( ESC_SEQ | ~('\\'|'"') )* '"'
+  :  '"' ( ESC | ~('\\'|'"') )* '"'
   ;
 
 fragment
-EXPONENT
+EXP
   :  ('e' | 'E') ('+' | '-')? DIGIT+
   ;
 
 fragment
 LETTER
-  :  ('a'..'z' | 'A'..'Z')
+  :  'a'..'z' | 'A'..'Z'
   ;
 
 fragment
@@ -307,12 +203,12 @@ DIGIT
   ;
 
 fragment
-HEX_DIGIT
-  :  (DIGIT | 'a'..'f' | 'A'..'F' | '_')
+HEX
+  :  DIGIT | 'a'..'f' | 'A'..'F'
   ;
 
 fragment
-ESC_SEQ
+ESC
   :  '\\' ('a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
   |  HEX_ESC
   |  UNICODE_ESC
@@ -321,15 +217,15 @@ ESC_SEQ
 
 fragment
 HEX_ESC
-  :  '\\' 'x' HEX_DIGIT HEX_DIGIT
+  :  '\\' 'x' HEX HEX
   ;
 
 fragment
 UNICODE_ESC
-  :  '\\' 'u' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  :  '\\' 'u' HEX HEX HEX HEX
   ;
 
 fragment
 UNICODE2_ESC
-  :  '\\' 'U' HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT HEX_DIGIT
+  :  '\\' 'U' HEX HEX HEX HEX HEX HEX
   ;

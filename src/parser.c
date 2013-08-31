@@ -862,11 +862,17 @@ static ast_t* alias( parser_t* parser )
 
 static ast_t* use( parser_t* parser )
 {
-  // USE STRING AS ID
+  // USE STRING (AS ID)?
   AST_TOKEN();
   EXPECT( TK_STRING );
-  EXPECT_DROP( TK_AS );
-  EXPECT( TK_ID );
+
+  if( ACCEPT_DROP( TK_AS ) )
+  {
+    EXPECT( TK_ID );
+  } else {
+    INSERT( TK_NONE );
+  }
+
   DONE();
 }
 

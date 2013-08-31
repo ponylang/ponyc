@@ -1,7 +1,9 @@
+use "../collections"
+
 trait Test
 trait Test2
 
-class Precedence[T:Test, U:(Test|Test2), V:fun throw():I32]
+class Precedence[T:Test, U:(Test|List[T]), V:fun throw():Array[U]]
   /* nested
   /* comments */
   work */
