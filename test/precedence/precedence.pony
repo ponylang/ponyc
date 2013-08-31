@@ -1,9 +1,8 @@
 use "../collections"
 
 trait Test
-trait Test2
 
-class Precedence[T:Test, U:(Test|List[T]), V:fun throw():Array[U]]
+class Precedence[A:Test, B:(Test|List[A]), C:fun throw():Array[B], D:(Test|List[A])]
   /* nested
   /* comments */
   work */

@@ -24,7 +24,7 @@ const char* stringtab( const char* string )
 {
   if( string == NULL ) { return NULL; }
 
-  uint64_t hash = strhash( string ) & HASH_MASK;
+  uint64_t hash = strhash( string, 0 ) & HASH_MASK;
   string_t* cur = table.string[hash];
 
   while( cur != NULL )

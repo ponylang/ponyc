@@ -22,7 +22,7 @@ static inline uint64_t fmix( uint64_t k )
 }
 
 static void MurmurHash3_x64_128( const void* key, const int len,
-  const uint32_t seed, void* out )
+  const uint64_t seed, void* out )
 {
   const uint8_t* data = (const uint8_t*)key;
   const int nblocks = len / 16;
@@ -113,11 +113,11 @@ static void MurmurHash3_x64_128( const void* key, const int len,
   ((uint64_t*)out)[1] = h2;
 }
 
-uint64_t strhash( const char* str )
+uint64_t strhash( const char* str, uint64_t seed )
 {
   uint64_t out[2];
   size_t len = strlen( str );
-  MurmurHash3_x64_128( str, len, 0, out );
+  MurmurHash3_x64_128( str, len, seed, out );
   return out[0] ^ out[1];
 }
 

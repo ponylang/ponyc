@@ -66,7 +66,7 @@ void type_init();
 void type_done();
 
 type_t* type_ast( ast_t* ast );
-void type_free( type_t* type );
+bool type_eq( type_t* a, type_t* b );
 bool type_sub( type_t* a, type_t* b );
 
 #endif
