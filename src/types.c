@@ -101,6 +101,8 @@ static type_t* typetable( type_t* type )
 
   while( list != NULL )
   {
+    if( list->type == type ) { return type; }
+
     if( type_eq( list->type, type ) )
     {
       type_free( type );
@@ -171,16 +173,10 @@ static bool typelist_sub( typelist_t* a, typelist_t* b )
 
 static bool a_is_obj_b( type_t* a, type_t* b )
 {
-  if( a->id != T_OBJECT ) { return false; }
-
   // invariant formal parameters
-  if( (a->obj.ast == b->obj.ast)
-    && typelist_eq( a->obj.params, b->obj.params ) )
-  {
-    return true;
-  }
-
-  return false;
+  return (a->id == T_OBJECT)
+    && (a->obj.ast == b->obj.ast)
+    && typelist_eq( a->obj.params, b->obj.params );
 }
 
 static bool a_in_obj_b( type_t* a, type_t* b )
@@ -333,32 +329,36 @@ static type_t* objtype( ast_t* ast )
 
   if( package != NULL )
   {
-    package = ast_get( ast_nearest( ast, TK_MODULE ), ast_name( package ) );
+    ast_t* p = ast_get( ast_nearest( ast, TK_MODULE ), ast_name( package ) );
+
+    if( p == NULL )
+    {
+      ast_error( package, "no package '%s' in scope", ast_name( package ) );
+      type_free( type );
+      return NULL;
+    }
+
+    package = p;
   } else {
     package = ast;
   }
 
-  if( package == NULL )
+  type->obj.ast = ast_get( package, ast_name( class ) );
+
+  if( type->obj.ast == NULL )
   {
+    ast_error( class, "no type '%s' in scope", ast_name( class ) );
     type_free( type );
     return NULL;
   }
-
-  class = ast_get( package, ast_name( class ) );
-
-  if( class == NULL )
-  {
-    type_free( type );
-    return NULL;
-  }
-
-  type->obj.ast = class;
 
   if( !typelist( ast_child( param ), &type->obj.params ) )
   {
     type_free( type );
     return NULL;
   }
+
+  // FIX: check params are valid
 
   // FIX: get the mode with the viewpoint
 
@@ -412,7 +412,8 @@ static type_t* adttype( ast_t* ast )
   switch( typelist_len( type->adt.types ) )
   {
     case 0:
-      // and ADT with no elements is an error
+      // an ADT with no elements is an error
+      ast_error( ast, "ADT is empty" );
       type_free( type );
       return NULL;
 
@@ -429,33 +430,6 @@ static type_t* adttype( ast_t* ast )
   }
 
   return type;
-}
-
-void type_init()
-{
-  // FIX: initialise with builtin types
-}
-
-void type_done()
-{
-  typelist_t* list;
-  typelist_t* next;
-
-  // don't use typelist_free: need to actually free the types here
-  for( int i = 0; i < HASH_SIZE; i++ )
-  {
-    list = table.type[i];
-
-    while( list != NULL )
-    {
-      next = list->next;
-      type_free( list->type );
-      free( list );
-      list = next;
-    }
-  }
-
-  memset( table.type, 0, HASH_SIZE * sizeof(typelist_t*) );
 }
 
 type_t* type_ast( ast_t* ast )
@@ -519,4 +493,26 @@ bool type_sub( type_t* a, type_t* b )
   }
 
   return false;
+}
+
+void type_done()
+{
+  typelist_t* list;
+  typelist_t* next;
+
+  // don't use typelist_free: need to actually free the types here
+  for( int i = 0; i < HASH_SIZE; i++ )
+  {
+    list = table.type[i];
+
+    while( list != NULL )
+    {
+      next = list->next;
+      type_free( list->type );
+      free( list );
+      list = next;
+    }
+  }
+
+  memset( table.type, 0, HASH_SIZE * sizeof(typelist_t*) );
 }

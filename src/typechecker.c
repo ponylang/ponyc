@@ -12,7 +12,17 @@
     } \
   }
 
-static bool check_formals( ast_t* ast )
+static bool resolve_type( ast_t* ast, bool parent )
+{
+  type_t* type = type_ast( ast );
+  if( type == NULL ) { return false; }
+
+  ast_attach( ast, type );
+  if( parent ) { ast_attach( ast_parent( ast ), type ); }
+  return true;
+}
+
+static bool resolve_types( ast_t* ast )
 {
   if( ast_id( ast ) == TK_USE ) { return true; }
 
@@ -22,30 +32,66 @@ static bool check_formals( ast_t* ast )
 
   while( param != NULL )
   {
-    ast_t* param_type = ast_childidx( param, 1 );
-    type_t* type = type_ast( param_type );
+    ret &= resolve_type( ast_childidx( param, 1 ), true );
+    param = ast_sibling( param );
+  }
 
-    if( type != NULL )
+  switch( ast_id( ast ) )
+  {
+    case TK_ALIAS:
     {
-      ast_attach( param_type, type );
-      ast_attach( param, type );
-    } else {
-      ast_error( param, "can't resolve type '%s'",
-        ast_name( ast_child( param ) ) );
-      ret = false;
+      ret &= resolve_type( ast_childidx( ast, 2 ), true );
+      break;
     }
 
-    param = ast_sibling( param );
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    {
+      // traits
+      ast_t* child = ast_child( ast_childidx( ast, 4 ) );
+
+      while( child != NULL )
+      {
+        ret &= resolve_type( child, false );
+        child = ast_sibling( child );
+      }
+
+      // fields and functions
+      child = ast_childidx( ast, 5 );
+
+      while( child != NULL )
+      {
+        switch( ast_id( child ) )
+        {
+          case TK_VAR:
+          case TK_VAL:
+            ret &= resolve_type( ast_childidx( child, 1 ), true );
+            break;
+
+          case TK_FUN:
+          case TK_MSG:
+            // FIX:
+            break;
+
+          default: {}
+        }
+
+        child = ast_sibling( child );
+      }
+      break;
+    }
+
+    default: {}
   }
 
   return ret;
 }
 
-static bool check_module( ast_t* ast )
+static bool resolve_module( ast_t* ast )
 {
   bool ret = true;
-  FOREACH( check_formals );
-  // FIX: check more things
+  FOREACH( resolve_types );
   return ret;
 }
 
@@ -84,7 +130,7 @@ static bool check_id( ast_t* ast, bool type )
   return true;
 }
 
-static bool prep_params( ast_t* ast, bool type )
+static bool scope_params( ast_t* ast, bool type )
 {
   ast_t* scope = ast_parent( ast );
   ast_t* param = ast_child( ast );
@@ -103,7 +149,7 @@ static bool prep_params( ast_t* ast, bool type )
   return ret;
 }
 
-static bool prep_member( ast_t* ast )
+static bool scope_member( ast_t* ast )
 {
   ast_t* class = ast_parent( ast );
   ast_t* id;
@@ -150,8 +196,8 @@ static bool prep_member( ast_t* ast )
   {
     case TK_FUN:
     case TK_MSG:
-      return prep_params( ast_childidx( ast, 3 ), true )
-        && prep_params( ast_childidx( ast, 5 ), false );
+      return scope_params( ast_childidx( ast, 3 ), true )
+        && scope_params( ast_childidx( ast, 5 ), false );
 
     default: {}
   }
@@ -159,23 +205,23 @@ static bool prep_member( ast_t* ast )
   return true;
 }
 
-static bool prep_members( ast_t* ast )
+static bool scope_members( ast_t* ast )
 {
   token_id id = ast_id( ast );
   if( (id == TK_ALIAS) || (id == TK_USE) ) { return true; }
 
   bool ret = true;
-  FOREACH( prep_member );
+  FOREACH( scope_member );
   return ret;
 }
 
-static bool prep_formals( ast_t* ast )
+static bool scope_formals( ast_t* ast )
 {
   return (ast_id( ast ) == TK_USE)
-    || prep_params( ast_childidx( ast, 1 ), true );
+    || scope_params( ast_childidx( ast, 1 ), true );
 }
 
-static bool prep_typename( ast_t* ast )
+static bool scope_typename( ast_t* ast )
 {
   if( ast_id( ast ) == TK_USE ) { return true; }
 
@@ -185,21 +231,31 @@ static bool prep_typename( ast_t* ast )
     && set( ast_nearest( ast, TK_PACKAGE ), id, ast );
 }
 
-static bool prep_module( ast_t* ast )
+static bool scope_module( ast_t* ast )
 {
   bool ret = true;
-  FOREACH( prep_typename );
-  FOREACH( prep_formals );
-  FOREACH( prep_members );
+  FOREACH( scope_typename );
+  FOREACH( scope_formals );
+  FOREACH( scope_members );
+  return ret;
+}
+
+static bool check_package( ast_t* ast )
+{
+  bool ret = true;
+  FOREACH( scope_module );
+  FOREACH( resolve_module );
+  // FIX: check all the resolved types are valid
   return ret;
 }
 
 bool typecheck( ast_t* ast )
 {
-  if( ast_id( ast ) != TK_PACKAGE ) { return false; }
+  switch( ast_id( ast ) )
+  {
+    case TK_PACKAGE: return check_package( ast );
+    default: {}
+  }
 
-  bool ret = true;
-  FOREACH( prep_module );
-  FOREACH( check_module );
-  return ret;
+  return false;
 }

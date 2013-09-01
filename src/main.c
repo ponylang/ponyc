@@ -6,28 +6,24 @@
 
 int main( int argc, char** argv )
 {
-  type_init();
+  int ret = 0;
 
   const char* path = ".";
   if( argc > 1 ) { path = argv[1]; }
 
   ast_t* program = ast_newid( TK_PROGRAM );
-
-  if( !package_load( program, path ) )
-  {
-    ast_free( program );
-    return -1;
-  }
+  if( !package_load( program, path ) ) { ret = -1; }
 
   /* FIX:
+   * load builtin types
    * detect unused packages
    *  might be the same code that detects unused vars, fields, etc?
    * code generation
    */
 
   ast_free( program );
-
   type_done();
   stringtab_done();
-  return 0;
+
+  return ret;
 }

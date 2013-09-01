@@ -28,7 +28,7 @@ use
     ID|NONE
 
 alias
-  data: adt_t using upper bounds ?
+  data: type_t
   symtab: ID -> param
   child:
     ID
@@ -36,7 +36,7 @@ alias
     type
 
 class
-  data: objtype_t using upper bounds ?
+  data: ?
   symtab: ID -> param|field|function
   child:
     ID
@@ -47,7 +47,7 @@ class
     field|function*
 
 field
-  data: type_t ?
+  data: type_t
   symtab: n/a
   child:
     ID
@@ -74,7 +74,8 @@ param
     type
     expr|NONE
 
-type:adt|funtype|objtype|INFER
+type:
+  adt|funtype|objtype|INFER
 
 adt:
   data: type_t
