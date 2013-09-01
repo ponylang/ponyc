@@ -12,11 +12,13 @@ int main( int argc, char** argv )
   if( argc > 1 ) { path = argv[1]; }
 
   ast_t* program = ast_newid( TK_PROGRAM );
+  ast_scope( program );
+
   if( !package_load( program, path ) ) { ret = -1; }
 
   /* FIX:
    * load builtin types
-   * detect unused packages
+   * detect imported but unused packages in a module
    *  might be the same code that detects unused vars, fields, etc?
    * code generation
    */

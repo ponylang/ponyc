@@ -13,64 +13,6 @@
 
 #define EXTENSION ".pony"
 
-static bool import_package( ast_t* use )
-{
-  ast_t* module = ast_parent( use );
-  ast_t* path = ast_child( use );
-  ast_t* package = package_load( module, ast_name( path ) );
-
-  if( package == NULL )
-  {
-    ast_error( use, "can't load package '%s'", ast_name( path ) );
-    return false;
-  }
-
-  ast_t* id = ast_sibling( path );
-
-  if( ast_id( id ) == TK_ID )
-  {
-    const char* name = ast_name( id );
-
-    if( (name[0] >= 'A') && (name[0] <= 'Z') )
-    {
-      ast_error( id, "package name '%s' can't start A-Z", name );
-      return false;
-    }
-
-    if( !ast_set( module, name, package ) )
-    {
-      ast_error( id, "can't reuse import ID '%s'", name );
-      return false;
-    }
-  } else {
-    if( !ast_merge( module, package ) )
-    {
-      ast_error( use, "can't merge symbols from '%s'", ast_name( path ) );
-      return false;
-    }
-  }
-
-  return true;
-}
-
-static bool import_packages( ast_t* module )
-{
-  bool ret = true;
-  ast_t* child = ast_child( module );
-
-  while( child != NULL )
-  {
-    if( ast_id( child ) == TK_USE )
-    {
-      ret &= import_package( child );
-    }
-
-    child = ast_sibling( child );
-  }
-
-  return ret;
-}
-
 static bool do_file( ast_t* package, const char* file )
 {
   source_t* source = source_open( file );
@@ -85,8 +27,7 @@ static bool do_file( ast_t* package, const char* file )
   }
 
   ast_add( package, module );
-
-  return import_packages( module );
+  return true;
 }
 
 static bool do_path( ast_t* package, const char* path )
@@ -198,6 +139,7 @@ ast_t* package_load( ast_t* from, const char* path )
   if( package != NULL ) { return package; }
 
   package = ast_new( TK_PACKAGE, 0, 0, (void*)name );
+  ast_scope( package );
   ast_add( program, package );
   ast_set( program, name, package );
 

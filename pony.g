@@ -94,14 +94,13 @@ expr
      // without else clause: if e1 then (e2; None) else None
      // whole thing is a scope, each clause is a subscope
   |  'if' seq 'then' expr ('else' expr | 'end')
-     // whole thing is a scope, each case is a scope
+     // whole thing is a scope, each case seq is a scope
   |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? ('=' seq)?)* ('else' expr | 'end') // FIX: optional seq, else clause not yet in code
-     // value is None
-     // whole thing is a scope, expr is a subscope
+     // value is None, whole thing is a scope
   |  'while' seq 'do' expr
-     // ((e1); (while e2 do (e1)))
+     // value is None, whole thing is a scope
   |  'do' seq 'while' expr
-     // (var x = e1.iterator(); while x.has_next() do (val id = x.next(); e2))
+     // (var x = (e1).iterator(); while x.has_next() do (val id = x.next(); e2))
   |  'for' ID oftype? 'in' seq 'do' expr
      // only valid in a while loop, exits the loop
   |  'break'
@@ -109,6 +108,7 @@ expr
   |  'continue'
      // short circuits the function
   |  'return' expr
+     // each seq is a scope
   |  'try' seq ('else' seq)? ('then' expr | 'end')
   |  'throw'
   ;

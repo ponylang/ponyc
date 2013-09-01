@@ -135,6 +135,23 @@
     ast = binop; \
   }
 
+#define SCOPE() \
+  { \
+    ast_t* child = ast_child( ast ); \
+    if( child == NULL ) \
+    { \
+      ast_scope( ast ); \
+    } else { \
+      ast_t* next = ast_sibling( child ); \
+      while( next != NULL ) \
+      { \
+        child = next; \
+        next = ast_sibling( child ); \
+      } \
+      ast_scope( child ); \
+    } \
+  }
+
 #define DONE() return ast;
 
 /* The API for parser rules ends here */
@@ -352,6 +369,16 @@ static ast_t* param( parser_t* parser )
   DONE();
 }
 
+static ast_t* typeparam( parser_t* parser )
+{
+  // ID oftype assign
+  AST( TK_TYPEPARAM );
+  EXPECT( TK_ID );
+  RULE( oftype );
+  RULE( assign );
+  DONE();
+}
+
 static ast_t* mode( parser_t* parser )
 {
   // basemode ::= ISO | VAR | VAL | TAG | THIS | ID
@@ -386,17 +413,17 @@ static ast_t* params( parser_t* parser )
   DONE();
 }
 
-static ast_t* formalparams( parser_t* parser )
+static ast_t* typeparams( parser_t* parser )
 {
-  // (LBRACKET param (COMMA param)* RBRACKET)?
+  // (LBRACKET typeparam (COMMA typeparam)* RBRACKET)?
   AST( TK_LIST );
   OPTBLOCK( TK_NONE, TK_LBRACKET, TK_RBRACKET, TK_COMMA,
-    { TK_NONE, param }
+    { TK_NONE, typeparam }
     );
   DONE();
 }
 
-static ast_t* formalargs( parser_t* parser )
+static ast_t* typeargs( parser_t* parser )
 {
   // (LBRACKET type (COMMA type)* RBRACKET)?
   AST( TK_LIST );
@@ -427,7 +454,7 @@ static ast_t* funtype( parser_t* parser )
 
 static ast_t* objtype( parser_t* parser )
 {
-  // ID (DOT ID)? formalargs mode
+  // ID (DOT ID)? typeargs mode
   AST( TK_OBJTYPE );
   EXPECT( TK_ID );
 
@@ -438,7 +465,7 @@ static ast_t* objtype( parser_t* parser )
     INSERT( TK_NONE );
   }
 
-  RULE( formalargs );
+  RULE( typeargs );
   RULE( mode );
   DONE();
 }
@@ -490,6 +517,7 @@ static ast_t* parenseq( parser_t* parser )
   // LPAREN seq RPAREN
   ACCEPT_DROP( TK_LPAREN );
   AST_RULE( seq );
+  SCOPE();
   EXPECT_DROP( TK_RPAREN );
   DONE();
 }
@@ -508,7 +536,7 @@ static ast_t* primary( parser_t* parser )
 
 static ast_t* postfix( parser_t* parser )
 {
-  // primary (DOT ID | formalargs | LPAREN (arg (COMMA arg)*)? RPAREN)*
+  // primary (DOT ID | typeargs | LPAREN (arg (COMMA arg)*)? RPAREN)*
   AST_RULE( primary );
 
   while( true )
@@ -519,7 +547,7 @@ static ast_t* postfix( parser_t* parser )
       EXPECT( TK_ID );
     } else if( LOOK( TK_LBRACKET ) ) {
       BINOP( TK_CALL );
-      RULE( formalargs );
+      RULE( typeargs );
     } else if( LOOK( TK_LPAREN ) ) {
       BINOP( TK_CALL );
       BLOCK( TK_LIST, TK_LPAREN, TK_RPAREN, TK_COMMA,
@@ -589,6 +617,7 @@ static ast_t* lambda( parser_t* parser )
 {
   // FUN THROW? mode params oftype EQUALS expr
   AST_TOKEN();
+  SCOPE();
 
   if( !ACCEPT( TK_THROW ) )
   {
@@ -607,13 +636,16 @@ static ast_t* conditional( parser_t* parser )
 {
   // IF seq THEN expr (ELSE expr | END)
   AST_TOKEN();
+  SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_THEN );
   RULE( expr );
+  SCOPE();
 
   if( ACCEPT_DROP( TK_ELSE ) )
   {
     RULE( expr );
+    SCOPE();
   } else {
     EXPECT( TK_END );
   }
@@ -657,6 +689,7 @@ static ast_t* caseexpr( parser_t* parser )
 
   EXPECT_DROP( TK_EQUALS );
   RULE( seq );
+  SCOPE();
   DONE();
 }
 
@@ -664,6 +697,7 @@ static ast_t* match( parser_t* parser )
 {
   // MATCH seq caseexpr* END
   AST_TOKEN();
+  SCOPE();
   RULE( seq );
   LIST( { TK_PIPE, caseexpr } );
   EXPECT_DROP( TK_END );
@@ -674,6 +708,7 @@ static ast_t* whileloop( parser_t* parser )
 {
   // WHILE seq DO expr
   AST_TOKEN();
+  SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_DO );
   RULE( expr );
@@ -684,6 +719,7 @@ static ast_t* doloop( parser_t* parser )
 {
   // DO seq WHILE expr
   AST_TOKEN();
+  SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_WHILE );
   RULE( expr );
@@ -693,6 +729,7 @@ static ast_t* doloop( parser_t* parser )
 static ast_t* forloop( parser_t* parser )
 {
   // FOR ID oftype IN seq DO expr
+  // FIX: scope, or ast transformation?
   AST_TOKEN();
   EXPECT( TK_ID );
   RULE( oftype );
@@ -716,10 +753,12 @@ static ast_t* try( parser_t* parser )
   // TRY seq (ELSE seq)? (THEN expr | END)
   AST_TOKEN();
   RULE( seq );
+  SCOPE();
 
   if( ACCEPT_DROP( TK_ELSE ) )
   {
     RULE( seq );
+    SCOPE();
   } else {
     INSERT( TK_NONE );
   }
@@ -727,6 +766,7 @@ static ast_t* try( parser_t* parser )
   if( ACCEPT_DROP( TK_ELSE ) )
   {
     RULE( expr );
+    SCOPE();
   } else {
     EXPECT( TK_END );
   }
@@ -777,8 +817,9 @@ static ast_t* expr( parser_t* parser )
 
 static ast_t* function( parser_t* parser )
 {
-  // (FUN | MSG) PRIVATE? THROW? ID formalparams mode params oftype (EQUALS seq)?
+  // (FUN | MSG) PRIVATE? THROW? ID typeparams mode params oftype (EQUALS seq)?
   AST_TOKEN();
+  SCOPE();
 
   if( !ACCEPT( TK_PRIVATE ) )
   {
@@ -791,7 +832,7 @@ static ast_t* function( parser_t* parser )
   }
 
   EXPECT( TK_ID );
-  RULE( formalparams );
+  RULE( typeparams );
   RULE( mode );
   RULE( params );
   RULE( oftype );
@@ -799,6 +840,7 @@ static ast_t* function( parser_t* parser )
   if( ACCEPT_DROP( TK_EQUALS ) )
   {
     RULE( seq );
+    SCOPE();
   } else {
     INSERT( TK_NONE );
   }
@@ -828,10 +870,11 @@ static ast_t* is( parser_t* parser )
 
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID formalparams mode private is (field | function)*
+  // (TRAIT | CLASS | ACTOR) ID typeparams mode private is (field | function)*
   AST_TOKEN();
+  SCOPE();
   EXPECT( TK_ID );
-  RULE( formalparams );
+  RULE( typeparams );
   RULE( mode );
 
   if( !ACCEPT( TK_PRIVATE, TK_INFER ) )
@@ -851,10 +894,11 @@ static ast_t* class( parser_t* parser )
 
 static ast_t* alias( parser_t* parser )
 {
-  // ALIAS ID formalparams COLON type
+  // ALIAS ID typeparams COLON type
   AST_TOKEN();
+  SCOPE();
   EXPECT( TK_ID );
-  RULE( formalparams );
+  RULE( typeparams );
   EXPECT_DROP( TK_COLON );
   RULE( type );
   DONE();
@@ -880,6 +924,7 @@ static ast_t* module( parser_t* parser )
 {
   // (use | type | trait | class | actor)*
   AST( TK_MODULE );
+  SCOPE();
   LIST(
     { TK_USE, use },
     { TK_ALIAS, alias },

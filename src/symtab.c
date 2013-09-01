@@ -64,15 +64,12 @@ void symtab_free( symtab_t* symtab )
   free( symtab );
 }
 
-#include <stdio.h>
-
 bool symtab_add( symtab_t* symtab, const char* name, void* value )
 {
   uint64_t hash = ptrhash( name ) & SYMTAB_MASK;
 
   if( symbol_get( symtab, name, hash ) != NULL )
   {
-    printf( "no add: %s\n", name );
     return false;
   }
 
@@ -93,7 +90,7 @@ void* symtab_get( symtab_t* symtab, const char* name )
 
 bool symtab_merge( symtab_t* dst, symtab_t* src )
 {
-  if( src == NULL ) { return true; }
+  if( (dst == NULL) || (src == NULL) ) { return false; }
 
   symbol_t* cur;
 

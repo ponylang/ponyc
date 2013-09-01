@@ -28,46 +28,46 @@ use
     ID|NONE
 
 alias
-  data: type_t
-  symtab: ID -> param
+  data: ?
+  symtab: ID -> typeparam
   child:
     ID
-    list of param
+    list of typeparam
     type
 
 class
   data: ?
-  symtab: ID -> param|field|function
+  symtab: ID -> typeparam|param|field|function
   child:
     ID
-    list of param
+    list of typeparam
     mode
     PRIVATE|INFER|NONE
-    list of type
+    is: type*
     field|function*
 
 field
-  data: type_t
+  data: ?
   symtab: n/a
   child:
     ID
     type
 
 function
-  data: type_t ?
-  symtab: ID -> param
+  data: ?
+  symtab: ID -> typeparam|param
   child:
     PRIVATE|NONE
     THROW|NONE
     ID
-    list of param
+    list of typeparam
     mode
     list of param
     type
     seq
 
-param
-  data: type_t
+typeparam|param
+  data: ?
   symtab: n/a
   child:
     ID
@@ -80,7 +80,8 @@ type:
 adt:
   data: type_t
   symtab: n/a
-  child: type*
+  child:
+    type*
 
 funtype:
   data: type_t
@@ -110,6 +111,7 @@ ast_t* ast_new( token_id id, size_t line, size_t pos, void* data );
 ast_t* ast_newid( token_id id );
 ast_t* ast_token( token_t* t );
 void ast_attach( ast_t* ast, void* data );
+void ast_scope( ast_t* ast );
 
 token_id ast_id( ast_t* ast );
 size_t ast_line( ast_t* ast );
@@ -134,5 +136,18 @@ void ast_free( ast_t* ast );
 
 void ast_error( ast_t* ast, const char* fmt, ... )
   __attribute__ ((format (printf, 2, 3)));
+
+typedef enum
+{
+  AST_OK = 0, // process children
+  AST_NEXT = 1, // skip children, next siblings
+  AST_DONE = 2, // skip children and skip remaining siblings
+  AST_HALT = 3, // halt processing entirely
+  AST_ERROR = 0x80 // 'or' with the result to indicate an error
+} ast_ret;
+
+typedef ast_ret (*ast_visit_t)( ast_t* ast );
+
+ast_ret ast_visit( ast_t* ast, ast_visit_t f );
 
 #endif

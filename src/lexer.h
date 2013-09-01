@@ -97,6 +97,7 @@ typedef enum
   TK_OBJTYPE,
   TK_FUNTYPE,
   TK_MODE,
+  TK_TYPEPARAM,
   TK_PARAM,
   TK_CALL,
   TK_SEQ,

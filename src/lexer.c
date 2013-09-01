@@ -125,6 +125,7 @@ static const symbol_t abstract[] =
   { "objtype", TK_OBJTYPE },
   { "funtype", TK_FUNTYPE },
   { "mode", TK_MODE },
+  { "typeparam", TK_TYPEPARAM },
   { "param", TK_PARAM },
   { "call", TK_CALL },
   { "seq", TK_SEQ },

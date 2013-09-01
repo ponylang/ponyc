@@ -104,13 +104,17 @@ ast_t* ast_token( token_t* t )
 {
   ast_t* ast = calloc( 1, sizeof(ast_t) );
   ast->t = t;
-
   return ast;
 }
 
 void ast_attach( ast_t* ast, void* data )
 {
   ast->data = data;
+}
+
+void ast_scope( ast_t* ast )
+{
+  ast->symtab = symtab_new();
 }
 
 token_id ast_id( ast_t* ast )
@@ -194,23 +198,20 @@ void* ast_get( ast_t* ast, const char* name )
 
 bool ast_set( ast_t* ast, const char* name, void* value )
 {
-  if( ast_get( ast, name ) != NULL ) { return false; }
-
-  if( ast->symtab == NULL )
+  while( ast->symtab == NULL )
   {
-    ast->symtab = symtab_new();
+    ast = ast->parent;
   }
 
-  return symtab_add( ast->symtab, name, value );
+  return (ast_get( ast, name ) == NULL)
+    && symtab_add( ast->symtab, name, value );
 }
 
 bool ast_merge( ast_t* dst, ast_t* src )
 {
-  if( src->symtab == NULL ) { return true; }
-
-  if( dst->symtab == NULL )
+  while( dst->symtab == NULL )
   {
-    dst->symtab = symtab_new();
+    dst = dst->parent;
   }
 
   return symtab_merge( dst->symtab, src->symtab );
@@ -286,4 +287,52 @@ void ast_error( ast_t* ast, const char* fmt, ... )
   va_start( ap, fmt );
   errorv( source, ast->t->line, ast->t->pos, fmt, ap );
   va_end( ap );
+}
+
+ast_ret ast_visit( ast_t* ast, ast_visit_t f )
+{
+  ast_ret r = f( ast );
+  ast_ret error = r & AST_ERROR;
+  r &= ~AST_ERROR;
+
+  switch( r )
+  {
+    case AST_OK:
+    {
+      // process children
+      ast_t* child = ast->child;
+
+      while( child != NULL )
+      {
+        r = ast_visit( child, f );
+        error |= r & AST_ERROR;
+        r &= ~AST_ERROR;
+
+        // ok or next: continue with siblings
+        // done: skip remaining siblings
+        // halt: stop entirely
+        if( r == AST_DONE ) { break; }
+        if( r == AST_HALT ) { return AST_HALT | error; }
+
+        child = child->sibling;
+      }
+      break;
+    }
+
+    case AST_NEXT:
+      // skip children, continue with siblings
+      break;
+
+    case AST_DONE:
+      // skip children, skip remaining siblings
+      return AST_DONE | error;
+
+    case AST_HALT:
+      // stop entirely
+      return AST_HALT | error;
+
+    default: {}
+  }
+
+  return AST_OK | error;
 }

@@ -7,6 +7,62 @@
 #define HASH_SIZE 4096
 #define HASH_MASK (HASH_SIZE - 1)
 
+typedef enum
+{
+  M_ISO = (1 << 0),
+  M_VAR = (1 << 1),
+  M_VAL = (1 << 2),
+  M_TAG = (1 << 3)
+} mode_id;
+
+typedef enum
+{
+  T_INFER,
+  T_FUNCTION,
+  T_OBJECT,
+  T_ADT
+} type_id;
+
+typedef struct typelist_t
+{
+  type_t* type;
+  struct typelist_t* next;
+} typelist_t;
+
+typedef struct funtype_t
+{
+  typelist_t* params;
+  type_t* result;
+  bool throws;
+} funtype_t;
+
+typedef struct objtype_t
+{
+  ast_t* ast;
+  typelist_t* params;
+} objtype_t;
+
+typedef struct adt_t
+{
+  typelist_t* types;
+} adt_t;
+
+struct type_t
+{
+  type_id id;
+  mode_id mode;
+  // FIX: need mode viewpoint adaptation
+
+  union
+  {
+    funtype_t fun;
+    objtype_t obj;
+    adt_t adt;
+  };
+
+  struct type_t* next;
+};
+
 typedef struct typetab_t
 {
   typelist_t* type[HASH_SIZE];
