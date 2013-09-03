@@ -22,9 +22,9 @@ class List[A] is Iterable[A]
 
   fun set_next{iso|var}(a:(List[A]|None) = None) = a = next
 
-  fun iterator{var|val}():ListIterator[A, List[A]{this}] = ListIterator(this)
+  fun iterator{var|val}():ListIter[A, This] = ListIter(this)
 
-class ListIterator[A, B:List[A]]{var} is Iterator[A]
+class ListIter[A, B:List[A]]{var} is Iterator[A]
   var list:B
 
   fun default(list':B) =

@@ -289,50 +289,20 @@ void ast_error( ast_t* ast, const char* fmt, ... )
   va_end( ap );
 }
 
-ast_ret ast_visit( ast_t* ast, ast_visit_t f )
+bool ast_visit( ast_t* ast, ast_visit_t pre, ast_visit_t post )
 {
-  ast_ret r = f( ast );
-  ast_ret error = r & AST_ERROR;
-  r &= ~AST_ERROR;
+  bool ret = true;
+  if( pre != NULL ) { ret &= pre( ast ); }
 
-  switch( r )
+  ast_t* child = ast->child;
+
+  while( child != NULL )
   {
-    case AST_OK:
-    {
-      // process children
-      ast_t* child = ast->child;
-
-      while( child != NULL )
-      {
-        r = ast_visit( child, f );
-        error |= r & AST_ERROR;
-        r &= ~AST_ERROR;
-
-        // ok or next: continue with siblings
-        // done: skip remaining siblings
-        // halt: stop entirely
-        if( r == AST_DONE ) { break; }
-        if( r == AST_HALT ) { return AST_HALT | error; }
-
-        child = child->sibling;
-      }
-      break;
-    }
-
-    case AST_NEXT:
-      // skip children, continue with siblings
-      break;
-
-    case AST_DONE:
-      // skip children, skip remaining siblings
-      return AST_DONE | error;
-
-    case AST_HALT:
-      // stop entirely
-      return AST_HALT | error;
-
-    default: {}
+    ret &= ast_visit( child, pre, post );
+    child = child->sibling;
   }
 
-  return AST_OK | error;
+  if( post != NULL ) { ret &= post( ast ); }
+
+  return ret;
 }

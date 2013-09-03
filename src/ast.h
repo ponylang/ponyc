@@ -35,7 +35,7 @@ alias
     list of typeparam
     type
 
-class
+class: trait|class|actor
   data: ?
   symtab: ID -> typeparam|param|field|function
   child:
@@ -46,14 +46,14 @@ class
     is: type*
     field|function*
 
-field
+field: var|val
   data: ?
   symtab: n/a
   child:
     ID
     type
 
-function
+function: fun|msg
   data: ?
   symtab: ID -> typeparam|param
   child:
@@ -137,17 +137,8 @@ void ast_free( ast_t* ast );
 void ast_error( ast_t* ast, const char* fmt, ... )
   __attribute__ ((format (printf, 2, 3)));
 
-typedef enum
-{
-  AST_OK = 0, // process children
-  AST_NEXT = 1, // skip children, next siblings
-  AST_DONE = 2, // skip children and skip remaining siblings
-  AST_HALT = 3, // halt processing entirely
-  AST_ERROR = 0x80 // 'or' with the result to indicate an error
-} ast_ret;
+typedef bool (*ast_visit_t)( ast_t* ast );
 
-typedef ast_ret (*ast_visit_t)( ast_t* ast );
-
-ast_ret ast_visit( ast_t* ast, ast_visit_t f );
+bool ast_visit( ast_t* ast, ast_visit_t pre, ast_visit_t post );
 
 #endif

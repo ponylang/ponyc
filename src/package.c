@@ -13,6 +13,14 @@
 
 #define EXTENSION ".pony"
 
+typedef struct path_t
+{
+  const char* path;
+  struct path_t* next;
+} path_t;
+
+static path_t* search;
+
 static bool do_file( ast_t* package, const char* file )
 {
   source_t* source = source_open( file );
@@ -81,59 +89,71 @@ static bool do_path( ast_t* package, const char* path )
   return r;
 }
 
-ast_t* package_load( ast_t* from, const char* path )
+const char* try_path( const char* base, const char* path )
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
-  ast_t* program;
 
-  if( (path[0] == '/') || (ast_id( from ) == TK_PROGRAM) )
+  if( base != NULL )
   {
-    program = from;
-    composite[0] = '\0';
-  } else {
-    from = ast_nearest( from, TK_PACKAGE );
-    program = ast_parent( from );
-    strcpy( composite, ast_data( from ) );
+    strcpy( composite, base );
     strcat( composite, "/" );
+    strcat( composite, path );
+  } else {
+    strcpy( composite, path );
   }
 
-  strcat( composite, path );
+  if( realpath( composite, file ) != file ) { return NULL; }
 
-  if( realpath( composite, file ) != file )
+  return stringtab( file );
+}
+
+const char* find_path( ast_t* from, const char* path )
+{
+  // absolute path
+  if( path[0] == '/' ) { return try_path( NULL, path ); }
+
+  const char* result;
+
+  if( ast_id( from ) == TK_PROGRAM )
   {
-    switch( errno )
-    {
-      case EACCES:
-        errorf( composite, "permission denied" );
-        break;
-
-      case EINVAL:
-      case ENOENT:
-      case ENOTDIR:
-        errorf( composite, "does not exist" );
-        break;
-
-      case EIO:
-        errorf( composite, "I/O error" );
-        break;
-
-      case ELOOP:
-        errorf( composite, "symbolic link loop" );
-        break;
-
-      case ENAMETOOLONG:
-        errorf( composite, "path name too long" );
-        break;
-
-      default:
-        errorf( composite, "unknown error" );
-    }
-
-    return NULL;
+    // try a path relative to the current working directory
+    result = try_path( NULL, path );
+    if( result != NULL ) { return result; }
+  } else {
+    // try a path relative to the importing package
+    from = ast_nearest( from, TK_PACKAGE );
+    result = try_path( ast_data( from ), path );
+    if( result != NULL ) { return result; }
   }
 
-  const char* name = stringtab( file );
+  // try the search paths
+  path_t* p = search;
+
+  while( p != NULL )
+  {
+    result = try_path( p->path, path );
+    if( result != NULL ) { return result; }
+    p = p->next;
+  }
+
+  return NULL;
+}
+
+void package_addpath( const char* path )
+{
+  path_t* p = malloc( sizeof(path_t) );
+  p->path = stringtab( path );
+  p->next = search;
+  search = p;
+}
+
+ast_t* package_load( ast_t* from, const char* path )
+{
+  const char* name = find_path( from, path );
+  if( name == NULL ) { return NULL; }
+
+  ast_t* program = ast_nearest( from, TK_PROGRAM );
   ast_t* package = ast_get( program, name );
 
   if( package != NULL ) { return package; }
@@ -148,4 +168,16 @@ ast_t* package_load( ast_t* from, const char* path )
   if( !typecheck( package ) ) { return NULL; }
 
   return package;
+}
+
+void package_done()
+{
+  path_t* next;
+
+  while( search != NULL )
+  {
+    next = search->next;
+    free( search );
+    search = next;
+  }
 }

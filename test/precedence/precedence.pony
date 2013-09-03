@@ -16,6 +16,9 @@ class Precedence[A:(Test), B:(Test|List[A, B]), C:fun throw():Array[B],
   fun optarg() =
     obj.invoke(arg, if 3 > 4 then "te\nst" else "real"->opt)
 
+class Aardvark[T]
+  var a:T
+
 class Foo[T]
   var a:Aardvark[T]{var}
 

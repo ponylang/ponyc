@@ -13,7 +13,7 @@ source_t* source_open( const char* file )
 
   if( fd == -1 )
   {
-    errorf( file, "Couldn't open file" );
+    errorf( file, "can't open file" );
     return NULL;
   }
 
@@ -21,7 +21,7 @@ source_t* source_open( const char* file )
 
   if( fstat( fd, &sb ) < 0 )
   {
-    errorf( file, "Couldn't determine length of file" );
+    errorf( file, "can't determine length of file" );
     close( fd );
     return NULL;
   }
@@ -31,7 +31,7 @@ source_t* source_open( const char* file )
 
   if( m == MAP_FAILED )
   {
-    errorf( file, "Couldn't read file" );
+    errorf( file, "can't read file" );
     return NULL;
   }
 

@@ -414,11 +414,7 @@ static type_t* objtype( ast_t* ast )
     return NULL;
   }
 
-  // FIX: check params are valid
-
   // FIX: get the mode with the viewpoint
-
-  // FIX: need to reify any traits that have formal parameters
 
   return type;
 }
