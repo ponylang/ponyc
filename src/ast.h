@@ -47,7 +47,7 @@ class: trait|class|actor
     field|function*
 
 field: var|val
-  data: ?
+  data: type_t
   symtab: n/a
   child:
     ID
@@ -67,7 +67,7 @@ function: fun|msg
     seq
 
 typeparam|param
-  data: ?
+  data: type_t
   symtab: n/a
   child:
     ID

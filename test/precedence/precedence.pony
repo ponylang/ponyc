@@ -2,8 +2,8 @@ use "../collections"
 
 trait Test
 
-class Precedence[A:(Test), B:(Test|List[A, B]), C:fun throw():Array[B],
-  D:(Test|List[A])] is List[B], Test[A]
+class Precedence[A:(Test), B:(Test|List[A]), C:fun throw():Array[B],
+  D:(Test|List[A])] is List[B], Test
   /* nested
   /* comments */
   work */
@@ -16,11 +16,13 @@ class Precedence[A:(Test), B:(Test|List[A, B]), C:fun throw():Array[B],
   fun optarg() =
     obj.invoke(arg, if 3 > 4 then "te\nst" else "real"->opt)
 
-class Aardvark[T]
-  var a:T
+trait Fooable[A:Fooable[A]]
+
+class Aardvark[A] is Fooable[This]
+  var a:A
 
 class Foo[T]
-  var a:Aardvark[T]{var}
+  var a:Aardvark[_]{var}
 
   fun get{iso|val|var}():Aardvark[T]{var}->this = a
   fun set{var}(a':Aardvark[T]{var}):Aardvark[T]{var} = a = a'

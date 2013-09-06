@@ -51,6 +51,7 @@ struct type_t
 {
   type_id id;
   mode_id mode;
+  bool valid;
   // FIX: need mode viewpoint adaptation
 
   union
@@ -370,9 +371,6 @@ static bool typelist( ast_t* ast, typelist_t** list )
 
 static type_t* objtype( ast_t* ast )
 {
-  type_t* type = calloc( 1, sizeof(type_t) );
-  type->id = T_OBJECT;
-
   ast_t* package = ast_child( ast );
   ast_t* class = ast_sibling( package );
   ast_t* param = ast_sibling( class );
@@ -380,41 +378,48 @@ static type_t* objtype( ast_t* ast )
   if( ast_id( class ) == TK_NONE )
   {
     class = package;
-    package = NULL;
-  }
-
-  if( package != NULL )
-  {
+    package = ast;
+  } else {
     ast_t* p = ast_get( ast_nearest( ast, TK_MODULE ), ast_name( package ) );
 
     if( p == NULL )
     {
       ast_error( package, "no package '%s' in scope", ast_name( package ) );
-      type_free( type );
       return NULL;
     }
 
     package = p;
-  } else {
-    package = ast;
   }
 
-  type->obj.ast = ast_get( package, ast_name( class ) );
+  const char* name = ast_name( class );
+  ast_t* type_ast = ast_get( package, name );
 
-  if( type->obj.ast == NULL )
+  if( type_ast == NULL )
   {
-    ast_error( class, "no type '%s' in scope", ast_name( class ) );
-    type_free( type );
+    if( (package == ast) && !strcmp( name, "_" ) )
+    {
+      if( ast_child( param ) != NULL )
+      {
+        ast_error( class, "type _ cannot have type arguments" );
+        return NULL;
+      }
+
+      return &infer;
+    }
+
+    ast_error( class, "no type '%s' in scope", name );
     return NULL;
   }
+
+  type_t* type = calloc( 1, sizeof(type_t) );
+  type->id = T_OBJECT;
+  type->obj.ast = type_ast;
 
   if( !typelist( ast_child( param ), &type->obj.params ) )
   {
     type_free( type );
     return NULL;
   }
-
-  // FIX: check the type parameters
 
   // FIX: get the mode with the viewpoint
 
@@ -486,6 +491,69 @@ static type_t* adttype( ast_t* ast )
   return type;
 }
 
+static bool obj_valid( type_t* type )
+{
+  /* FIX: check that all type parameters are subtypes of the type constraints
+  ast can point to alias, class or typeparam
+  */
+  switch( ast_id( type->obj.ast ) )
+  {
+    case TK_ALIAS:
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    {
+      typelist_t* arg = type->obj.params;
+      ast_t* param = ast_child( ast_childidx( type->obj.ast, 1 ) );
+
+      while( arg != NULL )
+      {
+        if( param == NULL )
+        {
+          ast_error( type->obj.ast, "type has too many type arguments" );
+          return false;
+        }
+
+        /* FIX: check arg is a subtype of ast_data( param )
+        but the param type needs to be bound
+        recursive types
+        */
+
+        arg = arg->next;
+        param = ast_sibling( param );
+      }
+
+      if( param != NULL )
+      {
+        ast_error( type->obj.ast, "type has too few type arguments" );
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_TYPEPARAM:
+    {
+      return true;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
+static bool typelist_valid( typelist_t* list )
+{
+  while( list != NULL )
+  {
+    if( !type_valid( list->type ) ) { return false; }
+    list = list->next;
+  }
+
+  return true;
+}
+
 type_t* type_ast( ast_t* ast )
 {
   type_t* type;
@@ -512,6 +580,27 @@ type_t* type_ast( ast_t* ast )
   }
 
   return typetable( type );
+}
+
+bool type_valid( type_t* type )
+{
+  if( type == NULL ) { return true; }
+  if( type->valid ) { return true; }
+
+  switch( type->id )
+  {
+    case T_INFER: type->valid = true; break;
+
+    case T_FUNCTION:
+      type->valid = typelist_valid( type->fun.params )
+        && obj_valid( type->fun.result );
+      break;
+
+    case T_OBJECT: type->valid = obj_valid( type ); break;
+    case T_ADT: type->valid = typelist_valid( type->adt.types ); break;
+  }
+
+  return type->valid;
 }
 
 bool type_eq( type_t* a, type_t* b )

@@ -3,27 +3,6 @@
 #include "types.h"
 #include "error.h"
 
-static bool resolve_type( ast_t* ast )
-{
-  switch( ast_id( ast ) )
-  {
-    case TK_ADT:
-    case TK_OBJTYPE:
-    case TK_FUNTYPE:
-    {
-      type_t* type = type_ast( ast );
-      if( type == NULL ) { return false; }
-
-      ast_attach( ast, type );
-      return true;
-    }
-
-    default: {}
-  }
-
-  return true;
-}
-
 static bool set_scope( ast_t* scope, ast_t* name, ast_t* value, bool type )
 {
   const char* s = ast_name( name );
@@ -147,13 +126,74 @@ static bool add_to_scope( ast_t* ast )
   return true;
 }
 
+static bool resolve_type( ast_t* ast )
+{
+  switch( ast_id( ast ) )
+  {
+    case TK_TYPEPARAM:
+    case TK_PARAM:
+    case TK_VAR:
+    case TK_VAL:
+    {
+      ast_t* child = ast_childidx( ast, 1 );
+
+      if( child != NULL )
+      {
+        ast_attach( ast, ast_data( child ) );
+      }
+
+      return true;
+    }
+
+    case TK_ADT:
+    case TK_OBJTYPE:
+    case TK_FUNTYPE:
+    {
+      type_t* type = type_ast( ast );
+      if( type == NULL ) { return false; }
+
+      ast_attach( ast, type );
+      return true;
+    }
+
+    default: {}
+  }
+
+  return true;
+}
+
+static bool check_type( ast_t* ast )
+{
+  switch( ast_id( ast ) )
+  {
+    case TK_ADT:
+    case TK_OBJTYPE:
+    case TK_FUNTYPE:
+    {
+      if( !type_valid( ast_data( ast ) ) )
+      {
+        ast_error( ast, "invalid type" );
+        return false;
+      }
+
+      // FIX:
+      return true;
+    }
+
+    default: {}
+  }
+
+  return true;
+}
+
 bool typecheck( ast_t* ast )
 {
   bool ret = true;
 
   ret &= use_package( ast, "builtin", NULL );
   ret &= ast_visit( ast, add_to_scope, NULL );
-  ret &= ast_visit( ast, resolve_type, NULL );
+  ret &= ast_visit( ast, NULL, resolve_type );
+  ret &= ast_visit( ast, check_type, NULL );
 
   /*
   FIX: check more things
