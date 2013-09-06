@@ -414,6 +414,8 @@ static type_t* objtype( ast_t* ast )
     return NULL;
   }
 
+  // FIX: check the type parameters
+
   // FIX: get the mode with the viewpoint
 
   return type;

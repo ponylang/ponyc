@@ -153,7 +153,7 @@ bool typecheck( ast_t* ast )
 
   ret &= use_package( ast, "builtin", NULL );
   ret &= ast_visit( ast, add_to_scope, NULL );
-  ret &= ast_visit( ast, NULL, resolve_type );
+  ret &= ast_visit( ast, resolve_type, NULL );
 
   /*
   FIX: check more things
