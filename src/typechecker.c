@@ -145,6 +145,10 @@ static bool resolve_type( ast_t* ast )
       return true;
     }
 
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_INFER:
     case TK_ADT:
     case TK_OBJTYPE:
     case TK_FUNTYPE:

@@ -124,6 +124,8 @@ ast_t* ast_parent( ast_t* ast );
 ast_t* ast_child( ast_t* ast );
 ast_t* ast_childidx( ast_t* ast, size_t idx );
 ast_t* ast_sibling( ast_t* ast );
+size_t ast_index( ast_t* ast );
+size_t ast_childcount( ast_t* ast );
 
 void* ast_get( ast_t* ast, const char* name );
 bool ast_set( ast_t* ast, const char* name, void* value );

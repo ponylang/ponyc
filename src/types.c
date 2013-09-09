@@ -23,6 +23,14 @@ typedef enum
   T_ADT
 } type_id;
 
+typedef enum
+{
+  T_UNCHECKED,
+  T_CHECKING,
+  T_VALID,
+  T_INVALID
+} type_ok;
+
 typedef struct typelist_t
 {
   type_t* type;
@@ -38,6 +46,7 @@ typedef struct funtype_t
 
 typedef struct objtype_t
 {
+  // FIX: keep a reified trait list
   ast_t* ast;
   typelist_t* params;
 } objtype_t;
@@ -51,7 +60,7 @@ struct type_t
 {
   type_id id;
   mode_id mode;
-  bool valid;
+  type_ok valid;
   // FIX: need mode viewpoint adaptation
 
   union
@@ -74,6 +83,7 @@ static type_t infer = { T_INFER, 0 };
 
 static void type_free( type_t* type );
 static uint64_t type_hash( type_t* type, uint64_t seed );
+static type_t* type_subst( type_t* type, typelist_t* list );
 
 static void typelist_free( typelist_t* list )
 {
@@ -111,6 +121,13 @@ static void type_free( type_t* type )
   }
 
   free( type );
+}
+
+static type_t* type_new( type_id id )
+{
+  type_t* type = calloc( 1, sizeof(type_t) );
+  type->id = id;
+  return type;
 }
 
 static uint64_t typelist_hash( typelist_t* list, uint64_t seed )
@@ -242,6 +259,7 @@ static bool a_in_obj_b( type_t* a, type_t* b )
   if( a_is_obj_b( a, b ) ) { return true; }
 
   // FIX: not right, need reified traits
+  /*
   ast_t* is = ast_childidx( a->obj.ast, 4 );
   ast_t* trait = ast_child( is );
 
@@ -250,8 +268,9 @@ static bool a_in_obj_b( type_t* a, type_t* b )
     if( a_in_obj_b( ast_data( trait ), b ) ) { return true; }
     trait = ast_sibling( trait );
   }
+  */
 
-  // FIX: if b is an infered trait, check for conformance
+  // FIX: if b is an inferred trait, check for conformance
   return false;
 }
 
@@ -346,24 +365,25 @@ static int typelist_len( typelist_t* list )
   return len;
 }
 
+static typelist_t** typelist_add( typelist_t** list, type_t* type )
+{
+  typelist_t* node = malloc( sizeof(typelist_t) );
+  node->type = type;
+  node->next = NULL;
+  *list = node;
+  return &node->next;
+}
+
 static bool typelist( ast_t* ast, typelist_t** list )
 {
-  typelist_t* node;
-  type_t* type;
+  ast_t* child = ast_child( ast );
 
-  while( ast != NULL )
+  while( child != NULL )
   {
-    type = type_ast( ast );
+    type_t* type = type_ast( child );
     if( type == NULL ) { return false; }
-
-    node = malloc( sizeof(typelist_t) );
-    node->type = type;
-    node->next = NULL;
-
-    *list = node;
-    list = &node->next;
-
-    ast = ast_sibling( ast );
+    list = typelist_add( list, type );
+    child = ast_sibling( child );
   }
 
   return true;
@@ -371,32 +391,32 @@ static bool typelist( ast_t* ast, typelist_t** list )
 
 static type_t* objtype( ast_t* ast )
 {
-  ast_t* package = ast_child( ast );
-  ast_t* class = ast_sibling( package );
+  ast_t* scope = ast_child( ast );
+  ast_t* class = ast_sibling( scope );
   ast_t* param = ast_sibling( class );
 
   if( ast_id( class ) == TK_NONE )
   {
-    class = package;
-    package = ast;
+    class = scope;
+    scope = ast;
   } else {
-    ast_t* p = ast_get( ast_nearest( ast, TK_MODULE ), ast_name( package ) );
+    ast_t* p = ast_get( ast_nearest( ast, TK_MODULE ), ast_name( scope ) );
 
     if( p == NULL )
     {
-      ast_error( package, "no package '%s' in scope", ast_name( package ) );
+      ast_error( scope, "no package '%s' in scope", ast_name( scope ) );
       return NULL;
     }
 
-    package = p;
+    scope = p;
   }
 
   const char* name = ast_name( class );
-  ast_t* type_ast = ast_get( package, name );
+  ast_t* type_ast = ast_get( scope, name );
 
   if( type_ast == NULL )
   {
-    if( (package == ast) && !strcmp( name, "_" ) )
+    if( (scope == ast) && !strcmp( name, "_" ) )
     {
       if( ast_child( param ) != NULL )
       {
@@ -411,11 +431,10 @@ static type_t* objtype( ast_t* ast )
     return NULL;
   }
 
-  type_t* type = calloc( 1, sizeof(type_t) );
-  type->id = T_OBJECT;
+  type_t* type = type_new( T_OBJECT );
   type->obj.ast = type_ast;
 
-  if( !typelist( ast_child( param ), &type->obj.params ) )
+  if( !typelist( param, &type->obj.params ) )
   {
     type_free( type );
     return NULL;
@@ -428,9 +447,7 @@ static type_t* objtype( ast_t* ast )
 
 static type_t* funtype( ast_t* ast )
 {
-  type_t* type = calloc( 1, sizeof(type_t) );
-  type->id = T_FUNCTION;
-
+  type_t* type = type_new( T_FUNCTION );
   ast_t* child = ast_child( ast );
 
   if( ast_id( child ) == TK_THROW ) { type->fun.throws = true; }
@@ -439,7 +456,7 @@ static type_t* funtype( ast_t* ast )
   // FIX: get the mode with the viewpoint
   child = ast_sibling( child );
 
-  if( !typelist( ast_child( child ), &type->fun.params ) )
+  if( !typelist( child, &type->fun.params ) )
   {
     type_free( type );
     return NULL;
@@ -459,10 +476,9 @@ static type_t* funtype( ast_t* ast )
 
 static type_t* adttype( ast_t* ast )
 {
-  type_t* type = calloc( 1, sizeof(type_t) );
-  type->id = T_ADT;
+  type_t* type = type_new( T_ADT );
 
-  if( !typelist( ast_child( ast ), &type->adt.types ) )
+  if( !typelist( ast, &type->adt.types ) )
   {
     type_free( type );
     return NULL;
@@ -491,6 +507,70 @@ static type_t* adttype( ast_t* ast )
   return type;
 }
 
+static void typelist_subst( typelist_t** to, typelist_t* from, typelist_t* list )
+{
+  while( from != NULL )
+  {
+    to = typelist_add( to, type_subst( from->type, list ) );
+    from = from->next;
+  }
+}
+
+static type_t* type_subst( type_t* type, typelist_t* list )
+{
+  type_t* subst;
+
+  switch( type->id )
+  {
+    case T_INFER: return type;
+
+    case T_FUNCTION:
+      subst = type_new( T_FUNCTION );
+      typelist_subst( &subst->fun.params, type->fun.params, list );
+      subst->fun.result = type_subst( type->fun.result, list );
+      subst->fun.throws = type->fun.throws;
+      break;
+
+    case T_OBJECT:
+      switch( ast_id( type->obj.ast ) )
+      {
+        case TK_ALIAS:
+        case TK_TRAIT:
+        case TK_CLASS:
+        case TK_ACTOR:
+          subst = type_new( T_OBJECT );
+          subst->obj.ast = type->obj.ast;
+          typelist_subst( &subst->obj.params, type->obj.params, list );
+          break;
+
+        case TK_TYPEPARAM:
+        {
+          int idx = ast_index( type->obj.ast );
+          typelist_t* sub = list;
+
+          while( idx > 0 )
+          {
+            sub = sub->next;
+            idx--;
+          }
+
+          subst = sub->type;
+          break;
+        }
+
+        default: return NULL;
+      }
+      break;
+
+    case T_ADT:
+      subst = type_new( T_ADT );
+      typelist_subst( &subst->adt.types, type->adt.types, list );
+      break;
+  }
+
+  return typetable( subst );
+}
+
 static bool obj_valid( type_t* type )
 {
   /* FIX: check that all type parameters are subtypes of the type constraints
@@ -499,34 +579,56 @@ static bool obj_valid( type_t* type )
   switch( ast_id( type->obj.ast ) )
   {
     case TK_ALIAS:
+      // FIX:
+      return true;
+
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:
     {
+      ast_t* params = ast_childidx( type->obj.ast, 1 );
+      int count_arg = typelist_len( type->obj.params );
+      int count_param = ast_childcount( params );
+
+      if( count_arg != count_param )
+      {
+        ast_error( type->obj.ast, "type has %d type argument%s, expected %d",
+          count_arg, (count_arg == 1) ? "" : "s", count_param );
+        return false;
+      }
+
+      if( count_arg == 0 ) { return true; }
+
+      // for each argument of the type being checked
       typelist_t* arg = type->obj.params;
-      ast_t* param = ast_child( ast_childidx( type->obj.ast, 1 ) );
+      ast_t* param = ast_child( params );
 
       while( arg != NULL )
       {
-        if( param == NULL )
-        {
-          ast_error( type->obj.ast, "type has too many type arguments" );
-          return false;
-        }
+        // get the bounds of the parameter
+        type_t* param_type = ast_data( param );
 
-        /* FIX: check arg is a subtype of ast_data( param )
-        but the param type needs to be bound
-        recursive types
-        */
+        // if the argument is the parameter, it matches
+        if( (arg->type->id != T_OBJECT)
+          || (ast_id( arg->type->obj.ast ) != TK_TYPEPARAM )
+          || (arg->type->obj.ast != param)
+          )
+        {
+          // otherwise, substitute the parameter list in the bounds
+          type_t* subst = type_subst( param_type, type->obj.params );
+
+          // and check that the argument is a subtype of the resulting type
+          if( !type_sub( arg->type, subst ) )
+          {
+            ast_error( type->obj.ast,
+              "type argument %zd isn't within the constraint",
+              ast_index( param ) + 1 );
+            return false;
+          }
+        }
 
         arg = arg->next;
         param = ast_sibling( param );
-      }
-
-      if( param != NULL )
-      {
-        ast_error( type->obj.ast, "type has too few type arguments" );
-        return false;
       }
 
       return true;
@@ -534,6 +636,12 @@ static bool obj_valid( type_t* type )
 
     case TK_TYPEPARAM:
     {
+      if( type->obj.params != NULL )
+      {
+        ast_error( type->obj.ast, "type parameter can't have type arguments" );
+        return false;
+      }
+
       return true;
     }
 
@@ -572,11 +680,8 @@ type_t* type_ast( ast_t* ast )
       type = objtype( ast );
       break;
 
-    case TK_INFER:
-      return &infer;
-
-    default:
-      return NULL;
+    case TK_INFER: return &infer;
+    default: return NULL;
   }
 
   return typetable( type );
@@ -585,22 +690,36 @@ type_t* type_ast( ast_t* ast )
 bool type_valid( type_t* type )
 {
   if( type == NULL ) { return true; }
-  if( type->valid ) { return true; }
+
+  switch( type->valid )
+  {
+    case T_CHECKING:
+      // FIX: not all recursive types are errors?
+      return false;
+
+    case T_VALID: return true;
+    case T_INVALID: return false;
+    default: {}
+  }
+
+  bool ret;
+  type->valid = T_CHECKING;
 
   switch( type->id )
   {
-    case T_INFER: type->valid = true; break;
+    case T_INFER: ret = true; break;
 
     case T_FUNCTION:
-      type->valid = typelist_valid( type->fun.params )
+      ret = typelist_valid( type->fun.params )
         && obj_valid( type->fun.result );
       break;
 
-    case T_OBJECT: type->valid = obj_valid( type ); break;
-    case T_ADT: type->valid = typelist_valid( type->adt.types ); break;
+    case T_OBJECT: ret = obj_valid( type ); break;
+    case T_ADT: ret = typelist_valid( type->adt.types ); break;
   }
 
-  return type->valid;
+  type->valid = ret ? T_VALID : T_INVALID;
+  return ret;
 }
 
 bool type_eq( type_t* a, type_t* b )

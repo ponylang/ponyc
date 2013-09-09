@@ -180,6 +180,34 @@ ast_t* ast_sibling( ast_t* ast )
   return ast->sibling;
 }
 
+size_t ast_index( ast_t* ast )
+{
+  ast_t* child = ast->parent->child;
+  size_t idx = 0;
+
+  while( child != ast )
+  {
+    child = child->sibling;
+    idx++;
+  }
+
+  return idx;
+}
+
+size_t ast_childcount( ast_t* ast )
+{
+  ast_t* child = ast->child;
+  size_t count = 0;
+
+  while( child != NULL )
+  {
+    child = child->sibling;
+    count++;
+  }
+
+  return count;
+}
+
 void* ast_get( ast_t* ast, const char* name )
 {
   /* searches all parent scopes, but not the program scope, because the name
