@@ -32,3 +32,9 @@ class Foo[T]
 
   fun get{iso|val|var}():Aardvark[T]{var}->this = a
   fun set{var}(a':Aardvark[T]{var}):Aardvark[T]{var} = a = a'
+
+alias FooOrAardvark[A]:(Aardvark[A]|Foo[A])
+
+alias SomeWallaby[A:Dormouse[Test, Test]]:(Wallaby[A]|Aardvark[A])
+
+alias OtherFooable[A:Fooable[A]]:Fooable[A]

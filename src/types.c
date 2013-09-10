@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define HASH_SIZE 4096
 #define HASH_MASK (HASH_SIZE - 1)
@@ -46,7 +47,6 @@ typedef struct funtype_t
 
 typedef struct objtype_t
 {
-  // FIX: keep a reified trait list
   ast_t* ast;
   typelist_t* params;
 } objtype_t;
@@ -258,18 +258,20 @@ static bool a_in_obj_b( type_t* a, type_t* b )
   if( a->id != T_OBJECT ) { return false; }
   if( a_is_obj_b( a, b ) ) { return true; }
 
-  // FIX: not right, need reified traits
-  /*
-  ast_t* is = ast_childidx( a->obj.ast, 4 );
-  ast_t* trait = ast_child( is );
+  // check reified traits
+  ast_t* trait = ast_child( ast_childidx( a->obj.ast, 4 ) );
 
   while( trait != NULL )
   {
-    if( a_in_obj_b( ast_data( trait ), b ) ) { return true; }
+    if( type_sub( type_subst( ast_data( trait ), a->obj.params ), b ) )
+    {
+      return true;
+    }
+
     trait = ast_sibling( trait );
   }
-  */
 
+  // FIX: check transitive traits
   // FIX: if b is an inferred trait, check for conformance
   return false;
 }
@@ -571,17 +573,47 @@ static type_t* type_subst( type_t* type, typelist_t* list )
   return typetable( subst );
 }
 
-static bool obj_valid( type_t* type )
+static bool arg_valid( ast_t* ast, type_t* type, type_t* arg, ast_t* param )
 {
-  /* FIX: check that all type parameters are subtypes of the type constraints
-  ast can point to alias, class or typeparam
-  */
+  if( (arg->id == T_OBJECT)
+    && (ast_id( arg->obj.ast ) == TK_TYPEPARAM )
+    )
+  {
+    // if the argument is the parameter, it matches
+    if( arg->obj.ast == param ) { return true; }
+    arg = ast_data( arg->obj.ast );
+  }
+
+  // substitute the parameter list in the bounds
+  type_t* subst = type_subst( ast_data( param ), type->obj.params );
+
+#if 0
+  type_print( type );
+  printf( ": " );
+  type_print( arg );
+  printf( " <: " );
+  type_print( subst );
+  printf( " from " );
+  type_print( ast_data( param ) );
+  printf( "\n" );
+#endif
+
+  // check that the argument is a subtype of the resulting type
+  if( !type_sub( arg, subst ) )
+  {
+    ast_error( ast, "type argument %zd isn't within the constraint",
+      ast_index( param ) + 1 );
+    return false;
+  }
+
+  return true;
+}
+
+static bool obj_valid( ast_t* ast, type_t* type )
+{
   switch( ast_id( type->obj.ast ) )
   {
     case TK_ALIAS:
-      // FIX:
-      return true;
-
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:
@@ -592,41 +624,19 @@ static bool obj_valid( type_t* type )
 
       if( count_arg != count_param )
       {
-        ast_error( type->obj.ast, "type has %d type argument%s, expected %d",
+        ast_error( ast, "type has %d type argument%s, expected %d",
           count_arg, (count_arg == 1) ? "" : "s", count_param );
         return false;
       }
 
       if( count_arg == 0 ) { return true; }
 
-      // for each argument of the type being checked
       typelist_t* arg = type->obj.params;
       ast_t* param = ast_child( params );
 
       while( arg != NULL )
       {
-        // get the bounds of the parameter
-        type_t* param_type = ast_data( param );
-
-        // if the argument is the parameter, it matches
-        if( (arg->type->id != T_OBJECT)
-          || (ast_id( arg->type->obj.ast ) != TK_TYPEPARAM )
-          || (arg->type->obj.ast != param)
-          )
-        {
-          // otherwise, substitute the parameter list in the bounds
-          type_t* subst = type_subst( param_type, type->obj.params );
-
-          // and check that the argument is a subtype of the resulting type
-          if( !type_sub( arg->type, subst ) )
-          {
-            ast_error( type->obj.ast,
-              "type argument %zd isn't within the constraint",
-              ast_index( param ) + 1 );
-            return false;
-          }
-        }
-
+        if( !arg_valid( ast, type, arg->type, param ) ) { return false; }
         arg = arg->next;
         param = ast_sibling( param );
       }
@@ -638,7 +648,7 @@ static bool obj_valid( type_t* type )
     {
       if( type->obj.params != NULL )
       {
-        ast_error( type->obj.ast, "type parameter can't have type arguments" );
+        ast_error( ast, "type parameter can't have type arguments" );
         return false;
       }
 
@@ -651,11 +661,11 @@ static bool obj_valid( type_t* type )
   return false;
 }
 
-static bool typelist_valid( typelist_t* list )
+static bool typelist_valid( ast_t* ast, typelist_t* list )
 {
   while( list != NULL )
   {
-    if( !type_valid( list->type ) ) { return false; }
+    if( !type_valid( ast, list->type ) ) { return false; }
     list = list->next;
   }
 
@@ -687,14 +697,14 @@ type_t* type_ast( ast_t* ast )
   return typetable( type );
 }
 
-bool type_valid( type_t* type )
+bool type_valid( ast_t* ast, type_t* type )
 {
   if( type == NULL ) { return true; }
 
   switch( type->valid )
   {
     case T_CHECKING:
-      // FIX: not all recursive types are errors?
+      ast_error( ast, "recursion while checking validity" );
       return false;
 
     case T_VALID: return true;
@@ -710,12 +720,12 @@ bool type_valid( type_t* type )
     case T_INFER: ret = true; break;
 
     case T_FUNCTION:
-      ret = typelist_valid( type->fun.params )
-        && obj_valid( type->fun.result );
+      ret = typelist_valid( ast, type->fun.params )
+        && obj_valid( ast, type->fun.result );
       break;
 
-    case T_OBJECT: ret = obj_valid( type ); break;
-    case T_ADT: ret = typelist_valid( type->adt.types ); break;
+    case T_OBJECT: ret = obj_valid( ast, type ); break;
+    case T_ADT: ret = typelist_valid( ast, type->adt.types ); break;
   }
 
   type->valid = ret ? T_VALID : T_INVALID;
@@ -755,6 +765,58 @@ bool type_sub( type_t* a, type_t* b )
   }
 
   return false;
+}
+
+static void typelist_print( typelist_t* list, const char* sep )
+{
+  while( list != NULL )
+  {
+    type_print( list->type );
+    list = list->next;
+    if( list != NULL ) { printf( sep ); }
+  }
+}
+
+void type_print( type_t* a )
+{
+  if( a == NULL )
+  {
+    printf( "null" );
+    return;
+  }
+
+  switch( a->id )
+  {
+    case T_INFER:
+      printf( "infer" );
+      break;
+
+    case T_FUNCTION:
+      printf( "fun" );
+      if( a->fun.throws ) { printf( " throw " ); }
+      printf( "(" );
+      typelist_print( a->fun.params, ", " );
+      printf( "):" );
+      type_print( a->fun.result );
+      break;
+
+    case T_OBJECT:
+      printf( ast_name( ast_child( a->obj.ast ) ) );
+
+      if( a->obj.params != NULL )
+      {
+        printf( "[" );
+        typelist_print( a->obj.params, ", " );
+        printf( "]" );
+      }
+      break;
+
+    case T_ADT:
+      printf( "(" );
+      typelist_print( a->adt.types, "|" );
+      printf( ")" );
+      break;
+  }
 }
 
 void type_done()

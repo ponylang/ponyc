@@ -145,9 +145,6 @@ static bool resolve_type( ast_t* ast )
       return true;
     }
 
-    case TK_TRAIT:
-    case TK_CLASS:
-    case TK_ACTOR:
     case TK_INFER:
     case TK_ADT:
     case TK_OBJTYPE:
@@ -173,16 +170,7 @@ static bool check_type( ast_t* ast )
     case TK_ADT:
     case TK_OBJTYPE:
     case TK_FUNTYPE:
-    {
-      if( !type_valid( ast_data( ast ) ) )
-      {
-        ast_error( ast, "invalid type" );
-        return false;
-      }
-
-      // FIX:
-      return true;
-    }
+      return type_valid( ast, ast_data( ast ) );
 
     default: {}
   }
