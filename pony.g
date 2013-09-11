@@ -9,15 +9,16 @@ options
 // Parser
 
 module
-  :  (use | class_ | alias | typedef_)*
+  :  (use | class_ | alias)*
   ;
 
 use
   :  'use' STRING ('as' ID)?
   ;
 
+// FIX: 'of type' not in code yet, use to constrain This for traits
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? mode ('private' | 'infer')? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? mode ('of' type)? ('private' | 'infer')? ('is' types)? member*
   ;
 
 member
@@ -27,11 +28,6 @@ member
 
 alias
   :  'alias' ID type_params? oftype
-  ;
-
-// FIX: separate out retrofitting from aliasing, not in code yet
-typedef_
-  :  'type' ID ('.' ID)* type_params? ('is' types)? ('where' member*)?
   ;
 
 types

@@ -38,3 +38,22 @@ alias FooOrAardvark[A]:(Aardvark[A]|Foo[A])
 alias SomeWallaby[A:Dormouse[Test, Test]]:(Wallaby[A]|Aardvark[A])
 
 alias OtherFooable[A:Fooable[A]]:Fooable[A]
+
+trait Zero
+
+trait One is Zero
+
+trait Two is One
+
+trait First[A:Zero]
+
+trait Second[A:One] is First[A]
+
+trait Third[A:Two] is Second[A]
+
+trait Fourth[A:First[_]]
+
+class Fifth is Third[Two]
+  var a:Fourth[Fifth]
+
+  fun foo[A:Fooable[A]](a':A):A = a

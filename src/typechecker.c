@@ -189,12 +189,10 @@ bool typecheck( ast_t* ast )
 
   /*
   FIX: check more things
-  validate type parameters
-    needs subtype relationship
-    which needs objtype traits
-    which need to be reified
-    which needs to happen recursively for traits picked up through traits
-    which needs to be flattened into the list of traits for the type
+  inferred traits
+  modes
+  objects can be functions based on the apply method
+  expression typing
   */
 
   return ret;

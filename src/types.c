@@ -271,7 +271,6 @@ static bool a_in_obj_b( type_t* a, type_t* b )
     trait = ast_sibling( trait );
   }
 
-  // FIX: check transitive traits
   // FIX: if b is an inferred trait, check for conformance
   return false;
 }
@@ -575,6 +574,8 @@ static type_t* type_subst( type_t* type, typelist_t* list )
 
 static bool arg_valid( ast_t* ast, type_t* type, type_t* arg, ast_t* param )
 {
+  if( arg->id == T_INFER ) { return true; }
+
   if( (arg->id == T_OBJECT)
     && (ast_id( arg->obj.ast ) == TK_TYPEPARAM )
     )
@@ -586,17 +587,6 @@ static bool arg_valid( ast_t* ast, type_t* type, type_t* arg, ast_t* param )
 
   // substitute the parameter list in the bounds
   type_t* subst = type_subst( ast_data( param ), type->obj.params );
-
-#if 0
-  type_print( type );
-  printf( ": " );
-  type_print( arg );
-  printf( " <: " );
-  type_print( subst );
-  printf( " from " );
-  type_print( ast_data( param ) );
-  printf( "\n" );
-#endif
 
   // check that the argument is a subtype of the resulting type
   if( !type_sub( arg, subst ) )
@@ -734,7 +724,14 @@ bool type_valid( ast_t* ast, type_t* type )
 
 bool type_eq( type_t* a, type_t* b )
 {
-  if( a == b ) { return true; }
+  if( (a == b)
+    || (a->id == T_INFER)
+    || (b->id == T_INFER)
+    )
+  {
+    return true;
+  }
+
   if( a->id != b->id ) { return false; }
 
   switch( b->id )
@@ -753,7 +750,14 @@ bool type_eq( type_t* a, type_t* b )
 
 bool type_sub( type_t* a, type_t* b )
 {
-  if( a == b ) { return true; }
+  if( (a == b)
+    || (a->id == T_INFER)
+    || (b->id == T_INFER)
+    )
+  {
+    return true;
+  }
+
   if( a->id == T_ADT ) { return adt_a_in_b( a, b ); }
 
   switch( b->id )
