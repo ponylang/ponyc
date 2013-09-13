@@ -59,3 +59,9 @@ class Fifth is Third[Two]
   fun foo[A:Fooable[A]](a':A):A = a
 
 class Functor[A:fun(I32, (String|None)):Bool]
+
+class Sophia[X:Fooable[X]] is Fooable[X]
+
+class Subject[A:Observer[A, B], B:Subject[A, B]]
+
+class Observer[A:Observer[A, B], B:Subject[A, B]]
