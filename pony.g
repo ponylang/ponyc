@@ -81,6 +81,15 @@ arg
   :  expr ('->' ID)?
   ;
 
+/* FIX: would be nice to be able to say:
+a = if not match ...
+a = not if ... then ... else ...
+a = if ... then ... else ... + ...
+
+those all require the clause to have a terminator that can't be part of an expression
+match, try, if already have one if there is no else clause
+fun, while, do, for don't
+*/
 expr
   :  ('var' | 'val') ID oftype? '=' expr
      // return the value of binary, not expr. a = b returns a, b = a = b is a swap

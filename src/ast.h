@@ -22,7 +22,6 @@ module
 
 use
   data: n/a
-  symtab: n/a
   child:
     path
     ID|NONE
@@ -48,7 +47,6 @@ class: trait|class|actor
 
 field: var|val
   data: type_t
-  symtab: n/a
   child:
     ID
     type
@@ -68,7 +66,6 @@ function: fun|msg
 
 typeparam|param
   data: type_t
-  symtab: n/a
   child:
     ID
     type
@@ -79,13 +76,11 @@ type:
 
 adt:
   data: type_t
-  symtab: n/a
   child:
     type*
 
 funtype:
   data: type_t
-  symtab: n/a
   child:
     THROW|NONE
     mode
@@ -94,7 +89,6 @@ funtype:
 
 objtype:
   data: type_t
-  symtab: n/a
   child:
     ID
     ID|NONE
@@ -102,7 +96,37 @@ objtype:
     mode
 
 mode
-seq
+  ?
+
+seq:
+  data: ?
+  symtab: ID -> local
+  child:
+    expr*
+
+expr: var|val|fun|if|match|while|do|for|break|continue|return|try|throw|binop
+
+var|val:
+  child:
+    ID
+    type
+    expr
+
+lambda:
+  symtab: ID -> param
+  THROW
+  mode
+  list of param
+  type
+  expr
+
+if:
+  seq
+  expr
+  expr|END
+
+match:
+
 */
 
 typedef struct ast_t ast_t;
