@@ -129,7 +129,6 @@ int main( int argc, char** argv )
   if( !package_load( program, target ) ) { ret = -1; }
 
   /* FIX:
-   * load builtin types
    * detect imported but unused packages in a module
    *  might be the same code that detects unused vars, fields, etc?
    * code generation

@@ -1,3 +1,5 @@
+class POINTER[A]
+
 class Array[A] is Iterable[A]
   var size:U64
   var alloc:U64

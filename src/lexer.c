@@ -888,6 +888,11 @@ const char* token_string( token_t* token )
   return "UNKNOWN";
 }
 
+void token_setstring( token_t* token, const char* s )
+{
+  token->string = stringtab( s );
+}
+
 void token_free( token_t* token )
 {
   if( token == NULL ) { return; }

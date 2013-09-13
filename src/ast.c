@@ -252,6 +252,22 @@ void ast_add( ast_t* parent, ast_t* child )
   parent->child = child;
 }
 
+void ast_append( ast_t* parent, ast_t* child )
+{
+  child->parent = parent;
+  child->sibling = NULL;
+
+  if( parent->child == NULL )
+  {
+    parent->child = child;
+    return;
+  }
+
+  ast_t* ast = parent->child;
+  while( ast->sibling != NULL ) { ast = ast->sibling; }
+  ast->sibling = child;
+}
+
 void ast_reverse( ast_t* ast )
 {
   if( ast == NULL ) { return; }

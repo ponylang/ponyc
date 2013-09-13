@@ -99,6 +99,7 @@ typedef enum
   TK_MODE,
   TK_TYPEPARAM,
   TK_PARAM,
+  TK_TYPEARGS,
   TK_CALL,
   TK_SEQ,
 
@@ -125,6 +126,7 @@ token_t* lexer_next( lexer_t* lexer );
 
 token_t* token_new( token_id id, size_t line, size_t pos );
 const char* token_string( token_t* token );
+void token_setstring( token_t* token, const char* s );
 void token_free( token_t* token );
 
 #endif

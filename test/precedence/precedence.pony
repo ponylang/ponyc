@@ -57,3 +57,5 @@ class Fifth is Third[Two]
   var a:Fourth[Fifth]
 
   fun foo[A:Fooable[A]](a':A):A = a
+
+class Functor[A:fun(I32, (String|None)):Bool]

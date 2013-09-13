@@ -7,113 +7,96 @@
 /*
 program
   symtab: path -> package
-  child: package
-  sibling: n/a
+  package*
 
 package
   data: path
   symtab: ID -> alias|class
-  child: module*
+  module*
 
 module
   data: source
   symtab: ID -> package|alias|class
-  child: use|alias|class*
+  (use|alias|class)*
 
 use
-  data: n/a
-  child:
-    path
-    ID|NONE
+  path
+  ID|NONE
 
 alias
-  data: ?
   symtab: ID -> typeparam
-  child:
-    ID
-    list of typeparam
-    type
+  ID
+  list of typeparam
+  type
 
 class: trait|class|actor
-  data: ?
   symtab: ID -> typeparam|param|field|function
-  child:
-    ID
-    list of typeparam
-    mode
-    PRIVATE|INFER|NONE
-    is: type*
-    field|function*
+  ID
+  list of typeparam
+  mode
+  (PRIVATE|INFER|NONE)
+  is: type*
+  (field|function)*
 
 field: var|val
   data: type_t
-  child:
-    ID
-    type
+  ID
+  type
 
 function: fun|msg
-  data: ?
   symtab: ID -> typeparam|param
-  child:
-    PRIVATE|NONE
-    THROW|NONE
-    ID
-    list of typeparam
-    mode
-    list of param
-    type
-    seq
+  (PRIVATE|NONE)
+  (THROW|NONE)
+  ID
+  list of typeparam
+  mode
+  list of param
+  type
+  seq
 
 typeparam|param
   data: type_t
-  child:
-    ID
-    type
-    expr|NONE
+  ID
+  type
+  expr|NONE
 
 type:
   adt|funtype|objtype|INFER
 
 adt:
   data: type_t
-  child:
-    type*
+  type*
 
 funtype:
   data: type_t
-  child:
-    THROW|NONE
-    mode
-    list of type
-    type
+  THROW|NONE
+  mode
+  list of type
+  type
 
 objtype:
   data: type_t
-  child:
-    ID
-    ID|NONE
-    list of type
-    mode
+  ID
+  (ID|NONE)
+  list of type
+  mode
 
 mode
-  ?
+  list of (ISO|VAR|VAL|TAG|THIS|ID)
+  THIS|ID|NONE
 
 seq:
-  data: ?
   symtab: ID -> local
-  child:
-    expr*
+  expr*
 
-expr: var|val|fun|if|match|while|do|for|break|continue|return|try|throw|binop
+expr: var|val|fun|if|match|while|do|for|break|continue|return|try|throw|binary
 
 var|val:
-  child:
-    ID
-    type
-    expr
+  ID
+  type
+  expr
 
 lambda:
-  symtab: ID -> param
   THROW
   mode
   list of param
@@ -123,10 +106,68 @@ lambda:
 if:
   seq
   expr
-  expr|END
+  (expr|END)
 
 match:
+  seq
+  list of case
 
+case:
+  (binary|NONE)
+  as: (ID, type)|NONE
+  (binary|NONE)
+  seq
+
+while:
+  seq
+  expr
+
+do:
+  seq
+  expr
+
+for:
+  ID
+  type
+  seq
+  expr
+
+return:
+  expr
+
+try:
+  seq
+  (seq|NONE)
+  (expr|END)
+
+break
+continue
+throw
+
+postfix: primary|dot|typeargs|call
+
+primary: THIS|INT|FLOAT|STRING|ID|seq
+
+dot:
+  postfix
+  ID
+
+typeargs
+  postfix
+  list of type
+
+call:
+  postfix
+  list of arg
+
+unop: NOT|MINUS
+
+unary: (unop: unary)|postfix
+
+binop:
+  AND|OR|XOR|PLUS|MINUS|MULTIPLY|DIVIDE|MOD|LSHIFT|RSHIFT|EQ|NEQ|LT|LE|GE|GT
+
+binary: (binop: unary unary)|unary
 */
 
 typedef struct ast_t ast_t;
@@ -156,6 +197,7 @@ bool ast_set( ast_t* ast, const char* name, void* value );
 bool ast_merge( ast_t* dst, ast_t* src );
 
 void ast_add( ast_t* parent, ast_t* child );
+void ast_append( ast_t* parent, ast_t* child );
 void ast_reverse( ast_t* ast );
 void ast_print( ast_t* ast );
 void ast_free( ast_t* ast );

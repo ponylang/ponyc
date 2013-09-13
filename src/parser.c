@@ -546,7 +546,7 @@ static ast_t* postfix( parser_t* parser )
       BINOP( TK_DOT );
       EXPECT( TK_ID );
     } else if( LOOK( TK_LBRACKET ) ) {
-      BINOP( TK_CALL );
+      BINOP( TK_TYPEARGS );
       RULE( typeargs );
     } else if( LOOK( TK_LPAREN ) ) {
       BINOP( TK_CALL );
@@ -676,6 +676,8 @@ static ast_t* caseexpr( parser_t* parser )
   if( is_binary( parser ) )
   {
     RULE( binary );
+  } else {
+    INSERT( TK_NONE );
   }
 
   RULE( as );
@@ -684,7 +686,7 @@ static ast_t* caseexpr( parser_t* parser )
   {
     RULE( binary );
   } else {
-    INSERT( TK_IF );
+    INSERT( TK_NONE );
   }
 
   EXPECT_DROP( TK_EQUALS );

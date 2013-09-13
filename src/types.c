@@ -271,7 +271,11 @@ static bool a_in_obj_b( type_t* a, type_t* b )
     trait = ast_sibling( trait );
   }
 
-  // FIX: if b is an inferred trait, check for conformance
+  if( ast_id( ast_childidx( b->obj.ast, 3 ) ) == TK_INFER )
+  {
+    // FIX: if b is an inferred trait, check for conformance
+  }
+
   return false;
 }
 
@@ -390,6 +394,22 @@ static bool typelist( ast_t* ast, typelist_t** list )
   return true;
 }
 
+static type_t* nametype( ast_t* scope, const char* name )
+{
+  ast_t* type_ast = ast_get( scope, name );
+
+  if( type_ast == NULL )
+  {
+    if( !strcmp( name, "_" ) ) { return &infer; }
+    return NULL;
+  }
+
+  type_t* type = type_new( T_OBJECT );
+  type->obj.ast = type_ast;
+
+  return type;
+}
+
 static type_t* objtype( ast_t* ast )
 {
   ast_t* scope = ast_child( ast );
@@ -413,27 +433,19 @@ static type_t* objtype( ast_t* ast )
   }
 
   const char* name = ast_name( class );
-  ast_t* type_ast = ast_get( scope, name );
+  type_t* type = nametype( scope, name );
 
-  if( type_ast == NULL )
+  if( (type == &infer) && (ast_child( param ) != NULL) )
   {
-    if( (scope == ast) && !strcmp( name, "_" ) )
-    {
-      if( ast_child( param ) != NULL )
-      {
-        ast_error( class, "type _ cannot have type arguments" );
-        return NULL;
-      }
-
-      return &infer;
-    }
-
-    ast_error( class, "no type '%s' in scope", name );
+    ast_error( class, "type _ cannot have type arguments" );
     return NULL;
   }
 
-  type_t* type = type_new( T_OBJECT );
-  type->obj.ast = type_ast;
+  if( type == NULL )
+  {
+    ast_error( class, "no type '%s' in scope", name );
+    return NULL;
+  }
 
   if( !typelist( param, &type->obj.params ) )
   {
@@ -662,6 +674,18 @@ static bool typelist_valid( ast_t* ast, typelist_t* list )
   return true;
 }
 
+type_t* type_name( ast_t* ast, const char* name )
+{
+  type_t* type = nametype( ast, name );
+
+  if( type == NULL )
+  {
+    ast_error( ast, "no type '%s' in scope", name );
+  }
+
+  return type;
+}
+
 type_t* type_ast( ast_t* ast )
 {
   type_t* type;
@@ -777,7 +801,7 @@ static void typelist_print( typelist_t* list, const char* sep )
   {
     type_print( list->type );
     list = list->next;
-    if( list != NULL ) { printf( sep ); }
+    if( list != NULL ) { printf( "%s", sep ); }
   }
 }
 
@@ -805,7 +829,7 @@ void type_print( type_t* a )
       break;
 
     case T_OBJECT:
-      printf( ast_name( ast_child( a->obj.ast ) ) );
+      printf( "%s", ast_name( ast_child( a->obj.ast ) ) );
 
       if( a->obj.params != NULL )
       {
