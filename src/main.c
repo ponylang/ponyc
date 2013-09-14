@@ -24,9 +24,9 @@ static bool filepath( const char *file, char* path )
   {
     if( p != path )
     {
-      *p = '\0';
+      p[0] = '\0';
     } else {
-      *(p + 1) = '\0';
+      p[1] = '\0';
     }
   }
 
@@ -97,7 +97,7 @@ static void ponypath()
     {
       char path[FILENAME_MAX];
       strncpy( path, env, len );
-      path[len++] = '\0';
+      path[len] = '\0';
       package_addpath( path );
     }
 

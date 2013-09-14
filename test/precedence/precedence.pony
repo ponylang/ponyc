@@ -8,7 +8,7 @@ class Precedence[A:(Test), B:(Test|List[A]), C:fun throw():Array[B],
   /* nested
   /* comments */
   work */
-  fun assoc():I32 = 1_ + 77 * 2.0e-2 * 0xF_F / 0b1_1 % 01_2
+  fun assoc():I32 = 1, + 77 * 2.0e-2 * 0xF,F / 0b1,1 % 01,2 + 3.hello()
 
   fun assoc2():F32 = 1 * 2 + 3
 

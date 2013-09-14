@@ -64,12 +64,16 @@ static ast_t* gen_type( ast_t* ast )
   ast_t* obj_id = ast_token( t );
 
   ast_t* list = ast_newid( TK_LIST );
-  ast_t* param = ast_child( ast_childidx( ast, 1 ) );
 
-  while( param != NULL )
+  if( ast_id( ast ) != TK_TYPEPARAM )
   {
-    ast_add( list, gen_type( param ) );
-    param = ast_sibling( param );
+    ast_t* param = ast_child( ast_childidx( ast, 1 ) );
+
+    while( param != NULL )
+    {
+      ast_add( list, gen_type( param ) );
+      param = ast_sibling( param );
+    }
   }
 
   ast_t* mode = ast_newid( TK_MODE );
@@ -86,9 +90,6 @@ static ast_t* gen_type( ast_t* ast )
 
 static void add_this_to_type( ast_t* ast )
 {
-  // FIX: crashing
-  return;
-
   // FIX: if constrained on a trait, use the constraint
   ast_t* this = ast_new( TK_TYPEPARAM,
     ast_line( ast ), ast_pos( ast ), NULL );
