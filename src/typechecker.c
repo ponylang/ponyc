@@ -100,7 +100,7 @@ static void add_this_to_type( ast_t* ast )
 
   ast_add( this, this_id );
   ast_add( this, gen_type( ast ) );
-  ast_add( this, ast_newid( TK_NONE ) );
+  ast_add( this, ast_newid( TK_INFER ) );
 
   ast_reverse( this );
   ast_append( ast, this );
@@ -190,9 +190,30 @@ static bool resolve_type( ast_t* ast )
     case TK_VAR:
     case TK_VAL:
     {
-      // same type as child[1]
-      ast_t* child = ast_childidx( ast, 1 );
-      if( child != NULL ) { ast_attach( ast, ast_data( child ) ); }
+      ast_t* type_ast = ast_childidx( ast, 1 );
+
+      if( type_ast != NULL )
+      {
+        // type in child(1), initialiser in child(2)
+        type_t* type = ast_data( type_ast );
+        ast_attach( ast, type );
+
+        ast_t* expr_ast = ast_sibling( type_ast );
+
+        if( expr_ast != NULL )
+        {
+          type_t* expr = ast_data( expr_ast );
+
+          if( !type_sub( expr, type ) )
+          {
+            ast_error( ast, "initialiser is not a subtype" );
+            return false;
+          }
+
+          if( ast_id( type_ast ) == TK_INFER ) { ast_attach( ast, expr ); }
+        }
+      }
+
       return true;
     }
 
@@ -248,6 +269,7 @@ static bool resolve_type( ast_t* ast )
     case TK_GE:
     case TK_GT:
     {
+      // FIX:
       // right must be a subtype of left
       // left must be Comparable
       ast_t* left = ast_child( ast );

@@ -338,7 +338,7 @@ static ast_t* assign( parser_t* parser )
   {
     FORWARD( expr );
   } else {
-    AST( TK_NONE );
+    AST( TK_INFER );
     DONE();
   }
 }

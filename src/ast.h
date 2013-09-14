@@ -39,7 +39,6 @@ class: trait|class|actor
   (field|function)*
 
 field: var|val
-  data: type_t
   ID
   type
 
@@ -55,26 +54,23 @@ function: fun|msg
   seq
 
 typeparam|param
-  data: type_t
   ID
   type
   expr|NONE
 
-type:
-  adt|funtype|objtype|INFER
+type: adt|funtype|objtype|INFER
 
-adt:
-  data: type_t
+adt
   type*
 
-funtype:
+funtype
   data: type_t
   THROW|NONE
   mode
   list of type
   type
 
-objtype:
+objtype
   data: type_t
   ID
   (ID|NONE)
@@ -85,57 +81,57 @@ mode
   list of (ISO|VAR|VAL|TAG|THIS|ID)
   THIS|ID|NONE
 
-seq:
+seq
   symtab: ID -> local
   expr*
 
 expr: var|val|fun|if|match|while|do|for|break|continue|return|try|throw|binary
 
-var|val:
+var|val
   ID
   type
   expr
 
-lambda:
+lambda
   THROW
   mode
   list of param
   type
   expr
 
-if:
+if
   seq
   expr
   (expr|END)
 
-match:
+match
   seq
   list of case
 
-case:
+case
   (binary|NONE)
   as: (ID, type)|NONE
   (binary|NONE)
   seq
 
-while:
+while
   seq
   expr
 
-do:
+do
   seq
   expr
 
-for:
+for
   ID
   type
   seq
   expr
 
-return:
+return
   expr
 
-try:
+try
   seq
   (seq|NONE)
   (expr|END)
@@ -148,7 +144,7 @@ postfix: primary|dot|typeargs|call
 
 primary: THIS|INT|FLOAT|STRING|ID|seq
 
-dot:
+dot
   postfix
   ID
 
@@ -156,7 +152,7 @@ typeargs
   postfix
   list of type
 
-call:
+call
   postfix
   list of arg
 
