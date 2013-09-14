@@ -14,6 +14,8 @@ class Precedence[A:(Test), B:(Test|List[A]), C:fun throw():Array[B],
 
   fun logic():Bool = a and b or c xor d
 
+  fun compare():Bool = a < b > c == d != e <= f >= g
+
   fun optarg() =
     obj.invoke(arg, if 3 > 4 then "te\nst" else "real"->opt)
 

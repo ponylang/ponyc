@@ -337,6 +337,7 @@ static token_t* slash( lexer_t* lexer )
 
 static token_t* string( lexer_t* lexer )
 {
+  token_t* t = token( lexer );
   adv( lexer, 1 );
   assert( lexer->buflen == 0 );
 
@@ -345,11 +346,10 @@ static token_t* string( lexer_t* lexer )
     if( lexer->len == 0 )
     {
       string_terminate( lexer );
+      token_free( t );
       return NULL;
     } else if( look( lexer ) == '\"' ) {
       adv( lexer, 1 );
-
-      token_t* t = token( lexer );
       t->id = TK_STRING;
       t->string = copy( lexer );
       return t;
@@ -357,6 +357,7 @@ static token_t* string( lexer_t* lexer )
       if( lexer->len < 2 )
       {
         string_terminate( lexer );
+        token_free( t );
         return NULL;
       }
 
@@ -427,10 +428,11 @@ static token_t* string( lexer_t* lexer )
     }
   }
 
+  token_free( t );
   return NULL;
 }
 
-static token_t* real( lexer_t* lexer, __int128_t v )
+static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
 {
   bool isreal = false;
   int e = 0;
@@ -459,6 +461,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
           // skip
         } else if( isalpha( c ) ) {
           lexerror( lexer, "Invalid character in real number: %c", c );
+          token_free( t );
           return NULL;
         } else {
           break;
@@ -478,6 +481,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
     if( lexer->len == 0 )
     {
       lexerror( lexer, "Real number doesn't terminate" );
+      token_free( t );
       return NULL;
     }
 
@@ -493,6 +497,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
       if( lexer->len == 0 )
       {
         lexerror( lexer, "Real number doesn't terminate" );
+        token_free( t );
         return NULL;
       }
     }
@@ -509,7 +514,8 @@ static token_t* real( lexer_t* lexer, __int128_t v )
         // skip
       } else if( isalpha( c ) ) {
         lexerror( lexer, "Invalid character in exponent: %c", c );
-        break;
+        token_free( t );
+        return NULL;
       } else {
         break;
       }
@@ -527,11 +533,10 @@ static token_t* real( lexer_t* lexer, __int128_t v )
     if( digits == 0 )
     {
       lexerror( lexer, "Exponent has no digits" );
+      token_free( t );
       return NULL;
     }
   }
-
-  token_t* t = token( lexer );
 
   if( isreal )
   {
@@ -545,7 +550,7 @@ static token_t* real( lexer_t* lexer, __int128_t v )
   return t;
 }
 
-static token_t* hexadecimal( lexer_t* lexer )
+static token_t* hexadecimal( lexer_t* lexer, token_t* t )
 {
   __int128_t v = 0;
   char c;
@@ -565,6 +570,7 @@ static token_t* hexadecimal( lexer_t* lexer )
       // skip
     } else if( isalpha( c ) ) {
       lexerror( lexer, "Invalid character in hexadecimal number: %c", c );
+      token_free( t );
       return NULL;
     } else {
       break;
@@ -573,13 +579,12 @@ static token_t* hexadecimal( lexer_t* lexer )
     adv( lexer, 1 );
   }
 
-  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
 }
 
-static token_t* decimal( lexer_t* lexer )
+static token_t* decimal( lexer_t* lexer, token_t* t )
 {
   __int128_t v = 0;
   char c;
@@ -592,11 +597,12 @@ static token_t* decimal( lexer_t* lexer )
     {
       v = (v * 10) + (c - '0');
     } else if( (c == '.') || (c == 'e') || (c == 'E') ) {
-      return real( lexer, v );
+      return real( lexer, t, v );
     } else if( c == ',' ) {
       // skip
     } else if( isalnum( c ) ) {
       lexerror( lexer, "Invalid character in decimal number: %c", c );
+      token_free( t );
       return NULL;
     } else {
       break;
@@ -605,13 +611,12 @@ static token_t* decimal( lexer_t* lexer )
     adv( lexer, 1 );
   }
 
-  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
 }
 
-static token_t* binary( lexer_t* lexer )
+static token_t* binary( lexer_t* lexer, token_t* t )
 {
   __int128_t v = 0;
   char c;
@@ -627,6 +632,7 @@ static token_t* binary( lexer_t* lexer )
       // skip
     } else if( isalnum( c ) ) {
       lexerror( lexer, "Invalid character in binary number: %c", c );
+      token_free( t );
       return NULL;
     } else {
       break;
@@ -635,7 +641,6 @@ static token_t* binary( lexer_t* lexer )
     adv( lexer, 1 );
   }
 
-  token_t* t = token( lexer );
   t->id = TK_INT;
   t->integer = v;
   return t;
@@ -643,6 +648,8 @@ static token_t* binary( lexer_t* lexer )
 
 static token_t* number( lexer_t* lexer )
 {
+  token_t* t = token( lexer );
+
   if( look( lexer ) == '0' )
   {
     adv( lexer, 1 );
@@ -655,19 +662,19 @@ static token_t* number( lexer_t* lexer )
       {
       case 'x':
         adv( lexer, 1 );
-        return hexadecimal( lexer );
+        return hexadecimal( lexer, t );
 
       case 'b':
         adv( lexer, 1 );
-        return binary( lexer );
+        return binary( lexer, t );
 
       default:
-        return decimal( lexer );
+        return decimal( lexer, t );
       }
     }
   }
 
-  return decimal( lexer );
+  return decimal( lexer, t );
 }
 
 static void read_id( lexer_t* lexer )
@@ -712,7 +719,7 @@ static token_t* identifier( lexer_t* lexer )
 
 static token_t* symbol( lexer_t* lexer )
 {
-  token_t* t;
+  token_t* t = token( lexer );
   char sym[2];
 
   sym[0] = look( lexer );
@@ -729,7 +736,6 @@ static token_t* symbol( lexer_t* lexer )
         if( (sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]) )
         {
           adv( lexer, 1 );
-          t = token( lexer );
           t->id = p->id;
           return t;
         }
@@ -741,13 +747,13 @@ static token_t* symbol( lexer_t* lexer )
   {
     if( sym[0] == p->symbol[0] )
     {
-      t = token( lexer );
       t->id = p->id;
       return t;
     }
   }
 
   lexerror( lexer, "Unknown symbol: %c", sym[0] );
+  token_free( t );
   return NULL;
 }
 

@@ -774,6 +774,8 @@ bool type_eq( type_t* a, type_t* b )
 
 bool type_sub( type_t* a, type_t* b )
 {
+  if( (a == NULL) || (b == NULL) ) { return false; }
+
   if( (a == b)
     || (a->id == T_INFER)
     || (b->id == T_INFER)

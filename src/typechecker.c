@@ -253,8 +253,6 @@ static bool resolve_type( ast_t* ast )
       ast_t* left = ast_child( ast );
       ast_t* right = ast_sibling( left );
 
-#if 0
-      // FIX:
       if( !type_sub( ast_data( left ),
         type_name( ast, stringtab( "Comparable" ) ) )
         )
@@ -263,7 +261,6 @@ static bool resolve_type( ast_t* ast )
           "left-hand side must be a subtype of Comparable" );
         return false;
       }
-#endif
 
       if( !type_sub( ast_data( right ), ast_data( left ) ) )
       {
