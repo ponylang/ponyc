@@ -152,12 +152,9 @@ static bool add_to_scope( ast_t* ast )
     case TK_PARAM:
       return set_scope( ast, ast_child( ast ), ast, false );
 
-    case TK_VAR:
-    case TK_VAL:
+    case TK_FIELD:
     {
-      ast_t* name = ast_child( ast );
-      if( name == NULL ) { return true; }
-
+      ast_t* name = ast_childidx( ast, 1 );
       ast_t* trait = ast_nearest( ast, TK_TRAIT );
 
       if( trait != NULL )
@@ -177,8 +174,8 @@ static bool add_to_scope( ast_t* ast )
 
     case TK_MSG:
     {
-      ast_t* class = ast_nearest( ast, TK_CLASS );
       ast_t* name = ast_childidx( ast, 2 );
+      ast_t* class = ast_nearest( ast, TK_CLASS );
 
       if( class != NULL )
       {
@@ -192,8 +189,31 @@ static bool add_to_scope( ast_t* ast )
       return set_scope( ast_parent( ast ), name, ast, false );
     }
 
+    case TK_LOCAL:
+      return set_scope( ast, ast_childidx( ast, 1 ), ast, false );
+
     default: {}
   }
+
+  return true;
+}
+
+static bool infer_type( ast_t* ast, size_t idx )
+{
+  ast_t* type_ast = ast_childidx( ast, idx );
+  type_t* type = ast_data( type_ast );
+  ast_attach( ast, type );
+
+  ast_t* expr_ast = ast_sibling( type_ast );
+  type_t* expr = ast_data( expr_ast );
+
+  if( !type_sub( expr, type ) )
+  {
+    ast_error( ast, "the expression is not a subtype of the type" );
+    return false;
+  }
+
+  if( ast_id( type_ast ) == TK_INFER ) { ast_attach( ast, expr ); }
 
   return true;
 }
@@ -251,41 +271,39 @@ static bool trait_and_subtype( ast_t* ast, type_t* trait, const char* name )
   return true;
 }
 
+static bool def_before_use( ast_t* def, ast_t* use )
+{
+  if( ast_id( def ) != TK_LOCAL ) { return true; }
+
+  size_t line0 = ast_line( def );
+  size_t pos0 = ast_pos( def );
+
+  size_t line1 = ast_line( use );
+  size_t pos1 = ast_pos( use );
+
+  if( (line0 > line1)
+    || ((line0 == line1) && (pos0 > pos1))
+    )
+  {
+    ast_error( def, "identifier %s is used before it is defined",
+      ast_name( use ) );
+    return false;
+  }
+
+  return true;
+}
+
 static bool resolve_type( ast_t* ast )
 {
   switch( ast_id( ast ) )
   {
     case TK_TYPEPARAM:
     case TK_PARAM:
-    case TK_VAR:
-    case TK_VAL:
-    {
-      ast_t* type_ast = ast_childidx( ast, 1 );
+      return infer_type( ast, 1 );
 
-      if( type_ast != NULL )
-      {
-        // type in child(1), initialiser in child(2)
-        type_t* type = ast_data( type_ast );
-        ast_attach( ast, type );
-
-        ast_t* expr_ast = ast_sibling( type_ast );
-
-        if( expr_ast != NULL )
-        {
-          type_t* expr = ast_data( expr_ast );
-
-          if( !type_sub( expr, type ) )
-          {
-            ast_error( ast, "initialiser is not a subtype" );
-            return false;
-          }
-
-          if( ast_id( type_ast ) == TK_INFER ) { ast_attach( ast, expr ); }
-        }
-      }
-
-      return true;
-    }
+    case TK_FIELD:
+      ast_attach( ast, ast_data( ast_childidx( ast, 2 ) ) );
+      break;
 
     case TK_INFER:
     case TK_ADT:
@@ -320,6 +338,7 @@ static bool resolve_type( ast_t* ast )
       const char* name = ast_name( id );
       ast_t* def = ast_get( ast, name );
 
+      // FIX: might be a Type
       if( def == NULL )
       {
         ast_error( id, "identifier %s is not in scope", name );
@@ -327,6 +346,16 @@ static bool resolve_type( ast_t* ast )
       }
 
       // FIX:
+      switch( ast_id( def ) )
+      {
+        case TK_LOCAL:
+          if( !def_before_use( def, id ) ) { return false; }
+          ast_attach( ast, ast_data( def ) );
+          break;
+
+        default: {}
+      }
+
       return true;
     }
 
@@ -470,6 +499,9 @@ static bool resolve_type( ast_t* ast )
     case TK_GT:
       return trait_and_subtype( ast, ordered, "Ordered" );
 
+    case TK_LOCAL:
+      return infer_type( ast, 2 );
+
     case TK_IF:
       // FIX:
       return true;
@@ -492,7 +524,7 @@ static bool resolve_type( ast_t* ast )
 
       if( !type_sub( ast_data( cond ), boolean ) )
       {
-        ast_error( cond, "while loop conditional must be a Boolean" );
+        ast_error( cond, "while loop conditional must be a Bool" );
         return false;
       }
 
@@ -506,7 +538,7 @@ static bool resolve_type( ast_t* ast )
 
       if( !type_sub( ast_data( cond ), boolean ) )
       {
-        ast_error( cond, "do loop conditional must be a Boolean" );
+        ast_error( cond, "do loop conditional must be a Bool" );
         return false;
       }
 

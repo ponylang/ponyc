@@ -613,7 +613,8 @@ static ast_t* binary( parser_t* parser )
 static ast_t* local( parser_t* parser )
 {
   // (VAR | VAL) ID oftype EQUALS expr
-  AST_TOKEN();
+  AST( TK_LOCAL );
+  EXPECT( TK_VAR, TK_VAL );
   EXPECT( TK_ID );
   RULE( oftype );
   EXPECT_DROP( TK_EQUALS );
@@ -863,7 +864,8 @@ static ast_t* function( parser_t* parser )
 static ast_t* field( parser_t* parser )
 {
   // (VAR | VAL) ID COLON type
-  AST_TOKEN();
+  AST( TK_FIELD );
+  EXPECT( TK_VAR, TK_VAL );
   EXPECT( TK_ID );
   EXPECT_DROP( TK_COLON );
   RULE( type );

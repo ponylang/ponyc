@@ -92,6 +92,8 @@ typedef enum
   TK_PROGRAM,
   TK_PACKAGE,
   TK_MODULE,
+  TK_FIELD,
+  TK_LOCAL,
   TK_LIST,
   TK_ADT,
   TK_OBJTYPE,

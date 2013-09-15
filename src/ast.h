@@ -38,7 +38,8 @@ class: trait|class|actor
   is: type*
   (field|function)*
 
-field: var|val
+field
+  (VAR|VAL)
   ID
   type
 
@@ -56,7 +57,7 @@ function: fun|msg
 typeparam|param
   ID
   type
-  expr|NONE
+  expr
 
 type: adt|funtype|objtype|INFER
 
@@ -65,7 +66,7 @@ adt
 
 funtype
   data: type_t
-  THROW|NONE
+  (THROW|NONE)
   mode
   list of type
   type
@@ -85,9 +86,10 @@ seq
   symtab: ID -> local
   expr*
 
-expr: var|val|fun|if|match|while|do|for|break|continue|return|try|throw|binary
+expr: local|fun|if|match|while|do|for|break|continue|return|try|throw|binary
 
-var|val
+local
+  (VAR|VAL)
   ID
   type
   expr

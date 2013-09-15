@@ -6,4 +6,4 @@ trait Ordered is Comparable infer
   fun lt{var|val}(that:This):Bool
   fun le{var|val}(that:This):Bool = lt(that) or eq(that)
   fun ge{var|val}(that:This):Bool = not lt(that)
-  fun gt{var|val}(that:This):Bool = not le(that)
+  fun gt{var|val}(that:This):Bool = not le(that); while True do break
