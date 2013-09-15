@@ -4,6 +4,7 @@
 #include "error.h"
 
 static type_t* infer;
+static type_t* none;
 static type_t* boolean;
 static type_t* string;
 static type_t* integer;
@@ -43,28 +44,33 @@ static bool set_scope( ast_t* scope, ast_t* name, ast_t* value, bool type )
   return true;
 }
 
-static bool use_package( ast_t* ast, const char* path, ast_t* name )
+static ast_t* use_package( ast_t* ast, const char* path, ast_t* name )
 {
   ast_t* package = package_load( ast, path );
 
   if( package == NULL )
   {
     ast_error( ast, "can't load package '%s'", path );
-    return false;
+    return NULL;
   }
 
   if( name && (ast_id( name ) == TK_ID) )
   {
-    return set_scope( ast, name, package, false );
+    if( set_scope( ast, name, package, false ) )
+    {
+      return package;
+    } else {
+      return NULL;
+    }
   }
 
   if( !ast_merge( ast, package ) )
   {
     ast_error( ast, "can't merge symbols from '%s'", path );
-    return false;
+    return NULL;
   }
 
-  return true;
+  return package;
 }
 
 static ast_t* gen_type( ast_t* ast )
@@ -126,7 +132,7 @@ static bool add_to_scope( ast_t* ast )
       ast_t* path = ast_child( ast );
       ast_t* name = ast_sibling( path );
 
-      return use_package( ast, ast_name( path ), name );
+      return use_package( ast, ast_name( path ), name ) != NULL;
     }
 
     case TK_ALIAS:
@@ -167,7 +173,7 @@ static bool add_to_scope( ast_t* ast )
     }
 
     case TK_FUN:
-      return set_scope( ast, ast_childidx( ast, 2 ), ast, false );
+      return set_scope( ast_parent( ast ), ast_childidx( ast, 2 ), ast, false );
 
     case TK_MSG:
     {
@@ -183,7 +189,7 @@ static bool add_to_scope( ast_t* ast )
         return false;
       }
 
-      return set_scope( ast, name, ast, false );
+      return set_scope( ast_parent( ast ), name, ast, false );
     }
 
     default: {}
@@ -292,6 +298,10 @@ static bool resolve_type( ast_t* ast )
       return true;
     }
 
+    case TK_THIS:
+      ast_attach( ast, type_name( ast, "This" ) );
+      return true;
+
     case TK_STRING:
       ast_attach( ast, string );
       return true;
@@ -302,6 +312,43 @@ static bool resolve_type( ast_t* ast )
 
     case TK_FLOAT:
       ast_attach( ast, floatlit );
+      return true;
+
+    case TK_REF:
+    {
+      ast_t* id = ast_child( ast );
+      const char* name = ast_name( id );
+      ast_t* def = ast_get( ast, name );
+
+      if( def == NULL )
+      {
+        ast_error( id, "identifier %s is not in scope", name );
+        return false;
+      }
+
+      // FIX:
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      // the type of a sequence is the type of the last expression
+      size_t n = ast_childcount( ast );
+      ast_t* last = ast_childidx( ast, n - 1 );
+      ast_attach( ast, ast_data( last ) );
+      return true;
+    }
+
+    case TK_DOT:
+      // FIX:
+      return true;
+
+    case TK_TYPEARGS:
+      // FIX:
+      return true;
+
+    case TK_CALL:
+      // FIX:
       return true;
 
     case TK_NOT:
@@ -423,6 +470,86 @@ static bool resolve_type( ast_t* ast )
     case TK_GT:
       return trait_and_subtype( ast, ordered, "Ordered" );
 
+    case TK_IF:
+      // FIX:
+      return true;
+
+    case TK_MATCH:
+      // FIX:
+      return true;
+
+    case TK_CASE:
+      // FIX:
+      return true;
+
+    case TK_AS:
+      // FIX:
+      return true;
+
+    case TK_WHILE:
+    {
+      ast_t* cond = ast_child( ast );
+
+      if( !type_sub( ast_data( cond ), boolean ) )
+      {
+        ast_error( cond, "while loop conditional must be a Boolean" );
+        return false;
+      }
+
+      ast_attach( ast, none );
+      return true;
+    }
+
+    case TK_DO:
+    {
+      ast_t* cond = ast_childidx( ast, 1 );
+
+      if( !type_sub( ast_data( cond ), boolean ) )
+      {
+        ast_error( cond, "do loop conditional must be a Boolean" );
+        return false;
+      }
+
+      ast_attach( ast, none );
+      return true;
+    }
+
+    case TK_FOR:
+      // FIX:
+      ast_attach( ast, none );
+      return true;
+
+    case TK_TRY:
+      /*
+      FIX:
+      type is finally type, if there is a finally clause
+        otherwise, its the seq type and the seq type must match the catch type
+      */
+      return true;
+
+    case TK_RETURN:
+      // FIX:
+      return true;
+
+    case TK_BREAK:
+    case TK_CONTINUE:
+    {
+      if( !ast_nearest( ast, TK_WHILE )
+        && !ast_nearest( ast, TK_DO )
+        && !ast_nearest( ast, TK_FOR )
+        )
+      {
+        ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
+      }
+
+      ast_attach( ast, none );
+      return true;
+    }
+
+    case TK_THROW:
+      // FIX:
+      return true;
+
     default: {}
   }
 
@@ -450,20 +577,9 @@ bool typecheck_init( ast_t* program )
 
   if( builtin == NULL )
   {
-    ast_error( program, "couldn't load built-in types" );
+//    ast_error( program, "couldn't load built-in types" );
     return false;
   }
-
-  infer = type_ast( NULL );
-  boolean = type_name( builtin, "Bool" );
-  string = type_name( builtin, "String" );
-  integer = type_name( builtin, "Integer" );
-  unsign = type_name( builtin, "Unsigned" );
-  number = type_name( builtin, "Number" );
-  intlit = type_name( builtin, "IntLiteral" );
-  floatlit = type_name( builtin, "FloatLiteral" );
-  numlit = type_name( builtin, "NumLiteral" );
-  comparable = type_name( builtin, "Comparable" );
 
   return true;
 }
@@ -476,28 +592,44 @@ bool typecheck( ast_t* ast )
   objects can be functions based on the apply method
   expression typing
   */
+  ast_t* builtin = use_package( ast, "builtin", NULL );
 
-  if( !use_package( ast, "builtin", NULL ) )
+  if( builtin == NULL )
   {
-    ast_error( ast, "couldn't use builtin" );
+//    ast_error( ast, "couldn't use builtin" );
     return false;
   }
 
   if( !ast_visit( ast, add_to_scope, NULL ) )
   {
-    ast_error( ast, "couldn't add to scope" );
+//    ast_error( ast, "couldn't add to scope" );
     return false;
+  }
+
+  if( infer == NULL )
+  {
+    infer = type_ast( NULL );
+    none = type_name( builtin, "None" );
+    boolean = type_name( builtin, "Bool" );
+    string = type_name( builtin, "String" );
+    integer = type_name( builtin, "Integer" );
+    unsign = type_name( builtin, "Unsigned" );
+    number = type_name( builtin, "Number" );
+    intlit = type_name( builtin, "IntLiteral" );
+    floatlit = type_name( builtin, "FloatLiteral" );
+    numlit = type_name( builtin, "NumLiteral" );
+    comparable = type_name( builtin, "Comparable" );
   }
 
   if( !ast_visit( ast, NULL, resolve_type ) )
   {
-    ast_error( ast, "couldn't resolve types" );
+//    ast_error( ast, "couldn't resolve types" );
     return false;
   }
 
   if( !ast_visit( ast, NULL, check_type ) )
   {
-    ast_error( ast, "couldn't check types" );
+//    ast_error( ast, "couldn't check types" );
     return false;
   }
 

@@ -522,6 +522,14 @@ static ast_t* parenseq( parser_t* parser )
   DONE();
 }
 
+static ast_t* reference( parser_t* parser )
+{
+  // ID
+  AST( TK_REF );
+  EXPECT( TK_ID );
+  DONE();
+}
+
 static ast_t* primary( parser_t* parser )
 {
   FORWARDALT(
@@ -529,7 +537,7 @@ static ast_t* primary( parser_t* parser )
     { TK_INT, consume },
     { TK_FLOAT, consume },
     { TK_STRING, consume },
-    { TK_ID, consume },
+    { TK_ID, reference },
     { TK_LPAREN, parenseq }
     );
 }
@@ -616,8 +624,9 @@ static ast_t* local( parser_t* parser )
 static ast_t* lambda( parser_t* parser )
 {
   // FUN THROW? mode params oftype EQUALS expr
-  AST_TOKEN();
+  AST( TK_LAMBDA );
   SCOPE();
+  EXPECT_DROP( TK_FUN );
 
   if( !ACCEPT( TK_THROW ) )
   {
@@ -671,7 +680,8 @@ static ast_t* as( parser_t* parser )
 static ast_t* caseexpr( parser_t* parser )
 {
   // PIPE binary? as (IF binary)? EQUALS seq
-  AST_TOKEN();
+  AST( TK_CASE );
+  EXPECT_DROP( TK_PIPE );
 
   if( is_binary( parser ) )
   {

@@ -128,13 +128,13 @@ for
   seq
   expr
 
-return
-  expr
-
 try
   seq
   (seq|NONE)
   (expr|END)
+
+return
+  expr
 
 break
 continue

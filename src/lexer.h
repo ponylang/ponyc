@@ -102,6 +102,9 @@ typedef enum
   TK_TYPEARGS,
   TK_CALL,
   TK_SEQ,
+  TK_CASE,
+  TK_LAMBDA,
+  TK_REF,
 
   TK_EOF
 } token_id;
