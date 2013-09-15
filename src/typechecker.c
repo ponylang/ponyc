@@ -232,7 +232,13 @@ static bool resolve_type( ast_t* ast )
       ast_attach( ast, type_name( ast, stringtab( "String" ) ) );
       return true;
 
-    // FIX: other literals?
+    case TK_INT:
+      ast_attach( ast, type_name( ast, stringtab( "IntLiteral" ) ) );
+      return true;
+
+    case TK_FLOAT:
+      ast_attach( ast, type_name( ast, stringtab( "FloatLiteral" ) ) );
+      return true;
 
     case TK_NOT:
       /* FIX: unary, Bool or Integer */

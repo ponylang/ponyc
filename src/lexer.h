@@ -116,7 +116,7 @@ typedef struct token_t
   {
     const char* string;
     double real;
-    __int128_t integer;
+    __uint128_t integer;
   };
 } token_t;
 

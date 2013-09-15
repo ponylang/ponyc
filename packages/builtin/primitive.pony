@@ -25,6 +25,8 @@ class I32 is Integer
 
 class I64 is Integer
 
+class I128 is Integer
+
 class U8 is Unsigned
 
 class U16 is Unsigned
@@ -33,9 +35,15 @@ class U32 is Unsigned
 
 class U64 is Unsigned
 
+class U128 is Unsigned
+
 class F32 is Real
 
 class F64 is Real
+
+class IntLiteral is Unsigned
+
+class FloatLiteral is Real
 
 class String
 

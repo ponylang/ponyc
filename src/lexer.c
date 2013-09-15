@@ -432,7 +432,24 @@ static token_t* string( lexer_t* lexer )
   return NULL;
 }
 
-static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
+static bool accum( lexer_t* lexer, token_t* t, __uint128_t* v,
+  char c, char from, uint32_t base, uint32_t offset )
+{
+  __uint128_t v1 = *v;
+  __uint128_t v2 = (v1 * base) + (c - from) + offset;
+
+  if( v2 < v1 )
+  {
+    lexerror( lexer, "overflow in numeric literal" );
+    token_free( t );
+    return false;
+  }
+
+  *v = v2;
+  return true;
+}
+
+static token_t* real( lexer_t* lexer, token_t* t, __uint128_t v )
 {
   bool isreal = false;
   int e = 0;
@@ -453,7 +470,7 @@ static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
 
         if( (c >= '0') && (c <= '9') )
         {
-          v = (v * 10) + (c - '0');
+          if( !accum( lexer, t, &v, c, '0', 10, 0 ) ) { return NULL; }
           e--;
         } else if( (c == 'e') || (c == 'E') ) {
           break;
@@ -487,7 +504,7 @@ static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
 
     c = look( lexer );
     bool neg = false;
-    int n = 0;
+    __uint128_t n = 0;
 
     if( (c == '+') || (c == '-') )
     {
@@ -508,7 +525,7 @@ static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
 
       if( (c >= '0') && (c <= '9') )
       {
-        n = (n * 10) + (c - '0');
+        if( !accum( lexer, t, &n, c, '0', 10, 0 ) ) { return NULL; }
         digits++;
       } else if( c == ',' ) {
         // skip
@@ -552,7 +569,7 @@ static token_t* real( lexer_t* lexer, token_t* t, __int128_t v )
 
 static token_t* hexadecimal( lexer_t* lexer, token_t* t )
 {
-  __int128_t v = 0;
+  __uint128_t v = 0;
   char c;
 
   while( lexer->len > 0 )
@@ -561,11 +578,11 @@ static token_t* hexadecimal( lexer_t* lexer, token_t* t )
 
     if( (c >= '0') && (c <= '9') )
     {
-      v = (v * 16) + (c - '0');
+      if( !accum( lexer, t, &v, c, '0', 16, 0 ) ) { return NULL; }
     } else if( (c >= 'a') && (c <= 'z') ) {
-      v = (v * 16) + (c - 'a');
+      if( !accum( lexer, t, &v, c, 'a', 16, 10 ) ) { return NULL; }
     } else if( (c >= 'A') && (c <= 'Z') ) {
-      v = (v * 16) + (c - 'A');
+      if( !accum( lexer, t, &v, c, 'A', 16, 10 ) ) { return NULL; }
     } else if( c == ',' ) {
       // skip
     } else if( isalpha( c ) ) {
@@ -586,7 +603,7 @@ static token_t* hexadecimal( lexer_t* lexer, token_t* t )
 
 static token_t* decimal( lexer_t* lexer, token_t* t )
 {
-  __int128_t v = 0;
+  __uint128_t v = 0;
   char c;
 
   while( lexer->len > 0 )
@@ -595,7 +612,7 @@ static token_t* decimal( lexer_t* lexer, token_t* t )
 
     if( (c >= '0') && (c <= '9') )
     {
-      v = (v * 10) + (c - '0');
+      if( !accum( lexer, t, &v, c, '0', 10, 0 ) ) { return NULL; }
     } else if( (c == '.') || (c == 'e') || (c == 'E') ) {
       return real( lexer, t, v );
     } else if( c == ',' ) {
@@ -618,7 +635,7 @@ static token_t* decimal( lexer_t* lexer, token_t* t )
 
 static token_t* binary( lexer_t* lexer, token_t* t )
 {
-  __int128_t v = 0;
+  __uint128_t v = 0;
   char c;
 
   while( lexer->len > 0 )
@@ -627,7 +644,7 @@ static token_t* binary( lexer_t* lexer, token_t* t )
 
     if( (c >= '0') && (c <= '1') )
     {
-      v = (v * 2) + (c - '0');
+      if( !accum( lexer, t, &v, c, '0', 2, 0 ) ) { return NULL; }
     } else if( c == ',' ) {
       // skip
     } else if( isalnum( c ) ) {
