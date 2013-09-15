@@ -1,6 +1,7 @@
 #include "package.h"
 #include "stringtab.h"
 #include "types.h"
+#include "typechecker.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -126,7 +127,12 @@ int main( int argc, char** argv )
 
   int ret = 0;
 
-  if( !package_load( program, target ) ) { ret = -1; }
+  if( !typecheck_init( program ) ||
+      !package_load( program, target )
+    )
+  {
+    ret = -1;
+  }
 
   /* FIX:
    * detect imported but unused packages in a module

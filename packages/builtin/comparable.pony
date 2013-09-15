@@ -1,7 +1,9 @@
 trait Comparable infer
   fun eq{var|val}(that:This):Bool
-  fun lt{var|val}(that:This):Bool
   fun ne{var|val}(that:This):Bool = not eq(that)
-  fun le{var|val}(that:This):Bool = eq(that) or lt(that)
+
+trait Ordered is Comparable infer
+  fun lt{var|val}(that:This):Bool
+  fun le{var|val}(that:This):Bool = lt(that) or eq(that)
   fun ge{var|val}(that:This):Bool = not lt(that)
   fun gt{var|val}(that:This):Bool = not le(that)

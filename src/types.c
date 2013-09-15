@@ -1,5 +1,6 @@
 #include "types.h"
 #include "hash.h"
+#include "stringtab.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -676,6 +677,7 @@ static bool typelist_valid( ast_t* ast, typelist_t* list )
 
 type_t* type_name( ast_t* ast, const char* name )
 {
+  name = stringtab( name );
   type_t* type = nametype( ast, name );
 
   if( type == NULL )
@@ -688,6 +690,8 @@ type_t* type_name( ast_t* ast, const char* name )
 
 type_t* type_ast( ast_t* ast )
 {
+  if( ast == NULL ) { return &infer; }
+
   type_t* type;
 
   switch( ast_id( ast ) )
@@ -705,6 +709,7 @@ type_t* type_ast( ast_t* ast )
       break;
 
     case TK_INFER: return &infer;
+
     default: return NULL;
   }
 

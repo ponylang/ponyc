@@ -18,7 +18,7 @@ use
 
 // FIX: 'of type' not in code yet, use to constrain This for traits
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? mode ('of' type)? ('private' | 'infer')? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? mode ('of' type)? ('is' types)? ('private' | 'infer')? member*
   ;
 
 member

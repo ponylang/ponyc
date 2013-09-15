@@ -1,8 +1,19 @@
 #include "typechecker.h"
-#include "stringtab.h"
 #include "package.h"
 #include "types.h"
 #include "error.h"
+
+static type_t* infer;
+static type_t* boolean;
+static type_t* string;
+static type_t* integer;
+static type_t* unsign;
+static type_t* number;
+static type_t* intlit;
+static type_t* floatlit;
+static type_t* numlit;
+static type_t* comparable;
+static type_t* ordered;
 
 static bool set_scope( ast_t* scope, ast_t* name, ast_t* value, bool type )
 {
@@ -181,6 +192,59 @@ static bool add_to_scope( ast_t* ast )
   return true;
 }
 
+static bool same_number( ast_t* ast )
+{
+  ast_t* left = ast_child( ast );
+  ast_t* right = ast_sibling( left );
+  type_t* ltype = ast_data( left );
+  type_t* rtype = ast_data( right );
+
+  if( !type_sub( ltype, number ) )
+  {
+    ast_error( left, "must be a Number" );
+    return false;
+  }
+
+  if( type_sub( ltype, numlit ) )
+  {
+    ast_attach( left, rtype );
+    ast_attach( ast, rtype );
+  } else if( type_sub( rtype, numlit ) ) {
+    ast_attach( right, ltype );
+    ast_attach( ast, ltype );
+  } else if( type_eq( ltype, rtype ) ) {
+    ast_attach( ast, ltype );
+  } else {
+    ast_error( left, "both sides must be the same Number type" );
+    return false;
+  }
+
+  return true;
+}
+
+static bool trait_and_subtype( ast_t* ast, type_t* trait, const char* name )
+{
+  ast_t* left = ast_child( ast );
+  ast_t* right = ast_sibling( left );
+  type_t* ltype = ast_data( left );
+  type_t* rtype = ast_data( right );
+
+  if( !type_sub( ltype, trait ) )
+  {
+    ast_error( left, "must be %s", name );
+    return false;
+  }
+
+  if( !type_sub( rtype, ltype ) )
+  {
+    ast_error( right, "must be a subtype of the left-hand side" );
+    return false;
+  }
+
+  ast_attach( ast, boolean );
+  return true;
+}
+
 static bool resolve_type( ast_t* ast )
 {
   switch( ast_id( ast ) )
@@ -229,77 +293,135 @@ static bool resolve_type( ast_t* ast )
     }
 
     case TK_STRING:
-      ast_attach( ast, type_name( ast, stringtab( "String" ) ) );
+      ast_attach( ast, string );
       return true;
 
     case TK_INT:
-      ast_attach( ast, type_name( ast, stringtab( "IntLiteral" ) ) );
+      ast_attach( ast, intlit );
       return true;
 
     case TK_FLOAT:
-      ast_attach( ast, type_name( ast, stringtab( "FloatLiteral" ) ) );
+      ast_attach( ast, floatlit );
       return true;
 
     case TK_NOT:
-      /* FIX: unary, Bool or Integer */
+    {
+      ast_t* child = ast_child( ast );
+      type_t* type = ast_data( child );
+
+      if( type_sub( type, boolean ) )
+      {
+        ast_attach( ast, boolean );
+      } else if( type_sub( type, integer ) ) {
+        ast_attach( ast, type );
+      } else {
+        ast_error( child, "must be a Bool or an Integer" );
+        return false;
+      }
+
       return true;
+    }
 
     case TK_MINUS:
-      /* FIX: could be unary (Number) or binary (both the same number) */
+    {
+      ast_t* left = ast_child( ast );
+      ast_t* right = ast_sibling( left );
+      type_t* ltype = ast_data( left );
+
+      if( right != NULL )
+      {
+        return same_number( ast );
+      } else if( type_sub( ltype, number ) ) {
+        ast_attach( ast, ltype );
+      } else {
+        ast_error( left, "must be a Number" );
+        return false;
+      }
+
       return true;
+    }
 
     case TK_AND:
     case TK_OR:
     case TK_XOR:
-      /* FIX: both sides must either be Bool or the same Integer */
+    {
+      // both sides must either be Bool or the same Integer
+      ast_t* left = ast_child( ast );
+      ast_t* right = ast_sibling( left );
+      type_t* ltype = ast_data( left );
+      type_t* rtype = ast_data( right );
+
+      if( type_sub( ltype, boolean ) )
+      {
+        if( type_sub( rtype, boolean ) )
+        {
+          ast_attach( ast, boolean );
+        } else {
+          ast_error( right, "must be a Bool" );
+          return false;
+        }
+      } else if( type_sub( ltype, integer ) ) {
+        if( type_sub( ltype, intlit ) )
+        {
+          ast_attach( left, rtype );
+          ast_attach( ast, rtype );
+        } else if( type_sub( rtype, intlit ) ) {
+          ast_attach( right, ltype );
+          ast_attach( ast, ltype );
+        } else if( type_eq( ltype, rtype ) ) {
+          ast_attach( ast, ltype );
+        } else {
+          ast_error( left, "both sides must be the same Integer type" );
+          return false;
+        }
+      } else {
+        ast_error( left, "must be a Bool or an Integer" );
+        return false;
+      }
+
       return true;
+    }
 
     case TK_PLUS:
     case TK_MULTIPLY:
     case TK_DIVIDE:
     case TK_MOD:
-      /* FIX: both sides must be the same Number */
-      return true;
+      return same_number( ast );
 
     case TK_LSHIFT:
     case TK_RSHIFT:
-      /* FIX: left must be Integer, right Unsigned, result is the type of the
-      left hand side
-      */
+    {
+      // left must be Integer, right Unsigned, result is the type of left
+      ast_t* left = ast_child( ast );
+      ast_t* right = ast_sibling( left );
+      type_t* ltype = ast_data( left );
+      type_t* rtype = ast_data( right );
+
+      if( !type_sub( ltype, integer ) )
+      {
+        ast_error( left, "must be an Integer" );
+        return false;
+      }
+
+      if( !type_sub( rtype, unsign ) )
+      {
+        ast_error( right, "must be Unsigned" );
+        return false;
+      }
+
+      ast_attach( ast, ltype );
       return true;
+    }
 
     case TK_EQ:
     case TK_NEQ:
+      return trait_and_subtype( ast, comparable, "Comparable" );
+
     case TK_LT:
     case TK_LE:
     case TK_GE:
     case TK_GT:
-    {
-      // FIX:
-      // right must be a subtype of left
-      // left must be Comparable
-      ast_t* left = ast_child( ast );
-      ast_t* right = ast_sibling( left );
-
-      if( !type_sub( ast_data( left ),
-        type_name( ast, stringtab( "Comparable" ) ) )
-        )
-      {
-        ast_error( ast,
-          "left-hand side must be a subtype of Comparable" );
-        return false;
-      }
-
-      if( !type_sub( ast_data( right ), ast_data( left ) ) )
-      {
-        ast_error( ast,
-          "right-hand side must be a subtype of the left-hand side" );
-        return false;
-      }
-
-      ast_attach( ast, type_name( ast, stringtab( "Bool" ) ) );
-      return true;
-    }
+      return trait_and_subtype( ast, ordered, "Ordered" );
 
     default: {}
   }
@@ -322,6 +444,30 @@ static bool check_type( ast_t* ast )
   return true;
 }
 
+bool typecheck_init( ast_t* program )
+{
+  ast_t* builtin = package_load( program, "builtin" );
+
+  if( builtin == NULL )
+  {
+    ast_error( program, "couldn't load built-in types" );
+    return false;
+  }
+
+  infer = type_ast( NULL );
+  boolean = type_name( builtin, "Bool" );
+  string = type_name( builtin, "String" );
+  integer = type_name( builtin, "Integer" );
+  unsign = type_name( builtin, "Unsigned" );
+  number = type_name( builtin, "Number" );
+  intlit = type_name( builtin, "IntLiteral" );
+  floatlit = type_name( builtin, "FloatLiteral" );
+  numlit = type_name( builtin, "NumLiteral" );
+  comparable = type_name( builtin, "Comparable" );
+
+  return true;
+}
+
 bool typecheck( ast_t* ast )
 {
   /*
@@ -333,7 +479,7 @@ bool typecheck( ast_t* ast )
 
   if( !use_package( ast, "builtin", NULL ) )
   {
-    ast_error( ast, "couldn't load builtin" );
+    ast_error( ast, "couldn't use builtin" );
     return false;
   }
 

@@ -872,19 +872,19 @@ static ast_t* is( parser_t* parser )
 
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID typeparams mode private is (field | function)*
+  // (TRAIT | CLASS | ACTOR) ID typeparams mode is (PRIVATE|INFER)? (field | function)*
   AST_TOKEN();
   SCOPE();
   EXPECT( TK_ID );
   RULE( typeparams );
   RULE( mode );
+  RULE( is );
 
   if( !ACCEPT( TK_PRIVATE, TK_INFER ) )
   {
     INSERT( TK_NONE );
   }
 
-  RULE( is );
   LIST(
     { TK_VAR, field },
     { TK_VAL, field },

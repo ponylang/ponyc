@@ -8,42 +8,57 @@ class False
 
 alias Bool:(True|False)
 
-trait Number
-  fun string{iso|var|val}():String
+alias Number:(Integer|Real)
 
-trait Integer is Number
+alias Integer:
+  (I8
+  |I16
+  |I32
+  |I64
+  |I128
+  |Unsigned
+  )
 
-trait Unsigned is Integer
+alias Unsigned:
+  (U8
+  |U16
+  |U32
+  |U64
+  |U128
+  |IntLiteral
+  )
 
-trait Real is Number
+alias Real:(F32|F64|NumLiteral)
 
-class I8 is Integer
+alias NumLiteral:(IntLiteral|FloatLiteral)
 
-class I16 is Integer
+class I8
 
-class I32 is Integer
+class I16
 
-class I64 is Integer
+class I32
 
-class I128 is Integer
+class I64
 
-class U8 is Unsigned
+class I128
 
-class U16 is Unsigned
+class U8
 
-class U32 is Unsigned
+class U16
 
-class U64 is Unsigned
+class U32
 
-class U128 is Unsigned
+class U64
 
-class F32 is Real
+class U128
 
-class F64 is Real
+class F32
 
-class IntLiteral is Unsigned
+class F64
 
-class FloatLiteral is Real
+class IntLiteral
+
+class FloatLiteral
 
 class String
 
