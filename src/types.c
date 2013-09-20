@@ -272,7 +272,9 @@ static bool a_in_obj_b( type_t* a, type_t* b )
     trait = ast_sibling( trait );
   }
 
-  if( ast_id( ast_childidx( b->obj.ast, 3 ) ) == TK_INFER )
+  if( (ast_id( b->obj.ast ) == TK_TRAIT)
+    && (ast_id( ast_childidx( b->obj.ast, 3 ) ) == TK_INFER)
+    )
   {
     // FIX: if b is an inferred trait, check for conformance
   }
@@ -395,6 +397,15 @@ static bool typelist( ast_t* ast, typelist_t** list )
   return true;
 }
 
+static type_t* expand_alias( type_t* type )
+{
+  if( ast_id( type->obj.ast ) != TK_ALIAS ) { return type; }
+
+  type_t* alias = type_ast( ast_childidx( type->obj.ast, 2 ) );
+
+  return type_subst( alias, type->obj.params );
+}
+
 static type_t* nametype( ast_t* scope, const char* name )
 {
   ast_t* type_ast = ast_get( scope, name );
@@ -456,7 +467,7 @@ static type_t* objtype( ast_t* ast )
 
   // FIX: get the mode with the viewpoint
 
-  return type;
+  return expand_alias( type );
 }
 
 static type_t* funtype( ast_t* ast )
@@ -685,7 +696,7 @@ type_t* type_name( ast_t* ast, const char* name )
     ast_error( ast, "no type '%s' in scope", name );
   }
 
-  return type;
+  return typetable( expand_alias( type ) );
 }
 
 type_t* type_ast( ast_t* ast )
@@ -701,11 +712,16 @@ type_t* type_ast( ast_t* ast )
       break;
 
     case TK_FUNTYPE:
+    case TK_LAMBDA:
       type = funtype( ast );
       break;
 
     case TK_OBJTYPE:
       type = objtype( ast );
+      break;
+
+    case TK_PARAM:
+      type = ast_data( ast );
       break;
 
     case TK_INFER: return &infer;

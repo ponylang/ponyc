@@ -106,6 +106,8 @@ typedef enum
   TK_SEQ,
   TK_CASE,
   TK_LAMBDA,
+  TK_CANTHROW,
+  TK_DOTHROW,
   TK_REF,
 
   TK_EOF

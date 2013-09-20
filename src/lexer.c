@@ -120,6 +120,8 @@ static const symbol_t abstract[] =
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
+  { "field", TK_FIELD },
+  { "local", TK_LOCAL },
   { "list", TK_LIST },
   { "adt", TK_ADT },
   { "objtype", TK_OBJTYPE },
@@ -127,8 +129,14 @@ static const symbol_t abstract[] =
   { "mode", TK_MODE },
   { "typeparam", TK_TYPEPARAM },
   { "param", TK_PARAM },
+  { "typeargs", TK_TYPEARGS },
   { "call", TK_CALL },
   { "seq", TK_SEQ },
+  { "case", TK_CASE },
+  { "lambda", TK_LAMBDA },
+  { "canthrow", TK_CANTHROW },
+  { "dothrow", TK_DOTHROW },
+  { "ref", TK_REF },
 
   { NULL, 0 }
 };

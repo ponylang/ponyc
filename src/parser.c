@@ -522,6 +522,22 @@ static ast_t* parenseq( parser_t* parser )
   DONE();
 }
 
+static ast_t* throwseq( parser_t* parser )
+{
+  // seq
+  AST( TK_CANTHROW );
+  RULE( seq );
+  DONE();
+}
+
+static ast_t* throwexpr( parser_t* parser )
+{
+  // expr
+  AST( TK_CANTHROW );
+  RULE( expr );
+  DONE();
+}
+
 static ast_t* reference( parser_t* parser )
 {
   // ID
@@ -629,16 +645,21 @@ static ast_t* lambda( parser_t* parser )
   SCOPE();
   EXPECT_DROP( TK_FUN );
 
-  if( !ACCEPT( TK_THROW ) )
-  {
-    INSERT( TK_NONE );
-  }
+  bool throw = ACCEPT( TK_THROW );
+  if( !throw ) { INSERT( TK_NONE ); }
 
   RULE( mode );
   RULE( params );
   RULE( oftype );
   EXPECT_DROP( TK_EQUALS );
-  RULE( expr );
+
+  if( throw )
+  {
+    RULE( throwexpr );
+  } else {
+    RULE( expr );
+  }
+
   DONE();
 }
 
@@ -657,7 +678,8 @@ static ast_t* conditional( parser_t* parser )
     RULE( expr );
     SCOPE();
   } else {
-    EXPECT( TK_END );
+    EXPECT_DROP( TK_END );
+    INSERT( TK_NONE );
   }
 
   DONE();
@@ -763,9 +785,9 @@ static ast_t* returnexpr( parser_t* parser )
 
 static ast_t* try( parser_t* parser )
 {
-  // TRY seq (ELSE seq)? (THEN expr | END)
+  // TRY throwseq (ELSE seq)? (THEN expr | END)
   AST_TOKEN();
-  RULE( seq );
+  RULE( throwseq );
   SCOPE();
 
   if( ACCEPT_DROP( TK_ELSE ) )
@@ -781,7 +803,8 @@ static ast_t* try( parser_t* parser )
     RULE( expr );
     SCOPE();
   } else {
-    EXPECT( TK_END );
+    EXPECT_DROP( TK_END );
+    INSERT( TK_NONE );
   }
 
   DONE();
@@ -806,6 +829,13 @@ static ast_t* command( parser_t* parser )
   DONE();
 }
 
+static ast_t* throw( parser_t* parser )
+{
+  AST( TK_DOTHROW );
+  EXPECT( TK_THROW );
+  DONE();
+}
+
 static ast_t* expr( parser_t* parser )
 {
   // local | lambda | conditional | match | whileloop | doloop | forloop |
@@ -823,7 +853,7 @@ static ast_t* expr( parser_t* parser )
     { TK_CONTINUE, consume },
     { TK_RETURN, returnexpr },
     { TK_TRY, try },
-    { TK_THROW, consume },
+    { TK_THROW, throw },
     { TK_NONE, command }
     );
 }
@@ -839,10 +869,8 @@ static ast_t* function( parser_t* parser )
     INSERT( TK_NONE );
   }
 
-  if( !ACCEPT( TK_THROW ) )
-  {
-    INSERT( TK_NONE );
-  }
+  bool throw = ACCEPT( TK_THROW );
+  if( !throw ) { INSERT( TK_NONE ); }
 
   EXPECT( TK_ID );
   RULE( typeparams );
@@ -852,7 +880,13 @@ static ast_t* function( parser_t* parser )
 
   if( ACCEPT_DROP( TK_EQUALS ) )
   {
-    RULE( seq );
+    if( throw )
+    {
+      RULE( throwseq );
+    } else {
+      RULE( seq );
+    }
+
     SCOPE();
   } else {
     INSERT( TK_NONE );
@@ -882,9 +916,22 @@ static ast_t* is( parser_t* parser )
   DONE();
 }
 
+static ast_t* members( parser_t* parser )
+{
+  // (field | function)*
+  AST( TK_LIST );
+  LIST(
+    { TK_VAR, field },
+    { TK_VAL, field },
+    { TK_FUN, function },
+    { TK_MSG, function }
+    );
+  DONE();
+}
+
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID typeparams mode is (PRIVATE|INFER)? (field | function)*
+  // (TRAIT | CLASS | ACTOR) ID typeparams mode is (PRIVATE|INFER)? members
   AST_TOKEN();
   SCOPE();
   EXPECT( TK_ID );
@@ -897,12 +944,7 @@ static ast_t* class( parser_t* parser )
     INSERT( TK_NONE );
   }
 
-  LIST(
-    { TK_VAR, field },
-    { TK_VAL, field },
-    { TK_FUN, function },
-    { TK_MSG, function }
-    );
+  RULE( members );
   DONE();
 }
 

@@ -36,7 +36,7 @@ class: trait|class|actor
   mode
   (PRIVATE|INFER|NONE)
   is: type*
-  (field|function)*
+  list of (field|function)
 
 field
   (VAR|VAL)
@@ -52,7 +52,7 @@ function: fun|msg
   mode
   list of param
   type
-  seq
+  (seq|canthrow|NONE)
 
 typeparam|param
   ID
@@ -82,11 +82,20 @@ mode
   list of (ISO|VAR|VAL|TAG|THIS|ID)
   THIS|ID|NONE
 
+canthrow
+  (expr|seq)
+
 seq
   symtab: ID -> local
   expr*
 
-expr: local|fun|if|match|while|do|for|break|continue|return|try|throw|binary
+expr
+  :local|lambda
+  |if|match
+  |while|do|for
+  |break|continue|return
+  |try|throw
+  |binary|equals
 
 local
   (VAR|VAL)
@@ -99,12 +108,12 @@ lambda
   mode
   list of param
   type
-  expr
+  (expr|canthrow)
 
 if
   seq
   expr
-  (expr|END)
+  (expr|NONE)
 
 match
   seq
@@ -131,9 +140,9 @@ for
   expr
 
 try
-  seq
+  canthrow
   (seq|NONE)
-  (expr|END)
+  (expr|NONE)
 
 return
   expr
@@ -162,10 +171,17 @@ unop: NOT|MINUS
 
 unary: (unop: unary)|postfix
 
-binop:
-  AND|OR|XOR|PLUS|MINUS|MULTIPLY|DIVIDE|MOD|LSHIFT|RSHIFT|EQ|NEQ|LT|LE|GE|GT
+binop
+  :AND|OR|XOR
+  |PLUS|MINUS|MULTIPLY|DIVIDE|MOD
+  |LSHIFT|RSHIFT
+  |EQ|NEQ|LT|LE|GE|GT
 
-binary: (binop: unary unary)|unary
+binary: (binop: binary unary)|unary
+
+equals
+  binary
+  expr
 */
 
 typedef struct ast_t ast_t;

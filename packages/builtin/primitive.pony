@@ -8,30 +8,6 @@ class False
 
 alias Bool:(True|False)
 
-alias Number:(Integer|Real)
-
-alias Integer:
-  (I8
-  |I16
-  |I32
-  |I64
-  |I128
-  |Unsigned
-  )
-
-alias Unsigned:
-  (U8
-  |U16
-  |U32
-  |U64
-  |U128
-  |IntLiteral
-  )
-
-alias Real:(F32|F64|NumLiteral)
-
-alias NumLiteral:(IntLiteral|FloatLiteral)
-
 class I8
 
 class I16

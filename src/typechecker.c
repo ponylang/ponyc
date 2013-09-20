@@ -2,17 +2,26 @@
 #include "package.h"
 #include "types.h"
 #include "error.h"
+#include <assert.h>
 
 static type_t* infer;
 static type_t* none;
 static type_t* boolean;
-static type_t* string;
-static type_t* integer;
-static type_t* unsign;
-static type_t* number;
+static type_t* i8;
+static type_t* i16;
+static type_t* i32;
+static type_t* i64;
+static type_t* i128;
+static type_t* u8;
+static type_t* u16;
+static type_t* u32;
+static type_t* u64;
+static type_t* u128;
+static type_t* f32;
+static type_t* f64;
 static type_t* intlit;
 static type_t* floatlit;
-static type_t* numlit;
+static type_t* string;
 static type_t* comparable;
 static type_t* ordered;
 
@@ -159,10 +168,7 @@ static bool add_to_scope( ast_t* ast )
 
       if( trait != NULL )
       {
-        ast_error( ast, "can't have field '%s' in trait '%s'",
-          ast_name( name ), ast_name( ast_child( trait ) )
-          );
-
+        ast_error( ast, "can't have a field in a trait" );
         return false;
       }
 
@@ -174,15 +180,20 @@ static bool add_to_scope( ast_t* ast )
 
     case TK_MSG:
     {
-      ast_t* name = ast_childidx( ast, 2 );
+      ast_t* throw = ast_childidx( ast, 1 );
+
+      if( ast_id( throw ) != TK_NONE )
+      {
+        ast_error( ast, "a msg cannot throw" );
+        return false;
+      }
+
+      ast_t* name = ast_sibling( throw );
       ast_t* class = ast_nearest( ast, TK_CLASS );
 
       if( class != NULL )
       {
-        ast_error( ast, "can't have msg '%s' in class '%s'",
-          ast_name( name ), ast_name( ast_child( class ) )
-          );
-
+        ast_error( ast, "can't have a msg in a class" );
         return false;
       }
 
@@ -198,7 +209,7 @@ static bool add_to_scope( ast_t* ast )
   return true;
 }
 
-static bool infer_type( ast_t* ast, size_t idx )
+static bool infer_type( ast_t* ast, size_t idx, bool require )
 {
   ast_t* type_ast = ast_childidx( ast, idx );
   type_t* type = ast_data( type_ast );
@@ -206,6 +217,12 @@ static bool infer_type( ast_t* ast, size_t idx )
 
   ast_t* expr_ast = ast_sibling( type_ast );
   type_t* expr = ast_data( expr_ast );
+
+  if( require && (expr == infer) )
+  {
+    ast_error( ast, "right-hand side has no type to assign" );
+    return false;
+  }
 
   if( !type_sub( expr, type ) )
   {
@@ -218,6 +235,57 @@ static bool infer_type( ast_t* ast, size_t idx )
   return true;
 }
 
+static bool unsigned_number( type_t* type )
+{
+  return (type == intlit) || (type == u8) || (type == u16) || (type == u32)
+    || (type == u64) || (type == u128);
+}
+
+static bool signed_number( type_t* type )
+{
+  return (type == intlit) || (type == i8) || (type == i16) || (type == i32)
+    || (type == i64) || (type == i128);
+}
+
+static bool int_number( type_t* type )
+{
+  return signed_number( type ) || unsigned_number( type );
+}
+
+static bool real_number( type_t* type )
+{
+  return (type == floatlit) || (type == f32) || (type == f64);
+}
+
+static type_t* coerce_int( type_t* a, type_t* b )
+{
+  if( a == b )
+  {
+    return a;
+  } else if( (a == intlit) && int_number( b ) ) {
+    return b;
+  } else if( (b == intlit) && int_number( a ) ) {
+    return a;
+  }
+
+  return NULL;
+}
+
+static type_t* coerce_number( type_t* a, type_t* b )
+{
+  type_t* r = coerce_int( a, b );
+  if( r != NULL ) { return r; }
+
+  if( ((a == floatlit) || (a == intlit)) && real_number( b ) )
+  {
+    return b;
+  } else if( ((b == floatlit) || (b == intlit)) && real_number( a ) ) {
+    return a;
+  }
+
+  return NULL;
+}
+
 static bool same_number( ast_t* ast )
 {
   ast_t* left = ast_child( ast );
@@ -225,23 +293,52 @@ static bool same_number( ast_t* ast )
   type_t* ltype = ast_data( left );
   type_t* rtype = ast_data( right );
 
-  if( !type_sub( ltype, number ) )
+  type_t* r = coerce_number( ltype, rtype );
+
+  if( r == NULL )
   {
-    ast_error( left, "must be a Number" );
+    ast_error( ast, "both sides must be the same Number type" );
     return false;
   }
 
-  if( type_sub( ltype, numlit ) )
+  ast_attach( ast, r );
+  return true;
+}
+
+static bool conditional( ast_t* ast, int idx )
+{
+  ast_t* cond = ast_childidx( ast, idx );
+
+  if( !type_sub( ast_data( cond ), boolean ) )
   {
-    ast_attach( left, rtype );
-    ast_attach( ast, rtype );
-  } else if( type_sub( rtype, numlit ) ) {
-    ast_attach( right, ltype );
-    ast_attach( ast, ltype );
-  } else if( type_eq( ltype, rtype ) ) {
-    ast_attach( ast, ltype );
+    ast_error( ast, "conditional must be a Bool" );
+    return false;
+  }
+
+  return true;
+}
+
+static bool upper_bounds( ast_t* ast, int idx1, int idx2 )
+{
+  ast_t* branch1 = ast_childidx( ast, idx1 );
+  ast_t* branch2 = ast_childidx( ast, idx2 );
+
+  if( ast_id( branch2 ) == TK_NONE )
+  {
+    ast_attach( ast, none );
+    return true;
+  }
+
+  type_t* type1 = ast_data( branch1 );
+  type_t* type2 = ast_data( branch2 );
+
+  if( type_sub( type1, type2 ) )
+  {
+    ast_attach( ast, type2 );
+  } else if( type_sub( type2, type1 ) ) {
+    ast_attach( ast, type1 );
   } else {
-    ast_error( left, "both sides must be the same Number type" );
+    ast_error( ast, "branches have unrelated types" );
     return false;
   }
 
@@ -257,13 +354,13 @@ static bool trait_and_subtype( ast_t* ast, type_t* trait, const char* name )
 
   if( !type_sub( ltype, trait ) )
   {
-    ast_error( left, "must be %s", name );
+    ast_error( ast, "left-hand side must be %s", name );
     return false;
   }
 
   if( !type_sub( rtype, ltype ) )
   {
-    ast_error( right, "must be a subtype of the left-hand side" );
+    ast_error( ast, "right-hand side must be a subtype of the left-hand side" );
     return false;
   }
 
@@ -293,13 +390,36 @@ static bool def_before_use( ast_t* def, ast_t* use )
   return true;
 }
 
-static bool resolve_type( ast_t* ast )
+static bool body_is_result( ast_t* ast, int idx1, int idx2 )
+{
+  ast_t* result = ast_childidx( ast, idx1 );
+  ast_t* body = ast_childidx( ast, idx2 );
+  type_t* rtype = ast_data( result );
+  type_t* btype = ast_data( body );
+
+  if( rtype == infer ) { rtype = none; }
+
+  if( ast_id( body ) != TK_NONE )
+  {
+    if( coerce_number( btype, rtype ) ) { return true; }
+
+    if( !type_sub( btype, rtype ) )
+    {
+      ast_error( ast, "body is not the result type" );
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool type_first( ast_t* ast )
 {
   switch( ast_id( ast ) )
   {
-    case TK_TYPEPARAM:
-    case TK_PARAM:
-      return infer_type( ast, 1 );
+    case TK_MSG:
+      ast_attach( ast, none );
+      return true;
 
     case TK_FIELD:
       ast_attach( ast, ast_data( ast_childidx( ast, 2 ) ) );
@@ -332,32 +452,127 @@ static bool resolve_type( ast_t* ast )
       ast_attach( ast, floatlit );
       return true;
 
+    case TK_BREAK:
+    case TK_CONTINUE:
+    {
+      if( !ast_nearest( ast, TK_WHILE )
+        && !ast_nearest( ast, TK_DO )
+        && !ast_nearest( ast, TK_FOR )
+        )
+      {
+        ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
+        return false;
+      }
+
+      ast_attach( ast, infer );
+      return true;
+    }
+
+    case TK_DOTHROW:
+    {
+      if( !ast_nearest( ast, TK_CANTHROW ) )
+      {
+        ast_error( ast,
+          "throw must be in a try or in a function/lambda that throws" );
+        return false;
+      }
+
+      ast_attach( ast, infer );
+      return true;
+    }
+
+    default: {}
+  }
+
+  return true;
+}
+
+static bool type_second( ast_t* ast )
+{
+  switch( ast_id( ast ) )
+  {
+    case TK_TYPEPARAM:
+    case TK_PARAM:
+      return infer_type( ast, 1, false );
+
+    case TK_FUN:
+      return body_is_result( ast, 6, 7 );
+
+    case TK_LOCAL:
+      return infer_type( ast, 2, true );
+
+    case TK_LAMBDA:
+      ast_attach( ast, type_ast( ast ) );
+      return body_is_result( ast, 3, 4 );
+
     case TK_REF:
     {
       ast_t* id = ast_child( ast );
       const char* name = ast_name( id );
       ast_t* def = ast_get( ast, name );
 
-      // FIX: might be a Type
-      if( def == NULL )
+      if( (name[0] >= 'A') && (name[0] <= 'Z') )
       {
-        ast_error( id, "identifier %s is not in scope", name );
-        return false;
-      }
+        if( def == NULL )
+        {
+          ast_error( id, "type %s is not in scope", name );
+          return false;
+        }
 
-      // FIX:
-      switch( ast_id( def ) )
-      {
-        case TK_LOCAL:
-          if( !def_before_use( def, id ) ) { return false; }
-          ast_attach( ast, ast_data( def ) );
-          break;
+        /*
+        FIX: it's a constructor, parent could be:
+        typeargs:
+          if parent isn't a call, it's a static apply
+        call:
+          static apply, if it has parameters
+          apply, if static apply doesn't exist or has no parameters
+            implies a static apply with no arguments comes first
+        anything else:
+          static apply, no arguments
+        */
+      } else {
+        if( def == NULL )
+        {
+          ast_error( id, "identifier %s is not in scope", name );
+          return false;
+        }
 
-        default: {}
+        // FIX: local, param, field or function
+        // could be a function in a trait
+        switch( ast_id( def ) )
+        {
+          case TK_LOCAL:
+            if( !def_before_use( def, id ) ) { return false; }
+            ast_attach( ast, ast_data( def ) );
+            break;
+
+          case TK_PARAM:
+          case TK_FIELD:
+            assert( ast_data( def ) != NULL );
+            ast_attach( ast, ast_data( def ) );
+            break;
+
+          case TK_FUN:
+          case TK_MSG:
+            /*
+            FIX: parent could be:
+            dot: look it up again in the right context
+            call: it's a function call or partial application
+            typeargs: parent's parent must be call
+            anything else: it's partial application
+            */
+            break;
+
+          default: {}
+        }
       }
 
       return true;
     }
+
+    case TK_CANTHROW:
+      ast_attach( ast, ast_data( ast_child( ast ) ) );
+      return true;
 
     case TK_SEQ:
     {
@@ -380,6 +595,10 @@ static bool resolve_type( ast_t* ast )
       // FIX:
       return true;
 
+    case TK_EQUALS:
+      // FIX:
+      return true;
+
     case TK_NOT:
     {
       ast_t* child = ast_child( ast );
@@ -388,10 +607,10 @@ static bool resolve_type( ast_t* ast )
       if( type_sub( type, boolean ) )
       {
         ast_attach( ast, boolean );
-      } else if( type_sub( type, integer ) ) {
+      } else if( int_number( type ) ) {
         ast_attach( ast, type );
       } else {
-        ast_error( child, "must be a Bool or an Integer" );
+        ast_error( ast, "must be a Bool or an integer" );
         return false;
       }
 
@@ -407,10 +626,10 @@ static bool resolve_type( ast_t* ast )
       if( right != NULL )
       {
         return same_number( ast );
-      } else if( type_sub( ltype, number ) ) {
+      } else if( signed_number( ltype ) ) {
         ast_attach( ast, ltype );
       } else {
-        ast_error( left, "must be a Number" );
+        ast_error( ast, "must be a signed integer" );
         return false;
       }
 
@@ -421,40 +640,26 @@ static bool resolve_type( ast_t* ast )
     case TK_OR:
     case TK_XOR:
     {
-      // both sides must either be Bool or the same Integer
       ast_t* left = ast_child( ast );
       ast_t* right = ast_sibling( left );
       type_t* ltype = ast_data( left );
       type_t* rtype = ast_data( right );
 
-      if( type_sub( ltype, boolean ) )
+      if( type_sub( ltype, boolean ) && type_sub( rtype, boolean ) )
       {
-        if( type_sub( rtype, boolean ) )
-        {
-          ast_attach( ast, boolean );
-        } else {
-          ast_error( right, "must be a Bool" );
-          return false;
-        }
-      } else if( type_sub( ltype, integer ) ) {
-        if( type_sub( ltype, intlit ) )
-        {
-          ast_attach( left, rtype );
-          ast_attach( ast, rtype );
-        } else if( type_sub( rtype, intlit ) ) {
-          ast_attach( right, ltype );
-          ast_attach( ast, ltype );
-        } else if( type_eq( ltype, rtype ) ) {
-          ast_attach( ast, ltype );
-        } else {
-          ast_error( left, "both sides must be the same Integer type" );
-          return false;
-        }
-      } else {
-        ast_error( left, "must be a Bool or an Integer" );
+        ast_attach( ast, boolean );
+        return true;
+      }
+
+      type_t* r = coerce_number( ltype, rtype );
+
+      if( r == NULL )
+      {
+        ast_error( ast, "both sides must either be Bool or the same integer" );
         return false;
       }
 
+      ast_attach( ast, r );
       return true;
     }
 
@@ -473,15 +678,15 @@ static bool resolve_type( ast_t* ast )
       type_t* ltype = ast_data( left );
       type_t* rtype = ast_data( right );
 
-      if( !type_sub( ltype, integer ) )
+      if( !int_number( ltype ) )
       {
-        ast_error( left, "must be an Integer" );
+        ast_error( ast, "left-hand side must be an integer" );
         return false;
       }
 
-      if( !type_sub( rtype, unsign ) )
+      if( !unsigned_number( rtype ) )
       {
-        ast_error( right, "must be Unsigned" );
+        ast_error( ast, "right-hand side must be an unsigned integer" );
         return false;
       }
 
@@ -499,12 +704,8 @@ static bool resolve_type( ast_t* ast )
     case TK_GT:
       return trait_and_subtype( ast, ordered, "Ordered" );
 
-    case TK_LOCAL:
-      return infer_type( ast, 2 );
-
     case TK_IF:
-      // FIX:
-      return true;
+      return conditional( ast, 0 ) && upper_bounds( ast, 1, 2 );
 
     case TK_MATCH:
       // FIX:
@@ -519,32 +720,12 @@ static bool resolve_type( ast_t* ast )
       return true;
 
     case TK_WHILE:
-    {
-      ast_t* cond = ast_child( ast );
-
-      if( !type_sub( ast_data( cond ), boolean ) )
-      {
-        ast_error( cond, "while loop conditional must be a Bool" );
-        return false;
-      }
-
       ast_attach( ast, none );
-      return true;
-    }
+      return conditional( ast, 0 );
 
     case TK_DO:
-    {
-      ast_t* cond = ast_childidx( ast, 1 );
-
-      if( !type_sub( ast_data( cond ), boolean ) )
-      {
-        ast_error( cond, "do loop conditional must be a Bool" );
-        return false;
-      }
-
       ast_attach( ast, none );
-      return true;
-    }
+      return conditional( ast, 1 );
 
     case TK_FOR:
       // FIX:
@@ -552,44 +733,20 @@ static bool resolve_type( ast_t* ast )
       return true;
 
     case TK_TRY:
-      /*
-      FIX:
-      type is finally type, if there is a finally clause
-        otherwise, its the seq type and the seq type must match the catch type
-      */
-      return true;
+      return upper_bounds( ast, 0, 1 );
 
     case TK_RETURN:
-      // FIX:
-      return true;
-
-    case TK_BREAK:
-    case TK_CONTINUE:
     {
-      if( !ast_nearest( ast, TK_WHILE )
-        && !ast_nearest( ast, TK_DO )
-        && !ast_nearest( ast, TK_FOR )
-        )
-      {
-        ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
-        return false;
-      }
+//      type_t* type = ast_data( ast_child( ast ) );
+      ast_t* fun;
 
-      ast_attach( ast, none );
-      return true;
-    }
-
-    case TK_THROW:
-    {
-      /*
-      FIX: or in a function that throws
-      disambiguate from the TK_THROW node in funtype, fun and lambda
-       */
-      if( !ast_nearest( ast, TK_TRY )
-        )
+      if( (fun = ast_nearest( ast, TK_FUN )) != NULL )
       {
-        ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
-        return false;
+        // FIX: in a function
+      } else if( (fun = ast_nearest( ast, TK_LAMBDA )) != NULL ) {
+        // FIX: in a lambda
+      } else {
+        // FIX: in a message
       }
 
       return true;
@@ -619,12 +776,7 @@ static bool check_type( ast_t* ast )
 bool typecheck_init( ast_t* program )
 {
   ast_t* builtin = package_load( program, "builtin" );
-
-  if( builtin == NULL )
-  {
-//    ast_error( program, "couldn't load built-in types" );
-    return false;
-  }
+  if( builtin == NULL ) { return false; }
 
   return true;
 }
@@ -638,45 +790,36 @@ bool typecheck( ast_t* ast )
   expression typing
   */
   ast_t* builtin = use_package( ast, "builtin", NULL );
+  if( builtin == NULL ) { return false; }
 
-  if( builtin == NULL )
-  {
-//    ast_error( ast, "couldn't use builtin" );
-    return false;
-  }
-
-  if( !ast_visit( ast, add_to_scope, NULL ) )
-  {
-//    ast_error( ast, "couldn't add to scope" );
-    return false;
-  }
+  if( !ast_visit( ast, add_to_scope, NULL ) ) { return false; }
 
   if( infer == NULL )
   {
     infer = type_ast( NULL );
     none = type_name( builtin, "None" );
     boolean = type_name( builtin, "Bool" );
-    string = type_name( builtin, "String" );
-    integer = type_name( builtin, "Integer" );
-    unsign = type_name( builtin, "Unsigned" );
-    number = type_name( builtin, "Number" );
+    i8 = type_name( builtin, "I8" );
+    i16 = type_name( builtin, "I16" );
+    i32 = type_name( builtin, "I32" );
+    i64 = type_name( builtin, "I64" );
+    i128 = type_name( builtin, "I128" );
+    u8 = type_name( builtin, "U8" );
+    u16 = type_name( builtin, "U16" );
+    u32 = type_name( builtin, "U32" );
+    u64 = type_name( builtin, "U64" );
+    u128 = type_name( builtin, "U128" );
+    f32 = type_name( builtin, "F32" );
+    f64 = type_name( builtin, "F64" );
     intlit = type_name( builtin, "IntLiteral" );
     floatlit = type_name( builtin, "FloatLiteral" );
-    numlit = type_name( builtin, "NumLiteral" );
+    string = type_name( builtin, "String" );
     comparable = type_name( builtin, "Comparable" );
   }
 
-  if( !ast_visit( ast, NULL, resolve_type ) )
-  {
-//    ast_error( ast, "couldn't resolve types" );
-    return false;
-  }
-
-  if( !ast_visit( ast, NULL, check_type ) )
-  {
-//    ast_error( ast, "couldn't check types" );
-    return false;
-  }
+  if( !ast_visit( ast, NULL, type_first ) ) { return false; }
+  if( !ast_visit( ast, NULL, type_second ) ) { return false; }
+  if( !ast_visit( ast, NULL, check_type ) ) { return false; }
 
   return true;
 }

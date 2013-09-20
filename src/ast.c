@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 struct ast_t
 {
@@ -255,7 +256,6 @@ void ast_add( ast_t* parent, ast_t* child )
 void ast_append( ast_t* parent, ast_t* child )
 {
   child->parent = parent;
-  child->sibling = NULL;
 
   if( parent->child == NULL )
   {
