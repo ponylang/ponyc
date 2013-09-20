@@ -104,7 +104,7 @@ local
   expr
 
 lambda
-  THROW
+  (THROW|NONE)
   mode
   list of param
   type
