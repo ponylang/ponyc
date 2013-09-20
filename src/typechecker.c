@@ -572,6 +572,7 @@ static bool resolve_type( ast_t* ast )
         )
       {
         ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
+        return false;
       }
 
       ast_attach( ast, none );
@@ -579,8 +580,20 @@ static bool resolve_type( ast_t* ast )
     }
 
     case TK_THROW:
-      // FIX:
+    {
+      /*
+      FIX: or in a function that throws
+      disambiguate from the TK_THROW node in funtype, fun and lambda
+       */
+      if( !ast_nearest( ast, TK_TRY )
+        )
+      {
+        ast_error( ast, "%s can only appear in a loop", ast_name( ast ) );
+        return false;
+      }
+
       return true;
+    }
 
     default: {}
   }
