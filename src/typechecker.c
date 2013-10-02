@@ -209,6 +209,23 @@ static bool add_to_scope( ast_t* ast )
   return true;
 }
 
+static bool flatten_traits( ast_t* ast )
+{
+  switch( ast_id( ast ) )
+  {
+    case TK_TRAIT:
+      return true;
+
+    case TK_CLASS:
+    case TK_ACTOR:
+      return true;
+
+    default: {}
+  }
+
+  return true;
+}
+
 static bool infer_type( ast_t* ast, size_t idx, bool require )
 {
   ast_t* type_ast = ast_childidx( ast, idx );
@@ -271,11 +288,8 @@ static type_t* coerce_int( type_t* a, type_t* b )
   return NULL;
 }
 
-static type_t* coerce_number( type_t* a, type_t* b )
+static type_t* coerce_real( type_t* a, type_t* b )
 {
-  type_t* r = coerce_int( a, b );
-  if( r != NULL ) { return r; }
-
   if( ((a == floatlit) || (a == intlit)) && real_number( b ) )
   {
     return b;
@@ -284,6 +298,14 @@ static type_t* coerce_number( type_t* a, type_t* b )
   }
 
   return NULL;
+}
+
+static type_t* coerce_number( type_t* a, type_t* b )
+{
+  type_t* r = coerce_int( a, b );
+  if( r != NULL ) { return r; }
+
+  return coerce_real( a, b );
 }
 
 static bool same_number( ast_t* ast )
@@ -390,10 +412,9 @@ static bool def_before_use( ast_t* def, ast_t* use )
   return true;
 }
 
-static bool body_is_result( ast_t* ast, int idx1, int idx2 )
+static bool body_is_result( ast_t* ast, int idx, ast_t* body )
 {
-  ast_t* result = ast_childidx( ast, idx1 );
-  ast_t* body = ast_childidx( ast, idx2 );
+  ast_t* result = ast_childidx( ast, idx );
   type_t* rtype = ast_data( result );
   type_t* btype = ast_data( body );
 
@@ -405,7 +426,7 @@ static bool body_is_result( ast_t* ast, int idx1, int idx2 )
 
     if( !type_sub( btype, rtype ) )
     {
-      ast_error( ast, "body is not the result type" );
+      ast_error( body, "body is not the result type" );
       return false;
     }
   }
@@ -496,14 +517,14 @@ static bool type_second( ast_t* ast )
       return infer_type( ast, 1, false );
 
     case TK_FUN:
-      return body_is_result( ast, 6, 7 );
+      return body_is_result( ast, 6, ast_childidx( ast, 7 ) );
 
     case TK_LOCAL:
       return infer_type( ast, 2, true );
 
     case TK_LAMBDA:
       ast_attach( ast, type_ast( ast ) );
-      return body_is_result( ast, 3, 4 );
+      return body_is_result( ast, 3, ast_childidx( ast, 4 ) );
 
     case TK_REF:
     {
@@ -556,7 +577,6 @@ static bool type_second( ast_t* ast )
           case TK_MSG:
             /*
             FIX: parent could be:
-            dot: look it up again in the right context
             call: it's a function call or partial application
             typeargs: parent's parent must be call
             anything else: it's partial application
@@ -737,16 +757,16 @@ static bool type_second( ast_t* ast )
 
     case TK_RETURN:
     {
-//      type_t* type = ast_data( ast_child( ast ) );
+      ast_attach( ast, ast_data( ast_child( ast ) ) );
       ast_t* fun;
 
-      if( (fun = ast_nearest( ast, TK_FUN )) != NULL )
+      if( ((fun = ast_nearest( ast, TK_FUN )) != NULL)
+        || ((fun = ast_nearest( ast, TK_MSG )) != NULL)
+        )
       {
-        // FIX: in a function
+        return body_is_result( fun, 6, ast );
       } else if( (fun = ast_nearest( ast, TK_LAMBDA )) != NULL ) {
-        // FIX: in a lambda
-      } else {
-        // FIX: in a message
+        return body_is_result( fun, 3, ast );
       }
 
       return true;
@@ -791,7 +811,6 @@ bool typecheck( ast_t* ast )
   */
   ast_t* builtin = use_package( ast, "builtin", NULL );
   if( builtin == NULL ) { return false; }
-
   if( !ast_visit( ast, add_to_scope, NULL ) ) { return false; }
 
   if( infer == NULL )
@@ -817,9 +836,9 @@ bool typecheck( ast_t* ast )
     comparable = type_name( builtin, "Comparable" );
   }
 
+  if( !ast_visit( ast, NULL, check_type ) ) { return false; }
   if( !ast_visit( ast, NULL, type_first ) ) { return false; }
   if( !ast_visit( ast, NULL, type_second ) ) { return false; }
-  if( !ast_visit( ast, NULL, check_type ) ) { return false; }
 
   return true;
 }

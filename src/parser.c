@@ -786,6 +786,8 @@ static ast_t* returnexpr( parser_t* parser )
 static ast_t* try( parser_t* parser )
 {
   // TRY throwseq (ELSE seq)? (THEN expr | END)
+
+  // FIX: only allowed to throw if there is a catch clause
   AST_TOKEN();
   RULE( throwseq );
   SCOPE();
