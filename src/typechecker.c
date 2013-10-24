@@ -209,6 +209,7 @@ static bool add_to_scope( ast_t* ast )
   return true;
 }
 
+#if 0
 static bool flatten_traits( ast_t* ast )
 {
   switch( ast_id( ast ) )
@@ -225,6 +226,7 @@ static bool flatten_traits( ast_t* ast )
 
   return true;
 }
+#endif
 
 static bool infer_type( ast_t* ast, size_t idx, bool require )
 {

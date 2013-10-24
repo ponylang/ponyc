@@ -18,7 +18,7 @@ solution "ponyc"
     }
 
   configuration "macosx"
-    buildoptions "-mno-avx"
+    buildoptions "-Wa,-q"
 
   configuration "Debug"
     targetdir "bin/debug"
