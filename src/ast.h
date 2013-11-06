@@ -34,19 +34,17 @@ class: trait|class|actor
   ID
   list of typeparam
   mode
-  (PRIVATE|INFER|NONE)
   is: type*
-  list of (field|function)
+  list of (field|fun|msg|new)
 
 field
   (VAR|VAL)
   ID
   type
 
-function: fun|msg
+fun
   symtab: ID -> typeparam|param
-  (PRIVATE|NONE)
-  (THROW|NONE)
+  (QUESTION|NONE)
   ID
   list of typeparam
   mode
@@ -54,19 +52,34 @@ function: fun|msg
   type
   (seq|canthrow|NONE)
 
+msg
+  symtab: ID -> typeparam|param
+  ID
+  list of typeparam
+  list of param
+  (seq|canthrow|NONE)
+
+new
+  symtab: ID -> typeparam|param
+  (QUESTION|NONE)
+  ID
+  list of typeparam
+  list of param
+  (seq|canthrow|NONE)
+
 typeparam|param
   ID
   type
   expr
 
-type: adt|funtype|objtype|INFER
+type: adt|funtype|objtype|NONE
 
 adt
   type*
 
 funtype
   data: type_t
-  (THROW|NONE)
+  (QUESTION|NONE)
   mode
   list of type
   type
@@ -94,7 +107,7 @@ expr
   |if|match
   |while|do|for
   |break|continue|return
-  |try|throw
+  |try|undef
   |binary|equals
 
 local
@@ -104,7 +117,7 @@ local
   expr
 
 lambda
-  (THROW|NONE)
+  (QUESTION|NONE)
   mode
   list of param
   type
@@ -144,12 +157,10 @@ try
   (seq|NONE)
   (expr|NONE)
 
-return
-  expr
-
 break
 continue
-throw
+return
+undef
 
 postfix: primary|dot|typeargs|call
 

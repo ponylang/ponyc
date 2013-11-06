@@ -3,7 +3,7 @@ use "../collections"
 trait Test
 trait Test2
 
-class Precedence[A:(Test), B:(Test|List[A]), C:fun throw():Array[B],
+class Precedence[A:(Test), B:(Test|List[A]), C:fun?():Array[B],
   D:(Test|List[A])] is List[B], Test
   /* nested
   /* comments */

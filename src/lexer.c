@@ -70,7 +70,7 @@ static const symbol_t symbols1[] =
   { ">", TK_GT },
 
   { "|", TK_PIPE },
-  { "&", TK_AMP },
+  { "?", TK_QUESTION },
 
   { NULL, 0 }
 };
@@ -90,6 +90,7 @@ static const symbol_t keywords[] =
   { "tag", TK_TAG },
   { "fun", TK_FUN },
   { "msg", TK_MSG },
+  { "new", TK_NEW },
   { "return", TK_RETURN },
   { "break", TK_BREAK },
   { "continue", TK_CONTINUE },
@@ -103,13 +104,12 @@ static const symbol_t keywords[] =
   { "do", TK_DO },
   { "match", TK_MATCH },
   { "try", TK_TRY },
-  { "throw", TK_THROW },
+  { "undef", TK_UNDEF },
   { "this", TK_THIS },
   { "not", TK_NOT },
   { "and", TK_AND },
   { "or", TK_OR },
   { "xor", TK_XOR },
-  { "private", TK_PRIVATE },
   { "infer", TK_INFER },
 
   { NULL, 0 }
@@ -135,7 +135,6 @@ static const symbol_t abstract[] =
   { "case", TK_CASE },
   { "lambda", TK_LAMBDA },
   { "canthrow", TK_CANTHROW },
-  { "dothrow", TK_DOTHROW },
   { "ref", TK_REF },
 
   { NULL, 0 }

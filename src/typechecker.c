@@ -82,56 +82,6 @@ static ast_t* use_package( ast_t* ast, const char* path, ast_t* name )
   return package;
 }
 
-static ast_t* gen_type( ast_t* ast )
-{
-  ast_t* obj = ast_newid( TK_OBJTYPE );
-  token_t* t = token_new( TK_ID, 0, 0 );
-  token_setstring( t, ast_name( ast_child( ast ) ) );
-  ast_t* obj_id = ast_token( t );
-
-  ast_t* list = ast_newid( TK_LIST );
-
-  if( ast_id( ast ) != TK_TYPEPARAM )
-  {
-    ast_t* param = ast_child( ast_childidx( ast, 1 ) );
-
-    while( param != NULL )
-    {
-      ast_add( list, gen_type( param ) );
-      param = ast_sibling( param );
-    }
-  }
-
-  ast_t* mode = ast_newid( TK_MODE );
-  ast_add( mode, ast_newid( TK_LIST ) );
-  ast_add( mode, ast_newid( TK_NONE ) );
-
-  ast_add( obj, obj_id );
-  ast_add( obj, ast_newid( TK_NONE ) );
-  ast_add( obj, list );
-  ast_add( obj, mode );
-
-  return obj;
-}
-
-static void add_this_to_type( ast_t* ast )
-{
-  // FIX: if constrained on a trait, use the constraint
-  ast_t* this = ast_new( TK_TYPEPARAM,
-    ast_line( ast ), ast_pos( ast ), NULL );
-
-  token_t* t = token_new( TK_ID, 0, 0 );
-  token_setstring( t, "This" );
-  ast_t* this_id = ast_token( t );
-
-  ast_add( this, this_id );
-  ast_add( this, gen_type( ast ) );
-  ast_add( this, ast_newid( TK_INFER ) );
-
-  ast_reverse( this );
-  ast_append( ast, this );
-}
-
 static bool add_to_scope( ast_t* ast )
 {
   switch( ast_id( ast ) )
@@ -145,13 +95,9 @@ static bool add_to_scope( ast_t* ast )
     }
 
     case TK_ALIAS:
-      return set_scope( ast_nearest( ast, TK_PACKAGE ),
-        ast_child( ast ), ast, true );
-
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:
-      add_this_to_type( ast );
       return set_scope( ast_nearest( ast, TK_PACKAGE ),
         ast_child( ast ), ast, true );
 
@@ -176,19 +122,12 @@ static bool add_to_scope( ast_t* ast )
     }
 
     case TK_FUN:
-      return set_scope( ast_parent( ast ), ast_childidx( ast, 2 ), ast, false );
+    case TK_NEW:
+      return set_scope( ast_parent( ast ), ast_childidx( ast, 1 ), ast, false );
 
     case TK_MSG:
     {
-      ast_t* throw = ast_childidx( ast, 1 );
-
-      if( ast_id( throw ) != TK_NONE )
-      {
-        ast_error( ast, "a msg cannot throw" );
-        return false;
-      }
-
-      ast_t* name = ast_sibling( throw );
+      ast_t* name = ast_child( ast );
       ast_t* class = ast_nearest( ast, TK_CLASS );
 
       if( class != NULL )
@@ -249,7 +188,7 @@ static bool infer_type( ast_t* ast, size_t idx, bool require )
     return false;
   }
 
-  if( ast_id( type_ast ) == TK_INFER ) { ast_attach( ast, expr ); }
+  if( ast_id( type_ast ) == TK_NONE ) { ast_attach( ast, expr ); }
 
   return true;
 }
@@ -460,7 +399,7 @@ static bool type_first( ast_t* ast )
     }
 
     case TK_THIS:
-      ast_attach( ast, type_name( ast, "This" ) );
+// FIX:      ast_attach( ast, type_name( ast, "This" ) );
       return true;
 
     case TK_STRING:
@@ -491,12 +430,12 @@ static bool type_first( ast_t* ast )
       return true;
     }
 
-    case TK_DOTHROW:
+    case TK_UNDEF:
     {
       if( !ast_nearest( ast, TK_CANTHROW ) )
       {
         ast_error( ast,
-          "throw must be in a try or in a function/lambda that throws" );
+          "undef must be in a try or in a partial function/lambda" );
         return false;
       }
 
@@ -519,7 +458,7 @@ static bool type_second( ast_t* ast )
       return infer_type( ast, 1, false );
 
     case TK_FUN:
-      return body_is_result( ast, 6, ast_childidx( ast, 7 ) );
+      return body_is_result( ast, 5, ast_childidx( ast, 6 ) );
 
     case TK_LOCAL:
       return infer_type( ast, 2, true );
@@ -577,6 +516,7 @@ static bool type_second( ast_t* ast )
 
           case TK_FUN:
           case TK_MSG:
+          case TK_NEW:
             /*
             FIX: parent could be:
             call: it's a function call or partial application

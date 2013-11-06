@@ -1,4 +1,4 @@
-trait Any infer
+trait Any
 
 class None
 
@@ -38,5 +38,5 @@ class FloatLiteral
 
 class String
 
-trait Stringable infer
+trait Stringable
   fun string{iso|var|val}():String

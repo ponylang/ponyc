@@ -475,7 +475,7 @@ static type_t* funtype( ast_t* ast )
   type_t* type = type_new( T_FUNCTION );
   ast_t* child = ast_child( ast );
 
-  if( ast_id( child ) == TK_THROW ) { type->fun.throws = true; }
+  if( ast_id( child ) == TK_QUESTION ) { type->fun.throws = true; }
   child = ast_sibling( child );
 
   // FIX: get the mode with the viewpoint
@@ -591,6 +591,8 @@ static type_t* type_subst( type_t* type, typelist_t* list )
       subst = type_new( T_ADT );
       typelist_subst( &subst->adt.types, type->adt.types, list );
       break;
+
+    default: subst = NULL;
   }
 
   return typetable( subst );
@@ -747,13 +749,11 @@ bool type_valid( ast_t* ast, type_t* type )
     default: {}
   }
 
-  bool ret;
   type->valid = T_CHECKING;
+  bool ret;
 
   switch( type->id )
   {
-    case T_INFER: ret = true; break;
-
     case T_FUNCTION:
       ret = typelist_valid( ast, type->fun.params )
         && obj_valid( ast, type->fun.result );
@@ -761,6 +761,8 @@ bool type_valid( ast_t* ast, type_t* type )
 
     case T_OBJECT: ret = obj_valid( ast, type ); break;
     case T_ADT: ret = typelist_valid( ast, type->adt.types ); break;
+
+    default: ret = true;
   }
 
   type->valid = ret ? T_VALID : T_INVALID;

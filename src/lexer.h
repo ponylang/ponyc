@@ -50,7 +50,7 @@ typedef enum
   TK_NEQ,
 
   TK_PIPE,
-  TK_AMP,
+  TK_QUESTION,
 
   // keywords
   TK_USE,
@@ -66,6 +66,7 @@ typedef enum
   TK_TAG,
   TK_FUN,
   TK_MSG,
+  TK_NEW,
   TK_RETURN,
   TK_BREAK,
   TK_CONTINUE,
@@ -79,13 +80,12 @@ typedef enum
   TK_DO,
   TK_MATCH,
   TK_TRY,
-  TK_THROW,
+  TK_UNDEF,
   TK_THIS,
   TK_NOT,
   TK_AND,
   TK_OR,
   TK_XOR,
-  TK_PRIVATE,
   TK_INFER,
 
   // abstract
@@ -107,7 +107,6 @@ typedef enum
   TK_CASE,
   TK_LAMBDA,
   TK_CANTHROW,
-  TK_DOTHROW,
   TK_REF,
 
   TK_EOF

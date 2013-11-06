@@ -8,7 +8,6 @@ solution "ponyc"
   buildoptions {
     "-std=gnu99",
     "-march=native",
-    "-falign-loops=16",
     }
 
   flags {
@@ -17,8 +16,8 @@ solution "ponyc"
     "Symbols",
     }
 
-  configuration "macosx"
-    buildoptions "-Wa,-q"
+--  configuration "macosx"
+  --  buildoptions "-Wa,-q -Wa,-Wno-trigraphs"
 
   configuration "Debug"
     targetdir "bin/debug"
@@ -35,10 +34,7 @@ solution "ponyc"
     defines "NDEBUG"
     buildoptions {
       "-O3",
-      "-flto=jobserver",
-      "-ffunction-sections",
-      "-fdata-sections",
-      "-freorder-blocks-and-partition",
+      "-flto",
       }
     linkoptions {
       "-flto=jobserver",

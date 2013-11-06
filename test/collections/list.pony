@@ -2,17 +2,9 @@ class List[A] is Iterable[A]
   var item:A
   var next:(List[A]|None)
 
-  fun default(item':A{iso}, next':(List[A]{iso}|None) = None):List[A]{iso} =
-    var a = Partial[This];
-    a.item = item';
-    a.next = next';
-    a.absorb()
-
-  fun mutable(item':A{var}, next':(List[A]{var}|None) = None):List[A]{var} =
-    Partial[This](item'->item, next'->next).absorb()
-
-  fun immutable(item':A{val}, next':(List[A]{val}|None) = None):List[A]{val} =
-    Partial[This](item'->item, next'->next).absorb()
+  new create(item':A, next':(List[A]|None) = None) =
+    item = item';
+    next = next'
 
   fun get_item{iso|var|val}():A->this = item
 
@@ -22,21 +14,20 @@ class List[A] is Iterable[A]
 
   fun set_next{iso|var}(a:(List[A]|None) = None) = a = next
 
-  fun iterator{var|val}():ListIter[A, This] = ListIter(this)
+  fun iterator{var|val}():ListIter[A, List[A]] = ListIter(this)
 
-class ListIter[A, B:List[A]]{var} is Iterator[A]
+class ListIter[A, B:List[A]] is Iterator[A]
   var list:B
 
-  fun default(list':B) =
-    Partial[This](list'->list).absorb()
+  new create(list':B) = list = list'
 
-  fun has_next():Bool =
+  fun has_next{iso|var|val}():Bool =
     match list.get_next()
     | None = False
     | = True
     end
 
-  fun next():A->list =
+  fun next{var}():A->list =
     var item = list.get();
     list = match list.get_next()
     | as a:B = a

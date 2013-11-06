@@ -16,14 +16,15 @@ use
   :  'use' STRING ('as' ID)?
   ;
 
-// FIX: 'of type' not in code yet, use to constrain This for traits
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? mode ('of' type)? ('is' types)? ('private' | 'infer')? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? ('is' types)? member*
   ;
 
 member
-  :  ('var' | 'val') ID (',' ID)* oftype // FIX: multiple declaration not in code yet
-  |  ('fun' | 'msg') 'private'? 'throw'? ID type_params? mode params oftype? ('=' seq)?
+  :  ('var' | 'val') ID oftype
+  |  'fun' '?'? ID type_params? mode params oftype? ('=' seq)?
+  |  'msg' ID type_params? params ('=' seq)?
+  |  'new' '?'? ID type_params? params ('=' seq)?
   ;
 
 alias
@@ -41,7 +42,7 @@ type
 
 base_type
   :  ID ('.' ID)? type_args? mode
-  |  'fun' 'throw'? mode '(' types? ')' oftype?
+  |  'fun' '?'? mode '(' types? ')' oftype?
   ;
 
 type_params
@@ -57,14 +58,13 @@ mode
   ;
 
 base_mode
-  :	 'iso' | 'var' | 'val' | 'tag' | 'this' | ID
+  :  'iso' | 'var' | 'val' | 'tag' | 'this' | ID
   ;
 
 params
   :  '(' (param (',' param)*)? ')'
   ;
 
-// FIX: this could be used in code to allow multiple declaration, ie (a, b: I32, c, d: String)
 param
   :  ID oftype? ('=' expr)?
   ;
@@ -81,41 +81,24 @@ arg
   :  expr ('->' ID)?
   ;
 
-/* FIX: would be nice to be able to say:
-a = if not match ...
-a = not if ... then ... else ...
-a = if ... then ... else ... + ...
-
-those all require the clause to have a terminator that can't be part of an expression
-match, try, if already have one if there is no else clause
-fun, while, do, for don't
-*/
 expr
   :  ('var' | 'val') ID oftype? '=' expr
-     // return the value of binary, not expr. a = b returns a, b = a = b is a swap
   |  binary ('=' expr)?
-     // expr is in a new scope
-  |  'fun' 'throw'? mode params oftype? '=' expr
-     // without else clause: if e1 then (e2; None) else None
-     // whole thing is a scope, each clause is a subscope
+  |  'fun' '?'? mode params oftype? '=' expr
   |  'if' seq 'then' expr ('else' expr | 'end')
-     // whole thing is a scope, each case seq is a scope
-  |  'match' seq ('|' binary? ('as' ID oftype)? ('if' binary)? ('=' seq)?)* ('else' expr | 'end') // FIX: optional seq, else clause not yet in code
-     // value is None, whole thing is a scope
+  |  'match' seq case* 'end'
   |  'while' seq 'do' expr
-     // value is None, whole thing is a scope
   |  'do' seq 'while' expr
-     // (var x = (e1).iterator(); while x.has_next() do (val id = x.next(); e2))
   |  'for' ID oftype? 'in' seq 'do' expr
-     // only valid in a while loop, exits the loop
   |  'break'
-     // only valid in a while loop, short circuits the loop
   |  'continue'
-     // short circuits the function
-  |  'return' expr
-     // each seq is a scope
-  |  'try' seq ('else' seq)? ('then' expr | 'end')
-  |  'throw'
+  |  'return'
+  |  'try' seq 'else' seq ('then' seq)? 'end'
+  |  'undef'
+  ;
+
+case
+  :  '|' binary? ('as' ID oftype)? ('if' binary)? ('=' seq)?
   ;
 
 seq

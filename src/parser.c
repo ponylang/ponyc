@@ -435,11 +435,11 @@ static ast_t* typeargs( parser_t* parser )
 
 static ast_t* funtype( parser_t* parser )
 {
-  // FUN THROW? mode LPAREN (type (COMMA type)*)? RPAREN oftype
+  // FUN QUESTION? mode LPAREN (type (COMMA type)*)? RPAREN oftype
   AST( TK_FUNTYPE );
   EXPECT_DROP( TK_FUN );
 
-  if( !ACCEPT( TK_THROW ) )
+  if( !ACCEPT( TK_QUESTION ) )
   {
     INSERT( TK_NONE );
   }
@@ -640,12 +640,12 @@ static ast_t* local( parser_t* parser )
 
 static ast_t* lambda( parser_t* parser )
 {
-  // FUN THROW? mode params oftype EQUALS expr
+  // FUN QUESTION? mode params oftype EQUALS expr
   AST( TK_LAMBDA );
   SCOPE();
   EXPECT_DROP( TK_FUN );
 
-  bool throw = ACCEPT( TK_THROW );
+  bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
 
   RULE( mode );
@@ -678,6 +678,7 @@ static ast_t* conditional( parser_t* parser )
     RULE( expr );
     SCOPE();
   } else {
+    // FIX: syntactic sugar for 'else None'
     EXPECT_DROP( TK_END );
     INSERT( TK_NONE );
   }
@@ -702,7 +703,7 @@ static ast_t* as( parser_t* parser )
 
 static ast_t* caseexpr( parser_t* parser )
 {
-  // PIPE binary? as (IF binary)? EQUALS seq
+  // PIPE binary? as (IF binary)? (EQUALS seq)?
   AST( TK_CASE );
   EXPECT_DROP( TK_PIPE );
 
@@ -722,9 +723,14 @@ static ast_t* caseexpr( parser_t* parser )
     INSERT( TK_NONE );
   }
 
-  EXPECT_DROP( TK_EQUALS );
-  RULE( seq );
-  SCOPE();
+  if( ACCEPT_DROP( TK_EQUALS ) )
+  {
+    RULE( seq );
+    SCOPE();
+  } else {
+    INSERT( TK_NONE );
+  }
+
   DONE();
 }
 
@@ -775,40 +781,26 @@ static ast_t* forloop( parser_t* parser )
   DONE();
 }
 
-static ast_t* returnexpr( parser_t* parser )
-{
-  // RETURN expr
-  AST_TOKEN();
-  RULE( expr );
-  DONE();
-}
-
 static ast_t* try( parser_t* parser )
 {
-  // TRY throwseq (ELSE seq)? (THEN expr | END)
-
-  // FIX: only allowed to throw if there is a catch clause
+  // TRY throwseq ELSE seq (THEN seq)? END
   AST_TOKEN();
   RULE( throwseq );
   SCOPE();
 
-  if( ACCEPT_DROP( TK_ELSE ) )
-  {
-    RULE( seq );
-    SCOPE();
-  } else {
-    INSERT( TK_NONE );
-  }
+  EXPECT_DROP( TK_ELSE );
+  RULE( seq );
+  SCOPE();
 
-  if( ACCEPT_DROP( TK_ELSE ) )
+  if( ACCEPT_DROP( TK_THEN ) )
   {
     RULE( expr );
     SCOPE();
   } else {
-    EXPECT_DROP( TK_END );
     INSERT( TK_NONE );
   }
 
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
@@ -831,17 +823,10 @@ static ast_t* command( parser_t* parser )
   DONE();
 }
 
-static ast_t* throw( parser_t* parser )
-{
-  AST( TK_DOTHROW );
-  EXPECT( TK_THROW );
-  DONE();
-}
-
 static ast_t* expr( parser_t* parser )
 {
   // local | lambda | conditional | match | whileloop | doloop | forloop |
-  // BREAK | CONTINUE | RETURN | SEMI | command
+  // BREAK | CONTINUE | RETURN | try | UNDEF | SEMI | command
   FORWARDALT(
     { TK_VAR, local },
     { TK_VAL, local },
@@ -853,25 +838,20 @@ static ast_t* expr( parser_t* parser )
     { TK_FOR, forloop },
     { TK_BREAK, consume },
     { TK_CONTINUE, consume },
-    { TK_RETURN, returnexpr },
+    { TK_RETURN, consume },
     { TK_TRY, try },
-    { TK_THROW, throw },
+    { TK_UNDEF, consume },
     { TK_NONE, command }
     );
 }
 
 static ast_t* function( parser_t* parser )
 {
-  // (FUN | MSG) PRIVATE? THROW? ID typeparams mode params oftype (EQUALS seq)?
+  // FUN QUESTION? ID typeparams mode params oftype (EQUALS seq)?
   AST_TOKEN();
   SCOPE();
 
-  if( !ACCEPT( TK_PRIVATE ) )
-  {
-    INSERT( TK_NONE );
-  }
-
-  bool throw = ACCEPT( TK_THROW );
+  bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
 
   EXPECT( TK_ID );
@@ -879,6 +859,57 @@ static ast_t* function( parser_t* parser )
   RULE( mode );
   RULE( params );
   RULE( oftype );
+
+  if( ACCEPT_DROP( TK_EQUALS ) )
+  {
+    if( throw )
+    {
+      RULE( throwseq );
+    } else {
+      RULE( seq );
+    }
+
+    SCOPE();
+  } else {
+    INSERT( TK_NONE );
+  }
+
+  DONE();
+}
+
+static ast_t* message( parser_t* parser )
+{
+  // MSG ID typeparams params (EQUALS seq)?
+  AST_TOKEN();
+  SCOPE();
+
+  EXPECT( TK_ID );
+  RULE( typeparams );
+  RULE( params );
+
+  if( ACCEPT_DROP( TK_EQUALS ) )
+  {
+    RULE( seq );
+    SCOPE();
+  } else {
+    INSERT( TK_NONE );
+  }
+
+  DONE();
+}
+
+static ast_t* constructor( parser_t* parser )
+{
+  // NEW QUESTION? ID typeparams params (EQUALS seq)?
+  AST_TOKEN();
+  SCOPE();
+
+  bool throw = ACCEPT( TK_QUESTION );
+  if( !throw ) { INSERT( TK_NONE ); }
+
+  EXPECT( TK_ID );
+  RULE( typeparams );
+  RULE( params );
 
   if( ACCEPT_DROP( TK_EQUALS ) )
   {
@@ -926,26 +957,21 @@ static ast_t* members( parser_t* parser )
     { TK_VAR, field },
     { TK_VAL, field },
     { TK_FUN, function },
-    { TK_MSG, function }
+    { TK_MSG, message },
+    { TK_NEW, constructor }
     );
   DONE();
 }
 
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID typeparams mode is (PRIVATE|INFER)? members
+  // (TRAIT | CLASS | ACTOR) ID typeparams mode is members
   AST_TOKEN();
   SCOPE();
   EXPECT( TK_ID );
   RULE( typeparams );
   RULE( mode );
   RULE( is );
-
-  if( !ACCEPT( TK_PRIVATE, TK_INFER ) )
-  {
-    INSERT( TK_NONE );
-  }
-
   RULE( members );
   DONE();
 }

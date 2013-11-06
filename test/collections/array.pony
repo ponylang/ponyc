@@ -5,16 +5,15 @@ class Array[A] is Iterable[A]
   var alloc:U64
   var ptr:POINTER[A]
 
-  fun default() =
+  new create() =
     size = 0;
     alloc = 0;
-    ptr = POINTER[A](0);
-    this
+    ptr = POINTER[A](0)
 
   fun length{iso|var|val}():U64 = size
 
-  fun throw apply{var|val}(i:U64):A->this =
-    if i < size then ptr(i) else throw
+  fun? apply{var|val}(i:U64):A->this =
+    if i < size then ptr(i) else undef
 
   fun update{var}(i:U64, v:A):A =
     if i < size then ptr(i) = v else v
@@ -37,13 +36,14 @@ class Array[A] is Iterable[A]
   fun iterator{var|val}():ArrayIterator[A, Array[A]{this}] =
     ArrayIterator(this)
 
-class ArrayIterator[A, B:Array[A]]{var} is Iterator[A]
+class ArrayIterator[A, B:Array[A]] is Iterator[A]
   var array:B
   var i:U64
 
-  fun default(array':B) =
-    Partial[This](array', i).absorb()
+  new create(array':B) =
+    array = array';
+    i = 0
 
-  fun has_next():Bool = i < array.size()
+  fun has_next{iso|var|val}():Bool = i < array.length()
 
-  fun next():A->array = array(i = i + 1);
+  fun next{var}():A->array = array(i = i + 1);
