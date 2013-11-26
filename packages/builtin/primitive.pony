@@ -39,4 +39,4 @@ class FloatLiteral
 class String
 
 trait Stringable
-  fun string{iso|var|val}():String
+  fun string{box}():String

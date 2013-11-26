@@ -1,6 +1,6 @@
 trait Iterator[A]
-  fun has_next{iso|var|val}():Bool
-  fun next{var}():A->this
+  fun{box} has_next():Bool
+  fun{var} next():A->this
 
 trait Iterable[A]
-  fun iterator{var|val}():Iterator[A]
+  fun{box} iterator():Iterator[A]{var}

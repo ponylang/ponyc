@@ -32,7 +32,7 @@ class Aardvark[A]
 class Foo[T]
   var a:Aardvark[T]{var}
 
-  fun get{iso|val|var}():Aardvark[T]{var}->this = a
+  fun get{val|var}():Aardvark[T]{var}->this = a
   fun set{var}(a':Aardvark[T]{var}):Aardvark[T]{var} = a = a'
 
 alias FooOrAardvark[A]:(Aardvark[A]|Foo[A])

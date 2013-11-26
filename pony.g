@@ -22,9 +22,9 @@ class_
 
 member
   :  ('var' | 'val') ID oftype
-  |  'fun' '?'? ID type_params? mode params oftype? ('=' seq)?
-  |  'msg' ID type_params? params ('=' seq)?
-  |  'new' '?'? ID type_params? params ('=' seq)?
+  |  'fun' mode '?'? ID type_params? params oftype? ('=' seq)?
+  |  'be' ID type_params? params ('=' seq)?
+  |  'new' mode '?'? ID type_params? params ('=' seq)?
   ;
 
 alias
@@ -42,7 +42,7 @@ type
 
 base_type
   :  ID ('.' ID)? type_args? mode
-  |  'fun' '?'? mode '(' types? ')' oftype?
+  |  'fun' mode '?'? '(' types? ')' oftype?
   ;
 
 type_params
@@ -54,11 +54,11 @@ type_args
   ;
 
 mode
-  :  ('{' base_mode ('|' base_mode)* '}')? ('->' ('this' | ID))?
+  :  ('{' base_mode '}')? ('->' ('this' | ID))?
   ;
 
 base_mode
-  :  'iso' | 'var' | 'val' | 'tag' | 'this' | ID
+  :  'iso' | 'var' | 'val' | 'box' | 'tag' | 'this' | ID
   ;
 
 params
@@ -129,6 +129,7 @@ primary
   |  STRING
   |  ID
   |  '(' seq ')'
+  |  '{' seq '}' // FIX: can use this for object literals? comprehensions?
   ;
 
 unop
