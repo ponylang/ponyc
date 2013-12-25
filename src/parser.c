@@ -640,7 +640,7 @@ static ast_t* local( parser_t* parser )
 
 static ast_t* lambda( parser_t* parser )
 {
-  // FUN QUESTION? mode params oftype EQUALS expr
+  // FUN QUESTION? mode params oftype DBLARROW expr
   AST( TK_LAMBDA );
   SCOPE();
   EXPECT_DROP( TK_FUN );
@@ -651,7 +651,7 @@ static ast_t* lambda( parser_t* parser )
   RULE( mode );
   RULE( params );
   RULE( oftype );
-  EXPECT_DROP( TK_EQUALS );
+  EXPECT_DROP( TK_DBLARROW );
 
   if( throw )
   {
@@ -703,7 +703,7 @@ static ast_t* as( parser_t* parser )
 
 static ast_t* caseexpr( parser_t* parser )
 {
-  // PIPE binary? as (IF binary)? (EQUALS seq)?
+  // PIPE binary? as (IF binary)? (DBLARROW seq)?
   AST( TK_CASE );
   EXPECT_DROP( TK_PIPE );
 
@@ -723,7 +723,7 @@ static ast_t* caseexpr( parser_t* parser )
     INSERT( TK_NONE );
   }
 
-  if( ACCEPT_DROP( TK_EQUALS ) )
+  if( ACCEPT_DROP( TK_DBLARROW ) )
   {
     RULE( seq );
     SCOPE();
@@ -847,20 +847,20 @@ static ast_t* expr( parser_t* parser )
 
 static ast_t* function( parser_t* parser )
 {
-  // FUN QUESTION? ID typeparams mode params oftype (EQUALS seq)?
+  // FUN mode QUESTION? ID typeparams params oftype (DBLARROW seq)?
   AST_TOKEN();
   SCOPE();
+  RULE( mode );
 
   bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
 
   EXPECT( TK_ID );
   RULE( typeparams );
-  RULE( mode );
   RULE( params );
   RULE( oftype );
 
-  if( ACCEPT_DROP( TK_EQUALS ) )
+  if( ACCEPT_DROP( TK_DBLARROW ) )
   {
     if( throw )
     {
@@ -877,9 +877,9 @@ static ast_t* function( parser_t* parser )
   DONE();
 }
 
-static ast_t* message( parser_t* parser )
+static ast_t* behaviour( parser_t* parser )
 {
-  // MSG ID typeparams params (EQUALS seq)?
+  // BE ID typeparams params (DBLARROW seq)?
   AST_TOKEN();
   SCOPE();
 
@@ -887,7 +887,7 @@ static ast_t* message( parser_t* parser )
   RULE( typeparams );
   RULE( params );
 
-  if( ACCEPT_DROP( TK_EQUALS ) )
+  if( ACCEPT_DROP( TK_DBLARROW ) )
   {
     RULE( seq );
     SCOPE();
@@ -900,7 +900,7 @@ static ast_t* message( parser_t* parser )
 
 static ast_t* constructor( parser_t* parser )
 {
-  // NEW QUESTION? ID typeparams params (EQUALS seq)?
+  // NEW QUESTION? ID typeparams params (DBLARROW seq)?
   AST_TOKEN();
   SCOPE();
 
@@ -911,7 +911,7 @@ static ast_t* constructor( parser_t* parser )
   RULE( typeparams );
   RULE( params );
 
-  if( ACCEPT_DROP( TK_EQUALS ) )
+  if( ACCEPT_DROP( TK_DBLARROW ) )
   {
     if( throw )
     {
@@ -939,7 +939,21 @@ static ast_t* field( parser_t* parser )
   DONE();
 }
 
-static ast_t* is( parser_t* parser )
+static ast_t* members( parser_t* parser )
+{
+  // (field | function)*
+  AST( TK_LIST );
+  LIST(
+    { TK_VAR, field },
+    { TK_VAL, field },
+    { TK_FUN, function },
+    { TK_BE, behaviour },
+    { TK_NEW, constructor }
+    );
+  DONE();
+}
+
+static ast_t* traits( parser_t* parser )
 {
   // (IS type (COMMA type)*)?
   AST( TK_IS );
@@ -949,29 +963,15 @@ static ast_t* is( parser_t* parser )
   DONE();
 }
 
-static ast_t* members( parser_t* parser )
-{
-  // (field | function)*
-  AST( TK_LIST );
-  LIST(
-    { TK_VAR, field },
-    { TK_VAL, field },
-    { TK_FUN, function },
-    { TK_MSG, message },
-    { TK_NEW, constructor }
-    );
-  DONE();
-}
-
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID typeparams mode is members
+  // (TRAIT | CLASS | ACTOR) ID typeparams mode traits members
   AST_TOKEN();
   SCOPE();
   EXPECT( TK_ID );
   RULE( typeparams );
   RULE( mode );
-  RULE( is );
+  RULE( traits );
   RULE( members );
   DONE();
 }
@@ -1006,7 +1006,7 @@ static ast_t* use( parser_t* parser )
 
 static ast_t* module( parser_t* parser )
 {
-  // (use | type | trait | class | actor)*
+  // (use | alias | trait | class | actor)*
   AST( TK_MODULE );
   SCOPE();
   LIST(

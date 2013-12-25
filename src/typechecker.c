@@ -125,14 +125,14 @@ static bool add_to_scope( ast_t* ast )
     case TK_NEW:
       return set_scope( ast_parent( ast ), ast_childidx( ast, 1 ), ast, false );
 
-    case TK_MSG:
+    case TK_BE:
     {
       ast_t* name = ast_child( ast );
       ast_t* class = ast_nearest( ast, TK_CLASS );
 
       if( class != NULL )
       {
-        ast_error( ast, "can't have a msg in a class" );
+        ast_error( ast, "can't have a behaviour in a class" );
         return false;
       }
 
@@ -379,7 +379,7 @@ static bool type_first( ast_t* ast )
 {
   switch( ast_id( ast ) )
   {
-    case TK_MSG:
+    case TK_BE:
       ast_attach( ast, none );
       return true;
 
@@ -515,7 +515,7 @@ static bool type_second( ast_t* ast )
             break;
 
           case TK_FUN:
-          case TK_MSG:
+          case TK_BE:
           case TK_NEW:
             /*
             FIX: parent could be:
@@ -703,7 +703,7 @@ static bool type_second( ast_t* ast )
       ast_t* fun;
 
       if( ((fun = ast_nearest( ast, TK_FUN )) != NULL)
-        || ((fun = ast_nearest( ast, TK_MSG )) != NULL)
+        || ((fun = ast_nearest( ast, TK_BE )) != NULL)
         )
       {
         return body_is_result( fun, 6, ast );

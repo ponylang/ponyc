@@ -21,10 +21,23 @@ class_
   ;
 
 member
+  :  field | function | behaviour | constructor
+  ;
+
+field
   :  ('var' | 'val') ID oftype
-  |  'fun' mode '?'? ID type_params? params oftype? ('=' seq)?
-  |  'be' ID type_params? params ('=' seq)?
-  |  'new' mode '?'? ID type_params? params ('=' seq)?
+  ;
+
+function
+  :  'fun' mode '?'? ID type_params? params oftype? ('=>' seq)?
+  ;
+
+behaviour
+  :  'be' ID type_params? params ('=>' seq)?
+  ;
+ 
+constructor
+  :  'new' mode '?'? ID type_params? params ('=>' seq)?
   ;
 
 alias
@@ -54,11 +67,11 @@ type_args
   ;
 
 mode
-  :  ('{' base_mode '}')? ('->' ('this' | ID))?
+  :  ('{' base_mode '}')? ('->' ('this' | ID))? ('*')?
   ;
 
 base_mode
-  :  'iso' | 'var' | 'val' | 'box' | 'tag' | 'this' | ID
+  :  'iso' | 'trn' | 'var' | 'val' | 'box' | 'tag' | 'this' | ID
   ;
 
 params
@@ -84,8 +97,8 @@ arg
 expr
   :  ('var' | 'val') ID oftype? '=' expr
   |  binary ('=' expr)?
-  |  'fun' '?'? mode params oftype? '=' expr
-  |  'if' seq 'then' expr ('else' expr | 'end')
+  |  'fun' mode '?'? params oftype? '=>' expr
+  |  'if' seq 'then' seq ('else' expr | 'end')
   |  'match' seq case* 'end'
   |  'while' seq 'do' expr
   |  'do' seq 'while' expr
@@ -98,7 +111,7 @@ expr
   ;
 
 case
-  :  '|' binary? ('as' ID oftype)? ('if' binary)? ('=' seq)?
+  :  '|' binary? ('as' ID oftype)? ('if' binary)? ('=>' seq)?
   ;
 
 seq
@@ -129,7 +142,7 @@ primary
   |  STRING
   |  ID
   |  '(' seq ')'
-  |  '{' seq '}' // FIX: can use this for object literals? comprehensions?
+//  |  '{' seq '}' // FIX: can use this for object literals? comprehensions?
   ;
 
 unop

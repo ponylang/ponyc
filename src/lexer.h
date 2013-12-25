@@ -26,6 +26,7 @@ typedef enum
   TK_RBRACKET,
   TK_COMMA,
   TK_ARROW,
+  TK_DBLARROW,
 
   TK_DOT,
   TK_COLON,
@@ -65,7 +66,7 @@ typedef enum
   TK_VAL,
   TK_TAG,
   TK_FUN,
-  TK_MSG,
+  TK_BE,
   TK_NEW,
   TK_RETURN,
   TK_BREAK,

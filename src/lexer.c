@@ -32,6 +32,7 @@ typedef struct symbol_t
 static const symbol_t symbols2[] =
 {
   { "->", TK_ARROW },
+  { "=>", TK_DBLARROW },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -89,7 +90,7 @@ static const symbol_t keywords[] =
   { "val", TK_VAL },
   { "tag", TK_TAG },
   { "fun", TK_FUN },
-  { "msg", TK_MSG },
+  { "be", TK_BE },
   { "new", TK_NEW },
   { "return", TK_RETURN },
   { "break", TK_BREAK },
