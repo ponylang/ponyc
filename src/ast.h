@@ -94,6 +94,7 @@ objtype
 mode
   list of (ISO|VAR|VAL|TAG|THIS|ID)
   THIS|ID|NONE
+  EPHEMERAL|NONE
 
 canthrow
   (expr|seq)

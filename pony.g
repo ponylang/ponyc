@@ -106,7 +106,7 @@ expr
   |  'break'
   |  'continue'
   |  'return'
-  |  'try' seq 'else' seq ('then' seq)? 'end'
+  |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'undef'
   ;
 

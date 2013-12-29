@@ -62,21 +62,26 @@ static ast_t* typeparam( parser_t* parser )
 
 static ast_t* mode( parser_t* parser )
 {
-  // basemode ::= ISO | VAR | VAL | TAG | THIS | ID
-  // (LBRACE basemode (PIPE basemode)* RBRACE)? (ARROW (THIS | ID))?
+  // (LBRACE (ISO | TRN | VAR | VAL | BOX | TAG | THIS | ID) RBRACE)?
+  // (ARROW (THIS | ID))? MULTIPLY?
   AST( TK_MODE );
-  OPTBLOCK( TK_LIST, TK_LBRACE, TK_RBRACE, TK_PIPE,
-    { TK_ISO, consume },
-    { TK_VAR, consume },
-    { TK_VAL, consume },
-    { TK_TAG, consume },
-    { TK_THIS, consume },
-    { TK_ID, consume }
-    );
+
+  if( ACCEPT_DROP( TK_LBRACE ) )
+  {
+    EXPECT( TK_ISO, TK_TRN, TK_VAR, TK_VAL, TK_BOX, TK_TAG, TK_THIS, TK_ID );
+    EXPECT_DROP( TK_RBRACE );
+  }
 
   if( ACCEPT_DROP( TK_ARROW ) )
   {
     EXPECT( TK_THIS, TK_ID );
+  } else {
+    INSERT( TK_NONE );
+  }
+
+  if( ACCEPT_DROP( TK_MULTIPLY ) )
+  {
+    INSERT( TK_EPHEMERAL );
   } else {
     INSERT( TK_NONE );
   }
@@ -116,16 +121,16 @@ static ast_t* typeargs( parser_t* parser )
 
 static ast_t* funtype( parser_t* parser )
 {
-  // FUN QUESTION? mode LPAREN (type (COMMA type)*)? RPAREN oftype
+  // FUN mode QUESTION? LPAREN (type (COMMA type)*)? RPAREN oftype
   AST( TK_FUNTYPE );
   EXPECT_DROP( TK_FUN );
+  RULE( mode );
 
   if( !ACCEPT( TK_QUESTION ) )
   {
     INSERT( TK_NONE );
   }
 
-  RULE( mode );
   BLOCK( TK_LIST, TK_LPAREN, TK_RPAREN, TK_COMMA,
     { TK_NONE, type }
     );
@@ -325,11 +330,11 @@ static ast_t* lambda( parser_t* parser )
   AST( TK_LAMBDA );
   SCOPE();
   EXPECT_DROP( TK_FUN );
+  RULE( mode );
 
   bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
 
-  RULE( mode );
   RULE( params );
   RULE( oftype );
   EXPECT_DROP( TK_DBLARROW );
@@ -464,14 +469,18 @@ static ast_t* forloop( parser_t* parser )
 
 static ast_t* try( parser_t* parser )
 {
-  // TRY throwseq ELSE seq (THEN seq)? END
+  // TRY throwseq (ELSE seq)? (THEN seq)? END
   AST_TOKEN();
   RULE( throwseq );
   SCOPE();
 
-  EXPECT_DROP( TK_ELSE );
-  RULE( seq );
-  SCOPE();
+  if( ACCEPT_DROP( TK_ELSE ) )
+  {
+    RULE( seq );
+    SCOPE();
+  } else {
+    INSERT( TK_NONE );
+  }
 
   if( ACCEPT_DROP( TK_THEN ) )
   {

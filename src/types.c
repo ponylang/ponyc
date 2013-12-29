@@ -11,10 +11,12 @@
 
 typedef enum
 {
-  M_ISO = (1 << 0),
-  M_VAR = (1 << 1),
-  M_VAL = (1 << 2),
-  M_TAG = (1 << 3)
+  M_ISO,
+  M_TRN,
+  M_VAR,
+  M_VAL,
+  M_BOX,
+  M_TAG
 } mode_id;
 
 typedef enum
