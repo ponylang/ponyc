@@ -1,10 +1,13 @@
 #include "types.h"
 #include "hash.h"
 #include "stringtab.h"
+#include "list.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#define POINTER_ERROR ((void*)-1)
 
 #define HASH_SIZE 4096
 #define HASH_MASK (HASH_SIZE - 1)
@@ -35,15 +38,9 @@ typedef enum
   T_INVALID
 } type_ok;
 
-typedef struct typelist_t
-{
-  type_t* type;
-  struct typelist_t* next;
-} typelist_t;
-
 typedef struct funtype_t
 {
-  typelist_t* params;
+  list_t* params;
   type_t* result;
   bool throws;
 } funtype_t;
@@ -51,12 +48,12 @@ typedef struct funtype_t
 typedef struct objtype_t
 {
   ast_t* ast;
-  typelist_t* params;
+  list_t* params;
 } objtype_t;
 
 typedef struct adt_t
 {
-  typelist_t* types;
+  list_t* types;
 } adt_t;
 
 struct type_t
@@ -78,32 +75,20 @@ struct type_t
 
 typedef struct typetab_t
 {
-  typelist_t* type[HASH_SIZE];
+  list_t* type[HASH_SIZE];
 } typetab_t;
 
 static typetab_t table;
 static type_t infer = { T_INFER, 0 };
 
-static void type_free( type_t* type );
-static uint64_t type_hash( type_t* type, uint64_t seed );
-static type_t* type_subst( type_t* type, typelist_t* list );
+static void type_free( void* m );
+static uint64_t type_hash( void* in, uint64_t seed );
+static type_t* type_subst( type_t* type, list_t* list );
 
-static void typelist_free( typelist_t* list )
+static void type_free( void* m )
 {
-  typelist_t* next;
-
-  while( list != NULL )
-  {
-    // don't free the component types, as they are in the table
-    next = list->next;
-    free( list );
-    list = next;
-  }
-}
-
-static void type_free( type_t* type )
-{
-  if( type == NULL ) { return; }
+  type_t* type = m;
+  if( type == NULL ) return;
 
   // don't free any other types, as they are in the table
   switch( type->id )
@@ -111,15 +96,15 @@ static void type_free( type_t* type )
     case T_INFER: return;
 
     case T_FUNCTION:
-      typelist_free( type->fun.params );
+      list_free( type->fun.params, NULL );
       break;
 
     case T_OBJECT:
-      typelist_free( type->obj.params );
+      list_free( type->obj.params, NULL );
       break;
 
     case T_ADT:
-      typelist_free( type->adt.types );
+      list_free( type->adt.types, NULL );
       break;
   }
 
@@ -133,36 +118,27 @@ static type_t* type_new( type_id id )
   return type;
 }
 
-static uint64_t typelist_hash( typelist_t* list, uint64_t seed )
+static uint64_t type_hash( void* in, uint64_t seed )
 {
-  while( list != NULL )
-  {
-    seed = type_hash( list->type, seed );
-    list = list->next;
-  }
+  type_t* type = in;
 
-  return seed;
-}
-
-static uint64_t type_hash( type_t* type, uint64_t seed )
-{
   switch( type->id )
   {
     case T_INFER:
       break;
 
     case T_FUNCTION:
-      seed = typelist_hash( type->fun.params, seed );
+      seed = list_hash( type->fun.params, type_hash, seed );
       seed = type_hash( type->fun.result, seed );
       break;
 
     case T_OBJECT:
       seed = strhash( ast_name( ast_child( type->obj.ast ) ), seed );
-      seed = typelist_hash( type->obj.params, seed );
+      seed = list_hash( type->obj.params, type_hash, seed );
       break;
 
     case T_ADT:
-      seed = typelist_hash( type->adt.types, seed );
+      seed = list_hash( type->adt.types, type_hash, seed );
       break;
   }
 
@@ -174,78 +150,34 @@ static type_t* typetable( type_t* type )
   if( type == NULL ) { return NULL; }
 
   uint64_t hash = type_hash( type, 0 ) & HASH_MASK;
-  typelist_t* list = table.type[hash];
+  list_t* list = table.type[hash];
 
   while( list != NULL )
   {
-    if( list->type == type ) { return type; }
+    type_t* data = list_data( list );
+    if( data == type ) { return data; }
 
-    if( type_eq( list->type, type ) )
+    if( type_eq( data, type ) )
     {
       type_free( type );
-      return list->type;
+      return data;
     }
 
-    list = list->next;
+    list = list_next( list );
   }
 
-  list = malloc( sizeof(typelist_t) );
-  list->type = type;
-  list->next = table.type[hash];
-  table.type[hash] = list;
-
+  list = list_push( list, type );
   return type;
 }
 
-static bool typelist_has( typelist_t* list, type_t* type )
+static bool type_cmp( void* a, void* b )
 {
-  // the type appears in the list
-  while( list != NULL )
-  {
-    if( type_eq( type, list->type ) ) { return true; }
-    list = list->next;
-  }
-
-  return false;
+  return type_eq( a, b );
 }
 
-static bool typelist_contains( typelist_t* list, typelist_t* sub )
+static bool type_cmpsub( void* a, void* b )
 {
-  // every element in sub must be equal to some element in list
-  while( sub != NULL )
-  {
-    if( !typelist_has( list, sub->type ) ) { return false; }
-    sub = sub->next;
-  }
-
-  return true;
-}
-
-static bool typelist_eq( typelist_t* a, typelist_t* b )
-{
-  // every element is equal, evaluated in order
-  while( a != NULL )
-  {
-    if( (b == NULL) || !type_eq( a->type, b->type ) ) { return false; }
-    a = a->next;
-    b = b->next;
-  }
-
-  return b == NULL;
-}
-
-static bool typelist_sub( typelist_t* a, typelist_t* b )
-{
-  // every element of a is a subtype of the same element in b
-  // evaluated in order
-  while( a != NULL )
-  {
-    if( (b == NULL) || !type_eq( a->type, b->type ) ) { return false; }
-    a = a->next;
-    b = b->next;
-  }
-
-  return b == NULL;
+  return type_sub( a, b );
 }
 
 static bool a_is_obj_b( type_t* a, type_t* b )
@@ -253,7 +185,7 @@ static bool a_is_obj_b( type_t* a, type_t* b )
   // invariant formal parameters
   return (a->id == T_OBJECT)
     && (a->obj.ast == b->obj.ast)
-    && typelist_eq( a->obj.params, b->obj.params );
+    && list_equals( a->obj.params, b->obj.params, type_cmp );
 }
 
 static bool a_in_obj_b( type_t* a, type_t* b )
@@ -291,13 +223,13 @@ static bool a_is_fun_b( type_t* a, type_t* b )
     case T_FUNCTION:
     {
       // invariant parameters
-      if( !typelist_eq( a->fun.params, b->fun.params ) ) { return false; }
+      if( !list_equals( a->fun.params, b->fun.params, type_cmp ) ) return false;
 
       // invariant result
-      if( !type_eq( a->fun.result, b->fun.result ) ) { return false; }
+      if( !type_eq( a->fun.result, b->fun.result ) ) return false;
 
       // invariant throw
-      if( a->fun.throws != b->fun.throws ) { return false; }
+      if( a->fun.throws != b->fun.throws ) return false;
 
       return true;
     }
@@ -315,7 +247,7 @@ static bool a_in_fun_b( type_t* a, type_t* b )
     case T_FUNCTION:
     {
       // contravariant parameters
-      if( !typelist_sub( b->fun.params, a->fun.params ) ) { return false; }
+      if( !list_equals( b->fun.params, a->fun.params, type_cmpsub ) ) return false;
 
       // covariant result
       if( !type_sub( a->fun.result, b->fun.result ) ) { return false; }
@@ -338,65 +270,42 @@ static bool a_in_fun_b( type_t* a, type_t* b )
 
 static bool a_in_adt_b( type_t* a, type_t* b )
 {
-  typelist_t* c = b->adt.types;
-
-  while( c != NULL )
-  {
-    if( type_sub( a, c->type ) ) { return true; }
-    c = c->next;
-  }
-
-  return false;
+  return list_has( b->adt.types, type_cmpsub, a );
 }
 
 static bool adt_a_in_b( type_t* a, type_t* b )
 {
-  typelist_t* c = a->adt.types;
+  list_t* list = a->adt.types;
 
-  while( c != NULL )
+  while( list != NULL )
   {
-    if( !type_sub( c->type, b ) ) { return false; }
-    c = c->next;
+    if( !type_sub( list_data( list ), b ) ) return false;
+    list = list_next( list );
   }
 
   return true;
 }
 
-static int typelist_len( typelist_t* list )
+static list_t* typelist( ast_t* ast )
 {
-  int len = 0;
-
-  while( list != NULL )
-  {
-    len++;
-    list = list->next;
-  }
-
-  return len;
-}
-
-static typelist_t** typelist_add( typelist_t** list, type_t* type )
-{
-  typelist_t* node = malloc( sizeof(typelist_t) );
-  node->type = type;
-  node->next = NULL;
-  *list = node;
-  return &node->next;
-}
-
-static bool typelist( ast_t* ast, typelist_t** list )
-{
+  list_t* list = NULL;
   ast_t* child = ast_child( ast );
 
   while( child != NULL )
   {
     type_t* type = type_ast( child );
-    if( type == NULL ) { return false; }
-    list = typelist_add( list, type );
+
+    if( type == NULL )
+    {
+      list_free( list, NULL );
+      return POINTER_ERROR;
+    }
+
+    list = list_append( list, type );
     child = ast_sibling( child );
   }
 
-  return true;
+  return list;
 }
 
 static type_t* expand_alias( type_t* type )
@@ -461,11 +370,15 @@ static type_t* objtype( ast_t* ast )
     return NULL;
   }
 
-  if( !typelist( param, &type->obj.params ) )
+  list_t* list = typelist( param );
+
+  if( list == POINTER_ERROR )
   {
     type_free( type );
     return NULL;
   }
+
+  type->obj.params = list;
 
   // FIX: get the mode with the viewpoint
 
@@ -482,12 +395,15 @@ static type_t* funtype( ast_t* ast )
 
   // FIX: get the mode with the viewpoint
   child = ast_sibling( child );
+  list_t* list = typelist( child );
 
-  if( !typelist( child, &type->fun.params ) )
+  if( list == POINTER_ERROR )
   {
     type_free( type );
     return NULL;
   }
+
+  type->fun.params = list;
 
   child = ast_sibling( child );
   type->fun.result = type_ast( child );
@@ -504,14 +420,17 @@ static type_t* funtype( ast_t* ast )
 static type_t* adttype( ast_t* ast )
 {
   type_t* type = type_new( T_ADT );
+  list_t* list = typelist( ast );
 
-  if( !typelist( ast, &type->adt.types ) )
+  if( list == POINTER_ERROR )
   {
     type_free( type );
     return NULL;
   }
 
-  switch( typelist_len( type->adt.types ) )
+  type->adt.types = list;
+
+  switch( list_length( type->adt.types ) )
   {
     case 0:
       // an ADT with no elements is an error
@@ -522,8 +441,7 @@ static type_t* adttype( ast_t* ast )
     case 1:
     {
       // if only one element, ditch the ADT wrapper
-      type_t* child = type->adt.types->type;
-      type->adt.types->type = NULL;
+      type_t* child = list_data( type->adt.types );
       type_free( type );
       return child;
     }
@@ -534,16 +452,12 @@ static type_t* adttype( ast_t* ast )
   return type;
 }
 
-static void typelist_subst( typelist_t** to, typelist_t* from, typelist_t* list )
+static void* subst_map( void* map, list_t* list )
 {
-  while( from != NULL )
-  {
-    to = typelist_add( to, type_subst( from->type, list ) );
-    from = from->next;
-  }
+  return type_subst( list_data( list ), map );
 }
 
-static type_t* type_subst( type_t* type, typelist_t* list )
+static type_t* type_subst( type_t* type, list_t* list )
 {
   type_t* subst;
 
@@ -553,7 +467,7 @@ static type_t* type_subst( type_t* type, typelist_t* list )
 
     case T_FUNCTION:
       subst = type_new( T_FUNCTION );
-      typelist_subst( &subst->fun.params, type->fun.params, list );
+      subst->fun.params = list_map( type->fun.params, subst_map, list );
       subst->fun.result = type_subst( type->fun.result, list );
       subst->fun.throws = type->fun.throws;
       break;
@@ -567,23 +481,12 @@ static type_t* type_subst( type_t* type, typelist_t* list )
         case TK_ACTOR:
           subst = type_new( T_OBJECT );
           subst->obj.ast = type->obj.ast;
-          typelist_subst( &subst->obj.params, type->obj.params, list );
+          subst->obj.params = list_map( type->obj.params, subst_map, list );
           break;
 
         case TK_TYPEPARAM:
-        {
-          int idx = ast_index( type->obj.ast );
-          typelist_t* sub = list;
-
-          while( idx > 0 )
-          {
-            sub = sub->next;
-            idx--;
-          }
-
-          subst = sub->type;
+          subst = list_data( list_index( list, ast_index( type->obj.ast ) ) );
           break;
-        }
 
         default: return NULL;
       }
@@ -591,7 +494,7 @@ static type_t* type_subst( type_t* type, typelist_t* list )
 
     case T_ADT:
       subst = type_new( T_ADT );
-      typelist_subst( &subst->adt.types, type->adt.types, list );
+      subst->adt.types = list_map( type->adt.types, subst_map, list );
       break;
 
     default: subst = NULL;
@@ -637,7 +540,7 @@ static bool obj_valid( ast_t* ast, type_t* type )
     case TK_ACTOR:
     {
       ast_t* params = ast_childidx( type->obj.ast, 1 );
-      int count_arg = typelist_len( type->obj.params );
+      int count_arg = list_length( type->obj.params );
       int count_param = ast_childcount( params );
 
       if( count_arg != count_param )
@@ -647,15 +550,15 @@ static bool obj_valid( ast_t* ast, type_t* type )
         return false;
       }
 
-      if( count_arg == 0 ) { return true; }
+      if( count_arg == 0 ) return true;
 
-      typelist_t* arg = type->obj.params;
+      list_t* arg = type->obj.params;
       ast_t* param = ast_child( params );
 
       while( arg != NULL )
       {
-        if( !arg_valid( ast, type, arg->type, param ) ) { return false; }
-        arg = arg->next;
+        if( !arg_valid( ast, type, list_data( arg ), param ) ) return false;
+        arg = list_next( arg );
         param = ast_sibling( param );
       }
 
@@ -677,17 +580,6 @@ static bool obj_valid( ast_t* ast, type_t* type )
   }
 
   return false;
-}
-
-static bool typelist_valid( ast_t* ast, typelist_t* list )
-{
-  while( list != NULL )
-  {
-    if( !type_valid( ast, list->type ) ) { return false; }
-    list = list->next;
-  }
-
-  return true;
 }
 
 type_t* type_name( ast_t* ast, const char* name )
@@ -736,6 +628,11 @@ type_t* type_ast( ast_t* ast )
   return typetable( type );
 }
 
+static bool valid_pred( void* ast, list_t* list )
+{
+  return type_valid( ast, list_data( list ) );
+}
+
 bool type_valid( ast_t* ast, type_t* type )
 {
   if( type == NULL ) { return true; }
@@ -757,12 +654,12 @@ bool type_valid( ast_t* ast, type_t* type )
   switch( type->id )
   {
     case T_FUNCTION:
-      ret = typelist_valid( ast, type->fun.params )
+      ret = list_test( type->fun.params, valid_pred, ast )
         && obj_valid( ast, type->fun.result );
       break;
 
     case T_OBJECT: ret = obj_valid( ast, type ); break;
-    case T_ADT: ret = typelist_valid( ast, type->adt.types ); break;
+    case T_ADT: ret = list_test( type->adt.types, valid_pred, ast ); break;
 
     default: ret = true;
   }
@@ -790,8 +687,8 @@ bool type_eq( type_t* a, type_t* b )
     case T_OBJECT: return a_is_obj_b( a, b );
 
     case T_ADT:
-      return typelist_contains( a->adt.types, b->adt.types )
-        && typelist_contains( b->adt.types, a->adt.types );
+      return list_superset( a->adt.types, b->adt.types, type_cmp )
+        && list_superset( b->adt.types, a->adt.types, type_cmp );
   }
 
   return false;
@@ -822,14 +719,11 @@ bool type_sub( type_t* a, type_t* b )
   return false;
 }
 
-static void typelist_print( typelist_t* list, const char* sep )
+static bool print_pred( void* sep, list_t* list )
 {
-  while( list != NULL )
-  {
-    type_print( list->type );
-    list = list->next;
-    if( list != NULL ) { printf( "%s", sep ); }
-  }
+  type_print( list_data( list ) );
+  if( list_next( list ) != NULL ) printf( "%s", (const char*)sep );
+  return true;
 }
 
 void type_print( type_t* a )
@@ -850,7 +744,7 @@ void type_print( type_t* a )
       printf( "fun" );
       if( a->fun.throws ) { printf( " throw " ); }
       printf( "(" );
-      typelist_print( a->fun.params, ", " );
+      list_test( a->fun.params, print_pred, ", " );
       printf( "):" );
       type_print( a->fun.result );
       break;
@@ -861,14 +755,14 @@ void type_print( type_t* a )
       if( a->obj.params != NULL )
       {
         printf( "[" );
-        typelist_print( a->obj.params, ", " );
+        list_test( a->obj.params, print_pred, ", " );
         printf( "]" );
       }
       break;
 
     case T_ADT:
       printf( "(" );
-      typelist_print( a->adt.types, "|" );
+      list_test( a->adt.types, print_pred, "|" );
       printf( ")" );
       break;
   }
@@ -876,22 +770,10 @@ void type_print( type_t* a )
 
 void type_done()
 {
-  typelist_t* list;
-  typelist_t* next;
-
-  // don't use typelist_free: need to actually free the types here
   for( int i = 0; i < HASH_SIZE; i++ )
   {
-    list = table.type[i];
-
-    while( list != NULL )
-    {
-      next = list->next;
-      type_free( list->type );
-      free( list );
-      list = next;
-    }
+    list_free( table.type[i], type_free );
   }
 
-  memset( table.type, 0, HASH_SIZE * sizeof(typelist_t*) );
+  memset( table.type, 0, HASH_SIZE * sizeof(list_t*) );
 }

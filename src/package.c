@@ -1,4 +1,5 @@
 #include "package.h"
+#include "list.h"
 #include "parser.h"
 #include "ast.h"
 #include "stringtab.h"
@@ -13,13 +14,7 @@
 
 #define EXTENSION ".pony"
 
-typedef struct path_t
-{
-  const char* path;
-  struct path_t* next;
-} path_t;
-
-static path_t* search;
+static list_t* search;
 
 static bool do_file( ast_t* package, const char* file )
 {
@@ -128,13 +123,13 @@ const char* find_path( ast_t* from, const char* path )
   }
 
   // try the search paths
-  path_t* p = search;
+  list_t* p = search;
 
   while( p != NULL )
   {
-    result = try_path( p->path, path );
+    result = try_path( list_data( p ), path );
     if( result != NULL ) { return result; }
-    p = p->next;
+    p = list_next( p );
   }
 
   return NULL;
@@ -142,10 +137,7 @@ const char* find_path( ast_t* from, const char* path )
 
 void package_addpath( const char* path )
 {
-  path_t* p = malloc( sizeof(path_t) );
-  p->path = stringtab( path );
-  p->next = search;
-  search = p;
+  search = list_push( search, stringtab( path ) );
 }
 
 ast_t* package_load( ast_t* from, const char* path )
@@ -172,12 +164,6 @@ ast_t* package_load( ast_t* from, const char* path )
 
 void package_done()
 {
-  path_t* next;
-
-  while( search != NULL )
-  {
-    next = search->next;
-    free( search );
-    search = next;
-  }
+  list_free( search, NULL );
+  search = NULL;
 }

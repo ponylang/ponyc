@@ -740,6 +740,26 @@ bool typecheck_init( ast_t* program )
   ast_t* builtin = package_load( program, "builtin" );
   if( builtin == NULL ) { return false; }
 
+  infer = type_ast( NULL );
+  none = type_name( builtin, "None" );
+  boolean = type_name( builtin, "Bool" );
+  i8 = type_name( builtin, "I8" );
+  i16 = type_name( builtin, "I16" );
+  i32 = type_name( builtin, "I32" );
+  i64 = type_name( builtin, "I64" );
+  i128 = type_name( builtin, "I128" );
+  u8 = type_name( builtin, "U8" );
+  u16 = type_name( builtin, "U16" );
+  u32 = type_name( builtin, "U32" );
+  u64 = type_name( builtin, "U64" );
+  u128 = type_name( builtin, "U128" );
+  f32 = type_name( builtin, "F32" );
+  f64 = type_name( builtin, "F64" );
+  intlit = type_name( builtin, "IntLiteral" );
+  floatlit = type_name( builtin, "FloatLiteral" );
+  string = type_name( builtin, "String" );
+  comparable = type_name( builtin, "Comparable" );
+
   return true;
 }
 
@@ -751,33 +771,9 @@ bool typecheck( ast_t* ast )
   objects can be functions based on the apply method
   expression typing
   */
-  ast_t* builtin = use_package( ast, "builtin", NULL );
-  if( builtin == NULL ) { return false; }
+  use_package( ast, "builtin", NULL );
+
   if( !ast_visit( ast, add_to_scope, NULL ) ) { return false; }
-
-  if( infer == NULL )
-  {
-    infer = type_ast( NULL );
-    none = type_name( builtin, "None" );
-    boolean = type_name( builtin, "Bool" );
-    i8 = type_name( builtin, "I8" );
-    i16 = type_name( builtin, "I16" );
-    i32 = type_name( builtin, "I32" );
-    i64 = type_name( builtin, "I64" );
-    i128 = type_name( builtin, "I128" );
-    u8 = type_name( builtin, "U8" );
-    u16 = type_name( builtin, "U16" );
-    u32 = type_name( builtin, "U32" );
-    u64 = type_name( builtin, "U64" );
-    u128 = type_name( builtin, "U128" );
-    f32 = type_name( builtin, "F32" );
-    f64 = type_name( builtin, "F64" );
-    intlit = type_name( builtin, "IntLiteral" );
-    floatlit = type_name( builtin, "FloatLiteral" );
-    string = type_name( builtin, "String" );
-    comparable = type_name( builtin, "Comparable" );
-  }
-
   if( !ast_visit( ast, NULL, check_type ) ) { return false; }
   if( !ast_visit( ast, NULL, type_first ) ) { return false; }
   if( !ast_visit( ast, NULL, type_second ) ) { return false; }
