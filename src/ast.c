@@ -10,7 +10,7 @@
 struct ast_t
 {
   token_t* t;
-  symtab_t* symtab;
+  table_t* symtab;
   void* data;
 
   struct ast_t* parent;
@@ -243,7 +243,7 @@ bool ast_merge( ast_t* dst, ast_t* src )
     dst = dst->parent;
   }
 
-  return symtab_merge( dst->symtab, src->symtab );
+  return table_merge( dst->symtab, src->symtab );
 }
 
 void ast_add( ast_t* parent, ast_t* child )
@@ -319,7 +319,7 @@ void ast_free( ast_t* ast )
   }
 
   token_free( ast->t );
-  symtab_free( ast->symtab );
+  table_free( ast->symtab );
 }
 
 void ast_error( ast_t* ast, const char* fmt, ... )

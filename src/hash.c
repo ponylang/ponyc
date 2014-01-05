@@ -113,7 +113,7 @@ static void MurmurHash3_x64_128( const void* key, const int len,
   ((uint64_t*)out)[1] = h2;
 }
 
-uint64_t strhash( const char* str, uint64_t seed )
+uint64_t strhash( const void* str, uint64_t seed )
 {
   uint64_t out[2];
   size_t len = strlen( str );
@@ -121,7 +121,7 @@ uint64_t strhash( const char* str, uint64_t seed )
   return out[0] ^ out[1];
 }
 
-uint64_t ptrhash( const void* p )
+uint64_t ptrhash( const void* p, uint64_t seed )
 {
   uint64_t key = (uint64_t)p;
 
@@ -133,5 +133,5 @@ uint64_t ptrhash( const void* p )
   key = key ^ (key >> 28);
   key = key + (key << 31);
 
-  return key;
+  return key ^ seed;
 }

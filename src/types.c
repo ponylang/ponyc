@@ -2,15 +2,13 @@
 #include "hash.h"
 #include "stringtab.h"
 #include "list.h"
+#include "table.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 #define POINTER_ERROR ((void*)-1)
-
-#define HASH_SIZE 4096
-#define HASH_MASK (HASH_SIZE - 1)
 
 typedef enum
 {
@@ -73,17 +71,57 @@ struct type_t
   struct type_t* next;
 };
 
-typedef struct typetab_t
-{
-  list_t* type[HASH_SIZE];
-} typetab_t;
-
-static typetab_t table;
+static table_t* type_table;
 static type_t infer = { T_INFER, 0 };
 
-static void type_free( void* m );
-static uint64_t type_hash( void* in, uint64_t seed );
 static type_t* type_subst( type_t* type, list_t* list );
+
+static uint64_t type_hash( const void* in, uint64_t seed )
+{
+  const type_t* type = in;
+
+  switch( type->id )
+  {
+    case T_INFER:
+      break;
+
+    case T_FUNCTION:
+      seed = list_hash( type->fun.params, type_hash, seed );
+      seed = type_hash( type->fun.result, seed );
+      break;
+
+    case T_OBJECT:
+      seed = strhash( ast_name( ast_child( type->obj.ast ) ), seed );
+      seed = list_hash( type->obj.params, type_hash, seed );
+      break;
+
+    case T_ADT:
+      seed = list_hash( type->adt.types, type_hash, seed );
+      break;
+  }
+
+  return seed;
+}
+
+static bool type_cmp( const void* a, const void* b )
+{
+  return type_eq( a, b );
+}
+
+static bool type_cmpsub( const void* a, const void* b )
+{
+  return type_sub( a, b );
+}
+
+static bool type_cmpsup( void* arg, void* iter )
+{
+  return type_sub( list_data( iter ), arg );
+}
+
+static void* type_dup( const void* data )
+{
+  return (void*)data;
+}
 
 static void type_free( void* m )
 {
@@ -118,69 +156,19 @@ static type_t* type_new( type_id id )
   return type;
 }
 
-static uint64_t type_hash( void* in, uint64_t seed )
+static type_t* type_store( type_t* type )
 {
-  type_t* type = in;
+  if( type_table == NULL )
+    type_table = table_create( 4096, type_hash, type_cmp, type_dup, type_free );
 
-  switch( type->id )
-  {
-    case T_INFER:
-      break;
+  bool present;
+  type_t* found = table_insert( type_table, type, &present );
 
-    case T_FUNCTION:
-      seed = list_hash( type->fun.params, type_hash, seed );
-      seed = type_hash( type->fun.result, seed );
-      break;
-
-    case T_OBJECT:
-      seed = strhash( ast_name( ast_child( type->obj.ast ) ), seed );
-      seed = list_hash( type->obj.params, type_hash, seed );
-      break;
-
-    case T_ADT:
-      seed = list_hash( type->adt.types, type_hash, seed );
-      break;
-  }
-
-  return seed;
+  if( present ) type_free( type );
+  return found;
 }
 
-static type_t* typetable( type_t* type )
-{
-  if( type == NULL ) { return NULL; }
-
-  uint64_t hash = type_hash( type, 0 ) & HASH_MASK;
-  list_t* list = table.type[hash];
-
-  while( list != NULL )
-  {
-    type_t* data = list_data( list );
-    if( data == type ) { return data; }
-
-    if( type_eq( data, type ) )
-    {
-      type_free( type );
-      return data;
-    }
-
-    list = list_next( list );
-  }
-
-  list = list_push( list, type );
-  return type;
-}
-
-static bool type_cmp( void* a, void* b )
-{
-  return type_eq( a, b );
-}
-
-static bool type_cmpsub( void* a, void* b )
-{
-  return type_sub( a, b );
-}
-
-static bool a_is_obj_b( type_t* a, type_t* b )
+static bool a_is_obj_b( const type_t* a, const type_t* b )
 {
   // invariant formal parameters
   return (a->id == T_OBJECT)
@@ -188,7 +176,7 @@ static bool a_is_obj_b( type_t* a, type_t* b )
     && list_equals( a->obj.params, b->obj.params, type_cmp );
 }
 
-static bool a_in_obj_b( type_t* a, type_t* b )
+static bool a_in_obj_b( const type_t* a, const type_t* b )
 {
   if( a->id != T_OBJECT ) { return false; }
   if( a_is_obj_b( a, b ) ) { return true; }
@@ -216,7 +204,7 @@ static bool a_in_obj_b( type_t* a, type_t* b )
   return false;
 }
 
-static bool a_is_fun_b( type_t* a, type_t* b )
+static bool a_is_fun_b( const type_t* a, const type_t* b )
 {
   switch( a->id )
   {
@@ -240,7 +228,7 @@ static bool a_is_fun_b( type_t* a, type_t* b )
   return false;
 }
 
-static bool a_in_fun_b( type_t* a, type_t* b )
+static bool a_in_fun_b( const type_t* a, const type_t* b )
 {
   switch( a->id )
   {
@@ -268,22 +256,14 @@ static bool a_in_fun_b( type_t* a, type_t* b )
   return false;
 }
 
-static bool a_in_adt_b( type_t* a, type_t* b )
+static bool a_in_adt_b( const type_t* a, const type_t* b )
 {
-  return list_has( b->adt.types, type_cmpsub, a );
+  return list_find( b->adt.types, type_cmpsub, a ) != NULL;
 }
 
-static bool adt_a_in_b( type_t* a, type_t* b )
+static bool adt_a_in_b( const type_t* a, const type_t* b )
 {
-  list_t* list = a->adt.types;
-
-  while( list != NULL )
-  {
-    if( !type_sub( list_data( list ), b ) ) return false;
-    list = list_next( list );
-  }
-
-  return true;
+  return list_test( a->adt.types, type_cmpsup, (void*)b );
 }
 
 static list_t* typelist( ast_t* ast )
@@ -452,9 +432,9 @@ static type_t* adttype( ast_t* ast )
   return type;
 }
 
-static void* subst_map( void* map, list_t* list )
+static void* subst_map( void* map, void* iter )
 {
-  return type_subst( list_data( list ), map );
+  return type_subst( list_data( iter ), map );
 }
 
 static type_t* type_subst( type_t* type, list_t* list )
@@ -500,7 +480,7 @@ static type_t* type_subst( type_t* type, list_t* list )
     default: subst = NULL;
   }
 
-  return typetable( subst );
+  return type_store( subst );
 }
 
 static bool arg_valid( ast_t* ast, type_t* type, type_t* arg, ast_t* param )
@@ -592,7 +572,7 @@ type_t* type_name( ast_t* ast, const char* name )
     ast_error( ast, "no type '%s' in scope", name );
   }
 
-  return typetable( expand_alias( type ) );
+  return type_store( expand_alias( type ) );
 }
 
 type_t* type_ast( ast_t* ast )
@@ -625,12 +605,12 @@ type_t* type_ast( ast_t* ast )
     default: return NULL;
   }
 
-  return typetable( type );
+  return type_store( type );
 }
 
-static bool valid_pred( void* ast, list_t* list )
+static bool valid_pred( void* ast, void* iter )
 {
-  return type_valid( ast, list_data( list ) );
+  return type_valid( ast, list_data( iter ) );
 }
 
 bool type_valid( ast_t* ast, type_t* type )
@@ -668,7 +648,7 @@ bool type_valid( ast_t* ast, type_t* type )
   return ret;
 }
 
-bool type_eq( type_t* a, type_t* b )
+bool type_eq( const type_t* a, const type_t* b )
 {
   if( (a == b)
     || (a->id == T_INFER)
@@ -694,7 +674,7 @@ bool type_eq( type_t* a, type_t* b )
   return false;
 }
 
-bool type_sub( type_t* a, type_t* b )
+bool type_sub( const type_t* a, const type_t* b )
 {
   if( (a == NULL) || (b == NULL) ) { return false; }
 
@@ -719,14 +699,14 @@ bool type_sub( type_t* a, type_t* b )
   return false;
 }
 
-static bool print_pred( void* sep, list_t* list )
+static bool print_pred( void* arg, void* iter )
 {
-  type_print( list_data( list ) );
-  if( list_next( list ) != NULL ) printf( "%s", (const char*)sep );
+  type_print( list_data( iter ) );
+  if( list_next( iter ) != NULL ) printf( "%s", (const char*)arg );
   return true;
 }
 
-void type_print( type_t* a )
+void type_print( const type_t* a )
 {
   if( a == NULL )
   {
@@ -770,10 +750,5 @@ void type_print( type_t* a )
 
 void type_done()
 {
-  for( int i = 0; i < HASH_SIZE; i++ )
-  {
-    list_free( table.type[i], type_free );
-  }
-
-  memset( table.type, 0, HASH_SIZE * sizeof(list_t*) );
+  table_free( type_table );
 }

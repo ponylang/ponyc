@@ -485,8 +485,6 @@ static token_t* real( lexer_t* lexer, token_t* t, __uint128_t v )
           e--;
         } else if( (c == 'e') || (c == 'E') ) {
           break;
-        } else if( c == ',' ) {
-          // skip
         } else if( isalpha( c ) ) {
           lexerror( lexer, "Invalid character in real number: %c", c );
           token_free( t );
@@ -538,8 +536,6 @@ static token_t* real( lexer_t* lexer, token_t* t, __uint128_t v )
       {
         if( !accum( lexer, t, &n, c, '0', 10, 0 ) ) { return NULL; }
         digits++;
-      } else if( c == ',' ) {
-        // skip
       } else if( isalpha( c ) ) {
         lexerror( lexer, "Invalid character in exponent: %c", c );
         token_free( t );
@@ -594,8 +590,6 @@ static token_t* hexadecimal( lexer_t* lexer, token_t* t )
       if( !accum( lexer, t, &v, c, 'a', 16, 10 ) ) { return NULL; }
     } else if( (c >= 'A') && (c <= 'Z') ) {
       if( !accum( lexer, t, &v, c, 'A', 16, 10 ) ) { return NULL; }
-    } else if( c == ',' ) {
-      // skip
     } else if( isalpha( c ) ) {
       lexerror( lexer, "Invalid character in hexadecimal number: %c", c );
       token_free( t );
@@ -626,8 +620,6 @@ static token_t* decimal( lexer_t* lexer, token_t* t )
       if( !accum( lexer, t, &v, c, '0', 10, 0 ) ) { return NULL; }
     } else if( (c == '.') || (c == 'e') || (c == 'E') ) {
       return real( lexer, t, v );
-    } else if( c == ',' ) {
-      // skip
     } else if( isalnum( c ) ) {
       lexerror( lexer, "Invalid character in decimal number: %c", c );
       token_free( t );
@@ -656,8 +648,6 @@ static token_t* binary( lexer_t* lexer, token_t* t )
     if( (c >= '0') && (c <= '1') )
     {
       if( !accum( lexer, t, &v, c, '0', 2, 0 ) ) { return NULL; }
-    } else if( c == ',' ) {
-      // skip
     } else if( isalnum( c ) ) {
       lexerror( lexer, "Invalid character in binary number: %c", c );
       token_free( t );

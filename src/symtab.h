@@ -1,15 +1,10 @@
 #ifndef SYMTAB_H
 #define SYMTAB_H
 
-#include <stdbool.h>
+#include "table.h"
 
-typedef struct symtab_t symtab_t;
-
-symtab_t* symtab_new();
-void symtab_free( symtab_t* symtab );
-
-bool symtab_add( symtab_t* symtab, const char* name, void* value );
-void* symtab_get( symtab_t* symtab, const char* name );
-bool symtab_merge( symtab_t* dst, symtab_t* src );
+table_t* symtab_new();
+bool symtab_add(table_t* symtab, const char* name, void* value);
+void* symtab_get(const table_t* symtab, const char* name);
 
 #endif

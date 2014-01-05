@@ -163,13 +163,13 @@ ID
   ;
 
 INT
-  :  DIGITS
-  |  '0' 'x' (HEX | ',')*
-  |  '0' 'b' ('0' | '1' | ',')*
+  :  DIGIT+
+  |  '0' 'x' HEX+
+  |  '0' 'b' ('0' | '1')+
   ;
 
 FLOAT
-  :  DIGITS ('.' DIGITS)? EXP?
+  :  DIGIT+ ('.' DIGIT+)? EXP?
   ;
 
 LINECOMMENT
@@ -190,17 +190,12 @@ STRING
 
 fragment
 EXP
-  :  ('e' | 'E') ('+' | '-')? DIGITS
+  :  ('e' | 'E') ('+' | '-')? DIGIT+
   ;
 
 fragment
 LETTER
   :  'a'..'z' | 'A'..'Z'
-  ;
-
-fragment
-DIGITS
-  :  DIGIT (DIGIT | ',')*
   ;
 
 fragment

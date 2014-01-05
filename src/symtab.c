@@ -1,6 +1,6 @@
 #include "symtab.h"
 #include "hash.h"
-#include "list.h"
+#include "functions.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,76 +13,48 @@ typedef struct symbol_t
   void* value;
 } symbol_t;
 
-struct symtab_t
+static uint64_t sym_hash(const void* data, uint64_t seed)
 {
-  list_t* symbols[SYMTAB_SIZE];
-};
-
-static void* symbol_get( symtab_t* symtab, const char* name, uint64_t hash )
-{
-  list_t* list = symtab->symbols[hash];
-
-  while( list != NULL )
-  {
-    symbol_t* sym = list_data( list );
-    if( sym->name == name ) return sym->value;
-    list = list_next( list );
-  }
-
-  return NULL;
+  const symbol_t* sym = data;
+  return ptrhash(sym->name, 0);
 }
 
-symtab_t* symtab_new()
+static bool sym_cmp(const void* a, const void* b)
 {
-  return calloc( 1, sizeof(symtab_t) );
+  const symbol_t* s1 = a;
+  const symbol_t* s2 = b;
+
+  return s1->name == s2->name;
 }
 
-void symtab_free( symtab_t* symtab )
+static void* sym_dup(const void* data)
 {
-  if( symtab == NULL ) { return; }
+  const symbol_t* s1 = data;
+  symbol_t* s2 = malloc(sizeof(symbol_t));
+  s2->name = s1->name;
+  s2->value = s2->value;
 
-  for( int i = 0; i < SYMTAB_SIZE; i++ )
-  {
-    list_free( symtab->symbols[i], free );
-  }
-
-  free( symtab );
+  return s2;
 }
 
-bool symtab_add( symtab_t* symtab, const char* name, void* value )
+table_t* symtab_new()
 {
-  uint64_t hash = ptrhash( name ) & SYMTAB_MASK;
-  if( symbol_get( symtab, name, hash ) != NULL ) return false;
-
-  symbol_t* sym = malloc( sizeof(symbol_t) );
-  sym->name = name;
-  sym->value = value;
-  symtab->symbols[hash] = list_push( symtab->symbols[hash], sym );
-
-  return true;
+  return table_create(32, sym_hash, sym_cmp, sym_dup, free);
 }
 
-void* symtab_get( symtab_t* symtab, const char* name )
+bool symtab_add(table_t* symtab, const char* name, void* value)
 {
-  if( symtab == NULL ) return NULL;
-  return symbol_get( symtab, name, ptrhash( name ) & SYMTAB_MASK );
+  bool present;
+  symbol_t sym = {name, value};
+  table_insert(symtab, &sym, &present);
+
+  return !present;
 }
 
-bool symtab_merge( symtab_t* dst, symtab_t* src )
+void* symtab_get(const table_t* symtab, const char* name)
 {
-  if( (dst == NULL) || (src == NULL) ) { return false; }
+  symbol_t s1 = {name, NULL};
+  symbol_t* s2 = table_find(symtab, &s1);
 
-  for( int i = 0; i < SYMTAB_SIZE; i++ )
-  {
-    list_t* list = src->symbols[i];
-
-    while( list != NULL )
-    {
-      symbol_t* sym = list_data( list );
-      if( !symtab_add( dst, sym->name, sym->value ) ) { return false; }
-      list = list_next( list );
-    }
-  }
-
-  return true;
+  return s2 != NULL ? s2->value : NULL;
 }

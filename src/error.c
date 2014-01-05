@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
+void errorv( const source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap )
 {
   if( source != NULL )
@@ -58,7 +58,7 @@ void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
   printf( "^\n" );
 }
 
-void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
+void error( const source_t* source, size_t line, size_t pos, const char* fmt, ... )
 {
   va_list ap;
   va_start( ap, fmt );
