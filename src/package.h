@@ -3,7 +3,7 @@
 
 #include "ast.h"
 
-void package_addpath( const char* path );
+void package_init( const char* name );
 
 ast_t* package_load( ast_t* from, const char* path );
 

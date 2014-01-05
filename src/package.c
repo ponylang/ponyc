@@ -9,12 +9,83 @@
 #include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
 
 #define EXTENSION ".pony"
 
 static list_t* search;
+
+static bool filepath( const char *file, char* path )
+{
+  struct stat sb;
+
+  if( (realpath( file, path ) != path)
+    || (stat( path, &sb ) != 0)
+    || ((sb.st_mode & S_IFMT) != S_IFREG)
+    )
+  {
+    return false;
+  }
+
+  char* p = strrchr( path, '/' );
+
+  if( p != NULL )
+  {
+    if( p != path )
+    {
+      p[0] = '\0';
+    } else {
+      p[1] = '\0';
+    }
+  }
+
+  return true;
+}
+
+static bool execpath( const char* file, char* path )
+{
+  // if it contains a separator of any kind, it's an absolute or relative path
+  if( strchr( file, '/' ) != NULL ) { return filepath( file, path ); }
+
+  // it's just an executable name, so walk the path
+  const char* env = getenv( "PATH" );
+
+  if( env != NULL )
+  {
+    size_t flen = strlen( file );
+
+    while( true )
+    {
+      char* p = strchr( env, ':' );
+      size_t len;
+
+      if( p != NULL )
+      {
+        len = p - env;
+      } else {
+        len = strlen( env );
+      }
+
+      if( (len + flen + 1) < FILENAME_MAX )
+      {
+        char check[FILENAME_MAX];
+        strncpy( check, env, len );
+        check[len++] = '/';
+        strcpy( &check[len], file );
+
+        if( filepath( check, path ) ) { return true; }
+      }
+
+      if( p == NULL ) { break; }
+      env = p + 1;
+    }
+  }
+
+  // try the current directory as a last resort
+  return filepath( file, path );
+}
 
 static bool do_file( ast_t* package, const char* file )
 {
@@ -135,9 +206,41 @@ const char* find_path( ast_t* from, const char* path )
   return NULL;
 }
 
-void package_addpath( const char* path )
+void package_init( const char* name )
 {
-  search = list_push( search, stringtab( path ) );
+  char path[FILENAME_MAX];
+
+  if( execpath( name, path ) )
+  {
+    strcat( path, "/packages" );
+    search = list_push( search, stringtab( path ) );
+  }
+
+  const char* env = getenv( "PONYPATH" );
+  if( env == NULL ) { return; }
+
+  while( true )
+  {
+    char* p = strchr( env, ':' );
+    size_t len;
+
+    if( p != NULL )
+    {
+      len = p - env;
+    } else {
+      len = strlen( env );
+    }
+
+    if( len < FILENAME_MAX )
+    {
+      strncpy( path, env, len );
+      path[len] = '\0';
+      search = list_push( search, stringtab( path ) );
+    }
+
+    if( p == NULL ) { break; }
+    env = p + 1;
+  }
 }
 
 ast_t* package_load( ast_t* from, const char* path )
