@@ -77,8 +77,16 @@ static bool execpath( const char* file, char* path )
   return filepath( file, path );
 }
 
-static void ponypath()
+static void ponypath( const char* name )
 {
+  char path[FILENAME_MAX];
+
+  if( execpath( name, path ) )
+  {
+    strcat( path, "/packages" );
+    package_addpath( path );
+  }
+
   const char* env = getenv( "PONYPATH" );
   if( env == NULL ) { return; }
 
@@ -96,7 +104,6 @@ static void ponypath()
 
     if( len < FILENAME_MAX )
     {
-      char path[FILENAME_MAX];
       strncpy( path, env, len );
       path[len] = '\0';
       package_addpath( path );
@@ -109,15 +116,7 @@ static void ponypath()
 
 int main( int argc, char** argv )
 {
-  ponypath();
-
-  char path[FILENAME_MAX];
-
-  if( execpath( argv[0], path ) )
-  {
-    strcat( path, "/packages" );
-    package_addpath( path );
-  }
+  ponypath( argv[0] );
 
   const char* target = ".";
   if( argc > 1 ) { target = argv[1]; }
