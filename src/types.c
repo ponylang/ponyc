@@ -110,7 +110,7 @@ static bool type_cmp( const void* a, const void* b )
 
 static bool type_cmpsub( const void* a, const void* b )
 {
-  return type_sub( a, b );
+      return type_sub( a, b );
 }
 
 static bool type_cmpsup( void* arg, void* iter )
@@ -192,13 +192,6 @@ static bool a_in_obj_b( const type_t* a, const type_t* b )
     }
 
     trait = ast_sibling( trait );
-  }
-
-  if( (ast_id( b->obj.ast ) == TK_TRAIT)
-    && (ast_id( ast_childidx( b->obj.ast, 3 ) ) == TK_INFER)
-    )
-  {
-    // FIX: if b is an inferred trait, check for conformance
   }
 
   return false;

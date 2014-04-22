@@ -213,16 +213,24 @@ void* ast_get( ast_t* ast, const char* name )
 {
   /* searches all parent scopes, but not the program scope, because the name
    * space for paths is separate from the name space for all other IDs.
+   * if called directly on the program scope, searches it.
    */
-  void* value;
-
   do
   {
-    value = symtab_get( ast->symtab, name );
-    ast = ast->parent;
-  } while( (value == NULL) && (ast != NULL) && (ast->t->id != TK_PROGRAM) );
+    if( ast->symtab != NULL )
+    {
+      void* value = symtab_get( ast->symtab, name );
 
-  return value;
+      if( value != NULL )
+      {
+        return value;
+      }
+    }
+
+    ast = ast->parent;
+  } while( (ast != NULL) && (ast->t->id != TK_PROGRAM) );
+
+  return NULL;
 }
 
 bool ast_set( ast_t* ast, const char* name, void* value )

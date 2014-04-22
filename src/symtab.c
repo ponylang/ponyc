@@ -2,10 +2,6 @@
 #include "hash.h"
 #include "functions.h"
 #include <stdlib.h>
-#include <string.h>
-
-#define SYMTAB_SIZE 32
-#define SYMTAB_MASK (SYMTAB_SIZE - 1)
 
 typedef struct symbol_t
 {
@@ -32,7 +28,7 @@ static void* sym_dup(const void* data)
   const symbol_t* s1 = data;
   symbol_t* s2 = malloc(sizeof(symbol_t));
   s2->name = s1->name;
-  s2->value = s2->value;
+  s2->value = s1->value;
 
   return s2;
 }

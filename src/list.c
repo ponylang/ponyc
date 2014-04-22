@@ -111,7 +111,7 @@ list_t* list_map(list_t* list, map_fn f, void* arg)
 
   while(list != NULL)
   {
-    to = list_append(list, f(arg, list));
+    to = list_append(to, f(arg, list));
     list = list->next;
   }
 

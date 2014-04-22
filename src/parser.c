@@ -42,6 +42,7 @@ static ast_t* arg( parser_t* parser )
 
 static ast_t* param( parser_t* parser )
 {
+  // FIX: defaults
   // ID oftype assign
   AST( TK_PARAM );
   EXPECT( TK_ID );
@@ -52,6 +53,7 @@ static ast_t* param( parser_t* parser )
 
 static ast_t* typeparam( parser_t* parser )
 {
+  // FIX: defaults
   // ID oftype assign
   AST( TK_TYPEPARAM );
   EXPECT( TK_ID );
@@ -62,28 +64,31 @@ static ast_t* typeparam( parser_t* parser )
 
 static ast_t* mode( parser_t* parser )
 {
-  // (LBRACE (ISO | TRN | VAR | VAL | BOX | TAG | THIS | ID) RBRACE)?
-  // (ARROW (THIS | ID))? MULTIPLY?
+  // (LBRACE
+  //  (ISO | TRN | VAR | VAL | BOX | TAG | THIS | ID)
+  //  (ARROW (THIS | ID))? MULTIPLY?
+  // RBRACE)?
   AST( TK_MODE );
 
   if( ACCEPT_DROP( TK_LBRACE ) )
   {
     EXPECT( TK_ISO, TK_TRN, TK_VAR, TK_VAL, TK_BOX, TK_TAG, TK_THIS, TK_ID );
+
+    if( ACCEPT_DROP( TK_ARROW ) )
+    {
+      EXPECT( TK_THIS, TK_ID );
+    } else {
+      INSERT( TK_NONE );
+    }
+
+    if( ACCEPT_DROP( TK_MULTIPLY ) )
+    {
+      INSERT( TK_EPHEMERAL );
+    } else {
+      INSERT( TK_NONE );
+    }
+
     EXPECT_DROP( TK_RBRACE );
-  }
-
-  if( ACCEPT_DROP( TK_ARROW ) )
-  {
-    EXPECT( TK_THIS, TK_ID );
-  } else {
-    INSERT( TK_NONE );
-  }
-
-  if( ACCEPT_DROP( TK_MULTIPLY ) )
-  {
-    INSERT( TK_EPHEMERAL );
-  } else {
-    INSERT( TK_NONE );
   }
 
   DONE();
@@ -216,14 +221,6 @@ static ast_t* throwseq( parser_t* parser )
   DONE();
 }
 
-static ast_t* throwexpr( parser_t* parser )
-{
-  // expr
-  AST( TK_CANTHROW );
-  RULE( expr );
-  DONE();
-}
-
 static ast_t* reference( parser_t* parser )
 {
   // ID
@@ -232,7 +229,7 @@ static ast_t* reference( parser_t* parser )
   DONE();
 }
 
-static ast_t* primary( parser_t* parser )
+static ast_t* atom( parser_t* parser )
 {
   FORWARDALT(
     { TK_THIS, consume },
@@ -246,8 +243,8 @@ static ast_t* primary( parser_t* parser )
 
 static ast_t* postfix( parser_t* parser )
 {
-  // primary (DOT ID | typeargs | LPAREN (arg (COMMA arg)*)? RPAREN)*
-  AST_RULE( primary );
+  // atom (DOT ID | typeargs | LPAREN (arg (COMMA arg)*)? RPAREN)*
+  AST_RULE( atom );
 
   while( true )
   {
@@ -289,24 +286,36 @@ static ast_t* unary( parser_t* parser )
 
 static bool is_binary( parser_t* parser )
 {
-  // any unary, postfix or primary can start a binary expression
+  // any unary, postfix or atom can start a binary expression
   return LOOK( TK_NOT, TK_MINUS, TK_THIS, TK_INT, TK_FLOAT, TK_STRING, TK_ID,
     TK_LPAREN );
 }
 
+static bool is_binop( parser_t* parser )
+{
+  return LOOK(
+    TK_EQUALS,
+    TK_IS, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
+    TK_AND, TK_OR, TK_XOR,
+    TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
+    TK_LSHIFT, TK_RSHIFT
+    );
+}
+
 static ast_t* binary( parser_t* parser )
 {
-  // unary (binop unary)*
+  // unary (binop expr)?
+  if( !is_binary( parser ) )
+  {
+    return NULL;
+  }
+
   AST_RULE( unary );
 
-  while(
-    LOOK( TK_AND, TK_OR, TK_XOR, TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE,
-      TK_MOD, TK_LSHIFT, TK_RSHIFT, TK_EQ, TK_NEQ, TK_LT, TK_LE, TK_GE, TK_GT
-      )
-    )
+  if( is_binop( parser ) )
   {
     BINOP_TOKEN();
-    RULE( unary );
+    RULE( expr );
   }
 
   DONE();
@@ -314,19 +323,24 @@ static ast_t* binary( parser_t* parser )
 
 static ast_t* local( parser_t* parser )
 {
-  // (VAR | VAL) ID oftype EQUALS expr
+  // (VAR | VAL) ID oftype (EQUALS expr)?
   AST( TK_LOCAL );
   EXPECT( TK_VAR, TK_VAL );
   EXPECT( TK_ID );
   RULE( oftype );
-  EXPECT_DROP( TK_EQUALS );
-  RULE( expr );
+
+  if( LOOK( TK_EQUALS ) )
+  {
+    BINOP_TOKEN();
+    RULE( expr );
+  }
+
   DONE();
 }
 
 static ast_t* lambda( parser_t* parser )
 {
-  // FUN QUESTION? mode params oftype DBLARROW expr
+  // FUN QUESTION? mode params oftype ARROW seq END
   AST( TK_LAMBDA );
   SCOPE();
   EXPECT_DROP( TK_FUN );
@@ -337,36 +351,42 @@ static ast_t* lambda( parser_t* parser )
 
   RULE( params );
   RULE( oftype );
-  EXPECT_DROP( TK_DBLARROW );
+  EXPECT_DROP( TK_ARROW );
 
   if( throw )
   {
-    RULE( throwexpr );
+    RULE( throwseq );
   } else {
-    RULE( expr );
+    RULE( seq );
   }
 
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
-static ast_t* conditional( parser_t* parser )
+static ast_t* cond( parser_t* parser )
 {
-  // IF seq THEN expr (ELSE expr | END)
-  AST_TOKEN();
+  // IF seq THEN seq (ELSEIF seq THEN seq)* (ELSE seq)? END
+  AST( TK_IF );
   SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_THEN );
-  RULE( expr );
+  RULE( seq );
   SCOPE();
 
-  if( ACCEPT_DROP( TK_ELSE ) )
+  if( LOOK( TK_ELSEIF ) )
   {
-    RULE( expr );
-    SCOPE();
+    RULE( cond );
   } else {
-    // FIX: syntactic sugar for 'else None'
+    if( ACCEPT_DROP( TK_ELSE ) )
+    {
+      RULE( expr );
+      SCOPE();
+    } else {
+      INSERT( TK_NONE );
+    }
+
     EXPECT_DROP( TK_END );
-    INSERT( TK_NONE );
   }
 
   DONE();
@@ -389,9 +409,16 @@ static ast_t* as( parser_t* parser )
 
 static ast_t* caseexpr( parser_t* parser )
 {
-  // PIPE binary? as (IF binary)? (DBLARROW seq)?
+  // FIX:
+  // PIPE cmp? expr? as (WHEN seq)? (ARROW seq)?
   AST( TK_CASE );
   EXPECT_DROP( TK_PIPE );
+  SCOPE();
+
+  if( !ACCEPT( TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT ) )
+  {
+    INSERT( TK_EQ );
+  }
 
   if( is_binary( parser ) )
   {
@@ -402,14 +429,14 @@ static ast_t* caseexpr( parser_t* parser )
 
   RULE( as );
 
-  if( ACCEPT_DROP( TK_IF ) )
+  if( ACCEPT_DROP( TK_WHEN ) )
   {
-    RULE( binary );
+    RULE( seq );
   } else {
     INSERT( TK_NONE );
   }
 
-  if( ACCEPT_DROP( TK_DBLARROW ) )
+  if( ACCEPT_DROP( TK_ARROW ) )
   {
     RULE( seq );
     SCOPE();
@@ -422,23 +449,40 @@ static ast_t* caseexpr( parser_t* parser )
 
 static ast_t* match( parser_t* parser )
 {
-  // MATCH seq caseexpr* END
+  // MATCH seq caseexpr* (ELSE seq)? END
   AST_TOKEN();
   SCOPE();
   RULE( seq );
   LIST( { TK_PIPE, caseexpr } );
+
+  if( ACCEPT_DROP( TK_ELSE ) )
+  {
+    RULE( seq );
+  } else {
+    INSERT( TK_NONE );
+  }
+
   EXPECT_DROP( TK_END );
   DONE();
 }
 
 static ast_t* whileloop( parser_t* parser )
 {
-  // WHILE seq DO expr
+  // WHILE seq DO seq (ELSE seq)? END
   AST_TOKEN();
   SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_DO );
   RULE( expr );
+
+  if( ACCEPT_DROP( TK_ELSE ) )
+  {
+    RULE( seq );
+  } else {
+    INSERT( TK_NONE );
+  }
+
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
@@ -455,37 +499,19 @@ static ast_t* doloop( parser_t* parser )
 
 static ast_t* forloop( parser_t* parser )
 {
-  // FOR ID oftype IN seq DO expr
-  // FIX: scope, or ast transformation?
+  // FOR ID oftype IN seq DO seq (ELSE seq)? END
   AST_TOKEN();
   EXPECT( TK_ID );
   RULE( oftype );
   EXPECT_DROP( TK_IN );
   RULE( seq );
-  EXPECT_DROP( TK_DO );
-  RULE( expr );
-  DONE();
-}
-
-static ast_t* try( parser_t* parser )
-{
-  // TRY throwseq (ELSE seq)? (THEN seq)? END
-  AST_TOKEN();
-  RULE( throwseq );
   SCOPE();
+  EXPECT_DROP( TK_DO );
+  RULE( seq );
 
   if( ACCEPT_DROP( TK_ELSE ) )
   {
     RULE( seq );
-    SCOPE();
-  } else {
-    INSERT( TK_NONE );
-  }
-
-  if( ACCEPT_DROP( TK_THEN ) )
-  {
-    RULE( expr );
-    SCOPE();
   } else {
     INSERT( TK_NONE );
   }
@@ -494,50 +520,49 @@ static ast_t* try( parser_t* parser )
   DONE();
 }
 
-static ast_t* command( parser_t* parser )
+static ast_t* try( parser_t* parser )
 {
-  // binary (EQUALS expr)?
-  if( !is_binary( parser ) )
+  // TRY throwseq (ELSE seq)? END
+  AST_TOKEN();
+  RULE( throwseq );
+  SCOPE();
+
+  if( ACCEPT_DROP( TK_ELSE ) )
   {
-    return NULL;
+    RULE( seq );
+  } else {
+    INSERT( TK_NONE );
   }
 
-  AST_RULE( binary );
-
-  if( LOOK( TK_EQUALS ) )
-  {
-    BINOP_TOKEN();
-    RULE( expr );
-  }
-
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
 static ast_t* expr( parser_t* parser )
 {
-  // local | lambda | conditional | match | whileloop | doloop | forloop |
-  // BREAK | CONTINUE | RETURN | try | UNDEF | SEMI | command
+  // local | lambda | cond | match | whileloop | doloop | forloop | try |
+  // BREAK | CONTINUE | RETURN | UNDEF | binary
   FORWARDALT(
     { TK_VAR, local },
     { TK_VAL, local },
     { TK_FUN, lambda },
-    { TK_IF, conditional },
+    { TK_IF, cond },
     { TK_MATCH, match },
     { TK_WHILE, whileloop },
     { TK_DO, doloop },
     { TK_FOR, forloop },
+    { TK_TRY, try },
     { TK_BREAK, consume },
     { TK_CONTINUE, consume },
     { TK_RETURN, consume },
-    { TK_TRY, try },
     { TK_UNDEF, consume },
-    { TK_NONE, command }
+    { TK_NONE, binary }
     );
 }
 
 static ast_t* function( parser_t* parser )
 {
-  // FUN mode QUESTION? ID typeparams params oftype (DBLARROW seq)?
+  // FUN mode QUESTION? ID typeparams params oftype (ARROW seq)?
   AST_TOKEN();
   SCOPE();
   RULE( mode );
@@ -550,7 +575,7 @@ static ast_t* function( parser_t* parser )
   RULE( params );
   RULE( oftype );
 
-  if( ACCEPT_DROP( TK_DBLARROW ) )
+  if( ACCEPT_DROP( TK_ARROW ) )
   {
     if( throw )
     {
@@ -569,7 +594,7 @@ static ast_t* function( parser_t* parser )
 
 static ast_t* behaviour( parser_t* parser )
 {
-  // BE ID typeparams params (DBLARROW seq)?
+  // BE ID typeparams params (ARROW seq)?
   AST_TOKEN();
   SCOPE();
 
@@ -577,7 +602,7 @@ static ast_t* behaviour( parser_t* parser )
   RULE( typeparams );
   RULE( params );
 
-  if( ACCEPT_DROP( TK_DBLARROW ) )
+  if( ACCEPT_DROP( TK_ARROW ) )
   {
     RULE( seq );
     SCOPE();
@@ -590,9 +615,10 @@ static ast_t* behaviour( parser_t* parser )
 
 static ast_t* constructor( parser_t* parser )
 {
-  // NEW QUESTION? ID typeparams params (DBLARROW seq)?
+  // NEW mode QUESTION? ID typeparams params (ARROW seq)?
   AST_TOKEN();
   SCOPE();
+  RULE( mode );
 
   bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
@@ -601,7 +627,7 @@ static ast_t* constructor( parser_t* parser )
   RULE( typeparams );
   RULE( params );
 
-  if( ACCEPT_DROP( TK_DBLARROW ) )
+  if( ACCEPT_DROP( TK_ARROW ) )
   {
     if( throw )
     {

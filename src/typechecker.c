@@ -123,7 +123,7 @@ static bool add_to_scope( ast_t* ast )
 
     case TK_FUN:
     case TK_NEW:
-      return set_scope( ast_parent( ast ), ast_childidx( ast, 1 ), ast, false );
+      return set_scope( ast_parent( ast ), ast_childidx( ast, 2 ), ast, false );
 
     case TK_BE:
     {
@@ -657,7 +657,7 @@ static bool type_second( ast_t* ast )
     }
 
     case TK_EQ:
-    case TK_NEQ:
+    case TK_NE:
       return trait_and_subtype( ast, comparable, "Comparable" );
 
     case TK_LT:

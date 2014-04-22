@@ -42,26 +42,27 @@ field
   ID
   type
 
-fun
+new
   symtab: ID -> typeparam|param
+  mode
   (QUESTION|NONE)
   ID
   list of typeparam
+  list of param
+  (seq|canthrow|NONE)
+
+fun
+  symtab: ID -> typeparam|param
   mode
+  (QUESTION|NONE)
+  ID
+  list of typeparam
   list of param
   type
   (seq|canthrow|NONE)
 
-msg
+be
   symtab: ID -> typeparam|param
-  ID
-  list of typeparam
-  list of param
-  (seq|canthrow|NONE)
-
-new
-  symtab: ID -> typeparam|param
-  (QUESTION|NONE)
   ID
   list of typeparam
   list of param

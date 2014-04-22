@@ -67,7 +67,7 @@ type_args
   ;
 
 mode
-  :  ('{' base_mode '}')? ('->' ('this' | ID))? ('*')?
+  :  ('{' base_mode? ('->' ('this' | ID))? '*'? '}')?
   ;
 
 base_mode

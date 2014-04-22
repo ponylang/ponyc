@@ -1,12 +1,8 @@
 trait Any
 
-class None
+type None
 
-class True
-
-class False
-
-alias Bool:(True|False)
+type Bool:(type True|type False)
 
 class I8
 
@@ -39,4 +35,4 @@ class FloatLiteral
 class String
 
 trait Stringable
-  fun string{box}():String
+  fun:box string(): String

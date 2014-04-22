@@ -26,7 +26,6 @@ typedef enum
   TK_RBRACKET,
   TK_COMMA,
   TK_ARROW,
-  TK_DBLARROW,
 
   TK_DOT,
   TK_COLON,
@@ -48,7 +47,7 @@ typedef enum
   TK_GT,
 
   TK_EQ,
-  TK_NEQ,
+  TK_NE,
 
   TK_PIPE,
   TK_QUESTION,
@@ -76,12 +75,14 @@ typedef enum
   TK_IF,
   TK_THEN,
   TK_ELSE,
+  TK_ELSEIF,
   TK_END,
   TK_FOR,
   TK_IN,
   TK_WHILE,
   TK_DO,
   TK_MATCH,
+  TK_WHEN,
   TK_TRY,
   TK_UNDEF,
   TK_THIS,

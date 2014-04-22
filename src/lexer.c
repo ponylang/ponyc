@@ -32,13 +32,12 @@ typedef struct symbol_t
 static const symbol_t symbols2[] =
 {
   { "->", TK_ARROW },
-  { "=>", TK_DBLARROW },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
 
   { "==", TK_EQ },
-  { "!=", TK_NEQ },
+  { "!=", TK_NE },
 
   { "<=", TK_LE },
   { ">=", TK_GE },
@@ -100,12 +99,14 @@ static const symbol_t keywords[] =
   { "if", TK_IF },
   { "then", TK_THEN },
   { "else", TK_ELSE },
+  { "elseif", TK_ELSEIF },
   { "end", TK_END },
   { "for", TK_FOR },
   { "in", TK_IN },
   { "while", TK_WHILE },
   { "do", TK_DO },
   { "match", TK_MATCH },
+  { "when", TK_WHEN },
   { "try", TK_TRY },
   { "undef", TK_UNDEF },
   { "this", TK_THIS },
