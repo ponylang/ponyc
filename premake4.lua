@@ -16,8 +16,8 @@ solution "ponyc"
     "Symbols",
     }
 
---  configuration "macosx"
-  --  buildoptions "-Wa,-q -Wa,-Wno-trigraphs"
+ configuration "macosx"
+   buildoptions "-Qunused-arguments"
 
   configuration "Debug"
     targetdir "bin/debug"
@@ -46,9 +46,8 @@ solution "ponyc"
     "Release or Profile",
     "not macosx",
     }
-    linkoptions {
-      "-fuse-linker-plugin",
-      }
+    buildoptions "-pthread"
+    linkoptions "-pthread"
 
   project "ponyc"
     kind "ConsoleApp"

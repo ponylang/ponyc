@@ -13,7 +13,7 @@ module
   ;
 
 use
-  :  'use' STRING ('as' ID)?
+  :  'use' (ID assign)? STRING
   ;
 
 class_
@@ -21,7 +21,7 @@ class_
   ;
 
 member
-  :  ('var' | 'val') ID oftype? (':=' seq)? // field
+  :  ('var' | 'val') ID oftype? (assign seq)? // field
   |  'new' '?'? ID type_params? params body? // constructor
   |  'fun' mode '?'? ID type_params? params oftype? body? // function
   |  'be' ID type_params? params body? // behaviour
@@ -57,6 +57,7 @@ base_type
   |  typedecl // nested type definition
   ;
 
+// could make structural types into traits by supplying bodies here
 fun_type
   :  'fun' mode '?'? ID? '(' types? ')' oftype?
   |  'be' ID? '(' types? ')' // FIX: need this?
@@ -83,15 +84,7 @@ params
   ;
 
 param
-  :  ID oftype? (':=' seq)?
-  ;
-
-args
-  :  '(' (seq (',' seq)*)? optargs? ')'
-  ;
-
-optargs
-  :  'with' ID ':=' seq (',' ID ':=' seq)*
+  :  ID oftype? (assign seq)?
   ;
 
 body
@@ -124,31 +117,28 @@ term
   ;
 
 local
-  :  ('var' | 'val') (ID | '(' ID (',' ID)* ')') oftype?
+  :  ('var' | 'val') idseq oftype?
   ;
 
 control
-  :  'if' seq 'then' seq ('elseif' seq 'then' seq)* end
-  |  'match' seq? case* end
-  |  'while' seq 'do' seq end
+  :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
+  |  'match' seq? case* ('else' seq)? 'end'
+  |  'while' seq 'do' seq ('else' seq)? 'end'
   |  'do' seq 'while' seq 'end'
-  |  'for' ID oftype? 'in' seq 'do' seq end
-  |  'try' seq end
-  ;
-
-end
-  :  ('else' seq)? 'end'
+  |  'for' ID oftype? 'in' seq 'do' seq ('else' seq)? 'end'
+  |  'try' seq ('else' seq)? ('then' seq)? 'end'
   ;
 
 case
-  :  '|' expr? ('as' ID oftype)? ('when' seq)? body?
+  :  '|' seq? ('as' idseq oftype)? ('when' seq)? body?
   ;
 
 postfix
   :  atom
   (  '.' (ID | INT) // member or tuple component
+  |  '!' ID // partial application, syntactic sugar
   |  type_args // type arguments
-  |  args // method arguments
+  |  tuple // method arguments
   )*
   ;
 
@@ -157,9 +147,33 @@ atom
   |  FLOAT
   |  STRING
   |  ID
-  |  '(' seq (',' seq)* ')' // tuple constructor
-  |  '[' seq (',' seq)* ']' // array literal
-  |  '{' ('is' types)? member* '}' // object literal
+  |  tuple
+  |  array
+  |  object
+  ;
+
+idseq
+  :  ID | '(' ID (',' ID)* ')'
+  ;
+
+tuple
+  :  '(' positional? named? ')'
+  ;
+
+array
+  :  '[' positional? named? ']'
+  ;
+
+object
+  :  '{' ('is' types)? member* '}'
+  ;
+
+positional
+  :  seq (',' seq)*
+  ;
+
+named
+  :  'with' term assign seq (',' term assign seq)*
   ;
 
 unop
@@ -171,8 +185,11 @@ binop
   |  '+' | '-' | '*' | '/' | '%' // arithmetic
   |  '<<' | '>>' // shift
   |  'is' | '==' | '!=' | '<' | '<=' | '>=' | '>' // equality
-  |  ':=' // assignment
-  |  '=>' // shorthand for (left, right) tuple FIX: not needed
+  |  assign
+  ;
+
+assign
+  :  '='
   ;
 
 // Lexer
@@ -185,7 +202,7 @@ INT
   :  DIGIT+
   |  '0' 'x' HEX+
   |  '0' 'o' OCTAL+
-  |  '0' 'b' ('0' | '1')+
+  |  '0' 'b' BINARY+
   ;
 
 FLOAT
@@ -216,6 +233,11 @@ EXP
 fragment
 LETTER
   :  'a'..'z' | 'A'..'Z'
+  ;
+
+fragment
+BINARY
+  :  '0'..'1'
   ;
 
 fragment
