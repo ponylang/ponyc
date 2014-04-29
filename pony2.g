@@ -17,13 +17,15 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? member*
   ;
 
 member
   :  ('var' | 'val') ID oftype? (assign seq)? // field
-  |  'new' '?'? ID type_params? params body? // constructor
-  |  'fun' mode '?'? ID type_params? params oftype? body? // function
+//  |  'new' '?'? ID type_params? params body? // constructor
+//  |  'fun' raw_cap '?'? ID type_params? params oftype? body? // function
+  |  'new' ID type_params? params '?'? body? // constructor
+  |  'fun' raw_cap ID type_params? params oftype? '?'? body? // function
   |  'be' ID type_params? params body? // behaviour
   ;
 
@@ -44,7 +46,7 @@ type
   ;
 
 type_expr
-  :  '(' base_type (typeop base_type)* ')' mode? // ADT or tuple
+  :  '(' base_type (typeop base_type)* ')' cap? // ADT or tuple
   ;
 
 typeop
@@ -52,14 +54,15 @@ typeop
   ;
 
 base_type
-  :  ID ('.' ID)* type_args? mode? // nominal type
-  |  '{' fun_type* '}' mode? // structural type
+  :  ID ('.' ID)* type_args? cap? // nominal type
+  |  '{' fun_type* '}' cap? // structural type
   |  typedecl // nested type definition
   ;
 
 // could make structural types into traits by supplying bodies here
 fun_type
-  :  'fun' mode '?'? ID? '(' types? ')' oftype?
+//  :  'fun' cap '?'? ID? '(' types? ')' oftype?
+  :  'fun' raw_cap ID? '(' types? ')' oftype? '?'?
   |  'be' ID? '(' types? ')' // FIX: need this?
   ;
 
@@ -71,12 +74,14 @@ type_args
   :  '[' type (',' type)* ']'
   ;
 
-mode
-  :  ':' (base_mode | ID)
+cap
+//  :  ':' (raw_cap | ID)
+  :  (raw_cap | ID) ('.' (raw_cap | ID))*
   ;
 
-base_mode
-  :  ('iso' | 'trn' | 'var' | 'val' | 'box' | 'tag')
+raw_cap
+//  :  ('iso' | 'trn' | 'var' | 'val' | 'box' | 'tag')
+  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
   ;
 
 params
