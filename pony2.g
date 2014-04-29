@@ -93,7 +93,7 @@ param
   ;
 
 body
-  :  '->' seq
+  :  '=>' seq
   ;
 
 seq
