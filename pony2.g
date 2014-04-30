@@ -32,7 +32,7 @@ member
 typedecl
   :  'type' ID type_params? (':' (base_type | type_expr))?
   ;
-  
+
 oftype
   :  ':' type
   ;
@@ -97,7 +97,7 @@ body
   ;
 
 seq
-  :  expr (';' expr)*
+  :  expr (';' seq)?
   ;
 
 expr
@@ -109,7 +109,7 @@ expr
   ;
 
 binary
-  :  term (binop term)*
+  :  term (binop binary)?
   ;
 
 term
@@ -127,15 +127,15 @@ local
 
 control
   :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
-  |  'match' seq? case* ('else' seq)? 'end'
+  |  'match' seq case* ('else' seq)? 'end'
   |  'while' seq 'do' seq ('else' seq)? 'end'
   |  'do' seq 'while' seq 'end'
-  |  'for' ID oftype? 'in' seq 'do' seq ('else' seq)? 'end'
+  |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   ;
 
 case
-  :  '|' seq? ('as' idseq oftype)? ('when' seq)? body?
+  :  '|' seq? ('as' idseq oftype)? ('where' seq)? body?
   ;
 
 postfix
@@ -178,7 +178,7 @@ positional
   ;
 
 named
-  :  'with' term assign seq (',' term assign seq)*
+  :  'where' term assign seq (',' term assign seq)*
   ;
 
 unop
@@ -189,7 +189,7 @@ binop
   :  'and' | 'or' | 'xor' // logic
   |  '+' | '-' | '*' | '/' | '%' // arithmetic
   |  '<<' | '>>' // shift
-  |  'is' | '==' | '!=' | '<' | '<=' | '>=' | '>' // equality
+  |  'is' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
   |  assign
   ;
 
