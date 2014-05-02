@@ -557,7 +557,7 @@ static bool type_second( ast_t* ast )
       // FIX:
       return true;
 
-    case TK_EQUALS:
+    case TK_ASSIGN:
       // FIX:
       return true;
 

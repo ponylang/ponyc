@@ -97,7 +97,7 @@ body
   ;
 
 seq
-  :  expr (';' seq)?
+  :  expr (';' expr)*
   ;
 
 expr
@@ -109,7 +109,7 @@ expr
   ;
 
 binary
-  :  term (binop binary)?
+  :  term (binop term)*
   ;
 
 term
@@ -117,8 +117,6 @@ term
   |  control
   |  postfix
   |  unop term
-  |  'consume' ID ('.' ID)*
-  |  'recover' term
   ;
 
 local
@@ -182,7 +180,7 @@ named
   ;
 
 unop
-  :  'not' | '-'
+  :  'not' | '-' | 'consume' | 'recover'
   ;
 
 binop
@@ -196,6 +194,18 @@ binop
 assign
   :  '='
   ;
+
+/* Precedence?
+1. * / %
+2. + -
+3. << >> // same as C, but confusing?
+4. < <= => >
+5. == !=
+6. and
+7. xor
+8. or
+9. =
+*/
 
 // Lexer
 

@@ -31,7 +31,7 @@ typedef struct symbol_t
 
 static const symbol_t symbols2[] =
 {
-  { "->", TK_ARROW },
+  { "=>", TK_ARROW },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -56,15 +56,17 @@ static const symbol_t symbols1[] =
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
+  { "!", TK_BANG },
   { ":", TK_COLON },
   { ";", TK_SEMI },
-  { "=", TK_EQUALS },
+  { "=", TK_ASSIGN },
 
   { "+", TK_PLUS },
   { "-", TK_MINUS },
   { "*", TK_MULTIPLY },
   { "/", TK_DIVIDE },
   { "%", TK_MOD },
+  { "^", TK_HAT },
 
   { "<", TK_LT },
   { ">", TK_GT },
@@ -78,24 +80,31 @@ static const symbol_t symbols1[] =
 static const symbol_t keywords[] =
 {
   { "use", TK_USE },
-  { "as", TK_AS },
-  { "alias", TK_ALIAS },
+  { "type", TK_TYPE },
   { "trait", TK_TRAIT },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "is", TK_IS },
-  { "iso", TK_ISO },
-  { "trn", TK_TRN },
+
   { "var", TK_VAR },
   { "val", TK_VAL },
-  { "box", TK_BOX },
-  { "tag", TK_TAG },
+  { "new", TK_NEW },
   { "fun", TK_FUN },
   { "be", TK_BE },
-  { "new", TK_NEW },
+
+  { "iso", TK_ISO },
+  { "trn", TK_TRN },
+  { "mut", TK_MUT },
+  { "imm", TK_IMM },
+  { "box", TK_BOX },
+  { "tag", TK_TAG },
+
   { "return", TK_RETURN },
   { "break", TK_BREAK },
   { "continue", TK_CONTINUE },
+  { "consume", TK_CONSUME },
+  { "recover", TK_RECOVER },
+
   { "if", TK_IF },
   { "then", TK_THEN },
   { "else", TK_ELSE },
@@ -106,15 +115,16 @@ static const symbol_t keywords[] =
   { "while", TK_WHILE },
   { "do", TK_DO },
   { "match", TK_MATCH },
-  { "when", TK_WHEN },
+  { "as", TK_AS },
+  { "where", TK_WHERE },
   { "try", TK_TRY },
   { "undef", TK_UNDEF },
+
   { "this", TK_THIS },
   { "not", TK_NOT },
   { "and", TK_AND },
   { "or", TK_OR },
   { "xor", TK_XOR },
-  { "infer", TK_INFER },
 
   { NULL, 0 }
 };
@@ -124,23 +134,24 @@ static const symbol_t abstract[] =
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
-  { "field", TK_FIELD },
-  { "local", TK_LOCAL },
-  { "list", TK_LIST },
+  { "members", TK_MEMBERS },
   { "adt", TK_ADT },
   { "objtype", TK_OBJTYPE },
   { "funtype", TK_FUNTYPE },
-  { "mode", TK_MODE },
-  { "ephemeral", TK_EPHEMERAL },
+  { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },
+  { "params", TK_PARAMS },
   { "param", TK_PARAM },
   { "typeargs", TK_TYPEARGS },
-  { "call", TK_CALL },
+  { "positionalargs", TK_POSITIONALARGS },
+  { "namedargs", TK_NAMEDARGS },
+  { "namedarg", TK_NAMEDARG },
   { "seq", TK_SEQ },
+  { "tuple", TK_TUPLE },
+  { "array", TK_ARRAY },
+  { "object", TK_OBJECT },
   { "case", TK_CASE },
-  { "lambda", TK_LAMBDA },
   { "canthrow", TK_CANTHROW },
-  { "ref", TK_REF },
 
   { NULL, 0 }
 };

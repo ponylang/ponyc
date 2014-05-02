@@ -6,43 +6,26 @@
 #include <assert.h>
 
 // forward declarations
-static ast_t* oftype( parser_t* parser );
 static ast_t* type( parser_t* parser );
-static ast_t* expr( parser_t* parser );
-static ast_t* unary( parser_t* parser );
+static ast_t* term( parser_t* parser );
+static ast_t* members( parser_t* parser );
+static ast_t* traits( parser_t* parser );
+
+// helpers
+static bool is_binop( parser_t* parser )
+{
+  return LOOK(
+    TK_AND, TK_OR, TK_XOR, // logic
+    TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD, // arithmetic
+    TK_LSHIFT, TK_RSHIFT, // shift
+    TK_IS, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT, // comparison
+    TK_ASSIGN // assignment
+    );
+}
 
 // rules
-static ast_t* assign( parser_t* parser )
-{
-  // (EQUALS expr)?
-  if( ACCEPT_DROP( TK_EQUALS ) )
-  {
-    FORWARD( expr );
-  } else {
-    AST( TK_INFER );
-    DONE();
-  }
-}
-
-static ast_t* arg( parser_t* parser )
-{
-  // expr (ARROW ID)?
-  AST( TK_ARROW );
-  RULE( expr );
-
-  if( ACCEPT_DROP( TK_ARROW ) )
-  {
-    EXPECT( TK_ID );
-  } else {
-    INSERT( TK_NONE );
-  }
-
-  DONE();
-}
-
 static ast_t* param( parser_t* parser )
 {
-  // FIX: defaults
   // ID oftype assign
   AST( TK_PARAM );
   EXPECT( TK_ID );
@@ -53,7 +36,6 @@ static ast_t* param( parser_t* parser )
 
 static ast_t* typeparam( parser_t* parser )
 {
-  // FIX: defaults
   // ID oftype assign
   AST( TK_TYPEPARAM );
   EXPECT( TK_ID );
@@ -81,10 +63,8 @@ static ast_t* mode( parser_t* parser )
       INSERT( TK_NONE );
     }
 
-    if( ACCEPT_DROP( TK_MULTIPLY ) )
+    if( !ACCEPT( TK_HAT ) )
     {
-      INSERT( TK_EPHEMERAL );
-    } else {
       INSERT( TK_NONE );
     }
 
@@ -97,7 +77,7 @@ static ast_t* mode( parser_t* parser )
 static ast_t* params( parser_t* parser )
 {
   // LPAREN (param (COMMA param)*)? RBRACKET
-  AST( TK_LIST );
+  AST( TK_PARAMS );
   BLOCK( TK_NONE, TK_LPAREN, TK_RPAREN, TK_COMMA,
     { TK_NONE, param }
     );
@@ -107,7 +87,7 @@ static ast_t* params( parser_t* parser )
 static ast_t* typeparams( parser_t* parser )
 {
   // (LBRACKET typeparam (COMMA typeparam)* RBRACKET)?
-  AST( TK_LIST );
+  AST( TK_TYPEPARAMS );
   OPTBLOCK( TK_NONE, TK_LBRACKET, TK_RBRACKET, TK_COMMA,
     { TK_NONE, typeparam }
     );
@@ -117,7 +97,7 @@ static ast_t* typeparams( parser_t* parser )
 static ast_t* typeargs( parser_t* parser )
 {
   // (LBRACKET type (COMMA type)* RBRACKET)?
-  AST( TK_LIST );
+  AST( TK_TYPEARGS );
   OPTBLOCK( TK_NONE, TK_LBRACKET, TK_RBRACKET, TK_COMMA,
     { TK_NONE, type }
     );
@@ -173,7 +153,8 @@ static ast_t* adttype( parser_t* parser )
 
 static ast_t* type( parser_t* parser )
 {
-  // adttype | funtype | objtype
+  // (nominal | structural | typedecl | typeexpr) HAT?
+  AST( TK_)
   FORWARDALT(
     { TK_LPAREN, adttype },
     { TK_FUN, funtype },
@@ -181,34 +162,66 @@ static ast_t* type( parser_t* parser )
     );
 }
 
-static ast_t* oftype( parser_t* parser )
-{
-  // (COLON type)?
-  if( ACCEPT_DROP( TK_COLON ) )
-  {
-    FORWARD( type );
-  } else {
-    AST( TK_INFER );
-    DONE();
-  }
-}
+// FIX: above here
 
-static ast_t* seq( parser_t* parser )
+static ast_t* namedarg( parser_t* parser )
 {
-  // expr (SEMI expr)*
-  AST( TK_SEQ );
-  BLOCK( TK_NONE, TK_NONE, TK_NONE, TK_SEMI,
-    { TK_NONE, expr }
-    );
+  // term ASSIGN seq
+  AST( TK_NAMEDARG );
+  RULE( term );
+  EXPECT_DROP( TK_ASSIGN );
+  RULE( seq );
   DONE();
 }
 
-static ast_t* parenseq( parser_t* parser )
+static ast_t* named( parser_t* parser )
 {
-  // LPAREN seq RPAREN
-  ACCEPT_DROP( TK_LPAREN );
-  AST_RULE( seq );
-  SCOPE();
+  // WHERE term ASSIGN seq (COMMA term ASSIGN seq)*
+  AST( TK_NAMEDARGS );
+  EXPECT_DROP( TK_WHERE );
+  RULE( namedarg );
+  WHILERULE( TK_COMMA, namedarg );
+  DONE();
+}
+
+static ast_t* positional( parser_t* parser )
+{
+  // seq (COMMA seq)*)
+  AST( TK_POSITIONALARGS );
+  RULE( seq );
+  WHILERULE( TK_COMMA, seq );
+  DONE();
+}
+
+static ast_t* object( parser_t* parser )
+{
+  // LBRACE traits? members? RBRACE
+  AST( TK_OBJECT );
+  EXPECT_DROP( TK_LBRACE );
+  OPTRULE( traits );
+  OPTRULE( members );
+  EXPECT_DROP( TK_RBRACE );
+  DONE();
+}
+
+static ast_t* array( parser_t* parser )
+{
+  // LBRACKET positional? named? RBRACKET
+  AST( TK_ARRAY );
+  EXPECT_DROP( TK_LBRACKET );
+  OPTRULE( positional );
+  OPTRULE( named );
+  EXPECT_DROP( TK_RBRACKET );
+  DONE();
+}
+
+static ast_t* tuple( parser_t* parser )
+{
+  // LPAREN positional? named? RPAREN
+  AST( TK_TUPLE );
+  EXPECT_DROP( TK_LPAREN );
+  OPTRULE( positional );
+  OPTRULE( named );
   EXPECT_DROP( TK_RPAREN );
   DONE();
 }
@@ -221,247 +234,111 @@ static ast_t* throwseq( parser_t* parser )
   DONE();
 }
 
-static ast_t* reference( parser_t* parser )
+static ast_t* atom( parser_t* parser )
 {
-  // ID
-  AST( TK_REF );
+  if( LOOK( TK_THIS, TK_INT, TK_FLOAT, TK_STRING, TK_ID ) )
+  {
+    FORWARD( consume );
+  }
+
+  FORWARD( tuple, array, object );
+}
+
+static ast_t* bang( parser_t* parser )
+{
+  AST_TOKEN( TK_BANG );
   EXPECT( TK_ID );
   DONE();
 }
 
-static ast_t* atom( parser_t* parser )
+static ast_t* dot( parser_t* parser )
 {
-  FORWARDALT(
-    { TK_THIS, consume },
-    { TK_INT, consume },
-    { TK_FLOAT, consume },
-    { TK_STRING, consume },
-    { TK_ID, reference },
-    { TK_LPAREN, parenseq }
-    );
+  AST_TOKEN( TK_DOT );
+  EXPECT( TK_ID, TK_INT );
+  DONE();
 }
 
 static ast_t* postfix( parser_t* parser )
 {
-  // atom (DOT ID | typeargs | LPAREN (arg (COMMA arg)*)? RPAREN)*
+  // atom (dot | bang | typeargs | tuple)*
   AST_RULE( atom );
-
-  while( true )
-  {
-    if( ACCEPT_DROP( TK_DOT ) )
-    {
-      BINOP( TK_DOT );
-      EXPECT( TK_ID );
-    } else if( LOOK( TK_LBRACKET ) ) {
-      BINOP( TK_TYPEARGS );
-      RULE( typeargs );
-    } else if( LOOK( TK_LPAREN ) ) {
-      BINOP( TK_CALL );
-      BLOCK( TK_LIST, TK_LPAREN, TK_RPAREN, TK_COMMA,
-        { TK_NONE, arg }
-        );
-    } else {
-      break;
-    }
-  }
-
-  DONE();
-}
-
-static ast_t* unop( parser_t* parser )
-{
-  AST_TOKEN();
-  RULE( unary );
+  SEQRULE( dot, bang, typeargs, tuple );
   DONE();
 }
 
 static ast_t* unary( parser_t* parser )
 {
-  FORWARDALT(
-    { TK_NOT, unop },
-    { TK_MINUS, unop },
-    { TK_NONE, postfix }
-    );
-}
-
-static bool is_binary( parser_t* parser )
-{
-  // any unary, postfix or atom can start a binary expression
-  return LOOK( TK_NOT, TK_MINUS, TK_THIS, TK_INT, TK_FLOAT, TK_STRING, TK_ID,
-    TK_LPAREN );
-}
-
-static bool is_binop( parser_t* parser )
-{
-  return LOOK(
-    TK_EQUALS,
-    TK_IS, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
-    TK_AND, TK_OR, TK_XOR,
-    TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
-    TK_LSHIFT, TK_RSHIFT
-    );
-}
-
-static ast_t* binary( parser_t* parser )
-{
-  // unary (binop expr)?
-  if( !is_binary( parser ) )
-  {
-    return NULL;
-  }
-
-  AST_RULE( unary );
-
-  if( is_binop( parser ) )
-  {
-    BINOP_TOKEN();
-    RULE( expr );
-  }
-
+  AST_TOKEN( TK_NOT, TK_MINUS );
+  RULE( term );
   DONE();
 }
 
 static ast_t* local( parser_t* parser )
 {
-  // (VAR | VAL) ID oftype (EQUALS expr)?
-  AST( TK_LOCAL );
-  EXPECT( TK_VAR, TK_VAL );
+  // (VAR | VAL) ID (COLON type)?
+  AST_TOKEN( TK_VAR, TK_VAL );
   EXPECT( TK_ID );
-  RULE( oftype );
-
-  if( LOOK( TK_EQUALS ) )
-  {
-    BINOP_TOKEN();
-    RULE( expr );
-  }
-
+  IFRULE( TK_COLON, type );
   DONE();
 }
 
-static ast_t* lambda( parser_t* parser )
+static ast_t* elseif( parser_t* parser_t )
 {
-  // FUN QUESTION? mode params oftype ARROW seq END
-  AST( TK_LAMBDA );
-  SCOPE();
-  EXPECT_DROP( TK_FUN );
-  RULE( mode );
-
-  bool throw = ACCEPT( TK_QUESTION );
-  if( !throw ) { INSERT( TK_NONE ); }
-
-  RULE( params );
-  RULE( oftype );
-  EXPECT_DROP( TK_ARROW );
-
-  if( throw )
-  {
-    RULE( throwseq );
-  } else {
-    RULE( seq );
-  }
-
-  EXPECT_DROP( TK_END );
+  // ELSEIF seq THEN seq
+  AST_TOKEN( TK_ELSEIF );
+  RULE( seq );
+  EXPECT_DROP( TK_THEN );
+  RULE( seq );
   DONE();
 }
 
 static ast_t* cond( parser_t* parser )
 {
-  // IF seq THEN seq (ELSEIF seq THEN seq)* (ELSE seq)? END
-  AST( TK_IF );
+  // IF seq THEN seq elseif* (ELSE seq)? END
+  AST_TOKEN( TK_IF );
   SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_THEN );
   RULE( seq );
   SCOPE();
-
-  if( LOOK( TK_ELSEIF ) )
-  {
-    RULE( cond );
-  } else {
-    if( ACCEPT_DROP( TK_ELSE ) )
-    {
-      RULE( expr );
-      SCOPE();
-    } else {
-      INSERT( TK_NONE );
-    }
-
-    EXPECT_DROP( TK_END );
-  }
-
+  WHILERULE( TK_ELSEIF, elseif );
+  IFRULE( TK_ELSE, seq );
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
-static ast_t* as( parser_t* parser )
+static ast_t* as( parser_t* parser_t )
 {
-  // (AS ID COLON type)?
-  AST( TK_AS );
-
-  if( ACCEPT_DROP( TK_AS ) )
-  {
-    EXPECT( TK_ID );
-    EXPECT_DROP( TK_COLON );
-    RULE( type );
-  }
-
+  // AS idseq ':' type
+  AST_TOKEN( TK_AS );
+  RULE( idseq );
+  EXPECT_DROP( TK_COLON );
+  RULE( type );
   DONE();
 }
 
 static ast_t* caseexpr( parser_t* parser )
 {
-  // FIX:
-  // PIPE cmp? expr? as (WHEN seq)? (ARROW seq)?
+  // PIPE seq? as? (WHERE seq)? (ARROW seq)?
   AST( TK_CASE );
   EXPECT_DROP( TK_PIPE );
   SCOPE();
-
-  if( !ACCEPT( TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT ) )
-  {
-    INSERT( TK_EQ );
-  }
-
-  if( is_binary( parser ) )
-  {
-    RULE( binary );
-  } else {
-    INSERT( TK_NONE );
-  }
-
-  RULE( as );
-
-  if( ACCEPT_DROP( TK_WHEN ) )
-  {
-    RULE( seq );
-  } else {
-    INSERT( TK_NONE );
-  }
-
-  if( ACCEPT_DROP( TK_ARROW ) )
-  {
-    RULE( seq );
-    SCOPE();
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  OPTRULE( seq );
+  OPTRULE( as );
+  IFRULE( TK_WHERE, seq );
+  IFRULE( TK_ARROW, seq );
+  SCOPE();
   DONE();
 }
 
 static ast_t* match( parser_t* parser )
 {
   // MATCH seq caseexpr* (ELSE seq)? END
-  AST_TOKEN();
+  AST_TOKEN( TK_MATCH );
   SCOPE();
   RULE( seq );
-  LIST( { TK_PIPE, caseexpr } );
-
-  if( ACCEPT_DROP( TK_ELSE ) )
-  {
-    RULE( seq );
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  SEQRULE( caseexpr );
+  IFRULE( TK_ELSE, seq );
   EXPECT_DROP( TK_END );
   DONE();
 }
@@ -469,111 +346,145 @@ static ast_t* match( parser_t* parser )
 static ast_t* whileloop( parser_t* parser )
 {
   // WHILE seq DO seq (ELSE seq)? END
-  AST_TOKEN();
+  AST_TOKEN( TK_WHILE );
   SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_DO );
-  RULE( expr );
-
-  if( ACCEPT_DROP( TK_ELSE ) )
-  {
-    RULE( seq );
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  RULE( seq );
+  IFRULE( TK_ELSE, seq );
   EXPECT_DROP( TK_END );
   DONE();
 }
 
 static ast_t* doloop( parser_t* parser )
 {
-  // DO seq WHILE expr
-  AST_TOKEN();
+  // DO seq WHILE seq END
+  AST_TOKEN( TK_DO );
   SCOPE();
   RULE( seq );
   EXPECT_DROP( TK_WHILE );
-  RULE( expr );
+  RULE( seq );
+  EXPECT_DROP( TK_END );
   DONE();
 }
 
 static ast_t* forloop( parser_t* parser )
 {
-  // FOR ID oftype IN seq DO seq (ELSE seq)? END
-  AST_TOKEN();
-  EXPECT( TK_ID );
-  RULE( oftype );
+  // FOR idseq (COLON type)? IN seq DO seq (ELSE seq)? END
+  AST_TOKEN( TK_FOR );
+  RULE( idseq );
+  IFRULE( TK_COLON, type );
   EXPECT_DROP( TK_IN );
   RULE( seq );
   SCOPE();
   EXPECT_DROP( TK_DO );
   RULE( seq );
-
-  if( ACCEPT_DROP( TK_ELSE ) )
-  {
-    RULE( seq );
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  IFRULE( TK_ELSE, seq );
   EXPECT_DROP( TK_END );
   DONE();
 }
 
 static ast_t* try( parser_t* parser )
 {
-  // TRY throwseq (ELSE seq)? END
-  AST_TOKEN();
+  // TRY throwseq (ELSE seq)? (THEN seq)? END
+  AST_TOKEN( TK_TRY );
   RULE( throwseq );
   SCOPE();
 
-  if( ACCEPT_DROP( TK_ELSE ) )
-  {
-    RULE( seq );
-  } else {
-    INSERT( TK_NONE );
-  }
+  IFRULE( TK_ELSE, seq );
+  IFRULE( TK_THEN, seq );
 
   EXPECT_DROP( TK_END );
   DONE();
 }
 
+static ast_t* consumeexpr( parser_t* parser )
+{
+  // CONSUME term
+  AST_TOKEN( TK_CONSUME );
+  RULE( term );
+  DONE();
+}
+
+static ast_t* recoverexpr( parser_t* parser )
+{
+  // RECOVER term
+  AST_TOKEN( TK_RECOVER );
+  RULE( term );
+  DONE();
+}
+
+static ast_t* term( parser_t* parser )
+{
+  // local | cond | match | whileloop | doloop | forloop | try | consume |
+  // recover | unary | postfix
+  FORWARD( local, cond, match, whileloop, doloop, forloop, try, consumeexpr,
+    recoverexpr, unary, postfix );
+}
+
+static ast_t* binary( parser_t* parser )
+{
+  // term (binop term)*
+  AST_RULE( term );
+
+  while( is_binop( parser ) )
+  {
+    RULE( term );
+  }
+
+  DONE();
+}
+
+static ast_t* returnexpr( parser_t* parser )
+{
+  // RETURN binary
+  AST_TOKEN( TK_RETURN );
+  RULE( binary );
+  DONE();
+}
+
+static ast_t* breakexpr( parser_t* parser )
+{
+  // BREAK binary
+  AST_TOKEN( TK_BREAK );
+  RULE( binary );
+  DONE();
+}
+
 static ast_t* expr( parser_t* parser )
 {
-  // local | lambda | cond | match | whileloop | doloop | forloop | try |
-  // BREAK | CONTINUE | RETURN | UNDEF | binary
-  FORWARDALT(
-    { TK_VAR, local },
-    { TK_VAL, local },
-    { TK_FUN, lambda },
-    { TK_IF, cond },
-    { TK_MATCH, match },
-    { TK_WHILE, whileloop },
-    { TK_DO, doloop },
-    { TK_FOR, forloop },
-    { TK_TRY, try },
-    { TK_BREAK, consume },
-    { TK_CONTINUE, consume },
-    { TK_RETURN, consume },
-    { TK_UNDEF, consume },
-    { TK_NONE, binary }
-    );
+  // CONTINUE | UNDEF | return | break | binary
+  if( LOOK( TK_CONTINUE, TK_UNDEF ) )
+  {
+    FORWARD( consume );
+  }
+
+  FORWARD( returnexpr, breakexpr, binary );
+}
+
+static ast_t* seq( parser_t* parser )
+{
+  // expr (SEMI expr)*
+  AST( TK_SEQ );
+  RULE( expr );
+  WHILERULE( TK_SEMI, expr );
+  DONE();
 }
 
 static ast_t* function( parser_t* parser )
 {
-  // FUN mode QUESTION? ID typeparams params oftype (ARROW seq)?
-  AST_TOKEN();
+  // FUN RAW_CAP ID typeparams? params (COLON type)? QUESTION? (ARROW seq)?
+  AST_TOKEN( TK_FUN );
   SCOPE();
-  RULE( mode );
+
+  EXPECT( TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG );
+  EXPECT( TK_ID );
+  OPTRULE( typeparams );
+  RULE( params );
+  IFRULE( TK_COLON, type );
 
   bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
-
-  EXPECT( TK_ID );
-  RULE( typeparams );
-  RULE( params );
-  RULE( oftype );
 
   if( ACCEPT_DROP( TK_ARROW ) )
   {
@@ -583,49 +494,39 @@ static ast_t* function( parser_t* parser )
     } else {
       RULE( seq );
     }
-
-    SCOPE();
   } else {
     INSERT( TK_NONE );
   }
 
+  SCOPE();
   DONE();
 }
 
 static ast_t* behaviour( parser_t* parser )
 {
   // BE ID typeparams params (ARROW seq)?
-  AST_TOKEN();
+  AST_TOKEN( TK_BE );
   SCOPE();
-
   EXPECT( TK_ID );
   RULE( typeparams );
   RULE( params );
-
-  if( ACCEPT_DROP( TK_ARROW ) )
-  {
-    RULE( seq );
-    SCOPE();
-  } else {
-    INSERT( TK_NONE );
-  }
-
+  IFRULE( TK_ARROW, seq );
+  SCOPE();
   DONE();
 }
 
 static ast_t* constructor( parser_t* parser )
 {
-  // NEW mode QUESTION? ID typeparams params (ARROW seq)?
-  AST_TOKEN();
+  // NEW ID typeparams? params QUESTION? (ARROW seq)?
+  AST_TOKEN( TK_NEW );
   SCOPE();
-  RULE( mode );
+
+  EXPECT( TK_ID );
+  OPTRULE( typeparams );
+  RULE( params );
 
   bool throw = ACCEPT( TK_QUESTION );
   if( !throw ) { INSERT( TK_NONE ); }
-
-  EXPECT( TK_ID );
-  RULE( typeparams );
-  RULE( params );
 
   if( ACCEPT_DROP( TK_ARROW ) )
   {
@@ -635,103 +536,91 @@ static ast_t* constructor( parser_t* parser )
     } else {
       RULE( seq );
     }
-
-    SCOPE();
   } else {
     INSERT( TK_NONE );
   }
 
+  SCOPE();
   DONE();
 }
 
 static ast_t* field( parser_t* parser )
 {
-  // (VAR | VAL) ID COLON type
-  AST( TK_FIELD );
-  EXPECT( TK_VAR, TK_VAL );
+  // (VAR | VAL) ID (COLON type)? (ASSIGN seq)?
+  AST_TOKEN( TK_VAR, TK_VAL );
   EXPECT( TK_ID );
-  EXPECT_DROP( TK_COLON );
-  RULE( type );
+  IFRULE( TK_COLON, type );
+  IFRULE( TK_ASSIGN, seq );
   DONE();
 }
 
 static ast_t* members( parser_t* parser )
 {
-  // (field | function)*
-  AST( TK_LIST );
-  LIST(
-    { TK_VAR, field },
-    { TK_VAL, field },
-    { TK_FUN, function },
-    { TK_BE, behaviour },
-    { TK_NEW, constructor }
-    );
+  AST( TK_MEMBERS );
+  SEQRULE( field, constructor, function, behaviour );
   DONE();
 }
 
 static ast_t* traits( parser_t* parser )
 {
-  // (IS type (COMMA type)*)?
-  AST( TK_IS );
-  OPTBLOCK( TK_NONE, TK_IS, TK_NONE, TK_COMMA,
-    { TK_NONE, type }
-    );
+  // IS type (COMMA type)*
+  AST_TOKEN( TK_IS );
+  RULE( type );
+  WHILERULE( TK_COMMA, type );
   DONE();
 }
 
 static ast_t* class( parser_t* parser )
 {
-  // (TRAIT | CLASS | ACTOR) ID typeparams mode traits members
-  AST_TOKEN();
+  // (TRAIT | CLASS | ACTOR) ID typeparams? RAW_CAP? traits? members
+  AST_TOKEN( TK_TRAIT, TK_CLASS, TK_ACTOR );
   SCOPE();
   EXPECT( TK_ID );
-  RULE( typeparams );
-  RULE( mode );
-  RULE( traits );
+  OPTRULE( typeparams );
+
+  if( !ACCEPT( TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG ) )
+  {
+    INSERT( TK_MUT );
+  }
+
+  OPTRULE( traits );
   RULE( members );
   DONE();
 }
 
-static ast_t* alias( parser_t* parser )
+static ast_t* typedecl( parser_t* parser )
 {
-  // ALIAS ID typeparams COLON type
-  AST_TOKEN();
+  // TYPE ID typeparams? (COLON type)?
+  AST_TOKEN( TK_TYPE );
   SCOPE();
   EXPECT( TK_ID );
-  RULE( typeparams );
-  EXPECT_DROP( TK_COLON );
-  RULE( type );
+  OPTRULE( typeparams );
+  IFRULE( TK_COLON, type );
   DONE();
 }
 
 static ast_t* use( parser_t* parser )
 {
-  // USE STRING (AS ID)?
-  AST_TOKEN();
-  EXPECT( TK_STRING );
+  // USE (ID ASSIGN)? STRING
+  AST_TOKEN( TK_USE );
 
-  if( ACCEPT_DROP( TK_AS ) )
+  if( ACCEPT( TK_ID ) )
   {
-    EXPECT( TK_ID );
+    EXPECT_DROP( TK_ASSIGN );
   } else {
     INSERT( TK_NONE );
   }
 
+  EXPECT( TK_STRING );
   DONE();
 }
 
 static ast_t* module( parser_t* parser )
 {
-  // (use | alias | trait | class | actor)*
+  // (use | typedecl | trait | class | actor)*
   AST( TK_MODULE );
   SCOPE();
-  LIST(
-    { TK_USE, use },
-    { TK_ALIAS, alias },
-    { TK_TRAIT, class },
-    { TK_CLASS, class },
-    { TK_ACTOR, class }
-    );
+  SEQRULE( use, typedecl, class );
   EXPECT_DROP( TK_EOF );
   DONE();
 }
