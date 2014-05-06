@@ -2,6 +2,7 @@
 #define PARSERAPI_H
 
 #include "ast.h"
+#include <limits.h>
 
 typedef enum
 {
@@ -19,6 +20,8 @@ typedef struct parser_t
   size_t optional;
 } parser_t;
 
+typedef int (*prec_t)( token_id id );
+
 typedef ast_t* (*rule_t)( parser_t* );
 
 ast_t* consume( parser_t* parser );
@@ -29,9 +32,14 @@ bool look( parser_t* parser, const token_id* id );
 
 bool accept( parser_t* parser, const token_id* id, ast_t* ast );
 
-bool rulealt( parser_t* parser, const rule_t* alt, ast_t* ast );
+ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast );
 
-ast_t* forwardalt( parser_t* parser, const rule_t* alt );
+ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, rule_t rule,
+ const token_id* id );
+
+void syntax_error( parser_t* parser_t, const char* func, int line );
+
+void scope( ast_t* ast );
 
 #define TOK(...) \
   static const token_id tok[] = \
@@ -51,28 +59,46 @@ ast_t* forwardalt( parser_t* parser, const rule_t* alt );
 
 #define POP() (parser->optional--)
 
+#define SYNTAX_ERROR() \
+  syntax_error( parser, __FUNCTION__, __LINE__ )
+
 #define NEED(X) \
   if( !X ) \
   { \
-    if( parser->optional == 0 ) \
-    { \
-      error( parser->source, parser->t->line, parser->t->pos, \
-        "syntax error (%s, %d)", __FUNCTION__, __LINE__ ); \
-    } \
+    SYNTAX_ERROR(); \
     ast_free( ast ); \
     return NULL; \
   }
 
+/* This is the only external API call */
+ast_t* parse( source_t* source, rule_t start );
+
 /* The API for parser rules starts here */
 
+#define DECL(rule) \
+  static ast_t* rule( parser_t* parser )
+
+#define DEF(rule) \
+  static ast_t* rule( parser_t* parser ) \
+  { \
+    ast_t* ast = NULL
+
+#define CHECK(...) \
+  NEED( LOOK( __VA_ARGS__ ) )
+
 #define AST(ID) \
-  ast_t* ast = ast_new( ID, parser->t->line, parser->t->pos, NULL )
+  ast = ast_new( ID, parser->t->line, parser->t->pos, NULL )
 
 #define AST_TOKEN(...) \
   NEED( LOOK( __VA_ARGS__) ); \
-  ast_t* ast = consume( parser )
+  ast = consume( parser )
 
-#define AST_RULE(X) ast_t* ast = X( parser ); NEED( ast )
+#define AST_RULE(...) \
+  { \
+    ALT( __VA_ARGS__ ); \
+    ast = rulealt( parser, alt, NULL ); \
+    NEED( ast ); \
+  }
 
 #define INSERT(ID) insert( parser, ID, ast )
 
@@ -94,13 +120,19 @@ ast_t* forwardalt( parser_t* parser, const rule_t* alt );
     accept( parser, tok, NULL ); \
   })
 
+#define OPTIONAL(...) \
+  if( !ACCEPT( __VA_ARGS__ ) ) \
+  { \
+    INSERT( TK_NONE ); \
+  }
+
 #define EXPECT(...) \
   { \
     TOK( __VA_ARGS__ ); \
     NEED( accept( parser, tok, ast ) ); \
   }
 
-#define EXPECT_DROP(...) \
+#define SKIP(...) \
   { \
     TOK( __VA_ARGS__ ); \
     NEED( accept( parser, tok, NULL ) ); \
@@ -118,15 +150,23 @@ ast_t* forwardalt( parser_t* parser, const rule_t* alt );
     ALT( __VA_ARGS__ ); \
     if( !rulealt( parser, alt, ast ) ) \
     { \
-      INSERT( TK_NONE );
+      INSERT( TK_NONE ); \
     } \
     POP(); \
-  )
+  }
 
 #define IFRULE(X, ...) \
   if( ACCEPT_DROP( X ) ) \
   { \
     RULE( __VA_ARGS__ ); \
+  } else { \
+    INSERT( TK_NONE ); \
+  }
+
+#define IFTOKEN(X, ...) \
+  if( ACCEPT_DROP( X ) ) \
+  { \
+    EXPECT( __VA_ARGS__ ); \
   } else { \
     INSERT( TK_NONE ); \
   }
@@ -137,6 +177,12 @@ ast_t* forwardalt( parser_t* parser, const rule_t* alt );
     RULE( __VA_ARGS__ ); \
   }
 
+#define WHILETOKEN(X, ...) \
+  while( ACCEPT_DROP( X ) ) \
+  { \
+    EXPECT( __VA_ARGS__ ); \
+  }
+
 #define SEQRULE(...) \
   { \
     PUSH(); \
@@ -145,29 +191,16 @@ ast_t* forwardalt( parser_t* parser, const rule_t* alt );
     POP(); \
   }
 
-#define FORWARD(...) \
+#define BIND(X, ...) \
   { \
-    ALT( __VA_ARGS__ ); \
-    return forwardalt( parser, alt ); \
+    TOK( __VA_ARGS__ ); \
+    ast = bindop( parser, precedence, ast, X, tok ); \
   }
 
-#define SCOPE() \
-  { \
-    ast_t* child = ast_child( ast ); \
-    if( child == NULL ) \
-    { \
-      ast_scope( ast ); \
-    } else { \
-      ast_t* next = ast_sibling( child ); \
-      while( next != NULL ) \
-      { \
-        child = next; \
-        next = ast_sibling( child ); \
-      } \
-      ast_scope( child ); \
-    } \
-  }
+#define SCOPE() scope( ast )
 
-#define DONE() return ast;
+#define DONE() \
+    return ast; \
+  }
 
 #endif

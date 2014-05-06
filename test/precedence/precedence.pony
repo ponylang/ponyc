@@ -3,21 +3,21 @@ use "../collections"
 trait Test
 trait Test2
 
-class Precedence[A: (Test), B: (Test|List[A]), C: fun:var?():Array[B],
+class Precedence[A: (Test), B: (Test|List[A]), C: {fun mut(): Array[B]?},
   D:(Test|List[A])] is List[B], Test
   /* nested
   /* comments */
   work */
-  fun:box assoc():I32 -> 1 + 77 * 2.0e-2 * 0xFF / 0b11 % 012 + 3.hello()
+  fun imm assoc(): F32 => 1 + 2 * 3 + 4
 
-  fun:val assoc2():F32 -> 1 * 2 + 3
+  fun box assoc2(): I32 => 1 + 77 * 2.0e-2 * 0xFF / 0b11 % 012 + 3.hello()
 
-  fun:var logic():Bool -> a and b or c xor d
+  fun mut logic(): Bool => a and b or c xor d
 
-  fun:tag compare():Bool -> a < b > c == d != e <= f >= g
+  fun tag compare(): Bool => a < b > c == d != e <= f >= g
 
-  fun:trn optarg() ->
-    obj.apply(arg, if 3 > 4 then "te\nst" else "real" end as opt)
+  fun trn optarg() =>
+    obj.apply(arg where opt = if 3 > 4 then "te\nst" else "real" end)
 
 trait Dormouse[A: B, B: A]
 
@@ -30,10 +30,10 @@ class Wallaby[A: Dormouse[Test, Test]]
 class Aardvark[A]
 
 class Foo[T]
-  var a:Aardvark[T]:var
+  var a: Aardvark[T] mut
 
-  fun:box get(): this.Aardvark[T]:var -> a
-  fun:var set(a': Aardvark[T]:var): this.Aardvark[T]:var^ -> a := a'
+  fun box get(): this.Aardvark[T] mut => a
+  fun mut set(a': Aardvark[T] mut): this.Aardvark[T] mut^ => a = a'
 
 type FooOrAardvark[A]: (Aardvark[A] | Foo[A])
 
@@ -56,11 +56,11 @@ trait Third[A: Two] is Second[A]
 trait Fourth[A: First[_]]
 
 class Fifth is Third[Two]
-  var a:Fourth[Fifth]
+  var a: Fourth[Fifth]
 
-  fun:box foo[A: Fooable[A]](a': A): this.A -> a
+  fun box foo[A: Fooable[A]](a': A): this.A => a
 
-class Functor[A: fun:box(I32, (String | None)): Bool]
+class Functor[A: {fun box(I32, (String | None)): Bool}]
 
 class Sophia[X: Fooable[X]] is Fooable[X]
 

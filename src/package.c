@@ -92,7 +92,7 @@ static bool do_file( ast_t* package, const char* file )
   source_t* source = source_open( file );
   if( source == NULL ) { return false; }
 
-  ast_t* module = parse( source );
+  ast_t* module = parser( source );
 
   if( module == NULL )
   {

@@ -18,11 +18,14 @@ struct ast_t
   struct ast_t* sibling;
 };
 
+static const char in[] = " ";
+static const size_t in_len = 1;
+
 void print( ast_t* ast, size_t indent );
 
 size_t length( ast_t* ast, size_t indent )
 {
-  size_t len = (indent * 2) + strlen( token_string( ast->t ) );
+  size_t len = (indent * in_len) + strlen( token_string( ast->t ) );
   ast_t* child = ast->child;
 
   if( child != NULL ) { len += 2; }
@@ -38,7 +41,7 @@ size_t length( ast_t* ast, size_t indent )
 
 void print_compact( ast_t* ast, size_t indent )
 {
-  for( size_t i = 0; i < indent; i++ ) { printf( "  " ); }
+  for( size_t i = 0; i < indent; i++ ) { printf( in ); }
   ast_t* child = ast->child;
   bool parens = child != NULL;
 
@@ -57,7 +60,7 @@ void print_compact( ast_t* ast, size_t indent )
 
 void print_extended( ast_t* ast, size_t indent )
 {
-  for( size_t i = 0; i < indent; i++ ) { printf( "  " ); }
+  for( size_t i = 0; i < indent; i++ ) { printf( in ); }
   ast_t* child = ast->child;
   bool parens = child != NULL;
 
@@ -72,14 +75,16 @@ void print_extended( ast_t* ast, size_t indent )
 
   if( parens )
   {
-    for( size_t i = 0; i <= indent; i++ ) { printf( "  " ); }
+    for( size_t i = 0; i <= indent; i++ ) { printf( in ); }
     printf( ")" );
   }
 }
 
 void print( ast_t* ast, size_t indent )
 {
-  if( length( ast, indent ) <= 80 )
+  size_t len = length( ast, indent );
+
+  if( len <= 120 )
   {
     print_compact( ast, indent );
   } else {
@@ -259,6 +264,19 @@ void ast_add( ast_t* parent, ast_t* child )
   child->parent = parent;
   child->sibling = parent->child;
   parent->child = child;
+}
+
+ast_t* ast_pop( ast_t* parent )
+{
+  ast_t* child = parent->child;
+
+  if( child != NULL )
+  {
+    parent->child = child->sibling;
+    child->parent = NULL;
+  }
+
+  return child;
 }
 
 void ast_append( ast_t* parent, ast_t* child )

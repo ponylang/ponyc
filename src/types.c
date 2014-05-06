@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#if 0
+
 #define POINTER_ERROR ((void*)-1)
 
 typedef enum
@@ -741,7 +743,11 @@ void type_print( const type_t* a )
   }
 }
 
+#endif
+
 void type_done()
 {
+#if 0
   table_free( type_table );
+#endif
 }

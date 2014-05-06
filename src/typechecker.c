@@ -4,6 +4,8 @@
 #include "error.h"
 #include <assert.h>
 
+#if 0
+
 static type_t* infer;
 static type_t* none;
 static type_t* boolean;
@@ -735,8 +737,11 @@ static bool check_type( ast_t* ast )
   return true;
 }
 
+#endif
+
 bool typecheck_init( ast_t* program )
 {
+#if 0
   ast_t* builtin = package_load( program, "builtin" );
   if( builtin == NULL ) { return false; }
 
@@ -759,12 +764,15 @@ bool typecheck_init( ast_t* program )
   floatlit = type_name( builtin, "FloatLiteral" );
   string = type_name( builtin, "String" );
   comparable = type_name( builtin, "Comparable" );
+  ordered = type_name( builtin, "Ordered" );
+#endif
 
   return true;
 }
 
 bool typecheck( ast_t* ast )
 {
+#if 0
   /*
   FIX: check more things
   modes
@@ -777,6 +785,7 @@ bool typecheck( ast_t* ast )
   if( !ast_visit( ast, NULL, check_type ) ) { return false; }
   if( !ast_visit( ast, NULL, type_first ) ) { return false; }
   if( !ast_visit( ast, NULL, type_second ) ) { return false; }
+#endif
 
   return true;
 }

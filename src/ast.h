@@ -5,196 +5,151 @@
 #include <stdbool.h>
 
 /*
-program
-  symtab: path -> package
-  package*
 
-package
-  data: path
-  symtab: ID -> alias|class
-  module*
+PROGRAM: {PACKAGE}
+symtab: path -> PACKAGE
 
-module
-  data: source
-  symtab: ID -> package|alias|class
-  (use|alias|class)*
+PACKAGE: {MODULE}
+data: path
+symtab: ID -> TYPEDECL | TRAIT | CLASS | ACTOR
 
-use
-  path
-  ID|NONE
+MODULE: {USE | TYPEDECL | TRAIT | CLASS | ACTOR}
+data: source
+symtab: ID -> PACKAGE | TYPEDECL | TRAIT | CLASS | ACTOR
 
-alias
-  symtab: ID -> typeparam
-  ID
-  list of typeparam
-  type
+USE: PATH [ID]
 
-class: trait|class|actor
-  symtab: ID -> typeparam|param|field|function
-  ID
-  list of typeparam
-  mode
-  is: type*
-  list of (field|fun|msg|new)
+TYPEDECL: ID [TYPEPARAMS] [TYPEEXPR | NOMINAL | STRUCTURAL | TYPEDECL]
+symtab: ID -> TYPEPARAM
 
-field
-  (VAR|VAL)
-  ID
-  type
+TRAIT: ID [TYPEPARAMS] [RAW_CAP] [TYPES] MEMBERS
+CLASS: ID [TYPEPARAMS] [RAW_CAP] [TYPES] MEMBERS
+ACTOR: ID [TYPEPARAMS] [RAW_CAP] [TYPES] MEMBERS
+symtab: ID -> TYPEPARAM | VAR | VAL | NEW | FUN | BE
 
-new
-  symtab: ID -> typeparam|param
-  mode
-  (QUESTION|NONE)
-  ID
-  list of typeparam
-  list of param
-  (seq|canthrow|NONE)
+MEMBERS: {VAR | VAL | NEW | FUN | BE}
 
-fun
-  symtab: ID -> typeparam|param
-  mode
-  (QUESTION|NONE)
-  ID
-  list of typeparam
-  list of param
-  type
-  (seq|canthrow|NONE)
+VAR: ID [TYPE] [SEQ]
+VAL: ID [TYPE] [SEQ]
 
-be
-  symtab: ID -> typeparam|param
-  ID
-  list of typeparam
-  list of param
-  (seq|canthrow|NONE)
+NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ]
+FUN: RAW_CAP ID [TYPEPARAMS] [PARAMS] [TYPE] [QUESTION] [SEQ]
+BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ]
+symtab: ID -> TYPEPARAM | PARAM
 
-typeparam|param
-  ID
-  type
-  expr
+TYPEPARAMS: {TYPEPARAM}
 
-type: adt|funtype|objtype|NONE
+TYPEPARAM: ID [TYPE] [SEQ]
 
-adt
-  type*
+TYPES: {TYPE}
 
-funtype
-  data: type_t
-  (QUESTION|NONE)
-  mode
-  list of type
-  type
+TYPE: (PIPE | COMMA | NOMINAL | STRUCTURAL | TYPEDECL) [HAT]
 
-objtype
-  data: type_t
-  ID
-  (ID|NONE)
-  list of type
-  mode
+PIPE: TYPE TYPE
+COMMA: TYPE TYPE
 
-mode
-  list of (ISO|VAR|VAL|TAG|THIS|ID)
-  THIS|ID|NONE
-  EPHEMERAL|NONE
+NOMINAL: TYPENAME [TYPEARGS] [CAP]
 
-canthrow
-  (expr|seq)
+TYPENAME: {ID}
 
-seq
-  symtab: ID -> local
-  expr*
+TYPEARGS: {TYPE}
+
+STRUCTURAL: {NEWTYPE | FUNTYPE | BETYPE} [CAP]
+
+NEWTYPE: NONE [ID] [TYPEPARAMS] [TYPES] NONE [QUESTION]
+FUNTYPE: RAW_CAP [ID] [TYPEPARAMS] [TYPES] [TYPE] [QUESTION]
+BETYPE: NONE [ID] [TYPEPARAMS] [TYPES] NONE NONE
+
+PARAMS: {PARAM}
+
+PARAM: ID [TYPE] [SEQ]
+
+IDSEQ: {ID}
+
+SEQ: {expr}
+symtab: ID -> VAR | VAL
 
 expr
-  :local|lambda
-  |if|match
-  |while|do|for
-  |break|continue|return
-  |try|undef
-  |binary|equals
+----
+CONTINUE:
+
+UNDEF:
+
+BREAK: infix
+
+RETURN: infix
+
+infix
+-----
+MULTIPLY term term
+DIVIDE term term
+MOD term term
+PLUS term term
+MINUS term term
+LSHIFT term term
+RSHIFT term term
+LT term term
+LE term term
+GE term term
+GT term term
+IS term term
+EQ term term
+NE term term
+AND term term
+XOR term term
+OR term term
+ASSIGN term term
+
+term: local | prefix | postfix | control
 
 local
-  (VAR|VAL)
-  ID
-  type
-  expr
+-----
+VAR: IDSEQ [TYPE] // ??? same names as fields - problem?
+VAL: IDSEQ [TYPE]
 
-lambda
-  (QUESTION|NONE)
-  mode
-  list of param
-  type
-  (expr|canthrow)
+prefix
+------
+CONSUME: term
+RECOVER: term
+NOT: term
+MINUS: term
 
-if
-  seq
-  expr
-  (expr|NONE)
+postfix
+-------
+DOT postfix (ID | INT)
+BANG postfix INT
+QUALIFY postfix TYPEARGS
+CALL postfix TYPLE
 
-match
-  seq
-  list of case
+control
+-------
+IF: SEQ SEQ [SEQ]
+symtab: ID -> VAR | VAL
 
-case
-  (binary|NONE)
-  as: (ID, type)|NONE
-  (binary|NONE)
-  seq
+WHILE: SEQ SEQ [SEQ]
+symtab: ID -> VAR | VAL
 
-while
-  seq
-  expr
+DO: SEQ SEQ
+symtab: ID -> VAR | VAL
 
-do
-  seq
-  expr
+FOR: IDSEQ [TYPE] SEQ SEQ [SEQ]
 
-for
-  ID
-  type
-  seq
-  expr
+TRY: SEQ [SEQ] [SEQ]
 
-try
-  canthrow
-  (seq|NONE)
-  (expr|NONE)
+atom
+----
+TUPLE: [POSITIONAL] [NAMED]
 
-break
-continue
-return
-undef
+ARRAY: [POSITIONAL] [NAMED]
 
-postfix: primary|dot|typeargs|call
+OBJECT: [TYPES] MEMBERS
 
-primary: THIS|INT|FLOAT|STRING|ID|seq
+THIS:
+INT:
+FLOAT:
+STRING:
+ID:
 
-dot
-  postfix
-  ID
-
-typeargs
-  postfix
-  list of type
-
-call
-  postfix
-  list of arg
-
-unop: NOT|MINUS
-
-unary: (unop: unary)|postfix
-
-binop
-  :AND|OR|XOR
-  |PLUS|MINUS|MULTIPLY|DIVIDE|MOD
-  |LSHIFT|RSHIFT
-  |EQ|NEQ|LT|LE|GE|GT
-
-binary: (binop: binary unary)|unary
-
-equals
-  binary
-  expr
 */
 
 typedef struct ast_t ast_t;
@@ -224,6 +179,7 @@ bool ast_set( ast_t* ast, const char* name, void* value );
 bool ast_merge( ast_t* dst, ast_t* src );
 
 void ast_add( ast_t* parent, ast_t* child );
+ast_t* ast_pop( ast_t* ast );
 void ast_append( ast_t* parent, ast_t* child );
 void ast_reverse( ast_t* ast );
 void ast_print( ast_t* ast );

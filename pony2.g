@@ -13,7 +13,7 @@ module
   ;
 
 use
-  :  'use' (ID assign)? STRING
+  :  'use' STRING ('as' ID)?
   ;
 
 class_
@@ -22,15 +22,13 @@ class_
 
 member
   :  ('var' | 'val') ID oftype? (assign seq)? // field
-//  |  'new' '?'? ID type_params? params body? // constructor
-//  |  'fun' raw_cap '?'? ID type_params? params oftype? body? // function
   |  'new' ID type_params? params '?'? body? // constructor
   |  'fun' raw_cap ID type_params? params oftype? '?'? body? // function
   |  'be' ID type_params? params body? // behaviour
   ;
 
 typedecl
-  :  'type' ID type_params? (':' (base_type | type_expr))?
+  :  'type' ID type_params? (':' type_expr)?
   ;
 
 oftype
@@ -42,28 +40,25 @@ types
   ;
 
 type
-  :  (base_type | type_expr) '^'? // ephemeral types
+  :  type_expr '^'? // ephemeral types
   ;
 
 type_expr
-  :  '(' base_type (typeop base_type)* ')' cap? // ADT or tuple
+  :  '(' type_expr (typeop type_expr)* ')' cap? // ADT or tuple
+  |  ID ('.' ID)* type_args? cap? // nominal type
+  |  '{' fun_type* '}' cap? // structural type
+  |  typedecl // nested type definition
   ;
 
 typeop
   :  '|' | '&' | ',' // union, intersection, tuple
   ;
 
-base_type
-  :  ID ('.' ID)* type_args? cap? // nominal type
-  |  '{' fun_type* '}' cap? // structural type
-  |  typedecl // nested type definition
-  ;
-
 // could make structural types into traits by supplying bodies here
 fun_type
-//  :  'fun' cap '?'? ID? '(' types? ')' oftype?
-  :  'fun' raw_cap ID? '(' types? ')' oftype? '?'?
-  |  'be' ID? '(' types? ')' // FIX: need this?
+  :  'new' ID? type_params? '(' types? ')' '?'?
+  |  'fun' raw_cap ID? type_params? '(' types? ')' oftype? '?'?
+  |  'be' ID? type_params? '(' types? ')'
   ;
 
 type_params
@@ -75,12 +70,10 @@ type_args
   ;
 
 cap
-//  :  ':' (raw_cap | ID)
-  :  (raw_cap | ID) ('.' (raw_cap | ID))*
+  :  raw_cap
   ;
 
 raw_cap
-//  :  ('iso' | 'trn' | 'var' | 'val' | 'box' | 'tag')
   :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
   ;
 

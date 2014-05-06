@@ -26,6 +26,7 @@ int main( int argc, char** argv )
    * code generation
    */
 
+  ast_print( program );
   ast_free( program );
   type_done();
   package_done();

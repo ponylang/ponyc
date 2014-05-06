@@ -99,6 +99,7 @@ static const symbol_t keywords[] =
   { "box", TK_BOX },
   { "tag", TK_TAG },
 
+  { "this", TK_THIS },
   { "return", TK_RETURN },
   { "break", TK_BREAK },
   { "continue", TK_CONTINUE },
@@ -120,7 +121,6 @@ static const symbol_t keywords[] =
   { "try", TK_TRY },
   { "undef", TK_UNDEF },
 
-  { "this", TK_THIS },
   { "not", TK_NOT },
   { "and", TK_AND },
   { "or", TK_OR },
@@ -134,10 +134,15 @@ static const symbol_t abstract[] =
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
+  { "typedecl", TK_TYPEDECL },
+
   { "members", TK_MEMBERS },
-  { "adt", TK_ADT },
-  { "objtype", TK_OBJTYPE },
-  { "funtype", TK_FUNTYPE },
+
+  { "types", TK_TYPES },
+  { "typename", TK_TYPENAME },
+  { "nominal", TK_NOMINAL },
+  { "structural", TK_STRUCTURAL },
+
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },
   { "params", TK_PARAMS },
@@ -146,12 +151,14 @@ static const symbol_t abstract[] =
   { "positionalargs", TK_POSITIONALARGS },
   { "namedargs", TK_NAMEDARGS },
   { "namedarg", TK_NAMEDARG },
+
   { "seq", TK_SEQ },
+  { "idseq", TK_IDSEQ },
+  { "postfix", TK_POSTFIX },
   { "tuple", TK_TUPLE },
   { "array", TK_ARRAY },
   { "object", TK_OBJECT },
   { "case", TK_CASE },
-  { "canthrow", TK_CANTHROW },
 
   { NULL, 0 }
 };
@@ -873,17 +880,26 @@ const char* token_string( token_t* token )
   switch( token->id )
   {
   case TK_NONE:
-    return "()";
+    return "-";
 
   case TK_STRING:
   case TK_ID:
     return token->string;
 
   case TK_INT:
-    return "INT";
+  {
+    static char buf[32];
+    size_t i = token->integer;
+    snprintf( buf, 32, "%zu", i );
+    return buf;
+  }
 
   case TK_FLOAT:
-    return "FLOAT";
+  {
+    static char buf[32];
+    snprintf( buf, 32, "%g", token->real );
+    return buf;
+  }
 
   default: {}
   }

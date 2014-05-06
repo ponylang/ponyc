@@ -75,6 +75,7 @@ typedef enum
   TK_BOX,
   TK_TAG,
 
+  TK_THIS,
   TK_RETURN,
   TK_BREAK,
   TK_CONTINUE,
@@ -95,7 +96,7 @@ typedef enum
   TK_WHERE,
   TK_TRY,
   TK_UNDEF,
-  TK_THIS,
+
   TK_NOT,
   TK_AND,
   TK_OR,
@@ -105,10 +106,18 @@ typedef enum
   TK_PROGRAM,
   TK_PACKAGE,
   TK_MODULE,
+  TK_TYPEDECL,
+
   TK_MEMBERS,
-  TK_ADT,
-  TK_OBJTYPE,
+
+  TK_TYPES,
+  TK_TYPENAME,
+  TK_NOMINAL,
+  TK_STRUCTURAL,
+  TK_NEWTYPE,
   TK_FUNTYPE,
+  TK_BETYPE,
+
   TK_TYPEPARAMS,
   TK_TYPEPARAM,
   TK_PARAMS,
@@ -117,12 +126,14 @@ typedef enum
   TK_POSITIONALARGS,
   TK_NAMEDARGS,
   TK_NAMEDARG,
+
   TK_SEQ,
+  TK_IDSEQ,
+  TK_POSTFIX, // ???
   TK_TUPLE,
   TK_ARRAY,
   TK_OBJECT,
   TK_CASE,
-  TK_CANTHROW,
 
   TK_EOF
 } token_id;
