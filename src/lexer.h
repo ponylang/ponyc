@@ -112,6 +112,9 @@ typedef enum
 
   TK_TYPES,
   TK_TYPENAME,
+
+  TK_UNIONTYPE,
+  TK_TUPLETYPE,
   TK_NOMINAL,
   TK_STRUCTURAL,
   TK_NEWTYPE,
@@ -129,7 +132,8 @@ typedef enum
 
   TK_SEQ,
   TK_IDSEQ,
-  TK_POSTFIX, // ???
+  TK_QUALIFY,
+  TK_CALL,
   TK_TUPLE,
   TK_ARRAY,
   TK_OBJECT,

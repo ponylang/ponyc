@@ -188,19 +188,33 @@ DEF( typebase );
   AST_RULE( typeexpr, nominal, structural, typedecl );
   DONE();
 
-// LPAREN typebase {typeop typebase} RPAREN [CAP]
+// COMMA typebase
+DEF( tupletype );
+  SKIP( TK_COMMA );
+  AST( TK_TUPLETYPE );
+  RULE( typebase );
+  DONE();
+
+// PIPE typebase
+DEF( uniontype );
+  SKIP( TK_PIPE );
+  AST( TK_UNIONTYPE );
+  RULE( typebase );
+  DONE();
+
+// LPAREN typebase {uniontype | tupletype} RPAREN [CAP]
 DEF( typeexpr );
   SKIP( TK_LPAREN );
   AST_RULE( typebase );
-  BIND( typebase, TK_PIPE, TK_COMMA );
+  BINDOP( uniontype, tupletype );
   SKIP( TK_RPAREN );
   OPTIONAL( TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG, TK_ID, TK_THIS );
   DONE();
 
-// (typeexpr | nominal | structural | typedecl) [HAT]
+// typebase [HAT]
 DEF( type );
   AST( TK_TYPE );
-  RULE( typeexpr, nominal, structural, typedecl );
+  RULE( typebase );
   OPTIONAL( TK_HAT );
   DONE();
 
@@ -264,24 +278,36 @@ DEF( atom );
   AST_RULE( literal, tuple, array, object );
   DONE();
 
-// BANG ID
-DEF( bang );
-  AST_TOKEN( TK_BANG );
-  EXPECT( TK_ID );
-  DONE();
-
 // DOT (ID | INT)
 DEF( dot );
   AST_TOKEN( TK_DOT );
   EXPECT( TK_ID, TK_INT );
   DONE();
 
-// FIX: not a good AST
-// atom {dot | bang | typeargs | tuple}
+// BANG ID
+DEF( bang );
+  AST_TOKEN( TK_BANG );
+  EXPECT( TK_ID );
+  DONE();
+
+// typeargs
+DEF( qualify );
+  CHECK( TK_LBRACKET );
+  AST( TK_QUALIFY );
+  RULE( typeargs );
+  DONE();
+
+// call
+DEF( call );
+  CHECK( TK_LPAREN );
+  AST( TK_CALL );
+  RULE( tuple );
+  DONE();
+
+// atom {dot | bang | qualify | call}
 DEF( postfix );
-  AST( TK_POSTFIX );
-  RULE( atom );
-  SEQRULE( dot, bang, typeargs, tuple );
+  AST_RULE( atom );
+  BINDOP( dot, bang, qualify, call );
   DONE();
 
 // ID | LPAREN ID {COMMA ID} RPAREN
@@ -427,16 +453,22 @@ DEF( term );
   AST_RULE( local, cond, match, whileloop, doloop, forloop, try, prefix, postfix );
   DONE();
 
-// term {binop term}
+// BINOP term
+DEF( binop );
+  AST_TOKEN(
+    TK_AND, TK_OR, TK_XOR,
+    TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
+    TK_LSHIFT, TK_RSHIFT,
+    TK_IS, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
+    TK_ASSIGN
+    );
+  RULE( term );
+  DONE();
+
+// term {binop}
 DEF( infix );
   AST_RULE( term );
-  BIND( term,
-    TK_AND, TK_OR, TK_XOR, // logic
-    TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD, // arithmetic
-    TK_LSHIFT, TK_RSHIFT, // shift
-    TK_IS, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT, // comparison
-    TK_ASSIGN // assignment
-    );
+  BINDOP( binop );
   DONE();
 
 // (BREAK | RETURN) infix

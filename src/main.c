@@ -2,13 +2,64 @@
 #include "stringtab.h"
 #include "types.h"
 #include "typechecker.h"
+#include <sys/ioctl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#if defined(__APPLE__)
+#include <getopt.h>
+#endif
+
+static struct option opts[] =
+{
+  {"ast", no_argument, NULL, 'a'},
+  {"width", required_argument, NULL, 'w'},
+  {NULL, 0, NULL, 0},
+};
+
+void usage()
+{
+  printf(
+    "ponyc [OPTIONS] <file>\n"
+    "  --ast, -a     print the AST\n"
+    "  --width, -w   width to target when printing the AST\n"
+    );
+}
+
+size_t get_width()
+{
+  struct winsize ws;
+
+  if( !ioctl( STDOUT_FILENO, TIOCGWINSZ, &ws ) )
+    return ws.ws_col;
+
+  return 80;
+}
 
 int main( int argc, char** argv )
 {
   package_init( argv[0] );
 
+  bool ast = false;
+  size_t width = get_width();
+  char c;
+
+  while( (c = getopt_long( argc, argv, "aw:", opts, NULL )) != -1 )
+  {
+    switch( c )
+    {
+      case 'a': ast = true; break;
+      case 'w': width = atoi( optarg ); break;
+      default: usage(); return -1;
+    }
+  }
+
+  argc -= optind;
+  argv += optind;
+
   const char* target = ".";
-  if( argc > 1 ) target = argv[1];
+  if( argc > 0 ) target = argv[0];
 
   ast_t* program = ast_newid( TK_PROGRAM );
   ast_scope( program );
@@ -20,13 +71,15 @@ int main( int argc, char** argv )
     ret = -1;
   }
 
+  if( ast )
+    ast_print( program, width );
+
   /* FIX:
    * detect imported but unused packages in a module
    *  might be the same code that detects unused vars, fields, etc?
    * code generation
    */
 
-  ast_print( program );
   ast_free( program );
   type_done();
   package_done();

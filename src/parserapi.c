@@ -102,53 +102,36 @@ ast_t* parse( source_t* source, rule_t start )
   return ast;
 }
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, rule_t rule,
-  const token_id* tok )
+ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* alt )
 {
+  ast_t* next;
   int prec = INT_MAX;
 
-  while( look( parser, tok ) )
+  while( (next = rulealt( parser, alt, NULL )) != NULL )
   {
-    int nprec = precedence( parser->t->id );
+    int nprec = precedence( ast_id( next ) );
 
     while( true )
     {
       if( nprec > prec )
       {
-        /* (oldop ast.1 (newop ast.2 ...)) */
-        ast_t* nast = consume( parser );
-        ast_add( nast, ast_pop( ast ) );
-        ast_add( ast, nast );
-        ast = nast;
+        // (oldop ast.1 (newop ast.2 ...))
+        ast_append( next, ast_pop( ast ) );
+        ast_add( ast, next );
+        ast = next;
         break;
       } else if( ast_parent( ast ) == NULL ) {
-        /* (newop ast ...) */
-        ast_t* nast = consume( parser );
-        ast_add( nast, ast );
-        ast = nast;
+        // (newop ast ...)
+        ast_append( next, ast );
+        ast = next;
         break;
       } else {
-        /* try the parent node */
+        // try the parent node
         ast = ast_parent( ast );
         prec = precedence( ast_id( ast ) );
       }
     }
 
-    ast_t* child = rule( parser );
-
-    if( child == NULL )
-    {
-      while( ast_parent( ast ) != NULL )
-      {
-        ast = ast_parent( ast );
-      }
-
-      SYNTAX_ERROR();
-      ast_free( ast );
-      return NULL;
-    }
-
-    ast_add( ast, child );
     prec = nprec;
   }
 

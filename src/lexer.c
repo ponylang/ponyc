@@ -140,8 +140,14 @@ static const symbol_t abstract[] =
 
   { "types", TK_TYPES },
   { "typename", TK_TYPENAME },
+
+  { "uniontype", TK_UNIONTYPE },
+  { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "structural", TK_STRUCTURAL },
+  { "newtype", TK_NEWTYPE },
+  { "funtype", TK_FUNTYPE },
+  { "betype", TK_BETYPE },
 
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },
@@ -154,7 +160,8 @@ static const symbol_t abstract[] =
 
   { "seq", TK_SEQ },
   { "idseq", TK_IDSEQ },
-  { "postfix", TK_POSTFIX },
+  { "qualify", TK_QUALIFY },
+  { "call", TK_CALL },
   { "tuple", TK_TUPLE },
   { "array", TK_ARRAY },
   { "object", TK_OBJECT },

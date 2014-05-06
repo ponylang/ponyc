@@ -43,10 +43,10 @@ TYPEPARAM: ID [TYPE] [SEQ]
 
 TYPES: {TYPE}
 
-TYPE: (PIPE | COMMA | NOMINAL | STRUCTURAL | TYPEDECL) [HAT]
+TYPE: (UNIONTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | TYPEDECL) [HAT]
 
-PIPE: TYPE TYPE
-COMMA: TYPE TYPE
+UNIONTYPE: TYPE TYPE [CAP]
+TUPLETYPE: TYPE TYPE [CAP]
 
 NOMINAL: TYPENAME [TYPEARGS] [CAP]
 
@@ -119,7 +119,7 @@ postfix
 DOT postfix (ID | INT)
 BANG postfix INT
 QUALIFY postfix TYPEARGS
-CALL postfix TYPLE
+CALL postfix TUPLE
 
 control
 -------
@@ -182,7 +182,7 @@ void ast_add( ast_t* parent, ast_t* child );
 ast_t* ast_pop( ast_t* ast );
 void ast_append( ast_t* parent, ast_t* child );
 void ast_reverse( ast_t* ast );
-void ast_print( ast_t* ast );
+void ast_print( ast_t* ast, size_t width );
 void ast_free( ast_t* ast );
 
 void ast_error( ast_t* ast, const char* fmt, ... )

@@ -4,14 +4,6 @@
 #include "ast.h"
 #include <limits.h>
 
-typedef enum
-{
-  BLOCK_OK,
-  BLOCK_NOTPRESENT,
-  BLOCK_EMPTY,
-  BLOCK_ERROR
-} block_t;
-
 typedef struct parser_t
 {
   source_t* source;
@@ -34,21 +26,20 @@ bool accept( parser_t* parser, const token_id* id, ast_t* ast );
 
 ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast );
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, rule_t rule,
- const token_id* id );
+ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* alt );
 
 void syntax_error( parser_t* parser_t, const char* func, int line );
 
 void scope( ast_t* ast );
 
-#define TOK(...) \
+#define TOKS(...) \
   static const token_id tok[] = \
   { \
     __VA_ARGS__, \
     TK_NONE \
   }
 
-#define ALT(...) \
+#define ALTS(...) \
   static const rule_t alt[] = \
   { \
     __VA_ARGS__, \
@@ -95,7 +86,7 @@ ast_t* parse( source_t* source, rule_t start );
 
 #define AST_RULE(...) \
   { \
-    ALT( __VA_ARGS__ ); \
+    ALTS( __VA_ARGS__ ); \
     ast = rulealt( parser, alt, NULL ); \
     NEED( ast ); \
   }
@@ -104,19 +95,19 @@ ast_t* parse( source_t* source, rule_t start );
 
 #define LOOK(...) \
   ({ \
-    TOK( __VA_ARGS__ ); \
+    TOKS( __VA_ARGS__ ); \
     look( parser, tok ); \
   })
 
 #define ACCEPT(...) \
   ({ \
-    TOK( __VA_ARGS__ ); \
+    TOKS( __VA_ARGS__ ); \
     accept( parser, tok, ast ); \
   })
 
 #define ACCEPT_DROP(...) \
   ({ \
-    TOK( __VA_ARGS__ ); \
+    TOKS( __VA_ARGS__ ); \
     accept( parser, tok, NULL ); \
   })
 
@@ -128,26 +119,26 @@ ast_t* parse( source_t* source, rule_t start );
 
 #define EXPECT(...) \
   { \
-    TOK( __VA_ARGS__ ); \
+    TOKS( __VA_ARGS__ ); \
     NEED( accept( parser, tok, ast ) ); \
   }
 
 #define SKIP(...) \
   { \
-    TOK( __VA_ARGS__ ); \
+    TOKS( __VA_ARGS__ ); \
     NEED( accept( parser, tok, NULL ) ); \
   }
 
 #define RULE(...) \
   { \
-    ALT( __VA_ARGS__ ); \
+    ALTS( __VA_ARGS__ ); \
     NEED( rulealt( parser, alt, ast ) ); \
   }
 
 #define OPTRULE(...) \
   { \
     PUSH(); \
-    ALT( __VA_ARGS__ ); \
+    ALTS( __VA_ARGS__ ); \
     if( !rulealt( parser, alt, ast ) ) \
     { \
       INSERT( TK_NONE ); \
@@ -186,15 +177,15 @@ ast_t* parse( source_t* source, rule_t start );
 #define SEQRULE(...) \
   { \
     PUSH(); \
-    ALT( __VA_ARGS__ ); \
+    ALTS( __VA_ARGS__ ); \
     while( rulealt( parser, alt, ast ) ); \
     POP(); \
   }
 
-#define BIND(X, ...) \
+#define BINDOP(...) \
   { \
-    TOK( __VA_ARGS__ ); \
-    ast = bindop( parser, precedence, ast, X, tok ); \
+    ALTS( __VA_ARGS__ ); \
+    ast = bindop( parser, precedence, ast, alt ); \
   }
 
 #define SCOPE() scope( ast )

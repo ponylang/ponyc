@@ -21,7 +21,7 @@ struct ast_t
 static const char in[] = " ";
 static const size_t in_len = 1;
 
-void print( ast_t* ast, size_t indent );
+void print( ast_t* ast, size_t indent, size_t width );
 
 size_t length( ast_t* ast, size_t indent )
 {
@@ -58,7 +58,7 @@ void print_compact( ast_t* ast, size_t indent )
   if( parens ) { printf( ")" ); }
 }
 
-void print_extended( ast_t* ast, size_t indent )
+void print_extended( ast_t* ast, size_t indent, size_t width )
 {
   for( size_t i = 0; i < indent; i++ ) { printf( in ); }
   ast_t* child = ast->child;
@@ -69,7 +69,7 @@ void print_extended( ast_t* ast, size_t indent )
 
   while( child != NULL )
   {
-    print( child, indent + 1 );
+    print( child, indent + 1, width );
     child = child->sibling;
   }
 
@@ -80,15 +80,15 @@ void print_extended( ast_t* ast, size_t indent )
   }
 }
 
-void print( ast_t* ast, size_t indent )
+void print( ast_t* ast, size_t indent, size_t width )
 {
   size_t len = length( ast, indent );
 
-  if( len <= 120 )
+  if( len <= width )
   {
     print_compact( ast, indent );
   } else {
-    print_extended( ast, indent );
+    print_extended( ast, indent, width );
   }
 
   printf( "\n" );
@@ -261,6 +261,8 @@ bool ast_merge( ast_t* dst, ast_t* src )
 
 void ast_add( ast_t* parent, ast_t* child )
 {
+  assert( parent != child );
+  assert( parent->child != child );
   child->parent = parent;
   child->sibling = parent->child;
   parent->child = child;
@@ -274,6 +276,7 @@ ast_t* ast_pop( ast_t* parent )
   {
     parent->child = child->sibling;
     child->parent = NULL;
+    child->sibling = NULL;
   }
 
   return child;
@@ -281,6 +284,7 @@ ast_t* ast_pop( ast_t* parent )
 
 void ast_append( ast_t* parent, ast_t* child )
 {
+  assert( parent != child );
   child->parent = parent;
 
   if( parent->child == NULL )
@@ -314,9 +318,9 @@ void ast_reverse( ast_t* ast )
   ast->child = last;
 }
 
-void ast_print( ast_t* ast )
+void ast_print( ast_t* ast, size_t width )
 {
-  print( ast, 0 );
+  print( ast, 0, width );
   printf( "\n" );
 }
 
