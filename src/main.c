@@ -30,11 +30,15 @@ void usage()
 size_t get_width()
 {
   struct winsize ws;
+  size_t width = 80;
 
-  if( !ioctl( STDOUT_FILENO, TIOCGWINSZ, &ws ) )
-    return ws.ws_col;
+  if( ioctl( STDOUT_FILENO, TIOCGWINSZ, &ws ) != -1 )
+  {
+    if( ws.ws_col > width )
+      width = ws.ws_col;
+  }
 
-  return 80;
+  return width;
 }
 
 int main( int argc, char** argv )
@@ -61,7 +65,7 @@ int main( int argc, char** argv )
   const char* target = ".";
   if( argc > 0 ) target = argv[0];
 
-  ast_t* program = ast_newid( TK_PROGRAM );
+  ast_t* program = ast_new( TK_PROGRAM, 0, 0, NULL );
   ast_scope( program );
 
   int ret = 0;

@@ -2,6 +2,7 @@
 #define PARSERAPI_H
 
 #include "ast.h"
+#include <stdbool.h>
 #include <limits.h>
 
 typedef struct parser_t
@@ -9,12 +10,11 @@ typedef struct parser_t
   source_t* source;
   lexer_t* lexer;
   token_t* t;
-  size_t optional;
 } parser_t;
 
 typedef int (*prec_t)( token_id id );
 
-typedef ast_t* (*rule_t)( parser_t* );
+typedef ast_t* (*rule_t)( parser_t* parser, bool opt );
 
 ast_t* consume( parser_t* parser );
 
@@ -24,7 +24,7 @@ bool look( parser_t* parser, const token_id* id );
 
 bool accept( parser_t* parser, const token_id* id, ast_t* ast );
 
-ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast );
+ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt );
 
 ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* alt );
 
@@ -46,17 +46,11 @@ void scope( ast_t* ast );
     NULL \
   }
 
-#define PUSH() (parser->optional++)
-
-#define POP() (parser->optional--)
-
-#define SYNTAX_ERROR() \
-  syntax_error( parser, __FUNCTION__, __LINE__ )
-
 #define NEED(X) \
   if( !X ) \
   { \
-    SYNTAX_ERROR(); \
+    if( !opt && (ast != NULL) ) \
+      syntax_error( parser, __FUNCTION__, __LINE__ ); \
     ast_free( ast ); \
     return NULL; \
   }
@@ -67,10 +61,10 @@ ast_t* parse( source_t* source, rule_t start );
 /* The API for parser rules starts here */
 
 #define DECL(rule) \
-  static ast_t* rule( parser_t* parser )
+  static ast_t* rule( parser_t* parser, bool opt )
 
 #define DEF(rule) \
-  static ast_t* rule( parser_t* parser ) \
+  static ast_t* rule( parser_t* parser, bool opt ) \
   { \
     ast_t* ast = NULL
 
@@ -87,7 +81,7 @@ ast_t* parse( source_t* source, rule_t start );
 #define AST_RULE(...) \
   { \
     ALTS( __VA_ARGS__ ); \
-    ast = rulealt( parser, alt, NULL ); \
+    ast = rulealt( parser, alt, NULL, opt ); \
     NEED( ast ); \
   }
 
@@ -132,18 +126,16 @@ ast_t* parse( source_t* source, rule_t start );
 #define RULE(...) \
   { \
     ALTS( __VA_ARGS__ ); \
-    NEED( rulealt( parser, alt, ast ) ); \
+    NEED( rulealt( parser, alt, ast, opt ) ); \
   }
 
 #define OPTRULE(...) \
   { \
-    PUSH(); \
     ALTS( __VA_ARGS__ ); \
-    if( !rulealt( parser, alt, ast ) ) \
+    if( !rulealt( parser, alt, ast, true ) ) \
     { \
       INSERT( TK_NONE ); \
     } \
-    POP(); \
   }
 
 #define IFRULE(X, ...) \
@@ -176,10 +168,8 @@ ast_t* parse( source_t* source, rule_t start );
 
 #define SEQRULE(...) \
   { \
-    PUSH(); \
     ALTS( __VA_ARGS__ ); \
-    while( rulealt( parser, alt, ast ) ); \
-    POP(); \
+    while( rulealt( parser, alt, ast, true ) ); \
   }
 
 #define BINDOP(...) \

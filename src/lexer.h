@@ -3,6 +3,7 @@
 
 #include "error.h"
 #include "source.h"
+#include <stdbool.h>
 #include <stddef.h>
 
 typedef struct lexer_t lexer_t;
@@ -24,9 +25,9 @@ typedef enum
   TK_RPAREN,
   TK_LBRACKET,
   TK_RBRACKET,
+
   TK_COMMA,
   TK_ARROW,
-
   TK_DOT,
   TK_BANG,
   TK_COLON,
@@ -53,6 +54,11 @@ typedef enum
 
   TK_PIPE,
   TK_QUESTION,
+
+  TK_LBRACE_NEW,
+  TK_LPAREN_NEW,
+  TK_LBRACKET_NEW,
+  TK_MINUS_NEW,
 
   // keywords
   TK_USE,
@@ -147,6 +153,8 @@ typedef struct token_t
   token_id id;
   size_t line;
   size_t pos;
+  bool newline;
+  bool error;
 
   union
   {
@@ -160,8 +168,9 @@ lexer_t* lexer_open( source_t* source );
 void lexer_close( lexer_t* lexer );
 token_t* lexer_next( lexer_t* lexer );
 
-token_t* token_new( token_id id, size_t line, size_t pos );
+token_t* token_new( token_id id, size_t line, size_t pos, bool newline );
 const char* token_string( token_t* token );
+void token_setid( token_t* token, token_id id );
 void token_setstring( token_t* token, const char* s );
 void token_free( token_t* token );
 

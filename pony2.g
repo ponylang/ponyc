@@ -17,14 +17,27 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? members
   ;
 
-member
-  :  ('var' | 'val') ID oftype? (assign seq)? // field
-  |  'new' ID type_params? params '?'? body? // constructor
-  |  'fun' raw_cap ID type_params? params oftype? '?'? body? // function
-  |  'be' ID type_params? params body? // behaviour
+members
+  :  field* constructor* function* behaviour*
+  ;
+
+field
+  :  ('var' | 'val') ID oftype? (assign expr)?
+  ;
+
+constructor
+  :  'new' ID type_params? params '?'? body?
+  ;
+
+function
+  :  'fun' raw_cap ID type_params? params oftype? '?'? body?
+  ;
+
+behaviour
+  :  'be' ID type_params? params body?
   ;
 
 typedecl
@@ -61,12 +74,14 @@ fun_type
   |  'be' ID? type_params? '(' types? ')'
   ;
 
+// the @ is a cheat: means the symbol "not on a new line"
+// without the @, it could be on a new line or not
 type_params
-  :  '[' param (',' param)* ']'
+  :  '@[' param (',' param)* ']'
   ;
 
 type_args
-  :  '[' type (',' type)* ']'
+  :  '@[' type (',' type)* ']'
   ;
 
 cap
@@ -90,15 +105,17 @@ body
   ;
 
 seq
-  :  expr (';' expr)*
+//  :  expr (';' expr)*
+  :  expr+
   ;
 
 expr
-  :  binary
+  :  (binary
   |  'return' binary
   |  'break' binary
   |  'continue'
   |  'undef'
+  )  ';'?
   ;
 
 binary
@@ -120,7 +137,7 @@ control
   :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
   |  'match' seq case* ('else' seq)? 'end'
   |  'while' seq 'do' seq ('else' seq)? 'end'
-  |  'do' seq 'while' seq 'end'
+  |  'repeat' seq 'until' seq 'end'
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   ;
@@ -134,8 +151,12 @@ postfix
   (  '.' (ID | INT) // member or tuple component
   |  '!' ID // partial application, syntactic sugar
   |  type_args // type arguments
-  |  tuple // method arguments
+  |  call // method arguments
   )*
+  ;
+
+call
+  :  '@(' positional? named? ')'
   ;
 
 atom
@@ -161,7 +182,7 @@ array
   ;
 
 object
-  :  '{' ('is' types)? member* '}'
+  :  '{' ('is' types)? members '}'
   ;
 
 positional
@@ -178,7 +199,7 @@ unop
 
 binop
   :  'and' | 'or' | 'xor' // logic
-  |  '+' | '-' | '*' | '/' | '%' // arithmetic
+  |  '+' | '@-' | '*' | '/' | '%' // arithmetic
   |  '<<' | '>>' // shift
   |  'is' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
   |  assign

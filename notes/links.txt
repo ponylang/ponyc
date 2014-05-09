@@ -1,0 +1,11 @@
+http://infoscience.epfl.ch/record/189237/files/scheduler2.pdf
+http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.134.7497&rep=rep1&type=pdf
+http://perso.ens-lyon.fr/frederic.vivien/Enseignement/Master2-2013-2014/articles-2013/wagner_work_stealing.pdf
+http://www.cs.kent.edu/~javed/class-CXNET09S/papers-CXNET-2009/FaLV08-DataCenter-interconnect-p63-alfares.pdf
+http://developer.amd.com/wordpress/media/2012/10/hsa10.pdf
+
+
+benchmarks
+
+http://mantevo.org/?page_id=20
+http://wiki.cs.princeton.edu/index.php/PARSEC

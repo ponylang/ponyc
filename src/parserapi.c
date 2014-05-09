@@ -53,11 +53,11 @@ bool accept( parser_t* parser, const token_id* id, ast_t* ast )
   return true;
 }
 
-ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast )
+ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt )
 {
   while( (*alt) != NULL )
   {
-    ast_t* child = (*alt)( parser );
+    ast_t* child = (*alt)( parser, opt );
 
     if( child != NULL )
     {
@@ -87,7 +87,7 @@ ast_t* parse( source_t* source, rule_t start )
   parser->lexer = lexer;
   parser->t = lexer_next( lexer );
 
-  ast_t* ast = start( parser );
+  ast_t* ast = start( parser, false );
 
   if( ast != NULL )
   {
@@ -107,7 +107,7 @@ ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* al
   ast_t* next;
   int prec = INT_MAX;
 
-  while( (next = rulealt( parser, alt, NULL )) != NULL )
+  while( (next = rulealt( parser, alt, NULL, true )) != NULL )
   {
     int nprec = precedence( ast_id( next ) );
 
@@ -145,10 +145,12 @@ ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* al
 
 void syntax_error( parser_t* parser, const char* func, int line )
 {
-  if( parser->optional == 0 )
+  if( !parser->t->error )
   {
     error( parser->source, parser->t->line, parser->t->pos,
       "syntax error (%s, %d)", func, line );
+
+    parser->t->error = true;
   }
 }
 

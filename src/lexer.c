@@ -17,6 +17,7 @@ struct lexer_t
 
   size_t line;
   size_t pos;
+  bool newline;
 
   char* buffer;
   size_t buflen;
@@ -73,6 +74,11 @@ static const symbol_t symbols1[] =
 
   { "|", TK_PIPE },
   { "?", TK_QUESTION },
+
+  { "{", TK_LBRACE_NEW },
+  { "(", TK_LPAREN_NEW },
+  { "[", TK_LBRACKET_NEW },
+  { "-", TK_MINUS_NEW },
 
   { NULL, 0 }
 };
@@ -286,9 +292,7 @@ static bool appendn( lexer_t* lexer, size_t len )
 
 static const char* copy( lexer_t* lexer )
 {
-  if( lexer->buflen == 0 ) { return NULL; }
   append( lexer, '\0' );
-
   const char* str = stringtab( lexer->buffer );
   lexer->buflen = 0;
 
@@ -297,13 +301,16 @@ static const char* copy( lexer_t* lexer )
 
 static token_t* token( lexer_t* lexer )
 {
-  return token_new( 0, lexer->line, lexer->pos );
+  token_t* t = token_new( 0, lexer->line, lexer->pos, lexer->newline );
+  lexer->newline = false;
+  return t;
 }
 
 static void newline( lexer_t* lexer )
 {
   lexer->line++;
   lexer->pos = 0;
+  lexer->newline = true;
 }
 
 static void nested_comment( lexer_t* lexer )
@@ -367,7 +374,7 @@ static token_t* slash( lexer_t* lexer )
   }
 
   token_t* t = token(lexer );
-  t->id = TK_DIVIDE;
+  token_setid( t, TK_DIVIDE );
 
   return t;
 }
@@ -387,8 +394,9 @@ static token_t* string( lexer_t* lexer )
       return NULL;
     } else if( look( lexer ) == '\"' ) {
       adv( lexer, 1 );
-      t->id = TK_STRING;
+      token_setid( t, TK_STRING );
       t->string = copy( lexer );
+      assert( t->string != NULL );
       return t;
     } else if( look( lexer ) == '\\' ) {
       if( lexer->len < 2 )
@@ -590,10 +598,10 @@ static token_t* real( lexer_t* lexer, token_t* t, __uint128_t v )
 
   if( isreal )
   {
-    t->id = TK_FLOAT;
+    token_setid( t, TK_FLOAT );
     t->real = v * pow( 10.0, e );
   } else {
-    t->id = TK_INT;
+    token_setid( t, TK_INT );
     t->integer = v;
   }
 
@@ -627,7 +635,7 @@ static token_t* hexadecimal( lexer_t* lexer, token_t* t )
     adv( lexer, 1 );
   }
 
-  t->id = TK_INT;
+  token_setid( t, TK_INT );
   t->integer = v;
   return t;
 }
@@ -657,7 +665,7 @@ static token_t* decimal( lexer_t* lexer, token_t* t )
     adv( lexer, 1 );
   }
 
-  t->id = TK_INT;
+  token_setid( t, TK_INT );
   t->integer = v;
   return t;
 }
@@ -685,7 +693,7 @@ static token_t* binary( lexer_t* lexer, token_t* t )
     adv( lexer, 1 );
   }
 
-  t->id = TK_INT;
+  token_setid( t, TK_INT );
   t->integer = v;
   return t;
 }
@@ -750,13 +758,13 @@ static token_t* identifier( lexer_t* lexer )
   {
     if( !strcmp( lexer->buffer, p->symbol ) )
     {
-      t->id = p->id;
+      token_setid( t, p->id );
       lexer->buflen = 0;
       return t;
     }
   }
 
-  t->id = TK_ID;
+  token_setid( t, TK_ID );
   t->string = copy( lexer );
   return t;
 }
@@ -780,7 +788,7 @@ static token_t* symbol( lexer_t* lexer )
         if( (sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]) )
         {
           adv( lexer, 1 );
-          t->id = p->id;
+          token_setid( t, p->id );
           return t;
         }
       }
@@ -791,7 +799,7 @@ static token_t* symbol( lexer_t* lexer )
   {
     if( sym[0] == p->symbol[0] )
     {
-      t->id = p->id;
+      token_setid( t, p->id );
       return t;
     }
   }
@@ -866,18 +874,19 @@ token_t* lexer_next( lexer_t* lexer )
   if( t == NULL )
   {
     t = token( lexer );
-    t->id = TK_EOF;
+    token_setid( t, TK_EOF );
   }
 
   return t;
 }
 
-token_t* token_new( token_id id, size_t line, size_t pos )
+token_t* token_new( token_id id, size_t line, size_t pos, bool newline )
 {
   token_t* t = calloc( 1, sizeof(token_t) );
-  t->id = id;
   t->line = line;
   t->pos = pos;
+  t->newline = newline;
+  token_setid( t, id );
 
   return t;
 }
@@ -932,6 +941,23 @@ const char* token_string( token_t* token )
   }
 
   return "UNKNOWN";
+}
+
+void token_setid( token_t* token, token_id id )
+{
+  if( token->newline )
+  {
+    switch( id )
+    {
+      case TK_LBRACE: id = TK_LBRACE_NEW; break;
+      case TK_LPAREN: id = TK_LPAREN_NEW; break;
+      case TK_LBRACKET: id = TK_LBRACKET_NEW; break;
+      case TK_MINUS: id = TK_MINUS_NEW; break;
+      default: break;
+    }
+  }
+
+  token->id = id;
 }
 
 void token_setstring( token_t* token, const char* s )

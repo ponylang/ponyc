@@ -32,7 +32,7 @@ size_t length( ast_t* ast, size_t indent )
 
   while( child != NULL )
   {
-    len += 1 + length( child, indent );
+    len += 1 + length( child, 0 );
     child = child->sibling;
   }
 
@@ -96,14 +96,9 @@ void print( ast_t* ast, size_t indent, size_t width )
 
 ast_t* ast_new( token_id id, size_t line, size_t pos, void* data )
 {
-  ast_t* ast = ast_token( token_new( id, line, pos ) );
+  ast_t* ast = ast_token( token_new( id, line, pos, false ) );
   ast->data = data;
   return ast;
-}
-
-ast_t* ast_newid( token_id id )
-{
-  return ast_token( token_new( id, 0, 0 ) );
 }
 
 ast_t* ast_token( token_t* t )
