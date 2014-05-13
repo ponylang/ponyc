@@ -432,7 +432,7 @@ static bool type_first( ast_t* ast )
       return true;
     }
 
-    case TK_UNDEF:
+    case TK_ERROR:
     {
       if( !ast_nearest( ast, TK_CANTHROW ) )
       {

@@ -101,7 +101,7 @@ typedef enum
   TK_AS,
   TK_WHERE,
   TK_TRY,
-  TK_UNDEF,
+  TK_ERROR,
 
   TK_NOT,
   TK_AND,

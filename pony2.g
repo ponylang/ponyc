@@ -26,6 +26,7 @@ members
 
 field
   :  ('var' | 'val') ID oftype? (assign expr)?
+//  :  ID oftype? (assign expr)?
   ;
 
 constructor
@@ -68,6 +69,7 @@ typeop
   ;
 
 // could make structural types into traits by supplying bodies here
+// param list could just be a single type expression
 fun_type
   :  'new' ID? type_params? '(' types? ')' '?'?
   |  'fun' raw_cap ID? type_params? '(' types? ')' oftype? '?'?
@@ -89,7 +91,8 @@ cap
   ;
 
 raw_cap
-  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
+//  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
+  :  ('iso' | 'fre' | 'wr' | 'fro' | 'rd' | 'tag')
   ;
 
 params
@@ -114,7 +117,7 @@ expr
   |  'return' binary
   |  'break' binary
   |  'continue'
-  |  'undef'
+  |  'error'
   )  ';'?
   ;
 
@@ -131,6 +134,7 @@ term
 
 local
   :  ('var' | 'val') idseq oftype?
+//  :  'local' idseq oftype?
   ;
 
 control

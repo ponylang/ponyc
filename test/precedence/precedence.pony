@@ -1,3 +1,5 @@
+use "../collections" as c
+
 class Precedence
   /* nested
   /* comments */
@@ -15,8 +17,11 @@ class Precedence
     1 + 2 * 3 + 4
     -3
 
+  fun tag identity[A](a: A): A^ => consume a
+
   fun mut bar(): I32 =>
     3.hello
     [A](1, 2)
-    foo.bar(99, 100)
-  
+    foo.bar[Z](99, 100)
+    (7; 3,77)
+    a + 37; b + b * b

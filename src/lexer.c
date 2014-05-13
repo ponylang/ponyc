@@ -125,7 +125,7 @@ static const symbol_t keywords[] =
   { "as", TK_AS },
   { "where", TK_WHERE },
   { "try", TK_TRY },
-  { "undef", TK_UNDEF },
+  { "error", TK_ERROR },
 
   { "not", TK_NOT },
   { "and", TK_AND },

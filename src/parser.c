@@ -479,7 +479,7 @@ DEF( breakexpr );
 
 // CONTINUE | UNDEF
 DEF( statement );
-  AST_TOKEN( TK_CONTINUE, TK_UNDEF );
+  AST_TOKEN( TK_CONTINUE, TK_ERROR );
   DONE();
 
 // (statement | breakexpr | infix) [SEMI]
