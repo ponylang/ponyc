@@ -6,6 +6,12 @@ class Precedence
   work */
 
   /**/
+  fun mut test() =>
+    for i in j do
+      x
+    else
+      y
+    end
 
   /** This is doc /**/
    * @param foo blah /* bar */
@@ -16,6 +22,9 @@ class Precedence
   fun imm foo(): F32 =>
     1 + 2 * 3 + 4
     -3
+"""
+something is \n here
+"""
 
   fun tag identity[A](a: A): A^ => consume a
 

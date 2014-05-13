@@ -121,6 +121,8 @@ static const symbol_t keywords[] =
   { "in", TK_IN },
   { "while", TK_WHILE },
   { "do", TK_DO },
+  { "repeat", TK_REPEAT },
+  { "until", TK_UNTIL },
   { "match", TK_MATCH },
   { "as", TK_AS },
   { "where", TK_WHERE },
@@ -379,11 +381,50 @@ static token_t* slash( lexer_t* lexer )
   return t;
 }
 
-static token_t* string( lexer_t* lexer )
+static token_t* triple_string( lexer_t* lexer )
 {
   token_t* t = token( lexer );
+
+  while( true )
+  {
+    if( lexer->len == 0 )
+    {
+      string_terminate( lexer );
+      token_free( t );
+      t = NULL;
+      break;
+    }
+
+    char c = look( lexer );
+    adv( lexer, 1 );
+
+    if( (c == '\"') && (look( lexer ) == '\"') && (look2( lexer ) == '\"') )
+    {
+      adv( lexer, 2 );
+      token_setid( t, TK_STRING );
+      t->string = copy( lexer );
+      assert( t->string != NULL );
+      break;
+    }
+
+    append( lexer, c );
+  }
+
+  return t;
+}
+
+static token_t* string( lexer_t* lexer )
+{
   adv( lexer, 1 );
   assert( lexer->buflen == 0 );
+
+  if( (look( lexer ) == '\"') && (look2( lexer ) == '\"') )
+  {
+    adv( lexer, 2 );
+    return triple_string( lexer );
+  }
+
+  token_t* t = token( lexer );
 
   while( true )
   {
@@ -418,6 +459,10 @@ static token_t* string( lexer_t* lexer )
 
       case 'b':
         append( lexer, 0x08 );
+        break;
+
+      case 'e':
+        append( lexer, 0x1B );
         break;
 
       case 'f':

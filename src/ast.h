@@ -116,6 +116,7 @@ MINUS: term
 
 postfix
 -------
+atom
 DOT postfix (ID | INT)
 BANG postfix INT
 QUALIFY postfix TYPEARGS

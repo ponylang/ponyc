@@ -95,6 +95,8 @@ typedef enum
   TK_END,
   TK_WHILE,
   TK_DO,
+  TK_REPEAT,
+  TK_UNTIL,
   TK_FOR,
   TK_IN,
   TK_MATCH,

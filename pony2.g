@@ -256,6 +256,7 @@ WS
 
 STRING
   :  '"' ( ESC | ~('\\'|'"') )* '"'
+  |  '"""' ~('"""')* '"""'
   ;
 
 fragment
@@ -290,7 +291,7 @@ HEX
 
 fragment
 ESC
-  :  '\\' ('a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
+  :  '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
   |  HEX_ESC
   |  UNICODE_ESC
   |  UNICODE2_ESC

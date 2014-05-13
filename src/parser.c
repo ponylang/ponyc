@@ -410,12 +410,12 @@ DEF( whileloop );
   SKIP( TK_END );
   DONE();
 
-// DO rawseq WHILE seq END
-DEF( doloop );
-  AST_TOKEN( TK_DO );
+// REPEAT rawseq UNTIL seq END
+DEF( repeat );
+  AST_TOKEN( TK_REPEAT );
   SCOPE();
   RULE( rawseq );
-  SKIP( TK_WHILE );
+  SKIP( TK_UNTIL );
   RULE( seq );
   SKIP( TK_END );
   DONE();
@@ -448,9 +448,10 @@ DEF( prefix );
   RULE( term );
   DONE();
 
-// local | cond | match | whileloop | doloop | forloop | try | prefix | postfix
+// local | cond | match | whileloop | repeat | forloop | try | prefix | postfix
 DEF( term );
-  AST_RULE( local, cond, match, whileloop, doloop, forloop, try, prefix, postfix );
+  AST_RULE( local, cond, match, whileloop, repeat, forloop, try, prefix,
+    postfix );
   DONE();
 
 // BINOP term
@@ -503,8 +504,8 @@ DEF( seq );
   SEQRULE( expr );
   DONE();
 
-// FUN RAW_CAP ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type] [QUESTION]
-// [ARROW seq]
+// FUN RAW_CAP ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// [COLON type] [QUESTION] [ARROW seq]
 DEF( function );
   AST_TOKEN( TK_FUN );
   SCOPE();
@@ -534,7 +535,8 @@ DEF( behaviour );
   IFRULE( TK_ARROW, seq );
   DONE();
 
-// NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION] [ARROW seq]
+// NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
+// [ARROW seq]
 DEF( constructor );
   AST_TOKEN( TK_NEW );
   SCOPE();

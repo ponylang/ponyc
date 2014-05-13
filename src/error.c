@@ -1,64 +1,112 @@
 #include "error.h"
+#include "stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
-void errorv( const source_t* source, size_t line, size_t pos, const char* fmt,
-  va_list ap )
+#define LINE_LEN 1024
+
+static error_t* errors;
+
+error_t* get_errors()
 {
-  if( source != NULL )
-  {
-    printf( "%s:", source->file );
+  return errors;
+}
 
-    if( line != 0 )
+void free_errors()
+{
+  error_t* e = errors;
+  errors = NULL;
+
+  while( e != NULL )
+  {
+    error_t* next = e->next;
+    free( e );
+    e = next;
+  }
+}
+
+void print_errors()
+{
+  error_t* e = errors;
+
+  while( e != NULL )
+  {
+    printf( "%s:", e->file );
+
+    if( e->line != 0 )
     {
-      printf( "%ld:%ld: ", line, pos );
+      printf( "%ld:%ld:", e->line, e->pos );
     } else {
       printf( " " );
     }
-  }
 
-  vprintf( fmt, ap );
-  printf( "\n" );
+    printf( "%s\n", e->msg );
 
-  if( (source == NULL) || (line == 0) )
-  {
-    return;
-  }
-
-  size_t tline = 1;
-  size_t tpos = 0;
-
-  while( (tline < line) && (tpos < source->len) )
-  {
-    if( source->m[tpos] == '\n' )
+    if( e->source != NULL )
     {
-      tline++;
+      printf( "%s\n", e->source );
+
+      for( size_t i = 1; i < e->pos; i++ )
+      {
+        printf( " " );
+      }
+
+      printf( "^\n" );
     }
 
-    tpos++;
+    e = e->next;
   }
-
-  size_t start = tpos;
-
-  while( (source->m[tpos] != '\n') && (tpos < source->len) )
-  {
-    tpos++;
-  }
-
-  size_t end = tpos;
-
-  printf( "%.*s\n", (int)(end - start), &source->m[start] );
-
-  for( size_t i = 1; i < pos; i++ )
-  {
-    printf( " " );
-  }
-
-  printf( "^\n" );
 }
 
-void error( const source_t* source, size_t line, size_t pos, const char* fmt, ... )
+void errorv( source_t* source, size_t line, size_t pos, const char* fmt,
+  va_list ap )
+{
+  assert( source != NULL );
+
+  char buf[LINE_LEN];
+  vsnprintf( buf, LINE_LEN, fmt, ap );
+
+  error_t* e = malloc(sizeof(error_t));
+  e->file = stringtab( source->file );
+  e->line = line;
+  e->pos = pos;
+  e->msg = stringtab( buf );
+  e->source = NULL;
+  e->next = errors;
+  errors = e;
+
+  if( line != 0 )
+  {
+    size_t tline = 1;
+    size_t tpos = 0;
+
+    while( (tline < e->line) && (tpos < source->len) )
+    {
+      if( source->m[tpos] == '\n' )
+      {
+        tline++;
+      }
+
+      tpos++;
+    }
+
+    size_t start = tpos;
+
+    while( (source->m[tpos] != '\n') && (tpos < source->len) )
+    {
+      tpos++;
+    }
+
+    size_t end = tpos;
+
+    snprintf( buf, LINE_LEN, "%.*s", (int)(end - start), &source->m[start] );
+    e->source = stringtab( buf );
+  }
+}
+
+void error( source_t* source, size_t line, size_t pos, const char* fmt, ... )
 {
   va_list ap;
   va_start( ap, fmt );
@@ -68,15 +116,19 @@ void error( const source_t* source, size_t line, size_t pos, const char* fmt, ..
 
 void errorf( const char* file, const char* fmt, ... )
 {
-  if( file != NULL )
-  {
-    printf( "%s: ", file );
-  }
+  char buf[LINE_LEN];
 
   va_list ap;
   va_start( ap, fmt );
-  vprintf( fmt, ap );
+  vsnprintf( buf, LINE_LEN, fmt, ap );
   va_end( ap );
 
-  printf( "\n" );
+  error_t* e = malloc(sizeof(error_t));
+  e->file = stringtab( file );
+  e->line = 0;
+  e->pos = 0;
+  e->msg = stringtab( buf );
+  e->source = NULL;
+  e->next = errors;
+  errors = e;
 }

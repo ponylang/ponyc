@@ -85,6 +85,10 @@ int main( int argc, char** argv )
    */
 
   ast_free( program );
+
+  print_errors();
+  free_errors();
+
   type_done();
   package_done();
   stringtab_done();

@@ -26,7 +26,8 @@ bool accept( parser_t* parser, const token_id* id, ast_t* ast );
 
 ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt );
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* alt );
+ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast,
+  const rule_t* alt );
 
 void syntax_error( parser_t* parser_t, const char* func, int line );
 
