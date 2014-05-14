@@ -28,7 +28,8 @@ size_t length(ast_t* ast, size_t indent)
   size_t len = (indent * in_len) + strlen(token_string(ast->t));
   ast_t* child = ast->child;
 
-  if(child != NULL) { len += 2; }
+  if(child != NULL)
+    len += 2;
 
   while(child != NULL)
   {
@@ -41,7 +42,9 @@ size_t length(ast_t* ast, size_t indent)
 
 void print_compact(ast_t* ast, size_t indent)
 {
-  for(size_t i = 0; i < indent; i++) { printf(in); }
+  for(size_t i = 0; i < indent; i++)
+    printf(in);
+
   ast_t* child = ast->child;
   bool parens = child != NULL;
 
@@ -63,11 +66,15 @@ void print_compact(ast_t* ast, size_t indent)
 
 void print_extended(ast_t* ast, size_t indent, size_t width)
 {
-  for(size_t i = 0; i < indent; i++) { printf(in); }
+  for(size_t i = 0; i < indent; i++)
+    printf(in);
+
   ast_t* child = ast->child;
   bool parens = child != NULL;
 
-  if(parens) { printf("("); }
+  if(parens)
+    printf("(");
+
   printf("%s\n", token_string(ast->t));
 
   while(child != NULL)
@@ -78,7 +85,9 @@ void print_extended(ast_t* ast, size_t indent, size_t width)
 
   if(parens)
   {
-    for(size_t i = 0; i <= indent; i++) { printf(in); }
+    for(size_t i = 0; i <= indent; i++)
+      printf(in);
+
     printf(")");
   }
 }
@@ -149,9 +158,7 @@ const char* ast_name(ast_t* ast)
 ast_t* ast_nearest(ast_t* ast, token_id id)
 {
   while((ast != NULL) && (ast->t->id != id))
-  {
     ast = ast->parent;
-  }
 
   return ast;
 }
@@ -225,9 +232,7 @@ void* ast_get(ast_t* ast, const char* name)
       void* value = symtab_get(ast->symtab, name);
 
       if(value != NULL)
-      {
         return value;
-      }
     }
 
     ast = ast->parent;
@@ -239,9 +244,7 @@ void* ast_get(ast_t* ast, const char* name)
 bool ast_set(ast_t* ast, const char* name, void* value)
 {
   while(ast->symtab == NULL)
-  {
     ast = ast->parent;
-  }
 
   return (ast_get(ast, name) == NULL)
     && symtab_add(ast->symtab, name, value);
@@ -250,9 +253,7 @@ bool ast_set(ast_t* ast, const char* name, void* value)
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)
-  {
     dst = dst->parent;
-  }
 
   return table_merge(dst->symtab, src->symtab);
 }
@@ -298,7 +299,8 @@ void ast_append(ast_t* parent, ast_t* child)
 
 void ast_reverse(ast_t* ast)
 {
-  if(ast == NULL) { return; }
+  if(ast == NULL)
+    return;
 
   ast_t* cur = ast->child;
   ast_t* next;
@@ -324,7 +326,8 @@ void ast_print(ast_t* ast, size_t width)
 
 void ast_free(ast_t* ast)
 {
-  if(ast == NULL) { return; }
+  if(ast == NULL)
+    return;
 
   ast_t* child = ast->child;
   ast_t* next;
@@ -364,7 +367,9 @@ void ast_error(ast_t* ast, const char* fmt, ...)
 bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
 {
   bool ret = true;
-  if(pre != NULL) { ret &= pre(ast); }
+
+  if(pre != NULL)
+    ret &= pre(ast);
 
   ast_t* child = ast->child;
 
@@ -374,7 +379,8 @@ bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
     child = child->sibling;
   }
 
-  if(post != NULL) { ret &= post(ast); }
+  if(post != NULL)
+    ret &= post(ast);
 
   return ret;
 }

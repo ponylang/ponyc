@@ -3,8 +3,10 @@
 #include "typechecker.h"
 #include <assert.h>
 
-// Insert a String->AST mapping into the specified scope. The string is the
-// string representation of the token of the name ast.
+/**
+ * Insert a String->AST mapping into the specified scope. The string is the
+ * string representation of the token of the name ast.
+ */
 static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
 {
   const char* s = ast_name(name);
@@ -39,8 +41,10 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
   return true;
 }
 
-// Import a package, either with a qualifying name or by merging it into the
-// current scope.
+/**
+ * Import a package, either with a qualifying name or by merging it into the
+ * current scope.
+ */
 static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
 {
   ast_t* package = package_load(ast, path);
@@ -72,10 +76,12 @@ static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
   return package;
 }
 
-// Inserts entries in scopes. When this is complete, all scopes are fully
-// populated, including package imports, type names, type parameters in types,
-// field names, method names, type parameters in methods, parameters in methods,
-// and local variables.
+/**
+ * Inserts entries in scopes. When this is complete, all scopes are fully
+ * populated, including package imports, type names, type parameters in types,
+ * field names, method names, type parameters in methods, parameters in methods,
+ * and local variables.
+ */
 bool type_scope(ast_t* ast)
 {
   switch(ast_id(ast))

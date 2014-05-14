@@ -165,7 +165,7 @@ static bool do_path(ast_t* package, const char* path)
   return r;
 }
 
-const char* try_path(const char* base, const char* path)
+static const char* try_path(const char* base, const char* path)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
@@ -185,7 +185,7 @@ const char* try_path(const char* base, const char* path)
   return stringtab(file);
 }
 
-const char* find_path(ast_t* from, const char* path)
+static const char* find_path(ast_t* from, const char* path)
 {
   // absolute path
   if(path[0] == '/')
@@ -226,6 +226,14 @@ const char* find_path(ast_t* from, const char* path)
   return NULL;
 }
 
+/**
+ * Initialises the search directories. This is composed of a "packages"
+ * directory relative to the executable, plus a collection of directories
+ * specified in the PONYPATH environment variable.
+ *
+ * @param name The path to the executable file, generally argv[0]. The real
+ *   path will be determined from argv[0].
+ */
 void package_init(const char* name)
 {
   char path[FILENAME_MAX];
@@ -260,7 +268,9 @@ void package_init(const char* name)
       search = list_push(search, stringtab(path));
     }
 
-    if(p == NULL) { break; }
+    if(p == NULL)
+      break;
+
     env = p + 1;
   }
 }
@@ -294,6 +304,9 @@ ast_t* package_load(ast_t* from, const char* path)
   return package;
 }
 
+/**
+ * Cleans up the list of search directories.
+ */
 void package_done()
 {
   list_free(search, NULL);

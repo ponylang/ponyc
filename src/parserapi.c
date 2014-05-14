@@ -1,32 +1,30 @@
 #include "parserapi.h"
 #include <stdlib.h>
 
-static token_id current( parser_t* parser )
+static token_id current(parser_t* parser)
 {
   return parser->t->id;
 }
 
-ast_t* consume( parser_t* parser )
+ast_t* consume(parser_t* parser)
 {
-  ast_t* ast = ast_token( parser->t );
-  parser->t = lexer_next( parser->lexer );
+  ast_t* ast = ast_token(parser->t);
+  parser->t = lexer_next(parser->lexer);
   return ast;
 }
 
-void insert( parser_t* parser, token_id id, ast_t* ast )
+void insert(parser_t* parser, token_id id, ast_t* ast)
 {
-  ast_t* child = ast_new( id, parser->t->line, parser->t->pos, NULL );
-  ast_add( ast, child );
+  ast_t* child = ast_new(id, parser->t->line, parser->t->pos, NULL);
+  ast_add(ast, child);
 }
 
-bool look( parser_t* parser, const token_id* id )
+bool look(parser_t* parser, const token_id* id)
 {
-  while( *id != TK_NONE )
+  while(*id != TK_NONE)
   {
-    if( current( parser ) == *id )
-    {
+    if(current(parser) == *id)
       return true;
-    }
 
     id++;
   }
@@ -34,37 +32,33 @@ bool look( parser_t* parser, const token_id* id )
   return false;
 }
 
-bool accept( parser_t* parser, const token_id* id, ast_t* ast )
+bool accept(parser_t* parser, const token_id* id, ast_t* ast)
 {
-  if( !look( parser, id ) )
-  {
+  if(!look(parser, id))
     return false;
-  }
 
-  if( ast != NULL )
+  if(ast != NULL)
   {
-    ast_t* child = ast_token( parser->t );
-    ast_add( ast, child );
+    ast_t* child = ast_token(parser->t);
+    ast_add(ast, child);
   } else {
-    token_free( parser->t );
+    token_free(parser->t);
   }
 
-  parser->t = lexer_next( parser->lexer );
+  parser->t = lexer_next(parser->lexer);
   return true;
 }
 
-ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt )
+ast_t* rulealt(parser_t* parser, const rule_t* alt, ast_t* ast, bool opt)
 {
-  while( (*alt) != NULL )
+  while((*alt) != NULL)
   {
-    ast_t* child = (*alt)( parser, opt );
+    ast_t* child = (*alt)(parser, opt);
 
-    if( child != NULL )
+    if(child != NULL)
     {
-      if( ast != NULL )
-      {
-        ast_add( ast, child );
-      }
+      if(ast != NULL)
+        ast_add(ast, child);
 
       return child;
     }
@@ -75,103 +69,102 @@ ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt )
   return NULL;
 }
 
-ast_t* parse( source_t* source, rule_t start )
+ast_t* parse(source_t* source, rule_t start)
 {
   // open the lexer
-  lexer_t* lexer = lexer_open( source );
+  lexer_t* lexer = lexer_open(source);
 
-  if( lexer == NULL )
+  if(lexer == NULL)
     return NULL;
 
   // create a parser and attach the lexer
-  parser_t* parser = calloc( 1, sizeof(parser_t) );
+  parser_t* parser = calloc(1, sizeof(parser_t));
   parser->source = source;
   parser->lexer = lexer;
-  parser->t = lexer_next( lexer );
+  parser->t = lexer_next(lexer);
 
-  ast_t* ast = start( parser, false );
+  ast_t* ast = start(parser, false);
 
-  if( ast != NULL )
+  if(ast != NULL)
   {
-    ast_reverse( ast );
-    ast_attach( ast, source );
+    ast_reverse(ast);
+    ast_attach(ast, source);
   }
 
-  lexer_close( lexer );
-  token_free( parser->t );
-  free( parser );
+  lexer_close(lexer);
+  token_free(parser->t);
+  free(parser);
 
   return ast;
 }
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast,
-  const rule_t* alt )
+ast_t* bindop(parser_t* parser, prec_t precedence, ast_t* ast,
+  const rule_t* alt)
 {
   ast_t* next;
   int prec = INT_MAX;
 
-  while( (next = rulealt( parser, alt, NULL, true )) != NULL )
+  while((next = rulealt(parser, alt, NULL, true)) != NULL)
   {
-    int nprec = precedence( ast_id( next ) );
+    int nprec = precedence(ast_id(next));
 
-    while( true )
+    while(true)
     {
-      if( nprec > prec )
+      if(nprec > prec)
       {
         // (oldop ast.1 (newop ast.2 ...))
-        ast_append( next, ast_pop( ast ) );
-        ast_add( ast, next );
+        ast_append(next, ast_pop(ast));
+        ast_add(ast, next);
         ast = next;
         break;
-      } else if( ast_parent( ast ) == NULL ) {
+      } else if(ast_parent(ast) == NULL) {
         // (newop ast ...)
-        ast_append( next, ast );
+        ast_append(next, ast);
         ast = next;
         break;
       } else {
         // try the parent node
-        ast = ast_parent( ast );
-        prec = precedence( ast_id( ast ) );
+        ast = ast_parent(ast);
+        prec = precedence(ast_id(ast));
       }
     }
 
     prec = nprec;
   }
 
-  while( ast_parent( ast ) != NULL )
-  {
-    ast = ast_parent( ast );
-  }
+  while(ast_parent(ast) != NULL)
+    ast = ast_parent(ast);
 
   return ast;
 }
 
-void syntax_error( parser_t* parser, const char* func, int line )
+void syntax_error(parser_t* parser, const char* func, int line)
 {
-  if( !parser->t->error )
+  if(!parser->t->error)
   {
-    error( parser->source, parser->t->line, parser->t->pos,
-      "syntax error (%s, %d)", func, line );
+    error(parser->source, parser->t->line, parser->t->pos,
+      "syntax error (%s, %d)", func, line);
 
     parser->t->error = true;
   }
 }
 
-void scope( ast_t* ast )
+void scope(ast_t* ast)
 {
-  ast_t* child = ast_child( ast );
+  ast_t* child = ast_child(ast);
 
-  if( child == NULL )
+  if(child == NULL)
   {
-    ast_scope( ast );
+    ast_scope(ast);
   } else {
-    ast_t* next = ast_sibling( child );
-    while( next != NULL )
+    ast_t* next = ast_sibling(child);
+
+    while(next != NULL)
     {
       child = next;
-      next = ast_sibling( child );
+      next = ast_sibling(child);
     }
 
-    ast_scope( child );
+    ast_scope(child);
   }
 }

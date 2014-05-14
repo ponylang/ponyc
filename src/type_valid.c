@@ -1,7 +1,9 @@
 #include "type_valid.h"
 #include "typechecker.h"
 
-// This checks that all explicit types are valid.
+/**
+ * This checks that all explicit types are valid.
+ */
 bool type_valid(ast_t* ast)
 {
   switch(ast_id(ast))

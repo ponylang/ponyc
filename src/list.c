@@ -22,14 +22,13 @@ list_t* list_append(list_t* list, const void* data)
   l->data = (void*)data;
   l->next = NULL;
 
-  if(list == NULL) return l;
+  if(list == NULL)
+    return l;
 
   list_t* p = list;
 
   while(p->next != NULL)
-  {
     p = p->next;
-  }
 
   p->next = l;
   return list;
@@ -43,14 +42,10 @@ list_t* list_next(list_t* list)
 list_t* list_index(list_t* list, int index)
 {
   if(index < 0)
-  {
     index = list_length(list) + index;
-  }
 
   for(int i = 0; (list != NULL) && (i < index); i++)
-  {
     list = list->next;
-  }
 
   return list;
 }
@@ -64,7 +59,9 @@ void* list_find(list_t* list, cmp_fn f, const void* data)
 {
   while(list != NULL)
   {
-    if(f(data, list->data)) return list->data;
+    if(f(data, list->data))
+      return list->data;
+
     list = list->next;
   }
 
@@ -75,7 +72,9 @@ bool list_superset(list_t* list, list_t* sublist, cmp_fn f)
 {
   while(sublist != NULL)
   {
-    if(list_find(list, f, sublist->data) == NULL) return false;
+    if(list_find(list, f, sublist->data) == NULL)
+      return false;
+
     sublist = sublist->next;
   }
 
@@ -86,7 +85,9 @@ bool list_equals(list_t* a, list_t* b, cmp_fn f)
 {
   while(a != NULL)
   {
-    if((b == NULL) || !f(a->data, b->data)) return false;
+    if((b == NULL) || !f(a->data, b->data))
+      return false;
+
     a = a->next;
     b = b->next;
   }
@@ -98,7 +99,9 @@ bool list_test(list_t* list, pred_fn f, void* arg)
 {
   while(list != NULL)
   {
-    if(!f(arg, list)) return false;
+    if(!f(arg, list))
+      return false;
+
     list = list->next;
   }
 
@@ -149,7 +152,10 @@ void list_free(list_t* list, free_fn f)
   while(list != NULL)
   {
     next = list->next;
-    if(f != NULL) f(list->data);
+
+    if(f != NULL)
+      f(list->data);
+
     free(list);
     list = next;
   }

@@ -1,6 +1,8 @@
 #include "type_expr.h"
 
-// This checks the type of all expressions.
+/**
+ * This checks the type of all expressions.
+ */
 bool type_expr(ast_t* ast)
 {
   switch(ast_id(ast))

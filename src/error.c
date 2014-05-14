@@ -65,9 +65,7 @@ void print_errors()
       printf("%s\n", e->source);
 
       for(size_t i = 1; i < e->pos; i++)
-      {
         printf(" ");
-      }
 
       printf("^\n");
     }
@@ -99,9 +97,7 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
     while((tline < e->line) && (tpos < source->len))
     {
       if(source->m[tpos] == '\n')
-      {
         tline++;
-      }
 
       tpos++;
     }
@@ -109,9 +105,7 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
     size_t start = tpos;
 
     while((source->m[tpos] != '\n') && (tpos < source->len))
-    {
       tpos++;
-    }
 
     size_t len = tpos - start;
 
