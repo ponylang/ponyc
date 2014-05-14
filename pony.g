@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  (use | class_ | alias)*
+  :  (use | class_ | typedecl)*
   ;
 
 use
@@ -17,31 +17,35 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? ('is' types)? member*
+  :  ('actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
   ;
 
-member
-  :  field | function | behaviour | constructor
+members
+  :  field* constructor* function* behaviour*
   ;
 
 field
-  :  ('var' | 'val') ID oftype
+  :  ('var' | 'val') ID oftype? (assign expr)?
+  ;
+
+constructor
+  :  'new' ID type_params? params '?'? body?
   ;
 
 function
-  :  'fun' mode '?'? ID type_params? params oftype? ('=>' seq)?
+  :  'fun' cap ID type_params? params oftype? '?'? body?
   ;
 
 behaviour
-  :  'be' ID type_params? params ('=>' seq)?
-  ;
- 
-constructor
-  :  'new' mode '?'? ID type_params? params ('=>' seq)?
+  :  'be' ID type_params? params body?
   ;
 
-alias
-  :  'alias' ID type_params? oftype
+typedecl
+  :  'type' ID type_params? (':' type_expr)?
+  ;
+
+oftype
+  :  ':' type
   ;
 
 types
@@ -49,29 +53,40 @@ types
   ;
 
 type
-  :  base_type
-  |  '(' base_type ('|' base_type)* ')'
+  :  type_expr '^'? // ephemeral types
   ;
 
-base_type
-  :  ID ('.' ID)? type_args? mode
-  |  'fun' mode '?'? '(' types? ')' oftype?
+type_expr
+  :  '(' type_expr (typeop type_expr)* ')' cap? // ADT or tuple
+  |  ID ('.' ID)* type_args? cap? // nominal type
+  |  '{' fun_type* '}' cap? // structural type
+  |  typedecl // nested type definition
   ;
 
+typeop
+  :  '|' | '&' | ',' // union, intersection, tuple
+  ;
+
+// could make structural types into traits by supplying bodies here
+// param list could just be a single type expression
+fun_type
+  :  'new' ID? type_params? '(' types? ')' '?'?
+  |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
+  |  'be' ID? type_params? '(' types? ')'
+  ;
+
+// the @ is a cheat: means the symbol "not on a new line"
+// without the @, it could be on a new line or not
 type_params
-  :  '[' param (',' param)* ']'
+  :  '@[' param (',' param)* ']'
   ;
 
 type_args
-  :  '[' type (',' type)* ']'
+  :  '@[' type (',' type)* ']'
   ;
 
-mode
-  :  ('{' base_mode? ('->' ('this' | ID))? '*'? '}')?
-  ;
-
-base_mode
-  :  'iso' | 'trn' | 'var' | 'val' | 'box' | 'tag' | 'this' | ID
+cap
+  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
   ;
 
 params
@@ -79,82 +94,129 @@ params
   ;
 
 param
-  :  ID oftype? ('=' expr)?
+  :  ID oftype? (assign seq)?
   ;
 
-oftype
-  :  ':' type
-  ;
-
-args
-  :  '(' (arg (',' arg)*)? ')'
-  ;
-
-arg
-  :  expr ('->' ID)?
-  ;
-
-expr
-  :  ('var' | 'val') ID oftype? '=' expr
-  |  binary ('=' expr)?
-  |  'fun' mode '?'? params oftype? '=>' expr
-  |  'if' seq 'then' seq ('else' expr | 'end')
-  |  'match' seq case* 'end'
-  |  'while' seq 'do' expr
-  |  'do' seq 'while' expr
-  |  'for' ID oftype? 'in' seq 'do' expr
-  |  'break'
-  |  'continue'
-  |  'return'
-  |  'try' seq ('else' seq)? ('then' seq)? 'end'
-  |  'undef'
-  ;
-
-case
-  :  '|' binary? ('as' ID oftype)? ('if' binary)? ('=>' seq)?
+body
+  :  '=>' seq
   ;
 
 seq
-  :  expr (';' expr)*
+  :  expr+
+  ;
+
+expr
+  :  (binary
+  |  'return' binary
+  |  'break' binary
+  |  'continue'
+  |  'error'
+  )  ';'?
   ;
 
 binary
-  :  unary (binop unary)*
+  :  term (binop term)*
   ;
 
-unary
-  :  unop unary
+term
+  :  local
+  |  control
   |  postfix
+  |  unop term
+  ;
+
+local
+  :  ('var' | 'val') idseq oftype?
+//  :  'local' idseq oftype?
+  ;
+
+control
+  :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
+  |  'match' seq case* ('else' seq)? 'end'
+  |  'while' seq 'do' seq ('else' seq)? 'end'
+  |  'repeat' seq 'until' seq 'end'
+  |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
+  |  'try' seq ('else' seq)? ('then' seq)? 'end'
+  ;
+
+case
+  :  '|' seq? ('as' idseq oftype)? ('where' seq)? body?
   ;
 
 postfix
-  :  primary
-  (  '.' ID
-  |  type_args
-  |  args
+  :  atom
+  (  '.' (ID | INT) // member or tuple component
+  |  '!' ID // partial application, syntactic sugar
+  |  type_args // type arguments
+  |  call // method arguments
   )*
   ;
 
-primary
-  :  'this'
-  |  INT
+call
+  :  '@(' positional? named? ')'
+  ;
+
+atom
+  :  INT
   |  FLOAT
   |  STRING
   |  ID
-  |  '(' seq ')'
-//  |  '{' seq '}' // FIX: can use this for object literals? comprehensions?
+  |  tuple
+  |  array
+  |  object
+  ;
+
+idseq
+  :  ID | '(' ID (',' ID)* ')'
+  ;
+
+tuple
+  :  '(' positional? named? ')'
+  ;
+
+array
+  :  '[' positional? named? ']'
+  ;
+
+object
+  :  '{' ('is' types)? members '}'
+  ;
+
+positional
+  :  seq (',' seq)*
+  ;
+
+named
+  :  'where' term assign seq (',' term assign seq)*
   ;
 
 unop
-  :  'not' | '-'
+  :  'not' | '-' | 'consume' | 'recover'
   ;
 
 binop
-  :  'and' | 'or' | 'xor'
-  |  '+' | '-' | '*' | '/' | '%'
-  |  '<<' | '>>'
-  |  '==' | '!=' | '<' | '<=' | '>=' | '>'
+  :  'and' | 'or' | 'xor' // logic
+  |  '+' | '@-' | '*' | '/' | '%' // arithmetic
+  |  '<<' | '>>' // shift
+  |  'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
+  |  assign
   ;
+
+assign
+  :  '='
+  ;
+
+/* Precedence?
+1. * / %
+2. + -
+3. << >> // same as C, but confusing?
+4. < <= => >
+5. == !=
+6. and
+7. xor
+8. or
+9. =
+*/
 
 // Lexer
 
@@ -165,7 +227,8 @@ ID
 INT
   :  DIGIT+
   |  '0' 'x' HEX+
-  |  '0' 'b' ('0' | '1')+
+  |  '0' 'o' OCTAL+
+  |  '0' 'b' BINARY+
   ;
 
 FLOAT
@@ -186,6 +249,7 @@ WS
 
 STRING
   :  '"' ( ESC | ~('\\'|'"') )* '"'
+  |  '"""' ~('"""')* '"""'
   ;
 
 fragment
@@ -196,6 +260,16 @@ EXP
 fragment
 LETTER
   :  'a'..'z' | 'A'..'Z'
+  ;
+
+fragment
+BINARY
+  :  '0'..'1'
+  ;
+
+fragment
+OCTAL
+  :  '0'..'7'
   ;
 
 fragment
@@ -210,7 +284,7 @@ HEX
 
 fragment
 ESC
-  :  '\\' ('a' | 'b' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
+  :  '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
   |  HEX_ESC
   |  UNICODE_ESC
   |  UNICODE2_ESC
