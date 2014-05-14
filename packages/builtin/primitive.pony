@@ -2,7 +2,7 @@ trait Any
 
 type None
 
-type Bool:(type True|type False)
+type Bool: (type True | type False)
 
 class I8
 
@@ -35,4 +35,4 @@ class FloatLiteral
 class String
 
 trait Stringable
-  fun:box string(): String
+  fun box string(): String

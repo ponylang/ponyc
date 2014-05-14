@@ -79,7 +79,9 @@ ast_t* parse( source_t* source, rule_t start )
 {
   // open the lexer
   lexer_t* lexer = lexer_open( source );
-  if( lexer == NULL ) { return NULL; }
+
+  if( lexer == NULL )
+    return NULL;
 
   // create a parser and attach the lexer
   parser_t* parser = calloc( 1, sizeof(parser_t) );
@@ -102,7 +104,8 @@ ast_t* parse( source_t* source, rule_t start )
   return ast;
 }
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast, const rule_t* alt )
+ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast,
+  const rule_t* alt )
 {
   ast_t* next;
   int prec = INT_MAX;

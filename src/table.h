@@ -5,7 +5,8 @@
 
 typedef struct table_t table_t;
 
-table_t* table_create(int size, hash_fn hash, cmp_fn cmp, dup_fn dup, free_fn fr);
+table_t* table_create(int size, hash_fn hash, cmp_fn cmp, dup_fn dup,
+  free_fn fr);
 
 bool table_merge(table_t* dst, const table_t* src);
 

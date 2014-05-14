@@ -122,7 +122,7 @@ uint64_t list_hash(list_t* list, hash_fn f, uint64_t seed)
 {
   while(list != NULL)
   {
-    seed = f(list->data, seed);
+    seed ^= f(list->data);
     list = list->next;
   }
 

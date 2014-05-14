@@ -9,10 +9,10 @@ typedef struct symbol_t
   void* value;
 } symbol_t;
 
-static uint64_t sym_hash(const void* data, uint64_t seed)
+static uint64_t sym_hash(const void* data)
 {
   const symbol_t* sym = data;
-  return ptrhash(sym->name, 0);
+  return ptrhash(sym->name);
 }
 
 static bool sym_cmp(const void* a, const void* b)

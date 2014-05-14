@@ -4,7 +4,7 @@ class List[A] is Iterable[A]
 
   // FIX: can't create an immutable list
   // not a circularity problem
-  // just need to have a next:List[A]:val to assign to while still this:iso
+  // just need to have a next:List[A] imm to assign to while still this iso
   // but that means we have to know we will be val
   // otherwise, could have an iso or var list with a val tail
   new create(item': A, next': (List[A] mut | None)) =>
@@ -18,7 +18,7 @@ class List[A] is Iterable[A]
   fun mut get(): this.List[A] mut ? =>
     match next
     | as a: List[A] mut => a
-    | None => undef
+    | None => error
     end
 
   fun mut set(a: (List[A] mut | None)): (this.List[A] mut | None)^ => next = a

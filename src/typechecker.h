@@ -3,7 +3,10 @@
 
 #include "ast.h"
 
-bool typecheck_init( ast_t* program );
-bool typecheck( ast_t* ast );
+/// Type check
+bool typecheck(ast_t* ast);
+
+/// Checks if an identifier is a valid type name.
+bool is_type_id(const char* s);
 
 #endif

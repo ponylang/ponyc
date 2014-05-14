@@ -22,9 +22,15 @@ class Precedence
   fun imm foo(): F32 =>
     1 + 2 * 3 + 4
     -3
-"""
-something is \n here
-"""
+    """
+      blargh
+      test
+        this is a test
+          foo
+          """
+
+    """     something is \n here"""
+    "           something is \n here"
 
   fun tag identity[A](a: A): A^ => consume a
 

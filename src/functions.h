@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-typedef uint64_t (*hash_fn)(const void* data, uint64_t seed);
+typedef uint64_t (*hash_fn)(const void* data);
 
 typedef bool (*cmp_fn)(const void* a, const void* b);
 

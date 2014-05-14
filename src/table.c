@@ -4,8 +4,7 @@
 
 struct table_t
 {
-  int size;
-  int mask;
+  size_t size;
   hash_fn hash;
   cmp_fn cmp;
   dup_fn dup;
@@ -16,19 +15,21 @@ struct table_t
 static int next_pow2(int v)
 {
   v--;
+
   v |= v >> 1;
   v |= v >> 2;
   v |= v >> 4;
   v |= v >> 8;
   v |= v >> 16;
+
   return v + 1;
 }
 
-table_t* table_create(int size, hash_fn hash, cmp_fn cmp, dup_fn dup, free_fn fr)
+table_t* table_create(int size, hash_fn hash, cmp_fn cmp, dup_fn dup,
+  free_fn fr)
 {
   table_t* table = malloc(sizeof(table_t));
   table->size = next_pow2(size);
-  table->mask = table->size - 1;
   table->hash = hash;
   table->cmp = cmp;
   table->dup = dup;
@@ -62,13 +63,13 @@ bool table_merge(table_t* dst, const table_t* src)
 
 void* table_find(const table_t* table, void* entry)
 {
-  uint64_t hash = table->hash(entry, 0) & table->mask;
+  uint64_t hash = table->hash(entry) & (table->size - 1);
   return list_find(table->node[hash], table->cmp, entry);
 }
 
 void* table_insert(table_t* table, void* entry, bool* present)
 {
-  uint64_t hash = table->hash(entry, 0) & table->mask;
+  uint64_t hash = table->hash(entry) & (table->size - 1);
   void* data = list_find(table->node[hash], table->cmp, entry);
 
   if(data == NULL)
@@ -85,7 +86,8 @@ void* table_insert(table_t* table, void* entry, bool* present)
 
 void table_free(table_t* table)
 {
-  if(table == NULL) return;
+  if(table == NULL)
+    return;
 
   for(int i = 0; i < table->size; i++)
     list_free(table->node[i], table->fr);

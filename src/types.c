@@ -14,20 +14,23 @@
 
 typedef enum
 {
-  M_ISO,
-  M_TRN,
-  M_VAR,
-  M_VAL,
-  M_BOX,
-  M_TAG
-} mode_id;
+  K_NONE,
+  K_NEW,
+  K_BE,
+  K_ISO,
+  K_TRN,
+  K_MUT,
+  K_IMM,
+  K_BOX,
+  K_TAG
+} cap_id;
 
 typedef enum
 {
-  T_INFER,
-  T_FUNCTION,
-  T_OBJECT,
-  T_ADT
+  T_NOMINAL,
+  T_STRUCTURAL,
+  T_UNION,
+  T_TUPLE
 } type_id;
 
 typedef enum
@@ -38,43 +41,52 @@ typedef enum
   T_INVALID
 } type_ok;
 
-typedef struct funtype_t
+typedef struct function_t
 {
+  cap_id cap;
+  const char* name;
+  list_t* type_params;
   list_t* params;
   type_t* result;
   bool throws;
-} funtype_t;
+} function_t;
 
-typedef struct objtype_t
+typedef struct structural_t
 {
+  list_t* functions;
+  cap_id cap;
+} structural_t;
+
+typedef struct nominal_t
+{
+  list_t* origin;
   ast_t* ast;
-  list_t* params;
-} objtype_t;
+  list_t* type_params;
+  cap_id cap;
+} nominal_t;
 
-typedef struct adt_t
+typedef struct typeexpr_t
 {
-  list_t* types;
-} adt_t;
+  type_t* left;
+  type_t* right;
+} typeexpr_t;
 
 struct type_t
 {
   type_id id;
-  mode_id mode;
   type_ok valid;
-  // FIX: need mode viewpoint adaptation
 
   union
   {
-    funtype_t fun;
-    objtype_t obj;
-    adt_t adt;
+    structural_t s;
+    nominal_t n;
+    typeexpr_t e;
   };
 
   struct type_t* next;
 };
 
 static table_t* type_table;
-static type_t infer = { T_INFER, 0 };
 
 static type_t* type_subst( type_t* type, list_t* list );
 
@@ -572,32 +584,35 @@ type_t* type_name( ast_t* ast, const char* name )
 
 type_t* type_ast( ast_t* ast )
 {
-  if( ast == NULL ) { return &infer; }
+  if( ast == NULL )
+    return NULL;
 
   type_t* type;
 
   switch( ast_id( ast ) )
   {
-    case TK_ADT:
-      type = adttype( ast );
+    case TK_UNIONTYPE:
+      type = union_type( ast );
       break;
 
-    case TK_FUNTYPE:
-    case TK_LAMBDA:
-      type = funtype( ast );
+    case TK_TUPLETYPE:
+      type = tuple_type( ast );
       break;
 
-    case TK_OBJTYPE:
-      type = objtype( ast );
+    case TK_NOMINAL:
+      type = nominal_type( ast );
       break;
 
-    case TK_PARAM:
-      type = ast_data( ast );
+    case TK_STRUCTURAL:
+      type = structural_type( ast );
       break;
 
-    case TK_INFER: return &infer;
+    case TK_TYPEDECL:
+      type = decl_type( ast );
+      break;
 
-    default: return NULL;
+    default:
+      return NULL;
   }
 
   return type_store( type );
@@ -643,104 +658,92 @@ bool type_valid( ast_t* ast, type_t* type )
   return ret;
 }
 
-bool type_eq( const type_t* a, const type_t* b )
+bool type_eq( type_t* a, type_t* b )
 {
-  if( (a == b)
-    || (a->id == T_INFER)
-    || (b->id == T_INFER)
-    )
-  {
+  if( (a == NULL) || (b == NULL) || (a == b) )
     return true;
-  }
 
-  if( a->id != b->id ) { return false; }
-
-  switch( b->id )
-  {
-    case T_INFER: return true;
-    case T_FUNCTION: return a_is_fun_b( a, b );
-    case T_OBJECT: return a_is_obj_b( a, b );
-
-    case T_ADT:
-      return list_superset( a->adt.types, b->adt.types, type_cmp )
-        && list_superset( b->adt.types, a->adt.types, type_cmp );
-  }
-
-  return false;
-}
-
-bool type_sub( const type_t* a, const type_t* b )
-{
-  if( (a == NULL) || (b == NULL) ) { return false; }
-
-  if( (a == b)
-    || (a->id == T_INFER)
-    || (b->id == T_INFER)
-    )
-  {
-    return true;
-  }
-
-  if( a->id == T_ADT ) { return adt_a_in_b( a, b ); }
-
-  switch( b->id )
-  {
-    case T_INFER: return true;
-    case T_FUNCTION: return a_in_fun_b( a, b );
-    case T_OBJECT: return a_in_obj_b( a, b );
-    case T_ADT: return a_in_adt_b( a, b );
-  }
-
-  return false;
-}
-
-static bool print_pred( void* arg, void* iter )
-{
-  type_print( list_data( iter ) );
-  if( list_next( iter ) != NULL ) printf( "%s", (const char*)arg );
-  return true;
-}
-
-void type_print( const type_t* a )
-{
-  if( a == NULL )
-  {
-    printf( "null" );
-    return;
-  }
+  if( a->id != b->id )
+    return false;
 
   switch( a->id )
   {
-    case T_INFER:
-      printf( "infer" );
-      break;
+    case T_NOMINAL:
+      return nominal_is_nominal( a, b );
 
-    case T_FUNCTION:
-      printf( "fun" );
-      if( a->fun.throws ) { printf( " throw " ); }
-      printf( "(" );
-      list_test( a->fun.params, print_pred, ", " );
-      printf( "):" );
-      type_print( a->fun.result );
-      break;
+    case T_STRUCTURAL:
+      return structural_is_structural( a, b );
 
-    case T_OBJECT:
-      printf( "%s", ast_name( ast_child( a->obj.ast ) ) );
+    case T_UNION:
+      return type_eq( a->e.left, b->e.left )
+      return type_sub( a->e.left, b ) && type_sub( a->e.right, b );
 
-      if( a->obj.params != NULL )
+    case T_TUPLE:
+      return type_eq( a->e.left, b->e.left ) &&
+        type_eq( a->e.right, b->e.right );
+  }
+
+  return false;
+}
+
+bool type_sub( type_t* a, type_t* b )
+{
+  if( (a == NULL) || (b == NULL) || (a == b) )
+    return true;
+
+  switch( a->id )
+  {
+    case T_NOMINAL:
+      switch( b->id )
       {
-        printf( "[" );
-        list_test( a->obj.params, print_pred, ", " );
-        printf( "]" );
+        case T_NOMINAL:
+          return nominal_in_nominal( a, b );
+
+        case T_STRUCTURAL:
+          return nominal_in_structural( a, b );
+
+        case T_UNION:
+          return type_sub( a, b->e.left ) || type_sub( a, b->e.right );
+
+        case T_TUPLE:
+          return false;
       }
       break;
 
-    case T_ADT:
-      printf( "(" );
-      list_test( a->adt.types, print_pred, "|" );
-      printf( ")" );
+    case T_STRUCTURAL:
+      switch( b->id )
+      {
+        case T_STRUCTURAL:
+          return structural_in_structural( a, b );
+
+        case T_UNION:
+          return type_sub( a, b->e.left ) || type_sub( a, b->e.right );
+
+        case T_NOMINAL:
+        case T_TUPLE:
+          return false;
+      }
+      break;
+
+    case T_UNION:
+      return type_sub( a->e.left, b ) && type_sub( a->e.right, b );
+
+    case T_TUPLE:
+      switch( b->id )
+      {
+        case T_TUPLE:
+          return type_sub( a->e.left, b->e.left ) &&
+            type_sub( a->e.right, b->e.right );
+
+        case T_NOMINAL:
+        case T_STRUCTURAL:
+        case T_UNION:
+          return false;
+      }
       break;
   }
+
+  return false;
 }
 
 #endif

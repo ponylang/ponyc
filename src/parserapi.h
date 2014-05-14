@@ -12,26 +12,26 @@ typedef struct parser_t
   token_t* t;
 } parser_t;
 
-typedef int (*prec_t)( token_id id );
+typedef int (*prec_t)(token_id id);
 
-typedef ast_t* (*rule_t)( parser_t* parser, bool opt );
+typedef ast_t* (*rule_t)(parser_t* parser, bool opt);
 
-ast_t* consume( parser_t* parser );
+ast_t* consume(parser_t* parser);
 
-void insert( parser_t* parser, token_id id, ast_t* ast );
+void insert(parser_t* parser, token_id id, ast_t* ast);
 
-bool look( parser_t* parser, const token_id* id );
+bool look(parser_t* parser, const token_id* id);
 
-bool accept( parser_t* parser, const token_id* id, ast_t* ast );
+bool accept(parser_t* parser, const token_id* id, ast_t* ast);
 
-ast_t* rulealt( parser_t* parser, const rule_t* alt, ast_t* ast, bool opt );
+ast_t* rulealt(parser_t* parser, const rule_t* alt, ast_t* ast, bool opt);
 
-ast_t* bindop( parser_t* parser, prec_t precedence, ast_t* ast,
-  const rule_t* alt );
+ast_t* bindop(parser_t* parser, prec_t precedence, ast_t* ast,
+  const rule_t* alt);
 
-void syntax_error( parser_t* parser_t, const char* func, int line );
+void syntax_error(parser_t* parser_t, const char* func, int line);
 
-void scope( ast_t* ast );
+void scope(ast_t* ast);
 
 #define TOKS(...) \
   static const token_id tok[] = \
@@ -48,138 +48,138 @@ void scope( ast_t* ast );
   }
 
 #define NEED(X) \
-  if( !X ) \
+  if(!X) \
   { \
-    if( !opt && (ast != NULL) ) \
-      syntax_error( parser, __FUNCTION__, __LINE__ ); \
-    ast_free( ast ); \
+    if(!opt && (ast != NULL)) \
+      syntax_error(parser, __FUNCTION__, __LINE__); \
+    ast_free(ast); \
     return NULL; \
   }
 
 /* This is the only external API call */
-ast_t* parse( source_t* source, rule_t start );
+ast_t* parse(source_t* source, rule_t start);
 
 /* The API for parser rules starts here */
 
 #define DECL(rule) \
-  static ast_t* rule( parser_t* parser, bool opt )
+  static ast_t* rule(parser_t* parser, bool opt)
 
 #define DEF(rule) \
-  static ast_t* rule( parser_t* parser, bool opt ) \
+  static ast_t* rule(parser_t* parser, bool opt) \
   { \
     ast_t* ast = NULL
 
 #define CHECK(...) \
-  NEED( LOOK( __VA_ARGS__ ) )
+  NEED(LOOK(__VA_ARGS__))
 
 #define AST(ID) \
-  ast = ast_new( ID, parser->t->line, parser->t->pos, NULL )
+  ast = ast_new(ID, parser->t->line, parser->t->pos, NULL)
 
 #define AST_TOKEN(...) \
-  NEED( LOOK( __VA_ARGS__) ); \
-  ast = consume( parser )
+  NEED(LOOK(__VA_ARGS__)); \
+  ast = consume(parser)
 
 #define AST_RULE(...) \
   { \
-    ALTS( __VA_ARGS__ ); \
-    ast = rulealt( parser, alt, NULL, opt ); \
-    NEED( ast ); \
+    ALTS(__VA_ARGS__); \
+    ast = rulealt(parser, alt, NULL, opt); \
+    NEED(ast); \
   }
 
-#define INSERT(ID) insert( parser, ID, ast )
+#define INSERT(ID) insert(parser, ID, ast)
 
 #define LOOK(...) \
   ({ \
-    TOKS( __VA_ARGS__ ); \
-    look( parser, tok ); \
+    TOKS(__VA_ARGS__); \
+    look(parser, tok); \
   })
 
 #define ACCEPT(...) \
   ({ \
-    TOKS( __VA_ARGS__ ); \
-    accept( parser, tok, ast ); \
+    TOKS(__VA_ARGS__); \
+    accept(parser, tok, ast); \
   })
 
 #define ACCEPT_DROP(...) \
   ({ \
-    TOKS( __VA_ARGS__ ); \
-    accept( parser, tok, NULL ); \
+    TOKS(__VA_ARGS__); \
+    accept(parser, tok, NULL); \
   })
 
 #define OPTIONAL(...) \
-  if( !ACCEPT( __VA_ARGS__ ) ) \
+  if(!ACCEPT(__VA_ARGS__)) \
   { \
-    INSERT( TK_NONE ); \
+    INSERT(TK_NONE); \
   }
 
 #define EXPECT(...) \
   { \
-    TOKS( __VA_ARGS__ ); \
-    NEED( accept( parser, tok, ast ) ); \
+    TOKS(__VA_ARGS__); \
+    NEED(accept(parser, tok, ast)); \
   }
 
 #define SKIP(...) \
   { \
-    TOKS( __VA_ARGS__ ); \
-    NEED( accept( parser, tok, NULL ) ); \
+    TOKS(__VA_ARGS__); \
+    NEED(accept(parser, tok, NULL)); \
   }
 
 #define RULE(...) \
   { \
-    ALTS( __VA_ARGS__ ); \
-    NEED( rulealt( parser, alt, ast, opt ) ); \
+    ALTS(__VA_ARGS__); \
+    NEED(rulealt(parser, alt, ast, opt)); \
   }
 
 #define OPTRULE(...) \
   { \
-    ALTS( __VA_ARGS__ ); \
-    if( !rulealt( parser, alt, ast, true ) ) \
+    ALTS(__VA_ARGS__); \
+    if(!rulealt(parser, alt, ast, true)) \
     { \
-      INSERT( TK_NONE ); \
+      INSERT(TK_NONE); \
     } \
   }
 
 #define IFRULE(X, ...) \
-  if( ACCEPT_DROP( X ) ) \
+  if(ACCEPT_DROP(X)) \
   { \
-    RULE( __VA_ARGS__ ); \
+    RULE(__VA_ARGS__); \
   } else { \
-    INSERT( TK_NONE ); \
+    INSERT(TK_NONE); \
   }
 
 #define IFTOKEN(X, ...) \
-  if( ACCEPT_DROP( X ) ) \
+  if(ACCEPT_DROP(X)) \
   { \
-    EXPECT( __VA_ARGS__ ); \
+    EXPECT(__VA_ARGS__); \
   } else { \
-    INSERT( TK_NONE ); \
+    INSERT(TK_NONE); \
   }
 
 #define WHILERULE(X, ...) \
-  while( ACCEPT_DROP( X ) ) \
+  while(ACCEPT_DROP(X)) \
   { \
-    RULE( __VA_ARGS__ ); \
+    RULE(__VA_ARGS__); \
   }
 
 #define WHILETOKEN(X, ...) \
-  while( ACCEPT_DROP( X ) ) \
+  while(ACCEPT_DROP(X)) \
   { \
-    EXPECT( __VA_ARGS__ ); \
+    EXPECT(__VA_ARGS__); \
   }
 
 #define SEQRULE(...) \
   { \
-    ALTS( __VA_ARGS__ ); \
-    while( rulealt( parser, alt, ast, true ) ); \
+    ALTS(__VA_ARGS__); \
+    while(rulealt(parser, alt, ast, true)); \
   }
 
 #define BINDOP(...) \
   { \
-    ALTS( __VA_ARGS__ ); \
-    ast = bindop( parser, precedence, ast, alt ); \
+    ALTS(__VA_ARGS__); \
+    ast = bindop(parser, precedence, ast, alt); \
   }
 
-#define SCOPE() scope( ast )
+#define SCOPE() scope(ast)
 
 #define DONE() \
     return ast; \

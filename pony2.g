@@ -17,7 +17,7 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? members
+  :  ('actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
   ;
 
 members
@@ -26,7 +26,6 @@ members
 
 field
   :  ('var' | 'val') ID oftype? (assign expr)?
-//  :  ID oftype? (assign expr)?
   ;
 
 constructor
@@ -34,7 +33,7 @@ constructor
   ;
 
 function
-  :  'fun' raw_cap ID type_params? params oftype? '?'? body?
+  :  'fun' cap ID type_params? params oftype? '?'? body?
   ;
 
 behaviour
@@ -72,7 +71,7 @@ typeop
 // param list could just be a single type expression
 fun_type
   :  'new' ID? type_params? '(' types? ')' '?'?
-  |  'fun' raw_cap ID? type_params? '(' types? ')' oftype? '?'?
+  |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
   |  'be' ID? type_params? '(' types? ')'
   ;
 
@@ -87,12 +86,7 @@ type_args
   ;
 
 cap
-  :  raw_cap
-  ;
-
-raw_cap
-//  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
-  :  ('iso' | 'fre' | 'wr' | 'fro' | 'rd' | 'tag')
+  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
   ;
 
 params
@@ -108,7 +102,6 @@ body
   ;
 
 seq
-//  :  expr (';' expr)*
   :  expr+
   ;
 
@@ -205,7 +198,7 @@ binop
   :  'and' | 'or' | 'xor' // logic
   |  '+' | '@-' | '*' | '/' | '%' // arithmetic
   |  '<<' | '>>' // shift
-  |  'is' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
+  |  'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
   |  assign
   ;
 

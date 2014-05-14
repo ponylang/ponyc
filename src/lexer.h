@@ -12,7 +12,7 @@ typedef enum
 {
   TK_NONE,
 
-  // primitives
+  // literals
   TK_STRING,
   TK_INT,
   TK_FLOAT,
@@ -66,7 +66,9 @@ typedef enum
   TK_TRAIT,
   TK_CLASS,
   TK_ACTOR,
+
   TK_IS,
+  TK_ISNT,
 
   TK_VAR,
   TK_VAL,
@@ -117,6 +119,8 @@ typedef enum
   TK_TYPEDECL,
 
   TK_MEMBERS,
+  TK_FVAR,
+  TK_FVAL,
 
   TK_TYPES,
   TK_TYPENAME,
@@ -146,6 +150,7 @@ typedef enum
   TK_ARRAY,
   TK_OBJECT,
   TK_CASE,
+  TK_REF,
 
   TK_EOF
 } token_id;

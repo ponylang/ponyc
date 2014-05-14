@@ -17,23 +17,23 @@
 
 static list_t* search;
 
-static bool filepath( const char *file, char* path )
+static bool filepath(const char *file, char* path)
 {
   struct stat sb;
 
-  if( (realpath( file, path ) != path)
-    || (stat( path, &sb ) != 0)
+  if((realpath(file, path) != path)
+    || (stat(path, &sb) != 0)
     || ((sb.st_mode & S_IFMT) != S_IFREG)
-    )
+   )
   {
     return false;
   }
 
-  char* p = strrchr( path, '/' );
+  char* p = strrchr(path, '/');
 
-  if( p != NULL )
+  if(p != NULL)
   {
-    if( p != path )
+    if(p != path)
     {
       p[0] = '\0';
     } else {
@@ -44,87 +44,95 @@ static bool filepath( const char *file, char* path )
   return true;
 }
 
-static bool execpath( const char* file, char* path )
+static bool execpath(const char* file, char* path)
 {
   // if it contains a separator of any kind, it's an absolute or relative path
-  if( strchr( file, '/' ) != NULL ) { return filepath( file, path ); }
+  if(strchr(file, '/') != NULL)
+    return filepath(file, path);
 
   // it's just an executable name, so walk the path
-  const char* env = getenv( "PATH" );
+  const char* env = getenv("PATH");
 
-  if( env != NULL )
+  if(env != NULL)
   {
-    size_t flen = strlen( file );
+    size_t flen = strlen(file);
 
-    while( true )
+    while(true)
     {
-      char* p = strchr( env, ':' );
+      char* p = strchr(env, ':');
       size_t len;
 
-      if( p != NULL )
+      if(p != NULL)
       {
         len = p - env;
       } else {
-        len = strlen( env );
+        len = strlen(env);
       }
 
-      if( (len + flen + 1) < FILENAME_MAX )
+      if((len + flen + 1) < FILENAME_MAX)
       {
         char check[FILENAME_MAX];
-        strncpy( check, env, len );
+        strncpy(check, env, len);
         check[len++] = '/';
-        strcpy( &check[len], file );
+        strcpy(&check[len], file);
 
-        if( filepath( check, path ) ) { return true; }
+        if(filepath(check, path))
+          return true;
       }
 
-      if( p == NULL ) { break; }
+      if(p == NULL) { break; }
       env = p + 1;
     }
   }
 
   // try the current directory as a last resort
-  return filepath( file, path );
+  return filepath(file, path);
 }
 
-static bool do_file( ast_t* package, const char* file )
+static bool do_file(ast_t* package, const char* file)
 {
-  source_t* source = source_open( file );
-  if( source == NULL ) { return false; }
+  source_t* source = source_open(file);
 
-  ast_t* module = parser( source );
-
-  if( module == NULL )
+  if(source == NULL)
   {
-    source_close( source );
+    errorf(file, "couldn't open file");
     return false;
   }
 
-  ast_add( package, module );
+  ast_t* module = parser(source);
+
+  if(module == NULL)
+  {
+    errorf(file, "couldn't parse file");
+    source_close(source);
+    return false;
+  }
+
+  ast_add(package, module);
   return true;
 }
 
-static bool do_path( ast_t* package, const char* path )
+static bool do_path(ast_t* package, const char* path)
 {
-  DIR* dir = opendir( path );
+  DIR* dir = opendir(path);
 
-  if( dir == NULL )
+  if(dir == NULL)
   {
-    switch( errno )
+    switch(errno)
     {
       case EACCES:
-        errorf( path, "permission denied" );
+        errorf(path, "permission denied");
         break;
 
       case ENOENT:
-        errorf( path, "does not exist" );
+        errorf(path, "does not exist");
         break;
 
       case ENOTDIR:
-        return do_file( package, path );
+        return do_file(package, path);
 
       default:
-        errorf( path, "unknown error" );
+        errorf(path, "unknown error");
     }
 
     return false;
@@ -134,139 +142,160 @@ static bool do_path( ast_t* package, const char* path )
   struct dirent* d;
   bool r = true;
 
-  while( !readdir_r( dir, &dirent, &d ) && (d != NULL) )
+  while(!readdir_r(dir, &dirent, &d) && (d != NULL))
   {
-    if( d->d_type & DT_REG )
+    if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
-      const char* p = strrchr( d->d_name, '.' );
-      if( !p || strcmp( p, EXTENSION ) ) { continue; }
+      const char* p = strrchr(d->d_name, '.');
+
+      if(!p || strcmp(p, EXTENSION))
+        continue;
 
       char fullpath[FILENAME_MAX];
-      strcpy( fullpath, path );
-      strcat( fullpath, "/" );
-      strcat( fullpath, d->d_name );
+      strcpy(fullpath, path);
+      strcat(fullpath, "/");
+      strcat(fullpath, d->d_name);
 
-      r &= do_file( package, fullpath );
+      r &= do_file(package, fullpath);
     }
   }
 
-  closedir( dir );
+  closedir(dir);
   return r;
 }
 
-const char* try_path( const char* base, const char* path )
+const char* try_path(const char* base, const char* path)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
 
-  if( base != NULL )
+  if(base != NULL)
   {
-    strcpy( composite, base );
-    strcat( composite, "/" );
-    strcat( composite, path );
+    strcpy(composite, base);
+    strcat(composite, "/");
+    strcat(composite, path);
   } else {
-    strcpy( composite, path );
+    strcpy(composite, path);
   }
 
-  if( realpath( composite, file ) != file ) { return NULL; }
+  if(realpath(composite, file) != file)
+    return NULL;
 
-  return stringtab( file );
+  return stringtab(file);
 }
 
-const char* find_path( ast_t* from, const char* path )
+const char* find_path(ast_t* from, const char* path)
 {
   // absolute path
-  if( path[0] == '/' ) { return try_path( NULL, path ); }
+  if(path[0] == '/')
+    return try_path(NULL, path);
 
   const char* result;
 
-  if( ast_id( from ) == TK_PROGRAM )
+  if(ast_id(from) == TK_PROGRAM)
   {
     // try a path relative to the current working directory
-    result = try_path( NULL, path );
-    if( result != NULL ) { return result; }
+    result = try_path(NULL, path);
+
+    if(result != NULL)
+      return result;
   } else {
     // try a path relative to the importing package
-    from = ast_nearest( from, TK_PACKAGE );
-    result = try_path( ast_data( from ), path );
-    if( result != NULL ) { return result; }
+    from = ast_nearest(from, TK_PACKAGE);
+    result = try_path(ast_data(from), path);
+
+    if(result != NULL)
+      return result;
   }
 
   // try the search paths
   list_t* p = search;
 
-  while( p != NULL )
+  while(p != NULL)
   {
-    result = try_path( list_data( p ), path );
-    if( result != NULL ) { return result; }
-    p = list_next( p );
+    result = try_path(list_data(p), path);
+
+    if(result != NULL)
+      return result;
+
+    p = list_next(p);
   }
 
+  errorf(path, "couldn't locate this path");
   return NULL;
 }
 
-void package_init( const char* name )
+void package_init(const char* name)
 {
   char path[FILENAME_MAX];
 
-  if( execpath( name, path ) )
+  if(execpath(name, path))
   {
-    strcat( path, "/packages" );
-    search = list_push( search, stringtab( path ) );
+    strcat(path, "/packages");
+    search = list_push(search, stringtab(path));
   }
 
-  const char* env = getenv( "PONYPATH" );
-  if( env == NULL ) { return; }
+  const char* env = getenv("PONYPATH");
 
-  while( true )
+  if(env == NULL)
+    return;
+
+  while(true)
   {
-    char* p = strchr( env, ':' );
+    char* p = strchr(env, ':');
     size_t len;
 
-    if( p != NULL )
+    if(p != NULL)
     {
       len = p - env;
     } else {
-      len = strlen( env );
+      len = strlen(env);
     }
 
-    if( len < FILENAME_MAX )
+    if(len < FILENAME_MAX)
     {
-      strncpy( path, env, len );
+      strncpy(path, env, len);
       path[len] = '\0';
-      search = list_push( search, stringtab( path ) );
+      search = list_push(search, stringtab(path));
     }
 
-    if( p == NULL ) { break; }
+    if(p == NULL) { break; }
     env = p + 1;
   }
 }
 
-ast_t* package_load( ast_t* from, const char* path )
+ast_t* package_load(ast_t* from, const char* path)
 {
-  const char* name = find_path( from, path );
-  if( name == NULL ) { return NULL; }
+  const char* name = find_path(from, path);
 
-  ast_t* program = ast_nearest( from, TK_PROGRAM );
-  ast_t* package = ast_get( program, name );
+  if(name == NULL)
+    return NULL;
 
-  if( package != NULL ) { return package; }
+  ast_t* program = ast_nearest(from, TK_PROGRAM);
+  ast_t* package = ast_get(program, name);
 
-  package = ast_new( TK_PACKAGE, 0, 0, (void*)name );
-  ast_scope( package );
-  ast_add( program, package );
-  ast_set( program, name, package );
+  if(package != NULL)
+    return package;
 
-  printf( "=== Building %s ===\n", name );
-  if( !do_path( package, name ) ) { return NULL; }
-  if( !typecheck( package ) ) { return NULL; }
+  package = ast_new(TK_PACKAGE, 0, 0, (void*)name);
+  ast_scope(package);
+  ast_add(program, package);
+  ast_set(program, name, package);
+
+  printf("=== Building %s ===\n", name);
+
+  if(!do_path(package, name))
+    return NULL;
+
+  if(!typecheck(package))
+    return NULL;
 
   return package;
 }
 
 void package_done()
 {
-  list_free( search, NULL );
+  list_free(search, NULL);
   search = NULL;
 }

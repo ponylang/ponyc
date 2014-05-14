@@ -18,7 +18,8 @@ static void* string_dup(const void* a)
 
 const char* stringtab(const char* string)
 {
-  if( string == NULL ) return NULL;
+  if(string == NULL)
+    return NULL;
 
   if(table == NULL)
     table = table_create(4096, strhash, string_cmp, string_dup, free);

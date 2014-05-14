@@ -10,7 +10,7 @@ typedef struct source_t
   size_t len;
 } source_t;
 
-source_t* source_open( const char* file );
-void source_close( source_t* source );
+source_t* source_open(const char* file);
+void source_close(source_t* source);
 
 #endif
