@@ -315,10 +315,7 @@ ast_t* package_load(ast_t* from, const char* path)
   printf("=== Building %s ===\n", name);
 
   if(!do_path(package, name))
-  {
-    ast_free(package);
     return NULL;
-  }
 
   return package;
 }

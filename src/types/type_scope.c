@@ -45,9 +45,12 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
  * Import a package, either with a qualifying name or by merging it into the
  * current scope.
  */
-static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
+static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
 {
   ast_t* package = package_load(ast, path);
+
+  if(package == ast)
+    return package;
 
   if(package == NULL)
   {
@@ -57,8 +60,7 @@ static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
 
   if(!typecheck(package))
   {
-    ast_error(ast, "can't load package '%s'", path);
-    ast_free(package);
+    ast_error(ast, "can't typecheck package '%s'", path);
     return NULL;
   }
 
@@ -66,12 +68,10 @@ static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
   {
     assert(ast_id(name) == TK_ID);
 
-    if(set_scope(ast, name, package, false))
-    {
-      return package;
-    } else {
+    if(!set_scope(ast, name, package, false))
       return NULL;
-    }
+
+    return package;
   }
 
   if(!ast_merge(ast, package))
@@ -93,15 +93,15 @@ bool type_scope(ast_t* ast)
 {
   switch(ast_id(ast))
   {
-    case TK_PROGRAM:
-      return use_package(ast, "builtin", NULL) != NULL;
+    case TK_PACKAGE:
+      return use_package(ast, NULL, "builtin") != NULL;
 
     case TK_USE:
     {
       ast_t* path = ast_child(ast);
       ast_t* name = ast_sibling(path);
 
-      return use_package(ast, ast_name(path), name) != NULL;
+      return use_package(ast, name, ast_name(path)) != NULL;
     }
 
     case TK_TYPE:

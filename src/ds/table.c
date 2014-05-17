@@ -1,5 +1,6 @@
 #include "table.h"
 #include "list.h"
+#include "hash.h"
 #include <stdlib.h>
 
 struct table_t
@@ -8,20 +9,7 @@ struct table_t
   list_t** node;
 };
 
-static int next_pow2(int v)
-{
-  v--;
-
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-
-  return v + 1;
-}
-
-table_t* table_create(int size)
+table_t* table_create(size_t size)
 {
   table_t* table = malloc(sizeof(table_t));
   table->size = next_pow2(size);

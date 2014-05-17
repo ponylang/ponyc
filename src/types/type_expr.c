@@ -51,7 +51,7 @@ bool type_expr(ast_t* ast)
     case TK_DIVIDE:
     case TK_MOD:
     case TK_PLUS:
-      // FIX:
+      // FIX: matching number types
       break;
 
     case TK_MINUS:

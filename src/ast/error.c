@@ -49,13 +49,16 @@ void print_errors()
 
   while(e != NULL)
   {
-    printf("%s:", e->file);
-
-    if(e->line != 0)
+    if(e->file != NULL)
     {
-      printf("%ld:%ld: ", e->line, e->pos);
-    } else {
-      printf(" ");
+      printf("%s:", e->file);
+
+      if(e->line != 0)
+      {
+        printf("%ld:%ld: ", e->line, e->pos);
+      } else {
+        printf(" ");
+      }
     }
 
     printf("%s\n", e->msg);
@@ -77,19 +80,20 @@ void print_errors()
 void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap)
 {
-  assert(source != NULL);
-
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
   error_t* e = calloc(1, sizeof(error_t));
-  e->file = stringtab(source->file);
+
+  if(source != NULL)
+    e->file = source->file;
+
   e->line = line;
   e->pos = pos;
   e->msg = stringtab(buf);
   add_error(e);
 
-  if(line != 0)
+  if((source != NULL) && (line != 0))
   {
     size_t tline = 1;
     size_t tpos = 0;
@@ -123,17 +127,21 @@ void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
   va_end(ap);
 }
 
-void errorf(const char* file, const char* fmt, ...)
+void errorfv(const char* file, const char* fmt, va_list ap)
 {
   char buf[LINE_LEN];
-
-  va_list ap;
-  va_start(ap, fmt);
   vsnprintf(buf, LINE_LEN, fmt, ap);
-  va_end(ap);
 
   error_t* e = calloc(1, sizeof(error_t));
   e->file = stringtab(file);
   e->msg = stringtab(buf);
   add_error(e);
+}
+
+void errorf(const char* file, const char* fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  errorfv(file, fmt, ap);
+  va_end(ap);
 }

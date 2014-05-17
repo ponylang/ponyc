@@ -4,28 +4,33 @@
 #include <stdlib.h>
 #include <string.h>
 
-bool str_cmp(const char* a, const char* b)
+static bool ptr_cmp(const char* a, const char* b)
 {
   return a == b;
 }
 
-uint64_t str_hash(const char* a)
+static uint64_t ptr_hash(const char* a)
 {
   return ptrhash(a);
 }
 
-const char* str_dup(const char* a)
+static bool str_cmp(const char* a, const char* b)
+{
+  return !strcmp(a, b);
+}
+
+static const char* str_dup(const char* a)
 {
   return strdup(a);
 }
 
-void str_free(const char* a)
+static void str_free(const char* a)
 {
   free((char*)a);
 }
 
-DEFINE_LIST(strlist, const char, str_hash, str_cmp, NULL);
-DEFINE_TABLE(strtable, const char, str_hash, str_cmp, str_dup, str_free);
+DEFINE_LIST(strlist, const char, ptr_hash, ptr_cmp, NULL);
+DEFINE_TABLE(strtable, const char, strhash, str_cmp, str_dup, str_free);
 
 static strtable_t* table;
 

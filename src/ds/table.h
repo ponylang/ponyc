@@ -2,10 +2,11 @@
 #define TABLE_H
 
 #include "functions.h"
+#include <stddef.h>
 
 typedef struct table_t table_t;
 
-table_t* table_create(int size);
+table_t* table_create(size_t size);
 
 bool table_merge(table_t* dst, table_t* src,
   hash_fn hash, cmp_fn cmp, dup_fn dup);

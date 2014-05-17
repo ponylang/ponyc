@@ -14,4 +14,6 @@ uint64_t ptrhash(const void* p);
 
 uint64_t inthash(uint64_t key);
 
+size_t next_pow2(size_t v);
+
 #endif

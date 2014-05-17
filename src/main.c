@@ -69,10 +69,7 @@ int main(int argc, char** argv)
 
   ast_t* program = program_load((argc > 0) ? argv[0] : ".");
 
-  if(program == NULL)
-    ret = -1;
-
-  if(!typecheck(program))
+  if((program == NULL) || !typecheck(program))
     ret = -1;
 
   if(ast)

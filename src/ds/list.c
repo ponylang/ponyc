@@ -1,5 +1,6 @@
 #include "list.h"
 #include <stdlib.h>
+#include <assert.h>
 
 struct list_t
 {

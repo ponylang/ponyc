@@ -1,27 +1,13 @@
 #include "types.h"
+#include "cap.h"
+#include "function.h"
 #include "../ds/hash.h"
 #include "../ds/stringtab.h"
-#include "../ds/list.h"
 #include "../ds/table.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#define POINTER_ERROR ((void*)-1)
-
-typedef enum
-{
-  K_NONE,
-  K_NEW,
-  K_BE,
-  K_ISO,
-  K_TRN,
-  K_MUT,
-  K_IMM,
-  K_BOX,
-  K_TAG
-} cap_id;
 
 typedef enum
 {
@@ -41,33 +27,12 @@ typedef enum
 } type_ok;
 
 typedef struct type_t type_t;
-static uint64_t type_hash(type_t* t);
 static bool type_cmp(type_t* a, type_t* b);
 static type_t* type_dup(type_t* data);
 static void type_free(type_t* t);
 
 DEFINE_LIST(typelist, type_t, type_hash, type_cmp, NULL);
 DEFINE_TABLE(typetab, type_t, type_hash, type_cmp, type_dup, type_free);
-
-typedef struct function_t function_t;
-static bool function_cmp(function_t* a, function_t* b);
-static uint64_t function_hash(function_t* f);
-static function_t* function_dup(function_t* f);
-static void function_free(function_t* f);
-
-DEFINE_LIST(funlist, function_t, function_hash, function_cmp, function_free);
-DEFINE_TABLE(funtab, function_t, function_hash, function_cmp, function_dup,
-  function_free);
-
-typedef struct function_t
-{
-  cap_id cap;
-  const char* name;
-  typelist_t* type_params;
-  typelist_t* params;
-  type_t* result;
-  bool throws;
-} function_t;
 
 typedef struct structural_t
 {
@@ -106,95 +71,6 @@ struct type_t
 };
 
 static typetab_t* type_table;
-static funtab_t* fun_table;
-
-static bool cap_sub(cap_id a, cap_id b)
-{
-  return (a >= K_ISO) && (b >= a) && (a != K_MUT || b != K_IMM);
-}
-
-static bool function_cmp(function_t* a, function_t* b)
-{
-  return (a->cap == b->cap) && (a->name == b->name) &&
-    typelist_equals(a->type_params, b->type_params) &&
-    typelist_equals(a->params, b->params) &&
-    type_eq(a->result, b->result) &&
-    (a->throws == b->throws);
-}
-
-static uint64_t function_hash(function_t* f)
-{
-  uint64_t h = inthash(f->cap);
-  h ^= strhash(f->name);
-  h ^= typelist_hash(f->type_params);
-  h ^= typelist_hash(f->params);
-  h ^= type_hash(f->result);
-  h ^= inthash(f->throws);
-
-  return h;
-}
-
-static function_t* function_dup(function_t* f)
-{
-  return f;
-}
-
-static void function_free(function_t* f)
-{
-  if(f == NULL)
-    return;
-
-  typelist_free(f->type_params);
-  typelist_free(f->params);
-}
-
-static function_t* function_new()
-{
-  function_t* f = calloc(1, sizeof(function_t));
-  return f;
-}
-
-static function_t* function_store(function_t* f)
-{
-  if(fun_table == NULL)
-    fun_table = funtab_create(4096);
-
-  bool present;
-  function_t* found = funtab_insert(fun_table, f, &present);
-
-  if(present)
-    function_free(f);
-
-  return found;
-}
-
-static uint64_t type_hash(type_t* t)
-{
-  uint64_t h = inthash(t->cap);
-  h ^= inthash(t->ephemeral);
-
-  switch(t->id)
-  {
-    case T_NOMINAL:
-      h ^= strhash(ast_name(ast_child(t->n.ast)));
-      h ^= typelist_hash(t->n.type_params);
-      h ^= strlist_hash(t->n.origin);
-      break;
-
-    case T_STRUCTURAL:
-      h ^= funlist_hash(t->s.functions);
-      break;
-
-    case T_UNION:
-    case T_ISECT:
-    case T_TUPLE:
-      h ^= type_hash(t->e.left);
-      h ^= type_hash(t->e.right);
-      break;
-  }
-
-  return h;
-}
 
 static bool nominal_eq(type_t* a, type_t* b)
 {
@@ -281,12 +157,12 @@ static void type_free(type_t* t)
   free(t);
 }
 
-static type_t* type_new(type_id id)
-{
-  type_t* type = calloc(1, sizeof(type_t));
-  type->id = id;
-  return type;
-}
+// static type_t* type_new(type_id id)
+// {
+//   type_t* type = calloc(1, sizeof(type_t));
+//   type->id = id;
+//   return type;
+// }
 
 static type_t* type_store(type_t* type)
 {
@@ -691,17 +567,6 @@ static bool obj_valid(ast_t* ast, type_t* type)
 }
 #endif
 
-static bool function_eq(function_t* a, function_t* b)
-{
-  return a == b;
-}
-
-static bool function_sub(function_t* a, function_t* b)
-{
-  // FIX:
-  return false;
-}
-
 static bool structural_sub(type_t* a, type_t* b)
 {
   // FIX:
@@ -865,6 +730,34 @@ bool type_sub(type_t* a, type_t* b)
   }
 
   return false;
+}
+
+uint64_t type_hash(type_t* t)
+{
+  uint64_t h = inthash(t->cap);
+  h ^= inthash(t->ephemeral);
+
+  switch(t->id)
+  {
+    case T_NOMINAL:
+      h ^= strhash(ast_name(ast_child(t->n.ast)));
+      h ^= typelist_hash(t->n.type_params);
+      h ^= strlist_hash(t->n.origin);
+      break;
+
+    case T_STRUCTURAL:
+      h ^= funlist_hash(t->s.functions);
+      break;
+
+    case T_UNION:
+    case T_ISECT:
+    case T_TUPLE:
+      h ^= type_hash(t->e.left);
+      h ^= type_hash(t->e.right);
+      break;
+  }
+
+  return h;
 }
 
 void type_done()

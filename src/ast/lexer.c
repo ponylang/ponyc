@@ -24,13 +24,13 @@ struct lexer_t
   size_t alloc;
 };
 
-typedef struct symbol_t
+typedef struct lexsym_t
 {
   const char* symbol;
   token_id id;
-} symbol_t;
+} lexsym_t;
 
-static const symbol_t symbols2[] =
+static const lexsym_t symbols2[] =
 {
   { "=>", TK_ARROW },
 
@@ -46,7 +46,7 @@ static const symbol_t symbols2[] =
   { NULL, 0 }
 };
 
-static const symbol_t symbols1[] =
+static const lexsym_t symbols1[] =
 {
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
@@ -84,7 +84,7 @@ static const symbol_t symbols1[] =
   { NULL, 0 }
 };
 
-static const symbol_t keywords[] =
+static const lexsym_t keywords[] =
 {
   { "use", TK_USE },
   { "type", TK_TYPE },
@@ -140,7 +140,7 @@ static const symbol_t keywords[] =
   { NULL, 0 }
 };
 
-static const symbol_t abstract[] =
+static const lexsym_t abstract[] =
 {
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
@@ -924,7 +924,7 @@ static token_t* identifier(lexer_t* lexer)
   read_id(lexer);
   append(lexer, '\0');
 
-  for(const symbol_t* p = keywords; p->symbol != NULL; p++)
+  for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->symbol))
     {
@@ -953,7 +953,7 @@ static token_t* symbol(lexer_t* lexer)
 
     if(issymbol(sym[1]))
     {
-      for(const symbol_t* p = symbols2; p->symbol != NULL; p++)
+      for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
       {
         if((sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]))
         {
@@ -965,7 +965,7 @@ static token_t* symbol(lexer_t* lexer)
     }
   }
 
-  for(const symbol_t* p = symbols1; p->symbol != NULL; p++)
+  for(const lexsym_t* p = symbols1; p->symbol != NULL; p++)
   {
     if(sym[0] == p->symbol[0])
     {
@@ -1094,25 +1094,25 @@ const char* token_string(token_t* token)
   default: {}
   }
 
-  for(const symbol_t* p = abstract; p->symbol != NULL; p++)
+  for(const lexsym_t* p = abstract; p->symbol != NULL; p++)
   {
     if(token->id == p->id)
       return p->symbol;
   }
 
-  for(const symbol_t* p = keywords; p->symbol != NULL; p++)
+  for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
     if(token->id == p->id)
       return p->symbol;
   }
 
-  for(const symbol_t* p = symbols1; p->symbol != NULL; p++)
+  for(const lexsym_t* p = symbols1; p->symbol != NULL; p++)
   {
     if(token->id == p->id)
       return p->symbol;
   }
 
-  for(const symbol_t* p = symbols2; p->symbol != NULL; p++)
+  for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
   {
     if(token->id == p->id)
       return p->symbol;

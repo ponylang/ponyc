@@ -16,14 +16,14 @@ static uint64_t sym_hash(symbol_t* sym)
 
 static bool sym_cmp(symbol_t* a, symbol_t* b)
 {
-  return a->name == a->name;
+  return a->name == b->name;
 }
 
-static symbol_t* sym_dup(symbol_t* data)
+static symbol_t* sym_dup(symbol_t* sym)
 {
   symbol_t* s = malloc(sizeof(symbol_t));
-  s->name = data->name;
-  s->value = data->value;
+  s->name = sym->name;
+  s->value = sym->value;
 
   return s;
 }
