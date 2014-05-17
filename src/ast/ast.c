@@ -1,6 +1,5 @@
 #include "ast.h"
 #include "symtab.h"
-#include "types.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,7 +9,7 @@
 struct ast_t
 {
   token_t* t;
-  table_t* symtab;
+  symtab_t* symtab;
   void* data;
 
   struct ast_t* parent;
@@ -255,7 +254,7 @@ bool ast_merge(ast_t* dst, ast_t* src)
   while(dst->symtab == NULL)
     dst = dst->parent;
 
-  return table_merge(dst->symtab, src->symtab);
+  return symtab_merge(dst->symtab, src->symtab);
 }
 
 void ast_add(ast_t* parent, ast_t* child)
@@ -320,6 +319,9 @@ void ast_reverse(ast_t* ast)
 
 void ast_print(ast_t* ast, size_t width)
 {
+  if(ast == NULL)
+    return;
+
   print(ast, 0, width);
   printf("\n");
 }
@@ -350,7 +352,7 @@ void ast_free(ast_t* ast)
   }
 
   token_free(ast->t);
-  table_free(ast->symtab);
+  symtab_free(ast->symtab);
 }
 
 void ast_error(ast_t* ast, const char* fmt, ...)

@@ -59,7 +59,7 @@ void* list_find(list_t* list, cmp_fn f, const void* data)
 {
   while(list != NULL)
   {
-    if(f(data, list->data))
+    if(f((void*)data, list->data))
       return list->data;
 
     list = list->next;
@@ -95,11 +95,11 @@ bool list_equals(list_t* a, list_t* b, cmp_fn f)
   return b == NULL;
 }
 
-bool list_test(list_t* list, pred_fn f, void* arg)
+bool list_test(list_t* list, pred_fn f, const void* arg)
 {
   while(list != NULL)
   {
-    if(!f(arg, list))
+    if(!f((void*)arg, list->data))
       return false;
 
     list = list->next;
@@ -108,33 +108,50 @@ bool list_test(list_t* list, pred_fn f, void* arg)
   return true;
 }
 
-list_t* list_map(list_t* list, map_fn f, void* arg)
+list_t* list_map(list_t* list, map_fn f, const void* arg)
 {
   list_t* to = NULL;
 
   while(list != NULL)
   {
-    to = list_append(to, f(arg, list));
+    to = list_push(to, f((void*)arg, list->data));
     list = list->next;
+  }
+
+  return list_reverse(to);
+}
+
+list_t* list_reverse(list_t* list)
+{
+  list_t* to = NULL;
+
+  while(list)
+  {
+    list_t* next = list->next;
+    list->next = to;
+    to = list;
+    list = next;
   }
 
   return to;
 }
 
-uint64_t list_hash(list_t* list, hash_fn f, uint64_t seed)
+uint64_t list_hash(list_t* list, hash_fn f)
 {
+  uint64_t h = 0;
+
   while(list != NULL)
   {
-    seed ^= f(list->data);
+    h ^= f(list->data);
     list = list->next;
   }
 
-  return seed;
+  return h;
 }
 
-int list_length(list_t* list)
+size_t list_length(list_t* list)
 {
-  int len = 0;
+  size_t len = 0;
 
   while(list != NULL)
   {

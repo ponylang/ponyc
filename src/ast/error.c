@@ -1,5 +1,5 @@
 #include "error.h"
-#include "stringtab.h"
+#include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

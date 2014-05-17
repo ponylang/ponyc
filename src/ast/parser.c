@@ -2,8 +2,6 @@
 #include <stdio.h>
 
 // forward declarations
-DECL(typedecl);
-DECL(typeexpr);
 DECL(type);
 DECL(rawseq);
 DECL(seq);
@@ -16,10 +14,13 @@ static int precedence(token_id id)
   switch(id)
   {
     // type operators
-    case TK_PIPE:
+    case TK_ISECTTYPE:
+      return 30;
+
+    case TK_UNIONTYPE:
       return 20;
 
-    case TK_COMMA:
+    case TK_TUPLETYPE:
       return 10;
 
     // postfix operators
@@ -158,13 +159,12 @@ DEF(newtype);
   OPTIONAL(TK_QUESTION);
   DONE();
 
-// (LBRACE | LBRACE_NEW) {newtype | funtype | betype} RBRACE [CAP]
+// (LBRACE | LBRACE_NEW) {newtype | funtype | betype} RBRACE
 DEF(structural);
   SKIP(TK_LBRACE, TK_LBRACE_NEW);
   AST(TK_STRUCTURAL);
   SEQRULE(newtype, funtype, betype);
   SKIP(TK_RBRACE);
-  OPTIONAL(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG, TK_ID, TK_THIS);
   DONE();
 
 // (ID | THIS) {DOT (ID | THIS)}
@@ -175,47 +175,54 @@ DEF(typename);
   WHILETOKEN(TK_DOT, TK_ID, TK_THIS);
   DONE();
 
-// typename [typeargs] [CAP]
+// typename [typeargs]
 DEF(nominal);
   CHECK(TK_ID, TK_THIS);
   AST(TK_NOMINAL);
   RULE(typename);
   OPTRULE(typeargs);
-  OPTIONAL(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG, TK_ID, TK_THIS);
   DONE();
 
-// typeexpr | nominal | structural | typedecl
-DEF(typebase);
-  AST_RULE(typeexpr, nominal, structural, typedecl);
-  DONE();
-
-// COMMA typebase
+// COMMA type
 DEF(tupletype);
   SKIP(TK_COMMA);
   AST(TK_TUPLETYPE);
-  RULE(typebase);
+  RULE(type);
   DONE();
 
-// PIPE typebase
+// PIPE type
 DEF(uniontype);
   SKIP(TK_PIPE);
   AST(TK_UNIONTYPE);
-  RULE(typebase);
+  RULE(type);
   DONE();
 
-// (LPAREN | LPAREN_NEW) typebase {uniontype | tupletype} RPAREN [CAP]
+// AMP type
+DEF(isecttype);
+  SKIP(TK_AMP);
+  AST(TK_ISECTTYPE);
+  RULE(type);
+  DONE();
+
+// (LPAREN | LPAREN_NEW) type {uniontype | isecttype | tupletype} RPAREN
 DEF(typeexpr);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  AST_RULE(typebase);
-  BINDOP(uniontype, tupletype);
+  AST_RULE(type);
+  BINDOP(uniontype, isecttype, tupletype);
   SKIP(TK_RPAREN);
-  OPTIONAL(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG, TK_ID, TK_THIS);
   DONE();
 
-// typebase [HAT]
+// FIX: add typedecl for "enum" types?
+// typeexpr | nominal | structural
+DEF(typebase);
+  AST_RULE(typeexpr, nominal, structural);
+  DONE();
+
+// typebase [CAP] [HAT]
 DEF(type);
-  AST(TK_TYPE);
+  AST(TK_TYPEDEF);
   RULE(typebase);
+  OPTIONAL(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG);
   OPTIONAL(TK_HAT);
   DONE();
 
@@ -575,25 +582,15 @@ DEF(members);
   SEQRULE(function);
   DONE();
 
-// (TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
+// (TYPE | TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
 DEF(class);
-  AST_TOKEN(TK_TRAIT, TK_CLASS, TK_ACTOR);
+  AST_TOKEN(TK_TYPE, TK_TRAIT, TK_CLASS, TK_ACTOR);
   SCOPE();
   EXPECT(TK_ID);
   OPTRULE(typeparams);
   OPTIONAL(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG);
   IFRULE(TK_IS, types);
   RULE(members);
-  DONE();
-
-// TYPE ID [typeparams] [COLON (typeexpr | nominal | structural | typedecl)]
-DEF(typedecl);
-  SKIP(TK_TYPE);
-  AST(TK_TYPEDECL);
-  SCOPE();
-  EXPECT(TK_ID);
-  OPTRULE(typeparams);
-  IFRULE(TK_COLON, typeexpr, nominal, structural, typedecl);
   DONE();
 
 // USE STRING [AS ID]
@@ -603,11 +600,12 @@ DEF(use);
   IFTOKEN(TK_AS, TK_ID);
   DONE();
 
-// {use | typedecl | trait | class | actor}
+// {use} {class}
 DEF(module);
   AST(TK_MODULE);
   SCOPE();
-  SEQRULE(use, typedecl, class);
+  SEQRULE(use);
+  SEQRULE(class);
   SKIP(TK_EOF);
   DONE();
 

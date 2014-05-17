@@ -1,7 +1,7 @@
 #ifndef TYPECHECKER_H
 #define TYPECHECKER_H
 
-#include "ast.h"
+#include "../ast/ast.h"
 
 /// Type check
 bool typecheck(ast_t* ast);

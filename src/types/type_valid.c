@@ -8,10 +8,7 @@ bool type_valid(ast_t* ast)
 {
   switch(ast_id(ast))
   {
-    case TK_TYPEDECL:
-      // FIX: prevent circular definition
-      break;
-
+    case TK_TYPE:
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:

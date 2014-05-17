@@ -5,8 +5,8 @@ class Scheduler
 
   fun mut run() =>
     while True do
-      var actor = getnext()
-      if actor.run() then queue.push_back(actor) end
+      var act = getnext()
+      if act.run() then queue.push_back(act) end
     end
 
   fun mut getnext(): Actor =>

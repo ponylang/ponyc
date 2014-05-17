@@ -1,7 +1,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "ast.h"
+#include "../ast/ast.h"
 #include <stdbool.h>
 
 typedef struct type_t type_t;

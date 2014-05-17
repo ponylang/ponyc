@@ -6,7 +6,7 @@ solution "ponyc"
     }
 
   buildoptions {
-    "-std=gnu99",
+    "-std=gnu11",
     "-march=native",
     }
 
@@ -52,5 +52,5 @@ solution "ponyc"
   project "ponyc"
     kind "ConsoleApp"
     language "C"
-    files "src/*.c"
+    files "src/**.c"
     links "m"

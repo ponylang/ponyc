@@ -18,24 +18,24 @@ class Array[A] is Iterable[A]
   fun mut update(i: U64, v: A): this.A^ =>
     if i < size then ptr(i) = v else v end
 
-  fun mut reserve(len: U64): Array[A] this =>
+  fun mut reserve(len: U64): Array[A] mut^ =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
       ptr = POINTER[A].from(ptr, alloc)
     end
     this
 
-  fun mut clear(): Array[A] this =>
+  fun mut clear(): Array[A] mut^ =>
     size = 0
     this
 
-  fun mut append(v: A): Array[A] this =>
+  fun mut append(v: A): Array[A] mut^ =>
     reserve(size + 1)
     ptr(size) = v
     size = size + 1
     this
 
-  fun mut concat(iter: Iterable[A] mut): Array[A] this =>
+  fun mut concat(iter: Iterable[A] mut): Array[A] mut^ =>
     for v in iter do append(v) end
     this
 

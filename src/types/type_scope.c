@@ -1,6 +1,6 @@
 #include "type_scope.h"
-#include "package.h"
 #include "typechecker.h"
+#include "../pkg/package.h"
 #include <assert.h>
 
 /**
@@ -55,6 +55,13 @@ static ast_t* use_package(ast_t* ast, const char* path, ast_t* name)
     return NULL;
   }
 
+  if(!typecheck(package))
+  {
+    ast_error(ast, "can't load package '%s'", path);
+    ast_free(package);
+    return NULL;
+  }
+
   if(name)
   {
     assert(ast_id(name) == TK_ID);
@@ -97,7 +104,7 @@ bool type_scope(ast_t* ast)
       return use_package(ast, ast_name(path), name) != NULL;
     }
 
-    case TK_TYPEDECL:
+    case TK_TYPE:
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:

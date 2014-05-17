@@ -1,7 +1,7 @@
-#include "package.h"
-#include "stringtab.h"
-#include "types.h"
-#include "typechecker.h"
+#include "types/types.h"
+#include "types/typechecker.h"
+#include "pkg/package.h"
+#include "ds/stringtab.h"
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,6 +14,7 @@
 static struct option opts[] =
 {
   {"ast", no_argument, NULL, 'a'},
+  {"path", required_argument, NULL, 'p'},
   {"width", required_argument, NULL, 'w'},
   {NULL, 0, NULL, 0},
 };
@@ -23,6 +24,7 @@ void usage()
   printf(
     "ponyc [OPTIONS] <file>\n"
     "  --ast, -a     print the AST\n"
+    "  --path, -p    add additional colon separated search paths\n"
     "  --width, -w   width to target when printing the AST\n"
     );
 }
@@ -54,6 +56,7 @@ int main(int argc, char** argv)
     switch(c)
     {
       case 'a': ast = true; break;
+      case 'p': package_paths(optarg); break;
       case 'w': width = atoi(optarg); break;
       default: usage(); return -1;
     }
@@ -62,18 +65,17 @@ int main(int argc, char** argv)
   argc -= optind;
   argv += optind;
 
-  const char* target = ".";
-  if(argc > 0) target = argv[0];
-
-  ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
-  ast_scope(program);
-
   int ret = 0;
 
-  if(!package_load(program, target))
+  ast_t* program = program_load((argc > 0) ? argv[0] : ".");
+
+  if(program == NULL)
     ret = -1;
 
-  if(ast && (ret == 0))
+  if(!typecheck(program))
+    ret = -1;
+
+  if(ast)
     ast_print(program, width);
 
   /* FIX:
@@ -91,5 +93,5 @@ int main(int argc, char** argv)
   package_done();
   stringtab_done();
 
-  return ret;
+  return (program != NULL) ? 0 : -1;
 }

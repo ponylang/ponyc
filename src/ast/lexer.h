@@ -53,6 +53,7 @@ typedef enum
   TK_NE,
 
   TK_PIPE,
+  TK_AMP,
   TK_QUESTION,
 
   TK_LBRACE_NEW,
@@ -116,7 +117,7 @@ typedef enum
   TK_PROGRAM,
   TK_PACKAGE,
   TK_MODULE,
-  TK_TYPEDECL,
+  TK_TYPEDEF,
 
   TK_MEMBERS,
   TK_FVAR,
@@ -126,6 +127,7 @@ typedef enum
   TK_TYPENAME,
 
   TK_UNIONTYPE,
+  TK_ISECTTYPE,
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_STRUCTURAL,

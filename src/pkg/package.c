@@ -1,9 +1,8 @@
 #include "package.h"
-#include "list.h"
-#include "parser.h"
-#include "ast.h"
-#include "stringtab.h"
-#include "typechecker.h"
+#include "../ast/source.h"
+#include "../ast/parser.h"
+#include "../ast/ast.h"
+#include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -15,7 +14,7 @@
 
 #define EXTENSION ".pony"
 
-static list_t* search;
+static strlist_t* search;
 
 static bool filepath(const char *file, char* path)
 {
@@ -129,6 +128,7 @@ static bool do_path(ast_t* package, const char* path)
         break;
 
       case ENOTDIR:
+        // FIX: make this an error?
         return do_file(package, path);
 
       default:
@@ -210,16 +210,16 @@ static const char* find_path(ast_t* from, const char* path)
   }
 
   // try the search paths
-  list_t* p = search;
+  strlist_t* p = search;
 
   while(p != NULL)
   {
-    result = try_path(list_data(p), path);
+    result = try_path(strlist_data(p), path);
 
     if(result != NULL)
       return result;
 
-    p = list_next(p);
+    p = strlist_next(p);
   }
 
   errorf(path, "couldn't locate this path");
@@ -241,38 +241,57 @@ void package_init(const char* name)
   if(execpath(name, path))
   {
     strcat(path, "/packages");
-    search = list_push(search, stringtab(path));
+    search = strlist_push(search, stringtab(path));
   }
 
-  const char* env = getenv("PONYPATH");
+  package_paths(getenv("PONYPATH"));
+}
 
-  if(env == NULL)
+void package_paths(const char* paths)
+{
+  if(paths == NULL)
     return;
 
   while(true)
   {
-    char* p = strchr(env, ':');
+    char* p = strchr(paths, ':');
     size_t len;
 
     if(p != NULL)
     {
-      len = p - env;
+      len = p - paths;
     } else {
-      len = strlen(env);
+      len = strlen(paths);
     }
 
     if(len < FILENAME_MAX)
     {
-      strncpy(path, env, len);
+      char path[FILENAME_MAX];
+
+      strncpy(path, paths, len);
       path[len] = '\0';
-      search = list_push(search, stringtab(path));
+      search = strlist_push(search, stringtab(path));
     }
 
     if(p == NULL)
       break;
 
-    env = p + 1;
+    paths = p + 1;
   }
+}
+
+ast_t* program_load(const char* path)
+{
+  ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
+  ast_scope(program);
+
+  if(package_load(program, path) == NULL)
+  {
+    ast_free(program);
+    program = NULL;
+  }
+
+  return program;
 }
 
 ast_t* package_load(ast_t* from, const char* path)
@@ -296,10 +315,10 @@ ast_t* package_load(ast_t* from, const char* path)
   printf("=== Building %s ===\n", name);
 
   if(!do_path(package, name))
+  {
+    ast_free(package);
     return NULL;
-
-  if(!typecheck(package))
-    return NULL;
+  }
 
   return package;
 }
@@ -309,6 +328,6 @@ ast_t* package_load(ast_t* from, const char* path)
  */
 void package_done()
 {
-  list_free(search, NULL);
+  strlist_free(search);
   search = NULL;
 }

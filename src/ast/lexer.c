@@ -1,5 +1,5 @@
 #include "lexer.h"
-#include "stringtab.h"
+#include "../ds/stringtab.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -73,6 +73,7 @@ static const symbol_t symbols1[] =
   { ">", TK_GT },
 
   { "|", TK_PIPE },
+  { "&", TK_AMP },
   { "?", TK_QUESTION },
 
   { "{", TK_LBRACE_NEW },
@@ -144,7 +145,7 @@ static const symbol_t abstract[] =
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
-  { "typedecl", TK_TYPEDECL },
+  { "typedef", TK_TYPEDEF },
 
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
@@ -154,6 +155,7 @@ static const symbol_t abstract[] =
   { "typename", TK_TYPENAME },
 
   { "uniontype", TK_UNIONTYPE },
+  { "isecttype", TK_ISECTTYPE },
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "structural", TK_STRUCTURAL },

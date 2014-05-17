@@ -1,6 +1,6 @@
 #include "source.h"
-#include "stringtab.h"
 #include "error.h"
+#include "../ds/stringtab.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>

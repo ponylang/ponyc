@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  (use | class_ | typedecl)*
+  :  use* class_*
   ;
 
 use
@@ -17,7 +17,7 @@ use
   ;
 
 class_
-  :  ('actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
+  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
   ;
 
 members
@@ -40,10 +40,6 @@ behaviour
   :  'be' ID type_params? params body?
   ;
 
-typedecl
-  :  'type' ID type_params? (':' type_expr)?
-  ;
-
 oftype
   :  ':' type
   ;
@@ -53,14 +49,14 @@ types
   ;
 
 type
-  :  type_expr '^'? // ephemeral types
+  :  type_expr cap? '^'? // ephemeral types
   ;
 
 type_expr
-  :  '(' type_expr (typeop type_expr)* ')' cap? // ADT or tuple
-  |  ID ('.' ID)* type_args? cap? // nominal type
-  |  '{' fun_type* '}' cap? // structural type
-  |  typedecl // nested type definition
+  :  '(' type (typeop type)* ')' // ADT or tuple
+  |  ID ('.' ID)* type_args? // nominal type
+  |  '{' fun_type* '}' // structural type
+//  |  'type' ID // FIX: nested type definition for enums?
   ;
 
 typeop
@@ -85,8 +81,10 @@ type_args
   :  '@[' type (',' type)* ']'
   ;
 
+// FIX: if an ID is a possible cap, a delimiter is needed
 cap
   :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
+//  :  ':' ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag' | ID)
   ;
 
 params

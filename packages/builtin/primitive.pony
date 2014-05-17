@@ -2,7 +2,11 @@ trait Any
 
 type None
 
-type Bool: (type True | type False)
+type True
+
+type False
+
+type Bool is (True | False)
 
 class I8
 
