@@ -285,7 +285,9 @@ ast_t* program_load(const char* path)
   ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
   ast_scope(program);
 
-  if(package_load(program, path) == NULL)
+  bool init;
+
+  if(package_load(program, path, &init) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -294,7 +296,7 @@ ast_t* program_load(const char* path)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path)
+ast_t* package_load(ast_t* from, const char* path, bool* init)
 {
   const char* name = find_path(from, path);
 
@@ -305,7 +307,10 @@ ast_t* package_load(ast_t* from, const char* path)
   ast_t* package = ast_get(program, name);
 
   if(package != NULL)
+  {
+    *init = false;
     return package;
+  }
 
   package = ast_new(TK_PACKAGE, 0, 0, (void*)name);
   ast_scope(package);
@@ -317,6 +322,7 @@ ast_t* package_load(ast_t* from, const char* path)
   if(!do_path(package, name))
     return NULL;
 
+  *init = true;
   return package;
 }
 

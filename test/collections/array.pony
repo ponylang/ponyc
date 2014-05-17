@@ -39,7 +39,7 @@ class Array[A] is Iterable[A]
     for v in iter do append(v) end
     this
 
-  fun box iterator(): ArrayIterator[A, Array[A] this] mut^ =>
+  fun box iterator(): ArrayIterator[A, this.Array[A]] mut^ =>
     ArrayIterator(this)
 
 class ArrayIterator[A, B:Array[A] box] is Iterator[A]
