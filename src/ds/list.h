@@ -20,7 +20,7 @@ void* list_data(list_t* list);
 
 void* list_find(list_t* list, cmp_fn f, const void* data);
 
-bool list_superset(list_t* list, list_t* sublist, cmp_fn f);
+bool list_subset(list_t* a, list_t* b, cmp_fn f);
 
 bool list_equals(list_t* a, list_t* b, cmp_fn f);
 
@@ -44,7 +44,7 @@ void list_free(list_t* list, free_fn f);
   name##_t* name##_index(name##_t* list, int index); \
   elem* name##_data(name##_t* list); \
   elem* name##_find(name##_t* list, elem* data); \
-  bool name##_superset(name##_t* list, name##_t* sub); \
+  bool name##_subset(name##_t* a, name##_t* b); \
   bool name##_equals(name##_t* a, name##_t* b); \
   bool name##_test(name##_t* list, name##_pred_fn f, void* arg); \
   name##_t* name##_map(name##_t* list, name##_map_fn f, void* arg); \
@@ -82,10 +82,10 @@ void list_free(list_t* list, free_fn f);
     name##_cmp_fn cmp = cmpf; \
     return (elem*)list_find((list_t*)list, (cmp_fn)cmp, data); \
   } \
-  bool name##_superset(name##_t* list, name##_t* sub) \
+  bool name##_subset(name##_t* a, name##_t* b) \
   { \
     name##_cmp_fn cmp = cmpf; \
-    return list_superset((list_t*)list, (list_t*)sub, (cmp_fn)cmp); \
+    return list_subset((list_t*)a, (list_t*)b, (cmp_fn)cmp); \
   } \
   bool name##_equals(name##_t* a, name##_t* b) \
   { \

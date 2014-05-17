@@ -128,8 +128,8 @@ static bool do_path(ast_t* package, const char* path)
         break;
 
       case ENOTDIR:
-        // FIX: make this an error?
-        return do_file(package, path);
+        errorf(path, "not a directory");
+        break;
 
       default:
         errorf(path, "unknown error");

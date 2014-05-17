@@ -4,6 +4,6 @@
 #include "ast.h"
 #include "source.h"
 
-ast_t* parser( source_t* source );
+ast_t* parser(source_t* source);
 
 #endif

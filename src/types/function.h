@@ -10,6 +10,8 @@ DECLARE_LIST(funlist, function_t);
 
 DECLARE_TABLE(funtab, function_t);
 
+bool funlist_sub(funlist_t* a, funlist_t* b);
+
 function_t* function_new();
 
 function_t* function_store(function_t* f);

@@ -5,7 +5,6 @@
 
 typedef enum
 {
-  K_NONE,
   K_NEW,
   K_BE,
   K_ISO,

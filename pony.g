@@ -17,7 +17,7 @@ use
   ;
 
 class_
-  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
+  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? members
   ;
 
 members
@@ -33,7 +33,7 @@ constructor
   ;
 
 function
-  :  'fun' cap ID type_params? params oftype? '?'? body?
+  :  'fun' raw_cap ID type_params? params oftype? '?'? body?
   ;
 
 behaviour
@@ -67,7 +67,7 @@ typeop
 // param list could just be a single type expression
 fun_type
   :  'new' ID? type_params? '(' types? ')' '?'?
-  |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
+  |  'fun' raw_cap ID? type_params? '(' types? ')' oftype? '?'?
   |  'be' ID? type_params? '(' types? ')'
   ;
 
@@ -83,8 +83,12 @@ type_args
 
 // FIX: if an ID is a possible cap, a delimiter is needed
 cap
+  :  ':' (raw_cap | ID) ('.' (raw_cap | ID))*
+  |  raw_cap
+  ;
+
+raw_cap
   :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
-//  :  ':' ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag' | ID)
   ;
 
 params

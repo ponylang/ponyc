@@ -60,6 +60,16 @@ static void function_free(function_t* f)
   typelist_free(f->params);
 }
 
+static bool function_sup(function_t* a, function_t* b)
+{
+  return function_sub(b, a);
+}
+
+bool funlist_sub(funlist_t* a, funlist_t* b)
+{
+  return list_subset((list_t*)a, (list_t*)b, (cmp_fn)function_sup);
+}
+
 function_t* function_new()
 {
   function_t* f = calloc(1, sizeof(function_t));
@@ -87,8 +97,17 @@ bool function_eq(function_t* a, function_t* b)
 
 bool function_sub(function_t* a, function_t* b)
 {
-  // FIX:
-  return false;
+  return
+    // accept at least the receivers
+    cap_sub(b->cap, a->cap) &&
+    // invariant type parameters
+    typelist_equals(a->type_params, b->type_params) &&
+    // contravariant parameters
+    typelist_sub(b->params, a->params) &&
+    // covariant result
+    type_sub(a->result, b->result) &&
+    // compatible throw
+    (!a->throws || b->throws);
 }
 
 void function_done()

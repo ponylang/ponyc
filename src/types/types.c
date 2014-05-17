@@ -44,7 +44,7 @@ typedef struct nominal_t
 {
   ast_t* ast;
   typelist_t* type_params;
-  strlist_t* origin;
+  typelist_t* traits;
   funlist_t* functions;
 } nominal_t;
 
@@ -74,14 +74,17 @@ static typetab_t* type_table;
 
 static bool nominal_eq(type_t* a, type_t* b)
 {
-  // FIX:
-  return false;
+  return
+    // same name
+    (a->n.ast == b->n.ast) &&
+    // invariant type params
+    typelist_equals(a->n.type_params, b->n.type_params);
 }
 
 static bool structural_eq(type_t* a, type_t* b)
 {
-  // FIX:
-  return false;
+  return funlist_subset(a->s.functions, b->s.functions) &&
+    funlist_subset(b->s.functions, a->s.functions);
 }
 
 static bool type_cmp(type_t* a, type_t* b)
@@ -115,16 +118,6 @@ static bool type_cmp(type_t* a, type_t* b)
   return false;
 }
 
-// static bool type_cmpsub(type_t* a, type_t* b)
-// {
-//   return type_sub(a, b);
-// }
-//
-// static bool type_cmpsup(void* arg, typelist_t* iter)
-// {
-//   return type_sub(typelist_data(iter), arg);
-// }
-
 static type_t* type_dup(type_t* data)
 {
   return data;
@@ -140,7 +133,7 @@ static void type_free(type_t* t)
   {
     case T_NOMINAL:
       typelist_free(t->n.type_params);
-      strlist_free(t->n.origin);
+      typelist_free(t->n.traits);
       funlist_free(t->n.functions);
       break;
 
@@ -569,8 +562,7 @@ static bool obj_valid(ast_t* ast, type_t* type)
 
 static bool structural_sub(type_t* a, type_t* b)
 {
-  // FIX:
-  return false;
+  return funlist_sub(a->s.functions, b->s.functions);
 }
 
 static bool nominal_sub(type_t* a, type_t* b)
@@ -581,8 +573,7 @@ static bool nominal_sub(type_t* a, type_t* b)
 
 static bool nominal_in_structural(type_t* a, type_t* b)
 {
-  // FIX:
-  return false;
+  return funlist_sub(a->s.functions, b->n.functions);
 }
 
 static type_t* union_type(ast_t* ast)
@@ -613,6 +604,11 @@ static type_t* structural_type(ast_t* ast)
 {
   // FIX:
   return NULL;
+}
+
+bool typelist_sub(typelist_t* a, typelist_t* b)
+{
+  return list_equals((list_t*)a, (list_t*)b, (cmp_fn)type_sub);
 }
 
 type_t* type_ast(ast_t* ast)
@@ -742,7 +738,6 @@ uint64_t type_hash(type_t* t)
     case T_NOMINAL:
       h ^= strhash(ast_name(ast_child(t->n.ast)));
       h ^= typelist_hash(t->n.type_params);
-      h ^= strlist_hash(t->n.origin);
       break;
 
     case T_STRUCTURAL:
@@ -763,4 +758,5 @@ uint64_t type_hash(type_t* t)
 void type_done()
 {
   typetab_free(type_table);
+  function_done();
 }

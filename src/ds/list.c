@@ -69,14 +69,14 @@ void* list_find(list_t* list, cmp_fn f, const void* data)
   return NULL;
 }
 
-bool list_superset(list_t* list, list_t* sublist, cmp_fn f)
+bool list_subset(list_t* a, list_t* b, cmp_fn f)
 {
-  while(sublist != NULL)
+  while(a != NULL)
   {
-    if(list_find(list, f, sublist->data) == NULL)
+    if(list_find(b, f, a->data) == NULL)
       return false;
 
-    sublist = sublist->next;
+    a = a->next;
   }
 
   return true;

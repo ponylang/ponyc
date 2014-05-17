@@ -9,17 +9,19 @@ typedef struct type_t type_t;
 
 DECLARE_LIST(typelist, type_t);
 
-type_t* type_name( ast_t* ast, const char* name );
+bool typelist_sub(typelist_t* a, typelist_t* b);
 
-type_t* type_ast( ast_t* ast );
+// FIX: is this needed? type_t for an unqualified nominal type?
+type_t* type_name(ast_t* ast, const char* name);
 
-bool type_valid( ast_t* ast, type_t* type );
+// type_t for a TK_TYPEDEF
+type_t* type_ast(ast_t* ast);
 
 // is A the same as B?
-bool type_eq( type_t* a, type_t* b );
+bool type_eq(type_t* a, type_t* b);
 
 // is A a subtype of B?
-bool type_sub( type_t* a, type_t* b );
+bool type_sub(type_t* a, type_t* b);
 
 uint64_t type_hash(type_t* t);
 
