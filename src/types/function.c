@@ -60,23 +60,7 @@ static void function_free(function_t* f)
   typelist_free(f->params);
 }
 
-static bool function_sup(function_t* a, function_t* b)
-{
-  return function_sub(b, a);
-}
-
-bool funlist_sub(funlist_t* a, funlist_t* b)
-{
-  return list_subset((list_t*)a, (list_t*)b, (cmp_fn)function_sup);
-}
-
-function_t* function_new()
-{
-  function_t* f = calloc(1, sizeof(function_t));
-  return f;
-}
-
-function_t* function_store(function_t* f)
+static function_t* function_store(function_t* f)
 {
   if(fun_table == NULL)
     fun_table = funtab_create(4096);
@@ -88,6 +72,18 @@ function_t* function_store(function_t* f)
     function_free(f);
 
   return found;
+}
+
+static bool function_sup(function_t* b, function_t* a)
+{
+  return function_sub(a, b);
+}
+
+function_t* function_create(ast_t* ast)
+{
+  function_t* f = calloc(1, sizeof(function_t));
+  // FIX:
+  return function_store(f);
 }
 
 bool function_eq(function_t* a, function_t* b)
@@ -108,6 +104,11 @@ bool function_sub(function_t* a, function_t* b)
     type_sub(a->result, b->result) &&
     // compatible throw
     (!a->throws || b->throws);
+}
+
+bool funlist_sub(funlist_t* a, funlist_t* b)
+{
+  return list_subset((list_t*)b, (list_t*)a, (cmp_fn)function_sup);
 }
 
 void function_done()

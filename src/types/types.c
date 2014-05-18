@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 typedef enum
 {
@@ -39,7 +40,8 @@ typedef struct structural_t
   funlist_t* functions;
 } structural_t;
 
-// FIX: substitute type params in functions and fields
+// FIX: substitute type params in functions and fields to create TYPEDEF
+// nodes from type declarations.
 typedef struct nominal_t
 {
   ast_t* ast;
@@ -150,12 +152,12 @@ static void type_free(type_t* t)
   free(t);
 }
 
-// static type_t* type_new(type_id id)
-// {
-//   type_t* type = calloc(1, sizeof(type_t));
-//   type->id = id;
-//   return type;
-// }
+static type_t* type_new(type_id id)
+{
+  type_t* type = calloc(1, sizeof(type_t));
+  type->id = id;
+  return type;
+}
 
 static type_t* type_store(type_t* type)
 {
@@ -172,97 +174,6 @@ static type_t* type_store(type_t* type)
 }
 
 #if 0
-static bool a_is_obj_b(const type_t* a, const type_t* b)
-{
-  // invariant formal parameters
-  return (a->id == T_OBJECT)
-    && (a->obj.ast == b->obj.ast)
-    && list_equals(a->obj.params, b->obj.params, type_cmp);
-}
-
-static bool a_in_obj_b(const type_t* a, const type_t* b)
-{
-  if(a->id != T_OBJECT) { return false; }
-  if(a_is_obj_b(a, b)) { return true; }
-
-  // check reified traits
-  ast_t* trait = ast_child(ast_childidx(a->obj.ast, 4));
-
-  while(trait != NULL)
-  {
-    if(type_sub(type_subst(ast_data(trait), a->obj.params), b))
-    {
-      return true;
-    }
-
-    trait = ast_sibling(trait);
-  }
-
-  return false;
-}
-
-static bool a_is_fun_b(const type_t* a, const type_t* b)
-{
-  switch(a->id)
-  {
-    case T_FUNCTION:
-    {
-      // invariant parameters
-      if(!list_equals(a->fun.params, b->fun.params, type_cmp)) return false;
-
-      // invariant result
-      if(!type_eq(a->fun.result, b->fun.result)) return false;
-
-      // invariant throw
-      if(a->fun.throws != b->fun.throws) return false;
-
-      return true;
-    }
-
-    default: {}
-  }
-
-  return false;
-}
-
-static bool a_in_fun_b(const type_t* a, const type_t* b)
-{
-  switch(a->id)
-  {
-    case T_FUNCTION:
-    {
-      // contravariant parameters
-      if(!list_equals(b->fun.params, a->fun.params, type_cmpsub)) return false;
-
-      // covariant result
-      if(!type_sub(a->fun.result, b->fun.result)) { return false; }
-
-      // a can't throw if b doesn't throw
-      if(!b->fun.throws && a->fun.throws) { return false; }
-
-      return true;
-    }
-
-    case T_OBJECT:
-      // FIX: see if the apply() method conforms
-      return false;
-
-    default: {}
-  }
-
-  return false;
-}
-
-static bool a_in_adt_b(const type_t* a, const type_t* b)
-{
-  return list_find(b->adt.types, type_cmpsub, a) != NULL;
-}
-
-static bool adt_a_in_b(const type_t* a, const type_t* b)
-{
-  return list_test(a->adt.types, type_cmpsup, (void*)b);
-}
-
 static list_t* typelist(ast_t* ast)
 {
   list_t* list = NULL;
@@ -292,22 +203,6 @@ static type_t* expand_alias(type_t* type)
   type_t* alias = type_ast(ast_childidx(type->obj.ast, 2));
 
   return type_subst(alias, type->obj.params);
-}
-
-static type_t* nametype(ast_t* scope, const char* name)
-{
-  ast_t* type_ast = ast_get(scope, name);
-
-  if(type_ast == NULL)
-  {
-    if(!strcmp(name, "_")) { return &infer; }
-    return NULL;
-  }
-
-  type_t* type = type_new(T_OBJECT);
-  type->obj.ast = type_ast;
-
-  return type;
 }
 
 static type_t* objtype(ast_t* ast)
@@ -360,73 +255,6 @@ static type_t* objtype(ast_t* ast)
   // FIX: get the mode with the viewpoint
 
   return expand_alias(type);
-}
-
-static type_t* funtype(ast_t* ast)
-{
-  type_t* type = type_new(T_FUNCTION);
-  ast_t* child = ast_child(ast);
-
-  if(ast_id(child) == TK_QUESTION) { type->fun.throws = true; }
-  child = ast_sibling(child);
-
-  // FIX: get the mode with the viewpoint
-  child = ast_sibling(child);
-  list_t* list = typelist(child);
-
-  if(list == POINTER_ERROR)
-  {
-    type_free(type);
-    return NULL;
-  }
-
-  type->fun.params = list;
-
-  child = ast_sibling(child);
-  type->fun.result = type_ast(child);
-
-  if(type->fun.result == NULL)
-  {
-    type_free(type);
-    return NULL;
-  }
-
-  return type;
-}
-
-static type_t* adttype(ast_t* ast)
-{
-  type_t* type = type_new(T_ADT);
-  list_t* list = typelist(ast);
-
-  if(list == POINTER_ERROR)
-  {
-    type_free(type);
-    return NULL;
-  }
-
-  type->adt.types = list;
-
-  switch(list_length(type->adt.types))
-  {
-    case 0:
-      // an ADT with no elements is an error
-      ast_error(ast, "ADT is empty");
-      type_free(type);
-      return NULL;
-
-    case 1:
-    {
-      // if only one element, ditch the ADT wrapper
-      type_t* child = list_data(type->adt.types);
-      type_free(type);
-      return child;
-    }
-
-    default: {}
-  }
-
-  return type;
 }
 
 static void* subst_map(void* map, void* iter)
@@ -576,24 +404,6 @@ static bool nominal_in_structural(type_t* a, type_t* b)
   return funlist_sub(a->s.functions, b->n.functions);
 }
 
-static type_t* union_type(ast_t* ast)
-{
-  // FIX:
-  return NULL;
-}
-
-static type_t* isect_type(ast_t* ast)
-{
-  // FIX:
-  return NULL;
-}
-
-static type_t* tuple_type(ast_t* ast)
-{
-  // FIX:
-  return NULL;
-}
-
 static type_t* nominal_type(ast_t* ast)
 {
   // FIX:
@@ -606,20 +416,56 @@ static type_t* structural_type(ast_t* ast)
   return NULL;
 }
 
+static type_t* expr_type(ast_t* ast)
+{
+  type_id id;
+
+  switch(ast_id(ast))
+  {
+    case TK_UNIONTYPE: id = T_UNION; break;
+    case TK_ISECTTYPE: id = T_ISECT; break;
+    case TK_TUPLETYPE: id = T_TUPLE; break;
+
+    default:
+      assert(0);
+      return NULL;
+  }
+
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  type_t* type = type_new(id);
+  type->e.left = type_create(left);
+  type->e.right = type_create(right);
+
+  return type;
+}
+
 bool typelist_sub(typelist_t* a, typelist_t* b)
 {
   return list_equals((list_t*)a, (list_t*)b, (cmp_fn)type_sub);
 }
 
-type_t* type_ast(ast_t* ast)
+type_t* type_create(ast_t* ast)
 {
   if(ast == NULL)
+  {
+    assert(0);
     return NULL;
+  }
 
   type_t* type;
 
   switch(ast_id(ast))
   {
+    case TK_TYPE:
+    case TK_TRAIT:
+    case TK_ACTOR:
+    case TK_CLASS:
+      // FIX:
+      type = NULL;
+      break;
+
     case TK_NOMINAL:
       type = nominal_type(ast);
       break;
@@ -629,18 +475,13 @@ type_t* type_ast(ast_t* ast)
       break;
 
     case TK_UNIONTYPE:
-      type = union_type(ast);
-      break;
-
     case TK_ISECTTYPE:
-      type = isect_type(ast);
-      break;
-
     case TK_TUPLETYPE:
-      type = tuple_type(ast);
+      type = expr_type(ast);
       break;
 
     default:
+      assert(0);
       return NULL;
   }
 
