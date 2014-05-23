@@ -19,14 +19,6 @@ typedef enum
   T_TUPLE
 } type_id;
 
-typedef enum
-{
-  T_UNCHECKED,
-  T_CHECKING,
-  T_VALID,
-  T_INVALID
-} type_ok;
-
 typedef struct type_t type_t;
 static bool type_cmp(type_t* a, type_t* b);
 static type_t* type_dup(type_t* data);
@@ -35,20 +27,20 @@ static void type_free(type_t* t);
 DEFINE_LIST(typelist, type_t, type_hash, type_cmp, NULL);
 DEFINE_TABLE(typetab, type_t, type_hash, type_cmp, type_dup, type_free);
 
-typedef struct structural_t
-{
-  funlist_t* functions;
-} structural_t;
-
-// FIX: substitute type params in functions and fields to create TYPEDEF
-// nodes from type declarations.
 typedef struct nominal_t
 {
   ast_t* ast;
   typelist_t* type_params;
+  typelist_t* constraints;
   typelist_t* traits;
   funlist_t* functions;
+  // TODO: field_t, fieldlist_t
 } nominal_t;
+
+typedef struct structural_t
+{
+  funlist_t* functions;
+} structural_t;
 
 typedef struct typeexpr_t
 {
@@ -59,7 +51,6 @@ typedef struct typeexpr_t
 struct type_t
 {
   type_id id;
-  type_ok valid;
   cap_id cap;
   bool ephemeral;
 
@@ -135,6 +126,7 @@ static void type_free(type_t* t)
   {
     case T_NOMINAL:
       typelist_free(t->n.type_params);
+      typelist_free(t->n.constraints);
       typelist_free(t->n.traits);
       funlist_free(t->n.functions);
       break;
@@ -252,7 +244,7 @@ static type_t* objtype(ast_t* ast)
 
   type->obj.params = list;
 
-  // FIX: get the mode with the viewpoint
+  // TODO: get the mode with the viewpoint
 
   return expand_alias(type);
 }
@@ -395,8 +387,11 @@ static bool structural_sub(type_t* a, type_t* b)
 
 static bool nominal_sub(type_t* a, type_t* b)
 {
-  // FIX:
-  return false;
+  return
+    // A is a subtype if it's the same type as B
+    (a == b) ||
+    // A is a subtype if any of its traits are a subtype of B
+    typelist_any(a->n.traits, (typelist_pred_fn)nominal_sub, b);
 }
 
 static bool nominal_in_structural(type_t* a, type_t* b)
@@ -406,13 +401,13 @@ static bool nominal_in_structural(type_t* a, type_t* b)
 
 static type_t* nominal_type(ast_t* ast)
 {
-  // FIX:
+  // TODO:
   return NULL;
 }
 
 static type_t* structural_type(ast_t* ast)
 {
-  // FIX:
+  // TODO:
   return NULL;
 }
 
@@ -446,6 +441,88 @@ bool typelist_sub(typelist_t* a, typelist_t* b)
   return list_equals((list_t*)a, (list_t*)b, (cmp_fn)type_sub);
 }
 
+bool typelist_constraints(typelist_t* typeparams, typelist_t* constraints,
+  typelist_t* typeargs)
+{
+  // reify our constraints before checking them.
+  // Foo[A: List[B], B: Number]
+  // qualifying with [List[U32], I32] should fail
+  //   reified constraints [List[I32], I32]
+  //   typeargs fail on subtyping
+  // qualifying with [List[I32], I32] should succeed
+  //   reified constraints [List[I32], I32]
+  //   works
+  // Foo[A: List[B], B: Map[A, B]]
+  // qualifying with [List[Map[I32, String]], Map[I32, String]
+  //   reified constraints
+  //   List[Map[I32, String]], Map[List[Map[I32, String]], Map[I32, String]]
+  //   typeargs fail on subtyping
+  // Ordered[A: Ordered[A]]
+  // qualify with String is Ordered[String]
+  //   reified constraints [Ordered[String]]
+  //   works: String <: Ordered[String]
+  if(typelist_length(typeargs) != typelist_length(typeparams))
+    return false;
+
+  // typeparams and constraints should be the same length
+  assert(typelist_length(typeparams) == typelist_length(constraints));
+
+  // reify our constraints using our type arguments
+  typelist_t* rcon = typelist_reify(constraints, typeparams, typeargs);
+
+  // we should get the same number of reified constraints
+  assert(typelist_length(rcon) == typelist_length(constraints));
+
+  // check our type arguments against our reified constraints
+  bool r = typelist_sub(typeargs, rcon);
+  typelist_free(rcon);
+
+  return r;
+}
+
+typelist_t* typelist_fbounds(typelist_t* typeparams, typelist_t* constraints)
+{
+  // TODO:
+  // fun tag min[A: Seq[B], B: Ordered[B]](list: A, item: B): B
+  // typeparams = [A, B]
+  // constraints = [Seq[B], Ordered[B]]
+  // first, replace self-reference with Any:
+  // f_constraints = [Seq[B], Ordered[Any]]
+  // reify f_constraints using the typeparams and itself to get the f_bounds
+  // f_bounds = [Seq[Ordered[Any]], Ordered[Any]]
+  return NULL;
+}
+
+typedef struct typelist_pair_t
+{
+  typelist_t* formal;
+  typelist_t* actual;
+} typelist_pair_t;
+
+static type_t* reify_map(type_t* type, void* arg)
+{
+  typelist_pair_t* pair = arg;
+  int index = typelist_findindex(pair->formal, type);
+
+  if(index != -1)
+    return typelist_data(typelist_index(pair->actual, index));
+
+  return type_reify(type, pair->formal, pair->actual);
+}
+
+typelist_t* typelist_reify(typelist_t* list,
+  typelist_t* formal, typelist_t* actual)
+{
+  typelist_pair_t pair = {formal, actual};
+  return typelist_map(list, reify_map, &pair);
+}
+
+type_t* type_name(ast_t* scope, const char* name, cap_id cap)
+{
+  // TODO:
+  return NULL;
+}
+
 type_t* type_create(ast_t* ast)
 {
   if(ast == NULL)
@@ -462,7 +539,7 @@ type_t* type_create(ast_t* ast)
     case TK_TRAIT:
     case TK_ACTOR:
     case TK_CLASS:
-      // FIX:
+      // TODO:
       type = NULL;
       break;
 
@@ -567,6 +644,79 @@ bool type_sub(type_t* a, type_t* b)
   }
 
   return false;
+}
+
+type_t* type_qualify(type_t* type, typelist_t* typeargs)
+{
+  if(type->id != T_NOMINAL)
+    return NULL;
+
+  if(!typelist_constraints(type->n.type_params, type->n.constraints, typeargs))
+    return NULL;
+
+  if(type->n.type_params == NULL)
+    return type;
+
+  type_t* t = type_new(T_NOMINAL);
+  t->cap = type->cap;
+  t->ephemeral = type->ephemeral;
+  t->n.ast = type->n.ast;
+  t->n.traits = typelist_reify(type->n.traits, type->n.type_params, typeargs);
+  t->n.functions = funlist_reify(type->n.functions,
+    type->n.type_params, typeargs);
+
+  // we should get the same number of traits and functions
+  assert(typelist_length(t->n.traits) == typelist_length(type->n.traits));
+  assert(funlist_length(t->n.functions) == funlist_length(type->n.functions));
+
+  return type_store(t);
+}
+
+type_t* type_reify(type_t* type, typelist_t* formal, typelist_t* actual)
+{
+  assert(typelist_length(formal) == typelist_length(actual));
+
+  if(formal == NULL)
+    return type;
+
+  type_t* t = type_new(type->id);
+  t->cap = type->cap;
+  t->ephemeral = type->ephemeral;
+
+  switch(t->id)
+  {
+    case T_NOMINAL:
+      t->n.ast = type->n.ast;
+      t->n.type_params = typelist_reify(type->n.type_params, formal, actual);
+      t->n.constraints = typelist_reify(type->n.constraints, formal, actual);
+
+      // we should get the same type params and the same number of constraints
+      assert(typelist_equals(t->n.type_params, type->n.type_params));
+      assert(typelist_length(t->n.type_params) ==
+        typelist_length(type->n.type_params));
+
+      t->n.traits = typelist_reify(type->n.traits, formal, actual);
+      t->n.functions = funlist_reify(type->n.functions, formal, actual);
+
+      // we should get the same number of traits and functions
+      assert(typelist_length(t->n.traits) == typelist_length(type->n.traits));
+      assert(funlist_length(t->n.functions) ==
+        funlist_length(type->n.functions));
+      break;
+
+    case T_STRUCTURAL:
+      t->s.functions = funlist_reify(t->s.functions, formal, actual);
+      break;
+
+    case T_UNION:
+    case T_ISECT:
+    case T_TUPLE:
+      t->e.left = type_reify(t->e.left, formal, actual);
+      t->e.right = type_reify(t->e.right, formal, actual);
+      break;
+  }
+
+  return type_store(t);
 }
 
 uint64_t type_hash(type_t* t)

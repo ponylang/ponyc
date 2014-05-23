@@ -17,17 +17,19 @@ class Precedence
    * @param foo blah /* bar */
    * [[http://foo]]
    * @return something // foo
+   * TODO: foo /* TODO: foo */
    */
-  // foo
+  /* FIXME: foo */
+  // TODO: foo
   fun imm foo(): F32 =>
     1 + 2 * 3 + 4
     -3
     """
       blargh
-      test
-        this is a test
-          foo
-          """
+    test /* go nuts */
+    this is a test
+    foo
+    //"""
 
     """     something is \n here"""
     "           something is \n here"

@@ -1,36 +1,44 @@
 class List[A] is Iterable[A]
   var item: A
-  var next: (List[A] mut | None)
+  var next: (List[A] | None)
 
-  // FIX: can't create an immutable list
-  // not a circularity problem
-  // just need to have a next:List[A] imm to assign to while still this iso
-  // but that means we have to know we will be val
-  // otherwise, could have an iso or var list with a val tail
-  new create(item': A, next': (List[A] mut | None)) =>
-    item = item'
+  new create(item': A, next': (List[A] | None)) =>
+    item = consume item'
     next = next'
+
+  // TODO: can't extend an immutable list
+  // not a circularity problem
+  // just need to have a next: List[A] imm to assign to while still this mut
+  // but that means we have to know we will be imm
+  // otherwise, could have a mut list with an imm next
+  new immutable(item': A, next': (List[A] imm | None)) =>
+    item = consume item'
+    next = next' // TODO: can't do this
 
   fun box apply(): this.A => item
 
   fun mut update(a: A): this.A^ => item = a
 
-  fun mut get(): this.List[A] mut ? =>
+  fun box get(): this.List[A] ? =>
     match next
-    | as a: List[A] mut => a
+    | as next': List[A] => next'
     | None => error
     end
 
-  fun mut set(a: (List[A] mut | None)): (this.List[A] mut | None)^ => next = a
+  fun mut set(a: (List[A] | None)): (this.List[A] | None)^ => next = a
 
-  fun mut iterator(): ListIter[A, this.List[A] mut] mut^ => ListIter(this)
+  fun mut push(a: A): List[A]^ => List(a, this)
 
-class ListIter[A, B: List[A] box] is Iterator[A]
-  var list: (B|None)
+  /*fun imm pushi(a: A): List[A] imm => ???*/
 
-  new create(list': B) => list = list'
+  fun box iterator(): ListIter[A, this.List[A]]^ => ListIter(this)
 
-  fun mut has_next(): Bool =>
+class ListIter[A, L: List[A] box] is Iterator[A]
+  var list: (L | None)
+
+  new create(list': (L | None)) => list = list'
+
+  fun box has_next(): Bool =>
     match list
     | None => False
     | => True

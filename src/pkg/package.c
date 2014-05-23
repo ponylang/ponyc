@@ -88,8 +88,11 @@ static bool execpath(const char* file, char* path)
   return filepath(file, path);
 }
 
-static bool do_file(ast_t* package, const char* file)
+static bool do_file(ast_t* package, const char* file, int verbose)
 {
+  if(verbose > 0)
+    printf("Building %s\n", file);
+
   source_t* source = source_open(file);
 
   if(source == NULL)
@@ -111,7 +114,7 @@ static bool do_file(ast_t* package, const char* file)
   return true;
 }
 
-static bool do_path(ast_t* package, const char* path)
+static bool do_path(ast_t* package, const char* path, int verbose)
 {
   DIR* dir = opendir(path);
 
@@ -157,7 +160,7 @@ static bool do_path(ast_t* package, const char* path)
       strcat(fullpath, "/");
       strcat(fullpath, d->d_name);
 
-      r &= do_file(package, fullpath);
+      r &= do_file(package, fullpath, verbose);
     }
   }
 
@@ -280,14 +283,14 @@ void package_paths(const char* paths)
   }
 }
 
-ast_t* program_load(const char* path)
+ast_t* program_load(const char* path, int verbose)
 {
   ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
   ast_scope(program);
 
   bool init;
 
-  if(package_load(program, path, &init) == NULL)
+  if(package_load(program, path, &init, verbose) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -296,7 +299,7 @@ ast_t* program_load(const char* path)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path, bool* init)
+ast_t* package_load(ast_t* from, const char* path, bool* init, int verbose)
 {
   const char* name = find_path(from, path);
 
@@ -319,7 +322,7 @@ ast_t* package_load(ast_t* from, const char* path, bool* init)
 
   printf("=== Building %s ===\n", name);
 
-  if(!do_path(package, name))
+  if(!do_path(package, name, verbose))
     return NULL;
 
   *init = true;

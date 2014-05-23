@@ -366,23 +366,23 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
+bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post, int verbose)
 {
   bool ret = true;
 
   if(pre != NULL)
-    ret &= pre(ast);
+    ret &= pre(ast, verbose);
 
   ast_t* child = ast->child;
 
   while(child != NULL)
   {
-    ret &= ast_visit(child, pre, post);
+    ret &= ast_visit(child, pre, post, verbose);
     child = child->sibling;
   }
 
   if(post != NULL)
-    ret &= post(ast);
+    ret &= post(ast, verbose);
 
   return ret;
 }

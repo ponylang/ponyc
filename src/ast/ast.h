@@ -189,8 +189,8 @@ void ast_free(ast_t* ast);
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__ ((format (printf, 2, 3)));
 
-typedef bool (*ast_visit_t)(ast_t* ast);
+typedef bool (*ast_visit_t)(ast_t* ast, int verbose);
 
-bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post);
+bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post, int verbose);
 
 #endif

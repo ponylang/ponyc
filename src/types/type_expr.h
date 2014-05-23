@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-bool type_expr(ast_t* ast);
+bool type_expr(ast_t* ast, int verbose);
 
 #endif

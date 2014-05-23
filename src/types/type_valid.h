@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-bool type_valid(ast_t* ast);
+bool type_valid(ast_t* ast, int verbose);
 
 #endif

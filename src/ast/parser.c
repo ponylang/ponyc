@@ -131,7 +131,8 @@ DEF(betype);
   INSERT(TK_NONE);
   DONE();
 
-// FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type] [QUESTION]
+// FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type]
+// [QUESTION]
 DEF(funtype);
   SKIP(TK_FUN);
   AST(TK_FUNTYPE);
@@ -212,7 +213,7 @@ DEF(typeexpr);
   SKIP(TK_RPAREN);
   DONE();
 
-// FIX: add typedecl for "enum" types?
+// TODO: add typedecl for "enum" types?
 // typeexpr | nominal | structural
 DEF(typebase);
   AST_RULE(typeexpr, nominal, structural);

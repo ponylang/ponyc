@@ -69,6 +69,22 @@ void* list_find(list_t* list, cmp_fn f, const void* data)
   return NULL;
 }
 
+int list_findindex(list_t* list, cmp_fn f, const void* data)
+{
+  int index = 0;
+
+  while(list != NULL)
+  {
+    if(f((void*)data, list->data))
+      return index;
+
+    list = list->next;
+    index++;
+  }
+
+  return -1;
+}
+
 bool list_subset(list_t* a, list_t* b, cmp_fn f)
 {
   while(a != NULL)
@@ -96,11 +112,24 @@ bool list_equals(list_t* a, list_t* b, cmp_fn f)
   return b == NULL;
 }
 
-bool list_test(list_t* list, pred_fn f, const void* arg)
+bool list_any(list_t* list, pred_fn f, const void* arg)
 {
   while(list != NULL)
   {
-    if(!f((void*)arg, list->data))
+    if(f(list->data, (void*)arg))
+      return true;
+
+    list = list->next;
+  }
+
+  return false;
+}
+
+bool list_all(list_t* list, pred_fn f, const void* arg)
+{
+  while(list != NULL)
+  {
+    if(!f(list->data, (void*)arg))
       return false;
 
     list = list->next;
@@ -115,7 +144,11 @@ list_t* list_map(list_t* list, map_fn f, const void* arg)
 
   while(list != NULL)
   {
-    to = list_push(to, f((void*)arg, list->data));
+    void* result = f(list->data, (void*)arg);
+
+    if(result != NULL)
+      to = list_push(to, result);
+
     list = list->next;
   }
 

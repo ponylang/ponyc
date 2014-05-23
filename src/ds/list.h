@@ -20,11 +20,15 @@ void* list_data(list_t* list);
 
 void* list_find(list_t* list, cmp_fn f, const void* data);
 
+int list_findindex(list_t* list, cmp_fn f, const void* data);
+
 bool list_subset(list_t* a, list_t* b, cmp_fn f);
 
 bool list_equals(list_t* a, list_t* b, cmp_fn f);
 
-bool list_test(list_t* list, pred_fn f, const void* arg);
+bool list_any(list_t* list, pred_fn f, const void* arg);
+
+bool list_all(list_t* list, pred_fn f, const void* arg);
 
 list_t* list_map(list_t* list, map_fn f, const void* arg);
 
@@ -44,9 +48,11 @@ void list_free(list_t* list, free_fn f);
   name##_t* name##_index(name##_t* list, int index); \
   elem* name##_data(name##_t* list); \
   elem* name##_find(name##_t* list, elem* data); \
+  int name##_findindex(name##_t* list, elem* data); \
   bool name##_subset(name##_t* a, name##_t* b); \
   bool name##_equals(name##_t* a, name##_t* b); \
-  bool name##_test(name##_t* list, name##_pred_fn f, void* arg); \
+  bool name##_any(name##_t* list, name##_pred_fn f, void* arg); \
+  bool name##_all(name##_t* list, name##_pred_fn f, void* arg); \
   name##_t* name##_map(name##_t* list, name##_map_fn f, void* arg); \
   name##_t* name##_reverse(name##_t* list); \
   uint64_t name##_hash(name##_t* list); \
@@ -82,6 +88,11 @@ void list_free(list_t* list, free_fn f);
     name##_cmp_fn cmp = cmpf; \
     return (elem*)list_find((list_t*)list, (cmp_fn)cmp, data); \
   } \
+  int name##_findindex(name##_t* list, elem* data) \
+  { \
+    name##_cmp_fn cmp = cmpf; \
+    return list_findindex((list_t*)list, (cmp_fn)cmp, data); \
+  } \
   bool name##_subset(name##_t* a, name##_t* b) \
   { \
     name##_cmp_fn cmp = cmpf; \
@@ -92,9 +103,13 @@ void list_free(list_t* list, free_fn f);
     name##_cmp_fn cmp = cmpf; \
     return list_equals((list_t*)a, (list_t*)b, (cmp_fn)cmp); \
   } \
-  bool name##_test(name##_t* list, name##_pred_fn f, void* arg) \
+  bool name##_any(name##_t* list, name##_pred_fn f, void* arg) \
   { \
-    return list_test((list_t*)list, (pred_fn)f, arg); \
+    return list_any((list_t*)list, (pred_fn)f, arg); \
+  } \
+  bool name##_all(name##_t* list, name##_pred_fn f, void* arg) \
+  { \
+    return list_all((list_t*)list, (pred_fn)f, arg); \
   } \
   name##_t* name##_map(name##_t* list, name##_map_fn f, void* arg) \
   { \

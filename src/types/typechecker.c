@@ -263,7 +263,7 @@ static bool type_first(ast_t* ast)
     }
 
     case TK_THIS:
-// FIX:      ast_attach(ast, type_name(ast, "This"));
+// TODO:      ast_attach(ast, type_name(ast, "This"));
       return true;
 
     case TK_STRING:
@@ -346,7 +346,7 @@ static bool type_second(ast_t* ast)
         }
 
         /*
-        FIX: it's a constructor, parent could be:
+        TODO: it's a constructor, parent could be:
         typeargs:
           if parent isn't a call, it's a static apply
         call:
@@ -363,7 +363,7 @@ static bool type_second(ast_t* ast)
           return false;
         }
 
-        // FIX: local, param, field or function
+        // TODO: local, param, field or function
         // could be a function in a trait
         switch(ast_id(def))
         {
@@ -382,7 +382,7 @@ static bool type_second(ast_t* ast)
           case TK_BE:
           case TK_NEW:
             /*
-            FIX: parent could be:
+            TODO: parent could be:
             call: it's a function call or partial application
             typeargs: parent's parent must be call
             anything else: it's partial application
@@ -410,19 +410,19 @@ static bool type_second(ast_t* ast)
     }
 
     case TK_DOT:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_TYPEARGS:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_CALL:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_ASSIGN:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_NOT:
@@ -534,15 +534,15 @@ static bool type_second(ast_t* ast)
       return conditional(ast, 0) && upper_bounds(ast, 1, 2);
 
     case TK_MATCH:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_CASE:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_AS:
-      // FIX:
+      // TODO:
       return true;
 
     case TK_WHILE:
@@ -554,7 +554,7 @@ static bool type_second(ast_t* ast)
       return conditional(ast, 1);
 
     case TK_FOR:
-      // FIX:
+      // TODO:
       ast_attach(ast, none);
       return true;
 
@@ -586,12 +586,12 @@ static bool type_second(ast_t* ast)
 
 #endif
 
-bool typecheck(ast_t* ast)
+bool typecheck(ast_t* ast, int verbose)
 {
-  if(!ast_visit(ast, type_scope, NULL))
+  if(!ast_visit(ast, type_scope, NULL, verbose))
     return false;
 
-  if(!ast_visit(ast, type_valid, type_expr))
+  if(!ast_visit(ast, type_valid, type_expr, verbose))
     return false;
 
   return true;
