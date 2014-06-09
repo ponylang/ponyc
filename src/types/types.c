@@ -19,7 +19,6 @@ typedef enum
   T_TUPLE
 } type_id;
 
-typedef struct type_t type_t;
 static bool type_cmp(type_t* a, type_t* b);
 static type_t* type_dup(type_t* data);
 static void type_free(type_t* t);

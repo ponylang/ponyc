@@ -49,6 +49,10 @@ function_t* function_qualify(function_t* f, typelist_t* typeargs);
 
 /**
  * Reify a function with type arguments from an enclosing reified type.
+ *
+ * TODO: If we can mention enclosing type parameters in our own type parameters,
+ * check that the argument is within our constraint. Would allow a function
+ * to exist on a type only when a type parameter is within a given constraint.
  */
 function_t* function_reify(function_t* f,
   typelist_t* typeparams, typelist_t* typeargs);

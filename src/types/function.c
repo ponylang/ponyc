@@ -65,6 +65,7 @@ static void function_free(function_t* f)
   typelist_free(f->type_params);
   typelist_free(f->constraints);
   typelist_free(f->params);
+  free(f);
 }
 
 static function_t* function_store(function_t* f)
@@ -284,8 +285,8 @@ bool function_sub(function_t* a, function_t* b)
 
 function_t* function_qualify(function_t* f, typelist_t* typeargs)
 {
-  // the type arguments must be subtypes of the reified constraints
-  if(!typelist_constraint(f->type_params, f->constraints, typeargs))
+  // check the type arguments against the constraints
+  if(!typelist_constraints(f->type_params, f->constraints, typeargs))
     return NULL;
 
   // if we have no type params, we are done

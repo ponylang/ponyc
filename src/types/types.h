@@ -26,6 +26,8 @@ bool typelist_constraints(typelist_t* typeparams, typelist_t* constraints,
   typelist_t* typeargs);
 
 /**
+ * TODO: not right
+ *
  * Given a list of type parameters and a list of constraints, generate type
  * arguments that represent the upper bounds of the possible type arguments.
  * To handle F-bounded polymorphism, this first replaces instances of self

@@ -1,5 +1,5 @@
+#include "typecheck/typechecker.h"
 #include "types/types.h"
-#include "types/typechecker.h"
 #include "pkg/package.h"
 #include "ds/stringtab.h"
 #include <sys/ioctl.h>
