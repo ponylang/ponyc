@@ -168,12 +168,12 @@ DEF(structural);
   SKIP(TK_RBRACE);
   DONE();
 
-// (ID | THIS) {DOT (ID | THIS)}
+// (ID | THIS) {DOT ID}
 DEF(typename);
   CHECK(TK_ID, TK_THIS);
   AST(TK_TYPENAME);
   EXPECT(TK_ID, TK_THIS);
-  WHILETOKEN(TK_DOT, TK_ID, TK_THIS);
+  WHILETOKEN(TK_DOT, TK_ID);
   DONE();
 
 // typename [typeargs]
@@ -398,18 +398,25 @@ DEF(as);
 DEF(caseexpr);
   SKIP(TK_PIPE);
   AST(TK_CASE);
+  SCOPE();
   OPTRULE(seq);
   OPTRULE(as);
   IFRULE(TK_WHERE, seq);
   IFRULE(TK_ARROW, seq);
   DONE();
 
-// MATCH rawseq {caseexpr} [ELSE seq] END
+// {caseexpr}
+DEF(cases);
+  AST(TK_CASES);
+  SEQRULE(caseexpr);
+  DONE();
+
+// MATCH rawseq cases [ELSE seq] END
 DEF(match);
   AST_TOKEN(TK_MATCH);
   SCOPE();
   RULE(rawseq);
-  SEQRULE(caseexpr);
+  RULE(cases);
   IFRULE(TK_ELSE, seq);
   SKIP(TK_END);
   DONE();
@@ -566,9 +573,19 @@ DEF(constructor);
   IFRULE(TK_ARROW, seq);
   DONE();
 
-// (VAR | VAL) ID [COLON type] [ASSIGN expr]
-DEF(field);
-  AST_TOKEN(TK_VAR, TK_VAL);
+// VAR ID [COLON type] [ASSIGN expr]
+DEF(fieldvar);
+  SKIP(TK_VAR);
+  AST(TK_FVAR);
+  EXPECT(TK_ID);
+  IFRULE(TK_COLON, type);
+  IFRULE(TK_ASSIGN, expr);
+  DONE();
+
+// VAL ID [COLON type] [ASSIGN expr]
+DEF(fieldval);
+  SKIP(TK_VAL);
+  AST(TK_FVAL);
   EXPECT(TK_ID);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, expr);
@@ -577,7 +594,7 @@ DEF(field);
 // {field} {constructor} {behaviour} {function}
 DEF(members);
   AST(TK_MEMBERS);
-  SEQRULE(field);
+  SEQRULE(fieldvar, fieldval);
   SEQRULE(constructor);
   SEQRULE(behaviour);
   SEQRULE(function);

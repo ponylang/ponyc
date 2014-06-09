@@ -9,6 +9,7 @@
  */
 static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
 {
+  assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
 
   if(type)
@@ -48,8 +49,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
 static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
   int verbose)
 {
-  bool init;
-  ast_t* package = package_load(ast, path, &init, verbose);
+  ast_t* package = package_load(ast, path, verbose);
 
   if(package == ast)
     return package;
@@ -57,12 +57,6 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
   if(package == NULL)
   {
     ast_error(ast, "can't load package '%s'", path);
-    return NULL;
-  }
-
-  if(init && !typecheck(package, verbose))
-  {
-    ast_error(ast, "can't typecheck package '%s'", path);
     return NULL;
   }
 
@@ -146,10 +140,19 @@ bool type_scope(ast_t* ast, int verbose)
     case TK_PARAM:
       return set_scope(ast, ast_child(ast), ast, false);
 
-    case TK_VAR:
-    case TK_VAL:
-      // TODO: child is an IDSEQ
-      return set_scope(ast, ast_child(ast), ast, false);
+    case TK_IDSEQ:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(!set_scope(ast_parent(ast), child, ast, false))
+          return false;
+
+        child = ast_sibling(child);
+      }
+      break;
+    }
 
     default: {}
   }

@@ -83,8 +83,8 @@ type_args
 
 // FIX: if an ID is a possible cap, a delimiter is needed
 cap
-  :  ':' (raw_cap | ID) ('.' (raw_cap | ID))*
-  |  raw_cap
+//  :  ':' (raw_cap | ID) ('.' (raw_cap | ID))*
+  :  raw_cap
   ;
 
 raw_cap
@@ -129,7 +129,6 @@ term
 
 local
   :  ('var' | 'val') idseq oftype?
-//  :  'local' idseq oftype?
   ;
 
 control

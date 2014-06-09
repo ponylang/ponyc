@@ -105,6 +105,22 @@ void print(ast_t* ast, size_t indent, size_t width)
   printf("\n");
 }
 
+ast_t* dup(ast_t* parent, ast_t* ast)
+{
+  if(ast == NULL)
+    return NULL;
+
+  ast_t* n = ast_token(token_dup(ast->t));
+  n->data = ast->data;
+  n->parent = parent;
+  n->child = dup(ast, ast->child);
+
+  if(parent != NULL)
+    n->sibling = dup(parent, ast->sibling);
+
+  return n;
+}
+
 ast_t* ast_new(token_id id, size_t line, size_t pos, void* data)
 {
   ast_t* ast = ast_token(token_new(id, line, pos, false));
@@ -117,6 +133,11 @@ ast_t* ast_token(token_t* t)
   ast_t* ast = calloc(1, sizeof(ast_t));
   ast->t = t;
   return ast;
+}
+
+ast_t* ast_dup(ast_t* ast)
+{
+  return dup(NULL, ast);
 }
 
 void ast_attach(ast_t* ast, void* data)

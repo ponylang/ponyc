@@ -1,16 +1,61 @@
 use "../collections" as c
 
-class Precedence
+trait Foo
+
+trait Bar
+
+class Precedence is Foo, Bar
   /* nested
   /* comments */
   work */
+  var field: I32
+
+  fun mut find_in_array(a: c.Array[String] imm, find: String):
+    (U64, String) ? =>
+    for (index, value) in a.pairs() do
+      if value == find then
+        return (index, value)
+      end
+    end
+    error
+
+  fun tag wrap_find(a: c.Array[String] imm, find: String): (U64, String) =>
+    try
+      find_in_array(a, find)
+    else
+      (0, "Not found")
+    end
+
+  fun tag call_it(a: {fun mut(I64): I64}): I64 => a()
+
+  fun tag make_it(i: I64): {fun mut(I64): I64} =>
+    {
+      var i' = i
+      fun mut apply(j: I64): I64 => (i' = j) + j
+    }
+
+  fun tag make_array(n: U64): c.Array[U64] mut^ =>
+    var a = c.Array[U64]
+    for i in c.Range(0, n) do
+      a.append(i)
+    end
+    consume a
+    /*consume [1, 2, 3, n]*/
+
+  fun tag make_iso_array(n: U64): c.Array[U64] iso^ =>
+    recover make_array(n)
+
+  fun tag optionals(a: I64 = 1, b: I64 = 1): I64 => a * b
+
+  /*fun tag call_optionals(): I64 => optionals(3 where b = 10)*/
 
   /**/
   fun mut test() =>
-    for i in j do
-      x
+    var list
+    for (i, j) in list do
+      1
     else
-      y
+      2
     end
 
   /** This is doc /**/
@@ -33,12 +78,16 @@ class Precedence
 
     """     something is \n here"""
     "           something is \n here"
+    "           something is
+    here"
 
   fun tag identity[A](a: A): A^ => consume a
 
   fun mut bar(): I32 =>
     3.hello
-    [A](1, 2)
-    foo.bar[Z](99, 100)
+    c.List(9)
+    [True](1, 2)
+    "string".bar[this.field.c.List[Precedence]](99, 100)
     (7; 3,77)
+    var (a, b)
     a + 37; b + b * b

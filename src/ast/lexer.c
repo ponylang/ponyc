@@ -179,6 +179,7 @@ static const lexsym_t abstract[] =
   { "tuple", TK_TUPLE },
   { "array", TK_ARRAY },
   { "object", TK_OBJECT },
+  { "cases", TK_CASES },
   { "case", TK_CASE },
   { "ref", TK_REF },
 
@@ -204,6 +205,12 @@ static bool issymbol(char c)
 static void adv(lexer_t* lexer, size_t count)
 {
   assert(lexer->len >= count);
+
+  if(lexer->source->m[lexer->ptr] == '\n')
+  {
+    lexer->line++;
+    lexer->pos = 0;
+  }
 
   lexer->ptr += count;
   lexer->len -= count;
@@ -423,13 +430,6 @@ static token_t* token(lexer_t* lexer)
   return t;
 }
 
-static void newline(lexer_t* lexer)
-{
-  lexer->line++;
-  lexer->pos = 0;
-  lexer->newline = true;
-}
-
 static void nested_comment(lexer_t* lexer)
 {
   size_t depth = 1;
@@ -456,8 +456,6 @@ static void nested_comment(lexer_t* lexer)
       {
         depth++;
       }
-    } else if(look(lexer) == '\n') {
-      newline(lexer);
     }
 
     adv(lexer, 1);
@@ -1012,7 +1010,7 @@ token_t* lexer_next(lexer_t* lexer)
     switch(c)
     {
     case '\n':
-      newline(lexer);
+      lexer->newline = true;
       adv(lexer, 1);
       break;
 
@@ -1057,12 +1055,19 @@ token_t* lexer_next(lexer_t* lexer)
 token_t* token_new(token_id id, size_t line, size_t pos, bool newline)
 {
   token_t* t = calloc(1, sizeof(token_t));
+  t->newline = newline;
   t->line = line;
   t->pos = pos;
-  t->newline = newline;
+  t->rc = 1;
   token_setid(t, id);
 
   return t;
+}
+
+token_t* token_dup(token_t* token)
+{
+  token->rc++;
+  return token;
 }
 
 const char* token_string(token_t* token)
@@ -1146,5 +1151,10 @@ void token_setstring(token_t* token, const char* s)
 void token_free(token_t* token)
 {
   if(token == NULL) { return; }
-  free(token);
+
+  assert(token->rc > 0);
+  token->rc--;
+
+  if(token->rc == 0)
+    free(token);
 }

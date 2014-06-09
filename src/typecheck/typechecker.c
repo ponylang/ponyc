@@ -591,7 +591,10 @@ bool typecheck(ast_t* ast, int verbose)
   if(!ast_visit(ast, type_scope, NULL, verbose))
     return false;
 
-  if(!ast_visit(ast, type_valid, type_expr, verbose))
+  if(!ast_visit(ast, NULL, type_valid, verbose))
+    return false;
+
+  if(!ast_visit(ast, NULL, type_expr, verbose))
     return false;
 
   return true;

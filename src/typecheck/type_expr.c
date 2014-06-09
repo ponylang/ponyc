@@ -1,4 +1,5 @@
 #include "type_expr.h"
+#include "typechecker.h"
 
 /**
  * This checks the type of all expressions.
@@ -10,6 +11,7 @@ bool type_expr(ast_t* ast, int verbose)
     case TK_FVAR:
     case TK_FVAL:
       // TODO: initializer type must match declared type
+      // if no declared type, get the type from the initializer
       break;
 
     case TK_NEW:
@@ -152,9 +154,33 @@ bool type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_REF:
-      // TODO: must be declared before it was used
-      // TODO: get the type
+    {
+      // everything we reference must be in scope
+      const char* name = ast_name(ast_child(ast));
+      ast_t* ref = ast_get(ast, name);
+
+      if(ref == NULL)
+      {
+        ast_error(ast, "can't find definition of '%s'", name);
+        return false;
+      }
+
+      if(!is_type_id(name))
+      {
+        // variables must be declared before they are used
+        if((ast_line(ref) > ast_line(ast)) ||
+           ((ast_line(ref) == ast_line(ast)) &&
+            (ast_pos(ref) > ast_pos(ast))))
+        {
+          ast_error(ast, "definition of '%s' appears after use", name);
+          ast_error(ref, "definition of '%s' appears here", name);
+          return false;
+        }
+      }
+
+      // TODO: get the type?
       break;
+    }
 
     default: {}
   }

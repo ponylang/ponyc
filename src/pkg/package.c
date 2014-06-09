@@ -1,4 +1,5 @@
 #include "package.h"
+#include "../typecheck/typechecker.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -288,9 +289,7 @@ ast_t* program_load(const char* path, int verbose)
   ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
   ast_scope(program);
 
-  bool init;
-
-  if(package_load(program, path, &init, verbose) == NULL)
+  if(package_load(program, path, verbose) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -299,7 +298,7 @@ ast_t* program_load(const char* path, int verbose)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path, bool* init, int verbose)
+ast_t* package_load(ast_t* from, const char* path, int verbose)
 {
   const char* name = find_path(from, path);
 
@@ -310,10 +309,7 @@ ast_t* package_load(ast_t* from, const char* path, bool* init, int verbose)
   ast_t* package = ast_get(program, name);
 
   if(package != NULL)
-  {
-    *init = false;
     return package;
-  }
 
   package = ast_new(TK_PACKAGE, 0, 0, (void*)name);
   ast_scope(package);
@@ -325,7 +321,13 @@ ast_t* package_load(ast_t* from, const char* path, bool* init, int verbose)
   if(!do_path(package, name, verbose))
     return NULL;
 
-  *init = true;
+
+  if(!typecheck(package, verbose))
+  {
+    ast_error(package, "can't typecheck package '%s'", path);
+    return NULL;
+  }
+
   return package;
 }
 

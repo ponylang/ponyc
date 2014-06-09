@@ -73,7 +73,7 @@ int main(int argc, char** argv)
 
   ast_t* program = program_load((argc > 0) ? argv[0] : ".", verbose);
 
-  if((program == NULL) || !typecheck(program, verbose))
+  if(program == NULL)
     ret = -1;
 
   if(ast)

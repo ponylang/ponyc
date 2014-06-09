@@ -151,6 +151,7 @@ typedef enum
   TK_TUPLE,
   TK_ARRAY,
   TK_OBJECT,
+  TK_CASES,
   TK_CASE,
   TK_REF,
 
@@ -160,10 +161,11 @@ typedef enum
 typedef struct token_t
 {
   token_id id;
-  size_t line;
-  size_t pos;
   bool newline;
   bool error;
+  size_t line;
+  size_t pos;
+  size_t rc;
 
   union
   {
@@ -178,6 +180,7 @@ void lexer_close(lexer_t* lexer);
 token_t* lexer_next(lexer_t* lexer);
 
 token_t* token_new(token_id id, size_t line, size_t pos, bool newline);
+token_t* token_dup(token_t* token);
 const char* token_string(token_t* token);
 void token_setid(token_t* token, token_id id);
 void token_setstring(token_t* token, const char* s);

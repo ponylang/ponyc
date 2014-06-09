@@ -37,11 +37,12 @@ symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
 
-TYPEPARAM: ID [TYPE] [SEQ]
+TYPEPARAM: ID [TYPEDEF] [SEQ]
 
 TYPES: {TYPEDEF}
 
-TYPEDEF: (UNIONTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | TYPEDECL) [CAP] [HAT]
+TYPEDEF: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | TYPEDECL)
+  [CAP] [HAT]
 
 UNIONTYPE: TYPEDEF TYPEDEF
 ISECTTYPE: TYPEDEF TYPEDEF
@@ -49,7 +50,7 @@ TUPLETYPE: TYPEDEF TYPEDEF
 
 NOMINAL: TYPENAME [TYPEARGS]
 
-TYPENAME: {ID}
+TYPENAME: {ID | THIS}
 
 TYPEARGS: {TYPEDEF}
 
@@ -67,6 +68,8 @@ IDSEQ: {ID}
 
 SEQ: {expr}
 symtab: ID -> VAR | VAL
+
+RAWSEQ: {expr}
 
 expr
 ----
@@ -125,13 +128,22 @@ CALL postfix TUPLE
 
 control
 -------
-IF: SEQ SEQ [SEQ]
+IF: RAWSEQ SEQ [SEQ]
 symtab: ID -> VAR | VAL
 
-WHILE: SEQ SEQ [SEQ]
+MATCH: RAWSEQ CASES [SEQ]
+
+CASES: {CASE}
+
+CASE: [SEQ] [AS] [SEQ] [SEQ]
 symtab: ID -> VAR | VAL
 
-REPEAT: SEQ SEQ
+AS: IDSEQ TYPE
+
+WHILE: RAWSEQ SEQ [SEQ]
+symtab: ID -> VAR | VAL
+
+REPEAT: RAWSEQ SEQ
 symtab: ID -> VAR | VAL
 
 FOR: IDSEQ [TYPEDEF] SEQ SEQ [SEQ]
@@ -158,6 +170,7 @@ typedef struct ast_t ast_t;
 
 ast_t* ast_new(token_id id, size_t line, size_t pos, void* data);
 ast_t* ast_token(token_t* t);
+ast_t* ast_dup(ast_t* ast);
 void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);
 
