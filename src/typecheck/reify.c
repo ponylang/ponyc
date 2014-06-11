@@ -2,15 +2,29 @@
 #include "typechecker.h"
 #include <assert.h>
 
-static bool reify_function(ast_t* fun, ast_t* id, ast_t* typearg)
+static bool reify_one(ast_t* ast, ast_t* id, ast_t* typearg);
+
+static bool reify_fun(ast_t* fun, ast_t* id, ast_t* typearg)
 {
-  // TODO:
-  return true;
+  assert(
+    (ast_id(fun) == TK_NEW) ||
+    (ast_id(fun) == TK_BE) ||
+    (ast_id(fun) == TK_FUN)
+    );
+
+  ast_t* typeparams = ast_childidx(fun, 2);
+  ast_t* params_or_types = ast_sibling(typeparams);
+  ast_t* result = ast_sibling(params_or_types);
+
+  return reify_one(typeparams, id, typearg) &&
+    reify_one(params_or_types, id, typearg) &&
+    reify_one(result, id, typearg);
 }
 
 static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
 {
   assert(ast_id(type) == TK_TYPEDEF);
+  assert(ast_id(id) == TK_ID);
   assert(ast_id(typearg) == TK_TYPEDEF);
 
   // make sure typearg has nominal_def calculated in the right scope
@@ -49,34 +63,15 @@ static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
         ast_swap(type, ast_dup(typearg));
         ast_free(type);
       } else {
-        ast_t* sub_typearg = ast_child(typeargs);
-
-        while(sub_typearg != NULL)
-        {
-          if(!reify_typedef(sub_typearg, id, typearg))
-            return false;
-
-          sub_typearg = ast_sibling(sub_typearg);
-        }
+        if(!reify_one(typeargs, id, typearg))
+          return false;
       }
 
       return true;
     }
 
     case TK_STRUCTURAL:
-    {
-      ast_t* fun = ast_child(sub_type);
-
-      while(fun != NULL)
-      {
-        if(!reify_function(fun, id, typearg))
-          return true;
-
-        fun = ast_sibling(fun);
-      }
-
-      return true;
-    }
+      return reify_one(sub_type, id, typearg);
 
     default: {}
   }
@@ -85,82 +80,102 @@ static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
   return false;
 }
 
-static bool reify_typeparam(ast_t* typeparams, ast_t* id, ast_t* typearg)
+static bool reify_params(ast_t* params, ast_t* id, ast_t* typearg)
 {
-  assert(ast_id(typeparams) == TK_TYPEPARAMS);
+  assert(
+    (ast_id(params) == TK_TYPEPARAMS) ||
+    (ast_id(params) == TK_PARAMS)
+    );
   assert(ast_id(id) == TK_ID);
   assert(ast_id(typearg) == TK_TYPEDEF);
 
-  ast_t* typeparam = ast_child(typeparams);
+  ast_t* param = ast_child(params);
 
-  while(typeparam != NULL)
+  while(param != NULL)
   {
-    ast_t* type_variable = ast_child(typeparam);
-    ast_t* constraint = ast_sibling(type_variable);
+    ast_t* name = ast_child(param);
+    ast_t* type = ast_sibling(name);
 
-    if((ast_id(constraint) != TK_NONE) &&
-      !reify_typedef(constraint, id, typearg))
-    {
+    if(!reify_one(type, id, typearg))
       return false;
-    }
 
-    typeparam = ast_sibling(typeparam);
+    param = ast_sibling(param);
   }
 
   return true;
 }
 
-ast_t* reify_typeparams(ast_t* typeparams, ast_t* typeargs)
+static bool reify_one(ast_t* ast, ast_t* id, ast_t* typearg)
 {
-  if(ast_id(typeparams) != TK_TYPEPARAMS)
-    return NULL;
-
-  if(ast_id(typeargs) != TK_TYPEARGS)
-    return NULL;
-
-  // duplicate the typeparams
-  typeparams = ast_dup(typeparams);
-
-  // iterate pairwise through the params and the args
-  ast_t* typeparam = ast_child(typeparams);
-  ast_t* typearg = ast_child(typeargs);
-
-  while((typeparam != NULL) && (typearg != NULL))
+  switch(ast_id(ast))
   {
-    ast_t* id = ast_child(typeparam);
+    case TK_NONE:
+      return true;
 
-    if(!reify_typeparam(typeparams, id, typearg))
-      break;
+    case TK_TYPEPARAMS:
+    case TK_PARAMS:
+      return reify_params(ast, id, typearg);
 
-    typeparam = ast_sibling(typeparam);
-    typearg = ast_sibling(typearg);
+    case TK_TYPEARGS:
+    case TK_TYPES:
+    case TK_STRUCTURAL:
+    {
+      // all of these are simple containers of things that get reified
+      // iterate through and reify each one
+      ast_t* sub = ast_child(ast);
+
+      while(sub != NULL)
+      {
+        if(!reify_one(sub, id, typearg))
+          return false;
+
+        sub = ast_sibling(sub);
+      }
+
+      return true;
+    }
+
+    case TK_TYPEDEF:
+      return reify_typedef(ast, id, typearg);
+
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      return reify_fun(ast, id, typearg);
+
+    default: {}
   }
 
-  if(typeparam != NULL)
-  {
-    ast_error(typeargs, "not enough type arguments");
-    ast_free(typeparams);
-    return NULL;
-  }
-
-  if(typearg != NULL)
-  {
-    ast_error(typearg, "too many type arguments");
-    ast_free(typeparams);
-    return NULL;
-  }
-
-  return typeparams;
+  assert(0);
+  return false;
 }
 
-ast_t* reify_type(ast_t* type, ast_t* typeparams, ast_t* typeargs)
+ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
-  assert(ast_id(type) == TK_TYPEDEF);
+  if(ast_id(typeparams) == TK_NONE)
+  {
+    if(ast_id(typeargs) == TK_TYPEARGS)
+    {
+      ast_error(typeargs, "type arguments where none were needed");
+      return NULL;
+    }
+
+    assert(ast_id(typeargs) == TK_NONE);
+    return ast;
+  }
+
   assert(ast_id(typeparams) == TK_TYPEPARAMS);
+
+  if(ast_id(typeargs) == TK_NONE)
+  {
+    ast_error(ast_parent(typeargs), "no type arguments where some were needed");
+    return NULL;
+  }
+
   assert(ast_id(typeargs) == TK_TYPEARGS);
 
-  // duplicate the type
-  type = ast_dup(type);
+  // duplicate the node
+  ast_t* r_ast = ast_dup(ast);
 
   // iterate pairwise through the params and the args
   ast_t* typeparam = ast_child(typeparams);
@@ -170,7 +185,7 @@ ast_t* reify_type(ast_t* type, ast_t* typeparams, ast_t* typeargs)
   {
     ast_t* id = ast_child(typeparam);
 
-    if(!reify_typedef(type, id, typearg))
+    if(!reify_one(r_ast, id, typearg))
       break;
 
     typeparam = ast_sibling(typeparam);
@@ -180,16 +195,16 @@ ast_t* reify_type(ast_t* type, ast_t* typeparams, ast_t* typeargs)
   if(typeparam != NULL)
   {
     ast_error(typeargs, "not enough type arguments");
-    ast_free(type);
+    ast_free(r_ast);
     return NULL;
   }
 
   if(typearg != NULL)
   {
     ast_error(typearg, "too many type arguments");
-    ast_free(type);
+    ast_free(r_ast);
     return NULL;
   }
 
-  return type;
+  return r_ast;
 }

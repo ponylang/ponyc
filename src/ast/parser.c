@@ -117,10 +117,25 @@ DEF(typeargs);
   SKIP(TK_RBRACKET);
   DONE();
 
+// NEW [ID] [typeparams] (LPAREN | TK_LPAREN_NEW) [types] RPAREN [QUESTION]
+DEF(newtype);
+  AST_TOKEN(TK_NEW);
+  SCOPE();
+  INSERT(TK_NONE);
+  OPTIONAL(TK_ID);
+  OPTRULE(typeparams);
+  SKIP(TK_LPAREN, TK_LPAREN_NEW);
+  OPTRULE(types);
+  INSERT(TK_NONE);
+  SKIP(TK_RPAREN);
+  OPTIONAL(TK_QUESTION);
+  INSERT(TK_NONE);
+  DONE();
+
 // BE [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN
 DEF(betype);
-  SKIP(TK_BE);
-  AST(TK_BETYPE);
+  AST_TOKEN(TK_BE);
+  SCOPE();
   INSERT(TK_NONE);
   OPTIONAL(TK_ID);
   OPTRULE(typeparams);
@@ -134,8 +149,8 @@ DEF(betype);
 // FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type]
 // [QUESTION]
 DEF(funtype);
-  SKIP(TK_FUN);
-  AST(TK_FUNTYPE);
+  AST_TOKEN(TK_FUN);
+  SCOPE();
   EXPECT(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG);
   OPTIONAL(TK_ID);
   OPTRULE(typeparams);
@@ -144,26 +159,14 @@ DEF(funtype);
   SKIP(TK_RPAREN);
   IFRULE(TK_COLON, type);
   OPTIONAL(TK_QUESTION);
-  DONE();
-
-// NEW [ID] [typeparams] (LPAREN | TK_LPAREN_NEW) [types] RPAREN [QUESTION]
-DEF(newtype);
-  SKIP(TK_NEW);
-  AST(TK_NEWTYPE);
   INSERT(TK_NONE);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
-  SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(types);
-  INSERT(TK_NONE);
-  SKIP(TK_RPAREN);
-  OPTIONAL(TK_QUESTION);
   DONE();
 
 // (LBRACE | LBRACE_NEW) {newtype | funtype | betype} RBRACE
 DEF(structural);
   SKIP(TK_LBRACE, TK_LBRACE_NEW);
   AST(TK_STRUCTURAL);
+  SCOPE();
   SEQRULE(newtype, funtype, betype);
   SKIP(TK_RBRACE);
   DONE();
@@ -532,7 +535,7 @@ DEF(function);
   AST_TOKEN(TK_FUN);
   SCOPE();
   EXPECT(TK_ISO, TK_TRN, TK_MUT, TK_IMM, TK_BOX, TK_TAG);
-  EXPECT(TK_ID);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(params);
@@ -563,7 +566,7 @@ DEF(constructor);
   AST_TOKEN(TK_NEW);
   SCOPE();
   INSERT(TK_NONE);
-  EXPECT(TK_ID);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(params);

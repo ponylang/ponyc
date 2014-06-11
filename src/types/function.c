@@ -122,19 +122,16 @@ function_t* function_create(ast_t* ast)
   switch(t)
   {
     case TK_NEW:
-    case TK_NEWTYPE:
       assert(ast_id(child) == TK_NONE);
       f->cap = K_NEW;
       break;
 
     case TK_BE:
-    case TK_BETYPE:
       assert(ast_id(child) == TK_NONE);
       f->cap = K_BE;
       break;
 
     case TK_FUN:
-    case TK_FUNTYPE:
       switch(ast_id(child))
       {
         case TK_ISO: f->cap = K_ISO; break;
@@ -158,7 +155,7 @@ function_t* function_create(ast_t* ast)
   if(ast_id(child) == TK_ID)
   {
     f->name = ast_name(child);
-  } else if((t == TK_NEW) || (t == TK_NEWTYPE)) {
+  } else if(t == TK_NEW) {
     f->name = stringtab("create");
   } else {
     f->name = stringtab("apply");

@@ -133,25 +133,10 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
 
   // reify the type parameters with the typeargs
   ast_t* typeparams = ast_childidx(type, 1);
-
-  if(ast_id(typeparams) == TK_NONE)
-  {
-    if(ast_id(typeargs) != TK_NONE)
-    {
-      ast_error(typeargs, "supplied type arguments where none were needed");
-      return false;
-    }
-
-    return true;
-  }
-
-  ast_t* r_typeparams = reify_typeparams(typeparams, typeargs);
+  ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
 
   if(r_typeparams == NULL)
-  {
-    ast_error(ast_parent(typeargs), "couldn't reify type parameters");
     return false;
-  }
 
   ast_t* typeparam = ast_child(r_typeparams);
   ast_t* typearg = ast_child(typeargs);
@@ -164,7 +149,10 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
-      ast_free(r_typeparams);
+
+      if(r_typeparams != typeparams)
+        ast_free(r_typeparams);
+
       return false;
     }
 
@@ -172,19 +160,8 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     typearg = ast_sibling(typearg);
   }
 
-  ast_free(r_typeparams);
-
-  if(typeparam != NULL)
-  {
-    ast_error(typeargs, "not enough type arguments");
-    return false;
-  }
-
-  if(typearg != NULL)
-  {
-    ast_error(typearg, "too many type arguments");
-    return false;
-  }
+  if(r_typeparams != typeparams)
+    ast_free(r_typeparams);
 
   return true;
 }
@@ -209,30 +186,13 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
   assert(ast_sibling(alias) == NULL);
 
   ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* r_alias;
+  ast_t* r_alias = reify(alias, typeparams, typeargs);
 
-  if(ast_id(typeparams) == TK_NONE)
-  {
-    // if we weren't expecting type arguments, we shouldn't have supplied any
-    if(ast_id(typeargs) != TK_NONE)
-    {
-      ast_error(typeargs,
-        "supplied type arguments where none were needed");
-      return false;
-    }
+  if(r_alias == NULL)
+    return false;
 
-    // duplicate the alias and use that directly
+  if(r_alias == alias)
     r_alias = ast_dup(alias);
-  } else {
-    // reify the alias with the type parameters
-    r_alias = reify_type(alias, typeparams, typeargs);
-
-    if(r_alias == NULL)
-    {
-      ast_error(ast_parent(typeargs), "couldn't reify type parameters");
-      return false;
-    }
-  }
 
   // the thing being swapped in must be a TYPEDEF
   assert(ast_id(r_alias) == TK_TYPEDEF);
@@ -255,10 +215,6 @@ bool type_valid(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
-    case TK_TYPE:
-      // TODO: constraints must be valid
-      break;
-
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:

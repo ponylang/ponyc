@@ -131,9 +131,6 @@ typedef enum
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_STRUCTURAL,
-  TK_NEWTYPE,
-  TK_FUNTYPE,
-  TK_BETYPE,
 
   TK_TYPEPARAMS,
   TK_TYPEPARAM,
@@ -180,6 +177,7 @@ void lexer_close(lexer_t* lexer);
 token_t* lexer_next(lexer_t* lexer);
 
 token_t* token_new(token_id id, size_t line, size_t pos, bool newline);
+token_t* token_newid(token_t* token, const char* id);
 token_t* token_dup(token_t* token);
 const char* token_string(token_t* token);
 void token_setid(token_t* token, token_id id);

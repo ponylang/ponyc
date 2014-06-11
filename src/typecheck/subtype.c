@@ -5,6 +5,169 @@
 
 static bool is_typedef_sub_typedef(ast_t* sub, ast_t* super);
 
+static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(sub))
+  {
+    case TK_NONE:
+      switch(ast_id(super))
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_IMM:
+        case TK_MUT:
+        case TK_BOX:
+        case TK_TAG:
+          return false;
+
+        case TK_NONE:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_ISO:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+          return false;
+
+        case TK_ISO:
+        case TK_TRN:
+        case TK_IMM:
+        case TK_MUT:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+        case TK_ISO:
+          return false;
+
+        case TK_TRN:
+        case TK_IMM:
+        case TK_MUT:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_MUT:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+        case TK_ISO:
+        case TK_TRN:
+        case TK_IMM:
+          return false;
+
+        case TK_MUT:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_IMM:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+        case TK_ISO:
+        case TK_TRN:
+        case TK_MUT:
+          return false;
+
+        case TK_IMM:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_BOX:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+        case TK_ISO:
+        case TK_TRN:
+        case TK_IMM:
+        case TK_MUT:
+          return false;
+
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG:
+      switch(ast_id(super))
+      {
+        case TK_NONE:
+        case TK_ISO:
+        case TK_TRN:
+        case TK_IMM:
+        case TK_MUT:
+        case TK_BOX:
+          return false;
+
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default:{}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool is_throws_sub_throws(ast_t* sub, ast_t* super)
+{
+  assert(
+    (ast_id(sub) == TK_NONE) ||
+    (ast_id(sub) == TK_QUESTION)
+    );
+  assert(
+    (ast_id(super) == TK_NONE) ||
+    (ast_id(super) == TK_QUESTION)
+    );
+
+  switch(ast_id(sub))
+  {
+    case TK_NONE:
+      return true;
+
+    case TK_QUESTION:
+      return ast_id(super) == TK_QUESTION;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 static bool is_eq_typeargs(ast_t* a, ast_t* b)
 {
   assert(ast_id(a) == TK_NOMINAL);
@@ -27,20 +190,39 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
-static bool is_function_sub_function(ast_t* sub, ast_t* super)
+static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
 {
-  // TODO:
-  return false;
+  // must be the same type of function
+  if(ast_id(sub) != ast_id(super))
+    return false;
+
+  // contravariant receiver
+  if(!is_cap_sub_cap(ast_child(super), ast_child(sub)))
+    return false;
+
+  // covariant throws
+  if(!is_throws_sub_throws(ast_childidx(sub, 5), ast_childidx(super, 5)))
+    return false;
+
+  // TODO: reify with our own constraints?
+
+  // TODO: contravariant parameters
+
+  // covariant results
+  if(!is_subtype(ast_childidx(sub, 4), ast_childidx(super, 4)))
+    return false;
+
+  return true;
 }
 
-static bool is_structural_sub_function(ast_t* sub, ast_t* fun)
+static bool is_structural_sub_fun(ast_t* sub, ast_t* fun)
 {
   // must have some function that is a subtype of fun
   ast_t* sub_fun = ast_child(sub);
 
   while(sub_fun != NULL)
   {
-    if(is_function_sub_function(sub_fun, fun))
+    if(is_fun_sub_fun(sub_fun, fun))
       return true;
 
     sub_fun = ast_sibling(sub_fun);
@@ -56,7 +238,7 @@ static bool is_structural_sub_structural(ast_t* sub, ast_t* super)
 
   while(fun != NULL)
   {
-    if(!is_structural_sub_function(sub, fun))
+    if(!is_structural_sub_fun(sub, fun))
       return false;
 
     fun = ast_sibling(fun);
@@ -65,20 +247,44 @@ static bool is_structural_sub_structural(ast_t* sub, ast_t* super)
   return true;
 }
 
-static bool is_functiondef_sub_function(ast_t* sub, ast_t* fun)
+static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
+  ast_t* typeargs, ast_t* fun)
 {
-  // TODO:
+  switch(ast_id(member))
+  {
+    case TK_FVAR:
+    case TK_FVAL:
+      return false;
+
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    {
+      ast_t* r_fun = reify(member, typeparams, typeargs);
+      bool is_sub = is_fun_sub_fun(r_fun, fun);
+
+      if(r_fun != member)
+        ast_free(r_fun);
+
+      return is_sub;
+    }
+
+    default: {}
+  }
+
+  assert(0);
   return false;
 }
 
-static bool is_type_sub_function(ast_t* def, ast_t* fun)
+static bool is_type_sub_fun(ast_t* def, ast_t* typeargs, ast_t* fun)
 {
+  ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
   while(member != NULL)
   {
-    if(is_functiondef_sub_function(member, fun))
+    if(is_member_sub_fun(member, typeparams, typeargs, fun))
       return true;
 
     member = ast_sibling(member);
@@ -94,14 +300,13 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
   if(def == NULL)
     return false;
 
-  // TODO: reify def with typeargs
-
   // must be a subtype of every function in super
+  ast_t* typeargs = ast_childidx(sub, 1);
   ast_t* fun = ast_child(super);
 
   while(fun != NULL)
   {
-    if(!is_type_sub_function(def, fun))
+    if(!is_type_sub_fun(def, typeargs, fun))
       return false;
 
     fun = ast_sibling(fun);
@@ -146,20 +351,11 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   while(trait != NULL)
   {
     assert(ast_id(trait) == TK_TYPEDEF);
-    bool is_sub;
+    ast_t* r_trait = reify(trait, typeparams, typeargs);
+    bool is_sub = is_subtype(r_trait, ast_parent(super));
 
-    if(ast_id(typeparams) == TK_TYPEPARAMS)
-    {
-      // substitute typeargs in sub for typeparams in trait
-      assert(ast_id(typeargs) == TK_TYPEARGS);
-      ast_t* r_trait = reify_type(trait, typeparams, typeargs);
-
-      is_sub = is_subtype(r_trait, ast_parent(super));
+    if(r_trait != trait)
       ast_free(r_trait);
-    } else {
-      // no type parameters, use the trait directly
-      is_sub = is_subtype(trait, ast_parent(super));
-    }
 
     if(is_sub)
       return true;

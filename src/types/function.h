@@ -26,7 +26,7 @@ funlist_t* funlist_reify(funlist_t* list,
   typelist_t* formal, typelist_t* actual);
 
 /**
- * function_t from a TK_NEW, TK_BE, TK_FUN, TK_NEWTYPE, TK_BETYPE, TK_FUNTYPE
+ * function_t from a TK_NEW, TK_BE, TK_FUN
  */
 function_t* function_create(ast_t* ast);
 

@@ -31,9 +31,9 @@ MEMBERS: {FVAR | FVAL | NEW | FUN | BE}
 FVAR: ID [TYPEDEF] [SEQ]
 FVAL: ID [TYPEDEF] [SEQ]
 
-NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ]
-FUN: CAP ID [TYPEPARAMS] [PARAMS] [TYPEDEF] [QUESTION] [SEQ]
-BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ]
+NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
+BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
+FUN: CAP ID [TYPEPARAMS] [PARAMS | TYPES] [TYPEDEF] [QUESTION] [SEQ]
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
@@ -56,11 +56,7 @@ TYPENAME: {ID | THIS}
 
 TYPEARGS: {TYPEDEF}
 
-STRUCTURAL: {NEWTYPE | FUNTYPE | BETYPE}
-
-NEWTYPE: NONE [ID] [TYPEPARAMS] [TYPES] NONE [QUESTION]
-FUNTYPE: CAP [ID] [TYPEPARAMS] [TYPES] [TYPEDEF] [QUESTION]
-BETYPE: NONE [ID] [TYPEPARAMS] [TYPES] NONE NONE
+STRUCTURAL: {NEW | FUN | BE}
 
 PARAMS: {PARAM}
 
@@ -172,6 +168,7 @@ typedef struct ast_t ast_t;
 
 ast_t* ast_new(token_id id, size_t line, size_t pos, void* data);
 ast_t* ast_token(token_t* t);
+ast_t* ast_newid(ast_t* previous, const char* id);
 ast_t* ast_dup(ast_t* ast);
 void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);

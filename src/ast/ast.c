@@ -141,6 +141,12 @@ ast_t* ast_token(token_t* t)
   return ast;
 }
 
+ast_t* ast_newid(ast_t* previous, const char* id)
+{
+  assert(ast_id(previous) == TK_NONE);
+  return ast_token(token_newid(previous->t, id));
+}
+
 ast_t* ast_dup(ast_t* ast)
 {
   ast_t* n = dup(NULL, ast);

@@ -120,8 +120,18 @@ bool type_scope(ast_t* ast, int verbose)
     }
 
     case TK_NEW:
-    case TK_FUN:
+    {
+      ast_t* id = ast_childidx(ast, 1);
+
+      if(ast_id(id) == TK_NONE)
+      {
+        ast_t* r_id = ast_newid(id, "create");
+        ast_swap(id, r_id);
+        ast_free(id);
+      }
+
       return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
+    }
 
     case TK_BE:
     {
@@ -129,6 +139,20 @@ bool type_scope(ast_t* ast, int verbose)
       {
         ast_error(ast, "can't have a behaviour in a class");
         return false;
+      }
+
+      return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
+    }
+
+    case TK_FUN:
+    {
+      ast_t* id = ast_childidx(ast, 1);
+
+      if(ast_id(id) == TK_NONE)
+      {
+        ast_t* r_id = ast_newid(id, "apply");
+        ast_swap(id, r_id);
+        ast_free(id);
       }
 
       return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
