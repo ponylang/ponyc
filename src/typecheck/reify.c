@@ -152,27 +152,31 @@ static bool reify_one(ast_t* ast, ast_t* id, ast_t* typearg)
 
 ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
+  assert(
+    (ast_id(typeparams) == TK_TYPEPARAMS) ||
+    (ast_id(typeparams) == TK_NONE)
+    );
+  assert(
+    (ast_id(typeargs) == TK_TYPEARGS) ||
+    (ast_id(typeargs) == TK_NONE)
+    );
+
   if(ast_id(typeparams) == TK_NONE)
   {
-    if(ast_id(typeargs) == TK_TYPEARGS)
+    if(ast_id(typeargs) != TK_NONE)
     {
       ast_error(typeargs, "type arguments where none were needed");
       return NULL;
     }
 
-    assert(ast_id(typeargs) == TK_NONE);
     return ast;
   }
-
-  assert(ast_id(typeparams) == TK_TYPEPARAMS);
 
   if(ast_id(typeargs) == TK_NONE)
   {
     ast_error(ast_parent(typeargs), "no type arguments where some were needed");
     return NULL;
   }
-
-  assert(ast_id(typeargs) == TK_TYPEARGS);
 
   // duplicate the node
   ast_t* r_ast = ast_dup(ast);

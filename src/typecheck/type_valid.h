@@ -5,4 +5,6 @@
 
 bool type_valid(ast_t* ast, int verbose);
 
+bool type_traits(ast_t* ast, int verbose);
+
 #endif

@@ -13,17 +13,7 @@ typedef enum
 
 static bool attach_method(ast_t* type, ast_t* method)
 {
-  ast_t* impl = ast_childidx(method, 6);
-
-  // if we aren't a trait and it has no implementation, we're done
-  if((ast_id(type) != TK_TRAIT) && (ast_id(impl) == TK_NONE))
-    return true;
-
-  // copy the method ast
   ast_t* members = ast_childidx(type, 4);
-  ast_t* method_dup = ast_dup(method);
-
-  // TODO: substitute for any type parameters
 
   // see if we have an existing method with this name
   const char* name = ast_name(ast_childidx(method, 1));
@@ -31,40 +21,50 @@ static bool attach_method(ast_t* type, ast_t* method)
 
   if(existing != NULL)
   {
-    // TODO: if we already have this method (by name):
     // check our version is a subtype of the supplied version
-    ast_free(method_dup);
+    if(!is_subtype(existing, method))
+    {
+      ast_error(existing, "existing method is not a subtype of trait method");
+      ast_error(method, "trait method is here");
+      return false;
+    }
+
+    // TODO: if existing has no implementation, accept this implementation
+    // what if a new method is a subtype of an existing method?
+    // if the existing method came from a trait, should we accept the new one?
+
     return true;
   }
 
   // insert into our members
-  ast_append(members, method_dup);
+  ast_t* r_method = ast_dup(method);
+  ast_append(members, r_method);
 
   // add to our scope
-  ast_set(type, name, method_dup);
+  ast_set(type, name, r_method);
 
   return true;
 }
 
-static bool attach_traits(ast_t* type)
+static bool attach_traits(ast_t* def)
 {
-  type_state_t state = (type_state_t)ast_data(type);
+  type_state_t state = (type_state_t)ast_data(def);
 
   switch(state)
   {
     case TYPE_INITIAL:
-      ast_attach(type, (void*)TYPE_TRAITS_IN_PROGRESS);
+      ast_attach(def, (void*)TYPE_TRAITS_IN_PROGRESS);
       break;
 
     case TYPE_TRAITS_IN_PROGRESS:
-      ast_error(type, "traits cannot be recursive");
+      ast_error(def, "traits cannot be recursive");
       return false;
 
     case TYPE_TRAITS_DONE:
       return true;
   }
 
-  ast_t* traits = ast_childidx(type, 3);
+  ast_t* traits = ast_childidx(def, 3);
   ast_t* trait = ast_child(traits);
 
   while(trait != NULL)
@@ -77,18 +77,20 @@ static bool attach_traits(ast_t* type)
       return false;
     }
 
-    ast_t* def = nominal_def(nominal);
+    ast_t* trait_def = nominal_def(nominal);
 
-    if(ast_id(def) != TK_TRAIT)
+    if(ast_id(trait_def) != TK_TRAIT)
     {
       ast_error(nominal, "must be a trait");
       return false;
     }
 
-    if(!attach_traits(def))
+    if(!attach_traits(trait_def))
       return false;
 
-    ast_t* members = ast_childidx(def, 4);
+    ast_t* typeparams = ast_childidx(trait_def, 1);
+    ast_t* typeargs = ast_childidx(nominal, 1);
+    ast_t* members = ast_childidx(trait_def, 4);
     ast_t* member = ast_child(members);
 
     while(member != NULL)
@@ -99,7 +101,15 @@ static bool attach_traits(ast_t* type)
         case TK_FUN:
         case TK_BE:
         {
-          if(!attach_method(type, member))
+          // reify the method with the type parameters from trait_def
+          // and the reified type arguments from r_trait
+          ast_t* r_member = reify(member, typeparams, typeargs);
+          bool ok = attach_method(def, r_member);
+
+          if(r_member != member)
+            ast_free(r_member);
+
+          if(!ok)
             return false;
 
           break;
@@ -114,7 +124,7 @@ static bool attach_traits(ast_t* type)
     trait = ast_sibling(trait);
   }
 
-  ast_attach(type, (void*)TYPE_TRAITS_DONE);
+  ast_attach(def, (void*)TYPE_TRAITS_DONE);
   return true;
 }
 
@@ -215,11 +225,6 @@ bool type_valid(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
-    case TK_TRAIT:
-    case TK_CLASS:
-    case TK_ACTOR:
-      return attach_traits(ast);
-
     case TK_NOMINAL:
     {
       // TODO: capability
@@ -251,6 +256,21 @@ bool type_valid(ast_t* ast, int verbose)
     case TK_FOR:
       // TODO: syntactic sugar for a while loop
       break;
+
+    default: {}
+  }
+
+  return true;
+}
+
+bool type_traits(ast_t* ast, int verbose)
+{
+  switch(ast_id(ast))
+  {
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+      return attach_traits(ast);
 
     default: {}
   }

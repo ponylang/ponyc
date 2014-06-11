@@ -3,8 +3,6 @@
 #include "typechecker.h"
 #include <assert.h>
 
-static bool is_typedef_sub_typedef(ast_t* sub, ast_t* super);
-
 static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
 {
   switch(ast_id(sub))
@@ -200,16 +198,49 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
   if(!is_cap_sub_cap(ast_child(super), ast_child(sub)))
     return false;
 
-  // covariant throws
-  if(!is_throws_sub_throws(ast_childidx(sub, 5), ast_childidx(super, 5)))
-    return false;
+  ast_t* sub_params = ast_childidx(sub, 3);
+  ast_t* sub_result = ast_sibling(sub_params);
+  ast_t* sub_throws = ast_sibling(sub_result);
+
+  ast_t* super_params = ast_childidx(super, 3);
+  ast_t* super_result = ast_sibling(super_params);
+  ast_t* super_throws = ast_sibling(super_result);
 
   // TODO: reify with our own constraints?
 
-  // TODO: contravariant parameters
+  // contravariant parameters
+  ast_t* sub_param = ast_child(sub_params);
+  ast_t* super_param = ast_child(super_params);
+
+  while((sub_param != NULL) && (super_param != NULL))
+  {
+    // extract the type if this is a parameter
+    // otherwise, this is already a type
+    ast_t* sub_type = (ast_id(sub_param) == TK_PARAM) ?
+      ast_childidx(sub_param, 1) : sub_param;
+
+    ast_t* super_type = (ast_id(super_param) == TK_PARAM) ?
+      ast_childidx(super_param, 1) : super_param;
+
+    assert(ast_id(sub_type) == TK_TYPEDEF);
+    assert(ast_id(super_type) == TK_TYPEDEF);
+
+    if(!is_subtype(super_type, sub_type))
+      return false;
+
+    sub_param = ast_sibling(sub_param);
+    super_param = ast_sibling(super_param);
+  }
+
+  if((sub_param != NULL) || (super_param != NULL))
+    return false;
 
   // covariant results
-  if(!is_subtype(ast_childidx(sub, 4), ast_childidx(super, 4)))
+  if(!is_subtype(sub_result, super_result))
+    return false;
+
+  // covariant throws
+  if(!is_throws_sub_throws(sub_throws, super_throws))
     return false;
 
   return true;
@@ -337,7 +368,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
     if(ast_id(constraint) == TK_NONE)
       return false;
 
-    return is_typedef_sub_typedef(constraint, ast_parent(super));
+    return is_subtype(constraint, ast_parent(super));
   }
 
   // get our typeparams and typeargs
@@ -366,14 +397,14 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_union_subtype(ast_t* sub, ast_t* super)
+static bool is_sub_union(ast_t* sub, ast_t* super)
 {
   ast_t* left = ast_child(super);
   ast_t* right = ast_sibling(left);
   return is_subtype(sub, left) || is_subtype(sub, right);
 }
 
-static bool is_isect_subtype(ast_t* sub, ast_t* super)
+static bool is_sub_isect(ast_t* sub, ast_t* super)
 {
   ast_t* left = ast_child(super);
   ast_t* right = ast_sibling(left);
@@ -397,98 +428,43 @@ static bool is_nominal_eq_nominal(ast_t* a, ast_t* b)
   return is_eq_typeargs(a, b);
 }
 
-static bool is_typedef_sub_typedef(ast_t* sub, ast_t* super)
-{
-  assert(ast_id(sub) == TK_TYPEDEF);
-  assert(ast_id(super) == TK_TYPEDEF);
-
-  super = ast_child(super);
-
-  switch(ast_id(super))
-  {
-    case TK_UNIONTYPE:
-      return is_union_subtype(sub, super);
-
-    case TK_ISECTTYPE:
-      return is_isect_subtype(sub, super);
-
-    default: {}
-  }
-
-  sub = ast_child(sub);
-
-  switch(ast_id(sub))
-  {
-    case TK_TUPLETYPE:
-    {
-      switch(ast_id(super))
-      {
-        case TK_TUPLETYPE:
-        {
-          ast_t* left = ast_child(sub);
-          ast_t* right = ast_sibling(left);
-          ast_t* super_left = ast_child(super);
-          ast_t* super_right = ast_sibling(super_left);
-          return is_subtype(left, super_left) && is_subtype(right, super_right);
-        }
-
-        case TK_NOMINAL:
-        case TK_STRUCTURAL:
-          return false;
-
-        default: {}
-      }
-      break;
-    }
-
-    case TK_NOMINAL:
-    {
-      switch(ast_id(super))
-      {
-        case TK_NOMINAL:
-          return is_nominal_sub_nominal(sub, super);
-
-        case TK_STRUCTURAL:
-          return is_nominal_sub_structural(sub, super);
-
-        case TK_TUPLETYPE:
-          return false;
-
-        default: {}
-      }
-      break;
-    }
-
-    case TK_STRUCTURAL:
-    {
-      switch(ast_id(super))
-      {
-        case TK_STRUCTURAL:
-          return is_structural_sub_structural(sub, super);
-
-        case TK_TUPLETYPE:
-        case TK_NOMINAL:
-          return false;
-
-        default: {}
-      }
-      break;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-static bool is_typedef_subtype(ast_t* type, ast_t* super)
+static bool is_typedef_sub(ast_t* type, ast_t* super)
 {
   assert(ast_id(type) == TK_TYPEDEF);
-  ast_t* sub = ast_child(type);
 
+  if(!is_subtype(ast_child(type), super))
+    return false;
+
+  // TODO: check cap and ephemeral
+  return true;
+}
+
+static bool is_typedef_eq(ast_t* type, ast_t* b)
+{
+  assert(ast_id(type) == TK_TYPEDEF);
+
+  if(!is_eqtype(ast_child(type), b))
+    return false;
+
+  // TODO: check cap and ephemeral
+  return true;
+}
+
+bool is_subtype(ast_t* sub, ast_t* super)
+{
+  // if the supertype is a typeparam, check against the constraint
+  if(ast_id(super) == TK_TYPEPARAM)
+    return is_subtype(sub, ast_childidx(super, 1));
+
+  // unwrap the subtype
   switch(ast_id(sub))
   {
+    case TK_TYPEDEF:
+      return is_typedef_sub(sub, super);
+
+    case TK_TYPEPARAM:
+      return is_subtype(ast_childidx(sub, 1), super);
+
     case TK_UNIONTYPE:
     {
       ast_t* left = ast_child(sub);
@@ -503,21 +479,65 @@ static bool is_typedef_subtype(ast_t* type, ast_t* super)
       return is_subtype(left, super) || is_subtype(right, super);
     }
 
+    default: {}
+  }
+
+  // unwrap the supertype
+  if(ast_id(super) == TK_TYPEDEF)
+    super = ast_child(super);
+
+  switch(ast_id(super))
+  {
+    case TK_UNIONTYPE:
+      return is_sub_union(sub, super);
+
+    case TK_ISECTTYPE:
+      return is_sub_isect(sub, super);
+
+    default: {}
+  }
+
+  switch(ast_id(sub))
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      return is_fun_sub_fun(sub, super);
+
     case TK_TUPLETYPE:
+    {
+      if(ast_id(super) != TK_TUPLETYPE)
+        return false;
+
+      ast_t* left = ast_child(sub);
+      ast_t* right = ast_sibling(left);
+      ast_t* super_left = ast_child(super);
+      ast_t* super_right = ast_sibling(super_left);
+      return is_subtype(left, super_left) && is_subtype(right, super_right);
+    }
+
     case TK_NOMINAL:
-    case TK_STRUCTURAL:
     {
       switch(ast_id(super))
       {
-        case TK_TYPEDEF:
-          return is_typedef_sub_typedef(type, super);
+        case TK_NOMINAL:
+          return is_nominal_sub_nominal(sub, super);
 
-        case TK_TYPEPARAM:
-          return is_subtype(type, ast_childidx(super, 1));
+        case TK_STRUCTURAL:
+          return is_nominal_sub_structural(sub, super);
 
         default: {}
       }
-      break;
+
+      return false;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      if(ast_id(super) == TK_STRUCTURAL)
+        return false;
+
+      return is_structural_sub_structural(sub, super);
     }
 
     default: {}
@@ -527,10 +547,24 @@ static bool is_typedef_subtype(ast_t* type, ast_t* super)
   return false;
 }
 
-static bool is_typedef_eqtype(ast_t* type, ast_t* b)
+bool is_eqtype(ast_t* a, ast_t* b)
 {
-  assert(ast_id(type) == TK_TYPEDEF);
-  ast_t* a = ast_child(type);
+  if(ast_id(b) == TK_TYPEPARAM)
+    return is_eqtype(a, ast_childidx(b, 1));
+
+  switch(ast_id(a))
+  {
+    case TK_TYPEDEF:
+      return is_typedef_eq(a, b);
+
+    case TK_TYPEPARAM:
+      return is_eqtype(ast_childidx(a, 1), b);
+
+    default: {}
+  }
+
+  if(ast_id(b) == TK_TYPEDEF)
+    b = ast_child(b);
 
   switch(ast_id(a))
   {
@@ -541,11 +575,6 @@ static bool is_typedef_eqtype(ast_t* type, ast_t* b)
 
     case TK_TUPLETYPE:
     {
-      if(ast_id(b) != TK_TYPEDEF)
-        return false;
-
-      b = ast_child(b);
-
       if(ast_id(b) != TK_TUPLETYPE)
         return false;
 
@@ -558,64 +587,10 @@ static bool is_typedef_eqtype(ast_t* type, ast_t* b)
 
     case TK_NOMINAL:
     {
-      if(ast_id(b) != TK_TYPEDEF)
-        return false;
-
-      b = ast_child(b);
-
       if(ast_id(b) != TK_NOMINAL)
         return false;
 
       return is_nominal_eq_nominal(a, b);
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-bool is_subtype(ast_t* sub, ast_t* super)
-{
-  switch(ast_id(sub))
-  {
-    case TK_TYPEDEF:
-    {
-      if(!is_typedef_subtype(sub, super))
-        return false;
-
-      // TODO: check cap and ephemeral
-      return true;
-    }
-
-    case TK_TYPEPARAM:
-      return is_subtype(ast_childidx(sub, 1), super);
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-bool is_eqtype(ast_t* a, ast_t* b)
-{
-  switch(ast_id(a))
-  {
-    case TK_TYPEDEF:
-    {
-      if(!is_typedef_eqtype(a, b))
-        return false;
-
-      // TODO: check cap and ephemeral
-      return true;
-    }
-
-    case TK_TYPEPARAM:
-    {
-      // TODO: is this right?
-      return is_eqtype(ast_childidx(a, 1), b);
     }
 
     default: {}

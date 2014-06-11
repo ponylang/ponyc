@@ -1,6 +1,6 @@
-trait Iterator[A]
+trait Iterator[Z]
   fun box has_next(): Bool
-  fun mut next(): this.A ?
+  fun mut next(): this.Z ?
 
-trait Iterable[A]
-  fun box iterator(): Iterator[A] mut^
+trait Iterable[Z]
+  fun box iterator(): Iterator[Z] mut^

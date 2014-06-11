@@ -12,6 +12,9 @@ bool typecheck(ast_t* ast, int verbose)
   if(!ast_visit(ast, NULL, type_valid, verbose))
     return false;
 
+  if(!ast_visit(ast, type_traits, NULL, verbose))
+    return false;
+
   if(!ast_visit(ast, NULL, type_expr, verbose))
     return false;
 
