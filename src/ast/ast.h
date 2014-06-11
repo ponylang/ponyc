@@ -23,6 +23,7 @@ TYPE: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
 TRAIT: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
 CLASS: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
 ACTOR: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
+data: typechecking state
 symtab: ID -> TYPEPARAM | VAR | VAL | NEW | FUN | BE
 
 MEMBERS: {FVAR | FVAL | NEW | FUN | BE}
@@ -41,7 +42,7 @@ TYPEPARAM: ID [TYPEDEF] [SEQ]
 
 TYPES: {TYPEDEF}
 
-TYPEDEF: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | TYPEDECL)
+TYPEDEF: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
   [CAP] [HAT]
 
 UNIONTYPE: TYPEDEF TYPEDEF
@@ -49,6 +50,7 @@ ISECTTYPE: TYPEDEF TYPEDEF
 TUPLETYPE: TYPEDEF TYPEDEF
 
 NOMINAL: TYPENAME [TYPEARGS]
+data: nominal_def, if it has been resolved
 
 TYPENAME: {ID | THIS}
 
@@ -195,6 +197,7 @@ bool ast_merge(ast_t* dst, ast_t* src);
 void ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_pop(ast_t* ast);
 void ast_append(ast_t* parent, ast_t* child);
+void ast_swap(ast_t* prev, ast_t* next);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);

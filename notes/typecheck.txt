@@ -69,10 +69,13 @@ F-Bounded?
   fun tag min(a: Ordered[Any], b: Ordered[Any]): Ordered[Any] =>
     if a < b then a else b end
   this type checks
-  trait Foo[A: Foo[A]] is Ordered[A]
-  fun tag min[A: Foo[String]](a: A, b: A): A
-    Foo[String] !<: Ordered[Foo[String]]
-    Foo[String] <: Ordered[String]
+
+  trait Sortable[A: Sortable[A]] is Ordered[A]
+  fun tag min[Sortable[A]](a: A, b: A): A
+    Sortable[A] !<: Ordered[Sortable[A]]
+    Sortable[A] <: Ordered[A]
+  this does not type check
+  but a concrete type that is Sortable would
 
 fun tag min[A: List[B], B: Ordered[B]](list: A, item: B): B =>
   [List[String], String] ->

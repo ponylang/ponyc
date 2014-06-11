@@ -113,7 +113,13 @@ ast_t* dup(ast_t* parent, ast_t* ast)
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
   n->parent = parent;
-  n->child = dup(ast, ast->child);
+  n->child = dup(n, ast->child);
+
+  if(ast->symtab != NULL)
+  {
+    n->symtab = symtab_new();
+    symtab_merge(n->symtab, ast->symtab);
+  }
 
   if(parent != NULL)
     n->sibling = dup(parent, ast->sibling);
@@ -137,7 +143,10 @@ ast_t* ast_token(token_t* t)
 
 ast_t* ast_dup(ast_t* ast)
 {
-  return dup(NULL, ast);
+  ast_t* n = dup(NULL, ast);
+  n->parent = ast->parent;
+
+  return n;
 }
 
 void ast_attach(ast_t* ast, void* data)
@@ -317,6 +326,32 @@ void ast_append(ast_t* parent, ast_t* child)
   ast->sibling = child;
 }
 
+void ast_swap(ast_t* prev, ast_t* next)
+{
+  assert(prev->parent != NULL);
+  assert(next->sibling == NULL);
+
+  ast_t* last = NULL;
+  ast_t* cur = prev->parent->child;
+
+  while(cur != prev)
+  {
+    last = cur;
+    cur = cur->sibling;
+  }
+
+  assert(cur == prev);
+
+  if(last != NULL)
+    last->sibling = next;
+  else
+    prev->parent->child = next;
+
+  next->sibling = prev->sibling;
+  next->parent = prev->parent;
+  prev->sibling = NULL;
+}
+
 void ast_reverse(ast_t* ast)
 {
   if(ast == NULL)
@@ -328,6 +363,8 @@ void ast_reverse(ast_t* ast)
 
   while(cur != NULL)
   {
+    assert(cur->parent == ast);
+
     ast_reverse(cur);
     next = cur->sibling;
     cur->sibling = last;

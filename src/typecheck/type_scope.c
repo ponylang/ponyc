@@ -60,15 +60,15 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
     return NULL;
   }
 
-  if(name)
+  if(name && ast_id(name) == TK_ID)
   {
-    assert(ast_id(name) == TK_ID);
-
     if(!set_scope(ast, name, package, false))
       return NULL;
 
     return package;
   }
+
+  assert((name == NULL) || (ast_id(name) == TK_NONE));
 
   if(!ast_merge(ast, package))
   {

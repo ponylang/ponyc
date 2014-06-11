@@ -48,7 +48,7 @@ void scope(ast_t* ast);
   }
 
 #define NEED(X) \
-  if(!X) \
+  if(!(X)) \
   { \
     if(!opt && (ast != NULL)) \
       syntax_error(parser, __FUNCTION__, __LINE__); \
@@ -177,6 +177,14 @@ ast_t* parse(source_t* source, rule_t start);
   { \
     ALTS(__VA_ARGS__); \
     ast = bindop(parser, precedence, ast, alt); \
+  }
+
+#define EXPECTBINDOP(...) \
+  { \
+    ALTS(__VA_ARGS__); \
+    ast_t* nast = bindop(parser, precedence, ast, alt); \
+    NEED(nast != ast); \
+    ast = nast; \
   }
 
 #define SCOPE() scope(ast)

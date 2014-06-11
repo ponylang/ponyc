@@ -1,6 +1,44 @@
 #include "type_expr.h"
 #include "typechecker.h"
 
+ast_t* get_def(ast_t* ast, const char* name)
+{
+  ast_t* def = ast_get(ast, name);
+
+  if(def == NULL)
+  {
+    ast_error(ast, "can't find declaration of '%s'", name);
+    return NULL;
+  }
+
+  return def;
+}
+
+bool def_before_use(ast_t* def, ast_t* use, const char* name)
+{
+  switch(ast_id(def))
+  {
+    case TK_VAR:
+    case TK_VAL:
+    {
+      // variables must be declared before they are used
+      if((ast_line(def) > ast_line(use)) ||
+         ((ast_line(def) == ast_line(use)) &&
+          (ast_pos(def) > ast_pos(use))))
+      {
+        ast_error(use, "declaration of '%s' appears after use", name);
+        ast_error(def, "declaration of '%s' appears here", name);
+        return false;
+      }
+      break;
+    }
+
+    default: {}
+  }
+
+  return true;
+}
+
 /**
  * This checks the type of all expressions.
  */
@@ -157,26 +195,13 @@ bool type_expr(ast_t* ast, int verbose)
     {
       // everything we reference must be in scope
       const char* name = ast_name(ast_child(ast));
-      ast_t* ref = ast_get(ast, name);
+      ast_t* def = get_def(ast, name);
 
-      if(ref == NULL)
-      {
-        ast_error(ast, "can't find definition of '%s'", name);
+      if(def == NULL)
         return false;
-      }
 
-      if(!is_type_id(name))
-      {
-        // variables must be declared before they are used
-        if((ast_line(ref) > ast_line(ast)) ||
-           ((ast_line(ref) == ast_line(ast)) &&
-            (ast_pos(ref) > ast_pos(ast))))
-        {
-          ast_error(ast, "definition of '%s' appears after use", name);
-          ast_error(ref, "definition of '%s' appears here", name);
-          return false;
-        }
-      }
+      if(!def_before_use(def, ast, name))
+        return false;
 
       // TODO: get the type?
       break;

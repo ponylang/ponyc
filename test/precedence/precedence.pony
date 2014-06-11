@@ -4,11 +4,16 @@ trait Foo
 
 trait Bar
 
+type FooBar is (Foo | Bar)
+
+class FooBarTest[A: (Foo | Bar)]
+
 class Precedence is Foo, Bar
   /* nested
   /* comments */
   work */
   var field: I32
+  var foo_bar_test: FooBarTest[FooBar]
 
   fun mut find_in_array(a: c.Array[String] imm, find: String):
     (U64, String) ? =>

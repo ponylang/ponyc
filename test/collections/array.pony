@@ -42,7 +42,7 @@ class Array[A] is Iterable[A]
   fun box iterator(): ArrayIterator[A, this.Array[A]] mut^ =>
     ArrayIterator(this)
 
-class ArrayIterator[A, B:Array[A] box] is Iterator[A]
+class ArrayIterator[A, B: Array[A] box] is Iterator[A]
   var array: B
   var i: U64
 

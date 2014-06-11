@@ -209,7 +209,7 @@ DEF(isecttype);
 DEF(typeexpr);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   AST_RULE(type);
-  BINDOP(uniontype, isecttype, tupletype);
+  EXPECTBINDOP(uniontype, isecttype, tupletype);
   SKIP(TK_RPAREN);
   DONE();
 
