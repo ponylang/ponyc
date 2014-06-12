@@ -89,7 +89,7 @@ static bool attach_traits(ast_t* def)
       return false;
 
     ast_t* typeparams = ast_childidx(trait_def, 1);
-    ast_t* typeargs = ast_childidx(nominal, 1);
+    ast_t* typeargs = ast_childidx(nominal, 2);
     ast_t* members = ast_childidx(trait_def, 4);
     ast_t* member = ast_child(members);
 
@@ -234,7 +234,7 @@ bool type_valid(ast_t* ast, int verbose)
         return false;
 
       // make sure our typeargs are subtypes of our constraints
-      ast_t* typeargs = ast_childidx(ast, 1);
+      ast_t* typeargs = ast_childidx(ast, 2);
 
       if(!check_constraints(def, typeargs))
         return false;
@@ -244,6 +244,10 @@ bool type_valid(ast_t* ast, int verbose)
 
       return true;
     }
+
+    case TK_CALL:
+      // TODO: check for syntactic sugar for apply
+      break;
 
     case TK_ASSIGN:
       // TODO: check for syntactic sugar for update
@@ -256,6 +260,8 @@ bool type_valid(ast_t* ast, int verbose)
     case TK_FOR:
       // TODO: syntactic sugar for a while loop
       break;
+
+    // TODO: syntactic sugar for partial application
 
     default: {}
   }

@@ -136,8 +136,8 @@ function_t* function_create(ast_t* ast)
       {
         case TK_ISO: f->cap = K_ISO; break;
         case TK_TRN: f->cap = K_TRN; break;
-        case TK_MUT: f->cap = K_MUT; break;
-        case TK_IMM: f->cap = K_IMM; break;
+        case TK_REF: f->cap = K_MUT; break;
+        case TK_VAL: f->cap = K_IMM; break;
         case TK_BOX: f->cap = K_BOX; break;
         case TK_TAG: f->cap = K_TAG; break;
         default: assert(0); return NULL;

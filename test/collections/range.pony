@@ -1,7 +1,7 @@
 class Range[A: Arithmetic = I64] is Iterator[A]
-  val min: A
-  val max: A
-  val inc: A
+  let min: A
+  let max: A
+  let inc: A
   var idx: A
 
   new create(min': A, max': A) =>
@@ -18,6 +18,6 @@ class Range[A: Arithmetic = I64] is Iterator[A]
 
   fun box has_next(): Bool => idx < max
 
-  fun mut next(): this.A ? => if idx < max then idx = idx + inc else error end
+  fun ref next(): A this ? => if idx < max then idx = idx + inc else error end
 
-  fun mut rewind() => idx = min
+  fun ref rewind() => idx = min

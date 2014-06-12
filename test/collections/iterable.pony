@@ -1,6 +1,6 @@
 trait Iterator[Z]
   fun box has_next(): Bool
-  fun mut next(): this.Z ?
+  fun ref next(): Z this ?
 
 trait Iterable[Z]
-  fun box iterator(): Iterator[Z] mut^
+  fun box iterator(): Iterator[Z] ref^

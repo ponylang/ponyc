@@ -56,6 +56,7 @@ typedef enum
   TK_AMP,
   TK_QUESTION,
 
+  TK_ID_NEW,
   TK_LBRACE_NEW,
   TK_LPAREN_NEW,
   TK_LBRACKET_NEW,
@@ -72,15 +73,15 @@ typedef enum
   TK_ISNT,
 
   TK_VAR,
-  TK_VAL,
+  TK_LET,
   TK_NEW,
   TK_FUN,
   TK_BE,
 
   TK_ISO,
   TK_TRN,
-  TK_MUT,
-  TK_IMM,
+  TK_REF,
+  TK_VAL,
   TK_BOX,
   TK_TAG,
 
@@ -124,7 +125,7 @@ typedef enum
   TK_FVAL,
 
   TK_TYPES,
-  TK_TYPENAME,
+  TK_CAP,
 
   TK_UNIONTYPE,
   TK_ISECTTYPE,
@@ -150,7 +151,7 @@ typedef enum
   TK_OBJECT,
   TK_CASES,
   TK_CASE,
-  TK_REF,
+  TK_REFERENCE,
 
   TK_EOF
 } token_id;

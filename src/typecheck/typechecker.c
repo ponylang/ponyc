@@ -39,98 +39,39 @@ ast_t* nominal_def(ast_t* nominal)
   if(def != NULL)
     return def;
 
-  ast_t* type_name = ast_child(nominal);
-  ast_t* scope = type_name;
-  ast_t* id = ast_child(type_name);
+  ast_t* package = ast_child(nominal);
+  ast_t* type = ast_sibling(package);
+  ast_t* scope = nominal;
 
-  while(id != NULL)
+  if(ast_id(package) != TK_NONE)
   {
-    switch(ast_id(id))
+    const char* name = ast_name(package);
+    ast_t* r_package = ast_get(scope, name);
+
+    if((r_package == NULL) || (ast_id(r_package) != TK_PACKAGE))
     {
-      case TK_THIS:
-      {
-        // TODO: cap
-        if(scope != type_name)
-        {
-          ast_error(id,
-            "viewpoint adaptation through 'this' must be first");
-          return NULL;
-        }
-        break;
-      }
-
-      case TK_ID:
-      {
-        const char* name = ast_name(id);
-        def = ast_get(scope, name);
-
-        if(def == NULL)
-        {
-          ast_error(id, "can't find definition of '%s'", name);
-          return NULL;
-        }
-
-        switch(ast_id(def))
-        {
-          case TK_PACKAGE:
-          {
-            if(scope != type_name)
-            {
-              ast_error(id, "only one package can appear in a type name");
-              return NULL;
-            }
-
-            scope = def;
-            break;
-          }
-
-          case TK_TYPE:
-          case TK_TRAIT:
-          case TK_CLASS:
-          case TK_ACTOR:
-          case TK_TYPEPARAM:
-          {
-            if(ast_sibling(id) != NULL)
-            {
-              ast_error(id, "a type must be the last element of a type name");
-              return NULL;
-            }
-
-            ast_attach(nominal, def);
-            return def;
-          }
-
-          case TK_FVAR:
-          case TK_FVAL:
-          case TK_IDSEQ:
-          {
-            // TODO: cap
-            // TODO: change the scope to access the fields of the object
-            if(scope != type_name)
-            {
-              ast_error(id,
-                "viewpoint adaptation cannot occur after a package");
-              return NULL;
-            }
-            break;
-          }
-
-          default:
-          {
-            ast_error(id, "only fields and local variables can be used for "
-              "viewpoint adaptation");
-            return NULL;
-          }
-        }
-        break;
-      }
-
-      default: assert(0);
+      ast_error(package, "can't find package '%s'", name);
+      return NULL;
     }
 
-    id = ast_sibling(id);
+    scope = r_package;
   }
 
-  ast_error(type_name, "no type name present");
-  return NULL;
+  const char* name = ast_name(type);
+  def = ast_get(scope, name);
+
+  if((def == NULL) ||
+    ((ast_id(def) != TK_TYPE) &&
+     (ast_id(def) != TK_TRAIT) &&
+     (ast_id(def) != TK_CLASS) &&
+     (ast_id(def) != TK_ACTOR) &&
+     (ast_id(def) != TK_TYPEPARAM))
+    )
+  {
+    ast_error(type, "can't find definition of '%s'", name);
+    return NULL;
+  }
+
+  ast_attach(nominal, def);
+  return def;
 }

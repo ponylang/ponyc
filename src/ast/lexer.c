@@ -96,15 +96,15 @@ static const lexsym_t keywords[] =
   { "isnt", TK_ISNT },
 
   { "var", TK_VAR },
-  { "val", TK_VAL },
+  { "let", TK_LET },
   { "new", TK_NEW },
   { "fun", TK_FUN },
   { "be", TK_BE },
 
   { "iso", TK_ISO },
   { "trn", TK_TRN },
-  { "mut", TK_MUT },
-  { "imm", TK_IMM },
+  { "ref", TK_REF },
+  { "val", TK_VAL },
   { "box", TK_BOX },
   { "tag", TK_TAG },
 
@@ -152,7 +152,7 @@ static const lexsym_t abstract[] =
   { "fval", TK_FVAL },
 
   { "types", TK_TYPES },
-  { "typename", TK_TYPENAME },
+  { "cap", TK_CAP },
 
   { "uniontype", TK_UNIONTYPE },
   { "isecttype", TK_ISECTTYPE },
@@ -178,7 +178,7 @@ static const lexsym_t abstract[] =
   { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
-  { "ref", TK_REF },
+  { "reference", TK_REFERENCE },
 
   { NULL, 0 }
 };
@@ -1142,6 +1142,7 @@ void token_setid(token_t* token, token_id id)
   {
     switch(id)
     {
+      case TK_ID: id = TK_ID_NEW; break;
       case TK_LBRACE: id = TK_LBRACE_NEW; break;
       case TK_LPAREN: id = TK_LPAREN_NEW; break;
       case TK_LBRACKET: id = TK_LBRACKET_NEW; break;

@@ -49,17 +49,18 @@ static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
 
     case TK_NOMINAL:
     {
-      ast_t* type_name = ast_child(sub_type);
-      ast_t* type_id = ast_child(type_name);
+      ast_t* package = ast_child(sub_type);
+      ast_t* type_name = ast_sibling(package);
       ast_t* typeargs = ast_sibling(type_name);
 
-      if((ast_sibling(type_id) == NULL) && (ast_name(type_id) == ast_name(id)))
+      if((ast_id(package) == TK_NONE) && (ast_name(type_name) == ast_name(id)))
       {
-        // we have only one name component and it is the id we are reifying
         // we should not have typeargs
         if(ast_id(typeargs) != TK_NONE)
           return false;
 
+        // TODO: when reifying, need to preserve viewpoint adaptation
+        // also cap and ephemeral
         ast_swap(type, ast_dup(typearg));
         ast_free(type);
       } else {

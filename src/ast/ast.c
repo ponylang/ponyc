@@ -165,6 +165,11 @@ void ast_scope(ast_t* ast)
   ast->symtab = symtab_new();
 }
 
+void ast_setid(ast_t* ast, token_id id)
+{
+  ast->t->id = id;
+}
+
 token_id ast_id(ast_t* ast)
 {
   return ast->t->id;

@@ -15,7 +15,7 @@ class Precedence is Foo, Bar
   var field: I32
   var foo_bar_test: FooBarTest[FooBar]
 
-  fun mut find_in_array(a: c.Array[String] imm, find: String):
+  fun ref find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>
     for (index, value) in a.pairs() do
       if value == find then
@@ -24,22 +24,22 @@ class Precedence is Foo, Bar
     end
     error
 
-  fun tag wrap_find(a: c.Array[String] imm, find: String): (U64, String) =>
+  fun tag wrap_find(a: c.Array[String] val, find: String): (U64, String) =>
     try
       find_in_array(a, find)
     else
       (0, "Not found")
     end
 
-  fun tag call_it(a: {fun mut(I64): I64}): I64 => a()
+  fun tag call_it(a: {fun ref(I64): I64}): I64 => a()
 
-  fun tag make_it(i: I64): {fun mut(I64): I64} =>
+  fun tag make_it(i: I64): {fun ref(I64): I64} =>
     {
       var i' = i
-      fun mut apply(j: I64): I64 => (i' = j) + j
+      fun ref apply(j: I64): I64 => (i' = j) + j
     }
 
-  fun tag make_array(n: U64): c.Array[U64] mut^ =>
+  fun tag make_array(n: U64): c.Array[U64] ref^ =>
     var a = c.Array[U64]
     for i in c.Range(0, n) do
       a.append(i)
@@ -55,7 +55,7 @@ class Precedence is Foo, Bar
   /*fun tag call_optionals(): I64 => optionals(3 where b = 10)*/
 
   /**/
-  fun mut test() =>
+  fun ref test() =>
     var list
     for (i, j) in list do
       1
@@ -71,7 +71,7 @@ class Precedence is Foo, Bar
    */
   /* FIXME: foo */
   // TODO: foo
-  fun imm foo(): F32 =>
+  fun val foo(): F32 =>
     1 + 2 * 3 + 4
     -3
     """
@@ -88,11 +88,11 @@ class Precedence is Foo, Bar
 
   fun tag identity[A](a: A): A^ => consume a
 
-  fun mut bar(): I32 =>
+  fun ref bar(): I32 =>
     3.hello
     c.List(9)
     [True](1, 2)
-    "string".bar[this.field.c.List[Precedence]](99, 100)
+    "string".bar[c.List[Precedence] field](99, 100)
     (7; 3,77)
     var (a, b)
     a + 37; b + b * b

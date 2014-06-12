@@ -12,34 +12,34 @@ class Array[A] is Iterable[A]
 
   fun box length(): U64 => size
 
-  fun box apply(i: U64): this.A ? =>
+  fun box apply(i: U64): A this ? =>
     if i < size then ptr(i) else error end
 
-  fun mut update(i: U64, v: A): this.A^ =>
+  fun ref update(i: U64, v: A): A this^ =>
     if i < size then ptr(i) = v else v end
 
-  fun mut reserve(len: U64): Array[A] mut^ =>
+  fun ref reserve(len: U64): Array[A] ref^ =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
       ptr = POINTER[A].from(ptr, alloc)
     end
     this
 
-  fun mut clear(): Array[A] mut^ =>
+  fun ref clear(): Array[A] ref^ =>
     size = 0
     this
 
-  fun mut append(v: A): Array[A] mut^ =>
+  fun ref append(v: A): Array[A] ref^ =>
     reserve(size + 1)
     ptr(size) = v
     size = size + 1
     this
 
-  fun mut concat(iter: Iterable[A] mut): Array[A] mut^ =>
+  fun ref concat(iter: Iterable[A] ref): Array[A] ref^ =>
     for v in iter do append(v) end
     this
 
-  fun box iterator(): ArrayIterator[A, this.Array[A]] mut^ =>
+  fun box iterator(): ArrayIterator[A, Array[A] this] ref^ =>
     ArrayIterator(this)
 
 class ArrayIterator[A, B: Array[A] box] is Iterator[A]
@@ -52,4 +52,4 @@ class ArrayIterator[A, B: Array[A] box] is Iterator[A]
 
   fun box has_next(): Bool => i < array.length()
 
-  fun mut next(): array.A ? => array(i = i + 1)
+  fun ref next(): A array ? => array(i = i + 1)

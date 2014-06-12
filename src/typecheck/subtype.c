@@ -12,8 +12,8 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
       {
         case TK_ISO:
         case TK_TRN:
-        case TK_IMM:
-        case TK_MUT:
+        case TK_VAL:
+        case TK_REF:
         case TK_BOX:
         case TK_TAG:
           return false;
@@ -33,8 +33,8 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
 
         case TK_ISO:
         case TK_TRN:
-        case TK_IMM:
-        case TK_MUT:
+        case TK_VAL:
+        case TK_REF:
         case TK_BOX:
         case TK_TAG:
           return true;
@@ -51,8 +51,8 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
           return false;
 
         case TK_TRN:
-        case TK_IMM:
-        case TK_MUT:
+        case TK_VAL:
+        case TK_REF:
         case TK_BOX:
         case TK_TAG:
           return true;
@@ -61,16 +61,16 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
       }
       break;
 
-    case TK_MUT:
+    case TK_REF:
       switch(ast_id(super))
       {
         case TK_NONE:
         case TK_ISO:
         case TK_TRN:
-        case TK_IMM:
+        case TK_VAL:
           return false;
 
-        case TK_MUT:
+        case TK_REF:
         case TK_BOX:
         case TK_TAG:
           return true;
@@ -79,16 +79,16 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
       }
       break;
 
-    case TK_IMM:
+    case TK_VAL:
       switch(ast_id(super))
       {
         case TK_NONE:
         case TK_ISO:
         case TK_TRN:
-        case TK_MUT:
+        case TK_REF:
           return false;
 
-        case TK_IMM:
+        case TK_VAL:
         case TK_BOX:
         case TK_TAG:
           return true;
@@ -103,8 +103,8 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
         case TK_NONE:
         case TK_ISO:
         case TK_TRN:
-        case TK_IMM:
-        case TK_MUT:
+        case TK_VAL:
+        case TK_REF:
           return false;
 
         case TK_BOX:
@@ -121,8 +121,8 @@ static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
         case TK_NONE:
         case TK_ISO:
         case TK_TRN:
-        case TK_IMM:
-        case TK_MUT:
+        case TK_VAL:
+        case TK_REF:
         case TK_BOX:
           return false;
 
@@ -172,8 +172,8 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   assert(ast_id(b) == TK_NOMINAL);
 
   // check typeargs are the same
-  ast_t* a_arg = ast_child(ast_childidx(a, 1));
-  ast_t* b_arg = ast_child(ast_childidx(b, 1));
+  ast_t* a_arg = ast_child(ast_childidx(a, 2));
+  ast_t* b_arg = ast_child(ast_childidx(b, 2));
 
   while((a_arg != NULL) && (b_arg != NULL))
   {
@@ -326,13 +326,16 @@ static bool is_type_sub_fun(ast_t* def, ast_t* typeargs, ast_t* fun)
 
 static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
 {
+  assert(ast_id(sub) == TK_NOMINAL);
+  assert(ast_id(super) == TK_STRUCTURAL);
+
   ast_t* def = nominal_def(sub);
 
   if(def == NULL)
     return false;
 
   // must be a subtype of every function in super
-  ast_t* typeargs = ast_childidx(sub, 1);
+  ast_t* typeargs = ast_childidx(sub, 2);
   ast_t* fun = ast_child(super);
 
   while(fun != NULL)
@@ -348,6 +351,9 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
 
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 {
+  assert(ast_id(sub) == TK_NOMINAL);
+  assert(ast_id(super) == TK_NOMINAL);
+
   ast_t* sub_def = nominal_def(sub);
   ast_t* super_def = nominal_def(super);
 
@@ -373,7 +379,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 
   // get our typeparams and typeargs
   ast_t* typeparams = ast_childidx(sub_def, 1);
-  ast_t* typeargs = ast_childidx(sub, 1);
+  ast_t* typeargs = ast_childidx(sub, 2);
 
   // check traits, depth first
   ast_t* traits = ast_childidx(sub_def, 3);

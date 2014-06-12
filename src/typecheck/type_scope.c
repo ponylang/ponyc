@@ -164,6 +164,27 @@ bool type_scope(ast_t* ast, int verbose)
     case TK_PARAM:
       return set_scope(ast, ast_child(ast), ast, false);
 
+    case TK_NOMINAL:
+    {
+      // if we didn't have a package, this will have ID NONE [TYPEARGS]
+      // change it to NONE ID [TYPEARGS] so the package is always first
+      ast_t* package = ast_child(ast);
+      ast_t* type = ast_sibling(package);
+
+      if(ast_id(type) == TK_NONE)
+      {
+        ast_pop(ast);
+        ast_pop(ast);
+        ast_add(ast, package);
+        ast_add(ast, type);
+      }
+      break;
+    }
+
+    case TK_ID_NEW:
+      ast_setid(ast, TK_ID);
+      break;
+
     case TK_IDSEQ:
     {
       ast_t* child = ast_child(ast);

@@ -19,7 +19,7 @@ bool def_before_use(ast_t* def, ast_t* use, const char* name)
   switch(ast_id(def))
   {
     case TK_VAR:
-    case TK_VAL:
+    case TK_LET:
     {
       // variables must be declared before they are used
       if((ast_line(def) > ast_line(use)) ||
@@ -191,7 +191,7 @@ bool type_expr(ast_t* ast, int verbose)
       // TODO: make sure it fulfills any traits it claims to have
       break;
 
-    case TK_REF:
+    case TK_REFERENCE:
     {
       // everything we reference must be in scope
       const char* name = ast_name(ast_child(ast));

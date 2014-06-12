@@ -45,14 +45,14 @@ TYPES: {TYPEDEF}
 TYPEDEF: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
   [CAP] [HAT]
 
+CAP: {ID | ISO | TRN | REF | VAL | BOX | TAG}
+
 UNIONTYPE: TYPEDEF TYPEDEF
 ISECTTYPE: TYPEDEF TYPEDEF
 TUPLETYPE: TYPEDEF TYPEDEF
 
-NOMINAL: TYPENAME [TYPEARGS]
+NOMINAL: [ID] ID [TYPEARGS]
 data: nominal_def, if it has been resolved
-
-TYPENAME: {ID | THIS}
 
 TYPEARGS: {TYPEDEF}
 
@@ -172,6 +172,7 @@ ast_t* ast_newid(ast_t* previous, const char* id);
 ast_t* ast_dup(ast_t* ast);
 void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);
+void ast_setid(ast_t* ast, token_id id);
 
 token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);

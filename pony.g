@@ -25,7 +25,7 @@ members
   ;
 
 field
-  :  ('var' | 'val') ID oftype? (assign expr)?
+  :  ('var' | 'let') ID oftype? (assign expr)?
   ;
 
 constructor
@@ -54,7 +54,7 @@ type
 
 type_expr
   :  '(' type (typeop type)* ')' // ADT or tuple
-  |  ID ('.' ID)* type_args? // nominal type
+  |  ID ('.' ID)? type_args? // nominal type
   |  '{' fun_type* '}' // structural type
 //  |  'type' ID // FIX: nested type definition for enums?
   ;
@@ -81,14 +81,12 @@ type_args
   :  '@[' type (',' type)* ']'
   ;
 
-// FIX: if an ID is a possible cap, a delimiter is needed
 cap
-//  :  ':' (raw_cap | ID) ('.' (raw_cap | ID))*
-  :  raw_cap
+  :  '@' (ID | raw_cap) ('.' (ID | raw_cap))*
   ;
 
 raw_cap
-  :  ('iso' | 'trn' | 'mut' | 'imm' | 'box' | 'tag')
+  :  ('iso' | 'trn' | 'ref' | 'val' | 'box' | 'tag')
   ;
 
 params
@@ -128,7 +126,7 @@ term
   ;
 
 local
-  :  ('var' | 'val') idseq oftype?
+  :  ('var' | 'let') idseq oftype?
   ;
 
 control
