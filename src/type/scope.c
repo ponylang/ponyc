@@ -1,4 +1,4 @@
-#include "type_scope.h"
+#include "scope.h"
 #include "typechecker.h"
 #include "../pkg/package.h"
 #include <assert.h>

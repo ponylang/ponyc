@@ -1,7 +1,8 @@
 #include "typechecker.h"
-#include "type_scope.h"
-#include "type_valid.h"
-#include "type_expr.h"
+#include "scope.h"
+#include "valid.h"
+#include "traits.h"
+#include "expr.h"
 #include <assert.h>
 
 bool typecheck(ast_t* ast, int verbose)

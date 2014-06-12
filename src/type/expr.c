@@ -1,4 +1,4 @@
-#include "type_expr.h"
+#include "expr.h"
 #include "typechecker.h"
 
 ast_t* get_def(ast_t* ast, const char* name)
