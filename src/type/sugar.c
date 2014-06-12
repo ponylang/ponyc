@@ -20,7 +20,9 @@ bool type_sugar(ast_t* ast, int verbose)
       // TODO: syntactic sugar for a while loop
       break;
 
-    // TODO: syntactic sugar for partial application
+    case TK_BANG:
+      // TODO: syntactic sugar for partial application
+      break;
 
     default: {}
   }

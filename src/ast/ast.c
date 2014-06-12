@@ -205,10 +205,6 @@ ast_t* ast_type(ast_t* ast)
     child = child->sibling;
 
   assert(ast_id(child) == TK_TYPEDEF);
-
-  // if(ast_id(child) != TK_TYPEDEF)
-  //   return NULL;
-
   return child;
 }
 

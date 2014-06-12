@@ -22,10 +22,12 @@ bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
   switch(ast_id(def))
   {
+    case TK_FVAR:
+    case TK_FLET:
     case TK_VAR:
     case TK_LET:
     {
-      // variables must be declared before they are used
+      // fields and locals must be declared before they are used
       if((ast_line(def) > ast_line(use)) ||
          ((ast_line(def) == ast_line(use)) &&
           (ast_pos(def) > ast_pos(use))))
@@ -99,10 +101,15 @@ static ast_t* typedef_for_name(ast_t* ast, const char* name)
   return type_def;
 }
 
-static void typedef_for_builtin(ast_t* ast, const char* name)
+static bool typedef_for_builtin(ast_t* ast, const char* name)
 {
   ast_t* type_def = typedef_for_name(ast, stringtab(name));
+
+  if(type_def == NULL)
+    return false;
+
   ast_append(ast, type_def);
+  return true;
 }
 
 static ast_t* typedef_for_id(ast_t* ast, ast_t* id)
@@ -111,7 +118,7 @@ static ast_t* typedef_for_id(ast_t* ast, ast_t* id)
   return typedef_for_name(ast, ast_name(id));
 }
 
-static void typedef_for_this(ast_t* ast)
+static bool typedef_for_this(ast_t* ast)
 {
   size_t line = ast_line(ast);
   size_t pos = ast_line(ast);
@@ -158,10 +165,46 @@ static void typedef_for_this(ast_t* ast)
   {
     ast_error(nominal, "couldn't create valid type for '%s'", name);
     ast_free(type_def);
-    return;
+    return false;
   }
 
   ast_append(ast, type_def);
+  return true;
+}
+
+static bool typedef_for_reference(ast_t* ast)
+{
+  // everything we reference must be in scope
+  const char* name = ast_name(ast_child(ast));
+  ast_t* def = get_def(ast, name);
+
+  if(def == NULL)
+    return false;
+
+  if(!def_before_use(def, ast, name))
+    return false;
+
+  // TODO: get the type?
+  switch(ast_id(def))
+  {
+    case TK_PACKAGE:
+    case TK_TYPE:
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    case TK_PARAM:
+    case TK_IDSEQ:
+      break;
+
+    default:
+      assert(0);
+  }
+
+  return true;
 }
 
 /**
@@ -267,11 +310,8 @@ bool type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_DOT:
-      // TODO: tuple, field or method
-      break;
-
-    case TK_BANG:
-      // TODO: syntactic sugar for partial application
+      // TODO: type in package, element in tuple, field or method in object,
+      // construtor in type
       break;
 
     case TK_QUALIFY:
@@ -320,36 +360,19 @@ bool type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_REFERENCE:
-    {
-      // everything we reference must be in scope
-      const char* name = ast_name(ast_child(ast));
-      ast_t* def = get_def(ast, name);
-
-      if(def == NULL)
-        return false;
-
-      if(!def_before_use(def, ast, name))
-        return false;
-
-      // TODO: get the type?
-      break;
-    }
+      return typedef_for_reference(ast);
 
     case TK_THIS:
-      typedef_for_this(ast);
-      break;
+      return typedef_for_this(ast);
 
     case TK_INT:
-      typedef_for_builtin(ast, "IntLiteral");
-      break;
+      return typedef_for_builtin(ast, "IntLiteral");
 
     case TK_FLOAT:
-      typedef_for_builtin(ast, "FloatLiteral");
-      break;
+      return typedef_for_builtin(ast, "FloatLiteral");
 
     case TK_STRING:
-      typedef_for_builtin(ast, "String");
-      break;
+      return typedef_for_builtin(ast, "String");
 
     default: {}
   }
