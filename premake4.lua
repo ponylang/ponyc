@@ -37,9 +37,8 @@ solution "ponyc"
       "-flto",
       }
     linkoptions {
-      "-flto=jobserver",
+      "-flto",
       "-fuse-ld=gold",
-      "-fwhole-program",
       }
 
   configuration {
