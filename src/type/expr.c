@@ -99,9 +99,10 @@ static ast_t* typedef_for_name(ast_t* ast, const char* name)
   return type_def;
 }
 
-static ast_t* typedef_for_builtin(ast_t* ast, const char* name)
+static void typedef_for_builtin(ast_t* ast, const char* name)
 {
-  return typedef_for_name(ast, stringtab(name));
+  ast_t* type_def = typedef_for_name(ast, stringtab(name));
+  ast_append(ast, type_def);
 }
 
 static ast_t* typedef_for_id(ast_t* ast, ast_t* id)
@@ -110,7 +111,7 @@ static ast_t* typedef_for_id(ast_t* ast, ast_t* id)
   return typedef_for_name(ast, ast_name(id));
 }
 
-static ast_t* typedef_for_this(ast_t* ast)
+static void typedef_for_this(ast_t* ast)
 {
   size_t line = ast_line(ast);
   size_t pos = ast_line(ast);
@@ -157,10 +158,10 @@ static ast_t* typedef_for_this(ast_t* ast)
   {
     ast_error(nominal, "couldn't create valid type for '%s'", name);
     ast_free(type_def);
-    return NULL;
+    return;
   }
 
-  return type_def;
+  ast_append(ast, type_def);
 }
 
 /**
@@ -335,36 +336,20 @@ bool type_expr(ast_t* ast, int verbose)
     }
 
     case TK_THIS:
-    {
-      ast_t* type_def = typedef_for_this(ast);
-      assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_append(ast, type_def);
+      typedef_for_this(ast);
       break;
-    }
 
     case TK_INT:
-    {
-      ast_t* type_def = typedef_for_builtin(ast, "IntLiteral");
-      assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_append(ast, type_def);
+      typedef_for_builtin(ast, "IntLiteral");
       break;
-    }
 
     case TK_FLOAT:
-    {
-      ast_t* type_def = typedef_for_builtin(ast, "FloatLiteral");
-      assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_append(ast, type_def);
+      typedef_for_builtin(ast, "FloatLiteral");
       break;
-    }
 
     case TK_STRING:
-    {
-      ast_t* type_def = typedef_for_builtin(ast, "String");
-      assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_append(ast, type_def);
+      typedef_for_builtin(ast, "String");
       break;
-    }
 
     default: {}
   }
