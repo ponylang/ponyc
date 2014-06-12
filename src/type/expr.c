@@ -124,6 +124,50 @@ static ast_t* expr_super(ast_t* ast, ast_t* l_type, ast_t* r_type)
   return NULL;
 }
 
+static ast_t* expr_fun(ast_t* ast)
+{
+  assert((ast_id(ast) == TK_NEW) ||
+    (ast_id(ast) == TK_BE) ||
+    (ast_id(ast) == TK_FUN)
+    );
+
+  ast_t* cap = ast_child(ast);
+  ast_t* id = ast_sibling(cap);
+  ast_t* typeparams = ast_sibling(id);
+  ast_t* params = ast_sibling(typeparams);
+  ast_t* result = ast_sibling(params);
+  ast_t* throws = ast_sibling(result);
+
+  size_t line = ast_line(ast);
+  size_t pos = ast_pos(ast);
+  ast_t* fun = ast_new(ast_id(ast), line, pos, NULL);
+  ast_add(fun, ast_new(TK_NONE, line, pos, NULL));
+  ast_add(fun, ast_dup(throws));
+  ast_add(fun, ast_dup(result));
+
+  if(ast_id(params) == TK_PARAMS)
+  {
+    ast_t* types = ast_new(TK_TYPES, line, pos, NULL);
+    ast_t* param = ast_child(params);
+
+    while(param != NULL)
+    {
+      ast_append(types, ast_dup(ast_childidx(param, 1)));
+      param = ast_sibling(param);
+    }
+
+    ast_add(fun, types);
+  } else {
+    ast_add(fun, ast_dup(params));
+  }
+
+  ast_add(fun, ast_dup(typeparams));
+  ast_add(fun, ast_dup(id));
+  ast_add(fun, ast_dup(cap));
+
+  return fun;
+}
+
 static bool expr_field(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 1);
@@ -266,10 +310,14 @@ static bool expr_reference(ast_t* ast)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      // TODO:
+    {
+      // method call on 'this'
+      ast_append(ast, expr_fun(def));
       break;
+    }
 
     case TK_IDSEQ:
+      // TODO: local, 'as', or 'for'
       break;
 
     default:
@@ -356,6 +404,7 @@ static bool expr_tuple(ast_t* ast)
     return false;
   }
 
+  // TODO: empty tuple, for arity/0 calls
   size_t line = ast_line(ast);
   size_t pos = ast_line(ast);
   ast_t* seq = ast_child(positional);
@@ -387,6 +436,35 @@ static bool expr_tuple(ast_t* ast)
 
   ast_append(ast, type_def);
   return true;
+}
+
+static bool expr_call(ast_t* ast)
+{
+  // TODO: THIS IS NEXT
+  // TODO: find the method
+  // TODO: check arguments match
+  // TODO: type is the type of the method call return
+  // TODO: mark enclosing as "may error" if we might error
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(fun);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  switch(ast_id(l_type))
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+    {
+      // method call
+      break;
+    }
+
+    default: {}
+  }
+
+  ast_error(fun, "unexpected function call");
+  return false;
 }
 
 static bool expr_seq(ast_t* ast)
@@ -505,11 +583,7 @@ bool type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_CALL:
-      // TODO: find the method
-      // TODO: check arguments match
-      // TODO: type is the type of the method call return
-      // TODO: mark enclosing as "may error" if we might error
-      break;
+      return expr_call(ast);
 
     case TK_IF:
       // TODO: first must be a Bool
