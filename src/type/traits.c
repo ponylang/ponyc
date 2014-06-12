@@ -29,8 +29,18 @@ static bool attach_method(ast_t* type, ast_t* method)
       return false;
     }
 
-    // TODO: if existing has no implementation, accept this implementation
-    // what if a new method is a subtype of an existing method?
+    // if existing has no implementation, accept this implementation
+    ast_t* existing_impl = ast_childidx(existing, 6);
+    ast_t* impl = ast_childidx(method, 6);
+
+    if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
+    {
+      ast_t* r_impl = ast_dup(impl);
+      ast_swap(existing_impl, r_impl);
+      ast_free(existing_impl);
+    }
+
+    // TODO: what if a new method is a subtype of an existing method?
     // if the existing method came from a trait, should we accept the new one?
 
     return true;
@@ -128,14 +138,51 @@ static bool attach_traits(ast_t* def)
   return true;
 }
 
+static bool have_impl(ast_t* ast)
+{
+  ast_t* members = ast_childidx(ast, 4);
+  ast_t* member = ast_child(members);
+  bool ret = true;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+      {
+        ast_t* impl = ast_childidx(member, 6);
+
+        if(ast_id(impl) == TK_NONE)
+        {
+          ast_t* id = ast_childidx(member, 1);
+          const char* name = ast_name(id);
+          ast_error(ast, "method '%s' has no implementation", name);
+          ret = false;
+        }
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return ret;
+}
+
 bool type_traits(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_TRAIT:
+      return attach_traits(ast);
+
     case TK_CLASS:
     case TK_ACTOR:
-      return attach_traits(ast);
+      return attach_traits(ast) && have_impl(ast);
 
     default: {}
   }
