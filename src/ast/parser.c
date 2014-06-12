@@ -590,7 +590,7 @@ DEF(fieldvar);
 // VAL ID [COLON type] [ASSIGN expr]
 DEF(fieldval);
   SKIP(TK_LET);
-  AST(TK_FVAL);
+  AST(TK_FLET);
   EXPECT(TK_ID, TK_ID_NEW);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, expr);

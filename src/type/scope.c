@@ -108,7 +108,7 @@ bool type_scope(ast_t* ast, int verbose)
         ast_child(ast), ast, true);
 
     case TK_FVAR:
-    case TK_FVAL:
+    case TK_FLET:
     {
       if(ast_nearest(ast, TK_TRAIT) != NULL)
       {
@@ -191,6 +191,8 @@ bool type_scope(ast_t* ast, int verbose)
 
       while(child != NULL)
       {
+        // each ID resolves to the IDSEQ that contains it
+        // every IDSEQ has a sibling that is a [TYPEDEF]
         if(!set_scope(ast_parent(ast), child, ast, false))
           return false;
 

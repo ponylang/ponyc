@@ -149,7 +149,7 @@ static const lexsym_t abstract[] =
 
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
-  { "fval", TK_FVAL },
+  { "flet", TK_FLET },
 
   { "types", TK_TYPES },
   { "cap", TK_CAP },

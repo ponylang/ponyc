@@ -284,7 +284,7 @@ static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
   switch(ast_id(member))
   {
     case TK_FVAR:
-    case TK_FVAL:
+    case TK_FLET:
       return false;
 
     case TK_NEW:
@@ -540,7 +540,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_STRUCTURAL:
     {
-      if(ast_id(super) == TK_STRUCTURAL)
+      if(ast_id(super) != TK_STRUCTURAL)
         return false;
 
       return is_structural_sub_structural(sub, super);

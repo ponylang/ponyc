@@ -8,12 +8,18 @@ type FooBar is (Foo | Bar)
 
 class FooBarTest[A: (Foo | Bar)]
 
+class AnyTest[A: Any]
+
+class StructTest[A: {fun tag call_it({fun ref(I64): I64}): I64}]
+
 class Precedence is Foo, Bar
   /* nested
   /* comments */
   work */
   var field: I32
   var foo_bar_test: FooBarTest[FooBar]
+  var any_test: AnyTest[String]
+  var struct_test: StructTest[Precedence]
 
   fun ref find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>

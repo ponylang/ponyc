@@ -2,6 +2,7 @@
 #include "scope.h"
 #include "valid.h"
 #include "traits.h"
+#include "sugar.h"
 #include "expr.h"
 #include <assert.h>
 
@@ -16,7 +17,7 @@ bool typecheck(ast_t* ast, int verbose)
   if(!ast_visit(ast, type_traits, NULL, verbose))
     return false;
 
-  if(!ast_visit(ast, NULL, type_expr, verbose))
+  if(!ast_visit(ast, type_sugar, type_expr, verbose))
     return false;
 
   return true;

@@ -95,7 +95,9 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
 }
 
 /**
- * This checks that all explicit types are valid.
+ * This checks that all explicit types are valid. It also attaches the defintion
+ * ast node to each nominal type, and replaces type aliases with their reified
+ * expansion.
  */
 bool type_valid(ast_t* ast, int verbose)
 {
@@ -120,24 +122,6 @@ bool type_valid(ast_t* ast, int verbose)
 
       return true;
     }
-
-    case TK_CALL:
-      // TODO: check for syntactic sugar for apply
-      break;
-
-    case TK_ASSIGN:
-      // TODO: check for syntactic sugar for update
-      break;
-
-    case TK_RECOVER:
-      // TODO: remove things from following scope
-      break;
-
-    case TK_FOR:
-      // TODO: syntactic sugar for a while loop
-      break;
-
-    // TODO: syntactic sugar for partial application
 
     default: {}
   }

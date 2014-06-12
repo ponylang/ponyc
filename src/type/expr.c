@@ -47,7 +47,7 @@ bool type_expr(ast_t* ast, int verbose)
   switch(ast_id(ast))
   {
     case TK_FVAR:
-    case TK_FVAL:
+    case TK_FLET:
       // TODO: initializer type must match declared type
       // if no declared type, get the type from the initializer
       break;

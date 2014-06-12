@@ -122,7 +122,7 @@ typedef enum
 
   TK_MEMBERS,
   TK_FVAR,
-  TK_FVAL,
+  TK_FLET,
 
   TK_TYPES,
   TK_CAP,

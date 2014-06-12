@@ -1,4 +1,4 @@
-trait Any
+type Any is {}
 
 type None
 
