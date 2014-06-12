@@ -31,22 +31,12 @@ static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
   ast_t* sub_typearg = ast_child(typearg);
 
   if(ast_id(sub_typearg) == TK_NOMINAL)
-    nominal_def(sub_typearg);
+    nominal_def(typearg, sub_typearg);
 
   ast_t* sub_type = ast_child(type);
 
   switch(ast_id(sub_type))
   {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      ast_t* left = ast_child(sub_type);
-      ast_t* right = ast_sibling(left);
-      return reify_typedef(left, id, typearg) &&
-        reify_typedef(right, id, typearg);
-    }
-
     case TK_NOMINAL:
     {
       ast_t* package = ast_child(sub_type);
@@ -71,6 +61,9 @@ static bool reify_typedef(ast_t* type, ast_t* id, ast_t* typearg)
       return true;
     }
 
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     case TK_STRUCTURAL:
       return reify_one(sub_type, id, typearg);
 
@@ -143,6 +136,16 @@ static bool reify_one(ast_t* ast, ast_t* id, ast_t* typearg)
     case TK_BE:
     case TK_FUN:
       return reify_fun(ast, id, typearg);
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* left = ast_child(ast);
+      ast_t* right = ast_sibling(left);
+      return reify_one(left, id, typearg) &&
+        reify_one(right, id, typearg);
+    }
 
     default: {}
   }

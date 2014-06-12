@@ -186,6 +186,7 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 void* ast_data(ast_t* ast);
 const char* ast_name(ast_t* ast);
+ast_t* ast_type(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_parent(ast_t* ast);

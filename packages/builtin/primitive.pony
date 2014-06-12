@@ -1,47 +1,47 @@
 type Any is {}
 
-type None
+type None val
 
-type True
+type True val
 
-type False
+type False val
 
-type Bool is (True | False)
+type Bool val is (True | False)
 
-class I8
+class I8 val
 
-class I16
+class I16 val
 
-class I32
+class I32 val
 
-class I64
+class I64 val
 
-class I128
+class I128 val
 
-class U8
+class U8 val
 
-class U16
+class U16 val
 
-class U32
+class U32 val
 
-class U64
+class U64 val
 
-class U128
+class U128 val
 
-class F32
+class F32 val
 
-class F64
+class F64 val
 
-class IntLiteral
+class IntLiteral val
 
-class FloatLiteral
+class FloatLiteral val
 
-class String
+class String val
 
 trait Stringable
   fun box string(): String
 
-type Arithmetic is
+type Arithmetic val is
   ( I8
   | I16
   | I32

@@ -4,6 +4,18 @@
 #include "typechecker.h"
 #include <assert.h>
 
+static bool is_typeparam(ast_t* typeparam, ast_t* typearg)
+{
+  assert(ast_id(typearg) == TK_TYPEDEF);
+  ast_t* sub = ast_child(typearg);
+
+  if(ast_id(sub) != TK_NOMINAL)
+    return false;
+
+  ast_t* def = nominal_def(typearg, sub);
+  return def == typeparam;
+}
+
 static bool check_constraints(ast_t* type, ast_t* typeargs)
 {
   if(ast_id(type) == TK_TYPEPARAM)
@@ -24,14 +36,19 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
   if(r_typeparams == NULL)
     return false;
 
-  ast_t* typeparam = ast_child(r_typeparams);
+  ast_t* r_typeparam = ast_child(r_typeparams);
+  ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
 
-  while((typeparam != NULL) && (typearg != NULL))
+  while((r_typeparam != NULL) && (typearg != NULL))
   {
-    ast_t* constraint = ast_childidx(typeparam, 1);
+    ast_t* constraint = ast_childidx(r_typeparam, 1);
 
-    if((ast_id(constraint) != TK_NONE) && !is_subtype(typearg, constraint))
+    // compare the typearg to the typeparam and constraint
+    if(!is_typeparam(typeparam, typearg) &&
+      (ast_id(constraint) != TK_NONE) &&
+      !is_subtype(typearg, constraint)
+      )
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
@@ -42,6 +59,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
       return false;
     }
 
+    r_typeparam = ast_sibling(r_typeparam);
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }
@@ -95,36 +113,39 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
 }
 
 /**
- * This checks that all explicit types are valid. It also attaches the defintion
- * ast node to each nominal type, and replaces type aliases with their reified
- * expansion.
+ * This checks that all explicit types are valid. It also attaches the
+ * definition ast node to each nominal type, and replaces type aliases with
+ * their reified expansion.
  */
 bool type_valid(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-    {
-      // TODO: capability
-      ast_t* def = nominal_def(ast);
-
-      if(def == NULL)
-        return false;
-
-      // make sure our typeargs are subtypes of our constraints
-      ast_t* typeargs = ast_childidx(ast, 2);
-
-      if(!check_constraints(def, typeargs))
-        return false;
-
-      if(!replace_alias(def, ast, typeargs))
-        return false;
-
-      return true;
-    }
+      return valid_nominal(ast, ast);
 
     default: {}
   }
+
+  return true;
+}
+
+bool valid_nominal(ast_t* scope, ast_t* nominal)
+{
+  // TODO: capability
+  ast_t* def = nominal_def(scope, nominal);
+
+  if(def == NULL)
+    return false;
+
+  // make sure our typeargs are subtypes of our constraints
+  ast_t* typeargs = ast_childidx(nominal, 2);
+
+  if(!check_constraints(def, typeargs))
+    return false;
+
+  if(!replace_alias(def, nominal, typeargs))
+    return false;
 
   return true;
 }

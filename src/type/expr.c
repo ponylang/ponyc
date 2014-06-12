@@ -1,5 +1,9 @@
 #include "expr.h"
+#include "valid.h"
+#include "subtype.h"
 #include "typechecker.h"
+#include "../ds/stringtab.h"
+#include <assert.h>
 
 ast_t* get_def(ast_t* ast, const char* name)
 {
@@ -39,6 +43,126 @@ bool def_before_use(ast_t* def, ast_t* use, const char* name)
   return true;
 }
 
+static bool expr_field(ast_t* ast)
+{
+  ast_t* type = ast_childidx(ast, 1);
+  ast_t* init = ast_sibling(type);
+
+  if((ast_id(type) == TK_NONE) && (ast_id(init) == TK_NONE))
+  {
+    ast_error(ast, "field needs a type or an initialiser");
+    return false;
+  }
+
+  if(ast_id(type) == TK_NONE)
+  {
+    // if no declared type, get the type from the initializer
+    ast_t* init_type = ast_type(init);
+    ast_swap(type, ast_dup(init_type));
+    ast_free(type);
+  } else if(ast_id(init) != TK_NONE) {
+    // initializer type must match declared type
+    ast_t* init_type = ast_type(init);
+
+    if(!is_subtype(init_type, type))
+    {
+      ast_error(init,
+        "field initialiser is not a subtype of the field type");
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static ast_t* typedef_for_name(ast_t* ast, const char* name)
+{
+  size_t line = ast_line(ast);
+  size_t pos = ast_line(ast);
+
+  ast_t* type_def = ast_new(TK_TYPEDEF, line, pos, NULL);
+
+  ast_t* nominal = ast_new(TK_NOMINAL, line, pos, NULL);
+  ast_add(type_def, nominal);
+
+  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+  ast_add(nominal, ast_newid(ast, name));
+  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+
+  if(!valid_nominal(ast, nominal))
+  {
+    ast_error(nominal, "couldn't create valid type for '%s'", name);
+    ast_free(type_def);
+    return NULL;
+  }
+
+  return type_def;
+}
+
+static ast_t* typedef_for_builtin(ast_t* ast, const char* name)
+{
+  return typedef_for_name(ast, stringtab(name));
+}
+
+static ast_t* typedef_for_id(ast_t* ast, ast_t* id)
+{
+  assert(ast_id(id) == TK_ID);
+  return typedef_for_name(ast, ast_name(id));
+}
+
+static ast_t* typedef_for_this(ast_t* ast)
+{
+  size_t line = ast_line(ast);
+  size_t pos = ast_line(ast);
+  ast_t* def = ast_nearest(ast, TK_TRAIT);
+
+  if(def == NULL)
+    def = ast_nearest(ast, TK_CLASS);
+
+  if(def == NULL)
+    def = ast_nearest(ast, TK_ACTOR);
+
+  assert(def != NULL);
+  ast_t* id = ast_child(def);
+  ast_t* typeparams = ast_sibling(id);
+  const char* name = ast_name(id);
+
+  ast_t* type_def = ast_new(TK_TYPEDEF, line, pos, NULL);
+
+  ast_t* nominal = ast_new(TK_NOMINAL, line, pos, NULL);
+  ast_add(type_def, nominal);
+
+  if(ast_id(typeparams) == TK_TYPEPARAMS)
+  {
+    ast_t* typeparam = ast_child(typeparams);
+    ast_t* typeargs = ast_new(TK_TYPEARGS, line, pos, NULL);
+    ast_add(nominal, typeargs);
+
+    while(typeparam != NULL)
+    {
+      ast_t* typeparam_id = ast_child(typeparam);
+      ast_t* typearg = typedef_for_id(ast, typeparam_id);
+      ast_append(typeargs, typearg);
+
+      typeparam = ast_sibling(typeparam);
+    }
+  } else {
+    ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+  }
+
+  ast_add(nominal, ast_newid(ast, name));
+  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+
+  if(!valid_nominal(ast, nominal))
+  {
+    ast_error(nominal, "couldn't create valid type for '%s'", name);
+    ast_free(type_def);
+    return NULL;
+  }
+
+  return type_def;
+}
+
 /**
  * This checks the type of all expressions.
  */
@@ -48,9 +172,7 @@ bool type_expr(ast_t* ast, int verbose)
   {
     case TK_FVAR:
     case TK_FLET:
-      // TODO: initializer type must match declared type
-      // if no declared type, get the type from the initializer
-      break;
+      return expr_field(ast);
 
     case TK_NEW:
       // TODO: check that the object is fully initialised
@@ -72,6 +194,11 @@ bool type_expr(ast_t* ast, int verbose)
 
     case TK_SEQ:
       // TODO: type is the type of the last expr
+      break;
+
+    case TK_VAR:
+    case TK_LET:
+      // TODO:
       break;
 
     case TK_CONTINUE:
@@ -204,6 +331,38 @@ bool type_expr(ast_t* ast, int verbose)
         return false;
 
       // TODO: get the type?
+      break;
+    }
+
+    case TK_THIS:
+    {
+      ast_t* type_def = typedef_for_this(ast);
+      assert(ast_id(type_def) == TK_TYPEDEF);
+      ast_append(ast, type_def);
+      break;
+    }
+
+    case TK_INT:
+    {
+      ast_t* type_def = typedef_for_builtin(ast, "IntLiteral");
+      assert(ast_id(type_def) == TK_TYPEDEF);
+      ast_append(ast, type_def);
+      break;
+    }
+
+    case TK_FLOAT:
+    {
+      ast_t* type_def = typedef_for_builtin(ast, "FloatLiteral");
+      assert(ast_id(type_def) == TK_TYPEDEF);
+      ast_append(ast, type_def);
+      break;
+    }
+
+    case TK_STRING:
+    {
+      ast_t* type_def = typedef_for_builtin(ast, "String");
+      assert(ast_id(type_def) == TK_TYPEDEF);
+      ast_append(ast, type_def);
       break;
     }
 

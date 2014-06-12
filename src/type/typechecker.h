@@ -10,6 +10,6 @@ bool typecheck(ast_t* ast, int verbose);
 bool is_type_id(const char* s);
 
 /// Gets the type, trait, class or actor for a nominal type.
-ast_t* nominal_def(ast_t* nominal);
+ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 
 #endif

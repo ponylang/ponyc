@@ -1064,12 +1064,12 @@ token_t* token_new(token_id id, size_t line, size_t pos, bool newline)
 token_t* token_newid(token_t* token, const char* id)
 {
   token_t* t = calloc(1, sizeof(token_t));
+  t->id = TK_ID;
   t->newline = token->newline;
   t->line = token->line;
   t->pos = token->pos;
   t->rc = 1;
   t->string = stringtab(id);
-  token_setid(t, TK_ID);
 
   return t;
 }

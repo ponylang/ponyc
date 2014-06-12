@@ -329,7 +329,7 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_STRUCTURAL);
 
-  ast_t* def = nominal_def(sub);
+  ast_t* def = nominal_def(sub, sub);
 
   if(def == NULL)
     return false;
@@ -354,8 +354,8 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_NOMINAL);
 
-  ast_t* sub_def = nominal_def(sub);
-  ast_t* super_def = nominal_def(super);
+  ast_t* sub_def = nominal_def(sub, sub);
+  ast_t* super_def = nominal_def(super, super);
 
   // check we found a definition for both
   if((sub_def == NULL) || (super_def == NULL))
@@ -419,8 +419,8 @@ static bool is_sub_isect(ast_t* sub, ast_t* super)
 
 static bool is_nominal_eq_nominal(ast_t* a, ast_t* b)
 {
-  ast_t* a_def = nominal_def(a);
-  ast_t* b_def = nominal_def(b);
+  ast_t* a_def = nominal_def(a, a);
+  ast_t* b_def = nominal_def(b, b);
 
   // check we found a definition for both
   if((a_def == NULL) || (b_def == NULL))

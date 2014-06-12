@@ -21,3 +21,5 @@ class Range[A: Arithmetic = I64] is Iterator[A]
   fun ref next(): A this ? => if idx < max then idx = idx + inc else error end
 
   fun ref rewind() => idx = min
+
+  fun ref identity(): Range[A] => this

@@ -33,7 +33,7 @@ bool is_type_id(const char* s)
   return (s[i] >= 'A') && (s[i] <= 'Z');
 }
 
-ast_t* nominal_def(ast_t* nominal)
+ast_t* nominal_def(ast_t* scope, ast_t* nominal)
 {
   assert(ast_id(nominal) == TK_NOMINAL);
   ast_t* def = ast_data(nominal);
@@ -43,7 +43,6 @@ ast_t* nominal_def(ast_t* nominal)
 
   ast_t* package = ast_child(nominal);
   ast_t* type = ast_sibling(package);
-  ast_t* scope = nominal;
 
   if(ast_id(package) != TK_NONE)
   {

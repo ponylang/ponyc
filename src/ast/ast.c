@@ -143,7 +143,6 @@ ast_t* ast_token(token_t* t)
 
 ast_t* ast_newid(ast_t* previous, const char* id)
 {
-  assert(ast_id(previous) == TK_NONE);
   return ast_token(token_newid(previous->t, id));
 }
 
@@ -193,6 +192,20 @@ void* ast_data(ast_t* ast)
 const char* ast_name(ast_t* ast)
 {
   return token_string(ast->t);
+}
+
+ast_t* ast_type(ast_t* ast)
+{
+  ast_t* child = ast->child;
+
+  if(child == NULL)
+    return NULL;
+
+  while(child->sibling != NULL)
+    child = child->sibling;
+
+  assert(ast_id(child) == TK_TYPEDEF);
+  return child;
 }
 
 ast_t* ast_nearest(ast_t* ast, token_id id)

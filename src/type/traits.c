@@ -87,7 +87,7 @@ static bool attach_traits(ast_t* def)
       return false;
     }
 
-    ast_t* trait_def = nominal_def(nominal);
+    ast_t* trait_def = nominal_def(nominal, nominal);
 
     if(ast_id(trait_def) != TK_TRAIT)
     {
