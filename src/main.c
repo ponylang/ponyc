@@ -1,5 +1,4 @@
-#include "typecheck/typechecker.h"
-#include "types/types.h"
+#include "type/typechecker.h"
 #include "pkg/package.h"
 #include "ds/stringtab.h"
 #include <sys/ioctl.h>
@@ -90,7 +89,6 @@ int main(int argc, char** argv)
   print_errors();
   free_errors();
 
-  type_done();
   package_done();
   stringtab_done();
 
