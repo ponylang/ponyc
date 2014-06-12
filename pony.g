@@ -152,7 +152,7 @@ postfix
   ;
 
 call
-  :  '@(' positional? named? ')'
+  :  '@' tuple
   ;
 
 atom

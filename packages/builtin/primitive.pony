@@ -41,8 +41,9 @@ class String val
 trait Stringable
   fun box string(): String
 
-type Arithmetic val is
-  ( I8
+type Integer val is
+  ( IntLiteral
+  | I8
   | I16
   | I32
   | I64
@@ -51,6 +52,12 @@ type Arithmetic val is
   | U32
   | U64
   | U128
+  )
+
+type Float val is
+  ( FloatLiteral
   | F32
   | F64
   )
+
+type Arithmetic val is (Integer | Float)

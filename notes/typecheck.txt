@@ -1,110 +1,6 @@
 inferring type arguments based on arguments can be done later
   when done, more function types can be subtypes of other function types
 
-treat a constructor as a function with type parameters?
-  same type parameters and constraints as the type
-  can try to infer them the same way
-  return type is the type itself, unreified
-    will be reified with the type arguments of the function when resolved
-
-when we see a function call
-  we know the receiver
-  use it to look up the function by name
-    or "apply" if there is no name
-  we get the function as reified by the receiver
-    so the receiver's type parameters are already resolved in the function
-  we apply type qualifiers if we have them
-    if we do, we're done: type qualifiers are all or nothing
-    if not, we use the parameters to try to infer type parameters
-      if we can't, that's an error *before* the parameters are checked
-  now check the parameters against the reified function
-  if the parameters are ok, we have a reified return type
-
-when reifying, we have to reify our constraints as well
-and check our constraints as we go
-  fun tag foo[A: Number, B: Seq[A]](list: B): A
-  foo[I32, List[I32]](list: Seq[I32]): I32
-  but the reified version is NOT a subtype of the unreified version in this case
-
-when we see a nominal TK_TYPEDEF
-  the type parameters must all be present: no parameters to infer
-  reify the constraints with the type arguments
-    don't worry about whether those type arguments are within constraints or not
-    possibly this means no ordering constraint for type parameters
-    need to change the way scope insertion is done to accept:
-      class Foo[A: Seq[B], B: Number]
-      Foo[List[I32], I32]
-        A: List[I32] -> Foo[A: Seq[B], B: Number]
-        B: I32 -> Foo[A: Seq[I32], B: Number]
-        List[I32] <: Seq[I32]
-        I32 <: Number
-  check all the type arguments to see if they are subtypes of constraints
-  reify the type with the type arguments
-
-F-Bounded?
-  class Ordered[A: Ordered[A]]
-  reify with its constraints:
-  Ordered[Ordered[Ordered[Ordered[...]]]]
-  but we don't reify after reifying so:
-  Ordered[Ordered[A]]
-  replace anything unbound with Any
-  Ordered[Ordered[Any]]
-  type check with that
-  for an actual implementation...
-  String is Ordered[String]
-  Ordered[String] -- reify as Ordered[String] is Comparable[String]
-    is String <: Ordered[String]? Yes, it's in the traits
-    is String <: Comparable[String]? Yes, it's a trait of Ordered[String]
-
-  fun tag min[A: Ordered[A]](a: A, b: A): A =>
-    if a < b then a else b end
-  qualified with own constraints:
-  fun tag min(a: Ordered[A], b: Ordered[A]): Ordered[A] =>
-    if a < b then a else b end
-  actually, no, it is this:
-  fun tag min(a: Ordered[Ordered[A]], b: Ordered[Ordered[A]]):
-    Ordered[Ordered[A]] =>
-    if a < b then a else b end
-  replace unbound with Any
-  fun tag min(a: Ordered[Any], b: Ordered[Any]): Ordered[Any] =>
-    if a < b then a else b end
-  this type checks
-
-  trait Sortable[A: Sortable[A]] is Ordered[A]
-  fun tag min[Sortable[A]](a: A, b: A): A
-    Sortable[A] !<: Ordered[Sortable[A]]
-    Sortable[A] <: Ordered[A]
-  this does not type check
-  but a concrete type that is Sortable would
-
-fun tag min[A: List[B], B: Ordered[B]](list: A, item: B): B =>
-  [List[String], String] ->
-  [A: List[String], B: Ordered[String]]
-  List[String] <: List[String], String <: Ordered[String]
-for type checking the body, we want:
-fun tag min(list: List[Ordered[Any]], item: Ordered[Any]): Ordered[Any] =>
-so A = List[Ordered[Any]], B = Ordered[Any]
-map self reference to Any first
-  typeparams = [A, B]
-  constraints = [List[B], Ordered[B]]
-  f_constraints = [List[B], Ordered[Any]]
-reify f_constraints with itself to get typeargs
-  typeargs = [List[Ordered[Any]], Ordered[Any]]
-apply typeargs
-
-trait Ordered[A: Ordered[A]]
-  typeargs = [Ordered[Any]]
-
-fun tag foo[A, B](a: A, b: B, c: B) =>
-  b = c = b // swap b and c, this is ok
-  // or is it? B: Foo iso would not be ok
-  a = b = a // definitely not ok
-  // but need to have different types when type checking the body to know this
-
-no need to replace self reference?
-just treat it as some nominal type with no functions or fields
-but each a distinct type
-
 what about capabilities for typeargs?
 to allow any cap:
   it could be tag, so can't read or write
@@ -125,3 +21,53 @@ simpler: just make it a subtype relationship
 
 implicit recover?
   for any expression that accesses only sendable identifiers
+
+expression typing order
+  atom
+    * THIS
+    * INT
+    * FLOAT
+    * STRING
+    - REFERENCE
+    - TUPLE
+    - ARRAY
+    - OBJECT
+  postfix
+    - DOT
+    - QUALIFY
+    - CALL
+  unop
+    - NOT
+    - MINUS
+    - CONSUME
+    - RECOVER
+  local
+  control
+    - IF
+    - MATCH
+    - CASE
+    - WHILE
+    - REPEAT
+    - FOR (or is it sugar?)
+    - TRY
+  binop
+    - AND
+    - OR
+    - XOR
+    - PLUS
+    - MINUS
+    - MULTIPLY
+    - DIVIDE
+    - MOD
+    - LSHIFT
+    - RSHIFT
+    - IS
+    - ISNT
+    - EQ
+    - NE
+    - LT
+    - LE
+    - GE
+    - GT
+    - ASSIGN
+  seq

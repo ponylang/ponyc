@@ -42,14 +42,14 @@ TYPEPARAM: ID [TYPEDEF] [SEQ]
 
 TYPES: {TYPEDEF}
 
-TYPEDEF: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
-  [CAP] [HAT]
+type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
+TYPEDEF: type [CAP] [HAT]
 
 CAP: {ID | ISO | TRN | REF | VAL | BOX | TAG}
 
-UNIONTYPE: TYPEDEF TYPEDEF
-ISECTTYPE: TYPEDEF TYPEDEF
-TUPLETYPE: TYPEDEF TYPEDEF
+UNIONTYPE: (TYPEDEF | type) (TYPEDEF | type)
+ISECTTYPE: (TYPEDEF | type) (TYPEDEF | type)
+TUPLETYPE: (TYPEDEF | type) (TYPEDEF | type)
 
 NOMINAL: [ID] ID [TYPEARGS]
 data: nominal_def, if it has been resolved
@@ -192,6 +192,7 @@ ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);
 ast_t* ast_childidx(ast_t* ast, size_t idx);
+ast_t* ast_childlast(ast_t* ast);
 ast_t* ast_sibling(ast_t* ast);
 size_t ast_index(ast_t* ast);
 size_t ast_childcount(ast_t* ast);

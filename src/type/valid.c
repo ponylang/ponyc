@@ -98,16 +98,14 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
   if(r_alias == alias)
     r_alias = ast_dup(alias);
 
-  // the thing being swapped in must be a TYPEDEF
+  // extract from the typedef
   assert(ast_id(r_alias) == TK_TYPEDEF);
-
-  // the thing being swapped out must be a TYPEDEF
-  ast_t* type_def = ast_parent(nominal);
-  assert(ast_id(type_def) == TK_TYPEDEF);
+  ast_t* swap = ast_pop(r_alias);
+  ast_free(r_alias);
 
   // use the new ast and free the old one
-  ast_swap(type_def, r_alias);
-  ast_free(type_def);
+  ast_swap(nominal, swap);
+  ast_free(nominal);
 
   return true;
 }

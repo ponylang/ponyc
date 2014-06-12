@@ -196,16 +196,9 @@ const char* ast_name(ast_t* ast)
 
 ast_t* ast_type(ast_t* ast)
 {
-  ast_t* child = ast->child;
-
-  if(child == NULL)
-    return NULL;
-
-  while(child->sibling != NULL)
-    child = child->sibling;
-
-  assert(ast_id(child) == TK_TYPEDEF);
-  return child;
+  ast_t* type = ast_childlast(ast);
+  assert(ast_id(type) == TK_TYPEDEF);
+  return type;
 }
 
 ast_t* ast_nearest(ast_t* ast, token_id id)
@@ -235,6 +228,19 @@ ast_t* ast_childidx(ast_t* ast, size_t idx)
     child = child->sibling;
     idx--;
   }
+
+  return child;
+}
+
+ast_t* ast_childlast(ast_t* ast)
+{
+  ast_t* child = ast->child;
+
+  if(child == NULL)
+    return NULL;
+
+  while(child->sibling != NULL)
+    child = child->sibling;
 
   return child;
 }
