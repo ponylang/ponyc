@@ -420,9 +420,25 @@ static const char* copy(lexer_t* lexer)
   return str;
 }
 
+static token_t* token_new(token_id id, source_t* source, size_t line,
+  size_t pos, bool newline)
+{
+  token_t* t = calloc(1, sizeof(token_t));
+  t->newline = newline;
+  t->source = source;
+  t->line = line;
+  t->pos = pos;
+  t->rc = 1;
+
+  token_setid(t, id);
+  return t;
+}
+
 static token_t* token(lexer_t* lexer)
 {
-  token_t* t = token_new(0, lexer->line, lexer->pos, lexer->newline);
+  token_t* t = token_new(0, lexer->source, lexer->line, lexer->pos,
+    lexer->newline);
+
   lexer->newline = false;
   return t;
 }
@@ -1049,26 +1065,20 @@ token_t* lexer_next(lexer_t* lexer)
   return t;
 }
 
-token_t* token_new(token_id id, size_t line, size_t pos, bool newline)
+token_t* token_blank(token_id id)
 {
-  token_t* t = calloc(1, sizeof(token_t));
-  t->newline = newline;
-  t->line = line;
-  t->pos = pos;
-  t->rc = 1;
-  token_setid(t, id);
-
-  return t;
+  return token_new(id, NULL, 0, 0, false);
 }
 
-token_t* token_newid(token_t* token, const char* id)
+token_t* token_from(token_t* token, token_id id)
 {
-  token_t* t = calloc(1, sizeof(token_t));
-  t->id = TK_ID;
-  t->newline = token->newline;
-  t->line = token->line;
-  t->pos = token->pos;
-  t->rc = 1;
+  // ignore the newline from the original token
+  return token_new(id, token->source, token->line, token->pos, false);
+}
+
+token_t* token_from_string(token_t* token, const char* id)
+{
+  token_t* t = token_from(token, TK_ID);
   t->string = stringtab(id);
 
   return t;

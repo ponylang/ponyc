@@ -1,144 +1,8 @@
 #include "subtype.h"
 #include "reify.h"
+#include "cap.h"
 #include "typechecker.h"
 #include <assert.h>
-
-static bool is_cap_sub_cap(ast_t* sub, ast_t* super)
-{
-  switch(ast_id(sub))
-  {
-    case TK_NONE:
-      switch(ast_id(super))
-      {
-        case TK_ISO:
-        case TK_TRN:
-        case TK_VAL:
-        case TK_REF:
-        case TK_BOX:
-        case TK_TAG:
-          return false;
-
-        case TK_NONE:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_ISO:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-          return false;
-
-        case TK_ISO:
-        case TK_TRN:
-        case TK_VAL:
-        case TK_REF:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_TRN:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-        case TK_ISO:
-          return false;
-
-        case TK_TRN:
-        case TK_VAL:
-        case TK_REF:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_REF:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-        case TK_ISO:
-        case TK_TRN:
-        case TK_VAL:
-          return false;
-
-        case TK_REF:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_VAL:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-        case TK_ISO:
-        case TK_TRN:
-        case TK_REF:
-          return false;
-
-        case TK_VAL:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_BOX:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-        case TK_ISO:
-        case TK_TRN:
-        case TK_VAL:
-        case TK_REF:
-          return false;
-
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_TAG:
-      switch(ast_id(super))
-      {
-        case TK_NONE:
-        case TK_ISO:
-        case TK_TRN:
-        case TK_VAL:
-        case TK_REF:
-        case TK_BOX:
-          return false;
-
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    default:{}
-  }
-
-  assert(0);
-  return false;
-}
 
 bool is_throws_sub_throws(ast_t* sub, ast_t* super)
 {
@@ -191,11 +55,8 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
 static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
 {
   // must be the same type of function
+  // TODO: could relax this
   if(ast_id(sub) != ast_id(super))
-    return false;
-
-  // contravariant receiver
-  if(!is_cap_sub_cap(ast_child(super), ast_child(sub)))
     return false;
 
   ast_t* sub_params = ast_childidx(sub, 3);
@@ -207,6 +68,10 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
   ast_t* super_throws = ast_sibling(super_result);
 
   // TODO: reify with our own constraints?
+
+  // contravariant receiver
+  if(!is_cap_sub_cap(cap_for_fun(super), cap_for_fun(sub)))
+    return false;
 
   // contravariant parameters
   ast_t* sub_param = ast_child(sub_params);
@@ -293,10 +158,7 @@ static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
     {
       ast_t* r_fun = reify(member, typeparams, typeargs);
       bool is_sub = is_fun_sub_fun(r_fun, fun);
-
-      if(r_fun != member)
-        ast_free(r_fun);
-
+      ast_free_unattached(r_fun);
       return is_sub;
     }
 
@@ -390,9 +252,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
     assert(ast_id(trait) == TK_TYPEDEF);
     ast_t* r_trait = reify(trait, typeparams, typeargs);
     bool is_sub = is_subtype(r_trait, ast_parent(super));
-
-    if(r_trait != trait)
-      ast_free(r_trait);
+    ast_free_unattached(r_trait);
 
     if(is_sub)
       return true;

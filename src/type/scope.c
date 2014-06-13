@@ -85,27 +85,33 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
  * field names, method names, type parameters in methods, parameters in methods,
  * and local variables.
  */
-bool type_scope(ast_t* ast, int verbose)
+ast_result_t type_scope(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_PACKAGE:
-      return use_package(ast, NULL, "builtin", verbose) != NULL;
+      if(use_package(ast, NULL, "builtin", verbose) == NULL)
+        return AST_ERROR;
+      break;
 
     case TK_USE:
     {
       ast_t* path = ast_child(ast);
       ast_t* name = ast_sibling(path);
 
-      return use_package(ast, name, ast_name(path), verbose) != NULL;
+      if(use_package(ast, name, ast_name(path), verbose) == NULL)
+        return AST_ERROR;
+      break;
     }
 
     case TK_TYPE:
     case TK_TRAIT:
     case TK_CLASS:
     case TK_ACTOR:
-      return set_scope(ast_nearest(ast, TK_PACKAGE),
-        ast_child(ast), ast, true);
+      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
+        ast_child(ast), ast, true))
+        return AST_ERROR;
+      break;
 
     case TK_FVAR:
     case TK_FLET:
@@ -116,7 +122,9 @@ bool type_scope(ast_t* ast, int verbose)
         return false;
       }
 
-      return set_scope(ast, ast_child(ast), ast, false);
+      if(!set_scope(ast, ast_child(ast), ast, false))
+        return AST_ERROR;
+      break;
     }
 
     case TK_NEW:
@@ -125,12 +133,14 @@ bool type_scope(ast_t* ast, int verbose)
 
       if(ast_id(id) == TK_NONE)
       {
-        ast_t* r_id = ast_newid(id, "create");
+        ast_t* r_id = ast_from_string(id, "create");
         ast_swap(id, r_id);
         ast_free(id);
       }
 
-      return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
+      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
+        return AST_ERROR;
+      break;
     }
 
     case TK_BE:
@@ -141,7 +151,9 @@ bool type_scope(ast_t* ast, int verbose)
         return false;
       }
 
-      return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
+      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
+        return AST_ERROR;
+      break;
     }
 
     case TK_FUN:
@@ -150,19 +162,25 @@ bool type_scope(ast_t* ast, int verbose)
 
       if(ast_id(id) == TK_NONE)
       {
-        ast_t* r_id = ast_newid(id, "apply");
+        ast_t* r_id = ast_from_string(id, "apply");
         ast_swap(id, r_id);
         ast_free(id);
       }
 
-      return set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false);
+      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
+        return AST_ERROR;
+      break;
     }
 
     case TK_TYPEPARAM:
-      return set_scope(ast, ast_child(ast), ast, true);
+      if(!set_scope(ast, ast_child(ast), ast, true))
+        return AST_ERROR;
+      break;
 
     case TK_PARAM:
-      return set_scope(ast, ast_child(ast), ast, false);
+      if(!set_scope(ast, ast_child(ast), ast, false))
+        return AST_ERROR;
+      break;
 
     case TK_NOMINAL:
     {
@@ -204,5 +222,5 @@ bool type_scope(ast_t* ast, int verbose)
     default: {}
   }
 
-  return true;
+  return AST_OK;
 }

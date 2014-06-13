@@ -52,10 +52,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
-
-      if(r_typeparams != typeparams)
-        ast_free(r_typeparams);
-
+      ast_free_unattached(r_typeparams);
       return false;
     }
 
@@ -64,9 +61,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     typearg = ast_sibling(typearg);
   }
 
-  if(r_typeparams != typeparams)
-    ast_free(r_typeparams);
-
+  ast_free_unattached(r_typeparams);
   return true;
 }
 
@@ -115,17 +110,19 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
  * definition ast node to each nominal type, and replaces type aliases with
  * their reified expansion.
  */
-bool type_valid(ast_t* ast, int verbose)
+ast_result_t type_valid(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      return valid_nominal(ast, ast);
+      if(!valid_nominal(ast, ast))
+        return AST_ERROR;
+      break;
 
     default: {}
   }
 
-  return true;
+  return AST_OK;
 }
 
 bool valid_nominal(ast_t* scope, ast_t* nominal)

@@ -19,10 +19,10 @@ symtab: ID -> PACKAGE | TYPE | TRAIT | CLASS | ACTOR
 
 USE: PATH [ID]
 
-TYPE: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
-TRAIT: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
-CLASS: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
-ACTOR: ID [TYPEPARAMS] [CAP] [TYPES] MEMBERS
+TYPE: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
+TRAIT: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
+CLASS: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
+ACTOR: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
 data: typechecking state
 symtab: ID -> TYPEPARAM | VAR | VAL | NEW | FUN | BE
 
@@ -33,7 +33,7 @@ FLET: ID [TYPEDEF] [SEQ]
 
 NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
-FUN: CAP ID [TYPEPARAMS] [PARAMS | TYPES] [TYPEDEF] [QUESTION] [SEQ]
+FUN: RAWCAP ID [TYPEPARAMS] [PARAMS | TYPES] [TYPEDEF] [QUESTION] [SEQ]
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
@@ -45,7 +45,8 @@ TYPES: {TYPEDEF}
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
 TYPEDEF: type [CAP] [HAT]
 
-CAP: {ID | ISO | TRN | REF | VAL | BOX | TAG}
+RAWCAP: (ISO | TRN | REF | VAL | BOX | TAG)
+CAP: (THIS | ID | RAWCAP) {ID | RAWCAP}
 
 UNIONTYPE: (TYPEDEF | type) (TYPEDEF | type)
 ISECTTYPE: (TYPEDEF | type) (TYPEDEF | type)
@@ -171,11 +172,20 @@ STRING
 
 */
 
+typedef enum
+{
+  AST_OK,
+  AST_ERROR,
+  AST_FATAL
+} ast_result_t;
+
 typedef struct ast_t ast_t;
 
-ast_t* ast_new(token_id id, size_t line, size_t pos, void* data);
+ast_t* ast_new(token_t* t, token_id id);
+ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
-ast_t* ast_newid(ast_t* previous, const char* id);
+ast_t* ast_from(ast_t* ast, token_id id);
+ast_t* ast_from_string(ast_t* ast, const char* id);
 ast_t* ast_dup(ast_t* ast);
 void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);
@@ -187,15 +197,17 @@ size_t ast_pos(ast_t* ast);
 void* ast_data(ast_t* ast);
 const char* ast_name(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
+void ast_settype(ast_t* ast, ast_t* type);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
+ast_t* ast_enclosing_method(ast_t* ast);
+
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);
 ast_t* ast_childidx(ast_t* ast, size_t idx);
 ast_t* ast_childlast(ast_t* ast);
 ast_t* ast_sibling(ast_t* ast);
 size_t ast_index(ast_t* ast);
-size_t ast_childcount(ast_t* ast);
 
 void* ast_get(ast_t* ast, const char* name);
 bool ast_set(ast_t* ast, const char* name, void* value);
@@ -208,12 +220,14 @@ void ast_swap(ast_t* prev, ast_t* next);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);
+void ast_free_unattached(ast_t* ast);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__ ((format (printf, 2, 3)));
 
-typedef bool (*ast_visit_t)(ast_t* ast, int verbose);
+typedef ast_result_t (*ast_visit_t)(ast_t* ast, int verbose);
 
-bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post, int verbose);
+ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
+  int verbose);
 
 #endif

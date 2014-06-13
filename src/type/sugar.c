@@ -1,6 +1,6 @@
 #include "sugar.h"
 
-bool type_sugar(ast_t* ast, int verbose)
+ast_result_t type_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
@@ -27,5 +27,5 @@ bool type_sugar(ast_t* ast, int verbose)
     default: {}
   }
 
-  return true;
+  return AST_OK;
 }

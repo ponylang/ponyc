@@ -15,7 +15,7 @@ ast_t* consume(parser_t* parser)
 
 void insert(parser_t* parser, token_id id, ast_t* ast)
 {
-  ast_t* child = ast_new(id, parser->t->line, parser->t->pos, NULL);
+  ast_t* child = ast_new(parser->t, id);
   ast_add(ast, child);
 }
 

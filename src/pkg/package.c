@@ -286,7 +286,7 @@ void package_paths(const char* paths)
 
 ast_t* program_load(const char* path, int verbose)
 {
-  ast_t* program = ast_new(TK_PROGRAM, 0, 0, NULL);
+  ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
   if(package_load(program, path, verbose) == NULL)
@@ -311,7 +311,8 @@ ast_t* package_load(ast_t* from, const char* path, int verbose)
   if(package != NULL)
     return package;
 
-  package = ast_new(TK_PACKAGE, 0, 0, (void*)name);
+  package = ast_blank(TK_PACKAGE);
+  ast_attach(package, (void*)name);
   ast_scope(package);
   ast_add(program, package);
   ast_set(program, name, package);

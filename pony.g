@@ -152,7 +152,7 @@ postfix
   ;
 
 call
-  :  '@' tuple
+  :  '@' '(' positional? named? ')'
   ;
 
 atom
@@ -170,7 +170,7 @@ idseq
   ;
 
 tuple
-  :  '(' positional? named? ')'
+  :  '(' positional ')'
   ;
 
 array

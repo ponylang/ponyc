@@ -15,12 +15,13 @@ struct ast_t
   struct ast_t* parent;
   struct ast_t* child;
   struct ast_t* sibling;
+  struct ast_t* type;
 };
 
-static const char in[] = " ";
-static const size_t in_len = 1;
+static const char in[] = "  ";
+static const size_t in_len = 2;
 
-void print(ast_t* ast, size_t indent, size_t width);
+void print(ast_t* ast, size_t indent, size_t width, bool type);
 
 size_t length(ast_t* ast, size_t indent)
 {
@@ -36,10 +37,13 @@ size_t length(ast_t* ast, size_t indent)
     child = child->sibling;
   }
 
+  if(ast->type != NULL)
+    len += 1 + length(ast->type, 0);
+
   return len;
 }
 
-void print_compact(ast_t* ast, size_t indent)
+void print_compact(ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
     printf(in);
@@ -48,22 +52,28 @@ void print_compact(ast_t* ast, size_t indent)
   bool parens = child != NULL;
 
   if(parens)
-    printf("(");
+    printf(type ? "[" : "(");
 
   printf("%s", token_string(ast->t));
 
   while(child != NULL)
   {
     printf(" ");
-    print_compact(child, 0);
+    print_compact(child, 0, false);
     child = child->sibling;
   }
 
+  if(ast->type != NULL)
+  {
+    printf(" ");
+    print_compact(ast->type, 0, true);
+  }
+
   if(parens)
-    printf(")");
+    printf(type ? "]" : ")");
 }
 
-void print_extended(ast_t* ast, size_t indent, size_t width)
+void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
 {
   for(size_t i = 0; i < indent; i++)
     printf(in);
@@ -72,34 +82,37 @@ void print_extended(ast_t* ast, size_t indent, size_t width)
   bool parens = child != NULL;
 
   if(parens)
-    printf("(");
+    printf(type ? "[" : "(");
 
   printf("%s\n", token_string(ast->t));
 
   while(child != NULL)
   {
-    print(child, indent + 1, width);
+    print(child, indent + 1, width, false);
     child = child->sibling;
   }
+
+  if(ast->type != NULL)
+    print(ast->type, indent + 1, width, true);
 
   if(parens)
   {
     for(size_t i = 0; i <= indent; i++)
       printf(in);
 
-    printf(")");
+    printf(type ? "]" : ")");
   }
 }
 
-void print(ast_t* ast, size_t indent, size_t width)
+void print(ast_t* ast, size_t indent, size_t width, bool type)
 {
   size_t len = length(ast, indent);
 
   if(len <= width)
   {
-    print_compact(ast, indent);
+    print_compact(ast, indent, type);
   } else {
-    print_extended(ast, indent, width);
+    print_extended(ast, indent, width, type);
   }
 
   printf("\n");
@@ -114,6 +127,7 @@ ast_t* dup(ast_t* parent, ast_t* ast)
   n->data = ast->data;
   n->parent = parent;
   n->child = dup(n, ast->child);
+  n->type = dup(n, ast->type);
 
   if(ast->symtab != NULL)
   {
@@ -127,11 +141,14 @@ ast_t* dup(ast_t* parent, ast_t* ast)
   return n;
 }
 
-ast_t* ast_new(token_id id, size_t line, size_t pos, void* data)
+ast_t* ast_new(token_t* t, token_id id)
 {
-  ast_t* ast = ast_token(token_new(id, line, pos, false));
-  ast->data = data;
-  return ast;
+  return ast_token(token_from(t, id));
+}
+
+ast_t* ast_blank(token_id id)
+{
+  return ast_token(token_blank(id));
 }
 
 ast_t* ast_token(token_t* t)
@@ -141,17 +158,19 @@ ast_t* ast_token(token_t* t)
   return ast;
 }
 
-ast_t* ast_newid(ast_t* previous, const char* id)
+ast_t* ast_from(ast_t* ast, token_id id)
 {
-  return ast_token(token_newid(previous->t, id));
+  return ast_token(token_from(ast->t, id));
+}
+
+ast_t* ast_from_string(ast_t* ast, const char* id)
+{
+  return ast_token(token_from_string(ast->t, id));
 }
 
 ast_t* ast_dup(ast_t* ast)
 {
-  ast_t* n = dup(NULL, ast);
-  n->parent = ast->parent;
-
-  return n;
+  return dup(NULL, ast);
 }
 
 void ast_attach(ast_t* ast, void* data)
@@ -196,9 +215,18 @@ const char* ast_name(ast_t* ast)
 
 ast_t* ast_type(ast_t* ast)
 {
-  ast_t* type = ast_childlast(ast);
-  assert(ast_id(type) == TK_TYPEDEF);
-  return type;
+  return ast->type;
+}
+
+void ast_settype(ast_t* ast, ast_t* type)
+{
+  assert(ast->type == NULL);
+
+  if(type->parent != NULL)
+    type = ast_dup(type);
+
+  ast->type = type;
+  type->parent = ast;
 }
 
 ast_t* ast_nearest(ast_t* ast, token_id id)
@@ -207,6 +235,26 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
     ast = ast->parent;
 
   return ast;
+}
+
+ast_t* ast_enclosing_method(ast_t* ast)
+{
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+        return ast;
+
+      default: {}
+    }
+
+    ast = ast->parent;
+  }
+
+  return NULL;
 }
 
 ast_t* ast_parent(ast_t* ast)
@@ -264,20 +312,6 @@ size_t ast_index(ast_t* ast)
   return idx;
 }
 
-size_t ast_childcount(ast_t* ast)
-{
-  ast_t* child = ast->child;
-  size_t count = 0;
-
-  while(child != NULL)
-  {
-    child = child->sibling;
-    count++;
-  }
-
-  return count;
-}
-
 void* ast_get(ast_t* ast, const char* name)
 {
   /* searches all parent scopes, but not the program scope, because the name
@@ -321,6 +355,10 @@ void ast_add(ast_t* parent, ast_t* child)
 {
   assert(parent != child);
   assert(parent->child != child);
+
+  if(child->parent != NULL)
+    child = ast_dup(child);
+
   child->parent = parent;
   child->sibling = parent->child;
   parent->child = child;
@@ -343,6 +381,10 @@ ast_t* ast_pop(ast_t* parent)
 void ast_append(ast_t* parent, ast_t* child)
 {
   assert(parent != child);
+
+  if(child->parent != NULL)
+    child = ast_dup(child);
+
   child->parent = parent;
 
   if(parent->child == NULL)
@@ -359,7 +401,9 @@ void ast_append(ast_t* parent, ast_t* child)
 void ast_swap(ast_t* prev, ast_t* next)
 {
   assert(prev->parent != NULL);
-  assert(next->sibling == NULL);
+
+  if(next->parent != NULL)
+    next = ast_dup(next);
 
   ast_t* last = NULL;
   ast_t* cur = prev->parent->child;
@@ -410,7 +454,7 @@ void ast_print(ast_t* ast, size_t width)
   if(ast == NULL)
     return;
 
-  print(ast, 0, width);
+  print(ast, 0, width, false);
   printf("\n");
 }
 
@@ -429,6 +473,8 @@ void ast_free(ast_t* ast)
     child = next;
   }
 
+  ast_free(ast->type);
+
   switch(ast->t->id)
   {
     case TK_MODULE:
@@ -443,34 +489,79 @@ void ast_free(ast_t* ast)
   symtab_free(ast->symtab);
 }
 
+void ast_free_unattached(ast_t* ast)
+{
+  if((ast != NULL) && (ast->parent == NULL))
+    ast_free(ast);
+}
+
 void ast_error(ast_t* ast, const char* fmt, ...)
 {
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  source_t* source = (module != NULL) ? module->data : NULL;
-
   va_list ap;
   va_start(ap, fmt);
-  errorv(source, ast->t->line, ast->t->pos, fmt, ap);
+  errorv(ast->t->source, ast->t->line, ast->t->pos, fmt, ap);
   va_end(ap);
 }
 
-bool ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post, int verbose)
+ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
+  int verbose)
 {
-  bool ret = true;
+  ast_result_t ret = AST_OK;
 
   if(pre != NULL)
-    ret &= pre(ast, verbose);
-
-  ast_t* child = ast->child;
-
-  while(child != NULL)
   {
-    ret &= ast_visit(child, pre, post, verbose);
-    child = child->sibling;
+    switch(pre(ast, verbose))
+    {
+      case AST_OK:
+        break;
+
+      case AST_ERROR:
+        ret = AST_ERROR;
+        break;
+
+      case AST_FATAL:
+        return AST_FATAL;
+    }
+  }
+
+  if((pre != NULL) || (post != NULL))
+  {
+    ast_t* child = ast->child;
+
+    while(child != NULL)
+    {
+      switch(ast_visit(child, pre, post, verbose))
+      {
+        case AST_OK:
+          break;
+
+        case AST_ERROR:
+          ret = AST_ERROR;
+          break;
+
+        case AST_FATAL:
+          return AST_FATAL;
+      }
+
+      child = child->sibling;
+    }
   }
 
   if(post != NULL)
-    ret &= post(ast, verbose);
+  {
+    switch(post(ast, verbose))
+    {
+      case AST_OK:
+        break;
+
+      case AST_ERROR:
+        ret = AST_ERROR;
+        break;
+
+      case AST_FATAL:
+        return AST_FATAL;
+    }
+  }
 
   return ret;
 }

@@ -35,8 +35,7 @@ static bool attach_method(ast_t* type, ast_t* method)
 
     if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
     {
-      ast_t* r_impl = ast_dup(impl);
-      ast_swap(existing_impl, r_impl);
+      ast_swap(existing_impl, impl);
       ast_free(existing_impl);
     }
 
@@ -115,9 +114,7 @@ static bool attach_traits(ast_t* def)
           // and the reified type arguments from r_trait
           ast_t* r_member = reify(member, typeparams, typeargs);
           bool ok = attach_method(def, r_member);
-
-          if(r_member != member)
-            ast_free(r_member);
+          ast_free_unattached(r_member);
 
           if(!ok)
             return false;
@@ -173,19 +170,23 @@ static bool have_impl(ast_t* ast)
   return ret;
 }
 
-bool type_traits(ast_t* ast, int verbose)
+ast_result_t type_traits(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_TRAIT:
-      return attach_traits(ast);
+      if(!attach_traits(ast))
+        return AST_ERROR;
+      break;
 
     case TK_CLASS:
     case TK_ACTOR:
-      return attach_traits(ast) && have_impl(ast);
+      if(!attach_traits(ast) || !have_impl(ast))
+        return AST_ERROR;
+      break;
 
     default: {}
   }
 
-  return true;
+  return AST_OK;
 }

@@ -215,13 +215,13 @@ DEF(typebase);
   AST_RULE(typeexpr, nominal, structural);
   DONE();
 
-// (ID | CAP) {DOT (ID | CAP)}
+// (THIS | ID | CAP) {DOT (ID | CAP)}
 DEF(cap);
   CHECK(TK_THIS, TK_ID, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   AST(TK_CAP);
   EXPECT(TK_THIS, TK_ID, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   WHILETOKEN(TK_DOT,
-    TK_THIS, TK_ID, TK_ID_NEW, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+    TK_ID, TK_ID_NEW, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
 // typebase [cap] [HAT]
@@ -257,7 +257,7 @@ DEF(positional);
 
 // (LBRACE | LBRACE_NEW) [IS types] members RBRACE
 DEF(object);
-  EXPECT(TK_LBRACE, TK_LBRACE_NEW);
+  SKIP(TK_LBRACE, TK_LBRACE_NEW);
   AST(TK_OBJECT);
   IFRULE(TK_IS, types);
   RULE(members);
@@ -266,19 +266,19 @@ DEF(object);
 
 // (LBRACKET | LBRACKET_NEW) [positional] [named] RBRACKET
 DEF(array);
-  EXPECT(TK_LBRACKET, TK_LBRACKET_NEW);
+  SKIP(TK_LBRACKET, TK_LBRACKET_NEW);
   AST(TK_ARRAY);
   OPTRULE(positional);
   OPTRULE(named);
   SKIP(TK_RBRACKET);
   DONE();
 
-// (LPAREN | LPAREN_NEW) [positional] [named] RPAREN
+// (LPAREN | LPAREN_NEW) seq {COMMA seq} RPAREN
 DEF(tuple);
-  EXPECT(TK_LPAREN, TK_LPAREN_NEW);
+  SKIP(TK_LPAREN, TK_LPAREN_NEW);
   AST(TK_TUPLE);
-  OPTRULE(positional);
-  OPTRULE(named);
+  RULE(seq);
+  WHILERULE(TK_COMMA, seq);
   SKIP(TK_RPAREN);
   DONE();
 
@@ -317,11 +317,13 @@ DEF(qualify);
   RULE(typeargs);
   DONE();
 
-// call
+// LPAREN [positional] [named] RPAREN
 DEF(call);
-  CHECK(TK_LPAREN);
+  SKIP(TK_LPAREN);
   AST(TK_CALL);
-  RULE(tuple);
+  OPTRULE(positional);
+  OPTRULE(named);
+  SKIP(TK_RPAREN);
   DONE();
 
 // atom {dot | bang | qualify | call}

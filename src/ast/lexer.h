@@ -161,6 +161,7 @@ typedef struct token_t
   token_id id;
   bool newline;
   bool error;
+  source_t* source;
   size_t line;
   size_t pos;
   size_t rc;
@@ -177,8 +178,9 @@ lexer_t* lexer_open(source_t* source);
 void lexer_close(lexer_t* lexer);
 token_t* lexer_next(lexer_t* lexer);
 
-token_t* token_new(token_id id, size_t line, size_t pos, bool newline);
-token_t* token_newid(token_t* token, const char* id);
+token_t* token_blank(token_id id);
+token_t* token_from(token_t* token, token_id id);
+token_t* token_from_string(token_t* token, const char* id);
 token_t* token_dup(token_t* token);
 const char* token_string(token_t* token);
 void token_setid(token_t* token, token_id id);

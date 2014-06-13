@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-bool type_scope(ast_t* ast, int verbose);
+ast_result_t type_scope(ast_t* ast, int verbose);
 
 #endif

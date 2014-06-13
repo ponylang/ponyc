@@ -1,11 +1,12 @@
 #include "expr.h"
 #include "valid.h"
+#include "cap.h"
 #include "subtype.h"
 #include "typechecker.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-ast_t* get_def(ast_t* ast, const char* name)
+static ast_t* get_def(ast_t* ast, const char* name)
 {
   ast_t* def = ast_get(ast, name);
 
@@ -18,7 +19,7 @@ ast_t* get_def(ast_t* ast, const char* name)
   return def;
 }
 
-bool def_before_use(ast_t* def, ast_t* use, const char* name)
+static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
   switch(ast_id(def))
   {
@@ -47,19 +48,17 @@ bool def_before_use(ast_t* def, ast_t* use, const char* name)
 
 static ast_t* typedef_for_name(ast_t* ast, const char* name)
 {
-  size_t line = ast_line(ast);
-  size_t pos = ast_line(ast);
+  // TODO: set capability
+  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
+  ast_add(type_def, ast_from(ast, TK_NONE));
+  ast_add(type_def, ast_from(ast, TK_NONE));
 
-  ast_t* type_def = ast_new(TK_TYPEDEF, line, pos, NULL);
-  ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
-  ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
-
-  ast_t* nominal = ast_new(TK_NOMINAL, line, pos, NULL);
+  ast_t* nominal = ast_from(ast, TK_NOMINAL);
   ast_add(type_def, nominal);
 
-  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
-  ast_add(nominal, ast_newid(ast, name));
-  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+  ast_add(nominal, ast_from(ast, TK_NONE));
+  ast_add(nominal, ast_from_string(ast, name));
+  ast_add(nominal, ast_from(ast, TK_NONE));
 
   if(!valid_nominal(ast, nominal))
   {
@@ -71,7 +70,7 @@ static ast_t* typedef_for_name(ast_t* ast, const char* name)
   return type_def;
 }
 
-static ast_t* expr_bool(ast_t* ast)
+static ast_t* type_bool(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   ast_t* bool_type = typedef_for_name(ast, stringtab("Bool"));
@@ -83,7 +82,7 @@ static ast_t* expr_bool(ast_t* ast)
   return NULL;
 }
 
-static ast_t* expr_int(ast_t* ast)
+static ast_t* type_int(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   ast_t* int_type = typedef_for_name(ast, stringtab("Integer"));
@@ -93,15 +92,15 @@ static ast_t* expr_int(ast_t* ast)
   if(!ok)
     return NULL;
 
-  return ast_dup(type);
+  return type;
 }
 
-static ast_t* expr_int_or_bool(ast_t* ast)
+static ast_t* type_int_or_bool(ast_t* ast)
 {
-  ast_t* type = expr_bool(ast);
+  ast_t* type = type_bool(ast);
 
   if(type == NULL)
-    type = expr_int(ast);
+    type = type_int(ast);
 
   if(type == NULL)
   {
@@ -112,19 +111,35 @@ static ast_t* expr_int_or_bool(ast_t* ast)
   return type;
 }
 
-static ast_t* expr_super(ast_t* ast, ast_t* l_type, ast_t* r_type)
+static ast_t* type_super(ast_t* l_type, ast_t* r_type)
 {
+  if((l_type == NULL) || (r_type == NULL))
+    return NULL;
+
   if(is_subtype(l_type, r_type))
     return r_type;
 
   if(is_subtype(r_type, l_type))
     return l_type;
 
-  ast_error(ast, "types are unrelated");
   return NULL;
 }
 
-static ast_t* expr_fun(ast_t* ast)
+static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
+{
+  ast_t* super = type_super(l_type, r_type);
+
+  if(super != NULL)
+    return super;
+
+  ast_t* type = ast_from(ast, TK_UNIONTYPE);
+  ast_add(type, r_type);
+  ast_add(type, l_type);
+
+  return type;
+}
+
+static ast_t* type_for_fun(ast_t* ast)
 {
   assert((ast_id(ast) == TK_NEW) ||
     (ast_id(ast) == TK_BE) ||
@@ -138,32 +153,30 @@ static ast_t* expr_fun(ast_t* ast)
   ast_t* result = ast_sibling(params);
   ast_t* throws = ast_sibling(result);
 
-  size_t line = ast_line(ast);
-  size_t pos = ast_pos(ast);
-  ast_t* fun = ast_new(ast_id(ast), line, pos, NULL);
-  ast_add(fun, ast_new(TK_NONE, line, pos, NULL));
-  ast_add(fun, ast_dup(throws));
-  ast_add(fun, ast_dup(result));
+  ast_t* fun = ast_from(ast, ast_id(ast));
+  ast_add(fun, ast_from(ast, TK_NONE));
+  ast_add(fun, throws);
+  ast_add(fun, result);
 
   if(ast_id(params) == TK_PARAMS)
   {
-    ast_t* types = ast_new(TK_TYPES, line, pos, NULL);
+    ast_t* types = ast_from(ast, TK_TYPES);
     ast_t* param = ast_child(params);
 
     while(param != NULL)
     {
-      ast_append(types, ast_dup(ast_childidx(param, 1)));
+      ast_append(types, ast_childidx(param, 1));
       param = ast_sibling(param);
     }
 
     ast_add(fun, types);
   } else {
-    ast_add(fun, ast_dup(params));
+    ast_add(fun, params);
   }
 
-  ast_add(fun, ast_dup(typeparams));
-  ast_add(fun, ast_dup(id));
-  ast_add(fun, ast_dup(cap));
+  ast_add(fun, typeparams);
+  ast_add(fun, id);
+  ast_add(fun, cap);
 
   return fun;
 }
@@ -182,10 +195,12 @@ static bool expr_field(ast_t* ast)
   if(ast_id(type) == TK_NONE)
   {
     // if no declared type, get the type from the initializer
-    ast_t* init_type = ast_type(init);
-    ast_swap(type, ast_dup(init_type));
-    ast_free(type);
-  } else if(ast_id(init) != TK_NONE) {
+    ast_settype(ast, ast_type(init));
+    return true;
+  }
+
+  if(ast_id(init) != TK_NONE)
+  {
     // initializer type must match declared type
     ast_t* init_type = ast_type(init);
 
@@ -197,6 +212,7 @@ static bool expr_field(ast_t* ast)
     }
   }
 
+  ast_settype(ast, type);
   return true;
 }
 
@@ -207,14 +223,12 @@ static bool expr_literal(ast_t* ast, const char* name)
   if(type_def == NULL)
     return false;
 
-  ast_append(ast, type_def);
+  ast_settype(ast, type_def);
   return true;
 }
 
 static bool expr_this(ast_t* ast)
 {
-  size_t line = ast_line(ast);
-  size_t pos = ast_line(ast);
   ast_t* def = ast_nearest(ast, TK_TRAIT);
 
   if(def == NULL)
@@ -228,17 +242,17 @@ static bool expr_this(ast_t* ast)
   ast_t* typeparams = ast_sibling(id);
   const char* name = ast_name(id);
 
-  ast_t* type_def = ast_new(TK_TYPEDEF, line, pos, NULL);
-  ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
-  ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
+  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
+  ast_add(type_def, ast_from(ast, TK_NONE));
+  ast_add(type_def, cap_from_rawcap(ast, cap_for_receiver(ast)));
 
-  ast_t* nominal = ast_new(TK_NOMINAL, line, pos, NULL);
+  ast_t* nominal = ast_from(ast, TK_NOMINAL);
   ast_add(type_def, nominal);
 
   if(ast_id(typeparams) == TK_TYPEPARAMS)
   {
     ast_t* typeparam = ast_child(typeparams);
-    ast_t* typeargs = ast_new(TK_TYPEARGS, line, pos, NULL);
+    ast_t* typeargs = ast_from(ast, TK_TYPEARGS);
     ast_add(nominal, typeargs);
 
     while(typeparam != NULL)
@@ -250,11 +264,11 @@ static bool expr_this(ast_t* ast)
       typeparam = ast_sibling(typeparam);
     }
   } else {
-    ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+    ast_add(nominal, ast_from(ast, TK_NONE));
   }
 
-  ast_add(nominal, ast_newid(ast, name));
-  ast_add(nominal, ast_new(TK_NONE, line, pos, NULL));
+  ast_add(nominal, ast_from_string(ast, name));
+  ast_add(nominal, ast_from(ast, TK_NONE));
 
   if(!valid_nominal(ast, nominal))
   {
@@ -263,7 +277,7 @@ static bool expr_this(ast_t* ast)
     return false;
   }
 
-  ast_append(ast, type_def);
+  ast_settype(ast, type_def);
   return true;
 }
 
@@ -303,7 +317,7 @@ static bool expr_reference(ast_t* ast)
       // get the type of the field/parameter and attach it to our reference
       ast_t* type_def = ast_childidx(def, 1);
       assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_append(ast, ast_dup(type_def));
+      ast_settype(ast, type_def);
       break;
     }
 
@@ -312,7 +326,7 @@ static bool expr_reference(ast_t* ast)
     case TK_FUN:
     {
       // method call on 'this'
-      ast_append(ast, expr_fun(def));
+      ast_settype(ast, type_for_fun(def));
       break;
     }
 
@@ -334,7 +348,8 @@ static bool expr_dot(ast_t* ast)
   // ast_t* left = ast_child(ast);
   // ast_t* right = ast_sibling(left);
 
-  return true;
+  ast_error(ast, "not implemented (dot)");
+  return false;
 }
 
 static bool expr_identity(ast_t* ast)
@@ -345,8 +360,12 @@ static bool expr_identity(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(expr_super(ast, l_type, r_type) == NULL)
+  if(type_super(l_type, r_type) == NULL)
+  {
+    ast_error(ast,
+      "left and right side must have related types when checking identity");
     return false;
+  }
 
   return expr_literal(ast, "Bool");
 }
@@ -356,85 +375,66 @@ static bool expr_logical(ast_t* ast)
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
 
-  ast_t* l_type = expr_int_or_bool(left);
-  ast_t* r_type = expr_int_or_bool(right);
-
-  if((l_type == NULL) || (r_type == NULL))
-    return false;
-
-  ast_t* type = expr_super(ast, l_type, r_type);
+  ast_t* l_type = type_int_or_bool(left);
+  ast_t* r_type = type_int_or_bool(right);
+  ast_t* type = type_super(l_type, r_type);
 
   if(type == NULL)
   {
-    ast_free(l_type);
-    ast_free(r_type);
-    return false;
+    ast_error(ast,
+      "left and right side must have related types for logical operations");
+  } else {
+    ast_settype(ast, type);
   }
 
-  if(type == l_type)
-    ast_free(r_type);
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
 
-  if(type == r_type)
-    ast_free(l_type);
-
-  ast_append(ast, type);
-  return true;
+  return (type != NULL);
 }
 
 static bool expr_not(ast_t* ast)
 {
   ast_t* child = ast_child(ast);
-  ast_t* type = expr_int_or_bool(child);
+  ast_t* type = type_int_or_bool(child);
 
   if(type == NULL)
     return false;
 
-  ast_append(ast, type);
+  ast_settype(ast, type);
   return true;
 }
 
 static bool expr_tuple(ast_t* ast)
 {
-  ast_t* positional = ast_child(ast);
-  ast_t* named = ast_sibling(positional);
-
-  if(ast_id(named) != TK_NONE)
-  {
-    ast_error(named, "named tuple components not yet supported");
-    return false;
-  }
-
-  // TODO: empty tuple, for arity/0 calls
-  size_t line = ast_line(ast);
-  size_t pos = ast_line(ast);
-  ast_t* seq = ast_child(positional);
+  ast_t* seq = ast_child(ast);
   ast_t* type_def;
 
   if(ast_sibling(seq) == NULL)
   {
-    type_def = ast_dup(ast_type(seq));
+    type_def = ast_type(seq);
   } else {
-    ast_t* tuple = ast_new(TK_TUPLETYPE, line, pos, NULL);
-    ast_add(tuple, ast_dup(ast_type(seq)));
+    ast_t* tuple = ast_from(ast, TK_TUPLETYPE);
+    ast_add(tuple, ast_type(seq));
     seq = ast_sibling(seq);
-    ast_add(tuple, ast_dup(ast_type(seq)));
+    ast_add(tuple, ast_type(seq));
 
     while(seq != NULL)
     {
-      ast_t* parent = ast_new(TK_TUPLETYPE, line, pos, NULL);
+      ast_t* parent = ast_from(ast, TK_TUPLETYPE);
       ast_add(parent, tuple);
-      ast_add(parent, ast_dup(ast_type(seq)));
+      ast_add(parent, ast_type(seq));
       tuple = parent;
       seq = ast_sibling(seq);
     }
 
-    type_def = ast_new(TK_TYPEDEF, line, pos, NULL);
-    ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
-    ast_add(type_def, ast_new(TK_NONE, line, pos, NULL));
+    type_def = ast_from(ast, TK_TYPEDEF);
+    ast_add(type_def, ast_from(ast, TK_NONE));
+    ast_add(type_def, ast_from(ast, TK_NONE));
     ast_add(type_def, tuple);
   }
 
-  ast_append(ast, type_def);
+  ast_settype(ast, type_def);
   return true;
 }
 
@@ -446,194 +446,303 @@ static bool expr_call(ast_t* ast)
   // TODO: type is the type of the method call return
   // TODO: mark enclosing as "may error" if we might error
   ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(fun);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
+  ast_t* type = ast_type(left);
 
-  switch(ast_id(l_type))
+  switch(ast_id(type))
   {
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
     {
-      // method call
-      break;
+      // method call on 'this'
+      // first check if the receiver capability is ok
+      token_id rcap = cap_for_receiver(ast);
+      token_id fcap = cap_for_fun(type);
+
+      if(!is_cap_sub_cap(rcap, fcap))
+      {
+        ast_error(ast,
+          "receiver capability is not a subtype of method capability");
+        return false;
+      }
+
+      // TODO: use args to decide unbound type parameters
+
+      // TODO: generate return type for constructors and behaviours
+      ast_settype(ast, ast_childidx(type, 4));
+      return true;
     }
 
     default: {}
   }
 
-  ast_error(fun, "unexpected function call");
+  assert(0);
   return false;
+}
+
+static bool expr_if(ast_t* ast)
+{
+  ast_t* cond = ast_child(ast);
+  ast_t* left = ast_sibling(cond);
+  ast_t* right = ast_sibling(left);
+
+  ast_t* bool_type = type_bool(cond);
+
+  if(bool_type == NULL)
+  {
+    ast_error(cond, "condition must be a Bool");
+    return false;
+  }
+
+  ast_free(bool_type);
+
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type;
+
+  if(ast_id(right) == TK_NONE)
+    r_type = typedef_for_name(ast, "None");
+  else
+    r_type = ast_type(right);
+
+  ast_t* type = type_union(ast, l_type, r_type);
+  ast_settype(ast, type);
+  return true;
 }
 
 static bool expr_seq(ast_t* ast)
 {
   ast_t* last = ast_childlast(ast);
   ast_t* type_def = ast_type(last);
-  ast_append(ast, ast_dup(type_def));
+  ast_settype(ast, type_def);
   return true;
 }
 
-/**
- * This checks the type of all expressions.
- */
-bool type_expr(ast_t* ast, int verbose)
+static bool expr_fun(ast_t* ast)
+{
+  ast_t* impl = ast_childidx(ast, 6);
+
+  if(ast_id(impl) == TK_NONE)
+    return true;
+
+  // if specified, body type must match return type
+  ast_t* type = ast_childidx(ast, 4);
+
+  if(ast_id(type) != TK_NONE)
+  {
+    ast_t* body_type = ast_type(impl);
+
+    if(!is_subtype(body_type, type))
+    {
+      ast_t* last = ast_childlast(impl);
+      ast_error(last, "function body type doesn't match function result type");
+      ast_error(type, "function result type is here");
+      return false;
+    }
+  }
+
+  // TODO: if ?, check that we might actually error (but not on a trait)
+  // TODO: if not ?, check that we can't error
+  return true;
+}
+
+ast_result_t type_expr(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
-      return expr_field(ast);
+      if(!expr_field(ast))
+        return AST_FATAL;
+      break;
 
     case TK_NEW:
       // TODO: check that the object is fully initialised
       // TODO: if ?, check that we might actually error (but not on a trait)
       // TODO: if not ?, check that we can't error
       // TODO: can only return this
-      break;
+      ast_error(ast, "not implemented (new)");
+      return AST_FATAL;
 
     case TK_BE:
       // TODO: can only return None
       // TODO: check that we can't error
-      break;
+      ast_error(ast, "not implemented (be)");
+      return AST_FATAL;
 
     case TK_FUN:
-      // TODO: body type must match return types
-      // TODO: if ?, check that we might actually error (but not on a trait)
-      // TODO: if not ?, check that we can't error
+      if(!expr_fun(ast))
+        return AST_FATAL;
       break;
 
     case TK_SEQ:
-      return expr_seq(ast);
+      if(!expr_seq(ast))
+        return AST_FATAL;
+      break;
 
     case TK_VAR:
     case TK_LET:
       // TODO:
-      break;
+      ast_error(ast, "not implemented (local)");
+      return AST_FATAL;
 
     case TK_CONTINUE:
       // TODO: check we are in a loop
-      break;
+      ast_error(ast, "not implemented (continue)");
+      return AST_FATAL;
 
     case TK_BREAK:
       // TODO: check we are in a loop
       // TODO: type of loop is unioned with type of expr
-      break;
+      ast_error(ast, "not implemented (break)");
+      return AST_FATAL;
 
     case TK_RETURN:
       // TODO: type of expr must match type of method
-      break;
+      ast_error(ast, "not implemented (return)");
+      return AST_FATAL;
 
     case TK_MULTIPLY:
     case TK_DIVIDE:
     case TK_MOD:
     case TK_PLUS:
       // TODO: matching number types
-      break;
+      ast_error(ast, "not implemented (math)");
+      return AST_FATAL;
 
     case TK_MINUS:
       // TODO: may be unary or binary
-      break;
+      ast_error(ast, "not implemented (minus)");
+      return AST_FATAL;
 
     case TK_LSHIFT:
     case TK_RSHIFT:
       // TODO: check bit length
-      break;
+      ast_error(ast, "not implemented (shift)");
+      return AST_FATAL;
 
     case TK_LT:
     case TK_LE:
     case TK_GE:
     case TK_GT:
       // TODO: ordered
-      break;
+      ast_error(ast, "not implemented (order)");
+      return AST_FATAL;
 
     case TK_EQ:
     case TK_NE:
       // TODO: comparable
-      break;
+      ast_error(ast, "not implemented (compare)");
+      return AST_FATAL;
 
     case TK_IS:
     case TK_ISNT:
-      return expr_identity(ast);
+      if(!expr_identity(ast))
+        return AST_FATAL;
+      break;
 
     case TK_AND:
     case TK_XOR:
     case TK_OR:
-      return expr_logical(ast);
+      if(!expr_logical(ast))
+        return AST_FATAL;
+      break;
 
     case TK_NOT:
-      return expr_not(ast);
+      if(!expr_not(ast))
+        return AST_FATAL;
+      break;
 
     case TK_ASSIGN:
       // TODO:
-      break;
+      ast_error(ast, "not implemented (assign)");
+      return AST_FATAL;
 
     case TK_CONSUME:
       // TODO: path handling
-      break;
+      ast_error(ast, "not implemented (consume)");
+      return AST_FATAL;
 
     case TK_DOT:
-      return expr_dot(ast);
+      if(!expr_dot(ast))
+        return AST_FATAL;
+      break;
 
     case TK_QUALIFY:
       // TODO: find the method
       // TODO: make sure typeargs are within constraints
-      break;
+      ast_error(ast, "not implemented (qualify)");
+      return AST_FATAL;
 
     case TK_CALL:
-      return expr_call(ast);
+      if(!expr_call(ast))
+        return AST_FATAL;
+      break;
 
     case TK_IF:
-      // TODO: first must be a Bool
-      // TODO: type is union of second and third
+      if(!expr_if(ast))
+        return AST_FATAL;
       break;
 
     case TK_WHILE:
       // TODO: first must be a Bool
       // TODO: type is union of second and third, plus any break
-      break;
+      ast_error(ast, "not implemented (while)");
+      return AST_FATAL;
 
     case TK_REPEAT:
       // TODO: type is the type of the first
       // TODO: second must be a Bool
-      break;
+      ast_error(ast, "not implemented (repeat)");
+      return AST_FATAL;
 
     case TK_TRY:
       // TODO: type is the union of first and second
       // TODO: check that the first is marked as "may error"
-      break;
+      ast_error(ast, "not implemented (try)");
+      return AST_FATAL;
 
     case TK_TUPLE:
       return expr_tuple(ast);
 
     case TK_ARRAY:
       // TODO: determine our type by looking at every expr in the array
-      break;
+      ast_error(ast, "not implemented (array)");
+      return AST_FATAL;
 
     case TK_OBJECT:
       // TODO: create a structural type for the object
       // TODO: make sure it fulfills any traits it claims to have
-      break;
+      ast_error(ast, "not implemented (object)");
+      return AST_FATAL;
 
     case TK_REFERENCE:
-      return expr_reference(ast);
+      if(!expr_reference(ast))
+        return AST_FATAL;
+      break;
 
     case TK_THIS:
-      return expr_this(ast);
+      if(!expr_this(ast))
+        return AST_FATAL;
+      break;
 
     case TK_INT:
-      return expr_literal(ast, "IntLiteral");
+      if(!expr_literal(ast, "IntLiteral"))
+        return AST_FATAL;
+      break;
 
     case TK_FLOAT:
-      return expr_literal(ast, "FloatLiteral");
+      if(!expr_literal(ast, "FloatLiteral"))
+        return AST_FATAL;
+      break;
 
     case TK_STRING:
-      return expr_literal(ast, "String");
+      if(!expr_literal(ast, "String"))
+        return AST_FATAL;
+      break;
 
     default: {}
   }
 
-  return true;
+  return AST_OK;
 }

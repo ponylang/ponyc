@@ -73,7 +73,7 @@ ast_t* parse(source_t* source, rule_t start);
   NEED(LOOK(__VA_ARGS__))
 
 #define AST(ID) \
-  ast = ast_new(ID, parser->t->line, parser->t->pos, NULL)
+  ast = ast_new(parser->t, ID)
 
 #define AST_TOKEN(...) \
   NEED(LOOK(__VA_ARGS__)); \

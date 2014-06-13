@@ -4,20 +4,24 @@
 #include "traits.h"
 #include "sugar.h"
 #include "expr.h"
+#include "args.h"
 #include <assert.h>
 
 bool typecheck(ast_t* ast, int verbose)
 {
-  if(!ast_visit(ast, type_scope, NULL, verbose))
+  if(ast_visit(ast, type_scope, NULL, verbose) != AST_OK)
     return false;
 
-  if(!ast_visit(ast, NULL, type_valid, verbose))
+  if(ast_visit(ast, NULL, type_valid, verbose) != AST_OK)
     return false;
 
-  if(!ast_visit(ast, type_traits, NULL, verbose))
+  if(ast_visit(ast, type_traits, NULL, verbose) != AST_OK)
     return false;
 
-  if(!ast_visit(ast, type_sugar, type_expr, verbose))
+  if(ast_visit(ast, type_sugar, type_expr, verbose) != AST_OK)
+    return false;
+
+  if(ast_visit(ast, type_args, NULL, verbose) != AST_OK)
     return false;
 
   return true;
