@@ -452,6 +452,7 @@ DEF(repeat);
 // FOR idseq [COLON type] IN seq DO seq [ELSE seq] END
 DEF(forloop);
   AST_TOKEN(TK_FOR);
+  SCOPE();
   RULE(idseq);
   IFRULE(TK_COLON, type);
   SKIP(TK_IN);

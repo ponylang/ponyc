@@ -22,7 +22,7 @@ simpler: just make it a subtype relationship
 implicit recover?
   for any expression that accesses only sendable identifiers
 
-expression typing order
+expression typing
   atom
     * THIS
     * INT
@@ -43,24 +43,27 @@ expression typing order
     - RECOVER
   local
   control
-    - IF
+    * IF
     - MATCH
     - CASE
-    - WHILE
-    - REPEAT
+    * WHILE
+    * REPEAT
     - FOR (or is it sugar?)
     - TRY
+    - BREAK
+    - CONTINUE
+    - RETURN
   binop
     * AND
     * OR
     * XOR
-    - PLUS
+    * PLUS
     - MINUS
-    - MULTIPLY
-    - DIVIDE
-    - MOD
-    - LSHIFT
-    - RSHIFT
+    * MULTIPLY
+    * DIVIDE
+    * MOD
+    * LSHIFT
+    * RSHIFT
     * IS
     * ISNT
     - EQ

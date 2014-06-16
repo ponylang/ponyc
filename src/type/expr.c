@@ -109,6 +109,19 @@ static ast_t* type_int_or_bool(ast_t* ast)
   return type;
 }
 
+static ast_t* type_arithmetic(ast_t* ast)
+{
+  ast_t* type = ast_type(ast);
+  ast_t* a_type = typedef_for_name(ast, NULL, stringtab("Arithmetic"));
+  bool ok = is_subtype(type, a_type);
+  ast_free(a_type);
+
+  if(!ok)
+    return NULL;
+
+  return type;
+}
+
 static ast_t* type_super(ast_t* l_type, ast_t* r_type)
 {
   if((l_type == NULL) || (r_type == NULL))
@@ -455,11 +468,84 @@ static bool expr_identity(ast_t* ast)
   if(type_super(l_type, r_type) == NULL)
   {
     ast_error(ast,
-      "left and right side must have related types when checking identity");
+      "left and right side must have related types");
     return false;
   }
 
   return expr_literal(ast, "Bool");
+}
+
+static bool expr_arithmetic(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  ast_t* l_type = type_arithmetic(left);
+  ast_t* r_type = type_arithmetic(right);
+  ast_t* type = type_super(l_type, r_type);
+
+  if(type == NULL)
+    ast_error(ast, "left and right side must have related arithmetic types");
+  else
+    ast_settype(ast, type);
+
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
+
+  return (type != NULL);
+}
+
+static bool expr_minus(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  ast_t* l_type = type_arithmetic(left);
+  ast_t* r_type = NULL;
+  ast_t* type;
+
+  if(right != NULL)
+  {
+    r_type = type_arithmetic(right);
+    type = type_super(l_type, r_type);
+
+    if(type == NULL)
+      ast_error(ast, "left and right side must have related arithmetic types");
+  } else {
+    type = l_type;
+
+    if(type == NULL)
+      ast_error(ast, "must have an arithmetic type");
+  }
+
+  if(type != NULL)
+    ast_settype(ast, type);
+
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
+
+  return (type != NULL);
+}
+
+static bool expr_shift(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  ast_t* l_type = type_int(left);
+  ast_t* r_type = type_int(right);
+
+  if((l_type == NULL) || (r_type == NULL))
+  {
+    ast_error(ast,
+      "left and right side must have integer types");
+  } else {
+    ast_settype(ast, l_type);
+  }
+
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
+
+  return (l_type != NULL) && (r_type != NULL);
 }
 
 static bool expr_logical(ast_t* ast)
@@ -474,7 +560,7 @@ static bool expr_logical(ast_t* ast)
   if(type == NULL)
   {
     ast_error(ast,
-      "left and right side must have related types for logical operations");
+      "left and right side must have related integer or boolean types");
   } else {
     ast_settype(ast, type);
   }
@@ -595,6 +681,31 @@ static bool expr_if(ast_t* ast)
   return true;
 }
 
+static bool expr_while(ast_t* ast)
+{
+  // TODO: break statements
+  return expr_if(ast);
+}
+
+static bool expr_repeat(ast_t* ast)
+{
+  ast_t* cond = ast_child(ast);
+  ast_t* body = ast_sibling(cond);
+
+  ast_t* bool_type = type_bool(cond);
+
+  if(bool_type == NULL)
+  {
+    ast_error(cond, "condition must be a Bool");
+    return false;
+  }
+
+  // TODO: break statements
+  ast_free(bool_type);
+  ast_settype(ast, ast_type(body));
+  return true;
+}
+
 static bool expr_seq(ast_t* ast)
 {
   ast_t* last = ast_childlast(ast);
@@ -692,20 +803,20 @@ ast_result_t type_expr(ast_t* ast, int verbose)
     case TK_DIVIDE:
     case TK_MOD:
     case TK_PLUS:
-      // TODO: matching number types
-      ast_error(ast, "not implemented (math)");
-      return AST_FATAL;
+      if(!expr_arithmetic(ast))
+        return AST_FATAL;
+      break;
 
     case TK_MINUS:
-      // TODO: may be unary or binary
-      ast_error(ast, "not implemented (minus)");
-      return AST_FATAL;
+      if(!expr_minus(ast))
+        return AST_FATAL;
+      break;
 
     case TK_LSHIFT:
     case TK_RSHIFT:
-      // TODO: check bit length
-      ast_error(ast, "not implemented (shift)");
-      return AST_FATAL;
+      if(!expr_shift(ast))
+        return AST_FATAL;
+      break;
 
     case TK_LT:
     case TK_LE:
@@ -770,16 +881,14 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_WHILE:
-      // TODO: first must be a Bool
-      // TODO: type is union of second and third, plus any break
-      ast_error(ast, "not implemented (while)");
-      return AST_FATAL;
+      if(!expr_while(ast))
+        return AST_FATAL;
+      break;
 
     case TK_REPEAT:
-      // TODO: type is the type of the first
-      // TODO: second must be a Bool
-      ast_error(ast, "not implemented (repeat)");
-      return AST_FATAL;
+      if(!expr_repeat(ast))
+        return AST_FATAL;
+      break;
 
     case TK_TRY:
       // TODO: type is the union of first and second
@@ -788,7 +897,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       return AST_FATAL;
 
     case TK_TUPLE:
-      return expr_tuple(ast);
+      if(!expr_tuple(ast))
+        return AST_FATAL;
+      break;
 
     case TK_ARRAY:
       // TODO: determine our type by looking at every expr in the array
