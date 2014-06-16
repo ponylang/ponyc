@@ -183,6 +183,8 @@ token_t* token_from(token_t* token, token_id id);
 token_t* token_from_string(token_t* token, const char* id);
 token_t* token_dup(token_t* token);
 const char* token_string(token_t* token);
+double token_float(token_t* token);
+size_t token_int(token_t* token);
 void token_setid(token_t* token, token_id id);
 void token_setstring(token_t* token, const char* s);
 void token_free(token_t* token);

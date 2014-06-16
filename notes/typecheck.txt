@@ -29,15 +29,15 @@ expression typing order
     * FLOAT
     * STRING
     - REFERENCE
-    - TUPLE
+    * TUPLE
     - ARRAY
     - OBJECT
   postfix
     - DOT
     - QUALIFY
-    - CALL
+    * CALL
   unop
-    - NOT
+    * NOT
     - MINUS
     - CONSUME
     - RECOVER
@@ -51,9 +51,9 @@ expression typing order
     - FOR (or is it sugar?)
     - TRY
   binop
-    - AND
-    - OR
-    - XOR
+    * AND
+    * OR
+    * XOR
     - PLUS
     - MINUS
     - MULTIPLY
@@ -61,8 +61,8 @@ expression typing order
     - MOD
     - LSHIFT
     - RSHIFT
-    - IS
-    - ISNT
+    * IS
+    * ISNT
     - EQ
     - NE
     - LT
@@ -70,4 +70,4 @@ expression typing order
     - GE
     - GT
     - ASSIGN
-  seq
+  * seq

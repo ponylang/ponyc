@@ -1146,6 +1146,22 @@ const char* token_string(token_t* token)
   return "UNKNOWN";
 }
 
+double token_float(token_t* token)
+{
+  if(token->id == TK_FLOAT)
+    return token->real;
+
+  return 0.0;
+}
+
+size_t token_int(token_t* token)
+{
+  if(token->id == TK_INT)
+    return token->integer;
+
+  return 0;
+}
+
 void token_setid(token_t* token, token_id id)
 {
   if(token->newline)

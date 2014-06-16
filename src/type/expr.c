@@ -6,49 +6,24 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static ast_t* get_def(ast_t* ast, const char* name)
-{
-  ast_t* def = ast_get(ast, name);
-
-  if(def == NULL)
-  {
-    ast_error(ast, "can't find declaration of '%s'", name);
-    return NULL;
-  }
-
-  return def;
-}
-
 static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
-  switch(ast_id(def))
+  if((ast_line(def) > ast_line(use)) ||
+     ((ast_line(def) == ast_line(use)) &&
+      (ast_pos(def) > ast_pos(use))))
   {
-    case TK_FVAR:
-    case TK_FLET:
-    case TK_VAR:
-    case TK_LET:
-    {
-      // fields and locals must be declared before they are used
-      if((ast_line(def) > ast_line(use)) ||
-         ((ast_line(def) == ast_line(use)) &&
-          (ast_pos(def) > ast_pos(use))))
-      {
-        ast_error(use, "declaration of '%s' appears after use", name);
-        ast_error(def, "declaration of '%s' appears here", name);
-        return false;
-      }
-      break;
-    }
-
-    default: {}
+    ast_error(use, "declaration of '%s' appears after use", name);
+    ast_error(def, "declaration of '%s' appears here", name);
+    return false;
   }
 
   return true;
 }
 
-static ast_t* typedef_for_name(ast_t* ast, const char* name)
+static ast_t* typedef_for_name(ast_t* ast,
+  const char* package, const char* name)
 {
-  // TODO: set capability
+  // TODO: capability
   ast_t* type_def = ast_from(ast, TK_TYPEDEF);
   ast_add(type_def, ast_from(ast, TK_NONE));
   ast_add(type_def, ast_from(ast, TK_NONE));
@@ -58,7 +33,7 @@ static ast_t* typedef_for_name(ast_t* ast, const char* name)
 
   ast_add(nominal, ast_from(ast, TK_NONE));
   ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from(ast, TK_NONE));
+  ast_add(nominal, ast_from_string(ast, package));
 
   if(!valid_nominal(ast, nominal))
   {
@@ -70,10 +45,33 @@ static ast_t* typedef_for_name(ast_t* ast, const char* name)
   return type_def;
 }
 
+static ast_t* typedef_for_tuple(ast_t* ast, int index)
+{
+  assert(ast_id(ast) == TK_TUPLETYPE);
+  ast_t* child = ast_child(ast);
+
+  while(ast_id(child) == TK_TUPLETYPE)
+    child = ast_child(child);
+
+  while(index > 0)
+  {
+    if(child == ast)
+      return NULL;
+
+    child = ast_parent(child);
+  }
+
+  if(ast_id(ast) == TK_TUPLETYPE)
+    ast = ast_childidx(ast, 1);
+
+  assert(ast_id(ast) == TK_TYPEDEF);
+  return ast;
+}
+
 static ast_t* type_bool(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
-  ast_t* bool_type = typedef_for_name(ast, stringtab("Bool"));
+  ast_t* bool_type = typedef_for_name(ast, NULL, stringtab("Bool"));
 
   if(is_subtype(type, bool_type))
     return bool_type;
@@ -85,7 +83,7 @@ static ast_t* type_bool(ast_t* ast)
 static ast_t* type_int(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
-  ast_t* int_type = typedef_for_name(ast, stringtab("Integer"));
+  ast_t* int_type = typedef_for_name(ast, NULL, stringtab("Integer"));
   bool ok = is_subtype(type, int_type);
   ast_free(int_type);
 
@@ -194,14 +192,14 @@ static bool expr_field(ast_t* ast)
 
   if(ast_id(type) == TK_NONE)
   {
-    // if no declared type, get the type from the initializer
+    // if no declared type, get the type from the initialiser
     ast_settype(ast, ast_type(init));
     return true;
   }
 
   if(ast_id(init) != TK_NONE)
   {
-    // initializer type must match declared type
+    // initialiser type must match declared type
     ast_t* init_type = ast_type(init);
 
     if(!is_subtype(init_type, type))
@@ -218,7 +216,7 @@ static bool expr_field(ast_t* ast)
 
 static bool expr_literal(ast_t* ast, const char* name)
 {
-  ast_t* type_def = typedef_for_name(ast, stringtab(name));
+  ast_t* type_def = typedef_for_name(ast, NULL, stringtab(name));
 
   if(type_def == NULL)
     return false;
@@ -258,7 +256,7 @@ static bool expr_this(ast_t* ast)
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = typedef_for_name(ast, ast_name(typeparam_id));
+      ast_t* typearg = typedef_for_name(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
       typeparam = ast_sibling(typeparam);
@@ -285,40 +283,56 @@ static bool expr_reference(ast_t* ast)
 {
   // everything we reference must be in scope
   const char* name = ast_name(ast_child(ast));
-  ast_t* def = get_def(ast, name);
+  ast_t* def = ast_get(ast, name);
 
   if(def == NULL)
+  {
+    ast_error(ast, "can't find declaration of '%s'", name);
     return false;
-
-  if(!def_before_use(def, ast, name))
-    return false;
+  }
 
   switch(ast_id(def))
   {
     case TK_PACKAGE:
-      // TODO: only allowed if in a TK_DOT with a type
-      break;
+    {
+      // only allowed if in a TK_DOT with a type
+      if(ast_id(ast_parent(ast)) != TK_DOT)
+      {
+        ast_error(ast, "a package can only appear as a prefix to a type");
+        return false;
+      }
+
+      return true;
+    }
 
     case TK_TYPE:
-      // TODO: only allowed if it isn't an alias
-      // in which case it is a constructor
-      break;
-
     case TK_CLASS:
     case TK_ACTOR:
-      // TODO: could be a constructor, which might be in a TK_CALL,
-      // or could be in a TK_DOT with a constructor
-      break;
+    {
+      // it's a type name. this may not be a valid type, since it may need
+      // type arguments.
+      ast_t* id = ast_child(def);
+      const char* name = ast_name(id);
+
+      // TODO: this tries to validate the type
+      ast_t* type = typedef_for_name(ast, NULL, name);
+      ast_settype(ast, type);
+      return true;
+    }
 
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
     {
+      if(!def_before_use(def, ast, name))
+        return false;
+
+      // TODO: field/parameter type could be inferred from initialiser
       // get the type of the field/parameter and attach it to our reference
       ast_t* type_def = ast_childidx(def, 1);
       assert(ast_id(type_def) == TK_TYPEDEF);
       ast_settype(ast, type_def);
-      break;
+      return true;
     }
 
     case TK_NEW:
@@ -327,28 +341,106 @@ static bool expr_reference(ast_t* ast)
     {
       // method call on 'this'
       ast_settype(ast, type_for_fun(def));
-      break;
+      return true;
     }
 
     case TK_IDSEQ:
+    {
       // TODO: local, 'as', or 'for'
-      break;
+      if(!def_before_use(def, ast, name))
+        return false;
 
-    default:
-      assert(0);
+      return true;
+    }
+
+    default: {}
   }
 
-  return true;
+  assert(0);
+  return false;
 }
 
 static bool expr_dot(ast_t* ast)
 {
   // TODO: type in package, element in tuple, field or method in object,
   // constructor in type
-  // ast_t* left = ast_child(ast);
-  // ast_t* right = ast_sibling(left);
+  // left is a postfix expression, right is an integer or an id
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(left);
 
-  ast_error(ast, "not implemented (dot)");
+  switch(ast_id(right))
+  {
+    case TK_ID:
+    {
+      if(type == NULL)
+      {
+        // must be a type in a package
+        ast_t* package = ast_get(left, ast_name(left));
+
+        if(package == NULL)
+          return false;
+
+        assert(ast_id(package) == TK_PACKAGE);
+        const char* package_name = ast_name(left);
+        const char* type_name = ast_name(right);
+        type = ast_get(package, type_name);
+
+        if(type == NULL)
+        {
+          ast_error(right, "can't find type '%s' in package '%s'",
+            type_name, package_name);
+          return false;
+        }
+
+        ast_settype(ast, typedef_for_name(ast, package_name, type_name));
+        return true;
+      }
+
+      ast_error(ast, "not implemented (dot)");
+      return false;
+
+      // TODO: field or method access
+      return true;
+    }
+
+    case TK_INT:
+    {
+      // element of a tuple
+      if((type == NULL) ||
+        (ast_id(type) != TK_TYPEDEF) ||
+        (ast_id(ast_child(type)) != TK_TUPLETYPE)
+        )
+      {
+        ast_error(right, "member by position can only be used on a tuple");
+        return false;
+      }
+
+      type = typedef_for_tuple(ast_child(type), ast_int(right));
+
+      if(type == NULL)
+      {
+        ast_error(right, "tuple index is out of bounds");
+        return false;
+      }
+
+      // TODO: viewpoint adaptation
+      ast_settype(ast, type);
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool expr_qualify(ast_t* ast)
+{
+  // TODO: make sure typeargs are within constraints
+  // left is a postfix expression, right is a typeargs
+  ast_error(ast, "not implemented (qualify)");
   return false;
 }
 
@@ -440,11 +532,6 @@ static bool expr_tuple(ast_t* ast)
 
 static bool expr_call(ast_t* ast)
 {
-  // TODO: THIS IS NEXT
-  // TODO: find the method
-  // TODO: check arguments match
-  // TODO: type is the type of the method call return
-  // TODO: mark enclosing as "may error" if we might error
   ast_t* left = ast_child(ast);
   ast_t* type = ast_type(left);
 
@@ -454,7 +541,6 @@ static bool expr_call(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // method call on 'this'
       // first check if the receiver capability is ok
       token_id rcap = cap_for_receiver(ast);
       token_id fcap = cap_for_fun(type);
@@ -467,7 +553,7 @@ static bool expr_call(ast_t* ast)
       }
 
       // TODO: use args to decide unbound type parameters
-
+      // TODO: mark enclosing as "may error" if we might error
       // TODO: generate return type for constructors and behaviours
       ast_settype(ast, ast_childidx(type, 4));
       return true;
@@ -500,7 +586,7 @@ static bool expr_if(ast_t* ast)
   ast_t* r_type;
 
   if(ast_id(right) == TK_NONE)
-    r_type = typedef_for_name(ast, "None");
+    r_type = typedef_for_name(ast, NULL, stringtab("None"));
   else
     r_type = ast_type(right);
 
@@ -669,10 +755,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_QUALIFY:
-      // TODO: find the method
-      // TODO: make sure typeargs are within constraints
-      ast_error(ast, "not implemented (qualify)");
-      return AST_FATAL;
+      if(!expr_qualify(ast))
+        return AST_FATAL;
+      break;
 
     case TK_CALL:
       if(!expr_call(ast))

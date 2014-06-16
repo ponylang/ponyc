@@ -38,7 +38,7 @@ symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
 
-TYPEPARAM: ID [TYPEDEF] [SEQ]
+TYPEPARAM: ID [TYPEDEF] [TYPEDEF]
 
 TYPES: {TYPEDEF}
 
@@ -170,6 +170,15 @@ INT
 FLOAT
 STRING
 
+ast type
+--------
+NEW, BE, FUN
+  when expecting a CALL
+
+TYPEDEF
+  can be a nominal that references a typeparam
+  may be invalid, eg nominal waiting for its QUALIFY
+
 */
 
 typedef enum
@@ -196,8 +205,10 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 void* ast_data(ast_t* ast);
 const char* ast_name(ast_t* ast);
+double ast_float(ast_t* ast);
+size_t ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
-void ast_settype(ast_t* ast, ast_t* type);
+ast_t* ast_settype(ast_t* ast, ast_t* type);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_method(ast_t* ast);
@@ -212,11 +223,13 @@ size_t ast_index(ast_t* ast);
 void* ast_get(ast_t* ast, const char* name);
 bool ast_set(ast_t* ast, const char* name, void* value);
 bool ast_merge(ast_t* dst, ast_t* src);
+void ast_clear(ast_t* ast);
 
-void ast_add(ast_t* parent, ast_t* child);
+ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_pop(ast_t* ast);
-void ast_append(ast_t* parent, ast_t* child);
-void ast_swap(ast_t* prev, ast_t* next);
+ast_t* ast_append(ast_t* parent, ast_t* child);
+ast_t* ast_swap(ast_t* prev, ast_t* next);
+void ast_dangle(ast_t* ast, ast_t* parent);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);

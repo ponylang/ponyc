@@ -165,6 +165,9 @@ ast_t* ast_from(ast_t* ast, token_id id)
 
 ast_t* ast_from_string(ast_t* ast, const char* id)
 {
+  if(id == NULL)
+    return ast_from(ast, TK_NONE);
+
   return ast_token(token_from_string(ast->t, id));
 }
 
@@ -213,12 +216,22 @@ const char* ast_name(ast_t* ast)
   return token_string(ast->t);
 }
 
+double ast_float(ast_t* ast)
+{
+  return token_float(ast->t);
+}
+
+size_t ast_int(ast_t* ast)
+{
+  return token_int(ast->t);
+}
+
 ast_t* ast_type(ast_t* ast)
 {
   return ast->type;
 }
 
-void ast_settype(ast_t* ast, ast_t* type)
+ast_t* ast_settype(ast_t* ast, ast_t* type)
 {
   assert(ast->type == NULL);
 
@@ -227,6 +240,7 @@ void ast_settype(ast_t* ast, ast_t* type)
 
   ast->type = type;
   type->parent = ast;
+  return type;
 }
 
 ast_t* ast_nearest(ast_t* ast, token_id id)
@@ -351,7 +365,24 @@ bool ast_merge(ast_t* dst, ast_t* src)
   return symtab_merge(dst->symtab, src->symtab);
 }
 
-void ast_add(ast_t* parent, ast_t* child)
+void ast_clear(ast_t* ast)
+{
+  if(ast->symtab != NULL)
+  {
+    symtab_free(ast->symtab);
+    ast_scope(ast);
+  }
+
+  ast_t* child = ast->child;
+
+  while(child != NULL)
+  {
+    ast_clear(child);
+    child = child->sibling;
+  }
+}
+
+ast_t* ast_add(ast_t* parent, ast_t* child)
 {
   assert(parent != child);
   assert(parent->child != child);
@@ -362,6 +393,7 @@ void ast_add(ast_t* parent, ast_t* child)
   child->parent = parent;
   child->sibling = parent->child;
   parent->child = child;
+  return child;
 }
 
 ast_t* ast_pop(ast_t* parent)
@@ -378,7 +410,7 @@ ast_t* ast_pop(ast_t* parent)
   return child;
 }
 
-void ast_append(ast_t* parent, ast_t* child)
+ast_t* ast_append(ast_t* parent, ast_t* child)
 {
   assert(parent != child);
 
@@ -390,15 +422,16 @@ void ast_append(ast_t* parent, ast_t* child)
   if(parent->child == NULL)
   {
     parent->child = child;
-    return;
+    return child;
   }
 
   ast_t* ast = parent->child;
   while(ast->sibling != NULL) { ast = ast->sibling; }
   ast->sibling = child;
+  return child;
 }
 
-void ast_swap(ast_t* prev, ast_t* next)
+ast_t* ast_swap(ast_t* prev, ast_t* next)
 {
   assert(prev->parent != NULL);
 
@@ -421,9 +454,22 @@ void ast_swap(ast_t* prev, ast_t* next)
   else
     prev->parent->child = next;
 
-  next->sibling = prev->sibling;
   next->parent = prev->parent;
+  next->sibling = prev->sibling;
+
+  prev->parent = NULL;
   prev->sibling = NULL;
+
+  return next;
+}
+
+void ast_dangle(ast_t* ast, ast_t* parent)
+{
+  assert(
+    (ast->parent == NULL) ||
+    (ast->parent == parent)
+    );
+  ast->parent = parent;
 }
 
 void ast_reverse(ast_t* ast)

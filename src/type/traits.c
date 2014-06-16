@@ -1,6 +1,7 @@
 #include "traits.h"
 #include "subtype.h"
 #include "reify.h"
+#include "scope.h"
 #include "typechecker.h"
 #include <assert.h>
 
@@ -46,16 +47,15 @@ static bool attach_method(ast_t* type, ast_t* method)
   }
 
   // insert into our members
-  ast_t* r_method = ast_dup(method);
-  ast_append(members, r_method);
+  method = ast_append(members, method);
 
   // add to our scope
-  ast_set(type, name, r_method);
+  ast_set(type, name, method);
 
   return true;
 }
 
-static bool attach_traits(ast_t* def)
+static bool attach_traits(ast_t* def, int verbose)
 {
   type_state_t state = (type_state_t)ast_data(def);
 
@@ -94,7 +94,7 @@ static bool attach_traits(ast_t* def)
       return false;
     }
 
-    if(!attach_traits(trait_def))
+    if(!attach_traits(trait_def, verbose))
       return false;
 
     ast_t* typeparams = ast_childidx(trait_def, 1);
@@ -111,7 +111,7 @@ static bool attach_traits(ast_t* def)
         case TK_BE:
         {
           // reify the method with the type parameters from trait_def
-          // and the reified type arguments from r_trait
+          // and the reified type arguments from r_trait.
           ast_t* r_member = reify(member, typeparams, typeargs);
           bool ok = attach_method(def, r_member);
           ast_free_unattached(r_member);
@@ -122,7 +122,9 @@ static bool attach_traits(ast_t* def)
           break;
         }
 
-        default: assert(0);
+        default:
+          assert(0);
+          return false;
       }
 
       member = ast_sibling(member);
@@ -175,13 +177,13 @@ ast_result_t type_traits(ast_t* ast, int verbose)
   switch(ast_id(ast))
   {
     case TK_TRAIT:
-      if(!attach_traits(ast))
+      if(!attach_traits(ast, verbose))
         return AST_ERROR;
       break;
 
     case TK_CLASS:
     case TK_ACTOR:
-      if(!attach_traits(ast) || !have_impl(ast))
+      if(!attach_traits(ast, verbose) || !have_impl(ast))
         return AST_ERROR;
       break;
 

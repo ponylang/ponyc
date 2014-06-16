@@ -74,7 +74,11 @@ fun_type
 // the @ is a cheat: means the symbol "not on a new line"
 // without the @, it could be on a new line or not
 type_params
-  :  '@[' param (',' param)* ']'
+  :  '@[' type_param (',' type_param)* ']'
+  ;
+
+type_param
+  :  ID oftype? (assign type)?
   ;
 
 type_args

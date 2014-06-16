@@ -83,13 +83,13 @@ DEF(param);
   IFRULE(TK_ASSIGN, seq);
   DONE();
 
-// ID [COLON type] [ASSIGN seq]
+// ID [COLON type] [ASSIGN type]
 DEF(typeparam);
   CHECK(TK_ID, TK_ID_NEW);
   AST(TK_TYPEPARAM);
   EXPECT(TK_ID, TK_ID_NEW);
   IFRULE(TK_COLON, type);
-  IFRULE(TK_ASSIGN, seq);
+  IFRULE(TK_ASSIGN, type);
   DONE();
 
 // param {COMMA param}

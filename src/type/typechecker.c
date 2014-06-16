@@ -18,11 +18,17 @@ bool typecheck(ast_t* ast, int verbose)
   if(ast_visit(ast, type_traits, NULL, verbose) != AST_OK)
     return false;
 
+  // recalculate scopes in the presence of flattened traits
+  ast_clear(ast);
+
+  if(ast_visit(ast, type_scope, NULL, verbose) != AST_OK)
+    return false;
+
   if(ast_visit(ast, type_sugar, type_expr, verbose) != AST_OK)
     return false;
 
-  if(ast_visit(ast, type_args, NULL, verbose) != AST_OK)
-    return false;
+  // if(ast_visit(ast, type_args, NULL, verbose) != AST_OK)
+  //   return false;
 
   return true;
 }

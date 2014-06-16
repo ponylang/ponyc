@@ -100,6 +100,7 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   if(typeparam != NULL)
   {
+    // TODO: pick up default type arguments
     ast_error(typeargs, "not enough type arguments");
     ast_free(r_ast);
     return NULL;

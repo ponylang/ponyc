@@ -31,7 +31,11 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
 
   // reify the type parameters with the typeargs
   ast_t* typeparams = ast_childidx(type, 1);
+
+  // dangle r_typeparams from the parent of typeparams in order to resolve in
+  // the same scope.
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
+  ast_dangle(r_typeparams, ast_parent(typeparams));
 
   if(r_typeparams == NULL)
     return false;
@@ -52,7 +56,10 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
-      ast_free_unattached(r_typeparams);
+
+      if(r_typeparams != typeparams)
+        ast_free(r_typeparams);
+
       return false;
     }
 
@@ -61,7 +68,9 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     typearg = ast_sibling(typearg);
   }
 
-  ast_free_unattached(r_typeparams);
+  if(r_typeparams != typeparams)
+    ast_free(r_typeparams);
+
   return true;
 }
 
@@ -90,17 +99,14 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
   if(r_alias == NULL)
     return false;
 
-  if(r_alias == alias)
-    r_alias = ast_dup(alias);
-
   // extract from the typedef
   assert(ast_id(r_alias) == TK_TYPEDEF);
-  ast_t* swap = ast_pop(r_alias);
-  ast_free(r_alias);
+  ast_t* alias_def = ast_child(r_alias);
 
-  // use the new ast and free the old one
-  ast_swap(nominal, swap);
+  // use the alias definition and free the previous nominal type
+  ast_swap(nominal, alias_def);
   ast_free(nominal);
+  ast_free_unattached(r_alias);
 
   return true;
 }

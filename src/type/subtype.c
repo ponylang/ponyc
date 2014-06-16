@@ -79,6 +79,9 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
 
   while((sub_param != NULL) && (super_param != NULL))
   {
+    // TODO: this is wrong. parameter types might not exist, as they may be
+    // inferred from initialisers.
+
     // extract the type if this is a parameter
     // otherwise, this is already a type
     ast_t* sub_type = (ast_id(sub_param) == TK_PARAM) ?
@@ -156,9 +159,15 @@ static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
     case TK_BE:
     case TK_FUN:
     {
+      // dangle r_fun from the parent of member in order to resolve in the
+      // same scope.
       ast_t* r_fun = reify(member, typeparams, typeargs);
+      ast_dangle(r_fun, ast_parent(member));
       bool is_sub = is_fun_sub_fun(r_fun, fun);
-      ast_free_unattached(r_fun);
+
+      if(r_fun != member)
+        ast_free(r_fun);
+
       return is_sub;
     }
 
@@ -250,9 +259,15 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   while(trait != NULL)
   {
     assert(ast_id(trait) == TK_TYPEDEF);
+
+    // dangle r_trait from the parent of trait in order to resolve in the
+    // same scope.
     ast_t* r_trait = reify(trait, typeparams, typeargs);
+    ast_dangle(r_trait, ast_parent(trait));
     bool is_sub = is_subtype(r_trait, ast_parent(super));
-    ast_free_unattached(r_trait);
+
+    if(r_trait != trait)
+      ast_free(r_trait);
 
     if(is_sub)
       return true;
