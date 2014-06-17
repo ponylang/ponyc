@@ -714,6 +714,25 @@ static bool expr_repeat(ast_t* ast)
   return true;
 }
 
+static bool expr_continue(ast_t* ast)
+{
+  ast_t* loop = ast_nearest(ast, TK_WHILE);
+
+  if(loop == NULL)
+    loop = ast_nearest(ast, TK_REPEAT);
+
+  if(loop == NULL)
+    loop = ast_nearest(ast, TK_FOR);
+
+  if(loop == NULL)
+  {
+    ast_error(ast, "continue must be in a loop");
+    return false;
+  }
+
+  return true;
+}
+
 static bool expr_assign(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
@@ -817,9 +836,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       return AST_FATAL;
 
     case TK_CONTINUE:
-      // TODO: check we are in a loop
-      ast_error(ast, "not implemented (continue)");
-      return AST_FATAL;
+      if(!expr_continue(ast))
+        return AST_FATAL;
+      break;
 
     case TK_BREAK:
       // TODO: check we are in a loop

@@ -28,17 +28,17 @@ expression typing
     * INT
     * FLOAT
     * STRING
-    - REFERENCE
+    ? REFERENCE locals
     * TUPLE
     - ARRAY
     - OBJECT
   postfix
-    - DOT
+    ? DOT field/method access
     - QUALIFY
     * CALL
   unop
     * NOT
-    - MINUS
+    * MINUS
     - CONSUME
     - RECOVER
   local
@@ -58,7 +58,7 @@ expression typing
     * OR
     * XOR
     * PLUS
-    - MINUS
+    * MINUS
     * MULTIPLY
     * DIVIDE
     * MOD
@@ -72,5 +72,5 @@ expression typing
     - LE
     - GE
     - GT
-    - ASSIGN
+    * ASSIGN
   * seq
