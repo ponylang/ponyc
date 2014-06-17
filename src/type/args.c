@@ -29,7 +29,7 @@ static bool args_call(ast_t* ast)
 
       while((arg != NULL) && (param != NULL))
       {
-        if(!is_subtype(ast_type(arg), ast_type(param)))
+        if(!is_subtype(ast, ast_type(arg), ast_type(param)))
         {
           ast_error(arg, "argument not a subtype of parameter");
           ast_error(param, "parameter is here");

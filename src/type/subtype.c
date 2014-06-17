@@ -1,7 +1,9 @@
 #include "subtype.h"
+#include "expr.h"
 #include "reify.h"
 #include "cap.h"
 #include "typechecker.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
 
 bool is_throws_sub_throws(ast_t* sub, ast_t* super)
@@ -30,7 +32,7 @@ bool is_throws_sub_throws(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_eq_typeargs(ast_t* a, ast_t* b)
+static bool is_eq_typeargs(ast_t* scope, ast_t* a, ast_t* b)
 {
   assert(ast_id(a) == TK_NOMINAL);
   assert(ast_id(b) == TK_NOMINAL);
@@ -41,7 +43,7 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
 
   while((a_arg != NULL) && (b_arg != NULL))
   {
-    if(!is_eqtype(a_arg, b_arg))
+    if(!is_eqtype(scope, a_arg, b_arg))
       return false;
 
     a_arg = ast_sibling(a_arg);
@@ -52,7 +54,7 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
-static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
+static bool is_fun_sub_fun(ast_t* scope, ast_t* sub, ast_t* super)
 {
   // must be the same type of function
   // TODO: could relax this
@@ -93,7 +95,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
     assert(ast_id(sub_type) == TK_TYPEDEF);
     assert(ast_id(super_type) == TK_TYPEDEF);
 
-    if(!is_subtype(super_type, sub_type))
+    if(!is_subtype(scope, super_type, sub_type))
       return false;
 
     sub_param = ast_sibling(sub_param);
@@ -104,7 +106,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
     return false;
 
   // covariant results
-  if(!is_subtype(sub_result, super_result))
+  if(!is_subtype(scope, sub_result, super_result))
     return false;
 
   // covariant throws
@@ -114,14 +116,14 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
   return true;
 }
 
-static bool is_structural_sub_fun(ast_t* sub, ast_t* fun)
+static bool is_structural_sub_fun(ast_t* scope, ast_t* sub, ast_t* fun)
 {
   // must have some function that is a subtype of fun
   ast_t* sub_fun = ast_child(sub);
 
   while(sub_fun != NULL)
   {
-    if(is_fun_sub_fun(sub_fun, fun))
+    if(is_fun_sub_fun(scope, sub_fun, fun))
       return true;
 
     sub_fun = ast_sibling(sub_fun);
@@ -130,14 +132,14 @@ static bool is_structural_sub_fun(ast_t* sub, ast_t* fun)
   return false;
 }
 
-static bool is_structural_sub_structural(ast_t* sub, ast_t* super)
+static bool is_structural_sub_structural(ast_t* scope, ast_t* sub, ast_t* super)
 {
   // must be a subtype of every function in super
   ast_t* fun = ast_child(super);
 
   while(fun != NULL)
   {
-    if(!is_structural_sub_fun(sub, fun))
+    if(!is_structural_sub_fun(scope, sub, fun))
       return false;
 
     fun = ast_sibling(fun);
@@ -146,7 +148,7 @@ static bool is_structural_sub_structural(ast_t* sub, ast_t* super)
   return true;
 }
 
-static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
+static bool is_member_sub_fun(ast_t* scope, ast_t* member, ast_t* typeparams,
   ast_t* typeargs, ast_t* fun)
 {
   switch(ast_id(member))
@@ -163,7 +165,7 @@ static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
       // same scope.
       ast_t* r_fun = reify(member, typeparams, typeargs);
       ast_dangle(r_fun, ast_parent(member));
-      bool is_sub = is_fun_sub_fun(r_fun, fun);
+      bool is_sub = is_fun_sub_fun(scope, r_fun, fun);
 
       if(r_fun != member)
         ast_free(r_fun);
@@ -178,7 +180,8 @@ static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
   return false;
 }
 
-static bool is_type_sub_fun(ast_t* def, ast_t* typeargs, ast_t* fun)
+static bool is_type_sub_fun(ast_t* scope, ast_t* def, ast_t* typeargs,
+  ast_t* fun)
 {
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
@@ -186,7 +189,7 @@ static bool is_type_sub_fun(ast_t* def, ast_t* typeargs, ast_t* fun)
 
   while(member != NULL)
   {
-    if(is_member_sub_fun(member, typeparams, typeargs, fun))
+    if(is_member_sub_fun(scope, member, typeparams, typeargs, fun))
       return true;
 
     member = ast_sibling(member);
@@ -195,7 +198,7 @@ static bool is_type_sub_fun(ast_t* def, ast_t* typeargs, ast_t* fun)
   return false;
 }
 
-static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
+static bool is_nominal_sub_structural(ast_t* scope, ast_t* sub, ast_t* super)
 {
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_STRUCTURAL);
@@ -211,7 +214,7 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
 
   while(fun != NULL)
   {
-    if(!is_type_sub_fun(def, typeargs, fun))
+    if(!is_type_sub_fun(scope, def, typeargs, fun))
       return false;
 
     fun = ast_sibling(fun);
@@ -220,13 +223,13 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
   return true;
 }
 
-static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
+static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
 {
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_NOMINAL);
 
-  ast_t* sub_def = nominal_def(sub, sub);
-  ast_t* super_def = nominal_def(super, super);
+  ast_t* sub_def = nominal_def(scope, sub);
+  ast_t* super_def = nominal_def(scope, super);
 
   // check we found a definition for both
   if((sub_def == NULL) || (super_def == NULL))
@@ -234,19 +237,11 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 
   // if we are the same nominal type, our typeargs must be the same
   if(sub_def == super_def)
-    return is_eq_typeargs(sub, super);
+    return is_eq_typeargs(scope, sub, super);
 
-  // our def might be a TK_TYPEPARAM
+  // typeparams have no traits to check
   if(ast_id(sub_def) == TK_TYPEPARAM)
-  {
-    // check if our constraint is a subtype of super
-    ast_t* constraint = ast_childidx(sub_def, 1);
-
-    if(ast_id(constraint) == TK_NONE)
-      return false;
-
-    return is_subtype(constraint, ast_parent(super));
-  }
+    return false;
 
   // get our typeparams and typeargs
   ast_t* typeparams = ast_childidx(sub_def, 1);
@@ -264,7 +259,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
     // same scope.
     ast_t* r_trait = reify(trait, typeparams, typeargs);
     ast_dangle(r_trait, ast_parent(trait));
-    bool is_sub = is_subtype(r_trait, ast_parent(super));
+    bool is_sub = is_subtype(scope, r_trait, ast_parent(super));
 
     if(r_trait != trait)
       ast_free(r_trait);
@@ -278,24 +273,24 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_sub_union(ast_t* sub, ast_t* super)
+static bool is_sub_union(ast_t* scope, ast_t* sub, ast_t* super)
 {
   ast_t* left = ast_child(super);
   ast_t* right = ast_sibling(left);
-  return is_subtype(sub, left) || is_subtype(sub, right);
+  return is_subtype(scope, sub, left) || is_subtype(scope, sub, right);
 }
 
-static bool is_sub_isect(ast_t* sub, ast_t* super)
+static bool is_sub_isect(ast_t* scope, ast_t* sub, ast_t* super)
 {
   ast_t* left = ast_child(super);
   ast_t* right = ast_sibling(left);
-  return is_subtype(sub, left) && is_subtype(sub, right);
+  return is_subtype(scope, sub, left) && is_subtype(scope, sub, right);
 }
 
-static bool is_nominal_eq_nominal(ast_t* a, ast_t* b)
+static bool is_nominal_eq_nominal(ast_t* scope, ast_t* a, ast_t* b)
 {
-  ast_t* a_def = nominal_def(a, a);
-  ast_t* b_def = nominal_def(b, b);
+  ast_t* a_def = nominal_def(scope, a);
+  ast_t* b_def = nominal_def(scope, b);
 
   // check we found a definition for both
   if((a_def == NULL) || (b_def == NULL))
@@ -306,58 +301,80 @@ static bool is_nominal_eq_nominal(ast_t* a, ast_t* b)
     return false;
 
   // must have the same typeargs
-  return is_eq_typeargs(a, b);
+  return is_eq_typeargs(scope, a, b);
 }
 
-static bool is_typedef_sub(ast_t* type, ast_t* super)
+static bool is_typedef_sub(ast_t* scope, ast_t* type, ast_t* super)
 {
   assert(ast_id(type) == TK_TYPEDEF);
 
-  if(!is_subtype(ast_child(type), super))
+  if(!is_subtype(scope, ast_child(type), super))
     return false;
 
   // TODO: check cap and ephemeral
   return true;
 }
 
-static bool is_typedef_eq(ast_t* type, ast_t* b)
+static bool is_typedef_eq(ast_t* scope, ast_t* type, ast_t* b)
 {
   assert(ast_id(type) == TK_TYPEDEF);
 
-  if(!is_eqtype(ast_child(type), b))
+  if(!is_eqtype(scope, ast_child(type), b))
     return false;
 
   // TODO: check cap and ephemeral
   return true;
 }
 
-bool is_subtype(ast_t* sub, ast_t* super)
+static bool is_builtin(ast_t* ast, const char* name)
 {
-  // if the supertype is a typeparam, check against the constraint
-  if(ast_id(super) == TK_TYPEPARAM)
-    return is_subtype(sub, ast_childidx(super, 1));
+  if(ast_id(ast) != TK_NOMINAL)
+    return false;
 
+  ast_t* package = ast_child(ast);
+  ast_t* typename = ast_sibling(package);
+
+  return (ast_id(package) == TK_NONE) &&
+    (ast_name(typename) == stringtab(name));
+}
+
+bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
+{
   // unwrap the subtype
   switch(ast_id(sub))
   {
     case TK_TYPEDEF:
-      return is_typedef_sub(sub, super);
-
-    case TK_TYPEPARAM:
-      return is_subtype(ast_childidx(sub, 1), super);
+      return is_typedef_sub(scope, sub, super);
 
     case TK_UNIONTYPE:
     {
       ast_t* left = ast_child(sub);
       ast_t* right = ast_sibling(left);
-      return is_subtype(left, super) && is_subtype(right, super);
+      return is_subtype(scope, left, super) && is_subtype(scope, right, super);
     }
 
     case TK_ISECTTYPE:
     {
       ast_t* left = ast_child(sub);
       ast_t* right = ast_sibling(left);
-      return is_subtype(left, super) || is_subtype(right, super);
+      return is_subtype(scope, left, super) || is_subtype(scope, right, super);
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* sub_def = nominal_def(scope, sub);
+
+      if(ast_id(sub_def) == TK_TYPEPARAM)
+      {
+        // check if our constraint is a subtype of super
+        ast_t* constraint = ast_childidx(sub_def, 1);
+
+        // if it isn't, keep trying with our nominal type
+        if((ast_id(constraint) != TK_NONE) &&
+          is_subtype(scope, constraint, super))
+          return true;
+      }
+      break;
     }
 
     default: {}
@@ -370,10 +387,10 @@ bool is_subtype(ast_t* sub, ast_t* super)
   switch(ast_id(super))
   {
     case TK_UNIONTYPE:
-      return is_sub_union(sub, super);
+      return is_sub_union(scope, sub, super);
 
     case TK_ISECTTYPE:
-      return is_sub_isect(sub, super);
+      return is_sub_isect(scope, sub, super);
 
     default: {}
   }
@@ -383,7 +400,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      return is_fun_sub_fun(sub, super);
+      return is_fun_sub_fun(scope, sub, super);
 
     case TK_TUPLETYPE:
     {
@@ -394,18 +411,48 @@ bool is_subtype(ast_t* sub, ast_t* super)
       ast_t* right = ast_sibling(left);
       ast_t* super_left = ast_child(super);
       ast_t* super_right = ast_sibling(super_left);
-      return is_subtype(left, super_left) && is_subtype(right, super_right);
+
+      return is_subtype(scope, left, super_left) &&
+        is_subtype(scope, right, super_right);
     }
 
     case TK_NOMINAL:
     {
+      // check for numeric literals and special case them
+      if(is_builtin(sub, "IntLiteral"))
+      {
+        if(is_builtin(super, "IntLiteral") ||
+          is_builtin(super, "FloatLiteral")
+          )
+          return true;
+
+        // an integer literal is a subtype of any arithmetic type
+        ast_t* math = typedef_for_name(scope, NULL, stringtab("Arithmetic"));
+        bool ok = is_subtype(scope, super, math);
+        ast_free(math);
+
+        if(ok)
+          return true;
+      } else if(is_builtin(sub, "FloatLiteral")) {
+        if(is_builtin(super, "FloatLiteral"))
+          return true;
+
+        // a float literal is a subtype of any float type
+        ast_t* float_type = typedef_for_name(scope, NULL, stringtab("Float"));
+        bool ok = is_subtype(scope, super, float_type);
+        ast_free(float_type);
+
+        if(ok)
+          return true;
+      }
+
       switch(ast_id(super))
       {
         case TK_NOMINAL:
-          return is_nominal_sub_nominal(sub, super);
+          return is_nominal_sub_nominal(scope, sub, super);
 
         case TK_STRUCTURAL:
-          return is_nominal_sub_structural(sub, super);
+          return is_nominal_sub_structural(scope, sub, super);
 
         default: {}
       }
@@ -418,7 +465,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
       if(ast_id(super) != TK_STRUCTURAL)
         return false;
 
-      return is_structural_sub_structural(sub, super);
+      return is_structural_sub_structural(scope, sub, super);
     }
 
     default: {}
@@ -428,18 +475,12 @@ bool is_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
-bool is_eqtype(ast_t* a, ast_t* b)
+bool is_eqtype(ast_t* scope, ast_t* a, ast_t* b)
 {
-  if(ast_id(b) == TK_TYPEPARAM)
-    return is_eqtype(a, ast_childidx(b, 1));
-
   switch(ast_id(a))
   {
     case TK_TYPEDEF:
-      return is_typedef_eq(a, b);
-
-    case TK_TYPEPARAM:
-      return is_eqtype(ast_childidx(a, 1), b);
+      return is_typedef_eq(scope, a, b);
 
     default: {}
   }
@@ -452,7 +493,7 @@ bool is_eqtype(ast_t* a, ast_t* b)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_STRUCTURAL:
-      return is_subtype(a, b) && is_subtype(b, a);
+      return is_subtype(scope, a, b) && is_subtype(scope, b, a);
 
     case TK_TUPLETYPE:
     {
@@ -463,7 +504,8 @@ bool is_eqtype(ast_t* a, ast_t* b)
       ast_t* a_right = ast_sibling(a_left);
       ast_t* b_left = ast_child(b);
       ast_t* b_right = ast_sibling(b_left);
-      return is_eqtype(a_left, b_left) && is_eqtype(a_right, b_right);
+      return is_eqtype(scope, a_left, b_left) &&
+        is_eqtype(scope, a_right, b_right);
     }
 
     case TK_NOMINAL:
@@ -471,7 +513,7 @@ bool is_eqtype(ast_t* a, ast_t* b)
       if(ast_id(b) != TK_NOMINAL)
         return false;
 
-      return is_nominal_eq_nominal(a, b);
+      return is_nominal_eq_nominal(scope, a, b);
     }
 
     default: {}

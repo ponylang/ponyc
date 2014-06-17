@@ -23,7 +23,7 @@ static bool attach_method(ast_t* type, ast_t* method)
   if(existing != NULL)
   {
     // check our version is a subtype of the supplied version
-    if(!is_subtype(existing, method))
+    if(!is_subtype(type, existing, method))
     {
       ast_error(existing, "existing method is not a subtype of trait method");
       ast_error(method, "trait method is here");

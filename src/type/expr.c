@@ -20,31 +20,6 @@ static bool def_before_use(ast_t* def, ast_t* use, const char* name)
   return true;
 }
 
-static ast_t* typedef_for_name(ast_t* ast,
-  const char* package, const char* name)
-{
-  // TODO: capability
-  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, TK_NONE));
-  ast_add(type_def, ast_from(ast, TK_NONE));
-
-  ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(type_def, nominal);
-
-  ast_add(nominal, ast_from(ast, TK_NONE));
-  ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from_string(ast, package));
-
-  if(!valid_nominal(ast, nominal))
-  {
-    ast_error(nominal, "couldn't create valid type for '%s'", name);
-    ast_free(type_def);
-    return NULL;
-  }
-
-  return type_def;
-}
-
 static ast_t* typedef_for_tuple(ast_t* ast, int index)
 {
   assert(ast_id(ast) == TK_TUPLETYPE);
@@ -73,7 +48,7 @@ static ast_t* type_bool(ast_t* ast)
   ast_t* type = ast_type(ast);
   ast_t* bool_type = typedef_for_name(ast, NULL, stringtab("Bool"));
 
-  if(is_subtype(type, bool_type))
+  if(is_subtype(ast, type, bool_type))
     return bool_type;
 
   ast_free(bool_type);
@@ -84,7 +59,7 @@ static ast_t* type_int(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   ast_t* int_type = typedef_for_name(ast, NULL, stringtab("Integer"));
-  bool ok = is_subtype(type, int_type);
+  bool ok = is_subtype(ast, type, int_type);
   ast_free(int_type);
 
   if(!ok)
@@ -113,7 +88,7 @@ static ast_t* type_arithmetic(ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   ast_t* a_type = typedef_for_name(ast, NULL, stringtab("Arithmetic"));
-  bool ok = is_subtype(type, a_type);
+  bool ok = is_subtype(ast, type, a_type);
   ast_free(a_type);
 
   if(!ok)
@@ -122,15 +97,15 @@ static ast_t* type_arithmetic(ast_t* ast)
   return type;
 }
 
-static ast_t* type_super(ast_t* l_type, ast_t* r_type)
+static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
 {
   if((l_type == NULL) || (r_type == NULL))
     return NULL;
 
-  if(is_subtype(l_type, r_type))
+  if(is_subtype(scope, l_type, r_type))
     return r_type;
 
-  if(is_subtype(r_type, l_type))
+  if(is_subtype(scope, r_type, l_type))
     return l_type;
 
   return NULL;
@@ -138,7 +113,7 @@ static ast_t* type_super(ast_t* l_type, ast_t* r_type)
 
 static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
 {
-  ast_t* super = type_super(l_type, r_type);
+  ast_t* super = type_super(ast, l_type, r_type);
 
   if(super != NULL)
     return super;
@@ -192,6 +167,39 @@ static ast_t* type_for_fun(ast_t* ast)
   return fun;
 }
 
+static bool is_lvalue(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_REFERENCE:
+    case TK_DOT:
+      // an identifier reference is an lvalue. it may still not be valid to
+      // assign to it (it could be a method or an SSA that's already set).
+      // the same is true for accessing a member with dot notation.
+      return true;
+
+    case TK_TUPLE:
+    {
+      // a tuple is an lvalue if every component expression is an lvalue
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(!is_lvalue(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
 static bool expr_field(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 1);
@@ -215,7 +223,7 @@ static bool expr_field(ast_t* ast)
     // initialiser type must match declared type
     ast_t* init_type = ast_type(init);
 
-    if(!is_subtype(init_type, type))
+    if(!is_subtype(ast, init_type, type))
     {
       ast_error(init,
         "field/param initialiser is not a subtype of the field/param type");
@@ -465,7 +473,7 @@ static bool expr_identity(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(type_super(l_type, r_type) == NULL)
+  if(type_super(ast, l_type, r_type) == NULL)
   {
     ast_error(ast,
       "left and right side must have related types");
@@ -482,7 +490,7 @@ static bool expr_arithmetic(ast_t* ast)
 
   ast_t* l_type = type_arithmetic(left);
   ast_t* r_type = type_arithmetic(right);
-  ast_t* type = type_super(l_type, r_type);
+  ast_t* type = type_super(ast, l_type, r_type);
 
   if(type == NULL)
     ast_error(ast, "left and right side must have related arithmetic types");
@@ -506,7 +514,7 @@ static bool expr_minus(ast_t* ast)
   if(right != NULL)
   {
     r_type = type_arithmetic(right);
-    type = type_super(l_type, r_type);
+    type = type_super(ast, l_type, r_type);
 
     if(type == NULL)
       ast_error(ast, "left and right side must have related arithmetic types");
@@ -555,7 +563,7 @@ static bool expr_logical(ast_t* ast)
 
   ast_t* l_type = type_int_or_bool(left);
   ast_t* r_type = type_int_or_bool(right);
-  ast_t* type = type_super(l_type, r_type);
+  ast_t* type = type_super(ast, l_type, r_type);
 
   if(type == NULL)
   {
@@ -706,6 +714,31 @@ static bool expr_repeat(ast_t* ast)
   return true;
 }
 
+static bool expr_assign(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(!is_lvalue(left))
+  {
+    ast_error(ast, "left side must be something that can be assigned to");
+    return false;
+  }
+
+  if(!is_subtype(ast, r_type, l_type))
+  {
+    ast_error(ast, "right side must be a subtype of left side");
+    return false;
+  }
+
+  // TODO: viewpoint adaptation
+  // TODO: disallow reassignment to SSA variable
+  ast_settype(ast, l_type);
+  return true;
+}
+
 static bool expr_seq(ast_t* ast)
 {
   ast_t* last = ast_childlast(ast);
@@ -728,7 +761,7 @@ static bool expr_fun(ast_t* ast)
   {
     ast_t* body_type = ast_type(impl);
 
-    if(!is_subtype(body_type, type))
+    if(!is_subtype(ast, body_type, type))
     {
       ast_t* last = ast_childlast(impl);
       ast_error(last, "function body type doesn't match function result type");
@@ -851,9 +884,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_ASSIGN:
-      // TODO:
-      ast_error(ast, "not implemented (assign)");
-      return AST_FATAL;
+      if(!expr_assign(ast))
+        return AST_FATAL;
+      break;
 
     case TK_CONSUME:
       // TODO: path handling
@@ -941,4 +974,28 @@ ast_result_t type_expr(ast_t* ast, int verbose)
   }
 
   return AST_OK;
+}
+
+ast_t* typedef_for_name(ast_t* ast, const char* package, const char* name)
+{
+  // TODO: capability
+  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
+  ast_add(type_def, ast_from(ast, TK_NONE));
+  ast_add(type_def, ast_from(ast, TK_NONE));
+
+  ast_t* nominal = ast_from(ast, TK_NOMINAL);
+  ast_add(type_def, nominal);
+
+  ast_add(nominal, ast_from(ast, TK_NONE));
+  ast_add(nominal, ast_from_string(ast, name));
+  ast_add(nominal, ast_from_string(ast, package));
+
+  if(!valid_nominal(ast, nominal))
+  {
+    ast_error(nominal, "couldn't create valid type for '%s'", name);
+    ast_free(type_def);
+    return NULL;
+  }
+
+  return type_def;
 }

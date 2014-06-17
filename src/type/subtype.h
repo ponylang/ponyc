@@ -3,8 +3,8 @@
 
 #include "../ast/ast.h"
 
-bool is_subtype(ast_t* sub, ast_t* super);
+bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super);
 
-bool is_eqtype(ast_t* a, ast_t* b);
+bool is_eqtype(ast_t* scope, ast_t* a, ast_t* b);
 
 #endif

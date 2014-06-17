@@ -51,7 +51,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     // compare the typearg to the typeparam and constraint
     if(!is_typeparam(typeparam, typearg) &&
       (ast_id(constraint) != TK_NONE) &&
-      !is_subtype(typearg, constraint)
+      !is_subtype(type, typearg, constraint)
       )
     {
       ast_error(typearg, "type argument is outside its constraint");

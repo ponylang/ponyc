@@ -13,10 +13,18 @@ class Array[A] is Iterable[A]
   fun box length(): U64 => size
 
   fun box apply(i: U64): A this ? =>
-    if i < size then ptr(i) else error end
+    if i < size then
+      ptr(i)
+    else
+      error
+    end
 
-  fun ref update(i: U64, v: A): A this^ =>
-    if i < size then ptr(i) = v else v end
+  fun ref update(i: U64, v: A): A this^ ? =>
+    if i < size then
+      ptr(i) = v
+    else
+      error
+    end
 
   fun ref reserve(len: U64): Array[A] ref^ =>
     if alloc < len then
