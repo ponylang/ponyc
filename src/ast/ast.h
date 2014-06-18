@@ -43,7 +43,7 @@ TYPEPARAM: ID [TYPEDEF] [TYPEDEF]
 TYPES: {TYPEDEF}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
-TYPEDEF: type [CAP] [HAT]
+TYPEDEF: type [CAP] [HAT] [ERROR]
 
 RAWCAP: (ISO | TRN | REF | VAL | BOX | TAG)
 CAP: (THIS | ID | RAWCAP) {ID | RAWCAP}
@@ -179,6 +179,9 @@ TYPEDEF
   can be a nominal that references a typeparam
   may be invalid, eg nominal waiting for its QUALIFY
 
+ERROR
+  an error statement
+
 */
 
 typedef enum
@@ -187,6 +190,12 @@ typedef enum
   AST_ERROR,
   AST_FATAL
 } ast_result_t;
+
+typedef enum
+{
+  AST_LEFT,
+  AST_RIGHT
+} ast_dir_t;
 
 typedef struct ast_t ast_t;
 
@@ -212,12 +221,15 @@ ast_t* ast_settype(ast_t* ast, ast_t* type);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_method(ast_t* ast);
+ast_t* ast_enclosing_method_body(ast_t* ast);
+ast_t* ast_enclosing_loop(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);
 ast_t* ast_childidx(ast_t* ast, size_t idx);
 ast_t* ast_childlast(ast_t* ast);
 ast_t* ast_sibling(ast_t* ast);
+ast_t* ast_previous(ast_t* ast);
 size_t ast_index(ast_t* ast);
 
 void* ast_get(ast_t* ast, const char* name);
@@ -241,6 +253,6 @@ void ast_error(ast_t* ast, const char* fmt, ...)
 typedef ast_result_t (*ast_visit_t)(ast_t* ast, int verbose);
 
 ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
-  int verbose);
+  ast_dir_t dir, int verbose);
 
 #endif

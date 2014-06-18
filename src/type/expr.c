@@ -262,7 +262,8 @@ static bool expr_this(ast_t* ast)
   const char* name = ast_name(id);
 
   ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, TK_NONE));
+  ast_add(type_def, ast_from(ast, TK_NONE)); // error
+  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
   ast_add(type_def, cap_from_rawcap(ast, cap_for_receiver(ast)));
 
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
@@ -348,11 +349,8 @@ static bool expr_reference(ast_t* ast)
       if(!def_before_use(def, ast, name))
         return false;
 
-      // TODO: field/parameter type could be inferred from initialiser
       // get the type of the field/parameter and attach it to our reference
-      ast_t* type_def = ast_childidx(def, 1);
-      assert(ast_id(type_def) == TK_TYPEDEF);
-      ast_settype(ast, type_def);
+      ast_settype(ast, ast_type(def));
       return true;
     }
 
@@ -371,7 +369,8 @@ static bool expr_reference(ast_t* ast)
       if(!def_before_use(def, ast, name))
         return false;
 
-      return true;
+      ast_error(ast, "not implemented (reference local)");
+      return false;
     }
 
     default: {}
@@ -481,6 +480,57 @@ static bool expr_identity(ast_t* ast)
   }
 
   return expr_literal(ast, "Bool");
+}
+
+static bool expr_compare(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  ast_t* l_type = type_arithmetic(left);
+  ast_t* r_type = type_arithmetic(right);
+  ast_t* type = type_super(ast, l_type, r_type);
+
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
+
+  if(type == NULL)
+  {
+    l_type = ast_type(left);
+    r_type = ast_type(right);
+
+    if(!is_subtype(ast, r_type, l_type))
+    {
+      ast_error(ast, "right side must be a subtype of left side");
+      return false;
+    }
+
+    // TODO: left side must be Comparable
+    // do this in sugar instead?
+  }
+
+  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("Bool")));
+  return (type != NULL);
+}
+
+static bool expr_order(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  ast_t* l_type = type_arithmetic(left);
+  ast_t* r_type = type_arithmetic(right);
+  ast_t* type = type_super(ast, l_type, r_type);
+
+  // TODO: allow non-arithmetic if they are Ordered
+  if(type == NULL)
+    ast_error(ast, "left and right side must have related arithmetic types");
+
+  ast_free_unattached(l_type);
+  ast_free_unattached(r_type);
+
+  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("Bool")));
+  return (type != NULL);
 }
 
 static bool expr_arithmetic(ast_t* ast)
@@ -615,8 +665,9 @@ static bool expr_tuple(ast_t* ast)
     }
 
     type_def = ast_from(ast, TK_TYPEDEF);
-    ast_add(type_def, ast_from(ast, TK_NONE));
-    ast_add(type_def, ast_from(ast, TK_NONE));
+    ast_add(type_def, ast_from(ast, TK_NONE)); // error
+    ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
+    ast_add(type_def, ast_from(ast, TK_NONE)); // cap
     ast_add(type_def, tuple);
   }
 
@@ -651,6 +702,14 @@ static bool expr_call(ast_t* ast)
       // TODO: generate return type for constructors and behaviours
       ast_settype(ast, ast_childidx(type, 4));
       return true;
+    }
+
+    case TK_TYPEDEF:
+    {
+      // TODO: if it's the left side of a TK_ASSIGN, it's update sugar.
+      // otherwise, it's apply or create sugar.
+      ast_error(ast, "not implemented (apply sugar)");
+      return false;
     }
 
     default: {}
@@ -691,15 +750,7 @@ static bool expr_if(ast_t* ast)
 
 static bool expr_while(ast_t* ast)
 {
-  // TODO: break statements
-  return expr_if(ast);
-}
-
-static bool expr_repeat(ast_t* ast)
-{
   ast_t* cond = ast_child(ast);
-  ast_t* body = ast_sibling(cond);
-
   ast_t* bool_type = type_bool(cond);
 
   if(bool_type == NULL)
@@ -708,29 +759,111 @@ static bool expr_repeat(ast_t* ast)
     return false;
   }
 
-  // TODO: break statements
+  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
+  return true;
+}
+
+static bool expr_repeat(ast_t* ast)
+{
+  ast_t* body = ast_child(ast);
+  ast_t* cond = ast_sibling(body);
+  ast_t* bool_type = type_bool(cond);
+
+  if(bool_type == NULL)
+  {
+    ast_error(cond, "condition must be a Bool");
+    return false;
+  }
+
   ast_free(bool_type);
-  ast_settype(ast, ast_type(body));
+  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
   return true;
 }
 
 static bool expr_continue(ast_t* ast)
 {
-  ast_t* loop = ast_nearest(ast, TK_WHILE);
-
-  if(loop == NULL)
-    loop = ast_nearest(ast, TK_REPEAT);
-
-  if(loop == NULL)
-    loop = ast_nearest(ast, TK_FOR);
+  ast_t* loop = ast_enclosing_loop(ast);
 
   if(loop == NULL)
   {
-    ast_error(ast, "continue must be in a loop");
+    ast_error(ast, "must be in a loop");
     return false;
   }
 
+  if(ast_sibling(ast) != NULL)
+  {
+    ast_error(ast, "must be the last expression in a sequence");
+    ast_error(ast_sibling(ast), "is followed with this expression");
+    return false;
+  }
+
+  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
   return true;
+}
+
+static bool expr_return(ast_t* ast)
+{
+  ast_t* body = ast_child(ast);
+  ast_t* type = ast_type(body);
+  ast_t* fun = ast_enclosing_method_body(ast);
+  bool ok = true;
+
+  if(fun == NULL)
+  {
+    ast_error(ast, "return must occur in a function or a behaviour");
+    return false;
+  }
+
+  if(ast_sibling(ast) != NULL)
+  {
+    ast_error(ast, "must be the last expression in a sequence");
+    ast_error(ast_sibling(ast), "is followed with this expression");
+    ok = false;
+  }
+
+  switch(ast_id(fun))
+  {
+    case TK_NEW:
+      ast_error(ast, "cannot return in a constructor");
+      return false;
+
+    case TK_BE:
+    {
+      ast_t* none = typedef_for_name(ast, NULL, stringtab("None"));
+
+      if(!is_subtype(ast, type, none))
+      {
+        ast_error(body, "body of a return in a behaviour must have type None");
+        ok = false;
+      }
+
+      ast_free(none);
+      return ok;
+    }
+
+    case TK_FUN:
+    {
+      ast_t* result = ast_childidx(fun, 4);
+
+      if(ast_id(result) == TK_NONE)
+        result = typedef_for_name(ast, NULL, stringtab("None"));
+
+      if(!is_subtype(ast, type, result))
+      {
+        ast_error(body,
+          "body of return doesn't match the function return type");
+        ok = false;
+      }
+
+      ast_free_unattached(result);
+      return ok;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }
 
 static bool expr_assign(ast_t* ast)
@@ -746,6 +879,7 @@ static bool expr_assign(ast_t* ast)
     return false;
   }
 
+  // TODO: if left doesn't have a type yet, set it
   if(!is_subtype(ast, r_type, l_type))
   {
     ast_error(ast, "right side must be a subtype of left side");
@@ -755,6 +889,19 @@ static bool expr_assign(ast_t* ast)
   // TODO: viewpoint adaptation
   // TODO: disallow reassignment to SSA variable
   ast_settype(ast, l_type);
+  return true;
+}
+
+static bool expr_error(ast_t* ast)
+{
+  if(ast_sibling(ast) != NULL)
+  {
+    ast_error(ast, "error must be the last expression in a sequence");
+    ast_error(ast_sibling(ast), "error is followed with this expression");
+    return false;
+  }
+
+  ast_settype(ast, ast_from(ast, TK_ERROR));
   return true;
 }
 
@@ -809,15 +956,11 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       // TODO: check that the object is fully initialised
       // TODO: if ?, check that we might actually error (but not on a trait)
       // TODO: if not ?, check that we can't error
-      // TODO: can only return this
-      ast_error(ast, "not implemented (new)");
-      return AST_FATAL;
+      break;
 
     case TK_BE:
-      // TODO: can only return None
       // TODO: check that we can't error
-      ast_error(ast, "not implemented (be)");
-      return AST_FATAL;
+      break;
 
     case TK_FUN:
       if(!expr_fun(ast))
@@ -836,20 +979,15 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       return AST_FATAL;
 
     case TK_CONTINUE:
+    case TK_BREAK:
       if(!expr_continue(ast))
         return AST_FATAL;
       break;
 
-    case TK_BREAK:
-      // TODO: check we are in a loop
-      // TODO: type of loop is unioned with type of expr
-      ast_error(ast, "not implemented (break)");
-      return AST_FATAL;
-
     case TK_RETURN:
-      // TODO: type of expr must match type of method
-      ast_error(ast, "not implemented (return)");
-      return AST_FATAL;
+      if(!expr_return(ast))
+        return AST_FATAL;
+      break;
 
     case TK_MULTIPLY:
     case TK_DIVIDE:
@@ -874,15 +1012,15 @@ ast_result_t type_expr(ast_t* ast, int verbose)
     case TK_LE:
     case TK_GE:
     case TK_GT:
-      // TODO: ordered
-      ast_error(ast, "not implemented (order)");
-      return AST_FATAL;
+      if(!expr_order(ast))
+        return AST_FATAL;
+      break;
 
     case TK_EQ:
     case TK_NE:
-      // TODO: comparable
-      ast_error(ast, "not implemented (compare)");
-      return AST_FATAL;
+      if(!expr_compare(ast))
+        return AST_FATAL;
+      break;
 
     case TK_IS:
     case TK_ISNT:
@@ -942,6 +1080,11 @@ ast_result_t type_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
+    case TK_FOR:
+      // TODO: transform to a while loop
+      ast_error(ast, "not implemented (for)");
+      return AST_FATAL;
+
     case TK_TRY:
       // TODO: type is the union of first and second
       // TODO: check that the first is marked as "may error"
@@ -989,6 +1132,11 @@ ast_result_t type_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
+    case TK_ERROR:
+      if(!expr_error(ast))
+        return AST_FATAL;
+      break;
+
     default: {}
   }
 
@@ -999,8 +1147,9 @@ ast_t* typedef_for_name(ast_t* ast, const char* package, const char* name)
 {
   // TODO: capability
   ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, TK_NONE));
-  ast_add(type_def, ast_from(ast, TK_NONE));
+  ast_add(type_def, ast_from(ast, TK_NONE)); // error
+  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
+  ast_add(type_def, ast_from(ast, TK_NONE)); // cap
 
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
   ast_add(type_def, nominal);

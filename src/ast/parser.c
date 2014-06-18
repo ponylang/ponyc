@@ -230,6 +230,7 @@ DEF(type);
   RULE(typebase);
   OPTRULE(cap);
   OPTIONAL(TK_HAT);
+  INSERT(TK_NONE);
   DONE();
 
 // term ASSIGN seq
@@ -502,20 +503,20 @@ DEF(infix);
   BINDOP(binop);
   DONE();
 
-// (BREAK | RETURN) infix
-DEF(breakexpr);
-  AST_TOKEN(TK_BREAK, TK_RETURN);
+// RETURN infix
+DEF(returnexpr);
+  AST_TOKEN(TK_RETURN);
   RULE(infix);
   DONE();
 
-// CONTINUE | ERROR
+// BREAK | CONTINUE | ERROR
 DEF(statement);
-  AST_TOKEN(TK_CONTINUE, TK_ERROR);
+  AST_TOKEN(TK_BREAK, TK_CONTINUE, TK_ERROR);
   DONE();
 
-// (statement | breakexpr | infix) [SEMI]
+// (statement | returnexpr | infix) [SEMI]
 DEF(expr);
-  AST_RULE(statement, breakexpr, infix);
+  AST_RULE(statement, returnexpr, infix);
   ACCEPT_DROP(TK_SEMI);
   DONE();
 

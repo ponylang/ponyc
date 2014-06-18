@@ -271,6 +271,87 @@ ast_t* ast_enclosing_method(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_method_body(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+      {
+        // only if we are in the method body
+        ast_t* body = ast_childidx(ast, 6);
+
+        if(body == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
+ast_t* ast_enclosing_loop(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_WHILE:
+      {
+        // only if we are in the loop body
+        ast_t* body = ast_childidx(ast, 1);
+        assert(ast_id(body) == TK_SEQ);
+
+        if(body == last)
+          return ast;
+        break;
+      }
+
+      case TK_REPEAT:
+      {
+        // only if we are in the loop body
+        ast_t* body = ast_child(ast);
+        assert(ast_id(body) == TK_SEQ);
+
+        if(body == last)
+          return ast;
+        break;
+      }
+
+      case TK_FOR:
+      {
+        // only if we are in the loop body
+        ast_t* body = ast_childidx(ast, 3);
+        assert(ast_id(body) == TK_SEQ);
+
+        if(body == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_parent(ast_t* ast)
 {
   return ast->parent;
@@ -310,6 +391,20 @@ ast_t* ast_childlast(ast_t* ast)
 ast_t* ast_sibling(ast_t* ast)
 {
   return ast->sibling;
+}
+
+ast_t* ast_previous(ast_t* ast)
+{
+  ast_t* last = NULL;
+  ast_t* cur = ast->parent->child;
+
+  while(cur != ast)
+  {
+    last = cur;
+    cur = cur->sibling;
+  }
+
+  return last;
 }
 
 size_t ast_index(ast_t* ast)
@@ -438,16 +533,7 @@ ast_t* ast_swap(ast_t* prev, ast_t* next)
   if(next->parent != NULL)
     next = ast_dup(next);
 
-  ast_t* last = NULL;
-  ast_t* cur = prev->parent->child;
-
-  while(cur != prev)
-  {
-    last = cur;
-    cur = cur->sibling;
-  }
-
-  assert(cur == prev);
+  ast_t* last = ast_previous(prev);
 
   if(last != NULL)
     last->sibling = next;
@@ -550,7 +636,7 @@ void ast_error(ast_t* ast, const char* fmt, ...)
 }
 
 ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
-  int verbose)
+  ast_dir_t dir, int verbose)
 {
   ast_result_t ret = AST_OK;
 
@@ -572,11 +658,17 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
 
   if((pre != NULL) || (post != NULL))
   {
-    ast_t* child = ast->child;
+    ast_t* child;
+
+    switch(dir)
+    {
+      case AST_LEFT: child = ast_child(ast); break;
+      case AST_RIGHT: child = ast_childlast(ast); break;
+    }
 
     while(child != NULL)
     {
-      switch(ast_visit(child, pre, post, verbose))
+      switch(ast_visit(child, pre, post, dir, verbose))
       {
         case AST_OK:
           break;
@@ -589,7 +681,12 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
           return AST_FATAL;
       }
 
-      child = child->sibling;
+
+      switch(dir)
+      {
+        case AST_LEFT: child = ast_sibling(child); break;
+        case AST_RIGHT: child = ast_previous(child); break;
+      }
     }
   }
 

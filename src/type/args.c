@@ -4,6 +4,8 @@
 
 static bool args_call(ast_t* ast)
 {
+  // args are checked after expressions because parameters with default values
+  // may not have their types inferred until after expression type checking.
   ast_t* left = ast_child(ast);
   ast_t* positional = ast_sibling(left);
   ast_t* named = ast_sibling(positional);
@@ -29,7 +31,7 @@ static bool args_call(ast_t* ast)
 
       while((arg != NULL) && (param != NULL))
       {
-        if(!is_subtype(ast, ast_type(arg), ast_type(param)))
+        if(!is_subtype(ast, ast_type(arg), param))
         {
           ast_error(arg, "argument not a subtype of parameter");
           ast_error(param, "parameter is here");

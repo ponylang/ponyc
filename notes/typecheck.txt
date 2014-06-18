@@ -35,13 +35,16 @@ expression typing
   postfix
     ? DOT field/method access
     - QUALIFY
-    * CALL
+    ? CALL args, infer type params, ctor and behaviour return types, error
   unop
     * NOT
     * MINUS
     - CONSUME
     - RECOVER
   local
+    - VAR/LET
+    - AS
+    - FOR
   control
     * IF
     - MATCH
@@ -50,9 +53,9 @@ expression typing
     * REPEAT
     - FOR (or is it sugar?)
     - TRY
-    - BREAK
-    - CONTINUE
-    - RETURN
+    * BREAK
+    * CONTINUE
+    * RETURN
   binop
     * AND
     * OR
@@ -66,11 +69,11 @@ expression typing
     * RSHIFT
     * IS
     * ISNT
-    - EQ
-    - NE
-    - LT
-    - LE
-    - GE
-    - GT
-    * ASSIGN
+    ? EQ comparable
+    ? NE comparable
+    ? LT ordered
+    ? LE ordered
+    ? GE ordered
+    ? GT ordered
+    ? ASSIGN viewpoint, infer lvalue type, ssa reassignment
   * seq
