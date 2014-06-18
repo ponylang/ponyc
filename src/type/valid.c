@@ -31,11 +31,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
 
   // reify the type parameters with the typeargs
   ast_t* typeparams = ast_childidx(type, 1);
-
-  // dangle r_typeparams from the parent of typeparams in order to resolve in
-  // the same scope.
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
-  ast_dangle(r_typeparams, ast_parent(typeparams));
 
   if(r_typeparams == NULL)
     return false;
@@ -68,9 +64,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     typearg = ast_sibling(typearg);
   }
 
-  if(r_typeparams != typeparams)
-    ast_free(r_typeparams);
-
+  ast_free_unattached(r_typeparams);
   return true;
 }
 
@@ -111,6 +105,100 @@ static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
   return true;
 }
 
+static bool valid_typedef(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  ast_t* cap = ast_sibling(child);
+  ast_t* ephemeral = ast_sibling(cap);
+  token_id t = TK_REF;
+
+  switch(ast_id(child))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(ast, "can't specify a capability on a union type");
+        return false;
+      }
+
+      if(ast_id(ephemeral) != TK_NONE)
+      {
+        ast_error(ast, "can't mark a union type as ephemeral");
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_TUPLETYPE:
+    case TK_STRUCTURAL:
+      // default capability for a tuple or structural type is ref
+      t = TK_REF;
+      break;
+
+    case TK_NOMINAL:
+    {
+      // default capability for a nominal type
+      ast_t* def = nominal_def(ast, child);
+      ast_t* defcap = ast_childidx(def, 2);
+      t = ast_id(defcap);
+
+      if(t == TK_NONE)
+      {
+        // no default capability specified
+        switch(ast_id(def))
+        {
+          case TK_TYPE:
+            // a type is a val
+            t = TK_VAL;
+            break;
+
+          case TK_TRAIT:
+          case TK_CLASS:
+            // a trait or class is a ref
+            t = TK_REF;
+            break;
+
+          case TK_ACTOR:
+            // an actor is a tag
+            t = TK_TAG;
+            break;
+
+          case TK_TYPEPARAM:
+          {
+            // don't set the capability
+            // TODO:
+            return true;
+          }
+
+          default:
+            assert(0);
+            return false;
+        }
+      }
+      break;
+    }
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  if(ast_id(cap) == TK_NONE)
+  {
+    // TODO: if we are a constraint, should we use tag for traits, classes and
+    // structural types instead?
+    ast_t* newcap = ast_from(ast, TK_CAP);
+    ast_add(newcap, ast_from(ast, t));
+    ast_swap(cap, newcap);
+    ast_free(cap);
+  }
+
+  return true;
+}
+
 /**
  * This checks that all explicit types are valid. It also attaches the
  * definition ast node to each nominal type, and replaces type aliases with
@@ -122,6 +210,11 @@ ast_result_t type_valid(ast_t* ast, int verbose)
   {
     case TK_NOMINAL:
       if(!valid_nominal(ast, ast))
+        return AST_ERROR;
+      break;
+
+    case TK_TYPEDEF:
+      if(!valid_typedef(ast))
         return AST_ERROR;
       break;
 

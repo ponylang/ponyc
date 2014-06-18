@@ -1,6 +1,6 @@
-trait Comparable[T: Comparable[T]]
-  fun box eq(that: T box): Bool => this is that
-  fun box ne(that: T box): Bool => not eq(that)
+trait Comparable[A: Comparable[A]]
+  fun box eq(that: A box): Bool => this is that
+  fun box ne(that: A box): Bool => not eq(that)
 
 trait Ordered[A: Ordered[A]] is Comparable[A]
   fun box lt(that: A box): Bool

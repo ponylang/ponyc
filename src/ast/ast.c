@@ -251,6 +251,27 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
   return ast;
 }
 
+ast_t* ast_enclosing_type(ast_t* ast)
+{
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_TYPE:
+      case TK_TRAIT:
+      case TK_CLASS:
+      case TK_ACTOR:
+        return ast;
+
+      default: {}
+    }
+
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_enclosing_method(ast_t* ast)
 {
   while(ast != NULL)
@@ -530,6 +551,9 @@ ast_t* ast_swap(ast_t* prev, ast_t* next)
 {
   assert(prev->parent != NULL);
 
+  if(prev == next)
+    return prev;
+
   if(next->parent != NULL)
     next = ast_dup(next);
 
@@ -547,15 +571,6 @@ ast_t* ast_swap(ast_t* prev, ast_t* next)
   prev->sibling = NULL;
 
   return next;
-}
-
-void ast_dangle(ast_t* ast, ast_t* parent)
-{
-  assert(
-    (ast->parent == NULL) ||
-    (ast->parent == parent)
-    );
-  ast->parent = parent;
 }
 
 void ast_reverse(ast_t* ast)

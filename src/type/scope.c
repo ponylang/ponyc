@@ -105,9 +105,25 @@ ast_result_t type_scope(ast_t* ast, int verbose)
     }
 
     case TK_TYPE:
+    case TK_ACTOR:
+    {
+      // can't have a default capability
+      ast_t* cap = ast_childidx(ast, 2);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap, "can't specify a default capability here");
+        return AST_ERROR;
+      }
+
+      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
+        ast_child(ast), ast, true))
+        return AST_ERROR;
+      break;
+    }
+
     case TK_TRAIT:
     case TK_CLASS:
-    case TK_ACTOR:
       if(!set_scope(ast_nearest(ast, TK_PACKAGE),
         ast_child(ast), ast, true))
         return AST_ERROR;

@@ -25,7 +25,7 @@ class List[A] is Iterable[A]
     | None => error
     end
 
-  fun ref set(a: (List[A] | None)): (List[A] this | None)^ => next = a
+  fun ref set(a: (List[A] | None)): (List[A] this^ | None) => next = a
 
   fun ref push(a: A): List[A]^ => List(a, this)
 

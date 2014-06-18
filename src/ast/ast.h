@@ -19,10 +19,10 @@ symtab: ID -> PACKAGE | TYPE | TRAIT | CLASS | ACTOR
 
 USE: PATH [ID]
 
-TYPE: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
+TYPE: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
 TRAIT: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
 CLASS: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
-ACTOR: ID [TYPEPARAMS] [RAWCAP] [TYPES] MEMBERS
+ACTOR: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
 data: typechecking state
 symtab: ID -> TYPEPARAM | VAR | VAL | NEW | FUN | BE
 
@@ -220,6 +220,7 @@ ast_t* ast_type(ast_t* ast);
 ast_t* ast_settype(ast_t* ast, ast_t* type);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
+ast_t* ast_enclosing_type(ast_t* ast);
 ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
@@ -241,7 +242,6 @@ ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
 ast_t* ast_swap(ast_t* prev, ast_t* next);
-void ast_dangle(ast_t* ast, ast_t* parent);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);

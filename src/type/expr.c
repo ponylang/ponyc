@@ -6,6 +6,10 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
+/**
+ * Make sure the definition of something occurs before its use. This is for
+ * both fields and local variable.
+ */
 static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
   if((ast_line(def) > ast_line(use)) ||
@@ -20,7 +24,22 @@ static bool def_before_use(ast_t* def, ast_t* use, const char* name)
   return true;
 }
 
-static ast_t* typedef_for_tuple(ast_t* ast, int index)
+/**
+ * Return true if the type represents a partial function.
+ */
+static bool typedef_can_error(ast_t* ast)
+{
+  if(ast_id(ast) == TK_ERROR)
+    return true;
+
+  assert(ast_id(ast) == TK_TYPEDEF);
+  return ast_id(ast_childidx(ast, 3)) == TK_ERROR;
+}
+
+/**
+ * Get the nth typedef out of a tuple definition.
+ */
+static ast_t* tuple_index(ast_t* ast, int index)
 {
   assert(ast_id(ast) == TK_TUPLETYPE);
   ast_t* child = ast_child(ast);
@@ -43,24 +62,16 @@ static ast_t* typedef_for_tuple(ast_t* ast, int index)
   return ast;
 }
 
-static ast_t* type_bool(ast_t* ast)
+/**
+ * If the ast node is a subtype of the named type, return the ast for the type
+ * of the ast node. Otherwise, return NULL.
+ */
+static ast_t* type_builtin(ast_t* ast, const char* name)
 {
   ast_t* type = ast_type(ast);
-  ast_t* bool_type = typedef_for_name(ast, NULL, stringtab("Bool"));
-
-  if(is_subtype(ast, type, bool_type))
-    return bool_type;
-
-  ast_free(bool_type);
-  return NULL;
-}
-
-static ast_t* type_int(ast_t* ast)
-{
-  ast_t* type = ast_type(ast);
-  ast_t* int_type = typedef_for_name(ast, NULL, stringtab("Integer"));
-  bool ok = is_subtype(ast, type, int_type);
-  ast_free(int_type);
+  ast_t* builtin = typedef_for_name(ast, NULL, stringtab(name));
+  bool ok = is_subtype(ast, type, builtin);
+  ast_free(builtin);
 
   if(!ok)
     return NULL;
@@ -68,6 +79,28 @@ static ast_t* type_int(ast_t* ast)
   return type;
 }
 
+/**
+ * If the ast node is a subtype of Bool, return the ast for the type of the ast
+ * node. Otherwise, return NULL.
+ */
+static ast_t* type_bool(ast_t* ast)
+{
+  return type_builtin(ast, "Bool");
+}
+
+/**
+ * If the ast node is a subtype of Integer, return the ast for the type of the
+ * ast node. Otherwise, return NULL.
+ */
+static ast_t* type_int(ast_t* ast)
+{
+  return type_builtin(ast, "Integer");
+}
+
+/**
+ * If the ast node is a subtype of Bool or a subtype of Integer, return the ast
+ * for the type of the ast node. Otherwise, return NULL.
+ */
 static ast_t* type_int_or_bool(ast_t* ast)
 {
   ast_t* type = type_bool(ast);
@@ -84,19 +117,19 @@ static ast_t* type_int_or_bool(ast_t* ast)
   return type;
 }
 
+/**
+ * If the ast node is a subtype of Arithmetic, return the ast for the type of
+ * the ast node. Otherwise, return NULL.
+ */
 static ast_t* type_arithmetic(ast_t* ast)
 {
-  ast_t* type = ast_type(ast);
-  ast_t* a_type = typedef_for_name(ast, NULL, stringtab("Arithmetic"));
-  bool ok = is_subtype(ast, type, a_type);
-  ast_free(a_type);
-
-  if(!ok)
-    return NULL;
-
-  return type;
+  return type_builtin(ast, "Arithmetic");
 }
 
+/**
+ * If one of the two types is a super type of the other, return it. Otherwise,
+ * return NULL.
+ */
 static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
 {
   if((l_type == NULL) || (r_type == NULL))
@@ -111,6 +144,9 @@ static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
   return NULL;
 }
 
+/**
+ * Build a type that is the union of these two types.
+ */
 static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
 {
   ast_t* super = type_super(ast, l_type, r_type);
@@ -118,11 +154,37 @@ static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
   if(super != NULL)
     return super;
 
+  // when one side is TK_ERROR
+  if(ast_id(l_type) == TK_ERROR)
+    super = ast_dup(r_type);
+  else if(ast_id(r_type) == TK_ERROR)
+    super = ast_dup(l_type);
+
+  if(super != NULL)
+  {
+    // set to an error type
+    assert(ast_id(super) == TK_TYPEDEF);
+    ast_swap(ast_childidx(super, 3), ast_from(ast, TK_ERROR));
+    return super;
+  }
+
+  assert(ast_id(l_type) == TK_TYPEDEF);
+  assert(ast_id(r_type) == TK_TYPEDEF);
+
+  token_id error = typedef_can_error(l_type) || typedef_can_error(r_type) ?
+    TK_ERROR : TK_NONE;
+
+  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
+  ast_add(type_def, ast_from(ast, error)); // error
+  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
+  ast_add(type_def, ast_from(ast, TK_NONE)); // cap
+
   ast_t* type = ast_from(ast, TK_UNIONTYPE);
   ast_add(type, r_type);
   ast_add(type, l_type);
+  ast_add(type_def, type);
 
-  return type;
+  return type_def;
 }
 
 static ast_t* type_for_fun(ast_t* ast)
@@ -248,15 +310,10 @@ static bool expr_literal(ast_t* ast, const char* name)
 
 static bool expr_this(ast_t* ast)
 {
-  ast_t* def = ast_nearest(ast, TK_TRAIT);
-
-  if(def == NULL)
-    def = ast_nearest(ast, TK_CLASS);
-
-  if(def == NULL)
-    def = ast_nearest(ast, TK_ACTOR);
-
+  ast_t* def = ast_enclosing_type(ast);
   assert(def != NULL);
+  assert(ast_id(def) != TK_TYPE);
+
   ast_t* id = ast_child(def);
   ast_t* typeparams = ast_sibling(id);
   const char* name = ast_name(id);
@@ -436,7 +493,7 @@ static bool expr_dot(ast_t* ast)
         return false;
       }
 
-      type = typedef_for_tuple(ast_child(type), ast_int(right));
+      type = tuple_index(ast_child(type), ast_int(right));
 
       if(type == NULL)
       {
@@ -650,24 +707,43 @@ static bool expr_tuple(ast_t* ast)
   {
     type_def = ast_type(seq);
   } else {
+    // typedef must be ERROR if any of the components are
+    token_id error = TK_NONE;
     ast_t* tuple = ast_from(ast, TK_TUPLETYPE);
-    ast_add(tuple, ast_type(seq));
+    ast_t* type = ast_type(seq);
+
+    if(typedef_can_error(type))
+      error = TK_ERROR;
+
+    ast_add(tuple, type);
+
     seq = ast_sibling(seq);
-    ast_add(tuple, ast_type(seq));
+    type = ast_type(seq);
+
+    if(typedef_can_error(type))
+      error = TK_ERROR;
+
+    ast_add(tuple, type);
 
     while(seq != NULL)
     {
       ast_t* parent = ast_from(ast, TK_TUPLETYPE);
       ast_add(parent, tuple);
-      ast_add(parent, ast_type(seq));
+      type = ast_type(seq);
+
+      if(typedef_can_error(type))
+        error = TK_ERROR;
+
+      ast_add(parent, type);
       tuple = parent;
       seq = ast_sibling(seq);
     }
 
+    // a tuple constructor produces a ref^ like any other constructor
     type_def = ast_from(ast, TK_TYPEDEF);
-    ast_add(type_def, ast_from(ast, TK_NONE)); // error
-    ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
-    ast_add(type_def, ast_from(ast, TK_NONE)); // cap
+    ast_add(type_def, ast_from(ast, error)); // error
+    ast_add(type_def, ast_from(ast, TK_HAT)); // ephemeral
+    ast_add(type_def, ast_from(ast, TK_REF)); // cap
     ast_add(type_def, tuple);
   }
 
@@ -725,15 +801,11 @@ static bool expr_if(ast_t* ast)
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
 
-  ast_t* bool_type = type_bool(cond);
-
-  if(bool_type == NULL)
+  if(type_bool(cond) == NULL)
   {
     ast_error(cond, "condition must be a Bool");
     return false;
   }
-
-  ast_free(bool_type);
 
   ast_t* l_type = ast_type(left);
   ast_t* r_type;
@@ -751,9 +823,8 @@ static bool expr_if(ast_t* ast)
 static bool expr_while(ast_t* ast)
 {
   ast_t* cond = ast_child(ast);
-  ast_t* bool_type = type_bool(cond);
 
-  if(bool_type == NULL)
+  if(type_bool(cond) == NULL)
   {
     ast_error(cond, "condition must be a Bool");
     return false;
@@ -767,15 +838,13 @@ static bool expr_repeat(ast_t* ast)
 {
   ast_t* body = ast_child(ast);
   ast_t* cond = ast_sibling(body);
-  ast_t* bool_type = type_bool(cond);
 
-  if(bool_type == NULL)
+  if(type_bool(cond) == NULL)
   {
     ast_error(cond, "condition must be a Bool");
     return false;
   }
 
-  ast_free(bool_type);
   ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
   return true;
 }
@@ -810,7 +879,7 @@ static bool expr_return(ast_t* ast)
 
   if(fun == NULL)
   {
-    ast_error(ast, "return must occur in a function or a behaviour");
+    ast_error(ast, "return must occur in a function or a behaviour body");
     return false;
   }
 
@@ -886,10 +955,21 @@ static bool expr_assign(ast_t* ast)
     return false;
   }
 
-  // TODO: viewpoint adaptation
+  // TODO: viewpoint adaptation, safe to write, etc
   // TODO: disallow reassignment to SSA variable
   ast_settype(ast, l_type);
   return true;
+}
+
+static bool expr_consume(ast_t* ast)
+{
+  // ast_t* expr = ast_child(ast);
+  // ast_t* type = ast_type(expr);
+
+  // TODO:
+
+  ast_error(ast, "not implemented (consume)");
+  return false;
 }
 
 static bool expr_error(ast_t* ast)
@@ -907,37 +987,80 @@ static bool expr_error(ast_t* ast)
 
 static bool expr_seq(ast_t* ast)
 {
-  ast_t* last = ast_childlast(ast);
-  ast_t* type_def = ast_type(last);
-  ast_settype(ast, type_def);
+  // if any element can error, the whole thing can error
+  ast_t* child = ast_child(ast);
+  ast_t* type;
+  token_id error = TK_NONE;
+
+  while(child != NULL)
+  {
+    type = ast_type(child);
+
+    if(typedef_can_error(type))
+      error = TK_ERROR;
+
+    child = ast_sibling(child);
+  }
+
+  if(error == TK_ERROR)
+    type = type_union(ast, type, ast_from(ast, TK_ERROR));
+
+  ast_settype(ast, type);
   return true;
 }
 
 static bool expr_fun(ast_t* ast)
 {
-  ast_t* impl = ast_childidx(ast, 6);
+  ast_t* type = ast_childidx(ast, 4);
+  ast_t* error = ast_sibling(type);
+  ast_t* body = ast_sibling(error);
 
-  if(ast_id(impl) == TK_NONE)
+  if(ast_id(body) == TK_NONE)
     return true;
 
+  ast_t* def = ast_enclosing_type(ast);
+  bool is_trait = ast_id(def) == TK_TRAIT;
+
   // if specified, body type must match return type
-  ast_t* type = ast_childidx(ast, 4);
+  ast_t* body_type = ast_type(body);
+  assert(ast_id(body_type) == TK_TYPEDEF);
 
   if(ast_id(type) != TK_NONE)
   {
-    ast_t* body_type = ast_type(impl);
-
     if(!is_subtype(ast, body_type, type))
     {
-      ast_t* last = ast_childlast(impl);
-      ast_error(last, "function body type doesn't match function result type");
-      ast_error(type, "function result type is here");
+      ast_t* last = ast_childlast(body);
+      ast_error(type, "function body isn't a subtype of the result type");
+      ast_error(last, "function body expression is here");
+      return false;
+    }
+
+    if(!is_trait && !is_eqtype(ast, body_type, type))
+    {
+      ast_t* last = ast_childlast(body);
+      ast_error(type, "function body is more specific than the result type");
+      ast_error(last, "function body expression is here");
       return false;
     }
   }
 
-  // TODO: if ?, check that we might actually error (but not on a trait)
-  // TODO: if not ?, check that we can't error
+  if(ast_id(error) == TK_QUESTION)
+  {
+    // if a partial function, check that we might actually error
+    if(!is_trait && !typedef_can_error(body_type))
+    {
+      ast_error(error, "function body is not partial but the function is");
+      return false;
+    }
+  } else {
+    // if not a partial function, check that we can't error
+    if(typedef_can_error(body_type))
+    {
+      ast_error(error, "function body is partial but the function is not");
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -1046,9 +1169,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       break;
 
     case TK_CONSUME:
-      // TODO: path handling
-      ast_error(ast, "not implemented (consume)");
-      return AST_FATAL;
+      if(!expr_consume(ast))
+        return AST_FATAL;
+      break;
 
     case TK_DOT:
       if(!expr_dot(ast))
