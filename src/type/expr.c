@@ -1023,6 +1023,15 @@ static bool expr_fun(ast_t* ast)
 
   // if specified, body type must match return type
   ast_t* body_type = ast_type(body);
+
+  if(ast_id(body_type) == TK_ERROR)
+  {
+    ast_t* last = ast_childlast(body);
+    ast_error(type, "function body always results in an error");
+    ast_error(last, "function body expression is here");
+    return false;
+  }
+
   assert(ast_id(body_type) == TK_TYPEDEF);
 
   if(ast_id(type) != TK_NONE)
@@ -1077,14 +1086,11 @@ ast_result_t type_expr(ast_t* ast, int verbose)
 
     case TK_NEW:
       // TODO: check that the object is fully initialised
-      // TODO: if ?, check that we might actually error (but not on a trait)
-      // TODO: if not ?, check that we can't error
+      if(!expr_fun(ast))
+        return AST_FATAL;
       break;
 
     case TK_BE:
-      // TODO: check that we can't error
-      break;
-
     case TK_FUN:
       if(!expr_fun(ast))
         return AST_FATAL;
