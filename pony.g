@@ -57,6 +57,7 @@ type_expr
   |  ID ('.' ID)? type_args? // nominal type
   |  '{' fun_type* '}' // structural type
 //  |  'type' ID // FIX: nested type definition for enums?
+  |  'this' // only used for viewpoint adaptation
   ;
 
 typeop
@@ -160,6 +161,7 @@ atom
   |  FLOAT
   |  STRING
   |  ID
+  |  'this'
   |  tuple
   |  array
   |  object

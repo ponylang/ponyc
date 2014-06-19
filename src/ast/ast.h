@@ -44,7 +44,6 @@ TYPES: {TYPEDEF}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
 TYPEDEF: type cap [HAT] [ERROR] [TYPEDEF]
-// TODO: viewpoint adaptation
 
 cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
 
@@ -222,6 +221,7 @@ ast_t* ast_settype(ast_t* ast, ast_t* type);
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_type(ast_t* ast);
 ast_t* ast_enclosing_method(ast_t* ast);
+ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 

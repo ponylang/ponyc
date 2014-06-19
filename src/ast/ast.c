@@ -292,6 +292,36 @@ ast_t* ast_enclosing_method(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_method_type(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+      {
+        // only if we are in the method body
+        ast_t* type = ast_childidx(ast, 4);
+
+        if(type == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_enclosing_method_body(ast_t* ast)
 {
   ast_t* last = NULL;

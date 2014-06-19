@@ -110,7 +110,35 @@ static bool valid_typedef(ast_t* ast)
   ast_t* child = ast_child(ast);
   ast_t* cap = ast_sibling(child);
   ast_t* ephemeral = ast_sibling(cap);
+  ast_t* error = ast_sibling(ephemeral);
+  ast_t* next = ast_sibling(error);
   token_id t = TK_REF;
+
+  if(ast_id(next) != TK_NONE)
+  {
+    switch(ast_id(child))
+    {
+      case TK_THIS:
+      case TK_NOMINAL:
+        break;
+
+      default:
+        ast_error(child, "only type parameters and 'this' can be viewpoints");
+        return false;
+    }
+
+    if(ast_id(cap) != TK_NONE)
+    {
+      ast_error(cap, "a viewpoint cannot specify a capability");
+      return false;
+    }
+
+    if(ast_id(ephemeral) != TK_NONE)
+    {
+      ast_error(ephemeral, "a viewpoint cannot be ephemeral");
+      return false;
+    }
+  }
 
   switch(ast_id(child))
   {
@@ -119,13 +147,13 @@ static bool valid_typedef(ast_t* ast)
     {
       if(ast_id(cap) != TK_NONE)
       {
-        ast_error(ast, "can't specify a capability on a union type");
+        ast_error(cap, "can't specify a capability on a union/isect type");
         return false;
       }
 
       if(ast_id(ephemeral) != TK_NONE)
       {
-        ast_error(ast, "can't mark a union type as ephemeral");
+        ast_error(ephemeral, "can't mark a union/isect type as ephemeral");
         return false;
       }
 
@@ -134,7 +162,7 @@ static bool valid_typedef(ast_t* ast)
 
     case TK_TUPLETYPE:
     case TK_STRUCTURAL:
-      // default capability for a tuple or structural type is ref
+      // default capability for tuples and structural types is ref
       t = TK_REF;
       break;
 
@@ -144,6 +172,12 @@ static bool valid_typedef(ast_t* ast)
       ast_t* def = nominal_def(ast, child);
       ast_t* defcap = ast_childidx(def, 2);
       t = ast_id(defcap);
+
+      if((ast_id(next) != TK_NONE) && (ast_id(def) != TK_TYPEPARAM))
+      {
+        ast_error(ast, "only type parameters can be viewpoints");
+        return false;
+      }
 
       if(t == TK_NONE)
       {
@@ -181,6 +215,23 @@ static bool valid_typedef(ast_t* ast)
       break;
     }
 
+    case TK_THIS:
+    {
+      // must be the first thing in viewpoint adaptation
+      if(ast_id(ast_parent(ast)) == TK_TYPEDEF)
+      {
+        ast_error(ast, "when using 'this' for viewpoint it must come first");
+        return false;
+      }
+
+      if(ast_id(next) == TK_NONE)
+      {
+        ast_error(ast, "'this' in a type can only be used for viewpoint");
+        return false;
+      }
+      break;
+    }
+
     default:
       assert(0);
       return false;
@@ -190,10 +241,15 @@ static bool valid_typedef(ast_t* ast)
   {
     // TODO: if we are a constraint, should we use tag for traits, classes and
     // structural types instead?
-    ast_t* newcap = ast_from(ast, TK_CAP);
-    ast_add(newcap, ast_from(ast, t));
+    ast_t* newcap = ast_from(ast, t);
     ast_swap(cap, newcap);
     ast_free(cap);
+  }
+
+  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_type(ast) == NULL))
+  {
+    ast_error(ephemeral, "ephemeral types can only be function return types");
+    return false;
   }
 
   return true;

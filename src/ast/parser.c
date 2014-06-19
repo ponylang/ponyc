@@ -76,18 +76,18 @@ DEF(types);
 
 // ID [COLON type] [ASSIGN seq]
 DEF(param);
-  CHECK(TK_ID, TK_ID_NEW);
+  CHECK(TK_ID);
   AST(TK_PARAM);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, seq);
   DONE();
 
 // ID [COLON type] [ASSIGN type]
 DEF(typeparam);
-  CHECK(TK_ID, TK_ID_NEW);
+  CHECK(TK_ID);
   AST(TK_TYPEPARAM);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, type);
   DONE();
@@ -122,7 +122,7 @@ DEF(newtype);
   AST_TOKEN(TK_NEW);
   SCOPE();
   INSERT(TK_NONE);
-  OPTIONAL(TK_ID, TK_ID_NEW);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(types);
@@ -137,7 +137,7 @@ DEF(betype);
   AST_TOKEN(TK_BE);
   SCOPE();
   INSERT(TK_NONE);
-  OPTIONAL(TK_ID, TK_ID_NEW);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(types);
@@ -152,7 +152,7 @@ DEF(funtype);
   AST_TOKEN(TK_FUN);
   SCOPE();
   EXPECT(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_ID, TK_ID_NEW);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(types);
@@ -160,6 +160,10 @@ DEF(funtype);
   IFRULE(TK_COLON, type);
   OPTIONAL(TK_QUESTION);
   INSERT(TK_NONE);
+  DONE();
+
+DEF(thistype);
+  AST_TOKEN(TK_THIS);
   DONE();
 
 // (LBRACE | LBRACE_NEW) {newtype | funtype | betype} RBRACE
@@ -173,10 +177,10 @@ DEF(structural);
 
 // ID [DOT ID] [typeargs]
 DEF(nominal);
-  CHECK(TK_ID, TK_ID_NEW);
+  CHECK(TK_ID);
   AST(TK_NOMINAL);
-  EXPECT(TK_ID, TK_ID_NEW);
-  IFTOKEN(TK_DOT, TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
+  IFTOKEN(TK_DOT, TK_ID);
   OPTRULE(typeargs);
   DONE();
 
@@ -210,19 +214,19 @@ DEF(typeexpr);
   DONE();
 
 // TODO: add typedecl for "enum" types?
-// typeexpr | nominal | structural
+// typeexpr | nominal | structural | thistype
 DEF(typebase);
-  AST_RULE(typeexpr, nominal, structural);
+  AST_RULE(typeexpr, nominal, structural, thistype);
   DONE();
 
-// typebase [CAP] [HAT]
+// typebase [CAP] [HAT] [ARROW type]
 DEF(type);
   AST(TK_TYPEDEF);
   RULE(typebase);
   OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   OPTIONAL(TK_HAT);
   INSERT(TK_NONE);
-  // TODO: viewpoint
+  IFRULE(TK_ARROW, type);
   DONE();
 
 // term ASSIGN seq
@@ -281,9 +285,9 @@ DEF(literal);
   DONE();
 
 DEF(ref);
-  CHECK(TK_ID, TK_ID_NEW);
+  CHECK(TK_ID);
   AST(TK_REFERENCE);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   DONE();
 
 // ref | literal | tuple | array | object
@@ -294,13 +298,13 @@ DEF(atom);
 // DOT (ID | INT)
 DEF(dot);
   AST_TOKEN(TK_DOT);
-  EXPECT(TK_ID, TK_ID_NEW, TK_INT);
+  EXPECT(TK_ID, TK_INT);
   DONE();
 
 // BANG ID
 DEF(bang);
   AST_TOKEN(TK_BANG);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   DONE();
 
 // typeargs
@@ -327,17 +331,17 @@ DEF(postfix);
 
 // ID | (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
 DEF(idseq);
-  CHECK(TK_ID, TK_ID_NEW, TK_LPAREN, TK_LPAREN_NEW);
+  CHECK(TK_ID, TK_LPAREN, TK_LPAREN_NEW);
   AST(TK_IDSEQ);
 
   if(LOOK(TK_LPAREN, TK_LPAREN_NEW))
   {
     SKIP(TK_LPAREN, TK_LPAREN_NEW);
-    EXPECT(TK_ID, TK_ID_NEW);
-    WHILETOKEN(TK_COMMA, TK_ID, TK_ID_NEW);
+    EXPECT(TK_ID);
+    WHILETOKEN(TK_COMMA, TK_ID);
     SKIP(TK_RPAREN);
   } else {
-    EXPECT(TK_ID, TK_ID_NEW);
+    EXPECT(TK_ID);
   }
 
   DONE();
@@ -402,7 +406,7 @@ DEF(caseexpr);
   OPTRULE(seq);
   OPTRULE(as);
   IFRULE(TK_WHERE, seq);
-  IFRULE(TK_ARROW, seq);
+  IFRULE(TK_DBLARROW, seq);
   DONE();
 
 // {caseexpr}
@@ -533,14 +537,14 @@ DEF(function);
   AST_TOKEN(TK_FUN);
   SCOPE();
   EXPECT(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_ID, TK_ID_NEW);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(params);
   SKIP(TK_RPAREN);
   IFRULE(TK_COLON, type);
   OPTIONAL(TK_QUESTION);
-  IFRULE(TK_ARROW, seq);
+  IFRULE(TK_DBLARROW, seq);
   DONE();
 
 // BE ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [ARROW seq]
@@ -548,14 +552,14 @@ DEF(behaviour);
   AST_TOKEN(TK_BE);
   SCOPE();
   INSERT(TK_NONE);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(params);
   SKIP(TK_RPAREN);
   INSERT(TK_NONE);
   INSERT(TK_NONE);
-  IFRULE(TK_ARROW, seq);
+  IFRULE(TK_DBLARROW, seq);
   DONE();
 
 // NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
@@ -564,21 +568,21 @@ DEF(constructor);
   AST_TOKEN(TK_NEW);
   SCOPE();
   INSERT(TK_NONE);
-  OPTIONAL(TK_ID, TK_ID_NEW);
+  OPTIONAL(TK_ID);
   OPTRULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
   OPTRULE(params);
   SKIP(TK_RPAREN);
   INSERT(TK_NONE);
   OPTIONAL(TK_QUESTION);
-  IFRULE(TK_ARROW, seq);
+  IFRULE(TK_DBLARROW, seq);
   DONE();
 
 // VAR ID [COLON type] [ASSIGN expr]
 DEF(fieldvar);
   SKIP(TK_VAR);
   AST(TK_FVAR);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, expr);
   DONE();
@@ -587,7 +591,7 @@ DEF(fieldvar);
 DEF(fieldval);
   SKIP(TK_LET);
   AST(TK_FLET);
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   IFRULE(TK_COLON, type);
   IFRULE(TK_ASSIGN, expr);
   DONE();
@@ -605,7 +609,7 @@ DEF(members);
 DEF(class);
   AST_TOKEN(TK_TYPE, TK_TRAIT, TK_CLASS, TK_ACTOR);
   SCOPE();
-  EXPECT(TK_ID, TK_ID_NEW);
+  EXPECT(TK_ID);
   OPTRULE(typeparams);
   OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   IFRULE(TK_IS, types);
@@ -616,7 +620,7 @@ DEF(class);
 DEF(use);
   AST_TOKEN(TK_USE);
   EXPECT(TK_STRING);
-  IFTOKEN(TK_AS, TK_ID, TK_ID_NEW);
+  IFTOKEN(TK_AS, TK_ID);
   DONE();
 
 // {use} {class}

@@ -9,6 +9,4 @@ token_id cap_for_receiver(ast_t* ast);
 
 token_id cap_for_fun(ast_t* fun);
 
-ast_t* cap_from_rawcap(ast_t* ast, token_id rawcap);
-
 #endif

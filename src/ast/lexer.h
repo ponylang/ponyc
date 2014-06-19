@@ -28,6 +28,7 @@ typedef enum
 
   TK_COMMA,
   TK_ARROW,
+  TK_DBLARROW,
   TK_DOT,
   TK_BANG,
   TK_COLON,
@@ -56,7 +57,6 @@ typedef enum
   TK_AMP,
   TK_QUESTION,
 
-  TK_ID_NEW,
   TK_LBRACE_NEW,
   TK_LPAREN_NEW,
   TK_LBRACKET_NEW,

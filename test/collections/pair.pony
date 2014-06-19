@@ -6,8 +6,8 @@ class Pair[A, B]
     a = a'
     b = b'
 
-  fun box first(): A this => a
-  fun box second(): B this => b
+  fun box first(): this->A => a
+  fun box second(): this->B => b
 
-  fun ref set_first(a': A): A this^ => a = a'
-  fun ref set_second(b': B): B this^ => b = b'
+  fun ref set_first(a': A): this->A^ => a = a'
+  fun ref set_second(b': B): this->B^ => b = b'

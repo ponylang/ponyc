@@ -46,12 +46,3 @@ token_id cap_for_fun(ast_t* fun)
   assert(0);
   return TK_NONE;
 }
-
-ast_t* cap_from_rawcap(ast_t* ast, token_id rawcap)
-{
-  ast_t* cap = ast_from(ast, TK_CAP);
-  ast_t* rcap = ast_from(ast, rawcap);
-  ast_add(cap, rcap);
-
-  return cap;
-}

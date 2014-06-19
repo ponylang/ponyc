@@ -1,5 +1,5 @@
 class ListNode[A]
-  var _item: A
+  var _item: A^
   var _next: (ListNode[A] | None)
 
   new create(item': A, next': (ListNode[A] | None)) =>
@@ -29,8 +29,8 @@ class ListIterator[A, N: ListNode[A] box] is Iterator[N->A]
 
   fun ref next(): N->A ? =>
     match _next
-    | as next: N =>
-      _next = next.next()
-      next.item()
+    | as next': N =>
+      _next = next'.next()
+      next'.item()
     | None => error
     end

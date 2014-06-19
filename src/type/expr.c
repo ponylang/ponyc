@@ -321,7 +321,7 @@ static bool expr_this(ast_t* ast)
   ast_t* type_def = ast_from(ast, TK_TYPEDEF);
   ast_add(type_def, ast_from(ast, TK_NONE)); // error
   ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
-  ast_add(type_def, cap_from_rawcap(ast, cap_for_receiver(ast)));
+  ast_add(type_def, ast_from(ast, cap_for_receiver(ast))); // cap
 
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
   ast_add(type_def, nominal);
@@ -1051,6 +1051,9 @@ static bool expr_fun(ast_t* ast)
       ast_error(last, "function body expression is here");
       return false;
     }
+
+    // TODO: check if function body is ephemeral but return type isn't
+    // only enforce if it isn't a trait
   }
 
   if(ast_id(error) == TK_QUESTION)

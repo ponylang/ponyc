@@ -32,7 +32,8 @@ typedef struct lexsym_t
 
 static const lexsym_t symbols2[] =
 {
-  { "=>", TK_ARROW },
+  { "->", TK_ARROW },
+  { "=>", TK_DBLARROW },
 
   { "<<", TK_LSHIFT },
   { ">>", TK_RSHIFT },
@@ -1166,7 +1167,6 @@ void token_setid(token_t* token, token_id id)
   {
     switch(id)
     {
-      case TK_ID: id = TK_ID_NEW; break;
       case TK_LBRACE: id = TK_LBRACE_NEW; break;
       case TK_LPAREN: id = TK_LPAREN_NEW; break;
       case TK_LBRACKET: id = TK_LBRACKET_NEW; break;

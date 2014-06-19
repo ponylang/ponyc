@@ -215,10 +215,6 @@ ast_result_t type_scope(ast_t* ast, int verbose)
       break;
     }
 
-    case TK_ID_NEW:
-      ast_setid(ast, TK_ID);
-      break;
-
     case TK_IDSEQ:
     {
       ast_t* child = ast_child(ast);
