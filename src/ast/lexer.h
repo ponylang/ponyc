@@ -125,8 +125,6 @@ typedef enum
   TK_FLET,
 
   TK_TYPES,
-  TK_CAP,
-
   TK_UNIONTYPE,
   TK_ISECTTYPE,
   TK_TUPLETYPE,

@@ -12,45 +12,43 @@ class Array[A] is Iterable[A]
 
   fun box length(): U64 => size
 
-  fun box apply(i: U64): A this ? =>
+  fun box apply(i: U64): this->A ? =>
     if i < size then
       ptr(i)
     else
       error
     end
 
-  fun ref update(i: U64, v: A): A this^ ? =>
+  fun ref update(i: U64, v: A): this->A^ ? =>
     if i < size then
       ptr(i) = v
     else
       error
     end
 
-  fun ref reserve(len: U64): Array[A] ref^ =>
+  fun ref reserve(len: U64) =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
       ptr = POINTER[A].from(ptr, alloc)
     end
-    this
 
-  fun ref clear(): Array[A] ref^ =>
-    size = 0
-    this
+  fun ref clear() => size = 0
 
-  fun ref append(v: A): Array[A] ref^ =>
+  fun ref append(v: A) =>
     reserve(size + 1)
     ptr(size) = v
     size = size + 1
-    this
 
-  fun ref concat(iter: Iterable[A] ref): Array[A] ref^ =>
+  fun ref concat(iter: Iterable[A] ref) =>
     for v in iter do append(v) end
-    this
 
-  fun box iterator(): ArrayIterator[A, Array[A] this] ref^ =>
-    ArrayIterator(this)
+  fun box iterator(): ArrayIterator[A, this->Array[A]]^ =>
+    ArrayIterator[A, this->Array[A]](this)
 
-class ArrayIterator[A, B: Array[A] box] is Iterator[A]
+  fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
+    ArrayPairs[A, this->Array[A]](this)
+
+class ArrayIterator[A, B: Array[A] box] is Iterator[B->A]
   var array: B
   var i: U64
 
@@ -60,4 +58,16 @@ class ArrayIterator[A, B: Array[A] box] is Iterator[A]
 
   fun box has_next(): Bool => i < array.length()
 
-  fun ref next(): A array ? => array(i = i + 1)
+  fun ref next(): B->A ? => array(i = i + 1)
+
+class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
+  var array: B
+  var i: U64
+
+  new create(array': B) =>
+    array = array'
+    i = 0
+
+  fun box has_next(): Bool => i < array.length()
+
+  fun ref next(): (U64, B->A)^ ? => (i, array(i = i + 1))

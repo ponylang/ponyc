@@ -215,22 +215,14 @@ DEF(typebase);
   AST_RULE(typeexpr, nominal, structural);
   DONE();
 
-// (THIS | ID | CAP) {DOT (ID | CAP)}
-DEF(cap);
-  CHECK(TK_THIS, TK_ID, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  AST(TK_CAP);
-  EXPECT(TK_THIS, TK_ID, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  WHILETOKEN(TK_DOT,
-    TK_ID, TK_ID_NEW, TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  DONE();
-
-// typebase [cap] [HAT]
+// typebase [CAP] [HAT]
 DEF(type);
   AST(TK_TYPEDEF);
   RULE(typebase);
-  OPTRULE(cap);
+  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   OPTIONAL(TK_HAT);
   INSERT(TK_NONE);
+  // TODO: viewpoint
   DONE();
 
 // term ASSIGN seq

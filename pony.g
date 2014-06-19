@@ -17,7 +17,7 @@ use
   ;
 
 class_
-  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? raw_cap? ('is' types)? members
+  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
   ;
 
 members
@@ -33,7 +33,7 @@ constructor
   ;
 
 function
-  :  'fun' raw_cap ID type_params? params oftype? '?'? body?
+  :  'fun' cap ID type_params? params oftype? '?'? body?
   ;
 
 behaviour
@@ -49,7 +49,7 @@ types
   ;
 
 type
-  :  type_expr cap? '^'? // ephemeral types
+  :  type_expr cap? '^'? ('->' type)?
   ;
 
 type_expr
@@ -67,7 +67,7 @@ typeop
 // param list could just be a single type expression
 fun_type
   :  'new' ID? type_params? '(' types? ')' '?'?
-  |  'fun' raw_cap ID? type_params? '(' types? ')' oftype? '?'?
+  |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
   |  'be' ID? type_params? '(' types? ')'
   ;
 
@@ -86,11 +86,7 @@ type_args
   ;
 
 cap
-  :  '@' (ID | raw_cap) ('.' (ID | raw_cap))*
-  ;
-
-raw_cap
-  :  ('iso' | 'trn' | 'ref' | 'val' | 'box' | 'tag')
+  :  'iso' | 'trn' | 'ref' | 'val' | 'box' | 'tag'
   ;
 
 params

@@ -152,8 +152,6 @@ static const lexsym_t abstract[] =
   { "flet", TK_FLET },
 
   { "types", TK_TYPES },
-  { "cap", TK_CAP },
-
   { "uniontype", TK_UNIONTYPE },
   { "isecttype", TK_ISECTTYPE },
   { "tupletype", TK_TUPLETYPE },
