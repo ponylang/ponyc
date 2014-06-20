@@ -1,5 +1,5 @@
 class ListNode[A]
-  var _item: A^
+  var _item: A
   var _next: (ListNode[A] | None)
 
   new create(item': A, next': (ListNode[A] | None)) =>

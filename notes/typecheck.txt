@@ -1,3 +1,7 @@
+ref: transparent
+box: translucent
+tag: opaque
+
 inferring type arguments based on arguments can be done later
   when done, more function types can be subtypes of other function types
 

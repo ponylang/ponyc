@@ -70,4 +70,5 @@ class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
 
   fun box has_next(): Bool => i < array.length()
 
+  // TODO: second element in tuple return type should be alias(B->A)
   fun ref next(): (U64, B->A)^ ? => (i, array(i = i + 1))
