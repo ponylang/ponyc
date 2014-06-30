@@ -47,9 +47,6 @@ static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
       !is_subtype(scope, typearg, constraint)
       )
     {
-      // TODO: remove this
-      is_subtype(scope, typearg, constraint);
-
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
       ast_free_unattached(r_typeparams);
