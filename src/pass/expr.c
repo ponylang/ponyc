@@ -2,6 +2,7 @@
 #include "../type/cap.h"
 #include "../type/subtype.h"
 #include "../type/nominal.h"
+#include "../type/alias.h"
 #include <assert.h>
 
 /**
@@ -49,6 +50,49 @@ static ast_t* tuple_index(ast_t* ast, int index)
     return ast_child(ast);
 
   return ast;
+}
+
+static bool type_for_idseq(ast_t* idseq, ast_t* type)
+{
+  assert(ast_id(idseq) == TK_IDSEQ);
+  ast_t* id = ast_child(idseq);
+
+  if(ast_sibling(id) == NULL)
+  {
+    ast_settype(id, type);
+    return true;
+  }
+
+  if(ast_id(type) != TK_TUPLETYPE)
+  {
+    ast_error(type, "must specify a tuple type for multiple identifiers");
+    return false;
+  }
+
+  int index = 0;
+
+  while(id != NULL)
+  {
+    ast_t* t = tuple_index(type, index);
+
+    if(t == NULL)
+    {
+      ast_error(type, "not enough types specified");
+      return false;
+    }
+
+    ast_settype(id, t);
+    id = ast_sibling(id);
+    index++;
+  }
+
+  if(tuple_index(type, index) != NULL)
+  {
+    ast_error(type, "too many types specified");
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -196,6 +240,8 @@ static bool is_lvalue(ast_t* ast)
 {
   switch(ast_id(ast))
   {
+    case TK_VAR:
+    case TK_LET:
     case TK_FIELDREF:
     case TK_PARAMREF:
       // an identifier reference is an lvalue. it may still not be valid to
@@ -384,14 +430,16 @@ static bool expr_reference(ast_t* ast)
       return true;
     }
 
-    case TK_IDSEQ:
+    case TK_ID:
     {
-      // TODO: local, 'as', or 'for'
       if(!def_before_use(def, ast, name))
         return false;
 
-      ast_error(ast, "not implemented (reference local)");
-      return false;
+      // TODO: separate node id for assignable and not assignable?
+      // get the type of the local and attach it to our reference
+      ast_settype(ast, ast_type(def));
+      ast_setid(ast, TK_LOCALREF);
+      return true;
     }
 
     default: {}
@@ -959,9 +1007,16 @@ static bool expr_assign(ast_t* ast)
     return false;
   }
 
-  // TODO: if left doesn't have a type yet, set it
-  if(!is_subtype(ast, r_type, l_type))
+  if(l_type == NULL)
   {
+    assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
+
+    // returns an alias since there was no previous value to read
+    ast_settype(ast, alias(r_type));
+
+    // set the type for each component
+    return type_for_idseq(ast_child(left), r_type);
+  } else if(!is_subtype(ast, r_type, l_type)) {
     ast_error(ast, "right side must be a subtype of left side");
     return false;
   }
@@ -1020,6 +1075,36 @@ static bool expr_seq(ast_t* ast)
   ast_free_unattached(error);
 
   return true;
+}
+
+static bool expr_local(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_IDSEQ);
+  ast_t* type = ast_sibling(ast);
+
+  if(ast_id(type) == TK_NONE)
+  {
+    ast_t* parent = ast_parent(ast);
+
+    switch(ast_id(parent))
+    {
+      case TK_VAR:
+      case TK_LET:
+        if(ast_id(ast_parent(parent)) == TK_ASSIGN)
+          return true;
+        break;
+
+      case TK_FOR:
+        return true;
+
+      default: {}
+    }
+
+    ast_error(ast, "locals must specify a type or be assigned something");
+    return false;
+  }
+
+  return type_for_idseq(ast, type);
 }
 
 static bool expr_fun(ast_t* ast)
@@ -1122,11 +1207,10 @@ ast_result_t type_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
-    case TK_VAR:
-    case TK_LET:
-      // TODO:
-      ast_error(ast, "not implemented (local)");
-      return AST_FATAL;
+    case TK_IDSEQ:
+      if(!expr_local(ast))
+        return AST_FATAL;
+      break;
 
     case TK_CONTINUE:
     case TK_BREAK:

@@ -184,6 +184,7 @@ static const lexsym_t abstract[] =
   { "funref", TK_FUNREF },
   { "fieldref", TK_FIELDREF },
   { "paramref", TK_PARAMREF },
+  { "localref", TK_LOCALREF },
 
   { NULL, 0 }
 };

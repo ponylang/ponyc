@@ -156,6 +156,7 @@ typedef enum
   TK_FUNREF,
   TK_FIELDREF,
   TK_PARAMREF,
+  TK_LOCALREF,
 
   TK_EOF
 } token_id;

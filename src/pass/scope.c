@@ -243,9 +243,8 @@ ast_result_t type_scope(ast_t* ast, int verbose)
 
       while(child != NULL)
       {
-        // each ID resolves to the IDSEQ that contains it
-        // every IDSEQ has a sibling that is a [TYPEDEF]
-        if(!set_scope(ast_parent(ast), child, ast, false))
+        // each ID resolves to itself
+        if(!set_scope(ast_parent(ast), child, child, false))
           return false;
 
         child = ast_sibling(child);
