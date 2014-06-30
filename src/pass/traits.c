@@ -1,8 +1,7 @@
 #include "traits.h"
-#include "subtype.h"
-#include "reify.h"
-#include "scope.h"
-#include "typechecker.h"
+#include "../type/subtype.h"
+#include "../type/reify.h"
+#include "../type/nominal.h"
 #include <assert.h>
 
 typedef enum

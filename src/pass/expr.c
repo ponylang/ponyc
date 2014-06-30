@@ -1,8 +1,7 @@
 #include "expr.h"
-#include "valid.h"
-#include "cap.h"
-#include "subtype.h"
-#include "typechecker.h"
+#include "../type/cap.h"
+#include "../type/subtype.h"
+#include "../type/nominal.h"
 #include <assert.h>
 
 /**

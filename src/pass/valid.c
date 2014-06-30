@@ -1,7 +1,7 @@
 #include "valid.h"
-#include "subtype.h"
-#include "reify.h"
-#include "typechecker.h"
+#include "../type/subtype.h"
+#include "../type/reify.h"
+#include "../type/nominal.h"
 #include <assert.h>
 
 static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)

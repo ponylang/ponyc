@@ -1,5 +1,5 @@
 #include "scope.h"
-#include "typechecker.h"
+#include "../type/nominal.h"
 #include "../pkg/package.h"
 #include <assert.h>
 

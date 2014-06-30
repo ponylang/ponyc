@@ -1,5 +1,5 @@
 #include "reify.h"
-#include "typechecker.h"
+#include "nominal.h"
 #include <assert.h>
 
 static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)

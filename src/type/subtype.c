@@ -1,8 +1,7 @@
 #include "subtype.h"
-#include "expr.h"
 #include "reify.h"
 #include "cap.h"
-#include "typechecker.h"
+#include "nominal.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 

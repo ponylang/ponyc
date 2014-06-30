@@ -1,5 +1,5 @@
 #include "package.h"
-#include "../type/typechecker.h"
+#include "../pass/typechecker.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"

@@ -1,4 +1,4 @@
-#include "type/typechecker.h"
+#include "pass/typechecker.h"
 #include "pkg/package.h"
 #include "ds/stringtab.h"
 #include <sys/ioctl.h>

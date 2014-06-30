@@ -1,5 +1,5 @@
 #include "args.h"
-#include "subtype.h"
+#include "../type/subtype.h"
 #include <assert.h>
 
 static bool args_call(ast_t* ast)
