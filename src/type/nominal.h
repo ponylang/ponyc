@@ -15,4 +15,7 @@ ast_t* nominal_type(ast_t* from, const char* package, const char* name);
 /// Gets the type, trait, class or actor for a nominal type.
 ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 
+/// Makes sure type arguments are within constraints
+bool nominal_valid(ast_t* scope, ast_t* nominal);
+
 #endif

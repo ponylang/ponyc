@@ -23,6 +23,7 @@ class Precedence is Foo, Bar
 
   fun ref find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>
+    c.List
     for (index, value) in a.pairs() do
       if value == find then
         return (index, value)

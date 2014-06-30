@@ -16,8 +16,8 @@ solution "ponyc"
     "Symbols",
     }
 
- configuration "macosx"
-   buildoptions "-Qunused-arguments"
+  configuration "macosx"
+    buildoptions "-Qunused-arguments"
 
   configuration "Debug"
     targetdir "bin/debug"

@@ -177,7 +177,13 @@ static const lexsym_t abstract[] =
   { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
+
   { "reference", TK_REFERENCE },
+  { "packageref", TK_PACKAGEREF },
+  { "typeref", TK_TYPEREF },
+  { "funref", TK_FUNREF },
+  { "fieldref", TK_FIELDREF },
+  { "paramref", TK_PARAMREF },
 
   { NULL, 0 }
 };
@@ -427,7 +433,6 @@ static token_t* token_new(token_id id, source_t* source, size_t line,
   t->source = source;
   t->line = line;
   t->pos = pos;
-  t->rc = 1;
 
   token_setid(t, id);
   return t;
@@ -1085,8 +1090,9 @@ token_t* token_from_string(token_t* token, const char* id)
 
 token_t* token_dup(token_t* token)
 {
-  token->rc++;
-  return token;
+  token_t* t = malloc(sizeof(token_t));
+  memcpy(t, token, sizeof(token_t));
+  return t;
 }
 
 const char* token_string(token_t* token)
@@ -1185,11 +1191,6 @@ void token_setstring(token_t* token, const char* s)
 
 void token_free(token_t* token)
 {
-  if(token == NULL) { return; }
-
-  assert(token->rc > 0);
-  token->rc--;
-
-  if(token->rc == 0)
+  if(token != NULL)
     free(token);
 }

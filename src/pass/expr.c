@@ -196,8 +196,8 @@ static bool is_lvalue(ast_t* ast)
 {
   switch(ast_id(ast))
   {
-    case TK_REFERENCE:
-    case TK_DOT:
+    case TK_FIELDREF:
+    case TK_PARAMREF:
       // an identifier reference is an lvalue. it may still not be valid to
       // assign to it (it could be a method or an SSA that's already set).
       // the same is true for accessing a member with dot notation.
@@ -333,6 +333,7 @@ static bool expr_reference(ast_t* ast)
         return false;
       }
 
+      ast_setid(ast, TK_PACKAGEREF);
       return true;
     }
 
@@ -344,22 +345,32 @@ static bool expr_reference(ast_t* ast)
       // type arguments.
       ast_t* id = ast_child(def);
       const char* name = ast_name(id);
-
-      // TODO: this tries to validate the type
       ast_t* type = nominal_type(ast, NULL, name);
       ast_settype(ast, type);
+      ast_setid(ast, TK_TYPEREF);
       return true;
     }
 
     case TK_FVAR:
     case TK_FLET:
+    {
+      if(!def_before_use(def, ast, name))
+        return false;
+
+      // get the type of the field and attach it to our reference
+      ast_settype(ast, ast_type(def));
+      ast_setid(ast, TK_FIELDREF);
+      return true;
+    }
+
     case TK_PARAM:
     {
       if(!def_before_use(def, ast, name))
         return false;
 
-      // get the type of the field/parameter and attach it to our reference
+      // get the type of the parameter and attach it to our reference
       ast_settype(ast, ast_type(def));
+      ast_setid(ast, TK_PARAMREF);
       return true;
     }
 
@@ -369,6 +380,7 @@ static bool expr_reference(ast_t* ast)
     {
       // method call on 'this'
       ast_settype(ast, type_for_fun(def));
+      ast_setid(ast, TK_FUNREF);
       return true;
     }
 
@@ -402,35 +414,49 @@ static bool expr_dot(ast_t* ast)
   {
     case TK_ID:
     {
-      if(type == NULL)
+      switch(ast_id(left))
       {
-        // must be a type in a package
-        ast_t* package = ast_get(left, ast_name(left));
-
-        if(package == NULL)
-          return false;
-
-        assert(ast_id(package) == TK_PACKAGE);
-        const char* package_name = ast_name(left);
-        const char* type_name = ast_name(right);
-        type = ast_get(package, type_name);
-
-        if(type == NULL)
+        case TK_PACKAGEREF:
         {
-          ast_error(right, "can't find type '%s' in package '%s'",
-            type_name, package_name);
+          // must be a type in a package
+          const char* package_name = ast_name(ast_child(left));
+          ast_t* package = ast_get(left, package_name);
+
+          if(package == NULL)
+          {
+            ast_error(right, "can't find package '%s'", package_name);
+            return false;
+          }
+
+          assert(ast_id(package) == TK_PACKAGE);
+          const char* type_name = ast_name(right);
+          type = ast_get(package, type_name);
+
+          if(type == NULL)
+          {
+            ast_error(right, "can't find type '%s' in package '%s'",
+              type_name, package_name);
+            return false;
+          }
+
+          ast_settype(ast, nominal_type(ast, package_name, type_name));
+          ast_setid(ast, TK_TYPEREF);
+          return true;
+        }
+
+        case TK_TYPEREF:
+        {
+          // TODO: constructor on a type
+          ast_error(ast, "not implemented (constructor of type)");
           return false;
         }
 
-        ast_settype(ast, nominal_type(ast, package_name, type_name));
-        return true;
+        default: {}
       }
 
+      // TODO: field or method access
       ast_error(ast, "not implemented (dot)");
       return false;
-
-      // TODO: field or method access
-      return true;
     }
 
     case TK_INT:
@@ -463,9 +489,44 @@ static bool expr_dot(ast_t* ast)
 
 static bool expr_qualify(ast_t* ast)
 {
-  // TODO: make sure typeargs are within constraints
   // left is a postfix expression, right is a typeargs
-  ast_error(ast, "not implemented (qualify)");
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  assert(ast_id(right) == TK_TYPEARGS);
+
+  switch(ast_id(left))
+  {
+    case TK_TYPEREF:
+    {
+      // qualify the type
+      ast_t* type = ast_type(left);
+      assert(ast_id(type) == TK_NOMINAL);
+
+      if(ast_id(ast_childidx(type, 2)) != TK_NONE)
+      {
+        ast_error(ast, "can't qualify an already qualified type");
+        return false;
+      }
+
+      type = ast_dup(type);
+      ast_t* typeargs = ast_childidx(type, 2);
+      ast_swap(typeargs, right);
+      ast_settype(ast, type);
+
+      return nominal_valid(ast, type);
+    }
+
+    case TK_FUNREF:
+    {
+      // TODO: qualify the function
+      ast_error(ast, "not implemented (qualify a function)");
+      return false;
+    }
+
+    default: {}
+  }
+
+  assert(0);
   return false;
 }
 

@@ -1,6 +1,147 @@
 #include "nominal.h"
+#include "subtype.h"
+#include "reify.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
+
+static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)
+{
+  if(ast_id(typearg) != TK_NOMINAL)
+    return false;
+
+  ast_t* def = nominal_def(scope, typearg);
+  return def == typeparam;
+}
+
+static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
+{
+  if(ast_id(def) == TK_TYPEPARAM)
+  {
+    if(ast_id(typeargs) != TK_NONE)
+    {
+      ast_error(typeargs, "type parameters cannot have type arguments");
+      return false;
+    }
+
+    return true;
+  }
+
+  // reify the type parameters with the typeargs
+  ast_t* typeparams = ast_childidx(def, 1);
+  ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
+
+  if(r_typeparams == NULL)
+    return false;
+
+  ast_t* r_typeparam = ast_child(r_typeparams);
+  ast_t* typeparam = ast_child(typeparams);
+  ast_t* typearg = ast_child(typeargs);
+
+  while((r_typeparam != NULL) && (typearg != NULL))
+  {
+    ast_t* constraint = ast_childidx(r_typeparam, 1);
+
+    // compare the typearg to the typeparam and constraint
+    if(!is_typeparam(scope, typeparam, typearg) &&
+      (ast_id(constraint) != TK_NONE) &&
+      !is_subtype(scope, typearg, constraint)
+      )
+    {
+      ast_error(typearg, "type argument is outside its constraint");
+      ast_error(typeparam, "constraint is here");
+      ast_free_unattached(r_typeparams);
+      return false;
+    }
+
+    r_typeparam = ast_sibling(r_typeparam);
+    typeparam = ast_sibling(typeparam);
+    typearg = ast_sibling(typearg);
+  }
+
+  ast_free_unattached(r_typeparams);
+  return true;
+}
+
+static bool check_alias_cap(ast_t* def, ast_t* cap)
+{
+  ast_t* alias = ast_child(ast_childidx(def, 3));
+
+  if(alias == NULL)
+  {
+    // no cap on singleton types
+    if(ast_id(cap) != TK_NONE)
+    {
+      ast_error(cap, "can't specify a capability on a marker type");
+      return false;
+    }
+
+    return true;
+  }
+
+  switch(ast_id(alias))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // no cap allowed
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap,
+          "can't specify a capability on an alias to a union, isect or "
+          " tuple type");
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_NOMINAL:
+    {
+      // TODO: does the alias specify a cap?
+      // if so... ?
+      return true;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      // TODO: does the alias specify a cap?
+      // if so... ?
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool check_cap(ast_t* def, ast_t* cap)
+{
+  switch(ast_id(def))
+  {
+    case TK_TYPEPARAM:
+      return true;
+
+    case TK_TYPE:
+      return check_alias_cap(def, cap);
+
+    case TK_TRAIT:
+      return true;
+
+    case TK_CLASS:
+      return true;
+
+    case TK_ACTOR:
+      return true;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
 
 bool is_type_id(const char* s)
 {
@@ -71,4 +212,24 @@ ast_t* nominal_def(ast_t* scope, ast_t* nominal)
 
   ast_attach(nominal, def);
   return def;
+}
+
+bool nominal_valid(ast_t* scope, ast_t* nominal)
+{
+  ast_t* def = nominal_def(scope, nominal);
+
+  if(def == NULL)
+    return false;
+
+  // make sure our typeargs are subtypes of our constraints
+  ast_t* typeargs = ast_childidx(nominal, 2);
+  ast_t* cap = ast_sibling(typeargs);
+
+  if(!check_constraints(nominal, def, typeargs))
+    return false;
+
+  if(!check_cap(def, cap))
+    return false;
+
+  return true;
 }

@@ -149,7 +149,13 @@ typedef enum
   TK_OBJECT,
   TK_CASES,
   TK_CASE,
+
   TK_REFERENCE,
+  TK_PACKAGEREF,
+  TK_TYPEREF,
+  TK_FUNREF,
+  TK_FIELDREF,
+  TK_PARAMREF,
 
   TK_EOF
 } token_id;
@@ -162,7 +168,6 @@ typedef struct token_t
   source_t* source;
   size_t line;
   size_t pos;
-  size_t rc;
 
   union
   {
