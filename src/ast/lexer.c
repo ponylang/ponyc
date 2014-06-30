@@ -146,7 +146,6 @@ static const lexsym_t abstract[] =
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
-  { "typedef", TK_TYPEDEF },
 
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
@@ -158,6 +157,7 @@ static const lexsym_t abstract[] =
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "structural", TK_STRUCTURAL },
+  { "thistype", TK_THISTYPE },
 
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },

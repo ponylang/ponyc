@@ -3,7 +3,6 @@
 #include "cap.h"
 #include "subtype.h"
 #include "typechecker.h"
-#include "../ds/stringtab.h"
 #include <assert.h>
 
 /**
@@ -25,40 +24,31 @@ static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 }
 
 /**
- * Return true if the type represents a partial function.
- */
-static bool typedef_can_error(ast_t* ast)
-{
-  if(ast_id(ast) == TK_ERROR)
-    return true;
-
-  assert(ast_id(ast) == TK_TYPEDEF);
-  return ast_id(ast_childidx(ast, 3)) == TK_ERROR;
-}
-
-/**
  * Get the nth typedef out of a tuple definition.
  */
 static ast_t* tuple_index(ast_t* ast, int index)
 {
   assert(ast_id(ast) == TK_TUPLETYPE);
-  ast_t* child = ast_child(ast);
 
-  while(ast_id(child) == TK_TUPLETYPE)
-    child = ast_child(child);
-
-  while(index > 0)
+  while(index > 1)
   {
-    if(child == ast)
+    ast_t* right = ast_childidx(ast, 1);
+
+    if(ast_id(right) != TK_TUPLETYPE)
       return NULL;
 
-    child = ast_parent(child);
+    index--;
+    ast = right;
   }
 
-  if(ast_id(ast) == TK_TUPLETYPE)
-    ast = ast_childidx(ast, 1);
+  if(index == 0)
+    return ast_child(ast);
 
-  assert(ast_id(ast) == TK_TYPEDEF);
+  ast = ast_childidx(ast, 1);
+
+  if(ast_id(ast) == TK_TUPLETYPE)
+    return ast_child(ast);
+
   return ast;
 }
 
@@ -69,7 +59,7 @@ static ast_t* tuple_index(ast_t* ast, int index)
 static ast_t* type_builtin(ast_t* ast, const char* name)
 {
   ast_t* type = ast_type(ast);
-  ast_t* builtin = typedef_for_name(ast, NULL, stringtab(name));
+  ast_t* builtin = nominal_builtin(ast, name);
   bool ok = is_subtype(ast, type, builtin);
   ast_free(builtin);
 
@@ -154,37 +144,11 @@ static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
   if(super != NULL)
     return super;
 
-  // when one side is TK_ERROR
-  if(ast_id(l_type) == TK_ERROR)
-    super = ast_dup(r_type);
-  else if(ast_id(r_type) == TK_ERROR)
-    super = ast_dup(l_type);
-
-  if(super != NULL)
-  {
-    // set to an error type
-    assert(ast_id(super) == TK_TYPEDEF);
-    ast_swap(ast_childidx(super, 3), ast_from(ast, TK_ERROR));
-    return super;
-  }
-
-  assert(ast_id(l_type) == TK_TYPEDEF);
-  assert(ast_id(r_type) == TK_TYPEDEF);
-
-  token_id error = typedef_can_error(l_type) || typedef_can_error(r_type) ?
-    TK_ERROR : TK_NONE;
-
-  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, error)); // error
-  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
-  ast_add(type_def, ast_from(ast, TK_NONE)); // cap
-
   ast_t* type = ast_from(ast, TK_UNIONTYPE);
   ast_add(type, r_type);
   ast_add(type, l_type);
-  ast_add(type_def, type);
 
-  return type_def;
+  return type;
 }
 
 static ast_t* type_for_fun(ast_t* ast)
@@ -299,12 +263,12 @@ static bool expr_field(ast_t* ast)
 
 static bool expr_literal(ast_t* ast, const char* name)
 {
-  ast_t* type_def = typedef_for_name(ast, NULL, stringtab(name));
+  ast_t* type = nominal_builtin(ast, name);
 
-  if(type_def == NULL)
+  if(type == NULL)
     return false;
 
-  ast_settype(ast, type_def);
+  ast_settype(ast, type);
   return true;
 }
 
@@ -318,13 +282,9 @@ static bool expr_this(ast_t* ast)
   ast_t* typeparams = ast_sibling(id);
   const char* name = ast_name(id);
 
-  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, TK_NONE)); // error
-  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
-  ast_add(type_def, ast_from(ast, cap_for_receiver(ast))); // cap
-
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(type_def, nominal);
+  ast_add(nominal, ast_from(ast, TK_NONE)); // ephemerality
+  ast_add(nominal, ast_from(ast, cap_for_receiver(ast))); // capability
 
   if(ast_id(typeparams) == TK_TYPEPARAMS)
   {
@@ -335,26 +295,19 @@ static bool expr_this(ast_t* ast)
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = typedef_for_name(ast, NULL, ast_name(typeparam_id));
+      ast_t* typearg = nominal_type(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
       typeparam = ast_sibling(typeparam);
     }
   } else {
-    ast_add(nominal, ast_from(ast, TK_NONE));
+    ast_add(nominal, ast_from(ast, TK_NONE)); // empty typeargs
   }
 
   ast_add(nominal, ast_from_string(ast, name));
   ast_add(nominal, ast_from(ast, TK_NONE));
+  ast_settype(ast, nominal);
 
-  if(!valid_nominal(ast, nominal))
-  {
-    ast_error(nominal, "couldn't create valid type for '%s'", name);
-    ast_free(type_def);
-    return false;
-  }
-
-  ast_settype(ast, type_def);
   return true;
 }
 
@@ -394,7 +347,7 @@ static bool expr_reference(ast_t* ast)
       const char* name = ast_name(id);
 
       // TODO: this tries to validate the type
-      ast_t* type = typedef_for_name(ast, NULL, name);
+      ast_t* type = nominal_type(ast, NULL, name);
       ast_settype(ast, type);
       return true;
     }
@@ -470,7 +423,7 @@ static bool expr_dot(ast_t* ast)
           return false;
         }
 
-        ast_settype(ast, typedef_for_name(ast, package_name, type_name));
+        ast_settype(ast, nominal_type(ast, package_name, type_name));
         return true;
       }
 
@@ -484,16 +437,13 @@ static bool expr_dot(ast_t* ast)
     case TK_INT:
     {
       // element of a tuple
-      if((type == NULL) ||
-        (ast_id(type) != TK_TYPEDEF) ||
-        (ast_id(ast_child(type)) != TK_TUPLETYPE)
-        )
+      if((type == NULL) || (ast_id(type) != TK_TUPLETYPE))
       {
         ast_error(right, "member by position can only be used on a tuple");
         return false;
       }
 
-      type = tuple_index(ast_child(type), ast_int(right));
+      type = tuple_index(type, ast_int(right));
 
       if(type == NULL)
       {
@@ -501,7 +451,6 @@ static bool expr_dot(ast_t* ast)
         return false;
       }
 
-      // TODO: viewpoint adaptation
       ast_settype(ast, type);
       return true;
     }
@@ -566,8 +515,8 @@ static bool expr_compare(ast_t* ast)
     // do this in sugar instead?
   }
 
-  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("Bool")));
-  return (type != NULL);
+  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  return true;
 }
 
 static bool expr_order(ast_t* ast)
@@ -579,15 +528,26 @@ static bool expr_order(ast_t* ast)
   ast_t* r_type = type_arithmetic(right);
   ast_t* type = type_super(ast, l_type, r_type);
 
-  // TODO: allow non-arithmetic if they are Ordered
-  if(type == NULL)
-    ast_error(ast, "left and right side must have related arithmetic types");
-
   ast_free_unattached(l_type);
   ast_free_unattached(r_type);
 
-  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("Bool")));
-  return (type != NULL);
+  if(type == NULL)
+  {
+    l_type = ast_type(left);
+    r_type = ast_type(right);
+
+    if(!is_subtype(ast, r_type, l_type))
+    {
+      ast_error(ast, "right side must be a subtype of left side");
+      return false;
+    }
+
+    // TODO: left side must be Ordered
+    // do this in sugar instead?
+  }
+
+  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  return true;
 }
 
 static bool expr_arithmetic(ast_t* ast)
@@ -700,54 +660,33 @@ static bool expr_not(ast_t* ast)
 
 static bool expr_tuple(ast_t* ast)
 {
-  ast_t* seq = ast_child(ast);
-  ast_t* type_def;
+  ast_t* child = ast_child(ast);
+  ast_t* type;
 
-  if(ast_sibling(seq) == NULL)
+  if(ast_sibling(child) == NULL)
   {
-    type_def = ast_type(seq);
+    type = ast_type(child);
   } else {
-    // typedef must be ERROR if any of the components are
-    token_id error = TK_NONE;
     ast_t* tuple = ast_from(ast, TK_TUPLETYPE);
-    ast_t* type = ast_type(seq);
+    type = tuple;
 
-    if(typedef_can_error(type))
-      error = TK_ERROR;
+    ast_append(tuple, ast_type(child));
+    child = ast_sibling(child);
 
-    ast_add(tuple, type);
-
-    seq = ast_sibling(seq);
-    type = ast_type(seq);
-
-    if(typedef_can_error(type))
-      error = TK_ERROR;
-
-    ast_add(tuple, type);
-
-    while(seq != NULL)
+    while(ast_sibling(child) != NULL)
     {
-      ast_t* parent = ast_from(ast, TK_TUPLETYPE);
-      ast_add(parent, tuple);
-      type = ast_type(seq);
+      ast_t* next = ast_from(ast, TK_TUPLETYPE);
+      ast_append(tuple, next);
+      tuple = next;
 
-      if(typedef_can_error(type))
-        error = TK_ERROR;
-
-      ast_add(parent, type);
-      tuple = parent;
-      seq = ast_sibling(seq);
+      ast_append(tuple, ast_type(child));
+      child = ast_sibling(child);
     }
 
-    // a tuple constructor produces a ref^ like any other constructor
-    type_def = ast_from(ast, TK_TYPEDEF);
-    ast_add(type_def, ast_from(ast, error)); // error
-    ast_add(type_def, ast_from(ast, TK_HAT)); // ephemeral
-    ast_add(type_def, ast_from(ast, TK_REF)); // cap
-    ast_add(type_def, tuple);
+    ast_append(tuple, ast_type(child));
   }
 
-  ast_settype(ast, type_def);
+  ast_settype(ast, type);
   return true;
 }
 
@@ -780,11 +719,23 @@ static bool expr_call(ast_t* ast)
       return true;
     }
 
-    case TK_TYPEDEF:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+    case TK_ARROW:
     {
       // TODO: if it's the left side of a TK_ASSIGN, it's update sugar.
       // otherwise, it's apply or create sugar.
+      // TODO: is this true? what does a ".method" produce on something
+      // other than self?
       ast_error(ast, "not implemented (apply sugar)");
+      return false;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      ast_error(ast, "can't call a tuple type");
       return false;
     }
 
@@ -811,7 +762,7 @@ static bool expr_if(ast_t* ast)
   ast_t* r_type;
 
   if(ast_id(right) == TK_NONE)
-    r_type = typedef_for_name(ast, NULL, stringtab("None"));
+    r_type = nominal_builtin(ast, "None");
   else
     r_type = ast_type(right);
 
@@ -830,7 +781,7 @@ static bool expr_while(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
+  ast_settype(ast, nominal_builtin(ast, "None"));
   return true;
 }
 
@@ -845,7 +796,7 @@ static bool expr_repeat(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
+  ast_settype(ast, nominal_builtin(ast, "None"));
   return true;
 }
 
@@ -866,7 +817,7 @@ static bool expr_continue(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, typedef_for_name(ast, NULL, stringtab("None")));
+  ast_settype(ast, nominal_builtin(ast, "None"));
   return true;
 }
 
@@ -898,7 +849,7 @@ static bool expr_return(ast_t* ast)
 
     case TK_BE:
     {
-      ast_t* none = typedef_for_name(ast, NULL, stringtab("None"));
+      ast_t* none = nominal_builtin(ast, "None");
 
       if(!is_subtype(ast, type, none))
       {
@@ -915,7 +866,7 @@ static bool expr_return(ast_t* ast)
       ast_t* result = ast_childidx(fun, 4);
 
       if(ast_id(result) == TK_NONE)
-        result = typedef_for_name(ast, NULL, stringtab("None"));
+        result = nominal_builtin(ast, "None");
 
       if(!is_subtype(ast, type, result))
       {
@@ -989,31 +940,33 @@ static bool expr_seq(ast_t* ast)
 {
   // if any element can error, the whole thing can error
   ast_t* child = ast_child(ast);
+  assert(child != NULL);
+
+  ast_t* error = ast_from(ast, TK_ERROR);
+  bool can_error = false;
   ast_t* type;
-  token_id error = TK_NONE;
 
   while(child != NULL)
   {
     type = ast_type(child);
-
-    if(typedef_can_error(type))
-      error = TK_ERROR;
-
+    can_error |= is_subtype(ast, error, type);
     child = ast_sibling(child);
   }
 
-  if(error == TK_ERROR)
-    type = type_union(ast, type, ast_from(ast, TK_ERROR));
+  if(can_error)
+    type = type_union(ast, type, error);
 
   ast_settype(ast, type);
+  ast_free_unattached(error);
+
   return true;
 }
 
 static bool expr_fun(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 4);
-  ast_t* error = ast_sibling(type);
-  ast_t* body = ast_sibling(error);
+  ast_t* can_error = ast_sibling(type);
+  ast_t* body = ast_sibling(can_error);
 
   if(ast_id(body) == TK_NONE)
     return true;
@@ -1032,16 +985,39 @@ static bool expr_fun(ast_t* ast)
     return false;
   }
 
-  assert(ast_id(body_type) == TK_TYPEDEF);
+  // check partial functions
+  ast_t* error = ast_from(ast, TK_ERROR);
+  bool ret = true;
+
+  if(ast_id(can_error) == TK_QUESTION)
+  {
+    // if a partial function, check that we might actually error
+    if(!is_trait && !is_subtype(ast, error, body_type))
+    {
+      ast_error(can_error, "function body is not partial but the function is");
+      ret = false;
+    }
+  } else {
+    // if not a partial function, check that we can't error
+    if(is_subtype(ast, error, body_type))
+    {
+      ast_error(can_error, "function body is partial but the function is not");
+      ret = false;
+    }
+  }
 
   if(ast_id(type) != TK_NONE)
   {
+    // union the result type with ERROR
+    if(ast_id(can_error) == TK_QUESTION)
+      type = type_union(ast, type, error);
+
     if(!is_subtype(ast, body_type, type))
     {
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body isn't a subtype of the result type");
       ast_error(last, "function body expression is here");
-      return false;
+      ret = false;
     }
 
     if(!is_trait && !is_eqtype(ast, body_type, type))
@@ -1049,31 +1025,13 @@ static bool expr_fun(ast_t* ast)
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body is more specific than the result type");
       ast_error(last, "function body expression is here");
-      return false;
-    }
-
-    // TODO: check if function body is ephemeral but return type isn't
-    // only enforce if it isn't a trait
-  }
-
-  if(ast_id(error) == TK_QUESTION)
-  {
-    // if a partial function, check that we might actually error
-    if(!is_trait && !typedef_can_error(body_type))
-    {
-      ast_error(error, "function body is not partial but the function is");
-      return false;
-    }
-  } else {
-    // if not a partial function, check that we can't error
-    if(typedef_can_error(body_type))
-    {
-      ast_error(error, "function body is partial but the function is not");
-      return false;
+      ret = false;
     }
   }
 
-  return true;
+  ast_free_unattached(error);
+  ast_free_unattached(type);
+  return ret;
 }
 
 ast_result_t type_expr(ast_t* ast, int verbose)
@@ -1273,29 +1231,4 @@ ast_result_t type_expr(ast_t* ast, int verbose)
   }
 
   return AST_OK;
-}
-
-ast_t* typedef_for_name(ast_t* ast, const char* package, const char* name)
-{
-  // TODO: capability
-  ast_t* type_def = ast_from(ast, TK_TYPEDEF);
-  ast_add(type_def, ast_from(ast, TK_NONE)); // error
-  ast_add(type_def, ast_from(ast, TK_NONE)); // ephemeral
-  ast_add(type_def, ast_from(ast, TK_NONE)); // cap
-
-  ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(type_def, nominal);
-
-  ast_add(nominal, ast_from(ast, TK_NONE));
-  ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from_string(ast, package));
-
-  if(!valid_nominal(ast, nominal))
-  {
-    ast_error(nominal, "couldn't create valid type for '%s'", name);
-    ast_free(type_def);
-    return NULL;
-  }
-
-  return type_def;
 }

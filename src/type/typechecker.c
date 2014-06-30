@@ -5,6 +5,7 @@
 #include "sugar.h"
 #include "expr.h"
 #include "args.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
 
 bool typecheck(ast_t* ast, int verbose)
@@ -41,6 +42,23 @@ bool is_type_id(const char* s)
     i++;
 
   return (s[i] >= 'A') && (s[i] <= 'Z');
+}
+
+ast_t* nominal_builtin(ast_t* from, const char* name)
+{
+  return nominal_type(from, NULL, stringtab(name));
+}
+
+ast_t* nominal_type(ast_t* from, const char* package, const char* name)
+{
+  ast_t* ast = ast_from(from, TK_NOMINAL);
+  ast_add(ast, ast_from(from, TK_NONE)); // ephemerality
+  ast_add(ast, ast_from(from, TK_NONE)); // capability
+  ast_add(ast, ast_from(from, TK_NONE)); // typeargs
+  ast_add(ast, ast_from_string(from, name)); // name
+  ast_add(ast, ast_from_string(from, package));
+
+  return ast;
 }
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal)

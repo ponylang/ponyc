@@ -78,11 +78,9 @@ int main(int argc, char** argv)
   if(ast)
     ast_print(program, width);
 
-  /* TODO:
-   * detect imported but unused packages in a module
-   *  might be the same code that detects unused vars, fields, etc?
-   * code generation
-   */
+  // TODO: detect imported but unused packages in a module
+  // TODO: detect unused fields, methods, params, locals
+  // TODO: code generation
 
   ast_free(program);
 

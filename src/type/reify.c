@@ -2,41 +2,39 @@
 #include "typechecker.h"
 #include <assert.h>
 
-static bool reify_one(ast_t* ast, ast_t* id, ast_t* typearg)
+static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 {
-  if(ast_id(ast) == TK_NOMINAL)
-  {
-    ast_t* package = ast_child(ast);
-    ast_t* type_name = ast_sibling(package);
-    ast_t* typeargs = ast_sibling(type_name);
+  ast_t* param_name = ast_child(typeparam);
+  ast_t* package = ast_child(ast);
+  ast_t* name = ast_sibling(package);
 
-    if((ast_id(package) == TK_NONE) && (ast_name(type_name) == ast_name(id)))
-    {
-      // we should not have typeargs
-      if(ast_id(typeargs) != TK_NONE)
-        return false;
+  if(ast_id(package) != TK_NONE)
+    return false;
 
-      // TODO: when reifying, need to preserve viewpoint adaptation
-      // also cap and ephemeral
-      ast_t* type = ast_parent(ast);
-      assert(ast_id(type) == TK_TYPEDEF);
-      ast_swap(type, typearg);
-      ast_free(type);
+  if(ast_name(param_name) != ast_name(name))
+    return false;
 
-      return true;
-    }
-  }
+  // TODO: keep the cap and ephemerality
+  // swap in place
+  ast_swap(ast, typearg);
+  return true;
+}
 
+static bool reify_one(ast_t* ast, ast_t* typeparam, ast_t* typearg)
+{
   ast_t* type = ast_type(ast);
 
-  if((type != NULL) && !reify_one(type, id, typearg))
+  if((type != NULL) && !reify_one(type, typeparam, typearg))
     return false;
+
+  if((ast_id(ast) == TK_NOMINAL) && reify_nominal(ast, typeparam, typearg))
+    return true;
 
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    if(!reify_one(child, id, typearg))
+    if(!reify_one(child, typeparam, typearg))
       return false;
 
     child = ast_sibling(child);
@@ -88,10 +86,8 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     if(ast_id(sub_typearg) == TK_NOMINAL)
       nominal_def(typearg, sub_typearg);
 
-    // reify the typeparam id with the typearg
-    ast_t* id = ast_child(typeparam);
-
-    if(!reify_one(r_ast, id, typearg))
+    // reify the typeparam with the typearg
+    if(!reify_one(r_ast, typeparam, typearg))
       break;
 
     typeparam = ast_sibling(typeparam);

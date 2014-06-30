@@ -98,7 +98,7 @@ class Precedence is Foo, Bar
     3.hello
     c.List(9)
     [True](1, 2)
-    "string".bar[c.List[Precedence] field](99, 100)
+    "string".bar[c.List[Precedence]](99, 100)
     (7; 3,77)
     var (a, b)
     a + 37; b + b * b

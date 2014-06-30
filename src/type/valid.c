@@ -4,21 +4,18 @@
 #include "typechecker.h"
 #include <assert.h>
 
-static bool is_typeparam(ast_t* typeparam, ast_t* typearg)
+static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)
 {
-  assert(ast_id(typearg) == TK_TYPEDEF);
-  ast_t* sub = ast_child(typearg);
-
-  if(ast_id(sub) != TK_NOMINAL)
+  if(ast_id(typearg) != TK_NOMINAL)
     return false;
 
-  ast_t* def = nominal_def(typearg, sub);
+  ast_t* def = nominal_def(scope, typearg);
   return def == typeparam;
 }
 
-static bool check_constraints(ast_t* type, ast_t* typeargs)
+static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
 {
-  if(ast_id(type) == TK_TYPEPARAM)
+  if(ast_id(def) == TK_TYPEPARAM)
   {
     if(ast_id(typeargs) != TK_NONE)
     {
@@ -30,7 +27,7 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
   }
 
   // reify the type parameters with the typeargs
-  ast_t* typeparams = ast_childidx(type, 1);
+  ast_t* typeparams = ast_childidx(def, 1);
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
 
   if(r_typeparams == NULL)
@@ -45,17 +42,17 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
     // compare the typearg to the typeparam and constraint
-    if(!is_typeparam(typeparam, typearg) &&
+    if(!is_typeparam(scope, typeparam, typearg) &&
       (ast_id(constraint) != TK_NONE) &&
-      !is_subtype(type, typearg, constraint)
+      !is_subtype(scope, typearg, constraint)
       )
     {
+      // TODO: remove this
+      is_subtype(scope, typearg, constraint);
+
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
-
-      if(r_typeparams != typeparams)
-        ast_free(r_typeparams);
-
+      ast_free_unattached(r_typeparams);
       return false;
     }
 
@@ -68,191 +65,192 @@ static bool check_constraints(ast_t* type, ast_t* typeargs)
   return true;
 }
 
-static bool replace_alias(ast_t* def, ast_t* nominal, ast_t* typeargs)
+static bool check_alias_cap(ast_t* def, ast_t* cap)
 {
-  // see if this is a type alias
-  if(ast_id(def) != TK_TYPE)
-    return true;
+  ast_t* alias = ast_child(ast_childidx(def, 3));
 
-  ast_t* alias_list = ast_childidx(def, 3);
-
-  // if this type alias has no alias list, we're done
-  // so type None stays as None
-  // but type Bool is (True | False) must be replaced with (True | False)
-  if(ast_id(alias_list) == TK_NONE)
-    return true;
-
-  // we should have a single TYPEDEF as our alias
-  assert(ast_id(alias_list) == TK_TYPES);
-  ast_t* alias = ast_child(alias_list);
-  assert(ast_sibling(alias) == NULL);
-
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* r_alias = reify(alias, typeparams, typeargs);
-
-  if(r_alias == NULL)
-    return false;
-
-  // extract from the typedef
-  assert(ast_id(r_alias) == TK_TYPEDEF);
-  ast_t* alias_def = ast_child(r_alias);
-
-  // use the alias definition and free the previous nominal type
-  ast_swap(nominal, alias_def);
-  ast_free(nominal);
-  ast_free_unattached(r_alias);
-
-  return true;
-}
-
-static bool valid_typedef(ast_t* ast)
-{
-  ast_t* child = ast_child(ast);
-  ast_t* cap = ast_sibling(child);
-  ast_t* ephemeral = ast_sibling(cap);
-  ast_t* error = ast_sibling(ephemeral);
-  ast_t* next = ast_sibling(error);
-  token_id t = TK_REF;
-
-  if(ast_id(next) != TK_NONE)
+  if(alias == NULL)
   {
-    switch(ast_id(child))
-    {
-      case TK_THIS:
-      case TK_NOMINAL:
-        break;
-
-      default:
-        ast_error(child, "only type parameters and 'this' can be viewpoints");
-        return false;
-    }
-
+    // no cap on singleton types
     if(ast_id(cap) != TK_NONE)
     {
-      ast_error(cap, "a viewpoint cannot specify a capability");
+      ast_error(cap, "can't specify a capability on a marker type");
       return false;
     }
 
-    if(ast_id(ephemeral) != TK_NONE)
-    {
-      ast_error(ephemeral, "a viewpoint cannot be ephemeral");
-      return false;
-    }
+    return true;
   }
 
-  switch(ast_id(child))
+  switch(ast_id(alias))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     {
+      // no cap allowed
       if(ast_id(cap) != TK_NONE)
       {
-        ast_error(cap, "can't specify a capability on a union/isect type");
-        return false;
-      }
-
-      if(ast_id(ephemeral) != TK_NONE)
-      {
-        ast_error(ephemeral, "can't mark a union/isect type as ephemeral");
+        ast_error(cap,
+          "can't specify a capability on an alias to a union, isect or "
+          " tuple type");
         return false;
       }
 
       return true;
     }
 
-    case TK_TUPLETYPE:
-    case TK_STRUCTURAL:
-      // default capability for tuples and structural types is ref
-      t = TK_REF;
-      break;
-
     case TK_NOMINAL:
     {
-      // default capability for a nominal type
-      ast_t* def = nominal_def(ast, child);
-      ast_t* defcap = ast_childidx(def, 2);
-      t = ast_id(defcap);
-
-      if((ast_id(next) != TK_NONE) && (ast_id(def) != TK_TYPEPARAM))
-      {
-        ast_error(ast, "only type parameters can be viewpoints");
-        return false;
-      }
-
-      if(t == TK_NONE)
-      {
-        // no default capability specified
-        switch(ast_id(def))
-        {
-          case TK_TYPE:
-            // a type is a val
-            t = TK_VAL;
-            break;
-
-          case TK_TRAIT:
-          case TK_CLASS:
-            // a trait or class is a ref
-            t = TK_REF;
-            break;
-
-          case TK_ACTOR:
-            // an actor is a tag
-            t = TK_TAG;
-            break;
-
-          case TK_TYPEPARAM:
-          {
-            // don't set the capability
-            // TODO:
-            return true;
-          }
-
-          default:
-            assert(0);
-            return false;
-        }
-      }
-      break;
+      // TODO: does the alias specify a cap?
+      // if so... ?
+      return true;
     }
 
-    case TK_THIS:
+    case TK_STRUCTURAL:
     {
-      // must be the first thing in viewpoint adaptation
-      if(ast_id(ast_parent(ast)) == TK_TYPEDEF)
-      {
-        ast_error(ast, "when using 'this' for viewpoint it must come first");
-        return false;
-      }
-
-      if(ast_id(next) == TK_NONE)
-      {
-        ast_error(ast, "'this' in a type can only be used for viewpoint");
-        return false;
-      }
-      break;
+      // TODO: does the alias specify a cap?
+      // if so... ?
+      return true;
     }
 
-    default:
-      assert(0);
-      return false;
+    default: {}
   }
 
-  if(ast_id(cap) == TK_NONE)
+  assert(0);
+  return false;
+}
+
+static bool check_cap(ast_t* def, ast_t* cap)
+{
+  switch(ast_id(def))
   {
-    // TODO: if we are a constraint, should we use tag for traits, classes and
-    // structural types instead?
-    ast_t* newcap = ast_from(ast, t);
-    ast_swap(cap, newcap);
-    ast_free(cap);
+    case TK_TYPEPARAM:
+      return true;
+
+    case TK_TYPE:
+      return check_alias_cap(def, cap);
+
+    case TK_TRAIT:
+      return true;
+
+    case TK_CLASS:
+      return true;
+
+    case TK_ACTOR:
+      return true;
+
+    default: {}
   }
 
-  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_type(ast) == NULL))
+  assert(0);
+  return false;
+}
+
+static bool valid_nominal(ast_t* ast)
+{
+  ast_t* def = nominal_def(ast, ast);
+
+  if(def == NULL)
+    return false;
+
+  // make sure our typeargs are subtypes of our constraints
+  ast_t* typeargs = ast_childidx(ast, 2);
+  ast_t* cap = ast_sibling(typeargs);
+  ast_t* ephemeral = ast_sibling(cap);
+
+  if(!check_constraints(ast, def, typeargs))
+    return false;
+
+  if(!check_cap(def, cap))
+    return false;
+
+  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
   {
-    ast_error(ephemeral, "ephemeral types can only be function return types");
+    ast_error(ephemeral,
+      "ephemeral types can only appear in function return types");
     return false;
   }
 
   return true;
+}
+
+static bool valid_structural(ast_t* ast)
+{
+  ast_t* cap = ast_childidx(ast, 1);
+  ast_t* ephemeral = ast_sibling(cap);
+
+  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
+  {
+    ast_error(ephemeral,
+      "ephemeral types can only appear in function return types");
+    return false;
+  }
+
+  if(ast_id(cap) != TK_NONE)
+    return true;
+
+  token_id def_cap;
+
+  // if it's a typeparam, default capability is tag, otherwise it is ref
+  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
+    def_cap = TK_TAG;
+  else
+    def_cap = TK_REF;
+
+  ast_swap(cap, ast_from(ast, def_cap));
+  return true;
+}
+
+static bool valid_thistype(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  if(ast_id(parent) != TK_ARROW)
+  {
+    ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
+    return false;
+  }
+
+  if((ast_id(ast_parent(parent)) == TK_ARROW) || (ast_child(parent) != ast))
+  {
+    ast_error(ast, "when using 'this' for viewpoint it must come first");
+    return false;
+  }
+
+  if(ast_enclosing_method(ast) == NULL)
+  {
+    ast_error(ast, "can only use 'this' for a viewpoint in a method");
+    return false;
+  }
+
+  return true;
+}
+
+static bool valid_arrow(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+
+  switch(ast_id(left))
+  {
+    case TK_THISTYPE:
+      return true;
+
+    case TK_NOMINAL:
+    {
+      // left side will already have been validated
+      ast_t* def = nominal_def(ast, left);
+
+      if(ast_id(def) == TK_TYPEPARAM)
+        return true;
+
+      break;
+    }
+
+    default: {}
+  }
+
+  ast_error(left, "only type parameters and 'this' can be viewpoints");
+  return false;
 }
 
 /**
@@ -262,15 +260,26 @@ static bool valid_typedef(ast_t* ast)
  */
 ast_result_t type_valid(ast_t* ast, int verbose)
 {
+  // union, isect and tuple types don't need validation
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!valid_nominal(ast, ast))
+      if(!valid_nominal(ast))
         return AST_ERROR;
       break;
 
-    case TK_TYPEDEF:
-      if(!valid_typedef(ast))
+    case TK_STRUCTURAL:
+      if(!valid_structural(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_THISTYPE:
+      if(!valid_thistype(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_ARROW:
+      if(!valid_arrow(ast))
         return AST_ERROR;
       break;
 
@@ -278,24 +287,4 @@ ast_result_t type_valid(ast_t* ast, int verbose)
   }
 
   return AST_OK;
-}
-
-bool valid_nominal(ast_t* scope, ast_t* nominal)
-{
-  // TODO: capability
-  ast_t* def = nominal_def(scope, nominal);
-
-  if(def == NULL)
-    return false;
-
-  // make sure our typeargs are subtypes of our constraints
-  ast_t* typeargs = ast_childidx(nominal, 2);
-
-  if(!check_constraints(def, typeargs))
-    return false;
-
-  if(!replace_alias(def, nominal, typeargs))
-    return false;
-
-  return true;
 }

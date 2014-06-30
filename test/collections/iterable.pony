@@ -3,4 +3,4 @@ trait Iterator[A]
   fun ref next(): A ?
 
 trait Iterable[A]
-  fun box iterator(): Iterator[this->A] ref^
+  fun box iterator(): Iterator[this->A]^

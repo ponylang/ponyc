@@ -15,12 +15,15 @@ static int precedence(token_id id)
   {
     // type operators
     case TK_ISECTTYPE:
-      return 30;
+      return 40;
 
     case TK_UNIONTYPE:
-      return 20;
+      return 30;
 
     case TK_TUPLETYPE:
+      return 20;
+
+    case TK_ARROW:
       return 10;
 
     // postfix operators
@@ -62,6 +65,23 @@ static int precedence(token_id id)
     case TK_ASSIGN: return 10;
 
     default: return 0;
+  }
+}
+
+static bool associativity(token_id id)
+{
+  // return true for right associative, false for left associative
+  switch(id)
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    case TK_ASSIGN:
+    case TK_ARROW:
+      return true;
+
+    default:
+      return false;
   }
 }
 
@@ -162,17 +182,23 @@ DEF(funtype);
   INSERT(TK_NONE);
   DONE();
 
-DEF(thistype);
-  AST_TOKEN(TK_THIS);
+// {newtype} {betype} {funtype}
+DEF(funs);
+  AST(TK_MEMBERS);
+  SEQRULE(newtype);
+  SEQRULE(betype);
+  SEQRULE(funtype);
   DONE();
 
-// (LBRACE | LBRACE_NEW) {newtype | funtype | betype} RBRACE
+// (LBRACE | LBRACE_NEW) funs RBRACE [cap] [HAT]
 DEF(structural);
   SKIP(TK_LBRACE, TK_LBRACE_NEW);
   AST(TK_STRUCTURAL);
   SCOPE();
-  SEQRULE(newtype, funtype, betype);
+  RULE(funs);
   SKIP(TK_RBRACE);
+  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPTIONAL(TK_HAT);
   DONE();
 
 // ID [DOT ID] [typeargs]
@@ -182,6 +208,8 @@ DEF(nominal);
   EXPECT(TK_ID);
   IFTOKEN(TK_DOT, TK_ID);
   OPTRULE(typeargs);
+  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPTIONAL(TK_HAT);
   DONE();
 
 // COMMA type
@@ -213,20 +241,23 @@ DEF(typeexpr);
   SKIP(TK_RPAREN);
   DONE();
 
-// TODO: add typedecl for "enum" types?
-// typeexpr | nominal | structural | thistype
-DEF(typebase);
-  AST_RULE(typeexpr, nominal, structural, thistype);
+// THIS
+DEF(thistype);
+  SKIP(TK_THIS);
+  AST(TK_THISTYPE);
   DONE();
 
-// typebase [CAP] [HAT] [ARROW type]
+// ARROW (thistype | typeexpr | nominal | structural)
+DEF(viewpoint);
+  AST_TOKEN(TK_ARROW);
+  RULE(typeexpr, nominal, structural, thistype);
+  DONE();
+
+// TODO: add typedecl for "enum" types?
+// (thistype | typeexpr | nominal | structural) {viewpoint}
 DEF(type);
-  AST(TK_TYPEDEF);
-  RULE(typebase);
-  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_HAT);
-  INSERT(TK_NONE);
-  IFRULE(TK_ARROW, type);
+  AST_RULE(typeexpr, nominal, structural, thistype);
+  BINDOP(viewpoint);
   DONE();
 
 // term ASSIGN seq

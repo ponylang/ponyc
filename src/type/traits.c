@@ -35,10 +35,7 @@ static bool attach_method(ast_t* type, ast_t* method)
     ast_t* impl = ast_childidx(method, 6);
 
     if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
-    {
       ast_swap(existing_impl, impl);
-      ast_free(existing_impl);
-    }
 
     // TODO: what if a new method is a subtype of an existing method?
     // if the existing method came from a trait, should we accept the new one?
@@ -78,19 +75,17 @@ static bool attach_traits(ast_t* def, int verbose)
 
   while(trait != NULL)
   {
-    ast_t* nominal = ast_child(trait);
-
-    if(ast_id(nominal) != TK_NOMINAL)
+    if(ast_id(trait) != TK_NOMINAL)
     {
-      ast_error(nominal, "traits must be nominal types");
+      ast_error(trait, "traits must be nominal types");
       return false;
     }
 
-    ast_t* trait_def = nominal_def(nominal, nominal);
+    ast_t* trait_def = nominal_def(trait, trait);
 
     if(ast_id(trait_def) != TK_TRAIT)
     {
-      ast_error(nominal, "must be a trait");
+      ast_error(trait, "must be a trait");
       return false;
     }
 
@@ -98,7 +93,7 @@ static bool attach_traits(ast_t* def, int verbose)
       return false;
 
     ast_t* typeparams = ast_childidx(trait_def, 1);
-    ast_t* typeargs = ast_childidx(nominal, 2);
+    ast_t* typeargs = ast_childidx(trait, 2);
     ast_t* members = ast_childidx(trait_def, 4);
     ast_t* member = ast_child(members);
 

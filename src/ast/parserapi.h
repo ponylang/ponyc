@@ -14,6 +14,8 @@ typedef struct parser_t
 
 typedef int (*prec_t)(token_id id);
 
+typedef bool (*assoc_t)(token_id id);
+
 typedef ast_t* (*rule_t)(parser_t* parser, bool opt);
 
 ast_t* consume(parser_t* parser);
@@ -26,7 +28,7 @@ bool accept(parser_t* parser, const token_id* id, ast_t* ast);
 
 ast_t* rulealt(parser_t* parser, const rule_t* alt, ast_t* ast, bool opt);
 
-ast_t* bindop(parser_t* parser, prec_t precedence, ast_t* ast,
+ast_t* bindop(parser_t* parser, prec_t prec, assoc_t assoc, ast_t* ast,
   const rule_t* alt);
 
 void syntax_error(parser_t* parser_t, const char* func, int line);
@@ -176,13 +178,13 @@ ast_t* parse(source_t* source, rule_t start);
 #define BINDOP(...) \
   { \
     ALTS(__VA_ARGS__); \
-    ast = bindop(parser, precedence, ast, alt); \
+    ast = bindop(parser, precedence, associativity, ast, alt); \
   }
 
 #define EXPECTBINDOP(...) \
   { \
     ALTS(__VA_ARGS__); \
-    ast_t* nast = bindop(parser, precedence, ast, alt); \
+    ast_t* nast = bindop(parser, precedence, associativity, ast, alt); \
     NEED(nast != ast); \
     ast = nast; \
   }

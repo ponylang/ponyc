@@ -28,39 +28,39 @@ symtab: ID -> TYPEPARAM | VAR | VAL | NEW | FUN | BE
 
 MEMBERS: {FVAR | FLET | NEW | FUN | BE}
 
-FVAR: ID [TYPEDEF] [SEQ]
-FLET: ID [TYPEDEF] [SEQ]
+FVAR: ID [type] [SEQ]
+FLET: ID [type] [SEQ]
 
 NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
-FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [TYPEDEF] [QUESTION] [SEQ]
+FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
 
-TYPEPARAM: ID [TYPEDEF] [TYPEDEF]
+TYPEPARAM: ID [type] [type]
 
-TYPES: {TYPEDEF}
+TYPES: {type}
 
-type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL)
-TYPEDEF: type cap [HAT] [ERROR] [TYPEDEF]
-
+type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
+  ARROW | ERROR)
 cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
 
-UNIONTYPE: (TYPEDEF | type) (TYPEDEF | type)
-ISECTTYPE: (TYPEDEF | type) (TYPEDEF | type)
-TUPLETYPE: (TYPEDEF | type) (TYPEDEF | type)
+ARROW: type type
+UNIONTYPE: type type
+ISECTTYPE: type type
+TUPLETYPE: type type
 
-NOMINAL: [ID] ID [TYPEARGS]
+NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
 data: nominal_def, if it has been resolved
 
-TYPEARGS: {TYPEDEF}
+STRUCTURAL: MEMBERS cap [HAT]
 
-STRUCTURAL: {NEW | FUN | BE}
+TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
-PARAM: ID [TYPEDEF] [SEQ]
+PARAM: ID [type] [SEQ]
 
 IDSEQ: {ID}
 
@@ -106,8 +106,8 @@ ASSIGN term term
 
 local
 -----
-VAR: IDSEQ [TYPEDEF]
-LET: IDSEQ [TYPEDEF]
+VAR: IDSEQ [type]
+LET: IDSEQ [type]
 
 prefix
 ------
@@ -136,7 +136,7 @@ CASES: {CASE}
 CASE: [SEQ] [AS] [SEQ] [SEQ]
 symtab: ID -> VAR | VAL
 
-AS: IDSEQ TYPEDEF
+AS: IDSEQ type
 
 WHILE: RAWSEQ SEQ [SEQ]
 symtab: ID -> VAR | VAL
@@ -144,7 +144,7 @@ symtab: ID -> VAR | VAL
 REPEAT: RAWSEQ SEQ
 symtab: ID -> VAR | VAL
 
-FOR: IDSEQ [TYPEDEF] SEQ SEQ [SEQ]
+FOR: IDSEQ [type] SEQ SEQ [SEQ]
 
 TRY: SEQ [SEQ] [SEQ]
 
@@ -173,13 +173,9 @@ ast type
 --------
 NEW, BE, FUN
   when expecting a CALL
+  change this?
 
-TYPEDEF
-  can be a nominal that references a typeparam
-  may be invalid, eg nominal waiting for its QUALIFY
-
-ERROR
-  an error statement
+type
 
 */
 
@@ -241,7 +237,7 @@ void ast_clear(ast_t* ast);
 ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
-ast_t* ast_swap(ast_t* prev, ast_t* next);
+void ast_swap(ast_t* prev, ast_t* next);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);

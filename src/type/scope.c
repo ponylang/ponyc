@@ -105,6 +105,30 @@ ast_result_t type_scope(ast_t* ast, int verbose)
     }
 
     case TK_TYPE:
+    {
+      // can't have a default capability
+      ast_t* typeparams = ast_childidx(ast, 1);
+      ast_t* cap = ast_sibling(typeparams);
+      ast_t* alias = ast_child(ast_sibling(cap));
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap, "can't specify a default capability for a type alias");
+        return AST_ERROR;
+      }
+
+      if((alias != NULL) && (ast_sibling(alias) != NULL))
+      {
+        ast_error(alias, "a type alias can only alias to a single type");
+        return AST_ERROR;
+      }
+
+      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
+        ast_child(ast), ast, true))
+        return AST_ERROR;
+      break;
+    }
+
     case TK_ACTOR:
     {
       // can't have a default capability
@@ -112,7 +136,7 @@ ast_result_t type_scope(ast_t* ast, int verbose)
 
       if(ast_id(cap) != TK_NONE)
       {
-        ast_error(cap, "can't specify a default capability here");
+        ast_error(cap, "can't specify a default for an actor");
         return AST_ERROR;
       }
 
@@ -151,7 +175,6 @@ ast_result_t type_scope(ast_t* ast, int verbose)
       {
         ast_t* r_id = ast_from_string(id, "create");
         ast_swap(id, r_id);
-        ast_free(id);
       }
 
       if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
@@ -180,7 +203,6 @@ ast_result_t type_scope(ast_t* ast, int verbose)
       {
         ast_t* r_id = ast_from_string(id, "apply");
         ast_swap(id, r_id);
-        ast_free(id);
       }
 
       if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))

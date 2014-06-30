@@ -98,19 +98,21 @@ ast_t* parse(source_t* source, rule_t start)
   return ast;
 }
 
-ast_t* bindop(parser_t* parser, prec_t precedence, ast_t* ast,
+ast_t* bindop(parser_t* parser, prec_t prec, assoc_t assoc, ast_t* ast,
   const rule_t* alt)
 {
   ast_t* next;
-  int prec = INT_MAX;
+  int oprec = INT_MAX;
 
   while((next = rulealt(parser, alt, NULL, true)) != NULL)
   {
-    int nprec = precedence(ast_id(next));
+    token_id id = ast_id(next);
+    int nprec = prec(id);
+    bool right = assoc(id);
 
     while(true)
     {
-      if(nprec > prec)
+      if((nprec > oprec) || (right && (nprec == oprec)) )
       {
         // (oldop ast.1 (newop ast.2 ...))
         ast_append(next, ast_pop(ast));
@@ -125,11 +127,11 @@ ast_t* bindop(parser_t* parser, prec_t precedence, ast_t* ast,
       } else {
         // try the parent node
         ast = ast_parent(ast);
-        prec = precedence(ast_id(ast));
+        oprec = prec(ast_id(ast));
       }
     }
 
-    prec = nprec;
+    oprec = nprec;
   }
 
   while(ast_parent(ast) != NULL)

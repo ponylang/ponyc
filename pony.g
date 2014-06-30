@@ -49,13 +49,13 @@ types
   ;
 
 type
-  :  type_expr cap? '^'? ('->' type)?
+  :  type_expr ('->' type_expr)*
   ;
 
 type_expr
-  :  '(' type (typeop type)* ')' // ADT or tuple
-  |  ID ('.' ID)? type_args? // nominal type
-  |  '{' fun_type* '}' // structural type
+  :  '(' type (typeop type)* ')' // union, isect or tuple
+  |  ID ('.' ID)? type_args? cap? '^'? // nominal type
+  |  '{' fun_type* '}' cap? '^'? // structural type
 //  |  'type' ID // FIX: nested type definition for enums?
   |  'this' // only used for viewpoint adaptation
   ;
