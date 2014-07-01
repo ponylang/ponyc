@@ -165,8 +165,11 @@ static ast_t* type_arithmetic(ast_t* ast)
  */
 static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
 {
-  if((l_type == NULL) || (r_type == NULL))
-    return NULL;
+  if(l_type == NULL)
+    return r_type;
+
+  if(r_type == NULL)
+    return l_type;
 
   if(is_subtype(scope, l_type, r_type))
     return r_type;
@@ -192,6 +195,71 @@ static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
   ast_add(type, l_type);
 
   return type;
+}
+
+static ast_t* type_strip_error(ast_t* ast, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+
+      left = type_strip_error(ast, left);
+      right = type_strip_error(ast, right);
+
+      return type_union(ast, left, right);
+    }
+
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+
+      left = type_strip_error(ast, left);
+      right = type_strip_error(ast, right);
+
+      if(left == NULL)
+        return right;
+
+      if(right == NULL)
+        return left;
+
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_add(r_type, right);
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+      return type;
+
+    case TK_ARROW:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      right = type_strip_error(ast, right);
+
+      if(right == NULL)
+        return NULL;
+
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      ast_add(r_type, right);
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    case TK_ERROR:
+      return NULL;
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
 }
 
 static ast_t* type_for_fun(ast_t* ast)
@@ -494,7 +562,7 @@ static bool expr_dot(ast_t* ast)
 
         case TK_TYPEREF:
         {
-          // TODO: constructor on a type
+          // TODO: constructor on a type, or method on a default constructor
           ast_error(ast, "not implemented (constructor of type)");
           return false;
         }
@@ -503,7 +571,7 @@ static bool expr_dot(ast_t* ast)
       }
 
       // TODO: field or method access
-      ast_error(ast, "not implemented (dot)");
+      ast_error(ast, "not implemented (field or method)");
       return false;
     }
 
@@ -906,6 +974,53 @@ static bool expr_repeat(ast_t* ast)
 
   ast_settype(ast, nominal_builtin(ast, "None"));
   return true;
+}
+
+static bool expr_try(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  // it has to be possible for the left side to result in an error
+  ast_t* l_type = ast_type(left);
+  ast_t* error = ast_from(ast, TK_ERROR);
+  bool ok = is_subtype(ast, error, l_type);
+  ast_free(error);
+
+  if(!ok)
+  {
+    ast_error(left, "try expression never results in an error");
+    return false;
+  }
+
+  ast_t* r_type;
+
+  if(ast_id(right) == TK_NONE)
+    r_type = nominal_builtin(ast, "None");
+  else
+    r_type = ast_type(right);
+
+  switch(ast_id(l_type))
+  {
+    case TK_ERROR:
+    {
+      ast_settype(ast, r_type);
+      return true;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      // strip error out of the l_type
+      ast_t* type = type_union(ast, type_strip_error(ast, l_type), r_type);
+      ast_settype(ast, type);
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }
 
 static bool expr_continue(ast_t* ast)
@@ -1320,10 +1435,9 @@ ast_result_t type_expr(ast_t* ast, int verbose)
       return AST_FATAL;
 
     case TK_TRY:
-      // TODO: type is the union of first and second
-      // TODO: check that the first is marked as "may error"
-      ast_error(ast, "not implemented (try)");
-      return AST_FATAL;
+      if(!expr_try(ast))
+        return AST_FATAL;
+      break;
 
     case TK_TUPLE:
       if(!expr_tuple(ast))

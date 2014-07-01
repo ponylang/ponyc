@@ -32,23 +32,23 @@ expression typing
     * INT
     * FLOAT
     * STRING
-    ? REFERENCE locals
+    * REFERENCE
     * TUPLE
     - ARRAY
     - OBJECT
   postfix
     ? DOT field/method access
-    - QUALIFY
-    ? CALL args, infer type params, ctor and behaviour return types, error
+    ? QUALIFY functions
+    ? CALL args, infer type params, ctor and behaviour return types
   unop
     * NOT
     * MINUS
     - CONSUME
     - RECOVER
-  local
-    - VAR/LET
-    - AS
-    - FOR
+  * local
+    * VAR/LET
+    * AS
+    * FOR
   control
     * IF
     - MATCH
@@ -80,5 +80,5 @@ expression typing
     ? LE ordered
     ? GE ordered
     ? GT ordered
-    ? ASSIGN viewpoint, infer lvalue type, ssa reassignment
+    ? ASSIGN viewpoint, ssa reassignment, update sugar
   * seq
