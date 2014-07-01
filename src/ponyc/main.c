@@ -1,6 +1,6 @@
-#include "pass/typechecker.h"
-#include "pkg/package.h"
-#include "ds/stringtab.h"
+#include "../libponyc/pass/typechecker.h"
+#include "../libponyc/pkg/package.h"
+#include "../libponyc/ds/stringtab.h"
 #include <sys/ioctl.h>
 #include <stdlib.h>
 #include <stdio.h>

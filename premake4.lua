@@ -48,8 +48,17 @@ solution "ponyc"
     buildoptions "-pthread"
     linkoptions "-pthread"
 
+  project "libponyc"
+    kind "StaticLib"
+    language "C"
+    buildoptions "-std=gnu11"
+    files "src/libponyc/**.c"
+
   project "ponyc"
     kind "ConsoleApp"
     language "C"
-    files "src/**.c"
-    links "m"
+    files "src/ponyc/**.c"
+    links {"m", "libponyc"}
+
+  include "utils/"
+  include "test/"
