@@ -222,13 +222,17 @@ static void adv(lexer_t* lexer, size_t count)
 
 static char look(lexer_t* lexer)
 {
-  assert(lexer->len > 0);
+  if(lexer->len == 0)
+    return '\0';
+
   return lexer->source->m[lexer->ptr];
 }
 
 static char look2(lexer_t* lexer)
 {
-  assert(lexer->len > 1);
+  if(lexer->len <= 1)
+    return '\0';
+
   return lexer->source->m[lexer->ptr + 1];
 }
 

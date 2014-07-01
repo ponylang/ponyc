@@ -106,6 +106,24 @@ TEST(LexerTest, TripleStringMultipleLines)
 }
 
 
+TEST(LexerTest, TripleStringEmpty)
+{
+  const char* code = "\"\"\"\"\"\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
 TEST(LexerTest, TripleStringContainingEscape)
 {
   const char* code = "\"\"\"Foo\\nbar\"\"\"";
@@ -207,6 +225,69 @@ TEST(LexerTest, TripleStringWithLeadingEmptyLine)
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_STRING, token->id);
   ASSERT_STREQ("Foo\nbar", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerTest, TripleStringUnterminated)
+{
+  const char* code = "\"\"\"\nFoo\nbar";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_EQ((void*)NULL, token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerTest, TripleStringUnterminatedEndWithDoubleQuote)
+{
+  const char* code = "\"\"\"\nFoo\nbar\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_EQ((void*)NULL, token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerTest, TripleStringUnterminatedEndWith2DoubleQuotes)
+{
+  const char* code = "\"\"\"\nFoo\nbar\"\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_EQ((void*)NULL, token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerTest, EmptyStringAtEndOfSource)
+{
+  const char* code = "\"\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("", token->string);
   token_free(token);
 
   lexer_close(lexer);
