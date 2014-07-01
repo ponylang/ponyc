@@ -4,7 +4,10 @@
 #include "../type/nominal.h"
 #include "../type/alias.h"
 #include "../type/lookup.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
+
+static bool expr_typeref(ast_t* ast);
 
 /**
  * Make sure the definition of something occurs before its use. This is for
@@ -428,6 +431,225 @@ static bool expr_this(ast_t* ast)
   return true;
 }
 
+static bool expr_dot(ast_t* ast)
+{
+  // left is a postfix expression, right is an integer or an id
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(left);
+
+  switch(ast_id(right))
+  {
+    case TK_ID:
+    {
+      switch(ast_id(left))
+      {
+        case TK_PACKAGEREF:
+        {
+          // must be a type in a package
+          const char* package_name = ast_name(ast_child(left));
+          ast_t* package = ast_get(left, package_name);
+
+          if(package == NULL)
+          {
+            ast_error(right, "can't find package '%s'", package_name);
+            return false;
+          }
+
+          assert(ast_id(package) == TK_PACKAGE);
+          const char* type_name = ast_name(right);
+          type = ast_get(package, type_name);
+
+          if(type == NULL)
+          {
+            ast_error(right, "can't find type '%s' in package '%s'",
+              type_name, package_name);
+            return false;
+          }
+
+          ast_settype(ast, nominal_type(ast, package_name, type_name));
+          ast_setid(ast, TK_TYPEREF);
+          return expr_typeref(ast);
+        }
+
+        case TK_TYPEREF:
+        {
+          // TODO: constructor on a type, or method on a default constructor
+          ast_error(ast, "not implemented (constructor of type)");
+          return false;
+        }
+
+        default: {}
+      }
+
+      // TODO: field or method access
+      ast_t* find = lookup(ast, type, ast_name(right));
+
+      if(find == NULL)
+        return false;
+
+      ast_error(ast, "found %s", ast_name(right));
+      return false;
+    }
+
+    case TK_INT:
+    {
+      // element of a tuple
+      if((type == NULL) || (ast_id(type) != TK_TUPLETYPE))
+      {
+        ast_error(right, "member by position can only be used on a tuple");
+        return false;
+      }
+
+      type = tuple_index(type, ast_int(right));
+
+      if(type == NULL)
+      {
+        ast_error(right, "tuple index is out of bounds");
+        return false;
+      }
+
+      ast_settype(ast, type);
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool expr_call(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+  ast_t* type = ast_type(left);
+
+  switch(ast_id(left))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+    case TK_STRING:
+    case TK_ARRAY:
+    case TK_OBJECT:
+    {
+      // TODO: apply sugar
+      ast_error(ast, "not implemented (apply sugar on literal)");
+      return false;
+    }
+
+    case TK_THIS:
+    case TK_FIELDREF:
+    case TK_PARAMREF:
+    case TK_LOCALREF:
+    {
+      // TODO: apply sugar
+      ast_error(ast, "not implemented (apply sugar on reference)");
+      return false;
+    }
+
+    case TK_FUNREF:
+    {
+      assert((ast_id(type) == TK_NEW) ||
+        (ast_id(type) == TK_BE) ||
+        (ast_id(type) == TK_FUN)
+        );
+
+      // first check if the receiver capability is ok
+      token_id rcap = cap_for_receiver(ast);
+      token_id fcap = cap_for_fun(type);
+
+      if(!is_cap_sub_cap(rcap, fcap))
+      {
+        ast_error(ast,
+          "receiver capability is not a subtype of method capability");
+        return false;
+      }
+
+      // TODO: use args to decide unbound type parameters
+      // TODO: mark enclosing as "may error" if we might error
+      // TODO: generate return type for constructors and behaviours
+      ast_settype(ast, ast_childidx(type, 4));
+      return true;
+    }
+
+    case TK_TYPEREF:
+      // shouldn't happen, should be handled in expr_typeref
+      break;
+
+    case TK_TUPLE:
+    {
+      ast_error(ast, "can't call a tuple");
+      return false;
+    }
+
+    case TK_DOT:
+    case TK_QUALIFY:
+    case TK_CALL:
+    {
+      // TODO: function call
+      ast_error(ast, "not implemented (function call)");
+      return false;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool expr_typeref(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_TYPEREF);
+
+  switch(ast_id(ast_parent(ast)))
+  {
+    case TK_QUALIFY:
+      break;
+
+    case TK_DOT:
+      // TODO: constructor, or method on default constructor?
+      break;
+
+    case TK_CALL:
+    {
+      // default constructor
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_add(dot, ast_from_string(ast, stringtab("create")));
+      ast_swap(ast, dot);
+      ast_add(dot, ast);
+
+      return expr_dot(dot);
+    }
+
+    default:
+    {
+      // default constructor
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_add(dot, ast_from_string(ast, stringtab("create")));
+      ast_swap(ast, dot);
+      ast_add(dot, ast);
+
+      if(!expr_dot(dot))
+        return false;
+
+      // call with no arguments
+      ast_t* tuple = ast_from(ast, TK_TUPLE);
+      ast_add(tuple, ast_from(ast, TK_NONE)); // named args
+      ast_add(tuple, ast_from(ast, TK_NONE)); // positional args
+      ast_t* call = ast_from(ast, TK_CALL);
+      ast_add(call, tuple);
+      ast_swap(dot, call);
+      ast_add(call, dot);
+
+      return expr_call(call);
+    }
+  }
+
+  return true;
+}
+
 static bool expr_reference(ast_t* ast)
 {
   // everything we reference must be in scope
@@ -466,7 +688,8 @@ static bool expr_reference(ast_t* ast)
       ast_t* type = nominal_type(ast, NULL, name);
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
-      return true;
+
+      return expr_typeref(ast);
     }
 
     case TK_FVAR:
@@ -521,95 +744,6 @@ static bool expr_reference(ast_t* ast)
   return false;
 }
 
-static bool expr_dot(ast_t* ast)
-{
-  // left is a postfix expression, right is an integer or an id
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* type = ast_type(left);
-
-  switch(ast_id(right))
-  {
-    case TK_ID:
-    {
-      switch(ast_id(left))
-      {
-        case TK_PACKAGEREF:
-        {
-          // must be a type in a package
-          const char* package_name = ast_name(ast_child(left));
-          ast_t* package = ast_get(left, package_name);
-
-          if(package == NULL)
-          {
-            ast_error(right, "can't find package '%s'", package_name);
-            return false;
-          }
-
-          assert(ast_id(package) == TK_PACKAGE);
-          const char* type_name = ast_name(right);
-          type = ast_get(package, type_name);
-
-          if(type == NULL)
-          {
-            ast_error(right, "can't find type '%s' in package '%s'",
-              type_name, package_name);
-            return false;
-          }
-
-          ast_settype(ast, nominal_type(ast, package_name, type_name));
-          ast_setid(ast, TK_TYPEREF);
-          return true;
-        }
-
-        case TK_TYPEREF:
-        {
-          // TODO: constructor on a type, or method on a default constructor
-          ast_error(ast, "not implemented (constructor of type)");
-          return false;
-        }
-
-        default: {}
-      }
-
-      // TODO: field or method access
-      ast_t* find = lookup(ast, type, ast_name(right));
-
-      if(find == NULL)
-        return false;
-
-      ast_error(ast, "found %s", ast_name(right));
-      return false;
-    }
-
-    case TK_INT:
-    {
-      // element of a tuple
-      if((type == NULL) || (ast_id(type) != TK_TUPLETYPE))
-      {
-        ast_error(right, "member by position can only be used on a tuple");
-        return false;
-      }
-
-      type = tuple_index(type, ast_int(right));
-
-      if(type == NULL)
-      {
-        ast_error(right, "tuple index is out of bounds");
-        return false;
-      }
-
-      ast_settype(ast, type);
-      return true;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
 static bool expr_qualify(ast_t* ast)
 {
   // left is a postfix expression, right is a typeargs
@@ -633,10 +767,14 @@ static bool expr_qualify(ast_t* ast)
 
       type = ast_dup(type);
       ast_t* typeargs = ast_childidx(type, 2);
-      ast_swap(typeargs, right);
+      ast_replace(typeargs, right);
       ast_settype(ast, type);
 
-      return nominal_valid(ast, type);
+      if(!nominal_valid(ast, type))
+        return false;
+
+      ast_setid(ast, TK_TYPEREF);
+      return expr_typeref(ast);
     }
 
     case TK_FUNREF:
@@ -906,62 +1044,6 @@ static bool expr_tuple(ast_t* ast)
 
   ast_settype(ast, type);
   return true;
-}
-
-static bool expr_call(ast_t* ast)
-{
-  ast_t* left = ast_child(ast);
-  ast_t* type = ast_type(left);
-
-  switch(ast_id(type))
-  {
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    {
-      // first check if the receiver capability is ok
-      token_id rcap = cap_for_receiver(ast);
-      token_id fcap = cap_for_fun(type);
-
-      if(!is_cap_sub_cap(rcap, fcap))
-      {
-        ast_error(ast,
-          "receiver capability is not a subtype of method capability");
-        return false;
-      }
-
-      // TODO: use args to decide unbound type parameters
-      // TODO: mark enclosing as "may error" if we might error
-      // TODO: generate return type for constructors and behaviours
-      ast_settype(ast, ast_childidx(type, 4));
-      return true;
-    }
-
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_NOMINAL:
-    case TK_STRUCTURAL:
-    case TK_ARROW:
-    {
-      // TODO: if it's the left side of a TK_ASSIGN, it's update sugar.
-      // otherwise, it's apply or create sugar.
-      // TODO: is this true? what does a ".method" produce on something
-      // other than self?
-      ast_error(ast, "not implemented (apply sugar)");
-      return false;
-    }
-
-    case TK_TUPLETYPE:
-    {
-      ast_error(ast, "can't call a tuple type");
-      return false;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }
 
 static bool expr_if(ast_t* ast)

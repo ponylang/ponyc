@@ -28,7 +28,7 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
     // ephemeral capability becomes non-ephemeral
     type = ast_dup(type);
     ephemeral = ast_childidx(type, eph_index);
-    ast_swap(ephemeral, ast_from(type, TK_NONE));
+    ast_replace(ephemeral, ast_from(type, TK_NONE));
   } else {
     // non-ephemeral capability gets aliased
     ast_t* cap = ast_childidx(type, cap_index);
@@ -39,7 +39,7 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
     {
       type = ast_dup(type);
       cap = ast_childidx(type, cap_index);
-      ast_swap(cap, ast_from(type, acap));
+      ast_replace(cap, ast_from(type, acap));
     }
   }
 

@@ -174,7 +174,7 @@ ast_result_t type_scope(ast_t* ast, int verbose)
       if(ast_id(id) == TK_NONE)
       {
         ast_t* r_id = ast_from_string(id, "create");
-        ast_swap(id, r_id);
+        ast_replace(id, r_id);
       }
 
       if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
@@ -202,7 +202,7 @@ ast_result_t type_scope(ast_t* ast, int verbose)
       if(ast_id(id) == TK_NONE)
       {
         ast_t* r_id = ast_from_string(id, "apply");
-        ast_swap(id, r_id);
+        ast_replace(id, r_id);
       }
 
       if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
