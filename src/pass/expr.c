@@ -165,11 +165,8 @@ static ast_t* type_arithmetic(ast_t* ast)
  */
 static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
 {
-  if(l_type == NULL)
-    return r_type;
-
-  if(r_type == NULL)
-    return l_type;
+  if((l_type == NULL) || (r_type == NULL))
+    return NULL;
 
   if(is_subtype(scope, l_type, r_type))
     return r_type;
@@ -185,6 +182,12 @@ static ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
  */
 static ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
 {
+  if(l_type == NULL)
+    return r_type;
+
+  if(r_type == NULL)
+    return l_type;
+
   ast_t* super = type_super(ast, l_type, r_type);
 
   if(super != NULL)

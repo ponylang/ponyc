@@ -56,7 +56,7 @@ expression typing
     * WHILE
     * REPEAT
     - FOR (or is it sugar?)
-    - TRY
+    * TRY
     * BREAK
     * CONTINUE
     * RETURN
