@@ -746,8 +746,18 @@ static bool expr_order(ast_t* ast)
       return false;
     }
 
-    // TODO: left side must be Ordered
-    // do this in sugar instead?
+    // left side must be Ordered
+    ast_t* comparable = nominal_builtin1(ast, "Ordered", r_type);
+    bool ok = is_subtype(ast, l_type, comparable);
+    ast_free(comparable);
+
+    if(!ok)
+    {
+      ast_error(ast, "left side must be Ordered");
+      return false;
+    }
+
+    // TODO: rewrite this as a function call?
   }
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
