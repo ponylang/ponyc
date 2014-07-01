@@ -3,6 +3,7 @@
 #include "../type/subtype.h"
 #include "../type/nominal.h"
 #include "../type/alias.h"
+#include "../type/lookup.h"
 #include <assert.h>
 
 /**
@@ -522,8 +523,6 @@ static bool expr_reference(ast_t* ast)
 
 static bool expr_dot(ast_t* ast)
 {
-  // TODO: type in package, element in tuple, field or method in object,
-  // constructor in type
   // left is a postfix expression, right is an integer or an id
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
@@ -574,7 +573,12 @@ static bool expr_dot(ast_t* ast)
       }
 
       // TODO: field or method access
-      ast_error(ast, "not implemented (field or method)");
+      ast_t* find = lookup(ast, type, ast_name(right));
+
+      if(find == NULL)
+        return false;
+
+      ast_error(ast, "found %s", ast_name(right));
       return false;
     }
 
