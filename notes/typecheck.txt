@@ -74,8 +74,8 @@ expression typing
     * RSHIFT
     * IS
     * ISNT
-    ? EQ comparable
-    ? NE comparable
+    * EQ
+    * NE
     ? LT ordered
     ? LE ordered
     ? GE ordered

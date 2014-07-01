@@ -143,6 +143,19 @@ static bool check_cap(ast_t* def, ast_t* cap)
   return false;
 }
 
+static ast_t* nominal_with_args(ast_t* from, const char* package,
+  const char* name, ast_t* typeargs)
+{
+  ast_t* ast = ast_from(from, TK_NOMINAL);
+  ast_add(ast, ast_from(from, TK_NONE)); // ephemerality
+  ast_add(ast, ast_from(from, TK_NONE)); // capability
+  ast_add(ast, typeargs);
+  ast_add(ast, ast_from_string(from, name)); // name
+  ast_add(ast, ast_from_string(from, package));
+
+  return ast;
+}
+
 bool is_type_id(const char* s)
 {
   int i = 0;
@@ -158,16 +171,22 @@ ast_t* nominal_builtin(ast_t* from, const char* name)
   return nominal_type(from, NULL, stringtab(name));
 }
 
+ast_t* nominal_builtin1(ast_t* from, const char* name, ast_t* typearg0)
+{
+  return nominal_type1(from, NULL, stringtab(name), typearg0);
+}
+
 ast_t* nominal_type(ast_t* from, const char* package, const char* name)
 {
-  ast_t* ast = ast_from(from, TK_NOMINAL);
-  ast_add(ast, ast_from(from, TK_NONE)); // ephemerality
-  ast_add(ast, ast_from(from, TK_NONE)); // capability
-  ast_add(ast, ast_from(from, TK_NONE)); // typeargs
-  ast_add(ast, ast_from_string(from, name)); // name
-  ast_add(ast, ast_from_string(from, package));
+  return nominal_with_args(from, package, name, ast_from(from, TK_NONE));
+}
 
-  return ast;
+ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
+  ast_t* typearg0)
+{
+  ast_t* typeargs = ast_from(from, TK_TYPEARGS);
+  ast_add(typeargs, typearg0);
+  return nominal_with_args(from, package, name, typeargs);
 }
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal)

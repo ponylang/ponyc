@@ -9,8 +9,15 @@ bool is_type_id(const char* s);
 /// Creates an AST node for a builtin type, where 'name' is not in the stringtab
 ast_t* nominal_builtin(ast_t* from, const char* name);
 
+/// Creates an AST node for a builtin type with 1 typearg
+ast_t* nominal_builtin1(ast_t* from, const char* name, ast_t* typearg0);
+
 /// Creates an AST node for a package and type, both in the stringtab
 ast_t* nominal_type(ast_t* from, const char* package, const char* name);
+
+/// Creates an AST node for a package and type with 1 typearg
+ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
+  ast_t* typearg0);
 
 /// Gets the type, trait, class or actor for a nominal type.
 ast_t* nominal_def(ast_t* scope, ast_t* nominal);

@@ -233,7 +233,13 @@ ast_t* ast_type(ast_t* ast)
 
 ast_t* ast_settype(ast_t* ast, ast_t* type)
 {
-  assert(ast->type == NULL);
+  if(ast->type == type)
+  {
+    assert(type->parent == ast);
+    return type;
+  }
+
+  ast_free(ast->type);
 
   if(type->parent != NULL)
     type = ast_dup(type);
@@ -587,15 +593,21 @@ void ast_swap(ast_t* prev, ast_t* next)
   if(next->parent != NULL)
     next = ast_dup(next);
 
-  ast_t* last = ast_previous(prev);
-
-  if(last != NULL)
-    last->sibling = next;
-  else
-    prev->parent->child = next;
-
   next->parent = prev->parent;
-  next->sibling = prev->sibling;
+
+  if(prev->parent->type == prev)
+  {
+    prev->parent->type = next;
+  } else {
+    ast_t* last = ast_previous(prev);
+
+    if(last != NULL)
+      last->sibling = next;
+    else
+      prev->parent->child = next;
+
+    next->sibling = prev->sibling;
+  }
 
   prev->parent = NULL;
   prev->sibling = NULL;

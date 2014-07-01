@@ -4,6 +4,7 @@
 
 static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 {
+  assert(ast_id(ast) == TK_NOMINAL);
   ast_t* param_name = ast_child(typeparam);
   ast_t* package = ast_child(ast);
   ast_t* name = ast_sibling(package);

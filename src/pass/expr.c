@@ -659,8 +659,8 @@ static bool expr_identity(ast_t* ast)
 
   if(type_super(ast, l_type, r_type) == NULL)
   {
-    ast_error(ast,
-      "left and right side must have related types");
+    // TODO: allow this for unrelated structural types?
+    ast_error(ast, "left and right side must have related types");
     return false;
   }
 
@@ -690,8 +690,33 @@ static bool expr_compare(ast_t* ast)
       return false;
     }
 
-    // TODO: left side must be Comparable
-    // do this in sugar instead?
+    // left side must be Comparable
+    ast_t* comparable = nominal_builtin1(ast, "Comparable", r_type);
+    bool ok = is_subtype(ast, l_type, comparable);
+    ast_free(comparable);
+
+    if(!ok)
+    {
+      ast_error(ast, "left side must be Comparable");
+      return false;
+    }
+
+    // TODO: rewrite this as a function call?
+  } else {
+    switch(ast_id(ast))
+    {
+      case TK_EQ:
+        ast_setid(ast, TK_IS);
+        break;
+
+      case TK_NE:
+        ast_setid(ast, TK_ISNT);
+        break;
+
+      default:
+        assert(0);
+        return false;
+    }
   }
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
