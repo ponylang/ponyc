@@ -76,9 +76,9 @@ expression typing
     * ISNT
     * EQ
     * NE
-    ? LT ordered
-    ? LE ordered
-    ? GE ordered
-    ? GT ordered
+    * LT
+    * LE
+    * GE
+    * GT
     ? ASSIGN viewpoint, ssa reassignment, update sugar
   * seq

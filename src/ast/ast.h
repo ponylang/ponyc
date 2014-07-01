@@ -55,6 +55,7 @@ NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
 data: nominal_def, if it has been resolved
 
 STRUCTURAL: MEMBERS cap [HAT]
+symtab: ID -> NEW | FUN | BE
 
 TYPEARGS: {type}
 
