@@ -730,6 +730,14 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
 
     while(child != NULL)
     {
+      ast_t* next;
+
+      switch(dir)
+      {
+        case AST_LEFT: next = ast_sibling(child); break;
+        case AST_RIGHT: next = ast_previous(child); break;
+      }
+
       switch(ast_visit(child, pre, post, dir, verbose))
       {
         case AST_OK:
@@ -743,12 +751,7 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
           return AST_FATAL;
       }
 
-
-      switch(dir)
-      {
-        case AST_LEFT: child = ast_sibling(child); break;
-        case AST_RIGHT: child = ast_previous(child); break;
-      }
+      child = next;
     }
   }
 

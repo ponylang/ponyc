@@ -14,6 +14,7 @@ static bool is_lvalue(ast_t* ast)
     case TK_LET:
     case TK_FIELDREF:
     case TK_PARAMREF:
+    case TK_LOCALREF:
       // an identifier reference is an lvalue. it may still not be valid to
       // assign to it (it could be a method or an SSA that's already set).
       // the same is true for accessing a member with dot notation.
@@ -276,6 +277,8 @@ bool expr_assign(ast_t* ast)
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
   }
+
+  // TODO: update sugar
 
   if(l_type == NULL)
   {

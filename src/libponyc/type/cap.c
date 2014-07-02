@@ -12,14 +12,13 @@ bool is_cap_sub_cap(token_id sub, token_id super)
   return sub <= super;
 }
 
-/**
- * The receiver capability is ref for constructors and behaviours. For
- * functions, it is defined by the function signature.
- */
 token_id cap_for_receiver(ast_t* ast)
 {
   ast_t* method = ast_enclosing_method(ast);
-  assert(method != NULL);
+
+  // if we aren't in a method, we're in a field initialiser
+  if(method == NULL)
+    return TK_REF;
 
   token_id cap = ast_id(ast_child(method));
 
