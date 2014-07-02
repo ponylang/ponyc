@@ -1,5 +1,6 @@
 #include "postfix.h"
 #include "reference.h"
+#include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../type/lookup.h"
 #include "../type/cap.h"
@@ -71,11 +72,8 @@ static bool expr_typeaccess(ast_t* ast)
 
     case TK_NEW:
     {
-      // TODO: set the type for the constructor
-      // what do we need to know?
-      // * this is a function call
-      // * it expects certain parameters
-      // * it has a certain return type
+      ast_setid(ast, TK_FUNREF);
+      ast_settype(ast, type_for_fun(find));
       break;
     }
 
@@ -154,7 +152,19 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // TODO: check receiver cap, set the type for the function
+      // TODO: check receiver cap
+      // token_id rcap = cap_for_receiver(ast);
+      // token_id fcap = cap_for_fun(type);
+      //
+      // if(!is_cap_sub_cap(rcap, fcap))
+      // {
+      //   ast_error(ast,
+      //     "receiver capability is not a subtype of method capability");
+      //   return false;
+      // }
+
+      ast_setid(ast, TK_FUNREF);
+      ast_settype(ast, type_for_fun(find));
       break;
     }
 
@@ -194,6 +204,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
+  ast_setid(ast, TK_FIELDREF);
   ast_settype(ast, type);
   return true;
 }
@@ -307,27 +318,9 @@ bool expr_call(ast_t* ast)
 
     case TK_FUNREF:
     {
-      // TODO: not right
-      assert((ast_id(type) == TK_NEW) ||
-        (ast_id(type) == TK_BE) ||
-        (ast_id(type) == TK_FUN)
-        );
-
-      // first check if the receiver capability is ok
-      token_id rcap = cap_for_receiver(ast);
-      token_id fcap = cap_for_fun(type);
-
-      if(!is_cap_sub_cap(rcap, fcap))
-      {
-        ast_error(ast,
-          "receiver capability is not a subtype of method capability");
-        return false;
-      }
-
       // TODO: use args to decide unbound type parameters
-      // TODO: mark enclosing as "may error" if we might error
-      // TODO: generate return type for constructors and behaviours
-      ast_settype(ast, ast_childidx(type, 4));
+      assert(ast_id(type) == TK_FUNTYPE);
+      ast_settype(ast, ast_childidx(type, 2));
       return true;
     }
 
@@ -337,12 +330,10 @@ bool expr_call(ast_t* ast)
       return false;
     }
 
-    case TK_DOT:
-    case TK_QUALIFY:
     case TK_CALL:
     {
-      // TODO: function call
-      ast_error(ast, "not implemented (function call)");
+      // TODO: function call - is this right? not needed?
+      ast_error(ast, "not implemented (function call on function call)");
       return false;
     }
 

@@ -307,7 +307,7 @@ bool expr_fun(ast_t* ast)
     }
   }
 
-  if(ast_id(type) != TK_NONE)
+  if(ast_id(ast) == TK_FUN)
   {
     // union the result type with ERROR
     if(ast_id(can_error) == TK_QUESTION)

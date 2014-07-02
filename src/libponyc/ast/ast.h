@@ -57,6 +57,8 @@ data: nominal_def, if it has been resolved
 STRUCTURAL: MEMBERS cap [HAT]
 symtab: ID -> NEW | FUN | BE
 
+FUNTYPE: [TYPEPARAMS] [TYPES] type
+
 TYPEARGS: {type}
 
 PARAMS: {PARAM}
@@ -200,6 +202,7 @@ ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
 ast_t* ast_from(ast_t* ast, token_id id);
 ast_t* ast_from_string(ast_t* ast, const char* id);
+ast_t* ast_hygienic_id(ast_t* ast);
 ast_t* ast_dup(ast_t* ast);
 void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);

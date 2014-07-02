@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "symtab.h"
+#include "../ds/stringtab.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -169,6 +170,21 @@ ast_t* ast_from_string(ast_t* ast, const char* id)
     return ast_from(ast, TK_NONE);
 
   return ast_token(token_from_string(ast->t, id));
+}
+
+ast_t* ast_hygienic_id(ast_t* ast)
+{
+  char buffer[32];
+  const char* id;
+  int i = 0;
+
+  do
+  {
+    snprintf(buffer, sizeof(buffer), "$%d", i);
+    id = stringtab(buffer);
+  } while(ast_get(ast, buffer) != NULL);
+
+  return ast_from_string(ast, id);
 }
 
 ast_t* ast_dup(ast_t* ast)

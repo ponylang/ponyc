@@ -1,4 +1,5 @@
 #include "literal.h"
+#include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../type/cap.h"
 #include <assert.h>
@@ -16,40 +17,7 @@ bool expr_literal(ast_t* ast, const char* name)
 
 bool expr_this(ast_t* ast)
 {
-  ast_t* def = ast_enclosing_type(ast);
-  assert(def != NULL);
-  assert(ast_id(def) != TK_TYPE);
-
-  ast_t* id = ast_child(def);
-  ast_t* typeparams = ast_sibling(id);
-  const char* name = ast_name(id);
-
-  ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(nominal, ast_from(ast, TK_NONE)); // ephemerality
-  ast_add(nominal, ast_from(ast, cap_for_receiver(ast))); // capability
-
-  if(ast_id(typeparams) == TK_TYPEPARAMS)
-  {
-    ast_t* typeparam = ast_child(typeparams);
-    ast_t* typeargs = ast_from(ast, TK_TYPEARGS);
-    ast_add(nominal, typeargs);
-
-    while(typeparam != NULL)
-    {
-      ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = nominal_type(ast, NULL, ast_name(typeparam_id));
-      ast_append(typeargs, typearg);
-
-      typeparam = ast_sibling(typeparam);
-    }
-  } else {
-    ast_add(nominal, ast_from(ast, TK_NONE)); // empty typeargs
-  }
-
-  ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from(ast, TK_NONE));
-  ast_settype(ast, nominal);
-
+  ast_settype(ast, type_for_this(ast, cap_for_receiver(ast), false));
   return true;
 }
 
