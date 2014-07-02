@@ -581,8 +581,10 @@ static token_t* string(lexer_t* lexer)
 
       adv(lexer, 1);
       bool r = true;
+      char c = look(lexer);
+      adv(lexer, 1);
 
-      switch(look(lexer))
+      switch(c)
       {
       case 'a':  append(lexer, 0x07); break;
       case 'b':  append(lexer, 0x08); break;
@@ -601,7 +603,7 @@ static token_t* string(lexer_t* lexer)
       case 'U':  r = append_unicode(lexer, 6); break;
 
       default:
-        lexerror(lexer, "Invalid escape sequence: \\%c", look(lexer));
+        lexerror(lexer, "Invalid escape sequence: \\%c", c);
         r = false;
         break;
       }

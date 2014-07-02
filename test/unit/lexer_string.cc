@@ -10,7 +10,137 @@ class LexerStringTest: public testing::Test
 {};
 
 
-// TODO: normal string, escapes, escaped double quote, near end
+TEST(LexerStringTest, String)
+{
+  const char* code = "\"Foo\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("Foo", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringEnds)
+{
+  const char* code = "\"Foo\"1";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("Foo", token->string);
+  token_free(token);
+
+  token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_INT, token->id);
+  ASSERT_EQ(1, token->integer);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringEscapedDoubleQuote)
+{
+  const char* code = "\"Foo\\\"Bar\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("Foo\"Bar", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringEscapedSlashAtEnd)
+{
+  const char* code = "\"Foo\\\\\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("Foo\\", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringHexEscape)
+{
+  const char* code = "\"Foo\\x413\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("FooA3", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringUnicode4Escape)
+{
+  const char* code = "\"Foo\\u00413\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("FooA3", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, StringUnicode6Escape)
+{
+  const char* code = "\"Foo\\U0000413\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("FooA3", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
 
 TEST(LexerStringTest, TripleString)
 {
