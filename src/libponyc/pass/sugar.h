@@ -1,8 +1,8 @@
-#ifndef TYPE_SUGAR_H
-#define TYPE_SUGAR_H
+#ifndef PASS_SUGAR_H
+#define PASS_SUGAR_H
 
 #include "../ast/ast.h"
 
-ast_result_t type_sugar(ast_t* ast, int verbose);
+ast_result_t pass_sugar(ast_t* ast, int verbose);
 
 #endif

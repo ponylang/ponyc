@@ -1,6 +1,6 @@
 #include "sugar.h"
 
-ast_result_t type_sugar(ast_t* ast, int verbose)
+ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {

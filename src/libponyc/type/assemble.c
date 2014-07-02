@@ -1,0 +1,233 @@
+#include "assemble.h"
+#include "nominal.h"
+#include "subtype.h"
+#include "lookup.h"
+#include <assert.h>
+
+ast_t* type_builtin(ast_t* ast, const char* name)
+{
+  ast_t* type = ast_type(ast);
+  ast_t* builtin = nominal_builtin(ast, name);
+  bool ok = is_subtype(ast, type, builtin);
+  ast_free(builtin);
+
+  if(!ok)
+    return NULL;
+
+  return type;
+}
+
+ast_t* type_bool(ast_t* ast)
+{
+  return type_builtin(ast, "Bool");
+}
+
+ast_t* type_int(ast_t* ast)
+{
+  return type_builtin(ast, "Integer");
+}
+
+ast_t* type_int_or_bool(ast_t* ast)
+{
+  ast_t* type = type_bool(ast);
+
+  if(type == NULL)
+    type = type_int(ast);
+
+  if(type == NULL)
+  {
+    ast_error(ast, "expected Bool or an integer type");
+    return NULL;
+  }
+
+  return type;
+}
+
+ast_t* type_arithmetic(ast_t* ast)
+{
+  return type_builtin(ast, "Arithmetic");
+}
+
+ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
+{
+  if((l_type == NULL) || (r_type == NULL))
+    return NULL;
+
+  if(is_subtype(scope, l_type, r_type))
+    return r_type;
+
+  if(is_subtype(scope, r_type, l_type))
+    return l_type;
+
+  return NULL;
+}
+
+ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
+{
+  if(l_type == NULL)
+    return r_type;
+
+  if(r_type == NULL)
+    return l_type;
+
+  ast_t* super = type_super(ast, l_type, r_type);
+
+  if(super != NULL)
+    return super;
+
+  ast_t* type = ast_from(ast, TK_UNIONTYPE);
+  ast_add(type, r_type);
+  ast_add(type, l_type);
+
+  return type;
+}
+
+ast_t* type_strip_error(ast_t* ast, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+
+      left = type_strip_error(ast, left);
+      right = type_strip_error(ast, right);
+
+      return type_union(ast, left, right);
+    }
+
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+
+      left = type_strip_error(ast, left);
+      right = type_strip_error(ast, right);
+
+      if(left == NULL)
+        return right;
+
+      if(right == NULL)
+        return left;
+
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_add(r_type, right);
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+      return type;
+
+    case TK_ARROW:
+    {
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      right = type_strip_error(ast, right);
+
+      if(right == NULL)
+        return NULL;
+
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      ast_add(r_type, right);
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    case TK_ERROR:
+      return NULL;
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+ast_t* type_for_fun(ast_t* ast)
+{
+  assert((ast_id(ast) == TK_NEW) ||
+    (ast_id(ast) == TK_BE) ||
+    (ast_id(ast) == TK_FUN)
+    );
+
+  ast_t* cap = ast_child(ast);
+  ast_t* id = ast_sibling(cap);
+  ast_t* typeparams = ast_sibling(id);
+  ast_t* params = ast_sibling(typeparams);
+  ast_t* result = ast_sibling(params);
+  ast_t* throws = ast_sibling(result);
+
+  ast_t* fun = ast_from(ast, ast_id(ast));
+  ast_add(fun, ast_from(ast, TK_NONE));
+  ast_add(fun, throws);
+  ast_add(fun, result);
+
+  if(ast_id(params) == TK_PARAMS)
+  {
+    ast_t* types = ast_from(ast, TK_TYPES);
+    ast_t* param = ast_child(params);
+
+    while(param != NULL)
+    {
+      ast_append(types, ast_childidx(param, 1));
+      param = ast_sibling(param);
+    }
+
+    ast_add(fun, types);
+  } else {
+    ast_add(fun, params);
+  }
+
+  ast_add(fun, typeparams);
+  ast_add(fun, id);
+  ast_add(fun, cap);
+
+  return fun;
+}
+
+bool type_for_idseq(ast_t* idseq, ast_t* type)
+{
+  assert(ast_id(idseq) == TK_IDSEQ);
+  ast_t* id = ast_child(idseq);
+
+  if(ast_sibling(id) == NULL)
+  {
+    ast_settype(id, type);
+    return true;
+  }
+
+  if(ast_id(type) != TK_TUPLETYPE)
+  {
+    ast_error(type, "must specify a tuple type for multiple identifiers");
+    return false;
+  }
+
+  int index = 0;
+
+  while(id != NULL)
+  {
+    ast_t* t = tuple_index(type, index);
+
+    if(t == NULL)
+    {
+      ast_error(type, "not enough types specified");
+      return false;
+    }
+
+    ast_settype(id, t);
+    id = ast_sibling(id);
+    index++;
+  }
+
+  if(tuple_index(type, index) != NULL)
+  {
+    ast_error(type, "too many types specified");
+    return false;
+  }
+
+  return true;
+}

@@ -85,7 +85,7 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
  * field names, method names, type parameters in methods, parameters in methods,
  * and local variables.
  */
-ast_result_t type_scope(ast_t* ast, int verbose)
+ast_result_t pass_scope(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {

@@ -1,8 +1,8 @@
-#ifndef TYPE_ARGS_H
-#define TYPE_ARGS_H
+#ifndef PASS_ARGS_H
+#define PASS_ARGS_H
 
 #include "../ast/ast.h"
 
-ast_result_t type_args(ast_t* ast, int verbose);
+ast_result_t pass_args(ast_t* ast, int verbose);
 
 #endif

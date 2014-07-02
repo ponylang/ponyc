@@ -1,8 +1,8 @@
-#ifndef TYPE_TRAITS_H
-#define TYPE_TRAITS_H
+#ifndef PASS_TRAITS_H
+#define PASS_TRAITS_H
 
 #include "../ast/ast.h"
 
-ast_result_t type_traits(ast_t* ast, int verbose);
+ast_result_t pass_traits(ast_t* ast, int verbose);
 
 #endif

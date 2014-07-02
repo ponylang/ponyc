@@ -103,7 +103,7 @@ static bool valid_arrow(ast_t* ast)
  * definition ast node to each nominal type, and replaces type aliases with
  * their reified expansion.
  */
-ast_result_t type_valid(ast_t* ast, int verbose)
+ast_result_t pass_valid(ast_t* ast, int verbose)
 {
   // union, isect and tuple types don't need validation
   switch(ast_id(ast))

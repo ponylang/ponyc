@@ -322,7 +322,6 @@ ast_t* package_load(ast_t* from, const char* path, int verbose)
   if(!do_path(package, name, verbose))
     return NULL;
 
-
   if(!typecheck(package, verbose))
   {
     ast_error(package, "can't typecheck package '%s'", path);
