@@ -250,9 +250,6 @@ bool expr_local(ast_t* ast)
           return true;
         break;
 
-      case TK_FOR:
-        return true;
-
       default: {}
     }
 
