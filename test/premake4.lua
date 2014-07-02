@@ -20,7 +20,7 @@ function unittest()
     buildoptions "-std=gnu++11"
     language "C++"
     kind "ConsoleApp"
-    links { "gtest" }
+    links { "gtest", "libponyc" }
 end
 
 project "unit"

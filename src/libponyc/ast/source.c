@@ -6,6 +6,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+
 
 source_t* source_open(const char* file)
 {
@@ -43,11 +45,29 @@ source_t* source_open(const char* file)
   return source;
 }
 
+
+source_t* source_open_string(const char* source_code)
+{
+  source_t* source = malloc(sizeof(source_t));
+  source->file = NULL;
+  source->len = strlen(source_code);
+  source->m = malloc(source->len);
+
+  memcpy(source->m, source_code, source->len);
+
+  return source;
+}
+
+
 void source_close(source_t* source)
 {
   if(source == NULL)
     return;
 
-  munmap(source->m, source->len);
+  if(source->file != NULL)
+    munmap(source->m, source->len);
+  else
+    free(source->m);
+
   free(source);
 }

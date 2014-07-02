@@ -222,13 +222,17 @@ static void adv(lexer_t* lexer, size_t count)
 
 static char look(lexer_t* lexer)
 {
-  assert(lexer->len > 0);
+  if(lexer->len == 0)
+    return '\0';
+
   return lexer->source->m[lexer->ptr];
 }
 
 static char look2(lexer_t* lexer)
 {
-  assert(lexer->len > 1);
+  if(lexer->len <= 1)
+    return '\0';
+
   return lexer->source->m[lexer->ptr + 1];
 }
 
@@ -319,8 +323,7 @@ static bool is_empty(const char* p)
 
 /**
  * Removes longest common prefix indentation from every line in a triple
- * quoted string. Lines containing only whitespace are removed (other than the
- * new line). If the string begins with an empty line, that line is removed
+ * quoted string. If the string begins with an empty line, that line is removed
  * entirely.
  */
 static void normalise_string(lexer_t* lexer)
