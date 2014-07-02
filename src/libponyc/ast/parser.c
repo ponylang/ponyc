@@ -119,22 +119,22 @@ DEF(params);
   WHILERULE(TK_COMMA, param);
   DONE();
 
-// LBRACKET typeparam {COMMA typeparam} RBRACKET
+// LSQUARE typeparam {COMMA typeparam} RSQUARE
 DEF(typeparams);
-  SKIP(TK_LBRACKET);
+  SKIP(TK_LSQUARE);
   AST(TK_TYPEPARAMS);
   RULE(typeparam);
   WHILERULE(TK_COMMA, typeparam);
-  SKIP(TK_RBRACKET);
+  SKIP(TK_RSQUARE);
   DONE();
 
-// LBRACKET type {COMMA type} RBRACKET
+// LSQUARE type {COMMA type} RSQUARE
 DEF(typeargs);
-  SKIP(TK_LBRACKET);
+  SKIP(TK_LSQUARE);
   AST(TK_TYPEARGS);
   RULE(type);
   WHILERULE(TK_COMMA, type);
-  SKIP(TK_RBRACKET);
+  SKIP(TK_RSQUARE);
   DONE();
 
 // NEW [ID] [typeparams] (LPAREN | TK_LPAREN_NEW) [types] RPAREN [QUESTION]
@@ -292,13 +292,13 @@ DEF(object);
   SKIP(TK_RBRACE);
   DONE();
 
-// (LBRACKET | LBRACKET_NEW) [positional] [named] RBRACKET
+// (LSQUARE | LSQUARE_NEW) [positional] [named] RSQUARE
 DEF(array);
-  SKIP(TK_LBRACKET, TK_LBRACKET_NEW);
+  SKIP(TK_LSQUARE, TK_LSQUARE_NEW);
   AST(TK_ARRAY);
   OPTRULE(positional);
   OPTRULE(named);
-  SKIP(TK_RBRACKET);
+  SKIP(TK_RSQUARE);
   DONE();
 
 // (LPAREN | LPAREN_NEW) seq {COMMA seq} RPAREN
@@ -340,7 +340,7 @@ DEF(bang);
 
 // typeargs
 DEF(qualify);
-  CHECK(TK_LBRACKET);
+  CHECK(TK_LSQUARE);
   AST(TK_QUALIFY);
   RULE(typeargs);
   DONE();

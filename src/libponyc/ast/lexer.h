@@ -23,8 +23,8 @@ typedef enum
   TK_RBRACE,
   TK_LPAREN,
   TK_RPAREN,
-  TK_LBRACKET,
-  TK_RBRACKET,
+  TK_LSQUARE,
+  TK_RSQUARE,
 
   TK_COMMA,
   TK_ARROW,
@@ -59,7 +59,7 @@ typedef enum
 
   TK_LBRACE_NEW,
   TK_LPAREN_NEW,
-  TK_LBRACKET_NEW,
+  TK_LSQUARE_NEW,
   TK_MINUS_NEW,
 
   // keywords
