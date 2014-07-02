@@ -6,11 +6,13 @@ extern "C" {
 
 
 
-class LexerTest: public testing::Test
+class LexerStringTest: public testing::Test
 {};
 
 
-TEST(LexerTest, TripleString)
+// TODO: normal string, escapes, escaped double quote, near end
+
+TEST(LexerStringTest, TripleString)
 {
   const char* code = "\"\"\"Foo\"\"\"";
 
@@ -28,7 +30,7 @@ TEST(LexerTest, TripleString)
 }
 
 
-TEST(LexerTest, TripleStringEnds)
+TEST(LexerStringTest, TripleStringEnds)
 {
   const char* code = "\"\"\"Foo\"\"\"1";
 
@@ -52,7 +54,7 @@ TEST(LexerTest, TripleStringEnds)
 }
 
 
-TEST(LexerTest, TripleStringContainingDoubleQuote)
+TEST(LexerStringTest, TripleStringContainingDoubleQuote)
 {
   const char* code = "\"\"\"Foo\"bar\"\"\"";
 
@@ -70,7 +72,7 @@ TEST(LexerTest, TripleStringContainingDoubleQuote)
 }
 
 
-TEST(LexerTest, TripleStringContaining2DoubleQuotes)
+TEST(LexerStringTest, TripleStringContaining2DoubleQuotes)
 {
   const char* code = "\"\"\"Foo\"\"bar\"\"\"";
 
@@ -88,7 +90,7 @@ TEST(LexerTest, TripleStringContaining2DoubleQuotes)
 }
 
 
-TEST(LexerTest, TripleStringMultipleLines)
+TEST(LexerStringTest, TripleStringMultipleLines)
 {
   const char* code = "\"\"\"Foo\nbar\"\"\"";
 
@@ -106,7 +108,7 @@ TEST(LexerTest, TripleStringMultipleLines)
 }
 
 
-TEST(LexerTest, TripleStringEmpty)
+TEST(LexerStringTest, TripleStringEmpty)
 {
   const char* code = "\"\"\"\"\"\"";
 
@@ -124,7 +126,7 @@ TEST(LexerTest, TripleStringEmpty)
 }
 
 
-TEST(LexerTest, TripleStringContainingEscape)
+TEST(LexerStringTest, TripleStringContainingEscape)
 {
   const char* code = "\"\"\"Foo\\nbar\"\"\"";
 
@@ -142,7 +144,7 @@ TEST(LexerTest, TripleStringContainingEscape)
 }
 
 
-TEST(LexerTest, TripleStringStripsEqualLeadingWhitespace)
+TEST(LexerStringTest, TripleStringStripsEqualLeadingWhitespace)
 {
   const char* code = "\"\"\"   Foo\n   bar\"\"\"";
 
@@ -160,7 +162,7 @@ TEST(LexerTest, TripleStringStripsEqualLeadingWhitespace)
 }
 
 
-TEST(LexerTest, TripleStringStripsIncreasingLeadingWhitespace)
+TEST(LexerStringTest, TripleStringStripsIncreasingLeadingWhitespace)
 {
   const char* code = "\"\"\"   Foo\n     bar\"\"\"";
 
@@ -178,7 +180,7 @@ TEST(LexerTest, TripleStringStripsIncreasingLeadingWhitespace)
 }
 
 
-TEST(LexerTest, TripleStringStripsDecreasingLeadingWhitespace)
+TEST(LexerStringTest, TripleStringStripsDecreasingLeadingWhitespace)
 {
   const char* code = "\"\"\"   Foo\n  bar\"\"\"";
 
@@ -196,7 +198,7 @@ TEST(LexerTest, TripleStringStripsDecreasingLeadingWhitespace)
 }
 
 
-TEST(LexerTest, TripleStringStripsVariableLeadingWhitespace)
+TEST(LexerStringTest, TripleStringStripsVariableLeadingWhitespace)
 {
   const char* code = "\"\"\"   Foo\n     bar\n    wom\n   bat\"\"\"";
 
@@ -214,7 +216,7 @@ TEST(LexerTest, TripleStringStripsVariableLeadingWhitespace)
 }
 
 
-TEST(LexerTest, TripleStringWithLeadingEmptyLine)
+TEST(LexerStringTest, TripleStringWithLeadingEmptyLine)
 {
   const char* code = "\"\"\"\nFoo\nbar\"\"\"";
 
@@ -232,7 +234,25 @@ TEST(LexerTest, TripleStringWithLeadingEmptyLine)
 }
 
 
-TEST(LexerTest, TripleStringUnterminated)
+TEST(LexerStringTest, TripleStringWithNonLeadingEmptyLine)
+{
+  const char* code = "\"\"\"Foo\n\nbar\"\"\"";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_STRING, token->id);
+  ASSERT_STREQ("Foo\n\nbar", token->string);
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerStringTest, TripleStringUnterminated)
 {
   const char* code = "\"\"\"\nFoo\nbar";
 
@@ -247,7 +267,7 @@ TEST(LexerTest, TripleStringUnterminated)
 }
 
 
-TEST(LexerTest, TripleStringUnterminatedEndWithDoubleQuote)
+TEST(LexerStringTest, TripleStringUnterminatedEndWithDoubleQuote)
 {
   const char* code = "\"\"\"\nFoo\nbar\"";
 
@@ -262,7 +282,7 @@ TEST(LexerTest, TripleStringUnterminatedEndWithDoubleQuote)
 }
 
 
-TEST(LexerTest, TripleStringUnterminatedEndWith2DoubleQuotes)
+TEST(LexerStringTest, TripleStringUnterminatedEndWith2DoubleQuotes)
 {
   const char* code = "\"\"\"\nFoo\nbar\"\"";
 
@@ -277,7 +297,7 @@ TEST(LexerTest, TripleStringUnterminatedEndWith2DoubleQuotes)
 }
 
 
-TEST(LexerTest, EmptyStringAtEndOfSource)
+TEST(LexerStringTest, EmptyStringAtEndOfSource)
 {
   const char* code = "\"\"";
 

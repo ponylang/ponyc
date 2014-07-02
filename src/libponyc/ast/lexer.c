@@ -19,10 +19,12 @@ struct lexer_t
   size_t pos;
   bool newline;
 
-  char* buffer;
-  size_t buflen;
-  size_t alloc;
+  char* buffer;  // Symbol text buffer
+  size_t buflen; // Length of buffer currently used
+  size_t alloc;  // Space allocated for buffe
 };
+
+#define LEX_ERROR  ((token_t*)1)
 
 typedef struct lexsym_t
 {
@@ -53,8 +55,8 @@ static const lexsym_t symbols1[] =
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
   { ")", TK_RPAREN },
-  { "[", TK_LBRACKET },
-  { "]", TK_RBRACKET },
+  { "[", TK_LSQUARE },
+  { "]", TK_RSQUARE },
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
@@ -79,7 +81,7 @@ static const lexsym_t symbols1[] =
 
   { "{", TK_LBRACE_NEW },
   { "(", TK_LPAREN_NEW },
-  { "[", TK_LBRACKET_NEW },
+  { "[", TK_LSQUARE_NEW },
   { "-", TK_MINUS_NEW },
 
   { NULL, 0 }
@@ -189,6 +191,7 @@ static const lexsym_t abstract[] =
   { NULL, 0 }
 };
 
+
 static void lexerror(lexer_t* lexer, const char* fmt, ...)
 {
   va_list ap;
@@ -197,7 +200,14 @@ static void lexerror(lexer_t* lexer, const char* fmt, ...)
   va_end(ap);
 }
 
-static bool issymbol(char c)
+
+static bool is_eof(lexer_t* lexer)
+{
+  return lexer->len == 0;
+}
+
+
+static bool is_symbol_char(char c)
 {
   return ((c >= '!') && (c <= '.'))
     || ((c >= ':') && (c <= '@'))
@@ -205,6 +215,10 @@ static bool issymbol(char c)
     || ((c >= '{') && (c <= '~'));
 }
 
+
+/* Advance our input by the specified number of characters.
+ * Only the first character may be a newline.
+ */
 static void adv(lexer_t* lexer, size_t count)
 {
   assert(lexer->len >= count);
@@ -220,13 +234,15 @@ static void adv(lexer_t* lexer, size_t count)
   lexer->pos += count;
 }
 
+
 static char look(lexer_t* lexer)
 {
-  if(lexer->len == 0)
+  if(is_eof(lexer))
     return '\0';
 
   return lexer->source->m[lexer->ptr];
 }
+
 
 static char look2(lexer_t* lexer)
 {
@@ -236,6 +252,7 @@ static char look2(lexer_t* lexer)
   return lexer->source->m[lexer->ptr + 1];
 }
 
+
 static void string_terminate(lexer_t* lexer)
 {
   lexerror(lexer, "String doesn't terminate");
@@ -244,23 +261,25 @@ static void string_terminate(lexer_t* lexer)
   lexer->buflen = 0;
 }
 
+
 static void append(lexer_t* lexer, char c)
 {
   if(lexer->buflen >= lexer->alloc)
   {
-    size_t nlen = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* n = malloc(nlen);
-    memcpy(n, lexer->buffer, lexer->alloc);
+    size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
+    char* new_buf = malloc(new_len);
+    memcpy(new_buf, lexer->buffer, lexer->alloc);
     free(lexer->buffer);
-    lexer->buffer = n;
-    lexer->alloc = nlen;
+    lexer->buffer = new_buf;
+    lexer->alloc = new_len;
   }
 
   lexer->buffer[lexer->buflen] = c;
   lexer->buflen++;
 }
 
-static bool appendn(lexer_t* lexer, size_t len)
+
+static bool append_unicode(lexer_t* lexer, size_t len)
 {
   char* m = &lexer->source->m[lexer->ptr];
   uint32_t c = 0;
@@ -281,15 +300,16 @@ static bool appendn(lexer_t* lexer, size_t len)
     {
       c += m[i] - '0';
     } else if((m[i] >= 'a') && (m[i] <= 'f')) {
-      c += m[i] - 'a';
+      c += m[i] + 10 - 'a';
     } else if((m[i] >= 'A') && (m[i] <= 'F')) {
-      c += m[i] - 'a';
+      c += m[i] + 10 - 'A';
     } else {
       lexerror(lexer, "Escape sequence contains non-hexadecimal %c", c);
       return false;
     }
   }
 
+  // UTF-8 encoding
   if(c <= 0x7F)
   {
     append(lexer, c & 0x7F);
@@ -313,13 +333,6 @@ static bool appendn(lexer_t* lexer, size_t len)
   return true;
 }
 
-/**
- * A line is empty if, after whitespace, there is a \0, \n or \r\n.
- */
-static bool is_empty(const char* p)
-{
-  return (p[0] == '\0') || (p[0] == '\n') || ((p[0] == '\r') && (p[1] == '\n'));
-}
 
 /**
  * Removes longest common prefix indentation from every line in a triple
@@ -340,70 +353,51 @@ static void normalise_string(lexer_t* lexer)
 
   // calculate leading whitespace
   char* buf = lexer->buffer;
-  char* start = NULL;
-  size_t ws = 0;
-
-  while(true)
+  size_t ws = lexer->buflen;
+  size_t ws_this_line = 0;
+  bool in_leading_ws = true;
+  for(size_t i = 0; i < lexer->buflen; i++)
   {
-    size_t len = strspn(buf, " \t");
+    char c = lexer->buffer[i];
 
-    if(!is_empty(buf + len))
+    if(in_leading_ws)
     {
-      if(start == NULL)
+      if(c == ' ' || c == '\t')
       {
-        start = buf;
-        ws = len;
-      } else {
-        if(len < ws)
-          ws = len;
-
-        for(size_t i = 0; i < ws; i++)
-        {
-          if(start[i] != buf[i])
-          {
-            ws = i;
-            break;
-          }
-        }
+        ws_this_line++;
       }
+      else
+      {
+        if(ws_this_line < ws)
+          ws = ws_this_line;
 
-      if(ws == 0)
-        break;
+        in_leading_ws = false;
+      }
     }
 
-    if((buf = strchr(buf + len, '\n')) == NULL)
-      break;
-
-    buf++;
+    if(c == '\n')
+    {
+      ws_this_line = 0;
+      in_leading_ws = true;
+    }
   }
 
   // trim leading whitespace on each line
   if(ws > 0)
   {
-    buf = lexer->buffer;
+    char* line_start = lexer->buffer;
+    char* compacted = lexer->buffer;
     size_t rem = lexer->buflen;
 
-    while(true)
+    while(rem > 0)
     {
-      size_t len = strspn(buf, " \t");
+      char* line_end = strchr(line_start, '\n');
+      size_t line_len = (line_end == NULL) ? rem : line_end - line_start + 1;
+      memmove(compacted, line_start + ws, line_len - ws);
 
-      if(is_empty(buf + len))
-      {
-        lexer->buflen -= len;
-        memmove(&buf[0], &buf[len], rem);
-      } else {
-        lexer->buflen -= ws;
-        memmove(&buf[0], &buf[ws], rem);
-      }
-
-      char* p = strchr(buf, '\n');
-
-      if(p == NULL)
-        break;
-
-      p++;
-      rem -= (p - buf);
-      buf = p;
+      line_start += line_len;
+      compacted += line_len - ws;
+      rem -= line_len;
     }
   }
 
@@ -420,14 +414,17 @@ static void normalise_string(lexer_t* lexer)
   }
 }
 
-static const char* copy(lexer_t* lexer)
+
+static const char* save_token_text(lexer_t* lexer)
 {
   append(lexer, '\0');
   const char* str = stringtab(lexer->buffer);
+  assert(str != NULL);
   lexer->buflen = 0;
 
   return str;
 }
+
 
 static token_t* token_new(token_id id, source_t* source, size_t line,
   size_t pos, bool newline)
@@ -442,16 +439,18 @@ static token_t* token_new(token_id id, source_t* source, size_t line,
   return t;
 }
 
-static token_t* token(lexer_t* lexer)
+
+static token_t* token(lexer_t* lexer, token_id id)
 {
-  token_t* t = token_new(0, lexer->source, lexer->line, lexer->pos,
+  token_t* t = token_new(id, lexer->source, lexer->line, lexer->pos,
     lexer->newline);
 
   lexer->newline = false;
   return t;
 }
 
-static void nested_comment(lexer_t* lexer)
+
+static token_t* nested_comment(lexer_t* lexer)
 {
   size_t depth = 1;
 
@@ -462,71 +461,66 @@ static void nested_comment(lexer_t* lexer)
       lexerror(lexer, "Nested comment doesn't terminate");
       lexer->ptr += lexer->len;
       lexer->len = 0;
-      return;
-    } if(look(lexer) == '*') {
-      adv(lexer, 1);
-
-      if(look(lexer) == '/')
-      {
-        depth--;
-      }
-    } else if(look(lexer) == '/') {
-      adv(lexer, 1);
-
-      if(look(lexer) == '*')
-      {
-        depth++;
-      }
+      return LEX_ERROR;
     }
 
-    adv(lexer, 1);
+    if(look(lexer) == '*' && look2(lexer) == '/')
+    {
+      adv(lexer, 2);
+      depth--;
+    }
+    else if(look(lexer) == '/' && look2(lexer) == '*')
+    {
+      adv(lexer, 2);
+      depth++;
+    }
+    else
+    {
+      adv(lexer, 1);
+    }
   }
+
+  return NULL;
 }
+
 
 static void line_comment(lexer_t* lexer)
 {
-  while((lexer->len > 0) && (look(lexer) != '\n'))
+  // We don't consume the terminating newline here, but it will be handled next
+  // as whitespace
+  while(!is_eof(lexer) && (look(lexer) != '\n'))
   {
     adv(lexer, 1);
   }
 }
+
 
 static token_t* slash(lexer_t* lexer)
 {
   adv(lexer, 1);
 
-  if(lexer->len > 0)
+  if(look(lexer) == '*')
   {
-    if(look(lexer) == '*')
-    {
-      adv(lexer, 1);
-      nested_comment(lexer);
-      return NULL;
-    } else if(look(lexer) == '/') {
-      adv(lexer, 1);
-      line_comment(lexer);
-      return NULL;
-    }
+    adv(lexer, 1);
+    return nested_comment(lexer);
+  } else if(look(lexer) == '/') {
+    adv(lexer, 1);
+    line_comment(lexer);
+    return NULL;
   }
 
-  token_t* t = token(lexer);
-  token_setid(t, TK_DIVIDE);
-
-  return t;
+  return token(lexer, TK_DIVIDE);
 }
+
 
 static token_t* triple_string(lexer_t* lexer)
 {
-  token_t* t = token(lexer);
-
   while(true)
   {
-    if(lexer->len == 0)
+    if(is_eof(lexer))
     {
       string_terminate(lexer);
-      token_free(t);
-      t = NULL;
-      break;
+      return LEX_ERROR;
     }
 
     char c = look(lexer);
@@ -535,22 +529,21 @@ static token_t* triple_string(lexer_t* lexer)
     if((c == '\"') && (look(lexer) == '\"') && (look2(lexer) == '\"'))
     {
       adv(lexer, 2);
-      token_setid(t, TK_STRING);
+      token_t* t = token(lexer, TK_STRING);
       normalise_string(lexer);
-      t->string = copy(lexer);
+      t->string = save_token_text(lexer);
       assert(t->string != NULL);
-      break;
+      return t;
     }
 
     append(lexer, c);
   }
-
-  return t;
 }
+
 
 static token_t* string(lexer_t* lexer)
 {
-  adv(lexer, 1);
+  adv(lexer, 1);  // Consume leading "
   assert(lexer->buflen == 0);
 
   if((look(lexer) == '\"') && (look2(lexer) == '\"'))
@@ -559,114 +552,91 @@ static token_t* string(lexer_t* lexer)
     return triple_string(lexer);
   }
 
-  token_t* t = token(lexer);
-
   while(true)
   {
-    if(lexer->len == 0)
+    if(is_eof(lexer))
     {
       string_terminate(lexer);
-      token_free(t);
-      return NULL;
-    } else if(look(lexer) == '\"') {
+      return LEX_ERROR;
+    }
+
+    char next_char = look(lexer);
+
+    if(next_char == '\"')
+    {
       adv(lexer, 1);
-      token_setid(t, TK_STRING);
-      t->string = copy(lexer);
-      assert(t->string != NULL);
+      token_t* t = token(lexer, TK_STRING);
+      t->string = save_token_text(lexer);
       return t;
-    } else if(look(lexer) == '\\') {
+    }
+
+    if(next_char == '\\')
+    {
       if(lexer->len < 2)
       {
         string_terminate(lexer);
-        token_free(t);
-        return NULL;
+        return LEX_ERROR;
       }
 
       adv(lexer, 1);
-      char c = look(lexer);
-      adv(lexer, 1);
+      bool r = true;
 
-      switch(c)
+      switch(look(lexer))
       {
-      case 'a':
-        append(lexer, 0x07);
-        break;
+      case 'a':  append(lexer, 0x07); break;
+      case 'b':  append(lexer, 0x08); break;
+      case 'e':  append(lexer, 0x1B); break;
+      case 'f':  append(lexer, 0x0C); break;
+      case 'n':  append(lexer, 0x0A); break;
+      case 'r':  append(lexer, 0x0D); break;
+      case 't':  append(lexer, 0x09); break;
+      case 'v':  append(lexer, 0x0B); break;
+      case '\"': append(lexer, 0x22); break;
+      case '\\': append(lexer, 0x5C); break;
+      case '0':  append(lexer, 0x00); break;
 
-      case 'b':
-        append(lexer, 0x08);
-        break;
-
-      case 'e':
-        append(lexer, 0x1B);
-        break;
-
-      case 'f':
-        append(lexer, 0x0C);
-        break;
-
-      case 'n':
-        append(lexer, 0x0A);
-        break;
-
-      case 'r':
-        append(lexer, 0x0D);
-        break;
-
-      case 't':
-        append(lexer, 0x09);
-        break;
-
-      case 'v':
-        append(lexer, 0x0B);
-        break;
-
-      case '\"':
-        append(lexer, 0x22);
-        break;
-
-      case '\\':
-        append(lexer, 0x5C);
-        break;
-
-      case '0':
-        append(lexer, 0x00);
-        break;
-
-      case 'x':
-        appendn(lexer, 2);
-        break;
-
-      case 'u':
-        appendn(lexer, 4);
-        break;
-
-      case 'U':
-        appendn(lexer, 6);
-        break;
+      case 'x':  r = append_unicode(lexer, 2); break;
+      case 'u':  r = append_unicode(lexer, 4); break;
+      case 'U':  r = append_unicode(lexer, 6); break;
 
       default:
-        lexerror(lexer, "Invalid escape sequence: \\%c", c);
+        lexerror(lexer, "Invalid escape sequence: \\%c", look(lexer));
+        r = false;
+        break;
+      }
+
+      if(!r)
+      {
+        string_terminate(lexer);
+        return LEX_ERROR;
       }
     } else {
-      append(lexer, look(lexer));
+      append(lexer, next_char);
       adv(lexer, 1);
     }
   }
-
-  token_free(t);
-  return NULL;
 }
 
-static bool accum(lexer_t* lexer, token_t* t, __uint128_t* v,
-  char c, char from, uint32_t base, uint32_t offset)
+
+/** Add the given digit to a literal value, checking for overflow.
+ * Returns true on success, false on overflow error.
+ */
+static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
 {
   __uint128_t v1 = *v;
-  __uint128_t v2 = (v1 * base) + (c - from) + offset;
+  __uint128_t v2 = v1 * base;
+
+  if((v2 / base) != v1)
+  {
+    lexerror(lexer, "overflow in numeric literal");
+    return false;
+  }
+
+  v2 += digit;
 
   if(v2 < v1)
   {
     lexerror(lexer, "overflow in numeric literal");
-    token_free(t);
     return false;
   }
 
@@ -674,255 +644,173 @@ static bool accum(lexer_t* lexer, token_t* t, __uint128_t* v,
   return true;
 }
 
-static token_t* real(lexer_t* lexer, token_t* t, __uint128_t v)
-{
-  bool isreal = false;
-  int e = 0;
-  char c;
 
-  if((lexer->len > 1) && (look(lexer) == '.'))
+/** Process an integral literal or integral part of a real.
+ * There must be at least one digit present.
+ * Return true on success, false on failure.
+ * The end_on_e flag indicates that we treat e (or E) as a valid terminator
+ * character, rather than part of the integer being processed.
+ * The given context is used in error reporting.
+ * The value read is added onto the end of any existing value in out_value.
+ */
+static bool lex_integer(lexer_t* lexer, uint32_t base,
+  __uint128_t* out_value, uint32_t* out_digit_count, bool end_on_e,
+  const char* context)
+{
+  uint32_t digit_count = 0;
+
+  while(!is_eof(lexer))
+  {
+    char c = look(lexer);
+    uint32_t digit = 0;
+
+    if(end_on_e && ((c == 'e') || (c == 'E')))
+      break;
+
+    if((c >= '0') && (c <= '9'))
+      digit = c - '0';
+    else if((c >= 'a') && (c <= 'z'))
+      digit = c - 'a' + 10;
+    else if((c >= 'A') && (c <= 'Z'))
+      digit = c - 'A' + 10;
+    else
+      break;
+
+    if(digit >= base)
+    {
+      lexerror(lexer, "Invalid character in %s: %c", context, c);
+      return false;
+    }
+
+    if(!accum(lexer, out_value, digit, base))
+      return false;
+
+    adv(lexer, 1);
+    digit_count++;
+  }
+
+  if(digit_count == 0)
+  {
+    lexerror(lexer, "No digits in %s", context);
+    return false;
+  }
+
+  if(out_digit_count != NULL)
+    *out_digit_count = digit_count;
+
+  return true;
+}
+
+
+/** Process a real literal when the leading integral part has already been
+ * handled.
+ */
+static token_t* real(lexer_t* lexer, __uint128_t integral_value)
+{
+  __uint128_t significand = integral_value;
+  __uint128_t e = 0;
+  uint32_t mantissa_digit_count = 0;
+  char c = look(lexer);
+  assert(c == '.' || c == 'e' || c == 'E');
+
+  if(c == '.')
   {
     c = look2(lexer);
 
-    if((c >= '0') && (c <= '9'))
+    if(c < '0' || c > '9')
     {
-      isreal = true;
-      adv(lexer, 1);
-
-      while(lexer->len > 0)
-      {
-        c = look(lexer);
-
-        if((c >= '0') && (c <= '9'))
-        {
-          if(!accum(lexer, t, &v, c, '0', 10, 0))
-            return NULL;
-
-          e--;
-        } else if((c == 'e') || (c == 'E')) {
-          break;
-        } else if(isalpha(c)) {
-          lexerror(lexer, "Invalid character in real number: %c", c);
-          token_free(t);
-          return NULL;
-        } else {
-          break;
-        }
-
-        adv(lexer, 1);
-      }
+      // Treat this as an integer token followed by a dot token
+      token_t* t = token(lexer, TK_INT);
+      t->integer = integral_value;
+      return t;
     }
+
+    adv(lexer, 1);  // Consume dot
+
+    // Read in rest of the significand
+    if(!lex_integer(lexer, 10, &significand, &mantissa_digit_count, true,
+      "real number mantissa"))
+      return LEX_ERROR;
+
+    e = -mantissa_digit_count;
   }
 
-  if((lexer->len > 0) && ((look(lexer) == 'e') || (look(lexer) == 'E')))
+  if((look(lexer) == 'e') || (look(lexer) == 'E'))
   {
-    int digits = 0;
-    isreal = true;
-    adv(lexer, 1);
+    adv(lexer, 1);  // Consume e
 
-    if(lexer->len == 0)
+    bool exp_neg = false;
+
+    if((look(lexer) == '+') || (look(lexer) == '-'))
     {
-      lexerror(lexer, "Real number doesn't terminate");
-      token_free(t);
-      return NULL;
-    }
-
-    c = look(lexer);
-    bool neg = false;
-    __uint128_t n = 0;
-
-    if((c == '+') || (c == '-'))
-    {
-      adv(lexer, 1);
-      neg = (c == '-');
-
-      if(lexer->len == 0)
-      {
-        lexerror(lexer, "Real number doesn't terminate");
-        token_free(t);
-        return NULL;
-      }
-    }
-
-    while(lexer->len > 0)
-    {
-      c = look(lexer);
-
-      if((c >= '0') && (c <= '9'))
-      {
-        if(!accum(lexer, t, &n, c, '0', 10, 0))
-          return NULL;
-
-        digits++;
-      } else if(isalpha(c)) {
-        lexerror(lexer, "Invalid character in exponent: %c", c);
-        token_free(t);
-        return NULL;
-      } else {
-        break;
-      }
-
+      exp_neg = (look(lexer) == '-');
       adv(lexer, 1);
     }
 
-    if(neg)
-    {
-      e -= n;
-    } else {
-      e += n;
-    }
+    if(!lex_integer(lexer, 10, &e, NULL, false, "real number exponent"))
+      return LEX_ERROR;
 
-    if(digits == 0)
-    {
-      lexerror(lexer, "Exponent has no digits");
-      token_free(t);
-      return NULL;
-    }
+    if(exp_neg)
+      e = -e;
   }
 
-  if(isreal)
-  {
-    token_setid(t, TK_FLOAT);
-    t->real = v * pow(10.0, e);
-  } else {
-    token_setid(t, TK_INT);
-    t->integer = v;
-  }
-
+  e -= mantissa_digit_count;
+  token_t* t = token(lexer, TK_FLOAT);
+  t->real = significand * pow(10.0, e);
   return t;
 }
 
-static token_t* hexadecimal(lexer_t* lexer, token_t* t)
+
+static token_t* nondecimal_number(lexer_t* lexer, int base,
+  const char* context)
 {
-  __uint128_t v = 0;
-  char c;
+  __uint128_t value = 0;
+  if(!lex_integer(lexer, base, &value, NULL, false, context))
+    return LEX_ERROR;
 
-  while(lexer->len > 0)
-  {
-    c = look(lexer);
-
-    if((c >= '0') && (c <= '9'))
-    {
-      if(!accum(lexer, t, &v, c, '0', 16, 0))
-        return NULL;
-    } else if((c >= 'a') && (c <= 'z')) {
-      if(!accum(lexer, t, &v, c, 'a', 16, 10))
-        return NULL;
-    } else if((c >= 'A') && (c <= 'Z')) {
-      if(!accum(lexer, t, &v, c, 'A', 16, 10))
-        return NULL;
-    } else if(isalpha(c)) {
-      lexerror(lexer, "Invalid character in hexadecimal number: %c", c);
-      token_free(t);
-      return NULL;
-    } else {
-      break;
-    }
-
-    adv(lexer, 1);
-  }
-
-  token_setid(t, TK_INT);
-  t->integer = v;
+  token_t* t = token(lexer, TK_INT);
+  t->integer = value;
   return t;
 }
 
-static token_t* decimal(lexer_t* lexer, token_t* t)
-{
-  __uint128_t v = 0;
-  char c;
-
-  while(lexer->len > 0)
-  {
-    c = look(lexer);
-
-    if((c >= '0') && (c <= '9'))
-    {
-      if(!accum(lexer, t, &v, c, '0', 10, 0))
-        return NULL;
-    } else if((c == '.') || (c == 'e') || (c == 'E')) {
-      return real(lexer, t, v);
-    } else if(isalnum(c)) {
-      lexerror(lexer, "Invalid character in decimal number: %c", c);
-      token_free(t);
-      return NULL;
-    } else {
-      break;
-    }
-
-    adv(lexer, 1);
-  }
-
-  token_setid(t, TK_INT);
-  t->integer = v;
-  return t;
-}
-
-static token_t* binary(lexer_t* lexer, token_t* t)
-{
-  __uint128_t v = 0;
-  char c;
-
-  while(lexer->len > 0)
-  {
-    c = look(lexer);
-
-    if((c >= '0') && (c <= '1'))
-    {
-      if(!accum(lexer, t, &v, c, '0', 2, 0))
-        return NULL;
-    } else if(isalnum(c)) {
-      lexerror(lexer, "Invalid character in binary number: %c", c);
-      token_free(t);
-      return NULL;
-    } else {
-      break;
-    }
-
-    adv(lexer, 1);
-  }
-
-  token_setid(t, TK_INT);
-  t->integer = v;
-  return t;
-}
 
 static token_t* number(lexer_t* lexer)
 {
-  token_t* t = token(lexer);
-
   if(look(lexer) == '0')
   {
-    adv(lexer, 1);
-
-    if(lexer->len > 0)
+    switch(look2(lexer))
     {
-      char c = look(lexer);
+    case 'x':
+    case 'X':
+      adv(lexer, 2);  // Consume 0x
+      return nondecimal_number(lexer, 16, "hexadecimal number");
 
-      switch(c)
-      {
-      case 'x':
-        adv(lexer, 1);
-        return hexadecimal(lexer, t);
-
-      case 'b':
-        adv(lexer, 1);
-        return binary(lexer, t);
-
-      default:
-        return decimal(lexer, t);
-      }
+    case 'b':
+    case 'B':
+      adv(lexer, 2);  // Consume 0b
+      return nondecimal_number(lexer, 2, "binary number");
     }
   }
 
-  return decimal(lexer, t);
+  // Decimal
+  __uint128_t value = 0;
+  if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
+    return LEX_ERROR;
+
+  if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
+    return real(lexer, value);
+
+  token_t* t = token(lexer, TK_INT);
+  t->integer = value;
+  return t;
 }
+
 
 static void read_id(lexer_t* lexer)
 {
   char c;
 
-  while(lexer->len > 0)
+  while(!is_eof(lexer))
   {
     c = look(lexer);
 
@@ -934,52 +822,46 @@ static void read_id(lexer_t* lexer)
       break;
     }
   }
+
+  append(lexer, '\0');
 }
+
 
 static token_t* identifier(lexer_t* lexer)
 {
-  token_t* t = token(lexer);
-
   read_id(lexer);
-  append(lexer, '\0');
 
   for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->symbol))
     {
-      token_setid(t, p->id);
       lexer->buflen = 0;
-      return t;
+      return token(lexer, p->id);
     }
   }
 
-  token_setid(t, TK_ID);
-  t->string = copy(lexer);
+  token_t* t = token(lexer, TK_ID);
+  t->string = save_token_text(lexer);
   return t;
 }
 
+
 static token_t* symbol(lexer_t* lexer)
 {
-  token_t* t = token(lexer);
   char sym[2];
 
   sym[0] = look(lexer);
   adv(lexer, 1);
+  sym[1] = look(lexer);
 
-  if(lexer->len > 1)
+  if(is_symbol_char(sym[1]))
   {
-    sym[1] = look(lexer);
-
-    if(issymbol(sym[1]))
+    for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
     {
-      for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
+      if((sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]))
       {
-        if((sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]))
-        {
-          adv(lexer, 1);
-          token_setid(t, p->id);
-          return t;
-        }
+        adv(lexer, 1);
+        return token(lexer, p->id);
       }
     }
   }
@@ -988,15 +870,14 @@ static token_t* symbol(lexer_t* lexer)
   {
     if(sym[0] == p->symbol[0])
     {
-      token_setid(t, p->id);
-      return t;
+      return token(lexer, p->id);
     }
   }
 
   lexerror(lexer, "Unknown symbol: %c", sym[0]);
-  token_free(t);
-  return NULL;
+  return LEX_ERROR;
 }
+
 
 lexer_t* lexer_open(source_t* source)
 {
@@ -1009,6 +890,7 @@ lexer_t* lexer_open(source_t* source)
   return lexer;
 }
 
+
 void lexer_close(lexer_t* lexer)
 {
   if(lexer == NULL)
@@ -1020,12 +902,20 @@ void lexer_close(lexer_t* lexer)
   free(lexer);
 }
 
+
 token_t* lexer_next(lexer_t* lexer)
 {
   token_t* t = NULL;
+  size_t symbol_line;
+  size_t symbol_pos;
 
-  while((t == NULL) && (lexer->len > 0))
+  while(t == NULL)
   {
+    if(is_eof(lexer))
+      return token(lexer, TK_EOF);
+
+    symbol_line = lexer->line;
+    symbol_pos = lexer->pos;
     char c = look(lexer);
 
     switch(c)
@@ -1055,7 +945,7 @@ token_t* lexer_next(lexer_t* lexer)
         t = number(lexer);
       } else if(isalpha(c) || (c == '_')) {
         t = identifier(lexer);
-      } else if(issymbol(c)) {
+      } else if(is_symbol_char(c)) {
         t = symbol(lexer);
       } else {
         lexerror(lexer, "Unrecognized character: %c", c);
@@ -1064,25 +954,28 @@ token_t* lexer_next(lexer_t* lexer)
     }
   }
 
-  if(t == NULL)
-  {
-    t = token(lexer);
-    token_setid(t, TK_EOF);
-  }
+  if(t == LEX_ERROR)
+    return NULL;
+
+  t->line = symbol_line;
+  t->pos = symbol_pos;
 
   return t;
 }
+
 
 token_t* token_blank(token_id id)
 {
   return token_new(id, NULL, 0, 0, false);
 }
 
+
 token_t* token_from(token_t* token, token_id id)
 {
   // ignore the newline from the original token
   return token_new(id, token->source, token->line, token->pos, false);
 }
+
 
 token_t* token_from_string(token_t* token, const char* id)
 {
@@ -1092,12 +985,14 @@ token_t* token_from_string(token_t* token, const char* id)
   return t;
 }
 
+
 token_t* token_dup(token_t* token)
 {
   token_t* t = malloc(sizeof(token_t));
   memcpy(t, token, sizeof(token_t));
   return t;
 }
+
 
 const char* token_string(token_t* token)
 {
@@ -1125,7 +1020,8 @@ const char* token_string(token_t* token)
     return buf;
   }
 
-  default: {}
+  default:
+    break;
   }
 
   for(const lexsym_t* p = abstract; p->symbol != NULL; p++)
@@ -1155,6 +1051,7 @@ const char* token_string(token_t* token)
   return "UNKNOWN";
 }
 
+
 double token_float(token_t* token)
 {
   if(token->id == TK_FLOAT)
@@ -1162,6 +1059,7 @@ double token_float(token_t* token)
 
   return 0.0;
 }
+
 
 size_t token_int(token_t* token)
 {
@@ -1171,6 +1069,7 @@ size_t token_int(token_t* token)
   return 0;
 }
 
+
 void token_setid(token_t* token, token_id id)
 {
   if(token->newline)
@@ -1179,7 +1078,7 @@ void token_setid(token_t* token, token_id id)
     {
       case TK_LBRACE: id = TK_LBRACE_NEW; break;
       case TK_LPAREN: id = TK_LPAREN_NEW; break;
-      case TK_LBRACKET: id = TK_LBRACKET_NEW; break;
+      case TK_LSQUARE: id = TK_LSQUARE_NEW; break;
       case TK_MINUS: id = TK_MINUS_NEW; break;
       default: break;
     }
@@ -1188,10 +1087,12 @@ void token_setid(token_t* token, token_id id)
   token->id = id;
 }
 
+
 void token_setstring(token_t* token, const char* s)
 {
   token->string = stringtab(s);
 }
+
 
 void token_free(token_t* token)
 {

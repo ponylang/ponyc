@@ -1,0 +1,2 @@
+* Nested tuple access looks to the lexer like a float literal. Eg: x.1.2 lexes as x . 1.2
+
