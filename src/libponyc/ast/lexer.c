@@ -710,7 +710,7 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 {
   __uint128_t significand = integral_value;
-  __uint128_t e = 0;
+  __int128_t e = 0;
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
   assert(c == '.' || c == 'e' || c == 'E');
@@ -733,8 +733,6 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
     if(!lex_integer(lexer, 10, &significand, &mantissa_digit_count, true,
       "real number mantissa"))
       return LEX_ERROR;
-
-    e = -mantissa_digit_count;
   }
 
   if((look(lexer) == 'e') || (look(lexer) == 'E'))
@@ -749,11 +747,14 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
       adv(lexer, 1);
     }
 
-    if(!lex_integer(lexer, 10, &e, NULL, false, "real number exponent"))
+    __uint128_t exp_value = 0;
+    if(!lex_integer(lexer, 10, &exp_value, NULL, false, "real number exponent"))
       return LEX_ERROR;
 
     if(exp_neg)
-      e = -e;
+      e = -exp_value;
+    else
+      e = exp_value;
   }
 
   e -= mantissa_digit_count;
