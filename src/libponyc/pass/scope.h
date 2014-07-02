@@ -1,8 +1,8 @@
-#ifndef TYPE_SCOPE_H
-#define TYPE_SCOPE_H
+#ifndef PASS_SCOPE_H
+#define PASS_SCOPE_H
 
 #include "../ast/ast.h"
 
-ast_result_t type_scope(ast_t* ast, int verbose);
+ast_result_t pass_scope(ast_t* ast, int verbose);
 
 #endif

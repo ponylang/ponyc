@@ -65,7 +65,7 @@ static bool args_call(ast_t* ast)
   return false;
 }
 
-ast_result_t type_args(ast_t* ast, int verbose)
+ast_result_t pass_args(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {

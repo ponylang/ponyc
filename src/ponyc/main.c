@@ -1,4 +1,3 @@
-#include "../libponyc/pass/typechecker.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/ds/stringtab.h"
 #include <sys/ioctl.h>

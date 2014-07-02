@@ -1,8 +1,8 @@
-#ifndef TYPE_VALID_H
-#define TYPE_VALID_H
+#ifndef PASS_VALID_H
+#define PASS_VALID_H
 
 #include "../ast/ast.h"
 
-ast_result_t type_valid(ast_t* ast, int verbose);
+ast_result_t pass_valid(ast_t* ast, int verbose);
 
 #endif

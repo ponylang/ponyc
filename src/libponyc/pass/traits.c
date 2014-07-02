@@ -6,10 +6,10 @@
 
 typedef enum
 {
-  TYPE_INITIAL = 0,
-  TYPE_TRAITS_IN_PROGRESS,
-  TYPE_TRAITS_DONE
-} type_state_t;
+  PASS_INITIAL = 0,
+  PASS_TRAITS_IN_PROGRESS,
+  PASS_TRAITS_DONE
+} pass_state_t;
 
 static bool attach_method(ast_t* type, ast_t* method)
 {
@@ -34,7 +34,7 @@ static bool attach_method(ast_t* type, ast_t* method)
     ast_t* impl = ast_childidx(method, 6);
 
     if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
-      ast_swap(existing_impl, impl);
+      ast_replace(existing_impl, impl);
 
     // TODO: what if a new method is a subtype of an existing method?
     // if the existing method came from a trait, should we accept the new one?
@@ -53,19 +53,19 @@ static bool attach_method(ast_t* type, ast_t* method)
 
 static bool attach_traits(ast_t* def, int verbose)
 {
-  type_state_t state = (type_state_t)ast_data(def);
+  pass_state_t state = (pass_state_t)ast_data(def);
 
   switch(state)
   {
-    case TYPE_INITIAL:
-      ast_attach(def, (void*)TYPE_TRAITS_IN_PROGRESS);
+    case PASS_INITIAL:
+      ast_attach(def, (void*)PASS_TRAITS_IN_PROGRESS);
       break;
 
-    case TYPE_TRAITS_IN_PROGRESS:
+    case PASS_TRAITS_IN_PROGRESS:
       ast_error(def, "traits cannot be recursive");
       return false;
 
-    case TYPE_TRAITS_DONE:
+    case PASS_TRAITS_DONE:
       return true;
   }
 
@@ -127,7 +127,7 @@ static bool attach_traits(ast_t* def, int verbose)
     trait = ast_sibling(trait);
   }
 
-  ast_attach(def, (void*)TYPE_TRAITS_DONE);
+  ast_attach(def, (void*)PASS_TRAITS_DONE);
   return true;
 }
 
@@ -166,7 +166,7 @@ static bool have_impl(ast_t* ast)
   return ret;
 }
 
-ast_result_t type_traits(ast_t* ast, int verbose)
+ast_result_t pass_traits(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {

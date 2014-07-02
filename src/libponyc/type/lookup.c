@@ -84,3 +84,29 @@ ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
   assert(0);
   return NULL;
 }
+
+ast_t* tuple_index(ast_t* ast, int index)
+{
+  assert(ast_id(ast) == TK_TUPLETYPE);
+
+  while(index > 1)
+  {
+    ast_t* right = ast_childidx(ast, 1);
+
+    if(ast_id(right) != TK_TUPLETYPE)
+      return NULL;
+
+    index--;
+    ast = right;
+  }
+
+  if(index == 0)
+    return ast_child(ast);
+
+  ast = ast_childidx(ast, 1);
+
+  if(ast_id(ast) == TK_TUPLETYPE)
+    return ast_child(ast);
+
+  return ast;
+}

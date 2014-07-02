@@ -1,5 +1,10 @@
 #include "package.h"
-#include "../pass/typechecker.h"
+#include "../pass/scope.h"
+#include "../pass/valid.h"
+#include "../pass/traits.h"
+#include "../pass/sugar.h"
+#include "../pass/expr.h"
+#include "../pass/args.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -230,6 +235,32 @@ static const char* find_path(ast_t* from, const char* path)
   return NULL;
 }
 
+static bool do_passes(ast_t* ast, int verbose)
+{
+  if(ast_visit(ast, pass_scope, NULL, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  if(ast_visit(ast, NULL, pass_valid, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  if(ast_visit(ast, pass_traits, NULL, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  // recalculate scopes in the presence of flattened traits
+  ast_clear(ast);
+
+  if(ast_visit(ast, pass_scope, NULL, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  if(ast_visit(ast, NULL, pass_expr, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  if(ast_visit(ast, NULL, pass_args, AST_LEFT, verbose) != AST_OK)
+    return false;
+
+  return true;
+}
+
 /**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
@@ -322,8 +353,7 @@ ast_t* package_load(ast_t* from, const char* path, int verbose)
   if(!do_path(package, name, verbose))
     return NULL;
 
-
-  if(!typecheck(package, verbose))
+  if(!do_passes(package, verbose))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;
