@@ -1,6 +1,6 @@
 class POINTER[A]
 
-class Array[A] is Iterable[A]
+class Array[A]
   var size: U64
   var alloc: U64
   var ptr: POINTER[A]
@@ -39,16 +39,36 @@ class Array[A] is Iterable[A]
     ptr(size) = v
     size = size + 1
 
-  fun ref concat(iter: Iterable[A] ref) =>
+  fun ref concat(iter: Iterator[A] ref) =>
     for v in iter do append(v) end
 
-  fun box iterator(): ArrayIterator[A, this->Array[A]]^ =>
-    ArrayIterator[A, this->Array[A]](this)
+  fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
+    ArrayKeys[A, this->Array[A]](this)
+
+  fun box values(): ArrayValues[A, this->Array[A]]^ =>
+    ArrayValues[A, this->Array[A]](this)
 
   fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
     ArrayPairs[A, this->Array[A]](this)
 
-class ArrayIterator[A, B: Array[A] box] is Iterator[B->A]
+class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
+  var array: B
+  var i: U64
+
+  new create(array': B) =>
+    array = array'
+    i = 0
+
+  fun box has_next(): Bool => i < array.length()
+
+  fun ref next(): U64 ? =>
+    if i < array.length() then
+      i = i + 1
+    else
+      error
+    end
+
+class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   var array: B
   var i: U64
 

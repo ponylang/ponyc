@@ -10,17 +10,17 @@ class ListNode[A]
 
   fun box next(): this->(ListNode[A] | None) => _next
 
-class List[A] is Iterable[A]
+class List[A]
   var _head: (ListNode[A] | None)
 
   new create() => _head = None
 
   fun ref push(a: A) => _head = ListNode[A](a, _head)
 
-  fun box iterator(): ListIterator[A, this->ListNode[A]]^ =>
-    ListIterator[A, this->ListNode[A]](_head)
+  fun box values(): ListValues[A, this->ListNode[A]]^ =>
+    ListValues[A, this->ListNode[A]](_head)
 
-class ListIterator[A, N: ListNode[A] box] is Iterator[N->A]
+class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
   var _next: (N | None)
 
   new create(head: (N | None)) => _next = head
