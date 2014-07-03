@@ -520,9 +520,9 @@ DEF(returnexpr);
   RULE(infix);
   DONE();
 
-// BREAK | CONTINUE | ERROR
+// BREAK | CONTINUE | ERROR | COMPILER_INTRINSIC
 DEF(statement);
-  AST_TOKEN(TK_BREAK, TK_CONTINUE, TK_ERROR);
+  AST_TOKEN(TK_BREAK, TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
 // (statement | returnexpr | infix) [SEMI]

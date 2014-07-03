@@ -275,12 +275,20 @@ bool expr_fun(ast_t* ast)
   // if specified, body type must match return type
   ast_t* body_type = ast_type(body);
 
-  if(ast_id(body_type) == TK_ERROR)
+  switch(ast_id(body_type))
   {
-    ast_t* last = ast_childlast(body);
-    ast_error(type, "function body always results in an error");
-    ast_error(last, "function body expression is here");
-    return false;
+    case TK_ERROR:
+    {
+      ast_t* last = ast_childlast(body);
+      ast_error(type, "function body always results in an error");
+      ast_error(last, "function body expression is here");
+      return false;
+    }
+
+    case TK_COMPILER_INTRINSIC:
+      return true;
+
+    default: {}
   }
 
   // check partial functions

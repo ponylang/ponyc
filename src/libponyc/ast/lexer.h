@@ -63,6 +63,8 @@ typedef enum
   TK_MINUS_NEW,
 
   // keywords
+  TK_COMPILER_INTRINSIC,
+
   TK_USE,
   TK_TYPE,
   TK_TRAIT,

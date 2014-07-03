@@ -404,17 +404,6 @@ ast_t* ast_enclosing_loop(ast_t* ast)
         break;
       }
 
-      case TK_FOR:
-      {
-        // only if we are in the loop body
-        ast_t* body = ast_childidx(ast, 3);
-        assert(ast_id(body) == TK_SEQ);
-
-        if(body == last)
-          return ast;
-        break;
-      }
-
       default: {}
     }
 

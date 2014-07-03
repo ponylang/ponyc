@@ -65,3 +65,19 @@ bool expr_error(ast_t* ast)
   ast_settype(ast, ast_from(ast, TK_ERROR));
   return true;
 }
+
+bool expr_compiler_intrinsic(ast_t* ast)
+{
+  ast_t* fun = ast_enclosing_method_body(ast);
+  ast_t* body = ast_childidx(fun, 6);
+  ast_t* child = ast_child(body);
+
+  if((child != ast) || (ast_sibling(child) != NULL))
+  {
+    ast_error(ast, "a compiler intrinsic must be the entire body");
+    return false;
+  }
+
+  ast_settype(ast, ast_from(ast, TK_COMPILER_INTRINSIC));
+  return true;
+}

@@ -1,14 +1,18 @@
-class POINTER[A]
+class _Pointer[A]
+  new create(len: U64) => compiler_intrinsic
+  new from(ptr: _Pointer[A], len: U64) => compiler_intrinsic
+  fun ref apply(i: U64): A => compiler_intrinsic
+  fun ref update(i: U64, v: A): A^ => compiler_intrinsic
 
 class Array[A]
   var size: U64
   var alloc: U64
-  var ptr: POINTER[A]
+  var ptr: _Pointer[A]
 
   new create() =>
     size = 0
     alloc = 0
-    ptr = POINTER[A](0)
+    ptr = _Pointer[A](0)
 
   fun box length(): U64 => size
 
@@ -29,7 +33,7 @@ class Array[A]
   fun ref reserve(len: U64) =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
-      ptr = POINTER[A].from(ptr, alloc)
+      ptr = _Pointer[A].from(ptr, alloc)
     end
 
   fun ref clear() => size = 0

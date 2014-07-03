@@ -89,6 +89,8 @@ static const lexsym_t symbols1[] =
 
 static const lexsym_t keywords[] =
 {
+  { "compiler_intrinsic", TK_COMPILER_INTRINSIC },
+
   { "use", TK_USE },
   { "type", TK_TYPE },
   { "trait", TK_TRAIT },

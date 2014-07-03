@@ -218,6 +218,11 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
+    case TK_COMPILER_INTRINSIC:
+      if(!expr_compiler_intrinsic(ast))
+        return AST_FATAL;
+      break;
+
     default: {}
   }
 
