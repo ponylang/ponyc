@@ -151,7 +151,6 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 {
   ast_t* def = ast_enclosing_type(ast);
   assert(def != NULL);
-  assert(ast_id(def) != TK_TYPE);
 
   ast_t* id = ast_child(def);
   ast_t* typeparams = ast_sibling(id);

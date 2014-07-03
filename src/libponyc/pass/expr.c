@@ -4,6 +4,7 @@
 #include "../expr/operator.h"
 #include "../expr/postfix.h"
 #include "../expr/control.h"
+#include "../expr/match.h"
 #include <assert.h>
 
 ast_result_t pass_expr(ast_t* ast, int verbose)
@@ -148,6 +149,26 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
 
     case TK_TRY:
       if(!expr_try(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_MATCH:
+      if(!expr_match(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_CASES:
+      if(!expr_cases(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_CASE:
+      if(!expr_case(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_AS:
+      if(!expr_as(ast))
         return AST_FATAL;
       break;
 

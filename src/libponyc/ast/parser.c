@@ -413,14 +413,14 @@ DEF(as);
   RULE(type);
   DONE();
 
-// PIPE [seq] [as] [WHERE seq] [ARROW seq]
+// PIPE [rawseq] [as] [WHERE rawseq] [ARROW seq]
 DEF(caseexpr);
   SKIP(TK_PIPE);
   AST(TK_CASE);
   SCOPE();
-  OPTRULE(seq);
+  OPTRULE(rawseq);
   OPTRULE(as);
-  IFRULE(TK_WHERE, seq);
+  IFRULE(TK_WHERE, rawseq);
   IFRULE(TK_DBLARROW, seq);
   DONE();
 

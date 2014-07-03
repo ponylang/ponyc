@@ -108,6 +108,35 @@ static bool sugar_for(ast_t* ast)
   return true;
 }
 
+static bool sugar_case(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_CASE);
+  ast_t* body = ast_childidx(ast, 3);
+
+  if(ast_id(body) != TK_NONE)
+    return true;
+
+  ast_t* next = ast;
+  ast_t* next_body;
+
+  do
+  {
+    next = ast_sibling(next);
+
+    if(next == NULL)
+    {
+      ast_error(body, "case with no body has no following case body");
+      return false;
+    }
+
+    assert(ast_id(next) == TK_CASE);
+    next_body = ast_childidx(next, 3);
+  } while(ast_id(next_body) == TK_NONE);
+
+  ast_replace(body, next_body);
+  return true;
+}
+
 ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
@@ -119,6 +148,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 
     case TK_BANG:
       // TODO: syntactic sugar for partial application
+      break;
+
+    case TK_CASE:
+      if(!sugar_case(ast))
+        return AST_FATAL;
       break;
 
     default: {}

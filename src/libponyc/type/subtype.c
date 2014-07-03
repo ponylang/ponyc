@@ -261,6 +261,28 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
     trait = ast_sibling(trait);
   }
 
+  if(ast_id(super_def) == TK_TYPEPARAM)
+  {
+    // we can also be a subtype of a typeparam if its constraint is concrete
+    ast_t* constraint = ast_childidx(super_def, 1);
+
+    if(ast_id(constraint) == TK_NOMINAL)
+    {
+      ast_t* constraint_def = nominal_def(scope, constraint);
+
+      switch(ast_id(constraint_def))
+      {
+        case TK_CLASS:
+        case TK_ACTOR:
+          return is_eqtype(scope, sub, constraint);
+
+        // TODO: what if it is a type alias to a concrete type?
+
+        default: {}
+      }
+    }
+  }
+
   return false;
 }
 

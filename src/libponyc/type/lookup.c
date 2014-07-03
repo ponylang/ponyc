@@ -16,21 +16,32 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* find;
 
-  if(ast_id(def) == TK_TYPE)
+  switch(ast_id(def))
   {
-    ast_t* alias = ast_childidx(def, 3);
-
-    if(ast_id(alias) != TK_NONE)
+    case TK_TYPEPARAM:
     {
-      alias = ast_child(alias);
-      ast_t* r_alias = reify(alias, typeparams, typeargs);
-      find = lookup(scope, r_alias, name);
-      ast_free_unattached(r_alias);
-    } else {
-      find = NULL;
+      // typeparams is actually the constraint
+      return lookup(scope, typeparams, name);
     }
-  } else {
-    find = ast_get(def, name);
+
+    case TK_TYPE:
+    {
+      ast_t* alias = ast_childidx(def, 3);
+
+      if(ast_id(alias) != TK_NONE)
+      {
+        alias = ast_child(alias);
+        ast_t* r_alias = reify(alias, typeparams, typeargs);
+        find = lookup(scope, r_alias, name);
+        ast_free_unattached(r_alias);
+      } else {
+        find = ast_get(def, name);
+      }
+    }
+
+    default:
+      find = ast_get(def, name);
+      break;
   }
 
   if(find != NULL)

@@ -32,5 +32,6 @@ class ListIterator[A, N: ListNode[A] box] is Iterator[N->A]
     | as next': N =>
       _next = next'.next()
       next'.item()
-    | None => error
+    else
+      error
     end

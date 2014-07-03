@@ -53,7 +53,6 @@ static bool expr_typeaccess(ast_t* ast)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  // TODO: what about "create" on a type or class with no fields?
   ast_t* find = lookup(ast, type, ast_name(right));
 
   if(find == NULL)
