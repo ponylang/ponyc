@@ -137,6 +137,39 @@ static bool sugar_case(ast_t* ast)
   return true;
 }
 
+static bool sugar_update(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_ASSIGN);
+  ast_t* call = ast_child(ast);
+  ast_t* value = ast_sibling(call);
+
+  if(ast_id(call) != TK_CALL)
+    return true;
+
+  ast_t* expr = ast_child(call);
+
+  ast_t* positional = ast_sibling(expr);
+  ast_t* named = ast_sibling(positional);
+  positional = ast_dup(positional);
+
+  if(ast_id(positional) == TK_NONE)
+    ast_setid(positional, TK_POSITIONALARGS);
+
+  ast_t* seq = ast_from(positional, TK_SEQ);
+  ast_add(seq, value);
+  ast_append(positional, seq);
+
+  ast_t* dot = make_dot(ast, expr, "update");
+
+  ast_t* update = ast_from(ast, TK_CALL);
+  ast_add(update, named);
+  ast_add(update, positional);
+  ast_add(update, dot);
+
+  ast_replace(ast, update);
+  return true;
+}
+
 ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
@@ -152,6 +185,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 
     case TK_CASE:
       if(!sugar_case(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_ASSIGN:
+      if(!sugar_update(ast))
         return AST_FATAL;
       break;
 

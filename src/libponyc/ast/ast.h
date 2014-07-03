@@ -125,7 +125,7 @@ atom
 DOT postfix (ID | INT)
 BANG postfix INT
 QUALIFY postfix TYPEARGS
-CALL postfix TUPLE
+CALL postfix [POSITIONALARGS] [NAMEDARGS]
 
 control
 -------

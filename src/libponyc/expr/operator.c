@@ -272,8 +272,6 @@ bool expr_assign(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // TODO: update sugar
-
   if(!is_lvalue(left))
   {
     ast_error(ast, "left side must be something that can be assigned to");
