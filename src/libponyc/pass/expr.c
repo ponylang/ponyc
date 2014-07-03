@@ -146,11 +146,6 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
-    case TK_FOR:
-      // TODO: transform to a while loop
-      ast_error(ast, "not implemented (for)");
-      return AST_FATAL;
-
     case TK_TRY:
       if(!expr_try(ast))
         return AST_FATAL;

@@ -1,4 +1,5 @@
 #include "reference.h"
+#include "literal.h"
 #include "postfix.h"
 #include "../type/subtype.h"
 #include "../type/nominal.h"
@@ -67,27 +68,20 @@ bool expr_typeref(ast_t* ast)
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
+      // doesn't have to be valid yet
       break;
 
     case TK_DOT:
-    {
-      if(!nominal_valid(ast, type))
-        return false;
-
-      // TODO: constructor, or method on default constructor?
-      // ast_t* find = lookup(ast, type, ast_name(right));
-      //
-      // if(find == NULL)
-      //   return false;
-      break;
-    }
+      // has to be valid
+      return nominal_valid(ast, type);
 
     case TK_CALL:
     {
+      // has to be valid
       if(!nominal_valid(ast, type))
         return false;
 
-      // default constructor
+      // transform to a default constructor
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, stringtab("create")));
       ast_swap(ast, dot);
@@ -98,10 +92,11 @@ bool expr_typeref(ast_t* ast)
 
     default:
     {
+      // has to be valid
       if(!nominal_valid(ast, type))
         return false;
 
-      // default constructor
+      // transform to a default constructor
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, stringtab("create")));
       ast_swap(ast, dot);
@@ -110,7 +105,7 @@ bool expr_typeref(ast_t* ast)
       if(!expr_dot(dot))
         return false;
 
-      // call with no arguments
+      // call the default constructor with no arguments
       ast_t* tuple = ast_from(ast, TK_TUPLE);
       ast_add(tuple, ast_from(ast, TK_NONE)); // named args
       ast_add(tuple, ast_from(ast, TK_NONE)); // positional args
@@ -171,13 +166,22 @@ bool expr_reference(ast_t* ast)
     case TK_FVAR:
     case TK_FLET:
     {
+      // transform to this.f
       if(!def_before_use(def, ast, name))
         return false;
 
-      // get the type of the field and attach it to our reference
-      ast_settype(ast, ast_type(def));
-      ast_setid(ast, TK_FIELDREF);
-      return true;
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_swap(ast, dot);
+      ast_add(dot, ast_child(ast));
+      ast_free(ast);
+
+      ast_t* this = ast_from(ast, TK_THIS);
+      ast_add(dot, this);
+
+      if(!expr_this(this))
+        return false;
+
+      return expr_dot(dot);
     }
 
     case TK_PARAM:
@@ -195,10 +199,19 @@ bool expr_reference(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // method call on 'this'
-      ast_settype(ast, type_for_fun(def));
-      ast_setid(ast, TK_FUNREF);
-      return true;
+      // transform to this.f
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_swap(ast, dot);
+      ast_add(dot, ast_child(ast));
+      ast_free(ast);
+
+      ast_t* this = ast_from(ast, TK_THIS);
+      ast_add(dot, this);
+
+      if(!expr_this(this))
+        return false;
+
+      return expr_dot(dot);
     }
 
     case TK_ID:
@@ -236,9 +249,6 @@ bool expr_local(ast_t* ast)
         if(ast_id(ast_parent(parent)) == TK_ASSIGN)
           return true;
         break;
-
-      case TK_FOR:
-        return true;
 
       default: {}
     }
@@ -294,7 +304,7 @@ bool expr_fun(ast_t* ast)
     }
   }
 
-  if(ast_id(type) != TK_NONE)
+  if(ast_id(ast) == TK_FUN)
   {
     // union the result type with ERROR
     if(ast_id(can_error) == TK_QUESTION)

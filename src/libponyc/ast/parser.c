@@ -137,21 +137,6 @@ DEF(typeargs);
   SKIP(TK_RSQUARE);
   DONE();
 
-// NEW [ID] [typeparams] (LPAREN | TK_LPAREN_NEW) [types] RPAREN [QUESTION]
-DEF(newtype);
-  AST_TOKEN(TK_NEW);
-  SCOPE();
-  INSERT(TK_NONE);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
-  SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(types);
-  INSERT(TK_NONE);
-  SKIP(TK_RPAREN);
-  OPTIONAL(TK_QUESTION);
-  INSERT(TK_NONE);
-  DONE();
-
 // BE [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN
 DEF(betype);
   AST_TOKEN(TK_BE);
@@ -182,10 +167,9 @@ DEF(funtype);
   INSERT(TK_NONE);
   DONE();
 
-// {newtype} {betype} {funtype}
+// {betype} {funtype}
 DEF(funs);
   AST(TK_MEMBERS);
-  SEQRULE(newtype);
   SEQRULE(betype);
   SEQRULE(funtype);
   DONE();

@@ -64,12 +64,9 @@ typeop
   :  '|' | '&' | ',' // union, intersection, tuple
   ;
 
-// could make structural types into traits by supplying bodies here
-// param list could just be a single type expression
 fun_type
-  :  'new' ID? type_params? '(' types? ')' '?'?
+  :  'be' ID? type_params? '(' types? ')'
   |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
-  |  'be' ID? type_params? '(' types? ')'
   ;
 
 // the @ is a cheat: means the symbol "not on a new line"

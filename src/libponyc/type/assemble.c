@@ -147,13 +147,46 @@ ast_t* type_strip_error(ast_t* ast, ast_t* type)
   return NULL;
 }
 
+ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
+{
+  ast_t* def = ast_enclosing_type(ast);
+  assert(def != NULL);
+  assert(ast_id(def) != TK_TYPE);
+
+  ast_t* id = ast_child(def);
+  ast_t* typeparams = ast_sibling(id);
+  const char* name = ast_name(id);
+
+  ast_t* nominal = ast_from(ast, TK_NOMINAL);
+  ast_add(nominal, ast_from(ast, ephemeral ? TK_HAT : TK_NONE));
+  ast_add(nominal, ast_from(ast, cap));
+
+  if(ast_id(typeparams) == TK_TYPEPARAMS)
+  {
+    ast_t* typeparam = ast_child(typeparams);
+    ast_t* typeargs = ast_from(ast, TK_TYPEARGS);
+    ast_add(nominal, typeargs);
+
+    while(typeparam != NULL)
+    {
+      ast_t* typeparam_id = ast_child(typeparam);
+      ast_t* typearg = nominal_type(ast, NULL, ast_name(typeparam_id));
+      ast_append(typeargs, typearg);
+
+      typeparam = ast_sibling(typeparam);
+    }
+  } else {
+    ast_add(nominal, ast_from(ast, TK_NONE)); // empty typeargs
+  }
+
+  ast_add(nominal, ast_from_string(ast, name));
+  ast_add(nominal, ast_from(ast, TK_NONE));
+
+  return nominal;
+}
+
 ast_t* type_for_fun(ast_t* ast)
 {
-  assert((ast_id(ast) == TK_NEW) ||
-    (ast_id(ast) == TK_BE) ||
-    (ast_id(ast) == TK_FUN)
-    );
-
   ast_t* cap = ast_child(ast);
   ast_t* id = ast_sibling(cap);
   ast_t* typeparams = ast_sibling(id);
@@ -161,10 +194,16 @@ ast_t* type_for_fun(ast_t* ast)
   ast_t* result = ast_sibling(params);
   ast_t* throws = ast_sibling(result);
 
-  ast_t* fun = ast_from(ast, ast_id(ast));
-  ast_add(fun, ast_from(ast, TK_NONE));
-  ast_add(fun, throws);
-  ast_add(fun, result);
+  ast_t* fun = ast_from(ast, TK_FUNTYPE);
+
+  if(ast_id(throws) == TK_NONE)
+  {
+    ast_add(fun, result);
+  } else {
+    ast_t* error = ast_from(ast, TK_ERROR);
+    ast_add(fun, type_union(ast, result, error));
+    ast_free_unattached(error);
+  }
 
   if(ast_id(params) == TK_PARAMS)
   {
@@ -183,9 +222,6 @@ ast_t* type_for_fun(ast_t* ast)
   }
 
   ast_add(fun, typeparams);
-  ast_add(fun, id);
-  ast_add(fun, cap);
-
   return fun;
 }
 

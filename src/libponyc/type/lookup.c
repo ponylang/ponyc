@@ -20,20 +20,25 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
   {
     ast_t* alias = ast_childidx(def, 3);
 
-    if(ast_id(alias) == TK_NONE)
-      return NULL;
-
-    alias = ast_child(alias);
-    ast_t* r_alias = reify(alias, typeparams, typeargs);
-    find = lookup(scope, r_alias, name);
-    ast_free_unattached(r_alias);
+    if(ast_id(alias) != TK_NONE)
+    {
+      alias = ast_child(alias);
+      ast_t* r_alias = reify(alias, typeparams, typeargs);
+      find = lookup(scope, r_alias, name);
+      ast_free_unattached(r_alias);
+    } else {
+      find = NULL;
+    }
   } else {
     find = ast_get(def, name);
   }
 
-  // TODO: reify again here?
-  if(find == NULL)
+  if(find != NULL)
+  {
+    find = reify(find, typeparams, typeargs);
+  } else {
     ast_error(type, "couldn't find '%s' in '%s'", name, ast_name(typename));
+  }
 
   return find;
 }

@@ -160,6 +160,7 @@ static const lexsym_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "structural", TK_STRUCTURAL },
   { "thistype", TK_THISTYPE },
+  { "funtype", TK_FUNTYPE },
 
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },
