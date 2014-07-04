@@ -1,4 +1,5 @@
 #include "literal.h"
+#include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../type/cap.h"
@@ -35,6 +36,7 @@ bool expr_tuple(ast_t* ast)
 
     ast_append(tuple, ast_type(child));
     child = ast_sibling(child);
+    ast_t* child_type;
 
     while(ast_sibling(child) != NULL)
     {
@@ -42,14 +44,18 @@ bool expr_tuple(ast_t* ast)
       ast_append(tuple, next);
       tuple = next;
 
-      ast_append(tuple, ast_type(child));
+      child_type = ast_type(child);
+      ast_append(tuple, child_type);
+
       child = ast_sibling(child);
     }
 
-    ast_append(tuple, ast_type(child));
+    child_type = ast_type(child);
+    ast_append(tuple, child_type);
   }
 
   ast_settype(ast, type);
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -62,7 +68,7 @@ bool expr_error(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, ast_from(ast, TK_ERROR));
+  ast_seterror(ast);
   return true;
 }
 

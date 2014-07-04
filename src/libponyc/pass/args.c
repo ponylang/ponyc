@@ -23,16 +23,22 @@ static bool args_call(ast_t* ast)
   ast_t* typeparams = ast_child(type);
   assert(ast_id(typeparams) == TK_NONE);
 
+  // TODO: is this wrong?
   ast_t* params = ast_sibling(typeparams);
   ast_t* param = ast_child(params);
   ast_t* arg = ast_child(positional);
 
   while((arg != NULL) && (param != NULL))
   {
+    if(ast_id(param) == TK_NONE)
+    {
+      ast_error(arg, "undecided default argument (not implemented)");
+      return false;
+    }
+
     if(!is_subtype(ast, ast_type(arg), param))
     {
       ast_error(arg, "argument not a subtype of parameter");
-      ast_error(param, "parameter is here");
       return false;
     }
 

@@ -229,7 +229,8 @@ ast_t* nominal_def(ast_t* scope, ast_t* nominal)
     return NULL;
   }
 
-  ast_attach(nominal, def);
+  assert(ast_data(nominal) == NULL);
+  ast_setdata(nominal, def);
   return def;
 }
 

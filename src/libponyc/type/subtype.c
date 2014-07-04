@@ -510,28 +510,6 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
       return is_structural_sub_structural(scope, sub, super);
     }
 
-    case TK_ERROR:
-    {
-      switch(ast_id(super))
-      {
-        case TK_ERROR:
-          return true;
-
-        case TK_TUPLETYPE:
-        {
-          // error is a subtype of a tuple if it is a subtype of any element of
-          // the tuple
-          ast_t* left = ast_child(super);
-          ast_t* right = ast_sibling(left);
-          return is_subtype(scope, sub, left) || is_subtype(scope, sub, right);
-        }
-
-        default: {}
-      }
-
-      return false;
-    }
-
     default: {}
   }
 

@@ -21,7 +21,6 @@ bool expr_match(ast_t* ast)
     ast_t* body = ast_childidx(the_case, 3);
     ast_t* body_type = ast_type(body);
     type = type_union(ast, type, body_type);
-
     the_case = ast_sibling(the_case);
   }
 
@@ -35,6 +34,7 @@ bool expr_match(ast_t* ast)
   }
 
   ast_settype(ast, type);
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -49,6 +49,7 @@ bool expr_cases(ast_t* ast)
     return false;
   }
 
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -78,6 +79,7 @@ bool expr_case(ast_t* ast)
     return false;
   }
 
+  ast_inheriterror(ast);
   return true;
 }
 

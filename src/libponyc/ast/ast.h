@@ -74,6 +74,8 @@ RAWSEQ: {expr}
 
 expr
 ----
+data: can error or not
+
 term: local | prefix | postfix | control | infix
 
 CONTINUE
@@ -204,7 +206,6 @@ ast_t* ast_from(ast_t* ast, token_id id);
 ast_t* ast_from_string(ast_t* ast, const char* id);
 ast_t* ast_hygienic_id(ast_t* ast);
 ast_t* ast_dup(ast_t* ast);
-void ast_attach(ast_t* ast, void* data);
 void ast_scope(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
 
@@ -212,11 +213,15 @@ token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 void* ast_data(ast_t* ast);
+void ast_setdata(ast_t* ast, void* data);
+bool ast_canerror(ast_t* ast);
+void ast_seterror(ast_t* ast);
+void ast_inheriterror(ast_t* ast);
 const char* ast_name(ast_t* ast);
 double ast_float(ast_t* ast);
 size_t ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);
-ast_t* ast_settype(ast_t* ast, ast_t* type);
+void ast_settype(ast_t* ast, ast_t* type);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_type(ast_t* ast);

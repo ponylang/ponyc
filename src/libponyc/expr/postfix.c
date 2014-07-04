@@ -73,6 +73,9 @@ static bool expr_typeaccess(ast_t* ast)
     {
       ast_setid(ast, TK_FUNREF);
       ast_settype(ast, type_for_fun(find));
+
+      if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
+        ast_seterror(ast);
       break;
     }
 
@@ -164,6 +167,9 @@ static bool expr_memberaccess(ast_t* ast)
 
       ast_setid(ast, TK_FUNREF);
       ast_settype(ast, type_for_fun(find));
+
+      if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
+        ast_seterror(ast);
       break;
     }
 
@@ -176,6 +182,7 @@ static bool expr_memberaccess(ast_t* ast)
   }
 
   ast_free_unattached(find);
+  ast_inheriterror(ast);
   return ret;
 }
 
@@ -205,6 +212,7 @@ static bool expr_tupleaccess(ast_t* ast)
 
   ast_setid(ast, TK_FIELDREF);
   ast_settype(ast, type);
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -242,6 +250,7 @@ bool expr_qualify(ast_t* ast)
     {
       // TODO: qualify the function
       ast_error(ast, "not implemented (qualify a function)");
+      ast_inheriterror(ast);
       return false;
     }
 
@@ -319,7 +328,17 @@ bool expr_call(ast_t* ast)
     {
       // TODO: use args to decide unbound type parameters
       assert(ast_id(type) == TK_FUNTYPE);
+      ast_t* typeparams = ast_child(type);
+
+      if(ast_id(typeparams) != TK_NONE)
+      {
+        ast_error(ast,
+          "can't call a function with unqualified type parameters");
+        return false;
+      }
+
       ast_settype(ast, ast_childidx(type, 2));
+      ast_inheriterror(ast);
       return true;
     }
 

@@ -57,7 +57,9 @@ bool expr_identity(ast_t* ast)
     return false;
   }
 
-  return expr_literal(ast, "Bool");
+  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  ast_inheriterror(ast);
+  return true;
 }
 
 bool expr_compare(ast_t* ast)
@@ -113,6 +115,7 @@ bool expr_compare(ast_t* ast)
   }
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -154,6 +157,7 @@ bool expr_order(ast_t* ast)
   }
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -173,6 +177,7 @@ bool expr_arithmetic(ast_t* ast)
 
   ast_free_unattached(l_type);
   ast_free_unattached(r_type);
+  ast_inheriterror(ast);
 
   return (type != NULL);
 }
@@ -204,6 +209,7 @@ bool expr_minus(ast_t* ast)
 
   ast_free_unattached(l_type);
   ast_free_unattached(r_type);
+  ast_inheriterror(ast);
 
   return (type != NULL);
 }
@@ -226,6 +232,7 @@ bool expr_shift(ast_t* ast)
 
   ast_free_unattached(l_type);
   ast_free_unattached(r_type);
+  ast_inheriterror(ast);
 
   return (l_type != NULL) && (r_type != NULL);
 }
@@ -249,6 +256,7 @@ bool expr_logical(ast_t* ast)
 
   ast_free_unattached(l_type);
   ast_free_unattached(r_type);
+  ast_inheriterror(ast);
 
   return (type != NULL);
 }
@@ -262,6 +270,7 @@ bool expr_not(ast_t* ast)
     return false;
 
   ast_settype(ast, type);
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -295,5 +304,6 @@ bool expr_assign(ast_t* ast)
   // TODO: viewpoint adaptation, safe to write, etc
   // TODO: disallow reassignment to SSA variable
   ast_settype(ast, l_type);
+  ast_inheriterror(ast);
   return true;
 }

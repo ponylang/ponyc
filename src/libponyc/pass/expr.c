@@ -223,6 +223,12 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
+    case TK_POSITIONALARGS:
+    case TK_NAMEDARGS:
+    case TK_NAMEDARG:
+      ast_inheriterror(ast);
+      break;
+
     default: {}
   }
 

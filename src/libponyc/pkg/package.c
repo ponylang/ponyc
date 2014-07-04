@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
+#include <assert.h>
 
 #define EXTENSION ".pony"
 
@@ -349,7 +350,8 @@ ast_t* package_load(ast_t* from, const char* path, int verbose)
     return package;
 
   package = ast_blank(TK_PACKAGE);
-  ast_attach(package, (void*)name);
+  assert(ast_data(package) == NULL);
+  ast_setdata(package, (void*)name);
   ast_scope(package);
   ast_add(program, package);
   ast_set(program, name, package);

@@ -6,27 +6,10 @@
 
 bool expr_seq(ast_t* ast)
 {
-  // if any element can error, the whole thing can error
-  ast_t* child = ast_child(ast);
-  assert(child != NULL);
-
-  ast_t* error = ast_from(ast, TK_ERROR);
-  bool can_error = false;
-  ast_t* type;
-
-  while(child != NULL)
-  {
-    type = ast_type(child);
-    can_error |= is_subtype(ast, error, type);
-    child = ast_sibling(child);
-  }
-
-  if(can_error)
-    type = type_union(ast, type, error);
-
-  ast_settype(ast, type);
-  ast_free_unattached(error);
-
+  // type is the type of the last child
+  ast_t* last = ast_childlast(ast);
+  ast_settype(ast, ast_type(last));
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -52,6 +35,7 @@ bool expr_if(ast_t* ast)
 
   ast_t* type = type_union(ast, l_type, r_type);
   ast_settype(ast, type);
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -66,6 +50,7 @@ bool expr_while(ast_t* ast)
   }
 
   ast_settype(ast, nominal_builtin(ast, "None"));
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -81,6 +66,7 @@ bool expr_repeat(ast_t* ast)
   }
 
   ast_settype(ast, nominal_builtin(ast, "None"));
+  ast_inheriterror(ast);
   return true;
 }
 
@@ -90,17 +76,13 @@ bool expr_try(ast_t* ast)
   ast_t* right = ast_sibling(left);
 
   // it has to be possible for the left side to result in an error
-  ast_t* l_type = ast_type(left);
-  ast_t* error = ast_from(ast, TK_ERROR);
-  bool ok = is_subtype(ast, error, l_type);
-  ast_free(error);
-
-  if(!ok)
+  if(!ast_canerror(left))
   {
     ast_error(left, "try expression never results in an error");
     return false;
   }
 
+  ast_t* l_type = ast_type(left);
   ast_t* r_type;
 
   if(ast_id(right) == TK_NONE)
@@ -108,27 +90,13 @@ bool expr_try(ast_t* ast)
   else
     r_type = ast_type(right);
 
-  switch(ast_id(l_type))
-  {
-    case TK_ERROR:
-    {
-      ast_settype(ast, r_type);
-      return true;
-    }
+  ast_t* type = type_union(ast, l_type, r_type);
+  ast_settype(ast, type);
 
-    case TK_UNIONTYPE:
-    {
-      // strip error out of the l_type
-      ast_t* type = type_union(ast, type_strip_error(ast, l_type), r_type);
-      ast_settype(ast, type);
-      return true;
-    }
+  if(ast_canerror(right))
+    ast_seterror(ast);
 
-    default: {}
-  }
-
-  assert(0);
-  return false;
+  return true;
 }
 
 bool expr_continue(ast_t* ast)
@@ -148,7 +116,6 @@ bool expr_continue(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, nominal_builtin(ast, "None"));
   return true;
 }
 
@@ -175,39 +142,23 @@ bool expr_return(ast_t* ast)
   switch(ast_id(fun))
   {
     case TK_NEW:
+      // TODO: too strict?
       ast_error(ast, "cannot return in a constructor");
       return false;
 
     case TK_BE:
-    {
-      ast_t* none = nominal_builtin(ast, "None");
-
-      if(!is_subtype(ast, type, none))
-      {
-        ast_error(body, "body of a return in a behaviour must have type None");
-        ok = false;
-      }
-
-      ast_free(none);
-      return ok;
-    }
-
     case TK_FUN:
     {
       ast_t* result = ast_childidx(fun, 4);
-
-      if(ast_id(result) == TK_NONE)
-        result = nominal_builtin(ast, "None");
 
       if(!is_subtype(ast, type, result))
       {
         ast_error(body,
           "body of return doesn't match the function return type");
-        ok = false;
+        return false;
       }
 
-      ast_free_unattached(result);
-      return ok;
+      return true;
     }
 
     default: {}

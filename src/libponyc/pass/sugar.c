@@ -35,12 +35,9 @@ static ast_t* make_dot(ast_t* ast, ast_t* left, const char* right)
 
 static ast_t* make_call(ast_t* ast, ast_t* left)
 {
-  ast_t* tuple = ast_from(ast, TK_TUPLE);
-  ast_add(tuple, ast_from(ast, TK_NONE));
-  ast_add(tuple, ast_from(ast, TK_NONE));
-
   ast_t* call = ast_from(ast, TK_CALL);
-  ast_add(call, tuple);
+  ast_add(call, ast_from(ast, TK_NONE));
+  ast_add(call, ast_from(ast, TK_NONE));
   ast_add(call, left);
 
   return call;
