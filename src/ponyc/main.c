@@ -5,9 +5,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#if defined(__APPLE__)
+//#if defined(__APPLE__)
 #include <getopt.h>
-#endif
+//#endif
 
 static struct option opts[] =
 {
@@ -67,12 +67,7 @@ int main(int argc, char** argv)
   argc -= optind;
   argv += optind;
 
-  int ret = 0;
-
   ast_t* program = program_load((argc > 0) ? argv[0] : ".", verbose);
-
-  if(program == NULL)
-    ret = -1;
 
   if(ast)
     ast_print(program, width);
