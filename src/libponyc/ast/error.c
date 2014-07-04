@@ -7,10 +7,10 @@
 
 #define LINE_LEN 1024
 
-static error_t* head;
-static error_t* tail;
+static errormsg_t* head;
+static errormsg_t* tail;
 
-static void add_error(error_t* e)
+static void add_error(errormsg_t* e)
 {
   if(head == NULL)
   {
@@ -24,20 +24,20 @@ static void add_error(error_t* e)
   e->next = NULL;
 }
 
-error_t* get_errors()
+errormsg_t* get_errors()
 {
   return head;
 }
 
 void free_errors()
 {
-  error_t* e = head;
+  errormsg_t* e = head;
   head = NULL;
   tail = NULL;
 
   while(e != NULL)
   {
-    error_t* next = e->next;
+    errormsg_t* next = e->next;
     free(e);
     e = next;
   }
@@ -45,7 +45,7 @@ void free_errors()
 
 void print_errors()
 {
-  error_t* e = head;
+  errormsg_t* e = head;
 
   while(e != NULL)
   {
@@ -83,7 +83,7 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  error_t* e = calloc(1, sizeof(error_t));
+  errormsg_t* e = calloc(1, sizeof(errormsg_t));
 
   if(source != NULL)
     e->file = source->file;
@@ -132,7 +132,7 @@ void errorfv(const char* file, const char* fmt, va_list ap)
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  error_t* e = calloc(1, sizeof(error_t));
+  errormsg_t* e = calloc(1, sizeof(errormsg_t));
   e->file = stringtab(file);
   e->msg = stringtab(buf);
   add_error(e);

@@ -5,17 +5,17 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-typedef struct error_t
+typedef struct errormsg_t
 {
   const char* file;
   size_t line;
   size_t pos;
   const char* msg;
   const char* source;
-  struct error_t* next;
-} error_t;
+  struct errormsg_t* next;
+} errormsg_t;
 
-error_t* get_errors();
+errormsg_t* get_errors();
 
 void free_errors();
 

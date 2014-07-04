@@ -6,7 +6,6 @@ solution "ponyc"
     }
 
   buildoptions {
-    "-std=gnu11",
     "-march=native",
     }
 
@@ -57,6 +56,7 @@ solution "ponyc"
   project "ponyc"
     kind "ConsoleApp"
     language "C"
+    buildoptions "-std=gnu11"
     files "src/ponyc/**.c"
     links {"m", "libponyc"}
 
