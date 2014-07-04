@@ -9,24 +9,94 @@ type False
 type Bool is (True | False)
 
 class I8 val
+  fun val max(that: I8): I8 =>
+    if this > that then this else that end
 
 class I16 val
+  fun val max(that: I16): I16 =>
+    if this > that then this else that end
 
 class I32 val
+  fun val max(that: I32): I32 =>
+    if this > that then this else that end
 
 class I64 val
+  fun val max(that: I64): I64 =>
+    if this > that then this else that end
 
 class I128 val
+  fun val max(that: I128): I128 =>
+    if this > that then this else that end
 
 class U8 val
+  fun val max(that: U8): U8 =>
+    if this > that then this else that end
+
+  fun val next_pow2(): U8 =>
+    var x = this - 1
+    x = x or (x >> 1)
+    x = x or (x >> 2)
+    x = x or (x >> 3)
+    x = x or (x >> 4)
+    x + 1
 
 class U16 val
+  fun val max(that: U16): U16 =>
+    if this > that then this else that end
+
+  fun val next_pow2(): U16 =>
+    var x = this - 1
+    x = x or (x >> 1)
+    x = x or (x >> 2)
+    x = x or (x >> 3)
+    x = x or (x >> 4)
+    x = x or (x >> 8)
+    x + 1
 
 class U32 val
+  fun val max(that: U32): U32 =>
+    if this > that then this else that end
+
+  fun val next_pow2(): U32 =>
+    var x = this - 1
+    x = x or (x >> 1)
+    x = x or (x >> 2)
+    x = x or (x >> 3)
+    x = x or (x >> 4)
+    x = x or (x >> 8)
+    x = x or (x >> 16)
+    x + 1
 
 class U64 val
+  fun val max(that: U64): U64 =>
+    if this > that then this else that end
+
+  fun val next_pow2(): U64 =>
+    var x = this - 1
+    x = x or (x >> 1)
+    x = x or (x >> 2)
+    x = x or (x >> 3)
+    x = x or (x >> 4)
+    x = x or (x >> 8)
+    x = x or (x >> 16)
+    x = x or (x >> 32)
+    x + 1
 
 class U128 val
+  fun val max(that: U128): U128 =>
+    if this > that then this else that end
+
+  fun val next_pow2(): U128 =>
+    var x = this - 1
+    x = x or (x >> 1)
+    x = x or (x >> 2)
+    x = x or (x >> 3)
+    x = x or (x >> 4)
+    x = x or (x >> 8)
+    x = x or (x >> 16)
+    x = x or (x >> 32)
+    x = x or (x >> 64)
+    x + 1
 
 class F32 val
 
@@ -48,6 +118,7 @@ type Integer is
   | I32
   | I64
   | I128
+  | U8
   | U16
   | U32
   | U64

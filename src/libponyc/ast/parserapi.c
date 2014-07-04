@@ -1,5 +1,6 @@
 #include "parserapi.h"
 #include <stdlib.h>
+#include <assert.h>
 
 static token_id current(parser_t* parser)
 {
@@ -88,7 +89,8 @@ ast_t* parse(source_t* source, rule_t start)
   if(ast != NULL)
   {
     ast_reverse(ast);
-    ast_attach(ast, source);
+    assert(ast_data(ast) == NULL);
+    ast_setdata(ast, source);
   }
 
   lexer_close(lexer);

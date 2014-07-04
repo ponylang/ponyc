@@ -45,12 +45,6 @@ ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type);
 ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type);
 
 /**
- * Build a type that is the base type without any error types. Used to get the
- * type of the left side of a try expression.
- */
-ast_t* type_strip_error(ast_t* ast, ast_t* type);
-
-/**
  * Build a type to describe the current class/actor.
  */
 ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral);

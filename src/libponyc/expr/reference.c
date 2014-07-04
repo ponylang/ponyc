@@ -106,11 +106,9 @@ bool expr_typeref(ast_t* ast)
         return false;
 
       // call the default constructor with no arguments
-      ast_t* tuple = ast_from(ast, TK_TUPLE);
-      ast_add(tuple, ast_from(ast, TK_NONE)); // named args
-      ast_add(tuple, ast_from(ast, TK_NONE)); // positional args
       ast_t* call = ast_from(ast, TK_CALL);
-      ast_add(call, tuple);
+      ast_add(call, ast_from(ast, TK_NONE)); // named args
+      ast_add(call, ast_from(ast, TK_NONE)); // positional args
       ast_swap(dot, call);
       ast_add(call, dot);
 
@@ -275,55 +273,43 @@ bool expr_fun(ast_t* ast)
   // if specified, body type must match return type
   ast_t* body_type = ast_type(body);
 
-  switch(ast_id(body_type))
+  if(body_type == NULL)
   {
-    case TK_ERROR:
-    {
-      ast_t* last = ast_childlast(body);
-      ast_error(type, "function body always results in an error");
-      ast_error(last, "function body expression is here");
-      return false;
-    }
-
-    case TK_COMPILER_INTRINSIC:
-      return true;
-
-    default: {}
+    ast_t* last = ast_childlast(body);
+    ast_error(type, "function body always results in an error");
+    ast_error(last, "function body expression is here");
+    return false;
   }
 
-  // check partial functions
-  ast_t* error = ast_from(ast, TK_ERROR);
-  bool ret = true;
+  if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
+    return true;
 
+  // check partial functions
   if(ast_id(can_error) == TK_QUESTION)
   {
     // if a partial function, check that we might actually error
-    if(!is_trait && !is_subtype(ast, error, body_type))
+    if(!is_trait && !ast_canerror(body))
     {
       ast_error(can_error, "function body is not partial but the function is");
-      ret = false;
+      return false;
     }
   } else {
     // if not a partial function, check that we can't error
-    if(is_subtype(ast, error, body_type))
+    if(ast_canerror(body))
     {
       ast_error(can_error, "function body is partial but the function is not");
-      ret = false;
+      return false;
     }
   }
 
   if(ast_id(ast) == TK_FUN)
   {
-    // union the result type with ERROR
-    if(ast_id(can_error) == TK_QUESTION)
-      type = type_union(ast, type, error);
-
     if(!is_subtype(ast, body_type, type))
     {
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body isn't a subtype of the result type");
       ast_error(last, "function body expression is here");
-      ret = false;
+      return false;
     }
 
     if(!is_trait && !is_eqtype(ast, body_type, type))
@@ -331,11 +317,9 @@ bool expr_fun(ast_t* ast)
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body is more specific than the result type");
       ast_error(last, "function body expression is here");
-      ret = false;
+      return false;
     }
   }
 
-  ast_free_unattached(error);
-  ast_free_unattached(type);
-  return ret;
+  return true;
 }

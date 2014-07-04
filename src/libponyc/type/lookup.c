@@ -48,7 +48,7 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
   {
     find = reify(find, typeparams, typeargs);
   } else {
-    ast_error(type, "couldn't find '%s' in '%s'", name, ast_name(typename));
+    ast_error(scope, "couldn't find '%s' in '%s'", name, ast_name(typename));
   }
 
   return find;
@@ -89,10 +89,6 @@ ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
 
     case TK_ARROW:
       return lookup(scope, ast_childidx(type, 1), name);
-
-    case TK_ERROR:
-      ast_error(type, "can't lookup by name on an error");
-      return NULL;
 
     default: {}
   }

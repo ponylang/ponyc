@@ -192,11 +192,6 @@ ast_t* ast_dup(ast_t* ast)
   return dup(NULL, ast);
 }
 
-void ast_attach(ast_t* ast, void* data)
-{
-  ast->data = data;
-}
-
 void ast_scope(ast_t* ast)
 {
   ast->symtab = symtab_new();
@@ -227,6 +222,42 @@ void* ast_data(ast_t* ast)
   return ast->data;
 }
 
+void ast_setdata(ast_t* ast, void* data)
+{
+  ast->data = data;
+}
+
+bool ast_canerror(ast_t* ast)
+{
+  assert((ast->data == NULL) || (ast->data == (void*)1));
+  return ast->data == (void*)1;
+}
+
+void ast_seterror(ast_t* ast)
+{
+  assert(ast->data == NULL);
+  ast->data = (void*)1;
+}
+
+void ast_inheriterror(ast_t* ast)
+{
+  if(ast_canerror(ast))
+    return;
+
+  ast_t* child = ast->child;
+
+  while(child != NULL)
+  {
+    if(ast_canerror(child))
+    {
+      ast_seterror(ast);
+      return;
+    }
+
+    child = ast_sibling(child);
+  }
+}
+
 const char* ast_name(ast_t* ast)
 {
   return token_string(ast->t);
@@ -247,22 +278,22 @@ ast_t* ast_type(ast_t* ast)
   return ast->type;
 }
 
-ast_t* ast_settype(ast_t* ast, ast_t* type)
+void ast_settype(ast_t* ast, ast_t* type)
 {
   if(ast->type == type)
-  {
-    assert(type->parent == ast);
-    return type;
-  }
+    return;
 
   ast_free(ast->type);
 
-  if(type->parent != NULL)
-    type = ast_dup(type);
+  if(type != NULL)
+  {
+    if(type->parent != NULL)
+      type = ast_dup(type);
+
+    type->parent = ast;
+  }
 
   ast->type = type;
-  type->parent = ast;
-  return type;
 }
 
 ast_t* ast_nearest(ast_t* ast, token_id id)

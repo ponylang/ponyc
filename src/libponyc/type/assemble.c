@@ -82,71 +82,6 @@ ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
   return type;
 }
 
-ast_t* type_strip_error(ast_t* ast, ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    {
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-
-      left = type_strip_error(ast, left);
-      right = type_strip_error(ast, right);
-
-      return type_union(ast, left, right);
-    }
-
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-
-      left = type_strip_error(ast, left);
-      right = type_strip_error(ast, right);
-
-      if(left == NULL)
-        return right;
-
-      if(right == NULL)
-        return left;
-
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_add(r_type, right);
-      ast_add(r_type, left);
-      return r_type;
-    }
-
-    case TK_NOMINAL:
-    case TK_STRUCTURAL:
-      return type;
-
-    case TK_ARROW:
-    {
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      right = type_strip_error(ast, right);
-
-      if(right == NULL)
-        return NULL;
-
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_add(r_type, right);
-      ast_add(r_type, left);
-      return r_type;
-    }
-
-    case TK_ERROR:
-      return NULL;
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
 ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 {
   ast_t* def = ast_enclosing_type(ast);
@@ -186,29 +121,19 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
 ast_t* type_for_fun(ast_t* ast)
 {
-  ast_t* cap = ast_child(ast);
-  ast_t* id = ast_sibling(cap);
-  ast_t* typeparams = ast_sibling(id);
+  ast_t* typeparams = ast_childidx(ast, 2);
   ast_t* params = ast_sibling(typeparams);
   ast_t* result = ast_sibling(params);
-  ast_t* throws = ast_sibling(result);
 
   ast_t* fun = ast_from(ast, TK_FUNTYPE);
-
-  if(ast_id(throws) == TK_NONE)
-  {
-    ast_add(fun, result);
-  } else {
-    ast_t* error = ast_from(ast, TK_ERROR);
-    ast_add(fun, type_union(ast, result, error));
-    ast_free_unattached(error);
-  }
+  ast_add(fun, result);
 
   if(ast_id(params) == TK_PARAMS)
   {
     ast_t* types = ast_from(ast, TK_TYPES);
     ast_t* param = ast_child(params);
 
+    // type could be TK_NONE if we have an initialiser
     while(param != NULL)
     {
       ast_append(types, ast_childidx(param, 1));

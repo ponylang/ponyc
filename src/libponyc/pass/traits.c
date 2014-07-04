@@ -6,7 +6,7 @@
 
 typedef enum
 {
-  PASS_INITIAL = 0,
+  PASS_TRAITS_INITIAL = 0,
   PASS_TRAITS_IN_PROGRESS,
   PASS_TRAITS_DONE
 } pass_state_t;
@@ -57,8 +57,8 @@ static bool attach_traits(ast_t* def, int verbose)
 
   switch(state)
   {
-    case PASS_INITIAL:
-      ast_attach(def, (void*)PASS_TRAITS_IN_PROGRESS);
+    case PASS_TRAITS_INITIAL:
+      ast_setdata(def, (void*)PASS_TRAITS_IN_PROGRESS);
       break;
 
     case PASS_TRAITS_IN_PROGRESS:
@@ -67,6 +67,10 @@ static bool attach_traits(ast_t* def, int verbose)
 
     case PASS_TRAITS_DONE:
       return true;
+
+    default:
+      assert(0);
+      return false;
   }
 
   ast_t* traits = ast_childidx(def, 3);
@@ -127,7 +131,7 @@ static bool attach_traits(ast_t* def, int verbose)
     trait = ast_sibling(trait);
   }
 
-  ast_attach(def, (void*)PASS_TRAITS_DONE);
+  ast_setdata(def, (void*)PASS_TRAITS_DONE);
   return true;
 }
 

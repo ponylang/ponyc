@@ -48,14 +48,14 @@ expression typing
   * local
     * VAR/LET
     * AS
-    * FOR
   control
     * IF
-    - MATCH
-    - CASE
+    ? MATCH unreachable cases, exhaustive match
+    * CASES
+    ? CASE patterns
     * WHILE
     * REPEAT
-    - FOR (or is it sugar?)
+    * FOR
     * TRY
     * BREAK
     * CONTINUE
@@ -80,5 +80,5 @@ expression typing
     * LE
     * GE
     * GT
-    ? ASSIGN viewpoint, ssa reassignment, update sugar
+    ? ASSIGN viewpoint, ssa reassignment
   * seq

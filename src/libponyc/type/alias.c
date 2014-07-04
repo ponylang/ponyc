@@ -74,7 +74,6 @@ ast_t* alias(ast_t* type)
       return type;
 
     case TK_THISTYPE:
-    case TK_ERROR:
       return type;
 
     default: {}
