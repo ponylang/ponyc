@@ -124,7 +124,6 @@ bool expr_return(ast_t* ast)
   ast_t* body = ast_child(ast);
   ast_t* type = ast_type(body);
   ast_t* fun = ast_enclosing_method_body(ast);
-  bool ok = true;
 
   if(fun == NULL)
   {
@@ -136,7 +135,7 @@ bool expr_return(ast_t* ast)
   {
     ast_error(ast, "must be the last expression in a sequence");
     ast_error(ast_sibling(ast), "is followed with this expression");
-    ok = false;
+    return false;
   }
 
   switch(ast_id(fun))
