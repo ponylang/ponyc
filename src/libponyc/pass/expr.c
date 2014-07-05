@@ -40,8 +40,12 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
         return AST_FATAL;
       break;
 
-    case TK_CONTINUE:
     case TK_BREAK:
+      if(!expr_break(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_CONTINUE:
       if(!expr_continue(ast))
         return AST_FATAL;
       break;
