@@ -15,7 +15,7 @@ static bool valid_type(ast_t* ast)
   ast_t* new = ast_from(ast, TK_NEW);
   ast_add(new, ast_from(ast, TK_NONE)); // body
   ast_add(new, ast_from(ast, TK_NONE)); // error
-  ast_add(new, type_for_this(ast, TK_VAL, false)); // result
+  ast_add(new, type_for_this(ast, TK_NONE, false)); // result
   ast_add(new, ast_from(ast, TK_NONE)); // params
   ast_add(new, ast_from(ast, TK_NONE)); // typeparams
   ast_add(new, ast_from_string(ast, stringtab("create"))); // name

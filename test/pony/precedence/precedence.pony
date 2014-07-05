@@ -47,6 +47,7 @@ class Precedence is Foo, Bar
 
   fun tag make_array(n: U64): c.Array[U64] ref^ =>
     var a = c.Array[U64]
+    a.reserve(n)
     for i in c.Range(0, n) do
       a.append(i)
     end
