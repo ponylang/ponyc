@@ -97,7 +97,7 @@ ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
   return NULL;
 }
 
-ast_t* tuple_index(ast_t* ast, int index)
+ast_t* lookup_tuple(ast_t* ast, int index)
 {
   assert(ast_id(ast) == TK_TUPLETYPE);
 

@@ -37,9 +37,9 @@ expression typing
     - ARRAY
     - OBJECT
   postfix
-    ? DOT field/method access
+    ? DOT receiver cap, field viewpoint
     ? QUALIFY functions
-    ? CALL args, infer type params, ctor and behaviour return types
+    ? CALL args, infer type params
   unop
     * NOT
     * MINUS

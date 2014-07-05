@@ -241,7 +241,7 @@ static bool do_passes(ast_t* ast, int verbose)
   if(ast_visit(ast, pass_sugar, NULL, AST_LEFT, verbose) != AST_OK)
     return false;
 
-  // remove hygienic identifiers and recalculate scopes
+  // remove hygienic identifiers
   ast_clear(ast);
 
   if(ast_visit(ast, pass_scope, NULL, AST_LEFT, verbose) != AST_OK)

@@ -170,7 +170,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   while(id != NULL)
   {
-    ast_t* t = tuple_index(type, index);
+    ast_t* t = lookup_tuple(type, index);
 
     if(t == NULL)
     {
@@ -183,7 +183,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
     index++;
   }
 
-  if(tuple_index(type, index) != NULL)
+  if(lookup_tuple(type, index) != NULL)
   {
     ast_error(type, "too many types specified");
     return false;

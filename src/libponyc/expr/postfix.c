@@ -202,7 +202,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  type = tuple_index(type, ast_int(right));
+  type = lookup_tuple(type, ast_int(right));
 
   if(type == NULL)
   {
@@ -221,6 +221,7 @@ bool expr_qualify(ast_t* ast)
   // left is a postfix expression, right is a typeargs
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
 
   switch(ast_id(left))
@@ -228,7 +229,6 @@ bool expr_qualify(ast_t* ast)
     case TK_TYPEREF:
     {
       // qualify the type
-      ast_t* type = ast_type(left);
       assert(ast_id(type) == TK_NOMINAL);
 
       if(ast_id(ast_childidx(type, 2)) != TK_NONE)
@@ -249,6 +249,7 @@ bool expr_qualify(ast_t* ast)
     case TK_FUNREF:
     {
       // TODO: qualify the function
+      assert(ast_id(type) == TK_FUNTYPE);
       ast_error(ast, "not implemented (qualify a function)");
       ast_inheriterror(ast);
       return false;
@@ -311,6 +312,7 @@ bool expr_call(ast_t* ast)
     case TK_FIELDREF:
     case TK_PARAMREF:
     case TK_LOCALREF:
+    case TK_CALL:
     {
       // apply sugar
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -345,13 +347,6 @@ bool expr_call(ast_t* ast)
     case TK_TUPLE:
     {
       ast_error(ast, "can't call a tuple");
-      return false;
-    }
-
-    case TK_CALL:
-    {
-      // TODO: function call - is this right? not needed?
-      ast_error(ast, "not implemented (function call on function call)");
       return false;
     }
 
