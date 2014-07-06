@@ -136,10 +136,17 @@ static bool expr_memberaccess(ast_t* ast)
     }
 
     case TK_FVAR:
+    {
+      // TODO: viewpoint adapted type of the field
+      ast_setid(ast, TK_FVARREF);
+      ast_settype(ast, ast_type(find));
+      break;
+    }
+
     case TK_FLET:
     {
       // TODO: viewpoint adapted type of the field
-      ast_setid(ast, TK_FIELDREF);
+      ast_setid(ast, TK_FLETREF);
       ast_settype(ast, ast_type(find));
       break;
     }
@@ -210,7 +217,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  ast_setid(ast, TK_FIELDREF);
+  ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -309,9 +316,11 @@ bool expr_call(ast_t* ast)
     case TK_ARRAY:
     case TK_OBJECT:
     case TK_THIS:
-    case TK_FIELDREF:
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_VARREF:
+    case TK_LETREF:
     case TK_PARAMREF:
-    case TK_LOCALREF:
     case TK_CALL:
     {
       // apply sugar

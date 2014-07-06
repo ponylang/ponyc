@@ -217,10 +217,28 @@ bool expr_reference(ast_t* ast)
       if(!def_before_use(def, ast, name))
         return false;
 
-      // TODO: separate node id for assignable and not assignable?
+      ast_t* idseq = ast_parent(def);
+      ast_t* var = ast_parent(idseq);
+      assert(ast_id(idseq) == TK_IDSEQ);
+
+      switch(ast_id(var))
+      {
+        case TK_AS:
+        case TK_VAR:
+          ast_setid(ast, TK_VARREF);
+          break;
+
+        case TK_LET:
+          ast_setid(ast, TK_LETREF);
+          break;
+
+        default:
+          assert(0);
+          return false;
+      }
+
       // get the type of the local and attach it to our reference
       ast_settype(ast, ast_type(def));
-      ast_setid(ast, TK_LOCALREF);
       return true;
     }
 

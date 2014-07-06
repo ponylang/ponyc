@@ -58,8 +58,8 @@ ast_t* alias(ast_t* type)
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias(left));
       ast_add(r_type, alias(right));
+      ast_add(r_type, alias(left));
       return r_type;
     }
 
