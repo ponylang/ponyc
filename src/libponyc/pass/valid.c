@@ -6,12 +6,12 @@
 
 static bool valid_type(ast_t* ast)
 {
-  // if we aren't an alias, add a "create" constructor
   ast_t* alias = ast_childidx(ast, 3);
 
   if(ast_id(alias) != TK_NONE)
     return true;
 
+  // if we aren't an alias, add a "create" constructor
   ast_t* new = ast_from(ast, TK_NEW);
   ast_add(new, ast_from(ast, TK_NONE)); // body
   ast_add(new, ast_from(ast, TK_NONE)); // error

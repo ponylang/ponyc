@@ -29,13 +29,7 @@ bool expr_if(ast_t* ast)
   }
 
   ast_t* l_type = ast_type(left);
-  ast_t* r_type;
-
-  if(ast_id(right) == TK_NONE)
-    r_type = nominal_builtin(ast, "None");
-  else
-    r_type = ast_type(right);
-
+  ast_t* r_type = ast_type(right);
   ast_t* type = type_union(ast, l_type, r_type);
   ast_settype(ast, type);
   ast_inheriterror(ast);
@@ -55,12 +49,7 @@ bool expr_while(ast_t* ast)
   }
 
   ast_t* l_type = ast_type(left);
-  ast_t* r_type;
-
-  if(ast_id(right) == TK_NONE)
-    r_type = nominal_builtin(ast, "None");
-  else
-    r_type = ast_type(right);
+  ast_t* r_type = ast_type(right);
 
   // union with any existing type due to a break expression
   ast_t* type = type_union(ast, l_type, r_type);
@@ -92,28 +81,25 @@ bool expr_repeat(ast_t* ast)
 
 bool expr_try(ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  ast_t* body = ast_child(ast);
+  ast_t* else_clause = ast_sibling(body);
+  ast_t* then_clause = ast_sibling(else_clause);
 
   // it has to be possible for the left side to result in an error
-  if(!ast_canerror(left))
+  if(!ast_canerror(body))
   {
-    ast_error(left, "try expression never results in an error");
+    ast_error(body, "try expression never results in an error");
     return false;
   }
 
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type;
-
-  if(ast_id(right) == TK_NONE)
-    r_type = nominal_builtin(ast, "None");
-  else
-    r_type = ast_type(right);
-
+  // the then clause does not affect the type of the expression
+  ast_t* l_type = ast_type(body);
+  ast_t* r_type = ast_type(else_clause);
   ast_t* type = type_union(ast, l_type, r_type);
   ast_settype(ast, type);
 
-  if(ast_canerror(right))
+  // doesn't inherit error from the body
+  if(ast_canerror(else_clause) || ast_canerror(then_clause))
     ast_seterror(ast);
 
   return true;
@@ -191,35 +177,18 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
-  switch(ast_id(fun))
+  ast_t* result = ast_childidx(fun, 4);
+
+  if(!is_subtype(ast, type, result))
   {
-    case TK_NEW:
-      // TODO: too strict?
-      ast_error(ast, "cannot return in a constructor");
-      return false;
-
-    case TK_BE:
-    case TK_FUN:
-    {
-      ast_t* result = ast_childidx(fun, 4);
-
-      if(!is_subtype(ast, type, result))
-      {
-        ast_error(body,
-          "body of return doesn't match the function return type");
-        return false;
-      }
-
-      // add an additional type to the function body
-      ast_t* fun_body = ast_childidx(fun, 6);
-      ast_t* fun_type = ast_type(fun_body);
-      ast_settype(fun_body, type_union(ast, type, fun_type));
-      return true;
-    }
-
-    default: {}
+    ast_error(body,
+      "body of return doesn't match the function return type");
+    return false;
   }
 
-  assert(0);
-  return false;
+  // add an additional type to the function body
+  ast_t* fun_body = ast_childidx(fun, 6);
+  ast_t* fun_type = ast_type(fun_body);
+  ast_settype(fun_body, type_union(ast, type, fun_type));
+  return true;
 }

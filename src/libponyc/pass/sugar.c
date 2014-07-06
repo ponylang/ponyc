@@ -51,6 +51,37 @@ static ast_t* make_assign(ast_t* ast, ast_t* left, ast_t* right)
   return assign;
 }
 
+static ast_t* make_empty_else(ast_t* ast)
+{
+  ast_t* seq = ast_from(ast, TK_SEQ);
+  ast_add(seq, make_ref(ast, ast_from_string(ast, "None")));
+  return seq;
+}
+
+static bool sugar_else(ast_t* ast)
+{
+  ast_t* right = ast_childidx(ast, 2);
+
+  if(ast_id(right) == TK_NONE)
+    ast_replace(right, make_empty_else(right));
+
+  return true;
+}
+
+static bool sugar_try(ast_t* ast)
+{
+  ast_t* else_clause = ast_childidx(ast, 1);
+  ast_t* then_clause = ast_sibling(else_clause);
+
+  if(ast_id(else_clause) == TK_NONE)
+    ast_replace(else_clause, make_empty_else(else_clause));
+
+  if(ast_id(then_clause) == TK_NONE)
+    ast_replace(then_clause, make_empty_else(then_clause));
+
+  return true;
+}
+
 static bool sugar_for(ast_t* ast)
 {
   assert(ast_id(ast) == TK_FOR);
@@ -83,6 +114,7 @@ static bool sugar_for(ast_t* ast)
   ast_add(whileloop,
     make_call(ast, make_dot(ast, make_ref(ast, id), "has_next"))
     );
+  sugar_else(whileloop);
 
   ast_t* iter = make_assign(ast,
     make_var(ast, make_idseq(ast, id), ast_from(ast, TK_NONE)),
@@ -171,6 +203,17 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
+    case TK_IF:
+    case TK_WHILE:
+      if(!sugar_else(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_TRY:
+      if(!sugar_try(ast))
+        return AST_FATAL;
+      break;
+
     case TK_FOR:
       if(!sugar_for(ast))
         return AST_FATAL;

@@ -1,6 +1,8 @@
 type Any is {}
 
 // TODO: None, True and False should be Stringable
+// tricky to draw a distinction between an alias and a type that implements
+// some traits. new keyword?
 type None
 
 type True
