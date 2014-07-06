@@ -18,7 +18,16 @@ bool expr_literal(ast_t* ast, const char* name)
 
 bool expr_this(ast_t* ast)
 {
-  ast_settype(ast, type_for_this(ast, cap_for_receiver(ast), false));
+  ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
+
+  if(!nominal_valid(ast, type))
+  {
+    ast_error(ast, "couldn't create a type for 'this'");
+    ast_free(type);
+    return false;
+  }
+
+  ast_settype(ast, type);
   return true;
 }
 

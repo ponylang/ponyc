@@ -1,81 +1,7 @@
 #include "valid.h"
-#include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
-
-static bool valid_type(ast_t* ast)
-{
-  ast_t* alias = ast_childidx(ast, 3);
-
-  if(ast_id(alias) != TK_NONE)
-    return true;
-
-  // if we aren't an alias, add a "create" constructor
-  ast_t* new = ast_from(ast, TK_NEW);
-  ast_add(new, ast_from(ast, TK_NONE)); // body
-  ast_add(new, ast_from(ast, TK_NONE)); // error
-  ast_add(new, type_for_this(ast, TK_NONE, false)); // result
-  ast_add(new, ast_from(ast, TK_NONE)); // params
-  ast_add(new, ast_from(ast, TK_NONE)); // typeparams
-  ast_add(new, ast_from_string(ast, stringtab("create"))); // name
-  ast_add(new, ast_from(ast, TK_NONE)); // cap
-
-  ast_t* members = ast_sibling(alias);
-  ast_add(members, new);
-
-  return true;
-}
-
-static bool valid_class(ast_t* ast)
-{
-  // TODO: if we have no members and have no "create" constructor, add one
-  return true;
-}
-
-static bool valid_new(ast_t* ast)
-{
-  // return type is This ref^
-  ast_t* result = ast_childidx(ast, 4);
-  ast_t* type = type_for_this(ast, TK_REF, true);
-  ast_replace(result, type);
-  return true;
-}
-
-static bool valid_be(ast_t* ast)
-{
-  // return type is This tag
-  ast_t* result = ast_childidx(ast, 4);
-  ast_t* type = type_for_this(ast, TK_TAG, false);
-  ast_replace(result, type);
-  return true;
-}
-
-static bool valid_fun(ast_t* ast)
-{
-  ast_t* result = ast_childidx(ast, 4);
-
-  if(ast_id(result) != TK_NONE)
-    return true;
-
-  // set the return type to None
-  ast_t* type = nominal_builtin(ast, "None");
-  ast_replace(result, type);
-
-  // add None at the end of the body, if there is one
-  ast_t* body = ast_childidx(ast, 6);
-
-  if(ast_id(body) == TK_SEQ)
-  {
-    ast_t* last = ast_childlast(body);
-    ast_t* ref = ast_from(last, TK_REFERENCE);
-    ast_t* none = ast_from_string(last, stringtab("None"));
-    ast_add(ref, none);
-    ast_append(body, ref);
-  }
-
-  return true;
-}
 
 static bool valid_nominal(ast_t* ast)
 {
@@ -177,32 +103,6 @@ ast_result_t pass_valid(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
-    case TK_TYPE:
-      if(!valid_type(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_CLASS:
-    case TK_ACTOR:
-      if(!valid_class(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_NEW:
-      if(!valid_new(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_BE:
-      if(!valid_be(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_FUN:
-      if(!valid_fun(ast))
-        return AST_ERROR;
-      break;
-
     case TK_NOMINAL:
       if(!valid_nominal(ast))
         return AST_ERROR;

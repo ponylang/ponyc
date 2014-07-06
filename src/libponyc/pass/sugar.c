@@ -1,4 +1,6 @@
 #include "sugar.h"
+#include "../type/assemble.h"
+#include "../type/nominal.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -51,11 +53,120 @@ static ast_t* make_assign(ast_t* ast, ast_t* left, ast_t* right)
   return assign;
 }
 
-static ast_t* make_empty_else(ast_t* ast)
+static ast_t* make_empty(ast_t* ast)
 {
   ast_t* seq = ast_from(ast, TK_SEQ);
   ast_add(seq, make_ref(ast, ast_from_string(ast, "None")));
   return seq;
+}
+
+static ast_t* make_create(ast_t* ast, ast_t* type)
+{
+  ast_t* create = ast_from(ast, TK_NEW);
+  ast_add(create, make_empty(ast)); // body
+  ast_add(create, ast_from(ast, TK_NONE)); // error
+  ast_add(create, type); // result
+  ast_add(create, ast_from(ast, TK_NONE)); // params
+  ast_add(create, ast_from(ast, TK_NONE)); // typeparams
+  ast_add(create, ast_from_string(ast, stringtab("create"))); // name
+  ast_add(create, ast_from(ast, TK_NONE)); // cap
+
+  return create;
+}
+
+static bool sugar_type(ast_t* ast)
+{
+  ast_t* alias = ast_childidx(ast, 3);
+
+  if(ast_id(alias) != TK_NONE)
+    return true;
+
+  // if we aren't an alias, add a "create" constructor
+  ast_t* members = ast_sibling(alias);
+  ast_add(members, make_create(ast, type_for_this(ast, TK_NONE, false)));
+  return true;
+}
+
+static bool sugar_class(ast_t* ast)
+{
+  ast_t* members = ast_childidx(ast, 4);
+  ast_t* member = ast_child(members);
+
+  // if we have no fields and have no "create" constructor, add one
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+        return true;
+
+      case TK_NEW:
+      {
+        ast_t* id = ast_childidx(member, 1);
+
+        if(ast_name(id) == stringtab("create"))
+          return true;
+
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  ast_add(members, make_create(ast, type_for_this(ast, TK_REF, true)));
+  return true;
+}
+
+static bool sugar_new(ast_t* ast)
+{
+  // return type is This ref^ if it isn't set yet
+  ast_t* result = ast_childidx(ast, 4);
+
+  if(ast_id(result) != TK_NONE)
+    return true;
+
+  ast_t* type = type_for_this(ast, TK_REF, true);
+  ast_replace(result, type);
+  return true;
+}
+
+static bool sugar_be(ast_t* ast)
+{
+  // return type is This tag
+  ast_t* result = ast_childidx(ast, 4);
+  ast_t* type = type_for_this(ast, TK_TAG, false);
+  ast_replace(result, type);
+  return true;
+}
+
+static bool sugar_fun(ast_t* ast)
+{
+  ast_t* result = ast_childidx(ast, 4);
+
+  if(ast_id(result) != TK_NONE)
+    return true;
+
+  // set the return type to None
+  ast_t* type = nominal_builtin(ast, "None");
+  ast_replace(result, type);
+
+  // add None at the end of the body, if there is one
+  ast_t* body = ast_childidx(ast, 6);
+
+  if(ast_id(body) == TK_SEQ)
+  {
+    ast_t* last = ast_childlast(body);
+    ast_t* ref = ast_from(last, TK_REFERENCE);
+    ast_t* none = ast_from_string(last, stringtab("None"));
+    ast_add(ref, none);
+    ast_append(body, ref);
+  }
+
+  return true;
 }
 
 static bool sugar_else(ast_t* ast)
@@ -63,7 +174,7 @@ static bool sugar_else(ast_t* ast)
   ast_t* right = ast_childidx(ast, 2);
 
   if(ast_id(right) == TK_NONE)
-    ast_replace(right, make_empty_else(right));
+    ast_replace(right, make_empty(right));
 
   return true;
 }
@@ -74,10 +185,10 @@ static bool sugar_try(ast_t* ast)
   ast_t* then_clause = ast_sibling(else_clause);
 
   if(ast_id(else_clause) == TK_NONE)
-    ast_replace(else_clause, make_empty_else(else_clause));
+    ast_replace(else_clause, make_empty(else_clause));
 
   if(ast_id(then_clause) == TK_NONE)
-    ast_replace(then_clause, make_empty_else(then_clause));
+    ast_replace(then_clause, make_empty(then_clause));
 
   return true;
 }
@@ -203,6 +314,32 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
+    case TK_TYPE:
+      if(!sugar_type(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_CLASS:
+    case TK_ACTOR:
+      if(!sugar_class(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_NEW:
+      if(!sugar_new(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_BE:
+      if(!sugar_be(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_FUN:
+      if(!sugar_fun(ast))
+        return AST_ERROR;
+      break;
+
     case TK_IF:
     case TK_WHILE:
       if(!sugar_else(ast))

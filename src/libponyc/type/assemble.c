@@ -115,14 +115,6 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
   ast_add(nominal, ast_from_string(ast, name));
   ast_add(nominal, ast_from(ast, TK_NONE));
-
-  if(!nominal_valid(ast, nominal))
-  {
-    assert(0);
-    ast_free(nominal);
-    return NULL;
-  }
-
   return nominal;
 }
 

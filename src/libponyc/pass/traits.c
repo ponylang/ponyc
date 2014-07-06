@@ -185,6 +185,11 @@ ast_result_t pass_traits(ast_t* ast, int verbose)
         return AST_ERROR;
       break;
 
+    case TK_TYPE:
+      if(!have_impl(ast))
+        return AST_ERROR;
+      break;
+
     default: {}
   }
 
