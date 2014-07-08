@@ -76,7 +76,7 @@ static bool check_alias_cap(ast_t* def, ast_t* cap)
     }
 
     // force cap to be val
-    ast_replace(cap, ast_from(cap, TK_VAL));
+    ast_replace(&cap, ast_from(cap, TK_VAL));
     return true;
   }
 
@@ -136,7 +136,7 @@ static bool check_cap(ast_t* def, ast_t* cap)
     {
       // TODO: what if we are a constraint?
       if(ast_id(cap) == TK_NONE)
-        ast_replace(cap, ast_childidx(def, 2));
+        ast_replace(&cap, ast_childidx(def, 2));
 
       return true;
     }

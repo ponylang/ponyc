@@ -116,7 +116,7 @@ static bool sugar_class(ast_t* ast)
   ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)
-    ast_replace(defcap, ast_from(defcap, TK_REF));
+    ast_replace(&defcap, ast_from(defcap, TK_REF));
 
   return true;
 }
@@ -129,7 +129,7 @@ static bool sugar_actor(ast_t* ast)
   ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)
-    ast_replace(defcap, ast_from(defcap, TK_TAG));
+    ast_replace(&defcap, ast_from(defcap, TK_TAG));
 
   return true;
 }
@@ -139,32 +139,29 @@ static bool sugar_trait(ast_t* ast)
   ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)
-    ast_replace(defcap, ast_from(defcap, TK_REF));
+    ast_replace(&defcap, ast_from(defcap, TK_REF));
 
   return true;
 }
 
 static bool sugar_new(ast_t* ast)
 {
-  ast_t* cap = ast_child(ast);
-  ast_t* id = ast_sibling(cap);
-
   // the capability is tag
+  ast_t* cap = ast_child(ast);
   assert(ast_id(cap) == TK_NONE);
-  ast_replace(cap, ast_from(cap, TK_TAG));
+  ast_replace(&cap, ast_from(cap, TK_TAG));
 
   // set the name to "create" if there isn't one
+  ast_t* id = ast_sibling(cap);
+
   if(ast_id(id) == TK_NONE)
-    ast_replace(id, ast_from_string(id, "create"));
+    ast_replace(&id, ast_from_string(id, "create"));
 
   // return type is This ref^ if not already set
   ast_t* result = ast_childidx(ast, 4);
 
   if(ast_id(result) == TK_NONE)
-  {
-    ast_t* type = type_for_this(ast, TK_REF, true);
-    ast_replace(result, type);
-  }
+    ast_replace(&result, type_for_this(ast, TK_REF, true));
 
   return true;
 }
@@ -180,14 +177,12 @@ static bool sugar_be(ast_t* ast)
   // the capability is tag
   ast_t* cap = ast_child(ast);
   assert(ast_id(cap) == TK_NONE);
-  ast_replace(cap, ast_from(cap, TK_TAG));
+  ast_replace(&cap, ast_from(cap, TK_TAG));
 
   // return type is This tag
   ast_t* result = ast_childidx(ast, 4);
   assert(ast_id(result) == TK_NONE);
-
-  ast_t* type = type_for_this(ast, TK_TAG, false);
-  ast_replace(result, type);
+  ast_replace(&result, type_for_this(ast, TK_TAG, false));
 
   return true;
 }
@@ -198,7 +193,7 @@ static bool sugar_fun(ast_t* ast)
   ast_t* id = ast_childidx(ast, 1);
 
   if(ast_id(id) == TK_NONE)
-    ast_replace(id, ast_from_string(id, "apply"));
+    ast_replace(&id, ast_from_string(id, "apply"));
 
   ast_t* result = ast_childidx(ast, 4);
 
@@ -207,7 +202,7 @@ static bool sugar_fun(ast_t* ast)
 
   // set the return type to None
   ast_t* type = nominal_sugar(ast, NULL, stringtab("None"));
-  ast_replace(result, type);
+  ast_replace(&result, type);
 
   // add None at the end of the body, if there is one
   ast_t* body = ast_childidx(ast, 6);
@@ -247,7 +242,7 @@ static bool sugar_else(ast_t* ast)
   ast_t* right = ast_childidx(ast, 2);
 
   if(ast_id(right) == TK_NONE)
-    ast_replace(right, make_empty(right));
+    ast_replace(&right, make_empty(right));
 
   return true;
 }
@@ -258,10 +253,10 @@ static bool sugar_try(ast_t* ast)
   ast_t* then_clause = ast_sibling(else_clause);
 
   if(ast_id(else_clause) == TK_NONE)
-    ast_replace(else_clause, make_empty(else_clause));
+    ast_replace(&else_clause, make_empty(else_clause));
 
   if(ast_id(then_clause) == TK_NONE)
-    ast_replace(then_clause, make_empty(then_clause));
+    ast_replace(&then_clause, make_empty(then_clause));
 
   return true;
 }
@@ -310,7 +305,7 @@ static bool sugar_for(ast_t* ast)
   ast_add(seq, whileloop);
   ast_add(seq, iter);
 
-  ast_replace(ast, seq);
+  ast_replace(&ast, seq);
 
   if(!ast_set(seq, name, id))
   {
@@ -346,7 +341,7 @@ static bool sugar_case(ast_t* ast)
     next_body = ast_childidx(next, 3);
   } while(ast_id(next_body) == TK_NONE);
 
-  ast_replace(body, next_body);
+  ast_replace(&body, next_body);
   return true;
 }
 
@@ -379,7 +374,7 @@ static bool sugar_update(ast_t* ast)
   ast_add(update, positional);
   ast_add(update, dot);
 
-  ast_replace(ast, update);
+  ast_replace(&ast, update);
   return true;
 }
 

@@ -246,7 +246,7 @@ bool expr_qualify(ast_t* ast)
 
       type = ast_dup(type);
       ast_t* typeargs = ast_childidx(type, 2);
-      ast_replace(typeargs, right);
+      ast_replace(&typeargs, right);
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 

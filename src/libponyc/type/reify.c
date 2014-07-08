@@ -17,7 +17,7 @@ static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 
   // TODO: keep the cap and ephemerality
   // swap in place
-  ast_replace(ast, typearg);
+  ast_replace(&ast, typearg);
   return true;
 }
 

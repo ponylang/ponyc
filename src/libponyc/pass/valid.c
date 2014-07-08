@@ -43,7 +43,7 @@ static bool valid_structural(ast_t* ast)
   else
     def_cap = TK_REF;
 
-  ast_replace(cap, ast_from(ast, def_cap));
+  ast_replace(&cap, ast_from(ast, def_cap));
   return true;
 }
 

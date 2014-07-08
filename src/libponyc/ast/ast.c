@@ -618,12 +618,10 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   return child;
 }
 
-ast_t* ast_swap(ast_t* prev, ast_t* next)
+void ast_swap(ast_t* prev, ast_t* next)
 {
   assert(prev->parent != NULL);
-
-  if(prev == next)
-    return NULL;
+  assert(prev != next);
 
   if(next->parent != NULL)
     next = ast_dup(next);
@@ -646,13 +644,13 @@ ast_t* ast_swap(ast_t* prev, ast_t* next)
 
   prev->parent = NULL;
   prev->sibling = NULL;
-  return prev;
 }
 
-void ast_replace(ast_t* prev, ast_t* next)
+void ast_replace(ast_t** prev, ast_t* next)
 {
-  prev = ast_swap(prev, next);
-  ast_free(prev);
+  ast_swap(*prev, next);
+  ast_free(*prev);
+  *prev = next;
 }
 
 void ast_reverse(ast_t* ast)
