@@ -20,7 +20,8 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
   {
     case TK_TYPEPARAM:
     {
-      // typeparams is actually the constraint
+      // typeparam is actually the constraint
+      // lookup on the constraint instead
       return lookup(scope, typeparams, name);
     }
 
@@ -30,6 +31,7 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
 
       if(ast_id(alias) != TK_NONE)
       {
+        // reify the alias and lookup on that instead
         alias = ast_child(alias);
         ast_t* r_alias = reify(alias, typeparams, typeargs);
         find = lookup(scope, r_alias, name);

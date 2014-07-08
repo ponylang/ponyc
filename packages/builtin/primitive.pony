@@ -1,13 +1,13 @@
 type Any is {}
 
-// TODO: None, True and False should be Stringable
-// tricky to draw a distinction between an alias and a type that implements
-// some traits. new keyword?
-type None
+class None is Stringable
+  fun box string(): String => "None"
 
-type True
+class True is Stringable
+  fun box string(): String => "True"
 
-type False
+class False is Stringable
+  fun box string(): String => "False"
 
 type Bool is (True | False)
 

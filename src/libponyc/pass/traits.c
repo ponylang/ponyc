@@ -13,6 +13,12 @@ typedef enum
 
 static bool attach_method(ast_t* type, ast_t* method)
 {
+  if((ast_id(type) == TK_CLASS) && (ast_id(method) == TK_BE))
+  {
+    ast_error(type, "a class can't have traits that have behaviours");
+    return false;
+  }
+
   ast_t* members = ast_childidx(type, 4);
 
   // see if we have an existing method with this name
@@ -182,11 +188,6 @@ ast_result_t pass_traits(ast_t* ast, int verbose)
     case TK_CLASS:
     case TK_ACTOR:
       if(!attach_traits(ast, verbose) || !have_impl(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_TYPE:
-      if(!have_impl(ast))
         return AST_ERROR;
       break;
 

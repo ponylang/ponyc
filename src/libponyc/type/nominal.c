@@ -47,9 +47,6 @@ static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
       !is_subtype(scope, typearg, constraint)
       )
     {
-      // TODO: remove this
-      is_subtype(scope, typearg, constraint);
-
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
       ast_free_unattached(r_typeparams);
@@ -78,6 +75,8 @@ static bool check_alias_cap(ast_t* def, ast_t* cap)
       return false;
     }
 
+    // force cap to be val
+    ast_replace(cap, ast_from(cap, TK_VAL));
     return true;
   }
 
@@ -125,19 +124,22 @@ static bool check_cap(ast_t* def, ast_t* cap)
   switch(ast_id(def))
   {
     case TK_TYPEPARAM:
+      // TODO: cap of constraint, else tag?
       return true;
 
     case TK_TYPE:
       return check_alias_cap(def, cap);
 
     case TK_TRAIT:
-      return true;
-
     case TK_CLASS:
-      return true;
-
     case TK_ACTOR:
+    {
+      // TODO: what if we are a constraint?
+      if(ast_id(cap) == TK_NONE)
+        ast_replace(cap, ast_childidx(def, 2));
+
       return true;
+    }
 
     default: {}
   }
@@ -181,15 +183,92 @@ ast_t* nominal_builtin1(ast_t* from, const char* name, ast_t* typearg0)
 
 ast_t* nominal_type(ast_t* from, const char* package, const char* name)
 {
-  return nominal_with_args(from, package, name, ast_from(from, TK_NONE));
+  return nominal_type1(from, package, name, NULL);
 }
 
 ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
   ast_t* typearg0)
 {
-  ast_t* typeargs = ast_from(from, TK_TYPEARGS);
-  ast_add(typeargs, typearg0);
-  return nominal_with_args(from, package, name, typeargs);
+  ast_t* typeargs;
+
+  if(typearg0 != NULL)
+  {
+    typeargs = ast_from(from, TK_TYPEARGS);
+    ast_add(typeargs, typearg0);
+  } else {
+    typeargs = ast_from(from, TK_NONE);
+  }
+
+  ast_t* ast = nominal_with_args(from, package, name, typeargs);
+
+  if(!nominal_valid(from, ast))
+  {
+    ast_error(from, "unable to validate %s.%s", package, name);
+    ast_free(ast);
+    return NULL;
+  }
+
+  return ast;
+}
+
+ast_t* nominal_sugar(ast_t* from, const char* package, const char* name)
+{
+  return nominal_with_args(from, package, name, ast_from(from, TK_NONE));
+}
+
+bool nominal_valid(ast_t* scope, ast_t* nominal)
+{
+  ast_t* def = nominal_def(scope, nominal);
+
+  if(def != NULL)
+    return true;
+
+  // make sure our typeargs are subtypes of our constraints
+  ast_t* typeargs = ast_childidx(nominal, 2);
+  ast_t* cap = ast_sibling(typeargs);
+
+  if(!check_constraints(nominal, def, typeargs))
+    return false;
+
+  /*
+  fill in missing capabilities for nominal and structural
+  types can appear:
+    type, trait, class, actor
+      typeparams
+        constraints
+        default type params
+      traits/alias
+    fvar, flet
+    new, be, fun
+      constraints
+        default type params
+      params
+      result
+    qualify
+      can be on a typeref or a funref
+    var, let, as
+    object
+      traits
+
+  structural defaults to either ref or tag - already done
+    constraints (both type and function): tag
+    everything else: ref
+
+  nominal:
+    alias:
+      ?
+    typeparam:
+      ? (same as alias?)
+    other:
+      constraints (both type and function): tag
+      everything else: default for type
+  */
+
+  // TODO: always fill in a cap? make sure we don't have NONE?
+  if(!check_cap(def, cap))
+    return false;
+
+  return true;
 }
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal)
@@ -232,27 +311,6 @@ ast_t* nominal_def(ast_t* scope, ast_t* nominal)
     return NULL;
   }
 
-  assert(ast_data(nominal) == NULL);
   ast_setdata(nominal, def);
   return def;
-}
-
-bool nominal_valid(ast_t* scope, ast_t* nominal)
-{
-  ast_t* def = nominal_def(scope, nominal);
-
-  if(def == NULL)
-    return false;
-
-  // make sure our typeargs are subtypes of our constraints
-  ast_t* typeargs = ast_childidx(nominal, 2);
-  ast_t* cap = ast_sibling(typeargs);
-
-  if(!check_constraints(nominal, def, typeargs))
-    return false;
-
-  if(!check_cap(def, cap))
-    return false;
-
-  return true;
 }

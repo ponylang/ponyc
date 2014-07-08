@@ -84,10 +84,6 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   while((typeparam != NULL) && (typearg != NULL))
   {
-    // make sure typearg has nominal_def calculated in the right scope
-    if(ast_id(typearg) == TK_NOMINAL)
-      nominal_def(ast, typearg);
-
     // reify the typeparam with the typearg
     if(!reify_one(r_ast, typeparam, typearg))
       break;

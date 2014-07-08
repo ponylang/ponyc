@@ -74,20 +74,7 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   return create;
 }
 
-static bool sugar_type(ast_t* ast)
-{
-  ast_t* alias = ast_childidx(ast, 3);
-
-  if(ast_id(alias) != TK_NONE)
-    return true;
-
-  // if we aren't an alias, add a "create" constructor
-  ast_t* members = ast_sibling(alias);
-  ast_add(members, make_create(ast, type_for_this(ast, TK_NONE, false)));
-  return true;
-}
-
-static bool sugar_class(ast_t* ast)
+static bool sugar_constructor(ast_t* ast)
 {
   ast_t* members = ast_childidx(ast, 4);
   ast_t* member = ast_child(members);
@@ -121,37 +108,105 @@ static bool sugar_class(ast_t* ast)
   return true;
 }
 
+static bool sugar_class(ast_t* ast)
+{
+  if(!sugar_constructor(ast))
+    return false;
+
+  ast_t* defcap = ast_childidx(ast, 2);
+
+  if(ast_id(defcap) == TK_NONE)
+    ast_replace(defcap, ast_from(defcap, TK_REF));
+
+  return true;
+}
+
+static bool sugar_actor(ast_t* ast)
+{
+  if(!sugar_constructor(ast))
+    return false;
+
+  ast_t* defcap = ast_childidx(ast, 2);
+
+  if(ast_id(defcap) == TK_NONE)
+    ast_replace(defcap, ast_from(defcap, TK_TAG));
+
+  return true;
+}
+
+static bool sugar_trait(ast_t* ast)
+{
+  ast_t* defcap = ast_childidx(ast, 2);
+
+  if(ast_id(defcap) == TK_NONE)
+    ast_replace(defcap, ast_from(defcap, TK_REF));
+
+  return true;
+}
+
 static bool sugar_new(ast_t* ast)
 {
-  // return type is This ref^ if it isn't set yet
+  ast_t* cap = ast_child(ast);
+  ast_t* id = ast_sibling(cap);
+
+  // the capability is tag
+  assert(ast_id(cap) == TK_NONE);
+  ast_replace(cap, ast_from(cap, TK_TAG));
+
+  // set the name to "create" if there isn't one
+  if(ast_id(id) == TK_NONE)
+    ast_replace(id, ast_from_string(id, "create"));
+
+  // return type is This ref^ if not already set
   ast_t* result = ast_childidx(ast, 4);
 
-  if(ast_id(result) != TK_NONE)
-    return true;
+  if(ast_id(result) == TK_NONE)
+  {
+    ast_t* type = type_for_this(ast, TK_REF, true);
+    ast_replace(result, type);
+  }
 
-  ast_t* type = type_for_this(ast, TK_REF, true);
-  ast_replace(result, type);
   return true;
 }
 
 static bool sugar_be(ast_t* ast)
 {
+  if(ast_nearest(ast, TK_CLASS) != NULL)
+  {
+    ast_error(ast, "can't have a behaviour in a class");
+    return false;
+  }
+
+  // the capability is tag
+  ast_t* cap = ast_child(ast);
+  assert(ast_id(cap) == TK_NONE);
+  ast_replace(cap, ast_from(cap, TK_TAG));
+
   // return type is This tag
   ast_t* result = ast_childidx(ast, 4);
+  assert(ast_id(result) == TK_NONE);
+
   ast_t* type = type_for_this(ast, TK_TAG, false);
   ast_replace(result, type);
+
   return true;
 }
 
 static bool sugar_fun(ast_t* ast)
 {
+  // set the name to "apply" if there isn't one
+  ast_t* id = ast_childidx(ast, 1);
+
+  if(ast_id(id) == TK_NONE)
+    ast_replace(id, ast_from_string(id, "apply"));
+
   ast_t* result = ast_childidx(ast, 4);
 
   if(ast_id(result) != TK_NONE)
     return true;
 
   // set the return type to None
-  ast_t* type = nominal_builtin(ast, "None");
+  ast_t* type = nominal_sugar(ast, NULL, stringtab("None"));
   ast_replace(result, type);
 
   // add None at the end of the body, if there is one
@@ -164,6 +219,24 @@ static bool sugar_fun(ast_t* ast)
     ast_t* none = ast_from_string(last, stringtab("None"));
     ast_add(ref, none);
     ast_append(body, ref);
+  }
+
+  return true;
+}
+
+static bool sugar_nominal(ast_t* ast)
+{
+  // if we didn't have a package, the first two children will be ID NONE
+  // change them to NONE ID so the package is always first
+  ast_t* package = ast_child(ast);
+  ast_t* type = ast_sibling(package);
+
+  if(ast_id(type) == TK_NONE)
+  {
+    ast_pop(ast);
+    ast_pop(ast);
+    ast_add(ast, package);
+    ast_add(ast, type);
   }
 
   return true;
@@ -314,14 +387,18 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
-    case TK_TYPE:
-      if(!sugar_type(ast))
+    case TK_CLASS:
+      if(!sugar_class(ast))
         return AST_ERROR;
       break;
 
-    case TK_CLASS:
     case TK_ACTOR:
-      if(!sugar_class(ast))
+      if(!sugar_actor(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_TRAIT:
+      if(!sugar_trait(ast))
         return AST_ERROR;
       break;
 
@@ -337,6 +414,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 
     case TK_FUN:
       if(!sugar_fun(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_NOMINAL:
+      if(!sugar_nominal(ast))
         return AST_ERROR;
       break;
 

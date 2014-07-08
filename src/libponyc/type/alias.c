@@ -11,7 +11,6 @@ static token_id alias_for_cap(token_id id)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_BOX;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_NONE; // TODO: figure out default capability?
     default: {}
   }
 

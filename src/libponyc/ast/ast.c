@@ -310,7 +310,6 @@ ast_t* ast_enclosing_type(ast_t* ast)
   {
     switch(ast->t->id)
     {
-      case TK_TYPE:
       case TK_TRAIT:
       case TK_CLASS:
       case TK_ACTOR:

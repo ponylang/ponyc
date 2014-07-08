@@ -146,7 +146,7 @@ bool expr_reference(ast_t* ast)
       return true;
     }
 
-    case TK_TYPE:
+    case TK_TYPE: // TODO: resolve alias?
     case TK_CLASS:
     case TK_ACTOR:
     {

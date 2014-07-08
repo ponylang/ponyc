@@ -43,7 +43,7 @@ TYPEPARAM: ID [type] [type]
 TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
-  ARROW | ERROR)
+  ARROW)
 cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
 
 ARROW: type type

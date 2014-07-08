@@ -141,9 +141,9 @@ bool expr_order(ast_t* ast)
     }
 
     // left side must be Ordered
-    ast_t* comparable = nominal_builtin1(ast, "Ordered", r_type);
-    bool ok = is_subtype(ast, l_type, comparable);
-    ast_free(comparable);
+    ast_t* ordered = nominal_builtin1(ast, "Ordered", r_type);
+    bool ok = is_subtype(ast, l_type, ordered);
+    ast_free(ordered);
 
     if(!ok)
     {

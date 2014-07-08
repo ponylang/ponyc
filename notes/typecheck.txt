@@ -80,5 +80,5 @@ expression typing
     * LE
     * GE
     * GT
-    ? ASSIGN viewpoint, ssa reassignment
+    ? ASSIGN viewpoint, safe to write
   * seq

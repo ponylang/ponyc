@@ -83,8 +83,8 @@ static bool valid_arrow(ast_t* ast)
 
     case TK_NOMINAL:
     {
-      // left side will already have been validated
       ast_t* def = nominal_def(ast, left);
+      assert(def != NULL);
 
       if(ast_id(def) == TK_TYPEPARAM)
         return true;

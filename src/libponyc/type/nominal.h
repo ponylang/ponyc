@@ -19,10 +19,13 @@ ast_t* nominal_type(ast_t* from, const char* package, const char* name);
 ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
   ast_t* typearg0);
 
-/// Gets the type, trait, class or actor for a nominal type.
-ast_t* nominal_def(ast_t* scope, ast_t* nominal);
+/// Creates an AST node for a package and type, both in the stringtab
+/// Does not validate the type. Use at the sugar stage only.
+ast_t* nominal_sugar(ast_t* from, const char* package, const char* name);
 
 /// Makes sure type arguments are within constraints
 bool nominal_valid(ast_t* scope, ast_t* nominal);
+
+ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 
 #endif

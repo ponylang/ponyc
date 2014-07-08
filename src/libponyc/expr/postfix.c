@@ -161,16 +161,16 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // TODO: check receiver cap
-      // token_id rcap = cap_for_receiver(ast);
-      // token_id fcap = cap_for_fun(type);
-      //
-      // if(!is_cap_sub_cap(rcap, fcap))
-      // {
-      //   ast_error(ast,
-      //     "receiver capability is not a subtype of method capability");
-      //   return false;
-      // }
+      // check receiver cap
+      token_id rcap = cap_for_type(ast_type(left));
+      token_id fcap = cap_for_fun(find);
+
+      if(!is_cap_sub_cap(rcap, fcap))
+      {
+        ast_error(ast,
+          "receiver capability is not a subtype of method capability");
+        return false;
+      }
 
       ast_setid(ast, TK_FUNREF);
       ast_settype(ast, type_for_fun(find));
