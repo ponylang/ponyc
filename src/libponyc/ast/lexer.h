@@ -161,14 +161,15 @@ typedef enum
   TK_PARAMREF,
   TK_LOCALREF,
 
-  TK_EOF
+  TK_EOF,
+  TK_LEX_ERROR
 } token_id;
 
 typedef struct token_t
 {
   token_id id;
   bool newline;
-  bool error;
+  //bool error;
   source_t* source;
   size_t line;
   size_t pos;
@@ -186,6 +187,7 @@ void lexer_close(lexer_t* lexer);
 token_t* lexer_next(lexer_t* lexer);
 
 token_t* token_blank(token_id id);
+void token_copy_pos(token_t* src, token_t* dst);
 token_t* token_from(token_t* token, token_id id);
 token_t* token_from_string(token_t* token, const char* id);
 token_t* token_dup(token_t* token);
