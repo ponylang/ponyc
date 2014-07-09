@@ -280,23 +280,6 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
   return false;
 }
 
-static ast_t* typealias(ast_t* ast, ast_t* def)
-{
-  ast_t* aliases = ast_childidx(def, 3);
-  assert(ast_id(aliases) == TK_TYPES);
-
-  ast_t* alias = ast_child(aliases);
-  assert(ast_sibling(alias) == NULL);
-
-  // get our typeparams and typeargs
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* typeargs = ast_childidx(ast, 2);
-
-  // TODO: use our cap and ephemeral
-  ast_t* r_alias = reify(alias, typeparams, typeargs);
-  return r_alias;
-}
-
 bool is_builtin(ast_t* ast, const char* name)
 {
   if(ast_id(ast) != TK_NOMINAL)
@@ -347,20 +330,6 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
           break;
         }
 
-        case TK_TYPE:
-        {
-          // we're a type alias
-          ast_t* alias = typealias(sub, def);
-
-          if(alias != sub)
-          {
-            bool ok = is_subtype(scope, alias, super);
-            ast_free_unattached(alias);
-            return ok;
-          }
-          break;
-        }
-
         default: {}
       }
       break;
@@ -392,32 +361,6 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
       ast_t* left = ast_child(super);
       ast_t* right = ast_sibling(left);
       return is_subtype(scope, sub, left) && is_subtype(scope, sub, right);
-    }
-
-    case TK_NOMINAL:
-    {
-      ast_t* def = nominal_def(scope, super);
-      assert(def != NULL);
-
-      switch(ast_id(def))
-      {
-        case TK_TYPE:
-        {
-          // we're a type alias
-          ast_t* alias = typealias(super, def);
-
-          if(alias != super)
-          {
-            bool ok = is_subtype(scope, sub, alias);
-            ast_free_unattached(alias);
-            return ok;
-          }
-          break;
-        }
-
-        default: {}
-      }
-      break;
     }
 
     case TK_ARROW:
