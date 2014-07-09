@@ -7,8 +7,10 @@
 #include "../expr/match.h"
 #include <assert.h>
 
-ast_result_t pass_expr(ast_t* ast)
+ast_result_t pass_expr(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_FVAR:

@@ -10,12 +10,14 @@ typedef enum
   TYPEALIAS_DONE
 } typealias_state_t;
 
-static ast_result_t pass_typealias(ast_t* ast)
+static ast_result_t pass_typealias(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!typealias_nominal(ast, &ast))
+      if(!typealias_nominal(ast, astp))
         return AST_ERROR;
       break;
 
@@ -113,7 +115,7 @@ static bool typealias_alias(ast_t* ast)
       return false;
   }
 
-  if(ast_visit(ast, NULL, pass_typealias) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_typealias) != AST_OK)
     return false;
 
   ast_setdata(ast, (void*)TYPEALIAS_DONE);

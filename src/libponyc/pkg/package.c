@@ -235,31 +235,31 @@ static const char* find_path(ast_t* from, const char* path)
 
 static bool do_passes(ast_t* ast)
 {
-  if(ast_visit(ast, NULL, pass_sugar) != AST_OK)
+  if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
 
   // remove hygienic identifiers
   ast_clear(ast);
 
-  if(ast_visit(ast, pass_scope, NULL) != AST_OK)
+  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
 
-  if(ast_visit(ast, NULL, pass_valid) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_valid) != AST_OK)
     return false;
 
-  if(ast_visit(ast, pass_traits, NULL) != AST_OK)
+  if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
     return false;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);
 
-  if(ast_visit(ast, pass_scope, NULL) != AST_OK)
+  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
 
-  if(ast_visit(ast, NULL, pass_expr) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_expr) != AST_OK)
     return false;
 
-  if(ast_visit(ast, NULL, pass_args) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_args) != AST_OK)
     return false;
 
   return true;

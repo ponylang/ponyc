@@ -102,8 +102,10 @@ static bool valid_arrow(ast_t* ast)
   return false;
 }
 
-ast_result_t pass_valid(ast_t* ast)
+ast_result_t pass_valid(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_NOMINAL:

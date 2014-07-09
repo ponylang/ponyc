@@ -161,8 +161,10 @@ static bool scope_idseq(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_scope(ast_t* ast)
+ast_result_t pass_scope(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_PACKAGE:

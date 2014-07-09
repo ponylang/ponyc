@@ -250,8 +250,8 @@ void ast_free_unattached(ast_t* ast);
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__ ((format (printf, 2, 3)));
 
-typedef ast_result_t (*ast_visit_t)(ast_t* ast);
+typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 
-ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post);
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
 
 #endif

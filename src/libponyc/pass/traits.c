@@ -176,8 +176,10 @@ static bool have_impl(ast_t* ast)
   return ret;
 }
 
-ast_result_t pass_traits(ast_t* ast)
+ast_result_t pass_traits(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_TRAIT:

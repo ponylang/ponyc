@@ -304,8 +304,9 @@ static bool sugar_try(ast_t* ast)
   return true;
 }
 
-static bool sugar_for(ast_t* ast)
+static bool sugar_for(ast_t** astp)
 {
+  ast_t* ast = *astp;
   assert(ast_id(ast) == TK_FOR);
 
   ast_t* for_idseq = ast_child(ast);
@@ -348,7 +349,7 @@ static bool sugar_for(ast_t* ast)
   ast_add(seq, whileloop);
   ast_add(seq, iter);
 
-  ast_replace(&ast, seq);
+  ast_replace(astp, seq);
 
   if(!ast_set(seq, name, id))
   {
@@ -388,8 +389,9 @@ static bool sugar_case(ast_t* ast)
   return true;
 }
 
-static bool sugar_update(ast_t* ast)
+static bool sugar_update(ast_t** astp)
 {
+  ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
   ast_t* call = ast_child(ast);
   ast_t* value = ast_sibling(call);
@@ -417,12 +419,14 @@ static bool sugar_update(ast_t* ast)
   ast_add(update, positional);
   ast_add(update, dot);
 
-  ast_replace(&ast, update);
+  ast_replace(astp, update);
   return true;
 }
 
-ast_result_t pass_sugar(ast_t* ast)
+ast_result_t pass_sugar(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_CLASS:
@@ -482,7 +486,7 @@ ast_result_t pass_sugar(ast_t* ast)
       break;
 
     case TK_FOR:
-      if(!sugar_for(ast))
+      if(!sugar_for(astp))
         return AST_FATAL;
       break;
 
@@ -496,7 +500,7 @@ ast_result_t pass_sugar(ast_t* ast)
       break;
 
     case TK_ASSIGN:
-      if(!sugar_update(ast))
+      if(!sugar_update(astp))
         return AST_FATAL;
       break;
 

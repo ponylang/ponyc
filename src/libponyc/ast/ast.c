@@ -732,7 +732,7 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post)
 {
   ast_result_t ret = AST_OK;
 
@@ -754,13 +754,13 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
 
   if((pre != NULL) || (post != NULL))
   {
-    ast_t* child = ast_child(ast);
+    ast_t* child = ast_child(*ast);
 
     while(child != NULL)
     {
       ast_t* next = ast_sibling(child);
 
-      switch(ast_visit(child, pre, post))
+      switch(ast_visit(&child, pre, post))
       {
         case AST_OK:
           break;

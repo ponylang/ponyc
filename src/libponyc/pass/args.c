@@ -61,8 +61,10 @@ static bool args_call(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_args(ast_t* ast)
+ast_result_t pass_args(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_CALL:

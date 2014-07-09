@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-ast_result_t pass_args(ast_t* ast);
+ast_result_t pass_args(ast_t** astp);
 
 #endif
