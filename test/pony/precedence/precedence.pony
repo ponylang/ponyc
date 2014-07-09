@@ -70,8 +70,9 @@ class Precedence is Foo, Bar
   /* FIXME: foo */
   // TODO: foo
   fun val foo(): F32 =>
+    var x: F32 = 3
+    3 == x
     1 + 2 * 3 + 4
-    -3
     """
       blargh
     test /* go nuts */
@@ -83,6 +84,7 @@ class Precedence is Foo, Bar
     "           something is \n here"
     "           something is
     here"
+    -3
 
   fun tag identity[A](a: A): A^ => consume a
 

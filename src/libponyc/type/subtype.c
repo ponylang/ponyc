@@ -5,7 +5,7 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-bool is_throws_sub_throws(ast_t* sub, ast_t* super)
+static bool is_throws_sub_throws(ast_t* sub, ast_t* super)
 {
   assert(
     (ast_id(sub) == TK_NONE) ||
@@ -280,18 +280,6 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_builtin(ast_t* ast, const char* name)
-{
-  if(ast_id(ast) != TK_NOMINAL)
-    return false;
-
-  ast_t* package = ast_child(ast);
-  ast_t* typename = ast_sibling(package);
-
-  return (ast_id(package) == TK_NONE) &&
-    (ast_name(typename) == stringtab(name));
-}
-
 static ast_t* typealias(ast_t* ast, ast_t* def)
 {
   ast_t* aliases = ast_childidx(def, 3);
@@ -307,6 +295,18 @@ static ast_t* typealias(ast_t* ast, ast_t* def)
   // TODO: use our cap and ephemeral
   ast_t* r_alias = reify(alias, typeparams, typeargs);
   return r_alias;
+}
+
+bool is_builtin(ast_t* ast, const char* name)
+{
+  if(ast_id(ast) != TK_NOMINAL)
+    return false;
+
+  ast_t* package = ast_child(ast);
+  ast_t* typename = ast_sibling(package);
+
+  return (ast_id(package) == TK_NONE) &&
+    (ast_name(typename) == stringtab(name));
 }
 
 bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)

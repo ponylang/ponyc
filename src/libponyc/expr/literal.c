@@ -167,6 +167,24 @@ bool expr_fun(ast_t* ast)
 
     if(!is_trait && !is_eqtype(ast, body_type, type))
     {
+      // it's ok to return a literal where an arithmetic type is expected
+      if(is_builtin(body_type, "IntLiteral"))
+      {
+        ast_t* math = nominal_builtin(ast, "Arithmetic");
+        bool ok = is_subtype(ast, type, math);
+        ast_free(math);
+
+        if(ok)
+          return true;
+      } else if(is_builtin(body_type, "FloatLiteral")) {
+        ast_t* math = nominal_builtin(ast, "Float");
+        bool ok = is_subtype(ast, type, math);
+        ast_free(math);
+
+        if(ok)
+          return true;
+      }
+
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body is more specific than the result type");
       ast_error(last, "function body expression is here");

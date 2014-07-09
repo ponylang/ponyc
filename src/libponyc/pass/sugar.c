@@ -500,6 +500,10 @@ ast_result_t pass_sugar(ast_t* ast)
         return AST_FATAL;
       break;
 
+    case TK_MINUS_NEW:
+      ast_setid(ast, TK_MINUS);
+      break;
+
     default: {}
   }
 
