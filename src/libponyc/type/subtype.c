@@ -80,9 +80,6 @@ static bool is_fun_sub_fun(ast_t* scope, ast_t* sub, ast_t* super)
 
   while((sub_param != NULL) && (super_param != NULL))
   {
-    // TODO: this is wrong. parameter types might not exist, as they may be
-    // inferred from initialisers.
-
     // extract the type if this is a parameter
     // otherwise, this is already a type
     ast_t* sub_type = (ast_id(sub_param) == TK_PARAM) ?

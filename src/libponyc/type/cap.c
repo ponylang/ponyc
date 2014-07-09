@@ -111,32 +111,3 @@ token_id cap_for_type(ast_t* type)
   assert(0);
   return TK_NONE;
 }
-
-token_id cap_default(ast_t* def)
-{
-  switch(ast_id(def))
-  {
-    case TK_TYPEPARAM:
-    {
-      // ast_t* constraint = ast_childidx(def, 1);
-      // TODO: DO THIS
-    }
-
-    case TK_TRAIT:
-    case TK_CLASS:
-    case TK_ACTOR:
-    {
-      token_id cap = ast_id(ast_childidx(def, 2));
-
-      if(cap == TK_NONE)
-        return TK_REF;
-
-      return cap;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}

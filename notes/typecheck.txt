@@ -37,7 +37,7 @@ expression typing
     - ARRAY
     - OBJECT
   postfix
-    ? DOT receiver cap, field viewpoint
+    ? DOT field viewpoint
     ? QUALIFY functions
     ? CALL args, infer type params
   unop

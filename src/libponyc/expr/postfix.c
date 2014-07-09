@@ -348,6 +348,8 @@ bool expr_call(ast_t* ast)
         return false;
       }
 
+      // TODO: check args here
+
       ast_settype(ast, ast_childidx(type, 2));
       ast_inheriterror(ast);
       return true;

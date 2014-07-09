@@ -94,12 +94,13 @@ DEF(types);
   WHILERULE(TK_COMMA, type);
   DONE();
 
-// ID [COLON type] [ASSIGN seq]
+// ID COLON type [ASSIGN seq]
 DEF(param);
   CHECK(TK_ID);
   AST(TK_PARAM);
   EXPECT(TK_ID);
-  IFRULE(TK_COLON, type);
+  SKIP(TK_COLON);
+  RULE(type);
   IFRULE(TK_ASSIGN, seq);
   DONE();
 

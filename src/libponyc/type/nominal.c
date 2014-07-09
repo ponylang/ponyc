@@ -47,8 +47,6 @@ static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
       !is_subtype(scope, typearg, constraint)
       )
     {
-      // TODO: remove this
-      is_subtype(scope, typearg, constraint);
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
       ast_free_unattached(r_typeparams);
@@ -136,8 +134,6 @@ bool nominal_valid(ast_t* scope, ast_t** ast)
 {
   ast_t* nominal = *ast;
   ast_t* def = nominal_def(scope, nominal);
-
-  // TODO: short circuit if we've already been checked?
 
   // resolve type alias if it is one
   if(ast_id(def) == TK_TYPE)

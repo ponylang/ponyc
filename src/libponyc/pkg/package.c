@@ -235,7 +235,7 @@ static const char* find_path(ast_t* from, const char* path)
 
 static bool do_passes(ast_t* ast)
 {
-  if(ast_visit(ast, pass_sugar, NULL) != AST_OK)
+  if(ast_visit(ast, NULL, pass_sugar) != AST_OK)
     return false;
 
   // remove hygienic identifiers

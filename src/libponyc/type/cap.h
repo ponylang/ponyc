@@ -20,6 +20,4 @@ token_id cap_for_fun(ast_t* fun);
 
 token_id cap_for_type(ast_t* type);
 
-token_id cap_default(ast_t* def);
-
 #endif

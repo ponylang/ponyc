@@ -91,7 +91,7 @@ params
   ;
 
 param
-  :  ID oftype? (assign seq)?
+  :  ID oftype (assign seq)?
   ;
 
 body
