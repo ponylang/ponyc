@@ -4,7 +4,6 @@
 #include "../pass/valid.h"
 #include "../pass/traits.h"
 #include "../pass/expr.h"
-#include "../pass/args.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -257,9 +256,6 @@ static bool do_passes(ast_t* ast)
     return false;
 
   if(ast_visit(&ast, NULL, pass_expr) != AST_OK)
-    return false;
-
-  if(ast_visit(&ast, NULL, pass_args) != AST_OK)
     return false;
 
   return true;
