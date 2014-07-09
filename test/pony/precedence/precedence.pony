@@ -37,7 +37,7 @@ class Precedence is Foo, Bar
       (0, "Not found")
     end
 
-  fun tag call_it(a: {fun ref(I64): I64}): I64 => a()
+  fun tag call_it(a: {fun ref(I64): I64}): I64 => a(1)
 
   /*fun tag make_it(i: I64): {fun ref(I64): I64} =>
     {

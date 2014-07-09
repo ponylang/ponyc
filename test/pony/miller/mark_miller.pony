@@ -1,4 +1,4 @@
-use "collections"
+use "../collections"
 
 /* A mint is used as a marker object to indicate that purses share a common
  * currency. The tag * capability indicates that when the type has no capability

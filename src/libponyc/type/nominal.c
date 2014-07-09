@@ -135,6 +135,9 @@ bool nominal_valid(ast_t* scope, ast_t** ast)
   ast_t* nominal = *ast;
   ast_t* def = nominal_def(scope, nominal);
 
+  if(def == NULL)
+    return false;
+
   // resolve type alias if it is one
   if(ast_id(def) == TK_TYPE)
     return typealias_nominal(scope, ast);

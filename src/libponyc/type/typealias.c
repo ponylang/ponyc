@@ -128,6 +128,9 @@ bool typealias_nominal(ast_t* scope, ast_t** ast)
   assert(ast_id(nominal) == TK_NOMINAL);
   ast_t* def = nominal_def(scope, nominal);
 
+  if(def == NULL)
+    return false;
+
   // look for type aliases
   if(ast_id(def) != TK_TYPE)
     return true;
