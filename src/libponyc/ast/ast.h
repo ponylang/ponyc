@@ -44,7 +44,7 @@ TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
   ARROW)
-cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
+cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
 UNIONTYPE: type type

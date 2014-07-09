@@ -1,7 +1,6 @@
 #include "package.h"
 #include "../pass/sugar.h"
 #include "../pass/scope.h"
-#include "../pass/typealias.h"
 #include "../pass/valid.h"
 #include "../pass/traits.h"
 #include "../pass/expr.h"
@@ -31,7 +30,7 @@ static bool filepath(const char *file, char* path)
   if((realpath(file, path) != path)
     || (stat(path, &sb) != 0)
     || ((sb.st_mode & S_IFMT) != S_IFREG)
-   )
+    )
   {
     return false;
   }
@@ -243,9 +242,6 @@ static bool do_passes(ast_t* ast)
   ast_clear(ast);
 
   if(ast_visit(ast, pass_scope, NULL) != AST_OK)
-    return false;
-
-  if(ast_visit(ast, NULL, pass_typealias) != AST_OK)
     return false;
 
   if(ast_visit(ast, NULL, pass_valid) != AST_OK)

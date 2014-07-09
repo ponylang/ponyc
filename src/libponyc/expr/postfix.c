@@ -38,7 +38,7 @@ static bool expr_packageaccess(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, nominal_type(ast, package_name, typename));
+  ast_settype(ast, nominal_sugar(ast, package_name, typename));
   ast_setid(ast, TK_TYPEREF);
   return expr_typeref(ast);
 }

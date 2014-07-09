@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-ast_result_t pass_typealias(ast_t* ast);
+bool typealias_nominal(ast_t* scope, ast_t** ast);
 
 #endif

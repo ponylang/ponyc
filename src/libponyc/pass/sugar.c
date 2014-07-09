@@ -74,6 +74,16 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   return create;
 }
 
+static ast_t* make_structural(ast_t* ast)
+{
+  ast_t* struc = ast_from(ast, TK_STRUCTURAL);
+  ast_add(struc, ast_from(ast, TK_NONE)); // ephemeral
+  ast_add(struc, ast_from(ast, TK_TAG)); // tag
+  ast_add(struc, ast_from(ast, TK_MEMBERS)); // empty members
+
+  return struc;
+}
+
 static bool sugar_constructor(ast_t* ast)
 {
   ast_t* members = ast_childidx(ast, 4);
@@ -128,9 +138,13 @@ static bool sugar_actor(ast_t* ast)
 
   ast_t* defcap = ast_childidx(ast, 2);
 
-  if(ast_id(defcap) == TK_NONE)
-    ast_replace(&defcap, ast_from(defcap, TK_TAG));
+  if(ast_id(defcap) != TK_NONE)
+  {
+    ast_error(defcap, "an actor can't specify a default capability");
+    return false;
+  }
 
+  ast_replace(&defcap, ast_from(defcap, TK_TAG));
   return true;
 }
 
@@ -140,6 +154,16 @@ static bool sugar_trait(ast_t* ast)
 
   if(ast_id(defcap) == TK_NONE)
     ast_replace(&defcap, ast_from(defcap, TK_REF));
+
+  return true;
+}
+
+static bool sugar_typeparam(ast_t* ast)
+{
+  ast_t* constraint = ast_childidx(ast, 1);
+
+  if(ast_id(constraint) == TK_NONE)
+    ast_replace(&constraint, make_structural(ast));
 
   return true;
 }
@@ -413,6 +437,11 @@ ast_result_t pass_sugar(ast_t* ast)
 
     case TK_TRAIT:
       if(!sugar_trait(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_TYPEPARAM:
+      if(!sugar_typeparam(ast))
         return AST_ERROR;
       break;
 

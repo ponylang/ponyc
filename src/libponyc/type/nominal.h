@@ -24,7 +24,7 @@ ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
 ast_t* nominal_sugar(ast_t* from, const char* package, const char* name);
 
 /// Makes sure type arguments are within constraints
-bool nominal_valid(ast_t* scope, ast_t* nominal);
+bool nominal_valid(ast_t* scope, ast_t** ast);
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 

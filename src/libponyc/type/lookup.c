@@ -6,10 +6,6 @@
 static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_NOMINAL);
-
-  if(!nominal_valid(scope, type))
-    return NULL;
-
   ast_t* def = nominal_def(scope, type);
   ast_t* typename = ast_child(def);
   ast_t* find;

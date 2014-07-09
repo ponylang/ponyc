@@ -237,7 +237,6 @@ DEF(viewpoint);
   RULE(typeexpr, nominal, structural, thistype);
   DONE();
 
-// TODO: add typedecl for "enum" types?
 // (thistype | typeexpr | nominal | structural) {viewpoint}
 DEF(type);
   AST_RULE(typeexpr, nominal, structural, thistype);

@@ -73,7 +73,7 @@ trait Good
  * This is a structural type. Anything with an apply function of the given
  * signature is this type.
  */
-type Notify tag is {fun tag ((Good iso | None))}
+type Notify is {fun tag ((Good iso | None))} tag
 
 // A buyer has a purse and can be told to buy goods from a seller
 actor Buyer
@@ -96,7 +96,7 @@ actor Buyer
 /* A seller has a purse and an inventory. It can be asked to sell goods with
  * a given description.
  */
-type Factory tag is {fun tag (): Good^}
+type Factory is {fun tag (): Good^} tag
 
 type Inventory is Map[String, (U64, Factory)]
 
@@ -212,7 +212,6 @@ trait Contract[A]
 trait Initiator tag
   be tokens(t: List[Token iso] iso)
 
-// TODO: use lists instead of arrays
 // can pop iso elements out of lists relatively easily
 actor ContractHost[A, B: Contract[A]]
   let _contract: B
@@ -246,9 +245,9 @@ actor ContractHost[A, B: Contract[A]]
       if _ledger(side).1 is t then
         _ledger(side) = (t, arg)
         var a = Array[A]
-        for (t, arg) in _ledger.values() do
+        for (t', arg') in _ledger.values() do
           match arg
-          | as arg': A => a.append(arg')
+          | as arg'': A => a.append(arg'')
           | => return None
           end
         end

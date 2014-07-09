@@ -21,7 +21,7 @@ class Precedence is Foo, Bar
   var any_test: AnyTest[String]
   var struct_test: StructTest[Precedence]
 
-  fun ref find_in_array(a: c.Array[String] val, find: String):
+  fun tag find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>
     for (index, value) in a.pairs() do
       if value == find then

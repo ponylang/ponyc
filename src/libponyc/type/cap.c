@@ -99,16 +99,39 @@ token_id cap_for_type(ast_t* type)
     case TK_STRUCTURAL:
       return ast_id(ast_childidx(type, 1));
 
-    case TK_THISTYPE:
-    {
-      // TODO: only appears in a TK_ARROW
-      break;
-    }
-
     case TK_ARROW:
     {
       // TODO: viewpoint adaptation
       return cap_for_type(ast_childidx(type, 1));
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_default(ast_t* def)
+{
+  switch(ast_id(def))
+  {
+    case TK_TYPEPARAM:
+    {
+      // ast_t* constraint = ast_childidx(def, 1);
+      // TODO: DO THIS
+    }
+
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    {
+      token_id cap = ast_id(ast_childidx(def, 2));
+
+      if(cap == TK_NONE)
+        return TK_REF;
+
+      return cap;
     }
 
     default: {}

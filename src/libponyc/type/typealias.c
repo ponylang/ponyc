@@ -10,6 +10,21 @@ typedef enum
   TYPEALIAS_DONE
 } typealias_state_t;
 
+static ast_result_t pass_typealias(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+      if(!typealias_nominal(ast, &ast))
+        return AST_ERROR;
+      break;
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
 static bool typealias_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 {
   switch(ast_id(ast))
@@ -105,16 +120,24 @@ static bool typealias_alias(ast_t* ast)
   return true;
 }
 
-static bool typealias_nominal(ast_t* ast)
+bool typealias_nominal(ast_t* scope, ast_t** ast)
 {
-  assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* def = nominal_def(ast, ast);
+  ast_t* nominal = *ast;
+  assert(ast_id(nominal) == TK_NOMINAL);
+  ast_t* def = nominal_def(scope, nominal);
 
   // look for type aliases
   if(ast_id(def) != TK_TYPE)
     return true;
 
-  // TODO: type aliases can't have type parameters
+  // type aliases can't have type arguments
+  ast_t* typeargs = ast_childidx(nominal, 2);
+
+  if(ast_id(typeargs) != TK_NONE)
+  {
+    ast_error(typeargs, "type aliases can't have type arguments");
+    return false;
+  }
 
   // make sure the alias is resolved
   ast_t* alias = ast_childidx(def, 3);
@@ -123,7 +146,7 @@ static bool typealias_nominal(ast_t* ast)
     return false;
 
   // apply our cap and ephemeral to the result
-  ast_t* cap = ast_childidx(ast, 3);
+  ast_t* cap = ast_childidx(nominal, 3);
   ast_t* ephemeral = ast_sibling(cap);
   alias = ast_dup(ast_child(alias));
 
@@ -134,21 +157,6 @@ static bool typealias_nominal(ast_t* ast)
   }
 
   // replace this with the alias
-  ast_replace(&ast, alias);
+  ast_replace(ast, alias);
   return true;
-}
-
-ast_result_t pass_typealias(ast_t* ast)
-{
-  switch(ast_id(ast))
-  {
-    case TK_NOMINAL:
-      if(!typealias_nominal(ast))
-        return AST_ERROR;
-      break;
-
-    default: {}
-  }
-
-  return AST_OK;
 }

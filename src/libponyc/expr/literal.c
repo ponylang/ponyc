@@ -19,8 +19,22 @@ bool expr_literal(ast_t* ast, const char* name)
 bool expr_this(ast_t* ast)
 {
   ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
+  ast_t* typeargs = ast_childidx(type, 2);
+  ast_t* typearg = ast_child(typeargs);
 
-  if(!nominal_valid(ast, type))
+  while(typearg != NULL)
+  {
+    if(!nominal_valid(ast, &typearg))
+    {
+      ast_error(ast, "couldn't create a type for 'this'");
+      ast_free(type);
+      return false;
+    }
+
+    typearg = ast_sibling(typearg);
+  }
+
+  if(!nominal_valid(ast, &type))
   {
     ast_error(ast, "couldn't create a type for 'this'");
     ast_free(type);

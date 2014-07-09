@@ -131,14 +131,6 @@ static bool scope_type(ast_t* ast)
 
 static bool scope_actor(ast_t* ast)
 {
-  ast_t* cap = ast_childidx(ast, 2);
-
-  if(ast_id(cap) != TK_NONE)
-  {
-    ast_error(cap, "an actor can't specify a default capability");
-    return false;
-  }
-
   return set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true);
 }
 

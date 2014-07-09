@@ -17,8 +17,11 @@ static bool valid_ephemeral(ast_t* ast)
 
 static bool valid_nominal(ast_t* ast)
 {
-  if(!nominal_valid(ast, ast))
+  if(!nominal_valid(ast, &ast))
     return false;
+
+  if(ast_id(ast) != TK_NOMINAL)
+    return true;
 
   return valid_ephemeral(ast_childidx(ast, 4));
 }
@@ -68,7 +71,26 @@ static bool valid_arrow(ast_t* ast)
       assert(def != NULL);
 
       if(ast_id(def) == TK_TYPEPARAM)
+      {
+        // TODO: too late! we've already filled in a capability here
+        // ast_t* cap = ast_childidx(left, 3);
+        //
+        // if(ast_id(cap) != TK_NONE)
+        // {
+        //   ast_error(cap, "can't specify a capability in a viewpoint");
+        //   return false;
+        // }
+
+        ast_t* ephemeral = ast_childidx(left, 4);
+
+        if(ast_id(ephemeral) != TK_NONE)
+        {
+          ast_error(ephemeral, "can't use an ephemeral type in a viewpoint");
+          return false;
+        }
+
         return true;
+      }
 
       break;
     }

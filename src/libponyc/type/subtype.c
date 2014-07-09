@@ -443,16 +443,31 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
 
     case TK_TUPLETYPE:
     {
-      if(ast_id(super) != TK_TUPLETYPE)
-        return false;
+      switch(ast_id(super))
+      {
+        case TK_STRUCTURAL:
+        {
+          // a tuple is a subtype of an empty structural type
+          ast_t* members = ast_child(super);
+          ast_t* member = ast_child(members);
+          return member == NULL;
+        }
 
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      ast_t* super_left = ast_child(super);
-      ast_t* super_right = ast_sibling(super_left);
+        case TK_TUPLETYPE:
+        {
+          ast_t* left = ast_child(sub);
+          ast_t* right = ast_sibling(left);
+          ast_t* super_left = ast_child(super);
+          ast_t* super_right = ast_sibling(super_left);
 
-      return is_subtype(scope, left, super_left) &&
-        is_subtype(scope, right, super_right);
+          return is_subtype(scope, left, super_left) &&
+            is_subtype(scope, right, super_right);
+        }
+
+        default: {}
+      }
+
+      return false;
     }
 
     case TK_NOMINAL:
