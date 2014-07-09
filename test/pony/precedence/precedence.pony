@@ -61,15 +61,6 @@ class Precedence is Foo, Bar
 
   /*fun tag call_optionals(): I64 => optionals(3 where b = 10)*/
 
-  /**/
-  fun ref test() =>
-    var list
-    for (i, j) in list do
-      1
-    else
-      2
-    end
-
   /** This is doc /**/
    * @param foo blah /* bar */
    * [[http://foo]]

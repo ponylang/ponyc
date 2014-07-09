@@ -314,3 +314,23 @@ bool expr_assign(ast_t* ast)
   ast_inheriterror(ast);
   return true;
 }
+
+bool expr_consume(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  ast_t* type = ast_type(child);
+
+  // TODO: handle removing consumed identifiers from the scope
+  ast_settype(ast, consume_type(type));
+  return true;
+}
+
+bool expr_recover(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  ast_t* type = ast_type(child);
+
+  // TODO: handle removing unsendable things from the child scope
+  ast_settype(ast, recover_type(type));
+  return true;
+}
