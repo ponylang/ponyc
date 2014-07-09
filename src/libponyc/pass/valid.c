@@ -3,16 +3,11 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static bool valid_nominal(ast_t* ast)
+static bool valid_ephemeral(ast_t* ast)
 {
-  if(!nominal_valid(ast, ast))
-    return false;
-
-  ast_t* ephemeral = ast_childidx(ast, 4);
-
-  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
+  if((ast_id(ast) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
   {
-    ast_error(ephemeral,
+    ast_error(ast,
       "ephemeral types can only appear in function return types");
     return false;
   }
@@ -20,31 +15,17 @@ static bool valid_nominal(ast_t* ast)
   return true;
 }
 
+static bool valid_nominal(ast_t* ast)
+{
+  if(!nominal_valid(ast, ast))
+    return false;
+
+  return valid_ephemeral(ast_childidx(ast, 4));
+}
+
 static bool valid_structural(ast_t* ast)
 {
-  ast_t* cap = ast_childidx(ast, 1);
-  ast_t* ephemeral = ast_sibling(cap);
-
-  if((ast_id(ephemeral) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
-  {
-    ast_error(ephemeral,
-      "ephemeral types can only appear in function return types");
-    return false;
-  }
-
-  if(ast_id(cap) != TK_NONE)
-    return true;
-
-  token_id def_cap;
-
-  // if it's a typeparam, default capability is tag, otherwise it is ref
-  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
-    def_cap = TK_TAG;
-  else
-    def_cap = TK_REF;
-
-  ast_replace(&cap, ast_from(ast, def_cap));
-  return true;
+  return valid_ephemeral(ast_childidx(ast, 2));
 }
 
 static bool valid_thistype(ast_t* ast)
@@ -99,7 +80,7 @@ static bool valid_arrow(ast_t* ast)
   return false;
 }
 
-ast_result_t pass_valid(ast_t* ast, int verbose)
+ast_result_t pass_valid(ast_t* ast)
 {
   switch(ast_id(ast))
   {

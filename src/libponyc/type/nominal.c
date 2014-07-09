@@ -223,6 +223,8 @@ bool nominal_valid(ast_t* scope, ast_t* nominal)
   if(def != NULL)
     return true;
 
+  // TODO: resolve type alias if it is one
+
   // make sure our typeargs are subtypes of our constraints
   ast_t* typeargs = ast_childidx(nominal, 2);
   ast_t* cap = ast_sibling(typeargs);

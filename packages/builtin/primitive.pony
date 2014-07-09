@@ -1,12 +1,12 @@
 type Any is {}
 
-class None is Stringable
+class None val is Stringable
   fun box string(): String => "None"
 
-class True is Stringable
+class True val is Stringable
   fun box string(): String => "True"
 
-class False is Stringable
+class False val is Stringable
   fun box string(): String => "False"
 
 type Bool is (True | False)

@@ -13,7 +13,6 @@ static struct option opts[] =
 {
   {"ast", no_argument, NULL, 'a'},
   {"path", required_argument, NULL, 'p'},
-  {"verbose", no_argument, NULL, 'v'},
   {"width", required_argument, NULL, 'w'},
   {NULL, 0, NULL, 0},
 };
@@ -24,7 +23,6 @@ void usage()
     "ponyc [OPTIONS] <file>\n"
     "  --ast, -a       print the AST\n"
     "  --path, -p      add additional colon separated search paths\n"
-    "  --verbose, -v   increment verbosity\n"
     "  --width, -w     width to target when printing the AST\n"
     );
 }
@@ -48,17 +46,15 @@ int main(int argc, char** argv)
   package_init(argv[0]);
 
   bool ast = false;
-  int verbose = 0;
   size_t width = get_width();
   char c;
 
-  while((c = getopt_long(argc, argv, "ap:vw:", opts, NULL)) != -1)
+  while((c = getopt_long(argc, argv, "ap:w:", opts, NULL)) != -1)
   {
     switch(c)
     {
       case 'a': ast = true; break;
       case 'p': package_paths(optarg); break;
-      case 'v': verbose++; break;
       case 'w': width = atoi(optarg); break;
       default: usage(); return -1;
     }
@@ -67,7 +63,7 @@ int main(int argc, char** argv)
   argc -= optind;
   argv += optind;
 
-  ast_t* program = program_load((argc > 0) ? argv[0] : ".", verbose);
+  ast_t* program = program_load((argc > 0) ? argv[0] : ".");
 
   if(ast)
     ast_print(program, width);

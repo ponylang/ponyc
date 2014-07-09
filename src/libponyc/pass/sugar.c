@@ -237,6 +237,25 @@ static bool sugar_nominal(ast_t* ast)
   return true;
 }
 
+static bool sugar_structural(ast_t* ast)
+{
+  ast_t* cap = ast_childidx(ast, 1);
+
+  if(ast_id(cap) != TK_NONE)
+    return true;
+
+  token_id def_cap;
+
+  // if it's a typeparam, default capability is tag, otherwise it is ref
+  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
+    def_cap = TK_TAG;
+  else
+    def_cap = TK_REF;
+
+  ast_replace(&cap, ast_from(ast, def_cap));
+  return true;
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
@@ -378,7 +397,7 @@ static bool sugar_update(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_sugar(ast_t* ast, int verbose)
+ast_result_t pass_sugar(ast_t* ast)
 {
   switch(ast_id(ast))
   {
@@ -414,6 +433,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 
     case TK_NOMINAL:
       if(!sugar_nominal(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_STRUCTURAL:
+      if(!sugar_structural(ast))
         return AST_ERROR;
       break;
 

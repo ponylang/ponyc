@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-ast_result_t pass_valid(ast_t* ast, int verbose);
+ast_result_t pass_valid(ast_t* ast);
 
 #endif

@@ -298,9 +298,7 @@ static bool is_builtin(ast_t* ast, const char* name)
 static ast_t* typealias(ast_t* ast, ast_t* def)
 {
   ast_t* aliases = ast_childidx(def, 3);
-
-  if(ast_id(aliases) == TK_NONE)
-    return ast;
+  assert(ast_id(aliases) == TK_TYPES);
 
   ast_t* alias = ast_child(aliases);
   assert(ast_sibling(alias) == NULL);

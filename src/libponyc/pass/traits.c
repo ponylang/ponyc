@@ -6,10 +6,10 @@
 
 typedef enum
 {
-  PASS_TRAITS_INITIAL = 0,
-  PASS_TRAITS_IN_PROGRESS,
-  PASS_TRAITS_DONE
-} pass_state_t;
+  TRAITS_INITIAL = 0,
+  TRAITS_IN_PROGRESS,
+  TRAITS_DONE
+} trait_state_t;
 
 static bool attach_method(ast_t* type, ast_t* method)
 {
@@ -57,21 +57,21 @@ static bool attach_method(ast_t* type, ast_t* method)
   return true;
 }
 
-static bool attach_traits(ast_t* def, int verbose)
+static bool attach_traits(ast_t* def)
 {
-  pass_state_t state = (pass_state_t)ast_data(def);
+  trait_state_t state = (trait_state_t)ast_data(def);
 
   switch(state)
   {
-    case PASS_TRAITS_INITIAL:
-      ast_setdata(def, (void*)PASS_TRAITS_IN_PROGRESS);
+    case TRAITS_INITIAL:
+      ast_setdata(def, (void*)TRAITS_IN_PROGRESS);
       break;
 
-    case PASS_TRAITS_IN_PROGRESS:
-      ast_error(def, "traits cannot be recursive");
+    case TRAITS_IN_PROGRESS:
+      ast_error(def, "traits can't be recursive");
       return false;
 
-    case PASS_TRAITS_DONE:
+    case TRAITS_DONE:
       return true;
 
     default:
@@ -98,7 +98,7 @@ static bool attach_traits(ast_t* def, int verbose)
       return false;
     }
 
-    if(!attach_traits(trait_def, verbose))
+    if(!attach_traits(trait_def))
       return false;
 
     ast_t* typeparams = ast_childidx(trait_def, 1);
@@ -137,7 +137,7 @@ static bool attach_traits(ast_t* def, int verbose)
     trait = ast_sibling(trait);
   }
 
-  ast_setdata(def, (void*)PASS_TRAITS_DONE);
+  ast_setdata(def, (void*)TRAITS_DONE);
   return true;
 }
 
@@ -176,18 +176,18 @@ static bool have_impl(ast_t* ast)
   return ret;
 }
 
-ast_result_t pass_traits(ast_t* ast, int verbose)
+ast_result_t pass_traits(ast_t* ast)
 {
   switch(ast_id(ast))
   {
     case TK_TRAIT:
-      if(!attach_traits(ast, verbose))
+      if(!attach_traits(ast))
         return AST_ERROR;
       break;
 
     case TK_CLASS:
     case TK_ACTOR:
-      if(!attach_traits(ast, verbose) || !have_impl(ast))
+      if(!attach_traits(ast) || !have_impl(ast))
         return AST_ERROR;
       break;
 

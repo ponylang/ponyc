@@ -7,7 +7,7 @@
 #include "../expr/match.h"
 #include <assert.h>
 
-ast_result_t pass_expr(ast_t* ast, int verbose)
+ast_result_t pass_expr(ast_t* ast)
 {
   switch(ast_id(ast))
   {

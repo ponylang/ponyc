@@ -730,14 +730,13 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
-  ast_dir_t dir, int verbose)
+ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post)
 {
   ast_result_t ret = AST_OK;
 
   if(pre != NULL)
   {
-    switch(pre(ast, verbose))
+    switch(pre(ast))
     {
       case AST_OK:
         break;
@@ -753,25 +752,13 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
 
   if((pre != NULL) || (post != NULL))
   {
-    ast_t* child;
-
-    switch(dir)
-    {
-      case AST_LEFT: child = ast_child(ast); break;
-      case AST_RIGHT: child = ast_childlast(ast); break;
-    }
+    ast_t* child = ast_child(ast);
 
     while(child != NULL)
     {
-      ast_t* next;
+      ast_t* next = ast_sibling(child);
 
-      switch(dir)
-      {
-        case AST_LEFT: next = ast_sibling(child); break;
-        case AST_RIGHT: next = ast_previous(child); break;
-      }
-
-      switch(ast_visit(child, pre, post, dir, verbose))
+      switch(ast_visit(child, pre, post))
       {
         case AST_OK:
           break;
@@ -790,7 +777,7 @@ ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
 
   if(post != NULL)
   {
-    switch(post(ast, verbose))
+    switch(post(ast))
     {
       case AST_OK:
         break;
