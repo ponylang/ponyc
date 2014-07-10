@@ -118,9 +118,45 @@ static bool sugar_constructor(ast_t* ast)
   return true;
 }
 
+static bool sugar_traits(ast_t* ast)
+{
+  ast_t* traits = ast_childidx(ast, 3);
+  ast_t* trait = ast_child(traits);
+
+  while(trait != NULL)
+  {
+    if(ast_id(trait) != TK_NOMINAL)
+    {
+      ast_error(trait, "traits must be nominal types");
+      return false;
+    }
+
+    ast_t* cap = ast_childidx(trait, 3);
+    ast_t* ephemeral = ast_sibling(cap);
+
+    if(ast_id(cap) != TK_NONE)
+    {
+      ast_error(cap, "can't specify a capability on a trait");
+      return false;
+    }
+
+    if(ast_id(ephemeral) != TK_NONE)
+    {
+      ast_error(ephemeral, "a trait can't be ephemeral");
+      return false;
+    }
+
+    trait = ast_sibling(trait);
+  }
+
+  return true;
+}
+
 static bool sugar_class(ast_t* ast)
 {
-  // TODO: make sure traits are nominal and have no cap or ephemeral
+  if(!sugar_traits(ast))
+    return false;
+
   if(!sugar_constructor(ast))
     return false;
 
@@ -134,7 +170,9 @@ static bool sugar_class(ast_t* ast)
 
 static bool sugar_actor(ast_t* ast)
 {
-  // TODO: make sure traits are nominal and have no cap or ephemeral
+  if(!sugar_traits(ast))
+    return false;
+
   if(!sugar_constructor(ast))
     return false;
 

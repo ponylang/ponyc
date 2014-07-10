@@ -84,13 +84,6 @@ static bool attach_traits(ast_t* def)
 
   while(trait != NULL)
   {
-    // TODO: check this in sugar stage
-    if(ast_id(trait) != TK_NOMINAL)
-    {
-      ast_error(trait, "traits must be nominal types");
-      return false;
-    }
-
     ast_t* trait_def = nominal_def(trait, trait);
 
     if(ast_id(trait_def) != TK_TRAIT)
