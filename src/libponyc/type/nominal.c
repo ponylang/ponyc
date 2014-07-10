@@ -2,6 +2,7 @@
 #include "typealias.h"
 #include "subtype.h"
 #include "reify.h"
+#include "cap.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -268,7 +269,10 @@ void nominal_applycap(ast_t* from, ast_t** to)
       if(cap != TK_NONE)
       {
         ast_t* tcap = ast_childidx(ast, 3);
-        ast_setid(tcap, cap);
+        token_id fcap = ast_id(tcap);
+
+        if((fcap == TK_NONE) || is_cap_sub_cap(cap, fcap))
+          ast_setid(tcap, cap);
       }
 
       if(ephemeral != TK_NONE)
@@ -288,7 +292,10 @@ void nominal_applycap(ast_t* from, ast_t** to)
       if(cap != TK_NONE)
       {
         ast_t* tcap = ast_childidx(ast, 1);
-        ast_setid(tcap, cap);
+        token_id fcap = ast_id(tcap);
+
+        if((fcap == TK_NONE) || is_cap_sub_cap(cap, fcap))
+          ast_setid(tcap, cap);
       }
 
       if(ephemeral != TK_NONE)

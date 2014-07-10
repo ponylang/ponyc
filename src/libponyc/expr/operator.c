@@ -1,9 +1,11 @@
 #include "operator.h"
 #include "literal.h"
+#include "postfix.h"
 #include "../type/nominal.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
 
 static bool is_lvalue(ast_t* ast)
@@ -40,6 +42,51 @@ static bool is_lvalue(ast_t* ast)
   return false;
 }
 
+static bool binop_to_function(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  const char* method;
+
+  switch(ast_id(ast))
+  {
+    case TK_EQ: method = stringtab("eq"); break;
+    case TK_NE: method = stringtab("ne"); break;
+    case TK_LT: method = stringtab("lt"); break;
+    case TK_LE: method = stringtab("le"); break;
+    case TK_GE: method = stringtab("ge"); break;
+    case TK_GT: method = stringtab("gt"); break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+
+  // look up the method on the left side
+  ast_t* dot = ast_from(ast, TK_DOT);
+  ast_add(dot, ast_from_string(ast, method));
+  ast_add(dot, left);
+
+  // call the method with the right side
+  ast_t* positional = ast_from(ast, TK_POSITIONALARGS);
+  ast_add(positional, right);
+
+  ast_t* call = ast_from(ast, TK_CALL);
+  ast_add(call, ast_from(ast, TK_NONE)); // named args
+  ast_add(call, positional); // positional args
+  ast_add(call, dot);
+
+  // replace with the function call
+  ast_replace(astp, call);
+
+  if(!expr_dot(dot))
+    return false;
+
+  return expr_call(call);
+}
+
 bool expr_identity(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
@@ -60,8 +107,9 @@ bool expr_identity(ast_t* ast)
   return true;
 }
 
-bool expr_compare(ast_t* ast)
+bool expr_compare(ast_t** astp)
 {
+  ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
 
@@ -73,52 +121,16 @@ bool expr_compare(ast_t* ast)
   ast_free_unattached(r_type);
 
   if(type == NULL)
-  {
-    l_type = ast_type(left);
-    r_type = ast_type(right);
-
-    if(!is_subtype(ast, r_type, l_type))
-    {
-      ast_error(ast, "right side must be a subtype of left side");
-      return false;
-    }
-
-    // left side must be Comparable
-    ast_t* comparable = nominal_builtin1(ast, "Comparable", r_type);
-    bool ok = is_subtype(ast, l_type, comparable);
-    ast_free(comparable);
-
-    if(!ok)
-    {
-      ast_error(ast, "left side must be Comparable");
-      return false;
-    }
-
-    // TODO: rewrite this as a function call?
-  } else {
-    switch(ast_id(ast))
-    {
-      case TK_EQ:
-        ast_setid(ast, TK_IS);
-        break;
-
-      case TK_NE:
-        ast_setid(ast, TK_ISNT);
-        break;
-
-      default:
-        assert(0);
-        return false;
-    }
-  }
+    return binop_to_function(astp);
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
 
-bool expr_order(ast_t* ast)
+bool expr_order(ast_t** astp)
 {
+  ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
 
@@ -130,29 +142,7 @@ bool expr_order(ast_t* ast)
   ast_free_unattached(r_type);
 
   if(type == NULL)
-  {
-    l_type = ast_type(left);
-    r_type = ast_type(right);
-
-    if(!is_subtype(ast, r_type, l_type))
-    {
-      ast_error(ast, "right side must be a subtype of left side");
-      return false;
-    }
-
-    // left side must be Ordered
-    ast_t* ordered = nominal_builtin1(ast, "Ordered", r_type);
-    bool ok = is_subtype(ast, l_type, ordered);
-    ast_free(ordered);
-
-    if(!ok)
-    {
-      ast_error(ast, "left side must be Ordered");
-      return false;
-    }
-
-    // TODO: rewrite this as a function call?
-  }
+    return binop_to_function(astp);
 
   ast_settype(ast, nominal_builtin(ast, "Bool"));
   ast_inheriterror(ast);

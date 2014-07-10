@@ -82,3 +82,6 @@ expression typing
     * GT
     ? ASSIGN viewpoint, safe to write
   * seq
+
+// notes from sophia
+should this->T be This->T?

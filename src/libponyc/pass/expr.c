@@ -80,13 +80,13 @@ ast_result_t pass_expr(ast_t** astp)
     case TK_LE:
     case TK_GE:
     case TK_GT:
-      if(!expr_order(ast))
+      if(!expr_order(astp))
         return AST_FATAL;
       break;
 
     case TK_EQ:
     case TK_NE:
-      if(!expr_compare(ast))
+      if(!expr_compare(astp))
         return AST_FATAL;
       break;
 

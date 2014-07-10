@@ -120,6 +120,7 @@ static bool sugar_constructor(ast_t* ast)
 
 static bool sugar_class(ast_t* ast)
 {
+  // TODO: make sure traits are nominal and have no cap or ephemeral
   if(!sugar_constructor(ast))
     return false;
 
@@ -133,6 +134,7 @@ static bool sugar_class(ast_t* ast)
 
 static bool sugar_actor(ast_t* ast)
 {
+  // TODO: make sure traits are nominal and have no cap or ephemeral
   if(!sugar_constructor(ast))
     return false;
 
