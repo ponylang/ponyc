@@ -7,8 +7,9 @@
 
 #define LINE_LEN 1024
 
-static errormsg_t* head;
-static errormsg_t* tail;
+static errormsg_t* head = NULL;
+static errormsg_t* tail = NULL;
+static size_t count = 0;
 
 static void add_error(errormsg_t* e)
 {
@@ -22,11 +23,17 @@ static void add_error(errormsg_t* e)
   }
 
   e->next = NULL;
+  count++;
 }
 
 errormsg_t* get_errors()
 {
   return head;
+}
+
+size_t get_error_count()
+{
+  return count;
 }
 
 void free_errors()
@@ -41,6 +48,8 @@ void free_errors()
     free(e);
     e = next;
   }
+
+  count = 0;
 }
 
 void print_errors()

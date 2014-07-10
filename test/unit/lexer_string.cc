@@ -5,7 +5,6 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-
 class LexerStringTest: public testing::Test
 {};
 
@@ -390,7 +389,8 @@ TEST(LexerStringTest, TripleStringUnterminated)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -405,7 +405,8 @@ TEST(LexerStringTest, TripleStringUnterminatedEndWithDoubleQuote)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -420,7 +421,8 @@ TEST(LexerStringTest, TripleStringUnterminatedEndWith2DoubleQuotes)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);

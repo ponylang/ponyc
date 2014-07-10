@@ -964,7 +964,7 @@ token_t* lexer_next(lexer_t* lexer)
   }
 
   if(t == LEX_ERROR)
-    return NULL;
+    t = token(lexer, TK_LEX_ERROR);
 
   t->line = symbol_line;
   t->pos = symbol_pos;
@@ -976,6 +976,14 @@ token_t* lexer_next(lexer_t* lexer)
 token_t* token_blank(token_id id)
 {
   return token_new(id, NULL, 0, 0, false);
+}
+
+
+void token_copy_pos(token_t* src, token_t* dst)
+{
+  dst->source = src->source;
+  dst->line = src->line;
+  dst->pos = src->pos;
 }
 
 
@@ -1057,7 +1065,10 @@ const char* token_string(token_t* token)
       return p->symbol;
   }
 
-  return "UNKNOWN";
+  static char buf2[32];
+  snprintf(buf2, sizeof(buf2), "Unknown token %d", token->id);
+  return buf2;
+//  return "UNKNOWN";
 }
 
 

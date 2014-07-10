@@ -1,9 +1,48 @@
 #ifndef PARSERAPI_H
 #define PARSERAPI_H
 
+#include "lexer.h"
 #include "ast.h"
 #include <stdbool.h>
 #include <limits.h>
+
+/** We use a simple recursive decent parser. Each grammar rule is specified
+ * using the macros defined below. Whilst it is perfectly possible to mix
+ * normal C code in with the macros it should not be necessary. The underlying
+ * functions that the macros use should not be called outside of the macros.
+ *
+ * Note that we assume that no look ahead is needed.
+ *
+ * When called each rule tries to match its tokens and subrules in order. When
+ * the first token or subrule is found then the rule is considered to be
+ * matched and the rest of it must be found or a syntax error is declared. If
+ * the first required token or subrule is not found the the rule is a miss and
+ * reports "not found" to its caller. It is up to the caller to decide whether
+ * this is an error.
+ *
+ * An optional token or subrule not found does not cause a miss, so rules can
+ * safely start with optional items.
+ *
+ * Each rule returns one of 4 things:
+ * 1. PARSE_ERROR - indicates that an error occurred. Parse errors are
+ *    propogated up to the caller without re-reporting them.
+ * 2. RULE_NOT_FOUND - indcates that the rule was not found. It is up to the
+ *    caller whether this constitutes an error.
+ * 3. An AST tree - generated from a successful rule parse. It is the
+ *    responsibility to free the tree with ast_free().
+ * 4. NULL - indicates a successful rule parse, but that rule generates no AST.
+ *    This is perfectly legal for all rules except the top level initial rule.
+ *
+ * The AST nodes created from token and returned by subrules are built into a
+ * tree for the rule. The first node found is the rule parent node and all
+ * subsequent nodes are built up as its children.
+ *
+ * The AST_NODE macro adds a node with a specified ID. Specifying this at the
+ * start of a rule will ensure that this is the parent node. For the sake of
+ * efficiency the creation of such a node is deferred until such time as the
+ * rule has matched or reached its end.
+ */
+
 
 typedef struct parser_t
 {
@@ -12,187 +51,252 @@ typedef struct parser_t
   token_t* t;
 } parser_t;
 
+/// State of parsing current rule
+typedef struct rule_state_t
+{
+  bool matched;   // Has the rule matched yet
+  bool opt;       // Is the next sub item optional
+  bool scope;     // Is this rule a scope
+  bool deferred;  // Do we have a deferred AST node
+  token_id deferred_ast;  // ID of deferred AST node
+  token_t deferred_token; // Token to base deferred AST node on
+} rule_state_t;
+
 typedef int (*prec_t)(token_id id);
-
 typedef bool (*assoc_t)(token_id id);
+typedef ast_t* (*rule_t)(parser_t* parser);
 
-typedef ast_t* (*rule_t)(parser_t* parser, bool opt);
 
-ast_t* consume(parser_t* parser);
+#define PARSE_ERROR     ((ast_t*)1)   // A parse error has occured
+#define RULE_NOT_FOUND  ((ast_t*)2)   // Sub item was not found
 
-void insert(parser_t* parser, token_id id, ast_t* ast);
 
-bool look(parser_t* parser, const token_id* id);
+// Functions used by macros
 
-bool accept(parser_t* parser, const token_id* id, ast_t* ast);
+ast_t* consume_token(parser_t* parser);
 
-ast_t* rulealt(parser_t* parser, const rule_t* alt, ast_t* ast, bool opt);
+void consume_token_no_ast(parser_t* parser);
 
-ast_t* bindop(parser_t* parser, prec_t prec, assoc_t assoc, ast_t* ast,
-  const rule_t* alt);
+bool consume_if_match_no_ast(parser_t* parser, token_id id);
 
-void syntax_error(parser_t* parser_t, const char* func, int line);
+void process_deferred_ast(ast_t** rule_ast, rule_state_t* state);
 
-void scope(ast_t* ast);
+void add_ast(ast_t* new_ast, ast_t** rule_ast, rule_state_t* state);
 
-#define TOKS(...) \
-  static const token_id tok[] = \
+void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
+  rule_state_t* state);
+
+void add_infix_ast(ast_t* new_ast, ast_t* prev_ast, ast_t** rule_ast,
+  prec_t prec, assoc_t assoc);
+
+ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
+  ast_t* sub_ast, const char* function, int line_no);
+
+ast_t* token_in_set(parser_t* parser, const token_id* id_set, bool make_ast);
+
+ast_t* rule_in_set(parser_t* parser, const rule_t* rule_set);
+
+void syntax_error(parser_t* parser, const char* func, int line);
+
+
+// Worker macros
+
+#define HANDLE_ERRORS(sub_ast) \
   { \
-    __VA_ARGS__, \
-    TK_NONE \
+    ast_t*r = sub_result(parser, ast, &state, sub_ast, __FUNCTION__, __LINE__); \
+    if(r != NULL) return r;  \
   }
 
-#define ALTS(...) \
-  static const rule_t alt[] = \
-  { \
-    __VA_ARGS__, \
-    NULL \
-  }
+#define MAKE_DEFAULT(sub_ast, id) \
+  if(sub_ast == RULE_NOT_FOUND) sub_ast = ast_new(parser->t, id);
 
-#define NEED(X) \
-  if(!(X)) \
+#define ERROR() \
   { \
-    if(!opt && (ast != NULL)) \
-      syntax_error(parser, __FUNCTION__, __LINE__); \
+    syntax_error(parser, __FUNCTION__, __LINE__); \
     ast_free(ast); \
-    return NULL; \
+    return PARSE_ERROR; \
   }
 
-/* This is the only external API call */
+
+/* This is the only external API call.
+ * Returns generated AST or NULL on error.
+ * It is the caller's responsibility to free the returned AST with ast_free().
+ */
 ast_t* parse(source_t* source, rule_t start);
+
 
 /* The API for parser rules starts here */
 
+/// Rule forward declaration
 #define DECL(rule) \
-  static ast_t* rule(parser_t* parser, bool opt)
+  static ast_t* rule(parser_t* parser)
 
+
+/// Rule definition
 #define DEF(rule) \
-  static ast_t* rule(parser_t* parser, bool opt) \
+  static ast_t* rule(parser_t* parser) \
   { \
-    ast_t* ast = NULL
+    ast_t* ast = NULL; \
+    rule_state_t state = { false, false, false, false }
 
-#define CHECK(...) \
-  NEED(LOOK(__VA_ARGS__))
 
-#define AST(ID) \
-  ast = ast_new(parser->t, ID)
+/** Add a node to our AST.
+ * The first node in a rule is the parent and all subsequent nodes are children
+ * of the parent.
+ * In the interests of efficiency when an initial node created by this macro
+ * the creation of that node is deferred until the rule has matched.
+ * Example:
+ *    AST_NODE(TK_CASE);
+ */
+#define AST_NODE(ID)  add_deferrable_ast(parser, ID, &ast, &state)
 
-#define AST_TOKEN(...) \
-  NEED(LOOK(__VA_ARGS__)); \
-  ast = consume(parser)
 
-#define AST_RULE(...) \
+/** Specify that the containing rule is a scope.
+ * May appear anywhere within the rule definition.
+ * Example:
+ *    SCOPE();
+ */
+#define SCOPE()   state.scope = true
+
+
+/** Specify that the following token or rule is optional.
+ * May be applied to TOKEN, SKIP and RULE.
+ * Example:
+ *    OPT TOKEN(TK_FOO);
+ */
+#define OPT state.opt = true;
+
+
+/** Attempt to match one of the given set of tokens.
+ * If OPT is not specified then a match is required or a syntax error occurs.
+ * If an optional token is not found a default TK_NONE node is created instead.
+ * Example:
+ *    TOKEN(TK_PLUS, TK_MINUS, TK_FOO);
+ */
+#define TOKEN(...) \
   { \
-    ALTS(__VA_ARGS__); \
-    ast = rulealt(parser, alt, NULL, opt); \
-    NEED(ast); \
+    static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
+    ast_t* sub_ast = token_in_set(parser, id_set, true); \
+    HANDLE_ERRORS(sub_ast); \
+    MAKE_DEFAULT(sub_ast, TK_NONE); \
+    add_ast(sub_ast, &ast, &state) ; \
   }
 
-#define INSERT(ID) insert(parser, ID, ast)
 
-#define LOOK(...) \
-  ({ \
-    TOKS(__VA_ARGS__); \
-    look(parser, tok); \
-  })
-
-#define ACCEPT(...) \
-  ({ \
-    TOKS(__VA_ARGS__); \
-    accept(parser, tok, ast); \
-  })
-
-#define ACCEPT_DROP(...) \
-  ({ \
-    TOKS(__VA_ARGS__); \
-    accept(parser, tok, NULL); \
-  })
-
-#define OPTIONAL(...) \
-  if(!ACCEPT(__VA_ARGS__)) \
-  { \
-    INSERT(TK_NONE); \
-  }
-
-#define EXPECT(...) \
-  { \
-    TOKS(__VA_ARGS__); \
-    NEED(accept(parser, tok, ast)); \
-  }
-
+/** Attempt to match one of the given set of tokens, but do not generate an AST
+ * node for it.
+ * If OPT is not specified then a match is required or a syntax error occurs.
+ * Example:
+ *    SKIP(TK_PLUS, TK_MINUS, TK_FOO);
+ */
 #define SKIP(...) \
   { \
-    TOKS(__VA_ARGS__); \
-    NEED(accept(parser, tok, NULL)); \
+    static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
+    ast_t* sub_ast = token_in_set(parser, id_set, false); \
+    HANDLE_ERRORS(sub_ast); \
   }
 
+
+/** Attempt to match one of the given set of rules.
+ * If an optional token is not found a default TK_NONE node is created instead.
+ * If OPT is not specified then a match is required or a syntax error occurs.
+ * Example:
+ *    RULE(constructor, behaviour, function);
+ */
 #define RULE(...) \
   { \
-    ALTS(__VA_ARGS__); \
-    NEED(rulealt(parser, alt, ast, opt)); \
+    static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
+    ast_t* sub_ast = rule_in_set(parser, rule_set); \
+    HANDLE_ERRORS(sub_ast); \
+    MAKE_DEFAULT(sub_ast, TK_NONE); \
+    add_ast(sub_ast, &ast, &state); \
   }
 
-#define OPTRULE(...) \
+
+/** If the next token is the specified id consume it and parse the specified
+ * block of tokens and / or rules.
+ * If the condition id is not found the next token is not consumed and a
+ * default AST node (with id TK_NONE) is created.
+ * Example:
+ *    IF(TK_COLON, RULE(type));
+ */
+#define IF(id, body) \
   { \
-    ALTS(__VA_ARGS__); \
-    if(!rulealt(parser, alt, ast, true)) \
+    if(consume_if_match_no_ast(parser, id)) \
     { \
-      INSERT(TK_NONE); \
+      state.matched = true; \
+      body; \
+    } \
+    else \
+    { \
+      add_ast(ast_new(parser->t, TK_NONE), &ast, &state); \
     } \
   }
 
-#define IFRULE(X, ...) \
-  if(ACCEPT_DROP(X)) \
+
+/** Repeatedly try to parse one optional token or rule and every time it
+ * succeeds parse the specified block of tokens and / or rules.
+ * When the condition id is not found the next token is not consumed.
+ * Example:
+ *    WHILE(TK_COLON, RULE(type));
+ */
+#define WHILE(id, body) \
+  while(consume_if_match_no_ast(parser, id)) \
   { \
-    RULE(__VA_ARGS__); \
-  } else { \
-    INSERT(TK_NONE); \
+    state.matched = true; \
+    body; \
   }
 
-#define IFTOKEN(X, ...) \
-  if(ACCEPT_DROP(X)) \
+
+/** Repeatedly try to parse any of the given set of rules as long as it
+ * succeeds.
+ * Example:
+ *    SEQ(class, use);
+ */
+#define SEQ(...) \
   { \
-    EXPECT(__VA_ARGS__); \
-  } else { \
-    INSERT(TK_NONE); \
+    static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
+    while(true) \
+    { \
+      ast_t* sub_ast = rule_in_set(parser, rule_set); \
+      if(sub_ast == RULE_NOT_FOUND) break; \
+      HANDLE_ERRORS(sub_ast); \
+      add_ast(sub_ast, &ast, &state); \
+    } \
   }
 
-#define WHILERULE(X, ...) \
-  while(ACCEPT_DROP(X)) \
-  { \
-    RULE(__VA_ARGS__); \
-  }
 
-#define WHILETOKEN(X, ...) \
-  while(ACCEPT_DROP(X)) \
-  { \
-    EXPECT(__VA_ARGS__); \
-  }
-
-#define SEQRULE(...) \
-  { \
-    ALTS(__VA_ARGS__); \
-    while(rulealt(parser, alt, ast, true)); \
-  }
-
+/** Repeatedly try to parse any of the given set of binary infix rules as long
+ * as it succeeds and build AST with precedence rules.
+ * If OPT is not specified then at least one match is required or a syntax
+ * error occurs.
+ * Example:
+ *    BINDOP(uniontype, tupletype);
+ */
 #define BINDOP(...) \
   { \
-    ALTS(__VA_ARGS__); \
-    ast = bindop(parser, precedence, associativity, ast, alt); \
+    static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
+    ast_t* prev_ast = ast; \
+    ast_t* orig_ast = ast; \
+    while(true) \
+    { \
+      ast_t* sub_ast = rule_in_set(parser, rule_set); \
+      if(sub_ast == RULE_NOT_FOUND) break; \
+      if(sub_ast == NULL) ERROR(); \
+      HANDLE_ERRORS(sub_ast); \
+      add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
+      prev_ast = sub_ast; \
+    } \
+    if(!state.opt && orig_ast == ast) ERROR(); \
   }
 
-#define EXPECTBINDOP(...) \
-  { \
-    ALTS(__VA_ARGS__); \
-    ast_t* nast = bindop(parser, precedence, associativity, ast, alt); \
-    NEED(nast != ast); \
-    ast = nast; \
-  }
 
-#define SCOPE() scope(ast)
-
+/// Must appear at the end of each defined rule
 #define DONE() \
+    process_deferred_ast(&ast, &state); \
+    if(state.scope && ast != NULL) ast_scope(ast); \
     return ast; \
   }
+
 
 #endif

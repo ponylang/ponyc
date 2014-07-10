@@ -5,7 +5,6 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-
 class LexerNumberTest: public testing::Test
 {};
 
@@ -100,7 +99,8 @@ TEST(LexerNumberTest, IntDecimalBadChar)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -133,7 +133,8 @@ TEST(LexerNumberTest, IntBinaryIncomplete)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -148,7 +149,8 @@ TEST(LexerNumberTest, IntBinaryBadChar)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -181,7 +183,8 @@ TEST(LexerNumberTest, IntHexIncomplete)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);
@@ -196,7 +199,8 @@ TEST(LexerNumberTest, IntHexBadChar)
   lexer_t* lexer = lexer_open(src);
 
   token_t* token = lexer_next(lexer);
-  ASSERT_EQ((void*)NULL, token);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
 
   lexer_close(lexer);
   source_close(src);

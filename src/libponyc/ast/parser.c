@@ -8,6 +8,7 @@ DECL(seq);
 DECL(term);
 DECL(members);
 
+
 // operator precedence
 static int precedence(token_id id)
 {
@@ -64,7 +65,7 @@ static int precedence(token_id id)
     case TK_OR: return 20;
     case TK_ASSIGN: return 10;
 
-    default: return 0;
+    default: return INT_MAX;
   }
 }
 
@@ -85,168 +86,167 @@ static bool associativity(token_id id)
   }
 }
 
+
 // rules
 
 // type {COMMA type}
 DEF(types);
-  AST(TK_TYPES);
+  AST_NODE(TK_TYPES);
   RULE(type);
-  WHILERULE(TK_COMMA, type);
+  WHILE(TK_COMMA, RULE(type));
   DONE();
 
 // ID COLON type [ASSIGN seq]
 DEF(param);
-  CHECK(TK_ID);
-  AST(TK_PARAM);
-  EXPECT(TK_ID);
+  AST_NODE(TK_PARAM);
+  TOKEN(TK_ID);
   SKIP(TK_COLON);
   RULE(type);
-  IFRULE(TK_ASSIGN, seq);
+  IF(TK_ASSIGN, RULE(seq));
   DONE();
 
 // ID [COLON type] [ASSIGN type]
 DEF(typeparam);
-  CHECK(TK_ID);
-  AST(TK_TYPEPARAM);
-  EXPECT(TK_ID);
-  IFRULE(TK_COLON, type);
-  IFRULE(TK_ASSIGN, type);
+  AST_NODE(TK_TYPEPARAM);
+  TOKEN(TK_ID);
+  IF(TK_COLON, RULE(type));
+  IF(TK_ASSIGN, RULE(type));
   DONE();
 
 // param {COMMA param}
 DEF(params);
-  AST(TK_PARAMS);
+  AST_NODE(TK_PARAMS);
   RULE(param);
-  WHILERULE(TK_COMMA, param);
+  WHILE(TK_COMMA, RULE(param));
   DONE();
 
 // LSQUARE typeparam {COMMA typeparam} RSQUARE
 DEF(typeparams);
+  AST_NODE(TK_TYPEPARAMS);
   SKIP(TK_LSQUARE);
-  AST(TK_TYPEPARAMS);
   RULE(typeparam);
-  WHILERULE(TK_COMMA, typeparam);
+  WHILE(TK_COMMA, RULE(typeparam));
   SKIP(TK_RSQUARE);
   DONE();
 
 // LSQUARE type {COMMA type} RSQUARE
 DEF(typeargs);
+  AST_NODE(TK_TYPEARGS);
   SKIP(TK_LSQUARE);
-  AST(TK_TYPEARGS);
   RULE(type);
-  WHILERULE(TK_COMMA, type);
+  WHILE(TK_COMMA, RULE(type));
   SKIP(TK_RSQUARE);
   DONE();
 
 // BE [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN
 DEF(betype);
-  AST_TOKEN(TK_BE);
+  TOKEN(TK_BE);
   SCOPE();
-  INSERT(TK_NONE);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
+  AST_NODE(TK_NONE);  // Capability
+  OPT TOKEN(TK_ID);
+  OPT RULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(types);
+  OPT RULE(types);
   SKIP(TK_RPAREN);
-  INSERT(TK_NONE);
-  INSERT(TK_NONE);
+  AST_NODE(TK_NONE);  // Return type
+  AST_NODE(TK_NONE);  // Partial
+  AST_NODE(TK_NONE);  // Body
   DONE();
 
 // FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type]
 // [QUESTION]
 DEF(funtype);
-  AST_TOKEN(TK_FUN);
+  TOKEN(TK_FUN);
   SCOPE();
-  EXPECT(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
+  TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT TOKEN(TK_ID);
+  OPT RULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(types);
+  OPT RULE(types);
   SKIP(TK_RPAREN);
-  IFRULE(TK_COLON, type);
-  OPTIONAL(TK_QUESTION);
-  INSERT(TK_NONE);
+  IF(TK_COLON, RULE(type));
+  OPT TOKEN(TK_QUESTION);
+  AST_NODE(TK_NONE);  // Body
   DONE();
 
 // {betype} {funtype}
 DEF(funs);
-  AST(TK_MEMBERS);
-  SEQRULE(betype);
-  SEQRULE(funtype);
+  AST_NODE(TK_MEMBERS);
+  SEQ(betype);
+  SEQ(funtype);
   DONE();
 
 // (LBRACE | LBRACE_NEW) funs RBRACE [cap] [HAT]
 DEF(structural);
-  SKIP(TK_LBRACE, TK_LBRACE_NEW);
-  AST(TK_STRUCTURAL);
+  AST_NODE(TK_STRUCTURAL);
   SCOPE();
+  SKIP(TK_LBRACE, TK_LBRACE_NEW);
   RULE(funs);
   SKIP(TK_RBRACE);
-  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_HAT);
+  OPT TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT TOKEN(TK_HAT);
   DONE();
 
 // ID [DOT ID] [typeargs]
 DEF(nominal);
-  CHECK(TK_ID);
-  AST(TK_NOMINAL);
-  EXPECT(TK_ID);
-  IFTOKEN(TK_DOT, TK_ID);
-  OPTRULE(typeargs);
-  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_HAT);
+  AST_NODE(TK_NOMINAL);
+  TOKEN(TK_ID);
+  IF(TK_DOT, TOKEN(TK_ID));
+  OPT RULE(typeargs);
+  OPT TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT TOKEN(TK_HAT);
   DONE();
 
 // COMMA type
 DEF(tupletype);
+  AST_NODE(TK_TUPLETYPE);
   SKIP(TK_COMMA);
-  AST(TK_TUPLETYPE);
   RULE(type);
   DONE();
 
 // PIPE type
 DEF(uniontype);
+  AST_NODE(TK_UNIONTYPE);
   SKIP(TK_PIPE);
-  AST(TK_UNIONTYPE);
   RULE(type);
   DONE();
 
 // AMP type
 DEF(isecttype);
+  AST_NODE(TK_ISECTTYPE);
   SKIP(TK_AMP);
-  AST(TK_ISECTTYPE);
   RULE(type);
   DONE();
 
 // (LPAREN | LPAREN_NEW) type {uniontype | isecttype | tupletype} RPAREN
 DEF(typeexpr);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  AST_RULE(type);
-  EXPECTBINDOP(uniontype, isecttype, tupletype);
+  RULE(type);
+  BINDOP(uniontype, isecttype, tupletype);
   SKIP(TK_RPAREN);
   DONE();
 
 // THIS
 DEF(thistype);
+  AST_NODE(TK_THISTYPE);
   SKIP(TK_THIS);
-  AST(TK_THISTYPE);
   DONE();
 
 // ARROW (thistype | typeexpr | nominal | structural)
 DEF(viewpoint);
-  AST_TOKEN(TK_ARROW);
+  TOKEN(TK_ARROW);
   RULE(typeexpr, nominal, structural, thistype);
   DONE();
 
 // (thistype | typeexpr | nominal | structural) {viewpoint}
 DEF(type);
-  AST_RULE(typeexpr, nominal, structural, thistype);
-  BINDOP(viewpoint);
+  RULE(typeexpr, nominal, structural, thistype);
+  OPT BINDOP(viewpoint);
   DONE();
 
 // term ASSIGN seq
 DEF(namedarg);
-  AST(TK_NAMEDARG);
+  AST_NODE(TK_NAMEDARG);
   RULE(term);
   SKIP(TK_ASSIGN);
   RULE(seq);
@@ -254,160 +254,152 @@ DEF(namedarg);
 
 // WHERE namedarg {COMMA namedarg}
 DEF(named);
+  AST_NODE(TK_NAMEDARGS);
   SKIP(TK_WHERE);
-  AST(TK_NAMEDARGS);
   RULE(namedarg);
-  WHILERULE(TK_COMMA, namedarg);
+  WHILE(TK_COMMA, RULE(namedarg));
   DONE();
 
 // seq {COMMA seq}
 DEF(positional);
-  AST(TK_POSITIONALARGS);
+  AST_NODE(TK_POSITIONALARGS);
   RULE(seq);
-  WHILERULE(TK_COMMA, seq);
+  WHILE(TK_COMMA, RULE(seq));
   DONE();
 
 // (LBRACE | LBRACE_NEW) [IS types] members RBRACE
 DEF(object);
+  AST_NODE(TK_OBJECT);
   SKIP(TK_LBRACE, TK_LBRACE_NEW);
-  AST(TK_OBJECT);
-  IFRULE(TK_IS, types);
+  IF(TK_IS, RULE(types));
   RULE(members);
   SKIP(TK_RBRACE);
   DONE();
 
 // (LSQUARE | LSQUARE_NEW) [positional] [named] RSQUARE
 DEF(array);
+  AST_NODE(TK_ARRAY);
   SKIP(TK_LSQUARE, TK_LSQUARE_NEW);
-  AST(TK_ARRAY);
-  OPTRULE(positional);
-  OPTRULE(named);
+  OPT RULE(positional);
+  OPT RULE(named);
   SKIP(TK_RSQUARE);
   DONE();
 
 // (LPAREN | LPAREN_NEW) seq {COMMA seq} RPAREN
 DEF(tuple);
+  AST_NODE(TK_TUPLE);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  AST(TK_TUPLE);
   RULE(seq);
-  WHILERULE(TK_COMMA, seq);
+  WHILE(TK_COMMA, RULE(seq));
   SKIP(TK_RPAREN);
   DONE();
 
 // THIS | INT | FLOAT | STRING
 DEF(literal);
-  AST_TOKEN(TK_THIS, TK_INT, TK_FLOAT, TK_STRING);
+  TOKEN(TK_THIS, TK_INT, TK_FLOAT, TK_STRING);
   DONE();
 
 DEF(ref);
-  CHECK(TK_ID);
-  AST(TK_REFERENCE);
-  EXPECT(TK_ID);
+  AST_NODE(TK_REFERENCE);
+  TOKEN(TK_ID);
   DONE();
 
 // ref | literal | tuple | array | object
 DEF(atom);
-  AST_RULE(ref, literal, tuple, array, object);
+  RULE(ref, literal, tuple, array, object);
   DONE();
 
 // DOT (ID | INT)
 DEF(dot);
-  AST_TOKEN(TK_DOT);
-  EXPECT(TK_ID, TK_INT);
+  TOKEN(TK_DOT);
+  TOKEN(TK_ID, TK_INT);
   DONE();
 
 // BANG ID
 DEF(bang);
-  AST_TOKEN(TK_BANG);
-  EXPECT(TK_ID);
+  TOKEN(TK_BANG);
+  TOKEN(TK_ID);
   DONE();
 
 // typeargs
 DEF(qualify);
-  CHECK(TK_LSQUARE);
-  AST(TK_QUALIFY);
+  AST_NODE(TK_QUALIFY);
   RULE(typeargs);
   DONE();
 
 // LPAREN [positional] [named] RPAREN
 DEF(call);
+  AST_NODE(TK_CALL);
   SKIP(TK_LPAREN);
-  AST(TK_CALL);
-  OPTRULE(positional);
-  OPTRULE(named);
+  OPT RULE(positional);
+  OPT RULE(named);
   SKIP(TK_RPAREN);
   DONE();
 
 // atom {dot | bang | qualify | call}
 DEF(postfix);
-  AST_RULE(atom);
-  BINDOP(dot, bang, qualify, call);
+  RULE(atom);
+  OPT BINDOP(dot, bang, qualify, call);
+  DONE();
+
+// ID
+DEF(idseqid);
+  AST_NODE(TK_IDSEQ);
+  TOKEN(TK_ID);
+  DONE();
+
+// (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
+DEF(idseqseq);
+  AST_NODE(TK_IDSEQ);
+  SKIP(TK_LPAREN, TK_LPAREN_NEW);
+  TOKEN(TK_ID);
+  WHILE(TK_COMMA, TOKEN(TK_ID));
+  SKIP(TK_RPAREN);
   DONE();
 
 // ID | (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
 DEF(idseq);
-  CHECK(TK_ID, TK_LPAREN, TK_LPAREN_NEW);
-  AST(TK_IDSEQ);
-
-  if(LOOK(TK_LPAREN, TK_LPAREN_NEW))
-  {
-    SKIP(TK_LPAREN, TK_LPAREN_NEW);
-    EXPECT(TK_ID);
-    WHILETOKEN(TK_COMMA, TK_ID);
-    SKIP(TK_RPAREN);
-  } else {
-    EXPECT(TK_ID);
-  }
-
+  RULE(idseqid, idseqseq);
   DONE();
 
 // (VAR | VAL) idseq [COLON type]
 DEF(local);
-  AST_TOKEN(TK_VAR, TK_LET);
+  TOKEN(TK_VAR, TK_LET);
   RULE(idseq);
-  IFRULE(TK_COLON, type);
+  IF(TK_COLON, RULE(type));
   DONE();
 
-// ELSEIF rawseq THEN seq (elseif | [ELSE seq] END)
+// ELSE seq END
+DEF(elseclause);
+  SKIP(TK_ELSE);
+  RULE(seq);
+  DONE();
+
+// ELSEIF rawseq THEN seq
 DEF(elseif);
-  SKIP(TK_ELSEIF);
-  AST(TK_IF);
+  AST_NODE(TK_IF);
   SCOPE();
+  SKIP(TK_ELSEIF);
   RULE(rawseq);
   SKIP(TK_THEN);
   RULE(seq);
-
-  if(LOOK(TK_ELSEIF))
-  {
-    RULE(elseif);
-  } else {
-    IFRULE(TK_ELSE, seq);
-    SKIP(TK_END);
-  }
-
+  RULE(elseif, elseclause);
   DONE();
 
-// IF rawseq THEN seq (elseif | [ELSE seq] END)
+// IF rawseq THEN seq {elseif} [ELSE seq] END
 DEF(cond);
-  AST_TOKEN(TK_IF);
+  TOKEN(TK_IF);
   SCOPE();
   RULE(rawseq);
   SKIP(TK_THEN);
   RULE(seq);
-
-  if(LOOK(TK_ELSEIF))
-  {
-    RULE(elseif);
-  } else {
-    IFRULE(TK_ELSE, seq);
-    SKIP(TK_END);
-  }
-
+  OPT RULE(elseif, elseclause);
+  SKIP(TK_END);
   DONE();
 
 // AS idseq COLON type
 DEF(as);
-  AST_TOKEN(TK_AS);
+  TOKEN(TK_AS);
   RULE(idseq);
   SKIP(TK_COLON);
   RULE(type);
@@ -415,45 +407,45 @@ DEF(as);
 
 // PIPE [rawseq] [as] [WHERE rawseq] [ARROW seq]
 DEF(caseexpr);
-  SKIP(TK_PIPE);
-  AST(TK_CASE);
+  AST_NODE(TK_CASE);
   SCOPE();
-  OPTRULE(rawseq);
-  OPTRULE(as);
-  IFRULE(TK_WHERE, rawseq);
-  IFRULE(TK_DBLARROW, seq);
+  SKIP(TK_PIPE);
+  OPT RULE(rawseq);
+  OPT RULE(as);
+  IF(TK_WHERE, RULE(rawseq));
+  IF(TK_DBLARROW, RULE(seq));
   DONE();
 
 // {caseexpr}
 DEF(cases);
-  AST(TK_CASES);
-  SEQRULE(caseexpr);
+  AST_NODE(TK_CASES);
+  SEQ(caseexpr);
   DONE();
 
 // MATCH rawseq cases [ELSE seq] END
 DEF(match);
-  AST_TOKEN(TK_MATCH);
+  TOKEN(TK_MATCH);
   SCOPE();
   RULE(rawseq);
   RULE(cases);
-  IFRULE(TK_ELSE, seq);
+  IF(TK_ELSE, RULE(seq));
   SKIP(TK_END);
   DONE();
 
 // WHILE rawseq DO seq [ELSE seq] END
 DEF(whileloop);
-  AST_TOKEN(TK_WHILE);
+  TOKEN(TK_WHILE);
   SCOPE();
   RULE(rawseq);
   SKIP(TK_DO);
   RULE(seq);
-  IFRULE(TK_ELSE, seq);
+  IF(TK_ELSE, RULE(seq));
   SKIP(TK_END);
   DONE();
 
 // REPEAT rawseq UNTIL seq END
 DEF(repeat);
-  AST_TOKEN(TK_REPEAT);
+  TOKEN(TK_REPEAT);
   SCOPE();
   RULE(rawseq);
   SKIP(TK_UNTIL);
@@ -463,42 +455,41 @@ DEF(repeat);
 
 // FOR idseq [COLON type] IN seq DO seq [ELSE seq] END
 DEF(forloop);
-  AST_TOKEN(TK_FOR);
+  TOKEN(TK_FOR);
   SCOPE();
   RULE(idseq);
-  IFRULE(TK_COLON, type);
+  IF(TK_COLON, RULE(type));
   SKIP(TK_IN);
   RULE(seq);
   SKIP(TK_DO);
   RULE(seq);
-  IFRULE(TK_ELSE, seq);
+  IF(TK_ELSE, RULE(seq));
   SKIP(TK_END);
   DONE();
 
 // TRY seq [ELSE seq] [THEN seq] END
 DEF(try);
-  AST_TOKEN(TK_TRY);
+  TOKEN(TK_TRY);
   RULE(seq);
-  IFRULE(TK_ELSE, seq);
-  IFRULE(TK_THEN, seq);
+  IF(TK_ELSE, RULE(seq));
+  IF(TK_THEN, RULE(seq));
   SKIP(TK_END);
   DONE();
 
 // (NOT | MINUS | MINUS_NEW | CONSUME | RECOVER) term
 DEF(prefix);
-  AST_TOKEN(TK_NOT, TK_MINUS, TK_MINUS_NEW, TK_CONSUME, TK_RECOVER);
+  TOKEN(TK_NOT, TK_MINUS, TK_MINUS_NEW, TK_CONSUME, TK_RECOVER);
   RULE(term);
   DONE();
 
 // local | cond | match | whileloop | repeat | forloop | try | prefix | postfix
 DEF(term);
-  AST_RULE(local, cond, match, whileloop, repeat, forloop, try, prefix,
-    postfix);
+  RULE(local, cond, match, whileloop, repeat, forloop, try, prefix, postfix);
   DONE();
 
 // BINOP term
 DEF(binop);
-  AST_TOKEN(
+  TOKEN(
     TK_AND, TK_OR, TK_XOR,
     TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
     TK_LSHIFT, TK_RSHIFT,
@@ -510,140 +501,140 @@ DEF(binop);
 
 // term {binop}
 DEF(infix);
-  AST_RULE(term);
-  BINDOP(binop);
+  RULE(term);
+  OPT BINDOP(binop);
   DONE();
 
 // (RETURN | BREAK) infix
 DEF(returnexpr);
-  AST_TOKEN(TK_RETURN, TK_BREAK);
+  TOKEN(TK_RETURN, TK_BREAK);
   RULE(infix);
   DONE();
 
 // CONTINUE | ERROR | COMPILER_INTRINSIC
 DEF(statement);
-  AST_TOKEN(TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
+  TOKEN(TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
 // (statement | returnexpr | infix) [SEMI]
 DEF(expr);
-  AST_RULE(statement, returnexpr, infix);
-  ACCEPT_DROP(TK_SEMI);
+  RULE(statement, returnexpr, infix);
+  OPT SKIP(TK_SEMI);
   DONE();
 
 // expr {expr}
 DEF(rawseq);
-  AST(TK_SEQ);
+  AST_NODE(TK_SEQ);
   RULE(expr);
-  SEQRULE(expr);
+  SEQ(expr);
   DONE();
 
 // expr {expr}
 DEF(seq);
-  AST(TK_SEQ);
+  AST_NODE(TK_SEQ);
   SCOPE();
   RULE(expr);
-  SEQRULE(expr);
+  SEQ(expr);
   DONE();
 
 // FUN CAP ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
 // [COLON type] [QUESTION] [ARROW seq]
 DEF(function);
-  AST_TOKEN(TK_FUN);
+  TOKEN(TK_FUN);
   SCOPE();
-  EXPECT(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
+  TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  TOKEN(TK_ID);
+  OPT RULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(params);
+  OPT RULE(params);
   SKIP(TK_RPAREN);
-  IFRULE(TK_COLON, type);
-  OPTIONAL(TK_QUESTION);
-  IFRULE(TK_DBLARROW, seq);
+  IF(TK_COLON, RULE(type));
+  OPT TOKEN(TK_QUESTION);
+  IF(TK_DBLARROW, RULE(seq));
   DONE();
 
 // BE ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [ARROW seq]
 DEF(behaviour);
-  AST_TOKEN(TK_BE);
+  TOKEN(TK_BE);
   SCOPE();
-  INSERT(TK_NONE);
-  EXPECT(TK_ID);
-  OPTRULE(typeparams);
+  AST_NODE(TK_NONE);  // Capability
+  TOKEN(TK_ID);
+  OPT RULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(params);
+  OPT RULE(params);
   SKIP(TK_RPAREN);
-  INSERT(TK_NONE);
-  INSERT(TK_NONE);
-  IFRULE(TK_DBLARROW, seq);
+  AST_NODE(TK_NONE);  // Return type
+  AST_NODE(TK_NONE);  // Partial
+  IF(TK_DBLARROW, RULE(seq));
   DONE();
 
 // NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
 // [ARROW seq]
 DEF(constructor);
-  AST_TOKEN(TK_NEW);
+  TOKEN(TK_NEW);
   SCOPE();
-  INSERT(TK_NONE);
-  OPTIONAL(TK_ID);
-  OPTRULE(typeparams);
+  AST_NODE(TK_NONE);
+  TOKEN(TK_ID);
+  OPT RULE(typeparams);
   SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPTRULE(params);
+  OPT RULE(params);
   SKIP(TK_RPAREN);
-  INSERT(TK_NONE);
-  OPTIONAL(TK_QUESTION);
-  IFRULE(TK_DBLARROW, seq);
+  AST_NODE(TK_NONE);  // Return type
+  OPT TOKEN(TK_QUESTION);
+  IF(TK_DBLARROW, RULE(seq));
   DONE();
 
 // VAR ID [COLON type] [ASSIGN expr]
 DEF(fieldvar);
+  AST_NODE(TK_FVAR);
   SKIP(TK_VAR);
-  AST(TK_FVAR);
-  EXPECT(TK_ID);
-  IFRULE(TK_COLON, type);
-  IFRULE(TK_ASSIGN, expr);
+  TOKEN(TK_ID);
+  IF(TK_COLON, RULE(type));
+  IF(TK_ASSIGN, RULE(expr));
   DONE();
 
 // VAL ID [COLON type] [ASSIGN expr]
 DEF(fieldval);
+  AST_NODE(TK_FLET);
   SKIP(TK_LET);
-  AST(TK_FLET);
-  EXPECT(TK_ID);
-  IFRULE(TK_COLON, type);
-  IFRULE(TK_ASSIGN, expr);
+  TOKEN(TK_ID);
+  IF(TK_COLON, RULE(type));
+  IF(TK_ASSIGN, RULE(expr));
   DONE();
 
 // {field} {constructor} {behaviour} {function}
 DEF(members);
-  AST(TK_MEMBERS);
-  SEQRULE(fieldvar, fieldval);
-  SEQRULE(constructor);
-  SEQRULE(behaviour);
-  SEQRULE(function);
+  AST_NODE(TK_MEMBERS);
+  SEQ(fieldvar, fieldval);
+  SEQ(constructor);
+  SEQ(behaviour);
+  SEQ(function);
   DONE();
 
 // (TYPE | TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
 DEF(class);
-  AST_TOKEN(TK_TYPE, TK_TRAIT, TK_CLASS, TK_ACTOR);
+  TOKEN(TK_TYPE, TK_TRAIT, TK_CLASS, TK_ACTOR);
   SCOPE();
-  EXPECT(TK_ID);
-  OPTRULE(typeparams);
-  OPTIONAL(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  IFRULE(TK_IS, types);
+  TOKEN(TK_ID);
+  OPT RULE(typeparams);
+  OPT TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  IF(TK_IS, RULE(types));
   RULE(members);
   DONE();
 
 // USE STRING [AS ID]
 DEF(use);
-  AST_TOKEN(TK_USE);
-  EXPECT(TK_STRING);
-  IFTOKEN(TK_AS, TK_ID);
+  TOKEN(TK_USE);
+  TOKEN(TK_STRING);
+  IF(TK_AS, TOKEN(TK_ID));
   DONE();
 
 // {use} {class}
 DEF(module);
-  AST(TK_MODULE);
+  AST_NODE(TK_MODULE);
   SCOPE();
-  SEQRULE(use);
-  SEQRULE(class);
+  SEQ(use);
+  SEQ(class);
   SKIP(TK_EOF);
   DONE();
 

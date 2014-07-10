@@ -5,7 +5,6 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-
 class LexerCommentTest: public testing::Test
 {};
 
