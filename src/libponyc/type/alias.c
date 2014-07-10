@@ -186,7 +186,7 @@ ast_t* recover_type(ast_t* type)
       return recover_for_type(type, 1);
 
     case TK_ARROW:
-      // TODO: consume with viewpoint adaptation
+      // TODO: recover with viewpoint adaptation
       return type;
 
     case TK_THISTYPE:

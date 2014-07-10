@@ -43,8 +43,8 @@ expression typing
   unop
     * NOT
     * MINUS
-    - CONSUME
-    - RECOVER
+    ? CONSUME invalidate id
+    ? RECOVER remove things from scope
   * local
     * VAR/LET
     * AS

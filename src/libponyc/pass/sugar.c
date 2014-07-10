@@ -411,6 +411,31 @@ static bool sugar_for(ast_t** astp)
   return true;
 }
 
+static bool sugar_bang(ast_t** astp)
+{
+  // TODO: syntactic sugar for partial application
+  /*
+  a!method(b, c)
+
+  {
+    var $0: Receiver method_cap = a
+    var $1: Param1 = b
+    var $2: Param2 = c
+
+    fun cap apply(remaining args on method): method_result =>
+      $0.method($1, $2, remaining args on method)
+  } cap ^
+
+  cap
+    never tag (need to read our receiver)
+    never iso or trn (but can recover)
+    val: ParamX val or tag, method_cap val or tag
+    box: val <: ParamX, val <: method_cap
+    ref: otherwise
+  */
+  return true;
+}
+
 static bool sugar_case(ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASE);
@@ -547,7 +572,8 @@ ast_result_t pass_sugar(ast_t** astp)
       break;
 
     case TK_BANG:
-      // TODO: syntactic sugar for partial application
+      if(!sugar_bang(astp))
+        return AST_FATAL;
       break;
 
     case TK_CASE:

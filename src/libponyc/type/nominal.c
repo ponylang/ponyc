@@ -246,3 +246,60 @@ ast_t* nominal_def(ast_t* scope, ast_t* nominal)
   ast_setdata(nominal, def);
   return def;
 }
+
+void nominal_applycap(ast_t* from, ast_t** to)
+{
+  assert(ast_id(from) == TK_NOMINAL);
+  token_id cap = ast_id(ast_childidx(from, 3));
+  token_id ephemeral = ast_id(ast_childidx(from, 4));
+
+  if((cap == TK_NONE) && (ephemeral == TK_NONE))
+    return;
+
+  ast_t* ast = *to;
+
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:
+    {
+      ast = ast_dup(ast);
+      *to = ast;
+
+      if(cap != TK_NONE)
+      {
+        ast_t* tcap = ast_childidx(ast, 3);
+        ast_setid(tcap, cap);
+      }
+
+      if(ephemeral != TK_NONE)
+      {
+        ast_t* eph = ast_childidx(ast, 4);
+        ast_setid(eph, ephemeral);
+      }
+
+      break;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      ast = ast_dup(ast);
+      *to = ast;
+
+      if(cap != TK_NONE)
+      {
+        ast_t* tcap = ast_childidx(ast, 1);
+        ast_setid(tcap, cap);
+      }
+
+      if(ephemeral != TK_NONE)
+      {
+        ast_t* eph = ast_childidx(ast, 2);
+        ast_setid(eph, ephemeral);
+      }
+
+      break;
+    }
+
+    default: {}
+  }
+}

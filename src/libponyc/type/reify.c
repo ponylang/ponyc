@@ -15,9 +15,12 @@ static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
   if(ast_name(param_name) != ast_name(name))
     return false;
 
-  // TODO: keep the cap and ephemerality
+  // keep the cap and ephemerality
+  nominal_applycap(ast, &typearg);
+
   // swap in place
   ast_replace(&ast, typearg);
+
   return true;
 }
 

@@ -28,4 +28,6 @@ bool nominal_valid(ast_t* scope, ast_t** ast);
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 
+void nominal_applycap(ast_t* from, ast_t** to);
+
 #endif

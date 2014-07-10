@@ -243,8 +243,12 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
 
   while(trait != NULL)
   {
-    // TODO: use our cap and ephemeral
+    // reify the trait
     ast_t* r_trait = reify(trait, typeparams, typeargs);
+
+    // use the cap and ephemerality of the subtype
+    nominal_applycap(sub, &r_trait);
+
     bool is_sub = is_subtype(scope, r_trait, super);
     ast_free_unattached(r_trait);
 
