@@ -4,6 +4,7 @@
 #include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../type/lookup.h"
+#include "../type/alias.h"
 #include "../type/cap.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
@@ -366,7 +367,11 @@ bool expr_call(ast_t* ast)
 
       while((arg != NULL) && (param != NULL))
       {
-        if(!is_subtype(ast, ast_type(arg), param))
+        ast_t* a_type = alias(ast_type(arg));
+        bool ok = is_subtype(ast, a_type, param);
+        ast_free_unattached(a_type);
+
+        if(!ok)
         {
           ast_error(arg, "argument not a subtype of parameter");
           return false;
