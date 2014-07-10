@@ -195,10 +195,8 @@ static bool is_nominal_sub_structural(ast_t* scope, ast_t* sub, ast_t* super)
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_STRUCTURAL);
 
-  ast_t* def = nominal_def(sub, sub);
-
-  if(def == NULL)
-    return false;
+  ast_t* def = nominal_def(scope, sub);
+  assert(def != NULL);
 
   // TODO: cap and ephemeral
 
@@ -225,10 +223,8 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
 
   ast_t* sub_def = nominal_def(scope, sub);
   ast_t* super_def = nominal_def(scope, super);
-
-  // check we found a definition for both
-  if((sub_def == NULL) || (super_def == NULL))
-    return false;
+  assert(sub_def != NULL);
+  assert(super_def != NULL);
 
   // TODO: cap and ephemeral
 
@@ -269,6 +265,7 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
     if(ast_id(constraint) == TK_NOMINAL)
     {
       ast_t* constraint_def = nominal_def(scope, constraint);
+      assert(constraint_def != NULL);
 
       switch(ast_id(constraint_def))
       {
@@ -339,6 +336,7 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
     case TK_NOMINAL:
     {
       ast_t* def = nominal_def(scope, sub);
+      assert(def != NULL);
 
       switch(ast_id(def))
       {
@@ -404,6 +402,7 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
     case TK_NOMINAL:
     {
       ast_t* def = nominal_def(scope, super);
+      assert(def != NULL);
 
       switch(ast_id(def))
       {

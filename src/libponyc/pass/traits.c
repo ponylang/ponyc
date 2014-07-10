@@ -13,6 +13,12 @@ typedef enum
 
 static bool attach_method(ast_t* type, ast_t* method)
 {
+  if((ast_id(type) == TK_CLASS) && (ast_id(method) == TK_BE))
+  {
+    ast_error(type, "a class can't have traits that have behaviours");
+    return false;
+  }
+
   ast_t* members = ast_childidx(type, 4);
 
   // see if we have an existing method with this name
@@ -34,7 +40,7 @@ static bool attach_method(ast_t* type, ast_t* method)
     ast_t* impl = ast_childidx(method, 6);
 
     if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
-      ast_replace(existing_impl, impl);
+      ast_replace(&existing_impl, impl);
 
     // TODO: what if a new method is a subtype of an existing method?
     // if the existing method came from a trait, should we accept the new one?

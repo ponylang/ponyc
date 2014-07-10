@@ -104,7 +104,7 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = nominal_type(ast, NULL, ast_name(typeparam_id));
+      ast_t* typearg = nominal_sugar(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
       typeparam = ast_sibling(typeparam);
@@ -115,7 +115,6 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
   ast_add(nominal, ast_from_string(ast, name));
   ast_add(nominal, ast_from(ast, TK_NONE));
-
   return nominal;
 }
 
@@ -170,7 +169,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   while(id != NULL)
   {
-    ast_t* t = tuple_index(type, index);
+    ast_t* t = lookup_tuple(type, index);
 
     if(t == NULL)
     {
@@ -183,7 +182,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
     index++;
   }
 
-  if(tuple_index(type, index) != NULL)
+  if(lookup_tuple(type, index) != NULL)
   {
     ast_error(type, "too many types specified");
     return false;

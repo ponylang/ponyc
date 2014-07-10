@@ -43,7 +43,7 @@ TYPEPARAM: ID [type] [type]
 TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
-  ARROW | ERROR)
+  ARROW)
 cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
 
 ARROW: type type
@@ -246,8 +246,8 @@ void ast_clear(ast_t* ast);
 ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
-ast_t* ast_swap(ast_t* prev, ast_t* next);
-void ast_replace(ast_t* prev, ast_t* next);
+void ast_swap(ast_t* prev, ast_t* next);
+void ast_replace(ast_t** prev, ast_t* next);
 void ast_reverse(ast_t* ast);
 void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);

@@ -146,7 +146,7 @@ bool expr_reference(ast_t* ast)
       return true;
     }
 
-    case TK_TYPE:
+    case TK_TYPE: // TODO: resolve alias?
     case TK_CLASS:
     case TK_ACTOR:
     {
@@ -217,10 +217,28 @@ bool expr_reference(ast_t* ast)
       if(!def_before_use(def, ast, name))
         return false;
 
-      // TODO: separate node id for assignable and not assignable?
+      ast_t* idseq = ast_parent(def);
+      ast_t* var = ast_parent(idseq);
+      assert(ast_id(idseq) == TK_IDSEQ);
+
+      switch(ast_id(var))
+      {
+        case TK_AS:
+        case TK_VAR:
+          ast_setid(ast, TK_VARREF);
+          break;
+
+        case TK_LET:
+          ast_setid(ast, TK_LETREF);
+          break;
+
+        default:
+          assert(0);
+          return false;
+      }
+
       // get the type of the local and attach it to our reference
       ast_settype(ast, ast_type(def));
-      ast_setid(ast, TK_LOCALREF);
       return true;
     }
 
@@ -256,70 +274,4 @@ bool expr_local(ast_t* ast)
   }
 
   return type_for_idseq(ast, type);
-}
-
-bool expr_fun(ast_t* ast)
-{
-  ast_t* type = ast_childidx(ast, 4);
-  ast_t* can_error = ast_sibling(type);
-  ast_t* body = ast_sibling(can_error);
-
-  if(ast_id(body) == TK_NONE)
-    return true;
-
-  ast_t* def = ast_enclosing_type(ast);
-  bool is_trait = ast_id(def) == TK_TRAIT;
-
-  // if specified, body type must match return type
-  ast_t* body_type = ast_type(body);
-
-  if(body_type == NULL)
-  {
-    ast_t* last = ast_childlast(body);
-    ast_error(type, "function body always results in an error");
-    ast_error(last, "function body expression is here");
-    return false;
-  }
-
-  if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
-    return true;
-
-  // check partial functions
-  if(ast_id(can_error) == TK_QUESTION)
-  {
-    // if a partial function, check that we might actually error
-    if(!is_trait && !ast_canerror(body))
-    {
-      ast_error(can_error, "function body is not partial but the function is");
-      return false;
-    }
-  } else {
-    // if not a partial function, check that we can't error
-    if(ast_canerror(body))
-    {
-      ast_error(can_error, "function body is partial but the function is not");
-      return false;
-    }
-  }
-
-  if(ast_id(ast) == TK_FUN)
-  {
-    if(!is_subtype(ast, body_type, type))
-    {
-      ast_t* last = ast_childlast(body);
-      ast_error(type, "function body isn't a subtype of the result type");
-      ast_error(last, "function body expression is here");
-      return false;
-    }
-
-    if(!is_trait && !is_eqtype(ast, body_type, type))
-    {
-      ast_t* last = ast_childlast(body);
-      ast_error(type, "function body is more specific than the result type");
-      ast_error(last, "function body expression is here");
-      return false;
-    }
-  }
-
-  return true;
 }

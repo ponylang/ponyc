@@ -12,12 +12,10 @@ static bool is_lvalue(ast_t* ast)
   {
     case TK_VAR:
     case TK_LET:
-    case TK_FIELDREF:
+    case TK_FVARREF:
+    case TK_FLETREF: // TODO: only valid the first time in a constructor
+    case TK_VARREF:
     case TK_PARAMREF:
-    case TK_LOCALREF:
-      // an identifier reference is an lvalue. it may still not be valid to
-      // assign to it (it could be a method or an SSA that's already set).
-      // the same is true for accessing a member with dot notation.
       return true;
 
     case TK_TUPLE:
@@ -143,9 +141,9 @@ bool expr_order(ast_t* ast)
     }
 
     // left side must be Ordered
-    ast_t* comparable = nominal_builtin1(ast, "Ordered", r_type);
-    bool ok = is_subtype(ast, l_type, comparable);
-    ast_free(comparable);
+    ast_t* ordered = nominal_builtin1(ast, "Ordered", r_type);
+    bool ok = is_subtype(ast, l_type, ordered);
+    ast_free(ordered);
 
     if(!ok)
     {
@@ -287,22 +285,31 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
+  // assignment is based on the alias of the right hand side
+  ast_t* a_type = alias(r_type);
+
   if(l_type == NULL)
   {
+    // local type inference
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
 
-    // returns an alias since there was no previous value to read
-    ast_settype(ast, alias(r_type));
+    // returns the right side since there was no previous value to read
+    ast_settype(ast, a_type);
 
     // set the type for each component
-    return type_for_idseq(ast_child(left), r_type);
-  } else if(!is_subtype(ast, r_type, l_type)) {
+    return type_for_idseq(ast_child(left), a_type);
+  }
+
+  bool ok = is_subtype(ast, a_type, l_type);
+  ast_free_unattached(a_type);
+
+  if(!ok)
+  {
     ast_error(ast, "right side must be a subtype of left side");
     return false;
   }
 
-  // TODO: viewpoint adaptation, safe to write, etc
-  // TODO: disallow reassignment to SSA variable
+  // TODO: viewpoint adaptation, safe to write
   ast_settype(ast, l_type);
   ast_inheriterror(ast);
   return true;

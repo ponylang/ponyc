@@ -79,136 +79,133 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
   return package;
 }
 
-/**
- * Inserts entries in scopes. When this is complete, all scopes are fully
- * populated, including package imports, type names, type parameters in types,
- * field names, method names, type parameters in methods, parameters in methods,
- * and local variables.
- */
+static bool scope_package(ast_t* ast, int verbose)
+{
+  return use_package(ast, NULL, "builtin", verbose) != NULL;
+}
+
+static bool scope_use(ast_t* ast, int verbose)
+{
+  ast_t* path = ast_child(ast);
+  ast_t* name = ast_sibling(path);
+
+  return use_package(ast, name, ast_name(path), verbose) != NULL;
+}
+
+static bool scope_type(ast_t* ast)
+{
+  ast_t* typeparams = ast_childidx(ast, 1);
+  ast_t* cap = ast_sibling(typeparams);
+  ast_t* types = ast_sibling(cap);
+  ast_t* members = ast_sibling(types);
+
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "a type alias can't specify a default capability");
+    return false;
+  }
+
+  ast_t* alias = ast_child(types);
+
+  if((alias == NULL) && (ast_sibling(alias) != NULL))
+  {
+    ast_error(types, "a type alias must alias to a single type");
+    return false;
+  }
+
+  ast_t* member = ast_child(members);
+
+  if(member != NULL)
+  {
+    ast_error(member, "a type alias can't have members");
+    return false;
+  }
+
+  return set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true);
+}
+
+static bool scope_actor(ast_t* ast)
+{
+  ast_t* cap = ast_childidx(ast, 2);
+
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "an actor can't specify a default capability");
+    return false;
+  }
+
+  return set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true);
+}
+
+static bool scope_field(ast_t* ast)
+{
+  if(ast_nearest(ast, TK_TRAIT) != NULL)
+  {
+    ast_error(ast, "can't have a field in a trait");
+    return false;
+  }
+
+  return set_scope(ast, ast_child(ast), ast, false);
+}
+
+static bool scope_idseq(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    // each ID resolves to itself
+    if(!set_scope(ast_parent(ast), child, child, false))
+      return false;
+
+    child = ast_sibling(child);
+  }
+
+  return true;
+}
+
 ast_result_t pass_scope(ast_t* ast, int verbose)
 {
   switch(ast_id(ast))
   {
     case TK_PACKAGE:
-      if(use_package(ast, NULL, "builtin", verbose) == NULL)
+      if(!scope_package(ast, verbose))
         return AST_ERROR;
       break;
 
     case TK_USE:
-    {
-      ast_t* path = ast_child(ast);
-      ast_t* name = ast_sibling(path);
-
-      if(use_package(ast, name, ast_name(path), verbose) == NULL)
+      if(!scope_use(ast, verbose))
         return AST_ERROR;
       break;
-    }
 
     case TK_TYPE:
-    {
-      // can't have a default capability
-      ast_t* typeparams = ast_childidx(ast, 1);
-      ast_t* cap = ast_sibling(typeparams);
-      ast_t* alias = ast_child(ast_sibling(cap));
-
-      if(ast_id(cap) != TK_NONE)
-      {
-        ast_error(cap, "can't specify a default capability for a type alias");
-        return AST_ERROR;
-      }
-
-      if((alias != NULL) && (ast_sibling(alias) != NULL))
-      {
-        ast_error(alias, "a type alias can only alias to a single type");
-        return AST_ERROR;
-      }
-
-      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
-        ast_child(ast), ast, true))
+      if(!scope_type(ast))
         return AST_ERROR;
       break;
-    }
 
     case TK_ACTOR:
-    {
-      // can't have a default capability
-      ast_t* cap = ast_childidx(ast, 2);
-
-      if(ast_id(cap) != TK_NONE)
-      {
-        ast_error(cap, "can't specify a default for an actor");
-        return AST_ERROR;
-      }
-
-      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
-        ast_child(ast), ast, true))
+      if(!scope_actor(ast))
         return AST_ERROR;
       break;
-    }
 
     case TK_TRAIT:
     case TK_CLASS:
-      if(!set_scope(ast_nearest(ast, TK_PACKAGE),
-        ast_child(ast), ast, true))
+      if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true))
         return AST_ERROR;
       break;
 
     case TK_FVAR:
     case TK_FLET:
-    {
-      if(ast_nearest(ast, TK_TRAIT) != NULL)
-      {
-        ast_error(ast, "can't have a field in a trait");
-        return false;
-      }
-
-      if(!set_scope(ast, ast_child(ast), ast, false))
+      if(!scope_field(ast))
         return AST_ERROR;
       break;
-    }
 
     case TK_NEW:
-    {
-      ast_t* id = ast_childidx(ast, 1);
-
-      if(ast_id(id) == TK_NONE)
-      {
-        ast_t* r_id = ast_from_string(id, "create");
-        ast_replace(id, r_id);
-      }
-
-      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
-        return AST_ERROR;
-      break;
-    }
-
     case TK_BE:
-    {
-      if(ast_nearest(ast, TK_CLASS) != NULL)
-      {
-        ast_error(ast, "can't have a behaviour in a class");
-        return false;
-      }
-
-      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
-        return AST_ERROR;
-      break;
-    }
-
     case TK_FUN:
-    {
-      ast_t* id = ast_childidx(ast, 1);
-
-      if(ast_id(id) == TK_NONE)
-      {
-        ast_t* r_id = ast_from_string(id, "apply");
-        ast_replace(id, r_id);
-      }
-
       if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast, false))
         return AST_ERROR;
       break;
-    }
 
     case TK_TYPEPARAM:
       if(!set_scope(ast, ast_child(ast), ast, true))
@@ -220,37 +217,10 @@ ast_result_t pass_scope(ast_t* ast, int verbose)
         return AST_ERROR;
       break;
 
-    case TK_NOMINAL:
-    {
-      // if we didn't have a package, this will have ID NONE [TYPEARGS]
-      // change it to NONE ID [TYPEARGS] so the package is always first
-      ast_t* package = ast_child(ast);
-      ast_t* type = ast_sibling(package);
-
-      if(ast_id(type) == TK_NONE)
-      {
-        ast_pop(ast);
-        ast_pop(ast);
-        ast_add(ast, package);
-        ast_add(ast, type);
-      }
-      break;
-    }
-
     case TK_IDSEQ:
-    {
-      ast_t* child = ast_child(ast);
-
-      while(child != NULL)
-      {
-        // each ID resolves to itself
-        if(!set_scope(ast_parent(ast), child, child, false))
-          return false;
-
-        child = ast_sibling(child);
-      }
+      if(!scope_idseq(ast))
+        return AST_ERROR;
       break;
-    }
 
     default: {}
   }

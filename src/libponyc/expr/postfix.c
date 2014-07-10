@@ -136,10 +136,17 @@ static bool expr_memberaccess(ast_t* ast)
     }
 
     case TK_FVAR:
+    {
+      // TODO: viewpoint adapted type of the field
+      ast_setid(ast, TK_FVARREF);
+      ast_settype(ast, ast_type(find));
+      break;
+    }
+
     case TK_FLET:
     {
       // TODO: viewpoint adapted type of the field
-      ast_setid(ast, TK_FIELDREF);
+      ast_setid(ast, TK_FLETREF);
       ast_settype(ast, ast_type(find));
       break;
     }
@@ -154,16 +161,16 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // TODO: check receiver cap
-      // token_id rcap = cap_for_receiver(ast);
-      // token_id fcap = cap_for_fun(type);
-      //
-      // if(!is_cap_sub_cap(rcap, fcap))
-      // {
-      //   ast_error(ast,
-      //     "receiver capability is not a subtype of method capability");
-      //   return false;
-      // }
+      // check receiver cap
+      token_id rcap = cap_for_type(ast_type(left));
+      token_id fcap = cap_for_fun(find);
+
+      if(!is_cap_sub_cap(rcap, fcap))
+      {
+        ast_error(ast,
+          "receiver capability is not a subtype of method capability");
+        return false;
+      }
 
       ast_setid(ast, TK_FUNREF);
       ast_settype(ast, type_for_fun(find));
@@ -202,7 +209,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  type = tuple_index(type, ast_int(right));
+  type = lookup_tuple(type, ast_int(right));
 
   if(type == NULL)
   {
@@ -210,7 +217,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  ast_setid(ast, TK_FIELDREF);
+  ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -221,6 +228,7 @@ bool expr_qualify(ast_t* ast)
   // left is a postfix expression, right is a typeargs
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
 
   switch(ast_id(left))
@@ -228,7 +236,6 @@ bool expr_qualify(ast_t* ast)
     case TK_TYPEREF:
     {
       // qualify the type
-      ast_t* type = ast_type(left);
       assert(ast_id(type) == TK_NOMINAL);
 
       if(ast_id(ast_childidx(type, 2)) != TK_NONE)
@@ -239,7 +246,7 @@ bool expr_qualify(ast_t* ast)
 
       type = ast_dup(type);
       ast_t* typeargs = ast_childidx(type, 2);
-      ast_replace(typeargs, right);
+      ast_replace(&typeargs, right);
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
@@ -249,6 +256,7 @@ bool expr_qualify(ast_t* ast)
     case TK_FUNREF:
     {
       // TODO: qualify the function
+      assert(ast_id(type) == TK_FUNTYPE);
       ast_error(ast, "not implemented (qualify a function)");
       ast_inheriterror(ast);
       return false;
@@ -308,9 +316,12 @@ bool expr_call(ast_t* ast)
     case TK_ARRAY:
     case TK_OBJECT:
     case TK_THIS:
-    case TK_FIELDREF:
+    case TK_FVARREF:
+    case TK_FLETREF:
+    case TK_VARREF:
+    case TK_LETREF:
     case TK_PARAMREF:
-    case TK_LOCALREF:
+    case TK_CALL:
     {
       // apply sugar
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -345,13 +356,6 @@ bool expr_call(ast_t* ast)
     case TK_TUPLE:
     {
       ast_error(ast, "can't call a tuple");
-      return false;
-    }
-
-    case TK_CALL:
-    {
-      // TODO: function call - is this right? not needed?
-      ast_error(ast, "not implemented (function call on function call)");
       return false;
     }
 

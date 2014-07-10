@@ -39,14 +39,15 @@ class Precedence is Foo, Bar
 
   fun tag call_it(a: {fun ref(I64): I64}): I64 => a()
 
-  fun tag make_it(i: I64): {fun ref(I64): I64} =>
+  /*fun tag make_it(i: I64): {fun ref(I64): I64} =>
     {
-      /*var i' = i
-      fun ref apply(j: I64): I64 => (i' = j) + j*/
-    }
+      var i' = i
+      fun ref apply(j: I64): I64 => (i' = j) + j
+    }*/
 
   fun tag make_array(n: U64): c.Array[U64] ref^ =>
     var a = c.Array[U64]
+    a.reserve(n)
     for i in c.Range(0, n) do
       a.append(i)
     end

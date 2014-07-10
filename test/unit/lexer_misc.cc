@@ -216,3 +216,22 @@ TEST(LexerMiscTest, EofIfEmpty)
 	lexer_close(lexer);
 	source_close(src);
 }
+
+
+TEST(LexerMiscTest, BadChar)
+{
+  const char* code = "$";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+  free_errors();
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(1, get_error_count());
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}

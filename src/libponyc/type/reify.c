@@ -17,7 +17,7 @@ static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 
   // TODO: keep the cap and ephemerality
   // swap in place
-  ast_replace(ast, typearg);
+  ast_replace(&ast, typearg);
   return true;
 }
 
@@ -35,10 +35,13 @@ static bool reify_one(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 
   while(child != NULL)
   {
+    // read the next child first, since the current child might get replaced
+    ast_t* next = ast_sibling(child);
+
     if(!reify_one(child, typeparam, typearg))
       return false;
 
-    child = ast_sibling(child);
+    child = next;
   }
 
   return true;
@@ -81,12 +84,6 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   while((typeparam != NULL) && (typearg != NULL))
   {
-    // make sure typearg has nominal_def calculated in the right scope
-    ast_t* sub_typearg = ast_child(typearg);
-
-    if(ast_id(sub_typearg) == TK_NOMINAL)
-      nominal_def(typearg, sub_typearg);
-
     // reify the typeparam with the typearg
     if(!reify_one(r_ast, typeparam, typearg))
       break;

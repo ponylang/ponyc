@@ -187,9 +187,11 @@ static const lexsym_t abstract[] =
   { "packageref", TK_PACKAGEREF },
   { "typeref", TK_TYPEREF },
   { "funref", TK_FUNREF },
-  { "fieldref", TK_FIELDREF },
+  { "fvarref", TK_FVARREF },
+  { "fletref", TK_FLETREF },
+  { "varref", TK_VARREF },
+  { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
-  { "localref", TK_LOCALREF },
 
   { NULL, 0 }
 };

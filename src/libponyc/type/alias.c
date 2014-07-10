@@ -11,7 +11,6 @@ static token_id alias_for_cap(token_id id)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_BOX;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_NONE; // TODO: figure out default capability?
     default: {}
   }
 
@@ -28,7 +27,7 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
     // ephemeral capability becomes non-ephemeral
     type = ast_dup(type);
     ephemeral = ast_childidx(type, eph_index);
-    ast_replace(ephemeral, ast_from(type, TK_NONE));
+    ast_replace(&ephemeral, ast_from(type, TK_NONE));
   } else {
     // non-ephemeral capability gets aliased
     ast_t* cap = ast_childidx(type, cap_index);
@@ -39,7 +38,7 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
     {
       type = ast_dup(type);
       cap = ast_childidx(type, cap_index);
-      ast_replace(cap, ast_from(type, acap));
+      ast_replace(&cap, ast_from(type, acap));
     }
   }
 
@@ -58,8 +57,8 @@ ast_t* alias(ast_t* type)
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias(left));
       ast_add(r_type, alias(right));
+      ast_add(r_type, alias(left));
       return r_type;
     }
 

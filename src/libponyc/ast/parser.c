@@ -393,7 +393,7 @@ DEF(cond);
   RULE(rawseq);
   SKIP(TK_THEN);
   RULE(seq);
-  RULE(elseif, elseclause);
+  OPT RULE(elseif, elseclause);
   SKIP(TK_END);
   DONE();
 
@@ -505,15 +505,15 @@ DEF(infix);
   OPT BINDOP(binop);
   DONE();
 
-// RETURN infix
+// (RETURN | BREAK) infix
 DEF(returnexpr);
-  TOKEN(TK_RETURN);
+  TOKEN(TK_RETURN, TK_BREAK);
   RULE(infix);
   DONE();
 
-// BREAK | CONTINUE | ERROR | COMPILER_INTRINSIC
+// CONTINUE | ERROR | COMPILER_INTRINSIC
 DEF(statement);
-  TOKEN(TK_BREAK, TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
+  TOKEN(TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
 // (statement | returnexpr | infix) [SEMI]
@@ -641,7 +641,5 @@ DEF(module);
 // external API
 ast_t* parser(source_t* source)
 {
-  ast_t* r = parse(source, module);
-  printf("Returning %p\n", r);
-  return r;
+  return parse(source, module);
 }
