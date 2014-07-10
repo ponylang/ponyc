@@ -98,19 +98,11 @@ DEF(types);
 
 // ID COLON type [ASSIGN seq]
 DEF(param);
-<<<<<<< HEAD
   AST_NODE(TK_PARAM);
   TOKEN(TK_ID);
-  IF(TK_COLON, RULE(type));
-  IF(TK_ASSIGN, RULE(seq));
-=======
-  CHECK(TK_ID);
-  AST(TK_PARAM);
-  EXPECT(TK_ID);
   SKIP(TK_COLON);
   RULE(type);
-  IFRULE(TK_ASSIGN, seq);
->>>>>>> 9158a5097a97f7bdf045f360dd3822d9d9d8e5e8
+  IF(TK_ASSIGN, RULE(seq));
   DONE();
 
 // ID [COLON type] [ASSIGN type]
