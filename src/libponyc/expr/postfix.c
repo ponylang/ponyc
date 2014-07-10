@@ -384,6 +384,7 @@ bool expr_call(ast_t* ast)
 
       if(param != NULL)
       {
+        // TODO: pick up default args?
         ast_error(ast, "not enough arguments");
         return false;
       }

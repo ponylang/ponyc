@@ -280,6 +280,57 @@ static bool sugar_structural(ast_t* ast)
   return true;
 }
 
+static bool sugar_arrow(ast_t* ast)
+{
+  ast_t* left = ast_child(ast);
+
+  switch(ast_id(left))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_error(left, "can't use a type expression as a viewpoint");
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* cap = ast_childidx(left, 3);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap, "can't specify a capability in a viewpoint");
+        return false;
+      }
+
+      ast_t* ephemeral = ast_childidx(left, 4);
+
+      if(ast_id(ephemeral) != TK_NONE)
+      {
+        ast_error(ephemeral, "can't use an ephemeral type in a viewpoint");
+        return false;
+      }
+
+      return true;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      ast_error(left, "can't use a structural type as a viewpoint");
+      return false;
+    }
+
+    case TK_THISTYPE:
+      return true;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
@@ -471,6 +522,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_STRUCTURAL:
       if(!sugar_structural(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_ARROW:
+      if(!sugar_arrow(ast))
         return AST_ERROR;
       break;
 
