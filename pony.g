@@ -56,7 +56,6 @@ type_expr
   :  '(' type (typeop type)* ')' // union, isect or tuple
   |  ID ('.' ID)? type_args? cap? '^'? // nominal type
   |  '{' fun_type* '}' cap? '^'? // structural type
-//  |  'type' ID // FIX: nested type definition for enums?
   |  'this' // only used for viewpoint adaptation
   ;
 
@@ -92,7 +91,7 @@ params
   ;
 
 param
-  :  ID oftype? (assign seq)?
+  :  ID oftype (assign seq)?
   ;
 
 body

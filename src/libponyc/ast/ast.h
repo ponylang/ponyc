@@ -44,7 +44,7 @@ TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
   ARROW)
-cap: (ISO | TRN | REF | VAL | BOX | TAG | NONE)
+cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
 UNIONTYPE: type type
@@ -191,12 +191,6 @@ typedef enum
   AST_FATAL
 } ast_result_t;
 
-typedef enum
-{
-  AST_LEFT,
-  AST_RIGHT
-} ast_dir_t;
-
 typedef struct ast_t ast_t;
 
 ast_t* ast_new(token_t* t, token_id id);
@@ -256,9 +250,8 @@ void ast_free_unattached(ast_t* ast);
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__ ((format (printf, 2, 3)));
 
-typedef ast_result_t (*ast_visit_t)(ast_t* ast, int verbose);
+typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 
-ast_result_t ast_visit(ast_t* ast, ast_visit_t pre, ast_visit_t post,
-  ast_dir_t dir, int verbose);
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
 
 #endif

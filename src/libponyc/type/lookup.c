@@ -6,48 +6,30 @@
 static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_NOMINAL);
-
-  if(!nominal_valid(scope, type))
-    return NULL;
-
   ast_t* def = nominal_def(scope, type);
   ast_t* typename = ast_child(def);
-  ast_t* typeparams = ast_sibling(typename);
-  ast_t* typeargs = ast_childidx(type, 2);
   ast_t* find;
 
   switch(ast_id(def))
   {
     case TK_TYPEPARAM:
     {
-      // typeparam is actually the constraint
       // lookup on the constraint instead
-      return lookup(scope, typeparams, name);
-    }
-
-    case TK_TYPE:
-    {
-      ast_t* alias = ast_childidx(def, 3);
-
-      if(ast_id(alias) != TK_NONE)
-      {
-        // reify the alias and lookup on that instead
-        alias = ast_child(alias);
-        ast_t* r_alias = reify(alias, typeparams, typeargs);
-        find = lookup(scope, r_alias, name);
-        ast_free_unattached(r_alias);
-      } else {
-        find = ast_get(def, name);
-      }
+      ast_t* constraint = ast_sibling(typename);
+      return lookup(scope, constraint, name);
     }
 
     default:
+    {
       find = ast_get(def, name);
       break;
+    }
   }
 
   if(find != NULL)
   {
+    ast_t* typeparams = ast_sibling(typename);
+    ast_t* typeargs = ast_childidx(type, 2);
     find = reify(find, typeparams, typeargs);
   } else {
     ast_error(scope, "couldn't find '%s' in '%s'", name, ast_name(typename));

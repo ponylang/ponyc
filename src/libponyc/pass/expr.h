@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-ast_result_t pass_expr(ast_t* ast, int verbose);
+ast_result_t pass_expr(ast_t** astp);
 
 #endif

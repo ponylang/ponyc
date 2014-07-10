@@ -1,10 +1,9 @@
 #include "package.h"
+#include "../pass/sugar.h"
 #include "../pass/scope.h"
 #include "../pass/valid.h"
 #include "../pass/traits.h"
-#include "../pass/sugar.h"
 #include "../pass/expr.h"
-#include "../pass/args.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -30,7 +29,7 @@ static bool filepath(const char *file, char* path)
   if((realpath(file, path) != path)
     || (stat(path, &sb) != 0)
     || ((sb.st_mode & S_IFMT) != S_IFREG)
-   )
+    )
   {
     return false;
   }
@@ -95,11 +94,8 @@ static bool execpath(const char* file, char* path)
   return filepath(file, path);
 }
 
-static bool do_file(ast_t* package, const char* file, int verbose)
+static bool do_file(ast_t* package, const char* file)
 {
-  if(verbose > 0)
-    printf("Building %s\n", file);
-
   source_t* source = source_open(file);
 
   if(source == NULL)
@@ -121,7 +117,7 @@ static bool do_file(ast_t* package, const char* file, int verbose)
   return true;
 }
 
-static bool do_path(ast_t* package, const char* path, int verbose)
+static bool do_path(ast_t* package, const char* path)
 {
   DIR* dir = opendir(path);
 
@@ -167,7 +163,7 @@ static bool do_path(ast_t* package, const char* path, int verbose)
       strcat(fullpath, "/");
       strcat(fullpath, d->d_name);
 
-      r &= do_file(package, fullpath, verbose);
+      r &= do_file(package, fullpath);
     }
   }
 
@@ -236,33 +232,30 @@ static const char* find_path(ast_t* from, const char* path)
   return NULL;
 }
 
-static bool do_passes(ast_t* ast, int verbose)
+static bool do_passes(ast_t* ast)
 {
-  if(ast_visit(ast, pass_sugar, NULL, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
 
   // remove hygienic identifiers
   ast_clear(ast);
 
-  if(ast_visit(ast, pass_scope, NULL, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
 
-  if(ast_visit(ast, NULL, pass_valid, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_valid) != AST_OK)
     return false;
 
-  if(ast_visit(ast, pass_traits, NULL, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
     return false;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);
 
-  if(ast_visit(ast, pass_scope, NULL, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
 
-  if(ast_visit(ast, NULL, pass_expr, AST_LEFT, verbose) != AST_OK)
-    return false;
-
-  if(ast_visit(ast, NULL, pass_args, AST_LEFT, verbose) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_expr) != AST_OK)
     return false;
 
   return true;
@@ -322,12 +315,12 @@ void package_paths(const char* paths)
   }
 }
 
-ast_t* program_load(const char* path, int verbose)
+ast_t* program_load(const char* path)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  if(package_load(program, path, verbose) == NULL)
+  if(package_load(program, path) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -336,7 +329,7 @@ ast_t* program_load(const char* path, int verbose)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path, int verbose)
+ast_t* package_load(ast_t* from, const char* path)
 {
   const char* name = find_path(from, path);
 
@@ -358,10 +351,10 @@ ast_t* package_load(ast_t* from, const char* path, int verbose)
 
   printf("=== Building %s ===\n", name);
 
-  if(!do_path(package, name, verbose))
+  if(!do_path(package, name))
     return NULL;
 
-  if(!do_passes(package, verbose))
+  if(!do_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;

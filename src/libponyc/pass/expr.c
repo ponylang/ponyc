@@ -7,8 +7,10 @@
 #include "../expr/match.h"
 #include <assert.h>
 
-ast_result_t pass_expr(ast_t* ast, int verbose)
+ast_result_t pass_expr(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_FVAR:
@@ -112,14 +114,14 @@ ast_result_t pass_expr(ast_t* ast, int verbose)
       break;
 
     case TK_CONSUME:
-      // TODO: consume
-      ast_error(ast, "not implemented (consume)");
-      return AST_FATAL;
+      if(!expr_consume(ast))
+        return AST_FATAL;
+      break;
 
     case TK_RECOVER:
-      // TODO: recover
-      ast_error(ast, "not implemented (recover)");
-      return AST_FATAL;
+      if(!expr_recover(ast))
+        return AST_FATAL;
+      break;
 
     case TK_DOT:
       if(!expr_dot(ast))

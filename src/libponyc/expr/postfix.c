@@ -1,5 +1,6 @@
 #include "postfix.h"
 #include "reference.h"
+#include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../type/lookup.h"
@@ -38,7 +39,7 @@ static bool expr_packageaccess(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, nominal_type(ast, package_name, typename));
+  ast_settype(ast, nominal_sugar(ast, package_name, typename));
   ast_setid(ast, TK_TYPEREF);
   return expr_typeref(ast);
 }
@@ -345,6 +346,45 @@ bool expr_call(ast_t* ast)
       {
         ast_error(ast,
           "can't call a function with unqualified type parameters");
+        return false;
+      }
+
+      ast_t* positional = ast_sibling(left);
+      ast_t* named = ast_sibling(positional);
+
+      // TODO: named arguments
+      if(ast_id(named) != TK_NONE)
+      {
+        ast_error(named, "named arguments not yet supported");
+        return false;
+      }
+
+      // check positional args vs params
+      ast_t* params = ast_sibling(typeparams);
+      ast_t* param = ast_child(params);
+      ast_t* arg = ast_child(positional);
+
+      while((arg != NULL) && (param != NULL))
+      {
+        if(!is_subtype(ast, ast_type(arg), param))
+        {
+          ast_error(arg, "argument not a subtype of parameter");
+          return false;
+        }
+
+        arg = ast_sibling(arg);
+        param = ast_sibling(param);
+      }
+
+      if(arg != NULL)
+      {
+        ast_error(arg, "too many arguments");
+        return false;
+      }
+
+      if(param != NULL)
+      {
+        ast_error(ast, "not enough arguments");
         return false;
       }
 

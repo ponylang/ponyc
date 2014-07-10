@@ -1,4 +1,4 @@
-use "collections"
+use "../collections"
 
 trait Graph[G: Graph[G, E, V], E: Edge[G, E, V], V: Vertex[G, E, V]]
   fun box getVertices(): this->List[V]

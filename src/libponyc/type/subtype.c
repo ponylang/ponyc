@@ -5,7 +5,7 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-bool is_throws_sub_throws(ast_t* sub, ast_t* super)
+static bool is_throws_sub_throws(ast_t* sub, ast_t* super)
 {
   assert(
     (ast_id(sub) == TK_NONE) ||
@@ -80,9 +80,6 @@ static bool is_fun_sub_fun(ast_t* scope, ast_t* sub, ast_t* super)
 
   while((sub_param != NULL) && (super_param != NULL))
   {
-    // TODO: this is wrong. parameter types might not exist, as they may be
-    // inferred from initialisers.
-
     // extract the type if this is a parameter
     // otherwise, this is already a type
     ast_t* sub_type = (ast_id(sub_param) == TK_PARAM) ?
@@ -283,7 +280,7 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool is_builtin(ast_t* ast, const char* name)
+bool is_builtin(ast_t* ast, const char* name)
 {
   if(ast_id(ast) != TK_NOMINAL)
     return false;
@@ -293,25 +290,6 @@ static bool is_builtin(ast_t* ast, const char* name)
 
   return (ast_id(package) == TK_NONE) &&
     (ast_name(typename) == stringtab(name));
-}
-
-static ast_t* typealias(ast_t* ast, ast_t* def)
-{
-  ast_t* aliases = ast_childidx(def, 3);
-
-  if(ast_id(aliases) == TK_NONE)
-    return ast;
-
-  ast_t* alias = ast_child(aliases);
-  assert(ast_sibling(alias) == NULL);
-
-  // get our typeparams and typeargs
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* typeargs = ast_childidx(ast, 2);
-
-  // TODO: use our cap and ephemeral
-  ast_t* r_alias = reify(alias, typeparams, typeargs);
-  return r_alias;
 }
 
 bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
@@ -352,20 +330,6 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
           break;
         }
 
-        case TK_TYPE:
-        {
-          // we're a type alias
-          ast_t* alias = typealias(sub, def);
-
-          if(alias != sub)
-          {
-            bool ok = is_subtype(scope, alias, super);
-            ast_free_unattached(alias);
-            return ok;
-          }
-          break;
-        }
-
         default: {}
       }
       break;
@@ -399,32 +363,6 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
       return is_subtype(scope, sub, left) && is_subtype(scope, sub, right);
     }
 
-    case TK_NOMINAL:
-    {
-      ast_t* def = nominal_def(scope, super);
-      assert(def != NULL);
-
-      switch(ast_id(def))
-      {
-        case TK_TYPE:
-        {
-          // we're a type alias
-          ast_t* alias = typealias(super, def);
-
-          if(alias != super)
-          {
-            bool ok = is_subtype(scope, sub, alias);
-            ast_free_unattached(alias);
-            return ok;
-          }
-          break;
-        }
-
-        default: {}
-      }
-      break;
-    }
-
     case TK_ARROW:
     {
       // TODO: actually do viewpoint adaptation
@@ -445,16 +383,31 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
 
     case TK_TUPLETYPE:
     {
-      if(ast_id(super) != TK_TUPLETYPE)
-        return false;
+      switch(ast_id(super))
+      {
+        case TK_STRUCTURAL:
+        {
+          // a tuple is a subtype of an empty structural type
+          ast_t* members = ast_child(super);
+          ast_t* member = ast_child(members);
+          return member == NULL;
+        }
 
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      ast_t* super_left = ast_child(super);
-      ast_t* super_right = ast_sibling(super_left);
+        case TK_TUPLETYPE:
+        {
+          ast_t* left = ast_child(sub);
+          ast_t* right = ast_sibling(left);
+          ast_t* super_left = ast_child(super);
+          ast_t* super_right = ast_sibling(super_left);
 
-      return is_subtype(scope, left, super_left) &&
-        is_subtype(scope, right, super_right);
+          return is_subtype(scope, left, super_left) &&
+            is_subtype(scope, right, super_right);
+        }
+
+        default: {}
+      }
+
+      return false;
     }
 
     case TK_NOMINAL:

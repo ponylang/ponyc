@@ -73,12 +73,12 @@ bool expr_typeref(ast_t* ast)
 
     case TK_DOT:
       // has to be valid
-      return nominal_valid(ast, type);
+      return nominal_valid(ast, &type);
 
     case TK_CALL:
     {
       // has to be valid
-      if(!nominal_valid(ast, type))
+      if(!nominal_valid(ast, &type))
         return false;
 
       // transform to a default constructor
@@ -93,7 +93,7 @@ bool expr_typeref(ast_t* ast)
     default:
     {
       // has to be valid
-      if(!nominal_valid(ast, type))
+      if(!nominal_valid(ast, &type))
         return false;
 
       // transform to a default constructor
@@ -146,7 +146,7 @@ bool expr_reference(ast_t* ast)
       return true;
     }
 
-    case TK_TYPE: // TODO: resolve alias?
+    case TK_TYPE:
     case TK_CLASS:
     case TK_ACTOR:
     {
@@ -154,7 +154,7 @@ bool expr_reference(ast_t* ast)
       // type arguments.
       ast_t* id = ast_child(def);
       const char* name = ast_name(id);
-      ast_t* type = nominal_type(ast, NULL, name);
+      ast_t* type = nominal_sugar(ast, NULL, name);
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 

@@ -1,4 +1,5 @@
 #include "nominal.h"
+#include "typealias.h"
 #include "subtype.h"
 #include "reify.h"
 #include "../ds/stringtab.h"
@@ -43,7 +44,6 @@ static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
 
     // compare the typearg to the typeparam and constraint
     if(!is_typeparam(scope, typeparam, typearg) &&
-      (ast_id(constraint) != TK_NONE) &&
       !is_subtype(scope, typearg, constraint)
       )
     {
@@ -60,92 +60,6 @@ static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
 
   ast_free_unattached(r_typeparams);
   return true;
-}
-
-static bool check_alias_cap(ast_t* def, ast_t* cap)
-{
-  ast_t* alias = ast_child(ast_childidx(def, 3));
-
-  if(alias == NULL)
-  {
-    // no cap on singleton types
-    if(ast_id(cap) != TK_NONE)
-    {
-      ast_error(cap, "can't specify a capability on a marker type");
-      return false;
-    }
-
-    // force cap to be val
-    ast_replace(&cap, ast_from(cap, TK_VAL));
-    return true;
-  }
-
-  switch(ast_id(alias))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // no cap allowed
-      if(ast_id(cap) != TK_NONE)
-      {
-        ast_error(cap,
-          "can't specify a capability on an alias to a union, isect or "
-          " tuple type");
-        return false;
-      }
-
-      return true;
-    }
-
-    case TK_NOMINAL:
-    {
-      // TODO: does the alias specify a cap?
-      // if so... ?
-      return true;
-    }
-
-    case TK_STRUCTURAL:
-    {
-      // TODO: does the alias specify a cap?
-      // if so... ?
-      return true;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-static bool check_cap(ast_t* def, ast_t* cap)
-{
-  switch(ast_id(def))
-  {
-    case TK_TYPEPARAM:
-      // TODO: cap of constraint, else tag?
-      return true;
-
-    case TK_TYPE:
-      return check_alias_cap(def, cap);
-
-    case TK_TRAIT:
-    case TK_CLASS:
-    case TK_ACTOR:
-    {
-      // TODO: what if we are a constraint?
-      if(ast_id(cap) == TK_NONE)
-        ast_replace(&cap, ast_childidx(def, 2));
-
-      return true;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }
 
 static ast_t* nominal_with_args(ast_t* from, const char* package,
@@ -201,7 +115,7 @@ ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
 
   ast_t* ast = nominal_with_args(from, package, name, typeargs);
 
-  if(!nominal_valid(from, ast))
+  if(!nominal_valid(from, &ast))
   {
     ast_error(from, "unable to validate %s.%s", package, name);
     ast_free(ast);
@@ -216,57 +130,75 @@ ast_t* nominal_sugar(ast_t* from, const char* package, const char* name)
   return nominal_with_args(from, package, name, ast_from(from, TK_NONE));
 }
 
-bool nominal_valid(ast_t* scope, ast_t* nominal)
+bool nominal_valid(ast_t* scope, ast_t** ast)
 {
+  ast_t* nominal = *ast;
   ast_t* def = nominal_def(scope, nominal);
 
-  if(def != NULL)
-    return true;
+  if(def == NULL)
+    return false;
+
+  // resolve type alias if it is one
+  if(ast_id(def) == TK_TYPE)
+    return typealias_nominal(scope, ast);
 
   // make sure our typeargs are subtypes of our constraints
   ast_t* typeargs = ast_childidx(nominal, 2);
-  ast_t* cap = ast_sibling(typeargs);
 
   if(!check_constraints(nominal, def, typeargs))
     return false;
 
-  /*
-  fill in missing capabilities for nominal and structural
-  types can appear:
-    type, trait, class, actor
-      typeparams
-        constraints
-        default type params
-      traits/alias
-    fvar, flet
-    new, be, fun
-      constraints
-        default type params
-      params
-      result
-    qualify
-      can be on a typeref or a funref
-    var, let, as
-    object
-      traits
+  // use our default capability if we need to
+  ast_t* cap = ast_sibling(typeargs);
 
-  structural defaults to either ref or tag - already done
-    constraints (both type and function): tag
-    everything else: ref
+  if(ast_id(cap) == TK_NONE)
+  {
+    switch(ast_id(def))
+    {
+      case TK_TYPEPARAM:
+      {
+        ast_t* constraint = ast_childidx(def, 1);
+        ast_t* defcap;
 
-  nominal:
-    alias:
-      ?
-    typeparam:
-      ? (same as alias?)
-    other:
-      constraints (both type and function): tag
-      everything else: default for type
-  */
+        switch(ast_id(constraint))
+        {
+          case TK_NOMINAL:
+            defcap = ast_childidx(constraint, 3);
+            break;
 
-  // TODO: always fill in a cap? make sure we don't have NONE?
-  if(!check_cap(def, cap))
-    return false;
+          case TK_STRUCTURAL:
+            defcap = ast_childidx(constraint, 1);
+            break;
+
+          default:
+            defcap = ast_from(constraint, TK_TAG);
+            break;
+        }
+
+        ast_replace(&cap, defcap);
+        return true;
+      }
+
+      case TK_TRAIT:
+      case TK_CLASS:
+      case TK_ACTOR:
+      {
+        ast_t* defcap;
+
+        if(ast_nearest(nominal, TK_TYPEPARAM) != NULL)
+          defcap = ast_from(cap, TK_TAG);
+        else
+          defcap = ast_childidx(def, 2);
+
+        ast_replace(&cap, defcap);
+        break;
+      }
+
+      default:
+        assert(0);
+        return false;
+    }
+  }
 
   return true;
 }

@@ -74,6 +74,16 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   return create;
 }
 
+static ast_t* make_structural(ast_t* ast)
+{
+  ast_t* struc = ast_from(ast, TK_STRUCTURAL);
+  ast_add(struc, ast_from(ast, TK_NONE)); // ephemeral
+  ast_add(struc, ast_from(ast, TK_TAG)); // tag
+  ast_add(struc, ast_from(ast, TK_MEMBERS)); // empty members
+
+  return struc;
+}
+
 static bool sugar_constructor(ast_t* ast)
 {
   ast_t* members = ast_childidx(ast, 4);
@@ -128,9 +138,13 @@ static bool sugar_actor(ast_t* ast)
 
   ast_t* defcap = ast_childidx(ast, 2);
 
-  if(ast_id(defcap) == TK_NONE)
-    ast_replace(&defcap, ast_from(defcap, TK_TAG));
+  if(ast_id(defcap) != TK_NONE)
+  {
+    ast_error(defcap, "an actor can't specify a default capability");
+    return false;
+  }
 
+  ast_replace(&defcap, ast_from(defcap, TK_TAG));
   return true;
 }
 
@@ -140,6 +154,16 @@ static bool sugar_trait(ast_t* ast)
 
   if(ast_id(defcap) == TK_NONE)
     ast_replace(&defcap, ast_from(defcap, TK_REF));
+
+  return true;
+}
+
+static bool sugar_typeparam(ast_t* ast)
+{
+  ast_t* constraint = ast_childidx(ast, 1);
+
+  if(ast_id(constraint) == TK_NONE)
+    ast_replace(&constraint, make_structural(ast));
 
   return true;
 }
@@ -237,6 +261,25 @@ static bool sugar_nominal(ast_t* ast)
   return true;
 }
 
+static bool sugar_structural(ast_t* ast)
+{
+  ast_t* cap = ast_childidx(ast, 1);
+
+  if(ast_id(cap) != TK_NONE)
+    return true;
+
+  token_id def_cap;
+
+  // if it's a typeparam, default capability is tag, otherwise it is ref
+  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
+    def_cap = TK_TAG;
+  else
+    def_cap = TK_REF;
+
+  ast_replace(&cap, ast_from(ast, def_cap));
+  return true;
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
@@ -261,8 +304,9 @@ static bool sugar_try(ast_t* ast)
   return true;
 }
 
-static bool sugar_for(ast_t* ast)
+static bool sugar_for(ast_t** astp)
 {
+  ast_t* ast = *astp;
   assert(ast_id(ast) == TK_FOR);
 
   ast_t* for_idseq = ast_child(ast);
@@ -305,7 +349,7 @@ static bool sugar_for(ast_t* ast)
   ast_add(seq, whileloop);
   ast_add(seq, iter);
 
-  ast_replace(&ast, seq);
+  ast_replace(astp, seq);
 
   if(!ast_set(seq, name, id))
   {
@@ -345,8 +389,9 @@ static bool sugar_case(ast_t* ast)
   return true;
 }
 
-static bool sugar_update(ast_t* ast)
+static bool sugar_update(ast_t** astp)
 {
+  ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
   ast_t* call = ast_child(ast);
   ast_t* value = ast_sibling(call);
@@ -374,12 +419,14 @@ static bool sugar_update(ast_t* ast)
   ast_add(update, positional);
   ast_add(update, dot);
 
-  ast_replace(&ast, update);
+  ast_replace(astp, update);
   return true;
 }
 
-ast_result_t pass_sugar(ast_t* ast, int verbose)
+ast_result_t pass_sugar(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_CLASS:
@@ -394,6 +441,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
 
     case TK_TRAIT:
       if(!sugar_trait(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_TYPEPARAM:
+      if(!sugar_typeparam(ast))
         return AST_ERROR;
       break;
 
@@ -417,6 +469,11 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
         return AST_ERROR;
       break;
 
+    case TK_STRUCTURAL:
+      if(!sugar_structural(ast))
+        return AST_ERROR;
+      break;
+
     case TK_IF:
     case TK_WHILE:
       if(!sugar_else(ast))
@@ -429,7 +486,7 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
       break;
 
     case TK_FOR:
-      if(!sugar_for(ast))
+      if(!sugar_for(astp))
         return AST_FATAL;
       break;
 
@@ -443,8 +500,12 @@ ast_result_t pass_sugar(ast_t* ast, int verbose)
       break;
 
     case TK_ASSIGN:
-      if(!sugar_update(ast))
+      if(!sugar_update(astp))
         return AST_FATAL;
+      break;
+
+    case TK_MINUS_NEW:
+      ast_setid(ast, TK_MINUS);
       break;
 
     default: {}

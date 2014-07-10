@@ -46,10 +46,9 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
  * Import a package, either with a qualifying name or by merging it into the
  * current scope.
  */
-static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
-  int verbose)
+static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
 {
-  ast_t* package = package_load(ast, path, verbose);
+  ast_t* package = package_load(ast, path);
 
   if(package == ast)
     return package;
@@ -79,17 +78,17 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path,
   return package;
 }
 
-static bool scope_package(ast_t* ast, int verbose)
+static bool scope_package(ast_t* ast)
 {
-  return use_package(ast, NULL, "builtin", verbose) != NULL;
+  return use_package(ast, NULL, "builtin") != NULL;
 }
 
-static bool scope_use(ast_t* ast, int verbose)
+static bool scope_use(ast_t* ast)
 {
   ast_t* path = ast_child(ast);
   ast_t* name = ast_sibling(path);
 
-  return use_package(ast, name, ast_name(path), verbose) != NULL;
+  return use_package(ast, name, ast_name(path)) != NULL;
 }
 
 static bool scope_type(ast_t* ast)
@@ -98,6 +97,12 @@ static bool scope_type(ast_t* ast)
   ast_t* cap = ast_sibling(typeparams);
   ast_t* types = ast_sibling(cap);
   ast_t* members = ast_sibling(types);
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "a type alias can't have type parameters");
+    return false;
+  }
 
   if(ast_id(cap) != TK_NONE)
   {
@@ -126,14 +131,6 @@ static bool scope_type(ast_t* ast)
 
 static bool scope_actor(ast_t* ast)
 {
-  ast_t* cap = ast_childidx(ast, 2);
-
-  if(ast_id(cap) != TK_NONE)
-  {
-    ast_error(cap, "an actor can't specify a default capability");
-    return false;
-  }
-
   return set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true);
 }
 
@@ -164,17 +161,19 @@ static bool scope_idseq(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_scope(ast_t* ast, int verbose)
+ast_result_t pass_scope(ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   switch(ast_id(ast))
   {
     case TK_PACKAGE:
-      if(!scope_package(ast, verbose))
+      if(!scope_package(ast))
         return AST_ERROR;
       break;
 
     case TK_USE:
-      if(!scope_use(ast, verbose))
+      if(!scope_use(ast))
         return AST_ERROR;
       break;
 

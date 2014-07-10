@@ -3,6 +3,8 @@
 
 #include "../ast/ast.h"
 
+bool is_builtin(ast_t* ast, const char* name);
+
 bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super);
 
 bool is_eqtype(ast_t* scope, ast_t* a, ast_t* b);

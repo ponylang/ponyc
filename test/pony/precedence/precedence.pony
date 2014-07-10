@@ -21,7 +21,7 @@ class Precedence is Foo, Bar
   var any_test: AnyTest[String]
   var struct_test: StructTest[Precedence]
 
-  fun ref find_in_array(a: c.Array[String] val, find: String):
+  fun tag find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>
     for (index, value) in a.pairs() do
       if value == find then
@@ -37,7 +37,7 @@ class Precedence is Foo, Bar
       (0, "Not found")
     end
 
-  fun tag call_it(a: {fun ref(I64): I64}): I64 => a()
+  fun tag call_it(a: {fun ref(I64): I64}): I64 => a(1)
 
   /*fun tag make_it(i: I64): {fun ref(I64): I64} =>
     {
@@ -48,7 +48,7 @@ class Precedence is Foo, Bar
   fun tag make_array(n: U64): c.Array[U64] ref^ =>
     var a = c.Array[U64]
     a.reserve(n)
-    for i in c.Range(0, n) do
+    for i in c.Range[U64](0, n) do
       a.append(i)
     end
     consume a
@@ -61,15 +61,6 @@ class Precedence is Foo, Bar
 
   /*fun tag call_optionals(): I64 => optionals(3 where b = 10)*/
 
-  /**/
-  fun ref test() =>
-    var list
-    for (i, j) in list do
-      1
-    else
-      2
-    end
-
   /** This is doc /**/
    * @param foo blah /* bar */
    * [[http://foo]]
@@ -79,8 +70,9 @@ class Precedence is Foo, Bar
   /* FIXME: foo */
   // TODO: foo
   fun val foo(): F32 =>
+    var x: F32 = 3
+    3 == x
     1 + 2 * 3 + 4
-    -3
     """
       blargh
     test /* go nuts */
@@ -92,14 +84,6 @@ class Precedence is Foo, Bar
     "           something is \n here"
     "           something is
     here"
+    -3
 
   fun tag identity[A](a: A): A^ => consume a
-
-  fun ref bar(): I32 =>
-    3.hello
-    c.List(9)
-    [True](1, 2)
-    "string".bar[c.List[Precedence]](99, 100)
-    (7; 3,77)
-    var (a, b)
-    a + 37; b + b * b

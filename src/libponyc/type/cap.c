@@ -99,12 +99,6 @@ token_id cap_for_type(ast_t* type)
     case TK_STRUCTURAL:
       return ast_id(ast_childidx(type, 1));
 
-    case TK_THISTYPE:
-    {
-      // TODO: only appears in a TK_ARROW
-      break;
-    }
-
     case TK_ARROW:
     {
       // TODO: viewpoint adaptation
