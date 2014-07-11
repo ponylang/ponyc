@@ -253,8 +253,28 @@ static bool sugar_be(ast_t* ast)
 
 static bool sugar_fun(ast_t* ast)
 {
+  // no iso or trn functions
+  ast_t* cap = ast_child(ast);
+
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    {
+      ast_error(cap, "a function can't require an iso receiver");
+      return false;
+    }
+
+    case TK_TRN:
+    {
+      ast_error(cap, "a function can't require a trn receiver");
+      return false;
+    }
+
+    default: {}
+  }
+
   // set the name to "apply" if there isn't one
-  ast_t* id = ast_childidx(ast, 1);
+  ast_t* id = ast_sibling(cap);
 
   if(ast_id(id) == TK_NONE)
     ast_replace(&id, ast_from_string(id, "apply"));
