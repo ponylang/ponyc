@@ -24,15 +24,15 @@ static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
   return true;
 }
 
-static bool reify_one(ast_t* ast, ast_t* typeparam, ast_t* typearg)
+static void reify_one(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* type = ast_type(ast);
 
-  if((type != NULL) && !reify_one(type, typeparam, typearg))
-    return false;
+  if(type != NULL)
+    reify_one(type, typeparam, typearg);
 
   if((ast_id(ast) == TK_NOMINAL) && reify_nominal(ast, typeparam, typearg))
-    return true;
+    return;
 
   ast_t* child = ast_child(ast);
 
@@ -40,14 +40,9 @@ static bool reify_one(ast_t* ast, ast_t* typeparam, ast_t* typearg)
   {
     // read the next child first, since the current child might get replaced
     ast_t* next = ast_sibling(child);
-
-    if(!reify_one(child, typeparam, typearg))
-      return false;
-
+    reify_one(child, typeparam, typearg);
     child = next;
   }
-
-  return true;
 }
 
 ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
@@ -61,23 +56,6 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     (ast_id(typeargs) == TK_NONE)
     );
 
-  if(ast_id(typeparams) == TK_NONE)
-  {
-    if(ast_id(typeargs) != TK_NONE)
-    {
-      ast_error(typeargs, "type arguments where none were needed");
-      return NULL;
-    }
-
-    return ast;
-  }
-
-  if(ast_id(typeargs) == TK_NONE)
-  {
-    ast_error(ast_parent(typeargs), "no type arguments where some were needed");
-    return NULL;
-  }
-
   // duplicate the node
   ast_t* r_ast = ast_dup(ast);
 
@@ -88,19 +66,25 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   while((typeparam != NULL) && (typearg != NULL))
   {
     // reify the typeparam with the typearg
-    if(!reify_one(r_ast, typeparam, typearg))
-      break;
-
+    reify_one(r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }
 
-  if(typeparam != NULL)
+  // pick up default type arguments if they exist
+  while(typeparam != NULL)
   {
-    // TODO: pick up default type arguments
-    ast_error(typeargs, "not enough type arguments");
-    ast_free(r_ast);
-    return NULL;
+    ast_t* defarg = ast_childidx(typeparam, 2);
+
+    if(ast_id(defarg) == TK_NONE)
+    {
+      ast_error(typeargs, "not enough type arguments");
+      ast_free(r_ast);
+      return NULL;
+    }
+
+    reify_one(r_ast, typeparam, defarg);
+    typeparam = ast_sibling(typeparam);
   }
 
   if(typearg != NULL)

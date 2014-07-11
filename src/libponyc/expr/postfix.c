@@ -164,8 +164,11 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_FUN:
     {
       // check receiver cap
-      token_id rcap = cap_for_type(ast_type(left));
+      // TODO: don't alias receiver if args and result are all sendable
+      ast_t* receiver = alias(ast_type(left));
+      token_id rcap = cap_for_type(receiver);
       token_id fcap = cap_for_fun(find);
+      ast_free_unattached(receiver);
 
       if(!is_cap_sub_cap(rcap, fcap))
       {
@@ -394,6 +397,7 @@ bool expr_call(ast_t* ast)
         return false;
       }
 
+      // TODO: call to a behaviour must have only sendable args
       ast_settype(ast, ast_childidx(type, 2));
       ast_inheriterror(ast);
       return true;

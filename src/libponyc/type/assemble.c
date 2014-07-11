@@ -132,7 +132,6 @@ ast_t* type_for_fun(ast_t* ast)
     ast_t* types = ast_from(ast, TK_TYPES);
     ast_t* param = ast_child(params);
 
-    // type could be TK_NONE if we have an initialiser
     while(param != NULL)
     {
       ast_append(types, ast_childidx(param, 1));
