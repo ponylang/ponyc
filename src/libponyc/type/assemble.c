@@ -126,24 +126,9 @@ ast_t* type_for_fun(ast_t* ast)
 
   ast_t* fun = ast_from(ast, TK_FUNTYPE);
   ast_add(fun, result);
-
-  if(ast_id(params) == TK_PARAMS)
-  {
-    ast_t* types = ast_from(ast, TK_TYPES);
-    ast_t* param = ast_child(params);
-
-    while(param != NULL)
-    {
-      ast_append(types, ast_childidx(param, 1));
-      param = ast_sibling(param);
-    }
-
-    ast_add(fun, types);
-  } else {
-    ast_add(fun, params);
-  }
-
+  ast_add(fun, params);
   ast_add(fun, typeparams);
+
   return fun;
 }
 

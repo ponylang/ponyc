@@ -370,8 +370,16 @@ bool expr_call(ast_t* ast)
 
       while((arg != NULL) && (param != NULL))
       {
+        // param can be a type or an actual param
+        ast_t* p_type;
+
+        if(ast_id(param) == TK_PARAM)
+          p_type = ast_childidx(param, 1);
+        else
+          p_type = param;
+
         ast_t* a_type = alias(ast_type(arg));
-        bool ok = is_subtype(ast, a_type, param);
+        bool ok = is_subtype(ast, a_type, p_type);
         ast_free_unattached(a_type);
 
         if(!ok)
@@ -390,11 +398,22 @@ bool expr_call(ast_t* ast)
         return false;
       }
 
-      if(param != NULL)
+      // pick up default args
+      while(param != NULL)
       {
-        // TODO: pick up default args?
-        ast_error(ast, "not enough arguments");
-        return false;
+        if(ast_id(param) == TK_PARAM)
+          arg = ast_childidx(param, 2);
+        else
+          arg = NULL;
+
+        if((arg == NULL) || (ast_id(arg) == TK_NONE))
+        {
+          ast_error(ast, "not enough arguments");
+          return false;
+        }
+
+        ast_append(positional, arg);
+        param = ast_sibling(param);
       }
 
       // TODO: call to a behaviour must have only sendable args

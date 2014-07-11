@@ -71,27 +71,27 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     typearg = ast_sibling(typearg);
   }
 
+  if(typearg != NULL)
+  {
+    ast_error(typearg, "too many type arguments");
+    ast_free(r_ast);
+    return NULL;
+  }
+
   // pick up default type arguments if they exist
   while(typeparam != NULL)
   {
-    ast_t* defarg = ast_childidx(typeparam, 2);
+    typearg = ast_childidx(typeparam, 2);
 
-    if(ast_id(defarg) == TK_NONE)
+    if(ast_id(typearg) == TK_NONE)
     {
       ast_error(typeargs, "not enough type arguments");
       ast_free(r_ast);
       return NULL;
     }
 
-    reify_one(r_ast, typeparam, defarg);
+    reify_one(r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
-  }
-
-  if(typearg != NULL)
-  {
-    ast_error(typearg, "too many type arguments");
-    ast_free(r_ast);
-    return NULL;
   }
 
   return r_ast;
