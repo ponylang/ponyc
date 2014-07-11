@@ -1,7 +1,7 @@
 class _Pointer[A]
   new create(len: U64) => compiler_intrinsic
   new from(ptr: _Pointer[A], len: U64) => compiler_intrinsic
-  fun ref apply(i: U64): A => compiler_intrinsic
+  fun box apply(i: U64): this->A => compiler_intrinsic
   fun ref update(i: U64, v: A): A^ => compiler_intrinsic
 
 class Array[A]

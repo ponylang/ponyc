@@ -78,6 +78,87 @@ static ast_t* recover_for_type(ast_t* type, int cap_index)
   return type;
 }
 
+static token_id viewpoint_for_cap(token_id view, token_id cap)
+{
+  switch(view)
+  {
+    case TK_ISO:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_ISO;
+        case TK_VAL: return TK_VAL;
+        default: return TK_TAG;
+      }
+      break;
+    }
+
+    case TK_TRN:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_ISO;
+        case TK_TRN: return TK_TRN;
+        case TK_VAL: return TK_VAL;
+        case TK_TAG: return TK_TAG;
+        default: return TK_BOX;
+      }
+    }
+
+    case TK_REF:
+      return cap;
+
+    case TK_VAL:
+    {
+      switch(cap)
+      {
+        case TK_TAG: return TK_TAG;
+        default: return TK_VAL;
+      }
+      break;
+    }
+
+    case TK_BOX:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_TAG;
+        case TK_VAL: return TK_VAL;
+        case TK_TAG: return TK_TAG;
+        default: return TK_BOX;
+      }
+      break;
+    }
+
+    case TK_TAG:
+      return TK_NONE;
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
+{
+  ast_t* cap = ast_childidx(type, cap_index);
+  token_id tcap = ast_id(cap);
+  token_id rcap = viewpoint_for_cap(view, tcap);
+
+  if(rcap == TK_NONE)
+    return NULL;
+
+  if(tcap != rcap)
+  {
+    type = ast_dup(type);
+    cap = ast_childidx(type, cap_index);
+    ast_replace(&cap, ast_from(cap, rcap));
+  }
+
+  return type;
+}
+
 ast_t* alias(ast_t* type)
 {
   switch(ast_id(type))
@@ -103,9 +184,6 @@ ast_t* alias(ast_t* type)
 
     case TK_ARROW:
       // TODO: alias with viewpoint adaptation
-      return type;
-
-    case TK_THISTYPE:
       return type;
 
     default: {}
@@ -152,9 +230,6 @@ ast_t* consume_type(ast_t* type)
       // TODO: consume with viewpoint adaptation
       return type;
 
-    case TK_THISTYPE:
-      return type;
-
     default: {}
   }
 
@@ -189,7 +264,38 @@ ast_t* recover_type(ast_t* type)
       // TODO: recover with viewpoint adaptation
       return type;
 
-    case TK_THISTYPE:
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+ast_t* viewpoint(token_id cap, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // adapt each side
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      ast_add(r_type, viewpoint(cap, right));
+      ast_add(r_type, viewpoint(cap, left));
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+      return viewpoint_for_type(cap, type, 3);
+
+    case TK_STRUCTURAL:
+      return viewpoint_for_type(cap, type, 1);
+
+    case TK_ARROW:
+      // TODO: viewpoint adaptation
       return type;
 
     default: {}

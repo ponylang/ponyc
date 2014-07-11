@@ -140,17 +140,33 @@ static bool expr_memberaccess(ast_t* ast)
 
     case TK_FVAR:
     {
-      // TODO: viewpoint adapted type of the field
+      // viewpoint adapted type of the field
+      ast_t* ftype = viewpoint(cap_for_type(type), ast_type(find));
+
+      if(ftype == NULL)
+      {
+        ast_error(ast, "can't read a field from a tag");
+        return false;
+      }
+
       ast_setid(ast, TK_FVARREF);
-      ast_settype(ast, ast_type(find));
+      ast_settype(ast, ftype);
       break;
     }
 
     case TK_FLET:
     {
-      // TODO: viewpoint adapted type of the field
+      // viewpoint adapted type of the field
+      ast_t* ftype = viewpoint(cap_for_type(type), ast_type(find));
+
+      if(ftype == NULL)
+      {
+        ast_error(ast, "can't read a field from a tag");
+        return false;
+      }
+
       ast_setid(ast, TK_FLETREF);
-      ast_settype(ast, ast_type(find));
+      ast_settype(ast, ftype);
       break;
     }
 
@@ -166,7 +182,7 @@ static bool expr_memberaccess(ast_t* ast)
     {
       // check receiver cap
       // TODO: don't alias receiver if args and result are all sendable
-      ast_t* receiver = alias(ast_type(left));
+      ast_t* receiver = alias(type);
       token_id rcap = cap_for_type(receiver);
       token_id fcap = cap_for_fun(find);
       ast_free_unattached(receiver);
