@@ -120,7 +120,9 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
 ast_t* type_for_fun(ast_t* ast)
 {
-  ast_t* typeparams = ast_childidx(ast, 2);
+  ast_t* cap = ast_child(ast);
+  ast_t* name = ast_sibling(cap);
+  ast_t* typeparams = ast_sibling(name);
   ast_t* params = ast_sibling(typeparams);
   ast_t* result = ast_sibling(params);
 
@@ -128,6 +130,7 @@ ast_t* type_for_fun(ast_t* ast)
   ast_add(fun, result);
   ast_add(fun, params);
   ast_add(fun, typeparams);
+  ast_add(fun, cap);
 
   return fun;
 }

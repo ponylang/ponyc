@@ -74,7 +74,7 @@ static bool expr_typeaccess(ast_t* ast)
 
     case TK_NEW:
     {
-      ast_setid(ast, TK_FUNREF);
+      ast_setid(ast, TK_NEWREF);
       ast_settype(ast, type_for_fun(find));
 
       if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
@@ -180,21 +180,11 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // check receiver cap
-      // TODO: don't alias receiver if args and result are all sendable
-      ast_t* receiver = alias(type);
-      token_id rcap = cap_for_type(receiver);
-      token_id fcap = cap_for_fun(find);
-      ast_free_unattached(receiver);
+      if(ast_id(find) == TK_BE)
+        ast_setid(ast, TK_BEREF);
+      else
+        ast_setid(ast, TK_FUNREF);
 
-      if(!is_cap_sub_cap(rcap, fcap))
-      {
-        ast_error(ast,
-          "receiver capability is not a subtype of method capability");
-        return false;
-      }
-
-      ast_setid(ast, TK_FUNREF);
       ast_settype(ast, type_for_fun(find));
 
       if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
@@ -275,11 +265,13 @@ bool expr_qualify(ast_t* ast)
       return expr_typeref(ast);
     }
 
+    case TK_NEWREF:
+    case TK_BEREF:
     case TK_FUNREF:
     {
       // qualify the function
       assert(ast_id(type) == TK_FUNTYPE);
-      ast_t* typeparams = ast_child(type);
+      ast_t* typeparams = ast_childidx(type, 1);
 
       if(ast_id(typeparams) == TK_NONE)
       {
@@ -291,11 +283,11 @@ bool expr_qualify(ast_t* ast)
         return false;
 
       type = reify(type, typeparams, right);
-      ast_t* typeargs = ast_child(type);
-      ast_replace(&typeargs, ast_from(typeargs, TK_NONE));
+      typeparams = ast_childidx(type, 1);
+      ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 
       ast_settype(ast, type);
-      ast_setid(ast, TK_FUNREF);
+      ast_setid(ast, ast_id(left));
       ast_inheriterror(ast);
       return true;
     }
@@ -373,11 +365,17 @@ bool expr_call(ast_t* ast)
       return expr_call(ast);
     }
 
+    case TK_NEWREF:
+    case TK_BEREF:
     case TK_FUNREF:
     {
       // TODO: use args to decide unbound type parameters
       assert(ast_id(type) == TK_FUNTYPE);
-      ast_t* typeparams = ast_child(type);
+      bool send = true;
+      ast_t* cap = ast_child(type);
+      ast_t* typeparams = ast_sibling(cap);
+      ast_t* params = ast_sibling(typeparams);
+      ast_t* result = ast_sibling(params);
 
       if(ast_id(typeparams) != TK_NONE)
       {
@@ -397,7 +395,6 @@ bool expr_call(ast_t* ast)
       }
 
       // check positional args vs params
-      ast_t* params = ast_sibling(typeparams);
       ast_t* param = ast_child(params);
       ast_t* arg = ast_child(positional);
 
@@ -412,6 +409,7 @@ bool expr_call(ast_t* ast)
           p_type = param;
 
         ast_t* a_type = alias(ast_type(arg));
+        send &= sendable(a_type);
         bool ok = is_subtype(ast, a_type, p_type);
         ast_free_unattached(a_type);
 
@@ -445,12 +443,63 @@ bool expr_call(ast_t* ast)
           return false;
         }
 
+        ast_t* a_type = alias(ast_type(arg));
+        send &= sendable(a_type);
+        ast_free_unattached(a_type);
+
+        // TODO: the meaning of 'this' in the default arg is the receiver, not
+        // the caller. need to make sure its already type checked.
         ast_append(positional, arg);
         param = ast_sibling(param);
       }
 
-      // TODO: call to a behaviour must have only sendable args
-      ast_settype(ast, ast_childidx(type, 2));
+      switch(ast_id(left))
+      {
+        case TK_BEREF:
+        {
+          if(!send)
+          {
+            ast_error(ast, "behaviour arguments must be iso, val or tag");
+            return false;
+          }
+          break;
+        }
+
+        case TK_FUNREF:
+        {
+          // if args and result are sendable, don't alias the receiver
+          send &= sendable(result);
+
+          // check receiver cap
+          ast_t* receiver = ast_child(left);
+
+          // dig through function qualification
+          if(ast_id(receiver) == TK_FUNREF)
+            receiver = ast_child(receiver);
+
+          ast_t* r_type = ast_type(receiver);
+
+          if(!send)
+            r_type = alias(r_type);
+
+          token_id rcap = cap_for_type(r_type);
+          token_id fcap = ast_id(cap);
+          ast_free_unattached(r_type);
+
+          if(!is_cap_sub_cap(rcap, fcap))
+          {
+            ast_error(ast,
+              "receiver capability is not a subtype of method capability");
+            return false;
+          }
+
+          break;
+        }
+
+        default: {}
+      }
+
+      ast_settype(ast, result);
       ast_inheriterror(ast);
       return true;
     }

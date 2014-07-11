@@ -1,7 +1,7 @@
 #include "cap.h"
 #include <assert.h>
 
-token_id cap_upper_bounds(token_id a, token_id b)
+static token_id cap_upper_bounds(token_id a, token_id b)
 {
   assert((a >= TK_ISO) && (a <= TK_TAG));
   assert((b >= TK_ISO) && (b <= TK_TAG));
@@ -16,7 +16,7 @@ token_id cap_upper_bounds(token_id a, token_id b)
   return TK_BOX;
 }
 
-token_id cap_lower_bounds(token_id a, token_id b)
+static token_id cap_lower_bounds(token_id a, token_id b)
 {
   assert((a >= TK_ISO) && (a <= TK_TAG));
   assert((b >= TK_ISO) && (b <= TK_TAG));

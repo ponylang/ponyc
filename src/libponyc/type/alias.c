@@ -388,3 +388,35 @@ bool safe_to_write(ast_t* ast, ast_t* type)
   assert(0);
   return false;
 }
+
+bool sendable(ast_t* type)
+{
+  if(ast_id(type) == TK_TUPLETYPE)
+  {
+    ast_t* child = ast_child(type);
+
+    while(child != NULL)
+    {
+      if(!sendable(child))
+        return false;
+
+      child = ast_sibling(child);
+    }
+
+    return true;
+  }
+
+  token_id cap = cap_for_type(type);
+
+  switch(cap)
+  {
+    case TK_ISO:
+    case TK_VAL:
+    case TK_TAG:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}

@@ -55,8 +55,8 @@ class Precedence is Foo, Bar
       fun ref apply(j: I64): I64 => (i' = j) + j
     }*/
 
-  fun tag make_array(n: U64): c.Array[U64] ref^ =>
-    var a = c.Array[U64]
+  fun tag make_array(n: U64): c.Array[U64] iso^ =>
+    var a = recover c.Array[U64]
     a.reserve(n)
     for i in c.Range[U64](0, n) do
       a.append(i)

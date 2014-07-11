@@ -37,7 +37,7 @@ expression typing
     - ARRAY
     - OBJECT
   postfix
-    ? DOT field viewpoint
+    * DOT
     * QUALIFY
     ? CALL infer type params
   unop
@@ -61,7 +61,7 @@ expression typing
     * CONTINUE
     * RETURN
     * ERROR
-  binop
+  * binop
     * AND
     * OR
     * XOR
@@ -80,7 +80,7 @@ expression typing
     * LE
     * GE
     * GT
-    ? ASSIGN viewpoint, safe to write
+    * ASSIGN
   * seq
 
 // notes from sophia
