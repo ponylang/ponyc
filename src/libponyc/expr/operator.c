@@ -290,16 +290,22 @@ bool expr_assign(ast_t* ast)
     return type_for_idseq(ast_child(left), a_type);
   }
 
-  bool ok = is_subtype(ast, a_type, l_type);
+  bool ok_sub = is_subtype(ast, a_type, l_type);
+  bool ok_safe = safe_to_write(left, a_type);
   ast_free_unattached(a_type);
 
-  if(!ok)
+  if(!ok_sub)
   {
     ast_error(ast, "right side must be a subtype of left side");
     return false;
   }
 
-  // TODO: viewpoint adaptation, safe to write
+  if(!ok_safe)
+  {
+    ast_error(ast, "not safe to write right side to left side");
+    return false;
+  }
+
   ast_settype(ast, l_type);
   ast_inheriterror(ast);
   return true;

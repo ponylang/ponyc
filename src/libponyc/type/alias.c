@@ -1,4 +1,5 @@
 #include "alias.h"
+#include "cap.h"
 #include <assert.h>
 
 static token_id alias_for_cap(token_id id)
@@ -303,4 +304,87 @@ ast_t* viewpoint(token_id cap, ast_t* type)
 
   assert(0);
   return NULL;
+}
+
+bool safe_to_write(ast_t* ast, ast_t* type)
+{
+  switch(ast_id(ast))
+  {
+    case TK_VAR:
+    case TK_LET:
+    case TK_VARREF:
+    case TK_PARAMREF:
+      return true;
+
+    case TK_FVARREF:
+    case TK_FLETREF:
+    {
+      // if left is x.f, we need the type of x to determine safe to write
+      ast_t* left = ast_child(ast);
+      ast_t* l_type = ast_type(left);
+      token_id l_cap = cap_for_type(l_type);
+      token_id r_cap = cap_for_type(type);
+
+      switch(l_cap)
+      {
+        case TK_ISO:
+          switch(r_cap)
+          {
+            case TK_ISO:
+            case TK_VAL:
+            case TK_TAG:
+              return true;
+
+            default: {}
+          }
+          break;
+
+        case TK_TRN:
+          switch(r_cap)
+          {
+            case TK_ISO:
+            case TK_TRN:
+            case TK_VAL:
+            case TK_TAG:
+              return true;
+
+            default: {}
+          }
+          break;
+
+        case TK_REF:
+          return true;
+
+        default: {}
+      }
+
+      return false;
+    }
+
+    case TK_TUPLE:
+    {
+      // safe to write if every component is safe to write
+      assert(ast_id(type) == TK_TUPLETYPE);
+      ast_t* child = ast_child(ast);
+      ast_t* tchild = ast_child(type);
+
+      while((child != NULL) && (tchild != NULL))
+      {
+        if(!safe_to_write(child, tchild))
+          return false;
+
+        child = ast_sibling(child);
+        tchild = ast_sibling(tchild);
+      }
+
+      assert(child == NULL);
+      assert(tchild == NULL);
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }

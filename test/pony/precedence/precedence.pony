@@ -12,6 +12,13 @@ class AnyTest[A: Any]
 
 class StructTest[A: {fun tag call_it({fun ref(I64): I64}): I64}]
 
+class Wombat
+  var x: I64
+
+  new create() => x = 0
+  /*fun box fail() => x = 1*/
+  fun ref pass() => x = 2
+
 class Precedence is Foo, Bar
   /* nested
   /* comments */
