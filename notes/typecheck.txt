@@ -38,7 +38,7 @@ expression typing
     - OBJECT
   postfix
     ? DOT field viewpoint
-    ? QUALIFY functions
+    * QUALIFY
     ? CALL infer type params
   unop
     * NOT

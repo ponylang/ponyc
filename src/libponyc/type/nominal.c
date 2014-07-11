@@ -6,63 +6,6 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)
-{
-  if(ast_id(typearg) != TK_NOMINAL)
-    return false;
-
-  ast_t* def = nominal_def(scope, typearg);
-  return def == typeparam;
-}
-
-static bool check_constraints(ast_t* scope, ast_t* def, ast_t* typeargs)
-{
-  if(ast_id(def) == TK_TYPEPARAM)
-  {
-    if(ast_id(typeargs) != TK_NONE)
-    {
-      ast_error(typeargs, "type parameters cannot have type arguments");
-      return false;
-    }
-
-    return true;
-  }
-
-  // reify the type parameters with the typeargs
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
-
-  if(r_typeparams == NULL)
-    return false;
-
-  ast_t* r_typeparam = ast_child(r_typeparams);
-  ast_t* typeparam = ast_child(typeparams);
-  ast_t* typearg = ast_child(typeargs);
-
-  while((r_typeparam != NULL) && (typearg != NULL))
-  {
-    ast_t* constraint = ast_childidx(r_typeparam, 1);
-
-    // compare the typearg to the typeparam and constraint
-    if(!is_typeparam(scope, typeparam, typearg) &&
-      !is_subtype(scope, typearg, constraint)
-      )
-    {
-      ast_error(typearg, "type argument is outside its constraint");
-      ast_error(typeparam, "constraint is here");
-      ast_free_unattached(r_typeparams);
-      return false;
-    }
-
-    r_typeparam = ast_sibling(r_typeparam);
-    typeparam = ast_sibling(typeparam);
-    typearg = ast_sibling(typearg);
-  }
-
-  ast_free_unattached(r_typeparams);
-  return true;
-}
-
 static ast_t* nominal_with_args(ast_t* from, const char* package,
   const char* name, ast_t* typeargs)
 {
@@ -146,8 +89,19 @@ bool nominal_valid(ast_t* scope, ast_t** ast)
   // make sure our typeargs are subtypes of our constraints
   ast_t* typeargs = ast_childidx(nominal, 2);
 
-  if(!check_constraints(nominal, def, typeargs))
-    return false;
+  if(ast_id(def) == TK_TYPEPARAM)
+  {
+    if(ast_id(typeargs) != TK_NONE)
+    {
+      ast_error(typeargs, "type parameters cannot have type arguments");
+      return false;
+    }
+  } else {
+    ast_t* typeparams = ast_childidx(def, 1);
+
+    if(!check_constraints(scope, typeparams, typeargs))
+      return false;
+  }
 
   // use our default capability if we need to
   ast_t* cap = ast_sibling(typeargs);

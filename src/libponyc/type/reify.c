@@ -1,6 +1,16 @@
 #include "reify.h"
 #include "nominal.h"
+#include "subtype.h"
 #include <assert.h>
+
+static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)
+{
+  if(ast_id(typearg) != TK_NOMINAL)
+    return false;
+
+  ast_t* def = nominal_def(scope, typearg);
+  return def == typeparam;
+}
 
 static bool reify_nominal(ast_t* ast, ast_t* typeparam, ast_t* typearg)
 {
@@ -95,4 +105,40 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   }
 
   return r_ast;
+}
+
+bool check_constraints(ast_t* scope, ast_t* typeparams, ast_t* typeargs)
+{
+  // reify the type parameters with the typeargs
+  ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
+
+  if(r_typeparams == NULL)
+    return false;
+
+  ast_t* r_typeparam = ast_child(r_typeparams);
+  ast_t* typeparam = ast_child(typeparams);
+  ast_t* typearg = ast_child(typeargs);
+
+  while((r_typeparam != NULL) && (typearg != NULL))
+  {
+    ast_t* constraint = ast_childidx(r_typeparam, 1);
+
+    // compare the typearg to the typeparam and constraint
+    if(!is_typeparam(scope, typeparam, typearg) &&
+      !is_subtype(scope, typearg, constraint)
+      )
+    {
+      ast_error(typearg, "type argument is outside its constraint");
+      ast_error(typeparam, "constraint is here");
+      ast_free_unattached(r_typeparams);
+      return false;
+    }
+
+    r_typeparam = ast_sibling(r_typeparam);
+    typeparam = ast_sibling(typeparam);
+    typearg = ast_sibling(typearg);
+  }
+
+  ast_free_unattached(r_typeparams);
+  return true;
 }

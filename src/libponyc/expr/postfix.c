@@ -1,5 +1,6 @@
 #include "postfix.h"
 #include "reference.h"
+#include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/nominal.h"
@@ -260,11 +261,27 @@ bool expr_qualify(ast_t* ast)
 
     case TK_FUNREF:
     {
-      // TODO: qualify the function
+      // qualify the function
       assert(ast_id(type) == TK_FUNTYPE);
-      ast_error(ast, "not implemented (qualify a function)");
+      ast_t* typeparams = ast_child(type);
+
+      if(ast_id(typeparams) == TK_NONE)
+      {
+        ast_error(ast, "function does not have type parameters");
+        return false;
+      }
+
+      if(!check_constraints(ast, typeparams, right))
+        return false;
+
+      type = reify(type, typeparams, right);
+      ast_t* typeargs = ast_child(type);
+      ast_replace(&typeargs, ast_from(typeargs, TK_NONE));
+
+      ast_settype(ast, type);
+      ast_setid(ast, TK_FUNREF);
       ast_inheriterror(ast);
-      return false;
+      return true;
     }
 
     default: {}

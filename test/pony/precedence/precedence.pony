@@ -21,8 +21,11 @@ class Precedence is Foo, Bar
   var any_test: AnyTest[String]
   var struct_test: StructTest[Precedence]
 
+  fun tag wombat[A: Arithmetic, B: Integer = I32](a: A, b: B): A => a + a
+
   fun tag find_in_array(a: c.Array[String] val, find: String):
     (U64, String) ? =>
+    wombat[F32](1.5, 2)
     for (index, value) in a.pairs() do
       if value == find then
         return (index, value)
