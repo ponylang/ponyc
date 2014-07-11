@@ -65,10 +65,10 @@ class Precedence is Foo, Bar
    * @param foo blah /* bar */
    * [[http://foo]]
    * @return something // foo
-   * TODO: foo /* TODO: foo */
+   * foo /* foo */
    */
   /* FIXME: foo */
-  // TODO: foo
+  // foo
   fun val foo(): F32 =>
     var x: F32 = 3
     3 == x

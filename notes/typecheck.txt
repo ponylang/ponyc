@@ -39,7 +39,7 @@ expression typing
   postfix
     ? DOT field viewpoint
     ? QUALIFY functions
-    ? CALL args, infer type params
+    ? CALL infer type params
   unop
     * NOT
     * MINUS
@@ -85,3 +85,13 @@ expression typing
 
 // notes from sophia
 should this->T be This->T?
+
+instead of where clause, a different assignment?
+a.b(c = 7, d := "foo")
+
+only check exhaustive match for matching on type?
+
+infer type args on contructors: attribute grammars?
+  placeholder for unresolved type params
+
+send syntax and semantics(?) of traits and generics to sophia
