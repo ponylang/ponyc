@@ -6,6 +6,7 @@
 #include "../type/nominal.h"
 #include "../type/lookup.h"
 #include "../type/alias.h"
+#include "../type/viewpoint.h"
 #include "../type/cap.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
@@ -141,7 +142,7 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_FVAR:
     {
       // viewpoint adapted type of the field
-      ast_t* ftype = viewpoint(cap_for_type(type), ast_type(find));
+      ast_t* ftype = viewpoint(left, find);
 
       if(ftype == NULL)
       {
@@ -157,7 +158,7 @@ static bool expr_memberaccess(ast_t* ast)
     case TK_FLET:
     {
       // viewpoint adapted type of the field
-      ast_t* ftype = viewpoint(cap_for_type(type), ast_type(find));
+      ast_t* ftype = viewpoint(left, find);
 
       if(ftype == NULL)
       {
@@ -272,12 +273,6 @@ bool expr_qualify(ast_t* ast)
       // qualify the function
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
-
-      if(ast_id(typeparams) == TK_NONE)
-      {
-        ast_error(ast, "function does not have type parameters");
-        return false;
-      }
 
       if(!check_constraints(ast, typeparams, right))
         return false;
@@ -448,7 +443,7 @@ bool expr_call(ast_t* ast)
         ast_free_unattached(a_type);
 
         // TODO: the meaning of 'this' in the default arg is the receiver, not
-        // the caller. need to make sure its already type checked.
+        // the caller. can't just copy it.
         ast_append(positional, arg);
         param = ast_sibling(param);
       }
@@ -482,6 +477,7 @@ bool expr_call(ast_t* ast)
           if(!send)
             r_type = alias(r_type);
 
+          // TODO: receiver could be an arrow type
           token_id rcap = cap_for_type(r_type);
           token_id fcap = ast_id(cap);
           ast_free_unattached(r_type);

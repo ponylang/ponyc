@@ -67,7 +67,7 @@ class Precedence is Foo, Bar
   fun tag make_iso_array(n: U64): c.Array[U64] iso^ =>
     recover make_array(n)
 
-  fun tag optionals(a: I64 = 1, b: I64 = 1): I64 => a * b
+  fun tag optionals(a: I64 = 1, b: I64 = a): I64 => a * b
 
   /*fun tag call_optionals(): I64 => optionals(3 where b = 10)*/
 

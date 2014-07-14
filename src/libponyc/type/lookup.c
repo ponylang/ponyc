@@ -1,6 +1,7 @@
 #include "lookup.h"
 #include "nominal.h"
 #include "reify.h"
+#include "viewpoint.h"
 #include <assert.h>
 
 static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
@@ -31,6 +32,7 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
     ast_t* typeparams = ast_sibling(typename);
     ast_t* typeargs = ast_childidx(type, 2);
     find = reify(find, typeparams, typeargs);
+    flatten_thistype(&find, type);
   } else {
     ast_error(scope, "couldn't find '%s' in '%s'", name, ast_name(typename));
   }
