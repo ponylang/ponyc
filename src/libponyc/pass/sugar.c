@@ -114,7 +114,7 @@ static bool sugar_constructor(ast_t* ast)
     member = ast_sibling(member);
   }
 
-  ast_add(members, make_create(ast, type_for_this(ast, TK_REF, true)));
+  ast_add(members, make_create(ast, type_for_this(ast, TK_VAL, false)));
   return true;
 }
 
@@ -325,18 +325,19 @@ static bool sugar_structural(ast_t* ast)
 {
   ast_t* cap = ast_childidx(ast, 1);
 
-  if(ast_id(cap) != TK_NONE)
-    return true;
+  if(ast_id(cap) == TK_NONE)
+  {
+    token_id defcap;
 
-  token_id def_cap;
+    // if it's a typeparam, default capability is tag, otherwise it is ref
+    if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
+      defcap = TK_TAG;
+    else
+      defcap = TK_REF;
 
-  // if it's a typeparam, default capability is tag, otherwise it is ref
-  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
-    def_cap = TK_TAG;
-  else
-    def_cap = TK_REF;
+    ast_setid(cap, defcap);
+  }
 
-  ast_replace(&cap, ast_from(ast, def_cap));
   return true;
 }
 

@@ -153,11 +153,16 @@ bool check_constraints(ast_t* scope, ast_t* typeparams, ast_t* typeargs)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
+    if(ast_id(constraint) == TK_NOMINAL)
+      nominal_defcap(scope, constraint);
+
     // compare the typearg to the typeparam and constraint
     if(!is_typeparam(scope, typeparam, typearg) &&
       !is_subtype(scope, typearg, constraint)
       )
     {
+      // TODO: remove this
+      is_subtype(scope, typearg, constraint);
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");
       ast_free_unattached(r_typeparams);

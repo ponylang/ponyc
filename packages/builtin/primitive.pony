@@ -1,4 +1,4 @@
-type Any is {}
+type Any is {} tag
 
 class None val is Stringable
   fun box string(): String => "None"
@@ -133,9 +133,9 @@ class IntLiteral val is Stringable
 class FloatLiteral val is Stringable
   fun box string(): String => compiler_intrinsic
 
-class String val is Stringable, Ordered[String]
+class String val is Ordered[String]
   fun box lt(that: String): Bool => compiler_intrinsic
-  fun box string(): String => this
+  /*fun box string(): String => this*/
 
 trait Stringable
   fun box string(): String

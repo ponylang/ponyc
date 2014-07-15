@@ -93,7 +93,11 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
   ast_add(nominal, ast_from(ast, ephemeral ? TK_HAT : TK_NONE));
-  ast_add(nominal, ast_from(ast, cap));
+
+  if(cap == TK_BOX)
+    ast_add(nominal, ast_from(ast, TK_REF));
+  else
+    ast_add(nominal, ast_from(ast, cap));
 
   if(ast_id(typeparams) == TK_TYPEPARAMS)
   {
@@ -115,7 +119,14 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
 
   ast_add(nominal, ast_from_string(ast, name));
   ast_add(nominal, ast_from(ast, TK_NONE));
-  return nominal;
+
+  if(cap != TK_BOX)
+    return nominal;
+
+  ast_t* arrow = ast_from(ast, TK_ARROW);
+  ast_add(arrow, nominal);
+  ast_add(arrow, ast_from(ast, TK_THISTYPE));
+  return arrow;
 }
 
 ast_t* type_for_fun(ast_t* ast)

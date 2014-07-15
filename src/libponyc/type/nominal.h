@@ -24,10 +24,12 @@ ast_t* nominal_type1(ast_t* from, const char* package, const char* name,
 ast_t* nominal_sugar(ast_t* from, const char* package, const char* name);
 
 /// Makes sure type arguments are within constraints
-bool nominal_valid(ast_t* scope, ast_t** ast);
+bool nominal_valid(ast_t* scope, ast_t** astp);
 
 ast_t* nominal_def(ast_t* scope, ast_t* nominal);
 
 void nominal_applycap(ast_t* from, ast_t** to);
+
+void nominal_defcap(ast_t* scope, ast_t* ast);
 
 #endif

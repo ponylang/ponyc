@@ -74,21 +74,22 @@ ast_t* nominal_sugar(ast_t* from, const char* package, const char* name)
   return nominal_with_args(from, package, name, ast_from(from, TK_NONE));
 }
 
-bool nominal_valid(ast_t* scope, ast_t** ast)
+bool nominal_valid(ast_t* scope, ast_t** astp)
 {
-  ast_t* nominal = *ast;
-  ast_t* def = nominal_def(scope, nominal);
+  ast_t* ast = *astp;
+  ast_t* def = nominal_def(scope, ast);
 
   if(def == NULL)
     return false;
 
   // resolve type alias if it is one
   if(ast_id(def) == TK_TYPE)
-    return typealias_nominal(scope, ast);
+    return typealias_nominal(scope, astp);
+
+  nominal_defcap(scope, ast);
+  ast_t* typeargs = ast_childidx(ast, 2);
 
   // make sure our typeargs are subtypes of our constraints
-  ast_t* typeargs = ast_childidx(nominal, 2);
-
   if(ast_id(def) == TK_TYPEPARAM)
   {
     if(ast_id(typeargs) != TK_NONE)
@@ -101,58 +102,6 @@ bool nominal_valid(ast_t* scope, ast_t** ast)
 
     if(!check_constraints(scope, typeparams, typeargs))
       return false;
-  }
-
-  // use our default capability if we need to
-  ast_t* cap = ast_sibling(typeargs);
-
-  if(ast_id(cap) == TK_NONE)
-  {
-    switch(ast_id(def))
-    {
-      case TK_TYPEPARAM:
-      {
-        ast_t* constraint = ast_childidx(def, 1);
-        ast_t* defcap;
-
-        switch(ast_id(constraint))
-        {
-          case TK_NOMINAL:
-            defcap = ast_childidx(constraint, 3);
-            break;
-
-          case TK_STRUCTURAL:
-            defcap = ast_childidx(constraint, 1);
-            break;
-
-          default:
-            defcap = ast_from(constraint, TK_TAG);
-            break;
-        }
-
-        ast_replace(&cap, defcap);
-        return true;
-      }
-
-      case TK_TRAIT:
-      case TK_CLASS:
-      case TK_ACTOR:
-      {
-        ast_t* defcap;
-
-        if(ast_nearest(nominal, TK_TYPEPARAM) != NULL)
-          defcap = ast_from(cap, TK_TAG);
-        else
-          defcap = ast_childidx(def, 2);
-
-        ast_replace(&cap, defcap);
-        break;
-      }
-
-      default:
-        assert(0);
-        return false;
-    }
   }
 
   return true;
@@ -263,4 +212,68 @@ void nominal_applycap(ast_t* from, ast_t** to)
 
     default: {}
   }
+}
+
+void nominal_defcap(ast_t* scope, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
+  ast_t* cap = ast_childidx(ast, 3);
+
+  // use our default capability if we need to
+  if(ast_id(cap) != TK_NONE)
+    return;
+
+  ast_t* def = nominal_def(scope, ast);
+
+  switch(ast_id(def))
+  {
+    case TK_TYPEPARAM:
+    {
+      ast_t* constraint = ast_childidx(def, 1);
+      ast_t* defcap;
+
+      switch(ast_id(constraint))
+      {
+        case TK_NOMINAL:
+          defcap = ast_childidx(constraint, 3);
+          break;
+
+        case TK_STRUCTURAL:
+          defcap = ast_childidx(constraint, 1);
+          break;
+
+        default:
+          defcap = ast_from(constraint, TK_TAG);
+          break;
+      }
+
+      ast_replace(&cap, defcap);
+      return;
+    }
+
+    case TK_TRAIT:
+    case TK_CLASS:
+    case TK_ACTOR:
+    {
+      // a nominal constraint without a capability is set to tag, otherwise to
+      // the default capability for the type. if the nominal type in a
+      // constraint appears inside a structural type, use the default cap for
+      // the type, not tag.
+      ast_t* defcap;
+
+      if(ast_enclosing_constraint(ast) != NULL)
+      {
+        defcap = ast_from(cap, TK_TAG);
+      } else {
+        defcap = ast_childidx(def, 2);
+      }
+
+      ast_replace(&cap, defcap);
+      return;
+    }
+
+    default: {}
+  }
+
+  assert(0);
 }

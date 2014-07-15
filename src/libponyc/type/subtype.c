@@ -31,6 +31,32 @@ static bool is_throws_sub_throws(ast_t* sub, ast_t* super)
   return false;
 }
 
+static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
+{
+  assert((ast_id(sub) == TK_NOMINAL) || (ast_id(sub) == TK_STRUCTURAL));
+  assert((ast_id(super) == TK_NOMINAL) || (ast_id(super) == TK_STRUCTURAL));
+
+  int sub_index = ast_id(sub) == TK_NOMINAL ? 3 : 1;
+  int super_index = ast_id(super) == TK_NOMINAL ? 3 : 1;
+
+  ast_t* sub_cap = ast_childidx(sub, sub_index);
+  ast_t* sub_ephemeral = ast_sibling(sub_cap);
+
+  ast_t* super_cap = ast_childidx(super, super_index);
+  ast_t* super_ephemeral = ast_sibling(super_cap);
+
+  token_id sub_tcap = ast_id(sub_cap);
+  token_id super_tcap = ast_id(super_cap);
+
+  // ignore ephemerality if it isn't iso/trn and can't be recovered to iso/trn
+  if((ast_id(super_ephemeral) == TK_HAT) &&
+    (super_tcap < TK_VAL) &&
+    (ast_id(sub_ephemeral) != TK_HAT))
+    return false;
+
+  return is_cap_sub_cap(sub_tcap, super_tcap);
+}
+
 static bool is_eq_typeargs(ast_t* scope, ast_t* a, ast_t* b)
 {
   assert(ast_id(a) == TK_NOMINAL);
@@ -191,11 +217,13 @@ static bool is_nominal_sub_structural(ast_t* scope, ast_t* sub, ast_t* super)
 {
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_STRUCTURAL);
+  nominal_defcap(scope, sub);
+
+  if(!check_cap_and_ephemeral(sub, super))
+    return false;
 
   ast_t* def = nominal_def(scope, sub);
   assert(def != NULL);
-
-  // TODO: cap and ephemeral
 
   // must be a subtype of every function in super
   ast_t* typeargs = ast_childidx(sub, 2);
@@ -217,13 +245,16 @@ static bool is_nominal_sub_nominal(ast_t* scope, ast_t* sub, ast_t* super)
 {
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_NOMINAL);
+  nominal_defcap(scope, sub);
+  nominal_defcap(scope, super);
+
+  if(!check_cap_and_ephemeral(sub, super))
+    return false;
 
   ast_t* sub_def = nominal_def(scope, sub);
   ast_t* super_def = nominal_def(scope, super);
   assert(sub_def != NULL);
   assert(super_def != NULL);
-
-  // TODO: cap and ephemeral
 
   // if we are the same nominal type, our typeargs must be the same
   if(sub_def == super_def)
@@ -326,9 +357,16 @@ bool is_subtype(ast_t* scope, ast_t* sub, ast_t* super)
           ast_t* constraint = ast_childidx(def, 1);
 
           // if it isn't, keep trying with our nominal type
-          if((ast_id(constraint) != TK_NONE) &&
-            is_subtype(scope, constraint, super))
-            return true;
+          if(ast_id(constraint) != TK_NONE)
+          {
+            // use the cap and ephemerality of the typeparam
+            nominal_applycap(sub, &constraint);
+            bool ok = is_subtype(scope, constraint, super);
+            ast_free_unattached(constraint);
+
+            if(ok)
+              return true;
+          }
           break;
         }
 

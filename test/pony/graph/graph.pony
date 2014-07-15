@@ -34,3 +34,5 @@ class City is Vertex[Map, Road, City]
   fun box getGraph(): this->Map => map
   fun box getIncoming(): this->List[Road] => incoming
   fun box getOutgoing(): this->List[Road] => outgoing
+
+  fun box getCities(): this->List[City] => map.getVertices()

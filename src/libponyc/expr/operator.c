@@ -99,6 +99,8 @@ bool expr_identity(ast_t* ast)
   if(type_super(ast, l_type, r_type) == NULL)
   {
     // TODO: allow this for unrelated structural types?
+    // remove this
+    type_super(ast, l_type, r_type);
     ast_error(ast, "left and right side must have related types");
     return false;
   }
@@ -307,7 +309,7 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, l_type);
+  ast_settype(ast, consume_type(l_type));
   ast_inheriterror(ast);
   return true;
 }

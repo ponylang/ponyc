@@ -59,18 +59,12 @@ ast_t* viewpoint(ast_t* left, ast_t* right)
 
   // if the left side is 'this' and has box capability, we return an arrow type
   // to allow the receiver to type check for ref and val receivers as well.
-  if(ast_id(left) == TK_THIS)
+  if((ast_id(left) == TK_THIS) && (ast_id(l_type) == TK_ARROW))
   {
-    assert(ast_id(l_type) == TK_NOMINAL);
-    token_id cap = ast_id(ast_childidx(l_type, 3));
-
-    if(cap == TK_BOX)
-    {
-      ast_t* arrow = ast_from(l_type, TK_ARROW);
-      ast_add(arrow, r_type);
-      ast_add(arrow, ast_from(l_type, TK_THISTYPE));
-      return arrow;
-    }
+    ast_t* arrow = ast_from(l_type, TK_ARROW);
+    ast_add(arrow, r_type);
+    ast_add(arrow, ast_from(l_type, TK_THISTYPE));
+    return arrow;
   }
 
   return viewpoint_type(l_type, r_type);

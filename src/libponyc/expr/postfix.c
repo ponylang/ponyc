@@ -477,7 +477,6 @@ bool expr_call(ast_t* ast)
           if(!send)
             r_type = alias(r_type);
 
-          // TODO: receiver could be an arrow type
           token_id rcap = cap_for_type(r_type);
           token_id fcap = ast_id(cap);
           ast_free_unattached(r_type);

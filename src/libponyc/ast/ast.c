@@ -444,6 +444,38 @@ ast_t* ast_enclosing_loop(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_constraint(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(ast->t->id)
+    {
+      case TK_STRUCTURAL:
+        // if we're inside a structural type, we aren't a nominal constraint
+        return NULL;
+
+      case TK_TYPEPARAM:
+      {
+        // only if we are in the constraint
+        ast_t* constraint = ast_childidx(ast, 1);
+
+        if(constraint == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_parent(ast_t* ast)
 {
   return ast->parent;

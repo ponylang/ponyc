@@ -223,6 +223,7 @@ ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
+ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);
