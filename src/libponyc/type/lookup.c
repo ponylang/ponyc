@@ -1,6 +1,7 @@
 #include "lookup.h"
 #include "nominal.h"
 #include "reify.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)

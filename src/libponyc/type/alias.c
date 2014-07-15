@@ -1,5 +1,6 @@
 #include "alias.h"
 #include "cap.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static token_id alias_for_cap(token_id id)

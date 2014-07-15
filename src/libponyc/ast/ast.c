@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "symtab.h"
+#include "token.h"
 #include "../ds/stringtab.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -24,9 +25,28 @@ static const size_t in_len = 2;
 
 void print(ast_t* ast, size_t indent, size_t width, bool type);
 
+
+static void print_token(token_t* token)
+{
+  switch(token_get_id(token))
+  {
+    case TK_STRING:
+      printf("\"\"\"%s\"\"\"", token_print(token));
+      break;
+
+    case TK_ID:
+      printf("(id %s)", token_print(token));
+      break;
+
+    default:
+      printf("%s", token_print(token));
+      break;
+  }
+}
+
 size_t length(ast_t* ast, size_t indent)
 {
-  size_t len = (indent * in_len) + strlen(token_string(ast->t));
+  size_t len = (indent * in_len) + strlen(token_print(ast->t));
   ast_t* child = ast->child;
 
   if(child != NULL)
@@ -55,7 +75,7 @@ void print_compact(ast_t* ast, size_t indent, bool type)
   if(parens)
     printf(type ? "[" : "(");
 
-  printf("%s", token_string(ast->t));
+  print_token(ast->t);
 
   while(child != NULL)
   {
@@ -85,7 +105,8 @@ void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
   if(parens)
     printf(type ? "[" : "(");
 
-  printf("%s\n", token_string(ast->t));
+  print_token(ast->t);
+  printf("\n");
 
   while(child != NULL)
   {
@@ -119,7 +140,7 @@ void print(ast_t* ast, size_t indent, size_t width, bool type)
   printf("\n");
 }
 
-ast_t* dup(ast_t* parent, ast_t* ast)
+static ast_t* dup(ast_t* parent, ast_t* ast)
 {
   if(ast == NULL)
     return NULL;
@@ -144,12 +165,12 @@ ast_t* dup(ast_t* parent, ast_t* ast)
 
 ast_t* ast_new(token_t* t, token_id id)
 {
-  return ast_token(token_from(t, id));
+  return ast_token(token_dup_new_id(t, id));
 }
 
 ast_t* ast_blank(token_id id)
 {
-  return ast_token(token_blank(id));
+  return ast_token(token_new(id, NULL));
 }
 
 ast_t* ast_token(token_t* t)
@@ -161,7 +182,7 @@ ast_t* ast_token(token_t* t)
 
 ast_t* ast_from(ast_t* ast, token_id id)
 {
-  return ast_token(token_from(ast->t, id));
+  return ast_token(token_dup_new_id(ast->t, id));
 }
 
 ast_t* ast_from_string(ast_t* ast, const char* id)
@@ -169,7 +190,11 @@ ast_t* ast_from_string(ast_t* ast, const char* id)
   if(id == NULL)
     return ast_from(ast, TK_NONE);
 
-  return ast_token(token_from_string(ast->t, id));
+  token_t* t = token_dup(ast->t);
+  token_set_id(t, TK_ID);
+  token_set_string(t, id);
+  return ast_token(t);
+//  return NULL;//TODO ast_token(token_from_string(ast->t, id));
 }
 
 ast_t* ast_hygienic_id(ast_t* ast)
@@ -180,7 +205,7 @@ ast_t* ast_hygienic_id(ast_t* ast)
 
   do
   {
-    snprintf(buffer, sizeof(buffer), "$%d", i);
+    snprintf(buffer, sizeof(buffer), "$%d", i++);
     id = stringtab(buffer);
   } while(ast_get(ast, buffer) != NULL);
 
@@ -199,22 +224,22 @@ void ast_scope(ast_t* ast)
 
 void ast_setid(ast_t* ast, token_id id)
 {
-  ast->t->id = id;
+  token_set_id(ast->t, id);
 }
 
 token_id ast_id(ast_t* ast)
 {
-  return ast->t->id;
+  return token_get_id(ast->t);
 }
 
 size_t ast_line(ast_t* ast)
 {
-  return ast->t->line;
+  return token_line_number(ast->t);
 }
 
 size_t ast_pos(ast_t* ast)
 {
-  return ast->t->pos;
+  return token_line_position(ast->t);
 }
 
 void* ast_data(ast_t* ast)
@@ -258,6 +283,11 @@ void ast_inheriterror(ast_t* ast)
   }
 }
 
+const char* ast_get_print(ast_t* ast)
+{
+  return token_print(ast->t);
+}
+
 const char* ast_name(ast_t* ast)
 {
   return token_string(ast->t);
@@ -298,7 +328,7 @@ void ast_settype(ast_t* ast, ast_t* type)
 
 ast_t* ast_nearest(ast_t* ast, token_id id)
 {
-  while((ast != NULL) && (ast->t->id != id))
+  while((ast != NULL) && (token_get_id(ast->t) != id))
     ast = ast->parent;
 
   return ast;
@@ -308,7 +338,7 @@ ast_t* ast_enclosing_type(ast_t* ast)
 {
   while(ast != NULL)
   {
-    switch(ast->t->id)
+    switch(token_get_id(ast->t))
     {
       case TK_TRAIT:
       case TK_CLASS:
@@ -328,7 +358,7 @@ ast_t* ast_enclosing_method(ast_t* ast)
 {
   while(ast != NULL)
   {
-    switch(ast->t->id)
+    switch(token_get_id(ast->t))
     {
       case TK_NEW:
       case TK_BE:
@@ -350,7 +380,7 @@ ast_t* ast_enclosing_method_type(ast_t* ast)
 
   while(ast != NULL)
   {
-    switch(ast->t->id)
+    switch(token_get_id(ast->t))
     {
       case TK_NEW:
       case TK_BE:
@@ -380,7 +410,7 @@ ast_t* ast_enclosing_method_body(ast_t* ast)
 
   while(ast != NULL)
   {
-    switch(ast->t->id)
+    switch(token_get_id(ast->t))
     {
       case TK_NEW:
       case TK_BE:
@@ -410,7 +440,7 @@ ast_t* ast_enclosing_loop(ast_t* ast)
 
   while(ast != NULL)
   {
-    switch(ast->t->id)
+    switch(token_get_id(ast->t))
     {
       case TK_WHILE:
       {
@@ -530,7 +560,7 @@ void* ast_get(ast_t* ast, const char* name)
     }
 
     ast = ast->parent;
-  } while((ast != NULL) && (ast->t->id != TK_PROGRAM));
+  } while((ast != NULL) && (token_get_id(ast->t) != TK_PROGRAM));
 
   return NULL;
 }
@@ -571,6 +601,7 @@ void ast_clear(ast_t* ast)
 
 ast_t* ast_add(ast_t* parent, ast_t* child)
 {
+  assert(parent != NULL);
   assert(parent != child);
   assert(parent->child != child);
 
@@ -704,7 +735,7 @@ void ast_free(ast_t* ast)
 
   ast_free(ast->type);
 
-  switch(ast->t->id)
+  switch(token_get_id(ast->t))
   {
     case TK_MODULE:
       source_close(ast->data);
@@ -728,7 +759,8 @@ void ast_error(ast_t* ast, const char* fmt, ...)
 {
   va_list ap;
   va_start(ap, fmt);
-  errorv(ast->t->source, ast->t->line, ast->t->pos, fmt, ap);
+  errorv(token_source(ast->t), token_line_number(ast->t),
+    token_line_position(ast->t), fmt, ap);
   va_end(ap);
 }
 

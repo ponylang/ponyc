@@ -6,3 +6,5 @@ lib
 obj
 output
 VS_ponyc
+hmm*
+.gitattributes

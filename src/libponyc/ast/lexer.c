@@ -1,8 +1,6 @@
 #include "lexer.h"
+#include "token.h"
 #include "../ds/stringtab.h"
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -21,10 +19,9 @@ struct lexer_t
 
   char* buffer;  // Symbol text buffer
   size_t buflen; // Length of buffer currently used
-  size_t alloc;  // Space allocated for buffe
+  size_t alloc;  // Space allocated for buffer
 };
 
-#define LEX_ERROR  ((token_t*)1)
 
 typedef struct lexsym_t
 {
@@ -78,11 +75,7 @@ static const lexsym_t symbols1[] =
   { "|", TK_PIPE },
   { "&", TK_AMP },
   { "?", TK_QUESTION },
-
-  { "{", TK_LBRACE_NEW },
-  { "(", TK_LPAREN_NEW },
-  { "[", TK_LSQUARE_NEW },
-  { "-", TK_MINUS_NEW },
+  { "-", TK_UNARY_MINUS },
 
   { NULL, 0 }
 };
@@ -147,6 +140,8 @@ static const lexsym_t keywords[] =
 
 static const lexsym_t abstract[] =
 {
+  { "x", TK_NONE }, // Needed for AST printing
+
   { "program", TK_PROGRAM },
   { "package", TK_PACKAGE },
   { "module", TK_MODULE },
@@ -220,6 +215,12 @@ static bool is_symbol_char(char c)
     || ((c >= ':') && (c <= '@'))
     || ((c >= '[') && (c <= '^'))
     || ((c >= '{') && (c <= '~'));
+}
+
+
+static token_t* make_token(lexer_t* lexer, token_id id)
+{
+  return token_new(id, lexer->source);
 }
 
 
@@ -433,30 +434,6 @@ static const char* save_token_text(lexer_t* lexer)
 }
 
 
-static token_t* token_new(token_id id, source_t* source, size_t line,
-  size_t pos, bool newline)
-{
-  token_t* t = calloc(1, sizeof(token_t));
-  t->newline = newline;
-  t->source = source;
-  t->line = line;
-  t->pos = pos;
-
-  token_setid(t, id);
-  return t;
-}
-
-
-static token_t* token(lexer_t* lexer, token_id id)
-{
-  token_t* t = token_new(id, lexer->source, lexer->line, lexer->pos,
-    lexer->newline);
-
-  lexer->newline = false;
-  return t;
-}
-
-
 static token_t* nested_comment(lexer_t* lexer)
 {
   size_t depth = 1;
@@ -468,7 +445,7 @@ static token_t* nested_comment(lexer_t* lexer)
       lexerror(lexer, "Nested comment doesn't terminate");
       lexer->ptr += lexer->len;
       lexer->len = 0;
-      return LEX_ERROR;
+      return make_token(lexer, TK_LEX_ERROR);
     }
 
     if(look(lexer) == '*' && look2(lexer) == '/')
@@ -516,7 +493,7 @@ static token_t* slash(lexer_t* lexer)
     return NULL;
   }
 
-  return token(lexer, TK_DIVIDE);
+  return make_token(lexer, TK_DIVIDE);
 }
 
 
@@ -527,7 +504,7 @@ static token_t* triple_string(lexer_t* lexer)
     if(is_eof(lexer))
     {
       string_terminate(lexer);
-      return LEX_ERROR;
+      return make_token(lexer, TK_LEX_ERROR);
     }
 
     char c = look(lexer);
@@ -536,10 +513,9 @@ static token_t* triple_string(lexer_t* lexer)
     if((c == '\"') && (look(lexer) == '\"') && (look2(lexer) == '\"'))
     {
       adv(lexer, 2);
-      token_t* t = token(lexer, TK_STRING);
       normalise_string(lexer);
-      t->string = save_token_text(lexer);
-      assert(t->string != NULL);
+      token_t* t = make_token(lexer, TK_STRING);
+      token_set_string(t, save_token_text(lexer));
       return t;
     }
 
@@ -564,7 +540,7 @@ static token_t* string(lexer_t* lexer)
     if(is_eof(lexer))
     {
       string_terminate(lexer);
-      return LEX_ERROR;
+      return make_token(lexer, TK_LEX_ERROR);
     }
 
     char next_char = look(lexer);
@@ -572,8 +548,8 @@ static token_t* string(lexer_t* lexer)
     if(next_char == '\"')
     {
       adv(lexer, 1);
-      token_t* t = token(lexer, TK_STRING);
-      t->string = save_token_text(lexer);
+      token_t* t = make_token(lexer, TK_STRING);
+      token_set_string(t, save_token_text(lexer));
       return t;
     }
 
@@ -582,7 +558,7 @@ static token_t* string(lexer_t* lexer)
       if(lexer->len < 2)
       {
         string_terminate(lexer);
-        return LEX_ERROR;
+        return make_token(lexer, TK_LEX_ERROR);
       }
 
       adv(lexer, 1);
@@ -617,7 +593,7 @@ static token_t* string(lexer_t* lexer)
       if(!r)
       {
         string_terminate(lexer);
-        return LEX_ERROR;
+        return make_token(lexer, TK_LEX_ERROR);
       }
     } else {
       append(lexer, next_char);
@@ -729,8 +705,8 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
     if(c < '0' || c > '9')
     {
       // Treat this as an integer token followed by a dot token
-      token_t* t = token(lexer, TK_INT);
-      t->integer = integral_value;
+      token_t* t = make_token(lexer, TK_INT);
+      token_set_int(t, integral_value);
       return t;
     }
 
@@ -739,7 +715,7 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
     // Read in rest of the significand
     if(!lex_integer(lexer, 10, &significand, &mantissa_digit_count, true,
       "real number mantissa"))
-      return LEX_ERROR;
+      return make_token(lexer, TK_LEX_ERROR);
   }
 
   if((look(lexer) == 'e') || (look(lexer) == 'E'))
@@ -756,7 +732,7 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 
     __uint128_t exp_value = 0;
     if(!lex_integer(lexer, 10, &exp_value, NULL, false, "real number exponent"))
-      return LEX_ERROR;
+      return make_token(lexer, TK_LEX_ERROR);
 
     if(exp_neg)
       e = -exp_value;
@@ -765,8 +741,8 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
   }
 
   e -= mantissa_digit_count;
-  token_t* t = token(lexer, TK_FLOAT);
-  t->real = significand * pow(10.0, e);
+  token_t* t = make_token(lexer, TK_FLOAT);
+  token_set_float(t, significand * pow(10.0, e));
   return t;
 }
 
@@ -776,10 +752,10 @@ static token_t* nondecimal_number(lexer_t* lexer, int base,
 {
   __uint128_t value = 0;
   if(!lex_integer(lexer, base, &value, NULL, false, context))
-    return LEX_ERROR;
+    return make_token(lexer, TK_LEX_ERROR);
 
-  token_t* t = token(lexer, TK_INT);
-  t->integer = value;
+  token_t* t = make_token(lexer, TK_INT);
+  token_set_int(t, value);
   return t;
 }
 
@@ -805,13 +781,13 @@ static token_t* number(lexer_t* lexer)
   // Decimal
   __uint128_t value = 0;
   if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
-    return LEX_ERROR;
+    return make_token(lexer, TK_LEX_ERROR);
 
   if((look(lexer) == '.') || (look(lexer) == 'e') || (look(lexer) == 'E'))
     return real(lexer, value);
 
-  token_t* t = token(lexer, TK_INT);
-  t->integer = value;
+  token_t* t = make_token(lexer, TK_INT);
+  token_set_int(t, value);
   return t;
 }
 
@@ -846,13 +822,28 @@ static token_t* identifier(lexer_t* lexer)
     if(!strcmp(lexer->buffer, p->symbol))
     {
       lexer->buflen = 0;
-      return token(lexer, p->id);
+      return make_token(lexer, p->id);
     }
   }
 
-  token_t* t = token(lexer, TK_ID);
-  t->string = save_token_text(lexer);
+  token_t* t = make_token(lexer, TK_ID);
+  token_set_string(t, save_token_text(lexer));
   return t;
+}
+
+
+static token_id newline_symbols(token_id raw_token, bool newline)
+{
+  if(!newline)
+    return raw_token;
+
+  switch(raw_token)
+  {
+    case TK_LPAREN:  return TK_LPAREN_NEW;
+    case TK_LSQUARE: return TK_LSQUARE_NEW;
+    case TK_MINUS:   return TK_MINUS_NEW;
+    default:         return raw_token;
+  }
 }
 
 
@@ -871,7 +862,7 @@ static token_t* symbol(lexer_t* lexer)
       if((sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]))
       {
         adv(lexer, 1);
-        return token(lexer, p->id);
+        return make_token(lexer, newline_symbols(p->id, lexer->newline));
       }
     }
   }
@@ -880,17 +871,19 @@ static token_t* symbol(lexer_t* lexer)
   {
     if(sym[0] == p->symbol[0])
     {
-      return token(lexer, p->id);
+      return make_token(lexer, newline_symbols(p->id, lexer->newline));
     }
   }
 
   lexerror(lexer, "Unknown symbol: %c", sym[0]);
-  return LEX_ERROR;
+  return make_token(lexer, TK_LEX_ERROR);
 }
 
 
 lexer_t* lexer_open(source_t* source)
 {
+  assert(source != NULL);
+
   lexer_t* lexer = calloc(1, sizeof(lexer_t));
   lexer->source = source;
   lexer->len = source->len;
@@ -916,6 +909,8 @@ void lexer_close(lexer_t* lexer)
 
 token_t* lexer_next(lexer_t* lexer)
 {
+  assert(lexer != NULL);
+
   token_t* t = NULL;
   size_t symbol_line;
   size_t symbol_pos;
@@ -923,7 +918,7 @@ token_t* lexer_next(lexer_t* lexer)
   while(t == NULL)
   {
     if(is_eof(lexer))
-      return token(lexer, TK_EOF);
+      return make_token(lexer, TK_EOF);
 
     symbol_line = lexer->line;
     symbol_pos = lexer->pos;
@@ -965,159 +960,49 @@ token_t* lexer_next(lexer_t* lexer)
     }
   }
 
-  if(t == LEX_ERROR)
-    t = token(lexer, TK_LEX_ERROR);
-
-  t->line = symbol_line;
-  t->pos = symbol_pos;
-
+  lexer->newline = false; // We've found a symbol, so no longer a new line
+  token_set_pos(t, symbol_line, symbol_pos);
   return t;
 }
 
 
-token_t* token_blank(token_id id)
+const char* lexer_print(token_id id)
 {
-  return token_new(id, NULL, 0, 0, false);
-}
-
-
-void token_copy_pos(token_t* src, token_t* dst)
-{
-  dst->source = src->source;
-  dst->line = src->line;
-  dst->pos = src->pos;
-}
-
-
-token_t* token_from(token_t* token, token_id id)
-{
-  // ignore the newline from the original token
-  return token_new(id, token->source, token->line, token->pos, false);
-}
-
-
-token_t* token_from_string(token_t* token, const char* id)
-{
-  token_t* t = token_from(token, TK_ID);
-  t->string = stringtab(id);
-
-  return t;
-}
-
-
-token_t* token_dup(token_t* token)
-{
-  token_t* t = malloc(sizeof(token_t));
-  memcpy(t, token, sizeof(token_t));
-  return t;
-}
-
-
-const char* token_string(token_t* token)
-{
-  switch(token->id)
-  {
-  case TK_NONE:
-    return "-";
-
-  case TK_STRING:
-  case TK_ID:
-    return token->string;
-
-  case TK_INT:
-  {
-    static char buf[32];
-    size_t i = token->integer;
-    snprintf(buf, 32, "%zu", i);
-    return buf;
-  }
-
-  case TK_FLOAT:
-  {
-    static char buf[32];
-    snprintf(buf, 32, "%g", token->real);
-    return buf;
-  }
-
-  default:
-    break;
-  }
-
   for(const lexsym_t* p = abstract; p->symbol != NULL; p++)
   {
-    if(token->id == p->id)
+    if(id == p->id)
       return p->symbol;
   }
 
   for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
-    if(token->id == p->id)
+    if(id == p->id)
       return p->symbol;
   }
 
   for(const lexsym_t* p = symbols1; p->symbol != NULL; p++)
   {
-    if(token->id == p->id)
+    if(id == p->id)
       return p->symbol;
   }
 
   for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
   {
-    if(token->id == p->id)
+    if(id == p->id)
       return p->symbol;
   }
 
-  static char buf2[32];
-  snprintf(buf2, sizeof(buf2), "Unknown token %d", token->id);
-  return buf2;
-//  return "UNKNOWN";
+  return NULL;
 }
 
 
-double token_float(token_t* token)
+token_id lexer_is_abstract_keyword(const char* text)
 {
-  if(token->id == TK_FLOAT)
-    return token->real;
-
-  return 0.0;
-}
-
-
-size_t token_int(token_t* token)
-{
-  if(token->id == TK_INT)
-    return token->integer;
-
-  return 0;
-}
-
-
-void token_setid(token_t* token, token_id id)
-{
-  if(token->newline)
+  for(const lexsym_t* p = abstract; p->symbol != NULL; p++)
   {
-    switch(id)
-    {
-      case TK_LBRACE: id = TK_LBRACE_NEW; break;
-      case TK_LPAREN: id = TK_LPAREN_NEW; break;
-      case TK_LSQUARE: id = TK_LSQUARE_NEW; break;
-      case TK_MINUS: id = TK_MINUS_NEW; break;
-      default: break;
-    }
+    if(!strcmp(text, p->symbol))
+      return p->id;
   }
 
-  token->id = id;
-}
-
-
-void token_setstring(token_t* token, const char* s)
-{
-  token->string = stringtab(s);
-}
-
-
-void token_free(token_t* token)
-{
-  if(token != NULL)
-    free(token);
+  return TK_LEX_ERROR;
 }

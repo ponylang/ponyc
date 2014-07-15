@@ -7,6 +7,7 @@
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
+#include "../ast/token.h"
 #include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -150,7 +151,7 @@ static bool do_path(ast_t* package, const char* path)
 
   while(!readdir_r(dir, &dirent, &d) && (d != NULL))
   {
-    if(d->d_type & DT_REG)
+    //if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
       const char* p = strrchr(d->d_name, '.');
@@ -234,6 +235,7 @@ static const char* find_path(ast_t* from, const char* path)
 
 static bool do_passes(ast_t* ast)
 {
+  //return true;
   if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
 
@@ -248,6 +250,8 @@ static bool do_passes(ast_t* ast)
 
   if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
     return false;
+
+  return true;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);

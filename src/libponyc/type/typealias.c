@@ -1,4 +1,5 @@
 #include "typealias.h"
+#include "../ast/token.h"
 #include "../type/nominal.h"
 #include "../ds/stringtab.h"
 #include <assert.h>

@@ -1,4 +1,5 @@
 #include "sugar.h"
+#include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../ds/stringtab.h"

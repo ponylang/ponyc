@@ -2,6 +2,7 @@
 #include "nominal.h"
 #include "subtype.h"
 #include "lookup.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 ast_t* type_builtin(ast_t* ast, const char* name)

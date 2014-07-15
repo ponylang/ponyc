@@ -1,6 +1,7 @@
 #include "reify.h"
 #include "nominal.h"
 #include "subtype.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)

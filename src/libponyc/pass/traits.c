@@ -1,4 +1,5 @@
 #include "traits.h"
+#include "../ast/token.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../type/nominal.h"

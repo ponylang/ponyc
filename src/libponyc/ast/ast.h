@@ -1,8 +1,9 @@
 #ifndef AST_H
 #define AST_H
 
-#include "lexer.h"
 #include <stdbool.h>
+#include <stddef.h>
+#include "token.h"
 
 /*
 
@@ -192,6 +193,7 @@ typedef enum
 } ast_result_t;
 
 typedef struct ast_t ast_t;
+typedef struct token_t token_t;
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -211,6 +213,7 @@ void ast_setdata(ast_t* ast, void* data);
 bool ast_canerror(ast_t* ast);
 void ast_seterror(ast_t* ast);
 void ast_inheriterror(ast_t* ast);
+const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
 double ast_float(ast_t* ast);
 size_t ast_int(ast_t* ast);

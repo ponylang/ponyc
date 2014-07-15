@@ -176,11 +176,11 @@ DEF(funs);
   SEQ(funtype);
   DONE();
 
-// (LBRACE | LBRACE_NEW) funs RBRACE [cap] [HAT]
+// LBRACE funs RBRACE [cap] [HAT]
 DEF(structural);
   AST_NODE(TK_STRUCTURAL);
   SCOPE();
-  SKIP(TK_LBRACE, TK_LBRACE_NEW);
+  SKIP(TK_LBRACE);
   RULE(funs);
   SKIP(TK_RBRACE);
   OPT TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
@@ -267,10 +267,10 @@ DEF(positional);
   WHILE(TK_COMMA, RULE(seq));
   DONE();
 
-// (LBRACE | LBRACE_NEW) [IS types] members RBRACE
+// LBRACE [IS types] members RBRACE
 DEF(object);
   AST_NODE(TK_OBJECT);
-  SKIP(TK_LBRACE, TK_LBRACE_NEW);
+  SKIP(TK_LBRACE);
   IF(TK_IS, RULE(types));
   RULE(members);
   SKIP(TK_RBRACE);
@@ -476,15 +476,24 @@ DEF(try);
   SKIP(TK_END);
   DONE();
 
-// (NOT | MINUS | MINUS_NEW | CONSUME | RECOVER) term
+// (NOT | CONSUME | RECOVER) term
 DEF(prefix);
-  TOKEN(TK_NOT, TK_MINUS, TK_MINUS_NEW, TK_CONSUME, TK_RECOVER);
+  TOKEN(TK_NOT, TK_CONSUME, TK_RECOVER);
   RULE(term);
   DONE();
 
-// local | cond | match | whileloop | repeat | forloop | try | prefix | postfix
+// (MINUS | MINUS_NEW) term
+DEF(prefixminus);
+  AST_NODE(TK_UNARY_MINUS);
+  SKIP(TK_MINUS, TK_MINUS_NEW);
+  RULE(term);
+  DONE();
+
+// local | cond | match | whileloop | repeat | forloop | try | prefix |
+//  prefixminus | postfix
 DEF(term);
-  RULE(local, cond, match, whileloop, repeat, forloop, try, prefix, postfix);
+  RULE(local, cond, match, whileloop, repeat, forloop, try, prefix,
+    prefixminus, postfix);
   DONE();
 
 // BINOP term

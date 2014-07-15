@@ -2,6 +2,7 @@
 #include "reify.h"
 #include "cap.h"
 #include "nominal.h"
+#include "../ast/token.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 

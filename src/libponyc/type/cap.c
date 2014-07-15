@@ -1,4 +1,5 @@
 #include "cap.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static token_id cap_upper_bounds(token_id a, token_id b)
