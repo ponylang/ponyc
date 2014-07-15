@@ -1,5 +1,6 @@
 #include "cap.h"
 #include "../ast/token.h"
+#include "viewpoint.h"
 #include <assert.h>
 
 static token_id cap_upper_bounds(token_id a, token_id b)
@@ -102,8 +103,10 @@ token_id cap_for_type(ast_t* type)
 
     case TK_ARROW:
     {
-      // TODO: viewpoint adaptation
-      return cap_for_type(ast_childidx(type, 1));
+      // arrow types arise when something could be box, ref or val. cap_for_type
+      // is used for receiver cap, sendability and safe to write. for all of
+      // these, we can treat any arrow as a view through box.
+      return cap_viewpoint(TK_BOX, cap_for_type(ast_childidx(type, 1)));
     }
 
     default: {}
@@ -111,4 +114,153 @@ token_id cap_for_type(ast_t* type)
 
   assert(0);
   return TK_NONE;
+}
+
+token_id cap_viewpoint(token_id view, token_id cap)
+{
+  switch(view)
+  {
+    case TK_ISO:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_ISO;
+        case TK_VAL: return TK_VAL;
+        default: return TK_TAG;
+      }
+      break;
+    }
+
+    case TK_TRN:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_ISO;
+        case TK_TRN: return TK_TRN;
+        case TK_VAL: return TK_VAL;
+        case TK_TAG: return TK_TAG;
+        default: return TK_BOX;
+      }
+    }
+
+    case TK_REF:
+      return cap;
+
+    case TK_VAL:
+    {
+      switch(cap)
+      {
+        case TK_TAG: return TK_TAG;
+        default: return TK_VAL;
+      }
+      break;
+    }
+
+    case TK_BOX:
+    {
+      switch(cap)
+      {
+        case TK_ISO: return TK_TAG;
+        case TK_VAL: return TK_VAL;
+        case TK_TAG: return TK_TAG;
+        default: return TK_BOX;
+      }
+      break;
+    }
+
+    case TK_TAG:
+      return TK_NONE;
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_alias(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_TAG;
+    case TK_TRN: return TK_BOX;
+    case TK_REF: return TK_REF;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_BOX;
+    case TK_TAG: return TK_TAG;
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_recover(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_ISO;
+    case TK_TRN: return TK_ISO;
+    case TK_REF: return TK_ISO;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_VAL;
+    case TK_TAG: return TK_TAG;
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+bool cap_sendable(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO:
+    case TK_VAL:
+    case TK_TAG:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}
+
+bool cap_safetowrite(token_id into, token_id cap)
+{
+  switch(into)
+  {
+    case TK_ISO:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_VAL:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TRN:
+      switch(cap)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_VAL:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      return true;
+
+    default: {}
+  }
+
+  return false;
 }

@@ -16,4 +16,14 @@ token_id cap_for_fun(ast_t* fun);
 
 token_id cap_for_type(ast_t* type);
 
+token_id cap_viewpoint(token_id view, token_id cap);
+
+token_id cap_alias(token_id cap);
+
+token_id cap_recover(token_id cap);
+
+bool cap_sendable(token_id cap);
+
+bool cap_safetowrite(token_id into, token_id cap);
+
 #endif

@@ -23,7 +23,7 @@ class Array[A]
       error
     end
 
-  fun ref update(i: U64, v: A): this->A^ ? =>
+  fun ref update(i: U64, v: A): A^ ? =>
     if i < size then
       ptr(i) = v
     else
@@ -83,6 +83,9 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun box has_next(): Bool => i < array.length()
 
   fun ref next(): B->A ? => array(i = i + 1)
+
+  /*remove this*/
+  fun box current(): this->B->A ? => array(i)
 
 class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
   var array: B

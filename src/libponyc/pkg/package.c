@@ -251,7 +251,7 @@ static bool do_passes(ast_t* ast)
   if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
     return false;
 
-  return true;
+  //return true;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);

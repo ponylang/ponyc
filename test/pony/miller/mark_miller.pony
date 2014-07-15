@@ -1,7 +1,7 @@
 use "../collections"
 
 /* A mint is used as a marker object to indicate that purses share a common
- * currency. The tag * capability indicates that when the type has no capability
+ * currency. The tag capability indicates that when the type has no capability
  * specified, the capability is tag. If no default capability is specified, the
  * default is ref.
  */

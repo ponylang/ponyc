@@ -3,23 +3,6 @@
 #include "../ast/token.h"
 #include <assert.h>
 
-static token_id alias_for_cap(token_id id)
-{
-  switch(id)
-  {
-    case TK_ISO: return TK_TAG;
-    case TK_TRN: return TK_BOX;
-    case TK_REF: return TK_REF;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_BOX;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
 static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
 {
   ast_t* ephemeral = ast_childidx(type, eph_index);
@@ -34,7 +17,7 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
     // non-ephemeral capability gets aliased
     ast_t* cap = ast_childidx(type, cap_index);
     token_id tcap = ast_id(cap);
-    token_id acap = alias_for_cap(tcap);
+    token_id acap = cap_alias(tcap);
 
     if(tcap != acap)
     {
@@ -47,109 +30,11 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
   return type;
 }
 
-static token_id recover_for_cap(token_id id)
-{
-  switch(id)
-  {
-    case TK_ISO: return TK_ISO;
-    case TK_TRN: return TK_ISO;
-    case TK_REF: return TK_ISO;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_VAL;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
 static ast_t* recover_for_type(ast_t* type, int cap_index)
 {
   ast_t* cap = ast_childidx(type, cap_index);
   token_id tcap = ast_id(cap);
-  token_id rcap = recover_for_cap(tcap);
-
-  if(tcap != rcap)
-  {
-    type = ast_dup(type);
-    cap = ast_childidx(type, cap_index);
-    ast_replace(&cap, ast_from(cap, rcap));
-  }
-
-  return type;
-}
-
-static token_id viewpoint_for_cap(token_id view, token_id cap)
-{
-  switch(view)
-  {
-    case TK_ISO:
-    {
-      switch(cap)
-      {
-        case TK_ISO: return TK_ISO;
-        case TK_VAL: return TK_VAL;
-        default: return TK_TAG;
-      }
-      break;
-    }
-
-    case TK_TRN:
-    {
-      switch(cap)
-      {
-        case TK_ISO: return TK_ISO;
-        case TK_TRN: return TK_TRN;
-        case TK_VAL: return TK_VAL;
-        case TK_TAG: return TK_TAG;
-        default: return TK_BOX;
-      }
-    }
-
-    case TK_REF:
-      return cap;
-
-    case TK_VAL:
-    {
-      switch(cap)
-      {
-        case TK_TAG: return TK_TAG;
-        default: return TK_VAL;
-      }
-      break;
-    }
-
-    case TK_BOX:
-    {
-      switch(cap)
-      {
-        case TK_ISO: return TK_TAG;
-        case TK_VAL: return TK_VAL;
-        case TK_TAG: return TK_TAG;
-        default: return TK_BOX;
-      }
-      break;
-    }
-
-    case TK_TAG:
-      return TK_NONE;
-
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
-static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
-{
-  ast_t* cap = ast_childidx(type, cap_index);
-  token_id tcap = ast_id(cap);
-  token_id rcap = viewpoint_for_cap(view, tcap);
-
-  if(rcap == TK_NONE)
-    return NULL;
+  token_id rcap = cap_recover(tcap);
 
   if(tcap != rcap)
   {
@@ -185,8 +70,16 @@ ast_t* alias(ast_t* type)
       return alias_for_type(type, 1, 2);
 
     case TK_ARROW:
-      // TODO: alias with viewpoint adaptation
-      return type;
+    {
+      // alias just the right side. the left side is either 'this' or a type
+      // parameter, and stays the same.
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      ast_add(r_type, alias(right));
+      ast_add(r_type, left);
+      return r_type;
+    }
 
     default: {}
   }
@@ -229,8 +122,16 @@ ast_t* consume_type(ast_t* type)
     }
 
     case TK_ARROW:
-      // TODO: consume with viewpoint adaptation
-      return type;
+    {
+      // consume just the right side. the left side is either 'this' or a type
+      // parameter, and stays the same.
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      ast_add(r_type, consume_type(right));
+      ast_add(r_type, left);
+      return r_type;
+    }
 
     default: {}
   }
@@ -263,131 +164,22 @@ ast_t* recover_type(ast_t* type)
       return recover_for_type(type, 1);
 
     case TK_ARROW:
-      // TODO: recover with viewpoint adaptation
-      return type;
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
-ast_t* viewpoint(token_id cap, ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
     {
-      // adapt each side
-      ast_t* r_type = ast_from(type, ast_id(type));
+      // recover just the right side. the left side is either 'this' or a type
+      // parameter, and stays the same.
+      ast_t* r_type = ast_from(type, TK_ARROW);
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
-      ast_add(r_type, viewpoint(cap, right));
-      ast_add(r_type, viewpoint(cap, left));
+      ast_add(r_type, recover_type(right));
+      ast_add(r_type, left);
       return r_type;
     }
 
-    case TK_NOMINAL:
-      return viewpoint_for_type(cap, type, 3);
-
-    case TK_STRUCTURAL:
-      return viewpoint_for_type(cap, type, 1);
-
-    case TK_ARROW:
-      // TODO: viewpoint adaptation
-      return type;
-
     default: {}
   }
 
   assert(0);
   return NULL;
-}
-
-bool safe_to_write(ast_t* ast, ast_t* type)
-{
-  switch(ast_id(ast))
-  {
-    case TK_VAR:
-    case TK_LET:
-    case TK_VARREF:
-    case TK_PARAMREF:
-      return true;
-
-    case TK_FVARREF:
-    case TK_FLETREF:
-    {
-      // if left is x.f, we need the type of x to determine safe to write
-      ast_t* left = ast_child(ast);
-      ast_t* l_type = ast_type(left);
-      token_id l_cap = cap_for_type(l_type);
-      token_id r_cap = cap_for_type(type);
-
-      switch(l_cap)
-      {
-        case TK_ISO:
-          switch(r_cap)
-          {
-            case TK_ISO:
-            case TK_VAL:
-            case TK_TAG:
-              return true;
-
-            default: {}
-          }
-          break;
-
-        case TK_TRN:
-          switch(r_cap)
-          {
-            case TK_ISO:
-            case TK_TRN:
-            case TK_VAL:
-            case TK_TAG:
-              return true;
-
-            default: {}
-          }
-          break;
-
-        case TK_REF:
-          return true;
-
-        default: {}
-      }
-
-      return false;
-    }
-
-    case TK_TUPLE:
-    {
-      // safe to write if every component is safe to write
-      assert(ast_id(type) == TK_TUPLETYPE);
-      ast_t* child = ast_child(ast);
-      ast_t* tchild = ast_child(type);
-
-      while((child != NULL) && (tchild != NULL))
-      {
-        if(!safe_to_write(child, tchild))
-          return false;
-
-        child = ast_sibling(child);
-        tchild = ast_sibling(tchild);
-      }
-
-      assert(child == NULL);
-      assert(tchild == NULL);
-      return true;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }
 
 bool sendable(ast_t* type)
@@ -407,17 +199,5 @@ bool sendable(ast_t* type)
     return true;
   }
 
-  token_id cap = cap_for_type(type);
-
-  switch(cap)
-  {
-    case TK_ISO:
-    case TK_VAL:
-    case TK_TAG:
-      return true;
-
-    default: {}
-  }
-
-  return false;
+  return cap_sendable(cap_for_type(type));
 }

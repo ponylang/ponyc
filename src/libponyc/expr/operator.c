@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
+#include "../type/viewpoint.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
