@@ -1,4 +1,5 @@
 #include "sugar.h"
+#include "../pkg/package.h"
 #include "../type/assemble.h"
 #include "../type/nominal.h"
 #include "../ds/stringtab.h"
@@ -152,6 +153,44 @@ static bool sugar_traits(ast_t* ast)
   return true;
 }
 
+static bool sugar_type(ast_t* ast)
+{
+  ast_t* typeparams = ast_childidx(ast, 1);
+  ast_t* cap = ast_sibling(typeparams);
+  ast_t* types = ast_sibling(cap);
+  ast_t* members = ast_sibling(types);
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "a type alias can't have type parameters");
+    return false;
+  }
+
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "a type alias can't specify a default capability");
+    return false;
+  }
+
+  ast_t* alias = ast_child(types);
+
+  if((alias == NULL) && (ast_sibling(alias) != NULL))
+  {
+    ast_error(types, "a type alias must alias to a single type");
+    return false;
+  }
+
+  ast_t* member = ast_child(members);
+
+  if(member != NULL)
+  {
+    ast_error(member, "a type alias can't have members");
+    return false;
+  }
+
+  return true;
+}
+
 static bool sugar_class(ast_t* ast)
 {
   if(!sugar_traits(ast))
@@ -204,6 +243,17 @@ static bool sugar_typeparam(ast_t* ast)
 
   if(ast_id(constraint) == TK_NONE)
     ast_replace(&constraint, make_structural(ast));
+
+  return true;
+}
+
+static bool sugar_field(ast_t* ast)
+{
+  if(ast_nearest(ast, TK_TRAIT) != NULL)
+  {
+    ast_error(ast, "can't have a field in a trait");
+    return false;
+  }
 
   return true;
 }
@@ -392,6 +442,18 @@ static bool sugar_arrow(ast_t* ast)
   return false;
 }
 
+static bool sugar_ephemeral(ast_t* ast)
+{
+  if(ast_enclosing_method_type(ast) == NULL)
+  {
+    ast_error(ast,
+      "ephemeral types can only appear in function return types");
+    return false;
+  }
+
+  return true;
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
@@ -427,9 +489,7 @@ static bool sugar_for(ast_t** astp)
   ast_t* for_body = ast_sibling(for_iter);
   ast_t* for_else = ast_sibling(for_body);
 
-  ast_t* id = ast_hygienic_id(ast);
-  const char* name = ast_name(id);
-
+  ast_t* id = package_hygienic_id(ast);
   ast_t* body = ast_from(ast, TK_SEQ);
   ast_scope(body);
 
@@ -462,13 +522,6 @@ static bool sugar_for(ast_t** astp)
   ast_add(seq, iter);
 
   ast_replace(astp, seq);
-
-  if(!ast_set(seq, name, id))
-  {
-    assert(0);
-    return false;
-  }
-
   return true;
 }
 
@@ -566,6 +619,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
   switch(ast_id(ast))
   {
+    case TK_TYPE:
+      if(!sugar_type(ast))
+        return AST_ERROR;
+      break;
+
     case TK_CLASS:
       if(!sugar_class(ast))
         return AST_ERROR;
@@ -583,6 +641,12 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_TYPEPARAM:
       if(!sugar_typeparam(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_FVAR:
+    case TK_FLET:
+      if(!sugar_field(ast))
         return AST_ERROR;
       break;
 
@@ -613,6 +677,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_ARROW:
       if(!sugar_arrow(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_HAT:
+      if(!sugar_ephemeral(ast))
         return AST_ERROR;
       break;
 

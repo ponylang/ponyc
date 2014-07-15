@@ -209,7 +209,8 @@ static const char* find_path(ast_t* from, const char* path)
   } else {
     // try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
-    result = try_path(ast_data(from), path);
+    package_t* pkg = ast_data(from);
+    result = try_path(pkg->path, path);
 
     if(result != NULL)
       return result;
@@ -236,9 +237,6 @@ static bool do_passes(ast_t* ast)
 {
   if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
-
-  // remove hygienic identifiers
-  ast_clear(ast);
 
   if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
@@ -344,7 +342,12 @@ ast_t* package_load(ast_t* from, const char* path)
 
   package = ast_blank(TK_PACKAGE);
   assert(ast_data(package) == NULL);
-  ast_setdata(package, (void*)name);
+
+  package_t* pkg = malloc(sizeof(package_t));
+  pkg->path = name;
+  pkg->next_hygienic_id = 0;
+  ast_setdata(package, pkg);
+
   ast_scope(package);
   ast_add(program, package);
   ast_set(program, name, package);
@@ -361,6 +364,20 @@ ast_t* package_load(ast_t* from, const char* path)
   }
 
   return package;
+}
+
+ast_t* package_hygienic_id(ast_t* ast)
+{
+  ast_t* package = ast_nearest(ast, TK_PACKAGE);
+  assert(package != NULL);
+
+  package_t* pkg = ast_data(package);
+  size_t id = pkg->next_hygienic_id++;
+
+  char buffer[32];
+  snprintf(buffer, 32, "$%zu", id);
+
+  return ast_from_string(ast, stringtab(buffer));
 }
 
 /**

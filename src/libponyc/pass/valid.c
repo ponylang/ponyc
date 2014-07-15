@@ -3,18 +3,6 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static bool valid_ephemeral(ast_t* ast)
-{
-  if((ast_id(ast) == TK_HAT) && (ast_enclosing_method_type(ast) == NULL))
-  {
-    ast_error(ast,
-      "ephemeral types can only appear in function return types");
-    return false;
-  }
-
-  return true;
-}
-
 static bool valid_nominal(ast_t* ast)
 {
   if(!nominal_valid(ast, &ast))
@@ -23,12 +11,7 @@ static bool valid_nominal(ast_t* ast)
   if(ast_id(ast) != TK_NOMINAL)
     return true;
 
-  return valid_ephemeral(ast_childidx(ast, 4));
-}
-
-static bool valid_structural(ast_t* ast)
-{
-  return valid_ephemeral(ast_childidx(ast, 2));
+  return true;
 }
 
 static bool valid_thistype(ast_t* ast)
@@ -91,11 +74,6 @@ ast_result_t pass_valid(ast_t** astp)
   {
     case TK_NOMINAL:
       if(!valid_nominal(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_STRUCTURAL:
-      if(!valid_structural(ast))
         return AST_ERROR;
       break;
 

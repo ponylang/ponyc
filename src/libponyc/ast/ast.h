@@ -10,7 +10,7 @@ PROGRAM: {PACKAGE}
 symtab: path -> PACKAGE
 
 PACKAGE: {MODULE}
-data: path
+data: package_t
 symtab: ID -> TYPE | TRAIT | CLASS | ACTOR
 
 MODULE: {USE} {TYPE | TRAIT | CLASS | ACTOR}
@@ -198,7 +198,6 @@ ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
 ast_t* ast_from(ast_t* ast, token_id id);
 ast_t* ast_from_string(ast_t* ast, const char* id);
-ast_t* ast_hygienic_id(ast_t* ast);
 ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
