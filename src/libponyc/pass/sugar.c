@@ -1,7 +1,7 @@
 #include "sugar.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -30,7 +30,7 @@ static ast_t* make_ref(ast_t* ast, ast_t* id)
 static ast_t* make_dot(ast_t* ast, ast_t* left, const char* right)
 {
   ast_t* dot = ast_from(ast, TK_DOT);
-  ast_t* r_right = ast_from_string(ast, stringtab(right));
+  ast_t* r_right = ast_from_string(ast, right);
   ast_add(dot, r_right);
   ast_add(dot, left);
   return dot;
@@ -69,7 +69,7 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   ast_add(create, type); // result
   ast_add(create, ast_from(ast, TK_NONE)); // params
   ast_add(create, ast_from(ast, TK_NONE)); // typeparams
-  ast_add(create, ast_from_string(ast, stringtab("create"))); // name
+  ast_add(create, ast_from_string(ast, "create")); // name
   ast_add(create, ast_from(ast, TK_NONE)); // cap
 
   return create;
@@ -335,7 +335,7 @@ static bool sugar_fun(ast_t* ast)
     return true;
 
   // set the return type to None
-  ast_t* type = nominal_sugar(ast, NULL, stringtab("None"));
+  ast_t* type = type_sugar(ast, NULL, "None");
   ast_replace(&result, type);
 
   // add None at the end of the body, if there is one
@@ -344,9 +344,7 @@ static bool sugar_fun(ast_t* ast)
   if(ast_id(body) == TK_SEQ)
   {
     ast_t* last = ast_childlast(body);
-    ast_t* ref = ast_from(last, TK_REFERENCE);
-    ast_t* none = ast_from_string(last, stringtab("None"));
-    ast_add(ref, none);
+    ast_t* ref = make_ref(ast, ast_from_string(last, "None"));
     ast_append(body, ref);
   }
 
@@ -440,6 +438,31 @@ static bool sugar_arrow(ast_t* ast)
 
   assert(0);
   return false;
+}
+
+static bool sugar_thistype(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  if(ast_id(parent) != TK_ARROW)
+  {
+    ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
+    return false;
+  }
+
+  if((ast_id(ast_parent(parent)) == TK_ARROW) || (ast_child(parent) != ast))
+  {
+    ast_error(ast, "when using 'this' for viewpoint it must come first");
+    return false;
+  }
+
+  if(ast_enclosing_method(ast) == NULL)
+  {
+    ast_error(ast, "can only use 'this' for a viewpoint in a method");
+    return false;
+  }
+
+  return true;
 }
 
 static bool sugar_ephemeral(ast_t* ast)
@@ -677,6 +700,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_ARROW:
       if(!sugar_arrow(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_THISTYPE:
+      if(!sugar_thistype(ast))
         return AST_ERROR;
       break;
 

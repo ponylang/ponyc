@@ -1,5 +1,5 @@
 #include "lookup.h"
-#include "nominal.h"
+#include "assemble.h"
 #include "reify.h"
 #include "viewpoint.h"
 #include <assert.h>
@@ -7,25 +7,9 @@
 static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_NOMINAL);
-  ast_t* def = nominal_def(scope, type);
+  ast_t* def = ast_data(type);
   ast_t* typename = ast_child(def);
-  ast_t* find;
-
-  switch(ast_id(def))
-  {
-    case TK_TYPEPARAM:
-    {
-      // lookup on the constraint instead
-      ast_t* constraint = ast_sibling(typename);
-      return lookup(scope, constraint, name);
-    }
-
-    default:
-    {
-      find = ast_get(def, name);
-      break;
-    }
-  }
+  ast_t* find = ast_get(def, name);
 
   if(find != NULL)
   {
@@ -49,6 +33,15 @@ static ast_t* lookup_structural(ast_t* scope, ast_t* type, const char* name)
     ast_error(type, "couldn't find '%s'", name);
 
   return find;
+}
+
+static ast_t* lookup_typeparam(ast_t* scope, ast_t* type, const char* name)
+{
+  ast_t* def = ast_data(type);
+  ast_t* constraint = ast_childidx(def, 1);
+
+  // lookup on the constraint instead
+  return lookup(scope, constraint, name);
 }
 
 ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
@@ -75,6 +68,9 @@ ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
 
     case TK_ARROW:
       return lookup(scope, ast_childidx(type, 1), name);
+
+    case TK_TYPEPARAMREF:
+      return lookup_typeparam(scope, type, name);
 
     default: {}
   }

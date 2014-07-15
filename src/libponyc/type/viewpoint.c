@@ -1,5 +1,5 @@
 #include "viewpoint.h"
-#include "nominal.h"
+#include "assemble.h"
 #include "cap.h"
 #include <assert.h>
 
@@ -8,9 +8,6 @@ static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
   ast_t* cap = ast_childidx(type, cap_index);
   token_id tcap = ast_id(cap);
   token_id rcap = cap_viewpoint(view, tcap);
-
-  if(rcap == TK_NONE)
-    return NULL;
 
   if(tcap != rcap)
   {
@@ -22,8 +19,11 @@ static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
   return type;
 }
 
-ast_t* viewpoint_cap(token_id cap, ast_t* type)
+static ast_t* viewpoint_cap(token_id cap, ast_t* type)
 {
+  if(cap == TK_TAG)
+    return NULL;
+
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
@@ -43,6 +43,7 @@ ast_t* viewpoint_cap(token_id cap, ast_t* type)
       return viewpoint_for_type(cap, type, 3);
 
     case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
       return viewpoint_for_type(cap, type, 1);
 
     default: {}
@@ -72,29 +73,11 @@ ast_t* viewpoint(ast_t* left, ast_t* right)
 
 ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 {
-
   switch(ast_id(l_type))
   {
     case TK_NOMINAL:
     {
       token_id cap = ast_id(ast_childidx(l_type, 3));
-
-      if(cap == TK_TAG)
-        return NULL;
-
-      ast_t* l_def = nominal_def(l_type, l_type);
-
-      // if the left side is a type parameter with box capability, return an
-      // arrow type to allow ref and val type arguments as well.
-      if((ast_id(l_def) == TK_TYPEPARAM) && (cap == TK_BOX))
-      {
-        // TODO: what if it is explicitly box as opposed to unspecified?
-        ast_t* arrow = ast_from(l_type, TK_ARROW);
-        ast_add(arrow, r_type);
-        ast_add(arrow, l_type);
-        return arrow;
-      }
-
       return viewpoint_cap(cap, r_type);
     }
 
@@ -114,6 +97,23 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       ast_replace(&child, arrow);
 
       return ast;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      token_id cap = ast_id(ast_childidx(l_type, 1));
+
+      // if the left side is a type parameter with no capability, return an
+      // arrow type instead.
+      if(cap == TK_NONE)
+      {
+        ast_t* arrow = ast_from(l_type, TK_ARROW);
+        ast_add(arrow, r_type);
+        ast_add(arrow, l_type);
+        return arrow;
+      }
+
+      return viewpoint_cap(cap, r_type);
     }
 
     default: {}

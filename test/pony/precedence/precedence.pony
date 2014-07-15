@@ -94,6 +94,6 @@ class Precedence is Foo, Bar
     "           something is \n here"
     "           something is
     here"
-    -3
+    /*-*/3
 
   fun tag identity[A](a: A): A^ => consume a

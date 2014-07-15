@@ -1,68 +1,42 @@
 #include "assemble.h"
-#include "nominal.h"
+#include "assemble.h"
 #include "subtype.h"
 #include "lookup.h"
+#include "../pass/names.h"
 #include <assert.h>
 
-ast_t* type_builtin(ast_t* ast, const char* name)
+static ast_t* type_base(ast_t* from, const char* package, const char* name)
 {
-  ast_t* type = ast_type(ast);
-  ast_t* builtin = nominal_builtin(ast, name);
-  bool ok = is_subtype(ast, type, builtin);
-  ast_free(builtin);
+  ast_t* ast = ast_from(from, TK_NOMINAL);
+  ast_add(ast, ast_from(from, TK_NONE)); // ephemerality
+  ast_add(ast, ast_from(from, TK_NONE)); // capability
+  ast_add(ast, ast_from(from, TK_NONE)); // typeargs
+  ast_add(ast, ast_from_string(from, name)); // name
+  ast_add(ast, ast_from_string(from, package));
 
-  if(!ok)
-    return NULL;
-
-  return type;
+  return ast;
 }
 
-ast_t* type_bool(ast_t* ast)
+ast_t* type_builtin(ast_t* from, const char* name)
 {
-  return type_builtin(ast, "Bool");
-}
+  ast_t* ast = type_base(from, NULL, name);
 
-ast_t* type_int(ast_t* ast)
-{
-  return type_builtin(ast, "Integer");
-}
-
-ast_t* type_int_or_bool(ast_t* ast)
-{
-  ast_t* type = type_bool(ast);
-
-  if(type == NULL)
-    type = type_int(ast);
-
-  if(type == NULL)
+  if(!names_nominal(from, &ast))
   {
-    ast_error(ast, "expected Bool or an integer type");
+    ast_error(from, "unable to validate '%s'", name);
+    ast_free(ast);
     return NULL;
   }
 
-  return type;
+  return ast;
 }
 
-ast_t* type_arithmetic(ast_t* ast)
+ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 {
-  return type_builtin(ast, "Arithmetic");
+  return type_base(from, package, name);
 }
 
-ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type)
-{
-  if((l_type == NULL) || (r_type == NULL))
-    return NULL;
-
-  if(is_subtype(scope, l_type, r_type))
-    return r_type;
-
-  if(is_subtype(scope, r_type, l_type))
-    return l_type;
-
-  return NULL;
-}
-
-ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
+ast_t* type_union(ast_t* l_type, ast_t* r_type)
 {
   if(l_type == NULL)
     return r_type;
@@ -70,12 +44,13 @@ ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type)
   if(r_type == NULL)
     return l_type;
 
-  ast_t* super = type_super(ast, l_type, r_type);
+  if(is_subtype(l_type, r_type))
+    return r_type;
 
-  if(super != NULL)
-    return super;
+  if(is_subtype(r_type, l_type))
+    return l_type;
 
-  ast_t* type = ast_from(ast, TK_UNIONTYPE);
+  ast_t* type = ast_from(l_type, TK_UNIONTYPE);
   ast_add(type, r_type);
   ast_add(type, l_type);
 
@@ -108,7 +83,7 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
     while(typeparam != NULL)
     {
       ast_t* typeparam_id = ast_child(typeparam);
-      ast_t* typearg = nominal_sugar(ast, NULL, ast_name(typeparam_id));
+      ast_t* typearg = type_sugar(ast, NULL, ast_name(typeparam_id));
       ast_append(typeargs, typearg);
 
       typeparam = ast_sibling(typeparam);

@@ -3,7 +3,7 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
@@ -27,7 +27,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   if(package == NULL)
   {
-    ast_error(right, "can't find package '%s'", package_name);
+    ast_error(right, "can't access package '%s'", package_name);
     return false;
   }
 
@@ -42,7 +42,7 @@ static bool expr_packageaccess(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, nominal_sugar(ast, package_name, typename));
+  ast_settype(ast, type_sugar(ast, package_name, typename));
   ast_setid(ast, TK_TYPEREF);
   return expr_typeref(ast);
 }
@@ -92,7 +92,7 @@ static bool expr_typeaccess(ast_t* ast)
       ast_free_unattached(find);
 
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, stringtab("create")));
+      ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(left, dot);
       ast_add(dot, left);
 
@@ -112,6 +112,22 @@ static bool expr_typeaccess(ast_t* ast)
 
   ast_free_unattached(find);
   return ret;
+}
+
+static bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
+{
+  // viewpoint adapted type of the field
+  ast_t* ftype = viewpoint(left, find);
+
+  if(ftype == NULL)
+  {
+    ast_error(ast, "can't read a field from a tag");
+    return false;
+  }
+
+  ast_setid(ast, t);
+  ast_settype(ast, ftype);
+  return true;
 }
 
 static bool expr_memberaccess(ast_t* ast)
@@ -141,33 +157,15 @@ static bool expr_memberaccess(ast_t* ast)
 
     case TK_FVAR:
     {
-      // viewpoint adapted type of the field
-      ast_t* ftype = viewpoint(left, find);
-
-      if(ftype == NULL)
-      {
-        ast_error(ast, "can't read a field from a tag");
+      if(!expr_fieldref(ast, left, find, TK_FVARREF))
         return false;
-      }
-
-      ast_setid(ast, TK_FVARREF);
-      ast_settype(ast, ftype);
       break;
     }
 
     case TK_FLET:
     {
-      // viewpoint adapted type of the field
-      ast_t* ftype = viewpoint(left, find);
-
-      if(ftype == NULL)
-      {
-        ast_error(ast, "can't read a field from a tag");
+      if(!expr_fieldref(ast, left, find, TK_FLETREF))
         return false;
-      }
-
-      ast_setid(ast, TK_FLETREF);
-      ast_settype(ast, ftype);
       break;
     }
 
@@ -274,7 +272,7 @@ bool expr_qualify(ast_t* ast)
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
-      if(!check_constraints(ast, typeparams, right))
+      if(!check_constraints(typeparams, right))
         return false;
 
       type = reify(type, typeparams, right);
@@ -350,7 +348,7 @@ bool expr_call(ast_t* ast)
     {
       // apply sugar
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, stringtab("apply")));
+      ast_add(dot, ast_from_string(ast, "apply"));
       ast_swap(left, dot);
       ast_add(dot, left);
 
@@ -405,7 +403,7 @@ bool expr_call(ast_t* ast)
 
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);
-        bool ok = is_subtype(ast, a_type, p_type);
+        bool ok = is_subtype(a_type, p_type);
         ast_free_unattached(a_type);
 
         if(!ok)

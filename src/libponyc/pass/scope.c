@@ -1,7 +1,17 @@
 #include "scope.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../pkg/package.h"
 #include <assert.h>
+
+static bool is_type_id(const char* s)
+{
+  int i = 0;
+
+  if(s[i] == '_')
+    i++;
+
+  return (s[i] >= 'A') && (s[i] <= 'Z');
+}
 
 /**
  * Insert a String->AST mapping into the specified scope. The string is the

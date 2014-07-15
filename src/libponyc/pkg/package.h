@@ -3,12 +3,6 @@
 
 #include "../ast/ast.h"
 
-typedef struct package_t
-{
-  const char* path;
-  size_t next_hygienic_id;
-} package_t;
-
 void package_init(const char* name);
 
 void package_paths(const char* paths);
@@ -16,6 +10,8 @@ void package_paths(const char* paths);
 ast_t* program_load(const char* path);
 
 ast_t* package_load(ast_t* from, const char* path);
+
+ast_t* package_id(ast_t* package);
 
 ast_t* package_hygienic_id(ast_t* ast);
 

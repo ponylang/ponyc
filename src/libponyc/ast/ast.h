@@ -43,16 +43,17 @@ TYPEPARAM: ID [type] [type]
 TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
-  ARROW)
+  ARROW | TYPEPARAMREF)
 cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
 UNIONTYPE: type type
 ISECTTYPE: type type
 TUPLETYPE: type type
+TYPEPARAMREF: ID [cap] [HAT]
 
 NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
-data: nominal_def, if it has been resolved
+data: definition
 
 STRUCTURAL: MEMBERS cap [HAT]
 symtab: ID -> NEW | FUN | BE
