@@ -4,14 +4,6 @@
 #include "viewpoint.h"
 #include <assert.h>
 
-static bool is_typeparam(ast_t* typeparam, ast_t* typearg)
-{
-  if(ast_id(typearg) != TK_TYPEPARAMREF)
-    return false;
-
-  return ast_data(typearg) == typeparam;
-}
-
 static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
@@ -185,8 +177,8 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
-    // TODO: is an iso a subtype of a ref/val/box for constraints? no.
-    if(!is_typeparam(typeparam, typearg) && !is_subtype(typearg, constraint))
+    // TODO: is iso/trn a subtype of a ref/val/box for constraints? no.
+    if(!is_subtype(typearg, constraint))
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");

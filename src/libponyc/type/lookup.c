@@ -5,7 +5,9 @@
 #include "viewpoint.h"
 #include <assert.h>
 
-static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
+static ast_t* lookup_base(ast_t* orig, ast_t* type, const char* name);
+
+static ast_t* lookup_nominal(ast_t* orig, ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_NOMINAL);
   ast_t* def = ast_data(type);
@@ -14,18 +16,20 @@ static ast_t* lookup_nominal(ast_t* scope, ast_t* type, const char* name)
 
   if(find != NULL)
   {
+    find = ast_dup(find);
+    flatten_thistype(&find, orig);
+
     ast_t* typeparams = ast_sibling(typename);
     ast_t* typeargs = ast_childidx(type, 2);
-    flatten_thistype(&find, type);
     find = reify(find, typeparams, typeargs);
   } else {
-    ast_error(scope, "couldn't find '%s' in '%s'", name, ast_name(typename));
+    ast_error(type, "couldn't find '%s' in '%s'", name, ast_name(typename));
   }
 
   return find;
 }
 
-static ast_t* lookup_structural(ast_t* scope, ast_t* type, const char* name)
+static ast_t* lookup_structural(ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_STRUCTURAL);
   ast_t* find = ast_get(type, name);
@@ -36,16 +40,16 @@ static ast_t* lookup_structural(ast_t* scope, ast_t* type, const char* name)
   return find;
 }
 
-static ast_t* lookup_typeparam(ast_t* scope, ast_t* type, const char* name)
+static ast_t* lookup_typeparam(ast_t* orig, ast_t* type, const char* name)
 {
   ast_t* def = ast_data(type);
   ast_t* constraint = ast_childidx(def, 1);
 
   // lookup on the constraint instead
-  return lookup(scope, constraint, name);
+  return lookup_base(orig, constraint, name);
 }
 
-ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
+static ast_t* lookup_base(ast_t* orig, ast_t* type, const char* name)
 {
   switch(ast_id(type))
   {
@@ -62,22 +66,27 @@ ast_t* lookup(ast_t* scope, ast_t* type, const char* name)
       return NULL;
 
     case TK_NOMINAL:
-      return lookup_nominal(scope, type, name);
+      return lookup_nominal(orig, type, name);
 
     case TK_STRUCTURAL:
-      return lookup_structural(scope, type, name);
+      return lookup_structural(type, name);
 
     case TK_ARROW:
-      return lookup(scope, ast_childidx(type, 1), name);
+      return lookup_base(orig, ast_childidx(type, 1), name);
 
     case TK_TYPEPARAMREF:
-      return lookup_typeparam(scope, type, name);
+      return lookup_typeparam(orig, type, name);
 
     default: {}
   }
 
   assert(0);
   return NULL;
+}
+
+ast_t* lookup(ast_t* type, const char* name)
+{
+  return lookup_base(type, type, name);
 }
 
 ast_t* lookup_tuple(ast_t* ast, int index)
