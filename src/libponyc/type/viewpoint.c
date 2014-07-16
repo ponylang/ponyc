@@ -104,13 +104,20 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       token_id cap = ast_id(ast_childidx(l_type, 1));
 
       // if the left side is a type parameter with no capability, return an
-      // arrow type instead.
+      // arrow type if the constraint is box, otherwise use the constraint cap.
       if(cap == TK_NONE)
       {
-        ast_t* arrow = ast_from(l_type, TK_ARROW);
-        ast_add(arrow, r_type);
-        ast_add(arrow, l_type);
-        return arrow;
+        ast_t* def = ast_data(l_type);
+        ast_t* constraint = ast_childidx(def, 1);
+        cap = cap_for_type(constraint);
+
+        if(cap == TK_BOX)
+        {
+          ast_t* arrow = ast_from(l_type, TK_ARROW);
+          ast_add(arrow, r_type);
+          ast_add(arrow, l_type);
+          return arrow;
+        }
       }
 
       return viewpoint_cap(cap, r_type);

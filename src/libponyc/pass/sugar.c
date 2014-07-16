@@ -1,7 +1,6 @@
 #include "sugar.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -89,6 +88,7 @@ static bool sugar_constructor(ast_t* ast)
 {
   ast_t* members = ast_childidx(ast, 4);
   ast_t* member = ast_child(members);
+  const char* create = stringtab("create");
 
   // if we have no fields and have no "create" constructor, add one
   while(member != NULL)
@@ -103,7 +103,7 @@ static bool sugar_constructor(ast_t* ast)
       {
         ast_t* id = ast_childidx(member, 1);
 
-        if(ast_name(id) == stringtab("create"))
+        if(ast_name(id) == create)
           return true;
 
         break;

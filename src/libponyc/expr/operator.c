@@ -273,11 +273,6 @@ bool expr_assign(ast_t* ast)
 
   bool ok_sub = is_subtype(a_type, l_type);
   bool ok_safe = safe_to_write(left, a_type);
-
-  // TODO: remove this
-  if(!ok_sub)
-    is_subtype(a_type, l_type);
-
   ast_free_unattached(a_type);
 
   if(!ok_sub)
