@@ -4,6 +4,7 @@
 #include "../pass/names.h"
 #include "../pass/traits.h"
 #include "../pass/expr.h"
+#include "../pass/codegen.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -274,14 +275,6 @@ static const char* id_to_string(size_t id)
   return stringtab(buffer);
 }
 
-/**
- * Initialises the search directories. This is composed of a "packages"
- * directory relative to the executable, plus a collection of directories
- * specified in the PONYPATH environment variable.
- *
- * @param name The path to the executable file, generally argv[0]. The real
- *   path will be determined from argv[0].
- */
 void package_init(const char* name)
 {
   char path[FILENAME_MAX];
@@ -340,6 +333,14 @@ ast_t* program_load(const char* path, bool parse_only)
   }
 
   return program;
+}
+
+bool program_compile(ast_t* program)
+{
+  if(ast_visit(&program, pass_codegen, NULL) != AST_OK)
+    return false;
+
+  return true;
 }
 
 ast_t* package_load(ast_t* from, const char* path, bool parse_only)
@@ -401,9 +402,6 @@ ast_t* package_hygienic_id(ast_t* ast)
   return ast_from_string(ast, id_to_string(id));
 }
 
-/**
- * Cleans up the list of search directories.
- */
 void package_done()
 {
   strlist_free(search);
