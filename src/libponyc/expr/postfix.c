@@ -8,7 +8,6 @@
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/cap.h"
-#include "../ds/stringtab.h"
 #include <assert.h>
 
 static bool expr_packageaccess(ast_t* ast)

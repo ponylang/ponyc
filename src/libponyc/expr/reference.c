@@ -4,7 +4,6 @@
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/assemble.h"
-#include "../ds/stringtab.h"
 #include <assert.h>
 
 /**

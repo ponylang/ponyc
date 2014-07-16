@@ -1,6 +1,5 @@
 #include "names.h"
 #include "../pkg/package.h"
-#include "../ds/stringtab.h"
 #include <assert.h>
 
 typedef enum

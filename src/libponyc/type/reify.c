@@ -184,6 +184,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
+    // TODO: is an iso a subtype of a ref/val/box for constraints? no.
     if(!is_typeparam(typeparam, typearg) && !is_subtype(typearg, constraint))
     {
       ast_error(typearg, "type argument is outside its constraint");

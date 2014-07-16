@@ -6,7 +6,6 @@
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
-#include "../ds/stringtab.h"
 #include <assert.h>
 
 static bool is_lvalue(ast_t* ast)
@@ -50,12 +49,12 @@ static bool binop_to_function(ast_t** astp)
 
   switch(ast_id(ast))
   {
-    case TK_EQ: method = stringtab("eq"); break;
-    case TK_NE: method = stringtab("ne"); break;
-    case TK_LT: method = stringtab("lt"); break;
-    case TK_LE: method = stringtab("le"); break;
-    case TK_GE: method = stringtab("ge"); break;
-    case TK_GT: method = stringtab("gt"); break;
+    case TK_EQ: method = "eq"; break;
+    case TK_NE: method = "ne"; break;
+    case TK_LT: method = "lt"; break;
+    case TK_LE: method = "le"; break;
+    case TK_GE: method = "ge"; break;
+    case TK_GT: method = "gt"; break;
 
     default:
       assert(0);
