@@ -7,7 +7,12 @@ solution "ponyc"
 
   buildoptions {
     "-march=native",
+    "-pthread",
     }
+
+  linkoptions {
+    "-pthread",
+  }
 
   flags {
     "ExtraWarnings",
@@ -17,6 +22,7 @@ solution "ponyc"
 
   configuration "macosx"
     buildoptions "-Qunused-arguments"
+    linkoptions "-Qunused-arguments"
 
   configuration "Debug"
     targetdir "bin/debug"
@@ -40,25 +46,25 @@ solution "ponyc"
       "-fuse-ld=gold",
       }
 
-  configuration {
-    "Release or Profile",
-    "not macosx",
-    }
-    buildoptions "-pthread"
-    linkoptions "-pthread"
-
   project "libponyc"
+    targetname "ponyc"
     kind "StaticLib"
     language "C"
-    buildoptions "-std=gnu11"
+    buildoptions {
+      "-std=gnu11",
+      "`llvm-config-3.4 --cflags`",
+      }
     files "src/libponyc/**.c"
 
   project "ponyc"
     kind "ConsoleApp"
     language "C"
     buildoptions "-std=gnu11"
+    linkoptions {
+      "`llvm-config-3.4 --ldflags --libs all`"
+      }
     files "src/ponyc/**.c"
-    links {"m", "libponyc"}
+    links "libponyc"
 
   include "utils/"
   include "test/"
