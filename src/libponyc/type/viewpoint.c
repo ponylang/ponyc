@@ -3,6 +3,57 @@
 #include "cap.h"
 #include <assert.h>
 
+static ast_t* make_arrow_type(ast_t* left, ast_t* right)
+{
+  switch(ast_id(right))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* r_left = ast_child(right);
+      ast_t* r_right = ast_sibling(r_left);
+
+      ast_t* type = ast_from(right, ast_id(right));
+      ast_add(type, make_arrow_type(left, r_right));
+      ast_add(type, make_arrow_type(left, r_left));
+      return type;
+    }
+
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+    case TK_ARROW:
+    {
+      ast_t* arrow = ast_from(left, TK_ARROW);
+      ast_add(arrow, right);
+      ast_add(arrow, left);
+      return arrow;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
+{
+  ast_t* cap = ast_childidx(type, cap_index);
+  token_id tcap = ast_id(cap);
+  token_id rcap = cap_viewpoint_lower(tcap);
+
+  if(tcap != rcap)
+  {
+    type = ast_dup(type);
+    cap = ast_childidx(type, cap_index);
+    ast_replace(&cap, ast_from(cap, rcap));
+  }
+
+  return type;
+}
+
 static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
 {
   ast_t* cap = ast_childidx(type, cap_index);
@@ -31,9 +82,10 @@ static ast_t* viewpoint_cap(token_id cap, ast_t* type)
     case TK_TUPLETYPE:
     {
       // adapt each side
-      ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
+
+      ast_t* r_type = ast_from(type, ast_id(type));
       ast_add(r_type, viewpoint_cap(cap, right));
       ast_add(r_type, viewpoint_cap(cap, left));
       return r_type;
@@ -61,12 +113,7 @@ ast_t* viewpoint(ast_t* left, ast_t* right)
   // if the left side is 'this' and has box capability, we return an arrow type
   // to allow the receiver to type check for ref and val receivers as well.
   if((ast_id(left) == TK_THIS) && (ast_id(l_type) == TK_ARROW))
-  {
-    ast_t* arrow = ast_from(l_type, TK_ARROW);
-    ast_add(arrow, r_type);
-    ast_add(arrow, ast_from(l_type, TK_THISTYPE));
-    return arrow;
-  }
+    return make_arrow_type(ast_from(l_type, TK_THISTYPE), r_type);
 
   return viewpoint_type(l_type, r_type);
 }
@@ -112,15 +159,59 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         cap = cap_for_type(constraint);
 
         if(cap == TK_BOX)
-        {
-          ast_t* arrow = ast_from(l_type, TK_ARROW);
-          ast_add(arrow, r_type);
-          ast_add(arrow, l_type);
-          return arrow;
-        }
+          return make_arrow_type(l_type, r_type);
       }
 
       return viewpoint_cap(cap, r_type);
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+ast_t* viewpoint_upper(ast_t* type)
+{
+  if(ast_id(type) == TK_ARROW)
+  {
+    ast_t* right = ast_childidx(type, 1);
+    ast_t* r_right = viewpoint_upper(right);
+    return viewpoint_cap(TK_BOX, r_right);
+  }
+
+  return type;
+}
+
+ast_t* viewpoint_lower(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // lower each side
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      ast_add(r_type, viewpoint_lower(right));
+      ast_add(r_type, viewpoint_lower(left));
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+      return viewpoint_lower_for_type(type, 3);
+
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+      return viewpoint_lower_for_type(type, 1);
+
+    case TK_ARROW:
+    {
+      ast_t* right = ast_childidx(type, 1);
+      return viewpoint_lower(right);
     }
 
     default: {}

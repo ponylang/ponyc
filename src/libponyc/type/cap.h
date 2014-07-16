@@ -18,6 +18,8 @@ token_id cap_for_type(ast_t* type);
 
 token_id cap_viewpoint(token_id view, token_id cap);
 
+token_id cap_viewpoint_lower(token_id cap);
+
 token_id cap_alias(token_id cap);
 
 token_id cap_recover(token_id cap);

@@ -4,10 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-
-//#if defined(__APPLE__)
 #include <getopt.h>
-//#endif
 
 static struct option opts[] =
 {

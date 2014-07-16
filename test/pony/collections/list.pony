@@ -8,7 +8,7 @@ class ListNode[A]
 
   fun box item(): this->A => _item
 
-  fun box next(): this->(ListNode[A] | None) => _next
+  fun box next(): (this->ListNode[A] | None) => _next
 
 class List[A]
   var _head: (ListNode[A] | None)

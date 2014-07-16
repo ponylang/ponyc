@@ -393,6 +393,7 @@ static bool sugar_structural(ast_t* ast)
 static bool sugar_arrow(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
 
   switch(ast_id(left))
   {
@@ -421,8 +422,7 @@ static bool sugar_arrow(ast_t* ast)
         ast_error(ephemeral, "can't use an ephemeral type in a viewpoint");
         return false;
       }
-
-      return true;
+      break;
     }
 
     case TK_STRUCTURAL:
@@ -432,13 +432,40 @@ static bool sugar_arrow(ast_t* ast)
     }
 
     case TK_THISTYPE:
-      return true;
+      break;
 
-    default: {}
+    default:
+      assert(0);
+      return false;
   }
 
-  assert(0);
-  return false;
+  switch(ast_id(right))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_error(right, "can't use a type expression in a viewpoint");
+      return false;
+    }
+
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+    case TK_ARROW:
+      break;
+
+    case TK_THISTYPE:
+    {
+      ast_error(right, "can't use 'this' in a viewpoint");
+      return false;
+    }
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  return true;
 }
 
 static bool sugar_thistype(ast_t* ast)

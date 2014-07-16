@@ -30,8 +30,7 @@ static token_id cap_lower_bounds(token_id a, token_id b)
     return b;
 
   // one is ref and the other is val
-  assert(0);
-  return TK_NONE;
+  return TK_TRN;
 }
 
 bool is_cap_sub_cap(token_id sub, token_id super)
@@ -183,6 +182,24 @@ token_id cap_viewpoint(token_id view, token_id cap)
       break;
     }
 
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_viewpoint_lower(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_ISO;
+    case TK_TRN: return TK_TRN;
+    case TK_REF: return TK_TRN;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_VAL;
+    case TK_TAG: return TK_TAG;
+    case TK_NONE: return TK_ISO;
     default: {}
   }
 

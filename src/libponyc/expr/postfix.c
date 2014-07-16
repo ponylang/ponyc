@@ -403,15 +403,15 @@ bool expr_call(ast_t* ast)
 
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);
-        bool ok = is_subtype(a_type, p_type);
-        ast_free_unattached(a_type);
 
-        if(!ok)
+        if(!is_subtype(a_type, p_type))
         {
           ast_error(arg, "argument not a subtype of parameter");
+          ast_free_unattached(a_type);
           return false;
         }
 
+        ast_free_unattached(a_type);
         arg = ast_sibling(arg);
         param = ast_sibling(param);
       }

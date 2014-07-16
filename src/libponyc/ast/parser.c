@@ -240,7 +240,7 @@ DEF(viewpoint);
 
 // (thistype | typeexpr | nominal | structural) {viewpoint}
 DEF(type);
-  RULE(typeexpr, nominal, structural, thistype);
+  RULE(thistype, typeexpr, nominal, structural);
   OPT BINDOP(viewpoint);
   DONE();
 

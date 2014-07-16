@@ -131,7 +131,7 @@ ast_result_t pass_scope(ast_t** astp)
 
     case TK_USE:
       if(!scope_use(ast))
-        return AST_ERROR;
+        return AST_FATAL;
       break;
 
     case TK_TYPE:

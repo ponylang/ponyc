@@ -2,6 +2,7 @@
 #include "reify.h"
 #include "cap.h"
 #include "assemble.h"
+#include "viewpoint.h"
 #include "../ast/token.h"
 #include "../pass/names.h"
 #include "../ds/stringtab.h"
@@ -321,10 +322,14 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_ARROW:
     {
-      // TODO: actually do viewpoint adaptation
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(right, super);
+      // an arrow type can be a subtype if its upper bounds is a subtype
+      ast_t* upper = viewpoint_upper(sub);
+      bool ok = is_subtype(upper, super);
+      ast_free_unattached(upper);
+
+      if(ok)
+        return true;
+      break;
     }
 
     default: {}
@@ -349,10 +354,14 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_ARROW:
     {
-      // TODO: actually do viewpoint adaptation
-      ast_t* left = ast_child(super);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(sub, right);
+      // an arrow type can be a supertype if its lower bounds is a supertype
+      ast_t* lower = viewpoint_lower(super);
+      bool ok = is_subtype(sub, lower);
+      ast_free_unattached(lower);
+
+      if(ok)
+        return true;
+      break;
     }
 
     case TK_TYPEPARAMREF:
@@ -472,11 +481,30 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_TYPEPARAMREF:
     {
+      if(ast_id(super) != TK_TYPEPARAMREF)
+        return false;
+
       if(!check_cap_and_ephemeral(sub, super))
         return false;
 
       return ast_data(sub) == ast_data(super);
     }
+
+    case TK_ARROW:
+    {
+      if(ast_id(super) != TK_ARROW)
+        return false;
+
+      ast_t* left = ast_child(sub);
+      ast_t* right = ast_sibling(left);
+      ast_t* super_left = ast_child(super);
+      ast_t* super_right = ast_sibling(super_left);
+
+      return is_eqtype(left, super_left) && is_subtype(right, super_right);
+    }
+
+    case TK_THISTYPE:
+      return ast_id(super) == TK_THISTYPE;
 
     default: {}
   }
