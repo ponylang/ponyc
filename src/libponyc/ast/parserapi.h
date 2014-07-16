@@ -289,6 +289,7 @@ ast_t* parse(source_t* source, rule_t start);
       HANDLE_ERRORS(sub_ast); \
       add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
       prev_ast = sub_ast; \
+      state.opt = true; \
     } \
     if(!state.opt && orig_ast == ast) ERROR(); \
   }

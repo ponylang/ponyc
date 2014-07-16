@@ -15,16 +15,16 @@ static int precedence(token_id id)
   switch(id)
   {
     // type operators
-    case TK_ISECTTYPE:
+    case TK_ARROW:
       return 40;
 
-    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
       return 30;
 
-    case TK_TUPLETYPE:
+    case TK_UNIONTYPE:
       return 20;
 
-    case TK_ARROW:
+    case TK_TUPLETYPE:
       return 10;
 
     // postfix operators
