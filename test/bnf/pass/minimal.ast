@@ -1,0 +1,19 @@
+(module:scope
+  (class:scope
+    (id Foo)
+    x
+    x
+    x
+    (members
+      (fun:scope
+        ref
+        (id bar)
+			  x
+			  x
+			  x
+			  x
+			  x
+		  )
+		)
+	)
+)

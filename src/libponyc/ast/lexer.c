@@ -919,7 +919,10 @@ token_t* lexer_next(lexer_t* lexer)
   while(t == NULL)
   {
     if(is_eof(lexer))
-      return make_token(lexer, TK_EOF);
+    {
+      t = make_token(lexer, TK_EOF);
+      break;
+    }
 
     symbol_line = lexer->line;
     symbol_pos = lexer->pos;
