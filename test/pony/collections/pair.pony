@@ -9,5 +9,5 @@ class Pair[A, B]
   fun box first(): this->A => a
   fun box second(): this->B => b
 
-  fun ref set_first(a': A): this->A^ => a = a'
-  fun ref set_second(b': B): this->B^ => b = b'
+  fun ref set_first(a': A): A^ => a = a'
+  fun ref set_second(b': B): B^ => b = b'

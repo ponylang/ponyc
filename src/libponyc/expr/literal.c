@@ -1,14 +1,16 @@
 #include "literal.h"
 #include "../ast/token.h"
+#include "../pass/names.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
+#include "../type/reify.h"
 #include "../type/cap.h"
 #include <assert.h>
 
 bool expr_literal(ast_t* ast, const char* name)
 {
-  ast_t* type = nominal_builtin(ast, name);
+  ast_t* type = type_builtin(ast, name);
 
   if(type == NULL)
     return false;
@@ -20,12 +22,21 @@ bool expr_literal(ast_t* ast, const char* name)
 bool expr_this(ast_t* ast)
 {
   ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
-  ast_t* typeargs = ast_childidx(type, 2);
+  ast_settype(ast, type);
+
+  ast_t* nominal;
+
+  if(ast_id(type) == TK_NOMINAL)
+    nominal = type;
+  else
+    nominal = ast_childidx(type, 1);
+
+  ast_t* typeargs = ast_childidx(nominal, 2);
   ast_t* typearg = ast_child(typeargs);
 
   while(typearg != NULL)
   {
-    if(!nominal_valid(ast, &typearg))
+    if(!expr_nominal(&typearg))
     {
       ast_error(ast, "couldn't create a type for 'this'");
       ast_free(type);
@@ -35,14 +46,13 @@ bool expr_this(ast_t* ast)
     typearg = ast_sibling(typearg);
   }
 
-  if(!nominal_valid(ast, &type))
+  if(!expr_nominal(&nominal))
   {
     ast_error(ast, "couldn't create a type for 'this'");
     ast_free(type);
     return false;
   }
 
-  ast_settype(ast, type);
   return true;
 }
 
@@ -112,6 +122,25 @@ bool expr_compiler_intrinsic(ast_t* ast)
   return true;
 }
 
+bool expr_nominal(ast_t** astp)
+{
+  // resolve typealias/typeparamref
+  if(!names_nominal(*astp, astp))
+    return false;
+
+  ast_t* ast = *astp;
+
+  if(ast_id(ast) != TK_NOMINAL)
+    return true;
+
+  // if still nominal, check constraints
+  ast_t* def = ast_data(ast);
+  ast_t* typeparams = ast_childidx(def, 1);
+  ast_t* typeargs = ast_childidx(ast, 2);
+
+  return check_constraints(typeparams, typeargs);
+}
+
 bool expr_fun(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 4);
@@ -158,7 +187,7 @@ bool expr_fun(ast_t* ast)
 
   if(ast_id(ast) == TK_FUN)
   {
-    if(!is_subtype(ast, body_type, type))
+    if(!is_subtype(body_type, type))
     {
       ast_t* last = ast_childlast(body);
       ast_error(type, "function body isn't a subtype of the result type");
@@ -166,20 +195,20 @@ bool expr_fun(ast_t* ast)
       return false;
     }
 
-    if(!is_trait && !is_eqtype(ast, body_type, type))
+    if(!is_trait && !is_eqtype(body_type, type))
     {
       // it's ok to return a literal where an arithmetic type is expected
       if(is_builtin(body_type, "IntLiteral"))
       {
-        ast_t* math = nominal_builtin(ast, "Arithmetic");
-        bool ok = is_subtype(ast, type, math);
+        ast_t* math = type_builtin(ast, "Arithmetic");
+        bool ok = is_subtype(type, math);
         ast_free(math);
 
         if(ok)
           return true;
       } else if(is_builtin(body_type, "FloatLiteral")) {
-        ast_t* math = nominal_builtin(ast, "Float");
-        bool ok = is_subtype(ast, type, math);
+        ast_t* math = type_builtin(ast, "Float");
+        bool ok = is_subtype(type, math);
         ast_free(math);
 
         if(ok)

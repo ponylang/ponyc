@@ -159,6 +159,7 @@ typedef enum token_id
   TK_REFERENCE,
   TK_PACKAGEREF,
   TK_TYPEREF,
+  TK_TYPEPARAMREF,
   TK_NEWREF,
   TK_BEREF,
   TK_FUNREF,
@@ -235,9 +236,8 @@ void token_set_id(token_t* token, token_id id);
 
 /** Set the given token's literal value.
  * Only valid for TK_STRING and TK_ID tokens.
- * The given string must be valid for the lifespan of the created token and
- * will not be copied or deleted. It is assumed that this will either be a
- * literal or a stringtab entry.
+ * The given string will be interned and hence only needs to be valid for the
+ * duration of this call.
  */
 void token_set_string(token_t* token, const char* value);
 

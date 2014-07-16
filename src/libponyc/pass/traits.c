@@ -2,7 +2,7 @@
 #include "../ast/token.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include <assert.h>
 
 typedef enum
@@ -29,7 +29,7 @@ static bool attach_method(ast_t* type, ast_t* method)
   if(existing != NULL)
   {
     // check our version is a subtype of the supplied version
-    if(!is_subtype(type, existing, method))
+    if(!is_subtype(existing, method))
     {
       ast_error(existing, "existing method is not a subtype of trait method");
       ast_error(method, "trait method is here");
@@ -85,7 +85,7 @@ static bool attach_traits(ast_t* def)
 
   while(trait != NULL)
   {
-    ast_t* trait_def = nominal_def(trait, trait);
+    ast_t* trait_def = ast_data(trait);
 
     if(ast_id(trait_def) != TK_TRAIT)
     {

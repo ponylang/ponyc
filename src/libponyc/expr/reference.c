@@ -3,7 +3,7 @@
 #include "postfix.h"
 #include "../ast/token.h"
 #include "../type/subtype.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../type/assemble.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
@@ -49,7 +49,7 @@ bool expr_field(ast_t* ast)
     // initialiser type must match declared type
     ast_t* init_type = ast_type(init);
 
-    if(!is_subtype(ast, init_type, type))
+    if(!is_subtype(init_type, type))
     {
       ast_error(init,
         "field/param initialiser is not a subtype of the field/param type");
@@ -74,17 +74,17 @@ bool expr_typeref(ast_t* ast)
 
     case TK_DOT:
       // has to be valid
-      return nominal_valid(ast, &type);
+      return expr_nominal(&type);
 
     case TK_CALL:
     {
       // has to be valid
-      if(!nominal_valid(ast, &type))
+      if(!expr_nominal(&type))
         return false;
 
       // transform to a default constructor
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, stringtab("create")));
+      ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
@@ -94,12 +94,12 @@ bool expr_typeref(ast_t* ast)
     default:
     {
       // has to be valid
-      if(!nominal_valid(ast, &type))
+      if(!expr_nominal(&type))
         return false;
 
       // transform to a default constructor
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, stringtab("create")));
+      ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
@@ -155,7 +155,7 @@ bool expr_reference(ast_t* ast)
       // type arguments.
       ast_t* id = ast_child(def);
       const char* name = ast_name(id);
-      ast_t* type = nominal_sugar(ast, NULL, name);
+      ast_t* type = type_sugar(ast, NULL, name);
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 

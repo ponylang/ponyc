@@ -1,27 +1,4 @@
-ref: transparent
-box: translucent
-tag: opaque
-
-inferring type arguments based on arguments can be done later
-  when done, more function types can be subtypes of other function types
-
-what about capabilities for typeargs?
-to allow any cap:
-  it could be tag, so can't read or write
-  it could be mut, so can't send
-  it could be iso, so can't alias as our own type
-if we want to read
-  can't be tag
-if we want to write
-  can't be imm, box, tag
-if we want to send
-  can't be trn, mut, box
-could specify a set of capabilities?
-  A: Foo {iso, tag}
-simpler: just make it a subtype relationship
-  then type check the class again with the typeargs
-  mark methods that don't typecheck with those typeargs as unavailable
-  can use this to supply some functions only when certain conditions are met
+replace package in nominal types with some global id?
 
 implicit recover?
   for any expression that accesses only sendable identifiers

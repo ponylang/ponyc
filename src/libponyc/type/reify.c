@@ -1,39 +1,31 @@
 #include "reify.h"
-#include "nominal.h"
 #include "subtype.h"
 #include "../ast/token.h"
 #include "viewpoint.h"
 #include <assert.h>
 
-static bool is_typeparam(ast_t* scope, ast_t* typeparam, ast_t* typearg)
+static bool is_typeparam(ast_t* typeparam, ast_t* typearg)
 {
-  if(ast_id(typearg) != TK_NOMINAL)
+  if(ast_id(typearg) != TK_TYPEPARAMREF)
     return false;
 
-  ast_t* def = nominal_def(scope, typearg);
-  return def == typeparam;
+  return ast_data(typearg) == typeparam;
 }
 
-static bool reify_nominal(ast_t** astp, ast_t* typeparam, ast_t* typearg)
+static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 {
   ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_NOMINAL);
+  assert(ast_id(ast) == TK_TYPEPARAMREF);
+  ast_t* ref_name = ast_child(ast);
   ast_t* param_name = ast_child(typeparam);
-  ast_t* package = ast_child(ast);
-  ast_t* name = ast_sibling(package);
 
-  if(ast_id(package) != TK_NONE)
+  if(ast_name(ref_name) != ast_name(param_name))
     return false;
 
-  if(ast_name(param_name) != ast_name(name))
-    return false;
+  typearg = ast_dup(typearg);
+  reify_cap_and_ephemeral(ast, &typearg);
 
-  // keep the cap and ephemerality
-  nominal_applycap(ast, &typearg);
-
-  // swap in place
   ast_replace(astp, typearg);
-
   return true;
 }
 
@@ -47,8 +39,8 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
 
   switch(ast_id(ast))
   {
-    case TK_NOMINAL:
-      if(reify_nominal(astp, typeparam, typearg))
+    case TK_TYPEPARAMREF:
+      if(reify_typeparamref(astp, typeparam, typearg))
         return true;
       break;
 
@@ -138,7 +130,46 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   return r_ast;
 }
 
-bool check_constraints(ast_t* scope, ast_t* typeparams, ast_t* typeargs)
+void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
+{
+  int index;
+
+  switch(ast_id(source))
+  {
+    case TK_NOMINAL: index = 3; break;
+    case TK_STRUCTURAL: index = 1; break;
+    case TK_TYPEPARAMREF: index = 1; break;
+    default: assert(0);
+  }
+
+  ast_t* cap = ast_childidx(source, index);
+  ast_t* ephemeral = ast_sibling(cap);
+
+  if((ast_id(cap) == TK_NONE) && (ast_id(ephemeral) == TK_NONE))
+    return;
+
+  switch(ast_id(*target))
+  {
+    case TK_NOMINAL: index = 3; break;
+    case TK_STRUCTURAL: index = 1; break;
+    case TK_TYPEPARAMREF: index = 1; break;
+    default: return;
+  }
+
+  ast_t* ast = ast_dup(*target);
+  ast_t* tcap = ast_childidx(ast, index);
+  ast_t* tephemeral = ast_sibling(tcap);
+
+  if(ast_id(cap) != TK_NONE)
+    ast_replace(&tcap, cap);
+
+  if(ast_id(ephemeral) != TK_NONE)
+    ast_replace(&tephemeral, ephemeral);
+
+  *target = ast;
+}
+
+bool check_constraints(ast_t* typeparams, ast_t* typeargs)
 {
   // reify the type parameters with the typeargs
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
@@ -154,10 +185,7 @@ bool check_constraints(ast_t* scope, ast_t* typeparams, ast_t* typeargs)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
-    // compare the typearg to the typeparam and constraint
-    if(!is_typeparam(scope, typeparam, typearg) &&
-      !is_subtype(scope, typearg, constraint)
-      )
+    if(!is_typeparam(typeparam, typearg) && !is_subtype(typearg, constraint))
     {
       ast_error(typearg, "type argument is outside its constraint");
       ast_error(typeparam, "constraint is here");

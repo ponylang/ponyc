@@ -1,7 +1,7 @@
 #include "package.h"
 #include "../pass/sugar.h"
 #include "../pass/scope.h"
-#include "../pass/valid.h"
+#include "../pass/names.h"
 #include "../pass/traits.h"
 #include "../pass/expr.h"
 #include "../ast/source.h"
@@ -20,6 +20,13 @@
 #include <assert.h>
 
 #define EXTENSION ".pony"
+
+typedef struct package_t
+{
+  const char* path;
+  const char* id;
+  size_t next_hygienic_id;
+} package_t;
 
 static strlist_t* search;
 
@@ -210,7 +217,8 @@ static const char* find_path(ast_t* from, const char* path)
   } else {
     // try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
-    result = try_path(ast_data(from), path);
+    package_t* pkg = ast_data(from);
+    result = try_path(pkg->path, path);
 
     if(result != NULL)
       return result;
@@ -238,13 +246,10 @@ static bool do_passes(ast_t* ast)
   if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
 
-  // remove hygienic identifiers
-  ast_clear(ast);
-
   if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
     return false;
 
-  if(ast_visit(&ast, NULL, pass_valid) != AST_OK)
+  if(ast_visit(&ast, NULL, pass_names) != AST_OK)
     return false;
 
   if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
@@ -260,6 +265,13 @@ static bool do_passes(ast_t* ast)
     return false;
 
   return true;
+}
+
+static const char* id_to_string(size_t id)
+{
+  char buffer[32];
+  snprintf(buffer, 32, "$%zu", id);
+  return stringtab(buffer);
 }
 
 /**
@@ -344,11 +356,19 @@ ast_t* package_load(ast_t* from, const char* path, bool parse_only)
     return package;
 
   package = ast_blank(TK_PACKAGE);
-  assert(ast_data(package) == NULL);
-  ast_setdata(package, (void*)name);
+  uintptr_t pkg_id = (uintptr_t)ast_data(program);
+  ast_setdata(program, (void*)(pkg_id + 1));
+
+  package_t* pkg = malloc(sizeof(package_t));
+  pkg->path = name;
+  pkg->id = id_to_string(pkg_id);
+  pkg->next_hygienic_id = 0;
+  ast_setdata(package, pkg);
+
   ast_scope(package);
   ast_add(program, package);
-  ast_set(program, name, package);
+  ast_set(program, pkg->path, package);
+  ast_set(program, pkg->id, package);
 
   printf("=== Building %s ===\n", name);
 
@@ -362,6 +382,23 @@ ast_t* package_load(ast_t* from, const char* path, bool parse_only)
   }
 
   return package;
+}
+
+ast_t* package_id(ast_t* package)
+{
+  package_t* pkg = ast_data(package);
+  return ast_from_string(package, pkg->id);
+}
+
+ast_t* package_hygienic_id(ast_t* ast)
+{
+  ast_t* package = ast_nearest(ast, TK_PACKAGE);
+  assert(package != NULL);
+
+  package_t* pkg = ast_data(package);
+  size_t id = pkg->next_hygienic_id++;
+
+  return ast_from_string(ast, id_to_string(id));
 }
 
 /**

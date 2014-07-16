@@ -4,45 +4,21 @@
 #include "../ast/ast.h"
 
 /**
- * If the ast node is a subtype of the named type, return the ast for the type
- * of the ast node. Otherwise, return NULL.
+ * Creates an AST node for a builtin type
+ * Validates the type.
  */
-ast_t* type_builtin(ast_t* ast, const char* name);
+ast_t* type_builtin(ast_t* from, const char* name);
 
 /**
- * If the ast node is a subtype of Bool, return the ast for the type of the ast
- * node. Otherwise, return NULL.
+ * Creates an AST node for a package and type.
+ * Does not validate the type.
  */
-ast_t* type_bool(ast_t* ast);
-
-/**
- * If the ast node is a subtype of Integer, return the ast for the type of the
- * ast node. Otherwise, return NULL.
- */
-ast_t* type_int(ast_t* ast);
-
-/**
- * If the ast node is a subtype of Bool or a subtype of Integer, return the ast
- * for the type of the ast node. Otherwise, return NULL.
- */
-ast_t* type_int_or_bool(ast_t* ast);
-
-/**
- * If the ast node is a subtype of Arithmetic, return the ast for the type of
- * the ast node. Otherwise, return NULL.
- */
-ast_t* type_arithmetic(ast_t* ast);
-
-/**
- * If one of the two types is a super type of the other, return it. Otherwise,
- * return NULL.
- */
-ast_t* type_super(ast_t* scope, ast_t* l_type, ast_t* r_type);
+ast_t* type_sugar(ast_t* from, const char* package, const char* name);
 
 /**
  * Build a type that is the union of these two types.
  */
-ast_t* type_union(ast_t* ast, ast_t* l_type, ast_t* r_type);
+ast_t* type_union(ast_t* l_type, ast_t* r_type);
 
 /**
  * Build a type to describe the current class/actor.

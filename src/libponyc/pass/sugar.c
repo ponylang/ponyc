@@ -1,7 +1,7 @@
 #include "sugar.h"
 #include "../ast/token.h"
+#include "../pkg/package.h"
 #include "../type/assemble.h"
-#include "../type/nominal.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -30,7 +30,7 @@ static ast_t* make_ref(ast_t* ast, ast_t* id)
 static ast_t* make_dot(ast_t* ast, ast_t* left, const char* right)
 {
   ast_t* dot = ast_from(ast, TK_DOT);
-  ast_t* r_right = ast_from_string(ast, stringtab(right));
+  ast_t* r_right = ast_from_string(ast, right);
   ast_add(dot, r_right);
   ast_add(dot, left);
   return dot;
@@ -69,7 +69,7 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   ast_add(create, type); // result
   ast_add(create, ast_from(ast, TK_NONE)); // params
   ast_add(create, ast_from(ast, TK_NONE)); // typeparams
-  ast_add(create, ast_from_string(ast, stringtab("create"))); // name
+  ast_add(create, ast_from_string(ast, "create")); // name
   ast_add(create, ast_from(ast, TK_NONE)); // cap
 
   return create;
@@ -115,7 +115,7 @@ static bool sugar_constructor(ast_t* ast)
     member = ast_sibling(member);
   }
 
-  ast_add(members, make_create(ast, type_for_this(ast, TK_REF, true)));
+  ast_add(members, make_create(ast, type_for_this(ast, TK_VAL, false)));
   return true;
 }
 
@@ -148,6 +148,44 @@ static bool sugar_traits(ast_t* ast)
     }
 
     trait = ast_sibling(trait);
+  }
+
+  return true;
+}
+
+static bool sugar_type(ast_t* ast)
+{
+  ast_t* typeparams = ast_childidx(ast, 1);
+  ast_t* cap = ast_sibling(typeparams);
+  ast_t* types = ast_sibling(cap);
+  ast_t* members = ast_sibling(types);
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "a type alias can't have type parameters");
+    return false;
+  }
+
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "a type alias can't specify a default capability");
+    return false;
+  }
+
+  ast_t* alias = ast_child(types);
+
+  if((alias == NULL) && (ast_sibling(alias) != NULL))
+  {
+    ast_error(types, "a type alias must alias to a single type");
+    return false;
+  }
+
+  ast_t* member = ast_child(members);
+
+  if(member != NULL)
+  {
+    ast_error(member, "a type alias can't have members");
+    return false;
   }
 
   return true;
@@ -205,6 +243,17 @@ static bool sugar_typeparam(ast_t* ast)
 
   if(ast_id(constraint) == TK_NONE)
     ast_replace(&constraint, make_structural(ast));
+
+  return true;
+}
+
+static bool sugar_field(ast_t* ast)
+{
+  if(ast_nearest(ast, TK_TRAIT) != NULL)
+  {
+    ast_error(ast, "can't have a field in a trait");
+    return false;
+  }
 
   return true;
 }
@@ -286,7 +335,7 @@ static bool sugar_fun(ast_t* ast)
     return true;
 
   // set the return type to None
-  ast_t* type = nominal_sugar(ast, NULL, stringtab("None"));
+  ast_t* type = type_sugar(ast, NULL, "None");
   ast_replace(&result, type);
 
   // add None at the end of the body, if there is one
@@ -295,9 +344,7 @@ static bool sugar_fun(ast_t* ast)
   if(ast_id(body) == TK_SEQ)
   {
     ast_t* last = ast_childlast(body);
-    ast_t* ref = ast_from(last, TK_REFERENCE);
-    ast_t* none = ast_from_string(last, stringtab("None"));
-    ast_add(ref, none);
+    ast_t* ref = make_ref(ast, ast_from_string(last, "None"));
     ast_append(body, ref);
   }
 
@@ -326,18 +373,19 @@ static bool sugar_structural(ast_t* ast)
 {
   ast_t* cap = ast_childidx(ast, 1);
 
-  if(ast_id(cap) != TK_NONE)
-    return true;
+  if(ast_id(cap) == TK_NONE)
+  {
+    token_id defcap;
 
-  token_id def_cap;
+    // if it's a typeparam, default capability is tag, otherwise it is ref
+    if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
+      defcap = TK_TAG;
+    else
+      defcap = TK_REF;
 
-  // if it's a typeparam, default capability is tag, otherwise it is ref
-  if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
-    def_cap = TK_TAG;
-  else
-    def_cap = TK_REF;
+    ast_setid(cap, defcap);
+  }
 
-  ast_replace(&cap, ast_from(ast, def_cap));
   return true;
 }
 
@@ -392,6 +440,43 @@ static bool sugar_arrow(ast_t* ast)
   return false;
 }
 
+static bool sugar_thistype(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  if(ast_id(parent) != TK_ARROW)
+  {
+    ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
+    return false;
+  }
+
+  if((ast_id(ast_parent(parent)) == TK_ARROW) || (ast_child(parent) != ast))
+  {
+    ast_error(ast, "when using 'this' for viewpoint it must come first");
+    return false;
+  }
+
+  if(ast_enclosing_method(ast) == NULL)
+  {
+    ast_error(ast, "can only use 'this' for a viewpoint in a method");
+    return false;
+  }
+
+  return true;
+}
+
+static bool sugar_ephemeral(ast_t* ast)
+{
+  if(ast_enclosing_method_type(ast) == NULL)
+  {
+    ast_error(ast,
+      "ephemeral types can only appear in function return types");
+    return false;
+  }
+
+  return true;
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
@@ -427,9 +512,7 @@ static bool sugar_for(ast_t** astp)
   ast_t* for_body = ast_sibling(for_iter);
   ast_t* for_else = ast_sibling(for_body);
 
-  ast_t* id = ast_hygienic_id(ast);
-  const char* name = ast_name(id);
-
+  ast_t* id = package_hygienic_id(ast);
   ast_t* body = ast_from(ast, TK_SEQ);
   ast_scope(body);
 
@@ -462,13 +545,6 @@ static bool sugar_for(ast_t** astp)
   ast_add(seq, iter);
 
   ast_replace(astp, seq);
-
-  if(!ast_set(seq, name, id))
-  {
-    assert(0);
-    return false;
-  }
-
   return true;
 }
 
@@ -566,6 +642,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
   switch(ast_id(ast))
   {
+    case TK_TYPE:
+      if(!sugar_type(ast))
+        return AST_ERROR;
+      break;
+
     case TK_CLASS:
       if(!sugar_class(ast))
         return AST_ERROR;
@@ -583,6 +664,12 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_TYPEPARAM:
       if(!sugar_typeparam(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_FVAR:
+    case TK_FLET:
+      if(!sugar_field(ast))
         return AST_ERROR;
       break;
 
@@ -613,6 +700,16 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_ARROW:
       if(!sugar_arrow(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_THISTYPE:
+      if(!sugar_thistype(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_HAT:
+      if(!sugar_ephemeral(ast))
         return AST_ERROR;
       break;
 

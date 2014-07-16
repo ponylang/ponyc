@@ -14,6 +14,11 @@ ast_result_t pass_expr(ast_t** astp)
 
   switch(ast_id(ast))
   {
+    case TK_NOMINAL:
+      if(!expr_nominal(astp))
+        return AST_FATAL;
+      break;
+
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
@@ -62,14 +67,16 @@ ast_result_t pass_expr(ast_t** astp)
     case TK_DIVIDE:
     case TK_MOD:
     case TK_PLUS:
+    case TK_MINUS:
       if(!expr_arithmetic(ast))
         return AST_FATAL;
       break;
 
-    case TK_MINUS:
-      if(!expr_minus(ast))
-        return AST_FATAL;
-      break;
+    // TODO:
+    // case TK_MINUS:
+    //   if(!expr_minus(ast))
+    //     return AST_FATAL;
+    //   break;
 
     case TK_LSHIFT:
     case TK_RSHIFT:

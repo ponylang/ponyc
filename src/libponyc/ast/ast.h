@@ -11,7 +11,7 @@ PROGRAM: {PACKAGE}
 symtab: path -> PACKAGE
 
 PACKAGE: {MODULE}
-data: path
+data: package_t
 symtab: ID -> TYPE | TRAIT | CLASS | ACTOR
 
 MODULE: {USE} {TYPE | TRAIT | CLASS | ACTOR}
@@ -44,16 +44,17 @@ TYPEPARAM: ID [type] [type]
 TYPES: {type}
 
 type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
-  ARROW)
+  ARROW | TYPEPARAMREF)
 cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
 UNIONTYPE: type type
 ISECTTYPE: type type
 TUPLETYPE: type type
+TYPEPARAMREF: ID [cap] [HAT]
 
 NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
-data: nominal_def, if it has been resolved
+data: definition
 
 STRUCTURAL: MEMBERS cap [HAT]
 symtab: ID -> NEW | FUN | BE
@@ -200,7 +201,6 @@ ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
 ast_t* ast_from(ast_t* ast, token_id id);
 ast_t* ast_from_string(ast_t* ast, const char* id);
-ast_t* ast_hygienic_id(ast_t* ast);
 ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
@@ -226,6 +226,7 @@ ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
+ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);

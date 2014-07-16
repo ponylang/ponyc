@@ -3,26 +3,26 @@
 #include "../ast/token.h"
 #include <assert.h>
 
-static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
+static ast_t* alias_for_type(ast_t* type, int index)
 {
-  ast_t* ephemeral = ast_childidx(type, eph_index);
+  ast_t* ephemeral = ast_childidx(type, index + 1);
 
   if(ast_id(ephemeral) == TK_HAT)
   {
     // ephemeral capability becomes non-ephemeral
     type = ast_dup(type);
-    ephemeral = ast_childidx(type, eph_index);
+    ephemeral = ast_childidx(type, index + 1);
     ast_replace(&ephemeral, ast_from(type, TK_NONE));
   } else {
     // non-ephemeral capability gets aliased
-    ast_t* cap = ast_childidx(type, cap_index);
+    ast_t* cap = ast_childidx(type, index);
     token_id tcap = ast_id(cap);
     token_id acap = cap_alias(tcap);
 
     if(tcap != acap)
     {
       type = ast_dup(type);
-      cap = ast_childidx(type, cap_index);
+      cap = ast_childidx(type, index);
       ast_replace(&cap, ast_from(type, acap));
     }
   }
@@ -30,16 +30,16 @@ static ast_t* alias_for_type(ast_t* type, int cap_index, int eph_index)
   return type;
 }
 
-static ast_t* recover_for_type(ast_t* type, int cap_index)
+static ast_t* recover_for_type(ast_t* type, int index)
 {
-  ast_t* cap = ast_childidx(type, cap_index);
+  ast_t* cap = ast_childidx(type, index);
   token_id tcap = ast_id(cap);
   token_id rcap = cap_recover(tcap);
 
   if(tcap != rcap)
   {
     type = ast_dup(type);
-    cap = ast_childidx(type, cap_index);
+    cap = ast_childidx(type, index);
     ast_replace(&cap, ast_from(cap, rcap));
   }
 
@@ -64,10 +64,11 @@ ast_t* alias(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return alias_for_type(type, 3, 4);
+      return alias_for_type(type, 3);
 
     case TK_STRUCTURAL:
-      return alias_for_type(type, 1, 2);
+    case TK_TYPEPARAMREF:
+      return alias_for_type(type, 1);
 
     case TK_ARROW:
     {
@@ -114,6 +115,7 @@ ast_t* consume_type(ast_t* type)
     }
 
     case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
     {
       type = ast_dup(type);
       ast_t* ephemeral = ast_childidx(type, 2);
@@ -161,6 +163,7 @@ ast_t* recover_type(ast_t* type)
       return recover_for_type(type, 3);
 
     case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
       return recover_for_type(type, 1);
 
     case TK_ARROW:

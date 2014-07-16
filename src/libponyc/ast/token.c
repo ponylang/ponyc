@@ -1,5 +1,6 @@
 #include "token.h"
 #include "lexer.h"
+#include "../ds/stringtab.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,7 +164,7 @@ void token_set_string(token_t* token, const char* value)
   assert(token != NULL);
   assert(token->id == TK_STRING || token->id == TK_ID);
   assert(value != NULL);
-  token->string = value;
+  token->string = stringtab(value);
 }
 
 

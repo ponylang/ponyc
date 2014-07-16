@@ -182,6 +182,7 @@ ast_t* ast_token(token_t* t)
 
 ast_t* ast_from(ast_t* ast, token_id id)
 {
+  assert(ast != NULL);
   return ast_token(token_dup_new_id(ast->t, id));
 }
 
@@ -194,22 +195,6 @@ ast_t* ast_from_string(ast_t* ast, const char* id)
   token_set_id(t, TK_ID);
   token_set_string(t, id);
   return ast_token(t);
-//  return NULL;//TODO ast_token(token_from_string(ast->t, id));
-}
-
-ast_t* ast_hygienic_id(ast_t* ast)
-{
-  char buffer[32];
-  const char* id;
-  int i = 0;
-
-  do
-  {
-    snprintf(buffer, sizeof(buffer), "$%d", i++);
-    id = stringtab(buffer);
-  } while(ast_get(ast, buffer) != NULL);
-
-  return ast_from_string(ast, id);
 }
 
 ast_t* ast_dup(ast_t* ast)
@@ -474,6 +459,38 @@ ast_t* ast_enclosing_loop(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_constraint(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(token_get_id(ast->t))
+    {
+      case TK_STRUCTURAL:
+        // if we're inside a structural type, we aren't a nominal constraint
+        return NULL;
+
+      case TK_TYPEPARAM:
+      {
+        // only if we are in the constraint
+        ast_t* constraint = ast_childidx(ast, 1);
+
+        if(constraint == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_parent(ast_t* ast)
 {
   return ast->parent;
@@ -551,8 +568,11 @@ void* ast_get(ast_t* ast, const char* name)
    */
   do
   {
+    //printf("Ast %s\n", token_print(ast->t));
+
     if(ast->symtab != NULL)
     {
+      //printf("Have symtab\n");
       void* value = symtab_get(ast->symtab, name);
 
       if(value != NULL)
@@ -737,6 +757,10 @@ void ast_free(ast_t* ast)
 
   switch(token_get_id(ast->t))
   {
+    case TK_PACKAGE:
+      free(ast->data);
+      break;
+
     case TK_MODULE:
       source_close(ast->data);
       break;

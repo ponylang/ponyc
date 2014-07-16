@@ -2,7 +2,7 @@
 #include "literal.h"
 #include "postfix.h"
 #include "../ast/token.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
@@ -93,18 +93,16 @@ bool expr_identity(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
-
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(type_super(ast, l_type, r_type) == NULL)
+  if(!is_id_compatible(l_type, r_type))
   {
-    // TODO: allow this for unrelated structural types?
     ast_error(ast, "left and right side must have related types");
     return false;
   }
 
-  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  ast_settype(ast, type_builtin(ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
@@ -114,18 +112,19 @@ bool expr_compare(ast_t** astp)
   ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
 
-  ast_t* l_type = type_arithmetic(left);
-  ast_t* r_type = type_arithmetic(right);
-  ast_t* type = type_super(ast, l_type, r_type);
-
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
-
-  if(type == NULL)
+  if(!is_arithmetic(l_type))
     return binop_to_function(astp);
 
-  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  if(!is_math_compatible(l_type, r_type))
+  {
+    ast_error(ast, "arithmetic comparison must be on the same type");
+    return false;
+  }
+
+  ast_settype(ast, type_builtin(ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
@@ -135,18 +134,19 @@ bool expr_order(ast_t** astp)
   ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
 
-  ast_t* l_type = type_arithmetic(left);
-  ast_t* r_type = type_arithmetic(right);
-  ast_t* type = type_super(ast, l_type, r_type);
-
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
-
-  if(type == NULL)
+  if(!is_arithmetic(l_type))
     return binop_to_function(astp);
 
-  ast_settype(ast, nominal_builtin(ast, "Bool"));
+  if(!is_math_compatible(l_type, r_type))
+  {
+    ast_error(ast, "arithmetic ordering must be on the same type");
+    return false;
+  }
+
+  ast_settype(ast, type_builtin(ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
@@ -155,111 +155,91 @@ bool expr_arithmetic(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
 
-  ast_t* l_type = type_arithmetic(left);
-  ast_t* r_type = type_arithmetic(right);
-  ast_t* type = type_super(ast, l_type, r_type);
+  if(!is_arithmetic(l_type) || !is_math_compatible(l_type, r_type))
+  {
+    ast_error(ast, "left and right side must be the same arithmetic type");
+    return false;
+  }
 
-  if(type == NULL)
-    ast_error(ast, "left and right side must have related arithmetic types");
-  else
-    ast_settype(ast, type);
-
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
+  ast_settype(ast, l_type);
   ast_inheriterror(ast);
-
-  return (type != NULL);
+  return true;
 }
 
 bool expr_minus(ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* l_type = type_arithmetic(left);
-  ast_t* r_type = NULL;
-  ast_t* type;
+  ast_t* child = ast_child(ast);
+  ast_t* type = ast_type(child);
 
-  if(right != NULL)
+  if(!is_arithmetic(type))
   {
-    r_type = type_arithmetic(right);
-    type = type_super(ast, l_type, r_type);
-
-    if(type == NULL)
-      ast_error(ast, "left and right side must have related arithmetic types");
-  } else {
-    type = l_type;
-
-    if(type == NULL)
-      ast_error(ast, "must have an arithmetic type");
+    ast_error(ast, "unary minus is only allowed on arithmetic types");
+    return false;
   }
 
-  if(type != NULL)
-    ast_settype(ast, type);
-
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
+  ast_settype(ast, type);
   ast_inheriterror(ast);
-
-  return (type != NULL);
+  return true;
 }
 
 bool expr_shift(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
 
-  ast_t* l_type = type_int(left);
-  ast_t* r_type = type_int(right);
-
-  if((l_type == NULL) || (r_type == NULL))
+  if(!is_integer(l_type) || !is_integer(r_type))
   {
-    ast_error(ast,
-      "left and right side must have integer types");
-  } else {
-    ast_settype(ast, l_type);
+    ast_error(ast, "shift is only allowed on integer types");
+    return false;
   }
 
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
+  ast_settype(ast, l_type);
   ast_inheriterror(ast);
-
-  return (l_type != NULL) && (r_type != NULL);
+  return true;
 }
 
 bool expr_logical(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
 
-  ast_t* l_type = type_int_or_bool(left);
-  ast_t* r_type = type_int_or_bool(right);
-  ast_t* type = type_super(ast, l_type, r_type);
-
-  if(type == NULL)
+  if(is_bool(l_type) && is_bool(r_type))
   {
-    ast_error(ast,
-      "left and right side must have related integer or boolean types");
+    ast_settype(ast, type_builtin(ast, "Bool"));
+  } else if(is_integer(l_type) && is_integer(r_type)) {
+    ast_settype(ast, l_type);
   } else {
-    ast_settype(ast, type);
+    ast_error(ast,
+      "left and right side must be of boolean or integer type");
+    return false;
   }
 
-  ast_free_unattached(l_type);
-  ast_free_unattached(r_type);
   ast_inheriterror(ast);
-
-  return (type != NULL);
+  return true;
 }
 
 bool expr_not(ast_t* ast)
 {
   ast_t* child = ast_child(ast);
-  ast_t* type = type_int_or_bool(child);
+  ast_t* type = ast_type(child);
 
-  if(type == NULL)
+  if(is_bool(type))
+  {
+    ast_settype(ast, type_builtin(ast, "Bool"));
+  } else if(is_arithmetic(type)) {
+    ast_settype(ast, type);
+  } else {
+    ast_error(ast, "not is only allowed on boolean or arithmetic types");
     return false;
+  }
 
-  ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
 }
@@ -292,8 +272,13 @@ bool expr_assign(ast_t* ast)
     return type_for_idseq(ast_child(left), a_type);
   }
 
-  bool ok_sub = is_subtype(ast, a_type, l_type);
+  bool ok_sub = is_subtype(a_type, l_type);
   bool ok_safe = safe_to_write(left, a_type);
+
+  // TODO: remove this
+  if(!ok_sub)
+    is_subtype(a_type, l_type);
+
   ast_free_unattached(a_type);
 
   if(!ok_sub)
@@ -308,7 +293,7 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, l_type);
+  ast_settype(ast, consume_type(l_type));
   ast_inheriterror(ast);
   return true;
 }

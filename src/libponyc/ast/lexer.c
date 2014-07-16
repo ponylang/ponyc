@@ -181,6 +181,7 @@ static const lexsym_t abstract[] =
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
   { "typeref", TK_TYPEREF },
+  { "typeparamref", TK_TYPEPARAMREF },
   { "newref", TK_NEWREF },
   { "beref", TK_BEREF },
   { "funref", TK_FUNREF },

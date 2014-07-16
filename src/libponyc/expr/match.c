@@ -1,7 +1,7 @@
 #include "match.h"
 #include "../ast/token.h"
 #include "../type/subtype.h"
-#include "../type/nominal.h"
+#include "../type/assemble.h"
 #include "../type/assemble.h"
 #include <assert.h>
 
@@ -21,17 +21,17 @@ bool expr_match(ast_t* ast)
   {
     ast_t* body = ast_childidx(the_case, 3);
     ast_t* body_type = ast_type(body);
-    type = type_union(ast, type, body_type);
+    type = type_union(type, body_type);
     the_case = ast_sibling(the_case);
   }
 
   if(ast_id(right) != TK_NONE)
   {
     ast_t* r_type = ast_type(right);
-    type = type_union(ast, type, r_type);
+    type = type_union(type, r_type);
   } else {
     // TODO: remove this when we know there is exhaustive match
-    type = type_union(ast, type, nominal_builtin(ast, "None"));
+    type = type_union(type, type_builtin(ast, "None"));
   }
 
   ast_settype(ast, type);
@@ -74,7 +74,7 @@ bool expr_case(ast_t* ast)
   // are patterns structural equality? does the match expression have to be
   // Comparable?
 
-  if((ast_id(guard) != TK_NONE) && (type_bool(guard) == NULL))
+  if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {
     ast_error(guard, "guard must be a Bool");
     return false;
@@ -101,7 +101,7 @@ bool expr_as(ast_t* ast)
   ast_t* expr_type = ast_type(expr);
   ast_t* match_type = ast_childidx(ast, 1);
 
-  if(!is_subtype(ast, match_type, expr_type))
+  if(!is_subtype(match_type, expr_type))
   {
     ast_error(match_type,
       "matching type is not a subtype of the expression type");
