@@ -72,11 +72,10 @@ ast_result_t pass_expr(ast_t** astp)
         return AST_FATAL;
       break;
 
-    // TODO:
-    // case TK_MINUS:
-    //   if(!expr_minus(ast))
-    //     return AST_FATAL;
-    //   break;
+    case TK_UNARY_MINUS:
+      if(!expr_minus(ast))
+        return AST_FATAL;
+      break;
 
     case TK_LSHIFT:
     case TK_RSHIFT:

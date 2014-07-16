@@ -139,7 +139,7 @@ void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
     case TK_NOMINAL: index = 3; break;
     case TK_STRUCTURAL: index = 1; break;
     case TK_TYPEPARAMREF: index = 1; break;
-    default: assert(0);
+    default: assert(0); return;
   }
 
   ast_t* cap = ast_childidx(source, index);
