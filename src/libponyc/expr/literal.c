@@ -1,4 +1,5 @@
 #include "literal.h"
+#include "../ast/token.h"
 #include "../pass/names.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"

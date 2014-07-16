@@ -1,5 +1,6 @@
 #include "postfix.h"
 #include "reference.h"
+#include "../ast/token.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"

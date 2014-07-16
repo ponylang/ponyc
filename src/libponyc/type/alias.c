@@ -1,5 +1,6 @@
 #include "alias.h"
 #include "cap.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static ast_t* alias_for_type(ast_t* type, int index)

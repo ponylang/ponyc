@@ -1,6 +1,7 @@
 #include "lookup.h"
 #include "assemble.h"
 #include "reify.h"
+#include "../ast/token.h"
 #include "viewpoint.h"
 #include <assert.h>
 

@@ -2,6 +2,7 @@
 #include "assemble.h"
 #include "subtype.h"
 #include "lookup.h"
+#include "../ast/token.h"
 #include "../pass/names.h"
 #include <assert.h>
 

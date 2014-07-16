@@ -6,22 +6,22 @@
 
 static token_id current_token_id(parser_t* parser)
 {
-  return parser->t->id;
+  return token_get_id(parser->token);
 }
 
 
-ast_t* consume_token(parser_t* parser)
+static ast_t* consume_token(parser_t* parser)
 {
-  ast_t* ast = ast_token(parser->t);
-  parser->t = lexer_next(parser->lexer);
+  ast_t* ast = ast_token(parser->token);
+  parser->token = lexer_next(parser->lexer);
   return ast;
 }
 
 
-void consume_token_no_ast(parser_t* parser)
+static void consume_token_no_ast(parser_t* parser)
 {
-  token_free(parser->t);
-  parser->t = lexer_next(parser->lexer);
+  token_free(parser->token);
+  parser->token = lexer_next(parser->lexer);
 }
 
 
@@ -39,24 +39,28 @@ bool consume_if_match_no_ast(parser_t* parser, token_id id)
 
 
 /// Process our deferred AST node creation, if any
-void process_deferred_ast(ast_t** rule_ast, rule_state_t* state)
+void process_deferred_ast(parser_t* parser, ast_t** rule_ast,
+  rule_state_t* state)
 {
   if(!state->deferred) // No deferment to process
     return;
 
   assert(*rule_ast == NULL);
-  *rule_ast = ast_new(&state->deferred_token, state->deferred_ast);
+  token_t* deferred_token = token_new(state->deferred_id, parser->source);
+  token_set_pos(deferred_token, state->line, state->pos);
+  *rule_ast = ast_token(deferred_token);
   state->deferred = false;
 }
 
 
 /// Add the given AST to ours, handling deferment
-void add_ast(ast_t* new_ast, ast_t** rule_ast, rule_state_t* state)
+void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
+  rule_state_t* state)
 {
   if(new_ast == PARSE_ERROR || new_ast == RULE_NOT_FOUND || new_ast == NULL)
     return;
 
-  process_deferred_ast(rule_ast, state);
+  process_deferred_ast(parser, rule_ast, state);
 
   if(*rule_ast == NULL)
   {
@@ -79,12 +83,13 @@ void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
   {
     // This is the first AST node, defer creation
     state->deferred = true;
-    state->deferred_ast = id;
-    token_copy_pos(parser->t, &state->deferred_token);
+    state->deferred_id = id;
+    state->line = token_line_number(parser->token);
+    state->pos = token_line_position(parser->token);
     return;
   }
 
-  add_ast(ast_new(parser->t, id), ast, state);
+  add_ast(parser, ast_new(parser->token, id), ast, state);
 }
 
 
@@ -229,8 +234,8 @@ ast_t* rule_in_set(parser_t* parser, const rule_t* rule_set)
 /// Report a syntax error
 void syntax_error(parser_t* parser, const char* func, int line)
 {
-  error(parser->source, parser->t->line, parser->t->pos,
-    "syntax error (%s, %d)", func, line);
+  error(parser->source, token_line_number(parser->token),
+    token_line_position(parser->token), "syntax error (%s, %d)", func, line);
 }
 
 
@@ -246,7 +251,7 @@ ast_t* parse(source_t* source, rule_t start)
   parser_t* parser = calloc(1, sizeof(parser_t));
   parser->source = source;
   parser->lexer = lexer;
-  parser->t = lexer_next(lexer);
+  parser->token = lexer_next(lexer);
 
   // Parse given start rule
   ast_t* ast = start(parser);
@@ -269,7 +274,7 @@ ast_t* parse(source_t* source, rule_t start)
   }
 
   lexer_close(lexer);
-  token_free(parser->t);
+  token_free(parser->token);
   free(parser);
 
   return ast;

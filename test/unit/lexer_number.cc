@@ -1,6 +1,7 @@
 extern "C" {
 #include "../../src/libponyc/ast/lexer.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/ast/token.h"
 }
 #include <gtest/gtest.h>
 
@@ -18,8 +19,8 @@ TEST(LexerNumberTest, Int0)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(0, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(0, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -36,13 +37,13 @@ TEST(LexerNumberTest, Int0Finishes)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(0, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(0, token_int(token));
   token_free(token);
 
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_MINUS, token->id);
+  ASSERT_EQ(TK_MINUS, token_get_id(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -59,8 +60,8 @@ TEST(LexerNumberTest, IntDecimal)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(12345, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(12345, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -77,13 +78,13 @@ TEST(LexerNumberTest, IntDecimalDot)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(12345, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(12345, token_int(token));
   token_free(token);
 
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_DOT, token->id);
+  ASSERT_EQ(TK_DOT, token_get_id(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -100,7 +101,8 @@ TEST(LexerNumberTest, IntDecimalBadChar)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
 
   lexer_close(lexer);
   source_close(src);
@@ -116,8 +118,8 @@ TEST(LexerNumberTest, IntBinary)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(20, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(20, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -134,7 +136,8 @@ TEST(LexerNumberTest, IntBinaryIncomplete)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
 
   lexer_close(lexer);
   source_close(src);
@@ -150,7 +153,8 @@ TEST(LexerNumberTest, IntBinaryBadChar)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
 
   lexer_close(lexer);
   source_close(src);
@@ -166,8 +170,8 @@ TEST(LexerNumberTest, IntHex)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(65534, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(65534, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -184,7 +188,8 @@ TEST(LexerNumberTest, IntHexIncomplete)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
 
   lexer_close(lexer);
   source_close(src);
@@ -200,7 +205,60 @@ TEST(LexerNumberTest, IntHexBadChar)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerNumberTest, IntHexNoOverflow)
+{
+  const char* code = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ((__uint128_t)-1, token_int(token));
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerNumberTest, IntHexOverflow)
+{
+  const char* code = "0x100000000000000000000000000000000";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
+TEST(LexerNumberTest, IntHexDigitOverflow)
+{
+  const char* code = "0x111111111111111111111111111111112";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
+  token_free(token);
 
   lexer_close(lexer);
   source_close(src);
@@ -216,8 +274,8 @@ TEST(LexerNumberTest, IntNoOctal)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(100, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(100, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -234,8 +292,8 @@ TEST(LexerNumberTest, FloatDotOnly)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(1.234, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(1.234, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -252,8 +310,8 @@ TEST(LexerNumberTest, FloatEOnly)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(1000.0, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(1000.0, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -270,8 +328,8 @@ TEST(LexerNumberTest, FloatNegativeE)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(0.01, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(0.01, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -288,8 +346,8 @@ TEST(LexerNumberTest, FloatPositiveE)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(100.0, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(100.0, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -306,8 +364,8 @@ TEST(LexerNumberTest, FloatDotAndE)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(123.4, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(123.4, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -324,8 +382,8 @@ TEST(LexerNumberTest, FloatLeading0)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(123.4, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(123.4, token_float(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -342,8 +400,8 @@ TEST(LexerNumberTest, FloatExpLeading0)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_FLOAT, token->id);
-  ASSERT_EQ(123.4, token->real);
+  ASSERT_EQ(TK_FLOAT, token_get_id(token));
+  ASSERT_EQ(123.4, token_float(token));
   token_free(token);
 
   lexer_close(lexer);

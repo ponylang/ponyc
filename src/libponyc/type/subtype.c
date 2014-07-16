@@ -2,6 +2,7 @@
 #include "reify.h"
 #include "cap.h"
 #include "assemble.h"
+#include "../ast/token.h"
 #include "../pass/names.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
@@ -500,6 +501,7 @@ bool is_literal(ast_t* type, const char* name)
 
 bool is_builtin(ast_t* type, const char* name)
 {
+  assert(type != NULL);
   ast_t* builtin = ast_from(type, TK_NOMINAL);
   ast_add(builtin, ast_from(type, TK_NONE));
   ast_add(builtin, ast_from(type, TK_NONE));

@@ -7,6 +7,7 @@
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
+#include "../ast/token.h"
 #include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -157,7 +158,7 @@ static bool do_path(ast_t* package, const char* path)
 
   while(!readdir_r(dir, &dirent, &d) && (d != NULL))
   {
-    if(d->d_type & DT_REG)
+    //if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
       const char* p = strrchr(d->d_name, '.');
@@ -327,12 +328,12 @@ void package_paths(const char* paths)
   }
 }
 
-ast_t* program_load(const char* path)
+ast_t* program_load(const char* path, bool parse_only)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  if(package_load(program, path) == NULL)
+  if(package_load(program, path, parse_only) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -341,7 +342,7 @@ ast_t* program_load(const char* path)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path)
+ast_t* package_load(ast_t* from, const char* path, bool parse_only)
 {
   const char* name = find_path(from, path);
 
@@ -374,7 +375,7 @@ ast_t* package_load(ast_t* from, const char* path)
   if(!do_path(package, name))
     return NULL;
 
-  if(!do_passes(package))
+  if(!parse_only && !do_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;

@@ -1,6 +1,7 @@
 extern "C" {
 #include "../../src/libponyc/ast/lexer.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/ast/token.h"
 }
 #include <gtest/gtest.h>
 
@@ -18,8 +19,8 @@ TEST(LexerStringTest, String)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -36,14 +37,14 @@ TEST(LexerStringTest, StringEnds)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo", token_string(token));
   token_free(token);
 
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(1, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -60,8 +61,8 @@ TEST(LexerStringTest, StringEscapedDoubleQuote)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\"Bar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\"Bar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -78,8 +79,8 @@ TEST(LexerStringTest, StringEscapedSlashAtEnd)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\\", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\\", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -96,8 +97,8 @@ TEST(LexerStringTest, StringHexEscape)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("FooA3", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("FooA3", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -114,8 +115,8 @@ TEST(LexerStringTest, StringUnicode4Escape)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("FooA3", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("FooA3", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -132,8 +133,8 @@ TEST(LexerStringTest, StringUnicode6Escape)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("FooA3", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("FooA3", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -150,8 +151,8 @@ TEST(LexerStringTest, TripleString)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -168,14 +169,14 @@ TEST(LexerStringTest, TripleStringEnds)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo", token_string(token));
   token_free(token);
 
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_INT, token->id);
-  ASSERT_EQ(1, token->integer);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  ASSERT_EQ(1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -192,8 +193,8 @@ TEST(LexerStringTest, TripleStringContainingDoubleQuote)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\"bar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\"bar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -210,8 +211,8 @@ TEST(LexerStringTest, TripleStringContaining2DoubleQuotes)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\"\"bar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\"\"bar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -228,8 +229,8 @@ TEST(LexerStringTest, TripleStringMultipleLines)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -246,8 +247,8 @@ TEST(LexerStringTest, TripleStringEmpty)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -264,8 +265,8 @@ TEST(LexerStringTest, TripleStringContainingEscape)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -282,8 +283,8 @@ TEST(LexerStringTest, TripleStringStripsEqualLeadingWhitespace)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -300,8 +301,8 @@ TEST(LexerStringTest, TripleStringStripsIncreasingLeadingWhitespace)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\n  bar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\n  bar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -318,8 +319,8 @@ TEST(LexerStringTest, TripleStringStripsDecreasingLeadingWhitespace)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ(" Foo\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ(" Foo\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -336,8 +337,8 @@ TEST(LexerStringTest, TripleStringStripsVariableLeadingWhitespace)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\n  bar\n wom\nbat", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\n  bar\n wom\nbat", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -354,8 +355,8 @@ TEST(LexerStringTest, TripleStringWithLeadingEmptyLine)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -372,8 +373,8 @@ TEST(LexerStringTest, TripleStringWithNonLeadingEmptyLine)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("Foo\n\nbar", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("Foo\n\nbar", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -390,7 +391,7 @@ TEST(LexerStringTest, TripleStringUnterminated)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
 
   lexer_close(lexer);
   source_close(src);
@@ -406,7 +407,7 @@ TEST(LexerStringTest, TripleStringUnterminatedEndWithDoubleQuote)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
 
   lexer_close(lexer);
   source_close(src);
@@ -422,7 +423,7 @@ TEST(LexerStringTest, TripleStringUnterminatedEndWith2DoubleQuotes)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
 
   lexer_close(lexer);
   source_close(src);
@@ -438,8 +439,8 @@ TEST(LexerStringTest, EmptyStringAtEndOfSource)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_STRING, token->id);
-  ASSERT_STREQ("", token->string);
+  ASSERT_EQ(TK_STRING, token_get_id(token));
+  ASSERT_STREQ("", token_string(token));
   token_free(token);
 
   lexer_close(lexer);

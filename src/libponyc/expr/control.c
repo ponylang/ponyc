@@ -1,4 +1,5 @@
 #include "control.h"
+#include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"

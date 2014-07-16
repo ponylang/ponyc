@@ -1,4 +1,5 @@
 extern "C" {
+#include "../../src/libponyc/ast/lexer.h"
 #include "../../src/libponyc/ast/parserapi.h"
 #include "../../src/libponyc/ast/source.h"
 }
@@ -14,12 +15,14 @@ static char* flatten_ast_internal(ast_t* ast, char* dst)
     dst = flatten_ast_internal(ast_child(ast), dst);
   }
 
-  *dst = ast_name(ast)[0];
+  *dst = ast_get_print(ast)[0];
   dst++;
 
   if(ast_childidx(ast, 1) != NULL)
-  {
     dst = flatten_ast_internal(ast_childidx(ast, 1), dst);
+
+  if(ast_child(ast) != NULL)
+  {
     *dst = ')';
     dst++;
   }

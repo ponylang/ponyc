@@ -1,6 +1,7 @@
 extern "C" {
 #include "../../src/libponyc/ast/lexer.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/ast/token.h"
 }
 #include <gtest/gtest.h>
 
@@ -18,8 +19,8 @@ TEST(LexerMiscTest, Id)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_ID, token->id);
-  ASSERT_STREQ("Foo", token->string);
+  ASSERT_EQ(TK_ID, token_get_id(token));
+  ASSERT_STREQ("Foo", token_string(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -36,8 +37,8 @@ TEST(LexerMiscTest, IdStartingWithKeyword)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_ID, token->id);
-	ASSERT_STREQ("classFoo", token->string);
+	ASSERT_EQ(TK_ID, token_get_id(token));
+	ASSERT_STREQ("classFoo", token_string(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -54,7 +55,7 @@ TEST(LexerMiscTest, Keyword)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_CLASS, token->id);
+	ASSERT_EQ(TK_CLASS, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -71,7 +72,7 @@ TEST(LexerMiscTest, Symbol1Char)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_PLUS, token->id);
+	ASSERT_EQ(TK_PLUS, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -88,12 +89,12 @@ TEST(LexerMiscTest, Symbol2CharStartingWith1CharSymbol)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_ARROW, token->id);
+	ASSERT_EQ(TK_ARROW, token_get_id(token));
 	token_free(token);
 
 	token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_INT, token->id);
+	ASSERT_EQ(TK_INT, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -110,7 +111,7 @@ TEST(LexerMiscTest, SymbolNewAtStart)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_MINUS_NEW, token->id);
+	ASSERT_EQ(TK_MINUS_NEW, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -127,7 +128,7 @@ TEST(LexerMiscTest, SymbolNewAfterWhitespace)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_MINUS_NEW, token->id);
+	ASSERT_EQ(TK_MINUS_NEW, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -144,12 +145,12 @@ TEST(LexerMiscTest, SymbolNewAfterNewline)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_INT, token->id);
+	ASSERT_EQ(TK_INT, token_get_id(token));
 	token_free(token);
 
 	token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_MINUS_NEW, token->id);
+	ASSERT_EQ(TK_MINUS_NEW, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -166,12 +167,12 @@ TEST(LexerMiscTest, SymbolNotNewAfterInt)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_INT, token->id);
+	ASSERT_EQ(TK_INT, token_get_id(token));
 	token_free(token);
 
 	token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_MINUS, token->id);
+	ASSERT_EQ(TK_MINUS, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -188,12 +189,12 @@ TEST(LexerMiscTest, Eof)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_INT, token->id);
+	ASSERT_EQ(TK_INT, token_get_id(token));
 	token_free(token);
 
 	token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_EOF, token->id);
+	ASSERT_EQ(TK_EOF, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -210,7 +211,7 @@ TEST(LexerMiscTest, EofIfEmpty)
 
 	token_t* token = lexer_next(lexer);
 	ASSERT_NE((void*)NULL, token);
-	ASSERT_EQ(TK_EOF, token->id);
+	ASSERT_EQ(TK_EOF, token_get_id(token));
 	token_free(token);
 
 	lexer_close(lexer);
@@ -228,10 +229,30 @@ TEST(LexerMiscTest, BadChar)
 
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
-  ASSERT_EQ(TK_LEX_ERROR, token->id);
+  ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
   ASSERT_EQ(1, get_error_count());
   token_free(token);
 
   lexer_close(lexer);
   source_close(src);
+}
+
+
+TEST(LexerMiscTest, IsAbstractKeyword)
+{
+  ASSERT_EQ(TK_PROGRAM, lexer_is_abstract_keyword("program"));
+  ASSERT_EQ(TK_CASE, lexer_is_abstract_keyword("case"));
+  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("foo"));
+  ASSERT_EQ(TK_LEX_ERROR, lexer_is_abstract_keyword("+"));
+}
+
+
+TEST(LexerMiscTest, Print)
+{
+  ASSERT_STREQ("match", lexer_print(TK_MATCH));
+  ASSERT_STREQ("program", lexer_print(TK_PROGRAM));
+  ASSERT_STREQ("+", lexer_print(TK_PLUS));
+  ASSERT_STREQ(">=", lexer_print(TK_GE));
+  ASSERT_EQ((void*)NULL, lexer_print(TK_ID));
+  ASSERT_EQ((void*)NULL, lexer_print(TK_INT));
 }

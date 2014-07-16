@@ -1,4 +1,5 @@
 #include "cap.h"
+#include "../ast/token.h"
 #include "viewpoint.h"
 #include <assert.h>
 
