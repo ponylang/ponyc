@@ -212,9 +212,9 @@ double token_float(token_t* token);
 __uint128_t token_int(token_t* token);
 
 /** Return a string for printing the given token.
-* The returned string must not be deleted and is only valid until the next call
-* to token_print().
-*/
+ * The returned string must not be deleted and is only valid until the next call
+ * to token_print() for that token, or until the token is deleted.
+ */
 const char* token_print(token_t* token);
 
 /// Report the source the given token was loaded from

@@ -1,11 +1,10 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include "source.h"
 #include "token.h"
 
 typedef struct lexer_t lexer_t;
-typedef struct source_t source_t;
-typedef struct token_t token_t;
 
 
 /** Create a new lexer to handle the given source.

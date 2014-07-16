@@ -194,7 +194,6 @@ typedef enum
 } ast_result_t;
 
 typedef struct ast_t ast_t;
-typedef struct token_t token_t;
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -203,6 +202,7 @@ ast_t* ast_from(ast_t* ast, token_id id);
 ast_t* ast_from_string(ast_t* ast, const char* id);
 ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
+bool ast_has_scope(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
 
 token_id ast_id(ast_t* ast);

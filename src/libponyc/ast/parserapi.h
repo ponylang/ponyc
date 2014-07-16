@@ -280,7 +280,7 @@ ast_t* parse(source_t* source, rule_t start);
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
     ast_t* prev_ast = ast; \
-    ast_t* orig_ast = ast; \
+    bool had_op = false; \
     while(true) \
     { \
       ast_t* sub_ast = rule_in_set(parser, rule_set); \
@@ -289,9 +289,10 @@ ast_t* parse(source_t* source, rule_t start);
       HANDLE_ERRORS(sub_ast); \
       add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
       prev_ast = sub_ast; \
-      state.opt = true; \
+      had_op = true; \
     } \
-    if(!state.opt && orig_ast == ast) ERROR(); \
+    if(!state.opt && !had_op) ERROR(); \
+    state.opt = false; \
   }
 
 

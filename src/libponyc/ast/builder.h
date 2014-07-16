@@ -1,8 +1,9 @@
 #ifndef BUILDER_H
 #define BUILDER_H
 
-typedef struct ast_t ast_t;
-typedef struct source_t source_t;
+#include "ast.h"
+#include "source.h"
+#include <stdbool.h>
 
 
 /** Build an AST from the description in the given source.
@@ -11,7 +12,7 @@ typedef struct source_t source_t;
 ast_t* build_ast(source_t* source);
 
 /// Compare the 2 given ASTs
-//bool build_compare_asts(ast_t* ast1, ast_t* ast2);
+bool build_compare_asts(ast_t* expected, ast_t* actual);
 
 
 #endif

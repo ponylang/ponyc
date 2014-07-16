@@ -45,57 +45,57 @@ static int precedence(token_id id)
   switch(id)
   {
     // type operators
-  case TK_ISECTTYPE:
-    return 40;
+    case TK_ARROW:
+      return 40;
 
-  case TK_UNIONTYPE:
-    return 30;
+    case TK_ISECTTYPE:
+      return 30;
 
-  case TK_TUPLETYPE:
-    return 20;
+    case TK_UNIONTYPE:
+      return 20;
 
-  case TK_ARROW:
-    return 10;
+    case TK_TUPLETYPE:
+      return 10;
 
     // postfix operators
-  case TK_DOT:
-  case TK_BANG:
-  case TK_QUALIFY:
-  case TK_CALL:
-    return 100;
+    case TK_DOT:
+    case TK_BANG:
+    case TK_QUALIFY:
+    case TK_CALL:
+      return 100;
 
     // infix operators
-  case TK_MULTIPLY:
-  case TK_DIVIDE:
-  case TK_MOD:
-    return 90;
+    case TK_MULTIPLY:
+    case TK_DIVIDE:
+    case TK_MOD:
+      return 90;
 
-  case TK_PLUS:
-  case TK_MINUS:
-    return 80;
+    case TK_PLUS:
+    case TK_MINUS:
+      return 80;
 
-  case TK_LSHIFT:
-  case TK_RSHIFT:
-    return 70;
+    case TK_LSHIFT:
+    case TK_RSHIFT:
+      return 70;
 
-  case TK_LT:
-  case TK_LE:
-  case TK_GE:
-  case TK_GT:
-    return 60;
+    case TK_LT:
+    case TK_LE:
+    case TK_GE:
+    case TK_GT:
+      return 60;
 
-  case TK_IS:
-  case TK_ISNT:
-  case TK_EQ:
-  case TK_NE:
-    return 50;
+    case TK_IS:
+    case TK_ISNT:
+    case TK_EQ:
+    case TK_NE:
+      return 50;
 
-  case TK_AND: return 40;
-  case TK_XOR: return 30;
-  case TK_OR: return 20;
-  case TK_ASSIGN: return 10;
+    case TK_AND: return 40;
+    case TK_XOR: return 30;
+    case TK_OR: return 20;
+    case TK_ASSIGN: return 10;
 
-  default: return INT_MAX;
+    default: return INT_MAX;
   }
 }
 
@@ -103,15 +103,15 @@ static bool associativity(token_id id)
 {
   switch(id)
   {
-  case TK_UNIONTYPE:
-  case TK_ISECTTYPE:
-  case TK_TUPLETYPE:
-  case TK_ASSIGN:
-  case TK_ARROW:
-    return true;
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    case TK_ASSIGN:
+    case TK_ARROW:
+      return true;
 
-  default:
-    return false;
+    default:
+      return false;
   }
 }
 
@@ -130,6 +130,11 @@ DEF(binop);
 DEF(infix);
   TOKEN(TK_ID);
   OPT BINDOP(binop);
+  DONE();
+
+DEF(infix_non_opt);
+  TOKEN(TK_ID);
+  BINDOP(binop);
   DONE();
 
 
@@ -265,6 +270,51 @@ TEST(ParserApiBindopTest, ParseError)
   free_errors();
 
   ast_t* ast = parse(src, infix);
+  ASSERT_EQ((void*)NULL, ast);
+  ASSERT_EQ(1, get_error_count());
+
+  source_close(src);
+}
+
+
+TEST(ParserApiBindopTest, SingleOpNonOpt)
+{
+  const char* code = "A+B";
+
+  source_t* src = source_open_string(code);
+
+  ast_t* ast = parse(src, infix_non_opt);
+  ASSERT_NE((void*)NULL, ast);
+  ASSERT_STREQ("(A+B)", flatten_ast(ast));
+  ast_free(ast);
+
+  source_close(src);
+}
+
+
+TEST(ParserApiBindopTest, TwoOpsInOrderNonOpt)
+{
+  const char* code = "A * B + C";
+
+  source_t* src = source_open_string(code);
+
+  ast_t* ast = parse(src, infix_non_opt);
+  ASSERT_NE((void*)NULL, ast);
+  ASSERT_STREQ("((A*B)+C)", flatten_ast(ast));
+  ast_free(ast);
+
+  source_close(src);
+}
+
+
+TEST(ParserApiBindopTest, NoOpsForNonOpt)
+{
+  const char* code = "A";
+
+  source_t* src = source_open_string(code);
+  free_errors();
+
+  ast_t* ast = parse(src, infix_non_opt);
   ASSERT_EQ((void*)NULL, ast);
   ASSERT_EQ(1, get_error_count());
 

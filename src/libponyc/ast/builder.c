@@ -325,6 +325,63 @@ ast_t* build_ast(source_t* source)
 }
 
 
-//bool build_compare_asts(ast_t* ast1, ast_t* ast2)
-//{
-//}
+static bool compare_asts(ast_t* prev, ast_t* expected, ast_t* actual)
+{
+  printf("Prev %p, expected %p, actual %p\n", prev, expected, actual);
+  assert(prev != NULL);
+
+  if(expected == NULL && actual == NULL)
+    return true;
+
+  if(actual == NULL)
+  {
+    ast_error(expected, "Expected AST %s not found", ast_get_print(expected));
+    return false;
+  }
+
+  if(expected == NULL)
+  {
+    ast_error(prev, "Unexpected AST node found, %s", ast_get_print(actual));
+    return false;
+  }
+
+  if(ast_id(expected) != ast_id(actual))
+  {
+    ast_error(expected, "AST ID mismatch, got %d, expected %d",
+      ast_id(expected), ast_id(actual));
+    return false;
+  }
+
+  printf("Expected %s, actual %s\n", ast_get_print(expected), ast_get_print(actual));
+  if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
+  {
+    ast_error(expected, "AST text mismatch, got %s, expected %s",
+      ast_get_print(expected), ast_get_print(actual));
+    return false;
+  }
+
+  if(ast_has_scope(expected) && !ast_has_scope(actual))
+  {
+    ast_error(expected, "AST missing scope");
+    return false;
+  }
+
+  if(!ast_has_scope(expected) && ast_has_scope(actual))
+  {
+    ast_error(expected, "Unexpected AST scope");
+    return false;
+  }
+
+  return compare_asts(expected, ast_child(expected), ast_child(actual)) &&
+    compare_asts(expected, ast_sibling(expected), ast_sibling(actual)) &&
+    compare_asts(expected, ast_type(expected), ast_type(actual));
+}
+
+
+bool build_compare_asts(ast_t* expected, ast_t* actual)
+{
+  assert(expected != NULL);
+  assert(actual != NULL);
+
+  return compare_asts(expected, expected, actual);
+}

@@ -12,6 +12,7 @@ typedef struct token_t
   source_t* source;
   size_t line;
   size_t pos;
+  char* printed;
 
   union
   {
@@ -50,8 +51,13 @@ token_t* token_dup_new_id(token_t* token, token_id id)
 
 void token_free(token_t* token)
 {
-  if(token != NULL)
-    free(token);
+  if(token == NULL)
+    return;
+
+  if(token->printed != NULL)
+    free(token->printed);
+
+  free(token);
 }
 
 
@@ -90,30 +96,31 @@ __uint128_t token_int(token_t* token)
 
 const char* token_print(token_t* token)
 {
-  static char buf[1000];
-
   assert(token != NULL);
 
   switch(token->id)
   {
-    //case TK_NONE:
-    //  return "x";
-
     case TK_ID:
     case TK_STRING:
       return token->string;
 
     case TK_INT:
-      snprintf(buf, sizeof(buf), "%zu", (size_t)token->integer);
-      return buf;
+      if(token->printed == NULL)
+        token->printed = malloc(32);
+
+      snprintf(token->printed, 32, "%zu", (size_t)token->integer);
+      return token->printed;
 
     case TK_FLOAT:
     {
-      int r = snprintf(buf, sizeof(buf), "%g", token->real);
-      if(strcspn(buf, ".e") == r)
-        snprintf(buf + r, sizeof(buf)-r, ".0");
+      if(token->printed == NULL)
+        token->printed = malloc(32);
 
-      return buf;
+      int r = snprintf(token->printed, 32, "%g", token->real);
+      if(strcspn(token->printed, ".e") == r)
+        snprintf(token->printed + r, 32 - r, ".0");
+
+      return token->printed;
     }
 
     default:
@@ -124,8 +131,11 @@ const char* token_print(token_t* token)
   if(p != NULL)
     return p;
 
-  snprintf(buf, sizeof(buf), "Unknown_token_%d", token->id);
-  return buf;
+  if(token->printed == NULL)
+    token->printed = malloc(32);
+
+  snprintf(token->printed, 32, "Unknown_token_%d", token->id);
+  return token->printed;
 }
 
 

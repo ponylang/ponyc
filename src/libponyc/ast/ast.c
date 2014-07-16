@@ -207,6 +207,11 @@ void ast_scope(ast_t* ast)
   ast->symtab = symtab_new();
 }
 
+bool ast_has_scope(ast_t* ast)
+{
+  return ast->symtab != NULL;
+}
+
 void ast_setid(ast_t* ast, token_id id)
 {
   token_set_id(ast->t, id);
@@ -568,11 +573,8 @@ void* ast_get(ast_t* ast, const char* name)
    */
   do
   {
-    //printf("Ast %s\n", token_print(ast->t));
-
     if(ast->symtab != NULL)
     {
-      //printf("Have symtab\n");
       void* value = symtab_get(ast->symtab, name);
 
       if(value != NULL)
