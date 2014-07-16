@@ -235,7 +235,6 @@ static const char* find_path(ast_t* from, const char* path)
 
 static bool do_passes(ast_t* ast)
 {
-  //return true;
   if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
     return false;
 
@@ -250,8 +249,6 @@ static bool do_passes(ast_t* ast)
 
   if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
     return false;
-
-  //return true;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);
@@ -319,12 +316,12 @@ void package_paths(const char* paths)
   }
 }
 
-ast_t* program_load(const char* path)
+ast_t* program_load(const char* path, bool parse_only)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  if(package_load(program, path) == NULL)
+  if(package_load(program, path, parse_only) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -333,7 +330,7 @@ ast_t* program_load(const char* path)
   return program;
 }
 
-ast_t* package_load(ast_t* from, const char* path)
+ast_t* package_load(ast_t* from, const char* path, bool parse_only)
 {
   const char* name = find_path(from, path);
 
@@ -358,7 +355,7 @@ ast_t* package_load(ast_t* from, const char* path)
   if(!do_path(package, name))
     return NULL;
 
-  if(!do_passes(package))
+  if(!parse_only && !do_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;

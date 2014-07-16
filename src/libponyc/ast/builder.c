@@ -36,6 +36,7 @@ typedef struct builder_t
 static ast_t* get_nodes(builder_t* builder, ast_token_id terminator);
 
 
+// Report an error
 static void build_error(builder_t* builder, const char* fmt, ...)
 {
   if(builder->had_error)
@@ -52,6 +53,7 @@ static void build_error(builder_t* builder, const char* fmt, ...)
 }
 
 
+// Get the next token ready for when we need it
 static void get_next_token(builder_t* builder)
 {
   if(builder->have_token)
@@ -83,6 +85,7 @@ static void get_next_token(builder_t* builder)
 }
 
 
+// Peek at our next token without consuming it
 static ast_token_id peek_token(builder_t* builder)
 {
   get_next_token(builder);
@@ -90,6 +93,7 @@ static ast_token_id peek_token(builder_t* builder)
 }
 
 
+// Get the next token, consuming it
 static ast_token_id get_token(builder_t* builder)
 {
   get_next_token(builder);
@@ -98,12 +102,14 @@ static ast_token_id get_token(builder_t* builder)
 }
 
 
+// Prevent the token associated with the current token from being freed
 static void save_token(builder_t* builder)
 {
   builder->token = NULL;
 }
 
 
+// Replace the current ID token with an abstract keyword, if it is one
 static ast_token_id keyword_replace(builder_t* builder)
 {
   token_id keyword_id = lexer_is_abstract_keyword(token_string(builder->token));
@@ -115,6 +121,10 @@ static ast_token_id keyword_replace(builder_t* builder)
 }
 
 
+/* Load a type description.
+ * A type description is the type AST node contained in square brackets.
+ * The leading [ must have been loaded before this is called.
+ */
 static ast_t* get_type(builder_t* builder, ast_t* parent)
 {
   if(parent == NULL)
@@ -133,6 +143,13 @@ static ast_t* get_type(builder_t* builder, ast_t* parent)
 }
 
 
+/* Load node attributes, if any.
+ * Attributes are a list of keywords, each prefixed with a colon, following a
+ * node name. For example:
+ *    seq:scope
+ *
+ * The node name must have been parsed before calling this, but not the colon.
+ */
 static ast_t* get_attributes(builder_t* builder, ast_t* node)
 {
   if(peek_token(builder) != AT_COLON)
@@ -161,6 +178,13 @@ static ast_t* get_attributes(builder_t* builder, ast_t* node)
 }
 
 
+/* Load an ID node.
+ * IDs are indicated by the keyword id followed by the ID name, all contained
+ * within parentheses. For example:
+ *    (id foo)
+ *
+ * The ( and id keyword must have been parsed before this is called.
+ */
 static ast_t* get_id(builder_t* builder, ast_t* existing_ast)
 {
   if(existing_ast != NULL)
@@ -191,6 +215,7 @@ static ast_t* get_id(builder_t* builder, ast_t* existing_ast)
 }
 
 
+// Load a sequence of nodes until the specified terminator is found
 static ast_t* get_nodes(builder_t* builder, ast_token_id terminator)
 {
   ast_t* ast = NULL;
@@ -298,3 +323,8 @@ ast_t* build_ast(source_t* source)
   printf("Builder done\n");
   return ast;
 }
+
+
+//bool build_compare_asts(ast_t* ast1, ast_t* ast2)
+//{
+//}
