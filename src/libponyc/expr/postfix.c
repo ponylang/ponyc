@@ -57,7 +57,7 @@ static bool expr_typeaccess(ast_t* ast)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(ast, type, ast_name(right));
+  ast_t* find = lookup(type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -139,7 +139,7 @@ static bool expr_memberaccess(ast_t* ast)
 
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(ast, type, ast_name(right));
+  ast_t* find = lookup(type, ast_name(right));
 
   if(find == NULL)
     return false;

@@ -3,7 +3,7 @@
 
 #include "../ast/ast.h"
 
-ast_t* lookup(ast_t* scope, ast_t* type, const char* name);
+ast_t* lookup(ast_t* type, const char* name);
 
 /**
  * Get the nth typedef out of a tuple definition.

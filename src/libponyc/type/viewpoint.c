@@ -138,11 +138,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       while(ast_id(child) == TK_ARROW)
         child = ast_childidx(child, 1);
 
-      ast_t* arrow = ast_from(child, TK_ARROW);
-      ast_add(arrow, r_type);
-      ast_add(arrow, child);
-      ast_replace(&child, arrow);
-
+      ast_t* view = viewpoint_type(child, r_type);
+      ast_replace(&child, view);
       return ast;
     }
 
@@ -224,7 +221,6 @@ ast_t* viewpoint_lower(ast_t* type)
 void flatten_thistype(ast_t** astp, ast_t* type)
 {
   ast_t* ast = *astp;
-  assert(ast_id(type) == TK_NOMINAL);
 
   switch(ast_id(ast))
   {
@@ -235,9 +231,8 @@ void flatten_thistype(ast_t** astp, ast_t* type)
 
       if(ast_id(left) == TK_THISTYPE)
       {
-        ast_t* cap = ast_childidx(type, 3);
-        ast = viewpoint_cap(ast_id(cap), right);
-        ast_replace(astp, ast);
+        ast_t* r_right = viewpoint_type(type, right);
+        ast_replace(astp, r_right);
         return;
       }
     }
