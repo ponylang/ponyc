@@ -379,7 +379,7 @@ ast_t* ast_enclosing_method_type(ast_t* ast)
       case TK_BE:
       case TK_FUN:
       {
-        // only if we are in the method body
+        // only if we are in the method return type
         ast_t* type = ast_childidx(ast, 4);
 
         if(type == last)

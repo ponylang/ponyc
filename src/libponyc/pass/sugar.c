@@ -261,13 +261,8 @@ static bool sugar_field(ast_t* ast)
 
 static bool sugar_new(ast_t* ast)
 {
-  // the capability is tag
-  ast_t* cap = ast_child(ast);
-  assert(ast_id(cap) == TK_NONE);
-  ast_replace(&cap, ast_from(cap, TK_TAG));
-
   // set the name to "create" if there isn't one
-  ast_t* id = ast_sibling(cap);
+  ast_t* id = ast_childidx(ast, 1);
 
   if(ast_id(id) == TK_NONE)
     ast_replace(&id, ast_from_string(id, "create"));
@@ -288,11 +283,6 @@ static bool sugar_be(ast_t* ast)
     ast_error(ast, "can't have a behaviour in a class");
     return false;
   }
-
-  // the capability is tag
-  ast_t* cap = ast_child(ast);
-  assert(ast_id(cap) == TK_NONE);
-  ast_replace(&cap, ast_from(cap, TK_TAG));
 
   // return type is This tag
   ast_t* result = ast_childidx(ast, 4);
@@ -475,12 +465,6 @@ static bool sugar_thistype(ast_t* ast)
   if(ast_id(parent) != TK_ARROW)
   {
     ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
-    return false;
-  }
-
-  if((ast_id(ast_parent(parent)) == TK_ARROW) || (ast_child(parent) != ast))
-  {
-    ast_error(ast, "when using 'this' for viewpoint it must come first");
     return false;
   }
 
@@ -770,10 +754,6 @@ ast_result_t pass_sugar(ast_t** astp)
     case TK_ASSIGN:
       if(!sugar_update(astp))
         return AST_FATAL;
-      break;
-
-    case TK_MINUS_NEW:
-      ast_setid(ast, TK_MINUS);
       break;
 
     default: {}

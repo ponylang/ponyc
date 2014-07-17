@@ -312,7 +312,14 @@ ast_t* build_ast(source_t* source)
   ast_t* ast = get_nodes(&builder, AT_EOF);
 
   if(ast != NULL)
+  {
     ast_reverse(ast);
+  }
+  else
+  {
+    print_errors();
+    free_errors();
+  }
 
   lexer_close(lexer);
   token_free(builder.token);
