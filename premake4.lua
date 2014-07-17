@@ -12,6 +12,7 @@ solution "ponyc"
 
   linkoptions {
     "-pthread",
+    "`llvm-config-3.4 --ldflags --libs all`",
   }
 
   flags {
@@ -67,9 +68,6 @@ solution "ponyc"
     kind "ConsoleApp"
     language "C++"
     buildoptions "-std=gnu11"
-    linkoptions {
-      "`llvm-config-3.4 --ldflags --libs all`"
-      }
     files "src/ponyc/**.c"
     links "libponyc"
 
