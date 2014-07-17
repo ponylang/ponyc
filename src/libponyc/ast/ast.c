@@ -77,6 +77,9 @@ void print_compact(ast_t* ast, size_t indent, bool type)
 
   print_token(ast->t);
 
+  if(ast->symtab != NULL)
+    printf(":scope");
+
   while(child != NULL)
   {
     printf(" ");

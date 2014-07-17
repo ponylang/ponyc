@@ -26,8 +26,11 @@ typedef enum ast_token_id
 typedef struct builder_t
 {
   lexer_t* lexer;
+  source_t* source;
   token_t* token;
   ast_token_id id;
+  int line;
+  int pos;
   bool have_token;
   bool had_error;
 } builder_t;
@@ -44,9 +47,7 @@ static void build_error(builder_t* builder, const char* fmt, ...)
 
   va_list ap;
   va_start(ap, fmt);
-  token_t* token = builder->token;
-  errorv(token_source(token), token_line_number(token),
-    token_line_position(token), fmt, ap);
+  errorv(builder->source, builder->line, builder->pos, fmt, ap);
   va_end(ap);
 
   builder->had_error = true;
@@ -80,8 +81,11 @@ static void get_next_token(builder_t* builder)
     default:            id = AT_TOKEN;   break;
   }
 
+  //printf("Got token %d -> %d\n", token_get_id(builder->token), id);
   builder->id = id;
   builder->have_token = true;
+  builder->line = token_line_number(builder->token);
+  builder->pos = token_line_position(builder->token);
 }
 
 
@@ -289,9 +293,6 @@ static ast_t* get_nodes(builder_t* builder, ast_token_id terminator)
 
 ast_t* build_ast(source_t* source)
 {
-  printf("Builder open\n");
-  source = source_open("hmm");
-
   // Open the lexer
   lexer_t* lexer = lexer_open(source);
 
@@ -300,11 +301,14 @@ ast_t* build_ast(source_t* source)
 
   builder_t builder;
   builder.lexer = lexer;
+  builder.source = source;
   builder.token = NULL;
+  builder.have_token = false;
   builder.had_error = false;
+  builder.line = 1;
+  builder.pos = 1;
 
   // Parse given start rule
-  printf("Builder parse\n");
   ast_t* ast = get_nodes(&builder, AT_EOF);
 
   if(ast != NULL)
@@ -312,22 +316,12 @@ ast_t* build_ast(source_t* source)
 
   lexer_close(lexer);
   token_free(builder.token);
-
-  if(ast != NULL)
-  {
-    printf("Builder print\n");
-    ast_print(ast, 80);
-    ast_free(ast);
-  }
-
-  printf("Builder done\n");
   return ast;
 }
 
 
 static bool compare_asts(ast_t* prev, ast_t* expected, ast_t* actual)
 {
-  printf("Prev %p, expected %p, actual %p\n", prev, expected, actual);
   assert(prev != NULL);
 
   if(expected == NULL && actual == NULL)
@@ -348,15 +342,14 @@ static bool compare_asts(ast_t* prev, ast_t* expected, ast_t* actual)
   if(ast_id(expected) != ast_id(actual))
   {
     ast_error(expected, "AST ID mismatch, got %d, expected %d",
-      ast_id(expected), ast_id(actual));
+      ast_id(actual), ast_id(expected));
     return false;
   }
 
-  printf("Expected %s, actual %s\n", ast_get_print(expected), ast_get_print(actual));
   if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {
     ast_error(expected, "AST text mismatch, got %s, expected %s",
-      ast_get_print(expected), ast_get_print(actual));
+      ast_get_print(actual), ast_get_print(expected));
     return false;
   }
 
