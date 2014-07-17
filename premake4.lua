@@ -52,7 +52,14 @@ solution "ponyc"
     language "C"
     buildoptions {
       "-std=gnu11",
-      "`llvm-config-3.4 --cflags`",
+      "-I`llvm-config-3.4 --includedir`",
+      }
+    defines {
+      "_DEBUG",
+      "_GNU_SOURCE",
+      "__STDC_CONSTANT_MACROS",
+      "__STDC_FORMAT_MACROS",
+      "__STDC_LIMIT_MACROS",
       }
     files "src/libponyc/**.c"
 

@@ -382,10 +382,15 @@ ast_t* package_load(ast_t* from, const char* path, bool parse_only)
   return package;
 }
 
-ast_t* package_id(ast_t* package)
+const char* package_name(ast_t* ast)
 {
-  package_t* pkg = ast_data(package);
-  return ast_from_string(package, pkg->id);
+  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  return pkg->id;
+}
+
+ast_t* package_id(ast_t* ast)
+{
+  return ast_from_string(ast, package_name(ast));
 }
 
 ast_t* package_hygienic_id(ast_t* ast)

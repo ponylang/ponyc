@@ -1,10 +1,12 @@
 #include "codegen.h"
+#include "../pkg/package.h"
 #include "../ds/stringtab.h"
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/Analysis.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -17,8 +19,109 @@ typedef struct compile_t
   LLVMPassManagerBuilderRef pmb;
 } compile_t;
 
+static bool codegen_struct(compile_t* c, ast_t* ast)
+{
+  ast_t* members = ast_childidx(ast, 4);
+  ast_t* member = ast_child(members);
+  int count = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+        count++;
+        break;
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  const char* pkg = package_name(ast);
+  size_t pkg_len = strlen(pkg);
+
+  const char* name = ast_name(ast_child(ast));
+  size_t name_len = strlen(name);
+
+  char* longname = malloc(pkg_len + name_len + 2);
+  memcpy(longname, pkg, pkg_len);
+  longname[pkg_len] = '_';
+  memcpy(longname + pkg_len + 1, name, name_len);
+  longname[pkg_len + name_len + 1] = '\0';
+
+  LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), longname);
+  (void)type;
+
+  // LLVMTypeRef* elements = malloc(sizeof(LLVMTypeRef) * count);
+  int index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        // ast_t* type = ast_type(member);
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+// void LLVMStructSetBody(LLVMTypeRef StructTy, LLVMTypeRef *ElementTypes,
+//                        unsigned ElementCount, LLVMBool Packed);
+
+  return true;
+}
+
+static bool codegen_class(compile_t* c, ast_t* ast)
+{
+  if(!codegen_struct(c, ast))
+    return false;
+
+  return true;
+}
+
+static bool codegen_actor(compile_t* c, ast_t* ast)
+{
+  if(!codegen_struct(c, ast))
+    return false;
+
+  return true;
+}
+
 static bool codegen_module(compile_t* c, ast_t* ast)
 {
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    switch(ast_id(child))
+    {
+      case TK_CLASS:
+        if(!codegen_class(c, child))
+          return false;
+        break;
+
+      case TK_ACTOR:
+        if(!codegen_actor(c, child))
+          return false;
+        break;
+
+      default: {}
+    }
+
+    child = ast_sibling(child);
+  }
+
   return true;
 }
 
@@ -28,7 +131,7 @@ static bool codegen_package(compile_t* c, ast_t* ast)
 
   while(child != NULL)
   {
-    if(!codegen_module(c, ast))
+    if(!codegen_module(c, child))
       return false;
 
     child = ast_sibling(child);
@@ -139,7 +242,7 @@ static void codegen_finalise(compile_t* c)
   // be possible to use LLVM-MC to get from bitcode to machine code, getting
   // to a .o file.
   LLVMWriteBitcodeToFile(c->module, "output.bc");
-  // LLVMDumpModule(c->module);
+  LLVMDumpModule(c->module);
 }
 
 static void codegen_cleanup(compile_t* c)

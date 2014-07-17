@@ -37,10 +37,15 @@ bool program_compile(ast_t* program);
 ast_t* package_load(ast_t* from, const char* path, bool parse_only);
 
 /**
+ * Gets the package name, but not wrapped in an AST node.
+ */
+const char* package_name(ast_t* ast);
+
+/**
  * Gets an AST ID node with a string set to the unique ID of the packaged. The
  * first package loaded will be $0, the second $1, etc.
  */
-ast_t* package_id(ast_t* package);
+ast_t* package_id(ast_t* ast);
 
 /**
  * Gets an AST ID node with a string set to a hygienic ID. Hygienic IDs are
