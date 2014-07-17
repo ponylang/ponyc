@@ -58,7 +58,7 @@ solution "ponyc"
 
   project "ponyc"
     kind "ConsoleApp"
-    language "C"
+    language "C++"
     buildoptions "-std=gnu11"
     linkoptions {
       "`llvm-config-3.4 --ldflags --libs all`"
