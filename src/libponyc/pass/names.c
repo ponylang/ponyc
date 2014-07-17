@@ -179,7 +179,7 @@ static bool names_type(ast_t** astp, ast_t* def)
   }
 
   // keep the actual package id
-  ast_replace(&package, package_id(ast_nearest(def, TK_PACKAGE)));
+  ast_replace(&package, package_id(def));
 
   // store our definition for later use
   ast_setdata(ast, def);
