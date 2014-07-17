@@ -1,10 +1,10 @@
 #include "package.h"
+#include "../codegen/codegen.h"
 #include "../pass/sugar.h"
 #include "../pass/scope.h"
 #include "../pass/names.h"
 #include "../pass/traits.h"
 #include "../pass/expr.h"
-#include "../pass/codegen.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -337,10 +337,7 @@ ast_t* program_load(const char* path, bool parse_only)
 
 bool program_compile(ast_t* program)
 {
-  if(ast_visit(&program, pass_codegen, NULL) != AST_OK)
-    return false;
-
-  return true;
+  return codegen(program);
 }
 
 ast_t* package_load(ast_t* from, const char* path, bool parse_only)
@@ -367,7 +364,7 @@ ast_t* package_load(ast_t* from, const char* path, bool parse_only)
   ast_setdata(package, pkg);
 
   ast_scope(package);
-  ast_add(program, package);
+  ast_append(program, package);
   ast_set(program, pkg->path, package);
   ast_set(program, pkg->id, package);
 

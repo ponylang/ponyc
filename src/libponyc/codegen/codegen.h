@@ -3,6 +3,6 @@
 
 #include "../ast/ast.h"
 
-ast_result_t pass_codegen(ast_t** astp);
+bool codegen(ast_t* program);
 
 #endif

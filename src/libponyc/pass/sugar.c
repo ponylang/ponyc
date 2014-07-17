@@ -85,6 +85,30 @@ static ast_t* make_structural(ast_t* ast)
   return struc;
 }
 
+static bool sugar_typename(ast_t* ast)
+{
+  const char* main = stringtab("Main");
+  ast_t* id = ast_child(ast);
+  ast_t* typeparams = ast_sibling(id);
+
+  if(ast_name(id) != main)
+    return true;
+
+  if(ast_id(ast) != TK_ACTOR)
+  {
+    ast_error(ast, "Main must be an actor");
+    return false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(ast, "Main cannot have type parameters");
+    return false;
+  }
+
+  return true;
+}
+
 static bool sugar_constructor(ast_t* ast)
 {
   ast_t* members = ast_childidx(ast, 4);
@@ -156,6 +180,9 @@ static bool sugar_traits(ast_t* ast)
 
 static bool sugar_type(ast_t* ast)
 {
+  if(!sugar_typename(ast))
+    return false;
+
   ast_t* typeparams = ast_childidx(ast, 1);
   ast_t* cap = ast_sibling(typeparams);
   ast_t* types = ast_sibling(cap);
@@ -194,6 +221,9 @@ static bool sugar_type(ast_t* ast)
 
 static bool sugar_class(ast_t* ast)
 {
+  if(!sugar_typename(ast))
+    return false;
+
   if(!sugar_traits(ast))
     return false;
 
@@ -210,6 +240,9 @@ static bool sugar_class(ast_t* ast)
 
 static bool sugar_actor(ast_t* ast)
 {
+  if(!sugar_typename(ast))
+    return false;
+
   if(!sugar_traits(ast))
     return false;
 
@@ -230,6 +263,9 @@ static bool sugar_actor(ast_t* ast)
 
 static bool sugar_trait(ast_t* ast)
 {
+  if(!sugar_typename(ast))
+    return false;
+
   ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)

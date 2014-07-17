@@ -66,14 +66,21 @@ int main(int argc, char** argv)
 
   ast_t* program = program_load((argc > 0) ? argv[0] : ".", parse_only);
 
-  if(ast)
-    ast_print(program, width);
+  if(program != NULL)
+  {
+    if(ast)
+    {
+      ast_print(program, width);
+    } else if(!parse_only) {
+      program_compile(program);
+    }
 
-  // TODO: detect imported but unused packages in a module
-  // TODO: detect unused fields, methods, params, locals
-  // TODO: code generation
+    // TODO: detect imported but unused packages in a module
+    // TODO: detect unused fields, methods, params, locals
+    // TODO: code generation
 
-  ast_free(program);
+    ast_free(program);
+  }
 
   print_errors();
   free_errors();
