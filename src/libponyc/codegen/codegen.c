@@ -53,9 +53,7 @@ static bool codegen_struct(compile_t* c, ast_t* ast)
   longname[pkg_len + name_len + 1] = '\0';
 
   LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), longname);
-  (void)type;
-
-  // LLVMTypeRef* elements = malloc(sizeof(LLVMTypeRef) * count);
+  LLVMTypeRef* elements = malloc(sizeof(LLVMTypeRef) * count);
   int index = 0;
 
   while(member != NULL)
@@ -76,9 +74,11 @@ static bool codegen_struct(compile_t* c, ast_t* ast)
     member = ast_sibling(member);
   }
 
-// void LLVMStructSetBody(LLVMTypeRef StructTy, LLVMTypeRef *ElementTypes,
-//                        unsigned ElementCount, LLVMBool Packed);
+  // TODO: hack
+  count = 0;
 
+  LLVMStructSetBody(type, elements, count, false);
+  LLVMDumpType(type);
   return true;
 }
 
