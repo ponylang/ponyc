@@ -3,6 +3,7 @@
 
 #include "codegen.h"
 
-LLVMValueRef codegen_function(compile_t* c, ast_t* ast, ast_t* typeargs);
+LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs);
 
 #endif

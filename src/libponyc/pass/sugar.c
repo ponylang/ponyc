@@ -307,7 +307,16 @@ static bool sugar_new(ast_t* ast)
   ast_t* result = ast_childidx(ast, 4);
 
   if(ast_id(result) == TK_NONE)
-    ast_replace(&result, type_for_this(ast, TK_REF, true));
+  {
+    token_id cap;
+
+    if(ast_nearest(ast, TK_ACTOR) != NULL)
+      cap = TK_TAG;
+    else
+      cap = TK_REF;
+
+    ast_replace(&result, type_for_this(ast, cap, true));
+  }
 
   return true;
 }

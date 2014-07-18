@@ -535,6 +535,21 @@ ast_t* ast_childlast(ast_t* ast)
   return child;
 }
 
+size_t ast_childcount(ast_t* ast)
+{
+  ast_t* child = ast->child;
+  size_t count = 0;
+
+  while(child != NULL)
+  {
+    count++;
+    child = child->sibling;
+  }
+
+  return count;
+
+}
+
 ast_t* ast_sibling(ast_t* ast)
 {
   return ast->sibling;

@@ -87,15 +87,11 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
   }
 
+  LLVMValueRef fun = codegen_function(c, ast, stringtab("create"), NULL);
   ast_free_unattached(ast);
 
-  ast_t* create = ast_get(m, stringtab("create"));
-  assert(create != NULL);
-
-  // LLVMValueRef fun = codegen_function(c, create, NULL);
-  //
-  // if(fun == NULL)
-  //   return false;
+  if(fun == NULL)
+    return false;
 
   return codegen_main(c, type);
 }
@@ -153,7 +149,7 @@ static bool codegen_finalise(compile_t* c)
   memcpy(buffer + len, ".bc", 4);
 
   LLVMWriteBitcodeToFile(c->module, buffer);
-  // LLVMDumpModule(c->module);
+  LLVMDumpModule(c->module);
 
   printf("=== Compiled %s ===\n", buffer);
   return true;

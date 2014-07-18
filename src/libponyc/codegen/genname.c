@@ -91,10 +91,7 @@ const char* codegen_typename(ast_t* ast)
   return NULL;
 }
 
-const char* codegen_funname(LLVMTypeRef type, ast_t* ast, ast_t* typeargs)
+const char* codegen_funname(ast_t* type, const char* name, ast_t* typeargs)
 {
-  const char* typename = LLVMGetStructName(type);
-  const char* funname = ast_name(ast_child(ast));
-
-  return build_name(typename, funname, typeargs);
+  return build_name(codegen_typename(type), name, typeargs);
 }
