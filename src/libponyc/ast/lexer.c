@@ -7,6 +7,7 @@
 #include <math.h>
 #include <assert.h>
 
+
 struct lexer_t
 {
   source_t* source;
@@ -918,14 +919,15 @@ token_t* lexer_next(lexer_t* lexer)
 
   while(t == NULL)
   {
+    symbol_line = lexer->line;
+    symbol_pos = lexer->pos;
+
     if(is_eof(lexer))
     {
       t = make_token(lexer, TK_EOF);
       break;
     }
 
-    symbol_line = lexer->line;
-    symbol_pos = lexer->pos;
     char c = look(lexer);
 
     switch(c)

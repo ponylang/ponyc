@@ -583,7 +583,7 @@ static bool sugar_for(ast_t** astp)
   sugar_else(whileloop);
 
   ast_t* iter = make_assign(ast,
-    make_var(ast, make_idseq(ast, id), ast_from(ast, TK_NONE)),
+    make_var(ast, make_idseq(ast, id), for_type),
     for_iter
     );
 

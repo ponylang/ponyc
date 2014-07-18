@@ -37,6 +37,7 @@ token_t* token_dup(token_t* token)
   assert(token != NULL);
   token_t* t = malloc(sizeof(token_t));
   memcpy(t, token, sizeof(token_t));
+  t->printed = NULL;
   return t;
 }
 

@@ -329,3 +329,42 @@ TEST(BuilderTest, DifferingType)
   token_free(t);
   source_close(src);
 }
+
+
+TEST(BuilderTest, MissingScope)
+{
+  source_t* src = source_open_string("Test");
+
+  ast_t* expected = ast_token(token_new(TK_PLUS, src));
+  ast_scope(expected);
+
+  ast_t* actual = ast_token(token_new(TK_MINUS, src));
+  free_errors();
+
+  ASSERT_FALSE(build_compare_asts(expected, actual));
+  ASSERT_EQ(1, get_error_count());
+
+  ast_free(expected);
+  ast_free(actual);
+  source_close(src);
+}
+
+
+TEST(BuilderTest, UnexpectedScope)
+{
+  source_t* src = source_open_string("Test");
+
+  ast_t* expected = ast_token(token_new(TK_PLUS, src));
+
+  ast_t* actual = ast_token(token_new(TK_MINUS, src));
+  ast_scope(actual);
+
+  free_errors();
+
+  ASSERT_FALSE(build_compare_asts(expected, actual));
+  ASSERT_EQ(1, get_error_count());
+
+  ast_free(expected);
+  ast_free(actual);
+  source_close(src);
+}

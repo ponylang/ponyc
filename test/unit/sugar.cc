@@ -46,6 +46,8 @@ static ast_t* find_start(ast_t* tree, token_id start_id)
 static void test_good_sugar(const char* before, const char* after,
   token_id start_id)
 {
+  free_errors();
+
   source_t* actual_src = source_open_string(before);
   ast_t* actual_ast = build_ast(actual_src);
   ASSERT_NE((void*)NULL, actual_ast);
@@ -53,11 +55,16 @@ static void test_good_sugar(const char* before, const char* after,
   ast_t* tree = find_start(actual_ast, start_id);
   ASSERT_NE((void*)NULL, tree);
 
+  bool top = (tree == actual_ast);
+
   source_t* expect_src = source_open_string(after);
   ast_t* expect_ast = build_ast(expect_src);
   ASSERT_NE((void*)NULL, expect_ast);
 
   ASSERT_EQ(AST_OK, pass_sugar(&tree));
+
+  if(top)
+    actual_ast = tree;
 
   bool r = build_compare_asts(expect_ast, actual_ast);
 
@@ -65,9 +72,8 @@ static void test_good_sugar(const char* before, const char* after,
   {
     printf("Expected:\n");
     ast_print(expect_ast, 80);
-    printf("\nGot:\n");
+    printf("Got:\n");
     ast_print(actual_ast, 80);
-    printf("\n");
   }
 
   ASSERT_TRUE(r);
@@ -82,6 +88,8 @@ static void test_good_sugar(const char* before, const char* after,
 static void test_bad_sugar(const char* desc, token_id start_id,
   ast_result_t expect_result)
 {
+  free_errors();
+
   source_t* src = source_open_string(desc);
   ast_t* ast = build_ast(src);
   ASSERT_NE((void*)NULL, ast);
@@ -383,23 +391,113 @@ TEST(SugarTest, TryWithoutThen)
 }
 
 
-/*
 TEST(SugarTest, ForWithoutElse)
 {
   const char* before = "(for (idseq (id i)) x (seq 3) (seq 4) x)";
   const char* after =
-    "(while:scope"
-    "  (call (. (reference (id s0)) (id next)))"
-    "  (seq:scope"
-    "    (= (var (idseq (id i)) x) (seq 3))"
-    "    (seq 4)"
+    "(seq:scope"
+    "  (= (var (idseq (id hygid)) x) (seq 3))"
+    "  (while:scope"
+    "    (call (. (reference (id hygid)) (id has_next)) x x)"
+    "    (seq:scope"
+    "      (="
+    "        (var (idseq (id i)) x)"
+    "        (call (. (reference (id hygid)) (id next)) x x))"
+    "      (seq 4)"
+    "    )"
+    "    (seq (reference (id None)))"
     "  )"
-    "  (seq (reference (id None)))"
     ")";
 
   ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_FOR));
 }
-*/
+
+
+TEST(SugarTest, ForWithElseAndIteratorType)
+{
+  const char* before =
+    "(for (idseq (id i)) (nominal x (id Foo) x x x) (seq 3) (seq 4) (seq 5))";
+
+  const char* after =
+    "(seq:scope"
+    "  (= (var (idseq (id hygid)) (nominal x (id Foo) x x x)) (seq 3))"
+    "  (while:scope"
+    "    (call (. (reference (id hygid)) (id has_next)) x x)"
+    "    (seq:scope"
+    "      (="
+    "        (var (idseq (id i)) (nominal x (id Foo) x x x))"
+    "        (call (. (reference (id hygid)) (id next)) x x))"
+    "      (seq 4)"
+    "    )"
+    "    (seq 5)"
+    "  )"
+    ")";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_FOR));
+}
+
+
+TEST(SugarTest, CaseWithBody)
+{
+  const char* before = "(case (seq 1) x x (seq 2))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_CASE));
+}
+
+
+TEST(SugarTest, CaseWithBodyAndFollowingCase)
+{
+  const char* before =
+    "(cases"
+    "  (case (seq 1) x x (seq 2))"
+    "  (case (seq 3) x x (seq 4)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_CASE));
+}
+
+
+TEST(SugarTest, CaseWithNoBodyOrFollowingCase)
+{
+  const char* before = "(case (seq 1) x x x)";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CASE, AST_FATAL));
+}
+
+
+TEST(SugarTest, CaseWithNoBody)
+{
+  const char* before =
+    "(cases"
+    "  (case (seq 1) x x x)"
+    "  (case (seq 2) x x (seq 3)))";
+
+  const char* after  =
+    "(cases"
+    "  (case (seq 1) x x (seq 3))"
+    "  (case (seq 2) x x (seq 3)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_CASE));
+}
+
+
+TEST(SugarTest, CaseWithNoBodyMultiple)
+{
+  const char* before =
+    "(cases"
+    "  (case (seq 1) x x x)"
+    "  (case (seq 2) x x x)"
+    "  (case (seq 3) x x x)"
+    "  (case (seq 4) x x (seq 5)))";
+
+  const char* after =
+    "(cases"
+    "  (case (seq 1) x x (seq 5))"
+    "  (case (seq 2) x x x)"
+    "  (case (seq 3) x x x)"
+    "  (case (seq 4) x x (seq 5)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_CASE));
+}
 
 
 // Pure type checking "sugar"
