@@ -87,11 +87,11 @@ static ast_t* make_structural(ast_t* ast)
 
 static bool sugar_typename(ast_t* ast)
 {
-  const char* main = stringtab("Main");
+  const char* m = stringtab("Main");
   ast_t* id = ast_child(ast);
   ast_t* typeparams = ast_sibling(id);
 
-  if(ast_name(id) != main)
+  if(ast_name(id) != m)
     return true;
 
   if(ast_id(ast) != TK_ACTOR)

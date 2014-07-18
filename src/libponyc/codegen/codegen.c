@@ -184,9 +184,9 @@ static bool codegen_program(compile_t* c, ast_t* ast)
 
   // the first package is the main package. if it has a Main actor, this
   // is a program, otherwise this is a library.
-  ast_t* main = ast_get(package, stringtab("Main"));
+  ast_t* m = ast_get(package, stringtab("Main"));
 
-  if((main != NULL) && !codegen_main(c))
+  if((m != NULL) && !codegen_main(c))
     return false;
 
   while(package != NULL)
