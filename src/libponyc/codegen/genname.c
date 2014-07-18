@@ -1,7 +1,6 @@
 #include "genname.h"
 #include "../ds/stringtab.h"
 #include <string.h>
-#include <stdlib.h>
 
 static void name_append(char* name, const char* append)
 {
@@ -55,14 +54,12 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 
   len += tlen;
 
-  char* name = malloc(len);
+  char name[len];
   strcpy(name, a);
   name_append(name, b);
   typeargs_append(name, typeargs);
 
-  const char* result = stringtab(name);
-  free(name);
-  return result;
+  return stringtab(name);
 }
 
 static const char* nominal_name(ast_t* ast)

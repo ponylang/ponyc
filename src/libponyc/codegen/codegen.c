@@ -7,14 +7,13 @@
 #include <llvm-c/Target.h>
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/Analysis.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
 {
-  LLVMTypeRef* params = malloc(sizeof(LLVMTypeRef) * 2);
+  LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0);
 
@@ -46,17 +45,9 @@ static bool codegen_main(compile_t* c, LLVMTypeRef type)
 
 static bool codegen_program(compile_t* c, ast_t* program)
 {
-  ast_t* package = ast_child(program);
-
-  if(package == NULL)
-  {
-    ast_error(program, "program has no packages");
-    return false;
-  }
-
   // the first package is the main package. if it has a Main actor, this
   // is a program, otherwise this is a library.
-  c->filename = package_filename(package);
+  ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
   ast_t* m = ast_get(package, main_actor);
 
@@ -96,8 +87,11 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return codegen_main(c, type);
 }
 
-static void codegen_init(compile_t* c)
+static void codegen_init(compile_t* c, ast_t* program)
 {
+  // the name of the first package is the name of the program
+  c->filename = package_filename(ast_child(program));
+
   LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
   LLVMInitializeCore(passreg);
   LLVMInitializeNativeTarget();
@@ -166,7 +160,7 @@ static void codegen_cleanup(compile_t* c)
 bool codegen(ast_t* program)
 {
   compile_t c;
-  codegen_init(&c);
+  codegen_init(&c, program);
   bool ok = codegen_program(&c, program);
 
   if(ok)

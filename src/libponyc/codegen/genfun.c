@@ -4,7 +4,6 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -42,7 +41,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   if(ast_id(fun) != TK_NEW)
     count++;
 
-  LLVMTypeRef* tparams = malloc(sizeof(LLVMTypeRef) * count);
+  LLVMTypeRef tparams[count];
   count = 0;
 
   if(ast_id(fun) != TK_NEW)
@@ -68,7 +67,6 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     if(tparams[count] == NULL)
     {
       ast_error(ptype, "couldn't generate parameter type");
-      free(tparams);
       return NULL;
     }
 
@@ -82,7 +80,6 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   if(result == NULL)
   {
     ast_error(rtype, "couldn't generate result type");
-    free(tparams);
     return NULL;
   }
 

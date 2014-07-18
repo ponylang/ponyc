@@ -2,7 +2,6 @@
 #include "genname.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -31,7 +30,7 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
     member = ast_sibling(member);
   }
 
-  LLVMTypeRef* elements = malloc(sizeof(LLVMTypeRef) * count);
+  LLVMTypeRef elements[count];
   member = ast_child(members);
   int index = 0;
 
@@ -48,10 +47,7 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
         ast_free_unattached(ftype);
 
         if(ltype == NULL)
-        {
-          free(elements);
           return false;
-        }
 
         elements[index] = ltype;
         index++;
@@ -66,8 +62,6 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
 
   LLVMStructSetBody(type, elements, count, false);
   // LLVMDumpType(type);
-  free(elements);
-
   return true;
 }
 
