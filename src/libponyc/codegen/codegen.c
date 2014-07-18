@@ -53,8 +53,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   // the first package is the main package. if it has a Main actor, this
   // is a program, otherwise this is a library.
-  const char* main = stringtab("Main");
-  ast_t* m = ast_get(package, main);
+  const char* main_actor = stringtab("Main");
+  ast_t* m = ast_get(package, main_actor);
 
   if(m == NULL)
   {
@@ -66,7 +66,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   ast_add(ast, ast_from(m, TK_NONE)); // ephemeral
   ast_add(ast, ast_from(m, TK_TAG)); // cap
   ast_add(ast, ast_from(m, TK_NONE)); // typeargs
-  ast_add(ast, ast_from_string(m, main)); // main
+  ast_add(ast, ast_from_string(m, main_actor)); // main
   ast_add(ast, package_id(package)); // initial package
 
   if(!names_nominal(package, &ast))
