@@ -121,6 +121,9 @@ class U128 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
+class F16 val is Stringable
+  fun box string(): String => compiler_intrinsic
+
 class F32 val is Stringable
   fun box string(): String => compiler_intrinsic
 

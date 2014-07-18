@@ -200,7 +200,11 @@ bool names_nominal(ast_t* scope, ast_t** astp)
   if(ast_id(package) != TK_NONE)
   {
     const char* name = ast_name(package);
-    scope = ast_get(scope, name);
+
+    if(name[0] == '$')
+      scope = ast_get(ast_nearest(scope, TK_PROGRAM), name);
+    else
+      scope = ast_get(scope, name);
 
     if((scope == NULL) || (ast_id(scope) != TK_PACKAGE))
     {

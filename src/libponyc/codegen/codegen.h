@@ -1,7 +1,17 @@
-#ifndef PASS_CODEGEN_H
-#define PASS_CODEGEN_H
+#ifndef CODEGEN_H
+#define CODEGEN_H
 
 #include "../ast/ast.h"
+#include <llvm-c/Core.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
+
+typedef struct compile_t
+{
+  LLVMModuleRef module;
+  LLVMBuilderRef builder;
+  LLVMPassManagerRef fpm;
+  LLVMPassManagerBuilderRef pmb;
+} compile_t;
 
 bool codegen(ast_t* program);
 
