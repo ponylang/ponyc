@@ -7,9 +7,6 @@ function unittest()
     targetdir "../bin/tests/release"
     objdir "../obj/tests/release"
 
-  configuration "macosx"
-    links { "c++" }
-
   configuration "*"
     includedirs {
       "../utils/gtest/",
@@ -20,7 +17,8 @@ function unittest()
     buildoptions "-std=gnu++11"
     language "C++"
     kind "ConsoleApp"
-    links { "gtest", "libponyc", "pthread" }
+    links "gtest"
+    link_libponyc()
 end
 
 function testutil()
@@ -32,18 +30,15 @@ function testutil()
     targetdir "../bin/tests/release"
     objdir "../obj/tests/release"
 
-  configuration "macosx"
-    links { "c" }
-
   configuration "*"
     includedirs {
       "../src/",
       "../inc/"
     }
     buildoptions "-std=gnu11"
-    language "C"
+    language "C++"
     kind "ConsoleApp"
-    links { "libponyc", "m" }
+    link_libponyc()
 end
 
 project "unit"

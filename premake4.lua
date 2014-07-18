@@ -1,5 +1,5 @@
 -- os.outputof is broken in premake4, hence this workaround
-local function llvm_config(opt)
+function llvm_config(opt)
     local stream = assert(io.popen("llvm-config-3.4 " .. opt))
     local output = ""
 
@@ -18,27 +18,37 @@ local function llvm_config(opt)
     return output
 end
 
+function link_libponyc()
+  linkoptions {
+    llvm_config("--ldflags")
+  }
+
+  links "libponyc"
+
+  local output = llvm_config("--libs")
+
+  for lib in string.gmatch(output, "-l(%S+)") do
+    links { lib }
+  end
+end
+
 solution "ponyc"
   configurations {
     "Debug",
     "Release",
     "Profile"
   }
-
   buildoptions {
     "-march=native",
-    "-pthread",
+    "-pthread"
   }
-
   linkoptions {
-    "-pthread",
-    llvm_config("--ldflags --libs all")
+    "-pthread"
   }
-
   flags {
     "ExtraWarnings",
     "FatalWarnings",
-    "Symbols",
+    "Symbols"
   }
 
   configuration "macosx"
@@ -77,7 +87,6 @@ solution "ponyc"
     buildoptions {
       "-std=gnu11"
     }
-
     defines {
       "_DEBUG",
       "_GNU_SOURCE",
@@ -92,7 +101,7 @@ solution "ponyc"
     language "C++"
     buildoptions "-std=gnu11"
     files "src/ponyc/**.c"
-    links "libponyc"
+    link_libponyc()
 
   include "utils/"
   include "test/"
