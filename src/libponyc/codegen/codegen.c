@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "gentype.h"
+#include "genfun.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
 #include "../ds/stringtab.h"
@@ -7,6 +8,8 @@
 #include <llvm-c/BitWriter.h>
 #include <llvm-c/Analysis.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
@@ -53,6 +56,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   // the first package is the main package. if it has a Main actor, this
   // is a program, otherwise this is a library.
+  c->filename = package_filename(package);
   const char* main_actor = stringtab("Main");
   ast_t* m = ast_get(package, main_actor);
 
@@ -84,6 +88,15 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   ast_free_unattached(ast);
+
+  ast_t* create = ast_get(m, stringtab("create"));
+  assert(create != NULL);
+
+  // LLVMValueRef fun = codegen_function(c, create, NULL);
+  //
+  // if(fun == NULL)
+  //   return false;
+
   return codegen_main(c, type);
 }
 
@@ -95,7 +108,7 @@ static void codegen_init(compile_t* c)
   LLVMEnablePrettyStackTrace();
 
   // create a module
-  c->module = LLVMModuleCreateWithName("output");
+  c->module = LLVMModuleCreateWithName(c->filename);
 
   // function pass manager
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
@@ -131,14 +144,18 @@ static bool codegen_finalise(compile_t* c)
     return false;
   }
 
-  // write the bitcode to a file. to generate an executable, we need to use
-  // other tools. simplest might be to use clang, since it will both compile
-  // the bitcode and link it with any C libraries we need, including the
-  // runtime. we can also use it to generate a library. alternatively, it might
-  // be possible to use LLVM-MC to get from bitcode to machine code, getting
-  // to a .o file.
-  LLVMWriteBitcodeToFile(c->module, "output.bc");
-  LLVMDumpModule(c->module);
+  // generates bitcode. llc turns bitcode into assembly. llvm-mc turns
+  // assembly into an object file. still need to link the object file with the
+  // pony runtime and any other C libraries needed.
+  size_t len = strlen(c->filename);
+  char buffer[len + 4];
+  memcpy(buffer, c->filename, len);
+  memcpy(buffer + len, ".bc", 4);
+
+  LLVMWriteBitcodeToFile(c->module, buffer);
+  // LLVMDumpModule(c->module);
+
+  printf("=== Compiled %s ===\n", buffer);
   return true;
 }
 

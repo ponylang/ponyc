@@ -7,6 +7,7 @@
 
 typedef struct compile_t
 {
+  const char* filename;
   LLVMModuleRef module;
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;

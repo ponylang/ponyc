@@ -393,6 +393,17 @@ ast_t* package_id(ast_t* ast)
   return ast_from_string(ast, package_name(ast));
 }
 
+const char* package_filename(ast_t* ast)
+{
+  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  const char* p = strrchr(pkg->path, '/');
+
+  if(p == NULL)
+    return pkg->path;
+
+  return p + 1;
+}
+
 ast_t* package_hygienic_id(ast_t* ast)
 {
   ast_t* package = ast_nearest(ast, TK_PACKAGE);
