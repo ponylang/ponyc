@@ -11,6 +11,117 @@
 #include <string.h>
 #include <assert.h>
 
+static void codegen_runtime(compile_t* c)
+{
+  LLVMTypeRef type;
+  LLVMTypeRef params[5];
+
+  // i8*
+  LLVMTypeRef void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
+
+  // pony_actor_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_t");
+  LLVMTypeRef actor_ptr = LLVMPointerType(type, 0);
+
+  // void (*)(void*)
+  params[0] = void_ptr;
+  LLVMTypeRef trace_fn = LLVMPointerType(
+    LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
+
+  // pony_type_t
+  LLVMTypeRef pony_type = LLVMStructCreateNamed(LLVMGetGlobalContext(),
+    "pony_type_t");
+  params[0] = LLVMInt64Type();
+  params[1] = trace_fn;
+  params[2] = trace_fn;
+  params[3] = trace_fn;
+  LLVMStructSetBody(pony_type, params, 4, false);
+  LLVMTypeRef pony_type_ptr = LLVMPointerType(pony_type, 0);
+
+  // pony_msg_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_msg_t");
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMArrayType(pony_type_ptr, 6);
+  LLVMStructSetBody(type, params, 2, false);
+  LLVMTypeRef pony_msg_ptr = LLVMPointerType(type, 0);
+
+  // pony_msg_t* (*)(i64)
+  params[0] = LLVMInt64Type();
+  LLVMTypeRef msg_fn = LLVMPointerType(
+    LLVMFunctionType(pony_msg_ptr, params, 1, false), 0);
+
+  // void (*)(pony_actor_t*, i8*, i64, i32, 64)
+  params[0] = actor_ptr;
+  params[1] = void_ptr;
+  params[2] = LLVMInt64Type();
+  params[3] = LLVMInt32Type();
+  params[4] = LLVMInt64Type();
+  LLVMTypeRef dispatch_fn = LLVMPointerType(
+    LLVMFunctionType(LLVMVoidType(), params, 5, false), 0);
+
+  // void (*)(void*)
+  params[0] = void_ptr;
+  LLVMTypeRef final_fn = LLVMPointerType(
+    LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
+
+  // pony_actor_type_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_type_t");
+  params[0] = LLVMInt32Type();
+  params[1] = pony_type;
+  params[2] = msg_fn;
+  params[3] = dispatch_fn;
+  params[4] = final_fn;
+  LLVMStructSetBody(type, params, 5, false);
+  LLVMTypeRef pony_actor_type_ptr = LLVMPointerType(type, 0);
+
+  // pony_actor_t* pony_create(pony_actor_type_t*)
+  params[0] = pony_actor_type_ptr;
+  type = LLVMFunctionType(actor_ptr, params, 1, false);
+  LLVMAddFunction(c->module, "pony_create", type);
+
+  // void pony_set(i8*)
+  params[0] = void_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_set", type);
+
+  // void pony_sendv(pony_actor_t*, i64, i32, i64*);
+  params[0] = actor_ptr;
+  params[1] = LLVMInt64Type();
+  params[2] = LLVMInt32Type();
+  params[3] = LLVMPointerType(LLVMInt64Type(), 0);
+  type = LLVMFunctionType(LLVMVoidType(), params, 4, false);
+  LLVMAddFunction(c->module, "pony_sendv", type);
+
+  // i8* pony_alloc(i64)
+  params[0] = LLVMInt64Type();
+  type = LLVMFunctionType(void_ptr, params, 1, false);
+  LLVMAddFunction(c->module, "pony_alloc", type);
+
+  // void pony_trace(i8*)
+  params[0] = void_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_trace", type);
+
+  // void pony_traceactor(pony_actor_t*)
+  params[0] = actor_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_traceactor", type);
+
+  // void pony_traceobject(i8*, trace_fn*)
+  params[0] = void_ptr;
+  params[1] = trace_fn;
+  type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  LLVMAddFunction(c->module, "pony_traceobject", type);
+
+  // int pony_start(int, i8*, pony_actor_t*, bool)
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMPointerType(void_ptr, 0);
+  params[2] = actor_ptr;
+  params[3] = LLVMInt1Type();
+  type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
+  LLVMAddFunction(c->module, "pony_start", type);
+}
+
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
 {
   LLVMTypeRef params[2];
@@ -120,10 +231,11 @@ static bool codegen_finalise(compile_t* c)
   LLVMFinalizeFunctionPassManager(c->fpm);
 
   // module pass manager
-  LLVMPassManagerRef mpm = LLVMCreatePassManager();
-  LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
-  LLVMRunPassManager(mpm, c->module);
-  LLVMDisposePassManager(mpm);
+  // TODO: turn this back on
+  // LLVMPassManagerRef mpm = LLVMCreatePassManager();
+  // LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
+  // LLVMRunPassManager(mpm, c->module);
+  // LLVMDisposePassManager(mpm);
 
   char* msg;
 
@@ -161,6 +273,7 @@ bool codegen(ast_t* program)
 {
   compile_t c;
   codegen_init(&c, program);
+  codegen_runtime(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)

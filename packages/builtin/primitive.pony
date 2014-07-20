@@ -159,6 +159,7 @@ type Integer is
 
 type Float is
   ( FloatLiteral
+  | F16
   | F32
   | F64
   )

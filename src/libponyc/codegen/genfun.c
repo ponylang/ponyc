@@ -10,6 +10,9 @@
 LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
+  // get a fully qualified name: starts with the type name, followed by the
+  // type arguments, followed by the function name, followed by the function
+  // level type arguments.
   const char* funname = codegen_funname(type, name, typeargs);
 
   if(funname == NULL)
@@ -18,11 +21,13 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     return NULL;
   }
 
+  // if the function already exists, just return it
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
 
   if(func != NULL)
     return func;
 
+  // reify with both the type and the function-level typeargs
   ast_t* fun = lookup(type, name);
   assert(fun != NULL);
 
@@ -35,15 +40,18 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     assert(fun != NULL);
   }
 
+  // count the parameters
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
 
+  // if we're not a constructor, the receiver is another parameter
   if(ast_id(fun) != TK_NEW)
     count++;
 
   LLVMTypeRef tparams[count];
   count = 0;
 
+  // get a type for the receiver
   if(ast_id(fun) != TK_NEW)
   {
     tparams[count] = codegen_type(c, type);
@@ -57,6 +65,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     count++;
   }
 
+  // get a type for each parameter
   ast_t* param = ast_child(params);
 
   while(param != NULL)
@@ -74,6 +83,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     param = ast_sibling(param);
   }
 
+  // get a type for the result
   ast_t* rtype = ast_childidx(fun, 4);
   LLVMTypeRef result = codegen_type(c, rtype);
 
@@ -83,17 +93,20 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
     return NULL;
   }
 
+  // generate the function type and the function prototype
   LLVMTypeRef ftype = LLVMFunctionType(result, tparams, count, false);
   func = LLVMAddFunction(c->module, funname, ftype);
 
   count = 0;
 
+  // name the receiver 'this'
   if(ast_id(fun) != TK_NEW)
   {
     LLVMValueRef fparam = LLVMGetParam(func, count++);
     LLVMSetValueName(fparam, "this");
   }
 
+  // name each parameter
   param = ast_child(params);
 
   while(param != NULL)
@@ -104,6 +117,6 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   }
 
   // TODO: body
-  LLVMDumpValue(func);
+  LLVMRunFunctionPassManager(c->fpm, func);
   return func;
 }

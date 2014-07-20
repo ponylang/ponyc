@@ -8,10 +8,10 @@ class Helper[A: Arithmetic]
 
 actor Main
   var x: U32
-  var y: Helper[I16]
+  var y: Helper[F16]
   var z: Bool
 
   new create(env: Env) =>
     x = 7
-    y = Helper[I16](9, this)
+    y = Helper[F16](9, this)
     z = True

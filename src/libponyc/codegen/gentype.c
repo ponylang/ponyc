@@ -3,6 +3,7 @@
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
@@ -61,7 +62,9 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
   }
 
   LLVMStructSetBody(type, elements, count, false);
-  // LLVMDumpType(type);
+  fprintf(stderr, "\n");
+
+  // TODO: create a trace function
   return true;
 }
 
@@ -71,6 +74,7 @@ static bool codegen_class(compile_t* c, LLVMTypeRef type, ast_t* def,
   if(!codegen_struct(c, type, def, typeargs))
     return false;
 
+  // TODO: create a type descriptor
   return true;
 }
 
@@ -80,6 +84,7 @@ static bool codegen_actor(compile_t* c, LLVMTypeRef type, ast_t* def,
   if(!codegen_struct(c, type, def, typeargs))
     return false;
 
+  // TODO: create an actor descriptor, message type function, dispatch function
   return true;
 }
 
@@ -182,6 +187,7 @@ static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
       case LLVMPointerTypeKind:
       {
         // TODO:
+        break;
       }
 
       default:
