@@ -14,6 +14,6 @@ typedef struct compile_t
   LLVMPassManagerBuilderRef pmb;
 } compile_t;
 
-bool codegen(ast_t* program);
+bool codegen(ast_t* program, int opt, bool print_llvm);
 
 #endif

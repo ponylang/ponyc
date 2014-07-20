@@ -29,7 +29,7 @@ ast_t* program_load(const char* path, bool parse_only);
 /**
  * Compile a program.
  */
-bool program_compile(ast_t* program);
+bool program_compile(ast_t* program, int opt, bool print_llvm);
 
 /**
  * Loads a package. Used by program_load() and when handling 'use' statements.

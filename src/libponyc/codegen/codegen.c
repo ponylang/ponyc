@@ -198,7 +198,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return codegen_main(c, type);
 }
 
-static void codegen_init(compile_t* c, ast_t* program)
+static void codegen_init(compile_t* c, ast_t* program, int opt)
 {
   // the name of the first package is the name of the program
   c->filename = package_filename(ast_child(program));
@@ -216,7 +216,7 @@ static void codegen_init(compile_t* c, ast_t* program)
   LLVMAddTargetData(LLVMCreateTargetData(LLVMGetDataLayout(c->module)), c->fpm);
 
   c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, 3);
+  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt);
   LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
 
   LLVMInitializeFunctionPassManager(c->fpm);
@@ -225,17 +225,16 @@ static void codegen_init(compile_t* c, ast_t* program)
   c->builder = LLVMCreateBuilder();
 }
 
-static bool codegen_finalise(compile_t* c)
+static bool codegen_finalise(compile_t* c, bool print_llvm)
 {
   // finalise the function passes
   LLVMFinalizeFunctionPassManager(c->fpm);
 
   // module pass manager
-  // TODO: turn this back on
-  // LLVMPassManagerRef mpm = LLVMCreatePassManager();
-  // LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
-  // LLVMRunPassManager(mpm, c->module);
-  // LLVMDisposePassManager(mpm);
+  LLVMPassManagerRef mpm = LLVMCreatePassManager();
+  LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
+  LLVMRunPassManager(mpm, c->module);
+  LLVMDisposePassManager(mpm);
 
   char* msg;
 
@@ -255,9 +254,11 @@ static bool codegen_finalise(compile_t* c)
   memcpy(buffer + len, ".bc", 4);
 
   LLVMWriteBitcodeToFile(c->module, buffer);
-  LLVMDumpModule(c->module);
-
   printf("=== Compiled %s ===\n", buffer);
+
+  if(print_llvm)
+    LLVMDumpModule(c->module);
+
   return true;
 }
 
@@ -269,15 +270,15 @@ static void codegen_cleanup(compile_t* c)
   LLVMShutdown();
 }
 
-bool codegen(ast_t* program)
+bool codegen(ast_t* program, int opt, bool print_llvm)
 {
   compile_t c;
-  codegen_init(&c, program);
+  codegen_init(&c, program, opt);
   codegen_runtime(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c);
+    ok = codegen_finalise(&c, print_llvm);
 
   codegen_cleanup(&c);
   return ok;

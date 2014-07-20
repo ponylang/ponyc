@@ -335,9 +335,9 @@ ast_t* program_load(const char* path, bool parse_only)
   return program;
 }
 
-bool program_compile(ast_t* program)
+bool program_compile(ast_t* program, int opt, bool print_llvm)
 {
-  return codegen(program);
+  return codegen(program, opt, print_llvm);
 }
 
 ast_t* package_load(ast_t* from, const char* path, bool parse_only)

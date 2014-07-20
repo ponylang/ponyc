@@ -62,7 +62,6 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
   }
 
   LLVMStructSetBody(type, elements, count, false);
-  fprintf(stderr, "\n");
 
   // TODO: create a trace function
   return true;
