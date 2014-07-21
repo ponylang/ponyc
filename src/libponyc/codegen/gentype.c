@@ -208,39 +208,34 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
 
 static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  size_t count = ast_childcount(ast);
+  LLVMTypeRef types[count];
 
-  LLVMTypeRef tleft = codegen_type(c, left);
-  LLVMTypeRef tright = codegen_type(c, right);
+  ast_t* child = ast_child(ast);
+  size_t index = 0;
 
-  if(tleft == tright)
+  while(child != NULL)
   {
-    switch(LLVMGetTypeKind(tleft))
-    {
-      case LLVMIntegerTypeKind:
-      {
-        // (i1 | i1) => i1
-        // this will occur for a Bool. integer types don't get unioned with
-        // themselves in any other situation.
-        assert(LLVMGetIntTypeWidth(tleft) == 1);
-        return tleft;
-      }
+    types[index] = codegen_type(c, child);
 
-      case LLVMPointerTypeKind:
-      {
-        // TODO:
-        break;
-      }
+    if(types[index] == NULL)
+      return NULL;
 
-      default:
-      {
-        // other types don't get unioned with themselves
-        assert(0);
-        return NULL;
-      }
-    }
+    index++;
+    child = ast_sibling(child);
   }
+
+  // special case Bool
+  LLVMTypeRef i1 = LLVMInt1Type();
+
+  for(index = 0; index < count; index++)
+  {
+    if(types[index] != i1)
+      break;
+  }
+
+  if(index == count)
+    return i1;
 
   ast_error(ast, "not implemented (codegen for uniontype)");
   return NULL;

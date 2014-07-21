@@ -10,7 +10,7 @@ bool expr_match(ast_t* ast)
   assert(ast_id(ast) == TK_MATCH);
   ast_t* expr = ast_child(ast);
   ast_t* cases = ast_sibling(expr);
-  ast_t* right = ast_sibling(cases);
+  ast_t* else_clause = ast_sibling(cases);
 
   ast_t* the_case = ast_child(cases);
   ast_t* type = NULL;
@@ -25,10 +25,10 @@ bool expr_match(ast_t* ast)
     the_case = ast_sibling(the_case);
   }
 
-  if(ast_id(right) != TK_NONE)
+  if(ast_id(else_clause) != TK_NONE)
   {
-    ast_t* r_type = ast_type(right);
-    type = type_union(type, r_type);
+    ast_t* else_type = ast_type(else_clause);
+    type = type_union(type, else_type);
   } else {
     // TODO: remove this when we know there is exhaustive match
     type = type_union(type, type_builtin(ast, "None"));

@@ -7,4 +7,6 @@ bool names_nominal(ast_t* scope, ast_t** astp);
 
 ast_result_t pass_names(ast_t** astp);
 
+ast_result_t pass_flatten(ast_t** astp);
+
 #endif

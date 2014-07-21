@@ -1,4 +1,5 @@
 #include "names.h"
+#include "../type/assemble.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -274,6 +275,62 @@ ast_result_t pass_names(ast_t** astp)
 
     case TK_ARROW:
       if(!names_arrow(ast))
+        return AST_ERROR;
+      break;
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+static bool flatten_union(ast_t** astp)
+{
+  // compact union types
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+  ast_t* type = NULL;
+
+  while(child != NULL)
+  {
+    type = type_union(type, child);
+    child = ast_sibling(child);
+  }
+
+  ast_replace(astp, type);
+  return true;
+}
+
+static bool flatten_isect(ast_t** astp)
+{
+  // compact isect types
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+  ast_t* type = NULL;
+
+  while(child != NULL)
+  {
+    type = type_isect(type, child);
+    child = ast_sibling(child);
+  }
+
+  ast_replace(astp, type);
+  return true;
+}
+
+ast_result_t pass_flatten(ast_t** astp)
+{
+  ast_t* ast = *astp;
+
+  switch(ast_id(ast))
+  {
+    case TK_UNIONTYPE:
+      if(!flatten_union(astp))
+        return AST_ERROR;
+      break;
+
+    case TK_ISECTTYPE:
+      if(!flatten_isect(astp))
         return AST_ERROR;
       break;
 
