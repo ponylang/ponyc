@@ -6,26 +6,55 @@
 #include "../pass/names.h"
 #include <assert.h>
 
-static void append_to_union(ast_t* ast, ast_t* append)
+static void append_one_to_typeexpr(ast_t* ast, ast_t* append)
 {
-  if(ast_id(append) == TK_UNIONTYPE)
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
   {
-    // add each element of the union to the new union only if it is not already
-    // a subtype of the new union.
+    // don't append if we're already in the type expression
+    if(is_eqtype(append, child))
+      return;
+
+    child = ast_sibling(child);
+  }
+
+  ast_append(ast, append);
+}
+
+static void append_to_typeexpr(ast_t* ast, ast_t* append)
+{
+  if(ast_id(ast) == ast_id(append))
+  {
+    // add each element of the typeexpr to the new typeexpr
     ast_t* child = ast_child(append);
 
     while(child != NULL)
     {
-      if(!is_subtype(child, ast))
-        ast_append(ast, child);
-
+      append_one_to_typeexpr(ast, append);
       child = ast_sibling(child);
     }
   } else {
-    // add to the union only if we're not a subtype of the union.
-    if(!is_subtype(append, ast))
-      ast_append(ast, append);
+    append_one_to_typeexpr(ast, append);
   }
+}
+
+static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
+{
+  if(l_type == NULL)
+    return r_type;
+
+  if(r_type == NULL)
+    return l_type;
+
+  if(is_eqtype(l_type, r_type))
+    return l_type;
+
+  ast_t* type = ast_from(l_type, t);
+  append_to_typeexpr(type, l_type);
+  append_to_typeexpr(type, r_type);
+
+  return type;
 }
 
 static ast_t* type_base(ast_t* from, const char* package, const char* name)
@@ -61,23 +90,12 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)
 {
-  if(l_type == NULL)
-    return r_type;
+  return type_typeexpr(TK_UNIONTYPE, l_type, r_type);
+}
 
-  if(r_type == NULL)
-    return l_type;
-
-  if(is_subtype(l_type, r_type))
-    return r_type;
-
-  if(is_subtype(r_type, l_type))
-    return l_type;
-
-  ast_t* type = ast_from(l_type, TK_UNIONTYPE);
-  append_to_union(type, l_type);
-  append_to_union(type, r_type);
-
-  return type;
+ast_t* type_isect(ast_t* l_type, ast_t* r_type)
+{
+  return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
 ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)

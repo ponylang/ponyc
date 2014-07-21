@@ -14,6 +14,7 @@ struct ast_t
   symtab_t* symtab;
   void* data;
 
+  struct ast_t* scope;
   struct ast_t* parent;
   struct ast_t* child;
   struct ast_t* sibling;
@@ -150,6 +151,7 @@ static ast_t* dup(ast_t* parent, ast_t* ast)
 
   ast_t* n = ast_token(token_dup(ast->t));
   n->data = ast->data;
+  n->scope = (parent != NULL) ? parent : ast->scope;
   n->parent = parent;
   n->child = dup(n, ast->child);
   n->type = dup(n, ast->type);
@@ -186,7 +188,9 @@ ast_t* ast_token(token_t* t)
 ast_t* ast_from(ast_t* ast, token_id id)
 {
   assert(ast != NULL);
-  return ast_token(token_dup_new_id(ast->t, id));
+  ast_t* new_ast = ast_token(token_dup_new_id(ast->t, id));
+  new_ast->scope = ast->scope;
+  return new_ast;
 }
 
 ast_t* ast_from_string(ast_t* ast, const char* id)
@@ -197,7 +201,10 @@ ast_t* ast_from_string(ast_t* ast, const char* id)
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
   token_set_string(t, id);
-  return ast_token(t);
+
+  ast_t* new_ast = ast_token(t);
+  new_ast->scope = ast->scope;
+  return new_ast;
 }
 
 ast_t* ast_dup(ast_t* ast)
@@ -313,6 +320,7 @@ void ast_settype(ast_t* ast, ast_t* type)
     if(type->parent != NULL)
       type = ast_dup(type);
 
+    type->scope = ast;
     type->parent = ast;
   }
 
@@ -599,7 +607,7 @@ void* ast_get(ast_t* ast, const char* name)
         return value;
     }
 
-    ast = ast->parent;
+    ast = ast->scope;
   } while((ast != NULL) && (token_get_id(ast->t) != TK_PROGRAM));
 
   return NULL;
@@ -608,7 +616,7 @@ void* ast_get(ast_t* ast, const char* name)
 bool ast_set(ast_t* ast, const char* name, void* value)
 {
   while(ast->symtab == NULL)
-    ast = ast->parent;
+    ast = ast->scope;
 
   return (ast_get(ast, name) == NULL)
     && symtab_add(ast->symtab, name, value);
@@ -617,7 +625,7 @@ bool ast_set(ast_t* ast, const char* name, void* value)
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)
-    dst = dst->parent;
+    dst = dst->scope;
 
   return symtab_merge(dst->symtab, src->symtab);
 }
@@ -648,6 +656,7 @@ ast_t* ast_add(ast_t* parent, ast_t* child)
   if(child->parent != NULL)
     child = ast_dup(child);
 
+  child->scope = parent;
   child->parent = parent;
   child->sibling = parent->child;
   parent->child = child;
@@ -664,6 +673,7 @@ ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
   if(new_sibling->parent != NULL)
     new_sibling = ast_dup(new_sibling);
 
+  new_sibling->scope = older_sibling->scope;
   new_sibling->parent = older_sibling->parent;
   older_sibling->sibling = new_sibling;
   return new_sibling;
@@ -690,6 +700,7 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   if(child->parent != NULL)
     child = ast_dup(child);
 
+  child->scope = parent;
   child->parent = parent;
 
   if(parent->child == NULL)
@@ -699,7 +710,10 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   }
 
   ast_t* ast = parent->child;
-  while(ast->sibling != NULL) { ast = ast->sibling; }
+
+  while(ast->sibling != NULL)
+    ast = ast->sibling;
+
   ast->sibling = child;
   return child;
 }
@@ -712,6 +726,7 @@ void ast_swap(ast_t* prev, ast_t* next)
   if(next->parent != NULL)
     next = ast_dup(next);
 
+  next->scope = prev->parent;
   next->parent = prev->parent;
 
   if(prev->parent->type == prev)
@@ -902,7 +917,7 @@ void ast_get_children(ast_t* parent, size_t child_count,
 
     if(out_children[i] != NULL)
       *(out_children[i]) = p;
-    
+
     p = p->sibling;
   }
 }

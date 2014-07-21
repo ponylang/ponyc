@@ -475,28 +475,15 @@ bool is_subtype(ast_t* sub, ast_t* super)
       // check for numeric literals and special case them
       if(is_literal(sub, "IntLiteral"))
       {
-        if(is_literal(super, "IntLiteral") ||
-          is_literal(super, "FloatLiteral")
-          )
-          return true;
-
         // an integer literal is a subtype of any arithmetic type
-        ast_t* math = type_builtin(sub, "Arithmetic");
-        bool ok = is_subtype(super, math);
-        ast_free(math);
-
-        if(ok)
+        if(is_literal(super, "IntLiteral") ||
+          is_literal(super, "FloatLiteral") ||
+          is_arithmetic(super))
           return true;
       } else if(is_literal(sub, "FloatLiteral")) {
-        if(is_literal(super, "FloatLiteral"))
-          return true;
-
         // a float literal is a subtype of any float type
-        ast_t* float_type = type_builtin(sub, "Float");
-        bool ok = is_subtype(super, float_type);
-        ast_free(float_type);
-
-        if(ok)
+        if(is_literal(super, "FloatLiteral") ||
+          is_float(super))
           return true;
       }
 
@@ -573,14 +560,8 @@ bool is_literal(ast_t* type, const char* name)
 bool is_builtin(ast_t* type, const char* name)
 {
   assert(type != NULL);
-  ast_t* builtin = ast_from(type, TK_NOMINAL);
-  ast_add(builtin, ast_from(type, TK_NONE));
-  ast_add(builtin, ast_from(type, TK_NONE));
-  ast_add(builtin, ast_from(type, TK_NONE));
-  ast_add(builtin, ast_from_string(type, name));
-  ast_add(builtin, ast_from(type, TK_NONE));
-
-  bool ok = names_nominal(type, &builtin) && is_subtype(type, builtin);
+  ast_t* builtin = type_builtin(type, name);
+  bool ok = is_subtype(type, builtin);
   ast_free_unattached(builtin);
 
   return ok;
