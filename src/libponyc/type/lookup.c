@@ -88,29 +88,3 @@ ast_t* lookup(ast_t* type, const char* name)
 {
   return lookup_base(type, type, name);
 }
-
-ast_t* lookup_tuple(ast_t* ast, int index)
-{
-  assert(ast_id(ast) == TK_TUPLETYPE);
-
-  while(index > 1)
-  {
-    ast_t* right = ast_childidx(ast, 1);
-
-    if(ast_id(right) != TK_TUPLETYPE)
-      return NULL;
-
-    index--;
-    ast = right;
-  }
-
-  if(index == 0)
-    return ast_child(ast);
-
-  ast = ast_childidx(ast, 1);
-
-  if(ast_id(ast) == TK_TUPLETYPE)
-    return ast_child(ast);
-
-  return ast;
-}

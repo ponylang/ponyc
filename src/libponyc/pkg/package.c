@@ -335,9 +335,9 @@ ast_t* program_load(const char* path, bool parse_only)
   return program;
 }
 
-bool program_compile(ast_t* program)
+bool program_compile(ast_t* program, int opt, bool print_llvm)
 {
-  return codegen(program);
+  return codegen(program, opt, print_llvm);
 }
 
 ast_t* package_load(ast_t* from, const char* path, bool parse_only)
@@ -391,6 +391,17 @@ const char* package_name(ast_t* ast)
 ast_t* package_id(ast_t* ast)
 {
   return ast_from_string(ast, package_name(ast));
+}
+
+const char* package_filename(ast_t* ast)
+{
+  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  const char* p = strrchr(pkg->path, '/');
+
+  if(p == NULL)
+    return pkg->path;
+
+  return p + 1;
 }
 
 ast_t* package_hygienic_id(ast_t* ast)

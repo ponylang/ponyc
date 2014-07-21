@@ -54,12 +54,16 @@ ast_t* alias(ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // alias each side
+      // alias each element
       ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias(right));
-      ast_add(r_type, alias(left));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, alias(child));
+        child = ast_sibling(child);
+      }
+
       return r_type;
     }
 
@@ -97,12 +101,16 @@ ast_t* consume_type(ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // consume each side
+      // consume each element
       ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, consume_type(right));
-      ast_add(r_type, consume_type(left));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, consume_type(child));
+        child = ast_sibling(child);
+      }
+
       return r_type;
     }
 
@@ -150,12 +158,16 @@ ast_t* recover_type(ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // recover each side
+      // recover each element
       ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, recover_type(right));
-      ast_add(r_type, recover_type(left));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, recover_type(child));
+        child = ast_sibling(child);
+      }
+
       return r_type;
     }
 
@@ -187,20 +199,35 @@ ast_t* recover_type(ast_t* type)
 
 bool sendable(ast_t* type)
 {
-  if(ast_id(type) == TK_TUPLETYPE)
+  switch(ast_id(type))
   {
-    ast_t* child = ast_child(type);
-
-    while(child != NULL)
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     {
-      if(!sendable(child))
-        return false;
+      // test each element
+      ast_t* child = ast_child(type);
 
-      child = ast_sibling(child);
+      while(child != NULL)
+      {
+        if(!sendable(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
     }
 
-    return true;
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+    case TK_ARROW:
+      return cap_sendable(cap_for_type(type));
+
+    default: {}
   }
 
-  return cap_sendable(cap_for_type(type));
+  assert(0);
+  return false;
 }

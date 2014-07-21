@@ -29,7 +29,7 @@ ast_t* program_load(const char* path, bool parse_only);
 /**
  * Compile a program.
  */
-bool program_compile(ast_t* program);
+bool program_compile(ast_t* program, int opt, bool print_llvm);
 
 /**
  * Loads a package. Used by program_load() and when handling 'use' statements.
@@ -46,6 +46,11 @@ const char* package_name(ast_t* ast);
  * first package loaded will be $0, the second $1, etc.
  */
 ast_t* package_id(ast_t* ast);
+
+/**
+ * Gets the last component of the package path.
+ */
+const char* package_filename(ast_t* ast);
 
 /**
  * Gets an AST ID node with a string set to a hygienic ID. Hygienic IDs are

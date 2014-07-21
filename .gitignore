@@ -8,4 +8,4 @@ output
 VS_ponyc
 hmm*
 .gitattributes
-output.bc
+*.bc

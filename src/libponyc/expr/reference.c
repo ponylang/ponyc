@@ -4,7 +4,7 @@
 #include "../ast/token.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
+#include "../type/alias.h"
 #include <assert.h>
 
 /**
@@ -39,16 +39,18 @@ bool expr_field(ast_t* ast)
   if(ast_id(type) == TK_NONE)
   {
     // if no declared type, get the type from the initialiser
-    ast_settype(ast, ast_type(init));
+    ast_settype(ast, alias(ast_type(init)));
     return true;
   }
 
   if(ast_id(init) != TK_NONE)
   {
     // initialiser type must match declared type
-    ast_t* init_type = ast_type(init);
+    ast_t* init_type = alias(ast_type(init));
+    bool ok = is_subtype(init_type, type);
+    ast_free_unattached(init_type);
 
-    if(!is_subtype(init_type, type))
+    if(!ok)
     {
       ast_error(init,
         "field/param initialiser is not a subtype of the field/param type");

@@ -220,7 +220,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  type = lookup_tuple(type, ast_int(right));
+  type = ast_childidx(type, ast_int(right));
 
   if(type == NULL)
   {
@@ -436,13 +436,8 @@ bool expr_call(ast_t* ast)
           return false;
         }
 
-        ast_t* a_type = alias(ast_type(arg));
-        send &= sendable(a_type);
-        ast_free_unattached(a_type);
-
         // TODO: the meaning of 'this' in the default arg is the receiver, not
         // the caller. can't just copy it.
-        ast_append(positional, arg);
         param = ast_sibling(param);
       }
 

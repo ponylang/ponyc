@@ -1,23 +1,134 @@
 #include "codegen.h"
 #include "gentype.h"
+#include "genfun.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
 #include "../ds/stringtab.h"
 #include <llvm-c/Target.h>
 #include <llvm-c/BitWriter.h>
-#include <llvm-c/Analysis.h>
-#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <assert.h>
+
+static void codegen_runtime(compile_t* c)
+{
+  LLVMTypeRef type;
+  LLVMTypeRef params[5];
+
+  // i8*
+  c->void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
+
+  // pony_actor_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_t");
+  LLVMTypeRef actor_ptr = LLVMPointerType(type, 0);
+
+  // void (*)(i8*)
+  params[0] = c->void_ptr;
+  c->trace_type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  c->trace_fn = LLVMPointerType(c->trace_type, 0);
+
+  // pony_type_t
+  LLVMTypeRef pony_type = LLVMStructCreateNamed(LLVMGetGlobalContext(),
+    "pony_type_t");
+  params[0] = LLVMInt64Type();
+  params[1] = c->trace_fn;
+  params[2] = c->trace_fn;
+  params[3] = c->trace_fn;
+  LLVMStructSetBody(pony_type, params, 4, false);
+  LLVMTypeRef pony_type_ptr = LLVMPointerType(pony_type, 0);
+
+  // pony_msg_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_msg_t");
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMArrayType(pony_type_ptr, 6);
+  LLVMStructSetBody(type, params, 2, false);
+  LLVMTypeRef pony_msg_ptr = LLVMPointerType(type, 0);
+
+  // pony_msg_t* (*)(i64)
+  params[0] = LLVMInt64Type();
+  LLVMTypeRef msg_fn = LLVMPointerType(
+    LLVMFunctionType(pony_msg_ptr, params, 1, false), 0);
+
+  // void (*)(pony_actor_t*, i8*, i64, i32, 64)
+  params[0] = actor_ptr;
+  params[1] = c->void_ptr;
+  params[2] = LLVMInt64Type();
+  params[3] = LLVMInt32Type();
+  params[4] = LLVMInt64Type();
+  LLVMTypeRef dispatch_fn = LLVMPointerType(
+    LLVMFunctionType(LLVMVoidType(), params, 5, false), 0);
+
+  // void (*)(void*)
+  params[0] = c->void_ptr;
+  LLVMTypeRef final_fn = LLVMPointerType(
+    LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
+
+  // pony_actor_type_t
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_type_t");
+  params[0] = LLVMInt32Type();
+  params[1] = pony_type;
+  params[2] = msg_fn;
+  params[3] = dispatch_fn;
+  params[4] = final_fn;
+  LLVMStructSetBody(type, params, 5, false);
+  LLVMTypeRef pony_actor_type_ptr = LLVMPointerType(type, 0);
+
+  // pony_actor_t* pony_create(pony_actor_type_t*)
+  params[0] = pony_actor_type_ptr;
+  type = LLVMFunctionType(actor_ptr, params, 1, false);
+  LLVMAddFunction(c->module, "pony_create", type);
+
+  // void pony_set(i8*)
+  params[0] = c->void_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_set", type);
+
+  // void pony_sendv(pony_actor_t*, i64, i32, i64*);
+  params[0] = actor_ptr;
+  params[1] = LLVMInt64Type();
+  params[2] = LLVMInt32Type();
+  params[3] = LLVMPointerType(LLVMInt64Type(), 0);
+  type = LLVMFunctionType(LLVMVoidType(), params, 4, false);
+  LLVMAddFunction(c->module, "pony_sendv", type);
+
+  // i8* pony_alloc(i64)
+  params[0] = LLVMInt64Type();
+  type = LLVMFunctionType(c->void_ptr, params, 1, false);
+  LLVMAddFunction(c->module, "pony_alloc", type);
+
+  // void pony_trace(i8*)
+  params[0] = c->void_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_trace", type);
+
+  // void pony_traceactor(pony_actor_t*)
+  params[0] = actor_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_traceactor", type);
+
+  // void pony_traceobject(i8*, c->trace_fn*)
+  params[0] = c->void_ptr;
+  params[1] = c->trace_fn;
+  type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  LLVMAddFunction(c->module, "pony_traceobject", type);
+
+  // int pony_start(int, i8*, pony_actor_t*, bool)
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMPointerType(c->void_ptr, 0);
+  params[2] = actor_ptr;
+  params[3] = LLVMInt1Type();
+  type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
+  LLVMAddFunction(c->module, "pony_start", type);
+}
 
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
 {
-  LLVMTypeRef* params = malloc(sizeof(LLVMTypeRef) * 2);
+  LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0);
 
   LLVMTypeRef ftype = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
-  LLVMSetLinkage(func, LLVMExternalLinkage);
 
   LLVMValueRef argc = LLVMGetParam(func, 0);
   LLVMSetValueName(argc, "argc");
@@ -31,28 +142,14 @@ static bool codegen_main(compile_t* c, LLVMTypeRef type)
   // TODO: create the main actor, start the pony runtime
   LLVMBuildRet(c->builder, argc);
 
-  if(LLVMVerifyFunction(func, LLVMPrintMessageAction) != 0)
-  {
-    errorf(NULL, "main function verification failed");
-    return false;
-  }
-
-  LLVMRunFunctionPassManager(c->fpm, func);
-  return true;
+  return codegen_finishfun(c, func);
 }
 
 static bool codegen_program(compile_t* c, ast_t* program)
 {
-  ast_t* package = ast_child(program);
-
-  if(package == NULL)
-  {
-    ast_error(program, "program has no packages");
-    return false;
-  }
-
   // the first package is the main package. if it has a Main actor, this
   // is a program, otherwise this is a library.
+  ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
   ast_t* m = ast_get(package, main_actor);
 
@@ -83,26 +180,34 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
   }
 
+  LLVMValueRef fun = codegen_function(c, ast, stringtab("create"), NULL);
   ast_free_unattached(ast);
+
+  if(fun == NULL)
+    return false;
+
   return codegen_main(c, type);
 }
 
-static void codegen_init(compile_t* c)
+static void codegen_init(compile_t* c, ast_t* program, int opt)
 {
+  // the name of the first package is the name of the program
+  c->filename = package_filename(ast_child(program));
+
   LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
   LLVMInitializeCore(passreg);
   LLVMInitializeNativeTarget();
   LLVMEnablePrettyStackTrace();
 
   // create a module
-  c->module = LLVMModuleCreateWithName("output");
+  c->module = LLVMModuleCreateWithName(c->filename);
 
   // function pass manager
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
   LLVMAddTargetData(LLVMCreateTargetData(LLVMGetDataLayout(c->module)), c->fpm);
 
   c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, 3);
+  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt);
   LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
 
   LLVMInitializeFunctionPassManager(c->fpm);
@@ -111,7 +216,7 @@ static void codegen_init(compile_t* c)
   c->builder = LLVMCreateBuilder();
 }
 
-static bool codegen_finalise(compile_t* c)
+static bool codegen_finalise(compile_t* c, bool print_llvm)
 {
   // finalise the function passes
   LLVMFinalizeFunctionPassManager(c->fpm);
@@ -131,14 +236,20 @@ static bool codegen_finalise(compile_t* c)
     return false;
   }
 
-  // write the bitcode to a file. to generate an executable, we need to use
-  // other tools. simplest might be to use clang, since it will both compile
-  // the bitcode and link it with any C libraries we need, including the
-  // runtime. we can also use it to generate a library. alternatively, it might
-  // be possible to use LLVM-MC to get from bitcode to machine code, getting
-  // to a .o file.
-  LLVMWriteBitcodeToFile(c->module, "output.bc");
-  LLVMDumpModule(c->module);
+  // generates bitcode. llc turns bitcode into assembly. llvm-mc turns
+  // assembly into an object file. still need to link the object file with the
+  // pony runtime and any other C libraries needed.
+  size_t len = strlen(c->filename);
+  char buffer[len + 4];
+  memcpy(buffer, c->filename, len);
+  memcpy(buffer + len, ".bc", 4);
+
+  LLVMWriteBitcodeToFile(c->module, buffer);
+  printf("=== Compiled %s ===\n", buffer);
+
+  if(print_llvm)
+    LLVMDumpModule(c->module);
+
   return true;
 }
 
@@ -150,15 +261,28 @@ static void codegen_cleanup(compile_t* c)
   LLVMShutdown();
 }
 
-bool codegen(ast_t* program)
+bool codegen(ast_t* program, int opt, bool print_llvm)
 {
   compile_t c;
-  codegen_init(&c);
+  codegen_init(&c, program, opt);
+  codegen_runtime(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c);
+    ok = codegen_finalise(&c, print_llvm);
 
   codegen_cleanup(&c);
   return ok;
+}
+
+bool codegen_finishfun(compile_t* c, LLVMValueRef fun)
+{
+  if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) != 0)
+  {
+    errorf(NULL, "function verification failed");
+    return false;
+  }
+
+  LLVMRunFunctionPassManager(c->fpm, fun);
+  return true;
 }

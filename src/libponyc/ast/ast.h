@@ -48,9 +48,9 @@ type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
 cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
-UNIONTYPE: type type
-ISECTTYPE: type type
-TUPLETYPE: type type
+UNIONTYPE: {type}
+ISECTTYPE: {type}
+TUPLETYPE: {type}
 TYPEPARAMREF: ID [cap] [HAT]
 
 NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
@@ -65,7 +65,7 @@ TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
-PARAM: ID [type] [SEQ]
+PARAM: ID type [SEQ]
 
 IDSEQ: {ID}
 
@@ -232,6 +232,7 @@ ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);
 ast_t* ast_childidx(ast_t* ast, size_t idx);
 ast_t* ast_childlast(ast_t* ast);
+size_t ast_childcount(ast_t* ast);
 ast_t* ast_sibling(ast_t* ast);
 ast_t* ast_previous(ast_t* ast);
 size_t ast_index(ast_t* ast);
