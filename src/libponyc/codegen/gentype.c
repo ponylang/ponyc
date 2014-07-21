@@ -289,15 +289,6 @@ static LLVMTypeRef codegen_tuple(compile_t* c, ast_t* ast)
   return type;
 }
 
-/**
- * TODO: structural types
- * assemble a list of all structural types in the program
- * eliminate duplicates
- * for all reified types in the program, determine if they can be each
- * structural type. if they can, add the structural type (with a vtable) to the
- * list of types that a type can be.
- */
-
 LLVMTypeRef codegen_type(compile_t* c, ast_t* ast)
 {
   switch(ast_id(ast))
