@@ -69,6 +69,7 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
   }
 
   LLVMStructSetBody(type, elements, count, false);
+  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
 
   // create a trace function
   const char* trace_name = codegen_funname(name, "$trace", NULL);
@@ -79,6 +80,7 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
 
   LLVMBasicBlockRef block = LLVMAppendBasicBlock(trace_fn, "entry");
   LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "object");
 
   for(int i = 0; i < count; i++)
   {
@@ -87,6 +89,10 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
     // pony_traceobject if it's a class
     // nothing if it's a primitive or singleton type
     // what about a trait or type expression?
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i, "");
+    LLVMTypeRef field_type = LLVMTypeOf(field);
+    (void)field_type;
+
     ast_free_unattached(ftypes[i]);
   }
 

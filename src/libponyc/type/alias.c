@@ -187,20 +187,27 @@ ast_t* recover_type(ast_t* type)
 
 bool sendable(ast_t* type)
 {
-  if(ast_id(type) == TK_TUPLETYPE)
+  switch(ast_id(type))
   {
-    ast_t* child = ast_child(type);
-
-    while(child != NULL)
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     {
-      if(!sendable(child))
-        return false;
-
-      child = ast_sibling(child);
+      // test each side
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      return sendable(left) && sendable(right);
     }
 
-    return true;
+    case TK_NOMINAL:
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+    case TK_ARROW:
+      return cap_sendable(cap_for_type(type));
+
+    default: {}
   }
 
-  return cap_sendable(cap_for_type(type));
+  assert(0);
+  return false;
 }

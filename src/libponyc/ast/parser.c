@@ -74,9 +74,6 @@ static bool associativity(token_id id)
   // return true for right associative, false for left associative
   switch(id)
   {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
     case TK_ASSIGN:
     case TK_ARROW:
       return true;

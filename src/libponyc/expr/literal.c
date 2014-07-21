@@ -65,27 +65,18 @@ bool expr_tuple(ast_t* ast)
   {
     type = ast_type(child);
   } else {
-    ast_t* tuple = ast_from(ast, TK_TUPLETYPE);
-    type = tuple;
-
-    ast_append(tuple, ast_type(child));
+    type = ast_type(child);
     child = ast_sibling(child);
-    ast_t* child_type;
 
-    while(ast_sibling(child) != NULL)
+    while(child != NULL)
     {
-      ast_t* next = ast_from(ast, TK_TUPLETYPE);
-      ast_append(tuple, next);
-      tuple = next;
-
-      child_type = ast_type(child);
-      ast_append(tuple, child_type);
+      ast_t* tuple = ast_from(ast, TK_TUPLETYPE);
+      ast_add(tuple, ast_type(child));
+      ast_add(tuple, type);
+      type = tuple;
 
       child = ast_sibling(child);
     }
-
-    child_type = ast_type(child);
-    ast_append(tuple, child_type);
   }
 
   ast_settype(ast, type);
