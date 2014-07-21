@@ -91,10 +91,6 @@ int main(int argc, char** argv)
         ret = -1;
     }
 
-    // TODO: detect imported but unused packages in a module
-    // TODO: detect unused fields, methods, params, locals
-    // TODO: code generation
-
     ast_free(program);
   } else {
     ret = -1;

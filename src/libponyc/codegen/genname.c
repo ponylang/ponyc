@@ -46,6 +46,9 @@ static void typeargs_append(char* name, ast_t* typeargs)
 
 static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 {
+  if((a == NULL) || (b == NULL))
+    return NULL;
+
   size_t len = strlen(a) + strlen(b) + 2;
   size_t tlen = typeargs_len(typeargs);
 
@@ -88,7 +91,7 @@ const char* codegen_typename(ast_t* ast)
   return NULL;
 }
 
-const char* codegen_funname(ast_t* type, const char* name, ast_t* typeargs)
+const char* codegen_funname(const char* type, const char* name, ast_t* typeargs)
 {
-  return build_name(codegen_typename(type), name, typeargs);
+  return build_name(type, name, typeargs);
 }

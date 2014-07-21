@@ -6,7 +6,6 @@
 #include "../ds/stringtab.h"
 #include <llvm-c/Target.h>
 #include <llvm-c/BitWriter.h>
-#include <llvm-c/Analysis.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -17,24 +16,24 @@ static void codegen_runtime(compile_t* c)
   LLVMTypeRef params[5];
 
   // i8*
-  LLVMTypeRef void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
+  c->void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
 
   // pony_actor_t
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_t");
   LLVMTypeRef actor_ptr = LLVMPointerType(type, 0);
 
-  // void (*)(void*)
-  params[0] = void_ptr;
-  LLVMTypeRef trace_fn = LLVMPointerType(
-    LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
+  // void (*)(i8*)
+  params[0] = c->void_ptr;
+  c->trace_type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // pony_type_t
   LLVMTypeRef pony_type = LLVMStructCreateNamed(LLVMGetGlobalContext(),
     "pony_type_t");
   params[0] = LLVMInt64Type();
-  params[1] = trace_fn;
-  params[2] = trace_fn;
-  params[3] = trace_fn;
+  params[1] = c->trace_fn;
+  params[2] = c->trace_fn;
+  params[3] = c->trace_fn;
   LLVMStructSetBody(pony_type, params, 4, false);
   LLVMTypeRef pony_type_ptr = LLVMPointerType(pony_type, 0);
 
@@ -52,7 +51,7 @@ static void codegen_runtime(compile_t* c)
 
   // void (*)(pony_actor_t*, i8*, i64, i32, 64)
   params[0] = actor_ptr;
-  params[1] = void_ptr;
+  params[1] = c->void_ptr;
   params[2] = LLVMInt64Type();
   params[3] = LLVMInt32Type();
   params[4] = LLVMInt64Type();
@@ -60,7 +59,7 @@ static void codegen_runtime(compile_t* c)
     LLVMFunctionType(LLVMVoidType(), params, 5, false), 0);
 
   // void (*)(void*)
-  params[0] = void_ptr;
+  params[0] = c->void_ptr;
   LLVMTypeRef final_fn = LLVMPointerType(
     LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
 
@@ -80,7 +79,7 @@ static void codegen_runtime(compile_t* c)
   LLVMAddFunction(c->module, "pony_create", type);
 
   // void pony_set(i8*)
-  params[0] = void_ptr;
+  params[0] = c->void_ptr;
   type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
   LLVMAddFunction(c->module, "pony_set", type);
 
@@ -94,11 +93,11 @@ static void codegen_runtime(compile_t* c)
 
   // i8* pony_alloc(i64)
   params[0] = LLVMInt64Type();
-  type = LLVMFunctionType(void_ptr, params, 1, false);
+  type = LLVMFunctionType(c->void_ptr, params, 1, false);
   LLVMAddFunction(c->module, "pony_alloc", type);
 
   // void pony_trace(i8*)
-  params[0] = void_ptr;
+  params[0] = c->void_ptr;
   type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
   LLVMAddFunction(c->module, "pony_trace", type);
 
@@ -107,15 +106,15 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
   LLVMAddFunction(c->module, "pony_traceactor", type);
 
-  // void pony_traceobject(i8*, trace_fn*)
-  params[0] = void_ptr;
-  params[1] = trace_fn;
+  // void pony_traceobject(i8*, c->trace_fn*)
+  params[0] = c->void_ptr;
+  params[1] = c->trace_fn;
   type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
   LLVMAddFunction(c->module, "pony_traceobject", type);
 
   // int pony_start(int, i8*, pony_actor_t*, bool)
   params[0] = LLVMInt32Type();
-  params[1] = LLVMPointerType(void_ptr, 0);
+  params[1] = LLVMPointerType(c->void_ptr, 0);
   params[2] = actor_ptr;
   params[3] = LLVMInt1Type();
   type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
@@ -130,7 +129,6 @@ static bool codegen_main(compile_t* c, LLVMTypeRef type)
 
   LLVMTypeRef ftype = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
-  LLVMSetLinkage(func, LLVMExternalLinkage);
 
   LLVMValueRef argc = LLVMGetParam(func, 0);
   LLVMSetValueName(argc, "argc");
@@ -144,14 +142,7 @@ static bool codegen_main(compile_t* c, LLVMTypeRef type)
   // TODO: create the main actor, start the pony runtime
   LLVMBuildRet(c->builder, argc);
 
-  if(LLVMVerifyFunction(func, LLVMPrintMessageAction) != 0)
-  {
-    errorf(NULL, "main function verification failed");
-    return false;
-  }
-
-  LLVMRunFunctionPassManager(c->fpm, func);
-  return true;
+  return codegen_finishfun(c, func);
 }
 
 static bool codegen_program(compile_t* c, ast_t* program)
@@ -282,4 +273,16 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
 
   codegen_cleanup(&c);
   return ok;
+}
+
+bool codegen_finishfun(compile_t* c, LLVMValueRef fun)
+{
+  if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) != 0)
+  {
+    errorf(NULL, "function verification failed");
+    return false;
+  }
+
+  LLVMRunFunctionPassManager(c->fpm, fun);
+  return true;
 }

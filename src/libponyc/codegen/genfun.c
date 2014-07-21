@@ -13,7 +13,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   // get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
   // level type arguments.
-  const char* funname = codegen_funname(type, name, typeargs);
+  const char* funname = codegen_funname(codegen_typename(type), name, typeargs);
 
   if(funname == NULL)
   {
@@ -117,6 +117,8 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   }
 
   // TODO: body
-  LLVMRunFunctionPassManager(c->fpm, func);
+  // if(!codegen_finishfun(c, func))
+  //   return NULL;
+
   return func;
 }

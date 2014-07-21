@@ -1,14 +1,17 @@
 #include "gentype.h"
 #include "genname.h"
+#include "gencall.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
 
-static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
+static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
   ast_t* typeargs)
 {
+  LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member;
@@ -32,6 +35,7 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
   }
 
   LLVMTypeRef elements[count];
+  ast_t* ftypes[count];
   member = ast_child(members);
   int index = 0;
 
@@ -42,13 +46,16 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
       case TK_FVAR:
       case TK_FLET:
       {
-        ast_t* ftype = ast_type(member);
-        ftype = reify(ftype, typeparams, typeargs);
-        LLVMTypeRef ltype = codegen_type(c, ftype);
-        ast_free_unattached(ftype);
+        ftypes[index] = reify(ast_type(member), typeparams, typeargs);
+        LLVMTypeRef ltype = codegen_type(c, ftypes[index]);
 
         if(ltype == NULL)
+        {
+          for(int i = 0; i <= index; i++)
+            ast_free_unattached(ftypes[i]);
+
           return false;
+        }
 
         elements[index] = ltype;
         index++;
@@ -63,28 +70,56 @@ static bool codegen_struct(compile_t* c, LLVMTypeRef type, ast_t* def,
 
   LLVMStructSetBody(type, elements, count, false);
 
-  // TODO: create a trace function
-  return true;
+  // create a trace function
+  const char* trace_name = codegen_funname(name, "$trace", NULL);
+  LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMSetValueName(arg, "arg");
+
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(trace_fn, "entry");
+  LLVMPositionBuilderAtEnd(c->builder, block);
+
+  for(int i = 0; i < count; i++)
+  {
+    // TODO: pony_trace if it's a tag
+    // pony_traceactor if it's an actor
+    // pony_traceobject if it's a class
+    // nothing if it's a primitive or singleton type
+    // what about a trait or type expression?
+    ast_free_unattached(ftypes[i]);
+  }
+
+  LLVMBuildRetVoid(c->builder);
+
+  if(!codegen_finishfun(c, trace_fn))
+    return NULL;
+
+  return type;
 }
 
-static bool codegen_class(compile_t* c, LLVMTypeRef type, ast_t* def,
+static LLVMTypeRef codegen_class(compile_t* c, const char* name, ast_t* def,
   ast_t* typeargs)
 {
-  if(!codegen_struct(c, type, def, typeargs))
-    return false;
+  LLVMTypeRef type = codegen_struct(c, name, def, typeargs);
+
+  if(type == NULL)
+    return NULL;
 
   // TODO: create a type descriptor
-  return true;
+  return type;
 }
 
-static bool codegen_actor(compile_t* c, LLVMTypeRef type, ast_t* def,
+static LLVMTypeRef codegen_actor(compile_t* c, const char* name, ast_t* def,
   ast_t* typeargs)
 {
-  if(!codegen_struct(c, type, def, typeargs))
-    return false;
+  LLVMTypeRef type = codegen_struct(c, name, def, typeargs);
+
+  if(type == NULL)
+    return NULL;
 
   // TODO: create an actor descriptor, message type function, dispatch function
-  return true;
+  return type;
 }
 
 static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
@@ -131,8 +166,6 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
   if(type != NULL)
     return LLVMPointerType(type, 0);
 
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
-
   ast_t* def = ast_data(ast);
   ast_t* typeargs = ast_childidx(ast, 2);
 
@@ -145,21 +178,26 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
     }
 
     case TK_CLASS:
-      if(!codegen_class(c, type, def, typeargs))
-        return NULL;
+    {
+      type = codegen_class(c, name, def, typeargs);
       break;
+    }
 
     case TK_ACTOR:
-      if(!codegen_actor(c, type, def, typeargs))
-        return NULL;
+    {
+      type = codegen_actor(c, name, def, typeargs);
       break;
+    }
 
     default:
       assert(0);
       return NULL;
   }
 
-  return LLVMPointerType(type, 0);
+  if(type != NULL)
+    return LLVMPointerType(type, 0);
+
+  return NULL;
 }
 
 static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
