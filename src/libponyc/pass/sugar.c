@@ -6,20 +6,6 @@
 #include <assert.h>
 
 
-static ast_t* make_ref(ast_t* ast, ast_t* id)
-{
-  ast_t* ref = ast_from(ast, TK_REFERENCE);
-  ast_add(ref, id);
-  return ref;
-}
-
-static ast_t* make_empty(ast_t* ast)
-{
-  ast_t* seq = ast_from(ast, TK_SEQ);
-  ast_add(seq, make_ref(ast, ast_from_string(ast, "None")));
-  return seq;
-}
-
 static ast_t* make_create(ast_t* ast, ast_t* type)
 {
   BUILD(create, ast,
@@ -35,22 +21,14 @@ static ast_t* make_create(ast_t* ast, ast_t* type)
   return create;
 }
 
-static ast_t* make_structural(ast_t* ast)
-{
-  ast_t* struc = ast_from(ast, TK_STRUCTURAL);
-  ast_add(struc, ast_from(ast, TK_NONE)); // ephemeral
-  ast_add(struc, ast_from(ast, TK_TAG)); // tag
-  ast_add(struc, ast_from(ast, TK_MEMBERS)); // empty members
-
-  return struc;
-}
-
 static bool typecheck_main(ast_t* ast)
 {
-  // TODO: create exists, takes no type params and has correct sig (Env->None)
+  // TODO: check create exists, takes no type params and has correct sig (Env->None)
   const char* m = stringtab("Main");
-  ast_t* id = ast_child(ast);
-  ast_t* typeparams = ast_sibling(id);
+  ast_t* id;
+  ast_t* typeparams;
+
+  AST_GET_CHILDREN(ast, &id, &typeparams);
 
   if(ast_name(id) != m)
     return true;
@@ -70,9 +48,8 @@ static bool typecheck_main(ast_t* ast)
   return true;
 }
 
-static bool sugar_constructor(ast_t* ast)
+static bool sugar_constructor(ast_t* ast, ast_t* members)
 {
-  ast_t* members = ast_childidx(ast, 4);
   ast_t* member = ast_child(members);
   const char* create = stringtab("create");
   ast_t* create_member = NULL;
@@ -90,7 +67,7 @@ static bool sugar_constructor(ast_t* ast)
       {
         ast_t* id = ast_childidx(member, 1);
 
-        if(ast_name(id) == create)
+        if(ast_id(id) == TK_NONE || ast_name(id) == create)
           return true;
 
         break;
@@ -126,9 +103,8 @@ static bool sugar_constructor(ast_t* ast)
   return true;
 }
 
-static bool sugar_traits(ast_t* ast)
+static bool sugar_traits(ast_t* traits)
 {
-  ast_t* traits = ast_childidx(ast, 3);
   ast_t* trait = ast_child(traits);
 
   while(trait != NULL)
@@ -139,8 +115,10 @@ static bool sugar_traits(ast_t* ast)
       return false;
     }
 
-    ast_t* cap = ast_childidx(trait, 3);
-    ast_t* ephemeral = ast_sibling(cap);
+    ast_t* cap;
+    ast_t* ephemeral;
+
+    AST_GET_CHILDREN(trait, NULL, NULL, NULL, &cap, &ephemeral);
 
     if(ast_id(cap) != TK_NONE)
     {
@@ -170,18 +148,22 @@ static bool sugar_class(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  if(!sugar_traits(ast))
+  ast_t* defcap;
+  ast_t* traits;
+  ast_t* members;
+
+  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+  ast_setid(members, TK_MEMBERS);
+
+  if(!sugar_traits(traits))
     return false;
 
-  if(!sugar_constructor(ast))
+  if(!sugar_constructor(ast, members))
     return false;
-
-  ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, TK_REF);
 
-  ast_setid(ast_childidx(ast, 4), TK_MEMBERS);
   return true;
 }
 
@@ -190,13 +172,18 @@ static bool sugar_actor(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  if(!sugar_traits(ast))
+  ast_t* defcap;
+  ast_t* traits;
+  ast_t* members;
+
+  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+  ast_setid(members, TK_MEMBERS);
+
+  if(!sugar_traits(traits))
     return false;
 
-  if(!sugar_constructor(ast))
+  if(!sugar_constructor(ast, members))
     return false;
-
-  ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) != TK_NONE)
   {
@@ -205,7 +192,6 @@ static bool sugar_actor(ast_t* ast)
   }
 
   ast_setid(defcap, TK_TAG);
-  ast_setid(ast_childidx(ast, 4), TK_MEMBERS);
   return true;
 }
 
@@ -217,7 +203,7 @@ static bool sugar_trait(ast_t* ast)
   ast_t* defcap = ast_childidx(ast, 2);
 
   if(ast_id(defcap) == TK_NONE)
-    ast_replace(&defcap, ast_from(defcap, TK_REF));
+    ast_setid(defcap, TK_REF);
 
   return true;
 }
@@ -227,7 +213,13 @@ static bool sugar_typeparam(ast_t* ast)
   ast_t* constraint = ast_childidx(ast, 1);
 
   if(ast_id(constraint) == TK_NONE)
-    ast_replace(&constraint, make_structural(ast));
+  {
+    REPLACE(&constraint,
+      NODE(TK_STRUCTURAL,
+        NODE(TK_MEMBERS)
+        NODE(TK_TAG)  // Capability
+        NONE));       // Ephemeral
+  }
 
   return true;
 }
@@ -328,7 +320,7 @@ static bool sugar_fun(ast_t* ast)
   if(ast_id(body) == TK_SEQ)
   {
     ast_t* last = ast_childlast(body);
-    ast_t* ref = make_ref(ast, ast_from_string(last, "None"));
+    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
   }
 
@@ -482,13 +474,20 @@ static bool sugar_ephemeral(ast_t* ast)
   return true;
 }
 
+static void expand_none(ast_t* ast)
+{
+  if(ast_id(ast) != TK_NONE)
+    return;
+
+  ast_setid(ast, TK_SEQ);
+  BUILD(ref, ast, NODE(TK_REFERENCE, ID("None")));
+  ast_add(ast, ref);
+}
+
 static bool sugar_else(ast_t* ast)
 {
   ast_t* right = ast_childidx(ast, 2);
-
-  if(ast_id(right) == TK_NONE)
-    ast_replace(&right, make_empty(right));
-
+  expand_none(right);
   return true;
 }
 
@@ -497,22 +496,10 @@ static bool sugar_try(ast_t* ast)
   ast_t* else_clause = ast_childidx(ast, 1);
   ast_t* then_clause = ast_sibling(else_clause);
 
-  if(ast_id(else_clause) == TK_NONE)
-    ast_replace(&else_clause, make_empty(else_clause));
-
-  if(ast_id(then_clause) == TK_NONE)
-    ast_replace(&then_clause, make_empty(then_clause));
+  expand_none(else_clause);
+  expand_none(then_clause);
 
   return true;
-}
-
-static void expand_none(ast_t* ast)
-{
-  if(ast_id(ast) != TK_NONE)
-    return;
-
-  ast_setid(ast, TK_SEQ);
-  ast_add(ast, make_ref(ast, ast_from_string(ast, "None")));
 }
 
 static bool sugar_for(ast_t** astp)
