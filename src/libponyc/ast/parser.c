@@ -194,25 +194,28 @@ DEF(nominal);
   OPT TOKEN(TK_HAT);
   DONE();
 
-// COMMA type
+// COMMA type {COMMA type}
 DEF(tupletype);
   AST_NODE(TK_TUPLETYPE);
   SKIP(TK_COMMA);
   RULE(type);
+  WHILE(TK_COMMA, RULE(type));
   DONE();
 
-// PIPE type
+// PIPE type {PIPE type}
 DEF(uniontype);
   AST_NODE(TK_UNIONTYPE);
   SKIP(TK_PIPE);
   RULE(type);
+  WHILE(TK_PIPE, RULE(type));
   DONE();
 
-// AMP type
+// AMP type {AMP type}
 DEF(isecttype);
   AST_NODE(TK_ISECTTYPE);
   SKIP(TK_AMP);
   RULE(type);
+  WHILE(TK_AMP, RULE(type));
   DONE();
 
 // (LPAREN | LPAREN_NEW) type {uniontype | isecttype | tupletype} RPAREN

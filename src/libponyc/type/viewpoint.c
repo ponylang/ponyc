@@ -11,12 +11,15 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      ast_t* r_left = ast_child(right);
-      ast_t* r_right = ast_sibling(r_left);
-
       ast_t* type = ast_from(right, ast_id(right));
-      ast_add(type, make_arrow_type(left, r_right));
-      ast_add(type, make_arrow_type(left, r_left));
+      ast_t* child = ast_child(right);
+
+      while(child != NULL)
+      {
+        ast_append(type, make_arrow_type(left, child));
+        child = ast_sibling(child);
+      }
+
       return type;
     }
 
@@ -81,13 +84,16 @@ static ast_t* viewpoint_cap(token_id cap, ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // adapt each side
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-
+      // adapt all elements
       ast_t* r_type = ast_from(type, ast_id(type));
-      ast_add(r_type, viewpoint_cap(cap, right));
-      ast_add(r_type, viewpoint_cap(cap, left));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, viewpoint_cap(cap, child));
+        child = ast_sibling(child);
+      }
+
       return r_type;
     }
 
@@ -189,12 +195,16 @@ ast_t* viewpoint_lower(ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // lower each side
+      // adapt all elements
       ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, viewpoint_lower(right));
-      ast_add(r_type, viewpoint_lower(left));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, viewpoint_lower(child));
+        child = ast_sibling(child);
+      }
+
       return r_type;
     }
 

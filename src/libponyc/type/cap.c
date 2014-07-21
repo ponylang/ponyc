@@ -76,16 +76,30 @@ token_id cap_for_type(ast_t* type)
   {
     case TK_UNIONTYPE:
     {
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      return cap_upper_bounds(cap_for_type(left), cap_for_type(right));
+      ast_t* child = ast_child(type);
+      token_id cap = TK_ISO;
+
+      while(child != NULL)
+      {
+        cap = cap_upper_bounds(cap, cap_for_type(child));
+        child = ast_sibling(child);
+      }
+
+      return cap;
     }
 
     case TK_ISECTTYPE:
     {
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      return cap_lower_bounds(cap_for_type(left), cap_for_type(right));
+      ast_t* child = ast_child(type);
+      token_id cap = TK_TAG;
+
+      while(child != NULL)
+      {
+        cap = cap_lower_bounds(cap, cap_for_type(child));
+        child = ast_sibling(child);
+      }
+
+      return cap;
     }
 
     case TK_TUPLETYPE:

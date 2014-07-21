@@ -39,6 +39,7 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)
 {
+  // TODO: unions aren't just subtypes
   if(l_type == NULL)
     return r_type;
 
@@ -143,7 +144,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   while(id != NULL)
   {
-    ast_t* t = lookup_tuple(type, index);
+    ast_t* t = ast_childidx(type, index);
 
     if(t == NULL)
     {
@@ -156,7 +157,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
     index++;
   }
 
-  if(lookup_tuple(type, index) != NULL)
+  if(ast_childidx(type, index) != NULL)
   {
     ast_error(type, "too many types specified");
     return false;

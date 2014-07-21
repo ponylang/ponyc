@@ -48,9 +48,9 @@ type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
 cap: (ISO | TRN | REF | VAL | BOX | TAG)
 
 ARROW: type type
-UNIONTYPE: type type
-ISECTTYPE: type type
-TUPLETYPE: type type
+UNIONTYPE: {type}
+ISECTTYPE: {type}
+TUPLETYPE: {type}
 TYPEPARAMREF: ID [cap] [HAT]
 
 NOMINAL: [ID] ID [TYPEARGS] cap [HAT]

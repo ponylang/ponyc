@@ -288,16 +288,34 @@ bool is_subtype(ast_t* sub, ast_t* super)
   {
     case TK_UNIONTYPE:
     {
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(left, super) && is_subtype(right, super);
+      // all elements of the union must be subtypes
+      ast_t* child = ast_child(sub);
+
+      while(child != NULL)
+      {
+        if(!is_subtype(child, super))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
     }
 
     case TK_ISECTTYPE:
     {
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(left, super) || is_subtype(right, super);
+      // one element of the intersection must be a subtype
+      ast_t* child = ast_child(sub);
+
+      while(child != NULL)
+      {
+        if(is_subtype(child, super))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
     }
 
     case TK_TYPEPARAMREF:
@@ -340,16 +358,34 @@ bool is_subtype(ast_t* sub, ast_t* super)
   {
     case TK_UNIONTYPE:
     {
-      ast_t* left = ast_child(super);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(sub, left) || is_subtype(sub, right);
+      // must be a subtype of one element of the union
+      ast_t* child = ast_child(super);
+
+      while(child != NULL)
+      {
+        if(is_subtype(sub, child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
     }
 
     case TK_ISECTTYPE:
     {
-      ast_t* left = ast_child(super);
-      ast_t* right = ast_sibling(left);
-      return is_subtype(sub, left) && is_subtype(sub, right);
+      // must be a subtype of all elements of the intersection
+      ast_t* child = ast_child(super);
+
+      while(child != NULL)
+      {
+        if(!is_subtype(sub, child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
     }
 
     case TK_ARROW:
@@ -412,13 +448,20 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
         case TK_TUPLETYPE:
         {
-          ast_t* left = ast_child(sub);
-          ast_t* right = ast_sibling(left);
-          ast_t* super_left = ast_child(super);
-          ast_t* super_right = ast_sibling(super_left);
+          // elements must be pairwise subtypes
+          ast_t* sub_child = ast_child(sub);
+          ast_t* super_child = ast_child(super);
 
-          return is_subtype(left, super_left) &&
-            is_subtype(right, super_right);
+          while((sub_child != NULL) && (super_child != NULL))
+          {
+            if(!is_subtype(sub_child, super_child))
+              return false;
+
+            sub_child = ast_sibling(sub_child);
+            super_child = ast_sibling(super_child);
+          }
+
+          return (sub_child == NULL) && (super_child == NULL);
         }
 
         default: {}

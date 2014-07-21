@@ -220,7 +220,7 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  type = lookup_tuple(type, ast_int(right));
+  type = ast_childidx(type, ast_int(right));
 
   if(type == NULL)
   {
