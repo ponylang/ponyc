@@ -65,18 +65,18 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
   return false;
 }
 
-static bool names_resolvealias(ast_t* ast)
+static bool names_resolvealias(ast_t* def, ast_t* type)
 {
-  typealias_state_t state = (typealias_state_t)ast_data(ast);
+  typealias_state_t state = (typealias_state_t)ast_data(def);
 
   switch(state)
   {
     case TYPEALIAS_INITIAL:
-      ast_setdata(ast, (void*)TYPEALIAS_IN_PROGRESS);
+      ast_setdata(def, (void*)TYPEALIAS_IN_PROGRESS);
       break;
 
     case TYPEALIAS_IN_PROGRESS:
-      ast_error(ast, "type aliases can't be recursive");
+      ast_error(def, "type aliases can't be recursive");
       return false;
 
     case TYPEALIAS_DONE:
@@ -87,10 +87,10 @@ static bool names_resolvealias(ast_t* ast)
       return false;
   }
 
-  if(ast_visit(&ast, NULL, pass_names) != AST_OK)
+  if(ast_visit(&type, NULL, pass_names) != AST_OK)
     return false;
 
-  ast_setdata(ast, (void*)TYPEALIAS_DONE);
+  ast_setdata(def, (void*)TYPEALIAS_DONE);
   return true;
 }
 
@@ -108,15 +108,16 @@ static bool names_typealias(ast_t** astp, ast_t* def)
   }
 
   // make sure the alias is resolved
-  ast_t* alias = ast_childidx(def, 3);
+  ast_t* alias = ast_childidx(def, 1);
 
-  if(!names_resolvealias(alias))
+  if(!names_resolvealias(def, alias))
     return false;
 
   // apply our cap and ephemeral to the result
   ast_t* cap = ast_childidx(ast, 3);
   ast_t* ephemeral = ast_sibling(cap);
-  alias = ast_dup(ast_child(alias));
+  alias = ast_dup(alias);
+  //alias = ast_dup(ast_child(alias));
 
   if(!names_applycap(alias, cap, ephemeral))
   {

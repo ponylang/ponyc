@@ -395,19 +395,23 @@ ast_t* package_id(ast_t* ast)
 
 ast_t* package_hygienic_id(ast_t* ast)
 {
+  return ast_from_string(ast, package_hygienic_id_string(ast));
+}
+
+const char* package_hygienic_id_string(ast_t* ast)
+{
   ast_t* package = ast_nearest(ast, TK_PACKAGE);
-  //assert(package != NULL);
 
   if(package == NULL)
   {
     // We are not within a package, we must be testing
-    return ast_from_string(ast, "hygid");
+    return stringtab("hygid");
   }
 
   package_t* pkg = ast_data(package);
   size_t id = pkg->next_hygienic_id++;
 
-  return ast_from_string(ast, id_to_string(id));
+  return id_to_string(id);
 }
 
 void package_done()

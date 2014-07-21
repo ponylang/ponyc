@@ -5,53 +5,12 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static ast_t* make_idseq(ast_t* ast, ast_t* id)
-{
-  ast_t* idseq = ast_from(ast, TK_IDSEQ);
-  ast_add(idseq, id);
-  return idseq;
-}
-
-static ast_t* make_var(ast_t* ast, ast_t* idseq, ast_t* type)
-{
-  ast_t* var = ast_from(ast, TK_VAR);
-  ast_add(var, type);
-  ast_add(var, idseq);
-  return var;
-}
 
 static ast_t* make_ref(ast_t* ast, ast_t* id)
 {
   ast_t* ref = ast_from(ast, TK_REFERENCE);
   ast_add(ref, id);
   return ref;
-}
-
-static ast_t* make_dot(ast_t* ast, ast_t* left, const char* right)
-{
-  ast_t* dot = ast_from(ast, TK_DOT);
-  ast_t* r_right = ast_from_string(ast, right);
-  ast_add(dot, r_right);
-  ast_add(dot, left);
-  return dot;
-}
-
-static ast_t* make_call(ast_t* ast, ast_t* left)
-{
-  ast_t* call = ast_from(ast, TK_CALL);
-  ast_add(call, ast_from(ast, TK_NONE));
-  ast_add(call, ast_from(ast, TK_NONE));
-  ast_add(call, left);
-
-  return call;
-}
-
-static ast_t* make_assign(ast_t* ast, ast_t* left, ast_t* right)
-{
-  ast_t* assign = ast_from(ast, TK_ASSIGN);
-  ast_add(assign, right);
-  ast_add(assign, left);
-  return assign;
 }
 
 static ast_t* make_empty(ast_t* ast)
@@ -85,8 +44,9 @@ static ast_t* make_structural(ast_t* ast)
   return struc;
 }
 
-static bool sugar_typename(ast_t* ast)
+static bool typecheck_main(ast_t* ast)
 {
+  // TODO: create exists, takes no type params and has correct sig (Env->None)
   const char* m = stringtab("Main");
   ast_t* id = ast_child(ast);
   ast_t* typeparams = ast_sibling(id);
@@ -180,48 +140,12 @@ static bool sugar_traits(ast_t* ast)
 
 static bool sugar_type(ast_t* ast)
 {
-  if(!sugar_typename(ast))
-    return false;
-
-  ast_t* typeparams = ast_childidx(ast, 1);
-  ast_t* cap = ast_sibling(typeparams);
-  ast_t* types = ast_sibling(cap);
-  ast_t* members = ast_sibling(types);
-
-  if(ast_id(typeparams) != TK_NONE)
-  {
-    ast_error(typeparams, "a type alias can't have type parameters");
-    return false;
-  }
-
-  if(ast_id(cap) != TK_NONE)
-  {
-    ast_error(cap, "a type alias can't specify a default capability");
-    return false;
-  }
-
-  ast_t* alias = ast_child(types);
-
-  if((alias == NULL) && (ast_sibling(alias) != NULL))
-  {
-    ast_error(types, "a type alias must alias to a single type");
-    return false;
-  }
-
-  ast_t* member = ast_child(members);
-
-  if(member != NULL)
-  {
-    ast_error(member, "a type alias can't have members");
-    return false;
-  }
-
-  return true;
+  return typecheck_main(ast);
 }
 
 static bool sugar_class(ast_t* ast)
 {
-  if(!sugar_typename(ast))
+  if(!typecheck_main(ast))
     return false;
 
   if(!sugar_traits(ast))
@@ -240,7 +164,7 @@ static bool sugar_class(ast_t* ast)
 
 static bool sugar_actor(ast_t* ast)
 {
-  if(!sugar_typename(ast))
+  if(!typecheck_main(ast))
     return false;
 
   if(!sugar_traits(ast))
@@ -263,7 +187,7 @@ static bool sugar_actor(ast_t* ast)
 
 static bool sugar_trait(ast_t* ast)
 {
-  if(!sugar_typename(ast))
+  if(!typecheck_main(ast))
     return false;
 
   ast_t* defcap = ast_childidx(ast, 2);
@@ -549,50 +473,47 @@ static bool sugar_try(ast_t* ast)
   return true;
 }
 
+static void expand_none(ast_t* ast)
+{
+  if(ast_id(ast) != TK_NONE)
+    return;
+
+  ast_setid(ast, TK_SEQ);
+  ast_add(ast, make_ref(ast, ast_from_string(ast, "None")));
+}
+
 static bool sugar_for(ast_t** astp)
 {
-  ast_t* ast = *astp;
-  assert(ast_id(ast) == TK_FOR);
+  ast_t* for_idseq;
+  ast_t* for_type;
+  ast_t* for_iter;
+  ast_t* for_body;
+  ast_t* for_else;
 
-  ast_t* for_idseq = ast_child(ast);
-  ast_t* for_type = ast_sibling(for_idseq);
-  ast_t* for_iter = ast_sibling(for_type);
-  ast_t* for_body = ast_sibling(for_iter);
-  ast_t* for_else = ast_sibling(for_body);
+  AST_EXTRACT_CHILDREN(*astp, &for_idseq, &for_type, &for_iter, &for_body,
+    &for_else);
 
-  ast_t* id = package_hygienic_id(ast);
-  ast_t* body = ast_from(ast, TK_SEQ);
-  ast_scope(body);
+  expand_none(for_else);
+  const char* iter_name = package_hygienic_id_string(*astp);
 
-  ast_add(body, for_body);
-  ast_add(body,
-    make_assign(ast,
-      make_var(ast, for_idseq, for_type),
-      make_call(ast, make_dot(ast, make_ref(ast, id), "next"))
-      )
-    );
+  REPLACE(astp,
+    NODE(TK_SEQ, AST_SCOPE
+      NODE(TK_ASSIGN,
+        NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) TREE(for_type))
+        TREE(for_iter))
+      NODE(TK_WHILE, AST_SCOPE
+        NODE(TK_CALL,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
+          NONE NONE)
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_ASSIGN,
+            NODE(TK_VAR, TREE(for_idseq) TREE(for_type))
+            NODE(TK_CALL,
+              NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
+              NONE NONE))
+          TREE(for_body))
+        TREE(for_else))));
 
-  ast_t* whileloop = ast_from(ast, TK_WHILE);
-  ast_scope(whileloop);
-
-  ast_add(whileloop, for_else);
-  ast_add(whileloop, body);
-  ast_add(whileloop,
-    make_call(ast, make_dot(ast, make_ref(ast, id), "has_next"))
-    );
-  sugar_else(whileloop);
-
-  ast_t* iter = make_assign(ast,
-    make_var(ast, make_idseq(ast, id), for_type),
-    for_iter
-    );
-
-  ast_t* seq = ast_from(ast, TK_SEQ);
-  ast_scope(seq);
-  ast_add(seq, whileloop);
-  ast_add(seq, iter);
-
-  ast_replace(astp, seq);
   return true;
 }
 
@@ -654,33 +575,28 @@ static bool sugar_update(ast_t** astp)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
-  ast_t* call = ast_child(ast);
-  ast_t* value = ast_sibling(call);
+  ast_t* call;
+  ast_t* value;
+
+  AST_GET_CHILDREN(ast, &call, &value);
 
   if(ast_id(call) != TK_CALL)
     return true;
 
-  ast_t* expr = ast_child(call);
+  ast_t* expr;
+  ast_t* positional;
+  ast_t* named;
+  AST_EXTRACT_CHILDREN(call, &expr, &positional, &named);
 
-  ast_t* positional = ast_sibling(expr);
-  ast_t* named = ast_sibling(positional);
-  positional = ast_dup(positional);
+  ast_setid(positional, TK_POSITIONALARGS);
+  ast_append(positional, value);
 
-  if(ast_id(positional) == TK_NONE)
-    ast_setid(positional, TK_POSITIONALARGS);
+  REPLACE(astp,
+    NODE(TK_CALL,
+      NODE(TK_DOT, TREE(expr) ID("update"))
+      TREE(positional)
+      TREE(named)));
 
-  ast_t* seq = ast_from(positional, TK_SEQ);
-  ast_add(seq, value);
-  ast_append(positional, seq);
-
-  ast_t* dot = make_dot(ast, expr, "update");
-
-  ast_t* update = ast_from(ast, TK_CALL);
-  ast_add(update, named);
-  ast_add(update, positional);
-  ast_add(update, dot);
-
-  ast_replace(astp, update);
   return true;
 }
 

@@ -104,6 +104,14 @@ static void test_bad_sugar(const char* desc, token_id start_id,
 }
 
 
+TEST(SugarTest, TraitMain)
+{
+  const char* before = "(trait (id Main) x box x x)";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_TRAIT, AST_ERROR));
+}
+
+
 TEST(SugarTest, TraitWithCap)
 {
   const char* before = "(trait (id foo) x box x x)";
@@ -500,7 +508,69 @@ TEST(SugarTest, CaseWithNoBodyMultiple)
 }
 
 
+TEST(SugarTest, UpdateLhsNotCall)
+{
+  const char* before = "(= (reference (id foo)) (seq 1))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_ASSIGN));
+}
+
+
+TEST(SugarTest, UpdateNoArgs)
+{
+  const char* before = "(= (call (seq 1) x x)(seq 2))";
+
+  const char* after  =
+    "(call"
+    "  (. (seq 1) (id update))"
+    "  (positionalargs (seq 2))"
+    "  x)";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ASSIGN));
+}
+
+
+TEST(SugarTest, UpdateWithArgs)
+{
+  const char* before =
+    "(="
+    "  (call"
+    "    (seq 1)"
+    "    (positionalargs (seq 2) (seq 3))"
+    "    (namedargs"
+    "      (namedarg (id foo) (seq 4))"
+    "      (namedarg (id bar) (seq 5))))"
+    "  (seq 6))";
+
+  const char* after =
+    "(call"
+    "  (. (seq 1) (id update))"
+    "  (positionalargs (seq 2) (seq 3) (seq 6))"
+    "  (namedargs"
+    "    (namedarg (id foo) (seq 4))"
+    "    (namedarg (id bar) (seq 5))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ASSIGN));
+}
+
+
 // Pure type checking "sugar"
+
+TEST(SugarTest, TypeAliasGood)
+{
+  const char* before = "(type (id foo) (nominal (id A) x x x x))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_TYPE));
+}
+
+
+TEST(SugarTest, TypeAliasMain)
+{
+  const char* before = "(type (id Main) (nominal (id A) x x x x))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_TYPE, AST_ERROR));
+}
+
 
 TEST(SugarTest, ViewpointGood)
 {

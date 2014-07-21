@@ -639,6 +639,21 @@ ast_t* ast_add(ast_t* parent, ast_t* child)
   return child;
 }
 
+ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling)
+{
+  assert(older_sibling != NULL);
+  assert(new_sibling != NULL);
+  assert(older_sibling != new_sibling);
+  assert(older_sibling->sibling == NULL);
+
+  if(new_sibling->parent != NULL)
+    new_sibling = ast_dup(new_sibling);
+
+  new_sibling->parent = older_sibling->parent;
+  older_sibling->sibling = new_sibling;
+  return new_sibling;
+}
+
 ast_t* ast_pop(ast_t* parent)
 {
   ast_t* child = parent->child;
@@ -855,4 +870,59 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post)
   }
 
   return ret;
+}
+
+void ast_get_children(ast_t* parent, size_t child_count,
+  ast_t*** out_children)
+{
+  assert(parent != NULL);
+  assert(child_count > 0);
+  assert(out_children != NULL);
+
+  ast_t* p = parent->child;
+
+  for(size_t i = 0; i < child_count; i++)
+  {
+    assert(p != NULL);
+
+    if(out_children[i] != NULL)
+      *(out_children[i]) = p;
+    
+    p = p->sibling;
+  }
+}
+
+void ast_extract_children(ast_t* parent, size_t child_count,
+  ast_t*** out_children)
+{
+  assert(parent != NULL);
+  assert(child_count > 0);
+  assert(out_children != NULL);
+
+  ast_t* p = parent->child;
+  ast_t* last_remaining_sibling = NULL;
+
+  for(size_t i = 0; i < child_count; i++)
+  {
+    assert(p != NULL);
+    ast_t* next = p->sibling;
+
+    if(out_children[i] != NULL)
+    {
+      if(last_remaining_sibling != NULL)
+        last_remaining_sibling->sibling = p->sibling;
+      else
+        parent->child = p->sibling;
+
+      p->parent = NULL;
+      p->sibling = NULL;
+      *(out_children[i]) = p;
+    }
+    else
+    {
+      last_remaining_sibling = p;
+    }
+
+    p = next;
+  }
 }

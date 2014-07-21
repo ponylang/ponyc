@@ -242,6 +242,7 @@ bool ast_merge(ast_t* dst, ast_t* src);
 void ast_clear(ast_t* ast);
 
 ast_t* ast_add(ast_t* parent, ast_t* child);
+ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
 void ast_swap(ast_t* prev, ast_t* next);
@@ -257,5 +258,108 @@ void ast_error(ast_t* ast, const char* fmt, ...)
 typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
+
+void ast_get_children(ast_t* parent, size_t child_count,
+  ast_t*** out_children);
+
+#define AST_GET_CHILDREN(parent, ...) \
+  { \
+    ast_t** children[] = {__VA_ARGS__}; \
+    ast_get_children(parent, sizeof(children)/sizeof(ast_t**), children); \
+  }
+
+void ast_extract_children(ast_t* parent, size_t child_count,
+  ast_t*** out_children);
+
+#define AST_EXTRACT_CHILDREN(parent, ...) \
+  { \
+    ast_t** children[] = {__VA_ARGS__}; \
+    ast_extract_children(parent, sizeof(children)/sizeof(ast_t**), children); \
+  }
+
+
+// Macros for building ASTs
+// TODO: Move these somewhere else?
+
+/** The macros below allow for building arbitrarily complex ASTs with a simple,
+ * S-expression like syntax.
+ *
+ * At the tope level there must be exactly one of:
+ * BUILD      builds an AST and creates a variable in which to store it.
+ * REPLACE    builds an AST with which it replaces the specified existing tree.
+ *
+ * Within these macros the following are used to build up the tree:
+ * NODE       creates a node with a specified token ID and optionally children.
+ * TREE       inserts an already built subtree.
+ * ID         adds a TK_ID node with the given ID name.
+ * NONE       is syntactic sugar to add a TK_NONE node.
+ * AST_SCOPE  adds a symbol table to the enclosing node.
+ */
+
+/** Builds an AST to replace the specified existing tree.
+ * A variable with the name given by var is defined and the created tree is
+ * stored in it.
+ * An existing node must be provided in basis_ast, all created nodes are based
+ * on this.
+ */
+#define BUILD(var, basis_ast, ...) \
+  ast_t* var; \
+  { \
+    ast_t* parent = NULL; \
+    ast_t* last_sibling = NULL; \
+    ast_t* node = NULL; \
+    __VA_ARGS__ \
+    var = parent; \
+  }
+
+/** Builds an AST to replace the specified existing tree.
+ * The provided existing must be an ast_t**.
+ */
+#define REPLACE(existing, ...) \
+  { \
+    ast_t* basis_ast = *existing; \
+    ast_t* parent = NULL; \
+    ast_t* last_sibling = NULL; \
+    ast_t* node = NULL; \
+    __VA_ARGS__ \
+    ast_replace(existing, parent); \
+  }
+
+
+/** Add an existing subtree.
+ * If the given tree is already part of another tree it will be copied
+ * automatically. If it is a complete tree it will not.
+ */
+#define TREE(tree) \
+  { \
+    if(parent == NULL) parent = tree; \
+    else if(last_sibling == NULL) last_sibling = ast_add(parent, tree); \
+    else last_sibling = ast_add_sibling(last_sibling, tree); \
+  }
+
+/// Add a new node with the specified token ID and optionally children
+#define NODE(id, ...) \
+  { \
+    node = ast_from(basis_ast, id); \
+    TREE(node); \
+    { \
+      ast_t* parent = node; \
+      ast_t* last_sibling = NULL; \
+      ast_t* node = NULL; \
+      __VA_ARGS__ \
+      (void)parent; \
+      (void)last_sibling; \
+      (void)node; \
+    } \
+  }
+
+/// Add a TK_NONE node with no children
+#define NONE TREE(ast_from(basis_ast, TK_NONE));
+
+/// Add a TK_ID node with the given ID name
+#define ID(name) TREE(ast_from_string(basis_ast, name));
+
+/// Add a symbol table to the enclosing node
+#define AST_SCOPE ast_scope(parent);
 
 #endif

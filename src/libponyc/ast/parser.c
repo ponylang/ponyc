@@ -620,15 +620,23 @@ DEF(members);
   SEQ(function);
   DONE();
 
-// (TYPE | TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
+// (TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
 DEF(class);
-  TOKEN(TK_TYPE, TK_TRAIT, TK_CLASS, TK_ACTOR);
+  TOKEN(TK_TRAIT, TK_CLASS, TK_ACTOR);
   SCOPE();
   TOKEN(TK_ID);
   OPT RULE(typeparams);
   OPT TOKEN(TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   IF(TK_IS, RULE(types));
   RULE(members);
+  DONE();
+
+// TYPE ID IS type
+DEF(typealias);
+  TOKEN(TK_TYPE);
+  TOKEN(TK_ID);
+  SKIP(TK_IS);
+  RULE(type);
   DONE();
 
 // USE STRING [AS ID]
@@ -638,12 +646,12 @@ DEF(use);
   IF(TK_AS, TOKEN(TK_ID));
   DONE();
 
-// {use} {class}
+// {use} {class | typealias}
 DEF(module);
   AST_NODE(TK_MODULE);
   SCOPE();
   SEQ(use);
-  SEQ(class);
+  SEQ(class, typealias);
   SKIP(TK_EOF);
   DONE();
 
