@@ -572,6 +572,252 @@ TEST(SugarTest, TypeAliasMain)
 }
 
 
+TEST(SugarTest, ClassGoodWithField)
+{
+  const char* before = "(class (id Foo) x iso x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_CLASS));
+}
+
+
+TEST(SugarTest, ClassMain)
+{
+  const char* before = "(class (id Main) x iso x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassNominalTrait)
+{
+  const char* before =
+    "(class (id Foo) x iso (types (nominal x (id A) x x x))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_CLASS));
+}
+
+
+TEST(SugarTest, ClassNonNominalTrait)
+{
+  const char* before =
+    "(class (id Foo) x iso (types (thistype)) (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassTraitCapability)
+{
+  const char* before =
+    "(class (id Foo) x iso (types (nominal x (id A) x ref x))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassTraitEphemeral)
+{
+  const char* before =
+    "(class (id Foo) x iso (types (nominal x (id A) x x ^))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassSecondTraitEphemeral)
+{
+  const char* before =
+    "(class (id Foo) x iso"
+    "  (types"
+    "    (nominal x (id A) x x x)"
+    "    (nominal x (id B) x x ^))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassWithCreateConstructor)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (new ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, before, TK_CLASS));
+}
+
+
+TEST(SugarTest, ClassWithCreateFunction)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (fun ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassWithCreateBehaviour)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (be ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_CLASS, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassWithoutFieldOrCreate)
+{
+  const char* before =
+    "(class (id Foo) x ref x x)";
+
+  const char* after =
+    "(class (id Foo) x ref x"
+    "  (members"
+    "    (new x (id create) x x (nominal x (id Foo) x val x) x"
+    "      (seq (reference (id None))))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_CLASS));
+}
+
+
+TEST(SugarTest, ClassWithoutDefCap)
+{
+  const char* before = "(class (id foo) x x   x (members (flet (id m) x x)))";
+  const char* after  = "(class (id foo) x ref x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_CLASS));
+}
+
+
+TEST(SugarTest, ActorGoodWithField)
+{
+  const char* before = "(actor (id Foo) x x   x (members (flet (id m) x x)))";
+  const char* after  = "(actor (id Foo) x tag x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ACTOR));
+}
+
+
+TEST(SugarTest, ActorMain)
+{
+  const char* before = "(actor (id Main) x x   x (members (flet (id m) x x)))";
+  const char* after  = "(actor (id Main) x tag x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ACTOR));
+}
+
+
+TEST(SugarTest, ActorNominalTrait)
+{
+  const char* before =
+    "(actor (id Foo) x x (types (nominal x (id A) x x x))"
+    "  (members (flet (id m) x x)))";
+
+  const char* after =
+    "(actor (id Foo) x tag (types (nominal x (id A) x x x))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ACTOR));
+}
+
+
+TEST(SugarTest, ActorNonNominalTrait)
+{
+  const char* before =
+    "(actor (id Foo) x x (types (thistype)) (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorTraitCapability)
+{
+  const char* before =
+    "(actor (id Foo) x x (types (nominal x (id A) x ref x))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorTraitEphemeral)
+{
+  const char* before =
+    "(actor (id Foo) x x (types (nominal x (id A) x x ^))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorSecondTraitEphemeral)
+{
+  const char* before =
+    "(actor (id Foo) x x"
+    "  (types"
+    "    (nominal x (id A) x x x)"
+    "    (nominal x (id B) x x ^))"
+    "  (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithCreateConstructor)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (new ref (id create) x x x x (seq 3))))";
+
+  const char* after =
+    "(actor (id Foo) x tag x (members (new ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ACTOR));
+}
+
+
+TEST(SugarTest, ActorWithCreateFunction)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (fun ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithCreateBehaviour)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (be ref (id create) x x x x (seq 3))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithoutFieldOrCreate)
+{
+  const char* before =
+    "(actor (id Foo) x x x x)";
+
+  const char* after =
+    "(actor (id Foo) x tag x"
+    "  (members"
+    "    (new x (id create) x x (nominal x (id Foo) x val x) x"
+    "      (seq (reference (id None))))))";
+
+  ASSERT_NO_FATAL_FAILURE(test_good_sugar(before, after, TK_ACTOR));
+}
+
+
+TEST(SugarTest, ActorWithDefCap)
+{
+  const char* before = "(actor (id foo) x ref x (members (flet (id m) x x)))";
+
+  ASSERT_NO_FATAL_FAILURE(test_bad_sugar(before, TK_ACTOR, AST_ERROR));
+}
+
+
 TEST(SugarTest, ViewpointGood)
 {
   const char* before = "(-> thistype (nominal x (id A) x x x))";
