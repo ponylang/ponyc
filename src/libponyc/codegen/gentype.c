@@ -3,6 +3,7 @@
 #include "gencall.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
+#include "../type/subtype.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -54,7 +55,7 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
           for(int i = 0; i <= index; i++)
             ast_free_unattached(ftypes[i]);
 
-          return false;
+          return NULL;
         }
 
         elements[index] = ltype;
@@ -208,11 +209,27 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
 
 static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
 {
+  // special case Bool
+  if(is_bool(ast))
+    return LLVMInt1Type();
+
+  // return an existing type if it's available
+  const char* name = codegen_typename(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+  if(type != NULL)
+    return type;
+
+  // union is stored as a byte array big enough to hold every possible type
+  // plus a discriminator to decide at runtime which type has been stored
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+
   size_t count = ast_childcount(ast);
   LLVMTypeRef types[count];
 
   ast_t* child = ast_child(ast);
   size_t index = 0;
+  size_t size = 0;
 
   while(child != NULL)
   {
@@ -221,24 +238,55 @@ static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
     if(types[index] == NULL)
       return NULL;
 
+    size_t byte_size = LLVMABISizeOfType(c->target, types[index]);
+
+    if(byte_size > size)
+      size = byte_size;
+
     index++;
     child = ast_sibling(child);
   }
 
-  // special case Bool
-  LLVMTypeRef i1 = LLVMInt1Type();
+  LLVMTypeRef elements[2];
+  elements[0] = LLVMInt32Type();
+  elements[1] = LLVMArrayType(LLVMInt8Type(), size);
+  LLVMStructSetBody(type, elements, 2, false);
 
-  for(index = 0; index < count; index++)
+  // TODO: trace function? pattern match function?
+  return type;
+}
+
+static LLVMTypeRef codegen_tuple(compile_t* c, ast_t* ast)
+{
+  const char* name = codegen_typename(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+  if(type != NULL)
+    return type;
+
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+
+  size_t count = ast_childcount(ast);
+  LLVMTypeRef elements[count];
+
+  ast_t* child = ast_child(ast);
+  size_t index = 0;
+
+  while(child != NULL)
   {
-    if(types[index] != i1)
-      break;
+    elements[index] = codegen_type(c, child);
+
+    if(elements[index] == NULL)
+      return NULL;
+
+    index++;
+    child = ast_sibling(child);
   }
 
-  if(index == count)
-    return i1;
+  LLVMStructSetBody(type, elements, count, false);
 
-  ast_error(ast, "not implemented (codegen for uniontype)");
-  return NULL;
+  // TODO: trace function?
+  return type;
 }
 
 /**
@@ -264,10 +312,7 @@ LLVMTypeRef codegen_type(compile_t* c, ast_t* ast)
     }
 
     case TK_TUPLETYPE:
-    {
-      ast_error(ast, "not implemented (codegen for tupletype)");
-      return NULL;
-    }
+      return codegen_tuple(c, ast);
 
     case TK_NOMINAL:
       return codegen_nominal(c, ast);
@@ -275,15 +320,6 @@ LLVMTypeRef codegen_type(compile_t* c, ast_t* ast)
     case TK_STRUCTURAL:
     {
       ast_error(ast, "not implemented (codegen for structural)");
-      return NULL;
-    }
-
-    case TK_ARROW:
-      return codegen_type(c, ast_childidx(ast, 1));
-
-    case TK_TYPEPARAMREF:
-    {
-      ast_error(ast, "not implemented (codegen for typeparamref)");
       return NULL;
     }
 

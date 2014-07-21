@@ -214,6 +214,9 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
 
   // IR builder
   c->builder = LLVMCreateBuilder();
+
+  // target data
+  c->target = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
 }
 
 static bool codegen_finalise(compile_t* c, bool print_llvm)
@@ -255,6 +258,7 @@ static bool codegen_finalise(compile_t* c, bool print_llvm)
 
 static void codegen_cleanup(compile_t* c)
 {
+  LLVMDisposeTargetData(c->target);
   LLVMDisposeBuilder(c->builder);
   LLVMDisposePassManager(c->fpm);
   LLVMDisposeModule(c->module);
