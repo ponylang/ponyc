@@ -6,6 +6,28 @@
 #include "../pass/names.h"
 #include <assert.h>
 
+static void append_to_union(ast_t* ast, ast_t* append)
+{
+  if(ast_id(append) == TK_UNIONTYPE)
+  {
+    // add each element of the union to the new union only if it is not already
+    // a subtype of the new union.
+    ast_t* child = ast_child(append);
+
+    while(child != NULL)
+    {
+      if(!is_subtype(child, ast))
+        ast_append(ast, child);
+
+      child = ast_sibling(child);
+    }
+  } else {
+    // add to the union only if we're not a subtype of the union.
+    if(!is_subtype(append, ast))
+      ast_append(ast, append);
+  }
+}
+
 static ast_t* type_base(ast_t* from, const char* package, const char* name)
 {
   ast_t* ast = ast_from(from, TK_NOMINAL);
@@ -39,7 +61,6 @@ ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)
 {
-  // TODO: unions aren't just subtypes
   if(l_type == NULL)
     return r_type;
 
@@ -53,8 +74,8 @@ ast_t* type_union(ast_t* l_type, ast_t* r_type)
     return l_type;
 
   ast_t* type = ast_from(l_type, TK_UNIONTYPE);
-  ast_add(type, r_type);
-  ast_add(type, l_type);
+  append_to_union(type, l_type);
+  append_to_union(type, r_type);
 
   return type;
 }
