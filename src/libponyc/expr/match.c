@@ -101,10 +101,9 @@ bool expr_as(ast_t* ast)
   ast_t* expr_type = ast_type(expr);
   ast_t* match_type = ast_childidx(ast, 1);
 
-  if(!is_subtype(match_type, expr_type))
+  if(!is_id_compatible(expr_type, match_type))
   {
-    ast_error(match_type,
-      "matching type is not a subtype of the expression type");
+    ast_error(match_type, "expression can never be of this type");
     return false;
   }
 

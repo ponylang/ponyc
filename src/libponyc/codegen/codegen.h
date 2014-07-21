@@ -3,6 +3,7 @@
 
 #include "../ast/ast.h"
 #include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
@@ -13,6 +14,7 @@ typedef struct compile_t
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;
   LLVMPassManagerBuilderRef pmb;
+  LLVMTargetDataRef target;
   LLVMTypeRef void_ptr;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;

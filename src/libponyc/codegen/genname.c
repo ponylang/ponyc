@@ -1,6 +1,7 @@
 #include "genname.h"
 #include "../ds/stringtab.h"
 #include <string.h>
+#include <assert.h>
 
 static void name_append(char* name, const char* append)
 {
@@ -67,9 +68,10 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 
 static const char* nominal_name(ast_t* ast)
 {
-  ast_t* package = ast_child(ast);
-  ast_t* name = ast_sibling(package);
-  ast_t* typeargs = ast_sibling(name);
+  ast_t* package;
+  ast_t* name;
+  ast_t* typeargs;
+  AST_GET_CHILDREN(ast, &package, &name, &typeargs);
 
   return build_name(ast_name(package), ast_name(name), typeargs);
 }
@@ -78,16 +80,27 @@ const char* codegen_typename(ast_t* ast)
 {
   switch(ast_id(ast))
   {
+    case TK_UNIONTYPE:
+      return build_name("$1", "$union", ast);
+
+    case TK_ISECTTYPE:
+      ast_error(ast, "not implemented (name for isect type)");
+      return NULL;
+
+    case TK_TUPLETYPE:
+      return build_name("$1", "$tuple", ast);
+
     case TK_NOMINAL:
       return nominal_name(ast);
 
-    default:
-    {
-      ast_error(ast, "not implemented (name for non-nominal type)");
-      break;
-    }
+    case TK_STRUCTURAL:
+      ast_error(ast, "not implemented (name for structural type)");
+      return NULL;
+
+    default: {}
   }
 
+  assert(0);
   return NULL;
 }
 

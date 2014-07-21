@@ -606,9 +606,6 @@ bool is_math_compatible(ast_t* a, ast_t* b)
 
 bool is_id_compatible(ast_t* a, ast_t* b)
 {
-  // TODO: make both sides tag types
-  // if either is a subtype of the other, they are compatible
-  // also, the presence of a structural type on either side makes them
-  // compatible
+  // TODO: only incompatible if they are two different concrete types?
   return true;
 }

@@ -272,31 +272,42 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_FVARREF:
     case TK_FLETREF:
     {
-      // if left is x.f, we need the type of x to determine safe to write
-      ast_t* left = ast_child(ast);
-      ast_t* l_type = ast_type(left);
-      return cap_safetowrite(cap_for_type(l_type), cap_for_type(type));
-    }
-
-    case TK_TUPLE:
-    {
-      // safe to write if every component is safe to write
-      assert(ast_id(type) == TK_TUPLETYPE);
-      ast_t* child = ast_child(ast);
-      ast_t* tchild = ast_child(type);
-
-      while((child != NULL) && (tchild != NULL))
+      switch(ast_id(type))
       {
-        if(!safe_to_write(child, tchild))
-          return false;
+        case TK_UNIONTYPE:
+        case TK_ISECTTYPE:
+        case TK_TUPLETYPE:
+        {
+          // safe to write if every component is safe to write
+          ast_t* child = ast_child(type);
 
-        child = ast_sibling(child);
-        tchild = ast_sibling(tchild);
+          while(child != NULL)
+          {
+            if(!safe_to_write(ast, child))
+              return false;
+
+            child = ast_sibling(child);
+          }
+
+          return true;
+        }
+
+        case TK_NOMINAL:
+        case TK_STRUCTURAL:
+        case TK_TYPEPARAMREF:
+        case TK_ARROW:
+        {
+          // if left is x.f, we need the type of x to determine safe to write
+          ast_t* left = ast_child(ast);
+          ast_t* l_type = ast_type(left);
+          token_id l_cap = cap_for_type(l_type);
+
+          return cap_safetowrite(l_cap, cap_for_type(type));
+        }
+
+        default: {}
       }
-
-      assert(child == NULL);
-      assert(tchild == NULL);
-      return true;
+      break;
     }
 
     default: {}
