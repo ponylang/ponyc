@@ -6,10 +6,6 @@ use "../collections"
  * default is ref.
  */
 class Mint tag
-  var name: String
-
-  new create(name': String) =>
-    name = name'
 
 /* A purse contains currency from a specific mint. */
 class Purse
@@ -201,9 +197,6 @@ trait Participant tag
 
 // A marker type.
 class Token tag
-  var x: U64
-
-  new create(x': U64) => x = x'
 
 trait Contract[A]
   fun tag participants(): U64

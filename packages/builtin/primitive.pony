@@ -1,47 +1,47 @@
 type Any is {} tag
 
-class None val is Stringable
+data None is Stringable
   fun box string(): String => "None"
 
-class True val is Stringable
+data True is Stringable
   fun box string(): String => "True"
 
-class False val is Stringable
+data False is Stringable
   fun box string(): String => "False"
 
 type Bool is (True | False)
 
-class I8 val is Stringable
+data I8 is Stringable
   fun val max(that: I8): I8 =>
     if this > that then this else that end
 
   fun box string(): String => compiler_intrinsic
 
-class I16 val is Stringable
+data I16 is Stringable
   fun val max(that: I16): I16 =>
     if this > that then this else that end
 
   fun box string(): String => compiler_intrinsic
 
-class I32 val is Stringable
+data I32 is Stringable
   fun val max(that: I32): I32 =>
     if this > that then this else that end
 
   fun box string(): String => compiler_intrinsic
 
-class I64 val is Stringable
+data I64 is Stringable
   fun val max(that: I64): I64 =>
     if this > that then this else that end
 
   fun box string(): String => compiler_intrinsic
 
-class I128 val is Stringable
+data I128 is Stringable
   fun val max(that: I128): I128 =>
     if this > that then this else that end
 
   fun box string(): String => compiler_intrinsic
 
-class U8 val is Stringable
+data U8 is Stringable
   fun val max(that: U8): U8 =>
     if this > that then this else that end
 
@@ -55,7 +55,7 @@ class U8 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
-class U16 val is Stringable
+data U16 is Stringable
   fun val max(that: U16): U16 =>
     if this > that then this else that end
 
@@ -70,7 +70,7 @@ class U16 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
-class U32 val is Stringable
+data U32 is Stringable
   fun val max(that: U32): U32 =>
     if this > that then this else that end
 
@@ -86,7 +86,7 @@ class U32 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
-class U64 val is Stringable
+data U64 is Stringable
   fun val max(that: U64): U64 =>
     if this > that then this else that end
 
@@ -103,7 +103,7 @@ class U64 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
-class U128 val is Stringable
+data U128 is Stringable
   fun val max(that: U128): U128 =>
     if this > that then this else that end
 
@@ -121,19 +121,19 @@ class U128 val is Stringable
 
   fun box string(): String => compiler_intrinsic
 
-class F16 val is Stringable
+data F16 is Stringable
   fun box string(): String => compiler_intrinsic
 
-class F32 val is Stringable
+data F32 is Stringable
   fun box string(): String => compiler_intrinsic
 
-class F64 val is Stringable
+data F64 is Stringable
   fun box string(): String => compiler_intrinsic
 
-class IntLiteral val is Stringable
+data IntLiteral is Stringable
   fun box string(): String => compiler_intrinsic
 
-class FloatLiteral val is Stringable
+data FloatLiteral is Stringable
   fun box string(): String => compiler_intrinsic
 
 class String val is Ordered[String]

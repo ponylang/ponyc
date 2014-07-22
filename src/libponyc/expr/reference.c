@@ -148,7 +148,14 @@ bool expr_reference(ast_t* ast)
       return true;
     }
 
-    case TK_TYPE:
+    case TK_TRAIT:
+    {
+      ast_error(ast, "can't use a trait in an expression");
+      return false;
+    }
+
+    case TK_TYPEPARAM: // TODO: is this ok or even needed?
+    case TK_DATA:
     case TK_CLASS:
     case TK_ACTOR:
     {

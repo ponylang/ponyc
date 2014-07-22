@@ -165,6 +165,32 @@ static bool sugar_type(ast_t* ast)
   return typecheck_main(ast);
 }
 
+static bool sugar_data(ast_t* ast)
+{
+  if(!typecheck_main(ast))
+    return false;
+
+  if(!sugar_traits(ast))
+    return false;
+
+  // force a default capability of val
+  ast_t* defcap = ast_childidx(ast, 2);
+
+  if(ast_id(defcap) != TK_NONE)
+  {
+    ast_error(defcap, "can't specify a capability on a data type");
+    return false;
+  }
+
+  ast_setid(defcap, TK_VAL);
+
+  // force a default constructor
+  ast_t* members = ast_childidx(ast, 4);
+  ast_setid(members, TK_MEMBERS);
+  ast_add(members, make_create(ast, type_for_this(ast, TK_VAL, false)));
+  return true;
+}
+
 static bool sugar_class(ast_t* ast)
 {
   if(!typecheck_main(ast))
@@ -234,10 +260,23 @@ static bool sugar_typeparam(ast_t* ast)
 
 static bool sugar_field(ast_t* ast)
 {
-  if(ast_nearest(ast, TK_TRAIT) != NULL)
+  ast_t* type = ast_enclosing_type(ast);
+
+  switch(ast_id(type))
   {
-    ast_error(ast, "can't have a field in a trait");
-    return false;
+    case TK_TRAIT:
+    {
+      ast_error(ast, "can't have a field in a trait");
+      return false;
+    }
+
+    case TK_DATA:
+    {
+      ast_error(ast, "can't have a field in a data type");
+      return false;
+    }
+
+    default: {}
   }
 
   return true;
@@ -249,7 +288,15 @@ static bool sugar_new(ast_t* ast)
   ast_t* id = ast_childidx(ast, 1);
 
   if(ast_id(id) == TK_NONE)
+  {
     ast_replace(&id, ast_from_string(id, "create"));
+  } else if(ast_nearest(ast, TK_DATA) != NULL) {
+    if(ast_name(id) != stringtab("create"))
+    {
+      ast_error(ast, "can't have a constructor in a data type");
+      return false;
+    }
+  }
 
   // return type is This ref^ if not already set
   ast_t* result = ast_childidx(ast, 4);
@@ -271,10 +318,23 @@ static bool sugar_new(ast_t* ast)
 
 static bool sugar_be(ast_t* ast)
 {
-  if(ast_nearest(ast, TK_CLASS) != NULL)
+  ast_t* type = ast_enclosing_type(ast);
+
+  switch(ast_id(type))
   {
-    ast_error(ast, "can't have a behaviour in a class");
-    return false;
+    case TK_CLASS:
+    {
+      ast_error(ast, "can't have a behaviour in a class");
+      return false;
+    }
+
+    case TK_DATA:
+    {
+      ast_error(ast, "can't have a behaviour in a data type");
+      return false;
+    }
+
+    default: {}
   }
 
   // return type is This tag
@@ -641,6 +701,11 @@ ast_result_t pass_sugar(ast_t** astp)
   {
     case TK_TYPE:
       if(!sugar_type(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_DATA:
+      if(!sugar_data(ast))
         return AST_ERROR;
       break;
 

@@ -184,6 +184,12 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
       return NULL;
     }
 
+    case TK_DATA:
+    {
+      ast_error(ast, "not implemented (codegen for data)");
+      return NULL;
+    }
+
     case TK_CLASS:
     {
       type = codegen_class(c, name, def, typeargs);
