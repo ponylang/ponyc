@@ -16,8 +16,13 @@ typedef struct compile_t
   LLVMPassManagerBuilderRef pmb;
   LLVMTargetDataRef target;
   LLVMTypeRef void_ptr;
+  LLVMTypeRef actor_ptr;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
+  LLVMTypeRef dispatch_fn;
+  LLVMTypeRef final_fn;
+  LLVMTypeRef descriptor_ptr;
+  LLVMTypeRef object_ptr;
 } compile_t;
 
 bool codegen(ast_t* program, int opt, bool print_llvm);

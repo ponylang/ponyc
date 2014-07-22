@@ -105,3 +105,12 @@ pattern matching on type
     tuple can also match Any
     anonymous struct
     always boxed
+
+type descriptor
+  trace function
+  (serialise function)
+  (deserialise function)
+  dispatch function
+  finalise function
+  trait list
+  vtable (embedded)

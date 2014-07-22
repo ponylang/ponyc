@@ -7,13 +7,13 @@
 #include <stdio.h>
 #include <assert.h>
 
-LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
   // get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
   // level type arguments.
-  const char* funname = codegen_funname(codegen_typename(type), name, typeargs);
+  const char* funname = genname_fun(genname_type(type), name, typeargs);
 
   if(funname == NULL)
   {
@@ -54,7 +54,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   // get a type for the receiver
   if(ast_id(fun) != TK_NEW)
   {
-    tparams[count] = codegen_type(c, type);
+    tparams[count] = gentype(c, type);
 
     if(tparams[count] == NULL)
     {
@@ -71,7 +71,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
   while(param != NULL)
   {
     ast_t* ptype = ast_childidx(param, 1);
-    tparams[count] = codegen_type(c, ptype);
+    tparams[count] = gentype(c, ptype);
 
     if(tparams[count] == NULL)
     {
@@ -85,7 +85,7 @@ LLVMValueRef codegen_function(compile_t* c, ast_t* type, const char *name,
 
   // get a type for the result
   ast_t* rtype = ast_childidx(fun, 4);
-  LLVMTypeRef result = codegen_type(c, rtype);
+  LLVMTypeRef result = gentype(c, rtype);
 
   if(result == NULL)
   {

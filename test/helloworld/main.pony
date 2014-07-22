@@ -1,9 +1,12 @@
 class Helper[A: Arithmetic]
-  var x: (A, I64)
-  var y: (Main | None)
+  /*var x: (A, I64)
+  var y: (Main | None)*/
+  var x: A
+  var y: Main
 
   new create(x': A, y': Main) =>
-    x = (x', 7)
+    /*x = (x', 7)*/
+    x = x'
     y = y'
 
 actor Main

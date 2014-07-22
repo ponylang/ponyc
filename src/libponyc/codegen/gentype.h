@@ -3,6 +3,6 @@
 
 #include "codegen.h"
 
-LLVMTypeRef codegen_type(compile_t* c, ast_t* ast);
+LLVMTypeRef gentype(compile_t* c, ast_t* ast);
 
 #endif
