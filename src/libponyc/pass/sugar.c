@@ -186,7 +186,6 @@ static bool sugar_data(ast_t* ast)
 
   // force a default constructor
   ast_t* members = ast_childidx(ast, 4);
-  ast_setid(members, TK_MEMBERS);
   ast_add(members, make_create(ast, type_for_this(ast, TK_VAL, false)));
   return true;
 }
@@ -207,7 +206,6 @@ static bool sugar_class(ast_t* ast)
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, TK_REF);
 
-  ast_setid(ast_childidx(ast, 4), TK_MEMBERS);
   return true;
 }
 
@@ -231,7 +229,6 @@ static bool sugar_actor(ast_t* ast)
   }
 
   ast_setid(defcap, TK_TAG);
-  ast_setid(ast_childidx(ast, 4), TK_MEMBERS);
   return true;
 }
 
