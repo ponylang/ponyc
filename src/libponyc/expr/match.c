@@ -101,6 +101,10 @@ bool expr_as(ast_t* ast)
   ast_t* expr_type = ast_type(expr);
   ast_t* match_type = ast_childidx(ast, 1);
 
+  // TODO: match type cannot contain any non-empty structural types
+  // could allow them, but for all structural types in pattern matches
+  // we would have to determine if every concrete type is a subtype at compile
+  // time and store that
   if(!is_id_compatible(expr_type, match_type))
   {
     ast_error(match_type, "expression can never be of this type");

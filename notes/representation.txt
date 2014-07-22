@@ -1,0 +1,107 @@
+storing references
+
+primitives and concrete types (actor or class) are simple
+create individual pointers for singleton types, so that no pointer to another
+  type can clash with them
+
+this leaves traits, structurals, unions, isects, tuples
+with the scheme below
+  traits: simple pointer
+  isects: simple pointer
+  tuples: anonymous structs, passed by value
+    pattern match: check each element
+
+
+
+instance
+  concrete type descriptor
+  data
+
+concrete type descriptor
+  trace function
+  serialise function
+  deserialise function
+  array[type as trait]
+
+type as trait
+  pointer to trait name
+  vtable for type as trait
+
+type as structural
+  treat all structural types as "anonymous traits"
+  when we assign a value to a structural type:
+    concrete type: add the structural as a trait vtable to the type
+    trait or structural: retrofit to all types that implement the trait
+
+call method on trait
+  convert method to index at compile time
+  linear search the traits by name
+  call the function in the vtable by index
+  optimisation by common subexpression elimination
+
+pattern match on type
+  type is concrete: check descriptor pointer
+  type is a trait: linear search on traits
+
+
+
+
+
+vtable/object pairs
+
+primitive: bytes
+singleton type: constant pointer
+concrete type: data pointer
+trait: vtable + data pointer
+structural: vtable + data pointer (how to calculate the vtable?)
+union:
+isect:
+tuple: structure of types, pass by value
+
+vtable
+  concrete type descriptor pointer
+  array of function pointers
+
+concrete type descriptor
+  ...
+
+
+
+
+method name colouring
+  method name -> index mapping at compile time
+  invoke by index
+
+single vtable for all objects
+directly index the method, no need to find the right vtable
+no need for separate vtables for structural types
+have to box primitives when passed as a trait or structural type
+
+primitive: bytes
+  boxed when passed as a trait, structural, union or isect
+singleton type: constant pointer
+concrete type: pointer
+trait: pointer
+structural: pointer
+union: pointer
+  except if a union of the same type with different capabilities
+  use high bits for capability in a union?
+isect: pointer
+tuple: structure of types, pass by value
+
+pattern matching on type
+  primitive, singleton type, concrete type
+    object vtable pointer == type vtable pointer
+  trait
+    each type has a list of traits it implements
+  structural type
+    not allowed
+  union
+    do we match any one element
+  isect
+    do we match all elements
+  tuple
+    do we match all elements pairwise
+    tuple can also match Any
+    anonymous struct
+    always boxed
