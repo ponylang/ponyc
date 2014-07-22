@@ -30,6 +30,11 @@ function link_libponyc()
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
+
+  links {
+    "tinfo", 
+    "dl" 
+  }
 end
 
 solution "ponyc"
