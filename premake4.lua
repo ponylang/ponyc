@@ -32,8 +32,19 @@ function link_libponyc()
   end
 
   links {
-    "tinfo", 
-    "dl" 
+    "tinfo",
+    "dl"
+  }
+end
+
+function use_flto()
+  buildoptions {
+    "-O3",
+    "-flto",
+  }
+  linkoptions {
+    "-flto",
+    "-fuse-ld=gold",
   }
 end
 
@@ -73,14 +84,6 @@ solution "ponyc"
 
   configuration "Release or Profile"
     defines "NDEBUG"
-    buildoptions {
-      "-O3",
-      "-flto",
-    }
-    linkoptions {
-      "-flto",
-      "-fuse-ld=gold",
-    }
 
   project "libponyc"
     targetname "ponyc"
@@ -107,6 +110,9 @@ solution "ponyc"
     buildoptions "-std=gnu11"
     files "src/ponyc/**.c"
     link_libponyc()
+
+    configuration "Release or Profile"
+      use_flto()
 
   include "utils/"
   include "test/"
