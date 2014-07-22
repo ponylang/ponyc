@@ -2,6 +2,7 @@
 #include "genname.h"
 #include "gencall.h"
 #include "../pkg/package.h"
+#include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include <string.h>
@@ -25,32 +26,43 @@ static LLVMValueRef gentype_trace(compile_t* c, const char* name,
 
   for(int i = 0; i < count; i++)
   {
-    // TODO: underlying instance could be a datatype, an actor, or an object
-    // do nothing for a datatype
-    // pony_traceactor for an actor
-    // pony_trace for a tag object
-    // pony_traceobject for a non-tag object
-    // what about a type expression? have to determine the capability
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + 1, "");
     ast_t* ast = fields[i];
 
     switch(ast_id(ast))
     {
       case TK_UNIONTYPE:
-      case TK_ISECTTYPE:
-        // TODO:
+      {
+        if(!is_bool(ast))
+        {
+          bool tag = cap_for_type(ast) == TK_TAG;
+
+          if(tag)
+          {
+            // TODO: are we really a tag? need runtime info
+          } else {
+            // this union type can never be a tag
+            gencall_traceunknown(c, field);
+          }
+        }
         break;
+      }
 
       case TK_TUPLETYPE:
-        // TODO:
+        gencall_traceknown(c, field, genname_type(ast));
         break;
 
       case TK_NOMINAL:
       {
+        bool tag = cap_for_type(ast) == TK_TAG;
+
         switch(ast_id(ast_data(ast)))
         {
           case TK_TRAIT:
-            // TODO: could be an actor or an object
+            if(tag)
+              gencall_tracetag(c, field);
+            else
+              gencall_traceunknown(c, field);
             break;
 
           case TK_DATA:
@@ -58,10 +70,10 @@ static LLVMValueRef gentype_trace(compile_t* c, const char* name,
             break;
 
           case TK_CLASS:
-            if(ast_id(ast_childidx(ast, 3)) == TK_TAG)
+            if(tag)
               gencall_tracetag(c, field);
             else
-              gencall_traceclass(c, field, genname_type(ast));
+              gencall_traceknown(c, field, genname_type(ast));
             break;
 
           case TK_ACTOR:
@@ -75,10 +87,17 @@ static LLVMValueRef gentype_trace(compile_t* c, const char* name,
         break;
       }
 
+      case TK_ISECTTYPE:
       case TK_STRUCTURAL:
-        // TODO: could be anything
-        // gentype_calltrace(c, field, ast_id(ast_childidx(ast, 1)));
+      {
+        bool tag = cap_for_type(ast) == TK_TAG;
+
+        if(tag)
+          gencall_tracetag(c, field);
+        else
+          gencall_traceunknown(c, field);
         break;
+      }
 
       default:
         assert(0);
@@ -125,7 +144,6 @@ static ast_t** gentype_getfields(ast_t* def, ast_t* typeargs, int* count)
   ast_t* members = ast_childidx(def, 4);
   ast_t* member;
 
-  // count our elements, including the type descriptor as element 0
   member = ast_child(members);
   int n = 0;
 
@@ -187,7 +205,7 @@ static LLVMTypeRef gentype_data(compile_t* c, const char* name, ast_t* def,
   if(type == NULL)
     return NULL;
 
-  // TODO: create a type descriptor, singleton instance
+  // TODO: create a type descriptor, singleton instance if not a primitive
   return type;
 }
 
@@ -225,6 +243,7 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
 
+  // TODO: create the primitive descriptors
   // check for primitive types
   const char* name = ast_name(ast_childidx(ast, 1));
 
@@ -305,57 +324,6 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-static LLVMTypeRef gentype_union(compile_t* c, ast_t* ast)
-{
-  // special case Bool
-  if(is_bool(ast))
-    return LLVMInt1Type();
-
-  // TODO: change this entirely
-
-  // return an existing type if it's available
-  const char* name = genname_type(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-
-  if(type != NULL)
-    return type;
-
-  // union is stored as a byte array big enough to hold every possible type
-  // plus a discriminator to decide at runtime which type has been stored
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
-
-  size_t count = ast_childcount(ast);
-  LLVMTypeRef types[count];
-
-  ast_t* child = ast_child(ast);
-  size_t index = 0;
-  size_t size = 0;
-
-  while(child != NULL)
-  {
-    types[index] = gentype(c, child);
-
-    if(types[index] == NULL)
-      return NULL;
-
-    size_t byte_size = LLVMABISizeOfType(c->target, types[index]);
-
-    if(byte_size > size)
-      size = byte_size;
-
-    index++;
-    child = ast_sibling(child);
-  }
-
-  LLVMTypeRef elements[2];
-  elements[0] = LLVMInt32Type();
-  elements[1] = LLVMArrayType(LLVMInt8Type(), size);
-  LLVMStructSetBody(type, elements, 2, false);
-
-  // TODO: trace function? pattern match function?
-  return type;
-}
-
 static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
 {
   // TODO: wrong? embed a descriptor?
@@ -395,13 +363,18 @@ LLVMTypeRef gentype(compile_t* c, ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return gentype_union(c, ast);
+    {
+      // special case Bool
+      if(is_bool(ast))
+        return LLVMInt1Type();
+
+      // otherwise it's just a raw object pointer
+      return c->object_ptr;
+    }
 
     case TK_ISECTTYPE:
-    {
-      ast_error(ast, "not implemented (codegen for isecttype)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
 
     case TK_TUPLETYPE:
       return gentype_tuple(c, ast);
@@ -410,10 +383,8 @@ LLVMTypeRef gentype(compile_t* c, ast_t* ast)
       return gentype_nominal(c, ast);
 
     case TK_STRUCTURAL:
-    {
-      ast_error(ast, "not implemented (codegen for structural)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
 
     default: {}
   }

@@ -11,10 +11,10 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 
 void gencall_tracetag(compile_t* c, LLVMValueRef field);
 
-void gencall_traceclass(compile_t* c, LLVMValueRef field, const char* name);
-
 void gencall_traceactor(compile_t* c, LLVMValueRef field);
 
-void gencall_traceobject(compile_t* c, LLVMValueRef field);
+void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name);
+
+void gencall_traceunknown(compile_t* c, LLVMValueRef field);
 
 #endif

@@ -610,3 +610,20 @@ bool is_id_compatible(ast_t* a, ast_t* b)
   // TODO: only incompatible if they are two different concrete types?
   return true;
 }
+
+bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
+{
+  if(is_subtype(expr_type, match_type))
+  {
+    ast_error(match_type, "expression is a strict subtype of the match type");
+    return false;
+  }
+
+  // TODO: match type cannot contain any non-empty structural types
+  // could allow them, but for all structural types in pattern matches
+  // we would have to determine if every concrete type is a subtype at compile
+  // time and store that
+
+  // TODO: any other incompatible matches?
+  return true;
+}
