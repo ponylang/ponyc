@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-static LLVMValueRef gentype_trace(compile_t* c, const char* name,
+static LLVMValueRef make_trace(compile_t* c, const char* name,
   LLVMTypeRef type, ast_t** fields, int count)
 {
   // create a trace function
@@ -113,7 +113,7 @@ static LLVMValueRef gentype_trace(compile_t* c, const char* name,
   return trace_fn;
 }
 
-static LLVMTypeRef gentype_struct(compile_t* c, const char* name,
+static LLVMTypeRef make_struct(compile_t* c, const char* name,
   ast_t** fields, int count)
 {
   LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
@@ -132,14 +132,24 @@ static LLVMTypeRef gentype_struct(compile_t* c, const char* name,
 
   LLVMStructSetBody(type, elements, count + 1, false);
 
-  if(gentype_trace(c, name, type, fields, count) == NULL)
+  if(make_trace(c, name, type, fields, count) == NULL)
     return NULL;
 
   return type;
 }
 
-static ast_t** gentype_getfields(ast_t* def, ast_t* typeargs, int* count)
+static ast_t** get_fields(ast_t* ast, int* count)
 {
+  assert(ast_id(ast) == TK_NOMINAL);
+  ast_t* def = ast_data(ast);
+
+  if(ast_id(def) == TK_DATA)
+  {
+    *count = 0;
+    return NULL;
+  }
+
+  ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member;
@@ -189,7 +199,7 @@ static ast_t** gentype_getfields(ast_t* def, ast_t* typeargs, int* count)
   return fields;
 }
 
-static void gentype_freefields(ast_t** fields, int count)
+static void free_fields(ast_t** fields, int count)
 {
   for(int i = 0; i < count; i++)
     ast_free_unattached(fields[i]);
@@ -197,52 +207,35 @@ static void gentype_freefields(ast_t** fields, int count)
   free(fields);
 }
 
-static LLVMTypeRef gentype_data(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
+static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
 {
-  LLVMTypeRef type = gentype_struct(c, name, NULL, 0);
+  const char* name = genname_type(ast);
 
-  if(type == NULL)
+  if(name == NULL)
     return NULL;
 
-  // TODO: create a type descriptor, singleton instance if not a primitive
-  return type;
-}
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
 
-static LLVMTypeRef gentype_class(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
-{
+  if(type != NULL)
+  {
+    *exists = true;
+    return LLVMPointerType(type, 0);
+  }
+
   int count;
-  ast_t** fields = gentype_getfields(def, typeargs, &count);
-  LLVMTypeRef type = gentype_struct(c, name, fields, count);
-  gentype_freefields(fields, count);
+  ast_t** fields = get_fields(ast, &count);
+  type = make_struct(c, name, fields, count);
+  free_fields(fields, count);
 
   if(type == NULL)
     return NULL;
 
-  // TODO: create a type descriptor
-  return type;
+  *exists = false;
+  return LLVMPointerType(type, 0);
 }
 
-static LLVMTypeRef gentype_actor(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
+static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
 {
-  int count;
-  ast_t** fields = gentype_getfields(def, typeargs, &count);
-  LLVMTypeRef type = gentype_struct(c, name, fields, count);
-  gentype_freefields(fields, count);
-
-  if(type == NULL)
-    return NULL;
-
-  // TODO: create an actor descriptor, message type function, dispatch function
-  return type;
-}
-
-static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-
   // TODO: create the primitive descriptors
   // check for primitive types
   const char* name = ast_name(ast_childidx(ast, 1));
@@ -274,88 +267,93 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
   if(!strcmp(name, "F64"))
     return LLVMDoubleType();
 
-  name = genname_type(ast);
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
 
-  if(name == NULL)
-    return NULL;
+  if(exists || (type == NULL))
+    return type;
 
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+  // TODO: create a type descriptor, singleton instance if not a primitive
+  return type;
+}
 
-  if(type != NULL)
-    return LLVMPointerType(type, 0);
+static LLVMTypeRef gentype_class(compile_t* c, ast_t* ast)
+{
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
 
+  if(exists || (type == NULL))
+    return type;
+
+  // TODO: create a type descriptor
+  return type;
+}
+
+static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
+{
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
+
+  if(exists || (type == NULL))
+    return type;
+
+  // TODO: create an actor descriptor, message type function, dispatch function
+  return type;
+}
+
+static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = ast_data(ast);
-  ast_t* typeargs = ast_childidx(ast, 2);
 
   switch(ast_id(def))
   {
     case TK_TRAIT:
-    {
-      ast_error(ast, "not implemented (codegen for trait)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
 
     case TK_DATA:
-    {
-      type = gentype_data(c, name, def, typeargs);
-      break;
-    }
+      return gentype_data(c, ast);
 
     case TK_CLASS:
-    {
-      type = gentype_class(c, name, def, typeargs);
-      break;
-    }
+      return gentype_class(c, ast);
 
     case TK_ACTOR:
-    {
-      type = gentype_actor(c, name, def, typeargs);
-      break;
-    }
+      return gentype_actor(c, ast);
 
-    default:
-      assert(0);
-      return NULL;
+    default: {}
   }
 
-  if(type != NULL)
-    return LLVMPointerType(type, 0);
-
+  assert(0);
   return NULL;
 }
 
 static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
 {
-  // TODO: wrong? embed a descriptor?
+  // an anonymous structure with no functions and no vtable
   const char* name = genname_type(ast);
   LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
 
   if(type != NULL)
-    return type;
-
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+    return LLVMPointerType(type, 0);
 
   size_t count = ast_childcount(ast);
-  LLVMTypeRef elements[count];
-
+  ast_t* fields[count];
   ast_t* child = ast_child(ast);
   size_t index = 0;
 
   while(child != NULL)
   {
-    elements[index] = gentype(c, child);
-
-    if(elements[index] == NULL)
-      return NULL;
-
-    index++;
+    fields[index++] = child;
     child = ast_sibling(child);
   }
 
-  LLVMStructSetBody(type, elements, count, false);
+  type = make_struct(c, name, fields, count);
 
-  // TODO: trace function?
-  return type;
+  if(type == NULL)
+    return NULL;
+
+  return LLVMPointerType(type, 0);
 }
 
 LLVMTypeRef gentype(compile_t* c, ast_t* ast)

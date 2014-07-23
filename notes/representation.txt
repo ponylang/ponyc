@@ -1,74 +1,4 @@
-storing references
-
-primitives and concrete types (actor or class) are simple
-create individual pointers for singleton types, so that no pointer to another
-  type can clash with them
-
-this leaves traits, structurals, unions, isects, tuples
-with the scheme below
-  traits: simple pointer
-  isects: simple pointer
-  tuples: anonymous structs, passed by value
-    pattern match: check each element
-
-
-
-instance
-  concrete type descriptor
-  data
-
-concrete type descriptor
-  trace function
-  serialise function
-  deserialise function
-  array[type as trait]
-
-type as trait
-  pointer to trait name
-  vtable for type as trait
-
-type as structural
-  treat all structural types as "anonymous traits"
-  when we assign a value to a structural type:
-    concrete type: add the structural as a trait vtable to the type
-    trait or structural: retrofit to all types that implement the trait
-
-call method on trait
-  convert method to index at compile time
-  linear search the traits by name
-  call the function in the vtable by index
-  optimisation by common subexpression elimination
-
-pattern match on type
-  type is concrete: check descriptor pointer
-  type is a trait: linear search on traits
-
-
-
-
-
-vtable/object pairs
-
-primitive: bytes
-singleton type: constant pointer
-concrete type: data pointer
-trait: vtable + data pointer
-structural: vtable + data pointer (how to calculate the vtable?)
-union:
-isect:
-tuple: structure of types, pass by value
-
-vtable
-  concrete type descriptor pointer
-  array of function pointers
-
-concrete type descriptor
-  ...
-
-
-
-
-method name colouring
+selector colouring
   method name -> index mapping at compile time
   invoke by index
 
@@ -114,3 +44,29 @@ type descriptor
   finalise function
   trait list
   vtable (embedded)
+
+
+
+colouring algorithm
+next colour: int
+method -> colour, list of types
+colour -> list of types
+
+for each type do
+  for each method do
+    add type to method.typelist
+  end
+end
+for each method do
+  handle method
+end
+fun handle method =>
+  for colour in 0..(next colour - 1) do
+    if method.typelist isect colour.typelist is empty then
+      method.colour = colour
+      colour.typelist = colour.typelist union method.typelist
+      return
+    end
+  end
+  method.colour = next colour
+  next colour.typelist = method.typelist

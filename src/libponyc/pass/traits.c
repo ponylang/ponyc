@@ -5,13 +5,6 @@
 #include "../type/assemble.h"
 #include <assert.h>
 
-typedef enum
-{
-  TRAITS_INITIAL = 0,
-  TRAITS_IN_PROGRESS,
-  TRAITS_DONE
-} trait_state_t;
-
 static bool attach_method(ast_t* type, ast_t* method)
 {
   if(ast_id(method) == TK_BE)
@@ -74,19 +67,19 @@ static bool attach_method(ast_t* type, ast_t* method)
 
 static bool attach_traits(ast_t* def)
 {
-  trait_state_t state = (trait_state_t)ast_data(def);
+  ast_state_t state = (ast_state_t)ast_data(def);
 
   switch(state)
   {
-    case TRAITS_INITIAL:
-      ast_setdata(def, (void*)TRAITS_IN_PROGRESS);
+    case AST_STATE_INITIAL:
+      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
       break;
 
-    case TRAITS_IN_PROGRESS:
+    case AST_STATE_INPROGRESS:
       ast_error(def, "traits can't be recursive");
       return false;
 
-    case TRAITS_DONE:
+    case AST_STATE_DONE:
       return true;
 
     default:
@@ -146,7 +139,7 @@ static bool attach_traits(ast_t* def)
     trait = ast_sibling(trait);
   }
 
-  ast_setdata(def, (void*)TRAITS_DONE);
+  ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 

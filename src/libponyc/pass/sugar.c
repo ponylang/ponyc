@@ -148,12 +148,16 @@ static bool sugar_data(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  if(!sugar_traits(ast))
+  ast_t* defcap;
+  ast_t* traits;
+  ast_t* members;
+
+  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+
+  if(!sugar_traits(traits))
     return false;
 
   // force a default capability of val
-  ast_t* defcap = ast_childidx(ast, 2);
-
   if(ast_id(defcap) != TK_NONE)
   {
     ast_error(defcap, "can't specify a capability on a data type");
@@ -163,7 +167,6 @@ static bool sugar_data(ast_t* ast)
   ast_setid(defcap, TK_VAL);
 
   // force a default constructor
-  ast_t* members = ast_childidx(ast, 4);
   ast_add(members, make_create(ast, type_for_this(ast, TK_VAL, false)));
   return true;
 }
@@ -178,7 +181,6 @@ static bool sugar_class(ast_t* ast)
   ast_t* members;
 
   AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
-  ast_setid(members, TK_MEMBERS);
 
   if(!sugar_traits(traits))
     return false;
@@ -202,7 +204,6 @@ static bool sugar_actor(ast_t* ast)
   ast_t* members;
 
   AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
-  ast_setid(members, TK_MEMBERS);
 
   if(!sugar_traits(traits))
     return false;

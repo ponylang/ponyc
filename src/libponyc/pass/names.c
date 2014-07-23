@@ -3,13 +3,6 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
-typedef enum
-{
-  TYPEALIAS_INITIAL = 0,
-  TYPEALIAS_IN_PROGRESS,
-  TYPEALIAS_DONE
-} typealias_state_t;
-
 static void names_applycap_index(ast_t* ast, ast_t* cap, ast_t* ephemeral,
   int index)
 {
@@ -68,19 +61,19 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
 static bool names_resolvealias(ast_t* def, ast_t* type)
 {
-  typealias_state_t state = (typealias_state_t)ast_data(def);
+  ast_state_t state = (ast_state_t)ast_data(def);
 
   switch(state)
   {
-    case TYPEALIAS_INITIAL:
-      ast_setdata(def, (void*)TYPEALIAS_IN_PROGRESS);
+    case AST_STATE_INITIAL:
+      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
       break;
 
-    case TYPEALIAS_IN_PROGRESS:
+    case AST_STATE_INPROGRESS:
       ast_error(def, "type aliases can't be recursive");
       return false;
 
-    case TYPEALIAS_DONE:
+    case AST_STATE_DONE:
       return true;
 
     default:
@@ -91,7 +84,7 @@ static bool names_resolvealias(ast_t* def, ast_t* type)
   if(ast_visit(&type, NULL, pass_names) != AST_OK)
     return false;
 
-  ast_setdata(def, (void*)TYPEALIAS_DONE);
+  ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 
