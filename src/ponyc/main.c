@@ -12,7 +12,7 @@ static struct option opts[] =
   {"llvm", no_argument, NULL, 'l'},
   {"opt", no_argument, NULL, 'O'},
   {"path", required_argument, NULL, 'p'},
-  {"parse", no_argument, NULL, 'r'},
+  {"pass", required_argument, NULL, 'r'},
   {"width", required_argument, NULL, 'w'},
   {NULL, 0, NULL, 0},
 };
@@ -50,12 +50,12 @@ int main(int argc, char** argv)
 
   bool ast = false;
   bool llvm = false;
-  bool parse_only = false;
   int opt = 0;
   size_t width = get_width();
   char c;
+  bool error = false;
 
-  while((c = getopt_long(argc, argv, "alO:p:rw:", opts, NULL)) != -1)
+  while((c = getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
   {
     switch(c)
     {
@@ -63,9 +63,15 @@ int main(int argc, char** argv)
       case 'l': llvm = true; break;
       case 'p': package_paths(optarg); break;
       case 'O': opt = atoi(optarg); break;
-      case 'r': parse_only = true; break;
+      case 'r': error = !package_limit_passes(optarg); break;
       case 'w': width = atoi(optarg); break;
-      default: usage(); return -1;
+      default: error = true; break;
+    }
+
+    if(error)
+    {
+      usage();
+      return -1;
     }
   }
 
@@ -78,7 +84,7 @@ int main(int argc, char** argv)
   argc -= optind;
   argv += optind;
 
-  ast_t* program = program_load((argc > 0) ? argv[0] : ".", parse_only);
+  ast_t* program = program_load((argc > 0) ? argv[0] : ".");
   int ret = 0;
 
   if(program != NULL)
@@ -86,7 +92,10 @@ int main(int argc, char** argv)
     if(ast)
     {
       ast_print(program, width);
-    } else if(!parse_only) {
+    }
+
+    if(package_get_pass_limit() == PASS_ALL)
+    {
       if(!program_compile(program, opt, llvm))
         ret = -1;
     }

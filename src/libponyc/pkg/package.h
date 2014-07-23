@@ -3,6 +3,19 @@
 
 #include "../ast/ast.h"
 
+typedef enum pass_id
+{
+  PASS_PARSE,
+  PASS_SUGAR,
+  PASS_SCOPE1,
+  PASS_NAME_RESOLUTION,
+  PASS_FLATTEN,
+  PASS_TRAITS,
+  PASS_SCOPE2,
+  PASS_EXPR,
+  PASS_ALL
+} pass_id;
+
 /**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
@@ -20,11 +33,26 @@ void package_init(const char* name);
 void package_paths(const char* paths);
 
 /**
- * Load a program. The path specifies the package that represents the program.
- * If parse_only is set to true, the program will not be typechecked, which
- * also means 'use' statements won't be followed.
+ * Limit processing to the specified pass. All passes up to and including the
+ * specified pass will occur.
  */
-ast_t* program_load(const char* path, bool parse_only);
+bool package_limit_passes(const char* pass);
+
+/**
+ * Report the current pass limit.
+ */
+pass_id package_get_pass_limit();
+
+/**
+ * Add a package with a single module based on the given AST description under
+ * the given path.
+ */
+bool package_add_desc(const char* path, const char* ast_desc);
+
+/**
+ * Load a program. The path specifies the package that represents the program.
+ */
+ast_t* program_load(const char* path);
 
 /**
  * Compile a program.
@@ -34,7 +62,7 @@ bool program_compile(ast_t* program, int opt, bool print_llvm);
 /**
  * Loads a package. Used by program_load() and when handling 'use' statements.
  */
-ast_t* package_load(ast_t* from, const char* path, bool parse_only);
+ast_t* package_load(ast_t* from, const char* path);
 
 /**
  * Gets the package name, but not wrapped in an AST node.
