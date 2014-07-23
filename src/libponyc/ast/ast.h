@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "token.h"
+#include "symtab.h"
 
 /*
 
@@ -212,6 +213,7 @@ ast_t* ast_from_string(ast_t* ast, const char* id);
 ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
+symtab_t* ast_get_symtab(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
 
 token_id ast_id(ast_t* ast);

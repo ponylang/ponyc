@@ -38,6 +38,31 @@ ast_t* find_start(ast_t* tree, token_id start_id)
 }
 
 
+ast_t* parse_test_module(const char* desc)
+{
+  source_t* src = source_open_string(desc);
+  ast_t* ast = build_ast(src);
+
+  if(ast == NULL)
+    source_close(src);
+
+  return ast;
+}
+
+
+void symtab_entry(ast_t* tree, token_id location, const char* name,
+  ast_t* expected)
+{
+  ast_t* ast_loc = find_start(tree, location);
+  ASSERT_NE((void*)NULL, ast_loc);
+
+  symtab_t* symtab = ast_get_symtab(ast_loc);
+  ASSERT_NE((void*)NULL, symtab);
+
+  ASSERT_EQ(expected, symtab_get(symtab, name));
+}
+
+
 void test_good_pass(const char* before, const char* after, token_id start_id,
   ast_result_t (*pass_fn)(ast_t**))
 {
