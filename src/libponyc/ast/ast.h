@@ -198,8 +198,7 @@ typedef enum
 {
   AST_STATE_INITIAL = 0,
   AST_STATE_INPROGRESS,
-  AST_STATE_DONE,
-  AST_STATE_CODEGEN
+  AST_STATE_DONE
 } ast_state_t;
 
 typedef struct ast_t ast_t;

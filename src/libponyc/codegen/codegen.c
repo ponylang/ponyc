@@ -192,17 +192,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   LLVMTypeRef type = gentype(c, ast);
-
-  if(type == NULL)
-  {
-    ast_free_unattached(ast);
-    return false;
-  }
-
-  LLVMValueRef fun = genfun(c, ast, stringtab("create"), NULL);
   ast_free_unattached(ast);
 
-  if(fun == NULL)
+  if(type == NULL)
     return false;
 
   return codegen_main(c, type);

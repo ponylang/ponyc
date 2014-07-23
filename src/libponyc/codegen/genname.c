@@ -20,10 +20,6 @@ static size_t typeargs_len(ast_t* typeargs)
   while(typearg != NULL)
   {
     const char* argname = genname_type(typearg);
-
-    if(argname == NULL)
-      return -1;
-
     len += strlen(argname) + 1;
     typearg = ast_sibling(typearg);
   }
@@ -47,16 +43,7 @@ static void typeargs_append(char* name, ast_t* typeargs)
 
 static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 {
-  if((a == NULL) || (b == NULL))
-    return NULL;
-
-  size_t len = strlen(a) + strlen(b) + 2;
-  size_t tlen = typeargs_len(typeargs);
-
-  if(tlen == -1)
-    return NULL;
-
-  len += tlen;
+  size_t len = strlen(a) + strlen(b) + typeargs_len(typeargs) + 2;
 
   char name[len];
   strcpy(name, a);
@@ -81,21 +68,15 @@ const char* genname_type(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return build_name("$1", "$union", ast);
-
     case TK_ISECTTYPE:
-      ast_error(ast, "not implemented (name for isect type)");
-      return NULL;
+    case TK_STRUCTURAL:
+      return stringtab("$object");
 
     case TK_TUPLETYPE:
       return build_name("$1", "$tuple", ast);
 
     case TK_NOMINAL:
       return nominal_name(ast);
-
-    case TK_STRUCTURAL:
-      ast_error(ast, "not implemented (name for structural type)");
-      return NULL;
 
     default: {}
   }
@@ -109,7 +90,9 @@ const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
   return build_name(type, name, typeargs);
 }
 
-const char* genname_append(const char* first, const char* second)
+const char* genname_handler(const char* type, const char* name,
+  ast_t* typeargs)
 {
-  return build_name(first, second, NULL);
+  const char* handler_name = build_name(name, "$handler", NULL);
+  return genname_fun(type, handler_name, typeargs);
 }
