@@ -157,6 +157,7 @@ bool expr_arithmetic(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  // TODO: string concatenation
   if(!is_arithmetic(l_type) || !is_math_compatible(l_type, r_type))
   {
     ast_error(ast, "left and right side must be the same arithmetic type");

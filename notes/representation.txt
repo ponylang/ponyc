@@ -1,0 +1,72 @@
+selector colouring
+  method name -> index mapping at compile time
+  invoke by index
+
+single vtable for all objects
+directly index the method, no need to find the right vtable
+no need for separate vtables for structural types
+have to box primitives when passed as a trait or structural type
+
+primitive: bytes
+  boxed when passed as a trait, structural, union or isect
+singleton type: constant pointer
+concrete type: pointer
+trait: pointer
+structural: pointer
+union: pointer
+  except if a union of the same type with different capabilities
+  use high bits for capability in a union?
+isect: pointer
+tuple: structure of types, pass by value
+
+pattern matching on type
+  primitive, singleton type, concrete type
+    object vtable pointer == type vtable pointer
+  trait
+    each type has a list of traits it implements
+  structural type
+    not allowed
+  union
+    do we match any one element
+  isect
+    do we match all elements
+  tuple
+    do we match all elements pairwise
+    tuple can also match Any
+    anonymous struct
+    always boxed
+
+type descriptor
+  trace function
+  (serialise function)
+  (deserialise function)
+  dispatch function
+  finalise function
+  trait list
+  vtable (embedded)
+
+
+
+colouring algorithm
+next colour: int
+method -> colour, list of types
+colour -> list of types
+
+for each type do
+  for each method do
+    add type to method.typelist
+  end
+end
+for each method do
+  handle method
+end
+fun handle method =>
+  for colour in 0..(next colour - 1) do
+    if method.typelist isect colour.typelist is empty then
+      method.colour = colour
+      colour.typelist = colour.typelist union method.typelist
+      return
+    end
+  end
+  method.colour = next colour
+  next colour.typelist = method.typelist

@@ -2,23 +2,167 @@
 #include "genname.h"
 #include "gencall.h"
 #include "../pkg/package.h"
+#include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include <string.h>
-#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
-static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
+static LLVMValueRef make_trace(compile_t* c, const char* name,
+  LLVMTypeRef type, ast_t** fields, int count, int extra)
+{
+  // create a trace function
+  const char* trace_name = genname_fun(name, "$trace", NULL);
+  LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMSetValueName(arg, "arg");
+
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(trace_fn, "entry");
+  LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "object");
+
+  for(int i = 0; i < count; i++)
+  {
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
+    ast_t* ast = fields[i];
+
+    switch(ast_id(ast))
+    {
+      case TK_UNIONTYPE:
+      {
+        if(!is_bool(ast))
+        {
+          bool tag = cap_for_type(ast) == TK_TAG;
+
+          if(tag)
+          {
+            // TODO: are we really a tag? need runtime info
+          } else {
+            // this union type can never be a tag
+            gencall_traceunknown(c, field);
+          }
+        }
+        break;
+      }
+
+      case TK_TUPLETYPE:
+        gencall_traceknown(c, field, genname_type(ast));
+        break;
+
+      case TK_NOMINAL:
+      {
+        bool tag = cap_for_type(ast) == TK_TAG;
+
+        switch(ast_id(ast_data(ast)))
+        {
+          case TK_TRAIT:
+            if(tag)
+              gencall_tracetag(c, field);
+            else
+              gencall_traceunknown(c, field);
+            break;
+
+          case TK_DATA:
+            // do nothing
+            break;
+
+          case TK_CLASS:
+            if(tag)
+              gencall_tracetag(c, field);
+            else
+              gencall_traceknown(c, field, genname_type(ast));
+            break;
+
+          case TK_ACTOR:
+            gencall_traceactor(c, field);
+            break;
+
+          default:
+            assert(0);
+            return NULL;
+        }
+        break;
+      }
+
+      case TK_ISECTTYPE:
+      case TK_STRUCTURAL:
+      {
+        bool tag = cap_for_type(ast) == TK_TAG;
+
+        if(tag)
+          gencall_tracetag(c, field);
+        else
+          gencall_traceunknown(c, field);
+        break;
+      }
+
+      default:
+        assert(0);
+        return NULL;
+    }
+  }
+
+  LLVMBuildRetVoid(c->builder);
+
+  if(!codegen_finishfun(c, trace_fn))
+    return NULL;
+
+  return trace_fn;
+}
+
+static LLVMTypeRef make_struct(compile_t* c, const char* name,
+  ast_t** fields, int count, bool actor)
 {
   LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+  int extra = 1;
 
+  if(actor)
+    extra++;
+
+  // create the type descriptor as element 0
+  LLVMTypeRef elements[count + extra];
+  elements[0] = c->descriptor_ptr;
+
+  if(actor)
+    elements[1] = c->actor_pad;
+
+  for(int i = 0; i < count; i++)
+  {
+    elements[i + extra] = gentype(c, fields[i]);
+
+    if(elements[i + extra] == NULL)
+      return NULL;
+  }
+
+  LLVMStructSetBody(type, elements, count + extra, false);
+
+  if(make_trace(c, name, type, fields, count, extra) == NULL)
+    return NULL;
+
+  return type;
+}
+
+static ast_t** get_fields(ast_t* ast, int* count)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
+  ast_t* def = ast_data(ast);
+
+  if(ast_id(def) == TK_DATA)
+  {
+    *count = 0;
+    return NULL;
+  }
+
+  ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member;
 
   member = ast_child(members);
-  int count = 0;
+  int n = 0;
 
   while(member != NULL)
   {
@@ -26,7 +170,7 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
     {
       case TK_FVAR:
       case TK_FLET:
-        count++;
+        n++;
         break;
 
       default: {}
@@ -35,8 +179,8 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
     member = ast_sibling(member);
   }
 
-  LLVMTypeRef elements[count];
-  ast_t* ftypes[count];
+  ast_t** fields = calloc(n, sizeof(ast_t*));
+
   member = ast_child(members);
   int index = 0;
 
@@ -47,18 +191,7 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
       case TK_FVAR:
       case TK_FLET:
       {
-        ftypes[index] = reify(ast_type(member), typeparams, typeargs);
-        LLVMTypeRef ltype = codegen_type(c, ftypes[index]);
-
-        if(ltype == NULL)
-        {
-          for(int i = 0; i <= index; i++)
-            ast_free_unattached(ftypes[i]);
-
-          return NULL;
-        }
-
-        elements[index] = ltype;
+        fields[index] = reify(ast_type(member), typeparams, typeargs);
         index++;
         break;
       }
@@ -69,70 +202,51 @@ static LLVMTypeRef codegen_struct(compile_t* c, const char* name, ast_t* def,
     member = ast_sibling(member);
   }
 
-  LLVMStructSetBody(type, elements, count, false);
-  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
+  *count = n;
+  return fields;
+}
 
-  // create a trace function
-  const char* trace_name = codegen_funname(name, "$trace", NULL);
-  LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
-
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
-  LLVMSetValueName(arg, "arg");
-
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(trace_fn, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "object");
-
+static void free_fields(ast_t** fields, int count)
+{
   for(int i = 0; i < count; i++)
-  {
-    // TODO: pony_trace if it's a tag
-    // pony_traceactor if it's an actor
-    // pony_traceobject if it's a class
-    // nothing if it's a primitive or singleton type
-    // what about a trait or type expression?
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i, "");
-    LLVMTypeRef field_type = LLVMTypeOf(field);
-    (void)field_type;
+    ast_free_unattached(fields[i]);
 
-    ast_free_unattached(ftypes[i]);
+  free(fields);
+}
+
+static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
+{
+  const char* name = genname_type(ast);
+
+  if(name == NULL)
+    return NULL;
+
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+  if(type != NULL)
+  {
+    *exists = true;
+    return LLVMPointerType(type, 0);
   }
 
-  LLVMBuildRetVoid(c->builder);
+  ast_t* def = ast_data(ast);
+  bool actor = ast_id(def) == TK_ACTOR;
 
-  if(!codegen_finishfun(c, trace_fn))
-    return NULL;
-
-  return type;
-}
-
-static LLVMTypeRef codegen_class(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
-{
-  LLVMTypeRef type = codegen_struct(c, name, def, typeargs);
+  int count;
+  ast_t** fields = get_fields(ast, &count);
+  type = make_struct(c, name, fields, count, actor);
+  free_fields(fields, count);
 
   if(type == NULL)
     return NULL;
 
-  // TODO: create a type descriptor
-  return type;
+  *exists = false;
+  return LLVMPointerType(type, 0);
 }
 
-static LLVMTypeRef codegen_actor(compile_t* c, const char* name, ast_t* def,
-  ast_t* typeargs)
+static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
 {
-  LLVMTypeRef type = codegen_struct(c, name, def, typeargs);
-
-  if(type == NULL)
-    return NULL;
-
-  // TODO: create an actor descriptor, message type function, dispatch function
-  return type;
-}
-
-static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-
+  // TODO: create the primitive descriptors
   // check for primitive types
   const char* name = ast_name(ast_childidx(ast, 1));
 
@@ -163,156 +277,122 @@ static LLVMTypeRef codegen_nominal(compile_t* c, ast_t* ast)
   if(!strcmp(name, "F64"))
     return LLVMDoubleType();
 
-  name = codegen_typename(ast);
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
 
-  if(name == NULL)
-    return NULL;
+  if(exists || (type == NULL))
+    return type;
 
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+  // TODO: create a type descriptor, singleton instance if not a primitive
+  return type;
+}
 
-  if(type != NULL)
-    return LLVMPointerType(type, 0);
+static LLVMTypeRef gentype_class(compile_t* c, ast_t* ast)
+{
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
 
+  if(exists || (type == NULL))
+    return type;
+
+  // TODO: create a type descriptor
+  return type;
+}
+
+static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
+{
+  bool exists;
+  LLVMTypeRef type = make_object(c, ast, &exists);
+
+  if(exists || (type == NULL))
+    return type;
+
+  // TODO: create an actor descriptor, message type function, dispatch function
+  return type;
+}
+
+static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = ast_data(ast);
-  ast_t* typeargs = ast_childidx(ast, 2);
 
   switch(ast_id(def))
   {
     case TK_TRAIT:
-    {
-      ast_error(ast, "not implemented (codegen for trait)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
+
+    case TK_DATA:
+      return gentype_data(c, ast);
 
     case TK_CLASS:
-    {
-      type = codegen_class(c, name, def, typeargs);
-      break;
-    }
+      return gentype_class(c, ast);
 
     case TK_ACTOR:
-    {
-      type = codegen_actor(c, name, def, typeargs);
-      break;
-    }
+      return gentype_actor(c, ast);
 
-    default:
-      assert(0);
-      return NULL;
+    default: {}
   }
+
+  assert(0);
+  return NULL;
+}
+
+static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
+{
+  // an anonymous structure with no functions and no vtable
+  const char* name = genname_type(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
 
   if(type != NULL)
     return LLVMPointerType(type, 0);
 
-  return NULL;
-}
-
-static LLVMTypeRef codegen_union(compile_t* c, ast_t* ast)
-{
-  // special case Bool
-  if(is_bool(ast))
-    return LLVMInt1Type();
-
-  // return an existing type if it's available
-  const char* name = codegen_typename(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-
-  if(type != NULL)
-    return type;
-
-  // union is stored as a byte array big enough to hold every possible type
-  // plus a discriminator to decide at runtime which type has been stored
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
-
   size_t count = ast_childcount(ast);
-  LLVMTypeRef types[count];
-
-  ast_t* child = ast_child(ast);
-  size_t index = 0;
-  size_t size = 0;
-
-  while(child != NULL)
-  {
-    types[index] = codegen_type(c, child);
-
-    if(types[index] == NULL)
-      return NULL;
-
-    size_t byte_size = LLVMABISizeOfType(c->target, types[index]);
-
-    if(byte_size > size)
-      size = byte_size;
-
-    index++;
-    child = ast_sibling(child);
-  }
-
-  LLVMTypeRef elements[2];
-  elements[0] = LLVMInt32Type();
-  elements[1] = LLVMArrayType(LLVMInt8Type(), size);
-  LLVMStructSetBody(type, elements, 2, false);
-
-  // TODO: trace function? pattern match function?
-  return type;
-}
-
-static LLVMTypeRef codegen_tuple(compile_t* c, ast_t* ast)
-{
-  const char* name = codegen_typename(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-
-  if(type != NULL)
-    return type;
-
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
-
-  size_t count = ast_childcount(ast);
-  LLVMTypeRef elements[count];
-
+  ast_t* fields[count];
   ast_t* child = ast_child(ast);
   size_t index = 0;
 
   while(child != NULL)
   {
-    elements[index] = codegen_type(c, child);
-
-    if(elements[index] == NULL)
-      return NULL;
-
-    index++;
+    fields[index++] = child;
     child = ast_sibling(child);
   }
 
-  LLVMStructSetBody(type, elements, count, false);
+  type = make_struct(c, name, fields, count, false);
 
-  // TODO: trace function?
-  return type;
+  if(type == NULL)
+    return NULL;
+
+  return LLVMPointerType(type, 0);
 }
 
-LLVMTypeRef codegen_type(compile_t* c, ast_t* ast)
+LLVMTypeRef gentype(compile_t* c, ast_t* ast)
 {
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
-      return codegen_union(c, ast);
+    {
+      // special case Bool
+      if(is_bool(ast))
+        return LLVMInt1Type();
+
+      // otherwise it's just a raw object pointer
+      return c->object_ptr;
+    }
 
     case TK_ISECTTYPE:
-    {
-      ast_error(ast, "not implemented (codegen for isecttype)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
 
     case TK_TUPLETYPE:
-      return codegen_tuple(c, ast);
+      return gentype_tuple(c, ast);
 
     case TK_NOMINAL:
-      return codegen_nominal(c, ast);
+      return gentype_nominal(c, ast);
 
     case TK_STRUCTURAL:
-    {
-      ast_error(ast, "not implemented (codegen for structural)");
-      return NULL;
-    }
+      // just a raw object pointer
+      return c->object_ptr;
 
     default: {}
   }

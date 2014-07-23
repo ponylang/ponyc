@@ -30,6 +30,14 @@ function link_libponyc()
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
+
+  configuration("not macosx")
+    links {
+      "tinfo",
+      "dl"
+    }
+
+  configuration("*")
 end
 
 solution "ponyc"
@@ -68,8 +76,8 @@ solution "ponyc"
 
   configuration "Release or Profile"
     defines "NDEBUG"
+    flags "OptimizeSpeed"
     buildoptions {
-      "-O3",
       "-flto",
     }
     linkoptions {

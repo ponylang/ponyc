@@ -9,19 +9,23 @@ options
 // Parser
 
 module
-  :  use* class_*
+  :  use* (typealias | class_)*
   ;
 
 use
   :  'use' STRING ('as' ID)?
   ;
 
+typealias
+  :  'type' ID 'is' type
+  ;
+
 class_
-  :  ('type' | 'actor' | 'class' | 'trait') ID type_params? cap? ('is' types)? members
+  :  ('trait' | 'data' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
   ;
 
 members
-  :  field* constructor* function* behaviour*
+  :  field* constructor* behaviour* function*
   ;
 
 field

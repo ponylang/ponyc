@@ -620,9 +620,9 @@ DEF(members);
   SEQ(function);
   DONE();
 
-// (TRAIT | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
+// (TRAIT | DATA | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
 DEF(class);
-  TOKEN(TK_TRAIT, TK_CLASS, TK_ACTOR);
+  TOKEN(TK_TRAIT, TK_DATA, TK_CLASS, TK_ACTOR);
   SCOPE();
   TOKEN(TK_ID);
   OPT RULE(typeparams);

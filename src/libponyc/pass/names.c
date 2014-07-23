@@ -3,13 +3,6 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
-typedef enum
-{
-  TYPEALIAS_INITIAL = 0,
-  TYPEALIAS_IN_PROGRESS,
-  TYPEALIAS_DONE
-} typealias_state_t;
-
 static void names_applycap_index(ast_t* ast, ast_t* cap, ast_t* ephemeral,
   int index)
 {
@@ -68,19 +61,19 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
 static bool names_resolvealias(ast_t* def, ast_t* type)
 {
-  typealias_state_t state = (typealias_state_t)ast_data(def);
+  ast_state_t state = (ast_state_t)ast_data(def);
 
   switch(state)
   {
-    case TYPEALIAS_INITIAL:
-      ast_setdata(def, (void*)TYPEALIAS_IN_PROGRESS);
+    case AST_STATE_INITIAL:
+      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
       break;
 
-    case TYPEALIAS_IN_PROGRESS:
+    case AST_STATE_INPROGRESS:
       ast_error(def, "type aliases can't be recursive");
       return false;
 
-    case TYPEALIAS_DONE:
+    case AST_STATE_DONE:
       return true;
 
     default:
@@ -91,7 +84,7 @@ static bool names_resolvealias(ast_t* def, ast_t* type)
   if(ast_visit(&type, NULL, pass_names) != AST_OK)
     return false;
 
-  ast_setdata(def, (void*)TYPEALIAS_DONE);
+  ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 
@@ -172,12 +165,20 @@ static bool names_type(ast_t** astp, ast_t* def)
   // the type, not tag.
   if(ast_id(cap) == TK_NONE)
   {
-    if(ast_enclosing_constraint(ast) != NULL)
+    if(ast_id(def) == TK_DATA)
+      defcap = ast_from(cap, TK_VAL);
+    else if(ast_enclosing_constraint(ast) != NULL)
       defcap = ast_from(cap, TK_TAG);
     else
       defcap = ast_childidx(def, 2);
 
     ast_replace(&cap, defcap);
+  } else if(ast_id(def) == TK_DATA) {
+    if(ast_id(cap) != TK_VAL)
+    {
+      ast_error(ast, "data types must always be val");
+      return false;
+    }
   }
 
   // keep the actual package id
@@ -234,6 +235,7 @@ bool names_nominal(ast_t* scope, ast_t** astp)
       return names_typeparam(astp, def);
 
     case TK_TRAIT:
+    case TK_DATA:
     case TK_CLASS:
     case TK_ACTOR:
       return names_type(astp, def);

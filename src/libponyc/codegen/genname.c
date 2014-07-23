@@ -19,7 +19,7 @@ static size_t typeargs_len(ast_t* typeargs)
 
   while(typearg != NULL)
   {
-    const char* argname = codegen_typename(typearg);
+    const char* argname = genname_type(typearg);
 
     if(argname == NULL)
       return -1;
@@ -40,7 +40,7 @@ static void typeargs_append(char* name, ast_t* typeargs)
 
   while(typearg != NULL)
   {
-    name_append(name, codegen_typename(typearg));
+    name_append(name, genname_type(typearg));
     typearg = ast_sibling(typearg);
   }
 }
@@ -76,7 +76,7 @@ static const char* nominal_name(ast_t* ast)
   return build_name(ast_name(package), ast_name(name), typeargs);
 }
 
-const char* codegen_typename(ast_t* ast)
+const char* genname_type(ast_t* ast)
 {
   switch(ast_id(ast))
   {
@@ -104,7 +104,12 @@ const char* codegen_typename(ast_t* ast)
   return NULL;
 }
 
-const char* codegen_funname(const char* type, const char* name, ast_t* typeargs)
+const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
 {
   return build_name(type, name, typeargs);
+}
+
+const char* genname_append(const char* first, const char* second)
+{
+  return build_name(first, second, NULL);
 }
