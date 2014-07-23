@@ -75,7 +75,11 @@ static bool expr_typeaccess(ast_t* ast)
 
     case TK_NEW:
     {
-      ast_setid(ast, TK_NEWREF);
+      if((ast_id(type) == TK_NOMINAL) && (ast_id(ast_data(type)) == TK_ACTOR))
+        ast_setid(ast, TK_NEWBEREF);
+      else
+        ast_setid(ast, TK_NEWREF);
+
       ast_settype(ast, type_for_fun(find));
 
       if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
@@ -265,6 +269,7 @@ bool expr_qualify(ast_t* ast)
     }
 
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
     {
@@ -359,6 +364,7 @@ bool expr_call(ast_t* ast)
     }
 
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
     {
@@ -443,6 +449,17 @@ bool expr_call(ast_t* ast)
 
       switch(ast_id(left))
       {
+        case TK_NEWBEREF:
+        {
+          if(!send)
+          {
+            ast_error(ast,
+              "actor constructor arguments must be iso, val or tag");
+            return false;
+          }
+          break;
+        }
+
         case TK_BEREF:
         {
           if(!send)

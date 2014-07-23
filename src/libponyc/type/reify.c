@@ -40,12 +40,12 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     {
       // reify both sides
       ast_t* left = ast_child(ast);
-      bool flatten = reify_one(&left, typeparam, typearg);
-
       ast_t* right = ast_sibling(left);
-      reify_one(&right, typeparam, typearg);
 
-      // if we reified the left side, flatten this arrow type to the viewpoint
+      bool flatten = reify_one(&left, typeparam, typearg);
+      flatten |= reify_one(&right, typeparam, typearg);
+
+      // if we reified either side, flatten this arrow type to the viewpoint
       // adapted right side.
       if(flatten)
       {

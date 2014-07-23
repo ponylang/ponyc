@@ -1,6 +1,7 @@
 #include "gentype.h"
 #include "genname.h"
 #include "gencall.h"
+#include "genfun.h"
 #include "../pkg/package.h"
 #include "../type/cap.h"
 #include "../type/reify.h"
@@ -214,20 +215,102 @@ static void free_fields(ast_t** fields, int count)
   free(fields);
 }
 
+static bool make_methods(compile_t* c, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
+
+  ast_t* def = ast_data(ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  bool actor = ast_id(def) == TK_ACTOR;
+  int be_index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic constructors)");
+          return false;
+        }
+
+        LLVMValueRef fun;
+
+        if(actor)
+          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
+        else
+          fun = genfun_new(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_BE:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic behaviours)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_FUN:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic functions)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
 {
   const char* name = genname_type(ast);
-
-  if(name == NULL)
-    return NULL;
-
   LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+  *exists = type != NULL;
 
   if(type != NULL)
-  {
-    *exists = true;
     return LLVMPointerType(type, 0);
-  }
 
   ast_t* def = ast_data(ast);
   bool actor = ast_id(def) == TK_ACTOR;
@@ -240,7 +323,9 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(type == NULL)
     return NULL;
 
-  *exists = false;
+  if(!make_methods(c, ast))
+    return NULL;
+
   return LLVMPointerType(type, 0);
 }
 

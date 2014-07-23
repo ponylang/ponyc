@@ -7,19 +7,36 @@
 #include <stdio.h>
 #include <assert.h>
 
-LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
+static void name_params(ast_t* fun, ast_t* params, LLVMValueRef func)
+{
+  int count = 0;
+
+  // name the receiver 'this'
+  if(ast_id(fun) != TK_NEW)
+  {
+    LLVMValueRef fparam = LLVMGetParam(func, count++);
+    LLVMSetValueName(fparam, "this");
+  }
+
+  // name each parameter
+  ast_t* param = ast_child(params);
+
+  while(param != NULL)
+  {
+    LLVMValueRef fparam = LLVMGetParam(func, count++);
+    LLVMSetValueName(fparam, ast_name(ast_child(param)));
+    param = ast_sibling(param);
+  }
+}
+
+LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
   // get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
   // level type arguments.
-  const char* funname = genname_fun(genname_type(type), name, typeargs);
-
-  if(funname == NULL)
-  {
-    ast_error(type, "couldn't generate function name for '%s'", name);
-    return NULL;
-  }
+  const char* type_name = genname_type(type);
+  const char* funname = genname_fun(type_name, name, typeargs);
 
   // if the function already exists, just return it
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
@@ -42,7 +59,7 @@ LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
 
   // count the parameters
   ast_t* params = ast_childidx(fun, 3);
-  size_t count = ast_childcount(params) + 1;
+  size_t count = ast_childcount(params);
 
   // if we're not a constructor, the receiver is another parameter
   if(ast_id(fun) != TK_NEW)
@@ -96,29 +113,81 @@ LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
   // generate the function type and the function prototype
   LLVMTypeRef ftype = LLVMFunctionType(result, tparams, count, false);
   func = LLVMAddFunction(c->module, funname, ftype);
+  name_params(fun, params, func);
 
-  count = 0;
-
-  // name the receiver 'this'
-  if(ast_id(fun) != TK_NEW)
+  if((ast_id(fun) == TK_BE) ||
+    ((ast_id(ast_data(type)) == TK_ACTOR) && (ast_id(fun) == TK_NEW)))
   {
-    LLVMValueRef fparam = LLVMGetParam(func, count++);
-    LLVMSetValueName(fparam, "this");
+    const char* handler_name = genname_handler(type_name, name, typeargs);
+    LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
+    name_params(fun, params, handler);
   }
-
-  // name each parameter
-  param = ast_child(params);
-
-  while(param != NULL)
-  {
-    LLVMValueRef fparam = LLVMGetParam(func, count++);
-    LLVMSetValueName(fparam, ast_name(ast_child(param)));
-    param = ast_sibling(param);
-  }
-
-  // TODO: body
-  // if(!codegen_finishfun(c, func))
-  //   return NULL;
 
   return func;
+}
+
+LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs)
+{
+  LLVMValueRef fun = get_prototype(c, type, name, typeargs);
+
+  if(fun == NULL)
+    return NULL;
+
+  // TODO: body and finish
+  return fun;
+}
+
+LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs, int index)
+{
+  LLVMValueRef fun = get_prototype(c, type, name, typeargs);
+
+  if(fun == NULL)
+    return NULL;
+
+  // TODO: body and finish
+
+  const char* handler_name = genname_handler(genname_type(type), name,
+    typeargs);
+  LLVMValueRef handler = LLVMGetNamedFunction(c->module, handler_name);
+
+  if(handler == NULL)
+    return NULL;
+
+  // TODO: body and finish
+  return fun;
+}
+
+LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs)
+{
+  LLVMValueRef fun = get_prototype(c, type, name, typeargs);
+
+  if(fun == NULL)
+    return NULL;
+
+  // TODO: body and finish
+  return fun;
+}
+
+LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs, int index)
+{
+  LLVMValueRef fun = get_prototype(c, type, name, typeargs);
+
+  if(fun == NULL)
+    return NULL;
+
+  // TODO: body and finish
+
+  const char* handler_name = genname_handler(genname_type(type), name,
+    typeargs);
+  LLVMValueRef handler = LLVMGetNamedFunction(c->module, handler_name);
+
+  if(handler == NULL)
+    return NULL;
+
+  // TODO: body and finish
+  return fun;
 }

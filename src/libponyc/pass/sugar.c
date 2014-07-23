@@ -283,6 +283,12 @@ static bool sugar_new(ast_t* ast)
   AST_GET_CHILDREN(ast, NULL, &id, NULL, NULL, &result, &error);
   ast_t* def = ast_enclosing_type(ast);
 
+  if(ast_id(def) == TK_TRAIT)
+  {
+    ast_error(ast, "can't have a constructor in a trait");
+    return false;
+  }
+
   if(ast_id(id) == TK_NONE)
   {
     // set the name to "create" if there isn't one

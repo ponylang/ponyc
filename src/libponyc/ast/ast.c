@@ -757,7 +757,12 @@ void ast_swap(ast_t* prev, ast_t* next)
 void ast_replace(ast_t** prev, ast_t* next)
 {
   if((*prev)->parent != NULL)
+  {
+    if(next->parent != NULL)
+      next = ast_dup(next);
+
     ast_swap(*prev, next);
+  }
 
   ast_free(*prev);
   *prev = next;

@@ -130,7 +130,32 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
   {
     case TK_NOMINAL:
     {
+      if(ast_id(r_type) == TK_ARROW)
+        return make_arrow_type(l_type, r_type);
+
       token_id cap = ast_id(ast_childidx(l_type, 3));
+      return viewpoint_cap(cap, r_type);
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      if(ast_id(r_type) == TK_ARROW)
+        return make_arrow_type(l_type, r_type);
+
+      token_id cap = ast_id(ast_childidx(l_type, 1));
+
+      // if the left side is a type parameter with no capability, return an
+      // arrow type if the constraint is box, otherwise use the constraint cap.
+      if(cap == TK_NONE)
+      {
+        ast_t* def = ast_data(l_type);
+        ast_t* constraint = ast_childidx(def, 1);
+        cap = cap_for_type(constraint);
+
+        if(cap == TK_BOX)
+          return make_arrow_type(l_type, r_type);
+      }
+
       return viewpoint_cap(cap, r_type);
     }
 
@@ -149,24 +174,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       return ast;
     }
 
-    case TK_TYPEPARAMREF:
-    {
-      token_id cap = ast_id(ast_childidx(l_type, 1));
-
-      // if the left side is a type parameter with no capability, return an
-      // arrow type if the constraint is box, otherwise use the constraint cap.
-      if(cap == TK_NONE)
-      {
-        ast_t* def = ast_data(l_type);
-        ast_t* constraint = ast_childidx(def, 1);
-        cap = cap_for_type(constraint);
-
-        if(cap == TK_BOX)
-          return make_arrow_type(l_type, r_type);
-      }
-
-      return viewpoint_cap(cap, r_type);
-    }
+    case TK_THISTYPE:
+      return make_arrow_type(l_type, r_type);
 
     default: {}
   }
@@ -231,6 +240,10 @@ ast_t* viewpoint_lower(ast_t* type)
 void flatten_thistype(ast_t** astp, ast_t* type)
 {
   ast_t* ast = *astp;
+  ast_t* l_type = ast_type(ast);
+
+  if(l_type != NULL)
+    flatten_thistype(&l_type, type);
 
   switch(ast_id(ast))
   {
