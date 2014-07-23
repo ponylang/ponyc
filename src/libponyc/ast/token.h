@@ -162,6 +162,7 @@ typedef enum token_id
   TK_TYPEREF,
   TK_TYPEPARAMREF,
   TK_NEWREF,
+  TK_NEWBEREF,
   TK_BEREF,
   TK_FUNREF,
   TK_FVARREF,
