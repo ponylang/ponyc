@@ -594,7 +594,7 @@ TEST(SugarTest, ClassWithCreateBehaviour)
 TEST(SugarTest, ClassWithoutFieldOrCreate)
 {
   const char* before =
-    "(class (id Foo) x ref x x)";
+    "(class (id Foo) x ref x members)";
 
   const char* after =
     "(class (id Foo) x ref x"
@@ -722,7 +722,7 @@ TEST(SugarTest, ActorWithCreateBehaviour)
 TEST(SugarTest, ActorWithoutFieldOrCreate)
 {
   const char* before =
-    "(actor (id Foo) x x x x)";
+    "(actor (id Foo) x x x members)";
 
   const char* after =
     "(actor (id Foo) x tag x"
