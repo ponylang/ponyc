@@ -10,7 +10,7 @@
 #include <assert.h>
 
 static LLVMValueRef make_trace(compile_t* c, const char* name,
-  LLVMTypeRef type, ast_t** fields, int count)
+  LLVMTypeRef type, ast_t** fields, int count, int extra)
 {
   // create a trace function
   const char* trace_name = genname_fun(name, "$trace", NULL);
@@ -26,7 +26,7 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
 
   for(int i = 0; i < count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + 1, "");
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
     ast_t* ast = fields[i];
 
     switch(ast_id(ast))
@@ -114,25 +114,32 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
 }
 
 static LLVMTypeRef make_struct(compile_t* c, const char* name,
-  ast_t** fields, int count)
+  ast_t** fields, int count, bool actor)
 {
   LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+  int extra = 1;
+
+  if(actor)
+    extra++;
 
   // create the type descriptor as element 0
-  LLVMTypeRef elements[count + 1];
+  LLVMTypeRef elements[count + extra];
   elements[0] = c->descriptor_ptr;
+
+  if(actor)
+    elements[1] = c->actor_pad;
 
   for(int i = 0; i < count; i++)
   {
-    elements[i + 1] = gentype(c, fields[i]);
+    elements[i + extra] = gentype(c, fields[i]);
 
-    if(elements[i + 1] == NULL)
+    if(elements[i + extra] == NULL)
       return NULL;
   }
 
-  LLVMStructSetBody(type, elements, count + 1, false);
+  LLVMStructSetBody(type, elements, count + extra, false);
 
-  if(make_trace(c, name, type, fields, count) == NULL)
+  if(make_trace(c, name, type, fields, count, extra) == NULL)
     return NULL;
 
   return type;
@@ -222,9 +229,12 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
     return LLVMPointerType(type, 0);
   }
 
+  ast_t* def = ast_data(ast);
+  bool actor = ast_id(def) == TK_ACTOR;
+
   int count;
   ast_t** fields = get_fields(ast, &count);
-  type = make_struct(c, name, fields, count);
+  type = make_struct(c, name, fields, count, actor);
   free_fields(fields, count);
 
   if(type == NULL)
@@ -348,7 +358,7 @@ static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
     child = ast_sibling(child);
   }
 
-  type = make_struct(c, name, fields, count);
+  type = make_struct(c, name, fields, count, false);
 
   if(type == NULL)
     return NULL;

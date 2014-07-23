@@ -22,6 +22,9 @@ static void codegen_runtime(compile_t* c)
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "pony_actor_t");
   c->actor_ptr = LLVMPointerType(type, 0);
 
+  // padding required in a pony_actor_t between the descriptor and fields
+  c->actor_pad = LLVMArrayType(LLVMInt8Type(), 308);
+
   // void (*)(i8*)
   params[0] = c->void_ptr;
   c->trace_type = LLVMFunctionType(LLVMVoidType(), params, 1, false);

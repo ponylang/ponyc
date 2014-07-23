@@ -17,6 +17,7 @@ typedef struct compile_t
   LLVMTargetDataRef target;
   LLVMTypeRef void_ptr;
   LLVMTypeRef actor_ptr;
+  LLVMTypeRef actor_pad;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
   LLVMTypeRef dispatch_fn;

@@ -276,13 +276,18 @@ static bool sugar_field(ast_t* ast)
 
 static bool sugar_new(ast_t* ast)
 {
-  // set the name to "create" if there isn't one
-  ast_t* id = ast_childidx(ast, 1);
+  ast_t* id;
+  ast_t* result;
+  ast_t* error;
+
+  AST_GET_CHILDREN(ast, NULL, &id, NULL, NULL, &result, &error);
+  ast_t* def = ast_enclosing_type(ast);
 
   if(ast_id(id) == TK_NONE)
   {
+    // set the name to "create" if there isn't one
     ast_replace(&id, ast_from_string(id, "create"));
-  } else if(ast_nearest(ast, TK_DATA) != NULL) {
+  } else if(ast_id(def) == TK_DATA) {
     if(ast_name(id) != stringtab("create"))
     {
       ast_error(ast, "can't have a constructor in a data type");
@@ -291,18 +296,22 @@ static bool sugar_new(ast_t* ast)
   }
 
   // return type is This ref^ if not already set
-  ast_t* result = ast_childidx(ast, 4);
-
   if(ast_id(result) == TK_NONE)
   {
     token_id cap;
 
-    if(ast_nearest(ast, TK_ACTOR) != NULL)
+    if(ast_id(def) == TK_ACTOR)
       cap = TK_TAG;
     else
       cap = TK_REF;
 
     ast_replace(&result, type_for_this(ast, cap, true));
+  }
+
+  if((ast_id(def) == TK_ACTOR) && (ast_id(error) != TK_NONE))
+  {
+    ast_error(error, "an actor constructor must always succeed");
+    return false;
   }
 
   return true;

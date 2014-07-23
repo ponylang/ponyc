@@ -77,10 +77,10 @@ void gencall_traceunknown(compile_t* c, LLVMValueRef field)
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, args[0], 0, "");
   LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
 
-  // TODO: determine if this is an actor or not
+  // determine if this is an actor or not
   LLVMValueRef dispatch_ptr = LLVMBuildStructGEP(c->builder, desc, 3, "");
   LLVMValueRef dispatch = LLVMBuildLoad(c->builder, dispatch_ptr, "dispatch");
-  LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_actor");
+  LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
   // build a conditional
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
@@ -102,6 +102,7 @@ void gencall_traceunknown(compile_t* c, LLVMValueRef field)
 
   // if we're an actor
   LLVMPositionBuilderAtEnd(c->builder, else_block);
+  args[0] = LLVMBuildBitCast(c->builder, field_val, c->actor_ptr, "actor");
   gencall_runtime(c, "pony_traceactor", args, 1, "");
   LLVMBuildBr(c->builder, merge_block);
 

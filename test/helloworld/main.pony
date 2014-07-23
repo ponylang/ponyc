@@ -10,8 +10,10 @@ actor Main
   var x: U32
   var y: Helper[F16]
   var z: Bool
+  var s: Stringable val
 
   new create(env: Env) =>
     x = 7
     y = Helper[F16](9, this)
     z = True
+    s = x
