@@ -59,7 +59,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
  */
 static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
 {
-  ast_t* package = package_load(ast, path, false);
+  ast_t* package = package_load(ast, path);
 
   if(package == ast)
     return package;

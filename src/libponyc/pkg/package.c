@@ -30,6 +30,9 @@ typedef struct package_t
 } package_t;
 
 static strlist_t* search;
+static ast_t* master_program;
+static pass_id pass_limit = PASS_ALL;
+
 
 static bool filepath(const char *file, char* path)
 {
@@ -242,31 +245,54 @@ static const char* find_path(ast_t* from, const char* path)
   return NULL;
 }
 
+static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
+  ast_result_t pre_fn(ast_t**), ast_result_t post_fn(ast_t**))
+{
+  if(pass_limit < pass)
+  {
+    *out_result = true;
+    return true;
+  }
+
+  if(ast_visit(astp, pre_fn, post_fn) != AST_OK)
+  {
+    *out_result = false;
+    return true;
+  }
+
+  return false;
+}
+
 static bool do_passes(ast_t* ast)
 {
-  if(ast_visit(&ast, pass_sugar, NULL) != AST_OK)
-    return false;
+  if(pass_limit == PASS_PARSE)
+    return true;
 
-  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
-    return false;
+  bool r;
 
-  if(ast_visit(&ast, NULL, pass_names) != AST_OK)
-    return false;
+  if(do_pass(&ast, &r, PASS_SUGAR, pass_sugar, NULL))
+    return r;
 
-  if(ast_visit(&ast, NULL, pass_flatten) != AST_OK)
-    return false;
+  if(do_pass(&ast, &r, PASS_SCOPE1, pass_scope, NULL))
+    return r;
 
-  if(ast_visit(&ast, pass_traits, NULL) != AST_OK)
-    return false;
+  if(do_pass(&ast, &r, PASS_NAME_RESOLUTION, NULL, pass_names))
+    return r;
+
+  if(do_pass(&ast, &r, PASS_FLATTEN, NULL, pass_flatten))
+    return r;
+
+  if(do_pass(&ast, &r, PASS_TRAITS, pass_traits, NULL))
+    return r;
 
   // recalculate scopes in the presence of flattened traits
   ast_clear(ast);
 
-  if(ast_visit(&ast, pass_scope, NULL) != AST_OK)
-    return false;
+  if(do_pass(&ast, &r, PASS_SCOPE2, pass_scope, NULL))
+    return r;
 
-  if(ast_visit(&ast, NULL, pass_expr) != AST_OK)
-    return false;
+  if(do_pass(&ast, &r, PASS_EXPR, NULL, pass_expr))
+    return r;
 
   return true;
 }
@@ -276,6 +302,26 @@ static const char* id_to_string(size_t id)
   char buffer[32];
   snprintf(buffer, 32, "$%zu", id);
   return stringtab(buffer);
+}
+
+static ast_t* create_package(ast_t* program, const char* name)
+{
+  ast_t* package = ast_blank(TK_PACKAGE);
+  uintptr_t pkg_id = (uintptr_t)ast_data(program);
+  ast_setdata(program, (void*)(pkg_id + 1));
+
+  package_t* pkg = malloc(sizeof(package_t));
+  pkg->path = name;
+  pkg->id = id_to_string(pkg_id);
+  pkg->next_hygienic_id = 0;
+  ast_setdata(package, pkg);
+
+  ast_scope(package);
+  ast_append(program, package);
+  ast_set(program, pkg->path, package);
+  ast_set(program, pkg->id, package);
+
+  return package;
 }
 
 void package_init(const char* name)
@@ -289,6 +335,8 @@ void package_init(const char* name)
   }
 
   package_paths(getenv("PONYPATH"));
+
+  master_program = ast_blank(TK_PROGRAM);
 }
 
 void package_paths(const char* paths)
@@ -324,12 +372,73 @@ void package_paths(const char* paths)
   }
 }
 
-ast_t* program_load(const char* path, bool parse_only)
+const char* package_limit_name(pass_id pass)
 {
-  ast_t* program = ast_blank(TK_PROGRAM);
+  switch(pass)
+  {
+    case PASS_PARSE:    return "parse";
+    case PASS_SUGAR:    return "sugar";
+    case PASS_SCOPE1:   return "scope1";
+    case PASS_NAME_RESOLUTION: return "name";
+    case PASS_FLATTEN:  return "flatten";
+    case PASS_TRAITS:   return "traits";
+    case PASS_SCOPE2:   return "scope2";
+    case PASS_EXPR:     return "expr";
+    case PASS_ALL:      return "all";
+    default:            return "error";
+  }
+}
+
+bool package_limit_passes(const char* pass)
+{
+  for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)
+  {
+    if(strcmp(pass, package_limit_name(i)) == 0)
+    {
+      pass_limit = i;
+      return true;
+    }
+  }
+
+  return false;
+}
+
+pass_id package_get_pass_limit()
+{
+  return pass_limit;
+}
+
+bool package_add_desc(const char* path, const char* ast_desc)
+{
+  source_t* source = source_open_string(ast_desc);
+
+  ast_t* module = parser(source);
+
+  if(module == NULL)
+  {
+    errorf("internal", "couldn't parse package description");
+    source_close(source);
+    return false;
+  }
+
+  ast_t* package = create_package(master_program, path);
+  ast_add(package, module);
+
+  if(!do_passes(package))
+  {
+    ast_error(package, "can't typecheck package '%s'", path);
+    return false;
+  }
+
+  return true;
+}
+
+ast_t* program_load(const char* path)
+{
+  ast_t* program = ast_dup(master_program);
   ast_scope(program);
 
-  if(package_load(program, path, parse_only) == NULL)
+  if(package_load(program, path) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -343,7 +452,7 @@ bool program_compile(ast_t* program, int opt, bool print_llvm)
   return codegen(program, opt, print_llvm);
 }
 
-ast_t* package_load(ast_t* from, const char* path, bool parse_only)
+ast_t* package_load(ast_t* from, const char* path)
 {
   const char* name = find_path(from, path);
 
@@ -356,27 +465,14 @@ ast_t* package_load(ast_t* from, const char* path, bool parse_only)
   if(package != NULL)
     return package;
 
-  package = ast_blank(TK_PACKAGE);
-  uintptr_t pkg_id = (uintptr_t)ast_data(program);
-  ast_setdata(program, (void*)(pkg_id + 1));
-
-  package_t* pkg = malloc(sizeof(package_t));
-  pkg->path = name;
-  pkg->id = id_to_string(pkg_id);
-  pkg->next_hygienic_id = 0;
-  ast_setdata(package, pkg);
-
-  ast_scope(package);
-  ast_append(program, package);
-  ast_set(program, pkg->path, package);
-  ast_set(program, pkg->id, package);
+  package = create_package(program, name);
 
   printf("=== Building %s ===\n", name);
 
   if(!do_path(package, name))
     return NULL;
 
-  if(!parse_only && !do_passes(package))
+  if(!do_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;
@@ -432,4 +528,5 @@ void package_done()
 {
   strlist_free(search);
   search = NULL;
+  ast_free(master_program);
 }
