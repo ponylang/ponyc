@@ -77,7 +77,7 @@ RAWSEQ: {expr}
 
 expr
 ----
-data: can error or not
+data: during type checking, can error or not
 
 term: local | prefix | postfix | control | infix
 

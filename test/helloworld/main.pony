@@ -1,9 +1,9 @@
 class Helper[A: Arithmetic]
-  var x: (A, I64)
+  var x: A
   var y: (Main | None)
 
   new create(x': A, y': Main) =>
-    x = (x', 7)
+    x = x'
     y = y'
 
 actor Main
@@ -12,8 +12,11 @@ actor Main
   var z: Bool
   var s: Stringable val
 
-  new create(env: Env) =>
+  /*new create(env: Env) =>*/
+  new create(argc: I32) =>
     x = 7
     y = Helper[F16](9, this)
     z = True
     s = x
+
+  be hello() => z = False

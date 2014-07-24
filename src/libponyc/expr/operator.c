@@ -18,7 +18,7 @@ static bool is_lvalue(ast_t* ast)
     case TK_FVARREF:
     case TK_FLETREF: // TODO: only valid the first time in a constructor
     case TK_VARREF:
-    case TK_PARAMREF:
+    // case TK_PARAMREF: // TODO: allow assignment to parameters?
       return true;
 
     case TK_TUPLE:
