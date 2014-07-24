@@ -222,6 +222,12 @@ bool ast_has_scope(ast_t* ast)
   return ast->symtab != NULL;
 }
 
+symtab_t* ast_get_symtab(ast_t* ast)
+{
+  assert(ast != NULL);
+  return ast->symtab;
+}
+
 void ast_setid(ast_t* ast, token_id id)
 {
   token_set_id(ast->t, id);
