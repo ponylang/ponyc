@@ -98,10 +98,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_NOT:
-    {
-      ast_error(ast, "not implemented (codegen for not)");
-      return NULL;
-    }
+      return gen_not(c, ast);
 
     case TK_UNARY_MINUS:
       return gen_unaryminus(c, ast);
@@ -119,58 +116,31 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_divide(c, ast);
 
     case TK_MOD:
-    {
-      ast_error(ast, "not implemented (codegen for %%)");
-      return NULL;
-    }
+      return gen_mod(c, ast);
 
     case TK_LSHIFT:
-    {
-      ast_error(ast, "not implemented (codegen for <<)");
-      return NULL;
-    }
+      return gen_lshift(c, ast);
 
     case TK_RSHIFT:
-    {
-      ast_error(ast, "not implemented (codegen for >>)");
-      return NULL;
-    }
+      return gen_rshift(c, ast);
 
     case TK_LT:
-    {
-      ast_error(ast, "not implemented (codegen for <)");
-      return NULL;
-    }
+      return gen_lt(c, ast);
 
     case TK_LE:
-    {
-      ast_error(ast, "not implemented (codegen for <=)");
-      return NULL;
-    }
+      return gen_le(c, ast);
 
     case TK_GE:
-    {
-      ast_error(ast, "not implemented (codegen for >=)");
-      return NULL;
-    }
+      return gen_ge(c, ast);
 
     case TK_GT:
-    {
-      ast_error(ast, "not implemented (codegen for >)");
-      return NULL;
-    }
+      return gen_gt(c, ast);
 
     case TK_EQ:
-    {
-      ast_error(ast, "not implemented (codegen for ==)");
-      return NULL;
-    }
+      return gen_eq(c, ast);
 
     case TK_NE:
-    {
-      ast_error(ast, "not implemented (codegen for !=)");
-      return NULL;
-    }
+      return gen_ne(c, ast);
 
     case TK_IS:
     {
@@ -185,22 +155,13 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_AND:
-    {
-      ast_error(ast, "not implemented (codegen for and)");
-      return NULL;
-    }
+      return gen_and(c, ast);
 
     case TK_OR:
-    {
-      ast_error(ast, "not implemented (codegen for or)");
-      return NULL;
-    }
+      return gen_or(c, ast);
 
     case TK_XOR:
-    {
-      ast_error(ast, "not implemented (codegen for xor)");
-      return NULL;
-    }
+      return gen_xor(c, ast);
 
     case TK_ASSIGN:
       return gen_assign(c, ast);

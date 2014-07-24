@@ -14,9 +14,9 @@ actor Main
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>
-    x = (7 * -3) + (argc / 3)
+    x = (argc xor 0xF) + (7 % -3) + (argc / not 3)
+    z = not (x > 2) or (x <= 7) xor (x != 99)
     y = Helper[F16](9, this)
-    z = True
     s = x
 
   be hello() => z = False

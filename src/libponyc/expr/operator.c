@@ -211,13 +211,18 @@ bool expr_shift(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(!is_integer(l_type) || !is_integer(r_type))
+  if(!is_integer(l_type) || !is_math_compatible(l_type, r_type))
   {
-    ast_error(ast, "shift is only allowed on integer types");
+    ast_error(ast, "left and right side must be the same integer type");
     return false;
   }
 
-  ast_settype(ast, l_type);
+  // pick the correct node type
+  if(is_intliteral(l_type))
+    ast_settype(ast, r_type);
+  else
+    ast_settype(ast, l_type);
+
   ast_inheriterror(ast);
   return true;
 }
