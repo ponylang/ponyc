@@ -164,7 +164,22 @@ bool expr_arithmetic(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, l_type);
+  // pick the correct node type
+  if((ast_id(ast) == TK_MINUS) &&
+    is_intliteral(l_type) &&
+    is_intliteral(r_type))
+  {
+    ast_settype(ast, type_builtin(ast, "SIntLiteral"));
+  } else if(is_uintliteral(l_type)) {
+    ast_settype(ast, r_type);
+  } else if(is_sintliteral(l_type) && !is_uintliteral(r_type)) {
+    ast_settype(ast, r_type);
+  } else if(is_floatliteral(l_type) && !is_intliteral(r_type)) {
+    ast_settype(ast, r_type);
+  } else {
+    ast_settype(ast, l_type);
+  }
+
   ast_inheriterror(ast);
   return true;
 }
@@ -180,7 +195,11 @@ bool expr_minus(ast_t* ast)
     return false;
   }
 
-  ast_settype(ast, type);
+  if(is_uintliteral(type))
+    ast_settype(ast, type_builtin(type, "SIntLiteral"));
+  else
+    ast_settype(ast, type);
+
   ast_inheriterror(ast);
   return true;
 }
@@ -214,7 +233,19 @@ bool expr_logical(ast_t* ast)
   {
     ast_settype(ast, type_builtin(ast, "Bool"));
   } else if(is_integer(l_type) && is_integer(r_type)) {
-    ast_settype(ast, l_type);
+    // TODO: must be math compatible, pick the correct node type
+    if(!is_math_compatible(l_type, r_type))
+    {
+      ast_error(ast,
+        "left and right side must be the same arithmetic type");
+      return false;
+    }
+
+    // pick the correct node type
+    if(is_intliteral(l_type))
+      ast_settype(ast, r_type);
+    else
+      ast_settype(ast, l_type);
   } else {
     ast_error(ast,
       "left and right side must be of boolean or integer type");

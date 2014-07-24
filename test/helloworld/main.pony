@@ -7,14 +7,14 @@ class Helper[A: Arithmetic]
     y = y'
 
 actor Main
-  var x: U32
+  var x: I32
   var y: Helper[F16]
   var z: Bool
   var s: Stringable val
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>
-    x = 7
+    x = (7 * -3) + (argc / 3)
     y = Helper[F16](9, this)
     z = True
     s = x

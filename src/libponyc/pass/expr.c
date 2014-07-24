@@ -212,7 +212,7 @@ ast_result_t pass_expr(ast_t** astp)
       break;
 
     case TK_INT:
-      if(!expr_literal(ast, "IntLiteral"))
+      if(!expr_literal(ast, "UIntLiteral"))
         return AST_FATAL;
       break;
 

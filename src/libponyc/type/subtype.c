@@ -474,16 +474,22 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_NOMINAL:
     {
       // check for numeric literals and special case them
-      if(is_literal(sub, "IntLiteral"))
+      if(is_uintliteral(sub))
       {
-        // an integer literal is a subtype of any arithmetic type
-        if(is_literal(super, "IntLiteral") ||
-          is_literal(super, "FloatLiteral") ||
+        // an unsigned integer literal is a subtype of any arithmetic type
+        if(is_intliteral(super) ||
+          is_floatliteral(super) ||
           is_arithmetic(super))
           return true;
-      } else if(is_literal(sub, "FloatLiteral")) {
+      } else if(is_sintliteral(sub)) {
+        // a signed integer literal is a subtype of any signed type
+        if(is_sintliteral(super) ||
+          is_floatliteral(super) ||
+          is_signed(super))
+          return true;
+      } else if(is_floatliteral(sub)) {
         // a float literal is a subtype of any float type
-        if(is_literal(super, "FloatLiteral") ||
+        if(is_floatliteral(super) ||
           is_float(super))
           return true;
       }
@@ -573,6 +579,26 @@ bool is_bool(ast_t* type)
   return is_builtin(type, "Bool");
 }
 
+bool is_sintliteral(ast_t* type)
+{
+  return is_literal(type, "SIntLiteral");
+}
+
+bool is_uintliteral(ast_t* type)
+{
+  return is_literal(type, "UIntLiteral");
+}
+
+bool is_intliteral(ast_t* type)
+{
+  return is_sintliteral(type) || is_uintliteral(type);
+}
+
+bool is_floatliteral(ast_t* type)
+{
+  return is_literal(type, "FloatLiteral");
+}
+
 bool is_arithmetic(ast_t* type)
 {
   return is_builtin(type, "Arithmetic");
@@ -588,18 +614,23 @@ bool is_float(ast_t* type)
   return is_builtin(type, "Float");
 }
 
+bool is_signed(ast_t* type)
+{
+  return is_builtin(type, "SInt") || is_builtin(type, "Float");
+}
+
 bool is_math_compatible(ast_t* a, ast_t* b)
 {
-  if(is_literal(a, "IntLiteral"))
+  if(is_intliteral(a))
     return is_arithmetic(b);
 
-  if(is_literal(a, "FloatLiteral"))
+  if(is_floatliteral(a))
     return is_float(b);
 
-  if(is_literal(b, "IntLiteral"))
+  if(is_intliteral(b))
     return is_arithmetic(a);
 
-  if(is_literal(b, "FloatLiteral"))
+  if(is_floatliteral(b))
     return is_float(a);
 
   return is_eqtype(a, b);

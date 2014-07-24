@@ -184,20 +184,15 @@ bool expr_fun(ast_t* ast)
     if(!is_trait && !is_eqtype(body_type, type))
     {
       // it's ok to return a literal where an arithmetic type is expected
-      if(is_builtin(body_type, "IntLiteral"))
+      if(is_uintliteral(body_type))
       {
-        ast_t* math = type_builtin(ast, "Arithmetic");
-        bool ok = is_subtype(type, math);
-        ast_free(math);
-
-        if(ok)
+        if(is_arithmetic(type))
           return true;
-      } else if(is_builtin(body_type, "FloatLiteral")) {
-        ast_t* math = type_builtin(ast, "Float");
-        bool ok = is_subtype(type, math);
-        ast_free(math);
-
-        if(ok)
+      } else if(is_sintliteral(body_type)) {
+        if(is_signed(type))
+          return true;
+      } else if(is_floatliteral(body_type)) {
+        if(is_float(type))
           return true;
       }
 

@@ -13,11 +13,21 @@ bool is_builtin(ast_t* type, const char* name);
 
 bool is_bool(ast_t* type);
 
+bool is_sintliteral(ast_t* type);
+
+bool is_uintliteral(ast_t* type);
+
+bool is_intliteral(ast_t* type);
+
+bool is_floatliteral(ast_t* type);
+
 bool is_arithmetic(ast_t* type);
 
 bool is_integer(ast_t* type);
 
 bool is_float(ast_t* type);
+
+bool is_signed(ast_t* type);
 
 bool is_math_compatible(ast_t* a, ast_t* b);
 
