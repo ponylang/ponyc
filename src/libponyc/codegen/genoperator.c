@@ -453,6 +453,16 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
 }
 
+LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef is = gen_is(c, ast);
+
+  if(is == NULL)
+    return NULL;
+
+  return LLVMBuildNot(c->builder, is, "");
+}
+
 LLVMValueRef gen_and(compile_t* c, ast_t* ast)
 {
   LLVMValueRef l_value;
