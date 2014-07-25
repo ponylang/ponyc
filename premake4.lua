@@ -102,13 +102,13 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files "src/libponyc/**.c"
+    files { "src/libponyc/**.c", "src/libponyc/**.h" }
 
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
     buildoptions "-std=gnu11"
-    files "src/ponyc/**.c"
+    files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
 
   include "utils/"
