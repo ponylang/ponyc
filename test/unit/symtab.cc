@@ -87,3 +87,26 @@ TEST(SymtabTest, TwoTables)
   symtab_free(symtab1);
   symtab_free(symtab2);
 }
+
+
+TEST(SymtabTest, Merge)
+{
+  symtab_t* symtab1 = symtab_new();
+  symtab_t* symtab2 = symtab_new();
+
+  ASSERT_TRUE(symtab_add(symtab1, "foo", (void*)14));
+  ASSERT_TRUE(symtab_add(symtab2, "bar", (void*)15));
+
+  ASSERT_EQ((void*)14, symtab_get(symtab1, "foo"));
+  ASSERT_EQ((void*)NULL, symtab_get(symtab1, "bar"));
+
+  ASSERT_TRUE(symtab_merge(symtab1, symtab2));
+
+  ASSERT_EQ((void*)14, symtab_get(symtab1, "foo"));
+  ASSERT_EQ((void*)15, symtab_get(symtab2, "bar"));
+  
+  ASSERT_FALSE(symtab_merge(symtab1, symtab2));
+
+  symtab_free(symtab1);
+  symtab_free(symtab2);
+}

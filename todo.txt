@@ -7,4 +7,9 @@
 
 * Strings. Escaping? Triple quoted string ending in " or containing """?
 
+* Type of literals returned by if, etc.
+
+* Type parameters on functions, how to tell what to generate?
+
+* Calling C.
 

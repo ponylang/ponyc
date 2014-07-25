@@ -2,6 +2,7 @@ extern "C" {
 #include "../../src/libponyc/ast/ast.h"
 #include "../../src/libponyc/ast/builder.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/ds/stringtab.h"
 }
 #include "util.h"
 #include <gtest/gtest.h>
@@ -38,6 +39,12 @@ ast_t* find_start(ast_t* tree, token_id start_id)
 }
 
 
+ast_t* find_sub_tree(ast_t* tree, token_id sub_id)
+{
+  return find_start(tree, sub_id);
+}
+
+
 ast_t* parse_test_module(const char* desc)
 {
   source_t* src = source_open_string(desc);
@@ -50,16 +57,11 @@ ast_t* parse_test_module(const char* desc)
 }
 
 
-void symtab_entry(ast_t* tree, token_id location, const char* name,
-  ast_t* expected)
+void symtab_entry(ast_t* tree, const char* name, ast_t* expected)
 {
-  ast_t* ast_loc = find_start(tree, location);
-  ASSERT_NE((void*)NULL, ast_loc);
-
-  symtab_t* symtab = ast_get_symtab(ast_loc);
+  symtab_t* symtab = ast_get_symtab(tree);
   ASSERT_NE((void*)NULL, symtab);
-
-  ASSERT_EQ(expected, symtab_get(symtab, name));
+  ASSERT_EQ(expected, symtab_get(symtab, stringtab(name)));
 }
 
 

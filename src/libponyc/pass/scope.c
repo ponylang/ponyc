@@ -2,6 +2,7 @@
 #include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../pkg/package.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
 
 static bool is_type_id(const char* s)
@@ -91,7 +92,7 @@ static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
 
 static bool scope_package(ast_t* ast)
 {
-  return use_package(ast, NULL, "builtin") != NULL;
+  return use_package(ast, NULL, stringtab("builtin")) != NULL;
 }
 
 static bool scope_use(ast_t* ast)

@@ -44,10 +44,10 @@ bool package_limit_passes(const char* pass);
 pass_id package_get_pass_limit();
 
 /**
- * Add a package with a single module based on the given AST description under
- * the given path.
+ * Add a magic package with a single module based on the given source under the
+ * given path.
  */
-bool package_add_desc(const char* path, const char* ast_desc);
+void package_add_magic(const char* path, const char* src);
 
 /**
  * Load a program. The path specifies the package that represents the program.

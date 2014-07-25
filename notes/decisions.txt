@@ -2,4 +2,7 @@
 or int) requires the explicit specification of a type. We do not provide a
 default.
 
-
+2. Types declared in a file go into their package symbol table.
+The types in the builtin package are copied into every package's symbol table.
+Types imported with a use statement go into the import's module symbol table.
+With a use as import the imported package goes into the module symbol table.

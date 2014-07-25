@@ -29,9 +29,59 @@ typedef struct package_t
   size_t next_hygienic_id;
 } package_t;
 
+typedef struct magic_package_t
+{
+  const char* path;
+  const char* src;
+  struct magic_package_t* next;
+} magic_package_t;
+
 static strlist_t* search;
-static ast_t* master_program;
+static magic_package_t* magic_packages = NULL;
 static pass_id pass_limit = PASS_ALL;
+
+
+// Check whether the given path is a defined magic package
+static bool is_magic_package(const char* path)
+{
+  for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
+  {
+    if(path == p->path)
+      return true;
+  }
+
+  return false;
+}
+
+
+// Build a magic package
+
+static bool do_magic_package(ast_t* package, const char* path)
+{
+  for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
+  {
+    if(path == p->path)
+    {
+      source_t* source = source_open_string(p->src);
+      ast_t* module = parser(source);
+
+      if(module == NULL)
+      {
+        errorf("internal", "couldn't parse package description");
+        source_close(source);
+        return false;
+      }
+
+      ast_add(package, module);
+      return true;
+    }
+  }
+
+  // Magic not found. Oops
+  errorf("internal", "magic package %s not found", path);
+  assert(false);
+  return false;
+}
 
 
 static bool filepath(const char *file, char* path)
@@ -129,8 +179,11 @@ static bool do_file(ast_t* package, const char* file)
   return true;
 }
 
-static bool do_path(ast_t* package, const char* path)
+static bool do_path(bool is_magic, ast_t* package, const char* path)
 {
+  if(is_magic)
+    return do_magic_package(package, path);
+
   DIR* dir = opendir(path);
 
   if(dir == NULL)
@@ -218,7 +271,8 @@ static const char* find_path(ast_t* from, const char* path)
 
     if(result != NULL)
       return result;
-  } else {
+  }
+  else {
     // try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
     package_t* pkg = ast_data(from);
@@ -246,7 +300,7 @@ static const char* find_path(ast_t* from, const char* path)
 }
 
 static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
-  ast_result_t pre_fn(ast_t**), ast_result_t post_fn(ast_t**))
+  ast_visit_t pre_fn, ast_visit_t post_fn)
 {
   if(pass_limit < pass)
   {
@@ -335,8 +389,6 @@ void package_init(const char* name)
   }
 
   package_paths(getenv("PONYPATH"));
-
-  master_program = ast_blank(TK_PROGRAM);
 }
 
 void package_paths(const char* paths)
@@ -408,34 +460,18 @@ pass_id package_get_pass_limit()
   return pass_limit;
 }
 
-bool package_add_desc(const char* path, const char* ast_desc)
+void package_add_magic(const char* path, const char* src)
 {
-  source_t* source = source_open_string(ast_desc);
-
-  ast_t* module = parser(source);
-
-  if(module == NULL)
-  {
-    errorf("internal", "couldn't parse package description");
-    source_close(source);
-    return false;
-  }
-
-  ast_t* package = create_package(master_program, path);
-  ast_add(package, module);
-
-  if(!do_passes(package))
-  {
-    ast_error(package, "can't typecheck package '%s'", path);
-    return false;
-  }
-
-  return true;
+  magic_package_t* n = malloc(sizeof(magic_package_t));
+  n->path = stringtab(path);
+  n->src = src;
+  n->next = magic_packages;
+  magic_packages = n;
 }
 
 ast_t* program_load(const char* path)
 {
-  ast_t* program = ast_dup(master_program);
+  ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
   if(package_load(program, path) == NULL)
@@ -454,7 +490,8 @@ bool program_compile(ast_t* program, int opt, bool print_llvm)
 
 ast_t* package_load(ast_t* from, const char* path)
 {
-  const char* name = find_path(from, path);
+  bool magic = is_magic_package(path);
+  const char* name = magic ? path : find_path(from, path);
 
   if(name == NULL)
     return NULL;
@@ -469,7 +506,7 @@ ast_t* package_load(ast_t* from, const char* path)
 
   printf("=== Building %s ===\n", name);
 
-  if(!do_path(package, name))
+  if(!do_path(magic, package, name))
     return NULL;
 
   if(!do_passes(package))
@@ -528,5 +565,12 @@ void package_done()
 {
   strlist_free(search);
   search = NULL;
-  ast_free(master_program);
+
+  magic_package_t*p = magic_packages;
+  while(p != NULL)
+  {
+    magic_package_t* next = p->next;
+    free(p);
+    p = next;
+  }
 }
