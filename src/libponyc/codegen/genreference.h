@@ -13,4 +13,10 @@ LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast);
+
+LLVMValueRef gen_localptr(compile_t* c, ast_t* ast);
+
+LLVMValueRef gen_localload(compile_t* c, ast_t* ast);
+
 #endif

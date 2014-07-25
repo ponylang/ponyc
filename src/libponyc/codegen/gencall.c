@@ -24,6 +24,18 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   return call_fun(c, LLVMGetNamedFunction(c->module, name), args, count, ret);
 }
 
+LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
+{
+  LLVMTypeRef l_type = LLVMGetElementType(type);
+  size_t size = LLVMABISizeOfType(c->target, l_type);
+
+  LLVMValueRef args[1];
+  args[0] = LLVMConstInt(LLVMInt64Type(), size, false);
+
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
+  return LLVMBuildBitCast(c->builder, result, type, "");
+}
+
 void gencall_tracetag(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
@@ -58,7 +70,7 @@ void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name)
   args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
 
   // get the trace function statically
-  const char* fun = genname_fun(name, "$trace", NULL);
+  const char* fun = genname_trace(name);
   args[1] = LLVMGetNamedFunction(c->module, fun);
 
   gencall_runtime(c, "pony_traceobject", args, 2, "");

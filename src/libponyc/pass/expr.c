@@ -43,8 +43,14 @@ ast_result_t pass_expr(ast_t** astp)
         return AST_FATAL;
       break;
 
-    case TK_IDSEQ:
+    case TK_VAR:
+    case TK_LET:
       if(!expr_local(ast))
+        return AST_FATAL;
+      break;
+
+    case TK_IDSEQ:
+      if(!expr_idseq(ast))
         return AST_FATAL;
       break;
 

@@ -18,7 +18,6 @@ static bool is_lvalue(ast_t* ast)
     case TK_FVARREF:
     case TK_FLETREF: // TODO: only valid the first time in a constructor
     case TK_VARREF:
-    // case TK_PARAMREF: // TODO: allow assignment to parameters?
       return true;
 
     case TK_TUPLE:
@@ -319,12 +318,20 @@ bool expr_assign(ast_t* ast)
   {
     // local type inference
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
+    a_type = type_literal_to_runtime(a_type);
 
     // returns the right side since there was no previous value to read
     ast_settype(ast, a_type);
 
+    // set the type node
+    ast_t* idseq;
+    ast_t* type;
+    AST_GET_CHILDREN(left, &idseq, &type);
+    ast_replace(&type, a_type);
+    ast_settype(left, a_type);
+
     // set the type for each component
-    return type_for_idseq(ast_child(left), a_type);
+    return type_for_idseq(idseq, a_type);
   }
 
   bool ok_sub = is_subtype(a_type, l_type);

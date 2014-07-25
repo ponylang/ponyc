@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "genname.h"
 #include "gentype.h"
 #include "genfun.h"
 #include "../pass/names.h"
@@ -13,7 +14,7 @@
 static void codegen_runtime(compile_t* c)
 {
   LLVMTypeRef type;
-  LLVMTypeRef params[7];
+  LLVMTypeRef params[8];
 
   // i8*
   c->void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
@@ -66,16 +67,8 @@ static void codegen_runtime(compile_t* c)
   c->final_fn = LLVMPointerType(
     LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
 
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$desc");
-  params[0] = c->trace_fn; // trace
-  params[1] = c->trace_fn; // serialise
-  params[2] = c->trace_fn; // deserialise
-  params[3] = c->dispatch_fn; // dispatch
-  params[4] = c->final_fn; // finalise
-  params[5] = c->void_ptr; // trait list
-  params[6] = LLVMArrayType(c->void_ptr, 0); // vtable
-  LLVMStructSetBody(type, params, 7, false);
-  c->descriptor_ptr = LLVMPointerType(type, 0);
+  c->descriptor_type = codegen_desctype(c, NULL, 0);
+  c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
 
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$object");
   params[0] = c->descriptor_ptr;
@@ -202,6 +195,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
 static void codegen_init(compile_t* c, ast_t* program, int opt)
 {
+  c->painter = painter_create();
+  painter_colour(c->painter, program);
+
   // the name of the first package is the name of the program
   c->filename = package_filename(ast_child(program));
 
@@ -274,6 +270,7 @@ static void codegen_cleanup(compile_t* c, bool print_llvm)
   LLVMDisposePassManager(c->fpm);
   LLVMDisposeModule(c->module);
   LLVMShutdown();
+  painter_free(c->painter);
 }
 
 bool codegen(ast_t* program, int opt, bool print_llvm)
@@ -300,4 +297,23 @@ bool codegen_finishfun(compile_t* c, LLVMValueRef fun)
 
   LLVMRunFunctionPassManager(c->fpm, fun);
   return true;
+}
+
+LLVMTypeRef codegen_desctype(compile_t* c, const char* name, int vtable_size)
+{
+  const char* desc_name = genname_descriptor(name);
+  LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), desc_name);
+
+  LLVMTypeRef params[8];
+  params[0] = c->trace_fn; // trace
+  params[1] = c->trace_fn; // serialise
+  params[2] = c->trace_fn; // deserialise
+  params[3] = c->dispatch_fn; // dispatch
+  params[4] = c->final_fn; // finalise
+  params[5] = LLVMInt64Type(); // size
+  params[6] = c->void_ptr; // trait list
+  params[7] = LLVMArrayType(c->void_ptr, vtable_size); // vtable
+
+  LLVMStructSetBody(type, params, 8, false);
+  return type;
 }

@@ -21,23 +21,14 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_VAR:
     case TK_LET:
-    {
-      ast_error(ast, "not implemented (codegen for local decl)");
-      return NULL;
-    }
+      return gen_localdecl(c, ast);
 
     case TK_VARREF:
     case TK_LETREF:
-    {
-      ast_error(ast, "not implemented (codegen for local ref)");
-      return NULL;
-    }
+      return gen_localload(c, ast);
 
     case TK_IF:
-    {
-      ast_error(ast, "not implemented (codegen for if)");
-      return NULL;
-    }
+      return gen_if(c, ast);
 
     case TK_WHILE:
     {
@@ -146,10 +137,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_is(c, ast);
 
     case TK_ISNT:
-    {
-      ast_error(ast, "not implemented (codegen for isnt)");
-      return NULL;
-    }
+      return gen_isnt(c, ast);
 
     case TK_AND:
       return gen_and(c, ast);
@@ -184,7 +172,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     default: {}
   }
 
-  ast_error(ast, "not implemented (codegen)");
+  ast_error(ast, "not implemented (codegen unknown)");
   return NULL;
 }
 
@@ -264,38 +252,36 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   return false;
 }
 
-LLVMValueRef gen_assign_cast(compile_t* c, ast_t* left, ast_t* right,
-  LLVMValueRef l_value, LLVMValueRef r_value)
+LLVMValueRef gen_assign_cast(compile_t* c, ast_t* type, LLVMTypeRef l_type,
+  LLVMValueRef r_value, bool sign)
 {
-  ast_t* left_type = ast_type(left);
-  ast_t* right_type = ast_type(right);
-
   // the left hand side is a pointer to the actual type we want to cast to
-  LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
-  LLVMValueRef r_cast;
 
-  if(is_intliteral(right_type))
+  if(is_intliteral(type))
   {
     switch(LLVMGetTypeKind(l_type))
     {
       case LLVMIntegerTypeKind:
       {
-        r_cast = LLVMConstIntCast(r_value, l_type, is_signed(left_type));
+        // TODO: check the constant fits in the type
+        r_value = LLVMConstIntCast(r_value, l_type, sign);
         break;
       }
 
       case LLVMHalfTypeKind:
       case LLVMFloatTypeKind:
       case LLVMDoubleTypeKind:
-        // always treat the literal as signed
-        r_cast = LLVMConstSIToFP(r_value, l_type);
+        if(is_sintliteral(type))
+          r_value = LLVMConstSIToFP(r_value, l_type);
+        else
+          r_value = LLVMConstUIToFP(r_value, l_type);
         break;
 
       case LLVMPointerTypeKind:
       {
         // TODO: box the integer literal
-        ast_error(right_type, "not implemented (boxing int literals)");
+        ast_error(type, "not implemented (boxing int literals)");
         return NULL;
       }
 
@@ -303,19 +289,19 @@ LLVMValueRef gen_assign_cast(compile_t* c, ast_t* left, ast_t* right,
         assert(0);
         return NULL;
     }
-  } else if(is_floatliteral(right_type)) {
+  } else if(is_floatliteral(type)) {
     switch(LLVMGetTypeKind(l_type))
     {
       case LLVMHalfTypeKind:
       case LLVMFloatTypeKind:
       case LLVMDoubleTypeKind:
-        r_cast = LLVMConstFPCast(r_value, l_type);
+        r_value = LLVMConstFPCast(r_value, l_type);
         break;
 
       case LLVMPointerTypeKind:
       {
         // TODO: box the float literal
-        ast_error(right_type, "not implemented (boxing float literals)");
+        ast_error(type, "not implemented (boxing float literals)");
         return NULL;
       }
 
@@ -332,12 +318,12 @@ LLVMValueRef gen_assign_cast(compile_t* c, ast_t* left, ast_t* right,
       case LLVMIntegerTypeKind:
       {
         // TODO: box the primitive
-        ast_error(right_type, "not implemented (boxing primitives)");
+        ast_error(type, "not implemented (boxing primitives)");
         return NULL;
       }
 
       case LLVMPointerTypeKind:
-        r_cast = LLVMBuildBitCast(c->builder, r_value, l_type, "");
+        r_value = LLVMBuildBitCast(c->builder, r_value, l_type, "");
         break;
 
       default:
@@ -346,8 +332,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, ast_t* left, ast_t* right,
     }
   } else {
     assert(l_type == r_type);
-    r_cast = r_value;
   }
 
-  return r_cast;
+  return r_value;
 }

@@ -43,13 +43,28 @@ static void typeargs_append(char* name, ast_t* typeargs)
 
 static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 {
-  size_t len = strlen(a) + strlen(b) + typeargs_len(typeargs) + 2;
+  size_t len = typeargs_len(typeargs);
+
+  if(a != NULL)
+    len += strlen(a) + 1;
+
+  if(b != NULL)
+    len += strlen(b) + 1;
 
   char name[len];
-  strcpy(name, a);
-  name_append(name, b);
-  typeargs_append(name, typeargs);
 
+  if(a != NULL)
+    strcpy(name, a);
+
+  if(b != NULL)
+  {
+    if(a != NULL)
+      name_append(name, b);
+    else
+      strcpy(name, b);
+  }
+
+  typeargs_append(name, typeargs);
   return stringtab(name);
 }
 
@@ -83,6 +98,36 @@ const char* genname_type(ast_t* ast)
 
   assert(0);
   return NULL;
+}
+
+const char* genname_trace(const char* type)
+{
+  return build_name(type, "$trace", NULL);
+}
+
+const char* genname_serialise(const char* type)
+{
+  return build_name(type, "$serialise", NULL);
+}
+
+const char* genname_deserialise(const char* type)
+{
+  return build_name(type, "$deserialise", NULL);
+}
+
+const char* genname_dispatch(const char* type)
+{
+  return build_name(type, "$dispatch", NULL);
+}
+
+const char* genname_finalise(const char* type)
+{
+  return build_name(type, "$finalise", NULL);
+}
+
+const char* genname_descriptor(const char* type)
+{
+  return build_name(type, "$desc", NULL);
 }
 
 const char* genname_fun(const char* type, const char* name, ast_t* typeargs)

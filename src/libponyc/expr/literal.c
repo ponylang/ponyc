@@ -192,7 +192,7 @@ bool expr_fun(ast_t* ast)
         if(is_signed(type))
           return true;
       } else if(is_floatliteral(body_type)) {
-        if(is_float(type))
+        if(!is_intliteral(type) && is_float(type))
           return true;
       }
 

@@ -479,18 +479,21 @@ bool is_subtype(ast_t* sub, ast_t* super)
         // an unsigned integer literal is a subtype of any arithmetic type
         if(is_intliteral(super) ||
           is_floatliteral(super) ||
-          is_arithmetic(super))
+          is_arithmetic(super)
+          )
           return true;
       } else if(is_sintliteral(sub)) {
         // a signed integer literal is a subtype of any signed type
         if(is_sintliteral(super) ||
           is_floatliteral(super) ||
-          is_signed(super))
+          is_signed(super)
+          )
           return true;
       } else if(is_floatliteral(sub)) {
         // a float literal is a subtype of any float type
         if(is_floatliteral(super) ||
-          is_float(super))
+          (!is_intliteral(super) && is_float(super))
+          )
           return true;
       }
 

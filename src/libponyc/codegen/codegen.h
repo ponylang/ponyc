@@ -1,6 +1,7 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
+#include "colour.h"
 #include "../ast/ast.h"
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
@@ -9,6 +10,7 @@
 
 typedef struct compile_t
 {
+  painter_t* painter;
   const char* filename;
   LLVMModuleRef module;
   LLVMBuilderRef builder;
@@ -22,6 +24,7 @@ typedef struct compile_t
   LLVMTypeRef trace_fn;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
+  LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
   LLVMTypeRef object_ptr;
 } compile_t;
@@ -29,5 +32,7 @@ typedef struct compile_t
 bool codegen(ast_t* program, int opt, bool print_llvm);
 
 bool codegen_finishfun(compile_t* c, LLVMValueRef fun);
+
+LLVMTypeRef codegen_desctype(compile_t* c, const char* name, int vtable_size);
 
 #endif

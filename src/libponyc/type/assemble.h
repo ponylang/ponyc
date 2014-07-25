@@ -41,4 +41,10 @@ ast_t* type_for_fun(ast_t* ast);
  */
 bool type_for_idseq(ast_t* idseq, ast_t* type);
 
+/**
+ * If we have a literal type that needs to become a runtime type, pick an
+ * appropriate type for it.
+ */
+ast_t* type_literal_to_runtime(ast_t* type);
+
 #endif

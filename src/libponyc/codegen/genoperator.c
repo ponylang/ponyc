@@ -27,17 +27,14 @@ LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast)
   {
     case TK_VAR:
     case TK_LET:
-      ast_error(ast, "not implemented (create local)");
-      return NULL;
+      return gen_localdecl(c, ast);
 
     case TK_FVARREF:
     case TK_FLETREF:
       return gen_fieldptr(c, ast);
 
     case TK_VARREF:
-    case TK_PARAMREF:
-      ast_error(ast, "not implemented (lvalue local)");
-      return NULL;
+      return gen_localptr(c, ast);
 
     case TK_TUPLE:
       ast_error(ast, "not implemented (lvalue tuple)");
@@ -453,6 +450,16 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
 }
 
+LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef is = gen_is(c, ast);
+
+  if(is == NULL)
+    return NULL;
+
+  return LLVMBuildNot(c->builder, is, "");
+}
+
 LLVMValueRef gen_and(compile_t* c, ast_t* ast)
 {
   LLVMValueRef l_value;
@@ -504,6 +511,9 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   ast_t* right;
   AST_GET_CHILDREN(ast, &left, &right);
 
+  ast_t* left_type = ast_type(left);
+  ast_t* right_type = ast_type(right);
+
   LLVMValueRef l_value = gen_lvalue(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -511,11 +521,14 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
-  LLVMValueRef r_cast = gen_assign_cast(c, left, right, l_value, r_value);
 
-  if(r_cast == NULL)
+  bool sign = is_signed(left_type);
+  LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
+  r_value = gen_assign_cast(c, right_type, l_type, r_value, sign);
+
+  if(r_value == NULL)
     return NULL;
 
-  LLVMBuildStore(c->builder, r_cast, l_value);
+  LLVMBuildStore(c->builder, r_value, l_value);
   return result;
 }
