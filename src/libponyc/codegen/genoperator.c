@@ -27,17 +27,14 @@ LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast)
   {
     case TK_VAR:
     case TK_LET:
-      ast_error(ast, "not implemented (create local)");
-      return NULL;
+      return gen_localdecl(c, ast);
 
     case TK_FVARREF:
     case TK_FLETREF:
       return gen_fieldptr(c, ast);
 
     case TK_VARREF:
-    case TK_PARAMREF:
-      ast_error(ast, "not implemented (lvalue local)");
-      return NULL;
+      return gen_localptr(c, ast);
 
     case TK_TUPLE:
       ast_error(ast, "not implemented (lvalue tuple)");

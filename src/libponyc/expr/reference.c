@@ -260,6 +260,13 @@ bool expr_reference(ast_t* ast)
 
 bool expr_local(ast_t* ast)
 {
+  ast_t* idseq = ast_child(ast);
+  ast_settype(ast, ast_type(idseq));
+  return true;
+}
+
+bool expr_idseq(ast_t* ast)
+{
   assert(ast_id(ast) == TK_IDSEQ);
   ast_t* type = ast_sibling(ast);
 
@@ -282,5 +289,6 @@ bool expr_local(ast_t* ast)
     return false;
   }
 
+  ast_settype(ast, type);
   return type_for_idseq(ast, type);
 }

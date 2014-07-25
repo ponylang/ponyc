@@ -1,5 +1,6 @@
 #include "genreference.h"
 #include "genexpr.h"
+#include "gentype.h"
 #include <assert.h>
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
@@ -71,4 +72,65 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
   ast_error(ast, "not implemented (codegen for tuples)");
   return NULL;
+}
+
+LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
+{
+  ast_t* idseq;
+  ast_t* type;
+  AST_GET_CHILDREN(ast, &idseq, &type);
+
+  LLVMTypeRef l_type;
+  LLVMValueRef l_value;
+
+  ast_t* id = ast_child(idseq);
+  ast_t* def;
+
+  if(ast_sibling(id) == NULL)
+  {
+    l_type = gentype(c, type);
+
+    if(l_type == NULL)
+      return NULL;
+
+    l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
+
+    def = ast_get(ast, ast_name(id));
+    ast_setdata(def, l_value);
+
+    return l_value;
+  }
+
+  type = ast_child(type);
+
+  while(id != NULL)
+  {
+    l_type = gentype(c, type);
+
+    if(l_type == NULL)
+      return NULL;
+
+    l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
+
+    def = ast_get(ast, ast_name(id));
+    ast_setdata(def, l_value);
+
+    id = ast_sibling(id);
+    type = ast_sibling(type);
+  }
+
+  // TODO: when assigning a tuple to this, we need the individual lvalues
+  return l_value;
+}
+
+LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+  const char* name = ast_name(id);
+  ast_t* def = ast_get(ast, name);
+
+  LLVMValueRef value = ast_data(def);
+  assert(value != NULL);
+
+  return value;
 }

@@ -14,6 +14,8 @@ actor Main
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>
+    var q: I32 = 1
+    q = argc
     x = (argc xor 0xF) + (7 % -3) + (argc / not 3)
     z = not (x > 2) or (x <= 7) xor (x != 99)
     y = Helper[F16](9, this)

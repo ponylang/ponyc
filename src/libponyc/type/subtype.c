@@ -763,3 +763,41 @@ bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
   // time and store that
   return true;
 }
+
+bool contains_math_literal(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(contains_math_literal(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+      return is_intliteral(type) || is_floatliteral(type);
+
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+      return false;
+
+    case TK_ARROW:
+      return contains_math_literal(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
