@@ -6,15 +6,21 @@
 #include "../pass/names.h"
 #include <assert.h>
 
-static void append_one_to_typeexpr(ast_t* ast, ast_t* append)
+static void append_one_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
 {
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     // don't append if we're already in the type expression
-    if(is_eqtype(append, child))
-      return;
+    if(is_union)
+    {
+      if(is_subtype(append, child))
+        return;
+    } else {
+      if(is_subtype(child, append))
+        return;
+    }
 
     child = ast_sibling(child);
   }
@@ -22,7 +28,7 @@ static void append_one_to_typeexpr(ast_t* ast, ast_t* append)
   ast_append(ast, append);
 }
 
-static void append_to_typeexpr(ast_t* ast, ast_t* append)
+static void append_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
 {
   if(ast_id(ast) == ast_id(append))
   {
@@ -31,28 +37,43 @@ static void append_to_typeexpr(ast_t* ast, ast_t* append)
 
     while(child != NULL)
     {
-      append_one_to_typeexpr(ast, append);
+      append_one_to_typeexpr(ast, append, is_union);
       child = ast_sibling(child);
     }
   } else {
-    append_one_to_typeexpr(ast, append);
+    append_one_to_typeexpr(ast, append, is_union);
   }
 }
 
 static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
 {
+  bool is_union = t == TK_UNIONTYPE;
+
   if(l_type == NULL)
     return r_type;
 
   if(r_type == NULL)
     return l_type;
 
-  if(is_eqtype(l_type, r_type))
-    return l_type;
+  if(is_subtype(l_type, r_type))
+  {
+    if(is_union)
+      return r_type;
+    else
+      return l_type;
+  }
+
+  if(is_subtype(r_type, l_type))
+  {
+    if(is_union)
+      return l_type;
+    else
+      return r_type;
+  }
 
   ast_t* type = ast_from(l_type, t);
-  append_to_typeexpr(type, l_type);
-  append_to_typeexpr(type, r_type);
+  append_to_typeexpr(type, l_type, is_union);
+  append_to_typeexpr(type, r_type, is_union);
 
   return type;
 }
@@ -95,7 +116,7 @@ ast_t* type_union(ast_t* l_type, ast_t* r_type)
 
 ast_t* type_isect(ast_t* l_type, ast_t* r_type)
 {
-  return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
+  return type_typeexpr(TK_UNIONTYPE, l_type, r_type);
 }
 
 ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
@@ -203,4 +224,18 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
   }
 
   return true;
+}
+
+ast_t* type_literal_to_runtime(ast_t* type)
+{
+  if(is_uintliteral(type))
+    return type_builtin(type, "U64");
+
+  if(is_sintliteral(type))
+    return type_builtin(type, "I64");
+
+  if(is_floatliteral(type))
+    return type_builtin(type, "F64");
+
+  return type;
 }

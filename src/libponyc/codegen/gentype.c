@@ -350,7 +350,9 @@ static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
   if(!strcmp(name, "I64") || !strcmp(name, "U64"))
     return LLVMInt64Type();
 
-  if(!strcmp(name, "I128") || !strcmp(name, "U128"))
+  if(!strcmp(name, "I128") || !strcmp(name, "U128") ||
+    !strcmp(name, "SIntLiteral") || !strcmp(name, "UIntLiteral")
+    )
     return LLVMIntType(128);
 
   if(!strcmp(name, "F16"))
@@ -359,7 +361,7 @@ static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
   if(!strcmp(name, "F32"))
     return LLVMFloatType();
 
-  if(!strcmp(name, "F64"))
+  if(!strcmp(name, "F64") || !strcmp(name, "FloatLiteral"))
     return LLVMDoubleType();
 
   bool exists;

@@ -479,18 +479,21 @@ bool is_subtype(ast_t* sub, ast_t* super)
         // an unsigned integer literal is a subtype of any arithmetic type
         if(is_intliteral(super) ||
           is_floatliteral(super) ||
-          is_arithmetic(super))
+          is_arithmetic(super)
+          )
           return true;
       } else if(is_sintliteral(sub)) {
         // a signed integer literal is a subtype of any signed type
         if(is_sintliteral(super) ||
           is_floatliteral(super) ||
-          is_signed(super))
+          is_signed(super)
+          )
           return true;
       } else if(is_floatliteral(sub)) {
         // a float literal is a subtype of any float type
         if(is_floatliteral(super) ||
-          is_float(super))
+          (!is_intliteral(super) && is_float(super))
+          )
           return true;
       }
 
@@ -762,42 +765,4 @@ bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
   // we would have to determine if every concrete type is a subtype at compile
   // time and store that
   return true;
-}
-
-bool contains_math_literal(ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        if(contains_math_literal(child))
-          return true;
-
-        child = ast_sibling(child);
-      }
-
-      return false;
-    }
-
-    case TK_NOMINAL:
-      return is_intliteral(type) || is_floatliteral(type);
-
-    case TK_STRUCTURAL:
-    case TK_TYPEPARAMREF:
-      return false;
-
-    case TK_ARROW:
-      return contains_math_literal(ast_childidx(type, 1));
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }

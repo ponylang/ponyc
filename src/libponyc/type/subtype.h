@@ -39,6 +39,4 @@ bool is_id_compatible(ast_t* a, ast_t* b);
 
 bool is_match_compatible(ast_t* expr_type, ast_t* match_type);
 
-bool contains_math_literal(ast_t* type);
-
 #endif

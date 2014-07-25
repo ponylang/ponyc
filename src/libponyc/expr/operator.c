@@ -318,13 +318,7 @@ bool expr_assign(ast_t* ast)
   {
     // local type inference
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
-
-    if(contains_math_literal(a_type))
-    {
-      ast_error(ast,
-        "can't do type inference when the right side can be a numeric literal");
-      return false;
-    }
+    a_type = type_literal_to_runtime(a_type);
 
     // returns the right side since there was no previous value to read
     ast_settype(ast, a_type);

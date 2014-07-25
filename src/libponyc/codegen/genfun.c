@@ -129,8 +129,8 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
     name_params(params, handler, false);
   }
 
-  // LLVMBasicBlockRef block = LLVMAppendBasicBlock(func, "entry");
-  // LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(func, "entry");
+  LLVMPositionBuilderAtEnd(c->builder, block);
   return func;
 }
 
@@ -155,7 +155,7 @@ static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
   if(handler == NULL)
     return NULL;
 
-  // TODO: field initialiser
+  // TODO: field initialisers
   LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
@@ -175,13 +175,13 @@ LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
-  //
-  // if(value == NULL)
-  //   return NULL;
-  //
-  // LLVMBuildRet(c->builder, value);
-  // codegen_finishfun(c, func);
+  LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
+
+  if(value == NULL)
+    return NULL;
+
+  LLVMBuildRet(c->builder, value);
+  codegen_finishfun(c, func);
   return func;
 }
 
@@ -193,10 +193,6 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
 
   if(func == NULL)
     return NULL;
-
-  // TODO: do this in get_prototype
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(func, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
 
   // TODO: send a message to 'this'
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
@@ -210,10 +206,10 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   if(handler == NULL)
     return NULL;
 
-  // LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
-  //
-  // if(value == NULL)
-  //   return NULL;
+  LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
+
+  if(value == NULL)
+    return NULL;
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c, handler);
@@ -229,10 +225,11 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // TODO: body and finish
-  // allocate the object as 'this'
+  // TODO: allocate the object as 'this'
   // call the handler
-  // return 'this'
+  // return 'this' instead of null
+  LLVMBuildRet(c->builder, LLVMConstNull(gentype(c, type)));
+  codegen_finishfun(c, func);
 
   LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
     ast_childidx(fun, 6));
@@ -252,10 +249,11 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // TODO: body and finish
-  // allocate the actor as 'this'
+  // TODO: allocate the actor as 'this'
   // send a message to 'this'
-  // return 'this'
+  // return 'this' instead of null
+  LLVMBuildRet(c->builder, LLVMConstNull(gentype(c, type)));
+  codegen_finishfun(c, func);
 
   LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
     ast_childidx(fun, 6));
