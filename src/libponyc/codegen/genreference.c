@@ -134,3 +134,13 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 
   return value;
 }
+
+LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef local_ptr = gen_localptr(c, ast);
+
+  if(local_ptr == NULL)
+    return NULL;
+
+  return LLVMBuildLoad(c->builder, local_ptr, "");
+}

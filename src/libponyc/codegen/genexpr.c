@@ -25,10 +25,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_VARREF:
     case TK_LETREF:
-    {
-      ast_error(ast, "not implemented (codegen for local ref)");
-      return NULL;
-    }
+      return gen_localload(c, ast);
 
     case TK_IF:
     {
@@ -178,7 +175,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     default: {}
   }
 
-  ast_error(ast, "not implemented (codegen)");
+  ast_error(ast, "not implemented (codegen unknown)");
   return NULL;
 }
 
