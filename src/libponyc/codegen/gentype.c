@@ -441,7 +441,7 @@ static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
   if(exists || (type == NULL))
     return type;
 
-  // TODO: create a type descriptor, singleton instance if not a primitive
+  // TODO: create singleton instance if not a primitive
   return type;
 }
 
@@ -453,7 +453,6 @@ static LLVMTypeRef gentype_class(compile_t* c, ast_t* ast)
   if(exists || (type == NULL))
     return type;
 
-  // TODO: create a type descriptor
   return type;
 }
 
@@ -465,7 +464,7 @@ static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
   if(exists || (type == NULL))
     return type;
 
-  // TODO: create an actor descriptor, message type function, dispatch function
+  // TODO: create a message type function, dispatch function
   return type;
 }
 

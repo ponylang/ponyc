@@ -167,6 +167,18 @@ static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
   return handler;
 }
 
+static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
+{
+  LLVMSetValueName(this_ptr, "this");
+
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
+    genname_descriptor(genname_type(type)));
+  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
+
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
+  LLVMBuildStore(c->builder, desc, desc_ptr);
+}
+
 LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
@@ -237,14 +249,7 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   LLVMValueRef this_ptr = gencall_alloc(c, p_type);
-  LLVMSetValueName(this_ptr, "this");
-
-  // set the descriptor
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
-    genname_descriptor(genname_type(type)));
-  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
-  LLVMBuildStore(c->builder, desc, desc_ptr);
+  set_descriptor(c, type, this_ptr);
 
   // call the handler
   LLVMValueRef handler = get_handler(c, type, name, typeargs);
@@ -292,14 +297,7 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
 
   // TODO: don't heap alloc!
   LLVMValueRef this_ptr = gencall_alloc(c, p_type);
-  LLVMSetValueName(this_ptr, "this");
-
-  // set the descriptor
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
-    genname_descriptor(genname_type(type)));
-  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
-  LLVMBuildStore(c->builder, desc, desc_ptr);
+  set_descriptor(c, type, this_ptr);
 
   // TODO: initialise the actor
   // TODO: send a message to 'this'
