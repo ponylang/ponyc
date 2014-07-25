@@ -40,9 +40,11 @@ type descriptor
   trace function
   (serialise function)
   (deserialise function)
-  dispatch function
-  finalise function
-  trait list
+  non-actors have these at zero?
+    dispatch function
+    finalise function
+    size for alloc/free
+  trait list // only used for pattern matching on type
   vtable (embedded)
 
 

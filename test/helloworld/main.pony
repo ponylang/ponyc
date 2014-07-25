@@ -6,6 +6,8 @@ class Helper[A: Arithmetic]
     x = x'
     y = y'
 
+  fun box get_x(): this->A => x
+
 actor Main
   var x: I32
   var y: Helper[F16]

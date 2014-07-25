@@ -9,6 +9,8 @@ LLVMValueRef gencall(compile_t* c, ast_t* type, const char *name,
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret);
 
+LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type);
+
 void gencall_tracetag(compile_t* c, LLVMValueRef field);
 
 void gencall_traceactor(compile_t* c, LLVMValueRef field);

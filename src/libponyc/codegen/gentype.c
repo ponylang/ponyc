@@ -14,7 +14,7 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
   LLVMTypeRef type, ast_t** fields, int count, int extra)
 {
   // create a trace function
-  const char* trace_name = genname_fun(name, "$trace", NULL);
+  const char* trace_name = genname_trace(name);
   LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
@@ -303,6 +303,68 @@ static bool make_methods(compile_t* c, ast_t* ast)
   return true;
 }
 
+static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
+  LLVMTypeRef type)
+{
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
+
+  if(func == NULL)
+    func = LLVMConstNull(type);
+  else
+    func = LLVMConstBitCast(func, type);
+
+  return func;
+}
+
+static void make_descriptor(compile_t* c, ast_t* def, const char* name,
+  const char* desc_name, size_t vtable_size, LLVMTypeRef type,
+  LLVMTypeRef desc_type, LLVMValueRef g_desc)
+{
+  // build the actual vtable
+  LLVMValueRef vtable[vtable_size];
+
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_BE:
+      case TK_FUN:
+      {
+        ast_t* id = ast_childidx(member, 1);
+        const char* funname = ast_name(id);
+        const char* fullname = genname_fun(name, funname, NULL);
+        int colour = painter_get_colour(c->painter, funname);
+        vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
+        assert(vtable[colour] != NULL);
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  // TODO: trait list
+  LLVMValueRef args[8];
+  args[0] = make_function_ptr(c, genname_trace(name), c->trace_fn);
+  args[1] = make_function_ptr(c, genname_serialise(name), c->trace_fn);
+  args[2] = make_function_ptr(c, genname_deserialise(name), c->trace_fn);
+  args[3] = make_function_ptr(c, genname_dispatch(name), c->dispatch_fn);
+  args[4] = make_function_ptr(c, genname_finalise(name), c->trace_fn);
+  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
+    false);
+  args[6] = LLVMConstNull(c->void_ptr);
+  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);;
+
+  LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
+  LLVMSetInitializer(g_desc, desc);
+  LLVMSetGlobalConstant(g_desc, true);
+}
+
 static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
 {
   const char* name = genname_type(ast);
@@ -323,8 +385,17 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(type == NULL)
     return NULL;
 
+  const char* desc_name = genname_descriptor(name);
+  size_t vtable_size = painter_get_vtable_size(c->painter, def);
+
+  LLVMTypeRef desc_type = codegen_desctype(c, name, vtable_size);
+  LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
+
   if(!make_methods(c, ast))
     return NULL;
+
+  make_descriptor(c, def, name, desc_name, vtable_size, type, desc_type,
+    g_desc);
 
   return LLVMPointerType(type, 0);
 }

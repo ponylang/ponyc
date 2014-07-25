@@ -1,6 +1,7 @@
 #include "genfun.h"
 #include "gentype.h"
 #include "genname.h"
+#include "gencall.h"
 #include "gencontrol.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
@@ -27,6 +28,12 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
     LLVMSetValueName(fparam, ast_name(ast_child(param)));
     param = ast_sibling(param);
   }
+}
+
+static void start_fun(compile_t* c, LLVMValueRef fun)
+{
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
+  LLVMPositionBuilderAtEnd(c->builder, block);
 }
 
 static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
@@ -129,8 +136,6 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
     name_params(params, handler, false);
   }
 
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(func, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
   return func;
 }
 
@@ -139,12 +144,7 @@ static LLVMValueRef get_handler(compile_t* c, ast_t* type, const char* name,
 {
   const char* handler_name = genname_handler(genname_type(type), name,
     typeargs);
-  LLVMValueRef handler = LLVMGetNamedFunction(c->module, handler_name);
-
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(handler, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
-
-  return handler;
+  return LLVMGetNamedFunction(c->module, handler_name);
 }
 
 static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
@@ -156,6 +156,7 @@ static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
     return NULL;
 
   // TODO: field initialisers
+  start_fun(c, handler);
   LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
@@ -175,6 +176,7 @@ LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
+  start_fun(c, func);
   LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
 
   if(value == NULL)
@@ -195,6 +197,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   // TODO: send a message to 'this'
+  start_fun(c, func);
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // return 'this'
@@ -206,6 +209,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   if(handler == NULL)
     return NULL;
 
+  start_fun(c, handler);
   LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
 
   if(value == NULL)
@@ -225,14 +229,44 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // TODO: allocate the object as 'this'
+  // allocate the object as 'this'
+  start_fun(c, func);
+  LLVMTypeRef p_type = gentype(c, type);
+
+  if(p_type == NULL)
+    return NULL;
+
+  LLVMValueRef this_ptr = gencall_alloc(c, p_type);
+  LLVMSetValueName(this_ptr, "this");
+
+  // set the descriptor
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
+    genname_descriptor(genname_type(type)));
+  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
+  LLVMBuildStore(c->builder, desc, desc_ptr);
+
   // call the handler
-  // return 'this' instead of null
-  LLVMBuildRet(c->builder, LLVMConstNull(gentype(c, type)));
+  LLVMValueRef handler = get_handler(c, type, name, typeargs);
+
+  if(handler == NULL)
+    return NULL;
+
+  int count = LLVMCountParamTypes(LLVMGetElementType(LLVMTypeOf(handler)));
+  LLVMValueRef args[count];
+  args[0] = this_ptr;
+
+  for(int i = 1; i < count; i++)
+    args[i] = LLVMGetParam(func, i - 1);
+
+  LLVMBuildCall(c->builder, handler, args, count, "");
+
+  // return 'this'
+  LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c, func);
 
-  LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
-    ast_childidx(fun, 6));
+  // generate the handler
+  handler = gen_newhandler(c, type, name, typeargs, ast_childidx(fun, 6));
 
   if(handler == NULL)
     return NULL;
@@ -249,10 +283,29 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // TODO: allocate the actor as 'this'
-  // send a message to 'this'
-  // return 'this' instead of null
-  LLVMBuildRet(c->builder, LLVMConstNull(gentype(c, type)));
+  // allocate the actor as 'this'
+  start_fun(c, func);
+  LLVMTypeRef p_type = gentype(c, type);
+
+  if(p_type == NULL)
+    return NULL;
+
+  // TODO: don't heap alloc!
+  LLVMValueRef this_ptr = gencall_alloc(c, p_type);
+  LLVMSetValueName(this_ptr, "this");
+
+  // set the descriptor
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
+    genname_descriptor(genname_type(type)));
+  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
+  LLVMBuildStore(c->builder, desc, desc_ptr);
+
+  // TODO: initialise the actor
+  // TODO: send a message to 'this'
+
+  // return 'this'
+  LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c, func);
 
   LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
