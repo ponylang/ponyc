@@ -29,7 +29,11 @@ bool is_float(ast_t* type);
 
 bool is_signed(ast_t* type);
 
+bool is_singletype(ast_t* type);
+
 bool is_math_compatible(ast_t* a, ast_t* b);
+
+bool is_concrete(ast_t* type);
 
 bool is_id_compatible(ast_t* a, ast_t* b);
 

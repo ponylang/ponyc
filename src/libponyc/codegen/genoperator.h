@@ -35,6 +35,8 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_is(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_and(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_or(compile_t* c, ast_t* ast);

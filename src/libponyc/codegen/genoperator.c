@@ -418,6 +418,41 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* ast)
   return LLVMBuildICmp(c->builder, LLVMIntNE, l_value, r_value, "");
 }
 
+LLVMValueRef gen_is(compile_t* c, ast_t* ast)
+{
+  ast_t* left;
+  ast_t* right;
+  AST_GET_CHILDREN(ast, &left, &right);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  LLVMTypeRef left_type = LLVMTypeOf(l_value);
+  LLVMTypeRef right_type = LLVMTypeOf(r_value);
+
+  if(LLVMGetTypeKind(left_type) != LLVMPointerTypeKind)
+  {
+    ast_error(left, "not implemented (codegen identity with primitive)");
+    return NULL;
+  }
+
+  if(LLVMGetTypeKind(right_type) != LLVMPointerTypeKind)
+  {
+    ast_error(right, "not implemented (codegen identity with primitive)");
+    return NULL;
+  }
+
+  // TODO: structural check if both sides are the same boxed primitive type
+  LLVMTypeRef type = LLVMIntPtrType(c->target);
+  l_value = LLVMBuildPtrToInt(c->builder, l_value, type, "");
+  r_value = LLVMBuildPtrToInt(c->builder, r_value, type, "");
+
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+}
+
 LLVMValueRef gen_and(compile_t* c, ast_t* ast)
 {
   LLVMValueRef l_value;

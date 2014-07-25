@@ -601,26 +601,47 @@ bool is_floatliteral(ast_t* type)
 
 bool is_arithmetic(ast_t* type)
 {
-  return is_builtin(type, "Arithmetic");
+  return is_singletype(type) && is_builtin(type, "Arithmetic");
 }
 
 bool is_integer(ast_t* type)
 {
-  return is_builtin(type, "Integer");
+  return is_singletype(type) && is_builtin(type, "Integer");
 }
 
 bool is_float(ast_t* type)
 {
-  return is_builtin(type, "Float");
+  return is_singletype(type) && is_builtin(type, "Float");
 }
 
 bool is_signed(ast_t* type)
 {
-  return is_builtin(type, "SInt") || is_builtin(type, "Float");
+  return is_singletype(type) &&
+    (is_builtin(type, "SInt") || is_builtin(type, "Float"));
+}
+
+bool is_singletype(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return true;
+
+    case TK_ARROW:
+      return is_singletype(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  return false;
 }
 
 bool is_math_compatible(ast_t* a, ast_t* b)
 {
+  if(!is_singletype(a) || !is_singletype(b))
+    return false;
+
   if(is_intliteral(a))
     return is_arithmetic(b);
 
@@ -636,17 +657,103 @@ bool is_math_compatible(ast_t* a, ast_t* b)
   return is_eqtype(a, b);
 }
 
+bool is_concrete(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!is_concrete(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_concrete(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_TUPLETYPE:
+      return true;
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = ast_data(type);
+      return ast_id(def) != TK_TRAIT;
+    }
+
+    case TK_STRUCTURAL:
+      return false;
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+      return is_concrete(constraint);
+    }
+
+    case TK_ARROW:
+      return is_concrete(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 bool is_id_compatible(ast_t* a, ast_t* b)
 {
-  // TODO: only incompatible if they are two different concrete types?
-  return true;
+  // subtype without capability or ephemeral mattering
+  a = viewpoint_tag(a);
+  b = viewpoint_tag(b);
+  bool ok;
+
+  if(is_concrete(a) || is_concrete(b))
+  {
+    // if either side is concrete, then one side must be a subtype of the other
+    ok = is_subtype(a, b) || is_subtype(b, a);
+  } else {
+    // if neither side is concrete, their could be a concrete type that was both
+    ok = true;
+  }
+
+  ast_free_unattached(a);
+  ast_free_unattached(b);
+  return ok;
 }
 
 bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
 {
+  // if it's a subtype, this will always match
   if(is_subtype(expr_type, match_type))
   {
-    ast_error(match_type, "expression is a strict subtype of the match type");
+    ast_error(match_type, "expression is always the match type");
+    return false;
+  }
+
+  // if they aren't id compatible, this can never match
+  if(!is_id_compatible(expr_type, match_type))
+  {
+    ast_error(match_type, "expression can never be the match type");
     return false;
   }
 
@@ -654,7 +761,5 @@ bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
   // could allow them, but for all structural types in pattern matches
   // we would have to determine if every concrete type is a subtype at compile
   // time and store that
-
-  // TODO: any other incompatible matches?
   return true;
 }

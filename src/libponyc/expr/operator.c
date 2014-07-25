@@ -95,8 +95,25 @@ bool expr_identity(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(!is_id_compatible(l_type, r_type))
+  if(is_math_compatible(l_type, r_type) ||
+    (is_bool(l_type) && is_bool(r_type))
+    )
   {
+    switch(ast_id(ast))
+    {
+      case TK_IS:
+        ast_setid(ast, TK_EQ);
+        break;
+
+      case TK_ISNT:
+        ast_setid(ast, TK_NE);
+        break;
+
+      default:
+        assert(0);
+        return false;
+    }
+  } else if(!is_id_compatible(l_type, r_type)) {
     ast_error(ast, "left and right side must have related types");
     return false;
   }
@@ -114,10 +131,12 @@ bool expr_compare(ast_t** astp)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  if(!is_arithmetic(l_type))
+  if(!is_arithmetic(l_type) && !is_bool(l_type))
     return binop_to_function(astp);
 
-  if(!is_math_compatible(l_type, r_type))
+  if(!is_math_compatible(l_type, r_type) &&
+    (!is_bool(l_type) && !is_bool(r_type))
+    )
   {
     ast_error(ast, "arithmetic comparison must be on the same type");
     return false;
