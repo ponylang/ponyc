@@ -4,3 +4,7 @@
 * Prevent defining names that differ only by case.
   Allow a type and an identifier to have the same name bar case, but only one
   type and one identifier.
+
+* Strings. Escaping? Triple quoted string ending in " or containing """?
+
+

@@ -43,8 +43,8 @@ end
 
 project "unit"
   unittest()
-  files "unit/*.cc"
+  files { "unit/*.cc", "unit/*.h" }
 
 project "bnf"
   testutil()
-  files "bnf/*.c"
+  files { "bnf/*.c", "bnf/*.h" }

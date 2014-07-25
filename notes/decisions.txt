@@ -1,0 +1,5 @@
+1. Declaring a variable and initialising with a type ambiguous literal (float
+or int) requires the explicit specification of a type. We do not provide a
+default.
+
+
