@@ -230,7 +230,7 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   c->target = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
 }
 
-static bool codegen_finalise(compile_t* c, bool print_llvm)
+static bool codegen_finalise(compile_t* c)
 {
   // finalise the function passes
   LLVMFinalizeFunctionPassManager(c->fpm);
@@ -261,14 +261,14 @@ static bool codegen_finalise(compile_t* c, bool print_llvm)
   LLVMWriteBitcodeToFile(c->module, buffer);
   printf("=== Compiled %s ===\n", buffer);
 
-  if(print_llvm)
-    LLVMDumpModule(c->module);
-
   return true;
 }
 
-static void codegen_cleanup(compile_t* c)
+static void codegen_cleanup(compile_t* c, bool print_llvm)
 {
+  if(print_llvm)
+    LLVMDumpModule(c->module);
+
   LLVMDisposeTargetData(c->target);
   LLVMDisposeBuilder(c->builder);
   LLVMDisposePassManager(c->fpm);
@@ -284,9 +284,9 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c, print_llvm);
+    ok = codegen_finalise(&c);
 
-  codegen_cleanup(&c);
+  codegen_cleanup(&c, print_llvm);
   return ok;
 }
 

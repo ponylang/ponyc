@@ -78,7 +78,7 @@ RAWSEQ: {expr}
 
 expr
 ----
-data: can error or not
+data: during type checking, can error or not
 
 term: local | prefix | postfix | control | infix
 
@@ -103,7 +103,6 @@ LT term term
 LE term term
 GE term term
 GT term term
-IS term term
 EQ term term
 NE term term
 IS term term

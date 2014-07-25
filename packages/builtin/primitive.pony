@@ -130,7 +130,10 @@ data F32 is Stringable
 data F64 is Stringable
   fun box string(): String => compiler_intrinsic
 
-data IntLiteral is Stringable
+data SIntLiteral is Stringable
+  fun box string(): String => compiler_intrinsic
+
+data UIntLiteral is Stringable
   fun box string(): String => compiler_intrinsic
 
 data FloatLiteral is Stringable
@@ -143,18 +146,27 @@ class String val is Ordered[String]
 trait Stringable
   fun box string(): String
 
-type Integer is
-  ( IntLiteral
+type SInt is
+  ( SIntLiteral
   | I8
   | I16
   | I32
   | I64
   | I128
+  )
+
+type UInt is
+  ( UIntLiteral
   | U8
   | U16
   | U32
   | U64
   | U128
+  )
+
+type Integer is
+  ( SInt
+  | UInt
   )
 
 type Float is

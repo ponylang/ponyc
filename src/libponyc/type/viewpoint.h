@@ -11,6 +11,8 @@ ast_t* viewpoint_upper(ast_t* type);
 
 ast_t* viewpoint_lower(ast_t* type);
 
+ast_t* viewpoint_tag(ast_t* type);
+
 void flatten_thistype(ast_t** astp, ast_t* type);
 
 bool safe_to_write(ast_t* ast, ast_t* type);

@@ -41,6 +41,24 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
   return NULL;
 }
 
+static ast_t* viewpoint_tag_for_type(ast_t* type, int cap_index)
+{
+  ast_t* cap = ast_childidx(type, cap_index);
+  token_id tcap = ast_id(cap);
+
+  if(tcap != TK_TAG)
+  {
+    type = ast_dup(type);
+    cap = ast_childidx(type, cap_index);
+    ast_setid(cap, TK_TAG);
+
+    ast_t* ephemeral = ast_sibling(cap);
+    ast_setid(ephemeral, TK_NONE);
+  }
+
+  return type;
+}
+
 static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
 {
   ast_t* cap = ast_childidx(type, cap_index);
@@ -51,7 +69,7 @@ static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
   {
     type = ast_dup(type);
     cap = ast_childidx(type, cap_index);
-    ast_replace(&cap, ast_from(cap, rcap));
+    ast_setid(cap, rcap);
   }
 
   return type;
@@ -67,7 +85,7 @@ static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
   {
     type = ast_dup(type);
     cap = ast_childidx(type, cap_index);
-    ast_replace(&cap, ast_from(cap, rcap));
+    ast_setid(cap, rcap);
   }
 
   return type;
@@ -228,6 +246,47 @@ ast_t* viewpoint_lower(ast_t* type)
     {
       ast_t* right = ast_childidx(type, 1);
       return viewpoint_lower(right);
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+ast_t* viewpoint_tag(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // adapt all elements
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, viewpoint_tag(child));
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+      return viewpoint_tag_for_type(type, 3);
+
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+      return viewpoint_tag_for_type(type, 1);
+
+    case TK_ARROW:
+    {
+      ast_t* right = ast_childidx(type, 1);
+      return viewpoint_tag(right);
     }
 
     default: {}
