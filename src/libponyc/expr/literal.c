@@ -69,7 +69,17 @@ bool expr_tuple(ast_t* ast)
 
     while(child != NULL)
     {
-      ast_append(type, ast_type(child));
+      ast_t* c_type = ast_type(child);
+
+      if(c_type == NULL)
+      {
+        ast_error(child,
+          "a tuple can't contain a control flow statement that never results "
+          "in a value");
+        return false;
+      }
+
+      ast_append(type, c_type);
       child = ast_sibling(child);
     }
   }

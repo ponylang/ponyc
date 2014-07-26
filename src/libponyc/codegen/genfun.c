@@ -201,12 +201,17 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   start_fun(c, func);
-  LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
+
+  ast_t* body = ast_childidx(fun, 6);
+  LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
+  {
     return NULL;
+  } else if(value != ((LLVMValueRef)1)) {
+    LLVMBuildRet(c->builder, value);
+  }
 
-  LLVMBuildRet(c->builder, value);
   codegen_finishfun(c, func);
   return func;
 }
@@ -234,12 +239,17 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   start_fun(c, handler);
-  LLVMValueRef value = gen_seq(c, ast_childidx(fun, 6));
+
+  ast_t* body = ast_childidx(fun, 6);
+  LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
+  {
     return NULL;
+  } else if(value != ((LLVMValueRef)1)) {
+    LLVMBuildRetVoid(c->builder);
+  }
 
-  LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c, handler);
   return func;
 }

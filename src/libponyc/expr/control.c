@@ -12,14 +12,25 @@ bool expr_seq(ast_t* ast)
   ast_t* last = ast_childlast(ast);
   ast_t* last_type = ast_type(last);
 
-  // type is unioned with the type of the last child
-  if(type != NULL)
+  ast_t* child = ast_child(ast);
+
+  while(child != last)
   {
-    last_type = type_union(type, last_type);
-    last_type = type_literal_to_runtime(last_type);
+    if(ast_type(child) == NULL)
+    {
+      ast_error(child,
+        "a sequence can't contain a control flow statement that never results "
+        "in a value");
+      return false;
+    }
+
+    child = ast_sibling(child);
   }
 
-  ast_settype(ast, last_type);
+  // type is unioned with the type of the last child
+  type = type_union(type, last_type);
+
+  ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
 }
@@ -184,6 +195,12 @@ bool expr_return(ast_t* ast)
   if(fun == NULL)
   {
     ast_error(ast, "return must occur in a method body");
+    return false;
+  }
+
+  if(ast_id(fun) == TK_NEW)
+  {
+    ast_error(ast, "can't return in a constructor");
     return false;
   }
 

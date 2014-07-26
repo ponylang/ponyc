@@ -75,10 +75,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_RETURN:
-    {
-      ast_error(ast, "not implemented (codegen for return)");
-      return NULL;
-    }
+      return gen_return(c, ast);
 
     case TK_ERROR:
     {
