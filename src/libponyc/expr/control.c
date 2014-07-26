@@ -7,25 +7,10 @@
 
 bool expr_seq(ast_t* ast)
 {
-  // we might already have a type due to return expressions
+  // we might already have a type due to a return expression
   ast_t* type = ast_type(ast);
   ast_t* last = ast_childlast(ast);
   ast_t* last_type = ast_type(last);
-
-  ast_t* child = ast_child(ast);
-
-  while(child != last)
-  {
-    if(ast_type(child) == NULL)
-    {
-      ast_error(child,
-        "a sequence can't contain a control flow statement that never results "
-        "in a value");
-      return false;
-    }
-
-    child = ast_sibling(child);
-  }
 
   // type is unioned with the type of the last child
   type = type_union(type, last_type);
@@ -52,6 +37,12 @@ bool expr_if(ast_t* ast)
   ast_t* type = type_union(l_type, r_type);
   type = type_literal_to_runtime(type);
 
+  if((type == NULL) && (ast_sibling(ast) != NULL))
+  {
+    ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
+
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -77,6 +68,12 @@ bool expr_while(ast_t* ast)
   type = type_union(type, ast_type(ast));
   type = type_literal_to_runtime(type);
 
+  if((type == NULL) && (ast_sibling(ast) != NULL))
+  {
+    ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
+
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -93,10 +90,16 @@ bool expr_repeat(ast_t* ast)
     return false;
   }
 
-  // union with any existing type due to a continue expression
+  // union with any existing type due to a break or continue expression
   ast_t* type = ast_type(ast);
   type = type_union(type, ast_type(body));
   type = type_literal_to_runtime(type);
+
+  if((type == NULL) && (ast_sibling(ast) != NULL))
+  {
+    ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
@@ -121,6 +124,12 @@ bool expr_try(ast_t* ast)
   ast_t* r_type = ast_type(else_clause);
   ast_t* type = type_union(l_type, r_type);
   type = type_literal_to_runtime(type);
+
+  if((type == NULL) && (ast_sibling(ast) != NULL))
+  {
+    ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
 
   ast_settype(ast, type);
 
@@ -150,11 +159,15 @@ bool expr_break(ast_t* ast)
     return false;
   }
 
+  // has no type
+  ast_inheriterror(ast);
+
   // add type to loop
   ast_t* loop_type = ast_type(loop);
   type = type_union(type, loop_type);
   type = type_literal_to_runtime(type);
   ast_settype(loop, type);
+
   return true;
 }
 
@@ -183,6 +196,7 @@ bool expr_continue(ast_t* ast)
     ast_settype(loop, type_union(none, loop_type));
   }
 
+  // has no type
   return true;
 }
 
@@ -220,12 +234,15 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
+  // has no type
+  ast_inheriterror(ast);
+
   // add an additional type to the function body
   ast_t* fun_body = ast_childidx(fun, 6);
   ast_t* fun_type = ast_type(fun_body);
   type = type_union(type, fun_type);
   type = type_literal_to_runtime(type);
-
   ast_settype(fun_body, type);
+
   return true;
 }

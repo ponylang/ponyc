@@ -8,6 +8,8 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
+#define GEN_NOVALUE ((LLVMValueRef)1)
+
 typedef struct compile_t
 {
   painter_t* painter;

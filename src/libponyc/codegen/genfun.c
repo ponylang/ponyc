@@ -208,7 +208,7 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
   if(value == NULL)
   {
     return NULL;
-  } else if(value != ((LLVMValueRef)1)) {
+  } else if(value != GEN_NOVALUE) {
     LLVMBuildRet(c->builder, value);
   }
 
@@ -246,7 +246,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   if(value == NULL)
   {
     return NULL;
-  } else if(value != ((LLVMValueRef)1)) {
+  } else if(value != GEN_NOVALUE) {
     LLVMBuildRetVoid(c->builder);
   }
 

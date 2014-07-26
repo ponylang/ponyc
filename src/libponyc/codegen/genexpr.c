@@ -32,10 +32,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_if(c, ast);
 
     case TK_WHILE:
-    {
-      ast_error(ast, "not implemented (codegen for while)");
-      return NULL;
-    }
+      return gen_while(c, ast);
 
     case TK_REPEAT:
       return gen_repeat(c, ast);
@@ -244,87 +241,92 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   return false;
 }
 
-LLVMValueRef gen_assign_cast(compile_t* c, ast_t* type, LLVMTypeRef l_type,
-  LLVMValueRef r_value, bool sign)
+LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, bool l_sign, bool r_sign)
 {
-  // the left hand side is a pointer to the actual type we want to cast to
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
-  if(is_intliteral(type))
+  switch(LLVMGetTypeKind(l_type))
   {
-    switch(LLVMGetTypeKind(l_type))
+    case LLVMIntegerTypeKind:
     {
-      case LLVMIntegerTypeKind:
+      switch(LLVMGetTypeKind(r_type))
       {
-        // TODO: check the constant fits in the type
-        r_value = LLVMConstIntCast(r_value, l_type, sign);
-        break;
+        case LLVMIntegerTypeKind:
+        {
+          // integer to integer will be a constant unless they are the same type
+          // TODO: check the constant fits in the type
+          if(LLVMIsAConstant(r_value))
+            return LLVMConstIntCast(r_value, l_type, l_sign);
+
+          return r_value;
+        }
+
+        default: {}
       }
-
-      case LLVMHalfTypeKind:
-      case LLVMFloatTypeKind:
-      case LLVMDoubleTypeKind:
-        if(is_sintliteral(type))
-          r_value = LLVMConstSIToFP(r_value, l_type);
-        else
-          r_value = LLVMConstUIToFP(r_value, l_type);
-        break;
-
-      case LLVMPointerTypeKind:
-      {
-        // TODO: box the integer literal
-        ast_error(type, "not implemented (boxing int literals)");
-        return NULL;
-      }
-
-      default:
-        assert(0);
-        return NULL;
+      break;
     }
-  } else if(is_floatliteral(type)) {
-    switch(LLVMGetTypeKind(l_type))
+
+    case LLVMHalfTypeKind:
+    case LLVMFloatTypeKind:
+    case LLVMDoubleTypeKind:
     {
-      case LLVMHalfTypeKind:
-      case LLVMFloatTypeKind:
-      case LLVMDoubleTypeKind:
-        r_value = LLVMConstFPCast(r_value, l_type);
-        break;
-
-      case LLVMPointerTypeKind:
+      switch(LLVMGetTypeKind(r_type))
       {
-        // TODO: box the float literal
-        ast_error(type, "not implemented (boxing float literals)");
-        return NULL;
-      }
+        case LLVMIntegerTypeKind:
+        {
+          // integer to float will be a constant
+          assert(LLVMIsAConstant(r_value));
 
-      default:
-        assert(0);
-        return NULL;
+          if(r_sign)
+            r_value = LLVMConstSIToFP(r_value, l_type);
+          else
+            r_value = LLVMConstUIToFP(r_value, l_type);
+
+          return r_value;
+        }
+
+        case LLVMHalfTypeKind:
+        case LLVMFloatTypeKind:
+        case LLVMDoubleTypeKind:
+        {
+          // float to float will be a constant unless they are the same type
+          if(LLVMIsAConstant(r_value))
+            return LLVMConstFPCast(r_value, l_type);
+
+          return r_value;
+        }
+
+        default: {}
+      }
+      break;
     }
-  } else if(LLVMGetTypeKind(l_type) == LLVMPointerTypeKind) {
-    switch(LLVMGetTypeKind(r_type))
+
+    case LLVMPointerTypeKind:
     {
-      case LLVMHalfTypeKind:
-      case LLVMFloatTypeKind:
-      case LLVMDoubleTypeKind:
-      case LLVMIntegerTypeKind:
+      switch(LLVMGetTypeKind(r_type))
       {
-        // TODO: box the primitive
-        ast_error(type, "not implemented (boxing primitives)");
-        return NULL;
+        case LLVMIntegerTypeKind:
+        case LLVMHalfTypeKind:
+        case LLVMFloatTypeKind:
+        case LLVMDoubleTypeKind:
+        {
+          // TODO: primitive to pointer requires boxing
+          errorf(NULL, "not implemented (boxing primitives)");
+          return NULL;
+        }
+
+        case LLVMPointerTypeKind:
+          return LLVMBuildBitCast(c->builder, r_value, l_type, "");
+
+        default: {}
       }
-
-      case LLVMPointerTypeKind:
-        r_value = LLVMBuildBitCast(c->builder, r_value, l_type, "");
-        break;
-
-      default:
-        assert(0);
-        return NULL;
+      break;
     }
-  } else {
-    assert(l_type == r_type);
+
+    default: {}
   }
 
-  return r_value;
+  assert(0);
+  return NULL;
 }

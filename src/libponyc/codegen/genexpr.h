@@ -31,7 +31,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
  *
  * This will box primitives when necessary.
  */
-LLVMValueRef gen_assign_cast(compile_t* c, ast_t* type, LLVMTypeRef l_type,
-  LLVMValueRef r_value, bool sign);
+LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, bool l_sign, bool r_sign);
 
 #endif

@@ -534,9 +534,10 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   // r_value, not the load of the l_value
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
 
-  bool sign = is_signed(left_type);
+  bool l_sign = is_signed(left_type);
+  bool r_sign = is_signed(right_type);
   LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  r_value = gen_assign_cast(c, right_type, l_type, r_value, sign);
+  r_value = gen_assign_cast(c, l_type, r_value, l_sign, r_sign);
 
   if(r_value == NULL)
     return NULL;

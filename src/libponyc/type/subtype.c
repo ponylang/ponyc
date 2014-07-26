@@ -560,6 +560,9 @@ bool is_eqtype(ast_t* a, ast_t* b)
 
 bool is_literal(ast_t* type, const char* name)
 {
+  if(type == NULL)
+    return false;
+
   if(ast_id(type) != TK_NOMINAL)
     return false;
 
@@ -569,7 +572,9 @@ bool is_literal(ast_t* type, const char* name)
 
 bool is_builtin(ast_t* type, const char* name)
 {
-  assert(type != NULL);
+  if(type == NULL)
+    return false;
+
   ast_t* builtin = type_builtin(type, name);
   bool ok = is_subtype(type, builtin);
   ast_free_unattached(builtin);
@@ -625,6 +630,9 @@ bool is_signed(ast_t* type)
 
 bool is_singletype(ast_t* type)
 {
+  if(type == NULL)
+    return false;
+
   switch(ast_id(type))
   {
     case TK_NOMINAL:

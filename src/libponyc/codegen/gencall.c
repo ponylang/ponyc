@@ -3,6 +3,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "../type/subtype.h"
 #include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
@@ -22,7 +23,10 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
     return NULL;
 
   // TODO: how to determine if the parameter is signed or not
-  return gen_assign_cast(c, ast_type(arg), type, value, false);
+  bool l_sign = false;
+  bool r_sign = is_signed(ast_type(arg));
+
+  return gen_assign_cast(c, type, value, l_sign, r_sign);
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
