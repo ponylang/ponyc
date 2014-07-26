@@ -38,10 +38,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_REPEAT:
-    {
-      ast_error(ast, "not implemented (codegen for repeat)");
-      return NULL;
-    }
+      return gen_repeat(c, ast);
 
     case TK_TRY:
     {

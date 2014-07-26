@@ -530,6 +530,8 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  // TODO: if the l_value is a local declaration, the result should be the
+  // r_value, not the load of the l_value
   LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
 
   bool sign = is_signed(left_type);

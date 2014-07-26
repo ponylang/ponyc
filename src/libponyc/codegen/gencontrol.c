@@ -107,6 +107,33 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   return phi;
 }
 
+LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
+{
+  ast_t* body;
+  ast_t* cond;
+  AST_GET_CHILDREN(ast, &body, &cond);
+
+  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
+  LLVMBasicBlockRef loop_block = LLVMAppendBasicBlock(fun, "loop");
+  LLVMBasicBlockRef postloop_block = LLVMAppendBasicBlock(fun, "postloop");
+  LLVMBuildBr(c->builder, loop_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, loop_block);
+  LLVMValueRef value = gen_expr(c, body);
+
+  if(value == NULL)
+    return NULL;
+
+  LLVMValueRef c_value = gen_expr(c, cond);
+  LLVMBuildCondBr(c->builder, c_value, loop_block, postloop_block);
+  LLVMPositionBuilderAtEnd(c->builder, postloop_block);
+
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, LLVMTypeOf(value), "");
+  LLVMAddIncoming(phi, &value, &loop_block, 1);
+
+  return phi;
+}
+
 LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 {
   ast_t* fun = ast_enclosing_method(ast);

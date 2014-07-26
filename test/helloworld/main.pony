@@ -1,5 +1,5 @@
 trait GetX[A: Arithmetic]
-  fun box get_x(): this->A
+  fun ref get_x(): A
 
 class Helper[A: Arithmetic] is GetX[A]
   var x: A
@@ -9,8 +9,10 @@ class Helper[A: Arithmetic] is GetX[A]
     x = x'
     y = y'
 
-  fun box get_x(): this->A =>
-    if x > 10 then return x else return x + 1 end
+  fun ref get_x(): A =>
+    var z = repeat
+      x = x + 3
+    until x > 10 end
 
 actor Main
   var x: I32
