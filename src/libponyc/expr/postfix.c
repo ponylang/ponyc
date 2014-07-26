@@ -390,7 +390,7 @@ bool expr_call(ast_t* ast)
       // TODO: named arguments
       if(ast_id(named) != TK_NONE)
       {
-        ast_error(named, "named arguments not yet supported");
+        ast_error(named, "not implemented (named arguments)");
         return false;
       }
 
@@ -445,6 +445,9 @@ bool expr_call(ast_t* ast)
 
         // TODO: the meaning of 'this' in the default arg is the receiver, not
         // the caller. can't just copy it.
+        ast_error(positional, "not implemented (default arguments)");
+        return false;
+
         param = ast_sibling(param);
       }
 

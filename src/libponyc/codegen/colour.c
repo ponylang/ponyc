@@ -287,26 +287,23 @@ static void find_types(painter_t* painter, ast_t* ast)
     case TK_PROGRAM:
     case TK_PACKAGE:
     case TK_MODULE:
-      // Recurse into children and siblings
-      find_types(painter, ast_child(ast));
-      find_types(painter, ast_sibling(ast));
+    {
+      // Recurse into children
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        find_types(painter, child);
+        child = ast_sibling(child);
+      }
       break;
+    }
 
     case TK_ACTOR:
     case TK_CLASS:
     case TK_DATA:
       // We have a definition
       add_def(painter, ast);
-
-      // Recurse into siblings
-      find_types(painter, ast_sibling(ast));
-      break;
-
-    case TK_FVAR:
-    case TK_FLET:
-    case TK_NEW:
-      // Not a definition, but we need to check siblings
-      find_types(painter, ast_sibling(ast));
       break;
 
     default:

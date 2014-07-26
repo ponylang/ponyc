@@ -1,6 +1,9 @@
 #include "gencall.h"
+#include "gentype.h"
+#include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   int count, const char* ret)
@@ -11,11 +14,147 @@ static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return LLVMBuildCall(c->builder, fun, args, count, ret);
 }
 
-LLVMValueRef gencall(compile_t* c, ast_t* type, const char *name,
-  ast_t* typeargs, LLVMValueRef* args, int count, const char* ret)
+static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 {
-  return call_fun(c, genfun(c, type, name, typeargs), args, count,
-    ret);
+  LLVMValueRef value = gen_expr(c, arg);
+
+  if(value == NULL)
+    return NULL;
+
+  // TODO: how to determine if the parameter is signed or not
+  return gen_assign_cast(c, ast_type(arg), type, value, false);
+}
+
+LLVMValueRef gen_call(compile_t* c, ast_t* ast)
+{
+  ast_t* postfix;
+  ast_t* positional;
+  ast_t* named;
+  AST_GET_CHILDREN(ast, &postfix, &positional, &named);
+
+  int need_receiver;
+
+  switch(ast_id(postfix))
+  {
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+      need_receiver = 0;
+      break;
+
+    case TK_BEREF:
+    case TK_FUNREF:
+      need_receiver = 1;
+      break;
+
+    default:
+      assert(0);
+      return NULL;
+  }
+
+  ast_t* receiver;
+  ast_t* method;
+  ast_t* typeargs = NULL;
+  AST_GET_CHILDREN(postfix, &receiver, &method);
+
+  // dig through function qualification
+  if(ast_id(receiver) == TK_FUNREF)
+  {
+    AST_GET_CHILDREN(receiver, &receiver, &typeargs);
+  }
+
+  if(typeargs != NULL)
+  {
+    ast_error(typeargs,
+      "not implemented (codegen for polymorphic methods)");
+    return NULL;
+  }
+
+  ast_t* type = ast_type(receiver);
+  LLVMTypeRef l_type = gentype(c, type);
+
+  if(l_type == NULL)
+    return NULL;
+
+  LLVMValueRef l_value;
+
+  if(need_receiver == 1)
+    l_value = gen_expr(c, receiver);
+
+  // static or virtual call?
+  const char* method_name = ast_name(method);
+  LLVMTypeRef f_type;
+  LLVMValueRef func;
+
+  if(l_type == c->object_ptr)
+  {
+    // virtual, get the function by selector colour
+    int colour = painter_get_colour(c->painter, method_name);
+
+    // cast the field to a generic object pointer
+    l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "object");
+
+    // get the type descriptor from the object pointer
+    LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, l_value, 0, "");
+    LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
+
+    // get the function from the vtable
+    LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 7, "");
+
+    LLVMValueRef index[2];
+    index[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
+    index[1] = LLVMConstInt(LLVMInt32Type(), colour, false);
+
+    LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
+    func = LLVMBuildLoad(c->builder, func_ptr, "");
+
+    // cast to the right function type
+    f_type = genfun_proto(c, type, method_name, typeargs);
+    func = LLVMBuildBitCast(c->builder, func, f_type, "method");
+  } else {
+    // static, get the actual function
+    const char* type_name = genname_type(type);
+    const char* name = genname_fun(type_name, method_name, NULL);
+    func = LLVMGetNamedFunction(c->module, name);
+
+    if(func == NULL)
+    {
+      ast_error(ast, "couldn't locate '%s'", name);
+      return NULL;
+    }
+
+    f_type = LLVMTypeOf(func);
+  }
+
+  int count = ast_childcount(positional) + need_receiver;
+
+  LLVMValueRef args[count];
+  LLVMTypeRef params[count];
+  LLVMGetParamTypes(LLVMGetElementType(f_type), params);
+
+  if(need_receiver == 1)
+  {
+    LLVMValueRef value = make_arg(c, receiver, params[0]);
+
+    if(value == NULL)
+      return NULL;
+
+    args[0] = value;
+  }
+
+  ast_t* arg = ast_child(positional);
+
+  for(int i = need_receiver; i < count; i++)
+  {
+    LLVMValueRef value = make_arg(c, arg, params[i]);
+
+    if(value == NULL)
+      return NULL;
+
+    args[i] = value;
+    arg = ast_sibling(arg);
+  }
+
+  return call_fun(c, func, args, count, "");
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,

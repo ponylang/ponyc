@@ -287,7 +287,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
           return false;
         }
 
-        LLVMValueRef fun = genfun(c, ast, ast_name(id), NULL);
+        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
 
         if(fun == NULL)
           return false;
@@ -542,10 +542,20 @@ LLVMTypeRef gentype(compile_t* c, ast_t* ast)
       return c->object_ptr;
 
     case TK_TUPLETYPE:
-      return gentype_tuple(c, ast);
+    {
+      LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
+      LLVMTypeRef type = gentype_tuple(c, ast);
+      LLVMPositionBuilderAtEnd(c->builder, insert);
+      return type;
+    }
 
     case TK_NOMINAL:
-      return gentype_nominal(c, ast);
+    {
+      LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
+      LLVMTypeRef type = gentype_nominal(c, ast);
+      LLVMPositionBuilderAtEnd(c->builder, insert);
+      return type;
+    }
 
     case TK_STRUCTURAL:
       // just a raw object pointer

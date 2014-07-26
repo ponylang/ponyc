@@ -154,12 +154,17 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
 
+  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
+  {
+    ast_error(ast, "constant divide by zero");
+    return NULL;
+  }
+
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFDiv(l_value, r_value);
 
-    // TODO: check for div by zero
     if(is_signed(ast_type(ast)))
       return LLVMConstSDiv(l_value, r_value);
 
@@ -185,12 +190,17 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
 
+  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
+  {
+    ast_error(ast, "constant modulus zero");
+    return NULL;
+  }
+
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFRem(l_value, r_value);
 
-    // TODO: check for div by zero
     if(is_signed(ast_type(ast)))
       return LLVMConstSRem(l_value, r_value);
 

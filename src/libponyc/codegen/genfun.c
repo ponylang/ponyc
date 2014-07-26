@@ -179,7 +179,19 @@ static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
   LLVMBuildStore(c->builder, desc, desc_ptr);
 }
 
-LLVMValueRef genfun(compile_t* c, ast_t* type, const char *name,
+LLVMTypeRef genfun_proto(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs)
+{
+  ast_t* fun = get_fun(type, name, typeargs);
+  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+
+  if(func == NULL)
+    return NULL;
+
+  return LLVMTypeOf(func);
+}
+
+LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(type, name, typeargs);

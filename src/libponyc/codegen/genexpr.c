@@ -2,6 +2,7 @@
 #include "gencontrol.h"
 #include "genoperator.h"
 #include "genreference.h"
+#include "gencall.h"
 #include "../type/subtype.h"
 #include <assert.h>
 
@@ -55,10 +56,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_CALL:
-    {
-      ast_error(ast, "not implemented (codegen for call)");
-      return NULL;
-    }
+      return gen_call(c, ast);
 
     case TK_CONSUME:
     case TK_RECOVER:
