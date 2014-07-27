@@ -63,10 +63,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_CONTINUE:
-    {
-      ast_error(ast, "not implemented (codegen for continue)");
-      return NULL;
-    }
+      return gen_continue(c, ast);
 
     case TK_RETURN:
       return gen_return(c, ast);
@@ -244,6 +241,9 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
 LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, bool l_sign, bool r_sign)
 {
+  if(r_value == NULL)
+    return NULL;
+
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
   switch(LLVMGetTypeKind(l_type))

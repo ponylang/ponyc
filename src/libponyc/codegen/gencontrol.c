@@ -72,12 +72,13 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   LLVMValueRef l_value = gen_expr(c, left);
 
-  if(l_value == NULL)
-    return NULL;
-
   if(l_value != GEN_NOVALUE)
   {
     l_value = gen_assign_cast(c, phi_type, l_value, sign, l_sign);
+
+    if(l_value == NULL)
+      return NULL;
+
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -85,13 +86,14 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  if(r_value == NULL)
-    return NULL;
-
   // if the right side returns, we don't branch to the post block
   if(r_value != GEN_NOVALUE)
   {
     r_value = gen_assign_cast(c, phi_type, r_value, sign, r_sign);
+
+    if(r_value == NULL)
+      return NULL;
+
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -127,56 +129,55 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
   bool else_sign = is_signed(else_type);
-  LLVMTypeRef phi_type;
+  LLVMTypeRef phi_type = gentype(c, type);
 
-  // we will have no type if the body returns
-  if(type != NULL)
-  {
-    phi_type = gentype(c, type);
-
-    if(phi_type == NULL)
-      return NULL;
-  }
-
-  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(fun, "while_cond");
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "while_body");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "while_else");
-  LLVMBasicBlockRef post_block;
-
-  if(type != NULL)
-    post_block = LLVMAppendBasicBlock(fun, "while_post");
-
-  // entry
-  LLVMValueRef e_value = gen_expr(c, cond);
-
-  if(e_value == NULL)
+  if(phi_type == NULL)
     return NULL;
 
-  LLVMBuildCondBr(c->builder, e_value, body_block, else_block);
+  // TODO:
+  // if cond then
+  //  repeat
+  //    body
+  //  until
+  //    not cond
+  //  end
+  // else
+  //  alt
+  // end
+  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
+  LLVMBasicBlockRef init_block = LLVMAppendBasicBlock(fun, "while_init");
+  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "while_body");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "while_else");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "while_post");
+  LLVMBuildBr(c->builder, init_block);
 
-  // condition
-  LLVMPositionBuilderAtEnd(c->builder, cond_block);
+  // keep a reference to the init block
+  ast_setdata(ast, init_block);
+
+  // init
+  LLVMPositionBuilderAtEnd(c->builder, init_block);
+  LLVMValueRef i_value = gen_expr(c, cond);
+
+  if(i_value == NULL)
+    return NULL;
+
+  LLVMBuildCondBr(c->builder, i_value, body_block, else_block);
+
+  // body
+  LLVMPositionBuilderAtEnd(c->builder, body_block);
+  LLVMValueRef l_value = gen_expr(c, body);
+  l_value = gen_assign_cast(c, phi_type, l_value, sign, body_sign);
+
+  if(l_value == NULL)
+    return NULL;
+
   LLVMValueRef c_value = gen_expr(c, cond);
 
   if(c_value == NULL)
     return NULL;
 
+  LLVMBasicBlockRef body_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
-
-  // body
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
-  LLVMValueRef l_value = gen_expr(c, body);
-
-  if(l_value == NULL)
-    return NULL;
-
-  // if the body doesn't return, cast to the phi type
-  if(l_value != GEN_NOVALUE)
-  {
-    l_value = gen_assign_cast(c, phi_type, l_value, sign, body_sign);
-    LLVMBuildBr(c->builder, cond_block);
-  }
 
   // else
   LLVMPositionBuilderAtEnd(c->builder, else_block);
@@ -185,22 +186,15 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
-  // if the else clause doesn't return, cast to the phi type
-  if(r_value != GEN_NOVALUE)
-  {
-    r_value = gen_assign_cast(c, phi_type, r_value, sign, else_sign);
-    LLVMBuildBr(c->builder, post_block);
-  }
-
-  // if both sides return, we return a sentinal value
-  if(type == NULL)
-    return GEN_NOVALUE;
+  r_value = gen_assign_cast(c, phi_type, r_value, sign, else_sign);
+  LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
+  LLVMBuildBr(c->builder, post_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
-  LLVMAddIncoming(phi, &l_value, &cond_block, 1);
-  LLVMAddIncoming(phi, &r_value, &else_block, 1);
+  LLVMAddIncoming(phi, &l_value, &body_from, 1);
+  LLVMAddIncoming(phi, &r_value, &else_from, 1);
 
   return phi;
 }
@@ -216,51 +210,94 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
-  LLVMTypeRef phi_type;
+  LLVMTypeRef phi_type = gentype(c, type);
 
-  // we will have no type if the body returns
-  if(type != NULL)
-  {
-    phi_type = gentype(c, type);
-
-    if(phi_type == NULL)
-      return NULL;
-  }
+  if(phi_type == NULL)
+    return NULL;
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
   LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "repeat_body");
-  LLVMBasicBlockRef post_block;
-
-  // if the body returns, we have no post block
-  if(type != NULL)
-    post_block = LLVMAppendBasicBlock(fun, "repeat_post");
-
+  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(fun, "repeat_cond");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "repeat_post");
   LLVMBuildBr(c->builder, body_block);
+
+  // keep a reference to the cond block
+  ast_setdata(ast, cond_block);
+
+  // start the cond block so that a continue can modify the phi node
+  LLVMPositionBuilderAtEnd(c->builder, cond_block);
+  LLVMValueRef cond_phi = LLVMBuildPhi(c->builder, phi_type, "");
 
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
+  value = gen_assign_cast(c, phi_type, value, sign, body_sign);
 
   if(value == NULL)
     return NULL;
 
-  // if the body doesn't return, cast to the phi type
-  if(value != GEN_NOVALUE)
-  {
-    value = gen_assign_cast(c, phi_type, value, sign, body_sign);
-    LLVMValueRef c_value = gen_expr(c, cond);
-    LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
-  }
+  LLVMBuildBr(c->builder, cond_block);
 
-  if(type == NULL)
-    return GEN_NOVALUE;
+  // cond block
+  LLVMPositionBuilderAtEnd(c->builder, cond_block);
+  LLVMAddIncoming(cond_phi, &value, &body_block, 1);
+
+  LLVMValueRef c_value = gen_expr(c, cond);
+  LLVMBasicBlockRef cond_from = LLVMGetInsertBlock(c->builder);
+  LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
-  LLVMAddIncoming(phi, &value, &body_block, 1);
+  LLVMAddIncoming(phi, &cond_phi, &cond_from, 1);
 
   return phi;
+}
+
+LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
+{
+  ast_t* loop = ast_enclosing_loop(ast);
+
+  switch(ast_id(loop))
+  {
+    case TK_REPEAT:
+    {
+      // get the condition block
+      LLVMBasicBlockRef cond_block = ast_data(loop);
+
+      // create a new continue block before the condition block
+      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlock(cond_block,
+        "continue");
+
+      // jump to the continue block
+      LLVMBuildBr(c->builder, cont_block);
+
+      // jump with none to the condition block
+      // TODO: replace null with $None_create
+      LLVMPositionBuilderAtEnd(c->builder, cont_block);
+      LLVMValueRef none = LLVMConstNull(c->object_ptr);
+      LLVMBuildBr(c->builder, cond_block);
+
+      // add none from the continue block to the condition block phi node
+      LLVMValueRef cond_phi = LLVMGetFirstInstruction(cond_block);
+      LLVMAddIncoming(cond_phi, &none, &cont_block, 1);
+
+      return GEN_NOVALUE;
+    }
+
+    case TK_WHILE:
+    {
+      // jump to the init block
+      LLVMBasicBlockRef init_block = ast_data(loop);
+      LLVMBuildBr(c->builder, init_block);
+      return GEN_NOVALUE;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
 }
 
 LLVMValueRef gen_return(compile_t* c, ast_t* ast)

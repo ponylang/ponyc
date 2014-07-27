@@ -54,25 +54,26 @@ bool expr_while(ast_t* ast)
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
 
-  if(!is_bool(ast_type(cond)))
+  ast_t* cond_type = ast_type(cond);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(!is_bool(cond_type))
   {
     ast_error(cond, "condition must be a Bool");
     return false;
   }
 
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
+  if(l_type == NULL)
+  {
+    ast_error(ast, "loop body can never repeat");
+    return false;
+  }
 
   // union with any existing type due to a break expression
   ast_t* type = type_union(l_type, r_type);
   type = type_union(type, ast_type(ast));
   type = type_literal_to_runtime(type);
-
-  if((type == NULL) && (ast_sibling(ast) != NULL))
-  {
-    ast_error(ast_sibling(ast), "unreachable code");
-    return false;
-  }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
@@ -83,23 +84,25 @@ bool expr_repeat(ast_t* ast)
 {
   ast_t* body = ast_child(ast);
   ast_t* cond = ast_sibling(body);
+  ast_t* body_type = ast_type(body);
+  ast_t* cond_type = ast_type(cond);
 
-  if(!is_bool(ast_type(cond)))
+  if(!is_bool(cond_type))
   {
     ast_error(cond, "condition must be a Bool");
     return false;
   }
 
-  // union with any existing type due to a break or continue expression
+  if(body_type == NULL)
+  {
+    ast_error(ast, "loop body can never repeat");
+    return false;
+  }
+
+  // union with any existing type due to a break expression
   ast_t* type = ast_type(ast);
   type = type_union(type, ast_type(body));
   type = type_literal_to_runtime(type);
-
-  if((type == NULL) && (ast_sibling(ast) != NULL))
-  {
-    ast_error(ast_sibling(ast), "unreachable code");
-    return false;
-  }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
