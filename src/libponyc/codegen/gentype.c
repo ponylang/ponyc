@@ -237,6 +237,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
         if(ast_id(typeparams) != TK_NONE)
         {
+          // TODO: polymorphic constructors
           ast_error(typeparams,
             "not implemented (codegen for polymorphic constructors)");
           return false;
@@ -262,6 +263,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
         if(ast_id(typeparams) != TK_NONE)
         {
+          // TODO: polymorphic behaviours
           ast_error(typeparams,
             "not implemented (codegen for polymorphic behaviours)");
           return false;
@@ -282,6 +284,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
         if(ast_id(typeparams) != TK_NONE)
         {
+          // TODO: polymorphic functions
           ast_error(typeparams,
             "not implemented (codegen for polymorphic functions)");
           return false;

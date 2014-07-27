@@ -37,6 +37,7 @@ LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast)
       return gen_localptr(c, ast);
 
     case TK_TUPLE:
+      // TODO: tuples as lvalues
       ast_error(ast, "not implemented (lvalue tuple)");
       return NULL;
 
@@ -442,12 +443,14 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
 
   if(LLVMGetTypeKind(left_type) != LLVMPointerTypeKind)
   {
+    // TODO: match primitive left with object right
     ast_error(left, "not implemented (codegen identity with primitive)");
     return NULL;
   }
 
   if(LLVMGetTypeKind(right_type) != LLVMPointerTypeKind)
   {
+    // TODO: match object left with primitive right
     ast_error(right, "not implemented (codegen identity with primitive)");
     return NULL;
   }

@@ -39,12 +39,14 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_TRY:
     {
+      // TODO: try
       ast_error(ast, "not implemented (codegen for try)");
       return NULL;
     }
 
     case TK_MATCH:
     {
+      // TODO: match
       ast_error(ast, "not implemented (codegen for match)");
       return NULL;
     }
@@ -67,6 +69,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_ERROR:
     {
+      // TODO: error
       ast_error(ast, "not implemented (codegen for error)");
       return NULL;
     }
@@ -145,6 +148,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_STRING:
     {
+      // TODO: string literals
       ast_error(ast, "not implemented (codegen for string literal)");
       return NULL;
     }
