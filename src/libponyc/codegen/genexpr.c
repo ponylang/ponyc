@@ -57,10 +57,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_expr(c, ast_child(ast));
 
     case TK_BREAK:
-    {
-      ast_error(ast, "not implemented (codegen for break)");
-      return NULL;
-    }
+      return gen_break(c, ast);
 
     case TK_CONTINUE:
       return gen_continue(c, ast);

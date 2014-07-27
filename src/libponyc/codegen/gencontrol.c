@@ -134,16 +134,6 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(phi_type == NULL)
     return NULL;
 
-  // TODO:
-  // if cond then
-  //  repeat
-  //    body
-  //  until
-  //    not cond
-  //  end
-  // else
-  //  alt
-  // end
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
   LLVMBasicBlockRef init_block = LLVMAppendBasicBlock(fun, "while_init");
   LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "while_body");
@@ -153,6 +143,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // keep a reference to the init block
   ast_setdata(ast, init_block);
+
+  // start the post block so that a break can modify the phi node
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
 
   // init
   LLVMPositionBuilderAtEnd(c->builder, init_block);
@@ -192,7 +186,6 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
   LLVMAddIncoming(phi, &l_value, &body_from, 1);
   LLVMAddIncoming(phi, &r_value, &else_from, 1);
 
@@ -228,6 +221,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef cond_phi = LLVMBuildPhi(c->builder, phi_type, "");
 
+  // start the post block so that a break can modify the phi node
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
@@ -248,26 +245,79 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
   LLVMAddIncoming(phi, &cond_phi, &cond_from, 1);
 
   return phi;
 }
 
-LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
+LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
+  ast_t* type = ast_type(loop);
+  bool sign = is_signed(type);
+  LLVMBasicBlockRef target = ast_data(loop);
+
+  ast_t* body = ast_child(ast);
+  ast_t* body_type = ast_type(body);
+  bool body_sign = is_signed(body_type);
+
+  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
+  LLVMBasicBlockRef break_block = LLVMAppendBasicBlock(fun, "break");
+  LLVMBuildBr(c->builder, break_block);
 
   switch(ast_id(loop))
   {
     case TK_REPEAT:
     {
-      // get the condition block
-      LLVMBasicBlockRef cond_block = ast_data(loop);
+      // target is cond_block, need to get to the post_block
+      target = LLVMGetNextBasicBlock(target); // post
+      break;
+    }
 
+    case TK_WHILE:
+    {
+      // target is init_block, need to get to the post_block
+      target = LLVMGetNextBasicBlock(target); // body
+      target = LLVMGetNextBasicBlock(target); // else
+      target = LLVMGetNextBasicBlock(target); // post
+      break;
+    }
+
+    default:
+      assert(0);
+      return NULL;
+  }
+
+  // get the phi node
+  LLVMValueRef post_phi = LLVMGetFirstInstruction(target);
+  LLVMTypeRef phi_type = LLVMTypeOf(post_phi);
+
+  // build the break block
+  LLVMPositionBuilderAtEnd(c->builder, break_block);
+  LLVMValueRef value = gen_expr(c, body);
+  value = gen_assign_cast(c, phi_type, value, sign, body_sign);
+
+  if(value == NULL)
+    return NULL;
+
+  LLVMBuildBr(c->builder, target);
+
+  // add break value to the post block phi node
+  LLVMAddIncoming(post_phi, &value, &break_block, 1);
+  return GEN_NOVALUE;
+}
+
+LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
+{
+  ast_t* loop = ast_enclosing_loop(ast);
+  LLVMBasicBlockRef target = ast_data(loop);
+
+  switch(ast_id(loop))
+  {
+    case TK_REPEAT:
+    {
       // create a new continue block before the condition block
-      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlock(cond_block,
-        "continue");
+      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlock(target, "continue");
 
       // jump to the continue block
       LLVMBuildBr(c->builder, cont_block);
@@ -276,10 +326,10 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
       // TODO: replace null with $None_create
       LLVMPositionBuilderAtEnd(c->builder, cont_block);
       LLVMValueRef none = LLVMConstNull(c->object_ptr);
-      LLVMBuildBr(c->builder, cond_block);
+      LLVMBuildBr(c->builder, target);
 
       // add none from the continue block to the condition block phi node
-      LLVMValueRef cond_phi = LLVMGetFirstInstruction(cond_block);
+      LLVMValueRef cond_phi = LLVMGetFirstInstruction(target);
       LLVMAddIncoming(cond_phi, &none, &cont_block, 1);
 
       return GEN_NOVALUE;
@@ -288,8 +338,7 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
     case TK_WHILE:
     {
       // jump to the init block
-      LLVMBasicBlockRef init_block = ast_data(loop);
-      LLVMBuildBr(c->builder, init_block);
+      LLVMBuildBr(c->builder, target);
       return GEN_NOVALUE;
     }
 

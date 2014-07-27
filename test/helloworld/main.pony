@@ -12,22 +12,13 @@ class Helper[A: Arithmetic] is GetX[A]
   fun ref get_x(): A =>
     while x < 10 do
       if x == 9 then
-        continue
+        break x + 99
       else
-        5
+        x = x + 3
       end
-      x = x + 3
     else
       x
     end
-    repeat
-      if (x % 2) == 0 then
-        x = x + 1
-      else
-        continue
-      end
-    until x > 1000 end
-    x
 
 actor Main
   var x: I32
