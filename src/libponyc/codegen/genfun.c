@@ -336,3 +336,22 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
 
   return func;
 }
+
+LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs)
+{
+  ast_t* fun = get_fun(type, name, typeargs);
+  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+
+  if(func == NULL)
+    return NULL;
+
+  // return the constant global instance
+  start_fun(c, func);
+  const char* inst_name = genname_instance(genname_type(type));
+  LLVMValueRef inst = LLVMGetNamedGlobal(c->module, inst_name);
+  LLVMBuildRet(c->builder, inst);
+  codegen_finishfun(c, func);
+
+  return func;
+}

@@ -323,9 +323,8 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
       LLVMBuildBr(c->builder, cont_block);
 
       // jump with none to the condition block
-      // TODO: replace null with $None_create
       LLVMPositionBuilderAtEnd(c->builder, cont_block);
-      LLVMValueRef none = LLVMConstNull(c->object_ptr);
+      LLVMValueRef none = LLVMGetNamedGlobal(c->module, "$1_$None_$inst");
       LLVMBuildBr(c->builder, target);
 
       // add none from the continue block to the condition block phi node
