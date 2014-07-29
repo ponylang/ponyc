@@ -428,9 +428,7 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_is(compile_t* c, ast_t* ast)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -520,9 +518,7 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);

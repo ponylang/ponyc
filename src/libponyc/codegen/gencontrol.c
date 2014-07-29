@@ -27,10 +27,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
-  ast_t* cond;
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &cond, &left, &right);
+  AST_GET_CHILDREN(ast, cond, left, right);
 
   ast_t* type = ast_type(ast);
   ast_t* left_type = ast_type(left);
@@ -117,10 +114,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 {
-  ast_t* cond;
-  ast_t* body;
-  ast_t* else_clause;
-  AST_GET_CHILDREN(ast, &cond, &body, &else_clause);
+  AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);
@@ -194,9 +188,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 {
-  ast_t* body;
-  ast_t* cond;
-  AST_GET_CHILDREN(ast, &body, &cond);
+  AST_GET_CHILDREN(ast, body, cond);
 
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);

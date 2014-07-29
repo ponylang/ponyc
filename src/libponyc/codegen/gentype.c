@@ -231,9 +231,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
     {
       case TK_NEW:
       {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+        AST_GET_CHILDREN(member, ignore, id, typeparams)
 
         if(ast_id(typeparams) != TK_NONE)
         {
@@ -257,9 +255,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
       case TK_BE:
       {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+        AST_GET_CHILDREN(member, ignore, id, typeparams)
 
         if(ast_id(typeparams) != TK_NONE)
         {
@@ -278,9 +274,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
       case TK_FUN:
       {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+        AST_GET_CHILDREN(member, ignore, id, typeparams)
 
         if(ast_id(typeparams) != TK_NONE)
         {

@@ -25,10 +25,7 @@ static bool typecheck_main(ast_t* ast)
 {
   // TODO: check create exists, takes no type params and has correct sig (Env->None)
   const char* m = stringtab("Main");
-  ast_t* id;
-  ast_t* typeparams;
-
-  AST_GET_CHILDREN(ast, &id, &typeparams);
+  AST_GET_CHILDREN(ast, id, typeparams);
 
   if(ast_name(id) != m)
     return true;
@@ -115,10 +112,7 @@ static bool sugar_traits(ast_t* traits)
       return false;
     }
 
-    ast_t* cap;
-    ast_t* ephemeral;
-
-    AST_GET_CHILDREN(trait, NULL, NULL, NULL, &cap, &ephemeral);
+    AST_GET_CHILDREN(trait, ignore0, ignore1, ignore2, cap, ephemeral);
 
     if(ast_id(cap) != TK_NONE)
     {
@@ -148,11 +142,7 @@ static bool sugar_data(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  ast_t* defcap;
-  ast_t* traits;
-  ast_t* members;
-
-  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+  AST_GET_CHILDREN(ast, ignore0, ignore1, defcap, traits, members);
 
   if(!sugar_traits(traits))
     return false;
@@ -176,11 +166,7 @@ static bool sugar_class(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  ast_t* defcap;
-  ast_t* traits;
-  ast_t* members;
-
-  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+  AST_GET_CHILDREN(ast, ignore0, ignore1, defcap, traits, members);
 
   if(!sugar_traits(traits))
     return false;
@@ -199,11 +185,7 @@ static bool sugar_actor(ast_t* ast)
   if(!typecheck_main(ast))
     return false;
 
-  ast_t* defcap;
-  ast_t* traits;
-  ast_t* members;
-
-  AST_GET_CHILDREN(ast, NULL, NULL, &defcap, &traits, &members);
+  AST_GET_CHILDREN(ast, ignore0, ignore1, defcap, traits, members);
 
   if(!sugar_traits(traits))
     return false;
@@ -276,11 +258,7 @@ static bool sugar_field(ast_t* ast)
 
 static bool sugar_new(ast_t* ast)
 {
-  ast_t* id;
-  ast_t* result;
-  ast_t* error;
-
-  AST_GET_CHILDREN(ast, NULL, &id, NULL, NULL, &result, &error);
+  AST_GET_CHILDREN(ast, ignore0, id, ignore2, ignore3, result, error);
   ast_t* def = ast_enclosing_type(ast);
 
   if(ast_id(def) == TK_TRAIT)
@@ -579,14 +557,7 @@ static bool sugar_try(ast_t* ast)
 
 static bool sugar_for(ast_t** astp)
 {
-  ast_t* for_idseq;
-  ast_t* for_type;
-  ast_t* for_iter;
-  ast_t* for_body;
-  ast_t* for_else;
-
-  AST_EXTRACT_CHILDREN(*astp, &for_idseq, &for_type, &for_iter, &for_body,
-    &for_else);
+  AST_EXTRACT_CHILDREN(*astp, for_idseq, for_type, for_iter, for_body, for_else);
 
   expand_none(for_else);
   const char* iter_name = package_hygienic_id_string(*astp);
@@ -670,18 +641,13 @@ static bool sugar_update(ast_t** astp)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
-  ast_t* call;
-  ast_t* value;
 
-  AST_GET_CHILDREN(ast, &call, &value);
+  AST_GET_CHILDREN(ast, call, value);
 
   if(ast_id(call) != TK_CALL)
     return true;
 
-  ast_t* expr;
-  ast_t* positional;
-  ast_t* named;
-  AST_EXTRACT_CHILDREN(call, &expr, &positional, &named);
+  AST_EXTRACT_CHILDREN(call, expr, positional, named);
 
   ast_setid(positional, TK_POSITIONALARGS);
   ast_append(positional, value);

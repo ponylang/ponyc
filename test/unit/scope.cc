@@ -204,10 +204,8 @@ TEST(ScopeTest, MultipleLocals)
   ast_t* class_ast = find_sub_tree(module, TK_CLASS);
   ast_t* fun_ast = find_sub_tree(module, TK_FUN);
   ast_t* local_ast = find_sub_tree(module, TK_IDSEQ);
-  ast_t* foo_ast;
-  ast_t* bar_ast;
-  ast_t* aardvark_ast;
-  AST_GET_CHILDREN(local_ast, &foo_ast, &bar_ast, &aardvark_ast);
+
+  AST_GET_CHILDREN(local_ast, foo_ast, bar_ast, aardvark_ast);
 
   ASSERT_EQ(AST_OK, pass_scope(&local_ast));
 

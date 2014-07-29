@@ -31,10 +31,7 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
-  ast_t* postfix;
-  ast_t* positional;
-  ast_t* named;
-  AST_GET_CHILDREN(ast, &postfix, &positional, &named);
+  AST_GET_CHILDREN(ast, postfix, positional, named);
 
   int need_receiver;
 
@@ -55,15 +52,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return NULL;
   }
 
-  ast_t* receiver;
-  ast_t* method;
   ast_t* typeargs = NULL;
-  AST_GET_CHILDREN(postfix, &receiver, &method);
+  AST_GET_CHILDREN(postfix, receiver, method);
 
   // dig through function qualification
   if(ast_id(receiver) == TK_FUNREF)
   {
-    AST_GET_CHILDREN(receiver, &receiver, &typeargs);
+    AST_GET_CHILDREN_NO_DECL(receiver, receiver, typeargs);
   }
 
   if(typeargs != NULL)

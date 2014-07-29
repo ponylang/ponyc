@@ -166,9 +166,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 bool gen_binop(compile_t* c, ast_t* ast,
   LLVMValueRef* l_value, LLVMValueRef* r_value)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   *l_value = gen_expr(c, left);
   *r_value = gen_expr(c, right);
