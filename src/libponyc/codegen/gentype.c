@@ -223,6 +223,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
   bool actor = ast_id(def) == TK_ACTOR;
+  bool datatype = ast_id(def) == TK_DATA;
   int be_index = 0;
 
   while(member != NULL)
@@ -245,6 +246,8 @@ static bool make_methods(compile_t* c, ast_t* ast)
 
         if(actor)
           fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
+        else if(datatype)
+          fun = genfun_newdata(c, ast, ast_name(id), NULL);
         else
           fun = genfun_new(c, ast, ast_name(id), NULL);
 
@@ -388,6 +391,19 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   LLVMTypeRef desc_type = codegen_desctype(c, name, vtable_size);
   LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
 
+  if(ast_id(def) == TK_DATA)
+  {
+    const char* inst_name = genname_instance(name);
+    LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);
+
+    LLVMValueRef args[1];
+    args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
+
+    LLVMValueRef inst = LLVMConstNamedStruct(type, args, 1);
+    LLVMSetInitializer(g_inst, inst);
+    LLVMSetGlobalConstant(g_inst, true);
+  }
+
   if(!make_methods(c, ast))
     return NULL;
 
@@ -438,7 +454,6 @@ static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
   if(exists || (type == NULL))
     return type;
 
-  // TODO: create singleton instance if not a primitive
   return type;
 }
 

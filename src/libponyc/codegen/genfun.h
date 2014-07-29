@@ -18,4 +18,7 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
 LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs, int index);
 
+LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs);
+
 #endif

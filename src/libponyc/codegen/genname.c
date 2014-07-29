@@ -127,6 +127,11 @@ const char* genname_descriptor(const char* type)
   return build_name(type, "$desc", NULL);
 }
 
+const char* genname_instance(const char* type)
+{
+  return build_name(type, "$inst", NULL);
+}
+
 const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
 {
   return build_name(type, name, typeargs);
