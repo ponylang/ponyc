@@ -1,12 +1,12 @@
 #include "gentype.h"
 #include "genname.h"
+#include "gendesc.h"
+#include "genprim.h"
 #include "gencall.h"
 #include "genfun.h"
 #include "../pkg/package.h"
-#include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
-#include <string.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -28,82 +28,7 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
   for(int i = 0; i < count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
-    ast_t* ast = fields[i];
-
-    switch(ast_id(ast))
-    {
-      case TK_UNIONTYPE:
-      {
-        if(!is_bool(ast))
-        {
-          bool tag = cap_for_type(ast) == TK_TAG;
-
-          if(tag)
-          {
-            // TODO: are we really a tag? need runtime info
-          } else {
-            // this union type can never be a tag
-            gencall_traceunknown(c, field);
-          }
-        }
-        break;
-      }
-
-      case TK_TUPLETYPE:
-        gencall_traceknown(c, field, genname_type(ast));
-        break;
-
-      case TK_NOMINAL:
-      {
-        bool tag = cap_for_type(ast) == TK_TAG;
-
-        switch(ast_id(ast_data(ast)))
-        {
-          case TK_TRAIT:
-            if(tag)
-              gencall_tracetag(c, field);
-            else
-              gencall_traceunknown(c, field);
-            break;
-
-          case TK_DATA:
-            // do nothing
-            break;
-
-          case TK_CLASS:
-            if(tag)
-              gencall_tracetag(c, field);
-            else
-              gencall_traceknown(c, field, genname_type(ast));
-            break;
-
-          case TK_ACTOR:
-            gencall_traceactor(c, field);
-            break;
-
-          default:
-            assert(0);
-            return NULL;
-        }
-        break;
-      }
-
-      case TK_ISECTTYPE:
-      case TK_STRUCTURAL:
-      {
-        bool tag = cap_for_type(ast) == TK_TAG;
-
-        if(tag)
-          gencall_tracetag(c, field);
-        else
-          gencall_traceunknown(c, field);
-        break;
-      }
-
-      default:
-        assert(0);
-        return NULL;
-    }
+    gencall_trace(c, field, fields[i]);
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -215,162 +140,6 @@ static void free_fields(ast_t** fields, int count)
   free(fields);
 }
 
-static bool make_methods(compile_t* c, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-
-  ast_t* def = ast_data(ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  bool actor = ast_id(def) == TK_ACTOR;
-  bool datatype = ast_id(def) == TK_DATA;
-  int be_index = 0;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          // TODO: polymorphic constructors
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic constructors)");
-          return false;
-        }
-
-        LLVMValueRef fun;
-
-        if(actor)
-          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
-        else if(datatype)
-          fun = genfun_newdata(c, ast, ast_name(id), NULL);
-        else
-          fun = genfun_new(c, ast, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      case TK_BE:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          // TODO: polymorphic behaviours
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic behaviours)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      case TK_FUN:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          // TODO: polymorphic functions
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic functions)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return true;
-}
-
-static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
-  LLVMTypeRef type)
-{
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
-
-  if(func == NULL)
-    func = LLVMConstNull(type);
-  else
-    func = LLVMConstBitCast(func, type);
-
-  return func;
-}
-
-static void make_descriptor(compile_t* c, ast_t* def, const char* name,
-  const char* desc_name, size_t vtable_size, LLVMTypeRef type,
-  LLVMTypeRef desc_type, LLVMValueRef g_desc)
-{
-  // build the actual vtable
-  LLVMValueRef vtable[vtable_size];
-
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_BE:
-      case TK_FUN:
-      {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        const char* fullname = genname_fun(name, funname, NULL);
-        int colour = painter_get_colour(c->painter, funname);
-        vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
-        assert(vtable[colour] != NULL);
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  // TODO: trait list
-  LLVMValueRef args[8];
-  args[0] = make_function_ptr(c, genname_trace(name), c->trace_fn);
-  args[1] = make_function_ptr(c, genname_serialise(name), c->trace_fn);
-  args[2] = make_function_ptr(c, genname_deserialise(name), c->trace_fn);
-  args[3] = make_function_ptr(c, genname_dispatch(name), c->dispatch_fn);
-  args[4] = make_function_ptr(c, genname_finalise(name), c->trace_fn);
-  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
-    false);
-  args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);;
-
-  LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
-  LLVMSetInitializer(g_desc, desc);
-  LLVMSetGlobalConstant(g_desc, true);
-}
-
 static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
 {
   const char* name = genname_type(ast);
@@ -391,76 +160,13 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(type == NULL)
     return NULL;
 
-  const char* desc_name = genname_descriptor(name);
-  size_t vtable_size = painter_get_vtable_size(c->painter, def);
+  gendesc_prep(c, ast, type);
 
-  LLVMTypeRef desc_type = codegen_desctype(c, name, vtable_size);
-  LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
-
-  if(ast_id(def) == TK_DATA)
-  {
-    const char* inst_name = genname_instance(name);
-    LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);
-
-    LLVMValueRef args[1];
-    args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
-
-    LLVMValueRef inst = LLVMConstNamedStruct(type, args, 1);
-    LLVMSetInitializer(g_inst, inst);
-    LLVMSetGlobalConstant(g_inst, true);
-  }
-
-  if(!make_methods(c, ast))
+  if(!genfun_methods(c, ast))
     return NULL;
 
-  make_descriptor(c, def, name, desc_name, vtable_size, type, desc_type,
-    g_desc);
-
+  gendesc_init(c, ast, type);
   return LLVMPointerType(type, 0);
-}
-
-static LLVMTypeRef gentype_data(compile_t* c, ast_t* ast)
-{
-  // TODO: create the primitive descriptors
-  // check for primitive types
-  const char* name = ast_name(ast_childidx(ast, 1));
-
-  if(!strcmp(name, "True") || !strcmp(name, "False"))
-    return LLVMInt1Type();
-
-  if(!strcmp(name, "I8") || !strcmp(name, "U8"))
-    return LLVMInt8Type();
-
-  if(!strcmp(name, "I16") || !strcmp(name, "U16"))
-    return LLVMInt16Type();
-
-  if(!strcmp(name, "I32") || !strcmp(name, "U32"))
-    return LLVMInt32Type();
-
-  if(!strcmp(name, "I64") || !strcmp(name, "U64"))
-    return LLVMInt64Type();
-
-  if(!strcmp(name, "I128") || !strcmp(name, "U128") ||
-    !strcmp(name, "SIntLiteral") || !strcmp(name, "UIntLiteral")
-    )
-    return LLVMIntType(128);
-
-  if(!strcmp(name, "F16"))
-    return LLVMHalfType();
-
-  if(!strcmp(name, "F32"))
-    return LLVMFloatType();
-
-  if(!strcmp(name, "F64") || !strcmp(name, "FloatLiteral"))
-    return LLVMDoubleType();
-
-  bool exists;
-  LLVMTypeRef type = make_object(c, ast, &exists);
-
-  if(exists || (type == NULL))
-    return type;
-
-  return type;
 }
 
 static LLVMTypeRef gentype_class(compile_t* c, ast_t* ast)
@@ -489,6 +195,13 @@ static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
 static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
+
+  // generate a primitive type if we've encountered one
+  LLVMTypeRef type = genprim(c, ast);
+
+  if(type != NULL)
+    return type;
+
   ast_t* def = ast_data(ast);
 
   switch(ast_id(def))
@@ -498,8 +211,6 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
       return c->object_ptr;
 
     case TK_DATA:
-      return gentype_data(c, ast);
-
     case TK_CLASS:
       return gentype_class(c, ast);
 

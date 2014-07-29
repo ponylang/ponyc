@@ -35,6 +35,4 @@ bool codegen(ast_t* program, int opt, bool print_llvm);
 
 bool codegen_finishfun(compile_t* c, LLVMValueRef fun);
 
-LLVMTypeRef codegen_desctype(compile_t* c, const char* name, int vtable_size);
-
 #endif

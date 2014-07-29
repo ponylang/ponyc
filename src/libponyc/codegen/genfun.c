@@ -355,3 +355,97 @@ LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
 
   return func;
 }
+
+bool genfun_methods(compile_t* c, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
+
+  ast_t* def = ast_data(ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  bool actor = ast_id(def) == TK_ACTOR;
+  bool datatype = ast_id(def) == TK_DATA;
+  int be_index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic constructors
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic constructors)");
+          return false;
+        }
+
+        LLVMValueRef fun;
+
+        if(actor)
+          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
+        else if(datatype)
+          fun = genfun_newdata(c, ast, ast_name(id), NULL);
+        else
+          fun = genfun_new(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_BE:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic behaviours
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic behaviours)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_FUN:
+      {
+        ast_t* id;
+        ast_t* typeparams;
+        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic functions
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic functions)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}

@@ -1,6 +1,7 @@
 class _Pointer[A]
   new create(len: U64) => compiler_intrinsic
-  new from(ptr: _Pointer[A], len: U64) => compiler_intrinsic
+
+  fun ref from(len: U64): _Pointer[A] => compiler_intrinsic
   fun box apply(i: U64): this->A => compiler_intrinsic
   fun ref update(i: U64, v: A): A^ => compiler_intrinsic
 
@@ -33,7 +34,7 @@ class Array[A]
   fun ref reserve(len: U64) =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
-      ptr = _Pointer[A].from(ptr, alloc)
+      ptr = ptr.from(alloc)
     end
 
   fun ref clear() => size = 0
@@ -83,9 +84,6 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun box has_next(): Bool => i < array.length()
 
   fun ref next(): B->A ? => array(i = i + 1)
-
-  /*remove this*/
-  fun box current(): this->B->A ? => array(i)
 
 class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
   var array: B

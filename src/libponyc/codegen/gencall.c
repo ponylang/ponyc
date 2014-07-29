@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "genname.h"
 #include "../type/subtype.h"
+#include "../type/cap.h"
 #include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
@@ -179,7 +180,7 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   return LLVMBuildBitCast(c->builder, result, type, "");
 }
 
-void gencall_tracetag(compile_t* c, LLVMValueRef field)
+static void trace_tag(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -191,7 +192,7 @@ void gencall_tracetag(compile_t* c, LLVMValueRef field)
   gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
-void gencall_traceactor(compile_t* c, LLVMValueRef field)
+static void trace_actor(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -203,7 +204,8 @@ void gencall_traceactor(compile_t* c, LLVMValueRef field)
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
 
-void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name)
+static void trace_known(compile_t* c, LLVMValueRef field,
+  const char* name)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -219,7 +221,7 @@ void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name)
   gencall_runtime(c, "pony_traceobject", args, 2, "");
 }
 
-void gencall_traceunknown(compile_t* c, LLVMValueRef field)
+static void trace_unknown(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -263,4 +265,81 @@ void gencall_traceunknown(compile_t* c, LLVMValueRef field)
 
   // continue in the merge block
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
+}
+
+void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      if(!is_bool(type))
+      {
+        bool tag = cap_for_type(type) == TK_TAG;
+
+        if(tag)
+        {
+          // TODO: are we really a tag? need runtime info
+          trace_tag(c, value);
+        } else {
+          // this union type can never be a tag
+          trace_unknown(c, value);
+        }
+      }
+      break;
+    }
+
+    case TK_TUPLETYPE:
+      trace_known(c, value, genname_type(type));
+      break;
+
+    case TK_NOMINAL:
+    {
+      bool tag = cap_for_type(type) == TK_TAG;
+
+      switch(ast_id(ast_data(type)))
+      {
+        case TK_TRAIT:
+          if(tag)
+            trace_tag(c, value);
+          else
+            trace_unknown(c, value);
+          break;
+
+        case TK_DATA:
+          // do nothing
+          break;
+
+        case TK_CLASS:
+          if(tag)
+            trace_tag(c, value);
+          else
+            trace_known(c, value, genname_type(type));
+          break;
+
+        case TK_ACTOR:
+          trace_actor(c, value);
+          break;
+
+        default:
+          assert(0);
+      }
+      break;
+    }
+
+    case TK_ISECTTYPE:
+    case TK_STRUCTURAL:
+    {
+      bool tag = cap_for_type(type) == TK_TAG;
+
+      if(tag)
+        trace_tag(c, value);
+      else
+        trace_unknown(c, value);
+      break;
+    }
+
+    default:
+      assert(0);
+  }
 }

@@ -13,12 +13,6 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 
 LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type);
 
-void gencall_tracetag(compile_t* c, LLVMValueRef field);
-
-void gencall_traceactor(compile_t* c, LLVMValueRef field);
-
-void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name);
-
-void gencall_traceunknown(compile_t* c, LLVMValueRef field);
+void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type);
 
 #endif
