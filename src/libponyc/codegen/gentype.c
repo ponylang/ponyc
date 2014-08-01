@@ -189,6 +189,9 @@ static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
     return type;
 
   // TODO: create a message type function, dispatch function
+  // instead of a message type function, could handle tracing ourselves
+  // so that send has no prep function
+  // would also have to handle receive tracing
   return type;
 }
 
