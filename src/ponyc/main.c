@@ -25,7 +25,7 @@ void usage()
     "  --llvm, -l      print the LLVM IR\n"
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
-    "  --parse, -r     stop after parse phase\n"
+    "  --parse, -r     restrict phases\n"
     "  --width, -w     width to target when printing the AST\n"
     );
 }

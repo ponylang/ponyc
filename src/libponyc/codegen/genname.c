@@ -70,10 +70,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 
 static const char* nominal_name(ast_t* ast)
 {
-  ast_t* package;
-  ast_t* name;
-  ast_t* typeargs;
-  AST_GET_CHILDREN(ast, &package, &name, &typeargs);
+  AST_GET_CHILDREN(ast, package, name, typeargs);
 
   return build_name(ast_name(package), ast_name(name), typeargs);
 }

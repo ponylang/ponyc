@@ -26,9 +26,7 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   ast_t* l_type = ast_type(left);
   assert(ast_id(l_type) == TK_NOMINAL);
@@ -77,9 +75,7 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
-  ast_t* idseq;
-  ast_t* type;
-  AST_GET_CHILDREN(ast, &idseq, &type);
+  AST_GET_CHILDREN(ast, idseq, type);
 
   LLVMTypeRef l_type;
   LLVMValueRef l_value;

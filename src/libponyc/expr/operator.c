@@ -324,9 +324,7 @@ bool expr_assign(ast_t* ast)
     ast_settype(ast, a_type);
 
     // set the type node
-    ast_t* idseq;
-    ast_t* type;
-    AST_GET_CHILDREN(left, &idseq, &type);
+    AST_GET_CHILDREN(left, idseq, type);
     ast_replace(&type, a_type);
     ast_settype(left, a_type);
 
