@@ -171,8 +171,10 @@ static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
 {
   LLVMSetValueName(this_ptr, "this");
 
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
-    genname_descriptor(genname_type(type)));
+  const char* type_name = genname_type(type);
+  const char* desc_name = genname_descriptor(type_name);
+
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module, desc_name);
   desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");

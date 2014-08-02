@@ -5,12 +5,18 @@
 #include "genfun.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
+#include "../ast/error.h"
 #include "../ds/stringtab.h"
 #include <llvm-c/Target.h>
 #include <llvm-c/BitWriter.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+
+static void codegen_fatal(const char* reason)
+{
+  print_errors();
+}
 
 static void codegen_runtime(compile_t* c)
 {
@@ -109,6 +115,12 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 1, false);
   LLVMAddFunction(c->module, "pony_alloc", type);
 
+  // i8* pony_realloc(i8*, i64)
+  params[0] = c->void_ptr;
+  params[1] = LLVMInt64Type();
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  LLVMAddFunction(c->module, "pony_realloc", type);
+
   // void pony_trace(c->object_ptr)
   params[0] = c->object_ptr;
   type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
@@ -206,6 +218,7 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   LLVMInitializeCore(passreg);
   LLVMInitializeNativeTarget();
   LLVMEnablePrettyStackTrace();
+  LLVMInstallFatalErrorHandler(codegen_fatal);
 
   // create a module
   c->module = LLVMModuleCreateWithName(c->filename);

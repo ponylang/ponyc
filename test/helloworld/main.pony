@@ -24,6 +24,7 @@ actor Main
   var x: I32
   var y: GetX[I32]
   var z: Bool
+  var xx: Array[I32]
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>

@@ -202,7 +202,7 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
   // generate a primitive type if we've encountered one
   LLVMTypeRef type = genprim(c, ast);
 
-  if(type != NULL)
+  if(type != GEN_NOTYPE)
     return type;
 
   ast_t* def = ast_data(ast);

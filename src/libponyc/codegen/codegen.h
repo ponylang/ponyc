@@ -9,6 +9,7 @@
 #include <llvm-c/Analysis.h>
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
+#define GEN_NOTYPE ((LLVMTypeRef)1)
 
 typedef struct compile_t
 {

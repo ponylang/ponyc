@@ -356,3 +356,10 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   LLVMBuildRet(c->builder, value);
   return GEN_NOVALUE;
 }
+
+LLVMValueRef gen_error(compile_t* c, ast_t* ast)
+{
+  LLVMValueRef zero = LLVMConstInt(LLVMInt1Type(), 0, false);
+  LLVMBuildResume(c->builder, zero);
+  return GEN_NOVALUE;
+}
