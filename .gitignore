@@ -8,9 +8,12 @@ output
 hmm*
 .gitattributes
 *.bc
+_ReSharper.*
+
+# Visual Studio files
 *.vcxproj*
-*.opensdf
-*.sdf
 *.sln
 *.suo
-_ReSharper.*
+*.opensdf
+*.sdf
+
