@@ -11,6 +11,10 @@ ast_t* parse_test_module(const char* desc);
 
 void symtab_entry(ast_t* tree, const char* name, ast_t* expected);
 
+void check_tree(const char* expected, ast_t* actual);
+
+void load_test_program(const char* name, ast_t** out_prog);
+
 void test_good_pass(const char* before, const char* after, token_id start_id,
   ast_result_t (*pass_fn)(ast_t**));
 

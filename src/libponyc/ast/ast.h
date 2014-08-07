@@ -37,6 +37,7 @@ FLET: ID [type] [SEQ]
 NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
 FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
+data: trait method body came from (NULL for none)
 data: during codegen, holds the LLVMBasicBlockRef for the except_block if the
   function or constructor can error out
 symtab: ID -> TYPEPARAM | PARAM

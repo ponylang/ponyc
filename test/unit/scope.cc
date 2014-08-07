@@ -2,6 +2,7 @@ extern "C" {
 #include "../../src/libponyc/ast/ast.h"
 #include "../../src/libponyc/pass/scope.h"
 #include "../../src/libponyc/ds/stringtab.h"
+#include "../../src/libponyc/pass/pass.h"
 #include "../../src/libponyc/pkg/package.h"
 }
 #include "util.h"
@@ -420,7 +421,7 @@ TEST(ScopeTest, Package)
   symtab_t* package_symtab = ast_get_symtab(package);
 
   package_add_magic("builtin", builtin);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&package));
 
@@ -449,7 +450,7 @@ TEST(ScopeTest, Use)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&use_ast));
 
@@ -479,7 +480,7 @@ TEST(ScopeTest, UseAs)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&use_ast));
 
