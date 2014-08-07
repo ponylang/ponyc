@@ -1,10 +1,5 @@
 #include "package.h"
-#include "../codegen/codegen.h"
-#include "../pass/sugar.h"
-#include "../pass/scope.h"
-#include "../pass/names.h"
-#include "../pass/traits.h"
-#include "../pass/expr.h"
+#include "../pass/pass.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -38,7 +33,6 @@ typedef struct magic_package_t
 
 static strlist_t* search;
 static magic_package_t* magic_packages = NULL;
-static pass_id pass_limit = PASS_ALL;
 
 
 // Check whether the given path is a defined magic package
@@ -299,58 +293,6 @@ static const char* find_path(ast_t* from, const char* path)
   return NULL;
 }
 
-static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
-  ast_visit_t pre_fn, ast_visit_t post_fn)
-{
-  if(pass_limit < pass)
-  {
-    *out_result = true;
-    return true;
-  }
-
-  if(ast_visit(astp, pre_fn, post_fn) != AST_OK)
-  {
-    *out_result = false;
-    return true;
-  }
-
-  return false;
-}
-
-static bool do_passes(ast_t* ast)
-{
-  if(pass_limit == PASS_PARSE)
-    return true;
-
-  bool r;
-
-  if(do_pass(&ast, &r, PASS_SUGAR, pass_sugar, NULL))
-    return r;
-
-  if(do_pass(&ast, &r, PASS_SCOPE1, pass_scope, NULL))
-    return r;
-
-  if(do_pass(&ast, &r, PASS_NAME_RESOLUTION, NULL, pass_names))
-    return r;
-
-  if(do_pass(&ast, &r, PASS_FLATTEN, NULL, pass_flatten))
-    return r;
-
-  if(do_pass(&ast, &r, PASS_TRAITS, pass_traits, NULL))
-    return r;
-
-  if(pass_limit != PASS_TRAITS)
-    ast_clear(ast);
-
-  if(do_pass(&ast, &r, PASS_SCOPE2, pass_scope, NULL))
-    return r;
-
-  if(do_pass(&ast, &r, PASS_EXPR, NULL, pass_expr))
-    return r;
-
-  return true;
-}
-
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
@@ -424,42 +366,6 @@ void package_paths(const char* paths)
   }
 }
 
-const char* package_limit_name(pass_id pass)
-{
-  switch(pass)
-  {
-    case PASS_PARSE:    return "parse";
-    case PASS_SUGAR:    return "sugar";
-    case PASS_SCOPE1:   return "scope1";
-    case PASS_NAME_RESOLUTION: return "name";
-    case PASS_FLATTEN:  return "flatten";
-    case PASS_TRAITS:   return "traits";
-    case PASS_SCOPE2:   return "scope2";
-    case PASS_EXPR:     return "expr";
-    case PASS_ALL:      return "all";
-    default:            return "error";
-  }
-}
-
-bool package_limit_passes(const char* pass)
-{
-  for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)
-  {
-    if(strcmp(pass, package_limit_name(i)) == 0)
-    {
-      pass_limit = i;
-      return true;
-    }
-  }
-
-  return false;
-}
-
-pass_id package_get_pass_limit()
-{
-  return pass_limit;
-}
-
 void package_add_magic(const char* path, const char* src)
 {
   magic_package_t* n = malloc(sizeof(magic_package_t));
@@ -483,11 +389,6 @@ ast_t* program_load(const char* path)
   return program;
 }
 
-bool program_compile(ast_t* program, int opt, bool print_llvm)
-{
-  return codegen(program, opt, print_llvm);
-}
-
 ast_t* package_load(ast_t* from, const char* path)
 {
   bool magic = is_magic_package(path);
@@ -509,7 +410,7 @@ ast_t* package_load(ast_t* from, const char* path)
   if(!do_path(magic, package, name))
     return NULL;
 
-  if(!do_passes(package))
+  if(!package_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;

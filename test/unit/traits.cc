@@ -1,9 +1,8 @@
 extern "C" {
 #include "../../src/libponyc/ast/ast.h"
-//#include "../../src/libponyc/pass/names.h"
-//#include "../../src/libponyc/pass/scope.h"
 #include "../../src/libponyc/pass/traits.h"
 #include "../../src/libponyc/ds/stringtab.h"
+#include "../../src/libponyc/pass/pass.h"
 #include "../../src/libponyc/pkg/package.h"
 }
 #include "util.h"
@@ -31,7 +30,7 @@ TEST(TraitsTest, ClassGetsTraitBody)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -65,7 +64,7 @@ TEST(TraitsTest, ClassBodyNotOverriddenByTrait)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -99,7 +98,7 @@ TEST(TraitsTest, ClassBodyNotOverriddenBy2Traits)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -127,7 +126,7 @@ TEST(TraitsTest, NoClassBodyAnd2TraitBodies)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("flatten");
+  limit_passes("flatten");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -159,7 +158,7 @@ TEST(TraitsTest, TransitiveTraits)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -185,7 +184,7 @@ TEST(TraitsTest, NoBody)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("flatten");
+  limit_passes("flatten");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -211,7 +210,7 @@ TEST(TraitsTest, TraitLoop)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("flatten");
+  limit_passes("flatten");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -238,7 +237,7 @@ TEST(TraitsTest, TraitAndClassNamesDontClash)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -270,7 +269,7 @@ TEST(TraitsTest, MethodContravarianceClassToTrait)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -307,7 +306,7 @@ TEST(TraitsTest, MethodContravarianceTraitToTrait)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -336,7 +335,7 @@ TEST(TraitsTest, MethodReverseContravariance)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("flatten");
+  limit_passes("flatten");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -366,7 +365,7 @@ TEST(TraitsTest, MethodReverseCovariance)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("flatten");
+  limit_passes("flatten");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -395,7 +394,7 @@ TEST(TraitsTest, StructuralVsNominalContravariance)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));
@@ -431,7 +430,7 @@ TEST(TraitsTest, SelfStructuralContravariance)
 
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
-  package_limit_passes("traits");
+  limit_passes("traits");
 
   ast_t* program;
   ASSERT_NO_FATAL_FAILURE(load_test_program("prog", &program));

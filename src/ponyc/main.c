@@ -1,4 +1,5 @@
 #include "../libponyc/pkg/package.h"
+#include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
 #include <sys/ioctl.h>
 #include <stdlib.h>
@@ -63,7 +64,7 @@ int main(int argc, char** argv)
       case 'l': llvm = true; break;
       case 'p': package_paths(optarg); break;
       case 'O': opt = atoi(optarg); break;
-      case 'r': error = !package_limit_passes(optarg); break;
+      case 'r': error = !limit_passes(optarg); break;
       case 'w': width = atoi(optarg); break;
       default: error = true; break;
     }
@@ -94,11 +95,8 @@ int main(int argc, char** argv)
       ast_print(program, width);
     }
 
-    if(package_get_pass_limit() == PASS_ALL)
-    {
-      if(!program_compile(program, opt, llvm))
-        ret = -1;
-    }
+    if(!program_passes(program, opt, llvm))
+      ret = -1;
 
     ast_free(program);
   } else {
