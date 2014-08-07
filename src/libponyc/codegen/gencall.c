@@ -16,13 +16,22 @@ static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return LLVMBuildCall(c->builder, fun, args, count, ret);
 }
 
-static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
+static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
 
-  return LLVMBuildCall(c->builder, fun, args, count, ret);
+  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
+  LLVMMoveBasicBlockAfter(then_block, this_block);
+  LLVMBasicBlockRef else_block = ast_data(try_expr);
+
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+    then_block, else_block, ret);
+
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  return invoke;
 }
 
 static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
@@ -116,18 +125,29 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
     func = LLVMBuildLoad(c->builder, func_ptr, "");
 
+    // TODO: What if the function signature takes a primitive but the real
+    // underlying function accepts a union type of that primitive with something
+    // else, and so requires a boxed primitive? Or the real function could take
+    // a trait that the primitive provides.
+
     // cast to the right function type
-    f_type = genfun_proto(c, type, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, type, method_name, typeargs);
+
+    if(proto == NULL)
+    {
+      ast_error(ast, "couldn't locate '%s'", method_name);
+      return NULL;
+    }
+
+    f_type = LLVMTypeOf(proto);
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // static, get the actual function
-    const char* type_name = genname_type(type);
-    const char* name = genname_fun(type_name, method_name, NULL);
-    func = LLVMGetNamedFunction(c->module, name);
+    func = genfun_proto(c, type, method_name, typeargs);
 
     if(func == NULL)
     {
-      ast_error(ast, "couldn't locate '%s'", name);
+      ast_error(ast, "couldn't locate '%s'", method_name);
       return NULL;
     }
 
@@ -165,11 +185,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   if(ast_canerror(ast))
   {
-    // ast_t* try_expr = ast_nearest(ast, TK_TRY);
+    // If we can error out and we're called in the body of a try expression,
+    // generate an invoke instead of a call.
+    size_t clause;
+    ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
-    // TODO: landing pads, etc
-
-    return invoke_fun(c, func, args, count, "");
+    if((try_expr != NULL) && (clause == 0))
+      return invoke_fun(c, try_expr, func, args, count, "");
   }
 
   return call_fun(c, func, args, count, "");

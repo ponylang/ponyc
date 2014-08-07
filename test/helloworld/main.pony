@@ -11,12 +11,15 @@ class Helper[A: Arithmetic] is GetX[A]
 
   fun ref quex(): A =>
     try
-      error
+      foo()
     else
       x
     then
-      return x + 1
+      x
     end
+
+  fun ref bar(): A ? =>
+    foo()
 
   fun ref foo(): A ? =>
     if x > 10 then
@@ -24,9 +27,6 @@ class Helper[A: Arithmetic] is GetX[A]
     else
       error
     end
-
-  fun ref bar(): A ? =>
-    foo()
 
   fun ref get_x(): A =>
     while x < 10 do
