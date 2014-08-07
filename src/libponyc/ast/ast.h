@@ -37,6 +37,8 @@ FLET: ID [type] [SEQ]
 NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
 FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the except_block if the
+  function or constructor can error out
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
@@ -157,6 +159,9 @@ symtab: ID -> VAR | VAL
 FOR: IDSEQ [type] SEQ SEQ [SEQ]
 
 TRY: SEQ [SEQ] [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the else_block
+  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
+  instruction
 
 atom
 ----
