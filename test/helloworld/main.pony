@@ -9,6 +9,25 @@ class Helper[A: Arithmetic] is GetX[A]
     x = x'
     y = y'
 
+  fun ref quex(): A =>
+    try
+      error
+    else
+      x
+    then
+      return x + 1
+    end
+
+  fun ref foo(): A ? =>
+    if x > 10 then
+      x
+    else
+      error
+    end
+
+  fun ref bar(): A ? =>
+    foo()
+
   fun ref get_x(): A =>
     while x < 10 do
       if x == 9 then
@@ -24,7 +43,7 @@ actor Main
   var x: I32
   var y: GetX[I32]
   var z: Bool
-  var xx: Array[I32]
+  /*var xx: Array[I32]*/
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>

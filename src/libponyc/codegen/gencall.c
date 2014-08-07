@@ -16,6 +16,15 @@ static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return LLVMBuildCall(c->builder, fun, args, count, ret);
 }
 
+static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
+  LLVMValueRef* args, int count, const char* ret)
+{
+  if(fun == NULL)
+    return NULL;
+
+  return LLVMBuildCall(c->builder, fun, args, count, ret);
+}
+
 static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 {
   LLVMValueRef value = gen_expr(c, arg);
@@ -152,6 +161,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     args[i] = value;
     arg = ast_sibling(arg);
+  }
+
+  if(ast_canerror(ast))
+  {
+    // ast_t* try_expr = ast_nearest(ast, TK_TRY);
+
+    // TODO: landing pads, etc
+
+    return invoke_fun(c, func, args, count, "");
   }
 
   return call_fun(c, func, args, count, "");

@@ -30,6 +30,7 @@ typedef struct compile_t
   LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
   LLVMTypeRef object_ptr;
+  LLVMValueRef personality;
 } compile_t;
 
 bool codegen(ast_t* program, int opt, bool print_llvm);

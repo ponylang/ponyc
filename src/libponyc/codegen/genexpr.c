@@ -38,11 +38,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_repeat(c, ast);
 
     case TK_TRY:
-    {
-      // TODO: try
-      ast_error(ast, "not implemented (codegen for try)");
-      return NULL;
-    }
+      return gen_try(c, ast);
 
     case TK_MATCH:
     {
@@ -240,8 +236,8 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
 LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, bool l_sign, bool r_sign)
 {
-  if(r_value == NULL)
-    return NULL;
+  if(r_value <= GEN_NOVALUE)
+    return r_value;
 
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 

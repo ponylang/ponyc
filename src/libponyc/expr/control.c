@@ -217,7 +217,13 @@ bool expr_return(ast_t* ast)
 
   if(ast_id(fun) == TK_NEW)
   {
-    ast_error(ast, "can't return in a constructor");
+    ast_error(ast, "can't return a value in a constructor");
+    return false;
+  }
+
+  if(ast_id(fun) == TK_BE)
+  {
+    ast_error(ast, "can't return a value in a behaviour");
     return false;
   }
 

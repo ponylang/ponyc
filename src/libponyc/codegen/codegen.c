@@ -144,6 +144,14 @@ static void codegen_runtime(compile_t* c)
   params[3] = LLVMInt1Type();
   type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
   LLVMAddFunction(c->module, "pony_start", type);
+
+  // void pony_throw()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, true);
+  LLVMAddFunction(c->module, "pony_throw", type);
+
+  // i32 pony_personality(...)
+  type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
+  c->personality = LLVMAddFunction(c->module, "pony_personality", type);
 }
 
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
