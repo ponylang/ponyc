@@ -110,6 +110,9 @@ void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
     printf(type ? "[" : "(");
 
   print_token(ast->t);
+  if(ast->symtab != NULL)
+    printf(":scope");
+
   printf("\n");
 
   while(child != NULL)

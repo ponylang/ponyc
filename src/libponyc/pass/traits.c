@@ -5,78 +5,111 @@
 #include "../type/assemble.h"
 #include <assert.h>
 
-static bool attach_method(ast_t* type, ast_t* method)
+#include <stdio.h>
+
+
+/** We use a 3 stage process to flatten traits for each concrete type.
+ *
+ * 1. We process the traits used by the type. For each trait we add methods
+ *    from any other trait the base trait provides to the base trait. These are
+ *    not added to the symbol table as duplicates may be legal.
+ * 2. We go through all methods of the traits the concrete type provides
+ *    looking for any that have bodies that are not overridden by the concrete
+ *    type. Such methods are added to the concrete type's symbol table,
+ *    duplicates are an error.
+ * 3. We go through all methods of the traits the concrete type provides again,
+ *    checking that they are compatible with the corresponding body. Any method
+ *    found without a corresponding body is an error.
+ */
+
+
+typedef bool(*trait_method_fn)(ast_t* target, ast_t* method);
+
+static bool build_trait_def(ast_t* trait);
+
+
+/// Add the given method definition to the given entity
+static void add_method(ast_t* target, ast_t* method)
 {
-  if(ast_id(method) == TK_BE)
+  ast_t* existing_members = ast_childidx(target, 4);
+
+  if(ast_id(existing_members) == TK_NONE)
+    ast_replace(&existing_members, method);
+  else
+    ast_add(existing_members, method);
+}
+
+
+/// Execute the given function for each reified method in each trait the target
+/// node provides
+static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
+{
+  assert(ast_id(target) == TK_ACTOR || ast_id(target) == TK_CLASS ||
+    ast_id(target) == TK_DATA || ast_id(target) == TK_TRAIT);
+  assert(fn != NULL);
+
+  ast_t* trait_refs = ast_childidx(target, 3);
+
+  for(ast_t* t = ast_child(trait_refs); t != NULL; t = ast_sibling(t))
   {
-    switch(ast_id(type))
-    {
-      case TK_DATA:
-      {
-        ast_error(type, "a data type can't have traits that have behaviours");
-        return false;
-      }
+    assert(ast_id(t) == TK_NOMINAL);
+    ast_t* trait_def = ast_data(t);
+    assert(trait_def != NULL);
 
-      case TK_CLASS:
-      {
-        ast_error(type, "a class can't have traits that have behaviours");
-        return false;
-      }
-
-      default: {}
-    }
-  }
-
-  ast_t* members = ast_childidx(type, 4);
-
-  // see if we have an existing method with this name
-  const char* name = ast_name(ast_childidx(method, 1));
-  ast_t* existing = ast_get(type, name);
-
-  if(existing != NULL)
-  {
-    // check our version is a subtype of the supplied version
-    if(!is_subtype(existing, method))
-    {
-      ast_error(existing, "existing method is not a subtype of trait method");
-      ast_error(method, "trait method is here");
+    if(ast_id(trait_def) != TK_TRAIT)
       return false;
+
+    if(!build_trait_def(trait_def))
+      return false;
+
+    ast_t* type_params = ast_childidx(trait_def, 1);
+    ast_t* type_args = ast_childidx(t, 2);
+    ast_t* methods = ast_childidx(trait_def, 4);
+
+    for(ast_t* m = ast_child(methods); m != NULL; m = ast_sibling(m))
+    {
+      assert(ast_id(m) == TK_FUN || ast_id(m) == TK_BE);
+
+      // Reify the method with the type parameters from trait definition and
+      // the reified type arguments from trait reference
+      ast_t* r_method = reify(m, type_params, type_args);
+
+      if(!fn(target, r_method))
+        return false;
     }
-
-    // if existing has no implementation, accept this implementation
-    ast_t* existing_impl = ast_childidx(existing, 6);
-    ast_t* impl = ast_childidx(method, 6);
-
-    if((ast_id(existing_impl) == TK_NONE) && (ast_id(impl) != TK_NONE))
-      ast_replace(&existing_impl, impl);
-
-    // TODO: what if a new method is a subtype of an existing method?
-    // if the existing method came from a trait, should we accept the new one?
-
-    return true;
   }
-
-  // insert into our members
-  method = ast_append(members, method);
-
-  // add to our scope
-  ast_set(type, name, method);
 
   return true;
 }
 
-static bool attach_traits(ast_t* def)
-{
-  ast_state_t state = (ast_state_t)ast_data(def);
 
+/// Add trait method body to target trait
+static bool attach_method_to_trait(ast_t* target, ast_t* method)
+{
+  assert(target != NULL);
+  assert(method != NULL);
+
+  add_method(target, method);
+  return true;
+}
+
+
+/// Build up a trait definition to include all the methods it gets from other
+/// traits
+static bool build_trait_def(ast_t* trait)
+{
+  assert(ast_id(trait) == TK_TRAIT);
+  ast_state_t state = (ast_state_t)ast_data(trait);
+
+  // Check for recursive definitions
   switch(state)
   {
     case AST_STATE_INITIAL:
-      ast_setdata(def, (void*)AST_STATE_INPROGRESS);
+      ast_setdata(trait, (void*)AST_STATE_INPROGRESS);
       break;
 
     case AST_STATE_INPROGRESS:
-      ast_error(def, "traits can't be recursive");
+      ast_error(trait, "traits can't be recursive");
       return false;
 
     case AST_STATE_DONE:
@@ -87,96 +120,96 @@ static bool attach_traits(ast_t* def)
       return false;
   }
 
-  ast_t* traits = ast_childidx(def, 3);
-  ast_t* trait = ast_child(traits);
+  ast_t* methods = ast_childidx(trait, 4);
 
-  while(trait != NULL)
+  for(ast_t* m = ast_child(methods); m != NULL; m = ast_sibling(m))
   {
-    ast_t* trait_def = ast_data(trait);
-
-    if(ast_id(trait_def) != TK_TRAIT)
-    {
-      ast_error(trait, "must be a trait");
-      return false;
-    }
-
-    if(!attach_traits(trait_def))
-      return false;
-
-    ast_t* typeparams = ast_childidx(trait_def, 1);
-    ast_t* typeargs = ast_childidx(trait, 2);
-    ast_t* members = ast_childidx(trait_def, 4);
-    ast_t* member = ast_child(members);
-
-    while(member != NULL)
-    {
-      switch(ast_id(member))
-      {
-        case TK_NEW:
-        case TK_FUN:
-        case TK_BE:
-        {
-          // reify the method with the type parameters from trait_def
-          // and the reified type arguments from r_trait.
-          ast_t* r_member = reify(member, typeparams, typeargs);
-          bool ok = attach_method(def, r_member);
-          ast_free_unattached(r_member);
-
-          if(!ok)
-            return false;
-
-          break;
-        }
-
-        default:
-          assert(0);
-          return false;
-      }
-
-      member = ast_sibling(member);
-    }
-
-    trait = ast_sibling(trait);
+    // Point method to original trait
+    ast_setdata(m, trait);
   }
 
-  ast_setdata(def, (void*)AST_STATE_DONE);
+  if(!foreach_provided_method(trait, attach_method_to_trait))
+    return false;
+
+  ast_setdata(trait, (void*)AST_STATE_DONE);
   return true;
 }
 
-static bool have_impl(ast_t* ast)
+
+/// Add trait method with body to target concrete type
+static bool attach_body_to_concrete(ast_t* target, ast_t* method)
 {
-  ast_t* members = ast_childidx(ast, 4);
-  ast_t* member = ast_child(members);
-  bool ret = true;
+  assert(target != NULL);
+  assert(method != NULL);
+  assert(ast_childidx(method, 6) != NULL);
 
-  while(member != NULL)
+  if(ast_id(ast_childidx(method, 6)) == TK_NONE) // Method has no body
+    return true;
+
+  const char* name = ast_name(ast_childidx(method, 1));
+  void* existing_body = ast_get(target, name);
+
+  if(existing_body == NULL)
   {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-      {
-        ast_t* impl = ast_childidx(member, 6);
-
-        if(ast_id(impl) == TK_NONE)
-        {
-          ast_t* id = ast_childidx(member, 1);
-          const char* name = ast_name(id);
-          ast_error(ast, "method '%s' has no implementation", name);
-          ret = false;
-        }
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
+    // First body we've found for this name, use it
+    ast_set(target, name, method);
+    add_method(target, method);
+    return true;
   }
 
-  return ret;
+  if(ast_data(existing_body) == NULL)
+  {
+    // Existing body is from the target type, use that
+    return true;
+  }
+
+  ast_error(method, "conflicting implementation for %s in %s", name,
+    ast_name(ast_child(target)));
+  return false;
 }
+
+
+/// Check the given method signature is compatible with the target's definition
+static bool check_sig_with_body(ast_t* target, ast_t* method)
+{
+  if(ast_id(method) == TK_BE)
+  {
+    switch(ast_id(target))
+    {
+      case TK_DATA:
+        ast_error(target, "a data type can't have traits that have behaviours");
+        return false;
+
+      case TK_CLASS:
+        ast_error(target, "a class can't have traits that have behaviours");
+        return false;
+
+      default:
+        break;
+    }
+  }
+
+  // Find existing method with this name
+  const char* name = ast_name(ast_childidx(method, 1));
+  ast_t* existing = ast_get(target, name);
+
+  if(existing == NULL)
+  {
+    ast_error(target, "method '%s' has no implementation", name);
+    return false;
+  }
+
+  // Check our version is a subtype of the implementation used
+  if(!is_subtype(existing, method))
+  {
+    ast_error(existing, "existing method is not a subtype of trait method");
+    ast_error(method, "trait method is here");
+    return false;
+  }
+
+  return true;
+}
+
 
 ast_result_t pass_traits(ast_t** astp)
 {
@@ -185,18 +218,22 @@ ast_result_t pass_traits(ast_t** astp)
   switch(ast_id(ast))
   {
     case TK_TRAIT:
-      if(!attach_traits(ast))
+      if(!build_trait_def(ast))
         return AST_ERROR;
+
       break;
 
     case TK_DATA:
     case TK_CLASS:
     case TK_ACTOR:
-      if(!attach_traits(ast) || !have_impl(ast))
+      if(!foreach_provided_method(ast, attach_body_to_concrete) ||
+        !foreach_provided_method(ast, check_sig_with_body))
         return AST_ERROR;
+
       break;
 
-    default: {}
+    default:
+      break;
   }
 
   return AST_OK;

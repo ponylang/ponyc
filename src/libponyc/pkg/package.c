@@ -339,8 +339,8 @@ static bool do_passes(ast_t* ast)
   if(do_pass(&ast, &r, PASS_TRAITS, pass_traits, NULL))
     return r;
 
-  // recalculate scopes in the presence of flattened traits
-  ast_clear(ast);
+  if(pass_limit != PASS_TRAITS)
+    ast_clear(ast);
 
   if(do_pass(&ast, &r, PASS_SCOPE2, pass_scope, NULL))
     return r;
@@ -573,4 +573,6 @@ void package_done()
     free(p);
     p = next;
   }
+
+  magic_packages = NULL;
 }

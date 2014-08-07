@@ -3,6 +3,7 @@ extern "C" {
 #include "../../src/libponyc/ast/builder.h"
 #include "../../src/libponyc/ast/source.h"
 #include "../../src/libponyc/ds/stringtab.h"
+#include "../../src/libponyc/pkg/package.h"
 }
 #include "util.h"
 #include <gtest/gtest.h>
@@ -62,6 +63,39 @@ void symtab_entry(ast_t* tree, const char* name, ast_t* expected)
   symtab_t* symtab = ast_get_symtab(tree);
   ASSERT_NE((void*)NULL, symtab);
   ASSERT_EQ(expected, symtab_get(symtab, stringtab(name)));
+}
+
+
+void check_tree(const char* expected, ast_t* actual)
+{
+  ASSERT_NE((void*)NULL, actual);
+
+  source_t* expect_src = source_open_string(expected);
+  ast_t* expect_ast = build_ast(expect_src);
+  ASSERT_NE((void*)NULL, expect_ast);
+
+  bool r = build_compare_asts_no_sibling(expect_ast, actual);
+  if(!r)
+    print_errors();
+
+  ASSERT_TRUE(r);
+
+  ast_free(expect_ast);
+}
+
+
+void load_test_program(const char* name, ast_t** out_prog)
+{
+  free_errors();
+
+  ast_t* program = program_load(stringtab("prog"));
+
+  if(program == NULL)
+    print_errors();
+
+  ASSERT_NE((void*)NULL, program);
+
+  *out_prog = program;
 }
 
 
