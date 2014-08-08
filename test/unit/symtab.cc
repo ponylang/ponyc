@@ -100,12 +100,12 @@ TEST(SymtabTest, Merge)
   ASSERT_EQ((void*)14, symtab_get(symtab1, "foo"));
   ASSERT_EQ((void*)NULL, symtab_get(symtab1, "bar"));
 
-  ASSERT_TRUE(symtab_merge(symtab1, symtab2));
+  ASSERT_TRUE(symtab_merge(symtab1, symtab2, NULL, NULL));
 
   ASSERT_EQ((void*)14, symtab_get(symtab1, "foo"));
   ASSERT_EQ((void*)15, symtab_get(symtab2, "bar"));
-  
-  ASSERT_FALSE(symtab_merge(symtab1, symtab2));
+
+  ASSERT_FALSE(symtab_merge(symtab1, symtab2, NULL, NULL));
 
   symtab_free(symtab1);
   symtab_free(symtab2);

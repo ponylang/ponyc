@@ -162,7 +162,7 @@ static ast_t* dup(ast_t* parent, ast_t* ast)
   if(ast->symtab != NULL)
   {
     n->symtab = symtab_new();
-    symtab_merge(n->symtab, ast->symtab);
+    symtab_merge(n->symtab, ast->symtab, NULL, NULL);
   }
 
   if(parent != NULL)
@@ -661,7 +661,7 @@ bool ast_merge(ast_t* dst, ast_t* src)
   while(dst->symtab == NULL)
     dst = dst->scope;
 
-  return symtab_merge(dst->symtab, src->symtab);
+  return symtab_merge(dst->symtab, src->symtab, symtab_pred, NULL);
 }
 
 void ast_clear(ast_t* ast)

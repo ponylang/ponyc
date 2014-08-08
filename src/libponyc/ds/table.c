@@ -18,8 +18,8 @@ table_t* table_create(size_t size)
   return table;
 }
 
-bool table_merge(table_t* dst, table_t* src,
-  hash_fn hash, cmp_fn cmp, dup_fn dup)
+bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
+  dup_fn dup, pred_fn pred, void* pred_arg)
 {
   if(src == NULL)
     return true;
@@ -35,9 +35,15 @@ bool table_merge(table_t* dst, table_t* src,
 
     while(list != NULL)
     {
-      bool present;
-      table_insert(dst, list_data(list), &present, hash, cmp, dup);
-      found |= present;
+      void* item = list_data(list);
+
+      if((pred != NULL) && pred(item, pred_arg))
+      {
+        bool present;
+        table_insert(dst, list_data(list), &present, hash, cmp, dup);
+        found |= present;
+      }
+
       list = list_next(list);
     }
   }
