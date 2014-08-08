@@ -5,45 +5,6 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static LLVMBasicBlockRef then_branch(compile_t* c, ast_t* try_expr)
-{
-  AST_GET_CHILDREN(try_expr, body, else_clause, then_clause);
-
-  // get the current block and function
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef fun = LLVMGetBasicBlockParent(block);
-
-  // get the else block from the enclosing try statement
-  LLVMBasicBlockRef else_block = ast_data(try_expr);
-
-  // derive the then block and the then phi node
-  LLVMBasicBlockRef then_block = LLVMGetNextBasicBlock(else_block);
-  LLVMValueRef then_phi = LLVMGetFirstInstruction(then_block);
-
-  // create a continuation block and get the address
-  LLVMBasicBlockRef then_cont = LLVMAppendBasicBlock(fun, "then_continue");
-  LLVMValueRef then_addr = LLVMBlockAddress(fun, then_cont);
-
-  // add address of the block as an incoming value for the then block phi node
-  LLVMAddIncoming(then_phi, &then_addr, &block, 1);
-
-  // get the indirect branch instruction from the then clause
-  LLVMValueRef indirect_br = ast_data(then_clause);
-
-  // add the block as a destination of the indirect jump from the then block
-  if(indirect_br != NULL)
-    LLVMAddDestination(indirect_br, then_cont);
-
-  // jump from the current block to the then block, which will jump to the
-  // continuation block when it finishes
-  LLVMBuildBr(c->builder, then_block);
-
-  // continue generating code in the continuation block
-  LLVMPositionBuilderAtEnd(c->builder, then_cont);
-
-  return then_cont;
-}
-
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
@@ -393,7 +354,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   // do the then block only if we return in the body or else clause
   // in the then block, return without doing the then block
   if((try_expr != NULL) && (clause != 2))
-    then_branch(c, try_expr);
+    gen_expr(c, ast_childidx(try_expr, 2));
 
   LLVMBuildRet(c->builder, value);
   return GEN_NOVALUE;
@@ -406,7 +367,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
-  ast_t* then_type = ast_type(then_clause);
 
   bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
@@ -423,43 +383,19 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
       return NULL;
   }
 
-  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "try_body");
+  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+  LLVMValueRef fun = LLVMGetBasicBlockParent(block);
   LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "try_else");
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "try_then");
   LLVMBasicBlockRef post_block;
-  LLVMValueRef post_phi;
 
-  LLVMBuildBr(c->builder, body_block);
-
-  // then block
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  LLVMValueRef then_phi = LLVMBuildPhi(c->builder, c->void_ptr, "");
-  gen_expr(c, then_clause);
-
-  if(then_type != NULL)
-  {
-    // keep a reference to the indirect branch instruction
-    LLVMValueRef indirect_br = LLVMBuildIndirectBr(c->builder, then_phi, 2);
-    ast_setdata(then_clause, indirect_br);
-  } else {
-    // make sure we point to null
-    ast_setdata(then_clause, NULL);
-  }
-
-  // if both branches return, we have no post block
   if(type != NULL)
-  {
     post_block = LLVMAppendBasicBlock(fun, "try_post");
-    LLVMPositionBuilderAtEnd(c->builder, post_block);
-    post_phi = LLVMBuildPhi(c->builder, phi_type, "");
-  }
 
   // keep a reference to the else block
   ast_setdata(ast, else_block);
 
   // body block
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
+  LLVMPositionBuilderAtEnd(c->builder, block);
   LLVMValueRef body_value = gen_expr(c, body);
 
   if(body_value != GEN_NOVALUE)
@@ -469,8 +405,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     if(body_value == NULL)
       return NULL;
 
-    LLVMBasicBlockRef block = then_branch(c, ast);
-    LLVMAddIncoming(post_phi, &body_value, &block, 1);
+    gen_expr(c, then_clause);
+    block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -491,19 +427,27 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     if(else_value == NULL)
       return NULL;
 
-    LLVMBasicBlockRef block = then_branch(c, ast);
-    LLVMAddIncoming(post_phi, &else_value, &block, 1);
+    gen_expr(c, then_clause);
+    else_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
-
-  // continue code generation in the post block
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   // if both sides return, we return a sentinal value
   if(type == NULL)
     return GEN_NOVALUE;
 
-  return post_phi;
+  // continue in the post block
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+
+  if(body_value != GEN_NOVALUE)
+    LLVMAddIncoming(phi, &body_value, &block, 1);
+
+  if(else_value != GEN_NOVALUE)
+    LLVMAddIncoming(phi, &else_value, &else_block, 1);
+
+  return phi;
 }
 
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
@@ -514,7 +458,7 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   // do the then block only if we error out in the else clause
   // in the body or the then block, error out without doing the then block
   if((try_expr != NULL) && (clause == 1))
-    then_branch(c, try_expr);
+    gen_expr(c, ast_childidx(try_expr, 2));
 
   gencall_runtime(c, "pony_throw", NULL, 0, "");
   LLVMBuildUnreachable(c->builder);

@@ -9,13 +9,17 @@ class Helper[A: Arithmetic] is GetX[A]
     x = x'
     y = y'
 
-  fun ref quex(): A =>
+  fun ref quex(): A ? =>
     try
       foo()
     else
       x
     then
-      x
+      if x > 10 then
+        error
+      else
+        x
+      end
     end
 
   fun ref bar(): A ? =>
