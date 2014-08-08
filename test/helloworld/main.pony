@@ -47,12 +47,12 @@ actor Main
   var x: I32
   var y: GetX[I32]
   var z: Bool
-  var xx: _Pointer[I32]
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>
     var qq = var q = 1
     var r: U64 = if argc == 0 then 1 else 2 end + 1
+    var rr: Bool = argc == 0 or argc == 1
     q = 100 / (r * 0)
     r = q = r
     x = (argc xor 0xF) + (7 % -3) + (argc / not 3)

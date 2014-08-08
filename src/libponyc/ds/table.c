@@ -37,7 +37,7 @@ bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
     {
       void* item = list_data(list);
 
-      if((pred != NULL) && pred(item, pred_arg))
+      if((pred == NULL) || pred(item, pred_arg))
       {
         bool present;
         table_insert(dst, list_data(list), &present, hash, cmp, dup);

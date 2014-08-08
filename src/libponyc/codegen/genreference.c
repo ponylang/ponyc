@@ -79,6 +79,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   LLVMTypeRef l_type;
   LLVMValueRef l_value;
+  const char* name;
 
   ast_t* id = ast_child(idseq);
   ast_t* def;
@@ -90,9 +91,10 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     if(l_type == NULL)
       return NULL;
 
-    l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
+    name = ast_name(id);
+    l_value = LLVMBuildAlloca(c->builder, l_type, name);
 
-    def = ast_get(ast, ast_name(id));
+    def = ast_get(ast, name);
     ast_setdata(def, l_value);
 
     return l_value;
@@ -107,9 +109,10 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     if(l_type == NULL)
       return NULL;
 
-    l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
+    name = ast_name(id);
+    l_value = LLVMBuildAlloca(c->builder, l_type, name);
 
-    def = ast_get(ast, ast_name(id));
+    def = ast_get(ast, name);
     ast_setdata(def, l_value);
 
     id = ast_sibling(id);

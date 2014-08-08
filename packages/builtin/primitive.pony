@@ -139,14 +139,6 @@ data UIntLiteral is Stringable
 data FloatLiteral is Stringable
   fun box string(): String => compiler_intrinsic
 
-class String val is Ordered[String]
-  fun box eq(that: String box): Bool => compiler_intrinsic
-  fun box lt(that: String box): Bool => compiler_intrinsic
-  /*fun box string(): String => this*/
-
-trait Stringable
-  fun box string(): String
-
 type SInt is
   ( SIntLiteral
   | I8
