@@ -51,7 +51,7 @@ actor Main
 
   /*new create(env: Env) =>*/
   new create(argc: I32) =>
-    var q = 1
+    var qq = var q = 1
     var r: U64 = if argc == 0 then 1 else 2 end + 1
     q = 100 / (r * 0)
     r = q = r

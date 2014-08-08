@@ -529,10 +529,6 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  // TODO: if the l_value is a local declaration, the result should be the
-  // r_value, not the load of the l_value
-  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
-
   bool l_sign = is_signed(left_type);
   bool r_sign = is_signed(right_type);
   LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
@@ -540,6 +536,15 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 
   if(r_value == NULL)
     return NULL;
+
+  // If the l_value is a local declaration, the result is be the r_value, not
+  // the load of the l_value.
+  LLVMValueRef result;
+
+  if(LLVMIsAAllocaInst(l_value))
+    result = r_value;
+  else
+    result = LLVMBuildLoad(c->builder, l_value, "");
 
   LLVMBuildStore(c->builder, r_value, l_value);
   return result;
