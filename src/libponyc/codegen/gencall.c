@@ -253,7 +253,11 @@ static void trace_known(compile_t* c, LLVMValueRef field,
   const char* fun = genname_trace(name);
   args[1] = LLVMGetNamedFunction(c->module, fun);
 
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
+  // if this type has no trace function, don't try to recurse in the runtime
+  if(args[1] != NULL)
+    gencall_runtime(c, "pony_traceobject", args, 2, "");
+  else
+    gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef field)
@@ -302,7 +306,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef field)
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
 }
 
-void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
+bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   switch(ast_id(type))
   {
@@ -321,12 +325,12 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
           trace_unknown(c, value);
         }
       }
-      break;
+      return true;
     }
 
     case TK_TUPLETYPE:
       trace_known(c, value, genname_type(type));
-      break;
+      return true;
 
     case TK_NOMINAL:
     {
@@ -339,25 +343,26 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
             trace_tag(c, value);
           else
             trace_unknown(c, value);
-          break;
+
+          return true;
 
         case TK_DATA:
           // do nothing
-          break;
+          return false;
 
         case TK_CLASS:
           if(tag)
             trace_tag(c, value);
           else
             trace_known(c, value, genname_type(type));
-          break;
+
+          return true;
 
         case TK_ACTOR:
           trace_actor(c, value);
-          break;
+          return true;
 
-        default:
-          assert(0);
+        default: {}
       }
       break;
     }
@@ -371,10 +376,13 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
         trace_tag(c, value);
       else
         trace_unknown(c, value);
-      break;
+
+      return true;
     }
 
-    default:
-      assert(0);
+    default: {}
   }
+
+  assert(0);
+  return false;
 }

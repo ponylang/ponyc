@@ -139,11 +139,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return LLVMConstReal(LLVMDoubleType(), ast_float(ast));
 
     case TK_STRING:
-    {
-      // TODO: string literals
-      ast_error(ast, "not implemented (codegen for string literal)");
-      return NULL;
-    }
+      return gen_string(c, ast);
 
     case TK_TUPLE:
       return gen_tuple(c, ast);

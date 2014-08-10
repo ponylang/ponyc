@@ -1,6 +1,8 @@
 #include "genreference.h"
 #include "genexpr.h"
 #include "gentype.h"
+#include "genname.h"
+#include <string.h>
 #include <assert.h>
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
@@ -143,4 +145,40 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
     return NULL;
 
   return LLVMBuildLoad(c->builder, local_ptr, "");
+}
+
+LLVMValueRef gen_string(compile_t* c, ast_t* ast)
+{
+  ast_t* type = ast_type(ast);
+  const char* name = ast_name(ast);
+  size_t len = strlen(name);
+
+  LLVMValueRef args[4];
+  args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
+
+  LLVMValueRef str = LLVMConstString(name, len, false);
+  LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
+  LLVMSetInitializer(g_str, str);
+  LLVMSetGlobalConstant(g_str, true);
+  LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
+
+  LLVMTypeRef l_type = gentype(c, type);
+  l_type = LLVMGetElementType(l_type);
+
+  const char* type_name = genname_type(type);
+  const char* desc_name = genname_descriptor(type_name);
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module, desc_name);
+
+  args[0] = LLVMConstBitCast(desc, c->descriptor_ptr);
+  args[1] = LLVMConstInt(LLVMInt64Type(), len, false);
+  args[2] = LLVMConstInt(LLVMInt64Type(), 0, false);
+  args[3] = str_ptr;
+
+  LLVMValueRef inst = LLVMConstNamedStruct(l_type, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, l_type, "$string");
+  LLVMSetInitializer(g_inst, inst);
+  LLVMSetGlobalConstant(g_inst, true);
+
+  return g_inst;
 }

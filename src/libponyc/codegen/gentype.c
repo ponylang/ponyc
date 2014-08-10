@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-static LLVMValueRef make_trace(compile_t* c, const char* name,
+static bool make_trace(compile_t* c, const char* name,
   LLVMTypeRef type, ast_t** fields, int count, int extra)
 {
   // create a trace function
@@ -25,18 +25,23 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
   LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "object");
 
+  // if we don't ever trace anything, delete this function
+  bool need_trace = false;
+
   for(int i = 0; i < count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
-    gencall_trace(c, field, fields[i]);
+    need_trace |= gencall_trace(c, field, fields[i]);
+  }
+
+  if(!need_trace)
+  {
+    LLVMDeleteFunction(trace_fn);
+    return true;
   }
 
   LLVMBuildRetVoid(c->builder);
-
-  if(!codegen_finishfun(c, trace_fn))
-    return NULL;
-
-  return trace_fn;
+  return codegen_finishfun(c, trace_fn);
 }
 
 static LLVMTypeRef make_struct(compile_t* c, const char* name,
@@ -65,7 +70,7 @@ static LLVMTypeRef make_struct(compile_t* c, const char* name,
 
   LLVMStructSetBody(type, elements, count + extra, false);
 
-  if(make_trace(c, name, type, fields, count, extra) == NULL)
+  if(!make_trace(c, name, type, fields, count, extra))
     return NULL;
 
   return type;

@@ -77,6 +77,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     if(l_value == NULL)
       return NULL;
 
+    then_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -92,6 +93,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     if(r_value == NULL)
       return NULL;
 
+    else_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
 
@@ -228,6 +230,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
+  body_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, cond_block);
 
   // cond block
@@ -235,12 +238,12 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   LLVMAddIncoming(cond_phi, &value, &body_block, 1);
 
   LLVMValueRef c_value = gen_expr(c, cond);
-  LLVMBasicBlockRef cond_from = LLVMGetInsertBlock(c->builder);
+  cond_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMAddIncoming(phi, &cond_phi, &cond_from, 1);
+  LLVMAddIncoming(phi, &cond_phi, &cond_block, 1);
 
   return phi;
 }
@@ -295,6 +298,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
+  break_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, target);
 
   // add break value to the post block phi node
