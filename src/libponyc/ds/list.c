@@ -10,7 +10,7 @@ struct list_t
 
 list_t* list_push(list_t* list, const void* data)
 {
-  list_t* l = malloc(sizeof(list_t));
+  list_t* l = (list_t*)malloc(sizeof(list_t));
   l->data = (void*)data;
   l->next = list;
 
@@ -19,7 +19,7 @@ list_t* list_push(list_t* list, const void* data)
 
 list_t* list_append(list_t* list, const void* data)
 {
-  list_t* l = malloc(sizeof(list_t));
+  list_t* l = (list_t*)malloc(sizeof(list_t));
   l->data = (void*)data;
   l->next = NULL;
 

@@ -16,9 +16,10 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <errno.h>
 #include <assert.h>
+
+#include "../platform/platform.h"
 
 #define EXTENSION ".pony"
 

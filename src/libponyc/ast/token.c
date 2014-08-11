@@ -25,7 +25,7 @@ typedef struct token_t
 
 token_t* token_new(token_id id, source_t* source)
 {
-  token_t* t = calloc(1, sizeof(token_t));
+  token_t* t = (token_t*)calloc(1, sizeof(token_t));
   t->id = id;
   t->source = source;
   return t;
@@ -35,7 +35,7 @@ token_t* token_new(token_id id, source_t* source)
 token_t* token_dup(token_t* token)
 {
   assert(token != NULL);
-  token_t* t = malloc(sizeof(token_t));
+  token_t* t = (token_t*)malloc(sizeof(token_t));
   memcpy(t, token, sizeof(token_t));
   t->printed = NULL;
   return t;

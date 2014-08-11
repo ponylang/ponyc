@@ -468,7 +468,7 @@ DEF(forloop);
   DONE();
 
 // TRY seq [ELSE seq] [THEN seq] END
-DEF(try);
+DEF(try_block);
   TOKEN(TK_TRY);
   RULE(seq);
   IF(TK_ELSE, RULE(seq));
@@ -492,7 +492,7 @@ DEF(prefixminus);
 // local | cond | match | whileloop | repeat | forloop | try | prefix |
 //  prefixminus | postfix
 DEF(term);
-  RULE(local, cond, match, whileloop, repeat, forloop, try, prefix,
+  RULE(local, cond, match, whileloop, repeat, forloop, try_block, prefix,
     prefixminus, postfix);
   DONE();
 
@@ -621,7 +621,7 @@ DEF(members);
   DONE();
 
 // (TRAIT | DATA | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
-DEF(class);
+DEF(class_def);
   TOKEN(TK_TRAIT, TK_DATA, TK_CLASS, TK_ACTOR);
   SCOPE();
   TOKEN(TK_ID);
@@ -651,7 +651,7 @@ DEF(module);
   AST_NODE(TK_MODULE);
   SCOPE();
   SEQ(use);
-  SEQ(class, typealias);
+  SEQ(class_def, typealias);
   SKIP(TK_EOF);
   DONE();
 

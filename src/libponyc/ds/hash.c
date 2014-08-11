@@ -64,7 +64,7 @@ uint64_t siphash24(const char* key, const char *in, size_t len)
 
 uint64_t hash(void* in, size_t len)
 {
-  return siphash24(the_key, in, len);
+  return siphash24(the_key, (const char*)in, len);
 }
 
 uint64_t strhash(const char* str)

@@ -180,7 +180,7 @@ ast_t* ast_blank(token_id id)
 
 ast_t* ast_token(token_t* t)
 {
-  ast_t* ast = calloc(1, sizeof(ast_t));
+  ast_t* ast = (ast_t*)calloc(1, sizeof(ast_t));
   ast->t = t;
   return ast;
 }
@@ -824,7 +824,7 @@ void ast_free(ast_t* ast)
       break;
 
     case TK_MODULE:
-      source_close(ast->data);
+      source_close((source_t*)ast->data);
       break;
 
     default:

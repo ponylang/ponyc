@@ -31,7 +31,7 @@ static bool attach_method(ast_t* type, ast_t* method)
 
   // see if we have an existing method with this name
   const char* name = ast_name(ast_childidx(method, 1));
-  ast_t* existing = ast_get(type, name);
+  ast_t* existing = (ast_t*)ast_get(type, name);
 
   if(existing != NULL)
   {
@@ -67,7 +67,7 @@ static bool attach_method(ast_t* type, ast_t* method)
 
 static bool attach_traits(ast_t* def)
 {
-  ast_state_t state = (ast_state_t)ast_data(def);
+  ast_state_t state = (ast_state_t)((uint32_t)ast_data(def));
 
   switch(state)
   {
@@ -92,7 +92,7 @@ static bool attach_traits(ast_t* def)
 
   while(trait != NULL)
   {
-    ast_t* trait_def = ast_data(trait);
+    ast_t* trait_def = (ast_t*)ast_data(trait);
 
     if(ast_id(trait_def) != TK_TRAIT)
     {

@@ -248,7 +248,7 @@ ast_t* parse(source_t* source, rule_t start)
     return PARSE_ERROR;
 
   // Create a parser and attach the lexer
-  parser_t* parser = calloc(1, sizeof(parser_t));
+  parser_t* parser = (parser_t*)calloc(1, sizeof(parser_t));
   parser->source = source;
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);

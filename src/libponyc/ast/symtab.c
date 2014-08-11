@@ -21,7 +21,7 @@ static bool sym_cmp(symbol_t* a, symbol_t* b)
 
 static symbol_t* sym_dup(symbol_t* sym)
 {
-  symbol_t* s = malloc(sizeof(symbol_t));
+  symbol_t* s = (symbol_t*)malloc(sizeof(symbol_t));
   s->name = sym->name;
   s->value = sym->value;
 

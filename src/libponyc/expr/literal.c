@@ -130,7 +130,7 @@ bool expr_nominal(ast_t** astp)
     return true;
 
   // if still nominal, check constraints
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 

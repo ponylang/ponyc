@@ -37,7 +37,7 @@ source_t* source_open(const char* file)
     return NULL;
   }
 
-  source_t* source = malloc(sizeof(source_t));
+  source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = stringtab(file);
   source->m = m;
   source->len = sb.st_size;
@@ -48,7 +48,7 @@ source_t* source_open(const char* file)
 
 source_t* source_open_string(const char* source_code)
 {
-  source_t* source = malloc(sizeof(source_t));
+  source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = NULL;
   source->len = strlen(source_code);
   source->m = malloc(source->len);

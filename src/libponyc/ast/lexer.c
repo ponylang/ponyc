@@ -44,7 +44,7 @@ static const lexsym_t symbols2[] =
   { "<=", TK_LE },
   { ">=", TK_GE },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t symbols1[] =
@@ -78,7 +78,7 @@ static const lexsym_t symbols1[] =
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t keywords[] =
@@ -137,7 +137,7 @@ static const lexsym_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t abstract[] =
@@ -194,7 +194,7 @@ static const lexsym_t abstract[] =
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 
@@ -279,7 +279,7 @@ static void append(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = malloc(new_len);
+    char* new_buf = (char*)malloc(new_len);
     memcpy(new_buf, lexer->buffer, lexer->alloc);
     free(lexer->buffer);
     lexer->buffer = new_buf;
@@ -888,7 +888,7 @@ lexer_t* lexer_open(source_t* source)
 {
   assert(source != NULL);
 
-  lexer_t* lexer = calloc(1, sizeof(lexer_t));
+  lexer_t* lexer = (lexer_t*)calloc(1, sizeof(lexer_t));
   lexer->source = source;
   lexer->len = source->len;
   lexer->line = 1;
