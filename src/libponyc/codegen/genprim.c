@@ -6,7 +6,38 @@
 #include "gencall.h"
 #include <string.h>
 
-LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
+/**
+ * This returns the primitive type rather than the boxed type. As a result, all
+ * of the methods will take the primitive type as the receiver.
+ */
+static LLVMTypeRef make_primitive(compile_t* c, ast_t* ast, LLVMTypeRef l_type)
+{
+  const char* name = genname_type(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+  if(type != NULL)
+    return l_type;
+
+  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+
+  // Element 0 is the type descriptor, element 1 is the boxed primitive type.
+  LLVMTypeRef elements[2];
+  elements[0] = c->descriptor_ptr;
+  elements[1] = l_type;
+  LLVMStructSetBody(type, elements, 2, false);
+
+  gendesc_prep(c, ast, l_type);
+
+  if(!genfun_methods(c, ast))
+    return NULL;
+
+  gendesc_init(c, ast, type);
+
+  // No trace function is needed.
+  return l_type;
+}
+
+static LLVMTypeRef make_pointer(compile_t* c, ast_t* ast)
 {
   ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typearg = ast_child(typeargs);
@@ -114,7 +145,7 @@ LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
   return type;
 }
 
-LLVMTypeRef genprim_array(compile_t* c, ast_t* ast)
+static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
 {
   ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typearg = ast_child(typeargs);
@@ -194,44 +225,48 @@ LLVMTypeRef genprim_array(compile_t* c, ast_t* ast)
 
 LLVMTypeRef genprim(compile_t* c, ast_t* ast)
 {
-  // TODO: create the primitive descriptors
-  // check for primitive types
+  // Check for primitive types.
   const char* name = ast_name(ast_childidx(ast, 1));
 
   if(!strcmp(name, "True") || !strcmp(name, "False"))
-    return LLVMInt1Type();
+    return make_primitive(c, ast, LLVMInt1Type());
 
   if(!strcmp(name, "I8") || !strcmp(name, "U8"))
-    return LLVMInt8Type();
+    return make_primitive(c, ast, LLVMInt8Type());
 
   if(!strcmp(name, "I16") || !strcmp(name, "U16"))
-    return LLVMInt16Type();
+    return make_primitive(c, ast, LLVMInt16Type());
 
   if(!strcmp(name, "I32") || !strcmp(name, "U32"))
-    return LLVMInt32Type();
+    return make_primitive(c, ast, LLVMInt32Type());
 
   if(!strcmp(name, "I64") || !strcmp(name, "U64"))
-    return LLVMInt64Type();
+    return make_primitive(c, ast, LLVMInt64Type());
 
   if(!strcmp(name, "I128") || !strcmp(name, "U128") ||
     !strcmp(name, "SIntLiteral") || !strcmp(name, "UIntLiteral")
     )
-    return LLVMIntType(128);
+    return make_primitive(c, ast, LLVMIntType(128));
 
   if(!strcmp(name, "F16"))
-    return LLVMHalfType();
+    return make_primitive(c, ast, LLVMHalfType());
 
   if(!strcmp(name, "F32"))
-    return LLVMFloatType();
+    return make_primitive(c, ast, LLVMFloatType());
 
   if(!strcmp(name, "F64") || !strcmp(name, "FloatLiteral"))
-    return LLVMDoubleType();
+    return make_primitive(c, ast, LLVMDoubleType());
 
   if(!strcmp(name, "Array"))
-    return genprim_array(c, ast);
+    return make_array(c, ast);
 
   if(!strcmp(name, "_Pointer"))
-    return genprim_pointer(c, ast);
+    return make_pointer(c, ast);
 
   return GEN_NOTYPE;
+}
+
+void genprim_builtins(compile_t* c)
+{
+  // TODO: All the builtin functions.
 }

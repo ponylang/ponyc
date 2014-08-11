@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "genprim.h"
 #include "genname.h"
 #include "gentype.h"
 #include "gendesc.h"
@@ -188,7 +189,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   if(m == NULL)
   {
-    // TODO: how do we compile libraries?
+    // TODO: How do we compile libraries? By specifying C ABI entry points and
+    // compiling reachable code from there.
     return true;
   }
 
@@ -300,6 +302,7 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   compile_t c;
   codegen_init(&c, program, opt);
   codegen_runtime(&c);
+  genprim_builtins(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)

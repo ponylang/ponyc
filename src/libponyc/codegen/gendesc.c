@@ -51,7 +51,9 @@ void gendesc_prep(compile_t* c, ast_t* ast, LLVMTypeRef type)
   LLVMTypeRef desc_type = gendesc_type(c, desc_name, vtable_size);
   LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
 
-  if(ast_id(def) == TK_DATA)
+  // If this is a datatype and it isn't a primitive, create a single global
+  // instance with the descriptor and no fields.
+  if((ast_id(def) == TK_DATA) && (LLVMGetTypeKind(type) == LLVMStructTypeKind))
   {
     const char* inst_name = genname_instance(name);
     LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);

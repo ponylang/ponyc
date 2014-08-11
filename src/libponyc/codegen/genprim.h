@@ -3,8 +3,8 @@
 
 #include "codegen.h"
 
-LLVMTypeRef genprim_array(compile_t* c, ast_t* ast);
-
 LLVMTypeRef genprim(compile_t* c, ast_t* ast);
+
+void genprim_builtins(compile_t* c);
 
 #endif
