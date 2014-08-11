@@ -1,12 +1,12 @@
 #include "source.h"
 #include "error.h"
 #include "../ds/stringtab.h"
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+
+#include "../platform/platform.h"
 
 
 source_t* source_open(const char* file)
@@ -28,10 +28,10 @@ source_t* source_open(const char* file)
     return NULL;
   }
 
-  char* m = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  char* m = map_file(sb.st_size, PONY_PROT_READ, fd);
   close(fd);
 
-  if(m == MAP_FAILED)
+  if(m == PONY_MAP_FAILED)
   {
     errorf(file, "can't read file");
     return NULL;
@@ -51,7 +51,7 @@ source_t* source_open_string(const char* source_code)
   source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = NULL;
   source->len = strlen(source_code);
-  source->m = malloc(source->len);
+  source->m = (char*)malloc(source->len);
 
   memcpy(source->m, source_code, source->len);
 
@@ -65,7 +65,7 @@ void source_close(source_t* source)
     return;
 
   if(source->file != NULL)
-    munmap(source->m, source->len);
+    unmap_file(source->m, source->len);
   else
     free(source->m);
 

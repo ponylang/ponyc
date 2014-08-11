@@ -16,6 +16,24 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
+#ifdef PLATFORM_IS_WINDOWS
+/** No overflow detection, if used incorrectly, things go horribly wrong!
+ *
+ */
+pass_id &operator++(pass_id& current)
+{
+  current = (pass_id)(current + 1);
+  return current;
+};
+
+pass_id operator++(pass_id& current, int)
+{
+  pass_id rvalue = current;
+  ++current;
+  return rvalue;
+};
+#endif
+
 /**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories

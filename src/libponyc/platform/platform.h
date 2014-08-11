@@ -15,6 +15,19 @@
 #  define PLATFORM_IS_WINDOWS
 #  include <Windows.h>
 #  include <BaseTsd.h>
+/** Allow formal parameters of functions to remain unused (e.g. actor disp.)
+*
+*  http://msdn.microsoft.com/en-us/library/26kb9fy0.aspx
+*/
+#  pragma warning(disable:4100)
+/** Allow constant conditional expressions (e.g. while(true)).
+*
+*  Microsoft advises to replace expressions like while(true) with for(;;).
+*  http://msdn.microsoft.com/en-us/library/6t66728h%28v=vs.90%29.aspx
+*/
+#  pragma warning(disable:4127)
+typedef SSIZE_T ssize_t;
+typedef SIZE_T size_t;
 typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;
 typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;
 #else
@@ -23,6 +36,9 @@ typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX)
 # define PLATFORM_IS_POSIX_BASED
+#include <unistd.h>
+#include <getopt.h>
+#include <sys/ioctl.h>
 #endif
 
 /** Convenience macros.
@@ -50,9 +66,12 @@ typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;
 #  else
 #    define FORMAT_STRING(p) p
 #  endif
-#  define __pony_format__(FUNC, X, Y, Z)
+#  define __pony_format__(X, Y, Z)
 #endif
 
 #include "io.h"
+#include "utils.h"
+#include "map_file.h"
+#include "primitives.h"
 
 #endif

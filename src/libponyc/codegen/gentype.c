@@ -57,7 +57,7 @@ static LLVMValueRef make_trace(compile_t* c, const char* name,
       {
         bool tag = cap_for_type(ast) == TK_TAG;
 
-        switch(ast_id(ast_data(ast)))
+        switch(ast_id((ast_t*)ast_data(ast)))
         {
           case TK_TRAIT:
             if(tag)
@@ -124,7 +124,7 @@ static LLVMTypeRef make_struct(compile_t* c, const char* name,
     extra++;
 
   // create the type descriptor as element 0
-  LLVMTypeRef elements[count + extra];
+  PONY_VL_ARRAY(LLVMTypeRef, elements, count + extra);
   elements[0] = c->descriptor_ptr;
 
   if(actor)
@@ -149,7 +149,7 @@ static LLVMTypeRef make_struct(compile_t* c, const char* name,
 static ast_t** get_fields(ast_t* ast, int* count)
 {
   assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
 
   if(ast_id(def) == TK_DATA)
   {
@@ -180,7 +180,7 @@ static ast_t** get_fields(ast_t* ast, int* count)
     member = ast_sibling(member);
   }
 
-  ast_t** fields = calloc(n, sizeof(ast_t*));
+  ast_t** fields = (ast_t**)calloc(n, sizeof(ast_t*));
 
   member = ast_child(members);
   int index = 0;
@@ -219,7 +219,7 @@ static bool make_methods(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
 
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
   bool actor = ast_id(def) == TK_ACTOR;
@@ -321,7 +321,7 @@ static void make_descriptor(compile_t* c, ast_t* def, const char* name,
   LLVMTypeRef desc_type, LLVMValueRef g_desc)
 {
   // build the actual vtable
-  LLVMValueRef vtable[vtable_size];
+  PONY_VL_ARRAY(LLVMValueRef, vtable, vtable_size);
 
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
@@ -374,7 +374,7 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(type != NULL)
     return LLVMPointerType(type, 0);
 
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
   bool actor = ast_id(def) == TK_ACTOR;
 
   int count;
@@ -471,7 +471,7 @@ static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
 static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
 
   switch(ast_id(def))
   {
@@ -505,7 +505,7 @@ static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
     return LLVMPointerType(type, 0);
 
   size_t count = ast_childcount(ast);
-  ast_t* fields[count];
+  PONY_VL_ARRAY(ast_t*, fields, count);
   ast_t* child = ast_child(ast);
   size_t index = 0;
 

@@ -163,7 +163,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
-  ast_t* m = ast_get(package, main_actor);
+  ast_t* m = (ast_t*)ast_get(package, main_actor);
 
   if(m == NULL)
   {
@@ -250,7 +250,7 @@ static bool codegen_finalise(compile_t* c)
   // assembly into an object file. still need to link the object file with the
   // pony runtime and any other C libraries needed.
   size_t len = strlen(c->filename);
-  char buffer[len + 4];
+  PONY_VL_ARRAY(char, buffer, len + 4);
   memcpy(buffer, c->filename, len);
   memcpy(buffer + len, ".bc", 4);
 

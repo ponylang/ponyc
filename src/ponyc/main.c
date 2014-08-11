@@ -1,10 +1,9 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/ds/stringtab.h"
-#include <sys/ioctl.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <getopt.h>
+
+#include "../libponyc/platform/platform.h"
 
 static struct option opts[] =
 {
@@ -35,7 +34,7 @@ size_t get_width()
   struct winsize ws;
   size_t width = 80;
 
-  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1)
+  if(get_window_size(&ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;

@@ -121,7 +121,7 @@ token_id cap_for_type(ast_t* type)
       if(cap != TK_NONE)
         return cap;
 
-      ast_t* def = ast_data(type);
+      ast_t* def = (ast_t*)ast_data(type);
       ast_t* constraint = ast_childidx(def, 1);
       return cap_for_type(constraint);
     }

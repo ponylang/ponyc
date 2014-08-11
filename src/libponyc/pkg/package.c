@@ -89,7 +89,7 @@ static bool filepath(const char *file, char* path)
 {
   struct stat sb;
 
-  if((realpath(file, path) != path)
+  if((pony_realpath(file, path) != path)
     || (stat(path, &sb) != 0)
     || ((sb.st_mode & S_IFMT) != S_IFREG)
     )
@@ -127,7 +127,7 @@ static bool execpath(const char* file, char* path)
 
     while(true)
     {
-      char* p = strchr(env, ':');
+      char* p = strchr((char*)env, ':');
       size_t len;
 
       if(p != NULL)
@@ -185,21 +185,22 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
   if(is_magic)
     return do_magic_package(package, path);
 
-  DIR* dir = opendir(path);
+  PONY_ERRNO err = 0;
+  PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
   {
-    switch(errno)
+    switch(err)
     {
-      case EACCES:
+      case PONY_IO_EACCES:
         errorf(path, "permission denied");
         break;
 
-      case ENOENT:
+      case PONY_IO_ENOENT:
         errorf(path, "does not exist");
         break;
 
-      case ENOTDIR:
+      case PONY_IO_ENOTDIR:
         errorf(path, "not a directory");
         break;
 
@@ -210,16 +211,17 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
     return false;
   }
 
-  struct dirent dirent;
-  struct dirent* d;
+  PONY_DIRINFO dirent;
+  PONY_DIRINFO* d;
   bool r = true;
 
-  while(!readdir_r(dir, &dirent, &d) && (d != NULL))
+  while(!pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
     //if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
-      const char* p = strrchr(d->d_name, '.');
+      char* name = pony_get_dir_name(d);
+      const char* p = strrchr(name, '.');
 
       if(!p || strcmp(p, EXTENSION))
         continue;
@@ -227,13 +229,13 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
       char fullpath[FILENAME_MAX];
       strcpy(fullpath, path);
       strcat(fullpath, "/");
-      strcat(fullpath, d->d_name);
+      strcat(fullpath, name);
 
       r &= do_file(package, fullpath);
     }
   }
 
-  closedir(dir);
+  pony_closedir(dir);
   return r;
 }
 
@@ -251,7 +253,7 @@ static const char* try_path(const char* base, const char* path)
     strcpy(composite, path);
   }
 
-  if(realpath(composite, file) != file)
+  if(pony_realpath(composite, file) != file)
     return NULL;
 
   return stringtab(file);
@@ -276,7 +278,7 @@ static const char* find_path(ast_t* from, const char* path)
   else {
     // try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
-    package_t* pkg = ast_data(from);
+    package_t* pkg = (package_t*)ast_data(from);
     result = try_path(pkg->path, path);
 
     if(result != NULL)
@@ -365,7 +367,7 @@ static ast_t* create_package(ast_t* program, const char* name)
   uintptr_t pkg_id = (uintptr_t)ast_data(program);
   ast_setdata(program, (void*)(pkg_id + 1));
 
-  package_t* pkg = malloc(sizeof(package_t));
+  package_t* pkg = (package_t*)malloc(sizeof(package_t));
   pkg->path = name;
   pkg->id = id_to_string(pkg_id);
   pkg->next_hygienic_id = 0;
@@ -399,7 +401,7 @@ void package_paths(const char* paths)
 
   while(true)
   {
-    char* p = strchr(paths, ':');
+    char* p = strchr((char*)paths, ':');
     size_t len;
 
     if(p != NULL)
@@ -463,7 +465,7 @@ pass_id package_get_pass_limit()
 
 void package_add_magic(const char* path, const char* src)
 {
-  magic_package_t* n = malloc(sizeof(magic_package_t));
+  magic_package_t* n = (magic_package_t*)malloc(sizeof(magic_package_t));
   n->path = stringtab(path);
   n->src = src;
   n->next = magic_packages;
@@ -498,7 +500,7 @@ ast_t* package_load(ast_t* from, const char* path)
     return NULL;
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
-  ast_t* package = ast_get(program, name);
+  ast_t* package = (ast_t*)ast_get(program, name);
 
   if(package != NULL)
     return package;
@@ -521,7 +523,7 @@ ast_t* package_load(ast_t* from, const char* path)
 
 const char* package_name(ast_t* ast)
 {
-  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
   return pkg->id;
 }
 
@@ -532,7 +534,7 @@ ast_t* package_id(ast_t* ast)
 
 const char* package_filename(ast_t* ast)
 {
-  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
   const char* p = strrchr(pkg->path, '/');
 
   if(p == NULL)
@@ -556,7 +558,7 @@ const char* package_hygienic_id_string(ast_t* ast)
     return stringtab("hygid");
   }
 
-  package_t* pkg = ast_data(package);
+  package_t* pkg = (package_t*)ast_data(package);
   size_t id = pkg->next_hygienic_id++;
 
   return id_to_string(id);

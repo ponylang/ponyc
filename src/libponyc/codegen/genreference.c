@@ -14,7 +14,7 @@ LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)));
+  ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
   size_t index = ast_index(def);
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
@@ -34,8 +34,8 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
   assert(ast_id(l_type) == TK_NOMINAL);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* def = ast_data(l_type);
-  ast_t* field = ast_get(def, ast_name(right));
+  ast_t* def = (ast_t*)ast_data(l_type);
+  ast_t* field = (ast_t*)ast_get(def, ast_name(right));
   size_t index = ast_index(field);
   size_t extra = 1;
 
@@ -95,7 +95,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
     l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
 
-    def = ast_get(ast, ast_name(id));
+    def = (ast_t*)ast_get(ast, ast_name(id));
     ast_setdata(def, l_value);
 
     return l_value;
@@ -112,7 +112,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
     l_value = LLVMBuildAlloca(c->builder, l_type, ast_name(id));
 
-    def = ast_get(ast, ast_name(id));
+    def = (ast_t*)ast_get(ast, ast_name(id));
     ast_setdata(def, l_value);
 
     id = ast_sibling(id);
@@ -127,9 +127,9 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
-  ast_t* def = ast_get(ast, name);
+  ast_t* def = (ast_t*)ast_get(ast, name);
 
-  LLVMValueRef value = ast_data(def);
+  LLVMValueRef value = (LLVMValueRef)ast_data(def);
   assert(value != NULL);
 
   return value;

@@ -31,7 +31,6 @@ token_t* token_new(token_id id, source_t* source)
   return t;
 }
 
-
 token_t* token_dup(token_t* token)
 {
   assert(token != NULL);
@@ -107,7 +106,7 @@ const char* token_print(token_t* token)
 
     case TK_INT:
       if(token->printed == NULL)
-        token->printed = malloc(32);
+        token->printed = (char*)malloc(32);
 
       snprintf(token->printed, 32, "%zu", (size_t)token->integer);
       return token->printed;
@@ -115,7 +114,7 @@ const char* token_print(token_t* token)
     case TK_FLOAT:
     {
       if(token->printed == NULL)
-        token->printed = malloc(32);
+        token->printed = (char*)malloc(32);
 
       int r = snprintf(token->printed, 32, "%g", token->real);
       if(strcspn(token->printed, ".e") == r)
@@ -133,7 +132,7 @@ const char* token_print(token_t* token)
     return p;
 
   if(token->printed == NULL)
-    token->printed = malloc(32);
+    token->printed = (char*)malloc(32);
 
   snprintf(token->printed, 32, "Unknown_token_%d", token->id);
   return token->printed;

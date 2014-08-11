@@ -38,6 +38,22 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 #endif
 }
 
+char* pony_realpath(const char* path, char* resolved)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  if (PathCanonicalize(resolved, path))
+  {
+    return resolved;
+  }
+
+  return NULL;
+#elif PLATFORM_IS_POSIX_BASED
+  return realpath(path, resolved);
+#else
+  return NULL;
+#endif
+}
+
 char* pony_get_dir_name(PONY_DIRINFO* info)
 {
 #ifdef PLATFORM_IS_WINDOWS

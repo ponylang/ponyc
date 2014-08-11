@@ -73,7 +73,7 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
 
-  LLVMTypeRef tparams[count];
+  PONY_VL_ARRAY(LLVMTypeRef, tparams, count);
   count = 0;
 
   // get a type for the receiver
@@ -280,7 +280,7 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   int count = LLVMCountParamTypes(LLVMGetElementType(LLVMTypeOf(handler)));
-  LLVMValueRef args[count];
+  PONY_VL_ARRAY(LLVMValueRef, args, count);
   args[0] = this_ptr;
 
   for(int i = 1; i < count; i++)
