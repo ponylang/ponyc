@@ -31,7 +31,7 @@ static LLVMTypeRef make_primitive(compile_t* c, ast_t* ast, LLVMTypeRef l_type)
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type);
+  gendesc_init(c, ast, type, true);
 
   // No trace function is needed.
   return l_type;
@@ -219,7 +219,7 @@ static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type);
+  gendesc_init(c, ast, type, false);
   return type;
 }
 

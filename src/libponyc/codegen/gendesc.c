@@ -3,17 +3,63 @@
 #include "gentype.h"
 #include <assert.h>
 
+static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
+  LLVMTypeRef type)
+{
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
+
+  if(fun == NULL)
+    return LLVMConstNull(c->void_ptr);
+
+  // Create a new unboxing function that forwards to the real function.
+  LLVMTypeRef f_type = LLVMTypeOf(fun);
+  size_t count = LLVMCountParamTypes(f_type);
+
+  LLVMTypeRef params[count];
+  LLVMGetParamTypes(f_type, params);
+  LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
+
+  // It's the same type, but it takes the boxed type instead of the primitive
+  // type as the receiver.
+  params[0] = type;
+
+  const char* unbox_name = genname_unbox(name);
+  LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
+  LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
+
+  // Extract the primitive type from element 1 and call the real function.
+  LLVMBasicBlockRef entry_block = LLVMAppendBasicBlock(unbox_fun, "entry");
+  LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(c->builder);
+  LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+  LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
+  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
+  LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
+
+  LLVMValueRef args[count];
+  args[0] = primitive;
+
+  for(size_t i = 1; i < count; i++)
+    args[i] = LLVMGetParam(unbox_fun, i);
+
+  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
+  LLVMBuildRet(c->builder, result);
+
+  // Put the insert cursor back where it was.
+  LLVMPositionBuilderAtEnd(c->builder, insert_block);
+
+  return LLVMConstBitCast(unbox_fun, c->void_ptr);
+}
+
 static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
   LLVMTypeRef type)
 {
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
-  if(func == NULL)
-    func = LLVMConstNull(type);
-  else
-    func = LLVMConstBitCast(func, type);
+  if(fun == NULL)
+    return LLVMConstNull(type);
 
-  return func;
+  return LLVMConstBitCast(fun, type);
 }
 
 LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
@@ -67,7 +113,7 @@ void gendesc_prep(compile_t* c, ast_t* ast, LLVMTypeRef type)
   }
 }
 
-void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type)
+void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type, bool unbox)
 {
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = ast_data(ast);
@@ -92,7 +138,12 @@ void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type)
         const char* funname = ast_name(id);
         const char* fullname = genname_fun(name, funname, NULL);
         int colour = painter_get_colour(c->painter, funname);
-        vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
+
+        if(unbox)
+          vtable[colour] = make_unbox_function(c, fullname, c->void_ptr);
+        else
+          vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
+
         assert(vtable[colour] != NULL);
         break;
       }

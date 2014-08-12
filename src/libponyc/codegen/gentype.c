@@ -170,7 +170,7 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type);
+  gendesc_init(c, ast, type, false);
   return LLVMPointerType(type, 0);
 }
 

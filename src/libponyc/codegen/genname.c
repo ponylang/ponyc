@@ -143,3 +143,8 @@ const char* genname_handler(const char* type, const char* name,
   const char* handler_name = build_name(name, "$handler", NULL);
   return genname_fun(type, handler_name, typeargs);
 }
+
+const char* genname_unbox(const char* name)
+{
+  return build_name(name, "$unbox", NULL);
+}
