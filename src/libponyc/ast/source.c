@@ -11,7 +11,7 @@
 
 source_t* source_open(const char* file)
 {
-  int fd = open(file, O_RDONLY);
+  intptr_t fd = pony_open(file, O_RDONLY);
 
   if(fd == -1)
   {
@@ -24,12 +24,12 @@ source_t* source_open(const char* file)
   if(fstat(fd, &sb) < 0)
   {
     errorf(file, "can't determine length of file");
-    close(fd);
+    pony_close(fd);
     return NULL;
   }
 
   char* m = map_file(sb.st_size, PONY_PROT_READ, fd);
-  close(fd);
+  pony_close(fd);
 
   if(m == PONY_MAP_FAILED)
   {

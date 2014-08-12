@@ -14,12 +14,18 @@ typedef struct token_t
   size_t pos;
   char* printed;
 
+#ifndef PLATFORM_IS_WINDOWS
   union
   {
     const char* string;
     double real;
     __uint128_t integer;
   };
+#else
+  const char* string;
+  double real;
+  __uint128_t integer;
+#endif
 } token_t;
 
 
@@ -146,14 +152,14 @@ source_t* token_source(token_t* token)
 }
 
 
-int token_line_number(token_t* token)
+size_t token_line_number(token_t* token)
 {
   assert(token != NULL);
   return token->line;
 }
 
 
-int token_line_position(token_t* token)
+size_t token_line_position(token_t* token)
 {
   assert(token != NULL);
   return token->pos;

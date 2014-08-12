@@ -22,6 +22,10 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
 #endif
 
+intptr_t pony_open(const char* file, uint32_t mode);
+
+void pony_close(intptr_t fileHandle);
+
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err);
 
 char* pony_realpath(const char* path, char* resolved);

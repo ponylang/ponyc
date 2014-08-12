@@ -223,10 +223,10 @@ const char* token_print(token_t* token);
 source_t* token_source(token_t* token);
 
 // Report the line number the given token was found at
-int token_line_number(token_t* token);
+size_t token_line_number(token_t* token);
 
 // Report the position within the line that the given token was found at
-int token_line_position(token_t* token);
+size_t token_line_position(token_t* token);
 
 
 // Write accessors

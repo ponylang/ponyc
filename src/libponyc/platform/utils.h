@@ -16,6 +16,11 @@ struct option
   int val;
 };
 
+int getopt(int argc, char* const argv[], const char* optstring);
+
+int getopt_long(int argc, char* const argv[], const char* optstring,
+  const struct option longopts, int* longindex);
+
 struct winsize
 {
   unsigned short ws_row;
@@ -24,6 +29,9 @@ struct winsize
   unsigned short ws_ypixel;
 };
 #else
+#  include <unistd.h>
+#  include <getopt.h>
+#  include <sys/ioctl.h>
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
@@ -37,6 +45,16 @@ int32_t pony_snprintf(char* str, size_t size,
 int32_t pony_vsnprintf(char* str, size_t size, const char* format,
   va_list args);
 
-bool get_window_size(struct winsize* ws);
+void pony_getenv(const char* s, char** to);
+
+void pony_strcpy(char* dest, const char* source);
+
+void pony_strncpy(char* dest, const char* source, size_t len);
+
+void pony_strcat(char* dest, const char* appendix);
+
+char* pony_strdup(const char* source);
+
+bool get_terminal_window_size(struct winsize* ws);
 
 #endif

@@ -113,7 +113,7 @@ void syntax_error(parser_t* parser, const char* func, int line);
 #define MAKE_DEFAULT(sub_ast, id) \
   if(sub_ast == RULE_NOT_FOUND) sub_ast = ast_new(parser->token, id);
 
-#define ERROR() \
+#define THROW_ERROR() \
   { \
     syntax_error(parser, __FUNCTION__, __LINE__); \
     ast_free(ast); \
@@ -285,13 +285,13 @@ ast_t* parse(source_t* source, rule_t start);
     { \
       ast_t* sub_ast = rule_in_set(parser, rule_set); \
       if(sub_ast == RULE_NOT_FOUND) break; \
-      if(sub_ast == NULL) ERROR(); \
+      if(sub_ast == NULL) THROW_ERROR(); \
       HANDLE_ERRORS(sub_ast); \
       add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
       prev_ast = sub_ast; \
       had_op = true; \
     } \
-    if(!state.opt && !had_op) ERROR(); \
+    if(!state.opt && !had_op) THROW_ERROR(); \
     state.opt = false; \
   }
 

@@ -447,8 +447,8 @@ bool expr_call(ast_t* ast)
         // the caller. can't just copy it.
         ast_error(positional, "not implemented (default arguments)");
         return false;
-
-        param = ast_sibling(param);
+        //MSVC++ complains about unreachable code...
+        //param = ast_sibling(param);
       }
 
       switch(ast_id(left))

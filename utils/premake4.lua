@@ -1,7 +1,9 @@
 function cpp_lib()
   language "C++"
   kind "StaticLib"
-  buildoptions "-std=gnu++11"
+  if not os.is("windows") then
+    buildoptions "-std=gnu++11"
+  end
 end
 
 project "gtest"

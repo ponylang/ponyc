@@ -7,7 +7,7 @@
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
-  LLVMValueRef value;
+  LLVMValueRef value = NULL;
 
   while(child != NULL)
   {

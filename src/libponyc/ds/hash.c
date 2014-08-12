@@ -1,7 +1,9 @@
 #include "hash.h"
 #include <string.h>
 
-static const char the_key[16] = {
+#include "../platform/platform.h"
+
+static const unsigned char the_key[16] = {
   0xFE, 0x09, 0xD3, 0x22, 0x6B, 0x9C, 0x10, 0x8A,
   0xE1, 0x35, 0x72, 0xB5, 0xCC, 0x3F, 0x92, 0x9F
 };
@@ -16,7 +18,7 @@ static const char the_key[16] = {
     v2 += v1; v1=ROTL(v1,17); v1 ^= v2; v2=ROTL(v2,32); \
   } while(0)
 
-uint64_t siphash24(const char* key, const char *in, size_t len)
+uint64_t siphash24(const unsigned char* key, const char *in, size_t len)
 {
 	uint64_t k0 = *(uint64_t*)(key);
 	uint64_t k1 = *(uint64_t*)(key + 8);

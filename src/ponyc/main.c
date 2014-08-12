@@ -34,7 +34,7 @@ size_t get_width()
   struct winsize ws;
   size_t width = 80;
 
-  if(get_window_size(&ws))
+  if(get_terminal_window_size(&ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;

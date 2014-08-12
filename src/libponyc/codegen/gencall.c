@@ -125,7 +125,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     f_type = LLVMTypeOf(func);
   }
 
-  int count = ast_childcount(positional) + need_receiver;
+  size_t count = ast_childcount(positional) + need_receiver;
 
   PONY_VL_ARRAY(LLVMValueRef, args, count);
   PONY_VL_ARRAY(LLVMTypeRef, params, count);

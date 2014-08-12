@@ -28,8 +28,8 @@ typedef struct builder_t
   source_t* source;
   token_t* token;
   ast_token_id id;
-  int line;
-  int pos;
+  size_t line;
+  size_t pos;
   bool have_token;
   bool had_error;
 } builder_t;
