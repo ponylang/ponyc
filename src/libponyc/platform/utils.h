@@ -10,8 +10,8 @@
 #  define required_argument 0x01
 #  define optional_argument 0x02
 
-extern int opterr, optind, optopt, optreset;
-extern char* optarg;
+static int opterr, optind, optopt, optreset;
+static char* optarg;
 
 struct option
 {

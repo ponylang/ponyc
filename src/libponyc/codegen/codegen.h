@@ -3,6 +3,7 @@
 
 #include "colour.h"
 #include "../ast/ast.h"
+
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>

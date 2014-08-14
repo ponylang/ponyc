@@ -54,13 +54,15 @@ function llvm_config(opt)
 end
 
 function link_libponyc()
-  -- for windows we need to use libdirs, strip "-L"
-  local libd = llvm_config("--ldflags")
-  libd = string.gsub(libd, "-L", "")
-
-  libdirs {
-    libd
-  }
+  links { "libponyc" }
+  
+  if os.is("windows") then 
+    libdirs {
+     llvm_config("--libdir")
+    }
+  else
+    linkoptions { llvm_config("--ldflags") }
+  end
 
   local output = llvm_config("--libs")
 
@@ -74,8 +76,6 @@ function link_libponyc()
       "dl"
     }
   end
-
-  links "libponyc"
 end
 
 solution "ponyc"
@@ -154,7 +154,6 @@ solution "ponyc"
         "-std=gnu11"
       }   
     end
-
     defines {
       "_DEBUG",
       "_GNU_SOURCE",
@@ -162,7 +161,7 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/**.c", "src/libponyc/**.h" }
+    files { "src/libponyc/**.c", "src/libponyc/**.h", "src/libponyc/**.hpp" }
     cppforce { "src/libponyc/**.c" }
 
   project "ponyc"
