@@ -6,23 +6,19 @@
 #  include <Shlwapi.h>
 typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  define PONY_DIRINFO WIN32_FIND_DATA
-#  define PONY_IO_EACCES 0x01
-#  define PONY_IO_ENOENT 0x02
-#  define PONY_IO_ENOTDIR 0x04
-#  define PONY_IO_PATH_TOO_LONG 0x08
+#  define PONY_IO_PATH_TOO_LONG UINT32_MAX
+#  define PONY_MAP_FAILED NULL
 #else
 #  include <dirent.h>
 #  include <limits.h>
 #  include <stdlib.h>
 #  define PONY_DIR DIR
 #  define PONY_DIRRINFO struct dirent
-#  define PONY_IO_EACCES EACCES
-#  define PONY_IO_ENOENT ENOENT
-#  define PONY_IO_ENOTDIR ENOTDIR
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
+#  define PONY_MAP_FAILED MAP_FAILED
 #endif
 
-intptr_t pony_open(const char* file, uint32_t mode);
+intptr_t pony_openr(const char* file);
 
 void pony_close(intptr_t fileHandle);
 
@@ -33,6 +29,10 @@ char* pony_realpath(const char* path, char* resolved);
 char* pony_get_dir_name(PONY_DIRINFO* info);
 
 void pony_closedir(PONY_DIR* dir);
+
+void* pony_map_read(size_t size, intptr_t fd);
+
+void pony_unmap(void* p, size_t size);
 
 bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, 
   PONY_DIRINFO** res);

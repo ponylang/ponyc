@@ -23,6 +23,30 @@
 
 #define EXTENSION ".pony"
 
+#ifdef PLATFORM_IS_WINDOWS
+/** Disable warning about "getenv" begin unsafe. The alternatives, s_getenv and
+ *  _dupenv_s are incredibly inconvenient and expensive to use. Since such a
+ *  warning could make sense for other function calls, we only disable it for 
+ *  this file.
+ */
+#  pragma warning(disable:4996)
+/** No overflow detection, if used incorrectly, things go horribly wrong!
+*
+*/
+pass_id &operator++(pass_id& current)
+{
+  current = (pass_id)(current + 1);
+  return current;
+};
+
+pass_id operator++(pass_id& current, int)
+{
+  pass_id rvalue = current;
+  ++current;
+  return rvalue;
+};
+#endif
+
 typedef struct package_t
 {
   const char* path;
@@ -192,15 +216,15 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
   {
     switch(err)
     {
-      case PONY_IO_EACCES:
+      case EACCES:
         errorf(path, "permission denied");
         break;
 
-      case PONY_IO_ENOENT:
+      case ENOENT:
         errorf(path, "does not exist");
         break;
 
-      case PONY_IO_ENOTDIR:
+      case ENOTDIR:
         errorf(path, "not a directory");
         break;
 
@@ -357,7 +381,7 @@ static bool do_passes(ast_t* ast)
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
-  snprintf(buffer, 32, "$%zu", id);
+  pony_snprintf(buffer, 32, "$%zu", id);
   return stringtab(buffer);
 }
 

@@ -1,8 +1,11 @@
-extern "C" {
+#include "../../src/libponyc/platform/platform.h"
+
+PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/lexer.h"
 #include "../../src/libponyc/ast/source.h"
 #include "../../src/libponyc/ast/token.h"
-}
+PONY_EXTERN_C_END
+
 #include <gtest/gtest.h>
 
 
@@ -20,7 +23,7 @@ TEST(LexerNumberTest, Int0)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(0, token_int(token));
+  ASSERT_EQ((__uint128_t)0, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -38,7 +41,7 @@ TEST(LexerNumberTest, Int0Finishes)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(0, token_int(token));
+  ASSERT_EQ((__uint128_t)0, token_int(token));
   token_free(token);
 
   token = lexer_next(lexer);
@@ -61,7 +64,7 @@ TEST(LexerNumberTest, IntDecimal)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(12345, token_int(token));
+  ASSERT_EQ((__uint128_t)12345, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -79,7 +82,7 @@ TEST(LexerNumberTest, IntDecimalDot)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(12345, token_int(token));
+  ASSERT_EQ((__uint128_t)12345, token_int(token));
   token_free(token);
 
   token = lexer_next(lexer);
@@ -119,7 +122,7 @@ TEST(LexerNumberTest, IntBinary)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(20, token_int(token));
+  ASSERT_EQ((__uint128_t)20, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -171,7 +174,7 @@ TEST(LexerNumberTest, IntHex)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(65534, token_int(token));
+  ASSERT_EQ(token_int(token), 65534);
   token_free(token);
 
   lexer_close(lexer);
@@ -275,7 +278,7 @@ TEST(LexerNumberTest, IntNoOctal)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(100, token_int(token));
+  ASSERT_EQ((__uint128_t)100, token_int(token));
   token_free(token);
 
   lexer_close(lexer);

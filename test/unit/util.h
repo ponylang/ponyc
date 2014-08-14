@@ -1,6 +1,8 @@
-extern "C" {
+#include "../../src/libponyc/platform/platform.h"
+
+PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/ast.h"
-}
+PONY_EXTERN_C_END
 
 
 ast_t* find_start(ast_t* tree, token_id start_id);

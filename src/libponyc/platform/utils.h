@@ -5,9 +5,14 @@
 #  include <malloc.h>
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
             (SIZE)*sizeof(TYPE))
+
 #  define no_argument 0x00
 #  define required_argument 0x01
 #  define optional_argument 0x02
+
+extern int opterr, optind, optopt, optreset;
+extern char* optarg;
+
 struct option
 {
   const char* name;
@@ -19,7 +24,7 @@ struct option
 int getopt(int argc, char* const argv[], const char* optstring);
 
 int getopt_long(int argc, char* const argv[], const char* optstring,
-  const struct option longopts, int* longindex);
+  const struct option* longopts, int* longindex);
 
 struct winsize
 {
@@ -35,17 +40,11 @@ struct winsize
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
-#ifdef PLATFORM_IS_WINDOWS
-#  define snprintf pony_snprintf
-#endif
-
 int32_t pony_snprintf(char* str, size_t size, 
   FORMAT_STRING(const char* format), ...);
 
-int32_t pony_vsnprintf(char* str, size_t size, const char* format,
-  va_list args);
-
-void pony_getenv(const char* s, char** to);
+int32_t pony_vsnprintf(char* str, size_t size, 
+  FORMAT_STRING(const char* format), va_list args);
 
 void pony_strcpy(char* dest, const char* source);
 
@@ -55,6 +54,6 @@ void pony_strcat(char* dest, const char* appendix);
 
 char* pony_strdup(const char* source);
 
-bool get_terminal_window_size(struct winsize* ws);
+bool pony_get_term_winsize(struct winsize* ws);
 
 #endif

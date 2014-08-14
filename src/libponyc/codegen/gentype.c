@@ -358,7 +358,7 @@ static void make_descriptor(compile_t* c, ast_t* def, const char* name,
   args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
     false);
   args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);;
+  args[7] = LLVMConstArray(c->void_ptr, vtable, (unsigned int)vtable_size);;
 
   LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
   LLVMSetInitializer(g_desc, desc);
@@ -388,7 +388,7 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   const char* desc_name = genname_descriptor(name);
   size_t vtable_size = painter_get_vtable_size(c->painter, def);
 
-  LLVMTypeRef desc_type = codegen_desctype(c, name, vtable_size);
+  LLVMTypeRef desc_type = codegen_desctype(c, name, (unsigned int)vtable_size);
   LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
 
   if(!make_methods(c, ast))
@@ -515,7 +515,7 @@ static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
     child = ast_sibling(child);
   }
 
-  type = make_struct(c, name, fields, count, false);
+  type = make_struct(c, name, fields, (int)count, false);
 
   if(type == NULL)
     return NULL;

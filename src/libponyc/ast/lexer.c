@@ -324,19 +324,19 @@ static bool append_unicode(lexer_t* lexer, size_t len)
   // UTF-8 encoding
   if(c <= 0x7F)
   {
-    append(lexer, c & 0x7F);
+    append(lexer, (char)(c & 0x7F));
   } else if(c <= 0x7FF) {
-    append(lexer, 0xC0 | (c >> 6));
-    append(lexer, 0x80 | (c & 0x3F));
+    append(lexer, (char)(0xC0 | (c >> 6)));
+    append(lexer, (char)(0x80 | (c & 0x3F)));
   } else if(c <= 0xFFFF) {
-    append(lexer, 0xE0 | (c >> 12));
-    append(lexer, 0x80 | ((c >> 6) & 0x3F));
+    append(lexer, (char)(0xE0 | (c >> 12)));
+    append(lexer, (char)(0x80 | ((c >> 6) & 0x3F)));
     append(lexer, 0x80 | (c & 0x3F));
   } else if(c <= 0x10FFFF) {
-    append(lexer, 0xF0 | (c >> 18));
-    append(lexer, 0x80 | ((c >> 12) & 0x3F));
-    append(lexer, 0x80 | ((c >> 6) & 0x3F));
-    append(lexer, 0x80 | (c & 0x3F));
+    append(lexer, (char)(0xF0 | (c >> 18)));
+    append(lexer, (char)(0x80 | ((c >> 12) & 0x3F)));
+    append(lexer, (char)(0x80 | ((c >> 6) & 0x3F)));
+    append(lexer, (char)(0x80 | (c & 0x3F)));
   } else {
     lexerror(lexer, "Escape sequence exceeds unicode range (0x10FFFF)");
     return false;
@@ -746,7 +746,7 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 
   e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
-  token_set_float(t, significand * pow(10.0, e));
+  token_set_float(t, (double)(significand * pow(10.0, e)));
   return t;
 }
 

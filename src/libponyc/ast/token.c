@@ -114,7 +114,7 @@ const char* token_print(token_t* token)
       if(token->printed == NULL)
         token->printed = (char*)malloc(32);
 
-      snprintf(token->printed, 32, "%zu", (size_t)token->integer);
+      pony_snprintf(token->printed, 32, "%zu", (size_t)token->integer);
       return token->printed;
 
     case TK_FLOAT:
@@ -122,9 +122,9 @@ const char* token_print(token_t* token)
       if(token->printed == NULL)
         token->printed = (char*)malloc(32);
 
-      int r = snprintf(token->printed, 32, "%g", token->real);
+      int r = pony_snprintf(token->printed, 32, "%g", token->real);
       if(strcspn(token->printed, ".e") == r)
-        snprintf(token->printed + r, 32 - r, ".0");
+        pony_snprintf(token->printed + r, 32 - r, ".0");
 
       return token->printed;
     }
@@ -140,7 +140,7 @@ const char* token_print(token_t* token)
   if(token->printed == NULL)
     token->printed = (char*)malloc(32);
 
-  snprintf(token->printed, 32, "Unknown_token_%d", token->id);
+  pony_snprintf(token->printed, 32, "Unknown_token_%d", token->id);
   return token->printed;
 }
 
@@ -199,8 +199,7 @@ void token_set_int(token_t* token, __uint128_t value)
   token->integer = value;
 }
 
-
-void token_set_pos(token_t* token, int line, int pos)
+void token_set_pos(token_t* token, size_t line, size_t pos)
 {
   assert(token != NULL);
   token->line = line;

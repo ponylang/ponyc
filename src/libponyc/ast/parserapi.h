@@ -64,7 +64,7 @@ typedef struct rule_state_t
   bool scope;     // Is this rule a scope
   bool deferred;  // Do we have a deferred AST node
   token_id deferred_id; // ID of deferred AST node
-  int line, pos;        // Locatino to claim deferred node is from
+  size_t line, pos;        // Locatino to claim deferred node is from
 } rule_state_t;
 
 typedef int (*prec_t)(token_id id);

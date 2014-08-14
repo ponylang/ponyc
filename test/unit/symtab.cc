@@ -1,6 +1,9 @@
-extern "C" {
+#include "../../src/libponyc/platform/platform.h"
+
+PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/symtab.h"
-}
+PONY_EXTERN_C_END
+
 #include <gtest/gtest.h>
 
 

@@ -249,8 +249,8 @@ void token_set_float(token_t* token, double value);
 /// Set the given token's literal value. Only valid for TK_INT tokens.
 void token_set_int(token_t* token, __uint128_t value);
 
-/// Set the given token's position within its source file
-void token_set_pos(token_t* token, int line, int pos);
 
+/// Set the given token's position within its source file
+void token_set_pos(token_t* token, size_t line, size_t pos);
 
 #endif

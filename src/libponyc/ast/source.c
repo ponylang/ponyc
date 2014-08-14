@@ -8,10 +8,9 @@
 
 #include "../platform/platform.h"
 
-
 source_t* source_open(const char* file)
 {
-  intptr_t fd = pony_open(file, O_RDONLY);
+  intptr_t fd = pony_openr(file);
 
   if(fd == -1)
   {
@@ -21,14 +20,14 @@ source_t* source_open(const char* file)
 
   struct stat sb;
 
-  if(fstat(fd, &sb) < 0)
+  if(fstat((int)fd, &sb) < 0)
   {
     errorf(file, "can't determine length of file");
     pony_close(fd);
     return NULL;
   }
 
-  char* m = map_file(sb.st_size, PONY_PROT_READ, fd);
+  char* m = (char*)pony_map_read(sb.st_size, fd);
   pony_close(fd);
 
   if(m == PONY_MAP_FAILED)
@@ -65,7 +64,7 @@ void source_close(source_t* source)
     return;
 
   if(source->file != NULL)
-    unmap_file(source->m, source->len);
+    pony_unmap(source->m, source->len);
   else
     free(source->m);
 

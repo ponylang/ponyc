@@ -19,7 +19,7 @@ function unittest()
     end
     language "C++"
     kind "ConsoleApp"
-    links "gtest"
+    links { "gtest" }
     link_libponyc()
 end
 
@@ -52,3 +52,4 @@ project "unit"
 project "bnf"
   testutil()
   files { "bnf/*.c", "bnf/*.h" }
+  cppforce { "bnf/*.c" }

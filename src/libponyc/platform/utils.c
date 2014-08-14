@@ -1,5 +1,8 @@
 #include "platform.h"
 
+#include <stdio.h>
+#include <stdarg.h>
+
 #ifdef PLATFORM_IS_WINDOWS
 int getopt(int argc, char* const argv[], const char* optstring)
 {
@@ -7,7 +10,7 @@ int getopt(int argc, char* const argv[], const char* optstring)
 }
 
 int getopt_long(int argc, char* const argv[], const char* optstring,
-  const struct option longopts, int* longindex)
+  const struct option* longopts, int* longindex)
 {
   return 0;
 }
@@ -28,6 +31,7 @@ int32_t pony_snprintf(char* str, size_t size, const char* format, ...)
 int32_t pony_vsnprintf(char* str, size_t size, const char* format, 
   va_list args)
 {
+#ifdef PLATFORM_IS_WINDOWS
   int32_t count = -1;
   
   if (size != 0)
@@ -36,15 +40,8 @@ int32_t pony_vsnprintf(char* str, size_t size, const char* format,
     count = _vscprintf(format, args);
 
   return count;
-}
-
-void pony_getenv(const char* s, char** to)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  size_t len = strlen(s);
-  _dupenv_s(to, &len, s);
 #else
-  *to = getenv(s);
+  return vsnprintf(str, size, format, args);
 #endif
 }
 
@@ -84,7 +81,7 @@ char* pony_strdup(const char* source)
 #endif
 }
 
-bool get_terminal_window_size(struct winsize* ws)
+bool pony_get_term_winsize(struct winsize* ws)
 {
 #ifdef PLATFORM_IS_WINDOWS
   CONSOLE_SCREEN_BUFFER_INFO info;

@@ -36,8 +36,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
-  bool sign;
-  LLVMTypeRef phi_type;
+  bool sign = false;
+  LLVMTypeRef phi_type = NULL;
 
   if(type != NULL)
   {
@@ -57,7 +57,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
   LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "then");
   LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "else");
-  LLVMBasicBlockRef merge_block;
+  LLVMBasicBlockRef merge_block = NULL;
 
   if(type != NULL)
     merge_block = LLVMAppendBasicBlock(fun, "merge");

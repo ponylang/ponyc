@@ -75,7 +75,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if(l_type == NULL)
     return NULL;
 
-  LLVMValueRef l_value;
+  LLVMValueRef l_value = NULL;
 
   if(need_receiver == 1)
     l_value = gen_expr(c, receiver);
@@ -154,7 +154,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  return call_fun(c, func, args, count, "");
+  return call_fun(c, func, args, (unsigned int)count, "");
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,

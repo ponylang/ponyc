@@ -120,9 +120,10 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
 
   // don't include the receiver for constructors
   if(ast_id(fun) == TK_NEW)
-    ftype = LLVMFunctionType(result, &tparams[1], count - 1, false);
+    ftype = LLVMFunctionType(result, &tparams[1], (unsigned int)(count - 1),
+      false);
   else
-    ftype = LLVMFunctionType(result, tparams, count, false);
+    ftype = LLVMFunctionType(result, tparams, (unsigned int)count, false);
 
   func = LLVMAddFunction(c->module, funname, ftype);
   name_params(params, func, ast_id(fun) == TK_NEW);
@@ -130,7 +131,8 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   if(ast_id(fun) != TK_FUN)
   {
     // handlers always have a receiver and have no return value
-    ftype = LLVMFunctionType(LLVMVoidType(), tparams, count, false);
+    ftype = LLVMFunctionType(LLVMVoidType(), tparams, (unsigned int)count, 
+      false);
     const char* handler_name = genname_handler(type_name, name, typeargs);
     LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
     name_params(params, handler, false);

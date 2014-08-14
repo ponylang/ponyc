@@ -19,7 +19,7 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef param = LLVMGetParam(func, index + 1);
+  LLVMValueRef param = LLVMGetParam(func, (unsigned int)(index + 1));
 
   return param;
 }
@@ -48,7 +48,7 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef field_ptr = LLVMBuildStructGEP(c->builder, l_value,
-    index + extra, "");
+    (unsigned int)(index + extra), "");
 
   return field_ptr;
 }
@@ -81,7 +81,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   AST_GET_CHILDREN(ast, &idseq, &type);
 
   LLVMTypeRef l_type;
-  LLVMValueRef l_value;
+  LLVMValueRef l_value = NULL;
 
   ast_t* id = ast_child(idseq);
   ast_t* def;

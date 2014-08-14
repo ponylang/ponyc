@@ -1,9 +1,9 @@
+#include "../libponyc/platform/platform.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/ds/stringtab.h"
+
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "../libponyc/platform/platform.h"
 
 static struct option opts[] =
 {
@@ -34,7 +34,7 @@ size_t get_width()
   struct winsize ws;
   size_t width = 80;
 
-  if(get_terminal_window_size(&ws))
+  if(pony_get_term_winsize(&ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
   char c;
   bool error = false;
 
-  while((c = getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
+  while((c = (char)getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
   {
     switch(c)
     {

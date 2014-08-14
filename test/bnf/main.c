@@ -2,13 +2,12 @@
 #include "../../src/libponyc/ast/builder.h"
 #include "../../src/libponyc/ast/parser.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/platform/platform.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-
-#include "../../src/libponyc/platform/platform.h"
 
 #define PONY_EXTENSION  ".pony"
 #define AST_EXTENSION   ".ast"
@@ -99,15 +98,15 @@ static bool do_path(const char* path, bool expect_success)
   {
     switch(err)
     {
-      case PONY_IO_EACCES:
+      case EACCES:
         printf("Cannot open %s permission denied\n", path);
         break;
 
-      case PONY_IO_ENOENT:
+      case ENOENT:
         printf("Cannot open %s does not exist\n", path);
         break;
 
-      case PONY_IO_ENOTDIR:
+      case ENOTDIR:
         printf("Cannot open %s not a directory\n", path);
         break;
 
@@ -136,12 +135,12 @@ static bool do_path(const char* path, bool expect_success)
       continue;
 
     char pony_fullpath[FILENAME_MAX];
-    strcpy(pony_fullpath, path);
-    strcat(pony_fullpath, "/");
-    strcat(pony_fullpath, name);
+    pony_strcpy(pony_fullpath, path);
+    pony_strcat(pony_fullpath, "/");
+    pony_strcat(pony_fullpath, name);
 
     char ast_fullpath[FILENAME_MAX];
-    strcpy(ast_fullpath, pony_fullpath);
+    pony_strcpy(ast_fullpath, pony_fullpath);
 
     p = strrchr(ast_fullpath, '.');
     assert(p != NULL);

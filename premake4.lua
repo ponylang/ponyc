@@ -54,11 +54,13 @@ function llvm_config(opt)
 end
 
 function link_libponyc()
-  linkoptions {
-    llvm_config("--ldflags")
-  }
+  -- for windows we need to use libdirs, strip "-L"
+  local libd = llvm_config("--ldflags")
+  libd = string.gsub(libd, "-L", "")
 
-  links "libponyc"
+  libdirs {
+    libd
+  }
 
   local output = llvm_config("--libs")
 
@@ -72,6 +74,8 @@ function link_libponyc()
       "dl"
     }
   end
+
+  links "libponyc"
 end
 
 solution "ponyc"
@@ -80,6 +84,8 @@ solution "ponyc"
     "Release",
     "Profile"
   }
+
+  links { "Shlwapi.lib" }
 
   if os.is("windows") then
     if(architecture) then
@@ -146,7 +152,7 @@ solution "ponyc"
     if not os.is("windows") then
       buildoptions {
         "-std=gnu11"
-      }
+      }   
     end
 
     defines {
@@ -161,12 +167,12 @@ solution "ponyc"
 
   project "ponyc"
     kind "ConsoleApp"
-    language "C++"
+    language "C"
     if not os.is("windows") then
       buildoptions "-std=gnu11"
     end
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
-    cppforce { "src.ponyc/**.c" }
+    cppforce { "src/ponyc/**.c" }
     link_libponyc()
 
   include "utils/"
