@@ -85,8 +85,13 @@ solution "ponyc"
     "Profile"
   }
 
-  links { "Shlwapi.lib" }
+  flags {
+      "FatalWarnings",
+      "MultiProcessorCompile"
+    }
 
+  links { "Shlwapi.lib" }
+  
   if os.is("windows") then
     if(architecture) then
       architecture "x64"
@@ -104,12 +109,6 @@ solution "ponyc"
 
   configuration "*"
 
-  flags {
-    "ExtraWarnings",
-    "FatalWarnings",
-    "Symbols"
-  }
-
   configuration "macosx"
     buildoptions "-Qunused-arguments"
     linkoptions "-Qunused-arguments"
@@ -118,6 +117,7 @@ solution "ponyc"
 
   configuration "Debug"
     targetdir "bin/debug"
+    flags { "Symbols" }
 
   configuration "Release"
     targetdir "bin/release"
