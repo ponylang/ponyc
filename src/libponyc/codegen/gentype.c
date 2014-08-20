@@ -145,159 +145,6 @@ static void free_fields(ast_t** fields, int count)
   free(fields);
 }
 
-<<<<<<< HEAD
-static bool make_methods(compile_t* c, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-
-  ast_t* def = (ast_t*)ast_data(ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  bool actor = ast_id(def) == TK_ACTOR;
-  int be_index = 0;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic constructors)");
-          return false;
-        }
-
-        LLVMValueRef fun;
-
-        if(actor)
-          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
-        else
-          fun = genfun_new(c, ast, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      case TK_BE:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic behaviours)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      case TK_FUN:
-      {
-        ast_t* id;
-        ast_t* typeparams;
-        AST_GET_CHILDREN(member, NULL, &id, &typeparams)
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic functions)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return true;
-}
-
-static LLVMValueRef make_function_ptr(compile_t* c, const char* name,
-  LLVMTypeRef type)
-{
-  LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
-
-  if(func == NULL)
-    func = LLVMConstNull(type);
-  else
-    func = LLVMConstBitCast(func, type);
-
-  return func;
-}
-
-static void make_descriptor(compile_t* c, ast_t* def, const char* name,
-  const char* desc_name, size_t vtable_size, LLVMTypeRef type,
-  LLVMTypeRef desc_type, LLVMValueRef g_desc)
-{
-  // build the actual vtable
-  PONY_VL_ARRAY(LLVMValueRef, vtable, vtable_size);
-
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_BE:
-      case TK_FUN:
-      {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        const char* fullname = genname_fun(name, funname, NULL);
-        int colour = painter_get_colour(c->painter, funname);
-        vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
-        assert(vtable[colour] != NULL);
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  // TODO: trait list
-  LLVMValueRef args[8];
-  args[0] = make_function_ptr(c, genname_trace(name), c->trace_fn);
-  args[1] = make_function_ptr(c, genname_serialise(name), c->trace_fn);
-  args[2] = make_function_ptr(c, genname_deserialise(name), c->trace_fn);
-  args[3] = make_function_ptr(c, genname_dispatch(name), c->dispatch_fn);
-  args[4] = make_function_ptr(c, genname_finalise(name), c->trace_fn);
-  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
-    false);
-  args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, (unsigned int)vtable_size);;
-
-  LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
-  LLVMSetInitializer(g_desc, desc);
-  LLVMSetGlobalConstant(g_desc, true);
-}
-
-=======
->>>>>>> 94cbe5735396edf2d7d0ce121d24c617dfd4887c
 static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
 {
   const char* name = genname_type(ast);
@@ -318,15 +165,7 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   if(type == NULL)
     return NULL;
 
-<<<<<<< HEAD
-  const char* desc_name = genname_descriptor(name);
-  size_t vtable_size = painter_get_vtable_size(c->painter, def);
-
-  LLVMTypeRef desc_type = codegen_desctype(c, name, (unsigned int)vtable_size);
-  LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
-=======
   gendesc_prep(c, ast, type);
->>>>>>> 94cbe5735396edf2d7d0ce121d24c617dfd4887c
 
   if(!genfun_methods(c, ast))
     return NULL;
@@ -364,9 +203,6 @@ static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
 static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
-<<<<<<< HEAD
-  ast_t* def = (ast_t*)ast_data(ast);
-=======
 
   // generate a primitive type if we've encountered one
   LLVMTypeRef type = genprim(c, ast);
@@ -374,8 +210,7 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
   if(type != GEN_NOTYPE)
     return type;
 
-  ast_t* def = ast_data(ast);
->>>>>>> 94cbe5735396edf2d7d0ce121d24c617dfd4887c
+  ast_t* def = (ast_t*)ast_data(ast);
 
   switch(ast_id(def))
   {

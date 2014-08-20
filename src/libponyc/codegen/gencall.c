@@ -8,16 +8,16 @@
 #include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  int count, const char* ret)
+  size_t count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
 
-  return LLVMBuildCall(c->builder, fun, args, count, ret);
+  return LLVMBuildCall(c->builder, fun, args, (int)count, ret);
 }
 
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
-  LLVMValueRef* args, int count, const char* ret)
+  LLVMValueRef* args, size_t count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
@@ -25,9 +25,9 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
   LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = ast_data(try_expr);
+  LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
 
-  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, (int)count,
     then_block, else_block, ret);
 
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -336,7 +336,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
     {
       bool tag = cap_for_type(type) == TK_TAG;
 
-      switch(ast_id(ast_data(type)))
+      switch(ast_id((ast_t*)ast_data(type)))
       {
         case TK_TRAIT:
           if(tag)

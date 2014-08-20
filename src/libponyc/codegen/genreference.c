@@ -157,7 +157,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
   args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
 
-  LLVMValueRef str = LLVMConstString(name, len, false);
+  LLVMValueRef str = LLVMConstString(name, (unsigned int)len, false);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);

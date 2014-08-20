@@ -1,516 +1,708 @@
-#ifndef PLATFORM_BIGINT_H
-#define PLATFORM_BIGINT_H
+#if !defined(PLATFORM_INT128_H) && defined(PLATFORM_IS_VISUAL_STUDIO)
+#define PLATFORM_INT128_H
 
-/** Big integer support for 64-bit platforms and compilers that do not have
- *  builtin-support for ints > 64 bits.
- */
-template <size_t words, bool is_signed>
-class BigInteger
+template<size_t words>
+class BigUnsignedInteger
 {
-private:
-  /** Convenience constructor for primitive conversions.
-   *
-   */
-  BigInteger(void* p, size_t bytes)
-  {
-    if(bytes <= sizeof(uint64_t))
-      chunks = length = 1;
-    else
-      chunks = length = bytes/sizeof(uint64_t);
-
-    memcpy(&this->data, p, bytes);
-  }
-
-  /** Helper functions
-   *
-   */
-  typedef enum cmp_t { less = -1, equal = 0, greater = 1} cmp_t;
-  typedef enum sign_t { negative = -1, zero = 0, positive = 1 } sign_t;
-
-  cmp_t compare(const BigInteger &rvalue) const
-  {
-    cmp_t res;
-
-    if(length < rvalue.length || sign < rvalue.sign)
-      return less;
-    else if(length > rvalue.length || sign > rvalue.sign)
-      return greater;
-    else if(sign == 0 && rvalue.sign == 0)
-      return equal;
-    else
-    {
-      size_t i = length - 1;
-      
-      while(i > 0)
-      {
-        if(data[i] == rvalue.data[i])
-          continue;
-        else if(data[i] > rvalue.data[i])
-        {
-          res = greater;
-          break;
-        }
-        else
-        {
-          res = less;
-          break;
-        }
-
-        i--;
-      }
-    }
-
-    res = equal;
-
-    return sign != negative ? res : cmp_t(-res);
-  }
-
-  /** Add rvalue to the receiver.
-   *
-   *  TODO: What if this and &rvalue are aliases of each other?
-   */
-  void add(const BigInteger &rvalue)
-  {
-    if(rvalue.length == 0)
-    {
-      return;
-    }
-    else if(this->length == 0)
-    {
-      operator=(rvalue);
-      return;
-    }
-
-    //TODO
-  }
-
-  /** Subtract rvalue from the receiver.
-   *
-   */
-  void sub(const BigInteger &rvalue)
-  {
-
-  }
-
-  /** Multiply rvalue with the receiver. The result
-   *  stored in the receiver.
-   */
-  void mult(const BigInteger &rvalue)
-  {
-
-  }
-
-  /** Divide the receiver by rvalue. The result is stored in
-   *  "quotient". The remainder is stored in the receiver.
-   */
-  void div(const BigInteger &rvalue, BigInteger& quotient)
-  {
-
-  }
-
-  void and(const BigInteger &rvalue)
-  {
-
-  }
-
-  void or(const BigInteger& rvalue)
-  {
-
-  }
-
-  void xor(const BigInteger& rvalue)
-  {
-
-  }
-
-  void shift(int by)
-  {
-
-  }
-
-  void upcast(size_t new_length)
-  {
-
-  }
-
-  bool isSigned()
-  {
-    return (data[length - 1] & 0x8000000000000000) != 0;
-  }
-
 public:
-  size_t chunks;
-  size_t length;
-  sign_t sign;
-
+  size_t len; //actual length in blocks of uint64_ts.
   uint64_t data[words];
 
-  BigInteger() 
+  BigUnsignedInteger()
   {
-    /** We have to clear data, as we are attempting to
-     *  simulate usage of BigIntegers as built-in primitives.
-     */
+    len = 0;
+    // We have to clear data, because we want to simulate
+    // primitive behaviour of BigIntegers.
     memset(&data, 0, sizeof(data));
-    chunks = length = words;
-    sign = zero;
-
-    if(is_signed)
-    {
-      data[length - 1] |= (uint64_t)1 << 63;
-    }
-  };
-
-  BigInteger(const BigInteger &b)
-  {
-    length = chunks = b.chunks;
-    memcpy(&data, &b.data, sizeof(data));
   }
 
-  /** Conversion constructors for primitive types.
+  BigUnsignedInteger(const BigUnsignedInteger &x)
+  {
+    len = x.len;
+    memcpy(&data, &x.data, sizeof(data));
+  }
+
+  template<typename T>
+  BigUnsignedInteger(const T &x) : BigUnsignedInteger()
+  {
+    len = 0;
+    data[0] = x;
+  }
+
+  BigUnsignedInteger& operator=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+  
+  template<typename T>
+  BigUnsignedInteger& operator=(const T &rvalue)
+  {
+    data[0] = rvalue;
+    return *this;
+  }
+
+  BigUnsignedInteger& operator&=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator|=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator^=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator&=(const T &rvalue)
+  {
+    data[0] &= rvalue;
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator|=(const T &rvalue)
+  {
+    data[0] |= rvalue;
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator^=(const T &rvalue)
+  {
+    data[0] ^= rvalue;
+    return *this;
+  }
+
+  BigUnsignedInteger& operator<<=(const BigUnsignedInteger &rvalue)
+  {
+    return this;
+  }
+
+  BigUnsignedInteger& operator>>=(const BigUnsignedInteger &rvalue)
+  {
+    return this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator<<=(const T &rvalue)
+  {
+    *this = *this << BigUnsignedInteger(rvalue);
+    return *this
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator>>=(const T &rvalue)
+  {
+    *this = *this >> BigUnsignedInteger(rvalue);
+    return *this;
+  }
+ 
+  BigUnsignedInteger& operator+=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator-=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator*=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator/=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigUnsignedInteger& operator%=(const BigUnsignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger operator+(const T &rvalue) const
+  {
+    return this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator+=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger operator-=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator*=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator/=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigUnsignedInteger& operator%=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  /** Typecasts.
    *
    */
-  BigInteger(uint8_t)
+  template<typename T>
+  operator T()
   {
-
-  }
-
-  BigInteger(int8_t)
-  {
-
-  }
-
-  BigInteger(uint16_t)
-  {
-
-  }
-
-  BigInteger(int16_t)
-  {
-
-  }
-
-  BigInteger(uint32_t)
-  {
-
-  }
-
-  BigInteger(int32_t)
-  {
-
-  }
-
-  BigInteger(uint64_t)
-  {
-
-  }
-
-  BigInteger(int64_t)
-  {
-
-  }
-
-  /** Conversion constructor from signed to unsigned BigIntegers
-   *
-   */
-  BigInteger(BigInteger<words, !is_signed> &x)
-  {
-
-  }
-
-  /** Assignment operator.
-   *
-   */
-  BigInteger &operator=(const BigInteger<words, is_signed> &rvalue)
-  {
-    if(this == &rvalue)
-      return *this;
-
-    length = rvalue.length;
-
-    /** Simulation of primitive BigInteger behaviour forces us
-     *  to copy the entire rvalue, not only its relevant chunks.
-     */
-    memcpy(&data, &rvalue.data, sizeof(data));
-    return *this;
-  }
-
-  /** Comparison operators.
-   *
-   */
-  bool operator==(const BigInteger<words, is_signed> &rvalue)
-  {
-    if(length != rvalue.length)
-      return false;
-
-    for(size_t i = 0; i < length; i++)
-    {
-      if(data[i] != rvalue.data[i])
-        return false;
-    }
-
-    return true;
-  }
-
-  bool operator!=(const BigInteger &rvalue)
-  {
-    return !operator==(rvalue);
-  }
-
-  bool operator<(const BigInteger &rvalue) const
-  {
-    return compare(rvalue) == less;
-  }
-
-  bool operator<=(const BigInteger &rvalue) const
-  {
-    return compare(rvalue) != greater;
-  }
-
-  bool operator>=(const BigInteger &rvalue) const
-  {
-    return compare(rvalue) != less;
-  }
-
-  bool operator>(const BigInteger &rvalue) const
-  {
-    return compare(rvalue) == greater;
-  }
-
-  /** Basic math operators.
-   *
-   */
-  BigInteger operator+(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.add(rvalue);
-    return copy;
-  }
-
-  BigInteger operator-(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.sub(rvalue);
-    return copy;
-  }
-
-  BigInteger operator*(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.mult(rvalue);
-    return copy;
-  }
-
-  BigInteger operator/(const BigInteger &rvalue) const
-  {
-    //TODO
-    return *this;
-  }
-
-  BigInteger operator%(const BigInteger &rvalue) const
-  {
-    //TODO
-    return *this;
-  }
-
-  /** Logical operators.
-   *
-   */
-  BigInteger operator&(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.and(rvalue);
-    return copy;
-  }
-
-  BigInteger operator|(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.or(rvalue);
-    return copy;
-  }
-
-  BigInteger operator^(const BigInteger &rvalue) const
-  {
-    BigInteger copy(*this);
-    copy.xor(rvalue);
-    return copy;
-  }
-
-  BigInteger operator<<(int by) const
-  {
-    BigInteger copy(*this);
-    copy.shift(-by);
-    return copy;
-  }
-
-  BigInteger operator>>(int by) const
-  {
-    BigInteger copy(*this);
-    copy.shift(by);
-    return copy;
-  }
-
-  /** Assignment overloads of the above.
-   *
-   */
-  BigInteger &operator+=(const BigInteger &rvalue)
-  {
-    add(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator-=(const BigInteger &rvalue)
-  {
-    sub(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator*=(const BigInteger &rvalue)
-  {
-    mult(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator/=(const BigInteger &rvalue)
-  {
-    //TODO
-  }
-
-  BigInteger &operator%=(const BigInteger &rvalue)
-  {
-    //TODO
-  }
-
-  BigInteger &operator&=(const BigInteger &rvalue)
-  {
-    and(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator|=(const BigInteger &rvalue)
-  {
-    or(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator^=(const BigInteger &rvalue)
-  {
-    xor(rvalue);
-    return *this;
-  }
-
-  BigInteger &operator<<=(int by)
-  {
-    shift(-by);
-    return *this;
-  }
-
-  BigInteger &operator>>=(int by)
-  {
-    shift(by);
-    return *this;
-  }
-
-  /** Unary operators.
-   *
-   */
-
-  //TODO
-
-  BigInteger<words, !is_signed> operator-() const
-  {
-    BigInteger<words, !is_signed> n;
-
-    for (uint8_t i = 0; i < words; i++)
-    {
-      n.data[i] = ~this->data[i];
-    }
-
-    return (n += 1);
-  }
-
-  /** Post- and prefix operators for increment and
-   *  decrement.
-   */
-  BigInteger &operator++()
-  {
-    bool carry = true;
-
-    for(size_t i = 0; i < length && carry; ++i)
-    {
-      data[i]++;
-      carry = (data[i] == 0);
-    }
-
-    if(carry)
-    {
-      upcast(length + 1);
-      length++;
-      data[i] = 1;
-    }
-
-    return *this;
-  }
-
-  BigInteger &operator++(int)
-  {
-    BigInteger copy(*this);
-    copy.operator++();
-    return copy;
-  }
-
-  BigInteger &operator--()
-  {
-    if(length == 0 && !is_signed)
-      throw "Integer overflow: Attempting to decrement unsigned zero!";
-
-    bool carry = true;
-
-    for(size_t i = 0; i < carry; i++)
-    {
-      carry = (data[i] == 0);
-      data[i]--;
-    }
-
-    if(data[length - 1] == 0)
-      length--;
-
-    return *this;
-  }
-
-  BigInteger &operator--(int)
-  {
-    BigInteger copy(*this);
-    copy.operator--();
-    return copy;
-  }
-
-  /** Explicit cast operators.
-   *
-   */
-  explicit operator size_t()
-  {
-    return data[0];
-  }
-
-  explicit operator double()
-  {
-    return (double)data[0];
+    return (T)data[0];
   }
 };
 
-/** Typedefs to simulate primitive behaviour of integers that have a
- *  BigInteger<A,B> backend on some platforms. The goal is to be as
- *  unobtrusive as possibe.
+typedef enum cmp_t { less = -1, equal = 0, greater = 1 } cmp_t;
+typedef enum sign_t { negative = -1, zero = 0, positive = 1 } sign_t;
+
+template<size_t words>
+class BigSignedInteger
+{
+public:
+  sign_t sign;
+  BigUnsignedInteger<words> magnitude;
+
+  BigSignedInteger()
+  {
+    sign = zero;
+  }
+
+  BigSignedInteger(const BigSignedInteger &x)
+  {
+    //TODO
+  }
+  
+  template<typename T>
+  BigSignedInteger(const T &x) : BigSignedInteger()
+  {
+     //TODO
+  }
+
+  BigSignedInteger& operator=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator=(const BigUnsignedInteger<words> &rvalue)
+  {
+    //TODO
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator=(const T &rvalue)
+  {
+    magnitude.data[0] = rvalue;
+    return *this;
+  }
+
+  BigSignedInteger& operator&=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator|=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator^=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator&=(const T &rvalue)
+  {
+    data[0] &= rvalue;
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator|=(const T &rvalue)
+  {
+    data[0] |= rvalue;
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator^=(const T &rvalue)
+  {
+    data[0] ^= rvalue;
+    return *this;
+  }
+
+  BigSignedInteger& operator<<=(const BigSignedInteger &rvalue)
+  {
+    return this;
+  }
+
+  BigSignedInteger& operator>>=(const BigSignedInteger &rvalue)
+  {
+    return this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator<<=(const T &rvalue)
+  {
+    *this = *this << BigSignedInteger(rvalue);
+    return *this
+  }
+
+  template<typename T>
+  BigSignedInteger& operator>>=(const T &rvalue)
+  {
+    *this = *this >> BigSignedInteger(rvalue);
+    return *this;
+  }
+
+  BigSignedInteger& operator+=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator-=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator*=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator/=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  BigSignedInteger& operator%=(const BigSignedInteger &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger operator+(const T &rvalue) const
+  {
+    return this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator+=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger operator-=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator*=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator/=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  BigSignedInteger& operator%=(const T &rvalue)
+  {
+    return *this;
+  }
+
+  template<typename T>
+  operator T()
+  {
+    return (T)data[0];
+  }
+};
+
+/** Static helper functions
+ *
  */
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-inline BigInteger<2, false> pow(double, BigInteger<2, true>& int128)
+#pragma region "Helpers"
+
+template<size_t words>
+static cmp_t compare(const BigUnsignedInteger<words>* a, const BigUnsignedInteger<words>* b)
+{
+  if (a->len < b->len)
+    return less;
+  else if (a->len > b->len)
+    return greater;
+  else
+  {
+    size_t i = a->len - 1;
+
+    while (i > 0)
+    {
+      if (a->data[i] == b->data[i])
+        continue;
+      else if (a->data[i] > b->data[i])
+        return greater;
+      else
+        return less;
+    }
+  }
+
+  return equal;
+}
+
+template<size_t words>
+static cmp_t compare(const BigUnsignedInteger<words>* a, const BigSignedInteger<words>* b)
+{
+  return equal;
+}
+
+template<size_t words>
+static cmp_t compare(const BigSignedInteger<words>* a, const BigSignedInteger<words>* b)
+{
+  return equal;
+}
+
+#pragma endregion
+
+/** Operators that no not modify the state of the receiver.
+ *
+ */
+#pragma region "UnsignedOperators"
+
+template<size_t words>
+BigUnsignedInteger<words> operator&(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator|(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator^(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator~(const BigUnsignedInteger<words> &x)
+{
+  return x;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator&(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  BigUnsignedInteger n();
+  n->data[0] = lvalue.data[0] & rvalue;
+  return n;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator|(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  BigUnsignedInteger n(lvalue);
+  n->data[0] = lvalue.data[0] | rvalue;
+  return n;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator^(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  BigUnsignedInteger n(lvalue);
+  n->data[0] = lvalue.data[0] ^ rvalue;
+  return n;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator<<(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator>>(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return this;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator<<(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue << BigUnsignedInteger(rvalue);
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator>>(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue >> BigUnsignedInteger(rvalue);
+}
+
+template<size_t words>
+BigSignedInteger<words> operator-(BigUnsignedInteger<words>& rvalue)
+{
+  BigSignedInteger<words> n(~rvalue);
+  return n += 1;
+}
+
+/** Boolean operators.
+*
+*/
+template<size_t words>
+bool operator==(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) == equal;
+}
+
+template<size_t words>
+bool operator!=(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) != equal;
+}
+
+template<size_t words>
+bool operator>(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) == greater;
+}
+
+template<size_t words>
+bool operator<(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) == less;
+}
+
+template<size_t words>
+bool operator>=(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) != less;
+}
+
+template<size_t words>
+bool operator<=(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  return compare(&lvalue, &rvalue) != greater;
+}
+ 
+template<size_t words>
+bool operator!(const BigUnsignedInteger<words> &value)
+{
+  for (size_t i = 0; i < value.len; ++i)
+  {
+    if (value.data[i])
+      return false;
+  }
+
+  return true;
+}
+
+template<size_t words>
+bool operator&&(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  for (size_t i = 0; i < lvalue.len; ++i)
+  {
+    if (!(lvalue.data[i] && rvalue.data[i]))
+      return false;
+  }
+
+  return true;
+}
+
+template<size_t words>
+bool operator||(const BigUnsignedInteger<words> &lvalue, const BigUnsignedInteger<words> &rvalue)
+{
+  // || is only false if both rhs and lhs are zero
+  return !(lvalue.operator==(0) && rvalue.operator==(0));
+}
+
+template<size_t words, typename T>
+bool operator==(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  if (lvalue.data[0] != rvalue)
+    return false;
+
+  for (size_t i = 1; i < lvalue.len; ++i)
+  {
+    if (lvalue.data[i] != 0)
+      return false;
+  }
+
+  return true;
+}
+
+template<size_t words, typename T>
+bool operator!=(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return !operator==(lvalue, rvalue);
+}
+
+template<size_t words, typename T>
+bool operator>(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  if (lvalue.data[0] > rvalue)
+    return true;
+
+  for (size_t i = 0; i < lvalue.len; ++i)
+  {
+    if (lvalue.data[i])
+      return true;
+  }
+
+  return false;
+}
+
+template<size_t words,typename T>
+bool operator<(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  if (lvalue.data[0] < rvalue)
+    return true;
+
+  return false;
+}
+
+template<size_t words, typename T>
+bool operator>=(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return !operator<(lvalue, rvalue);
+}
+
+template<size_t words, typename T>
+bool operator<=(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return !operator>(lvalue, rvalue);
+}
+
+template<size_t words, typename T>
+bool operator&&(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return ((bool)lvalue && rvalue);
+}
+
+template<size_t words, typename T>
+bool operator||(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return ((bool)lvalue || rvalue);
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator+(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator-(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator*(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator/(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words>
+BigUnsignedInteger<words> operator%(const BigUnsignedInteger<words> &lvalue, 
+  const BigUnsignedInteger<words> &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator+(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator-(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator*(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator/(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue;
+}
+
+template<size_t words, typename T>
+BigUnsignedInteger<words> operator%(const BigUnsignedInteger<words> &lvalue, const T &rvalue)
+{
+  return lvalue;
+}
+
+#pragma endregion;
+
+#pragma region "SignedOperators"
+
+#pragma endregion
+
+/** Type definitions to simulate primitive behaviour of BigIntegers.
+ *
+ *  The goal is to be as unobtrusive as possible, especially for platforms
+ *  that do not have native uint128 and int128 support.
+ *
+ *  Expand as needed.
+ */
+typedef BigUnsignedInteger<2> __uint128_t;
+typedef BigSignedInteger<2> __int128_t;
+
+/** Standard math functions. Expand as needed.
+ *
+ */
+inline __uint128_t pow(double b, __int128_t e)
 {
   return 0;
 }
-
-typedef BigInteger<2, false> __uint128_t;
-typedef BigInteger<2, true> __int128_t;
-#endif
 
 #endif

@@ -359,7 +359,7 @@ bool genfun_methods(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
 
-  ast_t* def = ast_data(ast);
+  ast_t* def = (ast_t*)ast_data(ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
   bool actor = ast_id(def) == TK_ACTOR;
