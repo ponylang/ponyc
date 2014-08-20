@@ -3,6 +3,8 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "../type/subtype.h"
+#include "../type/cap.h"
 #include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
@@ -14,6 +16,24 @@ static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return LLVMBuildCall(c->builder, fun, args, count, ret);
 }
 
+static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
+  LLVMValueRef* args, int count, const char* ret)
+{
+  if(fun == NULL)
+    return NULL;
+
+  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
+  LLVMMoveBasicBlockAfter(then_block, this_block);
+  LLVMBasicBlockRef else_block = ast_data(try_expr);
+
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+    then_block, else_block, ret);
+
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  return invoke;
+}
+
 static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 {
   LLVMValueRef value = gen_expr(c, arg);
@@ -22,15 +42,15 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
     return NULL;
 
   // TODO: how to determine if the parameter is signed or not
-  return gen_assign_cast(c, ast_type(arg), type, value, false);
+  bool l_sign = false;
+  bool r_sign = is_signed(ast_type(arg));
+
+  return gen_assign_cast(c, type, value, l_sign, r_sign);
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
-  ast_t* postfix;
-  ast_t* positional;
-  ast_t* named;
-  AST_GET_CHILDREN(ast, &postfix, &positional, &named);
+  AST_GET_CHILDREN(ast, postfix, positional, named);
 
   int need_receiver;
 
@@ -51,15 +71,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return NULL;
   }
 
-  ast_t* receiver;
-  ast_t* method;
   ast_t* typeargs = NULL;
-  AST_GET_CHILDREN(postfix, &receiver, &method);
+  AST_GET_CHILDREN(postfix, receiver, method);
 
   // dig through function qualification
   if(ast_id(receiver) == TK_FUNREF)
   {
-    AST_GET_CHILDREN(receiver, &receiver, &typeargs);
+    AST_GET_CHILDREN_NO_DECL(receiver, receiver, typeargs);
   }
 
   if(typeargs != NULL)
@@ -107,18 +125,29 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
     func = LLVMBuildLoad(c->builder, func_ptr, "");
 
+    // TODO: What if the function signature takes a primitive but the real
+    // underlying function accepts a union type of that primitive with something
+    // else, and so requires a boxed primitive? Or the real function could take
+    // a trait that the primitive provides.
+
     // cast to the right function type
-    f_type = genfun_proto(c, type, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, type, method_name, typeargs);
+
+    if(proto == NULL)
+    {
+      ast_error(ast, "couldn't locate '%s'", method_name);
+      return NULL;
+    }
+
+    f_type = LLVMTypeOf(proto);
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // static, get the actual function
-    const char* type_name = genname_type(type);
-    const char* name = genname_fun(type_name, method_name, NULL);
-    func = LLVMGetNamedFunction(c->module, name);
+    func = genfun_proto(c, type, method_name, typeargs);
 
     if(func == NULL)
     {
-      ast_error(ast, "couldn't locate '%s'", name);
+      ast_error(ast, "couldn't locate '%s'", method_name);
       return NULL;
     }
 
@@ -154,7 +183,18 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  return call_fun(c, func, args, (unsigned int)count, "");
+  if(ast_canerror(ast))
+  {
+    // If we can error out and we're called in the body of a try expression,
+    // generate an invoke instead of a call.
+    size_t clause;
+    ast_t* try_expr = ast_enclosing_try(ast, &clause);
+
+    if((try_expr != NULL) && (clause == 0))
+      return invoke_fun(c, try_expr, func, args, count, "");
+  }
+
+  return call_fun(c, func, args, count, "");
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
@@ -175,7 +215,7 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   return LLVMBuildBitCast(c->builder, result, type, "");
 }
 
-void gencall_tracetag(compile_t* c, LLVMValueRef field)
+static void trace_tag(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -187,7 +227,7 @@ void gencall_tracetag(compile_t* c, LLVMValueRef field)
   gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
-void gencall_traceactor(compile_t* c, LLVMValueRef field)
+static void trace_actor(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -199,7 +239,8 @@ void gencall_traceactor(compile_t* c, LLVMValueRef field)
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
 
-void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name)
+static void trace_known(compile_t* c, LLVMValueRef field,
+  const char* name)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -212,10 +253,14 @@ void gencall_traceknown(compile_t* c, LLVMValueRef field, const char* name)
   const char* fun = genname_trace(name);
   args[1] = LLVMGetNamedFunction(c->module, fun);
 
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
+  // if this type has no trace function, don't try to recurse in the runtime
+  if(args[1] != NULL)
+    gencall_runtime(c, "pony_traceobject", args, 2, "");
+  else
+    gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
-void gencall_traceunknown(compile_t* c, LLVMValueRef field)
+static void trace_unknown(compile_t* c, LLVMValueRef field)
 {
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
@@ -259,4 +304,85 @@ void gencall_traceunknown(compile_t* c, LLVMValueRef field)
 
   // continue in the merge block
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
+}
+
+bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      if(!is_bool(type))
+      {
+        bool tag = cap_for_type(type) == TK_TAG;
+
+        if(tag)
+        {
+          // TODO: are we really a tag? need runtime info
+          trace_tag(c, value);
+        } else {
+          // this union type can never be a tag
+          trace_unknown(c, value);
+        }
+      }
+      return true;
+    }
+
+    case TK_TUPLETYPE:
+      trace_known(c, value, genname_type(type));
+      return true;
+
+    case TK_NOMINAL:
+    {
+      bool tag = cap_for_type(type) == TK_TAG;
+
+      switch(ast_id(ast_data(type)))
+      {
+        case TK_TRAIT:
+          if(tag)
+            trace_tag(c, value);
+          else
+            trace_unknown(c, value);
+
+          return true;
+
+        case TK_DATA:
+          // do nothing
+          return false;
+
+        case TK_CLASS:
+          if(tag)
+            trace_tag(c, value);
+          else
+            trace_known(c, value, genname_type(type));
+
+          return true;
+
+        case TK_ACTOR:
+          trace_actor(c, value);
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_ISECTTYPE:
+    case TK_STRUCTURAL:
+    {
+      bool tag = cap_for_type(type) == TK_TAG;
+
+      if(tag)
+        trace_tag(c, value);
+      else
+        trace_unknown(c, value);
+
+      return true;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }

@@ -1,9 +1,12 @@
 #include "codegen.h"
+#include "genprim.h"
 #include "genname.h"
 #include "gentype.h"
+#include "gendesc.h"
 #include "genfun.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
+#include "../ast/error.h"
 #include "../ds/stringtab.h"
 
 #include <llvm-c/Target.h>
@@ -12,6 +15,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+
+static void codegen_fatal(const char* reason)
+{
+  print_errors();
+}
 
 static void codegen_runtime(compile_t* c)
 {
@@ -69,7 +77,7 @@ static void codegen_runtime(compile_t* c)
   c->final_fn = LLVMPointerType(
     LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
 
-  c->descriptor_type = codegen_desctype(c, NULL, 0);
+  c->descriptor_type = gendesc_type(c, genname_descriptor(NULL), 0);
   c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
 
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$object");
@@ -110,6 +118,12 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 1, false);
   LLVMAddFunction(c->module, "pony_alloc", type);
 
+  // i8* pony_realloc(i8*, i64)
+  params[0] = c->void_ptr;
+  params[1] = LLVMInt64Type();
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  LLVMAddFunction(c->module, "pony_realloc", type);
+
   // void pony_trace(c->object_ptr)
   params[0] = c->object_ptr;
   type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
@@ -133,6 +147,14 @@ static void codegen_runtime(compile_t* c)
   params[3] = LLVMInt1Type();
   type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
   LLVMAddFunction(c->module, "pony_start", type);
+
+  // void pony_throw()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, true);
+  LLVMAddFunction(c->module, "pony_throw", type);
+
+  // i32 pony_personality(...)
+  type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
+  c->personality = LLVMAddFunction(c->module, "pony_personality", type);
 }
 
 static bool codegen_main(compile_t* c, LLVMTypeRef type)
@@ -169,7 +191,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   if(m == NULL)
   {
-    // TODO: how do we compile libraries?
+    // TODO: How do we compile libraries? By specifying C ABI entry points and
+    // compiling reachable code from there.
     return true;
   }
 
@@ -207,6 +230,7 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   LLVMInitializeCore(passreg);
   LLVMInitializeNativeTarget();
   LLVMEnablePrettyStackTrace();
+  LLVMInstallFatalErrorHandler(codegen_fatal);
 
   // create a module
   c->module = LLVMModuleCreateWithName(c->filename);
@@ -280,6 +304,7 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   compile_t c;
   codegen_init(&c, program, opt);
   codegen_runtime(&c);
+  genprim_builtins(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)
@@ -299,23 +324,4 @@ bool codegen_finishfun(compile_t* c, LLVMValueRef fun)
 
   LLVMRunFunctionPassManager(c->fpm, fun);
   return true;
-}
-
-LLVMTypeRef codegen_desctype(compile_t* c, const char* name, int vtable_size)
-{
-  const char* desc_name = genname_descriptor(name);
-  LLVMTypeRef type = LLVMStructCreateNamed(LLVMGetGlobalContext(), desc_name);
-
-  LLVMTypeRef params[8];
-  params[0] = c->trace_fn; // trace
-  params[1] = c->trace_fn; // serialise
-  params[2] = c->trace_fn; // deserialise
-  params[3] = c->dispatch_fn; // dispatch
-  params[4] = c->final_fn; // finalise
-  params[5] = LLVMInt64Type(); // size
-  params[6] = c->void_ptr; // trait list
-  params[7] = LLVMArrayType(c->void_ptr, vtable_size); // vtable
-
-  LLVMStructSetBody(type, params, 8, false);
-  return type;
 }

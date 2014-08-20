@@ -1,6 +1,8 @@
 #include "operator.h"
 #include "literal.h"
 #include "postfix.h"
+#include "control.h"
+#include "reference.h"
 #include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../type/assemble.h"
@@ -245,10 +247,67 @@ bool expr_shift(ast_t* ast)
   return true;
 }
 
+bool expr_and(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  AST_GET_CHILDREN(ast, left, right);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(is_bool(l_type) && is_bool(r_type))
+  {
+    // rewrite as: if left then right else False end
+    REPLACE(astp,
+      NODE(TK_IF,
+        NODE(TK_SEQ, TREE(left))
+        NODE(TK_SEQ, TREE(right))
+        NODE(TK_SEQ, NODE(TK_REFERENCE, ID("False")))
+        )
+      );
+
+    ast = *astp;
+    AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
+    AST_GET_CHILDREN(r_branch, ref);
+
+    return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
+      expr_seq(r_branch) && expr_if(ast);
+  }
+
+  return expr_logical(ast);
+}
+
+bool expr_or(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  AST_GET_CHILDREN(ast, left, right);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  if(is_bool(l_type) && is_bool(r_type))
+  {
+    // rewrite as: if left then True else right end
+    REPLACE(astp,
+      NODE(TK_IF,
+        NODE(TK_SEQ, TREE(left))
+        NODE(TK_SEQ, NODE(TK_REFERENCE, ID("True")))
+        NODE(TK_SEQ, TREE(right))
+        )
+      );
+
+    ast = *astp;
+    AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
+    AST_GET_CHILDREN(l_branch, ref);
+
+    return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
+      expr_seq(r_branch) && expr_if(ast);
+  }
+
+  return expr_logical(ast);
+}
+
 bool expr_logical(ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
@@ -256,7 +315,6 @@ bool expr_logical(ast_t* ast)
   {
     ast_settype(ast, type_builtin(ast, "Bool"));
   } else if(is_integer(l_type) && is_integer(r_type)) {
-    // TODO: must be math compatible, pick the correct node type
     if(!is_math_compatible(l_type, r_type))
     {
       ast_error(ast,
@@ -324,9 +382,7 @@ bool expr_assign(ast_t* ast)
     ast_settype(ast, a_type);
 
     // set the type node
-    ast_t* idseq;
-    ast_t* type;
-    AST_GET_CHILDREN(left, &idseq, &type);
+    AST_GET_CHILDREN(left, idseq, type);
     ast_replace(&type, a_type);
     ast_settype(left, a_type);
 

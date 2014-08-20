@@ -383,7 +383,7 @@ DEF(elseif);
   RULE(rawseq);
   SKIP(TK_THEN);
   RULE(seq);
-  RULE(elseif, elseclause);
+  OPT RULE(elseif, elseclause);
   DONE();
 
 // IF rawseq THEN seq {elseif} [ELSE seq] END

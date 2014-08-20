@@ -4,6 +4,7 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/ast.h"
 #include "../../src/libponyc/pass/scope.h"
 #include "../../src/libponyc/ds/stringtab.h"
+#include "../../src/libponyc/pass/pass.h"
 #include "../../src/libponyc/pkg/package.h"
 PONY_EXTERN_C_END
 
@@ -207,10 +208,8 @@ TEST(ScopeTest, MultipleLocals)
   ast_t* class_ast = find_sub_tree(module, TK_CLASS);
   ast_t* fun_ast = find_sub_tree(module, TK_FUN);
   ast_t* local_ast = find_sub_tree(module, TK_IDSEQ);
-  ast_t* foo_ast;
-  ast_t* bar_ast;
-  ast_t* aardvark_ast;
-  AST_GET_CHILDREN(local_ast, &foo_ast, &bar_ast, &aardvark_ast);
+
+  AST_GET_CHILDREN(local_ast, foo_ast, bar_ast, aardvark_ast);
 
   ASSERT_EQ(AST_OK, pass_scope(&local_ast));
 
@@ -425,7 +424,7 @@ TEST(ScopeTest, Package)
   symtab_t* package_symtab = ast_get_symtab(package);
 
   package_add_magic("builtin", builtin);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&package));
 
@@ -454,7 +453,7 @@ TEST(ScopeTest, Use)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&use_ast));
 
@@ -484,7 +483,7 @@ TEST(ScopeTest, UseAs)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  package_limit_passes("scope1");
+  limit_passes("scope1");
 
   ASSERT_EQ(AST_OK, pass_scope(&use_ast));
 

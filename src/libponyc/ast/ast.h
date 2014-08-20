@@ -39,6 +39,9 @@ FLET: ID [type] [SEQ]
 NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
 FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
+data: trait method body came from (NULL for none)
+data: during codegen, holds the LLVMBasicBlockRef for the except_block if the
+  function or constructor can error out
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
@@ -80,7 +83,7 @@ RAWSEQ: {expr}
 
 expr
 ----
-data: during type checking, can error or not
+data: during type checking, whether the expr can error or not
 
 term: local | prefix | postfix | control | infix
 
@@ -149,14 +152,19 @@ symtab: ID -> VAR | VAL
 AS: IDSEQ type
 
 WHILE: RAWSEQ SEQ [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the init_block
 symtab: ID -> VAR | VAL
 
 REPEAT: RAWSEQ SEQ
+data: during codegen, holds the LLVMBasicBlockRef for the cond_block
 symtab: ID -> VAR | VAL
 
 FOR: IDSEQ [type] SEQ SEQ [SEQ]
 
 TRY: SEQ [SEQ] [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the else_block
+  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
+  instruction
 
 atom
 ----
@@ -173,19 +181,13 @@ NAMEDARGS: {NAMEDARG}
 NAMEDARG: term SEQ
 
 THIS
+
 ID
+data: during codegen, holds the LLVMValueRef for the alloca
 
 INT
 FLOAT
 STRING
-
-ast type
---------
-NEW, BE, FUN
-  when expecting a CALL
-  change this?
-
-type
 
 */
 
@@ -237,6 +239,7 @@ ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
+ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
 ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
@@ -271,22 +274,45 @@ typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
 
+
+// Foreach macro, will apply macro M to each of up to 16 other arguments
+#define FOREACH(M, ...) \
+  FE(__VA_ARGS__, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, \
+    nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop)
+#define FE( \
+  A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, \
+  M0, M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, ...) \
+  M0(A0) M1(A1) M2(A2) M3(A3) M4(A4) M5(A5) M6(A6) \
+  M7(A7) M8(A8) M9(A9) M10(A10) M11(A11) M12(A12) M13(A13) M14(A14) M15(A15)
+#define nop(x)
+
+typedef ast_t* ast_ptr_t; // Allows easier decalaration of locals
+#define ADDR_AST(x) &x,
+
+
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children);
 
 #define AST_GET_CHILDREN(parent, ...) \
+  ast_ptr_t __VA_ARGS__; \
+  AST_GET_CHILDREN_NO_DECL(parent, __VA_ARGS__)
+
+#define AST_GET_CHILDREN_NO_DECL(parent, ...) \
   { \
-    ast_t** children[] = {__VA_ARGS__}; \
-    ast_get_children(parent, sizeof(children)/sizeof(ast_t**), children); \
+    ast_ptr_t* children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
+    ast_get_children(parent, (sizeof(children) / sizeof(ast_t**)) - 1, \
+    children); \
   }
 
 void ast_extract_children(ast_t* parent, size_t child_count,
   ast_t*** out_children);
 
 #define AST_EXTRACT_CHILDREN(parent, ...) \
+  ast_ptr_t __VA_ARGS__; \
   { \
-    ast_t** children[] = {__VA_ARGS__}; \
-    ast_extract_children(parent, sizeof(children)/sizeof(ast_t**), children); \
+    ast_t** children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
+    ast_extract_children(parent, (sizeof(children)/sizeof(ast_t**)) - 1, \
+      children); \
   }
 
 

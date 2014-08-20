@@ -9,6 +9,9 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
+#define GEN_NOVALUE ((LLVMValueRef)1)
+#define GEN_NOTYPE ((LLVMTypeRef)1)
+
 typedef struct compile_t
 {
   painter_t* painter;
@@ -28,12 +31,11 @@ typedef struct compile_t
   LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
   LLVMTypeRef object_ptr;
+  LLVMValueRef personality;
 } compile_t;
 
 bool codegen(ast_t* program, int opt, bool print_llvm);
 
 bool codegen_finishfun(compile_t* c, LLVMValueRef fun);
-
-LLVMTypeRef codegen_desctype(compile_t* c, const char* name, int vtable_size);
 
 #endif

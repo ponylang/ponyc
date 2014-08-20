@@ -37,6 +37,7 @@ LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast)
       return gen_localptr(c, ast);
 
     case TK_TUPLE:
+      // TODO: tuples as lvalues
       ast_error(ast, "not implemented (lvalue tuple)");
       return NULL;
 
@@ -427,9 +428,7 @@ LLVMValueRef gen_ne(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_is(compile_t* c, ast_t* ast)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -442,12 +441,14 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
 
   if(LLVMGetTypeKind(left_type) != LLVMPointerTypeKind)
   {
+    // TODO: match primitive left with object right
     ast_error(left, "not implemented (codegen identity with primitive)");
     return NULL;
   }
 
   if(LLVMGetTypeKind(right_type) != LLVMPointerTypeKind)
   {
+    // TODO: match object left with primitive right
     ast_error(right, "not implemented (codegen identity with primitive)");
     return NULL;
   }
@@ -517,9 +518,7 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
-  ast_t* left;
-  ast_t* right;
-  AST_GET_CHILDREN(ast, &left, &right);
+  AST_GET_CHILDREN(ast, left, right);
 
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
@@ -530,16 +529,22 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  // TODO: if the l_value is a local declaration, the result should be the
-  // r_value, not the load of the l_value
-  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
-
-  bool sign = is_signed(left_type);
+  bool l_sign = is_signed(left_type);
+  bool r_sign = is_signed(right_type);
   LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  r_value = gen_assign_cast(c, right_type, l_type, r_value, sign);
+  r_value = gen_assign_cast(c, l_type, r_value, l_sign, r_sign);
 
   if(r_value == NULL)
     return NULL;
+
+  // If the l_value is a local declaration, the result is be the r_value, not
+  // the load of the l_value.
+  LLVMValueRef result;
+
+  if(LLVMIsAAllocaInst(l_value))
+    result = r_value;
+  else
+    result = LLVMBuildLoad(c->builder, l_value, "");
 
   LLVMBuildStore(c->builder, r_value, l_value);
   return result;

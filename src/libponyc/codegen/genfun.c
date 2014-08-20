@@ -173,24 +173,21 @@ static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
 {
   LLVMSetValueName(this_ptr, "this");
 
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module,
-    genname_descriptor(genname_type(type)));
+  const char* type_name = genname_type(type);
+  const char* desc_name = genname_descriptor(type_name);
+
+  LLVMValueRef desc = LLVMGetNamedGlobal(c->module, desc_name);
   desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
 
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
   LLVMBuildStore(c->builder, desc, desc_ptr);
 }
 
-LLVMTypeRef genfun_proto(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_proto(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
-
-  if(func == NULL)
-    return NULL;
-
-  return LLVMTypeOf(func);
+  return get_prototype(c, type, name, typeargs, fun);
 }
 
 LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
@@ -210,7 +207,7 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
   if(value == NULL)
   {
     return NULL;
-  } else if(value != ((LLVMValueRef)1)) {
+  } else if(value != GEN_NOVALUE) {
     LLVMBuildRet(c->builder, value);
   }
 
@@ -248,7 +245,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   if(value == NULL)
   {
     return NULL;
-  } else if(value != ((LLVMValueRef)1)) {
+  } else if(value != GEN_NOVALUE) {
     LLVMBuildRetVoid(c->builder);
   }
 
@@ -337,4 +334,111 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
     return NULL;
 
   return func;
+}
+
+LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
+  ast_t* typeargs)
+{
+  ast_t* fun = get_fun(type, name, typeargs);
+  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+
+  if(func == NULL)
+    return NULL;
+
+  // return the constant global instance
+  start_fun(c, func);
+  const char* inst_name = genname_instance(genname_type(type));
+  LLVMValueRef inst = LLVMGetNamedGlobal(c->module, inst_name);
+  LLVMBuildRet(c->builder, inst);
+  codegen_finishfun(c, func);
+
+  return func;
+}
+
+bool genfun_methods(compile_t* c, ast_t* ast)
+{
+  assert(ast_id(ast) == TK_NOMINAL);
+
+  ast_t* def = ast_data(ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  bool actor = ast_id(def) == TK_ACTOR;
+  bool datatype = ast_id(def) == TK_DATA;
+  int be_index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      {
+        AST_GET_CHILDREN(member, ignore, id, typeparams);
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic constructors
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic constructors)");
+          return false;
+        }
+
+        LLVMValueRef fun;
+
+        if(actor)
+          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
+        else if(datatype)
+          fun = genfun_newdata(c, ast, ast_name(id), NULL);
+        else
+          fun = genfun_new(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_BE:
+      {
+        AST_GET_CHILDREN(member, ignore, id, typeparams);
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic behaviours
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic behaviours)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      case TK_FUN:
+      {
+        AST_GET_CHILDREN(member, ignore, id, typeparams);
+
+        if(ast_id(typeparams) != TK_NONE)
+        {
+          // TODO: polymorphic functions
+          ast_error(typeparams,
+            "not implemented (codegen for polymorphic functions)");
+          return false;
+        }
+
+        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
+
+        if(fun == NULL)
+          return false;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
 }

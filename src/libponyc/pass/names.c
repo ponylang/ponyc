@@ -196,8 +196,8 @@ bool names_nominal(ast_t* scope, ast_t** astp)
   if(ast_data(ast) != NULL)
     return true;
 
-  ast_t* package = ast_child(ast);
-  ast_t* type = ast_sibling(package);
+  AST_GET_CHILDREN(ast, package, type);
+  bool local_package;
 
   // find our actual package
   if(ast_id(package) != TK_NONE)
@@ -214,6 +214,10 @@ bool names_nominal(ast_t* scope, ast_t** astp)
       ast_error(package, "can't find package '%s'", name);
       return false;
     }
+
+    local_package = scope == ast_nearest(ast, TK_PACKAGE);
+  } else {
+    local_package = true;
   }
 
   // find our definition
@@ -223,6 +227,12 @@ bool names_nominal(ast_t* scope, ast_t** astp)
   if(def == NULL)
   {
     ast_error(type, "can't find definition of '%s'", name);
+    return false;
+  }
+
+  if(!local_package && (name[0] == '_'))
+  {
+    ast_error(type, "can't access a private type from another package");
     return false;
   }
 

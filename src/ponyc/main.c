@@ -1,5 +1,6 @@
 #include "../libponyc/platform/platform.h"
 #include "../libponyc/pkg/package.h"
+#include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
 
 #include <stdlib.h>
@@ -24,7 +25,7 @@ void usage()
     "  --llvm, -l      print the LLVM IR\n"
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
-    "  --parse, -r     stop after parse phase\n"
+    "  --pass, -r      restrict phases\n"
     "  --width, -w     width to target when printing the AST\n"
     );
 }
@@ -62,7 +63,7 @@ int main(int argc, char** argv)
       case 'l': llvm = true; break;
       case 'p': package_paths(optarg); break;
       case 'O': opt = atoi(optarg); break;
-      case 'r': error = !package_limit_passes(optarg); break;
+      case 'r': error = !limit_passes(optarg); break;
       case 'w': width = atoi(optarg); break;
       default: error = true; break;
     }
@@ -93,11 +94,8 @@ int main(int argc, char** argv)
       ast_print(program, width);
     }
 
-    if(package_get_pass_limit() == PASS_ALL)
-    {
-      if(!program_compile(program, opt, llvm))
-        ret = -1;
-    }
+    if(!program_passes(program, opt, llvm))
+      ret = -1;
 
     ast_free(program);
   } else {

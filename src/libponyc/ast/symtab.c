@@ -56,3 +56,9 @@ void* symtab_get(symtab_t* symtab, const char* name)
 
   return s2 != NULL ? s2->value : NULL;
 }
+
+bool symtab_pred(symbol_t* symbol, void* arg)
+{
+  // Strip out private symbols.
+  return symbol->name[0] != '_';
+}

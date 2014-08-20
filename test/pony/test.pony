@@ -5,3 +5,7 @@ use "order" as order
 /*use "miller" as miller*/
 use "patterns" as patterns
 use "precedence" as precedence
+
+class Foo
+  fun box f() => None
+  //fun box g(x: {fun box f()}) => None

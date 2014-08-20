@@ -25,6 +25,27 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
 
     case TK_NOMINAL:
     case TK_STRUCTURAL:
+    {
+      token_id cap = cap_for_type(right);
+
+      switch(cap)
+      {
+        case TK_VAL:
+        case TK_TAG:
+        {
+          ast_free_unattached(left);
+          return right;
+        }
+
+        default: {}
+      }
+
+      ast_t* arrow = ast_from(left, TK_ARROW);
+      ast_add(arrow, right);
+      ast_add(arrow, left);
+      return arrow;
+    }
+
     case TK_TYPEPARAMREF:
     case TK_ARROW:
     {
