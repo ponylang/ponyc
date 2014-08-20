@@ -25,21 +25,6 @@
  *  this file.
  */
 #  pragma warning(disable:4996)
-/** No overflow detection, if used incorrectly, things go horribly wrong!
-*
-*/
-pass_id &operator++(pass_id& current)
-{
-  current = (pass_id)(current + 1);
-  return current;
-};
-
-pass_id operator++(pass_id& current, int)
-{
-  pass_id rvalue = current;
-  ++current;
-  return rvalue;
-};
 #endif
 
 typedef struct package_t

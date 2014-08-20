@@ -12,13 +12,6 @@
 
 static pass_id pass_limit = PASS_ALL;
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-pass_id operator++(pass_id e, int)
-{
-  return pass_id(e + 1);
-}
-#endif
-
 bool limit_passes(const char* pass)
 {
   for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)
