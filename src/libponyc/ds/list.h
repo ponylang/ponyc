@@ -45,7 +45,7 @@ void list_free(list_t* list, free_fn f);
   name##_t* name##_push(name##_t* list, elem* data); \
   name##_t* name##_append(name##_t* list, elem* data); \
   name##_t* name##_next(name##_t* list); \
-  name##_t* name##_index(name##_t* list, int index); \
+  name##_t* name##_index(name##_t* list, size_t index); \
   elem* name##_data(name##_t* list); \
   elem* name##_find(name##_t* list, elem* data); \
   int name##_findindex(name##_t* list, elem* data); \

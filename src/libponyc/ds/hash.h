@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-uint64_t siphash24(const char* key, const char *in, size_t len);
+uint64_t siphash24(const unsigned char* key, const char *in, size_t len);
 
 uint64_t hash(void* in, size_t len);
 

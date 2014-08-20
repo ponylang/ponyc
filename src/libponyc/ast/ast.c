@@ -147,7 +147,7 @@ void print(ast_t* ast, size_t indent, size_t width, bool type)
   printf("\n");
 }
 
-static ast_t* dup(ast_t* parent, ast_t* ast)
+static ast_t* duplicate(ast_t* parent, ast_t* ast)
 {
   if(ast == NULL)
     return NULL;
@@ -156,8 +156,8 @@ static ast_t* dup(ast_t* parent, ast_t* ast)
   n->data = ast->data;
   n->scope = (parent != NULL) ? parent : ast->scope;
   n->parent = parent;
-  n->child = dup(n, ast->child);
-  n->type = dup(n, ast->type);
+  n->child = duplicate(n, ast->child);
+  n->type = duplicate(n, ast->type);
 
   if(ast->symtab != NULL)
   {
@@ -166,7 +166,7 @@ static ast_t* dup(ast_t* parent, ast_t* ast)
   }
 
   if(parent != NULL)
-    n->sibling = dup(parent, ast->sibling);
+    n->sibling = duplicate(parent, ast->sibling);
 
   return n;
 }
@@ -212,7 +212,7 @@ ast_t* ast_from_string(ast_t* ast, const char* id)
 
 ast_t* ast_dup(ast_t* ast)
 {
-  return dup(NULL, ast);
+  return duplicate(NULL, ast);
 }
 
 void ast_scope(ast_t* ast)

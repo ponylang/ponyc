@@ -1,11 +1,13 @@
 #ifndef PLATFORM_UTILS_H
 #define PLATFORM_UTILS_H
 
-#ifdef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_VISUAL_STUDIO
 #  include <malloc.h>
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
             (SIZE)*sizeof(TYPE))
+#endif
 
+#ifdef PLATFORM_IS_WINDOWS
 #  define no_argument 0x00
 #  define required_argument 0x01
 #  define optional_argument 0x02
@@ -37,6 +39,9 @@ struct winsize
 #  include <unistd.h>
 #  include <getopt.h>
 #  include <sys/ioctl.h>
+#endif
+
+#if defined(PLATFORM_IS_POSIX_BASED) || defined(PLATFORM_IS_CLANG_OR_GCC)
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 

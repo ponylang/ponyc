@@ -18,7 +18,7 @@
 
 #define EXTENSION ".pony"
 
-#ifdef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_VISUAL_STUDIO
 /** Disable warning about "getenv" begin unsafe. The alternatives, s_getenv and
  *  _dupenv_s are incredibly inconvenient and expensive to use. Since such a
  *  warning could make sense for other function calls, we only disable it for 

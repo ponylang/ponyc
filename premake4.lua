@@ -56,13 +56,13 @@ end
 function link_libponyc()
   links { "libponyc" }
   
-  if os.is("windows") then 
+  configuration { "windows" } 
     libdirs {
      llvm_config("--libdir")
     }
-  else
+  configuration { "not windows" }
     linkoptions { llvm_config("--ldflags") }
-  end
+  configuration "*"
 
   local output = llvm_config("--libs")
 
@@ -90,13 +90,18 @@ solution "ponyc"
       "MultiProcessorCompile"
     }
 
-  links { "Shlwapi.lib" }
-  
-  if os.is("windows") then
+  configuration "vs*"
+    links { "Shlwapi.lib" }
+
+  configuration "windows"
     if(architecture) then
       architecture "x64"
     end
-  end
+
+  configuration { "vs*", "Debug" }
+    flags { 
+      "ReleaseRuntime" 
+    }
 
   configuration "not windows"
     buildoptions {
@@ -149,27 +154,27 @@ solution "ponyc"
     includedirs {
       llvm_config("--includedir")
     }
-    if not os.is("windows") then
+    configuration { "not vs*" }
       buildoptions {
         "-std=gnu11"
+      }
+      defines {
+        "_DEBUG",
+        "_GNU_SOURCE",
+        "__STDC_CONSTANT_MACROS",
+        "__STDC_FORMAT_MACROS",
+        "__STDC_LIMIT_MACROS",
       }   
-    end
-    defines {
-      "_DEBUG",
-      "_GNU_SOURCE",
-      "__STDC_CONSTANT_MACROS",
-      "__STDC_FORMAT_MACROS",
-      "__STDC_LIMIT_MACROS",
-    }
+    configuration "*"
     files { "src/libponyc/**.c", "src/libponyc/**.h", "src/libponyc/**.hpp" }
     cppforce { "src/libponyc/**.c" }
 
   project "ponyc"
     kind "ConsoleApp"
     language "C"
-    if not os.is("windows") then
+    configuration { "not vs*" } 
       buildoptions "-std=gnu11"
-    end
+    configuration "*"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     cppforce { "src/ponyc/**.c" }
     link_libponyc()

@@ -14,17 +14,17 @@ typedef struct token_t
   size_t pos;
   char* printed;
 
-#ifndef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  const char* string;
+  double real;
+  __uint128_t integer;
+#else
   union
   {
     const char* string;
     double real;
     __uint128_t integer;
-  };
-#else
-  const char* string;
-  double real;
-  __uint128_t integer;
+  }; 
 #endif
 } token_t;
 
@@ -111,9 +111,9 @@ const char* token_print(token_t* token)
       return token->string;
 
     case TK_INT:
-      if(token->printed == NULL)
+      if (token->printed == NULL)
         token->printed = (char*)malloc(32);
-
+      
       pony_snprintf(token->printed, 32, "%zu", (size_t)token->integer);
       return token->printed;
 

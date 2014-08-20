@@ -22,8 +22,10 @@
 #  define PLATFORM_IS_MACOSX
 #elif defined(__linux__)
 #  define PLATFORM_IS_LINUX
-#elif defined(_WIN64) && defined(_MSC_VER)
+#elif defined(_WIN64)
 #  define PLATFORM_IS_WINDOWS
+#  if defined(_MSC_VER)
+#  define PLATFORM_IS_VISUAL_STUDIO
 /** Allow formal parameters of functions to remain unused (e.g. actor disp.)
 *
 *  http://msdn.microsoft.com/en-us/library/26kb9fy0.aspx
@@ -35,6 +37,11 @@
 *  http://msdn.microsoft.com/en-us/library/6t66728h%28v=vs.90%29.aspx
 */
 #  pragma warning(disable:4127)
+#  include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+typedef SIZE_T size_t;
+#endif
+# include <Windows.h>
 #else
 #  error PLATFORM NOT SUPPORTED!
 #endif
@@ -43,12 +50,11 @@
 # define PLATFORM_IS_POSIX_BASED
 #endif
 
-#ifdef PLATFORM_IS_WINDOWS
-#  include <Windows.h>
-#  include <BaseTsd.h>
-typedef SSIZE_T ssize_t;
-typedef SIZE_T size_t;
-#elif PLATFORM_IS_POSIX_BASED
+#if defined(PLATFORM_IS_POSIX_BASED) || defined(__MINGW64__)
+#  define PLATFORM_IS_CLANG_OR_GCC
+#endif
+
+#ifdef PLATFORM_IS_POSIX_BASED
 #  include <stddef.h>
 #endif
 
@@ -59,7 +65,7 @@ typedef SIZE_T size_t;
  *  SALs are only supported on Visual Studio >= Professional Editions. If we
  *  cannot support FORMAT_STRING, we do not validate printf-like functions.
  */
-#ifndef PLATFORM_IS_WINDOWS
+#ifndef PLATFORM_IS_VISUAL_STUDIO
 #  define __pony_format__(X, Y, Z) __attribute__((format \
             (X, Y, Z)))
 #  define FORMAT_STRING(X) X

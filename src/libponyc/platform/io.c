@@ -1,10 +1,6 @@
 #include "platform.h"
 #include <stdio.h>
 
-#ifdef PLATFORM_IS_WINDOWS
-#include <strsafe.h>
-#endif
-
 intptr_t pony_openr(const char* file)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -29,8 +25,7 @@ void pony_close(intptr_t fileHandle)
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  size_t path_len = 0;
-  StringCchLength(path, MAX_PATH, &path_len);
+  size_t path_len = strlen(path);
 
   if (path_len > (MAX_PATH - 3))
   {
@@ -39,8 +34,8 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
   }
 
   TCHAR win_path[MAX_PATH];
-  strcpy_s(win_path, path);
-  strcat_s(win_path, TEXT("\\*"));
+  strcpy_s(win_path, strlen(path), path);
+  strcat_s(win_path, 3, TEXT("\\*"));
 
   PONY_DIR* dir = (PONY_DIR*)malloc(sizeof(PONY_DIR));
   
@@ -126,7 +121,7 @@ void pony_unmap(void* p, size_t size)
 bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if (FindNextFile(dir->ptr, &dir->info) != NULL)
+  if (FindNextFile(dir->ptr, &dir->info) != 0)
   {
     *res = &dir->info;
     return true;
