@@ -53,6 +53,14 @@ function llvm_config(opt)
     return output
 end
 
+function use_bigint()
+  configuration { "vs*" }
+    defines {
+      "PONY_USE_BIGINT"
+    }   
+  configuration "*"
+end
+
 function link_libponyc()
   links { "libponyc" }
   
@@ -76,6 +84,8 @@ function link_libponyc()
       "dl"
     }
   end
+
+  use_bigint()
 end
 
 solution "ponyc"
@@ -154,6 +164,9 @@ solution "ponyc"
     includedirs {
       llvm_config("--includedir")
     }
+
+    use_bigint()
+
     configuration { "not vs*" }
       buildoptions {
         "-std=gnu11"
@@ -166,18 +179,18 @@ solution "ponyc"
         "__STDC_LIMIT_MACROS",
       }   
     configuration "*"
-    files { "src/libponyc/**.c", "src/libponyc/**.h", "src/libponyc/**.hpp" }
-    cppforce { "src/libponyc/**.c" }
-
+    files { "src/libponyc/**.c*", "src/libponyc/**.h" }
+    cppforce { "src/libponyc/**.c*" }
+    
   project "ponyc"
     kind "ConsoleApp"
     language "C"
     configuration { "not vs*" } 
-      buildoptions "-std=gnu11"
+      buildoptions "-std=gnu11" 
     configuration "*"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     cppforce { "src/ponyc/**.c" }
     link_libponyc()
-
+ 
   include "utils/"
   include "test/"

@@ -114,7 +114,7 @@ const char* token_print(token_t* token)
       if (token->printed == NULL)
         token->printed = (char*)malloc(32);
       
-      pony_snprintf(token->printed, 32, "%zu", (size_t)token->integer);
+      pony_snprintf(token->printed, 32, __pony_format_zu, (size_t)token->integer);
       return token->printed;
 
     case TK_FLOAT:

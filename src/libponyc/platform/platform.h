@@ -26,7 +26,7 @@
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
 #  define PLATFORM_IS_VISUAL_STUDIO
-/** Allow formal parameters of functions to remain unused (e.g. actor disp.)
+/** Allow formal parameters of functions to remain unused
 *
 *  http://msdn.microsoft.com/en-us/library/26kb9fy0.aspx
 */
@@ -60,31 +60,16 @@ typedef SIZE_T size_t;
 
 #define PONY_ERRNO uint32_t
 
-/** Format specifiers.
- *
- *  SALs are only supported on Visual Studio >= Professional Editions. If we
- *  cannot support FORMAT_STRING, we do not validate printf-like functions.
- */
-#ifndef PLATFORM_IS_VISUAL_STUDIO
-#  define __pony_format__(X, Y, Z) __attribute__((format \
-            (X, Y, Z)))
-#  define FORMAT_STRING(X) X
-#else
-#  if _MSC_VER >= 1400
-#    include <sal.h>
-#    if _MSC_VER > 1400
-#      define FORMAT_STRING(p) _Printf_format_string_ p
-#    else
-#      define FORMAT_STRING(p) __format_string p
-#    endif
-#  else
-#    define FORMAT_STRING(p) p
-#  endif
-#  define __pony_format__(X, Y, Z)
-#endif
-
 #include "io.h"
 #include "utils.h"
-#include "bigint.hpp"
+#include "format.h"
+
+#if defined(PONY_USE_BIGINT)
+#  ifdef __cplusplus
+#    include "../bigint/bigint.h"
+#  else
+#    error Usage of bigint requires C++ compilation!
+#  endif
+#endif
 
 #endif

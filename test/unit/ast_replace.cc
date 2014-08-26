@@ -93,8 +93,8 @@ static void test(const char* orig, token_id replace_at, const char* replace,
 
 TEST(AstReplaceTest, WholeTree)
 {
-  const char* orig = "(+ 1 2)";
-  const char* replace = "(- 3 4)";
+  const char* orig = "(+ 1 2)\0";
+  const char* replace = "(- 3 4)\0";
 
   ASSERT_NO_FATAL_FAILURE(test(orig, TK_PLUS, replace, replace));
 }

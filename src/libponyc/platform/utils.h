@@ -45,12 +45,6 @@ struct winsize
 #  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
-int32_t pony_snprintf(char* str, size_t size, 
-  FORMAT_STRING(const char* format), ...);
-
-int32_t pony_vsnprintf(char* str, size_t size, 
-  FORMAT_STRING(const char* format), va_list args);
-
 void pony_strcpy(char* dest, const char* source);
 
 void pony_strncpy(char* dest, const char* source, size_t len);
