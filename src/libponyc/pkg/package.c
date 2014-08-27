@@ -308,7 +308,7 @@ static const char* find_path(ast_t* from, const char* path)
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
-  pony_snprintf(buffer, 32, "$%zu", id);
+  pony_snprintf(buffer, 32, "$"__pony_format_zu, id);
   return stringtab(buffer);
 }
 

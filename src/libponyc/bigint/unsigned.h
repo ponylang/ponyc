@@ -11,11 +11,10 @@
 
 template<size_t words>
 class BigUnsignedInt : public IntArray<words>
-{ 
+{
 public:
   BigUnsignedInt() : IntArray<words>() {}
   BigUnsignedInt(const BigUnsignedInt& value) : IntArray<words>(value) {}
- //BigUnsignedInt(const BigSignedInt<words>& value) {}
  
   template<typename T>
   BigUnsignedInt(const T& value) : BigUnsignedInt()
@@ -44,61 +43,68 @@ public:
   
   BigUnsignedInt& operator+=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->add(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator-=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->sub(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator*=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->mul(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator/=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->div(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator%=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
-    return *this;
+    return *this - (rvalue * (*this / rvalue));
   }
 
   BigUnsignedInt& operator&=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->and(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator|=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->or(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator^=(const BigUnsignedInt& rvalue)
   {
-    //REMOVED
+    this->xor(rvalue);
     return *this;
   }
 
   BigUnsignedInt& operator<<=(const int shift)
   {
-    //REMOVED
+    if (shift == 0)
+      return *this;
+    
+    //TODO
+
     return *this;
   }
 
   BigUnsignedInt& operator>>=(const int shift)
   {
-    //REMOVED
+    if (shift == 0)
+      return *this;
+
+    //TODO
+
     return *this;
   }
 
@@ -217,8 +223,12 @@ public:
 
   BigUnsignedInt operator~() const
   {
-    //REMOVED
-    return *this;
+    BigUnsignedInt<words> copy(*this);
+
+    for (size_t i = 0; i < copy.len; ++i)
+      copy.data[i] = ~copy.data[i];
+    
+    return copy;
   }
 
   BigUnsignedInt operator++()
@@ -235,7 +245,7 @@ public:
     //we inform the user about this overflow, if the macro
     //__CATCH_BIGINT_OVERFLOW is defined.
   #ifdef __CATCH_BIGINT_OVERFLOW
-    //REMOVED
+    //TODO
   #endif
 
     return *this;
@@ -273,7 +283,7 @@ public:
       //we inform the user about this overflow, if the macro
       //__CATCH_BIGINT_OVERFLOW is defined.
 
-      //REMOVED
+      //TODO
     }
   #endif
 
@@ -285,6 +295,35 @@ public:
     BigUnsignedInt<words> copy(*this);
     this->operator--();
     return copy;
+  }
+
+private:
+  void add(const BigUnsignedInt& rvalue)
+  {
+  }
+
+  void sub(const BigUnsignedInt& rvalue)
+  {
+  }
+
+  void mul(const BigUnsignedInt& rvalue)
+  {
+  }
+
+  void div(const BigUnsignedInt& rvalue)
+  {
+  }
+
+  void and(const BigUnsignedInt& rvalue)
+  {
+  }
+
+  void or(const BigUnsignedInt& value)
+  {
+  }
+
+  void xor(const BigUnsignedInt& rvalue)
+  {
   }
 };
 
@@ -311,5 +350,10 @@ cmp_t compare(const BigUnsignedInt<words>& lvalue,
 
   return equal;
 }
+
+/** Template version of operators to save copying through implicit 
+ *  conversion constructors.
+ */
+
 
 #endif

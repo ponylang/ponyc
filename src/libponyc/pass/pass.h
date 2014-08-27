@@ -17,12 +17,10 @@ typedef enum pass_id
 } pass_id;
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
-/** No overflow detection, if used incorrectly, things go horribly wrong!
-*
-*/
-inline pass_id operator++(pass_id& current)
+inline pass_id& operator++(pass_id& current)
 {
-  return pass_id(current + 1);
+  current = static_cast<pass_id>(current + 1);
+  return current;
 };
 
 inline pass_id operator++(pass_id& current, int)
