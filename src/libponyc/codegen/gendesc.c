@@ -12,7 +12,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
     return LLVMConstNull(c->void_ptr);
 
   // Create a new unboxing function that forwards to the real function.
-  LLVMTypeRef f_type = LLVMTypeOf(fun);
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
   size_t count = LLVMCountParamTypes(f_type);
 
   LLVMTypeRef params[count];
@@ -28,8 +28,8 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
   LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
 
   // Extract the primitive type from element 1 and call the real function.
-  LLVMBasicBlockRef entry_block = LLVMAppendBasicBlock(unbox_fun, "entry");
   LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef entry_block = LLVMAppendBasicBlock(unbox_fun, "entry");
   LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
@@ -44,6 +44,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
 
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
   LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c, unbox_fun);
 
   // Put the insert cursor back where it was.
   LLVMPositionBuilderAtEnd(c->builder, insert_block);
@@ -85,7 +86,7 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
   return type;
 }
 
-void gendesc_prep(compile_t* c, ast_t* ast, LLVMTypeRef type)
+void gendesc_prep(compile_t* c, ast_t* ast)
 {
   assert(ast_id(ast) == TK_NOMINAL);
 
@@ -95,34 +96,55 @@ void gendesc_prep(compile_t* c, ast_t* ast, LLVMTypeRef type)
   size_t vtable_size = painter_get_vtable_size(c->painter, def);
 
   LLVMTypeRef desc_type = gendesc_type(c, desc_name, vtable_size);
-  LLVMValueRef g_desc = LLVMAddGlobal(c->module, desc_type, desc_name);
-
-  // If this is a datatype and it isn't a primitive, create a single global
-  // instance with the descriptor and no fields.
-  if((ast_id(def) == TK_DATA) && (LLVMGetTypeKind(type) == LLVMStructTypeKind))
-  {
-    const char* inst_name = genname_instance(name);
-    LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);
-
-    LLVMValueRef args[1];
-    args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
-
-    LLVMValueRef inst = LLVMConstNamedStruct(type, args, 1);
-    LLVMSetInitializer(g_inst, inst);
-    LLVMSetGlobalConstant(g_inst, true);
-  }
+  LLVMAddGlobal(c->module, desc_type, desc_name);
 }
 
-void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type, bool unbox)
+void gendesc_inst(compile_t* c, ast_t* ast)
+{
+  // If it's not a datatype, we don't need an instance.
+  ast_t* def = ast_data(ast);
+
+  if(ast_id(def) != TK_DATA)
+    return;
+
+  const char* name = genname_type(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+  // If it's a primitive, we don't need an instance.
+  if(LLVMGetTypeKind(type) != LLVMStructTypeKind)
+    return;
+
+  const char* inst_name = genname_instance(name);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);
+
+  const char* desc_name = genname_descriptor(name);
+  LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);
+
+  LLVMValueRef args[1];
+  args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
+
+  LLVMValueRef inst = LLVMConstNamedStruct(type, args, 1);
+  LLVMSetInitializer(g_inst, inst);
+  LLVMSetGlobalConstant(g_inst, true);
+}
+
+void gendesc_init(compile_t* c, ast_t* ast, bool unbox)
 {
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = ast_data(ast);
+
   const char* name = genname_type(ast);
+  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
+
   const char* desc_name = genname_descriptor(name);
   size_t vtable_size = painter_get_vtable_size(c->painter, def);
 
   // build the actual vtable
   LLVMValueRef vtable[vtable_size];
+
+  for(size_t i = 0; i < vtable_size; i++)
+    vtable[i] = LLVMConstNull(c->void_ptr);
 
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
@@ -140,7 +162,7 @@ void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type, bool unbox)
         int colour = painter_get_colour(c->painter, funname);
 
         if(unbox)
-          vtable[colour] = make_unbox_function(c, fullname, c->void_ptr);
+          vtable[colour] = make_unbox_function(c, fullname, type_ptr);
         else
           vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
 
@@ -166,7 +188,7 @@ void gendesc_init(compile_t* c, ast_t* ast, LLVMTypeRef type, bool unbox)
   args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
     false);
   args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);;
+  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);
 
   LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
   LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);

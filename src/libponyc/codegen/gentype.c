@@ -11,8 +11,14 @@
 #include <assert.h>
 
 static bool make_trace(compile_t* c, const char* name,
-  LLVMTypeRef type, ast_t** fields, int count, int extra)
+  LLVMTypeRef type, ast_t** fields, int count, bool actor)
 {
+  // Classes have a descriptor. Actors also have a pad.
+  int extra = 1;
+
+  if(actor)
+    extra++;
+
   // create a trace function
   const char* trace_name = genname_trace(name);
   LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
@@ -60,9 +66,12 @@ static LLVMTypeRef make_struct(compile_t* c, const char* name,
   if(actor)
     elements[1] = c->actor_pad;
 
+  // Get a preliminary type for each field and set the struct body. Then
+  // generate real types for all the fields. This is needed in case a struct
+  // for the type being generated here is required when generating a field.
   for(int i = 0; i < count; i++)
   {
-    elements[i + extra] = gentype(c, fields[i]);
+    elements[i + extra] = gentype_prelim(c, fields[i]);
 
     if(elements[i + extra] == NULL)
       return NULL;
@@ -70,8 +79,8 @@ static LLVMTypeRef make_struct(compile_t* c, const char* name,
 
   LLVMStructSetBody(type, elements, count + extra, false);
 
-  if(!make_trace(c, name, type, fields, count, extra))
-    return NULL;
+  for(int i = 0; i < count; i++)
+    elements[i + extra] = gentype(c, fields[i]);
 
   return type;
 }
@@ -145,14 +154,15 @@ static void free_fields(ast_t** fields, int count)
   free(fields);
 }
 
-static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
+static LLVMTypeRef make_object(compile_t* c, ast_t* ast)
 {
   const char* name = genname_type(ast);
   LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-  *exists = type != NULL;
 
-  if(type != NULL)
+  if((type != NULL) && !LLVMIsOpaqueStruct(type))
     return LLVMPointerType(type, 0);
+
+  gendesc_prep(c, ast);
 
   ast_t* def = ast_data(ast);
   bool actor = ast_id(def) == TK_ACTOR;
@@ -160,52 +170,36 @@ static LLVMTypeRef make_object(compile_t* c, ast_t* ast, bool* exists)
   int count;
   ast_t** fields = get_fields(ast, &count);
   type = make_struct(c, name, fields, count, actor);
-  free_fields(fields, count);
 
   if(type == NULL)
+  {
+    free_fields(fields, count);
     return NULL;
+  }
 
-  gendesc_prep(c, ast, type);
+  if(!make_trace(c, name, type, fields, count, actor))
+  {
+    free_fields(fields, count);
+    return NULL;
+  }
+
+  free_fields(fields, count);
+  gendesc_inst(c, ast);
 
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type, false);
+  // TODO: for actors: create a dispatch function, possibly a finaliser
+  gendesc_init(c, ast, false);
   return LLVMPointerType(type, 0);
 }
 
-static LLVMTypeRef gentype_class(compile_t* c, ast_t* ast)
-{
-  bool exists;
-  LLVMTypeRef type = make_object(c, ast, &exists);
-
-  if(exists || (type == NULL))
-    return type;
-
-  return type;
-}
-
-static LLVMTypeRef gentype_actor(compile_t* c, ast_t* ast)
-{
-  bool exists;
-  LLVMTypeRef type = make_object(c, ast, &exists);
-
-  if(exists || (type == NULL))
-    return type;
-
-  // TODO: create a message type function, dispatch function
-  // instead of a message type function, could handle tracing ourselves
-  // so that send has no prep function
-  // would also have to handle receive tracing
-  return type;
-}
-
-static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
+static LLVMTypeRef make_nominal(compile_t* c, ast_t* ast, bool prelim)
 {
   assert(ast_id(ast) == TK_NOMINAL);
 
   // generate a primitive type if we've encountered one
-  LLVMTypeRef type = genprim(c, ast);
+  LLVMTypeRef type = genprim(c, ast, prelim);
 
   if(type != GEN_NOTYPE)
     return type;
@@ -220,10 +214,22 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
 
     case TK_DATA:
     case TK_CLASS:
-      return gentype_class(c, ast);
-
     case TK_ACTOR:
-      return gentype_actor(c, ast);
+    {
+      if(prelim)
+      {
+        // Create a preliminary opaque type.
+        const char* name = genname_type(ast);
+        LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
+
+        if(type == NULL)
+          type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
+
+        return type;
+      }
+
+      return make_object(c, ast);
+    }
 
     default: {}
   }
@@ -232,7 +238,7 @@ static LLVMTypeRef gentype_nominal(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
+static LLVMTypeRef make_tuple(compile_t* c, ast_t* ast)
 {
   // an anonymous structure with no functions and no vtable
   const char* name = genname_type(ast);
@@ -257,7 +263,18 @@ static LLVMTypeRef gentype_tuple(compile_t* c, ast_t* ast)
   if(type == NULL)
     return NULL;
 
+  if(!make_trace(c, name, type, fields, count, false))
+    return NULL;
+
   return LLVMPointerType(type, 0);
+}
+
+LLVMTypeRef gentype_prelim(compile_t* c, ast_t* ast)
+{
+  if(ast_id(ast) == TK_NOMINAL)
+    return make_nominal(c, ast, true);
+
+  return gentype(c, ast);
 }
 
 LLVMTypeRef gentype(compile_t* c, ast_t* ast)
@@ -281,7 +298,7 @@ LLVMTypeRef gentype(compile_t* c, ast_t* ast)
     case TK_TUPLETYPE:
     {
       LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-      LLVMTypeRef type = gentype_tuple(c, ast);
+      LLVMTypeRef type = make_tuple(c, ast);
       LLVMPositionBuilderAtEnd(c->builder, insert);
       return type;
     }
@@ -289,7 +306,7 @@ LLVMTypeRef gentype(compile_t* c, ast_t* ast)
     case TK_NOMINAL:
     {
       LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-      LLVMTypeRef type = gentype_nominal(c, ast);
+      LLVMTypeRef type = make_nominal(c, ast, false);
       LLVMPositionBuilderAtEnd(c->builder, insert);
       return type;
     }

@@ -650,7 +650,7 @@ bool is_singletype(ast_t* type)
 
 bool is_math_compatible(ast_t* a, ast_t* b)
 {
-  if(!is_singletype(a) || !is_singletype(b))
+  if(!is_singletype(a) || !is_singletype(b) || !is_arithmetic(a))
     return false;
 
   if(is_intliteral(a))
@@ -703,6 +703,8 @@ bool is_concrete(ast_t* type)
     }
 
     case TK_TUPLETYPE:
+      // TODO: Not correct. (T1, T2) is ID compatible with (T3, T4). Need to
+      // check tuples pair-wise.
       return true;
 
     case TK_NOMINAL:
@@ -743,7 +745,7 @@ bool is_id_compatible(ast_t* a, ast_t* b)
     // if either side is concrete, then one side must be a subtype of the other
     ok = is_subtype(a, b) || is_subtype(b, a);
   } else {
-    // if neither side is concrete, their could be a concrete type that was both
+    // if neither side is concrete, there could be a concrete type that was both
     ok = true;
   }
 
