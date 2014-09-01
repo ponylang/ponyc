@@ -5,6 +5,7 @@
 #include "gencontrol.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
+#include "../ds/hash.h"
 #include <string.h>
 #include <assert.h>
 
@@ -28,12 +29,6 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
     LLVMSetValueName(fparam, ast_name(ast_child(param)));
     param = ast_sibling(param);
   }
-}
-
-static void start_fun(compile_t* c, LLVMValueRef fun)
-{
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
 }
 
 static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
@@ -156,14 +151,14 @@ static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
     return NULL;
 
   // TODO: field initialisers
-  start_fun(c, handler);
+  codegen_startfun(c, handler);
   LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
     return NULL;
 
   LLVMBuildRetVoid(c->builder);
-  codegen_finishfun(c, handler);
+  codegen_finishfun(c);
   return handler;
 }
 
@@ -181,16 +176,11 @@ static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
   LLVMBuildStore(c->builder, desc, desc_ptr);
 }
 
-LLVMTypeRef genfun_proto(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_proto(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
-
-  if(func == NULL)
-    return NULL;
-
-  return LLVMTypeOf(func);
+  return get_prototype(c, type, name, typeargs, fun);
 }
 
 LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
@@ -202,7 +192,7 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  start_fun(c, func);
+  codegen_startfun(c, func);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_seq(c, body);
@@ -214,7 +204,7 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
     LLVMBuildRet(c->builder, value);
   }
 
-  codegen_finishfun(c, func);
+  codegen_finishfun(c);
   return func;
 }
 
@@ -227,20 +217,63 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // TODO: send a message to 'this'
-  start_fun(c, func);
+  codegen_startfun(c, func);
+
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
+
+  // Get the parameter types. Leave room for one more at the beginning.
+  LLVMTypeRef f_type = LLVMTypeOf(func);
+  size_t count = LLVMCountParamTypes(f_type) + 1;
+  LLVMTypeRef params[count];
+  LLVMGetParamTypes(f_type, &params[1]);
+
+  // The first one becomes the message ID. Replace the this pointer with the
+  // message index, then create a type for this message.
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMInt32Type();
+  LLVMTypeRef msg_type = LLVMStructType(params, count, false);
+
+  // Calculate the index (power of 2) for the message size.
+  size_t size = LLVMABISizeOfType(c->target, msg_type);
+  size = next_pow2(size);
+
+  // Subtract 7 because we are looking to make 64 come out to zero.
+  if(size <= 64)
+    size = 0;
+  else
+    size = __builtin_ffsl(size) - 7;
+
+  // Allocate the message, setting its ID and index.
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(LLVMInt32Type(), size, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), index, false);
+  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
+  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg,
+    LLVMPointerType(msg_type, 0), "");
+
+  // Populate the message contents.
+  for(int i = 1; i < (count - 1); i++)
+  {
+    LLVMValueRef arg = LLVMGetParam(func, i);
+    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i + 1, "");
+    LLVMBuildStore(c->builder, arg, arg_ptr);
+  }
+
+  // Send the message.
+  args[0] = this_ptr;
+  args[1] = msg;
+  gencall_runtime(c, "pony_sendv", args, 2, "");
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c, func);
+  codegen_finishfun(c);
 
   LLVMValueRef handler = get_handler(c, type, name, typeargs);
 
   if(handler == NULL)
     return NULL;
 
-  start_fun(c, handler);
+  codegen_startfun(c, handler);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_seq(c, body);
@@ -252,7 +285,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
     LLVMBuildRetVoid(c->builder);
   }
 
-  codegen_finishfun(c, handler);
+  codegen_finishfun(c);
   return func;
 }
 
@@ -265,8 +298,9 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
+  codegen_startfun(c, func);
+
   // allocate the object as 'this'
-  start_fun(c, func);
   LLVMTypeRef p_type = gentype(c, type);
 
   if(p_type == NULL)
@@ -292,7 +326,7 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c, func);
+  codegen_finishfun(c);
 
   // generate the handler
   handler = gen_newhandler(c, type, name, typeargs, ast_childidx(fun, 6));
@@ -312,8 +346,9 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
+  codegen_startfun(c, func);
+
   // allocate the actor as 'this'
-  start_fun(c, func);
   LLVMTypeRef p_type = gentype(c, type);
 
   if(p_type == NULL)
@@ -328,7 +363,7 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c, func);
+  codegen_finishfun(c);
 
   LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
     ast_childidx(fun, 6));
@@ -348,12 +383,23 @@ LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
   if(func == NULL)
     return NULL;
 
-  // return the constant global instance
-  start_fun(c, func);
+  codegen_startfun(c, func);
+
+  // Return the constant global instance.
   const char* inst_name = genname_instance(genname_type(type));
   LLVMValueRef inst = LLVMGetNamedGlobal(c->module, inst_name);
+
+  if(inst == NULL)
+  {
+    // If there's no global instance, we're a numeric primitive. Return an
+    // undefined (ie uninitialised) value.
+    LLVMTypeRef f_type = LLVMTypeOf(func);
+    LLVMTypeRef r_type = LLVMGetReturnType(LLVMGetElementType(f_type));
+    inst = LLVMGetUndef(r_type);
+  }
+
   LLVMBuildRet(c->builder, inst);
-  codegen_finishfun(c, func);
+  codegen_finishfun(c);
 
   return func;
 }

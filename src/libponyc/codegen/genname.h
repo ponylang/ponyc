@@ -24,4 +24,6 @@ const char* genname_fun(const char* type, const char* name, ast_t* typeargs);
 const char* genname_handler(const char* type, const char* name,
   ast_t* typeargs);
 
+const char* genname_unbox(const char* name);
+
 #endif

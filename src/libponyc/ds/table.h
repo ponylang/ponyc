@@ -8,8 +8,8 @@ typedef struct table_t table_t;
 
 table_t* table_create(size_t size);
 
-bool table_merge(table_t* dst, table_t* src,
-  hash_fn hash, cmp_fn cmp, dup_fn dup);
+bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
+  dup_fn dup, pred_fn pred, void* pred_arg);
 
 void* table_find(table_t* table, void* entry, hash_fn hash, cmp_fn cmp);
 
@@ -21,7 +21,8 @@ void table_free(table_t* table, free_fn fr);
 #define DECLARE_TABLE(name, elem) \
   DECLARE_TYPE(name, elem); \
   name##_t* name##_create(int size); \
-  bool name##_merge(name##_t* dst, name##_t* src); \
+  bool name##_merge(name##_t* dst, name##_t* src, name##_pred_fn pred, \
+    void* pred_arg); \
   elem* name##_find(name##_t* table, elem* entry); \
   elem* name##_insert(name##_t* table, elem* entry, bool* present); \
   void name##_free(name##_t* table); \
@@ -34,13 +35,14 @@ void table_free(table_t* table, free_fn fr);
   { \
     return (name##_t*)table_create(size); \
   } \
-  bool name##_merge(name##_t* dst, name##_t* src) \
+  bool name##_merge(name##_t* dst, name##_t* src, name##_pred_fn pred, \
+    void* pred_arg) \
   { \
     name##_hash_fn hashf = hash; \
     name##_cmp_fn cmpf = cmp; \
     name##_dup_fn dupf = dup; \
     return table_merge((table_t*)dst, (table_t*)src, \
-      (hash_fn)hashf, (cmp_fn)cmpf, (dup_fn)dupf); \
+      (hash_fn)hashf, (cmp_fn)cmpf, (dup_fn)dupf, (pred_fn)pred, pred_arg); \
   } \
   elem* name##_find(name##_t* table, elem* entry) \
   { \

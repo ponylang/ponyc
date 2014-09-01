@@ -1,42 +1,52 @@
 #include "genprim.h"
 #include "genname.h"
 #include "gentype.h"
-#include "gendesc.h"
-#include "genfun.h"
 #include "gencall.h"
-#include <string.h>
 
-LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
+bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
-  ast_t* typeargs = ast_childidx(ast, 2);
+  ast_t* typeargs = ast_childidx(g->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  LLVMTypeRef elem_type = gentype(c, typearg);
+
+  LLVMTypeRef elem_type;
+
+  if(prelim)
+    elem_type = gentype_prelim(c, typearg);
+  else
+    elem_type = gentype(c, typearg);
 
   if(elem_type == NULL)
-    return NULL;
+    return false;
 
-  const char* type_name = genname_type(ast);
+  // Set the type to the element type. In gentype, a pointer to this will be
+  // returned.
+  g->type = elem_type;
+
+  // Stop here for a preliminary type.
+  if(prelim)
+    return true;
+
+  // Most of our operations will use a pointer to the element type.
   LLVMTypeRef type = LLVMPointerType(elem_type, 0);
 
-  // set up a constant integer for the allocation size
+  // Set up a constant integer for the allocation size.
   size_t size = LLVMABISizeOfType(c->target, elem_type);
   LLVMValueRef l_size = LLVMConstInt(LLVMInt64Type(), size, false);
 
   // create
-  const char* name = genname_fun(type_name, "create", NULL);
+  const char* name = genname_fun(g->type_name, "create", NULL);
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
-  // if there's already a create function, we're done
+  // If there's already a create function, we're done.
   if(fun != NULL)
-    return type;
+    return true;
 
   LLVMTypeRef params[3];
   params[0] = LLVMInt64Type();
 
   LLVMTypeRef ftype = LLVMFunctionType(type, params, 1, false);
   fun = LLVMAddFunction(c->module, name, ftype);
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
+  codegen_startfun(c, fun);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
 
@@ -45,19 +55,19 @@ LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
   result = LLVMBuildBitCast(c->builder, result, type, "");
+
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c, fun);
+  codegen_finishfun(c);
 
   // from
-  name = genname_fun(type_name, "from", NULL);
+  name = genname_fun(g->type_name, "from", NULL);
 
   params[0] = type;
   params[1] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(type, params, 2, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
-  block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
+  fun = LLVMAddFunction(c->module, g->type_name, ftype);
+  codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
@@ -67,30 +77,31 @@ LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
 
   result = gencall_runtime(c, "pony_realloc", args, 2, "");
   result = LLVMBuildBitCast(c->builder, result, type, "");
+
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c, fun);
+  codegen_finishfun(c);
 
   // apply
-  name = genname_fun(type_name, "apply", NULL);
+  name = genname_fun(g->type_name, "apply", NULL);
 
   params[0] = type;
   params[1] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(elem_type, params, 2, false);
   fun = LLVMAddFunction(c->module, name, ftype);
-  block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
+  codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
   LLVMValueRef index = LLVMGetParam(fun, 1);
   LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
   result = LLVMBuildLoad(c->builder, loc, "");
   result = LLVMBuildBitCast(c->builder, result, elem_type, "");
+
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c, fun);
+  codegen_finishfun(c);
 
   // update
-  name = genname_fun(type_name, "update", NULL);
+  name = genname_fun(g->type_name, "update", NULL);
 
   params[0] = type;
   params[1] = LLVMInt64Type();
@@ -98,8 +109,7 @@ LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
 
   ftype = LLVMFunctionType(elem_type, params, 3, false);
   fun = LLVMAddFunction(c->module, name, ftype);
-  block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
+  codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
   index = LLVMGetParam(fun, 1);
@@ -109,69 +119,58 @@ LLVMTypeRef genprim_pointer(compile_t* c, ast_t* ast)
   LLVMBuildStore(c->builder, LLVMGetParam(fun, 2), loc);
 
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c, fun);
+  codegen_finishfun(c);
 
-  return type;
+  return true;
 }
 
-LLVMTypeRef genprim_array(compile_t* c, ast_t* ast)
+void genprim_array_trace(compile_t* c, gentype_t* g)
 {
-  ast_t* typeargs = ast_childidx(ast, 2);
+  // Get the type argument for the array. This will be used to generate the
+  // per-element trace call.
+  ast_t* typeargs = ast_childidx(g->ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  LLVMTypeRef elem_type = gentype(c, typearg);
 
-  if(elem_type == NULL)
-    return NULL;
-
-  // if we've already generated this, we're done
-  const char* name = genname_type(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-
-  if(type != NULL)
-    return LLVMPointerType(type, 0);
-
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
-  LLVMTypeRef elements[4];
-  elements[0] = c->descriptor_ptr; // descriptor
-  elements[1] = LLVMInt64Type(); // allocated size
-  elements[2] = LLVMInt64Type(); // current length
-  elements[3] = LLVMPointerType(elem_type, 0); // pointer to elements
-  LLVMStructSetBody(type, elements, 4, false);
-
-  // trace function
-  const char* trace_name = genname_trace(name);
+  const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+  codegen_startfun(c, trace_fn);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
   LLVMSetValueName(arg, "arg");
 
-  LLVMBasicBlockRef entry_block = LLVMAppendBasicBlock(trace_fn, "entry");
   LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(trace_fn, "cond");
   LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(trace_fn, "body");
   LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(trace_fn, "post");
 
-  LLVMPositionBuilderAtEnd(c->builder, entry_block);
-  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
+  // Read the count and the base pointer.
+  LLVMTypeRef type_ptr = LLVMPointerType(g->type, 0);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "array");
   LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, object, 2, "");
   LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "count");
   LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
-  pointer = LLVMBuildBitCast(c->builder, pointer, c->object_ptr, "");
+
+  // Trace the base pointer.
+  pointer = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
   gencall_runtime(c, "pony_trace", &pointer, 1, "");
   LLVMBuildBr(c->builder, cond_block);
 
+  // While the index is less than the count, trace an element. The initial
+  // index when coming from the entry block is zero.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, LLVMInt64Type(), "");
   LLVMValueRef zero = LLVMConstInt(LLVMInt64Type(), 0, false);
+  LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(trace_fn);
   LLVMAddIncoming(phi, &zero, &entry_block, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
   LLVMBuildCondBr(c->builder, test, body_block, post_block);
 
+  // The phi node is the index. Get the address and trace it.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
   gencall_trace(c, elem, typearg);
 
+  // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(LLVMInt64Type(), 1, false);
   LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
   LLVMAddIncoming(phi, &inc, &body_block, 1);
@@ -180,58 +179,10 @@ LLVMTypeRef genprim_array(compile_t* c, ast_t* ast)
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMBuildRetVoid(c->builder);
 
-  if(!codegen_finishfun(c, trace_fn))
-    return NULL;
-
-  gendesc_prep(c, ast, type);
-
-  if(!genfun_methods(c, ast))
-    return NULL;
-
-  gendesc_init(c, ast, type);
-  return type;
+  codegen_finishfun(c);
 }
 
-LLVMTypeRef genprim(compile_t* c, ast_t* ast)
+void genprim_builtins(compile_t* c)
 {
-  // TODO: create the primitive descriptors
-  // check for primitive types
-  const char* name = ast_name(ast_childidx(ast, 1));
-
-  if(!strcmp(name, "True") || !strcmp(name, "False"))
-    return LLVMInt1Type();
-
-  if(!strcmp(name, "I8") || !strcmp(name, "U8"))
-    return LLVMInt8Type();
-
-  if(!strcmp(name, "I16") || !strcmp(name, "U16"))
-    return LLVMInt16Type();
-
-  if(!strcmp(name, "I32") || !strcmp(name, "U32"))
-    return LLVMInt32Type();
-
-  if(!strcmp(name, "I64") || !strcmp(name, "U64"))
-    return LLVMInt64Type();
-
-  if(!strcmp(name, "I128") || !strcmp(name, "U128") ||
-    !strcmp(name, "SIntLiteral") || !strcmp(name, "UIntLiteral")
-    )
-    return LLVMIntType(128);
-
-  if(!strcmp(name, "F16"))
-    return LLVMHalfType();
-
-  if(!strcmp(name, "F32"))
-    return LLVMFloatType();
-
-  if(!strcmp(name, "F64") || !strcmp(name, "FloatLiteral"))
-    return LLVMDoubleType();
-
-  if(!strcmp(name, "Array"))
-    return genprim_array(c, ast);
-
-  if(!strcmp(name, "_Pointer"))
-    return genprim_pointer(c, ast);
-
-  return GEN_NOTYPE;
+  // TODO: All the builtin functions.
 }

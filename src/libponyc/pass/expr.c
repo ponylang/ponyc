@@ -110,8 +110,16 @@ ast_result_t pass_expr(ast_t** astp)
       break;
 
     case TK_AND:
-    case TK_XOR:
+      if(!expr_and(astp))
+        return AST_FATAL;
+      break;
+
     case TK_OR:
+      if(!expr_or(astp))
+        return AST_FATAL;
+      break;
+
+    case TK_XOR:
       if(!expr_logical(ast))
         return AST_FATAL;
       break;

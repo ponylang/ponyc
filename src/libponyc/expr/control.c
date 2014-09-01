@@ -123,14 +123,21 @@ bool expr_try(ast_t* ast)
   }
 
   // the then clause does not affect the type of the expression
-  ast_t* l_type = ast_type(body);
-  ast_t* r_type = ast_type(else_clause);
-  ast_t* type = type_union(l_type, r_type);
+  ast_t* body_type = ast_type(body);
+  ast_t* else_type = ast_type(else_clause);
+  ast_t* then_type = ast_type(then_clause);
+  ast_t* type = type_union(body_type, else_type);
   type = type_literal_to_runtime(type);
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
     ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
+
+  if(then_type == NULL)
+  {
+    ast_error(then_clause, "then clause always terminates the function");
     return false;
   }
 
@@ -217,7 +224,13 @@ bool expr_return(ast_t* ast)
 
   if(ast_id(fun) == TK_NEW)
   {
-    ast_error(ast, "can't return in a constructor");
+    ast_error(ast, "can't return a value in a constructor");
+    return false;
+  }
+
+  if(ast_id(fun) == TK_BE)
+  {
+    ast_error(ast, "can't return a value in a behaviour");
     return false;
   }
 

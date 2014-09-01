@@ -16,6 +16,24 @@ static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   return LLVMBuildCall(c->builder, fun, args, count, ret);
 }
 
+static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
+  LLVMValueRef* args, int count, const char* ret)
+{
+  if(fun == NULL)
+    return NULL;
+
+  LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
+  LLVMMoveBasicBlockAfter(then_block, this_block);
+  LLVMBasicBlockRef else_block = ast_data(try_expr);
+
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+    then_block, else_block, ret);
+
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  return invoke;
+}
+
 static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 {
   LLVMValueRef value = gen_expr(c, arg);
@@ -107,18 +125,29 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
     func = LLVMBuildLoad(c->builder, func_ptr, "");
 
+    // TODO: What if the function signature takes a primitive but the real
+    // underlying function accepts a union type of that primitive with something
+    // else, and so requires a boxed primitive? Or the real function could take
+    // a trait that the primitive provides.
+
     // cast to the right function type
-    f_type = genfun_proto(c, type, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, type, method_name, typeargs);
+
+    if(proto == NULL)
+    {
+      ast_error(ast, "couldn't locate '%s'", method_name);
+      return NULL;
+    }
+
+    f_type = LLVMTypeOf(proto);
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // static, get the actual function
-    const char* type_name = genname_type(type);
-    const char* name = genname_fun(type_name, method_name, NULL);
-    func = LLVMGetNamedFunction(c->module, name);
+    func = genfun_proto(c, type, method_name, typeargs);
 
     if(func == NULL)
     {
-      ast_error(ast, "couldn't locate '%s'", name);
+      ast_error(ast, "couldn't locate '%s'", method_name);
       return NULL;
     }
 
@@ -154,6 +183,17 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
+  if(ast_canerror(ast))
+  {
+    // If we can error out and we're called in the body of a try expression,
+    // generate an invoke instead of a call.
+    size_t clause;
+    ast_t* try_expr = ast_enclosing_try(ast, &clause);
+
+    if((try_expr != NULL) && (clause == 0))
+      return invoke_fun(c, try_expr, func, args, count, "");
+  }
+
   return call_fun(c, func, args, count, "");
 }
 
@@ -180,9 +220,9 @@ static void trace_tag(compile_t* c, LLVMValueRef field)
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
 
-  // cast the field to a generic object pointer
+  // cast the field to a void pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
 
   gencall_runtime(c, "pony_trace", args, 1, "");
 }
@@ -192,9 +232,9 @@ static void trace_actor(compile_t* c, LLVMValueRef field)
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
 
-  // cast the field to a pony_actor_t*
+  // cast the field to an object pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->actor_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
 
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
@@ -205,15 +245,23 @@ static void trace_known(compile_t* c, LLVMValueRef field,
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
 
-  // cast the field to a generic object pointer
-  LLVMValueRef args[2];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
-
   // get the trace function statically
   const char* fun = genname_trace(name);
+
+  LLVMValueRef args[2];
   args[1] = LLVMGetNamedFunction(c->module, fun);
 
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
+  // if this type has no trace function, don't try to recurse in the runtime
+  if(args[1] != NULL)
+  {
+    // cast the field to an object pointer
+    args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+    gencall_runtime(c, "pony_traceobject", args, 2, "");
+  } else {
+    // cast the field to a void pointer
+    args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
+    gencall_runtime(c, "pony_trace", args, 1, "");
+  }
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef field)
@@ -221,7 +269,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef field)
   // load the contents of the field
   LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
 
-  // cast the field to a generic object pointer
+  // cast the field to an object pointer
   LLVMValueRef args[2];
   args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "object");
 
@@ -254,7 +302,6 @@ static void trace_unknown(compile_t* c, LLVMValueRef field)
 
   // if we're an actor
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->actor_ptr, "actor");
   gencall_runtime(c, "pony_traceactor", args, 1, "");
   LLVMBuildBr(c->builder, merge_block);
 
@@ -262,7 +309,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef field)
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
 }
 
-void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
+bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   switch(ast_id(type))
   {
@@ -281,12 +328,12 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
           trace_unknown(c, value);
         }
       }
-      break;
+      return true;
     }
 
     case TK_TUPLETYPE:
       trace_known(c, value, genname_type(type));
-      break;
+      return true;
 
     case TK_NOMINAL:
     {
@@ -299,25 +346,26 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
             trace_tag(c, value);
           else
             trace_unknown(c, value);
-          break;
+
+          return true;
 
         case TK_DATA:
           // do nothing
-          break;
+          return false;
 
         case TK_CLASS:
           if(tag)
             trace_tag(c, value);
           else
             trace_known(c, value, genname_type(type));
-          break;
+
+          return true;
 
         case TK_ACTOR:
           trace_actor(c, value);
-          break;
+          return true;
 
-        default:
-          assert(0);
+        default: {}
       }
       break;
     }
@@ -331,10 +379,13 @@ void gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
         trace_tag(c, value);
       else
         trace_unknown(c, value);
-      break;
+
+      return true;
     }
 
-    default:
-      assert(0);
+    default: {}
   }
+
+  assert(0);
+  return false;
 }

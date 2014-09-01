@@ -33,7 +33,7 @@ static void add_method(ast_t* target, ast_t* method)
   if(ast_id(existing_members) == TK_NONE)
     ast_replace(&existing_members, method);
   else
-    ast_add(existing_members, method);
+    ast_append(existing_members, method);
 }
 
 

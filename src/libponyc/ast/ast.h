@@ -38,6 +38,8 @@ NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
 BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
 FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
 data: trait method body came from (NULL for none)
+data: during codegen, holds the LLVMBasicBlockRef for the except_block if the
+  function or constructor can error out
 symtab: ID -> TYPEPARAM | PARAM
 
 TYPEPARAMS: {TYPEPARAM}
@@ -79,7 +81,7 @@ RAWSEQ: {expr}
 
 expr
 ----
-data: during type checking, can error or not
+data: during type checking, whether the expr can error or not
 
 term: local | prefix | postfix | control | infix
 
@@ -148,14 +150,19 @@ symtab: ID -> VAR | VAL
 AS: IDSEQ type
 
 WHILE: RAWSEQ SEQ [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the init_block
 symtab: ID -> VAR | VAL
 
 REPEAT: RAWSEQ SEQ
+data: during codegen, holds the LLVMBasicBlockRef for the cond_block
 symtab: ID -> VAR | VAL
 
 FOR: IDSEQ [type] SEQ SEQ [SEQ]
 
 TRY: SEQ [SEQ] [SEQ]
+data: during codegen, holds the LLVMBasicBlockRef for the else_block
+  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
+  instruction
 
 atom
 ----
@@ -172,19 +179,13 @@ NAMEDARGS: {NAMEDARG}
 NAMEDARG: term SEQ
 
 THIS
+
 ID
+data: during codegen, holds the LLVMValueRef for the alloca
 
 INT
 FLOAT
 STRING
-
-ast type
---------
-NEW, BE, FUN
-  when expecting a CALL
-  change this?
-
-type
 
 */
 
@@ -236,6 +237,7 @@ ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
+ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
 ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);

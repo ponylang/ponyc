@@ -2,9 +2,12 @@
 #define CODEGEN_GENPRIM_H
 
 #include "codegen.h"
+#include "gentype.h"
 
-LLVMTypeRef genprim_array(compile_t* c, ast_t* ast);
+bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim);
 
-LLVMTypeRef genprim(compile_t* c, ast_t* ast);
+void genprim_array_trace(compile_t* c, gentype_t* g);
+
+void genprim_builtins(compile_t* c);
 
 #endif

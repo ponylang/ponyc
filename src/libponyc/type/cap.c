@@ -164,7 +164,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_TRN: return TK_TRN;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_TAG;
+        case TK_NONE: return TK_NONE;
         default: return TK_BOX;
       }
     }
@@ -177,7 +177,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
       switch(cap)
       {
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_TAG;
+        case TK_NONE: return TK_NONE;
         default: return TK_VAL;
       }
       break;
@@ -190,7 +190,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_ISO: return TK_TAG;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_TAG;
+        case TK_NONE: return TK_NONE;
         default: return TK_BOX;
       }
       break;
