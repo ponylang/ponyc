@@ -29,3 +29,8 @@ next need to debug parsing.
 this, but leave it til later.
 
 * Enum IDs treated like ints, with auto (un)boxing. Low priority.
+
+* Int literals signed vs unsigned.
+Should 4-3 be signed?
+Should literals be signed big ints?
+Should we do top down typing on literals?

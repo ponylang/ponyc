@@ -15,6 +15,10 @@
 
 static bool do_file_succeed(const char* pony_file, const char* ast_file)
 {
+  return false;
+
+  // TODO: This is currently totally broken. Replace it with unit tests
+  /*
   printf("Parse %s - expect success\n", pony_file);
 
   source_t* pony_src = source_open(pony_file);
@@ -62,11 +66,16 @@ static bool do_file_succeed(const char* pony_file, const char* ast_file)
   ast_free(expected);
 
   return r;
+  */
 }
 
 
 static bool do_file_fail(const char* pony_file)
 {
+  return false;
+
+  // TODO: This is currently totally broken
+  /*
   printf("Parse %s - expected failure\n", pony_file);
 
   source_t* pony_src = source_open(pony_file);
@@ -86,6 +95,7 @@ static bool do_file_fail(const char* pony_file)
   ast_free(actual);
 
   return (actual == NULL);
+  */
 }
 
 

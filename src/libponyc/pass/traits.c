@@ -5,9 +5,6 @@
 #include "../type/assemble.h"
 #include <assert.h>
 
-#include <stdio.h>
-
-
 /** We use a 3 stage process to flatten traits for each concrete type.
  *
  * 1. We process the traits used by the type. For each trait we add methods

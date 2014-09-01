@@ -9,3 +9,7 @@ With a use as import the imported package goes into the module symbol table.
 
 3. Concrete types are not allowed to have bodiless methods.
 
+4. Shift operators require both operands to be of the same type.
+This is because both LLVM and x86 require this. We could do type promotion, but
+it currently doesn't seem worth it.
+

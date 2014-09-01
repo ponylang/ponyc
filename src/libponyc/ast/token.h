@@ -169,7 +169,9 @@ typedef enum token_id
   TK_FLETREF,
   TK_VARREF,
   TK_LETREF,
-  TK_PARAMREF
+  TK_PARAMREF,
+
+  TK_TEST
 } token_id;
 
 

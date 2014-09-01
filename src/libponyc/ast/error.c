@@ -92,6 +92,8 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
+  //printf("%s\n", buf);
+
   errormsg_t* e = calloc(1, sizeof(errormsg_t));
 
   if(source != NULL)
@@ -121,6 +123,9 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
       tpos++;
 
     size_t len = tpos - start;
+
+    if(len >= sizeof(buf))
+      len = sizeof(buf) - 1;
 
     memcpy(buf, &source->m[start], len);
     buf[len] = '\0';

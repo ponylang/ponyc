@@ -273,14 +273,15 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
 
 // Foreach macro, will apply macro M to each of up to 16 other arguments
 #define FOREACH(M, ...) \
-  FE(__VA_ARGS__, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, \
-    nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop)
+  EXPAND(FE(__VA_ARGS__, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, \
+    nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop))
 #define FE( \
   A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, \
   M0, M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, ...) \
   M0(A0) M1(A1) M2(A2) M3(A3) M4(A4) M5(A5) M6(A6) \
   M7(A7) M8(A8) M9(A9) M10(A10) M11(A11) M12(A12) M13(A13) M14(A14) M15(A15)
 #define nop(x)
+#define EXPAND(x) x
 
 typedef ast_t* ast_ptr_t; // Allows easier decalaration of locals
 #define ADDR_AST(x) &x,
@@ -295,10 +296,11 @@ void ast_get_children(ast_t* parent, size_t child_count,
 
 #define AST_GET_CHILDREN_NO_DECL(parent, ...) \
   { \
-    ast_ptr_t* children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
+    ast_t** children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
     ast_get_children(parent, (sizeof(children) / sizeof(ast_t**)) - 1, \
     children); \
   }
+
 
 void ast_extract_children(ast_t* parent, size_t child_count,
   ast_t*** out_children);

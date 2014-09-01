@@ -194,6 +194,7 @@ static const lexsym_t abstract[] =
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
 
+  { "test", TK_TEST },
   { NULL, 0 }
 };
 

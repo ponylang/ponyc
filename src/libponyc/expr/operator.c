@@ -134,7 +134,7 @@ bool expr_compare(ast_t** astp)
     return binop_to_function(astp);
 
   if(!is_math_compatible(l_type, r_type) &&
-    (!is_bool(l_type) && !is_bool(r_type))
+    (!is_bool(l_type) || !is_bool(r_type))
     )
   {
     ast_error(ast, "arithmetic comparison must be on the same type");
