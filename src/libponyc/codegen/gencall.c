@@ -88,9 +88,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   ast_t* type = ast_type(receiver);
-  LLVMTypeRef l_type = gentype(c, type);
+  gentype_t g;
 
-  if(l_type == NULL)
+  if(!gentype(c, type, &g))
     return NULL;
 
   LLVMValueRef l_value;
@@ -103,7 +103,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMTypeRef f_type;
   LLVMValueRef func;
 
-  if(l_type == c->object_ptr)
+  if(g.use_type == c->object_ptr)
   {
     // virtual, get the function by selector colour
     int colour = painter_get_colour(c->painter, method_name);
@@ -131,7 +131,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     // a trait that the primitive provides.
 
     // cast to the right function type
-    LLVMValueRef proto = genfun_proto(c, type, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
 
     if(proto == NULL)
     {
@@ -143,7 +143,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // static, get the actual function
-    func = genfun_proto(c, type, method_name, typeargs);
+    func = genfun_proto(c, &g, method_name, typeargs);
 
     if(func == NULL)
     {

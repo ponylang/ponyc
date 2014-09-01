@@ -142,7 +142,7 @@ static void codegen_runtime(compile_t* c)
   c->personality = LLVMAddFunction(c->module, "pony_personality", type);
 }
 
-static void codegen_main(compile_t* c, LLVMTypeRef type)
+static void codegen_main(compile_t* c, gentype_t* g)
 {
   LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
@@ -165,8 +165,8 @@ static void codegen_main(compile_t* c, LLVMTypeRef type)
   codegen_finishfun(c);
 }
 
-static LLVMTypeRef codegen_type(compile_t* c, ast_t* scope, const char* package,
-  const char* name)
+static bool codegen_type(compile_t* c, ast_t* scope, const char* package,
+  const char* name, gentype_t* g)
 {
   ast_t* ast = ast_from(scope, TK_NOMINAL);
   ast_add(ast, ast_from(scope, TK_NONE)); // ephemeral
@@ -175,16 +175,10 @@ static LLVMTypeRef codegen_type(compile_t* c, ast_t* scope, const char* package,
   ast_add(ast, ast_from_string(scope, name));
   ast_add(ast, ast_from_string(scope, package));
 
-  if(!names_nominal(scope, &ast))
-  {
-    ast_free_unattached(ast);
-    return NULL;
-  }
-
-  LLVMTypeRef type = gentype(c, ast);
+  bool ok = names_nominal(scope, &ast) && gentype(c, ast, g);
   ast_free_unattached(ast);
 
-  return type;
+  return ok;
 }
 
 static bool codegen_program(compile_t* c, ast_t* program)
@@ -203,12 +197,12 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   // Generate the Main actor.
-  LLVMTypeRef type = codegen_type(c, m, package_name(package), main_actor);
+  gentype_t g;
 
-  if(type == NULL)
+  if(!codegen_type(c, m, package_name(package), main_actor, &g))
     return false;
 
-  codegen_main(c, type);
+  codegen_main(c, &g);
   return true;
 }
 

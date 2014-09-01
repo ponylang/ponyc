@@ -11,15 +11,75 @@
 #include <string.h>
 #include <assert.h>
 
+static void make_global_descriptor(compile_t* c, gentype_t* g)
+{
+  // Tuples have no descriptor.
+  if(g->underlying == TK_TUPLETYPE)
+    return;
+
+  // Fetch or create a descriptor type.
+  ast_t* def = ast_data(g->ast);
+  g->vtable_size = painter_get_vtable_size(c->painter, def);
+
+  const char* desc_name = genname_descriptor(g->type_name);
+  g->desc_type = gendesc_type(c, desc_name, g->vtable_size);
+
+  // Check for an existing descriptor.
+  g->desc = LLVMGetNamedGlobal(c->module, desc_name);
+
+  if(g->desc != NULL)
+    return;
+
+  g->desc = LLVMAddGlobal(c->module, g->desc_type, desc_name);
+  LLVMSetGlobalConstant(g->desc, true);
+}
+
+static void make_global_instance(compile_t* c, gentype_t* g)
+{
+  if(g->underlying != TK_DATA)
+  {
+    // Not a data type.
+    g->instance = NULL;
+    return;
+  }
+
+  if(g->primitive != NULL)
+  {
+    // A primitive type, use an uninitialised value.
+    g->instance = LLVMGetUndef(g->primitive);
+    return;
+  }
+
+  // Check for an existing instance.
+  const char* inst_name = genname_instance(g->type_name);
+  g->instance = LLVMGetNamedGlobal(c->module, inst_name);
+
+  if(g->instance != NULL)
+    return;
+
+  // Create a unique global instance.
+  LLVMValueRef args[1];
+  args[0] = g->desc;
+  LLVMValueRef value = LLVMConstNamedStruct(g->structure, args, 1);
+
+  g->instance = LLVMAddGlobal(c->module, g->structure, inst_name);
+  LLVMSetInitializer(g->instance, value);
+  LLVMSetGlobalConstant(g->instance, true);
+}
+
 /**
  * Return true if the type already exists or if we are only being asked to
  * generate a preliminary type, false otherwise.
  */
 static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 {
-  g->ast = ast;
-  g->type_name = genname_type(ast);
-  g->primitive = NULL;
+  if(ast_id(ast) == TK_NOMINAL)
+  {
+    ast_t* def = ast_data(ast);
+    g->underlying = ast_id(def);
+  } else {
+    g->underlying = TK_TUPLETYPE;
+  }
 
   // Find the primitive type, if there is one.
   AST_GET_CHILDREN(ast, pkg, id);
@@ -69,32 +129,26 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   }
 
   // Find or create the structure type.
-  g->type = LLVMGetTypeByName(c->module, g->type_name);
+  g->structure = LLVMGetTypeByName(c->module, g->type_name);
 
-  if(g->type == NULL)
+  if(g->structure == NULL)
+    g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
+
+  g->structure_ptr = LLVMPointerType(g->structure, 0);
+
+  if(g->primitive != NULL)
+    g->use_type = g->primitive;
+  else
+    g->use_type = g->structure_ptr;
+
+  // Fill in our global descriptor.
+  make_global_descriptor(c, g);
+
+  // Fill in our global instance if the type is not opaque.
+  if(!LLVMIsOpaqueStruct(g->structure))
   {
-    g->type = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
-  } else if(!LLVMIsOpaqueStruct(g->type)) {
+    make_global_instance(c, g);
     return true;
-  }
-
-  if(ast_id(ast) == TK_NOMINAL)
-  {
-    // Only set up the descriptor once. Pointers have no descriptor, so it's
-    // fine that this doesn't get executed for _Pointer.
-    ast_t* def = ast_data(ast);
-    g->underlying = ast_id(def);
-    g->vtable_size = painter_get_vtable_size(c->painter, def);
-
-    const char* desc_name = genname_descriptor(g->type_name);
-    g->desc_type = gendesc_type(c, desc_name, g->vtable_size);
-    g->desc = LLVMAddGlobal(c->module, g->desc_type, desc_name);
-    LLVMSetGlobalConstant(g->desc, true);
-  } else {
-    g->underlying = TK_TUPLETYPE;
-    g->vtable_size = 0;
-    g->desc_type = NULL;
-    g->desc = NULL;
   }
 
   return prelim;
@@ -218,8 +272,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
   LLVMSetValueName(arg, "arg");
 
-  LLVMTypeRef type_ptr = LLVMPointerType(g->type, 0);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, type_ptr, "object");
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
+    "object");
 
   // If we don't ever trace anything, delete this function.
   bool need_trace = false;
@@ -248,7 +302,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
 
   // Create the type descriptor as element 0.
   LLVMTypeRef elements[g->field_count + extra];
-  elements[0] = c->descriptor_ptr;
+  elements[0] = LLVMPointerType(g->desc_type, 0);
 
   if(g->underlying == TK_ACTOR)
     elements[1] = c->actor_pad;
@@ -258,13 +312,15 @@ static bool make_struct(compile_t* c, gentype_t* g)
   // generating a field.
   for(size_t i = 0; i < g->field_count; i++)
   {
-    elements[i + extra] = gentype_prelim(c, g->fields[i]);
+    gentype_t field_g;
 
-    if(elements[i + extra] == NULL)
+    if(!gentype_prelim(c, g->fields[i], &field_g))
       return false;
+
+    elements[i + extra] = field_g.use_type;
   }
 
-  LLVMStructSetBody(g->type, elements, g->field_count + extra, false);
+  LLVMStructSetBody(g->structure, elements, g->field_count + extra, false);
   return true;
 }
 
@@ -272,144 +328,133 @@ static bool make_components(compile_t* c, gentype_t* g)
 {
   for(size_t i = 0; i < g->field_count; i++)
   {
-    if(gentype(c, g->fields[i]) == NULL)
+    gentype_t field_g;
+
+    if(!gentype(c, g->fields[i], &field_g))
       return false;
   }
 
   return true;
 }
 
-static void make_global_instance(compile_t* c, gentype_t* g)
-{
-  if((g->underlying == TK_DATA) && (g->primitive == NULL))
-  {
-    LLVMValueRef args[1];
-    args[0] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
-    LLVMValueRef value = LLVMConstNamedStruct(g->type, args, 1);
-
-    const char* inst_name = genname_instance(g->type_name);
-    g->instance = LLVMAddGlobal(c->module, g->type, inst_name);
-    LLVMSetInitializer(g->instance, value);
-    LLVMSetGlobalConstant(g->instance, true);
-  } else {
-    g->instance = NULL;
-  }
-}
-
-static LLVMTypeRef make_result(gentype_t* g)
-{
-  // Primitives return the primitive type, not the boxed type.
-  if(g->primitive != NULL)
-    return g->primitive;
-
-  return LLVMPointerType(g->type, 0);
-}
-
-static LLVMTypeRef make_nominal(compile_t* c, ast_t* ast, bool prelim)
+static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 {
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = ast_data(ast);
 
   // For traits, just return a raw object pointer.
   if(ast_id(def) == TK_TRAIT)
-    return c->object_ptr;
+  {
+    g->use_type = c->object_ptr;
+    return true;
+  }
 
   // If we already exist or we're preliminary, we're done.
-  gentype_t g;
-
-  if(setup_name(c, ast, &g, prelim))
-    return make_result(&g);
+  if(setup_name(c, ast, g, prelim))
+    return true;
 
   // Generate a primitive type if we've encountered one.
-  if(g.primitive != NULL)
+  if(g->primitive != NULL)
   {
     // Element 0 is the type descriptor, element 1 is the boxed primitive type.
     // Primitive types have no trace function.
     LLVMTypeRef elements[2];
-    elements[0] = c->descriptor_ptr;
-    elements[1] = g.primitive;
-    LLVMStructSetBody(g.type, elements, 2, false);
+    elements[0] = g->desc_type;
+    elements[1] = g->primitive;
+    LLVMStructSetBody(g->structure, elements, 2, false);
   } else {
     // Not a primitive type. Generate all the fields and a trace function.
-    setup_type_fields(&g);
-    bool ok = make_struct(c, &g) && make_trace(c, &g) && make_components(c, &g);
-    free_fields(&g);
+    setup_type_fields(g);
+    bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+    free_fields(g);
 
     if(!ok)
-      return NULL;
+      return false;
   }
 
   // Create a unique global instance if we need one.
-  make_global_instance(c, &g);
+  make_global_instance(c, g);
 
   // TODO: is this right?
-  if(!genfun_methods(c, ast))
-    return NULL;
+  if(!genfun_methods(c, g))
+    return false;
 
-  // TODO: is this right?
   // TODO: for actors: create a dispatch function, possibly a finaliser
-  gendesc_init(c, &g);
+  gendesc_init(c, g);
 
-  return make_result(&g);
+  return true;
 }
 
-static LLVMTypeRef make_tuple(compile_t* c, ast_t* ast)
+static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 {
   // An anonymous structure with no functions and no vtable.
-  gentype_t g;
+  if(setup_name(c, ast, g, false))
+    return true;
 
-  if(setup_name(c, ast, &g, false))
-    return make_result(&g);
+  setup_tuple_fields(g);
+  bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+  free_fields(g);
 
-  setup_tuple_fields(&g);
-  bool ok = make_struct(c, &g) && make_trace(c, &g) && make_components(c, &g);
-  free_fields(&g);
-
-  if(!ok)
-    return NULL;
-
-  return make_result(&g);
+  return ok;
 }
 
-LLVMTypeRef gentype_prelim(compile_t* c, ast_t* ast)
+bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g)
 {
   if(ast_id(ast) == TK_NOMINAL)
-    return make_nominal(c, ast, true);
+  {
+    memset(g, 0, sizeof(gentype_t));
 
-  return gentype(c, ast);
+    g->ast = ast;
+    g->type_name = genname_type(ast);
+
+    return make_nominal(c, ast, g, true);
+  }
+
+  return gentype(c, ast, g);
 }
 
-LLVMTypeRef gentype(compile_t* c, ast_t* ast)
+bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 {
+  memset(g, 0, sizeof(gentype_t));
+
+  g->ast = ast;
+  g->type_name = genname_type(ast);
+
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
     {
-      // Special case Bool.
+      // Special case Bool. Otherwise it's just a raw object pointer.
       if(is_bool(ast))
-        return LLVMInt1Type();
+      {
+        g->primitive = LLVMInt1Type();
+        g->use_type = g->primitive;
+      } else {
+        g->use_type = c->object_ptr;
+      }
 
-      // Otherwise it's just a raw object pointer.
-      return c->object_ptr;
+      return true;
     }
 
     case TK_ISECTTYPE:
       // Just a raw object pointer.
-      return c->object_ptr;
+      g->use_type = c->object_ptr;
+      return true;
 
     case TK_TUPLETYPE:
-      return make_tuple(c, ast);
+      return make_tuple(c, ast, g);
 
     case TK_NOMINAL:
-      return make_nominal(c, ast, false);
+      return make_nominal(c, ast, g, false);
 
     case TK_STRUCTURAL:
       // Just a raw object pointer.
-      return c->object_ptr;
+      g->use_type = c->object_ptr;
+      return true;
 
     default: {}
   }
 
   assert(0);
-  return NULL;
+  return false;
 }

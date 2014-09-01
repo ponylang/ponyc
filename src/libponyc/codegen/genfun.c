@@ -31,10 +31,10 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
   }
 }
 
-static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
+static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   // reify with both the type and the function-level typeargs
-  ast_t* fun = lookup(type, name);
+  ast_t* fun = lookup(g->ast, name);
   assert(fun != NULL);
 
   if(typeargs != NULL)
@@ -49,16 +49,15 @@ static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
   return fun;
 }
 
-static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
+static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, ast_t* fun)
 {
-  // get a fully qualified name: starts with the type name, followed by the
+  // Get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
   // level type arguments.
-  const char* type_name = genname_type(type);
-  const char* funname = genname_fun(type_name, name, typeargs);
+  const char* funname = genname_fun(g->type_name, name, typeargs);
 
-  // if the function already exists, just return it
+  // If the function already exists, just return it.
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
 
   if(func != NULL)
@@ -72,15 +71,7 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   count = 0;
 
   // get a type for the receiver
-  tparams[count] = gentype(c, type);
-
-  if(tparams[count] == NULL)
-  {
-    ast_error(fun, "couldn't generate receiver type");
-    return NULL;
-  }
-
-  count++;
+  tparams[count++] = g->use_type;
 
   // get a type for each parameter
   ast_t* param = ast_child(params);
@@ -88,27 +79,29 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   while(param != NULL)
   {
     ast_t* ptype = ast_childidx(param, 1);
-    tparams[count] = gentype(c, ptype);
+    gentype_t ptype_g;
 
-    if(tparams[count] == NULL)
+    if(!gentype(c, ptype, &ptype_g))
     {
       ast_error(ptype, "couldn't generate parameter type");
       return NULL;
     }
 
-    count++;
+    tparams[count++] = ptype_g.use_type;
     param = ast_sibling(param);
   }
 
   // get a type for the result
   ast_t* rtype = ast_childidx(fun, 4);
-  LLVMTypeRef result = gentype(c, rtype);
+  gentype_t rtype_g;
 
-  if(result == NULL)
+  if(!gentype(c, rtype, &rtype_g))
   {
     ast_error(rtype, "couldn't generate result type");
     return NULL;
   }
+
+  LLVMTypeRef result = rtype_g.use_type;
 
   // generate the function type and the function prototype
   LLVMTypeRef ftype;
@@ -126,7 +119,7 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   {
     // handlers always have a receiver and have no return value
     ftype = LLVMFunctionType(LLVMVoidType(), tparams, count, false);
-    const char* handler_name = genname_handler(type_name, name, typeargs);
+    const char* handler_name = genname_handler(g->type_name, name, typeargs);
     LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
     name_params(params, handler, false);
   }
@@ -134,18 +127,17 @@ static LLVMValueRef get_prototype(compile_t* c, ast_t* type, const char *name,
   return func;
 }
 
-static LLVMValueRef get_handler(compile_t* c, ast_t* type, const char* name,
+static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs)
 {
-  const char* handler_name = genname_handler(genname_type(type), name,
-    typeargs);
+  const char* handler_name = genname_handler(g->type_name, name, typeargs);
   return LLVMGetNamedFunction(c->module, handler_name);
 }
 
-static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
+static LLVMValueRef gen_newhandler(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs, ast_t* body)
 {
-  LLVMValueRef handler = get_handler(c, type, name, typeargs);
+  LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
     return NULL;
@@ -162,32 +154,25 @@ static LLVMValueRef gen_newhandler(compile_t* c, ast_t* type, const char* name,
   return handler;
 }
 
-static void set_descriptor(compile_t* c, ast_t* type, LLVMValueRef this_ptr)
+static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
 {
   LLVMSetValueName(this_ptr, "this");
-
-  const char* type_name = genname_type(type);
-  const char* desc_name = genname_descriptor(type_name);
-
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module, desc_name);
-  desc = LLVMBuildBitCast(c->builder, desc, c->descriptor_ptr, "");
-
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
-  LLVMBuildStore(c->builder, desc, desc_ptr);
+  LLVMBuildStore(c->builder, g->desc, desc_ptr);
 }
 
-LLVMValueRef genfun_proto(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  return get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  return get_prototype(c, g, name, typeargs, fun);
 }
 
-LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
     return NULL;
@@ -208,11 +193,11 @@ LLVMValueRef genfun_fun(compile_t* c, ast_t* type, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, int index)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
     return NULL;
@@ -268,7 +253,7 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c);
 
-  LLVMValueRef handler = get_handler(c, type, name, typeargs);
+  LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
     return NULL;
@@ -289,11 +274,11 @@ LLVMValueRef genfun_be(compile_t* c, ast_t* type, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
     return NULL;
@@ -301,16 +286,11 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   codegen_startfun(c, func);
 
   // allocate the object as 'this'
-  LLVMTypeRef p_type = gentype(c, type);
-
-  if(p_type == NULL)
-    return NULL;
-
-  LLVMValueRef this_ptr = gencall_alloc(c, p_type);
-  set_descriptor(c, type, this_ptr);
+  LLVMValueRef this_ptr = gencall_alloc(c, g->use_type);
+  set_descriptor(c, g, this_ptr);
 
   // call the handler
-  LLVMValueRef handler = get_handler(c, type, name, typeargs);
+  LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
     return NULL;
@@ -329,7 +309,7 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   codegen_finishfun(c);
 
   // generate the handler
-  handler = gen_newhandler(c, type, name, typeargs, ast_childidx(fun, 6));
+  handler = gen_newhandler(c, g, name, typeargs, ast_childidx(fun, 6));
 
   if(handler == NULL)
     return NULL;
@@ -337,11 +317,11 @@ LLVMValueRef genfun_new(compile_t* c, ast_t* type, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, int index)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
     return NULL;
@@ -349,14 +329,9 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   codegen_startfun(c, func);
 
   // allocate the actor as 'this'
-  LLVMTypeRef p_type = gentype(c, type);
-
-  if(p_type == NULL)
-    return NULL;
-
   // TODO: don't heap alloc!
-  LLVMValueRef this_ptr = gencall_alloc(c, p_type);
-  set_descriptor(c, type, this_ptr);
+  LLVMValueRef this_ptr = gencall_alloc(c, g->use_type);
+  set_descriptor(c, g, this_ptr);
 
   // TODO: initialise the actor
   // TODO: send a message to 'this'
@@ -365,7 +340,7 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c);
 
-  LLVMValueRef handler = gen_newhandler(c, type, name, typeargs,
+  LLVMValueRef handler = gen_newhandler(c, g, name, typeargs,
     ast_childidx(fun, 6));
 
   if(handler == NULL)
@@ -374,45 +349,28 @@ LLVMValueRef genfun_newbe(compile_t* c, ast_t* type, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_newdata(compile_t* c, ast_t* type, const char *name,
+LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
-  ast_t* fun = get_fun(type, name, typeargs);
-  LLVMValueRef func = get_prototype(c, type, name, typeargs, fun);
+  ast_t* fun = get_fun(g, name, typeargs);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
     return NULL;
 
-  codegen_startfun(c, func);
-
   // Return the constant global instance.
-  const char* inst_name = genname_instance(genname_type(type));
-  LLVMValueRef inst = LLVMGetNamedGlobal(c->module, inst_name);
-
-  if(inst == NULL)
-  {
-    // If there's no global instance, we're a numeric primitive. Return an
-    // undefined (ie uninitialised) value.
-    LLVMTypeRef f_type = LLVMTypeOf(func);
-    LLVMTypeRef r_type = LLVMGetReturnType(LLVMGetElementType(f_type));
-    inst = LLVMGetUndef(r_type);
-  }
-
-  LLVMBuildRet(c->builder, inst);
+  codegen_startfun(c, func);
+  LLVMBuildRet(c->builder, g->instance);
   codegen_finishfun(c);
 
   return func;
 }
 
-bool genfun_methods(compile_t* c, ast_t* ast)
+bool genfun_methods(compile_t* c, gentype_t* g)
 {
-  assert(ast_id(ast) == TK_NOMINAL);
-
-  ast_t* def = ast_data(ast);
+  ast_t* def = ast_data(g->ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
-  bool actor = ast_id(def) == TK_ACTOR;
-  bool datatype = ast_id(def) == TK_DATA;
   int be_index = 0;
 
   while(member != NULL)
@@ -433,15 +391,23 @@ bool genfun_methods(compile_t* c, ast_t* ast)
 
         LLVMValueRef fun;
 
-        if(actor)
-          fun = genfun_newbe(c, ast, ast_name(id), NULL, be_index++);
-        else if(datatype)
-          fun = genfun_newdata(c, ast, ast_name(id), NULL);
-        else
-          fun = genfun_new(c, ast, ast_name(id), NULL);
+        switch(g->underlying)
+        {
+          case TK_ACTOR:
+            fun = genfun_newbe(c, g, ast_name(id), NULL, be_index++);
+            break;
+
+          case TK_DATA:
+            fun = genfun_newdata(c, g, ast_name(id), NULL);
+            break;
+
+          default:
+            fun = genfun_new(c, g, ast_name(id), NULL);
+        }
 
         if(fun == NULL)
           return false;
+
         break;
       }
 
@@ -457,10 +423,11 @@ bool genfun_methods(compile_t* c, ast_t* ast)
           return false;
         }
 
-        LLVMValueRef fun = genfun_be(c, ast, ast_name(id), NULL, be_index++);
+        LLVMValueRef fun = genfun_be(c, g, ast_name(id), NULL, be_index++);
 
         if(fun == NULL)
           return false;
+
         break;
       }
 
@@ -476,10 +443,11 @@ bool genfun_methods(compile_t* c, ast_t* ast)
           return false;
         }
 
-        LLVMValueRef fun = genfun_fun(c, ast, ast_name(id), NULL);
+        LLVMValueRef fun = genfun_fun(c, g, ast_name(id), NULL);
 
         if(fun == NULL)
           return false;
+
         break;
       }
 

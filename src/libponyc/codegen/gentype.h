@@ -10,8 +10,10 @@ typedef struct gentype_t
   size_t vtable_size;
 
   const char* type_name;
-  LLVMTypeRef type;
+  LLVMTypeRef structure;
+  LLVMTypeRef structure_ptr;
   LLVMTypeRef primitive;
+  LLVMTypeRef use_type;
 
   size_t field_count;
   ast_t** fields;
@@ -21,8 +23,8 @@ typedef struct gentype_t
   LLVMValueRef instance;
 } gentype_t;
 
-LLVMTypeRef gentype_prelim(compile_t* c, ast_t* ast);
+bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g);
 
-LLVMTypeRef gentype(compile_t* c, ast_t* ast);
+bool gentype(compile_t* c, ast_t* ast, gentype_t* g);
 
 #endif
