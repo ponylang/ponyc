@@ -2,94 +2,79 @@
 
 SignedInt128& SignedInt128::operator=(const SignedInt128& rvalue)
 {
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator=(const UnsignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator+=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator-=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator*=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator/=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator%=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator&=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator|=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator^=(const SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator<<=(const int shift)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 SignedInt128& SignedInt128::operator>>=(const int shift)
 {
-  //REMOVED
+  //TODO
   return *this;
 }
 
 cmp_t compare(const SignedInt128& lvalue, const SignedInt128& rvalue)
 {
-  /*if (lvalue.sign < rvalue.sign)
-  return less;
-  else if (lvalue.sign > rvalue.sign)
-  return greater;
-  else
-  {
-  switch (sign)
-  {
-  case zero:
-  return equal;
-  case negative:
-  return cmp_t(-compare(lvalue.magnitude, rvalue.magnitude));
-  case positive:
-  return compare(lvalue.magnitude, rvalue.magnitude);
-  }
-  }*/
-
+  //TODO
   return invalid;
 }
 
@@ -186,13 +171,13 @@ SignedInt128 operator>>(const SignedInt128& lvalue, const int shift)
 
 SignedInt128 operator~(const SignedInt128& lvalue)
 {
-  //REMOVED
+  //TODO
   return lvalue;
 }
 
 SignedInt128 operator++(const SignedInt128& lvalue)
 {
-  //REMOVED
+  //TODO
   return lvalue;
 }
 
@@ -205,7 +190,7 @@ SignedInt128 operator++(const SignedInt128& lvalue, int)
 
 SignedInt128& operator--(SignedInt128& rvalue)
 {
-  //REMOVED
+  //TODO
   return rvalue;
 }
 

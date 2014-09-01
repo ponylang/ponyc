@@ -68,6 +68,8 @@ typedef SIZE_T size_t;
 #  define __pony_popcount64(X) __pony_popcount(X)
 #  define __pony_ffs(X) __builtin_ffs( (X) )
 #  define __pony_ffsl(X) __builtin_ffsl( (X) )
+#  define __pony_clz(X) __builtin_clz( (X) )
+#  define __pony_clzl(X) __builtin_clzl( (X) )
 #  ifdef __clang__
 #    define __pony_rdtsc() __builtin_readcyclecounter()
 #  else
@@ -80,8 +82,10 @@ typedef SIZE_T size_t;
 
 static __declspec(thread) DWORD lsb;
 
-#  define __pony_ffs(X) (_BitScanForward(&lsb, (X)), lsb+1)
-#  define __pony_ffsl(X) (_BitScanForward64(&lsb, (X)), lsb+1)
+#  define __pony_ffs(X) (lsb = 0, _BitScanForward(&lsb, (X)), lsb+1)
+#  define __pony_ffsl(X) (lsb = 0,_BitScanForward64(&lsb, (X)), lsb+1)
+#  define __pony_clz(X) (lsb = 0,_BitScanReverse(&lsb, (X)), lsb)
+#  define __pony_clzl(X) (lsb = 0, _BitScanReverse64(&lsb, (X)), lsb)
 #  define __pony_rdtsc() __rdtsc()
 #endif
 

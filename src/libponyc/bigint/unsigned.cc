@@ -1,4 +1,5 @@
 #include "unsigned.h"
+#include "../platform/platform.h"
 #include <stdexcept>
 
 UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
@@ -11,7 +12,7 @@ UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
 UnsignedInt128& UnsignedInt128::operator+=(const UnsignedInt128& rvalue)
 {
   high += rvalue.high + ((low + rvalue.low) < low);
-  low += low + rvalue.low;
+  low += rvalue.low;
 
   return *this;
 }
@@ -19,7 +20,7 @@ UnsignedInt128& UnsignedInt128::operator+=(const UnsignedInt128& rvalue)
 UnsignedInt128& UnsignedInt128::operator-=(const UnsignedInt128& rvalue)
 {
   high -= rvalue.high - ((low - rvalue.low) > low);
-  low += rvalue.low;
+  low -= rvalue.low;
 
   return *this;
 }
@@ -38,10 +39,13 @@ UnsignedInt128& UnsignedInt128::operator*=(const UnsignedInt128& rvalue)
   UnsignedInt128 a(*this);
   UnsignedInt128 b(rvalue);
 
+  low = high = 0;
+  
   //stupid version, could use 4x4 32 int matrix multiply
-  for (uint8_t i = 0; i < 64; ++i)
+  //also this is copy hell
+  for (uint8_t i = 0; i < 128 && b != 0; ++i)
   {
-    if ((b & 1) == 0)
+    if ((b & 1) != 0)
       *this += (a << i);
     
     b >>= 1;
@@ -71,9 +75,24 @@ UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
     return *this;
   }
 
-  //TODO
+  UnsignedInt128 q = 0;
+  UnsignedInt128 r = 0;
 
-  return *this;
+  for (uint8_t i = 127; i < UINT8_MAX; --i)
+  {
+    r <<= 1;
+    r |= (*this >> i) & 0x01;
+
+    if (r >= rvalue)
+    {
+      r -= rvalue;
+      q |= 1 << i;
+    }
+  }
+
+  //remainder is in variable r, may be used later
+  //for better %= implementation, based on std::pair.
+  return *this = q;
 }
 
 UnsignedInt128& UnsignedInt128::operator%=(const UnsignedInt128& rvalue)
@@ -115,9 +134,9 @@ UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
     high = 0;
     return *this;
   }
-  else if (shift >= 32)
+  else if (shift >= 64)
   {
-    left = shift - 32;
+    left = shift - 64;
     high = low;
     low = 0;
   }
@@ -125,8 +144,8 @@ UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
   if (left > 0)
   {
     uint64_t mask = -1;
-    high <<= (left);
-    high |= (low & (~mask >> left)) >> (32 - left);
+    high <<= left;
+    high |= (low & (~mask >> left)) >> (64 - left);
     low <<= (left);
   }
 
@@ -135,6 +154,28 @@ UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
 
 UnsignedInt128& UnsignedInt128::operator>>=(const int shift)
 {
+  int left = shift;
+
+  if (shift >= 128)
+  {
+    low = 0;
+    high = 0;
+    return *this;
+  }
+  else if(shift >= 64)
+  {
+    left = shift - 64;
+    low = high;
+    high = 0;
+  }
+
+  if (left > 0)
+  {
+    uint64_t mask = -1;
+    low >>= left;
+    low |= (high & (~mask << left)) << (64 - left);
+    high >>= left;
+  }
   
   return *this;
 }
@@ -293,15 +334,12 @@ UnsignedInt128& operator--(UnsignedInt128& rvalue)
   //TODO
 
 #ifdef __CATCH_BIGINT_OVERFLOW
-  if (overflow)
-  {
     //if execution reaches this point, -- caused an overflow and
     //the most significant word of rvalue is now equal to UINT64_MAX
     //we inform the user about this overflow, if the macro
     //__CATCH_BIGINT_OVERFLOW is defined.
 
     //TODO
-  }
 #endif
 
   return rvalue;

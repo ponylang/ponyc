@@ -41,7 +41,7 @@ TEST(LexerCommentTest, LineCommentLineNumber)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(0, token_int(token));
+  ASSERT_EQ(1, token_int(token));
   ASSERT_EQ(2, token_line_number(token));
   ASSERT_EQ(1, token_line_position(token));
   token_free(token);
