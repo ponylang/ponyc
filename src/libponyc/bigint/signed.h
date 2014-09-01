@@ -5,25 +5,25 @@
   "[BigSigned(const T& value)]: Argument 'value' is not arithmetic!"
 
 #include "unsigned.h"
+#include "base.h"
+
 #include <type_traits>
 
-template<size_t words>
-class BigSignedInt
+class SignedInt128
 {
-protected:
-  sign_t sign;
-  BigUnsignedInt<words> magnitude;
-
 public:
-  BigSignedInt() {}
-  BigSignedInt(const BigSignedInt<words>& val) {}
-  BigSignedInt(const BigUnsignedInt<words>& val) : magnitude(val)
+  sign_t sign;
+  UnsignedInt128 magnitude;
+
+  SignedInt128() {}
+  SignedInt128(const SignedInt128& val) {}
+  SignedInt128(const UnsignedInt128& val) : magnitude(val)
   {
     sign = (magnitude == 0) ? zero : positive;
   }
 
   template<typename T>
-  BigSignedInt(const T& val)
+  SignedInt128(const T& val) : magnitude(val)
   {
     static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_INT_COPY);
     
@@ -33,220 +33,46 @@ public:
       return;
     }
     
-    //REMOVED
-
     sign = (val < 0) ? negative : positive;
   }
 
-  BigSignedInt& operator=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator=(const BigUnsignedInt<words>& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-  
-  BigSignedInt& operator+=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator-=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator*=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator/=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator%=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator&=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator|=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator^=(const BigSignedInt& rvalue)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator<<=(const int shift)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt& operator>>=(const int shift)
-  {
-    //REMOVED
-    return *this;
-  }
-
-  bool operator==(const BigSignedInt& rvalue)
-  {
-    return (this->sign == rvalue.sign) && 
-           (this->magnitude == rvalue.magnitude);
-  }
-
-  bool operator!=(const BigSignedInt& rvalue)
-  {
-    return !operator==(rvalue);
-  }
-
-  bool operator<(const BigSignedInt& rvalue)
-  {
-    return compare(*this, rvalue) == less;
-  }
-
-  bool operator<=(const BigSignedInt& rvalue)
-  {
-    return compare(*this, rvalue) != greater;
-  }
-
-  bool operator>(const BigSignedInt& rvalue)
-  {
-    return compare(*this, rvalue) == greater;
-  }
-
-  bool operator>=(const BigSignedInt& rvalue)
-  {
-    return compare(*this, rvalue) != less;
-  }
-
-   BigSignedInt operator+(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy += rvalue;
-  }
-
-  BigSignedInt operator-(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy -= rvalue;
-  }
-
-  BigSignedInt operator*(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy *= rvalue;
-  }
-
-  BigSignedInt operator/(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy /= rvalue;
-  }
-
-  BigSignedInt operator%(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy %= rvalue;
-  }
-
-  BigSignedInt operator&(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy %= rvalue;
-  }
-
-  BigSignedInt operator|(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy |= rvalue;
-  }
-
-  BigSignedInt<words> operator^(const BigSignedInt& rvalue)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy ^= rvalue;
-  }
-
-  BigSignedInt operator<<(const int shift)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy <<= shift;
-  }
-
-  BigSignedInt operator>>(const int shift)
-  {
-    BigSignedInt<words> copy(*this);
-    return copy >>= shift;
-  }
-
-  BigSignedInt operator~()
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt operator++()
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt operator++(int)
-  {
-    BigSignedInt<words> copy(*this);
-    this->operator++();
-    return copy;
-  }
-
-  BigSignedInt& operator--()
-  {
-    //REMOVED
-    return *this;
-  }
-
-  BigSignedInt operator--(int)
-  {
-    BigSignedInt<words> copy(*this);
-    this->operator--();
-    return copy;
-  }
+  SignedInt128& operator=(const SignedInt128& rvalue);
+  SignedInt128& operator=(const UnsignedInt128& rvalue);
+  SignedInt128& operator+=(const SignedInt128& rvalue);
+  SignedInt128& operator-=(const SignedInt128& rvalue);
+  SignedInt128& operator*=(const SignedInt128& rvalue);
+  SignedInt128& operator/=(const SignedInt128& rvalue);
+  SignedInt128& operator%=(const SignedInt128& rvalue);
+  SignedInt128& operator&=(const SignedInt128& rvalue);
+  SignedInt128& operator|=(const SignedInt128& rvalue);
+  SignedInt128& operator^=(const SignedInt128& rvalue);
+  SignedInt128& operator<<=(const int shift);
+  SignedInt128& operator>>=(const int shift);
 };
 
-template<size_t words>
-inline bool compare(const BigSignedInt<words>& lvalue,
-  const BigSignedInt<words>& rvalue)
-{
-  //REMOVED
-  return equal;
-}
+cmp_t compare(const SignedInt128& lvalue, const SignedInt128& rvalue);
 
-template<size_t words>
-BigSignedInt<words>& operator-(const BigUnsignedInt<words>& rvalue)
-{
-  //simple 2's complement
-  return BigSignedInt<words>(rvalue.operator~()) += 1;
-}
+bool operator==(const SignedInt128& lvalue, const SignedInt128& rvalue);
+bool operator!=(const SignedInt128& lvalue, const SignedInt128& rvalue);
+bool operator<(const SignedInt128& lvalue, const SignedInt128& rvalue);
+bool operator<=(const SignedInt128& lvalue, const SignedInt128& rvalue);
+bool operator>(const SignedInt128& lvalue, const SignedInt128& rvalue);
+bool operator>=(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator+(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator-(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator*(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator/(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator%(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator&(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator|(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator^(const SignedInt128& lvalue, const SignedInt128& rvalue);
+SignedInt128 operator<<(const SignedInt128& lvalue, const int shift);
+SignedInt128 operator>>(const SignedInt128& lvalue, const int shift);
+SignedInt128 operator~(const SignedInt128& lvalue);
+SignedInt128 operator++(const SignedInt128& lvalue);
+SignedInt128 operator++(const SignedInt128& lvalue, int);
+SignedInt128& operator--(SignedInt128& rvalue);
+SignedInt128 operator--(SignedInt128& lvalue, int);
+SignedInt128& operator-(const UnsignedInt128& rvalue);
 
 #endif

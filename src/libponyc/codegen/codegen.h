@@ -22,15 +22,14 @@ typedef struct compile_t
   LLVMPassManagerBuilderRef pmb;
   LLVMTargetDataRef target;
   LLVMTypeRef void_ptr;
-  LLVMTypeRef actor_ptr;
+  LLVMTypeRef descriptor_type;
+  LLVMTypeRef descriptor_ptr;
+  LLVMTypeRef object_ptr;
   LLVMTypeRef actor_pad;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
-  LLVMTypeRef descriptor_type;
-  LLVMTypeRef descriptor_ptr;
-  LLVMTypeRef object_ptr;
   LLVMValueRef personality;
 } compile_t;
 

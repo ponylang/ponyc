@@ -10,14 +10,20 @@
  * This returns the primitive type rather than the boxed type. As a result, all
  * of the methods will take the primitive type as the receiver.
  */
-static LLVMTypeRef make_primitive(compile_t* c, ast_t* ast, LLVMTypeRef l_type)
+static LLVMTypeRef make_primitive(compile_t* c, ast_t* ast, LLVMTypeRef l_type,
+  bool prelim)
 {
+  // Return the preliminary type
+  if(prelim)
+    return l_type;
+
   const char* name = genname_type(ast);
   LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
 
   if(type != NULL)
     return l_type;
 
+  gendesc_prep(c, ast);
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
 
   // Element 0 is the type descriptor, element 1 is the boxed primitive type.
@@ -26,28 +32,35 @@ static LLVMTypeRef make_primitive(compile_t* c, ast_t* ast, LLVMTypeRef l_type)
   elements[1] = l_type;
   LLVMStructSetBody(type, elements, 2, false);
 
-  gendesc_prep(c, ast, l_type);
-
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type, true);
+  gendesc_init(c, ast, true);
 
   // No trace function is needed.
   return l_type;
 }
 
-static LLVMTypeRef make_pointer(compile_t* c, ast_t* ast)
+static LLVMTypeRef make_pointer(compile_t* c, ast_t* ast, bool prelim)
 {
   ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typearg = ast_child(typeargs);
-  LLVMTypeRef elem_type = gentype(c, typearg);
+  LLVMTypeRef elem_type;
+
+  if(prelim)
+    elem_type = gentype_prelim(c, typearg);
+  else
+    elem_type = gentype(c, typearg);
 
   if(elem_type == NULL)
     return NULL;
 
-  const char* type_name = genname_type(ast);
   LLVMTypeRef type = LLVMPointerType(elem_type, 0);
+
+  if(prelim)
+    return type;
+
+  const char* type_name = genname_type(ast);
 
   // set up a constant integer for the allocation size
   size_t size = LLVMABISizeOfType(c->target, elem_type);
@@ -145,7 +158,7 @@ static LLVMTypeRef make_pointer(compile_t* c, ast_t* ast)
   return type;
 }
 
-static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
+static LLVMTypeRef make_array(compile_t* c, ast_t* ast, bool prelim)
 {
   ast_t* typeargs = ast_childidx(ast, 2);
   ast_t* typearg = ast_child(typeargs);
@@ -160,6 +173,10 @@ static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
 
   if(type != NULL)
     return LLVMPointerType(type, 0);
+
+  gendesc_prep(c, ast);
+
+  // TODO: have to generate the _Pointer type, handle preliminary vs final gen
 
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), name);
   LLVMTypeRef elements[4];
@@ -188,7 +205,7 @@ static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
   LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "count");
   LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
-  pointer = LLVMBuildBitCast(c->builder, pointer, c->object_ptr, "");
+  pointer = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
   gencall_runtime(c, "pony_trace", &pointer, 1, "");
   LLVMBuildBr(c->builder, cond_block);
 
@@ -214,54 +231,52 @@ static LLVMTypeRef make_array(compile_t* c, ast_t* ast)
   if(!codegen_finishfun(c, trace_fn))
     return NULL;
 
-  gendesc_prep(c, ast, type);
-
   if(!genfun_methods(c, ast))
     return NULL;
 
-  gendesc_init(c, ast, type, false);
+  gendesc_init(c, ast, false);
   return type;
 }
 
-LLVMTypeRef genprim(compile_t* c, ast_t* ast)
+LLVMTypeRef genprim(compile_t* c, ast_t* ast, bool prelim)
 {
   // Check for primitive types.
   const char* name = ast_name(ast_childidx(ast, 1));
 
   if(!strcmp(name, "True") || !strcmp(name, "False"))
-    return make_primitive(c, ast, LLVMInt1Type());
+    return make_primitive(c, ast, LLVMInt1Type(), prelim);
 
   if(!strcmp(name, "I8") || !strcmp(name, "U8"))
-    return make_primitive(c, ast, LLVMInt8Type());
+    return make_primitive(c, ast, LLVMInt8Type(), prelim);
 
   if(!strcmp(name, "I16") || !strcmp(name, "U16"))
-    return make_primitive(c, ast, LLVMInt16Type());
+    return make_primitive(c, ast, LLVMInt16Type(), prelim);
 
   if(!strcmp(name, "I32") || !strcmp(name, "U32"))
-    return make_primitive(c, ast, LLVMInt32Type());
+    return make_primitive(c, ast, LLVMInt32Type(), prelim);
 
   if(!strcmp(name, "I64") || !strcmp(name, "U64"))
-    return make_primitive(c, ast, LLVMInt64Type());
+    return make_primitive(c, ast, LLVMInt64Type(), prelim);
 
   if(!strcmp(name, "I128") || !strcmp(name, "U128") ||
     !strcmp(name, "SIntLiteral") || !strcmp(name, "UIntLiteral")
     )
-    return make_primitive(c, ast, LLVMIntType(128));
+    return make_primitive(c, ast, LLVMIntType(128), prelim);
 
   if(!strcmp(name, "F16"))
-    return make_primitive(c, ast, LLVMHalfType());
+    return make_primitive(c, ast, LLVMHalfType(), prelim);
 
   if(!strcmp(name, "F32"))
-    return make_primitive(c, ast, LLVMFloatType());
+    return make_primitive(c, ast, LLVMFloatType(), prelim);
 
   if(!strcmp(name, "F64") || !strcmp(name, "FloatLiteral"))
-    return make_primitive(c, ast, LLVMDoubleType());
+    return make_primitive(c, ast, LLVMDoubleType(), prelim);
 
   if(!strcmp(name, "Array"))
-    return make_array(c, ast);
+    return make_array(c, ast, prelim);
 
   if(!strcmp(name, "_Pointer"))
-    return make_pointer(c, ast);
+    return make_pointer(c, ast, prelim);
 
   return GEN_NOTYPE;
 }

@@ -60,6 +60,31 @@ typedef SIZE_T size_t;
 
 #define PONY_ERRNO uint32_t
 
+/** Standard builtins.
+*
+*/
+#ifndef PLATFORM_IS_VISUAL_STUDIO
+#  define __pony_popcount(X) __builtin_popcount( (X) )
+#  define __pony_popcount64(X) __pony_popcount(X)
+#  define __pony_ffs(X) __builtin_ffs( (X) )
+#  define __pony_ffsl(X) __builtin_ffsl( (X) )
+#  ifdef __clang__
+#    define __pony_rdtsc() __builtin_readcyclecounter()
+#  else
+#    define __pony_rdtsc() __builtin_ia32_rdtsc()
+#  endif
+#else
+#  include <intrin.h>
+#  define __pony_popcount(X) __popcnt(( X ))
+#  define __pony_popcount64(X) __popcnt64(( X ))
+
+static __declspec(thread) DWORD lsb;
+
+#  define __pony_ffs(X) (_BitScanForward(&lsb, (X)), lsb+1)
+#  define __pony_ffsl(X) (_BitScanForward64(&lsb, (X)), lsb+1)
+#  define __pony_rdtsc() __rdtsc()
+#endif
+
 #include "io.h"
 #include "utils.h"
 #include "format.h"

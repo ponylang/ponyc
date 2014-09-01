@@ -168,9 +168,9 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 
   const char* type_name = genname_type(type);
   const char* desc_name = genname_descriptor(type_name);
-  LLVMValueRef desc = LLVMGetNamedGlobal(c->module, desc_name);
+  LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);
 
-  args[0] = LLVMConstBitCast(desc, c->descriptor_ptr);
+  args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
   args[1] = LLVMConstInt(LLVMInt64Type(), len, false);
   args[2] = LLVMConstInt(LLVMInt64Type(), 0, false);
   args[3] = str_ptr;

@@ -37,13 +37,14 @@ pattern matching on type
     always boxed
 
 type descriptor
+  type id (use for distributed deserialisation?)
+    // need a map of type id to descriptor (or deserialisation function)
+  size for alloc/free (also use for deserialisation?)
   trace function
-  (serialise function)
-  (deserialise function)
-  non-actors have these at zero?
-    dispatch function
-    finalise function
-    size for alloc/free
+  serialise function
+  deserialise function
+  dispatch function
+  finalise function
   trait list // only used for pattern matching on type
   vtable (embedded)
 
@@ -72,3 +73,11 @@ fun handle method =>
   end
   method.colour = next colour
   next colour.typelist = method.typelist
+
+
+
+messages have to be traced on send and receive
+messages have to be freed after the fact (one message after pop)
+if they aren't fixed size, they need a size indicator for when they are freed
+they should carry a message idea, not a function pointer, to make the
+  distributed runtime robust / heterogeneous

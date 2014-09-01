@@ -2,10 +2,13 @@
 #define PLATFORM_FORMAT_H
 
 /** Format specifiers.
-*
-*  SALs are only supported on Visual Studio >= Professional Editions. If we
-*  cannot support FORMAT_STRING, we do not validate printf-like functions.
-*/
+ *
+ *  SALs are only supported on Visual Studio >= Professional Editions. If we
+ *  cannot support FORMAT_STRING, we do not validate printf-like functions.
+ *
+ *  SAL checking is ignored unless the compilation flag "/analyze" is turned
+ *  on.
+ */
 #ifndef PLATFORM_IS_VISUAL_STUDIO
 #  define __pony_format__(X, Y, Z) __attribute__((format \
             (X, Y, Z)))
@@ -23,7 +26,7 @@
 #    define FORMAT_STRING(p) p
 #  endif
 #  define __pony_format__(X, Y, Z)
-// %zu appeared in C99 (not supported by MS)
+// %zu appeared in C99
 #  define __pony_format_zu "%Iu"
 #endif
 

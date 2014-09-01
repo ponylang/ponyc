@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-//#include <varargs.h>
 
 int32_t pony_snprintf(char* str, size_t size, const char* format, ...)
 {
