@@ -6,6 +6,6 @@
 
 LLVMTypeRef gendesc_type(compile_t* c, const char* name, int vtable_size);
 
-void gendesc_init(compile_t* c, ast_t* ast, bool unbox);
+void gendesc_init(compile_t* c, gentype_t* g);
 
 #endif

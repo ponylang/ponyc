@@ -348,7 +348,7 @@ static LLVMTypeRef make_nominal(compile_t* c, ast_t* ast, bool prelim)
 
   // TODO: is this right?
   // TODO: for actors: create a dispatch function, possibly a finaliser
-  gendesc_init(c, ast, false);
+  gendesc_init(c, &g);
 
   return make_result(&g);
 }

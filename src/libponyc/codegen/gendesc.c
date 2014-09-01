@@ -81,24 +81,16 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
   return type;
 }
 
-void gendesc_init(compile_t* c, ast_t* ast, bool unbox)
+void gendesc_init(compile_t* c, gentype_t* g)
 {
-  assert(ast_id(ast) == TK_NOMINAL);
-  ast_t* def = ast_data(ast);
+  // Build the vtable.
+  LLVMTypeRef type_ptr = LLVMPointerType(g->type, 0);
+  LLVMValueRef vtable[g->vtable_size];
 
-  const char* name = genname_type(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
-
-  const char* desc_name = genname_descriptor(name);
-  size_t vtable_size = painter_get_vtable_size(c->painter, def);
-
-  // build the actual vtable
-  LLVMValueRef vtable[vtable_size];
-
-  for(size_t i = 0; i < vtable_size; i++)
+  for(size_t i = 0; i < g->vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
+  ast_t* def = ast_data(g->ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
@@ -111,10 +103,11 @@ void gendesc_init(compile_t* c, ast_t* ast, bool unbox)
       {
         ast_t* id = ast_childidx(member, 1);
         const char* funname = ast_name(id);
-        const char* fullname = genname_fun(name, funname, NULL);
         int colour = painter_get_colour(c->painter, funname);
 
-        if(unbox)
+        const char* fullname = genname_fun(g->type_name, funname, NULL);
+
+        if(g->primitive != NULL)
           vtable[colour] = make_unbox_function(c, fullname, type_ptr);
         else
           vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
@@ -129,22 +122,24 @@ void gendesc_init(compile_t* c, ast_t* ast, bool unbox)
     member = ast_sibling(member);
   }
 
-  LLVMTypeRef desc_type = gendesc_type(c, desc_name, vtable_size);
+  // TODO: Build the trait list.
 
-  // TODO: trait list
+  // Initialise the global descriptor.
   LLVMValueRef args[8];
-  args[0] = make_function_ptr(c, genname_trace(name), c->trace_fn);
-  args[1] = make_function_ptr(c, genname_serialise(name), c->trace_fn);
-  args[2] = make_function_ptr(c, genname_deserialise(name), c->trace_fn);
-  args[3] = make_function_ptr(c, genname_dispatch(name), c->dispatch_fn);
-  args[4] = make_function_ptr(c, genname_finalise(name), c->trace_fn);
-  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, type),
+
+  args[0] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
+  args[1] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
+  args[2] = make_function_ptr(c, genname_deserialise(g->type_name),
+    c->trace_fn);
+  args[3] = make_function_ptr(c, genname_dispatch(g->type_name),
+    c->dispatch_fn);
+  args[4] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
+  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, g->type),
     false);
   args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, vtable_size);
+  args[7] = LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
 
-  LLVMValueRef desc = LLVMConstNamedStruct(desc_type, args, 8);
-  LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);
-  LLVMSetInitializer(g_desc, desc);
-  LLVMSetGlobalConstant(g_desc, true);
+  LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 8);
+  LLVMSetInitializer(g->desc, desc);
+  LLVMSetGlobalConstant(g->desc, true);
 }
