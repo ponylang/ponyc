@@ -25,13 +25,11 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
 
   const char* unbox_name = genname_unbox(name);
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
+
   LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
+  codegen_startfun(c, unbox_fun);
 
   // Extract the primitive type from element 1 and call the real function.
-  LLVMBasicBlockRef insert_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef entry_block = LLVMAppendBasicBlock(unbox_fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, entry_block);
-
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
@@ -44,10 +42,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
 
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c, unbox_fun);
-
-  // Put the insert cursor back where it was.
-  LLVMPositionBuilderAtEnd(c->builder, insert_block);
+  codegen_finishfun(c);
 
   return LLVMConstBitCast(unbox_fun, c->void_ptr);
 }
@@ -84,48 +79,6 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 
   LLVMStructSetBody(type, params, 8, false);
   return type;
-}
-
-void gendesc_prep(compile_t* c, ast_t* ast)
-{
-  assert(ast_id(ast) == TK_NOMINAL);
-
-  ast_t* def = ast_data(ast);
-  const char* name = genname_type(ast);
-  const char* desc_name = genname_descriptor(name);
-  size_t vtable_size = painter_get_vtable_size(c->painter, def);
-
-  LLVMTypeRef desc_type = gendesc_type(c, desc_name, vtable_size);
-  LLVMAddGlobal(c->module, desc_type, desc_name);
-}
-
-void gendesc_inst(compile_t* c, ast_t* ast)
-{
-  // If it's not a datatype, we don't need an instance.
-  ast_t* def = ast_data(ast);
-
-  if(ast_id(def) != TK_DATA)
-    return;
-
-  const char* name = genname_type(ast);
-  LLVMTypeRef type = LLVMGetTypeByName(c->module, name);
-
-  // If it's a primitive, we don't need an instance.
-  if(LLVMGetTypeKind(type) != LLVMStructTypeKind)
-    return;
-
-  const char* inst_name = genname_instance(name);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, type, inst_name);
-
-  const char* desc_name = genname_descriptor(name);
-  LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);
-
-  LLVMValueRef args[1];
-  args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
-
-  LLVMValueRef inst = LLVMConstNamedStruct(type, args, 1);
-  LLVMSetInitializer(g_inst, inst);
-  LLVMSetGlobalConstant(g_inst, true);
 }
 
 void gendesc_init(compile_t* c, ast_t* ast, bool unbox)

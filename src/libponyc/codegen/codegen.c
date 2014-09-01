@@ -11,12 +11,33 @@
 #include <llvm-c/Target.h>
 #include <llvm-c/BitWriter.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 static void codegen_fatal(const char* reason)
 {
   print_errors();
+}
+
+static compile_context_t* push_context(compile_t* c)
+{
+  compile_context_t* context = calloc(1, sizeof(compile_context_t));
+  context->prev = c->context;
+  c->context = context;
+
+  return context;
+}
+
+static void pop_context(compile_t* c)
+{
+  compile_context_t* context = c->context;
+  c->context = context->prev;
+
+  if(context->restore_builder != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, context->restore_builder);
+
+  free(context);
 }
 
 static void codegen_runtime(compile_t* c)
@@ -121,7 +142,7 @@ static void codegen_runtime(compile_t* c)
   c->personality = LLVMAddFunction(c->module, "pony_personality", type);
 }
 
-static bool codegen_main(compile_t* c, LLVMTypeRef type)
+static void codegen_main(compile_t* c, LLVMTypeRef type)
 {
   LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
@@ -130,19 +151,18 @@ static bool codegen_main(compile_t* c, LLVMTypeRef type)
   LLVMTypeRef ftype = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
+  codegen_startfun(c, func);
+
   LLVMValueRef argc = LLVMGetParam(func, 0);
   LLVMSetValueName(argc, "argc");
 
   LLVMValueRef argv = LLVMGetParam(func, 1);
   LLVMSetValueName(argv, "argv");
 
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(func, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
-
   // TODO: create the main actor, start the pony runtime
   LLVMBuildRet(c->builder, argc);
 
-  return codegen_finishfun(c, func);
+  codegen_finishfun(c);
 }
 
 static LLVMTypeRef codegen_type(compile_t* c, ast_t* scope, const char* package,
@@ -188,7 +208,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
   if(type == NULL)
     return false;
 
-  return codegen_main(c, type);
+  codegen_main(c, type);
+  return true;
 }
 
 static void codegen_init(compile_t* c, ast_t* program, int opt)
@@ -223,6 +244,9 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
 
   // target data
   c->target = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
+
+  // empty context stack
+  c->context = NULL;
 }
 
 static bool codegen_finalise(compile_t* c)
@@ -261,6 +285,9 @@ static bool codegen_finalise(compile_t* c)
 
 static void codegen_cleanup(compile_t* c, bool print_llvm)
 {
+  while(c->context != NULL)
+    pop_context(c);
+
   if(print_llvm)
     LLVMDumpModule(c->module);
 
@@ -287,14 +314,30 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   return ok;
 }
 
-bool codegen_finishfun(compile_t* c, LLVMValueRef fun)
+void codegen_startfun(compile_t* c, LLVMValueRef fun)
 {
-  if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) != 0)
+  compile_context_t* context = push_context(c);
+
+  context->fun = fun;
+  context->restore_builder = LLVMGetInsertBlock(c->builder);
+
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
+  LLVMPositionBuilderAtEnd(c->builder, block);
+}
+
+bool codegen_finishfun(compile_t* c)
+{
+  compile_context_t* context = c->context;
+
+  if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) != 0)
   {
     errorf(NULL, "function verification failed");
+    pop_context(c);
     return false;
   }
 
-  LLVMRunFunctionPassManager(c->fpm, fun);
+  LLVMRunFunctionPassManager(c->fpm, context->fun);
+
+  pop_context(c);
   return true;
 }

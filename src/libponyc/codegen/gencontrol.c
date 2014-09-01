@@ -253,6 +253,8 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   ast_t* loop = ast_enclosing_loop(ast);
   ast_t* type = ast_type(loop);
   bool sign = is_signed(type);
+
+  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = ast_data(loop);
 
   ast_t* body = ast_child(ast);
@@ -309,6 +311,8 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
+
+  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = ast_data(loop);
 
   switch(ast_id(loop))

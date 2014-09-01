@@ -11,15 +11,25 @@
 #define GEN_NOVALUE ((LLVMValueRef)1)
 #define GEN_NOTYPE ((LLVMTypeRef)1)
 
+typedef struct compile_context_t
+{
+  LLVMValueRef fun;
+  LLVMBasicBlockRef restore_builder;
+
+  struct compile_context_t* prev;
+} compile_context_t;
+
 typedef struct compile_t
 {
   painter_t* painter;
   const char* filename;
+
   LLVMModuleRef module;
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;
   LLVMPassManagerBuilderRef pmb;
   LLVMTargetDataRef target;
+
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
@@ -29,11 +39,16 @@ typedef struct compile_t
   LLVMTypeRef trace_fn;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
+
   LLVMValueRef personality;
+
+  compile_context_t* context;
 } compile_t;
 
 bool codegen(ast_t* program, int opt, bool print_llvm);
 
-bool codegen_finishfun(compile_t* c, LLVMValueRef fun);
+void codegen_startfun(compile_t* c, LLVMValueRef fun);
+
+bool codegen_finishfun(compile_t* c);
 
 #endif
