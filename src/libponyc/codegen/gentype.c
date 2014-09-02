@@ -241,6 +241,40 @@ static void free_fields(gentype_t* g)
   g->fields = NULL;
 }
 
+static void make_dispatch(compile_t* c, gentype_t* g)
+{
+  // Do nothing if we're not an actor.
+  if(g->underlying != TK_ACTOR)
+    return;
+
+  // Create a dispatch function.
+  const char* dispatch_name = genname_dispatch(g->type_name);
+  g->dispatch_fn = LLVMAddFunction(c->module, dispatch_name, c->dispatch_type);
+
+  codegen_startfun(c, g->dispatch_fn);
+  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlock(g->dispatch_fn,
+    "unreachable");
+
+  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
+  LLVMSetValueName(this_ptr, "this");
+
+  g->dispatch_msg = LLVMGetParam(g->dispatch_fn, 1);
+  LLVMSetValueName(g->dispatch_msg, "msg");
+
+  // Read the message ID.
+  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, g->dispatch_msg, 0, "");
+  LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
+
+  // Store a reference to the dispatch switch. When we build behaviours, we
+  // will add cases to this switch statement based on message ID.
+  g->dispatch_switch = LLVMBuildSwitch(c->builder, id, unreachable, 0);
+
+  // Mark the default case as unreachable.
+  LLVMPositionBuilderAtEnd(c->builder, unreachable);
+  LLVMBuildUnreachable(c->builder);
+  codegen_finishfun(c);
+}
+
 static bool make_trace(compile_t* c, gentype_t* g)
 {
   // Do nothing if we have no fields.
@@ -372,10 +406,13 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
       return false;
   }
 
+  // Generate a dispatch function if necessary.
+  make_dispatch(c, g);
+
   // Create a unique global instance if we need one.
   make_global_instance(c, g);
 
-  // TODO: is this right?
+  // Generate all the methods.
   if(!genfun_methods(c, g))
     return false;
 

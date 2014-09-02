@@ -161,6 +161,37 @@ static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
   LLVMBuildStore(c->builder, g->desc, desc_ptr);
 }
 
+static void add_dispatch_case(compile_t* c, gentype_t* g, int index,
+  LLVMValueRef handler, LLVMTypeRef type)
+{
+  // Add a case to the dispatch function to handle this message.
+  codegen_startfun(c, g->dispatch_fn);
+  LLVMBasicBlockRef block = LLVMAppendBasicBlock(g->dispatch_fn, "handler");
+  LLVMValueRef id = LLVMConstInt(LLVMInt32Type(), index, false);
+  LLVMAddCase(g->dispatch_switch, id, block);
+
+  // Destructure the message.
+  LLVMPositionBuilderAtEnd(c->builder, block);
+  LLVMValueRef msg = LLVMBuildBitCast(c->builder, g->dispatch_msg, type, "");
+
+  size_t count = LLVMCountParams(handler);
+  LLVMValueRef args[count];
+  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
+  args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
+
+  for(size_t i = 1; i < count; i++)
+  {
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 1, "");
+    args[i] = LLVMBuildLoad(c->builder, field, "");
+  }
+
+  // Call the handler.
+  LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMBuildRetVoid(c->builder);
+
+  codegen_finishfun(c);
+}
+
 LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
@@ -207,7 +238,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // Get the parameter types. Leave room for one more at the beginning.
-  LLVMTypeRef f_type = LLVMTypeOf(func);
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   size_t count = LLVMCountParamTypes(f_type) + 1;
   LLVMTypeRef params[count];
   LLVMGetParamTypes(f_type, &params[1]);
@@ -217,6 +248,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   params[0] = LLVMInt32Type();
   params[1] = LLVMInt32Type();
   LLVMTypeRef msg_type = LLVMStructType(params, count, false);
+  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
   size_t size = LLVMABISizeOfType(c->target, msg_type);
@@ -230,11 +262,10 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
 
   // Allocate the message, setting its ID and index.
   LLVMValueRef args[2];
-  args[0] = LLVMConstInt(LLVMInt32Type(), size, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg,
-    LLVMPointerType(msg_type, 0), "");
+  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Populate the message contents.
   for(int i = 1; i < (count - 1); i++)
@@ -245,14 +276,15 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   }
 
   // Send the message.
-  args[0] = this_ptr;
+  args[0] = LLVMBuildBitCast(c->builder, this_ptr, c->object_ptr, "");
   args[1] = msg;
   gencall_runtime(c, "pony_sendv", args, 2, "");
 
-  // return 'this'
+  // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c);
 
+  // Build the handler function.
   LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
@@ -271,6 +303,8 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_finishfun(c);
+
+  add_dispatch_case(c, g, index, handler, msg_type_ptr);
   return func;
 }
 

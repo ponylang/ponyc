@@ -49,11 +49,18 @@ static void codegen_runtime(compile_t* c)
   c->void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
 
   // forward declare object
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$object");
-  c->object_ptr = LLVMPointerType(type, 0);
+  c->object_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$object");
+  c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
   c->actor_pad = LLVMArrayType(LLVMInt8Type(), 265);
+
+  // message
+  params[0] = LLVMInt32Type();
+  params[1] = LLVMInt32Type();
+  c->msg_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$message");
+  c->msg_ptr = LLVMPointerType(c->msg_type, 0);
+  LLVMStructSetBody(c->msg_type, params, 2, false);
 
   // trace
   // void (*)($object*)
@@ -62,11 +69,11 @@ static void codegen_runtime(compile_t* c)
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // dispatch
-  // void (*)($object*, i8*)
+  // void (*)($object*, $message*)
   params[0] = c->object_ptr;
-  params[1] = c->void_ptr;
-  c->dispatch_fn = LLVMPointerType(
-    LLVMFunctionType(LLVMVoidType(), params, 2, false), 0);
+  params[1] = c->msg_ptr;
+  c->dispatch_type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  c->dispatch_fn = LLVMPointerType(c->dispatch_type, 0);
 
   // void (*)($object*)
   params[0] = c->object_ptr;
@@ -79,16 +86,16 @@ static void codegen_runtime(compile_t* c)
 
   // define object
   params[0] = c->descriptor_ptr;
-  LLVMStructSetBody(type, params, 1, false);
+  LLVMStructSetBody(c->object_type, params, 1, false);
 
   // $object* pony_create($desc*)
   params[0] = c->descriptor_ptr;
   type = LLVMFunctionType(c->object_ptr, params, 1, false);
   LLVMAddFunction(c->module, "pony_create", type);
 
-  // void pony_sendv($object*, i8*);
+  // void pony_sendv($object*, $message*);
   params[0] = c->object_ptr;
-  params[1] = c->void_ptr;
+  params[1] = c->msg_ptr;
   type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
   LLVMAddFunction(c->module, "pony_sendv", type);
 
@@ -103,10 +110,10 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   LLVMAddFunction(c->module, "pony_realloc", type);
 
-  // i8* pony_alloc_msg(i32, i32)
+  // $message* pony_alloc_msg(i32, i32)
   params[0] = LLVMInt32Type();
   params[1] = LLVMInt32Type();
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  type = LLVMFunctionType(c->msg_ptr, params, 2, false);
   LLVMAddFunction(c->module, "pony_alloc_msg", type);
 
   // void pony_trace(i8*)
@@ -315,23 +322,23 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun)
   context->fun = fun;
   context->restore_builder = LLVMGetInsertBlock(c->builder);
 
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
-  LLVMPositionBuilderAtEnd(c->builder, block);
+  if(LLVMCountBasicBlocks(fun) == 0)
+  {
+    LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
+    LLVMPositionBuilderAtEnd(c->builder, block);
+  }
 }
 
-bool codegen_finishfun(compile_t* c)
+void codegen_finishfun(compile_t* c)
 {
   compile_context_t* context = c->context;
 
-  if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) != 0)
+  if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) == 0)
   {
+    LLVMRunFunctionPassManager(c->fpm, context->fun);
+  } else {
     errorf(NULL, "function verification failed");
-    pop_context(c);
-    return false;
   }
 
-  LLVMRunFunctionPassManager(c->fpm, context->fun);
-
   pop_context(c);
-  return true;
 }
