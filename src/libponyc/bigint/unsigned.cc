@@ -1,6 +1,8 @@
 #include "unsigned.h"
-#include "../platform/platform.h"
 #include <stdexcept>
+
+static UnsignedInt128 uint128_1 = 1;
+static UnsignedInt128 uint128_not_1 = ~uint128_1;
 
 UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
 {
@@ -11,7 +13,7 @@ UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator+=(const UnsignedInt128& rvalue)
 {
-  high += rvalue.high + ((low + rvalue.low) < low);
+  high = high + rvalue.high + ((low + rvalue.low) < low);
   low += rvalue.low;
 
   return *this;
@@ -19,7 +21,7 @@ UnsignedInt128& UnsignedInt128::operator+=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator-=(const UnsignedInt128& rvalue)
 {
-  high -= rvalue.high - ((low - rvalue.low) > low);
+  high = high - rvalue.high - ((low - rvalue.low) > low);
   low -= rvalue.low;
 
   return *this;
@@ -77,16 +79,16 @@ UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
 
   UnsignedInt128 q = 0;
   UnsignedInt128 r = 0;
-
+ 
   for (uint8_t i = 127; i < UINT8_MAX; --i)
   {
     r <<= 1;
-    r |= (*this >> i) & 0x01;
+    r |= (*this >> i) & 1;
 
     if (r >= rvalue)
     {
       r -= rvalue;
-      q |= 1 << i;
+      q |= (uint128_1 << i);
     }
   }
 
@@ -305,7 +307,8 @@ UnsignedInt128 operator~(const UnsignedInt128& lvalue)
 
 UnsignedInt128 operator++(UnsignedInt128& rvalue)
 {
-  //TODO
+  if (++rvalue.low == 0)
+    ++rvalue.high;
 
   //if execution reaches this point, ++ caused an overflow
   //since we do not support type promotion for primitives
@@ -327,11 +330,8 @@ UnsignedInt128 operator++(UnsignedInt128& lvalue, int)
 
 UnsignedInt128& operator--(UnsignedInt128& rvalue)
 {
-#ifdef __CATCH_BIGINT_OVERFLOW
-  //TODO
-#endif
-
-  //TODO
+  if (rvalue.low-- == 0)
+    --rvalue.high;
 
 #ifdef __CATCH_BIGINT_OVERFLOW
     //if execution reaches this point, -- caused an overflow and

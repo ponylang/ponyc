@@ -27,7 +27,11 @@ public:
   UnsignedInt128(const T& value) : UnsignedInt128()
   { 
     static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_UINT_CONV);
-    low = (uint64_t)value;
+
+    if (value >= 0)
+      low = (uint64_t)value;
+    else
+      low = UINT64_MAX;
   }
   
   template<typename T>
