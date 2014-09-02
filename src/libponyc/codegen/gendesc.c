@@ -3,8 +3,8 @@
 #include "gentype.h"
 #include <assert.h>
 
-static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
-  LLVMTypeRef type)
+static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
+  const char* name)
 {
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
@@ -21,7 +21,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
 
   // It's the same type, but it takes the boxed type instead of the primitive
   // type as the receiver.
-  params[0] = type;
+  params[0] = g->structure_ptr;
 
   const char* unbox_name = genname_unbox(name);
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, (int)count, false);
@@ -83,7 +83,6 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 void gendesc_init(compile_t* c, gentype_t* g)
 {
   // Build the vtable.
-  LLVMTypeRef type_ptr = LLVMPointerType(g->type, 0);
   PONY_VL_ARRAY(LLVMValueRef, vtable, g->vtable_size);
 
   for(size_t i = 0; i < g->vtable_size; i++)
@@ -107,7 +106,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
         const char* fullname = genname_fun(g->type_name, funname, NULL);
 
         if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, fullname, type_ptr);
+          vtable[colour] = make_unbox_function(c, g, fullname);
         else
           vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
 
@@ -133,8 +132,13 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[3] = make_function_ptr(c, genname_dispatch(g->type_name),
     c->dispatch_fn);
   args[4] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
-  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, g->type),
-    false);
+
+  args[5] = LLVMConstInt(
+    LLVMInt64Type(),
+    LLVMABISizeOfType(c->target, g->structure),
+    false
+    );
+
   args[6] = LLVMConstNull(c->void_ptr);
   args[7] = LLVMConstArray(c->void_ptr, vtable, (int)g->vtable_size);
 
