@@ -173,7 +173,15 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMValueRef argv = LLVMGetParam(func, 1);
   LLVMSetValueName(argv, "argv");
 
-  // TODO: create the main actor, start the pony runtime
+  // TODO: build an Env, create the main actor, start the pony runtime
+  // Env should be on main actor's heap
+  // scheduler_init()
+  // m = pony_create(...)
+  // pony_become(m)
+  // env = $1_Env_create(argc, argv)
+  // send env msg to m by hand
+  // can't just call $1_Main_create, because we need to become the actor
+  // so that we can allocate env on m's heap
   LLVMBuildRet(c->builder, argc);
 
   codegen_finishfun(c);

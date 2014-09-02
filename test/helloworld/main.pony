@@ -1,6 +1,4 @@
 actor Main
-  /*new create(env: Env) =>*/
-  new create(argc: I32) =>
+  new create(env: Env) =>
+    var args = env.args
     var s: String = "hello"
-
-  be test(x: I32) => test(x)

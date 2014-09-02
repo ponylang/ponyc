@@ -129,8 +129,8 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   fun = LLVMAddFunction(c->module, name, ftype);
   codegen_startfun(c, fun);
 
-  args[0] = LLVMGetParam(fun, 0);
-  args[1] = LLVMGetParam(fun, 1);
+  args[0] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 1), c->void_ptr, "");
   args[2] = LLVMGetParam(fun, 2);
   gencall_runtime(c, "memcpy", args, 3, "");
 
@@ -166,8 +166,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
 
   // Trace the base pointer.
-  pointer = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
-  gencall_runtime(c, "pony_trace", &pointer, 1, "");
+  LLVMValueRef address = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
+  gencall_runtime(c, "pony_trace", &address, 1, "");
   LLVMBuildBr(c->builder, cond_block);
 
   // While the index is less than the count, trace an element. The initial

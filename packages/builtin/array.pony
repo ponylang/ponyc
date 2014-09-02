@@ -54,8 +54,9 @@ class Array[A]
   fun box values(): ArrayValues[A, this->Array[A]]^ =>
     ArrayValues[A, this->Array[A]](this)
 
-  fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
-    ArrayPairs[A, this->Array[A]](this)
+  // TODO: Put this back when codegen for tuples works.
+  /*fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
+    ArrayPairs[A, this->Array[A]](this)*/
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
   var array: B
