@@ -19,7 +19,7 @@ inline double pow(double b, SignedInt128& e)
   {
      case zero:
        return (double)uint128_1.low;
-     case negative: // b^(-e) == 1/(b^e)
+     case negative: //b^(-e) == 1/(b^e)
      case positive: //fallthrough, computes b^e
      {
        while (e.magnitude != uint128_0)
