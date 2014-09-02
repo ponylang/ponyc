@@ -10,32 +10,30 @@
 typedef UnsignedInt128 __uint128_t;
 typedef SignedInt128 __int128_t;
 
-inline __uint128_t pow(double e, __int128_t b)
+inline double pow(double b, SignedInt128& e)
 {
-  //only need integral pow.
-  int integral_e = (int)e;
+  bool div = (e.sign == negative);
+  UnsignedInt128 res = 1;
 
-  //we only target unsigned results for now.
-  __uint128_t base = b.magnitude;
-  __uint128_t res = 1;
-
-  while (integral_e != 0)
+  switch(e.sign)
   {
-    if (integral_e & 1)
-    {
-      //multiply, as integral_e is not a power of 2
-      res = res * base;
-    }
-
-    if ((integral_e >>= 1) != 0)
-    {
-      //square
-      base *= base;
-    }
+     case zero:
+       return (double)uint128_1.low;
+     case negative: // b^(-e) == 1/(b^e)
+     case positive: //fallthrough, computes b^e
+     {
+       while (e.magnitude != uint128_0)
+       {
+         if ((e.magnitude & uint128_1) != uint128_0)
+          res = res * b;
+         
+         if ((e.magnitude >>= 1) != uint128_0)
+          b *= b;
+       }
+     }
   }
 
-  //only support unsigned result.
-	return res;
+	return (double)(div ? 1/(double)res.low : res.low);
 }
 
 #endif

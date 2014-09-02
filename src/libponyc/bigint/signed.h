@@ -16,7 +16,11 @@ public:
   UnsignedInt128 magnitude;
 
   SignedInt128() {}
-  SignedInt128(const SignedInt128& val) {}
+  SignedInt128(const SignedInt128& val) 
+  {
+    sign = val.sign;
+    magnitude = val.magnitude;
+  }
   SignedInt128(const UnsignedInt128& val) : magnitude(val)
   {
     sign = (magnitude == 0) ? zero : positive;
@@ -73,6 +77,6 @@ SignedInt128 operator++(const SignedInt128& lvalue);
 SignedInt128 operator++(const SignedInt128& lvalue, int);
 SignedInt128& operator--(SignedInt128& rvalue);
 SignedInt128 operator--(SignedInt128& lvalue, int);
-SignedInt128& operator-(const UnsignedInt128& rvalue);
+SignedInt128 operator-(const UnsignedInt128& rvalue);
 
 #endif

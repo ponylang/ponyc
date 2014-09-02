@@ -31,7 +31,12 @@ public:
     if (value >= 0)
       low = (uint64_t)value;
     else
-      low = UINT64_MAX;
+    {
+      low = high = UINT64_MAX;
+
+      if (value < -1)
+        *this -= (value + 1);
+    }
   }
   
   template<typename T>
@@ -89,5 +94,10 @@ UnsignedInt128 operator>>(UnsignedInt128& lvalue, const int shift);
 UnsignedInt128 operator~(const UnsignedInt128& lvalue);
 UnsignedInt128 operator++(UnsignedInt128& rvalue);
 UnsignedInt128 operator--(UnsignedInt128& lvalue, int);
+
+//useful constants
+static UnsignedInt128 uint128_0 = 0;
+static UnsignedInt128 uint128_1 = 1;
+static UnsignedInt128 uint128_not_1 = ~uint128_1;
 
 #endif

@@ -1,9 +1,6 @@
 #include "unsigned.h"
 #include <stdexcept>
 
-static UnsignedInt128 uint128_1 = 1;
-static UnsignedInt128 uint128_not_1 = ~uint128_1;
-
 UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
 {
   low = rvalue.low;
@@ -29,27 +26,26 @@ UnsignedInt128& UnsignedInt128::operator-=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator*=(const UnsignedInt128& rvalue)
 {
-  if (rvalue == 1)
+  if (rvalue == uint128_1)
     return *this;
-  if (rvalue == 0)
+  if (rvalue == uint128_0)
   {
     low = 0;
     high = 0;
     return *this;
   }
-    
-  UnsignedInt128 a(*this);
+   
+  UnsignedInt128 a(*this); //not really want to copy this.
   UnsignedInt128 b(rvalue);
 
   low = high = 0;
-  
-  //stupid version, could use 4x4 32 int matrix multiply
-  //also this is copy hell
-  for (uint8_t i = 0; i < 128 && b != 0; ++i)
+ 
+  while (b > uint128_0)
   {
-    if ((b & 1) != 0)
-      *this += (a << i);
+    if ((b & uint128_1) != uint128_0)
+      *this += a;
     
+    a <<= 1;
     b >>= 1;
   }
 
@@ -58,19 +54,19 @@ UnsignedInt128& UnsignedInt128::operator*=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
 {
-  if (rvalue == 0)
+  if (rvalue == uint128_0)
     throw std::domain_error("Division by zero!");
-  else if (rvalue == 1)
+  else if (rvalue == uint128_1)
   {
-    low = 0;
     return *this;
   }
   else if (*this == rvalue)
   {
     low = 1;
+    high = 0;
     return *this;
   }
-  else if (*this == 0 || *this < rvalue)
+  else if (*this == uint128_0 || *this < rvalue)
   {
     low = 0;
     high = 0;
@@ -83,7 +79,7 @@ UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
   for (uint8_t i = 127; i < UINT8_MAX; --i)
   {
     r <<= 1;
-    r |= (*this >> i) & 1;
+    r |= (*this >> i) & uint128_1;
 
     if (r >= rvalue)
     {
@@ -128,27 +124,29 @@ UnsignedInt128& UnsignedInt128::operator^=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
 {
-  int left = shift;
-
-  if (shift >= 128)
+  if (shift == 0)
+  {
+    return *this;
+  }
+  else if (shift >= 128)
   {
     low = 0;
     high = 0;
-    return *this;
   }
-  else if (shift >= 64)
+  else if (shift == 64)
   {
-    left = shift - 64;
     high = low;
     low = 0;
   }
-
-  if (left > 0)
+  else if (shift < 64)
   {
-    uint64_t mask = -1;
-    high <<= left;
-    high |= (low & (~mask >> left)) >> (64 - left);
-    low <<= (left);
+    high = (high << shift) + (low >> (64 - shift));
+    low <<= shift;
+  }
+  else if ((128 > shift) && (shift > 64)) // 128 > shift > 64
+  {
+    high = low << (shift - 64);
+    low = 0;
   }
 
   return *this;
@@ -156,29 +154,31 @@ UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
 
 UnsignedInt128& UnsignedInt128::operator>>=(const int shift)
 {
-  int left = shift;
-
+  if (shift == 0)
+  {
+    return *this;
+  }
   if (shift >= 128)
   {
     low = 0;
     high = 0;
-    return *this;
   }
-  else if(shift >= 64)
+  else if (shift == 64)
   {
-    left = shift - 64;
     low = high;
     high = 0;
   }
-
-  if (left > 0)
+  else if (shift < 64)
   {
-    uint64_t mask = -1;
-    low >>= left;
-    low |= (high & (~mask << left)) << (64 - left);
-    high >>= left;
+    high >>= shift;
+    low = (high << (64 - shift)) + (low >> shift);
   }
-  
+  else if ((128 > shift) && (shift > 64)) // 128 > shift > 64
+  {
+    low = high >> (shift - 64);
+    high = 0;
+  }
+
   return *this;
 }
 
