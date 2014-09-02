@@ -141,12 +141,19 @@ static void codegen_runtime(compile_t* c)
   LLVMAddFunction(c->module, "pony_start", type);
 
   // void pony_throw()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, true);
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
   LLVMAddFunction(c->module, "pony_throw", type);
 
   // i32 pony_personality(...)
   type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality", type);
+
+  // i8* memcpy(i8*, i8*, i64)
+  params[0] = c->void_ptr;
+  params[1] = c->void_ptr;
+  params[2] = LLVMInt64Type();
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  LLVMAddFunction(c->module, "memcpy", type);
 }
 
 static void codegen_main(compile_t* c, gentype_t* g)

@@ -1,9 +1,10 @@
 class _Pointer[A]
   new create(len: U64) => compiler_intrinsic
 
-  fun ref from(len: U64): _Pointer[A] => compiler_intrinsic
+  fun ref realloc(len: U64): _Pointer[A] => compiler_intrinsic
   fun box apply(i: U64): this->A => compiler_intrinsic
   fun ref update(i: U64, v: A): A^ => compiler_intrinsic
+  fun ref copy(src: _Pointer[A] box, len: U64): U64 => compiler_intrinsic
 
 class Array[A]
   var size: U64
@@ -34,7 +35,7 @@ class Array[A]
   fun ref reserve(len: U64) =>
     if alloc < len then
       alloc = len.max(8).next_pow2()
-      ptr = ptr.from(alloc)
+      ptr = ptr.realloc(alloc)
     end
 
   fun ref clear() => size = 0
