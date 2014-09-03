@@ -64,7 +64,7 @@ void print_errors()
 
       if(e->line != 0)
       {
-        printf("%ld:%ld: ", e->line, e->pos);
+        printf("%ld:%ld: ", (long int)e->line, (long int)e->pos);
       } else {
         printf(" ");
       }

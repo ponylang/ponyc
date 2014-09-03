@@ -12,8 +12,9 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  include <dirent.h>
 #  include <limits.h>
 #  include <stdlib.h>
+#  include <sys/mman.h>
 #  define PONY_DIR DIR
-#  define PONY_DIRRINFO struct dirent
+#  define PONY_DIRINFO struct dirent
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
 #  define PONY_MAP_FAILED MAP_FAILED
 #endif
@@ -34,7 +35,7 @@ void* pony_map_read(size_t size, intptr_t fd);
 
 void pony_unmap(void* p, size_t size);
 
-bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, 
+bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry,
   PONY_DIRINFO** res);
 
 #endif

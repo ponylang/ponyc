@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+int opterr, optind, optopt, optreset = 0;
+char* optarg = NULL;
+
 #ifdef PLATFORM_IS_WINDOWS
 int getopt(int argc, char* const argv[], const char* optstring)
 {
@@ -56,12 +59,12 @@ bool pony_get_term_winsize(struct winsize* ws)
 {
 #ifdef PLATFORM_IS_WINDOWS
   CONSOLE_SCREEN_BUFFER_INFO info;
-  
+
   int ret = GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info);
-  
+
   if (!ret)
     return false;
-  
+
   ws->ws_col = info.srWindow.Right - info.srWindow.Left + 1;
   ws->ws_row = info.srWindow.Bottom - info.srWindow.Top + 1;
   ws->ws_xpixel = info.dwSize.X;
