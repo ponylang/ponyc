@@ -95,6 +95,9 @@ solution "ponyc"
       "__STDC_LIMIT_MACROS",
     }
     files { "src/libponyc/**.c*", "src/libponyc/**.h" }
+    configuration "gmake"
+      excludes { "src/libponyc/**.cc" }
+    configuration "*"
 
   project "ponyc"
     kind "ConsoleApp"

@@ -30,10 +30,12 @@
 #  define __pony_format_zu "%Iu"
 #endif
 
-int32_t pony_snprintf(char* str, size_t size, 
+#include <stdarg.h>
+
+int32_t pony_snprintf(char* str, size_t size,
   FORMAT_STRING(const char* format), ...);
 
-int32_t pony_vsnprintf(char* str, size_t size, 
+int32_t pony_vsnprintf(char* str, size_t size,
   FORMAT_STRING(const char* format), va_list args);
 
 #endif

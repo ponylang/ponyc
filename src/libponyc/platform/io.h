@@ -12,7 +12,11 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  include <dirent.h>
 #  include <limits.h>
 #  include <stdlib.h>
+#  include <fcntl.h>
+#  include <sys/types.h>
+#  include <sys/stat.h>
 #  include <sys/mman.h>
+#  include <errno.h>
 #  define PONY_DIR DIR
 #  define PONY_DIRINFO struct dirent
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
