@@ -40,7 +40,7 @@ list_t* list_next(list_t* list)
   return list->next;
 }
 
-list_t* list_index(list_t* list, size_t index)
+list_t* list_index(list_t* list, ssize_t index)
 {
   if(index < 0)
     index = list_length(list) + index;
