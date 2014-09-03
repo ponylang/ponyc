@@ -77,6 +77,10 @@ static ast_t* lookup_base(ast_t* orig, ast_t* type, const char* name)
     case TK_TYPEPARAMREF:
       return lookup_typeparam(orig, type, name);
 
+    case TK_FUNTYPE:
+      ast_error(type, "can't lookup by name on a function type");
+      return NULL;
+
     default: {}
   }
 

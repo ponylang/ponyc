@@ -47,7 +47,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
 
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
   args[0] = LLVMBuildMul(c->builder, len, l_size, "");
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
@@ -56,8 +56,8 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  // from
-  name = genname_fun(g->type_name, "from", NULL);
+  // realloc
+  name = genname_fun(g->type_name, "realloc", NULL);
 
   params[0] = g->use_type;
   params[1] = LLVMInt64Type();
@@ -118,6 +118,25 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
+  // copy
+  name = genname_fun(g->type_name, "copy", NULL);
+
+  params[0] = g->use_type;
+  params[1] = g->use_type;
+  params[2] = LLVMInt64Type();
+
+  ftype = LLVMFunctionType(LLVMInt64Type(), params, 3, false);
+  fun = LLVMAddFunction(c->module, name, ftype);
+  codegen_startfun(c, fun);
+
+  args[0] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 1), c->void_ptr, "");
+  args[2] = LLVMGetParam(fun, 2);
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  LLVMBuildRet(c->builder, args[2]);
+  codegen_finishfun(c);
+
   return true;
 }
 
@@ -147,8 +166,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
 
   // Trace the base pointer.
-  pointer = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
-  gencall_runtime(c, "pony_trace", &pointer, 1, "");
+  LLVMValueRef address = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
+  gencall_runtime(c, "pony_trace", &address, 1, "");
   LLVMBuildBr(c->builder, cond_block);
 
   // While the index is less than the count, trace an element. The initial

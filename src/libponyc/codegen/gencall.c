@@ -203,6 +203,15 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   return call_fun(c, LLVMGetNamedFunction(c->module, name), args, count, ret);
 }
 
+LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
+{
+  LLVMValueRef args[1];
+  args[0] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+
+  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 1, "");
+  return LLVMBuildBitCast(c->builder, result, g->use_type, "");
+}
+
 LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
 {
   LLVMTypeRef l_type = LLVMGetElementType(type);
