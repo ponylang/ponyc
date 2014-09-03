@@ -265,7 +265,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   LLVMBuildCall(c->builder, handler, args, count, "");
   LLVMBuildRetVoid(c->builder);
 
-  codegen_finishfun(c);
+  // Pause, otherwise the optimiser will run on what we have so far.
+  codegen_pausefun(c);
 }
 
 LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,

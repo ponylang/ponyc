@@ -362,6 +362,11 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun)
   }
 }
 
+void codegen_pausefun(compile_t* c)
+{
+  pop_context(c);
+}
+
 void codegen_finishfun(compile_t* c)
 {
   compile_context_t* context = c->context;
