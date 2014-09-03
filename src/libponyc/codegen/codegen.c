@@ -24,7 +24,7 @@ static void codegen_fatal(const char* reason)
 
 static compile_context_t* push_context(compile_t* c)
 {
-  compile_context_t* context = (compile_context_t*)calloc(1, 
+  compile_context_t* context = (compile_context_t*)calloc(1,
     sizeof(compile_context_t));
 
   context->prev = c->context;
@@ -311,7 +311,7 @@ static bool codegen_finalise(compile_t* c)
   // assembly into an object file. still need to link the object file with the
   // pony runtime and any other C libraries needed.
   size_t len = strlen(c->filename);
-  PONY_VL_ARRAY(char, buffer, len + 4);
+  VLA(char, buffer, len + 4);
   memcpy(buffer, c->filename, len);
   memcpy(buffer + len, ".bc", 4);
 

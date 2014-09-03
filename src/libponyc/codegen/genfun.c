@@ -21,7 +21,7 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
   }
 
   // name each parameter
-  ast_t* param = (ast_t*)ast_child(params);
+  ast_t* param = ast_child(params);
 
   while(param != NULL)
   {
@@ -67,7 +67,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
 
-  PONY_VL_ARRAY(LLVMTypeRef, tparams, count);
+  VLA(LLVMTypeRef, tparams, count);
   count = 0;
 
   // get a type for the receiver
@@ -169,7 +169,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   // Get the parameter types. Leave room for two more at the beginning.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
   size_t count = LLVMCountParamTypes(f_type) + 2;
-  PONY_VL_ARRAY(LLVMTypeRef, f_params, count);
+  VLA(LLVMTypeRef, f_params, count);
   LLVMGetParamTypes(f_type, &f_params[2]);
 
   // The first one becomes the message ID, the second the message size.
@@ -239,7 +239,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   LLVMValueRef msg = LLVMBuildBitCast(c->builder, g->dispatch_msg, type, "");
 
   size_t count = LLVMCountParams(handler);
-  PONY_VL_ARRAY(LLVMValueRef, args, count);
+  VLA(LLVMValueRef, args, count);
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
@@ -370,7 +370,7 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return NULL;
 
   int count = LLVMCountParamTypes(LLVMGetElementType(LLVMTypeOf(handler)));
-  PONY_VL_ARRAY(LLVMValueRef, args, count);
+  VLA(LLVMValueRef, args, count);
   args[0] = this_ptr;
 
   for(int i = 1; i < count; i++)

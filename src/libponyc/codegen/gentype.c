@@ -340,7 +340,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
     extra++;
 
   // Create the type descriptor as element 0.
-  PONY_VL_ARRAY(LLVMTypeRef, elements, g->field_count + extra);
+  VLA(LLVMTypeRef, elements, g->field_count + extra);
   elements[0] = LLVMPointerType(g->desc_type, 0);
 
   if(g->underlying == TK_ACTOR)

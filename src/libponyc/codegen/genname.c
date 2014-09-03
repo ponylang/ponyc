@@ -51,7 +51,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
   if(b != NULL)
     len += strlen(b) + 1;
 
-  PONY_VL_ARRAY(char, name, len);
+  VLA(char, name, len);
 
   if(a != NULL)
     pony_strcpy(name, a);
