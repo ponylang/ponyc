@@ -1,6 +1,4 @@
-#include "../platform/platform.h"
-#ifdef PONY_COMPILE_INT128
-#include <stdexcept>
+#include "unsigned.h"
 
 UnsignedInt128& UnsignedInt128::operator=(const UnsignedInt128& rvalue)
 {
@@ -349,5 +347,3 @@ UnsignedInt128 operator--(UnsignedInt128& lvalue, int)
   operator--(lvalue);
   return copy;
 }
-
-#endif

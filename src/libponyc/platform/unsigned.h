@@ -9,6 +9,15 @@
 
 #include <type_traits>
 #include <stdexcept>
+#include <stdint.h>
+
+typedef enum cmp_t
+{
+  less = -1,
+  equal = 0,
+  greater = 1,
+  invalid = UINT32_MAX
+} cmp_t;
 
 class UnsignedInt128
 {

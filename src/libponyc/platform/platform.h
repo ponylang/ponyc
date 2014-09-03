@@ -95,7 +95,6 @@ static __declspec(thread) DWORD lsb;
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  ifdef __cplusplus
-#    define PONY_COMPILE_INT128
 #    include "int128.h"
 #  else
 #    error Usage of int128 requires C++ compilation!

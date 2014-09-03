@@ -168,6 +168,9 @@ solution "ponyc"
       }
     configuration "*"
     files { "src/libponyc/**.c*", "src/libponyc/**.h" }
+    configuration "not vs*"
+    excludes { "src/libponyc/**.cc" }
+    configuration "*"
     cppforce { "src/libponyc/**.c*" }
 
   project "ponyc"

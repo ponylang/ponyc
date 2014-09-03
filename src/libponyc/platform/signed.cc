@@ -1,5 +1,4 @@
-#include "../platform/platform.h"
-#ifdef PONY_COMPILE_INT128
+#include "signed.h"
 
 SignedInt128& SignedInt128::operator=(const SignedInt128& rvalue)
 {
@@ -284,5 +283,3 @@ SignedInt128 operator-(const UnsignedInt128& rvalue)
 
   return n;
 }
-
-#endif

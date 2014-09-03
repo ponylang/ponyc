@@ -5,6 +5,14 @@
   "[BigSigned(const T& value)]: Argument 'value' is not arithmetic!"
 
 #include <type_traits>
+#include "unsigned.h"
+
+typedef enum sign_t
+{
+  negative = -1,
+  zero = 0,
+  positive = 1,
+} sign_t;
 
 class SignedInt128
 {
