@@ -162,13 +162,13 @@ void check_tree(const char* expected, ast_t* actual)
   builder_free(expect_builder);
 }
 
-/*
+
 void load_test_program(const char* name, ast_t** out_prog)
 {
   free_errors();
 
   package_suppress_build_message();
-  ast_t* program = program_load(stringtab("prog"));
+  ast_t* program = program_load(stringtab(name));
 
   if(program == NULL)
     print_errors();
@@ -177,7 +177,7 @@ void load_test_program(const char* name, ast_t** out_prog)
 
   *out_prog = program;
 }
-*/
+
 
 /*
 void test_good_pass(const char* before, const char* after, token_id start_id,

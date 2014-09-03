@@ -329,7 +329,6 @@ protected:
     DO(test_bin_op(op_id, t_i32, t_i32, t_i32));
     DO(test_bin_op(op_id, t_i64, t_i64, t_i64));
     DO(test_bin_op(op_id, t_i128, t_i128, t_i128));
-    DO(test_bin_op(op_id, t_bool, t_bool, t_bool));
 
     DO(test_bin_op_bad(op_id, t_u_lit, t_f_lit));
     DO(test_bin_op_bad(op_id, t_f_lit, t_u_lit));
@@ -590,18 +589,24 @@ TEST_F(ExprOperatorTest, GreaterThanEqual)
 TEST_F(ExprOperatorTest, And)
 {
   DO(standard_logical(TK_AND));
+
+  // TODO: Bool and Bool shortcut
 }
 
 
 TEST_F(ExprOperatorTest, Or)
 {
   DO(standard_logical(TK_OR));
+
+  // TODO: Bool or Bool shortcut
 }
 
 
 TEST_F(ExprOperatorTest, Xor)
 {
   DO(standard_logical(TK_XOR));
+
+  DO(test_bin_op(TK_XOR, t_bool, t_bool, t_bool));
 }
 
 

@@ -505,15 +505,13 @@ TEST_F(SubTypeTest, IsMathCompatible)
   DO(test_binary(is_math_compatible, t_u_lit, t_f_lit, true));
   DO(test_binary(is_math_compatible, t_s_lit, t_f_lit, true));
 
-  // TODO: Should Bools (and True and False) be math compatible?
-  // What about String, None, Foo, etc?
-  DO(test_binary(is_math_compatible, t_true, t_true, true));
+  DO(test_binary(is_math_compatible, t_true, t_true, false));
   DO(test_binary(is_math_compatible, t_true, t_false, false));
   DO(test_binary(is_math_compatible, t_bool, t_bool, false));
-  DO(test_binary(is_math_compatible, t_string, t_string, true));
-  DO(test_binary(is_math_compatible, t_none, t_none, true));
-  DO(test_binary(is_math_compatible, t_foo, t_foo, true));
-  DO(test_binary(is_math_compatible, t_t1, t_t1, true));
+  DO(test_binary(is_math_compatible, t_string, t_string, false));
+  DO(test_binary(is_math_compatible, t_none, t_none, false));
+  DO(test_binary(is_math_compatible, t_foo, t_foo, false));
+  DO(test_binary(is_math_compatible, t_t1, t_t1, false));
 
   DO(test_binary(is_math_compatible, t_u8, t_u8, true));
   DO(test_binary(is_math_compatible, t_u16, t_u16, true));
