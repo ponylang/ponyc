@@ -53,6 +53,8 @@ bool codegen(ast_t* program, int opt, bool print_llvm);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun);
 
+void codegen_pausefun(compile_t* c);
+
 void codegen_finishfun(compile_t* c);
 
 #endif

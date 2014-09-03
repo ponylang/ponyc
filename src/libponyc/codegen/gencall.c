@@ -224,36 +224,26 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   return LLVMBuildBitCast(c->builder, result, type, "");
 }
 
-static void trace_tag(compile_t* c, LLVMValueRef field)
+static void trace_tag(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
-  // cast the field to a void pointer
+  // cast the value to a void pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
 
   gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
-static void trace_actor(compile_t* c, LLVMValueRef field)
+static void trace_actor(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
-  // cast the field to an object pointer
+  // cast the value to an object pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
 
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
 
-static void trace_known(compile_t* c, LLVMValueRef field,
-  const char* name)
+static void trace_known(compile_t* c, LLVMValueRef value, const char* name)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
   // get the trace function statically
   const char* fun = genname_trace(name);
 
@@ -263,24 +253,21 @@ static void trace_known(compile_t* c, LLVMValueRef field,
   // if this type has no trace function, don't try to recurse in the runtime
   if(args[1] != NULL)
   {
-    // cast the field to an object pointer
-    args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+    // cast the value to an object pointer
+    args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
     gencall_runtime(c, "pony_traceobject", args, 2, "");
   } else {
-    // cast the field to a void pointer
-    args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
+    // cast the value to a void pointer
+    args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
     gencall_runtime(c, "pony_trace", args, 1, "");
   }
 }
 
-static void trace_unknown(compile_t* c, LLVMValueRef field)
+static void trace_unknown(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
   // cast the field to an object pointer
   LLVMValueRef args[2];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "object");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "object");
 
   // get the type descriptor from the object pointer
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, args[0], 0, "");

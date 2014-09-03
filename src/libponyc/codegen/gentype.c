@@ -272,7 +272,9 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
   LLVMBuildUnreachable(c->builder);
-  codegen_finishfun(c);
+
+  // Pause, otherwise the optimiser will run on what we have so far.
+  codegen_pausefun(c);
 }
 
 static bool make_trace(compile_t* c, gentype_t* g)
@@ -314,8 +316,11 @@ static bool make_trace(compile_t* c, gentype_t* g)
 
   for(size_t i = 0; i < g->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, (int)(i + extra), "");
-    need_trace |= gencall_trace(c, field, g->fields[i]);
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, 
+      (unsigned int) (i + extra), "");
+
+    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -420,6 +425,13 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 
   // TODO: for actors: create a finaliser
   gendesc_init(c, g);
+
+  // Finish off the dispatch function.
+  if(g->underlying == TK_ACTOR)
+  {
+    codegen_startfun(c, g->dispatch_fn);
+    codegen_finishfun(c);
+  }
 
   return true;
 }
