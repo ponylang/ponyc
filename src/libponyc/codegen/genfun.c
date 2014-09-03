@@ -161,6 +161,68 @@ static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
   LLVMBuildStore(c->builder, g->desc, desc_ptr);
 }
 
+static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
+  LLVMValueRef func, int index)
+{
+  // Get the parameter types. Leave room for two more at the beginning.
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+  size_t count = LLVMCountParamTypes(f_type) + 2;
+  LLVMTypeRef f_params[count];
+  LLVMGetParamTypes(f_type, &f_params[2]);
+
+  // The first one becomes the message ID, the second the message size.
+  f_params[0] = LLVMInt32Type();
+  f_params[1] = LLVMInt32Type();
+  LLVMTypeRef msg_type = LLVMStructType(f_params, count, false);
+  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
+
+  // Calculate the index (power of 2) for the message size.
+  size_t size = LLVMABISizeOfType(c->target, msg_type);
+  size = next_pow2(size);
+
+  // Subtract 7 because we are looking to make 64 come out to zero.
+  if(size <= 64)
+    size = 0;
+  else
+    size = __builtin_ffsl(size) - 7;
+
+  // Allocate the message, setting its ID and index.
+  LLVMValueRef args[2];
+  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
+  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
+  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
+
+  // Trace while populating the message contents.
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", NULL, 0, "");
+  ast_t* params = ast_childidx(fun, 3);
+  ast_t* param = ast_child(params);
+  bool need_trace = false;
+
+  for(int i = 2; i < count; i++)
+  {
+    LLVMValueRef arg = LLVMGetParam(func, i - 2);
+    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
+    LLVMBuildStore(c->builder, arg, arg_ptr);
+
+    need_trace |= gencall_trace(c, arg, ast_type(param));
+    param = ast_sibling(param);
+  }
+
+  if(need_trace)
+    gencall_runtime(c, "pony_send_done", NULL, 0, "");
+  else
+    LLVMInstructionEraseFromParent(start_trace);
+
+  // Send the message.
+  args[0] = LLVMBuildBitCast(c->builder, to, c->object_ptr, "");
+  args[1] = msg;
+  gencall_runtime(c, "pony_sendv", args, 2, "");
+
+  // Return the type of the message.
+  return msg_type_ptr;
+}
+
 static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   LLVMValueRef handler, LLVMTypeRef type)
 {
@@ -189,7 +251,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 1, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gencall_trace(c, field, ast_type(param));
+
+    need_trace |= gencall_trace(c, args[i], ast_type(param));
     param = ast_sibling(param);
   }
 
@@ -247,52 +310,10 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
 
   codegen_startfun(c, func);
-
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
-  // Get the parameter types. Leave room for one more at the beginning.
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
-  size_t count = LLVMCountParamTypes(f_type) + 1;
-  LLVMTypeRef params[count];
-  LLVMGetParamTypes(f_type, &params[1]);
-
-  // The first one becomes the message ID. Replace the this pointer with the
-  // message index, then create a type for this message.
-  params[0] = LLVMInt32Type();
-  params[1] = LLVMInt32Type();
-  LLVMTypeRef msg_type = LLVMStructType(params, count, false);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
-
-  // Calculate the index (power of 2) for the message size.
-  size_t size = LLVMABISizeOfType(c->target, msg_type);
-  size = next_pow2(size);
-
-  // Subtract 7 because we are looking to make 64 come out to zero.
-  if(size <= 64)
-    size = 0;
-  else
-    size = __builtin_ffsl(size) - 7;
-
-  // Allocate the message, setting its ID and index.
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
-  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
-
-  // Populate the message contents.
-  for(int i = 2; i < count; i++)
-  {
-    LLVMValueRef arg = LLVMGetParam(func, i - 1);
-    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
-    LLVMBuildStore(c->builder, arg, arg_ptr);
-  }
-
-  // TODO: trace the message
-  // Send the message.
-  args[0] = LLVMBuildBitCast(c->builder, this_ptr, c->object_ptr, "");
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  // Send the arguments in a message to 'this'.
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
@@ -376,51 +397,11 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
 
   codegen_startfun(c, func);
 
-  // allocate the actor as 'this'
+  // Allocate the actor as 'this'.
   LLVMValueRef this_ptr = gencall_create(c, g);
 
-  // Get the parameter types. Leave room for two more at the beginning.
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
-  size_t count = LLVMCountParamTypes(f_type) + 2;
-  LLVMTypeRef params[count];
-  LLVMGetParamTypes(f_type, &params[2]);
-
-  // The first one becomes the message ID, the second the message size.
-  params[0] = LLVMInt32Type();
-  params[1] = LLVMInt32Type();
-  LLVMTypeRef msg_type = LLVMStructType(params, count, false);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
-
-  // Calculate the index (power of 2) for the message size.
-  size_t size = LLVMABISizeOfType(c->target, msg_type);
-  size = next_pow2(size);
-
-  // Subtract 7 because we are looking to make 64 come out to zero.
-  if(size <= 64)
-    size = 0;
-  else
-    size = __builtin_ffsl(size) - 7;
-
-  // Allocate the message, setting its ID and index.
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
-  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
-
-  // Populate the message contents.
-  for(int i = 2; i < count; i++)
-  {
-    LLVMValueRef arg = LLVMGetParam(func, i - 2);
-    LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
-    LLVMBuildStore(c->builder, arg, arg_ptr);
-  }
-
-  // TODO: trace the message
-  // Send the message.
-  args[0] = LLVMBuildBitCast(c->builder, this_ptr, c->object_ptr, "");
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  // Send the arguments in a message to 'this'.
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);

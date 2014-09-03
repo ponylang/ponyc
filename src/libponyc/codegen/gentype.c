@@ -315,7 +315,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   for(size_t i = 0; i < g->field_count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra, "");
-    need_trace |= gencall_trace(c, field, g->fields[i]);
+    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
   }
 
   LLVMBuildRetVoid(c->builder);
