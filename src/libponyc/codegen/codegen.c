@@ -132,6 +132,22 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
   LLVMAddFunction(c->module, "pony_traceobject", type);
 
+  // void pony_gc_send()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  LLVMAddFunction(c->module, "pony_gc_send", type);
+
+  // void pony_gc_recv()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  LLVMAddFunction(c->module, "pony_gc_recv", type);
+
+  // void pony_send_done()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  LLVMAddFunction(c->module, "pony_send_done", type);
+
+  // void pony_recv_done()
+  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  LLVMAddFunction(c->module, "pony_recv_done", type);
+
   // int pony_start(i32, i8**, $object*, i1)
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(c->void_ptr, 0);
@@ -175,11 +191,13 @@ static void codegen_main(compile_t* c, gentype_t* g)
 
   // TODO: build an Env, create the main actor, start the pony runtime
   // Env should be on main actor's heap
-  // scheduler_init()
+  // argc = scheduler_init(argc, argv)
   // m = pony_create(...)
   // pony_become(m)
   // env = $1_Env_create(argc, argv)
   // send env msg to m by hand
+  // if(!scheduler_start(0, 1)) return -1
+  // return pony_shutdown()
   // can't just call $1_Main_create, because we need to become the actor
   // so that we can allocate env on m's heap
   LLVMBuildRet(c->builder, argc);

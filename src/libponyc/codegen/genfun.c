@@ -161,7 +161,7 @@ static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
   LLVMBuildStore(c->builder, g->desc, desc_ptr);
 }
 
-static void add_dispatch_case(compile_t* c, gentype_t* g, int index,
+static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   LLVMValueRef handler, LLVMTypeRef type)
 {
   // Add a case to the dispatch function to handle this message.
@@ -179,11 +179,24 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, int index,
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
+  // Trace the message.
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", NULL, 0, "");
+  ast_t* params = ast_childidx(fun, 3);
+  ast_t* param = ast_child(params);
+  bool need_trace = false;
+
   for(size_t i = 1; i < count; i++)
   {
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 1, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
+    need_trace |= gencall_trace(c, field, ast_type(param));
+    param = ast_sibling(param);
   }
+
+  if(need_trace)
+    gencall_runtime(c, "pony_recv_done", NULL, 0, "");
+  else
+    LLVMInstructionEraseFromParent(start_trace);
 
   // Call the handler.
   LLVMBuildCall(c->builder, handler, args, count, "");
@@ -275,6 +288,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     LLVMBuildStore(c->builder, arg, arg_ptr);
   }
 
+  // TODO: trace the message
   // Send the message.
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, c->object_ptr, "");
   args[1] = msg;
@@ -304,7 +318,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
 
   codegen_finishfun(c);
 
-  add_dispatch_case(c, g, index, handler, msg_type_ptr);
+  add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
   return func;
 }
 
@@ -402,6 +416,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     LLVMBuildStore(c->builder, arg, arg_ptr);
   }
 
+  // TODO: trace the message
   // Send the message.
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, c->object_ptr, "");
   args[1] = msg;
@@ -417,7 +432,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   if(handler == NULL)
     return NULL;
 
-  add_dispatch_case(c, g, index, handler, msg_type_ptr);
+  add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
   return func;
 }
 
