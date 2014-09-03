@@ -5,8 +5,8 @@ intptr_t pony_openr(const char* file)
 {
 #ifdef PLATFORM_IS_WINDOWS
   //OpenFile has a 128 character path limit, therefore we use CreateFile (which
-  //does not have this limit) to open files ... 
-  return (intptr_t)CreateFile(file, GENERIC_READ, 0, NULL, OPEN_EXISTING, 
+  //does not have this limit) to open files ...
+  return (intptr_t)CreateFile(file, GENERIC_READ, 0, NULL, OPEN_EXISTING,
     FILE_ATTRIBUTE_NORMAL, NULL);
 #else
   return open(file, O_RDONLY);
@@ -38,7 +38,7 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
   strcat_s(win_path, 3, TEXT("\\*"));
 
   PONY_DIR* dir = (PONY_DIR*)malloc(sizeof(PONY_DIR));
-  
+
   dir->ptr = FindFirstFile(win_path, &dir->info);
 
   if (dir->ptr == INVALID_HANDLE_VALUE)
@@ -50,7 +50,7 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
     return NULL;
   }
 
-  return dir;    
+  return dir;
 #elif PLATFORM_IS_POSIX_BASED
   PONY_DIR* dir = opendir(path);
   if(dir == NULL)
@@ -135,4 +135,3 @@ bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
   return false;
 #endif
 }
-

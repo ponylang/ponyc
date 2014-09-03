@@ -36,7 +36,7 @@ function testutil()
     includedirs {
       "../src/",
       "../inc/"
-    } 
+    }
     if not os.is("windows") then
       buildoptions "-std=gnu11"
     end
@@ -48,3 +48,4 @@ end
 project "unit"
   unittest()
   files { "unit/*.cc", "unit/*.h" }
+

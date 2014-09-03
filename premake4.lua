@@ -94,8 +94,8 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/**.c", "src/libponyc/**.h" }
-  
+    files { "src/libponyc/**.c*", "src/libponyc/**.h" }
+
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
