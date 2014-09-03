@@ -5,8 +5,8 @@
 #include <stdint.h>
 
 /** Convenience macro for making extern "C" more succinct.
-*
-*/
+ *
+ */
 #if defined(__cplusplus) && !defined(_MSC_VER)
 #  define PONY_EXTERN_C_BEGIN extern "C" {
 #  define PONY_EXTERN_C_END }
@@ -16,8 +16,8 @@
 #endif
 
 /** Determines the operating system.
-*
-*/
+ *
+ */
 #if defined(__APPLE__) && defined(__MACH__)
 #  define PLATFORM_IS_MACOSX
 #elif defined(__linux__)
@@ -25,23 +25,23 @@
 #elif defined(_WIN64)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
-#  define PLATFORM_IS_VISUAL_STUDIO
+#    define PLATFORM_IS_VISUAL_STUDIO
 /** Allow formal parameters of functions to remain unused
-*
-*  http://msdn.microsoft.com/en-us/library/26kb9fy0.aspx
-*/
+ *
+ *  http://msdn.microsoft.com/en-us/library/26kb9fy0.aspx
+ */
 #  pragma warning(disable:4100)
 /** Allow constant conditional expressions (e.g. while(true)).
-*
-*  Microsoft advises to replace expressions like while(true) with for(;;).
-*  http://msdn.microsoft.com/en-us/library/6t66728h%28v=vs.90%29.aspx
-*/
+ *
+ *  Microsoft advises to replace expressions like while(true) with for(;;).
+ *  http://msdn.microsoft.com/en-us/library/6t66728h%28v=vs.90%29.aspx
+ */
 #  pragma warning(disable:4127)
 #  include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 typedef SIZE_T size_t;
-#endif
-# include <Windows.h>
+#  endif
+#  include <Windows.h>
 #else
 #  error PLATFORM NOT SUPPORTED!
 #endif
@@ -61,8 +61,8 @@ typedef SIZE_T size_t;
 #define PONY_ERRNO uint32_t
 
 /** Standard builtins.
-*
-*/
+ *
+ */
 #ifndef PLATFORM_IS_VISUAL_STUDIO
 #  define __pony_popcount(X) __builtin_popcount( (X) )
 #  define __pony_popcount64(X) __pony_popcount(X)
@@ -93,11 +93,12 @@ static __declspec(thread) DWORD lsb;
 #include "utils.h"
 #include "format.h"
 
-#if defined(PONY_USE_BIGINT)
+#if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  ifdef __cplusplus
-#    include "../bigint/bigint.h"
+#    define PONY_COMPILE_INT128
+#    include "int128.h"
 #  else
-#    error Usage of bigint requires C++ compilation!
+#    error Usage of int128 requires C++ compilation!
 #  endif
 #endif
 

@@ -1,14 +1,14 @@
-#ifndef BIGINT_UNSIGNED_H
-#define BIGINT_UNSIGNED_H
+#ifndef PLATFORM_UNSIGNED_H
+#define PLATFORM_UNSIGNED_H
 
 #define STATIC_ERROR_UINT_CONV \
-  "[BigUnsigned(const T& value)]: Argument 'value' is not arithmetic!"
+  "[UnsignedInt128(const T& value)]: Argument 'value' is not arithmetic!"
 
 #define STATIC_ERROR_UINT_TYPE_CAST \
-  "[BigUnsigned T()]: Casting is only supported for builtin arithmetic types!"
+  "[UnsignedInt128 T()]: Casting is only supported for builtin arithmetic types!"
 
 #include <type_traits>
-#include "base.h"
+#include <stdexcept>
 
 class UnsignedInt128
 {
@@ -89,11 +89,12 @@ UnsignedInt128 operator|(const UnsignedInt128& lvalue,
   const UnsignedInt128& rvalue);
 UnsignedInt128 operator^(const UnsignedInt128& lvalue,
   const UnsignedInt128& rvalue);
-
 UnsignedInt128 operator<<(UnsignedInt128& lvalue, const int shift);
 UnsignedInt128 operator>>(UnsignedInt128& lvalue, const int shift);
 UnsignedInt128 operator~(const UnsignedInt128& lvalue);
-UnsignedInt128 operator++(UnsignedInt128& rvalue);
+UnsignedInt128& operator++(UnsignedInt128& rvalue);
+UnsignedInt128 operator++(UnsignedInt128& lvalue, int);
+UnsignedInt128& operator--(UnsignedInt128& rvalue);
 UnsignedInt128 operator--(UnsignedInt128& lvalue, int);
 
 //useful constants

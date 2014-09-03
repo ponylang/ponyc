@@ -1,11 +1,8 @@
-#ifndef BIGINT_SIGNED_H
-#define BIGINT_SIGNED_H
+#ifndef PLATFORM_SIGNED_H
+#define PLATFORM_SIGNED_H
 
 #define STATIC_ERROR_INT_COPY \
   "[BigSigned(const T& value)]: Argument 'value' is not arithmetic!"
-
-#include "unsigned.h"
-#include "base.h"
 
 #include <type_traits>
 

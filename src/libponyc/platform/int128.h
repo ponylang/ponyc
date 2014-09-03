@@ -1,9 +1,26 @@
-#ifndef BIGINT_BIGINT_H
-#define BIGINT_BIGINT_H
+#ifndef PLATFORM_INT128_H
+#define PLATFORM_INT128_H
 
 /** 128-bit integer support for (little endian) 64-bit platforms.
-*
-*/
+ *
+ */
+#include <stdint.h>
+
+typedef enum cmp_t
+{
+  less = -1,
+  equal = 0,
+  greater = 1,
+  invalid = UINT32_MAX
+} cmp_t;
+
+typedef enum sign_t
+{
+  negative = -1,
+  zero = 0,
+  positive = 1,
+} sign_t;
+
 #include "unsigned.h"
 #include "signed.h"
 
@@ -18,7 +35,7 @@ inline double pow(double b, SignedInt128& e)
   switch(e.sign)
   {
     case zero:
-    return (double)uint128_1.low;
+      return (double)uint128_1.low;
     case negative: //b^(-e) == 1/(b^e)
     case positive: //fallthrough, computes b^e
     {
