@@ -1,151 +1,67 @@
--- premake.override is a premake5 feature.
--- We use this approach to improve Visual Studio Support for Windows.
--- The goal is to force C++ compilation for non-*.cpp/cxx/cc file extensions.
--- By doing this properly, we avoid a MSVC warning about overiding /TC
--- with /TP.
+-- The Pony Compiler
+-- <URL HERE>
+-- <LICENSE HERE>
 
-if premake.override then
-  local force_cpp = { }
+  solution "ponyc"
+    configurations { "Debug", "Release", "Profile" }
+    location( _OPTIONS["to"] )
 
-  function cppforce(inFiles)
-    for _, val in ipairs(inFiles) do
-      for _, fname in ipairs(os.matchfiles(val)) do
-        table.insert(force_cpp, path.getabsolute(fname))
-      end
-    end
-  end
-
-  premake.override(premake.vstudio.vc2010, "additionalCompileOptions", function(base, cfg, condition)
-    if cfg.abspath then
-      if table.contains(force_cpp, cfg.abspath) then
-        _p(3,'<CompileAs %s>CompileAsCpp</CompileAs>', condition)
-      end
-    end
-    return base(cfg, condition)
-  end)
-end
-
--- os.outputof is broken in premake4, hence this workaround
-function llvm_config(opt)
-    local llvm_bin = ""
-
-    if os.is("windows") then
-      llvm_bin = "llvm-config "
-    else
-      llvm_bin = "llvm-config-3.4 "
-    end
-
-    local stream = assert(io.popen(llvm_bin .. opt))
-    local output = ""
-
-    --llvm-config contains '\n'
-    while true do
-      local curr = stream:read("*l")
-
-      if curr == nil then
-        break
-      end
-
-      output = output .. curr
-    end
-
-    stream:close()
-    return output
-end
-
-function link_libponyc()
-  links { "libponyc" }
-
-  configuration { "windows" }
-    libdirs {
-     llvm_config("--libdir")
-    }
-  configuration { "not windows" }
-    linkoptions { llvm_config("--ldflags") }
-  configuration "*"
-
-  local output = llvm_config("--libs")
-
-  for lib in string.gmatch(output, "-l(%S+)") do
-    links { lib }
-  end
-
-  if not ( os.is("macosx") or os.is("windows") ) then
-    links {
-      "tinfo",
-      "dl"
-    }
-  end
-end
-
-solution "ponyc"
-  configurations {
-    "Debug",
-    "Release",
-    "Profile"
-  }
-
-  flags {
-      "FatalWarnings",
-      "MultiProcessorCompile"
-    }
-
-  configuration "vs*"
-    links { "Shlwapi.lib" }
-
-  configuration "windows"
-    if(architecture) then
-      architecture "x64"
-    end
-
-  configuration { "vs*", "Debug" }
     flags {
-      "ReleaseRuntime"
+      "FatalWarnings",
+      "MultiProcessorCompile",
+      "ReleaseRuntime" --for all configs
     }
 
-  configuration "not windows"
-    buildoptions {
-      "-march=native",
-      "-pthread"
-    }
-    linkoptions {
-      "-pthread"
-    }
+    configuration "Debug"
+      targetdir "bin/debug"
+      objdir "obj/debug"
+      defines "DEBUG"
+      flags { "Symbols" }
 
-  configuration "*"
+    configuration "Release"
+      targetdir "bin/release"
+      objdir "obj/release"
 
-  configuration "macosx"
-    buildoptions "-Qunused-arguments"
-    linkoptions "-Qunused-arguments"
+    configuration "Profile"
+      targetdir "bin/profile"
+      objdir "obj/profile"
 
-  configuration "*"
-
-  configuration "Debug"
-    targetdir "bin/debug"
-    flags { "Symbols" }
-
-  configuration "Release"
-    targetdir "bin/release"
-
-  configuration "Profile"
-    targetdir "bin/profile"
-    buildoptions "-pg"
-    linkoptions "-pg"
-
-  configuration "Release or Profile"
-    defines "NDEBUG"
-    if os.is("windows") then
+    configuration "Release or Profile"
+      defines "NDEBUG"
       optimize "Speed"
-    else
-      flags "OptimizeSpeed"
-      buildoptions {
-        "-flto",
-      }
-      linkoptions {
-        "-flto",
-        "-fuse-ld=gold",
-      }
-    end
+      flags { "LinkTimeOptimization" }
+
+      if not os.is("windows") then
+        linkoptions {
+          "-fuse-ld=gold"
+        }
+      end
+
+      configuration { "Profile", "gmake" }
+        buildoptions "-pg"
+        linkoptions "-pg"
+
+      --TODO profile build Visual Studio
+      --configuration { "Profile", "vs*" }
+      --  linkoptions "/PROFILE"
+
+      configuration { "macosx", "gmake" }
+        toolset "clang"
+
+      configuration "gmake"
+        buildoptions {
+          "-mcx16",
+          "-march=native"
+        }
+
+      configuration "macosx"
+        toolset "clang"
+      configuration "*"
+      architecture "x64"
+
+  dofile("scripts/properties.lua")
+  dofile("scripts/llvm.lua")
+  dofile("scripts/helper.lua")
 
   project "libponyc"
     targetname "ponyc"
@@ -155,8 +71,13 @@ solution "ponyc"
       llvm_config("--includedir")
     }
 
-    configuration { "not vs*" }
-      buildoptions {
+    files {
+      "src/libponyc/**.c*",
+      "src/libponyc/**.h"
+    }
+
+    configuration "gmake"
+      buildoptions{
         "-std=gnu11"
       }
       defines {
@@ -164,24 +85,124 @@ solution "ponyc"
         "_GNU_SOURCE",
         "__STDC_CONSTANT_MACROS",
         "__STDC_FORMAT_MACROS",
-        "__STDC_LIMIT_MACROS",
+        "__STDC_LIMIT_MACROS"
       }
+      excludes { "src/libponyc/**.cc" }
+    configuration "vs*"
+      cppforce { "src/libponyc/**.c*" }
     configuration "*"
-    files { "src/libponyc/**.c*", "src/libponyc/**.h" }
-    configuration "not vs*"
-    excludes { "src/libponyc/**.cc" }
-    configuration "*"
-    cppforce { "src/libponyc/**.c*" }
 
   project "ponyc"
     kind "ConsoleApp"
     language "C"
-    configuration { "not vs*" }
-      buildoptions "-std=gnu11"
-    configuration "*"
+
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
-    cppforce { "src/ponyc/**.c" }
     link_libponyc()
 
-  include "utils/"
-  include "test/"
+    configuration "gmake"
+      buildoptions "-std=gnu11"
+    configuration "vs*"
+      cppforce { "src/ponyc/**.c" }
+    configuration "*"
+
+if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
+  project "gtest"
+    targetname "gtest"
+    language "C++"
+    kind "StaticLib"
+
+    configuration "gmake"
+      buildoptions {
+        "-std=gnu++11"
+      }
+    configuration "*"
+
+    includedirs {
+      "utils/gtest"
+    }
+    files {
+      "utils/gtest/gtest-all.cc",
+      "utils/gtest/gtest_main.cc"
+    }
+
+  project "tests"
+    targetname "tests"
+    language "C++"
+    kind "ConsoleApp"
+    includedirs {
+      "inc/",
+      "src/",
+      "utils/gtest"
+    }
+    files {
+      "test/unit/**.cc"
+    }
+    links { "gtest" }
+    link_libponyc()
+
+    configuration "gmake"
+      buildoptions {
+        "-std=gnu++11"
+      }
+    configuration "*"
+
+    if (_OPTIONS["run-tests"]) then
+      configuration "gmake"
+        postbuildcommands { "$(TARGET)" }
+      configuration "vs*"
+        postbuildcommands { "\"$(TargetPath)\"" }
+      configuration "*"
+    end
+end
+
+  if _ACTION == "clean" then
+    os.rmdir("bin")
+    os.rmdir("obj")
+  end
+
+  -- Allow for out-of-source builds.
+  newoption {
+    trigger     = "to",
+    value       = "path",
+    description = "Set output location for generated files."
+  }
+
+  newoption {
+    trigger     = "with-tests",
+    description = "Compile test suite for every build."
+  }
+
+  newoption {
+    trigger = "run-tests",
+    description = "Run the test suite on every successful build."
+  }
+
+  newoption {
+    trigger     = "use-docsgen",
+    description = "Select a tool for generating the API documentation",
+    allowed = {
+      { "sphinx", "Chooses Sphinx as documentation tool. (Default)" },
+      { "doxygen", "Chooses Doxygen as documentation tool." }
+    }
+  }
+
+  dofile("scripts/release.lua")
+
+  -- Package release versions of ponyc for all supported platforms.
+  newaction {
+    trigger     = "release",
+    description = "Prepare a new ponyc release.",
+    execute     = dorelease
+  }
+
+  dofile("scripts/docs.lua")
+
+  newaction {
+    trigger     = "docs",
+    value       = "tool",
+    description = "Produce API documentation.",
+    execute     = dodocs
+  }
+
+  --include "utils/"
+  --include "test/"

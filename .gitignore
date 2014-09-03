@@ -1,6 +1,7 @@
 .DS_Store
 Makefile
 bin
+Build
 *.make
 lib
 obj
