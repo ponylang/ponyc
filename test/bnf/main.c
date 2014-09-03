@@ -2,10 +2,10 @@
 #include "../../src/libponyc/ast/builder.h"
 #include "../../src/libponyc/ast/parser.h"
 #include "../../src/libponyc/ast/source.h"
+#include "../../src/libponyc/platform/platform.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <dirent.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -98,14 +98,15 @@ static bool do_file_fail(const char* pony_file)
   */
 }
 
-
+//TODO FIX: Windows, check error codes. Docus only provide generic error codes
 static bool do_path(const char* path, bool expect_success)
 {
-  DIR* dir = opendir(path);
+  PONY_ERRNO err = 0;
+  PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
   {
-    switch(errno)
+    switch(err)
     {
       case EACCES:
         printf("Cannot open %s permission denied\n", path);
@@ -119,6 +120,9 @@ static bool do_path(const char* path, bool expect_success)
         printf("Cannot open %s not a directory\n", path);
         break;
 
+      case PONY_IO_PATH_TOO_LONG:
+        printf("Cannot open %s path too long\n", path);
+        break;
       default:
         printf("Cannot open %s unknown error %d\n", path, errno);
         break;
@@ -127,25 +131,26 @@ static bool do_path(const char* path, bool expect_success)
     return false;
   }
   
-  struct dirent dirent;
-  struct dirent* d;
+  PONY_DIRINFO dirent;
+  PONY_DIRINFO* d;
   bool success = true;
 
-  while(!readdir_r(dir, &dirent, &d) && (d != NULL))
+  while(!pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
     // handle only files with the specified extension
-    char* p = strrchr(d->d_name, '.');
+    char* name = pony_get_dir_name(d);
+    char* p = strrchr(name, '.');
 
     if(p == NULL || strcmp(p, PONY_EXTENSION) != 0)
       continue;
 
     char pony_fullpath[FILENAME_MAX];
-    strcpy(pony_fullpath, path);
-    strcat(pony_fullpath, "/");
-    strcat(pony_fullpath, d->d_name);
+    pony_strcpy(pony_fullpath, path);
+    pony_strcat(pony_fullpath, "/");
+    pony_strcat(pony_fullpath, name);
 
     char ast_fullpath[FILENAME_MAX];
-    strcpy(ast_fullpath, pony_fullpath);
+    pony_strcpy(ast_fullpath, pony_fullpath);
 
     p = strrchr(ast_fullpath, '.');
     assert(p != NULL);
@@ -167,7 +172,7 @@ static bool do_path(const char* path, bool expect_success)
     free_errors();
   }
 
-  closedir(dir);
+  pony_closedir(dir);
   return success;
 }
 

@@ -125,7 +125,7 @@ bool expr_reference(ast_t* ast)
 {
   // everything we reference must be in scope
   const char* name = ast_name(ast_child(ast));
-  ast_t* def = ast_get(ast, name);
+  ast_t* def = (ast_t*)ast_get(ast, name);
 
   if(def == NULL)
   {
@@ -182,10 +182,10 @@ bool expr_reference(ast_t* ast)
       ast_add(dot, ast_child(ast));
       ast_free(ast);
 
-      ast_t* this = ast_from(ast, TK_THIS);
-      ast_add(dot, this);
+      ast_t* self = ast_from(ast, TK_THIS);
+      ast_add(dot, self);
 
-      if(!expr_this(this))
+      if(!expr_this(self))
         return false;
 
       return expr_dot(dot);
@@ -212,10 +212,10 @@ bool expr_reference(ast_t* ast)
       ast_add(dot, ast_child(ast));
       ast_free(ast);
 
-      ast_t* this = ast_from(ast, TK_THIS);
-      ast_add(dot, this);
+      ast_t* self = ast_from(ast, TK_THIS);
+      ast_add(dot, self);
 
-      if(!expr_this(this))
+      if(!expr_this(self))
         return false;
 
       return expr_dot(dot);

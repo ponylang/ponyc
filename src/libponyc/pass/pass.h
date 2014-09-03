@@ -16,6 +16,21 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+inline pass_id& operator++(pass_id& current)
+{
+  current = static_cast<pass_id>(current + 1);
+  return current;
+};
+
+inline pass_id operator++(pass_id& current, int)
+{
+  pass_id rvalue = current;
+  ++current;
+  return rvalue;
+};
+#endif
+
 /** Limit processing to the specified pass. All passes up to and including the
  * specified pass will occur.
  * Returns true on success, false on invalid pass name.

@@ -7,22 +7,28 @@ typedef struct gentype_t
 {
   ast_t* ast;
   token_id underlying;
-  size_t vtable_size;
 
   const char* type_name;
-  LLVMTypeRef type;
+  LLVMTypeRef structure;
+  LLVMTypeRef structure_ptr;
   LLVMTypeRef primitive;
+  LLVMTypeRef use_type;
 
   size_t field_count;
   ast_t** fields;
 
+  size_t vtable_size;
   LLVMTypeRef desc_type;
   LLVMValueRef desc;
   LLVMValueRef instance;
+
+  LLVMValueRef dispatch_fn;
+  LLVMValueRef dispatch_msg;
+  LLVMValueRef dispatch_switch;
 } gentype_t;
 
-LLVMTypeRef gentype_prelim(compile_t* c, ast_t* ast);
+bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g);
 
-LLVMTypeRef gentype(compile_t* c, ast_t* ast);
+bool gentype(compile_t* c, ast_t* ast, gentype_t* g);
 
 #endif

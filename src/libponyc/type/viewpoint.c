@@ -187,7 +187,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       // arrow type if the constraint is box, otherwise use the constraint cap.
       if(cap == TK_NONE)
       {
-        ast_t* def = ast_data(l_type);
+        ast_t* def = (ast_t*)ast_data(l_type);
         ast_t* constraint = ast_childidx(def, 1);
         cap = cap_for_type(constraint);
 

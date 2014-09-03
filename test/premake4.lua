@@ -14,10 +14,12 @@ function unittest()
       "../inc/"
     }
     libdirs "../bin/utils/"
-    buildoptions "-std=gnu++11"
+    if not os.is("windows") then
+      buildoptions "-std=gnu++11"
+    end
     language "C++"
     kind "ConsoleApp"
-    links "gtest"
+    links { "gtest" }
     link_libponyc()
 end
 
@@ -34,8 +36,10 @@ function testutil()
     includedirs {
       "../src/",
       "../inc/"
-    }
-    buildoptions "-std=gnu11"
+    } 
+    if not os.is("windows") then
+      buildoptions "-std=gnu11"
+    end
     language "C++"
     kind "ConsoleApp"
     link_libponyc()
@@ -44,7 +48,3 @@ end
 project "unit"
   unittest()
   files { "unit/*.cc", "unit/*.h" }
-
-project "bnf"
-  testutil()
-  files { "bnf/*.c", "bnf/*.h" }

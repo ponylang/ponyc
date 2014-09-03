@@ -3,13 +3,13 @@
 
 #include "colour.h"
 #include "../ast/ast.h"
+
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
-#define GEN_NOTYPE ((LLVMTypeRef)1)
 
 typedef struct compile_context_t
 {
@@ -33,10 +33,14 @@ typedef struct compile_t
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
+  LLVMTypeRef object_type;
   LLVMTypeRef object_ptr;
+  LLVMTypeRef msg_type;
+  LLVMTypeRef msg_ptr;
   LLVMTypeRef actor_pad;
   LLVMTypeRef trace_type;
   LLVMTypeRef trace_fn;
+  LLVMTypeRef dispatch_type;
   LLVMTypeRef dispatch_fn;
   LLVMTypeRef final_fn;
 
@@ -49,6 +53,8 @@ bool codegen(ast_t* program, int opt, bool print_llvm);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun);
 
-bool codegen_finishfun(compile_t* c);
+void codegen_pausefun(compile_t* c);
+
+void codegen_finishfun(compile_t* c);
 
 #endif

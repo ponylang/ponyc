@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+#include "../platform/platform.h"
+
 typedef struct errormsg_t
 {
   const char* file;
@@ -26,12 +28,12 @@ void print_errors();
 void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap);
 
-void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
-  __attribute__ ((format (printf, 4, 5)));
+void error(source_t* source, size_t line, size_t pos, 
+  FORMAT_STRING(const char* fmt), ...) __pony_format__(printf, 4, 5);
 
 void errorfv(const char* file, const char* fmt, va_list ap);
 
-void errorf(const char* file, const char* fmt, ...)
-  __attribute__ ((format (printf, 2, 3)));
+void errorf(const char* file, FORMAT_STRING(const char* fmt), ...)
+  __pony_format__ (printf, 2, 3);
 
 #endif

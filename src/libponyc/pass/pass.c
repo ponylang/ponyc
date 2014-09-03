@@ -12,7 +12,6 @@
 
 static pass_id pass_limit = PASS_ALL;
 
-
 bool limit_passes(const char* pass)
 {
   for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)

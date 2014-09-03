@@ -8,7 +8,7 @@
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
-  LLVMValueRef value;
+  LLVMValueRef value = NULL;
 
   while(child != NULL)
   {
@@ -38,16 +38,11 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   bool l_sign = is_signed(left_type);
   bool r_sign = is_signed(right_type);
 
-  LLVMTypeRef phi_type;
+  gentype_t phi_type;
 
   // we will have no type if both branches have return statements
-  if(type != NULL)
-  {
-    phi_type = gentype(c, type);
-
-    if(phi_type == NULL)
-      return NULL;
-  }
+  if((type != NULL) && !gentype(c, type, &phi_type))
+    return NULL;
 
   LLVMValueRef c_value = gen_expr(c, cond);
 
@@ -58,7 +53,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
   LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "if_then");
   LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "if_else");
-  LLVMBasicBlockRef post_block;
+  LLVMBasicBlockRef post_block = NULL;
 
   // if both branches return, we have no post block
   if(type != NULL)
@@ -72,7 +67,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(l_value != GEN_NOVALUE)
   {
-    l_value = gen_assign_cast(c, phi_type, l_value, sign, l_sign);
+    l_value = gen_assign_cast(c, phi_type.use_type, l_value, sign, l_sign);
 
     if(l_value == NULL)
       return NULL;
@@ -88,7 +83,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // if the right side returns, we don't branch to the post block
   if(r_value != GEN_NOVALUE)
   {
-    r_value = gen_assign_cast(c, phi_type, r_value, sign, r_sign);
+    r_value = gen_assign_cast(c, phi_type.use_type, r_value, sign, r_sign);
 
     if(r_value == NULL)
       return NULL;
@@ -104,7 +99,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // continue in the post block
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   if(l_value != GEN_NOVALUE)
     LLVMAddIncoming(phi, &l_value, &then_block, 1);
@@ -126,9 +121,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
   bool else_sign = is_signed(else_type);
-  LLVMTypeRef phi_type = gentype(c, type);
 
-  if(phi_type == NULL)
+  gentype_t phi_type;
+
+  if(!gentype(c, type, &phi_type))
     return NULL;
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
@@ -143,7 +139,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // init
   LLVMPositionBuilderAtEnd(c->builder, init_block);
@@ -157,7 +153,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef l_value = gen_expr(c, body);
-  l_value = gen_assign_cast(c, phi_type, l_value, sign, body_sign);
+  l_value = gen_assign_cast(c, phi_type.use_type, l_value, sign, body_sign);
 
   if(l_value == NULL)
     return NULL;
@@ -177,7 +173,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
-  r_value = gen_assign_cast(c, phi_type, r_value, sign, else_sign);
+  r_value = gen_assign_cast(c, phi_type.use_type, r_value, sign, else_sign);
   LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
@@ -200,9 +196,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
-  LLVMTypeRef phi_type = gentype(c, type);
 
-  if(phi_type == NULL)
+  gentype_t phi_type;
+
+  if(!gentype(c, type, &phi_type))
     return NULL;
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
@@ -216,16 +213,16 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   // start the cond block so that a continue can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMValueRef cond_phi = LLVMBuildPhi(c->builder, phi_type, "");
+  LLVMValueRef cond_phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type, value, sign, body_sign);
+  value = gen_assign_cast(c, phi_type.use_type, value, sign, body_sign);
 
   if(value == NULL)
     return NULL;
@@ -255,7 +252,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   bool sign = is_signed(type);
 
   // TODO: could store in compile_context_t
-  LLVMBasicBlockRef target = ast_data(loop);
+  LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   ast_t* body = ast_child(ast);
   ast_t* body_type = ast_type(body);
@@ -313,7 +310,7 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
   ast_t* loop = ast_enclosing_loop(ast);
 
   // TODO: could store in compile_context_t
-  LLVMBasicBlockRef target = ast_data(loop);
+  LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   switch(ast_id(loop))
   {
@@ -380,16 +377,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   bool body_sign = is_signed(body_type);
   bool else_sign = is_signed(else_type);
 
-  LLVMTypeRef phi_type;
+  gentype_t phi_type;
 
   // we will have no type if both branches have return statements
-  if(type != NULL)
-  {
-    phi_type = gentype(c, type);
-
-    if(phi_type == NULL)
-      return NULL;
-  }
+  if((type != NULL) && !gentype(c, type, &phi_type))
+    return NULL;
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMValueRef fun = LLVMGetBasicBlockParent(block);
@@ -408,7 +400,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(body_value != GEN_NOVALUE)
   {
-    body_value = gen_assign_cast(c, phi_type, body_value, sign, body_sign);
+    body_value = gen_assign_cast(c, phi_type.use_type, body_value, sign,
+      body_sign);
 
     if(body_value == NULL)
       return NULL;
@@ -430,7 +423,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(else_value != GEN_NOVALUE)
   {
-    else_value = gen_assign_cast(c, phi_type, else_value, sign, else_sign);
+    else_value = gen_assign_cast(c, phi_type.use_type, else_value, sign,
+      else_sign);
 
     if(else_value == NULL)
       return NULL;
@@ -447,7 +441,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // continue in the post block
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type, "");
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   if(body_value != GEN_NOVALUE)
     LLVMAddIncoming(phi, &body_value, &block, 1);

@@ -134,7 +134,7 @@ static void add_def(painter_t* painter, ast_t* ast)
   }
 
   // Setup definition record
-  def_record_t* n = malloc(sizeof(def_record_t));
+  def_record_t* n = (def_record_t*)malloc(sizeof(def_record_t));
   n->ast = ast;
   n->typemap_index = painter->typemap_index;
   n->typemap_mask = painter->typemap_mask;
@@ -150,11 +150,11 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   assert(painter != NULL);
   assert(name != NULL);
 
-  name_record_t* n = malloc(sizeof(name_record_t));
+  name_record_t* n = (name_record_t*)malloc(sizeof(name_record_t));
   n->name = name;
   n->colour = UNASSIGNED_COLOUR;
   n->type_count = 0;
-  n->type_map = calloc(painter->typemap_size, sizeof(uint64_t));
+  n->type_map = (uint64_t*)calloc(painter->typemap_size, sizeof(uint64_t));
   n->next = NULL;
   *painter->name_next = n;
   painter->name_next = &n->next;
@@ -173,7 +173,7 @@ static colour_record_t* add_colour(painter_t* painter)
   colour_record_t* n = &painter->colours[index];
   n->colour = index;
   n->type_count = 0;
-  n->type_map = calloc(painter->typemap_size, sizeof(uint64_t));
+  n->type_map = (uint64_t*)calloc(painter->typemap_size, sizeof(uint64_t));
   painter->colour_count++;
 
   return n;
@@ -183,7 +183,7 @@ static colour_record_t* add_colour(painter_t* painter)
 // Find the name record with the specified name
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
-  return symtab_get(painter->name_table, name);
+  return (name_record_t*)symtab_get(painter->name_table, name);
 }
 
 
@@ -395,7 +395,7 @@ static void find_vtable_sizes(painter_t* painter)
 
 painter_t* painter_create()
 {
-  painter_t* p = calloc(1, sizeof(painter_t));
+  painter_t* p = (painter_t*)calloc(1, sizeof(painter_t));
   p->typemap_index = -1;
   p->typemap_mask = 0;
   return p;
@@ -424,7 +424,8 @@ void painter_colour(painter_t* painter, ast_t* typedefs)
   find_names_types_use(painter);
 
   // Allocate colour records
-  painter->colours = calloc(painter->name_count, sizeof(colour_record_t));
+  painter->colours = (colour_record_t*)calloc(painter->name_count, 
+    sizeof(colour_record_t));
 
   assign_colours_to_names(painter);
   find_vtable_sizes(painter);

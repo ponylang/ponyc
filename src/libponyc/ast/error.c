@@ -90,11 +90,11 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap)
 {
   char buf[LINE_LEN];
-  vsnprintf(buf, LINE_LEN, fmt, ap);
+  pony_vsnprintf(buf, LINE_LEN, fmt, ap);
 
   //printf("%s\n", buf);
 
-  errormsg_t* e = calloc(1, sizeof(errormsg_t));
+  errormsg_t* e = (errormsg_t*)calloc(1, sizeof(errormsg_t));
 
   if(source != NULL)
     e->file = source->file;
@@ -144,9 +144,9 @@ void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
 void errorfv(const char* file, const char* fmt, va_list ap)
 {
   char buf[LINE_LEN];
-  vsnprintf(buf, LINE_LEN, fmt, ap);
+  pony_vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  errormsg_t* e = calloc(1, sizeof(errormsg_t));
+  errormsg_t* e = (errormsg_t*)calloc(1, sizeof(errormsg_t));
   e->file = stringtab(file);
   e->msg = stringtab(buf);
   add_error(e);

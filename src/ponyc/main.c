@@ -1,11 +1,10 @@
+#include "../libponyc/platform/platform.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
-#include <sys/ioctl.h>
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <getopt.h>
 
 static struct option opts[] =
 {
@@ -36,7 +35,7 @@ size_t get_width()
   struct winsize ws;
   size_t width = 80;
 
-  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1)
+  if(pony_get_term_winsize(&ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;
@@ -56,7 +55,7 @@ int main(int argc, char** argv)
   char c;
   bool error = false;
 
-  while((c = getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
+  while((c = (char)getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
   {
     switch(c)
     {

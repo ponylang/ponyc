@@ -44,7 +44,7 @@ static const lexsym_t symbols2[] =
   { "<=", TK_LE },
   { ">=", TK_GE },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t symbols1[] =
@@ -78,7 +78,7 @@ static const lexsym_t symbols1[] =
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t keywords[] =
@@ -137,7 +137,7 @@ static const lexsym_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 static const lexsym_t abstract[] =
@@ -195,7 +195,7 @@ static const lexsym_t abstract[] =
   { "paramref", TK_PARAMREF },
 
   { "test", TK_TEST },
-  { NULL, 0 }
+  { NULL, (token_id)0 }
 };
 
 
@@ -280,7 +280,7 @@ static void append(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = malloc(new_len);
+    char* new_buf = (char*)malloc(new_len);
     memcpy(new_buf, lexer->buffer, lexer->alloc);
     free(lexer->buffer);
     lexer->buffer = new_buf;
@@ -325,19 +325,19 @@ static bool append_unicode(lexer_t* lexer, size_t len)
   // UTF-8 encoding
   if(c <= 0x7F)
   {
-    append(lexer, c & 0x7F);
+    append(lexer, (char)(c & 0x7F));
   } else if(c <= 0x7FF) {
-    append(lexer, 0xC0 | (c >> 6));
-    append(lexer, 0x80 | (c & 0x3F));
+    append(lexer, (char)(0xC0 | (c >> 6)));
+    append(lexer, (char)(0x80 | (c & 0x3F)));
   } else if(c <= 0xFFFF) {
-    append(lexer, 0xE0 | (c >> 12));
-    append(lexer, 0x80 | ((c >> 6) & 0x3F));
+    append(lexer, (char)(0xE0 | (c >> 12)));
+    append(lexer, (char)(0x80 | ((c >> 6) & 0x3F)));
     append(lexer, 0x80 | (c & 0x3F));
   } else if(c <= 0x10FFFF) {
-    append(lexer, 0xF0 | (c >> 18));
-    append(lexer, 0x80 | ((c >> 12) & 0x3F));
-    append(lexer, 0x80 | ((c >> 6) & 0x3F));
-    append(lexer, 0x80 | (c & 0x3F));
+    append(lexer, (char)(0xF0 | (c >> 18)));
+    append(lexer, (char)(0x80 | ((c >> 12) & 0x3F)));
+    append(lexer, (char)(0x80 | ((c >> 6) & 0x3F)));
+    append(lexer, (char)(0x80 | (c & 0x3F)));
   } else {
     lexerror(lexer, "Escape sequence exceeds unicode range (0x10FFFF)");
     return false;
@@ -747,7 +747,9 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 
   e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
-  token_set_float(t, significand * pow(10.0, e));
+
+  token_set_float(t, (double)significand * pow(10.0, e));
+
   return t;
 }
 
@@ -889,7 +891,7 @@ lexer_t* lexer_open(source_t* source)
 {
   assert(source != NULL);
 
-  lexer_t* lexer = calloc(1, sizeof(lexer_t));
+  lexer_t* lexer = (lexer_t*)calloc(1, sizeof(lexer_t));
   lexer->source = source;
   lexer->len = source->len;
   lexer->line = 1;

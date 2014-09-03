@@ -11,11 +11,21 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <errno.h>
 #include <assert.h>
 
+#include "../platform/platform.h"
+
 #define EXTENSION ".pony"
+
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+/** Disable warning about "getenv" begin unsafe. The alternatives, s_getenv and
+ *  _dupenv_s are incredibly inconvenient and expensive to use. Since such a
+ *  warning could make sense for other function calls, we only disable it for 
+ *  this file.
+ */
+#  pragma warning(disable:4996)
+#endif
 
 typedef struct package_t
 {
@@ -83,7 +93,7 @@ static bool filepath(const char *file, char* path)
 {
   struct stat sb;
 
-  if((realpath(file, path) != path)
+  if((pony_realpath(file, path) != path)
     || (stat(path, &sb) != 0)
     || ((sb.st_mode & S_IFMT) != S_IFREG)
     )
@@ -121,7 +131,7 @@ static bool execpath(const char* file, char* path)
 
     while(true)
     {
-      char* p = strchr(env, ':');
+      char* p = strchr((char*)env, ':');
       size_t len;
 
       if(p != NULL)
@@ -134,9 +144,9 @@ static bool execpath(const char* file, char* path)
       if((len + flen + 1) < FILENAME_MAX)
       {
         char check[FILENAME_MAX];
-        strncpy(check, env, len);
+        pony_strncpy(check, env, len);
         check[len++] = '/';
-        strcpy(&check[len], file);
+        pony_strcpy(&check[len], file);
 
         if(filepath(check, path))
           return true;
@@ -179,11 +189,12 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
   if(is_magic)
     return do_magic_package(package, path);
 
-  DIR* dir = opendir(path);
+  PONY_ERRNO err = 0;
+  PONY_DIR* dir = pony_opendir(path, &err);
 
   if(dir == NULL)
   {
-    switch(errno)
+    switch(err)
     {
       case EACCES:
         errorf(path, "permission denied");
@@ -204,30 +215,31 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
     return false;
   }
 
-  struct dirent dirent;
-  struct dirent* d;
+  PONY_DIRINFO dirent;
+  PONY_DIRINFO* d;
   bool r = true;
 
-  while(!readdir_r(dir, &dirent, &d) && (d != NULL))
+  while(!pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
     //if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
-      const char* p = strrchr(d->d_name, '.');
+      char* name = pony_get_dir_name(d);
+      const char* p = strrchr(name, '.');
 
       if(!p || strcmp(p, EXTENSION))
         continue;
 
       char fullpath[FILENAME_MAX];
-      strcpy(fullpath, path);
-      strcat(fullpath, "/");
-      strcat(fullpath, d->d_name);
+      pony_strcpy(fullpath, path);
+      pony_strcat(fullpath, "/");
+      pony_strcat(fullpath, name);
 
       r &= do_file(package, fullpath);
     }
   }
 
-  closedir(dir);
+  pony_closedir(dir);
   return r;
 }
 
@@ -238,14 +250,14 @@ static const char* try_path(const char* base, const char* path)
 
   if(base != NULL)
   {
-    strcpy(composite, base);
-    strcat(composite, "/");
-    strcat(composite, path);
+    pony_strcpy(composite, base);
+    pony_strcat(composite, "/");
+    pony_strcat(composite, path);
   } else {
-    strcpy(composite, path);
+    pony_strcpy(composite, path);
   }
 
-  if(realpath(composite, file) != file)
+  if(pony_realpath(composite, file) != file)
     return NULL;
 
   return stringtab(file);
@@ -270,7 +282,7 @@ static const char* find_path(ast_t* from, const char* path)
   else {
     // try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
-    package_t* pkg = ast_data(from);
+    package_t* pkg = (package_t*)ast_data(from);
     result = try_path(pkg->path, path);
 
     if(result != NULL)
@@ -297,7 +309,7 @@ static const char* find_path(ast_t* from, const char* path)
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
-  snprintf(buffer, 32, "$%zu", id);
+  pony_snprintf(buffer, 32, "$"__pony_format_zu, id);
   return stringtab(buffer);
 }
 
@@ -307,7 +319,7 @@ static ast_t* create_package(ast_t* program, const char* name)
   uintptr_t pkg_id = (uintptr_t)ast_data(program);
   ast_setdata(program, (void*)(pkg_id + 1));
 
-  package_t* pkg = malloc(sizeof(package_t));
+  package_t* pkg = (package_t*)malloc(sizeof(package_t));
   pkg->path = name;
   pkg->id = id_to_string(pkg_id);
   pkg->next_hygienic_id = 0;
@@ -327,7 +339,7 @@ void package_init(const char* name)
 
   if(execpath(name, path))
   {
-    strcat(path, "/packages");
+    pony_strcat(path, "/packages");
     search = strlist_push(search, stringtab(path));
   }
 
@@ -341,7 +353,7 @@ void package_paths(const char* paths)
 
   while(true)
   {
-    char* p = strchr(paths, ':');
+    char* p = strchr((char*)paths, ':');
     size_t len;
 
     if(p != NULL)
@@ -355,7 +367,7 @@ void package_paths(const char* paths)
     {
       char path[FILENAME_MAX];
 
-      strncpy(path, paths, len);
+      pony_strncpy(path, paths, len);
       path[len] = '\0';
       search = strlist_push(search, stringtab(path));
     }
@@ -369,7 +381,7 @@ void package_paths(const char* paths)
 
 void package_add_magic(const char* path, const char* src)
 {
-  magic_package_t* n = malloc(sizeof(magic_package_t));
+  magic_package_t* n = (magic_package_t*)malloc(sizeof(magic_package_t));
   n->path = stringtab(path);
   n->src = src;
   n->next = magic_packages;
@@ -404,7 +416,7 @@ ast_t* package_load(ast_t* from, const char* path)
     return NULL;
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
-  ast_t* package = ast_get(program, name);
+  ast_t* package = (ast_t*)ast_get(program, name);
 
   if(package != NULL)
     return package;
@@ -428,7 +440,7 @@ ast_t* package_load(ast_t* from, const char* path)
 
 const char* package_name(ast_t* ast)
 {
-  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
   return (pkg == NULL) ? NULL : pkg->id;
 }
 
@@ -439,7 +451,7 @@ ast_t* package_id(ast_t* ast)
 
 const char* package_filename(ast_t* ast)
 {
-  package_t* pkg = ast_data(ast_nearest(ast, TK_PACKAGE));
+  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
   const char* p = strrchr(pkg->path, '/');
 
   if(p == NULL)
@@ -463,7 +475,7 @@ const char* package_hygienic_id_string(ast_t* ast)
     return stringtab("hygid");
   }
 
-  package_t* pkg = ast_data(package);
+  package_t* pkg = (package_t*)ast_data(package);
   size_t id = pkg->next_hygienic_id++;
 
   return id_to_string(id);

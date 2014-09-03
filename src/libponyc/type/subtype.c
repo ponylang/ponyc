@@ -218,7 +218,7 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
   if(!check_cap_and_ephemeral(sub, super))
     return false;
 
-  ast_t* def = ast_data(sub);
+  ast_t* def = (ast_t*)ast_data(sub);
   assert(def != NULL);
 
   // must be a subtype of every function in super
@@ -247,8 +247,8 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   if(!check_cap_and_ephemeral(sub, super))
     return false;
 
-  ast_t* sub_def = ast_data(sub);
-  ast_t* super_def = ast_data(super);
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
   assert(sub_def != NULL);
   assert(super_def != NULL);
 
@@ -327,7 +327,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_TYPEPARAMREF:
     {
       // check if our constraint is a subtype of super
-      ast_t* def = ast_data(sub);
+      ast_t* def = (ast_t*)ast_data(sub);
       ast_t* constraint = ast_childidx(def, 1);
 
       // if it isn't, keep trying
@@ -409,12 +409,12 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_TYPEPARAMREF:
     {
       // we also can be a subtype of a typeparam if its constraint is concrete
-      ast_t* def = ast_data(super);
+      ast_t* def = (ast_t*)ast_data(super);
       ast_t* constraint = ast_childidx(def, 1);
 
       if(ast_id(constraint) == TK_NOMINAL)
       {
-        ast_t* constraint_def = ast_data(constraint);
+        ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
         switch(ast_id(constraint_def))
         {
@@ -718,7 +718,7 @@ bool is_concrete(ast_t* type)
 
     case TK_NOMINAL:
     {
-      ast_t* def = ast_data(type);
+      ast_t* def = (ast_t*)ast_data(type);
       return ast_id(def) != TK_TRAIT;
     }
 
@@ -727,7 +727,7 @@ bool is_concrete(ast_t* type)
 
     case TK_TYPEPARAMREF:
     {
-      ast_t* def = ast_data(type);
+      ast_t* def = (ast_t*)ast_data(type);
       ast_t* constraint = ast_childidx(def, 1);
       return is_concrete(constraint);
     }

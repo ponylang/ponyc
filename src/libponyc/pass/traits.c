@@ -50,7 +50,7 @@ static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
   for(ast_t* t = ast_child(trait_refs); t != NULL; t = ast_sibling(t))
   {
     assert(ast_id(t) == TK_NOMINAL);
-    ast_t* trait_def = ast_data(t);
+    ast_t* trait_def = (ast_t*)ast_data(t);
     assert(trait_def != NULL);
 
     if(ast_id(trait_def) != TK_TRAIT)
@@ -96,7 +96,7 @@ static bool attach_method_to_trait(ast_t* target, ast_t* method)
 static bool build_trait_def(ast_t* trait)
 {
   assert(ast_id(trait) == TK_TRAIT);
-  ast_state_t state = (ast_state_t)ast_data(trait);
+  ast_state_t state = (ast_state_t)(uint64_t)ast_data(trait);
 
   // Check for recursive definitions
   switch(state)
@@ -154,7 +154,7 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
     return true;
   }
 
-  if(ast_data(existing_body) == NULL)
+  if(ast_data((ast_t*)existing_body) == NULL)
   {
     // Existing body is from the target type, use that
     return true;
@@ -188,7 +188,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
 
   // Find existing method with this name
   const char* name = ast_name(ast_childidx(method, 1));
-  ast_t* existing = ast_get(target, name);
+  ast_t* existing = (ast_t*)ast_get(target, name);
 
   if(existing == NULL)
   {

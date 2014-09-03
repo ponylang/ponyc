@@ -23,7 +23,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   // must be a type in a package
   const char* package_name = ast_name(ast_child(left));
-  ast_t* package = ast_get(left, package_name);
+  ast_t* package = (ast_t*)ast_get(left, package_name);
 
   if(package == NULL)
   {
@@ -32,17 +32,17 @@ static bool expr_packageaccess(ast_t* ast)
   }
 
   assert(ast_id(package) == TK_PACKAGE);
-  const char* typename = ast_name(right);
-  type = ast_get(package, typename);
+  const char* type_name = ast_name(right);
+  type = (ast_t*)ast_get(package, type_name);
 
   if(type == NULL)
   {
     ast_error(right, "can't find type '%s' in package '%s'",
-      typename, package_name);
+      type_name, package_name);
     return false;
   }
 
-  ast_settype(ast, type_sugar(ast, package_name, typename));
+  ast_settype(ast, type_sugar(ast, package_name, type_name));
   ast_setid(ast, TK_TYPEREF);
   return expr_typeref(ast);
 }
@@ -75,7 +75,7 @@ static bool expr_typeaccess(ast_t* ast)
 
     case TK_NEW:
     {
-      if((ast_id(type) == TK_NOMINAL) && (ast_id(ast_data(type)) == TK_ACTOR))
+      if((ast_id(type) == TK_NOMINAL) && (ast_id((ast_t*)ast_data(type)) == TK_ACTOR))
         ast_setid(ast, TK_NEWBEREF);
       else
         ast_setid(ast, TK_NEWREF);
@@ -447,8 +447,8 @@ bool expr_call(ast_t* ast)
         // the caller. can't just copy it.
         ast_error(positional, "not implemented (default arguments)");
         return false;
-
-        param = ast_sibling(param);
+        //MSVC++ complains about unreachable code...
+        //param = ast_sibling(param);
       }
 
       switch(ast_id(left))

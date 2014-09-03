@@ -1,17 +1,16 @@
 #include "source.h"
 #include "error.h"
 #include "../ds/stringtab.h"
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 
+#include "../platform/platform.h"
 
 source_t* source_open(const char* file)
 {
-  int fd = open(file, O_RDONLY);
+  intptr_t fd = pony_openr(file);
 
   if(fd == -1)
   {
@@ -21,23 +20,23 @@ source_t* source_open(const char* file)
 
   struct stat sb;
 
-  if(fstat(fd, &sb) < 0)
+  if(fstat((int)fd, &sb) < 0)
   {
     errorf(file, "can't determine length of file");
-    close(fd);
+    pony_close(fd);
     return NULL;
   }
 
-  char* m = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  close(fd);
+  char* m = (char*)pony_map_read(sb.st_size, fd);
+  pony_close(fd);
 
-  if(m == MAP_FAILED)
+  if(m == PONY_MAP_FAILED)
   {
     errorf(file, "can't read file");
     return NULL;
   }
 
-  source_t* source = malloc(sizeof(source_t));
+  source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = stringtab(file);
   source->m = m;
   source->len = sb.st_size;
@@ -48,10 +47,10 @@ source_t* source_open(const char* file)
 
 source_t* source_open_string(const char* source_code)
 {
-  source_t* source = malloc(sizeof(source_t));
+  source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = NULL;
   source->len = strlen(source_code);
-  source->m = malloc(source->len);
+  source->m = (char*)malloc(source->len);
 
   memcpy(source->m, source_code, source->len);
 
@@ -65,7 +64,7 @@ void source_close(source_t* source)
     return;
 
   if(source->file != NULL)
-    munmap(source->m, source->len);
+    pony_unmap(source->m, source->len);
   else
     free(source->m);
 

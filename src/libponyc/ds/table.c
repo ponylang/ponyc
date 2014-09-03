@@ -11,9 +11,9 @@ struct table_t
 
 table_t* table_create(size_t size)
 {
-  table_t* table = malloc(sizeof(table_t));
+  table_t* table = (table_t*)malloc(sizeof(table_t));
   table->size = next_pow2(size);
-  table->node = calloc(table->size, sizeof(list_t*));
+  table->node = (list_t**)calloc(table->size, sizeof(list_t*));
 
   return table;
 }

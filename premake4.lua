@@ -1,42 +1,33 @@
 -- os.outputof is broken in premake4, hence this workaround
 function llvm_config(opt)
-    local stream = assert(io.popen("llvm-config-3.4 " .. opt))
-    local output = ""
-
-    --llvm-config contains '\n'
-    while true do
-      local curr = stream:read("*l")
-
-      if curr == nil then
-        break
-      end
-
-      output = output .. curr
+  local stream = assert(io.popen("llvm-config-3.4 " .. opt))
+  local output = ""
+  --llvm-config contains '\n'
+  while true do
+    local curr = stream:read("*l")
+    if curr == nil then
+      break
     end
-
-    stream:close()
-    return output
+    output = output .. curr
+  end
+  stream:close()
+  return output
 end
 
 function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-
   links "libponyc"
-
   local output = llvm_config("--libs")
-
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
-
   configuration("not macosx")
-    links {
-      "tinfo",
-      "dl"
-    }
-
+  links {
+    "tinfo",
+    "dl"
+  }
   configuration("*")
 end
 
@@ -80,6 +71,7 @@ solution "ponyc"
     buildoptions {
       "-flto",
     }
+
     linkoptions {
       "-flto",
       "-fuse-ld=gold",
@@ -103,7 +95,7 @@ solution "ponyc"
       "__STDC_LIMIT_MACROS",
     }
     files { "src/libponyc/**.c", "src/libponyc/**.h" }
-
+  
   project "ponyc"
     kind "ConsoleApp"
     language "C++"

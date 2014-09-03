@@ -3,8 +3,8 @@
 #include "gentype.h"
 #include <assert.h>
 
-static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
-  LLVMTypeRef type)
+static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
+  const char* name)
 {
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
@@ -15,17 +15,16 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
   size_t count = LLVMCountParamTypes(f_type);
 
-  LLVMTypeRef params[count];
+  PONY_VL_ARRAY(LLVMTypeRef, params, count);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
   // It's the same type, but it takes the boxed type instead of the primitive
   // type as the receiver.
-  params[0] = type;
+  params[0] = g->structure_ptr;
 
   const char* unbox_name = genname_unbox(name);
-  LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
-
+  LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, (int)count, false);
   LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
   codegen_startfun(c, unbox_fun);
 
@@ -34,13 +33,13 @@ static LLVMValueRef make_unbox_function(compile_t* c, const char* name,
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
-  LLVMValueRef args[count];
+  PONY_VL_ARRAY(LLVMValueRef, args, count);
   args[0] = primitive;
 
   for(size_t i = 1; i < count; i++)
-    args[i] = LLVMGetParam(unbox_fun, i);
+    args[i] = LLVMGetParam(unbox_fun, (unsigned int)i);
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (unsigned int)count, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -84,13 +83,12 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 void gendesc_init(compile_t* c, gentype_t* g)
 {
   // Build the vtable.
-  LLVMTypeRef type_ptr = LLVMPointerType(g->type, 0);
-  LLVMValueRef vtable[g->vtable_size];
+  PONY_VL_ARRAY(LLVMValueRef, vtable, g->vtable_size);
 
   for(size_t i = 0; i < g->vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
-  ast_t* def = ast_data(g->ast);
+  ast_t* def = (ast_t*)ast_data(g->ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
@@ -108,7 +106,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
         const char* fullname = genname_fun(g->type_name, funname, NULL);
 
         if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, fullname, type_ptr);
+          vtable[colour] = make_unbox_function(c, g, fullname);
         else
           vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
 
@@ -134,10 +132,15 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[3] = make_function_ptr(c, genname_dispatch(g->type_name),
     c->dispatch_fn);
   args[4] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
-  args[5] = LLVMConstInt(LLVMInt64Type(), LLVMABISizeOfType(c->target, g->type),
-    false);
+
+  args[5] = LLVMConstInt(
+    LLVMInt64Type(),
+    LLVMABISizeOfType(c->target, g->structure),
+    false
+    );
+
   args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
+  args[7] = LLVMConstArray(c->void_ptr, vtable, (int)g->vtable_size);
 
   LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 8);
   LLVMSetInitializer(g->desc, desc);

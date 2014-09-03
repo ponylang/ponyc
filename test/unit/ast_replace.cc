@@ -1,9 +1,12 @@
-extern "C" {
+#include "../../src/libponyc/platform/platform.h"
+
+PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/ast.h"
 #include "../../src/libponyc/ast/builder.h"
 #include "../../src/libponyc/ast/source.h"
 #include "../../src/libponyc/ast/token.h"
-}
+PONY_EXTERN_C_END
+
 #include "util.h"
 #include <gtest/gtest.h>
 
@@ -57,8 +60,8 @@ static void test(const char* orig, const char* replace, const char* expect)
 
 TEST(AstReplaceTest, WholeTree)
 {
-  const char* orig = "(+ 1 2)";
-  const char* replace = "(- 3 4)";
+  const char* orig = "(+ 1 2)\0";
+  const char* replace = "(- 3 4)\0";
 
   ASSERT_NO_FATAL_FAILURE(test(orig, replace, replace));
 }

@@ -6,6 +6,8 @@
 #include "token.h"
 #include "symtab.h"
 
+#include "../platform/platform.h"
+
 /*
 
 PROGRAM: {PACKAGE}
@@ -265,13 +267,12 @@ void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
-void ast_error(ast_t* ast, const char* fmt, ...)
-  __attribute__ ((format (printf, 2, 3)));
+void ast_error(ast_t* ast, FORMAT_STRING(const char* fmt), ...) 
+  __pony_format__(printf, 2, 3);
 
 typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
-
 
 // Foreach macro, will apply macro M to each of up to 16 other arguments
 #define FOREACH(M, ...) \
@@ -283,11 +284,12 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
   M0(A0) M1(A1) M2(A2) M3(A3) M4(A4) M5(A5) M6(A6) \
   M7(A7) M8(A8) M9(A9) M10(A10) M11(A11) M12(A12) M13(A13) M14(A14) M15(A15)
 #define nop(x)
+// We need this, because MSVC/MSVC++ treats __VA_ARGS__ as single argument if passed
+// to another macro. LOL.
 #define EXPAND(x) x
 
 typedef ast_t* ast_ptr_t; // Allows easier decalaration of locals
 #define ADDR_AST(x) &x,
-
 
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children);
@@ -300,7 +302,7 @@ void ast_get_children(ast_t* parent, size_t child_count,
   { \
     ast_t** children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
     ast_get_children(parent, (sizeof(children) / sizeof(ast_t**)) - 1, \
-    children); \
+      children); \
   }
 
 

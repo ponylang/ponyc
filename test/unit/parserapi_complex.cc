@@ -1,7 +1,10 @@
-extern "C" {
+#include "../../src/libponyc/platform/platform.h"
+
+PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/parserapi.h"
 #include "../../src/libponyc/ast/source.h"
-}
+PONY_EXTERN_C_END
+
 #include <gtest/gtest.h>
 
 

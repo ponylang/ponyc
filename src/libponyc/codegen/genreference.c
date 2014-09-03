@@ -16,12 +16,12 @@ LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
-  ast_t* def = ast_get(ast, ast_name(ast_child(ast)));
+  ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
   size_t index = ast_index(def);
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef param = LLVMGetParam(func, index + 1);
+  LLVMValueRef param = LLVMGetParam(func, (unsigned int)(index + 1));
 
   return param;
 }
@@ -34,8 +34,8 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
   assert(ast_id(l_type) == TK_NOMINAL);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* def = ast_data(l_type);
-  ast_t* field = ast_get(def, ast_name(right));
+  ast_t* def = (ast_t*)ast_data(l_type);
+  ast_t* field = (ast_t*)ast_get(def, ast_name(right));
   size_t index = ast_index(field);
   size_t extra = 1;
 
@@ -48,7 +48,7 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef field_ptr = LLVMBuildStructGEP(c->builder, l_value,
-    index + extra, "");
+    (unsigned int)(index + extra), "");
 
   return field_ptr;
 }
@@ -79,7 +79,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, idseq, type);
 
-  LLVMTypeRef l_type;
+  gentype_t g;
   LLVMValueRef l_value;
   const char* name;
 
@@ -88,15 +88,13 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   if(ast_sibling(id) == NULL)
   {
-    l_type = gentype(c, type);
-
-    if(l_type == NULL)
+    if(!gentype(c, type, &g))
       return NULL;
 
     name = ast_name(id);
-    l_value = LLVMBuildAlloca(c->builder, l_type, name);
+    l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
-    def = ast_get(ast, name);
+    def = (ast_t*)ast_get(ast, name);
     ast_setdata(def, l_value);
 
     return l_value;
@@ -106,15 +104,13 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   while(id != NULL)
   {
-    l_type = gentype(c, type);
-
-    if(l_type == NULL)
+    if(!gentype(c, type, &g))
       return NULL;
 
     name = ast_name(id);
-    l_value = LLVMBuildAlloca(c->builder, l_type, name);
+    l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
-    def = ast_get(ast, name);
+    def = (ast_t*)ast_get(ast, name);
     ast_setdata(def, l_value);
 
     id = ast_sibling(id);
@@ -129,9 +125,9 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
-  ast_t* def = ast_get(ast, name);
+  ast_t* def = (ast_t*)ast_get(ast, name);
 
-  LLVMValueRef value = ast_data(def);
+  LLVMValueRef value = (LLVMValueRef)ast_data(def);
   assert(value != NULL);
 
   return value;
@@ -157,26 +153,24 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
   args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
 
-  LLVMValueRef str = LLVMConstString(name, len, false);
+  LLVMValueRef str = LLVMConstString(name, (unsigned int)len, false);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
   LLVMValueRef str_ptr = LLVMConstInBoundsGEP(g_str, args, 2);
 
-  LLVMTypeRef l_type = gentype(c, type);
-  l_type = LLVMGetElementType(l_type);
+  gentype_t g;
 
-  const char* type_name = genname_type(type);
-  const char* desc_name = genname_descriptor(type_name);
-  LLVMValueRef g_desc = LLVMGetNamedGlobal(c->module, desc_name);
+  if(!gentype(c, type, &g))
+    return NULL;
 
-  args[0] = LLVMConstBitCast(g_desc, c->descriptor_ptr);
+  args[0] = g.desc;
   args[1] = LLVMConstInt(LLVMInt64Type(), len, false);
   args[2] = LLVMConstInt(LLVMInt64Type(), 0, false);
   args[3] = str_ptr;
 
-  LLVMValueRef inst = LLVMConstNamedStruct(l_type, args, 4);
-  LLVMValueRef g_inst = LLVMAddGlobal(c->module, l_type, "$string");
+  LLVMValueRef inst = LLVMConstNamedStruct(g.structure, args, 4);
+  LLVMValueRef g_inst = LLVMAddGlobal(c->module, g.structure, "$string");
   LLVMSetInitializer(g_inst, inst);
   LLVMSetGlobalConstant(g_inst, true);
 

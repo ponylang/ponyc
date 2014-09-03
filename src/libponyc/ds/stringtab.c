@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../platform/platform.h"
+
 static bool ptr_cmp(const char* a, const char* b)
 {
   return a == b;
@@ -21,7 +23,7 @@ static bool str_cmp(const char* a, const char* b)
 
 static const char* str_dup(const char* a)
 {
-  return strdup(a);
+  return pony_strdup(a);
 }
 
 static void str_free(const char* a)

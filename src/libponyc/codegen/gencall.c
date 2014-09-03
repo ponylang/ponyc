@@ -8,16 +8,16 @@
 #include <assert.h>
 
 static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  int count, const char* ret)
+  size_t count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
 
-  return LLVMBuildCall(c->builder, fun, args, count, ret);
+  return LLVMBuildCall(c->builder, fun, args, (int)count, ret);
 }
 
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
-  LLVMValueRef* args, int count, const char* ret)
+  LLVMValueRef* args, size_t count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
@@ -25,9 +25,9 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
   LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = ast_data(try_expr);
+  LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
 
-  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, (int)count,
     then_block, else_block, ret);
 
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -88,12 +88,12 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   ast_t* type = ast_type(receiver);
-  LLVMTypeRef l_type = gentype(c, type);
+  gentype_t g;
 
-  if(l_type == NULL)
+  if(!gentype(c, type, &g))
     return NULL;
 
-  LLVMValueRef l_value;
+  LLVMValueRef l_value = NULL;
 
   if(need_receiver == 1)
     l_value = gen_expr(c, receiver);
@@ -103,7 +103,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMTypeRef f_type;
   LLVMValueRef func;
 
-  if(l_type == c->object_ptr)
+  if(g.use_type == c->object_ptr)
   {
     // virtual, get the function by selector colour
     int colour = painter_get_colour(c->painter, method_name);
@@ -131,7 +131,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     // a trait that the primitive provides.
 
     // cast to the right function type
-    LLVMValueRef proto = genfun_proto(c, type, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
 
     if(proto == NULL)
     {
@@ -143,7 +143,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // static, get the actual function
-    func = genfun_proto(c, type, method_name, typeargs);
+    func = genfun_proto(c, &g, method_name, typeargs);
 
     if(func == NULL)
     {
@@ -154,10 +154,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     f_type = LLVMTypeOf(func);
   }
 
-  int count = ast_childcount(positional) + need_receiver;
+  size_t count = ast_childcount(positional) + need_receiver;
 
-  LLVMValueRef args[count];
-  LLVMTypeRef params[count];
+  PONY_VL_ARRAY(LLVMValueRef, args, count);
+  PONY_VL_ARRAY(LLVMTypeRef, params, count);
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
   if(need_receiver == 1)
@@ -203,6 +203,15 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   return call_fun(c, LLVMGetNamedFunction(c->module, name), args, count, ret);
 }
 
+LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
+{
+  LLVMValueRef args[1];
+  args[0] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+
+  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 1, "");
+  return LLVMBuildBitCast(c->builder, result, g->use_type, "");
+}
+
 LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
 {
   LLVMTypeRef l_type = LLVMGetElementType(type);
@@ -215,36 +224,26 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   return LLVMBuildBitCast(c->builder, result, type, "");
 }
 
-static void trace_tag(compile_t* c, LLVMValueRef field)
+static void trace_tag(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
-  // cast the field to a void pointer
+  // cast the value to a void pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
 
   gencall_runtime(c, "pony_trace", args, 1, "");
 }
 
-static void trace_actor(compile_t* c, LLVMValueRef field)
+static void trace_actor(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
-  // cast the field to an object pointer
+  // cast the value to an object pointer
   LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
 
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
 
-static void trace_known(compile_t* c, LLVMValueRef field,
-  const char* name)
+static void trace_known(compile_t* c, LLVMValueRef value, const char* name)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
   // get the trace function statically
   const char* fun = genname_trace(name);
 
@@ -254,24 +253,21 @@ static void trace_known(compile_t* c, LLVMValueRef field,
   // if this type has no trace function, don't try to recurse in the runtime
   if(args[1] != NULL)
   {
-    // cast the field to an object pointer
-    args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "");
+    // cast the value to an object pointer
+    args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
     gencall_runtime(c, "pony_traceobject", args, 2, "");
   } else {
-    // cast the field to a void pointer
-    args[0] = LLVMBuildBitCast(c->builder, field_val, c->void_ptr, "");
+    // cast the value to a void pointer
+    args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
     gencall_runtime(c, "pony_trace", args, 1, "");
   }
 }
 
-static void trace_unknown(compile_t* c, LLVMValueRef field)
+static void trace_unknown(compile_t* c, LLVMValueRef value)
 {
-  // load the contents of the field
-  LLVMValueRef field_val = LLVMBuildLoad(c->builder, field, "");
-
   // cast the field to an object pointer
   LLVMValueRef args[2];
-  args[0] = LLVMBuildBitCast(c->builder, field_val, c->object_ptr, "object");
+  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "object");
 
   // get the type descriptor from the object pointer
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, args[0], 0, "");
@@ -339,7 +335,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
     {
       bool tag = cap_for_type(type) == TK_TAG;
 
-      switch(ast_id(ast_data(type)))
+      switch(ast_id((ast_t*)ast_data(type)))
       {
         case TK_TRAIT:
           if(tag)

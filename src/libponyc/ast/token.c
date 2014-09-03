@@ -14,28 +14,33 @@ typedef struct token_t
   size_t pos;
   char* printed;
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  const char* string;
+  double real;
+  __uint128_t integer;
+#else
   union
   {
     const char* string;
     double real;
     __uint128_t integer;
-  };
+  }; 
+#endif
 } token_t;
 
 
 token_t* token_new(token_id id, source_t* source)
 {
-  token_t* t = calloc(1, sizeof(token_t));
+  token_t* t = (token_t*)calloc(1, sizeof(token_t));
   t->id = id;
   t->source = source;
   return t;
 }
 
-
 token_t* token_dup(token_t* token)
 {
   assert(token != NULL);
-  token_t* t = malloc(sizeof(token_t));
+  token_t* t = (token_t*)malloc(sizeof(token_t));
   memcpy(t, token, sizeof(token_t));
   t->printed = NULL;
   return t;
@@ -106,20 +111,20 @@ const char* token_print(token_t* token)
       return token->string;
 
     case TK_INT:
-      if(token->printed == NULL)
-        token->printed = malloc(32);
-
-      snprintf(token->printed, 32, "%zu", (size_t)token->integer);
+      if (token->printed == NULL)
+        token->printed = (char*)malloc(32);
+      
+      pony_snprintf(token->printed, 32, __pony_format_zu, (size_t)token->integer);
       return token->printed;
 
     case TK_FLOAT:
     {
       if(token->printed == NULL)
-        token->printed = malloc(32);
+        token->printed = (char*)malloc(32);
 
-      int r = snprintf(token->printed, 32, "%g", token->real);
+      int r = pony_snprintf(token->printed, 32, "%g", token->real);
       if(strcspn(token->printed, ".e") == r)
-        snprintf(token->printed + r, 32 - r, ".0");
+        pony_snprintf(token->printed + r, 32 - r, ".0");
 
       return token->printed;
     }
@@ -133,9 +138,9 @@ const char* token_print(token_t* token)
     return p;
 
   if(token->printed == NULL)
-    token->printed = malloc(32);
+    token->printed = (char*)malloc(32);
 
-  snprintf(token->printed, 32, "Unknown_token_%d", token->id);
+  pony_snprintf(token->printed, 32, "Unknown_token_%d", token->id);
   return token->printed;
 }
 
@@ -147,14 +152,14 @@ source_t* token_source(token_t* token)
 }
 
 
-int token_line_number(token_t* token)
+size_t token_line_number(token_t* token)
 {
   assert(token != NULL);
   return token->line;
 }
 
 
-int token_line_position(token_t* token)
+size_t token_line_position(token_t* token)
 {
   assert(token != NULL);
   return token->pos;
@@ -194,8 +199,7 @@ void token_set_int(token_t* token, __uint128_t value)
   token->integer = value;
 }
 
-
-void token_set_pos(token_t* token, int line, int pos)
+void token_set_pos(token_t* token, size_t line, size_t pos)
 {
   assert(token != NULL);
   token->line = line;

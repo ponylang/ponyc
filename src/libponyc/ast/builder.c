@@ -68,8 +68,8 @@ typedef struct build_parser_t
   symtab_t* defs;
   builder_ref_t* refs;
   ast_token_id id;
-  int line;
-  int pos;
+  size_t line;
+  size_t pos;
   bool have_token;
   bool had_error;
 } build_parser_t;
