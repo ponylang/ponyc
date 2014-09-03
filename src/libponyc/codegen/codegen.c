@@ -4,6 +4,7 @@
 #include "gentype.h"
 #include "gendesc.h"
 #include "genfun.h"
+#include "gencall.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
 #include "../ast/error.h"
@@ -152,12 +153,20 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
   LLVMAddFunction(c->module, "pony_recv_done", type);
 
-  // int pony_start(i32, i8**, $object*, i1)
+  // i32 pony_init(i32, i8**)
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(c->void_ptr, 0);
-  params[2] = c->object_ptr;
-  params[3] = LLVMInt1Type();
-  type = LLVMFunctionType(LLVMInt32Type(), params, 4, false);
+  type = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
+  LLVMAddFunction(c->module, "pony_init", type);
+
+  // void pony_become($object*)
+  params[0] = c->object_ptr;
+  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  LLVMAddFunction(c->module, "pony_become", type);
+
+  // i32 pony_start(i32)
+  params[0] = LLVMInt32Type();
+  type = LLVMFunctionType(LLVMInt32Type(), params, 1, false);
   LLVMAddFunction(c->module, "pony_start", type);
 
   // void pony_throw()
@@ -187,24 +196,25 @@ static void codegen_main(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, func);
 
-  LLVMValueRef argc = LLVMGetParam(func, 0);
-  LLVMSetValueName(argc, "argc");
+  LLVMValueRef args[2];
+  args[0] = LLVMGetParam(func, 0);
+  LLVMSetValueName(args[0], "argc");
 
-  LLVMValueRef argv = LLVMGetParam(func, 1);
-  LLVMSetValueName(argv, "argv");
+  args[1] = LLVMGetParam(func, 1);
+  LLVMSetValueName(args[1], "argv");
 
-  // TODO: build an Env, create the main actor, start the pony runtime
-  // Env should be on main actor's heap
-  // argc = scheduler_init(argc, argv)
-  // m = pony_create(...)
-  // pony_become(m)
+  args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
+  LLVMValueRef m = gencall_create(c, g);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
+  gencall_runtime(c, "pony_become", &object, 1, "");
+
+  // TODO: build an Env, send it to the main actor
   // env = $1_Env_create(argc, argv)
   // send env msg to m by hand
-  // if(!scheduler_start(0, 1)) return -1
-  // return pony_shutdown()
-  // can't just call $1_Main_create, because we need to become the actor
-  // so that we can allocate env on m's heap
-  LLVMBuildRet(c->builder, argc);
+
+  LLVMValueRef zero = LLVMConstInt(LLVMInt32Type(), 0, false);
+  LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+  LLVMBuildRet(c->builder, rc);
 
   codegen_finishfun(c);
 }
