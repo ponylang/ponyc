@@ -203,17 +203,26 @@ static void codegen_main(compile_t* c, gentype_t* g)
   args[1] = LLVMGetParam(func, 1);
   LLVMSetValueName(args[1], "argv");
 
+  // Initialise the pony runtime with argc and argv, getting a new argc.
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
+
+  // Create the main actor and become it.
   LLVMValueRef m = gencall_create(c, g);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
   gencall_runtime(c, "pony_become", &object, 1, "");
 
-  // TODO: build an Env, send it to the main actor
-  // env = $1_Env_create(argc, argv)
-  // send env msg to m by hand
+  // Create an Env on the main actor's heap.
+  args[0] = LLVMBuildZExt(c->builder, args[0], LLVMInt64Type(), "");
+  LLVMValueRef env = gencall_runtime(c, "$1_Env__create", args, 2, "env");
 
+  // TODO: send env msg to m by hand
+  (void)env;
+
+  // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(LLVMInt32Type(), 0, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+
+  // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
 
   codegen_finishfun(c);
