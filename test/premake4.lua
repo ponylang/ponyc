@@ -36,7 +36,7 @@ function testutil()
     includedirs {
       "../src/",
       "../inc/"
-    } 
+    }
     if not os.is("windows") then
       buildoptions "-std=gnu11"
     end
@@ -52,4 +52,3 @@ project "unit"
 project "bnf"
   testutil()
   files { "bnf/*.c", "bnf/*.h" }
-  cppforce { "bnf/*.c" }
