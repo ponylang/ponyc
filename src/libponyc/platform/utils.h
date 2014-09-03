@@ -3,7 +3,7 @@
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
 #  include <malloc.h>
-#  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
+#  define VLA(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
             (SIZE)*sizeof(TYPE))
 #endif
 
@@ -42,7 +42,7 @@ struct winsize
 #endif
 
 #if defined(PLATFORM_IS_POSIX_BASED) || defined(PLATFORM_IS_CLANG_OR_GCC)
-#  define PONY_VL_ARRAY(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
+#  define VLA(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
 void pony_strcpy(char* dest, const char* source);

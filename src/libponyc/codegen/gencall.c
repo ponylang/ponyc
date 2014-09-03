@@ -156,8 +156,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   size_t count = ast_childcount(positional) + need_receiver;
 
-  PONY_VL_ARRAY(LLVMValueRef, args, count);
-  PONY_VL_ARRAY(LLVMTypeRef, params, count);
+  VLA(LLVMValueRef, args, count);
+  VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
   if(need_receiver == 1)

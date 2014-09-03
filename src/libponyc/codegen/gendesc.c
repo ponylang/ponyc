@@ -15,7 +15,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
   size_t count = LLVMCountParamTypes(f_type);
 
-  PONY_VL_ARRAY(LLVMTypeRef, params, count);
+  VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
@@ -33,7 +33,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
-  PONY_VL_ARRAY(LLVMValueRef, args, count);
+  VLA(LLVMValueRef, args, count);
   args[0] = primitive;
 
   for(size_t i = 1; i < count; i++)
@@ -83,7 +83,7 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 void gendesc_init(compile_t* c, gentype_t* g)
 {
   // Build the vtable.
-  PONY_VL_ARRAY(LLVMValueRef, vtable, g->vtable_size);
+  VLA(LLVMValueRef, vtable, g->vtable_size);
 
   for(size_t i = 0; i < g->vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
