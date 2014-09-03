@@ -12,7 +12,6 @@ UnsignedInt128& UnsignedInt128::operator+=(const UnsignedInt128& rvalue)
 {
   high = high + rvalue.high + ((low + rvalue.low) < low);
   low += rvalue.low;
-
   return *this;
 }
 
@@ -20,31 +19,30 @@ UnsignedInt128& UnsignedInt128::operator-=(const UnsignedInt128& rvalue)
 {
   high = high - rvalue.high - ((low - rvalue.low) > low);
   low -= rvalue.low;
-
   return *this;
 }
 
 UnsignedInt128& UnsignedInt128::operator*=(const UnsignedInt128& rvalue)
 {
-  if (rvalue == uint128_1)
+  if(rvalue == uint128_1)
     return *this;
-  if (rvalue == uint128_0)
+  if(rvalue == uint128_0)
   {
     low = 0;
     high = 0;
     return *this;
   }
-   
+
   UnsignedInt128 a(*this); //not really want to copy this.
   UnsignedInt128 b(rvalue);
 
   low = high = 0;
- 
-  while (b > uint128_0)
+
+  while(b > uint128_0)
   {
-    if ((b & uint128_1) != uint128_0)
+    if((b & uint128_1) != uint128_0)
       *this += a;
-    
+
     a <<= 1;
     b >>= 1;
   }
@@ -54,19 +52,19 @@ UnsignedInt128& UnsignedInt128::operator*=(const UnsignedInt128& rvalue)
 
 UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
 {
-  if (rvalue == uint128_0)
+  if(rvalue == uint128_0)
     throw std::domain_error("Division by zero!");
-  else if (rvalue == uint128_1)
+  else if(rvalue == uint128_1)
   {
     return *this;
   }
-  else if (*this == rvalue)
+  else if(*this == rvalue)
   {
     low = 1;
     high = 0;
     return *this;
   }
-  else if (*this == uint128_0 || *this < rvalue)
+  else if(*this == uint128_0 || *this < rvalue)
   {
     low = 0;
     high = 0;
@@ -75,8 +73,8 @@ UnsignedInt128& UnsignedInt128::operator/=(const UnsignedInt128& rvalue)
 
   UnsignedInt128 q = 0;
   UnsignedInt128 r = 0;
- 
-  for (uint8_t i = 127; i < UINT8_MAX; --i)
+
+  for(uint8_t i = 127; i < UINT8_MAX; --i)
   {
     r <<= 1;
     r |= (*this >> i) & uint128_1;
@@ -102,7 +100,6 @@ UnsignedInt128& UnsignedInt128::operator&=(const UnsignedInt128& rvalue)
 {
   low &= rvalue.low;
   high &= rvalue.high;
-  
   return *this;
 }
 
@@ -110,7 +107,6 @@ UnsignedInt128& UnsignedInt128::operator|=(const UnsignedInt128& rvalue)
 {
   low |= rvalue.low;
   high |= rvalue.high;
-
   return *this;
 }
 
@@ -118,32 +114,31 @@ UnsignedInt128& UnsignedInt128::operator^=(const UnsignedInt128& rvalue)
 {
   low ^= rvalue.low;
   high ^= rvalue.high;
-
   return *this;
 }
 
 UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
 {
-  if (shift == 0)
+  if(shift == 0)
   {
     return *this;
   }
-  else if (shift >= 128)
+  else if(shift >= 128)
   {
     low = 0;
     high = 0;
   }
-  else if (shift == 64)
+  else if(shift == 64)
   {
     high = low;
     low = 0;
   }
-  else if (shift < 64)
+  else if(shift < 64)
   {
     high = (high << shift) + (low >> (64 - shift));
     low <<= shift;
   }
-  else if ((128 > shift) && (shift > 64)) // 128 > shift > 64
+  else if((128 > shift) && (shift > 64))
   {
     high = low << (shift - 64);
     low = 0;
@@ -154,26 +149,26 @@ UnsignedInt128& UnsignedInt128::operator<<=(const int shift)
 
 UnsignedInt128& UnsignedInt128::operator>>=(const int shift)
 {
-  if (shift == 0)
+  if(shift == 0)
   {
     return *this;
   }
-  if (shift >= 128)
+  if(shift >= 128)
   {
     low = 0;
     high = 0;
   }
-  else if (shift == 64)
+  else if(shift == 64)
   {
     low = high;
     high = 0;
   }
-  else if (shift < 64)
+  else if(shift < 64)
   {
     high >>= shift;
     low = (high << (64 - shift)) + (low >> shift);
   }
-  else if ((128 > shift) && (shift > 64)) // 128 > shift > 64
+  else if((128 > shift) && (shift > 64))
   {
     low = high >> (shift - 64);
     high = 0;
@@ -184,11 +179,11 @@ UnsignedInt128& UnsignedInt128::operator>>=(const int shift)
 
 cmp_t compare(const UnsignedInt128& lvalue, const UnsignedInt128& rvalue)
 {
-  if (lvalue.high == rvalue.high && lvalue.low == rvalue.low)
+  if(lvalue.high == rvalue.high && lvalue.low == rvalue.low)
     return equal;
-  else if (lvalue.high == rvalue.high && lvalue.low < rvalue.low)
+  else if(lvalue.high == rvalue.high && lvalue.low < rvalue.low)
     return less;
-  
+
   return greater;
 }
 
@@ -301,7 +296,6 @@ UnsignedInt128 operator~(const UnsignedInt128& lvalue)
   UnsignedInt128 copy(lvalue);
   copy.low = ~lvalue.low;
   copy.high = ~lvalue.high;
-
   return copy;
 }
 
@@ -310,12 +304,15 @@ UnsignedInt128 operator++(UnsignedInt128& rvalue)
   if (++rvalue.low == 0)
     ++rvalue.high;
 
+#ifdef __CATCH_BIGINT_OVERFLOW
   //if execution reaches this point, ++ caused an overflow
   //since we do not support type promotion for primitives
   //we inform the user about this overflow, if the macro
   //__CATCH_BIGINT_OVERFLOW is defined.
-#ifdef __CATCH_BIGINT_OVERFLOW
-  //TODO
+  if(rvalue.high == 0)
+  {
+    //TODO
+  }
 #endif
 
   return rvalue;

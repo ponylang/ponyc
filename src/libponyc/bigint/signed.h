@@ -16,7 +16,7 @@ public:
   UnsignedInt128 magnitude;
 
   SignedInt128() {}
-  SignedInt128(const SignedInt128& val) 
+  SignedInt128(const SignedInt128& val)
   {
     sign = val.sign;
     magnitude = val.magnitude;
@@ -30,13 +30,13 @@ public:
   SignedInt128(const T& val) : magnitude(val)
   {
     static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_INT_COPY);
-    
-    if (val == 0)
+
+    if(val == 0)
     {
       sign = zero;
       return;
     }
-    
+
     sign = (val < 0) ? negative : positive;
   }
 

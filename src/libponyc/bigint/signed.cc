@@ -4,7 +4,6 @@ SignedInt128& SignedInt128::operator=(const SignedInt128& rvalue)
 {
   sign = rvalue.sign;
   magnitude = rvalue.magnitude;
-
   return *this;
 }
 
@@ -17,16 +16,16 @@ SignedInt128& SignedInt128::operator=(const UnsignedInt128& rvalue)
 
 SignedInt128& SignedInt128::operator+=(const SignedInt128& rvalue)
 {
-  if (sign == zero)
+  if(sign == zero)
     magnitude = rvalue.magnitude;
-  else if (rvalue.sign == zero)
+  else if(rvalue.sign == zero)
     return *this;
-  else if (sign == rvalue.sign)
+  else if(sign == rvalue.sign)
     magnitude += rvalue.magnitude;
   else
   {
     //signs must be different (one is negative, one positive)
-    switch (compare(magnitude, rvalue.magnitude))
+    switch(compare(magnitude, rvalue.magnitude))
     {
       case equal:
         sign = zero;
@@ -47,16 +46,16 @@ SignedInt128& SignedInt128::operator+=(const SignedInt128& rvalue)
 
 SignedInt128& SignedInt128::operator-=(const SignedInt128& rvalue)
 {
-  if (rvalue.sign == zero)
+  if(rvalue.sign == zero)
     return *this;
-  else if (sign == zero)
+  else if(sign == zero)
   {
     magnitude = rvalue.magnitude;
     sign = sign_t(-rvalue.sign);
   }
   else
   {
-    switch (compare(magnitude, rvalue.magnitude))
+    switch(compare(magnitude, rvalue.magnitude))
     {
       case equal:
         magnitude = 0;
@@ -77,7 +76,7 @@ SignedInt128& SignedInt128::operator-=(const SignedInt128& rvalue)
 
 SignedInt128& SignedInt128::operator*=(const SignedInt128& rvalue)
 {
-  if (sign == zero || rvalue.sign == zero)
+  if(sign == zero || rvalue.sign == zero)
   {
     sign = zero;
     magnitude = 0;
@@ -134,13 +133,13 @@ SignedInt128& SignedInt128::operator>>=(const int shift)
 
 cmp_t compare(const SignedInt128& lvalue, const SignedInt128& rvalue)
 {
-  if (lvalue.sign < rvalue.sign)
+  if(lvalue.sign < rvalue.sign)
     return less;
-  else if (lvalue.sign > rvalue.sign)
+  else if(lvalue.sign > rvalue.sign)
     return greater;
   else
   {
-    switch (lvalue.sign)
+    switch(lvalue.sign)
     {
       case zero:
         return equal;
