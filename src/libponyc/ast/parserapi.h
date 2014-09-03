@@ -107,14 +107,7 @@ void syntax_error(parser_t* parser, const char* func, int line);
 #define HANDLE_ERRORS(sub_ast) \
   { \
     ast_t*r = sub_result(parser, ast, &state, sub_ast, __FUNCTION__, __LINE__); \
-    if(r != NULL) \
-    { \
-      if(r == RULE_NOT_FOUND) \
-        printf("Rule %s not found\n", rule_name); \
-      else \
-        printf("Rule %s failed\n", rule_name); \
-      return r;  \
-    } \
+    if(r != NULL) return r;  \
   }
 
 #define MAKE_DEFAULT(sub_ast, id) \
@@ -147,8 +140,6 @@ ast_t* parse(source_t* source, rule_t start);
   static ast_t* rule(parser_t* parser) \
   { \
     ast_t* ast = NULL; \
-    const char* rule_name = #rule; \
-    printf("Looking for rule %s\n", rule_name); \
     rule_state_t state = { false, false, false, false }
 
 
@@ -188,9 +179,6 @@ ast_t* parse(source_t* source, rule_t start);
 #define TOKEN(...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    const char* more = (id_set[1] == TK_NONE) ? "" : "..."; \
-    printf("Looking for %s token %d%s\n", state.opt ? "optional" : "required", \
-      id_set[0], more); \
     ast_t* sub_ast = token_in_set(parser, id_set, true); \
     HANDLE_ERRORS(sub_ast); \
     MAKE_DEFAULT(sub_ast, TK_NONE); \
@@ -312,7 +300,6 @@ ast_t* parse(source_t* source, rule_t start);
 #define DONE() \
     process_deferred_ast(parser, &ast, &state); \
     if(state.scope && ast != NULL) ast_scope(ast); \
-    printf("Rule %s complete\n", rule_name); \
     return ast; \
   }
 
