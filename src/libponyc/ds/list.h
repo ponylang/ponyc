@@ -14,7 +14,7 @@ list_t* list_append(list_t* list, const void* data);
 
 list_t* list_next(list_t* list);
 
-list_t* list_index(list_t* list, size_t index);
+list_t* list_index(list_t* list, ssize_t index);
 
 void* list_data(list_t* list);
 
@@ -45,7 +45,7 @@ void list_free(list_t* list, free_fn f);
   name##_t* name##_push(name##_t* list, elem* data); \
   name##_t* name##_append(name##_t* list, elem* data); \
   name##_t* name##_next(name##_t* list); \
-  name##_t* name##_index(name##_t* list, size_t index); \
+  name##_t* name##_index(name##_t* list, ssize_t index); \
   elem* name##_data(name##_t* list); \
   elem* name##_find(name##_t* list, elem* data); \
   int name##_findindex(name##_t* list, elem* data); \
@@ -75,7 +75,7 @@ void list_free(list_t* list, free_fn f);
   { \
     return (name##_t*)list_next((list_t*)list); \
   } \
-  name##_t* name##_index(name##_t* list, size_t index) \
+  name##_t* name##_index(name##_t* list, ssize_t index) \
   { \
     return (name##_t*)list_index((list_t*)list, index); \
   } \

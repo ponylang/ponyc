@@ -51,7 +51,7 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
   }
 
   return dir;
-#elif PLATFORM_IS_POSIX_BASED
+#elif defined(PLATFORM_IS_POSIX_BASED)
   PONY_DIR* dir = opendir(path);
   if(dir == NULL)
   {
@@ -74,7 +74,7 @@ char* pony_realpath(const char* path, char* resolved)
   }
 
   return NULL;
-#elif PLATFORM_IS_POSIX_BASED
+#elif defined(PLATFORM_IS_POSIX_BASED)
   return realpath(path, resolved);
 #endif
 }
@@ -83,7 +83,7 @@ char* pony_get_dir_name(PONY_DIRINFO* info)
 {
 #ifdef PLATFORM_IS_WINDOWS
   return info->cFileName;
-#elif PLATFORM_IS_POSIX_BASED
+#elif defined(PLATFORM_IS_POSIX_BASED)
   return info->d_name;
 #endif
 }
@@ -92,7 +92,7 @@ void pony_closedir(PONY_DIR* dir)
 {
 #ifdef PLATFORM_IS_WINDOWS
   FindClose(dir->ptr);
-#elif PLATFORM_IS_POSIX_BASED
+#elif defined(PLATFORM_IS_POSIX_BASED)
   closedir(dir);
 #endif
 }
@@ -104,8 +104,8 @@ void* pony_map_read(size_t size, intptr_t fd)
   void* p = MapViewOfFile(map, FILE_MAP_READ, 0, 0, size);
   CloseHandle(map);
   return p;
-#elif PLATFORM_IS_POSIX_BASED
-  mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  return mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
 #endif
 }
 
@@ -113,8 +113,8 @@ void pony_unmap(void* p, size_t size)
 {
 #ifdef PLATFORM_IS_WINDOWS
   UnmapViewOfFile(p);
-#elif PLATFORM_IS_POSIX_BASED
-  munmap(file, size);
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  munmap(p, size);
 #endif
 }
 
@@ -129,7 +129,7 @@ bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
 
   *res = NULL;
   return false;
-#elif PLATFORM_IS_POSIX_BASED
+#elif defined(PLATFORM_IS_POSIX_BASED)
   return readdir_r(dir, entry, res) != 0;
 #else
   return false;

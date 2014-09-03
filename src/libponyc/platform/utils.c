@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 int opterr, optind, optopt, optreset = 0;
 char* optarg = NULL;
@@ -71,7 +72,7 @@ bool pony_get_term_winsize(struct winsize* ws)
   ws->ws_ypixel = info.dwSize.Y;
 
   return true;
-#elif PLATFORM_IS_POSIX_BASED
-  return ioctl(STDOUT_FILENO, TIOCGWINSZ, ws) != -1
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  return ioctl(STDOUT_FILENO, TIOCGWINSZ, ws) != -1;
 #endif
 }
