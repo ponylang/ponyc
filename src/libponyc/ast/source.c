@@ -6,41 +6,35 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../platform/platform.h"
-
-//use FILE*, fopen, seek, to the end, malloc, read, close, ...
 source_t* source_open(const char* file)
 {
-  intptr_t fd = pony_openr(file);
-
-  if(fd == -1)
+  FILE* fp = fopen(file, "rb");
+  
+  if(fp == NULL)
   {
     errorf(file, "can't open file");
     return NULL;
   }
 
-  struct stat sb;
+  fseek(fp, 0, SEEK_END);
+  ssize_t size = ftell(fp);
 
-  if(fstat((int)fd, &sb) < 0)
+  if(size < 0)
   {
     errorf(file, "can't determine length of file");
-    pony_close(fd);
+    fclose(fp);
     return NULL;
   }
 
-  char* m = (char*)pony_map_read(sb.st_size, fd);
-  pony_close(fd);
-
-  if(m == PONY_MAP_FAILED)
-  {
-    errorf(file, "can't read file");
-    return NULL;
-  }
+  fseek(fp, 0, SEEK_SET);
 
   source_t* source = (source_t*)malloc(sizeof(source_t));
   source->file = stringtab(file);
-  source->m = m;
-  source->len = sb.st_size;
+  source->m = (char*)malloc(size);
+  source->len = size;
+
+  fread(source->m, sizeof(char), size, fp);
+  fclose(fp);
 
   return source;
 }
@@ -64,9 +58,7 @@ void source_close(source_t* source)
   if(source == NULL)
     return;
 
-  if(source->file != NULL)
-    pony_unmap(source->m, source->len);
-  else
+  if(source->m != NULL)
     free(source->m);
 
   free(source);

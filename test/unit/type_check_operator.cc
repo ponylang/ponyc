@@ -7,7 +7,6 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ds/stringtab.h"
 #include "../../src/libponyc/pass/pass.h"
 #include "../../src/libponyc/pkg/package.h"
-#include "../../src/libponyc/platform/format.h"
 PONY_EXTERN_C_END
 
 #include "util.h"
@@ -95,7 +94,7 @@ protected:
   void test_bin_op_bad(token_id op_id, const char* type_a,
     const char* type_b)
   {
-    pony_snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
+    snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
@@ -105,7 +104,7 @@ protected:
   void test_bin_op_replace(token_id op_id, const char* type_a,
     const char* type_b, const char* type_result, token_id replace_id)
   {
-    pony_snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
+    snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
@@ -126,14 +125,14 @@ protected:
   {
     ASSERT_NE((void*)NULL, builder_add(builder, "test", fns_desc));
 
-    pony_snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
+    snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
     ASSERT_EQ(AST_OK, pass_expr(&op_ast));
 
     char result_buf[1000];
-    pony_snprintf(op_buf, sizeof(op_buf),
+    snprintf(op_buf, sizeof(op_buf),
       "(call"
       "  (funref (fvarref(id a) [%s]) (id %s)"
       "    [(funtype box x (params(param(id a) %s x)) %s)])"
@@ -145,7 +144,7 @@ protected:
 
   void test_unary_op_bad(token_id op_id, const char* type_op)
   {
-    pony_snprintf(op_buf, sizeof(op_buf), "(- (fvarref (id op) [%s]))", type_op);
+    snprintf(op_buf, sizeof(op_buf), "(- (fvarref (id op) [%s]))", type_op);
 
     DO(add_op());
     ast_setid(op_ast, op_id);
@@ -156,7 +155,7 @@ protected:
   void test_unary_op(token_id op_id, const char* type_op, 
     const char* type_result)
   {
-    pony_snprintf(op_buf, sizeof(op_buf), "(- (fvarref (id op) [%s]))", type_op);
+    snprintf(op_buf, sizeof(op_buf), "(- (fvarref (id op) [%s]))", type_op);
 
     DO(add_op());
     ast_setid(op_ast, op_id);

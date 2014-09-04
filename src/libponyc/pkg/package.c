@@ -224,7 +224,7 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
     //if(d->d_type & DT_REG)
     {
       // handle only files with the specified extension
-      char* name = pony_get_dir_name(d);
+      char* name = pony_dir_info_name(d);
       const char* p = strrchr(name, '.');
 
       if(!p || strcmp(p, EXTENSION))

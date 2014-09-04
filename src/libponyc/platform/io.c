@@ -1,18 +1,6 @@
 #include "platform.h"
 #include <stdio.h>
 
-intptr_t pony_openr(const char* file)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  //OpenFile has a 128 character path limit, therefore we use CreateFile (which
-  //does not have this limit) to open files ...
-  return (intptr_t)CreateFile(file, GENERIC_READ, 0, NULL, OPEN_EXISTING,
-    FILE_ATTRIBUTE_NORMAL, NULL);
-#else
-  return open(file, O_RDONLY);
-#endif
-}
-
 void pony_close(intptr_t fileHandle)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -34,8 +22,8 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
   }
 
   TCHAR win_path[MAX_PATH];
-  strcpy_s(win_path, strlen(path), path);
-  strcat_s(win_path, 3, TEXT("\\*"));
+  strcpy(win_path, path);
+  strcat(win_path, "\\*");
 
   PONY_DIR* dir = (PONY_DIR*)malloc(sizeof(PONY_DIR));
 
@@ -79,7 +67,7 @@ char* pony_realpath(const char* path, char* resolved)
 #endif
 }
 
-char* pony_get_dir_name(PONY_DIRINFO* info)
+char* pony_dir_info_name(PONY_DIRINFO* info)
 {
 #ifdef PLATFORM_IS_WINDOWS
   return info->cFileName;
@@ -94,27 +82,6 @@ void pony_closedir(PONY_DIR* dir)
   FindClose(dir->ptr);
 #elif defined(PLATFORM_IS_POSIX_BASED)
   closedir(dir);
-#endif
-}
-
-void* pony_map_read(size_t size, intptr_t fd)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  HANDLE map = CreateFileMapping((HANDLE)fd, NULL, PAGE_READONLY, 0, 0, NULL);
-  void* p = MapViewOfFile(map, FILE_MAP_READ, 0, 0, size);
-  CloseHandle(map);
-  return p;
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  return mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
-#endif
-}
-
-void pony_unmap(void* p, size_t size)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  UnmapViewOfFile(p);
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  munmap(p, size);
 #endif
 }
 
