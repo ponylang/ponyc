@@ -63,7 +63,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[1] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(g->use_type, params, 2, false);
-  fun = LLVMAddFunction(c->module, g->type_name, ftype);
+  fun = LLVMAddFunction(c->module, name, ftype);
   codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);

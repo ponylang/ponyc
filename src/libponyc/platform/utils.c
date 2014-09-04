@@ -4,10 +4,10 @@
 #include <stdarg.h>
 #include <string.h>
 
+#ifdef PLATFORM_IS_WINDOWS
 int opterr, optind, optopt, optreset = 0;
 char* optarg = NULL;
 
-#ifdef PLATFORM_IS_WINDOWS
 int getopt(int argc, char* const argv[], const char* optstring)
 {
   return 0;
