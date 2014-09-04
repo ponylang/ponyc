@@ -300,10 +300,11 @@ void ast_get_children(ast_t* parent, size_t child_count,
 
 #define AST_GET_CHILDREN_NO_DECL(parent, ...) \
   { \
-    ast_ptr_t* children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
+    ast_t** children[] = { FOREACH(ADDR_AST, __VA_ARGS__) NULL }; \
     ast_get_children(parent, (sizeof(children) / sizeof(ast_t**)) - 1, \
       children); \
   }
+
 
 void ast_extract_children(ast_t* parent, size_t child_count,
   ast_t*** out_children);

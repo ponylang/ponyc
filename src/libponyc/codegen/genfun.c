@@ -188,7 +188,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   else
     size = __pony_ffsl(size) - 7;
 
-  // Allocate the message, setting its ID and index.
+  // Allocate the message, setting its ID and size.
   LLVMValueRef args[2];
   args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
   args[1] = LLVMConstInt(LLVMInt32Type(), size, false);

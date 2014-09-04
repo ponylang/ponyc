@@ -11,52 +11,54 @@ PONY_EXTERN_C_END
 
 
 class ColourTest: public testing::Test
-{};
+{
+protected:
+  ast_t* ast;
+  builder_t* builder;
+  painter_t* p;
+
+  virtual void TearDown()
+  {
+    painter_free(p);
+    builder_free(builder);
+  }
+
+  virtual void paint(const char* desc)
+  {
+    DO(build_ast_from_string(desc, &ast, &builder));
+    p = painter_create();
+    painter_colour(p, ast);
+  }
+};
 
 
-TEST(ColourTest, SingleTypeSingleFunction)
+TEST_F(ColourTest, SingleTypeSingleFunction)
 {
   const char* def =
-    "(module"
-    "  (class (id Foo) x x x"
-    "    (members (fun ref (id foo) x x x x x))))";
+    "(class (id Foo) x x x"
+    "  (members (fun ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, FunctionNotFound)
+TEST_F(ColourTest, FunctionNotFound)
 {
   const char* def =
-    "(module"
-    "  (class (id Foo) x x x"
-    "    (members (fun ref (id foo) x x x x x))))";
+    "(class (id Foo) x x x"
+    "  (members (fun ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(-1, painter_get_colour(p, stringtab("bar")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, MultiTypeMultiFunction)
+TEST_F(ColourTest, MultiTypeMultiFunction)
 {
   const char* def =
     "(module"
@@ -69,24 +71,17 @@ TEST(ColourTest, MultiTypeMultiFunction)
     "      (fun ref (id bar) x x x x x)"
     "      (fun ref (id foo) x x x x x))))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
   ASSERT_EQ(1, painter_get_colour(p, stringtab("bar")));
 
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 0)));
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 1)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 0)));
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 1)));
 }
 
 
-TEST(ColourTest, ThreeTypeTwoFunctionForcedSparse)
+TEST_F(ColourTest, ThreeTypeTwoFunctionForcedSparse)
 {
   const char* def =
     "(module"
@@ -103,139 +98,92 @@ TEST(ColourTest, ThreeTypeTwoFunctionForcedSparse)
     "      (fun ref (id d) x x x x x)"
     "      (fun ref (id f) x x x x x))))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("d")));
   ASSERT_EQ(1, painter_get_colour(p, stringtab("e")));
   ASSERT_EQ(2, painter_get_colour(p, stringtab("f")));
 
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 0)));
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 1)));
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 2)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 0)));
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 1)));
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 2)));
 }
 
 
-TEST(ColourTest, FieldsSkipped)
+TEST_F(ColourTest, FieldsSkipped)
 {
   const char* def =
-    "(module"
-    "  (class (id Foo) x x x"
-    "    (members"
-    "      (fvar (id wombat) x x)"
-    "      (flet (id aardvark) x x)"
-    "      (fun ref (id foo) x x x x x))))";
+    "(class (id Foo) x x x"
+    "  (members"
+    "    (fvar (id wombat) x x)"
+    "    (flet (id aardvark) x x)"
+    "    (fun ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, ConstructorsSkipped)
+TEST_F(ColourTest, ConstructorsSkipped)
 {
   const char* def =
-    "(module"
-    "  (class (id Foo) x x x"
-    "    (members"
-    "      (new ref (id wombat) x x x x x)"
-    "      (fun ref (id foo) x x x x x))))";
+    "(class (id Foo) x x x"
+    "  (members"
+    "    (new ref (id wombat) x x x x x)"
+    "    (fun ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, Behaviour)
+TEST_F(ColourTest, Behaviour)
 {
   const char* def =
-    "(module"
-    "  (class (id Foo) x x x"
-    "    (members"
-    "      (be ref (id foo) x x x x x))))";
+    "(class (id Foo) x x x"
+    "  (members"
+    "    (be ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, Actor)
+TEST_F(ColourTest, Actor)
 {
   const char* def =
-    "(module"
-    "  (actor (id Foo) x x x"
-    "    (members"
-    "      (be ref (id foo) x x x x x))))";
+    "(actor (id Foo) x x x"
+    "  (members"
+    "    (be ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, Data)
+TEST_F(ColourTest, Data)
 {
   const char* def =
-    "(module"
-    "  (data (id Foo) x x x"
-    "    (members"
-    "      (be ref (id foo) x x x x x))))";
+    "(data (id Foo) x x x"
+    "  (members"
+    "    (be ref (id foo) x x x x x)))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast));
 }
 
 
-TEST(ColourTest, TraitsIgnored)
+TEST_F(ColourTest, TraitsIgnored)
 {
   const char* def =
     "(module"
@@ -246,22 +194,15 @@ TEST(ColourTest, TraitsIgnored)
     "    (members"
     "      (fun x (id bar) x x x x x))))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
   ASSERT_EQ(-1, painter_get_colour(p, stringtab("bar")));
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(module)));
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_child(ast)));
 }
 
 
-TEST(ColourTest, With64Types)
+TEST_F(ColourTest, With64Types)
 {
   const char* def =
     "(module"
@@ -341,11 +282,7 @@ TEST(ColourTest, With64Types)
     "      (fun ref (id bar) x x x x x)"
     "      (fun ref (id aardvark) x x x x x))))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(0, painter_get_colour(p, stringtab("foo")));
   ASSERT_EQ(1, painter_get_colour(p, stringtab("bar")));
@@ -355,23 +292,20 @@ TEST(ColourTest, With64Types)
   ASSERT_EQ(1, painter_get_colour(p, stringtab("wobble")));
   ASSERT_EQ(0, painter_get_colour(p, stringtab("unique")));
 
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 0)));   // T1
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 10)));  // T11
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 20)));  // T21
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 30)));  // T31
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 40)));  // T41
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 50)));  // T51
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 60)));  // T61
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 61)));  // T62
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 62)));  // T63
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 63)));  // T64
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 0)));   // T1
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 10)));  // T11
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 20)));  // T21
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 30)));  // T31
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 40)));  // T41
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 50)));  // T51
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 60)));  // T61
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 61)));  // T62
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 62)));  // T63
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 63)));  // T64
 }
 
 
-TEST(ColourTest, With66Types)
+TEST_F(ColourTest, With66Types)
 {
   const char* def =
     "(module"
@@ -460,11 +394,7 @@ TEST(ColourTest, With66Types)
     "      (fun ref (id wombat) x x x x x)"
     "      (fun ref (id wibble) x x x x x))))";
 
-  ast_t* module = parse_test_module(def);
-  ASSERT_NE((void*)NULL, module);
-
-  painter_t* p = painter_create();
-  painter_colour(p, module);
+  DO(paint(def));
 
   ASSERT_EQ(1, painter_get_colour(p, stringtab("foo")));
   ASSERT_EQ(2, painter_get_colour(p, stringtab("bar")));
@@ -474,19 +404,16 @@ TEST(ColourTest, With66Types)
   ASSERT_EQ(1, painter_get_colour(p, stringtab("wobble")));
   ASSERT_EQ(0, painter_get_colour(p, stringtab("unique")));
 
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 1)));   // T2
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 10)));  // T11
-  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(module, 20)));  // T21
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 30)));  // T31
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 40)));  // T41
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 50)));  // T51
-  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(module, 60)));  // T61
-  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(module, 61)));  // T62
-  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(module, 62)));  // T63
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 63)));  // T64
-  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(module, 64)));  // T65
-  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(module, 65)));  // T66
-
-  painter_free(p);
-  ast_free(module);
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 1)));   // T2
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 10)));  // T11
+  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(ast, 20)));  // T21
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 30)));  // T31
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 40)));  // T41
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 50)));  // T51
+  ASSERT_EQ(1, painter_get_vtable_size(p, ast_childidx(ast, 60)));  // T61
+  ASSERT_EQ(2, painter_get_vtable_size(p, ast_childidx(ast, 61)));  // T62
+  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(ast, 62)));  // T63
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 63)));  // T64
+  ASSERT_EQ(3, painter_get_vtable_size(p, ast_childidx(ast, 64)));  // T65
+  ASSERT_EQ(4, painter_get_vtable_size(p, ast_childidx(ast, 65)));  // T66
 }

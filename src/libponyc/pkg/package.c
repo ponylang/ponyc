@@ -43,6 +43,7 @@ typedef struct magic_package_t
 
 static strlist_t* search;
 static magic_package_t* magic_packages = NULL;
+static bool report_build = true;
 
 
 // Check whether the given path is a defined magic package
@@ -387,6 +388,11 @@ void package_add_magic(const char* path, const char* src)
   magic_packages = n;
 }
 
+void package_suppress_build_message()
+{
+  report_build = false;
+}
+
 ast_t* program_load(const char* path)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
@@ -417,7 +423,8 @@ ast_t* package_load(ast_t* from, const char* path)
 
   package = create_package(program, name);
 
-  printf("=== Building %s ===\n", name);
+  if(report_build)
+    printf("=== Building %s ===\n", name);
 
   if(!do_path(magic, package, name))
     return NULL;
@@ -434,7 +441,7 @@ ast_t* package_load(ast_t* from, const char* path)
 const char* package_name(ast_t* ast)
 {
   package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
-  return pkg->id;
+  return (pkg == NULL) ? NULL : pkg->id;
 }
 
 ast_t* package_id(ast_t* ast)

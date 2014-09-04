@@ -26,6 +26,11 @@ void package_paths(const char* paths);
 void package_add_magic(const char* path, const char* src);
 
 /**
+ * Suppress printing "building" message for each package.
+ */
+void package_suppress_build_message();
+
+/**
  * Load a program. The path specifies the package that represents the program.
  */
 ast_t* program_load(const char* path);

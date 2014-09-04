@@ -253,6 +253,9 @@ size_t ast_pos(ast_t* ast)
 
 void* ast_data(ast_t* ast)
 {
+  if(ast == NULL)
+    return NULL;
+
   return ast->data;
 }
 
@@ -548,11 +551,13 @@ ast_t* ast_parent(ast_t* ast)
 
 ast_t* ast_child(ast_t* ast)
 {
+  assert(ast != NULL);
   return ast->child;
 }
 
 ast_t* ast_childidx(ast_t* ast, size_t idx)
 {
+  assert(ast != NULL);
   ast_t* child = ast->child;
 
   while((child != NULL) && (idx > 0))

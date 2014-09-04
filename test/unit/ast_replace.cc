@@ -7,87 +7,54 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/token.h"
 PONY_EXTERN_C_END
 
+#include "util.h"
 #include <gtest/gtest.h>
 
 
 class AstReplaceTest: public testing::Test
 {};
 
-
-static ast_t* find_start_internal(ast_t* tree, token_id start_id)
+/*
+static void test(const char* orig, const char* replace, const char* expect)
 {
-  if(tree == NULL)
-    return NULL;
+  builder_t* orig_builder;
+  ast_t* orig_ast;
+  DO(build_ast_from_string(orig, &orig_ast, &orig_builder));
 
-  if(ast_id(tree) == start_id)
-    return tree;
+  ast_t* tree = builder_find_sub_tree(orig_builder, "start");
+  if(tree == NULL)  // No "start" node defined, use whole tree
+    tree = builder_get_root(orig_builder);
 
-  ast_t* ast = find_start_internal(ast_child(tree), start_id);
-  if(ast != NULL)
-    return ast;
-
-  ast = find_start_internal(ast_sibling(tree), start_id);
-  if(ast != NULL)
-    return ast;
-
-  return NULL;
-}
-
-
-static ast_t* find_start(ast_t* tree, token_id start_id)
-{
-  ast_t* ast = find_start_internal(tree, start_id);
-
-  if(ast == NULL)
-    printf("Token id %d not found in tree\n", start_id);
-
-  return ast;
-}
-
-
-static void test(const char* orig, token_id replace_at, const char* replace,
-  const char* expect)
-{
-  source_t* orig_src = source_open_string(orig);
-  ast_t* orig_ast = build_ast(orig_src);
-  ASSERT_NE((void*)NULL, orig_ast);
-
-  ast_t* tree = find_start(orig_ast, replace_at);
   ASSERT_NE((void*)NULL, tree);
 
-  bool top = (tree == orig_ast);
-
-  source_t* replace_src = source_open_string(replace);
-  ast_t* replace_ast = build_ast(replace_src);
-  ASSERT_NE((void*)NULL, replace_ast);
+  builder_t* replace_builder;
+  ast_t* replace_ast;
+  DO(build_ast_from_string(replace, &replace_ast, &replace_builder));
+  builder_extract_root(replace_builder);
 
   ast_replace(&tree, replace_ast);
 
-  if(top)
-    orig_ast = tree;
+  builder_t* expect_builder;
+  ast_t* expect_ast;
+  DO(build_ast_from_string(expect, &expect_ast, &expect_builder));
 
-  source_t* expect_src = source_open_string(expect);
-  ast_t* expect_ast = build_ast(expect_src);
-  ASSERT_NE((void*)NULL, expect_ast);
-
-  bool r = build_compare_asts(expect_ast, orig_ast);
+  ast_t* actual_ast = builder_get_root(orig_builder);
+  bool r = build_compare_asts(expect_ast, actual_ast);
 
   if(!r)
   {
     printf("Expected:\n");
     ast_print(expect_ast, 80);
     printf("\nGot:\n");
-    ast_print(orig_ast, 80);
+    ast_print(actual_ast, 80);
     printf("\n");
   }
 
   ASSERT_TRUE(r);
 
-  ast_free(orig_ast);
-  source_close(orig_src);
-  source_close(replace_src);
-  ast_free(expect_ast);
-  source_close(expect_src);
+  builder_free(orig_builder);
+  builder_free(replace_builder);
+  builder_free(expect_builder);
 }
 
 
@@ -96,5 +63,6 @@ TEST(AstReplaceTest, WholeTree)
   const char* orig = "(+ 1 2)\0";
   const char* replace = "(- 3 4)\0";
 
-  ASSERT_NO_FATAL_FAILURE(test(orig, TK_PLUS, replace, replace));
+  ASSERT_NO_FATAL_FAILURE(test(orig, replace, replace));
 }
+*/

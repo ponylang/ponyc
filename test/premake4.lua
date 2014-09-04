@@ -49,6 +49,3 @@ project "unit"
   unittest()
   files { "unit/*.cc", "unit/*.h" }
 
-project "bnf"
-  testutil()
-  files { "bnf/*.c", "bnf/*.h" }

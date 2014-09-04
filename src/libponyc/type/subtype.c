@@ -239,6 +239,8 @@ static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
 
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 {
+  assert(sub != NULL);
+  assert(super != NULL);
   assert(ast_id(sub) == TK_NOMINAL);
   assert(ast_id(super) == TK_NOMINAL);
 
@@ -260,6 +262,7 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 
   // check traits, depth first
   ast_t* traits = ast_childidx(sub_def, 3);
+  assert(traits != NULL);
   ast_t* trait = ast_child(traits);
 
   while(trait != NULL)
@@ -283,6 +286,9 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 
 bool is_subtype(ast_t* sub, ast_t* super)
 {
+  assert(sub != NULL);
+  assert(super != NULL);
+
   // check if the subtype is a union, isect, type param, type alias or viewpoint
   switch(ast_id(sub))
   {
@@ -576,9 +582,12 @@ bool is_builtin(ast_t* type, const char* name)
     return false;
 
   ast_t* builtin = type_builtin(type, name);
+
+  if(builtin == NULL)
+    return false;
+
   bool ok = is_subtype(type, builtin);
   ast_free_unattached(builtin);
-
   return ok;
 }
 
