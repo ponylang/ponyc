@@ -1,15 +1,14 @@
 #include "source.h"
 #include "error.h"
 #include "../ds/stringtab.h"
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 source_t* source_open(const char* file)
 {
   FILE* fp = fopen(file, "rb");
-  
+
   if(fp == NULL)
   {
     errorf(file, "can't open file");
