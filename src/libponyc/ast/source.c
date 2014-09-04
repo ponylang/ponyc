@@ -32,9 +32,18 @@ source_t* source_open(const char* file)
   source->m = (char*)malloc(size);
   source->len = size;
 
-  fread(source->m, sizeof(char), size, fp);
-  fclose(fp);
+  size_t read = fread(source->m, sizeof(char), size, fp);
 
+  if(read < size)
+  {
+    errorf(file, "failed to read entire file");
+    free(source->m);
+    free(source);
+    fclose(fp);
+    return NULL;
+  }
+
+  fclose(fp);
   return source;
 }
 
