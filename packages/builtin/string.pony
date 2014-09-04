@@ -6,10 +6,10 @@ class String val is Ordered[String]
   var _alloc: U64
   var _ptr: _Pointer[U8]
 
-  new _cstring(str: _Pointer[U8] box) =>
+  new _from_cstring(str: _Pointer[U8] box) =>
     _size = 0
 
-    while str(_size) == 0 do
+    while str(_size) != 0 do
       _size = _size + 1
     else
       // TODO: Remove this once primitive boxing is implemented.
@@ -21,6 +21,8 @@ class String val is Ordered[String]
     _ptr.copy(str, _alloc)
 
   fun box length(): U64 => _size
+
+  fun box _cstring(): this->_Pointer[U8] => _ptr
 
   fun box eq(that: String box): Bool =>
     if _size == that._size then

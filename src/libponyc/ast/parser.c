@@ -304,9 +304,19 @@ DEF(ref);
   TOKEN("name", TK_ID);
   DONE();
 
-// ref | literal | tuple | array | object
+// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
+DEF(ffi);
+  TOKEN(NULL, TK_AT);
+  TOKEN("ffi name", TK_ID);
+  RULE("return type", typeargs);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("ffi arguments", positional);
+  SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// ref | literal | tuple | array | object | ffi
 DEF(atom);
-  RULE("value", ref, literal, tuple, array, object);
+  RULE("value", ref, literal, tuple, array, object, ffi);
   DONE();
 
 // DOT (ID | INT)

@@ -525,3 +525,13 @@ bool expr_call(ast_t* ast)
   assert(0);
   return false;
 }
+
+bool expr_ffi(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeargs, args);
+  ast_t* type = ast_child(typeargs);
+
+  ast_settype(ast, type);
+  ast_inheriterror(ast);
+  return true;
+}

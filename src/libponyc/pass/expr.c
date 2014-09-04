@@ -256,6 +256,11 @@ ast_result_t pass_expr(ast_t** astp)
       ast_inheriterror(ast);
       break;
 
+    case TK_AT:
+      if(!expr_ffi(ast))
+        return AST_FATAL;
+      break;
+
     default: {}
   }
 

@@ -13,7 +13,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
 
   // Create a new unboxing function that forwards to the real function.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
-  size_t count = LLVMCountParamTypes(f_type);
+  int count = LLVMCountParamTypes(f_type);
 
   VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(f_type, params);
@@ -24,7 +24,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   params[0] = g->structure_ptr;
 
   const char* unbox_name = genname_unbox(name);
-  LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, (int)count, false);
+  LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
   LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
   codegen_startfun(c, unbox_fun);
 
@@ -36,10 +36,10 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   VLA(LLVMValueRef, args, count);
   args[0] = primitive;
 
-  for(size_t i = 1; i < count; i++)
-    args[i] = LLVMGetParam(unbox_fun, (unsigned int)i);
+  for(int i = 1; i < count; i++)
+    args[i] = LLVMGetParam(unbox_fun, i);
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (unsigned int)count, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -66,17 +66,18 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 
   type = LLVMStructCreateNamed(LLVMGetGlobalContext(), desc_name);
 
-  LLVMTypeRef params[8];
-  params[0] = c->trace_fn; // trace
-  params[1] = c->trace_fn; // serialise
-  params[2] = c->trace_fn; // deserialise
-  params[3] = c->dispatch_fn; // dispatch
-  params[4] = c->final_fn; // finalise
-  params[5] = LLVMInt64Type(); // size
-  params[6] = c->void_ptr; // trait list
-  params[7] = LLVMArrayType(c->void_ptr, vtable_size); // vtable
+  LLVMTypeRef params[9];
+  params[0] = LLVMInt32Type(); // id
+  params[1] = LLVMInt32Type(); // size
+  params[2] = c->trace_fn; // trace
+  params[3] = c->trace_fn; // serialise
+  params[4] = c->trace_fn; // deserialise
+  params[5] = c->dispatch_fn; // dispatch
+  params[6] = c->final_fn; // finalise
+  params[7] = c->void_ptr; // trait list
+  params[8] = LLVMArrayType(c->void_ptr, vtable_size); // vtable
 
-  LLVMStructSetBody(type, params, 8, false);
+  LLVMStructSetBody(type, params, 9, false);
   return type;
 }
 
@@ -123,26 +124,23 @@ void gendesc_init(compile_t* c, gentype_t* g)
   // TODO: Build the trait list.
 
   // Initialise the global descriptor.
-  LLVMValueRef args[8];
+  LLVMValueRef args[9];
+  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target, g->structure);
 
-  args[0] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
-  args[1] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
-  args[2] = make_function_ptr(c, genname_deserialise(g->type_name),
+  // TODO: Generate a separate type ID for every type.
+  args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
+  args[2] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
+  args[3] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
+  args[4] = make_function_ptr(c, genname_deserialise(g->type_name),
     c->trace_fn);
-  args[3] = make_function_ptr(c, genname_dispatch(g->type_name),
+  args[5] = make_function_ptr(c, genname_dispatch(g->type_name),
     c->dispatch_fn);
-  args[4] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
+  args[6] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
+  args[7] = LLVMConstNull(c->void_ptr);
+  args[8] = LLVMConstArray(c->void_ptr, vtable, (int)g->vtable_size);
 
-  args[5] = LLVMConstInt(
-    LLVMInt64Type(),
-    LLVMABISizeOfType(c->target, g->structure),
-    false
-    );
-
-  args[6] = LLVMConstNull(c->void_ptr);
-  args[7] = LLVMConstArray(c->void_ptr, vtable, (int)g->vtable_size);
-
-  LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 8);
+  LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 9);
   LLVMSetInitializer(g->desc, desc);
   LLVMSetGlobalConstant(g->desc, true);
 }

@@ -173,9 +173,9 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
   LLVMAddFunction(c->module, "pony_throw", type);
 
-  // i32 pony_personality(...)
+  // i32 pony_personality_v0(...)
   type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
-  c->personality = LLVMAddFunction(c->module, "pony_personality", type);
+  c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
   // i8* memcpy(i8*, i8*, i64)
   params[0] = c->void_ptr;
@@ -221,21 +221,22 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
 
   // Create a type for the message.
-  LLVMTypeRef f_params[3];
+  LLVMTypeRef f_params[4];
   f_params[0] = LLVMInt32Type();
   f_params[1] = LLVMInt32Type();
-  f_params[2] = LLVMTypeOf(env);
-  LLVMTypeRef msg_type = LLVMStructType(f_params, 3, false);
+  f_params[2] = c->void_ptr;
+  f_params[3] = LLVMTypeOf(env);
+  LLVMTypeRef msg_type = LLVMStructType(f_params, 4, false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
-  // Allocate the message, setting its ID and size.
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  // Allocate the message, setting its size and ID.
   args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Set the message contents.
-  LLVMValueRef env_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, 2, "");
+  LLVMValueRef env_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, 3, "");
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
@@ -246,6 +247,11 @@ static void codegen_main(compile_t* c, gentype_t* g)
   args[1] = LLVMGetNamedFunction(c->module, env_trace);
   gencall_runtime(c, "pony_traceobject", args, 2, "");
   gencall_runtime(c, "pony_send_done", NULL, 0, "");
+
+  // Send the message.
+  args[0] = object;
+  args[1] = msg;
+  gencall_runtime(c, "pony_sendv", args, 2, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(LLVMInt32Type(), 0, false);

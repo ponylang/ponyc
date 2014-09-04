@@ -144,6 +144,9 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_TUPLE:
       return gen_tuple(c, ast);
 
+    case TK_AT:
+      return gen_ffi(c, ast);
+
     case TK_COMPILER_INTRINSIC:
       ast_error(ast, "compiler intrinsic not defined");
       return NULL;
