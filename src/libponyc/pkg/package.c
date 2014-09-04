@@ -143,9 +143,9 @@ static bool execpath(const char* file, char* path)
       if((len + flen + 1) < FILENAME_MAX)
       {
         char check[FILENAME_MAX];
-        pony_strncpy(check, env, len);
+        strncpy(check, env, len);
         check[len++] = '/';
-        pony_strcpy(&check[len], file);
+        strcpy(&check[len], file);
 
         if(filepath(check, path))
           return true;
@@ -230,9 +230,9 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
         continue;
 
       char fullpath[FILENAME_MAX];
-      pony_strcpy(fullpath, path);
-      pony_strcat(fullpath, "/");
-      pony_strcat(fullpath, name);
+      strcpy(fullpath, path);
+      strcat(fullpath, "/");
+      strcat(fullpath, name);
 
       r &= do_file(package, fullpath);
     }
@@ -249,11 +249,11 @@ static const char* try_path(const char* base, const char* path)
 
   if(base != NULL)
   {
-    pony_strcpy(composite, base);
-    pony_strcat(composite, "/");
-    pony_strcat(composite, path);
+    strcpy(composite, base);
+    strcat(composite, "/");
+    strcat(composite, path);
   } else {
-    pony_strcpy(composite, path);
+    strcpy(composite, path);
   }
 
   if(pony_realpath(composite, file) != file)
@@ -338,7 +338,7 @@ void package_init(const char* name)
 
   if(execpath(name, path))
   {
-    pony_strcat(path, "/packages");
+    strcat(path, "/packages");
     search = strlist_push(search, stringtab(path));
   }
 
@@ -366,7 +366,7 @@ void package_paths(const char* paths)
     {
       char path[FILENAME_MAX];
 
-      pony_strncpy(path, paths, len);
+      strncpy(path, paths, len);
       path[len] = '\0';
       search = strlist_push(search, stringtab(path));
     }

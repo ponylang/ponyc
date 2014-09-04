@@ -20,42 +20,6 @@ int getopt_long(int argc, char* const argv[], const char* optstring,
 }
 #endif
 
-void pony_strcpy(char* dest, const char* source)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  strcpy_s(dest, strlen(dest), source);
-#else
-  strcpy(dest, source);
-#endif
-}
-
-void pony_strncpy(char* dest,  const char* source, size_t len)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  strncpy_s(dest, strlen(dest), source, len);
-#else
-  strncpy(dest, source, len);
-#endif
-}
-
-void pony_strcat(char* dest, const char* appendix)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  strcat_s(dest, strlen(dest), appendix);
-#else
-  strcat(dest, appendix);
-#endif
-}
-
-char* pony_strdup(const char* source)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  return _strdup(source);
-#else
-  return strdup(source);
-#endif
-}
-
 bool pony_get_term_winsize(struct winsize* ws)
 {
 #ifdef PLATFORM_IS_WINDOWS

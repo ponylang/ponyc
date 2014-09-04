@@ -46,14 +46,6 @@ struct winsize
 #  define VLA(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
 #endif
 
-void pony_strcpy(char* dest, const char* source);
-
-void pony_strncpy(char* dest, const char* source, size_t len);
-
-void pony_strcat(char* dest, const char* appendix);
-
-char* pony_strdup(const char* source);
-
 bool pony_get_term_winsize(struct winsize* ws);
 
 #endif

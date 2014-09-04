@@ -23,7 +23,7 @@ static bool str_cmp(const char* a, const char* b)
 
 static const char* str_dup(const char* a)
 {
-  return pony_strdup(a);
+  return strdup(a);
 }
 
 static void str_free(const char* a)

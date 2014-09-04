@@ -5,8 +5,8 @@
 
 static void name_append(char* name, const char* append)
 {
-  pony_strcat(name, "_");
-  pony_strcat(name, append);
+  strcat(name, "_");
+  strcat(name, append);
 }
 
 static size_t typeargs_len(ast_t* typeargs)
@@ -54,14 +54,14 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
   VLA(char, name, len);
 
   if(a != NULL)
-    pony_strcpy(name, a);
+    strcpy(name, a);
 
   if(b != NULL)
   {
     if(a != NULL)
       name_append(name, b);
     else
-      pony_strcpy(name, b);
+      strcpy(name, b);
   }
 
   typeargs_append(name, typeargs);

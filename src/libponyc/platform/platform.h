@@ -73,6 +73,7 @@ typedef SIZE_T size_t;
 // remains clear and no wrapper needs to be used.
 #  define __attribute__(X)
 #  define __zu "%Iu"
+#  define strdup _strdup
 
 inline int snprintf(char* str, size_t size, const char* format, ...)
 {
