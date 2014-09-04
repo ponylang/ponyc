@@ -1,15 +1,6 @@
 #include "platform.h"
 #include <stdio.h>
 
-void pony_close(intptr_t fileHandle)
-{
-#ifdef PLATFORM_IS_WINDOWS
-  CloseHandle((HANDLE)fileHandle);
-#else
-  close(fileHandle);
-#endif
-}
-
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
 #ifdef PLATFORM_IS_WINDOWS

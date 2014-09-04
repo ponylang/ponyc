@@ -80,7 +80,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   AST_GET_CHILDREN(ast, idseq, type);
 
   gentype_t g;
-  LLVMValueRef l_value;
+  LLVMValueRef l_value = NULL;
   const char* name;
 
   ast_t* id = ast_child(idseq);

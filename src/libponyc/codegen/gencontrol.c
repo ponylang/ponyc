@@ -388,7 +388,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMValueRef fun = LLVMGetBasicBlockParent(block);
   LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "try_else");
-  LLVMBasicBlockRef post_block;
+  LLVMBasicBlockRef post_block = NULL;
 
   if(type != NULL)
     post_block = LLVMAppendBasicBlock(fun, "try_post");

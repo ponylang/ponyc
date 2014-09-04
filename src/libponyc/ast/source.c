@@ -32,7 +32,7 @@ source_t* source_open(const char* file)
   source->m = (char*)malloc(size);
   source->len = size;
 
-  size_t read = fread(source->m, sizeof(char), size, fp);
+  ssize_t read = fread(source->m, sizeof(char), size, fp);
 
   if(read < size)
   {
