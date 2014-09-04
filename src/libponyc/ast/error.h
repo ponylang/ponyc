@@ -29,11 +29,11 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   va_list ap);
 
 void error(source_t* source, size_t line, size_t pos, 
-  const char* fmt, ...) __attribute__((printf(4, 5)));
+  const char* fmt, ...) __attribute__((format(printf, 4, 5)));
 
 void errorfv(const char* file, const char* fmt, va_list ap);
 
 void errorf(const char* file, const char* fmt, 
-  ...) __attribute__((printf(2, 3)));
+  ...) __attribute__((format(printf, 2, 3)));
 
 #endif
