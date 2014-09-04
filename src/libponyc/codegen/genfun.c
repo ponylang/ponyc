@@ -164,18 +164,23 @@ static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
-  LLVMValueRef func, int index)
+  LLVMValueRef func, int index, bool ctor)
 {
-  // Get the parameter types. Leave room for two more at the beginning.
-  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
-  size_t count = LLVMCountParamTypes(f_type) + 2;
-  VLA(LLVMTypeRef, f_params, count);
-  LLVMGetParamTypes(f_type, &f_params[2]);
+  // We need three extra slots if we're a constructor, but only two otherwise,
+  // since we can reuse the receiver slot.
+  int extra = ctor ? 3 : 2;
 
-  // The first one becomes the message ID, the second the message size.
+  // Get the parameter types.
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+  int count = LLVMCountParamTypes(f_type) + extra;
+  VLA(LLVMTypeRef, f_params, count);
+  LLVMGetParamTypes(f_type, &f_params[extra]);
+
+  // The first one becomes the message size, the second the message ID.
   f_params[0] = LLVMInt32Type();
   f_params[1] = LLVMInt32Type();
-  LLVMTypeRef msg_type = LLVMStructType(f_params, (unsigned int)count, false);
+  f_params[2] = c->void_ptr;
+  LLVMTypeRef msg_type = LLVMStructType(f_params, count, false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
@@ -188,10 +193,10 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   else
     size = __pony_ffsl(size) - 7;
 
-  // Allocate the message, setting its ID and size.
+  // Allocate the message, setting its size and ID.
   LLVMValueRef args[2];
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
   args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
+  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
@@ -201,9 +206,9 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   ast_t* param = ast_child(params);
   bool need_trace = false;
 
-  for(int i = 2; i < count; i++)
+  for(int i = 3; i < count; i++)
   {
-    LLVMValueRef arg = LLVMGetParam(func, i - 2);
+    LLVMValueRef arg = LLVMGetParam(func, i - extra);
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
     LLVMBuildStore(c->builder, arg, arg_ptr);
 
@@ -238,7 +243,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   LLVMPositionBuilderAtEnd(c->builder, block);
   LLVMValueRef msg = LLVMBuildBitCast(c->builder, g->dispatch_msg, type, "");
 
-  size_t count = LLVMCountParams(handler);
+  int count = LLVMCountParams(handler);
   VLA(LLVMValueRef, args, count);
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
@@ -249,11 +254,9 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
   ast_t* param = ast_child(params);
   bool need_trace = false;
 
-  for(size_t i = 1; i < count; i++)
+  for(int i = 1; i < count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg,
-      (unsigned int)(i + 1), "");
-
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 2, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
 
     need_trace |= gencall_trace(c, args[i], ast_type(param));
@@ -318,7 +321,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // Send the arguments in a message to 'this'.
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index, false);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
@@ -406,7 +409,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef this_ptr = gencall_create(c, g);
 
   // Send the arguments in a message to 'this'.
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index, true);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);

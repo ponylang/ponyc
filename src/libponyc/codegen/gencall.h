@@ -9,6 +9,8 @@ LLVMValueRef gencall(compile_t* c, ast_t* type, const char *name,
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_ffi(compile_t* c, ast_t* ast);
+
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret);
 

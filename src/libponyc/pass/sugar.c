@@ -661,6 +661,22 @@ static bool sugar_update(ast_t** astp)
   return true;
 }
 
+static bool sugar_ffi(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_AT);
+  AST_GET_CHILDREN(ast, id, typeargs, args);
+
+  ast_t* typearg = ast_child(typeargs);
+
+  if(ast_sibling(typearg) != NULL)
+  {
+    ast_error(typeargs, "FFI calls must specify a single return type");
+    return false;
+  }
+
+  return true;
+}
+
 ast_result_t pass_sugar(ast_t** astp)
 {
   ast_t* ast = *astp;
@@ -771,6 +787,11 @@ ast_result_t pass_sugar(ast_t** astp)
 
     case TK_ASSIGN:
       if(!sugar_update(astp))
+        return AST_FATAL;
+      break;
+
+    case TK_AT:
+      if(!sugar_ffi(ast))
         return AST_FATAL;
       break;
 

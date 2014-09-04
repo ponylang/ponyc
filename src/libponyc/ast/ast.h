@@ -136,6 +136,7 @@ DOT postfix (ID | INT)
 BANG postfix INT
 QUALIFY postfix TYPEARGS
 CALL postfix [POSITIONALARGS] [NAMEDARGS]
+AT ID TYPEARGS [POSITIONALARGS]
 
 control
 -------
@@ -267,7 +268,7 @@ void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
-void ast_error(ast_t* ast, const char* fmt, ...) 
+void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
 
 typedef ast_result_t (*ast_visit_t)(ast_t** astp);

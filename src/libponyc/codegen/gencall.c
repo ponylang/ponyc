@@ -116,7 +116,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
 
     // get the function from the vtable
-    LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 7, "");
+    LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
 
     LLVMValueRef index[2];
     index[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
@@ -197,6 +197,49 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   return call_fun(c, func, args, count, "");
 }
 
+LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeargs, args);
+
+  // Get the function name.
+  const char* f_name = ast_name(id);
+
+  // Generate the return type.
+  ast_t* type = ast_type(ast);
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  // Get the function.
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, f_name);
+
+  if(func == NULL)
+  {
+    // If we have no prototype, make an external vararg function.
+    LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
+    func = LLVMAddFunction(c->module, f_name, f_type);
+  }
+
+  // Generate the arguments.
+  size_t count = ast_childcount(args);
+  VLA(LLVMValueRef, f_args, count);
+  ast_t* arg = ast_child(args);
+
+  for(size_t i = 0; i < count; i++)
+  {
+    f_args[i] = gen_expr(c, arg);
+
+    if(f_args[i] == NULL)
+      return NULL;
+
+    arg = ast_sibling(arg);
+  }
+
+  // Call it.
+  return call_fun(c, func, f_args, count, "");
+}
+
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret)
 {
@@ -274,7 +317,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
 
   // determine if this is an actor or not
-  LLVMValueRef dispatch_ptr = LLVMBuildStructGEP(c->builder, desc, 3, "");
+  LLVMValueRef dispatch_ptr = LLVMBuildStructGEP(c->builder, desc, 5, "");
   LLVMValueRef dispatch = LLVMBuildLoad(c->builder, dispatch_ptr, "dispatch");
   LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
@@ -290,7 +333,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMPositionBuilderAtEnd(c->builder, then_block);
 
   // get the trace function from the type descriptor
-  LLVMValueRef trace_ptr = LLVMBuildStructGEP(c->builder, desc, 0, "");
+  LLVMValueRef trace_ptr = LLVMBuildStructGEP(c->builder, desc, 3, "");
   args[1] = LLVMBuildLoad(c->builder, trace_ptr, "trace");
 
   gencall_runtime(c, "pony_traceobject", args, 2, "");

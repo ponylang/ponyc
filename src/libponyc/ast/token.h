@@ -43,6 +43,7 @@ typedef enum token_id
   TK_DIVIDE,
   TK_MOD,
   TK_HAT,
+  TK_AT,
 
   TK_LSHIFT,
   TK_RSHIFT,

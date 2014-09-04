@@ -69,6 +69,7 @@ static const lexsym_t symbols1[] =
   { "/", TK_DIVIDE },
   { "%", TK_MOD },
   { "^", TK_HAT },
+  { "@", TK_AT },
 
   { "<", TK_LT },
   { ">", TK_GT },

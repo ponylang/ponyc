@@ -514,6 +514,16 @@ DEF(infix);
   OPT BINDOP(binop);
   DONE();
 
+// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
+DEF(ffi);
+  TOKEN(TK_AT);
+  TOKEN(TK_ID);
+  RULE(typeargs);
+  SKIP(TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE(positional);
+  SKIP(TK_RPAREN);
+  DONE();
+
 // (RETURN | BREAK) infix
 DEF(returnexpr);
   TOKEN(TK_RETURN, TK_BREAK);
@@ -525,9 +535,9 @@ DEF(statement);
   TOKEN(TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
-// (statement | returnexpr | infix) [SEMI]
+// (statement | returnexpr | ffi | infix) [SEMI]
 DEF(expr);
-  RULE(statement, returnexpr, infix);
+  RULE(statement, returnexpr, ffi, infix);
   OPT SKIP(TK_SEMI);
   DONE();
 
