@@ -9,58 +9,58 @@ PONY_EXTERN_C_END
 
 
 DEF(base);
-  TOKEN(TK_DOT);
-  TOKEN(TK_DOT);
+  TOKEN(NULL, TK_DOT);
+  TOKEN(NULL, TK_DOT);
   DONE();
 
 DEF(base2);
-  TOKEN(TK_COLON);
+  TOKEN(NULL, TK_COLON);
   DONE();
 
 DEF(base3);
-  TOKEN(TK_SEMI);
+  TOKEN(NULL, TK_SEMI);
   DONE();
 
 DEF(if_token);
   AST_NODE(TK_INT);
-  IF(TK_PLUS, TOKEN(TK_MINUS));
-  SKIP(TK_SEMI);  // Check next token isn't consumed when plus not present
+  IF(TK_PLUS, TOKEN(NULL, TK_MINUS));
+  SKIP(NULL, TK_SEMI);  // Check next token isn't consumed when plus not there
   DONE();
 
 DEF(if_rule);
   AST_NODE(TK_INT);
-  IF(TK_PLUS, RULE(base));
+  IF(TK_PLUS, RULE(NULL, base));
   DONE();
 
 DEF(if_block);
   AST_NODE(TK_INT);
-  IF(TK_PLUS, TOKEN(TK_MINUS) RULE(base) TOKEN(TK_COLON));
+  IF(TK_PLUS, TOKEN(NULL, TK_MINUS) RULE("", base) TOKEN(NULL, TK_COLON));
   DONE();
 
 DEF(while_token);
   AST_NODE(TK_INT);
-  WHILE(TK_PLUS, TOKEN(TK_MINUS));
-  SKIP(TK_SEMI);  // Check next token isn't consumed when plus not present
+  WHILE(TK_PLUS, TOKEN(NULL, TK_MINUS));
+  SKIP(NULL, TK_SEMI);  // Check next token isn't consumed when plus not there
   DONE();
 
 DEF(while_rule);
   AST_NODE(TK_INT);
-  WHILE(TK_PLUS, RULE(base));
+  WHILE(TK_PLUS, RULE("", base));
   DONE();
 
 DEF(while_block);
   AST_NODE(TK_INT);
-  WHILE(TK_PLUS, TOKEN(TK_MINUS) RULE(base) TOKEN(TK_COLON));
+  WHILE(TK_PLUS, TOKEN(NULL, TK_MINUS) RULE("", base) TOKEN(NULL, TK_COLON));
   DONE();
 
 DEF(seq);
   AST_NODE(TK_INT);
-  SEQ(base);
+  SEQ("", base);
   DONE();
 
 DEF(seq_multi);
   AST_NODE(TK_INT);
-  SEQ(base, base2, base3);
+  SEQ("", base, base2, base3);
   DONE();
 
 

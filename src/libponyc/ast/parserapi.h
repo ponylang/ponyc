@@ -6,6 +6,7 @@
 #include "token.h"
 #include <stdbool.h>
 #include <limits.h>
+#include <stdio.h>
 
 /** We use a simple recursive decent parser. Each grammar rule is specified
  * using the macros defined below. Whilst it is perfectly possible to mix
@@ -54,15 +55,18 @@ typedef struct parser_t
   source_t* source;
   lexer_t* lexer;
   token_t* token;
+  const char* last_matched;
+  bool trace;
 } parser_t;
 
 /// State of parsing current rule
 typedef struct rule_state_t
 {
-  bool matched;   // Has the rule matched yet
-  bool opt;       // Is the next sub item optional
-  bool scope;     // Is this rule a scope
-  bool deferred;  // Do we have a deferred AST node
+  const char* fn_name;  // Name of the current function, for tracing
+  bool matched;         // Has the rule matched yet
+  bool opt;             // Is the next sub item optional
+  bool scope;           // Is this rule a scope
+  bool deferred;        // Do we have a deferred AST node
   token_id deferred_id; // ID of deferred AST node
   size_t line, pos;        // Locatino to claim deferred node is from
 } rule_state_t;
@@ -78,8 +82,6 @@ typedef ast_t* (*rule_t)(parser_t* parser);
 
 // Functions used by macros
 
-bool consume_if_match_no_ast(parser_t* parser, token_id id);
-
 void process_deferred_ast(parser_t* parser, ast_t** rule_ast,
   rule_state_t* state);
 
@@ -93,20 +95,25 @@ void add_infix_ast(ast_t* new_ast, ast_t* prev_ast, ast_t** rule_ast,
   prec_t prec, assoc_t assoc);
 
 ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
-  ast_t* sub_ast, const char* function, int line_no);
+  ast_t* sub_ast, const char* desc);
 
-ast_t* token_in_set(parser_t* parser, const token_id* id_set, bool make_ast);
+ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const token_id* id_set, bool make_ast);
 
-ast_t* rule_in_set(parser_t* parser, const rule_t* rule_set);
+ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const rule_t* rule_set);
 
 void syntax_error(parser_t* parser, const char* func, int line);
 
 
 // Worker macros
 
-#define HANDLE_ERRORS(sub_ast) \
+#define NORMALISE_TOKEN_DESC(desc, deflt) \
+  ((desc == NULL) ? token_id_desc(deflt) : desc)
+
+#define HANDLE_ERRORS(sub_ast, desc) \
   { \
-    ast_t*r = sub_result(parser, ast, &state, sub_ast, __FUNCTION__, __LINE__); \
+    ast_t*r = sub_result(parser, ast, &state, sub_ast, desc); \
     if(r != NULL) return r;  \
   }
 
@@ -121,8 +128,12 @@ void syntax_error(parser_t* parser, const char* func, int line);
   }
 
 
-/* This is the only external API call.
- * Returns generated AST or NULL on error.
+// External API
+
+/// Enable or disable parsing trace output
+void parse_trace(bool enable);
+
+/** Returns generated AST or NULL on error.
  * It is the caller's responsibility to free the returned AST with ast_free().
  */
 ast_t* parse(source_t* source, rule_t start);
@@ -140,7 +151,7 @@ ast_t* parse(source_t* source, rule_t start);
   static ast_t* rule(parser_t* parser) \
   { \
     ast_t* ast = NULL; \
-    rule_state_t state = { false, false, false, false }
+    rule_state_t state = { #rule, false, false, false, false }
 
 
 /** Add a node to our AST.
@@ -154,6 +165,12 @@ ast_t* parse(source_t* source, rule_t start);
 #define AST_NODE(ID)  add_deferrable_ast(parser, ID, &ast, &state)
 
 
+/** Map our AST node ID.
+ * If the current AST node ID is the first argument, it is set to the second.
+ */
+#define MAP_ID(FROM, TO) if(ast_id(ast) == FROM) ast_setid(ast, TO)
+
+
 /** Specify that the containing rule is a scope.
  * May appear anywhere within the rule definition.
  * Example:
@@ -165,7 +182,7 @@ ast_t* parse(source_t* source, rule_t start);
 /** Specify that the following token or rule is optional.
  * May be applied to TOKEN, SKIP and RULE.
  * Example:
- *    OPT TOKEN(TK_FOO);
+ *    OPT TOKEN("foo", TK_FOO);
  */
 #define OPT state.opt = true;
 
@@ -173,14 +190,17 @@ ast_t* parse(source_t* source, rule_t start);
 /** Attempt to match one of the given set of tokens.
  * If OPT is not specified then a match is required or a syntax error occurs.
  * If an optional token is not found a default TK_NONE node is created instead.
+ * The description is used for error reports. If NULL is provided then the
+ * lexer description for the first token in the set is used instead.
  * Example:
- *    TOKEN(TK_PLUS, TK_MINUS, TK_FOO);
+ *    TOKEN("operator", TK_PLUS, TK_MINUS, TK_FOO);
  */
-#define TOKEN(...) \
+#define TOKEN(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    ast_t* sub_ast = token_in_set(parser, id_set, true); \
-    HANDLE_ERRORS(sub_ast); \
+    const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
+    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
+    HANDLE_ERRORS(sub_ast, desc_str); \
     MAKE_DEFAULT(sub_ast, TK_NONE); \
     add_ast(parser, sub_ast, &ast, &state) ; \
   }
@@ -189,28 +209,32 @@ ast_t* parse(source_t* source, rule_t start);
 /** Attempt to match one of the given set of tokens, but do not generate an AST
  * node for it.
  * If OPT is not specified then a match is required or a syntax error occurs.
+ * The description is used for error reports. If NULL is provided then the
+ * lexer description for the first token in the set is used instead.
  * Example:
- *    SKIP(TK_PLUS, TK_MINUS, TK_FOO);
+ *    SKIP(NULL, TK_PLUS, TK_MINUS, TK_FOO);
  */
-#define SKIP(...) \
+#define SKIP(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    ast_t* sub_ast = token_in_set(parser, id_set, false); \
-    HANDLE_ERRORS(sub_ast); \
+    const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
+    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
+    HANDLE_ERRORS(sub_ast, desc_str); \
   }
 
 
 /** Attempt to match one of the given set of rules.
  * If an optional token is not found a default TK_NONE node is created instead.
  * If OPT is not specified then a match is required or a syntax error occurs.
+ * The description is used for error reports. It must be present and non-NULL.
  * Example:
- *    RULE(constructor, behaviour, function);
+ *    RULE("method", constructor, behaviour, function);
  */
-#define RULE(...) \
+#define RULE(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    ast_t* sub_ast = rule_in_set(parser, rule_set); \
-    HANDLE_ERRORS(sub_ast); \
+    ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
+    HANDLE_ERRORS(sub_ast, desc); \
     MAKE_DEFAULT(sub_ast, TK_NONE); \
     add_ast(parser, sub_ast, &ast, &state); \
   }
@@ -221,17 +245,22 @@ ast_t* parse(source_t* source, rule_t start);
  * If the condition id is not found the next token is not consumed and a
  * default AST node (with id TK_NONE) is created.
  * Example:
- *    IF(TK_COLON, RULE(type));
+ *    IF(TK_COLON, RULE("foo", type));
  */
 #define IF(id, body) \
   { \
-    if(consume_if_match_no_ast(parser, id)) \
+    static const token_id id_set[] = { id, TK_NONE }; \
+    state.opt = true; \
+    const char* cond_desc = token_id_desc(id); \
+    if(token_in_set(parser, &state, cond_desc, id_set, false) == NULL) \
     { \
+      state.opt = false; \
       state.matched = true; \
       body; \
     } \
     else \
     { \
+      state.opt = false; \
       add_ast(parser, ast_new(parser->token, TK_NONE), &ast, &state); \
     } \
   }
@@ -241,29 +270,38 @@ ast_t* parse(source_t* source, rule_t start);
  * succeeds parse the specified block of tokens and / or rules.
  * When the condition id is not found the next token is not consumed.
  * Example:
- *    WHILE(TK_COLON, RULE(type));
+ *    WHILE(TK_COLON, RULE("foo", type));
  */
 #define WHILE(id, body) \
-  while(consume_if_match_no_ast(parser, id)) \
   { \
-    state.matched = true; \
-    body; \
+    static const token_id id_set[] = { id, TK_NONE }; \
+    state.opt = true; \
+    const char* cond_desc = token_id_desc(id); \
+    while(token_in_set(parser, &state, cond_desc, id_set, false) == NULL) \
+    { \
+      state.opt = false; \
+      state.matched = true; \
+      body; \
+      state.opt = true; \
+    } \
+    state.opt = false; \
   }
 
 
 /** Repeatedly try to parse any of the given set of rules as long as it
  * succeeds.
+ * The description is used for error reports. It must be present and non-NULL.
  * Example:
- *    SEQ(class, use);
+ *    SEQ("entity", class, use);
  */
-#define SEQ(...) \
+#define SEQ(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
     while(true) \
     { \
-      ast_t* sub_ast = rule_in_set(parser, rule_set); \
+      ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
       if(sub_ast == RULE_NOT_FOUND) break; \
-      HANDLE_ERRORS(sub_ast); \
+      HANDLE_ERRORS(sub_ast, desc); \
       add_ast(parser, sub_ast, &ast, &state); \
     } \
   }
@@ -273,20 +311,21 @@ ast_t* parse(source_t* source, rule_t start);
  * as it succeeds and build AST with precedence rules.
  * If OPT is not specified then at least one match is required or a syntax
  * error occurs.
+ * The description is used for error reports. It must be present and non-NULL.
  * Example:
- *    BINDOP(uniontype, tupletype);
+ *    BINDOP("compound type", uniontype, tupletype);
  */
-#define BINDOP(...) \
+#define BINDOP(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
     ast_t* prev_ast = ast; \
     bool had_op = false; \
     while(true) \
     { \
-      ast_t* sub_ast = rule_in_set(parser, rule_set); \
+      ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
       if(sub_ast == RULE_NOT_FOUND) break; \
       if(sub_ast == NULL) THROW_ERROR(); \
-      HANDLE_ERRORS(sub_ast); \
+      HANDLE_ERRORS(sub_ast, desc); \
       add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
       prev_ast = sub_ast; \
       had_op = true; \
@@ -300,6 +339,7 @@ ast_t* parse(source_t* source, rule_t start);
 #define DONE() \
     process_deferred_ast(parser, &ast, &state); \
     if(state.scope && ast != NULL) ast_scope(ast); \
+    if(parser->trace) printf("Rule %s: Complete\n", state.fn_name); \
     return ast; \
   }
 

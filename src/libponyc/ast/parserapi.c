@@ -1,8 +1,11 @@
 #include "parserapi.h"
 #include <stdlib.h>
 #include <assert.h>
-
 #include <stdio.h>
+
+
+static bool trace_enable = false;
+
 
 static token_id current_token_id(parser_t* parser)
 {
@@ -22,19 +25,6 @@ static void consume_token_no_ast(parser_t* parser)
 {
   token_free(parser->token);
   parser->token = lexer_next(parser->lexer);
-}
-
-
-/** Check whether the next token is the one specified and if so consume it
- * without generating an AST.
- */
-bool consume_if_match_no_ast(parser_t* parser, token_id id)
-{
-  if(current_token_id(parser) != id)
-    return false;
-
-  consume_token_no_ast(parser);
-  return true;
 }
 
 
@@ -134,7 +124,7 @@ void add_infix_ast(ast_t* new_ast, ast_t* prev_ast, ast_t** rule_ast,
  *    non-NULL if rule should immediately return that error value
  */
 ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
-  ast_t* sub_ast, const char* function, int line_no)
+  ast_t* sub_ast, const char* desc)
 {
   if(sub_ast == PARSE_ERROR)
   {
@@ -148,16 +138,38 @@ ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
     // Required token / sub rule not found
     ast_free(rule_ast);
 
-    if(!state->matched) // Rule not matched
+    if(!state->matched)
+    {
+      // Rule not matched
+      if(parser->trace)
+        printf("Rule %s: Not matched\n", state->fn_name);
+
       return RULE_NOT_FOUND;
+    }
 
     // Rule partially matched, error
-    syntax_error(parser, function, line_no);
+    if(parser->trace)
+      printf("Rule %s: Error\n", state->fn_name);
+
+    if(parser->last_matched == NULL)
+      error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token), "syntax error, no code found");
+    else
+      error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token),
+      "syntax error, expected %s after %s", desc, parser->last_matched);
+
     return PARSE_ERROR;
   }
 
-  if(sub_ast != RULE_NOT_FOUND) // A token / sub rule was found
+  if(sub_ast != RULE_NOT_FOUND && !state->matched)
+  {
+    // First token / sub rule in rule was found
+    if(parser->trace)
+      printf("Rule %s: Matched\n", state->fn_name);
+
     state->matched = true;
+  }
 
   state->opt = false;
   return NULL;
@@ -176,18 +188,31 @@ ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
  *    PARSE_ERROR to propogate a lexer error
  *    RULE_NOT_FOUND if current token is not is specified set
  */
-ast_t* token_in_set(parser_t* parser, const token_id* id_set, bool make_ast)
+ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const token_id* id_set, bool make_ast)
 {
   token_id id = current_token_id(parser);
 
   if(id == TK_LEX_ERROR)  // propgate error
     return PARSE_ERROR;
 
+  if(parser->trace)
+  {
+    printf("Rule %s: Looking for %s token%s %s. Found %s. ",
+      state->fn_name, state->opt ? "optional" : "required",
+      (id_set[1] == TK_NONE) ? "" : "s", desc, token_print(parser->token));
+  }
+
   for(const token_id* p = id_set; *p != TK_NONE; p++)
   {
     if(id == *p)
     {
       // Current token matches one in set
+      if(parser->trace)
+        printf("Compatible\n");
+
+      parser->last_matched = token_print(parser->token);
+
       if(make_ast)
         return consume_token(parser);
 
@@ -198,6 +223,9 @@ ast_t* token_in_set(parser_t* parser, const token_id* id_set, bool make_ast)
   }
 
   // Current token does not match any in current set
+  if(parser->trace)
+    printf("Not compatible\n");
+
   return RULE_NOT_FOUND;
 }
 
@@ -211,19 +239,34 @@ ast_t* token_in_set(parser_t* parser, const token_id* id_set, bool make_ast)
  *    PARSE_ERROR to propogate an error
  *    RULE_NOT_FOUND if no rules in given set can be matched
  */
-ast_t* rule_in_set(parser_t* parser, const rule_t* rule_set)
+ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const rule_t* rule_set)
 {
   token_id id = current_token_id(parser);
 
   if(id == TK_LEX_ERROR)  // propgate error
     return PARSE_ERROR;
 
+  if(parser->trace)
+  {
+    printf("Rule %s: Looking for %s rule%s \"%s\"\n",
+      state->fn_name, state->opt ? "optional" : "required",
+      (rule_set[1] == NULL) ? "" : "s", desc);
+  }
+
   for(const rule_t* p = rule_set; *p != NULL; p++)
   {
     ast_t* rule_ast = (*p)(parser);
 
-    if(rule_ast != RULE_NOT_FOUND)  // Rule found, or error
+    if(rule_ast == PARSE_ERROR)
       return rule_ast;
+
+    if(rule_ast != RULE_NOT_FOUND)
+    {
+      // Rule found
+      parser->last_matched = desc;
+      return rule_ast;
+    }
   }
 
   // No rules in set can be matched
@@ -236,6 +279,12 @@ void syntax_error(parser_t* parser, const char* func, int line)
 {
   error(parser->source, token_line_number(parser->token),
     token_line_position(parser->token), "syntax error (%s, %d)", func, line);
+}
+
+
+void parse_trace(bool enable)
+{
+  trace_enable = enable;
 }
 
 
@@ -252,6 +301,8 @@ ast_t* parse(source_t* source, rule_t start)
   parser->source = source;
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
+  parser->last_matched = NULL;
+  parser->trace = trace_enable;
 
   // Parse given start rule
   ast_t* ast = start(parser);

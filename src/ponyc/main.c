@@ -1,4 +1,5 @@
 #include "../libponyc/platform/platform.h"
+#include "../libponyc/ast/parserapi.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
@@ -13,6 +14,7 @@ static struct option opts[] =
   {"opt", no_argument, NULL, 'O'},
   {"path", required_argument, NULL, 'p'},
   {"pass", required_argument, NULL, 'r'},
+  {"trace", no_argument, NULL, 't'},
   {"width", required_argument, NULL, 'w'},
   {NULL, 0, NULL, 0},
 };
@@ -26,6 +28,7 @@ void usage()
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
     "  --pass, -r      restrict phases\n"
+    "  --trace, -t     enable parse trace\n" 
     "  --width, -w     width to target when printing the AST\n"
     );
 }
@@ -64,6 +67,7 @@ int main(int argc, char** argv)
       case 'p': package_paths(optarg); break;
       case 'O': opt = atoi(optarg); break;
       case 'r': error = !limit_passes(optarg); break;
+      case 't': parse_trace(true); break;
       case 'w': width = atoi(optarg); break;
       default: error = true; break;
     }

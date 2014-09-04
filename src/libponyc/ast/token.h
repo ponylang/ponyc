@@ -221,6 +221,12 @@ __uint128_t token_int(token_t* token);
  */
 const char* token_print(token_t* token);
 
+/** Return a string to describe the given token id.
+* The returned string must not be deleted and is only valid indefinitely.
+*/
+const char* token_id_desc(token_id id);
+
+
 /// Report the source the given token was loaded from
 source_t* token_source(token_t* token);
 

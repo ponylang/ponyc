@@ -13,7 +13,7 @@ class ParserApiAstTest: public testing::Test
 
 
 DEF(token_only);
-  TOKEN(TK_MOD);
+  TOKEN(NULL, TK_MOD);
   DONE();
 
 TEST(ParserApiAstTest, TokenOnly)
@@ -54,7 +54,7 @@ TEST(ParserApiAstTest, AstOnly)
 
 DEF(ast_then_token);
   AST_NODE(TK_INT);
-  TOKEN(TK_MOD);
+  TOKEN(NULL, TK_MOD);
   DONE();
 
 TEST(ParserApiAstTest, AstThenToken)
@@ -75,7 +75,7 @@ TEST(ParserApiAstTest, AstThenToken)
 
 
 DEF(token_then_ast);
-  TOKEN(TK_MOD);
+  TOKEN(NULL, TK_MOD);
   AST_NODE(TK_INT);
   DONE();
 
@@ -97,11 +97,11 @@ TEST(ParserApiAstTest, TokenThenAst)
 
 
 DEF(seq_base);
-  TOKEN(TK_MOD);
+  TOKEN(NULL, TK_MOD);
   DONE();
 
 DEF(seq_then_ast);
-  SEQ(seq_base);
+  SEQ("", seq_base);
   AST_NODE(TK_INT);
   DONE();
 
@@ -138,13 +138,13 @@ TEST(ParserApiAstTest, OptTokenMissingThenAst)
 
 
 DEF(null_base);
-  SKIP(TK_PLUS);
-  SKIP(TK_COLON);
+  SKIP(NULL, TK_PLUS);
+  SKIP(NULL, TK_COLON);
   DONE();
 
 DEF(null_top);
   AST_NODE(TK_INT);
-  RULE(null_base);
+  RULE("", null_base);
   DONE();
 
 TEST(ParserApiAstTest, NullAst)

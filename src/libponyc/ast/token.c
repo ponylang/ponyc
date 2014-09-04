@@ -106,6 +106,9 @@ const char* token_print(token_t* token)
 
   switch(token->id)
   {
+    case TK_EOF:
+      return "EOF";
+
     case TK_ID:
     case TK_STRING:
       return token->string;
@@ -142,6 +145,26 @@ const char* token_print(token_t* token)
 
   snprintf(token->printed, 32, "Unknown_token_%d", token->id);
   return token->printed;
+}
+
+
+const char* token_id_desc(token_id id)
+{
+  switch(id)
+  {
+    case TK_EOF:    return "EOF";
+    case TK_ID:     return "id";
+    case TK_STRING: return "string literal";
+    case TK_INT:    return "int literal";
+    case TK_FLOAT:  return "float literal";
+    default: break;
+  }
+
+  const char* p = lexer_print(id);
+  if(p != NULL)
+    return p;
+
+  return "UNKOWN";
 }
 
 

@@ -9,44 +9,44 @@ PONY_EXTERN_C_END
 
 
 DEF(base_dot);
-  TOKEN(TK_DOT);
+  TOKEN(NULL, TK_DOT);
   DONE();
 
 DEF(base_bang);
-  TOKEN(TK_BANG);
+  TOKEN(NULL, TK_BANG);
   DONE();
 
 DEF(base_colon);
-  TOKEN(TK_COLON);
+  TOKEN(NULL, TK_COLON);
   DONE();
 
 DEF(base_semi);
-  TOKEN(TK_SEMI);
+  TOKEN(NULL, TK_SEMI);
   DONE();
 
 DEF(base_compound);
-  TOKEN(TK_PLUS);
-  TOKEN(TK_PLUS);
+  TOKEN(NULL, TK_PLUS);
+  TOKEN(NULL, TK_PLUS);
   DONE();
 
 DEF(rule_dot);
   AST_NODE(TK_INT);
-  RULE(base_dot);
+  RULE("", base_dot);
   DONE();
 
 DEF(rule_multi);
   AST_NODE(TK_INT);
-  RULE(base_bang, base_colon, base_semi, base_compound);
+  RULE("", base_bang, base_colon, base_semi, base_compound);
   DONE();
 
 DEF(optional_dot);
   AST_NODE(TK_INT);
-  OPT RULE(base_dot);
+  OPT RULE("", base_dot);
   DONE();
 
 DEF(optional_multi);
   AST_NODE(TK_INT);
-  OPT RULE(base_bang, base_colon, base_semi, base_compound);
+  OPT RULE("", base_bang, base_colon, base_semi, base_compound);
   DONE();
 
 

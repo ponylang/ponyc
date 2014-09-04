@@ -120,24 +120,24 @@ static bool associativity(token_id id)
 
 
 DEF(binop);
-  TOKEN(
+  TOKEN(NULL, 
     TK_AND, TK_OR, TK_XOR,
     TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
     TK_LSHIFT, TK_RSHIFT,
     TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
     TK_ASSIGN
     );
-  TOKEN(TK_ID);
+  TOKEN(NULL, TK_ID);
   DONE();
 
 DEF(infix);
-  TOKEN(TK_ID);
-  OPT BINDOP(binop);
+  TOKEN(NULL, TK_ID);
+  OPT BINDOP("", binop);
   DONE();
 
 DEF(infix_non_opt);
-  TOKEN(TK_ID);
-  BINDOP(binop);
+  TOKEN(NULL, TK_ID);
+  BINDOP("", binop);
   DONE();
 
 
