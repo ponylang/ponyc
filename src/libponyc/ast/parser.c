@@ -304,9 +304,19 @@ DEF(ref);
   TOKEN(TK_ID);
   DONE();
 
-// ref | literal | tuple | array | object
+// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
+DEF(ffi);
+  TOKEN(TK_AT);
+  TOKEN(TK_ID);
+  RULE(typeargs);
+  SKIP(TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE(positional);
+  SKIP(TK_RPAREN);
+  DONE();
+
+// ref | literal | tuple | array | object | ffi
 DEF(atom);
-  RULE(ref, literal, tuple, array, object);
+  RULE(ref, literal, tuple, array, object, ffi);
   DONE();
 
 // DOT (ID | INT)
@@ -514,16 +524,6 @@ DEF(infix);
   OPT BINDOP(binop);
   DONE();
 
-// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
-DEF(ffi);
-  TOKEN(TK_AT);
-  TOKEN(TK_ID);
-  RULE(typeargs);
-  SKIP(TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE(positional);
-  SKIP(TK_RPAREN);
-  DONE();
-
 // (RETURN | BREAK) infix
 DEF(returnexpr);
   TOKEN(TK_RETURN, TK_BREAK);
@@ -535,9 +535,9 @@ DEF(statement);
   TOKEN(TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
-// (statement | returnexpr | ffi | infix) [SEMI]
+// (statement | returnexpr | infix) [SEMI]
 DEF(expr);
-  RULE(statement, returnexpr, ffi, infix);
+  RULE(statement, returnexpr, infix);
   OPT SKIP(TK_SEMI);
   DONE();
 

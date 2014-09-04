@@ -173,9 +173,9 @@ static void codegen_runtime(compile_t* c)
   type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
   LLVMAddFunction(c->module, "pony_throw", type);
 
-  // i32 pony_personality(...)
+  // i32 pony_personality_v0(...)
   type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
-  c->personality = LLVMAddFunction(c->module, "pony_personality", type);
+  c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
   // i8* memcpy(i8*, i8*, i64)
   params[0] = c->void_ptr;

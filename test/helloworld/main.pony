@@ -1,6 +1,7 @@
 actor Main
   new create(env: Env) =>
-    var args = env.args
-    for s in args.values() do
+    var p = @printf[I32]("%d\n"._cstring(), env.args.length() << 1)
+    @printf[I32]("%d\n"._cstring(), p)
+    for s in env.args.values() do
       env.stdout.print(s)
     end
