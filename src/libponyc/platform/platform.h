@@ -56,9 +56,38 @@ typedef SIZE_T size_t;
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <stddef.h>
+#  include <sys/types.h>
 #endif
 
 #define PONY_ERRNO uint32_t
+
+/** Format specifiers and snprintf.
+ *
+ */
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  include <stdarg.h>
+#  include <stdio.h>
+// Make __attribute__ annotations (e.g. for checking
+// printf-like functions a no-op for Visual Studio.
+// That way, the known semantics of __attribute__(...) 
+// remains clear and no wrapper needs to be used.
+#  define __attribute__(X)
+#  define __zu "%Iu"
+
+inline int snprintf(char* str, size_t size, const char* format, ...)
+{
+  int written;
+  va_list argv;
+
+  va_start(argv, format);
+  written = vsnprintf(str, size, format, argv);
+  va_end(argv);
+
+  return written;
+}
+#else
+#  define __zu "%zu"
+#endif
 
 /** Standard builtins.
  *
@@ -91,7 +120,6 @@ static __declspec(thread) DWORD lsb;
 
 #include "io.h"
 #include "utils.h"
-#include "format.h"
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  ifdef __cplusplus

@@ -8,6 +8,7 @@
 
 #include "../platform/platform.h"
 
+//use FILE*, fopen, seek, to the end, malloc, read, close, ...
 source_t* source_open(const char* file)
 {
   intptr_t fd = pony_openr(file);

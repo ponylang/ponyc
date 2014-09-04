@@ -45,6 +45,12 @@
       --configuration { "Profile", "vs*" }
       --  linkoptions "/PROFILE"
 
+      configuration "vs*"
+      	defines {
+          -- disables warnings for vsnprintf
+          "_CRT_SECURE_NO_WARNINGS"
+        }
+
       configuration { "macosx", "gmake" }
         toolset "clang"
 

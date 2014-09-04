@@ -21,7 +21,7 @@
 #ifdef PLATFORM_IS_VISUAL_STUDIO
 /** Disable warning about "getenv" begin unsafe. The alternatives, s_getenv and
  *  _dupenv_s are incredibly inconvenient and expensive to use. Since such a
- *  warning could make sense for other function calls, we only disable it for 
+ *  warning could make sense for other function calls, we only disable it for
  *  this file.
  */
 #  pragma warning(disable:4996)
@@ -308,7 +308,7 @@ static const char* find_path(ast_t* from, const char* path)
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
-  pony_snprintf(buffer, 32, "$"__pony_format_zu, id);
+  snprintf(buffer, 32, "$"__zu, id);
   return stringtab(buffer);
 }
 

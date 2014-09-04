@@ -31,7 +31,7 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err);
 
 char* pony_realpath(const char* path, char* resolved);
 
-char* pony_get_dir_name(PONY_DIRINFO* info);
+char* pony_get_dir_name(PONY_DIRINFO* info); //pony_dir_info_name
 
 void pony_closedir(PONY_DIR* dir);
 

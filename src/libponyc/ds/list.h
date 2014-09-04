@@ -5,7 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/types.h>
+
+#include "../platform/platform.h"
 
 typedef struct list_t list_t;
 

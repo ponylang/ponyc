@@ -12,6 +12,7 @@
 #  define required_argument 0x01
 #  define optional_argument 0x02
 
+//remove
 extern int opterr, optind, optopt, optreset;
 extern char* optarg;
 

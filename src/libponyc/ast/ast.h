@@ -267,8 +267,8 @@ void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
-void ast_error(ast_t* ast, FORMAT_STRING(const char* fmt), ...) 
-  __pony_format__(printf, 2, 3);
+void ast_error(ast_t* ast, const char* fmt, ...) 
+  __attribute__((format(2, 3)));
 
 typedef ast_result_t (*ast_visit_t)(ast_t** astp);
 

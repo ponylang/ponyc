@@ -24,7 +24,7 @@ typedef struct token_t
     const char* string;
     double real;
     __uint128_t integer;
-  }; 
+  };
 #endif
 } token_t;
 
@@ -113,8 +113,8 @@ const char* token_print(token_t* token)
     case TK_INT:
       if (token->printed == NULL)
         token->printed = (char*)malloc(32);
-      
-      pony_snprintf(token->printed, 32, __pony_format_zu, (size_t)token->integer);
+
+      snprintf(token->printed, 32, __zu, (size_t)token->integer);
       return token->printed;
 
     case TK_FLOAT:
@@ -122,9 +122,9 @@ const char* token_print(token_t* token)
       if(token->printed == NULL)
         token->printed = (char*)malloc(32);
 
-      int r = pony_snprintf(token->printed, 32, "%g", token->real);
+      int r = snprintf(token->printed, 32, "%g", token->real);
       if(strcspn(token->printed, ".e") == r)
-        pony_snprintf(token->printed + r, 32 - r, ".0");
+        snprintf(token->printed + r, 32 - r, ".0");
 
       return token->printed;
     }
@@ -140,7 +140,7 @@ const char* token_print(token_t* token)
   if(token->printed == NULL)
     token->printed = (char*)malloc(32);
 
-  pony_snprintf(token->printed, 32, "Unknown_token_%d", token->id);
+  snprintf(token->printed, 32, "Unknown_token_%d", token->id);
   return token->printed;
 }
 
