@@ -16,7 +16,7 @@ PONY_EXTERN_C_END
 #include <stdio.h>
 
 
-//static const char* t_fns = NOMINAL_CAP(Fns, box);
+static const char* t_fns = NOMINAL_CAP(Fns, box);
 
 static const char* fns_desc =
 "(class{scope eq ne lt le gt ge}{def Fns} (id Fns) x ref x"
@@ -133,7 +133,7 @@ protected:
     ASSERT_EQ(AST_OK, pass_expr(&op_ast));
 
     char result_buf[1000];
-    pony_snprintf(op_buf, sizeof(op_buf),
+    pony_snprintf(result_buf, sizeof(result_buf),
       "(call"
       "  (funref (fvarref(id a) [%s]) (id %s)"
       "    [(funtype box x (params(param(id a) %s x)) %s)])"
@@ -262,7 +262,6 @@ protected:
 
   void standard_comparison(token_id op_id, const char* fn_name)
   {
-    /*
     DO(test_bin_op(op_id, t_u_lit, t_u_lit, t_bool));
     DO(test_bin_op(op_id, t_u_lit, t_f_lit, t_bool));
     DO(test_bin_op(op_id, t_f_lit, t_u_lit, t_bool));
@@ -315,7 +314,6 @@ protected:
     DO(test_bin_op_bad(op_id, t_foo, t_foo));
 
     DO(test_bin_op_to_fun(op_id, t_fns, t_fns, t_bool, fn_name));
-    */
   }
 
   void standard_logical(token_id op_id)
