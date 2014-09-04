@@ -2,6 +2,7 @@
 #include "genexpr.h"
 #include "gentype.h"
 #include "gencall.h"
+#include "genname.h"
 #include "../type/subtype.h"
 #include <assert.h>
 
@@ -324,7 +325,8 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 
       // jump with none to the condition block
       LLVMPositionBuilderAtEnd(c->builder, cont_block);
-      LLVMValueRef none = LLVMGetNamedGlobal(c->module, "$1_$None_$inst");
+      const char* inst = genname_instance("$1_None");
+      LLVMValueRef none = LLVMGetNamedGlobal(c->module, inst);
       LLVMBuildBr(c->builder, target);
 
       // add none from the continue block to the condition block phi node

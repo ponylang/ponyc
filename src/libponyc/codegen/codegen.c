@@ -187,6 +187,9 @@ static void codegen_runtime(compile_t* c)
 
 static void codegen_main(compile_t* c, gentype_t* g)
 {
+  // TODO: Calculate the index of create().
+  size_t index = 0;
+
   LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0);
@@ -212,11 +215,37 @@ static void codegen_main(compile_t* c, gentype_t* g)
   gencall_runtime(c, "pony_become", &object, 1, "");
 
   // Create an Env on the main actor's heap.
+  const char* env_name = "$1_Env";
+  const char* env_create = genname_fun(env_name, "_create", NULL);
   args[0] = LLVMBuildZExt(c->builder, args[0], LLVMInt64Type(), "");
-  LLVMValueRef env = gencall_runtime(c, "$1_Env__create", args, 2, "env");
+  LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
 
-  // TODO: send env msg to m by hand
-  (void)env;
+  // Create a type for the message.
+  LLVMTypeRef f_params[3];
+  f_params[0] = LLVMInt32Type();
+  f_params[1] = LLVMInt32Type();
+  f_params[2] = LLVMTypeOf(env);
+  LLVMTypeRef msg_type = LLVMStructType(f_params, 3, false);
+  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
+
+  // Allocate the message, setting its ID and size.
+  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
+  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
+
+  // Set the message contents.
+  LLVMValueRef env_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, 2, "");
+  LLVMBuildStore(c->builder, env, env_ptr);
+
+  // Trace the message.
+  gencall_runtime(c, "pony_gc_send", NULL, 0, "");
+  const char* env_trace = genname_trace(env_name);
+
+  args[0] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
+  args[1] = LLVMGetNamedFunction(c->module, env_trace);
+  gencall_runtime(c, "pony_traceobject", args, 2, "");
+  gencall_runtime(c, "pony_send_done", NULL, 0, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(LLVMInt32Type(), 0, false);
