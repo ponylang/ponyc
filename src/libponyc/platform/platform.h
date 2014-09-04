@@ -91,7 +91,10 @@ static __declspec(thread) DWORD lsb;
 
 #include "io.h"
 #include "utils.h"
+
+PONY_EXTERN_C_BEGIN
 #include "format.h"
+PONY_EXTERN_C_END
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  ifdef __cplusplus

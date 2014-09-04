@@ -7,6 +7,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#include "../platform/platform.h"
+
 typedef struct list_t list_t;
 
 list_t* list_push(list_t* list, const void* data);
