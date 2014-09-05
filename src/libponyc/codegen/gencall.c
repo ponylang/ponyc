@@ -33,11 +33,8 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
   if(value == NULL)
     return NULL;
 
-  // TODO: how to determine if the parameter is signed or not
-  bool l_sign = false;
-  bool r_sign = is_signed(ast_type(arg));
-
-  return gen_assign_cast(c, type, value, l_sign, r_sign);
+  bool sign = is_signed(ast_type(arg));
+  return gen_assign_cast(c, type, value, sign);
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
@@ -427,4 +424,16 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
   assert(0);
   return false;
+}
+
+void gencall_throw(compile_t* c, ast_t* try_expr)
+{
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
+
+  if(try_expr != NULL)
+    invoke_fun(c, try_expr, func, NULL, 0, "");
+  else
+    LLVMBuildCall(c->builder, func, NULL, 0, "");
+
+  LLVMBuildUnreachable(c->builder);
 }

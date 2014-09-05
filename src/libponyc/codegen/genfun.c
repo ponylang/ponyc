@@ -3,6 +3,8 @@
 #include "genname.h"
 #include "gencall.h"
 #include "gencontrol.h"
+#include "genexpr.h"
+#include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ds/hash.h"
@@ -304,7 +306,12 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   {
     return NULL;
   } else if(value != GEN_NOVALUE) {
-    LLVMBuildRet(c->builder, value);
+    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+    bool sign = is_signed(ast_type(body));
+
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, sign);
+    LLVMBuildRet(c->builder, ret);
   }
 
   codegen_finishfun(c);
