@@ -48,7 +48,9 @@ actor Main
     try
       var throw = Throw
       throw.throw(False)
+      @printf[I32]("all ok\n"._cstring())
     else
       @printf[I32]("caught nested error\n"._cstring())
-      True
+    then
+      @printf[I32]("then clause\n"._cstring())
     end

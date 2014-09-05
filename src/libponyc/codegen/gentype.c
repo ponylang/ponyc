@@ -36,17 +36,16 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 
 static void make_global_instance(compile_t* c, gentype_t* g)
 {
+  // Not a data type.
   if(g->underlying != TK_DATA)
-  {
-    // Not a data type.
-    g->instance = NULL;
     return;
-  }
 
   if(g->primitive != NULL)
   {
     // A primitive type, use an uninitialised value.
-    g->instance = LLVMGetUndef(g->primitive);
+    if(g->instance == NULL)
+      g->instance = LLVMGetUndef(g->primitive);
+
     return;
   }
 
@@ -89,10 +88,13 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(!strcmp(package, "$1"))
   {
     if(!strcmp(name, "True"))
+    {
       g->primitive = LLVMInt1Type();
-    else if(!strcmp(name, "False"))
+      g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
+    } else if(!strcmp(name, "False")) {
       g->primitive = LLVMInt1Type();
-    else if(!strcmp(name, "I8"))
+      g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
+    } else if(!strcmp(name, "I8"))
       g->primitive = LLVMInt8Type();
     else if(!strcmp(name, "U8"))
       g->primitive = LLVMInt8Type();
