@@ -520,7 +520,6 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
 
-  ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
   LLVMValueRef l_value = gen_lvalue(c, left);
@@ -529,10 +528,9 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  bool l_sign = is_signed(left_type);
-  bool r_sign = is_signed(right_type);
+  bool sign = is_signed(right_type);
   LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  r_value = gen_assign_cast(c, l_type, r_value, l_sign, r_sign);
+  r_value = gen_assign_cast(c, l_type, r_value, sign);
 
   if(r_value == NULL)
     return NULL;

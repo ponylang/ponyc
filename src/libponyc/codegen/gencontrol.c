@@ -35,7 +35,6 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
-  bool sign = is_signed(type);
   bool l_sign = is_signed(left_type);
   bool r_sign = is_signed(right_type);
 
@@ -68,7 +67,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(l_value != GEN_NOVALUE)
   {
-    l_value = gen_assign_cast(c, phi_type.use_type, l_value, sign, l_sign);
+    l_value = gen_assign_cast(c, phi_type.use_type, l_value, l_sign);
 
     if(l_value == NULL)
       return NULL;
@@ -84,7 +83,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // if the right side returns, we don't branch to the post block
   if(r_value != GEN_NOVALUE)
   {
-    r_value = gen_assign_cast(c, phi_type.use_type, r_value, sign, r_sign);
+    r_value = gen_assign_cast(c, phi_type.use_type, r_value, r_sign);
 
     if(r_value == NULL)
       return NULL;
@@ -119,7 +118,6 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
   bool else_sign = is_signed(else_type);
 
@@ -154,7 +152,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef l_value = gen_expr(c, body);
-  l_value = gen_assign_cast(c, phi_type.use_type, l_value, sign, body_sign);
+  l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_sign);
 
   if(l_value == NULL)
     return NULL;
@@ -174,7 +172,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
-  r_value = gen_assign_cast(c, phi_type.use_type, r_value, sign, else_sign);
+  r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_sign);
   LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
@@ -194,8 +192,6 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);
-
-  bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
 
   gentype_t phi_type;
@@ -223,7 +219,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type.use_type, value, sign, body_sign);
+  value = gen_assign_cast(c, phi_type.use_type, value, body_sign);
 
   if(value == NULL)
     return NULL;
@@ -249,8 +245,6 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
-  ast_t* type = ast_type(loop);
-  bool sign = is_signed(type);
 
   // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
@@ -293,7 +287,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   // build the break block
   LLVMPositionBuilderAtEnd(c->builder, break_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type, value, sign, body_sign);
+  value = gen_assign_cast(c, phi_type, value, body_sign);
 
   if(value == NULL)
     return NULL;
@@ -375,7 +369,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  bool sign = is_signed(type);
   bool body_sign = is_signed(body_type);
   bool else_sign = is_signed(else_type);
 
@@ -402,8 +395,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(body_value != GEN_NOVALUE)
   {
-    body_value = gen_assign_cast(c, phi_type.use_type, body_value, sign,
-      body_sign);
+    body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_sign);
 
     if(body_value == NULL)
       return NULL;
@@ -425,8 +417,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(else_value != GEN_NOVALUE)
   {
-    else_value = gen_assign_cast(c, phi_type.use_type, else_value, sign,
-      else_sign);
+    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_sign);
 
     if(else_value == NULL)
       return NULL;
