@@ -410,9 +410,14 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   // the landing pad is marked as a cleanup, since exceptions are typeless and
   // valueless. the first landing pad is always the destination.
-  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, c->void_ptr,
+  LLVMTypeRef lp_elements[2];
+  lp_elements[0] = c->void_ptr;
+  lp_elements[1] = LLVMInt32Type();
+  LLVMTypeRef lp_type = LLVMStructType(lp_elements, 2, false);
+  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 0, "");
   LLVMSetCleanup(landing, true);
+
   LLVMValueRef else_value = gen_expr(c, else_clause);
 
   if(else_value != GEN_NOVALUE)
@@ -452,10 +457,40 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 
   // do the then block only if we error out in the else clause
   // in the body or the then block, error out without doing the then block
-  if((try_expr != NULL) && (clause == 1))
-    gen_expr(c, ast_childidx(try_expr, 2));
+  if(try_expr != NULL)
+  {
+    switch(clause)
+    {
+      case 0:
+      {
+        // We're in the body. Invoke throw rather than calling it, so that
+        // we can give it a landing pad.
+        gencall_throw(c, try_expr);
+        return GEN_NOVALUE;
+      }
 
-  gencall_runtime(c, "pony_throw", NULL, 0, "");
-  LLVMBuildUnreachable(c->builder);
+      case 1:
+      {
+        // We're in the else clause. Do the then clause and throw.
+        gen_expr(c, ast_childidx(try_expr, 2));
+        break;
+      }
+
+      case 2:
+      {
+        // We're in the then clause. Just need to throw.
+        break;
+      }
+
+      default:
+      {
+        assert(0);
+        return NULL;
+      }
+    }
+  }
+
+  // Actually throw.
+  gencall_throw(c, NULL);
   return GEN_NOVALUE;
 }

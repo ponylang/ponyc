@@ -425,3 +425,15 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
   assert(0);
   return false;
 }
+
+void gencall_throw(compile_t* c, ast_t* try_expr)
+{
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
+
+  if(try_expr != NULL)
+    invoke_fun(c, try_expr, func, NULL, 0, "");
+  else
+    LLVMBuildCall(c->builder, func, NULL, 0, "");
+
+  LLVMBuildUnreachable(c->builder);
+}
