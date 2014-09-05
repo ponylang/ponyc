@@ -250,6 +250,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Create a dispatch function.
   const char* dispatch_name = genname_dispatch(g->type_name);
   g->dispatch_fn = LLVMAddFunction(c->module, dispatch_name, c->dispatch_type);
+  LLVMSetFunctionCallConv(g->dispatch_fn, LLVMFastCallConv);
 
   codegen_startfun(c, g->dispatch_fn);
   LLVMBasicBlockRef unreachable = LLVMAppendBasicBlock(g->dispatch_fn,
@@ -303,6 +304,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
   // Create a trace function.
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+  LLVMSetFunctionCallConv(trace_fn, LLVMFastCallConv);
   codegen_startfun(c, trace_fn);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
@@ -316,7 +318,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
 
   for(size_t i = 0; i < g->field_count; i++)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, 
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object,
       (unsigned int) (i + extra), "");
 
     LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
@@ -359,7 +361,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
     elements[i + extra] = field_g.use_type;
   }
 
-  LLVMStructSetBody(g->structure, elements, (int)(g->field_count + extra), 
+  LLVMStructSetBody(g->structure, elements, (int)(g->field_count + extra),
     false);
 
   return true;

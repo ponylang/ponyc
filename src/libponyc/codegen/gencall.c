@@ -7,17 +7,8 @@
 #include "../type/cap.h"
 #include <assert.h>
 
-static LLVMValueRef call_fun(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
-  size_t count, const char* ret)
-{
-  if(fun == NULL)
-    return NULL;
-
-  return LLVMBuildCall(c->builder, fun, args, (int)count, ret);
-}
-
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
-  LLVMValueRef* args, size_t count, const char* ret)
+  LLVMValueRef* args, int count, const char* ret)
 {
   if(fun == NULL)
     return NULL;
@@ -27,9 +18,10 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   LLVMMoveBasicBlockAfter(then_block, this_block);
   LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
 
-  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, (int)count,
+  LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
 
+  LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   return invoke;
 }
@@ -194,7 +186,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return invoke_fun(c, try_expr, func, args, count, "");
   }
 
-  return call_fun(c, func, args, count, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, func, args, count, "");
+  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+
+  return result;
 }
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
@@ -237,13 +232,18 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   }
 
   // Call it.
-  return call_fun(c, func, f_args, count, "");
+  return LLVMBuildCall(c->builder, func, f_args, count, "");
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret)
 {
-  return call_fun(c, LLVMGetNamedFunction(c->module, name), args, count, ret);
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
+
+  if(func == NULL)
+    return NULL;
+
+  return LLVMBuildCall(c->builder, func, args, count, ret);
 }
 
 LLVMValueRef gencall_create(compile_t* c, gentype_t* g)

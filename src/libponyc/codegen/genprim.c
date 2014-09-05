@@ -43,6 +43,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 1, false);
   fun = LLVMAddFunction(c->module, name, ftype);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
   codegen_startfun(c, fun);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
@@ -64,6 +65,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ftype = LLVMFunctionType(g->use_type, params, 2, false);
   fun = LLVMAddFunction(c->module, name, ftype);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
   codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
@@ -86,6 +88,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 2, false);
   fun = LLVMAddFunction(c->module, name, ftype);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
   codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
@@ -106,6 +109,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 3, false);
   fun = LLVMAddFunction(c->module, name, ftype);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
   codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
@@ -127,6 +131,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ftype = LLVMFunctionType(LLVMInt64Type(), params, 3, false);
   fun = LLVMAddFunction(c->module, name, ftype);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
   codegen_startfun(c, fun);
 
   args[0] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->void_ptr, "");
@@ -149,6 +154,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+  LLVMSetFunctionCallConv(trace_fn, LLVMFastCallConv);
   codegen_startfun(c, trace_fn);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);

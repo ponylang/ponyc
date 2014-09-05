@@ -114,6 +114,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     ftype = LLVMFunctionType(result, tparams, (unsigned int)count, false);
 
   func = LLVMAddFunction(c->module, funname, ftype);
+  LLVMSetFunctionCallConv(func, LLVMFastCallConv);
   name_params(params, func, ast_id(fun) == TK_NEW);
 
   if(ast_id(fun) != TK_FUN)
@@ -123,6 +124,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
     LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
+    LLVMSetFunctionCallConv(handler, LLVMFastCallConv);
     name_params(params, handler, false);
   }
 
@@ -269,7 +271,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
     LLVMInstructionEraseFromParent(start_trace);
 
   // Call the handler.
-  LLVMBuildCall(c->builder, handler, args, (unsigned int)count, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMSetInstructionCallConv(call, LLVMFastCallConv);
   LLVMBuildRetVoid(c->builder);
 
   // Pause, otherwise the optimiser will run on what we have so far.
@@ -379,7 +382,8 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   for(int i = 1; i < count; i++)
     args[i] = LLVMGetParam(func, i - 1);
 
-  LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMSetInstructionCallConv(call, LLVMFastCallConv);
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
