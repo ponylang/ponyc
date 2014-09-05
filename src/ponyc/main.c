@@ -1,5 +1,4 @@
-#include "../libponyc/platform/platform.h"
-#include "../libponyc/ast/parserapi.h"
+#include "options.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
@@ -7,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static struct option opts[] =
+/*static struct option opts[] =
 {
   {"ast", no_argument, NULL, 'a'},
   {"llvm", no_argument, NULL, 'l'},
@@ -17,7 +16,7 @@ static struct option opts[] =
   {"trace", no_argument, NULL, 't'},
   {"width", required_argument, NULL, 'w'},
   {NULL, 0, NULL, 0},
-};
+};*/
 
 void usage()
 {
@@ -28,22 +27,33 @@ void usage()
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
     "  --pass, -r      restrict phases\n"
-    "  --trace, -t     enable parse trace\n" 
+    "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
     );
 }
 
 size_t get_width()
 {
-  struct winsize ws;
   size_t width = 80;
+#ifdef _WIN64
+  CONSOLE_SCREEN_BUFFER_INFO info;
 
-  if(pony_get_term_winsize(&ws))
+  if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
+  {
+    int cols = info.srWindow.Right - info.srWindow.Left + 1;
+
+    if(cols > width)
+      width = cols;
+  }
+#else
+  struct winsize ws;
+
+  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;
   }
-
+#endif
   return width;
 }
 
@@ -55,10 +65,10 @@ int main(int argc, char** argv)
   bool llvm = false;
   int opt = 0;
   size_t width = get_width();
-  char c;
+  //char c;
   bool error = false;
 
-  while((c = (char)getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
+  /*while((c = (char)getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
   {
     switch(c)
     {
@@ -86,7 +96,7 @@ int main(int argc, char** argv)
   }
 
   argc -= optind;
-  argv += optind;
+  argv += optind; */
 
   ast_t* program = program_load((argc > 0) ? argv[0] : ".");
   int ret = 0;

@@ -14,7 +14,6 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  include <fcntl.h>
 #  include <sys/types.h>
 #  include <sys/stat.h>
-#  include <sys/mman.h>
 #  include <errno.h>
 #  define PONY_DIR DIR
 #  define PONY_DIRINFO struct dirent
