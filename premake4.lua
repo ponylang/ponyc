@@ -87,7 +87,6 @@ solution "ponyc"
     }
     defines {
       "_DEBUG",
-      "_GNU_SOURCE",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
@@ -104,7 +103,6 @@ solution "ponyc"
     }
     defines {
       "_DEBUG",
-      "_GNU_SOURCE",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
