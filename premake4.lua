@@ -68,12 +68,7 @@ solution "ponyc"
   configuration "Release or Profile"
     defines "NDEBUG"
     flags "OptimizeSpeed"
-    buildoptions {
-      "-flto",
-    }
-
     linkoptions {
-      "-flto",
       "-fuse-ld=gold",
     }
 
