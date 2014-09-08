@@ -2,8 +2,13 @@ You will need premake to build this.
 
 http://industriousone.com/premake/download
 
-This will build ponyc and run it against the files in the test directory:
+After cloning, you need to initialise the submodules:
+
+$ git submodule init
+$ git submodule foreach update
+
+This will build ponyc and compile helloworld:
 
 $ premake4 gmake
 $ make config=release
-$ ./bin/release/ponyc test
+$ ./bin/release/ponyc test/helloworld
