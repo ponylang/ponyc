@@ -476,9 +476,6 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
-  const char* target_name = LLVMGetTargetName(target);
-  printf("Target: %s, triple: %s\n", target_name, c->triple);
-
   // TODO LINK: allow passing in the cpu and feature set
   // -mcpu=mycpu -mattr=+feature1,-feature2
   char* cpu = LLVMGetHostCPUName();
@@ -550,7 +547,6 @@ static bool codegen_finalise(compile_t* c, int opt)
     "-o %s "
     "/usr/lib/x86_64-linux-gnu/crt1.o "
     "/usr/lib/x86_64-linux-gnu/crti.o "
-    "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtbegin.o "
     "%s.o ",
     c->filename, c->filename
     );
@@ -559,9 +555,7 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   strcat(ld_cmd,
     " -lpony -lpthread -lc "
-    "/usr/lib/gcc/x86_64-linux-gnu/4.8/libgcc.a "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
-    "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtend.o "
     "/usr/lib/x86_64-linux-gnu/crtn.o"
   );
 
