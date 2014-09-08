@@ -25,8 +25,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
 
   const char* unbox_name = genname_unbox(name);
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
-  LLVMValueRef unbox_fun = LLVMAddFunction(c->module, unbox_name, unbox_type);
-  LLVMSetFunctionCallConv(unbox_fun, LLVMFastCallConv);
+  LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type);
   codegen_startfun(c, unbox_fun);
 
   // Extract the primitive type from element 1 and call the real function.
@@ -128,7 +127,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
 
   // Initialise the global descriptor.
   LLVMValueRef args[9];
-  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target, g->structure);
+  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // TODO: Generate a separate type ID for every type.
   args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);

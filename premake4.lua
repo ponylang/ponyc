@@ -77,15 +77,15 @@ solution "ponyc"
       "-fuse-ld=gold",
     }
 
+  configuration "*.c"
+    buildoptions "-std=gnu11"
+
   project "libponyc"
     targetname "ponyc"
     kind "StaticLib"
     language "C"
     includedirs {
       llvm_config("--includedir")
-    }
-    buildoptions {
-      "-std=gnu11"
     }
     defines {
       "_DEBUG",
@@ -102,7 +102,6 @@ solution "ponyc"
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
-    buildoptions "-std=gnu11"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
 

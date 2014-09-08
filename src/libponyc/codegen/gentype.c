@@ -36,17 +36,16 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 
 static void make_global_instance(compile_t* c, gentype_t* g)
 {
+  // Not a data type.
   if(g->underlying != TK_DATA)
-  {
-    // Not a data type.
-    g->instance = NULL;
     return;
-  }
 
   if(g->primitive != NULL)
   {
     // A primitive type, use an uninitialised value.
-    g->instance = LLVMGetUndef(g->primitive);
+    if(g->instance == NULL)
+      g->instance = LLVMGetUndef(g->primitive);
+
     return;
   }
 
@@ -89,10 +88,13 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(!strcmp(package, "$1"))
   {
     if(!strcmp(name, "True"))
+    {
       g->primitive = LLVMInt1Type();
-    else if(!strcmp(name, "False"))
+      g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
+    } else if(!strcmp(name, "False")) {
       g->primitive = LLVMInt1Type();
-    else if(!strcmp(name, "I8"))
+      g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
+    } else if(!strcmp(name, "I8"))
       g->primitive = LLVMInt8Type();
     else if(!strcmp(name, "U8"))
       g->primitive = LLVMInt8Type();
@@ -249,10 +251,9 @@ static void make_dispatch(compile_t* c, gentype_t* g)
 
   // Create a dispatch function.
   const char* dispatch_name = genname_dispatch(g->type_name);
-  g->dispatch_fn = LLVMAddFunction(c->module, dispatch_name, c->dispatch_type);
-  LLVMSetFunctionCallConv(g->dispatch_fn, LLVMFastCallConv);
-
+  g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   codegen_startfun(c, g->dispatch_fn);
+
   LLVMBasicBlockRef unreachable = LLVMAppendBasicBlock(g->dispatch_fn,
     "unreachable");
 
@@ -303,8 +304,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
 
   // Create a trace function.
   const char* trace_name = genname_trace(g->type_name);
-  LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
-  LLVMSetFunctionCallConv(trace_fn, LLVMFastCallConv);
+  LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
   codegen_startfun(c, trace_fn);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
