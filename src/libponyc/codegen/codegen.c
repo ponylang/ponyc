@@ -424,28 +424,17 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
-  size_t len = strlen(c->filename);
-
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
-   * amalgamating the program and the runtime and generating a .o file the
-   * way llc does, then linking with the system linker.
+   * amalgamating the program and the runtime.
    *
    * For building a library, could generate a .o without the runtime in it. The
    * user then has to link both the .o and the runtime. Would need a flag for
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
-   *
-   * Using ld on the mac:
-   *
-   * ld -execute -arch x86_64 -macosx_version_min 10.9.0 -o helloworld
-   *   helloworld.o ../ponyrt/bin/release/libpony.a -lSystem
-   *
-   * Don't appear to need the clang_rt
-   *   /Applications/Xcode.app/Contents/Developer/Toolchains
-   *   /XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib
-   *   /darwin/libclang_rt.osx.a
    */
 
+  // Generate an object file.
+  size_t len = strlen(c->filename);
   VLA(char, file_o, len + 3);
   snprintf(file_o, len + 3, "%s.o", c->filename);
 
@@ -464,7 +453,7 @@ static bool codegen_finalise(compile_t* c, int opt)
   char* cpu = LLVMGetHostCPUName();
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", opt, LLVMRelocDefault, LLVMCodeModelDefault);
+    cpu, "", opt, LLVMRelocStatic, LLVMCodeModelDefault);
 
   LLVMDisposeMessage(cpu);
 
@@ -484,6 +473,76 @@ static bool codegen_finalise(compile_t* c, int opt)
   }
 
   LLVMDisposeTargetMachine(machine);
+
+  // Link the program.
+#if defined(PLATFORM_IS_MACOSX)
+  char* arch = strchr(c->triple, '-');
+
+  if(arch == NULL)
+  {
+    errorf(NULL, "couldn't determine architecture from %s", c->triple);
+    return false;
+  }
+
+  arch = strndup(c->triple, arch - c->triple);
+
+  size_t ld_len = 128 + strlen(arch) + (len * 2);
+  strlist_t* search = package_paths();
+  strlist_t* p = search;
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    ld_len += strlen(path) + 3;
+    p = strlist_next(p);
+  }
+
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld -execute -arch %s -macosx_version_min 10.9.0 -o %s %s.o",
+    arch, c->filename, c->filename
+    );
+
+  p = search;
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    strcat(ld_cmd, " -L");
+    strcat(ld_cmd, path);
+    p = strlist_next(p);
+  }
+
+  strcat(ld_cmd, " -lpony -lSystem");
+  free(arch);
+
+  printf("%s\n", ld_cmd);
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#elif defined(PLATFORM_IS_LINUX)
+  size_t ld_len = 128 + (len * 2);
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld -o %s /lib/crt0.o %s.o -L../ponyrt/bin/release -lpony -lc",
+    c->filename, c->filename
+    );
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#else
+  printf("Compiled %s.o, please link it by hand to libpony.a\n", c->filename);
+#endif
+
+  unlink(file_o);
   return true;
 }
 

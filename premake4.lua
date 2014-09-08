@@ -31,6 +31,13 @@ function link_libponyc()
   configuration("*")
 end
 
+local getcxxflags = premake.gcc.getcxxflags;
+function premake.gcc.getcxxflags(cfg)
+  local r = getcxxflags(cfg)
+  table.insert(r, "-std=c++11")
+  return r;
+end
+
 solution "ponyc"
   configurations {
     "Debug",
@@ -39,7 +46,8 @@ solution "ponyc"
   }
   buildoptions {
     "-march=native",
-    "-pthread"
+    "-pthread",
+    "-std=gnu11"
   }
   linkoptions {
     "-pthread"
@@ -77,9 +85,6 @@ solution "ponyc"
       "-fuse-ld=gold",
     }
 
-  configuration "*.c"
-    buildoptions "-std=gnu11"
-
   project "libponyc"
     targetname "ponyc"
     kind "StaticLib"
@@ -95,9 +100,9 @@ solution "ponyc"
       "__STDC_LIMIT_MACROS",
     }
     files { "src/libponyc/**.c*", "src/libponyc/**.h" }
-    configuration "gmake"
-      excludes { "src/libponyc/**.cc" }
-    configuration "*"
+
+    configuration "not windows"
+      excludes { "src/libponyc/platform/**.cc" }
 
   project "ponyc"
     kind "ConsoleApp"

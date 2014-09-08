@@ -4,7 +4,6 @@
 #include "../ast/parser.h"
 #include "../ast/ast.h"
 #include "../ast/token.h"
-#include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -343,10 +342,15 @@ void package_init(const char* name)
     search = strlist_push(search, stringtab(path));
   }
 
-  package_paths(getenv("PONYPATH"));
+  package_add_paths(getenv("PONYPATH"));
 }
 
-void package_paths(const char* paths)
+strlist_t* package_paths()
+{
+  return search;
+}
+
+void package_add_paths(const char* paths)
 {
   if(paths == NULL)
     return;
