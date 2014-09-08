@@ -180,10 +180,12 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
     if((try_expr != NULL) && (clause == 0))
-      return invoke_fun(c, try_expr, func, args, count, "");
+      return invoke_fun(c, try_expr, func, args, (int)count, "");
   }
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, func, args, count, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, func, args, 
+    (unsigned int)count, "");
+
   LLVMSetInstructionCallConv(result, LLVMFastCallConv);
 
   return result;
@@ -229,7 +231,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   }
 
   // Call it.
-  return LLVMBuildCall(c->builder, func, f_args, count, "");
+  return LLVMBuildCall(c->builder, func, f_args, (unsigned int)count, "");
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,

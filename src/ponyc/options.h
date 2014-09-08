@@ -1,36 +1,35 @@
 #ifndef PONYC_OPTIONS_H
 #define PONYC_OPTIONS_H
 
+#include <stdint.h>
+
+#define ARGUMENTS_FINISH \
+  {NULL, 0, UINT32_MAX, UINT32_MAX}
+
 enum
 {
   ARGUMENT_REQUIRED = 0x01,
-  ARGUMENT_OPTIONAL = 0x02,
-  ARGUMENT_NONE     = 0x04
+  ARGUMENT_NONE     = 0x02
 };
 
-/** Opaque definition of an options parser.
- *
- */
-typedef struct options_t options_t;
+typedef struct arg_t
+{
+  char* long_opt;
+  char short_opt;
+  uint32_t flag;
+  uint32_t id;
+} arg_t;
 
-/** 
- *
- */
-typedef struct help_t help_t;
+typedef struct parse_state_t
+{
+  int* argc;
+  char** argv;
+  arg_t* args;
+  char* arg_val;
+} parse_state_t;
 
-/**
- *
- */
-typedef struct arg_t arg_t; //make non-opaque
+void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv);
 
-/** Initializes a command line argument parser for a
- *  fixed amount of arguments to parse.
- */
-options_t* options_init(int argc);
-
-/**
- *
- */
-void options_add_arg(void* arg_t* arg);
+int opt_next(parse_state_t* s);
 
 #endif
