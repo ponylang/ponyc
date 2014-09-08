@@ -33,6 +33,7 @@
 
       if not os.is("windows") then
         linkoptions {
+          "-flto",
           "-fuse-ld=gold"
         }
       end
@@ -64,7 +65,6 @@
 
       configuration "gmake"
         buildoptions {
-          "-mcx16",
           "-march=native"
         }
 
@@ -109,12 +109,11 @@
 
   project "ponyc"
     kind "ConsoleApp"
-    language "C"
+    language "C++"
     files {
-      "src/ponyc/**.c",
-      "src/ponyc/**.h"
+      "src/ponyc/**.h",
+      "src/ponyc/**.c"
     }
-    --linkoptions "-lc++"
     configuration "gmake"
       buildoptions "-std=gnu11"
     configuration "vs*"
