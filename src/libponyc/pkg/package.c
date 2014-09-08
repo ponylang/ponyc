@@ -346,10 +346,7 @@ void package_init(const char* name)
   char path[FILENAME_MAX];
 
   if(execpath(name, path))
-  {
-    strcat(path, "/packages");
     add_path(path);
-  }
 
   package_add_paths(getenv("PONYPATH"));
 }
