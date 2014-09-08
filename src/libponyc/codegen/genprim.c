@@ -27,7 +27,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
     return true;
 
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target, elem_g.use_type);
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g.use_type);
   LLVMValueRef l_size = LLVMConstInt(LLVMInt64Type(), size, false);
 
   // create

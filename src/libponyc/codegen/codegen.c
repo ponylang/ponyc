@@ -339,6 +339,13 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
 static void codegen_init(compile_t* c, ast_t* program, int opt)
 {
+  LLVMInitializeNativeTarget();
+  LLVMInitializeAllTargets();
+  LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllAsmPrinters();
+  LLVMEnablePrettyStackTrace();
+  LLVMInstallFatalErrorHandler(codegen_fatal);
+
   c->painter = painter_create();
   painter_colour(c->painter, program);
 
@@ -359,20 +366,17 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   LLVMInitializeCodeGen(passreg);
   LLVMInitializeTarget(passreg);
 
-  LLVMInitializeNativeTarget();
-  LLVMEnablePrettyStackTrace();
-  LLVMInstallFatalErrorHandler(codegen_fatal);
+  // Default triple.
+  c->triple = LLVMGetDefaultTargetTriple();
 
   // Create a module.
   c->module = LLVMModuleCreateWithName(c->filename);
 
   // Set the target triple.
-  char* triple = LLVMGetDefaultTargetTriple();
-  LLVMSetTarget(c->module, triple);
-  LLVMDisposeMessage(triple);
+  LLVMSetTarget(c->module, c->triple);
 
   // Target data.
-  c->target = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
+  c->target_data = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
 
   // Pass manager builder.
   c->pmb = LLVMPassManagerBuilderCreate();
@@ -381,7 +385,7 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
 
   // Function pass manager.
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
-  LLVMAddTargetData(c->target, c->fpm);
+  LLVMAddTargetData(c->target_data, c->fpm);
   LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
   LLVMInitializeFunctionPassManager(c->fpm);
 
@@ -399,14 +403,14 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   // Module pass manager.
   LLVMPassManagerRef mpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target, mpm);
+  LLVMAddTargetData(c->target_data, mpm);
   LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
   LLVMRunPassManager(mpm, c->module);
   LLVMDisposePassManager(mpm);
 
   // LTO pass manager.
   LLVMPassManagerRef lpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target, lpm);
+  LLVMAddTargetData(c->target_data, lpm);
   LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, lpm, true, true);
   LLVMRunPassManager(lpm, c->module);
   LLVMDisposePassManager(lpm);
@@ -422,11 +426,57 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   size_t len = strlen(c->filename);
 
-  // Generate bitcode.
-  VLA(char, file_bc, len + 4);
-  snprintf(file_bc, len + 4, "%s.bc", c->filename);
-  LLVMWriteBitcodeToFile(c->module, file_bc);
+  /*
+   * Could store the pony runtime as a bitcode file. Build an executable by
+   * amalgamating the program and the runtime and generating a .o file the
+   * way llc does, then linking with the system linker.
+   *
+   * For building a library, could generate a .o without the runtime in it. The
+   * user then has to link both the .o and the runtime. Would need a flag for
+   * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
+   *
+   * Using ld on the mac:
+   *
+   * ld -dynamic -arch x86_64 -macosx_version_min 10.9.0 -o helloworld
+   *   helloworld.bc ../ponyrt/bin/release/libpony.a -lSystem
+   *   /Applications/Xcode.app/Contents/Developer/Toolchains
+   *   /XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib
+   *   /darwin/libclang_rt.osx.a
+   */
 
+  VLA(char, file_o, len + 3);
+  snprintf(file_o, len + 3, "%s.o", c->filename);
+
+  LLVMTargetRef target;
+  char* err;
+
+  if(LLVMGetTargetFromTriple(c->triple, &target, &err) != 0)
+  {
+    errorf(NULL, "couldn't create target: %s", err);
+    LLVMDisposeMessage(err);
+    return false;
+  }
+
+  // TODO LINK: pick the right CPU
+  LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
+    "core-avx2", "", opt, LLVMRelocDefault, LLVMCodeModelDefault);
+
+  if(machine == NULL)
+  {
+    errorf(NULL, "couldn't create target machine");
+    return false;
+  }
+
+  if(LLVMTargetMachineEmitToFile(machine, c->module, file_o, LLVMObjectFile,
+    &err) != 0)
+  {
+    errorf(NULL, "couldn't create object file: %s", err);
+    LLVMDisposeMessage(err);
+    LLVMDisposeTargetMachine(machine);
+    return false;
+  }
+
+  LLVMDisposeTargetMachine(machine);
   return true;
 }
 
@@ -442,8 +492,9 @@ static void codegen_cleanup(compile_t* c, bool print_llvm)
   LLVMPassManagerBuilderDispose(c->pmb);
 
   LLVMDisposeBuilder(c->builder);
-  LLVMDisposeTargetData(c->target);
+  LLVMDisposeTargetData(c->target_data);
   LLVMDisposeModule(c->module);
+  LLVMDisposeMessage(c->triple);
   LLVMShutdown();
   painter_free(c->painter);
 }
@@ -492,7 +543,6 @@ void codegen_pausefun(compile_t* c)
 void codegen_finishfun(compile_t* c)
 {
   compile_context_t* context = c->context;
-  LLVMSetLinkage(context->fun, LLVMInternalLinkage);
 
   if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) == 0)
   {

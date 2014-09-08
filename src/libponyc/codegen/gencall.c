@@ -255,7 +255,7 @@ LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
 LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
 {
   LLVMTypeRef l_type = LLVMGetElementType(type);
-  size_t size = LLVMABISizeOfType(c->target, l_type);
+  size_t size = LLVMABISizeOfType(c->target_data, l_type);
 
   LLVMValueRef args[1];
   args[0] = LLVMConstInt(LLVMInt64Type(), size, false);

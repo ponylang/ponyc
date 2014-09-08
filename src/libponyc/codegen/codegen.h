@@ -24,8 +24,9 @@ typedef struct compile_t
   painter_t* painter;
   const char* filename;
 
+  char* triple;
   LLVMModuleRef module;
-  LLVMTargetDataRef target;
+  LLVMTargetDataRef target_data;
 
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;

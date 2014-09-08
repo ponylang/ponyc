@@ -186,7 +186,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
-  size_t size = LLVMABISizeOfType(c->target, msg_type);
+  size_t size = LLVMABISizeOfType(c->target_data, msg_type);
   size = next_pow2(size);
 
   // Subtract 7 because we are looking to make 64 come out to zero.

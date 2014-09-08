@@ -127,7 +127,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
 
   // Initialise the global descriptor.
   LLVMValueRef args[9];
-  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target, g->structure);
+  uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // TODO: Generate a separate type ID for every type.
   args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
