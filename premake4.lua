@@ -90,6 +90,7 @@ solution "ponyc"
     excludes { "src/libponyc/platform/**.cc" }
 
   project "libponycc"
+    targetname "ponycc"
     kind "StaticLib"
     language "C++"
     buildoptions "-std=gnu++11"
@@ -111,5 +112,6 @@ solution "ponyc"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
 
+  include "ponyrt/src/"
   include "utils/"
   include "test/"
