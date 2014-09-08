@@ -68,12 +68,7 @@ solution "ponyc"
   configuration "Release or Profile"
     defines "NDEBUG"
     flags "OptimizeSpeed"
-    buildoptions {
-      "-flto",
-    }
-
     linkoptions {
-      "-flto",
       "-fuse-ld=gold",
     }
 
@@ -87,7 +82,6 @@ solution "ponyc"
     }
     defines {
       "_DEBUG",
-      "_GNU_SOURCE",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
@@ -96,6 +90,7 @@ solution "ponyc"
     excludes { "src/libponyc/platform/**.cc" }
 
   project "libponycc"
+    targetname "ponycc"
     kind "StaticLib"
     language "C++"
     buildoptions "-std=gnu++11"
@@ -104,7 +99,6 @@ solution "ponyc"
     }
     defines {
       "_DEBUG",
-      "_GNU_SOURCE",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
@@ -118,5 +112,6 @@ solution "ponyc"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
 
+  include "ponyrt/src/"
   include "utils/"
   include "test/"

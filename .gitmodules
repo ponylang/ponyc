@@ -1,0 +1,3 @@
+[submodule "ponyrt"]
+	path = ponyrt
+	url = https://github.com/CausalityLtd/ponyrt.git
