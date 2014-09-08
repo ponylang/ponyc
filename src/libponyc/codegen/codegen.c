@@ -396,6 +396,34 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   c->context = NULL;
 }
 
+static size_t link_path_length()
+{
+  strlist_t* p = package_paths();
+  size_t len = 0;
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    len += strlen(path) + 3;
+    p = strlist_next(p);
+  }
+
+  return len;
+}
+
+static void append_link_paths(char* str)
+{
+  strlist_t* p = package_paths();
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    strcat(str, " -L");
+    strcat(str, path);
+    p = strlist_next(p);
+  }
+}
+
 static bool codegen_finalise(compile_t* c, int opt)
 {
   // Finalise the function passes.
@@ -486,17 +514,7 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   arch = strndup(c->triple, arch - c->triple);
 
-  size_t ld_len = 128 + strlen(arch) + (len * 2);
-  strlist_t* search = package_paths();
-  strlist_t* p = search;
-
-  while(p != NULL)
-  {
-    const char* path = strlist_data(p);
-    ld_len += strlen(path) + 3;
-    p = strlist_next(p);
-  }
-
+  size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -504,19 +522,11 @@ static bool codegen_finalise(compile_t* c, int opt)
     arch, c->filename, c->filename
     );
 
-  p = search;
-
-  while(p != NULL)
-  {
-    const char* path = strlist_data(p);
-    strcat(ld_cmd, " -L");
-    strcat(ld_cmd, path);
-    p = strlist_next(p);
-  }
-
+  append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lpony -lSystem");
   free(arch);
 
+  // TODO: remove this
   printf("%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
@@ -525,13 +535,15 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 #elif defined(PLATFORM_IS_LINUX)
-  size_t ld_len = 128 + (len * 2);
+  size_t ld_len = 128 + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
 
-  snprintf(ld_cmd, ld_len,
-    "ld -o %s /lib/crt0.o %s.o -L../ponyrt/bin/release -lpony -lc",
+  snprintf(ld_cmd, ld_len, "ld -o %s /lib/crt0.o %s.o",
     c->filename, c->filename
     );
+
+  append_link_paths(ld_cmd);
+  strcat(ld_cmd, " -lpony -lc");
 
   if(system(ld_cmd) != 0)
   {
