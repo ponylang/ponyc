@@ -115,8 +115,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   else
     ftype = LLVMFunctionType(result, tparams, (unsigned int)count, false);
 
-  func = LLVMAddFunction(c->module, funname, ftype);
-  LLVMSetFunctionCallConv(func, LLVMFastCallConv);
+  func = codegen_addfun(c, funname, ftype);
   name_params(params, func, ast_id(fun) == TK_NEW);
 
   if(ast_id(fun) != TK_FUN)
@@ -125,8 +124,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     ftype = LLVMFunctionType(LLVMVoidType(), tparams, (int)count, false);
     const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
-    LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
-    LLVMSetFunctionCallConv(handler, LLVMFastCallConv);
+    LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
     name_params(params, handler, false);
   }
 

@@ -10,7 +10,9 @@
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
 
+#include <llvm-c/Initialization.h>
 #include <llvm-c/Target.h>
+#include <llvm-c/TargetMachine.h>
 #include <llvm-c/BitWriter.h>
 
 #include <stdio.h>
@@ -185,11 +187,38 @@ static void codegen_runtime(compile_t* c)
   LLVMAddFunction(c->module, "memcpy", type);
 }
 
+static int behaviour_index(gentype_t* g, const char* name)
+{
+  ast_t* def = (ast_t*)ast_data(g->ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  int index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      case TK_BE:
+      {
+        AST_GET_CHILDREN(member, ignore, id);
+
+        if(!strcmp(ast_name(id), name))
+          return index;
+
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+  }
+
+  return -1;
+}
+
 static void codegen_main(compile_t* c, gentype_t* g)
 {
-  // TODO: Calculate the index of create().
-  size_t index = 0;
-
   LLVMTypeRef params[2];
   params[0] = LLVMInt32Type();
   params[1] = LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0);
@@ -219,6 +248,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
   const char* env_create = genname_fun(env_name, "_create", NULL);
   args[0] = LLVMBuildZExt(c->builder, args[0], LLVMInt64Type(), "");
   LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
+  LLVMSetInstructionCallConv(env, LLVMFastCallConv);
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -231,7 +261,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
 
   // Allocate the message, setting its size and ID.
   args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[0] = LLVMConstInt(LLVMInt32Type(), behaviour_index(g, "create"), false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
@@ -261,6 +291,9 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMBuildRet(c->builder, rc);
 
   codegen_finishfun(c);
+
+  // External linkage for main().
+  LLVMSetLinkage(func, LLVMExternalLinkage);
 }
 
 static bool codegen_type(compile_t* c, ast_t* scope, const char* package,
@@ -309,48 +342,74 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   c->painter = painter_create();
   painter_colour(c->painter, program);
 
-  // the name of the first package is the name of the program
+  // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
 
   LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
   LLVMInitializeCore(passreg);
+  LLVMInitializeTransformUtils(passreg);
+  LLVMInitializeScalarOpts(passreg);
+  LLVMInitializeObjCARCOpts(passreg);
+  LLVMInitializeVectorization(passreg);
+  LLVMInitializeInstCombine(passreg);
+  LLVMInitializeIPO(passreg);
+  LLVMInitializeInstrumentation(passreg);
+  LLVMInitializeAnalysis(passreg);
+  LLVMInitializeIPA(passreg);
+  LLVMInitializeCodeGen(passreg);
+  LLVMInitializeTarget(passreg);
+
   LLVMInitializeNativeTarget();
   LLVMEnablePrettyStackTrace();
   LLVMInstallFatalErrorHandler(codegen_fatal);
 
-  // create a module
+  // Create a module.
   c->module = LLVMModuleCreateWithName(c->filename);
 
-  // function pass manager
-  c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
-  LLVMAddTargetData(LLVMCreateTargetData(LLVMGetDataLayout(c->module)), c->fpm);
+  // Set the target triple.
+  char* triple = LLVMGetDefaultTargetTriple();
+  LLVMSetTarget(c->module, triple);
+  LLVMDisposeMessage(triple);
 
-  c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt);
-  LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
-
-  LLVMInitializeFunctionPassManager(c->fpm);
-
-  // IR builder
-  c->builder = LLVMCreateBuilder();
-
-  // target data
+  // Target data.
   c->target = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
 
-  // empty context stack
+  // Pass manager builder.
+  c->pmb = LLVMPassManagerBuilderCreate();
+  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt);
+  LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
+
+  // Function pass manager.
+  c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
+  LLVMAddTargetData(c->target, c->fpm);
+  LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
+  LLVMInitializeFunctionPassManager(c->fpm);
+
+  // IR builder.
+  c->builder = LLVMCreateBuilder();
+
+  // Empty context stack.
   c->context = NULL;
 }
 
-static bool codegen_finalise(compile_t* c)
+static bool codegen_finalise(compile_t* c, int opt)
 {
-  // finalise the function passes
+  // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
-  // module pass manager
+  // Module pass manager.
   LLVMPassManagerRef mpm = LLVMCreatePassManager();
+  LLVMAddTargetData(c->target, mpm);
   LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
   LLVMRunPassManager(mpm, c->module);
   LLVMDisposePassManager(mpm);
+
+  // LTO pass manager.
+  LLVMPassManagerRef lpm = LLVMCreatePassManager();
+  LLVMAddTargetData(c->target, lpm);
+  LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, lpm, true, true);
+  LLVMRunPassManager(lpm, c->module);
+  LLVMDisposePassManager(lpm);
 
   char* msg;
 
@@ -361,16 +420,12 @@ static bool codegen_finalise(compile_t* c)
     return false;
   }
 
-  // generates bitcode. llc turns bitcode into assembly. llvm-mc turns
-  // assembly into an object file. still need to link the object file with the
-  // pony runtime and any other C libraries needed.
   size_t len = strlen(c->filename);
-  VLA(char, buffer, len + 4);
-  memcpy(buffer, c->filename, len);
-  memcpy(buffer + len, ".bc", 4);
 
-  LLVMWriteBitcodeToFile(c->module, buffer);
-  printf("=== Compiled %s ===\n", buffer);
+  // Generate bitcode.
+  VLA(char, file_bc, len + 4);
+  snprintf(file_bc, len + 4, "%s.bc", c->filename);
+  LLVMWriteBitcodeToFile(c->module, file_bc);
 
   return true;
 }
@@ -383,9 +438,11 @@ static void codegen_cleanup(compile_t* c, bool print_llvm)
   if(print_llvm)
     LLVMDumpModule(c->module);
 
-  LLVMDisposeTargetData(c->target);
-  LLVMDisposeBuilder(c->builder);
   LLVMDisposePassManager(c->fpm);
+  LLVMPassManagerBuilderDispose(c->pmb);
+
+  LLVMDisposeBuilder(c->builder);
+  LLVMDisposeTargetData(c->target);
   LLVMDisposeModule(c->module);
   LLVMShutdown();
   painter_free(c->painter);
@@ -400,10 +457,17 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c);
+    ok = codegen_finalise(&c, opt);
 
   codegen_cleanup(&c, print_llvm);
   return ok;
+}
+
+LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
+{
+  LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
+  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
+  return fun;
 }
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun)
@@ -428,6 +492,7 @@ void codegen_pausefun(compile_t* c)
 void codegen_finishfun(compile_t* c)
 {
   compile_context_t* context = c->context;
+  LLVMSetLinkage(context->fun, LLVMInternalLinkage);
 
   if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) == 0)
   {

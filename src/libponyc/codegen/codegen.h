@@ -25,10 +25,11 @@ typedef struct compile_t
   const char* filename;
 
   LLVMModuleRef module;
+  LLVMTargetDataRef target;
+
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;
   LLVMPassManagerBuilderRef pmb;
-  LLVMTargetDataRef target;
 
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;
@@ -50,6 +51,8 @@ typedef struct compile_t
 } compile_t;
 
 bool codegen(ast_t* program, int opt, bool print_llvm);
+
+LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun);
 
