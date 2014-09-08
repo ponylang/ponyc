@@ -34,7 +34,7 @@ end
 local getcxxflags = premake.gcc.getcxxflags;
 function premake.gcc.getcxxflags(cfg)
   local r = getcxxflags(cfg)
-  table.insert(r, "-std=c++11")
+  table.insert(r, "-std=gnu++11")
   return r;
 end
 
@@ -101,8 +101,9 @@ solution "ponyc"
     }
     files { "src/libponyc/**.c*", "src/libponyc/**.h" }
 
-    configuration "not windows"
+    if not os.is("windows") then
       excludes { "src/libponyc/platform/**.cc" }
+    end
 
   project "ponyc"
     kind "ConsoleApp"
