@@ -9,6 +9,9 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
+// Missing from C API.
+char* LLVMGetHostCPUName();
+
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
 typedef struct compile_context_t

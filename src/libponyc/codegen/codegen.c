@@ -437,8 +437,10 @@ static bool codegen_finalise(compile_t* c, int opt)
    *
    * Using ld on the mac:
    *
-   * ld -dynamic -arch x86_64 -macosx_version_min 10.9.0 -o helloworld
-   *   helloworld.bc ../ponyrt/bin/release/libpony.a -lSystem
+   * ld -execute -arch x86_64 -macosx_version_min 10.9.0 -o helloworld
+   *   helloworld.o ../ponyrt/bin/release/libpony.a -lSystem
+   *
+   * Don't appear to need the clang_rt
    *   /Applications/Xcode.app/Contents/Developer/Toolchains
    *   /XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib
    *   /darwin/libclang_rt.osx.a
@@ -457,9 +459,14 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
-  // TODO LINK: pick the right CPU
+  // TODO LINK: allow passing in the cpu and feature set
+  // -mcpu=mycpu -mattr=+feature1,-feature2
+  char* cpu = LLVMGetHostCPUName();
+
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    "core-avx2", "", opt, LLVMRelocDefault, LLVMCodeModelDefault);
+    cpu, "", opt, LLVMRelocDefault, LLVMCodeModelDefault);
+
+  LLVMDisposeMessage(cpu);
 
   if(machine == NULL)
   {
