@@ -476,6 +476,9 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
+  const char* target_name = LLVMGetTargetName(target);
+  printf("Target: %s, triple: %s\n", target_name, c->triple);
+
   // TODO LINK: allow passing in the cpu and feature set
   // -mcpu=mycpu -mattr=+feature1,-feature2
   char* cpu = LLVMGetHostCPUName();
@@ -537,15 +540,30 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   unlink(file_o);
 #elif defined(PLATFORM_IS_LINUX)
-  size_t ld_len = 128 + (len * 2) + link_path_length();
+  size_t ld_len = 256 + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
 
-  snprintf(ld_cmd, ld_len, "ld -o %s /lib/crt0.o %s.o",
+  //removed /lib/crt0.o
+  snprintf(ld_cmd, ld_len,
+    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
+    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+    "-o %s "
+    "/usr/lib/x86_64-linux-gnu/crt1.o "
+    "/usr/lib/x86_64-linux-gnu/crti.o "
+    "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtbegin.o "
+    "%s.o ",
     c->filename, c->filename
     );
 
   append_link_paths(ld_cmd);
-  strcat(ld_cmd, " -lpony -lc");
+
+  strcat(ld_cmd,
+    " -lpony -lpthread -lc "
+    "/usr/lib/gcc/x86_64-linux-gnu/4.8/libgcc.a "
+    "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
+    "/usr/lib/gcc/x86_64-linux-gnu/4.8/crtend.o "
+    "/usr/lib/x86_64-linux-gnu/crtn.o"
+  );
 
   if(system(ld_cmd) != 0)
   {
