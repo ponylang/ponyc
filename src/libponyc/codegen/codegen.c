@@ -534,6 +534,8 @@ static bool codegen_finalise(compile_t* c, int opt)
     errorf(NULL, "unable to link");
     return false;
   }
+
+  unlink(file_o);
 #elif defined(PLATFORM_IS_LINUX)
   size_t ld_len = 128 + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
@@ -550,11 +552,12 @@ static bool codegen_finalise(compile_t* c, int opt)
     errorf(NULL, "unable to link");
     return false;
   }
+
+  unlink(file_o);
 #else
   printf("Compiled %s.o, please link it by hand to libpony.a\n", c->filename);
 #endif
 
-  unlink(file_o);
   return true;
 }
 
