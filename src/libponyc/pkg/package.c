@@ -332,6 +332,15 @@ static ast_t* create_package(ast_t* program, const char* name)
   return package;
 }
 
+static void add_path(const char* path)
+{
+  struct stat s;
+  int err = stat(path, &s);
+
+  if((err != -1) && S_ISDIR(s.st_mode))
+    search = strlist_push(search, stringtab(path));
+}
+
 void package_init(const char* name)
 {
   char path[FILENAME_MAX];
@@ -339,7 +348,7 @@ void package_init(const char* name)
   if(execpath(name, path))
   {
     strcat(path, "/packages");
-    search = strlist_push(search, stringtab(path));
+    add_path(path);
   }
 
   package_add_paths(getenv("PONYPATH"));
@@ -373,7 +382,7 @@ void package_add_paths(const char* paths)
 
       strncpy(path, paths, len);
       path[len] = '\0';
-      search = strlist_push(search, stringtab(path));
+      add_path(path);
     }
 
     if(p == NULL)
