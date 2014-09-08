@@ -18,7 +18,7 @@ function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-  links "libponyc"
+  links { "libponyc", "libponycc" }
   local output = llvm_config("--libs")
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
@@ -31,13 +31,6 @@ function link_libponyc()
   configuration("*")
 end
 
-local getcxxflags = premake.gcc.getcxxflags;
-function premake.gcc.getcxxflags(cfg)
-  local r = getcxxflags(cfg)
-  table.insert(r, "-std=gnu++11")
-  return r;
-end
-
 solution "ponyc"
   configurations {
     "Debug",
@@ -46,8 +39,7 @@ solution "ponyc"
   }
   buildoptions {
     "-march=native",
-    "-pthread",
-    "-std=gnu11"
+    "-pthread"
   }
   linkoptions {
     "-pthread"
@@ -89,6 +81,7 @@ solution "ponyc"
     targetname "ponyc"
     kind "StaticLib"
     language "C"
+    buildoptions "-std=gnu11"
     includedirs {
       llvm_config("--includedir")
     }
@@ -99,15 +92,29 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/**.c*", "src/libponyc/**.h" }
+    files { "src/libponyc/**.c", "src/libponyc/**.h" }
+    excludes { "src/libponyc/platform/**.cc" }
 
-    if not os.is("windows") then
-      excludes { "src/libponyc/platform/**.cc" }
-    end
+  project "libponycc"
+    kind "StaticLib"
+    language "C++"
+    buildoptions "-std=gnu++11"
+    includedirs {
+      llvm_config("--includedir")
+    }
+    defines {
+      "_DEBUG",
+      "_GNU_SOURCE",
+      "__STDC_CONSTANT_MACROS",
+      "__STDC_FORMAT_MACROS",
+      "__STDC_LIMIT_MACROS",
+    }
+    files { "src/libponyc/codegen/host.cc" }
 
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
+    buildoptions "-std=gnu11"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
 
