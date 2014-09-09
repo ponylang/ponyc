@@ -26,6 +26,7 @@ typedef struct compile_t
 {
   painter_t* painter;
   const char* filename;
+  uint32_t next_type_id;
 
   char* triple;
   LLVMModuleRef module;

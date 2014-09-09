@@ -129,8 +129,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
   LLVMValueRef args[9];
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
-  // TODO: Generate a separate type ID for every type.
-  args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  // Generate a separate type ID for every type.
+  args[0] = LLVMConstInt(LLVMInt32Type(), c->next_type_id++, false);
   args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
   args[2] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
   args[3] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);

@@ -154,7 +154,7 @@ bool expr_reference(ast_t* ast)
       return false;
     }
 
-    case TK_TYPEPARAM: // TODO: is this ok or even needed?
+    case TK_TYPEPARAM:
     case TK_DATA:
     case TK_CLASS:
     case TK_ACTOR:
