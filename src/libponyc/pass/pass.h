@@ -3,9 +3,55 @@
 
 #include "../ast/ast.h"
 
+/** Passes
+
+Throughout, the global AST is routed at TK_PROGRAM.
+The symbol table at TK_PROGRAM and dataref at TK_PACKAGE are populated.
+
+
+1. Parse
+
+Turns a source file in an AST. Deliberately allows some illegal syntax to
+enable better error reporting.
+
+Expects Pony source file or string.
+
+Adds AST routed at TK_MODULE to global tree.
+Dataref at TK_MODULE is populated.
+
+
+2. Parse fix
+
+Checks for specific illegal syntax cases that the BNF allows. This allows for
+better error reporting.
+
+Expects AST subtree routed at TK_MODULE with type aliases unresolved and symbol
+tables not yet populated.
+
+Does not modify AST, just passes or fails. It this passes then the AST is fully
+syntactically correct.
+
+
+3. Sugar
+
+Expands an AST tree to put in the code we've let the programmer miss out. This
+includes default capabilities, method return values, else blocks, "create" and
+"apply" names. There are also some code rewrites, such as assignment to update
+call and for loop to while loop. Note that some further sugar may be required
+but cannot be performed until type checking occurs.
+
+Expects AST subtree routed at TK_MODULE with type aliases unresolved and symbol
+tables not yet populated.
+
+Produces an AST with all defaults, etc filled in.
+
+*/
+
+
 typedef enum pass_id
 {
   PASS_PARSE,
+  PASS_PARSE_FIX,
   PASS_SUGAR,
   PASS_SCOPE1,
   PASS_NAME_RESOLUTION,

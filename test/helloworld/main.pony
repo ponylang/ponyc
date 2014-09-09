@@ -1,4 +1,4 @@
-trait Foo val
+trait Foo
   fun box test(): I32 => 0
 
 class Bar is Foo
@@ -26,7 +26,8 @@ actor Main
     t = Baz
     @printf[I32]("%d\n"._cstring(), t.test())
 
-    var p = @printf[I32]("%d\n"._cstring(), env.args.length() + 100)
+    var zero: U64 = 0
+    var p = @printf[I32]("%d\n"._cstring(), env.args.length() % zero)
     @printf[I32]("%d\n"._cstring(), p)
 
     var num = for i in Range[U64](0, env.args.length()) do
