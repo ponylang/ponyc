@@ -702,7 +702,7 @@ ast_t* builder_extract_root(builder_t* builder)
 
 ast_t* builder_find_sub_tree(builder_t* builder, const char* name)
 {
-  if(builder == NULL)
+  if(builder == NULL || name == NULL)
     return NULL;
 
   return (ast_t*)symtab_get(builder->defs, stringtab(name));

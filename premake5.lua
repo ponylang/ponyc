@@ -141,7 +141,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "utils/gtest"
     }
     files {
-      "test/unit/**.cc"
+      "test/unit/**.cc",
+      "test/unit/**.h"
     }
     links { "gtest" }
     link_libponyc()

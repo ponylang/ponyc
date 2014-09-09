@@ -576,7 +576,7 @@ DEF(function);
 DEF(behaviour);
   TOKEN(NULL, TK_BE);
   SCOPE();
-  AST_NODE(TK_TAG);
+  AST_NODE(TK_NONE);  // Capability
   TOKEN("behaviour name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
@@ -592,7 +592,7 @@ DEF(behaviour);
 DEF(constructor);
 TOKEN(NULL, TK_NEW);
   SCOPE();
-  AST_NODE(TK_REF);
+  AST_NODE(TK_NONE);  // Capability
   OPT TOKEN("constructor name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
@@ -609,7 +609,8 @@ DEF(field);
   MAP_ID(TK_VAR, TK_FVAR);
   MAP_ID(TK_LET, TK_FLET);
   TOKEN("field name", TK_ID);
-  IF(TK_COLON, RULE("field type", type));
+  SKIP(NULL, TK_COLON);
+  RULE("field type", type);
   IF(TK_ASSIGN, RULE("field value", expr));
   DONE();
 

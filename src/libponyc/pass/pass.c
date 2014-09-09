@@ -1,5 +1,6 @@
 #include "pass.h"
 #include "../codegen/codegen.h"
+#include "parsefix.h"
 #include "sugar.h"
 #include "scope.h"
 #include "names.h"
@@ -32,6 +33,7 @@ const char* pass_name(pass_id pass)
   switch(pass)
   {
     case PASS_PARSE:    return "parse";
+    case PASS_PARSE_FIX:return "parsefix";
     case PASS_SUGAR:    return "sugar";
     case PASS_SCOPE1:   return "scope1";
     case PASS_NAME_RESOLUTION: return "name";
@@ -71,6 +73,9 @@ bool package_passes(ast_t* package)
     return true;
 
   bool r;
+
+  if(do_pass(&package, &r, PASS_PARSE_FIX, pass_parse_fix, NULL))
+    return r;
 
   if(do_pass(&package, &r, PASS_SUGAR, pass_sugar, NULL))
     return r;
