@@ -91,7 +91,7 @@ int opt_next(parse_state_t* s)
 {
   int remove = 0;
 
-  if(idx == *s->argc)
+  if(idx == (*s->argc - 1))
     return -1;
 
   if(opt_start == NULL || *opt_start == '\0')
@@ -201,7 +201,7 @@ int opt_next(parse_state_t* s)
     idx -= remove;
 
     memmove(&s->argv[idx+1], &s->argv[idx + 1 + remove],
-      (*s->argc - idx) * sizeof(char*));
+      (*s->argc + 1 - idx) * sizeof(char*));
   }
 
   return m->id;
