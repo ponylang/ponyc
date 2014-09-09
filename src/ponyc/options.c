@@ -107,6 +107,10 @@ int opt_next(parse_state_t* s)
       if(is_positional(s->argv))
       {
         idx++;
+
+        if(idx == *s->argc)
+          return -1;
+
         continue;
       }
 
