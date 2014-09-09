@@ -41,7 +41,7 @@ static arg_t args[] =
 void usage()
 {
   printf(
-    "ponyc [OPTIONS] <file>\n"
+    "ponyc [OPTIONS] <package directory>\n"
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
     "\n"
