@@ -233,7 +233,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
 }
 
 LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
-  LLVMValueRef r_value, bool sign)
+  LLVMValueRef r_value, ast_t* type)
 {
   if(r_value <= GEN_NOVALUE)
     return r_value;
@@ -251,7 +251,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
           // integer to integer will be a constant unless they are the same type
           // TODO: check the constant fits in the type
           if(LLVMIsAConstant(r_value))
-            return LLVMConstIntCast(r_value, l_type, sign);
+            return LLVMConstIntCast(r_value, l_type, is_signed(type));
 
           return r_value;
         }
@@ -272,7 +272,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
           // integer to float will be a constant
           assert(LLVMIsAConstant(r_value));
 
-          if(sign)
+          if(is_signed(type))
             r_value = LLVMConstSIToFP(r_value, l_type);
           else
             r_value = LLVMConstUIToFP(r_value, l_type);

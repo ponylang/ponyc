@@ -528,9 +528,8 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  bool sign = is_signed(right_type);
   LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  r_value = gen_assign_cast(c, l_type, r_value, sign);
+  r_value = gen_assign_cast(c, l_type, r_value, right_type);
 
   if(r_value == NULL)
     return NULL;

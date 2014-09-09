@@ -33,8 +33,7 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
   if(value == NULL)
     return NULL;
 
-  bool sign = is_signed(ast_type(arg));
-  return gen_assign_cast(c, type, value, sign);
+  return gen_assign_cast(c, type, value, ast_type(arg));
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)

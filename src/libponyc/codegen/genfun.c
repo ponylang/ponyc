@@ -306,9 +306,8 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   } else if(value != GEN_NOVALUE) {
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
-    bool sign = is_signed(ast_type(body));
 
-    LLVMValueRef ret = gen_assign_cast(c, r_type, value, sign);
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(body));
     LLVMBuildRet(c->builder, ret);
   }
 
