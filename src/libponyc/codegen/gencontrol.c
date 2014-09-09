@@ -238,8 +238,6 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
-
-  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   ast_t* body = ast_child(ast);
@@ -295,8 +293,6 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
-
-  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   switch(ast_id(loop))

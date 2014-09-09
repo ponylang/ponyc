@@ -178,11 +178,36 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFDiv(c->builder, l_value, r_value, "");
 
-  // TODO: check for div by zero
-  if(is_signed(ast_type(ast)))
-    return LLVMBuildSDiv(c->builder, l_value, r_value, "");
+  // Setup additional blocks.
+  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
+  LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "div_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "div_post");
 
-  return LLVMBuildUDiv(c->builder, l_value, r_value, "");
+  // Check for div by zero.
+  LLVMTypeRef type = LLVMTypeOf(r_value);
+  LLVMValueRef zero = LLVMConstInt(type, 0, false);
+  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
+  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
+
+  // Divisor is not zero.
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  LLVMValueRef result;
+
+  if(is_signed(ast_type(ast)))
+    result = LLVMBuildSDiv(c->builder, l_value, r_value, "");
+  else
+    result = LLVMBuildUDiv(c->builder, l_value, r_value, "");
+
+  LLVMBuildBr(c->builder, post_block);
+
+  // Phi node.
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, type, "");
+  LLVMAddIncoming(phi, &zero, &insert, 1);
+  LLVMAddIncoming(phi, &result, &then_block, 1);
+
+  return phi;
 }
 
 LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
@@ -214,11 +239,36 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFRem(c->builder, l_value, r_value, "");
 
-  // TODO: check for div by zero
-  if(is_signed(ast_type(ast)))
-    return LLVMBuildSRem(c->builder, l_value, r_value, "");
+  // Setup additional blocks.
+  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
+  LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "mod_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "mod_post");
 
-  return LLVMBuildURem(c->builder, l_value, r_value, "");
+  // Check for mod by zero.
+  LLVMTypeRef type = LLVMTypeOf(r_value);
+  LLVMValueRef zero = LLVMConstInt(type, 0, false);
+  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
+  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
+
+  // Divisor is not zero.
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  LLVMValueRef result;
+
+  if(is_signed(ast_type(ast)))
+    result = LLVMBuildSRem(c->builder, l_value, r_value, "");
+  else
+    result = LLVMBuildURem(c->builder, l_value, r_value, "");
+
+  LLVMBuildBr(c->builder, post_block);
+
+  // Phi node.
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, type, "");
+  LLVMAddIncoming(phi, &zero, &insert, 1);
+  LLVMAddIncoming(phi, &result, &then_block, 1);
+
+  return phi;
 }
 
 LLVMValueRef gen_lshift(compile_t* c, ast_t* ast)

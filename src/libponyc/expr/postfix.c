@@ -336,8 +336,9 @@ bool expr_call(ast_t* ast)
 {
   ast_t* left = ast_child(ast);
   ast_t* type = ast_type(left);
+  token_id token = ast_id(left);
 
-  switch(ast_id(left))
+  switch(token)
   {
     case TK_INT:
     case TK_FLOAT:
@@ -371,7 +372,10 @@ bool expr_call(ast_t* ast)
     {
       // TODO: use args to decide unbound type parameters
       assert(ast_id(type) == TK_FUNTYPE);
+
+      bool sending = (token == TK_NEWBEREF) || (token == TK_BEREF);
       bool send = true;
+
       ast_t* cap = ast_child(type);
       ast_t* typeparams = ast_sibling(cap);
       ast_t* params = ast_sibling(typeparams);
@@ -411,9 +415,22 @@ bool expr_call(ast_t* ast)
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);
 
+        // If we are sending, we need to drop to a sending capability before
+        // checking subtyping.
+        if(sending)
+        {
+          ast_t* s_type = send_type(a_type);
+          ast_free_unattached(a_type);
+          a_type = s_type;
+        }
+
         if(!is_subtype(a_type, p_type))
         {
-          ast_error(arg, "argument not a subtype of parameter");
+          if(sending)
+            ast_error(arg, "sent argument not a subtype of parameter");
+          else
+            ast_error(arg, "argument not a subtype of parameter");
+
           ast_free_unattached(a_type);
           return false;
         }
@@ -451,29 +468,8 @@ bool expr_call(ast_t* ast)
         //param = ast_sibling(param);
       }
 
-      switch(ast_id(left))
+      switch(token)
       {
-        case TK_NEWBEREF:
-        {
-          if(!send)
-          {
-            ast_error(ast,
-              "actor constructor arguments must be iso, val or tag");
-            return false;
-          }
-          break;
-        }
-
-        case TK_BEREF:
-        {
-          if(!send)
-          {
-            ast_error(ast, "behaviour arguments must be iso, val or tag");
-            return false;
-          }
-          break;
-        }
-
         case TK_FUNREF:
         {
           // if args and result are sendable, don't alias the receiver

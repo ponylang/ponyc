@@ -24,6 +24,8 @@ token_id cap_alias(token_id cap);
 
 token_id cap_recover(token_id cap);
 
+token_id cap_send(token_id cap);
+
 bool cap_sendable(token_id cap);
 
 bool cap_safetowrite(token_id into, token_id cap);
