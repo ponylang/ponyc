@@ -26,6 +26,12 @@ typedef struct parse_state_t
   char** argv;
   arg_t* args;
   char* arg_val;
+
+  //do not touch :-)
+  char* opt_start;
+  char* opt_end;
+  int match_type;
+  int idx;
 } parse_state_t;
 
 void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv);
