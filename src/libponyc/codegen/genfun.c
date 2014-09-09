@@ -3,6 +3,8 @@
 #include "genname.h"
 #include "gencall.h"
 #include "gencontrol.h"
+#include "genexpr.h"
+#include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../ds/hash.h"
@@ -113,7 +115,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   else
     ftype = LLVMFunctionType(result, tparams, (unsigned int)count, false);
 
-  func = LLVMAddFunction(c->module, funname, ftype);
+  func = codegen_addfun(c, funname, ftype);
   name_params(params, func, ast_id(fun) == TK_NEW);
 
   if(ast_id(fun) != TK_FUN)
@@ -122,7 +124,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     ftype = LLVMFunctionType(LLVMVoidType(), tparams, (int)count, false);
     const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
-    LLVMValueRef handler = LLVMAddFunction(c->module, handler_name, ftype);
+    LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
     name_params(params, handler, false);
   }
 
@@ -184,7 +186,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
-  size_t size = LLVMABISizeOfType(c->target, msg_type);
+  size_t size = LLVMABISizeOfType(c->target_data, msg_type);
   size = next_pow2(size);
 
   // Subtract 7 because we are looking to make 64 come out to zero.
@@ -269,7 +271,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
     LLVMInstructionEraseFromParent(start_trace);
 
   // Call the handler.
-  LLVMBuildCall(c->builder, handler, args, (unsigned int)count, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMSetInstructionCallConv(call, LLVMFastCallConv);
   LLVMBuildRetVoid(c->builder);
 
   // Pause, otherwise the optimiser will run on what we have so far.
@@ -301,7 +304,11 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   {
     return NULL;
   } else if(value != GEN_NOVALUE) {
-    LLVMBuildRet(c->builder, value);
+    LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
+    LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(body));
+    LLVMBuildRet(c->builder, ret);
   }
 
   codegen_finishfun(c);
@@ -379,7 +386,8 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   for(int i = 1; i < count; i++)
     args[i] = LLVMGetParam(func, i - 1);
 
-  LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMValueRef call = LLVMBuildCall(c->builder, handler, args, count, "");
+  LLVMSetInstructionCallConv(call, LLVMFastCallConv);
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
@@ -440,6 +448,31 @@ LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
   codegen_finishfun(c);
 
   return func;
+}
+
+LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
+{
+  // Create a boxing function.
+  const char* box_name = genname_box(g->type_name);
+  LLVMTypeRef box_type = LLVMFunctionType(g->structure_ptr, &g->primitive, 1,
+    false);
+  LLVMValueRef box_fn = codegen_addfun(c, box_name, box_type);
+  codegen_startfun(c, box_fn);
+
+  // allocate the object as 'this'
+  LLVMValueRef this_ptr = gencall_alloc(c, g->structure_ptr);
+  set_descriptor(c, g, this_ptr);
+
+  // Store the primitive in element 1.
+  LLVMValueRef primitive = LLVMGetParam(box_fn, 0);
+  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
+  LLVMBuildStore(c->builder, primitive, primitive_ptr);
+
+  // return 'this'
+  LLVMBuildRet(c->builder, this_ptr);
+
+  codegen_finishfun(c);
+  return box_fn;
 }
 
 bool genfun_methods(compile_t* c, gentype_t* g)

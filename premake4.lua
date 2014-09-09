@@ -1,6 +1,6 @@
 -- os.outputof is broken in premake4, hence this workaround
 function llvm_config(opt)
-  local stream = assert(io.popen("llvm-config-3.4 " .. opt))
+  local stream = assert(io.popen("llvm-config-3.5 " .. opt))
   local output = ""
   --llvm-config contains '\n'
   while true do
@@ -18,16 +18,16 @@ function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-  links "libponyc"
+  links { "libponyc", "libponycc", "z", "curses" }
   local output = llvm_config("--libs")
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
   configuration("not macosx")
-  links {
-    "tinfo",
-    "dl"
-  }
+    links {
+      "tinfo",
+      "dl",
+    }
   configuration("*")
 end
 
@@ -68,12 +68,7 @@ solution "ponyc"
   configuration "Release or Profile"
     defines "NDEBUG"
     flags "OptimizeSpeed"
-    buildoptions {
-      "-flto",
-    }
-
     linkoptions {
-      "-flto",
       "-fuse-ld=gold",
     }
 
@@ -81,23 +76,34 @@ solution "ponyc"
     targetname "ponyc"
     kind "StaticLib"
     language "C"
+    buildoptions "-std=gnu11"
     includedirs {
       llvm_config("--includedir")
     }
-    buildoptions {
-      "-std=gnu11"
-    }
     defines {
       "_DEBUG",
-      "_GNU_SOURCE",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/**.c*", "src/libponyc/**.h" }
-    configuration "gmake"
-      excludes { "src/libponyc/**.cc" }
-    configuration "*"
+    files { "src/libponyc/**.c", "src/libponyc/**.h" }
+    excludes { "src/libponyc/platform/**.cc" }
+
+  project "libponycc"
+    targetname "ponycc"
+    kind "StaticLib"
+    language "C++"
+    buildoptions "-std=gnu++11"
+    includedirs {
+      llvm_config("--includedir")
+    }
+    defines {
+      "_DEBUG",
+      "__STDC_CONSTANT_MACROS",
+      "__STDC_FORMAT_MACROS",
+      "__STDC_LIMIT_MACROS",
+    }
+    files { "src/libponyc/codegen/host.cc" }
 
   project "ponyc"
     kind "ConsoleApp"
@@ -105,6 +111,8 @@ solution "ponyc"
     buildoptions "-std=gnu11"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
+    postbuildcommands { "cp -R packages/* $(TARGETDIR)"  }
 
+  include "ponyrt/src/"
   include "utils/"
   include "test/"

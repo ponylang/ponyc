@@ -20,4 +20,6 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type);
 
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type);
 
+void gencall_throw(compile_t* c, ast_t* try_expr);
+
 #endif

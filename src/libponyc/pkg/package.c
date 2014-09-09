@@ -4,7 +4,6 @@
 #include "../ast/parser.h"
 #include "../ast/ast.h"
 #include "../ast/token.h"
-#include "../ds/stringtab.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -333,20 +332,31 @@ static ast_t* create_package(ast_t* program, const char* name)
   return package;
 }
 
+static void add_path(const char* path)
+{
+  struct stat s;
+  int err = stat(path, &s);
+
+  if((err != -1) && S_ISDIR(s.st_mode))
+    search = strlist_push(search, stringtab(path));
+}
+
 void package_init(const char* name)
 {
   char path[FILENAME_MAX];
 
   if(execpath(name, path))
-  {
-    strcat(path, "/packages");
-    search = strlist_push(search, stringtab(path));
-  }
+    add_path(path);
 
-  package_paths(getenv("PONYPATH"));
+  package_add_paths(getenv("PONYPATH"));
 }
 
-void package_paths(const char* paths)
+strlist_t* package_paths()
+{
+  return search;
+}
+
+void package_add_paths(const char* paths)
 {
   if(paths == NULL)
     return;
@@ -369,7 +379,7 @@ void package_paths(const char* paths)
 
       strncpy(path, paths, len);
       path[len] = '\0';
-      search = strlist_push(search, stringtab(path));
+      add_path(path);
     }
 
     if(p == NULL)

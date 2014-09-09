@@ -144,6 +144,11 @@ const char* genname_handler(const char* type, const char* name,
   return genname_fun(type, handler_name, typeargs);
 }
 
+const char* genname_box(const char* name)
+{
+  return build_name(name, "$box", NULL);
+}
+
 const char* genname_unbox(const char* name)
 {
   return build_name(name, "$unbox", NULL);

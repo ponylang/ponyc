@@ -27,7 +27,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
     return true;
 
   // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target, elem_g.use_type);
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g.use_type);
   LLVMValueRef l_size = LLVMConstInt(LLVMInt64Type(), size, false);
 
   // create
@@ -42,7 +42,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[0] = LLVMInt64Type();
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 1, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
+  fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
@@ -63,7 +63,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[1] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(g->use_type, params, 2, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
+  fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
@@ -85,7 +85,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[1] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 2, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
+  fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
@@ -105,7 +105,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[2] = elem_g.use_type;
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 3, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
+  fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   ptr = LLVMGetParam(fun, 0);
@@ -126,7 +126,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   params[2] = LLVMInt64Type();
 
   ftype = LLVMFunctionType(LLVMInt64Type(), params, 3, false);
-  fun = LLVMAddFunction(c->module, name, ftype);
+  fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   args[0] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->void_ptr, "");
@@ -148,7 +148,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   ast_t* typearg = ast_child(typeargs);
 
   const char* trace_name = genname_trace(g->type_name);
-  LLVMValueRef trace_fn = LLVMAddFunction(c->module, trace_name, c->trace_type);
+  LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
   codegen_startfun(c, trace_fn);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);

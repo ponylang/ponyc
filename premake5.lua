@@ -51,8 +51,16 @@
           "_CRT_SECURE_NO_WARNINGS"
         }
 
+      configuration { "not windows" }
+        linkoptions {
+          "-pthread"
+        }
+
       configuration { "macosx", "gmake" }
         toolset "clang"
+        buildoptions "-Qunused-arguments"
+        linkoptions "-Qunused-arguments"
+
 
       configuration "gmake"
         buildoptions {
@@ -62,8 +70,9 @@
 
       configuration "macosx"
         toolset "clang"
+      configuration "vs*"
+        architecture "x64"
       configuration "*"
-      architecture "x64"
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -101,15 +110,17 @@
   project "ponyc"
     kind "ConsoleApp"
     language "C"
-
-    files { "src/ponyc/**.c", "src/ponyc/**.h" }
-    link_libponyc()
-
+    files {
+      "src/ponyc/**.c",
+      "src/ponyc/**.h"
+    }
+    --linkoptions "-lc++"
     configuration "gmake"
       buildoptions "-std=gnu11"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
     configuration "*"
+      link_libponyc()
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "gtest"

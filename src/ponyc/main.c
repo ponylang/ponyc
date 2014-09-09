@@ -28,7 +28,7 @@ void usage()
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
     "  --pass, -r      restrict phases\n"
-    "  --trace, -t     enable parse trace\n" 
+    "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
     );
 }
@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     {
       case 'a': ast = true; break;
       case 'l': llvm = true; break;
-      case 'p': package_paths(optarg); break;
+      case 'p': package_add_paths(optarg); break;
       case 'O': opt = atoi(optarg); break;
       case 'r': error = !limit_passes(optarg); break;
       case 't': parse_trace(true); break;
