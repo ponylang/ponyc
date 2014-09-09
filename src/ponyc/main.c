@@ -2,11 +2,17 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
+#include "../libponyc/platform/platform.h"
 
 #include "options.h"
 
 #include <stdlib.h>
 #include <stdio.h>
+
+#ifdef PLATFORM_IS_POSIX_BASED
+#  include <sys/ioctl.h>
+#  include <unistd.h>
+#endif
 
 enum
 {

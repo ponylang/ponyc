@@ -6,7 +6,7 @@
 static char* opt_start = NULL;
 static char* opt_end = NULL;
 static int match_type;
-static int index;
+static int idx;
 
 #define END_MARKER(X) \
   ((X->long_opt == NULL) && \
@@ -24,7 +24,7 @@ enum
 
 static bool is_positional(char** argv)
 {
-  return (argv[index][0] != '-' || argv[index][1] == '\0');
+  return (argv[idx][0] != '-' || argv[idx][1] == '\0');
 }
 
 static arg_t* find_match(arg_t* args, char* opt_start, char* opt_end)
@@ -90,7 +90,7 @@ int opt_next(parse_state_t* s)
 {
   int remove = 0;
 
-  if(index == *s->argc)
+  if(idx == *s->argc)
     return -1;
 
   if(opt_start == NULL || *opt_start == '\0')
@@ -98,14 +98,14 @@ int opt_next(parse_state_t* s)
     //Parsing a new option, advance in argv.
     //If this is the first call to opt_next,
     //skip argv[0] (the program name).
-    index++;
+    idx++;
 
     //skip all non-options
     while(true)
     {
       if(is_positional(s->argv))
       {
-        index++;
+        idx++;
         continue;
       }
 
@@ -114,7 +114,7 @@ int opt_next(parse_state_t* s)
   }
 
   //Found a named argument
-  opt_start = (s->argv[index] + 1 + (s->argv[index][1] == '-'));
+  opt_start = (s->argv[idx] + 1 + (s->argv[idx][1] == '-'));
   for(opt_end = opt_start; *opt_end && *opt_end != '='; opt_end++);
 
   //Check for exact or abbreviated match. If the option is known, process it,
@@ -123,13 +123,13 @@ int opt_next(parse_state_t* s)
 
   if(m == NULL)
   {
-    index++;
+    idx++;
     return opt_next(s);
   }
   else if(m == (arg_t*)1)
   {
     //ambiguous match
-    printf("%s: '%s' option is ambiguous!\n", s->argv[0], s->argv[index]);
+    printf("%s: '%s' option is ambiguous!\n", s->argv[0], s->argv[idx]);
     return -2;
   }
 
@@ -140,7 +140,7 @@ int opt_next(parse_state_t* s)
     if(m->flag & ARGUMENT_NONE)
     {
       printf("%s: '%s' option does not take an argument!\n", s->argv[0],
-        s->argv[index]);
+        s->argv[idx]);
 
       return -2;
     }
@@ -153,15 +153,15 @@ int opt_next(parse_state_t* s)
   }
   else if(m->flag & ARGUMENT_REQUIRED)
   {
-    if(index < *s->argc)
+    if(idx < *s->argc)
     {
-      s->arg_val = s->argv[++index];
+      s->arg_val = s->argv[++idx];
       remove++;
     }
     else
     {
       printf("%s: '%s' option requires an argument!\n", s->argv[0],
-        s->argv[index]);
+        s->argv[idx]);
 
       return -2;
     }
@@ -180,16 +180,16 @@ int opt_next(parse_state_t* s)
       memmove(opt_start, opt_start+1,
         strlen(opt_start));
 
-      opt_start = s->argv[index];
+      opt_start = s->argv[idx];
 
       break;
    }
   
   *s->argc -= remove;
-  index -= remove;
+  idx -= remove;
 
-  memmove(&s->argv[index], &s->argv[index + remove], 
-    (*s->argc - index) * sizeof(char*));
+  memmove(&s->argv[idx], &s->argv[idx + remove], 
+    (*s->argc - idx) * sizeof(char*));
 
   return m->id;
 }
