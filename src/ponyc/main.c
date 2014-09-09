@@ -76,7 +76,7 @@ size_t get_width()
   return width;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
   package_init(argv[0]);
 

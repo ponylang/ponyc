@@ -168,7 +168,11 @@ int opt_next(parse_state_t* s)
       //strip out the short option, as short options may be
       //grouped
       memmove(opt_start, opt_start + 1, strlen(opt_start));
-      if(*opt_start) opt_start = s->argv[idx];
+      
+      if(*opt_start)
+        opt_start = s->argv[idx];
+      else
+        remove++;
 
       if(m->flag == ARGUMENT_REQUIRED)
       {
@@ -191,11 +195,14 @@ int opt_next(parse_state_t* s)
       break;
   }
 
-  *s->argc -= remove;
-  idx -= remove;
+  if (remove > 0)
+  {
+    *s->argc -= remove;
+    idx -= remove;
 
-  memmove(&s->argv[idx], &s->argv[idx + remove],
-    (*s->argc - idx) * sizeof(char*));
+    memmove(&s->argv[idx+1], &s->argv[idx + 1 + remove],
+      (*s->argc - idx) * sizeof(char*));
+  }
 
   return m->id;
 }
