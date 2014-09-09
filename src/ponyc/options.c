@@ -92,9 +92,6 @@ int opt_next(parse_state_t* s)
 {
   int remove = 0;
 
-  if(s->idx == (*s->argc - 1))
-    return -1;
-
   if(s->opt_start == NULL || *s->opt_start == '\0')
   {
     //Parsing a new option, advance in argv.
@@ -105,13 +102,12 @@ int opt_next(parse_state_t* s)
     //skip all non-options
     while(true)
     {
+      if(s->idx == *s->argc)
+        return -1;
+
       if(is_positional(s))
       {
         s->idx++;
-
-        if(s->idx == *s->argc)
-          return -1;
-
         continue;
       }
 
@@ -138,8 +134,12 @@ int opt_next(parse_state_t* s)
     return -2;
   }
 
-  bool short_arg = (s->match_type == MATCH_SHORT && *(s->opt_start + 1));
-  bool long_arg = (s->match_type == MATCH_LONG && ((*s->opt_end == '=') || s->idx < *s->argc));
+  bool short_arg = (s->match_type == MATCH_SHORT && (*(s->opt_start + 1) ||
+    s->idx < *s->argc));
+
+  bool long_arg = (s->match_type == MATCH_LONG && ((*s->opt_end == '=')
+    || s->idx < *s->argc));
+
   bool has_arg = (short_arg | long_arg);
 
   if ((m->flag == ARGUMENT_REQUIRED) && !has_arg)
@@ -162,7 +162,7 @@ int opt_next(parse_state_t* s)
         }
         else
         {
-          s->arg_val = s->argv[++s->idx];
+          s->arg_val = s->argv[s->idx + 1];
           s->opt_start += strlen(s->opt_start);
           remove++;
         }
@@ -173,7 +173,7 @@ int opt_next(parse_state_t* s)
       //strip out the short option, as short options may be
       //grouped
       memmove(s->opt_start, s->opt_start + 1, strlen(s->opt_start));
-      
+
       if(*s->opt_start)
         s->opt_start = s->argv[s->idx];
       else
@@ -181,18 +181,19 @@ int opt_next(parse_state_t* s)
 
       if(m->flag == ARGUMENT_REQUIRED)
       {
-        if(*s->opt_end == '=')
+        if(*s->opt_end)
         {
-          s->arg_val = s->opt_end + 1;
+          s->arg_val = s->opt_end;
           s->opt_start += strlen(s->opt_start);
         }
         else if (*(s->opt_start) != '-')
         {
-          s->arg_val = s->argv[++s->idx];
+          s->arg_val = s->argv[s->idx + 1];
         }
         else
         {
           s->arg_val = s->opt_start + 1;
+          s->opt_start += strlen(s->opt_start);
         }
 
         remove++;
@@ -203,10 +204,11 @@ int opt_next(parse_state_t* s)
   if (remove > 0)
   {
     *s->argc -= remove;
-    s->idx -= remove;
 
-    memmove(&s->argv[s->idx+1], &s->argv[s->idx + 1 + remove],
-      (*s->argc + 1 - s->idx) * sizeof(char*));
+    memmove(&s->argv[s->idx], &s->argv[s->idx + remove],
+      (*s->argc - s->idx) * sizeof(char*));
+
+    s->idx--;
   }
 
   return m->id;
