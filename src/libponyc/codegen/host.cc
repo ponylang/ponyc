@@ -2,5 +2,5 @@
 
 extern "C" char* LLVMGetHostCPUName()
 {
-  return strdup(llvm::sys::getHostCPUName().c_str());
+  return strdup(llvm::sys::getHostCPUName().str().c_str());
 }
