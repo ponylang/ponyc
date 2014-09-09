@@ -543,7 +543,8 @@ static bool codegen_finalise(compile_t* c, int opt)
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -arch %s -macosx_version_min 10.9.0 -o %s %s.o",
+    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
+    "-o %s %s.o",
     arch, file_exe, file_exe
     );
 
