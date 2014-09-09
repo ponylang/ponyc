@@ -315,6 +315,7 @@ ast_t* parse(source_t* source, rule_t start);
  * Example:
  *    BINDOP("compound type", uniontype, tupletype);
  */
+// TODO(andy): Improve syntax errors
 #define BINDOP(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \

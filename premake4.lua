@@ -38,6 +38,7 @@ solution "ponyc"
     "Profile"
   }
   buildoptions {
+    "-mcx16",
     "-march=native",
     "-pthread"
   }
