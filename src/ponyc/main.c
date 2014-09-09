@@ -27,10 +27,11 @@ enum
 
 static arg_t args[] =
 {
-  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
-  {"llvm", 'l', ARGUMENT_NONE, OPT_LLVM},
   {"opt", 'O', ARGUMENT_REQUIRED, OPT_OPTLEVEL},
   {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
+
+  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
+  {"llvm", 'l', ARGUMENT_NONE, OPT_LLVM},
   {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
   {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
   {"width", 'w', ARGUMENT_REQUIRED, OPT_WIDTH},
@@ -41,13 +42,15 @@ void usage()
 {
   printf(
     "ponyc [OPTIONS] <file>\n"
-    "  --ast, -a       print the AST\n"
-    "  --llvm, -l      print the LLVM IR\n"
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
+    "\n"
+    "  --ast, -a       print the AST\n"
+    "  --llvm, -l      print the LLVM IR\n"
     "  --pass, -r      restrict phases\n"
     "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
+    "\n"
     );
 }
 
@@ -84,7 +87,6 @@ int main(int argc, char* argv[])
   bool llvm = false;
   int opt = 0;
   size_t width = get_width();
-  bool error = false;
 
   parse_state_t s;
   opt_init(args, &s, &argc, argv);
@@ -94,20 +96,23 @@ int main(int argc, char* argv[])
   {
     switch(id)
     {
+      case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
+      case OPT_PATHS: package_add_paths(s.arg_val); break;
+
       case OPT_AST: ast = true; break;
       case OPT_LLVM: llvm = true; break;
-      case OPT_PATHS: package_add_paths(s.arg_val); break;
-      case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
-      case OPT_PASSES: error = !limit_passes(s.arg_val); break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: width = atoi(s.arg_val); break;
-      default: error = true; break;
-    }
 
-    if(error)
-    {
-      usage();
-      return -1;
+      case OPT_PASSES:
+        if(!limit_passes(s.arg_val))
+        {
+          usage();
+          return -1;
+        }
+        break;
+
+      default: usage(); return -1;
     }
   }
 
@@ -117,7 +122,16 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  ast_t* program = program_load((argc > 0) ? argv[0] : ".");
+  const char* path;
+
+  switch(argc)
+  {
+    case 1: path = "."; break;
+    case 2: path = argv[1]; break;
+    default: usage(); return -1;
+  }
+
+  ast_t* program = program_load(path);
   int ret = 0;
 
   if(program != NULL)
