@@ -2,6 +2,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 static char* opt_start = NULL;
 static char* opt_end = NULL;
@@ -42,7 +43,7 @@ static arg_t* find_match(arg_t* args, char* opt_start, char* opt_end)
   while(mode < MATCH_NONE)
   {
     match_type = ++mode;
-    
+
     for(arg_t* p = args; !END_MARKER(p); ++p)
     {
       name = (mode == MATCH_LONG) ? p->long_opt : &p->short_opt;
@@ -143,7 +144,7 @@ int opt_next(parse_state_t* s)
 
     return -2;
   }
-  
+
   switch(match_type)
   {
     case MATCH_LONG:
@@ -189,11 +190,11 @@ int opt_next(parse_state_t* s)
       }
       break;
   }
-    
+
   *s->argc -= remove;
   idx -= remove;
 
-  memmove(&s->argv[idx], &s->argv[idx + remove], 
+  memmove(&s->argv[idx], &s->argv[idx + remove],
     (*s->argc - idx) * sizeof(char*));
 
   return m->id;

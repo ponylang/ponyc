@@ -6,7 +6,7 @@
 #include "../platform/platform.h"
 
 #ifdef PLATFORM_IS_POSIX_BASED
-#  extern "C"
+extern "C"
 #endif
 char* LLVMGetHostCPUName()
 {
