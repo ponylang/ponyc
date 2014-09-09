@@ -1,6 +1,6 @@
 -- os.outputof is broken in premake4, hence this workaround
 function llvm_config(opt)
-  local stream = assert(io.popen("llvm-config-3.4 " .. opt))
+  local stream = assert(io.popen("llvm-config-3.5 " .. opt))
   local output = ""
   --llvm-config contains '\n'
   while true do
@@ -18,16 +18,16 @@ function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-  links { "libponyc", "libponycc" }
+  links { "libponyc", "libponycc", "z", "curses" }
   local output = llvm_config("--libs")
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
   configuration("not macosx")
-  links {
-    "tinfo",
-    "dl"
-  }
+    links {
+      "tinfo",
+      "dl",
+    }
   configuration("*")
 end
 
@@ -38,6 +38,7 @@ solution "ponyc"
     "Profile"
   }
   buildoptions {
+    "-mcx16",
     "-march=native",
     "-pthread"
   }

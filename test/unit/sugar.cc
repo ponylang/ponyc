@@ -18,66 +18,130 @@ class SugarTest: public testing::Test
 
 static void test_good_sugar(const char* before, const char* after)
 {
-  free_errors();
-
-  builder_t* actual_builder;
-  ast_t* actual_ast;
-  DO(build_ast_from_string(before, &actual_ast, &actual_builder));
-
-  ast_t* tree = builder_find_sub_tree(actual_builder, "start");
-  if(tree == NULL)  // No "start" node defined, use whole tree
-    tree = builder_get_root(actual_builder);
-
-  ASSERT_NE((void*)NULL, tree);
-
-  builder_t* expect_builder;
-  ast_t* expect_ast;
-  DO(build_ast_from_string(after, &expect_ast, &expect_builder));
-
-  ASSERT_EQ(AST_OK, pass_sugar(&tree));
-
-  actual_ast = builder_get_root(actual_builder);
-
-  bool r = build_compare_asts(expect_ast, actual_ast);
-
-  if(!r)
-  {
-    printf("Expected:\n");
-    ast_print(expect_ast, 80);
-    printf("Got:\n");
-    ast_print(actual_ast, 80);
-  }
-
-  ASSERT_TRUE(r);
-
-  builder_free(actual_builder);
-  builder_free(expect_builder);
+  DO(test_pass_fn_good(before, after, pass_sugar, "start"));
 }
 
 
 static void test_bad_sugar(const char* desc, ast_result_t expect_result)
 {
-  builder_t* actual_builder;
-  ast_t* actual_ast;
-  DO(build_ast_from_string(desc, &actual_ast, &actual_builder));
-
-  ast_t* tree = builder_find_sub_tree(actual_builder, "start");
-  if(tree == NULL)
-    tree = actual_ast;
-
-  ASSERT_NE((void*)NULL, tree);
-
-  ASSERT_EQ(expect_result, pass_sugar(&tree));
-
-  builder_free(actual_builder);
+  DO(test_pass_fn_bad(desc, pass_sugar, "start", expect_result));
 }
 
 
-TEST(SugarTest, TraitMain)
+TEST(SugarTest, DataType)
 {
-  const char* before = "(trait (id Main) x box x x)";
+  const char* before =
+    "(data (id Foo) x x x members)";
+
+  const char* after =
+    "(data (id Foo) x val x"
+    "  (members"
+    "    (new x (id create) x x x x (seq (reference (id None))))))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ClassWithField)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (flet (id m) x x)))";
+
+  DO(test_good_sugar(before, before));
+}
+
+
+TEST(SugarTest, ClassWithCreateConstructor)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (new ref (id create) x x x x (seq 3))))";
+
+  DO(test_good_sugar(before, before));
+}
+
+
+TEST(SugarTest, ClassWithCreateFunction)
+{
+  const char* before =
+    "(class (id Foo) x iso x (members (fun ref (id create) x x x x (seq 3))))";
 
   DO(test_bad_sugar(before, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassWithoutFieldOrCreate)
+{
+  const char* before =
+    "(class (id Foo) x iso x members)";
+
+  const char* after =
+    "(class (id Foo) x iso x"
+    "  (members"
+    "    (new x (id create) x x x x (seq (reference (id None))))))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ClassWithoutDefCap)
+{
+  const char* before = "(class (id foo) x x   x (members (flet (id m) x x)))";
+  const char* after =  "(class (id foo) x ref x (members (flet (id m) x x)))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ActorWithField)
+{
+  const char* before = "(actor (id Foo) x x   x (members (flet (id m) x x)))";
+  const char* after =  "(actor (id Foo) x tag x (members (flet (id m) x x)))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ActorWithCreateConstructor)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (new ref (id create) x x x x (seq 3))))";
+
+  const char* after =
+    "(actor (id Foo) x tag x (members (new ref (id create) x x x x (seq 3))))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ActorWithCreateFunction)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (fun ref (id create) x x x x (seq 3))))";
+
+  DO(test_bad_sugar(before, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithCreateBehaviour)
+{
+  const char* before =
+    "(actor (id Foo) x x x (members (be ref (id create) x x x x (seq 3))))";
+
+  DO(test_bad_sugar(before, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithoutFieldOrCreate)
+{
+  const char* before =
+    "(actor (id Foo) x x x members)";
+
+  const char* after =
+    "(actor (id Foo) x tag x"
+    "  (members"
+    "    (new x (id create) x x x x (seq (reference (id None))))))";
+
+  DO(test_good_sugar(before, after));
 }
 
 
@@ -115,38 +179,6 @@ TEST(SugarTest, TypeParamWithoutConstraint)
 }
 
 
-TEST(SugarTest, LetFieldInTrait)
-{
-  const char* before = "(trait (flet{def start} (id foo) x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, LetFieldNotInTrait)
-{
-  const char* before = "(class (flet{def start} (id foo) x x))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, VarFieldInTrait)
-{
-  const char* before = "(trait (fvar{def start} (id foo) x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, VarFieldNotInTrait)
-{
-  const char* before = "(class (fvar{def start} (id foo) x x))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
 TEST(SugarTest, ConstructorNoNameNoReturnType)
 {
   const char* before =
@@ -156,6 +188,36 @@ TEST(SugarTest, ConstructorNoNameNoReturnType)
     "(class (id foo) x x x"
     "  (members (new ref (id create) x x"
     "    (nominal x (id foo) x ref ^) x x)))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ConstructorInActor)
+{
+  const char* before =
+    "(actor (id foo) x x x (members"
+    "  (new{def start} ref (id make) x x x x x)))";
+
+  const char* after =
+    "(actor (id foo) x x x"
+    "  (members (new ref (id make) x x"
+    "    (nominal x (id foo) x tag ^) x x)))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, ConstructorInDataType)
+{
+  const char* before =
+    "(data (id foo) x x x (members"
+    "  (new{def start} ref (id make) x x x x x)))";
+
+  const char* after =
+    "(data (id foo) x x x"
+    "  (members (new ref (id make) x x"
+    "    (nominal x (id foo) x val ^) x x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -192,15 +254,7 @@ TEST(SugarTest, ConstructorInGenericClass)
 }
 
 
-TEST(SugarTest, BehaviourInClass)
-{
-  const char* before = "(class (be{def start} tag (id foo) x x x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, BehaviourInActor)
+TEST(SugarTest, BehaviourReturnType)
 {
   const char* before =
     "(actor (id foo) x x x (members (be{def start} tag (id foo) x x x x x)))";
@@ -211,22 +265,6 @@ TEST(SugarTest, BehaviourInActor)
     "    (nominal x (id foo) x tag x) x x)))";
 
   DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, FunctionIso)
-{
-  const char* before = "(fun iso (id foo) x x x x x)";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, FunctionTrn)
-{
-  const char* before = "(fun trn (id foo) x x x x x)";
-
-  DO(test_bad_sugar(before, AST_ERROR));
 }
 
 
@@ -324,6 +362,32 @@ TEST(SugarTest, StructuralWithoutCapabilityNotInTypeParam)
 }
 
 
+// TODO(andy): This currently fails because of a known bug. See
+// sugar_structural() in sugar.c
+/*
+TEST(SugarTest, StructuralWithoutCapabilityInInnerInTypeParam)
+{
+  const char* before =
+    "(typeparam (id foo)"
+    "  (structural"
+    "    (members"
+    "      (fun ref (id bar) x (params"
+    "        (param (id y) (structural{def start} members x x) x))))"
+    "    box x) x)";
+
+  const char* after =
+    "(typeparam (id foo)"
+    "  (structural"
+    "    (members"
+    "      (fun ref (id bar) x (params"
+    "        (param (id y) (structural{def start} members ref x) x))))"
+    "    box x) x)";
+
+  DO(test_good_sugar(before, after));
+}
+*/
+
+
 TEST(SugarTest, IfWithoutElse)
 {
   const char* before = "(if (seq 3) (seq 1) x)";
@@ -336,6 +400,31 @@ TEST(SugarTest, IfWithoutElse)
 TEST(SugarTest, IfWithElse)
 {
   const char* before = "(if (seq 3) (seq 1) (seq 2))";
+
+  DO(test_good_sugar(before, before));
+}
+
+
+TEST(SugarTest, WhileWithoutElse)
+{
+  const char* before = "(while (seq 3) (seq 1) x)";
+  const char* after =  "(while (seq 3) (seq 1) (seq (reference (id None))))";
+
+  DO(test_good_sugar(before, after));
+}
+
+
+TEST(SugarTest, WhileWithElse)
+{
+  const char* before = "(while (seq 3) (seq 1) (seq 2))";
+
+  DO(test_good_sugar(before, before));
+}
+
+
+TEST(SugarTest, TryWithElseOAndThen)
+{
+  const char* before = "(try (seq 1) (seq 2) (seq 3))";
 
   DO(test_good_sugar(before, before));
 }
@@ -417,6 +506,9 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 }
 
 
+// TODO(andy): Tests for sugar_bang, once that's done
+
+
 TEST(SugarTest, CaseWithBody)
 {
   const char* before = "(case (seq 1) x x (seq 2))";
@@ -433,14 +525,6 @@ TEST(SugarTest, CaseWithBodyAndFollowingCase)
     "  (case (seq 3) x x (seq 4)))";
 
   DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, CaseWithNoBodyOrFollowingCase)
-{
-  const char* before = "(case (seq 1) x x x)";
-
-  DO(test_bad_sugar(before, AST_FATAL));
 }
 
 
@@ -523,430 +607,4 @@ TEST(SugarTest, UpdateWithArgs)
     "    (namedarg (id bar) (seq 5))))";
 
   DO(test_good_sugar(before, after));
-}
-
-
-// Pure type checking "sugar"
-
-TEST(SugarTest, TypeAliasGood)
-{
-  const char* before = "(type (id foo) (nominal (id A) x x x x))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, TypeAliasMain)
-{
-  const char* before = "(type (id Main) (nominal (id A) x x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassGoodWithField)
-{
-  const char* before = "(class (id Foo) x iso x (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, ClassMain)
-{
-  const char* before = "(class (id Main) x iso x (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassNominalTrait)
-{
-  const char* before =
-    "(class (id Foo) x iso (types (nominal x (id A) x x x))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, ClassNonNominalTrait)
-{
-  const char* before =
-    "(class (id Foo) x iso (types (thistype)) (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassTraitCapability)
-{
-  const char* before =
-    "(class (id Foo) x iso (types (nominal x (id A) x ref x))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassTraitEphemeral)
-{
-  const char* before =
-    "(class (id Foo) x iso (types (nominal x (id A) x x ^))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassSecondTraitEphemeral)
-{
-  const char* before =
-    "(class (id Foo) x iso"
-    "  (types"
-    "    (nominal x (id A) x x x)"
-    "    (nominal x (id B) x x ^))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassWithCreateConstructor)
-{
-  const char* before =
-    "(class (id Foo) x iso x (members (new ref (id create) x x x x (seq 3))))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, ClassWithCreateFunction)
-{
-  const char* before =
-    "(class (id Foo) x iso x (members (fun ref (id create) x x x x (seq 3))))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassWithCreateBehaviour)
-{
-  const char* before =
-    "(class (id Foo) x iso x (members (be ref (id create) x x x x (seq 3))))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ClassWithoutFieldOrCreate)
-{
-  const char* before =
-    "(class (id Foo) x ref x members)";
-
-  const char* after =
-    "(class (id Foo) x ref x"
-    "  (members"
-    "    (new x (id create) x x (nominal x (id Foo) x val x) x"
-    "      (seq (reference (id None))))))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ClassWithoutDefCap)
-{
-  const char* before = "(class (id foo) x x   x (members (flet (id m) x x)))";
-  const char* after  = "(class (id foo) x ref x (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorGoodWithField)
-{
-  const char* before = "(actor (id Foo) x x   x (members (flet (id m) x x)))";
-  const char* after  = "(actor (id Foo) x tag x (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorMain)
-{
-  const char* before = "(actor (id Main) x x   x (members (flet (id m) x x)))";
-  const char* after  = "(actor (id Main) x tag x (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorNominalTrait)
-{
-  const char* before =
-    "(actor (id Foo) x x (types (nominal x (id A) x x x))"
-    "  (members (flet (id m) x x)))";
-
-  const char* after =
-    "(actor (id Foo) x tag (types (nominal x (id A) x x x))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorNonNominalTrait)
-{
-  const char* before =
-    "(actor (id Foo) x x (types (thistype)) (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorTraitCapability)
-{
-  const char* before =
-    "(actor (id Foo) x x (types (nominal x (id A) x ref x))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorTraitEphemeral)
-{
-  const char* before =
-    "(actor (id Foo) x x (types (nominal x (id A) x x ^))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorSecondTraitEphemeral)
-{
-  const char* before =
-    "(actor (id Foo) x x"
-    "  (types"
-    "    (nominal x (id A) x x x)"
-    "    (nominal x (id B) x x ^))"
-    "  (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorWithCreateConstructor)
-{
-  const char* before =
-    "(actor (id Foo) x x x (members (new ref (id create) x x x x (seq 3))))";
-
-  const char* after =
-    "(actor (id Foo) x tag x (members (new ref (id create) x x x x (seq 3))))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorWithCreateFunction)
-{
-  const char* before =
-    "(actor (id Foo) x x x (members (fun ref (id create) x x x x (seq 3))))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorWithCreateBehaviour)
-{
-  const char* before =
-    "(actor (id Foo) x x x (members (be ref (id create) x x x x (seq 3))))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ActorWithoutFieldOrCreate)
-{
-  const char* before =
-    "(actor (id Foo) x x x members)";
-
-  const char* after =
-    "(actor (id Foo) x tag x"
-    "  (members"
-    "    (new x (id create) x x (nominal x (id Foo) x val x) x"
-    "      (seq (reference (id None))))))";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, ActorWithDefCap)
-{
-  const char* before = "(actor (id foo) x ref x (members (flet (id m) x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointGood)
-{
-  const char* before = "(-> thistype (nominal x (id A) x x x))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, ViewpointLeftUnionType)
-{
-  const char* before =
-    "(->"
-    "  (uniontype"
-    "    (nominal x (id A) x x x)"
-    "    (nominal x (id B) x x x)"
-    "  )"
-    "  (nominal x (id C) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointLeftIntersectionType)
-{
-  const char* before =
-    "(->"
-    "  (isecttype"
-    "    (nominal x (id A) x x x)"
-    "    (nominal x (id B) x x x)"
-    "  )"
-    "  (nominal x (id C) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointLeftTupleType)
-{
-  const char* before =
-    "(->"
-    "  (tupletype"
-    "    (nominal x (id A) x x x)"
-    "    (nominal x (id B) x x x)"
-    "  )"
-    "  (nominal x (id C) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointLeftStructural)
-{
-  const char* before =
-    "(-> (structural members x x) (nominal x (id A) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointLeftNominalWithCapability)
-{
-  const char* before =
-    "(-> (nominal x (id A) x ref x) (nominal x (id B) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointLeftNominalEphemeral)
-{
-  const char* before =
-    "(-> (nominal x (id A) x x ^) (nominal x (id B) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointRightUnionType)
-{
-  const char* before =
-    "(->"
-    "  (nominal x (id A) x x x)"
-    "  (uniontype"
-    "    (nominal x (id B) x x x)"
-    "    (nominal x (id C) x x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointRightIntersectionType)
-{
-  const char* before =
-    "(->"
-    "  (nominal x (id A) x x x)"
-    "  (isecttype"
-    "    (nominal x (id B) x x x)"
-    "    (nominal x (id C) x x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointRightTupleType)
-{
-  const char* before =
-    "(->"
-    "  (nominal x (id A) x x x)"
-    "  (tupletype"
-    "    (nominal x (id B) x x x)"
-    "    (nominal x (id C) x x x)))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ViewpointRightThis)
-{
-  const char* before = "(-> (nominal x (id A) x x x) thistype)";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ThisTypeNotInViewpoint)
-{
-  const char* before =
-    "(tupletype thistype{def start} (nominal x (id A) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ThisTypeInViewpointNotInMethod)
-{
-  const char* before = "(-> thistype{def start} (nominal x (id A) x x x))";
-
-  DO(test_bad_sugar(before, AST_ERROR));
-}
-
-
-TEST(SugarTest, ThisTypeInViewpointInMethod)
-{
-  const char* before =
-    "(fun x (id foo) x x x x"
-    "  (-> thistype{def start} (nominal x (id A) x x x)))";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, EphemeralNotInMethodReturnType)
-{
-  const char* before =
-    "(fun x (id foo) x"
-    "  (params (param (id bar) (nominal x (id A) x x ^{def start}) x))"
-    "  x x x)";
-
-  DO(test_bad_sugar(before, AST_ERROR));
 }

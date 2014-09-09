@@ -306,9 +306,8 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   } else if(value != GEN_NOVALUE) {
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
-    bool sign = is_signed(ast_type(body));
 
-    LLVMValueRef ret = gen_assign_cast(c, r_type, value, sign);
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(body));
     LLVMBuildRet(c->builder, ret);
   }
 
@@ -449,6 +448,31 @@ LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
   codegen_finishfun(c);
 
   return func;
+}
+
+LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
+{
+  // Create a boxing function.
+  const char* box_name = genname_box(g->type_name);
+  LLVMTypeRef box_type = LLVMFunctionType(g->structure_ptr, &g->primitive, 1,
+    false);
+  LLVMValueRef box_fn = codegen_addfun(c, box_name, box_type);
+  codegen_startfun(c, box_fn);
+
+  // allocate the object as 'this'
+  LLVMValueRef this_ptr = gencall_alloc(c, g->structure_ptr);
+  set_descriptor(c, g, this_ptr);
+
+  // Store the primitive in element 1.
+  LLVMValueRef primitive = LLVMGetParam(box_fn, 0);
+  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
+  LLVMBuildStore(c->builder, primitive, primitive_ptr);
+
+  // return 'this'
+  LLVMBuildRet(c->builder, this_ptr);
+
+  codegen_finishfun(c);
+  return box_fn;
 }
 
 bool genfun_methods(compile_t* c, gentype_t* g)

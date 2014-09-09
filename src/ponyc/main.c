@@ -1,53 +1,85 @@
-#include "../libponyc/platform/platform.h"
 #include "../libponyc/ast/parserapi.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
+#include "../libponyc/platform/platform.h"
+
+#include "options.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-static struct option opts[] =
+#ifdef PLATFORM_IS_POSIX_BASED
+#  include <sys/ioctl.h>
+#  include <unistd.h>
+#endif
+
+enum
 {
-  {"ast", no_argument, NULL, 'a'},
-  {"llvm", no_argument, NULL, 'l'},
-  {"opt", no_argument, NULL, 'O'},
-  {"path", required_argument, NULL, 'p'},
-  {"pass", required_argument, NULL, 'r'},
-  {"trace", no_argument, NULL, 't'},
-  {"width", required_argument, NULL, 'w'},
-  {NULL, 0, NULL, 0},
+  OPT_AST,
+  OPT_LLVM,
+  OPT_OPTLEVEL,
+  OPT_PATHS,
+  OPT_PASSES,
+  OPT_TRACE,
+  OPT_WIDTH
+};
+
+static arg_t args[] =
+{
+  {"opt", 'O', ARGUMENT_REQUIRED, OPT_OPTLEVEL},
+  {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
+
+  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
+  {"llvm", 'l', ARGUMENT_NONE, OPT_LLVM},
+  {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
+  {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
+  {"width", 'w', ARGUMENT_REQUIRED, OPT_WIDTH},
+  ARGUMENTS_FINISH
 };
 
 void usage()
 {
   printf(
-    "ponyc [OPTIONS] <file>\n"
-    "  --ast, -a       print the AST\n"
-    "  --llvm, -l      print the LLVM IR\n"
+    "ponyc [OPTIONS] <package directory>\n"
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
+    "\n"
+    "  --ast, -a       print the AST\n"
+    "  --llvm, -l      print the LLVM IR\n"
     "  --pass, -r      restrict phases\n"
     "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
+    "\n"
     );
 }
 
 size_t get_width()
 {
-  struct winsize ws;
   size_t width = 80;
+#ifdef _WIN64
+  CONSOLE_SCREEN_BUFFER_INFO info;
 
-  if(pony_get_term_winsize(&ws))
+  if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
+  {
+    int cols = info.srWindow.Right - info.srWindow.Left + 1;
+
+    if(cols > width)
+      width = cols;
+  }
+#else
+  struct winsize ws;
+
+  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;
   }
-
+#endif
   return width;
 }
 
-int main(int argc, char** argv)
+int main(int argc, char* argv[])
 {
   package_init(argv[0]);
 
@@ -55,27 +87,32 @@ int main(int argc, char** argv)
   bool llvm = false;
   int opt = 0;
   size_t width = get_width();
-  char c;
-  bool error = false;
 
-  while((c = (char)getopt_long(argc, argv, "alO:p:r:w:", opts, NULL)) != -1)
+  parse_state_t s;
+  opt_init(args, &s, &argc, argv);
+
+  int id;
+  while((id = opt_next(&s)) != -1)
   {
-    switch(c)
+    switch(id)
     {
-      case 'a': ast = true; break;
-      case 'l': llvm = true; break;
-      case 'p': package_add_paths(optarg); break;
-      case 'O': opt = atoi(optarg); break;
-      case 'r': error = !limit_passes(optarg); break;
-      case 't': parse_trace(true); break;
-      case 'w': width = atoi(optarg); break;
-      default: error = true; break;
-    }
+      case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
+      case OPT_PATHS: package_add_paths(s.arg_val); break;
 
-    if(error)
-    {
-      usage();
-      return -1;
+      case OPT_AST: ast = true; break;
+      case OPT_LLVM: llvm = true; break;
+      case OPT_TRACE: parse_trace(true); break;
+      case OPT_WIDTH: width = atoi(s.arg_val); break;
+
+      case OPT_PASSES:
+        if(!limit_passes(s.arg_val))
+        {
+          usage();
+          return -1;
+        }
+        break;
+
+      default: usage(); return -1;
     }
   }
 
@@ -85,10 +122,16 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  argc -= optind;
-  argv += optind;
+  const char* path;
 
-  ast_t* program = program_load((argc > 0) ? argv[0] : ".");
+  switch(argc)
+  {
+    case 1: path = "."; break;
+    case 2: path = argv[1]; break;
+    default: usage(); return -1;
+  }
+
+  ast_t* program = program_load(path);
   int ret = 0;
 
   if(program != NULL)

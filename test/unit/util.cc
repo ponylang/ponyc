@@ -59,6 +59,9 @@ void build_ast_from_string(const char* desc, ast_t** out_ast,
   if(out_ast != NULL)
     *out_ast = ast;
 
+  if(ast == NULL)
+    print_errors();
+
   ASSERT_NE((void*)NULL, ast);
 }
 
@@ -181,34 +184,38 @@ void load_test_program(const char* name, ast_t** out_prog)
 }
 
 
-/*
-void test_good_pass(const char* before, const char* after, token_id start_id,
-  ast_result_t (*pass_fn)(ast_t**))
+void test_pass_fn_good(const char* before, const char* after,
+  ast_result_t(*fn)(ast_t**), const char* label)
 {
   free_errors();
 
-  source_t* actual_src = source_open_string(before);
-  ast_t* actual_ast = build_ast(actual_src);
-  ASSERT_NE((void*)NULL, actual_ast);
+  // Build the before description into an AST
+  builder_t* actual_builder;
+  ast_t* actual_ast;
+  DO(build_ast_from_string(before, &actual_ast, &actual_builder));
 
-  ast_t* tree = find_start(actual_ast, start_id);
+  ast_t* tree = builder_find_sub_tree(actual_builder, label);
+  if(tree == NULL)  // Given label not defined, use whole tree
+    tree = builder_get_root(actual_builder);
+
   ASSERT_NE((void*)NULL, tree);
 
-  bool top = (tree == actual_ast);
+  // Build the after description into an AST
+  builder_t* expect_builder;
+  ast_t* expect_ast;
+  DO(build_ast_from_string(after, &expect_ast, &expect_builder));
 
-  source_t* expect_src = source_open_string(after);
-  ast_t* expect_ast = build_ast(expect_src);
-  ASSERT_NE((void*)NULL, expect_ast);
+  // Apply transform
+  ASSERT_EQ(AST_OK, fn(&tree));
 
-  ASSERT_EQ(AST_OK, pass_fn(&tree));
-
-  if(top)
-    actual_ast = tree;
+  // Check resulting AST
+  actual_ast = builder_get_root(actual_builder);
 
   bool r = build_compare_asts(expect_ast, actual_ast);
 
   if(!r)
   {
+    // Well that didn't work as expected then
     printf("Expected:\n");
     ast_print(expect_ast, 80);
     printf("Got:\n");
@@ -217,28 +224,25 @@ void test_good_pass(const char* before, const char* after, token_id start_id,
 
   ASSERT_TRUE(r);
 
-  ast_free(actual_ast);
-  source_close(actual_src);
-  ast_free(expect_ast);
-  source_close(expect_src);
+  builder_free(actual_builder);
+  builder_free(expect_builder);
 }
 
 
-void test_bad_pass(const char* desc, token_id start_id,
-  ast_result_t expect_result, ast_result_t (*pass_fn)(ast_t**))
+void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
+  const char* label, ast_result_t expect_result)
 {
-  free_errors();
+  builder_t* actual_builder;
+  ast_t* actual_ast;
+  DO(build_ast_from_string(before, &actual_ast, &actual_builder));
+  
+  ast_t* tree = builder_find_sub_tree(actual_builder, label);
+  if(tree == NULL)  // Given label not defined, use whole tree
+    tree = builder_get_root(actual_builder);
 
-  source_t* src = source_open_string(desc);
-  ast_t* ast = build_ast(src);
-  ASSERT_NE((void*)NULL, ast);
-
-  ast_t* tree = find_start(ast, start_id);
   ASSERT_NE((void*)NULL, tree);
 
-  ASSERT_EQ(expect_result, pass_fn(&tree));
+  ASSERT_EQ(expect_result, fn(&tree));
 
-  ast_free(ast);
-  source_close(src);
+  builder_free(actual_builder);
 }
-*/

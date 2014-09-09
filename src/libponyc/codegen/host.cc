@@ -1,6 +1,14 @@
-#include <llvm/Support/Host.h>
+#ifdef _MSC_VER
+#  pragma warning(disable:4267)
+#endif
 
-extern "C" char* LLVMGetHostCPUName()
+#include <llvm/Support/Host.h>
+#include "../platform/platform.h"
+
+#ifdef PLATFORM_IS_POSIX_BASED
+extern "C"
+#endif
+char* LLVMGetHostCPUName()
 {
-  return strdup(llvm::sys::getHostCPUName().c_str());
+  return strdup(llvm::sys::getHostCPUName().str().c_str());
 }

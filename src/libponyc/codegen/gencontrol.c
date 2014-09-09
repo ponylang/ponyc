@@ -35,9 +35,6 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
-  bool l_sign = is_signed(left_type);
-  bool r_sign = is_signed(right_type);
-
   gentype_t phi_type;
 
   // we will have no type if both branches have return statements
@@ -67,7 +64,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(l_value != GEN_NOVALUE)
   {
-    l_value = gen_assign_cast(c, phi_type.use_type, l_value, l_sign);
+    l_value = gen_assign_cast(c, phi_type.use_type, l_value, left_type);
 
     if(l_value == NULL)
       return NULL;
@@ -83,7 +80,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // if the right side returns, we don't branch to the post block
   if(r_value != GEN_NOVALUE)
   {
-    r_value = gen_assign_cast(c, phi_type.use_type, r_value, r_sign);
+    r_value = gen_assign_cast(c, phi_type.use_type, r_value, right_type);
 
     if(r_value == NULL)
       return NULL;
@@ -118,9 +115,6 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  bool body_sign = is_signed(body_type);
-  bool else_sign = is_signed(else_type);
-
   gentype_t phi_type;
 
   if(!gentype(c, type, &phi_type))
@@ -152,7 +146,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef l_value = gen_expr(c, body);
-  l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_sign);
+  l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_type);
 
   if(l_value == NULL)
     return NULL;
@@ -172,7 +166,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
-  r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_sign);
+  r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
   LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
@@ -192,7 +186,6 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);
-  bool body_sign = is_signed(body_type);
 
   gentype_t phi_type;
 
@@ -219,7 +212,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type.use_type, value, body_sign);
+  value = gen_assign_cast(c, phi_type.use_type, value, body_type);
 
   if(value == NULL)
     return NULL;
@@ -245,13 +238,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
-
-  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   ast_t* body = ast_child(ast);
   ast_t* body_type = ast_type(body);
-  bool body_sign = is_signed(body_type);
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
   LLVMBasicBlockRef break_block = LLVMAppendBasicBlock(fun, "break");
@@ -287,7 +277,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   // build the break block
   LLVMPositionBuilderAtEnd(c->builder, break_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type, value, body_sign);
+  value = gen_assign_cast(c, phi_type, value, body_type);
 
   if(value == NULL)
     return NULL;
@@ -303,8 +293,6 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
   ast_t* loop = ast_enclosing_loop(ast);
-
-  // TODO: could store in compile_context_t
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
 
   switch(ast_id(loop))
@@ -369,9 +357,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
-  bool body_sign = is_signed(body_type);
-  bool else_sign = is_signed(else_type);
-
   gentype_t phi_type;
 
   // we will have no type if both branches have return statements
@@ -395,7 +380,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(body_value != GEN_NOVALUE)
   {
-    body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_sign);
+    body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_type);
 
     if(body_value == NULL)
       return NULL;
@@ -422,7 +407,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(else_value != GEN_NOVALUE)
   {
-    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_sign);
+    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
 
     if(else_value == NULL)
       return NULL;

@@ -9,6 +9,7 @@
 #include "../pkg/package.h"
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
+#include "../platform/platform.h"
 
 #include <llvm-c/Initialization.h>
 #include <llvm-c/Target.h>
@@ -18,7 +19,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <assert.h>
+#include <sys/stat.h>
+
+#ifdef PLATFORM_IS_POSIX_BASED
+#  include <unistd.h>
+#endif
 
 static void codegen_fatal(const char* reason)
 {
@@ -461,10 +468,34 @@ static bool codegen_finalise(compile_t* c, int opt)
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
 
-  // Generate an object file.
+  // Pick an executable name.
   size_t len = strlen(c->filename);
+  VLA(char, file_exe, len + 3);
+  snprintf(file_exe, len + 3, "%s", c->filename);
+  int suffix = 0;
+
+  while(suffix < 100)
+  {
+    struct stat s;
+    int err = stat(file_exe, &s);
+
+    if((err == -1) || !S_ISDIR(s.st_mode))
+      break;
+
+    snprintf(file_exe, len + 3, "%s%d", c->filename, ++suffix);
+  }
+
+  if(suffix >= 100)
+  {
+    errorf(NULL, "couldn't pick a name for the executable");
+    return false;
+  }
+
+  len = strlen(file_exe);
+
+  // Generate an object file.
   VLA(char, file_o, len + 3);
-  snprintf(file_o, len + 3, "%s.o", c->filename);
+  snprintf(file_o, len + 3, "%s.o", file_exe);
 
   LLVMTargetRef target;
   char* err;
@@ -481,7 +512,7 @@ static bool codegen_finalise(compile_t* c, int opt)
   char* cpu = LLVMGetHostCPUName();
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", opt, LLVMRelocStatic, LLVMCodeModelDefault);
+    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocStatic, LLVMCodeModelDefault);
 
   LLVMDisposeMessage(cpu);
 
@@ -518,10 +549,12 @@ static bool codegen_finalise(compile_t* c, int opt)
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -arch %s -macosx_version_min 10.9.0 -o %s %s.o",
-    arch, c->filename, c->filename
+    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
+    "-o %s %s.o",
+    arch, file_exe, file_exe
     );
 
+  // User specified libraries go here, in any order.
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lpony -lSystem");
   free(arch);
@@ -544,11 +577,13 @@ static bool codegen_finalise(compile_t* c, int opt)
     "/usr/lib/x86_64-linux-gnu/crt1.o "
     "/usr/lib/x86_64-linux-gnu/crti.o "
     "%s.o ",
-    c->filename, c->filename
+    file_exe, file_exe
     );
 
   append_link_paths(ld_cmd);
 
+  // User specified libraries go here, surrounded with --start-group and
+  // --end-group so that we don't have to determine an ordering.
   strcat(ld_cmd,
     " -lpony -lpthread -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
@@ -563,9 +598,11 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   unlink(file_o);
 #else
-  printf("Compiled %s.o, please link it by hand to libpony.a\n", c->filename);
+  printf("Compiled %s, please link it by hand to libpony.a\n", file_o);
+  return true;
 #endif
 
+  printf("=== Compiled %s ===\n", file_exe);
   return true;
 }
 

@@ -52,6 +52,34 @@ void load_test_program(const char* name, ast_t** out_prog);
  */
 //void check_tree(const char* expected, ast_t* actual);
 
+
+/** Check that an AST transforms to another AST under a single pass function
+ * application at the node with the specified label.
+ * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+ *
+ * @param before Description of AST before transformation.
+ * @param after Description of AST after transformation.
+ * @param fn Pass function to apply.
+ * @param label Label of node to apply pass function to. If NULL is passed or
+ * specified label is not found, pass function is applied to root of tree.
+ */
+void test_pass_fn_good(const char* before, const char* after,
+  ast_result_t(*fn)(ast_t**), const char* label);
+
+
+/** Check that tranforming an AST under a single pass function application at
+ * the node with the specified label fails.
+ * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+ *
+ * @param before Description of AST before transformation.
+ * @param fn Pass function to apply.
+ * @param label Label of node to apply pass function to. If NULL is passed or
+ * specified label is not found, pass function is applied to root of tree.
+ */
+void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
+  const char* label, ast_result_t expect_result);
+
+
 /** Check that the given source code compiles, generating the specified result.
  * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
  *

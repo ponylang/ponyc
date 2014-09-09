@@ -5,10 +5,43 @@ http://industriousone.com/premake/download
 After cloning, you need to initialise the submodules:
 
 $ git submodule init
-$ git submodule foreach update
+$ git submodule update
+
+Building on Linux
+=================
+
+First, install premake4 and LLVM 3.5 using your package manager. You may need to install zlib and ncurses as well.
 
 This will build ponyc and compile helloworld:
 
 $ premake4 gmake
+$ make config=release
+$ ./bin/release/ponyc test/helloworld
+
+Building on Mac OSX
+===================
+
+First, install homebrew if you haven't already (http://brew.sh). Then brew both llvm35 and premake4, like this:
+
+$ brew tap homebrew/versions
+$ brew install llvm35
+$ brew install premake
+
+This will build ponyc and compile helloworld:
+
+$ premake4 gmake
+$ make config=release
+$ ./bin/release/ponyc test/helloworld
+
+Building on Windows
+===================
+
+The LLVM 3.5 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.5 from source.
+
+You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
+
+You may also need to install zlib and ncurses.
+
+$ premake5 gmake
 $ make config=release
 $ ./bin/release/ponyc test/helloworld

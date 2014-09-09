@@ -257,6 +257,24 @@ token_id cap_recover(token_id cap)
   return TK_NONE;
 }
 
+token_id cap_send(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_ISO;
+    case TK_TRN: return TK_TAG;
+    case TK_REF: return TK_TAG;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_TAG;
+    case TK_TAG: return TK_TAG;
+    case TK_NONE: return TK_TAG;
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
 bool cap_sendable(token_id cap)
 {
   switch(cap)
