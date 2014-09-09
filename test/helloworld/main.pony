@@ -1,4 +1,4 @@
-trait Foo val
+trait Foo
   fun box test(): I32 => 0
 
 class Bar is Foo
