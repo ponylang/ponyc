@@ -16,10 +16,10 @@ static int idx;
 
 enum
 {
-  MATCH_INIT = UINT32_MAX,
-  MATCH_LONG,
-  MATCH_SHORT,
-  MATCH_NONE
+  MATCH_INIT  = UINT32_MAX,
+  MATCH_LONG  = 0,
+  MATCH_SHORT = 1,
+  MATCH_NONE  = 2
 };
 
 static bool is_positional(char** argv)
@@ -67,12 +67,12 @@ static arg_t* find_match(arg_t* args, char* opt_start, char* opt_end)
         }
       }
     }
-
-    if(ambig && !exact)
-      return (arg_t*)1;
-    else if(match != NULL)
-      return match;
   }
+
+  if (ambig && !exact)
+    return (arg_t*)1;
+  else if (match != NULL)
+    return match;
 
   match_type = MATCH_NONE;
   return NULL;
@@ -128,14 +128,13 @@ int opt_next(parse_state_t* s)
   }
   else if(m == (arg_t*)1)
   {
-    //ambiguous match
     printf("%s: '%s' option is ambiguous!\n", s->argv[0], s->argv[idx]);
     return -2;
   }
 
-  remove++;
+  bool arg = (*opt_end == '=' || *(opt_start + 1) && match_type == MATCH_SHORT);
 
-  if(*opt_end == '=')
+  if(*opt_end == '=' || (m->flag & ARGUMENT_REQUIRED))
   {
     if(m->flag & ARGUMENT_NONE)
     {
@@ -144,29 +143,18 @@ int opt_next(parse_state_t* s)
 
       return -2;
     }
-    else
+
+    switch(match_type)
     {
-      //the argument is the rest of the current string
-      //to the next '\0'.
-      s->arg_val = opt_end + 1;
+      case MATCH_LONG:
+        
+        break;
+      case MATCH_SHORT:
+        break;
     }
   }
-  else if(m->flag & ARGUMENT_REQUIRED)
-  {
-    if(idx < *s->argc)
-    {
-      s->arg_val = s->argv[++idx];
-      remove++;
-    }
-    else
-    {
-      printf("%s: '%s' option requires an argument!\n", s->argv[0],
-        s->argv[idx]);
-
-      return -2;
-    }
-  }
-
+  
+  
   //If execution reaches this point, a known and valid named argument
   //was found. Return it to the user, and remove it from the argv array.
   switch (match_type)
@@ -181,7 +169,6 @@ int opt_next(parse_state_t* s)
         strlen(opt_start));
 
       opt_start = s->argv[idx];
-
       break;
    }
   

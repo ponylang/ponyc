@@ -401,6 +401,34 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
   c->context = NULL;
 }
 
+static size_t link_path_length()
+{
+  strlist_t* p = package_paths();
+  size_t len = 0;
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    len += strlen(path) + 3;
+    p = strlist_next(p);
+  }
+
+  return len;
+}
+
+static void append_link_paths(char* str)
+{
+  strlist_t* p = package_paths();
+
+  while(p != NULL)
+  {
+    const char* path = strlist_data(p);
+    strcat(str, " -L");
+    strcat(str, path);
+    p = strlist_next(p);
+  }
+}
+
 static bool codegen_finalise(compile_t* c, int opt)
 {
   // Finalise the function passes.
@@ -429,28 +457,17 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
-  size_t len = strlen(c->filename);
-
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
-   * amalgamating the program and the runtime and generating a .o file the
-   * way llc does, then linking with the system linker.
+   * amalgamating the program and the runtime.
    *
    * For building a library, could generate a .o without the runtime in it. The
    * user then has to link both the .o and the runtime. Would need a flag for
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
-   *
-   * Using ld on the mac:
-   *
-   * ld -execute -arch x86_64 -macosx_version_min 10.9.0 -o helloworld
-   *   helloworld.o ../ponyrt/bin/release/libpony.a -lSystem
-   *
-   * Don't appear to need the clang_rt
-   *   /Applications/Xcode.app/Contents/Developer/Toolchains
-   *   /XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/lib
-   *   /darwin/libclang_rt.osx.a
    */
 
+  // Generate an object file.
+  size_t len = strlen(c->filename);
   VLA(char, file_o, len + 3);
   snprintf(file_o, len + 3, "%s.o", c->filename);
 
@@ -469,7 +486,7 @@ static bool codegen_finalise(compile_t* c, int opt)
   char* cpu = LLVMGetHostCPUName();
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocDefault, LLVMCodeModelDefault);
+    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocStatic, LLVMCodeModelDefault);
 
   LLVMDisposeMessage(cpu);
 
@@ -489,6 +506,71 @@ static bool codegen_finalise(compile_t* c, int opt)
   }
 
   LLVMDisposeTargetMachine(machine);
+
+  // Link the program.
+#if defined(PLATFORM_IS_MACOSX)
+  char* arch = strchr(c->triple, '-');
+
+  if(arch == NULL)
+  {
+    errorf(NULL, "couldn't determine architecture from %s", c->triple);
+    return false;
+  }
+
+  arch = strndup(c->triple, arch - c->triple);
+
+  size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length();
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld -execute -arch %s -macosx_version_min 10.9.0 -o %s %s.o",
+    arch, c->filename, c->filename
+    );
+
+  append_link_paths(ld_cmd);
+  strcat(ld_cmd, " -lpony -lSystem");
+  free(arch);
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+
+  unlink(file_o);
+#elif defined(PLATFORM_IS_LINUX)
+  size_t ld_len = 256 + (len * 2) + link_path_length();
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
+    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+    "-o %s "
+    "/usr/lib/x86_64-linux-gnu/crt1.o "
+    "/usr/lib/x86_64-linux-gnu/crti.o "
+    "%s.o ",
+    c->filename, c->filename
+    );
+
+  append_link_paths(ld_cmd);
+
+  strcat(ld_cmd,
+    " -lpony -lpthread -lc "
+    "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
+    "/usr/lib/x86_64-linux-gnu/crtn.o"
+    );
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+
+  unlink(file_o);
+#else
+  printf("Compiled %s.o, please link it by hand to libpony.a\n", c->filename);
+#endif
+
   return true;
 }
 

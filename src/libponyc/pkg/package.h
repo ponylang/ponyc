@@ -2,6 +2,7 @@
 #define PACKAGE_H
 
 #include "../ast/ast.h"
+#include "../ds/stringtab.h"
 
 /**
  * Initialises the search directories. This is composed of a "packages"
@@ -14,10 +15,15 @@
 void package_init(const char* name);
 
 /**
+ * Gets the list of search paths.
+ */
+strlist_t* package_paths();
+
+/**
  * Appends a list of colon (:) separated paths to the list of paths that will
  * be searched for packages.
  */
-void package_paths(const char* paths);
+void package_add_paths(const char* paths);
 
 /**
  * Add a magic package with a single module based on the given source under the

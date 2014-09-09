@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     {
       case OPT_AST: ast = true; break;
       case OPT_LLVM: llvm = true; break;
-      case OPT_PATHS: package_paths(s.arg_val); break;
+      case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
       case OPT_PASSES: error = !limit_passes(s.arg_val); break;
       case OPT_TRACE: parse_trace(true); break;
