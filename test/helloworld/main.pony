@@ -11,8 +11,15 @@ class Throw
   fun box throw(test: Bool): Bool ? =>
     if test then test else error end
 
+actor Test
+  var _main: Main
+
+  new create(m: Main) =>
+    _main = m
+
 actor Main
   new create(env: Env) =>
+    Test(this)
     var t: Foo = Bar
     @printf[I32]("%d\n"._cstring(), t.test())
 

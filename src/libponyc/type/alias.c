@@ -46,6 +46,22 @@ static ast_t* recover_for_type(ast_t* type, int index)
   return type;
 }
 
+static ast_t* send_for_type(ast_t* type, int index)
+{
+  ast_t* cap = ast_childidx(type, index);
+  token_id tcap = ast_id(cap);
+  token_id rcap = cap_send(tcap);
+
+  if(tcap != rcap)
+  {
+    type = ast_dup(type);
+    cap = ast_childidx(type, index);
+    ast_replace(&cap, ast_from(cap, rcap));
+  }
+
+  return type;
+}
+
 ast_t* alias(ast_t* type)
 {
   switch(ast_id(type))
@@ -186,6 +202,53 @@ ast_t* recover_type(ast_t* type)
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
       ast_add(r_type, recover_type(right));
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+ast_t* send_type(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // Send type for each element.
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, send_type(child));
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+      return send_for_type(type, 3);
+
+    case TK_STRUCTURAL:
+    case TK_TYPEPARAMREF:
+      return send_for_type(type, 1);
+
+    case TK_ARROW:
+    {
+      // Send type just for the right side. Left side is either 'this' or a type
+      // parameter, and stays the same.
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      ast_t* left = ast_child(type);
+      ast_t* right = ast_sibling(left);
+      ast_add(r_type, send_type(right));
       ast_add(r_type, left);
       return r_type;
     }
