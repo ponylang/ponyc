@@ -70,7 +70,7 @@ size_t get_width()
 #else
   struct winsize ws;
 
-  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, ws))
+  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws))
   {
     if(ws.ws_col > width)
       width = ws.ws_col;
