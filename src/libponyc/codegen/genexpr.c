@@ -1,4 +1,5 @@
 #include "genexpr.h"
+#include "genname.h"
 #include "gencontrol.h"
 #include "genoperator.h"
 #include "genreference.h"
@@ -305,9 +306,15 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
         case LLVMFloatTypeKind:
         case LLVMDoubleTypeKind:
         {
-          // TODO: primitive to pointer requires boxing
-          errorf(NULL, "not implemented (boxing primitives)");
-          return NULL;
+          // Primitive to pointer requires boxing.
+          const char* type_name = genname_type(type);
+          const char* box_name = genname_box(type_name);
+
+          LLVMValueRef box_fn = LLVMGetNamedFunction(c->module, box_name);
+          LLVMValueRef box = LLVMBuildCall(c->builder, box_fn, &r_value, 1, "");
+          LLVMSetInstructionCallConv(box, LLVMFastCallConv);
+
+          return LLVMBuildBitCast(c->builder, box, l_type, "");
         }
 
         case LLVMPointerTypeKind:

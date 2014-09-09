@@ -11,9 +11,6 @@ class String val is Ordered[String]
 
     while str(_size) != 0 do
       _size = _size + 1
-    else
-      // TODO: Remove this once primitive boxing is implemented.
-      0
     end
 
     _alloc = _size + 1

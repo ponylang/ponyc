@@ -402,20 +402,10 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // Element 0 is the type descriptor, element 1 is the boxed primitive type.
     // Primitive types have no trace function.
     LLVMTypeRef elements[2];
-    elements[0] = g->desc_type;
+    elements[0] = LLVMPointerType(g->desc_type, 0);
     elements[1] = g->primitive;
     LLVMStructSetBody(g->structure, elements, 2, false);
-
-    // // Create a boxing function.
-    // const char* box_name = genname_box(g->type_name);
-    // LLVMTypeRef box_type = LLVMFunctionType(g->structure_ptr, &g->primitive, 1,
-    //   false);
-    // LLVMValueRef box_fn = codegen_addfun(c, box_name, box_type);
-    // codegen_startfun(c, box_fn);
-    //
-    // // TODO: boxing function
-    //
-    // codegen_finishfun(c);
+    genfun_box(c, g);
   } else {
     // Not a primitive type. Generate all the fields and a trace function.
     setup_type_fields(g);
