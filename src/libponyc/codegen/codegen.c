@@ -9,6 +9,7 @@
 #include "../pkg/package.h"
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
+#include "../platform/platform.h"
 
 #include <llvm-c/Initialization.h>
 #include <llvm-c/Target.h>
@@ -20,6 +21,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <assert.h>
+
+#ifdef PLATFORM_IS_POSIX_BASED
+#  include <unistd.h>
+#endif
 
 static void codegen_fatal(const char* reason)
 {
@@ -506,7 +511,7 @@ static bool codegen_finalise(compile_t* c, int opt)
   char* cpu = LLVMGetHostCPUName();
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", opt, LLVMRelocStatic, LLVMCodeModelDefault);
+    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocStatic, LLVMCodeModelDefault);
 
   LLVMDisposeMessage(cpu);
 

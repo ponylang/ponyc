@@ -7,6 +7,10 @@
 typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  define PONY_DIRINFO WIN32_FIND_DATA
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
+#ifndef S_ISDIR
+#  define S_IFDIR _S_IFDIR
+#  define S_ISDIR(mode) (((mode) & S_IFDIR) == S_IFDIR)
+#endif
 #else
 #  include <dirent.h>
 #  include <limits.h>
@@ -14,7 +18,6 @@ typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  include <fcntl.h>
 #  include <sys/types.h>
 #  include <sys/stat.h>
-#  include <sys/mman.h>
 #  include <errno.h>
 #  define PONY_DIR DIR
 #  define PONY_DIRINFO struct dirent

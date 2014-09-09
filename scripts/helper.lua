@@ -1,7 +1,13 @@
 function link_libponyc()
-  linkoptions {
-    llvm_config("--ldflags")
-  }
+  configuration "gmake"
+    linkoptions {
+      llvm_config("--ldflags")
+    }
+  configuration "vs*"
+    libdirs {
+      llvm_config("--libdir")
+    }
+  configuration "*"
 
   links "libponyc"
 

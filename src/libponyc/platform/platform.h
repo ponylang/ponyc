@@ -119,8 +119,16 @@ static __declspec(thread) DWORD lsb;
 #  define __pony_rdtsc() __rdtsc()
 #endif
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+#  include <malloc.h>
+#  define VLA(TYPE, NAME, SIZE) TYPE* NAME = (TYPE*) alloca(\
+            (SIZE)*sizeof(TYPE))
+#endif
+#if defined(PLATFORM_IS_POSIX_BASED) || defined(PLATFORM_IS_CLANG_OR_GCC)
+#  define VLA(TYPE, NAME, SIZE) TYPE NAME[(SIZE)]
+#endif
+
 #include "io.h"
-#include "utils.h"
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  ifdef __cplusplus
