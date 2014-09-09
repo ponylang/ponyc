@@ -461,10 +461,34 @@ static bool codegen_finalise(compile_t* c, int opt)
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
 
-  // Generate an object file.
+  // Pick an executable name.
   size_t len = strlen(c->filename);
+  VLA(char, file_exe, len + 3);
+  snprintf(file_exe, len + 3, "%s", c->filename);
+  int suffix = 0;
+
+  while(suffix < 100)
+  {
+    struct stat s;
+    int err = stat(file_exe, &s);
+
+    if((err == -1) || !S_ISDIR(s.st_mode))
+      break;
+
+    snprintf(file_exe, len + 3, "%s%d", c->filename, ++suffix);
+  }
+
+  if(suffix >= 100)
+  {
+    errorf(NULL, "couldn't pick a name for the executable");
+    return false;
+  }
+
+  len = strlen(file_exe);
+
+  // Generate an object file.
   VLA(char, file_o, len + 3);
-  snprintf(file_o, len + 3, "%s.o", c->filename);
+  snprintf(file_o, len + 3, "%s.o", file_exe);
 
   LLVMTargetRef target;
   char* err;
@@ -519,7 +543,7 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -arch %s -macosx_version_min 10.9.0 -o %s %s.o",
-    arch, c->filename, c->filename
+    arch, file_exe, file_exe
     );
 
   append_link_paths(ld_cmd);
@@ -544,7 +568,7 @@ static bool codegen_finalise(compile_t* c, int opt)
     "/usr/lib/x86_64-linux-gnu/crt1.o "
     "/usr/lib/x86_64-linux-gnu/crti.o "
     "%s.o ",
-    c->filename, c->filename
+    file_exe, file_exe
     );
 
   append_link_paths(ld_cmd);
@@ -563,9 +587,11 @@ static bool codegen_finalise(compile_t* c, int opt)
 
   unlink(file_o);
 #else
-  printf("Compiled %s.o, please link it by hand to libpony.a\n", c->filename);
+  printf("Compiled %s, please link it by hand to libpony.a\n", file_o);
+  return true;
 #endif
 
+  printf("=== Compiled %s ===\n", file_exe);
   return true;
 }
 
