@@ -42,7 +42,7 @@ static const entity_def_t _entity_def[DEF_ENTITY_COUNT] =
   { "actor",           true,  true,  tb_no  },
   { "data type",       false, false, tb_no  },
   { "trait",           false, false, tb_opt },
-  { "structural type", false, false, tb_no  }
+  { "structural type", false, false, tb_opt }
 };
 
 

@@ -111,6 +111,27 @@ TEST(BnfTest, Class)
 }
 
 
+TEST(BnfTest, ClassMinimal)
+{
+  const char* src = "class Foo";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id Foo) x x x members)"
+    ")))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, ClassCannotBeCalledMain)
+{
+  const char* src = "class Main";
+
+  DO(parse_bad(src));
+}
+
+
 TEST(BnfTest, FieldMustHaveType)
 {
   const char* src = "class Foo var bar";
@@ -125,6 +146,8 @@ TEST(BnfTest, LetFieldMustHaveType)
 
   DO(parse_bad(src));
 }
+
+
 
 
 TEST(BnfTest, Use)

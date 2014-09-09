@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/stat.h>
 
 static void codegen_fatal(const char* reason)
 {
@@ -505,7 +506,7 @@ static bool codegen_finalise(compile_t* c, int opt)
   char* cpu = LLVMGetHostCPUName();
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", opt, LLVMRelocStatic, LLVMCodeModelDefault);
+    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocStatic, LLVMCodeModelDefault);
 
   LLVMDisposeMessage(cpu);
 
