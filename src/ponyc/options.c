@@ -36,26 +36,27 @@ static arg_t* find_match(arg_t* args, char* opt_start, char* opt_end)
   bool ambig = false;
 
   int mode = MATCH_INIT;
+  size_t match_len;
   char* name;
 
   while(mode < MATCH_NONE)
   {
     match_type = ++mode;
-
+    
     for(arg_t* p = args; !END_MARKER(p); ++p)
     {
       name = (mode == MATCH_LONG) ? p->long_opt : &p->short_opt;
+      match_len = (mode == MATCH_LONG) ? len : 1;
 
-      if(!strncmp(name, opt_start, (mode == MATCH_LONG) ? len : 1))
+      if (!strncmp(name, opt_start, (mode == MATCH_LONG) ? len : 1))
       {
-        if(len == strlen(name))
+        if(match_len == strlen(name))
         {
           //Exact match found. It is necessary to check for
           //the length of p->long_opt since there might be
           //options that are prefixes of another (strncmp).
           exact = true;
-          match = p;
-          break;
+          return p;
         }
         else if(match == NULL)
         {
@@ -67,15 +68,14 @@ static arg_t* find_match(arg_t* args, char* opt_start, char* opt_end)
         }
       }
     }
+
+    if (ambig && !exact && mode == MATCH_SHORT)
+      return (arg_t*)1;
+    else if (match != NULL && exact)
+      return match;
   }
 
-  if (ambig && !exact)
-    return (arg_t*)1;
-  else if (match != NULL)
-    return match;
-
-  match_type = MATCH_NONE;
-  return NULL;
+  return match;
 }
 
 void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv)
@@ -132,46 +132,64 @@ int opt_next(parse_state_t* s)
     return -2;
   }
 
-  bool arg = (*opt_end == '=' || *(opt_start + 1) && match_type == MATCH_SHORT);
+  bool short_arg = (match_type == MATCH_SHORT && *(opt_start + 1));
+  bool long_arg = (match_type == MATCH_LONG && ((*opt_end == '=') || idx < *s->argc));
+  bool has_arg = (short_arg | long_arg);
 
-  if(*opt_end == '=' || (m->flag & ARGUMENT_REQUIRED))
+  if ((m->flag == ARGUMENT_REQUIRED) && !has_arg)
   {
-    if(m->flag & ARGUMENT_NONE)
-    {
-      printf("%s: '%s' option does not take an argument!\n", s->argv[0],
-        s->argv[idx]);
+    printf("%s: '%s' option requires an argument!\n", s->argv[0],
+      s->argv[idx]);
 
-      return -2;
-    }
-
-    switch(match_type)
-    {
-      case MATCH_LONG:
-        
-        break;
-      case MATCH_SHORT:
-        break;
-    }
+    return -2;
   }
   
-  
-  //If execution reaches this point, a known and valid named argument
-  //was found. Return it to the user, and remove it from the argv array.
-  switch (match_type)
+  switch(match_type)
   {
     case MATCH_LONG:
-      opt_start += strlen(opt_start);
+      if(m->flag == ARGUMENT_REQUIRED)
+      {
+        if(*opt_end == '=')
+        {
+          s->arg_val = opt_end + 1;
+          opt_start += strlen(opt_start);
+        }
+        else
+        {
+          s->arg_val = s->argv[++idx];
+          opt_start += strlen(opt_start);
+          remove++;
+        }
+      }
+      remove++;
       break;
     case MATCH_SHORT:
-      //strip out the short option, as short options
-      //may be grouped.
-      memmove(opt_start, opt_start+1,
-        strlen(opt_start));
+      //strip out the short option, as short options may be
+      //grouped
+      memmove(opt_start, opt_start + 1, strlen(opt_start));
+      if(*opt_start) opt_start = s->argv[idx];
 
-      opt_start = s->argv[idx];
+      if(m->flag == ARGUMENT_REQUIRED)
+      {
+        if(*opt_end == '=')
+        {
+          s->arg_val = opt_end + 1;
+          opt_start += strlen(opt_start);
+        }
+        else if (*(opt_start) != '-')
+        {
+          s->arg_val = s->argv[++idx];
+        }
+        else
+        {
+          s->arg_val = opt_start + 1;
+        }
+
+        remove++;
+      }
       break;
-   }
-  
+  }
+    
   *s->argc -= remove;
   idx -= remove;
 
