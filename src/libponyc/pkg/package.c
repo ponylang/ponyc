@@ -59,7 +59,6 @@ static bool is_magic_package(const char* path)
 
 
 // Build a magic package
-
 static bool do_magic_package(ast_t* package, const char* path)
 {
   for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
@@ -100,7 +99,12 @@ static bool filepath(const char *file, char* path)
     return false;
   }
 
-  char* p = strrchr(path, '/');
+  char *p = strrchr(path, '/');
+
+#ifdef PLATFORM_IS_WINDOWS
+  char *b = strrchr(path, '\\');
+  if(p < b) p = b;
+#endif
 
   if(p != NULL)
   {
@@ -118,7 +122,13 @@ static bool filepath(const char *file, char* path)
 static bool execpath(const char* file, char* path)
 {
   // if it contains a separator of any kind, it's an absolute or relative path
-  if(strchr(file, '/') != NULL)
+  bool is_path = strchr(file, '/') != NULL;
+  
+#ifdef PLATFORM_IS_WINDOWS
+  is_path |= strchr(file, '\\') != NULL;
+#endif
+  
+  if(is_path)
     return filepath(file, path);
 
   // it's just an executable name, so walk the path
@@ -144,7 +154,11 @@ static bool execpath(const char* file, char* path)
       {
         char check[FILENAME_MAX];
         strncpy(check, env, len);
+#ifdef PLATFORM_IS_POSIX_BASED
         check[len++] = '/';
+#elif defined(PLATFORM_IS_WINDOWS)
+        check[len++] = '\\';
+#endif
         strcpy(&check[len], file);
 
         if(filepath(check, path))
@@ -231,7 +245,11 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
 
       char fullpath[FILENAME_MAX];
       strcpy(fullpath, path);
+#ifdef PLATFORM_IS_POSIX_BASED
       strcat(fullpath, "/");
+#elif defined(PLATFORM_IS_WINDOWS)
+      strcat(fullpath, "\\");
+#endif
       strcat(fullpath, name);
 
       r &= do_file(package, fullpath);
@@ -250,7 +268,11 @@ static const char* try_path(const char* base, const char* path)
   if(base != NULL)
   {
     strcpy(composite, base);
+#ifdef PLATFORM_IS_POSIX_BASED
     strcat(composite, "/");
+#elif defined(PLATFORM_IS_WINDOWS)
+    strcat(composite, "\\");
+#endif
     strcat(composite, path);
   } else {
     strcpy(composite, path);
@@ -264,8 +286,15 @@ static const char* try_path(const char* base, const char* path)
 
 static const char* find_path(ast_t* from, const char* path)
 {
-  // absolute path
-  if(path[0] == '/')
+  bool is_absolute = false;
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  is_absolute = (path[0] == '/');
+#elif defined(PLATFORM_IS_WINDOWS)
+  is_absolute = (path[1] == ':');
+#endif
+
+  if(is_absolute)
     return try_path(NULL, path);
 
   const char* result;
@@ -462,7 +491,12 @@ ast_t* package_id(ast_t* ast)
 const char* package_filename(ast_t* ast)
 {
   package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
+  
+#ifdef PLATFORM_IS_POSIX_BASED
   const char* p = strrchr(pkg->path, '/');
+#elif defined(PLATFORM_IS_WINDOWS)
+  const char* p = strrchr(pkg->path, '\\');
+#endif
 
   if(p == NULL)
     return pkg->path;

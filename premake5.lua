@@ -47,6 +47,7 @@
       --  linkoptions "/PROFILE"
 
       configuration "vs*"
+        debugdir "."
       	defines {
           -- disables warnings for vsnprintf
           "_CRT_SECURE_NO_WARNINGS"
@@ -114,12 +115,19 @@
       "src/ponyc/**.h",
       "src/ponyc/**.c"
     }
+    local cmd = ""
     configuration "gmake"
       buildoptions "-std=gnu11"
+      cmd = "cp packages/* $(TARGETDIR)"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
+      -- premake produces posix-style absolute paths
+      local path = path.getabsolute("./packages"):gsub("%/", "\\")
+      cmd = "xcopy " .. path .. "\\* $(TargetDir) /S /Y"
     configuration "*"
       link_libponyc()
+      postbuildcommands { cmd }
+
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "gtest"
