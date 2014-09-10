@@ -72,7 +72,7 @@ typedef enum token_id
   TK_USE,
   TK_TYPE,
   TK_TRAIT,
-  TK_DATA,
+  TK_PRIMITIVE,
   TK_CLASS,
   TK_ACTOR,
 

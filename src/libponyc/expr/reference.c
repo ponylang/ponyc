@@ -155,7 +155,7 @@ bool expr_reference(ast_t* ast)
     }
 
     case TK_TYPEPARAM:
-    case TK_DATA:
+    case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
     {

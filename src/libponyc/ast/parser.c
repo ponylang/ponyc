@@ -623,9 +623,9 @@ DEF(members);
   SEQ("function", function);
   DONE();
 
-// (TRAIT | DATA | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
+// (TRAIT | PRIMITIVE | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
 DEF(class_def);
-  TOKEN("entity", TK_TRAIT, TK_DATA, TK_CLASS, TK_ACTOR);
+  TOKEN("entity", TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   SCOPE();
   TOKEN("entity name", TK_ID);
   OPT RULE("type parameters", typeparams);

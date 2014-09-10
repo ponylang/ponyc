@@ -6,17 +6,17 @@
 #include <assert.h>
 
 
-#define DEF_CLASS   0
-#define DEF_ACTOR   1
-#define DEF_DATA    2
-#define DEF_TRAIT   3
-#define DEF_STRUCT  4
-#define DEF_ENTITY_COUNT  5
-  
-#define DEF_FUN   0
-#define DEF_BE    5
-#define DEF_NEW   10
-#define DEF_METHOD_COUNT  15
+#define DEF_CLASS 0
+#define DEF_ACTOR 1
+#define DEF_PRIMITIVE 2
+#define DEF_TRAIT 3
+#define DEF_STRUCT 4
+#define DEF_ENTITY_COUNT 5
+
+#define DEF_FUN 0
+#define DEF_BE 5
+#define DEF_NEW 10
+#define DEF_METHOD_COUNT 15
 
 
 typedef enum tribool_t
@@ -393,7 +393,7 @@ static ast_result_t parse_fix_arrow(ast_t* ast)
 
   if(!check_arrow_left(left) || !check_arrow_right(right))
     return AST_ERROR;
-  
+
   return AST_OK;
 }
 */
@@ -518,7 +518,7 @@ ast_result_t pass_parse_fix(ast_t** astp)
   switch(ast_id(ast))
   {
     case TK_TYPE:       return parse_fix_type_alias(ast);
-    case TK_DATA:       return parse_fix_entity(ast, DEF_DATA);
+    case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);
     case TK_ACTOR:      return parse_fix_entity(ast, DEF_ACTOR);
     case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);

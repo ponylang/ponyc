@@ -301,7 +301,7 @@ static void find_types(painter_t* painter, ast_t* ast)
 
     case TK_ACTOR:
     case TK_CLASS:
-    case TK_DATA:
+    case TK_PRIMITIVE:
       // We have a definition
       add_def(painter, ast);
       break;
@@ -424,7 +424,7 @@ void painter_colour(painter_t* painter, ast_t* typedefs)
   find_names_types_use(painter);
 
   // Allocate colour records
-  painter->colours = (colour_record_t*)calloc(painter->name_count, 
+  painter->colours = (colour_record_t*)calloc(painter->name_count,
     sizeof(colour_record_t));
 
   assign_colours_to_names(painter);

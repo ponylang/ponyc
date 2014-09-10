@@ -31,10 +31,10 @@ static void test_bad_sugar(const char* desc, ast_result_t expect_result)
 TEST(SugarTest, DataType)
 {
   const char* before =
-    "(data (id Foo) x x x members)";
+    "(primitive (id Foo) x x x members)";
 
   const char* after =
-    "(data (id Foo) x val x"
+    "(primitive (id Foo) x val x"
     "  (members"
     "    (new x (id create) x x x x (seq (reference (id None))))))";
 
@@ -211,11 +211,11 @@ TEST(SugarTest, ConstructorInActor)
 TEST(SugarTest, ConstructorInDataType)
 {
   const char* before =
-    "(data (id foo) x x x (members"
+    "(primitive (id foo) x x x (members"
     "  (new{def start} ref (id make) x x x x x)))";
 
   const char* after =
-    "(data (id foo) x x x"
+    "(primitive (id foo) x x x"
     "  (members (new ref (id make) x x"
     "    (nominal x (id foo) x val ^) x x)))";
 

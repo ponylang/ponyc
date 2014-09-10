@@ -137,7 +137,7 @@ ast_result_t pass_scope(ast_t** astp)
 
     case TK_TYPE:
     case TK_TRAIT:
-    case TK_DATA:
+    case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
       if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, true))

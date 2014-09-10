@@ -418,7 +418,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
         switch(ast_id(constraint_def))
         {
-          case TK_DATA:
+          case TK_PRIMITIVE:
           case TK_CLASS:
           case TK_ACTOR:
             if(is_eqtype(sub, constraint))

@@ -152,7 +152,7 @@ protected:
     ASSERT_EQ(AST_FATAL, pass_expr(&op_ast));
   }
 
-  void test_unary_op(token_id op_id, const char* type_op, 
+  void test_unary_op(token_id op_id, const char* type_op,
     const char* type_result)
   {
     snprintf(op_buf, sizeof(op_buf), "(- (fvarref (id op) [%s]))", type_op);
@@ -288,7 +288,7 @@ protected:
     DO(test_bin_op(op_id, t_f32, t_f32, t_bool));
     DO(test_bin_op(op_id, t_f64, t_f64, t_bool));
 
-    // TODO: non arithmetic data types should use ==, not eq()
+    // TODO: non arithmetic primitives should use ==, not eq()
     //DO(test_bin_op(op_id, t_none, t_none, t_bool));
 
     DO(test_bin_op_bad(op_id, t_u8, t_f_lit));
@@ -494,7 +494,7 @@ TEST_F(ExprOperatorTest, PlusSIntLiteralAndU8)
     "class Foo"
     "  fun ref bar(x:U8)=>"
     "    x + -1";
-  
+
   const char* expected =
     "(+"
     "  (paramref (id x) [(nominal  x (id U8) x val x)])"

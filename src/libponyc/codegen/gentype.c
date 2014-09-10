@@ -13,16 +13,19 @@
 
 static void make_global_descriptor(compile_t* c, gentype_t* g)
 {
-  // Tuples have no descriptor.
-  if(g->underlying == TK_TUPLETYPE)
-    return;
-
   // Fetch or create a descriptor type.
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  g->vtable_size = painter_get_vtable_size(c->painter, def);
+  if(g->underlying == TK_TUPLETYPE)
+  {
+    // Tuples have no vtable.
+    g->vtable_size = 0;
+  } else {
+    // Get the vtable size from the painter.
+    ast_t* def = (ast_t*)ast_data(g->ast);
+    g->vtable_size = painter_get_vtable_size(c->painter, def);
+  }
 
   const char* desc_name = genname_descriptor(g->type_name);
-  g->desc_type = gendesc_type(c, desc_name, (int)g->vtable_size);
+  g->desc_type = gendesc_type(c, desc_name, g->vtable_size);
 
   // Check for an existing descriptor.
   g->desc = LLVMGetNamedGlobal(c->module, desc_name);
@@ -37,7 +40,7 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 static void make_global_instance(compile_t* c, gentype_t* g)
 {
   // Not a data type.
-  if(g->underlying != TK_DATA)
+  if(g->underlying != TK_PRIMITIVE)
     return;
 
   if(g->primitive != NULL)
@@ -76,58 +79,58 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   {
     ast_t* def = (ast_t*)ast_data(ast);
     g->underlying = ast_id(def);
+
+    // Find the primitive type, if there is one.
+    AST_GET_CHILDREN(ast, pkg, id);
+    const char* package = ast_name(pkg);
+    const char* name = ast_name(id);
+
+    if(!strcmp(package, "$1"))
+    {
+      if(!strcmp(name, "True"))
+      {
+        g->primitive = LLVMInt1Type();
+        g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
+      } else if(!strcmp(name, "False")) {
+        g->primitive = LLVMInt1Type();
+        g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
+      } else if(!strcmp(name, "I8"))
+        g->primitive = LLVMInt8Type();
+      else if(!strcmp(name, "U8"))
+        g->primitive = LLVMInt8Type();
+      else if(!strcmp(name, "I16"))
+        g->primitive = LLVMInt16Type();
+      else if(!strcmp(name, "U16"))
+        g->primitive = LLVMInt16Type();
+      else if(!strcmp(name, "I32"))
+        g->primitive = LLVMInt32Type();
+      else if(!strcmp(name, "U32"))
+        g->primitive = LLVMInt32Type();
+      else if(!strcmp(name, "I64"))
+        g->primitive = LLVMInt64Type();
+      else if(!strcmp(name, "U64"))
+        g->primitive = LLVMInt64Type();
+      else if(!strcmp(name, "I128"))
+        g->primitive = LLVMIntType(128);
+      else if(!strcmp(name, "U128"))
+        g->primitive = LLVMIntType(128);
+      else if(!strcmp(name, "SIntLiteral"))
+        g->primitive = LLVMIntType(128);
+      else if(!strcmp(name, "UIntLiteral"))
+        g->primitive = LLVMIntType(128);
+      else if(!strcmp(name, "F16"))
+        g->primitive = LLVMHalfType();
+      else if(!strcmp(name, "F32"))
+        g->primitive = LLVMFloatType();
+      else if(!strcmp(name, "F64"))
+        g->primitive = LLVMDoubleType();
+      else if(!strcmp(name, "FloatLiteral"))
+        g->primitive = LLVMDoubleType();
+      else if(!strcmp(name, "_Pointer"))
+        return genprim_pointer(c, g, prelim);
+    }
   } else {
     g->underlying = TK_TUPLETYPE;
-  }
-
-  // Find the primitive type, if there is one.
-  AST_GET_CHILDREN(ast, pkg, id);
-  const char* package = ast_name(pkg);
-  const char* name = ast_name(id);
-
-  if(!strcmp(package, "$1"))
-  {
-    if(!strcmp(name, "True"))
-    {
-      g->primitive = LLVMInt1Type();
-      g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
-    } else if(!strcmp(name, "False")) {
-      g->primitive = LLVMInt1Type();
-      g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
-    } else if(!strcmp(name, "I8"))
-      g->primitive = LLVMInt8Type();
-    else if(!strcmp(name, "U8"))
-      g->primitive = LLVMInt8Type();
-    else if(!strcmp(name, "I16"))
-      g->primitive = LLVMInt16Type();
-    else if(!strcmp(name, "U16"))
-      g->primitive = LLVMInt16Type();
-    else if(!strcmp(name, "I32"))
-      g->primitive = LLVMInt32Type();
-    else if(!strcmp(name, "U32"))
-      g->primitive = LLVMInt32Type();
-    else if(!strcmp(name, "I64"))
-      g->primitive = LLVMInt64Type();
-    else if(!strcmp(name, "U64"))
-      g->primitive = LLVMInt64Type();
-    else if(!strcmp(name, "I128"))
-      g->primitive = LLVMIntType(128);
-    else if(!strcmp(name, "U128"))
-      g->primitive = LLVMIntType(128);
-    else if(!strcmp(name, "SIntLiteral"))
-      g->primitive = LLVMIntType(128);
-    else if(!strcmp(name, "UIntLiteral"))
-      g->primitive = LLVMIntType(128);
-    else if(!strcmp(name, "F16"))
-      g->primitive = LLVMHalfType();
-    else if(!strcmp(name, "F32"))
-      g->primitive = LLVMFloatType();
-    else if(!strcmp(name, "F64"))
-      g->primitive = LLVMDoubleType();
-    else if(!strcmp(name, "FloatLiteral"))
-      g->primitive = LLVMDoubleType();
-    else if(!strcmp(name, "_Pointer"))
-      return genprim_pointer(c, g, prelim);
   }
 
   // Find or create the structure type.
@@ -180,7 +183,7 @@ static void setup_type_fields(gentype_t* g)
 
   ast_t* def = (ast_t*)ast_data(g->ast);
 
-  if(ast_id(def) == TK_DATA)
+  if(ast_id(def) == TK_PRIMITIVE)
     return;
 
   ast_t* typeargs = ast_childidx(g->ast, 2);
@@ -285,18 +288,21 @@ static bool make_trace(compile_t* c, gentype_t* g)
   if(g->field_count == 0)
     return true;
 
-  // Special case the array trace function.
-  AST_GET_CHILDREN(g->ast, pkg, id);
-  const char* package = ast_name(pkg);
-  const char* name = ast_name(id);
-
-  if(!strcmp(package, "$1") && !strcmp(name, "Array"))
+  if(g->underlying == TK_CLASS)
   {
-    genprim_array_trace(c, g);
-    return true;
+    // Special case the array trace function.
+    AST_GET_CHILDREN(g->ast, pkg, id);
+    const char* package = ast_name(pkg);
+    const char* name = ast_name(id);
+
+    if(!strcmp(package, "$1") && !strcmp(name, "Array"))
+    {
+      genprim_array_trace(c, g);
+      return true;
+    }
   }
 
-  // Classes have a descriptor. Actors also have a pad.
+  // Everything has a descriptor. Actors also have a pad.
   size_t extra = 1;
 
   if(g->underlying == TK_ACTOR)

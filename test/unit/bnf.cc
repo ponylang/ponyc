@@ -12,8 +12,8 @@ PONY_EXTERN_C_END
 
 
 static const char* builtin =
-  "data U32 "
-  "data None";
+  "primitive U32 "
+  "primitive None";
 
 
 static void parse_good(const char* src, const char* expect)

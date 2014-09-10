@@ -89,7 +89,7 @@ static const lexsym_t keywords[] =
   { "use", TK_USE },
   { "type", TK_TYPE },
   { "trait", TK_TRAIT },
-  { "data", TK_DATA },
+  { "primitive", TK_PRIMITIVE },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
 

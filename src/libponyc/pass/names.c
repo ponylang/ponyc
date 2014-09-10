@@ -165,7 +165,7 @@ static bool names_type(ast_t** astp, ast_t* def)
   // the type, not tag.
   if(ast_id(cap) == TK_NONE)
   {
-    if(ast_id(def) == TK_DATA)
+    if(ast_id(def) == TK_PRIMITIVE)
       defcap = ast_from(cap, TK_VAL);
     else if(ast_enclosing_constraint(ast) != NULL)
       defcap = ast_from(cap, TK_TAG);
@@ -173,7 +173,7 @@ static bool names_type(ast_t** astp, ast_t* def)
       defcap = ast_childidx(def, 2);
 
     ast_replace(&cap, defcap);
-  } else if(ast_id(def) == TK_DATA) {
+  } else if(ast_id(def) == TK_PRIMITIVE) {
     if(ast_id(cap) != TK_VAL)
     {
       ast_error(ast, "data types must always be val");
@@ -245,7 +245,7 @@ bool names_nominal(ast_t* scope, ast_t** astp)
       return names_typeparam(astp, def);
 
     case TK_TRAIT:
-    case TK_DATA:
+    case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
       return names_type(astp, def);
