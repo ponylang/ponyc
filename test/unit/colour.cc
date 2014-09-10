@@ -172,7 +172,7 @@ TEST_F(ColourTest, Actor)
 TEST_F(ColourTest, Data)
 {
   const char* def =
-    "(data (id Foo) x x x"
+    "(primitive (id Foo) x x x"
     "  (members"
     "    (be ref (id foo) x x x x x)))";
 

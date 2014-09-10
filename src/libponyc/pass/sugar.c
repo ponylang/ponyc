@@ -130,7 +130,7 @@ static ast_result_t sugar_new(ast_t* ast)
   token_id cap = TK_REF;
 
   if(ast_id(def) == TK_ACTOR) cap = TK_TAG;
-  if(ast_id(def) == TK_DATA) cap = TK_VAL;
+  if(ast_id(def) == TK_PRIMITIVE) cap = TK_VAL;
 
   ast_replace(&result, type_for_this(ast, cap, true));
   return AST_OK;
@@ -365,7 +365,7 @@ ast_result_t pass_sugar(ast_t** astp)
 
   switch(ast_id(ast))
   {
-    case TK_DATA:       return sugar_member(ast, true, TK_VAL);
+    case TK_PRIMITIVE:  return sugar_member(ast, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, TK_TAG);
     case TK_TRAIT:      return sugar_member(ast, false, TK_REF);

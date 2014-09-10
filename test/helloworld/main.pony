@@ -30,6 +30,8 @@ actor Main
     var p = @printf[I32]("%d\n"._cstring(), env.args.length() % zero)
     @printf[I32]("%d\n"._cstring(), p)
 
+    /*var tuple = (@time[U64](0), @time[U64](0))*/
+
     var num = for i in Range[U64](0, env.args.length()) do
       if i == 3 then
         break 100

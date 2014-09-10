@@ -354,7 +354,7 @@ ast_t* ast_enclosing_type(ast_t* ast)
     switch(token_get_id(ast->t))
     {
       case TK_TRAIT:
-      case TK_DATA:
+      case TK_PRIMITIVE:
       case TK_CLASS:
       case TK_ACTOR:
         return ast;

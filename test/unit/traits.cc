@@ -46,7 +46,7 @@ TEST_F(TraitsTest, ClassGetsTraitBody)
   const char* desc =
     "(package{scope}"
     "  (module{scope T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T} (id T) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x x" NOMINAL(U32) " x"
@@ -71,7 +71,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
   const char* desc =
     "(package{scope}"
     "  (module{scope T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T} (id T) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x x " NOMINAL(U32) " x"
@@ -99,7 +99,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenBy2Traits)
   const char* desc =
     "(package{scope}"
     "  (module{scope T1 T2 U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T1} (id T1) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x x " NOMINAL(U32) " x"
@@ -131,7 +131,7 @@ TEST_F(TraitsTest, NoClassBodyAnd2TraitBodies)
   const char* desc =
     "(package{scope}"
     "  (module{scope T1 T2 U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T1} (id T1) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x x " NOMINAL(U32) " x"
@@ -155,7 +155,7 @@ TEST_F(TraitsTest, TransitiveTraits)
   const char* desc =
     "(package{scope}"
     "  (module{scope T1 T2 U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T1} (id T1) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x x " NOMINAL(U32) " x"
@@ -187,7 +187,7 @@ TEST_F(TraitsTest, NoBody)
   const char* desc =
     "(package{scope}"
     "  (module{scope T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope bar}{def T} (id T) x x x"
     "      (members"
     "        (fun{scope}{def bar} ref (id bar) x x " NOMINAL(U32) " x"
@@ -228,7 +228,7 @@ TEST_F(TraitsTest, TraitAndClassNamesDontClash)
   const char* desc =
     "(package{scope}"
     "  (module{scope T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope bar}{def T} (id T) x x x"
     "      (members"
     "        (fun{scope}{def bar} ref (id bar) x"
@@ -327,7 +327,7 @@ TEST_F(TraitsTest, MethodReverseContravariance)
   const char* desc =
     "(package{scope}"
     "  (module{scope A B T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def A} (id A) x x x members)"
     "    (trait{scope}{def B} (id B) x x"
     "      (types " NOMINAL(A) ")" // B is A
@@ -357,7 +357,7 @@ TEST_F(TraitsTest, MethodReverseCovariance)
   const char* desc =
     "(package{scope}"
     "  (module{scope A B T U32}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def A} (id A) x x x members)"
     "    (trait{scope}{def B} (id B) x x"
     "      (types " NOMINAL(A) ")" // B is A
@@ -384,7 +384,7 @@ TEST_F(TraitsTest, StructuralVsNominalContravariance)
   const char* desc =
     "(package{scope}"
     "  (module{scope U32 T1 T2}"
-    "    (data{def U32} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
     "    (trait{scope}{def T1} (id T1) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x" // T1.bar(y:T2):U32
@@ -423,8 +423,8 @@ TEST_F(TraitsTest, SelfStructuralContravariance)
   const char* desc =
     "(package{scope}"
     "  (module{scope U32 U64 T}"
-    "    (data{def U32} (id U32) x val x x)"
-    "    (data{def U64} (id U32) x val x x)"
+    "    (primitive{def U32} (id U32) x val x x)"
+    "    (primitive{def U64} (id U32) x val x x)"
     "    (trait{scope}{def T} (id T) x x x"
     "      (members"
     "        (fun{scope} ref (id bar) x" // T.bar(y:Foo):U64

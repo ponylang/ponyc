@@ -506,7 +506,7 @@ bool genfun_methods(compile_t* c, gentype_t* g)
             fun = genfun_newbe(c, g, ast_name(id), NULL, be_index++);
             break;
 
-          case TK_DATA:
+          case TK_PRIMITIVE:
             fun = genfun_newdata(c, g, ast_name(id), NULL);
             break;
 

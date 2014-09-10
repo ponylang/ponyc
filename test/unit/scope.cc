@@ -250,13 +250,13 @@ TEST_F(ScopeTest, Data)
 {
   const char* tree =
     "(package{scope} (module{scope}"
-    "  (data{scope}{def start} (id Foo) x x x x)))";
+    "  (primitive{scope}{def start} (id Foo) x x x x)))";
 
   DO(build(tree));
 
   ASSERT_EQ(AST_OK, pass_scope(&start));
 
-  DO(symtab_entry(TK_DATA, "Foo", NULL));
+  DO(symtab_entry(TK_PRIMITIVE, "Foo", NULL));
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
   DO(symtab_entry(TK_PACKAGE, "Foo", start));
 }
@@ -375,7 +375,7 @@ TEST_F(ScopeTest, Package)
     "(program{scope} (package{scope}{def start} (module{scope})))";
 
   const char* builtin =
-    "data U32";
+    "primitive U32";
 
   DO(build(tree));
 
@@ -400,7 +400,7 @@ TEST_F(ScopeTest, Use)
     "class Foo";
 
   const char* builtin =
-    "data U32";
+    "primitive U32";
 
   DO(build(tree));
 
@@ -427,7 +427,7 @@ TEST_F(ScopeTest, UseAs)
     "class Foo";
 
   const char* builtin =
-    "data U32";
+    "primitive U32";
 
   DO(build(tree));
 

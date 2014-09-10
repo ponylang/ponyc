@@ -88,7 +88,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   // Build the vtable.
   VLA(LLVMValueRef, vtable, g->vtable_size);
 
-  for(size_t i = 0; i < g->vtable_size; i++)
+  for(int i = 0; i < g->vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
   ast_t* def = (ast_t*)ast_data(g->ast);
@@ -140,7 +140,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
     c->dispatch_fn);
   args[6] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
   args[7] = LLVMConstNull(c->void_ptr);
-  args[8] = LLVMConstArray(c->void_ptr, vtable, (int)g->vtable_size);
+  args[8] = LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
 
   LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 9);
   LLVMSetInitializer(g->desc, desc);

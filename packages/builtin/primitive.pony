@@ -1,17 +1,17 @@
 type Any is {} tag
 
-data None is Stringable
+primitive None is Stringable
   fun box string(): String => "None"
 
-data True is Stringable
+primitive True is Stringable
   fun box string(): String => "True"
 
-data False is Stringable
+primitive False is Stringable
   fun box string(): String => "False"
 
 type Bool is (True | False)
 
-data I8 is Stringable
+primitive I8 is Stringable
   fun val max(that: I8): I8 =>
     if this > that then this else that end
 
@@ -20,7 +20,7 @@ data I8 is Stringable
 
   fun box string(): String => "I8"
 
-data I16 is Stringable
+primitive I16 is Stringable
   fun val max(that: I16): I16 =>
     if this > that then this else that end
 
@@ -29,7 +29,7 @@ data I16 is Stringable
 
   fun box string(): String => "I16"
 
-data I32 is Stringable
+primitive I32 is Stringable
   fun val max(that: I32): I32 =>
     if this > that then this else that end
 
@@ -38,7 +38,7 @@ data I32 is Stringable
 
   fun box string(): String => "I32"
 
-data I64 is Stringable
+primitive I64 is Stringable
   fun val max(that: I64): I64 =>
     if this > that then this else that end
 
@@ -47,7 +47,7 @@ data I64 is Stringable
 
   fun box string(): String => "I64"
 
-data I128 is Stringable
+primitive I128 is Stringable
   fun val max(that: I128): I128 =>
     if this > that then this else that end
 
@@ -56,7 +56,7 @@ data I128 is Stringable
 
   fun box string(): String => "I128"
 
-data U8 is Stringable
+primitive U8 is Stringable
   fun val max(that: U8): U8 =>
     if this > that then this else that end
 
@@ -73,7 +73,7 @@ data U8 is Stringable
 
   fun box string(): String => "U8"
 
-data U16 is Stringable
+primitive U16 is Stringable
   fun val max(that: U16): U16 =>
     if this > that then this else that end
 
@@ -91,7 +91,7 @@ data U16 is Stringable
 
   fun box string(): String => "U16"
 
-data U32 is Stringable
+primitive U32 is Stringable
   fun val max(that: U32): U32 =>
     if this > that then this else that end
 
@@ -110,7 +110,7 @@ data U32 is Stringable
 
   fun box string(): String => "U32"
 
-data U64 is Stringable
+primitive U64 is Stringable
   fun val max(that: U64): U64 =>
     if this > that then this else that end
 
@@ -130,7 +130,7 @@ data U64 is Stringable
 
   fun box string(): String => "U64"
 
-data U128 is Stringable
+primitive U128 is Stringable
   fun val max(that: U128): U128 =>
     if this > that then this else that end
 
@@ -151,22 +151,22 @@ data U128 is Stringable
 
   fun box string(): String => "U128"
 
-data F16 is Stringable
+primitive F16 is Stringable
   fun box string(): String => "F16"
 
-data F32 is Stringable
+primitive F32 is Stringable
   fun box string(): String => "F32"
 
-data F64 is Stringable
+primitive F64 is Stringable
   fun box string(): String => "F64"
 
-data SIntLiteral is Stringable
+primitive SIntLiteral is Stringable
   fun box string(): String => "SIntLiteral"
 
-data UIntLiteral is Stringable
+primitive UIntLiteral is Stringable
   fun box string(): String => "UIntLiteral"
 
-data FloatLiteral is Stringable
+primitive FloatLiteral is Stringable
   fun box string(): String => "FloatLiteral"
 
 type SInt is

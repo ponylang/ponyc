@@ -42,7 +42,7 @@ static void add_method(ast_t* target, ast_t* method)
 static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
 {
   assert(ast_id(target) == TK_ACTOR || ast_id(target) == TK_CLASS ||
-    ast_id(target) == TK_DATA || ast_id(target) == TK_TRAIT);
+    ast_id(target) == TK_PRIMITIVE || ast_id(target) == TK_TRAIT);
   assert(fn != NULL);
 
   ast_t* trait_refs = ast_childidx(target, 3);
@@ -173,7 +173,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
   {
     switch(ast_id(target))
     {
-      case TK_DATA:
+      case TK_PRIMITIVE:
         ast_error(target, "a data type can't have traits that have behaviours");
         return false;
 
@@ -220,7 +220,7 @@ ast_result_t pass_traits(ast_t** astp)
 
       break;
 
-    case TK_DATA:
+    case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
       if(!foreach_provided_method(ast, attach_body_to_concrete) ||

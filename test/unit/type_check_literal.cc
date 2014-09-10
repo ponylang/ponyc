@@ -20,7 +20,7 @@ class ExprLiteralTest: public testing::Test
 TEST(ExprLiteralTest, Int)
 {
   const char* tree = "(3:scope)";
-  const char* uint_def = "(data x (id UIntLiteral) x x x x)";
+  const char* uint_def = "(primitive x (id UIntLiteral) x x x x)";
   const char* expect = "(3:scope [(nominal x (id UIntLiteral) x val x)])";
 
   ast_t* module = parse_test_module(tree);

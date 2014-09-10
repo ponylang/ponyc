@@ -17,26 +17,26 @@ PONY_EXTERN_C_END
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)
 
 const char* builtin =
-" data None"
-" data True"
-" data False"
+" primitive None"
+" primitive True"
+" primitive False"
 " type Bool is (True | False)"
-" data I8"
-" data I16"
-" data I32"
-" data I64"
-" data I128"
-" data U8"
-" data U16"
-" data U32"
-" data U64"
-" data U128"
-" data F16"
-" data F32"
-" data F64"
-" data SIntLiteral"
-" data UIntLiteral"
-" data FloatLiteral"
+" primitive I8"
+" primitive I16"
+" primitive I32"
+" primitive I64"
+" primitive I128"
+" primitive U8"
+" primitive U16"
+" primitive U32"
+" primitive U64"
+" primitive U128"
+" primitive F16"
+" primitive F32"
+" primitive F64"
+" primitive SIntLiteral"
+" primitive UIntLiteral"
+" primitive FloatLiteral"
 " class String val"
 " type SInt is (SIntLiteral | I8 | I16 | I32 | I64 | I128)"
 " type UInt is (UIntLiteral | U8 | U16 | U32 | U64 | U128)"
@@ -51,10 +51,10 @@ static void type_check_and_compare_ast(const char* prog, token_id start_id,
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
   limit_passes("scope2");
- 
+
   ast_t* program;
   DO(load_test_program("prog", &program));
-  
+
   ast_result_t r = ast_visit(&program, NULL, pass_expr);
 
   if(r != AST_OK)
@@ -66,7 +66,7 @@ static void type_check_and_compare_ast(const char* prog, token_id start_id,
   ASSERT_NE((void*)NULL, op_ast);
   ast_t* op_type = ast_type(op_ast);
   DO(check_tree(expected_desc, op_type));
-  
+
   ast_free(program);
 }
 
@@ -76,7 +76,7 @@ static void type_check(const char* prog, ast_result_t expect)
   package_add_magic("prog", prog);
   package_add_magic("builtin", builtin);
   limit_passes("scope2");
-  
+
   ast_t* program;
   DO(load_test_program("prog", &program));
 
@@ -198,7 +198,7 @@ static void test_unary_op_bad(token_id op_id, const char* type_op)
 }
 
 
-static void test_unary_op(token_id op_id, const char* type_op, 
+static void test_unary_op(token_id op_id, const char* type_op,
   const char* type_result)
 {
   const char* arg_type;
@@ -254,7 +254,7 @@ static void standard_arithmetic(token_id op_id)
   DO(test_bin_op(op_id, "UIntLiteral", "F16", "F16"));
   DO(test_bin_op(op_id, "F32", "FloatLiteral", "F32"));
   DO(test_bin_op(op_id, "FloatLiteral", "F32", "F32"));
-  
+
   DO(test_bin_op(op_id, "U8", "U8", "U8"));
   DO(test_bin_op(op_id, "U16", "U16", "U16"));
   DO(test_bin_op(op_id, "U32", "U32", "U32"));
@@ -347,7 +347,7 @@ TEST(ExprOperatorTest, PlusSIntLiteralAndU8)
     "class Foo"
     "  fun ref bar(x:U8)=>"
     "    x + -1";
-  
+
   const char* expected =
     "(+"
     "  (paramref (id x) [(nominal (id hygid) (id U8) x val x)])"

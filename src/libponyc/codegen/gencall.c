@@ -182,7 +182,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return invoke_fun(c, try_expr, func, args, (int)count, "");
   }
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, func, args, 
+  LLVMValueRef result = LLVMBuildCall(c->builder, func, args,
     (unsigned int)count, "");
 
   LLVMSetInstructionCallConv(result, LLVMFastCallConv);
@@ -386,7 +386,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
           return true;
 
-        case TK_DATA:
+        case TK_PRIMITIVE:
           // do nothing
           return false;
 

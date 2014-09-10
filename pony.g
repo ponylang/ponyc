@@ -21,7 +21,7 @@ typealias
   ;
 
 class_
-  :  ('trait' | 'data' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
+  :  ('trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
   ;
 
 members
