@@ -38,42 +38,40 @@
         }
       end
 
-      configuration { "Profile", "gmake" }
-        buildoptions "-pg"
-        linkoptions "-pg"
+    configuration { "Profile", "gmake" }
+      buildoptions "-pg"
+      linkoptions "-pg"
 
-      --TODO profile build Visual Studio
-      --configuration { "Profile", "vs*" }
-      --  linkoptions "/PROFILE"
+    --TODO profile build Visual Studio
+    --configuration { "Profile", "vs*" }
+    --  linkoptions "/PROFILE"
 
-      configuration "vs*"
-        debugdir "."
-      	defines {
-          -- disables warnings for vsnprintf
-          "_CRT_SECURE_NO_WARNINGS"
-        }
+    configuration "vs*"
+      debugdir "."
+    	defines {
+        -- disables warnings for vsnprintf
+        "_CRT_SECURE_NO_WARNINGS"
+      }
 
-      configuration { "not windows" }
-        linkoptions {
-          "-pthread"
-        }
+    configuration { "not windows" }
+      linkoptions {
+        "-pthread"
+      }
 
-      configuration { "macosx", "gmake" }
-        toolset "clang"
-        buildoptions "-Qunused-arguments"
-        linkoptions "-Qunused-arguments"
+    configuration { "macosx", "gmake" }
+      toolset "clang"
+      buildoptions "-Qunused-arguments"
+      linkoptions "-Qunused-arguments"
 
 
-      configuration "gmake"
-        buildoptions {
-          "-march=native"
-        }
+    configuration "gmake"
+      buildoptions {
+        "-march=native"
+      }
 
-      configuration "macosx"
-        toolset "clang"
-      configuration "vs*"
-        architecture "x64"
-      configuration "*"
+    configuration "vs*"
+      architecture "x64"
+    configuration "*"
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -179,6 +177,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       configuration "*"
     end
 end
+
+  include("ponyrt/src/premake5.lua")
 
   if _ACTION == "clean" then
     os.rmdir("bin")
