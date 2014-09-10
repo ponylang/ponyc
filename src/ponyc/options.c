@@ -29,7 +29,6 @@ static arg_t* find_match(parse_state_t* s)
   arg_t* match = NULL;
   size_t len = (size_t)(s->opt_end - s->opt_start);
 
-  bool exact = false;
   bool ambig = false;
 
   int mode = MATCH_INIT;
@@ -52,27 +51,23 @@ static arg_t* find_match(parse_state_t* s)
           //Exact match found. It is necessary to check for
           //the length of p->long_opt since there might be
           //options that are prefixes of another (strncmp).
-          exact = true;
-          return p;
-        }
-        else if(match == NULL)
-        {
           match = p;
+          break;
         }
-        else if(match->id != p->id)
+        else if((match != NULL) && (match->id != p->id))
         {
           ambig = true;
         }
       }
     }
 
-    if (ambig && !exact && mode == MATCH_SHORT)
+    if (ambig && mode == MATCH_SHORT)
       return (arg_t*)1;
-    else if (match != NULL && exact)
+    else if (match != NULL)
       return match;
   }
 
-  return match;
+  return NULL;
 }
 
 void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv)
@@ -125,7 +120,7 @@ int opt_next(parse_state_t* s)
 
   if(m == NULL)
   {
-    s->idx++;
+    s->opt_start += strlen(s->opt_start);
     return opt_next(s);
   }
   else if(m == (arg_t*)1)

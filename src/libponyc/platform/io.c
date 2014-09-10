@@ -47,9 +47,10 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 char* pony_realpath(const char* path, char* resolved)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if (PathCanonicalize(resolved, path))
+  if (GetFullPathName(path, FILENAME_MAX, resolved, NULL))
   {
-    return resolved;
+    if(GetFileAttributes(resolved) != INVALID_FILE_ATTRIBUTES)
+      return resolved;
   }
 
   return NULL;
@@ -82,11 +83,11 @@ bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
   if (FindNextFile(dir->ptr, &dir->info) != 0)
   {
     *res = &dir->info;
-    return true;
+    return false;
   }
 
   *res = NULL;
-  return false;
+  return true;
 #elif defined(PLATFORM_IS_POSIX_BASED)
   return readdir_r(dir, entry, res) != 0;
 #else

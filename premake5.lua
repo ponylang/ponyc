@@ -38,41 +38,40 @@
         }
       end
 
-      configuration { "Profile", "gmake" }
-        buildoptions "-pg"
-        linkoptions "-pg"
+    configuration { "Profile", "gmake" }
+      buildoptions "-pg"
+      linkoptions "-pg"
 
-      --TODO profile build Visual Studio
-      --configuration { "Profile", "vs*" }
-      --  linkoptions "/PROFILE"
+    --TODO profile build Visual Studio
+    --configuration { "Profile", "vs*" }
+    --  linkoptions "/PROFILE"
 
-      configuration "vs*"
-      	defines {
-          -- disables warnings for vsnprintf
-          "_CRT_SECURE_NO_WARNINGS"
-        }
+    configuration "vs*"
+      debugdir "."
+    	defines {
+        -- disables warnings for vsnprintf
+        "_CRT_SECURE_NO_WARNINGS"
+      }
 
-      configuration { "not windows" }
-        linkoptions {
-          "-pthread"
-        }
+    configuration { "not windows" }
+      linkoptions {
+        "-pthread"
+      }
 
-      configuration { "macosx", "gmake" }
-        toolset "clang"
-        buildoptions "-Qunused-arguments"
-        linkoptions "-Qunused-arguments"
+    configuration { "macosx", "gmake" }
+      toolset "clang"
+      buildoptions "-Qunused-arguments"
+      linkoptions "-Qunused-arguments"
 
 
-      configuration "gmake"
-        buildoptions {
-          "-march=native"
-        }
+    configuration "gmake"
+      buildoptions {
+        "-march=native"
+      }
 
-      configuration "macosx"
-        toolset "clang"
-      configuration "vs*"
-        architecture "x64"
-      configuration "*"
+    configuration "vs*"
+      architecture "x64"
+    configuration "*"
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -114,12 +113,19 @@
       "src/ponyc/**.h",
       "src/ponyc/**.c"
     }
+    local cmd = ""
     configuration "gmake"
       buildoptions "-std=gnu11"
+      cmd = "cp packages/* $(TARGETDIR)"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
+      -- premake produces posix-style absolute paths
+      local path = path.getabsolute("./packages"):gsub("%/", "\\")
+      cmd = "xcopy " .. path .. "\\* $(TargetDir) /S /Y"
     configuration "*"
       link_libponyc()
+      postbuildcommands { cmd }
+
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "gtest"
@@ -171,6 +177,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       configuration "*"
     end
 end
+
+  include("ponyrt/src/premake5.lua")
 
   if _ACTION == "clean" then
     os.rmdir("bin")
