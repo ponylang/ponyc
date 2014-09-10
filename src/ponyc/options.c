@@ -29,7 +29,6 @@ static arg_t* find_match(parse_state_t* s)
   arg_t* match = NULL;
   size_t len = (size_t)(s->opt_end - s->opt_start);
 
-  bool exact = false;
   bool ambig = false;
 
   int mode = MATCH_INIT;
@@ -52,7 +51,6 @@ static arg_t* find_match(parse_state_t* s)
           //Exact match found. It is necessary to check for
           //the length of p->long_opt since there might be
           //options that are prefixes of another (strncmp).
-          exact = true;
           match = p;
           break;
         }
