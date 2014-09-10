@@ -154,15 +154,27 @@ void check_symtab_entry(builder_t* builder, const char* scope,
 }
 
 
-void check_tree(const char* expected, ast_t* actual)
+void check_tree(const char* expected, ast_t* actual_ast)
 {
-  ASSERT_NE((void*)NULL, actual);
+  ASSERT_NE((void*)NULL, actual_ast);
 
+  // Build the expected description into an AST
   builder_t* expect_builder;
   ast_t* expect_ast;
   DO(build_ast_from_string(expected, &expect_ast, &expect_builder));
 
-  ASSERT_TRUE(build_compare_asts_no_sibling(expect_ast, actual));
+  bool r = build_compare_asts(expect_ast, actual_ast);
+
+  if(!r)
+  {
+    // Well that didn't work as expected then
+    printf("Expected:\n");
+    ast_print(expect_ast, 80);
+    printf("Got:\n");
+    ast_print(actual_ast, 80);
+  }
+
+  ASSERT_TRUE(r);
 
   builder_free(expect_builder);
 }
@@ -200,32 +212,15 @@ void test_pass_fn_good(const char* before, const char* after,
 
   ASSERT_NE((void*)NULL, tree);
 
-  // Build the after description into an AST
-  builder_t* expect_builder;
-  ast_t* expect_ast;
-  DO(build_ast_from_string(after, &expect_ast, &expect_builder));
-
   // Apply transform
   ASSERT_EQ(AST_OK, fn(&tree));
 
   // Check resulting AST
   actual_ast = builder_get_root(actual_builder);
 
-  bool r = build_compare_asts(expect_ast, actual_ast);
-
-  if(!r)
-  {
-    // Well that didn't work as expected then
-    printf("Expected:\n");
-    ast_print(expect_ast, 80);
-    printf("Got:\n");
-    ast_print(actual_ast, 80);
-  }
-
-  ASSERT_TRUE(r);
+  DO(check_tree(after, actual_ast));
 
   builder_free(actual_builder);
-  builder_free(expect_builder);
 }
 
 

@@ -569,6 +569,7 @@ DEF(function);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
+  PREDICT_ERROR("Did you forget an arrow (=>) ?");
   IF(TK_DBLARROW, RULE("function body", rawseq));
   DONE();
 
@@ -627,7 +628,7 @@ DEF(members);
 DEF(class_def);
   TOKEN("entity", TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   SCOPE();
-  TOKEN("entity name", TK_ID);
+  TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   IF(TK_IS, RULE("provided types", types));
@@ -654,8 +655,8 @@ DEF(module);
   AST_NODE(TK_MODULE);
   SCOPE();
   SEQ("use command", use);
-  SEQ("entity definition", class_def, typealias);
-  SKIP(NULL, TK_EOF);
+  SEQ("class, actor, primitive or trait definition", class_def, typealias);
+  SKIP("class, actor, primitive, trait or method", TK_EOF);
   DONE();
 
 // external API

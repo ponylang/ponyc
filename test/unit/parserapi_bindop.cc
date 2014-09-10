@@ -6,40 +6,14 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/source.h"
 PONY_EXTERN_C_END
 
+#include "util.h"
 #include <gtest/gtest.h>
 
 
-static char* flatten_ast_internal(ast_t* ast, char* dst)
-{
-  if(ast_child(ast) != NULL)
-  {
-    *dst = '(';
-    dst++;
-    dst = flatten_ast_internal(ast_child(ast), dst);
-  }
-
-  *dst = ast_get_print(ast)[0];
-  dst++;
-
-  if(ast_childidx(ast, 1) != NULL)
-    dst = flatten_ast_internal(ast_childidx(ast, 1), dst);
-
-  if(ast_child(ast) != NULL)
-  {
-    *dst = ')';
-    dst++;
-  }
-
-  return dst;
-}
-
-static const char* flatten_ast(ast_t* ast)
-{
-  static char buf[100];
-  char* end = flatten_ast_internal(ast, buf);
-  *end = '\0';
-  return buf;
-}
+static bool _reached_end;
+static const char* _predict_at_end;
+static bool _opt_at_end;
+static token_id _next_token_at_end;
 
 
 // Use the actually precedence table for testing
@@ -130,14 +104,24 @@ DEF(binop);
   TOKEN(NULL, TK_ID);
   DONE();
 
-DEF(infix);
+DEF(infix_test);
   TOKEN(NULL, TK_ID);
-  OPT BINDOP("", binop);
+  PREDICT_ERROR("Foo");
+  BINDOP("", binop);
+  _reached_end = true;
+  _predict_at_end = parser->predicted_error;
+  _opt_at_end = state.opt;
+  _next_token_at_end = current_token_id(parser);
   DONE();
 
-DEF(infix_non_opt);
+DEF(infix_opt_test);
   TOKEN(NULL, TK_ID);
-  BINDOP("", binop);
+  PREDICT_ERROR("Foo");
+  OPT BINDOP("", binop);
+  _reached_end = true;
+  _predict_at_end = parser->predicted_error;
+  _opt_at_end = state.opt;
+  _next_token_at_end = current_token_id(parser);
   DONE();
 
 
@@ -145,181 +129,233 @@ class ParserApiBindopTest: public testing::Test
 {};
 
 
-TEST(ParserApiBindopTest, SingleOp)
+// BINDOP
+
+TEST(ParserApiBindopTest, LexError)
 {
-  const char* code = "A+B";
+  const char* code = "A$";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(A+B)", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  ASSERT_EQ((void*)NULL, ast);
+
+  ASSERT_FALSE(_reached_end);
+
+  source_close(src);
+}
+
+
+TEST(ParserApiBindopTest, Missing)
+{
+  const char* code = "A;";
+
+  source_t* src = source_open_string(code);
+  _reached_end = false;
+
+  ast_t* ast = parse(src, infix_test);
+  ASSERT_EQ((void*)NULL, ast);
+
+  ASSERT_FALSE(_reached_end);
+
+  source_close(src);
+}
+
+
+TEST(ParserApiBindopTest, SingleOp)
+{
+  const char* code = "A+B;";
+
+  source_t* src = source_open_string(code);
+  _reached_end = false;
+
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(+ (id A) (id B))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, TwoOpsInOrder)
 {
-  const char* code = "A * B + C";
+  const char* code = "A * B + C;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("((A*B)+C)", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(+ (* (id A) (id B)) (id C))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, TwoOpsOutOfOrder)
 {
-  const char* code = "A + B * C";
+  const char* code = "A + B * C;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(A+(B*C))", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(+ (id A) (* (id B) (id C)))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, RepeatedOp)
 {
-  const char* code = "A + B + C + D";
+  const char* code = "A + B + C + D;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(((A+B)+C)+D)", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(+ (+ (+ (id A) (id B)) (id C)) (id D))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, EqualPrecedence)
 {
-  const char* code = "A + B - C + D";
+  const char* code = "A + B - C + D;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(((A+B)-C)+D)", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(+ (- (+ (id A) (id B)) (id C)) (id D))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, PrecedenceInBetweenExisting)
 {
-  const char* code = "A < B * C + D";
+  const char* code = "A < B * C + D;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(A<((B*C)+D))", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(< (id A) (+ (* (id B) (id C)) (id D)))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
 TEST(ParserApiBindopTest, RepeatedRightAssociative)
 {
-  const char* code = "A = B = C = D";
+  const char* code = "A = B = C = D;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(A=(B=(C=D)))", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_test);
+  DO(check_tree("(= (id A) (= (id B) (= (id C) (id D))))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
-TEST(ParserApiBindopTest, LexError)
+// OPT BINDOP
+
+TEST(ParserApiBindopTest, OptLexError)
 {
-  const char* code = "A = B = $ = D";
+  const char* code = "A$";
 
   source_t* src = source_open_string(code);
-  free_errors();
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
+  ast_t* ast = parse(src, infix_opt_test);
   ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
+
+  ASSERT_FALSE(_reached_end);
 
   source_close(src);
 }
 
 
-TEST(ParserApiBindopTest, ParseError)
+TEST(ParserApiBindopTest, OptMissing)
 {
-  const char* code = "A = B = C = +";
+  const char* code = "A;";
 
   source_t* src = source_open_string(code);
-  free_errors();
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix);
-  ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
+  ast_t* ast = parse(src, infix_opt_test);
+  DO(check_tree("(id A)", ast));
 
-  source_close(src);
-}
+  ASSERT_TRUE(_reached_end);
+  ASSERT_STREQ("Foo", _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
-
-TEST(ParserApiBindopTest, SingleOpNonOpt)
-{
-  const char* code = "A+B";
-
-  source_t* src = source_open_string(code);
-
-  ast_t* ast = parse(src, infix_non_opt);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("(A+B)", flatten_ast(ast));
   ast_free(ast);
-
   source_close(src);
 }
 
 
-TEST(ParserApiBindopTest, TwoOpsInOrderNonOpt)
+TEST(ParserApiBindopTest, OptSingleOp)
 {
-  const char* code = "A * B + C";
+  const char* code = "A+B;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, infix_non_opt);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_STREQ("((A*B)+C)", flatten_ast(ast));
+  ast_t* ast = parse(src, infix_opt_test);
+  DO(check_tree("(+ (id A) (id B))", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiBindopTest, NoOpsForNonOpt)
-{
-  const char* code = "A";
-
-  source_t* src = source_open_string(code);
-  free_errors();
-
-  ast_t* ast = parse(src, infix_non_opt);
-  ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
-
   source_close(src);
 }

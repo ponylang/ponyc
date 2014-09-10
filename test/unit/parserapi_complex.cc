@@ -5,6 +5,7 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/source.h"
 PONY_EXTERN_C_END
 
+#include "util.h"
 #include <gtest/gtest.h>
 
 
@@ -27,17 +28,9 @@ TEST(ParserApiComplexTest, Recursion)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, recurse);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_COLON, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_COLON, ast_id(ast_child(ast)));
-  ASSERT_NE((void*)NULL, ast_child(ast_child(ast)));
-  ASSERT_EQ(TK_COLON, ast_id(ast_child(ast_child(ast))));
-  ASSERT_NE((void*)NULL, ast_child(ast_child(ast_child(ast))));
-  ASSERT_EQ(TK_NONE, ast_id(ast_child(ast_child(ast_child(ast)))));
-  ASSERT_EQ((void*)NULL, ast_child(ast_child(ast_child(ast_child(ast)))));
-  ast_free(ast);
+  DO(check_tree("(: (: (: x)))", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
@@ -47,11 +40,9 @@ TEST(ParserApiComplexTest, RecursionLexError)
   const char* code = ":+:+$";
 
   source_t* src = source_open_string(code);
-  free_errors();
 
   ast_t* ast = parse(src, recurse);
   ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
 
   source_close(src);
 }
@@ -62,11 +53,9 @@ TEST(ParserApiComplexTest, RecursionParseError)
   const char* code = ":+:+.";
 
   source_t* src = source_open_string(code);
-  free_errors();
 
   ast_t* ast = parse(src, recurse);
   ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
 
   source_close(src);
 }
@@ -93,16 +82,8 @@ TEST(ParserApiComplexTest, MutualRecursion)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, recurse_mut1);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_COLON, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_SEMI, ast_id(ast_child(ast)));
-  ASSERT_NE((void*)NULL, ast_child(ast_child(ast)));
-  ASSERT_EQ(TK_COLON, ast_id(ast_child(ast_child(ast))));
-  ASSERT_NE((void*)NULL, ast_child(ast_child(ast_child(ast))));
-  ASSERT_EQ(TK_NONE, ast_id(ast_child(ast_child(ast_child(ast)))));
-  ASSERT_EQ((void*)NULL, ast_child(ast_child(ast_child(ast_child(ast)))));
-  ast_free(ast);
+  DO(check_tree("(: (; (: x)))", ast));
 
+  ast_free(ast);
   source_close(src);
 }

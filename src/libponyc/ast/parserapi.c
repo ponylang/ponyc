@@ -7,7 +7,7 @@
 static bool trace_enable = false;
 
 
-static token_id current_token_id(parser_t* parser)
+token_id current_token_id(parser_t* parser)
 {
   return token_get_id(parser->token);
 }
@@ -151,14 +151,7 @@ ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
     if(parser->trace)
       printf("Rule %s: Error\n", state->fn_name);
 
-    if(parser->last_matched == NULL)
-      error(parser->source, token_line_number(parser->token),
-      token_line_position(parser->token), "syntax error, no code found");
-    else
-      error(parser->source, token_line_number(parser->token),
-      token_line_position(parser->token),
-      "syntax error, expected %s after %s", desc, parser->last_matched);
-
+    syntax_error(parser, desc);
     return PARSE_ERROR;
   }
 
@@ -275,10 +268,29 @@ ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
 
 
 /// Report a syntax error
-void syntax_error(parser_t* parser, const char* func, int line)
+void syntax_error(parser_t* parser, const char* expected)
 {
-  error(parser->source, token_line_number(parser->token),
-    token_line_position(parser->token), "syntax error (%s, %d)", func, line);
+  assert(parser != NULL);
+  assert(expected != NULL);
+
+  if(parser->last_matched == NULL)
+  {
+    error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token), "syntax error: no code found");
+  }
+  else if(parser->predicted_error == NULL)
+  {
+    error(parser->source, token_line_number(parser->token),
+    token_line_position(parser->token),
+    "syntax error: expected %s after %s", expected, parser->last_matched);
+  }
+  else
+  {
+    error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token),
+      "%s Syntax error: expected %s after %s", parser->predicted_error,
+      expected, parser->last_matched);
+  }
 }
 
 
@@ -312,7 +324,7 @@ ast_t* parse(source_t* source, rule_t start)
 
   if(ast == RULE_NOT_FOUND)
   {
-    syntax_error(parser, __FUNCTION__, __LINE__);
+    syntax_error(parser, "class, actor, primitive or trait");
     ast = NULL;
   }
 

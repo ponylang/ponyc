@@ -56,6 +56,7 @@ typedef struct parser_t
   lexer_t* lexer;
   token_t* token;
   const char* last_matched;
+  const char* predicted_error;
   bool trace;
 } parser_t;
 
@@ -103,7 +104,9 @@ ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
 ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set);
 
-void syntax_error(parser_t* parser, const char* func, int line);
+void syntax_error(parser_t* parser, const char* expected);
+
+token_id current_token_id(parser_t* parser);
 
 
 // Worker macros
@@ -113,16 +116,20 @@ void syntax_error(parser_t* parser, const char* func, int line);
 
 #define HANDLE_ERRORS(sub_ast, desc) \
   { \
-    ast_t*r = sub_result(parser, ast, &state, sub_ast, desc); \
-    if(r != NULL) return r;  \
+    ast_t* r2 = sub_result(parser, ast, &state, sub_ast, desc); \
+    if(r2 != NULL) return r2;  \
   }
 
 #define MAKE_DEFAULT(sub_ast, id) \
   if(sub_ast == RULE_NOT_FOUND) sub_ast = ast_new(parser->token, id);
 
-#define THROW_ERROR() \
+#define CLEAR_PREDICTION(sub_ast) \
+  if(sub_ast != RULE_NOT_FOUND && sub_ast != PARSE_ERROR) \
+    parser->predicted_error = NULL;
+
+#define THROW_ERROR(desc) \
   { \
-    syntax_error(parser, __FUNCTION__, __LINE__); \
+    syntax_error(parser, desc); \
     ast_free(ast); \
     return PARSE_ERROR; \
   }
@@ -201,6 +208,7 @@ ast_t* parse(source_t* source, rule_t start);
     const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
     ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
     HANDLE_ERRORS(sub_ast, desc_str); \
+    CLEAR_PREDICTION(sub_ast); \
     MAKE_DEFAULT(sub_ast, TK_NONE); \
     add_ast(parser, sub_ast, &ast, &state) ; \
   }
@@ -218,8 +226,9 @@ ast_t* parse(source_t* source, rule_t start);
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
     const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
-    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
+    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, false); \
     HANDLE_ERRORS(sub_ast, desc_str); \
+    CLEAR_PREDICTION(sub_ast); \
   }
 
 
@@ -252,7 +261,10 @@ ast_t* parse(source_t* source, rule_t start);
     static const token_id id_set[] = { id, TK_NONE }; \
     state.opt = true; \
     const char* cond_desc = token_id_desc(id); \
-    if(token_in_set(parser, &state, cond_desc, id_set, false) == NULL) \
+    ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
+    HANDLE_ERRORS(sub_ast, #id); \
+    CLEAR_PREDICTION(sub_ast); \
+    if(sub_ast == NULL) \
     { \
       state.opt = false; \
       state.matched = true; \
@@ -275,16 +287,18 @@ ast_t* parse(source_t* source, rule_t start);
 #define WHILE(id, body) \
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
-    state.opt = true; \
     const char* cond_desc = token_id_desc(id); \
-    while(token_in_set(parser, &state, cond_desc, id_set, false) == NULL) \
+    while(true) \
     { \
+      state.opt = true; \
+      ast_t* r = token_in_set(parser, &state, cond_desc, id_set, false); \
+      HANDLE_ERRORS(r, #id); \
       state.opt = false; \
+      if(r == RULE_NOT_FOUND) break; \
+      CLEAR_PREDICTION(r); \
       state.matched = true; \
       body; \
-      state.opt = true; \
     } \
-    state.opt = false; \
   }
 
 
@@ -325,15 +339,19 @@ ast_t* parse(source_t* source, rule_t start);
     { \
       ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
       if(sub_ast == RULE_NOT_FOUND) break; \
-      if(sub_ast == NULL) THROW_ERROR(); \
+      if(sub_ast == NULL) THROW_ERROR(desc); \
       HANDLE_ERRORS(sub_ast, desc); \
       add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
       prev_ast = sub_ast; \
       had_op = true; \
     } \
-    if(!state.opt && !had_op) THROW_ERROR(); \
+    if(!state.opt && !had_op) THROW_ERROR(desc); \
     state.opt = false; \
   }
+
+
+/// Predict an error that may occur at this point in parsing, eg missing =>
+#define PREDICT_ERROR(text) parser->predicted_error = text
 
 
 /// Must appear at the end of each defined rule

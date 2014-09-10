@@ -50,7 +50,7 @@ void load_test_program(const char* name, ast_t** out_prog);
  * are ignored.
  * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
  */
-//void check_tree(const char* expected, ast_t* actual);
+void check_tree(const char* expected, ast_t* actual);
 
 
 /** Check that an AST transforms to another AST under a single pass function

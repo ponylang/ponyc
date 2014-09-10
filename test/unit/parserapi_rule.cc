@@ -5,7 +5,14 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/source.h"
 PONY_EXTERN_C_END
 
+#include "util.h"
 #include <gtest/gtest.h>
+
+
+static bool _reached_end;
+static const char* _predict_at_end;
+static bool _opt_at_end;
+static token_id _next_token_at_end;
 
 
 DEF(base_dot);
@@ -16,37 +23,28 @@ DEF(base_bang);
   TOKEN(NULL, TK_BANG);
   DONE();
 
-DEF(base_colon);
+DEF(base_plus);
+  TOKEN(NULL, TK_PLUS);
+  DONE();
+
+DEF(rule_test);
   TOKEN(NULL, TK_COLON);
+  PREDICT_ERROR("Foo");
+  RULE(NULL, base_dot, base_bang, base_plus);
+  _reached_end = true;
+  _predict_at_end = parser->predicted_error;
+  _opt_at_end = state.opt;
+  _next_token_at_end = current_token_id(parser);
   DONE();
 
-DEF(base_semi);
-  TOKEN(NULL, TK_SEMI);
-  DONE();
-
-DEF(base_compound);
-  TOKEN(NULL, TK_PLUS);
-  TOKEN(NULL, TK_PLUS);
-  DONE();
-
-DEF(rule_dot);
-  AST_NODE(TK_INT);
-  RULE("", base_dot);
-  DONE();
-
-DEF(rule_multi);
-  AST_NODE(TK_INT);
-  RULE("", base_bang, base_colon, base_semi, base_compound);
-  DONE();
-
-DEF(optional_dot);
-  AST_NODE(TK_INT);
-  OPT RULE("", base_dot);
-  DONE();
-
-DEF(optional_multi);
-  AST_NODE(TK_INT);
-  OPT RULE("", base_bang, base_colon, base_semi, base_compound);
+DEF(rule_opt_test);
+  TOKEN(NULL, TK_COLON);
+  PREDICT_ERROR("Foo");
+  OPT RULE(NULL, base_dot, base_bang, base_plus);
+  _reached_end = true;
+  _predict_at_end = parser->predicted_error;
+  _opt_at_end = state.opt;
+  _next_token_at_end = current_token_id(parser);
   DONE();
 
 
@@ -56,18 +54,17 @@ class ParserApiRuleTest: public testing::Test
 
 // RULE
 
-TEST(ParserApiRuleTest, Rule)
+TEST(ParserApiRuleTest, RuleLexError)
 {
-  const char* code = ".";
+  const char* code = ":$";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, rule_dot);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_DOT, ast_id(ast_child(ast)));
-  ast_free(ast);
+  ast_t* ast = parse(src, rule_test);
+  ASSERT_EQ((void*)NULL, ast);
+
+  ASSERT_FALSE(_reached_end);
 
   source_close(src);
 }
@@ -75,206 +72,133 @@ TEST(ParserApiRuleTest, Rule)
 
 TEST(ParserApiRuleTest, RuleMissing)
 {
-  const char* code = ":";
+  const char* code = ":-";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, rule_dot);
+  ast_t* ast = parse(src, rule_test);
   ASSERT_EQ((void*)NULL, ast);
+
+  ASSERT_FALSE(_reached_end);
 
   source_close(src);
 }
 
 
-TEST(ParserApiRuleTest, RuleMultiFirst)
+TEST(ParserApiRuleTest, RuleFirstPresent)
 {
-  const char* code = "!";
+  const char* code = ":.;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, rule_multi);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_BANG, ast_id(ast_child(ast)));
+  ast_t* ast = parse(src, rule_test);
+  DO(check_tree("(: .)", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
-TEST(ParserApiRuleTest, RuleMultiNotFirst)
+TEST(ParserApiRuleTest, RuleNotFirstPresent)
 {
-  const char* code = ":";
+  const char* code = ":!;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, rule_multi);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_COLON, ast_id(ast_child(ast)));
+  ast_t* ast = parse(src, rule_test);
+  DO(check_tree("(: !)", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
   ast_free(ast);
-
   source_close(src);
 }
 
 
-TEST(ParserApiRuleTest, RuleMultiMissing)
+TEST(ParserApiRuleTest, RuleLastPresent)
 {
-  const char* code = "3";
+  const char* code = ":+;";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, rule_multi);
-  ASSERT_EQ((void*)NULL, ast);
+  ast_t* ast = parse(src, rule_test);
+  DO(check_tree("(: +)", ast));
 
-  source_close(src);
-}
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
-
-TEST(ParserApiRuleTest, RuleLexError)
-{
-  const char* code = "$";
-
-  source_t* src = source_open_string(code);
-  free_errors();
-
-  ast_t* ast = parse(src, rule_multi);
-  ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, RuleParseError)
-{
-  const char* code = "+ -";
-
-  source_t* src = source_open_string(code);
-  free_errors();
-
-  ast_t* ast = parse(src, rule_multi);
-  ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
-
+  ast_free(ast);
   source_close(src);
 }
 
 
 // OPT RULE
 
-TEST(ParserApiRuleTest, Optional)
+TEST(ParserApiRuleTest, RuleOptLexError)
 {
-  const char* code = ".";
+  const char* code = ":$";
 
   source_t* src = source_open_string(code);
+  _reached_end = false;
 
-  ast_t* ast = parse(src, optional_dot);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_DOT, ast_id(ast_child(ast)));
-  ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, OptionalNotPresent)
-{
-  const char* code = ":";
-
-  source_t* src = source_open_string(code);
-
-  ast_t* ast = parse(src, optional_dot);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_NONE, ast_id(ast_child(ast)));
-  ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, OptionalMultiFirst)
-{
-  const char* code = "!";
-
-  source_t* src = source_open_string(code);
-
-  ast_t* ast = parse(src, optional_multi);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_BANG, ast_id(ast_child(ast)));
-  ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, OptionalMultiNotFirst)
-{
-  const char* code = ":";
-
-  source_t* src = source_open_string(code);
-
-  ast_t* ast = parse(src, optional_multi);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_COLON, ast_id(ast_child(ast)));
-  ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, OptionalMultiNotPresent)
-{
-  const char* code = "3";
-
-  source_t* src = source_open_string(code);
-
-  ast_t* ast = parse(src, optional_multi);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_NONE, ast_id(ast_child(ast)));
-  ast_free(ast);
-
-  source_close(src);
-}
-
-
-TEST(ParserApiRuleTest, OptionalLexError)
-{
-  const char* code = "$";
-
-  source_t* src = source_open_string(code);
-  free_errors();
-
-  ast_t* ast = parse(src, optional_multi);
+  ast_t* ast = parse(src, rule_opt_test);
   ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
+
+  ASSERT_FALSE(_reached_end);
 
   source_close(src);
 }
 
 
-TEST(ParserApiRuleTest, OptionalParseError)
+TEST(ParserApiRuleTest, RuleOptMissing)
 {
-  const char* code = "+ -";
+  const char* code = ":;";
 
   source_t* src = source_open_string(code);
-  free_errors();
+  _reached_end = false;
 
-  ast_t* ast = parse(src, optional_multi);
-  ASSERT_EQ((void*)NULL, ast);
-  ASSERT_EQ(1, get_error_count());
+  ast_t* ast = parse(src, rule_opt_test);
+  DO(check_tree("(: x)", ast));
 
+  ASSERT_TRUE(_reached_end);
+  ASSERT_STREQ("Foo", _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
+  ast_free(ast);
+  source_close(src);
+}
+
+
+TEST(ParserApiRuleTest, RuleOptFirstPresent)
+{
+  const char* code = ":.;";
+
+  source_t* src = source_open_string(code);
+  _reached_end = false;
+
+  ast_t* ast = parse(src, rule_opt_test);
+  DO(check_tree("(: .)", ast));
+
+  ASSERT_TRUE(_reached_end);
+  ASSERT_EQ((void*)NULL, _predict_at_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+
+  ast_free(ast);
   source_close(src);
 }

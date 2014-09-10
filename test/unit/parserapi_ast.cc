@@ -5,6 +5,7 @@ PONY_EXTERN_C_BEGIN
 #include "../../src/libponyc/ast/source.h"
 PONY_EXTERN_C_END
 
+#include "util.h"
 #include <gtest/gtest.h>
 
 
@@ -23,17 +24,15 @@ TEST(ParserApiAstTest, TokenOnly)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, token_only);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_MOD, ast_id(ast));
-  ASSERT_EQ((void*)NULL, ast_child(ast));
-  ast_free(ast);
+  DO(check_tree("(%)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
 
 DEF(ast_only);
-  AST_NODE(TK_INT);
+  AST_NODE(TK_DOT);
   DONE();
 
 TEST(ParserApiAstTest, AstOnly)
@@ -43,17 +42,15 @@ TEST(ParserApiAstTest, AstOnly)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, ast_only);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_EQ((void*)NULL, ast_child(ast));
-  ast_free(ast);
+  DO(check_tree("(.)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
 
 DEF(ast_then_token);
-  AST_NODE(TK_INT);
+  AST_NODE(TK_DOT);
   TOKEN(NULL, TK_MOD);
   DONE();
 
@@ -64,19 +61,16 @@ TEST(ParserApiAstTest, AstThenToken)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, ast_then_token);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_MOD, ast_id(ast_child(ast)));
-  ast_free(ast);
+  DO(check_tree("(. %)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
 
 DEF(token_then_ast);
   TOKEN(NULL, TK_MOD);
-  AST_NODE(TK_INT);
+  AST_NODE(TK_DOT);
   DONE();
 
 TEST(ParserApiAstTest, TokenThenAst)
@@ -86,12 +80,9 @@ TEST(ParserApiAstTest, TokenThenAst)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, token_then_ast);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_MOD, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_INT, ast_id(ast_child(ast)));
-  ast_free(ast);
+  DO(check_tree("(% .)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
@@ -102,7 +93,7 @@ DEF(seq_base);
 
 DEF(seq_then_ast);
   SEQ("", seq_base);
-  AST_NODE(TK_INT);
+  AST_NODE(TK_DOT);
   DONE();
 
 TEST(ParserApiAstTest, SeqPresentThenAst)
@@ -112,12 +103,9 @@ TEST(ParserApiAstTest, SeqPresentThenAst)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, seq_then_ast);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_MOD, ast_id(ast));
-  ASSERT_NE((void*)NULL, ast_child(ast));
-  ASSERT_EQ(TK_INT, ast_id(ast_child(ast)));
-  ast_free(ast);
+  DO(check_tree("(% .)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
@@ -128,11 +116,9 @@ TEST(ParserApiAstTest, OptTokenMissingThenAst)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, seq_then_ast);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_EQ((void*)NULL, ast_child(ast));
-  ast_free(ast);
+  DO(check_tree("(.)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
 
@@ -143,7 +129,7 @@ DEF(null_base);
   DONE();
 
 DEF(null_top);
-  AST_NODE(TK_INT);
+  AST_NODE(TK_DOT);
   RULE("", null_base);
   DONE();
 
@@ -154,11 +140,8 @@ TEST(ParserApiAstTest, NullAst)
   source_t* src = source_open_string(code);
 
   ast_t* ast = parse(src, null_top);
-  ASSERT_NE((void*)NULL, ast);
-  ASSERT_EQ(TK_INT, ast_id(ast));
-  ASSERT_EQ((void*)NULL, ast_child(ast));
-  ASSERT_EQ((void*)NULL, ast_sibling(ast));
-  ast_free(ast);
+  DO(check_tree("(.)", ast));
 
+  ast_free(ast);
   source_close(src);
 }
