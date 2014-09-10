@@ -17,7 +17,7 @@ class ParserApiComplexTest: public testing::Test
 
 DEF(recurse);
   TOKEN(NULL, TK_COLON);
-  IF(TK_PLUS, RULE("", recurse));
+  IF(TK_PLUS, RULE("test", recurse));
   DONE();
 
 
@@ -67,12 +67,12 @@ DECL(recurse_mut2);
 
 DEF(recurse_mut1);
   TOKEN(NULL, TK_COLON);
-  IF(TK_PLUS, RULE("", recurse_mut2));
+  IF(TK_PLUS, RULE("test", recurse_mut2));
   DONE();
 
 DEF(recurse_mut2);
   TOKEN(NULL, TK_SEMI);
-  IF(TK_MINUS, RULE("", recurse_mut1));
+  IF(TK_MINUS, RULE("test", recurse_mut1));
   DONE();
 
 TEST(ParserApiComplexTest, MutualRecursion)

@@ -92,7 +92,7 @@ DEF(seq_base);
   DONE();
 
 DEF(seq_then_ast);
-  SEQ("", seq_base);
+  SEQ("test", seq_base);
   AST_NODE(TK_DOT);
   DONE();
 
@@ -130,7 +130,7 @@ DEF(null_base);
 
 DEF(null_top);
   AST_NODE(TK_DOT);
-  RULE("", null_base);
+  RULE("test", null_base);
   DONE();
 
 TEST(ParserApiAstTest, NullAst)

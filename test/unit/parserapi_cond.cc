@@ -63,7 +63,7 @@ DEF(base2);
 DEF(seq_test);
   TOKEN(NULL, TK_COLON);
   PREDICT_ERROR("Foo");
-  SEQ("", base, base2);
+  SEQ("test", base, base2);
   _reached_end = true;
   _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;

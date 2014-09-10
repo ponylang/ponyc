@@ -262,7 +262,7 @@ ast_t* parse(source_t* source, rule_t start);
     state.opt = true; \
     const char* cond_desc = token_id_desc(id); \
     ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
-    HANDLE_ERRORS(sub_ast, #id); \
+    HANDLE_ERRORS(sub_ast, cond_desc); \
     CLEAR_PREDICTION(sub_ast); \
     if(sub_ast == NULL) \
     { \
@@ -292,7 +292,7 @@ ast_t* parse(source_t* source, rule_t start);
     { \
       state.opt = true; \
       ast_t* r = token_in_set(parser, &state, cond_desc, id_set, false); \
-      HANDLE_ERRORS(r, #id); \
+      HANDLE_ERRORS(r, cond_desc); \
       state.opt = false; \
       if(r == RULE_NOT_FOUND) break; \
       CLEAR_PREDICTION(r); \
