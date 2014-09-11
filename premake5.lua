@@ -113,18 +113,21 @@
       "src/ponyc/**.h",
       "src/ponyc/**.c"
     }
-    local cmd = ""
+    local delete = ""
+    local create = ""
     configuration "gmake"
       buildoptions "-std=gnu11"
-      cmd = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      delete = "rm -rf $(TARGETDIR)/builtin"
+      create = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
       -- premake produces posix-style absolute paths
       local path = path.getabsolute("./packages/builtin"):gsub("%/", "\\")
-      cmd = "mklink /J $(TargetDir)\\builtin \"" .. path .. "\""
+      delete = "rmdir /Q $(TargetDir)\\builtin"
+      create = "mklink /J $(TargetDir)\\builtin \"" .. path .. "\""
     configuration "*"
       link_libponyc()
-      postbuildcommands { cmd }
+      postbuildcommands { delete, create }
 
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then

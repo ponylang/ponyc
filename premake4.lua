@@ -113,6 +113,7 @@ solution "ponyc"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
     postbuildcommands {
+      "rm -rf $(TARGETDIR)/builtin",
       "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     }
 
