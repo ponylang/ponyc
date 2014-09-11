@@ -116,12 +116,12 @@
     local cmd = ""
     configuration "gmake"
       buildoptions "-std=gnu11"
-      cmd = "cp packages/* $(TARGETDIR)"
+      cmd = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
       -- premake produces posix-style absolute paths
       local path = path.getabsolute("./packages"):gsub("%/", "\\")
-      cmd = "xcopy " .. path .. "\\* $(TargetDir) /S /Y"
+      cmd = "mklink /J " .. path .. " $(TargetDir)"
     configuration "*"
       link_libponyc()
       postbuildcommands { cmd }
@@ -228,6 +228,3 @@ end
     description = "Produce API documentation.",
     execute     = dodocs
   }
-
-  --include "utils/"
-  --include "test/"
