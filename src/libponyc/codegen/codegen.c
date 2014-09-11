@@ -219,6 +219,8 @@ static int behaviour_index(gentype_t* g, const char* name)
 
       default: {}
     }
+
+    member = ast_sibling(member);
   }
 
   return -1;

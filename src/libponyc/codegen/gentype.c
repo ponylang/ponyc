@@ -11,6 +11,28 @@
 #include <string.h>
 #include <assert.h>
 
+static void make_box_type(compile_t* c, gentype_t* g)
+{
+  if(g->structure == NULL)
+  {
+    const char* box_name = genname_box(g->type_name);
+    g->structure = LLVMGetTypeByName(c->module, box_name);
+
+    if(g->structure == NULL)
+      g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), box_name);
+  }
+
+  if(LLVMIsOpaqueStruct(g->structure))
+  {
+    LLVMTypeRef elements[2];
+    elements[0] = LLVMPointerType(g->desc_type, 0);
+    elements[1] = g->primitive;
+    LLVMStructSetBody(g->structure, elements, 2, false);
+  }
+
+  g->structure_ptr = LLVMPointerType(g->structure, 0);
+}
+
 static void make_global_descriptor(compile_t* c, gentype_t* g)
 {
   // Fetch or create a descriptor type.
@@ -39,7 +61,7 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 
 static void make_global_instance(compile_t* c, gentype_t* g)
 {
-  // Not a data type.
+  // Not a primitive type.
   if(g->underlying != TK_PRIMITIVE)
     return;
 
@@ -139,19 +161,32 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(g->structure == NULL)
     g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
 
-  g->structure_ptr = LLVMPointerType(g->structure, 0);
+  bool opaque = LLVMIsOpaqueStruct(g->structure);
 
-  if(g->primitive != NULL)
-    g->use_type = g->primitive;
-  else
-    g->use_type = g->structure_ptr;
+  if(g->underlying == TK_TUPLETYPE)
+  {
+    // This is actually our primitive type.
+    g->primitive = g->structure;
+    g->structure = NULL;
+  } else {
+    g->structure_ptr = LLVMPointerType(g->structure, 0);
+  }
 
   // Fill in our global descriptor.
   make_global_descriptor(c, g);
 
-  // Fill in our global instance if the type is not opaque.
-  if(!LLVMIsOpaqueStruct(g->structure))
+  if(g->primitive != NULL)
   {
+    // We're primitive, so use the primitive type.
+    g->use_type = g->primitive;
+  } else {
+    // We're not primitive, so use a pointer to our structure.
+    g->use_type = g->structure_ptr;
+  }
+
+  if(!opaque)
+  {
+    // Fill in our global instance if the type is not opaque.
     make_global_instance(c, g);
     return true;
   }
@@ -302,12 +337,6 @@ static bool make_trace(compile_t* c, gentype_t* g)
     }
   }
 
-  // Everything has a descriptor. Actors also have a pad.
-  size_t extra = 1;
-
-  if(g->underlying == TK_ACTOR)
-    extra++;
-
   // Create a trace function.
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
@@ -322,13 +351,26 @@ static bool make_trace(compile_t* c, gentype_t* g)
   // If we don't ever trace anything, delete this function.
   bool need_trace = false;
 
-  for(size_t i = 0; i < g->field_count; i++)
+  if(g->underlying != TK_TUPLETYPE)
   {
-    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object,
-      (unsigned int) (i + extra), "");
+    // Everything has a descriptor.
+    int extra = 1;
 
-    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gencall_trace(c, value, g->fields[i]);
+    // Actors have a pad.
+    if(g->underlying == TK_ACTOR)
+      extra++;
+
+    for(int i = 0; i < g->field_count; i++)
+    {
+      LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
+        "");
+      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+      need_trace |= gencall_trace(c, value, g->fields[i]);
+    }
+  } else {
+    // TODO:
+    // Get the tuple primitive.
+    // LLVMValueRef tuple = LLVMBuildStructGEP(c->builder, object, 1, "");
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -342,22 +384,34 @@ static bool make_trace(compile_t* c, gentype_t* g)
 
 static bool make_struct(compile_t* c, gentype_t* g)
 {
-  size_t extra = 1;
+  LLVMTypeRef type;
+  int extra = 0;
+
+  if(g->underlying != TK_TUPLETYPE)
+  {
+    type = g->structure;
+    extra++;
+  } else {
+    type = g->primitive;
+  }
 
   if(g->underlying == TK_ACTOR)
     extra++;
 
-  // Create the type descriptor as element 0.
   VLA(LLVMTypeRef, elements, g->field_count + extra);
-  elements[0] = LLVMPointerType(g->desc_type, 0);
 
+  // Create the type descriptor as element 0.
+  if(g->underlying != TK_TUPLETYPE)
+    elements[0] = LLVMPointerType(g->desc_type, 0);
+
+  // Create the actor pad as element 1.
   if(g->underlying == TK_ACTOR)
     elements[1] = c->actor_pad;
 
   // Get a preliminary type for each field and set the struct body. This is
   // needed in case a struct for the type being generated here is required when
   // generating a field.
-  for(size_t i = 0; i < g->field_count; i++)
+  for(int i = 0; i < g->field_count; i++)
   {
     gentype_t field_g;
 
@@ -367,9 +421,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
     elements[i + extra] = field_g.use_type;
   }
 
-  LLVMStructSetBody(g->structure, elements, (int)(g->field_count + extra),
-    false);
-
+  LLVMStructSetBody(type, elements, g->field_count + extra, false);
   return true;
 }
 
@@ -402,17 +454,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(setup_name(c, ast, g, prelim))
     return true;
 
-  // Generate a primitive type if we've encountered one.
-  if(g->primitive != NULL)
+  if(g->primitive == NULL)
   {
-    // Element 0 is the type descriptor, element 1 is the boxed primitive type.
-    // Primitive types have no trace function.
-    LLVMTypeRef elements[2];
-    elements[0] = LLVMPointerType(g->desc_type, 0);
-    elements[1] = g->primitive;
-    LLVMStructSetBody(g->structure, elements, 2, false);
-    genfun_box(c, g);
-  } else {
     // Not a primitive type. Generate all the fields and a trace function.
     setup_type_fields(g);
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
@@ -420,6 +463,12 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 
     if(!ok)
       return false;
+  } else {
+    // Create a box type.
+    make_box_type(c, g);
+
+    // Generate a boxing function.
+    genfun_box(c, g);
   }
 
   // Generate a dispatch function if necessary.
@@ -454,6 +503,12 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   setup_tuple_fields(g);
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
   free_fields(g);
+
+  // Create a box type.
+  make_box_type(c, g);
+
+  // Generate a boxing function.
+  genfun_box(c, g);
 
   return ok;
 }

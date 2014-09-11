@@ -14,7 +14,7 @@ typedef struct gentype_t
   LLVMTypeRef primitive;
   LLVMTypeRef use_type;
 
-  size_t field_count;
+  int field_count;
   ast_t** fields;
 
   int vtable_size;

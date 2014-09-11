@@ -1,5 +1,6 @@
 #include "genexpr.h"
 #include "genname.h"
+#include "genfun.h"
 #include "gencontrol.h"
 #include "genoperator.h"
 #include "genreference.h"
@@ -175,17 +176,78 @@ bool gen_binop(compile_t* c, ast_t* ast,
 
 LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
 {
-  LLVMTypeRef type = LLVMTypeOf(val);
+  LLVMTypeRef from = LLVMTypeOf(lit);
+  LLVMTypeRef to = LLVMTypeOf(val);
 
-  switch(LLVMGetTypeKind(type))
+  switch(LLVMGetTypeKind(from))
   {
     case LLVMIntegerTypeKind:
-      return LLVMConstIntCast(lit, type, sign);
+    {
+      switch(LLVMGetTypeKind(to))
+      {
+        case LLVMIntegerTypeKind:
+          return LLVMConstIntCast(lit, to, sign);
+
+        case LLVMHalfTypeKind:
+        case LLVMFloatTypeKind:
+        case LLVMDoubleTypeKind:
+          // TODO: need to know if lit is signed?
+          return LLVMConstSIToFP(lit, to);
+
+        default: {}
+      }
+      break;
+    }
 
     case LLVMHalfTypeKind:
+    {
+      switch(LLVMGetTypeKind(to))
+      {
+        case LLVMHalfTypeKind:
+          return lit;
+
+        case LLVMFloatTypeKind:
+        case LLVMDoubleTypeKind:
+          return LLVMConstFPExt(lit, to);
+
+        default: {}
+      }
+      break;
+    }
+
     case LLVMFloatTypeKind:
+    {
+      switch(LLVMGetTypeKind(to))
+      {
+        case LLVMHalfTypeKind:
+          return LLVMConstFPTrunc(lit, to);
+
+        case LLVMFloatTypeKind:
+          return lit;
+
+        case LLVMDoubleTypeKind:
+          return LLVMConstFPExt(lit, to);
+
+        default: {}
+      }
+      break;
+    }
+
     case LLVMDoubleTypeKind:
-      return LLVMConstSIToFP(lit, type);
+    {
+      switch(LLVMGetTypeKind(to))
+      {
+        case LLVMHalfTypeKind:
+        case LLVMFloatTypeKind:
+          return LLVMConstFPTrunc(lit, to);
+
+        case LLVMDoubleTypeKind:
+          return lit;
+
+        default: {}
+      }
+      break;
+    }
 
     default: {}
   }
@@ -307,10 +369,12 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
         case LLVMDoubleTypeKind:
         {
           // Primitive to pointer requires boxing.
-          const char* type_name = genname_type(type);
-          const char* box_name = genname_box(type_name);
+          gentype_t g;
 
-          LLVMValueRef box_fn = LLVMGetNamedFunction(c->module, box_name);
+          if(!gentype(c, type, &g))
+            return NULL;
+
+          LLVMValueRef box_fn = genfun_box(c, &g);
           LLVMValueRef box = LLVMBuildCall(c->builder, box_fn, &r_value, 1, "");
           LLVMSetInstructionCallConv(box, LLVMFastCallConv);
 

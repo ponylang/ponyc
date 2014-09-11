@@ -18,6 +18,8 @@ actor Test
     _main = m
 
 actor Main
+  var _test: (I32, Foo)
+
   new create(env: Env) =>
     Test(this)
     var t: Foo = Bar

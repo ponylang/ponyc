@@ -102,6 +102,11 @@ const char* genname_trace(const char* type)
   return build_name(type, "$trace", NULL);
 }
 
+const char* genname_tracetuple(const char* type)
+{
+  return build_name(type, "$tracetuple", NULL);
+}
+
 const char* genname_serialise(const char* type)
 {
   return build_name(type, "$serialise", NULL);

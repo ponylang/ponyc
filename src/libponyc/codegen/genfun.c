@@ -452,11 +452,19 @@ LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
 
 LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
 {
+  if(g->primitive == NULL)
+    return NULL;
+
   // Create a boxing function.
   const char* box_name = genname_box(g->type_name);
+  LLVMValueRef box_fn = LLVMGetNamedFunction(c->module, box_name);
+
+  if(box_fn != NULL)
+    return box_fn;
+
   LLVMTypeRef box_type = LLVMFunctionType(g->structure_ptr, &g->primitive, 1,
     false);
-  LLVMValueRef box_fn = codegen_addfun(c, box_name, box_type);
+  box_fn = codegen_addfun(c, box_name, box_type);
   codegen_startfun(c, box_fn);
 
   // allocate the object as 'this'
@@ -470,8 +478,8 @@ LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
 
   // return 'this'
   LLVMBuildRet(c->builder, this_ptr);
-
   codegen_finishfun(c);
+
   return box_fn;
 }
 

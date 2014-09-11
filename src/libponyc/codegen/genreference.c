@@ -70,6 +70,14 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   if(ast_sibling(child) == NULL)
     return gen_expr(c, child);
 
+  ast_t* type = ast_type(ast);
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  // LLVMValueRef tuple = LLVMGetUndef(g.primitive);
+
   // TODO: tuples as rvalues
   ast_error(ast, "not implemented (codegen for tuples)");
   return NULL;
