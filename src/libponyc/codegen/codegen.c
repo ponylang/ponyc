@@ -490,8 +490,15 @@ static bool codegen_finalise(compile_t* c, int opt, pass_id pass_limit)
 
   if(pass_limit == PASS_LLVM_IR)
   {
-    // TODO: not to stderr?
-    LLVMDumpModule(c->module);
+    char* err;
+
+    if(LLVMPrintModuleToFile(c->module, file_o, &err) != 0)
+    {
+      errorf(NULL, "couldn't write IR to %s: %s", file_o, err);
+      LLVMDisposeMessage(err);
+      return false;
+    }
+
     return true;
   }
 
