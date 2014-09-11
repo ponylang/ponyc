@@ -178,8 +178,6 @@ protected:
 
     DO(test_bin_op(op_id, t_u32, t_u_lit, t_u32));
     DO(test_bin_op(op_id, t_u_lit, t_i32, t_i32));
-    DO(test_bin_op(op_id, t_f16, t_u_lit, t_f16));
-    DO(test_bin_op(op_id, t_u_lit, t_f16, t_f16));
     DO(test_bin_op(op_id, t_f32, t_f_lit, t_f32));
     DO(test_bin_op(op_id, t_f_lit, t_f32, t_f32));
 
@@ -193,7 +191,6 @@ protected:
     DO(test_bin_op(op_id, t_i32, t_i32, t_i32));
     DO(test_bin_op(op_id, t_i64, t_i64, t_i64));
     DO(test_bin_op(op_id, t_i128, t_i128, t_i128));
-    DO(test_bin_op(op_id, t_f16, t_f16, t_f16));
     DO(test_bin_op(op_id, t_f32, t_f32, t_f32));
     DO(test_bin_op(op_id, t_f64, t_f64, t_f64));
 
@@ -203,7 +200,6 @@ protected:
     DO(test_bin_op_bad(op_id, t_bool, t_u8));
     DO(test_bin_op_bad(op_id, t_u8, t_u16));
     DO(test_bin_op_bad(op_id, t_u8, t_i8));
-    DO(test_bin_op_bad(op_id, t_u8, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_i32));
     DO(test_bin_op_bad(op_id, t_string, t_i32));
     DO(test_bin_op_bad(op_id, t_f32, t_string));
@@ -247,7 +243,6 @@ protected:
     DO(test_bin_op_bad(op_id, t_u8, t_u16));
     DO(test_bin_op_bad(op_id, t_u8, t_i8));
 
-    DO(test_bin_op_bad(op_id, t_u8, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_i32));
     DO(test_bin_op_bad(op_id, t_string, t_i32));
     DO(test_bin_op_bad(op_id, t_f32, t_string));
@@ -269,8 +264,6 @@ protected:
 
     DO(test_bin_op(op_id, t_u32, t_u_lit, t_bool));
     DO(test_bin_op(op_id, t_u_lit, t_i32, t_bool));
-    DO(test_bin_op(op_id, t_f16, t_u_lit, t_bool));
-    DO(test_bin_op(op_id, t_u_lit, t_f16, t_bool));
     DO(test_bin_op(op_id, t_f32, t_f_lit, t_bool));
     DO(test_bin_op(op_id, t_f_lit, t_f32, t_bool));
 
@@ -284,7 +277,6 @@ protected:
     DO(test_bin_op(op_id, t_i32, t_i32, t_bool));
     DO(test_bin_op(op_id, t_i64, t_i64, t_bool));
     DO(test_bin_op(op_id, t_i128, t_i128, t_bool));
-    DO(test_bin_op(op_id, t_f16, t_f16, t_bool));
     DO(test_bin_op(op_id, t_f32, t_f32, t_bool));
     DO(test_bin_op(op_id, t_f64, t_f64, t_bool));
 
@@ -302,7 +294,6 @@ protected:
 
     DO(test_bin_op_bad(op_id, t_u8, t_u16));
     DO(test_bin_op_bad(op_id, t_u8, t_i8));
-    DO(test_bin_op_bad(op_id, t_u8, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_i32));
     DO(test_bin_op_bad(op_id, t_f32, t_string));
     DO(test_bin_op_bad(op_id, t_i16, t_foo));
@@ -345,9 +336,7 @@ protected:
     DO(test_bin_op_bad(op_id, t_bool, t_u8));
     DO(test_bin_op_bad(op_id, t_u8, t_u16));
     DO(test_bin_op_bad(op_id, t_u8, t_i8));
-    DO(test_bin_op_bad(op_id, t_u8, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_i32));
-    DO(test_bin_op_bad(op_id, t_f16, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_f32));
     DO(test_bin_op_bad(op_id, t_f64, t_f64));
     DO(test_bin_op_bad(op_id, t_f32, t_u_lit));
@@ -359,7 +348,6 @@ protected:
     DO(test_bin_op_bad(op_id, t_string, t_i32));
     DO(test_bin_op_bad(op_id, t_string, t_string));
     DO(test_bin_op_bad(op_id, t_foo, t_u8));
-    DO(test_bin_op_bad(op_id, t_foo, t_f16));
     DO(test_bin_op_bad(op_id, t_foo, t_string));
     DO(test_bin_op_bad(op_id, t_string, t_foo));
     DO(test_bin_op_bad(op_id, t_foo, t_foo));
@@ -374,8 +362,6 @@ protected:
 
     DO(test_bin_op_replace(op_id, t_u32, t_u_lit, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_u_lit, t_i32, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f16, t_u_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u_lit, t_f16, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_f32, t_f_lit, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_f_lit, t_f32, t_bool, alt_id));
 
@@ -389,7 +375,6 @@ protected:
     DO(test_bin_op_replace(op_id, t_i32, t_i32, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_i64, t_i64, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_i128, t_i128, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f16, t_f16, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_f32, t_f32, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_f64, t_f64, t_bool, alt_id));
     DO(test_bin_op_replace(op_id, t_bool, t_bool, t_bool, alt_id));
@@ -413,7 +398,6 @@ protected:
     DO(test_bin_op_bad(op_id, t_bool, t_u8));
     DO(test_bin_op_bad(op_id, t_u8, t_u16));
     DO(test_bin_op_bad(op_id, t_u8, t_i8));
-    DO(test_bin_op_bad(op_id, t_u8, t_f16));
     DO(test_bin_op_bad(op_id, t_f32, t_i32));
     DO(test_bin_op_bad(op_id, t_string, t_i32));
     DO(test_bin_op_bad(op_id, t_f32, t_string));
@@ -521,7 +505,6 @@ TEST_F(ExprOperatorTest, UnaryMinus)
   DO(test_unary_op(TK_UNARY_MINUS, t_i32, t_i32));
   DO(test_unary_op(TK_UNARY_MINUS, t_i64, t_i64));
   DO(test_unary_op(TK_UNARY_MINUS, t_i128, t_i128));
-  DO(test_unary_op(TK_UNARY_MINUS, t_f16, t_f16));
   DO(test_unary_op(TK_UNARY_MINUS, t_f32, t_f32));
   DO(test_unary_op(TK_UNARY_MINUS, t_f64, t_f64));
 
@@ -633,7 +616,6 @@ TEST_F(ExprOperatorTest, Not)
 
   // TODO: We allow negation of floats? What does that even mean?
   //DO(test_unary_op_bad(TK_NOT, t_f_lit));
-  //DO(test_unary_op_bad(TK_NOT, t_f16));
   //DO(test_unary_op_bad(TK_NOT, t_f32));
   //DO(test_unary_op_bad(TK_NOT, t_f64));
 

@@ -88,7 +88,6 @@ TEST_F(SubTypeTest, IsSubType)
   DO(test_binary(is_math_compatible, t_i32, t_i32, true));
   DO(test_binary(is_math_compatible, t_i64, t_i64, true));
   DO(test_binary(is_math_compatible, t_i128, t_i128, true));
-  DO(test_binary(is_math_compatible, t_f16, t_f16, true));
   DO(test_binary(is_math_compatible, t_f32, t_f32, true));
   DO(test_binary(is_math_compatible, t_f64, t_f64, true));
 
@@ -106,7 +105,6 @@ TEST_F(SubTypeTest, IsSubType)
   DO(test_binary(is_math_compatible, t_i16, t_i32, false));
   DO(test_binary(is_math_compatible, t_f32, t_f64, false));
   DO(test_binary(is_math_compatible, t_u8, t_i8, false));
-  DO(test_binary(is_math_compatible, t_u16, t_f16, false));
   DO(test_binary(is_math_compatible, t_i32, t_f32, false));
 
   DO(test_binary(is_math_compatible, t_u8, t_bool, false));
@@ -158,7 +156,6 @@ TEST_F(SubTypeTest, IsEqType)
   DO(test_binary(is_eqtype, t_i16, t_i32, false));
   DO(test_binary(is_eqtype, t_f32, t_f64, false));
   DO(test_binary(is_eqtype, t_u8, t_i8, false));
-  DO(test_binary(is_eqtype, t_u16, t_f16, false));
   DO(test_binary(is_eqtype, t_i32, t_f32, false));
 
   DO(test_binary(is_eqtype, t_u8, t_bool, false));
@@ -190,7 +187,6 @@ TEST_F(SubTypeTest, IsBool)
   DO(test_unary(is_bool, t_i64, false));
   DO(test_unary(is_bool, t_i128, false));
   DO(test_unary(is_bool, t_f_lit, false));
-  DO(test_unary(is_bool, t_f16, false));
   DO(test_unary(is_bool, t_f32, false));
   DO(test_unary(is_bool, t_f64, false));
   DO(test_unary(is_bool, t_none, false));
@@ -219,7 +215,6 @@ TEST_F(SubTypeTest, IsSIntLiteral)
   DO(test_unary(is_sintliteral, t_i64, false));
   DO(test_unary(is_sintliteral, t_i128, false));
   DO(test_unary(is_sintliteral, t_f_lit, false));
-  DO(test_unary(is_sintliteral, t_f16, false));
   DO(test_unary(is_sintliteral, t_f32, false));
   DO(test_unary(is_sintliteral, t_f64, false));
   DO(test_unary(is_sintliteral, t_none, false));
@@ -248,7 +243,6 @@ TEST_F(SubTypeTest, IsUIntLiteral)
   DO(test_unary(is_uintliteral, t_i64, false));
   DO(test_unary(is_uintliteral, t_i128, false));
   DO(test_unary(is_uintliteral, t_f_lit, false));
-  DO(test_unary(is_uintliteral, t_f16, false));
   DO(test_unary(is_uintliteral, t_f32, false));
   DO(test_unary(is_uintliteral, t_f64, false));
   DO(test_unary(is_uintliteral, t_none, false));
@@ -277,7 +271,6 @@ TEST_F(SubTypeTest, IsIntLiteral)
   DO(test_unary(is_intliteral, t_i64, false));
   DO(test_unary(is_intliteral, t_i128, false));
   DO(test_unary(is_intliteral, t_f_lit, false));
-  DO(test_unary(is_intliteral, t_f16, false));
   DO(test_unary(is_intliteral, t_f32, false));
   DO(test_unary(is_intliteral, t_f64, false));
   DO(test_unary(is_intliteral, t_none, false));
@@ -306,7 +299,6 @@ TEST_F(SubTypeTest, IsFloatLiteral)
   DO(test_unary(is_floatliteral, t_i64, false));
   DO(test_unary(is_floatliteral, t_i128, false));
   DO(test_unary(is_floatliteral, t_f_lit, true));
-  DO(test_unary(is_floatliteral, t_f16, false));
   DO(test_unary(is_floatliteral, t_f32, false));
   DO(test_unary(is_floatliteral, t_f64, false));
   DO(test_unary(is_floatliteral, t_none, false));
@@ -335,7 +327,6 @@ TEST_F(SubTypeTest, IsArithmetic)
   DO(test_unary(is_arithmetic, t_i64, true));
   DO(test_unary(is_arithmetic, t_i128, true));
   DO(test_unary(is_arithmetic, t_f_lit, true));
-  DO(test_unary(is_arithmetic, t_f16, true));
   DO(test_unary(is_arithmetic, t_f32, true));
   DO(test_unary(is_arithmetic, t_f64, true));
   DO(test_unary(is_arithmetic, t_none, false));
@@ -364,7 +355,6 @@ TEST_F(SubTypeTest, IsInteger)
   DO(test_unary(is_integer, t_i64, true));
   DO(test_unary(is_integer, t_i128, true));
   DO(test_unary(is_integer, t_f_lit, false));
-  DO(test_unary(is_integer, t_f16, false));
   DO(test_unary(is_integer, t_f32, false));
   DO(test_unary(is_integer, t_f64, false));
   DO(test_unary(is_integer, t_none, false));
@@ -393,7 +383,6 @@ TEST_F(SubTypeTest, IsFloat)
   DO(test_unary(is_float, t_i64, false));
   DO(test_unary(is_float, t_i128, false));
   DO(test_unary(is_float, t_f_lit, true));
-  DO(test_unary(is_float, t_f16, true));
   DO(test_unary(is_float, t_f32, true));
   DO(test_unary(is_float, t_f64, true));
   DO(test_unary(is_float, t_none, false));
@@ -422,7 +411,6 @@ TEST_F(SubTypeTest, IsSigned)
   DO(test_unary(is_signed, t_i64, true));
   DO(test_unary(is_signed, t_i128, true));
   //DO(test_unary(is_signed, t_f_lit, false)); TODO: failure
-  //DO(test_unary(is_signed, t_f16, false));  TODO: failure
   //DO(test_unary(is_signed, t_f32, false));  TODO: failure
   //DO(test_unary(is_signed, t_f64, false));  TODO: failure
   DO(test_unary(is_signed, t_none, false));
@@ -453,7 +441,6 @@ TEST_F(SubTypeTest, IsSingleType)
   DO(test_unary(is_singletype, t_i64, true));
   DO(test_unary(is_singletype, t_i128, true));
   DO(test_unary(is_singletype, t_f_lit, true));
-  DO(test_unary(is_singletype, t_f16, true));
   DO(test_unary(is_singletype, t_f32, true));
   DO(test_unary(is_singletype, t_f64, true));
   DO(test_unary(is_singletype, t_none, true));
@@ -485,7 +472,6 @@ TEST_F(SubTypeTest, IsConcrete)
   DO(test_unary(is_concrete, t_i64, true));
   DO(test_unary(is_concrete, t_i128, true));
   DO(test_unary(is_concrete, t_f_lit, true));
-  DO(test_unary(is_concrete, t_f16, true));
   DO(test_unary(is_concrete, t_f32, true));
   DO(test_unary(is_concrete, t_f64, true));
   DO(test_unary(is_concrete, t_none, true));
@@ -526,7 +512,6 @@ TEST_F(SubTypeTest, IsMathCompatible)
   DO(test_binary(is_math_compatible, t_i32, t_i32, true));
   DO(test_binary(is_math_compatible, t_i64, t_i64, true));
   DO(test_binary(is_math_compatible, t_i128, t_i128, true));
-  DO(test_binary(is_math_compatible, t_f16, t_f16, true));
   DO(test_binary(is_math_compatible, t_f32, t_f32, true));
   DO(test_binary(is_math_compatible, t_f64, t_f64, true));
 
@@ -544,7 +529,6 @@ TEST_F(SubTypeTest, IsMathCompatible)
   DO(test_binary(is_math_compatible, t_i16, t_i32, false));
   DO(test_binary(is_math_compatible, t_f32, t_f64, false));
   DO(test_binary(is_math_compatible, t_u8, t_i8, false));
-  DO(test_binary(is_math_compatible, t_u16, t_f16, false));
   DO(test_binary(is_math_compatible, t_i32, t_f32, false));
 
   DO(test_binary(is_math_compatible, t_u8, t_bool, false));

@@ -31,7 +31,6 @@ const char* builtin =
 " primitive U32"
 " primitive U64"
 " primitive U128"
-" primitive F16"
 " primitive F32"
 " primitive F64"
 " primitive SIntLiteral"
@@ -41,7 +40,7 @@ const char* builtin =
 " type SInt is (SIntLiteral | I8 | I16 | I32 | I64 | I128)"
 " type UInt is (UIntLiteral | U8 | U16 | U32 | U64 | U128)"
 " type Integer is (SInt | UInt)"
-" type Float is (FloatLiteral | F16 | F32 | F64)"
+" type Float is (FloatLiteral | F32 | F64)"
 " type Arithmetic is (Integer | Float)";
 
 
@@ -250,8 +249,6 @@ static void standard_arithmetic(token_id op_id)
 
   DO(test_bin_op(op_id, "U32", "UIntLiteral", "U32"));
   DO(test_bin_op(op_id, "UIntLiteral", "I32", "I32"));
-  DO(test_bin_op(op_id, "F16", "UIntLiteral", "F16"));
-  DO(test_bin_op(op_id, "UIntLiteral", "F16", "F16"));
   DO(test_bin_op(op_id, "F32", "FloatLiteral", "F32"));
   DO(test_bin_op(op_id, "FloatLiteral", "F32", "F32"));
 
@@ -265,7 +262,6 @@ static void standard_arithmetic(token_id op_id)
   DO(test_bin_op(op_id, "I32", "I32", "I32"));
   DO(test_bin_op(op_id, "I64", "I64", "I64"));
   DO(test_bin_op(op_id, "I128", "I128", "I128"));
-  DO(test_bin_op(op_id, "F16", "F16", "F16"));
   DO(test_bin_op(op_id, "F32", "F32", "F32"));
   DO(test_bin_op(op_id, "F64", "F64", "F64"));
 
@@ -275,7 +271,6 @@ static void standard_arithmetic(token_id op_id)
   DO(test_bin_op_bad(op_id, "Bool", "U8"));
   DO(test_bin_op_bad(op_id, "U8", "U16"));
   DO(test_bin_op_bad(op_id, "U8", "I8"));
-  DO(test_bin_op_bad(op_id, "U8", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "I32"));
   DO(test_bin_op_bad(op_id, "String", "I32"));
   DO(test_bin_op_bad(op_id, "F32", "String"));
@@ -373,7 +368,6 @@ TEST(ExprOperatorTest, UnaryMinus)
   DO(test_unary_op(TK_UNARY_MINUS, "I32", "I32"));
   DO(test_unary_op(TK_UNARY_MINUS, "I64", "I64"));
   DO(test_unary_op(TK_UNARY_MINUS, "I128", "I128"));
-  DO(test_unary_op(TK_UNARY_MINUS, "F16", "F16"));
   DO(test_unary_op(TK_UNARY_MINUS, "F32", "F32"));
   DO(test_unary_op(TK_UNARY_MINUS, "F64", "F64"));
 
@@ -418,7 +412,6 @@ static void standard_shift(token_id op_id)
   DO(test_bin_op_bad(op_id, "U8", "U16"));
   DO(test_bin_op_bad(op_id, "U8", "I8"));
 
-  DO(test_bin_op_bad(op_id, "U8", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "I32"));
   DO(test_bin_op_bad(op_id, "String", "I32"));
   DO(test_bin_op_bad(op_id, "F32", "String"));
@@ -454,8 +447,6 @@ static void standard_comparison(token_id op_id, const char* fn_name)
 
   DO(test_bin_op(op_id, "U32", "UIntLiteral", "Bool"));
   DO(test_bin_op(op_id, "UIntLiteral", "I32", "Bool"));
-  DO(test_bin_op(op_id, "F16", "UIntLiteral", "Bool"));
-  DO(test_bin_op(op_id, "UIntLiteral", "F16", "Bool"));
   DO(test_bin_op(op_id, "F32", "FloatLiteral", "Bool"));
   DO(test_bin_op(op_id, "FloatLiteral", "F32", "Bool"));
 
@@ -469,7 +460,6 @@ static void standard_comparison(token_id op_id, const char* fn_name)
   DO(test_bin_op(op_id, "I32", "I32", "Bool"));
   DO(test_bin_op(op_id, "I64", "I64", "Bool"));
   DO(test_bin_op(op_id, "I128", "I128", "Bool"));
-  DO(test_bin_op(op_id, "F16", "F16", "Bool"));
   DO(test_bin_op(op_id, "F32", "F32", "Bool"));
   DO(test_bin_op(op_id, "F64", "F64", "Bool"));
 
@@ -484,7 +474,6 @@ static void standard_comparison(token_id op_id, const char* fn_name)
 
   DO(test_bin_op_bad(op_id, "U8", "U16"));
   DO(test_bin_op_bad(op_id, "U8", "I8"));
-  DO(test_bin_op_bad(op_id, "U8", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "I32"));
   DO(test_bin_op_bad(op_id, "F32", "String"));
   DO(test_bin_op_bad(op_id, "I16", "Foo"));
@@ -498,7 +487,6 @@ static void standard_comparison(token_id op_id, const char* fn_name)
   DO(test_bin_op_to_fun(op_id, "Foo", "Foo", fn_name, AST_OK));
   DO(test_bin_op_to_fun(op_id, "UIntLiteral", "U8", fn_name, AST_OK));
   DO(test_bin_op_to_fun(op_id, "U32", "U32", fn_name, AST_OK));
-  DO(test_bin_op_to_fun(op_id, "FloatLiteral", "F16", fn_name, AST_OK));
   DO(test_bin_op_to_fun(op_id, "F32", "F32", fn_name, AST_OK));
   DO(test_bin_op_to_fun(op_id, "Bool", "Bool", fn_name, AST_OK));
   DO(test_bin_op_to_fun(op_id, "String", "String", fn_name, AST_OK));
@@ -579,9 +567,7 @@ static void standard_logical(token_id op_id)
   DO(test_bin_op_bad(op_id, "Bool", "U8"));
   DO(test_bin_op_bad(op_id, "U8", "U16"));
   DO(test_bin_op_bad(op_id, "U8", "I8"));
-  DO(test_bin_op_bad(op_id, "U8", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "I32"));
-  DO(test_bin_op_bad(op_id, "F16", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "F32"));
   DO(test_bin_op_bad(op_id, "F64", "F64"));
   DO(test_bin_op_bad(op_id, "F32", "UIntLiteral"));
@@ -593,7 +579,6 @@ static void standard_logical(token_id op_id)
   DO(test_bin_op_bad(op_id, "String", "I32"));
   DO(test_bin_op_bad(op_id, "String", "String"));
   DO(test_bin_op_bad(op_id, "Foo", "U8"));
-  DO(test_bin_op_bad(op_id, "Foo", "F16"));
   DO(test_bin_op_bad(op_id, "Foo", "String"));
   DO(test_bin_op_bad(op_id, "String", "Foo"));
   DO(test_bin_op_bad(op_id, "Foo", "Foo"));
@@ -636,7 +621,6 @@ TEST(ExprOperatorTest, Not)
 
   // TODO: We allow negation of floats? What does that even mean?
   //DO(test_unary_op_bad(TK_NOT, "FloatLiteral"));
-  //DO(test_unary_op_bad(TK_NOT, "F16"));
   //DO(test_unary_op_bad(TK_NOT, "F32"));
   //DO(test_unary_op_bad(TK_NOT, "F64"));
 
@@ -656,8 +640,6 @@ static void standard_identity(token_id op_id, token_id alt_id)
 
   DO(test_bin_op(op_id, "U32", "UIntLiteral", "Bool", alt_id));
   DO(test_bin_op(op_id, "UIntLiteral", "I32", "Bool", alt_id));
-  DO(test_bin_op(op_id, "F16", "UIntLiteral", "Bool", alt_id));
-  DO(test_bin_op(op_id, "UIntLiteral", "F16", "Bool", alt_id));
   DO(test_bin_op(op_id, "F32", "FloatLiteral", "Bool", alt_id));
   DO(test_bin_op(op_id, "FloatLiteral", "F32", "Bool", alt_id));
 
@@ -671,7 +653,6 @@ static void standard_identity(token_id op_id, token_id alt_id)
   DO(test_bin_op(op_id, "I32", "I32", "Bool", alt_id));
   DO(test_bin_op(op_id, "I64", "I64", "Bool", alt_id));
   DO(test_bin_op(op_id, "I128", "I128", "Bool", alt_id));
-  DO(test_bin_op(op_id, "F16", "F16", "Bool", alt_id));
   DO(test_bin_op(op_id, "F32", "F32", "Bool", alt_id));
   DO(test_bin_op(op_id, "F64", "F64", "Bool", alt_id));
   DO(test_bin_op(op_id, "Bool", "Bool", "Bool", alt_id));
@@ -695,7 +676,6 @@ static void standard_identity(token_id op_id, token_id alt_id)
   DO(test_bin_op_bad(op_id, "Bool", "U8"));
   DO(test_bin_op_bad(op_id, "U8", "U16"));
   DO(test_bin_op_bad(op_id, "U8", "I8"));
-  DO(test_bin_op_bad(op_id, "U8", "F16"));
   DO(test_bin_op_bad(op_id, "F32", "I32"));
   DO(test_bin_op_bad(op_id, "String", "I32"));
   DO(test_bin_op_bad(op_id, "F32", "String"));

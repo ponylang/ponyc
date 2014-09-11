@@ -22,7 +22,6 @@ extern const char* t_i16;
 extern const char* t_i32;
 extern const char* t_i64;
 extern const char* t_i128;
-extern const char* t_f16;
 extern const char* t_f32;
 extern const char* t_f64;
 extern const char* t_string;

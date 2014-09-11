@@ -223,7 +223,6 @@ void genprim_builtins(compile_t* c)
     {"$1_U64", "u64", LLVMInt64Type(), 64, false, false},
     {"$1_U128", "u128", LLVMIntType(128), 128, false, false},
 
-    // {"$1_F16", "f16", LLVMHalfType(), 16, false, true},
     {"$1_F32", "f32", LLVMFloatType(), 32, false, true},
     {"$1_F64", "f64", LLVMDoubleType(), 64, false, true},
 

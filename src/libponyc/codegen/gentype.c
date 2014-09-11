@@ -140,8 +140,6 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = LLVMIntType(128);
       else if(!strcmp(name, "UIntLiteral"))
         g->primitive = LLVMIntType(128);
-      else if(!strcmp(name, "F16"))
-        g->primitive = LLVMHalfType();
       else if(!strcmp(name, "F32"))
         g->primitive = LLVMFloatType();
       else if(!strcmp(name, "F64"))

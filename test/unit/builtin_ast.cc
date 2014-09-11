@@ -25,7 +25,6 @@ const char* t_i16 =    "(nominal{dataref I16} x (id I16) x val x)";
 const char* t_i32 =    "(nominal{dataref I32} x (id I32) x val x)";
 const char* t_i64 =    "(nominal{dataref I64} x (id I64) x val x)";
 const char* t_i128 =   "(nominal{dataref I128} x (id I128) x val x)";
-const char* t_f16 =    "(nominal{dataref F16} x (id F16) x val x)";
 const char* t_f32 =    "(nominal{dataref F32} x (id F32) x val x)";
 const char* t_f64 =    "(nominal{dataref F64} x (id F64) x val x)";
 const char* t_string = "(nominal{dataref String} x (id String) x val x)";
@@ -44,7 +43,7 @@ const char* t_structural =
 const char* builtin =
 "(package"
 "  {scope None True False Bool I8 I16 I32 I64 I128 U8 U16 U32 U64 U128"
-"    F16 F32 F64 SIntLiteral UIntLiteral FloatLiteral String"
+"    F32 F64 SIntLiteral UIntLiteral FloatLiteral String"
 "    SInt UInt Integer Float Arithmetic}"
 "  (module{scope}{def test}"
 
@@ -66,7 +65,6 @@ const char* builtin =
 "    (primitive{def U32} (id U32) x val x x)"
 "    (primitive{def U64} (id U64) x val x x)"
 "    (primitive{def U128} (id U128) x val x x)"
-"    (primitive{def F16} (id F16) x val x x)"
 "    (primitive{def F32} (id F32) x val x x)"
 "    (primitive{def F64} (id F64) x val x x)"
 "    (primitive{def SIntLiteral} (id SIntLiteral) x val x x)"
@@ -96,7 +94,6 @@ const char* builtin =
 "    (type{def Float} (id Float)"
 "      (uniontype"
 "        (nominal x (id FloatLiteral) x val x)"
-"        (nominal x (id F16) x val x)"
 "        (nominal x (id F32) x val x)"
 "        (nominal x (id F64) x val x)))"
 "    (type{def Arithmetic} (id Arithmetic)"

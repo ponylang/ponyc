@@ -24,8 +24,6 @@ trait ArithmeticConvertible
   fun box u64(): U64 => compiler_intrinsic
   fun box u128(): U128 => compiler_intrinsic
 
-  // TODO: put this back
-  /*fun box f16(): F16 => compiler_intrinsic*/
   fun box f32(): F32 => compiler_intrinsic
   fun box f64(): F64 => compiler_intrinsic
 
@@ -169,10 +167,6 @@ primitive U128 is Stringable, ArithmeticConvertible
 
   fun box string(): String => "U128"
 
-// TODO: put this back
-primitive F16 is Stringable/*, ArithmeticConvertible*/
-  fun box string(): String => "F16"
-
 primitive F32 is Stringable, ArithmeticConvertible
   fun box string(): String => "F32"
 
@@ -213,7 +207,6 @@ type Integer is
 
 type Float is
   ( FloatLiteral
-  | F16
   | F32
   | F64
   )
