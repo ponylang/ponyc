@@ -59,6 +59,11 @@ typedef enum pass_id
   PASS_TRAITS,
   PASS_SCOPE2,
   PASS_EXPR,
+  PASS_AST,
+  PASS_LLVM_IR,
+  PASS_BITCODE,
+  PASS_ASM,
+  PASS_OBJ,
   PASS_ALL
 } pass_id;
 
@@ -96,6 +101,6 @@ bool package_passes(ast_t* package);
 /** Apply the per program passes to the given AST.
 * Returns true on success, false on failure.
 */
-bool program_passes(ast_t* program, int opt, bool print_llvm);
+bool program_passes(ast_t* program, int opt);
 
 #endif

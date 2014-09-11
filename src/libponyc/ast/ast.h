@@ -264,9 +264,11 @@ ast_t* ast_append(ast_t* parent, ast_t* child);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);
 void ast_reverse(ast_t* ast);
-void ast_print(ast_t* ast, size_t width);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
+
+void ast_print(ast_t* ast);
+void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));

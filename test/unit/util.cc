@@ -76,7 +76,7 @@ void free_build_ast(ast_t* ast, source_t* src)
   }
 
   printf("free %p\n", ast);
-  ast_print(ast, 80);
+  ast_print(ast);
 
   if(find_sub_tree(ast, TK_MODULE) == NULL)
     source_close(src);
@@ -122,7 +122,7 @@ void check_symtab_entry(ast_t* scope, const char* name, const char* expected)
 
   symtab_t* symtab = ast_get_symtab(scope);
   ASSERT_NE((void*)NULL, symtab);
-  
+
   void* entry = symtab_get(symtab, stringtab(name));
 
   if(expected == NULL)
@@ -169,9 +169,9 @@ void check_tree(const char* expected, ast_t* actual_ast)
   {
     // Well that didn't work as expected then
     printf("Expected:\n");
-    ast_print(expect_ast, 80);
+    ast_print(expect_ast);
     printf("Got:\n");
-    ast_print(actual_ast, 80);
+    ast_print(actual_ast);
   }
 
   ASSERT_TRUE(r);
@@ -230,7 +230,7 @@ void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
   builder_t* actual_builder;
   ast_t* actual_ast;
   DO(build_ast_from_string(before, &actual_ast, &actual_builder));
-  
+
   ast_t* tree = builder_find_sub_tree(actual_builder, label);
   if(tree == NULL)  // Given label not defined, use whole tree
     tree = builder_get_root(actual_builder);

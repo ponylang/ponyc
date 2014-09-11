@@ -433,24 +433,27 @@ static void append_link_paths(char* str)
   }
 }
 
-static bool codegen_finalise(compile_t* c, int opt)
+static bool codegen_finalise(compile_t* c, int opt, pass_id pass_limit)
 {
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
-  // Module pass manager.
-  LLVMPassManagerRef mpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target_data, mpm);
-  LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
-  LLVMRunPassManager(mpm, c->module);
-  LLVMDisposePassManager(mpm);
+  if(opt > 0)
+  {
+    // Module pass manager.
+    LLVMPassManagerRef mpm = LLVMCreatePassManager();
+    LLVMAddTargetData(c->target_data, mpm);
+    LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
+    LLVMRunPassManager(mpm, c->module);
+    LLVMDisposePassManager(mpm);
 
-  // LTO pass manager.
-  LLVMPassManagerRef lpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target_data, lpm);
-  LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, lpm, true, true);
-  LLVMRunPassManager(lpm, c->module);
-  LLVMDisposePassManager(lpm);
+    // LTO pass manager.
+    LLVMPassManagerRef lpm = LLVMCreatePassManager();
+    LLVMAddTargetData(c->target_data, lpm);
+    LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, lpm, true, true);
+    LLVMRunPassManager(lpm, c->module);
+    LLVMDisposePassManager(lpm);
+  }
 
   char* msg;
 
@@ -470,8 +473,40 @@ static bool codegen_finalise(compile_t* c, int opt)
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
 
-  // Pick an executable name.
+  // Generate an output file name.
+  const char* extension;
+
+  switch(pass_limit)
+  {
+    case PASS_LLVM_IR: extension = "ll"; break;
+    case PASS_BITCODE: extension = "bc"; break;
+    case PASS_ASM: extension = "s"; break;
+    default: extension = "o"; break;
+  }
+
   size_t len = strlen(c->filename);
+  VLA(char, file_o, len + 5);
+  snprintf(file_o, len + 5, "%s.%s", c->filename, extension);
+
+  if(pass_limit == PASS_LLVM_IR)
+  {
+    // TODO: not to stderr?
+    LLVMDumpModule(c->module);
+    return true;
+  }
+
+  if(pass_limit == PASS_BITCODE)
+  {
+    if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
+    {
+      errorf(NULL, "couldn't write bitcode to %s", file_o);
+      return false;
+    }
+
+    return true;
+  }
+
+  // Pick an executable name.
   VLA(char, file_exe, len + 3);
   snprintf(file_exe, len + 3, "%s", c->filename);
   int suffix = 0;
@@ -494,10 +529,6 @@ static bool codegen_finalise(compile_t* c, int opt)
   }
 
   len = strlen(file_exe);
-
-  // Generate an object file.
-  VLA(char, file_o, len + 3);
-  snprintf(file_o, len + 3, "%s.o", file_exe);
 
   LLVMTargetRef target;
   char* err;
@@ -524,16 +555,21 @@ static bool codegen_finalise(compile_t* c, int opt)
     return false;
   }
 
-  if(LLVMTargetMachineEmitToFile(machine, c->module, file_o, LLVMObjectFile,
-    &err) != 0)
+  LLVMCodeGenFileType fmt =
+    pass_limit == PASS_ASM ? LLVMAssemblyFile : LLVMObjectFile;
+
+  if(LLVMTargetMachineEmitToFile(machine, c->module, file_o, fmt, &err) != 0)
   {
-    errorf(NULL, "couldn't create object file: %s", err);
+    errorf(NULL, "couldn't create file: %s", err);
     LLVMDisposeMessage(err);
     LLVMDisposeTargetMachine(machine);
     return false;
   }
 
   LLVMDisposeTargetMachine(machine);
+
+  if(pass_limit < PASS_ALL)
+    return true;
 
   // Link the program.
 #if defined(PLATFORM_IS_MACOSX)
@@ -608,13 +644,10 @@ static bool codegen_finalise(compile_t* c, int opt)
   return true;
 }
 
-static void codegen_cleanup(compile_t* c, bool print_llvm)
+static void codegen_cleanup(compile_t* c)
 {
   while(c->context != NULL)
     pop_context(c);
-
-  if(print_llvm)
-    LLVMDumpModule(c->module);
 
   LLVMDisposePassManager(c->fpm);
   LLVMPassManagerBuilderDispose(c->pmb);
@@ -627,7 +660,7 @@ static void codegen_cleanup(compile_t* c, bool print_llvm)
   painter_free(c->painter);
 }
 
-bool codegen(ast_t* program, int opt, bool print_llvm)
+bool codegen(ast_t* program, int opt, pass_id pass_limit)
 {
   compile_t c;
   codegen_init(&c, program, opt);
@@ -636,9 +669,9 @@ bool codegen(ast_t* program, int opt, bool print_llvm)
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c, opt);
+    ok = codegen_finalise(&c, opt, pass_limit);
 
-  codegen_cleanup(&c, print_llvm);
+  codegen_cleanup(&c);
   return ok;
 }
 

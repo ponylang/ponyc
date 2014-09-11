@@ -2,6 +2,7 @@
 #define CODEGEN_H
 
 #include "colour.h"
+#include "../pass/pass.h"
 #include "../ast/ast.h"
 
 #include <llvm-c/Core.h>
@@ -55,7 +56,7 @@ typedef struct compile_t
   compile_context_t* context;
 } compile_t;
 
-bool codegen(ast_t* program, int opt, bool print_llvm);
+bool codegen(ast_t* program, int opt, pass_id pass_limit);
 
 LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type);
 

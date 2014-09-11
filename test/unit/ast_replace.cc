@@ -44,9 +44,9 @@ static void test(const char* orig, const char* replace, const char* expect)
   if(!r)
   {
     printf("Expected:\n");
-    ast_print(expect_ast, 80);
+    ast_print(expect_ast);
     printf("\nGot:\n");
-    ast_print(actual_ast, 80);
+    ast_print(actual_ast);
     printf("\n");
   }
 

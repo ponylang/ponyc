@@ -36,9 +36,9 @@ static void parse_good(const char* src, const char* expect)
     if(!r)
     {
       printf("Expected:\n");
-      ast_print(expect_ast, 80);
+      ast_print(expect_ast);
       printf("Got:\n");
-      ast_print(actual_ast, 80);
+      ast_print(actual_ast);
     }
 
     ASSERT_TRUE(r);

@@ -23,8 +23,9 @@ struct ast_t
 
 static const char in[] = "  ";
 static const size_t in_len = 2;
+static size_t width = 80;
 
-void print(ast_t* ast, size_t indent, size_t width, bool type);
+void print(ast_t* ast, size_t indent, bool type);
 
 
 static void print_token(token_t* token)
@@ -98,7 +99,7 @@ void print_compact(ast_t* ast, size_t indent, bool type)
     printf(type ? "]" : ")");
 }
 
-void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
+void print_extended(ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
     printf(in);
@@ -117,12 +118,12 @@ void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
 
   while(child != NULL)
   {
-    print(child, indent + 1, width, false);
+    print(child, indent + 1, false);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    print(ast->type, indent + 1, width, true);
+    print(ast->type, indent + 1, true);
 
   if(parens)
   {
@@ -133,7 +134,7 @@ void print_extended(ast_t* ast, size_t indent, size_t width, bool type)
   }
 }
 
-void print(ast_t* ast, size_t indent, size_t width, bool type)
+void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent);
 
@@ -141,7 +142,7 @@ void print(ast_t* ast, size_t indent, size_t width, bool type)
   {
     print_compact(ast, indent, type);
   } else {
-    print_extended(ast, indent, width, type);
+    print_extended(ast, indent, type);
   }
 
   printf("\n");
@@ -823,15 +824,6 @@ void ast_reverse(ast_t* ast)
   ast->child = last;
 }
 
-void ast_print(ast_t* ast, size_t width)
-{
-  if(ast == NULL)
-    return;
-
-  print(ast, 0, width, false);
-  printf("\n");
-}
-
 void ast_free(ast_t* ast)
 {
   if(ast == NULL)
@@ -871,6 +863,20 @@ void ast_free_unattached(ast_t* ast)
 {
   if((ast != NULL) && (ast->parent == NULL))
     ast_free(ast);
+}
+
+void ast_print(ast_t* ast)
+{
+  if(ast == NULL)
+    return;
+
+  print(ast, 0, false);
+  printf("\n");
+}
+
+void ast_setwidth(size_t w)
+{
+  width = w;
 }
 
 void ast_error(ast_t* ast, const char* fmt, ...)

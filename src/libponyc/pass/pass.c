@@ -41,6 +41,11 @@ const char* pass_name(pass_id pass)
     case PASS_TRAITS:   return "traits";
     case PASS_SCOPE2:   return "scope2";
     case PASS_EXPR:     return "expr";
+    case PASS_AST:      return "ast";
+    case PASS_LLVM_IR:  return "ir";
+    case PASS_BITCODE:  return "bitcode";
+    case PASS_ASM:      return "asm";
+    case PASS_OBJ:      return "obj";
     case PASS_ALL:      return "all";
     default:            return "error";
   }
@@ -105,10 +110,16 @@ bool package_passes(ast_t* package)
 }
 
 
-bool program_passes(ast_t* program, int opt, bool print_llvm)
+bool program_passes(ast_t* program, int opt)
 {
-  if(pass_limit < PASS_ALL)
+  if(pass_limit == PASS_AST)
+  {
+    ast_print(program);
     return true;
-  
-  return codegen(program, opt, print_llvm);
+  }
+
+  if(pass_limit < PASS_LLVM_IR)
+    return true;
+
+  return codegen(program, opt, pass_limit);
 }

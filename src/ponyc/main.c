@@ -29,9 +29,6 @@ static arg_t args[] =
 {
   {"opt", 'O', ARGUMENT_REQUIRED, OPT_OPTLEVEL},
   {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
-
-  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
-  {"llvm", 'l', ARGUMENT_NONE, OPT_LLVM},
   {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
   {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
   {"width", 'w', ARGUMENT_REQUIRED, OPT_WIDTH},
@@ -45,9 +42,23 @@ void usage()
     "  --opt, -O       optimisation level (0-3)\n"
     "  --path, -p      add additional colon separated search paths\n"
     "\n"
-    "  --ast, -a       print the AST\n"
-    "  --llvm, -l      print the LLVM IR\n"
     "  --pass, -r      restrict phases\n"
+    "    =parse\n"
+    "    =parsefix\n"
+    "    =sugar\n"
+    "    =scope1\n"
+    "    =name\n"
+    "    =flatten\n"
+    "    =traits\n"
+    "    =scope2\n"
+    "    =expr\n"
+    "    =ast          output an abstract syntax tree\n"
+    "    =ir           output LLVM IR\n"
+    "    =bitcode      output LLVM bitcode\n"
+    "    =asm          output assembly\n"
+    "    =obj          output an object file\n"
+    "    =all          the default: generate an executable\n"
+    "\n"
     "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
     "\n"
@@ -83,8 +94,6 @@ int main(int argc, char* argv[])
 {
   package_init(argv[0]);
 
-  bool ast = false;
-  bool llvm = false;
   int opt = 0;
   size_t width = get_width();
 
@@ -99,8 +108,6 @@ int main(int argc, char* argv[])
       case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
 
-      case OPT_AST: ast = true; break;
-      case OPT_LLVM: llvm = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: width = atoi(s.arg_val); break;
 
@@ -136,12 +143,7 @@ int main(int argc, char* argv[])
 
   if(program != NULL)
   {
-    if(ast)
-    {
-      ast_print(program, width);
-    }
-
-    if(!program_passes(program, opt, llvm))
+    if(!program_passes(program, opt))
       ret = -1;
 
     ast_free(program);
