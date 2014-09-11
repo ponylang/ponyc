@@ -120,8 +120,8 @@
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
       -- premake produces posix-style absolute paths
-      local path = path.getabsolute("./packages"):gsub("%/", "\\")
-      cmd = "mklink /J " .. path .. " $(TargetDir)"
+      local path = path.getabsolute("./packages/builtin"):gsub("%/", "\\")
+      cmd = "mklink /J $(TargetDir)\\builtin \"" .. path .. "\""
     configuration "*"
       link_libponyc()
       postbuildcommands { cmd }

@@ -161,7 +161,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(g->structure == NULL)
     g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
 
-  bool opaque = LLVMIsOpaqueStruct(g->structure);
+  bool opaque = LLVMIsOpaqueStruct(g->structure) != 0;
 
   if(g->underlying == TK_TUPLETYPE)
   {
@@ -196,7 +196,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 
 static void setup_tuple_fields(gentype_t* g)
 {
-  g->field_count = ast_childcount(g->ast);
+  g->field_count = (int)ast_childcount(g->ast);
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
 
   ast_t* child = ast_child(g->ast);
