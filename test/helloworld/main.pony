@@ -18,8 +18,6 @@ actor Test
     _main = m
 
 actor Main
-  var _test: (I32, Foo)
-
   new create(env: Env) =>
     Test(this)
     var t: Foo = Bar
@@ -31,8 +29,6 @@ actor Main
     var zero: U64 = 0
     var p = @printf[I32]("%d\n"._cstring(), env.args.length() % zero)
     @printf[I32]("%d\n"._cstring(), p)
-
-    /*var tuple = (@time[U64](0), @time[U64](0))*/
 
     var num = for i in Range[U64](0, env.args.length()) do
       if i == 3 then
