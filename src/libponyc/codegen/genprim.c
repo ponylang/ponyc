@@ -197,7 +197,89 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
+typedef struct prim_conv_t
+{
+  const char* type_name;
+  const char* fun_name;
+  LLVMTypeRef type;
+  int size;
+  bool is_signed;
+  bool is_float;
+} prim_conv_t;
+
 void genprim_builtins(compile_t* c)
 {
-  // TODO: All the builtin functions.
+  prim_conv_t conv[] =
+  {
+    {"$1_I8", "i8", LLVMInt8Type(), 8, true, false},
+    {"$1_I16", "i16", LLVMInt16Type(), 16, true, false},
+    {"$1_I32", "i32", LLVMInt32Type(), 32, true, false},
+    {"$1_I64", "i64", LLVMInt64Type(), 64, true, false},
+    {"$1_I128", "i128", LLVMIntType(128), 128, true, false},
+
+    {"$1_U8", "u8", LLVMInt8Type(), 8, false, false},
+    {"$1_U16", "u16", LLVMInt16Type(), 16, false, false},
+    {"$1_U32", "u32", LLVMInt32Type(), 32, false, false},
+    {"$1_U64", "u64", LLVMInt64Type(), 64, false, false},
+    {"$1_U128", "u128", LLVMIntType(128), 128, false, false},
+
+    // {"$1_F16", "f16", LLVMHalfType(), 16, false, true},
+    {"$1_F32", "f32", LLVMFloatType(), 32, false, true},
+    {"$1_F64", "f64", LLVMDoubleType(), 64, false, true},
+
+    {NULL, NULL, NULL, false, false}
+  };
+
+  // All the builtin functions.
+  for(prim_conv_t* from = conv; from->type_name != NULL; from++)
+  {
+    for(prim_conv_t* to = conv; to->type_name != NULL; to++)
+    {
+      const char* name = genname_fun(from->type_name, to->fun_name, NULL);
+      LLVMTypeRef f_type = LLVMFunctionType(to->type, &from->type, 1, false);
+
+      LLVMValueRef fun = codegen_addfun(c, name, f_type);
+      codegen_startfun(c, fun);
+      LLVMValueRef arg = LLVMGetParam(fun, 0);
+
+      LLVMValueRef result;
+
+      if(from->is_float)
+      {
+        if(to->is_float)
+        {
+          if(from->size < to->size)
+            result = LLVMBuildFPExt(c->builder, arg, to->type, "");
+          else if(from->size > to->size)
+            result = LLVMBuildFPTrunc(c->builder, arg, to->type, "");
+          else
+            result = arg;
+        } else if(to->is_signed) {
+          result = LLVMBuildFPToSI(c->builder, arg, to->type, "");
+        } else {
+          result = LLVMBuildFPToUI(c->builder, arg, to->type, "");
+        }
+      } else {
+        if(to->is_float)
+        {
+          if(from->is_signed)
+            result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
+          else
+            result = LLVMBuildUIToFP(c->builder, arg, to->type, "");
+        } else if(from->size > to->size) {
+            result = LLVMBuildTrunc(c->builder, arg, to->type, "");
+        } else if(from->size < to->size) {
+          if(from->is_signed)
+            result = LLVMBuildSExt(c->builder, arg, to->type, "");
+          else
+            result = LLVMBuildZExt(c->builder, arg, to->type, "");
+        } else {
+          result = arg;
+        }
+      }
+
+      LLVMBuildRet(c->builder, result);
+      codegen_finishfun(c);
+    }
+  }
 }

@@ -295,6 +295,9 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   if(func == NULL)
     return NULL;
 
+  if(LLVMCountBasicBlocks(func) != 0)
+    return func;
+
   codegen_startfun(c, func);
 
   ast_t* body = ast_childidx(fun, 6);
