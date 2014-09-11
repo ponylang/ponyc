@@ -209,7 +209,7 @@ static void setup_tuple_fields(gentype_t* g)
   }
 }
 
-static void setup_type_fields(gentype_t* g)
+static bool setup_type_fields(gentype_t* g)
 {
   assert(ast_id(g->ast) == TK_NOMINAL);
 
@@ -219,7 +219,7 @@ static void setup_type_fields(gentype_t* g)
   ast_t* def = (ast_t*)ast_data(g->ast);
 
   if(ast_id(def) == TK_PRIMITIVE)
-    return;
+    return true;
 
   ast_t* typeargs = ast_childidx(g->ast, 2);
   ast_t* typeparams = ast_childidx(def, 1);
@@ -234,8 +234,19 @@ static void setup_type_fields(gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      {
+        // TODO: remove when field initialisation works
+        ast_t* init = ast_childidx(member, 2);
+
+        if(ast_id(init) != TK_NONE)
+        {
+          ast_error(init, "codegen for field initialisation not implemented");
+          return false;
+        }
+
         g->field_count++;
         break;
+      }
 
       default: {}
     }
@@ -244,7 +255,7 @@ static void setup_type_fields(gentype_t* g)
   }
 
   if(g->field_count == 0)
-    return;
+    return true;
 
   g->fields = (ast_t**)calloc(g->field_count, sizeof(ast_t*));
 
@@ -268,6 +279,8 @@ static void setup_type_fields(gentype_t* g)
 
     member = ast_sibling(member);
   }
+
+  return true;
 }
 
 static void free_fields(gentype_t* g)
@@ -457,7 +470,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(g->primitive == NULL)
   {
     // Not a primitive type. Generate all the fields and a trace function.
-    setup_type_fields(g);
+    if(!setup_type_fields(g))
+      return false;
+
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
     free_fields(g);
 
