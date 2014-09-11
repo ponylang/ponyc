@@ -16,11 +16,10 @@
 
 enum
 {
-  OPT_AST,
-  OPT_LLVM,
   OPT_OPTLEVEL,
   OPT_PATHS,
   OPT_PASSES,
+  OPT_AST,
   OPT_TRACE,
   OPT_WIDTH
 };
@@ -30,6 +29,7 @@ static arg_t args[] =
   {"opt", 'O', ARGUMENT_REQUIRED, OPT_OPTLEVEL},
   {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
   {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
+  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
   {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
   {"width", 'w', ARGUMENT_REQUIRED, OPT_WIDTH},
   ARGUMENTS_FINISH
@@ -52,13 +52,13 @@ void usage()
     "    =traits\n"
     "    =scope2\n"
     "    =expr\n"
-    "    =ast          output an abstract syntax tree\n"
     "    =ir           output LLVM IR\n"
     "    =bitcode      output LLVM bitcode\n"
     "    =asm          output assembly\n"
     "    =obj          output an object file\n"
     "    =all          the default: generate an executable\n"
     "\n"
+    "  --ast, -a       output an abstract syntax tree\n"
     "  --trace, -t     enable parse trace\n"
     "  --width, -w     width to target when printing the AST\n"
     "\n"
@@ -96,6 +96,7 @@ int main(int argc, char* argv[])
 
   int opt = 0;
   size_t width = get_width();
+  bool print_ast = false;
 
   parse_state_t s;
   opt_init(args, &s, &argc, argv);
@@ -108,6 +109,7 @@ int main(int argc, char* argv[])
       case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
 
+      case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: width = atoi(s.arg_val); break;
 
@@ -122,6 +124,8 @@ int main(int argc, char* argv[])
       default: usage(); return -1;
     }
   }
+
+  ast_setwidth(width);
 
   if((opt < 0) || (opt > 3))
   {
@@ -138,11 +142,20 @@ int main(int argc, char* argv[])
     default: usage(); return -1;
   }
 
+  if(path[0] == '-')
+  {
+    usage();
+    return -1;
+  }
+
   ast_t* program = program_load(path);
   int ret = 0;
 
   if(program != NULL)
   {
+    if(print_ast)
+      ast_print(program);
+
     if(!program_passes(program, opt))
       ret = -1;
 
