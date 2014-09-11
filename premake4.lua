@@ -112,7 +112,9 @@ solution "ponyc"
     buildoptions "-std=gnu11"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
-    postbuildcommands { "cp -R packages/* $(TARGETDIR)"  }
+    postbuildcommands {
+      "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+    }
 
   include "ponyrt/src/"
   include "utils/"
