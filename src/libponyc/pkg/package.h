@@ -1,6 +1,7 @@
 #ifndef PACKAGE_H
 #define PACKAGE_H
 
+#include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ds/stringtab.h"
 
@@ -11,8 +12,10 @@
  *
  * @param name The path to the executable file, generally argv[0]. The real
  *   path will be determined from argv[0].
+ *
+ * @param opt Pass options, used to initialise the code generator.
  */
-void package_init(const char* name);
+bool package_init(const char* name, pass_opt_t* opt);
 
 /**
  * Gets the list of search paths.
@@ -77,8 +80,8 @@ ast_t* package_hygienic_id(ast_t* ast);
 const char* package_hygienic_id_string(ast_t* ast);
 
 /**
- * Cleans up the list of search directories.
+ * Cleans up the list of search directories and shuts down the code generator.
  */
-void package_done();
+void package_done(pass_opt_t* opt);
 
 #endif

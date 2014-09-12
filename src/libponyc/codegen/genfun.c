@@ -121,7 +121,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   if(ast_id(fun) != TK_FUN)
   {
     // handlers always have a receiver and have no return value
-    ftype = LLVMFunctionType(LLVMVoidType(), tparams, (int)count, false);
+    ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
     const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
     LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
@@ -179,10 +179,11 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMGetParamTypes(f_type, &f_params[extra]);
 
   // The first one becomes the message size, the second the message ID.
-  f_params[0] = LLVMInt32Type();
-  f_params[1] = LLVMInt32Type();
+  f_params[0] = c->i32;
+  f_params[1] = c->i32;
   f_params[2] = c->void_ptr;
-  LLVMTypeRef msg_type = LLVMStructType(f_params, count, false);
+  LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, count,
+    false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
@@ -197,8 +198,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
 
   // Allocate the message, setting its size and ID.
   LLVMValueRef args[2];
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[1] = LLVMConstInt(c->i32, size, false);
+  args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
@@ -237,8 +238,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
 {
   // Add a case to the dispatch function to handle this message.
   codegen_startfun(c, g->dispatch_fn);
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(g->dispatch_fn, "handler");
-  LLVMValueRef id = LLVMConstInt(LLVMInt32Type(), index, false);
+  LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn, "handler");
+  LLVMValueRef id = LLVMConstInt(c->i32, index, false);
   LLVMAddCase(g->dispatch_switch, id, block);
 
   // Destructure the message.

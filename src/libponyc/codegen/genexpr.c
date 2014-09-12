@@ -135,10 +135,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_this(c, ast);
 
     case TK_INT:
-      return LLVMConstInt(LLVMIntType(128), ast_int(ast), false);
+      return LLVMConstInt(c->i128, ast_int(ast), false);
 
     case TK_FLOAT:
-      return LLVMConstReal(LLVMDoubleType(), ast_float(ast));
+      return LLVMConstReal(c->f64, ast_float(ast));
 
     case TK_STRING:
       return gen_string(c, ast);
@@ -171,7 +171,7 @@ bool gen_binop(compile_t* c, ast_t* ast,
   if((*l_value == NULL) || (*r_value == NULL))
     return false;
 
-  return gen_binop_cast(left, right, l_value, r_value);
+  return gen_binop_cast(c, left, right, l_value, r_value);
 }
 
 LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
@@ -256,8 +256,8 @@ LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
   return NULL;
 }
 
-bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
-  LLVMValueRef* pr_value)
+bool gen_binop_cast(compile_t* c, ast_t* left, ast_t* right,
+  LLVMValueRef* pl_value, LLVMValueRef* pr_value)
 {
   LLVMValueRef l_value = *pl_value;
   LLVMValueRef r_value = *pr_value;
@@ -269,7 +269,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   {
     if(is_floatliteral(right_type))
     {
-      *pl_value = LLVMConstSIToFP(l_value, LLVMDoubleType());
+      *pl_value = LLVMConstSIToFP(l_value, c->f64);
       return true;
     }
 
@@ -278,7 +278,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   } else if(is_intliteral(right_type)) {
     if(is_floatliteral(left_type))
     {
-      *pr_value = LLVMConstSIToFP(r_value, LLVMDoubleType());
+      *pr_value = LLVMConstSIToFP(r_value, c->f64);
       return true;
     }
 

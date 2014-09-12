@@ -48,13 +48,13 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   // build a conditional
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "if_then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "if_else");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "if_then");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context, fun, "if_else");
   LLVMBasicBlockRef post_block = NULL;
 
   // if both branches return, we have no post block
   if(type != NULL)
-    post_block = LLVMAppendBasicBlock(fun, "if_post");
+    post_block = LLVMAppendBasicBlockInContext(c->context, fun, "if_post");
 
   LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
@@ -121,10 +121,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef init_block = LLVMAppendBasicBlock(fun, "while_init");
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "while_body");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "while_else");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "while_post");
+  LLVMBasicBlockRef init_block = LLVMAppendBasicBlockInContext(c->context, fun, "while_init");
+  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context, fun, "while_body");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context, fun, "while_else");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "while_post");
   LLVMBuildBr(c->builder, init_block);
 
   // keep a reference to the init block
@@ -193,9 +193,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(fun, "repeat_body");
-  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(fun, "repeat_cond");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "repeat_post");
+  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context, fun, "repeat_body");
+  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context, fun, "repeat_cond");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "repeat_post");
   LLVMBuildBr(c->builder, body_block);
 
   // keep a reference to the cond block
@@ -244,7 +244,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   ast_t* body_type = ast_type(body);
 
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef break_block = LLVMAppendBasicBlock(fun, "break");
+  LLVMBasicBlockRef break_block = LLVMAppendBasicBlockInContext(c->context, fun, "break");
   LLVMBuildBr(c->builder, break_block);
 
   switch(ast_id(loop))
@@ -300,7 +300,8 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
     case TK_REPEAT:
     {
       // create a new continue block before the condition block
-      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlock(target, "continue");
+      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlockInContext(c->context,
+        target, "continue");
 
       // jump to the continue block
       LLVMBuildBr(c->builder, cont_block);
@@ -365,11 +366,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMValueRef fun = LLVMGetBasicBlockParent(block);
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "try_else");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context, fun, "try_else");
   LLVMBasicBlockRef post_block = NULL;
 
   if(type != NULL)
-    post_block = LLVMAppendBasicBlock(fun, "try_post");
+    post_block = LLVMAppendBasicBlockInContext(c->context, fun, "try_post");
 
   // keep a reference to the else block
   ast_setdata(ast, else_block);
@@ -397,8 +398,9 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // valueless. the first landing pad is always the destination.
   LLVMTypeRef lp_elements[2];
   lp_elements[0] = c->void_ptr;
-  lp_elements[1] = LLVMInt32Type();
-  LLVMTypeRef lp_type = LLVMStructType(lp_elements, 2, false);
+  lp_elements[1] = c->i32;
+  LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
+    false);
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 0, "");
   LLVMSetCleanup(landing, true);

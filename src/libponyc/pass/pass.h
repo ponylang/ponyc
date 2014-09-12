@@ -87,6 +87,7 @@ inline pass_id operator++(pass_id& current, int)
 typedef struct pass_opt_t
 {
   bool opt;
+  char* triple;
   char* cpu;
   char* features;
 } pass_opt_t;

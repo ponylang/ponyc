@@ -19,7 +19,7 @@ static void make_box_type(compile_t* c, gentype_t* g)
     g->structure = LLVMGetTypeByName(c->module, box_name);
 
     if(g->structure == NULL)
-      g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), box_name);
+      g->structure = LLVMStructCreateNamed(c->context, box_name);
   }
 
   if(LLVMIsOpaqueStruct(g->structure))
@@ -111,41 +111,41 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     {
       if(!strcmp(name, "True"))
       {
-        g->primitive = LLVMInt1Type();
-        g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
+        g->primitive = c->i1;
+        g->instance = LLVMConstInt(c->i1, 1, false);
       } else if(!strcmp(name, "False")) {
-        g->primitive = LLVMInt1Type();
-        g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
+        g->primitive = c->i1;
+        g->instance = LLVMConstInt(c->i1, 0, false);
       } else if(!strcmp(name, "I8"))
-        g->primitive = LLVMInt8Type();
+        g->primitive = c->i8;
       else if(!strcmp(name, "U8"))
-        g->primitive = LLVMInt8Type();
+        g->primitive = c->i8;
       else if(!strcmp(name, "I16"))
-        g->primitive = LLVMInt16Type();
+        g->primitive = c->i16;
       else if(!strcmp(name, "U16"))
-        g->primitive = LLVMInt16Type();
+        g->primitive = c->i16;
       else if(!strcmp(name, "I32"))
-        g->primitive = LLVMInt32Type();
+        g->primitive = c->i32;
       else if(!strcmp(name, "U32"))
-        g->primitive = LLVMInt32Type();
+        g->primitive = c->i32;
       else if(!strcmp(name, "I64"))
-        g->primitive = LLVMInt64Type();
+        g->primitive = c->i64;
       else if(!strcmp(name, "U64"))
-        g->primitive = LLVMInt64Type();
+        g->primitive = c->i64;
       else if(!strcmp(name, "I128"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "U128"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "SIntLiteral"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "UIntLiteral"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "F32"))
-        g->primitive = LLVMFloatType();
+        g->primitive = c->f32;
       else if(!strcmp(name, "F64"))
-        g->primitive = LLVMDoubleType();
+        g->primitive = c->f64;
       else if(!strcmp(name, "FloatLiteral"))
-        g->primitive = LLVMDoubleType();
+        g->primitive = c->f64;
       else if(!strcmp(name, "_Pointer"))
         return genprim_pointer(c, g, prelim);
     }
@@ -157,7 +157,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   g->structure = LLVMGetTypeByName(c->module, g->type_name);
 
   if(g->structure == NULL)
-    g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
+    g->structure = LLVMStructCreateNamed(c->context, g->type_name);
 
   bool opaque = LLVMIsOpaqueStruct(g->structure) != 0;
 
@@ -303,7 +303,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   codegen_startfun(c, g->dispatch_fn);
 
-  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlock(g->dispatch_fn,
+  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn,
     "unreachable");
 
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
@@ -555,7 +555,7 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
       // Special case Bool. Otherwise it's just a raw object pointer.
       if(is_bool(ast))
       {
-        g->primitive = LLVMInt1Type();
+        g->primitive = c->i1;
         g->use_type = g->primitive;
       } else {
         g->use_type = c->object_ptr;

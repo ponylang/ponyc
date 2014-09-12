@@ -21,6 +21,7 @@ enum
   OPT_PATHS,
   OPT_CPU,
   OPT_FEATURES,
+  OPT_TRIPLE,
 
   OPT_PASSES,
   OPT_AST,
@@ -34,6 +35,7 @@ static arg_t args[] =
   {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
   {"cpu", 'c', ARGUMENT_REQUIRED, OPT_CPU},
   {"features", 'f', ARGUMENT_REQUIRED, OPT_FEATURES},
+  {"triple", 0, ARGUMENT_REQUIRED, OPT_TRIPLE},
 
   {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
   {"ast", 'a', ARGUMENT_NONE, OPT_AST},
@@ -42,7 +44,7 @@ static arg_t args[] =
   ARGUMENTS_FINISH
 };
 
-void usage()
+static void usage()
 {
   printf(
     "ponyc [OPTIONS] <package directory>\n"
@@ -57,6 +59,8 @@ void usage()
     "    =name         Default is the host CPU.\n"
     "  --features, -f  CPU features to enable or disable.\n"
     "    =+this,-that  Use + to enable, - to disable.\n"
+    "  --triple        Set the target triple.\n"
+    "    =name         Defaults to the host triple.\n"
     "\n"
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
@@ -82,7 +86,7 @@ void usage()
     );
 }
 
-size_t get_width()
+static size_t get_width()
 {
   size_t width = 80;
 #ifdef _WIN64
@@ -107,20 +111,38 @@ size_t get_width()
   return width;
 }
 
+static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
+{
+  ast_t* program = program_load(path);
+
+  if(program == NULL)
+    return false;
+
+  if(print_ast)
+    ast_print(program);
+
+  bool ok = program_passes(program, opt);
+  ast_free(program);
+
+  print_errors();
+  free_errors();
+
+  return ok;
+}
+
 int main(int argc, char* argv[])
 {
-  package_init(argv[0]);
-
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
 
-  size_t width = get_width();
+  ast_setwidth(get_width());
   bool print_ast = false;
 
   parse_state_t s;
   opt_init(args, &s, &argc, argv);
 
   int id;
+
   while((id = opt_next(&s)) != -1)
   {
     switch(id)
@@ -129,10 +151,11 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
+      case OPT_TRIPLE: opt.triple = s.arg_val; break;
 
       case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
-      case OPT_WIDTH: width = atoi(s.arg_val); break;
+      case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
 
       case OPT_PASSES:
         if(!limit_passes(s.arg_val))
@@ -146,43 +169,38 @@ int main(int argc, char* argv[])
     }
   }
 
-  ast_setwidth(width);
-  const char* path;
+  bool ok = true;
 
-  switch(argc)
+  for(int i = 1; i < argc; i++)
   {
-    case 1: path = "."; break;
-    case 2: path = argv[1]; break;
-    default: usage(); return -1;
+    if(argv[i][0] == '-')
+    {
+      printf("Unrecognised option: %s\n", argv[i]);
+      ok = false;
+    }
   }
 
-  if(path[0] == '-')
+  if(!ok)
   {
+    printf("\n");
     usage();
     return -1;
   }
 
-  ast_t* program = program_load(path);
-  int ret = 0;
-
-  if(program != NULL)
+  if(package_init(argv[0], &opt))
   {
-    if(print_ast)
-      ast_print(program);
+    if(argc == 1)
+    {
+      ok &= compile_package(".", &opt, print_ast);
+    } else {
+      for(int i = 1; i < argc; i++)
+        ok &= compile_package(argv[i], &opt, print_ast);
+    }
 
-    if(!program_passes(program, &opt))
-      ret = -1;
-
-    ast_free(program);
-  } else {
-    ret = -1;
+    package_done(&opt);
   }
 
-  print_errors();
-  free_errors();
-
-  package_done();
   stringtab_done();
 
-  return ret;
+  return ok ? 0 : -1;
 }

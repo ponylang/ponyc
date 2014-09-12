@@ -14,7 +14,8 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
     return NULL;
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
+  LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
+    this_block, "then");
   LLVMMoveBasicBlockAfter(then_block, this_block);
   LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
 
@@ -107,8 +108,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
 
     LLVMValueRef index[2];
-    index[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
-    index[1] = LLVMConstInt(LLVMInt32Type(), colour, false);
+    index[0] = LLVMConstInt(c->i32, 0, false);
+    index[1] = LLVMConstInt(c->i32, colour, false);
 
     LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
     func = LLVMBuildLoad(c->builder, func_ptr, "");
@@ -259,7 +260,7 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   size_t size = LLVMABISizeOfType(c->target_data, l_type);
 
   LLVMValueRef args[1];
-  args[0] = LLVMConstInt(LLVMInt64Type(), size, false);
+  args[0] = LLVMConstInt(c->i64, size, false);
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
   return LLVMBuildBitCast(c->builder, result, type, "");
@@ -321,9 +322,9 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
 
   // build a conditional
   LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "else");
-  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlock(fun, "merge");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "then");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context, fun, "else");
+  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(c->context, fun, "merge");
 
   LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
 

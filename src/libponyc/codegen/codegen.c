@@ -27,72 +27,88 @@
 #  include <unistd.h>
 #endif
 
+LLVMTargetMachineRef machine;
+LLVMPassManagerBuilderRef pmb;
+LLVMPassManagerRef mpm;
+LLVMPassManagerRef lpm;
+
 static void codegen_fatal(const char* reason)
 {
+  printf("%s\n", reason);
   print_errors();
 }
 
-static compile_context_t* push_context(compile_t* c)
+static compile_frame_t* push_frame(compile_t* c)
 {
-  compile_context_t* context = (compile_context_t*)calloc(1,
-    sizeof(compile_context_t));
+  compile_frame_t* frame = (compile_frame_t*)calloc(1,
+    sizeof(compile_frame_t));
 
-  context->prev = c->context;
-  c->context = context;
+  frame->prev = c->frame;
+  c->frame = frame;
 
-  return context;
+  return frame;
 }
 
-static void pop_context(compile_t* c)
+static void pop_frame(compile_t* c)
 {
-  compile_context_t* context = c->context;
-  c->context = context->prev;
+  compile_frame_t* frame = c->frame;
+  c->frame = frame->prev;
 
-  if(context->restore_builder != NULL)
-    LLVMPositionBuilderAtEnd(c->builder, context->restore_builder);
+  if(frame->restore_builder != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, frame->restore_builder);
 
-  free(context);
+  free(frame);
 }
 
-static void codegen_runtime(compile_t* c)
+static void init_runtime(compile_t* c)
 {
   LLVMTypeRef type;
   LLVMTypeRef params[4];
 
+  c->void_type = LLVMVoidTypeInContext(c->context);
+  c->i1 = LLVMInt1TypeInContext(c->context);
+  c->i8 = LLVMInt8TypeInContext(c->context);
+  c->i16 = LLVMInt16TypeInContext(c->context);
+  c->i32 = LLVMInt32TypeInContext(c->context);
+  c->i64 = LLVMInt64TypeInContext(c->context);
+  c->i128 = LLVMIntTypeInContext(c->context, 128);
+  c->f32 = LLVMFloatTypeInContext(c->context);
+  c->f64 = LLVMDoubleTypeInContext(c->context);
+
   // i8*
-  c->void_ptr = LLVMPointerType(LLVMInt8Type(), 0);
+  c->void_ptr = LLVMPointerType(c->i8, 0);
 
   // forward declare object
-  c->object_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$object");
+  c->object_type = LLVMStructCreateNamed(c->context, "$object");
   c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
-  c->actor_pad = LLVMArrayType(LLVMInt8Type(), 265);
+  c->actor_pad = LLVMArrayType(c->i8, 265);
 
   // message
-  params[0] = LLVMInt32Type();
-  params[1] = LLVMInt32Type();
-  c->msg_type = LLVMStructCreateNamed(LLVMGetGlobalContext(), "$message");
+  params[0] = c->i32;
+  params[1] = c->i32;
+  c->msg_type = LLVMStructCreateNamed(c->context, "$message");
   c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);
 
   // trace
   // void (*)($object*)
   params[0] = c->object_ptr;
-  c->trace_type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  c->trace_type = LLVMFunctionType(c->void_type, params, 1, false);
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // dispatch
   // void (*)($object*, $message*)
   params[0] = c->object_ptr;
   params[1] = c->msg_ptr;
-  c->dispatch_type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  c->dispatch_type = LLVMFunctionType(c->void_type, params, 2, false);
   c->dispatch_fn = LLVMPointerType(c->dispatch_type, 0);
 
   // void (*)($object*)
   params[0] = c->object_ptr;
   c->final_fn = LLVMPointerType(
-    LLVMFunctionType(LLVMVoidType(), params, 1, false), 0);
+    LLVMFunctionType(c->void_type, params, 1, false), 0);
 
   // descriptor
   c->descriptor_type = gendesc_type(c, genname_descriptor(NULL), 0);
@@ -110,86 +126,86 @@ static void codegen_runtime(compile_t* c)
   // void pony_sendv($object*, $message*);
   params[0] = c->object_ptr;
   params[1] = c->msg_ptr;
-  type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  type = LLVMFunctionType(c->void_type, params, 2, false);
   LLVMAddFunction(c->module, "pony_sendv", type);
 
   // i8* pony_alloc(i64)
-  params[0] = LLVMInt64Type();
+  params[0] = c->i64;
   type = LLVMFunctionType(c->void_ptr, params, 1, false);
   LLVMAddFunction(c->module, "pony_alloc", type);
 
   // i8* pony_realloc(i8*, i64)
   params[0] = c->void_ptr;
-  params[1] = LLVMInt64Type();
+  params[1] = c->i64;
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   LLVMAddFunction(c->module, "pony_realloc", type);
 
   // $message* pony_alloc_msg(i32, i32)
-  params[0] = LLVMInt32Type();
-  params[1] = LLVMInt32Type();
+  params[0] = c->i32;
+  params[1] = c->i32;
   type = LLVMFunctionType(c->msg_ptr, params, 2, false);
   LLVMAddFunction(c->module, "pony_alloc_msg", type);
 
   // void pony_trace(i8*)
   params[0] = c->void_ptr;
-  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
   LLVMAddFunction(c->module, "pony_trace", type);
 
   // void pony_traceactor($object*)
   params[0] = c->object_ptr;
-  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
   LLVMAddFunction(c->module, "pony_traceactor", type);
 
   // void pony_traceobject($object*, trace_fn)
   params[0] = c->object_ptr;
   params[1] = c->trace_fn;
-  type = LLVMFunctionType(LLVMVoidType(), params, 2, false);
+  type = LLVMFunctionType(c->void_type, params, 2, false);
   LLVMAddFunction(c->module, "pony_traceobject", type);
 
   // void pony_gc_send()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_gc_send", type);
 
   // void pony_gc_recv()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_gc_recv", type);
 
   // void pony_send_done()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_send_done", type);
 
   // void pony_recv_done()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_recv_done", type);
 
   // i32 pony_init(i32, i8**)
-  params[0] = LLVMInt32Type();
+  params[0] = c->i32;
   params[1] = LLVMPointerType(c->void_ptr, 0);
-  type = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
+  type = LLVMFunctionType(c->i32, params, 2, false);
   LLVMAddFunction(c->module, "pony_init", type);
 
   // void pony_become($object*)
   params[0] = c->object_ptr;
-  type = LLVMFunctionType(LLVMVoidType(), params, 1, false);
+  type = LLVMFunctionType(c->void_type, params, 1, false);
   LLVMAddFunction(c->module, "pony_become", type);
 
   // i32 pony_start(i32)
-  params[0] = LLVMInt32Type();
-  type = LLVMFunctionType(LLVMInt32Type(), params, 1, false);
+  params[0] = c->i32;
+  type = LLVMFunctionType(c->i32, params, 1, false);
   LLVMAddFunction(c->module, "pony_start", type);
 
   // void pony_throw()
-  type = LLVMFunctionType(LLVMVoidType(), NULL, 0, false);
+  type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_throw", type);
 
   // i32 pony_personality_v0(...)
-  type = LLVMFunctionType(LLVMInt32Type(), NULL, 0, true);
+  type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
   // i8* memcpy(i8*, i8*, i64)
   params[0] = c->void_ptr;
   params[1] = c->void_ptr;
-  params[2] = LLVMInt64Type();
+  params[2] = c->i64;
   type = LLVMFunctionType(c->void_ptr, params, 3, false);
   LLVMAddFunction(c->module, "memcpy", type);
 }
@@ -229,10 +245,10 @@ static int behaviour_index(gentype_t* g, const char* name)
 static void codegen_main(compile_t* c, gentype_t* g)
 {
   LLVMTypeRef params[2];
-  params[0] = LLVMInt32Type();
-  params[1] = LLVMPointerType(LLVMPointerType(LLVMInt8Type(), 0), 0);
+  params[0] = c->i32;
+  params[1] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
 
-  LLVMTypeRef ftype = LLVMFunctionType(LLVMInt32Type(), params, 2, false);
+  LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 2, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
   codegen_startfun(c, func);
@@ -255,22 +271,23 @@ static void codegen_main(compile_t* c, gentype_t* g)
   // Create an Env on the main actor's heap.
   const char* env_name = "$1_Env";
   const char* env_create = genname_fun(env_name, "_create", NULL);
-  args[0] = LLVMBuildZExt(c->builder, args[0], LLVMInt64Type(), "");
+  args[0] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
   LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
   LLVMSetInstructionCallConv(env, LLVMFastCallConv);
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
-  f_params[0] = LLVMInt32Type();
-  f_params[1] = LLVMInt32Type();
+  f_params[0] = c->i32;
+  f_params[1] = c->i32;
   f_params[2] = c->void_ptr;
   f_params[3] = LLVMTypeOf(env);
-  LLVMTypeRef msg_type = LLVMStructType(f_params, 4, false);
+  LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, 4,
+    false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
-  args[0] = LLVMConstInt(LLVMInt32Type(), behaviour_index(g, "create"), false);
+  args[1] = LLVMConstInt(c->i32, 0, false);
+  args[0] = LLVMConstInt(c->i32, behaviour_index(g, "create"), false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
@@ -293,7 +310,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
   gencall_runtime(c, "pony_sendv", args, 2, "");
 
   // Start the runtime.
-  LLVMValueRef zero = LLVMConstInt(LLVMInt32Type(), 0, false);
+  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
 
   // Return the runtime exit code.
@@ -346,65 +363,37 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return true;
 }
 
-static void codegen_init(compile_t* c, ast_t* program, pass_opt_t* opt)
+static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
-  LLVMInitializeNativeTarget();
-  LLVMInitializeAllTargets();
-  LLVMInitializeAllTargetMCs();
-  LLVMInitializeAllAsmPrinters();
-  LLVMEnablePrettyStackTrace();
-  LLVMInstallFatalErrorHandler(codegen_fatal);
-
   c->painter = painter_create();
   painter_colour(c->painter, program);
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
 
-  LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
-  LLVMInitializeCore(passreg);
-  LLVMInitializeTransformUtils(passreg);
-  LLVMInitializeScalarOpts(passreg);
-  LLVMInitializeObjCARCOpts(passreg);
-  LLVMInitializeVectorization(passreg);
-  LLVMInitializeInstCombine(passreg);
-  LLVMInitializeIPO(passreg);
-  LLVMInitializeInstrumentation(passreg);
-  LLVMInitializeAnalysis(passreg);
-  LLVMInitializeIPA(passreg);
-  LLVMInitializeCodeGen(passreg);
-  LLVMInitializeTarget(passreg);
-
-  // Default triple.
-  c->triple = LLVMGetDefaultTargetTriple();
-
-  // Create a module.
-  c->module = LLVMModuleCreateWithName(c->filename);
-
-  // Set the target triple.
-  LLVMSetTarget(c->module, c->triple);
+  // Context.
+  c->context = LLVMContextCreate();
 
   // Target data.
-  c->target_data = LLVMCreateTargetData(LLVMGetDataLayout(c->module));
+  c->target_data = LLVMGetTargetMachineData(machine);
 
-  // Pass manager builder.
-  c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt->opt ? 3 : 0);
+  // Create a module.
+  c->module = LLVMModuleCreateWithNameInContext(c->filename, c->context);
 
-  if(opt->opt)
-    LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
+  // Set the target triple.
+  LLVMSetTarget(c->module, opt->triple);
+
+  // IR builder.
+  c->builder = LLVMCreateBuilderInContext(c->context);
 
   // Function pass manager.
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
   LLVMAddTargetData(c->target_data, c->fpm);
-  LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
+  LLVMPassManagerBuilderPopulateFunctionPassManager(pmb, c->fpm);
   LLVMInitializeFunctionPassManager(c->fpm);
 
-  // IR builder.
-  c->builder = LLVMCreateBuilder();
-
-  // Empty context stack.
-  c->context = NULL;
+  // Empty frame stack.
+  c->frame = NULL;
 }
 
 static size_t link_path_length()
@@ -443,18 +432,10 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   if(opt->opt)
   {
     // Module pass manager.
-    LLVMPassManagerRef mpm = LLVMCreatePassManager();
-    LLVMAddTargetData(c->target_data, mpm);
-    LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, mpm);
     LLVMRunPassManager(mpm, c->module);
-    LLVMDisposePassManager(mpm);
 
     // LTO pass manager.
-    LLVMPassManagerRef lpm = LLVMCreatePassManager();
-    LLVMAddTargetData(c->target_data, lpm);
-    LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, lpm, true, true);
     LLVMRunPassManager(lpm, c->module);
-    LLVMDisposePassManager(lpm);
   }
 
   char* msg;
@@ -539,74 +520,32 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   len = strlen(file_exe);
 
-  LLVMTargetRef target;
-  char* err;
-
-  if(LLVMGetTargetFromTriple(c->triple, &target, &err) != 0)
-  {
-    errorf(NULL, "couldn't create target: %s", err);
-    LLVMDisposeMessage(err);
-    return false;
-  }
-
-  // Set up the target CPU and feature set.
-  char* cpu;
-  char* features;
-
-  // Default to the host CPU.
-  if(opt->cpu == NULL)
-    cpu = LLVMGetHostCPUName();
-  else
-    cpu = opt->cpu;
-
-  // Default to the features of the target CPU.
-  if(opt->features == NULL)
-    features = "";
-  else
-    features = opt->features;
-
-  LLVMCodeGenOptLevel opt_level =
-    opt->opt ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
-
-  LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, features, opt_level, LLVMRelocStatic, LLVMCodeModelDefault);
-
-  if(opt->cpu == NULL)
-    LLVMDisposeMessage(cpu);
-
-  if(machine == NULL)
-  {
-    errorf(NULL, "couldn't create target machine");
-    return false;
-  }
-
   LLVMCodeGenFileType fmt =
     pass_limit == PASS_ASM ? LLVMAssemblyFile : LLVMObjectFile;
+
+  char* err;
 
   if(LLVMTargetMachineEmitToFile(machine, c->module, file_o, fmt, &err) != 0)
   {
     errorf(NULL, "couldn't create file: %s", err);
     LLVMDisposeMessage(err);
-    LLVMDisposeTargetMachine(machine);
     return false;
   }
-
-  LLVMDisposeTargetMachine(machine);
 
   if(pass_limit < PASS_ALL)
     return true;
 
   // Link the program.
 #if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(c->triple, '-');
+  char* arch = strchr(opt->triple, '-');
 
   if(arch == NULL)
   {
-    errorf(NULL, "couldn't determine architecture from %s", c->triple);
+    errorf(NULL, "couldn't determine architecture from %s", opt->triple);
     return false;
   }
 
-  arch = strndup(c->triple, arch - c->triple);
+  arch = strndup(opt->triple, arch - opt->triple);
 
   size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
@@ -671,25 +610,120 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
 static void codegen_cleanup(compile_t* c)
 {
-  while(c->context != NULL)
-    pop_context(c);
+  while(c->frame != NULL)
+    pop_frame(c);
 
   LLVMDisposePassManager(c->fpm);
-  LLVMPassManagerBuilderDispose(c->pmb);
-
   LLVMDisposeBuilder(c->builder);
-  LLVMDisposeTargetData(c->target_data);
   LLVMDisposeModule(c->module);
-  LLVMDisposeMessage(c->triple);
-  LLVMShutdown();
+  LLVMContextDispose(c->context);
   painter_free(c->painter);
+}
+
+bool codegen_init(pass_opt_t* opt)
+{
+  LLVMInitializeNativeTarget();
+  LLVMInitializeAllTargets();
+  LLVMInitializeAllTargetMCs();
+  LLVMInitializeAllAsmPrinters();
+  LLVMEnablePrettyStackTrace();
+  LLVMInstallFatalErrorHandler(codegen_fatal);
+
+  LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
+  LLVMInitializeCore(passreg);
+  LLVMInitializeTransformUtils(passreg);
+  LLVMInitializeScalarOpts(passreg);
+  LLVMInitializeObjCARCOpts(passreg);
+  LLVMInitializeVectorization(passreg);
+  LLVMInitializeInstCombine(passreg);
+  LLVMInitializeIPO(passreg);
+  LLVMInitializeInstrumentation(passreg);
+  LLVMInitializeAnalysis(passreg);
+  LLVMInitializeIPA(passreg);
+  LLVMInitializeCodeGen(passreg);
+  LLVMInitializeTarget(passreg);
+
+  // Default triple, cpu and features.
+  if(opt->triple != NULL)
+    opt->triple = LLVMCreateMessage(opt->triple);
+  else
+    opt->triple = LLVMGetDefaultTargetTriple();
+
+  if(opt->cpu != NULL)
+    opt->cpu = LLVMCreateMessage(opt->cpu);
+  else
+    opt->cpu = LLVMGetHostCPUName();
+
+  if(opt->features != NULL)
+    opt->features = LLVMCreateMessage(opt->features);
+  else
+    opt->features = LLVMCreateMessage("");
+
+  LLVMTargetRef target;
+  char* err;
+
+  if(LLVMGetTargetFromTriple(opt->triple, &target, &err) != 0)
+  {
+    errorf(NULL, "couldn't create target: %s", err);
+    LLVMDisposeMessage(err);
+    return false;
+  }
+
+  LLVMCodeGenOptLevel opt_level =
+    opt->opt ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+
+  machine = LLVMCreateTargetMachine(target, opt->triple,
+    opt->cpu, opt->features, opt_level, LLVMRelocStatic, LLVMCodeModelDefault);
+
+  if(machine == NULL)
+  {
+    errorf(NULL, "couldn't create target machine");
+    return false;
+  }
+
+  LLVMTargetDataRef target_data = LLVMGetTargetMachineData(machine);
+
+  // Pass manager builder.
+  pmb = LLVMPassManagerBuilderCreate();
+  LLVMPassManagerBuilderSetOptLevel(pmb, opt->opt ? 3 : 0);
+
+  if(opt->opt)
+    LLVMPassManagerBuilderUseInlinerWithThreshold(pmb, 275);
+
+  // Module pass manager.
+  mpm = LLVMCreatePassManager();
+  LLVMAddTargetData(target_data, mpm);
+  LLVMPassManagerBuilderPopulateModulePassManager(pmb, mpm);
+
+  // LTO pass manager.
+  lpm = LLVMCreatePassManager();
+  LLVMAddTargetData(target_data, lpm);
+  LLVMPassManagerBuilderPopulateLTOPassManager(pmb, lpm, true, true);
+
+  return true;
+}
+
+void codegen_shutdown(pass_opt_t* opt)
+{
+  LLVMDisposePassManager(mpm);
+  LLVMDisposePassManager(lpm);
+  LLVMPassManagerBuilderDispose(pmb);
+  LLVMDisposeTargetMachine(machine);
+
+  LLVMDisposeMessage(opt->triple);
+  LLVMDisposeMessage(opt->cpu);
+  LLVMDisposeMessage(opt->features);
+
+  LLVMShutdown();
 }
 
 bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 {
   compile_t c;
-  codegen_init(&c, program, opt);
-  codegen_runtime(&c);
+  memset(&c, 0, sizeof(compile_t));
+
+  init_module(&c, program, opt);
+  init_runtime(&c);
   genprim_builtins(&c);
   bool ok = codegen_program(&c, program);
 
@@ -709,33 +743,33 @@ LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun)
 {
-  compile_context_t* context = push_context(c);
+  compile_frame_t* frame = push_frame(c);
 
-  context->fun = fun;
-  context->restore_builder = LLVMGetInsertBlock(c->builder);
+  frame->fun = fun;
+  frame->restore_builder = LLVMGetInsertBlock(c->builder);
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
-    LLVMBasicBlockRef block = LLVMAppendBasicBlock(fun, "entry");
+    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, fun, "entry");
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
 }
 
 void codegen_pausefun(compile_t* c)
 {
-  pop_context(c);
+  pop_frame(c);
 }
 
 void codegen_finishfun(compile_t* c)
 {
-  compile_context_t* context = c->context;
+  compile_frame_t* frame = c->frame;
 
-  if(LLVMVerifyFunction(context->fun, LLVMPrintMessageAction) == 0)
+  if(LLVMVerifyFunction(frame->fun, LLVMPrintMessageAction) == 0)
   {
-    LLVMRunFunctionPassManager(c->fpm, context->fun);
+    LLVMRunFunctionPassManager(c->fpm, frame->fun);
   } else {
     errorf(NULL, "function verification failed");
   }
 
-  pop_context(c);
+  pop_frame(c);
 }

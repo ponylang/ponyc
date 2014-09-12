@@ -66,11 +66,11 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
   if(type != NULL)
     return type;
 
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), desc_name);
+  type = LLVMStructCreateNamed(c->context, desc_name);
 
   LLVMTypeRef params[9];
-  params[0] = LLVMInt32Type(); // id
-  params[1] = LLVMInt32Type(); // size
+  params[0] = c->i32; // id
+  params[1] = c->i32; // size
   params[2] = c->trace_fn; // trace
   params[3] = c->trace_fn; // serialise
   params[4] = c->trace_fn; // deserialise
@@ -130,8 +130,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // Generate a separate type ID for every type.
-  args[0] = LLVMConstInt(LLVMInt32Type(), c->next_type_id++, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
+  args[0] = LLVMConstInt(c->i32, c->next_type_id++, false);
+  args[1] = LLVMConstInt(c->i32, size, false);
   args[2] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
   args[3] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
   args[4] = make_function_ptr(c, genname_deserialise(g->type_name),

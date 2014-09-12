@@ -1,5 +1,5 @@
 #include "package.h"
-#include "../pass/pass.h"
+#include "../codegen/codegen.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
 #include "../ast/ast.h"
@@ -370,14 +370,18 @@ static void add_path(const char* path)
     search = strlist_push(search, stringtab(path));
 }
 
-void package_init(const char* name)
+bool package_init(const char* name, pass_opt_t* opt)
 {
+  if(!codegen_init(opt))
+    return false;
+
   char path[FILENAME_MAX];
 
   if(execpath(name, path))
     add_path(path);
 
   package_add_paths(getenv("PONYPATH"));
+  return true;
 }
 
 strlist_t* package_paths()
@@ -529,8 +533,10 @@ const char* package_hygienic_id_string(ast_t* ast)
   return id_to_string(id);
 }
 
-void package_done()
+void package_done(pass_opt_t* opt)
 {
+  codegen_shutdown(opt);
+
   strlist_free(search);
   search = NULL;
 

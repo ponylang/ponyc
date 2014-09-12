@@ -28,7 +28,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   // Set up a constant integer for the allocation size.
   size_t size = LLVMABISizeOfType(c->target_data, elem_g.use_type);
-  LLVMValueRef l_size = LLVMConstInt(LLVMInt64Type(), size, false);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   // create
   const char* name = genname_fun(g->type_name, "create", NULL);
@@ -39,7 +39,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
     return true;
 
   LLVMTypeRef params[3];
-  params[0] = LLVMInt64Type();
+  params[0] = c->i64;
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 1, false);
   fun = codegen_addfun(c, name, ftype);
@@ -60,7 +60,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   name = genname_fun(g->type_name, "realloc", NULL);
 
   params[0] = g->use_type;
-  params[1] = LLVMInt64Type();
+  params[1] = c->i64;
 
   ftype = LLVMFunctionType(g->use_type, params, 2, false);
   fun = codegen_addfun(c, name, ftype);
@@ -82,7 +82,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   name = genname_fun(g->type_name, "apply", NULL);
 
   params[0] = g->use_type;
-  params[1] = LLVMInt64Type();
+  params[1] = c->i64;
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 2, false);
   fun = codegen_addfun(c, name, ftype);
@@ -101,7 +101,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   name = genname_fun(g->type_name, "update", NULL);
 
   params[0] = g->use_type;
-  params[1] = LLVMInt64Type();
+  params[1] = c->i64;
   params[2] = elem_g.use_type;
 
   ftype = LLVMFunctionType(elem_g.use_type, params, 3, false);
@@ -123,9 +123,9 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   params[0] = g->use_type;
   params[1] = g->use_type;
-  params[2] = LLVMInt64Type();
+  params[2] = c->i64;
 
-  ftype = LLVMFunctionType(LLVMInt64Type(), params, 3, false);
+  ftype = LLVMFunctionType(c->i64, params, 3, false);
   fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
@@ -154,9 +154,9 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
   LLVMSetValueName(arg, "arg");
 
-  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlock(trace_fn, "cond");
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlock(trace_fn, "body");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(trace_fn, "post");
+  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "cond");
+  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "body");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "post");
 
   // Read the count and the base pointer.
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type, "array");
@@ -173,8 +173,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   // While the index is less than the count, trace an element. The initial
   // index when coming from the entry block is zero.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, LLVMInt64Type(), "");
-  LLVMValueRef zero = LLVMConstInt(LLVMInt64Type(), 0, false);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i64, "");
+  LLVMValueRef zero = LLVMConstInt(c->i64, 0, false);
   LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(trace_fn);
   LLVMAddIncoming(phi, &zero, &entry_block, 1);
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
@@ -186,7 +186,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   gencall_trace(c, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.
-  LLVMValueRef one = LLVMConstInt(LLVMInt64Type(), 1, false);
+  LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
   LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
   LLVMAddIncoming(phi, &inc, &body_block, 1);
   LLVMBuildBr(c->builder, cond_block);
@@ -211,20 +211,20 @@ void genprim_builtins(compile_t* c)
 {
   prim_conv_t conv[] =
   {
-    {"$1_I8", "i8", LLVMInt8Type(), 8, true, false},
-    {"$1_I16", "i16", LLVMInt16Type(), 16, true, false},
-    {"$1_I32", "i32", LLVMInt32Type(), 32, true, false},
-    {"$1_I64", "i64", LLVMInt64Type(), 64, true, false},
-    {"$1_I128", "i128", LLVMIntType(128), 128, true, false},
+    {"$1_I8", "i8", c->i8, 8, true, false},
+    {"$1_I16", "i16", c->i16, 16, true, false},
+    {"$1_I32", "i32", c->i32, 32, true, false},
+    {"$1_I64", "i64", c->i64, 64, true, false},
+    {"$1_I128", "i128", c->i128, 128, true, false},
 
-    {"$1_U8", "u8", LLVMInt8Type(), 8, false, false},
-    {"$1_U16", "u16", LLVMInt16Type(), 16, false, false},
-    {"$1_U32", "u32", LLVMInt32Type(), 32, false, false},
-    {"$1_U64", "u64", LLVMInt64Type(), 64, false, false},
-    {"$1_U128", "u128", LLVMIntType(128), 128, false, false},
+    {"$1_U8", "u8", c->i8, 8, false, false},
+    {"$1_U16", "u16", c->i16, 16, false, false},
+    {"$1_U32", "u32", c->i32, 32, false, false},
+    {"$1_U64", "u64", c->i64, 64, false, false},
+    {"$1_U128", "u128", c->i128, 128, false, false},
 
-    {"$1_F32", "f32", LLVMFloatType(), 32, false, true},
-    {"$1_F64", "f64", LLVMDoubleType(), 64, false, true},
+    {"$1_F32", "f32", c->f32, 32, false, true},
+    {"$1_F64", "f64", c->f64, 64, false, true},
 
     {NULL, NULL, NULL, false, false}
   };

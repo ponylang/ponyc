@@ -158,10 +158,11 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   size_t len = strlen(name);
 
   LLVMValueRef args[4];
-  args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 0, false);
 
-  LLVMValueRef str = LLVMConstString(name, (unsigned int)len, false);
+  LLVMValueRef str = LLVMConstStringInContext(c->context, name,
+    (unsigned int)len, false);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
@@ -173,8 +174,8 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
     return NULL;
 
   args[0] = g.desc;
-  args[1] = LLVMConstInt(LLVMInt64Type(), len, false);
-  args[2] = LLVMConstInt(LLVMInt64Type(), 0, false);
+  args[1] = LLVMConstInt(c->i64, len, false);
+  args[2] = LLVMConstInt(c->i64, 0, false);
   args[3] = str_ptr;
 
   LLVMValueRef inst = LLVMConstNamedStruct(g.structure, args, 4);

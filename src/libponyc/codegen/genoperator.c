@@ -181,8 +181,8 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
   LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "div_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "div_post");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "div_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "div_post");
 
   // Check for div by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);
@@ -242,8 +242,8 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
   LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "mod_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlock(fun, "mod_post");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "mod_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "mod_post");
 
   // Check for mod by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);
@@ -504,7 +504,7 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   }
 
   // TODO: structural check if both sides are the same boxed primitive type
-  LLVMTypeRef type = LLVMIntPtrType(c->target_data);
+  LLVMTypeRef type = LLVMIntPtrTypeInContext(c->context, c->target_data);
   l_value = LLVMBuildPtrToInt(c->builder, l_value, type, "");
   r_value = LLVMBuildPtrToInt(c->builder, r_value, type, "");
 
