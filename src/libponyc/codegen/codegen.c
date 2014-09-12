@@ -27,10 +27,10 @@
 #  include <unistd.h>
 #endif
 
-LLVMTargetMachineRef machine;
-LLVMPassManagerBuilderRef pmb;
-LLVMPassManagerRef mpm;
-LLVMPassManagerRef lpm;
+static LLVMTargetMachineRef machine;
+static LLVMPassManagerBuilderRef pmb;
+static LLVMPassManagerRef mpm;
+static LLVMPassManagerRef lpm;
 
 static void codegen_fatal(const char* reason)
 {
