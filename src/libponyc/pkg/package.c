@@ -123,11 +123,11 @@ static bool execpath(const char* file, char* path)
 {
   // if it contains a separator of any kind, it's an absolute or relative path
   bool is_path = strchr(file, '/') != NULL;
-  
+
 #ifdef PLATFORM_IS_WINDOWS
   is_path |= strchr(file, '\\') != NULL;
 #endif
-  
+
   if(is_path)
     return filepath(file, path);
 
@@ -392,7 +392,11 @@ void package_add_paths(const char* paths)
 
   while(true)
   {
-    char* p = strchr((char*)paths, ':');
+#ifdef PLATFORM_IS_WINDOWS
+    const char* p = strchr(paths, ';');
+#else
+    const char* p = strchr(paths, ':');
+#endif
     size_t len;
 
     if(p != NULL)
@@ -491,7 +495,7 @@ ast_t* package_id(ast_t* ast)
 const char* package_filename(ast_t* ast)
 {
   package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
-  
+
 #ifdef PLATFORM_IS_POSIX_BASED
   const char* p = strrchr(pkg->path, '/');
 #elif defined(PLATFORM_IS_WINDOWS)
