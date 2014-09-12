@@ -346,7 +346,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return true;
 }
 
-static void codegen_init(compile_t* c, ast_t* program, int opt)
+static void codegen_init(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   LLVMInitializeNativeTarget();
   LLVMInitializeAllTargets();
@@ -389,8 +389,10 @@ static void codegen_init(compile_t* c, ast_t* program, int opt)
 
   // Pass manager builder.
   c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt);
-  LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
+  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt->opt ? 3 : 0);
+
+  if(opt->opt)
+    LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
 
   // Function pass manager.
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
@@ -433,12 +435,12 @@ static void append_link_paths(char* str)
   }
 }
 
-static bool codegen_finalise(compile_t* c, int opt, pass_id pass_limit)
+static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 {
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
-  if(opt > 0)
+  if(opt->opt)
   {
     // Module pass manager.
     LLVMPassManagerRef mpm = LLVMCreatePassManager();
@@ -547,14 +549,30 @@ static bool codegen_finalise(compile_t* c, int opt, pass_id pass_limit)
     return false;
   }
 
-  // TODO LINK: allow passing in the cpu and feature set
-  // -mcpu=mycpu -mattr=+feature1,-feature2
-  char* cpu = LLVMGetHostCPUName();
+  // Set up the target CPU and feature set.
+  char* cpu;
+  char* features;
+
+  // Default to the host CPU.
+  if(opt->cpu == NULL)
+    cpu = LLVMGetHostCPUName();
+  else
+    cpu = opt->cpu;
+
+  // Default to the features of the target CPU.
+  if(opt->features == NULL)
+    features = "";
+  else
+    features = opt->features;
+
+  LLVMCodeGenOptLevel opt_level =
+    opt->opt ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
 
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, c->triple,
-    cpu, "", (LLVMCodeGenOptLevel)opt, LLVMRelocStatic, LLVMCodeModelDefault);
+    cpu, features, opt_level, LLVMRelocStatic, LLVMCodeModelDefault);
 
-  LLVMDisposeMessage(cpu);
+  if(opt->cpu == NULL)
+    LLVMDisposeMessage(cpu);
 
   if(machine == NULL)
   {
@@ -667,7 +685,7 @@ static void codegen_cleanup(compile_t* c)
   painter_free(c->painter);
 }
 
-bool codegen(ast_t* program, int opt, pass_id pass_limit)
+bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 {
   compile_t c;
   codegen_init(&c, program, opt);

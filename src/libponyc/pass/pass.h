@@ -82,6 +82,15 @@ inline pass_id operator++(pass_id& current, int)
 };
 #endif
 
+/** Pass options.
+ */
+typedef struct pass_opt_t
+{
+  bool opt;
+  char* cpu;
+  char* features;
+} pass_opt_t;
+
 /** Limit processing to the specified pass. All passes up to and including the
  * specified pass will occur.
  * Returns true on success, false on invalid pass name.
@@ -101,6 +110,6 @@ bool package_passes(ast_t* package);
 /** Apply the per program passes to the given AST.
 * Returns true on success, false on failure.
 */
-bool program_passes(ast_t* program, int opt);
+bool program_passes(ast_t* program, pass_opt_t* options);
 
 #endif

@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <sys/ioctl.h>
@@ -16,8 +17,11 @@
 
 enum
 {
-  OPT_OPTLEVEL,
+  OPT_OPTIMISE,
   OPT_PATHS,
+  OPT_CPU,
+  OPT_FEATURES,
+
   OPT_PASSES,
   OPT_AST,
   OPT_TRACE,
@@ -26,8 +30,11 @@ enum
 
 static arg_t args[] =
 {
-  {"opt", 'O', ARGUMENT_REQUIRED, OPT_OPTLEVEL},
+  {"opt", 'o', ARGUMENT_NONE, OPT_OPTIMISE},
   {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
+  {"cpu", 'c', ARGUMENT_REQUIRED, OPT_CPU},
+  {"features", 'f', ARGUMENT_REQUIRED, OPT_FEATURES},
+
   {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
   {"ast", 'a', ARGUMENT_NONE, OPT_AST},
   {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
@@ -39,10 +46,20 @@ void usage()
 {
   printf(
     "ponyc [OPTIONS] <package directory>\n"
-    "  --opt, -O       optimisation level (0-3)\n"
-    "  --path, -p      add additional colon separated search paths\n"
     "\n"
-    "  --pass, -r      restrict phases\n"
+    "Often needed options:\n"
+    "  --opt, -o       Optimise the output.\n"
+    "  --path, -p      Add additional colon separated search paths.\n"
+    "    =path[:path]  Used to find packages and libraries.\n"
+    "\n"
+    "Rarely needed options:\n"
+    "  --cpu, -c       Set the target CPU.\n"
+    "    =name         Default is the host CPU.\n"
+    "  --features, -f  CPU features to enable or disable.\n"
+    "    =+this,-that  Use + to enable, - to disable.\n"
+    "\n"
+    "Debugging options:\n"
+    "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
     "    =parsefix\n"
     "    =sugar\n"
@@ -52,15 +69,15 @@ void usage()
     "    =traits\n"
     "    =scope2\n"
     "    =expr\n"
-    "    =ir           output LLVM IR\n"
-    "    =bitcode      output LLVM bitcode\n"
-    "    =asm          output assembly\n"
-    "    =obj          output an object file\n"
-    "    =all          the default: generate an executable\n"
-    "\n"
-    "  --ast, -a       output an abstract syntax tree\n"
-    "  --trace, -t     enable parse trace\n"
-    "  --width, -w     width to target when printing the AST\n"
+    "    =ir           Output LLVM IR.\n"
+    "    =bitcode      Output LLVM bitcode.\n"
+    "    =asm          Output assembly.\n"
+    "    =obj          Output an object file.\n"
+    "    =all          The default: generate an executable.\n"
+    "  --ast, -a       Output an abstract syntax tree.\n"
+    "  --trace, -t     Enable parse trace.\n"
+    "  --width, -w     Width to target when printing the AST.\n"
+    "    =columns      Defaults to the terminal width.\n"
     "\n"
     );
 }
@@ -94,7 +111,9 @@ int main(int argc, char* argv[])
 {
   package_init(argv[0]);
 
-  int opt = 0;
+  pass_opt_t opt;
+  memset(&opt, 0, sizeof(pass_opt_t));
+
   size_t width = get_width();
   bool print_ast = false;
 
@@ -106,8 +125,10 @@ int main(int argc, char* argv[])
   {
     switch(id)
     {
-      case OPT_OPTLEVEL: opt = atoi(s.arg_val); break;
+      case OPT_OPTIMISE: opt.opt = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
+      case OPT_CPU: opt.cpu = s.arg_val; break;
+      case OPT_FEATURES: opt.features = s.arg_val; break;
 
       case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
@@ -126,13 +147,6 @@ int main(int argc, char* argv[])
   }
 
   ast_setwidth(width);
-
-  if((opt < 0) || (opt > 3))
-  {
-    usage();
-    return -1;
-  }
-
   const char* path;
 
   switch(argc)
@@ -156,7 +170,7 @@ int main(int argc, char* argv[])
     if(print_ast)
       ast_print(program);
 
-    if(!program_passes(program, opt))
+    if(!program_passes(program, &opt))
       ret = -1;
 
     ast_free(program);

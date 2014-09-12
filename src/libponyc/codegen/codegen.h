@@ -56,7 +56,7 @@ typedef struct compile_t
   compile_context_t* context;
 } compile_t;
 
-bool codegen(ast_t* program, int opt, pass_id pass_limit);
+bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit);
 
 LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type);
 

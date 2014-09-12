@@ -110,7 +110,7 @@ bool package_passes(ast_t* package)
 }
 
 
-bool program_passes(ast_t* program, int opt)
+bool program_passes(ast_t* program, pass_opt_t* opt)
 {
   if(pass_limit < PASS_LLVM_IR)
     return true;
