@@ -11,10 +11,6 @@ function link_libponyc()
 
   links "libponyc"
 
-  if os.is("windows") then
-    links { "Shlwapi.lib" }
-  end
-
   local output = llvm_config("--libs")
 
   for lib in string.gmatch(output, "-l(%S+)") do
