@@ -16,13 +16,13 @@ trait ArithmeticConvertible
   fun box i16(): I16 => compiler_intrinsic
   fun box i32(): I32 => compiler_intrinsic
   fun box i64(): I64 => compiler_intrinsic
-  fun box i128(): I128 => compiler_intrinsic
+  //fun box i128(): I128 => compiler_intrinsic
 
   fun box u8(): U8 => compiler_intrinsic
   fun box u16(): U16 => compiler_intrinsic
   fun box u32(): U32 => compiler_intrinsic
   fun box u64(): U64 => compiler_intrinsic
-  fun box u128(): U128 => compiler_intrinsic
+  //fun box u128(): U128 => compiler_intrinsic
 
   fun box f32(): F32 => compiler_intrinsic
   fun box f64(): F64 => compiler_intrinsic
@@ -63,7 +63,7 @@ primitive I64 is Stringable, ArithmeticConvertible
 
   fun box string(): String => "I64"
 
-primitive I128 is Stringable, ArithmeticConvertible
+primitive I128 is Stringable/*, ArithmeticConvertible*/
   fun val max(that: I128): I128 =>
     if this > that then this else that end
 
@@ -146,7 +146,7 @@ primitive U64 is Stringable, ArithmeticConvertible
 
   fun box string(): String => "U64"
 
-primitive U128 is Stringable, ArithmeticConvertible
+primitive U128 is Stringable/*, ArithmeticConvertible*/
   fun val max(that: U128): U128 =>
     if this > that then this else that end
 

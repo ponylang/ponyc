@@ -29,19 +29,19 @@ enum
   OPT_WIDTH
 };
 
-static arg_t args[] =
+static opt_arg_t args[] =
 {
-  {"opt", 'o', ARGUMENT_NONE, OPT_OPTIMISE},
-  {"path", 'p', ARGUMENT_REQUIRED, OPT_PATHS},
-  {"cpu", 'c', ARGUMENT_REQUIRED, OPT_CPU},
-  {"features", 'f', ARGUMENT_REQUIRED, OPT_FEATURES},
-  {"triple", 0, ARGUMENT_REQUIRED, OPT_TRIPLE},
+  {"opt", 'o', OPT_ARG_NONE, OPT_OPTIMISE},
+  {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
+  {"cpu", 'c', OPT_ARG_REQUIRED, OPT_CPU},
+  {"features", 'f', OPT_ARG_REQUIRED, OPT_FEATURES},
+  {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
 
-  {"pass", 'r', ARGUMENT_REQUIRED, OPT_PASSES},
-  {"ast", 'a', ARGUMENT_NONE, OPT_AST},
-  {"trace", 't', ARGUMENT_NONE, OPT_TRACE},
-  {"width", 'w', ARGUMENT_REQUIRED, OPT_WIDTH},
-  ARGUMENTS_FINISH
+  {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
+  {"ast", 'a', OPT_ARG_NONE, OPT_AST},
+  {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
+  {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
+  OPT_ARGS_FINISH
 };
 
 static void usage()
@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
   ast_setwidth(get_width());
   bool print_ast = false;
 
-  parse_state_t s;
+  opt_state_t s;
   opt_init(args, &s, &argc, argv);
 
   int id;
