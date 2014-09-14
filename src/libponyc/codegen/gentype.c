@@ -328,6 +328,35 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_pausefun(c);
 }
 
+static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
+  int extra)
+{
+  bool need_trace = false;
+
+  for(int i = 0; i < g->field_count; i++)
+  {
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
+      "");
+    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
+  }
+
+  return need_trace;
+}
+
+static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef tuple)
+{
+  bool need_trace = false;
+
+  for(int i = 0; i < g->field_count; i++)
+  {
+    LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
+  }
+
+  return need_trace;
+}
+
 static bool make_trace(compile_t* c, gentype_t* g)
 {
   // Do nothing if we have no fields.
@@ -360,28 +389,46 @@ static bool make_trace(compile_t* c, gentype_t* g)
     "object");
 
   // If we don't ever trace anything, delete this function.
-  bool need_trace = false;
+  bool need_trace;
 
-  if(g->underlying != TK_TUPLETYPE)
+  if(g->underlying == TK_TUPLETYPE)
   {
-    // Everything has a descriptor.
+    // Create another function that traces the tuple members.
+    const char* trace_tuple_name = genname_tracetuple(g->type_name);
+    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type, &g->primitive,
+      1, false);
+    LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
+      trace_tuple_type);
+    codegen_startfun(c, trace_tuple_fn);
+
+    LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
+    LLVMSetValueName(arg, "arg");
+    need_trace = trace_elements(c, g, arg);
+
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+
+    if(need_trace)
+    {
+      // Get the tuple primitive.
+      LLVMValueRef tuple_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
+      LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
+
+      // Call the tuple trace function with the unboxed primitive type.
+      LLVMValueRef result = LLVMBuildCall(c->builder, trace_tuple_fn, &tuple,
+        1, "");
+      LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+    } else {
+      LLVMDeleteFunction(trace_tuple_fn);
+    }
+  } else {
     int extra = 1;
 
     // Actors have a pad.
     if(g->underlying == TK_ACTOR)
       extra++;
 
-    for(int i = 0; i < g->field_count; i++)
-    {
-      LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
-        "");
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      need_trace |= gencall_trace(c, value, g->fields[i]);
-    }
-  } else {
-    // TODO:
-    // Get the tuple primitive.
-    // LLVMValueRef tuple = LLVMBuildStructGEP(c->builder, object, 1, "");
+    need_trace = trace_fields(c, g, object, extra);
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -433,6 +480,11 @@ static bool make_struct(compile_t* c, gentype_t* g)
   }
 
   LLVMStructSetBody(type, elements, g->field_count + extra, false);
+
+  // Create a box type for tuples.
+  if(g->underlying == TK_TUPLETYPE)
+    make_box_type(c, g);
+
   return true;
 }
 
@@ -517,11 +569,9 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
   free_fields(g);
 
-  // Create a box type.
-  make_box_type(c, g);
-
-  // Generate a boxing function.
+  // Generate a boxing function and a descriptor.
   genfun_box(c, g);
+  gendesc_init(c, g);
 
   return ok;
 }

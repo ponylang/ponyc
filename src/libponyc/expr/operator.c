@@ -24,7 +24,7 @@ static bool is_lvalue(ast_t* ast)
 
     case TK_TUPLE:
     {
-      // a tuple is an lvalue if every component expression is an lvalue
+      // A tuple is an lvalue if every component expression is an lvalue.
       ast_t* child = ast_child(ast);
 
       while(child != NULL)
@@ -36,6 +36,17 @@ static bool is_lvalue(ast_t* ast)
       }
 
       return true;
+    }
+
+    case TK_SEQ:
+    {
+      // A sequence is an lvalue if it has a single child that is an lvalue.
+      ast_t* child = ast_child(ast);
+
+      if(ast_sibling(child) != NULL)
+        return false;
+
+      return is_lvalue(child);
     }
 
     default: {}

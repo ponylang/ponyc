@@ -303,6 +303,9 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
 
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
+  if(r_type == l_type)
+    return r_value;
+
   switch(LLVMGetTypeKind(l_type))
   {
     case LLVMIntegerTypeKind:
@@ -311,12 +314,11 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       {
         case LLVMIntegerTypeKind:
         {
-          // integer to integer will be a constant unless they are the same type
           // TODO: check the constant fits in the type
           if(LLVMIsAConstant(r_value))
             return LLVMConstIntCast(r_value, l_type, is_signed(type));
 
-          return r_value;
+          return LLVMBuildIntCast(c->builder, r_value, l_type, "");
         }
 
         default: {}
@@ -367,6 +369,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
         case LLVMHalfTypeKind:
         case LLVMFloatTypeKind:
         case LLVMDoubleTypeKind:
+        case LLVMStructTypeKind:
         {
           // Primitive to pointer requires boxing.
           gentype_t g;

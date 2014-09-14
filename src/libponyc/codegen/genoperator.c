@@ -4,6 +4,9 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
+static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
+  LLVMValueRef r_value);
+
 static bool is_fp(LLVMValueRef val)
 {
   LLVMTypeRef type = LLVMTypeOf(val);
@@ -21,25 +24,145 @@ static bool is_fp(LLVMValueRef val)
   return false;
 }
 
-LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast)
+static LLVMValueRef assign_one(compile_t* c, LLVMValueRef l_value,
+  LLVMValueRef r_value, ast_t* r_type)
 {
-  switch(ast_id(ast))
+  LLVMValueRef result = LLVMBuildLoad(c->builder, l_value, "");
+
+  // Cast the rvalue appropriately.
+  LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
+  LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value, r_type);
+
+  if(cast_value == NULL)
+    return NULL;
+
+  if(LLVMIsAExtractValueInst(r_value))
+    cast_value = gen_assign_cast(c, l_type, r_value, r_type);
+
+  // Store to the field.
+  LLVMBuildStore(c->builder, cast_value, l_value);
+  return result;
+}
+
+static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
+  LLVMValueRef r_value)
+{
+  // Handle assignment for each component.
+  ast_t* child = ast_child(left);
+  ast_t* rtype_child = ast_child(r_type);
+  int i = 0;
+
+  while(child != NULL)
+  {
+    // The actual tuple expression is inside a sequence node.
+    ast_t* expr = ast_child(child);
+
+    // Extract the tuple value.
+    LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
+      i++, "");
+
+    // Recurse, assigning pairwise.
+    if(assign_rvalue(c, expr, rtype_child, rvalue_child) == NULL)
+      return false;
+
+    child = ast_sibling(child);
+    rtype_child = ast_sibling(rtype_child);
+  }
+
+  assert(rtype_child == NULL);
+  return true;
+}
+
+static bool assign_decl(compile_t* c, ast_t* left, ast_t* r_type,
+  LLVMValueRef r_value)
+{
+  ast_t* idseq = ast_child(left);
+  ast_t* id = ast_child(idseq);
+
+  if(ast_sibling(id) == NULL)
+    return assign_rvalue(c, id, r_type, r_value) != NULL;
+
+  ast_t* rtype_child = ast_child(r_type);
+  int i = 0;
+
+  while(id != NULL)
+  {
+    // Extract the tuple value.
+    LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
+      i++, "");
+
+    // Recurse, assigning pairwise.
+    if(assign_rvalue(c, id, rtype_child, rvalue_child) == NULL)
+      return false;
+
+    id = ast_sibling(id);
+    rtype_child = ast_sibling(rtype_child);
+  }
+
+  assert(rtype_child == NULL);
+  return true;
+}
+
+static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
+  LLVMValueRef r_value)
+{
+  switch(ast_id(left))
   {
     case TK_VAR:
     case TK_LET:
-      return gen_localdecl(c, ast);
+    {
+      // TODO: this should be true any time the l_value is uninitialised.
+      // Generate the locals.
+      if(gen_localdecl(c, left) == NULL)
+        return NULL;
+
+      // Treat as a tuple assignment.
+      if(!assign_decl(c, left, r_type, r_value))
+        return NULL;
+
+      // If the l_value is a local declaration, the result is the r_value.
+      return r_value;
+    }
 
     case TK_FVARREF:
     case TK_FLETREF:
-      return gen_fieldptr(c, ast);
+    {
+      // The result is the previous value of the field.
+      LLVMValueRef l_value = gen_fieldptr(c, left);
+      return assign_one(c, l_value, r_value, r_type);
+    }
 
     case TK_VARREF:
-      return gen_localptr(c, ast);
+    {
+      // The result is the previous value of the local.
+      LLVMValueRef l_value = gen_localptr(c, left);
+      return assign_one(c, l_value, r_value, r_type);
+    }
 
     case TK_TUPLE:
-      // TODO: tuples as lvalues
-      ast_error(ast, "not implemented (lvalue tuple)");
-      return NULL;
+    {
+      // If the l_value is a tuple, assemble it as the result.
+      LLVMValueRef result = gen_expr(c, left);
+
+      if(result == NULL)
+        return NULL;
+
+      if(!assign_tuple(c, left, r_type, r_value))
+        return NULL;
+
+      // Return the original tuple.
+      return result;
+    }
+
+    case TK_ID:
+    {
+      // We have recursed here from a VAR or LET.
+      const char* name = ast_name(left);
+      ast_t* def = (ast_t*)ast_get(left, name);
+
+      LLVMValueRef l_value = (LLVMValueRef)ast_data(def);
+      return assign_one(c, l_value, r_value, r_type);
+    }
 
     default: {}
   }
@@ -569,30 +692,10 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
-
-  ast_t* right_type = ast_type(right);
-
-  LLVMValueRef l_value = gen_lvalue(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
-  r_value = gen_assign_cast(c, l_type, r_value, right_type);
 
   if(r_value == NULL)
     return NULL;
 
-  // If the l_value is a local declaration, the result is be the r_value, not
-  // the load of the l_value.
-  LLVMValueRef result;
-
-  if(LLVMIsAAllocaInst(l_value))
-    result = r_value;
-  else
-    result = LLVMBuildLoad(c->builder, l_value, "");
-
-  LLVMBuildStore(c->builder, r_value, l_value);
-  return result;
+  return assign_rvalue(c, left, ast_type(right), r_value);
 }

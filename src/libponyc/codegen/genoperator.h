@@ -3,8 +3,6 @@
 
 #include "codegen.h"
 
-LLVMValueRef gen_lvalue(compile_t* c, ast_t* ast);
-
 LLVMValueRef gen_not(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_unaryminus(compile_t* c, ast_t* ast);

@@ -116,7 +116,11 @@ static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
   ast_t* program = program_load(path);
 
   if(program == NULL)
+  {
+    print_errors();
+    free_errors();
     return false;
+  }
 
   if(print_ast)
     ast_print(program);

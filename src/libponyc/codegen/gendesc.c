@@ -85,42 +85,45 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 
 void gendesc_init(compile_t* c, gentype_t* g)
 {
-  // Build the vtable.
   VLA(LLVMValueRef, vtable, g->vtable_size);
 
-  for(int i = 0; i < g->vtable_size; i++)
-    vtable[i] = LLVMConstNull(c->void_ptr);
-
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
+  // Build the vtable.
+  if(g->vtable_size > 0)
   {
-    switch(ast_id(member))
+    for(int i = 0; i < g->vtable_size; i++)
+      vtable[i] = LLVMConstNull(c->void_ptr);
+
+    ast_t* def = (ast_t*)ast_data(g->ast);
+    ast_t* members = ast_childidx(def, 4);
+    ast_t* member = ast_child(members);
+
+    while(member != NULL)
     {
-      case TK_BE:
-      case TK_FUN:
+      switch(ast_id(member))
       {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        int colour = painter_get_colour(c->painter, funname);
+        case TK_BE:
+        case TK_FUN:
+        {
+          ast_t* id = ast_childidx(member, 1);
+          const char* funname = ast_name(id);
+          int colour = painter_get_colour(c->painter, funname);
 
-        const char* fullname = genname_fun(g->type_name, funname, NULL);
+          const char* fullname = genname_fun(g->type_name, funname, NULL);
 
-        if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, g, fullname);
-        else
-          vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
+          if(g->primitive != NULL)
+            vtable[colour] = make_unbox_function(c, g, fullname);
+          else
+            vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
 
-        assert(vtable[colour] != NULL);
-        break;
+          assert(vtable[colour] != NULL);
+          break;
+        }
+
+        default: {}
       }
 
-      default: {}
+      member = ast_sibling(member);
     }
-
-    member = ast_sibling(member);
   }
 
   // TODO: Build the trait list.

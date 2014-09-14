@@ -226,6 +226,9 @@ void genprim_builtins(compile_t* c)
     {"$1_F32", "f32", c->f32, 32, false, true},
     {"$1_F64", "f64", c->f64, 64, false, true},
 
+    {"$1_SIntLiteral", NULL, c->i128, 128, true, false},
+    {"$1_UIntLiteral", NULL, c->i128, 128, false, false},
+
     {NULL, NULL, NULL, false, false}
   };
 
@@ -234,6 +237,9 @@ void genprim_builtins(compile_t* c)
   {
     for(prim_conv_t* to = conv; to->type_name != NULL; to++)
     {
+      if(to->fun_name == NULL)
+        continue;
+
       const char* name = genname_fun(from->type_name, to->fun_name, NULL);
       LLVMTypeRef f_type = LLVMFunctionType(to->type, &from->type, 1, false);
 

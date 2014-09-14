@@ -8,7 +8,7 @@
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
-  LLVMValueRef* args, int count, const char* ret)
+  LLVMValueRef* args, int count, const char* ret, bool fastcc)
 {
   if(fun == NULL)
     return NULL;
@@ -22,7 +22,9 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
 
-  LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
+  if(fastcc)
+    LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
+
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   return invoke;
 }
@@ -180,7 +182,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
     if((try_expr != NULL) && (clause == 0))
-      return invoke_fun(c, try_expr, func, args, (int)count, "");
+      return invoke_fun(c, try_expr, func, args, (int)count, "", true);
   }
 
   LLVMValueRef result = LLVMBuildCall(c->builder, func, args,
@@ -347,6 +349,22 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
 }
 
+bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  // Invoke the trace function directly. Do not trace the address of the tuple.
+  const char* type_name = genname_type(type);
+  const char* trace_name = genname_tracetuple(type_name);
+  LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, trace_name);
+
+  // There will be no trace function if the tuple doesn't need tracing.
+  if(trace_fn == NULL)
+    return false;
+
+  LLVMValueRef result = LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
+  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+  return true;
+}
+
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   switch(ast_id(type))
@@ -370,8 +388,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
     }
 
     case TK_TUPLETYPE:
-      trace_known(c, value, genname_type(type));
-      return true;
+      return trace_tuple(c, value, type);
 
     case TK_NOMINAL:
     {
@@ -433,7 +450,7 @@ void gencall_throw(compile_t* c, ast_t* try_expr)
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
 
   if(try_expr != NULL)
-    invoke_fun(c, try_expr, func, NULL, 0, "");
+    invoke_fun(c, try_expr, func, NULL, 0, "", false);
   else
     LLVMBuildCall(c->builder, func, NULL, 0, "");
 
