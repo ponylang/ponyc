@@ -36,9 +36,6 @@ static LLVMValueRef assign_one(compile_t* c, LLVMValueRef l_value,
   if(cast_value == NULL)
     return NULL;
 
-  if(LLVMIsAExtractValueInst(r_value))
-    cast_value = gen_assign_cast(c, l_type, r_value, r_type);
-
   // Store to the field.
   LLVMBuildStore(c->builder, cast_value, l_value);
   return result;
@@ -303,9 +300,10 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "div_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "div_post");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "div_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "div_post");
 
   // Check for div by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);
@@ -364,9 +362,10 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef fun = LLVMGetBasicBlockParent(insert);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "mod_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, fun, "mod_post");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "mod_then");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "mod_post");
 
   // Check for mod by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);

@@ -323,10 +323,12 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
   // build a conditional
-  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context, fun, "then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context, fun, "else");
-  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(c->context, fun, "merge");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "then");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "else");
+  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "merge");
 
   LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
 

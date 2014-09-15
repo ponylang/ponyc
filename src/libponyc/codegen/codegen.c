@@ -773,3 +773,8 @@ void codegen_finishfun(compile_t* c)
 
   pop_frame(c);
 }
+
+LLVMValueRef codegen_fun(compile_t* c)
+{
+  return c->frame->fun;
+}

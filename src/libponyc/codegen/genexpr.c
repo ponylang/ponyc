@@ -392,6 +392,49 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       break;
     }
 
+    case LLVMStructTypeKind:
+    {
+      switch(LLVMGetTypeKind(r_type))
+      {
+        case LLVMStructTypeKind:
+        {
+          // Cast each component.
+          assert(ast_id(type) == TK_TUPLETYPE);
+
+          int count = LLVMCountStructElementTypes(l_type);
+          VLA(LLVMTypeRef, elements, count);
+          LLVMGetStructElementTypes(l_type, elements);
+
+          LLVMValueRef result = LLVMGetUndef(l_type);
+
+          ast_t* type_child = ast_child(type);
+          int i = 0;
+
+          while(type_child != NULL)
+          {
+            LLVMValueRef r_child = LLVMBuildExtractValue(c->builder, r_value,
+              i, "");
+            LLVMValueRef cast_value = gen_assign_cast(c, elements[i], r_child,
+              type_child);
+
+            if(cast_value == NULL)
+              return NULL;
+
+            result = LLVMBuildInsertValue(c->builder, result, cast_value, i,
+              "");
+
+            type_child = ast_sibling(type_child);
+            i++;
+          }
+
+          return result;
+        }
+
+        default: {}
+      }
+      break;
+    }
+
     default: {}
   }
 

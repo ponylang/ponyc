@@ -7,23 +7,15 @@
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef this_ptr = LLVMGetParam(func, 0);
-
-  return this_ptr;
+  return LLVMGetParam(codegen_fun(c), 0);
 }
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
   ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
-  size_t index = ast_index(def);
+  int index = ast_index(def);
 
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef param = LLVMGetParam(func, (unsigned int)(index + 1));
-
-  return param;
+  return LLVMGetParam(codegen_fun(c), index + 1);
 }
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
@@ -45,13 +37,12 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
 
       ast_t* def = (ast_t*)ast_data(l_type);
       ast_t* field = (ast_t*)ast_get(def, ast_name(right));
-      int index = ast_index(field);
-      int extra = 1;
+      int index = ast_index(field) + 1;
 
       if(ast_id(def) == TK_ACTOR)
-        extra++;
+        index++;
 
-      return LLVMBuildStructGEP(c->builder, l_value, index + extra, "");
+      return LLVMBuildStructGEP(c->builder, l_value, index, "");
     }
 
     case TK_TUPLETYPE:

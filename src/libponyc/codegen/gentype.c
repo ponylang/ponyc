@@ -233,15 +233,6 @@ static bool setup_type_fields(gentype_t* g)
       case TK_FVAR:
       case TK_FLET:
       {
-        // TODO: remove when field initialisation works
-        ast_t* init = ast_childidx(member, 2);
-
-        if(ast_id(init) != TK_NONE)
-        {
-          ast_error(init, "codegen for field initialisation not implemented");
-          return false;
-        }
-
         g->field_count++;
         break;
       }

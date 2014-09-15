@@ -33,6 +33,72 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
   }
 }
 
+static bool gen_field_init(compile_t* c, gentype_t* g)
+{
+  LLVMValueRef this_ptr = LLVMGetParam(codegen_fun(c), 0);
+
+  ast_t* def = (ast_t*)ast_data(g->ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  // Struct index of the current field.
+  int index = 1;
+
+  if(ast_id(def) == TK_ACTOR)
+    index++;
+
+  // Iterate through all fields.
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        // Skip this field if it has no initialiser.
+        AST_GET_CHILDREN(member, id, type, body);
+
+        if(ast_id(body) != TK_NONE)
+        {
+          // Reify the initialiser.
+          ast_t* var = lookup(g->ast, ast_name(id));
+          assert(var != NULL);
+          body = ast_childidx(var, 2);
+
+          // Get the field pointer.
+          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr, index,
+            "");
+
+          // Cast the initialiser to the field type.
+          LLVMValueRef r_value = gen_expr(c, body);
+
+          if(r_value == NULL)
+            return false;
+
+          LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
+          LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value,
+            ast_type(body));
+
+          if(cast_value == NULL)
+            return false;
+
+          // Store the result.
+          LLVMBuildStore(c->builder, cast_value, l_value);
+        }
+
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   // reify with both the type and the function-level typeargs
@@ -146,8 +212,11 @@ static LLVMValueRef gen_newhandler(compile_t* c, gentype_t* g, const char* name,
   if(handler == NULL)
     return NULL;
 
-  // TODO: field initialisers
   codegen_startfun(c, handler);
+
+  if(!gen_field_init(c, g))
+    return NULL;
+
   LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
