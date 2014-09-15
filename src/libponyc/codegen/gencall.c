@@ -152,14 +152,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
   if(need_receiver == 1)
-  {
-    LLVMValueRef value = make_arg(c, receiver, params[0]);
-
-    if(value == NULL)
-      return NULL;
-
-    args[0] = value;
-  }
+    args[0] = l_value;
 
   ast_t* arg = ast_child(positional);
 

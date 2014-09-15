@@ -20,7 +20,7 @@ actor Main
     @printf[I32]("%d, %d\n"._cstring(), _tuple.0, _tuple.1)
 
     var array = Array[String]
-    array.append("Hello").append("World")
+    array.append("Hello").append("World").append("!")
     /*array.append("Hello")
     array.append("World")*/
 
