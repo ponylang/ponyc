@@ -215,9 +215,12 @@ int opt_next(opt_state_t* s)
     return -2;
   }
 
-  if((s->match_type == MATCH_LONG) && (m->flag == OPT_ARG_REQUIRED))
+  if(s->match_type == MATCH_LONG)
   {
-    parse_long_opt_arg(s);
+    s->remove++;
+
+    if(m->flag == OPT_ARG_REQUIRED)
+      parse_long_opt_arg(s);
   }
   else if(s->match_type == MATCH_SHORT)
   {
