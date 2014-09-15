@@ -217,7 +217,7 @@ void genprim_builtins(compile_t* c)
     {"$1_I64", "i64", c->i64, 64, true, false},
 //to be explicit that we disable this feature on Windows for now
 //and not enable it on posix-based systems (see issue #33).
-#ifndef PLATFORM_IS_WINDOWS 
+#ifndef PLATFORM_IS_WINDOWS
     {"$1_I128", "i128", c->i128, 128, true, false},
 #endif
     {"$1_U8", "u8", c->i8, 8, false, false},
@@ -273,6 +273,12 @@ void genprim_builtins(compile_t* c)
       } else {
         if(to->is_float)
         {
+#ifdef PLATFORM_IS_WINDOWS
+          // TODO: Windows runtime doesn't have 128 bit to float conversion.
+          if(from->size > 64)
+            result = LLVMGetUndef(to->type);
+          else
+#endif
           if(from->is_signed)
             result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
           else
