@@ -232,7 +232,6 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  // TODO: make this a different node ID?
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
   ast_inheriterror(ast);

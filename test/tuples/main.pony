@@ -18,3 +18,12 @@ actor Main
     @printf[I32]("%d, %d\n"._cstring(), a, b)
     @printf[I32]("%d, %d\n"._cstring(), tuple.0, tuple.1)
     @printf[I32]("%d, %d\n"._cstring(), _tuple.0, _tuple.1)
+
+    var array = Array[String]
+    array.append("Hello").append("World")
+    /*array.append("Hello")
+    array.append("World")*/
+
+    for (index, value) in array.pairs() do
+      @printf[I32]("%d: %s\n"._cstring(), index.i32(), value._cstring())
+    end
