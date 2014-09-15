@@ -265,34 +265,37 @@ void genprim_builtins(compile_t* c)
             result = LLVMBuildFPTrunc(c->builder, arg, to->type, "");
           else
             result = arg;
+#ifdef PLATFORM_IS_WINDOWS
+        } else if(to->size > 64) {
+          // TODO: Windows runtime doesn't have float to 128 bit conversion.
+          result = LLVMGetUndef(to->type);
+#endif
         } else if(to->is_signed) {
           result = LLVMBuildFPToSI(c->builder, arg, to->type, "");
         } else {
           result = LLVMBuildFPToUI(c->builder, arg, to->type, "");
         }
-      } else {
-        if(to->is_float)
-        {
+      } else if(to->is_float) {
 #ifdef PLATFORM_IS_WINDOWS
+        if(from->size > 64)
+        {
           // TODO: Windows runtime doesn't have 128 bit to float conversion.
-          if(from->size > 64)
-            result = LLVMGetUndef(to->type);
-          else
+          result = LLVMGetUndef(to->type);
+        } else
 #endif
-          if(from->is_signed)
-            result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
-          else
-            result = LLVMBuildUIToFP(c->builder, arg, to->type, "");
-        } else if(from->size > to->size) {
-            result = LLVMBuildTrunc(c->builder, arg, to->type, "");
-        } else if(from->size < to->size) {
-          if(from->is_signed)
-            result = LLVMBuildSExt(c->builder, arg, to->type, "");
-          else
-            result = LLVMBuildZExt(c->builder, arg, to->type, "");
-        } else {
-          result = arg;
-        }
+        if(from->is_signed)
+          result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
+        else
+          result = LLVMBuildUIToFP(c->builder, arg, to->type, "");
+      } else if(from->size > to->size) {
+          result = LLVMBuildTrunc(c->builder, arg, to->type, "");
+      } else if(from->size < to->size) {
+        if(from->is_signed)
+          result = LLVMBuildSExt(c->builder, arg, to->type, "");
+        else
+          result = LLVMBuildZExt(c->builder, arg, to->type, "");
+      } else {
+        result = arg;
       }
 
       LLVMBuildRet(c->builder, result);
