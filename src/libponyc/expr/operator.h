@@ -3,7 +3,7 @@
 
 #include "../ast/ast.h"
 
-bool expr_identity(ast_t* ast);
+bool expr_identity(ast_t** astp);
 bool expr_compare(ast_t** astp);
 bool expr_order(ast_t** astp);
 bool expr_arithmetic(ast_t* ast);

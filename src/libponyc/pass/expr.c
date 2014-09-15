@@ -105,7 +105,7 @@ ast_result_t pass_expr(ast_t** astp)
 
     case TK_IS:
     case TK_ISNT:
-      if(!expr_identity(ast))
+      if(!expr_identity(astp))
         return AST_FATAL;
       break;
 

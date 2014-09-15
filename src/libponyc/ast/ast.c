@@ -197,14 +197,25 @@ ast_t* ast_from(ast_t* ast, token_id id)
   return new_ast;
 }
 
-ast_t* ast_from_string(ast_t* ast, const char* id)
+ast_t* ast_from_string(ast_t* ast, const char* name)
 {
-  if(id == NULL)
+  if(name == NULL)
     return ast_from(ast, TK_NONE);
 
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
-  token_set_string(t, id);
+  token_set_string(t, name);
+
+  ast_t* new_ast = ast_token(t);
+  new_ast->scope = ast->scope;
+  return new_ast;
+}
+
+ast_t* ast_from_int(ast_t* ast, uint64_t value)
+{
+  token_t* t = token_dup(ast->t);
+  token_set_id(t, TK_INT);
+  token_set_int(t, value);
 
   ast_t* new_ast = ast_token(t);
   new_ast->scope = ast->scope;
