@@ -13,7 +13,7 @@ LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
   ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
-  int index = ast_index(def);
+  int index = (int)ast_index(def);
 
   return LLVMGetParam(codegen_fun(c), index + 1);
 }
@@ -37,7 +37,7 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
 
       ast_t* def = (ast_t*)ast_data(l_type);
       ast_t* field = (ast_t*)ast_get(def, ast_name(right));
-      int index = ast_index(field) + 1;
+      int index = (int)ast_index(field) + 1;
 
       if(ast_id(def) == TK_ACTOR)
         index++;
@@ -48,7 +48,7 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
     case TK_TUPLETYPE:
     {
       assert(ast_id(right) == TK_INT);
-      int index = ast_int(right);
+      int index = (int)ast_int(right);
 
       return LLVMBuildExtractValue(c->builder, l_value, index, "");
     }

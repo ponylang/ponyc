@@ -215,7 +215,9 @@ void genprim_builtins(compile_t* c)
     {"$1_I16", "i16", c->i16, 16, true, false},
     {"$1_I32", "i32", c->i32, 32, true, false},
     {"$1_I64", "i64", c->i64, 64, true, false},
-#ifndef PLATFORM_IS_WINDOWS
+//to be explicit that we disable this feature on Windows for now
+//and not enable it on posix-based systems (see issue #33).
+#ifndef PLATFORM_IS_WINDOWS 
     {"$1_I128", "i128", c->i128, 128, true, false},
 #endif
     {"$1_U8", "u8", c->i8, 8, false, false},
@@ -228,8 +230,10 @@ void genprim_builtins(compile_t* c)
     {"$1_F32", "f32", c->f32, 32, false, true},
     {"$1_F64", "f64", c->f64, 64, false, true},
 
+#ifndef PLATFORM_IS_WINDOWS
     {"$1_SIntLiteral", NULL, c->i128, 128, true, false},
     {"$1_UIntLiteral", NULL, c->i128, 128, false, false},
+#endif
 
     {NULL, NULL, NULL, false, false}
   };

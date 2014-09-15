@@ -673,7 +673,7 @@ bool codegen_init(pass_opt_t* opt)
     opt->opt ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
 
   machine = LLVMCreateTargetMachine(target, opt->triple,
-    opt->cpu, opt->features, opt_level, LLVMRelocStatic, LLVMCodeModelDefault);
+    opt->cpu, opt->features, opt_level, LLVMRelocDefault, LLVMCodeModelDefault);
 
   if(machine == NULL)
   {
