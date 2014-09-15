@@ -92,7 +92,7 @@ static bool expr_typeaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // make this a lookup on a default constructed object
+      // Make this a lookup on a default constructed object.
       ast_free_unattached(find);
 
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -101,6 +101,15 @@ static bool expr_typeaccess(ast_t* ast)
       ast_add(dot, left);
 
       if(!expr_dot(dot))
+        return false;
+
+      ast_t* call = ast_from(ast, TK_CALL);
+      ast_add(call, ast_from(ast, TK_NONE)); // named
+      ast_add(call, ast_from(ast, TK_NONE)); // positional
+      ast_swap(dot, call);
+      ast_add(call, dot);
+
+      if(!expr_call(call))
         return false;
 
       return expr_dot(ast);
