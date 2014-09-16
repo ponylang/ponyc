@@ -43,7 +43,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool type)
   {
     ast_error(name, "can't reuse name '%s'", s);
 
-    ast_t* prev = (ast_t*)ast_get(scope, s);
+    ast_t* prev = ast_get(scope, s);
 
     if(prev != NULL)
       ast_error(prev, "previous use of '%s'", s);

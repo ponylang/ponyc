@@ -208,7 +208,7 @@ trait Initiator tag
 // can pop iso elements out of lists relatively easily
 actor ContractHost[A, B: Contract[A]]
   let _contract: B
-  var _ledger = Array[(Token, (A | None))]
+  var _ledger: Array[(Token, (A | None))] = Array[(Token, (A | None))]
 
   // store our contract, generate a token ledger, and send the isolated array
   // of isolated tokens to the initiator. The initiator can then hand out

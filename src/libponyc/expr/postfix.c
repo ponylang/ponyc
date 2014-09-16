@@ -23,7 +23,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   // must be a type in a package
   const char* package_name = ast_name(ast_child(left));
-  ast_t* package = (ast_t*)ast_get(left, package_name);
+  ast_t* package = ast_get(left, package_name);
 
   if(package == NULL)
   {
@@ -33,7 +33,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  type = (ast_t*)ast_get(package, type_name);
+  type = ast_get(package, type_name);
 
   if(type == NULL)
   {

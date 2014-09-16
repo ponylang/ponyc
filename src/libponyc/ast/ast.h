@@ -253,8 +253,8 @@ ast_t* ast_sibling(ast_t* ast);
 ast_t* ast_previous(ast_t* ast);
 size_t ast_index(ast_t* ast);
 
-void* ast_get(ast_t* ast, const char* name);
-bool ast_set(ast_t* ast, const char* name, void* value);
+ast_t* ast_get(ast_t* ast, const char* name);
+bool ast_set(ast_t* ast, const char* name, ast_t* value);
 bool ast_merge(ast_t* dst, ast_t* src);
 void ast_clear(ast_t* ast);
 

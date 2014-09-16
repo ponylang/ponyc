@@ -19,6 +19,8 @@ enum
 {
   OPT_OPTIMISE,
   OPT_PATHS,
+  OPT_OUTPUT,
+
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -31,8 +33,10 @@ enum
 
 static opt_arg_t args[] =
 {
-  {"opt", 'o', OPT_ARG_NONE, OPT_OPTIMISE},
+  {"opt", 'O', OPT_ARG_NONE, OPT_OPTIMISE},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
+  {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
+
   {"cpu", 'c', OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 'f', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -49,10 +53,14 @@ static void usage()
   printf(
     "ponyc [OPTIONS] <package directory>\n"
     "\n"
+    "The package directory defaults to the current directory."
+    "\n"
     "Often needed options:\n"
-    "  --opt, -o       Optimise the output.\n"
+    "  --opt, -O       Optimise the output.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
+    "  --output, -o    Write output to this directory.\n"
+    "    =path         Defaults to the current directory.\n"
     "\n"
     "Rarely needed options:\n"
     "  --cpu, -c       Set the target CPU.\n"
@@ -138,6 +146,7 @@ int main(int argc, char* argv[])
 {
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
+  opt.output = ".";
 
   ast_setwidth(get_width());
   bool print_ast = false;
@@ -153,6 +162,8 @@ int main(int argc, char* argv[])
     {
       case OPT_OPTIMISE: opt.opt = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
+      case OPT_OUTPUT: opt.output = s.arg_val; break;
+
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;

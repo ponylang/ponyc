@@ -123,9 +123,9 @@ bool expr_typeref(ast_t* ast)
 
 bool expr_reference(ast_t* ast)
 {
-  // everything we reference must be in scope
+  // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
-  ast_t* def = (ast_t*)ast_get(ast, name);
+  ast_t* def = ast_get(ast, name);
 
   if(def == NULL)
   {
@@ -137,7 +137,7 @@ bool expr_reference(ast_t* ast)
   {
     case TK_PACKAGE:
     {
-      // only allowed if in a TK_DOT with a type
+      // Only allowed if in a TK_DOT with a type.
       if(ast_id(ast_parent(ast)) != TK_DOT)
       {
         ast_error(ast, "a package can only appear as a prefix to a type");
@@ -159,7 +159,7 @@ bool expr_reference(ast_t* ast)
     case TK_CLASS:
     case TK_ACTOR:
     {
-      // it's a type name. this may not be a valid type, since it may need
+      // It's a type name. This may not be a valid type, since it may need
       // type arguments.
       ast_t* id = ast_child(def);
       const char* name = ast_name(id);
@@ -173,7 +173,7 @@ bool expr_reference(ast_t* ast)
     case TK_FVAR:
     case TK_FLET:
     {
-      // transform to this.f
+      // Transform to "this.f".
       if(!def_before_use(def, ast, name))
         return false;
 
@@ -196,7 +196,9 @@ bool expr_reference(ast_t* ast)
       if(!def_before_use(def, ast, name))
         return false;
 
-      // get the type of the parameter and attach it to our reference
+      // Get the type of the parameter and attach it to our reference.
+      // TODO: If in a recover expression, may not have access to the param.
+      // Or we could lower it to tag, since it can't be assigned to.
       ast_settype(ast, ast_type(def));
       ast_setid(ast, TK_PARAMREF);
       return true;
@@ -206,7 +208,7 @@ bool expr_reference(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // transform to this.f
+      // Transform to "this.f".
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
@@ -246,7 +248,10 @@ bool expr_reference(ast_t* ast)
           return false;
       }
 
-      // get the type of the local and attach it to our reference
+      // Get the type of the local and attach it to our reference.
+      // TODO: If there is a recover expression between us and the definition,
+      // may not have access to the local. For a let, we could lower it to tag,
+      // since it can't be assigned to, but for var we have to deny access.
       ast_settype(ast, ast_type(def));
       return true;
     }

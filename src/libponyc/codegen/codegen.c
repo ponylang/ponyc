@@ -344,7 +344,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
-  ast_t* m = (ast_t*)ast_get(package, main_actor);
+  ast_t* m = ast_get(package, main_actor);
 
   if(m == NULL)
   {
@@ -467,9 +467,13 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     default: extension = "o"; break;
   }
 
-  size_t len = strlen(c->filename);
-  VLA(char, file_o, len + 5);
-  snprintf(file_o, len + 5, "%s.%s", c->filename, extension);
+  size_t len = strlen(c->filename) + strlen(opt->output) + 2;
+  VLA(char, file_base, len);
+  snprintf(file_base, len, "%s/%s", opt->output, c->filename);
+  len = strlen(file_base);
+
+  VLA(char, file_o, len + 4);
+  snprintf(file_o, len + 4, "%s.%s", file_base, extension);
 
   if(pass_limit == PASS_LLVM_IR)
   {
@@ -498,7 +502,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   // Pick an executable name.
   VLA(char, file_exe, len + 3);
-  snprintf(file_exe, len + 3, "%s", c->filename);
+  snprintf(file_exe, len + 3, "%s", file_base);
   int suffix = 0;
 
   while(suffix < 100)

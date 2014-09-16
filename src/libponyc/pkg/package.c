@@ -463,7 +463,7 @@ ast_t* package_load(ast_t* from, const char* path)
     return NULL;
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
-  ast_t* package = (ast_t*)ast_get(program, name);
+  ast_t* package = ast_get(program, name);
 
   if(package != NULL)
     return package;

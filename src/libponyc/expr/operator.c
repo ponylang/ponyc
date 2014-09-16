@@ -17,9 +17,9 @@ static bool is_lvalue(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_VAR:
-    case TK_LET:
+    case TK_LET: // TODO: only valid once
     case TK_FVARREF:
-    case TK_FLETREF: // TODO: only valid the first time in a constructor
+    case TK_FLETREF: // TODO: only valid once, in a constructor, if no field init
     case TK_VARREF:
       return true;
 
@@ -42,6 +42,7 @@ static bool is_lvalue(ast_t* ast)
     case TK_SEQ:
     {
       // A sequence is an lvalue if it has a single child that is an lvalue.
+      // This is used because the components of a tuple are sequences.
       ast_t* child = ast_child(ast);
 
       if(ast_sibling(child) != NULL)
@@ -572,7 +573,6 @@ bool expr_recover(ast_t* ast)
   ast_t* child = ast_child(ast);
   ast_t* type = ast_type(child);
 
-  // TODO: handle removing unsendable things from the child scope
   ast_settype(ast, recover_type(type));
   return true;
 }

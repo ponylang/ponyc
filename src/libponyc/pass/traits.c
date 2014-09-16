@@ -188,7 +188,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
 
   // Find existing method with this name
   const char* name = ast_name(ast_childidx(method, 1));
-  ast_t* existing = (ast_t*)ast_get(target, name);
+  ast_t* existing = ast_get(target, name);
 
   if(existing == NULL)
   {

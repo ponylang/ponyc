@@ -12,7 +12,7 @@ LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
-  ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
+  ast_t* def = ast_get(ast, ast_name(ast_child(ast)));
   int index = (int)ast_index(def);
 
   return LLVMGetParam(codegen_fun(c), index + 1);
@@ -36,7 +36,7 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
       assert(ast_id(right) == TK_ID);
 
       ast_t* def = (ast_t*)ast_data(l_type);
-      ast_t* field = (ast_t*)ast_get(def, ast_name(right));
+      ast_t* field = ast_get(def, ast_name(right));
       int index = (int)ast_index(field) + 1;
 
       if(ast_id(def) == TK_ACTOR)
@@ -120,7 +120,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     const char* name = ast_name(id);
     LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
-    ast_t* def = (ast_t*)ast_get(ast, name);
+    ast_t* def = ast_get(ast, name);
     ast_setdata(def, l_value);
 
     id = ast_sibling(id);
@@ -133,7 +133,7 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
-  ast_t* def = (ast_t*)ast_get(ast, name);
+  ast_t* def = ast_get(ast, name);
 
   LLVMValueRef value = (LLVMValueRef)ast_data(def);
   assert(value != NULL);

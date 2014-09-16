@@ -642,7 +642,7 @@ size_t ast_index(ast_t* ast)
   return idx;
 }
 
-void* ast_get(ast_t* ast, const char* name)
+ast_t* ast_get(ast_t* ast, const char* name)
 {
   /* searches all parent scopes, but not the program scope, because the name
    * space for paths is separate from the name space for all other IDs.
@@ -652,7 +652,7 @@ void* ast_get(ast_t* ast, const char* name)
   {
     if(ast->symtab != NULL)
     {
-      void* value = symtab_get(ast->symtab, name);
+      ast_t* value = (ast_t*)symtab_get(ast->symtab, name);
 
       if(value != NULL)
         return value;
@@ -664,7 +664,7 @@ void* ast_get(ast_t* ast, const char* name)
   return NULL;
 }
 
-bool ast_set(ast_t* ast, const char* name, void* value)
+bool ast_set(ast_t* ast, const char* name, ast_t* value)
 {
   while(ast->symtab == NULL)
     ast = ast->scope;
