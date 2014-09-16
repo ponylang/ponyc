@@ -565,6 +565,20 @@ static ast_result_t parse_fix_infix_expr(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_consume(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, term);
+
+  if(ast_id(term) != TK_REFERENCE)
+  {
+    ast_error(term, "Consume expressions must specify a single identifier");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp)
 {
   assert(astp != NULL);
@@ -584,6 +598,7 @@ ast_result_t pass_parse_fix(ast_t** astp)
     case TK_BANG:       return parse_fix_bang(ast);
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_AT:         return parse_fix_ffi(ast);
+    case TK_CONSUME:    return parse_fix_consume(ast);
     default: break;
   }
 

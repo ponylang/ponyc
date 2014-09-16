@@ -7,60 +7,74 @@
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef this_ptr = LLVMGetParam(func, 0);
-
-  return this_ptr;
+  return LLVMGetParam(codegen_fun(c), 0);
 }
 
 LLVMValueRef gen_param(compile_t* c, ast_t* ast)
 {
-  ast_t* def = (ast_t*)ast_get(ast, ast_name(ast_child(ast)));
-  size_t index = ast_index(def);
+  ast_t* def = ast_get(ast, ast_name(ast_child(ast)));
+  int index = (int)ast_index(def);
 
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMValueRef func = LLVMGetBasicBlockParent(block);
-  LLVMValueRef param = LLVMGetParam(func, (unsigned int)(index + 1));
-
-  return param;
+  return LLVMGetParam(codegen_fun(c), index + 1);
 }
 
 LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
 
-  ast_t* l_type = ast_type(left);
-  assert(ast_id(l_type) == TK_NOMINAL);
-  assert(ast_id(right) == TK_ID);
-
-  ast_t* def = (ast_t*)ast_data(l_type);
-  ast_t* field = (ast_t*)ast_get(def, ast_name(right));
-  size_t index = ast_index(field);
-  size_t extra = 1;
-
-  if(ast_id(def) == TK_ACTOR)
-    extra++;
-
   LLVMValueRef l_value = gen_expr(c, left);
 
   if(l_value == NULL)
     return NULL;
 
-  LLVMValueRef field_ptr = LLVMBuildStructGEP(c->builder, l_value,
-    (unsigned int)(index + extra), "");
+  ast_t* l_type = ast_type(left);
 
-  return field_ptr;
+  switch(ast_id(l_type))
+  {
+    case TK_NOMINAL:
+    {
+      assert(ast_id(right) == TK_ID);
+
+      ast_t* def = (ast_t*)ast_data(l_type);
+      ast_t* field = ast_get(def, ast_name(right));
+      int index = (int)ast_index(field) + 1;
+
+      if(ast_id(def) == TK_ACTOR)
+        index++;
+
+      return LLVMBuildStructGEP(c->builder, l_value, index, "");
+    }
+
+    case TK_TUPLETYPE:
+    {
+      assert(ast_id(right) == TK_INT);
+      int index = (int)ast_int(right);
+
+      return LLVMBuildExtractValue(c->builder, l_value, index, "");
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
 }
 
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef field_ptr = gen_fieldptr(c, ast);
+  AST_GET_CHILDREN(ast, left, right);
+  ast_t* l_type = ast_type(left);
 
-  if(field_ptr == NULL)
+  LLVMValueRef field = gen_fieldptr(c, ast);
+
+  if(field == NULL)
     return NULL;
 
-  return LLVMBuildLoad(c->builder, field_ptr, "");
+  // Don't load if we're reading from a tuple.
+  if(ast_id(l_type) != TK_TUPLETYPE)
+    field = LLVMBuildLoad(c->builder, field, "");
+
+  return field;
 }
 
 LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
@@ -76,64 +90,50 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &g))
     return NULL;
 
-  // LLVMValueRef tuple = LLVMGetUndef(g.primitive);
+  LLVMValueRef tuple = LLVMGetUndef(g.primitive);
+  int i = 0;
 
-  // TODO: tuples as rvalues
-  ast_error(ast, "not implemented (codegen for tuples)");
-  return NULL;
+  while(child != NULL)
+  {
+    LLVMValueRef value = gen_expr(c, child);
+    tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
+    child = ast_sibling(child);
+  }
+
+  return tuple;
 }
 
 LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, idseq, type);
-
-  gentype_t g;
-  LLVMValueRef l_value = NULL;
-  const char* name;
-
+  ast_t* idseq = ast_child(ast);
   ast_t* id = ast_child(idseq);
-  ast_t* def;
-
-  if(ast_sibling(id) == NULL)
-  {
-    if(!gentype(c, type, &g))
-      return NULL;
-
-    name = ast_name(id);
-    l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
-
-    def = (ast_t*)ast_get(ast, name);
-    ast_setdata(def, l_value);
-
-    return l_value;
-  }
-
-  type = ast_child(type);
 
   while(id != NULL)
   {
+    ast_t* type = ast_type(id);
+
+    gentype_t g;
+
     if(!gentype(c, type, &g))
       return NULL;
 
-    name = ast_name(id);
-    l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
+    const char* name = ast_name(id);
+    LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
-    def = (ast_t*)ast_get(ast, name);
+    ast_t* def = ast_get(ast, name);
     ast_setdata(def, l_value);
 
     id = ast_sibling(id);
-    type = ast_sibling(type);
   }
 
-  // TODO: when assigning a tuple to this, we need the individual lvalues
-  return l_value;
+  return GEN_NOVALUE;
 }
 
 LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
-  ast_t* def = (ast_t*)ast_get(ast, name);
+  ast_t* def = ast_get(ast, name);
 
   LLVMValueRef value = (LLVMValueRef)ast_data(def);
   assert(value != NULL);
@@ -158,10 +158,11 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
   size_t len = strlen(name);
 
   LLVMValueRef args[4];
-  args[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), 0, false);
+  args[0] = LLVMConstInt(c->i32, 0, false);
+  args[1] = LLVMConstInt(c->i32, 0, false);
 
-  LLVMValueRef str = LLVMConstString(name, (unsigned int)len, false);
+  LLVMValueRef str = LLVMConstStringInContext(c->context, name,
+    (unsigned int)len, false);
   LLVMValueRef g_str = LLVMAddGlobal(c->module, LLVMTypeOf(str), "$strval");
   LLVMSetInitializer(g_str, str);
   LLVMSetGlobalConstant(g_str, true);
@@ -173,8 +174,8 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
     return NULL;
 
   args[0] = g.desc;
-  args[1] = LLVMConstInt(LLVMInt64Type(), len, false);
-  args[2] = LLVMConstInt(LLVMInt64Type(), 0, false);
+  args[1] = LLVMConstInt(c->i64, len, false);
+  args[2] = LLVMConstInt(c->i64, 0, false);
   args[3] = str_ptr;
 
   LLVMValueRef inst = LLVMConstNamedStruct(g.structure, args, 4);

@@ -41,7 +41,7 @@ actor Main
     else
       99
     end
-    @printf[I32]("%zu\n"._cstring(), num)
+    //@printf[I32]("%zu\n"._cstring(), num)
 
     for s in env.args.values() do
       env.stdout.print(s)

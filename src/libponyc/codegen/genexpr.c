@@ -135,10 +135,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_this(c, ast);
 
     case TK_INT:
-      return LLVMConstInt(LLVMIntType(128), ast_int(ast), false);
+      return LLVMConstInt(c->i128, ast_int(ast), false);
 
     case TK_FLOAT:
-      return LLVMConstReal(LLVMDoubleType(), ast_float(ast));
+      return LLVMConstReal(c->f64, ast_float(ast));
 
     case TK_STRING:
       return gen_string(c, ast);
@@ -171,7 +171,7 @@ bool gen_binop(compile_t* c, ast_t* ast,
   if((*l_value == NULL) || (*r_value == NULL))
     return false;
 
-  return gen_binop_cast(left, right, l_value, r_value);
+  return gen_binop_cast(c, left, right, l_value, r_value);
 }
 
 LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
@@ -256,8 +256,8 @@ LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
   return NULL;
 }
 
-bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
-  LLVMValueRef* pr_value)
+bool gen_binop_cast(compile_t* c, ast_t* left, ast_t* right,
+  LLVMValueRef* pl_value, LLVMValueRef* pr_value)
 {
   LLVMValueRef l_value = *pl_value;
   LLVMValueRef r_value = *pr_value;
@@ -269,7 +269,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   {
     if(is_floatliteral(right_type))
     {
-      *pl_value = LLVMConstSIToFP(l_value, LLVMDoubleType());
+      *pl_value = LLVMConstSIToFP(l_value, c->f64);
       return true;
     }
 
@@ -278,7 +278,7 @@ bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
   } else if(is_intliteral(right_type)) {
     if(is_floatliteral(left_type))
     {
-      *pr_value = LLVMConstSIToFP(r_value, LLVMDoubleType());
+      *pr_value = LLVMConstSIToFP(r_value, c->f64);
       return true;
     }
 
@@ -303,6 +303,9 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
 
   LLVMTypeRef r_type = LLVMTypeOf(r_value);
 
+  if(r_type == l_type)
+    return r_value;
+
   switch(LLVMGetTypeKind(l_type))
   {
     case LLVMIntegerTypeKind:
@@ -311,12 +314,11 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       {
         case LLVMIntegerTypeKind:
         {
-          // integer to integer will be a constant unless they are the same type
           // TODO: check the constant fits in the type
           if(LLVMIsAConstant(r_value))
             return LLVMConstIntCast(r_value, l_type, is_signed(type));
 
-          return r_value;
+          return LLVMBuildIntCast(c->builder, r_value, l_type, "");
         }
 
         default: {}
@@ -367,6 +369,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
         case LLVMHalfTypeKind:
         case LLVMFloatTypeKind:
         case LLVMDoubleTypeKind:
+        case LLVMStructTypeKind:
         {
           // Primitive to pointer requires boxing.
           gentype_t g;
@@ -383,6 +386,49 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
 
         case LLVMPointerTypeKind:
           return LLVMBuildBitCast(c->builder, r_value, l_type, "");
+
+        default: {}
+      }
+      break;
+    }
+
+    case LLVMStructTypeKind:
+    {
+      switch(LLVMGetTypeKind(r_type))
+      {
+        case LLVMStructTypeKind:
+        {
+          // Cast each component.
+          assert(ast_id(type) == TK_TUPLETYPE);
+
+          int count = LLVMCountStructElementTypes(l_type);
+          VLA(LLVMTypeRef, elements, count);
+          LLVMGetStructElementTypes(l_type, elements);
+
+          LLVMValueRef result = LLVMGetUndef(l_type);
+
+          ast_t* type_child = ast_child(type);
+          int i = 0;
+
+          while(type_child != NULL)
+          {
+            LLVMValueRef r_child = LLVMBuildExtractValue(c->builder, r_value,
+              i, "");
+            LLVMValueRef cast_value = gen_assign_cast(c, elements[i], r_child,
+              type_child);
+
+            if(cast_value == NULL)
+              return NULL;
+
+            result = LLVMBuildInsertValue(c->builder, result, cast_value, i,
+              "");
+
+            type_child = ast_sibling(type_child);
+            i++;
+          }
+
+          return result;
+        }
 
         default: {}
       }

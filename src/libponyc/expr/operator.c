@@ -9,6 +9,7 @@
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
+#include "../pass/expr.h"
 #include <assert.h>
 
 static bool is_lvalue(ast_t* ast)
@@ -16,15 +17,15 @@ static bool is_lvalue(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_VAR:
-    case TK_LET:
+    case TK_LET: // TODO: only valid once
     case TK_FVARREF:
-    case TK_FLETREF: // TODO: only valid the first time in a constructor
+    case TK_FLETREF: // TODO: only valid once, in a constructor, if no field init
     case TK_VARREF:
       return true;
 
     case TK_TUPLE:
     {
-      // a tuple is an lvalue if every component expression is an lvalue
+      // A tuple is an lvalue if every component expression is an lvalue.
       ast_t* child = ast_child(ast);
 
       while(child != NULL)
@@ -36,6 +37,18 @@ static bool is_lvalue(ast_t* ast)
       }
 
       return true;
+    }
+
+    case TK_SEQ:
+    {
+      // A sequence is an lvalue if it has a single child that is an lvalue.
+      // This is used because the components of a tuple are sequences.
+      ast_t* child = ast_child(ast);
+
+      if(ast_sibling(child) != NULL)
+        return false;
+
+      return is_lvalue(child);
     }
 
     default: {}
@@ -89,12 +102,128 @@ static bool binop_to_function(ast_t** astp)
   return expr_call(call);
 }
 
-bool expr_identity(ast_t* ast)
+static ast_t* make_tuple_index(ast_t* tuple, int index)
 {
+  BUILD(dot, tuple, NODE(TK_DOT, TREE(tuple) INT(index)));
+
+  if(!expr_dot(dot))
+  {
+    ast_free_unattached(dot);
+    return NULL;
+  }
+
+  return dot;
+}
+
+static ast_t* make_binop(token_id op, ast_t* left, ast_t* right)
+{
+  if(left == NULL)
+    return right;
+
+  if(right == NULL)
+  {
+    ast_free_unattached(left);
+    return NULL;
+  }
+
+  BUILD(binop, left, NODE(op, TREE(left) TREE(right)));
+
+  if(pass_expr(&binop) != AST_OK)
+  {
+    ast_free_unattached(binop);
+    return NULL;
+  }
+
+  return binop;
+}
+
+static bool tuples_pairwise(ast_t** astp, ast_t* left, ast_t* right)
+{
+  ast_t* ast = *astp;
+  token_id op = ast_id(ast);
+  token_id logic;
+
+  switch(op)
+  {
+    case TK_IS:
+    case TK_EQ:
+      logic = TK_AND;
+      break;
+
+    case TK_ISNT:
+    case TK_NE:
+      logic = TK_OR;
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+  ast_t* l_child = ast_child(l_type);
+  ast_t* r_child = ast_child(r_type);
+
+  if(ast_id(l_type) != TK_TUPLETYPE)
+  {
+    ast_error(left, "must be a tuple");
+    return false;
+  }
+
+  if(ast_id(r_type) != TK_TUPLETYPE)
+  {
+    ast_error(right, "must be a tuple");
+    return false;
+  }
+
+  ast_t* node = NULL;
+  int i = 0;
+
+  while((l_child != NULL) && (r_child != NULL))
+  {
+    ast_t* l_dot = make_tuple_index(left, i);
+    ast_t* r_dot = make_tuple_index(right, i);
+
+    if((l_dot == NULL) || (r_dot == NULL))
+    {
+      ast_free_unattached(node);
+      return false;
+    }
+
+    ast_t* binop = make_binop(op, l_dot, r_dot);
+    node = make_binop(logic, node, binop);
+
+    if(node == NULL)
+      return false;
+
+    l_child = ast_sibling(l_child);
+    r_child = ast_sibling(r_child);
+    i++;
+  }
+
+  if((l_child != NULL) || (r_child != NULL))
+  {
+    ast_error(ast, "tuples are of different lengths");
+    ast_free_unattached(node);
+    return false;
+  }
+
+  ast_replace(astp, node);
+  return true;
+}
+
+bool expr_identity(ast_t** astp)
+{
+  ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
+
+  // Handle tuples as pairwise ordering.
+  if(ast_id(l_type) == TK_TUPLETYPE)
+    return tuples_pairwise(astp, left, right);
 
   if(is_math_compatible(l_type, r_type) ||
     (is_bool(l_type) && is_bool(r_type))
@@ -132,6 +261,11 @@ bool expr_compare(ast_t** astp)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  // Handle tuples as pairwise comparison.
+  if(ast_id(l_type) == TK_TUPLETYPE)
+    return tuples_pairwise(astp, left, right);
+
+  // Use a.eq(b) if neither arithmetic nor boolean.
   if(!is_arithmetic(l_type) && !is_bool(l_type))
     return binop_to_function(astp);
 
@@ -156,6 +290,14 @@ bool expr_order(ast_t** astp)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  // Handle tuples as pairwise ordering.
+  if(ast_id(l_type) == TK_TUPLETYPE)
+  {
+    // return tuples_pairwise(astp, left, right);
+    ast_error(ast, "ordering is not defined for tuples");
+    return false;
+  }
+
   if(!is_arithmetic(l_type))
     return binop_to_function(astp);
 
@@ -178,6 +320,7 @@ bool expr_arithmetic(ast_t* ast)
   ast_t* r_type = ast_type(right);
 
   // TODO: string concatenation
+  // TODO: treat some tuples as vectors?
   if(!is_arithmetic(l_type) || !is_math_compatible(l_type, r_type))
   {
     ast_error(ast, "left and right side must be the same arithmetic type");
@@ -209,6 +352,7 @@ bool expr_minus(ast_t* ast)
   ast_t* child = ast_child(ast);
   ast_t* type = ast_type(child);
 
+  // TODO: treat some tuples as vectors?
   if(!is_arithmetic(type))
   {
     ast_error(ast, "unary minus is only allowed on arithmetic types");
@@ -231,6 +375,7 @@ bool expr_shift(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  // TODO: treat some tuples as vectors?
   if(!is_integer(l_type) || !is_math_compatible(l_type, r_type))
   {
     ast_error(ast, "left and right side must be the same integer type");
@@ -315,6 +460,7 @@ bool expr_logical(ast_t* ast)
   {
     ast_settype(ast, type_builtin(ast, "Bool"));
   } else if(is_integer(l_type) && is_integer(r_type)) {
+    // TODO: treat some tuples as vectors?
     if(!is_math_compatible(l_type, r_type))
     {
       ast_error(ast,
@@ -346,6 +492,7 @@ bool expr_not(ast_t* ast)
   {
     ast_settype(ast, type_builtin(ast, "Bool"));
   } else if(is_arithmetic(type)) {
+    // TODO: treat some tuples as vectors?
     ast_settype(ast, type);
   } else {
     ast_error(ast, "not is only allowed on boolean or arithmetic types");
@@ -426,7 +573,6 @@ bool expr_recover(ast_t* ast)
   ast_t* child = ast_child(ast);
   ast_t* type = ast_type(child);
 
-  // TODO: handle removing unsendable things from the child scope
   ast_settype(ast, recover_type(type));
   return true;
 }

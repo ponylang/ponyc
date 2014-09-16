@@ -21,6 +21,8 @@ bool expr_literal(ast_t* ast, const char* name)
 
 bool expr_this(ast_t* ast)
 {
+  // TODO: If in a recover expression, may not have access to "this".
+  // Or we could lower it to tag, since it can't be assigned to.
   ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
   ast_settype(ast, type);
 

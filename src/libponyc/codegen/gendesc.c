@@ -66,11 +66,11 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
   if(type != NULL)
     return type;
 
-  type = LLVMStructCreateNamed(LLVMGetGlobalContext(), desc_name);
+  type = LLVMStructCreateNamed(c->context, desc_name);
 
   LLVMTypeRef params[9];
-  params[0] = LLVMInt32Type(); // id
-  params[1] = LLVMInt32Type(); // size
+  params[0] = c->i32; // id
+  params[1] = c->i32; // size
   params[2] = c->trace_fn; // trace
   params[3] = c->trace_fn; // serialise
   params[4] = c->trace_fn; // deserialise
@@ -85,42 +85,45 @@ LLVMTypeRef gendesc_type(compile_t* c, const char* desc_name, int vtable_size)
 
 void gendesc_init(compile_t* c, gentype_t* g)
 {
-  // Build the vtable.
   VLA(LLVMValueRef, vtable, g->vtable_size);
 
-  for(int i = 0; i < g->vtable_size; i++)
-    vtable[i] = LLVMConstNull(c->void_ptr);
-
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
+  // Build the vtable.
+  if(g->vtable_size > 0)
   {
-    switch(ast_id(member))
+    for(int i = 0; i < g->vtable_size; i++)
+      vtable[i] = LLVMConstNull(c->void_ptr);
+
+    ast_t* def = (ast_t*)ast_data(g->ast);
+    ast_t* members = ast_childidx(def, 4);
+    ast_t* member = ast_child(members);
+
+    while(member != NULL)
     {
-      case TK_BE:
-      case TK_FUN:
+      switch(ast_id(member))
       {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        int colour = painter_get_colour(c->painter, funname);
+        case TK_BE:
+        case TK_FUN:
+        {
+          ast_t* id = ast_childidx(member, 1);
+          const char* funname = ast_name(id);
+          int colour = painter_get_colour(c->painter, funname);
 
-        const char* fullname = genname_fun(g->type_name, funname, NULL);
+          const char* fullname = genname_fun(g->type_name, funname, NULL);
 
-        if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, g, fullname);
-        else
-          vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
+          if(g->primitive != NULL)
+            vtable[colour] = make_unbox_function(c, g, fullname);
+          else
+            vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
 
-        assert(vtable[colour] != NULL);
-        break;
+          assert(vtable[colour] != NULL);
+          break;
+        }
+
+        default: {}
       }
 
-      default: {}
+      member = ast_sibling(member);
     }
-
-    member = ast_sibling(member);
   }
 
   // TODO: Build the trait list.
@@ -130,8 +133,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // Generate a separate type ID for every type.
-  args[0] = LLVMConstInt(LLVMInt32Type(), c->next_type_id++, false);
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
+  args[0] = LLVMConstInt(c->i32, c->next_type_id++, false);
+  args[1] = LLVMConstInt(c->i32, size, false);
   args[2] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
   args[3] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
   args[4] = make_function_ptr(c, genname_deserialise(g->type_name),

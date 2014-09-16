@@ -8,20 +8,23 @@
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
-  LLVMValueRef* args, int count, const char* ret)
+  LLVMValueRef* args, int count, const char* ret, bool fastcc)
 {
   if(fun == NULL)
     return NULL;
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMInsertBasicBlock(this_block, "then");
+  LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
+    this_block, "then");
   LLVMMoveBasicBlockAfter(then_block, this_block);
   LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
 
   LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
 
-  LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
+  if(fastcc)
+    LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
+
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   return invoke;
 }
@@ -107,8 +110,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
 
     LLVMValueRef index[2];
-    index[0] = LLVMConstInt(LLVMInt32Type(), 0, false);
-    index[1] = LLVMConstInt(LLVMInt32Type(), colour, false);
+    index[0] = LLVMConstInt(c->i32, 0, false);
+    index[1] = LLVMConstInt(c->i32, colour, false);
 
     LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
     func = LLVMBuildLoad(c->builder, func_ptr, "");
@@ -149,14 +152,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
   if(need_receiver == 1)
-  {
-    LLVMValueRef value = make_arg(c, receiver, params[0]);
-
-    if(value == NULL)
-      return NULL;
-
-    args[0] = value;
-  }
+    args[0] = l_value;
 
   ast_t* arg = ast_child(positional);
 
@@ -179,7 +175,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
     if((try_expr != NULL) && (clause == 0))
-      return invoke_fun(c, try_expr, func, args, (int)count, "");
+      return invoke_fun(c, try_expr, func, args, (int)count, "", true);
   }
 
   LLVMValueRef result = LLVMBuildCall(c->builder, func, args,
@@ -259,7 +255,7 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
   size_t size = LLVMABISizeOfType(c->target_data, l_type);
 
   LLVMValueRef args[1];
-  args[0] = LLVMConstInt(LLVMInt64Type(), size, false);
+  args[0] = LLVMConstInt(c->i64, size, false);
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
   return LLVMBuildBitCast(c->builder, result, type, "");
@@ -320,10 +316,12 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
   // build a conditional
-  LLVMValueRef fun = LLVMGetBasicBlockParent(LLVMGetInsertBlock(c->builder));
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlock(fun, "then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlock(fun, "else");
-  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlock(fun, "merge");
+  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "then");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "else");
+  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "merge");
 
   LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
 
@@ -344,6 +342,22 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
 
   // continue in the merge block
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
+}
+
+bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  // Invoke the trace function directly. Do not trace the address of the tuple.
+  const char* type_name = genname_type(type);
+  const char* trace_name = genname_tracetuple(type_name);
+  LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, trace_name);
+
+  // There will be no trace function if the tuple doesn't need tracing.
+  if(trace_fn == NULL)
+    return false;
+
+  LLVMValueRef result = LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
+  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+  return true;
 }
 
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
@@ -369,8 +383,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
     }
 
     case TK_TUPLETYPE:
-      trace_known(c, value, genname_type(type));
-      return true;
+      return trace_tuple(c, value, type);
 
     case TK_NOMINAL:
     {
@@ -432,7 +445,7 @@ void gencall_throw(compile_t* c, ast_t* try_expr)
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
 
   if(try_expr != NULL)
-    invoke_fun(c, try_expr, func, NULL, 0, "");
+    invoke_fun(c, try_expr, func, NULL, 0, "", false);
   else
     LLVMBuildCall(c->builder, func, NULL, 0, "");
 

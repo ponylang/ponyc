@@ -197,14 +197,25 @@ ast_t* ast_from(ast_t* ast, token_id id)
   return new_ast;
 }
 
-ast_t* ast_from_string(ast_t* ast, const char* id)
+ast_t* ast_from_string(ast_t* ast, const char* name)
 {
-  if(id == NULL)
+  if(name == NULL)
     return ast_from(ast, TK_NONE);
 
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
-  token_set_string(t, id);
+  token_set_string(t, name);
+
+  ast_t* new_ast = ast_token(t);
+  new_ast->scope = ast->scope;
+  return new_ast;
+}
+
+ast_t* ast_from_int(ast_t* ast, uint64_t value)
+{
+  token_t* t = token_dup(ast->t);
+  token_set_id(t, TK_INT);
+  token_set_int(t, value);
 
   ast_t* new_ast = ast_token(t);
   new_ast->scope = ast->scope;
@@ -631,7 +642,7 @@ size_t ast_index(ast_t* ast)
   return idx;
 }
 
-void* ast_get(ast_t* ast, const char* name)
+ast_t* ast_get(ast_t* ast, const char* name)
 {
   /* searches all parent scopes, but not the program scope, because the name
    * space for paths is separate from the name space for all other IDs.
@@ -641,7 +652,7 @@ void* ast_get(ast_t* ast, const char* name)
   {
     if(ast->symtab != NULL)
     {
-      void* value = symtab_get(ast->symtab, name);
+      ast_t* value = (ast_t*)symtab_get(ast->symtab, name);
 
       if(value != NULL)
         return value;
@@ -653,7 +664,7 @@ void* ast_get(ast_t* ast, const char* name)
   return NULL;
 }
 
-bool ast_set(ast_t* ast, const char* name, void* value)
+bool ast_set(ast_t* ast, const char* name, ast_t* value)
 {
   while(ast->symtab == NULL)
     ast = ast->scope;

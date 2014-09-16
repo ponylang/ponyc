@@ -12,7 +12,7 @@ static ast_t* lookup_nominal(ast_t* orig, ast_t* type, const char* name)
   assert(ast_id(type) == TK_NOMINAL);
   ast_t* def = (ast_t*)ast_data(type);
   ast_t* type_name = ast_child(def);
-  ast_t* find = (ast_t*)ast_get(def, name);
+  ast_t* find = ast_get(def, name);
 
   if(find != NULL)
   {
@@ -32,7 +32,7 @@ static ast_t* lookup_nominal(ast_t* orig, ast_t* type, const char* name)
 static ast_t* lookup_structural(ast_t* type, const char* name)
 {
   assert(ast_id(type) == TK_STRUCTURAL);
-  ast_t* find = (ast_t*)ast_get(type, name);
+  ast_t* find = ast_get(type, name);
 
   if(find == NULL)
     ast_error(type, "couldn't find '%s'", name);

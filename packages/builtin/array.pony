@@ -40,10 +40,11 @@ class Array[A]
 
   fun ref clear() => size = 0
 
-  fun ref append(v: A) =>
+  fun ref append(v: A): Array[A] =>
     reserve(size + 1)
     ptr(size) = v
     size = size + 1
+    this
 
   fun ref concat(iter: Iterator[A] ref) =>
     for v in iter do append(v) end
@@ -54,9 +55,8 @@ class Array[A]
   fun box values(): ArrayValues[A, this->Array[A]]^ =>
     ArrayValues[A, this->Array[A]](this)
 
-  // TODO: Put this back when codegen for tuples works.
-  /*fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
-    ArrayPairs[A, this->Array[A]](this)*/
+  fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
+    ArrayPairs[A, this->Array[A]](this)
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
   var array: B

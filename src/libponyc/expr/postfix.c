@@ -23,7 +23,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   // must be a type in a package
   const char* package_name = ast_name(ast_child(left));
-  ast_t* package = (ast_t*)ast_get(left, package_name);
+  ast_t* package = ast_get(left, package_name);
 
   if(package == NULL)
   {
@@ -33,7 +33,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  type = (ast_t*)ast_get(package, type_name);
+  type = ast_get(package, type_name);
 
   if(type == NULL)
   {
@@ -92,7 +92,7 @@ static bool expr_typeaccess(ast_t* ast)
     case TK_BE:
     case TK_FUN:
     {
-      // make this a lookup on a default constructed object
+      // Make this a lookup on a default constructed object.
       ast_free_unattached(find);
 
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -101,6 +101,15 @@ static bool expr_typeaccess(ast_t* ast)
       ast_add(dot, left);
 
       if(!expr_dot(dot))
+        return false;
+
+      ast_t* call = ast_from(ast, TK_CALL);
+      ast_add(call, ast_from(ast, TK_NONE)); // named
+      ast_add(call, ast_from(ast, TK_NONE)); // positional
+      ast_swap(dot, call);
+      ast_add(call, dot);
+
+      if(!expr_call(call))
         return false;
 
       return expr_dot(ast);
@@ -232,7 +241,6 @@ static bool expr_tupleaccess(ast_t* ast)
     return false;
   }
 
-  // TODO: make this a different node ID?
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
   ast_inheriterror(ast);

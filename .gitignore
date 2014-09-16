@@ -1,5 +1,8 @@
 .DS_Store
 *.o
+*.s
+*.ll
+*.bc
 Makefile
 bin
 Build

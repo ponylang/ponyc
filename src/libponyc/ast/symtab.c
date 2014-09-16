@@ -7,6 +7,7 @@ typedef struct symbol_t
 {
   const char* name;
   void* value;
+  sym_status_t status;
 } symbol_t;
 
 static uint64_t sym_hash(symbol_t* sym)
@@ -24,6 +25,7 @@ static symbol_t* sym_dup(symbol_t* sym)
   symbol_t* s = (symbol_t*)malloc(sizeof(symbol_t));
   s->name = sym->name;
   s->value = sym->value;
+  s->status = sym->status;
 
   return s;
 }
@@ -43,7 +45,7 @@ symtab_t* symtab_new()
 bool symtab_add(symtab_t* symtab, const char* name, void* value)
 {
   bool present;
-  symbol_t sym = {name, value};
+  symbol_t sym = {name, value, SYM_NONE};
   symtab_insert(symtab, &sym, &present);
 
   return !present;
@@ -51,10 +53,30 @@ bool symtab_add(symtab_t* symtab, const char* name, void* value)
 
 void* symtab_get(symtab_t* symtab, const char* name)
 {
-  symbol_t s1 = {name, NULL};
+  symbol_t s1 = {name, NULL, SYM_NONE};
   symbol_t* s2 = symtab_find(symtab, &s1);
 
   return s2 != NULL ? s2->value : NULL;
+}
+
+sym_status_t symtab_get_status(symtab_t* symtab, const char* name)
+{
+  symbol_t s1 = {name, NULL, SYM_NONE};
+  symbol_t* s2 = symtab_find(symtab, &s1);
+
+  return s2 != NULL ? s2->status : SYM_NONE;
+}
+
+bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
+{
+  symbol_t s1 = {name, NULL, SYM_NONE};
+  symbol_t* s2 = symtab_find(symtab, &s1);
+
+  if(s2 == NULL)
+    return false;
+
+  s2->status = status;
+  return true;
 }
 
 bool symtab_pred(symbol_t* symbol, void* arg)

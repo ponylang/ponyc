@@ -371,7 +371,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
         case TK_ISECTTYPE:
         case TK_TUPLETYPE:
         {
-          // safe to write if every component is safe to write
+          // Safe to write if every component is safe to write.
           ast_t* child = ast_child(type);
 
           while(child != NULL)
@@ -390,7 +390,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
         case TK_TYPEPARAMREF:
         case TK_ARROW:
         {
-          // if left is x.f, we need the type of x to determine safe to write
+          // If left is x.f, we need the type of x to determine safe to write.
           ast_t* left = ast_child(ast);
           ast_t* l_type = ast_type(left);
           token_id l_cap = cap_for_type(l_type);
@@ -401,6 +401,34 @@ bool safe_to_write(ast_t* ast, ast_t* type)
         default: {}
       }
       break;
+    }
+
+    case TK_TUPLE:
+    {
+      // At this point, we know these will be the same length.
+      assert(ast_id(type) == TK_TUPLETYPE);
+      ast_t* child = ast_child(ast);
+      ast_t* type_child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!safe_to_write(child, type_child))
+          return false;
+
+        child = ast_sibling(child);
+        type_child = ast_sibling(type_child);
+      }
+
+      assert(type_child == NULL);
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      // Occurs when there is a tuple on the left. Each child of the tuple will
+      // be a sequence, but only sequences with a single writeable child are
+      // valid. Other types won't appear here.
+      return safe_to_write(ast_child(ast), type);
     }
 
     default: {}

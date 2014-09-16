@@ -33,6 +33,72 @@ static void name_params(ast_t* params, LLVMValueRef func, bool ctor)
   }
 }
 
+static bool gen_field_init(compile_t* c, gentype_t* g)
+{
+  LLVMValueRef this_ptr = LLVMGetParam(codegen_fun(c), 0);
+
+  ast_t* def = (ast_t*)ast_data(g->ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  // Struct index of the current field.
+  int index = 1;
+
+  if(ast_id(def) == TK_ACTOR)
+    index++;
+
+  // Iterate through all fields.
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        // Skip this field if it has no initialiser.
+        AST_GET_CHILDREN(member, id, type, body);
+
+        if(ast_id(body) != TK_NONE)
+        {
+          // Reify the initialiser.
+          ast_t* var = lookup(g->ast, ast_name(id));
+          assert(var != NULL);
+          body = ast_childidx(var, 2);
+
+          // Get the field pointer.
+          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr, index,
+            "");
+
+          // Cast the initialiser to the field type.
+          LLVMValueRef r_value = gen_expr(c, body);
+
+          if(r_value == NULL)
+            return false;
+
+          LLVMTypeRef l_type = LLVMGetElementType(LLVMTypeOf(l_value));
+          LLVMValueRef cast_value = gen_assign_cast(c, l_type, r_value,
+            ast_type(body));
+
+          if(cast_value == NULL)
+            return false;
+
+          // Store the result.
+          LLVMBuildStore(c->builder, cast_value, l_value);
+        }
+
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   // reify with both the type and the function-level typeargs
@@ -121,7 +187,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   if(ast_id(fun) != TK_FUN)
   {
     // handlers always have a receiver and have no return value
-    ftype = LLVMFunctionType(LLVMVoidType(), tparams, (int)count, false);
+    ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
     const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
     LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
@@ -146,8 +212,11 @@ static LLVMValueRef gen_newhandler(compile_t* c, gentype_t* g, const char* name,
   if(handler == NULL)
     return NULL;
 
-  // TODO: field initialisers
   codegen_startfun(c, handler);
+
+  if(!gen_field_init(c, g))
+    return NULL;
+
   LLVMValueRef value = gen_seq(c, body);
 
   if(value == NULL)
@@ -179,10 +248,11 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMGetParamTypes(f_type, &f_params[extra]);
 
   // The first one becomes the message size, the second the message ID.
-  f_params[0] = LLVMInt32Type();
-  f_params[1] = LLVMInt32Type();
+  f_params[0] = c->i32;
+  f_params[1] = c->i32;
   f_params[2] = c->void_ptr;
-  LLVMTypeRef msg_type = LLVMStructType(f_params, count, false);
+  LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, count,
+    false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Calculate the index (power of 2) for the message size.
@@ -197,8 +267,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
 
   // Allocate the message, setting its size and ID.
   LLVMValueRef args[2];
-  args[1] = LLVMConstInt(LLVMInt32Type(), size, false);
-  args[0] = LLVMConstInt(LLVMInt32Type(), index, false);
+  args[1] = LLVMConstInt(c->i32, size, false);
+  args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
@@ -237,8 +307,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
 {
   // Add a case to the dispatch function to handle this message.
   codegen_startfun(c, g->dispatch_fn);
-  LLVMBasicBlockRef block = LLVMAppendBasicBlock(g->dispatch_fn, "handler");
-  LLVMValueRef id = LLVMConstInt(LLVMInt32Type(), index, false);
+  LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn, "handler");
+  LLVMValueRef id = LLVMConstInt(c->i32, index, false);
   LLVMAddCase(g->dispatch_switch, id, block);
 
   // Destructure the message.

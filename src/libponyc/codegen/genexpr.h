@@ -23,8 +23,8 @@ LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign);
  *
  * Returns true if both sides are constants, false otherwise
  */
-bool gen_binop_cast(ast_t* left, ast_t* right, LLVMValueRef* pl_value,
-  LLVMValueRef* pr_value);
+bool gen_binop_cast(compile_t* c, ast_t* left, ast_t* right,
+  LLVMValueRef* pl_value, LLVMValueRef* pr_value);
 
 /**
  * Returns r_value cast to l_type.

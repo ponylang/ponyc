@@ -3,28 +3,24 @@
 
 #include <stdint.h>
 
-#define ARGUMENTS_FINISH \
-  {NULL, 0, UINT32_MAX, UINT32_MAX}
+#define OPT_ARG_REQUIRED 1
+#define OPT_ARG_NONE 2
+#define OPT_ARGS_FINISH {NULL, 0, UINT32_MAX, UINT32_MAX}
 
-enum
+typedef struct opt_arg_t
 {
-  ARGUMENT_REQUIRED = 0x01,
-  ARGUMENT_NONE     = 0x02
-};
-
-typedef struct arg_t
-{
-  char* long_opt;
-  char short_opt;
+  const char* long_opt;
+  const char short_opt;
   uint32_t flag;
   uint32_t id;
-} arg_t;
+} opt_arg_t;
 
-typedef struct parse_state_t
+typedef struct opt_state_t
 {
+  const opt_arg_t* args;
+
   int* argc;
   char** argv;
-  arg_t* args;
   char* arg_val;
 
   //do not touch :-)
@@ -32,10 +28,11 @@ typedef struct parse_state_t
   char* opt_end;
   int match_type;
   int idx;
-} parse_state_t;
+  int remove;
+} opt_state_t;
 
-void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv);
+void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv);
 
-int opt_next(parse_state_t* s);
+int opt_next(opt_state_t* s);
 
 #endif

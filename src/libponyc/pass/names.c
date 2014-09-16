@@ -205,9 +205,9 @@ bool names_nominal(ast_t* scope, ast_t** astp)
     const char* name = ast_name(package);
 
     if(name[0] == '$')
-      scope = (ast_t*)ast_get(ast_nearest(scope, TK_PROGRAM), name);
+      scope = ast_get(ast_nearest(scope, TK_PROGRAM), name);
     else
-      scope = (ast_t*)ast_get(scope, name);
+      scope = ast_get(scope, name);
 
     if((scope == NULL) || (ast_id(scope) != TK_PACKAGE))
     {
@@ -222,7 +222,7 @@ bool names_nominal(ast_t* scope, ast_t** astp)
 
   // find our definition
   const char* name = ast_name(type);
-  ast_t* def = (ast_t*)ast_get(scope, name);
+  ast_t* def = ast_get(scope, name);
 
   if(def == NULL)
   {

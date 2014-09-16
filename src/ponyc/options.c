@@ -4,53 +4,68 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define END_MARKER(X) \
-  ((X->long_opt == NULL) && \
-  (X->short_opt == 0) && \
-  (X->id == UINT32_MAX) && \
-  (X->flag == UINT32_MAX))
+#define MATCH_LONG  1
+#define MATCH_SHORT 2
+#define MATCH_NONE  3
 
-enum
+static bool end_reached(const opt_arg_t* arg)
 {
-  MATCH_INIT  = UINT32_MAX,
-  MATCH_LONG  = 0,
-  MATCH_SHORT = 1,
-  MATCH_NONE  = 2
-};
-
-static bool is_positional(parse_state_t* s)
-{
-  return (s->argv[s->idx][0] != '-' || s->argv[s->idx][1] == '\0');
+  return (arg->long_opt == 0) && (arg->short_opt == 0) &&
+    (arg->id == UINT32_MAX) && (arg->flag == UINT32_MAX);
 }
 
-static arg_t* find_match(parse_state_t* s)
+static bool has_argument(opt_state_t* s, const opt_arg_t* arg)
 {
-  arg_t* args = s->args;
-  arg_t* match = NULL;
-  size_t len = (size_t)(s->opt_end - s->opt_start);
+  bool short_arg = ((s->match_type == MATCH_SHORT) &&
+    (*(s->opt_start + 1) || s->idx < *s->argc));
 
+  bool long_arg = ((s->match_type == MATCH_LONG) &&
+    ((*s->opt_end == '=') || s->idx < *s->argc));
+
+  return (short_arg | long_arg);
+}
+
+static void parse_option_name(opt_state_t* s)
+{
+  s->opt_start = (s->argv[s->idx] + 1 + (s->argv[s->idx][1] == '-'));
+
+  for(s->opt_end = s->opt_start; *s->opt_end && *s->opt_end != '=';
+    s->opt_end++);
+}
+
+static const opt_arg_t* find_match(opt_state_t* s)
+{
   bool ambig = false;
+  size_t match_length;
 
-  int mode = MATCH_INIT;
-  size_t match_len;
-  char* name;
-
-  while(mode < MATCH_NONE)
+  const char* match_name;
+  const opt_arg_t* match = NULL;
+  
+  parse_option_name(s);
+     
+  for(s->match_type = MATCH_LONG; s->match_type <= MATCH_SHORT; ++s->match_type)
   {
-    s->match_type = ++mode;
-
-    for(arg_t* p = args; !END_MARKER(p); ++p)
+    for(const opt_arg_t* p = s->args; !end_reached(p); ++p)
     {
-      name = (mode == MATCH_LONG) ? p->long_opt : &p->short_opt;
-      match_len = (mode == MATCH_LONG) ? len : 1;
-
-      if (!strncmp(name, s->opt_start, (mode == MATCH_LONG) ? len : 1))
+      if(s->match_type == MATCH_LONG)
       {
-        if(match_len == strlen(name))
+        match_name = p->long_opt;
+        match_length = (size_t)(s->opt_end - s->opt_start);
+      }
+      else
+      {
+        match_name = &p->short_opt;
+        match_length = 1;
+      }
+      
+      if(!strncmp(match_name, s->opt_start, match_length))
+      {
+        if(match_length == strlen(match_name))
         {
           //Exact match found. It is necessary to check for
           //the length of p->long_opt since there might be
-          //options that are prefixes of another (strncmp).
+          //options that are prefixes of another (strncmp),
+          //and short options might be grouped.
           match = p;
           break;
         }
@@ -61,16 +76,98 @@ static arg_t* find_match(parse_state_t* s)
       }
     }
 
-    if (ambig && mode == MATCH_SHORT)
-      return (arg_t*)1;
-    else if (match != NULL)
+    if(ambig && s->match_type == MATCH_SHORT)
+      return (opt_arg_t*)1;
+    else if(match != NULL)
       return match;
   }
 
+  s->match_type = MATCH_NONE;
   return NULL;
 }
 
-void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv)
+static bool is_positional(const opt_state_t* s)
+{
+  return (s->argv[s->idx][0] != '-' || s->argv[s->idx][1] == '\0');
+}
+
+static bool skip_non_options(opt_state_t* s)
+{
+  while(true)
+  {
+    if(s->idx == *s->argc)
+      return false;
+
+    if(!is_positional(s))
+      return true;
+
+    s->idx++;
+  }
+}
+
+static void strip_accepted_opts(opt_state_t* s)
+{
+  if(s->remove > 0)
+  {
+    *s->argc -= s->remove;
+
+    memmove(&s->argv[s->idx], &s->argv[s->idx + s->remove],
+      (*s->argc - s->idx) * sizeof(char*));
+
+    s->idx--;
+
+    s->remove = 0;
+  }
+}
+
+static void parse_long_opt_arg(opt_state_t* s)
+{
+  if(*s->opt_end == '=')
+  {
+    s->arg_val = s->opt_end + 1;
+    s->opt_start += strlen(s->opt_start);
+  }
+  else
+  {
+    s->arg_val = s->argv[s->idx + 1];
+    s->opt_start += strlen(s->opt_start);
+    s->remove++;
+  }
+}
+
+static void parse_short_opt_arg(opt_state_t* s)
+{
+  if(*s->opt_end)
+  {
+    s->arg_val = s->opt_end;
+    s->opt_start += strlen(s->opt_start);
+  }
+  else if(*(s->opt_start) != '-')
+  {
+    s->arg_val = s->argv[s->idx + 1];
+  }
+  else
+  {
+    s->arg_val = s->opt_start + 1;
+    s->opt_start += strlen(s->opt_start);
+  }
+
+  s->remove++;
+}
+
+static void parse_short_opt(opt_state_t* s)
+{
+  //strip out the short option, as short options may be
+  //grouped
+  memmove(s->opt_start, s->opt_start + 1, strlen(s->opt_start));
+
+  if(*s->opt_start)
+    s->opt_start = s->argv[s->idx];
+  else
+    s->remove++;
+}
+
+void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv)
 {
   s->argc = argc;
   s->argv = argv;
@@ -81,63 +178,36 @@ void opt_init(arg_t* args, parse_state_t* s, int* argc, char** argv)
   s->opt_end = NULL;
   s->match_type = 0;
   s->idx = 0;
+  s->remove = 0;
 }
 
-int opt_next(parse_state_t* s)
+int opt_next(opt_state_t* s)
 {
-  int remove = 0;
-
   if(s->opt_start == NULL || *s->opt_start == '\0')
   {
-    //Parsing a new option, advance in argv.
-    //If this is the first call to opt_next,
-    //skip argv[0] (the program name).
+    //Parsing a new option
     s->idx++;
 
-    //skip all non-options
-    while(true)
-    {
-      if(s->idx == *s->argc)
-        return -1;
-
-      if(is_positional(s))
-      {
-        s->idx++;
-        continue;
-      }
-
-      break;
-    }
+    if(!skip_non_options(s))
+      return -1;
   }
 
-  //Found a named argument
-  s->opt_start = (s->argv[s->idx] + 1 + (s->argv[s->idx][1] == '-'));
-  for(s->opt_end = s->opt_start; *s->opt_end && *s->opt_end != '='; s->opt_end++);
-
-  //Check for exact or abbreviated match. If the option is known, process it,
+  //Check for known exact match. If the option is known, process it,
   //otherwise ignore it.
-  arg_t* m = find_match(s);
+  const opt_arg_t* m = find_match(s);
 
   if(m == NULL)
   {
     s->opt_start += strlen(s->opt_start);
     return opt_next(s);
   }
-  else if(m == (arg_t*)1)
+  else if(m == (opt_arg_t*)1)
   {
     printf("%s: '%s' option is ambiguous!\n", s->argv[0], s->argv[s->idx]);
     return -2;
   }
 
-  bool short_arg = (s->match_type == MATCH_SHORT && (*(s->opt_start + 1) ||
-    s->idx < *s->argc));
-
-  bool long_arg = (s->match_type == MATCH_LONG && ((*s->opt_end == '=')
-    || s->idx < *s->argc));
-
-  bool has_arg = (short_arg | long_arg);
-
-  if ((m->flag == ARGUMENT_REQUIRED) && !has_arg)
+  if ((m->flag == OPT_ARG_REQUIRED) && !has_argument(s, m))
   {
     printf("%s: '%s' option requires an argument!\n", s->argv[0],
       s->argv[s->idx]);
@@ -145,66 +215,22 @@ int opt_next(parse_state_t* s)
     return -2;
   }
 
-  switch(s->match_type)
+  if(s->match_type == MATCH_LONG)
   {
-    case MATCH_LONG:
-      if(m->flag == ARGUMENT_REQUIRED)
-      {
-        if(*s->opt_end == '=')
-        {
-          s->arg_val = s->opt_end + 1;
-          s->opt_start += strlen(s->opt_start);
-        }
-        else
-        {
-          s->arg_val = s->argv[s->idx + 1];
-          s->opt_start += strlen(s->opt_start);
-          remove++;
-        }
-      }
-      remove++;
-      break;
-    case MATCH_SHORT:
-      //strip out the short option, as short options may be
-      //grouped
-      memmove(s->opt_start, s->opt_start + 1, strlen(s->opt_start));
+    s->remove++;
 
-      if(*s->opt_start)
-        s->opt_start = s->argv[s->idx];
-      else
-        remove++;
-
-      if(m->flag == ARGUMENT_REQUIRED)
-      {
-        if(*s->opt_end)
-        {
-          s->arg_val = s->opt_end;
-          s->opt_start += strlen(s->opt_start);
-        }
-        else if (*(s->opt_start) != '-')
-        {
-          s->arg_val = s->argv[s->idx + 1];
-        }
-        else
-        {
-          s->arg_val = s->opt_start + 1;
-          s->opt_start += strlen(s->opt_start);
-        }
-
-        remove++;
-      }
-      break;
+    if(m->flag == OPT_ARG_REQUIRED)
+      parse_long_opt_arg(s);
   }
-
-  if (remove > 0)
+  else if(s->match_type == MATCH_SHORT)
   {
-    *s->argc -= remove;
+    parse_short_opt(s);
 
-    memmove(&s->argv[s->idx], &s->argv[s->idx + remove],
-      (*s->argc - s->idx) * sizeof(char*));
-
-    s->idx--;
+    if(m->flag == OPT_ARG_REQUIRED)
+      parse_short_opt_arg(s);
   }
+ 
+  strip_accepted_opts(s);
 
   return m->id;
 }

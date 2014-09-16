@@ -19,7 +19,7 @@ static void make_box_type(compile_t* c, gentype_t* g)
     g->structure = LLVMGetTypeByName(c->module, box_name);
 
     if(g->structure == NULL)
-      g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), box_name);
+      g->structure = LLVMStructCreateNamed(c->context, box_name);
   }
 
   if(LLVMIsOpaqueStruct(g->structure))
@@ -111,41 +111,41 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     {
       if(!strcmp(name, "True"))
       {
-        g->primitive = LLVMInt1Type();
-        g->instance = LLVMConstInt(LLVMInt1Type(), 1, false);
+        g->primitive = c->i1;
+        g->instance = LLVMConstInt(c->i1, 1, false);
       } else if(!strcmp(name, "False")) {
-        g->primitive = LLVMInt1Type();
-        g->instance = LLVMConstInt(LLVMInt1Type(), 0, false);
+        g->primitive = c->i1;
+        g->instance = LLVMConstInt(c->i1, 0, false);
       } else if(!strcmp(name, "I8"))
-        g->primitive = LLVMInt8Type();
+        g->primitive = c->i8;
       else if(!strcmp(name, "U8"))
-        g->primitive = LLVMInt8Type();
+        g->primitive = c->i8;
       else if(!strcmp(name, "I16"))
-        g->primitive = LLVMInt16Type();
+        g->primitive = c->i16;
       else if(!strcmp(name, "U16"))
-        g->primitive = LLVMInt16Type();
+        g->primitive = c->i16;
       else if(!strcmp(name, "I32"))
-        g->primitive = LLVMInt32Type();
+        g->primitive = c->i32;
       else if(!strcmp(name, "U32"))
-        g->primitive = LLVMInt32Type();
+        g->primitive = c->i32;
       else if(!strcmp(name, "I64"))
-        g->primitive = LLVMInt64Type();
+        g->primitive = c->i64;
       else if(!strcmp(name, "U64"))
-        g->primitive = LLVMInt64Type();
+        g->primitive = c->i64;
       else if(!strcmp(name, "I128"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "U128"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "SIntLiteral"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "UIntLiteral"))
-        g->primitive = LLVMIntType(128);
+        g->primitive = c->i128;
       else if(!strcmp(name, "F32"))
-        g->primitive = LLVMFloatType();
+        g->primitive = c->f32;
       else if(!strcmp(name, "F64"))
-        g->primitive = LLVMDoubleType();
+        g->primitive = c->f64;
       else if(!strcmp(name, "FloatLiteral"))
-        g->primitive = LLVMDoubleType();
+        g->primitive = c->f64;
       else if(!strcmp(name, "_Pointer"))
         return genprim_pointer(c, g, prelim);
     }
@@ -157,7 +157,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   g->structure = LLVMGetTypeByName(c->module, g->type_name);
 
   if(g->structure == NULL)
-    g->structure = LLVMStructCreateNamed(LLVMGetGlobalContext(), g->type_name);
+    g->structure = LLVMStructCreateNamed(c->context, g->type_name);
 
   bool opaque = LLVMIsOpaqueStruct(g->structure) != 0;
 
@@ -233,15 +233,6 @@ static bool setup_type_fields(gentype_t* g)
       case TK_FVAR:
       case TK_FLET:
       {
-        // TODO: remove when field initialisation works
-        ast_t* init = ast_childidx(member, 2);
-
-        if(ast_id(init) != TK_NONE)
-        {
-          ast_error(init, "codegen for field initialisation not implemented");
-          return false;
-        }
-
         g->field_count++;
         break;
       }
@@ -303,7 +294,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   codegen_startfun(c, g->dispatch_fn);
 
-  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlock(g->dispatch_fn,
+  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn,
     "unreachable");
 
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
@@ -326,6 +317,35 @@ static void make_dispatch(compile_t* c, gentype_t* g)
 
   // Pause, otherwise the optimiser will run on what we have so far.
   codegen_pausefun(c);
+}
+
+static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
+  int extra)
+{
+  bool need_trace = false;
+
+  for(int i = 0; i < g->field_count; i++)
+  {
+    LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
+      "");
+    LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
+  }
+
+  return need_trace;
+}
+
+static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef tuple)
+{
+  bool need_trace = false;
+
+  for(int i = 0; i < g->field_count; i++)
+  {
+    LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
+    need_trace |= gencall_trace(c, value, g->fields[i]);
+  }
+
+  return need_trace;
 }
 
 static bool make_trace(compile_t* c, gentype_t* g)
@@ -360,28 +380,46 @@ static bool make_trace(compile_t* c, gentype_t* g)
     "object");
 
   // If we don't ever trace anything, delete this function.
-  bool need_trace = false;
+  bool need_trace;
 
-  if(g->underlying != TK_TUPLETYPE)
+  if(g->underlying == TK_TUPLETYPE)
   {
-    // Everything has a descriptor.
+    // Create another function that traces the tuple members.
+    const char* trace_tuple_name = genname_tracetuple(g->type_name);
+    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type, &g->primitive,
+      1, false);
+    LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
+      trace_tuple_type);
+    codegen_startfun(c, trace_tuple_fn);
+
+    LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
+    LLVMSetValueName(arg, "arg");
+    need_trace = trace_elements(c, g, arg);
+
+    LLVMBuildRetVoid(c->builder);
+    codegen_finishfun(c);
+
+    if(need_trace)
+    {
+      // Get the tuple primitive.
+      LLVMValueRef tuple_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
+      LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
+
+      // Call the tuple trace function with the unboxed primitive type.
+      LLVMValueRef result = LLVMBuildCall(c->builder, trace_tuple_fn, &tuple,
+        1, "");
+      LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+    } else {
+      LLVMDeleteFunction(trace_tuple_fn);
+    }
+  } else {
     int extra = 1;
 
     // Actors have a pad.
     if(g->underlying == TK_ACTOR)
       extra++;
 
-    for(int i = 0; i < g->field_count; i++)
-    {
-      LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
-        "");
-      LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-      need_trace |= gencall_trace(c, value, g->fields[i]);
-    }
-  } else {
-    // TODO:
-    // Get the tuple primitive.
-    // LLVMValueRef tuple = LLVMBuildStructGEP(c->builder, object, 1, "");
+    need_trace = trace_fields(c, g, object, extra);
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -433,6 +471,11 @@ static bool make_struct(compile_t* c, gentype_t* g)
   }
 
   LLVMStructSetBody(type, elements, g->field_count + extra, false);
+
+  // Create a box type for tuples.
+  if(g->underlying == TK_TUPLETYPE)
+    make_box_type(c, g);
+
   return true;
 }
 
@@ -517,11 +560,9 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
   free_fields(g);
 
-  // Create a box type.
-  make_box_type(c, g);
-
-  // Generate a boxing function.
+  // Generate a boxing function and a descriptor.
   genfun_box(c, g);
+  gendesc_init(c, g);
 
   return ok;
 }
@@ -555,7 +596,7 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
       // Special case Bool. Otherwise it's just a raw object pointer.
       if(is_bool(ast))
       {
-        g->primitive = LLVMInt1Type();
+        g->primitive = c->i1;
         g->use_type = g->primitive;
       } else {
         g->use_type = c->object_ptr;

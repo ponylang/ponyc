@@ -15,13 +15,13 @@ char* LLVMGetHostCPUName();
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
-typedef struct compile_context_t
+typedef struct compile_frame_t
 {
   LLVMValueRef fun;
   LLVMBasicBlockRef restore_builder;
 
-  struct compile_context_t* prev;
-} compile_context_t;
+  struct compile_frame_t* prev;
+} compile_frame_t;
 
 typedef struct compile_t
 {
@@ -29,13 +29,21 @@ typedef struct compile_t
   const char* filename;
   uint32_t next_type_id;
 
-  char* triple;
-  LLVMModuleRef module;
+  LLVMContextRef context;
   LLVMTargetDataRef target_data;
-
+  LLVMModuleRef module;
   LLVMBuilderRef builder;
   LLVMPassManagerRef fpm;
-  LLVMPassManagerBuilderRef pmb;
+
+  LLVMTypeRef void_type;
+  LLVMTypeRef i1;
+  LLVMTypeRef i8;
+  LLVMTypeRef i16;
+  LLVMTypeRef i32;
+  LLVMTypeRef i64;
+  LLVMTypeRef i128;
+  LLVMTypeRef f32;
+  LLVMTypeRef f64;
 
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;
@@ -53,8 +61,12 @@ typedef struct compile_t
 
   LLVMValueRef personality;
 
-  compile_context_t* context;
+  compile_frame_t* frame;
 } compile_t;
+
+bool codegen_init(pass_opt_t* opt);
+
+void codegen_shutdown(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit);
 
@@ -65,5 +77,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun);
 void codegen_pausefun(compile_t* c);
 
 void codegen_finishfun(compile_t* c);
+
+LLVMValueRef codegen_fun(compile_t* c);
 
 #endif
