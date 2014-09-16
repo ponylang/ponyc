@@ -193,6 +193,7 @@ TEST(BnfTest, AliasMustHaveType)
 }
 
 
+// Operator lack of precedence
 
 TEST(BnfTest, InfixSingleOp)
 {
@@ -244,6 +245,37 @@ TEST(BnfTest, InfixTwoOpsWithoutParens)
   const char* src = "class C fun ref f() => 1 + 2 - 3";
 
   DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, AssignInfixCombo)
+{
+  const char* src = "class C fun ref f() => 1 = 2 + 3 = 4";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (= 1 (= (+ 2 3) 4))"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, AssignInfixPrefixPostfixSequenceCombo)
+{
+  const char* src = "class C fun ref f() => 1 = -2.a + 3.b 4";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (= 1 (+ (- (. 2 (id a))) (. 3 (id b))))"
+    "      4"
+    ")))))))";
+
+  DO(parse_good(src, expect));
 }
 
 

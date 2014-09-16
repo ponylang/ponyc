@@ -5,6 +5,7 @@
 DECL(type);
 DECL(rawseq);
 DECL(seq);
+DECL(assignment);
 DECL(term);
 DECL(members);
 
@@ -349,7 +350,7 @@ DEF(call);
 // atom {dot | bang | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  OPT BINDOP("postfix expression", dot, bang, qualify, call);
+  TOP SEQ("postfix expression", dot, bang, qualify, call);
   DONE();
 
 // ID
@@ -512,8 +513,7 @@ DEF(binop);
     TK_AND, TK_OR, TK_XOR,
     TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
     TK_LSHIFT, TK_RSHIFT,
-    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT,
-    TK_ASSIGN
+    TK_IS, TK_ISNT, TK_EQ, TK_NE, TK_LT, TK_LE, TK_GE, TK_GT
     );
   RULE("value", term);
   DONE();
@@ -521,13 +521,25 @@ DEF(binop);
 // term {binop}
 DEF(infix);
   RULE("value", term);
-  OPT BINDOP("value", binop);
+  TOP SEQ("value", binop);
   DONE();
 
-// (RETURN | BREAK) infix
+// ASSIGNOP assignment
+DEF(assignop);
+  TOKEN("assign operator", TK_ASSIGN);
+  RULE("assign rhs", assignment);
+  DONE();
+
+// term ASSIGNOP
+DEF(assignment);
+  RULE("value", infix);
+  OPT TOP RULE("value", assignop);
+  DONE();
+
+// (RETURN | BREAK) assignment
 DEF(returnexpr);
   TOKEN(NULL, TK_RETURN, TK_BREAK);
-  RULE("return value", infix);
+  RULE("return value", assignment);
   DONE();
 
 // CONTINUE | ERROR | COMPILER_INTRINSIC
@@ -535,9 +547,9 @@ DEF(statement);
   TOKEN("statement", TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
   DONE();
 
-// (statement | returnexpr | infix) [SEMI]
+// (statement | returnexpr | assignment) [SEMI]
 DEF(expr);
-  RULE("statement", statement, returnexpr, infix);
+  RULE("statement", statement, returnexpr, assignment);
   OPT SKIP(NULL, TK_SEMI);
   DONE();
 
