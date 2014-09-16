@@ -158,7 +158,7 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   n->next = NULL;
   *painter->name_next = n;
   painter->name_next = &n->next;
-  symtab_add(painter->name_table, name, n);
+  symtab_add(painter->name_table, name, n, SYM_NONE);
   painter->name_count++;
   return n;
 }
@@ -183,7 +183,7 @@ static colour_record_t* add_colour(painter_t* painter)
 // Find the name record with the specified name
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
-  return (name_record_t*)symtab_get(painter->name_table, name);
+  return (name_record_t*)symtab_get(painter->name_table, name, NULL);
 }
 
 

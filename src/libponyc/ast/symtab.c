@@ -42,21 +42,33 @@ symtab_t* symtab_new()
   return symtab_create(32);
 }
 
-bool symtab_add(symtab_t* symtab, const char* name, void* value)
+bool symtab_add(symtab_t* symtab, const char* name, void* value,
+  sym_status_t status)
 {
   bool present;
-  symbol_t sym = {name, value, SYM_NONE};
+  symbol_t sym = {name, value, status};
   symtab_insert(symtab, &sym, &present);
 
   return !present;
 }
 
-void* symtab_get(symtab_t* symtab, const char* name)
+void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status)
 {
   symbol_t s1 = {name, NULL, SYM_NONE};
   symbol_t* s2 = symtab_find(symtab, &s1);
 
-  return s2 != NULL ? s2->value : NULL;
+  if(s2 != NULL)
+  {
+    if(status != NULL)
+      *status = s2->status;
+
+    return s2->value;
+  }
+
+  if(status != NULL)
+    *status = SYM_NONE;
+
+  return NULL;
 }
 
 sym_status_t symtab_get_status(symtab_t* symtab, const char* name)

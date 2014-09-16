@@ -642,7 +642,7 @@ size_t ast_index(ast_t* ast)
   return idx;
 }
 
-ast_t* ast_get(ast_t* ast, const char* name)
+ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
 {
   /* searches all parent scopes, but not the program scope, because the name
    * space for paths is separate from the name space for all other IDs.
@@ -652,7 +652,7 @@ ast_t* ast_get(ast_t* ast, const char* name)
   {
     if(ast->symtab != NULL)
     {
-      ast_t* value = (ast_t*)symtab_get(ast->symtab, name);
+      ast_t* value = (ast_t*)symtab_get(ast->symtab, name, status);
 
       if(value != NULL)
         return value;
@@ -664,13 +664,13 @@ ast_t* ast_get(ast_t* ast, const char* name)
   return NULL;
 }
 
-bool ast_set(ast_t* ast, const char* name, ast_t* value)
+bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
 {
   while(ast->symtab == NULL)
     ast = ast->scope;
 
-  return (ast_get(ast, name) == NULL)
-    && symtab_add(ast->symtab, name, value);
+  return (ast_get(ast, name, NULL) == NULL)
+    && symtab_add(ast->symtab, name, value, status);
 }
 
 bool ast_merge(ast_t* dst, ast_t* src)

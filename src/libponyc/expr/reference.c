@@ -125,7 +125,9 @@ bool expr_reference(ast_t* ast)
 {
   // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
-  ast_t* def = ast_get(ast, name);
+
+  sym_status_t status;
+  ast_t* def = ast_get(ast, name, &status);
 
   if(def == NULL)
   {
