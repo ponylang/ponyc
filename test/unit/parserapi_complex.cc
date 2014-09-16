@@ -27,7 +27,7 @@ TEST(ParserApiComplexTest, Recursion)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, recurse);
+  ast_t* ast = parse(src, recurse, "test");
   DO(check_tree("(: (: (: x)))", ast));
 
   ast_free(ast);
@@ -41,7 +41,7 @@ TEST(ParserApiComplexTest, RecursionLexError)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, recurse);
+  ast_t* ast = parse(src, recurse, "test");
   ASSERT_EQ((void*)NULL, ast);
 
   source_close(src);
@@ -54,7 +54,7 @@ TEST(ParserApiComplexTest, RecursionParseError)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, recurse);
+  ast_t* ast = parse(src, recurse, "test");
   ASSERT_EQ((void*)NULL, ast);
 
   source_close(src);
@@ -81,7 +81,7 @@ TEST(ParserApiComplexTest, MutualRecursion)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, recurse_mut1);
+  ast_t* ast = parse(src, recurse_mut1, "test");
   DO(check_tree("(: (; (: x)))", ast));
 
   ast_free(ast);

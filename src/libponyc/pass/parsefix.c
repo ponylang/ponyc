@@ -509,6 +509,62 @@ static ast_result_t parse_fix_ffi(ast_t* ast)
 }
 
 
+static bool is_expr_infix(token_id id)
+{
+  switch(id)
+  {
+    case TK_AND:
+    case TK_OR:
+    case TK_XOR:
+    case TK_PLUS:
+    case TK_MINUS:
+    case TK_MULTIPLY:
+    case TK_DIVIDE:
+    case TK_MOD:
+    case TK_LSHIFT:
+    case TK_RSHIFT:
+    case TK_IS:
+    case TK_ISNT:
+    case TK_EQ:
+    case TK_NE:
+    case TK_LT:
+    case TK_LE:
+    case TK_GE:
+    case TK_GT:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+
+static ast_result_t parse_fix_infix_expr(ast_t* ast)
+{
+  assert(ast != NULL);
+  AST_GET_CHILDREN(ast, left, right);
+
+  token_id op = ast_id(ast);
+
+  assert(left != NULL);
+  token_id left_op = ast_id(left);
+  bool left_clash = (left_op != op) && is_expr_infix(left_op);
+
+  assert(right != NULL);
+  token_id right_op = ast_id(right);
+  bool right_clash = (right_op != op) && is_expr_infix(right_op);
+
+  if(left_clash || right_clash)
+  {
+    ast_error(ast,
+      "Operator precedence is not supported. Parentheses required.");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp)
 {
   assert(astp != NULL);
@@ -528,6 +584,11 @@ ast_result_t pass_parse_fix(ast_t** astp)
     case TK_BANG:       return parse_fix_bang(ast);
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_AT:         return parse_fix_ffi(ast);
-    default:            return AST_OK;
+    default: break;
   }
+
+  if(is_expr_infix(ast_id(ast)))
+    return parse_fix_infix_expr(ast);
+
+  return AST_OK;
 }

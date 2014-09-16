@@ -54,10 +54,10 @@ static void parse_bad(const char* src)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
-  limit_passes("parse");
+  limit_passes("parsefix");
   package_suppress_build_message();
 
-  ASSERT_EQ((void*)NULL, program_load("prog"));
+  ASSERT_EQ((void*)NULL, program_load(stringtab("prog")));
 }
 
 
@@ -191,6 +191,61 @@ TEST(BnfTest, AliasMustHaveType)
 
   DO(parse_bad(src));
 }
+
+
+
+TEST(BnfTest, InfixSingleOp)
+{
+  const char* src = "class C fun ref f() => 1 + 2";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (+ 1 2)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixRepeatedOp)
+{
+  const char* src = "class C fun ref f() => 1 + 2 + 3";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (+ (+ 1 2) 3)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixTwoOpsWithParens)
+{
+  const char* src = "class C fun ref f() => (1 + 2) - 3";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (- (tuple (seq (+ 1 2))) 3)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixTwoOpsWithoutParens)
+{
+  const char* src = "class C fun ref f() => 1 + 2 - 3";
+
+  DO(parse_bad(src));
+}
+
 
 
 // TODO(andy): Loads more tests needed here

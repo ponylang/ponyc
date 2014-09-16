@@ -23,7 +23,7 @@ TEST(ParserApiAstTest, TokenOnly)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, token_only);
+  ast_t* ast = parse(src, token_only, "test");
   DO(check_tree("(%)", ast));
 
   ast_free(ast);
@@ -41,7 +41,7 @@ TEST(ParserApiAstTest, AstOnly)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, ast_only);
+  ast_t* ast = parse(src, ast_only, "test");
   DO(check_tree("(.)", ast));
 
   ast_free(ast);
@@ -60,7 +60,7 @@ TEST(ParserApiAstTest, AstThenToken)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, ast_then_token);
+  ast_t* ast = parse(src, ast_then_token, "test");
   DO(check_tree("(. %)", ast));
 
   ast_free(ast);
@@ -79,7 +79,7 @@ TEST(ParserApiAstTest, TokenThenAst)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, token_then_ast);
+  ast_t* ast = parse(src, token_then_ast, "test");
   DO(check_tree("(% .)", ast));
 
   ast_free(ast);
@@ -102,7 +102,7 @@ TEST(ParserApiAstTest, SeqPresentThenAst)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, seq_then_ast);
+  ast_t* ast = parse(src, seq_then_ast, "test");
   DO(check_tree("(% .)", ast));
 
   ast_free(ast);
@@ -115,7 +115,7 @@ TEST(ParserApiAstTest, OptTokenMissingThenAst)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, seq_then_ast);
+  ast_t* ast = parse(src, seq_then_ast, "test");
   DO(check_tree("(.)", ast));
 
   ast_free(ast);
@@ -139,7 +139,7 @@ TEST(ParserApiAstTest, NullAst)
 
   source_t* src = source_open_string(code);
 
-  ast_t* ast = parse(src, null_top);
+  ast_t* ast = parse(src, null_top, "test");
   DO(check_tree("(.)", ast));
 
   ast_free(ast);

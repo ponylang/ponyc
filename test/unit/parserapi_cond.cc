@@ -10,49 +10,47 @@ PONY_EXTERN_C_END
 
 
 static bool _entered_body;
-static const char* _predict_in_body;
 static bool _opt_in_body;
+static bool _top_in_body;
 
 static bool _reached_end;
-static const char* _predict_at_end;
 static bool _opt_at_end;
+static bool _top_at_end;
 static token_id _next_token_at_end;
 
 
 DEF(if_test);
   TOKEN(NULL, TK_COLON);
-  PREDICT_ERROR("Foo");
   IF(TK_PLUS,
     _entered_body = true;
-    _predict_in_body = parser->predicted_error;
     _opt_in_body = state.opt;
+    _top_in_body = state.top;
     TOKEN(NULL, TK_MINUS));
   _reached_end = true;
-  _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;
+  _top_at_end = state.top;
   _next_token_at_end = current_token_id(parser);
   DONE();
 
 
 DEF(while_test);
   TOKEN(NULL, TK_COLON);
-  PREDICT_ERROR("Foo");
   WHILE(TK_PLUS,
     _entered_body = true;
-    _predict_in_body = parser->predicted_error;
     _opt_in_body = state.opt;
+    _top_in_body = state.top;
     TOKEN(NULL, TK_MINUS));
   _reached_end = true;
-  _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;
+  _top_at_end = state.top;
   _next_token_at_end = current_token_id(parser);
   DONE();
 
 
 DEF(base);
   _entered_body = true;
-  _predict_in_body = parser->predicted_error;
   _opt_in_body = state.opt;
+  _top_in_body = state.top;
   TOKEN(NULL, TK_DOT);
   DONE();
 
@@ -60,15 +58,46 @@ DEF(base2);
   TOKEN(NULL, TK_MINUS);
   DONE();
 
+DEF(base3);
+  TOKEN(NULL, TK_PLUS);
+  TOKEN(NULL, TK_PLUS);
+  DONE();
+
 DEF(seq_test);
   TOKEN(NULL, TK_COLON);
-  PREDICT_ERROR("Foo");
   SEQ("test", base, base2);
   _reached_end = true;
-  _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;
+  _top_at_end = state.top;
   _next_token_at_end = current_token_id(parser);
   DONE();
+
+DEF(seq_top_test);
+  TOKEN(NULL, TK_COLON);
+  TOKEN(NULL, TK_COLON);
+  TOP SEQ("test", base, base3);
+  _reached_end = true;
+  _opt_at_end = state.opt;
+  _top_at_end = state.top;
+  _next_token_at_end = current_token_id(parser);
+  DONE();
+
+  
+static void check_body_state()
+{
+  ASSERT_TRUE(_entered_body);
+  ASSERT_FALSE(_opt_in_body);
+  ASSERT_FALSE(_top_in_body);
+}
+
+
+static void check_end_state(token_id expect_token)
+{
+  ASSERT_TRUE(_reached_end);
+  ASSERT_FALSE(_opt_at_end);
+  ASSERT_FALSE(_top_at_end);
+  ASSERT_EQ(expect_token, _next_token_at_end);
+}
 
 
 class ParserApiCondTest: public testing::Test
@@ -86,9 +115,8 @@ TEST(ParserApiCondTest, IfCondLexError)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, if_test);
+  ast_t* ast = parse(src, if_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_FALSE(_entered_body);
   ASSERT_FALSE(_reached_end);
 
@@ -105,15 +133,10 @@ TEST(ParserApiCondTest, IfFalse)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, if_test);
+  ast_t* ast = parse(src, if_test, "test");
   DO(check_tree("(: x)", ast));
-
   ASSERT_FALSE(_entered_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_STREQ("Foo", _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -129,17 +152,10 @@ TEST(ParserApiCondTest, IfTrue)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, if_test);
+  ast_t* ast = parse(src, if_test, "test");
   DO(check_tree("(: -)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_EQ((void*)NULL, _predict_in_body);
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -155,11 +171,9 @@ TEST(ParserApiCondTest, IfBodyLexError)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, if_test);
+  ast_t* ast = parse(src, if_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_TRUE(_entered_body);
-
   ASSERT_FALSE(_reached_end);
 
   ast_free(ast);
@@ -178,9 +192,8 @@ TEST(ParserApiCondTest, WhileCondLexError)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, while_test);
+  ast_t* ast = parse(src, while_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_FALSE(_entered_body);
   ASSERT_FALSE(_reached_end);
 
@@ -197,15 +210,10 @@ TEST(ParserApiCondTest, WhileTokenNone)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, while_test);
+  ast_t* ast = parse(src, while_test, "test");
   DO(check_tree("(:)", ast));
-
   ASSERT_FALSE(_entered_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_STREQ("Foo", _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -221,17 +229,10 @@ TEST(ParserApiCondTest, WhileTokenOne)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, while_test);
+  ast_t* ast = parse(src, while_test, "test");
   DO(check_tree("(: -)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_EQ((void*)NULL, _predict_in_body);
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -247,17 +248,10 @@ TEST(ParserApiCondTest, WhileTokenMany)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, while_test);
+  ast_t* ast = parse(src, while_test, "test");
   DO(check_tree("(: - - -)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_EQ((void*)NULL, _predict_in_body);
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -273,11 +267,9 @@ TEST(ParserApiCondTest, WhileBodyLexError)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, while_test);
+  ast_t* ast = parse(src, while_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_TRUE(_entered_body);
-
   ASSERT_FALSE(_reached_end);
 
   ast_free(ast);
@@ -296,17 +288,10 @@ TEST(ParserApiCondTest, SeqNone)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, seq_test);
+  ast_t* ast = parse(src, seq_test, "test");
   DO(check_tree("(:)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_STREQ("Foo", _predict_in_body);
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_STREQ("Foo", _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -322,17 +307,10 @@ TEST(ParserApiCondTest, SeqOne)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, seq_test);
+  ast_t* ast = parse(src, seq_test, "test");
   DO(check_tree("(: .)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_EQ((void*)NULL, _predict_in_body); // LAST time in body
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state()); // LAST time in body
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -348,17 +326,10 @@ TEST(ParserApiCondTest, SeqMany)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, seq_test);
+  ast_t* ast = parse(src, seq_test, "test");
   DO(check_tree("(: - - - . - . .)", ast));
-
-  ASSERT_TRUE(_entered_body);
-  ASSERT_EQ((void*)NULL, _predict_in_body);
-  ASSERT_FALSE(_opt_in_body);
-
-  ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
-  ASSERT_FALSE(_opt_at_end);
-  ASSERT_EQ(TK_SEMI, _next_token_at_end);
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
   source_close(src);
@@ -374,9 +345,8 @@ TEST(ParserApiCondTest, SeqLexError)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, seq_test);
+  ast_t* ast = parse(src, seq_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_FALSE(_entered_body);  // Error immediately before body entered
   ASSERT_FALSE(_reached_end);
 
@@ -393,11 +363,67 @@ TEST(ParserApiCondTest, SeqLexError2)
   _entered_body = false;
   _reached_end = false;
 
-  ast_t* ast = parse(src, seq_test);
+  ast_t* ast = parse(src, seq_test, "test");
   ASSERT_EQ((void*)NULL, ast);
-
   ASSERT_TRUE(_entered_body);  // Error before body entered second time
   ASSERT_FALSE(_reached_end);
 
+  source_close(src);
+}
+
+
+// TOP SEQ
+
+TEST(ParserApiCondTest, SeqTopNone)
+{
+  const char* code = "::;";
+
+  source_t* src = source_open_string(code);
+
+  _entered_body = false;
+  _reached_end = false;
+
+  ast_t* ast = parse(src, seq_top_test, "test");
+  DO(check_tree("(: :)", ast));
+  DO(check_body_state());
+  DO(check_end_state(TK_SEMI));
+
+  ast_free(ast);
+  source_close(src);
+}
+
+
+TEST(ParserApiCondTest, SeqTopOne)
+{
+  const char* code = "::++;";
+
+  source_t* src = source_open_string(code);
+
+  _entered_body = false;
+  _reached_end = false;
+
+  ast_t* ast = parse(src, seq_top_test, "test");
+  DO(check_tree("(+ (: :) +)", ast));
+  DO(check_end_state(TK_SEMI));
+
+  ast_free(ast);
+  source_close(src);
+}
+
+
+TEST(ParserApiCondTest, SeqTopMulti)
+{
+  const char* code = "::++..;";
+
+  source_t* src = source_open_string(code);
+
+  _entered_body = false;
+  _reached_end = false;
+
+  ast_t* ast = parse(src, seq_top_test, "test");
+  DO(check_tree("(. (. (+ (: :) +)))", ast));
+  DO(check_end_state(TK_SEMI));
+
+  ast_free(ast);
   source_close(src);
 }

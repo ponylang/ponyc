@@ -569,7 +569,6 @@ DEF(function);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
-  PREDICT_ERROR("Did you forget an arrow (=>) ?");
   IF(TK_DBLARROW, RULE("function body", rawseq));
   DONE();
 
@@ -662,5 +661,5 @@ DEF(module);
 // external API
 ast_t* parser(source_t* source)
 {
-  return parse(source, module);
+  return parse(source, module, "class, actor, primitive or trait");
 }
