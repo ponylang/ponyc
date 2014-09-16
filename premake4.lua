@@ -114,7 +114,7 @@ solution "ponyc"
     link_libponyc()
     postbuildcommands {
       "rm -rf $(TARGETDIR)/builtin",
-      "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     }
 
   include "ponyrt/src/"
