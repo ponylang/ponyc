@@ -8,190 +8,262 @@
 
 #include "../platform/platform.h"
 
-/*
+/* Description of AST forms produced after parse fix pass.
+
+We define what each type of node should contain. For convenience we also define
+categories of node types. Node types are all capitals and correspond to the
+token_id of the same name but starting with TK_. Categories are all lower case.
+
+Node definitions look like this:
+
+NODE_TYPE: child node types in order
+data: contents of data pointer (not used if omitted)
+symtab: mapping stored in symbol table (not used if omitted)
+Notes (optional)
+
+Category definitions list the node type or sub-categories they contain:
+
+category
+--------
+data: contents of data pointer (not used if omitted)
+symtab: mapping stored in symbol table (not used if omitted)
+Notes (optional)
+(
+  List of contained node types and sub-categories
+)
+
+Data, symtab and notes for a category apply to all contained members.
+All members defined within a category are indented to aid clarity.
+
+NONE indicates TK_NONE throughout.
+
 
 PROGRAM: {PACKAGE}
 symtab: path -> PACKAGE
+Always the root node.
 
 PACKAGE: {MODULE}
 data: package_t
-symtab: ID -> TYPE | TRAIT | CLASS | ACTOR
+symtab: name -> entity
 
-MODULE: {USE} {TYPE | TRAIT | CLASS | ACTOR}
-data: source
-symtab: ID -> PACKAGE | TYPE | TRAIT | CLASS | ACTOR
+MODULE: {USE} {entity}
+data: source_t
+symtab: name -> PACKAGE | entity
 
-USE: PATH [ID]
+USE: STRING [ID]
+The string child is the use URL.
+The ID child is the package name.
 
-TYPE: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
-DATA: ID [TYPEPARAMS] cap [TYPES] MEMBERS
-TRAIT: ID [TYPEPARAMS] cap [TYPES] MEMBERS
-CLASS: ID [TYPEPARAMS] cap [TYPES] MEMBERS
-ACTOR: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
+entity
+------
 data: typechecking state
-symtab: ID -> TYPEPARAM | FVAR | FVAL | NEW | FUN | BE
+symtab: name -> TYPEPARAM | FVAR | FVAL | method
+(
+  TYPE: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
+  PRIMITIVE: ID [TYPEPARAMS] cap [TYPES] MEMBERS
+  TRAIT: ID [TYPEPARAMS] cap [TYPES] MEMBERS
+  CLASS: ID [TYPEPARAMS] cap [TYPES] MEMBERS
+  ACTOR: ID [TYPEPARAMS] NONE [TYPES] MEMBERS
+)
 
-MEMBERS: {FVAR | FLET | NEW | FUN | BE}
+MEMBERS: {FVAR | FLET | method}
 
 FVAR: ID [type] [SEQ]
 FLET: ID [type] [SEQ]
 
-NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
-BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
-FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
-data: trait method body came from (NULL for none)
-data: during codegen, holds the LLVMBasicBlockRef for the except_block if the
-  function or constructor can error out
-symtab: ID -> TYPEPARAM | PARAM
+method
+------
+data: During traits pass, trait method body came from (NULL for none).
+During codegen, the LLVMBasicBlockRef for the except_block if the function or
+constructor can error out.
+symtab: name -> TYPEPARAM | PARAM
+(
+  NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
+  BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
+  FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ]
+)
 
 TYPEPARAMS: {TYPEPARAM}
 
 TYPEPARAM: ID [type] [type]
+The first child is the contraint type, the second is the default type.
+
+QUESTION: no children
 
 TYPES: {type}
 
-type: (UNIONTYPE | ISECTTYPE | TUPLETYPE | NOMINAL | STRUCTURAL | THISTYPE |
-  ARROW | TYPEPARAMREF)
-cap: (ISO | TRN | REF | VAL | BOX | TAG)
+type
+----
+(
+  ARROW: type type
+  UNIONTYPE: {type}
+  ISECTTYPE: {type}
+  TUPLETYPE: {type}
+  TYPEPARAMREF: ID [cap] [HAT]
+  THISTYPE: no children
 
-ARROW: type type
-UNIONTYPE: {type}
-ISECTTYPE: {type}
-TUPLETYPE: {type}
-TYPEPARAMREF: ID [cap] [HAT]
+  NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
+  data: type definition
 
-NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
-data: definition
+  STRUCTURAL: MEMBERS cap [HAT]
+  symtab: name -> method
+)
 
-STRUCTURAL: MEMBERS cap [HAT]
-symtab: ID -> NEW | FUN | BE
-
-FUNTYPE: [TYPEPARAMS] [TYPES] type
+cap
+---
+(
+  ISO: no children
+  TRN: no children
+  REF: no children
+  VAL: no children
+  BOX: no children
+  TAG: no children
+)
 
 TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
 PARAM: ID type [SEQ]
+The sequence child is the default value tree.
 
 IDSEQ: {ID}
 
-SEQ: {expr}
-symtab: ID -> VAR | VAL
+SEQ: {jump | expr}
+symtab: name -> VAR | VAL
 
-RAWSEQ: {expr}
+RAWSEQ: {jump | expr}
+
+jump
+----
+data: during type checking, whether the expr can error or not
+(
+  CONTINUE: no children
+  ERROR: no children
+  BREAK: expr
+  RETURN: expr
+)
 
 expr
 ----
 data: during type checking, whether the expr can error or not
-
-term: local | prefix | postfix | control | assignment
-
-CONTINUE
-
-ERROR
-
-BREAK: assignment
-
-RETURN: assignment
-
-assignment
-----
-ASSIGN infix assignment
+(
+  local
+  prefix
+  postfix
+  control
+  infix
+  atom
+)
 
 infix
 -----
-MULTIPLY infix term
-DIVIDE infix term
-MOD infix term
-PLUS infix term
-MINUS infix term
-LSHIFT infix term
-RSHIFT infix term
-LT infix term
-LE infix term
-GE infix term
-GT infix term
-EQ infix term
-NE infix term
-IS infix term
-ISNT infix term
-AND infix term
-XOR infix term
-OR infix term
+(
+  MULTIPLY: expr expr
+  DIVIDE: expr expr
+  MOD: expr expr
+  PLUS: expr expr
+  MINUS: expr expr
+  LSHIFT: expr expr
+  RSHIFT: expr expr
+  LT: expr expr
+  LE: expr expr
+  GE: expr expr
+  GT: expr expr
+  EQ: expr expr
+  NE: expr expr
+  IS: expr expr
+  ISNT: expr expr
+  AND: expr expr
+  XOR: expr expr
+  OR: expr expr
+  ASSIGN: expr expr
+)
 
 local
 -----
-VAR: IDSEQ [type]
-LET: IDSEQ [type]
+(
+  VAR: IDSEQ [type]
+  LET: IDSEQ [type]
+)
 
 prefix
 ------
-CONSUME: term
-RECOVER: term
-NOT: term
-MINUS: term
+(
+  CONSUME: expr
+  RECOVER: expr
+  NOT: expr
+  MINUS: expr
+)
 
 postfix
 -------
-atom
-DOT postfix (ID | INT)
-BANG postfix INT
-QUALIFY postfix TYPEARGS
-CALL postfix [POSITIONALARGS] [NAMEDARGS]
-AT ID TYPEARGS [POSITIONALARGS]
+(
+  DOT: expr (ID | INT)
+  BANG: expr INT
+  QUALIFY: expr TYPEARGS
+  CALL: expr [POSITIONALARGS] [NAMEDARGS]
+  AT: ID TYPEARGS [POSITIONALARGS]
+)
 
 control
 -------
-IF: RAWSEQ SEQ [SEQ]
-symtab: ID -> VAR | VAL
+(
+  IF: RAWSEQ SEQ [SEQ]
+  symtab: name -> VAR | VAL
+  Children are (in order) condition, then body, else body.
 
-MATCH: RAWSEQ CASES [SEQ]
+  MATCH: RAWSEQ CASES [SEQ]
+  Final child is else body.
 
-CASES: {CASE}
+  WHILE: RAWSEQ SEQ [SEQ]
+  data: during codegen, holds the LLVMBasicBlockRef for the init_block
+  symtab: name -> VAR | VAL
+  Children are (in order) condition, loop body, else body.
+
+  REPEAT: RAWSEQ SEQ
+  data: during codegen, holds the LLVMBasicBlockRef for the cond_block
+  symtab: name -> VAR | VAL
+  Children are (in order) loop body, condition.
+
+  FOR: IDSEQ [type] SEQ SEQ [SEQ]
+  Children are (in order) iterator(s), iterator type, iterator initialiser,
+  loop body, else body.
+
+  TRY: SEQ [SEQ] [SEQ]
+  data: during codegen, holds the LLVMBasicBlockRef for the else_block
+  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
+  instruction
+  Children are (in order) try body, else body, then body.
+
+  CASES: {CASE}
+)
 
 CASE: [SEQ] [AS] [SEQ] [SEQ]
-symtab: ID -> VAR | VAL
+symtab: name -> VAR | VAL
+Children are (in order) comparison expression, as, guard, body.
 
 AS: IDSEQ type
 
-WHILE: RAWSEQ SEQ [SEQ]
-data: during codegen, holds the LLVMBasicBlockRef for the init_block
-symtab: ID -> VAR | VAL
-
-REPEAT: RAWSEQ SEQ
-data: during codegen, holds the LLVMBasicBlockRef for the cond_block
-symtab: ID -> VAR | VAL
-
-FOR: IDSEQ [type] SEQ SEQ [SEQ]
-
-TRY: SEQ [SEQ] [SEQ]
-data: during codegen, holds the LLVMBasicBlockRef for the else_block
-  the then_clause (index 2) holds the LLVMValueRef for the indirectbr
-  instruction
-
 atom
 ----
-TUPLE: [POSITIONALARGS] [NAMEDARGS]
+(
+  TUPLE: [POSITIONALARGS] [NAMEDARGS]
+  ARRAY: [POSITIONALARGS] [NAMEDARGS]
+  OBJECT: [TYPES] MEMBERS
+  THIS: no children
+  INT: no children
+  FLOAT: no children
+  STRING: no children
 
-ARRAY: [POSITIONALARGS] [NAMEDARGS]
-
-OBJECT: [TYPES] MEMBERS
+  ID: no children
+  data: From name resolution contains reference to target definition.
+  During codegen, holds the LLVMValueRef for the alloca.
+)
 
 POSITIONALARGS: {SEQ}
-
 NAMEDARGS: {NAMEDARG}
-
 NAMEDARG: term SEQ
-
-THIS
-
-ID
-data: during codegen, holds the LLVMValueRef for the alloca
-
-INT
-FLOAT
-STRING
 
 */
 
