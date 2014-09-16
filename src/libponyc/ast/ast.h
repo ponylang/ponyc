@@ -85,37 +85,40 @@ expr
 ----
 data: during type checking, whether the expr can error or not
 
-term: local | prefix | postfix | control | infix
+term: local | prefix | postfix | control | assignment
 
 CONTINUE
 
 ERROR
 
-BREAK: infix
+BREAK: assignment
 
-RETURN: infix
+RETURN: assignment
+
+assignment
+----
+ASSIGN infix assignment
 
 infix
 -----
-MULTIPLY term term
-DIVIDE term term
-MOD term term
-PLUS term term
-MINUS term term
-LSHIFT term term
-RSHIFT term term
-LT term term
-LE term term
-GE term term
-GT term term
-EQ term term
-NE term term
-IS term term
-ISNT term term
-AND term term
-XOR term term
-OR term term
-ASSIGN term term
+MULTIPLY infix term
+DIVIDE infix term
+MOD infix term
+PLUS infix term
+MINUS infix term
+LSHIFT infix term
+RSHIFT infix term
+LT infix term
+LE infix term
+GE infix term
+GT infix term
+EQ infix term
+NE infix term
+IS infix term
+ISNT infix term
+AND infix term
+XOR infix term
+OR infix term
 
 local
 -----

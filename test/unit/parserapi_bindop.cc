@@ -11,7 +11,6 @@ PONY_EXTERN_C_END
 
 
 static bool _reached_end;
-static const char* _predict_at_end;
 static bool _opt_at_end;
 static token_id _next_token_at_end;
 
@@ -106,20 +105,16 @@ DEF(binop);
 
 DEF(infix_test);
   TOKEN(NULL, TK_ID);
-  PREDICT_ERROR("Foo");
   BINDOP("test", binop);
   _reached_end = true;
-  _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;
   _next_token_at_end = current_token_id(parser);
   DONE();
 
 DEF(infix_opt_test);
   TOKEN(NULL, TK_ID);
-  PREDICT_ERROR("Foo");
   OPT BINDOP("test", binop);
   _reached_end = true;
-  _predict_at_end = parser->predicted_error;
   _opt_at_end = state.opt;
   _next_token_at_end = current_token_id(parser);
   DONE();
@@ -138,7 +133,7 @@ TEST(ParserApiBindopTest, LexError)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   ASSERT_EQ((void*)NULL, ast);
 
   ASSERT_FALSE(_reached_end);
@@ -154,7 +149,7 @@ TEST(ParserApiBindopTest, Missing)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   ASSERT_EQ((void*)NULL, ast);
 
   ASSERT_FALSE(_reached_end);
@@ -170,11 +165,10 @@ TEST(ParserApiBindopTest, SingleOp)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(+ (id A) (id B))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -190,11 +184,10 @@ TEST(ParserApiBindopTest, TwoOpsInOrder)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(+ (* (id A) (id B)) (id C))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -210,11 +203,10 @@ TEST(ParserApiBindopTest, TwoOpsOutOfOrder)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(+ (id A) (* (id B) (id C)))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -230,11 +222,10 @@ TEST(ParserApiBindopTest, RepeatedOp)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(+ (+ (+ (id A) (id B)) (id C)) (id D))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -250,11 +241,10 @@ TEST(ParserApiBindopTest, EqualPrecedence)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(+ (- (+ (id A) (id B)) (id C)) (id D))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -270,11 +260,10 @@ TEST(ParserApiBindopTest, PrecedenceInBetweenExisting)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(< (id A) (+ (* (id B) (id C)) (id D)))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -290,11 +279,10 @@ TEST(ParserApiBindopTest, RepeatedRightAssociative)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_test);
+  ast_t* ast = parse(src, infix_test, "test");
   DO(check_tree("(= (id A) (= (id B) (= (id C) (id D))))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -312,7 +300,7 @@ TEST(ParserApiBindopTest, OptLexError)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_opt_test);
+  ast_t* ast = parse(src, infix_opt_test, "test");
   ASSERT_EQ((void*)NULL, ast);
 
   ASSERT_FALSE(_reached_end);
@@ -328,11 +316,10 @@ TEST(ParserApiBindopTest, OptMissing)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_opt_test);
+  ast_t* ast = parse(src, infix_opt_test, "test");
   DO(check_tree("(id A)", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_STREQ("Foo", _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 
@@ -348,11 +335,10 @@ TEST(ParserApiBindopTest, OptSingleOp)
   source_t* src = source_open_string(code);
   _reached_end = false;
 
-  ast_t* ast = parse(src, infix_opt_test);
+  ast_t* ast = parse(src, infix_opt_test, "test");
   DO(check_tree("(+ (id A) (id B))", ast));
 
   ASSERT_TRUE(_reached_end);
-  ASSERT_EQ((void*)NULL, _predict_at_end);
   ASSERT_FALSE(_opt_at_end);
   ASSERT_EQ(TK_SEMI, _next_token_at_end);
 

@@ -47,8 +47,17 @@ void process_deferred_ast(parser_t* parser, ast_t** rule_ast,
 void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
   rule_state_t* state)
 {
-  if(new_ast == PARSE_ERROR || new_ast == RULE_NOT_FOUND || new_ast == NULL)
+  if(new_ast == PARSE_ERROR || new_ast == NULL)
     return;
+
+  if(new_ast == RULE_NOT_FOUND)
+  {
+    if(state->top) // Not found, but no default needed
+      return;
+
+    // Rule wasn't found and TOP is not set, so make a default
+    new_ast = ast_new(parser->token, TK_NONE);
+  }
 
   process_deferred_ast(parser, rule_ast, state);
 
@@ -60,7 +69,19 @@ void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
   else
   {
     // Add the new AST to our existing AST
-    ast_add(*rule_ast, new_ast);
+
+    if(state->top)
+    {
+      // New AST goes at the top
+      // TODO(andy): change to ast_add when full reverse is removed
+      ast_append(new_ast, *rule_ast);
+      *rule_ast = new_ast;
+    }
+    else
+    {
+      // Existing AST goes at the top
+      ast_add(*rule_ast, new_ast);
+    }
   }
 }
 
@@ -164,7 +185,6 @@ ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
     state->matched = true;
   }
 
-  state->opt = false;
   return NULL;
 }
 
@@ -278,18 +298,11 @@ void syntax_error(parser_t* parser, const char* expected)
     error(parser->source, token_line_number(parser->token),
       token_line_position(parser->token), "syntax error: no code found");
   }
-  else if(parser->predicted_error == NULL)
+  else
   {
     error(parser->source, token_line_number(parser->token),
     token_line_position(parser->token),
     "syntax error: expected %s after %s", expected, parser->last_matched);
-  }
-  else
-  {
-    error(parser->source, token_line_number(parser->token),
-      token_line_position(parser->token),
-      "%s Syntax error: expected %s after %s", parser->predicted_error,
-      expected, parser->last_matched);
   }
 }
 
@@ -300,8 +313,11 @@ void parse_trace(bool enable)
 }
 
 
-ast_t* parse(source_t* source, rule_t start)
+ast_t* parse(source_t* source, rule_t start, const char* expected)
 {
+  assert(source != NULL);
+  assert(expected != NULL);
+
   // Open the lexer
   lexer_t* lexer = lexer_open(source);
 
@@ -324,7 +340,7 @@ ast_t* parse(source_t* source, rule_t start)
 
   if(ast == RULE_NOT_FOUND)
   {
-    syntax_error(parser, "class, actor, primitive or trait");
+    syntax_error(parser, expected);
     ast = NULL;
   }
 
