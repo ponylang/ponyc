@@ -17,11 +17,52 @@ static bool is_lvalue(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_VAR:
-    case TK_LET: // TODO: only valid once
-    case TK_FVARREF:
-    case TK_FLETREF: // TODO: only valid once, in a constructor, if no field init
-    case TK_VARREF:
+    {
+      ast_t* idseq = ast_child(ast);
+      ast_t* id = ast_child(idseq);
+
+      while(id != NULL)
+      {
+        const char* name = ast_name(id);
+        ast_setstatus(ast, name, SYM_DEFINED);
+        id = ast_sibling(id);
+      }
+
       return true;
+    }
+
+    case TK_VARREF:
+    {
+      ast_t* id = ast_child(ast);
+      const char* name = ast_name(id);
+      ast_setstatus(ast, name, SYM_DEFINED);
+      return true;
+    }
+
+    case TK_LET:
+    {
+      ast_t* id = ast_child(ast);
+      const char* name = ast_name(id);
+
+      sym_status_t status;
+      ast_get(ast, name, &status);
+
+      if(status != SYM_UNDEFINED)
+      {
+        ast_error(ast, "can't assign to this again");
+        return false;
+      }
+
+      ast_setstatus(ast, name, SYM_DEFINED);
+      return true;
+    }
+
+    case TK_FVARREF:
+    case TK_FLETREF:
+    {
+      // TODO: handle this
+      return true;
+    }
 
     case TK_TUPLE:
     {
@@ -561,9 +602,24 @@ bool expr_assign(ast_t* ast)
 bool expr_consume(ast_t* ast)
 {
   ast_t* child = ast_child(ast);
-  ast_t* type = ast_type(child);
 
-  // TODO: handle removing consumed identifiers from the scope
+  switch(ast_id(child))
+  {
+    case TK_VARREF:
+    case TK_LETREF:
+    case TK_PARAMREF:
+      break;
+
+    default:
+      ast_error(ast, "consume must take a local variable or parameter");
+      return false;
+  }
+
+  ast_t* id = ast_child(child);
+  const char* name = ast_name(id);
+  ast_setstatus(ast, name, SYM_CONSUMED);
+
+  ast_t* type = ast_type(child);
   ast_settype(ast, consume_type(type));
   return true;
 }

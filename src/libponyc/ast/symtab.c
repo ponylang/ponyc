@@ -81,14 +81,14 @@ sym_status_t symtab_get_status(symtab_t* symtab, const char* name)
 
 bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
 {
-  symbol_t s1 = {name, NULL, SYM_NONE};
-  symbol_t* s2 = symtab_find(symtab, &s1);
+  bool present;
+  symbol_t s1 = {name, NULL, status};
+  symbol_t* s2 = symtab_insert(symtab, &s1, &present);
 
-  if(s2 == NULL)
-    return false;
+  if(present)
+    s2->status = status;
 
-  s2->status = status;
-  return true;
+  return present;
 }
 
 bool symtab_pred(symbol_t* symbol, void* arg)

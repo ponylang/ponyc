@@ -30,8 +30,28 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
   switch(ast_id(value))
   {
     case TK_ID:
-      status = SYM_UNDEFINED;
+    {
+      ast_t* idseq = ast_parent(value);
+      ast_t* decl = ast_parent(idseq);
+
+      switch(ast_id(decl))
+      {
+        case TK_VAR:
+        case TK_LET:
+          status = SYM_UNDEFINED;
+          break;
+
+        case TK_AS:
+          status = SYM_DEFINED;
+          break;
+
+        default:
+          assert(0);
+          return false;
+      }
+
       break;
+    }
 
     case TK_TYPE:
     case TK_TRAIT:
@@ -45,6 +65,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
+      // TODO: in constructors, fvar anf flet should be SYM_UNDEFINED
       status = SYM_DEFINED;
       break;
 

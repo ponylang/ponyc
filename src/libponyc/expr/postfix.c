@@ -129,6 +129,7 @@ static bool expr_typeaccess(ast_t* ast)
 
 static bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
 {
+  // TODO: handle symbol status if the left side is 'this'
   // viewpoint adapted type of the field
   ast_t* ftype = viewpoint(left, find);
 

@@ -25,6 +25,72 @@ static bool def_before_use(ast_t* def, ast_t* use, const char* name)
   return true;
 }
 
+static bool is_assigned_to(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  switch(ast_id(parent))
+  {
+    case TK_ASSIGN:
+    {
+      // Has to be the left hand side of an assignment.
+      if(ast_child(parent) != ast)
+        return false;
+
+      // The result of that assignment can't be used.
+      parent = ast_parent(parent);
+
+      // Must be in a sequence.
+      if(ast_id(parent) != TK_SEQ)
+        return false;
+
+      // Cannot be the last expression in the sequence.
+      return ast_childlast(parent) != ast;
+    }
+
+    case TK_SEQ:
+    {
+      // Might be in a tuple on the left hand side.
+      if(ast_childcount(parent) > 1)
+        return false;
+
+      return is_assigned_to(parent);
+    }
+
+    case TK_TUPLE:
+      return is_assigned_to(parent);
+
+    default: {}
+  }
+
+  return false;
+}
+
+static bool valid_reference(ast_t* ast, sym_status_t status)
+{
+  if(status == SYM_DEFINED)
+    return true;
+
+  if(is_assigned_to(ast))
+    return true;
+
+  switch(status)
+  {
+    case SYM_UNDEFINED:
+      ast_error(ast, "can't use an undefined value in an expression");
+      return false;
+
+    case SYM_CONSUMED:
+      ast_error(ast, "can't use a consumed value in an expression");
+      return false;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 bool expr_field(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 1);
@@ -228,6 +294,9 @@ bool expr_reference(ast_t* ast)
     case TK_ID:
     {
       if(!def_before_use(def, ast, name))
+        return false;
+
+      if(!valid_reference(ast, status))
         return false;
 
       ast_t* idseq = ast_parent(def);

@@ -22,6 +22,7 @@ bool expr_seq(ast_t* ast)
 
 bool expr_if(ast_t* ast)
 {
+  // TODO: unify symbol status
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -50,6 +51,7 @@ bool expr_if(ast_t* ast)
 
 bool expr_while(ast_t* ast)
 {
+  // TODO: unify symbol status
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -82,6 +84,7 @@ bool expr_while(ast_t* ast)
 
 bool expr_repeat(ast_t* ast)
 {
+  // TODO: unify symbol status
   ast_t* body = ast_child(ast);
   ast_t* cond = ast_sibling(body);
   ast_t* body_type = ast_type(body);
@@ -111,6 +114,7 @@ bool expr_repeat(ast_t* ast)
 
 bool expr_try(ast_t* ast)
 {
+  // TODO: unify symbol status
   ast_t* body = ast_child(ast);
   ast_t* else_clause = ast_sibling(body);
   ast_t* then_clause = ast_sibling(else_clause);

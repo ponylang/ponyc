@@ -673,6 +673,14 @@ bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
     && symtab_add(ast->symtab, name, value, status);
 }
 
+void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
+{
+  while(ast->symtab == NULL)
+    ast = ast->scope;
+
+  symtab_set_status(ast->symtab, name, status);
+}
+
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)

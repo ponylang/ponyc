@@ -23,6 +23,8 @@ void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status);
 
 sym_status_t symtab_get_status(symtab_t* symtab, const char* name);
 
+bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status);
+
 bool symtab_pred(symbol_t* symbol, void* arg);
 
 #endif
