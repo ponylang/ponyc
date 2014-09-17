@@ -28,7 +28,8 @@ better error reporting.
 Expects AST subtree routed at TK_MODULE with type aliases unresolved and symbol
 tables not yet populated.
 
-Does not modify AST, just passes or fails. It this passes then the AST is fully
+Only modifies the AST by removing temporary nodes left in by the parser purely
+to enable checking in this pass. If this passes then the AST is fully
 syntactically correct.
 
 

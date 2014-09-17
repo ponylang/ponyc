@@ -104,41 +104,6 @@ void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
 }
 
 
-/// Add the given AST to ours using precedence rules, handling deferment
-void add_infix_ast(ast_t* new_ast, ast_t* prev_ast, ast_t** rule_ast,
-  prec_t prec, assoc_t assoc)
-{
-  token_id id = ast_id(new_ast);
-  int new_prec = prec(id);
-  bool right = assoc(id);
-
-  while(true)
-  {
-    int old_prec = prec(ast_id(prev_ast));
-
-    if((new_prec > old_prec) || (right && (new_prec == old_prec)))
-    {
-      // Insert new AST under old AST
-      ast_append(new_ast, ast_pop(prev_ast));
-      ast_add(prev_ast, new_ast);
-      return;
-    }
-
-    // New AST needs to go above old AST
-    if(prev_ast == *rule_ast)
-    {
-      // New AST needs to go above existing tree
-      ast_append(new_ast, prev_ast);
-      *rule_ast = new_ast;
-      return;
-    }
-
-    // Move up to parent
-    prev_ast = ast_parent(prev_ast);
-  }
-}
-
-
 /** Process the result from parsing a token or sub rule.
  * Returns:
  *    NULL if rule should continue

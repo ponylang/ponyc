@@ -97,9 +97,6 @@ void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
 void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
   rule_state_t* state);
 
-void add_infix_ast(ast_t* new_ast, ast_t* prev_ast, ast_t** rule_ast,
-  prec_t prec, assoc_t assoc);
-
 ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
   ast_t* sub_ast, const char* desc);
 
@@ -333,34 +330,6 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
       add_ast(parser, sub_ast, &ast, &state); \
     } \
     RESET_STATE(); \
-  }
-
-
-/** Repeatedly try to parse any of the given set of binary infix rules as long
- * as it succeeds and build AST with precedence rules.
- * If OPT is not specified then at least one match is required or a syntax
- * error occurs.
- * The description is used for error reports. It must be present and non-NULL.
- * Example:
- *    BINDOP("compound type", uniontype, tupletype);
- */
-#define BINDOP(desc, ...) \
-  { \
-    static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    ast_t* prev_ast = ast; \
-    bool had_op = false; \
-    while(true) \
-    { \
-      ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
-      if(sub_ast == RULE_NOT_FOUND) break; \
-      if(sub_ast == NULL) THROW_ERROR(desc); \
-      HANDLE_ERRORS(sub_ast, desc); \
-      add_infix_ast(sub_ast, prev_ast, &ast, precedence, associativity); \
-      prev_ast = sub_ast; \
-      had_op = true; \
-    } \
-    if(!state.opt && !had_op) THROW_ERROR(desc); \
-    state.opt = false; \
   }
 
 
