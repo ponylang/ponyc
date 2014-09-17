@@ -371,6 +371,53 @@ TEST(BnfTest, InfixTypeViewpointTupleCombo)
 }
 
 
+// Variable declaration
+
+TEST(BnfTest, SingleVariableDef)
+{
+  const char* src = "class C fun ref f() => var a";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, MultipleVariableDefs)
+{
+  const char* src = "class C fun ref f() => var (a, b, c)";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)(id b)(id c)) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, NestedVariableDefs)
+{
+  const char* src = "class C fun ref f() => var (a, (b, (c, d), e))";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)(idseq (id b)(idseq (id c)(id d))(id e))) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
 // TODO(andy): Loads more tests needed here
 
 

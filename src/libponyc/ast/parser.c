@@ -7,6 +7,7 @@ DECL(rawseq);
 DECL(seq);
 DECL(assignment);
 DECL(term);
+DECL(idseqmulti);
 DECL(members);
 
 
@@ -317,22 +318,32 @@ DEF(postfix);
 
 // ID
 DEF(idseqid);
-  AST_NODE(TK_IDSEQ);
   TOKEN("variable name", TK_ID);
   DONE();
 
+// idseqid | idseqmulti
+DEF(idseqelement);
+  RULE("variable name", idseqid, idseqmulti);
+  DONE();
+
 // (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
-DEF(idseqseq);
+DEF(idseqmulti);
   AST_NODE(TK_IDSEQ);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  TOKEN("variable name", TK_ID);
-  WHILE(TK_COMMA, TOKEN("variable name", TK_ID));
+  RULE("variable name", idseqelement);
+  WHILE(TK_COMMA, RULE("variable name", idseqelement));
   SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// ID
+DEF(idseqsingle);
+  AST_NODE(TK_IDSEQ);
+  TOKEN("variable name", TK_ID);
   DONE();
 
 // ID | (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
 DEF(idseq);
-  RULE("variable name", idseqid, idseqseq);
+  RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
 // (VAR | VAL) idseq [COLON type]

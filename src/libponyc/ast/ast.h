@@ -127,7 +127,7 @@ PARAMS: {PARAM}
 PARAM: ID type [SEQ]
 The sequence child is the default value tree.
 
-IDSEQ: {ID}
+IDSEQ: (ID | IDSEQ) {ID | IDSEQ}
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL
