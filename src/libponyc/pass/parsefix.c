@@ -177,7 +177,12 @@ static bool check_method(ast_t* ast, int method_def_index)
     return false;
   }
 
-  AST_GET_CHILDREN(ast, cap, id, ignore0, ignore1, return_type, error, body);
+  AST_GET_CHILDREN(ast, cap, id, ignore0, ignore1, return_type, error, arrow,
+    body);
+
+  // Remove the arrow node
+  token_id arrow_id = ast_id(arrow);
+  ast_remove(arrow, error);
 
   if(!check_tribool(def->cap, cap, def->desc, "receiver capability"))
     return false;
@@ -199,6 +204,18 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   if(!check_tribool(def->body, body, def->desc, "body"))
     return false;
+
+  if(arrow_id == TK_DBLARROW && ast_id(body) == TK_NONE)
+  {
+    ast_error(body, "Method body expected after =>");
+    return false;
+  }
+
+  if(arrow_id == TK_NONE && ast_id(body) == TK_SEQ)
+  {
+    ast_error(body, "Missing => before method body");
+    return false;
+  }
 
   return true;
 }

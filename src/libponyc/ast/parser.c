@@ -554,7 +554,8 @@ DEF(function);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
-  IF(TK_DBLARROW, RULE("function body", rawseq));
+  OPT TOKEN(NULL, TK_DBLARROW);
+  OPT RULE("function body", rawseq);
   DONE();
 
 // BE ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [ARROW rawseq]
@@ -569,7 +570,8 @@ DEF(behaviour);
   SKIP(NULL, TK_RPAREN);
   AST_NODE(TK_NONE);  // Return type
   AST_NODE(TK_NONE);  // Partial
-  IF(TK_DBLARROW, RULE("behaviour body", rawseq));
+  OPT TOKEN(NULL, TK_DBLARROW);
+  OPT RULE("behaviour body", rawseq);
   DONE();
 
 // NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
@@ -585,7 +587,8 @@ TOKEN(NULL, TK_NEW);
   SKIP(NULL, TK_RPAREN);
   AST_NODE(TK_NONE);  // Return type
   OPT TOKEN(NULL, TK_QUESTION);
-  IF(TK_DBLARROW, RULE("constructor body", rawseq));
+  OPT TOKEN(NULL, TK_DBLARROW);
+  OPT RULE("constructor body", rawseq);
   DONE();
 
 // (VAR | VAL) ID [COLON type] [ASSIGN expr]

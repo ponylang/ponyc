@@ -77,6 +77,8 @@ data: During traits pass, trait method body came from (NULL for none).
 During codegen, the LLVMBasicBlockRef for the except_block if the function or
 constructor can error out.
 symtab: name -> TYPEPARAM | PARAM
+Methods initially have an extra child for the => before the body child. This is
+removed during the parse fix pass.
 (
   NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ]
   BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ]
@@ -342,6 +344,7 @@ ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
+void ast_remove(ast_t* ast, ast_t* previous_sibling);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);
 void ast_reverse(ast_t* ast);
@@ -403,7 +406,6 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 
 // Macros for building ASTs
-// TODO: Move these somewhere else?
 
 /** The macros below allow for building arbitrarily complex ASTs with a simple,
  * S-expression like syntax.

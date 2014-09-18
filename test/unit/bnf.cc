@@ -193,6 +193,45 @@ TEST(BnfTest, AliasMustHaveType)
 }
 
 
+// Double arrow
+
+TEST(BnfTest, DoubleArrowPresent)
+{
+  const char* src =
+    "trait Foo"
+    "  fun ref f() => 1";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (trait{scope} (id Foo) x x x"
+    "    (members"
+    "      (fun{scope} ref (id f) x x x x (seq 1))"
+    ")))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, DoubleArrowMissing)
+{
+  const char* src =
+    "trait Foo"
+    "  fun ref f() 1";
+
+  DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, DoubleArrowWithoutBody)
+{
+  const char* src =
+    "trait Foo"
+    "  fun ref f() =>";
+
+  DO(parse_bad(src));
+}
+
+
 // Operator lack of precedence
 
 TEST(BnfTest, InfixSingleOp)
