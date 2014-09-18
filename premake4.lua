@@ -86,14 +86,15 @@ solution "ponyc"
       "_DEBUG",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
-      "__STDC_LIMIT_MACROS",
-    
-    files { 
-      "src/common/*.h",
-      "src/libponyc/**.c", 
-      "src/libponyc/**.h" 
+      "__STDC_LIMIT_MACROS"
     }
-    excludes { 
+
+    files {
+      "src/common/*.h",
+      "src/libponyc/**.c",
+      "src/libponyc/**.h"
+    }
+    excludes {
       "src/libponyc/platform/**.cc",
       "src/libponyc/platform/vcvars.c"
     }
@@ -104,6 +105,7 @@ solution "ponyc"
     language "C"
     buildoptions "-std=gnu11"
     includedirs {
+      "src/common/",
       "src/libponyrt/"
     }
     files {
@@ -130,7 +132,8 @@ solution "ponyc"
     language "C++"
     buildoptions "-std=gnu++11"
     includedirs {
-      llvm_config("--includedir")
+      llvm_config("--includedir"),
+      "src/common/"
     }
     defines {
       "_DEBUG",
@@ -144,6 +147,7 @@ solution "ponyc"
     kind "ConsoleApp"
     language "C++"
     buildoptions "-std=gnu11"
+    includedirs { "src/common/" }
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
     postbuildcommands {
@@ -164,12 +168,12 @@ solution "ponyc"
     language "C++"
     kind "ConsoleApp"
 
-    configuration "*"
-      includedirs {
-        "utils/gtest/",
-        "src/libponyc/",
-        "src/libponyrt/",
-      }
+    includedirs {
+      "utils/gtest/",
+      "src/libponyc/",
+      "src/libponyrt/",
+      "src/common/"
+    }
 
     buildoptions "-std=gnu++11"
     files { "test/unit/ponyc/**.cc", "test/unit/ponyc/**.h" }
