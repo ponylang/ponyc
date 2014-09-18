@@ -7,7 +7,7 @@
 /** Convenience macro for making extern "C" more succinct.
  *
  */
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(_MSC_VER)
 #  define PONY_EXTERN_C_BEGIN extern "C" {
 #  define PONY_EXTERN_C_END }
 #else
@@ -208,6 +208,10 @@ static __declspec(thread) DWORD lsb;
 #include "threads.h"
 #include "alloc.h"
 #include "io.h"
+
+#if defined(PLATFORM_IS_WINDOWS)
+#  include "vcvars.h"
+#endif
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
 #  if defined(PONY_USE_BIGINT)
