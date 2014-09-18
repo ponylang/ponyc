@@ -193,6 +193,62 @@ TEST(BnfTest, AliasMustHaveType)
 }
 
 
+// Method order
+
+TEST(BnfTest, MethodsInOrder)
+{
+  const char* src =
+    "actor Foo"
+    "  new m1() => 1"
+    "  be m2() => 2"
+    "  fun ref m3() => 3";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (actor{scope} (id Foo) x x x"
+    "    (members"
+    "      (new{scope} x (id m1) x x x x (seq 1))"
+    "      (be{scope} x (id m2) x x x x (seq 2))"
+    "      (fun{scope} ref (id m3) x x x x (seq 3))"
+    ")))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, ConstructorAfterBehaviour)
+{
+  const char* src =
+    "actor Foo"
+    "  be m2() => 2"
+    "  new m1() => 1";
+
+  DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, ConstructorAfterFucntion)
+{
+  const char* src =
+    "actor Foo"
+    "  fun ref m3() => 3"
+    "  new m1() => 1";
+
+  DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, BehaviourAfterFunction)
+{
+  const char* src =
+    "actor Foo"
+    "  fun ref m3() => 3"
+    "  be m2() => 2";
+
+  DO(parse_bad(src));
+}
+
+
 // Double arrow
 
 TEST(BnfTest, DoubleArrowPresent)

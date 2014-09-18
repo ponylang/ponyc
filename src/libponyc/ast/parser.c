@@ -541,13 +541,13 @@ DEF(seq);
   SEQ("value", expr);
   DONE();
 
-// FUN CAP ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
-// [COLON type] [QUESTION] [ARROW rawseq]
-DEF(function);
-  TOKEN(NULL, TK_FUN);
+// (FUN | BE | NEW) [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params]
+// RPAREN [COLON type] [QUESTION] [ARROW rawseq]
+DEF(method);
+  TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
-  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  TOKEN("function name", TK_ID);
+  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
@@ -556,39 +556,6 @@ DEF(function);
   OPT TOKEN(NULL, TK_QUESTION);
   OPT TOKEN(NULL, TK_DBLARROW);
   OPT RULE("function body", rawseq);
-  DONE();
-
-// BE ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [ARROW rawseq]
-DEF(behaviour);
-  TOKEN(NULL, TK_BE);
-  SCOPE();
-  AST_NODE(TK_NONE);  // Capability
-  TOKEN("behaviour name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", params);
-  SKIP(NULL, TK_RPAREN);
-  AST_NODE(TK_NONE);  // Return type
-  AST_NODE(TK_NONE);  // Partial
-  OPT TOKEN(NULL, TK_DBLARROW);
-  OPT RULE("behaviour body", rawseq);
-  DONE();
-
-// NEW ID [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
-// [ARROW rawseq]
-DEF(constructor);
-TOKEN(NULL, TK_NEW);
-  SCOPE();
-  AST_NODE(TK_NONE);  // Capability
-  OPT TOKEN("constructor name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", params);
-  SKIP(NULL, TK_RPAREN);
-  AST_NODE(TK_NONE);  // Return type
-  OPT TOKEN(NULL, TK_QUESTION);
-  OPT TOKEN(NULL, TK_DBLARROW);
-  OPT RULE("constructor body", rawseq);
   DONE();
 
 // (VAR | VAL) ID [COLON type] [ASSIGN expr]
@@ -602,13 +569,11 @@ DEF(field);
   IF(TK_ASSIGN, RULE("field value", expr));
   DONE();
 
-// {field} {constructor} {behaviour} {function}
+// {field} {method}
 DEF(members);
   AST_NODE(TK_MEMBERS);
   SEQ("field", field);
-  SEQ("constructor", constructor);
-  SEQ("behaviour", behaviour);
-  SEQ("function", function);
+  SEQ("method", method);
   DONE();
 
 // (TRAIT | PRIMITIVE | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
