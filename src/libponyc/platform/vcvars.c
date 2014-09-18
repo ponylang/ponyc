@@ -1,6 +1,6 @@
-#if defined(PLATFORM_IS_WINDOWS)
-
 #include <platform/platform.h>
+
+#if defined(PLATFORM_IS_WINDOWS)
 
 #define REG_SDK_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
