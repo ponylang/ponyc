@@ -2,6 +2,7 @@
 #include "../ds/hash.h"
 #include "../ds/functions.h"
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct symbol_t
 {
@@ -33,6 +34,17 @@ static symbol_t* sym_dup(symbol_t* sym)
 static void sym_free(symbol_t* sym)
 {
   free(sym);
+}
+
+static bool pred_undefined(symbol_t* sym, void* arg)
+{
+  return (sym->value == NULL) && (sym->status == SYM_UNDEFINED);
+}
+
+static bool resolve_inherit(symbol_t* dst, symbol_t* src, void* arg)
+{
+  dst->status = src->status;
+  return true;
 }
 
 DEFINE_TABLE(symtab, symbol_t, sym_hash, sym_cmp, sym_dup, sym_free);
@@ -91,7 +103,14 @@ bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
   return present;
 }
 
-bool symtab_pred(symbol_t* symbol, void* arg)
+void symtab_inherit_undefined(symtab_t* dst, symtab_t* src)
+{
+  assert(dst != NULL);
+  assert(src != NULL);
+  symtab_merge(dst, src, pred_undefined, NULL, resolve_inherit, NULL);
+}
+
+bool symtab_no_private(symbol_t* symbol, void* arg)
 {
   // Strip out private symbols.
   return symbol->name[0] != '_';

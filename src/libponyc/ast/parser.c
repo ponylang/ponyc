@@ -190,7 +190,7 @@ DEF(thistype);
   AST_NODE(TK_THISTYPE);
   SKIP(NULL, TK_THIS);
   DONE();
-  
+
 // (thistype | typeexpr | nominal | structural)
 DEF(atomtype);
   RULE("type", thistype, typeexpr, nominal, structural);
@@ -427,13 +427,14 @@ DEF(whileloop);
   SKIP(NULL, TK_END);
   DONE();
 
-// REPEAT rawseq UNTIL rawseq END
+// REPEAT rawseq UNTIL rawseq [ELSE seq] END
 DEF(repeat);
   TOKEN(NULL, TK_REPEAT);
   SCOPE();
   RULE("repeat body", rawseq);
   SKIP(NULL, TK_UNTIL);
   RULE("condition expression", rawseq);
+  IF(TK_ELSE, RULE("else clause", seq));
   SKIP(NULL, TK_END);
   DONE();
 

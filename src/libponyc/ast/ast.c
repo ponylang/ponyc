@@ -163,7 +163,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   if(ast->symtab != NULL)
   {
     n->symtab = symtab_new();
-    symtab_merge(n->symtab, ast->symtab, NULL, NULL);
+    symtab_merge(n->symtab, ast->symtab, NULL, NULL, NULL, NULL);
   }
 
   if(parent != NULL)
@@ -648,11 +648,18 @@ ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
    * space for paths is separate from the name space for all other IDs.
    * if called directly on the program scope, searches it.
    */
+  if(status != NULL)
+    *status = SYM_NONE;
+
   do
   {
     if(ast->symtab != NULL)
     {
-      ast_t* value = (ast_t*)symtab_get(ast->symtab, name, status);
+      sym_status_t status2;
+      ast_t* value = (ast_t*)symtab_get(ast->symtab, name, &status2);
+
+      if((status != NULL) && (*status == SYM_NONE))
+        *status = status2;
 
       if(value != NULL)
         return value;
@@ -681,12 +688,22 @@ void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
   symtab_set_status(ast->symtab, name, status);
 }
 
+void ast_inheritstatus(ast_t* ast, ast_t* left, ast_t* right)
+{
+  // If either branch has undefined a symbol, mark it undefined.
+  symtab_inherit_undefined(ast->symtab, left->symtab);
+  symtab_inherit_undefined(ast->symtab, right->symtab);
+
+  // TODO: If both branches have defined a symbol, mark it defined.
+}
+
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)
     dst = dst->scope;
 
-  return symtab_merge(dst->symtab, src->symtab, symtab_pred, NULL);
+  return symtab_merge(dst->symtab, src->symtab, symtab_no_private, NULL, NULL,
+    NULL);
 }
 
 void ast_clear(ast_t* ast)

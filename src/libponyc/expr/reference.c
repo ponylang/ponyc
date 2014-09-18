@@ -5,6 +5,7 @@
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
+#include "../type/viewpoint.h"
 #include <assert.h>
 
 /**
@@ -96,19 +97,6 @@ bool expr_field(ast_t* ast)
   ast_t* type = ast_childidx(ast, 1);
   ast_t* init = ast_sibling(type);
 
-  if((ast_id(type) == TK_NONE) && (ast_id(init) == TK_NONE))
-  {
-    ast_error(ast, "field/param needs a type or an initialiser");
-    return false;
-  }
-
-  if(ast_id(type) == TK_NONE)
-  {
-    // if no declared type, get the type from the initialiser
-    ast_settype(ast, alias(ast_type(init)));
-    return true;
-  }
-
   if(ast_id(init) != TK_NONE)
   {
     // initialiser type must match declared type
@@ -125,6 +113,35 @@ bool expr_field(ast_t* ast)
   }
 
   ast_settype(ast, type);
+  return true;
+}
+
+bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
+{
+  // viewpoint adapted type of the field
+  ast_t* ftype = viewpoint(left, find);
+
+  if(ftype == NULL)
+  {
+    ast_error(ast, "can't read a field from a tag");
+    return false;
+  }
+
+  if(ast_id(left) == TK_THIS)
+  {
+    // Handle symbol status if the left side is 'this'.
+    ast_t* id = ast_child(find);
+    const char* name = ast_name(id);
+
+    sym_status_t status;
+    ast_get(ast, name, &status);
+
+    if(!valid_reference(ast, status))
+      return false;
+  }
+
+  ast_setid(ast, t);
+  ast_settype(ast, ftype);
   return true;
 }
 
@@ -262,6 +279,9 @@ bool expr_reference(ast_t* ast)
     case TK_PARAM:
     {
       if(!def_before_use(def, ast, name))
+        return false;
+
+      if(!valid_reference(ast, status))
         return false;
 
       // Get the type of the parameter and attach it to our reference.

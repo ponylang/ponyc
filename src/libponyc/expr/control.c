@@ -7,12 +7,12 @@
 
 bool expr_seq(ast_t* ast)
 {
-  // we might already have a type due to a return expression
+  // We might already have a type due to a return expression.
   ast_t* type = ast_type(ast);
   ast_t* last = ast_childlast(ast);
   ast_t* last_type = ast_type(last);
 
-  // type is unioned with the type of the last child
+  // Type is unioned with the type of the last child.
   type = type_union(type, last_type);
 
   ast_settype(ast, type);
@@ -22,7 +22,10 @@ bool expr_seq(ast_t* ast)
 
 bool expr_if(ast_t* ast)
 {
-  // TODO: unify symbol status
+  // TODO: unify symbol status: if undefined in either branch, mark undefined.
+  // if defined in both branches, mark defined. Then push our settings to our
+  // parent.
+  // ignore init status if branch returns
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -51,7 +54,10 @@ bool expr_if(ast_t* ast)
 
 bool expr_while(ast_t* ast)
 {
-  // TODO: unify symbol status
+  // TODO: unify symbol status: if undefined in either branch, mark undefined.
+  // if defined in both branches, mark defined.
+  // anything undefined in the body has to be marked undefined in the else
+  // clause, because it may have executed before a continue.
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -72,7 +78,7 @@ bool expr_while(ast_t* ast)
     return false;
   }
 
-  // union with any existing type due to a break expression
+  // Union with any existing type due to a break expression.
   ast_t* type = type_union(l_type, r_type);
   type = type_union(type, ast_type(ast));
   type = type_literal_to_runtime(type);
@@ -84,11 +90,12 @@ bool expr_while(ast_t* ast)
 
 bool expr_repeat(ast_t* ast)
 {
-  // TODO: unify symbol status
-  ast_t* body = ast_child(ast);
-  ast_t* cond = ast_sibling(body);
+  // TODO: init tracking same as while
+  AST_GET_CHILDREN(ast, body, cond, else_clause);
+
   ast_t* body_type = ast_type(body);
   ast_t* cond_type = ast_type(cond);
+  ast_t* else_type = ast_type(else_clause);
 
   if(!is_bool(cond_type))
   {
@@ -102,8 +109,8 @@ bool expr_repeat(ast_t* ast)
     return false;
   }
 
-  // union with any existing type due to a break expression
-  ast_t* type = ast_type(ast);
+  // Union with any existing type due to a break expression.
+  ast_t* type = type_union(body_type, else_type);
   type = type_union(type, ast_type(body));
   type = type_literal_to_runtime(type);
 
@@ -114,7 +121,10 @@ bool expr_repeat(ast_t* ast)
 
 bool expr_try(ast_t* ast)
 {
-  // TODO: unify symbol status
+  // TODO: init tracking same as while, because some fraction of the body
+  // may execute before the else block.
+  // Override with 'then' branch, because it always executes.
+  // Then push our settings to our parent.
   ast_t* body = ast_child(ast);
   ast_t* else_clause = ast_sibling(body);
   ast_t* then_clause = ast_sibling(else_clause);
@@ -126,7 +136,7 @@ bool expr_try(ast_t* ast)
     return false;
   }
 
-  // the then clause does not affect the type of the expression
+  // The then clause does not affect the type of the expression.
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
   ast_t* then_type = ast_type(then_clause);
@@ -147,7 +157,7 @@ bool expr_try(ast_t* ast)
 
   ast_settype(ast, type);
 
-  // doesn't inherit error from the body
+  // Doesn't inherit error from the body.
   if(ast_canerror(else_clause) || ast_canerror(then_clause))
     ast_seterror(ast);
 
@@ -173,10 +183,10 @@ bool expr_break(ast_t* ast)
     return false;
   }
 
-  // has no type
+  // Has no type.
   ast_inheriterror(ast);
 
-  // add type to loop
+  // Add type to loop.
   ast_t* loop_type = ast_type(loop);
   type = type_union(type, loop_type);
   type = type_literal_to_runtime(type);
@@ -202,15 +212,7 @@ bool expr_continue(ast_t* ast)
     return false;
   }
 
-  // nothing in while loop, add None to repeat loop
-  if(ast_id(loop) == TK_REPEAT)
-  {
-    ast_t* loop_type = ast_type(loop);
-    ast_t* none = type_builtin(ast, "None");
-    ast_settype(loop, type_union(none, loop_type));
-  }
-
-  // has no type
+  // Has no type.
   return true;
 }
 
@@ -254,10 +256,10 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
-  // has no type
+  // Has no type.
   ast_inheriterror(ast);
 
-  // add an additional type to the function body
+  // Add an additional type to the function body.
   ast_t* fun_body = ast_childidx(fun, 6);
   ast_t* fun_type = ast_type(fun_body);
   type = type_union(type, fun_type);

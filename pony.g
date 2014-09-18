@@ -134,7 +134,7 @@ control
   :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
   |  'match' seq case* ('else' seq)? 'end'
   |  'while' seq 'do' seq ('else' seq)? 'end'
-  |  'repeat' seq 'until' seq 'end'
+  |  'repeat' seq 'until' seq ('else' seq)? 'end'
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   ;

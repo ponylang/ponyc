@@ -58,9 +58,40 @@ static bool is_lvalue(ast_t* ast)
     }
 
     case TK_FVARREF:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) == TK_THIS)
+      {
+        const char* name = ast_name(right);
+        ast_setstatus(ast, name, SYM_DEFINED);
+      }
+
+      return true;
+    }
+
     case TK_FLETREF:
     {
-      // TODO: handle this
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) != TK_THIS)
+      {
+        ast_error(ast, "can't assign to let field");
+        return false;
+      }
+
+      const char* name = ast_name(right);
+
+      sym_status_t status;
+      ast_get(ast, name, &status);
+
+      if(status != SYM_UNDEFINED)
+      {
+        ast_error(ast, "can't assign to this again");
+        return false;
+      }
+
+      ast_setstatus(ast, name, SYM_DEFINED);
       return true;
     }
 

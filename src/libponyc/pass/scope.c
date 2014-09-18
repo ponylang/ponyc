@@ -65,7 +65,6 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
-      // TODO: in constructors, fvar anf flet should be SYM_UNDEFINED
       status = SYM_DEFINED;
       break;
 
@@ -151,6 +150,63 @@ static bool scope_package(ast_t* ast)
   return use_package(ast, NULL, stringtab("builtin")) != NULL;
 }
 
+static bool scope_method(ast_t* ast)
+{
+  if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast))
+    return false;
+
+  // If this isn't a constructor, we accept SYM_DEFINED for our fields.
+  if(ast_id(ast) != TK_NEW)
+    return true;
+
+  ast_t* members = ast_parent(ast);
+  ast_t* type = ast_parent(members);
+
+  switch(ast_id(type))
+  {
+    case TK_PRIMITIVE:
+    case TK_TRAIT:
+      return true;
+
+    case TK_CLASS:
+    case TK_ACTOR:
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        AST_GET_CHILDREN(member, id, type, expr);
+
+        // If this field has an initialiser, we accept SYM_DEFINED for it.
+        if(ast_id(expr) != TK_NONE)
+          break;
+
+        // Mark this field as SYM_UNDEFINED.
+        ast_setstatus(ast, ast_name(id), SYM_UNDEFINED);
+        break;
+      }
+
+      default:
+        return true;
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
 static bool scope_use(ast_t* ast)
 {
   ast_t* path = ast_child(ast);
@@ -210,7 +266,7 @@ ast_result_t pass_scope(ast_t** astp)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast))
+      if(!scope_method(ast))
         return AST_ERROR;
       break;
 

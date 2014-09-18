@@ -25,6 +25,8 @@ sym_status_t symtab_get_status(symtab_t* symtab, const char* name);
 
 bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status);
 
-bool symtab_pred(symbol_t* symbol, void* arg);
+void symtab_inherit_undefined(symtab_t* dst, symtab_t* src);
+
+bool symtab_no_private(symbol_t* symbol, void* arg);
 
 #endif

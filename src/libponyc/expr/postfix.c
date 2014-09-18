@@ -7,7 +7,6 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/alias.h"
-#include "../type/viewpoint.h"
 #include "../type/cap.h"
 #include <assert.h>
 
@@ -125,23 +124,6 @@ static bool expr_typeaccess(ast_t* ast)
 
   ast_free_unattached(find);
   return ret;
-}
-
-static bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
-{
-  // TODO: handle symbol status if the left side is 'this'
-  // viewpoint adapted type of the field
-  ast_t* ftype = viewpoint(left, find);
-
-  if(ftype == NULL)
-  {
-    ast_error(ast, "can't read a field from a tag");
-    return false;
-  }
-
-  ast_setid(ast, t);
-  ast_settype(ast, ftype);
-  return true;
 }
 
 static bool expr_memberaccess(ast_t* ast)
@@ -473,8 +455,8 @@ bool expr_call(ast_t* ast)
         // the caller. can't just copy it.
         ast_error(positional, "not implemented (default arguments)");
         return false;
-        //MSVC++ complains about unreachable code...
-        //param = ast_sibling(param);
+
+        // param = ast_sibling(param);
       }
 
       switch(token)
