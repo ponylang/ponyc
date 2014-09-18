@@ -1,7 +1,3 @@
--- The Pony Compiler
--- <URL HERE>
--- <LICENSE HERE>
-
   solution "ponyc"
     configurations { "Debug", "Release", "Profile" }
     location( _OPTIONS["to"] )
@@ -48,7 +44,7 @@
 
     configuration "vs*"
       debugdir "."
-    	defines {
+      defines {
         -- disables warnings for vsnprintf
         "_CRT_SECURE_NO_WARNINGS"
       }
@@ -72,6 +68,12 @@
     configuration "vs*"
       architecture "x64"
     configuration "*"
+      includedirs {
+        "inc/"
+      }
+      files {
+        "inc/**.h"
+      }
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -103,7 +105,26 @@
       }
       excludes { "src/libponyc/**.cc" }
     configuration "vs*"
+      defines {
+        "PONY_USE_BIGINT"
+      }
       cppforce { "src/libponyc/**.c*" }
+    configuration "*"
+
+  project "libponyrt"
+    targetname "ponyrt"
+    kind "StaticLib"
+    language "C"
+    files {
+      "src/libponyrt/**.c",
+      "src/libponyrt/**.h"
+    }
+    configuration "gmake"
+      buildoptions {
+        "-std=gnu11"
+      }
+    configuration "vs*"
+      cppforce { "src/libponyrt/**.c" }
     configuration "*"
 
   project "ponyc"
@@ -150,38 +171,27 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "utils/gtest/gtest_main.cc"
     }
 
-  project "tests"
-    targetname "tests"
-    language "C++"
-    kind "ConsoleApp"
-    includedirs {
-      "inc/",
-      "src/",
-      "utils/gtest"
-    }
-    files {
-      "test/unit/**.cc",
-      "test/unit/**.h"
-    }
-    links { "gtest" }
-    link_libponyc()
 
-    configuration "gmake"
-      buildoptions {
-        "-std=gnu++11"
-      }
+  project "testc"
+    targetname "testc"
+    testsuite()
+    includedirs { "src/libponyc" }
+    files { 
+      "test/unit/ponyc/**.h",
+      "test/unit/ponyc/**.cc"
+    }
+    link_libponyc()
+    configuration "vs*"
+      defines { "PONY_USE_BIGINT" }
     configuration "*"
 
-    if (_OPTIONS["run-tests"]) then
-      configuration "gmake"
-        postbuildcommands { "$(TARGET)" }
-      configuration "vs*"
-        postbuildcommands { "\"$(TargetPath)\"" }
-      configuration "*"
-    end
+  project "testrt"
+    targetname "testrt"
+    testsuite()
+    links "libponyrt"
+    includedirs { "src/libponyrt" }
+    files { "test/unit/ponyrt/**.cc" }
 end
-
-  include("ponyrt/src/premake5.lua")
 
   if _ACTION == "clean" then
     os.rmdir("bin")

@@ -19,7 +19,8 @@ table_t* table_create(size_t size)
 }
 
 bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
-  dup_fn dup, pred_fn pred, void* pred_arg)
+  dup_fn dup, pred_fn pred, void* pred_arg, resolve_fn resolve,
+  void* resolve_arg)
 {
   if(src == NULL)
     return true;
@@ -27,7 +28,7 @@ bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
   if(dst == NULL)
     return false;
 
-  bool found = false;
+  bool ok = true;
 
   for(int i = 0; i < src->size; i++)
   {
@@ -40,15 +41,22 @@ bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
       if((pred == NULL) || pred(item, pred_arg))
       {
         bool present;
-        table_insert(dst, list_data(list), &present, hash, cmp, dup);
-        found |= present;
+        void* prev = table_insert(dst, item, &present, hash, cmp, dup);
+
+        if(present)
+        {
+          if(resolve != NULL)
+            ok = resolve(prev, item, resolve_arg);
+          else
+            ok = false;
+        }
       }
 
       list = list_next(list);
     }
   }
 
-  return !found;
+  return ok;
 }
 
 void* table_find(table_t* table, void* entry, hash_fn hash, cmp_fn cmp)

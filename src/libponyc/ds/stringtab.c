@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../platform/platform.h"
+#include <platform/platform.h>
 
 static bool ptr_cmp(const char* a, const char* b)
 {

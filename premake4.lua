@@ -18,7 +18,7 @@ function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-  links { "libponyc", "libponycc", "z", "curses" }
+  links { "libponyc", "libponyrt", "libponycc", "z", "curses" }
   local output = llvm_config("--libs")
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
@@ -72,6 +72,13 @@ solution "ponyc"
     linkoptions {
       "-fuse-ld=gold",
     }
+  configuration "*"
+    includedirs {
+      "inc/"
+    }
+    files {
+      "inc/**.h"
+    }
 
   project "libponyc"
     targetname "ponyc"
@@ -89,6 +96,16 @@ solution "ponyc"
     }
     files { "src/libponyc/**.c", "src/libponyc/**.h" }
     excludes { "src/libponyc/platform/**.cc" }
+
+  project "libponyrt"
+    targetname "ponyrt"
+    kind "StaticLib"
+    language "C"
+    buildoptions "-std=gnu11"
+    files {
+      "src/libponyrt/**.h",
+      "src/libponyrt/**.c"
+    }
 
   project "libponycc"
     targetname "ponycc"
@@ -117,6 +134,27 @@ solution "ponyc"
       "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     }
 
-  include "ponyrt/src/"
-  include "utils/"
-  include "test/"
+  project "gtest"
+    language "C++"
+    kind "StaticLib"
+    includedirs { "utils/gtest/" }
+    files {
+      "utils/gtest/gtest-all.cc",
+      "utils/gtest/gtest_main.cc"
+    }
+
+  project "tests"
+    language "C++"
+    kind "ConsoleApp"
+
+    configuration "*"
+      includedirs {
+        "utils/gtest/",
+        "src/libponyc/",
+        "src/libponyrt/",
+      }
+
+    buildoptions "-std=gnu++11"
+    files { "test/unit/ponyc/**.cc", "test/unit/ponyc/**.h" }
+    links { "gtest" }
+    link_libponyc()

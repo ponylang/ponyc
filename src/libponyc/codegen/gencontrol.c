@@ -140,6 +140,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // init
+  // This jumps either to the body or the else clause. This is not evaluated
+  // on each loop iteration: only on the first entry or after a continue.
   LLVMPositionBuilderAtEnd(c->builder, init_block);
   LLVMValueRef i_value = gen_expr(c, cond);
 
@@ -156,6 +158,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(l_value == NULL)
     return NULL;
 
+  // The body evaluates the condition itself, jumping either back to the body
+  // or directly to the post block.
   LLVMValueRef c_value = gen_expr(c, cond);
 
   if(c_value == NULL)
@@ -165,6 +169,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
 
   // else
+  // If the loop doesn't generate a value (doesn't execute, or continues on the
+  // last iteration), the else clause generates the value.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value = gen_expr(c, else_clause);
 
@@ -187,10 +193,11 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, body, cond);
+  AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   ast_t* type = ast_type(ast);
   ast_t* body_type = ast_type(body);
+  ast_t* else_type = ast_type(else_clause);
 
   gentype_t phi_type;
 
@@ -201,16 +208,14 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     codegen_fun(c), "repeat_body");
   LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context,
     codegen_fun(c), "repeat_cond");
+  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
+    codegen_fun(c), "repeat_else");
   LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
     codegen_fun(c), "repeat_post");
   LLVMBuildBr(c->builder, body_block);
 
   // keep a reference to the cond block
   ast_setdata(ast, cond_block);
-
-  // start the cond block so that a continue can modify the phi node
-  LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMValueRef cond_phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -224,20 +229,41 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
-  body_block = LLVMGetInsertBlock(c->builder);
-  LLVMBuildBr(c->builder, cond_block);
+  // The body evaluates the condition itself, jumping either back to the body
+  // or directly to the post block.
+  LLVMValueRef c_value = gen_expr(c, cond);
+
+  if(c_value == NULL)
+    return NULL;
+
+  LLVMBasicBlockRef body_from = LLVMGetInsertBlock(c->builder);
+  LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
 
   // cond block
+  // This is only evaluated from a continue, jumping either back to the body
+  // or to the else block.
   LLVMPositionBuilderAtEnd(c->builder, cond_block);
-  LLVMAddIncoming(cond_phi, &value, &body_block, 1);
+  LLVMValueRef i_value = gen_expr(c, cond);
+  LLVMBuildCondBr(c->builder, i_value, else_block, body_block);
 
-  LLVMValueRef c_value = gen_expr(c, cond);
-  cond_block = LLVMGetInsertBlock(c->builder);
-  LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
+  // else
+  // Only happens for a continue in the last iteration.
+  LLVMPositionBuilderAtEnd(c->builder, else_block);
+  LLVMValueRef else_value = gen_expr(c, else_clause);
+
+  if(else_value == NULL)
+    return NULL;
+
+  else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+  LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
+  LLVMBuildBr(c->builder, post_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMAddIncoming(phi, &cond_phi, &cond_block, 1);
+  LLVMAddIncoming(phi, &value, &body_from, 1);
+
+  if(else_value != GEN_NOVALUE)
+    LLVMAddIncoming(phi, &else_value, &else_from, 1);
 
   return phi;
 }
@@ -259,6 +285,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
     case TK_REPEAT:
     {
       // target is cond_block, need to get to the post_block
+      target = LLVMGetNextBasicBlock(target); // else
       target = LLVMGetNextBasicBlock(target); // post
       break;
     }
@@ -299,45 +326,11 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
+  // Jump to the loop target.
   ast_t* loop = ast_enclosing_loop(ast);
   LLVMBasicBlockRef target = (LLVMBasicBlockRef)ast_data(loop);
-
-  switch(ast_id(loop))
-  {
-    case TK_REPEAT:
-    {
-      // create a new continue block before the condition block
-      LLVMBasicBlockRef cont_block = LLVMInsertBasicBlockInContext(c->context,
-        target, "continue");
-
-      // jump to the continue block
-      LLVMBuildBr(c->builder, cont_block);
-
-      // jump with none to the condition block
-      LLVMPositionBuilderAtEnd(c->builder, cont_block);
-      const char* inst = genname_instance("$1_None");
-      LLVMValueRef none = LLVMGetNamedGlobal(c->module, inst);
-      LLVMBuildBr(c->builder, target);
-
-      // add none from the continue block to the condition block phi node
-      LLVMValueRef cond_phi = LLVMGetFirstInstruction(target);
-      LLVMAddIncoming(cond_phi, &none, &cont_block, 1);
-
-      return GEN_NOVALUE;
-    }
-
-    case TK_WHILE:
-    {
-      // jump to the init block
-      LLVMBuildBr(c->builder, target);
-      return GEN_NOVALUE;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
+  LLVMBuildBr(c->builder, target);
+  return GEN_NOVALUE;
 }
 
 LLVMValueRef gen_return(compile_t* c, ast_t* ast)
@@ -348,8 +341,8 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   size_t clause;
   ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
-  // do the then block only if we return in the body or else clause
-  // in the then block, return without doing the then block
+  // Do the then block only if we return in the body or else clause.
+  // In the then block, return without doing the then block.
   if((try_expr != NULL) && (clause != 2))
     gen_expr(c, ast_childidx(try_expr, 2));
 
@@ -452,8 +445,8 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
   size_t clause;
   ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
-  // do the then block only if we error out in the else clause
-  // in the body or the then block, error out without doing the then block
+  // Do the then block only if we error out in the else clause.
+  // In the body or the then block, error out without doing the then block.
   if(try_expr != NULL)
   {
     switch(clause)

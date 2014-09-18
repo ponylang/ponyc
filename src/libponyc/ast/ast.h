@@ -6,7 +6,7 @@
 #include "token.h"
 #include "symtab.h"
 
-#include "../platform/platform.h"
+#include <platform/platform.h>
 
 /* Description of AST forms produced after parse fix pass.
 
@@ -227,7 +227,7 @@ control
   Children are (in order) condition, loop body, else body.
   The condition child does not have a symbol table.
 
-  REPEAT: SEQ SEQ
+  REPEAT: SEQ SEQ [SEQ]
   data: during codegen, holds the LLVMBasicBlockRef for the cond_block
   symtab: name -> VAR | VAL
   Children are (in order) loop body, condition.
@@ -335,8 +335,10 @@ ast_t* ast_sibling(ast_t* ast);
 ast_t* ast_previous(ast_t* ast);
 size_t ast_index(ast_t* ast);
 
-ast_t* ast_get(ast_t* ast, const char* name);
-bool ast_set(ast_t* ast, const char* name, ast_t* value);
+ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status);
+bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status);
+void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
+void ast_inheritstatus(ast_t* ast, ast_t* left, ast_t* right);
 bool ast_merge(ast_t* dst, ast_t* src);
 void ast_clear(ast_t* ast);
 

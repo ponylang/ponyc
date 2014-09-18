@@ -7,7 +7,6 @@
 #include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/alias.h"
-#include "../type/viewpoint.h"
 #include "../type/cap.h"
 #include <assert.h>
 
@@ -23,7 +22,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   // must be a type in a package
   const char* package_name = ast_name(ast_child(left));
-  ast_t* package = ast_get(left, package_name);
+  ast_t* package = ast_get(left, package_name, NULL);
 
   if(package == NULL)
   {
@@ -33,7 +32,7 @@ static bool expr_packageaccess(ast_t* ast)
 
   assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  type = ast_get(package, type_name);
+  type = ast_get(package, type_name, NULL);
 
   if(type == NULL)
   {
@@ -125,22 +124,6 @@ static bool expr_typeaccess(ast_t* ast)
 
   ast_free_unattached(find);
   return ret;
-}
-
-static bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
-{
-  // viewpoint adapted type of the field
-  ast_t* ftype = viewpoint(left, find);
-
-  if(ftype == NULL)
-  {
-    ast_error(ast, "can't read a field from a tag");
-    return false;
-  }
-
-  ast_setid(ast, t);
-  ast_settype(ast, ftype);
-  return true;
 }
 
 static bool expr_memberaccess(ast_t* ast)
@@ -472,8 +455,8 @@ bool expr_call(ast_t* ast)
         // the caller. can't just copy it.
         ast_error(positional, "not implemented (default arguments)");
         return false;
-        //MSVC++ complains about unreachable code...
-        //param = ast_sibling(param);
+
+        // param = ast_sibling(param);
       }
 
       switch(token)

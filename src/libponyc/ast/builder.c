@@ -103,7 +103,7 @@ static bool add_subtree_name(build_parser_t* builder, const char* name,
   assert(builder != NULL);
   assert(builder->defs != NULL);
 
-  if(!symtab_add(builder->defs, name, (void*)subtree))
+  if(!symtab_add(builder->defs, name, (void*)subtree, SYM_NONE))
   {
     build_error(builder, "Multiple {def %s} attributes", name);
     return false;
@@ -139,7 +139,7 @@ static bool process_refs(build_parser_t* builder)
     assert(p->name != NULL);
     assert(p->node != NULL);
 
-    ast_t* subtree = (ast_t*)symtab_get(builder->defs, p->name);
+    ast_t* subtree = (ast_t*)symtab_get(builder->defs, p->name, NULL);
 
     if(subtree == NULL)
     {
@@ -157,7 +157,7 @@ static bool process_refs(build_parser_t* builder)
       // Add subtree to node's symtab
       symtab_t* symtab = ast_get_symtab(p->node);
       assert(symtab != NULL);
-      if(!symtab_add(symtab, p->symtab, subtree))
+      if(!symtab_add(symtab, p->symtab, subtree, SYM_NONE))
       {
         build_error(builder, "Duplicate name %s in symbol table", p->name);
         return false;
@@ -705,7 +705,7 @@ ast_t* builder_find_sub_tree(builder_t* builder, const char* name)
   if(builder == NULL || name == NULL)
     return NULL;
 
-  return (ast_t*)symtab_get(builder->defs, stringtab(name));
+  return (ast_t*)symtab_get(builder->defs, stringtab(name), NULL);
 }
 
 
