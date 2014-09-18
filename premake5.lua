@@ -72,6 +72,12 @@
     configuration "vs*"
       architecture "x64"
     configuration "*"
+      includedirs {
+        "inc/"
+      }
+      files {
+        "inc/**.h"
+      }
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -104,6 +110,22 @@
       excludes { "src/libponyc/**.cc" }
     configuration "vs*"
       cppforce { "src/libponyc/**.c*" }
+    configuration "*"
+
+  project "libponyrt"
+    targetname "ponyrt"
+    kind "StaticLib"
+    language "C"
+    files {
+      "src/libponyrt/**.c",
+      "src/libponyrt/**.h"
+    }
+    configuration "gmake"
+      buildoptions {
+        "-std=gnu11"
+      }
+    configuration "vs*"
+      cppforce { "src/libponyrt/**.c" }
     configuration "*"
 
   project "ponyc"

@@ -3,7 +3,7 @@
 #endif
 
 #include <llvm/Support/Host.h>
-#include "../platform/platform.h"
+#include <platform/platform.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 extern "C"

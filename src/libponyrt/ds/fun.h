@@ -1,0 +1,38 @@
+#ifndef ds_fun_h
+#define ds_fun_h
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef uint64_t (*hash_fn)(void* arg);
+
+typedef bool (*cmp_fn)(void* a, void* b);
+
+typedef void* (*map_fn)(void* a, void* arg);
+
+typedef void* (*alloc_fn)(size_t size);
+
+typedef void (*free_fn)(void* data);
+
+typedef void (*free_size_fn)(size_t size, void* data);
+
+uint64_t hash_block(const void* p, size_t len);
+
+uint64_t hash_str(const char* str);
+
+uint64_t hash_ptr(const void* p);
+
+uint64_t hash_int(uint64_t key);
+
+size_t next_pow2(size_t i);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
