@@ -181,8 +181,6 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     end
 end
 
-  include("ponyrt/src/premake5.lua")
-
   if _ACTION == "clean" then
     os.rmdir("bin")
     os.rmdir("obj")

@@ -117,6 +117,5 @@ solution "ponyc"
       "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
     }
 
-  include "ponyrt/src/"
   include "utils/"
   include "test/"
