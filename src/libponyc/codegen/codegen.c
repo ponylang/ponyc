@@ -25,6 +25,9 @@
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
+#else
+   //disable warnings of unlink being deprecated
+#  pragma warning(disable:4996)
 #endif
 
 static LLVMTargetMachineRef machine;
@@ -415,11 +418,22 @@ static void append_link_paths(char* str)
 {
   strlist_t* p = package_paths();
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  size_t path_len;
+#endif
+
   while(p != NULL)
   {
     const char* path = strlist_data(p);
+#ifdef PLATFORM_IS_POSIX_BASED
     strcat(str, " -L");
     strcat(str, path);
+#elif defined(PLATFORM_IS_VISUAL_STUDIO)
+    path_len = 16 + strlen(path) + 1;
+    VLA(char, lib_path, path_len);
+    snprintf(lib_path, path_len, "/LIBPATH:\"%s\"", path);
+    strcat(str, lib_path);
+#endif
     p = strlist_next(p);
   }
 }
@@ -564,14 +578,6 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lponyrt -lSystem");
   free(arch);
-
-  if(system(ld_cmd) != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-
-  unlink(file_o);
 #elif defined(PLATFORM_IS_LINUX)
   size_t ld_len = 256 + (len * 2) + link_path_length();
   VLA(char, ld_cmd, ld_len);
@@ -595,6 +601,34 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
     "/usr/lib/x86_64-linux-gnu/crtn.o"
     );
+#else
+  vcvars_t vcvars;
+  
+  if(!vcvars_get(&vcvars))
+  {
+    //vcvars_errors(&vcvars);
+    return false;
+  }
+
+  //(len * 2) for object file and executable
+  size_t ld_len = 256 + (len * 2) + link_path_length() + strlen(vcvars.sdk_lib_dir);
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "link.exe /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "/OUT:%s.exe "
+    "%s.o ",
+    file_exe, file_exe
+    );
+  
+  append_link_paths(ld_cmd);
+  
+  strcat(ld_cmd,
+    " pony.lib kernel32.lib msvcrt.lib"
+    );
+
+  printf("%s\n", ld_cmd);
+#endif
 
   if(system(ld_cmd) != 0)
   {
@@ -603,11 +637,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   }
 
   unlink(file_o);
-#else
-  printf("Compiled %s, please link it by hand to libpony.a\n", file_o);
-  return true;
-#endif
-
+  
   printf("=== Compiled %s ===\n", file_exe);
   return true;
 }
