@@ -531,6 +531,8 @@ static bool is_expr_infix(token_id id)
     case TK_LE:
     case TK_GE:
     case TK_GT:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
       return true;
 
     default:
@@ -579,6 +581,19 @@ static ast_result_t parse_fix_consume(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_lparen(ast_t** astp)
+{
+  // Remove TK_LPAREN nodes
+  ast_t* child = ast_pop(*astp);
+  assert(child != NULL);
+  ast_replace(astp, child);
+
+  // The recursive descent pass won't now process our child because it thinks
+  // that's us. So we have to process our child explicitly.
+  return pass_parse_fix(astp);
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp)
 {
   assert(astp != NULL);
@@ -599,6 +614,8 @@ ast_result_t pass_parse_fix(ast_t** astp)
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_AT:         return parse_fix_ffi(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
+    case TK_LPAREN:
+    case TK_LPAREN_NEW: return parse_fix_lparen(astp);
     default: break;
   }
 

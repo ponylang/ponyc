@@ -279,6 +279,144 @@ TEST(BnfTest, AssignInfixPrefixPostfixSequenceCombo)
 }
 
 
+// Type operator lack of precedence
+
+TEST(BnfTest, InfixTypeSingleOp)
+{
+  const char* src = "type T is (Foo | Bar)";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (type (id T)"
+    "    (uniontype (nominal (id Foo) x x x x)(nominal (id Bar) x x x x))"
+    "))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixTypeNeedsParens)
+{
+  const char* src = "type T is Foo | Bar";
+
+  DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, InfixTypeRepeatedOp)
+{
+  const char* src = "type T is (Foo | Bar | Wombat)";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (type (id T)"
+    "    (uniontype"
+    "      (uniontype"
+    "        (nominal (id Foo) x x x x)"
+    "        (nominal (id Bar) x x x x))"
+    "      (nominal (id Wombat) x x x x))"
+    "))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixTypeTwoOpsWithParens)
+{
+  const char* src = "type T is (Foo | (Bar & Wombat))";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (type (id T)"
+    "    (uniontype"
+    "      (nominal (id Foo) x x x x)"
+    "      (isecttype"
+    "        (nominal (id Bar) x x x x)"
+    "        (nominal (id Wombat) x x x x)))"
+    "))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, InfixTypeTwoOpsWithoutParens)
+{
+  const char* src = "type T is (Foo | Bar & Wombat)";
+
+  DO(parse_bad(src));
+}
+
+
+TEST(BnfTest, InfixTypeViewpointTupleCombo)
+{
+  const char* src = "type T is (Foo, Foo->Bar | Wombat, Foo & Bar)";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (type (id T)"
+    "    (tupletype"
+    "      (tupletype"
+    "        (nominal (id Foo) x x x x)"
+    "        (uniontype"
+    "          (->"
+    "            (nominal (id Foo) x x x x)"
+    "            (nominal (id Bar) x x x x))"
+    "          (nominal (id Wombat) x x x x)))"
+    "      (isecttype"
+    "        (nominal (id Foo) x x x x)"
+    "        (nominal (id Bar) x x x x)))"
+    "))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+// Variable declaration
+
+TEST(BnfTest, SingleVariableDef)
+{
+  const char* src = "class C fun ref f() => var a";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, MultipleVariableDefs)
+{
+  const char* src = "class C fun ref f() => var (a, b, c)";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)(id b)(id c)) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
+
+TEST(BnfTest, NestedVariableDefs)
+{
+  const char* src = "class C fun ref f() => var (a, (b, (c, d), e))";
+
+  const char* expect =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id C) x x x"
+    "    (members (fun{scope} ref (id f) x x x x (seq"
+    "      (var (idseq (id a)(idseq (id b)(idseq (id c)(id d))(id e))) x)"
+    ")))))))";
+
+  DO(parse_good(src, expect));
+}
+
 
 // TODO(andy): Loads more tests needed here
 

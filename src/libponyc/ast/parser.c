@@ -1,91 +1,41 @@
 #include "parserapi.h"
 #include <stdio.h>
 
-// forward declarations
+// Forward declarations
 DECL(type);
 DECL(rawseq);
 DECL(seq);
 DECL(assignment);
 DECL(term);
+DECL(idseqmulti);
 DECL(members);
 
 
-// operator precedence
-static int precedence(token_id id)
-{
-  switch(id)
-  {
-    // type operators
-    case TK_ARROW:
-      return 40;
-
-    case TK_ISECTTYPE:
-      return 30;
-
-    case TK_UNIONTYPE:
-      return 20;
-
-    case TK_TUPLETYPE:
-      return 10;
-
-    // postfix operators
-    case TK_DOT:
-    case TK_BANG:
-    case TK_QUALIFY:
-    case TK_CALL:
-      return 100;
-
-    // infix operators
-    case TK_MULTIPLY:
-    case TK_DIVIDE:
-    case TK_MOD:
-      return 90;
-
-    case TK_PLUS:
-    case TK_MINUS:
-      return 80;
-
-    case TK_LSHIFT:
-    case TK_RSHIFT:
-      return 70;
-
-    case TK_LT:
-    case TK_LE:
-    case TK_GE:
-    case TK_GT:
-      return 60;
-
-    case TK_IS:
-    case TK_ISNT:
-    case TK_EQ:
-    case TK_NE:
-      return 50;
-
-    case TK_AND: return 40;
-    case TK_XOR: return 30;
-    case TK_OR: return 20;
-    case TK_ASSIGN: return 10;
-
-    default: return INT_MAX;
-  }
-}
-
-static bool associativity(token_id id)
-{
-  // return true for right associative, false for left associative
-  switch(id)
-  {
-    case TK_ASSIGN:
-    case TK_ARROW:
-      return true;
-
-    default:
-      return false;
-  }
-}
+/* Precedence
+ *
+ * We do not support precedence of infix operators, since that leads to many
+ * bugs. Instead we require the use of parentheses to disambiguiate operator
+ * interactions. This is checked in the parse fix pass, so we treat all infix
+ * operators as having the same precedence during parsing.
+ *
+ * Overall, the precedences built into the below grammar are as follows.
+ *
+ * Value operators:
+ *  postfix (eg . call) - highest precedence, most tightly binding
+ *  prefix (eg not consume)
+ *  infix (eg + <<)
+ *  assignment (=) - right associative
+ *  sequence (consecutive expressions)
+ *  tuple elements (,) - lowest precedence
+ *
+ * Type operators:
+ *  viewpoint (->) - right associative, highest precedence
+ *  infix (& |)
+ *  tuple elements (,) - lowest precedence
+*/
 
 
-// rules
+// Rules
 
 // type {COMMA type}
 DEF(types);
@@ -195,35 +145,43 @@ DEF(nominal);
   OPT TOKEN(NULL, TK_HAT);
   DONE();
 
-// COMMA type {COMMA type}
-DEF(tupletype);
-  AST_NODE(TK_TUPLETYPE);
-  SKIP(NULL, TK_COMMA);
-  RULE("type", type);
-  WHILE(TK_COMMA, RULE("type", type));
-  DONE();
-
-// PIPE type {PIPE type}
+// PIPE type
 DEF(uniontype);
   AST_NODE(TK_UNIONTYPE);
   SKIP(NULL, TK_PIPE);
   RULE("type", type);
-  WHILE(TK_PIPE, RULE("type", type));
   DONE();
 
-// AMP type {AMP type}
+// AMP type
 DEF(isecttype);
   AST_NODE(TK_ISECTTYPE);
   SKIP(NULL, TK_AMP);
   RULE("type", type);
-  WHILE(TK_AMP, RULE("type", type));  // TODO: Fix this, it's ambiguous
   DONE();
 
-// (LPAREN | LPAREN_NEW) type {uniontype | isecttype | tupletype} RPAREN
-DEF(typeexpr);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+// type {uniontype | isecttype}
+DEF(infixtype);
   RULE("type", type);
-  BINDOP("compound type", uniontype, isecttype, tupletype);
+  OPT TOP SEQ("type", uniontype, isecttype);
+  DONE();
+
+// COMMA infixtype
+DEF(tupletypeop);
+  TOKEN(NULL, TK_COMMA);
+  MAP_ID(TK_COMMA, TK_TUPLETYPE);
+  RULE("type", infixtype);
+  DONE();
+
+// infixtype {tupletypeop}
+DEF(tupletype);
+  RULE("type", infixtype);
+  OPT TOP SEQ("type", tupletypeop);
+  DONE();
+
+// (LPAREN | LPAREN_NEW) tupletype RPAREN
+DEF(typeexpr);
+  TOKEN(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
@@ -232,17 +190,22 @@ DEF(thistype);
   AST_NODE(TK_THISTYPE);
   SKIP(NULL, TK_THIS);
   DONE();
-
-// ARROW (thistype | typeexpr | nominal | structural)
-DEF(viewpoint);
-  TOKEN(NULL, TK_ARROW);
-  RULE("viewpoint", typeexpr, nominal, structural, thistype);
+  
+// (thistype | typeexpr | nominal | structural)
+DEF(atomtype);
+  RULE("type", thistype, typeexpr, nominal, structural);
   DONE();
 
-// (thistype | typeexpr | nominal | structural) {viewpoint}
+// ARROW type
+DEF(viewpoint);
+  TOKEN(NULL, TK_ARROW);
+  RULE("viewpoint", type);
+  DONE();
+
+// atomtype [viewpoint]
 DEF(type);
-  RULE("type", thistype, typeexpr, nominal, structural);
-  OPT BINDOP("viewpoint", viewpoint);
+  RULE("type", atomtype);
+  OPT TOP RULE("viewpoint", viewpoint);
   DONE();
 
 // term ASSIGN rawseq
@@ -355,22 +318,32 @@ DEF(postfix);
 
 // ID
 DEF(idseqid);
-  AST_NODE(TK_IDSEQ);
   TOKEN("variable name", TK_ID);
   DONE();
 
+// idseqid | idseqmulti
+DEF(idseqelement);
+  RULE("variable name", idseqid, idseqmulti);
+  DONE();
+
 // (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
-DEF(idseqseq);
+DEF(idseqmulti);
   AST_NODE(TK_IDSEQ);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  TOKEN("variable name", TK_ID);
-  WHILE(TK_COMMA, TOKEN("variable name", TK_ID));
+  RULE("variable name", idseqelement);
+  WHILE(TK_COMMA, RULE("variable name", idseqelement));
   SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// ID
+DEF(idseqsingle);
+  AST_NODE(TK_IDSEQ);
+  TOKEN("variable name", TK_ID);
   DONE();
 
 // ID | (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
 DEF(idseq);
-  RULE("variable name", idseqid, idseqseq);
+  RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
 // (VAR | VAL) idseq [COLON type]
@@ -530,7 +503,7 @@ DEF(assignop);
   RULE("assign rhs", assignment);
   DONE();
 
-// term ASSIGNOP
+// term [assignop]
 DEF(assignment);
   RULE("value", infix);
   OPT TOP RULE("value", assignop);

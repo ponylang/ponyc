@@ -86,7 +86,7 @@ symtab: name -> TYPEPARAM | PARAM
 TYPEPARAMS: {TYPEPARAM}
 
 TYPEPARAM: ID [type] [type]
-The first child is the contraint type, the second is the default type.
+The second child is the contraint type, the third is the default type.
 
 QUESTION: no children
 
@@ -127,12 +127,12 @@ PARAMS: {PARAM}
 PARAM: ID type [SEQ]
 The sequence child is the default value tree.
 
-IDSEQ: {ID}
+IDSEQ: (ID | IDSEQ) {ID | IDSEQ}
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL
-
-RAWSEQ: {jump | expr}
+Some SEQ nodes do not have symbol tables. These are indicated in the parent
+nodes.
 
 jump
 ----
@@ -209,22 +209,27 @@ postfix
 control
 -------
 (
-  IF: RAWSEQ SEQ [SEQ]
+  IF: SEQ SEQ [SEQ]
   symtab: name -> VAR | VAL
   Children are (in order) condition, then body, else body.
+  The condition child does not have a symbol table.
 
-  MATCH: RAWSEQ CASES [SEQ]
-  Final child is else body.
+  MATCH: SEQ CASES [SEQ]
+  The first child is the expression to switch on and it does not have a symbol
+  table.
+  The final child is the else body.
 
-  WHILE: RAWSEQ SEQ [SEQ]
+  WHILE: SEQ SEQ [SEQ]
   data: during codegen, holds the LLVMBasicBlockRef for the init_block
   symtab: name -> VAR | VAL
   Children are (in order) condition, loop body, else body.
+  The condition child does not have a symbol table.
 
-  REPEAT: RAWSEQ SEQ
+  REPEAT: SEQ SEQ
   data: during codegen, holds the LLVMBasicBlockRef for the cond_block
   symtab: name -> VAR | VAL
   Children are (in order) loop body, condition.
+  The loop body child does not have a symbol table.
 
   FOR: IDSEQ [type] SEQ SEQ [SEQ]
   Children are (in order) iterator(s), iterator type, iterator initialiser,
