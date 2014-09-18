@@ -19,7 +19,17 @@ bool expr_seq(ast_t* ast)
   ast_inheriterror(ast);
 
   // TODO: if we are the body of a loop or try expression, we need to push
-  // our symbol consumes
+  // our symbol consumes to the else block
+  // In the body of a try, we might stop execution with any node that can
+  // error out, so a DEFINE can only override an UNDEFINE *for the else block*
+  // if it appears before the next node that can error out.
+  // mark undefined as undefined_throw when we hit a throw
+  // when we mark undefined_throw as defined, mark it as defined_throw instead
+  // when we mark defined_throw as undefined, mark it as undefined_throw instead
+  // treat defined_throw and undefined_throw like defined and undefined
+  // but when we push our symbol status to the else block, treat both as
+  // undefined
+  // only need to do this in a try body
   return true;
 }
 

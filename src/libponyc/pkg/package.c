@@ -476,6 +476,12 @@ ast_t* package_load(ast_t* from, const char* path)
   if(!do_path(magic, package, name))
     return NULL;
 
+  if(ast_child(package) == NULL)
+  {
+    ast_error(package, "no source files in package '%s'", path);
+    return NULL;
+  }
+
   if(!package_passes(package))
   {
     ast_error(package, "can't typecheck package '%s'", path);
