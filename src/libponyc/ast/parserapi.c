@@ -29,23 +29,21 @@ static void consume_token_no_ast(parser_t* parser)
 
 
 /// Process our deferred AST node creation, if any
-void process_deferred_ast(parser_t* parser, ast_t** rule_ast,
-  rule_state_t* state)
+void process_deferred_ast(parser_t* parser, rule_state_t* state)
 {
   if(!state->deferred) // No deferment to process
     return;
 
-  assert(*rule_ast == NULL);
+  assert(state->ast == NULL);
   token_t* deferred_token = token_new(state->deferred_id, parser->source);
   token_set_pos(deferred_token, state->line, state->pos);
-  *rule_ast = ast_token(deferred_token);
+  state->ast = ast_token(deferred_token);
   state->deferred = false;
 }
 
 
 /// Add the given AST to ours, handling deferment
-void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
-  rule_state_t* state)
+void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
 {
   if(new_ast == PARSE_ERROR || new_ast == NULL)
     return;
@@ -59,12 +57,12 @@ void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
     new_ast = ast_new(parser->token, TK_NONE);
   }
 
-  process_deferred_ast(parser, rule_ast, state);
+  process_deferred_ast(parser, state);
 
-  if(*rule_ast == NULL)
+  if(state->ast == NULL)
   {
     // The new AST is our only AST so far
-    *rule_ast = new_ast;
+    state->ast = new_ast;
   }
   else
   {
@@ -73,24 +71,29 @@ void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
     if(state->top)
     {
       // New AST goes at the top
-      // TODO(andy): change to ast_add when full reverse is removed
-      ast_append(new_ast, *rule_ast);
-      *rule_ast = new_ast;
+      state->last_child = ast_childlast(new_ast);
+      ast_add(new_ast, state->ast);
+      state->ast = new_ast;
     }
     else
     {
       // Existing AST goes at the top
-      ast_add(*rule_ast, new_ast);
+
+      if(state->last_child == NULL)  // New AST is the first child
+        ast_add(state->ast, new_ast);
+      else  // Add new AST to end of children
+        ast_add_sibling(state->last_child, new_ast);
+
+      state->last_child = new_ast;
     }
   }
 }
 
 
 /// Add an AST node for the specified token, which may be deferred
-void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
-  rule_state_t* state)
+void add_deferrable_ast(parser_t* parser, token_id id, rule_state_t* state)
 {
-  if(!state->matched && *ast == NULL && !state->deferred)
+  if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
     state->deferred = true;
@@ -100,7 +103,7 @@ void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
     return;
   }
 
-  add_ast(parser, ast_new(parser->token, id), ast, state);
+  add_ast(parser, ast_new(parser->token, id), state);
 }
 
 
@@ -109,20 +112,20 @@ void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
  *    NULL if rule should continue
  *    non-NULL if rule should immediately return that error value
  */
-ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
-  ast_t* sub_ast, const char* desc)
+ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
+  const char* desc)
 {
   if(sub_ast == PARSE_ERROR)
   {
     // Propogate error
-    ast_free(rule_ast);
+    ast_free(state->ast);
     return PARSE_ERROR;
   }
 
   if(sub_ast == RULE_NOT_FOUND && !state->opt)
   {
     // Required token / sub rule not found
-    ast_free(rule_ast);
+    ast_free(state->ast);
 
     if(!state->matched)
     {
@@ -312,7 +315,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
   if(ast != NULL)
   {
     // TODO: add last child pointer to allow building AST in order without reversing
-    ast_reverse(ast);
+    //ast_reverse(ast);
     assert(ast_data(ast) == NULL);
     ast_setdata(ast, source);
   }
