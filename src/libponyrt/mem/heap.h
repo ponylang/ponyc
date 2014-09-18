@@ -33,9 +33,7 @@ __pony_spec_malloc__(
   void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
   );
 
-__pony_spec_malloc__(
-  void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
-  );
+void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size);
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects received
