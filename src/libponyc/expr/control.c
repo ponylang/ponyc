@@ -58,6 +58,10 @@ bool expr_while(ast_t* ast)
   // if defined in both branches, mark defined.
   // anything undefined in the body has to be marked undefined in the else
   // clause, because it may have executed before a continue.
+  // body of a loop can never assign to a LETREF or FLETREF because it might
+  // do so more than once.
+  // can't consume a local unless the body has written to it, because otherwise
+  // it could consume it more than once.
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);

@@ -576,7 +576,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   // User specified libraries go here, in any order.
   append_link_paths(ld_cmd);
-  strcat(ld_cmd, " -lpony -lSystem");
+  strcat(ld_cmd, " -lponyrt -lSystem");
   free(arch);
 #elif defined(PLATFORM_IS_LINUX)
   size_t ld_len = 256 + (len * 2) + link_path_length();
@@ -597,7 +597,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   // User specified libraries go here, surrounded with --start-group and
   // --end-group so that we don't have to determine an ordering.
   strcat(ld_cmd,
-    " -lpony -lpthread -lc "
+    " -lponyrt -lpthread -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
     "/usr/lib/x86_64-linux-gnu/crtn.o"
     );

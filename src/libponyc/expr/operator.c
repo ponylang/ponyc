@@ -17,6 +17,7 @@ static bool is_lvalue(ast_t* ast)
   switch(ast_id(ast))
   {
     case TK_VAR:
+    case TK_LET:
     {
       ast_t* idseq = ast_child(ast);
       ast_t* id = ast_child(idseq);
@@ -39,7 +40,7 @@ static bool is_lvalue(ast_t* ast)
       return true;
     }
 
-    case TK_LET:
+    case TK_LETREF:
     {
       ast_t* id = ast_child(ast);
       const char* name = ast_name(id);
@@ -80,6 +81,12 @@ static bool is_lvalue(ast_t* ast)
         return false;
       }
 
+      if(ast_enclosing_loop(ast) != NULL)
+      {
+        ast_error(ast, "can't assign to let field in a loop");
+        return false;
+      }
+
       const char* name = ast_name(right);
 
       sym_status_t status;
@@ -87,7 +94,7 @@ static bool is_lvalue(ast_t* ast)
 
       if(status != SYM_UNDEFINED)
       {
-        ast_error(ast, "can't assign to this again");
+        ast_error(ast, "can't assign to let field again");
         return false;
       }
 
