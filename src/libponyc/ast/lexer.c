@@ -943,8 +943,13 @@ token_t* lexer_next(lexer_t* lexer)
       adv(lexer, 1);
       break;
 
-    case '\r':
     case '\t':
+      // Remove tabs from source so error position reporting works
+      lexer->source->m[lexer->ptr] = ' ';
+      adv(lexer, 1);
+      break;
+
+    case '\r':
     case ' ':
       adv(lexer, 1);
       break;
