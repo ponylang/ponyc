@@ -9,7 +9,7 @@ function link_libponyc()
     }
   configuration "*"
 
-  links "libponyc"
+  links { "libponyc", "libponyrt", "libponycc" }
 
   local output = llvm_config("--libs")
 
