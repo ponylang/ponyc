@@ -1,3 +1,5 @@
+#if defined(PLATFORM_IS_WINDOWS)
+
 #include <platform/platform.h>
 
 #define REG_SDK_INSTALL_PATH \
@@ -29,7 +31,7 @@ bool query_registry(HKEY key, query_callback_fn fn, void* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
-  
+
   get_child_count(key, &sub_keys, &largest_subkey);
 
   if(sub_keys == 0)
@@ -40,7 +42,7 @@ bool query_registry(HKEY key, query_callback_fn fn, void* p)
   HKEY node;
   DWORD size = largest_subkey;
   VLA(char, name, largest_subkey);
-   
+
   for(DWORD i = 0; i < sub_keys; ++i)
   {
     if(RegEnumKeyEx(key, i, name, &size,
@@ -50,7 +52,7 @@ bool query_registry(HKEY key, query_callback_fn fn, void* p)
       {
         fn(node, name, p);
       }
-      else 
+      else
       {
         return false;
       }
@@ -64,14 +66,14 @@ bool query_registry(HKEY key, query_callback_fn fn, void* p)
 
     size = largest_subkey;
   }
-    
+
   return true;
 }
 
 static void pick_newest_sdk(HKEY key, char* name, void* p)
 {
   sdk_search_t* sdk = (sdk_search_t*)p;
-  
+
   //it seesm to be the case that sub nodes ending
   //with an 'A' are .NET Framework SDKs
   if(name[strlen(name) - 1] == 'A')
@@ -83,13 +85,13 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ,
     NULL, new_path, &path_len) == ERROR_SUCCESS)
-  {          
+  {
     VLA(char, new_version, version_len);
 
     if(RegGetValue(key, NULL, "ProductVersion",
       RRF_RT_REG_SZ, NULL, new_version, &version_len) == ERROR_SUCCESS)
     {
-      if((strlen(sdk->version) == 0) 
+      if((strlen(sdk->version) == 0)
         || (strncmp(sdk->version, new_version, strlen(sdk->version)) < 0))
       {
         memcpy(sdk->vcvars->sdk_lib_dir, new_path, MAX_PATH + 1);
@@ -104,11 +106,11 @@ static bool find_kernel32(sdk_search_t* search)
   bool success = true;
   HKEY key;
 
-  if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, REG_SDK_INSTALL_PATH, 0, 
+  if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, REG_SDK_INSTALL_PATH, 0,
     (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
   {
     //try the fallback, otherwise give up
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, REG_SDK_INSTALL_PATH_FALLBACK, 0, 
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, REG_SDK_INSTALL_PATH_FALLBACK, 0,
       (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
     {
       success = false;
@@ -120,7 +122,7 @@ static bool find_kernel32(sdk_search_t* search)
     if(!query_registry(key, pick_newest_sdk, search))
       success = false;
   }
-  
+
   RegCloseKey(key);
 
   //we try to search for the 64-bit version of kernel32.lib provided with
@@ -136,12 +138,12 @@ static bool find_msvcrt(vcvars_t* vcvars)
 }
 
 bool vcvars_get(vcvars_t* vcvars)
-{ 
+{
   memset(vcvars->sdk_lib_dir, 0, MAX_PATH + 1);
 
   sdk_search_t sdk;
   sdk.vcvars = vcvars;
- 
+
   memset(sdk.version, 0, MAX_VER_LEN + 1);
 
   if(!find_kernel32(&sdk))
@@ -152,3 +154,5 @@ bool vcvars_get(vcvars_t* vcvars)
 
   return true;
 }
+
+#endif
