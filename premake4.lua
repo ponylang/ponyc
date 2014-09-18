@@ -87,13 +87,16 @@ solution "ponyc"
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
-    }
+    
     files { 
       "src/common/*.h",
       "src/libponyc/**.c", 
       "src/libponyc/**.h" 
     }
-    excludes { "src/libponyc/platform/**.cc" }
+    excludes { 
+      "src/libponyc/platform/**.cc",
+      "src/libponyc/platform/vcvars.c"
+    }
 
   project "libponyrt"
     targetname "ponyrt"
@@ -107,6 +110,19 @@ solution "ponyc"
       "src/libponyrt/**.h",
       "src/libponyrt/**.c"
     }
+    configuration "linux or macosx"
+      excludes {
+        "src/libponyrt/asio/iocp.c",
+        "src/libponyrt/lang/win_except.c"
+      }
+    configuration "linux"
+      excludes {
+        "src/libponyrt/asio/kqueue.c"
+      }
+    configuration "macosx"
+      excludes {
+        "src/libponyrt/asio/epoll.c"
+      }
 
   project "libponycc"
     targetname "ponycc"

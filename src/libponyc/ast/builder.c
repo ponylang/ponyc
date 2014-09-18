@@ -268,12 +268,7 @@ static ast_t* get_type(build_parser_t* builder, ast_t* parent)
     return NULL;
   }
 
-  ast_t* type = get_nodes(builder, AT_RSQUARE);
-
-  if(type != NULL) // Type has to be reversed separately to rest of tree
-    ast_reverse(type);
-
-  return type;
+  return get_nodes(builder, AT_RSQUARE);
 }
 
 
@@ -435,6 +430,7 @@ static ast_t* get_nodes(build_parser_t* builder, ast_token_id terminator)
   assert(builder != NULL);
 
   ast_t* ast = NULL;
+  ast_t* last_child = NULL;
 
   while(true)
   {
@@ -494,11 +490,23 @@ static ast_t* get_nodes(build_parser_t* builder, ast_token_id terminator)
     }
 
     if(ast == NULL)
+    {
       ast = child;
+      last_child = NULL;
+    }
     else if(is_type)
+    {
       ast_settype(ast, child);
+    }
     else
-      ast_add(ast, child);
+    {
+      if(last_child == NULL)
+        ast_add(ast, child);
+      else
+        ast_add_sibling(last_child, child);
+
+      last_child = child;
+    }
   }
 }
 
@@ -535,8 +543,6 @@ static ast_t* build_ast(source_t* source, symtab_t* symtab)
       ast = NULL;
     }
   }
-
-  ast_reverse(ast);
 
   // Tidy up parser
   lexer_close(build_parser.lexer);

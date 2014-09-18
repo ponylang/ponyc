@@ -68,13 +68,15 @@ typedef struct parser_t
 typedef struct rule_state_t
 {
   const char* fn_name;  // Name of the current function, for tracing
+  ast_t* ast;           // AST built for this rule
+  ast_t* last_child;    // Last child added to current ast
   bool matched;         // Has the rule matched yet
   bool opt;             // Is the next sub item optional
   bool top;             // Should the next AST node be top of our sub tree
   bool scope;           // Is this rule a scope
   bool deferred;        // Do we have a deferred AST node
   token_id deferred_id; // ID of deferred AST node
-  size_t line, pos;        // Locatino to claim deferred node is from
+  size_t line, pos;     // Location to claim deferred node is from
 } rule_state_t;
 
 typedef int (*prec_t)(token_id id);
@@ -88,17 +90,14 @@ typedef ast_t* (*rule_t)(parser_t* parser);
 
 // Functions used by macros
 
-void process_deferred_ast(parser_t* parser, ast_t** rule_ast,
-  rule_state_t* state);
+void process_deferred_ast(parser_t* parser, rule_state_t* state);
 
-void add_ast(parser_t* parser, ast_t* new_ast, ast_t** rule_ast,
-  rule_state_t* state);
+void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state);
 
-void add_deferrable_ast(parser_t* parser, token_id id, ast_t** ast,
-  rule_state_t* state);
+void add_deferrable_ast(parser_t* parser, token_id id, rule_state_t* state);
 
-ast_t* sub_result(parser_t* parser, ast_t* rule_ast, rule_state_t* state,
-  ast_t* sub_ast, const char* desc);
+ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
+  const char* desc);
 
 ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
   const token_id* id_set, bool make_ast);
@@ -118,7 +117,7 @@ token_id current_token_id(parser_t* parser);
 
 #define HANDLE_ERRORS(sub_ast, desc) \
   { \
-    ast_t* r = sub_result(parser, ast, &state, sub_ast, desc); \
+    ast_t* r = sub_result(parser, &state, sub_ast, desc); \
     if(r != NULL) return r;  \
   }
 
@@ -129,7 +128,7 @@ token_id current_token_id(parser_t* parser);
 #define THROW_ERROR(desc) \
   { \
     syntax_error(parser, desc); \
-    ast_free(ast); \
+    ast_free(state.ast); \
     return PARSE_ERROR; \
   }
 
@@ -158,8 +157,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define DEF(rule) \
   static ast_t* rule(parser_t* parser) \
   { \
-    ast_t* ast = NULL; \
-    rule_state_t state = { #rule, false, false, false, false, false }
+    rule_state_t state = {#rule, NULL, NULL, false, false, false, false, false}
 
 
 /** Add a node to our AST.
@@ -170,13 +168,13 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
  * Example:
  *    AST_NODE(TK_CASE);
  */
-#define AST_NODE(ID)  add_deferrable_ast(parser, ID, &ast, &state)
+#define AST_NODE(ID)  add_deferrable_ast(parser, ID, &state)
 
 
 /** Map our AST node ID.
  * If the current AST node ID is the first argument, it is set to the second.
  */
-#define MAP_ID(FROM, TO) if(ast_id(ast) == FROM) ast_setid(ast, TO)
+#define MAP_ID(FROM, TO) if(ast_id(state.ast) == FROM) ast_setid(state.ast, TO)
 
 
 /** Specify that the containing rule is a scope.
@@ -222,7 +220,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
     const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
     ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
     HANDLE_ERRORS(sub_ast, desc_str); \
-    add_ast(parser, sub_ast, &ast, &state); \
+    add_ast(parser, sub_ast, &state); \
     RESET_STATE(); \
   }
 
@@ -258,7 +256,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
     ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
     HANDLE_ERRORS(sub_ast, desc); \
-    add_ast(parser, sub_ast, &ast, &state); \
+    add_ast(parser, sub_ast, &state); \
     RESET_STATE(); \
   }
 
@@ -285,7 +283,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
     } \
     else \
     { \
-      add_ast(parser, RULE_NOT_FOUND, &ast, &state); \
+      add_ast(parser, RULE_NOT_FOUND, &state); \
     } \
   }
 
@@ -327,7 +325,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
       ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
       if(sub_ast == RULE_NOT_FOUND) break; \
       HANDLE_ERRORS(sub_ast, desc); \
-      add_ast(parser, sub_ast, &ast, &state); \
+      add_ast(parser, sub_ast, &state); \
     } \
     RESET_STATE(); \
   }
@@ -335,10 +333,10 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 
 /// Must appear at the end of each defined rule
 #define DONE() \
-    process_deferred_ast(parser, &ast, &state); \
-    if(state.scope && ast != NULL) ast_scope(ast); \
+    process_deferred_ast(parser, &state); \
+    if(state.scope && state.ast != NULL) ast_scope(state.ast); \
     if(parser->trace) printf("Rule %s: Complete\n", state.fn_name); \
-    return ast; \
+    return state.ast; \
   }
 
 
