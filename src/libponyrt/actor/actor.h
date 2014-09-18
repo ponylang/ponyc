@@ -3,7 +3,7 @@
 
 #include "../gc/gc.h"
 #include "../mem/heap.h"
-#include <pony/pony.h>
+#include <pony.h>
 #include <stdint.h>
 #include <stdbool.h>
 

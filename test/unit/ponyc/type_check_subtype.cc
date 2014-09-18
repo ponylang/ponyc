@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/builder.h>
@@ -7,9 +8,7 @@ PONY_EXTERN_C_END
 
 #include "util.h"
 #include "builtin_ast.h"
-#include <gtest/gtest.h>
 #include <stdio.h>
-
 
 class SubTypeTest: public testing::Test
 {

@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 typedef struct errormsg_t
 {

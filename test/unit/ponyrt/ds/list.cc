@@ -1,4 +1,4 @@
-#include <platform/platform.h>
+#include <platform.h>
 #include <gtest/gtest.h>
 
 #include <stdlib.h>

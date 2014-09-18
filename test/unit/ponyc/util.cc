@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
@@ -9,7 +10,6 @@ PONY_EXTERN_C_BEGIN
 PONY_EXTERN_C_END
 
 #include "util.h"
-#include <gtest/gtest.h>
 
 static ast_t* find_start_internal(ast_t* tree, token_id start_id)
 {

@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include <platform/platform.h>
+#include <platform.h>
 #include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED

@@ -1,7 +1,7 @@
 #ifndef sched_scheduler_h
 #define sched_scheduler_h
 
-#include <pony/pony.h>
+#include <pony.h>
 
 void scheduler_init(uint32_t threads, bool forcecd);
 

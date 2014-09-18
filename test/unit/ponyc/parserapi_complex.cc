@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/parserapi.h>
@@ -6,8 +7,6 @@ PONY_EXTERN_C_BEGIN
 PONY_EXTERN_C_END
 
 #include "util.h"
-#include <gtest/gtest.h>
-
 
 class ParserApiComplexTest: public testing::Test
 {};

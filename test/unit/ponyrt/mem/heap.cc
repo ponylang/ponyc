@@ -1,4 +1,4 @@
-#include <platform/platform.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <mem/heap.h>

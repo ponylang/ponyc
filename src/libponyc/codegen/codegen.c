@@ -9,7 +9,7 @@
 #include "../pkg/package.h"
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
-#include <platform/platform.h>
+#include <platform.h>
 
 #include <llvm-c/Initialization.h>
 #include <llvm-c/Target.h>

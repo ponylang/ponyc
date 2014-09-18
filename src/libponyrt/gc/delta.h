@@ -2,7 +2,7 @@
 #define gc_delta_h
 
 #include "../ds/hash.h"
-#include <pony/pony.h>
+#include <pony.h>
 
 typedef struct delta_t delta_t;
 

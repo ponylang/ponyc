@@ -1,7 +1,7 @@
 #ifndef pony_pony_h
 #define pony_pony_h
 
-#include <platform/platform.h>
+#include <platform.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>

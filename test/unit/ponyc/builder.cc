@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
@@ -6,9 +7,6 @@ PONY_EXTERN_C_BEGIN
 #include <ast/source.h>
 #include <ast/token.h>
 PONY_EXTERN_C_END
-
-#include <gtest/gtest.h>
-
 
 class BuilderTest: public testing::Test
 {};

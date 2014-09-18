@@ -1,7 +1,7 @@
 #ifndef asio_asio_h
 #define asio_asio_h
 
-#include <pony/pony.h>
+#include <pony.h>
 #include <stdbool.h>
 
 #if defined(PLATFORM_IS_LINUX)

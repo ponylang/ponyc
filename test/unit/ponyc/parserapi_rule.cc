@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/parserapi.h>
@@ -6,14 +7,11 @@ PONY_EXTERN_C_BEGIN
 PONY_EXTERN_C_END
 
 #include "util.h"
-#include <gtest/gtest.h>
-
 
 static bool _reached_end;
 static bool _opt_at_end;
 static bool _top_at_end;
 static token_id _next_token_at_end;
-
 
 DEF(base_dot);
   TOKEN(NULL, TK_DOT);

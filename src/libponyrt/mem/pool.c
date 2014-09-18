@@ -6,7 +6,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 #define POOL_MAX_BITS 21
 #define POOL_MAX (1 << POOL_MAX_BITS)

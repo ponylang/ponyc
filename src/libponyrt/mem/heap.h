@@ -1,7 +1,7 @@
 #ifndef mem_heap_h
 #define mem_heap_h
 
-#include <pony/pony.h>
+#include <pony.h>
 #include <stdlib.h>
 #include <stdbool.h>
 

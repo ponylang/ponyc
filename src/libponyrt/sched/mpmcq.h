@@ -2,7 +2,7 @@
 #define sched_mpmcq_h
 
 #include <stdint.h>
-#include <platform/platform.h>
+#include <platform.h>
 
 typedef struct mpmcq_node_t mpmcq_node_t;
 

@@ -72,13 +72,6 @@ solution "ponyc"
     linkoptions {
       "-fuse-ld=gold",
     }
-  configuration "*"
-    includedirs {
-      "inc/"
-    }
-    files {
-      "inc/**.h"
-    }
 
   project "libponyc"
     targetname "ponyc"
@@ -86,7 +79,8 @@ solution "ponyc"
     language "C"
     buildoptions "-std=gnu11"
     includedirs {
-      llvm_config("--includedir")
+      llvm_config("--includedir"),
+      "src/common/"
     }
     defines {
       "_DEBUG",
@@ -94,7 +88,11 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/**.c", "src/libponyc/**.h" }
+    files { 
+      "src/common/*.h",
+      "src/libponyc/**.c", 
+      "src/libponyc/**.h" 
+    }
     excludes { "src/libponyc/platform/**.cc" }
 
   project "libponyrt"
@@ -102,6 +100,9 @@ solution "ponyc"
     kind "StaticLib"
     language "C"
     buildoptions "-std=gnu11"
+    includedirs {
+      "src/libponyrt/"
+    }
     files {
       "src/libponyrt/**.h",
       "src/libponyrt/**.c"

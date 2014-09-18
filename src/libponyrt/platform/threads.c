@@ -1,4 +1,4 @@
-#include <platform/platform.h>
+#include <platform.h>
 
 bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, void* arg)
 {

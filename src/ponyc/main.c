@@ -2,7 +2,7 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ds/stringtab.h"
-#include <platform/platform.h>
+#include <platform.h>
 
 #include "options.h"
 

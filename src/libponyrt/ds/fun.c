@@ -1,7 +1,7 @@
 #include "fun.h"
 #include <string.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 static const unsigned char the_key[16] = {
   0xFE, 0x09, 0xD3, 0x22, 0x6B, 0x9C, 0x10, 0x8A,

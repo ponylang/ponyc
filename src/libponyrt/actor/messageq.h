@@ -1,7 +1,7 @@
 #ifndef messageq_h
 #define messageq_h
 
-#include <pony/pony.h>
+#include <pony.h>
 
 typedef struct messageq_t
 {

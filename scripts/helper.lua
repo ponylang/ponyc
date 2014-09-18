@@ -22,11 +22,9 @@ function testsuite()
   kind "ConsoleApp"
   language "C++"
   links "gtest"
-  includedirs { "utils/gtest" }
   configuration "gmake"
     buildoptions { "-std=gnu++11" }
   configuration "*"
-
   if (_OPTIONS["run-tests"]) then
       configuration "gmake"
         postbuildcommands { "$(TARGET)" }

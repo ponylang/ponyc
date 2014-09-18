@@ -1,4 +1,4 @@
-#include <platform/platform.h>
+#include <platform.h>
 
 #define REG_SDK_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")

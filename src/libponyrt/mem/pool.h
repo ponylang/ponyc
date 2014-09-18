@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 #ifdef __cplusplus
 extern "C" {

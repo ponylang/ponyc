@@ -5,7 +5,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 #define HEAP_INITIALGC (1 << 14)
 #define HEAP_MIN (1 << HEAP_MINBITS)

@@ -1,4 +1,5 @@
-#include <platform/platform.h>
+#include <gtest/gtest.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
@@ -6,13 +7,9 @@ PONY_EXTERN_C_BEGIN
 PONY_EXTERN_C_END
 
 #include "util.h"
-#include <gtest/gtest.h>
-
 
 class FlattenTest: public testing::Test
 {};
-
-
 
 /*
 static void test(const char* before, const char* after, token_id start_id)

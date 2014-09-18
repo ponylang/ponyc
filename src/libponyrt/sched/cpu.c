@@ -1,5 +1,5 @@
 #define _GNU_SOURCE
-#include <platform/platform.h>
+#include <platform.h>
 #if defined(PLATFORM_IS_LINUX)
 #include <sched.h>
 #include <stdlib.h>

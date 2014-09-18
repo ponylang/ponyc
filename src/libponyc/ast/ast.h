@@ -6,7 +6,7 @@
 #include "token.h"
 #include "symtab.h"
 
-#include <platform/platform.h>
+#include <platform.h>
 
 /* Description of AST forms produced after parse fix pass.
 

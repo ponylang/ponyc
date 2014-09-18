@@ -67,13 +67,6 @@
 
     configuration "vs*"
       architecture "x64"
-    configuration "*"
-      includedirs {
-        "inc/"
-      }
-      files {
-        "inc/**.h"
-      }
 
   dofile("scripts/properties.lua")
   dofile("scripts/llvm.lua")
@@ -84,10 +77,12 @@
     kind "StaticLib"
     language "C"
     includedirs {
-      llvm_config("--includedir")
+      llvm_config("--includedir"),
+      "src/common"
     }
 
     files {
+      "src/common/*.h",
       "src/libponyc/**.c*",
       "src/libponyc/**.h"
     }
@@ -115,6 +110,10 @@
     targetname "ponyrt"
     kind "StaticLib"
     language "C"
+    includedirs {
+      "src/common/",
+      "src/libponyrt/"
+    }
     files {
       "src/libponyrt/**.c",
       "src/libponyrt/**.h"
@@ -130,6 +129,9 @@
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
+    includedirs {
+      "src/common/"
+    }
     files {
       "src/ponyc/**.h",
       "src/ponyc/**.c"
@@ -171,11 +173,14 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "utils/gtest/gtest_main.cc"
     }
 
-
   project "testc"
     targetname "testc"
     testsuite()
-    includedirs { "src/libponyc" }
+    includedirs { 
+      "utils/gtest", 
+      "src/common", 
+      "src/libponyc" 
+    }
     files { 
       "test/unit/ponyc/**.h",
       "test/unit/ponyc/**.cc"
@@ -189,7 +194,11 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     targetname "testrt"
     testsuite()
     links "libponyrt"
-    includedirs { "src/libponyrt" }
+    includedirs { 
+      "utils/gtest", 
+      "src/common", 
+      "src/libponyrt" 
+    }
     files { "test/unit/ponyrt/**.cc" }
 end
 

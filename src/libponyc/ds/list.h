@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 typedef struct list_t list_t;
 

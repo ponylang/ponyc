@@ -5,7 +5,7 @@
 #include "actormap.h"
 #include "delta.h"
 #include "../mem/heap.h"
-#include <pony/pony.h>
+#include <pony.h>
 
 #define GC_INC_MORE 256
 

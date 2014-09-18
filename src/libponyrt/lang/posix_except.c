@@ -1,4 +1,4 @@
-#include <platform/platform.h>
+#include <platform.h>
 #ifdef PLATFORM_IS_POSIX_BASED
 #include "lsda.h"
 #include <unwind.h>

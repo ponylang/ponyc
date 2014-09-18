@@ -1,7 +1,7 @@
 #ifndef UNIT_UTIL_H
 #define UNIT_UTIL_H
 
-#include <platform/platform.h>
+#include <platform.h>
 
 PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>

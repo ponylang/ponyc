@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <platform/platform.h>
+#include <platform.h>
 
 #define PAGEMAP_ADDRESSBITS 48
 #define PAGEMAP_LEVELS 3
