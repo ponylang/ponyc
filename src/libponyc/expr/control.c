@@ -17,6 +17,9 @@ bool expr_seq(ast_t* ast)
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+
+  // TODO: if we are the body of a loop or try expression, we need to push
+  // our symbol consumes
   return true;
 }
 

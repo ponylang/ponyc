@@ -186,7 +186,7 @@ static __declspec(thread) DWORD lsb;
             __declspec(restrict) FUNC
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)
 #  define __pony_spec_malloc__(FUNC, ...) \
-            FUNC __attribute__( (malloc, ##__VA_ARGS__) )
+            FUNC __attribute__((malloc))
 #endif
 
 /** Compile time choose expression.

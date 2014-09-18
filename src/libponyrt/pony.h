@@ -169,14 +169,14 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m);
  * This is garbage collected memory. This can only be done while an actor is
  * handling a message, so that there is a current actor.
  */
-__pony_spec_malloc__(void* pony_alloc(size_t size), alloc_size(1));
+__pony_spec_malloc__(void* pony_alloc(size_t size));
 
 /** Reallocate memory on the current actor's heap.
  *
  * Take heap memory and expand it. This is a no-op if there's already enough
  * space, otherwise it allocates and copies.
  */
-__pony_spec_malloc__(void* pony_realloc(void* p, size_t size), alloc_size(2));
+__pony_spec_malloc__(void* pony_realloc(void* p, size_t size));
 
 // TODO: pony_free() for when escape analysis shows a reference doesn't survive
 

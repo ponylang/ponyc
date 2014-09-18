@@ -30,14 +30,12 @@ void heap_init(heap_t* heap);
 void heap_destroy(heap_t* heap);
 
 __pony_spec_malloc__(
-  void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size),
-  alloc_size(3)
-);
+  void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+  );
 
 __pony_spec_malloc__(
-  void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size),
-  alloc_size(4)
-);
+  void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
+  );
 
 /**
  * Adds to the used memory figure kept by the heap. This allows objects received
