@@ -99,9 +99,16 @@ solution "ponyc"
       excludes {
         "src/libponyc/platform/**.cc",
         "src/libponyc/platform/vcvars.c",
-        "src/libponyrt/asio/epoll.c",
         "src/libponyrt/asio/iocp.c",
         "src/libponyrt/lang/win_except.c"
+      }
+    configuration "linux"
+      excludes {
+        "src/libponyrt/asio/kqueue.c"
+      }
+    configuration "macosx"
+      excludes {
+        "src/libponyrt/asio/epoll.c"
       }
 
   project "libponyrt"
