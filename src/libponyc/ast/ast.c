@@ -163,7 +163,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   if(ast->symtab != NULL)
   {
     n->symtab = symtab_new();
-    symtab_merge(n->symtab, ast->symtab, NULL, NULL);
+    symtab_merge(n->symtab, ast->symtab, NULL, NULL, NULL, NULL);
   }
 
   if(parent != NULL)
@@ -642,17 +642,24 @@ size_t ast_index(ast_t* ast)
   return idx;
 }
 
-ast_t* ast_get(ast_t* ast, const char* name)
+ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
 {
   /* searches all parent scopes, but not the program scope, because the name
    * space for paths is separate from the name space for all other IDs.
    * if called directly on the program scope, searches it.
    */
+  if(status != NULL)
+    *status = SYM_NONE;
+
   do
   {
     if(ast->symtab != NULL)
     {
-      ast_t* value = (ast_t*)symtab_get(ast->symtab, name);
+      sym_status_t status2;
+      ast_t* value = (ast_t*)symtab_get(ast->symtab, name, &status2);
+
+      if((status != NULL) && (*status == SYM_NONE))
+        *status = status2;
 
       if(value != NULL)
         return value;
@@ -664,13 +671,30 @@ ast_t* ast_get(ast_t* ast, const char* name)
   return NULL;
 }
 
-bool ast_set(ast_t* ast, const char* name, ast_t* value)
+bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status)
 {
   while(ast->symtab == NULL)
     ast = ast->scope;
 
-  return (ast_get(ast, name) == NULL)
-    && symtab_add(ast->symtab, name, value);
+  return (ast_get(ast, name, NULL) == NULL)
+    && symtab_add(ast->symtab, name, value, status);
+}
+
+void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
+{
+  while(ast->symtab == NULL)
+    ast = ast->scope;
+
+  symtab_set_status(ast->symtab, name, status);
+}
+
+void ast_inheritstatus(ast_t* ast, ast_t* left, ast_t* right)
+{
+  // If either branch has undefined a symbol, mark it undefined.
+  symtab_inherit_undefined(ast->symtab, left->symtab);
+  symtab_inherit_undefined(ast->symtab, right->symtab);
+
+  // TODO: If both branches have defined a symbol, mark it defined.
 }
 
 bool ast_merge(ast_t* dst, ast_t* src)
@@ -678,7 +702,8 @@ bool ast_merge(ast_t* dst, ast_t* src)
   while(dst->symtab == NULL)
     dst = dst->scope;
 
-  return symtab_merge(dst->symtab, src->symtab, symtab_pred, NULL);
+  return symtab_merge(dst->symtab, src->symtab, symtab_no_private, NULL, NULL,
+    NULL);
 }
 
 void ast_clear(ast_t* ast)
@@ -767,6 +792,31 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
 
   ast->sibling = child;
   return child;
+}
+
+void ast_remove(ast_t* ast, ast_t* previous_sibling)
+{
+  assert(ast != NULL);
+
+  if(previous_sibling != NULL)
+  {
+    previous_sibling->sibling = ast->sibling;
+  }
+  else
+  {
+    // ast is eldest child
+    ast_t* parent = ast->parent;
+
+    if(parent != NULL)
+    {
+      assert(parent->child == ast);
+      parent->child = ast->sibling;
+    }
+  }
+
+  ast->parent = NULL;
+  ast->sibling = NULL;
+  ast_free(ast);
 }
 
 void ast_swap(ast_t* prev, ast_t* next)

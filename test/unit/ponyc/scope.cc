@@ -37,7 +37,7 @@ protected:
     ASSERT_NE((void*)NULL, scope);
     symtab_t* symtab = ast_get_symtab(scope);
     ASSERT_NE((void*)NULL, symtab);
-    ASSERT_EQ(expect, symtab_get(symtab, stringtab(name)));
+    ASSERT_EQ(expect, symtab_get(symtab, stringtab(name), NULL));
   }
 };
 
@@ -386,7 +386,7 @@ TEST_F(ScopeTest, Package)
 
   // Builtin types go in the package symbol table
   symtab_t* package_symtab = ast_get_symtab(start);
-  ASSERT_NE((void*)NULL, symtab_get(package_symtab, stringtab("U32")));
+  ASSERT_NE((void*)NULL, symtab_get(package_symtab, stringtab("U32"), NULL));
 }
 
 
@@ -413,7 +413,7 @@ TEST_F(ScopeTest, Use)
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("Foo")));
+  ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("Foo"), NULL));
 }
 
 
@@ -440,6 +440,6 @@ TEST_F(ScopeTest, UseAs)
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("bar")));
-  ASSERT_EQ((void*)NULL, symtab_get(module_symtab, stringtab("Foo")));
+  ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("bar"), NULL));
+  ASSERT_EQ((void*)NULL, symtab_get(module_symtab, stringtab("Foo"), NULL));
 }

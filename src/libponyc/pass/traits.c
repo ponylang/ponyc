@@ -144,12 +144,12 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
     return true;
 
   const char* name = ast_name(ast_childidx(method, 1));
-  void* existing_body = ast_get(target, name);
+  void* existing_body = ast_get(target, name, NULL);
 
   if(existing_body == NULL)
   {
     // First body we've found for this name, use it
-    ast_set(target, name, method);
+    ast_set(target, name, method, SYM_NONE);
     add_method(target, method);
     return true;
   }
@@ -188,7 +188,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
 
   // Find existing method with this name
   const char* name = ast_name(ast_childidx(method, 1));
-  ast_t* existing = ast_get(target, name);
+  ast_t* existing = ast_get(target, name, NULL);
 
   if(existing == NULL)
   {

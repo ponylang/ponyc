@@ -344,7 +344,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
-  ast_t* m = ast_get(package, main_actor);
+  ast_t* m = ast_get(package, main_actor, NULL);
 
   if(m == NULL)
   {

@@ -155,7 +155,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     {
       // We have recursed here from a VAR or LET.
       const char* name = ast_name(left);
-      ast_t* def = ast_get(left, name);
+      ast_t* def = ast_get(left, name, NULL);
 
       LLVMValueRef l_value = (LLVMValueRef)ast_data(def);
       return assign_one(c, l_value, r_value, r_type);

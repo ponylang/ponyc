@@ -355,8 +355,8 @@ static ast_t* create_package(ast_t* program, const char* name)
 
   ast_scope(package);
   ast_append(program, package);
-  ast_set(program, pkg->path, package);
-  ast_set(program, pkg->id, package);
+  ast_set(program, pkg->path, package, SYM_NONE);
+  ast_set(program, pkg->id, package, SYM_NONE);
 
   return package;
 }
@@ -463,7 +463,7 @@ ast_t* package_load(ast_t* from, const char* path)
     return NULL;
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
-  ast_t* package = ast_get(program, name);
+  ast_t* package = ast_get(program, name, NULL);
 
   if(package != NULL)
     return package;

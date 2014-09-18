@@ -1,5 +1,5 @@
 actor Main
-  var _tuple: (U32, U32) = (3, 4)
+  var _tuple: (U32, U32) = (3, 5)
 
   new create(env: Env) =>
     var test: (U32, U32) = (3, 5)
