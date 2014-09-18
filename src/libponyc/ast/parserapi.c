@@ -314,8 +314,6 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
 
   if(ast != NULL)
   {
-    // TODO: add last child pointer to allow building AST in order without reversing
-    //ast_reverse(ast);
     assert(ast_data(ast) == NULL);
     ast_setdata(ast, source);
   }

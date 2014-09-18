@@ -862,6 +862,8 @@ void ast_replace(ast_t** prev, ast_t* next)
   *prev = next;
 }
 
+/* TODO(andy): This is no longer used, but I'm leaving it here for now in case
+ * someone needs it later. Remove this when we tidy up asts.
 void ast_reverse(ast_t* ast)
 {
   if(ast == NULL)
@@ -884,6 +886,7 @@ void ast_reverse(ast_t* ast)
 
   ast->child = last;
 }
+*/
 
 void ast_free(ast_t* ast)
 {
