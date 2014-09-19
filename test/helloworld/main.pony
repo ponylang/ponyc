@@ -5,7 +5,6 @@ class Bar is Foo
   fun box test(): I32 => 1
 
 class Baz is Foo
-  fun box test(): I32 => 2
 
 class Throw
   fun box throw(test: Bool): Bool ? =>

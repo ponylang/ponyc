@@ -607,9 +607,9 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   }
 
   //(len * 2) for object file and executable
-  size_t ld_len = 256 + (len * 2) + link_path_length() + 
+  size_t ld_len = 256 + (len * 2) + link_path_length() +
     vcvars_get_path_length(&vcvars);
-  
+
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -628,7 +628,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     );
 #endif
 
-#if defined(PLATFORM_POSIX_BASED)
+#if defined(PLATFORM_IS_POSIX_BASED)
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
@@ -641,7 +641,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   memset(&si, 0, sizeof(STARTUPINFO));
 
-  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL, 
+  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL,
     FALSE, 0, NULL, NULL, &si, &pi))
   {
     errorf(NULL, "unable to invoke linker");
@@ -656,7 +656,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   {
     errorf(NULL, "unable to link");
     return false;
-  }  
+  }
 #endif
 
   unlink(file_o);

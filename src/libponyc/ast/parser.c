@@ -7,6 +7,7 @@ DECL(rawseq);
 DECL(seq);
 DECL(assignment);
 DECL(term);
+DECL(infix);
 DECL(idseqmulti);
 DECL(members);
 
@@ -44,13 +45,13 @@ DEF(types);
   WHILE(TK_COMMA, RULE("type", type));
   DONE();
 
-// ID COLON type [ASSIGN seq]
+// ID COLON type [ASSIGN infix]
 DEF(param);
   AST_NODE(TK_PARAM);
   TOKEN("name", TK_ID);
   SKIP(NULL, TK_COLON);
   RULE("parameter type", type);
-  IF(TK_ASSIGN, RULE("default value", seq));
+  IF(TK_ASSIGN, RULE("default value", infix));
   DONE();
 
 // ID [COLON type] [ASSIGN type]
@@ -561,7 +562,7 @@ DEF(method);
   OPT RULE("function body", rawseq);
   DONE();
 
-// (VAR | VAL) ID [COLON type] [ASSIGN expr]
+// (VAR | VAL) ID [COLON type] [ASSIGN infix]
 DEF(field);
   TOKEN(NULL, TK_VAR, TK_LET);
   MAP_ID(TK_VAR, TK_FVAR);
@@ -569,7 +570,7 @@ DEF(field);
   TOKEN("field name", TK_ID);
   SKIP(NULL, TK_COLON);
   RULE("field type", type);
-  IF(TK_ASSIGN, RULE("field value", expr));
+  IF(TK_ASSIGN, RULE("field value", infix));
   DONE();
 
 // {field} {method}
