@@ -75,9 +75,8 @@ static bool is_lvalue(ast_t* ast)
 
     case TK_LETREF:
     {
-      // TODO: can't assign to let local from an outer scope in a loop
-      ast_t* id = ast_child(ast);
-      return assign_id(id, true);
+      ast_error(ast, "can't assign to a let local");
+      return false;
     }
 
     case TK_FVARREF:
