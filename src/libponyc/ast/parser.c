@@ -10,6 +10,7 @@ DECL(term);
 DECL(infix);
 DECL(idseqmulti);
 DECL(members);
+DECL(method);
 
 
 /* Precedence
@@ -87,42 +88,10 @@ DEF(typeargs);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// BE [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN
-DEF(betype);
-  TOKEN(NULL, TK_BE);
-  SCOPE();
-  AST_NODE(TK_NONE);  // Capability
-  OPT TOKEN("name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", types);
-  SKIP(NULL, TK_RPAREN);
-  AST_NODE(TK_NONE);  // Return type
-  AST_NODE(TK_NONE);  // Partial
-  AST_NODE(TK_NONE);  // Body
-  DONE();
-
-// FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type]
-// [QUESTION]
-DEF(funtype);
-  TOKEN(NULL, TK_FUN);
-  SCOPE();
-  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN("name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", types);
-  SKIP(NULL, TK_RPAREN);
-  IF(TK_COLON, RULE("return type", type));
-  OPT TOKEN(NULL, TK_QUESTION);
-  AST_NODE(TK_NONE);  // Body
-  DONE();
-
 // {betype} {funtype}
 DEF(funs);
   AST_NODE(TK_MEMBERS);
-  SEQ("behaviour types", betype);
-  SEQ("function types", funtype);
+  SEQ("method", method);
   DONE();
 
 // LBRACE funs RBRACE [cap] [HAT]
