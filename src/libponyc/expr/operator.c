@@ -645,12 +645,6 @@ bool expr_assign(ast_t* ast)
 
 bool expr_consume(ast_t* ast)
 {
-  if(ast_enclosing_loop(ast) != NULL)
-  {
-    ast_error(ast, "can't consume in a loop");
-    return false;
-  }
-
   ast_t* child = ast_child(ast);
 
   switch(ast_id(child))
@@ -667,6 +661,16 @@ bool expr_consume(ast_t* ast)
 
   ast_t* id = ast_child(child);
   const char* name = ast_name(id);
+
+  // Can't consume from an outer scope while inside a loop.
+  ast_t* loop = ast_enclosing_loop(ast);
+
+  if((loop != NULL) && !ast_within_scope(loop, ast, name))
+  {
+    ast_error(ast, "can't consume from an outer scope in a loop");
+    return false;
+  }
+
   ast_setstatus(ast, name, SYM_CONSUMED);
 
   ast_t* type = ast_type(child);

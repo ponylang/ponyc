@@ -109,6 +109,8 @@ bool expr_while(ast_t* ast)
   type = type_union(type, ast_type(ast));
   type = type_literal_to_runtime(type);
 
+  // TODO: A break statement in the body means some definitions might not
+  // happen.
   if(r_type == NULL)
   {
     // Right side returns, get symbol status from the left.
@@ -154,6 +156,8 @@ bool expr_repeat(ast_t* ast)
   type = type_union(type, ast_type(body));
   type = type_literal_to_runtime(type);
 
+  // TODO: A break statement in the body means some definitions might not
+  // happen.
   if(else_type == NULL)
   {
     // Else clause returns, get symbol status from the body.
