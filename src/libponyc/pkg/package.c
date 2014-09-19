@@ -367,7 +367,7 @@ static void add_path(const char* path)
   int err = stat(path, &s);
 
   if((err != -1) && S_ISDIR(s.st_mode))
-    search = strlist_push(search, stringtab(path));
+    search = strlist_append(search, stringtab(path));
 }
 
 bool package_init(const char* name, pass_opt_t* opt)
@@ -375,12 +375,18 @@ bool package_init(const char* name, pass_opt_t* opt)
   if(!codegen_init(opt))
     return false;
 
+  package_add_paths(getenv("PONYPATH"));
+
+#ifndef PLATFORM_IS_WINDOWS
+  add_path("/usr/local/lib/pony");
+  add_path("/usr/local/lib");
+#endif
+
   char path[FILENAME_MAX];
 
   if(execpath(name, path))
     add_path(path);
 
-  package_add_paths(getenv("PONYPATH"));
   return true;
 }
 
