@@ -419,10 +419,6 @@ static void append_link_paths(char* str)
 {
   strlist_t* p = package_paths();
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  size_t path_len;
-#endif
-
   while(p != NULL)
   {
     const char* path = strlist_data(p);
@@ -430,10 +426,9 @@ static void append_link_paths(char* str)
     strcat(str, " -L");
     strcat(str, path);
 #elif defined(PLATFORM_IS_VISUAL_STUDIO)
-    path_len = 16 + strlen(path) + 1;
-    VLA(char, lib_path, path_len);
-    snprintf(lib_path, path_len, "/LIBPATH:\"%s\"", path);
-    strcat(str, lib_path);
+    strcat(str, " /LIBPATH:\"");
+    strcat(str, path);
+    strcat(str, "\"");
 #endif
     p = strlist_next(p);
   }
