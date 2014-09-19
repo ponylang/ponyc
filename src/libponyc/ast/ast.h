@@ -344,6 +344,7 @@ void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_merge(ast_t* dst, ast_t* src);
+bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 void ast_clear(ast_t* ast);
 
 ast_t* ast_add(ast_t* parent, ast_t* child);

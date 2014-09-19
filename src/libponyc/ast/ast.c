@@ -715,6 +715,28 @@ bool ast_merge(ast_t* dst, ast_t* src)
     NULL);
 }
 
+bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
+{
+  do
+  {
+    if(inner->symtab != NULL)
+    {
+      sym_status_t status2;
+      ast_t* value = (ast_t*)symtab_get(inner->symtab, name, &status2);
+
+      if(value != NULL)
+        return true;
+    }
+
+    if(inner == outer)
+      break;
+
+    inner = inner->scope;
+  } while((inner != NULL) && (token_get_id(inner->t) != TK_PROGRAM));
+
+  return false;
+}
+
 void ast_clear(ast_t* ast)
 {
   if(ast->symtab != NULL)
