@@ -28,7 +28,8 @@ enum
   OPT_PASSES,
   OPT_AST,
   OPT_TRACE,
-  OPT_WIDTH
+  OPT_WIDTH,
+  OPT_IMMERR
 };
 
 static opt_arg_t args[] =
@@ -45,6 +46,7 @@ static opt_arg_t args[] =
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
+  {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
   OPT_ARGS_FINISH
 };
 
@@ -90,6 +92,7 @@ static void usage()
     "  --trace, -t     Enable parse trace.\n"
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
+    "  --immerr        Report errors imemdiately rather than deferring.\n"
     "\n"
     );
 }
@@ -171,6 +174,7 @@ int main(int argc, char* argv[])
       case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
+      case OPT_IMMERR: error_set_immediate(true); break;
 
       case OPT_PASSES:
         if(!limit_passes(s.arg_val))

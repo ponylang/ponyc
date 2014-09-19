@@ -353,7 +353,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
   {
     // TODO: How do we compile libraries? By specifying C ABI entry points and
     // compiling reachable code from there.
-    return true;
+    errorf(NULL, "no Main actor found in package '%s'", c->filename);
+    return false;
   }
 
   // Generate the Main actor.
@@ -603,7 +604,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     );
 #else
   vcvars_t vcvars;
-  
+
   if(!vcvars_get(&vcvars))
   {
     errorf(NULL, "unable to link");
@@ -624,7 +625,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     "/LIBPATH:\"%s\" ",
     file_exe, file_exe, vcvars.kernel32, vcvars.msvcrt
     );
-  
+
   append_link_paths(ld_cmd);
 
   strcat(ld_cmd,
@@ -664,7 +665,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 #endif
 
   unlink(file_o);
-  
+
   printf("=== Compiled %s ===\n", file_exe);
   return true;
 }

@@ -98,6 +98,7 @@ DEF(betype);
   SKIP(NULL, TK_RPAREN);
   AST_NODE(TK_NONE);  // Return type
   AST_NODE(TK_NONE);  // Partial
+  AST_NODE(TK_NONE);  // =>
   AST_NODE(TK_NONE);  // Body
   DONE();
 
@@ -114,6 +115,7 @@ DEF(funtype);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
+  AST_NODE(TK_NONE);  // =>
   AST_NODE(TK_NONE);  // Body
   DONE();
 

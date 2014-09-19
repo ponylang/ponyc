@@ -19,16 +19,22 @@ bool expr_seq(ast_t* ast)
   ast_inheriterror(ast);
 
   // TODO: if we are the body of a loop or try expression, we need to push
-  // our symbol consumes
+  // our symbol consumes to the else block
+  // In the body of a try, we might stop execution with any node that can
+  // error out, so a DEFINE can only override an UNDEFINE *for the else block*
+  // if it appears before the next node that can error out.
+  // mark undefined as undefined_throw when we hit a throw
+  // when we mark undefined_throw as defined, mark it as defined_throw instead
+  // when we mark defined_throw as undefined, mark it as undefined_throw instead
+  // treat defined_throw and undefined_throw like defined and undefined
+  // but when we push our symbol status to the else block, treat both as
+  // undefined
+  // only need to do this in a try body
   return true;
 }
 
 bool expr_if(ast_t* ast)
 {
-  // TODO: unify symbol status: if undefined in either branch, mark undefined.
-  // if defined in both branches, mark defined. Then push our settings to our
-  // parent.
-  // ignore init status if branch returns
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -44,11 +50,32 @@ bool expr_if(ast_t* ast)
   ast_t* type = type_union(l_type, r_type);
   type = type_literal_to_runtime(type);
 
-  if((type == NULL) && (ast_sibling(ast) != NULL))
+  if(type == NULL)
   {
-    ast_error(ast_sibling(ast), "unreachable code");
-    return false;
+    if(ast_sibling(ast) != NULL)
+    {
+      ast_error(ast_sibling(ast), "unreachable code");
+      return false;
+    }
+  } else {
+    if(l_type == NULL)
+    {
+      // Left side returns, get symbol status from the right.
+      ast_inheritstatus(ast, right);
+    } else if(r_type == NULL) {
+      // Right side returns, get symbol status from the left.
+      ast_inheritstatus(ast, left);
+    } else {
+      // Defined if defined in both branches. Undefined if undefined in either
+      // branch.
+      ast_inheritbranch(ast, left);
+      ast_inheritbranch(ast, right);
+      ast_consolidate_branches(ast, 2);
+    }
   }
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
 
   ast_settype(ast, type);
   ast_inheriterror(ast);

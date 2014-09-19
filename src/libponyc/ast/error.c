@@ -10,9 +10,42 @@
 static errormsg_t* head = NULL;
 static errormsg_t* tail = NULL;
 static size_t count = 0;
+static bool immediate_report = false;
+
+
+static void print_error(errormsg_t* e)
+{
+  if(e->file != NULL)
+  {
+    printf("%s:", e->file);
+
+    if(e->line != 0)
+    {
+      printf("%ld:%ld: ", (long int)e->line, (long int)e->pos);
+    }
+    else {
+      printf(" ");
+    }
+  }
+
+  printf("%s\n", e->msg);
+
+  if(e->source != NULL)
+  {
+    printf("%s\n", e->source);
+
+    for(size_t i = 1; i < e->pos; i++)
+      printf(" ");
+
+    printf("^\n");
+  }
+}
 
 static void add_error(errormsg_t* e)
 {
+  if(immediate_report)
+    print_error(e);
+
   if(head == NULL)
   {
     head = e;
@@ -58,30 +91,7 @@ void print_errors()
 
   while(e != NULL)
   {
-    if(e->file != NULL)
-    {
-      printf("%s:", e->file);
-
-      if(e->line != 0)
-      {
-        printf("%ld:%ld: ", (long int)e->line, (long int)e->pos);
-      } else {
-        printf(" ");
-      }
-    }
-
-    printf("%s\n", e->msg);
-
-    if(e->source != NULL)
-    {
-      printf("%s\n", e->source);
-
-      for(size_t i = 1; i < e->pos; i++)
-        printf(" ");
-
-      printf("^\n");
-    }
-
+    print_error(e);
     e = e->next;
   }
 }
@@ -92,8 +102,6 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  //printf("%s\n", buf);
-
   errormsg_t* e = (errormsg_t*)calloc(1, sizeof(errormsg_t));
 
   if(source != NULL)
@@ -102,7 +110,6 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   e->line = line;
   e->pos = pos;
   e->msg = stringtab(buf);
-  add_error(e);
 
   if((source != NULL) && (line != 0))
   {
@@ -131,6 +138,8 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
     buf[len] = '\0';
     e->source = stringtab(buf);
   }
+
+  add_error(e);
 }
 
 void error(source_t* source, size_t line, size_t pos, const char* fmt, ...)
@@ -158,4 +167,9 @@ void errorf(const char* file, const char* fmt, ...)
   va_start(ap, fmt);
   errorfv(file, fmt, ap);
   va_end(ap);
+}
+
+void error_set_immediate(bool immediate)
+{
+  immediate_report = immediate;
 }

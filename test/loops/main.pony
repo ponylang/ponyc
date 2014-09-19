@@ -70,3 +70,13 @@ actor Main
     end
 
     @printf[I32]("%d, expected 999\n"._cstring(), y.i32())
+
+    var z: U32
+    if y > 10 then
+      z = 1
+    elseif y < 20 then
+      z = 2
+    else
+      z = 3
+    end
+    z

@@ -36,4 +36,7 @@ void errorfv(const char* file, const char* fmt, va_list ap);
 void errorf(const char* file, const char* fmt,
   ...) __attribute__((format(printf, 2, 3)));
 
+/// Configure whether errors should be printed immediately as well as deferred
+void error_set_immediate(bool immediate);
+
 #endif
