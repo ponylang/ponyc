@@ -69,20 +69,20 @@ static bool is_assigned_to(ast_t* ast)
 
 static bool valid_reference(ast_t* ast, sym_status_t status)
 {
-  if(status == SYM_DEFINED)
-    return true;
-
-  if(is_assigned_to(ast))
-    return true;
-
   switch(status)
   {
-    case SYM_UNDEFINED:
-      ast_error(ast, "can't use an undefined value in an expression");
-      return false;
+    case SYM_DEFINED:
+      return true;
 
     case SYM_CONSUMED:
-      ast_error(ast, "can't use a consumed value in an expression");
+      ast_error(ast, "can't use a consumed local in an expression");
+      return false;
+
+    case SYM_UNDEFINED:
+      if(is_assigned_to(ast))
+        return true;
+
+      ast_error(ast, "can't use an undefined local in an expression");
       return false;
 
     default: {}

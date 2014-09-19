@@ -18,6 +18,29 @@ table_t* table_create(size_t size)
   return table;
 }
 
+bool table_apply(table_t* table, apply_fn apply, void* apply_arg)
+{
+  if(table == NULL)
+    return false;
+
+  for(int i = 0; i < table->size; i++)
+  {
+    list_t* list = table->node[i];
+
+    while(list != NULL)
+    {
+      void* item = list_data(list);
+
+      if(!apply(item, apply_arg))
+        return false;
+
+      list = list_next(list);
+    }
+  }
+
+  return true;
+}
+
 bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
   dup_fn dup, pred_fn pred, void* pred_arg, resolve_fn resolve,
   void* resolve_arg)

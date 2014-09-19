@@ -338,7 +338,9 @@ size_t ast_index(ast_t* ast);
 ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status);
 bool ast_set(ast_t* ast, const char* name, ast_t* value, sym_status_t status);
 void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
-void ast_inheritstatus(ast_t* ast, ast_t* left, ast_t* right);
+void ast_inheritstatus(ast_t* dst, ast_t* src);
+void ast_inheritbranch(ast_t* dst, ast_t* src);
+void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_merge(ast_t* dst, ast_t* src);
 void ast_clear(ast_t* ast);
 

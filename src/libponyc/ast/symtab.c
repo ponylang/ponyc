@@ -9,6 +9,7 @@ typedef struct symbol_t
   const char* name;
   void* value;
   sym_status_t status;
+  size_t branch_count;
 } symbol_t;
 
 static uint64_t sym_hash(symbol_t* sym)
@@ -27,6 +28,7 @@ static symbol_t* sym_dup(symbol_t* sym)
   s->name = sym->name;
   s->value = sym->value;
   s->status = sym->status;
+  s->branch_count = sym->branch_count;
 
   return s;
 }
@@ -36,14 +38,90 @@ static void sym_free(symbol_t* sym)
   free(sym);
 }
 
-static bool pred_undefined(symbol_t* sym, void* arg)
+static bool pred_inherit(symbol_t* sym, void* arg)
 {
-  return (sym->value == NULL) && (sym->status == SYM_UNDEFINED);
+  // Only inherit symbols that were declared in an outer scope.
+  return sym->value == NULL;
 }
 
 static bool resolve_inherit(symbol_t* dst, symbol_t* src, void* arg)
 {
+  // Propagate the source status to the destination.
   dst->status = src->status;
+  return true;
+}
+
+static bool pred_branch(symbol_t* sym, void* arg)
+{
+  // Only inherit symbols that were declared in an outer scope.
+  if(sym->value != NULL)
+    return false;
+
+  switch(sym->status)
+  {
+    case SYM_DEFINED:
+      // If we are defined, we're really undefined with a branch count of 1.
+      sym->status = SYM_UNDEFINED;
+      sym->branch_count = 1;
+      return true;
+
+    case SYM_UNDEFINED:
+    case SYM_CONSUMED:
+      return true;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool resolve_branch(symbol_t* dst, symbol_t* src, void* arg)
+{
+  // If the source is defined, increase the branch count at the destination.
+  switch(src->status)
+  {
+    case SYM_CONSUMED:
+      dst->status = SYM_CONSUMED;
+      return true;
+
+    case SYM_UNDEFINED:
+      // Branch count should always be 0 or 1.
+      assert(src->branch_count <= 1);
+
+      switch(dst->status)
+      {
+        case SYM_UNDEFINED:
+          dst->branch_count += src->branch_count;
+          return true;
+
+        case SYM_DEFINED:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool apply_branch(symbol_t* sym, void* arg)
+{
+  if(sym->status == SYM_UNDEFINED)
+  {
+    size_t count = *(size_t*)arg;
+    assert(sym->branch_count <= count);
+
+    if(sym->branch_count == count)
+      sym->status = SYM_DEFINED;
+    else
+      sym->branch_count = 0;
+  }
+
   return true;
 }
 
@@ -103,11 +181,19 @@ bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
   return present;
 }
 
-void symtab_inherit_undefined(symtab_t* dst, symtab_t* src)
+void symtab_inherit_status(symtab_t* dst, symtab_t* src)
 {
-  assert(dst != NULL);
-  assert(src != NULL);
-  symtab_merge(dst, src, pred_undefined, NULL, resolve_inherit, NULL);
+  symtab_merge(dst, src, pred_inherit, NULL, resolve_inherit, NULL);
+}
+
+void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
+{
+  symtab_merge(dst, src, pred_branch, NULL, resolve_branch, NULL);
+}
+
+void symtab_consolidate_branches(symtab_t* symtab, size_t count)
+{
+  symtab_apply(symtab, apply_branch, &count);
 }
 
 bool symtab_no_private(symbol_t* symbol, void* arg)

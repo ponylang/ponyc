@@ -688,13 +688,22 @@ void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
   symtab_set_status(ast->symtab, name, status);
 }
 
-void ast_inheritstatus(ast_t* ast, ast_t* left, ast_t* right)
+void ast_inheritstatus(ast_t* dst, ast_t* src)
 {
-  // If either branch has undefined a symbol, mark it undefined.
-  symtab_inherit_undefined(ast->symtab, left->symtab);
-  symtab_inherit_undefined(ast->symtab, right->symtab);
+  while(dst->symtab == NULL)
+    dst = dst->scope;
 
-  // TODO: If both branches have defined a symbol, mark it defined.
+  symtab_inherit_status(dst->symtab, src->symtab);
+}
+
+void ast_inheritbranch(ast_t* dst, ast_t* src)
+{
+  symtab_inherit_branch(dst->symtab, src->symtab);
+}
+
+void ast_consolidate_branches(ast_t* ast, size_t count)
+{
+  symtab_consolidate_branches(ast->symtab, count);
 }
 
 bool ast_merge(ast_t* dst, ast_t* src)
