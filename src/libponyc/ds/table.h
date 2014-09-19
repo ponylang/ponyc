@@ -8,6 +8,8 @@ typedef struct table_t table_t;
 
 table_t* table_create(size_t size);
 
+bool table_apply(table_t* table, apply_fn apply, void* apply_arg);
+
 bool table_merge(table_t* dst, table_t* src, hash_fn hash, cmp_fn cmp,
   dup_fn dup, pred_fn pred, void* pred_arg, resolve_fn resolve,
   void* resolve_arg);
@@ -22,6 +24,7 @@ void table_free(table_t* table, free_fn fr);
 #define DECLARE_TABLE(name, elem) \
   DECLARE_TYPE(name, elem); \
   name##_t* name##_create(int size); \
+  bool name##_apply(name##_t* table, name##_apply_fn apply, void* apply_arg); \
   bool name##_merge(name##_t* dst, name##_t* src, name##_pred_fn pred, \
     void* pred_arg, name##_resolve_fn resolve, void* resolve_arg); \
   elem* name##_find(name##_t* table, elem* entry); \
@@ -35,6 +38,10 @@ void table_free(table_t* table, free_fn fr);
   name##_t* name##_create(int size) \
   { \
     return (name##_t*)table_create(size); \
+  } \
+  bool name##_apply(name##_t* table, name##_apply_fn apply, void* apply_arg) \
+  { \
+    return table_apply((table_t*)table, (apply_fn)apply, apply_arg); \
   } \
   bool name##_merge(name##_t* dst, name##_t* src, name##_pred_fn pred, \
     void* pred_arg, name##_resolve_fn resolve, void* resolve_arg) \

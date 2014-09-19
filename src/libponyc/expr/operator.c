@@ -12,6 +12,40 @@
 #include "../pass/expr.h"
 #include <assert.h>
 
+static bool assign_id(ast_t* ast, bool let)
+{
+  assert(ast_id(ast) == TK_ID);
+  const char* name = ast_name(ast);
+
+  sym_status_t status;
+  ast_get(ast, name, &status);
+
+  switch(status)
+  {
+    case SYM_UNDEFINED:
+      ast_setstatus(ast, name, SYM_DEFINED);
+      return true;
+
+    case SYM_DEFINED:
+      if(let)
+      {
+        ast_error(ast, "can't assign to a let definition more than once");
+        return false;
+      }
+
+      return true;
+
+    case SYM_CONSUMED:
+      ast_error(ast, "can't assign to a consumed local");
+      return false;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 static bool is_lvalue(ast_t* ast)
 {
   switch(ast_id(ast))
@@ -24,8 +58,9 @@ static bool is_lvalue(ast_t* ast)
 
       while(id != NULL)
       {
-        const char* name = ast_name(id);
-        ast_setstatus(ast, name, SYM_DEFINED);
+        if(!assign_id(id, ast_id(ast) == TK_LET))
+          return false;
+
         id = ast_sibling(id);
       }
 
@@ -35,27 +70,14 @@ static bool is_lvalue(ast_t* ast)
     case TK_VARREF:
     {
       ast_t* id = ast_child(ast);
-      const char* name = ast_name(id);
-      ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      return assign_id(id, false);
     }
 
     case TK_LETREF:
     {
+      // TODO: can't assign to let local from an outer scope in a loop
       ast_t* id = ast_child(ast);
-      const char* name = ast_name(id);
-
-      sym_status_t status;
-      ast_get(ast, name, &status);
-
-      if(status != SYM_UNDEFINED)
-      {
-        ast_error(ast, "can't assign to this again");
-        return false;
-      }
-
-      ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      return assign_id(id, true);
     }
 
     case TK_FVARREF:
@@ -63,10 +85,7 @@ static bool is_lvalue(ast_t* ast)
       AST_GET_CHILDREN(ast, left, right);
 
       if(ast_id(left) == TK_THIS)
-      {
-        const char* name = ast_name(right);
-        ast_setstatus(ast, name, SYM_DEFINED);
-      }
+        return assign_id(right, false);
 
       return true;
     }
@@ -77,29 +96,17 @@ static bool is_lvalue(ast_t* ast)
 
       if(ast_id(left) != TK_THIS)
       {
-        ast_error(ast, "can't assign to let field");
+        ast_error(ast, "can't assign to a let field");
         return false;
       }
 
       if(ast_enclosing_loop(ast) != NULL)
       {
-        ast_error(ast, "can't assign to let field in a loop");
+        ast_error(ast, "can't assign to a let field in a loop");
         return false;
       }
 
-      const char* name = ast_name(right);
-
-      sym_status_t status;
-      ast_get(ast, name, &status);
-
-      if(status != SYM_UNDEFINED)
-      {
-        ast_error(ast, "can't assign to let field again");
-        return false;
-      }
-
-      ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      return assign_id(right, true);
     }
 
     case TK_TUPLE:
