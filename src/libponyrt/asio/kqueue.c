@@ -45,7 +45,8 @@ asio_backend_t* asio_backend_init()
 
 void asio_backend_terminate(asio_backend_t* b)
 {
-	write(b->wakeup[1], '\0', 1);
+	char c = '\0';
+	write(b->wakeup[1], &c, 1);
 }
 
 DEFINE_THREAD_FN(asio_backend_dispatch,

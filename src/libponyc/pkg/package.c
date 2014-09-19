@@ -367,7 +367,7 @@ static void add_path(const char* path)
   int err = stat(path, &s);
 
   if((err != -1) && S_ISDIR(s.st_mode))
-    search = strlist_push(search, stringtab(path));
+    search = strlist_append(search, stringtab(path));
 }
 
 bool package_init(const char* name, pass_opt_t* opt)
@@ -375,12 +375,18 @@ bool package_init(const char* name, pass_opt_t* opt)
   if(!codegen_init(opt))
     return false;
 
+  package_add_paths(getenv("PONYPATH"));
+
+#ifndef PLATFORM_IS_WINDOWS
+  add_path("/usr/local/lib/pony");
+  add_path("/usr/local/lib");
+#endif
+
   char path[FILENAME_MAX];
 
   if(execpath(name, path))
     add_path(path);
 
-  package_add_paths(getenv("PONYPATH"));
   return true;
 }
 
@@ -475,6 +481,12 @@ ast_t* package_load(ast_t* from, const char* path)
 
   if(!do_path(magic, package, name))
     return NULL;
+
+  if(ast_child(package) == NULL)
+  {
+    ast_error(package, "no source files in package '%s'", path);
+    return NULL;
+  }
 
   if(!package_passes(package))
   {
