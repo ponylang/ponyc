@@ -606,35 +606,62 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   
   if(!vcvars_get(&vcvars))
   {
-    //vcvars_errors(&vcvars);
+    errorf(NULL, "unable to link");
     return false;
   }
 
   //(len * 2) for object file and executable
-  size_t ld_len = 256 + (len * 2) + link_path_length() + strlen(vcvars.sdk_lib_dir);
+  size_t ld_len = 256 + (len * 2) + link_path_length() + 
+    vcvars_get_path_length(&vcvars);
+  
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "link.exe /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
     "/OUT:%s.exe "
-    "%s.o ",
-    file_exe, file_exe
+    "%s.o "
+    "/LIBPATH:\"%s\" "
+    "/LIBPATH:\"%s\" ",
+    file_exe, file_exe, vcvars.kernel32, vcvars.msvcrt
     );
   
   append_link_paths(ld_cmd);
-  
-  strcat(ld_cmd,
-    " pony.lib kernel32.lib msvcrt.lib"
-    );
 
-  printf("%s\n", ld_cmd);
+  strcat(ld_cmd,
+    " ponyrt.lib kernel32.lib msvcrt.lib"
+    );
 #endif
 
+#if defined(PLATFORM_POSIX_BASED)
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
     return false;
   }
+#elif defined(PLATFORM_IS_WINDOWS)
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  DWORD code = 0;
+
+  memset(&si, 0, sizeof(STARTUPINFO));
+
+  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL, 
+    FALSE, 0, NULL, NULL, &si, &pi))
+  {
+    errorf(NULL, "unable to invoke linker");
+    return false;
+  }
+
+  WaitForSingleObject(pi.hProcess, INFINITE);
+  GetExitCodeProcess(pi.hProcess, &code);
+  CloseHandle(pi.hProcess);
+
+  if(code != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }  
+#endif
 
   unlink(file_o);
   

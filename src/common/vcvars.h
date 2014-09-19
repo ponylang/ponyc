@@ -3,10 +3,18 @@
 
 typedef struct vcvars_t
 {
-  char sdk_lib_dir[MAX_PATH + 1];
-  char vc_lib_dir[MAX_PATH + 1];
+  char link[MAX_PATH];
+  char kernel32[MAX_PATH];
+  char msvcrt[MAX_PATH];
+  //char** kernel32;
+  //char** msvcrt;
+  //size_t kernel32_paths;
+  //size_t msvcrt_paths;
+  //size_t length;
 } vcvars_t;
 
 bool vcvars_get(vcvars_t* vcvars);
+
+size_t vcvars_get_path_length(vcvars_t* vcvars);
 
 #endif
