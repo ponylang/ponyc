@@ -179,69 +179,6 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
   }
 }
 
-/*static bool find_file(char* search_path, char* name, void* p, file_search_fn fn)
-{
-  bool found = false;
-
-  WIN32_FIND_DATA info;
-
-  TCHAR current[MAX_PATH];
-  TCHAR recurse[MAX_PATH];
-  
-  strcpy(current, search_path);
-  strcat(current, "*");
-  strcpy(recurse, search_path);
-
-  HANDLE hFound = FindFirstFile(current, &info);
-
-  do
-  {
-    if(info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-    {
-      if((strcmp(info.cFileName, ".") == 0) || (strcmp(info.cFileName, "..") == 0))
-        continue;
-
-      strcat(recurse, info.cFileName);
-      strcat(recurse, "\\");
-
-      found |= find_file(recurse, name, p, fn);
-
-      strcpy(recurse, search_path);
-    }
-    else
-    {
-      if(_stricmp(info.cFileName, name) == 0)
-      {
-        fn(recurse, p);
-        found = true;
-      }
-    }
-  } while(FindNextFile(hFound, &info));
-
-  FindClose(hFound);
-  
-  return found;
-}*/
-
-/*static void append_path(char*** pathsv, size_t* idx, char* new_path)
-{
-  size_t prev = *idx;
-  size_t len = strlen(new_path) + 1;
- 
-  *pathsv = (char**)realloc((*pathsv), sizeof(char*) * (++(*idx)));
-
-  (*pathsv)[prev] = (char*)malloc(sizeof(char) * len);
-  memcpy((*pathsv)[prev], new_path, len);
-}*/
-
-/*static void kernel32_match(char* path, void* p)
-{
-  vcvars_t* vcvars = (vcvars_t*)p;
-  append_path(&vcvars->kernel32, &vcvars->kernel32_paths, path);
-  
-  vcvars->length += strlen(path) + 1;
-}*/
-
 static bool find_kernel32(vcvars_t* vcvars)
 {
   search_t sdk;
@@ -253,25 +190,11 @@ static bool find_kernel32(vcvars_t* vcvars)
     return false;
   }
 
-  /*if(!find_file(sdk.path, "kernel32.lib", vcvars, kernel32_match))
-  {
-    errorf(NULL, "unable to locate kernel32.lib");
-    return false;
-  }*/
-
   strcpy(vcvars->kernel32, sdk.path); 
   strcat(vcvars->kernel32, "Lib\\winv6.3\\um\\x64");
 
   return true;
 }
-
-/*static void msvcrt_match(char* path, void* p)
-{
-  vcvars_t* vcvars = (vcvars_t*)p; 
-  append_path(&vcvars->msvcrt, &vcvars->msvcrt_paths, path);
-  
-  vcvars->length += strlen(path) + 1;
-}*/
 
 static bool find_msvcrt(vcvars_t* vcvars)
 {
@@ -283,12 +206,6 @@ static bool find_msvcrt(vcvars_t* vcvars)
     errorf(NULL, "unable to locate Visual Studio");
     return false;
   }
-
-  /*if(!find_file(vs.path, "msvcrt.lib", vcvars, msvcrt_match))
-  {
-    errorf(NULL, "unable to locate msvcrt.lib");
-    return false;
-  }*/
 
   strcpy(vcvars->msvcrt, vs.path);
   strcat(vcvars->msvcrt, "VC\\lib\\amd64");
@@ -314,12 +231,6 @@ static bool find_msvcrt(vcvars_t* vcvars)
 
 bool vcvars_get(vcvars_t* vcvars)
 {
-  //vcvars->kernel32 = NULL;
-  //vcvars->msvcrt = NULL;
-  //vcvars->kernel32_paths = 0;
-  //vcvars->msvcrt_paths = 0;
-  //vcvars->length = 0;
-
   if(!find_kernel32(vcvars))
     return false;
 
