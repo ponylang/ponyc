@@ -100,7 +100,7 @@ static void usage()
 static size_t get_width()
 {
   size_t width = 80;
-#ifdef _WIN64
+#ifdef PLATFORM_IS_WINDOWS
   CONSOLE_SCREEN_BUFFER_INFO info;
 
   if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))

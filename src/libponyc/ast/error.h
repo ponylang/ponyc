@@ -7,6 +7,8 @@
 
 #include <platform.h>
 
+PONY_EXTERN_C_BEGIN
+
 typedef struct errormsg_t
 {
   const char* file;
@@ -38,5 +40,7 @@ void errorf(const char* file, const char* fmt,
 
 /// Configure whether errors should be printed immediately as well as deferred
 void error_set_immediate(bool immediate);
+
+PONY_EXTERN_C_END
 
 #endif

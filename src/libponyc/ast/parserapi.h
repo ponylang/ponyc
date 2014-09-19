@@ -1,12 +1,16 @@
 #ifndef PARSERAPI_H
 #define PARSERAPI_H
 
+#include <platform.h>
+
 #include "lexer.h"
 #include "ast.h"
 #include "token.h"
 #include <stdbool.h>
 #include <limits.h>
 #include <stdio.h>
+
+PONY_EXTERN_C_BEGIN
 
 /** We use a simple recursive decent parser. Each grammar rule is specified
  * using the macros defined below. Whilst it is perfectly possible to mix
@@ -49,7 +53,6 @@
  * is a recursive call to the same rule). Such rules will lead to infinite
  * loops and/or stack overflow.
  */
-
 
 typedef struct lexer_t lexer_t;
 typedef struct source_t source_t;
@@ -339,5 +342,6 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
     return state.ast; \
   }
 
+PONY_EXTERN_C_END
 
 #endif

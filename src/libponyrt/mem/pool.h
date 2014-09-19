@@ -6,9 +6,7 @@
 
 #include <platform.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 #define POOL_MIN_BITS 6
 
@@ -49,8 +47,6 @@ bool pool_debug_appears_freed();
 #define POOL_FREE(TYPE, VALUE) \
   pool_free(POOL_INDEX(sizeof(TYPE)), VALUE)
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif

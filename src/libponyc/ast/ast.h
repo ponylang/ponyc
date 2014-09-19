@@ -8,6 +8,8 @@
 
 #include <platform.h>
 
+PONY_EXTERN_C_BEGIN
+
 /* Description of AST forms produced after parse fix pass.
 
 We define what each type of node should contain. For convenience we also define
@@ -494,5 +496,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
+
+PONY_EXTERN_C_END
 
 #endif

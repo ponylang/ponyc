@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
 #include <ast/builder.h>
 #include <ast/source.h>
 #include <ast/token.h>
 #include <pass/sugar.h>
-PONY_EXTERN_C_END
 
 #include "util.h"
 

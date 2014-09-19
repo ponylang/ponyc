@@ -8,6 +8,8 @@
 
 #include <platform.h>
 
+PONY_EXTERN_C_BEGIN
+
 typedef struct list_t list_t;
 
 list_t* list_push(list_t* list, const void* data);
@@ -135,5 +137,7 @@ void list_free(list_t* list, free_fn f);
     name##_free_fn free = freef; \
     list_free((list_t*)list, (free_fn)free); \
   } \
+
+PONY_EXTERN_C_END
 
 #endif

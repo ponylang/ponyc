@@ -1,8 +1,11 @@
 #ifndef TABLE_H
 #define TABLE_H
 
+#include <platform.h>
 #include "functions.h"
 #include <stddef.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct table_t table_t;
 
@@ -73,5 +76,7 @@ void table_free(table_t* table, free_fn fr);
     name##_free_fn frf = fr; \
     table_free((table_t*)table, (free_fn)frf); \
   } \
+
+PONY_EXTERN_C_END
 
 #endif

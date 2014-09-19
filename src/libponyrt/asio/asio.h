@@ -2,6 +2,7 @@
 #define asio_asio_h
 
 #include <pony.h>
+#include <platform.h>
 #include <stdbool.h>
 
 #if defined(PLATFORM_IS_LINUX)
@@ -15,6 +16,8 @@
 #endif
 
 #define MAX_EVENTS 64
+
+PONY_EXTERN_C_BEGIN
 
 enum ASIO_FLAGS
 {
@@ -115,5 +118,7 @@ uint32_t asio_readv(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp);
  *  This is a wrapper for asio_readv for convenience.
  */
 uint32_t asio_read(intptr_t fd, void* dest, size_t len, size_t* nrp);
+
+PONY_EXTERN_C_END
 
 #endif

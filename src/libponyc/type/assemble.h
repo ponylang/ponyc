@@ -1,7 +1,10 @@
 #ifndef TYPE_ASSEMBLE_H
 #define TYPE_ASSEMBLE_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+PONY_EXTERN_C_BEGIN
 
 /**
  * Creates an AST node for a builtin type
@@ -46,5 +49,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type);
  * appropriate type for it.
  */
 ast_t* type_literal_to_runtime(ast_t* type);
+
+PONY_EXTERN_C_END
 
 #endif

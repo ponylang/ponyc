@@ -1,8 +1,11 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
+#include <platform.h>
 #include <stdint.h>
 #include <stdbool.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef uint64_t (*hash_fn)(void* data);
 
@@ -30,5 +33,7 @@ typedef void (*free_fn)(void* data);
   typedef bool (*name##_apply_fn)(elem* a, void* arg); \
   typedef elem* (*name##_dup_fn)(elem* a); \
   typedef void (*name##_free_fn)(elem* a); \
+
+PONY_EXTERN_C_END
 
 #endif

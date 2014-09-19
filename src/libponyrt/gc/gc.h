@@ -6,8 +6,11 @@
 #include "delta.h"
 #include "../mem/heap.h"
 #include <pony.h>
+#include <platform.h>
 
 #define GC_INC_MORE 256
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct gc_t
 {
@@ -51,5 +54,7 @@ size_t gc_rc(gc_t* gc);
 deltamap_t* gc_delta(gc_t* gc);
 
 void gc_done(gc_t* gc);
+
+PONY_EXTERN_C_END
 
 #endif

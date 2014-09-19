@@ -1,11 +1,9 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/builder.h>
 #include <codegen/colour.h>
 #include <ds/stringtab.h>
-PONY_EXTERN_C_END
 
 #include "util.h"
 

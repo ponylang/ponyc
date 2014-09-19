@@ -2,12 +2,11 @@
 #define mem_heap_h
 
 #include <pony.h>
+#include <platform.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 #define HEAP_MINBITS 6
 #define HEAP_MAXBITS 11
@@ -66,8 +65,6 @@ pony_actor_t* heap_owner(chunk_t* chunk);
  */
 size_t heap_base(chunk_t* chunk, void** p);
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif

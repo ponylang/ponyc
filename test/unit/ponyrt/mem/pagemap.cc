@@ -1,8 +1,6 @@
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <mem/pagemap.h>
-PONY_EXTERN_C_END
 
 #include <gtest/gtest.h>
 

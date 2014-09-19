@@ -1,10 +1,16 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+#include <platform.h>
+
 #include "error.h"
 #include "source.h"
 #include <stdbool.h>
 #include <stddef.h>
+
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+extern "C" {
+#endif
 
 typedef struct token_t token_t;
 
@@ -177,24 +183,24 @@ typedef enum token_id
 
 
 /** Create a new token.
- * The created token must be freed later with token_free().
- */
+  * The created token must be freed later with token_free().
+  */
 token_t* token_new(token_id id, source_t* source);
 
 /** Create a duplicate of the given token.
- * The duplicate must be freed later with token_free().
- */
+  * The duplicate must be freed later with token_free().
+  */
 token_t* token_dup(token_t* token);
 
 /** Create a duplicate of the given token and set the ID.
- * The duplicate must be freed later with token_free().
- * This is equivalent to calling token_dup() followed by token_set_id().
- */
+  * The duplicate must be freed later with token_free().
+  * This is equivalent to calling token_dup() followed by token_set_id().
+  */
 token_t* token_dup_new_id(token_t* token, token_id id);
 
 /** Free the given token.
- * The token argument may be NULL.
- */
+  * The token argument may be NULL.
+  */
 void token_free(token_t* token);
 
 
@@ -204,10 +210,10 @@ void token_free(token_t* token);
 token_id token_get_id(token_t* token);
 
 /** Report the given token's literal value.
- * Only valid for TK_STRING and TK_ID tokens.
- * The returned string must not be deleted and is valid for the lifetime of the
- * token.
- */
+  * Only valid for TK_STRING and TK_ID tokens.
+  * The returned string must not be deleted and is valid for the lifetime of the
+  * token.
+  */
 const char* token_string(token_t* token);
 
 /// Report the given token's literal value. Only valid for TK_FLOAT tokens.
@@ -217,9 +223,9 @@ double token_float(token_t* token);
 __uint128_t token_int(token_t* token);
 
 /** Return a string for printing the given token.
- * The returned string must not be deleted and is only valid until the next call
- * to token_print() for that token, or until the token is deleted.
- */
+  * The returned string must not be deleted and is only valid until the next call
+  * to token_print() for that token, or until the token is deleted.
+  */
 const char* token_print(token_t* token);
 
 /** Return a string to describe the given token id.
@@ -241,15 +247,15 @@ size_t token_line_position(token_t* token);
 // Write accessors
 
 /** Set the ID of the given token to the specified value.
- * Must not used to change tokens to TK_ID or from TK_INT or TK_FLOAT.
- */
+  * Must not used to change tokens to TK_ID or from TK_INT or TK_FLOAT.
+  */
 void token_set_id(token_t* token, token_id id);
 
 /** Set the given token's literal value.
- * Only valid for TK_STRING and TK_ID tokens.
- * The given string will be interned and hence only needs to be valid for the
- * duration of this call.
- */
+  * Only valid for TK_STRING and TK_ID tokens.
+  * The given string will be interned and hence only needs to be valid for the
+  * duration of this call.
+  */
 void token_set_string(token_t* token, const char* value);
 
 /// Set the given token's literal value. Only valid for TK_FLOAT tokens.
@@ -258,8 +264,11 @@ void token_set_float(token_t* token, double value);
 /// Set the given token's literal value. Only valid for TK_INT tokens.
 void token_set_int(token_t* token, __uint128_t value);
 
-
 /// Set the given token's position within its source file
 void token_set_pos(token_t* token, size_t line, size_t pos);
+
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+}
+#endif
 
 #endif

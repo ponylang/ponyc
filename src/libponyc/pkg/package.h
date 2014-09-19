@@ -1,9 +1,12 @@
 #ifndef PACKAGE_H
 #define PACKAGE_H
 
+#include <platform.h>
 #include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ds/stringtab.h"
+
+PONY_EXTERN_C_BEGIN
 
 /**
  * Initialises the search directories. This is composed of a "packages"
@@ -83,5 +86,7 @@ const char* package_hygienic_id_string(ast_t* ast);
  * Cleans up the list of search directories and shuts down the code generator.
  */
 void package_done(pass_opt_t* opt);
+
+PONY_EXTERN_C_END
 
 #endif

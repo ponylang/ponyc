@@ -2,6 +2,9 @@
 #define gc_objectmap_h
 
 #include "../ds/hash.h"
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct object_t object_t;
 
@@ -30,5 +33,7 @@ object_t* objectmap_getobject(objectmap_t* map, void* address);
 object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark);
 
 void objectmap_mark(objectmap_t* map);
+
+PONY_EXTERN_C_END
 
 #endif

@@ -3,10 +3,8 @@
 
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
 #include <ast/builder.h>
-PONY_EXTERN_C_END
 
 // Provide a short alias for ASSERT_NO_FATAL_FAILURE
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)

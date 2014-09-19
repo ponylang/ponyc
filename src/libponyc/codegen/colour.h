@@ -1,7 +1,10 @@
 #ifndef CODEGEN_COLOUR_H
 #define CODEGEN_COLOUR_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+PONY_EXTERN_C_BEGIN
 
 /** The painter interface is responsible for performing colour allocation for
  * vtable index assignment.
@@ -60,5 +63,7 @@ int painter_get_vtable_size(painter_t* painter, ast_t* type);
 
 /// Free the given painter
 void painter_free(painter_t* painter);
+
+PONY_EXTERN_C_END
 
 #endif

@@ -3,6 +3,9 @@
 
 #include "ast.h"
 #include <stdbool.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct builder_t builder_t;
 
@@ -57,5 +60,6 @@ bool build_compare_asts(ast_t* expected, ast_t* actual);
 /// Compare the 2 given ASTs ignoring siblings of the top node
 bool build_compare_asts_no_sibling(ast_t* expected, ast_t* actual);
 
+PONY_EXTERN_C_END
 
 #endif

@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <platform.h>
 
+PONY_EXTERN_C_BEGIN
+
 typedef struct mpmcq_node_t mpmcq_node_t;
 
 __pony_spec_align__(
@@ -37,5 +39,7 @@ void mpmcq_destroy(mpmcq_t* q);
 void mpmcq_push(mpmcq_t* q, void* data);
 
 void* mpmcq_pop(mpmcq_t* q);
+
+PONY_EXTERN_C_END
 
 #endif

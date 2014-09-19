@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+PONY_EXTERN_C_BEGIN
+
 static const uint64_t exception_class = 0x506F6E7900000000; // "Pony"
 static __thread struct _Unwind_Exception exception;
 static __thread uintptr_t landing_pad;
@@ -60,4 +62,7 @@ _Unwind_Reason_Code pony_personality_v0(int version, _Unwind_Action actions,
 
   return _URC_FATAL_PHASE1_ERROR;
 }
+
+PONY_EXTERN_C_END
+
 #endif

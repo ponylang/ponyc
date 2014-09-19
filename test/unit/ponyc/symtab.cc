@@ -1,10 +1,8 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/symtab.h>
 #include <ds/stringtab.h>
-PONY_EXTERN_C_END
 
 class SymtabTest: public testing::Test
 {};

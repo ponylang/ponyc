@@ -1,7 +1,10 @@
 #ifndef CODEGEN_GENNAME_H
 #define CODEGEN_GENNAME_H
 
+#include <platform.h>
 #include "codegen.h"
+
+PONY_EXTERN_C_BEGIN
 
 const char* genname_type(ast_t* ast);
 
@@ -29,5 +32,7 @@ const char* genname_handler(const char* type, const char* name,
 const char* genname_box(const char* name);
 
 const char* genname_unbox(const char* name);
+
+PONY_EXTERN_C_END
 
 #endif

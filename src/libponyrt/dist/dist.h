@@ -4,6 +4,9 @@
 #include "../actor/messageq.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 /** Creates an instance of the Distribution Actor
  *
@@ -35,5 +38,7 @@ void dist_delegate(pony_msg_t* msg);
  *  quiesence can be established, otherwise this call has no effect.
  */
 void dist_finish();
+
+PONY_EXTERN_C_END
 
 #endif

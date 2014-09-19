@@ -4,12 +4,9 @@
 #include "fun.h"
 #include <stdint.h>
 #include <stdbool.h>
-
 #include <platform.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 typedef struct list_t list_t;
 
@@ -126,8 +123,6 @@ void list_free(list_t* list, free_fn f);
     list_free((list_t*)list, (free_fn)free); \
   } \
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif
