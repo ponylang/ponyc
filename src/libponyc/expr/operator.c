@@ -646,6 +646,12 @@ bool expr_assign(ast_t* ast)
 
 bool expr_consume(ast_t* ast)
 {
+  if(ast_enclosing_loop(ast) != NULL)
+  {
+    ast_error(ast, "can't consume in a loop");
+    return false;
+  }
+
   ast_t* child = ast_child(ast);
 
   switch(ast_id(child))
@@ -656,7 +662,7 @@ bool expr_consume(ast_t* ast)
       break;
 
     default:
-      ast_error(ast, "consume must take a local variable or parameter");
+      ast_error(ast, "consume must take a local or parameter");
       return false;
   }
 
