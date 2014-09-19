@@ -18,8 +18,8 @@ bool expr_seq(ast_t* ast)
   ast_settype(ast, type);
   ast_inheriterror(ast);
 
-  // TODO: if we are the body of a loop or try expression, we need to push
-  // our symbol consumes to the else block
+  // TODO: if we are the body of try expression, we need to push
+  // our symbol consumes to the else and then blocks
   // In the body of a try, we might stop execution with any node that can
   // error out, so a DEFINE can only override an UNDEFINE *for the else block*
   // if it appears before the next node that can error out.
@@ -176,8 +176,8 @@ bool expr_repeat(ast_t* ast)
 
 bool expr_try(ast_t* ast)
 {
-  // TODO: init tracking same as while, because some fraction of the body
-  // may execute before the else block.
+  // TODO: init tracking
+  // propagate consumes, but not defines to the else clause
   // Override with 'then' branch, because it always executes.
   // Then push our settings to our parent.
   ast_t* body = ast_child(ast);
