@@ -18,6 +18,10 @@ actor Test
 
 actor Main
   new create(env: Env) =>
+    for s in env.args.values() do
+      env.stdout.print(s)
+    end
+
     Test(this)
     var t: Foo = Bar
     @printf[I32]("%d\n".cstring(), t.test())
@@ -40,11 +44,8 @@ actor Main
     else
       99
     end
-    //@printf[I32]("%zu\n".cstring(), num)
 
-    for s in env.args.values() do
-      env.stdout.print(s)
-    end
+    @printf[I32]("%d\n".cstring(), num.i32())
 
     try
       error

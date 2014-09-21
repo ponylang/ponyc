@@ -424,10 +424,13 @@ void scheduler_add(pony_actor_t* actor)
 {
   if(this_scheduler != NULL)
   {
-    // add to the current scheduler thread
+    // Add to the current scheduler thread.
     push(this_scheduler, actor);
+
+    // Check for a pending thief.
+    respond(this_scheduler);
   } else {
-    // put on the shared mpmcq
+    // Put on the shared mpmcq.
     mpmcq_push(&inject, actor);
   }
 }
