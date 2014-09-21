@@ -56,7 +56,7 @@ static bool expr_typeaccess(ast_t* ast)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(type, ast_name(right));
+  ast_t* find = lookup(ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -74,7 +74,9 @@ static bool expr_typeaccess(ast_t* ast)
 
     case TK_NEW:
     {
-      if((ast_id(type) == TK_NOMINAL) && (ast_id((ast_t*)ast_data(type)) == TK_ACTOR))
+      ast_t* def = (ast_t*)ast_data(type);
+
+      if((ast_id(type) == TK_NOMINAL) && (ast_id(def) == TK_ACTOR))
         ast_setid(ast, TK_NEWBEREF);
       else
         ast_setid(ast, TK_NEWREF);
@@ -135,7 +137,7 @@ static bool expr_memberaccess(ast_t* ast)
 
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(type, ast_name(right));
+  ast_t* find = lookup(ast, type, ast_name(right));
 
   if(find == NULL)
     return false;

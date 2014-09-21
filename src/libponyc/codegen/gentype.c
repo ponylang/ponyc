@@ -146,7 +146,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
         g->primitive = c->f64;
       else if(!strcmp(name, "FloatLiteral"))
         g->primitive = c->f64;
-      else if(!strcmp(name, "_Pointer"))
+      else if(!strcmp(name, "Pointer"))
         return genprim_pointer(c, g, prelim);
     }
   } else {
