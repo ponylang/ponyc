@@ -413,8 +413,12 @@ bool expr_call(ast_t* ast)
         if(sending)
         {
           ast_t* s_type = send_type(a_type);
-          ast_free_unattached(a_type);
-          a_type = s_type;
+
+          if(s_type != a_type)
+          {
+            ast_free_unattached(a_type);
+            a_type = s_type;
+          }
         }
 
         if(!is_subtype(a_type, p_type))

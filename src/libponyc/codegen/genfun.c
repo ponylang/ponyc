@@ -165,6 +165,9 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
   if(!gentype(c, rtype, &rtype_g))
   {
+    // TODO: remove this
+    gentype(c, rtype, &rtype_g);
+
     ast_error(rtype, "couldn't generate result type");
     return NULL;
   }

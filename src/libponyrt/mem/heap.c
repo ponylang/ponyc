@@ -253,6 +253,14 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
 
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
+  if(chunk == NULL)
+  {
+    // Get new memory and copy from the old memory.
+    void* q = heap_alloc(actor, heap, size);
+    memcpy(q, p, 1 << (chunk->size + HEAP_MINBITS));
+    return q;
+  }
+
   if(chunk->size < HEAP_SIZECLASSES)
   {
     // Previous allocation was a small_malloc.

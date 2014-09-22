@@ -133,7 +133,9 @@ actor ExchangeEscrow
   // behaviour), it must be a sendable subtype of ref at the call-site, ie iso.
   be submit(ex': Exchange) =>
     match _first
-    | None => _first = ex' // store this, wait for another submission
+    | None =>
+      _first = ex' // store this, wait for another submission
+
     | as ex: Exchange =>
       _first = None // reset the stored submission to None
 
