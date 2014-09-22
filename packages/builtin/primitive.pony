@@ -181,6 +181,9 @@ primitive F32 is Stringable, ArithmeticConvertible
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 
+  new from_bits(i: U32) => compiler_intrinsic
+  fun val bits(): U32 => compiler_intrinsic
+
   fun val abs(): F32 => if this < 0 then -this else this end
   fun val ceil(): F32 => @ceilf[F32](this)
   fun val floor(): F32 => @floorf[F32](this)
@@ -215,6 +218,9 @@ primitive F32 is Stringable, ArithmeticConvertible
 primitive F64 is Stringable, ArithmeticConvertible
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
+
+  new from_bits(i: U64) => compiler_intrinsic
+  fun val bits(): U64 => compiler_intrinsic
 
   fun val abs(): F64 => if this < 0 then -this else this end
   fun val ceil(): F64 => @ceil[F64](this)
