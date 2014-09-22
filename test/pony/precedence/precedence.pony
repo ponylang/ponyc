@@ -56,7 +56,7 @@ class Precedence is Foo, Bar
     }*/
 
   fun tag make_array(n: U64): c.Array[U64] iso^ =>
-    var a = recover c.Array[U64]
+    var a = recover c.Array[U64] end
     a.reserve(n)
     for i in c.Range[U64](0, n) do
       a.append(i)
@@ -65,7 +65,7 @@ class Precedence is Foo, Bar
     /*consume [1, 2, 3, n]*/
 
   fun tag make_iso_array(n: U64): c.Array[U64] iso^ =>
-    recover make_array(n)
+    recover make_array(n) end
 
   fun tag optionals(a: I64 = 1, b: I64 = a): I64 => a * b
 

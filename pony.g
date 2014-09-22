@@ -137,6 +137,7 @@ control
   |  'repeat' seq 'until' seq ('else' seq)? 'end'
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
+  |  'recover' seq 'end'
   ;
 
 case
@@ -192,7 +193,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume' | 'recover'
+  :  'not' | '-' | 'consume'
   ;
 
 binop

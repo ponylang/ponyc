@@ -45,7 +45,7 @@ class Purse
   fun ref withdraw(amount: U64): Purse iso^ ? =>
     if _balance >= amount then
       // recover is used to get an isolated Purse
-      var to = recover Purse(mint)
+      var to = recover Purse(mint) end
       _balance = _balance - amount
       to._balance = amount
       // consume is used to get an ephemeral Purse
@@ -57,7 +57,7 @@ class Purse
 
   // This empties the purse into a new ephemeral isolated purse
   fun ref remainder(): Purse iso^ =>
-    var to = recover Purse(mint)
+    var to = recover Purse(mint) end
     _balance = _balance - amount
     to._balance = amount
     consume to
@@ -113,7 +113,7 @@ actor Seller
     try
       var (price, factory) = _inventory(desc)
       _purse.deposit(price, payment)
-      f(recover factory())
+      f(recover factory() end)
     else
       f(None)
     end
@@ -216,11 +216,11 @@ actor ContractHost[A, B: Contract[A]]
   new create(initiator: Initiator, contract: B) =>
     _contract = contract
     _ledger.reserve(_contract.participants())
-    var tokens = recover Array[Token iso]
+    var tokens = recover Array[Token iso] end
     tokens.reserve(_contract.participants())
 
     for i in Range(1, _contract.participants()) do
-      var t = recover Token
+      var t = recover Token end
       _ledger.append((t, None))
       tokens.append(consume t)
     end

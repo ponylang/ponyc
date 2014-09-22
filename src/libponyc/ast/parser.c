@@ -464,9 +464,16 @@ DEF(try_block);
   SKIP(NULL, TK_END);
   DONE();
 
-// (NOT | CONSUME | RECOVER) term
+// RECOVER seq END
+DEF(recover);
+  TOKEN(NULL, TK_RECOVER);
+  RULE("recover body", seq);
+  SKIP(NULL, TK_END);
+  DONE();
+
+// (NOT | CONSUME) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_CONSUME, TK_RECOVER);
+  TOKEN("prefix", TK_NOT, TK_CONSUME);
   RULE("expression", term);
   DONE();
 
@@ -477,11 +484,11 @@ DEF(prefixminus);
   RULE("value", term);
   DONE();
 
-// local | cond | match | whileloop | repeat | forloop | try | prefix |
-//  prefixminus | postfix
+// local | cond | match | whileloop | repeat | forloop | try | recover |
+// prefix | prefixminus | postfix
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, try_block,
-    prefix, prefixminus, postfix);
+    recover, prefix, prefixminus, postfix);
   DONE();
 
 // BINOP term
