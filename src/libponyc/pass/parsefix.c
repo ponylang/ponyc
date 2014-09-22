@@ -40,7 +40,7 @@ static const entity_def_t _entity_def[DEF_ENTITY_COUNT] =
 { //                   Main   field  cap
   { "class",           false, true,  tb_opt },
   { "actor",           true,  true,  tb_no  },
-  { "data type",       false, false, tb_no  },
+  { "primitive",       false, false, tb_no  },
   { "trait",           false, false, tb_opt },
   { "structural type", false, false, tb_opt }
 };
@@ -62,17 +62,17 @@ static const method_def_t _method_def[DEF_METHOD_COUNT] =
 { //                         allowed cap     name    return  error   body
   { "class function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
   { "actor function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
-  { "data type function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
+  { "primitive function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
   { "trait function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_opt },
   { "structural function",    true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_no  },
   { "class behaviour",        false },
   { "actor behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_yes },
-  { "data type behaviour",    false },
+  { "primitive behaviour",    false },
   { "trait behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
   { "structural behaviour",   true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_no  },
   { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },
   { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_opt },
-  { "data type constructor",  false },
+  { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },
   { "trait constructor",      false },
   { "structural constructor", false }
 };

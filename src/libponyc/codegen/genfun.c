@@ -165,9 +165,6 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
   if(!gentype(c, rtype, &rtype_g))
   {
-    // TODO: remove this
-    gentype(c, rtype, &rtype_g);
-
     ast_error(rtype, "couldn't generate result type");
     return NULL;
   }
@@ -443,18 +440,27 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   if(func == NULL)
     return NULL;
 
-  codegen_startfun(c, func);
-
-  // allocate the object as 'this'
-  LLVMValueRef this_ptr = gencall_alloc(c, g->use_type);
-  set_descriptor(c, g, this_ptr);
-
-  // call the handler
+  // Get the handler.
   LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
+  // If we have no handler, it's a builtin function.
   if(handler == NULL)
-    return NULL;
+    return func;
 
+  codegen_startfun(c, func);
+  LLVMValueRef this_ptr;
+
+  if(g->instance != NULL)
+  {
+    // Use the global instance.
+    this_ptr = g->instance;
+  } else {
+    // Allocate the object as 'this'.
+    this_ptr = gencall_alloc(c, g->use_type);
+    set_descriptor(c, g, this_ptr);
+  }
+
+  // Call the handler.
   int count = LLVMCountParamTypes(LLVMGetElementType(LLVMTypeOf(handler)));
   VLA(LLVMValueRef, args, count);
   args[0] = this_ptr;
@@ -465,11 +471,11 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef call = LLVMBuildCall(c->builder, handler, args, count, "");
   LLVMSetInstructionCallConv(call, LLVMFastCallConv);
 
-  // return 'this'
+  // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
   codegen_finishfun(c);
 
-  // generate the handler
+  // Generate the handler.
   handler = gen_newhandler(c, g, name, typeargs, ast_childidx(fun, 6));
 
   if(handler == NULL)
@@ -506,23 +512,6 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
 
   add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
-  return func;
-}
-
-LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs)
-{
-  ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
-
-  if(func == NULL)
-    return NULL;
-
-  // Return the constant global instance.
-  codegen_startfun(c, func);
-  LLVMBuildRet(c->builder, g->instance);
-  codegen_finishfun(c);
-
   return func;
 }
 
@@ -588,10 +577,6 @@ bool genfun_methods(compile_t* c, gentype_t* g)
         {
           case TK_ACTOR:
             fun = genfun_newbe(c, g, ast_name(id), NULL, be_index++);
-            break;
-
-          case TK_PRIMITIVE:
-            fun = genfun_newdata(c, g, ast_name(id), NULL);
             break;
 
           default:

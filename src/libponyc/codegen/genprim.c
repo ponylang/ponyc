@@ -2,6 +2,7 @@
 #include "genname.h"
 #include "gentype.h"
 #include "gencall.h"
+#include <math.h>
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
@@ -242,6 +243,10 @@ void genprim_builtins(compile_t* c)
   };
 
   // All the builtin functions.
+  const char* name;
+  LLVMTypeRef f_type;
+  LLVMValueRef fun;
+
   for(prim_conv_t* from = conv; from->type_name != NULL; from++)
   {
     for(prim_conv_t* to = conv; to->type_name != NULL; to++)
@@ -249,10 +254,10 @@ void genprim_builtins(compile_t* c)
       if(to->fun_name == NULL)
         continue;
 
-      const char* name = genname_fun(from->type_name, to->fun_name, NULL);
-      LLVMTypeRef f_type = LLVMFunctionType(to->type, &from->type, 1, false);
+      name = genname_fun(from->type_name, to->fun_name, NULL);
+      f_type = LLVMFunctionType(to->type, &from->type, 1, false);
+      fun = codegen_addfun(c, name, f_type);
 
-      LLVMValueRef fun = codegen_addfun(c, name, f_type);
       codegen_startfun(c, fun);
       LLVMValueRef arg = LLVMGetParam(fun, 0);
 
@@ -305,4 +310,36 @@ void genprim_builtins(compile_t* c)
       codegen_finishfun(c);
     }
   }
+
+  name = genname_fun("$1_F32", "pi", NULL);
+  f_type = LLVMFunctionType(c->f32, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, M_PI));
+  codegen_finishfun(c);
+
+  name = genname_fun("$1_F32", "e", NULL);
+  f_type = LLVMFunctionType(c->f32, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, M_E));
+  codegen_finishfun(c);
+
+  name = genname_fun("$1_F64", "pi", NULL);
+  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, M_PI));
+  codegen_finishfun(c);
+
+  name = genname_fun("$1_F64", "e", NULL);
+  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, M_E));
+  codegen_finishfun(c);
 }
