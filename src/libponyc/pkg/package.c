@@ -13,8 +13,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#include <platform.h>
-
 #define EXTENSION ".pony"
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO

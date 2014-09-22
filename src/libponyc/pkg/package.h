@@ -29,8 +29,11 @@ strlist_t* package_paths();
 void package_add_paths(const char* paths);
 
 /**
- * Add a magic package with a single module based on the given source under the
- * given path.
+ * Add a magic package. When the package with the specified path is requested
+ * the files will not be looked for and the source code given here will be used
+ * instead. Each magic package can consist of only a single module.
+ * The specified path is not expanded or normalised and must exactly match that
+ * requested.
  */
 void package_add_magic(const char* path, const char* src);
 
@@ -45,7 +48,7 @@ void package_suppress_build_message();
 ast_t* program_load(const char* path);
 
 /**
- * Loads a package. Used by program_load() and when handling 'use' statements.
+ * Load a package. Used by program_load() and when handling 'use' statements.
  */
 ast_t* package_load(ast_t* from, const char* path);
 
