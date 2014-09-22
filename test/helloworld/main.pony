@@ -5,7 +5,6 @@ class Bar is Foo
   fun box test(): I32 => 1
 
 class Baz is Foo
-  fun box test(): I32 => 2
 
 class Throw
   fun box throw(test: Bool): Bool ? =>
@@ -19,16 +18,20 @@ actor Test
 
 actor Main
   new create(env: Env) =>
+    for s in env.args.values() do
+      env.stdout.print(s)
+    end
+
     Test(this)
     var t: Foo = Bar
-    @printf[I32]("%d\n"._cstring(), t.test())
+    @printf[I32]("%d\n".cstring(), t.test())
 
     t = Baz
-    @printf[I32]("%d\n"._cstring(), t.test())
+    @printf[I32]("%d\n".cstring(), t.test())
 
     var zero: U64 = 0
-    var p = @printf[I32]("%d\n"._cstring(), env.args.length() % zero)
-    @printf[I32]("%d\n"._cstring(), p)
+    var p = @printf[I32]("%d\n".cstring(), env.args.length() % zero)
+    @printf[I32]("%d\n".cstring(), p)
 
     var num = for i in Range[U64](0, env.args.length()) do
       if i == 3 then
@@ -41,24 +44,21 @@ actor Main
     else
       99
     end
-    //@printf[I32]("%zu\n"._cstring(), num)
 
-    for s in env.args.values() do
-      env.stdout.print(s)
-    end
+    @printf[I32]("%d\n".cstring(), num.i32())
 
     try
       error
     else
-      @printf[I32]("caught error\n"._cstring())
+      @printf[I32]("caught error\n".cstring())
     end
 
     try
       var throw = Throw
       throw.throw(False)
-      @printf[I32]("all ok\n"._cstring())
+      @printf[I32]("all ok\n".cstring())
     else
-      @printf[I32]("caught nested error\n"._cstring())
+      @printf[I32]("caught nested error\n".cstring())
     then
-      @printf[I32]("then clause\n"._cstring())
+      @printf[I32]("then clause\n".cstring())
     end

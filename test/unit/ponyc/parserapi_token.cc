@@ -1,11 +1,9 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/parserapi.h>
 #include <ast/source.h>
 #include <ast/error.h>
-PONY_EXTERN_C_END
 
 #include "util.h"
 

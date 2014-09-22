@@ -1,8 +1,12 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <platform.h>
+
 #include "source.h"
 #include "token.h"
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct lexer_t lexer_t;
 
@@ -36,5 +40,7 @@ const char* lexer_print(token_id id);
  * not an abstract keyword.
  */
 token_id lexer_is_abstract_keyword(const char* text);
+
+PONY_EXTERN_C_END
 
 #endif

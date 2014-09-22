@@ -5,6 +5,7 @@
 #include "../pass/pass.h"
 #include "../ast/ast.h"
 
+#include <platform.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
@@ -12,6 +13,8 @@
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
+
+PONY_EXTERN_C_BEGIN
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
@@ -79,5 +82,7 @@ void codegen_pausefun(compile_t* c);
 void codegen_finishfun(compile_t* c);
 
 LLVMValueRef codegen_fun(compile_t* c);
+
+PONY_EXTERN_C_END
 
 #endif

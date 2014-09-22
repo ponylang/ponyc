@@ -18,8 +18,8 @@ bool expr_seq(ast_t* ast)
   ast_settype(ast, type);
   ast_inheriterror(ast);
 
-  // TODO: if we are the body of a loop or try expression, we need to push
-  // our symbol consumes to the else block
+  // TODO: if we are the body of try expression, we need to push
+  // our symbol consumes to the else and then blocks
   // In the body of a try, we might stop execution with any node that can
   // error out, so a DEFINE can only override an UNDEFINE *for the else block*
   // if it appears before the next node that can error out.
@@ -84,14 +84,6 @@ bool expr_if(ast_t* ast)
 
 bool expr_while(ast_t* ast)
 {
-  // TODO: unify symbol status: if undefined in either branch, mark undefined.
-  // if defined in both branches, mark defined.
-  // anything undefined in the body has to be marked undefined in the else
-  // clause, because it may have executed before a continue.
-  // body of a loop can never assign to a LETREF or FLETREF because it might
-  // do so more than once.
-  // can't consume a local unless the body has written to it, because otherwise
-  // it could consume it more than once.
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
@@ -117,6 +109,23 @@ bool expr_while(ast_t* ast)
   type = type_union(type, ast_type(ast));
   type = type_literal_to_runtime(type);
 
+  // TODO: A break statement in the body means some definitions might not
+  // happen.
+  if(r_type == NULL)
+  {
+    // Right side returns, get symbol status from the left.
+    ast_inheritstatus(ast, left);
+  } else {
+    // Defined if defined in both branches. Undefined if undefined in either
+    // branch.
+    ast_inheritbranch(ast, left);
+    ast_inheritbranch(ast, right);
+    ast_consolidate_branches(ast, 2);
+  }
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
+
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -124,7 +133,6 @@ bool expr_while(ast_t* ast)
 
 bool expr_repeat(ast_t* ast)
 {
-  // TODO: init tracking same as while
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   ast_t* body_type = ast_type(body);
@@ -148,6 +156,23 @@ bool expr_repeat(ast_t* ast)
   type = type_union(type, ast_type(body));
   type = type_literal_to_runtime(type);
 
+  // TODO: A break statement in the body means some definitions might not
+  // happen.
+  if(else_type == NULL)
+  {
+    // Else clause returns, get symbol status from the body.
+    ast_inheritstatus(ast, body);
+  } else {
+    // Defined if defined in both branches. Undefined if undefined in either
+    // branch.
+    ast_inheritbranch(ast, body);
+    ast_inheritbranch(ast, else_clause);
+    ast_consolidate_branches(ast, 2);
+  }
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
+
   ast_settype(ast, type);
   ast_inheriterror(ast);
   return true;
@@ -155,8 +180,8 @@ bool expr_repeat(ast_t* ast)
 
 bool expr_try(ast_t* ast)
 {
-  // TODO: init tracking same as while, because some fraction of the body
-  // may execute before the else block.
+  // TODO: init tracking
+  // propagate consumes, but not defines to the else clause
   // Override with 'then' branch, because it always executes.
   // Then push our settings to our parent.
   ast_t* body = ast_child(ast);

@@ -1,7 +1,10 @@
 #ifndef SYMTAB_H
 #define SYMTAB_H
 
+#include <platform.h>
 #include "../ds/table.h"
+
+PONY_EXTERN_C_BEGIN
 
 typedef enum
 {
@@ -32,5 +35,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src);
 void symtab_consolidate_branches(symtab_t* symtab, size_t count);
 
 bool symtab_no_private(symbol_t* symbol, void* arg);
+
+PONY_EXTERN_C_END
 
 #endif

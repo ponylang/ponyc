@@ -6,6 +6,9 @@
 #include <pony.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 #define  ACTORMSG_ACQUIRE (UINT32_MAX - 3)
 #define  ACTORMSG_RELEASE (UINT32_MAX - 2)
@@ -41,5 +44,7 @@ void actor_setnext(pony_actor_t* actor, pony_actor_t* next);
 void actor_inc_rc();
 
 void actor_dec_rc();
+
+PONY_EXTERN_C_END
 
 #endif

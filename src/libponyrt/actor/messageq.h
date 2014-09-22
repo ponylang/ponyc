@@ -2,6 +2,9 @@
 #define messageq_h
 
 #include <pony.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct messageq_t
 {
@@ -18,5 +21,7 @@ bool messageq_push(messageq_t* q, pony_msg_t* m);
 pony_msg_t* messageq_pop(messageq_t* q);
 
 bool messageq_markempty(messageq_t* q);
+
+PONY_EXTERN_C_END
 
 #endif

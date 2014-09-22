@@ -61,7 +61,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
         if(ast_id(body) != TK_NONE)
         {
           // Reify the initialiser.
-          ast_t* var = lookup(g->ast, ast_name(id));
+          ast_t* var = lookup(NULL, g->ast, ast_name(id));
           assert(var != NULL);
           body = ast_childidx(var, 2);
 
@@ -102,7 +102,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   // reify with both the type and the function-level typeargs
-  ast_t* fun = lookup(g->ast, name);
+  ast_t* fun = lookup(NULL, g->ast, name);
   assert(fun != NULL);
 
   if(typeargs != NULL)

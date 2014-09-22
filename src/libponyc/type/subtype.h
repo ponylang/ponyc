@@ -1,7 +1,10 @@
 #ifndef SUBTYPE_H
 #define SUBTYPE_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+PONY_EXTERN_C_BEGIN
 
 bool is_subtype(ast_t* sub, ast_t* super);
 
@@ -38,5 +41,7 @@ bool is_concrete(ast_t* type);
 bool is_id_compatible(ast_t* a, ast_t* b);
 
 bool is_match_compatible(ast_t* expr_type, ast_t* match_type);
+
+PONY_EXTERN_C_END
 
 #endif

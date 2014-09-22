@@ -1,21 +1,23 @@
 #include <platform.h>
+#include "../ast/error.h"
 
 #if defined(PLATFORM_IS_WINDOWS)
 
 #define REG_SDK_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
-#define REG_SDK_INSTALL_PATH_FALLBACK \
-  TEXT("SOFTWARE\\Microsoft\\Microsoft SDKs\\Windows\\")
+#define REG_VS_INSTALL_PATH \
+  TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
 
 #define MAX_VER_LEN 10
 
 typedef void(*query_callback_fn)(HKEY key, char* name, void* p);
+typedef void(*file_search_fn)(char* path, void* p);
 
-typedef struct sdk_search_t
+typedef struct search_t
 {
-  vcvars_t* vcvars;
+  char path[MAX_PATH];
   char version[MAX_VER_LEN + 1];
-} sdk_search_t;
+} search_t;
 
 void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 {
@@ -27,10 +29,19 @@ void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
   }
 }
 
-bool query_registry(HKEY key, query_callback_fn fn, void* p)
+bool query_registry(HKEY key, bool query_subkeys, 
+  query_callback_fn fn, void* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
+
+  //Processing a leaf node in the registry, give it 
+  //to the callback.
+  if(!query_subkeys)
+  {
+    fn(key, NULL, p);
+    return true;
+  }
 
   get_child_count(key, &sub_keys, &largest_subkey);
 
@@ -70,9 +81,76 @@ bool query_registry(HKEY key, query_callback_fn fn, void* p)
   return true;
 }
 
+static bool find_registry_key(char* path, query_callback_fn query, 
+  bool query_subkeys, void* p)
+{
+  bool success = true;
+  HKEY key;
+
+  //try global installations
+  if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, path, 0,
+    (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
+  {
+    //try user-only installations
+    if(RegOpenKeyEx(HKEY_CURRENT_USER, path, 0,
+      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
+    {
+      success = false;
+    }
+  }
+
+  if(success)
+  {
+    if(!query_registry(key, query_subkeys, query, p))
+      success = false;
+  }
+ 
+  RegCloseKey(key);
+
+  return success;
+}
+
+static void pick_newest_vs(HKEY key, char* name, void* p)
+{
+  search_t* vs = (search_t*)p;
+  DWORD idx = 0;
+  DWORD status = 0;
+
+  DWORD ver_size = MAX_VER_LEN + 1;
+  DWORD path_len = MAX_PATH + 1;
+
+  DWORD size = ver_size;
+
+  //thats a bit fragile
+  VLA(char, new_version, ver_size);
+  VLA(char, new_path, path_len);
+
+  while(true)
+  {
+    status = RegEnumValue(key, idx, new_version, &size, NULL, NULL, NULL, NULL);
+    
+    if(status != ERROR_SUCCESS)
+      break;
+    
+    if((strlen(vs->version) == 0)
+      || (strncmp(vs->version, new_version, strlen(vs->version)) < 0))
+    {
+      if(RegGetValue(key, NULL, new_version,
+        RRF_RT_REG_SZ, NULL, new_path, &path_len) == ERROR_SUCCESS)
+      {
+        strcpy(vs->path, new_path);
+        strcpy(vs->version, new_version);
+      }
+    }
+
+    idx++;
+    size = ver_size;
+  };
+}
+
 static void pick_newest_sdk(HKEY key, char* name, void* p)
 {
-  sdk_search_t* sdk = (sdk_search_t*)p;
+  search_t* sdk = (search_t*)p;
 
   //it seesm to be the case that sub nodes ending
   //with an 'A' are .NET Framework SDKs
@@ -94,65 +172,78 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
       if((strlen(sdk->version) == 0)
         || (strncmp(sdk->version, new_version, strlen(sdk->version)) < 0))
       {
-        memcpy(sdk->vcvars->sdk_lib_dir, new_path, MAX_PATH + 1);
-        memcpy(sdk->version, new_version, version_len);
+        strcpy(sdk->path, new_path);
+        strcpy(sdk->version, new_version);
       }
     }
   }
 }
 
-static bool find_kernel32(sdk_search_t* search)
+static bool find_kernel32(vcvars_t* vcvars)
 {
-  bool success = true;
-  HKEY key;
+  search_t sdk;
+  memset(sdk.version, 0, MAX_VER_LEN + 1);
 
-  if(RegOpenKeyEx(HKEY_LOCAL_MACHINE, REG_SDK_INSTALL_PATH, 0,
-    (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
+  if(!find_registry_key(REG_SDK_INSTALL_PATH, pick_newest_sdk, true, &sdk))
   {
-    //try the fallback, otherwise give up
-    if(RegOpenKeyEx(HKEY_CURRENT_USER, REG_SDK_INSTALL_PATH_FALLBACK, 0,
-      (KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE), &key) != ERROR_SUCCESS)
-    {
-      success = false;
-    }
+    errorf(NULL, "unable to locate a Windows SDK");
+    return false;
   }
 
-  if(success)
-  {
-    if(!query_registry(key, pick_newest_sdk, search))
-      success = false;
-  }
+  strcpy(vcvars->kernel32, sdk.path); 
+  strcat(vcvars->kernel32, "Lib\\winv6.3\\um\\x64");
 
-  RegCloseKey(key);
-
-  //we try to search for the 64-bit version of kernel32.lib provided with
-  //the Windows SDK framework we have just found.
-  //strcat(search->vcvars->sdk_lib_dir, "Lib\\winv6.3\\um\\x64");
-
-  return success;
+  return true;
 }
 
 static bool find_msvcrt(vcvars_t* vcvars)
 {
-  return false;
+  search_t vs;
+  memset(vs.version, 0, MAX_VER_LEN + 1);
+
+  if(!find_registry_key(REG_VS_INSTALL_PATH, pick_newest_vs, false, &vs))
+  {
+    errorf(NULL, "unable to locate Visual Studio");
+    return false;
+  }
+
+  strcpy(vcvars->msvcrt, vs.path);
+  strcat(vcvars->msvcrt, "VC\\lib\\amd64");
+
+  //find the linker relative to vs.path
+  //we expect one to be at vs.path\bin
+  TCHAR linker_path[MAX_PATH + 1];
+  strcpy(linker_path, vs.path);
+  strcat(linker_path, "VC\\bin\\link.exe");
+
+  if((GetFileAttributes(linker_path) != INVALID_FILE_ATTRIBUTES))
+  {
+    strcpy(vcvars->link, linker_path);
+  }
+  else
+  {
+    errorf(NULL, "unable to locate link.exe");
+    return false;
+  }
+
+  return true;
 }
 
 bool vcvars_get(vcvars_t* vcvars)
 {
-  memset(vcvars->sdk_lib_dir, 0, MAX_PATH + 1);
-
-  sdk_search_t sdk;
-  sdk.vcvars = vcvars;
-
-  memset(sdk.version, 0, MAX_VER_LEN + 1);
-
-  if(!find_kernel32(&sdk))
+  if(!find_kernel32(vcvars))
     return false;
 
   if(!find_msvcrt(vcvars))
     return false;
-
+  
   return true;
+}
+
+size_t vcvars_get_path_length(vcvars_t* vcvars)
+{
+  //space seperated paths
+  return (2 * ((MAX_PATH + 1) + 11));
 }
 
 #endif

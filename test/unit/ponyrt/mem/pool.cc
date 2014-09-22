@@ -1,8 +1,6 @@
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <mem/pool.h>
-PONY_EXTERN_C_END
 
 #include <gtest/gtest.h>
 

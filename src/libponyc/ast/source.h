@@ -2,6 +2,9 @@
 #define SOURCE_H
 
 #include <stddef.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct source_t
 {
@@ -28,5 +31,7 @@ source_t* source_open_string(const char* source_code);
  * May be called on sources that failed to open.
  */
 void source_close(source_t* source);
+
+PONY_EXTERN_C_END
 
 #endif

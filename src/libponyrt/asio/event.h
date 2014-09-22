@@ -2,8 +2,11 @@
 #define asio_event_h
 
 #include <pony.h>
+#include <platform.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+PONY_EXTERN_C_BEGIN
 
 /** Definiton of an ASIO event.
  *
@@ -68,5 +71,7 @@ void asio_event_unsubscribe(asio_event_t* ev);
 
 /// Send a triggered event.
 void asio_event_send(asio_event_t* ev, uint32_t flags);
+
+PONY_EXTERN_C_END
 
 #endif

@@ -1,7 +1,10 @@
 #ifndef TYPE_CAP_H
 #define TYPE_CAP_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+PONY_EXTERN_C_BEGIN
 
 bool is_cap_sub_cap(token_id sub, token_id super);
 
@@ -29,5 +32,7 @@ token_id cap_send(token_id cap);
 bool cap_sendable(token_id cap);
 
 bool cap_safetowrite(token_id into, token_id cap);
+
+PONY_EXTERN_C_END
 
 #endif

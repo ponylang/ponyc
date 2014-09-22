@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/ast.h>
 #include <pass/scope.h>
 #include <ds/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
-PONY_EXTERN_C_END
 
 #include "util.h"
 

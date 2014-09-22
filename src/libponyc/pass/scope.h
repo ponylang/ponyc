@@ -1,7 +1,10 @@
 #ifndef PASS_SCOPE_H
 #define PASS_SCOPE_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+PONY_EXTERN_C_BEGIN
 
 /**
  * Inserts entries in scopes. When this is complete, all scopes are fully
@@ -10,5 +13,7 @@
  * and local variables.
  */
 ast_result_t pass_scope(ast_t** astp);
+
+PONY_EXTERN_C_END
 
 #endif

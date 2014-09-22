@@ -3,9 +3,7 @@
 
 #include <stdlib.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ds/list.h>
-PONY_EXTERN_C_END
 
 typedef struct elem_t elem_t;
 

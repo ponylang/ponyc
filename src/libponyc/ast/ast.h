@@ -8,6 +8,8 @@
 
 #include <platform.h>
 
+PONY_EXTERN_C_BEGIN
+
 /* Description of AST forms produced after parse fix pass.
 
 We define what each type of node should contain. For convenience we also define
@@ -342,6 +344,7 @@ void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_merge(ast_t* dst, ast_t* src);
+bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 void ast_clear(ast_t* ast);
 
 ast_t* ast_add(ast_t* parent, ast_t* child);
@@ -494,5 +497,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
+
+PONY_EXTERN_C_END
 
 #endif

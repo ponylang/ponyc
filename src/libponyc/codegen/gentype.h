@@ -1,7 +1,10 @@
 #ifndef CODEGEN_GENTYPE_H
 #define CODEGEN_GENTYPE_H
 
+#include <platform.h>
 #include "codegen.h"
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct gentype_t
 {
@@ -30,5 +33,7 @@ typedef struct gentype_t
 bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g);
 
 bool gentype(compile_t* c, ast_t* ast, gentype_t* g);
+
+PONY_EXTERN_C_END
 
 #endif

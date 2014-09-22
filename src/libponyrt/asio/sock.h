@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 /** Opaque definition of a socket.
  *
@@ -83,5 +86,7 @@ size_t sock_read_buffer_size(sock_t* s);
  *  Returns true if the socket was closed.
  */
 bool sock_close(sock_t* sock);
+
+PONY_EXTERN_C_END
 
 #endif

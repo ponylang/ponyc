@@ -1,9 +1,7 @@
 #include <platform.h>
 #include <gtest/gtest.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ds/fun.h>
-PONY_EXTERN_C_END
 
 /** Hashing the same integer returns the same key.
  *

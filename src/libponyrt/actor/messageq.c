@@ -27,8 +27,8 @@ bool messageq_push(messageq_t* q, pony_msg_t* m)
 {
   m->next = NULL;
 
-  pony_msg_t* prev = (pony_msg_t*)__pony_atomic_exchange_n(&q->head, m, PONY_ATOMIC_RELAXED,
-    intptr_t);
+  pony_msg_t* prev = (pony_msg_t*)__pony_atomic_exchange_n(&q->head, m,
+    PONY_ATOMIC_RELAXED, intptr_t);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);

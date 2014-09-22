@@ -358,6 +358,13 @@ bool expr_local(ast_t* ast)
 {
   ast_t* idseq = ast_child(ast);
   ast_settype(ast, ast_type(idseq));
+
+  if((ast_id(ast) == TK_LET) && (ast_id(ast_parent(ast)) != TK_ASSIGN))
+  {
+    ast_error(ast, "can't declare a let local without assigning to it");
+    return false;
+  }
+
   return true;
 }
 

@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+PONY_EXTERN_C_BEGIN
+
 #ifdef PLATFORM_IS_POSIX_BASED
 typedef struct _Unwind_Context exception_context_t;
 #elif defined(PLATFORM_IS_VISUAL_STUDIO)
@@ -39,5 +41,7 @@ bool lsda_init(lsda_t* lsda, exception_context_t* context);
 
 _Unwind_Reason_Code lsda_scan(lsda_t* lsda, _Unwind_Action actions,
   uintptr_t* lp);
+
+PONY_EXTERN_C_END
 
 #endif

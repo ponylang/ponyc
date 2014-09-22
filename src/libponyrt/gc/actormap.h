@@ -1,9 +1,13 @@
 #ifndef gc_actormap_h
 #define gc_actormap_h
 
+#include <platform.h>
+
 #include "objectmap.h"
 #include "delta.h"
 #include "../ds/hash.h"
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct actorref_t actorref_t;
 
@@ -37,5 +41,7 @@ actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor,
   size_t mark);
 
 deltamap_t* actormap_sweep(actormap_t* map, size_t mark, deltamap_t* delta);
+
+PONY_EXTERN_C_END
 
 #endif

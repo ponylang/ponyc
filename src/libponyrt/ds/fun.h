@@ -4,10 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <platform.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 typedef uint64_t (*hash_fn)(void* arg);
 
@@ -31,8 +30,6 @@ uint64_t hash_int(uint64_t key);
 
 size_t next_pow2(size_t i);
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif

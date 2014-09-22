@@ -3,8 +3,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <platform.h>
 
 #include "../asio/sock.h"
+
+PONY_EXTERN_C_BEGIN
 
 enum
 {
@@ -62,5 +65,7 @@ uint32_t proto_finish(proto_t* p);
  *
  */
 void proto_reset(proto_t* p);
+
+PONY_EXTERN_C_END
 
 #endif

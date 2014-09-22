@@ -1,9 +1,9 @@
 #ifndef ds_stack_h
 #define ds_stack_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <platform.h>
+
+PONY_EXTERN_C_BEGIN
 
 typedef struct Stack Stack;
 
@@ -28,8 +28,6 @@ Stack* stack_push(Stack* list, void* data);
     return (name##_t*)stack_push((Stack*)stack, data); \
   } \
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif

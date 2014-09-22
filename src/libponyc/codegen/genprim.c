@@ -57,7 +57,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   codegen_finishfun(c);
 
   // realloc
-  name = genname_fun(g->type_name, "realloc", NULL);
+  name = genname_fun(g->type_name, "_realloc", NULL);
 
   params[0] = g->use_type;
   params[1] = c->i64;
@@ -79,7 +79,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   codegen_finishfun(c);
 
   // apply
-  name = genname_fun(g->type_name, "apply", NULL);
+  name = genname_fun(g->type_name, "_apply", NULL);
 
   params[0] = g->use_type;
   params[1] = c->i64;
@@ -98,7 +98,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   codegen_finishfun(c);
 
   // update
-  name = genname_fun(g->type_name, "update", NULL);
+  name = genname_fun(g->type_name, "_update", NULL);
 
   params[0] = g->use_type;
   params[1] = c->i64;
@@ -119,7 +119,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   codegen_finishfun(c);
 
   // copy
-  name = genname_fun(g->type_name, "copy", NULL);
+  name = genname_fun(g->type_name, "_copy", NULL);
 
   params[0] = g->use_type;
   params[1] = g->use_type;
@@ -154,9 +154,12 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
   LLVMSetValueName(arg, "arg");
 
-  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "cond");
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "body");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context, trace_fn, "post");
+  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context,
+    trace_fn, "cond");
+  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context,
+    trace_fn, "body");
+  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
+    trace_fn, "post");
 
   // Read the count and the base pointer.
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type, "array");

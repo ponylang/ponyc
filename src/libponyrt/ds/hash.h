@@ -6,10 +6,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <platform.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 #define HASHMAP_BEGIN ((size_t)-1)
 
@@ -159,8 +158,6 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
     hashmap_trace((hashmap_t*)map, (pony_trace_fn)tracef); \
   } \
 
-#ifdef __cplusplus
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif

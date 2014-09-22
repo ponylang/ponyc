@@ -75,9 +75,8 @@ static bool is_lvalue(ast_t* ast)
 
     case TK_LETREF:
     {
-      // TODO: can't assign to let local from an outer scope in a loop
-      ast_t* id = ast_child(ast);
-      return assign_id(id, true);
+      ast_error(ast, "can't assign to a let local");
+      return false;
     }
 
     case TK_FVARREF:
@@ -656,12 +655,22 @@ bool expr_consume(ast_t* ast)
       break;
 
     default:
-      ast_error(ast, "consume must take a local variable or parameter");
+      ast_error(ast, "consume must take a local or parameter");
       return false;
   }
 
   ast_t* id = ast_child(child);
   const char* name = ast_name(id);
+
+  // Can't consume from an outer scope while inside a loop.
+  ast_t* loop = ast_enclosing_loop(ast);
+
+  if((loop != NULL) && !ast_within_scope(loop, ast, name))
+  {
+    ast_error(ast, "can't consume from an outer scope in a loop");
+    return false;
+  }
+
   ast_setstatus(ast, name, SYM_CONSUMED);
 
   ast_t* type = ast_type(child);

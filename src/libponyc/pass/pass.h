@@ -1,7 +1,12 @@
 #ifndef PASS_H
 #define PASS_H
 
+#include <platform.h>
 #include "../ast/ast.h"
+
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+extern "C" {
+#endif
 
 /** Passes
 
@@ -115,5 +120,9 @@ bool package_passes(ast_t* package);
 * Returns true on success, false on failure.
 */
 bool program_passes(ast_t* program, pass_opt_t* options);
+
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+}
+#endif
 
 #endif

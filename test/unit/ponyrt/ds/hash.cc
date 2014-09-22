@@ -4,10 +4,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ds/fun.h>
 #include <ds/hash.h>
-PONY_EXTERN_C_END
 
 #define INITIAL_SIZE 8
 #define BELOW_HALF (INITIAL_SIZE + (2 - 1)) / 2

@@ -209,6 +209,10 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         child = ast_childidx(child, 1);
 
       ast_t* view = viewpoint_type(child, r_type);
+
+      if(view == NULL)
+        return NULL;
+
       ast_replace(&child, view);
       return ast;
     }
@@ -335,7 +339,9 @@ void flatten_thistype(ast_t** astp, ast_t* type)
       if(ast_id(left) == TK_THISTYPE)
       {
         ast_t* r_right = viewpoint_type(type, right);
-        ast_replace(astp, r_right);
+
+        if(r_right != NULL)
+          ast_replace(astp, r_right);
         return;
       }
     }

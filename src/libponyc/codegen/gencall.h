@@ -1,8 +1,11 @@
 #ifndef CODEGEN_GENCALL_H
 #define CODEGEN_GENCALL_H
 
+#include <platform.h>
 #include "codegen.h"
 #include "gentype.h"
+
+PONY_EXTERN_C_BEGIN
 
 LLVMValueRef gencall(compile_t* c, ast_t* type, const char *name,
   ast_t* typeargs, LLVMValueRef* args, int count, const char* ret);
@@ -21,5 +24,7 @@ LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type);
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type);
 
 void gencall_throw(compile_t* c, ast_t* try_expr);
+
+PONY_EXTERN_C_END
 
 #endif

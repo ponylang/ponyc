@@ -1,10 +1,8 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
 #include <ast/builder.h>
 #include <type/subtype.h>
-PONY_EXTERN_C_END
 
 #include "util.h"
 #include "builtin_ast.h"

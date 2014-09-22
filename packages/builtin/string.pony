@@ -4,27 +4,27 @@ trait Stringable
 class String val is Ordered[String]
   var _size: U64
   var _alloc: U64
-  var _ptr: _Pointer[U8]
+  var _ptr: Pointer[U8]
 
-  new _from_cstring(str: _Pointer[U8] box) =>
+  new from_cstring(str: Pointer[U8] box) =>
     _size = 0
 
-    while str(_size) != 0 do
+    while str._apply(_size) != 0 do
       _size = _size + 1
     end
 
     _alloc = _size + 1
-    _ptr = _Pointer[U8](_alloc)
-    _ptr.copy(str, _alloc)
+    _ptr = Pointer[U8](_alloc)
+    _ptr._copy(str, _alloc)
 
   fun box length(): U64 => _size
 
-  fun box _cstring(): this->_Pointer[U8] => _ptr
+  fun box cstring(): this->Pointer[U8] => _ptr
 
   fun box eq(that: String box): Bool =>
     if _size == that._size then
       for i in Range[U64](0, _size) do
-        if _ptr(i) != that._ptr(i) then
+        if _ptr._apply(i) != that._ptr._apply(i) then
           return False
         end
       end
@@ -36,9 +36,9 @@ class String val is Ordered[String]
   fun box lt(that: String box): Bool =>
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
-      if _ptr(i) < that._ptr(i) then
+      if _ptr._apply(i) < that._ptr._apply(i) then
         return True
-      elseif _ptr(i) > that._ptr(i) then
+      elseif _ptr._apply(i) > that._ptr._apply(i) then
         return False
       end
     end
@@ -47,9 +47,9 @@ class String val is Ordered[String]
   fun box le(that: String box): Bool =>
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
-      if _ptr(i) < that._ptr(i) then
+      if _ptr._apply(i) < that._ptr._apply(i) then
         return True
-      elseif _ptr(i) > that._ptr(i) then
+      elseif _ptr._apply(i) > that._ptr._apply(i) then
         return False
       end
     end
