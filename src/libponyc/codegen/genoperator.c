@@ -7,6 +7,15 @@
 static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   LLVMValueRef r_value);
 
+static bool signed_compare(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, left, right);
+  ast_t* l_type = ast_type(left);
+  ast_t* r_type = ast_type(right);
+
+  return is_signed(l_type) || is_signed(r_type);
+}
+
 static bool is_fp(LLVMValueRef val)
 {
   LLVMTypeRef type = LLVMTypeOf(val);
@@ -437,14 +446,13 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
   LLVMValueRef l_value;
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
-  ast_t* type = ast_type(ast);
 
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOLT, l_value, r_value);
 
-    if(is_signed(type))
+    if(signed_compare(ast))
       return LLVMConstICmp(LLVMIntSLT, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntULT, l_value, r_value);
@@ -456,7 +464,7 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOLT, l_value, r_value, "");
 
-  if(is_signed(type))
+  if(signed_compare(ast))
     return LLVMBuildICmp(c->builder, LLVMIntSLT, l_value, r_value, "");
 
   return LLVMBuildICmp(c->builder, LLVMIntULT, l_value, r_value, "");
@@ -467,14 +475,13 @@ LLVMValueRef gen_le(compile_t* c, ast_t* ast)
   LLVMValueRef l_value;
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
-  ast_t* type = ast_type(ast);
 
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOLE, l_value, r_value);
 
-    if(is_signed(type))
+    if(signed_compare(ast))
       return LLVMConstICmp(LLVMIntSLE, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntULE, l_value, r_value);
@@ -486,7 +493,7 @@ LLVMValueRef gen_le(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOLE, l_value, r_value, "");
 
-  if(is_signed(type))
+  if(signed_compare(ast))
     return LLVMBuildICmp(c->builder, LLVMIntSLE, l_value, r_value, "");
 
   return LLVMBuildICmp(c->builder, LLVMIntULE, l_value, r_value, "");
@@ -497,14 +504,13 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
   LLVMValueRef l_value;
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
-  ast_t* type = ast_type(ast);
 
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOGE, l_value, r_value);
 
-    if(is_signed(type))
+    if(signed_compare(ast))
       return LLVMConstICmp(LLVMIntSGE, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntUGE, l_value, r_value);
@@ -516,7 +522,7 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOGE, l_value, r_value, "");
 
-  if(is_signed(type))
+  if(signed_compare(ast))
     return LLVMBuildICmp(c->builder, LLVMIntSGE, l_value, r_value, "");
 
   return LLVMBuildICmp(c->builder, LLVMIntUGE, l_value, r_value, "");
@@ -527,14 +533,13 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
   LLVMValueRef l_value;
   LLVMValueRef r_value;
   bool constant = gen_binop(c, ast, &l_value, &r_value);
-  ast_t* type = ast_type(ast);
 
   if(constant)
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOGT, l_value, r_value);
 
-    if(is_signed(type))
+    if(signed_compare(ast))
       return LLVMConstICmp(LLVMIntSGT, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntUGT, l_value, r_value);
@@ -546,7 +551,7 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOGT, l_value, r_value, "");
 
-  if(is_signed(type))
+  if(signed_compare(ast))
     return LLVMBuildICmp(c->builder, LLVMIntSGT, l_value, r_value, "");
 
   return LLVMBuildICmp(c->builder, LLVMIntUGT, l_value, r_value, "");
