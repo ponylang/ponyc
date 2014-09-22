@@ -690,6 +690,9 @@ void ast_setstatus(ast_t* ast, const char* name, sym_status_t status)
 
 void ast_inheritstatus(ast_t* dst, ast_t* src)
 {
+  if(dst == NULL)
+    return;
+
   while(dst->symtab == NULL)
     dst = dst->scope;
 

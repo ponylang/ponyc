@@ -486,7 +486,7 @@ bool expr_and(ast_t** astp)
 
   if(is_bool(l_type) && is_bool(r_type))
   {
-    // rewrite as: if left then right else False end
+    // Rewrite as: if left then right else False end
     REPLACE(astp,
       NODE(TK_IF,
         NODE(TK_SEQ, TREE(left))
@@ -515,7 +515,7 @@ bool expr_or(ast_t** astp)
 
   if(is_bool(l_type) && is_bool(r_type))
   {
-    // rewrite as: if left then True else right end
+    // Rewrite as: if left then True else right end
     REPLACE(astp,
       NODE(TK_IF,
         NODE(TK_SEQ, TREE(left))

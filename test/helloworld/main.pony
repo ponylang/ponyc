@@ -17,7 +17,11 @@ actor Test
     _main = m
 
 actor Main
+  var _env: Env
+
   new create(env: Env) =>
+    _env = env
+
     for s in env.args.values() do
       env.stdout.print(s)
     end
