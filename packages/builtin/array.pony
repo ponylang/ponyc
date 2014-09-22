@@ -18,6 +18,8 @@ class Array[A]
 
   fun box length(): U64 => size
 
+  fun box carray(): this->Pointer[A] => ptr
+
   fun box apply(i: U64): this->A ? =>
     if i < size then
       ptr._apply(i)

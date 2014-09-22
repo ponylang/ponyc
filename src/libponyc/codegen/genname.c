@@ -124,7 +124,7 @@ const char* genname_dispatch(const char* type)
 
 const char* genname_finalise(const char* type)
 {
-  return build_name(type, "$finalise", NULL);
+  return build_name(type, "_final", NULL);
 }
 
 const char* genname_descriptor(const char* type)

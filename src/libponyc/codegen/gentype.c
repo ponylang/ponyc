@@ -537,7 +537,6 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(!genfun_methods(c, g))
     return false;
 
-  // TODO: for actors: create a finaliser
   gendesc_init(c, g);
 
   // Finish off the dispatch function.
