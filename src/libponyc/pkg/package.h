@@ -26,8 +26,10 @@ bool package_init(const char* name, pass_opt_t* opt);
 strlist_t* package_paths();
 
 /**
- * Appends a list of colon (:) separated paths to the list of paths that will
- * be searched for packages.
+ * Appends a list of paths to the list of paths that will be searched for
+ * packages.
+ * Path list is semicolon (;) separated on Windows and colon (:) separated on
+ * Linux and MacOS.
  */
 void package_add_paths(const char* paths);
 
@@ -69,7 +71,7 @@ ast_t* package_id(ast_t* ast);
 /**
  * Gets the last component of the package path.
  */
-const char* package_filename(ast_t* ast);
+const char* package_filename(ast_t* package);
 
 /**
  * Gets an AST ID node with a string set to a hygienic ID. Hygienic IDs are

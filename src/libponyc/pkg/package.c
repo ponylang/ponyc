@@ -13,7 +13,23 @@
 #include <errno.h>
 #include <assert.h>
 
+#ifdef PLATFORM_IS_LINUX
+#include <unistd.h>
+#endif
+
 #define EXTENSION ".pony"
+
+
+#ifdef PLATFORM_IS_WINDOWS
+# define PATH_SLASH '\\'
+# define PATH_SLASH_STR "\\"
+# define PATH_LIST_SEPARATOR ';'
+#else
+# define PATH_SLASH '/'
+# define PATH_SLASH_STR "/"
+# define PATH_LIST_SEPARATOR ':'
+#endif
+
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
 /** Disable warning about "getenv" begin unsafe. The alternatives, s_getenv and
@@ -24,13 +40,15 @@
 #  pragma warning(disable:4996)
 #endif
 
+// Per package state
 typedef struct package_t
 {
-  const char* path;
+  const char* path; // Absolute path
   const char* id;
   size_t next_hygienic_id;
 } package_t;
 
+// Per defined magic package sate
 typedef struct magic_package_t
 {
   const char* path;
@@ -38,147 +56,36 @@ typedef struct magic_package_t
   struct magic_package_t* next;
 } magic_package_t;
 
-static strlist_t* search;
+// Global state
+static strlist_t* search = NULL;
 static magic_package_t* magic_packages = NULL;
 static bool report_build = true;
 
 
-// Check whether the given path is a defined magic package
-static bool is_magic_package(const char* path)
+// Find the magic source code associated with the given path, if any
+static const char* find_magic_package(const char* path)
 {
   for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
   {
     if(path == p->path)
-      return true;
+      return p->src;
   }
 
-  return false;
+  return NULL;
 }
 
 
-// Build a magic package
-static bool do_magic_package(ast_t* package, const char* path)
+// Attempt to parse the specified source file and add it to the given AST
+// @return true on success, false on error
+static bool parse_source_file(ast_t* package, const char* file_path)
 {
-  for(magic_package_t* p = magic_packages; p != NULL; p = p->next)
-  {
-    if(path == p->path)
-    {
-      source_t* source = source_open_string(p->src);
-      ast_t* module = parser(source);
-
-      if(module == NULL)
-      {
-        errorf("internal", "couldn't parse package description");
-        source_close(source);
-        return false;
-      }
-
-      ast_add(package, module);
-      return true;
-    }
-  }
-
-  // Magic not found. Oops
-  errorf("internal", "magic package %s not found", path);
-  assert(false);
-  return false;
-}
-
-
-static bool filepath(const char *file, char* path)
-{
-  struct stat sb;
-
-  if((pony_realpath(file, path) != path)
-    || (stat(path, &sb) != 0)
-    || ((sb.st_mode & S_IFMT) != S_IFREG)
-    )
-  {
-    return false;
-  }
-
-  char *p = strrchr(path, '/');
-
-#ifdef PLATFORM_IS_WINDOWS
-  char *b = strrchr(path, '\\');
-  if(p < b) p = b;
-#endif
-
-  if(p != NULL)
-  {
-    if(p != path)
-    {
-      p[0] = '\0';
-    } else {
-      p[1] = '\0';
-    }
-  }
-
-  return true;
-}
-
-static bool execpath(const char* file, char* path)
-{
-  // if it contains a separator of any kind, it's an absolute or relative path
-  bool is_path = strchr(file, '/') != NULL;
-
-#ifdef PLATFORM_IS_WINDOWS
-  is_path |= strchr(file, '\\') != NULL;
-#endif
-
-  if(is_path)
-    return filepath(file, path);
-
-  // it's just an executable name, so walk the path
-  const char* env = getenv("PATH");
-
-  if(env != NULL)
-  {
-    size_t flen = strlen(file);
-
-    while(true)
-    {
-      char* p = strchr((char*)env, ':');
-      size_t len;
-
-      if(p != NULL)
-      {
-        len = p - env;
-      } else {
-        len = strlen(env);
-      }
-
-      if((len + flen + 1) < FILENAME_MAX)
-      {
-        char check[FILENAME_MAX];
-        strncpy(check, env, len);
-#ifdef PLATFORM_IS_POSIX_BASED
-        check[len++] = '/';
-#elif defined(PLATFORM_IS_WINDOWS)
-        check[len++] = '\\';
-#endif
-        strcpy(&check[len], file);
-
-        if(filepath(check, path))
-          return true;
-      }
-
-      if(p == NULL) { break; }
-      env = p + 1;
-    }
-  }
-
-  // try the current directory as a last resort
-  return filepath(file, path);
-}
-
-static bool do_file(ast_t* package, const char* file)
-{
-  source_t* source = source_open(file);
+  assert(package != NULL);
+  assert(file_path != NULL);
+  source_t* source = source_open(file_path);
 
   if(source == NULL)
   {
-    errorf(file, "couldn't open file");
+    errorf(file_path, "couldn't open file %s", file_path);
     return false;
   }
 
@@ -186,7 +93,7 @@ static bool do_file(ast_t* package, const char* file)
 
   if(module == NULL)
   {
-    errorf(file, "couldn't parse file");
+    errorf(file_path, "couldn't parse file %s", file_path);
     source_close(source);
     return false;
   }
@@ -195,32 +102,62 @@ static bool do_file(ast_t* package, const char* file)
   return true;
 }
 
-static bool do_path(bool is_magic, ast_t* package, const char* path)
-{
-  if(is_magic)
-    return do_magic_package(package, path);
 
+// Attempt to parse the specified source code and add it to the given AST
+// @return true on success, false on error
+static bool parse_source_code(ast_t* package, const char* src)
+{
+  assert(package != NULL);
+  assert(src != NULL);
+  source_t* source = source_open_string(src);
+  assert(source != NULL);
+
+  ast_t* module = parser(source);
+
+  if(module == NULL)
+  {
+    source_close(source);
+    return false;
+  }
+
+  ast_add(package, module);
+  return true;
+}
+
+
+// Cat together the 2 given path fragments into the given buffer.
+// The first path fragment may be absolute, relative or NULL
+static void path_cat(const char* part1, const char* part2,
+  char result[FILENAME_MAX])
+{
+  if(part1 != NULL)
+  {
+    strcpy(result, part1);
+    strcat(result, PATH_SLASH_STR);
+    strcat(result, part2);
+  }
+  else {
+    strcpy(result, part2);
+  }
+}
+
+
+// Attempt to parse the source files in the specified directory and add them to
+// the given package AST
+// @return true on success, false on error
+static bool parse_files_in_dir(ast_t* package, const char* dir_path)
+{
   PONY_ERRNO err = 0;
-  PONY_DIR* dir = pony_opendir(path, &err);
+  PONY_DIR* dir = pony_opendir(dir_path, &err);
 
   if(dir == NULL)
   {
     switch(err)
     {
-      case EACCES:
-        errorf(path, "permission denied");
-        break;
-
-      case ENOENT:
-        errorf(path, "does not exist");
-        break;
-
-      case ENOTDIR:
-        errorf(path, "not a directory");
-        break;
-
-      default:
-        errorf(path, "unknown error");
+      case EACCES:  errorf(dir_path, "permission denied"); break;
+      case ENOENT:  errorf(dir_path, "does not exist");    break;
+      case ENOTDIR: errorf(dir_path, "not a directory");   break;
+      default:      errorf(dir_path, "unknown error");     break;
     }
 
     return false;
@@ -232,25 +169,15 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
 
   while(!pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
-    //if(d->d_type & DT_REG)
+    // Handle only files with the specified extension
+    char* name = pony_dir_info_name(d);
+    const char* p = strrchr(name, '.');
+
+    if(p != NULL && strcmp(p, EXTENSION) == 0)
     {
-      // handle only files with the specified extension
-      char* name = pony_dir_info_name(d);
-      const char* p = strrchr(name, '.');
-
-      if(!p || strcmp(p, EXTENSION))
-        continue;
-
       char fullpath[FILENAME_MAX];
-      strcpy(fullpath, path);
-#ifdef PLATFORM_IS_POSIX_BASED
-      strcat(fullpath, "/");
-#elif defined(PLATFORM_IS_WINDOWS)
-      strcat(fullpath, "\\");
-#endif
-      strcat(fullpath, name);
-
-      r &= do_file(package, fullpath);
+      path_cat(dir_path, name, fullpath);
+      r &= parse_source_file(package, fullpath);
     }
   }
 
@@ -258,23 +185,17 @@ static bool do_path(bool is_magic, ast_t* package, const char* path)
   return r;
 }
 
+
+// Check whether the directory specified by catting the given abse and path
+// exists
+// @return The resulting directory path, which should not be deleted and is
+// valid indefinitely. NULL is directory cannot be found.
 static const char* try_path(const char* base, const char* path)
 {
   char composite[FILENAME_MAX];
   char file[FILENAME_MAX];
 
-  if(base != NULL)
-  {
-    strcpy(composite, base);
-#ifdef PLATFORM_IS_POSIX_BASED
-    strcat(composite, "/");
-#elif defined(PLATFORM_IS_WINDOWS)
-    strcat(composite, "\\");
-#endif
-    strcat(composite, path);
-  } else {
-    strcpy(composite, path);
-  }
+  path_cat(base, path, composite);
 
   if(pony_realpath(composite, file) != file)
     return NULL;
@@ -282,8 +203,13 @@ static const char* try_path(const char* base, const char* path)
   return stringtab(file);
 }
 
+
+// Attempt to find the specified package directory in our search path
+// @return The resulting directory path, which should not be deleted and is
+// valid indefinitely. NULL is directory cannot be found.
 static const char* find_path(ast_t* from, const char* path)
 {
+  // First check for an absolute path
   bool is_absolute = false;
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -299,14 +225,15 @@ static const char* find_path(ast_t* from, const char* path)
 
   if(ast_id(from) == TK_PROGRAM)
   {
-    // try a path relative to the current working directory
+    // Try a path relative to the current working directory
     result = try_path(NULL, path);
 
     if(result != NULL)
       return result;
   }
-  else {
-    // try a path relative to the importing package
+  else
+  {
+    // Try a path relative to the importing package
     from = ast_nearest(from, TK_PACKAGE);
     package_t* pkg = (package_t*)ast_data(from);
     result = try_path(pkg->path, path);
@@ -315,23 +242,22 @@ static const char* find_path(ast_t* from, const char* path)
       return result;
   }
 
-  // try the search paths
-  strlist_t* p = search;
-
-  while(p != NULL)
+  // Try the search paths
+  for(strlist_t* p = search; p != NULL; p = strlist_next(p))
   {
     result = try_path(strlist_data(p), path);
 
     if(result != NULL)
       return result;
-
-    p = strlist_next(p);
   }
 
   errorf(path, "couldn't locate this path");
   return NULL;
 }
 
+
+// Convert the given ID to a hygenic string. The resulting string should not be
+// deleted and is valid indefinitely.
 static const char* id_to_string(size_t id)
 {
   char buffer[32];
@@ -339,6 +265,8 @@ static const char* id_to_string(size_t id)
   return stringtab(buffer);
 }
 
+
+// Create a package AST, set up its state and add it to the given program
 static ast_t* create_package(ast_t* program, const char* name)
 {
   ast_t* package = ast_blank(TK_PACKAGE);
@@ -359,14 +287,71 @@ static ast_t* create_package(ast_t* program, const char* name)
   return package;
 }
 
+
+// Check that the given path exists and add it to our package search paths
 static void add_path(const char* path)
 {
+#ifdef PLATFORM_IS_WINDOWS
+  // The Windows implementation of stat() cannot cope with trailing a \ on a
+  // directory name, so we remove it here if present. It is not safe to modify
+  // the given path since it may come direct from getenv(), so we copy.
+  char buf[FILENAME_MAX];
+  strcpy(buf, path);
+  size_t len = strlen(path);
+
+  if(path[len - 1] == '\\')
+  {
+    buf[len - 1] = '\0';
+    path = buf;
+  }
+#endif
+
   struct stat s;
   int err = stat(path, &s);
 
   if((err != -1) && S_ISDIR(s.st_mode))
     search = strlist_append(search, stringtab(path));
 }
+
+
+// Determine the absolute path of the directory the current executable is in
+// and add it to our search path
+static void add_exec_dir(const char* file)
+{
+  char path[FILENAME_MAX];
+  bool success;
+
+#ifdef PLATFORM_IS_WINDOWS
+  GetModuleFileName(NULL, path, FILENAME_MAX);
+  success = (GetLastError() == ERROR_SUCCESS);
+#elif defined PLATFORM_IS_LINUX
+  int r = readlink("/proc/self/exe", path, FILENAME_MAX);
+  success = (r >= 0);
+#elif defined PLATFORM_IS_MACOSX
+  success = false;
+#else
+#  error Unsupported platform for exec_path()
+#endif
+
+  if(!success)
+  {
+    errorf(NULL, "Error determining executable path");
+    return;
+  }
+
+  // We only need the directory
+  char *p = strrchr(path, PATH_SLASH);
+
+  if(p == NULL)
+  {
+    errorf(NULL, "Error determining executable path (%s)", path);
+    return;
+  }
+
+  p[1] = '\0';
+  add_path(path);
+}
+
 
 bool package_init(const char* name, pass_opt_t* opt)
 {
@@ -380,18 +365,16 @@ bool package_init(const char* name, pass_opt_t* opt)
   add_path("/usr/local/lib");
 #endif
 
-  char path[FILENAME_MAX];
-
-  if(execpath(name, path))
-    add_path(path);
-
+  add_exec_dir(name);
   return true;
 }
+
 
 strlist_t* package_paths()
 {
   return search;
 }
+
 
 void package_add_paths(const char* paths)
 {
@@ -400,21 +383,24 @@ void package_add_paths(const char* paths)
 
   while(true)
   {
-#ifdef PLATFORM_IS_WINDOWS
-    const char* p = strchr(paths, ';');
-#else
-    const char* p = strchr(paths, ':');
-#endif
+    // Find end of next path
+    const char* p = strchr(paths, PATH_LIST_SEPARATOR);
     size_t len;
 
     if(p != NULL)
     {
+      // Separator found
       len = p - paths;
     } else {
+      // Separator not found, this is the last path in the list
       len = strlen(paths);
     }
 
-    if(len < FILENAME_MAX)
+    if(len >= FILENAME_MAX)
+    {
+      errorf(NULL, "Path too long in %s", paths);
+    }
+    else
     {
       char path[FILENAME_MAX];
 
@@ -423,12 +409,13 @@ void package_add_paths(const char* paths)
       add_path(path);
     }
 
-    if(p == NULL)
+    if(p == NULL) // No more separators
       break;
 
     paths = p + 1;
   }
 }
+
 
 void package_add_magic(const char* path, const char* src)
 {
@@ -439,10 +426,12 @@ void package_add_magic(const char* path, const char* src)
   magic_packages = n;
 }
 
+
 void package_suppress_build_message()
 {
   report_build = false;
 }
+
 
 ast_t* program_load(const char* path)
 {
@@ -458,13 +447,18 @@ ast_t* program_load(const char* path)
   return program;
 }
 
+
 ast_t* package_load(ast_t* from, const char* path)
 {
-  bool magic = is_magic_package(path);
-  const char* name = magic ? path : find_path(from, path);
-
-  if(name == NULL)
-    return NULL;
+  const char* magic = find_magic_package(path);
+  const char* name = path;
+  
+  if(magic == NULL)
+  {
+    name = find_path(from, path);
+    if(name == NULL)
+      return NULL;
+  }
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
   ast_t* package = ast_get(program, name, NULL);
@@ -477,8 +471,16 @@ ast_t* package_load(ast_t* from, const char* path)
   if(report_build)
     printf("=== Building %s ===\n", name);
 
-  if(!do_path(magic, package, name))
-    return NULL;
+  if(magic != NULL)
+  {
+    if(!parse_source_code(package, magic))
+      return NULL;
+  }
+  else
+  {
+    if(!parse_files_in_dir(package, name))
+      return NULL;
+  }
 
   if(ast_child(package) == NULL)
   {
@@ -495,26 +497,28 @@ ast_t* package_load(ast_t* from, const char* path)
   return package;
 }
 
+
 const char* package_name(ast_t* ast)
 {
   package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
   return (pkg == NULL) ? NULL : pkg->id;
 }
 
+
 ast_t* package_id(ast_t* ast)
 {
   return ast_from_string(ast, package_name(ast));
 }
 
-const char* package_filename(ast_t* ast)
-{
-  package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
 
-#ifdef PLATFORM_IS_POSIX_BASED
-  const char* p = strrchr(pkg->path, '/');
-#elif defined(PLATFORM_IS_WINDOWS)
-  const char* p = strrchr(pkg->path, '\\');
-#endif
+const char* package_filename(ast_t* package)
+{
+  assert(package != NULL);
+  assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  assert(pkg != NULL);
+
+  const char* p = strrchr(pkg->path, PATH_SLASH);
 
   if(p == NULL)
     return pkg->path;
@@ -522,10 +526,12 @@ const char* package_filename(ast_t* ast)
   return p + 1;
 }
 
+
 ast_t* package_hygienic_id(ast_t* ast)
 {
   return ast_from_string(ast, package_hygienic_id_string(ast));
 }
+
 
 const char* package_hygienic_id_string(ast_t* ast)
 {
@@ -542,6 +548,7 @@ const char* package_hygienic_id_string(ast_t* ast)
 
   return id_to_string(id);
 }
+
 
 void package_done(pass_opt_t* opt)
 {
