@@ -375,6 +375,9 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
 
+  // Keep track of whether or not we're optimising.
+  c->opt = opt->opt;
+
   // Context.
   c->context = LLVMContextCreate();
 

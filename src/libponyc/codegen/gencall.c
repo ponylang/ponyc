@@ -84,6 +84,8 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
 #else
     return LLVMConstInt(c->i1, 0, false);
 #endif
+  } else if(!strcmp(method_name, "debug")) {
+    return LLVMConstInt(c->i1, !c->opt, false);
   }
 
   return NULL;

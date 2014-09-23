@@ -245,6 +245,14 @@ void genprim_platform(compile_t* c, gentype_t* g)
 #endif
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  name = genname_fun(g->type_name, "debug", NULL);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  result = LLVMConstInt(c->i1, !c->opt, false);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
 }
 
 typedef struct prim_conv_t
