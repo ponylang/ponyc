@@ -240,7 +240,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     (unsigned int)count, "");
 
   LLVMSetInstructionCallConv(result, LLVMFastCallConv);
-
   return result;
 }
 
@@ -413,9 +412,7 @@ bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
   if(trace_fn == NULL)
     return false;
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
-  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
-  return true;
+  return LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
 }
 
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)

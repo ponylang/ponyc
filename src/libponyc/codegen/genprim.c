@@ -155,7 +155,9 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
+
   codegen_startfun(c, trace_fn);
+  LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
   LLVMSetValueName(arg, "arg");
