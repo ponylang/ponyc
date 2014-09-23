@@ -205,11 +205,8 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
 
-  // i8* memcpy(i8*, i8*, i64)
-  params[0] = c->void_ptr;
-  params[1] = c->void_ptr;
-  params[2] = c->i64;
-  type = LLVMFunctionType(c->void_ptr, params, 3, false);
+  // i8* memcpy(...)
+  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
   LLVMAddFunction(c->module, "memcpy", type);
 }
 
