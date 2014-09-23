@@ -37,7 +37,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   gentype_t phi_type;
 
-  // we will have no type if both branches have return statements
+  // We will have no type if both branches have return statements.
   if((type != NULL) && !gentype(c, type, &phi_type))
     return NULL;
 
@@ -45,6 +45,17 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(c_value == NULL)
     return NULL;
+
+  // If the conditional is constant, generate only one branch.
+  if(LLVMIsAConstantInt(c_value))
+  {
+    int value = LLVMConstIntGetZExtValue(c_value);
+
+    if(value == 0)
+      return gen_expr(c, right);
+
+    return gen_expr(c, left);
+  }
 
   // build a conditional
   LLVMValueRef fun = codegen_fun(c);
@@ -54,13 +65,13 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     fun, "if_else");
   LLVMBasicBlockRef post_block = NULL;
 
-  // if both branches return, we have no post block
+  // If both branches return, we have no post block.
   if(type != NULL)
     post_block = LLVMAppendBasicBlockInContext(c->context, fun, "if_post");
 
   LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
-  // left branch
+  // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   LLVMValueRef l_value = gen_expr(c, left);
 
@@ -75,11 +86,11 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // right branch
+  // Right branch.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   LLVMValueRef r_value = gen_expr(c, right);
 
-  // if the right side returns, we don't branch to the post block
+  // If the right side returns, we don't branch to the post block.
   if(r_value != GEN_NOVALUE)
   {
     r_value = gen_assign_cast(c, phi_type.use_type, r_value, right_type);
@@ -91,11 +102,11 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     LLVMBuildBr(c->builder, post_block);
   }
 
-  // if both sides return, we return a sentinal value
+  // If both sides return, we return a sentinal value.
   if(type == NULL)
     return GEN_NOVALUE;
 
-  // continue in the post block
+  // Continue in the post block.
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
   LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");

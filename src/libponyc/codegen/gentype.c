@@ -186,6 +186,11 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   {
     // Fill in our global instance if the type is not opaque.
     make_global_instance(c, g);
+
+    // Handle compiler intrinsics that need our type to be set up.
+    if(!strcmp(g->type_name, "$1_Platform"))
+      genprim_platform(c, g);
+
     return true;
   }
 

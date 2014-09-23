@@ -2,7 +2,6 @@
 #include "genname.h"
 #include "gentype.h"
 #include "gencall.h"
-#include <math.h>
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
@@ -207,6 +206,47 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
+void genprim_platform(compile_t* c, gentype_t* g)
+{
+  LLVMTypeRef f_type = LLVMFunctionType(c->i1, &g->use_type, 1, false);
+
+  const char* name = genname_fun(g->type_name, "linux", NULL);
+  LLVMValueRef fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+#ifdef PLATFORM_IS_LINUX
+  LLVMValueRef result = LLVMConstInt(c->i1, 1, false);
+#else
+  LLVMValueRef result = LLVMConstInt(c->i1, 0, false);
+#endif
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
+  name = genname_fun(g->type_name, "osx", NULL);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+#ifdef PLATFORM_IS_MACOSX
+  result = LLVMConstInt(c->i1, 1, false);
+#else
+  result = LLVMConstInt(c->i1, 0, false);
+#endif
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
+  name = genname_fun(g->type_name, "windows", NULL);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+#ifdef PLATFORM_IS_WINDOWS
+  result = LLVMConstInt(c->i1, 1, false);
+#else
+  result = LLVMConstInt(c->i1, 0, false);
+#endif
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 typedef struct prim_conv_t
 {
   const char* type_name;
@@ -217,7 +257,7 @@ typedef struct prim_conv_t
   bool is_float;
 } prim_conv_t;
 
-void genprim_builtins(compile_t* c)
+static void primitive_conversions(compile_t* c)
 {
   prim_conv_t conv[] =
   {
@@ -242,12 +282,6 @@ void genprim_builtins(compile_t* c)
     {NULL, NULL, NULL, false, false}
   };
 
-  // All the builtin functions.
-  const char* name;
-  LLVMTypeRef f_type;
-  LLVMValueRef fun;
-  LLVMValueRef result;
-
   for(prim_conv_t* from = conv; from->type_name != NULL; from++)
   {
     for(prim_conv_t* to = conv; to->type_name != NULL; to++)
@@ -255,12 +289,13 @@ void genprim_builtins(compile_t* c)
       if(to->fun_name == NULL)
         continue;
 
-      name = genname_fun(from->type_name, to->fun_name, NULL);
-      f_type = LLVMFunctionType(to->type, &from->type, 1, false);
-      fun = codegen_addfun(c, name, f_type);
+      const char* name = genname_fun(from->type_name, to->fun_name, NULL);
+      LLVMTypeRef f_type = LLVMFunctionType(to->type, &from->type, 1, false);
+      LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
       codegen_startfun(c, fun);
       LLVMValueRef arg = LLVMGetParam(fun, 0);
+      LLVMValueRef result;
 
       if(from->is_float)
       {
@@ -309,13 +344,16 @@ void genprim_builtins(compile_t* c)
       codegen_finishfun(c);
     }
   }
+}
 
-  name = genname_fun("$1_F32", "pi", NULL);
-  f_type = LLVMFunctionType(c->f32, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
+static void special_number_constructors(compile_t* c)
+{
+  const char* name = genname_fun("$1_F32", "pi", NULL);
+  LLVMTypeRef f_type = LLVMFunctionType(c->f32, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, M_PI));
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 3.14159265358979323846));
   codegen_finishfun(c);
 
   name = genname_fun("$1_F32", "e", NULL);
@@ -323,15 +361,35 @@ void genprim_builtins(compile_t* c)
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, M_E));
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 2.71828182845904523536));
   codegen_finishfun(c);
 
-  name = genname_fun("$1_F32", "from_bits", NULL);
-  f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
+  name = genname_fun("$1_F64", "pi", NULL);
+  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f32, "");
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, 3.14159265358979323846));
+  codegen_finishfun(c);
+
+  name = genname_fun("$1_F64", "e", NULL);
+  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, 2.71828182845904523536));
+  codegen_finishfun(c);
+}
+
+static void fp_as_bits(compile_t* c)
+{
+  const char* name = genname_fun("$1_F32", "from_bits", NULL);
+  LLVMTypeRef f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0),
+    c->f32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -342,22 +400,6 @@ void genprim_builtins(compile_t* c)
   codegen_startfun(c, fun);
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->i32, "");
   LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_F64", "pi", NULL);
-  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, M_PI));
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_F64", "e", NULL);
-  f_type = LLVMFunctionType(c->f64, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  LLVMBuildRet(c->builder, LLVMConstReal(c->f64, M_E));
   codegen_finishfun(c);
 
   name = genname_fun("$1_F64", "from_bits", NULL);
@@ -377,4 +419,11 @@ void genprim_builtins(compile_t* c)
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->i64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+}
+
+void genprim_builtins(compile_t* c)
+{
+  primitive_conversions(c);
+  special_number_constructors(c);
+  fp_as_bits(c);
 }

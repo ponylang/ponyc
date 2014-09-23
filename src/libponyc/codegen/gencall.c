@@ -5,6 +5,7 @@
 #include "genname.h"
 #include "../type/subtype.h"
 #include "../type/cap.h"
+#include <string.h>
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
@@ -39,8 +40,63 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
   return gen_assign_cast(c, type, value, ast_type(arg));
 }
 
+static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, postfix, positional, named);
+
+  if((ast_id(postfix) != TK_FUNREF) ||
+    (ast_id(positional) != TK_NONE) ||
+    (ast_id(named) != TK_NONE)
+    )
+    return NULL;
+
+  AST_GET_CHILDREN(postfix, receiver, method);
+  ast_t* receiver_type = ast_type(receiver);
+
+  if(ast_id(receiver_type) != TK_NOMINAL)
+    return NULL;
+
+  ast_t* def = (ast_t*)ast_data(receiver_type);
+  ast_t* id = ast_child(def);
+  const char* name = ast_name(id);
+
+  if(strcmp(name, "Platform"))
+    return NULL;
+
+  const char* method_name = ast_name(method);
+
+  if(!strcmp(method_name, "linux"))
+  {
+#ifdef PLATFORM_IS_LINUX
+    return LLVMConstInt(c->i1, 1, false);
+#else
+    return LLVMConstInt(c->i1, 0, false);
+#endif
+  } else if(!strcmp(method_name, "osx")) {
+#ifdef PLATFORM_IS_MACOSX
+    return LLVMConstInt(c->i1, 1, false);
+#else
+    return LLVMConstInt(c->i1, 0, false);
+#endif
+  } else if(!strcmp(method_name, "windows")) {
+#ifdef PLATFORM_IS_WINDOWS
+    return LLVMConstInt(c->i1, 1, false);
+#else
+    return LLVMConstInt(c->i1, 0, false);
+#endif
+  }
+
+  return NULL;
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
+  // Special case Platform calls.
+  LLVMValueRef platform = make_platform_call(c, ast);
+
+  if(platform != NULL)
+    return platform;
+
   AST_GET_CHILDREN(ast, postfix, positional, named);
 
   int need_receiver;
@@ -65,7 +121,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_t* typeargs = NULL;
   AST_GET_CHILDREN(postfix, receiver, method);
 
-  // dig through function qualification
+  // Dig through function qualification.
   if(ast_id(receiver) == TK_FUNREF)
   {
     AST_GET_CHILDREN_NO_DECL(receiver, receiver, typeargs);
@@ -89,24 +145,24 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if(need_receiver == 1)
     l_value = gen_expr(c, receiver);
 
-  // static or virtual call?
+  // Static or virtual call?
   const char* method_name = ast_name(method);
   LLVMTypeRef f_type;
   LLVMValueRef func;
 
   if(g.use_type == c->object_ptr)
   {
-    // virtual, get the function by selector colour
+    // Virtual, get the function by selector colour.
     int colour = painter_get_colour(c->painter, method_name);
 
-    // cast the field to a generic object pointer
+    // Cast the field to a generic object pointer.
     l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "object");
 
-    // get the type descriptor from the object pointer
+    // Get the type descriptor from the object pointer.
     LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, l_value, 0, "");
     LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
 
-    // get the function from the vtable
+    // Get the function from the vtable.
     LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
 
     LLVMValueRef index[2];
@@ -121,7 +177,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     // else, and so requires a boxed primitive? Or the real function could take
     // a trait that the primitive provides.
 
-    // cast to the right function type
+    // Cast to the right function type.
     LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
 
     if(proto == NULL)
@@ -133,7 +189,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     f_type = LLVMTypeOf(proto);
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
-    // static, get the actual function
+    // Static, get the actual function.
     func = genfun_proto(c, &g, method_name, typeargs);
 
     if(func == NULL)

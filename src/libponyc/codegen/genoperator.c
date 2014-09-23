@@ -16,6 +16,34 @@ static bool signed_compare(ast_t* ast)
   return is_signed(l_type) || is_signed(r_type);
 }
 
+static bool is_constant_i1(compile_t* c, LLVMValueRef val)
+{
+  if(!LLVMIsAConstantInt(val))
+    return false;
+
+  LLVMTypeRef type = LLVMTypeOf(val);
+
+  return type != c->i1;
+}
+
+static bool is_always_true(compile_t* c, LLVMValueRef val)
+{
+  if(!is_constant_i1(c, val))
+    return false;
+
+  int i = LLVMConstIntGetZExtValue(val);
+  return i == 1;
+}
+
+static bool is_always_false(compile_t* c, LLVMValueRef val)
+{
+  if(!is_constant_i1(c, val))
+    return false;
+
+  int i = LLVMConstIntGetZExtValue(val);
+  return i == 0;
+}
+
 static bool is_fp(LLVMValueRef val)
 {
   LLVMTypeRef type = LLVMTypeOf(val);
@@ -657,6 +685,9 @@ LLVMValueRef gen_and(compile_t* c, ast_t* ast)
   if(constant)
     return LLVMConstAnd(l_value, r_value);
 
+  if(is_always_false(c, l_value) || is_always_false(c, r_value))
+    return LLVMConstInt(c->i1, 0, false);
+
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
@@ -672,6 +703,9 @@ LLVMValueRef gen_or(compile_t* c, ast_t* ast)
   if(constant)
     return LLVMConstOr(l_value, r_value);
 
+  if(is_always_true(c, l_value) || is_always_true(c, r_value))
+    return LLVMConstInt(c->i1, 1, false);
+
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
@@ -686,6 +720,18 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 
   if(constant)
     return LLVMConstXor(l_value, r_value);
+
+  if(is_always_true(c, l_value))
+    return LLVMBuildNot(c->builder, r_value, "");
+
+  if(is_always_false(c, l_value))
+    return r_value;
+
+  if(is_always_true(c, r_value))
+    return LLVMBuildNot(c->builder, l_value, "");
+
+  if(is_always_false(c, r_value))
+    return l_value;
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;

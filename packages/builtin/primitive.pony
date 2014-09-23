@@ -93,7 +93,6 @@ primitive U8 is Stringable, ArithmeticConvertible
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
-    x = x or (x >> 3)
     x = x or (x >> 4)
     x + 1
 
@@ -110,7 +109,6 @@ primitive U16 is Stringable, ArithmeticConvertible
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
-    x = x or (x >> 3)
     x = x or (x >> 4)
     x = x or (x >> 8)
     x + 1
@@ -128,7 +126,6 @@ primitive U32 is Stringable, ArithmeticConvertible
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
-    x = x or (x >> 3)
     x = x or (x >> 4)
     x = x or (x >> 8)
     x = x or (x >> 16)
@@ -147,7 +144,6 @@ primitive U64 is Stringable, ArithmeticConvertible
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
-    x = x or (x >> 3)
     x = x or (x >> 4)
     x = x or (x >> 8)
     x = x or (x >> 16)
@@ -167,7 +163,6 @@ primitive U128 is Stringable, ArithmeticConvertible
     var x = this - 1
     x = x or (x >> 1)
     x = x or (x >> 2)
-    x = x or (x >> 3)
     x = x or (x >> 4)
     x = x or (x >> 8)
     x = x or (x >> 16)
@@ -189,6 +184,24 @@ primitive F32 is Stringable, ArithmeticConvertible
   fun val floor(): F32 => @floorf[F32](this)
   fun val round(): F32 => @roundf[F32](this)
   fun val trunc(): F32 => @truncf[F32](this)
+
+  fun val finite(): Bool =>
+    0 != if Platform.windows() then
+      @_finite[I32](this.f64())
+    elseif Platform.osx() then
+      @finite[I32](this.f64())
+    else
+      @finitef[I32](this)
+    end
+
+  fun val nan(): Bool =>
+    0 != if Platform.windows() then
+      @_isnan[I32](this.f64())
+    elseif Platform.osx() then
+      @isnan[I32](this.f64())
+    else
+      @isnanf[I32](this)
+    end
 
   fun val log(): F32 => @logf[F32](this)
   fun val log10(): F32 => @log10f[F32](this)
@@ -227,6 +240,20 @@ primitive F64 is Stringable, ArithmeticConvertible
   fun val floor(): F64 => @floor[F64](this)
   fun val round(): F64 => @round[F64](this)
   fun val trunc(): F64 => @trunc[F64](this)
+
+  fun val finite(): Bool =>
+    0 != if Platform.windows() then
+      @_finite[I32](this)
+    else
+      @finite[I32](this)
+    end
+
+  fun val nan(): Bool =>
+    0 != if Platform.windows() then
+      @_isnan[I32](this)
+    else
+      @isnan[I32](this)
+    end
 
   fun val log(): F64 => @log[F64](this)
   fun val log10(): F64 => @log10[F64](this)
