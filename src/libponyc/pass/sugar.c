@@ -16,7 +16,7 @@ static ast_t* make_create(ast_t* ast)
       NONE          // params
       NONE          // return type
       NONE          // error
-      NODE(TK_SEQ, NODE(TK_REFERENCE, ID("None")))));
+      NODE(TK_SEQ, INT(0))));
 
   return create;
 }

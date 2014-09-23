@@ -22,9 +22,6 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
 LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, int index);
 
-LLVMValueRef genfun_newdata(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs);
-
 LLVMValueRef genfun_box(compile_t* c, gentype_t* g);
 
 bool genfun_methods(compile_t* c, gentype_t* g);

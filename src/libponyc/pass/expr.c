@@ -74,7 +74,7 @@ ast_result_t pass_expr(ast_t** astp)
     case TK_MOD:
     case TK_PLUS:
     case TK_MINUS:
-      if(!expr_arithmetic(ast))
+      if(!expr_arithmetic(astp))
         return AST_FATAL;
       break;
 

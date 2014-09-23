@@ -4,7 +4,8 @@ class Pointer[A]
   fun ref _realloc(len: U64): Pointer[A] => compiler_intrinsic
   fun box _apply(i: U64): this->A => compiler_intrinsic
   fun ref _update(i: U64, v: A): A^ => compiler_intrinsic
-  fun ref _copy(src: Pointer[A] box, len: U64): U64 => compiler_intrinsic
+  fun ref _copy(offset: U64, src: Pointer[A] box, len: U64): U64 =>
+    compiler_intrinsic
 
 class Array[A]
   var size: U64
@@ -17,6 +18,8 @@ class Array[A]
     ptr = Pointer[A](0)
 
   fun box length(): U64 => size
+
+  fun box carray(): this->Pointer[A] => ptr
 
   fun box apply(i: U64): this->A ? =>
     if i < size then

@@ -141,7 +141,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
     c->trace_fn);
   args[5] = make_function_ptr(c, genname_dispatch(g->type_name),
     c->dispatch_fn);
-  args[6] = make_function_ptr(c, genname_finalise(g->type_name), c->trace_fn);
+  args[6] = make_function_ptr(c, genname_finalise(g->type_name), c->final_fn);
   args[7] = LLVMConstNull(c->void_ptr);
   args[8] = LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
 

@@ -397,22 +397,51 @@ bool expr_order(ast_t** astp)
   return true;
 }
 
-bool expr_arithmetic(ast_t* ast)
+bool expr_arithmetic(ast_t** astp)
 {
+  ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // TODO: string concatenation
   // TODO: treat some tuples as vectors?
   if(!is_arithmetic(l_type) || !is_math_compatible(l_type, r_type))
   {
+    // Check for string concatenation.
+    if((ast_id(ast) == TK_PLUS) &&
+      is_literal(l_type, "String") &&
+      is_literal(r_type, "String"))
+    {
+      BUILD(call, ast,
+        NODE(TK_CALL,
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID("String")) ID("concat"))
+          NODE(TK_POSITIONALARGS, TREE(left) TREE(right))
+          NODE(TK_NONE)
+          )
+        );
+
+      ast_t* dot = ast_child(call);
+      ast_t* ref = ast_child(dot);
+
+      if(!expr_reference(ref))
+        return false;
+
+      if(!expr_dot(dot))
+        return false;
+
+      if(!expr_call(call))
+        return false;
+
+      ast_replace(astp, call);
+      return true;
+    }
+
     ast_error(ast, "left and right side must be the same arithmetic type");
     return false;
   }
 
-  // pick the correct node type
+  // Pick the correct node type.
   if((ast_id(ast) == TK_MINUS) &&
     is_intliteral(l_type) &&
     is_intliteral(r_type))
@@ -486,7 +515,7 @@ bool expr_and(ast_t** astp)
 
   if(is_bool(l_type) && is_bool(r_type))
   {
-    // rewrite as: if left then right else False end
+    // Rewrite as: if left then right else False end
     REPLACE(astp,
       NODE(TK_IF,
         NODE(TK_SEQ, TREE(left))
@@ -515,7 +544,7 @@ bool expr_or(ast_t** astp)
 
   if(is_bool(l_type) && is_bool(r_type))
   {
-    // rewrite as: if left then True else right end
+    // Rewrite as: if left then True else right end
     REPLACE(astp,
       NODE(TK_IF,
         NODE(TK_SEQ, TREE(left))

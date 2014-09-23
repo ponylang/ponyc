@@ -4,16 +4,14 @@ class Circle
   new create(radius': F32) =>
     _radius = radius'
 
-  fun tag pi(): F32 => 3.141592
-
   fun ref get_radius(): F32 =>
     _radius
 
   fun ref get_area(): F32 =>
-    _radius * _radius * pi()
+    F32.pi() * _radius.pow(2)
 
   fun ref get_circumference(): F32 =>
-    2 * _radius * pi()
+    2 * _radius * F32.pi()
 
 actor Main
   new create(env: Env) =>

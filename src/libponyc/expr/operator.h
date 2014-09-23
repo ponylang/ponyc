@@ -9,7 +9,7 @@ PONY_EXTERN_C_BEGIN
 bool expr_identity(ast_t** astp);
 bool expr_compare(ast_t** astp);
 bool expr_order(ast_t** astp);
-bool expr_arithmetic(ast_t* ast);
+bool expr_arithmetic(ast_t** astp);
 bool expr_minus(ast_t* ast);
 bool expr_shift(ast_t* ast);
 bool expr_and(ast_t** astp);
