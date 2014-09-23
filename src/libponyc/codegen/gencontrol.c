@@ -49,7 +49,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // If the conditional is constant, generate only one branch.
   if(LLVMIsAConstantInt(c_value))
   {
-    int value = LLVMConstIntGetZExtValue(c_value);
+    int value = (int)LLVMConstIntGetZExtValue(c_value);
 
     if(value == 0)
       return gen_expr(c, right);

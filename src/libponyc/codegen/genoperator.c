@@ -31,7 +31,7 @@ static bool is_always_true(compile_t* c, LLVMValueRef val)
   if(!is_constant_i1(c, val))
     return false;
 
-  int i = LLVMConstIntGetZExtValue(val);
+  int i = (int)LLVMConstIntGetZExtValue(val);
   return i == 1;
 }
 
@@ -40,7 +40,7 @@ static bool is_always_false(compile_t* c, LLVMValueRef val)
   if(!is_constant_i1(c, val))
     return false;
 
-  int i = LLVMConstIntGetZExtValue(val);
+  int i = (int)LLVMConstIntGetZExtValue(val);
   return i == 0;
 }
 
