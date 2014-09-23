@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/reify.h"
 #include "../type/cap.h"
+#include <string.h>
 #include <assert.h>
 
 bool expr_literal(ast_t* ast, const char* name)
@@ -123,7 +124,7 @@ bool expr_compiler_intrinsic(ast_t* ast)
 
 bool expr_nominal(ast_t** astp)
 {
-  // resolve typealias/typeparamref
+  // Resolve typealiases and typeparam references.
   if(!names_nominal(*astp, astp))
     return false;
 
@@ -132,8 +133,18 @@ bool expr_nominal(ast_t** astp)
   if(ast_id(ast) != TK_NOMINAL)
     return true;
 
-  // if still nominal, check constraints
+  // If still nominal, check constraints.
   ast_t* def = (ast_t*)ast_data(ast);
+
+  // Special case: don't check the constraint of a Pointer. This allows a
+  // Pointer[Pointer[A]], which is normally not allowed, as a Pointer[A] is
+  // not a subtype of Any.
+  ast_t* id = ast_child(def);
+  const char* name = ast_name(id);
+
+  if(!strcmp(name, "Pointer"))
+    return true;
+
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 

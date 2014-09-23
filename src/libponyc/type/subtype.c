@@ -284,6 +284,32 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
+static bool pointer_supertype(ast_t* type)
+{
+  // TODO: what about for the generic Any?
+
+  // Things that can be a supertype of a Pointer.
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      // A nominal must also be a Pointer. The type parameter will be checked
+      // later on.
+      return is_literal(type, "Pointer");
+
+    case TK_TYPEPARAMREF:
+      // A typeparam checks correctly already.
+      return true;
+
+    case TK_ARROW:
+      // Check the right side of an arrow type.
+      return pointer_supertype(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool is_subtype(ast_t* sub, ast_t* super)
 {
   assert(sub != NULL);
@@ -322,6 +348,16 @@ bool is_subtype(ast_t* sub, ast_t* super)
       }
 
       return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      // Special case Pointer[A]. It can only be a subtype of itself, because
+      // in the code generator, a pointer has no vtable.
+      if(is_literal(sub, "Pointer") && !pointer_supertype(super))
+        return false;
+
+      break;
     }
 
     case TK_TYPEPARAMREF:
