@@ -33,7 +33,7 @@ TEST(SugarTest, DataType)
   const char* after =
     "(primitive (id Foo) x val x"
     "  (members"
-    "    (new x (id create) x x x x (seq (reference (id None))))))";
+    "    (new x (id create) x x x x (seq 0))))";
 
   DO(test_good_sugar(before, after));
 }
@@ -74,7 +74,7 @@ TEST(SugarTest, ClassWithoutFieldOrCreate)
   const char* after =
     "(class (id Foo) x iso x"
     "  (members"
-    "    (new x (id create) x x x x (seq (reference (id None))))))";
+    "    (new x (id create) x x x x (seq 0))))";
 
   DO(test_good_sugar(before, after));
 }
@@ -136,7 +136,7 @@ TEST(SugarTest, ActorWithoutFieldOrCreate)
   const char* after =
     "(actor (id Foo) x tag x"
     "  (members"
-    "    (new x (id create) x x x x (seq (reference (id None))))))";
+    "    (new x (id create) x x x x (seq 0))))";
 
   DO(test_good_sugar(before, after));
 }
