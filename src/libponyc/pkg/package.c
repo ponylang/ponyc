@@ -15,7 +15,10 @@
 
 #ifdef PLATFORM_IS_LINUX
 #include <unistd.h>
+#elif defined PLATFORM_IS_MACOSX
+#include <mach-o/dyld.h>
 #endif
+
 
 #define EXTENSION ".pony"
 
@@ -328,7 +331,9 @@ static void add_exec_dir(const char* file)
   int r = readlink("/proc/self/exe", path, FILENAME_MAX);
   success = (r >= 0);
 #elif defined PLATFORM_IS_MACOSX
-  success = false;
+  size_t size = sizeof(path);
+  int r = _NSGetExecutablePath(path, &size);
+  success = (r == 0);
 #else
 #  error Unsupported platform for exec_path()
 #endif
