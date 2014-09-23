@@ -331,7 +331,7 @@ static void add_exec_dir(const char* file)
   int r = readlink("/proc/self/exe", path, FILENAME_MAX);
   success = (r >= 0);
 #elif defined PLATFORM_IS_MACOSX
-  size_t size = sizeof(path);
+  uint32_t size = sizeof(path);
   int r = _NSGetExecutablePath(path, &size);
   success = (r == 0);
 #else
@@ -457,7 +457,7 @@ ast_t* package_load(ast_t* from, const char* path)
 {
   const char* magic = find_magic_package(path);
   const char* name = path;
-  
+
   if(magic == NULL)
   {
     name = find_path(from, path);
