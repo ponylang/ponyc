@@ -438,12 +438,12 @@ void package_suppress_build_message()
 }
 
 
-ast_t* program_load(const char* path)
+ast_t* program_load(const char* path, pass_opt_t* options)
 {
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  if(package_load(program, path) == NULL)
+  if(package_load(program, path, options) == NULL)
   {
     ast_free(program);
     program = NULL;
@@ -453,7 +453,7 @@ ast_t* program_load(const char* path)
 }
 
 
-ast_t* package_load(ast_t* from, const char* path)
+ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 {
   const char* magic = find_magic_package(path);
   const char* name = path;
@@ -493,7 +493,7 @@ ast_t* package_load(ast_t* from, const char* path)
     return NULL;
   }
 
-  if(!package_passes(package))
+  if(!package_passes(package, options))
   {
     ast_error(package, "can't typecheck package '%s'", path);
     return NULL;

@@ -5,6 +5,7 @@
 
 #include <ast/ast.h>
 #include <ast/builder.h>
+#include <pass/pass.h>
 
 // Provide a short alias for ASSERT_NO_FATAL_FAILURE
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)
@@ -62,7 +63,7 @@ void check_tree(const char* expected, ast_t* actual);
  * specified label is not found, pass function is applied to root of tree.
  */
 void test_pass_fn_good(const char* before, const char* after,
-  ast_result_t(*fn)(ast_t**), const char* label);
+  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label);
 
 
 /** Check that tranforming an AST under a single pass function application at
@@ -74,8 +75,9 @@ void test_pass_fn_good(const char* before, const char* after,
  * @param label Label of node to apply pass function to. If NULL is passed or
  * specified label is not found, pass function is applied to root of tree.
  */
-void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
-  const char* label, ast_result_t expect_result);
+void test_pass_fn_bad(const char* before,
+  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label,
+  ast_result_t expect_result);
 
 
 /** Check that the given source code compiles, generating the specified result.

@@ -53,8 +53,8 @@ const char* pass_name(pass_id pass)
 
 
 // Do a single pass, if the limit allows
-static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
-  ast_visit_t pre_fn, ast_visit_t post_fn)
+static bool do_pass(ast_t** astp, bool* out_result, pass_opt_t* options,
+  pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
 {
   if(pass_limit < pass)
   {
@@ -62,7 +62,7 @@ static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
     return true;
   }
 
-  if(ast_visit(astp, pre_fn, post_fn) != AST_OK)
+  if(ast_visit(astp, pre_fn, post_fn, options) != AST_OK)
   {
     *out_result = false;
     return true;
@@ -72,38 +72,38 @@ static bool do_pass(ast_t** astp, bool* out_result, pass_id pass,
 }
 
 
-bool package_passes(ast_t* package)
+bool package_passes(ast_t* package, pass_opt_t* options)
 {
   if(pass_limit == PASS_PARSE)
     return true;
 
   bool r;
 
-  if(do_pass(&package, &r, PASS_PARSE_FIX, pass_parse_fix, NULL))
+  if(do_pass(&package, &r, options, PASS_PARSE_FIX, pass_parse_fix, NULL))
     return r;
 
-  if(do_pass(&package, &r, PASS_SUGAR, pass_sugar, NULL))
+  if(do_pass(&package, &r, options, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
-  if(do_pass(&package, &r, PASS_SCOPE1, pass_scope, NULL))
+  if(do_pass(&package, &r, options, PASS_SCOPE1, pass_scope, NULL))
     return r;
 
-  if(do_pass(&package, &r, PASS_NAME_RESOLUTION, NULL, pass_names))
+  if(do_pass(&package, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
     return r;
 
-  if(do_pass(&package, &r, PASS_FLATTEN, NULL, pass_flatten))
+  if(do_pass(&package, &r, options, PASS_FLATTEN, NULL, pass_flatten))
     return r;
 
-  if(do_pass(&package, &r, PASS_TRAITS, pass_traits, NULL))
+  if(do_pass(&package, &r, options, PASS_TRAITS, pass_traits, NULL))
     return r;
 
   if(pass_limit != PASS_TRAITS)
     ast_clear(package);
 
-  if(do_pass(&package, &r, PASS_SCOPE2, pass_scope, NULL))
+  if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope, NULL))
     return r;
 
-  if(do_pass(&package, &r, PASS_EXPR, NULL, pass_expr))
+  if(do_pass(&package, &r, options, PASS_EXPR, NULL, pass_expr))
     return r;
 
   return true;

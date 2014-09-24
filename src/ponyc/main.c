@@ -124,7 +124,7 @@ static size_t get_width()
 
 static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
 {
-  ast_t* program = program_load(path);
+  ast_t* program = program_load(path, opt);
 
   if(program == NULL)
   {
@@ -163,7 +163,7 @@ int main(int argc, char* argv[])
   {
     switch(id)
     {
-      case OPT_OPTIMISE: opt.opt = true; break;
+      case OPT_OPTIMISE: opt.release = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
 

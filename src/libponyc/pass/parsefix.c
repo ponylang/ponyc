@@ -630,11 +630,11 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 
   // The recursive descent pass won't now process our child because it thinks
   // that's us. So we have to process our child explicitly.
-  return pass_parse_fix(astp);
+  return pass_parse_fix(astp, NULL);
 }
 
 
-ast_result_t pass_parse_fix(ast_t** astp)
+ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
   assert(astp != NULL);
   ast_t* ast = *astp;

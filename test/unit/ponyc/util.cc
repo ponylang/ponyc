@@ -5,6 +5,7 @@
 #include <ast/builder.h>
 #include <ast/source.h>
 #include <ds/stringtab.h>
+#include <pass/pass.h>
 #include <pkg/package.h>
 
 #include "util.h"
@@ -183,7 +184,7 @@ void load_test_program(const char* name, ast_t** out_prog)
   free_errors();
 
   package_suppress_build_message();
-  ast_t* program = program_load(stringtab(name));
+  ast_t* program = program_load(stringtab(name), NULL);
 
   if(program == NULL)
     print_errors();
@@ -195,7 +196,7 @@ void load_test_program(const char* name, ast_t** out_prog)
 
 
 void test_pass_fn_good(const char* before, const char* after,
-  ast_result_t(*fn)(ast_t**), const char* label)
+  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label)
 {
   free_errors();
 
@@ -211,7 +212,7 @@ void test_pass_fn_good(const char* before, const char* after,
   ASSERT_NE((void*)NULL, tree);
 
   // Apply transform
-  ASSERT_EQ(AST_OK, fn(&tree));
+  ASSERT_EQ(AST_OK, fn(&tree, NULL));
 
   // Check resulting AST
   actual_ast = builder_get_root(actual_builder);
@@ -222,8 +223,9 @@ void test_pass_fn_good(const char* before, const char* after,
 }
 
 
-void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
-  const char* label, ast_result_t expect_result)
+void test_pass_fn_bad(const char* before,
+  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label,
+  ast_result_t expect_result)
 {
   builder_t* actual_builder;
   ast_t* actual_ast;
@@ -235,7 +237,7 @@ void test_pass_fn_bad(const char* before, ast_result_t(*fn)(ast_t**),
 
   ASSERT_NE((void*)NULL, tree);
 
-  ASSERT_EQ(expect_result, fn(&tree));
+  ASSERT_EQ(expect_result, fn(&tree, NULL));
 
   builder_free(actual_builder);
 }

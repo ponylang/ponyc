@@ -611,6 +611,7 @@ DEF(use);
   TOKEN(NULL, TK_USE);
   TOKEN("URL", TK_STRING);
   IF(TK_AS, TOKEN("use alias", TK_ID));
+  IF(TK_WHERE, RULE("use condition", expr));
   DONE();
 
 // {use} {class | typealias}

@@ -58,7 +58,7 @@ TEST_F(TraitsTest, ClassGetsTraitBody)
     "  x (seq 1))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 }
 
@@ -86,7 +86,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
     "  x (seq 2))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 }
 
@@ -118,7 +118,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenBy2Traits)
     "  x (seq 3))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 }
 
@@ -143,7 +143,7 @@ TEST_F(TraitsTest, NoClassBodyAnd2TraitBodies)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_ERROR, pass_traits(&target));
+  ASSERT_EQ(AST_ERROR, pass_traits(&target, NULL));
 }
 
 
@@ -171,7 +171,7 @@ TEST_F(TraitsTest, TransitiveTraits)
     "  x (seq 1))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 
   // TODO: T2 should get method from T1
@@ -195,7 +195,7 @@ TEST_F(TraitsTest, NoBody)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_ERROR, pass_traits(&target));
+  ASSERT_EQ(AST_ERROR, pass_traits(&target, NULL));
 }
 
 
@@ -216,7 +216,7 @@ TEST_F(TraitsTest, TraitLoop)
     "))";
 
   DO(build(desc, "T1"));
-  ASSERT_EQ(AST_ERROR, pass_traits(&target));
+  ASSERT_EQ(AST_ERROR, pass_traits(&target, NULL));
 }
 
 
@@ -239,7 +239,7 @@ TEST_F(TraitsTest, TraitAndClassNamesDontClash)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
 }
 
 
@@ -275,7 +275,7 @@ TEST_F(TraitsTest, MethodContravarianceClassToTrait)
     "  (seq 2))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 }
 
@@ -314,7 +314,7 @@ TEST_F(TraitsTest, MethodContravarianceTraitToTrait)
     "  (seq 1))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "bar", expected_bar));
 }
 
@@ -345,7 +345,7 @@ TEST_F(TraitsTest, MethodReverseContravariance)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_ERROR, pass_traits(&target));
+  ASSERT_EQ(AST_ERROR, pass_traits(&target, NULL));
 }
 
 
@@ -372,7 +372,7 @@ TEST_F(TraitsTest, MethodReverseCovariance)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_ERROR, pass_traits(&target));
+  ASSERT_EQ(AST_ERROR, pass_traits(&target, NULL));
 }
 
 
@@ -411,7 +411,7 @@ TEST_F(TraitsTest, StructuralVsNominalContravariance)
     "))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
 }
 
 
@@ -451,6 +451,6 @@ TEST_F(TraitsTest, SelfStructuralContravariance)
     "  (seq 1))";
 
   DO(build(desc, "Foo"));
-  ASSERT_EQ(AST_OK, pass_traits(&target));
+  ASSERT_EQ(AST_OK, pass_traits(&target, NULL));
   DO(check_symtab_entry(target, "wombat", expected_wombat));
 }

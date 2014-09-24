@@ -81,7 +81,7 @@ static bool names_resolvealias(ast_t* def, ast_t* type)
       return false;
   }
 
-  if(ast_visit(&type, NULL, pass_names) != AST_OK)
+  if(ast_visit(&type, NULL, pass_names, NULL) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
@@ -274,7 +274,7 @@ static bool names_arrow(ast_t* ast)
   return false;
 }
 
-ast_result_t pass_names(ast_t** astp)
+ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
 
@@ -330,7 +330,7 @@ static bool flatten_isect(ast_t** astp)
   return true;
 }
 
-ast_result_t pass_flatten(ast_t** astp)
+ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
 

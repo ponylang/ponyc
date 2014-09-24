@@ -373,7 +373,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->filename = package_filename(ast_child(program));
 
   // Keep track of whether or not we're optimising.
-  c->opt = opt->opt;
+  c->release = opt->release;
 
   // Context.
   c->context = LLVMContextCreate();
@@ -439,7 +439,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
-  if(opt->opt)
+  if(opt->release)
   {
     // Module pass manager.
     LLVMRunPassManager(mpm, c->module);
@@ -727,7 +727,7 @@ bool codegen_init(pass_opt_t* opt)
   }
 
   LLVMCodeGenOptLevel opt_level =
-    opt->opt ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+    opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
 
   machine = LLVMCreateTargetMachine(target, opt->triple,
     opt->cpu, opt->features, opt_level, LLVMRelocDefault, LLVMCodeModelDefault);
@@ -742,9 +742,9 @@ bool codegen_init(pass_opt_t* opt)
 
   // Pass manager builder.
   pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(pmb, opt->opt ? 3 : 0);
+  LLVMPassManagerBuilderSetOptLevel(pmb, opt->release ? 3 : 0);
 
-  if(opt->opt)
+  if(opt->release)
     LLVMPassManagerBuilderUseInlinerWithThreshold(pmb, 275);
 
   // Module pass manager.

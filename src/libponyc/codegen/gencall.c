@@ -85,7 +85,7 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
     return LLVMConstInt(c->i1, 0, false);
 #endif
   } else if(!strcmp(method_name, "debug")) {
-    return LLVMConstInt(c->i1, !c->opt, false);
+    return LLVMConstInt(c->i1, !c->release, false);
   }
 
   return NULL;
@@ -412,7 +412,7 @@ bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
   if(trace_fn == NULL)
     return false;
 
-  return LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
+  return (LLVMBuildCall(c->builder, trace_fn, &value, 1, "") != NULL);
 }
 
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)

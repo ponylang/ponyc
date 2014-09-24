@@ -363,9 +363,11 @@ void ast_setwidth(size_t w);
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
 
-typedef ast_result_t (*ast_visit_t)(ast_t** astp);
+typedef struct pass_opt_t pass_opt_t;
+typedef ast_result_t (*ast_visit_t)(ast_t** astp, pass_opt_t* options);
 
-ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post);
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options);
 
 // Foreach macro, will apply macro M to each of up to 16 other arguments
 #define FOREACH(M, ...) \

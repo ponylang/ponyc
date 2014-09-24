@@ -8,7 +8,7 @@
 #include "../expr/match.h"
 #include <assert.h>
 
-ast_result_t pass_expr(ast_t** astp)
+ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
 

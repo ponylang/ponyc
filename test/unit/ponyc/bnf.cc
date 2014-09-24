@@ -54,7 +54,7 @@ static void parse_bad(const char* src)
   limit_passes("parsefix");
   package_suppress_build_message();
 
-  ASSERT_EQ((void*)NULL, program_load(stringtab("prog")));
+  ASSERT_EQ((void*)NULL, program_load(stringtab("prog"), NULL));
 }
 
 
@@ -155,8 +155,8 @@ TEST(BnfTest, Use)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}"
-    "  (use \"foo1\" x)"
-    "  (use \"foo2\" (id bar))"
+    "  (use \"foo1\" x x)"
+    "  (use \"foo2\" (id bar) x)"
     ")))";
 
   DO(parse_good(src, expect));

@@ -252,7 +252,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  result = LLVMConstInt(c->i1, !c->opt, false);
+  result = LLVMConstInt(c->i1, !c->release, false);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 }
