@@ -2,6 +2,7 @@
 #include "genname.h"
 #include "gentype.h"
 #include "gencall.h"
+#include "../pkg/platformfuns.h"
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
@@ -212,7 +213,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
 {
   LLVMTypeRef f_type = LLVMFunctionType(c->i1, &g->use_type, 1, false);
 
-  const char* name = genname_fun(g->type_name, "linux", NULL);
+  const char* name = genname_fun(g->type_name, OS_LINUX_NAME, NULL);
   LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
@@ -224,7 +225,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun(g->type_name, "osx", NULL);
+  name = genname_fun(g->type_name, OS_MACOSX_NAME, NULL);
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
@@ -236,7 +237,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun(g->type_name, "windows", NULL);
+  name = genname_fun(g->type_name, OS_WINDOWS_NAME, NULL);
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
@@ -248,7 +249,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun(g->type_name, "debug", NULL);
+  name = genname_fun(g->type_name, OS_DEBUG_NAME, NULL);
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
