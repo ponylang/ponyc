@@ -522,7 +522,7 @@ static ast_result_t parse_fix_match(ast_t* ast)
   while(ast_sibling(case_ast) != NULL)
     case_ast = ast_sibling(case_ast);
 
-  ast_t* body = ast_childidx(case_ast, 3);
+  ast_t* body = ast_childidx(case_ast, 2);
 
   if(ast_id(body) == TK_NONE)
   {

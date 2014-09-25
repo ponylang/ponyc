@@ -305,7 +305,7 @@ static ast_result_t sugar_bang(ast_t** astp)
 
 static ast_result_t sugar_case(ast_t* ast)
 {
-  ast_t* body = ast_childidx(ast, 3);
+  ast_t* body = ast_childidx(ast, 2);
 
   if(ast_id(body) != TK_NONE)
     return AST_OK;
@@ -319,7 +319,7 @@ static ast_result_t sugar_case(ast_t* ast)
     next = ast_sibling(next);
     assert(next != NULL);
     assert(ast_id(next) == TK_CASE);
-    next_body = ast_childidx(next, 3);
+    next_body = ast_childidx(next, 2);
   }
 
   ast_replace(&body, next_body);
