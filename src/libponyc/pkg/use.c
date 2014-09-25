@@ -1,7 +1,7 @@
 #include "../ast/ast.h"
-#include "../type/assemble.h"
-#include "../pkg/package.h"
-#include "../ds/stringtab.h"
+#include "package.h"
+#include "platformfuns.h"
+#include "../pass/pass.h"
 #include <string.h>
 #include <assert.h>
 
@@ -24,7 +24,7 @@ typedef struct use_t
 } use_t;
 
 
-static bool eval_condition(ast_t* ast, bool* error);
+static bool eval_condition(ast_t* ast, bool release, bool* error);
 
 
 use_t* handlers = NULL;
@@ -80,20 +80,20 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
 
 // Evalute the children of the given binary condition node
 static void eval_binary(ast_t* ast, bool* out_left, bool* out_right,
-  bool* error)
+  bool release, bool* error)
 {
   assert(ast != NULL);
   assert(out_left != NULL);
   assert(out_right != NULL);
 
   AST_GET_CHILDREN(ast, left, right);
-  *out_left = eval_condition(left, error);
-  *out_right = eval_condition(right, error);
+  *out_left = eval_condition(left, release, error);
+  *out_right = eval_condition(right, release, error);
 }
 
 
 // Evaluate the given condition AST
-static bool eval_condition(ast_t* ast, bool* error)
+static bool eval_condition(ast_t* ast, bool release, bool* error)
 {
   assert(ast != NULL);
 
@@ -102,27 +102,33 @@ static bool eval_condition(ast_t* ast, bool* error)
   switch(ast_id(ast))
   {
   case TK_AND:
-    eval_binary(ast, &left, &right, error);
+    eval_binary(ast, &left, &right, release, error);
     return left & right;
 
   case TK_OR:
-    eval_binary(ast, &left, &right, error);
+    eval_binary(ast, &left, &right, release, error);
     return left | right;
 
   case TK_XOR:
-    eval_binary(ast, &left, &right, error);
+    eval_binary(ast, &left, &right, release, error);
     return left ^ right;
 
   case TK_NOT:
-    return !eval_condition(ast_child(ast), error);
+    return !eval_condition(ast_child(ast), release, error);
 
   case TK_TUPLE:
-    return eval_condition(ast_child(ast), error);
+    return eval_condition(ast_child(ast), release, error);
 
   case TK_REFERENCE:
     {
-      //const char* name = ast_name(ast_child(ast));
+      const char* name = ast_name(ast_child(ast));
+      bool result;
+      if(os_is_target(name, release, &result))
+        return result;
 
+      ast_error(ast, "\"%s\" is not a valid use condition value\n", name);
+      *error = true;
+      return false;
     }
     return true;
 
@@ -133,17 +139,52 @@ static bool eval_condition(ast_t* ast, bool* error)
 }
 
 
-/// Register the standard use handlers
+// Handle condition, if any
+// @return true if we should continue with use, false if we should skip it
+static bool process_condition(ast_t* cond, use_t* handler, bool release,
+  bool* out_retval)
+{
+  assert(cond != NULL);
+  assert(handler != NULL);
+  assert(out_retval != NULL);
+
+  if(ast_id(cond) == TK_NONE) // No condition provided
+    return true;
+
+  if(!handler->allow_cond)
+  {
+    // Condition not allowed
+    ast_error(cond, "Use scheme %s may not have a condition",
+      handler->scheme);
+    *out_retval = false;
+    return false;
+  }
+
+  // Evaluate condition expression
+  bool error = false;
+  bool val = eval_condition(cond, release, &error);
+  
+  if(error)
+  {
+    *out_retval = false;
+    return false;
+  }
+
+  // Evaluated OK
+  // Free expression AST to prevent type check errors
+  // TODO
+
+  *out_retval = true;
+  return val;
+}
+
+
 void use_register_std()
 {
   // TODO
 }
 
 
-/** Register a use handler. The first handler registered is the default.
- * @param scheme Scheme identifier string, excluding trailing :. String only
- * needs to be valid for duration of call.
- */
 void use_register_handler(const char* scheme, bool allow_as,
   bool allow_cond, use_handler_t handler)
 {
@@ -161,7 +202,6 @@ void use_register_handler(const char* scheme, bool allow_as,
 }
 
 
-/// Unregister and free all registered use handlers
 void use_clear_handlers()
 {
   use_t* p = handlers;
@@ -178,8 +218,7 @@ void use_clear_handlers()
 }
 
 
-/// Process a use command
-bool use_command(ast_t* ast)
+bool use_command(ast_t* ast, pass_opt_t* options)
 {
   if(handlers == NULL)
   {
@@ -209,18 +248,9 @@ bool use_command(ast_t* ast)
     name = ast_name(alias);
   }
 
-  if(ast_id(condition) != TK_NONE)
-  {
-    if(!handler->allow_cond)
-    {
-      ast_error(alias, "Use scheme %s may not have a condition",
-        handler->scheme);
-      return false;
-    }
-
-    if(!eval_condition(condition, NULL)) // Condition false, ignore use command
-      return true;
-  }
+  bool r;
+  if(!process_condition(condition, handler, true, &r))
+    return r;
 
   return handler->handler(ast, locator, name);
 }
