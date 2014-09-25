@@ -69,7 +69,7 @@ static const method_def_t _method_def[DEF_METHOD_COUNT] =
   { "actor behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_yes },
   { "primitive behaviour",    false },
   { "trait behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
-  { "structural behaviour",   true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_no  },
+  { "structural behaviour",   true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_no  },
   { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },
   { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_opt },
   { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },

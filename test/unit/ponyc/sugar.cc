@@ -508,7 +508,7 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
 TEST(SugarTest, CaseWithBody)
 {
-  const char* before = "(case (pattern 1) x (seq 2))";
+  const char* before = "(case 1 x (seq 2))";
 
   DO(test_good_sugar(before, before));
 }
@@ -518,8 +518,8 @@ TEST(SugarTest, CaseWithBodyAndFollowingCase)
 {
   const char* before =
     "(cases"
-    "  (case{def start} (pattern 1) x (seq 2))"
-    "  (case (pattern 3) x (seq 4)))";
+    "  (case{def start} 1 x (seq 2))"
+    "  (case 3 x (seq 4)))";
 
   DO(test_good_sugar(before, before));
 }
@@ -529,13 +529,13 @@ TEST(SugarTest, CaseWithNoBody)
 {
   const char* before =
     "(cases"
-    "  (case{def start} (pattern 1) x x)"
-    "  (case (pattern 2) x (seq 3)))";
+    "  (case{def start} 1 x x)"
+    "  (case 2 x (seq 3)))";
 
   const char* after  =
     "(cases"
-    "  (case (pattern 1) x (seq 3))"
-    "  (case (pattern 2) x (seq 3)))";
+    "  (case 1 x (seq 3))"
+    "  (case 2 x (seq 3)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -545,17 +545,17 @@ TEST(SugarTest, CaseWithNoBodyMultiple)
 {
   const char* before =
     "(cases"
-    "  (case{def start} (pattern 1) x x)"
-    "  (case (pattern 2) x x)"
-    "  (case (pattern 3) x x)"
-    "  (case (pattern 4) x (seq 5)))";
+    "  (case{def start} 1 x x)"
+    "  (case 2 x x)"
+    "  (case 3 x x)"
+    "  (case 4 x (seq 5)))";
 
   const char* after =
     "(cases"
-    "  (case (pattern 1) x (seq 5))"
-    "  (case (pattern 2) x x)"
-    "  (case (pattern 3) x x)"
-    "  (case (pattern 4) x (seq 5)))";
+    "  (case 1 x (seq 5))"
+    "  (case 2 x x)"
+    "  (case 3 x x)"
+    "  (case 4 x (seq 5)))";
 
   DO(test_good_sugar(before, after));
 }
