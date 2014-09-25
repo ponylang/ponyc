@@ -525,6 +525,35 @@ ast_t* ast_enclosing_try(ast_t* ast, size_t* clause)
   return NULL;
 }
 
+ast_t* ast_enclosing_pattern(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(token_get_id(ast->t))
+    {
+      case TK_CASE:
+      {
+        // Only if we are in the pattern.
+        ast_t* pattern = ast_child(ast);
+
+        if(pattern == last)
+          return ast;
+
+        return NULL;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_enclosing_constraint(ast_t* ast)
 {
   ast_t* last = NULL;

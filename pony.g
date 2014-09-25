@@ -143,15 +143,7 @@ elseif
   ;
 
 case
-  :  '|' pattern? ('where' seq)? ('=>' seq)?
-  ;
-
-pattern
-  : ID oftype?
-  | INT
-  | FLOAT
-  | STRING
-  | '(' pattern (',' pattern)* ')'
+  :  '|' term? ('where' seq)? ('=>' seq)?
   ;
 
 postfix

@@ -31,25 +31,10 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
   {
     case TK_ID:
     {
-      ast_t* idseq = ast_parent(value);
-      ast_t* decl = ast_parent(idseq);
-
-      switch(ast_id(decl))
-      {
-        case TK_VAR:
-        case TK_LET:
-          status = SYM_UNDEFINED;
-          break;
-
-        case TK_AS:
-          status = SYM_DEFINED;
-          break;
-
-        default:
-          assert(0);
-          return false;
-      }
-
+      if(ast_enclosing_pattern(value))
+        status = SYM_DEFINED;
+      else
+        status = SYM_UNDEFINED;
       break;
     }
 
@@ -221,7 +206,7 @@ static bool scope_idseq(ast_t* ast)
 
   while(child != NULL)
   {
-    // each ID resolves to itself
+    // Each ID resolves to itself.
     if(!set_scope(ast_parent(ast), child, child))
       return false;
 

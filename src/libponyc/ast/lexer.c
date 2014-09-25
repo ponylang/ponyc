@@ -180,8 +180,6 @@ static const lexsym_t abstract[] =
   { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
-  { "pattern", TK_PATTERN },
-  { "patternid", TK_PATTERNID },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },

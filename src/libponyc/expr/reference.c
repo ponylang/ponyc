@@ -325,7 +325,6 @@ bool expr_reference(ast_t* ast)
 
       switch(ast_id(var))
       {
-        case TK_AS:
         case TK_VAR:
           ast_setid(ast, TK_VARREF);
           break;

@@ -254,7 +254,7 @@ Children are (in order) comparison expression, as, guard, body.
 
 PATTERN: {PATTERN | PATTERNVAR | INT | FLOAT | STRING}
 
-PATTERNID: ID [TYPE]
+PATTERNID: IDSEQ [TYPE]
 
 atom
 ----
@@ -328,6 +328,7 @@ ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
+ast_t* ast_enclosing_pattern(ast_t* ast);
 ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);

@@ -1,4 +1,4 @@
-use "../collections"
+/*use "../collections"*/
 
 /* A mint is used as a marker object to indicate that purses share a common
  * currency. The tag capability indicates that when the type has no capability
@@ -29,10 +29,10 @@ class Purse
   // The ? indicates this is a partial function, ie this can have an undefined
   // result - like throwing an exception, but with no value thrown.
   fun ref deposit(amount: U64, from: Purse) ? =>
-    if mint == from.mint and
-      // make sure there's enough in 'from' and _balance doesn't overflow
-      from._balance >= amount and
-      (_balance + amount) >= _balance
+    // make sure there's enough in 'from' and _balance doesn't overflow
+    if (mint == from.mint) and
+      (from._balance >= amount) and
+      ((_balance + amount) >= _balance)
     then
       _balance = _balance + amount
       from._balance = from._balance - amount
@@ -136,7 +136,7 @@ actor ExchangeEscrow
     | None =>
       _first = ex' // store this, wait for another submission
 
-    | ex: Exchange =>
+    | var ex: Exchange =>
       _first = None // reset the stored submission to None
 
       try
@@ -162,7 +162,7 @@ actor ExchangeEscrow
   // has a reference to the Exchange side being cancelled.
   be cancel(ex': Exchange tag) =>
     match _first
-    | ex: Exchange =>
+    | var ex: Exchange =>
       if ex is ex' then
         _first = None
         ex.participant.fail(ex.provide.remainder())
@@ -242,7 +242,7 @@ actor ContractHost[A, B: Contract[A]]
         var a = Array[A]
         for (t', arg') in _ledger.values() do
           match arg
-          | arg'': A => a.append(arg'')
+          | var arg'': A => a.append(arg'')
           else
             return None
           end

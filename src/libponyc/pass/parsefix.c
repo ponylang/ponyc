@@ -267,19 +267,33 @@ static bool check_members(ast_t* members, int entity_def_index)
         break;
 
       case TK_BE:
+      {
         if(!check_method(member, entity_def_index + DEF_BE) ||
           !check_seen_member(member, "constructor", fun_name, "function"))
           return false;
 
-        be_name = ast_name(ast_childidx(member, 1));
+        ast_t* id = ast_childidx(member, 1);
+
+        if(ast_id(id) != TK_NONE)
+          be_name = ast_name(id);
+        else
+          be_name = "apply";
         break;
+      }
 
       case TK_FUN:
+      {
         if(!check_method(member, entity_def_index + DEF_FUN))
           return false;
 
-        fun_name = ast_name(ast_childidx(member, 1));
+        ast_t* id = ast_childidx(member, 1);
+
+        if(ast_id(id) != TK_NONE)
+          fun_name = ast_name(id);
+        else
+          fun_name = "apply";
         break;
+      }
 
       default:
         assert(0);

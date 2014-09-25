@@ -19,7 +19,7 @@ bool expr_match(ast_t* ast)
   // TODO: check for exhaustive match if there is no else branch
   while(the_case != NULL)
   {
-    ast_t* body = ast_childidx(the_case, 3);
+    ast_t* body = ast_childidx(the_case, 2);
     ast_t* body_type = ast_type(body);
     type = type_union(type, body_type);
     type = type_literal_to_runtime(type);
