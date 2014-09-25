@@ -3,6 +3,7 @@
 
 // Forward declarations
 DECL(type);
+DECL(pattern);
 DECL(rawseq);
 DECL(seq);
 DECL(assignment);
@@ -384,21 +385,39 @@ DEF(cond);
   SKIP(NULL, TK_END);
   DONE();
 
-// AS idseq COLON type
-DEF(as);
-  TOKEN(NULL, TK_AS);
-  RULE("variable name", idseq);
-  SKIP(NULL, TK_COLON);
-  RULE("match type", type);
+// INT | FLOAT | STRING
+DEF(patternliteral);
+  TOKEN(NULL, TK_INT, TK_FLOAT, TK_STRING);
   DONE();
 
-// PIPE [rawseq] [as] [WHERE rawseq] [ARROW rawseq]
+// ID [COLON TYPE]
+DEF(patternvariable);
+  AST_NODE(TK_PATTERNID);
+  TOKEN(NULL, TK_ID);
+  IF(TK_COLON, RULE("pattern type", type));
+  DONE();
+
+// (LPAREN | LPAREN_NEW) pattern {COMMA pattern} RPAREN
+DEF(patterntuple);
+  AST_NODE(TK_PATTERN);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  RULE("pattern element", pattern);
+  WHILE(TK_COMMA, RULE("pattern element", pattern));
+  SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// patternliteral | patternvariable | patterntuple
+DEF(pattern);
+  AST_NODE(TK_PATTERN);
+  RULE("pattern element", patternliteral, patternvariable, patterntuple);
+  DONE();
+
+// PIPE [pattern] [WHERE rawseq] [ARROW rawseq]
 DEF(caseexpr);
   AST_NODE(TK_CASE);
   SCOPE();
   SKIP(NULL, TK_PIPE);
-  OPT RULE("match value", rawseq);
-  OPT RULE("as clause", as);
+  OPT RULE("match pattern", pattern);
   IF(TK_WHERE, RULE("guard expression", rawseq));
   IF(TK_DBLARROW, RULE("case body", rawseq));
   DONE();

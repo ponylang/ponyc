@@ -248,11 +248,13 @@ control
   CASES: {CASE}
 )
 
-CASE: [SEQ] [AS] [SEQ] [SEQ]
+CASE: [PATTERN] [SEQ] [SEQ]
 symtab: name -> VAR | VAL
 Children are (in order) comparison expression, as, guard, body.
 
-AS: IDSEQ type
+PATTERN: {PATTERN | PATTERNVAR | INT | FLOAT | STRING}
+
+PATTERNID: ID [TYPE]
 
 atom
 ----

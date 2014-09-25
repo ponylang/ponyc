@@ -34,11 +34,13 @@ class String val is Ordered[String]
 
   fun box cstring(): this->Pointer[U8] => _ptr
 
-  fun box apply(i: U64): U8 ? =>
-    if i < _size then _ptr._apply(i) else error end
+  fun box apply(i: I64): U8 ? =>
+    var j = offset_to_index(i)
+    if j < _size then _ptr._apply(j) else error end
 
-  fun ref update(i: U64, char: U8): U8 ? =>
-    if i < _size then _ptr._update(i, char) else error end
+  fun ref update(i: I64, char: U8): U8 ? =>
+    var j = offset_to_index(i)
+    if j < _size then _ptr._update(j, char) else error end
 
   fun box lower(): String iso^ =>
     recover
@@ -97,16 +99,12 @@ class String val is Ordered[String]
 
   fun box sub(from: I64, to: I64): String iso^ =>
     recover
-      var start =
-        if from < 0 then from.u64() + _size else from.u64() end
-
-      var finish =
-        (if to < 0 then to.u64() + _size + 1 else to.u64() end).min(_size - 1)
-
+      var start = offset_to_index(from)
+      var finish = offset_to_index(to).min(_size)
       var str = String
 
-      if (start < _size) and (start <= finish) then
-        var len = (finish - start) + 1
+      if (start < _size) and (start < finish) then
+        var len = finish - start
         str._size = len
         str._alloc = len + 1
         str._ptr = str._ptr._realloc(len + 1)
@@ -162,5 +160,8 @@ class String val is Ordered[String]
     _ptr._copy(_size, that._ptr, that._size + 1)
     _size = _size + that._size
     this
+
+  fun box offset_to_index(i: I64): U64 =>
+    if i < 0 then i.u64() + _size else i.u64() end
 
   /*fun box string(): String => this*/

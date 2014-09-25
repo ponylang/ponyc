@@ -61,12 +61,9 @@ bool expr_case(ast_t* ast)
   assert(ast_id(ast) == TK_CASE);
 
   ast_t* pattern = ast_child(ast);
-  ast_t* as = ast_sibling(pattern);
-  ast_t* guard = ast_sibling(as);
+  ast_t* guard = ast_sibling(pattern);
 
-  if((ast_id(pattern) == TK_NONE) &&
-    (ast_id(as) == TK_NONE) &&
-    (ast_id(guard) == TK_NONE))
+  if((ast_id(pattern) == TK_NONE) && (ast_id(guard) == TK_NONE))
   {
     ast_error(ast, "can't have a case with no conditions, use an else clause");
     return false;
@@ -83,31 +80,5 @@ bool expr_case(ast_t* ast)
   }
 
   ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_as(ast_t* ast)
-{
-  assert(ast_id(ast) == TK_AS);
-
-  ast_t* the_case = ast_parent(ast);
-  assert(ast_id(the_case) == TK_CASE);
-
-  ast_t* cases = ast_parent(the_case);
-  assert(ast_id(cases) == TK_CASES);
-
-  ast_t* match = ast_parent(cases);
-  assert(ast_id(match) == TK_MATCH);
-
-  ast_t* expr = ast_child(match);
-  ast_t* expr_type = ast_type(expr);
-  ast_t* match_type = ast_childidx(ast, 1);
-
-  if(!is_match_compatible(expr_type, match_type))
-  {
-    ast_error(match_type, "expression can never be of this type");
-    return false;
-  }
-
   return true;
 }

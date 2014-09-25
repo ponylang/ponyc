@@ -194,11 +194,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_FATAL;
       break;
 
-    case TK_AS:
-      if(!expr_as(ast))
-        return AST_FATAL;
-      break;
-
     case TK_TUPLE:
       if(!expr_tuple(ast))
         return AST_FATAL;
