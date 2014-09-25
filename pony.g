@@ -141,7 +141,15 @@ control
   ;
 
 case
-  :  '|' seq? ('as' idseq oftype)? ('where' seq)? body?
+  :  '|' pattern? ('where' seq)? body?
+  ;
+
+pattern
+  : ID oftype?
+  | INT
+  | FLOAT
+  | STRING
+  | '(' pattern (',' pattern)* ')'
   ;
 
 postfix

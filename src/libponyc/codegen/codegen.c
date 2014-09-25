@@ -340,7 +340,7 @@ static bool codegen_type(compile_t* c, ast_t* scope, const char* package,
 
 static bool codegen_program(compile_t* c, ast_t* program)
 {
-  // the first package is the main package. if it has a Main actor, this
+  // The first package is the main package. If it has a Main actor, this
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
   const char* main_actor = stringtab("Main");
@@ -348,8 +348,6 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   if(m == NULL)
   {
-    // TODO: How do we compile libraries? By specifying C ABI entry points and
-    // compiling reachable code from there.
     errorf(NULL, "no Main actor found in package '%s'", c->filename);
     return false;
   }

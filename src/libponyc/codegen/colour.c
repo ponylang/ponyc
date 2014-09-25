@@ -430,7 +430,7 @@ void painter_colour(painter_t* painter, ast_t* typedefs)
   assign_colours_to_names(painter);
   find_vtable_sizes(painter);
 
-  // TODO: If we're worried about memory we can free the colour records now
+  // If we're worried about memory we can free the colour records now
 }
 
 

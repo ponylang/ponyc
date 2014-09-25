@@ -163,6 +163,8 @@ typedef enum token_id
   TK_OBJECT,
   TK_CASES,
   TK_CASE,
+  TK_PATTERN,
+  TK_PATTERNID,
 
   TK_REFERENCE,
   TK_PACKAGEREF,

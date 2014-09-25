@@ -392,6 +392,9 @@ bool is_subtype(ast_t* sub, ast_t* super)
       break;
     }
 
+    case TK_FUNTYPE:
+      return false;
+
     default: {}
   }
 
@@ -466,6 +469,9 @@ bool is_subtype(ast_t* sub, ast_t* super)
       }
       break;
     }
+
+    case TK_FUNTYPE:
+      return false;
 
     default: {}
   }
