@@ -4,9 +4,9 @@
 #include <platform.h>
 #include "../ast/ast.h"
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-extern "C" {
-#endif
+
+PONY_EXTERN_C_BEGIN
+
 
 /** Passes
 
@@ -73,26 +73,12 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-inline pass_id& operator++(pass_id& current)
-{
-  current = static_cast<pass_id>(current + 1);
-  return current;
-};
-
-inline pass_id operator++(pass_id& current, int)
-{
-  pass_id rvalue = current;
-  ++current;
-  return rvalue;
-};
-#endif
 
 /** Pass options.
  */
 typedef struct pass_opt_t
 {
-  bool opt;
+  bool release;
   const char* output;
 
   char* triple;
@@ -114,15 +100,30 @@ const char* pass_name(pass_id pass);
 /** Apply the per package passes to the given AST.
  * Returns true on success, false on failure.
  */
-bool package_passes(ast_t* package);
+bool package_passes(ast_t* package, pass_opt_t* options);
 
 /** Apply the per program passes to the given AST.
 * Returns true on success, false on failure.
 */
 bool program_passes(ast_t* program, pass_opt_t* options);
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-}
+
+PONY_EXTERN_C_END
+
+
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+inline pass_id& operator++(pass_id& current)
+{
+  current = static_cast<pass_id>(current + 1);
+  return current;
+};
+
+inline pass_id operator++(pass_id& current, int)
+{
+  pass_id rvalue = current;
+  ++current;
+  return rvalue;
+};
 #endif
 
 #endif

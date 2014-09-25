@@ -3,6 +3,7 @@
 #include "genexpr.h"
 #include "genfun.h"
 #include "genname.h"
+#include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include "../type/cap.h"
 #include <string.h>
@@ -65,28 +66,9 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
 
   const char* method_name = ast_name(method);
 
-  if(!strcmp(method_name, "linux"))
-  {
-#ifdef PLATFORM_IS_LINUX
-    return LLVMConstInt(c->i1, 1, false);
-#else
-    return LLVMConstInt(c->i1, 0, false);
-#endif
-  } else if(!strcmp(method_name, "osx")) {
-#ifdef PLATFORM_IS_MACOSX
-    return LLVMConstInt(c->i1, 1, false);
-#else
-    return LLVMConstInt(c->i1, 0, false);
-#endif
-  } else if(!strcmp(method_name, "windows")) {
-#ifdef PLATFORM_IS_WINDOWS
-    return LLVMConstInt(c->i1, 1, false);
-#else
-    return LLVMConstInt(c->i1, 0, false);
-#endif
-  } else if(!strcmp(method_name, "debug")) {
-    return LLVMConstInt(c->i1, !c->opt, false);
-  }
+  bool is_target;
+  if(os_is_target(method_name, c->release, &is_target))
+    return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
   return NULL;
 }
@@ -412,7 +394,7 @@ bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
   if(trace_fn == NULL)
     return false;
 
-  return LLVMBuildCall(c->builder, trace_fn, &value, 1, "");
+  return (LLVMBuildCall(c->builder, trace_fn, &value, 1, "") != NULL);
 }
 
 bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)

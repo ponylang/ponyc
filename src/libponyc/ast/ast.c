@@ -2,6 +2,7 @@
 #include "symtab.h"
 #include "token.h"
 #include "../ds/stringtab.h"
+#include "../pass/pass.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -986,13 +987,14 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post)
+ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options)
 {
   ast_result_t ret = AST_OK;
 
   if(pre != NULL)
   {
-    switch(pre(ast))
+    switch(pre(ast, options))
     {
       case AST_OK:
         break;
@@ -1014,7 +1016,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post)
     {
       ast_t* next = ast_sibling(child);
 
-      switch(ast_visit(&child, pre, post))
+      switch(ast_visit(&child, pre, post, options))
       {
         case AST_OK:
           break;
@@ -1033,7 +1035,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post)
 
   if(post != NULL)
   {
-    switch(post(ast))
+    switch(post(ast, options))
     {
       case AST_OK:
         break;

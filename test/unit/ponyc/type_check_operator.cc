@@ -95,7 +95,7 @@ protected:
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
-    ASSERT_EQ(AST_FATAL, pass_expr(&op_ast));
+    ASSERT_EQ(AST_FATAL, pass_expr(&op_ast, NULL));
   }
 
   void test_bin_op_replace(token_id op_id, const char* type_a,
@@ -105,7 +105,7 @@ protected:
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
-    ASSERT_EQ(AST_OK, pass_expr(&op_ast));
+    ASSERT_EQ(AST_OK, pass_expr(&op_ast, NULL));
     ASSERT_EQ(replace_id, ast_id(op_ast));
     DO(get_op_type());
     DO(compare_result(type_result, op_type));
@@ -126,7 +126,7 @@ protected:
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
-    ASSERT_EQ(AST_OK, pass_expr(&op_ast));
+    ASSERT_EQ(AST_OK, pass_expr(&op_ast, NULL));
 
     char result_buf[1000];
     snprintf(op_buf, sizeof(op_buf),
@@ -146,7 +146,7 @@ protected:
     DO(add_op());
     ast_setid(op_ast, op_id);
 
-    ASSERT_EQ(AST_FATAL, pass_expr(&op_ast));
+    ASSERT_EQ(AST_FATAL, pass_expr(&op_ast, NULL));
   }
 
   void test_unary_op(token_id op_id, const char* type_op,
@@ -157,7 +157,7 @@ protected:
     DO(add_op());
     ast_setid(op_ast, op_id);
 
-    ASSERT_EQ(AST_OK, pass_expr(&op_ast));
+    ASSERT_EQ(AST_OK, pass_expr(&op_ast, NULL));
     ASSERT_EQ(op_id, ast_id(op_ast));
     DO(get_op_type());
 

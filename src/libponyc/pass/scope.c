@@ -115,7 +115,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
  */
 static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
 {
-  ast_t* package = package_load(ast, path);
+  ast_t* package = package_load(ast, path, NULL);
 
   if(package == ast)
     return package;
@@ -231,7 +231,7 @@ static bool scope_idseq(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_scope(ast_t** astp)
+ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
 

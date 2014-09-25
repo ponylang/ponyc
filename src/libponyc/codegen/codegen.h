@@ -31,7 +31,7 @@ typedef struct compile_t
   painter_t* painter;
   const char* filename;
   uint32_t next_type_id;
-  bool opt;
+  bool release;
 
   LLVMContextRef context;
   LLVMTargetDataRef target_data;

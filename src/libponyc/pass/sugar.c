@@ -358,7 +358,7 @@ static ast_result_t sugar_update(ast_t** astp)
 }
 
 
-ast_result_t pass_sugar(ast_t** astp)
+ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
   assert(ast != NULL);

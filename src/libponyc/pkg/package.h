@@ -2,9 +2,9 @@
 #define PACKAGE_H
 
 #include <platform.h>
-#include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ds/stringtab.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -50,12 +50,12 @@ void package_suppress_build_message();
 /**
  * Load a program. The path specifies the package that represents the program.
  */
-ast_t* program_load(const char* path);
+ast_t* program_load(const char* path, pass_opt_t* options);
 
 /**
  * Load a package. Used by program_load() and when handling 'use' statements.
  */
-ast_t* package_load(ast_t* from, const char* path);
+ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options);
 
 /**
  * Gets the package name, but not wrapped in an AST node.

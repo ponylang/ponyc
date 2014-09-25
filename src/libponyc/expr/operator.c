@@ -213,7 +213,7 @@ static ast_t* make_binop(token_id op, ast_t* left, ast_t* right)
 
   BUILD(binop, left, NODE(op, TREE(left) TREE(right)));
 
-  if(pass_expr(&binop) != AST_OK)
+  if(pass_expr(&binop, NULL) != AST_OK)
   {
     ast_free_unattached(binop);
     return NULL;
