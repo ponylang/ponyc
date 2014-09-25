@@ -70,8 +70,8 @@ symtab: name -> TYPEPARAM | FVAR | FVAL | method
 
 MEMBERS: {FVAR | FLET | method}
 
-FVAR: ID [type] [SEQ]
-FLET: ID [type] [SEQ]
+FVAR: ID [type] [infix]
+FLET: ID [type] [infix]
 
 method
 ------
@@ -128,7 +128,7 @@ TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
-PARAM: ID type [SEQ]
+PARAM: ID type [infix]
 The sequence child is the default value tree.
 
 IDSEQ: (ID | IDSEQ) {ID | IDSEQ}

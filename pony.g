@@ -13,7 +13,7 @@ module
   ;
 
 use
-  :  'use' STRING ('as' ID)?
+  :  'use' (ID '=')? STRING ('where' expr)?
   ;
 
 typealias
@@ -25,23 +25,15 @@ class_
   ;
 
 members
-  :  field* constructor* behaviour* function*
+  :  field* method*
   ;
 
 field
-  :  ('var' | 'let') ID oftype? (assign expr)?
+  :  ('var' | 'let') ID oftype? ('=' infix)?
   ;
 
-constructor
-  :  'new' ID type_params? params '?'? body?
-  ;
-
-function
-  :  'fun' cap ID type_params? params oftype? '?'? body?
-  ;
-
-behaviour
-  :  'be' ID type_params? params body?
+method
+  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? '=>'? seq?
   ;
 
 oftype
@@ -53,18 +45,22 @@ types
   ;
 
 type
-  :  type_expr ('->' type_expr)*
+  :  atom_type ('->' type)?
   ;
 
-type_expr
-  :  '(' type (typeop type)* ')' // union, isect or tuple
+atom_type
+  :  'this' // only used for viewpoint adaptation
+  |  '(' tuple_type ')'
   |  ID ('.' ID)? type_args? cap? '^'? // nominal type
   |  '{' fun_type* '}' cap? '^'? // structural type
-  |  'this' // only used for viewpoint adaptation
   ;
 
-typeop
-  :  '|' | '&' | ',' // union, intersection, tuple
+tuple_type
+  :  infix_type (',' infix_type)*
+  ;
+
+infix_type
+  :  type (('|' | '&') type)*
   ;
 
 fun_type
@@ -79,7 +75,7 @@ type_params
   ;
 
 type_param
-  :  ID oftype? (assign type)?
+  :  ID oftype? ('=' type)?
   ;
 
 type_args
@@ -91,31 +87,33 @@ cap
   ;
 
 params
-  :  '(' (param (',' param)*)? ')'
+  :  param (',' param)*
   ;
 
 param
-  :  ID oftype (assign seq)?
-  ;
-
-body
-  :  '=>' seq
+  :  ID oftype ('=' infix)?
   ;
 
 seq
-  :  expr+
+  :  (expr)+
   ;
 
 expr
-  :  (binary
-  |  'return' binary
-  |  'break' binary
+  :  (jump | assignment) ';'?
+  ;
+  
+jump
+  :  'return' assignment
+  |  'break' assignment
   |  'continue'
   |  'error'
-  )  ';'?
   ;
 
-binary
+assignment
+  :  infix ('=' assignment)?
+  ;
+
+infix
   :  term (binop term)*
   ;
 
@@ -131,7 +129,7 @@ local
   ;
 
 control
-  :  'if' seq 'then' seq ('elseif' seq 'then' seq)* ('else' seq)? 'end'
+  :  'if' seq 'then' seq (elseif | ('else' seq))? 'end'
   |  'match' seq case* ('else' seq)? 'end'
   |  'while' seq 'do' seq ('else' seq)? 'end'
   |  'repeat' seq 'until' seq ('else' seq)? 'end'
@@ -140,21 +138,21 @@ control
   |  'recover' seq 'end'
   ;
 
+elseif
+  :  'elseif' seq 'then' seq (elseif | ('else' seq))?
+  ;
+
 case
-  :  '|' seq? ('as' idseq oftype)? ('where' seq)? body?
+  :  '|' seq? ('as' idseq oftype)? ('where' seq)? ('=>' seq)?
   ;
 
 postfix
   :  atom
-  (  '.' (ID | INT) // member or tuple component
-  |  '!' ID // partial application, syntactic sugar
-  |  type_args // type arguments
-  |  call // method arguments
-  )*
-  ;
-
-call
-  :  '@' '(' positional? named? ')'
+     (  '.' (ID | INT) // member or tuple component
+     |  '!' ID // partial application, syntactic sugar
+     |  type_args // type arguments
+     |  '@(' positional? named? ')' // call
+     )*
   ;
 
 atom
@@ -163,13 +161,23 @@ atom
   |  STRING
   |  ID
   |  'this'
-  |  tuple
-  |  array
-  |  object
+  |  '(' positional ')' // tuple
+  |  '[' positional? named? ']' // array
+  |  '{' ('is' types)? members '}' // object
+  |  '@' ID type_args '(' positional? ')' // ffi
   ;
 
 idseq
-  :  ID | '(' ID (',' ID)* ')'
+  :  ID | idseq_multi
+  ;
+
+idseq_multi
+  :  '(' idseq_element (',' idseq_element)*  ')'
+  ;
+
+idseq_element
+  :  ID
+  |  idseq_multi
   ;
 
 tuple
@@ -189,7 +197,7 @@ positional
   ;
 
 named
-  :  'where' term assign seq (',' term assign seq)*
+  :  'where' term '=' seq (',' term '=' seq)*
   ;
 
 unop
@@ -201,23 +209,22 @@ binop
   |  '+' | '@-' | '*' | '/' | '%' // arithmetic
   |  '<<' | '>>' // shift
   |  'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
-  |  assign
   ;
 
-assign
-  :  '='
-  ;
+/* Precedence
 
-/* Precedence?
-1. * / %
-2. + -
-3. << >> // same as C, but confusing?
-4. < <= => >
-5. == !=
-6. and
-7. xor
-8. or
-9. =
+Value:
+1. postfix
+2. unop
+3. binop
+4. =
+5. seq
+6. ,
+
+Type:
+1. ->
+2. & |
+3. ,
 */
 
 // Lexer
@@ -229,7 +236,6 @@ ID
 INT
   :  DIGIT+
   |  '0' 'x' HEX+
-  |  '0' 'o' OCTAL+
   |  '0' 'b' BINARY+
   ;
 
@@ -267,11 +273,6 @@ LETTER
 fragment
 BINARY
   :  '0'..'1'
-  ;
-
-fragment
-OCTAL
-  :  '0'..'7'
   ;
 
 fragment
