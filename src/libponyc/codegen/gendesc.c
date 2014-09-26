@@ -90,7 +90,7 @@ static int trait_count(gentype_t* g)
     {
       ast_t* def = (ast_t*)ast_data(g->ast);
       ast_t* traits = ast_childidx(def, 3);
-      return ast_childcount(traits);
+      return (int)ast_childcount(traits);
     }
 
     default: {}
