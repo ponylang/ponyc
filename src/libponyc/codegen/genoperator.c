@@ -337,10 +337,8 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "div_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "div_post");
+  LLVMBasicBlockRef then_block = codegen_block(c, "div_then");
+  LLVMBasicBlockRef post_block = codegen_block(c, "div_post");
 
   // Check for div by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);
@@ -399,10 +397,8 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "mod_then");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "mod_post");
+  LLVMBasicBlockRef then_block = codegen_block(c, "mod_then");
+  LLVMBasicBlockRef post_block = codegen_block(c, "mod_post");
 
   // Check for mod by zero.
   LLVMTypeRef type = LLVMTypeOf(r_value);

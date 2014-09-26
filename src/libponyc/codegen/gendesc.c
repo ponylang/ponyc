@@ -149,3 +149,39 @@ void gendesc_init(compile_t* c, gentype_t* g)
   LLVMSetInitializer(g->desc, desc);
   LLVMSetGlobalConstant(g->desc, true);
 }
+
+static LLVMValueRef object_desc(compile_t* c, LLVMValueRef object)
+{
+  LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, object, 0, "");
+  return LLVMBuildLoad(c->builder, ptr, "");
+}
+
+static LLVMValueRef desc_field(compile_t* c, LLVMValueRef object, int index)
+{
+  LLVMValueRef desc = object_desc(c, object);
+  LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, desc, index, "");
+  return LLVMBuildLoad(c->builder, ptr, "");
+}
+
+LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef object)
+{
+  return desc_field(c, object, 2);
+}
+
+LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef object)
+{
+  return desc_field(c, object, 5);
+}
+
+LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, int colour)
+{
+  LLVMValueRef desc = object_desc(c, object);
+  LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
+
+  LLVMValueRef index[2];
+  index[0] = LLVMConstInt(c->i32, 0, false);
+  index[1] = LLVMConstInt(c->i32, colour, false);
+
+  LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
+  return LLVMBuildLoad(c->builder, func_ptr, "");
+}

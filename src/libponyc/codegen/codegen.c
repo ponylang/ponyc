@@ -805,8 +805,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun)
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
-    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, fun,
-      "entry");
+    LLVMBasicBlockRef block = codegen_block(c, "entry");
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
 }
@@ -833,4 +832,9 @@ void codegen_finishfun(compile_t* c)
 LLVMValueRef codegen_fun(compile_t* c)
 {
   return c->frame->fun;
+}
+
+LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
+{
+  return LLVMAppendBasicBlockInContext(c->context, c->frame->fun, name);
 }

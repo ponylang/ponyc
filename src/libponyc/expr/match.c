@@ -56,6 +56,89 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
+static bool is_primitive_pattern(ast_t* ast)
+{
+  // Accept only no-argument constructors of primitive types.
+  if(ast_id(ast) != TK_CALL)
+    return false;
+
+  ast_t* type = ast_type(ast);
+
+  if(ast_id(type) != TK_NOMINAL)
+    return false;
+
+  ast_t* def = (ast_t*)ast_data(type);
+
+  if(ast_id(def) != TK_PRIMITIVE)
+    return false;
+
+  AST_GET_CHILDREN(ast, dot, positional, named);
+
+  if(ast_id(dot) != TK_NEWREF)
+    return false;
+
+  if(ast_id(positional) != TK_NONE)
+    return false;
+
+  if(ast_id(named) != TK_NONE)
+    return false;
+
+  return true;
+}
+
+static bool is_valid_pattern(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+    case TK_STRING:
+    case TK_VAR:
+    case TK_LET:
+      return true;
+
+    case TK_CALL:
+      return is_primitive_pattern(ast);
+
+    case TK_TUPLE:
+    {
+      // A tuple is valid if every child is valid.
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(!is_valid_pattern(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_SEQ:
+    {
+      // Only valid for single element sequences in tuples.
+      ast_t* parent = ast_parent(ast);
+
+      if(ast_id(parent) != TK_TUPLE)
+        return false;
+
+      ast_t* child = ast_child(ast);
+
+      if(ast_sibling(child) != NULL)
+        return false;
+
+      return is_valid_pattern(child);
+    }
+
+    default: {}
+  }
+
+  ast_error(ast, "not a valid pattern");
+  return false;
+}
+
 bool expr_case(ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASE);
@@ -69,9 +152,8 @@ bool expr_case(ast_t* ast)
     return false;
   }
 
-  // TODO: check pattern is a subtype of the match expression?
-  // are patterns structural equality? does the match expression have to be
-  // Comparable?
+  if(!is_valid_pattern(pattern))
+    return false;
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {

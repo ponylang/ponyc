@@ -299,9 +299,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
   codegen_startfun(c, g->dispatch_fn);
 
-  LLVMBasicBlockRef unreachable = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn,
-    "unreachable");
-
+  LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   LLVMSetValueName(this_ptr, "this");
 

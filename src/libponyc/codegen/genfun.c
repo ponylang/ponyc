@@ -307,7 +307,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
 {
   // Add a case to the dispatch function to handle this message.
   codegen_startfun(c, g->dispatch_fn);
-  LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, g->dispatch_fn, "handler");
+  LLVMBasicBlockRef block = codegen_block(c, "handler");
   LLVMValueRef id = LLVMConstInt(c->i32, index, false);
   LLVMAddCase(g->dispatch_switch, id, block);
 
