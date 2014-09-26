@@ -151,12 +151,14 @@ TEST(BnfTest, Use)
 {
   const char* src =
     "use \"foo1\" "
-    "use \"foo2\" as bar";
+    "use bar = \"foo2\""
+    "use bar = \"foo3\" where wombat";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}"
-    "  (use \"foo1\" x x)"
-    "  (use \"foo2\" (id bar) x)"
+    "  (use x \"foo1\" x)"
+    "  (use (id bar) \"foo2\" x)"
+    "  (use (id bar) \"foo3\" (reference (id wombat)))"
     ")))";
 
   DO(parse_good(src, expect));

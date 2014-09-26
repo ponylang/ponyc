@@ -6,6 +6,7 @@
 #include <ds/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
+#include <pkg/use.h>
 
 #include "util.h"
 
@@ -15,6 +16,12 @@ protected:
   ast_t* ast;
   ast_t* start;
   builder_t* builder;
+
+  virtual void SetUp()
+  {
+    use_clear_handlers();
+    use_register_std();
+  }
 
   virtual void TearDown()
   {
@@ -391,7 +398,7 @@ TEST_F(ScopeTest, Use)
 {
   const char* tree =
     "(program{scope} (package{scope} (module{scope}"
-    "  (use{def start} \"test\" x))))";
+    "  (use{def start} x \"test\" x))))";
 
   const char* used_package =
     "class Foo";
@@ -399,13 +406,15 @@ TEST_F(ScopeTest, Use)
   const char* builtin =
     "primitive U32";
 
+  pass_opt_t opts = { true };
+
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
 
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
@@ -418,7 +427,7 @@ TEST_F(ScopeTest, UseAs)
 {
   const char* tree =
     "(program{scope} (package{scope} (module{scope}"
-    "  (use{def start} \"test\" (id bar)))))";
+    "  (use{def start} (id bar) \"test\" x))))";
 
   const char* used_package =
     "class Foo";
@@ -426,17 +435,77 @@ TEST_F(ScopeTest, UseAs)
   const char* builtin =
     "primitive U32";
 
+  pass_opt_t opts = { true };
+
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
 
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
   symtab_t* module_symtab = ast_get_symtab(module);
   ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("bar"), NULL));
+  ASSERT_EQ((void*)NULL, symtab_get(module_symtab, stringtab("Foo"), NULL));
+}
+
+
+TEST_F(ScopeTest, UseConditionTrue)
+{
+  const char* tree =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (use{def start} x \"test\" (reference (id debug))))))";
+
+  const char* used_package =
+    "class Foo";
+
+  const char* builtin =
+    "primitive U32";
+
+  pass_opt_t opts = { false };
+
+  DO(build(tree));
+
+  package_add_magic("builtin", builtin);
+  package_add_magic("test", used_package);
+  limit_passes("scope1");
+
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+
+  // Use imported types go in the module symbol table
+  ast_t* module = find_sub_tree(ast, TK_MODULE);
+  symtab_t* module_symtab = ast_get_symtab(module);
+  ASSERT_NE((void*)NULL, symtab_get(module_symtab, stringtab("Foo"), NULL));
+}
+
+
+TEST_F(ScopeTest, UseConditionFalse)
+{
+  const char* tree =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (use{def start} x \"test\" (reference (id debug))))))";
+
+  const char* used_package =
+    "class Foo";
+
+  const char* builtin =
+    "primitive U32";
+
+  pass_opt_t opts = { true };
+
+  DO(build(tree));
+
+  package_add_magic("builtin", builtin);
+  package_add_magic("test", used_package);
+  limit_passes("scope1");
+
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+
+  // Nothing should be imported
+  ast_t* module = find_sub_tree(ast, TK_MODULE);
+  symtab_t* module_symtab = ast_get_symtab(module);
   ASSERT_EQ((void*)NULL, symtab_get(module_symtab, stringtab("Foo"), NULL));
 }

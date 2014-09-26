@@ -1,4 +1,5 @@
 #include "package.h"
+#include "use.h"
 #include "../codegen/codegen.h"
 #include "../ast/source.h"
 #include "../ast/parser.h"
@@ -371,6 +372,7 @@ bool package_init(const char* name, pass_opt_t* opt)
 #endif
 
   add_exec_dir(name);
+  use_register_std();
   return true;
 }
 

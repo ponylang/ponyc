@@ -14,8 +14,8 @@ PONY_EXTERN_C_BEGIN
  * commands that do not specify a scheme.
  */
 
-typedef bool(*use_handler_t)(ast_t* use, const char* locator,
-  const char* name, pass_opt_t* options);
+typedef bool (*use_handler_t)(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options);
 
 /// Register the standard use handlers
 void use_register_std();
@@ -24,8 +24,8 @@ void use_register_std();
  * @param scheme Scheme identifier string, including trailing :. String must be
  * valid indefinitely.
  */
-void use_register_handler(const char* scheme, bool allow_as,
-  bool allow_cond, use_handler_t handler);
+void use_register_handler(const char* scheme, bool allow_name,
+  use_handler_t handler);
 
 /// Unregister and free all registered use handlers
 void use_clear_handlers();

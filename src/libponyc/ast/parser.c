@@ -597,12 +597,18 @@ DEF(typealias);
   RULE("aliased type", type);
   DONE();
 
-// USE STRING [AS ID]
+// NAME =
+DEF(usename);
+  TOKEN(NULL, TK_ID);
+  SKIP(NULL, TK_ASSIGN);
+  DONE();
+
+// USE [NAME =] STRING [where infix]
 DEF(use);
   TOKEN(NULL, TK_USE);
-  TOKEN("URL", TK_STRING);
-  IF(TK_AS, TOKEN("use alias", TK_ID));
-  IF(TK_WHERE, RULE("use condition", expr));
+  OPT RULE("name", usename);
+  TOKEN("URI", TK_STRING);
+  IF(TK_WHERE, RULE("use condition", infix));
   DONE();
 
 // {use} {class | typealias}

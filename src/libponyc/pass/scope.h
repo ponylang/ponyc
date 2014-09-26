@@ -15,6 +15,13 @@ PONY_EXTERN_C_BEGIN
  */
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options);
 
+/**
+* Import a package, either with a qualifying name or by merging it into the
+* current scope.
+*/
+bool use_package(ast_t* ast, const char* path, ast_t* name,
+  pass_opt_t* options);
+
 PONY_EXTERN_C_END
 
 #endif

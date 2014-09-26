@@ -2,6 +2,7 @@
 #include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../pkg/package.h"
+#include "../pkg/use.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -94,45 +95,40 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
   return true;
 }
 
-/**
- * Import a package, either with a qualifying name or by merging it into the
- * current scope.
- */
-static ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
+bool use_package(ast_t* ast, const char* path, ast_t* name,
+  pass_opt_t* options)
 {
-  ast_t* package = package_load(ast, path, NULL);
+  assert(ast != NULL);
+  assert(path != NULL);
 
-  if(package == ast)
-    return package;
+  ast_t* package = package_load(ast, path, options);
+
+  if(package == ast)  // Stop builtin recursing
+    return true;
 
   if(package == NULL)
   {
     ast_error(ast, "can't load package '%s'", path);
-    return NULL;
+    return false;
   }
 
-  if(name && ast_id(name) == TK_ID)
-  {
-    if(!set_scope(ast, name, package))
-      return NULL;
+  if(name != NULL && ast_id(name) == TK_ID) // We have an alias
+    return set_scope(ast, name, package);
 
-    return package;
-  }
-
-  assert((name == NULL) || (ast_id(name) == TK_NONE));
-
+  // We do not have an alias
   if(!ast_merge(ast, package))
   {
     ast_error(ast, "can't merge symbols from '%s'", path);
-    return NULL;
+    return false;
   }
 
-  return package;
+  return true;
 }
 
 static bool scope_package(ast_t* ast)
 {
-  return use_package(ast, NULL, stringtab("builtin")) != NULL;
+  // Every package has an implicit use "builtin" command
+  return use_package(ast, stringtab("builtin"), NULL, NULL);
 }
 
 static bool scope_method(ast_t* ast)
@@ -192,14 +188,6 @@ static bool scope_method(ast_t* ast)
   return true;
 }
 
-static bool scope_use(ast_t* ast)
-{
-  ast_t* path = ast_child(ast);
-  ast_t* name = ast_sibling(path);
-
-  return use_package(ast, name, ast_name(path)) != NULL;
-}
-
 static bool scope_idseq(ast_t* ast)
 {
   ast_t* child = ast_child(ast);
@@ -228,7 +216,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_USE:
-      if(!scope_use(ast))
+      if(!use_command(ast, options))
         return AST_FATAL;
       break;
 
