@@ -48,6 +48,7 @@ typedef struct compile_t
   LLVMTypeRef i128;
   LLVMTypeRef f32;
   LLVMTypeRef f64;
+  LLVMTypeRef intptr;
 
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;

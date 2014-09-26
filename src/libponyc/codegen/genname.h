@@ -8,6 +8,10 @@ PONY_EXTERN_C_BEGIN
 
 const char* genname_type(ast_t* ast);
 
+const char* genname_typeid(const char* type);
+
+const char* genname_traitlist(const char* type);
+
 const char* genname_trace(const char* type);
 
 const char* genname_tracetuple(const char* type);

@@ -46,16 +46,15 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
     g->vtable_size = painter_get_vtable_size(c->painter, def);
   }
 
-  const char* desc_name = genname_descriptor(g->type_name);
-  g->desc_type = gendesc_type(c, desc_name, g->vtable_size);
+  g->desc_type = gendesc_type(c, g);
 
   // Check for an existing descriptor.
-  g->desc = LLVMGetNamedGlobal(c->module, desc_name);
+  g->desc = LLVMGetNamedGlobal(c->module, g->desc_name);
 
   if(g->desc != NULL)
     return;
 
-  g->desc = LLVMAddGlobal(c->module, g->desc_type, desc_name);
+  g->desc = LLVMAddGlobal(c->module, g->desc_type, g->desc_name);
   LLVMSetGlobalConstant(g->desc, true);
 }
 
@@ -579,6 +578,7 @@ bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g)
 
     g->ast = ast;
     g->type_name = genname_type(ast);
+    g->desc_name = genname_descriptor(g->type_name);
 
     return make_nominal(c, ast, g, true);
   }
@@ -592,6 +592,7 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 
   g->ast = ast;
   g->type_name = genname_type(ast);
+  g->desc_name = genname_descriptor(g->type_name);
 
   switch(ast_id(ast))
   {

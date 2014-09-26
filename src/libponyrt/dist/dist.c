@@ -348,6 +348,7 @@ static pony_type_t type =
 {
 	1,
 	sizeof(dist_t),
+	0,
 	trace_dist,
 	NULL,
 	NULL,

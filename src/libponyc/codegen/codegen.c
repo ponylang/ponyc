@@ -77,6 +77,7 @@ static void init_runtime(compile_t* c)
   c->i128 = LLVMIntTypeInContext(c->context, 128);
   c->f32 = LLVMFloatTypeInContext(c->context);
   c->f64 = LLVMDoubleTypeInContext(c->context);
+  c->intptr = LLVMIntPtrTypeInContext(c->context, c->target_data);
 
   // i8*
   c->void_ptr = LLVMPointerType(c->i8, 0);
@@ -114,7 +115,7 @@ static void init_runtime(compile_t* c)
     LLVMFunctionType(c->void_type, params, 1, false), 0);
 
   // descriptor
-  c->descriptor_type = gendesc_type(c, genname_descriptor(NULL), 0);
+  c->descriptor_type = gendesc_type(c, NULL);
   c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
 
   // define object

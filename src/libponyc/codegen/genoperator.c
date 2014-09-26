@@ -655,9 +655,8 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   }
 
   // TODO: structural check if both sides are the same boxed primitive type
-  LLVMTypeRef type = LLVMIntPtrTypeInContext(c->context, c->target_data);
-  l_value = LLVMBuildPtrToInt(c->builder, l_value, type, "");
-  r_value = LLVMBuildPtrToInt(c->builder, r_value, type, "");
+  l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
+  r_value = LLVMBuildPtrToInt(c->builder, r_value, c->intptr, "");
 
   return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
 }
