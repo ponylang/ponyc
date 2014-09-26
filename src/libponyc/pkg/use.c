@@ -1,24 +1,18 @@
+#include "use.h"
 #include "../ast/ast.h"
 #include "package.h"
 #include "platformfuns.h"
 #include "../pass/pass.h"
+#include "../pass/scope.h"
 #include <string.h>
 #include <assert.h>
-
-
-// use "[scheme:]locator" [as name] [where condition]
-
-
-typedef bool (*use_handler_t)(ast_t* use, const char* locator,
-  const char* name);
 
 
 typedef struct use_t
 {
   const char* scheme; // Interned textual identifier including :
-  int scheme_len;     // Number of characters in scheme, including :
-  bool allow_as;      // Is the "as" clause allowed
-  bool allow_cond;    // Is the "where" clause allowed
+  size_t scheme_len;  // Number of characters in scheme, including :
+  bool allow_name;    // Is the name clause allowed
   use_handler_t handler;
   struct use_t* next;
 } use_t;
@@ -48,7 +42,7 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
     return default_handler;
   }
 
-  int scheme_len = (int)(colon - text + 1);  // +1 for colon
+  size_t scheme_len = colon - text + 1;  // +1 for colon
 
   // Search for matching handler
   for(use_t* p = handlers; p != NULL; p = p->next)
@@ -73,7 +67,7 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
   }
 #endif
 
-  ast_error(uri, "Use scheme %.*s not found", scheme_len, text);
+  ast_error(uri, "Use scheme %.*s not found", (int)scheme_len, text);
   return NULL;
 }
 
@@ -142,7 +136,7 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
 // Handle condition, if any
 // @return true if we should continue with use, false if we should skip it
 static bool process_condition(ast_t* cond, use_t* handler, bool release,
-  bool* out_retval)
+  bool* out_retval, bool free_cond)
 {
   assert(cond != NULL);
   assert(handler != NULL);
@@ -150,15 +144,6 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
 
   if(ast_id(cond) == TK_NONE) // No condition provided
     return true;
-
-  if(!handler->allow_cond)
-  {
-    // Condition not allowed
-    ast_error(cond, "Use scheme %s may not have a condition",
-      handler->scheme);
-    *out_retval = false;
-    return false;
-  }
 
   // Evaluate condition expression
   bool error = false;
@@ -172,7 +157,14 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
 
   // Evaluated OK
   // Free expression AST to prevent type check errors
-  // TODO
+  if(free_cond)
+  {
+    ast_t* child;
+    while((child = ast_pop(cond)) != NULL)
+      ast_free(child);
+
+    ast_setid(cond, TK_NONE);
+  }
 
   *out_retval = true;
   return val;
@@ -181,17 +173,21 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
 
 void use_register_std()
 {
+  use_register_handler("file:", true, use_package);
   // TODO
 }
 
 
-void use_register_handler(const char* scheme, bool allow_as,
-  bool allow_cond, use_handler_t handler)
+void use_register_handler(const char* scheme, bool allow_name,
+  use_handler_t handler)
 {
+  assert(scheme != NULL);
+  assert(handler != NULL);
+
   use_t* s = (use_t*)calloc(1, sizeof(use_t));
   s->scheme = stringtab(scheme);
-  s->allow_as = allow_as;
-  s->allow_cond = allow_cond;
+  s->scheme_len = strlen(scheme);
+  s->allow_name = allow_name;
   s->handler = handler;
   s->next = handlers;
 
@@ -218,8 +214,11 @@ void use_clear_handlers()
 }
 
 
-bool use_command(ast_t* ast, pass_opt_t* options)
+bool use_command(ast_t* ast, pass_opt_t* options, bool free_cond)
 {
+  assert(ast != NULL);
+  assert(options != NULL);
+
   if(handlers == NULL)
   {
     ast_error(ast, "Internal error: no use scheme handlers registered");
@@ -228,68 +227,23 @@ bool use_command(ast_t* ast, pass_opt_t* options)
 
   assert(default_handler != NULL);
 
-  AST_GET_CHILDREN(ast, uri, alias, condition);
+  AST_GET_CHILDREN(ast, alias, uri, condition);
 
   const char* locator;
-  const char* name = NULL;
   use_t* handler = find_handler(uri, &locator);
 
   if(handler == NULL) // Scheme not found
     return false;
 
-  if(ast_id(alias) != TK_NONE)
+  if(ast_id(alias) != TK_NONE && !handler->allow_name)
   {
-    if(!handler->allow_as)
-    {
-      ast_error(alias, "Use scheme %s may not have an alias", handler->scheme);
-      return false;
-    }
-
-    name = ast_name(alias);
+    ast_error(alias, "Use scheme %s may not have an alias", handler->scheme);
+    return false;
   }
 
   bool r;
-  if(!process_condition(condition, handler, true, &r))
+  if(!process_condition(condition, handler, options->release, &r, free_cond))
     return r;
 
-  return handler->handler(ast, locator, name);
-}
-
-
-
-
-/**
-* Import a package, either with a qualifying name or by merging it into the
-* current scope.
-*/
-ast_t* use_package(ast_t* ast, ast_t* name, const char* path)
-{
-  ast_t* package = package_load(ast, path, NULL);
-
-  if(package == ast)
-    return package;
-
-  if(package == NULL)
-  {
-    ast_error(ast, "can't load package '%s'", path);
-    return NULL;
-  }
-
-  if(name && ast_id(name) == TK_ID)
-  {
-    //if(!set_scope(ast, name, package, NULL))
-    //  return NULL;
-
-    return package;
-  }
-
-  assert((name == NULL) || (ast_id(name) == TK_NONE));
-
-  if(!ast_merge(ast, package))
-  {
-    ast_error(ast, "can't merge symbols from '%s'", path);
-    return NULL;
-  }
-
-  return package;
+  return handler->handler(ast, locator, alias, options);
 }
