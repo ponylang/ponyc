@@ -10,6 +10,8 @@ class Dormouse is Animal
 
 class Tomato is Vegetable
 
+class Thumbtack
+
 actor Main
   var _env: Env
 
@@ -20,17 +22,18 @@ actor Main
     test(Aardvark)
     test(Dormouse)
     test(Tomato)
+    test(Thumbtack)
 
   fun box test(x: Any) =>
     match x
     | var y: Wombat =>
-      _env.stdout.print("Wombat!")
+      _env.stdout.print("Wombat")
     | var y: Aardvark =>
-      _env.stdout.print("Aardvark!")
+      _env.stdout.print("Aardvark")
     | var y: Animal =>
-      _env.stdout.print("Animal!")
+      _env.stdout.print("Animal")
     | var y: (Animal | Vegetable) =>
-      _env.stdout.print("Animal or vegetable!")
+      _env.stdout.print("Animal or Vegetable")
     else
-      _env.stdout.print("Unknown?")
+      _env.stdout.print("Unknown")
     end
