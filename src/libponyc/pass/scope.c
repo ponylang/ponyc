@@ -216,7 +216,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_USE:
-      if(!use_command(ast, options))
+      if(!use_command(ast, options, false))
         return AST_FATAL;
       break;
 
@@ -257,4 +257,20 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
   }
 
   return AST_OK;
+}
+
+
+ast_result_t pass_scope2(ast_t** astp, pass_opt_t* options)
+{
+  ast_t* ast = *astp;
+
+  if(ast_id(ast) == TK_USE)
+  {
+    if(!use_command(ast, options, true))
+      return AST_FATAL;
+    
+    return AST_OK;
+  }
+
+  return pass_scope(astp, options);
 }

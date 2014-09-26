@@ -136,7 +136,7 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
 // Handle condition, if any
 // @return true if we should continue with use, false if we should skip it
 static bool process_condition(ast_t* cond, use_t* handler, bool release,
-  bool* out_retval)
+  bool* out_retval, bool free_cond)
 {
   assert(cond != NULL);
   assert(handler != NULL);
@@ -157,11 +157,15 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
 
   // Evaluated OK
   // Free expression AST to prevent type check errors
-  ast_t* child;
-  while((child = ast_pop(cond)) != NULL)
-    ast_free(child);
+  if(free_cond)
+  {
+    ast_t* child;
+    while((child = ast_pop(cond)) != NULL)
+      ast_free(child);
 
-  ast_setid(cond, TK_NONE);
+    ast_setid(cond, TK_NONE);
+  }
+
   *out_retval = true;
   return val;
 }
@@ -210,7 +214,7 @@ void use_clear_handlers()
 }
 
 
-bool use_command(ast_t* ast, pass_opt_t* options)
+bool use_command(ast_t* ast, pass_opt_t* options, bool free_cond)
 {
   assert(ast != NULL);
   assert(options != NULL);
@@ -238,7 +242,7 @@ bool use_command(ast_t* ast, pass_opt_t* options)
   }
 
   bool r;
-  if(!process_condition(condition, handler, options->release, &r))
+  if(!process_condition(condition, handler, options->release, &r, free_cond))
     return r;
 
   return handler->handler(ast, locator, alias, options);

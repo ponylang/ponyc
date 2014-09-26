@@ -76,7 +76,7 @@ protected:
     DO(build_ast_from_string(before, &actual_ast, &builder));
     ASSERT_NE((void*)NULL, actual_ast);
 
-    ASSERT_EQ(expect, use_command(actual_ast, &_options));
+    ASSERT_EQ(expect, use_command(actual_ast, &_options, true));
 
     if(call_a_count > 0 || call_b_count > 0)
     {

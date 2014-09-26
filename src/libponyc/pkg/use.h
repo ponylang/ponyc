@@ -32,7 +32,7 @@ void use_clear_handlers();
 
 /// Process a use command
 /// @return true on success, false on failure
-bool use_command(ast_t* ast, pass_opt_t* options);
+bool use_command(ast_t* ast, pass_opt_t* options, bool free_cond);
 
 PONY_EXTERN_C_END
 
