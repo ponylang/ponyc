@@ -7,6 +7,7 @@
 #include "gencall.h"
 #include "../pass/names.h"
 #include "../pkg/package.h"
+#include "../pkg/program.h"
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
 #include <platform.h>
@@ -433,7 +434,8 @@ static void append_link_paths(char* str)
   }
 }
 
-static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
+static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
+  pass_id pass_limit)
 {
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
@@ -560,7 +562,10 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   arch = strndup(opt->triple, arch - opt->triple);
 
-  size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length();
+  program_lib_build_args(program, "", "", "-l", "");
+
+  size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length() +
+    program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -570,11 +575,15 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     );
 
   // User specified libraries go here, in any order.
+  strcat(ld_cmd, program_lib_args(program));
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lponyrt -lSystem");
   free(arch);
 #elif defined(PLATFORM_IS_LINUX)
-  size_t ld_len = 256 + (len * 2) + link_path_length();
+  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
+
+  size_t ld_len = 256 + (len * 2) + link_path_length() +
+    program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -591,6 +600,8 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
 
   // User specified libraries go here, surrounded with --start-group and
   // --end-group so that we don't have to determine an ordering.
+  strcat(ld_cmd, program_lib_args(program));
+
   strcat(ld_cmd,
     " -lponyrt -lpthread -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
@@ -605,9 +616,11 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     return false;
   }
 
+  program_lib_build_args(program, "", "", "", ".lib");
+
   //(len * 2) for object file and executable
   size_t ld_len = 256 + (len * 2) + link_path_length() +
-    vcvars_get_path_length(&vcvars);
+    vcvars_get_path_length(&vcvars) + program_lib_arg_length(program);
 
   VLA(char, ld_cmd, ld_len);
 
@@ -621,6 +634,7 @@ static bool codegen_finalise(compile_t* c, pass_opt_t* opt, pass_id pass_limit)
     );
 
   append_link_paths(ld_cmd);
+  strcat(ld_cmd, program_lib_args(program));
 
   strcat(ld_cmd,
     " ponyrt.lib kernel32.lib msvcrt.lib"
@@ -784,7 +798,7 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(&c, opt, pass_limit);
+    ok = codegen_finalise(program, &c, opt, pass_limit);
 
   codegen_cleanup(&c);
   return ok;

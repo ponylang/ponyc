@@ -41,6 +41,7 @@ NONE indicates TK_NONE throughout.
 
 
 PROGRAM: {PACKAGE}
+data: program_t
 symtab: path -> PACKAGE
 Always the root node.
 

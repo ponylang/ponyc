@@ -2,6 +2,7 @@
 #include "../ast/ast.h"
 #include "package.h"
 #include "platformfuns.h"
+#include "program.h"
 #include "../pass/pass.h"
 #include "../pass/scope.h"
 #include <string.h>
@@ -174,7 +175,7 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
 void use_register_std()
 {
   use_register_handler("file:", true, use_package);
-  // TODO
+  use_register_handler("lib:", true, use_library);
 }
 
 
