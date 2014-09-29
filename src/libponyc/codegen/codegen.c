@@ -77,6 +77,7 @@ static void init_runtime(compile_t* c)
   c->i128 = LLVMIntTypeInContext(c->context, 128);
   c->f32 = LLVMFloatTypeInContext(c->context);
   c->f64 = LLVMDoubleTypeInContext(c->context);
+  c->intptr = LLVMIntPtrTypeInContext(c->context, c->target_data);
 
   // i8*
   c->void_ptr = LLVMPointerType(c->i8, 0);
@@ -114,7 +115,7 @@ static void init_runtime(compile_t* c)
     LLVMFunctionType(c->void_type, params, 1, false), 0);
 
   // descriptor
-  c->descriptor_type = gendesc_type(c, genname_descriptor(NULL), 0);
+  c->descriptor_type = gendesc_type(c, NULL);
   c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
 
   // define object
@@ -805,8 +806,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun)
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
-    LLVMBasicBlockRef block = LLVMAppendBasicBlockInContext(c->context, fun,
-      "entry");
+    LLVMBasicBlockRef block = codegen_block(c, "entry");
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
 }
@@ -833,4 +833,9 @@ void codegen_finishfun(compile_t* c)
 LLVMValueRef codegen_fun(compile_t* c)
 {
   return c->frame->fun;
+}
+
+LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
+{
+  return LLVMAppendBasicBlockInContext(c->context, c->frame->fun, name);
 }

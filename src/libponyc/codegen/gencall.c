@@ -1,6 +1,7 @@
 #include "gencall.h"
 #include "gentype.h"
 #include "genexpr.h"
+#include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
 #include "../pkg/platformfuns.h"
@@ -139,22 +140,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     // Virtual, get the function by selector colour.
     int colour = painter_get_colour(c->painter, method_name);
 
-    // Cast the field to a generic object pointer.
-    l_value = LLVMBuildBitCast(c->builder, l_value, c->object_ptr, "object");
-
-    // Get the type descriptor from the object pointer.
-    LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, l_value, 0, "");
-    LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
-
     // Get the function from the vtable.
-    LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 8, "");
-
-    LLVMValueRef index[2];
-    index[0] = LLVMConstInt(c->i32, 0, false);
-    index[1] = LLVMConstInt(c->i32, colour, false);
-
-    LLVMValueRef func_ptr = LLVMBuildGEP(c->builder, vtable, index, 2, "");
-    func = LLVMBuildLoad(c->builder, func_ptr, "");
+    func = gendesc_vtable(c, l_value, colour);
 
     // TODO: What if the function signature takes a primitive but the real
     // underlying function accepts a union type of that primitive with something
@@ -341,26 +328,14 @@ static void trace_known(compile_t* c, LLVMValueRef value, const char* name)
 
 static void trace_unknown(compile_t* c, LLVMValueRef value)
 {
-  // cast the field to an object pointer
-  LLVMValueRef args[2];
-  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "object");
-
-  // get the type descriptor from the object pointer
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, args[0], 0, "");
-  LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "desc");
-
   // determine if this is an actor or not
-  LLVMValueRef dispatch_ptr = LLVMBuildStructGEP(c->builder, desc, 5, "");
-  LLVMValueRef dispatch = LLVMBuildLoad(c->builder, dispatch_ptr, "dispatch");
+  LLVMValueRef dispatch = gendesc_dispatch(c, value);
   LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
   // build a conditional
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "else");
-  LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "merge");
+  LLVMBasicBlockRef then_block = codegen_block(c, "then");
+  LLVMBasicBlockRef else_block = codegen_block(c, "else");
+  LLVMBasicBlockRef merge_block = codegen_block(c, "merge");
 
   LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
 
@@ -368,8 +343,9 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMPositionBuilderAtEnd(c->builder, then_block);
 
   // get the trace function from the type descriptor
-  LLVMValueRef trace_ptr = LLVMBuildStructGEP(c->builder, desc, 3, "");
-  args[1] = LLVMBuildLoad(c->builder, trace_ptr, "trace");
+  LLVMValueRef args[2];
+  args[0] = value;
+  args[1] = gendesc_trace(c, value);
 
   gencall_runtime(c, "pony_traceobject", args, 2, "");
   LLVMBuildBr(c->builder, merge_block);

@@ -97,12 +97,13 @@ typedef const struct _pony_type_t
 {
   uint32_t id; // Will be used in serialisation.
   uint32_t size; // Size in bytes.
+  uint32_t trait_count;
   pony_trace_fn trace;
   pony_trace_fn serialise;
   pony_trace_fn deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
-  // void* traits;
+  // uint32_t** traits;
   // void* vtable[0];
 } pony_type_t;
 

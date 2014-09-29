@@ -58,16 +58,13 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   }
 
   // build a conditional
-  LLVMValueRef fun = codegen_fun(c);
-  LLVMBasicBlockRef then_block = LLVMAppendBasicBlockInContext(c->context,
-    fun, "if_then");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
-    fun, "if_else");
+  LLVMBasicBlockRef then_block = codegen_block(c, "if_then");
+  LLVMBasicBlockRef else_block = codegen_block(c, "if_else");
   LLVMBasicBlockRef post_block = NULL;
 
   // If both branches return, we have no post block.
   if(type != NULL)
-    post_block = LLVMAppendBasicBlockInContext(c->context, fun, "if_post");
+    post_block = codegen_block(c, "if_post");
 
   LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
 
@@ -133,14 +130,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &phi_type))
     return NULL;
 
-  LLVMBasicBlockRef init_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "while_init");
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "while_body");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "while_else");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "while_post");
+  LLVMBasicBlockRef init_block = codegen_block(c, "while_init");
+  LLVMBasicBlockRef body_block = codegen_block(c, "while_body");
+  LLVMBasicBlockRef else_block = codegen_block(c, "while_else");
+  LLVMBasicBlockRef post_block = codegen_block(c, "while_post");
   LLVMBuildBr(c->builder, init_block);
 
   // keep a reference to the init block
@@ -215,14 +208,10 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &phi_type))
     return NULL;
 
-  LLVMBasicBlockRef body_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "repeat_body");
-  LLVMBasicBlockRef cond_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "repeat_cond");
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "repeat_else");
-  LLVMBasicBlockRef post_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "repeat_post");
+  LLVMBasicBlockRef body_block = codegen_block(c, "repeat_body");
+  LLVMBasicBlockRef cond_block = codegen_block(c, "repeat_cond");
+  LLVMBasicBlockRef else_block = codegen_block(c, "repeat_else");
+  LLVMBasicBlockRef post_block = codegen_block(c, "repeat_post");
   LLVMBuildBr(c->builder, body_block);
 
   // keep a reference to the cond block
@@ -287,8 +276,7 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   ast_t* body = ast_child(ast);
   ast_t* body_type = ast_type(body);
 
-  LLVMBasicBlockRef break_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "break");
+  LLVMBasicBlockRef break_block = codegen_block(c, "break");
   LLVMBuildBr(c->builder, break_block);
 
   switch(ast_id(loop))
@@ -376,15 +364,11 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef else_block = LLVMAppendBasicBlockInContext(c->context,
-    codegen_fun(c), "try_else");
+  LLVMBasicBlockRef else_block = codegen_block(c, "try_else");
   LLVMBasicBlockRef post_block = NULL;
 
   if(type != NULL)
-  {
-    post_block = LLVMAppendBasicBlockInContext(c->context, codegen_fun(c),
-      "try_post");
-  }
+    post_block = codegen_block(c, "try_post");
 
   // keep a reference to the else block
   ast_setdata(ast, else_block);

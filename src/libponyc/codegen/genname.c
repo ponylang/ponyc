@@ -97,6 +97,16 @@ const char* genname_type(ast_t* ast)
   return NULL;
 }
 
+const char* genname_typeid(const char* type)
+{
+  return build_name(type, "$id", NULL);
+}
+
+const char* genname_traitlist(const char* type)
+{
+  return build_name(type, "$traits", NULL);
+}
+
 const char* genname_trace(const char* type)
 {
   return build_name(type, "$trace", NULL);

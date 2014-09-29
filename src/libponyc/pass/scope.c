@@ -133,12 +133,10 @@ static bool scope_package(ast_t* ast)
 
 static bool scope_method(ast_t* ast)
 {
-  if(!set_scope(ast_parent(ast), ast_childidx(ast, 1), ast))
-    return false;
+  ast_t* id = ast_childidx(ast, 1);
 
-  // If this isn't a constructor, we accept SYM_DEFINED for our fields.
-  if(ast_id(ast) != TK_NEW)
-    return true;
+  if(!set_scope(ast_parent(ast), id, ast))
+    return false;
 
   ast_t* members = ast_parent(ast);
   ast_t* type = ast_parent(members);
@@ -153,10 +151,28 @@ static bool scope_method(ast_t* ast)
     case TK_ACTOR:
       break;
 
+    case TK_STRUCTURAL:
+    {
+      // Disallow private members in structural types.
+      const char* name = ast_name(id);
+
+      if(name[0] == '_')
+      {
+        ast_error(id, "private method can't appear in structural types");
+        return false;
+      }
+
+      return true;
+    }
+
     default:
       assert(0);
       return false;
   }
+
+  // If this isn't a constructor, we accept SYM_DEFINED for our fields.
+  if(ast_id(ast) != TK_NEW)
+    return true;
 
   ast_t* member = ast_child(members);
 
@@ -268,7 +284,7 @@ ast_result_t pass_scope2(ast_t** astp, pass_opt_t* options)
   {
     if(!use_command(ast, options, true))
       return AST_FATAL;
-    
+
     return AST_OK;
   }
 

@@ -12,6 +12,8 @@ typedef struct gentype_t
   token_id underlying;
 
   const char* type_name;
+  const char* desc_name;
+
   LLVMTypeRef structure;
   LLVMTypeRef structure_ptr;
   LLVMTypeRef primitive;

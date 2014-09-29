@@ -70,12 +70,14 @@ static void clear_large(chunk_t* chunk)
 
 static void destroy_small(chunk_t* chunk)
 {
+  // We could clear the pagemap here.
   POOL_FREE(block_t, chunk->m);
   POOL_FREE(chunk_t, chunk);
 }
 
 static void destroy_large(chunk_t* chunk)
 {
+  // We could clear the pagemap here.
   pool_free_size(chunk->size, chunk->m);
   POOL_FREE(chunk_t, chunk);
 }

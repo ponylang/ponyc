@@ -2,6 +2,7 @@
 #include "genname.h"
 #include "genfun.h"
 #include "gencontrol.h"
+#include "genmatch.h"
 #include "genoperator.h"
 #include "genreference.h"
 #include "gencall.h"
@@ -43,11 +44,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_try(c, ast);
 
     case TK_MATCH:
-    {
-      // TODO: match
-      ast_error(ast, "not implemented (codegen for match)");
-      return NULL;
-    }
+      return gen_match(c, ast);
 
     case TK_CALL:
       return gen_call(c, ast);
