@@ -237,7 +237,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   }
 
   // Generate the arguments.
-  int count = ast_childcount(args);
+  int count = (int)ast_childcount(args);
   VLA(LLVMValueRef, f_args, count);
   ast_t* arg = ast_child(args);
 

@@ -39,7 +39,7 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
   if(g->underlying == TK_TUPLETYPE)
   {
     // Tuples have no vtable.
-    g->field_count = ast_childcount(g->ast);
+    g->field_count = (int)ast_childcount(g->ast);
     g->vtable_size = 0;
   } else {
     // Get the vtable size from the painter.
