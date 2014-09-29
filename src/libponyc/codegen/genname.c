@@ -107,6 +107,11 @@ const char* genname_traitlist(const char* type)
   return build_name(type, "$traits", NULL);
 }
 
+const char* genname_fieldlist(const char* type)
+{
+  return build_name(type, "$fields", NULL);
+}
+
 const char* genname_trace(const char* type)
 {
   return build_name(type, "$trace", NULL);

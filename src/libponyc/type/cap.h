@@ -33,6 +33,8 @@ bool cap_sendable(token_id cap);
 
 bool cap_safetowrite(token_id into, token_id cap);
 
+bool cap_compatible(ast_t* a, ast_t* b);
+
 PONY_EXTERN_C_END
 
 #endif

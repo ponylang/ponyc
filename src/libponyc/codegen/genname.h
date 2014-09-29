@@ -12,6 +12,8 @@ const char* genname_typeid(const char* type);
 
 const char* genname_traitlist(const char* type);
 
+const char* genname_fieldlist(const char* type);
+
 const char* genname_trace(const char* type);
 
 const char* genname_tracetuple(const char* type);

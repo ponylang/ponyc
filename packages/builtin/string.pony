@@ -1,7 +1,7 @@
 trait Stringable
   fun box string(): String
 
-class String val is Ordered[String]
+class String val is Ordered[String], ArithmeticConvertible
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
@@ -163,5 +163,45 @@ class String val is Ordered[String]
 
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
+
+  fun box i8(): I8 => i64().i8()
+  fun box i16(): I16 => i64().i16()
+  fun box i32(): I32 => i64().i32()
+
+  fun box i64(): I64 =>
+    if Platform.windows() then
+      @_strtoi64[I64](_ptr, 0.u64(), 10)
+    else
+      @strtol[I64](_ptr, 0.u64(), 10)
+    end
+
+  fun box i128(): I128 =>
+    if Platform.windows() then
+      i64().i128()
+    else
+      @strtoll[I128](_ptr, 0.u64(), 10)
+    end
+
+  fun box u8(): U8 => u64().u8()
+  fun box u16(): U16 => u64().u16()
+  fun box u32(): U32 => u64().u32()
+
+  fun box u64(): U64 =>
+    if Platform.windows() then
+      @_strtoui64[U64](_ptr, 0.u64(), 10)
+    else
+      @strtoul[U64](_ptr, 0.u64(), 10)
+    end
+
+  fun box u128(): U128 =>
+    if Platform.windows() then
+      u64().u128()
+    else
+      @strtoull[U128](_ptr, 0.u64(), 10)
+    end
+
+  fun box f32(): F32 => @strtof[F32](_ptr, 0.u64())
+
+  fun box f64(): F64 => @strtod[F64](_ptr, 0.u64())
 
   /*fun box string(): String => this*/

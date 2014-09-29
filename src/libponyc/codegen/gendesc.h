@@ -21,9 +21,14 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, int colour);
 
 LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type);
 
+LLVMValueRef gendesc_isprimitive(compile_t* c, LLVMValueRef object,
+  ast_t* type);
+
 LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef object, ast_t* type);
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* trait);
+
+LLVMValueRef gendesc_istuple(compile_t* c, LLVMValueRef object, ast_t* tuple);
 
 PONY_EXTERN_C_END
 

@@ -346,8 +346,9 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 
 static pony_type_t type =
 {
-	1,
+	0,
 	sizeof(dist_t),
+	0,
 	0,
 	trace_dist,
 	NULL,

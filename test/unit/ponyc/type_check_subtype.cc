@@ -46,7 +46,7 @@ protected:
 };
 
 
-// TODO: is_subtype, is_literal, is_builtin, is_id_compatible, is_match_compatible
+// TODO: is_subtype, is_literal, is_builtin, is_id_compatible
 
 TEST_F(SubTypeTest, IsSubType)
 {
@@ -446,36 +446,6 @@ TEST_F(SubTypeTest, IsSingleType)
   //DO(test_unary(is_singletype, t_t1, false)); TODO: failure
   //DO(test_unary(is_singletype, t_foo, false));
   DO(test_unary(is_singletype, t_structural, false));
-}
-
-
-// TODO: is_concrete is probably going to disappear soon, so I'm not bothered
-// about making this complete
-TEST_F(SubTypeTest, IsConcrete)
-{
-  DO(test_unary(is_concrete, t_true, true));
-  DO(test_unary(is_concrete, t_false, true));
-  //DO(test_unary(is_concrete, t_bool, false)); TODO: failure
-  DO(test_unary(is_concrete, t_u_lit, true));
-  DO(test_unary(is_concrete, t_u8, true));
-  DO(test_unary(is_concrete, t_u16, true));
-  DO(test_unary(is_concrete, t_u32, true));
-  DO(test_unary(is_concrete, t_u64, true));
-  DO(test_unary(is_concrete, t_u128, true));
-  DO(test_unary(is_concrete, t_s_lit, true));
-  DO(test_unary(is_concrete, t_i8, true));
-  DO(test_unary(is_concrete, t_i16, true));
-  DO(test_unary(is_concrete, t_i32, true));
-  DO(test_unary(is_concrete, t_i64, true));
-  DO(test_unary(is_concrete, t_i128, true));
-  DO(test_unary(is_concrete, t_f_lit, true));
-  DO(test_unary(is_concrete, t_f32, true));
-  DO(test_unary(is_concrete, t_f64, true));
-  DO(test_unary(is_concrete, t_none, true));
-  DO(test_unary(is_concrete, t_string, true));
-  DO(test_unary(is_concrete, t_t1, false));
-  DO(test_unary(is_concrete, t_foo, true));
-  DO(test_unary(is_concrete, t_structural, false));
 }
 
 

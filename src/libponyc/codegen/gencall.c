@@ -237,11 +237,11 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   }
 
   // Generate the arguments.
-  size_t count = ast_childcount(args);
+  int count = ast_childcount(args);
   VLA(LLVMValueRef, f_args, count);
   ast_t* arg = ast_child(args);
 
-  for(size_t i = 0; i < count; i++)
+  for(int i = 0; i < count; i++)
   {
     f_args[i] = gen_expr(c, arg);
 
@@ -252,7 +252,13 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   }
 
   // Call it.
-  return LLVMBuildCall(c->builder, func, f_args, (unsigned int)count, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, func, f_args, count, "");
+
+  // Special case a None return value, which is used for void functions.
+  if(is_literal(type, "None"))
+    return g.instance;
+
+  return result;
 }
 
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,

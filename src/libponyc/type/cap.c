@@ -327,3 +327,60 @@ bool cap_safetowrite(token_id into, token_id cap)
 
   return false;
 }
+
+bool cap_compatible(ast_t* a, ast_t* b)
+{
+  token_id ta = cap_for_type(a);
+  token_id tb = cap_for_type(b);
+
+  switch(ta)
+  {
+    case TK_ISO:
+      return tb == TK_TAG;
+
+    case TK_TRN:
+      switch(tb)
+      {
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(tb)
+      {
+        case TK_REF:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+      switch(tb)
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_BOX:
+      return tb != TK_ISO;
+
+    case TK_TAG:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}

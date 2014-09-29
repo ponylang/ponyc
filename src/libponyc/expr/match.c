@@ -8,21 +8,31 @@
 bool expr_match(ast_t* ast)
 {
   assert(ast_id(ast) == TK_MATCH);
-  ast_t* expr = ast_child(ast);
-  ast_t* cases = ast_sibling(expr);
-  ast_t* else_clause = ast_sibling(cases);
+  AST_GET_CHILDREN(ast, expr, cases, else_clause);
 
-  ast_t* the_case = ast_child(cases);
+  ast_t* expr_type = ast_type(expr);
   ast_t* type = NULL;
 
   // TODO: check for unreachable cases
   // TODO: check for exhaustive match if there is no else branch
+  ast_t* the_case = ast_child(cases);
+
   while(the_case != NULL)
   {
-    ast_t* body = ast_childidx(the_case, 2);
+    AST_GET_CHILDREN(the_case, pattern, guard, body);
+
+    ast_t* pattern_type = ast_type(pattern);
+
+    if(!is_id_compatible(expr_type, pattern_type))
+    {
+      ast_error(pattern, "match expression can never be of this type");
+      return false;
+    }
+
     ast_t* body_type = ast_type(body);
     type = type_union(type, body_type);
     type = type_literal_to_runtime(type);
+
     the_case = ast_sibling(the_case);
   }
 
