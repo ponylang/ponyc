@@ -598,17 +598,34 @@ DEF(typealias);
   RULE("aliased type", type);
   DONE();
 
-// NAME =
-DEF(usename);
+// STRING
+DEF(use_uri);
+  TOKEN(NULL, TK_STRING);
+  DONE();
+
+// AT ID typeparams (LPAREN | LPAREN_NEW) [params] RPAREN
+DEF(use_ffi);
+  TOKEN(NULL, TK_AT);
+  MAP_ID(TK_AT, TK_FFIDECL);
+  SCOPE();
+  TOKEN("ffi name", TK_ID);
+  RULE("return type", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("ffi parameters", params);
+  SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// ID ASSIGN
+DEF(use_name);
   TOKEN(NULL, TK_ID);
   SKIP(NULL, TK_ASSIGN);
   DONE();
 
-// USE [NAME =] STRING [where infix]
+// USE [ID ASSIGN] (STRING | USE_FFI) [where infix]
 DEF(use);
   TOKEN(NULL, TK_USE);
-  OPT RULE("name", usename);
-  TOKEN("URI", TK_STRING);
+  OPT RULE("name", use_name);
+  RULE("specifier", use_uri, use_ffi);
   IF(TK_WHERE, RULE("use condition", infix));
   DONE();
 

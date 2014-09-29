@@ -152,6 +152,7 @@ static const lexsym_t abstract[] =
   { "members", TK_MEMBERS },
   { "fvar", TK_FVAR },
   { "flet", TK_FLET },
+  { "ffidecl", TK_FFIDECL },
 
   { "types", TK_TYPES },
   { "uniontype", TK_UNIONTYPE },

@@ -100,7 +100,7 @@ bool package_passes(ast_t* package, pass_opt_t* options)
   if(pass_limit != PASS_TRAITS)
     ast_clear(package);
 
-  if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope2, NULL))
+  if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope, NULL))
     return r;
 
   if(do_pass(&package, &r, options, PASS_EXPR, NULL, pass_expr))

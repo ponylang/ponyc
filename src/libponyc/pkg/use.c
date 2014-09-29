@@ -136,11 +136,10 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
 
 // Handle condition, if any
 // @return true if we should continue with use, false if we should skip it
-static bool process_condition(ast_t* cond, use_t* handler, bool release,
-  bool* out_retval, bool free_cond)
+static bool process_condition(ast_t* ast, ast_t* cond, bool release,
+  bool* out_retval)
 {
   assert(cond != NULL);
-  assert(handler != NULL);
   assert(out_retval != NULL);
 
   if(ast_id(cond) == TK_NONE) // No condition provided
@@ -152,23 +151,68 @@ static bool process_condition(ast_t* cond, use_t* handler, bool release,
   
   if(error)
   {
+    // Couldn't evaluate condition, give up compilation
     *out_retval = false;
     return false;
   }
 
-  // Evaluated OK
-  // Free expression AST to prevent type check errors
-  if(free_cond)
+  if(!val)
   {
-    ast_t* child;
-    while((child = ast_pop(cond)) != NULL)
-      ast_free(child);
-
-    ast_setid(cond, TK_NONE);
+    // Condition is false, remove whole use command
+    ast_erase(ast);
+    *out_retval = true;
+    return false;
   }
 
-  *out_retval = true;
-  return val;
+  // Condition is true
+  // Free condition AST to prevent type check errors
+  ast_erase(cond);
+  return true;
+}
+
+
+// Handle a uri command
+bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias, pass_opt_t* options)
+{
+  assert(uri != NULL);
+  assert(alias != NULL);
+
+  if(handlers == NULL)
+  {
+    ast_error(uri, "Internal error: no use scheme handlers registered");
+    return false;
+  }
+
+  assert(default_handler != NULL);
+
+  const char* locator;
+  use_t* handler = find_handler(uri, &locator);
+
+  if(handler == NULL) // Scheme not found
+    return false;
+
+  if(ast_id(alias) != TK_NONE && !handler->allow_name)
+  {
+    ast_error(alias, "Use scheme %s may not have an alias", handler->scheme);
+    return false;
+  }
+
+  return handler->handler(ast, locator, alias, options);
+}
+
+
+// Handle an ffi command
+bool ffi_command(ast_t* alias)
+{
+  assert(alias != NULL);
+
+  if(ast_id(alias) != TK_NONE)
+  {
+    ast_error(alias, "Use FFI may not have an alias");
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -215,36 +259,27 @@ void use_clear_handlers()
 }
 
 
-bool use_command(ast_t* ast, pass_opt_t* options, bool free_cond)
+bool use_command(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(options != NULL);
 
-  if(handlers == NULL)
-  {
-    ast_error(ast, "Internal error: no use scheme handlers registered");
-    return false;
-  }
-
-  assert(default_handler != NULL);
-
-  AST_GET_CHILDREN(ast, alias, uri, condition);
-
-  const char* locator;
-  use_t* handler = find_handler(uri, &locator);
-
-  if(handler == NULL) // Scheme not found
-    return false;
-
-  if(ast_id(alias) != TK_NONE && !handler->allow_name)
-  {
-    ast_error(alias, "Use scheme %s may not have an alias", handler->scheme);
-    return false;
-  }
+  AST_GET_CHILDREN(ast, alias, spec, condition);
+  assert(spec != NULL);
+  assert(condition != NULL);
 
   bool r;
-  if(!process_condition(condition, handler, options->release, &r, free_cond))
+  if(!process_condition(ast, condition, options->release, &r))
     return r;
 
-  return handler->handler(ast, locator, alias, options);
+  // Guard condition is true (or not present)
+  switch(ast_id(spec))
+  {
+  case TK_STRING:  return uri_command(ast, spec, alias, options);
+  case TK_FFIDECL: return ffi_command(alias);
+
+  default:
+    assert(0);
+    return false;
+  }
 }

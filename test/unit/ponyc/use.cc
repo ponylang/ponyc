@@ -76,7 +76,7 @@ protected:
     DO(build_ast_from_string(before, &actual_ast, &builder));
     ASSERT_NE((void*)NULL, actual_ast);
 
-    ASSERT_EQ(expect, use_command(actual_ast, &_options, true));
+    ASSERT_EQ(expect, use_command(actual_ast, &_options));
 
     if(call_a_count > 0 || call_b_count > 0)
     {
@@ -279,7 +279,7 @@ TEST_F(UseTest, FalseConditionPasses)
     "(use x \"test:foo\" (reference (id debug)))";
 
   const char* after =
-    "(use x \"test:foo\" x)";
+    "(x)";
 
   use_register_handler("test:", false, handler_a);
   _options.release = true;
@@ -325,7 +325,7 @@ TEST_F(UseTest, AndOpInCondition)
     "(use x \"test:foo\" (and (reference (id linux)) (reference (id osx))))";
 
   const char* after =
-    "(use x \"test:foo\" x)";
+    "(x)";
 
   use_register_handler("test:", false, handler_a);
 

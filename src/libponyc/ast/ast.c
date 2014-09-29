@@ -364,6 +364,23 @@ void ast_settype(ast_t* ast, ast_t* type)
   ast->type = type;
 }
 
+void ast_erase(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* child = ast->child;
+
+  while(child != NULL)
+  {
+    ast_t* next = child->sibling;
+    ast_free(child);
+    child = next;
+  }
+
+  ast->child = NULL;
+  token_set_id(ast->t, TK_NONE);
+}
+
 ast_t* ast_nearest(ast_t* ast, token_id id)
 {
   while((ast != NULL) && (token_get_id(ast->t) != id))

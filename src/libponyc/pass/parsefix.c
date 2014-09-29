@@ -555,7 +555,7 @@ static ast_result_t parse_fix_ffi(ast_t* ast)
 
   if(ast_child(typeargs) == NULL || ast_childidx(typeargs, 1) != NULL)
   {
-    ast_error(typeargs, "FFI calls must specify a single return type");
+    ast_error(typeargs, "FFIs must specify a single return type");
     return AST_ERROR;
   }
 
@@ -666,6 +666,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_HAT:        return parse_fix_ephemeral(ast);
     case TK_BANG:       return parse_fix_bang(ast);
     case TK_MATCH:      return parse_fix_match(ast);
+    case TK_FFIDECL:
     case TK_AT:         return parse_fix_ffi(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:

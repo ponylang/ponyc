@@ -135,6 +135,7 @@ typedef enum token_id
   TK_MEMBERS,
   TK_FVAR,
   TK_FLET,
+  TK_FFIDECL,
 
   TK_TYPES,
   TK_UNIONTYPE,

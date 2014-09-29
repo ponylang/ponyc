@@ -17,8 +17,7 @@ static bool is_type_id(const char* s)
 }
 
 /**
- * Insert a String->AST mapping into the specified scope. The string is the
- * string representation of the token of the name ast.
+ * Insert a name->AST mapping into the specified scope.
  */
 static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
 {
@@ -232,7 +231,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_USE:
-      if(!use_command(ast, options, false))
+      if(!use_command(ast, options))
         return AST_FATAL;
       break;
 
@@ -241,6 +240,7 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
+    case TK_FFIDECL:
       if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast))
         return AST_ERROR;
       break;
@@ -273,20 +273,4 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
   }
 
   return AST_OK;
-}
-
-
-ast_result_t pass_scope2(ast_t** astp, pass_opt_t* options)
-{
-  ast_t* ast = *astp;
-
-  if(ast_id(ast) == TK_USE)
-  {
-    if(!use_command(ast, options, true))
-      return AST_FATAL;
-
-    return AST_OK;
-  }
-
-  return pass_scope(astp, options);
 }
