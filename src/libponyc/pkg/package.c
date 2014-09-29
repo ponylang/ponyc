@@ -1,4 +1,5 @@
 #include "package.h"
+#include "program.h"
 #include "use.h"
 #include "../codegen/codegen.h"
 #include "../ast/source.h"
@@ -274,8 +275,7 @@ static const char* id_to_string(size_t id)
 static ast_t* create_package(ast_t* program, const char* name)
 {
   ast_t* package = ast_blank(TK_PACKAGE);
-  uintptr_t pkg_id = (uintptr_t)ast_data(program);
-  ast_setdata(program, (void*)(pkg_id + 1));
+  uint32_t pkg_id = program_assign_pkg_id(program);
 
   package_t* pkg = (package_t*)malloc(sizeof(package_t));
   pkg->path = name;

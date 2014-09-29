@@ -173,12 +173,13 @@ DEF(tupletypeop);
   TOKEN(NULL, TK_COMMA);
   MAP_ID(TK_COMMA, TK_TUPLETYPE);
   RULE("type", infixtype);
+  WHILE(TK_COMMA, RULE("type", infixtype));
   DONE();
 
 // infixtype {tupletypeop}
 DEF(tupletype);
   RULE("type", infixtype);
-  OPT TOP SEQ("type", tupletypeop);
+  OPT TOP RULE("type", tupletypeop);
   DONE();
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN

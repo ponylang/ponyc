@@ -3,6 +3,7 @@
 #include "token.h"
 #include "../ds/stringtab.h"
 #include "../pass/pass.h"
+#include "../pkg/program.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -187,6 +188,17 @@ ast_t* ast_token(token_t* t)
 {
   ast_t* ast = (ast_t*)calloc(1, sizeof(ast_t));
   ast->t = t;
+
+  switch(token_get_id(t))
+  {
+  case TK_PROGRAM:
+    ast->data = program_create();
+    break;
+
+  default:
+    break;
+  }
+
   return ast;
 }
 
@@ -971,6 +983,10 @@ void ast_free(ast_t* ast)
 
   switch(token_get_id(ast->t))
   {
+    case TK_PROGRAM:
+      program_free((program_t*)ast->data);
+      break;
+
     case TK_PACKAGE:
       free(ast->data);
       break;
