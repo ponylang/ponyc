@@ -15,7 +15,7 @@ static struct timespec t;
 
 struct asio_backend_t
 {
-	intptr_t kq;
+	int kq;
 	int wakeup[2];
 	struct kevent fired[MAX_EVENTS];
 };

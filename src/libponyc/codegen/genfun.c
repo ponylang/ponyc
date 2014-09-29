@@ -176,10 +176,9 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
   // don't include the receiver for constructors
   if(ast_id(fun) == TK_NEW)
-    ftype = LLVMFunctionType(result, &tparams[1], (unsigned int)(count - 1),
-      false);
+    ftype = LLVMFunctionType(result, &tparams[1], (int)(count - 1), false);
   else
-    ftype = LLVMFunctionType(result, tparams, (unsigned int)count, false);
+    ftype = LLVMFunctionType(result, tparams, (int)count, false);
 
   func = codegen_addfun(c, funname, ftype);
   name_params(params, func, ast_id(fun) == TK_NEW);

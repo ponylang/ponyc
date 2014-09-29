@@ -32,7 +32,7 @@ typedef struct init_msg_t
 {
 	pony_msg_t msg;
 	const char* port;
-	size_t leaf_size;
+	uint32_t leaf_size;
 	bool master;
 } init_msg_t;
 
@@ -357,7 +357,7 @@ static pony_type_t type =
 	NULL
 };
 
-void dist_create(char* port, size_t leaf_size, bool master)
+void dist_create(char* port, uint32_t leaf_size, bool master)
 {
 	init_msg_t* m = (init_msg_t*)pony_alloc_msg(0, DIST_INIT);
 	m->port = port;

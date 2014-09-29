@@ -77,7 +77,11 @@ solution "ponyc"
     targetname "ponyc"
     kind "StaticLib"
     language "C"
-    buildoptions "-std=gnu11"
+    buildoptions {
+      "-Wconversion",
+      "-Wno-sign-conversion",
+      "-std=gnu11"
+    }
     includedirs {
       llvm_config("--includedir"),
       "src/common/"
@@ -103,7 +107,11 @@ solution "ponyc"
     targetname "ponyrt"
     kind "StaticLib"
     language "C"
-    buildoptions "-std=gnu11"
+    buildoptions {
+      "-Wconversion",
+      "-Wno-sign-conversion",
+      "-std=gnu11"
+    }
     includedirs {
       "src/common/",
       "src/libponyrt/"
@@ -146,7 +154,11 @@ solution "ponyc"
   project "ponyc"
     kind "ConsoleApp"
     language "C++"
-    buildoptions "-std=gnu11"
+    buildoptions {
+      "-Wconversion",
+      "-Wno-sign-conversion",
+      "-std=gnu11"
+    }
     includedirs { "src/common/" }
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()

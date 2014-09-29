@@ -39,7 +39,7 @@ typedef struct proto_t proto_t;
  *  Returns the TYPE of a received message, or PROTO_NOP if receiving the
  *  message was not completed yet.
  */
-uint32_t proto_receive(proto_t** p, sock_t* s);
+uint16_t proto_receive(proto_t** p, sock_t* s);
 
 /** Send a message to some remote peer that has no message body.
  *

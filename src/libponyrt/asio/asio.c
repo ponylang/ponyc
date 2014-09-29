@@ -56,7 +56,7 @@ static void start()
 
 /** Wrapper for writev and readv.
  */
-static uint32_t exec(op_fn* fn, intptr_t fd, struct iovec* iov, size_t chunks,
+static uint32_t exec(op_fn* fn, int fd, struct iovec* iov, int chunks,
 	size_t* nrp)
 {
 	ssize_t ret;
@@ -89,17 +89,17 @@ bool asio_stop()
 	return true;
 }
 
-uint32_t asio_writev(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp)
+uint32_t asio_writev(int fd, struct iovec* iov, int chunks, size_t* nrp)
 {
 	return exec(writev, fd, iov, chunks, nrp);
 }
 
-uint32_t asio_readv(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp)
+uint32_t asio_readv(int fd, struct iovec* iov, int chunks, size_t* nrp)
 {
 	return exec(readv, fd, iov, chunks, nrp);
 }
 
-uint32_t asio_read(intptr_t fd, void* dest, size_t len, size_t* nrp)
+uint32_t asio_read(int fd, void* dest, size_t len, size_t* nrp)
 {
 	struct iovec iov[1];
 

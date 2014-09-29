@@ -14,7 +14,7 @@ PONY_EXTERN_C_BEGIN
  *  A unique node must be determined as master node. The master discovers nodes
  *  within a network (TODO). Slave nodes may also be added manually.
  */
-void dist_create(char* service, size_t leaf_size, bool master);
+void dist_create(char* service, uint32_t leaf_size, bool master);
 
 /** Manually connects this node to a master.
  *
