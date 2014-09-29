@@ -521,6 +521,7 @@ LLVMValueRef gendesc_istuple(compile_t* c, LLVMValueRef object, ast_t* tuple)
 
     LLVMValueRef desc_ptr = LLVMBuildGEP(c->builder, list, gep, 2, "");
     LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "");
+    (void)desc;
 
     // TODO: check it how?
 
