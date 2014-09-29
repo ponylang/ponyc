@@ -718,6 +718,7 @@ static pony_type_t cycle_type =
   0,
   sizeof(detector_t),
   0,
+  0,
   NULL,
   NULL,
   NULL,

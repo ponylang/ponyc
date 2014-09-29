@@ -637,24 +637,6 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  LLVMTypeRef left_type = LLVMTypeOf(l_value);
-  LLVMTypeRef right_type = LLVMTypeOf(r_value);
-
-  if(LLVMGetTypeKind(left_type) != LLVMPointerTypeKind)
-  {
-    // TODO: match primitive left with object right
-    ast_error(left, "not implemented (codegen identity with primitive)");
-    return NULL;
-  }
-
-  if(LLVMGetTypeKind(right_type) != LLVMPointerTypeKind)
-  {
-    // TODO: match object left with primitive right
-    ast_error(right, "not implemented (codegen identity with primitive)");
-    return NULL;
-  }
-
-  // TODO: structural check if both sides are the same boxed primitive type
   l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
   r_value = LLVMBuildPtrToInt(c->builder, r_value, c->intptr, "");
 

@@ -286,7 +286,8 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 
 static bool pointer_supertype(ast_t* type)
 {
-  // TODO: what about for the generic Any?
+  // Note that a pointer can't be a subtype of any structural type, not even
+  // the empty structural type.
 
   // Things that can be a supertype of a Pointer.
   switch(ast_id(type))
@@ -447,7 +448,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_TYPEPARAMREF:
     {
-      // we also can be a subtype of a typeparam if its constraint is concrete
+      // we can be a subtype of a typeparam if its constraint is concrete
       ast_t* def = (ast_t*)ast_data(super);
       ast_t* constraint = ast_childidx(def, 1);
 
@@ -490,6 +491,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
         case TK_STRUCTURAL:
         {
           // a tuple is a subtype of an empty structural type
+          // TODO: does the capability of the empty structural matter?
           ast_t* members = ast_child(super);
           ast_t* member = ast_child(members);
           return member == NULL;
@@ -719,32 +721,90 @@ bool is_math_compatible(ast_t* a, ast_t* b)
   return is_eqtype(a, b);
 }
 
-bool is_concrete(ast_t* type)
+static bool is_interface_compatible(ast_t* iface, ast_t* b)
 {
-  switch(ast_id(type))
+  // If the right side is also an interface, check local compatibility of the
+  // capabilities. Otherwise, check in the other direction.
+  switch(ast_id(b))
   {
-    case TK_UNIONTYPE:
+    case TK_NOMINAL:
     {
-      ast_t* child = ast_child(type);
+      ast_t* def = (ast_t*)ast_data(b);
 
-      while(child != NULL)
-      {
-        if(!is_concrete(child))
-          return false;
+      if(ast_id(def) == TK_TRAIT)
+        return cap_compatible(iface, b);
 
-        child = ast_sibling(child);
-      }
-
-      return true;
+      break;
     }
 
-    case TK_ISECTTYPE:
+    case TK_STRUCTURAL:
+      return cap_compatible(iface, b);
+
+    default: {}
+  }
+
+  return is_id_compatible(b, iface);
+}
+
+bool is_id_compatible(ast_t* a, ast_t* b)
+{
+  if(is_math_compatible(a, b))
+    return true;
+
+  switch(ast_id(a))
+  {
+    case TK_NOMINAL:
     {
-      ast_t* child = ast_child(type);
+      ast_t* def = (ast_t*)ast_data(a);
+
+      switch(ast_id(def))
+      {
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          // With a concrete type, one side must be a subtype of the other and
+          // the capabilities must be compatible.
+          return (is_subtype(a, b) || is_subtype(b, a)) && cap_compatible(a, b);
+
+        case TK_TRAIT:
+          return is_interface_compatible(a, b);
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      // TODO: special case empty with a tuple
+      return is_interface_compatible(a, b);
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      // Check if our constraint is compatible.
+      ast_t* def = (ast_t*)ast_data(a);
+      ast_t* constraint = ast_childidx(def, 1);
+      return is_id_compatible(constraint, b);
+    }
+
+    case TK_ARROW:
+    {
+      // Check the upper bounds of the right side.
+      ast_t* right = ast_childidx(a, 1);
+      ast_t* upper = viewpoint_upper(right);
+      bool ok = is_id_compatible(upper, b);
+      ast_free_unattached(upper);
+      return ok;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(a);
 
       while(child != NULL)
       {
-        if(is_concrete(child))
+        if(is_id_compatible(child, b))
           return true;
 
         child = ast_sibling(child);
@@ -753,77 +813,44 @@ bool is_concrete(ast_t* type)
       return false;
     }
 
-    case TK_TUPLETYPE:
-      // TODO: Not correct. (T1, T2) is ID compatible with (T3, T4). Need to
-      // check tuples pair-wise.
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(a);
+
+      while(child != NULL)
+      {
+        if(!is_id_compatible(child, b))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
       return true;
-
-    case TK_NOMINAL:
-    {
-      ast_t* def = (ast_t*)ast_data(type);
-      return ast_id(def) != TK_TRAIT;
     }
 
-    case TK_STRUCTURAL:
-      return false;
-
-    case TK_TYPEPARAMREF:
+    case TK_TUPLETYPE:
     {
-      ast_t* def = (ast_t*)ast_data(type);
-      ast_t* constraint = ast_childidx(def, 1);
-      return is_concrete(constraint);
-    }
+      if(ast_id(b) != TK_TUPLETYPE)
+        return is_id_compatible(b, a);
 
-    case TK_ARROW:
-      return is_concrete(ast_childidx(type, 1));
+      ast_t* a_child = ast_child(a);
+      ast_t* b_child = ast_child(b);
+
+      while((a_child != NULL) && (b_child != NULL))
+      {
+        if(!is_id_compatible(a_child, b_child))
+          return false;
+
+        a_child = ast_sibling(a_child);
+        b_child = ast_sibling(b_child);
+      }
+
+      return (a_child == NULL) && (b_child == NULL);
+    }
 
     default: {}
   }
 
   assert(0);
   return false;
-}
-
-bool is_id_compatible(ast_t* a, ast_t* b)
-{
-  // subtype without capability or ephemeral mattering
-  a = viewpoint_tag(a);
-  b = viewpoint_tag(b);
-  bool ok;
-
-  if(is_concrete(a) || is_concrete(b))
-  {
-    // if either side is concrete, then one side must be a subtype of the other
-    ok = is_subtype(a, b) || is_subtype(b, a);
-  } else {
-    // if neither side is concrete, there could be a concrete type that was both
-    ok = true;
-  }
-
-  ast_free_unattached(a);
-  ast_free_unattached(b);
-  return ok;
-}
-
-bool is_match_compatible(ast_t* expr_type, ast_t* match_type)
-{
-  // if it's a subtype, this will always match
-  if(is_subtype(expr_type, match_type))
-  {
-    ast_error(match_type, "expression is always the match type");
-    return false;
-  }
-
-  // if they aren't id compatible, this can never match
-  if(!is_id_compatible(expr_type, match_type))
-  {
-    ast_error(match_type, "expression can never be the match type");
-    return false;
-  }
-
-  // TODO: match type cannot contain any non-empty structural types
-  // could allow them, but for all structural types in pattern matches
-  // we would have to determine if every concrete type is a subtype at compile
-  // time and store that
-  return true;
 }

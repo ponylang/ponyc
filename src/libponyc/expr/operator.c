@@ -298,37 +298,34 @@ static bool tuples_pairwise(ast_t** astp, ast_t* left, ast_t* right)
   return true;
 }
 
-bool expr_identity(ast_t** astp)
+static bool has_identity(ast_t* ast)
 {
-  ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(ast);
+
+  if((ast_id(type) == TK_TUPLETYPE) ||
+    is_arithmetic(type) ||
+    is_bool(type)
+    )
+  {
+    ast_error(ast, "type has no identity");
+    return false;
+  }
+
+  return true;
+}
+
+bool expr_identity(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // Handle tuples as pairwise ordering.
-  if(ast_id(l_type) == TK_TUPLETYPE)
-    return tuples_pairwise(astp, left, right);
+  // Disallow identity on types that have no identity.
+  if(!has_identity(left) || !has_identity(right))
+    return false;
 
-  if(is_math_compatible(l_type, r_type) ||
-    (is_bool(l_type) && is_bool(r_type))
-    )
+  if(!is_id_compatible(l_type, r_type))
   {
-    switch(ast_id(ast))
-    {
-      case TK_IS:
-        ast_setid(ast, TK_EQ);
-        break;
-
-      case TK_ISNT:
-        ast_setid(ast, TK_NE);
-        break;
-
-      default:
-        assert(0);
-        return false;
-    }
-  } else if(!is_id_compatible(l_type, r_type)) {
     ast_error(ast, "left and right side must have related types");
     return false;
   }
@@ -375,10 +372,8 @@ bool expr_order(ast_t** astp)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // Handle tuples as pairwise ordering.
   if(ast_id(l_type) == TK_TUPLETYPE)
   {
-    // return tuples_pairwise(astp, left, right);
     ast_error(ast, "ordering is not defined for tuples");
     return false;
   }

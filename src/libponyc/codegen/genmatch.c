@@ -5,7 +5,8 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value, ast_t* type);
+static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern_type);
 
 static LLVMValueRef make_binop(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, LLVMOpcode op)
@@ -20,15 +21,15 @@ static LLVMValueRef make_binop(compile_t* c, LLVMValueRef l_value,
   return LLVMBuildBinOp(c->builder, op, l_value, r_value, "");
 }
 
-static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value, ast_t* type,
-  LLVMOpcode op)
+static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern_type, LLVMOpcode op)
 {
-  ast_t* child_type = ast_child(type);
+  ast_t* child_type = ast_child(pattern_type);
   LLVMValueRef result = NULL;
 
   while(child_type != NULL)
   {
-    LLVMValueRef child_match = runtime_type(c, value, child_type);
+    LLVMValueRef child_match = runtime_type(c, value, match_type, child_type);
     result = make_binop(c, result, child_match, op);
     child_type = ast_sibling(child_type);
   }
@@ -36,30 +37,72 @@ static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value, ast_t* type,
   return result;
 }
 
-static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value, ast_t* type)
+static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern_type)
 {
-  switch(ast_id(type))
+  if(is_math_compatible(match_type, pattern_type) ||
+    is_subtype(match_type, pattern_type)
+    )
+    return LLVMConstInt(c->i1, 1, false);
+
+  switch(ast_id(pattern_type))
   {
     case TK_UNIONTYPE:
-      return loop_binop(c, value, type, LLVMOr);
+      return loop_binop(c, value, match_type, pattern_type, LLVMOr);
 
     case TK_ISECTTYPE:
-      return loop_binop(c, value, type, LLVMAnd);
+      return loop_binop(c, value, match_type, pattern_type, LLVMAnd);
 
     case TK_TUPLETYPE:
     {
-      // TODO: pairwise check
+      if(ast_id(match_type) == TK_TUPLETYPE)
+      {
+        ast_t* match_child = ast_child(match_type);
+        ast_t* pattern_child = ast_child(pattern_type);
+        LLVMValueRef matched = NULL;
+        int i = 0;
+
+        while(match_child != NULL)
+        {
+          // Check each element of the tuple.
+          LLVMValueRef field = LLVMBuildExtractValue(c->builder, value, i, "");
+          LLVMValueRef this_match = runtime_type(c, field, match_child,
+            pattern_child);
+          matched = make_binop(c, matched, this_match, LLVMAnd);
+
+          match_child = ast_sibling(match_child);
+          pattern_child = ast_sibling(pattern_child);
+          i++;
+        }
+
+        assert(pattern_child == NULL);
+        return matched;
+      }
+
+      // TODO: value is a c->object_ptr
+      // either a union with this tuple in it or Any
       break;
     }
 
     case TK_NOMINAL:
     {
-      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* def = (ast_t*)ast_data(pattern_type);
 
-      if(ast_id(def) == TK_TRAIT)
-        return gendesc_istrait(c, value, type);
+      switch(ast_id(def))
+      {
+        case TK_TRAIT:
+          return gendesc_istrait(c, value, pattern_type);
 
-      return gendesc_isentity(c, value, type);
+        case TK_PRIMITIVE:
+          return gendesc_isprimitive(c, value, pattern_type);
+
+        case TK_CLASS:
+        case TK_ACTOR:
+          return gendesc_isentity(c, value, pattern_type);
+
+        default: {}
+      }
+      break;
     }
 
     case TK_STRUCTURAL:
@@ -70,13 +113,57 @@ static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value, ast_t* type)
     }
 
     case TK_ARROW:
-      return runtime_type(c, value, ast_childidx(type, 1));
+      return runtime_type(c, value, match_type, ast_childidx(pattern_type, 1));
 
     default: {}
   }
 
   assert(0);
   return NULL;
+}
+
+static bool pattern_match(compile_t* c, LLVMValueRef match_value,
+  ast_t* match_type, ast_t* pattern, LLVMBasicBlockRef guard_block,
+  LLVMBasicBlockRef next_block)
+{
+  if(ast_id(pattern) == TK_NONE)
+  {
+    LLVMBuildBr(c->builder, guard_block);
+    return true;
+  }
+
+  ast_t* pattern_type = ast_type(pattern);
+  LLVMValueRef t_match = runtime_type(c, match_value, match_type, pattern_type);
+
+  if(t_match == NULL)
+    return false;
+
+  LLVMBasicBlockRef value_block = codegen_block(c, "case_value");
+  LLVMBuildCondBr(c->builder, t_match, value_block, next_block);
+  LLVMPositionBuilderAtEnd(c->builder, value_block);
+
+  // TODO: check values
+  LLVMBuildBr(c->builder, guard_block);
+
+  return true;
+}
+
+static bool guard_match(compile_t* c, ast_t* guard,
+  LLVMBasicBlockRef body_block, LLVMBasicBlockRef next_block)
+{
+  if(ast_id(guard) == TK_NONE)
+  {
+    LLVMBuildBr(c->builder, body_block);
+    return true;
+  }
+
+  LLVMValueRef test = gen_expr(c, guard);
+
+  if(test == NULL)
+    return false;
+
+  LLVMBuildCondBr(c->builder, test, body_block, next_block);
+  return true;
 }
 
 static bool case_body(compile_t* c, LLVMBasicBlockRef body_block, ast_t* body,
@@ -116,7 +203,7 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_t* match_type = ast_type(match_expr);
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
-  LLVMBasicBlockRef case_block = codegen_block(c, "case");
+  LLVMBasicBlockRef case_block = codegen_block(c, "case_type");
   LLVMBasicBlockRef else_block = codegen_block(c, "match_else");
   LLVMBasicBlockRef post_block = codegen_block(c, "match_post");
   LLVMBasicBlockRef next_block;
@@ -134,29 +221,29 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   while(the_case != NULL)
   {
     LLVMPositionBuilderAtEnd(c->builder, case_block);
-    LLVMValueRef matched = NULL;
 
     ast_t* next_case = ast_sibling(the_case);
 
     if(next_case != NULL)
-      next_block = codegen_block(c, "case");
+      next_block = codegen_block(c, "case_type");
     else
       next_block = else_block;
 
     AST_GET_CHILDREN(the_case, pattern, guard, body);
-    ast_t* pattern_type = ast_type(pattern);
 
-    // If the match expression isn't a subtype of the pattern expression,
-    // check at runtime if the type matches.
-    if(!is_subtype(match_type, pattern_type))
-      matched = runtime_type(c, match_value, pattern_type);
+    // Check the pattern.
+    LLVMBasicBlockRef guard_block = codegen_block(c, "case_guard");
 
-    // TODO: check values as well as types in pattern and assign to variables
-    // in the patterns
-    // TODO: check the guard
+    if(!pattern_match(c, match_value, match_type, pattern, guard_block,
+      next_block))
+      return NULL;
 
+    // Check the guard.
     LLVMBasicBlockRef body_block = codegen_block(c, "case_body");
-    LLVMBuildCondBr(c->builder, matched, body_block, next_block);
+    LLVMPositionBuilderAtEnd(c->builder, guard_block);
+
+    if(!guard_match(c, guard, body_block, next_block))
+      return NULL;
 
     // Case body.
     if(!case_body(c, body_block, body, post_block, phi, phi_type.use_type))

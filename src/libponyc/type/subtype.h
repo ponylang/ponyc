@@ -36,11 +36,7 @@ bool is_singletype(ast_t* type);
 
 bool is_math_compatible(ast_t* a, ast_t* b);
 
-bool is_concrete(ast_t* type);
-
 bool is_id_compatible(ast_t* a, ast_t* b);
-
-bool is_match_compatible(ast_t* expr_type, ast_t* match_type);
 
 PONY_EXTERN_C_END
 

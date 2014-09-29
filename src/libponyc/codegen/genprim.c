@@ -315,10 +315,11 @@ static void primitive_conversions(compile_t* c)
             result = LLVMBuildFPTrunc(c->builder, arg, to->type, "");
           else
             result = arg;
-#ifdef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_VISUAL_STUDIO
         } else if(to->size > 64) {
-          // TODO: Windows runtime doesn't have float to 128 bit conversion.
-          result = LLVMGetUndef(to->type);
+          // Visual Studio compiler doesn't have float to 128 bit conversion.
+          LLVMDeleteFunction(fun);
+          continue;
 #endif
         } else if(to->is_signed) {
           result = LLVMBuildFPToSI(c->builder, arg, to->type, "");
@@ -326,11 +327,12 @@ static void primitive_conversions(compile_t* c)
           result = LLVMBuildFPToUI(c->builder, arg, to->type, "");
         }
       } else if(to->is_float) {
-#ifdef PLATFORM_IS_WINDOWS
+#ifdef PLATFORM_IS_VISUAL_STUDIO
         if(from->size > 64)
         {
-          // TODO: Windows runtime doesn't have 128 bit to float conversion.
-          result = LLVMGetUndef(to->type);
+          // Visual Studio compiler doesn't have 128 bit to float conversion.
+          LLVMDeleteFunction(fun);
+          continue;
         } else
 #endif
         if(from->is_signed)

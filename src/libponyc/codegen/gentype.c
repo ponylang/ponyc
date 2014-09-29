@@ -39,6 +39,7 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
   if(g->underlying == TK_TUPLETYPE)
   {
     // Tuples have no vtable.
+    g->field_count = ast_childcount(g->ast);
     g->vtable_size = 0;
   } else {
     // Get the vtable size from the painter.
@@ -519,10 +520,12 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
       return false;
 
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
-    free_fields(g);
 
     if(!ok)
+    {
+      free_fields(g);
       return false;
+    }
   } else {
     // Create a box type.
     make_box_type(c, g);
@@ -539,7 +542,10 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 
   // Generate all the methods.
   if(!genfun_methods(c, g))
+  {
+    free_fields(g);
     return false;
+  }
 
   gendesc_init(c, g);
 
@@ -550,6 +556,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     codegen_finishfun(c);
   }
 
+  free_fields(g);
   return true;
 }
 
@@ -561,12 +568,12 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   setup_tuple_fields(g);
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
-  free_fields(g);
 
   // Generate a boxing function and a descriptor.
   genfun_box(c, g);
   gendesc_init(c, g);
 
+  free_fields(g);
   return ok;
 }
 

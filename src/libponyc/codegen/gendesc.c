@@ -4,6 +4,21 @@
 #include "../type/reify.h"
 #include <assert.h>
 
+#define DESC_ID 0
+#define DESC_SIZE 1
+#define DESC_TRAIT_COUNT 2
+#define DESC_FIELD_COUNT 3
+#define DESC_TRACE 4
+#define DESC_SERIALISE 5
+#define DESC_DESERIALISE 6
+#define DESC_DISPATCH 7
+#define DESC_FINALISE 8
+#define DESC_TRAITS 9
+#define DESC_FIELDS 10
+#define DESC_VTABLE 11
+
+#define DESC_LENGTH 12
+
 static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   const char* name)
 {
@@ -144,6 +159,54 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   return global;
 }
 
+static LLVMValueRef make_tuple_count(compile_t* c, gentype_t* g)
+{
+  if(g->underlying != TK_TUPLETYPE)
+    return LLVMConstInt(c->i32, 0, false);
+
+  return LLVMConstInt(c->i32, g->field_count, false);
+}
+
+static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
+{
+  // The list is an array of descriptor pointers.
+  int count;
+
+  if(g->underlying == TK_TUPLETYPE)
+    count = g->field_count;
+  else
+    count = 0;
+
+  LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, count);
+
+  // If we aren't a tuple, return a null pointer to a list.
+  if(count == 0)
+    return LLVMConstNull(LLVMPointerType(type, 0));
+
+  // Create a constant array of field descriptors.
+  VLA(LLVMValueRef, list, count);
+
+  for(int i = 0; i < count; i++)
+  {
+    gentype_t fg;
+
+    if(!gentype(c, g->fields[i], &fg))
+      return NULL;
+
+    list[i] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
+  }
+
+  LLVMValueRef field_array = LLVMConstArray(c->descriptor_ptr, list, count);
+
+  // Create a global to hold the array.
+  const char* name = genname_fieldlist(g->type_name);
+  LLVMValueRef global = LLVMAddGlobal(c->module, type, name);
+  LLVMSetGlobalConstant(global, true);
+  LLVMSetInitializer(global, field_array);
+
+  return global;
+}
+
 static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 {
   if(g->vtable_size == 0)
@@ -191,18 +254,27 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 {
+  LLVMTypeRef desc_type;
   const char* desc_name;
-  int count;
+  int traits;
+  int fields;
   int vtable_size;
 
   if(g != NULL)
   {
     desc_name = g->desc_name;
-    count = trait_count(g);
+    traits = trait_count(g);
+
+    if(g->underlying == TK_TUPLETYPE)
+      fields = g->field_count;
+    else
+      fields = 0;
+
     vtable_size = g->vtable_size;
   } else {
     desc_name = genname_descriptor(NULL);
-    count = 0;
+    traits = 0;
+    fields = 0;
     vtable_size = 0;
   }
 
@@ -213,19 +285,27 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 
   type = LLVMStructCreateNamed(c->context, desc_name);
 
-  LLVMTypeRef params[10];
-  params[0] = c->i32; // id
-  params[1] = c->i32; // size
-  params[2] = c->i32; // trait count
-  params[3] = c->trace_fn; // trace
-  params[4] = c->trace_fn; // serialise
-  params[5] = c->trace_fn; // deserialise
-  params[6] = c->dispatch_fn; // dispatch
-  params[7] = c->final_fn; // finalise
-  params[8] = LLVMPointerType(LLVMArrayType(c->i32, count), 0); // trait list
-  params[9] = LLVMArrayType(c->void_ptr, vtable_size); // vtable
+  if(g != NULL)
+    desc_type = c->descriptor_ptr;
+  else
+    desc_type = LLVMPointerType(type, 0);
 
-  LLVMStructSetBody(type, params, 10, false);
+  LLVMTypeRef params[DESC_LENGTH];
+
+  params[DESC_ID] = c->i32;
+  params[DESC_SIZE] = c->i32;
+  params[DESC_TRAIT_COUNT] = c->i32;
+  params[DESC_FIELD_COUNT] = c->i32;
+  params[DESC_TRACE] = c->trace_fn;
+  params[DESC_SERIALISE] = c->trace_fn;
+  params[DESC_DESERIALISE] = c->trace_fn;
+  params[DESC_DISPATCH] = c->dispatch_fn;
+  params[DESC_FINALISE] = c->final_fn;
+  params[DESC_TRAITS] = LLVMPointerType(LLVMArrayType(c->i32, traits), 0);
+  params[DESC_FIELDS] = LLVMPointerType(LLVMArrayType(desc_type, fields), 0);
+  params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, vtable_size);
+
+  LLVMStructSetBody(type, params, DESC_LENGTH, false);
   return type;
 }
 
@@ -234,24 +314,30 @@ void gendesc_init(compile_t* c, gentype_t* g)
   // TODO: Build tuple reflector.
 
   // Initialise the global descriptor.
-  LLVMValueRef args[10];
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
   // Generate a separate type ID for every type.
-  args[0] = make_type_id(c, g->type_name);
-  args[1] = LLVMConstInt(c->i32, size, false);
-  args[2] = make_trait_count(c, g);
-  args[3] = make_function_ptr(c, genname_trace(g->type_name), c->trace_fn);
-  args[4] = make_function_ptr(c, genname_serialise(g->type_name), c->trace_fn);
-  args[5] = make_function_ptr(c, genname_deserialise(g->type_name),
-    c->trace_fn);
-  args[6] = make_function_ptr(c, genname_dispatch(g->type_name),
-    c->dispatch_fn);
-  args[7] = make_function_ptr(c, genname_finalise(g->type_name), c->final_fn);
-  args[8] = make_trait_list(c, g);
-  args[9] = make_vtable(c, g);
+  LLVMValueRef args[DESC_LENGTH];
 
-  LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, 10);
+  args[DESC_ID] = make_type_id(c, g->type_name);
+  args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
+  args[DESC_TRAIT_COUNT] = make_trait_count(c, g);
+  args[DESC_FIELD_COUNT] = make_tuple_count(c, g);
+  args[DESC_TRACE] = make_function_ptr(c, genname_trace(g->type_name),
+    c->trace_fn);
+  args[DESC_SERIALISE] = make_function_ptr(c, genname_serialise(g->type_name),
+    c->trace_fn);
+  args[DESC_DESERIALISE] = make_function_ptr(c,
+    genname_deserialise(g->type_name), c->trace_fn);
+  args[DESC_DISPATCH] = make_function_ptr(c, genname_dispatch(g->type_name),
+    c->dispatch_fn);
+  args[DESC_FINALISE] = make_function_ptr(c, genname_finalise(g->type_name),
+    c->final_fn);
+  args[DESC_TRAITS] = make_trait_list(c, g);
+  args[DESC_FIELDS] = make_tuple_list(c, g);
+  args[DESC_VTABLE] = make_vtable(c, g);
+
+  LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, DESC_LENGTH);
   LLVMSetInitializer(g->desc, desc);
   LLVMSetGlobalConstant(g->desc, true);
 }
@@ -271,23 +357,18 @@ LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 
 LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef object)
 {
-  return desc_field(c, object, 3);
+  return desc_field(c, object, DESC_TRACE);
 }
 
 LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef object)
 {
-  return desc_field(c, object, 6);
-}
-
-LLVMValueRef gendesc_traitcount(compile_t* c, LLVMValueRef object)
-{
-  return desc_field(c, object, 2);
+  return desc_field(c, object, DESC_DISPATCH);
 }
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, int colour)
 {
   LLVMValueRef desc = gendesc_fetch(c, object);
-  LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, 9, "");
+  LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, DESC_VTABLE, "");
 
   LLVMValueRef gep[2];
   gep[0] = LLVMConstInt(c->i32, 0, false);
@@ -302,6 +383,38 @@ LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
   return make_type_id(c, genname_type(type));
 }
 
+static LLVMValueRef desc_match(compile_t* c, LLVMValueRef object,
+  LLVMValueRef desc)
+{
+  LLVMValueRef o_desc = gendesc_fetch(c, object);
+  o_desc = LLVMBuildPtrToInt(c->builder, o_desc, c->intptr, "");
+  desc = LLVMConstPtrToInt(desc, c->intptr);
+
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, o_desc, desc, "");
+}
+
+LLVMValueRef gendesc_isprimitive(compile_t* c, LLVMValueRef object,
+  ast_t* type)
+{
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  if(g.primitive != NULL)
+  {
+    // We have to check the descriptor since we have no unique global instance.
+    return desc_match(c, object, g.desc);
+  }
+
+  // Check that we are the global instance. This saves a descriptor load on
+  // the object.
+  object = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
+  LLVMValueRef global = LLVMConstPtrToInt(g.instance, c->intptr);
+
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, object, global, "");
+}
+
 LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef object, ast_t* type)
 {
   gentype_t g;
@@ -309,11 +422,7 @@ LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef object, ast_t* type)
   if(!gentype(c, type, &g))
     return NULL;
 
-  LLVMValueRef desc = gendesc_fetch(c, object);
-  desc = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
-  LLVMValueRef desc2 = LLVMConstPtrToInt(g.desc, c->intptr);
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, desc, desc2, "");
+  return desc_match(c, object, g.desc);
 }
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
@@ -322,11 +431,8 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
   LLVMValueRef trait_id = gendesc_typeid(c, type);
 
   // Read the count and the trait list from the descriptor.
-  LLVMValueRef desc = gendesc_fetch(c, object);
-  LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, desc, 2, "");
-  LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "");
-  LLVMValueRef list_ptr = LLVMBuildStructGEP(c->builder, desc, 8, "");
-  LLVMValueRef list = LLVMBuildLoad(c->builder, list_ptr, "");
+  LLVMValueRef count = desc_field(c, object, DESC_TRAIT_COUNT);
+  LLVMValueRef list = desc_field(c, object, DESC_TRAITS);
 
   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
@@ -368,4 +474,64 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
   LLVMAddIncoming(result, &test_id, &body_block, 1);
 
   return result;
+}
+
+LLVMValueRef gendesc_istuple(compile_t* c, LLVMValueRef object, ast_t* tuple)
+{
+  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef field_block = codegen_block(c, "tuple_field");
+  LLVMBasicBlockRef post_block = codegen_block(c, "tuple_post");
+
+  LLVMValueRef list = desc_field(c, object, DESC_FIELDS);
+
+  // First test the cardinality.
+  LLVMValueRef o_count = desc_field(c, object, DESC_FIELD_COUNT);
+  LLVMValueRef count = LLVMConstInt(c->i32, ast_childcount(tuple), false);
+  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, o_count, count, "");
+  LLVMBuildCondBr(c->builder, test, field_block, post_block);
+
+  // Setup the phi node for the return value.
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+  LLVMValueRef false_value = LLVMConstInt(c->i1, 0, false);
+  LLVMAddIncoming(phi, &false_value, &entry_block, 1);
+
+  // TODO: store a byte offset with the descriptor? offset and length?
+
+  // Test each field.
+  ast_t* child = ast_child(tuple);
+  int i = 0;
+
+  while(child != NULL)
+  {
+    ast_t* next = ast_sibling(child);
+    LLVMBasicBlockRef next_block;
+
+    if(next != NULL)
+      next_block = codegen_block(c, "tuple_field");
+    else
+      next_block = post_block;
+
+    LLVMPositionBuilderAtEnd(c->builder, field_block);
+
+    // Get the field descriptor.
+    LLVMValueRef gep[2];
+    gep[0] = LLVMConstInt(c->i32, 0, false);
+    gep[1] = LLVMConstInt(c->i32, i, false);
+
+    LLVMValueRef desc_ptr = LLVMBuildGEP(c->builder, list, gep, 2, "");
+    LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "");
+    (void)desc;
+
+    // TODO: check it how?
+
+    field_block = next_block;
+    child = ast_sibling(child);
+    i++;
+  }
+
+  LLVMValueRef true_value = LLVMConstInt(c->i1, 1, false);
+  LLVMAddIncoming(phi, &true_value, &field_block, 1);
+
+  return phi;
 }
