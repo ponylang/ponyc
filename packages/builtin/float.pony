@@ -95,19 +95,19 @@ primitive F64 is Stringable, ArithmeticConvertible
 
   fun tag cos(): F64 => @cos[F64](this)
   fun tag sin(): F64 => @sin[F64](this)
-  fun tag tan(): F64 => @tab[F64](this)
+  fun tag tan(): F64 => @tan[F64](this)
 
   fun tag cosh(): F64 => @cosh[F64](this)
   fun tag sinh(): F64 => @sinh[F64](this)
-  fun tag tanh(): F64 => @tabh[F64](this)
+  fun tag tanh(): F64 => @tanh[F64](this)
 
   fun tag acos(): F64 => @acos[F64](this)
   fun tag asin(): F64 => @asin[F64](this)
-  fun tag atan(): F64 => @atab[F64](this)
+  fun tag atan(): F64 => @atan[F64](this)
   fun tag atan2(y: F64): F64 => @atan2[F64](this, y)
 
   fun tag acosh(): F64 => @acosh[F64](this)
   fun tag asinh(): F64 => @asinh[F64](this)
-  fun tag atanh(): F64 => @atabh[F64](this)
+  fun tag atanh(): F64 => @atanh[F64](this)
 
   fun tag string(): String => "F64"
