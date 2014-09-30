@@ -214,7 +214,7 @@ TEST(SugarTest, ConstructorInDataType)
   const char* after =
     "(primitive (id foo) x x x"
     "  (members (new ref (id make) x x"
-    "    (nominal x (id foo) x val ^) x x)))";
+    "    (nominal x (id foo) x tag ^) x x)))";
 
   DO(test_good_sugar(before, after));
 }

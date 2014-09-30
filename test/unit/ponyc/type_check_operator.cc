@@ -98,23 +98,17 @@ protected:
     ASSERT_EQ(AST_FATAL, pass_expr(&op_ast, NULL));
   }
 
-  void test_bin_op_replace(token_id op_id, const char* type_a,
-    const char* type_b, const char* type_result, token_id replace_id)
+  void test_bin_op(token_id op_id, const char* type_a, const char* type_b,
+    const char* type_result)
   {
     snprintf(op_buf, sizeof(op_buf), "(%s (fvarref (id a) [%s])(fvarref (id b) [%s]))",
       lexer_print(op_id), type_a, type_b);
 
     DO(add_op());
     ASSERT_EQ(AST_OK, pass_expr(&op_ast, NULL));
-    ASSERT_EQ(replace_id, ast_id(op_ast));
+    ASSERT_EQ(op_id, ast_id(op_ast));
     DO(get_op_type());
     DO(compare_result(type_result, op_type));
-  }
-
-  void test_bin_op(token_id op_id, const char* type_a, const char* type_b,
-    const char* type_result)
-  {
-    test_bin_op_replace(op_id, type_a, type_b, type_result, op_id);
   }
 
   void test_bin_op_to_fun(token_id op_id, const char* type_a,
@@ -350,31 +344,31 @@ protected:
     DO(test_bin_op_bad(op_id, t_foo, t_foo));
   }
 
-  void standard_identity(token_id op_id, token_id alt_id)
+  void standard_identity(token_id op_id)
   {
-    DO(test_bin_op_replace(op_id, t_u_lit, t_u_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u_lit, t_f_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f_lit, t_u_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f_lit, t_f_lit, t_bool, alt_id));
+    DO(test_bin_op_bad(op_id, t_u_lit, t_u_lit));
+    DO(test_bin_op_bad(op_id, t_u_lit, t_f_lit));
+    DO(test_bin_op_bad(op_id, t_f_lit, t_u_lit));
+    DO(test_bin_op_bad(op_id, t_f_lit, t_f_lit));
 
-    DO(test_bin_op_replace(op_id, t_u32, t_u_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u_lit, t_i32, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f32, t_f_lit, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f_lit, t_f32, t_bool, alt_id));
+    DO(test_bin_op_bad(op_id, t_u32, t_u_lit));
+    DO(test_bin_op_bad(op_id, t_u_lit, t_i32));
+    DO(test_bin_op_bad(op_id, t_f32, t_f_lit));
+    DO(test_bin_op_bad(op_id, t_f_lit, t_f32));
 
-    DO(test_bin_op_replace(op_id, t_u8, t_u8, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u16, t_u16, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u32, t_u32, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u64, t_u64, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_u128, t_u128, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_i8, t_i8, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_i16, t_i16, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_i32, t_i32, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_i64, t_i64, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_i128, t_i128, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f32, t_f32, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_f64, t_f64, t_bool, alt_id));
-    DO(test_bin_op_replace(op_id, t_bool, t_bool, t_bool, alt_id));
+    DO(test_bin_op_bad(op_id, t_u8, t_u8));
+    DO(test_bin_op_bad(op_id, t_u16, t_u16));
+    DO(test_bin_op_bad(op_id, t_u32, t_u32));
+    DO(test_bin_op_bad(op_id, t_u64, t_u64));
+    DO(test_bin_op_bad(op_id, t_u128, t_u128));
+    DO(test_bin_op_bad(op_id, t_i8, t_i8));
+    DO(test_bin_op_bad(op_id, t_i16, t_i16));
+    DO(test_bin_op_bad(op_id, t_i32, t_i32));
+    DO(test_bin_op_bad(op_id, t_i64, t_i64));
+    DO(test_bin_op_bad(op_id, t_i128, t_i128));
+    DO(test_bin_op_bad(op_id, t_f32, t_f32));
+    DO(test_bin_op_bad(op_id, t_f64, t_f64));
+    DO(test_bin_op_bad(op_id, t_bool, t_bool));
 
     // TODO: Foo is math-compatible with itself. Really?
     //DO(test_bin_op(op_id, t_foo, t_foo, t_bool, op_id));
@@ -625,13 +619,13 @@ TEST_F(ExprOperatorTest, Not)
 
 TEST_F(ExprOperatorTest, Is)
 {
-  DO(standard_identity(TK_IS, TK_EQ));
+  DO(standard_identity(TK_IS));
 }
 
 
 TEST_F(ExprOperatorTest, Isnt)
 {
-  DO(standard_identity(TK_ISNT, TK_NE));
+  DO(standard_identity(TK_ISNT));
 }
 
 
