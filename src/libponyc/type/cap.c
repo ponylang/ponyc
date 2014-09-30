@@ -205,6 +205,13 @@ token_id cap_viewpoint(token_id view, token_id cap)
 
 token_id cap_viewpoint_lower(token_id cap)
 {
+  // For any chain of arrows, return a capability that is a subtype of the
+  // resulting capability.
+  // iso <: ref->iso, iso <: val->iso, iso <: box->iso
+  // trn <: ref->trn, trn <: val->trn, trn <: box->trn
+  // val <: ref->val, val <: val->val, val <: box->val
+  // val <: ref->box, val <: val->val, val <: box->box
+  // tag <: ref->tag, tag <: val->tag, tag <: box->tag
   switch(cap)
   {
     case TK_ISO: return TK_ISO;

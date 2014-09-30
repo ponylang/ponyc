@@ -12,6 +12,10 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type);
 
 ast_t* viewpoint_upper(ast_t* type);
 
+/**
+ * Return a new type that would be a subtype of the provided type for any
+ * chain of valid arrow types.
+ */
 ast_t* viewpoint_lower(ast_t* type);
 
 ast_t* viewpoint_tag(ast_t* type);

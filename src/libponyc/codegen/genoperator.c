@@ -637,6 +637,15 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
+  // Because of type parameters, this could generate a non-pointer type, ie
+  // a boolean, a numeric type, or a tuple. Those are normally disallowed in
+  // the type checker because they have no identity. If they are generated here,
+  // return false.
+  if((LLVMGetTypeKind(LLVMTypeOf(l_value)) != LLVMPointerTypeKind) ||
+    (LLVMGetTypeKind(LLVMTypeOf(l_value)) != LLVMPointerTypeKind)
+    )
+    return LLVMConstInt(c->i1, 0, false);
+
   l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
   r_value = LLVMBuildPtrToInt(c->builder, r_value, c->intptr, "");
 

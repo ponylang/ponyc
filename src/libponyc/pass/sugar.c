@@ -35,7 +35,14 @@ static bool add_default_constructor(ast_t* ast, ast_t* members)
     {
       case TK_FVAR:
       case TK_FLET:
-        return true;
+      {
+        ast_t* init = ast_childidx(member, 2);
+
+        if(ast_id(init) == TK_NONE)
+          return true;
+
+        break;
+      }
 
       case TK_NEW:
       {
@@ -124,13 +131,14 @@ static ast_result_t sugar_new(ast_t* ast)
     ast_replace(&id, ast_from_string(id, "create"));
   }
 
-  // Return type is This ref^, or This tag^ for actors
+  // Return type is This ref^ for classes, This val^ for primitives, and
+  // This tag^ for actors.
   assert(ast_id(result) == TK_NONE);
 
   token_id cap = TK_REF;
 
-  if(ast_id(def) == TK_ACTOR) cap = TK_TAG;
-  if(ast_id(def) == TK_PRIMITIVE) cap = TK_VAL;
+  if((ast_id(def) == TK_PRIMITIVE) || (ast_id(def) == TK_ACTOR))
+    cap = TK_TAG;
 
   ast_replace(&result, type_for_this(ast, cap, true));
   return AST_OK;

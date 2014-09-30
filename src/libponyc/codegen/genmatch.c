@@ -6,8 +6,9 @@
 #include <assert.h>
 
 #if 0
-static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
-  ast_t* match_type, ast_t* pattern);
+
+static LLVMValueRef match_type(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern_type);
 
 static LLVMValueRef make_binop(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, LLVMOpcode op)
@@ -22,16 +23,15 @@ static LLVMValueRef make_binop(compile_t* c, LLVMValueRef l_value,
   return LLVMBuildBinOp(c->builder, op, l_value, r_value, "");
 }
 
-static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value,
-  ast_t* match_type, ast_t* pattern_type, LLVMOpcode op)
+static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern_type, LLVMOpcode op)
 {
   ast_t* child_type = ast_child(pattern_type);
   LLVMValueRef result = NULL;
 
   while(child_type != NULL)
   {
-    LLVMValueRef child_match = match_with_type(c, value, match_type,
-      child_type);
+    LLVMValueRef child_match = match_type(c, value, type, child_type);
     result = make_binop(c, result, child_match, op);
     child_type = ast_sibling(child_type);
   }
@@ -39,24 +39,29 @@ static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value,
   return result;
 }
 
-static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
-  ast_t* match_type, ast_t* pattern)
+static LLVMValueRef match_type(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern_type)
 {
-  ast_t* pattern_type = ast_type(pattern);
+  // TODO: need a runtime representation of the capability
+  // match (Foo val | Foo ref)
+  // | var f: Foo ref =>
+  // that type checks, but at runtime we need to know the capability
 
-  if(is_math_compatible(match_type, pattern_type) ||
-    is_subtype(match_type, pattern_type)
-    )
+  // If it's a subtype, no need to check anything at runtime.
+  if(is_subtype(type, pattern_type))
     return LLVMConstInt(c->i1, 1, false);
 
   switch(ast_id(pattern_type))
   {
     case TK_UNIONTYPE:
+      // If any type matches, we match.
       return loop_binop(c, value, match_type, pattern_type, LLVMOr);
 
     case TK_ISECTTYPE:
+      // If all types match, we match.
       return loop_binop(c, value, match_type, pattern_type, LLVMAnd);
 
+#if 0
     case TK_TUPLETYPE:
     {
       if(ast_id(match_type) == TK_TUPLETYPE)
@@ -87,6 +92,7 @@ static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
       // either a union with this tuple in it or Any
       break;
     }
+#endif
 
     case TK_NOMINAL:
     {
@@ -117,7 +123,7 @@ static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
     }
 
     case TK_ARROW:
-      return runtime_type(c, value, match_type, ast_childidx(pattern_type, 1));
+      return match_type(c, value, type, ast_childidx(pattern_type, 1));
 
     default: {}
   }
@@ -125,11 +131,58 @@ static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
   assert(0);
   return NULL;
 }
+
+static LLVMValueRef match(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern)
+{
+  ast_t* pattern_type = ast_type(pattern);
+
+  switch(ast_id(pattern))
+  {
+    case TK_INT:
+    case TK_FLOAT:
+    {
+      // TODO:
+      break;
+    }
+
+    case TK_STRING:
+    {
+      // TODO:
+      break;
+    }
+
+    case TK_CALL:
+      return match_type(c, value, type, pattern_type);
+
+    case TK_LET:
+    case TK_VAR:
+    {
+      // TODO:
+      break;
+    }
+
+    case TK_TUPLE:
+    {
+      // TODO:
+      break;
+    }
+
+    case TK_SEQ:
+      // Recursing with an element of a tuple.
+      return match(c, value, type, ast_child(pattern));
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
 #endif
 
-static bool pattern_match(compile_t* c, LLVMValueRef match_value,
-  ast_t* match_type, ast_t* pattern, LLVMBasicBlockRef guard_block,
-  LLVMBasicBlockRef next_block)
+static bool pattern_match(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, LLVMBasicBlockRef guard_block, LLVMBasicBlockRef next_block)
 {
   if(ast_id(pattern) == TK_NONE)
   {
@@ -138,8 +191,11 @@ static bool pattern_match(compile_t* c, LLVMValueRef match_value,
   }
 
   // TODO:
-  // LLVMValueRef test = match_with_type(c, match_value, match_type, pattern);
-  LLVMValueRef test = LLVMConstInt(c->i1, 1, false);
+  // ast_t* a_type = alias(type);
+  // LLVMValueRef test = match(c, value, a_type, pattern);
+  // ast_free_unattached(a_type);
+
+  LLVMValueRef test = LLVMConstInt(c->i1, 0, false);
 
   if(test == NULL)
     return false;

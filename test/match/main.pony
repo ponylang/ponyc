@@ -32,15 +32,15 @@ actor Main
 
   fun box test(x: Any) =>
     match x
-    | var y: Wombat =>
+    | var y: Wombat tag =>
       _env.stdout.print("Wombat")
-    | var y: Aardvark =>
+    | var y: Aardvark tag =>
       _env.stdout.print("Aardvark")
-    | var y: Animal =>
+    | var y: Animal tag =>
       _env.stdout.print("Animal")
-    | var y: (Animal | Vegetable) =>
+    | var y: (Animal tag | Vegetable tag) =>
       _env.stdout.print("Animal or Vegetable")
-    | None =>
+    | var y: None =>
       _env.stdout.print("None")
     else
       _env.stdout.print("Unknown")

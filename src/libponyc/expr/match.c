@@ -23,7 +23,7 @@ bool expr_match(ast_t* ast)
 
     ast_t* pattern_type = ast_type(pattern);
 
-    if(!is_id_compatible(expr_type, pattern_type))
+    if(!is_match_compatible(expr_type, pattern_type))
     {
       ast_error(pattern, "match expression can never be of this type");
       return false;
@@ -98,6 +98,8 @@ static bool is_primitive_pattern(ast_t* ast)
 
 static bool is_valid_pattern(ast_t* ast)
 {
+  // TODO: Relax this? Allow any expression that generates a primitive type?
+  // Plus local declarations?
   switch(ast_id(ast))
   {
     case TK_INT:

@@ -1,7 +1,7 @@
 trait Stringable
   fun box string(): String
 
-class String val is Ordered[String], ArithmeticConvertible
+class String val is Ordered[String]
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
@@ -11,13 +11,6 @@ class String val is Ordered[String], ArithmeticConvertible
     _alloc = 1
     _ptr = Pointer[U8](1)
     _ptr._update(0, 0)
-
-  new concat(a: String, b: String) =>
-    _size = a._size + b._size
-    _alloc = _size + 1
-    _ptr = Pointer[U8](_alloc)
-    _ptr._copy(0, a._ptr, a._size)
-    _ptr._copy(a._size, b._ptr, b._size + 1)
 
   new from_cstring(str: Pointer[U8] box) =>
     _size = 0
@@ -30,6 +23,11 @@ class String val is Ordered[String], ArithmeticConvertible
     _ptr = Pointer[U8](_alloc)
     _ptr._copy(0, str, _alloc)
 
+  new _reserve(size: U64) =>
+    _size = size
+    _alloc = size + 1
+    _ptr = Pointer[U8](_alloc)
+
   fun box length(): U64 => _size
 
   fun box cstring(): this->Pointer[U8] => _ptr
@@ -40,14 +38,20 @@ class String val is Ordered[String], ArithmeticConvertible
 
   fun ref update(i: I64, char: U8): U8 ? =>
     var j = offset_to_index(i)
-    if j < _size then _ptr._update(j, char) else error end
+
+    if j < _size then
+      if char == 0 then
+        _size = j
+      end
+
+      _ptr._update(j, char)
+    else
+      error
+    end
 
   fun box lower(): String iso^ =>
     recover
-      var str = String
-      str._size = _size
-      str._alloc = _size + 1
-      str._ptr = str._ptr._realloc(_size + 1)
+      var str = String._reserve(_size)
 
       for i in Range[U64](0, _size) do
         var c = _ptr._apply(i)
@@ -64,10 +68,7 @@ class String val is Ordered[String], ArithmeticConvertible
 
   fun box upper(): String iso^ =>
     recover
-      var str = String
-      str._size = _size
-      str._alloc = _size + 1
-      str._ptr = str._ptr._realloc(_size + 1)
+      var str = String._reserve(_size)
 
       for i in Range[U64](0, _size) do
         var c = _ptr._apply(i)
@@ -84,10 +85,7 @@ class String val is Ordered[String], ArithmeticConvertible
 
   fun box reverse(): String iso^ =>
     recover
-      var str = String
-      str._size = _size
-      str._alloc = _size + 1
-      str._ptr = str._ptr._realloc(_size + 1)
+      var str = String._reserve(_size)
 
       for i in Range[U64](0, _size) do
         var c = _ptr._apply(i)
@@ -101,18 +99,18 @@ class String val is Ordered[String], ArithmeticConvertible
     recover
       var start = offset_to_index(from)
       var finish = offset_to_index(to).min(_size)
-      var str = String
+      var str: String ref
 
       if (start < _size) and (start < finish) then
         var len = finish - start
-        str._size = len
-        str._alloc = len + 1
-        str._ptr = str._ptr._realloc(len + 1)
+        str = String._reserve(len)
 
         for i in Range[U64](start, finish + 1) do
           var c = _ptr._apply(i)
           str._ptr._update(i - start, c)
         end
+      else
+        str = String
       end
 
       consume str
@@ -160,6 +158,13 @@ class String val is Ordered[String], ArithmeticConvertible
     _ptr._copy(_size, that._ptr, that._size + 1)
     _size = _size + that._size
     this
+
+  fun box concat(that: String): String ref^ =>
+    var len = _size + that._size
+    var str = String._reserve(len)
+    str._ptr._copy(0, _ptr, _size)
+    str._ptr._copy(_size, that._ptr, that._size + 1)
+    consume str
 
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end

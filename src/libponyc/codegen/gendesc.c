@@ -193,7 +193,10 @@ static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
     if(!gentype(c, g->fields[i], &fg))
       return NULL;
 
-    list[i] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
+    if(fg.desc != NULL)
+      list[i] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
+    else
+      list[i] = LLVMConstNull(c->descriptor_ptr);
   }
 
   LLVMValueRef field_array = LLVMConstArray(c->descriptor_ptr, list, count);

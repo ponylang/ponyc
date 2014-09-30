@@ -298,35 +298,15 @@ static bool tuples_pairwise(ast_t** astp, ast_t* left, ast_t* right)
   return true;
 }
 
-static bool has_identity(ast_t* ast)
-{
-  ast_t* type = ast_type(ast);
-
-  if((ast_id(type) == TK_TUPLETYPE) ||
-    is_arithmetic(type) ||
-    is_bool(type)
-    )
-  {
-    ast_error(ast, "type has no identity");
-    return false;
-  }
-
-  return true;
-}
-
 bool expr_identity(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // Disallow identity on types that have no identity.
-  if(!has_identity(left) || !has_identity(right))
-    return false;
-
   if(!is_id_compatible(l_type, r_type))
   {
-    ast_error(ast, "left and right side must have related types");
+    ast_error(ast, "left and right side be related identity types");
     return false;
   }
 
@@ -410,17 +390,13 @@ bool expr_arithmetic(ast_t** astp)
     {
       BUILD(call, ast,
         NODE(TK_CALL,
-          NODE(TK_DOT, NODE(TK_REFERENCE, ID("String")) ID("concat"))
-          NODE(TK_POSITIONALARGS, TREE(left) TREE(right))
+          NODE(TK_DOT, TREE(left) ID("concat"))
+          NODE(TK_POSITIONALARGS, TREE(right))
           NODE(TK_NONE)
           )
         );
 
       ast_t* dot = ast_child(call);
-      ast_t* ref = ast_child(dot);
-
-      if(!expr_reference(ref))
-        return false;
 
       if(!expr_dot(dot))
         return false;

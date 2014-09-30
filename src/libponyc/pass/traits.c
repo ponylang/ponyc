@@ -174,7 +174,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
     switch(ast_id(target))
     {
       case TK_PRIMITIVE:
-        ast_error(target, "a data type can't have traits that have behaviours");
+        ast_error(target, "a primitive can't have traits that have behaviours");
         return false;
 
       case TK_CLASS:

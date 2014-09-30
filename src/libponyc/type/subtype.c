@@ -1,6 +1,7 @@
 #include "subtype.h"
 #include "reify.h"
 #include "cap.h"
+#include "alias.h"
 #include "assemble.h"
 #include "viewpoint.h"
 #include "../ast/token.h"
@@ -490,11 +491,9 @@ bool is_subtype(ast_t* sub, ast_t* super)
       {
         case TK_STRUCTURAL:
         {
-          // a tuple is a subtype of an empty structural type
-          // TODO: does the capability of the empty structural matter?
-          ast_t* members = ast_child(super);
-          ast_t* member = ast_child(members);
-          return member == NULL;
+          // A tuple is a subtype of {} tag.
+          AST_GET_CHILDREN(super, members, cap);
+          return (ast_child(members) == NULL) && (ast_id(cap) == TK_TAG);
         }
 
         case TK_TUPLETYPE:
@@ -721,7 +720,7 @@ bool is_math_compatible(ast_t* a, ast_t* b)
   return is_eqtype(a, b);
 }
 
-static bool is_interface_compatible(ast_t* iface, ast_t* b)
+static bool is_interface_id_compatible(ast_t* iface, ast_t* b)
 {
   // If the right side is also an interface, check local compatibility of the
   // capabilities. Otherwise, check in the other direction.
@@ -746,10 +745,18 @@ static bool is_interface_compatible(ast_t* iface, ast_t* b)
   return is_id_compatible(b, iface);
 }
 
+static bool has_identity(ast_t* type)
+{
+  return (ast_id(type) != TK_TUPLETYPE) &&
+    !is_arithmetic(type) &&
+    !is_bool(type);
+}
+
 bool is_id_compatible(ast_t* a, ast_t* b)
 {
-  if(is_math_compatible(a, b))
-    return true;
+  // Disallow identity comparison on types that have no identity.
+  if(!has_identity(a) || !has_identity(b))
+    return false;
 
   switch(ast_id(a))
   {
@@ -767,7 +774,7 @@ bool is_id_compatible(ast_t* a, ast_t* b)
           return (is_subtype(a, b) || is_subtype(b, a)) && cap_compatible(a, b);
 
         case TK_TRAIT:
-          return is_interface_compatible(a, b);
+          return is_interface_id_compatible(a, b);
 
         default: {}
       }
@@ -775,10 +782,7 @@ bool is_id_compatible(ast_t* a, ast_t* b)
     }
 
     case TK_STRUCTURAL:
-    {
-      // TODO: special case empty with a tuple
-      return is_interface_compatible(a, b);
-    }
+      return is_interface_id_compatible(a, b);
 
     case TK_TYPEPARAMREF:
     {
@@ -828,24 +832,234 @@ bool is_id_compatible(ast_t* a, ast_t* b)
       return true;
     }
 
-    case TK_TUPLETYPE:
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+static bool is_interface_match_compatible(ast_t* match, ast_t* pattern)
+{
+  switch(ast_id(pattern))
+  {
+    case TK_NOMINAL:
     {
-      if(ast_id(b) != TK_TUPLETYPE)
-        return is_id_compatible(b, a);
+      ast_t* def = (ast_t*)ast_data(pattern);
 
-      ast_t* a_child = ast_child(a);
-      ast_t* b_child = ast_child(b);
-
-      while((a_child != NULL) && (b_child != NULL))
+      switch(ast_id(def))
       {
-        if(!is_id_compatible(a_child, b_child))
-          return false;
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+        {
+          // The pattern type without capability must be a subtype of the
+          // match type without capability.
+          ast_t* t_match = viewpoint_tag(match);
+          ast_t* t_pattern = viewpoint_tag(pattern);
+          bool ok = is_subtype(t_pattern, t_match);
+          ast_free_unattached(t_match);
+          ast_free_unattached(t_pattern);
 
-        a_child = ast_sibling(a_child);
-        b_child = ast_sibling(b_child);
+          if(!ok)
+            return false;
+
+          // An alias of the match cap must be a subtype of the pattern cap.
+          ast_t* a_match = alias(match);
+          token_id match_cap = cap_for_type(a_match);
+          token_id pattern_cap = cap_for_type(pattern);
+          ast_free_unattached(a_match);
+
+          return is_cap_sub_cap(match_cap, pattern_cap);
+        }
+
+        case TK_TRAIT:
+        {
+          // An alias of the match cap must be a subtype of the pattern cap.
+          ast_t* a_match = alias(match);
+          token_id match_cap = cap_for_type(a_match);
+          token_id pattern_cap = cap_for_type(pattern);
+          ast_free_unattached(a_match);
+
+          return is_cap_sub_cap(match_cap, pattern_cap);
+        }
+
+        default: {}
       }
 
-      return (a_child == NULL) && (b_child == NULL);
+      break;
+    }
+
+    case TK_STRUCTURAL:
+    {
+      // An alias of the match must be a subtype of the pattern.
+      ast_t* a_match = alias(match);
+      bool ok = is_subtype(a_match, pattern);
+      ast_free_unattached(a_match);
+      return ok;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      // Must be compatible with some type in the pattern.
+      ast_t* child = ast_child(pattern);
+
+      while(child != NULL)
+      {
+        if(is_interface_match_compatible(match, child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // Must be compatible with all types in the pattern.
+      ast_t* child = ast_child(pattern);
+
+      while(child != NULL)
+      {
+        if(!is_interface_match_compatible(match, child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      // A trait can never be a tuple. While a tuple can be passed as a {} tag,
+      // a {} tag can't be pattern matched as a tuple because it can't be read,
+      // which means it can't be destructured.
+      return false;
+    }
+
+    case TK_ARROW:
+    {
+      // Must be compatible with the lower bounds of the pattern.
+      ast_t* lower = viewpoint_lower(pattern);
+      bool ok = is_interface_match_compatible(match, lower);
+      ast_free_unattached(lower);
+      return ok;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool is_match_compatible(ast_t* match, ast_t* pattern)
+{
+  if(is_math_compatible(match, pattern))
+    return true;
+
+  switch(ast_id(match))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(match);
+
+      switch(ast_id(def))
+      {
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+        {
+          // With a concrete type, an alias of the match must be a subtype of
+          // the pattern.
+          ast_t* a_match = alias(match);
+          bool ok = is_subtype(a_match, pattern);
+          ast_free_unattached(a_match);
+          return ok;
+        }
+
+        case TK_TRAIT:
+          return is_interface_match_compatible(match, pattern);
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_STRUCTURAL:
+      return is_interface_match_compatible(match, pattern);
+
+    case TK_TYPEPARAMREF:
+    {
+      // Check if our constraint is compatible.
+      ast_t* def = (ast_t*)ast_data(match);
+      ast_t* constraint = ast_childidx(def, 1);
+      return is_match_compatible(constraint, pattern);
+    }
+
+    case TK_ARROW:
+    {
+      // Check the upper bounds of the right side.
+      ast_t* right = ast_childidx(match, 1);
+      ast_t* upper = viewpoint_upper(right);
+      bool ok = is_match_compatible(upper, pattern);
+      ast_free_unattached(upper);
+      return ok;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      // Some type must be compatible with the pattern.
+      ast_t* child = ast_child(match);
+
+      while(child != NULL)
+      {
+        if(is_match_compatible(child, pattern))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // All types must be compatible with the pattern.
+      ast_t* child = ast_child(match);
+
+      while(child != NULL)
+      {
+        if(!is_id_compatible(child, pattern))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_TUPLETYPE:
+    {
+      // Must be pairwise compatible with the pattern.
+      if(ast_id(pattern) != TK_TUPLETYPE)
+        return false;
+
+      ast_t* m_child = ast_child(match);
+      ast_t* p_child = ast_child(pattern);
+
+      while((m_child != NULL) && (p_child != NULL))
+      {
+        if(!is_match_compatible(m_child, p_child))
+          return false;
+
+        m_child = ast_sibling(m_child);
+        p_child = ast_sibling(p_child);
+      }
+
+      return (m_child == NULL) && (p_child == NULL);
     }
 
     default: {}

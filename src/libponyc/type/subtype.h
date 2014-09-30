@@ -38,6 +38,8 @@ bool is_math_compatible(ast_t* a, ast_t* b);
 
 bool is_id_compatible(ast_t* a, ast_t* b);
 
+bool is_match_compatible(ast_t* match, ast_t* pattern);
+
 PONY_EXTERN_C_END
 
 #endif

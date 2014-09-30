@@ -1,40 +1,40 @@
 type Any is {} tag
 
 primitive None is Stringable
-  fun box string(): String => "None"
+  fun tag string(): String => "None"
 
 primitive True is Stringable
-  fun box string(): String => "True"
+  fun tag string(): String => "True"
 
 primitive False is Stringable
-  fun box string(): String => "False"
+  fun tag string(): String => "False"
 
 type Bool is (True | False)
 
 trait ArithmeticConvertible
-  fun box i8(): I8 => compiler_intrinsic
-  fun box i16(): I16 => compiler_intrinsic
-  fun box i32(): I32 => compiler_intrinsic
-  fun box i64(): I64 => compiler_intrinsic
-  fun box i128(): I128 => compiler_intrinsic
+  fun tag i8(): I8 => compiler_intrinsic
+  fun tag i16(): I16 => compiler_intrinsic
+  fun tag i32(): I32 => compiler_intrinsic
+  fun tag i64(): I64 => compiler_intrinsic
+  fun tag i128(): I128 => compiler_intrinsic
 
-  fun box u8(): U8 => compiler_intrinsic
-  fun box u16(): U16 => compiler_intrinsic
-  fun box u32(): U32 => compiler_intrinsic
-  fun box u64(): U64 => compiler_intrinsic
-  fun box u128(): U128 => compiler_intrinsic
+  fun tag u8(): U8 => compiler_intrinsic
+  fun tag u16(): U16 => compiler_intrinsic
+  fun tag u32(): U32 => compiler_intrinsic
+  fun tag u64(): U64 => compiler_intrinsic
+  fun tag u128(): U128 => compiler_intrinsic
 
-  fun box f32(): F32 => compiler_intrinsic
-  fun box f64(): F64 => compiler_intrinsic
+  fun tag f32(): F32 => compiler_intrinsic
+  fun tag f64(): F64 => compiler_intrinsic
 
 primitive SIntLiteral is Stringable, ArithmeticConvertible
-  fun box string(): String => "SIntLiteral"
+  fun tag string(): String => "SIntLiteral"
 
 primitive UIntLiteral is Stringable, ArithmeticConvertible
-  fun box string(): String => "UIntLiteral"
+  fun tag string(): String => "UIntLiteral"
 
 primitive FloatLiteral is Stringable, ArithmeticConvertible
-  fun box string(): String => "FloatLiteral"
+  fun tag string(): String => "FloatLiteral"
 
 type SInt is
   ( SIntLiteral

@@ -318,8 +318,7 @@ static void primitive_conversions(compile_t* c)
 #ifdef PLATFORM_IS_VISUAL_STUDIO
         } else if(to->size > 64) {
           // Visual Studio compiler doesn't have float to 128 bit conversion.
-          LLVMDeleteFunction(fun);
-          continue;
+          result = LLVMGetUndef(to->type);
 #endif
         } else if(to->is_signed) {
           result = LLVMBuildFPToSI(c->builder, arg, to->type, "");
@@ -331,8 +330,7 @@ static void primitive_conversions(compile_t* c)
         if(from->size > 64)
         {
           // Visual Studio compiler doesn't have 128 bit to float conversion.
-          LLVMDeleteFunction(fun);
-          continue;
+          result = LLVMGetUndef(to->type);
         } else
 #endif
         if(from->is_signed)
