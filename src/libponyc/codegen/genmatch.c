@@ -5,8 +5,9 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value,
-  ast_t* match_type, ast_t* pattern_type);
+#if 0
+static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern);
 
 static LLVMValueRef make_binop(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, LLVMOpcode op)
@@ -29,7 +30,8 @@ static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value,
 
   while(child_type != NULL)
   {
-    LLVMValueRef child_match = runtime_type(c, value, match_type, child_type);
+    LLVMValueRef child_match = match_with_type(c, value, match_type,
+      child_type);
     result = make_binop(c, result, child_match, op);
     child_type = ast_sibling(child_type);
   }
@@ -37,9 +39,11 @@ static LLVMValueRef loop_binop(compile_t* c, LLVMValueRef value,
   return result;
 }
 
-static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value,
-  ast_t* match_type, ast_t* pattern_type)
+static LLVMValueRef match_with_type(compile_t* c, LLVMValueRef value,
+  ast_t* match_type, ast_t* pattern)
 {
+  ast_t* pattern_type = ast_type(pattern);
+
   if(is_math_compatible(match_type, pattern_type) ||
     is_subtype(match_type, pattern_type)
     )
@@ -121,6 +125,7 @@ static LLVMValueRef runtime_type(compile_t* c, LLVMValueRef value,
   assert(0);
   return NULL;
 }
+#endif
 
 static bool pattern_match(compile_t* c, LLVMValueRef match_value,
   ast_t* match_type, ast_t* pattern, LLVMBasicBlockRef guard_block,
@@ -132,19 +137,14 @@ static bool pattern_match(compile_t* c, LLVMValueRef match_value,
     return true;
   }
 
-  ast_t* pattern_type = ast_type(pattern);
-  LLVMValueRef t_match = runtime_type(c, match_value, match_type, pattern_type);
+  // TODO:
+  // LLVMValueRef test = match_with_type(c, match_value, match_type, pattern);
+  LLVMValueRef test = LLVMConstInt(c->i1, 1, false);
 
-  if(t_match == NULL)
+  if(test == NULL)
     return false;
 
-  LLVMBasicBlockRef value_block = codegen_block(c, "case_value");
-  LLVMBuildCondBr(c->builder, t_match, value_block, next_block);
-  LLVMPositionBuilderAtEnd(c->builder, value_block);
-
-  // TODO: check values
-  LLVMBuildBr(c->builder, guard_block);
-
+  LLVMBuildCondBr(c->builder, test, guard_block, next_block);
   return true;
 }
 
@@ -166,10 +166,9 @@ static bool guard_match(compile_t* c, ast_t* guard,
   return true;
 }
 
-static bool case_body(compile_t* c, LLVMBasicBlockRef body_block, ast_t* body,
+static bool case_body(compile_t* c, ast_t* body,
   LLVMBasicBlockRef post_block, LLVMValueRef phi, LLVMTypeRef phi_type)
 {
-  LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef body_value = gen_expr(c, body);
 
   // If it returns, we don't branch to the post block.
@@ -182,9 +181,10 @@ static bool case_body(compile_t* c, LLVMBasicBlockRef body_block, ast_t* body,
   if(body_value == NULL)
     return false;
 
-  body_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
-  LLVMAddIncoming(phi, &body_value, &body_block, 1);
+
+  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+  LLVMAddIncoming(phi, &body_value, &block, 1);
 
   return true;
 }
@@ -203,13 +203,13 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_t* match_type = ast_type(match_expr);
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
-  LLVMBasicBlockRef case_block = codegen_block(c, "case_type");
+  LLVMBasicBlockRef pattern_block = codegen_block(c, "case_pattern");
   LLVMBasicBlockRef else_block = codegen_block(c, "match_else");
   LLVMBasicBlockRef post_block = codegen_block(c, "match_post");
   LLVMBasicBlockRef next_block;
 
   // Jump to the first case.
-  LLVMBuildBr(c->builder, case_block);
+  LLVMBuildBr(c->builder, pattern_block);
 
   // Start the post block so that a case can modify the phi node.
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -220,41 +220,45 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   while(the_case != NULL)
   {
-    LLVMPositionBuilderAtEnd(c->builder, case_block);
-
     ast_t* next_case = ast_sibling(the_case);
 
     if(next_case != NULL)
-      next_block = codegen_block(c, "case_type");
+      next_block = codegen_block(c, "case_pattern");
     else
       next_block = else_block;
 
     AST_GET_CHILDREN(the_case, pattern, guard, body);
 
-    // Check the pattern.
     LLVMBasicBlockRef guard_block = codegen_block(c, "case_guard");
+    LLVMBasicBlockRef body_block = codegen_block(c, "case_body");
+
+    // Check the pattern.
+    LLVMPositionBuilderAtEnd(c->builder, pattern_block);
 
     if(!pattern_match(c, match_value, match_type, pattern, guard_block,
       next_block))
       return NULL;
 
     // Check the guard.
-    LLVMBasicBlockRef body_block = codegen_block(c, "case_body");
     LLVMPositionBuilderAtEnd(c->builder, guard_block);
 
     if(!guard_match(c, guard, body_block, next_block))
       return NULL;
 
     // Case body.
-    if(!case_body(c, body_block, body, post_block, phi, phi_type.use_type))
+    LLVMPositionBuilderAtEnd(c->builder, body_block);
+
+    if(!case_body(c, body, post_block, phi, phi_type.use_type))
       return NULL;
 
     the_case = next_case;
-    case_block = next_block;
+    pattern_block = next_block;
   }
 
   // Else body.
-  if(!case_body(c, else_block, else_expr, post_block, phi, phi_type.use_type))
+  LLVMPositionBuilderAtEnd(c->builder, else_block);
+
+  if(!case_body(c, else_expr, post_block, phi, phi_type.use_type))
     return NULL;
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);

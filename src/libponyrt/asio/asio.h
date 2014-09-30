@@ -102,7 +102,7 @@ bool asio_stop();
  *
  *  Returns the status of the requested operation.
  */
-uint32_t asio_writev(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp);
+uint32_t asio_writev(int fd, struct iovec* iov, int chunks, size_t* nrp);
 
 /** Reads data from a file descriptor.
  *
@@ -111,13 +111,13 @@ uint32_t asio_writev(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp)
  *
  *  Returns the status of the requested operation.
  */
-uint32_t asio_readv(intptr_t fd, struct iovec* iov, size_t chunks, size_t* nrp);
+uint32_t asio_readv(int fd, struct iovec* iov, int chunks, size_t* nrp);
 
 /** Reads data from a file descriptor.
  *
  *  This is a wrapper for asio_readv for convenience.
  */
-uint32_t asio_read(intptr_t fd, void* dest, size_t len, size_t* nrp);
+uint32_t asio_read(int fd, void* dest, size_t len, size_t* nrp);
 
 PONY_EXTERN_C_END
 

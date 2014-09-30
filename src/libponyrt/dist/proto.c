@@ -71,7 +71,7 @@ static bool check_for_message(proto_t* p, sock_t* s)
 	return false;
 }
 
-uint32_t proto_receive(proto_t** p, sock_t* s)
+uint16_t proto_receive(proto_t** p, sock_t* s)
 {
 	proto_t* self = *p;
 

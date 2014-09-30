@@ -16,7 +16,7 @@ typedef struct sock_t sock_t;
 /** Get the OS-Level file descriptor of a socket.
  *
  */
-intptr_t sock_get_fd(sock_t* s);
+int sock_get_fd(sock_t* s);
 
 /** Creates a listener socket for the specified service.
  *

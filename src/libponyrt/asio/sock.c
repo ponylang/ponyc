@@ -41,13 +41,13 @@ typedef struct chunk_list_t
 	void* readp;
 	void* writep;
 
-	size_t chunks;
+	int chunks;
 	size_t size;
 } chunk_list_t;
 
 struct sock_t
 {
-	intptr_t fd;
+	int fd;
 
 	chunk_list_t reads;
 	chunk_list_t writes;
@@ -83,7 +83,7 @@ static void append_chunk(chunk_list_t* list)
 	list->tail = n;
 }
 
-static void set_non_blocking(intptr_t fd)
+static void set_non_blocking(int fd)
 {
 	uint32_t flags = 0;
 
@@ -241,7 +241,7 @@ static void buffer_advance(chunk_list_t* list, void** p, size_t bytes)
 	}
 }
 
-intptr_t sock_get_fd(sock_t* s)
+int sock_get_fd(sock_t* s)
 {
 	return s->fd;
 }
