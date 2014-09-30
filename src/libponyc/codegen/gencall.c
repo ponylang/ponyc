@@ -135,6 +135,27 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMTypeRef f_type;
   LLVMValueRef func;
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  if(is_literal(type, "F32") || is_literal(type, "F64"))
+  {
+    if(!strcmp(method_name, "i128") || !strcmp(method_name, "u128"))
+    {
+      ast_error(ast,
+        "Microsoft Visual Studio tools do not support floating point to 128 "
+        "bit integer conversion");
+      return NULL;
+    }
+  } else if(is_literal(type, "I128")  || is_literal(type, "U128")) {
+    if(!strcmp(method_name, "f32") || !strcmp(method_name, "f64"))
+    {
+      ast_error(ast,
+        "Microsoft Visual Studio tools do not support 128 bit integer to "
+        "floating point conversion");
+      return NULL;
+    }
+  }
+#endif
+
   if(g.use_type == c->object_ptr)
   {
     // Virtual, get the function by selector colour.
