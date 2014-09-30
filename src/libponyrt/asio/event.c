@@ -4,7 +4,7 @@
 
 #include <string.h>
 
-asio_event_t* asio_event_create(intptr_t fd, uint32_t eflags, uint32_t msg_id,
+asio_event_t* asio_event_create(int fd, uint32_t eflags, uint32_t msg_id,
 	bool noisy, void* udata)
 {
 	asio_event_t* e = POOL_ALLOC(asio_event_t);

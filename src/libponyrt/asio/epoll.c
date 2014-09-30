@@ -11,8 +11,8 @@
 
 struct asio_backend_t
 {
-	intptr_t epfd;
-	intptr_t wakeup;    /* eventfd to break epoll loop */
+	int epfd;
+	int wakeup;    /* eventfd to break epoll loop */
 	struct epoll_event events[MAX_EVENTS];
 };
 

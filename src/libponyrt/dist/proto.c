@@ -131,7 +131,7 @@ void proto_start(proto_t** p, uint16_t header, sock_t* s)
 void proto_record(proto_t* p, void* data, size_t len)
 {
 	sock_write(p->target, data, len);
-	p->prefix.length += len;
+	p->prefix.length += (uint32_t)len;
 }
 
 uint32_t proto_finish(proto_t* p)
