@@ -6,6 +6,9 @@
 /** 128-bit integer support for (little endian) 64-bit platforms.
  *
  */
+#define STATIC_ERROR_TYPE_CAST \
+  "[operator T()]: Casting is only supported for builtin arithmetic types!"
+
 #include "unsigned.h"
 #include "signed.h"
 

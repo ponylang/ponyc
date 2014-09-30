@@ -45,6 +45,13 @@ public:
     sign = (val < 0) ? negative : positive;
   }
 
+  template<typename T>
+  explicit operator T()
+  {
+    static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_TYPE_CAST);
+    return (T)magnitude.low;
+  }
+
   SignedInt128& operator=(const SignedInt128& rvalue);
   SignedInt128& operator=(const UnsignedInt128& rvalue);
   SignedInt128& operator+=(const SignedInt128& rvalue);

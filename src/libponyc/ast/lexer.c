@@ -750,7 +750,11 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
   e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  token_set_float(t, (double)significand * pow(10.0, e));
+#else
   token_set_float(t, (double)significand * pow(10.0, (double)e));
+#endif
 
   return t;
 }
