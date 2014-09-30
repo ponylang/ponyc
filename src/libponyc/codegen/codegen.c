@@ -13,8 +13,6 @@
 #include <platform.h>
 
 #include <llvm-c/Initialization.h>
-#include <llvm-c/Target.h>
-#include <llvm-c/TargetMachine.h>
 #include <llvm-c/BitWriter.h>
 
 #include <stdio.h>
@@ -31,7 +29,6 @@
 #  pragma warning(disable:4996)
 #endif
 
-static LLVMTargetMachineRef machine;
 static LLVMPassManagerBuilderRef pmb;
 static LLVMPassManagerRef mpm;
 static LLVMPassManagerRef lpm;
@@ -62,6 +59,33 @@ static void pop_frame(compile_t* c)
     LLVMPositionBuilderAtEnd(c->builder, frame->restore_builder);
 
   free(frame);
+}
+
+static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
+{
+  LLVMTargetRef target;
+  char* err;
+
+  if(LLVMGetTargetFromTriple(opt->triple, &target, &err) != 0)
+  {
+    errorf(NULL, "couldn't create target: %s", err);
+    LLVMDisposeMessage(err);
+    return NULL;
+  }
+
+  LLVMCodeGenOptLevel opt_level =
+    opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
+
+  LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, opt->triple,
+    opt->cpu, opt->features, opt_level, LLVMRelocDefault, LLVMCodeModelDefault);
+
+  if(machine == NULL)
+  {
+    errorf(NULL, "couldn't create target machine");
+    return NULL;
+  }
+
+  return machine;
 }
 
 static void init_runtime(compile_t* c)
@@ -375,11 +399,10 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // Keep track of whether or not we're optimising.
   c->release = opt->release;
 
-  // Context.
+  // LLVM context and machine settings.
   c->context = LLVMContextCreate();
-
-  // Target data.
-  c->target_data = LLVMGetTargetMachineData(machine);
+  c->machine = make_machine(opt);
+  c->target_data = LLVMGetTargetMachineData(c->machine);
 
   // Create a module.
   c->module = LLVMModuleCreateWithNameInContext(c->filename, c->context);
@@ -540,7 +563,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   char* err;
 
-  if(LLVMTargetMachineEmitToFile(machine, c->module, file_o, fmt, &err) != 0)
+  if(LLVMTargetMachineEmitToFile(c->machine, c->module, file_o, fmt, &err) != 0)
   {
     errorf(NULL, "couldn't create file: %s", err);
     LLVMDisposeMessage(err);
@@ -603,7 +626,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   strcat(ld_cmd, program_lib_args(program));
 
   strcat(ld_cmd,
-    " -lponyrt -lpthread -lc "
+    " -lponyrt -lpthread -lm -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
     "/usr/lib/x86_64-linux-gnu/crtn.o"
     );
@@ -687,6 +710,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
+  LLVMDisposeTargetMachine(c->machine);
   painter_free(c->painter);
 }
 
@@ -729,21 +753,7 @@ bool codegen_init(pass_opt_t* opt)
   else
     opt->features = LLVMCreateMessage("");
 
-  LLVMTargetRef target;
-  char* err;
-
-  if(LLVMGetTargetFromTriple(opt->triple, &target, &err) != 0)
-  {
-    errorf(NULL, "couldn't create target: %s", err);
-    LLVMDisposeMessage(err);
-    return false;
-  }
-
-  LLVMCodeGenOptLevel opt_level =
-    opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
-
-  machine = LLVMCreateTargetMachine(target, opt->triple,
-    opt->cpu, opt->features, opt_level, LLVMRelocDefault, LLVMCodeModelDefault);
+  LLVMTargetMachineRef machine = make_machine(opt);
 
   if(machine == NULL)
   {
@@ -770,6 +780,7 @@ bool codegen_init(pass_opt_t* opt)
   LLVMAddTargetData(target_data, lpm);
   LLVMPassManagerBuilderPopulateLTOPassManager(pmb, lpm, true, true);
 
+  LLVMDisposeTargetMachine(machine);
   return true;
 }
 
@@ -778,7 +789,6 @@ void codegen_shutdown(pass_opt_t* opt)
   LLVMDisposePassManager(mpm);
   LLVMDisposePassManager(lpm);
   LLVMPassManagerBuilderDispose(pmb);
-  LLVMDisposeTargetMachine(machine);
 
   LLVMDisposeMessage(opt->triple);
   LLVMDisposeMessage(opt->cpu);
