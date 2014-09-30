@@ -269,7 +269,7 @@ static bool check_members(ast_t* members, int entity_def_index)
       case TK_BE:
       {
         if(!check_method(member, entity_def_index + DEF_BE) ||
-          !check_seen_member(member, "constructor", fun_name, "function"))
+          !check_seen_member(member, "behaviour", fun_name, "function"))
           return false;
 
         ast_t* id = ast_childidx(member, 1);

@@ -29,7 +29,7 @@ static uint32_t property(const char* key)
 void cpu_count(uint32_t* physical, uint32_t* logical)
 {
 #if defined(PLATFORM_IS_LINUX)
-  int count = sysconf(_SC_NPROCESSORS_ONLN);
+  int count = (int)sysconf(_SC_NPROCESSORS_ONLN);
   int res = 0;
 
   for(int i = 0; i < count; i++)

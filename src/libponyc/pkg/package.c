@@ -329,7 +329,7 @@ static void add_exec_dir(const char* file)
   GetModuleFileName(NULL, path, FILENAME_MAX);
   success = (GetLastError() == ERROR_SUCCESS);
 #elif defined PLATFORM_IS_LINUX
-  int r = readlink("/proc/self/exe", path, FILENAME_MAX);
+  ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX);
   success = (r >= 0);
 #elif defined PLATFORM_IS_MACOSX
   uint32_t size = sizeof(path);

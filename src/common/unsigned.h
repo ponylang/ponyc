@@ -4,9 +4,6 @@
 #define STATIC_ERROR_UINT_CONV \
   "[UnsignedInt128(const T& value)]: Argument 'value' is not arithmetic!"
 
-#define STATIC_ERROR_UINT_TYPE_CAST \
-  "[UnsignedInt128 T()]: Casting is only supported for builtin arithmetic types!"
-
 #include <type_traits>
 #include <stdexcept>
 #include <stdint.h>
@@ -51,7 +48,7 @@ public:
   template<typename T>
   explicit operator T()
   {
-    static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_UINT_TYPE_CAST);
+    static_assert(std::is_arithmetic<T>::value, STATIC_ERROR_TYPE_CAST);
     return (T)low;
   }
 

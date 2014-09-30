@@ -6,6 +6,9 @@
 /** 128-bit integer support for (little endian) 64-bit platforms.
  *
  */
+#define STATIC_ERROR_TYPE_CAST \
+  "[operator T()]: Casting is only supported for builtin arithmetic types!"
+
 #include "unsigned.h"
 #include "signed.h"
 
@@ -14,7 +17,6 @@ typedef SignedInt128 __int128_t;
 
 inline double pow(double b, SignedInt128& e)
 {
-  bool div = (e.sign == negative);
   UnsignedInt128 res = 1;
 
   switch(e.sign)
@@ -35,7 +37,9 @@ inline double pow(double b, SignedInt128& e)
     }
   }
 
-  return (div ? 1/(double)res.low : (double)res.low);
+  return e.sign == negative ? 1/(double)res.low : (double)res.low;
 }
+
+
 
 #endif

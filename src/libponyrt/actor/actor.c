@@ -43,7 +43,7 @@ static void set_flag(pony_actor_t* actor, uint8_t flag)
 
 static void unset_flag(pony_actor_t* actor, uint8_t flag)
 {
-  actor->flags &= ~flag;
+  actor->flags &= (uint8_t)~flag;
 }
 
 static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)

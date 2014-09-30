@@ -334,7 +334,7 @@ static bool append_unicode(lexer_t* lexer, size_t len)
   } else if(c <= 0xFFFF) {
     append(lexer, (char)(0xE0 | (c >> 12)));
     append(lexer, (char)(0x80 | ((c >> 6) & 0x3F)));
-    append(lexer, 0x80 | (c & 0x3F));
+    append(lexer, (char)(0x80 | (c & 0x3F)));
   } else if(c <= 0x10FFFF) {
     append(lexer, (char)(0xF0 | (c >> 18)));
     append(lexer, (char)(0x80 | ((c >> 12) & 0x3F)));
@@ -750,7 +750,11 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
   e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
   token_set_float(t, (double)significand * pow(10.0, e));
+#else
+  token_set_float(t, (double)significand * pow(10.0, (double)e));
+#endif
 
   return t;
 }
