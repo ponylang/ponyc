@@ -735,3 +735,12 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 
   return assign_rvalue(c, left, ast_type(right), r_value);
 }
+
+LLVMValueRef gen_assign_value(compile_t* c, ast_t* left, LLVMValueRef right,
+  ast_t* right_type)
+{
+  if(right == NULL)
+    return NULL;
+
+  return assign_rvalue(c, left, right_type, right);
+}

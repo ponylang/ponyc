@@ -384,6 +384,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NOMINAL:    return sugar_nominal(ast);
     case TK_STRUCTURAL: return sugar_structural(ast);
     case TK_IF:
+    case TK_MATCH:
     case TK_WHILE:
     case TK_REPEAT:     return sugar_else(ast);
     case TK_TRY:        return sugar_try(ast);

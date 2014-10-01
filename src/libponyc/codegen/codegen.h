@@ -55,6 +55,7 @@ typedef struct compile_t
   LLVMTypeRef void_ptr;
   LLVMTypeRef descriptor_type;
   LLVMTypeRef descriptor_ptr;
+  LLVMTypeRef field_descriptor;
   LLVMTypeRef object_type;
   LLVMTypeRef object_ptr;
   LLVMTypeRef msg_type;
@@ -88,6 +89,9 @@ void codegen_finishfun(compile_t* c);
 LLVMValueRef codegen_fun(compile_t* c);
 
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
+
+LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
+  size_t count);
 
 PONY_EXTERN_C_END
 
