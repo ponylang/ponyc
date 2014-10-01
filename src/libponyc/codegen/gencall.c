@@ -226,9 +226,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return invoke_fun(c, try_expr, func, args, (int)count, "", true);
   }
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, func, args, (int)count, "");
-  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
-  return result;
+  return codegen_call(c, func, args, count);
 }
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)

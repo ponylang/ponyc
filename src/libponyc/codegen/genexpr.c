@@ -375,9 +375,7 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
             return NULL;
 
           LLVMValueRef box_fn = genfun_box(c, &g);
-          LLVMValueRef box = LLVMBuildCall(c->builder, box_fn, &r_value, 1, "");
-          LLVMSetInstructionCallConv(box, LLVMFastCallConv);
-
+          LLVMValueRef box = codegen_call(c, box_fn, &r_value, 1);
           return LLVMBuildBitCast(c->builder, box, l_type, "");
         }
 

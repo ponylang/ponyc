@@ -48,6 +48,9 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_assign_value(compile_t* c, ast_t* left, LLVMValueRef right,
+  ast_t* right_type);
+
 PONY_EXTERN_C_END
 
 #endif
