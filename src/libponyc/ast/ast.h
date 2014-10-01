@@ -130,10 +130,12 @@ TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
-PARAM: ID type [infix]
+PARAM: (ID type [infix] | ELLIPSIS)
 The sequence child is the default value tree.
 
 IDSEQ: (ID | IDSEQ) {ID | IDSEQ}
+
+ELLIPSIS: no children
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL

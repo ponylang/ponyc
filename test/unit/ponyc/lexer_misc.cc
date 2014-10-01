@@ -101,6 +101,28 @@ TEST(LexerMiscTest, Symbol2CharStartingWith1CharSymbol)
 }
 
 
+TEST(LexerMiscTest, Symbol3CharStartingWith1CharSymbol)
+{
+  const char* code = "...1";
+
+  source_t* src = source_open_string(code);
+  lexer_t* lexer = lexer_open(src);
+
+  token_t* token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_ELLIPSIS, token_get_id(token));
+  token_free(token);
+
+  token = lexer_next(lexer);
+  ASSERT_NE((void*)NULL, token);
+  ASSERT_EQ(TK_INT, token_get_id(token));
+  token_free(token);
+
+  lexer_close(lexer);
+  source_close(src);
+}
+
+
 TEST(LexerMiscTest, SymbolNewAtStart)
 {
 	const char* code = "-";

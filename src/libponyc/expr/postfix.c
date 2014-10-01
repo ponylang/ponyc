@@ -533,7 +533,7 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   ast_t* param = ast_child(params);
   ast_t* arg = ast_child(args);
 
-  while((arg != NULL) && (param != NULL))
+  while((arg != NULL) && (param != NULL) && ast_id(param) != TK_ELLIPSIS)
   {
     ast_t* p_type = ast_childidx(param, 1);
     ast_t* a_type = ast_type(arg);
@@ -548,13 +548,13 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
     param = ast_sibling(param);
   }
 
-  if(arg != NULL)
+  if(arg != NULL && param == NULL)
   {
     ast_error(arg, "too many arguments");
     return false;
   }
 
-  if(param != NULL)
+  if(param != NULL && ast_id(param) != TK_ELLIPSIS)
   {
     ast_error(named_args, "too few arguments");
     return false;

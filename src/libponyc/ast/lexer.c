@@ -30,8 +30,12 @@ typedef struct lexsym_t
   token_id id;
 } lexsym_t;
 
-static const lexsym_t symbols2[] =
+// Note that for symbols where one symbol starts with another, the longer one
+// must appear first in this list.
+// For example -> must appear before -
+static const lexsym_t symbols[] =
 {
+  { "...", TK_ELLIPSIS },
   { "->", TK_ARROW },
   { "=>", TK_DBLARROW },
 
@@ -44,11 +48,6 @@ static const lexsym_t symbols2[] =
   { "<=", TK_LE },
   { ">=", TK_GE },
 
-  { NULL, (token_id)0 }
-};
-
-static const lexsym_t symbols1[] =
-{
   { "{", TK_LBRACE },
   { "}", TK_RBRACE },
   { "(", TK_LPAREN },
@@ -238,6 +237,9 @@ static void adv(lexer_t* lexer, size_t count)
 {
   assert(lexer->len >= count);
 
+  if(count == 0)
+    return;
+
   if(lexer->source->m[lexer->ptr] == '\n')
   {
     lexer->line++;
@@ -259,12 +261,13 @@ static char look(lexer_t* lexer)
 }
 
 
-static char look2(lexer_t* lexer)
+// look(lexer) is equivalent to lookn(lexer, 1)
+static char lookn(lexer_t* lexer, int chars)
 {
-  if(lexer->len <= 1)
+  if(lexer->len < chars)
     return '\0';
 
-  return lexer->source->m[lexer->ptr + 1];
+  return lexer->source->m[lexer->ptr + chars - 1];
 }
 
 
@@ -455,12 +458,12 @@ static token_t* nested_comment(lexer_t* lexer)
       return make_token(lexer, TK_LEX_ERROR);
     }
 
-    if(look(lexer) == '*' && look2(lexer) == '/')
+    if(look(lexer) == '*' && lookn(lexer, 2) == '/')
     {
       adv(lexer, 2);
       depth--;
     }
-    else if(look(lexer) == '/' && look2(lexer) == '*')
+    else if(look(lexer) == '/' && lookn(lexer, 2) == '*')
     {
       adv(lexer, 2);
       depth++;
@@ -517,7 +520,7 @@ static token_t* triple_string(lexer_t* lexer)
     char c = look(lexer);
     adv(lexer, 1);
 
-    if((c == '\"') && (look(lexer) == '\"') && (look2(lexer) == '\"'))
+    if((c == '\"') && (look(lexer) == '\"') && (lookn(lexer, 2) == '\"'))
     {
       adv(lexer, 2);
       normalise_string(lexer);
@@ -536,7 +539,7 @@ static token_t* string(lexer_t* lexer)
   adv(lexer, 1);  // Consume leading "
   assert(lexer->buflen == 0);
 
-  if((look(lexer) == '\"') && (look2(lexer) == '\"'))
+  if((look(lexer) == '\"') && (lookn(lexer, 2) == '\"'))
   {
     adv(lexer, 2);
     return triple_string(lexer);
@@ -707,7 +710,7 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 
   if(c == '.')
   {
-    c = look2(lexer);
+    c = lookn(lexer, 2);
 
     if(c < '0' || c > '9')
     {
@@ -777,7 +780,7 @@ static token_t* number(lexer_t* lexer)
 {
   if(look(lexer) == '0')
   {
-    switch(look2(lexer))
+    switch(lookn(lexer, 2))
     {
     case 'x':
     case 'X':
@@ -862,29 +865,22 @@ static token_id newline_symbols(token_id raw_token, bool newline)
 
 static token_t* symbol(lexer_t* lexer)
 {
-  char sym[2];
+  char sym[3];
 
-  sym[0] = look(lexer);
-  adv(lexer, 1);
-  sym[1] = look(lexer);
+  for(int i = 0; i < (int)sizeof(sym); ++i)
+    sym[i] = lookn(lexer, i + 1);
 
-  if(is_symbol_char(sym[1]))
+  for(const lexsym_t* p = symbols; p->symbol != NULL; p++)
   {
-    for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
+    const char* symbol = p->symbol;
+
+    for(int i = 0; symbol[i] == '\0' || symbol[i] == sym[i]; ++i)
     {
-      if((sym[0] == p->symbol[0]) && (sym[1] == p->symbol[1]))
+      if(symbol[i] == '\0')
       {
-        adv(lexer, 1);
+        adv(lexer, i);
         return make_token(lexer, newline_symbols(p->id, lexer->newline));
       }
-    }
-  }
-
-  for(const lexsym_t* p = symbols1; p->symbol != NULL; p++)
-  {
-    if(sym[0] == p->symbol[0])
-    {
-      return make_token(lexer, newline_symbols(p->id, lexer->newline));
     }
   }
 
@@ -1002,13 +998,7 @@ const char* lexer_print(token_id id)
       return p->symbol;
   }
 
-  for(const lexsym_t* p = symbols1; p->symbol != NULL; p++)
-  {
-    if(id == p->id)
-      return p->symbol;
-  }
-
-  for(const lexsym_t* p = symbols2; p->symbol != NULL; p++)
+  for(const lexsym_t* p = symbols; p->symbol != NULL; p++)
   {
     if(id == p->id)
       return p->symbol;

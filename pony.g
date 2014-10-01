@@ -96,6 +96,7 @@ params
 
 param
   :  ID oftype ('=' infix)?
+  | '...'
   ;
 
 seq
