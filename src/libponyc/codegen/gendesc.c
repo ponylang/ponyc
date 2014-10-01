@@ -55,9 +55,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   for(int i = 1; i < count; i++)
     args[i] = LLVMGetParam(unbox_fun, i);
 
-  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, count, "");
-  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
-
+  LLVMValueRef result = codegen_call(c, fun, args, count);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -169,7 +167,7 @@ static LLVMValueRef make_tuple_count(compile_t* c, gentype_t* g)
 
 static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
 {
-  // The list is an array of descriptor pointers.
+  // The list is an array of field descriptors.
   int count;
 
   if(g->underlying == TK_TUPLETYPE)
@@ -177,7 +175,7 @@ static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
   else
     count = 0;
 
-  LLVMTypeRef type = LLVMArrayType(c->descriptor_ptr, count);
+  LLVMTypeRef type = LLVMArrayType(c->field_descriptor, count);
 
   // If we aren't a tuple, return a null pointer to a list.
   if(count == 0)
@@ -193,13 +191,19 @@ static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
     if(!gentype(c, g->fields[i], &fg))
       return NULL;
 
+    LLVMValueRef fdesc[2];
+    fdesc[0] = LLVMConstInt(c->i32,
+      LLVMOffsetOfElement(c->target_data, g->primitive, i), false);
+
     if(fg.desc != NULL)
-      list[i] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
+      fdesc[1] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
     else
-      list[i] = LLVMConstNull(c->descriptor_ptr);
+      fdesc[1] = LLVMConstNull(c->descriptor_ptr);
+
+    list[i] = LLVMConstStructInContext(c->context, fdesc, 2, false);
   }
 
-  LLVMValueRef field_array = LLVMConstArray(c->descriptor_ptr, list, count);
+  LLVMValueRef field_array = LLVMConstArray(c->field_descriptor, list, count);
 
   // Create a global to hold the array.
   const char* name = genname_fieldlist(g->type_name);
@@ -257,7 +261,6 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 {
-  LLVMTypeRef desc_type;
   const char* desc_name;
   int traits;
   int fields;
@@ -283,15 +286,12 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 
   LLVMTypeRef type = LLVMGetTypeByName(c->module, desc_name);
 
-  if(type != NULL)
+  if(type == NULL)
+  {
+    type = LLVMStructCreateNamed(c->context, desc_name);
+  } else if(!LLVMIsOpaqueStruct(type)) {
     return type;
-
-  type = LLVMStructCreateNamed(c->context, desc_name);
-
-  if(g != NULL)
-    desc_type = c->descriptor_ptr;
-  else
-    desc_type = LLVMPointerType(type, 0);
+  }
 
   LLVMTypeRef params[DESC_LENGTH];
 
@@ -305,7 +305,8 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
   params[DESC_TRAITS] = LLVMPointerType(LLVMArrayType(c->i32, traits), 0);
-  params[DESC_FIELDS] = LLVMPointerType(LLVMArrayType(desc_type, fields), 0);
+  params[DESC_FIELDS] = LLVMPointerType(
+    LLVMArrayType(c->field_descriptor, fields), 0);
   params[DESC_VTABLE] = LLVMArrayType(c->void_ptr, vtable_size);
 
   LLVMStructSetBody(type, params, DESC_LENGTH, false);
@@ -368,7 +369,7 @@ LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef object)
   return desc_field(c, object, DESC_DISPATCH);
 }
 
-LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, int colour)
+LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
 {
   LLVMValueRef desc = gendesc_fetch(c, object);
   LLVMValueRef vtable = LLVMBuildStructGEP(c->builder, desc, DESC_VTABLE, "");
@@ -381,51 +382,26 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, int colour)
   return LLVMBuildLoad(c->builder, func_ptr, "");
 }
 
+LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef object)
+{
+  return desc_field(c, object, DESC_FIELD_COUNT);
+}
+
+LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef object, size_t index)
+{
+  LLVMValueRef fields = desc_field(c, object, DESC_FIELDS);
+
+  LLVMValueRef gep[2];
+  gep[0] = LLVMConstInt(c->i32, 0, false);
+  gep[1] = LLVMConstInt(c->i32, index, false);
+
+  LLVMValueRef field_desc = LLVMBuildGEP(c->builder, fields, gep, 2, "");
+  return LLVMBuildLoad(c->builder, field_desc, "");
+}
+
 LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
 {
   return make_type_id(c, genname_type(type));
-}
-
-static LLVMValueRef desc_match(compile_t* c, LLVMValueRef object,
-  LLVMValueRef desc)
-{
-  LLVMValueRef o_desc = gendesc_fetch(c, object);
-  o_desc = LLVMBuildPtrToInt(c->builder, o_desc, c->intptr, "");
-  desc = LLVMConstPtrToInt(desc, c->intptr);
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, o_desc, desc, "");
-}
-
-LLVMValueRef gendesc_isprimitive(compile_t* c, LLVMValueRef object,
-  ast_t* type)
-{
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  if(g.primitive != NULL)
-  {
-    // We have to check the descriptor since we have no unique global instance.
-    return desc_match(c, object, g.desc);
-  }
-
-  // Check that we are the global instance. This saves a descriptor load on
-  // the object.
-  object = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
-  LLVMValueRef global = LLVMConstPtrToInt(g.instance, c->intptr);
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, object, global, "");
-}
-
-LLVMValueRef gendesc_isentity(compile_t* c, LLVMValueRef object, ast_t* type)
-{
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  return desc_match(c, object, g.desc);
 }
 
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
@@ -477,64 +453,4 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
   LLVMAddIncoming(result, &test_id, &body_block, 1);
 
   return result;
-}
-
-LLVMValueRef gendesc_istuple(compile_t* c, LLVMValueRef object, ast_t* tuple)
-{
-  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef field_block = codegen_block(c, "tuple_field");
-  LLVMBasicBlockRef post_block = codegen_block(c, "tuple_post");
-
-  LLVMValueRef list = desc_field(c, object, DESC_FIELDS);
-
-  // First test the cardinality.
-  LLVMValueRef o_count = desc_field(c, object, DESC_FIELD_COUNT);
-  LLVMValueRef count = LLVMConstInt(c->i32, ast_childcount(tuple), false);
-  LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntEQ, o_count, count, "");
-  LLVMBuildCondBr(c->builder, test, field_block, post_block);
-
-  // Setup the phi node for the return value.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
-  LLVMValueRef false_value = LLVMConstInt(c->i1, 0, false);
-  LLVMAddIncoming(phi, &false_value, &entry_block, 1);
-
-  // TODO: store a byte offset with the descriptor? offset and length?
-
-  // Test each field.
-  ast_t* child = ast_child(tuple);
-  int i = 0;
-
-  while(child != NULL)
-  {
-    ast_t* next = ast_sibling(child);
-    LLVMBasicBlockRef next_block;
-
-    if(next != NULL)
-      next_block = codegen_block(c, "tuple_field");
-    else
-      next_block = post_block;
-
-    LLVMPositionBuilderAtEnd(c->builder, field_block);
-
-    // Get the field descriptor.
-    LLVMValueRef gep[2];
-    gep[0] = LLVMConstInt(c->i32, 0, false);
-    gep[1] = LLVMConstInt(c->i32, i, false);
-
-    LLVMValueRef desc_ptr = LLVMBuildGEP(c->builder, list, gep, 2, "");
-    LLVMValueRef desc = LLVMBuildLoad(c->builder, desc_ptr, "");
-    (void)desc;
-
-    // TODO: check it how?
-
-    field_block = next_block;
-    child = ast_sibling(child);
-    i++;
-  }
-
-  LLVMValueRef true_value = LLVMConstInt(c->i1, 1, false);
-  LLVMAddIncoming(phi, &true_value, &field_block, 1);
-
-  return phi;
 }

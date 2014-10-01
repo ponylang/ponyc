@@ -139,9 +139,20 @@ static void init_runtime(compile_t* c)
   c->final_fn = LLVMPointerType(
     LLVMFunctionType(c->void_type, params, 1, false), 0);
 
-  // descriptor
-  c->descriptor_type = gendesc_type(c, NULL);
+  // descriptor, opaque version
+  // We need this in order to build our own structure.
+  const char* desc_name = genname_descriptor(NULL);
+  c->descriptor_type = LLVMStructCreateNamed(c->context, desc_name);
   c->descriptor_ptr = LLVMPointerType(c->descriptor_type, 0);
+
+  // field descriptor
+  // Also needed to build a descriptor structure.
+  params[0] = c->i32;
+  params[1] = c->descriptor_ptr;
+  c->field_descriptor = LLVMStructTypeInContext(c->context, params, 2, false);
+
+  // descriptor, filled in
+  c->descriptor_type = gendesc_type(c, NULL);
 
   // define object
   params[0] = c->descriptor_ptr;
@@ -457,6 +468,37 @@ static void append_link_paths(char* str)
   }
 }
 
+static const char* suffix_filename(const char* dir, const char* file,
+  const char* extension)
+{
+  // Copy to a string with space for a suffix.
+  size_t len = strlen(dir) + strlen(file) + 3;
+  VLA(char, filename, len + 1);
+
+  // Start with no suffix.
+  snprintf(filename, len, "%s/%s%s", dir, file, extension);
+  int suffix = 0;
+
+  while(suffix < 100)
+  {
+    struct stat s;
+    int err = stat(filename, &s);
+
+    if((err == -1) || !S_ISDIR(s.st_mode))
+      break;
+
+    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
+  }
+
+  if(suffix >= 100)
+  {
+    errorf(NULL, "couldn't pick an unused file name");
+    return NULL;
+  }
+
+  return stringtab(file);
+}
+
 static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   pass_id pass_limit)
 {
@@ -490,27 +532,9 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
 
-  // Generate an output file name.
-  const char* extension;
-
-  switch(pass_limit)
-  {
-    case PASS_LLVM_IR: extension = "ll"; break;
-    case PASS_BITCODE: extension = "bc"; break;
-    case PASS_ASM: extension = "s"; break;
-    default: extension = "o"; break;
-  }
-
-  size_t len = strlen(c->filename) + strlen(opt->output) + 2;
-  VLA(char, file_base, len);
-  snprintf(file_base, len, "%s/%s", opt->output, c->filename);
-  len = strlen(file_base);
-
-  VLA(char, file_o, len + 4);
-  snprintf(file_o, len + 4, "%s.%s", file_base, extension);
-
   if(pass_limit == PASS_LLVM_IR)
   {
+    const char* file_o = suffix_filename(opt->output, c->filename, ".ll");
     char* err;
 
     if(LLVMPrintModuleToFile(c->module, file_o, &err) != 0)
@@ -525,6 +549,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   if(pass_limit == PASS_BITCODE)
   {
+    const char* file_o = suffix_filename(opt->output, c->filename, ".bc");
+
     if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
     {
       errorf(NULL, "couldn't write bitcode to %s", file_o);
@@ -534,36 +560,23 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     return true;
   }
 
-  // Pick an executable name.
-  VLA(char, file_exe, len + 3);
-  snprintf(file_exe, len + 3, "%s", file_base);
-  int suffix = 0;
+  LLVMCodeGenFileType fmt;
+  const char* file_o;
 
-  while(suffix < 100)
+  if(pass_limit == PASS_ASM)
   {
-    struct stat s;
-    int err = stat(file_exe, &s);
-
-    if((err == -1) || !S_ISDIR(s.st_mode))
-      break;
-
-    snprintf(file_exe, len + 3, "%s%d", c->filename, ++suffix);
+    fmt = LLVMAssemblyFile;
+    file_o = suffix_filename(opt->output, c->filename, ".s");
+  } else {
+    fmt = LLVMObjectFile;
+    file_o = suffix_filename(opt->output, c->filename, ".o");
   }
-
-  if(suffix >= 100)
-  {
-    errorf(NULL, "couldn't pick a name for the executable");
-    return false;
-  }
-
-  len = strlen(file_exe);
-
-  LLVMCodeGenFileType fmt =
-    pass_limit == PASS_ASM ? LLVMAssemblyFile : LLVMObjectFile;
 
   char* err;
 
-  if(LLVMTargetMachineEmitToFile(c->machine, c->module, file_o, fmt, &err) != 0)
+  if(LLVMTargetMachineEmitToFile(
+      c->machine, c->module, (char*)file_o, fmt, &err) != 0
+    )
   {
     errorf(NULL, "couldn't create file: %s", err);
     LLVMDisposeMessage(err);
@@ -583,18 +596,18 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     return false;
   }
 
+  const char* file_exe = suffix_filename(opt->output, c->filename, "");
   arch = strndup(opt->triple, arch - opt->triple);
-
   program_lib_build_args(program, "", "", "-l", "");
 
-  size_t ld_len = 128 + strlen(arch) + (len * 2) + link_path_length() +
-    program_lib_arg_length(program);
+  size_t ld_len = 128 + strlen(arch) + strlen(file_exe) + strlen(file_o) +
+    link_path_length() + program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
-    "-o %s %s.o",
-    arch, file_exe, file_exe
+    "-o %s %s",
+    arch, file_exe, file_o
     );
 
   // User specified libraries go here, in any order.
@@ -603,9 +616,10 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   strcat(ld_cmd, " -lponyrt -lSystem");
   free(arch);
 #elif defined(PLATFORM_IS_LINUX)
+  const char* file_exe = suffix_filename(opt->output, c->filename, "");
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
 
-  size_t ld_len = 256 + (len * 2) + link_path_length() +
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
     program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
 
@@ -615,8 +629,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     "-o %s "
     "/usr/lib/x86_64-linux-gnu/crt1.o "
     "/usr/lib/x86_64-linux-gnu/crti.o "
-    "%s.o ",
-    file_exe, file_exe
+    "%s ",
+    file_exe, file_o
     );
 
   append_link_paths(ld_cmd);
@@ -639,21 +653,20 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     return false;
   }
 
+  const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
   program_lib_build_args(program, "", "", "", ".lib");
 
-  //(len * 2) for object file and executable
-  size_t ld_len = 256 + (len * 2) + link_path_length() +
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
     vcvars_get_path_length(&vcvars) + program_lib_arg_length(program);
-
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
     " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
-    "/OUT:%s.exe "
-    "%s.o "
+    "/OUT:%s "
+    "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" ",
-    file_exe, file_exe, vcvars.kernel32, vcvars.msvcrt
+    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt
     );
 
   append_link_paths(ld_cmd);
@@ -862,4 +875,12 @@ LLVMValueRef codegen_fun(compile_t* c)
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name)
 {
   return LLVMAppendBasicBlockInContext(c->context, c->frame->fun, name);
+}
+
+LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
+  size_t count)
+{
+  LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
+  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+  return result;
 }

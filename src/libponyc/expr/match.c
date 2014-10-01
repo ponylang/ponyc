@@ -68,13 +68,16 @@ bool expr_cases(ast_t* ast)
 
 static bool is_primitive_pattern(ast_t* ast)
 {
-  // Accept only no-argument constructors of primitive types.
+  // Accept only no-argument constructors of non-arithmetic primitive types.
   if(ast_id(ast) != TK_CALL)
     return false;
 
   ast_t* type = ast_type(ast);
 
   if(ast_id(type) != TK_NOMINAL)
+    return false;
+
+  if(is_arithmetic(type))
     return false;
 
   ast_t* def = (ast_t*)ast_data(type);
@@ -100,6 +103,7 @@ static bool is_valid_pattern(ast_t* ast)
 {
   // TODO: Relax this? Allow any expression that generates a primitive type?
   // Plus local declarations?
+  // Effectively, an infix or a tuple of infix.
   switch(ast_id(ast))
   {
     case TK_INT:

@@ -44,16 +44,18 @@ actor Main
     var i = 1
 
     while i < _env.args.length() do
-      var arg = _env.args(i)
-      i = i + 1 //every option has an arg
+      // Every option has an argument.
+      var option = _env.args(i)
+      var value = _env.args(i + 1)
+      i = i + 2
 
-      match arg
+      match option
       | "--size" =>
-        _ring_size = _env.args(i).u32()
+        _ring_size = value.u32()
       | "--count" =>
-        _ring_count = _env.args(i).u32()
+        _ring_count = value.u32()
       | "--pass" =>
-        _pass = _env.args(i).u64()
+        _pass = value.u64()
       else
         error
       end
