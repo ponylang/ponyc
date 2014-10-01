@@ -330,6 +330,11 @@ const char* ast_name(ast_t* ast)
   return token_string(ast->t);
 }
 
+void ast_set_name(ast_t* ast, const char* name)
+{
+  token_set_string(ast->t, name);
+}
+
 double ast_float(ast_t* ast)
 {
   return token_float(ast->t);

@@ -54,6 +54,11 @@ DEF(param);
   IF(TK_ASSIGN, RULE("default value", infix));
   DONE();
 
+// ELLIPSIS
+DEF(ellipsis);
+  TOKEN(NULL, TK_ELLIPSIS);
+  DONE();
+
 // ID [COLON type] [ASSIGN type]
 DEF(typeparam);
   AST_NODE(TK_TYPEPARAM);
@@ -65,8 +70,8 @@ DEF(typeparam);
 // param {COMMA param}
 DEF(params);
   AST_NODE(TK_PARAMS);
-  RULE("parameter", param);
-  WHILE(TK_COMMA, RULE("parameter", param));
+  RULE("parameter", param, ellipsis);
+  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
   DONE();
 
 // LSQUARE typeparam {COMMA typeparam} RSQUARE
@@ -276,9 +281,10 @@ DEF(ref);
 DEF(ffi);
   TOKEN(NULL, TK_AT);
   TOKEN("ffi name", TK_ID);
-  RULE("return type", typeargs);
+  OPT RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi arguments", positional);
+  OPT RULE("ffi arguments", named);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
@@ -609,9 +615,10 @@ DEF(use_ffi);
   MAP_ID(TK_AT, TK_FFIDECL);
   SCOPE();
   TOKEN("ffi name", TK_ID);
-  RULE("return type", typeparams);
+  RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi parameters", params);
+  AST_NODE(TK_NONE);  // Named parameters
   SKIP(NULL, TK_RPAREN);
   DONE();
 

@@ -25,7 +25,8 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
   const char* s = ast_name(name);
 
   sym_status_t status = SYM_NONE;
-  bool type = false;
+  bool is_type = false;
+  bool is_id = false;
 
   switch(ast_id(value))
   {
@@ -35,8 +36,13 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
         status = SYM_DEFINED;
       else
         status = SYM_UNDEFINED;
+
+      is_id = true;
       break;
     }
+
+    case TK_FFIDECL:
+      break;
 
     case TK_TYPE:
     case TK_TRAIT:
@@ -44,19 +50,21 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
     case TK_CLASS:
     case TK_ACTOR:
     case TK_TYPEPARAM:
-      type = true;
+      is_type = true;
       break;
 
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
       status = SYM_DEFINED;
+      is_id = true;
       break;
 
     case TK_PACKAGE:
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
+      is_id = true;
       break;
 
     default:
@@ -64,19 +72,16 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
       return false;
   }
 
-  if(type)
+  if(is_type && !is_type_id(s))
   {
-    if(!is_type_id(s))
-    {
-      ast_error(name, "type name '%s' must start A-Z or _(A-Z)", s);
-      return false;
-    }
-  } else {
-    if(is_type_id(s))
-    {
-      ast_error(name, "identifier '%s' can't start A-Z or _(A-Z)", s);
-      return false;
-    }
+    ast_error(name, "type name '%s' must start A-Z or _(A-Z)", s);
+    return false;
+  }
+
+  if(is_id && is_type_id(s))
+  {
+    ast_error(name, "identifier '%s' can't start A-Z or _(A-Z)", s);
+    return false;
   }
 
   if(!ast_set(scope, s, value, status))

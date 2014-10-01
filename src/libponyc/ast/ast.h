@@ -53,9 +53,10 @@ MODULE: {USE} {entity}
 data: source_t
 symtab: name -> PACKAGE | entity
 
-USE: STRING [ID]
-The string child is the use URL.
-The ID child is the package name.
+USE: [ID] (STRING | FFIDECL) [expr]
+The string child is the URI, including optional scheme specifier.
+
+SPECIFIER: ID TYPEARGS [POSITIONALARGS] NONE
 
 entity
 ------
@@ -129,10 +130,12 @@ TYPEARGS: {type}
 
 PARAMS: {PARAM}
 
-PARAM: ID type [infix]
+PARAM: (ID type [infix] | ELLIPSIS)
 The sequence child is the default value tree.
 
 IDSEQ: (ID | IDSEQ) {ID | IDSEQ}
+
+ELLIPSIS: no children
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL
@@ -208,7 +211,10 @@ postfix
   BANG: expr INT
   QUALIFY: expr TYPEARGS
   CALL: expr [POSITIONALARGS] [NAMEDARGS]
-  AT: ID TYPEARGS [POSITIONALARGS]
+
+  AT: ID TYPEARGS [POSITIONALARGS] NONE
+  The final child is initially any named arguments. The parse fix pass gives an
+  error if this is not NONE.
 )
 
 control
@@ -317,6 +323,7 @@ void ast_seterror(ast_t* ast);
 void ast_inheriterror(ast_t* ast);
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
+void ast_set_name(ast_t* ast, const char* name);
 double ast_float(ast_t* ast);
 size_t ast_int(ast_t* ast);
 ast_t* ast_type(ast_t* ast);

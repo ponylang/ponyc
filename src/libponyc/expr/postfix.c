@@ -519,12 +519,81 @@ bool expr_call(ast_t* ast)
   return false;
 }
 
+
+static bool expr_declared_ffi(ast_t* call, ast_t* decl)
+{
+  assert(call != NULL);
+  assert(decl != NULL);
+  assert(ast_id(decl) == TK_FFIDECL);
+
+  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args);
+  AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params);
+
+  // Check args vs params
+  ast_t* param = ast_child(params);
+  ast_t* arg = ast_child(args);
+
+  while((arg != NULL) && (param != NULL) && ast_id(param) != TK_ELLIPSIS)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+    ast_t* a_type = ast_type(arg);
+
+    if(!is_subtype(a_type, p_type))
+    {
+      ast_error(arg, "argument not a subtype of parameter");
+      return false;
+    }
+
+    arg = ast_sibling(arg);
+    param = ast_sibling(param);
+  }
+
+  if(arg != NULL && param == NULL)
+  {
+    ast_error(arg, "too many arguments");
+    return false;
+  }
+
+  if(param != NULL && ast_id(param) != TK_ELLIPSIS)
+  {
+    ast_error(named_args, "too few arguments");
+    return false;
+  }
+
+  // Check return types
+  ast_t* call_ret_type = ast_child(call_ret_typeargs);
+  ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
+
+  if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
+  {
+    ast_error(call_ret_type, "call return type does not match declaration");
+    return false;
+  }
+
+  ast_settype(call, decl_ret_type);
+  return true;
+}
+
+
 bool expr_ffi(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, id, typeargs, args);
-  ast_t* type = ast_child(typeargs);
+  AST_GET_CHILDREN(ast, name, return_typeargs, args);
+  assert(name != NULL);
 
-  ast_settype(ast, type);
-  ast_inheriterror(ast);
+  ast_t* decl = ast_get(ast, ast_name(name), NULL);
+
+  if(decl != NULL)  // We have a declaration
+    return expr_declared_ffi(ast, decl);
+
+  // We do not have a declaration
+  ast_t* return_type = ast_child(return_typeargs);
+
+  if(return_type == NULL)
+  {
+    ast_error(name, "FFIs without declarations must specify return type");
+    return false;
+  }
+
+  ast_settype(ast, return_type);
   return true;
 }

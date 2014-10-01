@@ -47,13 +47,15 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 char* pony_realpath(const char* path, char* resolved)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  if (GetFullPathName(path, FILENAME_MAX, resolved, NULL))
-  {
-    if(GetFileAttributes(resolved) != INVALID_FILE_ATTRIBUTES)
-      return resolved;
-  }
+  if(GetFullPathName(path, FILENAME_MAX, resolved, NULL) == 0 ||
+    GetFileAttributes(resolved) == INVALID_FILE_ATTRIBUTES)
+    return NULL;
 
-  return NULL;
+  // Strip any trailing backslashes
+  for(size_t len = strlen(resolved); resolved[len - 1] == '\\'; --len)
+    resolved[len - 1] = '\0';
+
+  return resolved;
 #elif defined(PLATFORM_IS_POSIX_BASED)
   return realpath(path, resolved);
 #endif
