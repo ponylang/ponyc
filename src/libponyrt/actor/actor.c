@@ -107,11 +107,10 @@ bool actor_run(pony_actor_t* actor)
 
   if(heap_startgc(&actor->heap))
   {
+    pony_gc_mark();
+
     if(actor->type->trace != NULL)
-    {
-      pony_gc_mark();
       actor->type->trace(actor);
-    }
 
     gc_mark(&actor->gc);
     gc_sweep(&actor->gc);

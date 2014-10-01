@@ -52,3 +52,6 @@ primitive I128 is Stringable, ArithmeticConvertible
   fun tag abs(): I128 => if this < 0 then -this else this end
 
   fun tag string(): String iso^ => recover String.from_i128(this, 10) end
+
+  /*fun tag f32(): F32 => floattisf*/
+  /*fun tag f64(): F64 => floattidf*/

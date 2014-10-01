@@ -87,3 +87,6 @@ primitive U128 is Stringable, ArithmeticConvertible
     x + 1
 
   fun tag string(): String iso^ => recover String.from_u128(this, 10) end
+
+  /*fun tag f32(): F32 => floatuntisf*/
+  /*fun tag f64(): F64 => floatuntidf*/

@@ -12,10 +12,13 @@
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
 
+PONY_EXTERN_C_BEGIN
+
 // Missing from C API.
 char* LLVMGetHostCPUName();
 
-PONY_EXTERN_C_BEGIN
+// In case we need to change the internal calling convention.
+#define GEN_CALLCONV LLVMFastCallConv
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 

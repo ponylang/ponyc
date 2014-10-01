@@ -57,6 +57,9 @@ primitive F32 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_f32(this) end
 
+  /*fun tag i128(): I128 => fixsfti*/
+  /*fun tag u128(): U128 => fixunssfti*/
+
 primitive F64 is Stringable, ArithmeticConvertible
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
@@ -111,3 +114,6 @@ primitive F64 is Stringable, ArithmeticConvertible
   fun tag atanh(): F64 => @atanh[F64](this)
 
   fun tag string(): String iso^ => recover String.from_f64(this) end
+
+  /*fun tag i128(): I128 => fixdfti*/
+  /*fun tag u128(): U128 => fixunsdfti*/

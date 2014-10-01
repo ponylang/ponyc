@@ -244,7 +244,7 @@ class String val is Ordered[String]
     _size = _size + that._size
     this
 
-  fun box concat(that: String box): String iso^ =>
+  fun box concat(that: String box): String =>
     var len = _size + that._size
     recover
       var str = String._reserve(len)
