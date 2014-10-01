@@ -7,7 +7,7 @@ primitive I8 is Stringable, ArithmeticConvertible
 
   fun tag abs(): I8 => if this < 0 then -this else this end
 
-  fun tag string(): String => "I8"
+  fun tag string(): String iso^ => recover String.from_i8(this, 10) end
 
 primitive I16 is Stringable, ArithmeticConvertible
   fun tag max(that: I16): I16 =>
@@ -18,7 +18,7 @@ primitive I16 is Stringable, ArithmeticConvertible
 
   fun tag abs(): I16 => if this < 0 then -this else this end
 
-  fun tag string(): String => "I16"
+  fun tag string(): String iso^ => recover String.from_i16(this, 10) end
 
 primitive I32 is Stringable, ArithmeticConvertible
   fun tag max(that: I32): I32 =>
@@ -29,7 +29,7 @@ primitive I32 is Stringable, ArithmeticConvertible
 
   fun tag abs(): I32 => if this < 0 then -this else this end
 
-  fun tag string(): String => "I32"
+  fun tag string(): String iso^ => recover String.from_i32(this, 10) end
 
 primitive I64 is Stringable, ArithmeticConvertible
   fun tag max(that: I64): I64 =>
@@ -40,7 +40,7 @@ primitive I64 is Stringable, ArithmeticConvertible
 
   fun tag abs(): I64 => if this < 0 then -this else this end
 
-  fun tag string(): String => "I64"
+  fun tag string(): String iso^ => recover String.from_i64(this, 10) end
 
 primitive I128 is Stringable, ArithmeticConvertible
   fun tag max(that: I128): I128 =>
@@ -51,4 +51,4 @@ primitive I128 is Stringable, ArithmeticConvertible
 
   fun tag abs(): I128 => if this < 0 then -this else this end
 
-  fun tag string(): String => "I128"
+  fun tag string(): String iso^ => recover String.from_i128(this, 10) end

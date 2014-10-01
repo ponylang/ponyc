@@ -55,7 +55,7 @@ primitive F32 is Stringable, ArithmeticConvertible
   fun tag asinh(): F32 => @asinhf[F32](this)
   fun tag atanh(): F32 => @atanhf[F32](this)
 
-  fun tag string(): String => "F32"
+  fun tag string(): String iso^ => recover String.from_f32(this) end
 
 primitive F64 is Stringable, ArithmeticConvertible
   new pi() => compiler_intrinsic
@@ -110,4 +110,4 @@ primitive F64 is Stringable, ArithmeticConvertible
   fun tag asinh(): F64 => @asinh[F64](this)
   fun tag atanh(): F64 => @atanh[F64](this)
 
-  fun tag string(): String => "F64"
+  fun tag string(): String iso^ => recover String.from_f64(this) end

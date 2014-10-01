@@ -13,7 +13,7 @@ actor Counter
 
 actor Main
   new create(env: Env) =>
-    var count: U32 = try @atoi[U32](env.args(1).cstring()) else 10 end
+    var count: U32 = try env.args(1).u32() else 10 end
     var counter = Counter
 
     for i in Range[U32](0, count) do

@@ -23,6 +23,78 @@ class String val is Ordered[String]
     _ptr = Pointer[U8](_alloc)
     _ptr._copy(0, str, _alloc)
 
+  new from_i8(x: I8, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_i64_in_place(x.i64(), base)
+
+  new from_i16(x: I16, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_i64_in_place(x.i64(), base)
+
+  new from_i32(x: I32, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_i64_in_place(x.i64(), base)
+
+  new from_i64(x: I64, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_i64_in_place(x, base)
+
+  new from_i128(x: I128, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_i128_in_place(x, base)
+
+  new from_u8(x: U8, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_u64_in_place(x.u64(), base)
+
+  new from_u16(x: U16, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_u64_in_place(x.u64(), base)
+
+  new from_u32(x: U32, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_u64_in_place(x.u64(), base)
+
+  new from_u64(x: U64, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_u64_in_place(x, base)
+
+  new from_u128(x: U128, base: U8) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_u128_in_place(x, base)
+
+  new from_f32(x: F32) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_f64_in_place(x.f64())
+
+  new from_f64(x: F64) =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+    from_f64_in_place(x)
+
   new _reserve(size: U64) =>
     _size = size
     _alloc = size + 1
@@ -95,6 +167,19 @@ class String val is Ordered[String]
       consume str
     end
 
+  fun ref reverse_in_place(): String ref =>
+    var i: U64 = 0
+    var j = _size - 1
+
+    while i < j do
+      var x = _ptr._apply(i)
+      _ptr._update(i, _ptr._apply(j))
+      _ptr._update(j, x)
+      i = i + 1
+      j = j - 1
+    end
+    this
+
   fun box sub(from: I64, to: I64): String iso^ =>
     recover
       var start = offset_to_index(from)
@@ -159,12 +244,14 @@ class String val is Ordered[String]
     _size = _size + that._size
     this
 
-  fun box concat(that: String): String ref^ =>
+  fun box concat(that: String box): String iso^ =>
     var len = _size + that._size
-    var str = String._reserve(len)
-    str._ptr._copy(0, _ptr, _size)
-    str._ptr._copy(_size, that._ptr, that._size + 1)
-    consume str
+    recover
+      var str = String._reserve(len)
+      str._ptr._copy(0, _ptr, _size)
+      str._ptr._copy(_size, that._ptr, that._size + 1)
+      consume str
+    end
 
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
@@ -208,5 +295,144 @@ class String val is Ordered[String]
   fun box f32(): F32 => @strtof[F32](_ptr, 0.u64())
 
   fun box f64(): F64 => @strtod[F64](_ptr, 0.u64())
+
+  fun tag _int_table(): String =>
+    "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
+
+  fun ref from_i64_in_place(x: I64, base: U8): String ref =>
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
+    else
+      _size = 0
+      _alloc = 32
+      _ptr = _ptr._realloc(32)
+
+      var table = _int_table()
+      var value = x
+      var div = base.i64()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = (tmp - (value * div)).u64()
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      if x < 0 then
+        _ptr._update(i, 45)
+        i = i + 1
+      end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
+    end
+    this
+
+  fun ref from_u64_in_place(x: U64, base: U8): String ref =>
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
+    else
+      _size = 0
+      _alloc = 32
+      _ptr = _ptr._realloc(32)
+
+      var table = _int_table()
+      var value = x
+      var div = base.u64()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = tmp - (value * div)
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
+    end
+    this
+
+  fun ref from_i128_in_place(x: I128, base: U8): String ref =>
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
+    else
+      _size = 0
+      _alloc = 32
+      _ptr = _ptr._realloc(32)
+
+      var table = _int_table()
+      var value = x
+      var div = base.i128()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = (tmp - (value * div)).u64()
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      if x < 0 then
+        _ptr._update(i, 45)
+        i = i + 1
+      end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
+    end
+    this
+
+  fun ref from_u128_in_place(x: U128, base: U8): String ref =>
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
+    else
+      _size = 0
+      _alloc = 64
+      _ptr = _ptr._realloc(64)
+
+      var table = _int_table()
+      var value = x
+      var div = base.u128()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = (tmp - (value * div)).u64()
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
+    end
+    this
+
+  fun ref from_f64_in_place(x: F64): String ref =>
+    _alloc = 32
+    _ptr = _ptr._realloc(32)
+    _size = @snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
+    this
 
   /*fun box string(): String => this*/

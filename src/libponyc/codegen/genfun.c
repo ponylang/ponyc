@@ -169,6 +169,12 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
+  // If the function exists now, just return it.
+  func = LLVMGetNamedFunction(c->module, funname);
+
+  if(func != NULL)
+    return func;
+
   LLVMTypeRef result = rtype_g.use_type;
 
   // generate the function type and the function prototype
