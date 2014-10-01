@@ -235,8 +235,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args);
 
-  // Get the function name.
-  const char* f_name = ast_name(id);
+  // Get the function name, +1 to skip leading @
+  const char* f_name = ast_name(id) + 1;
 
   // Generate the return type.
   ast_t* type = ast_type(ast);

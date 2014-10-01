@@ -4,7 +4,7 @@
 #include "../type/assemble.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
-
+#include <string.h>
 
 #define DEF_CLASS 0
 #define DEF_ACTOR 1
@@ -548,14 +548,30 @@ static ast_result_t parse_fix_match(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_ffi(ast_t* ast)
+static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
-  AST_GET_CHILDREN(ast, id, typeargs, args);
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
 
-  if(ast_child(typeargs) == NULL || ast_childidx(typeargs, 1) != NULL)
+  // Prefix '@' to name
+  assert(id != NULL);
+  const char* name = ast_name(id);
+  size_t len = strlen(name) + 1; // +1 for terminator
+  VLA(char, new_name, len + 1); // +1 for @
+  new_name[0] = '@';
+  memcpy(new_name + 1, name, len);
+  ast_set_name(id, new_name);
+
+  if((ast_child(typeargs) == NULL && !return_optional ) ||
+    ast_childidx(typeargs, 1) != NULL)
   {
     ast_error(typeargs, "FFIs must specify a single return type");
+    return AST_ERROR;
+  }
+
+  if(ast_id(named_args) != TK_NONE)
+  {
+    ast_error(typeargs, "FFIs cannot take named arguments");
     return AST_ERROR;
   }
 
@@ -666,8 +682,8 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_HAT:        return parse_fix_ephemeral(ast);
     case TK_BANG:       return parse_fix_bang(ast);
     case TK_MATCH:      return parse_fix_match(ast);
-    case TK_FFIDECL:
-    case TK_AT:         return parse_fix_ffi(ast);
+    case TK_FFIDECL:    return parse_fix_ffi(ast, false);
+    case TK_AT:         return parse_fix_ffi(ast, true);
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
