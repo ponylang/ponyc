@@ -472,7 +472,7 @@ static const char* suffix_filename(const char* dir, const char* file,
   const char* extension)
 {
   // Copy to a string with space for a suffix.
-  size_t len = strlen(dir) + strlen(file) + 3;
+  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
   VLA(char, filename, len + 1);
 
   // Start with no suffix.
@@ -496,7 +496,7 @@ static const char* suffix_filename(const char* dir, const char* file,
     return NULL;
   }
 
-  return stringtab(file);
+  return stringtab(filename);
 }
 
 static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
