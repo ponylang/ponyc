@@ -526,8 +526,8 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   assert(decl != NULL);
   assert(ast_id(decl) == TK_FFIDECL);
 
-  AST_GET_CHILDREN(call, call_name, call_ret_type, args, named_args);
-  AST_GET_CHILDREN(decl, decl_name, decl_ret_type, params);
+  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args);
+  AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params);
 
   // Check args vs params
   ast_t* param = ast_child(params);
@@ -561,8 +561,10 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   }
 
   // Check return types
-  if(ast_id(call_ret_type) != TK_NONE &&
-    !is_eqtype(call_ret_type, decl_ret_type))
+  ast_t* call_ret_type = ast_child(call_ret_typeargs);
+  ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
+
+  if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
   {
     ast_error(call_ret_type, "call return type does not match declaration");
     return false;
@@ -589,7 +591,7 @@ bool expr_ffi(ast_t* ast)
   if(return_type == NULL)
   {
     ast_error(name, "FFIs without declarations must specify return type");
-    return AST_ERROR;
+    return false;
   }
 
   ast_settype(ast, return_type);
