@@ -145,6 +145,7 @@ static LLVMValueRef check_entity(compile_t* c, LLVMValueRef value,
 {
   // If we are statically the entity type, we don't need to do anything.
   // As a result, we are always dealing with an object pointer as the value.
+  // The only exception is if the match value is a Bool.
   if(is_subtype(type, pattern_type))
     return value;
 
@@ -155,8 +156,12 @@ static LLVMValueRef check_entity(compile_t* c, LLVMValueRef value,
 
   LLVMValueRef left, right;
 
-  if((g.instance != NULL) && (g.primitive == NULL))
+  if(is_bool(type))
   {
+    // The only entities that are valid matches for a Bool are True and Fale.
+    left = value;
+    right = g.instance;
+  } else if((g.instance != NULL) && (g.primitive == NULL)) {
     // Save a load by checking the value instead of the descriptor.
     left = LLVMBuildPtrToInt(c->builder, value, c->intptr, "");
     right = LLVMBuildPtrToInt(c->builder, g.instance, c->intptr, "");
@@ -230,16 +235,29 @@ static void check_cardinality(compile_t* c, LLVMValueRef value, size_t size,
 static LLVMValueRef check_object_is_tuple(compile_t* c, LLVMValueRef value,
   ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
+  // Check cardinality.
   size_t count = ast_childcount(pattern_type);
   check_cardinality(c, value, count, next_block);
 
-  // TODO: check elements
-  assert(0);
+  // Check elements.
+  ast_t* pattern_child = ast_child(pattern_type);
 
   for(size_t i = 0; i < count; i++)
   {
-    LLVMValueRef field_desc = gendesc_fielddesc(c, value, i);
-    (void)field_desc;
+    // TODO:
+    // LLVMValueRef field_desc = gendesc_fielddesc(c, value, i);
+    // LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_desc, 0, "");
+    // LLVMValueRef desc = LLVMBuildExtractValue(c->builder, field_desc, 1, "");
+    // LLVMValueRef null_desc = LLVMBuildIsNull(c->builder, desc, "");
+    //
+    // LLVMBasicBlockRef object_block = codegen_block(c, "pattern_tuple_object");
+    // LLVMBasicBlockRef entity_block = codegen_block(c, "pattern_tuple_entity");
+    // LLVMBuildCondBr(c->builder, null_desc, object_block, entity_block);
+    //
+    // LLVMPositionBuilderAtEnd(c->builder, object_block);
+    // LLVM
+
+    pattern_child = ast_sibling(pattern_child);
   }
 
   return value;

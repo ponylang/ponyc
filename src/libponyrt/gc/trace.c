@@ -2,11 +2,14 @@
 #include "gc.h"
 #include "../actor/actor.h"
 
-static __pony_thread_local void (*trace_object)(pony_actor_t* current,
-  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f);
+typedef void (*trace_object_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  void* p, pony_trace_fn f);
 
-static __pony_thread_local void (*trace_actor)(pony_actor_t* current, gc_t* gc,
+typedef void (*trace_actor_fn)(pony_actor_t* current, gc_t* gc,
   pony_actor_t* actor);
+
+static __pony_thread_local trace_object_fn trace_object;
+static __pony_thread_local trace_actor_fn trace_actor;
 
 void pony_gc_send()
 {

@@ -12,8 +12,12 @@ actor Counter
     _count = 0
 
 actor Main
+  var _stdout: Stdout
+
   new create(env: Env) =>
-    var count: U32 = try @atoi[U32](env.args(1).cstring()) else 10 end
+    _stdout = env.stdout
+
+    var count: U32 = try env.args(1).u32() else 10 end
     var counter = Counter
 
     for i in Range[U32](0, count) do
@@ -23,4 +27,4 @@ actor Main
     counter.get_and_reset(this)
 
   be display(result: U32) =>
-    @printf[I32]("%d\n".cstring(), result)
+    _stdout.print(result.string())

@@ -26,7 +26,7 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
     then_block, else_block, ret);
 
   if(fastcc)
-    LLVMSetInstructionCallConv(invoke, LLVMFastCallConv);
+    LLVMSetInstructionCallConv(invoke, GEN_CALLCONV);
 
   LLVMPositionBuilderAtEnd(c->builder, then_block);
   return invoke;
@@ -382,7 +382,7 @@ static void trace_unknown(compile_t* c, LLVMValueRef value)
   LLVMPositionBuilderAtEnd(c->builder, merge_block);
 }
 
-bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
+static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   // Invoke the trace function directly. Do not trace the address of the tuple.
   const char* type_name = genname_type(type);

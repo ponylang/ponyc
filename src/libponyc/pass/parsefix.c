@@ -579,6 +579,29 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 }
 
 
+static ast_result_t parse_fix_ellipsis(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* fn = ast_parent(ast_parent(ast));
+  assert(fn != NULL);
+
+  if(ast_id(fn) != TK_FFIDECL)
+  {
+    ast_error(ast, "... may only appear in FFI declarations");
+    return AST_ERROR;
+  }
+
+  if(ast_sibling(ast) != NULL)
+  {
+    ast_error(ast, "... must be the last parameter");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static bool is_expr_infix(token_id id)
 {
   switch(id)
@@ -684,6 +707,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_FFIDECL:    return parse_fix_ffi(ast, false);
     case TK_AT:         return parse_fix_ffi(ast, true);
+    case TK_ELLIPSIS:   return parse_fix_ellipsis(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);

@@ -54,6 +54,11 @@ DEF(param);
   IF(TK_ASSIGN, RULE("default value", infix));
   DONE();
 
+// ELLIPSIS
+DEF(ellipsis);
+  TOKEN(NULL, TK_ELLIPSIS);
+  DONE();
+
 // ID [COLON type] [ASSIGN type]
 DEF(typeparam);
   AST_NODE(TK_TYPEPARAM);
@@ -65,8 +70,8 @@ DEF(typeparam);
 // param {COMMA param}
 DEF(params);
   AST_NODE(TK_PARAMS);
-  RULE("parameter", param);
-  WHILE(TK_COMMA, RULE("parameter", param));
+  RULE("parameter", param, ellipsis);
+  WHILE(TK_COMMA, RULE("parameter", param, ellipsis));
   DONE();
 
 // LSQUARE typeparam {COMMA typeparam} RSQUARE

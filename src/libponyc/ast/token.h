@@ -66,6 +66,7 @@ typedef enum token_id
   TK_AMP,
   TK_QUESTION,
   TK_UNARY_MINUS,
+  TK_ELLIPSIS,
 
   // Newline symbols, only used by lexer and parser
   TK_LPAREN_NEW,
