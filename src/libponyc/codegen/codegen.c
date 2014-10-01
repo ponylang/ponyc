@@ -445,7 +445,7 @@ static size_t link_path_length()
     len += strlen(path);
 #ifdef PLATFORM_IS_POSIX_BASED
     len += 6;
-#elif defined(PLATFORM_IS_VISUAL_STUDIO)
+#else
     len += 12;
 #endif
     p = strlist_next(p);
@@ -465,7 +465,7 @@ static void append_link_paths(char* str)
     strcat(str, " -L \"");
     strcat(str, path);
     strcat(str, "\"");
-#elif defined(PLATFORM_IS_VISUAL_STUDIO)
+#else
     strcat(str, " /LIBPATH:\"");
     strcat(str, path);
     strcat(str, "\"");

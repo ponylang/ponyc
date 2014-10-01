@@ -13,7 +13,11 @@ module
   ;
 
 use
-  :  'use' (ID '=')? STRING ('where' expr)?
+  :  'use' (ID '=')? (STRING | use_ffi) ('where' expr)?
+  ;
+
+use_ffi
+  :  '@' ID type_args '(' params? ')'
   ;
 
 typealias
@@ -164,7 +168,7 @@ atom
   |  '(' positional ')' // tuple
   |  '[' positional? named? ']' // array
   |  '{' ('is' types)? members '}' // object
-  |  '@' ID type_args '(' positional? ')' // ffi
+  |  '@' ID type_args? '(' positional? ')' // ffi
   ;
 
 idseq
