@@ -442,7 +442,12 @@ static size_t link_path_length()
   while(p != NULL)
   {
     const char* path = strlist_data(p);
-    len += strlen(path) + 3;
+    len += strlen(path);
+#ifdef PLATFORM_IS_POSIX_BASED
+    len += 6;
+#else
+    len += 12;
+#endif
     p = strlist_next(p);
   }
 
@@ -457,9 +462,10 @@ static void append_link_paths(char* str)
   {
     const char* path = strlist_data(p);
 #ifdef PLATFORM_IS_POSIX_BASED
-    strcat(str, " -L");
+    strcat(str, " -L \"");
     strcat(str, path);
-#elif defined(PLATFORM_IS_VISUAL_STUDIO)
+    strcat(str, "\"");
+#else
     strcat(str, " /LIBPATH:\"");
     strcat(str, path);
     strcat(str, "\"");
