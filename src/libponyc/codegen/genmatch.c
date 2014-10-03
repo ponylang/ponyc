@@ -11,8 +11,8 @@
 #include "../ds/stringtab.h"
 #include <assert.h>
 
-static LLVMValueRef type_match(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block);
+static bool pattern_match(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block);
 
 static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
 {
@@ -51,6 +51,13 @@ static bool value_integer(compile_t* c, LLVMValueRef value, ast_t* type,
   return false;
 }
 
+static bool value_float(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, LLVMBasicBlockRef next_block)
+{
+  // TODO:
+  return false;
+}
+
 static bool value_string(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
@@ -83,14 +90,20 @@ static bool value_assign(compile_t* c, LLVMValueRef value, ast_t* type,
   return gen_assign_value(c, pattern, value, type) != NULL;
 }
 
+static bool value_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, LLVMBasicBlockRef next_block)
+{
+  // TODO:
+  return false;
+}
+
 static bool value_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  // TODO: value match or assign to variable
-  // how to handle tuples?
-  // if the pattern is a Bool or a Number, we might have a primitive type here
-  // or we might have an object type
-  // otherwise, we have an object type
+  // If we haven't been passed a pattern, skip this.
+  if(pattern == NULL)
+    return true;
+
   switch(ast_id(pattern))
   {
     case TK_CALL:
@@ -98,23 +111,21 @@ static bool value_match(compile_t* c, LLVMValueRef value, ast_t* type,
       // the value since we've already matched the type.
       return true;
 
-    case TK_VAR:
-    case TK_LET:
-      return value_assign(c, value, type, pattern);
-
     case TK_INT:
       return value_integer(c, value, type, pattern, next_block);
 
     case TK_FLOAT:
-      // TODO:
-      break;
+      return value_float(c, value, type, pattern, next_block);
 
     case TK_STRING:
       return value_string(c, value, type, pattern, next_block);
 
+    case TK_VAR:
+    case TK_LET:
+      return value_assign(c, value, type, pattern);
+
     case TK_TUPLE:
-      // TODO:
-      break;
+      return value_tuple(c, value, type, pattern, next_block);
 
     default: {}
   }
@@ -123,36 +134,36 @@ static bool value_match(compile_t* c, LLVMValueRef value, ast_t* type,
   return false;
 }
 
-static LLVMValueRef check_trait(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* trait_type, LLVMBasicBlockRef next_block)
+static bool check_trait(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // If we are statically the trait type, we just box the value.
-  // As a result, we are always dealing with an object pointer as the value.
-  if(is_subtype(type, trait_type))
-    return box_value(c, value, type);
+  // We always want an object value for a trait type.
+  value = box_value(c, value, type);
 
-  LLVMValueRef test = gendesc_istrait(c, value, trait_type);
+  // If we are statically the trait type, check the value.
+  if(is_subtype(type, pattern_type))
+    return value_match(c, value, type, pattern, next_block);
+
+  LLVMValueRef test = gendesc_istrait(c, value, pattern_type);
 
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
 
-  return value;
+  return value_match(c, value, type, pattern, next_block);
 }
 
-static LLVMValueRef check_entity(compile_t* c, LLVMValueRef value,
-  ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_entity(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // If we are statically the entity type, we don't need to do anything.
-  // As a result, we are always dealing with an object pointer as the value.
-  // The only exception is if the match value is a Bool.
+  // If we are statically the entity type, check the value.
   if(is_subtype(type, pattern_type))
-    return value;
+    return value_match(c, value, type, pattern, next_block);
 
   gentype_t g;
 
   if(!gentype(c, pattern_type, &g))
-    return NULL;
+    return false;
 
   LLVMValueRef left, right;
 
@@ -166,9 +177,10 @@ static LLVMValueRef check_entity(compile_t* c, LLVMValueRef value,
     left = LLVMBuildPtrToInt(c->builder, value, c->intptr, "");
     right = LLVMBuildPtrToInt(c->builder, g.instance, c->intptr, "");
   } else {
-    // Check the descriptor.
     // TODO: what if the pattern is a numeric literal? should accept many
     // descriptors here.
+
+    // Check the descriptor.
     left = gendesc_fetch(c, value);
     left = LLVMBuildPtrToInt(c->builder, left, c->intptr, "");
     right = LLVMConstPtrToInt(g.desc, c->intptr);
@@ -180,43 +192,45 @@ static LLVMValueRef check_entity(compile_t* c, LLVMValueRef value,
   LLVMBuildCondBr(c->builder, test, continue_block, next_block);
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
 
-  return value;
+  return value_match(c, value, type, pattern, next_block);
 }
 
-static LLVMValueRef check_nominal(compile_t* c, LLVMValueRef value,
-  ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_nominal(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
   ast_t* def = (ast_t*)ast_data(pattern_type);
 
   switch(ast_id(def))
   {
     case TK_TRAIT:
-      return check_trait(c, value, type, pattern_type, next_block);
+      return check_trait(c, value, type, pattern, pattern_type, next_block);
 
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      return check_entity(c, value, type, pattern_type, next_block);
+      return check_entity(c, value, type, pattern, pattern_type, next_block);
 
     default: {}
   }
 
   assert(0);
-  return NULL;
+  return false;
 }
 
-static LLVMValueRef check_structural(compile_t* c, LLVMValueRef value,
-  ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_structural(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // If we are statically the trait type, we just box the value.
-  // As a result, we are always dealing with an object pointer as the value.
+  // We always want an object value for a structural type.
+  value = box_value(c, value, type);
+
+  // If we are statically the structural type, check the value.
   if(is_subtype(type, pattern_type))
-    return box_value(c, value, type);
+    return value_match(c, value, type, pattern, next_block);
 
   // Currently, structural types that aren't supertypes aren't allowed in
   // patterns, because we don't have a scheme for checking structural typing
   // at runtime, so this will never be reached.
-  return NULL;
+  return false;
 }
 
 static void check_cardinality(compile_t* c, LLVMValueRef value, size_t size,
@@ -232,8 +246,8 @@ static void check_cardinality(compile_t* c, LLVMValueRef value, size_t size,
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
 }
 
-static LLVMValueRef check_object_is_tuple(compile_t* c, LLVMValueRef value,
-  ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_object_is_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
   // Check cardinality.
   size_t count = ast_childcount(pattern_type);
@@ -260,43 +274,61 @@ static LLVMValueRef check_object_is_tuple(compile_t* c, LLVMValueRef value,
     pattern_child = ast_sibling(pattern_child);
   }
 
-  return value;
+  return true;
 }
 
-static LLVMValueRef check_tuple_is_tuple(compile_t* c, LLVMValueRef value,
-  ast_t* type, ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_tuple_is_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // ast_t* type_child = ast_child(type);
-  // ast_t* pattern_child = ast_child(pattern_type);
-  //
-  // while(type_child != NULL)
+  // Match fields for type pairwise, then match the whole tuple for value.
+  ast_t* type_child = ast_child(type);
+  ast_t* pattern_child = ast_child(pattern_type);
+  int i = 0;
 
-  // TODO:
-  assert(0);
-  return NULL;
+  while(type_child != NULL)
+  {
+    LLVMValueRef field = LLVMBuildExtractValue(c->builder, value, i, "");
+
+    // Pass a pattern_type but not a pattern, so that we only match on type
+    // here. Then we match on value just once afterwards.
+    if(!pattern_match(c, field, type_child, NULL, pattern_child, next_block))
+      return false;
+
+    type_child = ast_sibling(type_child);
+    pattern_child = ast_sibling(pattern_child);
+    i++;
+  }
+
+  // Match on value if we matched all the types.
+  return value_match(c, value, type, pattern, next_block);
 }
 
-static LLVMValueRef check_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // If we are statically the tuple type, we don't need to do anything.
-  // TODO: do we need to create a new tuple with some boxed elements?
+  // If we are statically the tuple type, check the whole tuple for value.
   if(is_subtype(type, pattern_type))
-    return value;
+    return value_match(c, value, type, pattern, next_block);
 
-  // If we know the value is a tuple type, we can skip some comparisons.
-  if(ast_id(type) != TK_TUPLETYPE)
-    return check_object_is_tuple(c, value, type, pattern_type, next_block);
+  // If we know the value is a tuple type, match elements pairwise.
+  if(ast_id(type) == TK_TUPLETYPE)
+    return check_tuple_is_tuple(c, value, type, pattern, pattern_type,
+      next_block);
 
-  // We have to check everything dynamically.
-  return check_tuple_is_tuple(c, value, type, pattern_type, next_block);
+  // We have to check if we are a tuple dynamically.
+  return check_object_is_tuple(c, value, type, pattern, pattern_type,
+    next_block);
 }
 
-static LLVMValueRef check_union(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_union(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
+  // We always want an object value for a union type.
+  value = box_value(c, value, type);
+
+  // If we are statically the union type, check the value.
   if(is_subtype(type, pattern_type))
-    return box_value(c, value, type);
+    return value_match(c, value, type, pattern, next_block);
 
   // We have to match some component type.
   LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
@@ -307,106 +339,100 @@ static LLVMValueRef check_union(compile_t* c, LLVMValueRef value, ast_t* type,
     // If we don't match, try the next type if there is one. If there is
     // no next type, jump to the next case.
     ast_t* next_type = ast_sibling(child);
-    LLVMBasicBlockRef fail_block;
+    LLVMBasicBlockRef nomatch_block;
 
     if(next_type != NULL)
-      fail_block = codegen_block(c, "pattern_continue");
+      nomatch_block = codegen_block(c, "pattern_next");
     else
-      fail_block = next_block;
+      nomatch_block = next_block;
 
-    LLVMValueRef v = type_match(c, value, type, child, fail_block);
+    // Pass a pattern_type but not a pattern, so that we only match on type
+    // here. Then we match on value just once afterwards.
+    if(!pattern_match(c, value, type, NULL, child, nomatch_block))
+      return false;
 
     // If we do match, jump to the continue block.
     LLVMBuildBr(c->builder, continue_block);
-
-    if(v == NULL)
-      return NULL;
-
     child = next_type;
   }
 
-  // The result is always an object type.
+  // Match on value if we matched one of the types.
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
-  return box_value(c, value, type);
+  return value_match(c, value, type, pattern, next_block);
 }
 
-static LLVMValueRef check_isect(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_isect(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  if(is_subtype(type, pattern_type))
-    return box_value(c, value, type);
+  // We always want an object value for an intersection type.
+  value = box_value(c, value, type);
 
-  // We have to match every component type.
+  // If we are statically the intersection type, check the value.
+  if(is_subtype(type, pattern_type))
+    return value_match(c, value, type, pattern, next_block);
+
+  // We have to match all component types.
   ast_t* child = ast_child(pattern_type);
 
   while(child != NULL)
   {
-    LLVMValueRef v = type_match(c, value, type, child, next_block);
-
-    if(v == NULL)
-      return NULL;
+    // Pass a pattern_type but not a pattern, so that we only match on type
+    // here. Then we match on value just once afterwards.
+    if(!pattern_match(c, value, type, NULL, child, next_block))
+      return false;
 
     child = ast_sibling(child);
   }
 
-  // The result is always an object type.
-  return box_value(c, value, type);
+  // Match on value if we matched all the types.
+  return value_match(c, value, type, pattern, next_block);
 }
 
-static LLVMValueRef check_arrow(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_arrow(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
   // Check the upper bounds of the right side.
   ast_t* right = ast_childidx(pattern_type, 1);
   ast_t* upper = viewpoint_upper(right);
-  value = type_match(c, value, type, upper, next_block);
+
+  bool ok = pattern_match(c, value, type, pattern, upper, next_block);
   ast_free_unattached(upper);
-  return value;
+
+  return ok;
 }
 
-static LLVMValueRef type_match(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool pattern_match(compile_t* c, LLVMValueRef value, ast_t* type,
+  ast_t* pattern, ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
+  if(pattern_type == NULL)
+    return true;
+
   switch(ast_id(pattern_type))
   {
     case TK_NOMINAL:
-      return check_nominal(c, value, type, pattern_type, next_block);
+      return check_nominal(c, value, type, pattern, pattern_type, next_block);
 
     case TK_STRUCTURAL:
-      return check_structural(c, value, type, pattern_type, next_block);
+      return check_structural(c, value, type, pattern, pattern_type,
+        next_block);
 
     case TK_TUPLETYPE:
-      return check_tuple(c, value, type, pattern_type, next_block);
+      return check_tuple(c, value, type, pattern, pattern_type, next_block);
 
     case TK_UNIONTYPE:
-      return check_union(c, value, type, pattern_type, next_block);
+      return check_union(c, value, type, pattern, pattern_type, next_block);
 
     case TK_ISECTTYPE:
-      return check_isect(c, value, type, pattern_type, next_block);
+      return check_isect(c, value, type, pattern, pattern_type, next_block);
 
     case TK_ARROW:
-      return check_arrow(c, value, type, pattern_type, next_block);
+      return check_arrow(c, value, type, pattern, pattern_type, next_block);
 
     default: {}
   }
 
   assert(0);
-  return NULL;
-}
-
-static bool pattern_match(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern, LLVMBasicBlockRef next_block)
-{
-  if(ast_id(pattern) == TK_NONE)
-    return true;
-
-  ast_t* pattern_type = ast_type(pattern);
-  value = type_match(c, value, type, pattern_type, next_block);
-
-  if(value == NULL)
-    return false;
-
-  return value_match(c, value, type, pattern, next_block);
+  return false;
 }
 
 static bool guard_match(compile_t* c, ast_t* guard,
@@ -491,8 +517,10 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     // Check the pattern.
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
+    ast_t* pattern_type = ast_type(pattern);
 
-    if(!pattern_match(c, match_value, match_type, pattern, next_block))
+    if(!pattern_match(c, match_value, match_type, pattern, pattern_type,
+      next_block))
     {
       ast_free_unattached(match_type);
       return NULL;

@@ -335,6 +335,17 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFDiv(c->builder, l_value, r_value, "");
 
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  LLVMTypeRef l_type = LLVMTypeOf(l_value);
+
+  if(l_type == c->i128)
+  {
+    ast_error(ast,
+      "Microsoft Visual Studio tools do not support 128 bit integer division");
+    return NULL;
+  }
+#endif
+
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef then_block = codegen_block(c, "div_then");
@@ -394,6 +405,17 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 
   if(is_fp(l_value))
     return LLVMBuildFRem(c->builder, l_value, r_value, "");
+
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+  LLVMTypeRef l_type = LLVMTypeOf(l_value);
+
+  if(l_type == c->i128)
+  {
+    ast_error(ast,
+      "Microsoft Visual Studio tools do not support 128 bit integer modulus");
+    return NULL;
+  }
+#endif
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);

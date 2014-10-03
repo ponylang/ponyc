@@ -145,12 +145,22 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         "bit integer conversion");
       return NULL;
     }
-  } else if(is_literal(type, "I128")  || is_literal(type, "U128")) {
+  } else if(is_literal(type, "I128") || is_literal(type, "U128")) {
     if(!strcmp(method_name, "f32") || !strcmp(method_name, "f64"))
     {
       ast_error(ast,
         "Microsoft Visual Studio tools do not support 128 bit integer to "
         "floating point conversion");
+      return NULL;
+    }
+  } else if(is_literal(type, "String")) {
+    if(!strcmp(method_name, "from_i128_in_place") ||
+      !strcmp(method_name, "from_u128_in_place")
+      )
+    {
+      ast_error(ast,
+        "Microsoft Visual Studio tools do not support 128 bit integer to "
+        "string conversion");
       return NULL;
     }
   }
