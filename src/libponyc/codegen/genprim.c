@@ -437,7 +437,7 @@ static void disabled_on_platform(compile_t* c)
   LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->object_ptr);
+  LLVMValueRef result = LLVMGetUndef(c->void_ptr);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
@@ -446,7 +446,7 @@ static void disabled_on_platform(compile_t* c)
   fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->object_ptr);
+  result = LLVMGetUndef(c->void_ptr);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 #endif
