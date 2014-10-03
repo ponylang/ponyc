@@ -28,10 +28,10 @@ trait ArithmeticConvertible
   fun tag f64(): F64 => compiler_intrinsic
 
 primitive SIntLiteral is Stringable, ArithmeticConvertible
-  fun tag string(): String => "SIntLiteral"
+  fun tag string(): String iso^ => recover String.from_i128(this, 10) end
 
 primitive UIntLiteral is Stringable, ArithmeticConvertible
-  fun tag string(): String => "UIntLiteral"
+  fun tag string(): String iso^ => recover String.from_u128(this, 10) end
 
 primitive FloatLiteral is Stringable, ArithmeticConvertible
   fun tag string(): String => "FloatLiteral"

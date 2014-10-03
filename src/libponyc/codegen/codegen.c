@@ -310,7 +310,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
   const char* env_create = genname_fun(env_name, "_create", NULL);
   args[0] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
   LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
-  LLVMSetInstructionCallConv(env, LLVMFastCallConv);
+  LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
   // Create a type for the message.
   LLVMTypeRef f_params[4];
@@ -836,7 +836,7 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
 {
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
-  LLVMSetFunctionCallConv(fun, LLVMFastCallConv);
+  LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
   return fun;
 }
 
@@ -887,6 +887,6 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count)
 {
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
-  LLVMSetInstructionCallConv(result, LLVMFastCallConv);
+  LLVMSetInstructionCallConv(result, GEN_CALLCONV);
   return result;
 }

@@ -27,16 +27,16 @@ enum
 	BIND
 };
 
-typedef struct chunk_t
+typedef struct sock_chunk_t
 {
 	void* next;
 	unsigned char data[BUFFER_SIZE];
-} chunk_t;
+} sock_chunk_t;
 
 typedef struct chunk_list_t
 {
-	chunk_t* head;
-	chunk_t* tail;
+	sock_chunk_t* head;
+	sock_chunk_t* tail;
 
 	void* readp;
 	void* writep;
@@ -55,20 +55,20 @@ struct sock_t
 	uint32_t status;
 };
 
-static size_t bytes_left(void* offset, chunk_t* chunk)
+static size_t bytes_left(void* offset, sock_chunk_t* chunk)
 {
 	return BUFFER_SIZE - ( offset - (void*)chunk->data );
 }
 
-static size_t bytes_available(void* offset, chunk_t* chunk)
+static size_t bytes_available(void* offset, sock_chunk_t* chunk)
 {
 	return (offset - (void*)chunk->data);
 }
 
 static void append_chunk(chunk_list_t* list)
 {
-	chunk_t* n = POOL_ALLOC(chunk_t);
-	memset(n, 0, sizeof(chunk_t));
+	sock_chunk_t* n = POOL_ALLOC(sock_chunk_t);
+	memset(n, 0, sizeof(sock_chunk_t));
 
 	list->chunks++;
 	list->writep = n->data;
@@ -188,7 +188,7 @@ static void consume_data(chunk_list_t* container, void** data, size_t len)
 static uint32_t flush_data(sock_t* s, size_t* nrp)
 {
 	chunk_list_t* writes = &s->writes;
-	chunk_t* curr;
+	sock_chunk_t* curr;
 
 	struct iovec iov[writes->chunks];
 
@@ -217,7 +217,7 @@ static uint32_t flush_data(sock_t* s, size_t* nrp)
 
 static void buffer_advance(chunk_list_t* list, void** p, size_t bytes)
 {
-	chunk_t* curr;
+	sock_chunk_t* curr;
 	size_t left;
 
 	while(true)
@@ -237,7 +237,7 @@ static void buffer_advance(chunk_list_t* list, void** p, size_t bytes)
 		bytes -= left;
 		list->chunks--;
 
-		POOL_FREE(chunk_t, curr);
+		POOL_FREE(sock_chunk_t, curr);
 	}
 }
 
@@ -336,7 +336,7 @@ size_t sock_bookmark(sock_t* sock, size_t len)
 void sock_bookmark_write(sock_t* sock, size_t index, void* data, size_t len)
 {
 	void* start;
-	chunk_t* curr = sock->writes.head;
+	sock_chunk_t* curr = sock->writes.head;
 
 	size_t copy;
 	size_t left;
@@ -414,7 +414,7 @@ void sock_get_data(sock_t* sock, void* dest, size_t len)
 	size_t provide;
 	size_t available;
 
-	chunk_t* curr = sock->reads.head;
+	sock_chunk_t* curr = sock->reads.head;
 
 	while(len > 0)
 	{
@@ -468,7 +468,7 @@ uint32_t sock_flush(sock_t* s)
 		if(s->writes.size == 0)
 		{
 			//head and tail must point to the same chunk
-			POOL_FREE(chunk_t, s->writes.head);
+			POOL_FREE(sock_chunk_t, s->writes.head);
 
 			s->writes.head = s->writes.tail = NULL;
 			s->writes.readp = s->writes.writep = NULL;
