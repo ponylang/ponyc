@@ -429,69 +429,9 @@ static void fp_as_bits(compile_t* c)
   codegen_finishfun(c);
 }
 
-static void disabled_on_platform(compile_t* c)
-{
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  const char* name = genname_fun("$1_String", "from_i128_in_place", NULL);
-  LLVMTypeRef f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  LLVMValueRef fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  LLVMValueRef result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_String", "from_u128_in_place", NULL);
-  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_String", "from_i128", NULL);
-  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_String", "from_u128", NULL);
-  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_SIntLiteral", "string", NULL);
-  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun("$1_UIntLiteral", "string", NULL);
-  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMGetUndef(c->void_ptr);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-#endif
-}
-
 void genprim_builtins(compile_t* c)
 {
   primitive_conversions(c);
   special_number_constructors(c);
   fp_as_bits(c);
-  disabled_on_platform(c);
 }

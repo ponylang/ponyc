@@ -34,7 +34,7 @@ primitive UIntLiteral is Stringable, ArithmeticConvertible
   fun tag string(): String iso^ => recover String.from_u128(this, 10) end
 
 primitive FloatLiteral is Stringable, ArithmeticConvertible
-  fun tag string(): String => "FloatLiteral"
+  fun tag string(): String iso^ => recover String.from_f64(this) end
 
 type SInt is
   ( SIntLiteral

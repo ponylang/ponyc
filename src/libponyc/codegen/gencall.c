@@ -71,6 +71,7 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
   if(os_is_target(method_name, c->release, &is_target))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
+  ast_error(ast, "unknown Platform setting");
   return NULL;
 }
 
@@ -151,27 +152,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       ast_error(ast,
         "Microsoft Visual Studio tools do not support 128 bit integer to "
         "floating point conversion");
-      return NULL;
-    }
-  } else if(is_literal(type, "String")) {
-    if(!strcmp(method_name, "from_i128") ||
-      !strcmp(method_name, "from_u128") ||
-      !strcmp(method_name, "from_i128_in_place") ||
-      !strcmp(method_name, "from_u128_in_place")
-      )
-    {
-      ast_error(ast,
-        "Microsoft Visual Studio tools do not support 128 bit integer to "
-        "string conversion");
-      return NULL;
-    }
-  } else if(is_literal(type, "SIntLiteral") ||
-    is_literal(type, "UIntLiteral")) {
-    if(!strcmp(method_name, "string"))
-    {
-      ast_error(ast,
-        "Microsoft Visual Studio tools do not support 128 bit integer to "
-        "string conversion");
       return NULL;
     }
   }
