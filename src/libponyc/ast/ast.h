@@ -8,7 +8,9 @@
 
 #include <platform.h>
 
-PONY_EXTERN_C_BEGIN
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+extern "C" {
+#endif
 
 /* Description of AST forms produced after parse fix pass.
 
@@ -512,6 +514,8 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
 
-PONY_EXTERN_C_END
+#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
+}
+#endif
 
 #endif

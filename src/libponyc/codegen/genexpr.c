@@ -134,8 +134,8 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_INT:
     {
       __int128_t value = ast_int(ast);
-      uint64_t low = value & 0xFFFFFFFFFFFFFFFF;
-      uint64_t high = value >> 64;
+      uint64_t low = (uint64_t)value & 0xFFFFFFFFFFFFFFFF;
+      uint64_t high = (uint64_t)(value >> 64);
 
       LLVMValueRef vlow = LLVMConstInt(c->i128, low, false);
       LLVMValueRef vhigh = LLVMConstInt(c->i128, high, false);
