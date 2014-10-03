@@ -154,7 +154,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
       return NULL;
     }
   } else if(is_literal(type, "String")) {
-    if(!strcmp(method_name, "from_i128_in_place") ||
+    if(!strcmp(method_name, "from_i128") ||
+      !strcmp(method_name, "from_u128") ||
+      !strcmp(method_name, "from_i128_in_place") ||
       !strcmp(method_name, "from_u128_in_place")
       )
     {
