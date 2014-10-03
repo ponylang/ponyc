@@ -3,6 +3,23 @@
 #include "gentype.h"
 #include "gencall.h"
 #include "../pkg/platformfuns.h"
+#include "../pass/names.h"
+
+bool genprim(compile_t* c, ast_t* scope, const char* package,
+  const char* name, gentype_t* g)
+{
+  ast_t* ast = ast_from(scope, TK_NOMINAL);
+  ast_add(ast, ast_from(scope, TK_NONE));
+  ast_add(ast, ast_from(scope, TK_TAG));
+  ast_add(ast, ast_from(scope, TK_NONE));
+  ast_add(ast, ast_from_string(scope, name));
+  ast_add(ast, ast_from_string(scope, package));
+
+  bool ok = names_nominal(scope, &ast) && gentype(c, ast, g);
+  ast_free_unattached(ast);
+
+  return ok;
+}
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
@@ -290,6 +307,9 @@ static void primitive_conversions(compile_t* c)
     {NULL, NULL, NULL, false, false}
   };
 
+  bool has_i128;
+  os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+
   for(prim_conv_t* from = conv; from->type_name != NULL; from++)
   {
     for(prim_conv_t* to = conv; to->type_name != NULL; to++)
@@ -315,24 +335,12 @@ static void primitive_conversions(compile_t* c)
             result = LLVMBuildFPTrunc(c->builder, arg, to->type, "");
           else
             result = arg;
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-        } else if(to->size > 64) {
-          // Visual Studio compiler doesn't have float to 128 bit conversion.
-          result = LLVMGetUndef(to->type);
-#endif
         } else if(to->is_signed) {
           result = LLVMBuildFPToSI(c->builder, arg, to->type, "");
         } else {
           result = LLVMBuildFPToUI(c->builder, arg, to->type, "");
         }
       } else if(to->is_float) {
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-        if(from->size > 64)
-        {
-          // Visual Studio compiler doesn't have 128 bit to float conversion.
-          result = LLVMGetUndef(to->type);
-        } else
-#endif
         if(from->is_signed)
           result = LLVMBuildSIToFP(c->builder, arg, to->type, "");
         else
@@ -350,6 +358,12 @@ static void primitive_conversions(compile_t* c)
 
       LLVMBuildRet(c->builder, result);
       codegen_finishfun(c);
+
+      if((from->is_float && (to->size > 64)) ||
+        (to->is_float && (from->size > 64)))
+      {
+        LLVMDeleteFunction(fun);
+      }
     }
   }
 }
@@ -429,9 +443,24 @@ static void fp_as_bits(compile_t* c)
   codegen_finishfun(c);
 }
 
-void genprim_builtins(compile_t* c)
+void genprim_builtins(compile_t* c, ast_t* package)
 {
   primitive_conversions(c);
   special_number_constructors(c);
   fp_as_bits(c);
+
+  gentype_t g;
+  genprim(c, package, "$1", "True", &g);
+  genprim(c, package, "$1", "False", &g);
+  genprim(c, package, "$1", "I8", &g);
+  genprim(c, package, "$1", "I16", &g);
+  genprim(c, package, "$1", "I32", &g);
+  genprim(c, package, "$1", "I64", &g);
+  genprim(c, package, "$1", "I128", &g);
+  genprim(c, package, "$1", "U8", &g);
+  genprim(c, package, "$1", "U16", &g);
+  genprim(c, package, "$1", "U32", &g);
+  genprim(c, package, "$1", "U64", &g);
+  genprim(c, package, "$1", "U128", &g);
+  genprim(c, package, "$1", "String", &g);
 }

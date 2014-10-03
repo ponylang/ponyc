@@ -5,7 +5,6 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "gencall.h"
-#include "../pass/names.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
@@ -359,27 +358,13 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMSetLinkage(func, LLVMExternalLinkage);
 }
 
-static bool codegen_type(compile_t* c, ast_t* scope, const char* package,
-  const char* name, gentype_t* g)
-{
-  ast_t* ast = ast_from(scope, TK_NOMINAL);
-  ast_add(ast, ast_from(scope, TK_NONE)); // ephemeral
-  ast_add(ast, ast_from(scope, TK_VAL)); // cap
-  ast_add(ast, ast_from(scope, TK_NONE)); // typeargs
-  ast_add(ast, ast_from_string(scope, name));
-  ast_add(ast, ast_from_string(scope, package));
-
-  bool ok = names_nominal(scope, &ast) && gentype(c, ast, g);
-  ast_free_unattached(ast);
-
-  return ok;
-}
-
 static bool codegen_program(compile_t* c, ast_t* program)
 {
   // The first package is the main package. If it has a Main actor, this
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
+  genprim_builtins(c, package);
+
   const char* main_actor = stringtab("Main");
   ast_t* m = ast_get(package, main_actor, NULL);
 
@@ -392,7 +377,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   // Generate the Main actor.
   gentype_t g;
 
-  if(!codegen_type(c, m, package_name(package), main_actor, &g))
+  if(!genprim(c, m, package_name(package), main_actor, &g))
     return false;
 
   codegen_main(c, &g);
@@ -823,7 +808,6 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  genprim_builtins(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)

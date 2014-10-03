@@ -71,6 +71,7 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
   if(os_is_target(method_name, c->release, &is_target))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
+  ast_error(ast, "unknown Platform setting");
   return NULL;
 }
 
@@ -134,27 +135,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   const char* method_name = ast_name(method);
   LLVMTypeRef f_type;
   LLVMValueRef func;
-
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  if(is_literal(type, "F32") || is_literal(type, "F64"))
-  {
-    if(!strcmp(method_name, "i128") || !strcmp(method_name, "u128"))
-    {
-      ast_error(ast,
-        "Microsoft Visual Studio tools do not support floating point to 128 "
-        "bit integer conversion");
-      return NULL;
-    }
-  } else if(is_literal(type, "I128")  || is_literal(type, "U128")) {
-    if(!strcmp(method_name, "f32") || !strcmp(method_name, "f64"))
-    {
-      ast_error(ast,
-        "Microsoft Visual Studio tools do not support 128 bit integer to "
-        "floating point conversion");
-      return NULL;
-    }
-  }
-#endif
 
   if(g.use_type == c->object_ptr)
   {

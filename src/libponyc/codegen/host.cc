@@ -4,10 +4,9 @@
 
 #include <llvm/Support/Host.h>
 #include <platform.h>
+#include "codegen.h"
 
-#ifdef PLATFORM_IS_POSIX_BASED
-extern "C"
-#endif
+
 char* LLVMGetHostCPUName()
 {
   return strdup(llvm::sys::getHostCPUName().str().c_str());

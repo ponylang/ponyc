@@ -529,9 +529,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   } else {
     // Create a box type.
     make_box_type(c, g);
-
-    // Generate a boxing function.
     genfun_box(c, g);
+    genfun_unbox(c, g);
   }
 
   // Generate a dispatch function if necessary.
@@ -571,6 +570,7 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   // Generate a boxing function and a descriptor.
   genfun_box(c, g);
+  genfun_unbox(c, g);
   gendesc_init(c, g);
 
   free_fields(g);
@@ -608,7 +608,15 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
       // Special case Bool. Otherwise it's just a raw object pointer.
       if(is_bool(ast))
       {
+        g->underlying = TK_UNIONTYPE;
         g->primitive = c->i1;
+
+        LLVMTypeRef elements[2];
+        elements[0] = c->descriptor_ptr;
+        elements[1] = g->primitive;
+        g->structure = LLVMStructTypeInContext(c->context, elements, 2, false);
+        g->structure_ptr = LLVMPointerType(g->structure, 0);
+
         g->use_type = g->primitive;
       } else {
         g->use_type = c->object_ptr;

@@ -372,8 +372,8 @@ class String val is Ordered[String]
       _ptr._update(0, 0)
     else
       _size = 0
-      _alloc = 32
-      _ptr = _ptr._realloc(32)
+      _alloc = 64
+      _ptr = _ptr._realloc(64)
 
       var table = _int_table()
       var value = x
@@ -432,7 +432,11 @@ class String val is Ordered[String]
   fun ref from_f64_in_place(x: F64): String ref =>
     _alloc = 32
     _ptr = _ptr._realloc(32)
-    _size = @snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
+    if Platform.windows() then
+      _size = @_snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
+    else
+      _size = @snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
+    end
     this
 
   /*fun box string(): String => this*/

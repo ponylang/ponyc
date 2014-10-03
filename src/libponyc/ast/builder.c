@@ -20,6 +20,7 @@ typedef enum ast_token_id
   AT_LBRACE,
   AT_RBRACE,
   AT_ID,      // Pony name
+  AT_STRING,  // String literal
   AT_TOKEN,   // Any other Pony token
   AT_EOF,
   AT_ERROR
@@ -196,10 +197,12 @@ static void get_next_token(build_parser_t* builder)
     case TK_EOF:        id = AT_EOF;     break;
     case TK_LEX_ERROR:  id = AT_ERROR;   break;
     case TK_ID:         id = AT_ID;      break;
+    case TK_STRING:     id = AT_STRING;  break;
     default:            id = AT_TOKEN;   break;
   }
 
-  //printf("Got token %d -> %d\n", token_get_id(builder->token), id);
+  //printf("Got token %s %d -> %d\n", token_print(builder->token),
+  //  token_get_id(builder->token), id);
   builder->id = id;
   builder->have_token = true;
   builder->line = token_line_number(builder->token);
@@ -403,7 +406,9 @@ static ast_t* get_id(build_parser_t* builder, ast_t* existing_ast)
     return NULL;
   }
 
-  if(get_token(builder) != AT_ID)
+  ast_token_id id = get_token(builder);
+
+  if(id != AT_ID && id != AT_STRING)
   {
     build_error(builder, "ID name expected");
     return NULL;
@@ -463,6 +468,7 @@ static ast_t* get_nodes(build_parser_t* builder, ast_token_id terminator)
       case AT_ERROR:  // Propogate
         break;
 
+      case AT_STRING:
       case AT_TOKEN:
         child = ast_token(builder->token);
         save_token(builder);

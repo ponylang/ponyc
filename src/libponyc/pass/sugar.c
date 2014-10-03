@@ -183,23 +183,6 @@ static ast_result_t sugar_fun(ast_t* ast)
 }
 
 
-static ast_result_t sugar_nominal(ast_t* ast)
-{
-  // if we didn't have a package, the first two children will be ID NONE
-  // change them to NONE ID so the package is always first
-  ast_t* package = ast_child(ast);
-  ast_t* type = ast_sibling(package);
-  if(ast_id(type) == TK_NONE)
-  {
-    ast_pop(ast);
-    ast_pop(ast);
-    ast_add(ast, package);
-    ast_add(ast, type);
-  }
-  return AST_OK;
-}
-
-
 static ast_result_t sugar_structural(ast_t* ast)
 {
   ast_t* cap = ast_childidx(ast, 1);
@@ -381,7 +364,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NEW:        return sugar_new(ast);
     case TK_BE:         return sugar_be(ast);
     case TK_FUN:        return sugar_fun(ast);
-    case TK_NOMINAL:    return sugar_nominal(ast);
     case TK_STRUCTURAL: return sugar_structural(ast);
     case TK_IF:
     case TK_MATCH:

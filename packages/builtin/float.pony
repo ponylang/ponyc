@@ -57,8 +57,8 @@ primitive F32 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_f32(this) end
 
-  /*fun tag i128(): I128 => fixsfti*/
-  /*fun tag u128(): U128 => fixunssfti*/
+  fun tag i128(): I128 => f64().i128()
+  fun tag u128(): U128 => f64().u128()
 
 primitive F64 is Stringable, ArithmeticConvertible
   new pi() => compiler_intrinsic
@@ -115,5 +115,43 @@ primitive F64 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_f64(this) end
 
-  /*fun tag i128(): I128 => fixdfti*/
-  /*fun tag u128(): U128 => fixunsdfti*/
+  fun tag i128(): I128 =>
+    var bit = bits()
+    var high = (bit >> 32).u32()
+    var ex = ((high and 0x7FF00000) >> 20) - 1023
+
+    if ex < 0 then
+      return 0.i128()
+    end
+
+    var s = ((high and 0x80000000) >> 31).i128()
+    var r = (0x0010000000000000 or (0x000FFFFFFFFFFFFF and bit)).i128()
+    var ex' = ex.i128()
+
+    if ex' > 52 then
+      r = r << (ex' - 52)
+    else
+      r = r >> (52 - ex')
+    end
+
+    (r xor s) - s
+
+  fun tag u128(): U128 =>
+    var bit = bits()
+    var high = (bit >> 32).u32()
+    var ex = ((high and 0x7FF00000) >> 20) - 1023
+
+    if (ex < 0) or ((high and 0x80000000) != 0) then
+      return 0.u128()
+    end
+
+    var r = (0x0010000000000000 or (0x000FFFFFFFFFFFFF and bit)).u128()
+    var ex' = ex.u128()
+
+    if ex' > 52 then
+      r = r << (ex' - 52)
+    else
+      r = r >> (52 - ex')
+    end
+
+    r.u128()
