@@ -103,31 +103,31 @@ SignedInt128& SignedInt128::operator%=(const SignedInt128& rvalue)
 
 SignedInt128& SignedInt128::operator&=(const SignedInt128& rvalue)
 {
-  //TODO
+  this->magnitude &= rvalue.magnitude;
   return *this;
 }
 
 SignedInt128& SignedInt128::operator|=(const SignedInt128& rvalue)
 {
-  //TODO
+  this->magnitude |= rvalue.magnitude;
   return *this;
 }
 
 SignedInt128& SignedInt128::operator^=(const SignedInt128& rvalue)
 {
-  //TODO
+  this->magnitude ^= rvalue.magnitude;
   return *this;
 }
 
 SignedInt128& SignedInt128::operator<<=(const int shift)
 {
-  //TODO
+  this->magnitude <<= shift;
   return *this;
 }
 
 SignedInt128& SignedInt128::operator>>=(const int shift)
 {
-  //TODO
+  this->magnitude >>= shift;
   return *this;
 }
 
@@ -216,7 +216,7 @@ SignedInt128 operator%(const SignedInt128& lvalue, const SignedInt128& rvalue)
 SignedInt128 operator&(const SignedInt128& lvalue, const SignedInt128& rvalue)
 {
   SignedInt128 copy(lvalue);
-  return copy %= rvalue;
+  return copy &= rvalue;
 }
 
 SignedInt128 operator|(const SignedInt128& lvalue, const SignedInt128& rvalue)
