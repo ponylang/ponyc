@@ -165,6 +165,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         "string conversion");
       return NULL;
     }
+  } else if(is_literal(type, "SIntLiteral") ||
+    is_literal(type, "UIntLiteral")) {
+    if(!strcmp(method_name, "string"))
+    {
+      ast_error(ast,
+        "Microsoft Visual Studio tools do not support 128 bit integer to "
+        "string conversion");
+      return NULL;
+    }
   }
 #endif
 

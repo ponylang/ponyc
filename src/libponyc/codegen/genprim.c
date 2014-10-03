@@ -467,6 +467,24 @@ static void disabled_on_platform(compile_t* c)
   result = LLVMGetUndef(c->void_ptr);
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
+
+  name = genname_fun("$1_SIntLiteral", "string", NULL);
+  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  result = LLVMGetUndef(c->void_ptr);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
+  name = genname_fun("$1_UIntLiteral", "string", NULL);
+  f_type = LLVMFunctionType(c->void_ptr, NULL, 0, false);
+  fun = codegen_addfun(c, name, f_type);
+
+  codegen_startfun(c, fun);
+  result = LLVMGetUndef(c->void_ptr);
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
 #endif
 }
 
