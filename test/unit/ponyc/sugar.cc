@@ -313,23 +313,6 @@ TEST(SugarTest, FunctionNoReturnBody)
 }
 
 
-TEST(SugarTest, NominalWithPackage)
-{
-  const char* before = "(nominal (id foo) (id bar) x x x)";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, NominalWithoutPackage)
-{
-  const char* before = "(nominal (id foo) x x x x)";
-  const char* after =  "(nominal x (id foo) x x x)";
-
-  DO(test_good_sugar(before, after));
-}
-
-
 TEST(SugarTest, StructuralWithCapability)
 {
   const char* before = "(structural members box x)";

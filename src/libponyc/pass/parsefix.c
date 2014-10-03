@@ -70,9 +70,9 @@ static const method_def_t _method_def[DEF_METHOD_COUNT] =
   { "primitive behaviour",    false },
   { "trait behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
   { "structural behaviour",   true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_no  },
-  { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },
-  { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_opt },
-  { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_opt },
+  { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
+  { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_yes },
+  { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
   { "trait constructor",      false },
   { "structural constructor", false }
 };
@@ -569,6 +569,21 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
     return AST_ERROR;
   }
 
+  for(ast_t* p = ast_child(args); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_id(p) == TK_PARAM)
+    {
+      ast_t* def_val = ast_childidx(p, 2);
+      assert(def_val != NULL);
+
+      if(ast_id(def_val) != TK_NONE)
+      {
+        ast_error(def_val, "FFIs parameters cannot have default values");
+        return AST_ERROR;
+      }
+    }
+  }
+
   if(ast_id(named_args) != TK_NONE)
   {
     ast_error(typeargs, "FFIs cannot take named arguments");
@@ -687,6 +702,25 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
+static ast_result_t parse_fix_nominal(ast_t* ast)
+{
+  // If we didn't have a package, the first two children will be ID NONE
+  // change them to NONE ID so the package is always first
+  ast_t* package = ast_child(ast);
+  ast_t* type = ast_sibling(package);
+
+  if(ast_id(type) == TK_NONE)
+  {
+    ast_pop(ast);
+    ast_pop(ast);
+    ast_add(ast, package);
+    ast_add(ast, type);
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
   assert(astp != NULL);
@@ -711,6 +745,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
+    case TK_NOMINAL:    return parse_fix_nominal(ast);
     default: break;
   }
 
