@@ -365,77 +365,69 @@ class String val is Ordered[String]
     this
 
   fun ref from_i128_in_place(x: I128, base: U8): String ref =>
-    if Platform.has_i128() then
-      if (base < 2) or (base > 36) then
-        _size = 0
-        _alloc = 1
-        _ptr = _ptr._realloc(1)
-        _ptr._update(0, 0)
-      else
-        _size = 0
-        _alloc = 32
-        _ptr = _ptr._realloc(32)
-
-        var table = _int_table()
-        var value = x
-        var div = base.i128()
-        var i = 0
-
-        repeat
-          var tmp = value
-          value = value / div
-          var index = (tmp - (value * div)).u64()
-          _ptr._update(i, table._ptr._apply(35 + index))
-          i = i + 1
-        until value == 0 end
-
-        if x < 0 then
-          _ptr._update(i, 45)
-          i = i + 1
-        end
-
-        _ptr._update(i, 0)
-        _size = i
-        reverse_in_place()
-      end
-      this
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
     else
-      from_i64_in_place(x.i64(), base)
+      _size = 0
+      _alloc = 64
+      _ptr = _ptr._realloc(64)
+
+      var table = _int_table()
+      var value = x
+      var div = base.i128()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = (tmp - (value * div)).u64()
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      if x < 0 then
+        _ptr._update(i, 45)
+        i = i + 1
+      end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
     end
+    this
 
   fun ref from_u128_in_place(x: U128, base: U8): String ref =>
-    if Platform.has_i128() then
-      if (base < 2) or (base > 36) then
-        _size = 0
-        _alloc = 1
-        _ptr = _ptr._realloc(1)
-        _ptr._update(0, 0)
-      else
-        _size = 0
-        _alloc = 64
-        _ptr = _ptr._realloc(64)
-
-        var table = _int_table()
-        var value = x
-        var div = base.u128()
-        var i = 0
-
-        repeat
-          var tmp = value
-          value = value / div
-          var index = (tmp - (value * div)).u64()
-          _ptr._update(i, table._ptr._apply(35 + index))
-          i = i + 1
-        until value == 0 end
-
-        _ptr._update(i, 0)
-        _size = i
-        reverse_in_place()
-      end
-      this
+    if (base < 2) or (base > 36) then
+      _size = 0
+      _alloc = 1
+      _ptr = _ptr._realloc(1)
+      _ptr._update(0, 0)
     else
-      from_u64_in_place(x.u64(), base)
+      _size = 0
+      _alloc = 64
+      _ptr = _ptr._realloc(64)
+
+      var table = _int_table()
+      var value = x
+      var div = base.u128()
+      var i = 0
+
+      repeat
+        var tmp = value
+        value = value / div
+        var index = (tmp - (value * div)).u64()
+        _ptr._update(i, table._ptr._apply(35 + index))
+        i = i + 1
+      until value == 0 end
+
+      _ptr._update(i, 0)
+      _size = i
+      reverse_in_place()
     end
+    this
 
   fun ref from_f64_in_place(x: F64): String ref =>
     _alloc = 32

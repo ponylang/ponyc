@@ -30,11 +30,20 @@ trait ArithmeticConvertible
 primitive SIntLiteral is Stringable, ArithmeticConvertible
   fun tag string(): String iso^ => recover String.from_i128(this, 10) end
 
+  fun tag f32(): F32 => i128().f32()
+  fun tag f64(): F64 => i128().f64()
+
 primitive UIntLiteral is Stringable, ArithmeticConvertible
   fun tag string(): String iso^ => recover String.from_u128(this, 10) end
 
+  fun tag f32(): F32 => u128().f32()
+  fun tag f64(): F64 => u128().f64()
+
 primitive FloatLiteral is Stringable, ArithmeticConvertible
   fun tag string(): String iso^ => recover String.from_f64(this) end
+
+  fun tag i128(): I128 => f64().i128()
+  fun tag u128(): U128 => f64().u128()
 
 type SInt is
   ( SIntLiteral

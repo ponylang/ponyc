@@ -1,6 +1,8 @@
 #include "genoperator.h"
 #include "genexpr.h"
 #include "genreference.h"
+#include "genname.h"
+#include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include <assert.h>
 
@@ -306,6 +308,24 @@ LLVMValueRef gen_multiply(compile_t* c, ast_t* ast)
   return LLVMBuildMul(c->builder, l_value, r_value, "");
 }
 
+static LLVMValueRef i128_prototype(compile_t* c, const char* name, bool sign)
+{
+  const char* type_name = sign ? "$1_I128" : "$1_U128";
+  const char* fun_name = genname_fun(type_name, name, NULL);
+
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, fun_name);
+
+  if(fun != NULL)
+    return fun;
+
+  LLVMTypeRef params[2];
+  params[0] = c->i128;
+  params[1] = c->i128;
+
+  LLVMTypeRef f_type = LLVMFunctionType(c->i128, params, 2, false);
+  return codegen_addfun(c, fun_name, f_type);
+}
+
 LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 {
   LLVMValueRef l_value;
@@ -335,16 +355,25 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFDiv(c->builder, l_value, r_value, "");
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
 
   if(l_type == c->i128)
   {
-    ast_error(ast,
-      "Microsoft Visual Studio tools do not support 128 bit integer division");
-    return NULL;
+    bool has_i128;
+    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+
+    if(!has_i128)
+    {
+      LLVMValueRef args[2];
+      args[0] = l_value;
+      args[1] = r_value;
+
+      bool sign = is_signed(ast_type(ast));
+      LLVMValueRef fun = i128_prototype(c, "div", sign);
+
+      return codegen_call(c, fun, args, 2);
+    }
   }
-#endif
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
@@ -406,16 +435,25 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
   if(is_fp(l_value))
     return LLVMBuildFRem(c->builder, l_value, r_value, "");
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
 
   if(l_type == c->i128)
   {
-    ast_error(ast,
-      "Microsoft Visual Studio tools do not support 128 bit integer modulus");
-    return NULL;
+    bool has_i128;
+    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+
+    if(!has_i128)
+    {
+      LLVMValueRef args[2];
+      args[0] = l_value;
+      args[1] = r_value;
+
+      bool sign = is_signed(ast_type(ast));
+      LLVMValueRef fun = i128_prototype(c, "mod", sign);
+
+      return codegen_call(c, fun, args, 2);
+    }
   }
-#endif
 
   // Setup additional blocks.
   LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);

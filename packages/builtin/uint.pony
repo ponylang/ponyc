@@ -88,5 +88,59 @@ primitive U128 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_u128(this, 10) end
 
-  /*fun tag f32(): F32 => floatuntisf*/
-  /*fun tag f64(): F64 => floatuntidf*/
+  fun tag divmod(y: U128): (U128, U128) =>
+    if Platform.has_i128() then
+      (this / y, this % y)
+    else
+      if y == 0 then
+        // TODO: returning (0, 0) causes a codegen error
+        var qr: (U128, U128) = (0, 0)
+        return qr
+      end
+
+      var quot: U128 = 0
+      var qbit: U128 = 1
+      var num = this
+      var den = y
+
+      while den.i128() >= 0 do
+        den = den << 1
+        qbit = qbit << 1
+      end
+
+      while qbit != 0 do
+        if den <= num then
+          num = num - den
+          quot = quot + qbit
+        end
+
+        den = den >> 1
+        qbit = qbit >> 1
+      end
+      (quot, num)
+    end
+
+  fun tag div(y: U128): U128 =>
+    if Platform.has_i128() then
+      this / y
+    else
+      var (q, r) = divmod(y)
+      q
+    end
+
+  fun tag mod(y: U128): U128 =>
+    if Platform.has_i128() then
+      this % y
+    else
+      var (q, r) = divmod(y)
+      r
+    end
+
+  fun tag f32(): F32 => this.f64().f32()
+
+  fun tag f64(): F64 =>
+    var low = this.u64()
+    var high = (this >> 64).u64()
+    var x = low.f64()
+    var y = high.f64() * (1 << 64)
+    x + y

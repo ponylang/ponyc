@@ -340,9 +340,9 @@ double ast_float(ast_t* ast)
   return token_float(ast->t);
 }
 
-size_t ast_int(ast_t* ast)
+__int128_t ast_int(ast_t* ast)
 {
-  return (size_t)token_int(ast->t);
+  return token_int(ast->t);
 }
 
 ast_t* ast_type(ast_t* ast)

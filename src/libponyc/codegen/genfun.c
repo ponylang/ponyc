@@ -232,11 +232,12 @@ static LLVMValueRef gen_newhandler(compile_t* c, gentype_t* g, const char* name,
   return handler;
 }
 
-static void set_descriptor(compile_t* c, gentype_t* g, LLVMValueRef this_ptr)
+static void set_descriptor(compile_t* c, LLVMValueRef desc,
+  LLVMValueRef this_ptr)
 {
   LLVMSetValueName(this_ptr, "this");
   LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
-  LLVMBuildStore(c->builder, g->desc, desc_ptr);
+  LLVMBuildStore(c->builder, desc, desc_ptr);
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
@@ -461,7 +462,7 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   } else {
     // Allocate the object as 'this'.
     this_ptr = gencall_alloc(c, g->use_type);
-    set_descriptor(c, g, this_ptr);
+    set_descriptor(c, g->desc, this_ptr);
   }
 
   // Call the handler.
@@ -537,12 +538,47 @@ LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
 
   // Allocate the object as 'this'.
   LLVMValueRef this_ptr = gencall_alloc(c, g->structure_ptr);
-  set_descriptor(c, g, this_ptr);
 
   // Store the primitive in element 1.
   LLVMValueRef primitive = LLVMGetParam(box_fn, 0);
   LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMBuildStore(c->builder, primitive, primitive_ptr);
+
+  // Set the descriptor.
+  if((g->underlying == TK_UNIONTYPE) && (g->primitive == c->i1))
+  {
+    AST_GET_CHILDREN(g->ast, true_ast, false_ast);
+    gentype_t true_g, false_g;
+
+    if(!gentype(c, true_ast, &true_g))
+      return NULL;
+
+    if(!gentype(c, false_ast, &false_g))
+      return NULL;
+
+    // When boxing a boolean, we need to set a different descriptor depending
+    // on the value being boxed.
+    LLVMBasicBlockRef true_block = codegen_block(c, "box_true");
+    LLVMBasicBlockRef false_block = codegen_block(c, "box_false");
+    LLVMBasicBlockRef post_block = codegen_block(c, "box_post");
+    LLVMBuildCondBr(c->builder, primitive, true_block, false_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, true_block);
+    LLVMValueRef true_desc = LLVMBuildBitCast(c->builder, true_g.desc,
+      c->descriptor_ptr, "");
+    set_descriptor(c, true_desc, this_ptr);
+    LLVMBuildBr(c->builder, post_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, false_block);
+    LLVMValueRef false_desc = LLVMBuildBitCast(c->builder, false_g.desc,
+      c->descriptor_ptr, "");
+    set_descriptor(c, false_desc, this_ptr);
+    LLVMBuildBr(c->builder, post_block);
+
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+  } else {
+    set_descriptor(c, g->desc, this_ptr);
+  }
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
