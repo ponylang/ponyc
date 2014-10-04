@@ -359,8 +359,10 @@ static void primitive_conversions(compile_t* c)
       LLVMBuildRet(c->builder, result);
       codegen_finishfun(c);
 
-      if((from->is_float && (to->size > 64)) ||
+      if(!has_i128 &&
+        ((from->is_float && (to->size > 64)) ||
         (to->is_float && (from->size > 64)))
+        )
       {
         LLVMDeleteFunction(fun);
       }
