@@ -69,7 +69,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_not(c, ast);
 
     case TK_UNARY_MINUS:
-      return gen_unaryminus(c, ast);
+      return gen_neg(c, ast);
 
     case TK_PLUS:
       return gen_plus(c, ast);
@@ -168,141 +168,6 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-bool gen_binop(compile_t* c, ast_t* ast,
-  LLVMValueRef* l_value, LLVMValueRef* r_value)
-{
-  AST_GET_CHILDREN(ast, left, right);
-
-  *l_value = gen_expr(c, left);
-  *r_value = gen_expr(c, right);
-
-  if((*l_value == NULL) || (*r_value == NULL))
-    return false;
-
-  return gen_binop_cast(c, left, right, l_value, r_value);
-}
-
-LLVMValueRef gen_literal_cast(LLVMValueRef lit, LLVMValueRef val, bool sign)
-{
-  LLVMTypeRef from = LLVMTypeOf(lit);
-  LLVMTypeRef to = LLVMTypeOf(val);
-
-  switch(LLVMGetTypeKind(from))
-  {
-    case LLVMIntegerTypeKind:
-    {
-      switch(LLVMGetTypeKind(to))
-      {
-        case LLVMIntegerTypeKind:
-          return LLVMConstIntCast(lit, to, sign);
-
-        case LLVMHalfTypeKind:
-        case LLVMFloatTypeKind:
-        case LLVMDoubleTypeKind:
-          // TODO: need to know if lit is signed?
-          return LLVMConstSIToFP(lit, to);
-
-        default: {}
-      }
-      break;
-    }
-
-    case LLVMHalfTypeKind:
-    {
-      switch(LLVMGetTypeKind(to))
-      {
-        case LLVMHalfTypeKind:
-          return lit;
-
-        case LLVMFloatTypeKind:
-        case LLVMDoubleTypeKind:
-          return LLVMConstFPExt(lit, to);
-
-        default: {}
-      }
-      break;
-    }
-
-    case LLVMFloatTypeKind:
-    {
-      switch(LLVMGetTypeKind(to))
-      {
-        case LLVMHalfTypeKind:
-          return LLVMConstFPTrunc(lit, to);
-
-        case LLVMFloatTypeKind:
-          return lit;
-
-        case LLVMDoubleTypeKind:
-          return LLVMConstFPExt(lit, to);
-
-        default: {}
-      }
-      break;
-    }
-
-    case LLVMDoubleTypeKind:
-    {
-      switch(LLVMGetTypeKind(to))
-      {
-        case LLVMHalfTypeKind:
-        case LLVMFloatTypeKind:
-          return LLVMConstFPTrunc(lit, to);
-
-        case LLVMDoubleTypeKind:
-          return lit;
-
-        default: {}
-      }
-      break;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
-bool gen_binop_cast(compile_t* c, ast_t* left, ast_t* right,
-  LLVMValueRef* pl_value, LLVMValueRef* pr_value)
-{
-  LLVMValueRef l_value = *pl_value;
-  LLVMValueRef r_value = *pr_value;
-
-  ast_t* left_type = ast_type(left);
-  ast_t* right_type = ast_type(right);
-
-  if(is_intliteral(left_type))
-  {
-    if(is_floatliteral(right_type))
-    {
-      *pl_value = LLVMConstSIToFP(l_value, c->f64);
-      return true;
-    }
-
-    *pl_value = gen_literal_cast(l_value, r_value, is_signed(right_type));
-    return false;
-  } else if(is_intliteral(right_type)) {
-    if(is_floatliteral(left_type))
-    {
-      *pr_value = LLVMConstSIToFP(r_value, c->f64);
-      return true;
-    }
-
-    *pr_value = gen_literal_cast(r_value, l_value, is_signed(left_type));
-    return false;
-  } else if(is_floatliteral(left_type)) {
-    *pl_value = gen_literal_cast(l_value, r_value, true);
-    return false;
-  } else if(is_floatliteral(right_type)) {
-    *pr_value = gen_literal_cast(r_value, l_value, true);
-    return false;
-  }
-
-  return false;
-}
-
 static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   LLVMTypeRef l_type = LLVMTypeOf(value);
@@ -341,59 +206,6 @@ static LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
     value = codegen_call(c, unbox_fn, &value, 1);
 
   return value;
-}
-
-static LLVMValueRef assign_to_int(compile_t* c, LLVMTypeRef l_type,
-  LLVMValueRef r_value, ast_t* type)
-{
-  r_value = unbox_value(c, r_value, type);
-
-  if(LLVMIsAConstant(r_value))
-    return LLVMConstIntCast(r_value, l_type, is_signed(type));
-
-  return LLVMBuildIntCast(c->builder, r_value, l_type, "");
-}
-
-static LLVMValueRef assign_to_float(compile_t* c, LLVMTypeRef l_type,
-  LLVMValueRef r_value, ast_t* type)
-{
-  r_value = unbox_value(c, r_value, type);
-
-  switch(LLVMGetTypeKind(LLVMTypeOf(r_value)))
-  {
-    case LLVMIntegerTypeKind:
-    {
-      if(LLVMIsAConstant(r_value))
-      {
-        if(is_signed(type))
-          r_value = LLVMConstSIToFP(r_value, l_type);
-        else
-          r_value = LLVMConstUIToFP(r_value, l_type);
-      } else {
-        if(is_signed(type))
-          r_value = LLVMBuildSIToFP(c->builder, r_value, l_type, "");
-        else
-          r_value = LLVMBuildUIToFP(c->builder, r_value, l_type, "");
-      }
-
-      return r_value;
-    }
-
-    case LLVMHalfTypeKind:
-    case LLVMFloatTypeKind:
-    case LLVMDoubleTypeKind:
-    {
-      if(LLVMIsAConstant(r_value))
-        return LLVMConstFPCast(r_value, l_type);
-
-      return LLVMBuildFPCast(c->builder, r_value, l_type, "");
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
 }
 
 static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
@@ -442,12 +254,10 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   switch(LLVMGetTypeKind(l_type))
   {
     case LLVMIntegerTypeKind:
-      return assign_to_int(c, l_type, r_value, type);
-
     case LLVMHalfTypeKind:
     case LLVMFloatTypeKind:
     case LLVMDoubleTypeKind:
-      return assign_to_float(c, l_type, r_value, type);
+      return unbox_value(c, r_value, type);
 
     case LLVMPointerTypeKind:
       r_value = box_value(c, r_value, type);

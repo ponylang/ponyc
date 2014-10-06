@@ -223,55 +223,6 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-void genprim_platform(compile_t* c, gentype_t* g)
-{
-  LLVMTypeRef f_type = LLVMFunctionType(c->i1, &g->use_type, 1, false);
-
-  const char* name = genname_fun(g->type_name, OS_LINUX_NAME, NULL);
-  LLVMValueRef fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-#ifdef PLATFORM_IS_LINUX
-  LLVMValueRef result = LLVMConstInt(c->i1, 1, false);
-#else
-  LLVMValueRef result = LLVMConstInt(c->i1, 0, false);
-#endif
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun(g->type_name, OS_MACOSX_NAME, NULL);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-#ifdef PLATFORM_IS_MACOSX
-  result = LLVMConstInt(c->i1, 1, false);
-#else
-  result = LLVMConstInt(c->i1, 0, false);
-#endif
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun(g->type_name, OS_WINDOWS_NAME, NULL);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-#ifdef PLATFORM_IS_WINDOWS
-  result = LLVMConstInt(c->i1, 1, false);
-#else
-  result = LLVMConstInt(c->i1, 0, false);
-#endif
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  name = genname_fun(g->type_name, OS_DEBUG_NAME, NULL);
-  fun = codegen_addfun(c, name, f_type);
-
-  codegen_startfun(c, fun);
-  result = LLVMConstInt(c->i1, !c->release, false);
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-}
-
 typedef struct num_conv_t
 {
   const char* type_name;
@@ -300,9 +251,6 @@ static void number_conversions(compile_t* c)
 
     {"$1_F32", "f32", c->f32, 32, false, true},
     {"$1_F64", "f64", c->f64, 64, false, true},
-
-    {"$1_SIntLiteral", NULL, c->i128, 128, true, false},
-    {"$1_UIntLiteral", NULL, c->i128, 128, false, false},
 
     {NULL, NULL, NULL, false, false}
   };
@@ -503,19 +451,4 @@ void genprim_builtins(compile_t* c, ast_t* package)
   number_constructors(c);
   special_number_constructors(c);
   fp_as_bits(c);
-
-  gentype_t g;
-  genprim(c, package, "$1", "True", &g);
-  genprim(c, package, "$1", "False", &g);
-  genprim(c, package, "$1", "I8", &g);
-  genprim(c, package, "$1", "I16", &g);
-  genprim(c, package, "$1", "I32", &g);
-  genprim(c, package, "$1", "I64", &g);
-  genprim(c, package, "$1", "I128", &g);
-  genprim(c, package, "$1", "U8", &g);
-  genprim(c, package, "$1", "U16", &g);
-  genprim(c, package, "$1", "U32", &g);
-  genprim(c, package, "$1", "U64", &g);
-  genprim(c, package, "$1", "U128", &g);
-  genprim(c, package, "$1", "String", &g);
 }

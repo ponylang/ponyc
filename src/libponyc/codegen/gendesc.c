@@ -157,7 +157,7 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   return global;
 }
 
-static LLVMValueRef make_tuple_count(compile_t* c, gentype_t* g)
+static LLVMValueRef make_field_count(compile_t* c, gentype_t* g)
 {
   if(g->underlying != TK_TUPLETYPE)
     return LLVMConstInt(c->i32, 0, false);
@@ -165,7 +165,7 @@ static LLVMValueRef make_tuple_count(compile_t* c, gentype_t* g)
   return LLVMConstInt(c->i32, g->field_count, false);
 }
 
-static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
+static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
 {
   // The list is an array of field descriptors.
   int count;
@@ -196,9 +196,13 @@ static LLVMValueRef make_tuple_list(compile_t* c, gentype_t* g)
       LLVMOffsetOfElement(c->target_data, g->primitive, i), false);
 
     if(fg.desc != NULL)
+    {
+      // We are a concrete type.
       fdesc[1] = LLVMConstBitCast(fg.desc, c->descriptor_ptr);
-    else
+    } else {
+      // We aren't a concrete type.
       fdesc[1] = LLVMConstNull(c->descriptor_ptr);
+    }
 
     list[i] = LLVMConstStructInContext(c->context, fdesc, 2, false);
   }
@@ -315,8 +319,6 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 
 void gendesc_init(compile_t* c, gentype_t* g)
 {
-  // TODO: Build tuple reflector.
-
   // Initialise the global descriptor.
   uint32_t size = (uint32_t)LLVMABISizeOfType(c->target_data, g->structure);
 
@@ -326,7 +328,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[DESC_ID] = make_type_id(c, g->type_name);
   args[DESC_SIZE] = LLVMConstInt(c->i32, size, false);
   args[DESC_TRAIT_COUNT] = make_trait_count(c, g);
-  args[DESC_FIELD_COUNT] = make_tuple_count(c, g);
+  args[DESC_FIELD_COUNT] = make_field_count(c, g);
   args[DESC_TRACE] = make_function_ptr(c, genname_trace(g->type_name),
     c->trace_fn);
   args[DESC_SERIALISE] = make_function_ptr(c, genname_serialise(g->type_name),
@@ -338,7 +340,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[DESC_FINALISE] = make_function_ptr(c, genname_finalise(g->type_name),
     c->final_fn);
   args[DESC_TRAITS] = make_trait_list(c, g);
-  args[DESC_FIELDS] = make_tuple_list(c, g);
+  args[DESC_FIELDS] = make_field_list(c, g);
   args[DESC_VTABLE] = make_vtable(c, g);
 
   LLVMValueRef desc = LLVMConstNamedStruct(g->desc_type, args, DESC_LENGTH);

@@ -21,6 +21,8 @@ typedef enum token_id
   TK_NONE,
 
   // Literals
+  TK_TRUE,
+  TK_FALSE,
   TK_STRING,
   TK_INT,
   TK_FLOAT,

@@ -89,6 +89,23 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
 
 static void init_runtime(compile_t* c)
 {
+  c->str_1 = stringtab("$1");
+  c->str_Bool = stringtab("Bool");
+  c->str_I8 = stringtab("I8");
+  c->str_I16 = stringtab("I16");
+  c->str_I32 = stringtab("I32");
+  c->str_I64 = stringtab("I64");
+  c->str_I128 = stringtab("I128");
+  c->str_U8 = stringtab("U8");
+  c->str_U16 = stringtab("U16");
+  c->str_U32 = stringtab("U32");
+  c->str_U64 = stringtab("U64");
+  c->str_U128 = stringtab("U128");
+  c->str_F32 = stringtab("F32");
+  c->str_F64 = stringtab("F64");
+  c->str_Pointer = stringtab("Pointer");
+  c->str_Array = stringtab("Array");
+
   LLVMTypeRef type;
   LLVMTypeRef params[4];
 
@@ -262,7 +279,7 @@ static int behaviour_index(gentype_t* g, const char* name)
       {
         AST_GET_CHILDREN(member, ignore, id);
 
-        if(!strcmp(ast_name(id), name))
+        if(ast_name(id) == name)
           return index;
 
         index++;
@@ -322,8 +339,9 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
+  int index = behaviour_index(g, stringtab("create"));
   args[1] = LLVMConstInt(c->i32, 0, false);
-  args[0] = LLVMConstInt(c->i32, behaviour_index(g, "create"), false);
+  args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 

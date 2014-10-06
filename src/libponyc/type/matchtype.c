@@ -123,9 +123,6 @@ static bool is_interface_match_compatible(ast_t* match, ast_t* pattern)
 
 bool is_match_compatible(ast_t* match, ast_t* pattern)
 {
-  if(is_math_compatible(match, pattern))
-    return true;
-
   switch(ast_id(match))
   {
     case TK_NOMINAL:

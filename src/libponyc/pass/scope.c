@@ -19,7 +19,7 @@ static bool is_type_id(const char* s)
 /**
  * Insert a name->AST mapping into the specified scope.
  */
-static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
+static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
 {
   assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
@@ -84,7 +84,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
     return false;
   }
 
-  if(!ast_set(scope, s, value, status))
+  if(!ast_set(scope, s, value, status) && !dups)
   {
     ast_error(name, "can't reuse name '%s'", s);
 
@@ -99,8 +99,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value)
   return true;
 }
 
-bool use_package(ast_t* ast, const char* path, ast_t* name,
-  pass_opt_t* options)
+bool use_package(ast_t* ast, const char* path, ast_t* name, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(path != NULL);
@@ -117,7 +116,7 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   }
 
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(ast, name, package);
+    return set_scope(ast, name, package, false);
 
   // We do not have an alias
   if(!ast_merge(ast, package))
@@ -135,11 +134,11 @@ static bool scope_package(ast_t* ast)
   return use_package(ast, stringtab("builtin"), NULL, NULL);
 }
 
-static bool scope_method(ast_t* ast)
+static bool scope_method(ast_t* ast, bool dups)
 {
   ast_t* id = ast_childidx(ast, 1);
 
-  if(!set_scope(ast_parent(ast), id, ast))
+  if(!set_scope(ast_parent(ast), id, ast, dups))
     return false;
 
   ast_t* members = ast_parent(ast);
@@ -208,14 +207,14 @@ static bool scope_method(ast_t* ast)
   return true;
 }
 
-static bool scope_idseq(ast_t* ast)
+static bool scope_idseq(ast_t* ast, bool dups)
 {
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     // Each ID resolves to itself.
-    if(!set_scope(ast_parent(ast), child, child))
+    if(!set_scope(ast_parent(ast), child, child, dups))
       return false;
 
     child = ast_sibling(child);
@@ -224,7 +223,7 @@ static bool scope_idseq(ast_t* ast)
   return true;
 }
 
-ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
+static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
 {
   ast_t* ast = *astp;
 
@@ -246,31 +245,31 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_CLASS:
     case TK_ACTOR:
     case TK_FFIDECL:
-      if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast))
+      if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
-      if(!set_scope(ast, ast_child(ast), ast))
+      if(!set_scope(ast, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      if(!scope_method(ast))
+      if(!scope_method(ast, dups))
         return AST_ERROR;
       break;
 
     case TK_TYPEPARAM:
-      if(!set_scope(ast, ast_child(ast), ast))
+      if(!set_scope(ast, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_IDSEQ:
-      if(!scope_idseq(ast))
+      if(!scope_idseq(ast, dups))
         return AST_ERROR;
       break;
 
@@ -278,4 +277,14 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
   }
 
   return AST_OK;
+}
+
+ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
+{
+  return do_scope(astp, options, false);
+}
+
+ast_result_t pass_scope2(ast_t** astp, pass_opt_t* options)
+{
+  return do_scope(astp, options, true);
 }

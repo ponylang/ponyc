@@ -283,6 +283,18 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
+static bool is_literal(ast_t* type, const char* name)
+{
+  if(type == NULL)
+    return false;
+
+  if(ast_id(type) != TK_NOMINAL)
+    return false;
+
+  // don't have to check the package, since literals are all builtins
+  return ast_name(ast_childidx(type, 1)) == stringtab(name);
+}
+
 static bool pointer_supertype(ast_t* type)
 {
   // Note that a pointer can't be a subtype of any structural type, not even
@@ -520,30 +532,6 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_NOMINAL:
     {
-      // check for numeric literals and special case them
-      if(is_uintliteral(sub))
-      {
-        // an unsigned integer literal is a subtype of any arithmetic type
-        if(is_intliteral(super) ||
-          is_floatliteral(super) ||
-          is_arithmetic(super)
-          )
-          return true;
-      } else if(is_sintliteral(sub)) {
-        // a signed integer literal is a subtype of any signed type
-        if(is_sintliteral(super) ||
-          is_floatliteral(super) ||
-          is_signed(super)
-          )
-          return true;
-      } else if(is_floatliteral(sub)) {
-        // a float literal is a subtype of any float type
-        if(is_floatliteral(super) ||
-          (!is_intliteral(super) && is_float(super))
-          )
-          return true;
-      }
-
       switch(ast_id(super))
       {
         case TK_NOMINAL:
@@ -605,24 +593,22 @@ bool is_eqtype(ast_t* a, ast_t* b)
   return is_subtype(a, b) && is_subtype(b, a);
 }
 
-bool is_literal(ast_t* type, const char* name)
+bool is_none(ast_t* type)
 {
-  if(type == NULL)
-    return false;
-
-  if(ast_id(type) != TK_NOMINAL)
-    return false;
-
-  // don't have to check the package, since literals are all builtins
-  return ast_name(ast_childidx(type, 1)) == stringtab(name);
+  return is_literal(type, "None");
 }
 
-bool is_builtin(ast_t* type, const char* name)
+bool is_bool(ast_t* type)
+{
+  return is_literal(type, "Bool");
+}
+
+bool is_signed(ast_t* type)
 {
   if(type == NULL)
     return false;
 
-  ast_t* builtin = type_builtin(type, name);
+  ast_t* builtin = type_builtin(type, "Signed");
 
   if(builtin == NULL)
     return false;
@@ -630,92 +616,6 @@ bool is_builtin(ast_t* type, const char* name)
   bool ok = is_subtype(type, builtin);
   ast_free_unattached(builtin);
   return ok;
-}
-
-bool is_bool(ast_t* type)
-{
-  return is_builtin(type, "Bool");
-}
-
-bool is_sintliteral(ast_t* type)
-{
-  return is_literal(type, "SIntLiteral");
-}
-
-bool is_uintliteral(ast_t* type)
-{
-  return is_literal(type, "UIntLiteral");
-}
-
-bool is_intliteral(ast_t* type)
-{
-  return is_sintliteral(type) || is_uintliteral(type);
-}
-
-bool is_floatliteral(ast_t* type)
-{
-  return is_literal(type, "FloatLiteral");
-}
-
-bool is_arithmetic(ast_t* type)
-{
-  return is_singletype(type) && is_builtin(type, "Arithmetic");
-}
-
-bool is_integer(ast_t* type)
-{
-  return is_singletype(type) && is_builtin(type, "Integer");
-}
-
-bool is_float(ast_t* type)
-{
-  return is_singletype(type) && is_builtin(type, "Float");
-}
-
-bool is_signed(ast_t* type)
-{
-  return is_singletype(type) &&
-    (is_builtin(type, "SInt") || is_builtin(type, "Float"));
-}
-
-bool is_singletype(ast_t* type)
-{
-  if(type == NULL)
-    return false;
-
-  switch(ast_id(type))
-  {
-    case TK_NOMINAL:
-    case TK_TYPEPARAMREF:
-      return true;
-
-    case TK_ARROW:
-      return is_singletype(ast_childidx(type, 1));
-
-    default: {}
-  }
-
-  return false;
-}
-
-bool is_math_compatible(ast_t* a, ast_t* b)
-{
-  if(!is_singletype(a) || !is_singletype(b) || !is_arithmetic(a))
-    return false;
-
-  if(is_intliteral(a))
-    return is_arithmetic(b);
-
-  if(is_floatliteral(a))
-    return is_float(b);
-
-  if(is_intliteral(b))
-    return is_arithmetic(a);
-
-  if(is_floatliteral(b))
-    return is_float(a);
-
-  return is_eqtype(a, b);
 }
 
 static bool is_interface_id_compatible(ast_t* iface, ast_t* b)
@@ -743,19 +643,8 @@ static bool is_interface_id_compatible(ast_t* iface, ast_t* b)
   return is_id_compatible(b, iface);
 }
 
-static bool has_identity(ast_t* type)
-{
-  return (ast_id(type) != TK_TUPLETYPE) &&
-    !is_arithmetic(type) &&
-    !is_bool(type);
-}
-
 bool is_id_compatible(ast_t* a, ast_t* b)
 {
-  // Disallow identity comparison on types that have no identity.
-  if(!has_identity(a) || !has_identity(b))
-    return false;
-
   switch(ast_id(a))
   {
     case TK_NOMINAL:
@@ -829,6 +718,10 @@ bool is_id_compatible(ast_t* a, ast_t* b)
 
       return true;
     }
+
+    case TK_TUPLETYPE:
+      // TODO: id compatibility for tuples
+      break;
 
     default: {}
   }

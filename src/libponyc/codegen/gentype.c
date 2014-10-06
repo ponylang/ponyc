@@ -98,47 +98,38 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if(!strcmp(package, "$1"))
+    if(package == c->str_1)
     {
-      if(!strcmp(name, "True"))
-      {
+      if(name == c->str_Bool)
         g->primitive = c->i1;
-        g->instance = LLVMConstInt(c->i1, 1, false);
-      } else if(!strcmp(name, "False")) {
-        g->primitive = c->i1;
-        g->instance = LLVMConstInt(c->i1, 0, false);
-      } else if(!strcmp(name, "I8"))
+      else if(name == c->str_I8)
         g->primitive = c->i8;
-      else if(!strcmp(name, "U8"))
+      else if(name == c->str_U8)
         g->primitive = c->i8;
-      else if(!strcmp(name, "I16"))
+      else if(name == c->str_I16)
         g->primitive = c->i16;
-      else if(!strcmp(name, "U16"))
+      else if(name == c->str_U16)
         g->primitive = c->i16;
-      else if(!strcmp(name, "I32"))
+      else if(name == c->str_I32)
         g->primitive = c->i32;
-      else if(!strcmp(name, "U32"))
+      else if(name == c->str_U32)
         g->primitive = c->i32;
-      else if(!strcmp(name, "I64"))
+      else if(name == c->str_I64)
         g->primitive = c->i64;
-      else if(!strcmp(name, "U64"))
+      else if(name == c->str_U64)
         g->primitive = c->i64;
-      else if(!strcmp(name, "I128"))
+      else if(name == c->str_I128)
         g->primitive = c->i128;
-      else if(!strcmp(name, "U128"))
+      else if(name == c->str_U128)
         g->primitive = c->i128;
-      else if(!strcmp(name, "SIntLiteral"))
-        g->primitive = c->i128;
-      else if(!strcmp(name, "UIntLiteral"))
-        g->primitive = c->i128;
-      else if(!strcmp(name, "F32"))
+      else if(name == c->str_F32)
         g->primitive = c->f32;
-      else if(!strcmp(name, "F64"))
+      else if(name == c->str_F64)
         g->primitive = c->f64;
-      else if(!strcmp(name, "FloatLiteral"))
-        g->primitive = c->f64;
-      else if(!strcmp(name, "Pointer"))
+      else if(name == c->str_Pointer)
         return genprim_pointer(c, g, prelim);
+      else if(name == c->str_Platform)
+        return true;
     }
   } else {
     g->underlying = TK_TUPLETYPE;
@@ -177,11 +168,6 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   {
     // Fill in our global instance if the type is not opaque.
     make_global_instance(c, g);
-
-    // Handle compiler intrinsics that need our type to be set up.
-    if(!strcmp(g->type_name, "$1_Platform"))
-      genprim_platform(c, g);
-
     return true;
   }
 
@@ -355,7 +341,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     const char* package = ast_name(pkg);
     const char* name = ast_name(id);
 
-    if(!strcmp(package, "$1") && !strcmp(name, "Array"))
+    if((package == c->str_1) && (name == c->str_Array))
     {
       genprim_array_trace(c, g);
       return true;
@@ -594,39 +580,14 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 
   switch(ast_id(ast))
   {
-    case TK_UNIONTYPE:
-    {
-      // Special case Bool. Otherwise it's just a raw object pointer.
-      if(is_bool(ast))
-      {
-        g->underlying = TK_UNIONTYPE;
-        g->primitive = c->i1;
-
-        LLVMTypeRef elements[2];
-        elements[0] = c->descriptor_ptr;
-        elements[1] = g->primitive;
-        g->structure = LLVMStructTypeInContext(c->context, elements, 2, false);
-        g->structure_ptr = LLVMPointerType(g->structure, 0);
-
-        g->use_type = g->primitive;
-      } else {
-        g->use_type = c->object_ptr;
-      }
-
-      return true;
-    }
-
-    case TK_ISECTTYPE:
-      // Just a raw object pointer.
-      g->use_type = c->object_ptr;
-      return true;
+    case TK_NOMINAL:
+      return make_nominal(c, ast, g, false);
 
     case TK_TUPLETYPE:
       return make_tuple(c, ast, g);
 
-    case TK_NOMINAL:
-      return make_nominal(c, ast, g, false);
-
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
     case TK_STRUCTURAL:
       // Just a raw object pointer.
       g->use_type = c->object_ptr;

@@ -126,11 +126,18 @@ const char* token_print(token_t* token)
         token->printed = (char*)malloc(32);
 
       int r = snprintf(token->printed, 32, "%g", token->real);
+
       if(strcspn(token->printed, ".e") == r)
         snprintf(token->printed + r, 32 - r, ".0");
 
       return token->printed;
     }
+
+    case TK_TRUE:
+      return "true";
+
+    case TK_FALSE:
+      return "false";
 
     default:
       break;
@@ -157,6 +164,8 @@ const char* token_id_desc(token_id id)
     case TK_STRING: return "string literal";
     case TK_INT:    return "int literal";
     case TK_FLOAT:  return "float literal";
+    case TK_TRUE:   return "true literal";
+    case TK_FALSE:  return "false literal";
     default: break;
   }
 

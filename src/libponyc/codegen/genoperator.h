@@ -8,7 +8,7 @@ PONY_EXTERN_C_BEGIN
 
 LLVMValueRef gen_not(compile_t* c, ast_t* ast);
 
-LLVMValueRef gen_unaryminus(compile_t* c, ast_t* ast);
+LLVMValueRef gen_neg(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_plus(compile_t* c, ast_t* ast);
 

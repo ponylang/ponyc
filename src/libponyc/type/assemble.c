@@ -225,20 +225,3 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   return true;
 }
-
-ast_t* type_literal_to_runtime(ast_t* type)
-{
-  if(type == NULL)
-    return NULL;
-
-  if(is_uintliteral(type))
-    return type_builtin(type, "U64");
-
-  if(is_sintliteral(type))
-    return type_builtin(type, "I64");
-
-  if(is_floatliteral(type))
-    return type_builtin(type, "F64");
-
-  return type;
-}

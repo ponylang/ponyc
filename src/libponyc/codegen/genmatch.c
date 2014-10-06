@@ -14,6 +14,28 @@
 static bool type_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern_type, LLVMBasicBlockRef next_block);
 
+static LLVMValueRef offset_load(compile_t* c, LLVMValueRef value,
+  LLVMValueRef offset, LLVMTypeRef type)
+{
+  // Cast the object and offset to intptr.
+  value = LLVMBuildBitCast(c->builder, value, c->intptr, "");
+  offset = LLVMBuildZExt(c->builder, offset, c->intptr, "");
+
+  // Skip the descriptor.
+  size_t size = LLVMABISizeOfType(c->target_data, c->descriptor_ptr);
+  LLVMValueRef base = LLVMConstInt(c->intptr, size, false);
+
+  // Add the descriptor size and the offset.
+  value = LLVMBuildAdd(c->builder, value, base, "");
+  value = LLVMBuildAdd(c->builder, value, offset, "");
+
+  // Cast as a pointer to the desired type and load it
+  LLVMTypeRef type_ptr = LLVMPointerType(type, 0);
+  value = LLVMBuildBitCast(c->builder, value, type_ptr, "");
+
+  return LLVMBuildLoad(c->builder, value, "");
+}
+
 static bool value_integer(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
@@ -96,8 +118,8 @@ static bool value_match(compile_t* c, LLVMValueRef value, ast_t* type,
   return false;
 }
 
-static bool check_trait(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_trait(compile_t* c, LLVMValueRef value, ast_t* pattern_type,
+  LLVMBasicBlockRef next_block)
 {
   LLVMValueRef test = gendesc_istrait(c, value, pattern_type);
 
@@ -108,8 +130,8 @@ static bool check_trait(compile_t* c, LLVMValueRef value, ast_t* type,
   return true;
 }
 
-static bool check_entity(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_entity(compile_t* c, LLVMValueRef value, ast_t* pattern_type,
+  LLVMBasicBlockRef next_block)
 {
   gentype_t g;
 
@@ -118,12 +140,8 @@ static bool check_entity(compile_t* c, LLVMValueRef value, ast_t* type,
 
   LLVMValueRef left, right;
 
-  if(is_bool(type))
+  if(g.instance != NULL)
   {
-    // The only entities that are valid matches for a Bool are True and False.
-    left = value;
-    right = g.instance;
-  } else if((g.instance != NULL) && (g.primitive == NULL)) {
     // Save a load by checking the value instead of the descriptor.
     left = LLVMBuildPtrToInt(c->builder, value, c->intptr, "");
     right = LLVMBuildPtrToInt(c->builder, g.instance, c->intptr, "");
@@ -143,34 +161,25 @@ static bool check_entity(compile_t* c, LLVMValueRef value, ast_t* type,
   return true;
 }
 
-static bool check_nominal(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
+static bool check_nominal(compile_t* c, LLVMValueRef value, ast_t* pattern_type,
+  LLVMBasicBlockRef next_block)
 {
   ast_t* def = (ast_t*)ast_data(pattern_type);
 
   switch(ast_id(def))
   {
     case TK_TRAIT:
-      return check_trait(c, value, type, pattern_type, next_block);
+      return check_trait(c, value, pattern_type, next_block);
 
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      return check_entity(c, value, type, pattern_type, next_block);
+      return check_entity(c, value, pattern_type, next_block);
 
     default: {}
   }
 
   assert(0);
-  return false;
-}
-
-static bool check_structural(compile_t* c, LLVMValueRef value, ast_t* type,
-  ast_t* pattern_type, LLVMBasicBlockRef next_block)
-{
-  // Currently, structural types that aren't supertypes aren't allowed in
-  // patterns, because we don't have a scheme for checking structural typing
-  // at runtime, so this will never be reached.
   return false;
 }
 
@@ -187,30 +196,57 @@ static void check_cardinality(compile_t* c, LLVMValueRef value, size_t size,
   LLVMPositionBuilderAtEnd(c->builder, continue_block);
 }
 
-static bool check_object_is_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
+static bool check_object_is_tuple(compile_t* c, LLVMValueRef value,
   ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
-  // Check cardinality.
+  // We must have an object type, since any concrete type would have already
+  // been statically not matched. Check cardinality.
   size_t count = ast_childcount(pattern_type);
   check_cardinality(c, value, count, next_block);
 
-  // Check elements.
+  // We have a tuple of the right cardinality. Check elements.
   ast_t* pattern_child = ast_child(pattern_type);
 
   for(size_t i = 0; i < count; i++)
   {
+    // Get the field offset and field descriptor from the tuple descriptor.
+    LLVMValueRef field_desc = gendesc_fielddesc(c, value, i);
+    LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_desc, 0, "");
+    LLVMValueRef desc = LLVMBuildExtractValue(c->builder, field_desc, 1, "");
+
+    // Switch on the descriptor.
+    LLVMBasicBlockRef object_block = codegen_block(c, "pattern_tuple_object");
+    LLVMBasicBlockRef bool_block = codegen_block(c, "pattern_tuple_bool");
+    LLVMBasicBlockRef entity_block = codegen_block(c, "pattern_tuple_entity");
+    LLVMBasicBlockRef post_block = codegen_block(c, "pattern_tuple_post");
+
+    LLVMValueRef null_desc = LLVMConstNull(c->descriptor_ptr);
+    LLVMValueRef bool_desc = LLVMConstInt(c->intptr, 1, false);
+    bool_desc = LLVMConstBitCast(bool_desc, c->descriptor_ptr);
+
+    LLVMValueRef switch_desc = LLVMBuildSwitch(c->builder, desc,
+      entity_block, 2);
+    LLVMAddCase(switch_desc, null_desc, object_block);
+    LLVMAddCase(switch_desc, bool_desc, bool_block);
+
+    // Field descriptor is null. We are a non-concrete type.
+    LLVMPositionBuilderAtEnd(c->builder, object_block);
+    LLVMValueRef object = offset_load(c, value, offset, c->object_ptr);
+
+    if(!type_match(c, object, NULL, pattern_child, next_block))
+      return false;
+
+    LLVMBuildBr(c->builder, post_block);
+
+    // Field descriptor is 0x1. We are a Bool.
+    LLVMPositionBuilderAtEnd(c->builder, object_block);
+    LLVMValueRef boolean = offset_load(c, value, offset, c->i1);
     // TODO:
-    // LLVMValueRef field_desc = gendesc_fielddesc(c, value, i);
-    // LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field_desc, 0, "");
-    // LLVMValueRef desc = LLVMBuildExtractValue(c->builder, field_desc, 1, "");
-    // LLVMValueRef null_desc = LLVMBuildIsNull(c->builder, desc, "");
-    //
-    // LLVMBasicBlockRef object_block = codegen_block(c, "pattern_tuple_object");
-    // LLVMBasicBlockRef entity_block = codegen_block(c, "pattern_tuple_entity");
-    // LLVMBuildCondBr(c->builder, null_desc, object_block, entity_block);
-    //
-    // LLVMPositionBuilderAtEnd(c->builder, object_block);
-    // LLVM
+    (void)boolean;
+
+    // Field descriptor is non-null. We are a concrete type.
+    LLVMPositionBuilderAtEnd(c->builder, entity_block);
+    // TODO: could be a number, an entity, or a tuple
 
     pattern_child = ast_sibling(pattern_child);
   }
@@ -245,11 +281,11 @@ static bool check_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
   // If we know the value is a tuple type, match elements pairwise.
-  if(ast_id(type) == TK_TUPLETYPE)
+  if((type != NULL) && (ast_id(type) == TK_TUPLETYPE))
     return check_tuple_is_tuple(c, value, type, pattern_type, next_block);
 
   // We have to check if we are a tuple dynamically.
-  return check_object_is_tuple(c, value, type, pattern_type, next_block);
+  return check_object_is_tuple(c, value, pattern_type, next_block);
 }
 
 static bool check_union(compile_t* c, LLVMValueRef value, ast_t* type,
@@ -303,13 +339,20 @@ static bool check_isect(compile_t* c, LLVMValueRef value, ast_t* type,
 static bool type_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern_type, LLVMBasicBlockRef next_block)
 {
+  // No dynamic type check if we are statically the pattern type.
+  if((type != NULL) && is_subtype(type, pattern_type))
+    return true;
+
   switch(ast_id(pattern_type))
   {
     case TK_NOMINAL:
-      return check_nominal(c, value, type, pattern_type, next_block);
+      return check_nominal(c, value, pattern_type, next_block);
 
     case TK_STRUCTURAL:
-      return check_structural(c, value, type, pattern_type, next_block);
+      // Currently, structural types that aren't supertypes aren't allowed in
+      // patterns, because we don't have a scheme for checking structural typing
+      // at runtime, so this will never be reached.
+      break;
 
     case TK_TUPLETYPE:
       return check_tuple(c, value, type, pattern_type, next_block);
@@ -336,12 +379,8 @@ static bool pattern_match(compile_t* c, LLVMValueRef value, ast_t* type,
 
   ast_t* pattern_type = ast_type(pattern);
 
-  // No dynamic type check if we are statically the pattern type.
-  if(!is_subtype(type, pattern_type))
-  {
-    if(!type_match(c, value, type, pattern_type, next_block))
-      return false;
-  }
+  if(!type_match(c, value, type, pattern_type, next_block))
+    return false;
 
   if(!value_match(c, value, type, pattern, next_block))
     return false;

@@ -85,7 +85,7 @@ const char* genname_type(ast_t* ast)
       return stringtab("$object");
 
     case TK_TUPLETYPE:
-      return build_name("$1", "$tuple", ast);
+      return build_name(NULL, "$tuple", ast);
 
     case TK_NOMINAL:
       return nominal_name(ast);

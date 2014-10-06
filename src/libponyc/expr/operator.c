@@ -142,161 +142,117 @@ static bool is_lvalue(ast_t* ast)
   return false;
 }
 
-static bool binop_to_function(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  const char* method;
+// static ast_t* make_tuple_index(ast_t* tuple, int index)
+// {
+//   BUILD(dot, tuple, NODE(TK_DOT, TREE(tuple) INT(index)));
+//
+//   if(!expr_dot(dot))
+//   {
+//     ast_free_unattached(dot);
+//     return NULL;
+//   }
+//
+//   return dot;
+// }
+//
+// static ast_t* make_binop(token_id op, ast_t* left, ast_t* right)
+// {
+//   if(left == NULL)
+//     return right;
+//
+//   if(right == NULL)
+//   {
+//     ast_free_unattached(left);
+//     return NULL;
+//   }
+//
+//   BUILD(binop, left, NODE(op, TREE(left) TREE(right)));
+//
+//   if(pass_expr(&binop, NULL) != AST_OK)
+//   {
+//     ast_free_unattached(binop);
+//     return NULL;
+//   }
+//
+//   return binop;
+// }
 
-  switch(ast_id(ast))
-  {
-    case TK_EQ: method = "eq"; break;
-    case TK_NE: method = "ne"; break;
-    case TK_LT: method = "lt"; break;
-    case TK_LE: method = "le"; break;
-    case TK_GE: method = "ge"; break;
-    case TK_GT: method = "gt"; break;
-
-    default:
-      assert(0);
-      return false;
-  }
-
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-
-  // look up the method on the left side
-  ast_t* dot = ast_from(ast, TK_DOT);
-  ast_add(dot, ast_from_string(ast, method));
-  ast_add(dot, left);
-
-  // call the method with the right side
-  ast_t* positional = ast_from(ast, TK_POSITIONALARGS);
-  ast_add(positional, right);
-
-  ast_t* call = ast_from(ast, TK_CALL);
-  ast_add(call, ast_from(ast, TK_NONE)); // named args
-  ast_add(call, positional); // positional args
-  ast_add(call, dot);
-
-  // replace with the function call
-  ast_replace(astp, call);
-
-  if(!expr_dot(dot))
-    return false;
-
-  return expr_call(call);
-}
-
-static ast_t* make_tuple_index(ast_t* tuple, int index)
-{
-  BUILD(dot, tuple, NODE(TK_DOT, TREE(tuple) INT(index)));
-
-  if(!expr_dot(dot))
-  {
-    ast_free_unattached(dot);
-    return NULL;
-  }
-
-  return dot;
-}
-
-static ast_t* make_binop(token_id op, ast_t* left, ast_t* right)
-{
-  if(left == NULL)
-    return right;
-
-  if(right == NULL)
-  {
-    ast_free_unattached(left);
-    return NULL;
-  }
-
-  BUILD(binop, left, NODE(op, TREE(left) TREE(right)));
-
-  if(pass_expr(&binop, NULL) != AST_OK)
-  {
-    ast_free_unattached(binop);
-    return NULL;
-  }
-
-  return binop;
-}
-
-static bool tuples_pairwise(ast_t** astp, ast_t* left, ast_t* right)
-{
-  ast_t* ast = *astp;
-  token_id op = ast_id(ast);
-  token_id logic;
-
-  switch(op)
-  {
-    case TK_IS:
-    case TK_EQ:
-      logic = TK_AND;
-      break;
-
-    case TK_ISNT:
-    case TK_NE:
-      logic = TK_OR;
-      break;
-
-    default:
-      assert(0);
-      return false;
-  }
-
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-  ast_t* l_child = ast_child(l_type);
-  ast_t* r_child = ast_child(r_type);
-
-  if(ast_id(l_type) != TK_TUPLETYPE)
-  {
-    ast_error(left, "must be a tuple");
-    return false;
-  }
-
-  if(ast_id(r_type) != TK_TUPLETYPE)
-  {
-    ast_error(right, "must be a tuple");
-    return false;
-  }
-
-  ast_t* node = NULL;
-  int i = 0;
-
-  while((l_child != NULL) && (r_child != NULL))
-  {
-    ast_t* l_dot = make_tuple_index(left, i);
-    ast_t* r_dot = make_tuple_index(right, i);
-
-    if((l_dot == NULL) || (r_dot == NULL))
-    {
-      ast_free_unattached(node);
-      return false;
-    }
-
-    ast_t* binop = make_binop(op, l_dot, r_dot);
-    node = make_binop(logic, node, binop);
-
-    if(node == NULL)
-      return false;
-
-    l_child = ast_sibling(l_child);
-    r_child = ast_sibling(r_child);
-    i++;
-  }
-
-  if((l_child != NULL) || (r_child != NULL))
-  {
-    ast_error(ast, "tuples are of different lengths");
-    ast_free_unattached(node);
-    return false;
-  }
-
-  ast_replace(astp, node);
-  return true;
-}
+// TODO: how do we do tuple comparison?
+// static bool tuples_pairwise(ast_t** astp, ast_t* left, ast_t* right)
+// {
+//   ast_t* ast = *astp;
+//   token_id op = ast_id(ast);
+//   token_id logic;
+//
+//   switch(op)
+//   {
+//     case TK_IS:
+//     case TK_EQ:
+//       logic = TK_AND;
+//       break;
+//
+//     case TK_ISNT:
+//     case TK_NE:
+//       logic = TK_OR;
+//       break;
+//
+//     default:
+//       assert(0);
+//       return false;
+//   }
+//
+//   ast_t* l_type = ast_type(left);
+//   ast_t* r_type = ast_type(right);
+//   ast_t* l_child = ast_child(l_type);
+//   ast_t* r_child = ast_child(r_type);
+//
+//   if(ast_id(l_type) != TK_TUPLETYPE)
+//   {
+//     ast_error(left, "must be a tuple");
+//     return false;
+//   }
+//
+//   if(ast_id(r_type) != TK_TUPLETYPE)
+//   {
+//     ast_error(right, "must be a tuple");
+//     return false;
+//   }
+//
+//   ast_t* node = NULL;
+//   int i = 0;
+//
+//   while((l_child != NULL) && (r_child != NULL))
+//   {
+//     ast_t* l_dot = make_tuple_index(left, i);
+//     ast_t* r_dot = make_tuple_index(right, i);
+//
+//     if((l_dot == NULL) || (r_dot == NULL))
+//     {
+//       ast_free_unattached(node);
+//       return false;
+//     }
+//
+//     ast_t* binop = make_binop(op, l_dot, r_dot);
+//     node = make_binop(logic, node, binop);
+//
+//     if(node == NULL)
+//       return false;
+//
+//     l_child = ast_sibling(l_child);
+//     r_child = ast_sibling(r_child);
+//     i++;
+//   }
+//
+//   if((l_child != NULL) || (r_child != NULL))
+//   {
+//     ast_error(ast, "tuples are of different lengths");
+//     ast_free_unattached(node);
+//     return false;
+//   }
+//
+//   ast_replace(astp, node);
+//   return true;
+// }
 
 bool expr_identity(ast_t* ast)
 {
@@ -304,6 +260,7 @@ bool expr_identity(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
+  // TODO: expand to allow primitives and tuples?
   if(!is_id_compatible(l_type, r_type))
   {
     ast_error(ast, "left and right side be related identity types");
@@ -315,278 +272,64 @@ bool expr_identity(ast_t* ast)
   return true;
 }
 
-bool expr_compare(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  // Handle tuples as pairwise comparison.
-  if(ast_id(l_type) == TK_TUPLETYPE)
-    return tuples_pairwise(astp, left, right);
-
-  // Use a.eq(b) if neither arithmetic nor boolean.
-  if(!is_arithmetic(l_type) && !is_bool(l_type))
-    return binop_to_function(astp);
-
-  if(!is_math_compatible(l_type, r_type) &&
-    (!is_bool(l_type) || !is_bool(r_type))
-    )
-  {
-    ast_error(ast, "arithmetic comparison must be on the same type");
-    return false;
-  }
-
-  ast_settype(ast, type_builtin(ast, "Bool"));
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_order(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(ast_id(l_type) == TK_TUPLETYPE)
-  {
-    ast_error(ast, "ordering is not defined for tuples");
-    return false;
-  }
-
-  if(!is_arithmetic(l_type))
-    return binop_to_function(astp);
-
-  if(!is_math_compatible(l_type, r_type))
-  {
-    ast_error(ast, "arithmetic ordering must be on the same type");
-    return false;
-  }
-
-  ast_settype(ast, type_builtin(ast, "Bool"));
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_arithmetic(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  // TODO: treat some tuples as vectors?
-  if(!is_arithmetic(l_type) || !is_math_compatible(l_type, r_type))
-  {
-    // Check for string concatenation.
-    if((ast_id(ast) == TK_PLUS) &&
-      is_literal(l_type, "String") &&
-      is_literal(r_type, "String"))
-    {
-      BUILD(call, ast,
-        NODE(TK_CALL,
-          NODE(TK_DOT, TREE(left) ID("concat"))
-          NODE(TK_POSITIONALARGS, TREE(right))
-          NODE(TK_NONE)
-          )
-        );
-
-      ast_t* dot = ast_child(call);
-
-      if(!expr_dot(dot))
-        return false;
-
-      if(!expr_call(call))
-        return false;
-
-      ast_replace(astp, call);
-      return true;
-    }
-
-    ast_error(ast, "left and right side must be the same arithmetic type");
-    return false;
-  }
-
-  // Pick the correct node type.
-  if((ast_id(ast) == TK_MINUS) &&
-    is_intliteral(l_type) &&
-    is_intliteral(r_type))
-  {
-    ast_settype(ast, type_builtin(ast, "SIntLiteral"));
-  } else if(is_uintliteral(l_type)) {
-    ast_settype(ast, r_type);
-  } else if(is_sintliteral(l_type) && !is_uintliteral(r_type)) {
-    ast_settype(ast, r_type);
-  } else if(is_floatliteral(l_type) && !is_intliteral(r_type)) {
-    ast_settype(ast, r_type);
-  } else {
-    ast_settype(ast, l_type);
-  }
-
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_minus(ast_t* ast)
-{
-  ast_t* child = ast_child(ast);
-  ast_t* type = ast_type(child);
-
-  // TODO: treat some tuples as vectors?
-  if(!is_arithmetic(type))
-  {
-    ast_error(ast, "unary minus is only allowed on arithmetic types");
-    return false;
-  }
-
-  if(is_uintliteral(type))
-    ast_settype(ast, type_builtin(type, "SIntLiteral"));
-  else
-    ast_settype(ast, type);
-
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_shift(ast_t* ast)
-{
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  // TODO: treat some tuples as vectors?
-  if(!is_integer(l_type) || !is_math_compatible(l_type, r_type))
-  {
-    ast_error(ast, "left and right side must be the same integer type");
-    return false;
-  }
-
-  // pick the correct node type
-  if(is_intliteral(l_type))
-    ast_settype(ast, r_type);
-  else
-    ast_settype(ast, l_type);
-
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_and(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(is_bool(l_type) && is_bool(r_type))
-  {
-    // Rewrite as: if left then right else False end
-    REPLACE(astp,
-      NODE(TK_IF,
-        NODE(TK_SEQ, TREE(left))
-        NODE(TK_SEQ, TREE(right))
-        NODE(TK_SEQ, NODE(TK_REFERENCE, ID("False")))
-        )
-      );
-
-    ast = *astp;
-    AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
-    AST_GET_CHILDREN(r_branch, ref);
-
-    return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
-      expr_seq(r_branch) && expr_if(ast);
-  }
-
-  return expr_logical(ast);
-}
-
-bool expr_or(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(is_bool(l_type) && is_bool(r_type))
-  {
-    // Rewrite as: if left then True else right end
-    REPLACE(astp,
-      NODE(TK_IF,
-        NODE(TK_SEQ, TREE(left))
-        NODE(TK_SEQ, NODE(TK_REFERENCE, ID("True")))
-        NODE(TK_SEQ, TREE(right))
-        )
-      );
-
-    ast = *astp;
-    AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
-    AST_GET_CHILDREN(l_branch, ref);
-
-    return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
-      expr_seq(r_branch) && expr_if(ast);
-  }
-
-  return expr_logical(ast);
-}
-
-bool expr_logical(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(is_bool(l_type) && is_bool(r_type))
-  {
-    ast_settype(ast, type_builtin(ast, "Bool"));
-  } else if(is_integer(l_type) && is_integer(r_type)) {
-    // TODO: treat some tuples as vectors?
-    if(!is_math_compatible(l_type, r_type))
-    {
-      ast_error(ast,
-        "left and right side must be the same arithmetic type");
-      return false;
-    }
-
-    // pick the correct node type
-    if(is_intliteral(l_type))
-      ast_settype(ast, r_type);
-    else
-      ast_settype(ast, l_type);
-  } else {
-    ast_error(ast,
-      "left and right side must be of boolean or integer type");
-    return false;
-  }
-
-  ast_inheriterror(ast);
-  return true;
-}
-
-bool expr_not(ast_t* ast)
-{
-  ast_t* child = ast_child(ast);
-  ast_t* type = ast_type(child);
-
-  if(is_bool(type))
-  {
-    ast_settype(ast, type_builtin(ast, "Bool"));
-  } else if(is_arithmetic(type)) {
-    // TODO: treat some tuples as vectors?
-    ast_settype(ast, type);
-  } else {
-    ast_error(ast, "not is only allowed on boolean or arithmetic types");
-    return false;
-  }
-
-  ast_inheriterror(ast);
-  return true;
-}
+// TODO: remove this
+// bool expr_and(ast_t** astp)
+// {
+//   ast_t* ast = *astp;
+//   AST_GET_CHILDREN(ast, left, right);
+//   ast_t* l_type = ast_type(left);
+//   ast_t* r_type = ast_type(right);
+//
+//   if(is_bool(l_type) && is_bool(r_type))
+//   {
+//     // Rewrite as: if left then right else False end
+//     REPLACE(astp,
+//       NODE(TK_IF,
+//         NODE(TK_SEQ, TREE(left))
+//         NODE(TK_SEQ, TREE(right))
+//         NODE(TK_SEQ, NODE(TK_REFERENCE, ID("False")))
+//         )
+//       );
+//
+//     ast = *astp;
+//     AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
+//     AST_GET_CHILDREN(r_branch, ref);
+//
+//     return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
+//       expr_seq(r_branch) && expr_if(ast);
+//   }
+//
+//   return expr_logical(ast);
+// }
+//
+// bool expr_or(ast_t** astp)
+// {
+//   ast_t* ast = *astp;
+//   AST_GET_CHILDREN(ast, left, right);
+//   ast_t* l_type = ast_type(left);
+//   ast_t* r_type = ast_type(right);
+//
+//   if(is_bool(l_type) && is_bool(r_type))
+//   {
+//     // Rewrite as: if left then True else right end
+//     REPLACE(astp,
+//       NODE(TK_IF,
+//         NODE(TK_SEQ, TREE(left))
+//         NODE(TK_SEQ, NODE(TK_REFERENCE, ID("True")))
+//         NODE(TK_SEQ, TREE(right))
+//         )
+//       );
+//
+//     ast = *astp;
+//     AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
+//     AST_GET_CHILDREN(l_branch, ref);
+//
+//     return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
+//       expr_seq(r_branch) && expr_if(ast);
+//   }
+//
+//   return expr_logical(ast);
+// }
 
 bool expr_assign(ast_t* ast)
 {
@@ -608,7 +351,6 @@ bool expr_assign(ast_t* ast)
   {
     // local type inference
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
-    a_type = type_literal_to_runtime(a_type);
 
     // returns the right side since there was no previous value to read
     ast_settype(ast, a_type);

@@ -501,6 +501,8 @@ bool expr_call(ast_t* ast)
         default: {}
       }
 
+      // TODO: short circuit .and_ and .or_ on Bool
+
       ast_settype(ast, result);
       ast_inheriterror(ast);
       return true;

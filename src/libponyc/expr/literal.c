@@ -195,37 +195,12 @@ bool expr_fun(ast_t* ast)
     }
   }
 
-  if(ast_id(ast) == TK_FUN)
+  if((ast_id(ast) == TK_FUN) && !is_subtype(body_type, type))
   {
-    if(!is_subtype(body_type, type))
-    {
-      ast_t* last = ast_childlast(body);
-      ast_error(type, "function body isn't a subtype of the result type");
-      ast_error(last, "function body expression is here");
-      return false;
-    }
-
-    // Do we want this to be an error or not?
-    // if(!is_trait && !is_eqtype(body_type, type))
-    // {
-    //   // it's ok to return a literal where an arithmetic type is expected
-    //   if(is_uintliteral(body_type))
-    //   {
-    //     if(is_arithmetic(type))
-    //       return true;
-    //   } else if(is_sintliteral(body_type)) {
-    //     if(is_signed(type))
-    //       return true;
-    //   } else if(is_floatliteral(body_type)) {
-    //     if(!is_intliteral(type) && is_float(type))
-    //       return true;
-    //   }
-    //
-    //   ast_t* last = ast_childlast(body);
-    //   ast_error(type, "function body is more specific than the result type");
-    //   ast_error(last, "function body expression is here");
-    //   return false;
-    // }
+    ast_t* last = ast_childlast(body);
+    ast_error(type, "function body isn't a subtype of the result type");
+    ast_error(last, "function body expression is here");
+    return false;
   }
 
   return true;

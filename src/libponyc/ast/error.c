@@ -34,8 +34,13 @@ static void print_error(errormsg_t* e)
   {
     printf("%s\n", e->source);
 
-    for(size_t i = 1; i < e->pos; i++)
-      printf(" ");
+    for(size_t i = 0; i < (e->pos - 1); i++)
+    {
+      if(e->source[i] == '\t')
+        printf("\t");
+      else
+        printf(" ");
+    }
 
     printf("^\n");
   }

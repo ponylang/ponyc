@@ -62,7 +62,7 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
   ast_t* id = ast_child(def);
   const char* name = ast_name(id);
 
-  if(strcmp(name, "Platform"))
+  if(name != c->str_Platform)
     return NULL;
 
   const char* method_name = ast_name(method);
@@ -252,7 +252,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   LLVMValueRef result = LLVMBuildCall(c->builder, func, f_args, count, "");
 
   // Special case a None return value, which is used for void functions.
-  if(is_literal(type, "None"))
+  if(is_none(type))
     return g.instance;
 
   return result;
@@ -382,19 +382,17 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
   {
     case TK_UNIONTYPE:
     {
-      if(!is_bool(type))
-      {
-        bool tag = cap_for_type(type) == TK_TAG;
+      bool tag = cap_for_type(type) == TK_TAG;
 
-        if(tag)
-        {
-          // TODO: are we really a tag? need runtime info
-          trace_tag(c, value);
-        } else {
-          // this union type can never be a tag
-          trace_unknown(c, value);
-        }
+      if(tag)
+      {
+        // TODO: are we really a tag? need runtime info
+        trace_tag(c, value);
+      } else {
+        // this union type can never be a tag
+        trace_unknown(c, value);
       }
+
       return true;
     }
 

@@ -69,63 +69,63 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_FATAL;
       break;
 
-    case TK_MULTIPLY:
-    case TK_DIVIDE:
-    case TK_MOD:
-    case TK_PLUS:
-    case TK_MINUS:
-      if(!expr_arithmetic(astp))
-        return AST_FATAL;
-      break;
-
-    case TK_UNARY_MINUS:
-      if(!expr_minus(ast))
-        return AST_FATAL;
-      break;
-
-    case TK_LSHIFT:
-    case TK_RSHIFT:
-      if(!expr_shift(ast))
-        return AST_FATAL;
-      break;
-
-    case TK_LT:
-    case TK_LE:
-    case TK_GE:
-    case TK_GT:
-      if(!expr_order(astp))
-        return AST_FATAL;
-      break;
-
-    case TK_EQ:
-    case TK_NE:
-      if(!expr_compare(astp))
-        return AST_FATAL;
-      break;
+    // case TK_MULTIPLY:
+    // case TK_DIVIDE:
+    // case TK_MOD:
+    // case TK_PLUS:
+    // case TK_MINUS:
+    //   if(!expr_arithmetic(astp))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_UNARY_MINUS:
+    //   if(!expr_minus(ast))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_LSHIFT:
+    // case TK_RSHIFT:
+    //   if(!expr_shift(ast))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_LT:
+    // case TK_LE:
+    // case TK_GE:
+    // case TK_GT:
+    //   if(!expr_order(astp))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_EQ:
+    // case TK_NE:
+    //   if(!expr_compare(astp))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_AND:
+    //   if(!expr_and(astp))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_OR:
+    //   if(!expr_or(astp))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_XOR:
+    //   if(!expr_logical(ast))
+    //     return AST_FATAL;
+    //   break;
+    //
+    // case TK_NOT:
+    //   if(!expr_not(ast))
+    //     return AST_FATAL;
+    //   break;
 
     case TK_IS:
     case TK_ISNT:
       if(!expr_identity(ast))
-        return AST_FATAL;
-      break;
-
-    case TK_AND:
-      if(!expr_and(astp))
-        return AST_FATAL;
-      break;
-
-    case TK_OR:
-      if(!expr_or(astp))
-        return AST_FATAL;
-      break;
-
-    case TK_XOR:
-      if(!expr_logical(ast))
-        return AST_FATAL;
-      break;
-
-    case TK_NOT:
-      if(!expr_not(ast))
         return AST_FATAL;
       break;
 
@@ -220,8 +220,14 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_FATAL;
       break;
 
+    case TK_TRUE:
+    case TK_FALSE:
+      if(!expr_literal(ast, "Bool"))
+        return AST_FATAL;
+      break;
+
     case TK_INT:
-      if(!expr_literal(ast, "UIntLiteral"))
+      if(!expr_literal(ast, "IntLiteral"))
         return AST_FATAL;
       break;
 

@@ -31,7 +31,6 @@ bool expr_match(ast_t* ast)
 
     ast_t* body_type = ast_type(body);
     type = type_union(type, body_type);
-    type = type_literal_to_runtime(type);
 
     the_case = ast_sibling(the_case);
   }
@@ -40,7 +39,6 @@ bool expr_match(ast_t* ast)
   {
     ast_t* else_type = ast_type(else_clause);
     type = type_union(type, else_type);
-    type = type_literal_to_runtime(type);
   } else {
     // TODO: remove this when we know there is exhaustive match
     type = type_union(type, type_builtin(ast, "None"));
@@ -75,9 +73,6 @@ static bool is_primitive_pattern(ast_t* ast)
   ast_t* type = ast_type(ast);
 
   if(ast_id(type) != TK_NOMINAL)
-    return false;
-
-  if(is_arithmetic(type))
     return false;
 
   ast_t* def = (ast_t*)ast_data(type);

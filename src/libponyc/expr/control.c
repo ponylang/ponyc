@@ -48,7 +48,6 @@ bool expr_if(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
   ast_t* type = type_union(l_type, r_type);
-  type = type_literal_to_runtime(type);
 
   if(type == NULL)
   {
@@ -107,7 +106,6 @@ bool expr_while(ast_t* ast)
   // Union with any existing type due to a break expression.
   ast_t* type = type_union(l_type, r_type);
   type = type_union(type, ast_type(ast));
-  type = type_literal_to_runtime(type);
 
   // TODO: A break statement in the body means some definitions might not
   // happen.
@@ -154,7 +152,6 @@ bool expr_repeat(ast_t* ast)
   // Union with any existing type due to a break expression.
   ast_t* type = type_union(body_type, else_type);
   type = type_union(type, ast_type(body));
-  type = type_literal_to_runtime(type);
 
   // TODO: A break statement in the body means some definitions might not
   // happen.
@@ -200,7 +197,6 @@ bool expr_try(ast_t* ast)
   ast_t* else_type = ast_type(else_clause);
   ast_t* then_type = ast_type(then_clause);
   ast_t* type = type_union(body_type, else_type);
-  type = type_literal_to_runtime(type);
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
@@ -248,7 +244,6 @@ bool expr_break(ast_t* ast)
   // Add type to loop.
   ast_t* loop_type = ast_type(loop);
   type = type_union(type, loop_type);
-  type = type_literal_to_runtime(type);
   ast_settype(loop, type);
 
   return true;
@@ -322,7 +317,6 @@ bool expr_return(ast_t* ast)
   ast_t* fun_body = ast_childidx(fun, 6);
   ast_t* fun_type = ast_type(fun_body);
   type = type_union(type, fun_type);
-  type = type_literal_to_runtime(type);
   ast_settype(fun_body, type);
 
   return true;

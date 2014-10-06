@@ -153,7 +153,7 @@ case
 
 postfix
   :  atom
-     (  '.' (ID | INT) // member or tuple component
+     (  '.' ID // member access
      |  '!' ID // partial application, syntactic sugar
      |  type_args // type arguments
      |  '@(' positional? named? ')' // call

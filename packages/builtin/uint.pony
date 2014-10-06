@@ -1,4 +1,4 @@
-primitive U8 is Stringable, ArithmeticConvertible
+primitive U8 is Integer[U8]
   new create(from: U128) => compiler_intrinsic
 
   fun tag max(that: U8): U8 =>
@@ -16,7 +16,7 @@ primitive U8 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_u8(this, 10) end
 
-primitive U16 is Stringable, ArithmeticConvertible
+primitive U16 is Integer[U16]
   new create(from: U128) => compiler_intrinsic
 
   fun tag max(that: U16): U16 =>
@@ -35,7 +35,7 @@ primitive U16 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_u16(this, 10) end
 
-primitive U32 is Stringable, ArithmeticConvertible
+primitive U32 is Integer[U32]
   new create(from: U128) => compiler_intrinsic
 
   fun tag max(that: U32): U32 =>
@@ -55,7 +55,7 @@ primitive U32 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_u32(this, 10) end
 
-primitive U64 is Stringable, ArithmeticConvertible
+primitive U64 is Integer[U64]
   new create(from: U128) => compiler_intrinsic
 
   fun tag max(that: U64): U64 =>
@@ -76,7 +76,7 @@ primitive U64 is Stringable, ArithmeticConvertible
 
   fun tag string(): String iso^ => recover String.from_u64(this, 10) end
 
-primitive U128 is Stringable, ArithmeticConvertible
+primitive U128 is Integer[U128]
   new create(from: U128) => compiler_intrinsic
 
   fun tag max(that: U128): U128 =>

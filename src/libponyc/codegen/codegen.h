@@ -37,6 +37,24 @@ typedef struct compile_t
   uint32_t next_type_id;
   bool release;
 
+  const char* str_1;
+  const char* str_Bool;
+  const char* str_I8;
+  const char* str_I16;
+  const char* str_I32;
+  const char* str_I64;
+  const char* str_I128;
+  const char* str_U8;
+  const char* str_U16;
+  const char* str_U32;
+  const char* str_U64;
+  const char* str_U128;
+  const char* str_F32;
+  const char* str_F64;
+  const char* str_Pointer;
+  const char* str_Array;
+  const char* str_Platform;
+
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
   LLVMTargetDataRef target_data;

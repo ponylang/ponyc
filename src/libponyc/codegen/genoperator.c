@@ -33,8 +33,7 @@ static bool is_always_true(compile_t* c, LLVMValueRef val)
   if(!is_constant_i1(c, val))
     return false;
 
-  int i = (int)LLVMConstIntGetZExtValue(val);
-  return i == 1;
+  return LLVMConstIntGetZExtValue(val) == 1;
 }
 
 static bool is_always_false(compile_t* c, LLVMValueRef val)
@@ -42,8 +41,7 @@ static bool is_always_false(compile_t* c, LLVMValueRef val)
   if(!is_constant_i1(c, val))
     return false;
 
-  int i = (int)LLVMConstIntGetZExtValue(val);
-  return i == 0;
+  return LLVMConstIntGetZExtValue(val) == 0;
 }
 
 static bool is_fp(LLVMValueRef val)
@@ -220,7 +218,7 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
   return LLVMBuildNot(c->builder, value, "");
 }
 
-LLVMValueRef gen_unaryminus(compile_t* c, ast_t* ast)
+LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
 {
   LLVMValueRef value = gen_expr(c, ast_child(ast));
 
@@ -241,20 +239,20 @@ LLVMValueRef gen_unaryminus(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_plus(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFAdd(l_value, r_value);
 
     return LLVMConstAdd(l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFAdd(c->builder, l_value, r_value, "");
@@ -264,20 +262,20 @@ LLVMValueRef gen_plus(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_minus(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFSub(l_value, r_value);
 
     return LLVMConstSub(l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFSub(c->builder, l_value, r_value, "");
@@ -287,20 +285,20 @@ LLVMValueRef gen_minus(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_multiply(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFMul(l_value, r_value);
 
     return LLVMConstMul(l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFMul(c->builder, l_value, r_value, "");
@@ -328,9 +326,12 @@ static LLVMValueRef i128_prototype(compile_t* c, const char* name, bool sign)
 
 LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
 
   if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
   {
@@ -338,7 +339,7 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
     return NULL;
   }
 
-  if(constant)
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFDiv(l_value, r_value);
@@ -348,9 +349,6 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 
     return LLVMConstUDiv(l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFDiv(c->builder, l_value, r_value, "");
@@ -408,9 +406,12 @@ LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
 
   if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
   {
@@ -418,7 +419,7 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
     return NULL;
   }
 
-  if(constant)
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFRem(l_value, r_value);
@@ -428,9 +429,6 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 
     return LLVMConstURem(l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFRem(c->builder, l_value, r_value, "");
@@ -488,38 +486,40 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_lshift(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
-
-  if(constant)
-    return LLVMConstShl(l_value, r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+    return LLVMConstShl(l_value, r_value);
 
   return LLVMBuildShl(c->builder, l_value, r_value, "");
 }
 
 LLVMValueRef gen_rshift(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
   ast_t* type = ast_type(ast);
+  bool sign = is_signed(type);
 
-  if(constant)
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
-    if(is_signed(type))
+    if(sign)
       return LLVMConstAShr(l_value, r_value);
 
     return LLVMConstLShr(l_value, r_value);
   }
 
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(is_signed(type))
+  if(sign)
     return LLVMBuildAShr(c->builder, l_value, r_value, "");
 
   return LLVMBuildLShr(c->builder, l_value, r_value, "");
@@ -527,11 +527,14 @@ LLVMValueRef gen_rshift(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOLT, l_value, r_value);
@@ -541,9 +544,6 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
 
     return LLVMConstICmp(LLVMIntULT, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOLT, l_value, r_value, "");
@@ -556,11 +556,14 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_le(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOLE, l_value, r_value);
@@ -570,9 +573,6 @@ LLVMValueRef gen_le(compile_t* c, ast_t* ast)
 
     return LLVMConstICmp(LLVMIntULE, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOLE, l_value, r_value, "");
@@ -585,11 +585,14 @@ LLVMValueRef gen_le(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOGE, l_value, r_value);
@@ -599,9 +602,6 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
 
     return LLVMConstICmp(LLVMIntUGE, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOGE, l_value, r_value, "");
@@ -614,11 +614,14 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOGT, l_value, r_value);
@@ -628,9 +631,6 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
 
     return LLVMConstICmp(LLVMIntUGT, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOGT, l_value, r_value, "");
@@ -643,20 +643,20 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_eq(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealOEQ, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntEQ, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealOEQ, l_value, r_value, "");
@@ -666,20 +666,20 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
   {
     if(is_fp(l_value))
       return LLVMConstFCmp(LLVMRealONE, l_value, r_value);
 
     return LLVMConstICmp(LLVMIntNE, l_value, r_value);
   }
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   if(is_fp(l_value))
     return LLVMBuildFCmp(c->builder, LLVMRealONE, l_value, r_value, "");
@@ -724,47 +724,50 @@ LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_and(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
     return LLVMConstAnd(l_value, r_value);
 
   if(is_always_false(c, l_value) || is_always_false(c, r_value))
     return LLVMConstInt(c->i1, 0, false);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   return LLVMBuildAnd(c->builder, l_value, r_value, "");
 }
 
 LLVMValueRef gen_or(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
     return LLVMConstOr(l_value, r_value);
 
   if(is_always_true(c, l_value) || is_always_true(c, r_value))
     return LLVMConstInt(c->i1, 1, false);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   return LLVMBuildOr(c->builder, l_value, r_value, "");
 }
 
 LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef l_value;
-  LLVMValueRef r_value;
-  bool constant = gen_binop(c, ast, &l_value, &r_value);
+  AST_GET_CHILDREN(ast, left, right);
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
 
-  if(constant)
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
     return LLVMConstXor(l_value, r_value);
 
   if(is_always_true(c, l_value))
@@ -778,9 +781,6 @@ LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
 
   if(is_always_false(c, r_value))
     return l_value;
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
 
   return LLVMBuildXor(c->builder, l_value, r_value, "");
 }

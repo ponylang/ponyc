@@ -267,9 +267,9 @@ DEF(tuple);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// THIS | INT | FLOAT | STRING
+// THIS | TRUE | FALSE | INT | FLOAT | STRING
 DEF(literal);
-  TOKEN("literal", TK_THIS, TK_INT, TK_FLOAT, TK_STRING);
+  TOKEN("literal", TK_THIS, TK_TRUE, TK_FALSE, TK_INT, TK_FLOAT, TK_STRING);
   DONE();
 
 DEF(ref);
@@ -293,10 +293,10 @@ DEF(atom);
   RULE("value", ref, literal, tuple, array, object, ffi);
   DONE();
 
-// DOT (ID | INT)
+// DOT ID
 DEF(dot);
   TOKEN(NULL, TK_DOT);
-  TOKEN("member name", TK_ID, TK_INT);
+  TOKEN("member name", TK_ID);
   DONE();
 
 // BANG ID
