@@ -211,12 +211,12 @@ void pony_unschedule();
 void pony_become(pony_actor_t* actor);
 
 /**
- * Call this to handle an application message on the actor your thread has
- * "become". This will do two things: first, it will possibly gc, and
- * second it will possibly handle a pending application message. If an
- * application message is handled, it will return true, otherwise false.
+ * Call this to handle an application message on an actor. This will do two
+ * things: first, it will possibly gc, and second it will possibly handle a
+ * pending application message. If an application message is handled, it will
+ * return true, otherwise false.
  */
-bool pony_poll();
+bool pony_poll(pony_actor_t* actor);
 
 /** Start gc tracing for sending.
  *

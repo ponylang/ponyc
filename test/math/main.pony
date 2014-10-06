@@ -4,6 +4,10 @@ actor Main
   new create(env: Env) =>
     _env = env
 
+    var x = U32(7)
+    var y: U32 = x
+    _env.stdout.print(y.string())
+
     test_i128_f()
     test_u128_f()
 

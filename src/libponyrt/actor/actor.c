@@ -353,7 +353,7 @@ void pony_become(pony_actor_t* actor)
   this_actor = actor;
 }
 
-bool pony_poll()
+bool pony_poll(pony_actor_t* actor)
 {
-  return actor_run(this_actor);
+  return actor_run(actor);
 }

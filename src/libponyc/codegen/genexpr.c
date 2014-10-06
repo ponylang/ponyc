@@ -303,6 +303,131 @@ bool gen_binop_cast(compile_t* c, ast_t* left, ast_t* right,
   return false;
 }
 
+static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  LLVMTypeRef l_type = LLVMTypeOf(value);
+
+  if(LLVMGetTypeKind(l_type) == LLVMPointerTypeKind)
+    return value;
+
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  LLVMValueRef box_fn = genfun_box(c, &g);
+
+  if(box_fn != NULL)
+    value = codegen_call(c, box_fn, &value, 1);
+
+  return value;
+}
+
+static LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
+{
+  LLVMTypeRef l_type = LLVMTypeOf(value);
+
+  if(LLVMGetTypeKind(l_type) != LLVMPointerTypeKind)
+    return value;
+
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  LLVMValueRef unbox_fn = genfun_unbox(c, &g);
+
+  if(unbox_fn != NULL)
+    value = codegen_call(c, unbox_fn, &value, 1);
+
+  return value;
+}
+
+static LLVMValueRef assign_to_int(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, ast_t* type)
+{
+  r_value = unbox_value(c, r_value, type);
+
+  if(LLVMIsAConstant(r_value))
+    return LLVMConstIntCast(r_value, l_type, is_signed(type));
+
+  return LLVMBuildIntCast(c->builder, r_value, l_type, "");
+}
+
+static LLVMValueRef assign_to_float(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, ast_t* type)
+{
+  r_value = unbox_value(c, r_value, type);
+
+  switch(LLVMGetTypeKind(LLVMTypeOf(r_value)))
+  {
+    case LLVMIntegerTypeKind:
+    {
+      if(LLVMIsAConstant(r_value))
+      {
+        if(is_signed(type))
+          r_value = LLVMConstSIToFP(r_value, l_type);
+        else
+          r_value = LLVMConstUIToFP(r_value, l_type);
+      } else {
+        if(is_signed(type))
+          r_value = LLVMBuildSIToFP(c->builder, r_value, l_type, "");
+        else
+          r_value = LLVMBuildUIToFP(c->builder, r_value, l_type, "");
+      }
+
+      return r_value;
+    }
+
+    case LLVMHalfTypeKind:
+    case LLVMFloatTypeKind:
+    case LLVMDoubleTypeKind:
+    {
+      if(LLVMIsAConstant(r_value))
+        return LLVMConstFPCast(r_value, l_type);
+
+      return LLVMBuildFPCast(c->builder, r_value, l_type, "");
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
+  LLVMValueRef r_value, ast_t* type)
+{
+  // Cast each component.
+  assert(ast_id(type) == TK_TUPLETYPE);
+
+  int count = LLVMCountStructElementTypes(l_type);
+  VLA(LLVMTypeRef, elements, count);
+  LLVMGetStructElementTypes(l_type, elements);
+
+  LLVMValueRef result = LLVMGetUndef(l_type);
+
+  ast_t* type_child = ast_child(type);
+  int i = 0;
+
+  while(type_child != NULL)
+  {
+    LLVMValueRef r_child = LLVMBuildExtractValue(c->builder, r_value, i, "");
+    LLVMValueRef cast_value = gen_assign_cast(c, elements[i], r_child,
+      type_child);
+
+    if(cast_value == NULL)
+      return NULL;
+
+    result = LLVMBuildInsertValue(c->builder, result, cast_value, i, "");
+    type_child = ast_sibling(type_child);
+    i++;
+  }
+
+  return result;
+}
+
 LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, ast_t* type)
 {
@@ -317,129 +442,19 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
   switch(LLVMGetTypeKind(l_type))
   {
     case LLVMIntegerTypeKind:
-    {
-      switch(LLVMGetTypeKind(r_type))
-      {
-        case LLVMIntegerTypeKind:
-        {
-          // TODO: check the constant fits in the type
-          if(LLVMIsAConstant(r_value))
-            return LLVMConstIntCast(r_value, l_type, is_signed(type));
-
-          return LLVMBuildIntCast(c->builder, r_value, l_type, "");
-        }
-
-        default: {}
-      }
-      break;
-    }
+      return assign_to_int(c, l_type, r_value, type);
 
     case LLVMHalfTypeKind:
     case LLVMFloatTypeKind:
     case LLVMDoubleTypeKind:
-    {
-      switch(LLVMGetTypeKind(r_type))
-      {
-        case LLVMIntegerTypeKind:
-        {
-          // integer to float will be a constant
-          assert(LLVMIsAConstant(r_value));
-
-          if(is_signed(type))
-            r_value = LLVMConstSIToFP(r_value, l_type);
-          else
-            r_value = LLVMConstUIToFP(r_value, l_type);
-
-          return r_value;
-        }
-
-        case LLVMHalfTypeKind:
-        case LLVMFloatTypeKind:
-        case LLVMDoubleTypeKind:
-        {
-          // float to float will be a constant unless they are the same type
-          if(LLVMIsAConstant(r_value))
-            return LLVMConstFPCast(r_value, l_type);
-
-          return r_value;
-        }
-
-        default: {}
-      }
-      break;
-    }
+      return assign_to_float(c, l_type, r_value, type);
 
     case LLVMPointerTypeKind:
-    {
-      switch(LLVMGetTypeKind(r_type))
-      {
-        case LLVMIntegerTypeKind:
-        case LLVMHalfTypeKind:
-        case LLVMFloatTypeKind:
-        case LLVMDoubleTypeKind:
-        case LLVMStructTypeKind:
-        {
-          // Primitive to pointer requires boxing.
-          gentype_t g;
-
-          if(!gentype(c, type, &g))
-            return NULL;
-
-          LLVMValueRef box_fn = genfun_box(c, &g);
-          LLVMValueRef box = codegen_call(c, box_fn, &r_value, 1);
-          return LLVMBuildBitCast(c->builder, box, l_type, "");
-        }
-
-        case LLVMPointerTypeKind:
-          return LLVMBuildBitCast(c->builder, r_value, l_type, "");
-
-        default: {}
-      }
-      break;
-    }
+      r_value = box_value(c, r_value, type);
+      return LLVMBuildBitCast(c->builder, r_value, l_type, "");
 
     case LLVMStructTypeKind:
-    {
-      switch(LLVMGetTypeKind(r_type))
-      {
-        case LLVMStructTypeKind:
-        {
-          // Cast each component.
-          assert(ast_id(type) == TK_TUPLETYPE);
-
-          int count = LLVMCountStructElementTypes(l_type);
-          VLA(LLVMTypeRef, elements, count);
-          LLVMGetStructElementTypes(l_type, elements);
-
-          LLVMValueRef result = LLVMGetUndef(l_type);
-
-          ast_t* type_child = ast_child(type);
-          int i = 0;
-
-          while(type_child != NULL)
-          {
-            LLVMValueRef r_child = LLVMBuildExtractValue(c->builder, r_value,
-              i, "");
-            LLVMValueRef cast_value = gen_assign_cast(c, elements[i], r_child,
-              type_child);
-
-            if(cast_value == NULL)
-              return NULL;
-
-            result = LLVMBuildInsertValue(c->builder, result, cast_value, i,
-              "");
-
-            type_child = ast_sibling(type_child);
-            i++;
-          }
-
-          return result;
-        }
-
-        default: {}
-      }
-      break;
-    }
+      return assign_to_tuple(c, l_type, r_value, type);
 
     default: {}
   }

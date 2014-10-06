@@ -1,4 +1,5 @@
 primitive F32 is Stringable, ArithmeticConvertible
+  new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 
@@ -61,6 +62,7 @@ primitive F32 is Stringable, ArithmeticConvertible
   fun tag u128(): U128 => f64().u128()
 
 primitive F64 is Stringable, ArithmeticConvertible
+  new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 

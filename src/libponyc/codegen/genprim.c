@@ -272,7 +272,7 @@ void genprim_platform(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-typedef struct prim_conv_t
+typedef struct num_conv_t
 {
   const char* type_name;
   const char* fun_name;
@@ -280,11 +280,11 @@ typedef struct prim_conv_t
   int size;
   bool is_signed;
   bool is_float;
-} prim_conv_t;
+} num_conv_t;
 
-static void primitive_conversions(compile_t* c)
+static void number_conversions(compile_t* c)
 {
-  prim_conv_t conv[] =
+  num_conv_t conv[] =
   {
     {"$1_I8", "i8", c->i8, 8, true, false},
     {"$1_I16", "i16", c->i16, 16, true, false},
@@ -310,9 +310,9 @@ static void primitive_conversions(compile_t* c)
   bool has_i128;
   os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
 
-  for(prim_conv_t* from = conv; from->type_name != NULL; from++)
+  for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
-    for(prim_conv_t* to = conv; to->type_name != NULL; to++)
+    for(num_conv_t* to = conv; to->type_name != NULL; to++)
     {
       if(to->fun_name == NULL)
         continue;
@@ -367,6 +367,58 @@ static void primitive_conversions(compile_t* c)
         LLVMDeleteFunction(fun);
       }
     }
+  }
+}
+
+typedef struct num_cons_t
+{
+  const char* type_name;
+  LLVMTypeRef type;
+  LLVMTypeRef from;
+  bool is_float;
+} num_cons_t;
+
+static void number_constructors(compile_t* c)
+{
+  num_cons_t cons[] =
+  {
+    {"$1_I8", c->i8, c->i128, false},
+    {"$1_I16", c->i16, c->i128, false},
+    {"$1_I32", c->i32, c->i128, false},
+    {"$1_I64", c->i64, c->i128, false},
+    {"$1_I128", c->i128, c->i128, false},
+
+    {"$1_U8", c->i8, c->i128, false},
+    {"$1_U16", c->i16, c->i128, false},
+    {"$1_U32", c->i32, c->i128, false},
+    {"$1_U64", c->i64, c->i128, false},
+    {"$1_U128", c->i128, c->i128, false},
+
+    {"$1_F32", c->f32, c->f64, true},
+    {"$1_F64", c->f64, c->f64, true},
+
+    {NULL, NULL, NULL, false}
+  };
+
+  for(num_cons_t* con = cons; con->type_name != NULL; con++)
+  {
+    const char* name = genname_fun(con->type_name, "create", NULL);
+    LLVMTypeRef f_type = LLVMFunctionType(con->type, &con->from, 1, false);
+    LLVMValueRef fun = codegen_addfun(c, name, f_type);
+
+    codegen_startfun(c, fun);
+    LLVMValueRef arg = LLVMGetParam(fun, 0);
+    LLVMValueRef result;
+
+    if(con->type == con->from)
+      result = arg;
+    else if(con->is_float)
+      result = LLVMBuildFPTrunc(c->builder, arg, con->type, "");
+    else
+      result = LLVMBuildTrunc(c->builder, arg, con->type, "");
+
+    LLVMBuildRet(c->builder, result);
+    codegen_finishfun(c);
   }
 }
 
@@ -447,7 +499,8 @@ static void fp_as_bits(compile_t* c)
 
 void genprim_builtins(compile_t* c, ast_t* package)
 {
-  primitive_conversions(c);
+  number_conversions(c);
+  number_constructors(c);
   special_number_constructors(c);
   fp_as_bits(c);
 
