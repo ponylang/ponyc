@@ -301,10 +301,12 @@ bool coerce_literals(ast_t* ast, ast_t* target_type)
     return true;
   }
 
-  if(!is_type_arith_literal(ast))
+  ast_t* type = ast_type(ast);
+
+  if(type == NULL || !is_type_arith_literal(type))
     return true;
 
-  if(!is_literal_subtype(ast_id(ast), target_type))
+  if(!is_literal_subtype(ast_id(type), target_type))
   {
     ast_error(ast, "cannot determine type of literal");
     return false;
@@ -312,8 +314,9 @@ bool coerce_literals(ast_t* ast, ast_t* target_type)
 
   ast_t* prom_type = ast_dup(target_type);
   ast_t* cap = ast_childidx(prom_type, 3);
-  assert(cap != NULL);
-  ast_setid(cap, TK_TAG);
+
+  if(cap != NULL)
+    ast_setid(cap, TK_TAG);
 
   propogate_coercion(ast, prom_type);
   return true;

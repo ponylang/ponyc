@@ -367,7 +367,7 @@ bool expr_assign(ast_t* ast)
   bool ok_sub = is_subtype(a_type, l_type);
 
   if(ok_sub)
-    ok_sub = coerce_literals(ast, l_type);
+    ok_sub = coerce_literals(right, l_type);
 
   if(!ok_sub)
   {
