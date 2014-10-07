@@ -172,6 +172,9 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   if(g.primitive == c->i128)
     return vhigh;
 
+  if((g.primitive == c->f32) || (g.primitive == c->f64))
+    return LLVMConstUIToFP(vhigh, g.primitive);
+
   return LLVMConstTrunc(vhigh, g.primitive);
 }
 
