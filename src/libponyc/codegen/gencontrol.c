@@ -29,9 +29,9 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
+  ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, cond, left, right);
 
-  ast_t* type = ast_type(ast);
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
