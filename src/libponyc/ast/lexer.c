@@ -164,6 +164,8 @@ static const lexsym_t abstract[] =
   { "structural", TK_STRUCTURAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
+  { "integer", TK_INTLITERAL },
+  { "float", TK_FLOATLITERAL },
 
   { "typeparams", TK_TYPEPARAMS },
   { "typeparam", TK_TYPEPARAM },

@@ -344,6 +344,12 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
+  if(is_arith_literal(right))
+  {
+    ast_inheriterror(ast);
+    return promote_literal(right, l_type);
+  }
+
   // assignment is based on the alias of the right hand side
   ast_t* a_type = alias(r_type);
 

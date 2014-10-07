@@ -14,6 +14,9 @@ bool expr_compiler_intrinsic(ast_t* ast);
 bool expr_nominal(ast_t** astp);
 bool expr_fun(ast_t* ast);
 
+bool is_arith_literal(ast_t* ast);
+bool promote_literal(ast_t* ast, ast_t* target);
+
 PONY_EXTERN_C_END
 
 #endif

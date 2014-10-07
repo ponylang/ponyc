@@ -1,5 +1,6 @@
 #include "literal.h"
 #include "../ast/token.h"
+#include "../ds/stringtab.h"
 #include "../pass/names.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
@@ -203,5 +204,71 @@ bool expr_fun(ast_t* ast)
     return false;
   }
 
+  return true;
+}
+
+
+static void propogate_coercion(ast_t* ast, ast_t* type)
+{
+  assert(ast != NULL);
+  assert(type != NULL);
+
+  if(!is_arith_literal(ast))
+    return;
+
+  ast_settype(ast, type);
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    propogate_coercion(p, type);
+}
+
+
+bool is_arith_literal(ast_t* ast)
+{
+  assert(ast != NULL);
+  token_id id = ast_id(ast);
+  return (id == TK_INTLITERAL) || (id == TK_FLOATLITERAL);
+}
+
+
+static bool can_promote_literal(ast_t* ast, ast_t* target)
+{
+  assert(ast != NULL);
+
+  if(target == NULL)
+    return false;
+
+  ast_print(target);
+
+  if(ast_id(target) != TK_NOMINAL)
+    return false;
+
+  const char* type_name = ast_name(ast_childidx(target, 1));
+
+  if(type_name == stringtab("I8") ||
+    type_name == stringtab("I16"))
+  {
+    return (ast_id(ast) == TK_INTLITERAL);
+  }
+
+  if(type_name == stringtab("F32") ||
+    type_name == stringtab("F64"))
+    return true;
+
+  return false;
+}
+
+
+bool promote_literal(ast_t* ast, ast_t* target)
+{
+  assert(ast != NULL);
+
+  if(!can_promote_literal(ast, target))
+  {
+    ast_error(ast, "cannot determine type of literal");
+    return false;
+  }
+
+  propogate_coercion(ast, target);
   return true;
 }

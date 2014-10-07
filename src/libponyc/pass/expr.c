@@ -227,13 +227,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_INT:
-      if(!expr_literal(ast, "IntLiteral"))
-        return AST_FATAL;
+      ast_settype(ast, ast_from(ast, TK_INTLITERAL));
       break;
 
     case TK_FLOAT:
-      if(!expr_literal(ast, "FloatLiteral"))
-        return AST_FATAL;
+      ast_settype(ast, ast_from(ast, TK_FLOATLITERAL));
       break;
 
     case TK_STRING:
