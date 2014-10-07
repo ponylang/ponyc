@@ -387,7 +387,7 @@ LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right)
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
 {
-  LLVMValueRef value = gen_expr(c, ast_child(ast));
+  LLVMValueRef value = gen_expr(c, ast);
 
   if(value == NULL)
     return NULL;

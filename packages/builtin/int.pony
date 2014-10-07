@@ -69,7 +69,7 @@ primitive I128 is Integer[I128]
     else
       if y == 0 then
         // TODO: returning (0, 0) causes a codegen error
-        var qr: (I128, I128) = (0, 0)
+        var qr: (I128, I128) = (I128(0), I128(0))
         return qr
       end
 
