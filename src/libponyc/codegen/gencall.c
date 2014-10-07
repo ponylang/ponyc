@@ -1,4 +1,5 @@
 #include "gencall.h"
+#include "genoperator.h"
 #include "gentype.h"
 #include "genexpr.h"
 #include "gendesc.h"
@@ -42,32 +43,66 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
   return gen_assign_cast(c, type, value, ast_type(arg));
 }
 
-static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
+static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
+  bool has_divmod)
 {
   AST_GET_CHILDREN(ast, postfix, positional, named);
+  AST_GET_CHILDREN(postfix, left, method);
+  AST_GET_CHILDREN(positional, right);
 
-  if((ast_id(postfix) != TK_FUNREF) ||
-    (ast_id(positional) != TK_NONE) ||
-    (ast_id(named) != TK_NONE)
-    )
-    return NULL;
+  const char* name = ast_name(method);
+  *value = NULL;
 
+  if(name == c->str_add)
+    *value = gen_add(c, left, right);
+  else if(name == c->str_sub)
+    *value = gen_sub(c, left, right);
+  else if(name == c->str_mul)
+    *value = gen_mul(c, left, right);
+  else if((name == c->str_div) && has_divmod)
+    *value = gen_div(c, left, right);
+  else if((name == c->str_mod) && has_divmod)
+    *value = gen_mod(c, left, right);
+  else if(name == c->str_neg)
+    *value = gen_neg(c, left);
+  else if(name == c->str_and)
+    *value = gen_and(c, left, right);
+  else if(name == c->str_or)
+    *value = gen_or(c, left, right);
+  else if(name == c->str_xor)
+    *value = gen_xor(c, left, right);
+  else if(name == c->str_not)
+    *value = gen_not(c, left);
+  else if(name == c->str_shl)
+    *value = gen_shl(c, left, right);
+  else if(name == c->str_shr)
+    *value = gen_shr(c, left, right);
+  else if(name == c->str_eq)
+    *value = gen_eq(c, left, right);
+  else if(name == c->str_ne)
+    *value = gen_ne(c, left, right);
+  else if(name == c->str_lt)
+    *value = gen_lt(c, left, right);
+  else if(name == c->str_le)
+    *value = gen_le(c, left, right);
+  else if(name == c->str_ge)
+    *value = gen_ge(c, left, right);
+  else if(name == c->str_gt)
+    *value = gen_gt(c, left, right);
+  else
+    return false;
+
+  return true;
+}
+
+static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, postfix, positional, named);
   AST_GET_CHILDREN(postfix, receiver, method);
-  ast_t* receiver_type = ast_type(receiver);
-
-  if(ast_id(receiver_type) != TK_NOMINAL)
-    return NULL;
-
-  ast_t* def = (ast_t*)ast_data(receiver_type);
-  ast_t* id = ast_child(def);
-  const char* name = ast_name(id);
-
-  if(name != c->str_Platform)
-    return NULL;
 
   const char* method_name = ast_name(method);
-
   bool is_target;
+
   if(os_is_target(method_name, c->release, &is_target))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
@@ -75,13 +110,68 @@ static LLVMValueRef make_platform_call(compile_t* c, ast_t* ast)
   return NULL;
 }
 
+static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
+{
+  AST_GET_CHILDREN(ast, postfix, positional, named);
+
+  if((ast_id(postfix) != TK_FUNREF) ||
+    (ast_id(positional) != TK_NONE) ||
+    (ast_id(named) != TK_NONE)
+    )
+    return false;
+
+  AST_GET_CHILDREN(postfix, receiver, method);
+  ast_t* receiver_type = ast_type(receiver);
+
+  if(ast_id(receiver_type) != TK_NOMINAL)
+    return false;
+
+  AST_GET_CHILDREN(receiver_type, package, id);
+
+  if(ast_name(package) != c->str_1)
+    return false;
+
+  const char* name = ast_name(id);
+
+  if((name == c->str_Bool) ||
+    (name == c->str_I8) ||
+    (name == c->str_I16) ||
+    (name == c->str_I32) ||
+    (name == c->str_I64) ||
+    (name == c->str_U8) ||
+    (name == c->str_U16) ||
+    (name == c->str_U32) ||
+    (name == c->str_U64) ||
+    (name == c->str_F32) ||
+    (name == c->str_F64)
+    )
+  {
+    return special_case_operator(c, ast, value, true);
+  }
+
+  if((name == c->str_I128) || (name == c->str_U128))
+  {
+    bool has_i128;
+    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+    return special_case_operator(c, ast, value, has_i128);
+  }
+
+  if(name == c->str_Platform)
+  {
+    *value = special_case_platform(c, ast);
+    return true;
+  }
+
+  return false;
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
-  // Special case Platform calls.
-  LLVMValueRef platform = make_platform_call(c, ast);
+  // Special case calls.
+  LLVMValueRef special;
 
-  if(platform != NULL)
-    return platform;
+  if(special_case_call(c, ast, &special))
+    return special;
 
   AST_GET_CHILDREN(ast, postfix, positional, named);
 

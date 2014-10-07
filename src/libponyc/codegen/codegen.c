@@ -106,6 +106,25 @@ static void init_runtime(compile_t* c)
   c->str_Pointer = stringtab("Pointer");
   c->str_Array = stringtab("Array");
 
+  c->str_add = stringtab("add");
+  c->str_sub = stringtab("sub");
+  c->str_mul = stringtab("mul");
+  c->str_div = stringtab("div");
+  c->str_mod = stringtab("mod");
+  c->str_neg = stringtab("neg");
+  c->str_and = stringtab("and_");
+  c->str_or = stringtab("or_");
+  c->str_xor = stringtab("xor_");
+  c->str_not = stringtab("not_");
+  c->str_shl = stringtab("shl");
+  c->str_shr = stringtab("shr");
+  c->str_eq = stringtab("eq");
+  c->str_ne = stringtab("ne");
+  c->str_lt = stringtab("lt");
+  c->str_le = stringtab("le");
+  c->str_ge = stringtab("ge");
+  c->str_gt = stringtab("gt");
+
   LLVMTypeRef type;
   LLVMTypeRef params[4];
 

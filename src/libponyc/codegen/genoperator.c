@@ -6,17 +6,13 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
+typedef LLVMValueRef (*const_binop)(LLVMValueRef left, LLVMValueRef right);
+
+typedef LLVMValueRef (*build_binop)(LLVMBuilderRef builder, LLVMValueRef left,
+  LLVMValueRef right, const char *name);
+
 static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   LLVMValueRef r_value);
-
-static bool signed_compare(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  return is_signed(l_type) || is_signed(r_type);
-}
 
 static bool is_constant_i1(compile_t* c, LLVMValueRef val)
 {
@@ -59,6 +55,126 @@ static bool is_fp(LLVMValueRef val)
   }
 
   return false;
+}
+
+static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
+  const_binop const_f, const_binop const_i,
+  build_binop build_f, build_binop build_i)
+{
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+  {
+    if(is_fp(l_value))
+      return const_f(l_value, r_value);
+
+    return const_i(l_value, r_value);
+  }
+
+  if(is_fp(l_value))
+    return build_f(c->builder, l_value, r_value, "");
+
+  return build_i(c->builder, l_value, r_value, "");
+}
+
+LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
+  const_binop const_f, const_binop const_ui, const_binop const_si,
+  build_binop build_f, build_binop build_ui, build_binop build_si)
+{
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
+  {
+    ast_error(right, "constant divide or mod by zero");
+    return NULL;
+  }
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+  {
+    if(is_fp(l_value))
+      return const_f(l_value, r_value);
+
+    if(sign)
+      return const_si(l_value, r_value);
+
+    return const_ui(l_value, r_value);
+  }
+
+  if(is_fp(l_value))
+    return build_f(c->builder, l_value, r_value, "");
+
+  // Setup additional blocks.
+  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef then_block = codegen_block(c, "div_then");
+  LLVMBasicBlockRef post_block = codegen_block(c, "div_post");
+
+  // Check for div by zero.
+  LLVMTypeRef r_type = LLVMTypeOf(r_value);
+  LLVMValueRef zero = LLVMConstInt(r_type, 0, false);
+  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
+  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
+
+  // Divisor is not zero.
+  LLVMPositionBuilderAtEnd(c->builder, then_block);
+  LLVMValueRef result;
+
+  if(sign)
+    result = build_si(c->builder, l_value, r_value, "");
+  else
+    result = build_ui(c->builder, l_value, r_value, "");
+
+  LLVMBuildBr(c->builder, post_block);
+
+  // Phi node.
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, r_type, "");
+  LLVMAddIncoming(phi, &zero, &insert, 1);
+  LLVMAddIncoming(phi, &result, &then_block, 1);
+
+  return phi;
+}
+
+static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
+  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_ui, LLVMIntPredicate cmp_si)
+{
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if((l_value == NULL) || (r_value == NULL))
+    return NULL;
+
+  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
+  {
+    if(is_fp(l_value))
+      return LLVMConstFCmp(cmp_f, l_value, r_value);
+
+    if(sign)
+      return LLVMConstICmp(cmp_si, l_value, r_value);
+
+    return LLVMConstICmp(cmp_ui, l_value, r_value);
+  }
+
+  if(is_fp(l_value))
+    return LLVMBuildFCmp(c->builder, cmp_f, l_value, r_value, "");
+
+  if(sign)
+    return LLVMBuildICmp(c->builder, cmp_si, l_value, r_value, "");
+
+  return LLVMBuildICmp(c->builder, cmp_ui, l_value, r_value, "");
 }
 
 static LLVMValueRef assign_one(compile_t* c, LLVMValueRef l_value,
@@ -205,17 +321,34 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
   return NULL;
 }
 
-LLVMValueRef gen_not(compile_t* c, ast_t* ast)
+LLVMValueRef gen_add(compile_t* c, ast_t* left, ast_t* right)
 {
-  LLVMValueRef value = gen_expr(c, ast_child(ast));
+  return make_binop(c, left, right, LLVMConstFAdd, LLVMConstAdd,
+    LLVMBuildFAdd, LLVMBuildAdd);
+}
 
-  if(value == NULL)
-    return NULL;
+LLVMValueRef gen_sub(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_binop(c, left, right, LLVMConstFSub, LLVMConstSub,
+    LLVMBuildFSub, LLVMBuildSub);
+}
 
-  if(LLVMIsAConstantInt(value))
-    return LLVMConstNot(value);
+LLVMValueRef gen_mul(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_binop(c, left, right, LLVMConstFMul, LLVMConstMul,
+    LLVMBuildFMul, LLVMBuildMul);
+}
 
-  return LLVMBuildNot(c->builder, value, "");
+LLVMValueRef gen_div(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_divmod(c, left, right, LLVMConstFDiv, LLVMConstUDiv,
+    LLVMConstSDiv, LLVMBuildFDiv, LLVMBuildUDiv, LLVMBuildSDiv);
+}
+
+LLVMValueRef gen_mod(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_divmod(c, left, right, LLVMConstFRem, LLVMConstURem,
+    LLVMConstSRem, LLVMBuildFRem, LLVMBuildURem, LLVMBuildSRem);
 }
 
 LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
@@ -237,256 +370,8 @@ LLVMValueRef gen_neg(compile_t* c, ast_t* ast)
   return LLVMBuildNeg(c->builder, value, "");
 }
 
-LLVMValueRef gen_plus(compile_t* c, ast_t* ast)
+LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFAdd(l_value, r_value);
-
-    return LLVMConstAdd(l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFAdd(c->builder, l_value, r_value, "");
-
-  return LLVMBuildAdd(c->builder, l_value, r_value, "");
-}
-
-LLVMValueRef gen_minus(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFSub(l_value, r_value);
-
-    return LLVMConstSub(l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFSub(c->builder, l_value, r_value, "");
-
-  return LLVMBuildSub(c->builder, l_value, r_value, "");
-}
-
-LLVMValueRef gen_multiply(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFMul(l_value, r_value);
-
-    return LLVMConstMul(l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFMul(c->builder, l_value, r_value, "");
-
-  return LLVMBuildMul(c->builder, l_value, r_value, "");
-}
-
-static LLVMValueRef i128_prototype(compile_t* c, const char* name, bool sign)
-{
-  const char* type_name = sign ? "$1_I128" : "$1_U128";
-  const char* fun_name = genname_fun(type_name, name, NULL);
-
-  LLVMValueRef fun = LLVMGetNamedFunction(c->module, fun_name);
-
-  if(fun != NULL)
-    return fun;
-
-  LLVMTypeRef params[2];
-  params[0] = c->i128;
-  params[1] = c->i128;
-
-  LLVMTypeRef f_type = LLVMFunctionType(c->i128, params, 2, false);
-  return codegen_addfun(c, fun_name, f_type);
-}
-
-LLVMValueRef gen_divide(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
-  {
-    ast_error(ast, "constant divide by zero");
-    return NULL;
-  }
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFDiv(l_value, r_value);
-
-    if(is_signed(ast_type(ast)))
-      return LLVMConstSDiv(l_value, r_value);
-
-    return LLVMConstUDiv(l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFDiv(c->builder, l_value, r_value, "");
-
-  LLVMTypeRef l_type = LLVMTypeOf(l_value);
-
-  if(l_type == c->i128)
-  {
-    bool has_i128;
-    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
-
-    if(!has_i128)
-    {
-      LLVMValueRef args[2];
-      args[0] = l_value;
-      args[1] = r_value;
-
-      bool sign = is_signed(ast_type(ast));
-      LLVMValueRef fun = i128_prototype(c, "div", sign);
-
-      return codegen_call(c, fun, args, 2);
-    }
-  }
-
-  // Setup additional blocks.
-  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = codegen_block(c, "div_then");
-  LLVMBasicBlockRef post_block = codegen_block(c, "div_post");
-
-  // Check for div by zero.
-  LLVMTypeRef type = LLVMTypeOf(r_value);
-  LLVMValueRef zero = LLVMConstInt(type, 0, false);
-  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
-  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
-
-  // Divisor is not zero.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  LLVMValueRef result;
-
-  if(is_signed(ast_type(ast)))
-    result = LLVMBuildSDiv(c->builder, l_value, r_value, "");
-  else
-    result = LLVMBuildUDiv(c->builder, l_value, r_value, "");
-
-  LLVMBuildBr(c->builder, post_block);
-
-  // Phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, type, "");
-  LLVMAddIncoming(phi, &zero, &insert, 1);
-  LLVMAddIncoming(phi, &result, &then_block, 1);
-
-  return phi;
-}
-
-LLVMValueRef gen_mod(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
-  {
-    ast_error(ast, "constant modulus zero");
-    return NULL;
-  }
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFRem(l_value, r_value);
-
-    if(is_signed(ast_type(ast)))
-      return LLVMConstSRem(l_value, r_value);
-
-    return LLVMConstURem(l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFRem(c->builder, l_value, r_value, "");
-
-  LLVMTypeRef l_type = LLVMTypeOf(l_value);
-
-  if(l_type == c->i128)
-  {
-    bool has_i128;
-    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
-
-    if(!has_i128)
-    {
-      LLVMValueRef args[2];
-      args[0] = l_value;
-      args[1] = r_value;
-
-      bool sign = is_signed(ast_type(ast));
-      LLVMValueRef fun = i128_prototype(c, "mod", sign);
-
-      return codegen_call(c, fun, args, 2);
-    }
-  }
-
-  // Setup additional blocks.
-  LLVMBasicBlockRef insert = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef then_block = codegen_block(c, "mod_then");
-  LLVMBasicBlockRef post_block = codegen_block(c, "mod_post");
-
-  // Check for mod by zero.
-  LLVMTypeRef type = LLVMTypeOf(r_value);
-  LLVMValueRef zero = LLVMConstInt(type, 0, false);
-  LLVMValueRef cmp = LLVMBuildICmp(c->builder, LLVMIntNE, r_value, zero, "");
-  LLVMBuildCondBr(c->builder, cmp, then_block, post_block);
-
-  // Divisor is not zero.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-  LLVMValueRef result;
-
-  if(is_signed(ast_type(ast)))
-    result = LLVMBuildSRem(c->builder, l_value, r_value, "");
-  else
-    result = LLVMBuildURem(c->builder, l_value, r_value, "");
-
-  LLVMBuildBr(c->builder, post_block);
-
-  // Phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, type, "");
-  LLVMAddIncoming(phi, &zero, &insert, 1);
-  LLVMAddIncoming(phi, &result, &then_block, 1);
-
-  return phi;
-}
-
-LLVMValueRef gen_lshift(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -499,12 +384,11 @@ LLVMValueRef gen_lshift(compile_t* c, ast_t* ast)
   return LLVMBuildShl(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef gen_rshift(compile_t* c, ast_t* ast)
+LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right)
 {
-  ast_t* type = ast_type(ast);
+  ast_t* type = ast_type(left);
   bool sign = is_signed(type);
 
-  AST_GET_CHILDREN(ast, left, right);
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -525,9 +409,9 @@ LLVMValueRef gen_rshift(compile_t* c, ast_t* ast)
   return LLVMBuildLShr(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
+LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
+  // TODO: short circuit
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -535,28 +419,17 @@ LLVMValueRef gen_lt(compile_t* c, ast_t* ast)
     return NULL;
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealOLT, l_value, r_value);
+    return LLVMConstAnd(l_value, r_value);
 
-    if(signed_compare(ast))
-      return LLVMConstICmp(LLVMIntSLT, l_value, r_value);
+  if(is_always_false(c, l_value) || is_always_false(c, r_value))
+    return LLVMConstInt(c->i1, 0, false);
 
-    return LLVMConstICmp(LLVMIntULT, l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealOLT, l_value, r_value, "");
-
-  if(signed_compare(ast))
-    return LLVMBuildICmp(c->builder, LLVMIntSLT, l_value, r_value, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntULT, l_value, r_value, "");
+  return LLVMBuildAnd(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef gen_le(compile_t* c, ast_t* ast)
+LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
+  // TODO: short circuit
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -564,28 +437,16 @@ LLVMValueRef gen_le(compile_t* c, ast_t* ast)
     return NULL;
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealOLE, l_value, r_value);
+    return LLVMConstOr(l_value, r_value);
 
-    if(signed_compare(ast))
-      return LLVMConstICmp(LLVMIntSLE, l_value, r_value);
+  if(is_always_true(c, l_value) || is_always_true(c, r_value))
+    return LLVMConstInt(c->i1, 1, false);
 
-    return LLVMConstICmp(LLVMIntULE, l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealOLE, l_value, r_value, "");
-
-  if(signed_compare(ast))
-    return LLVMBuildICmp(c->builder, LLVMIntSLE, l_value, r_value, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntULE, l_value, r_value, "");
+  return LLVMBuildOr(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
+LLVMValueRef gen_xor(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -593,98 +454,64 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* ast)
     return NULL;
 
   if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealOGE, l_value, r_value);
+    return LLVMConstXor(l_value, r_value);
 
-    if(signed_compare(ast))
-      return LLVMConstICmp(LLVMIntSGE, l_value, r_value);
+  if(is_always_true(c, l_value))
+    return LLVMBuildNot(c->builder, r_value, "");
 
-    return LLVMConstICmp(LLVMIntUGE, l_value, r_value);
-  }
+  if(is_always_false(c, l_value))
+    return r_value;
 
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealOGE, l_value, r_value, "");
+  if(is_always_true(c, r_value))
+    return LLVMBuildNot(c->builder, l_value, "");
 
-  if(signed_compare(ast))
-    return LLVMBuildICmp(c->builder, LLVMIntSGE, l_value, r_value, "");
+  if(is_always_false(c, r_value))
+    return l_value;
 
-  return LLVMBuildICmp(c->builder, LLVMIntUGE, l_value, r_value, "");
+  return LLVMBuildXor(c->builder, l_value, r_value, "");
 }
 
-LLVMValueRef gen_gt(compile_t* c, ast_t* ast)
+LLVMValueRef gen_not(compile_t* c, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
+  LLVMValueRef value = gen_expr(c, ast_child(ast));
 
-  if((l_value == NULL) || (r_value == NULL))
+  if(value == NULL)
     return NULL;
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealOGT, l_value, r_value);
+  if(LLVMIsAConstantInt(value))
+    return LLVMConstNot(value);
 
-    if(signed_compare(ast))
-      return LLVMConstICmp(LLVMIntSGT, l_value, r_value);
-
-    return LLVMConstICmp(LLVMIntUGT, l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealOGT, l_value, r_value, "");
-
-  if(signed_compare(ast))
-    return LLVMBuildICmp(c->builder, LLVMIntSGT, l_value, r_value, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntUGT, l_value, r_value, "");
+  return LLVMBuildNot(c->builder, value, "");
 }
 
-LLVMValueRef gen_eq(compile_t* c, ast_t* ast)
+LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealOEQ, l_value, r_value);
-
-    return LLVMConstICmp(LLVMIntEQ, l_value, r_value);
-  }
-
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealOEQ, l_value, r_value, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
+  return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ);
 }
 
-LLVMValueRef gen_ne(compile_t* c, ast_t* ast)
+LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
+  return make_cmp(c, left, right, LLVMRealONE, LLVMIntNE, LLVMIntNE);
+}
 
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
+LLVMValueRef gen_lt(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_cmp(c, left, right, LLVMRealOLT, LLVMIntSLT, LLVMIntULT);
+}
 
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-  {
-    if(is_fp(l_value))
-      return LLVMConstFCmp(LLVMRealONE, l_value, r_value);
+LLVMValueRef gen_le(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_cmp(c, left, right, LLVMRealOLE, LLVMIntSLE, LLVMIntULE);
+}
 
-    return LLVMConstICmp(LLVMIntNE, l_value, r_value);
-  }
+LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_cmp(c, left, right, LLVMRealOGE, LLVMIntSGE, LLVMIntUGE);
+}
 
-  if(is_fp(l_value))
-    return LLVMBuildFCmp(c->builder, LLVMRealONE, l_value, r_value, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntNE, l_value, r_value, "");
+LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT);
 }
 
 LLVMValueRef gen_is(compile_t* c, ast_t* ast)
@@ -720,69 +547,6 @@ LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
     return NULL;
 
   return LLVMBuildNot(c->builder, is, "");
-}
-
-LLVMValueRef gen_and(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstAnd(l_value, r_value);
-
-  if(is_always_false(c, l_value) || is_always_false(c, r_value))
-    return LLVMConstInt(c->i1, 0, false);
-
-  return LLVMBuildAnd(c->builder, l_value, r_value, "");
-}
-
-LLVMValueRef gen_or(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstOr(l_value, r_value);
-
-  if(is_always_true(c, l_value) || is_always_true(c, r_value))
-    return LLVMConstInt(c->i1, 1, false);
-
-  return LLVMBuildOr(c->builder, l_value, r_value, "");
-}
-
-LLVMValueRef gen_xor(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  if(LLVMIsConstant(l_value) && LLVMIsConstant(r_value))
-    return LLVMConstXor(l_value, r_value);
-
-  if(is_always_true(c, l_value))
-    return LLVMBuildNot(c->builder, r_value, "");
-
-  if(is_always_false(c, l_value))
-    return r_value;
-
-  if(is_always_true(c, r_value))
-    return LLVMBuildNot(c->builder, l_value, "");
-
-  if(is_always_false(c, r_value))
-    return l_value;
-
-  return LLVMBuildXor(c->builder, l_value, r_value, "");
 }
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)

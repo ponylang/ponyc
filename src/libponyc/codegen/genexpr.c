@@ -65,65 +65,11 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_ERROR:
       return gen_error(c, ast);
 
-    case TK_NOT:
-      return gen_not(c, ast);
-
-    case TK_UNARY_MINUS:
-      return gen_neg(c, ast);
-
-    case TK_PLUS:
-      return gen_plus(c, ast);
-
-    case TK_MINUS:
-      return gen_minus(c, ast);
-
-    case TK_MULTIPLY:
-      return gen_multiply(c, ast);
-
-    case TK_DIVIDE:
-      return gen_divide(c, ast);
-
-    case TK_MOD:
-      return gen_mod(c, ast);
-
-    case TK_LSHIFT:
-      return gen_lshift(c, ast);
-
-    case TK_RSHIFT:
-      return gen_rshift(c, ast);
-
-    case TK_LT:
-      return gen_lt(c, ast);
-
-    case TK_LE:
-      return gen_le(c, ast);
-
-    case TK_GE:
-      return gen_ge(c, ast);
-
-    case TK_GT:
-      return gen_gt(c, ast);
-
-    case TK_EQ:
-      return gen_eq(c, ast);
-
-    case TK_NE:
-      return gen_ne(c, ast);
-
     case TK_IS:
       return gen_is(c, ast);
 
     case TK_ISNT:
       return gen_isnt(c, ast);
-
-    case TK_AND:
-      return gen_and(c, ast);
-
-    case TK_OR:
-      return gen_or(c, ast);
-
-    case TK_XOR:
-      return gen_xor(c, ast);
 
     case TK_ASSIGN:
       return gen_assign(c, ast);
@@ -131,8 +77,15 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_THIS:
       return gen_this(c, ast);
 
+    case TK_TRUE:
+      return LLVMConstInt(c->i1, 1, false);
+
+    case TK_FALSE:
+      return LLVMConstInt(c->i1, 0, false);
+
     case TK_INT:
     {
+      // TODO: depends on type
       __int128_t value = ast_int(ast);
       uint64_t low = (uint64_t)value;
       uint64_t high = (uint64_t)(value >> 64);
@@ -146,6 +99,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     }
 
     case TK_FLOAT:
+      // TODO: depends on type
       return LLVMConstReal(c->f64, ast_float(ast));
 
     case TK_STRING:

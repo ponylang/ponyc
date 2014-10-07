@@ -55,6 +55,25 @@ typedef struct compile_t
   const char* str_Array;
   const char* str_Platform;
 
+  const char* str_add;
+  const char* str_sub;
+  const char* str_mul;
+  const char* str_div;
+  const char* str_mod;
+  const char* str_neg;
+  const char* str_and;
+  const char* str_or;
+  const char* str_xor;
+  const char* str_not;
+  const char* str_shl;
+  const char* str_shr;
+  const char* str_eq;
+  const char* str_ne;
+  const char* str_lt;
+  const char* str_le;
+  const char* str_ge;
+  const char* str_gt;
+
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
   LLVMTargetDataRef target_data;
