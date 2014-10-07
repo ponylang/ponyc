@@ -344,7 +344,7 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
-  if(is_arith_literal(right))
+  if(is_type_arith_literal(r_type))
   {
     ast_inheriterror(ast);
     return promote_literal(right, l_type);

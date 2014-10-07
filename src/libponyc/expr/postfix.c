@@ -1,5 +1,6 @@
 #include "postfix.h"
 #include "reference.h"
+#include "literal.h"
 #include "../ast/token.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -404,6 +405,10 @@ bool expr_call(ast_t* ast)
           p_type = ast_childidx(param, 1);
         else
           p_type = param;
+
+        if(is_type_arith_literal(ast_type(arg)) &&
+          !promote_literal(arg, p_type))
+          return false;
 
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);

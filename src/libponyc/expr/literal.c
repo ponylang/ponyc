@@ -213,7 +213,7 @@ static void propogate_coercion(ast_t* ast, ast_t* type)
   assert(ast != NULL);
   assert(type != NULL);
 
-  if(!is_arith_literal(ast))
+  if(!is_type_arith_literal(ast_type(ast)))
     return;
 
   ast_settype(ast, type);
@@ -223,7 +223,7 @@ static void propogate_coercion(ast_t* ast, ast_t* type)
 }
 
 
-bool is_arith_literal(ast_t* ast)
+bool is_type_arith_literal(ast_t* ast)
 {
   assert(ast != NULL);
   token_id id = ast_id(ast);
@@ -246,9 +246,17 @@ static bool can_promote_literal(ast_t* ast, ast_t* target)
   const char* type_name = ast_name(ast_childidx(target, 1));
 
   if(type_name == stringtab("I8") ||
-    type_name == stringtab("I16"))
+    type_name == stringtab("I16") ||
+    type_name == stringtab("I32") ||
+    type_name == stringtab("I64") ||
+    type_name == stringtab("I128") ||
+    type_name == stringtab("U8") ||
+    type_name == stringtab("U16") ||
+    type_name == stringtab("U32") ||
+    type_name == stringtab("U64") ||
+    type_name == stringtab("U128"))
   {
-    return (ast_id(ast) == TK_INTLITERAL);
+    return (ast_id(ast_type(ast)) == TK_INTLITERAL);
   }
 
   if(type_name == stringtab("F32") ||
@@ -259,16 +267,21 @@ static bool can_promote_literal(ast_t* ast, ast_t* target)
 }
 
 
-bool promote_literal(ast_t* ast, ast_t* target)
+bool promote_literal(ast_t* ast, ast_t* target_type)
 {
   assert(ast != NULL);
 
-  if(!can_promote_literal(ast, target))
+  if(!can_promote_literal(ast, target_type))
   {
     ast_error(ast, "cannot determine type of literal");
     return false;
   }
 
-  propogate_coercion(ast, target);
+  ast_t* prom_type = ast_dup(target_type);
+  ast_t* cap = ast_childidx(prom_type, 3);
+  assert(cap != NULL);
+  ast_setid(cap, TK_TAG);
+
+  propogate_coercion(ast, prom_type);
   return true;
 }
