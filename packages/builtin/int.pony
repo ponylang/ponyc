@@ -78,9 +78,9 @@ primitive I128 is Integer[I128]
 
       var minus = if num < 0 then
         num = -num
-        True
+        true
       else
-        False
+        false
       end
 
       if den < 0 then

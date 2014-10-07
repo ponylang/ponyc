@@ -214,21 +214,21 @@ class String val is Ordered[String]
     if _size == that._size then
       for i in Range[U64](0, _size) do
         if _ptr._apply(i) != that._ptr._apply(i) then
-          return False
+          return false
         end
       end
-      True
+      true
     else
-      False
+      false
     end
 
   fun box lt(that: String box): Bool =>
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
       if _ptr._apply(i) < that._ptr._apply(i) then
-        return True
+        return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
-        return False
+        return false
       end
     end
     _size < that._size
@@ -237,9 +237,9 @@ class String val is Ordered[String]
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
       if _ptr._apply(i) < that._ptr._apply(i) then
-        return True
+        return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
-        return False
+        return false
       end
     end
     _size <= that._size
@@ -262,16 +262,16 @@ class String val is Ordered[String]
 
   fun box i64(): I64 =>
     if Platform.windows() then
-      @_strtoi64[I64](_ptr, 0.u64(), 10)
+      @_strtoi64[I64](_ptr, U64(0), 10)
     else
-      @strtol[I64](_ptr, 0.u64(), 10)
+      @strtol[I64](_ptr, U64(0), 10)
     end
 
   fun box i128(): I128 =>
     if Platform.windows() then
       i64().i128()
     else
-      @strtoll[I128](_ptr, 0.u64(), 10)
+      @strtoll[I128](_ptr, U64(0), 10)
     end
 
   fun box u8(): U8 => u64().u8()
@@ -280,21 +280,21 @@ class String val is Ordered[String]
 
   fun box u64(): U64 =>
     if Platform.windows() then
-      @_strtoui64[U64](_ptr, 0.u64(), 10)
+      @_strtoui64[U64](_ptr, U64(0), 10)
     else
-      @strtoul[U64](_ptr, 0.u64(), 10)
+      @strtoul[U64](_ptr, U64(0), 10)
     end
 
   fun box u128(): U128 =>
     if Platform.windows() then
       u64().u128()
     else
-      @strtoull[U128](_ptr, 0.u64(), 10)
+      @strtoull[U128](_ptr, U64(0), 10)
     end
 
-  fun box f32(): F32 => @strtof[F32](_ptr, 0.u64())
+  fun box f32(): F32 => @strtof[F32](_ptr, U64(0))
 
-  fun box f64(): F64 => @strtod[F64](_ptr, 0.u64())
+  fun box f64(): F64 => @strtod[F64](_ptr, U64(0))
 
   fun tag _int_table(): String =>
     "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
@@ -313,13 +313,13 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.i64()
-      var i = 0
+      var i:U64 = 0
 
       repeat
         var tmp = value
         value = value / div
         var index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(35 + index))
+        _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
 
@@ -348,13 +348,13 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.u64()
-      var i = 0
+      var i:U64 = 0
 
       repeat
         var tmp = value
         value = value / div
         var index = tmp - (value * div)
-        _ptr._update(i, table._ptr._apply(35 + index))
+        _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
 
@@ -378,13 +378,13 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.i128()
-      var i = 0
+      var i:U64 = 0
 
       repeat
         var tmp = value
         value = value / div
         var index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(35 + index))
+        _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
 
@@ -413,13 +413,13 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.u128()
-      var i = 0
+      var i:U64 = 0
 
       repeat
         var tmp = value
         value = value / div
         var index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(35 + index))
+        _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
 

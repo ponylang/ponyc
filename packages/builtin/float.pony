@@ -13,7 +13,7 @@ primitive F32 is Number[F32]
   fun tag trunc(): F32 => @truncf[F32](this)
 
   fun tag finite(): Bool =>
-    0 != if Platform.windows() then
+  I32(0) != if Platform.windows() then
       @_finite[I32](this.f64())
     elseif Platform.osx() then
       @finite[I32](this.f64())
@@ -22,7 +22,7 @@ primitive F32 is Number[F32]
     end
 
   fun tag nan(): Bool =>
-    0 != if Platform.windows() then
+    I32(0) != if Platform.windows() then
       @_isnan[I32](this.f64())
     elseif Platform.osx() then
       @isnan[I32](this.f64())
@@ -76,14 +76,14 @@ primitive F64 is Number[F64]
   fun tag trunc(): F64 => @trunc[F64](this)
 
   fun tag finite(): Bool =>
-    0 != if Platform.windows() then
+    I32(0) != if Platform.windows() then
       @_finite[I32](this)
     else
       @finite[I32](this)
     end
 
   fun tag nan(): Bool =>
-    0 != if Platform.windows() then
+    I32(0) != if Platform.windows() then
       @_isnan[I32](this)
     else
       @isnan[I32](this)
@@ -123,17 +123,17 @@ primitive F64 is Number[F64]
     var ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if ex < 0 then
-      return 0.i128()
+      return I128(0)
     end
 
     var s = ((high and 0x80000000) >> 31).i128()
-    var r = (0x0010000000000000 or (0x000FFFFFFFFFFFFF and bit)).i128()
+    var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).i128()
     var ex' = ex.i128()
 
     if ex' > 52 then
       r = r << (ex' - 52)
     else
-      r = r >> (52 - ex')
+      r = r >> (I128(52) - ex')
     end
 
     (r xor s) - s
@@ -144,16 +144,16 @@ primitive F64 is Number[F64]
     var ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if (ex < 0) or ((high and 0x80000000) != 0) then
-      return 0.u128()
+      return U128(0)
     end
 
-    var r = (0x0010000000000000 or (0x000FFFFFFFFFFFFF and bit)).u128()
+    var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).u128()
     var ex' = ex.u128()
 
     if ex' > 52 then
       r = r << (ex' - 52)
     else
-      r = r >> (52 - ex')
+      r = r >> (U128(52) - ex')
     end
 
     r.u128()

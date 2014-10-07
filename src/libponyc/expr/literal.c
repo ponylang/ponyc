@@ -236,6 +236,12 @@ bool is_literal_subtype(token_id literal_id, ast_t* target)
   assert(literal_id == TK_INTLITERAL || literal_id == TK_FLOATLITERAL);
   assert(target != NULL);
 
+  if(ast_id(target) == TK_TYPEPARAMREF)
+  {
+    ast_t* param = (ast_t*)ast_data(target);
+    target = ast_childidx(param, 1);
+  }
+
   if(ast_id(target) != TK_NOMINAL)
     return false;
 
@@ -256,7 +262,9 @@ bool is_literal_subtype(token_id literal_id, ast_t* target)
   }
 
   if(type_name == stringtab("F32") ||
-    type_name == stringtab("F64"))
+    type_name == stringtab("F64") ||
+    type_name == stringtab("Number") ||
+    type_name == stringtab("Arithmetic"))
     return true;
 
   return false;

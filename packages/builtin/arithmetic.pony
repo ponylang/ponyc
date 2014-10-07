@@ -1,8 +1,8 @@
-primitive IntLiteral is Integer[IntLiteral]
-  fun tag string(): String iso^ => recover String.from_u128(this, 10) end
+//primitive IntLiteral is Integer[IntLiteral]
+//  fun tag string(): String iso^ => recover String.from_u128(this, 10) end
 
-primitive FloatLiteral is Number[FloatLiteral]
-  fun tag string(): String iso^ => recover String.from_f64(this, 10) end
+//primitive FloatLiteral is Number[FloatLiteral]
+//  fun tag string(): String iso^ => recover String.from_f64(this, 10) end
 
 type Signed is
   ( I8
