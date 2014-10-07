@@ -99,8 +99,8 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_ffi(c, ast);
 
     case TK_COMPILER_INTRINSIC:
-      ast_error(ast, "compiler intrinsic not defined");
-      return NULL;
+      LLVMBuildUnreachable(c->builder);
+      return GEN_NOVALUE;
 
     default: {}
   }
