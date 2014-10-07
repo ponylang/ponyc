@@ -262,16 +262,16 @@ class String val is Ordered[String]
 
   fun box i64(): I64 =>
     if Platform.windows() then
-      @_strtoi64[I64](_ptr, U64(0), 10)
+      @_strtoi64[I64](_ptr, U64(0), I32(10))
     else
-      @strtol[I64](_ptr, U64(0), 10)
+      @strtol[I64](_ptr, U64(0), I32(10))
     end
 
   fun box i128(): I128 =>
     if Platform.windows() then
       i64().i128()
     else
-      @strtoll[I128](_ptr, U64(0), 10)
+      @strtoll[I128](_ptr, U64(0),I32(10))
     end
 
   fun box u8(): U8 => u64().u8()
@@ -280,16 +280,16 @@ class String val is Ordered[String]
 
   fun box u64(): U64 =>
     if Platform.windows() then
-      @_strtoui64[U64](_ptr, U64(0), 10)
+      @_strtoui64[U64](_ptr, U64(0), I32(10))
     else
-      @strtoul[U64](_ptr, U64(0), 10)
+      @strtoul[U64](_ptr, U64(0), I32(10))
     end
 
   fun box u128(): U128 =>
     if Platform.windows() then
       u64().u128()
     else
-      @strtoull[U128](_ptr, U64(0), 10)
+      @strtoull[U128](_ptr, U64(0), I32(10))
     end
 
   fun box f32(): F32 => @strtof[F32](_ptr, U64(0))

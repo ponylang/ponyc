@@ -285,19 +285,33 @@ bool coerce_literals(ast_t* ast, ast_t* target_type)
 
     ast_t* child = ast_child(ast);
     ast_t* target_child = ast_child(target_type);
+    ast_t* new_type = ast_from(ast_type(ast), TK_TUPLETYPE);
+    ast_t* last_sibling = NULL;
 
     while(child != NULL)
     {
       assert(target_child != NULL);
+      assert(ast_id(child) == TK_SEQ);
 
-      if(!coerce_literals(child, target_child))
+      if(!coerce_literals(ast_child(child), target_child))
+      {
+        ast_free(new_type);
         return false;
+      }
 
+      ast_t* new_element_type = ast_dup(ast_type(ast_child(child)));
+      if(last_sibling == NULL)
+        ast_add(new_type, new_element_type);
+      else
+        ast_add_sibling(last_sibling, new_element_type);
+
+      last_sibling = new_element_type;
       child = ast_sibling(child);
       target_child = ast_sibling(target_child);
     }
 
     assert(target_child == NULL);
+    ast_settype(ast, new_type);
     return true;
   }
 
