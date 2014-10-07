@@ -62,8 +62,14 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 static void make_global_instance(compile_t* c, gentype_t* g)
 {
   // Not a primitive type.
-  if((g->underlying != TK_PRIMITIVE) || (g->primitive != NULL))
+  if(g->underlying != TK_PRIMITIVE)
     return;
+
+  if(g->primitive != NULL)
+  {
+    g->instance = LLVMConstNull(g->primitive);
+    return;
+  }
 
   // Check for an existing instance.
   const char* inst_name = genname_instance(g->type_name);

@@ -1,7 +1,9 @@
 #include "dwarf.h"
+#include "../pkg/package.h"
 #include "../ast/source.h"
+#include <string.h>
 
-#define DW_LANG_Pony = 0x8002
+#define DW_LANG_Pony 0x8002
 #define PRODUCER "ponyc"
 
 typedef enum
@@ -84,6 +86,26 @@ typedef enum
   DW_TAG_hi_user = 0xffff
 } dw_tag_t;
 
+static LLVMValueRef mdbool(compile_t* c, bool value)
+{
+  return LLVMConstInt(c->i1, value, false);
+}
+
+static LLVMValueRef mdi32(compile_t* c, uint32_t value)
+{
+  return LLVMConstInt(c->i32, value, false);
+}
+
+static LLVMValueRef mdstring(compile_t* c, const char* string)
+{
+  return LLVMMDStringInContext(c->context, string, (int)strlen(string));
+}
+
+static LLVMValueRef mdnode(compile_t* c, LLVMValueRef* args, size_t count)
+{
+  return LLVMMDNodeInContext(c->context, args, (int)count);
+}
+
 void dwarf_module(compile_t* c, ast_t* ast)
 {
   ast_t* module = ast_nearest(ast, TK_MODULE);
@@ -94,42 +116,42 @@ void dwarf_module(compile_t* c, ast_t* ast)
   LLVMValueRef args[14];
 
   // Empty list.
-  args[0] = LLVMConstInt(c->i32, 0, false);
-  LLVMValueRef empty = LLVMMDNodeInContext(c->context, args, 1);
+  args[0] = mdi32(c, 0);
+  LLVMValueRef empty = mdnode(c, args, 1);
 
   // Source file.
   source_t* source = (source_t*)ast_data(module);
-  args[0] = LLVMMDStringInContext(c->context, source->file,
-    strlen(source->file));
+  args[0] = mdstring(c, source->file);
 
   // Source path.
   ast_t* package = ast_parent(module);
   const char* path = package_path(package);
-  args[1] = LLVMMDStringInContext(c->context, path, strlen(path));
+  args[1] = mdstring(c, path);
 
   // Pair of file and path.
-  LLVMValueRef pair = LLVMMDNodeInContext(c->context, args, 2);
+  LLVMValueRef pair = mdnode(c, args, 2);
 
   // File descriptor.
-  args[0] = LLVMConstInt(c->i32, DW_TAG_file_type, false);
+  args[0] = mdi32(c, DW_TAG_file_type);
   args[1] = pair;
-  LLVMValueRef fd = LLVMMDNodeInContext(c->context, args, 2);
+  LLVMValueRef fd = mdnode(c, args, 2);
 
   // Compilation unit.
-  args[0] = LLVMConstInt(c->i32, DW_TAG_compile_unit, false);
+  args[0] = mdi32(c, DW_TAG_compile_unit);
   args[1] = fd;
-  args[2] = LLVMConstInt(c->i32, DW_LANG_Pony, false);
-  args[3] = LLVMMDStringInContext(c->context, PRODUCER, strlen(PRODUCER));
-  args[4] = LLVMConstInt(c->i1, c->release, false);
-  args[5] = LLVMMDStringInContext(c->context, "", 0);
-  args[6] = LLVMConstInt(c->i32, 0, false);
+  args[2] = mdi32(c, DW_LANG_Pony);
+  args[3] = mdstring(c, PRODUCER);
+  args[4] = mdbool(c, c->release);
+  args[5] = mdstring(c, "");
+  args[6] = mdi32(c, 0);
   args[7] = empty; // List of enums types
   args[8] = empty; // List of retained types
   args[9] = empty; // List of subprograms
   args[10] = empty; // List of global variables
   args[11] = empty; // List of imported entities
-  args[12] = LLVMMDStringInContext(c->context, "", 0);
-  args[13] = LLVMConstInt(c->i32, 1, false);
+  args[12] = mdstring(c, "");
+  args[13] = mdi32(c, 1);
 
-  LLVMValueRef compilation_unit = LLVMMDNodeInContext(c->context, args, 14);
+  LLVMValueRef compilation_unit = mdnode(c, args, 14);
+  (void)compilation_unit;
 }
