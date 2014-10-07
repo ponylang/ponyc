@@ -48,8 +48,8 @@ static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
 {
   AST_GET_CHILDREN(ast, postfix, positional, named);
   AST_GET_CHILDREN(postfix, left, method);
-  AST_GET_CHILDREN(positional, right);
 
+  ast_t* right = ast_child(positional);
   const char* name = ast_name(method);
   *value = NULL;
 

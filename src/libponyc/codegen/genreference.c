@@ -169,6 +169,9 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   vhigh = LLVMConstShl(vhigh, shift);
   vhigh = LLVMConstAdd(vhigh, vlow);
 
+  if(g.primitive == c->i128)
+    return vhigh;
+
   return LLVMConstTrunc(vhigh, g.primitive);
 }
 
@@ -181,6 +184,10 @@ LLVMValueRef gen_float(compile_t* c, ast_t* ast)
     return NULL;
 
   LLVMValueRef value = LLVMConstReal(c->f64, ast_float(ast));
+
+  if(g.primitive == c->f64)
+    return value;
+
   return LLVMConstFPTrunc(value, g.primitive);
 }
 
