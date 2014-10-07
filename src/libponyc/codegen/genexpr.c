@@ -84,23 +84,10 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return LLVMConstInt(c->i1, 0, false);
 
     case TK_INT:
-    {
-      // TODO: depends on type
-      __int128_t value = ast_int(ast);
-      uint64_t low = (uint64_t)value;
-      uint64_t high = (uint64_t)(value >> 64);
-
-      LLVMValueRef vlow = LLVMConstInt(c->i128, low, false);
-      LLVMValueRef vhigh = LLVMConstInt(c->i128, high, false);
-      LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
-      vhigh = LLVMConstShl(vhigh, shift);
-
-      return LLVMConstAdd(vhigh, vlow);
-    }
+      return gen_int(c, ast);
 
     case TK_FLOAT:
-      // TODO: depends on type
-      return LLVMConstReal(c->f64, ast_float(ast));
+      return gen_float(c, ast);
 
     case TK_STRING:
       return gen_string(c, ast);

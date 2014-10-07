@@ -44,7 +44,7 @@ static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
 }
 
 static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
-  bool has_divmod)
+  bool short_circuit, bool has_divmod)
 {
   AST_GET_CHILDREN(ast, postfix, positional, named);
   AST_GET_CHILDREN(postfix, left, method);
@@ -65,9 +65,13 @@ static bool special_case_operator(compile_t* c, ast_t* ast, LLVMValueRef *value,
     *value = gen_mod(c, left, right);
   else if(name == c->str_neg)
     *value = gen_neg(c, left);
-  else if(name == c->str_and)
+  else if((name == c->str_and) && short_circuit)
+    *value = gen_and_sc(c, left, right);
+  else if((name == c->str_or) && short_circuit)
+    *value = gen_or_sc(c, left, right);
+  else if((name == c->str_and) && !short_circuit)
     *value = gen_and(c, left, right);
-  else if(name == c->str_or)
+  else if((name == c->str_or) && !short_circuit)
     *value = gen_or(c, left, right);
   else if(name == c->str_xor)
     *value = gen_xor(c, left, right);
@@ -133,8 +137,10 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 
   const char* name = ast_name(id);
 
-  if((name == c->str_Bool) ||
-    (name == c->str_I8) ||
+  if(name == c->str_Bool)
+    return special_case_operator(c, ast, value, true, true);
+
+  if((name == c->str_I8) ||
     (name == c->str_I16) ||
     (name == c->str_I32) ||
     (name == c->str_I64) ||
@@ -146,14 +152,14 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
     (name == c->str_F64)
     )
   {
-    return special_case_operator(c, ast, value, true);
+    return special_case_operator(c, ast, value, false, true);
   }
 
   if((name == c->str_I128) || (name == c->str_U128))
   {
     bool has_i128;
     os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
-    return special_case_operator(c, ast, value, has_i128);
+    return special_case_operator(c, ast, value, false, has_i128);
   }
 
   if(name == c->str_Platform)

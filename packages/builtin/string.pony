@@ -180,7 +180,7 @@ class String val is Ordered[String]
     end
     this
 
-  fun box sub(from: I64, to: I64): String iso^ =>
+  fun box substring(from: I64, to: I64): String iso^ =>
     recover
       var start = offset_to_index(from)
       var finish = offset_to_index(to).min(_size)
@@ -198,6 +198,15 @@ class String val is Ordered[String]
         str = String
       end
 
+      consume str
+    end
+
+  fun box add(that: String box): String =>
+    var len = _size + that._size
+    recover
+      var str = String._reserve(len)
+      str._ptr._copy(0, _ptr, _size)
+      str._ptr._copy(_size, that._ptr, that._size + 1)
       consume str
     end
 
@@ -243,15 +252,6 @@ class String val is Ordered[String]
     _ptr._copy(_size, that._ptr, that._size + 1)
     _size = _size + that._size
     this
-
-  fun box concat(that: String box): String =>
-    var len = _size + that._size
-    recover
-      var str = String._reserve(len)
-      str._ptr._copy(0, _ptr, _size)
-      str._ptr._copy(_size, that._ptr, that._size + 1)
-      consume str
-    end
 
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end

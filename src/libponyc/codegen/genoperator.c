@@ -177,6 +177,40 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   return LLVMBuildICmp(c->builder, cmp_ui, l_value, r_value, "");
 }
 
+LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
+  bool is_and)
+{
+  LLVMValueRef l_value = gen_expr(c, left);
+
+  if(l_value == NULL)
+    return NULL;
+
+  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef next_block = codegen_block(c, "sc_next");
+  LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
+
+  if(is_and)
+    LLVMBuildCondBr(c->builder, l_value, next_block, post_block);
+  else
+    LLVMBuildCondBr(c->builder, l_value, post_block, next_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, next_block);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  if(r_value == NULL)
+    return NULL;
+
+  LLVMBuildBr(c->builder, post_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+
+  LLVMAddIncoming(phi, &l_value, &entry_block, 1);
+  LLVMAddIncoming(phi, &r_value, &next_block, 1);
+
+  return phi;
+}
+
 static LLVMValueRef assign_one(compile_t* c, LLVMValueRef l_value,
   LLVMValueRef r_value, ast_t* r_type)
 {
@@ -409,9 +443,18 @@ LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right)
   return LLVMBuildLShr(c->builder, l_value, r_value, "");
 }
 
+LLVMValueRef gen_and_sc(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_short_circuit(c, left, right, true);
+}
+
+LLVMValueRef gen_or_sc(compile_t* c, ast_t* left, ast_t* right)
+{
+  return make_short_circuit(c, left, right, false);
+}
+
 LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 {
-  // TODO: short circuit
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
@@ -429,7 +472,6 @@ LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right)
 
 LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right)
 {
-  // TODO: short circuit
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 

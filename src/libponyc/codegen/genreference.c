@@ -151,6 +151,39 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   return LLVMBuildLoad(c->builder, local_ptr, "");
 }
 
+LLVMValueRef gen_int(compile_t* c, ast_t* ast)
+{
+  ast_t* type = ast_type(ast);
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  __int128_t value = ast_int(ast);
+  uint64_t low = (uint64_t)value;
+  uint64_t high = (uint64_t)(value >> 64);
+
+  LLVMValueRef vlow = LLVMConstInt(c->i128, low, false);
+  LLVMValueRef vhigh = LLVMConstInt(c->i128, high, false);
+  LLVMValueRef shift = LLVMConstInt(c->i128, 64, false);
+  vhigh = LLVMConstShl(vhigh, shift);
+  vhigh = LLVMConstAdd(vhigh, vlow);
+
+  return LLVMConstTrunc(vhigh, g.primitive);
+}
+
+LLVMValueRef gen_float(compile_t* c, ast_t* ast)
+{
+  ast_t* type = ast_type(ast);
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  LLVMValueRef value = LLVMConstReal(c->f64, ast_float(ast));
+  return LLVMConstFPTrunc(value, g.primitive);
+}
+
 LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);

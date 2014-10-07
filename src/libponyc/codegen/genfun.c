@@ -459,9 +459,6 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   {
     // Use the global instance.
     this_ptr = g->instance;
-  } else if(g->primitive != NULL) {
-    // TODO: remove this when we get rid of SIntLiteral and UIntLiteral
-    this_ptr = LLVMGetUndef(g->primitive);
   } else {
     // Allocate the object as 'this'.
     this_ptr = gencall_alloc(c, g->use_type);

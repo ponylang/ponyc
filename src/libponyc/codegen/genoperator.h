@@ -22,6 +22,10 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right);
 
 LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right);
 
+LLVMValueRef gen_and_sc(compile_t* c, ast_t* left, ast_t* right);
+
+LLVMValueRef gen_or_sc(compile_t* c, ast_t* left, ast_t* right);
+
 LLVMValueRef gen_and(compile_t* c, ast_t* left, ast_t* right);
 
 LLVMValueRef gen_or(compile_t* c, ast_t* left, ast_t* right);
