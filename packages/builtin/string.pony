@@ -313,7 +313,7 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.i64()
-      var i:U64 = 0
+      var i: U64 = 0
 
       repeat
         var tmp = value
@@ -348,7 +348,7 @@ class String val is Ordered[String]
       var table = _int_table()
       var value = x
       var div = base.u64()
-      var i:U64 = 0
+      var i: U64 = 0
 
       repeat
         var tmp = value

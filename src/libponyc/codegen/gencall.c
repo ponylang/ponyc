@@ -118,10 +118,7 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
 {
   AST_GET_CHILDREN(ast, postfix, positional, named);
 
-  if((ast_id(postfix) != TK_FUNREF) ||
-    (ast_id(positional) != TK_NONE) ||
-    (ast_id(named) != TK_NONE)
-    )
+  if((ast_id(postfix) != TK_FUNREF) || (ast_id(named) != TK_NONE))
     return false;
 
   AST_GET_CHILDREN(postfix, receiver, method);
