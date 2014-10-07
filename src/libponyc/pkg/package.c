@@ -519,6 +519,15 @@ ast_t* package_id(ast_t* ast)
 }
 
 
+const char* package_path(ast_t* package)
+{
+  assert(package != NULL);
+  assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+
+  return pkg->path;
+}
+
 const char* package_filename(ast_t* package)
 {
   assert(package != NULL);
