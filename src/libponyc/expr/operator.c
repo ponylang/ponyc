@@ -344,12 +344,6 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
-  if(is_type_arith_literal(r_type))
-  {
-    ast_inheriterror(ast);
-    return promote_literal(right, l_type);
-  }
-
   // assignment is based on the alias of the right hand side
   ast_t* a_type = alias(r_type);
 
@@ -371,14 +365,19 @@ bool expr_assign(ast_t* ast)
   }
 
   bool ok_sub = is_subtype(a_type, l_type);
-  bool ok_safe = safe_to_write(left, a_type);
-  ast_free_unattached(a_type);
+
+  if(ok_sub)
+    ok_sub = coerce_literals(ast, l_type);
 
   if(!ok_sub)
   {
     ast_error(ast, "right side must be a subtype of left side");
+    ast_free_unattached(a_type);
     return false;
   }
+
+  bool ok_safe = safe_to_write(left, a_type);
+  ast_free_unattached(a_type);
 
   if(!ok_safe)
   {

@@ -136,6 +136,9 @@ static bool expr_memberaccess(ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
+  if(is_type_arith_literal(type))
+    ast_error(left, "Literal member access");
+
   assert(ast_id(right) == TK_ID);
 
   ast_t* find = lookup(ast, type, ast_name(right));
@@ -407,7 +410,7 @@ bool expr_call(ast_t* ast)
           p_type = param;
 
         if(is_type_arith_literal(ast_type(arg)) &&
-          !promote_literal(arg, p_type))
+          !coerce_literals(arg, p_type))
           return false;
 
         ast_t* a_type = alias(ast_type(arg));

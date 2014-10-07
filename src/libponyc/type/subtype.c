@@ -5,6 +5,7 @@
 #include "assemble.h"
 #include "viewpoint.h"
 #include "../ds/stringtab.h"
+#include "../expr/literal.h"
 #include <assert.h>
 
 static bool is_throws_sub_throws(ast_t* sub, ast_t* super)
@@ -371,6 +372,11 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
       break;
     }
+
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      // We only coerce integer and float literals if they are a subtype
+      return is_literal_subtype(ast_id(sub), super);
 
     case TK_TYPEPARAMREF:
     {

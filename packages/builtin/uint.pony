@@ -152,5 +152,5 @@ primitive U128 is Integer[U128]
     var low = this.u64()
     var high = (this >> 64).u64()
     var x = low.f64()
-    var y = high.f64() * (1 << 64)
+    var y = high.f64() * (U128(1) << 64).f64()
     x + y

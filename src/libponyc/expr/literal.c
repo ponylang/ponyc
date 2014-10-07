@@ -231,14 +231,10 @@ bool is_type_arith_literal(ast_t* ast)
 }
 
 
-static bool can_promote_literal(ast_t* ast, ast_t* target)
+bool is_literal_subtype(token_id literal_id, ast_t* target)
 {
-  assert(ast != NULL);
-
-  if(target == NULL)
-    return false;
-
-  ast_print(target);
+  assert(literal_id == TK_INTLITERAL || literal_id == TK_FLOATLITERAL);
+  assert(target != NULL);
 
   if(ast_id(target) != TK_NOMINAL)
     return false;
@@ -256,7 +252,7 @@ static bool can_promote_literal(ast_t* ast, ast_t* target)
     type_name == stringtab("U64") ||
     type_name == stringtab("U128"))
   {
-    return (ast_id(ast_type(ast)) == TK_INTLITERAL);
+    return (literal_id == TK_INTLITERAL);
   }
 
   if(type_name == stringtab("F32") ||
@@ -267,11 +263,40 @@ static bool can_promote_literal(ast_t* ast, ast_t* target)
 }
 
 
-bool promote_literal(ast_t* ast, ast_t* target_type)
+bool coerce_literals(ast_t* ast, ast_t* target_type)
 {
   assert(ast != NULL);
 
-  if(!can_promote_literal(ast, target_type))
+  // TODO: handle local inference properly
+  if(target_type == NULL)
+    return true;
+
+  if(ast_id(ast) == TK_TUPLE)
+  {
+    assert(ast_id(target_type) == TK_TUPLETYPE);
+
+    ast_t* child = ast_child(ast);
+    ast_t* target_child = ast_child(target_type);
+
+    while(child != NULL)
+    {
+      assert(target_child != NULL);
+
+      if(!coerce_literals(child, target_child))
+        return false;
+
+      child = ast_sibling(child);
+      target_child = ast_sibling(target_child);
+    }
+
+    assert(target_child == NULL);
+    return true;
+  }
+
+  if(!is_type_arith_literal(ast))
+    return true;
+
+  if(!is_literal_subtype(ast_id(ast), target_type))
   {
     ast_error(ast, "cannot determine type of literal");
     return false;

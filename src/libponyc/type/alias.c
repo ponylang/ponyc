@@ -90,6 +90,10 @@ ast_t* alias(ast_t* type)
     case TK_TYPEPARAMREF:
       return alias_for_type(type, 1);
 
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      return ast_dup(type);
+
     case TK_ARROW:
     {
       // alias just the right side. the left side is either 'this' or a type
@@ -281,6 +285,10 @@ bool sendable(ast_t* type)
 
       return true;
     }
+
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      return true;
 
     case TK_NOMINAL:
     case TK_STRUCTURAL:
