@@ -1,4 +1,4 @@
-class Range[A: Arithmetic = I64] is Iterator[A]
+class Range[A: Arithmetic[A] = I64] is Iterator[A]
   let min: A
   let max: A
   let inc: A

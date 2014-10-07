@@ -214,21 +214,21 @@ class String val is Ordered[String]
     if _size == that._size then
       for i in Range[U64](0, _size) do
         if _ptr._apply(i) != that._ptr._apply(i) then
-          return False
+          return false
         end
       end
-      True
+      true
     else
-      False
+      false
     end
 
   fun box lt(that: String box): Bool =>
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
       if _ptr._apply(i) < that._ptr._apply(i) then
-        return True
+        return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
-        return False
+        return false
       end
     end
     _size < that._size
@@ -237,9 +237,9 @@ class String val is Ordered[String]
     var len = _size.min(that._size)
     for i in Range[U64](0, len) do
       if _ptr._apply(i) < that._ptr._apply(i) then
-        return True
+        return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
-        return False
+        return false
       end
     end
     _size <= that._size
