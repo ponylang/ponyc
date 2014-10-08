@@ -376,7 +376,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
       // We only coerce integer and float literals if they are a subtype
-      return is_literal_subtype(ast_id(sub), super);
+      return is_literal_subtype(ast_id(sub), super) != NULL;
 
     case TK_TYPEPARAMREF:
     {

@@ -15,7 +15,7 @@ bool expr_nominal(ast_t** astp);
 bool expr_fun(ast_t* ast);
 
 bool is_type_arith_literal(ast_t* ast);
-bool is_literal_subtype(token_id literal_id, ast_t* target);
+ast_t* is_literal_subtype(token_id literal_id, ast_t* target);
 bool coerce_literals(ast_t* ast, ast_t* target_type);
 
 PONY_EXTERN_C_END

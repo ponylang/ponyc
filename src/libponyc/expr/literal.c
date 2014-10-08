@@ -231,42 +231,188 @@ bool is_type_arith_literal(ast_t* ast)
 }
 
 
-bool is_literal_subtype(token_id literal_id, ast_t* target)
+static ast_t* is_literal_nominal(token_id literal_id, ast_t* type)
+{
+  ast_t* accept = type_builtin(type, "Signed");
+
+  if(is_subtype(type, accept) && (literal_id == TK_INTLITERAL))
+    return type;
+
+  accept = type_builtin(type, "Unsigned");
+
+  if(is_subtype(type, accept) && (literal_id == TK_INTLITERAL))
+    return type;
+
+  accept = type_builtin(type, "Float");
+
+  if(is_subtype(type, accept))
+    return type;
+
+  return NULL;
+}
+
+
+static const char* const order[] =
+{
+  "U8", "I8", "U16", "I16", "U32", "I32", "U64", "I64",
+  "U128", "I128", "F32", "F64", NULL
+};
+
+
+static size_t index_literal(ast_t* type)
+{
+  // Prefer non-nominal types.
+  if(ast_id(type) != TK_NOMINAL)
+    return -1;
+
+  const char* name = ast_name(ast_childidx(type, 1));
+  size_t index = 0;
+  const char* cmp = order[index];
+
+  while(cmp != NULL)
+  {
+    if(!strcmp(cmp, name))
+      return index;
+
+    cmp = order[++index];
+  }
+
+  // Shouldn't get here.
+  assert(0);
+  return -1;
+}
+
+static ast_t* wide_literal(ast_t* a, ast_t* b)
+{
+  if(a == NULL)
+    return b;
+
+  if(b == NULL)
+    return a;
+
+  size_t a_index = index_literal(a);
+  size_t b_index = index_literal(b);
+
+  return (a_index >= b_index) ? a : b;
+}
+
+
+static ast_t* narrow_literal(ast_t* a, ast_t* b)
+{
+  if(a == NULL)
+    return b;
+
+  if(b == NULL)
+    return a;
+
+  size_t a_index = index_literal(a);
+  size_t b_index = index_literal(b);
+
+  return (a_index <= b_index) ? a : b;
+}
+
+
+static ast_t* structural_literal(token_id literal_id, ast_t* type)
+{
+  // Return the widest literal type that is a subtype of the structural type.
+  size_t index = 0;
+  const char* name = order[index];
+  ast_t* result = NULL;
+
+  while(name != NULL)
+  {
+    ast_t* attempt = type_builtin(type, name);
+
+    if(is_literal_nominal(literal_id, attempt) && is_subtype(attempt, type))
+      result = attempt;
+
+    name = order[++index];
+  }
+
+  return result;
+}
+
+
+ast_t* is_literal_subtype(token_id literal_id, ast_t* target)
 {
   assert(literal_id == TK_INTLITERAL || literal_id == TK_FLOATLITERAL);
   assert(target != NULL);
 
-  if(ast_id(target) == TK_TYPEPARAMREF)
+  switch(ast_id(target))
   {
-    ast_t* param = (ast_t*)ast_data(target);
-    target = ast_childidx(param, 1);
+    case TK_NOMINAL:
+      return is_literal_nominal(literal_id, target);
+
+    case TK_STRUCTURAL:
+      return structural_literal(literal_id, target);
+
+    case TK_UNIONTYPE:
+    {
+      // Return the widest type that the literal is a subtype of.
+      ast_t* child = ast_child(target);
+      ast_t* result = NULL;
+
+      while(child != NULL)
+      {
+        ast_t* type = is_literal_subtype(literal_id, child);
+        result = wide_literal(result, type);
+        child = ast_sibling(child);
+      }
+
+      return result;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // Return the narrowest type that the literal is a subtype of.
+      ast_t* child = ast_child(target);
+      ast_t* result = NULL;
+
+      while(child != NULL)
+      {
+        ast_t* type = is_literal_subtype(literal_id, child);
+        result = narrow_literal(result, type);
+        child = ast_sibling(child);
+      }
+
+      return result;
+    }
+
+    case TK_TUPLETYPE:
+      // A literal isn't a tuple.
+      return false;
+
+    case TK_ARROW:
+    {
+      // If the literal is a subtype of the right side, return the arrow
+      // type. The literal will be assigned the arrow type, rather than the
+      // right side.
+      ast_t* right = ast_childidx(target, 1);
+
+      if(is_literal_subtype(literal_id, right) != NULL)
+        return target;
+
+      return NULL;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      // If the literal is a subtype of the constraint, return the type
+      // parameter. The literal will be assigned the type parameter as a type,
+      // rather than the constraint.
+      ast_t* param = (ast_t*)ast_data(target);
+      ast_t* constraint = ast_childidx(param, 1);
+
+      if(is_literal_subtype(literal_id, constraint) != NULL)
+        return target;
+
+      return NULL;
+    }
+
+    default: {}
   }
 
-  if(ast_id(target) != TK_NOMINAL)
-    return false;
-
-  const char* type_name = ast_name(ast_childidx(target, 1));
-
-  if(type_name == stringtab("I8") ||
-    type_name == stringtab("I16") ||
-    type_name == stringtab("I32") ||
-    type_name == stringtab("I64") ||
-    type_name == stringtab("I128") ||
-    type_name == stringtab("U8") ||
-    type_name == stringtab("U16") ||
-    type_name == stringtab("U32") ||
-    type_name == stringtab("U64") ||
-    type_name == stringtab("U128"))
-  {
-    return (literal_id == TK_INTLITERAL);
-  }
-
-  if(type_name == stringtab("F32") ||
-    type_name == stringtab("F64") ||
-    type_name == stringtab("Number") ||
-    type_name == stringtab("Arithmetic"))
-    return true;
-
+  assert(0);
   return false;
 }
 
@@ -320,7 +466,9 @@ bool coerce_literals(ast_t* ast, ast_t* target_type)
   if(type == NULL || !is_type_arith_literal(type))
     return true;
 
-  if(!is_literal_subtype(ast_id(type), target_type))
+  target_type = is_literal_subtype(ast_id(type), target_type);
+
+  if(target_type == NULL)
   {
     ast_error(ast, "cannot determine type of literal");
     return false;

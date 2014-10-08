@@ -1,5 +1,3 @@
-type Signed is (I8 | I16 | I32 | I64 | I128 | F32 | F64)
-
 trait Arithmetic[A: Arithmetic[A]]
   fun tag add(y: A): A
   fun tag sub(y: A): A
@@ -56,5 +54,10 @@ trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun tag shl(y: A): A => compiler_intrinsic
   fun tag shr(y: A): A => compiler_intrinsic
 
-type Number is
-  (I8 | I16 | I32 | I64 | I128 | U8 | U16 | U32 | U64 | U128 | F32 | F64)
+type Number is (Signed | Unsigned | Float)
+
+type Signed is (I8 | I16 | I32 | I64 | I128)
+
+type Unsigned is (U8 | U16 | U32 | U64 | U128)
+
+type Float is (F32 | F64)

@@ -137,7 +137,10 @@ static bool expr_memberaccess(ast_t* ast)
   ast_t* type = ast_type(left);
 
   if(is_type_arith_literal(type))
+  {
     ast_error(left, "Literal member access");
+    return false;
+  }
 
   assert(ast_id(right) == TK_ID);
 
@@ -411,7 +414,10 @@ bool expr_call(ast_t* ast)
 
         if(is_type_arith_literal(ast_type(arg)) &&
           !coerce_literals(arg, p_type))
+        {
+          ast_error(arg, "can't determine a type for this number");
           return false;
+        }
 
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);
