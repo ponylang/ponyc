@@ -266,15 +266,11 @@ static size_t index_literal(ast_t* type)
     return -1;
 
   const char* name = ast_name(ast_childidx(type, 1));
-  size_t index = 0;
-  const char* cmp = order[index];
 
-  while(cmp != NULL)
+  for(size_t i = 0; order[i] != NULL; i++)
   {
-    if(!strcmp(cmp, name))
-      return index;
-
-    cmp = order[++index];
+    if(!strcmp(order[i], name))
+      return i;
   }
 
   // Shouldn't get here.
@@ -315,18 +311,14 @@ static ast_t* narrow_literal(ast_t* a, ast_t* b)
 static ast_t* structural_literal(token_id literal_id, ast_t* type)
 {
   // Return the widest literal type that is a subtype of the structural type.
-  size_t index = 0;
-  const char* name = order[index];
   ast_t* result = NULL;
 
-  while(name != NULL)
+  for(size_t i = 0; order[i] != NULL; i++)
   {
-    ast_t* attempt = type_builtin(type, name);
+    ast_t* attempt = type_builtin(type, order[i]);
 
     if(is_literal_nominal(literal_id, attempt) && is_subtype(attempt, type))
       result = attempt;
-
-    name = order[++index];
   }
 
   return result;
