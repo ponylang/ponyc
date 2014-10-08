@@ -146,7 +146,6 @@ static bool is_valid_pattern(ast_t* ast)
     default: {}
   }
 
-  ast_error(ast, "not a valid pattern");
   return false;
 }
 
@@ -164,7 +163,10 @@ bool expr_case(ast_t* ast)
   }
 
   if(!is_valid_pattern(pattern))
+  {
+    ast_error(ast, "not a valid pattern");
     return false;
+  }
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {

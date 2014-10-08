@@ -1,4 +1,4 @@
-primitive F32 is Number[F32]
+primitive F32 is Real[F32]
   new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
@@ -61,7 +61,7 @@ primitive F32 is Number[F32]
   fun tag i128(): I128 => f64().i128()
   fun tag u128(): U128 => f64().u128()
 
-primitive F64 is Number[F64]
+primitive F64 is Real[F64]
   new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic

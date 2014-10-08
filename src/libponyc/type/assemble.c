@@ -37,7 +37,7 @@ static void append_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
 
     while(child != NULL)
     {
-      append_one_to_typeexpr(ast, append, is_union);
+      append_one_to_typeexpr(ast, child, is_union);
       child = ast_sibling(child);
     }
   } else {
@@ -116,7 +116,7 @@ ast_t* type_union(ast_t* l_type, ast_t* r_type)
 
 ast_t* type_isect(ast_t* l_type, ast_t* r_type)
 {
-  return type_typeexpr(TK_UNIONTYPE, l_type, r_type);
+  return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
 ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
