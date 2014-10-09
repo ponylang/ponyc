@@ -27,7 +27,7 @@ static const char in[] = "  ";
 static const size_t in_len = 2;
 static size_t width = 80;
 
-void print(ast_t* ast, size_t indent, bool type);
+static void print(ast_t* ast, size_t indent, bool type);
 
 
 static void print_token(token_t* token)
@@ -48,7 +48,7 @@ static void print_token(token_t* token)
   }
 }
 
-size_t length(ast_t* ast, size_t indent)
+static size_t length(ast_t* ast, size_t indent)
 {
   size_t len = (indent * in_len) + strlen(token_print(ast->t));
   ast_t* child = ast->child;
@@ -68,19 +68,18 @@ size_t length(ast_t* ast, size_t indent)
   return len;
 }
 
-void print_compact(ast_t* ast, size_t indent, bool type)
+static void print_compact(ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
     printf(in);
 
   ast_t* child = ast->child;
-  bool parens = child != NULL;
+  bool parens = (child != NULL) || (ast->type != NULL);
 
   if(parens)
     printf(type ? "[" : "(");
 
   print_token(ast->t);
-
   if(ast->symtab != NULL)
     printf(":scope");
 
@@ -101,13 +100,13 @@ void print_compact(ast_t* ast, size_t indent, bool type)
     printf(type ? "]" : ")");
 }
 
-void print_extended(ast_t* ast, size_t indent, bool type)
+static void print_extended(ast_t* ast, size_t indent, bool type)
 {
   for(size_t i = 0; i < indent; i++)
     printf(in);
 
   ast_t* child = ast->child;
-  bool parens = child != NULL;
+  bool parens = (child != NULL) || (ast->type != NULL);
 
   if(parens)
     printf(type ? "[" : "(");
@@ -127,16 +126,16 @@ void print_extended(ast_t* ast, size_t indent, bool type)
   if(ast->type != NULL)
     print(ast->type, indent + 1, true);
 
-  if(parens)
+  if(parens || type)
   {
-    for(size_t i = 0; i <= indent; i++)
+    for(size_t i = 0; i < indent; i++)
       printf(in);
 
     printf(type ? "]" : ")");
   }
 }
 
-void print(ast_t* ast, size_t indent, bool type)
+static void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent);
 
