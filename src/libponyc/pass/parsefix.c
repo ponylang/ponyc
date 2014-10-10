@@ -141,7 +141,7 @@ static bool check_traits(ast_t* traits)
 
 // Check one specific part of a method or entity
 static bool check_tribool(tribool_t allowed, ast_t* actual,
-  const char* context, const char* part_desc)
+  const char* context, const char* part_desc, ast_t* report_at)
 {
   assert(actual != NULL);
   assert(context != NULL);
@@ -155,7 +155,7 @@ static bool check_tribool(tribool_t allowed, ast_t* actual,
 
   if(allowed == tb_yes && ast_id(actual) == TK_NONE)
   {
-    ast_error(actual, "%s must specify %s", context, part_desc);
+    ast_error(report_at, "%s must specify %s", context, part_desc);
     return false;
   }
 
@@ -184,7 +184,7 @@ static bool check_method(ast_t* ast, int method_def_index)
   token_id arrow_id = ast_id(arrow);
   ast_remove(arrow, error);
 
-  if(!check_tribool(def->cap, cap, def->desc, "receiver capability"))
+  if(!check_tribool(def->cap, cap, def->desc, "receiver capability", cap))
     return false;
 
   if(ast_id(cap) == TK_ISO || ast_id(cap) == TK_TRN)
@@ -193,16 +193,17 @@ static bool check_method(ast_t* ast, int method_def_index)
     return false;
   }
 
-  if(!check_tribool(def->name, id, def->desc, "name"))
+  if(!check_tribool(def->name, id, def->desc, "name", id))
     return false;
 
-  if(!check_tribool(def->return_type, return_type, def->desc, "return type"))
+  if(!check_tribool(def->return_type, return_type, def->desc, "return type",
+    ast))
     return false;
 
-  if(!check_tribool(def->error, error, def->desc, "?"))
+  if(!check_tribool(def->error, error, def->desc, "?", ast))
     return false;
 
-  if(!check_tribool(def->body, body, def->desc, "body"))
+  if(!check_tribool(def->body, body, def->desc, "body", ast))
     return false;
 
   if(arrow_id == TK_DBLARROW && ast_id(body) == TK_NONE)
@@ -323,7 +324,7 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     return AST_ERROR;
   }
 
-  if(!check_tribool(def->cap, defcap, def->desc, "default capability"))
+  if(!check_tribool(def->cap, defcap, def->desc, "default capability", defcap))
     return AST_ERROR;
 
   // Check referenced traits
@@ -358,7 +359,7 @@ static ast_result_t parse_fix_structural(ast_t* ast)
   const entity_def_t* def = &_entity_def[DEF_STRUCT];
   AST_GET_CHILDREN(ast, members, defcap);
 
-  if(!check_tribool(def->cap, defcap, def->desc, "default capability"))
+  if(!check_tribool(def->cap, defcap, def->desc, "default capability", defcap))
     return AST_ERROR;
 
   // Check for illegal members
