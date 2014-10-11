@@ -76,7 +76,14 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   }
 
   if(is_fp(l_value))
-    return build_f(c->builder, l_value, r_value, "");
+  {
+    LLVMValueRef result = build_f(c->builder, l_value, r_value, "");
+
+    if(c->fast_math)
+      LLVMSetUnsafeAlgebra(result);
+
+    return result;
+  }
 
   return build_i(c->builder, l_value, r_value, "");
 }

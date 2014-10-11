@@ -432,6 +432,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // Keep track of whether or not we're optimising.
   c->release = opt->release;
+  c->fast_math = opt->fast_math;
 
   // LLVM context and machine settings.
   c->context = LLVMContextCreate();

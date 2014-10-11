@@ -16,6 +16,7 @@ PONY_EXTERN_C_BEGIN
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
+void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 
 // In case we need to change the internal calling convention.
 #define GEN_CALLCONV LLVMFastCallConv
@@ -36,6 +37,7 @@ typedef struct compile_t
   const char* filename;
   uint32_t next_type_id;
   bool release;
+  bool fast_math;
 
   const char* str_1;
   const char* str_Bool;

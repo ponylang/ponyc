@@ -31,10 +31,6 @@ class MT is Random
     x = x xor ((x << 37) and 0xfff7eee000000000)
     x xor (x >> 43)
 
-  // A random number in [0, 1)
-  fun ref real(): F64 =>
-    (next() >> 11).f64() * (F64(1) / 9007199254740992)
-
   fun ref _populate() =>
     try
       _index = 0

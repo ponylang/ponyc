@@ -18,6 +18,7 @@
 enum
 {
   OPT_OPTIMISE,
+  OPT_SLOWMATH,
   OPT_PATHS,
   OPT_OUTPUT,
 
@@ -38,6 +39,7 @@ static opt_arg_t args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
 
+  {"slow-math", 0, OPT_ARG_NONE, OPT_SLOWMATH},
   {"cpu", 'c', OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 'f', OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -65,6 +67,7 @@ static void usage()
     "    =path         Defaults to the current directory.\n"
     "\n"
     "Rarely needed options:\n"
+    "  --slow-math     Force strict IEEE 754 compliance.\n"
     "  --cpu, -c       Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
     "  --features, -f  CPU features to enable or disable.\n"
@@ -150,6 +153,7 @@ int main(int argc, char* argv[])
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
   opt.output = ".";
+  opt.fast_math = true;
 
   ast_setwidth(get_width());
   bool print_ast = false;
@@ -167,6 +171,7 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
 
+      case OPT_SLOWMATH: opt.fast_math = false; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
