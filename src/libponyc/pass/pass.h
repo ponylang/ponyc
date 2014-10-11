@@ -79,7 +79,7 @@ typedef enum pass_id
 typedef struct pass_opt_t
 {
   bool release;
-  bool fast_math;
+  bool ieee_math;
   const char* output;
 
   char* triple;

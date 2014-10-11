@@ -37,7 +37,7 @@ typedef struct compile_t
   const char* filename;
   uint32_t next_type_id;
   bool release;
-  bool fast_math;
+  bool ieee_math;
 
   const char* str_1;
   const char* str_Bool;

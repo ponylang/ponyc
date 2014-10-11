@@ -79,7 +79,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   {
     LLVMValueRef result = build_f(c->builder, l_value, r_value, "");
 
-    if(c->fast_math)
+    if(!c->ieee_math)
       LLVMSetUnsafeAlgebra(result);
 
     return result;
