@@ -2,6 +2,7 @@
 #include "genname.h"
 #include "genfun.h"
 #include "gencontrol.h"
+#include "genident.h"
 #include "genmatch.h"
 #include "genoperator.h"
 #include "genreference.h"
@@ -109,7 +110,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
+LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   LLVMTypeRef l_type = LLVMTypeOf(value);
 
@@ -121,6 +122,9 @@ static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
   if(!gentype(c, type, &g))
     return NULL;
 
+  if(l_type != g.primitive)
+    return NULL;
+
   LLVMValueRef box_fn = genfun_box(c, &g);
 
   if(box_fn != NULL)
@@ -129,7 +133,7 @@ static LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
   return value;
 }
 
-static LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
+LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
 {
   LLVMTypeRef l_type = LLVMTypeOf(value);
 
@@ -144,7 +148,10 @@ static LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
   LLVMValueRef unbox_fn = genfun_unbox(c, &g);
 
   if(unbox_fn != NULL)
+  {
+    value = LLVMBuildBitCast(c->builder, value, g.structure_ptr, "");
     value = codegen_call(c, unbox_fn, &value, 1);
+  }
 
   return value;
 }

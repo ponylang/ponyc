@@ -94,7 +94,10 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  if(LLVMIsConstant(r_value) && (LLVMConstIntGetSExtValue(r_value) == 0))
+  if(!is_fp(r_value) &&
+    LLVMIsConstant(r_value) &&
+    (LLVMConstIntGetSExtValue(r_value) == 0)
+    )
   {
     ast_error(right, "constant divide or mod by zero");
     return NULL;
@@ -554,41 +557,6 @@ LLVMValueRef gen_ge(compile_t* c, ast_t* left, ast_t* right)
 LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right)
 {
   return make_cmp(c, left, right, LLVMRealOGT, LLVMIntSGT, LLVMIntUGT);
-}
-
-LLVMValueRef gen_is(compile_t* c, ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, left, right);
-
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
-  if((l_value == NULL) || (r_value == NULL))
-    return NULL;
-
-  // Because of type parameters, this could generate a non-pointer type, ie
-  // a boolean, a numeric type, or a tuple. Those are normally disallowed in
-  // the type checker because they have no identity. If they are generated here,
-  // return false.
-  if((LLVMGetTypeKind(LLVMTypeOf(l_value)) != LLVMPointerTypeKind) ||
-    (LLVMGetTypeKind(LLVMTypeOf(l_value)) != LLVMPointerTypeKind)
-    )
-    return LLVMConstInt(c->i1, 0, false);
-
-  l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
-  r_value = LLVMBuildPtrToInt(c->builder, r_value, c->intptr, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
-}
-
-LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
-{
-  LLVMValueRef is = gen_is(c, ast);
-
-  if(is == NULL)
-    return NULL;
-
-  return LLVMBuildNot(c->builder, is, "");
 }
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)

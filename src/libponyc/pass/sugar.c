@@ -134,11 +134,14 @@ static ast_result_t sugar_new(ast_t* ast)
   // Return type is This ref^ for classes, This val^ for primitives, and
   // This tag^ for actors.
   assert(ast_id(result) == TK_NONE);
+  token_id cap;
 
-  token_id cap = TK_REF;
-
-  if((ast_id(def) == TK_PRIMITIVE) || (ast_id(def) == TK_ACTOR))
-    cap = TK_TAG;
+  switch(ast_id(def))
+  {
+    case TK_PRIMITIVE: cap = TK_VAL; break;
+    case TK_ACTOR: cap = TK_TAG; break;
+    default: cap = TK_REF; break;
+  }
 
   ast_replace(&result, type_for_this(ast, cap, true));
   return AST_OK;

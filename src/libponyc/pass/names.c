@@ -1,5 +1,6 @@
 #include "names.h"
 #include "../type/assemble.h"
+#include "../type/cap.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -165,18 +166,14 @@ static bool names_type(ast_t** astp, ast_t* def)
   // the type, not tag.
   if(ast_id(cap) == TK_NONE)
   {
-    if((ast_id(def) == TK_PRIMITIVE) || (ast_enclosing_constraint(ast) != NULL))
+    if(ast_id(def) == TK_PRIMITIVE)
+      defcap = ast_from(cap, TK_VAL);
+    else if(ast_enclosing_constraint(ast) != NULL)
       defcap = ast_from(cap, TK_TAG);
     else
       defcap = ast_childidx(def, 2);
 
     ast_replace(&cap, defcap);
-  } else if(ast_id(def) == TK_PRIMITIVE) {
-    if(ast_id(cap) != TK_TAG)
-    {
-      ast_error(ast, "primitives must always be tag");
-      return false;
-    }
   }
 
   // keep the actual package id

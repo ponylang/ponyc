@@ -1,8 +1,8 @@
 #include "match.h"
-#include "../ast/token.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
+#include "../type/matchtype.h"
+#include "../type/alias.h"
 #include <assert.h>
 
 bool expr_match(ast_t* ast)
@@ -11,10 +11,11 @@ bool expr_match(ast_t* ast)
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
 
   ast_t* expr_type = ast_type(expr);
+  ast_t* a_type = alias(expr_type);
   ast_t* type = NULL;
 
-  // TODO: check for unreachable cases
-  // TODO: check for exhaustive match if there is no else branch
+  // TODO: check for unreachable cases, check for exhaustive match if there is
+  // no else branch
   ast_t* the_case = ast_child(cases);
 
   while(the_case != NULL)
@@ -23,9 +24,13 @@ bool expr_match(ast_t* ast)
 
     ast_t* pattern_type = ast_type(pattern);
 
-    if(!is_match_compatible(expr_type, pattern_type))
+    // TODO: This is too strict. Other than captures, we should allow patterns
+    // where the pattern type could be a subtype of the expression type (without
+    // aliasing) as well, since it is equivalent to identity.
+    if(!could_subtype(a_type, pattern_type))
     {
       ast_error(pattern, "match expression can never be of this type");
+      ast_free_unattached(a_type);
       return false;
     }
 
@@ -34,6 +39,8 @@ bool expr_match(ast_t* ast)
 
     the_case = ast_sibling(the_case);
   }
+
+  ast_free_unattached(a_type);
 
   if(ast_id(else_clause) != TK_NONE)
   {
@@ -64,53 +71,10 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static bool is_primitive_pattern(ast_t* ast)
-{
-  // Accept only no-argument constructors of non-arithmetic primitive types.
-  if(ast_id(ast) != TK_CALL)
-    return false;
-
-  ast_t* type = ast_type(ast);
-
-  if(ast_id(type) != TK_NOMINAL)
-    return false;
-
-  ast_t* def = (ast_t*)ast_data(type);
-
-  if(ast_id(def) != TK_PRIMITIVE)
-    return false;
-
-  AST_GET_CHILDREN(ast, dot, positional, named);
-
-  if(ast_id(dot) != TK_NEWREF)
-    return false;
-
-  if(ast_id(positional) != TK_NONE)
-    return false;
-
-  if(ast_id(named) != TK_NONE)
-    return false;
-
-  return true;
-}
-
 static bool is_valid_pattern(ast_t* ast)
 {
-  // TODO: Relax this? Allow any expression that generates a primitive type?
-  // Plus local declarations?
-  // Effectively, an infix or a tuple of infix.
   switch(ast_id(ast))
   {
-    case TK_INT:
-    case TK_FLOAT:
-    case TK_STRING:
-    case TK_VAR:
-    case TK_LET:
-      return true;
-
-    case TK_CALL:
-      return is_primitive_pattern(ast);
-
     case TK_TUPLE:
     {
       // A tuple is valid if every child is valid.
@@ -129,16 +93,15 @@ static bool is_valid_pattern(ast_t* ast)
 
     case TK_SEQ:
     {
-      // Only valid for single element sequences in tuples.
-      ast_t* parent = ast_parent(ast);
-
-      if(ast_id(parent) != TK_TUPLE)
-        return false;
-
+      // TODO: allow this as well?
+      // Only valid for single element sequences.
       ast_t* child = ast_child(ast);
 
       if(ast_sibling(child) != NULL)
+      {
+        ast_error(child, "patterns cannot contain sequences");
         return false;
+      }
 
       return is_valid_pattern(child);
     }
@@ -146,7 +109,8 @@ static bool is_valid_pattern(ast_t* ast)
     default: {}
   }
 
-  return false;
+  // All other constructs are valid.
+  return true;
 }
 
 bool expr_case(ast_t* ast)
@@ -163,14 +127,11 @@ bool expr_case(ast_t* ast)
   }
 
   if(!is_valid_pattern(pattern))
-  {
-    ast_error(ast, "not a valid pattern");
     return false;
-  }
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {
-    ast_error(guard, "guard must be a Bool");
+    ast_error(guard, "guard must be a boolean expression");
     return false;
   }
 

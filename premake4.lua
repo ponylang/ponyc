@@ -164,7 +164,9 @@ solution "ponyc"
     link_libponyc()
     postbuildcommands {
       "rm -rf $(TARGETDIR)/builtin",
-      "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)",
+      "rm -rf $(TARGETDIR)/random",
+      "-ln -sf " .. path.getabsolute("packages/random") .. " $(TARGETDIR)",
     }
 
   project "gtest"

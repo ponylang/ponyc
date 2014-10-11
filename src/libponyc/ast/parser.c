@@ -391,12 +391,12 @@ DEF(cond);
   SKIP(NULL, TK_END);
   DONE();
 
-// PIPE [term] [WHERE rawseq] [ARROW rawseq]
+// PIPE [infix] [WHERE rawseq] [ARROW rawseq]
 DEF(caseexpr);
   AST_NODE(TK_CASE);
   SCOPE();
   SKIP(NULL, TK_PIPE);
-  OPT RULE("case pattern", term);
+  OPT RULE("case pattern", infix);
   IF(TK_WHERE, RULE("guard expression", rawseq));
   IF(TK_DBLARROW, RULE("case body", rawseq));
   DONE();

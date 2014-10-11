@@ -4,15 +4,15 @@ primitive F32 is Real[F32]
   new e() => compiler_intrinsic
 
   new from_bits(i: U32) => compiler_intrinsic
-  fun tag bits(): U32 => compiler_intrinsic
+  fun box bits(): U32 => compiler_intrinsic
 
-  fun tag abs(): F32 => if this < 0 then -this else this end
-  fun tag ceil(): F32 => @ceilf[F32](this)
-  fun tag floor(): F32 => @floorf[F32](this)
-  fun tag round(): F32 => @roundf[F32](this)
-  fun tag trunc(): F32 => @truncf[F32](this)
+  fun box abs(): F32 => if this < 0 then -this else this end
+  fun box ceil(): F32 => @ceilf[F32](this)
+  fun box floor(): F32 => @floorf[F32](this)
+  fun box round(): F32 => @roundf[F32](this)
+  fun box trunc(): F32 => @truncf[F32](this)
 
-  fun tag finite(): Bool =>
+  fun box finite(): Bool =>
   I32(0) != if Platform.windows() then
       @_finite[I32](this.f64())
     elseif Platform.osx() then
@@ -21,7 +21,7 @@ primitive F32 is Real[F32]
       @finitef[I32](this)
     end
 
-  fun tag nan(): Bool =>
+  fun box nan(): Bool =>
     I32(0) != if Platform.windows() then
       @_isnan[I32](this.f64())
     elseif Platform.osx() then
@@ -30,36 +30,36 @@ primitive F32 is Real[F32]
       @isnanf[I32](this)
     end
 
-  fun tag log(): F32 => @logf[F32](this)
-  fun tag log10(): F32 => @log10f[F32](this)
-  fun tag logb(): F32 => @logbf[F32](this)
+  fun box log(): F32 => @logf[F32](this)
+  fun box log10(): F32 => @log10f[F32](this)
+  fun box logb(): F32 => @logbf[F32](this)
 
-  fun tag pow(y: F32): F32 => @powf[F32](this, y)
-  fun tag sqrt(): F32 => @sqrtf[F32](this)
-  fun tag cbrt(): F32 => @cbrtf[F32](this)
-  fun tag exp(): F32 => @expf[F32](this)
+  fun box pow(y: F32): F32 => @powf[F32](this, y)
+  fun box sqrt(): F32 => @sqrtf[F32](this)
+  fun box cbrt(): F32 => @cbrtf[F32](this)
+  fun box exp(): F32 => @expf[F32](this)
 
-  fun tag cos(): F32 => @cosf[F32](this)
-  fun tag sin(): F32 => @sinf[F32](this)
-  fun tag tan(): F32 => @tanf[F32](this)
+  fun box cos(): F32 => @cosf[F32](this)
+  fun box sin(): F32 => @sinf[F32](this)
+  fun box tan(): F32 => @tanf[F32](this)
 
-  fun tag cosh(): F32 => @coshf[F32](this)
-  fun tag sinh(): F32 => @sinhf[F32](this)
-  fun tag tanh(): F32 => @tanhf[F32](this)
+  fun box cosh(): F32 => @coshf[F32](this)
+  fun box sinh(): F32 => @sinhf[F32](this)
+  fun box tanh(): F32 => @tanhf[F32](this)
 
-  fun tag acos(): F32 => @acosf[F32](this)
-  fun tag asin(): F32 => @asinf[F32](this)
-  fun tag atan(): F32 => @atanf[F32](this)
-  fun tag atan2(y: F32): F32 => @atan2f[F32](this, y)
+  fun box acos(): F32 => @acosf[F32](this)
+  fun box asin(): F32 => @asinf[F32](this)
+  fun box atan(): F32 => @atanf[F32](this)
+  fun box atan2(y: F32): F32 => @atan2f[F32](this, y)
 
-  fun tag acosh(): F32 => @acoshf[F32](this)
-  fun tag asinh(): F32 => @asinhf[F32](this)
-  fun tag atanh(): F32 => @atanhf[F32](this)
+  fun box acosh(): F32 => @acoshf[F32](this)
+  fun box asinh(): F32 => @asinhf[F32](this)
+  fun box atanh(): F32 => @atanhf[F32](this)
 
-  fun tag string(): String iso^ => recover String.from_f32(this) end
+  fun box string(): String iso^ => recover String.from_f32(this) end
 
-  fun tag i128(): I128 => f64().i128()
-  fun tag u128(): U128 => f64().u128()
+  fun box i128(): I128 => f64().i128()
+  fun box u128(): U128 => f64().u128()
 
 primitive F64 is Real[F64]
   new create(from: F64) => compiler_intrinsic
@@ -67,57 +67,57 @@ primitive F64 is Real[F64]
   new e() => compiler_intrinsic
 
   new from_bits(i: U64) => compiler_intrinsic
-  fun tag bits(): U64 => compiler_intrinsic
+  fun box bits(): U64 => compiler_intrinsic
 
-  fun tag abs(): F64 => if this < 0 then -this else this end
-  fun tag ceil(): F64 => @ceil[F64](this)
-  fun tag floor(): F64 => @floor[F64](this)
-  fun tag round(): F64 => @round[F64](this)
-  fun tag trunc(): F64 => @trunc[F64](this)
+  fun box abs(): F64 => if this < 0 then -this else this end
+  fun box ceil(): F64 => @ceil[F64](this)
+  fun box floor(): F64 => @floor[F64](this)
+  fun box round(): F64 => @round[F64](this)
+  fun box trunc(): F64 => @trunc[F64](this)
 
-  fun tag finite(): Bool =>
+  fun box finite(): Bool =>
     I32(0) != if Platform.windows() then
       @_finite[I32](this)
     else
       @finite[I32](this)
     end
 
-  fun tag nan(): Bool =>
+  fun box nan(): Bool =>
     I32(0) != if Platform.windows() then
       @_isnan[I32](this)
     else
       @isnan[I32](this)
     end
 
-  fun tag log(): F64 => @log[F64](this)
-  fun tag log10(): F64 => @log10[F64](this)
-  fun tag logb(): F64 => @logb[F64](this)
+  fun box log(): F64 => @log[F64](this)
+  fun box log10(): F64 => @log10[F64](this)
+  fun box logb(): F64 => @logb[F64](this)
 
-  fun tag pow(y: F64): F64 => @pow[F64](this, y)
-  fun tag sqrt(): F64 => @sqrt[F64](this)
-  fun tag cbrt(): F64 => @cbrt[F64](this)
-  fun tag exp(): F64 => @exp[F64](this)
+  fun box pow(y: F64): F64 => @pow[F64](this, y)
+  fun box sqrt(): F64 => @sqrt[F64](this)
+  fun box cbrt(): F64 => @cbrt[F64](this)
+  fun box exp(): F64 => @exp[F64](this)
 
-  fun tag cos(): F64 => @cos[F64](this)
-  fun tag sin(): F64 => @sin[F64](this)
-  fun tag tan(): F64 => @tan[F64](this)
+  fun box cos(): F64 => @cos[F64](this)
+  fun box sin(): F64 => @sin[F64](this)
+  fun box tan(): F64 => @tan[F64](this)
 
-  fun tag cosh(): F64 => @cosh[F64](this)
-  fun tag sinh(): F64 => @sinh[F64](this)
-  fun tag tanh(): F64 => @tanh[F64](this)
+  fun box cosh(): F64 => @cosh[F64](this)
+  fun box sinh(): F64 => @sinh[F64](this)
+  fun box tanh(): F64 => @tanh[F64](this)
 
-  fun tag acos(): F64 => @acos[F64](this)
-  fun tag asin(): F64 => @asin[F64](this)
-  fun tag atan(): F64 => @atan[F64](this)
-  fun tag atan2(y: F64): F64 => @atan2[F64](this, y)
+  fun box acos(): F64 => @acos[F64](this)
+  fun box asin(): F64 => @asin[F64](this)
+  fun box atan(): F64 => @atan[F64](this)
+  fun box atan2(y: F64): F64 => @atan2[F64](this, y)
 
-  fun tag acosh(): F64 => @acosh[F64](this)
-  fun tag asinh(): F64 => @asinh[F64](this)
-  fun tag atanh(): F64 => @atanh[F64](this)
+  fun box acosh(): F64 => @acosh[F64](this)
+  fun box asinh(): F64 => @asinh[F64](this)
+  fun box atanh(): F64 => @atanh[F64](this)
 
-  fun tag string(): String iso^ => recover String.from_f64(this) end
+  fun box string(): String iso^ => recover String.from_f64(this) end
 
-  fun tag i128(): I128 =>
+  fun box i128(): I128 =>
     var bit = bits()
     var high = (bit >> 32).u32()
     var ex = ((high and 0x7FF00000) >> 20) - 1023
@@ -138,7 +138,7 @@ primitive F64 is Real[F64]
 
     (r xor s) - s
 
-  fun tag u128(): U128 =>
+  fun box u128(): U128 =>
     var bit = bits()
     var high = (bit >> 32).u32()
     var ex = ((high and 0x7FF00000) >> 20) - 1023

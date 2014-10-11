@@ -16,10 +16,6 @@ bool is_bool(ast_t* type);
 
 bool is_signed(ast_t* type);
 
-bool is_id_compatible(ast_t* a, ast_t* b);
-
-bool is_match_compatible(ast_t* match, ast_t* pattern);
-
 PONY_EXTERN_C_END
 
 #endif

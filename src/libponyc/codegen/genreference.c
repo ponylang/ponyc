@@ -2,6 +2,7 @@
 #include "genexpr.h"
 #include "gentype.h"
 #include "genname.h"
+#include "../expr/literal.h"
 #include <string.h>
 #include <assert.h>
 
@@ -153,7 +154,11 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
+  // We may not be a concrete literal type here. Pick an appropriate concrete
+  // literal type.
   ast_t* type = ast_type(ast);
+  type = is_literal_subtype(TK_INTLITERAL, type);
+
   gentype_t g;
 
   if(!gentype(c, type, &g))
@@ -180,18 +185,17 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
+  // We may not be a concrete literal type here. Pick an appropriate concrete
+  // literal type.
   ast_t* type = ast_type(ast);
+  type = is_literal_subtype(TK_FLOATLITERAL, type);
+
   gentype_t g;
 
   if(!gentype(c, type, &g))
     return NULL;
 
-  LLVMValueRef value = LLVMConstReal(c->f64, ast_float(ast));
-
-  if(g.primitive == c->f64)
-    return value;
-
-  return LLVMConstFPTrunc(value, g.primitive);
+  return LLVMConstReal(g.primitive, ast_float(ast));
 }
 
 LLVMValueRef gen_string(compile_t* c, ast_t* ast)

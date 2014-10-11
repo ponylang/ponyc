@@ -1,58 +1,58 @@
 trait Arithmetic[A: Arithmetic[A]]
-  fun tag add(y: A): A
-  fun tag sub(y: A): A
-  fun tag mul(y: A): A
-  fun tag div(y: A): A
-  fun tag mod(y: A): A
-  fun tag neg(): A
+  fun box add(y: A): A
+  fun box sub(y: A): A
+  fun box mul(y: A): A
+  fun box div(y: A): A
+  fun box mod(y: A): A
+  fun box neg(): A
 
 trait Logical[A: Logical[A]]
-  fun tag and_(y: A): A
-  fun tag or_(y: A): A
-  fun tag xor_(y: A): A
-  fun tag not_(): A
+  fun box and_(y: A): A
+  fun box or_(y: A): A
+  fun box xor_(y: A): A
+  fun box not_(): A
 
 trait Bits[A: Bits[A]] is Logical[A], Arithmetic[A]
-  fun tag shl(y: A): A
-  fun tag shr(y: A): A
+  fun box shl(y: A): A
+  fun box shr(y: A): A
 
 trait ArithmeticConvertible
-  fun tag i8(): I8 => compiler_intrinsic
-  fun tag i16(): I16 => compiler_intrinsic
-  fun tag i32(): I32 => compiler_intrinsic
-  fun tag i64(): I64 => compiler_intrinsic
-  fun tag i128(): I128 => compiler_intrinsic
+  fun box i8(): I8 => compiler_intrinsic
+  fun box i16(): I16 => compiler_intrinsic
+  fun box i32(): I32 => compiler_intrinsic
+  fun box i64(): I64 => compiler_intrinsic
+  fun box i128(): I128 => compiler_intrinsic
 
-  fun tag u8(): U8 => compiler_intrinsic
-  fun tag u16(): U16 => compiler_intrinsic
-  fun tag u32(): U32 => compiler_intrinsic
-  fun tag u64(): U64 => compiler_intrinsic
-  fun tag u128(): U128 => compiler_intrinsic
+  fun box u8(): U8 => compiler_intrinsic
+  fun box u16(): U16 => compiler_intrinsic
+  fun box u32(): U32 => compiler_intrinsic
+  fun box u64(): U64 => compiler_intrinsic
+  fun box u128(): U128 => compiler_intrinsic
 
-  fun tag f32(): F32 => compiler_intrinsic
-  fun tag f64(): F64 => compiler_intrinsic
+  fun box f32(): F32 => compiler_intrinsic
+  fun box f64(): F64 => compiler_intrinsic
 
 trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A]
-  fun tag add(y: A): A => compiler_intrinsic
-  fun tag sub(y: A): A => compiler_intrinsic
-  fun tag mul(y: A): A => compiler_intrinsic
-  fun tag div(y: A): A => compiler_intrinsic
-  fun tag mod(y: A): A => compiler_intrinsic
-  fun tag neg(): A => compiler_intrinsic
-  fun tag eq(y: A): Bool => compiler_intrinsic
-  fun tag ne(y: A): Bool => compiler_intrinsic
-  fun tag lt(y: A): Bool => compiler_intrinsic
-  fun tag le(y: A): Bool => compiler_intrinsic
-  fun tag ge(y: A): Bool => compiler_intrinsic
-  fun tag gt(y: A): Bool => compiler_intrinsic
+  fun box add(y: A): A => compiler_intrinsic
+  fun box sub(y: A): A => compiler_intrinsic
+  fun box mul(y: A): A => compiler_intrinsic
+  fun box div(y: A): A => compiler_intrinsic
+  fun box mod(y: A): A => compiler_intrinsic
+  fun box neg(): A => compiler_intrinsic
+  fun box eq(y: A): Bool => compiler_intrinsic
+  fun box ne(y: A): Bool => compiler_intrinsic
+  fun box lt(y: A): Bool => compiler_intrinsic
+  fun box le(y: A): Bool => compiler_intrinsic
+  fun box ge(y: A): Bool => compiler_intrinsic
+  fun box gt(y: A): Bool => compiler_intrinsic
 
 trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
-  fun tag and_(y: A): A => compiler_intrinsic
-  fun tag or_(y: A): A => compiler_intrinsic
-  fun tag xor_(y: A): A => compiler_intrinsic
-  fun tag not_(): A => compiler_intrinsic
-  fun tag shl(y: A): A => compiler_intrinsic
-  fun tag shr(y: A): A => compiler_intrinsic
+  fun box and_(y: A): A => compiler_intrinsic
+  fun box or_(y: A): A => compiler_intrinsic
+  fun box xor_(y: A): A => compiler_intrinsic
+  fun box not_(): A => compiler_intrinsic
+  fun box shl(y: A): A => compiler_intrinsic
+  fun box shr(y: A): A => compiler_intrinsic
 
 type Number is (Signed | Unsigned | Float)
 

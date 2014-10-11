@@ -479,10 +479,12 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
       if(tag)
       {
-        // TODO: are we really a tag? need runtime info
+        // TODO: Check our underlying type. If, in the union, that underlying
+        // type could be a tag, trace this as a tag. Otherwise, trace this as
+        // an unknown.
         trace_tag(c, value);
       } else {
-        // this union type can never be a tag
+        // This union type can never be a tag.
         trace_unknown(c, value);
       }
 

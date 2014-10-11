@@ -3,13 +3,11 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
-#include "../ast/token.h"
-#include "../type/assemble.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
+#include "../type/matchtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
-#include "../pass/expr.h"
 #include <assert.h>
 
 static bool assign_id(ast_t* ast, bool let)
@@ -260,10 +258,13 @@ bool expr_identity(ast_t* ast)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // TODO: expand to allow primitives and tuples?
-  if(!is_id_compatible(l_type, r_type))
+  if(!could_subtype(l_type, r_type) && !could_subtype(r_type, l_type))
   {
-    ast_error(ast, "left and right side be related identity types");
+    // TODO: remove this
+    could_subtype(l_type, r_type);
+    could_subtype(r_type, l_type);
+
+    ast_error(ast, "left and right side must be related types");
     return false;
   }
 
@@ -271,65 +272,6 @@ bool expr_identity(ast_t* ast)
   ast_inheriterror(ast);
   return true;
 }
-
-// TODO: remove this
-// bool expr_and(ast_t** astp)
-// {
-//   ast_t* ast = *astp;
-//   AST_GET_CHILDREN(ast, left, right);
-//   ast_t* l_type = ast_type(left);
-//   ast_t* r_type = ast_type(right);
-//
-//   if(is_bool(l_type) && is_bool(r_type))
-//   {
-//     // Rewrite as: if left then right else False end
-//     REPLACE(astp,
-//       NODE(TK_IF,
-//         NODE(TK_SEQ, TREE(left))
-//         NODE(TK_SEQ, TREE(right))
-//         NODE(TK_SEQ, NODE(TK_REFERENCE, ID("False")))
-//         )
-//       );
-//
-//     ast = *astp;
-//     AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
-//     AST_GET_CHILDREN(r_branch, ref);
-//
-//     return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
-//       expr_seq(r_branch) && expr_if(ast);
-//   }
-//
-//   return expr_logical(ast);
-// }
-//
-// bool expr_or(ast_t** astp)
-// {
-//   ast_t* ast = *astp;
-//   AST_GET_CHILDREN(ast, left, right);
-//   ast_t* l_type = ast_type(left);
-//   ast_t* r_type = ast_type(right);
-//
-//   if(is_bool(l_type) && is_bool(r_type))
-//   {
-//     // Rewrite as: if left then True else right end
-//     REPLACE(astp,
-//       NODE(TK_IF,
-//         NODE(TK_SEQ, TREE(left))
-//         NODE(TK_SEQ, NODE(TK_REFERENCE, ID("True")))
-//         NODE(TK_SEQ, TREE(right))
-//         )
-//       );
-//
-//     ast = *astp;
-//     AST_GET_CHILDREN(ast, cond, l_branch, r_branch);
-//     AST_GET_CHILDREN(l_branch, ref);
-//
-//     return expr_reference(ref) && expr_seq(cond) && expr_seq(l_branch) &&
-//       expr_seq(r_branch) && expr_if(ast);
-//   }
-//
-//   return expr_logical(ast);
-// }
 
 bool expr_assign(ast_t* ast)
 {

@@ -148,7 +148,7 @@ elseif
   ;
 
 case
-  :  '|' term? ('where' seq)? ('=>' seq)?
+  :  '|' infix? ('where' seq)? ('=>' seq)?
   ;
 
 postfix

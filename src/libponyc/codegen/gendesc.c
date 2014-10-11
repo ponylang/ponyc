@@ -406,6 +406,16 @@ LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
   return make_type_id(c, genname_type(type));
 }
 
+LLVMValueRef gendesc_isdesc(compile_t* c, LLVMValueRef object,
+  LLVMValueRef desc)
+{
+  LLVMValueRef object_desc = gendesc_fetch(c, object);
+  object_desc = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
+  desc = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
+
+  return LLVMBuildICmp(c->builder, LLVMIntEQ, object_desc, desc, "");
+}
+
 LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
 {
   // Get the trait identifier.

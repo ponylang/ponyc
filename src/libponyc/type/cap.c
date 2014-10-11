@@ -46,17 +46,23 @@ bool is_cap_sub_cap(token_id sub, token_id super)
 
 token_id cap_for_receiver(ast_t* ast)
 {
+  // If this is a primitive, it's a val.
+  ast_t* def = ast_enclosing_type(ast);
+
+  if(ast_id(def) == TK_PRIMITIVE)
+    return TK_VAL;
+
   ast_t* method = ast_enclosing_method(ast);
 
-  // if we aren't in a method, we're in a field initialiser
+  // If we aren't in a method, we're in a field initialiser.
   if(method == NULL)
     return TK_REF;
 
-  // if it's a function, get the capability from the signature
+  // If it's a function, get the capability from the signature.
   if(ast_id(method) == TK_FUN)
     return ast_id(ast_child(method));
 
-  // if it's a behaviour or a constructor, it's a ref
+  // If it's a behaviour or a constructor, it's a ref.
   return TK_REF;
 }
 

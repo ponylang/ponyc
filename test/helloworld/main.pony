@@ -11,4 +11,4 @@ actor Main
       consume str
     end
 
-    env.stdout.print((str2 + "!\n").lower())
+    env.stdout.print((str2 + "!").lower())

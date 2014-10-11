@@ -10,7 +10,7 @@ bool genprim(compile_t* c, ast_t* scope, const char* package,
 {
   ast_t* ast = ast_from(scope, TK_NOMINAL);
   ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from(scope, TK_TAG));
+  ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from_string(scope, name));
   ast_add(ast, ast_from_string(scope, package));

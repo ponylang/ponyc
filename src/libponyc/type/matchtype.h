@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool is_match_compatible(ast_t* match, ast_t* pattern);
+bool could_subtype(ast_t* sub, ast_t* super);
 
 PONY_EXTERN_C_END
 
