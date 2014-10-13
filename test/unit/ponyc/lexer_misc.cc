@@ -251,7 +251,7 @@ TEST(LexerMiscTest, BadChar)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_LEX_ERROR, token_get_id(token));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
   token_free(token);
 
   lexer_close(lexer);
