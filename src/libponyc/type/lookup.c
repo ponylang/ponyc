@@ -126,6 +126,8 @@ static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
 
         if(result != NULL)
           return result;
+
+        child = ast_sibling(child);
       }
 
       ast_error(from, "couldn't find '%s'", name);
