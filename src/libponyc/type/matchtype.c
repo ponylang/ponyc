@@ -43,9 +43,9 @@ static bool could_subtype_with_isect(ast_t* sub, ast_t* super)
 static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
 {
   // Check the upper bounds of super.
-  ast_t* lower = viewpoint_upper(super);
-  bool ok = could_subtype(sub, lower);
-  ast_free_unattached(lower);
+  ast_t* upper = viewpoint_upper(super);
+  bool ok = could_subtype(sub, upper);
+  ast_free_unattached(upper);
   return ok;
 }
 
@@ -253,6 +253,13 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
 
 static bool could_subtype_arrow(ast_t* sub, ast_t* super)
 {
+  // If we have the same viewpoint, check the right side.
+  AST_GET_CHILDREN(sub, sub_left, sub_right);
+  AST_GET_CHILDREN(super, super_left, super_right);
+
+  if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
+    return true;
+
   // Check the upper bounds.
   ast_t* upper = viewpoint_upper(sub);
   bool ok = could_subtype(upper, super);
@@ -262,6 +269,10 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
 
 static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 {
+  // If we're the same typeparam, check subtyping to make sure cap is ok.
+  if((ast_id(super) == TK_TYPEPARAMREF) && (ast_data(sub) == ast_data(super)))
+    return is_subtype(sub, super);
+
   // Check our constraint.
   ast_t* def = (ast_t*)ast_data(sub);
   ast_t* constraint = ast_childidx(def, 1);
