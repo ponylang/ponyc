@@ -13,12 +13,12 @@ TEST(ProgramTest, PackageID)
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
 
-  ASSERT_EQ(0, program_assign_pkg_id(prog));
-  ASSERT_EQ(1, program_assign_pkg_id(prog));
-  ASSERT_EQ(2, program_assign_pkg_id(prog));
-  ASSERT_EQ(3, program_assign_pkg_id(prog));
-  ASSERT_EQ(4, program_assign_pkg_id(prog));
-  ASSERT_EQ(5, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)0, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)1, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)2, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)3, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)4, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)5, program_assign_pkg_id(prog));
 
   ast_free(prog);
 }
@@ -32,12 +32,12 @@ TEST(ProgramTest, PackageIdFromChild)
   ast_t* child = ast_blank(TK_WHILE);
   ast_add(prog, child);
 
-  ASSERT_EQ(0, program_assign_pkg_id(child));
-  ASSERT_EQ(1, program_assign_pkg_id(prog));
-  ASSERT_EQ(2, program_assign_pkg_id(child));
-  ASSERT_EQ(3, program_assign_pkg_id(prog));
-  ASSERT_EQ(4, program_assign_pkg_id(prog));
-  ASSERT_EQ(5, program_assign_pkg_id(child));
+  ASSERT_EQ((unsigned int)0, program_assign_pkg_id(child));
+  ASSERT_EQ((unsigned int)1, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)2, program_assign_pkg_id(child));
+  ASSERT_EQ((unsigned int)3, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)4, program_assign_pkg_id(prog));
+  ASSERT_EQ((unsigned int)5, program_assign_pkg_id(child));
 
   ast_free(prog);
 }
@@ -50,7 +50,7 @@ TEST(ProgramTest, NoLibs)
 
   program_lib_build_args(prog, "pre", "post", "", "");
 
-  ASSERT_EQ(0, program_lib_arg_length(prog));
+  ASSERT_EQ((unsigned int)0, program_lib_arg_length(prog));
   ASSERT_STREQ("", program_lib_args(prog));
 
   ast_free(prog);

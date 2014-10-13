@@ -43,7 +43,7 @@ TEST(LexerStringTest, StringEnds)
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(token_int(token), 1);
+  ASSERT_EQ(token_int(token), (unsigned int)1);
   token_free(token);
 
   lexer_close(lexer);
@@ -175,7 +175,7 @@ TEST(LexerStringTest, TripleStringEnds)
   token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(token_int(token), 1);
+  ASSERT_EQ(token_int(token), (unsigned int)1);
   token_free(token);
 
   lexer_close(lexer);

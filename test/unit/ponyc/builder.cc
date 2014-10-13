@@ -55,7 +55,7 @@ TEST(BuilderTest, DifferingIds)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -82,7 +82,7 @@ TEST(BuilderTest, DifferingIntValue)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -105,7 +105,7 @@ TEST(BuilderTest, DifferingNames)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -148,7 +148,7 @@ TEST(BuilderTest, MissingChild)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -172,7 +172,7 @@ TEST(BuilderTest, UnexpectedChild)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -198,7 +198,7 @@ TEST(BuilderTest, DifferingChild)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -228,7 +228,7 @@ TEST(BuilderTest, MissingSibling)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -258,7 +258,7 @@ TEST(BuilderTest, UnexpectedSibling)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -290,7 +290,7 @@ TEST(BuilderTest, DifferingSibling)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -338,7 +338,7 @@ TEST(BuilderTest, MissingType)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -362,7 +362,7 @@ TEST(BuilderTest, UnexpectedType)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -388,7 +388,7 @@ TEST(BuilderTest, DifferingType)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -408,7 +408,7 @@ TEST(BuilderTest, MissingScope)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);
@@ -428,7 +428,7 @@ TEST(BuilderTest, UnexpectedScope)
   free_errors();
 
   ASSERT_FALSE(build_compare_asts(expected, actual));
-  ASSERT_EQ(1, get_error_count());
+  ASSERT_EQ((unsigned int)1, get_error_count());
 
   ast_free(expected);
   ast_free(actual);

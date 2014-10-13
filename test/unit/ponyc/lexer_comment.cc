@@ -19,7 +19,7 @@ TEST(LexerCommentTest, LineComment)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -37,9 +37,9 @@ TEST(LexerCommentTest, LineCommentLineNumber)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
-  ASSERT_EQ(2, token_line_number(token));
-  ASSERT_EQ(1, token_line_position(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
+  ASSERT_EQ((unsigned int)2, token_line_number(token));
+  ASSERT_EQ((unsigned int)1, token_line_position(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -57,7 +57,7 @@ TEST(LexerCommentTest, LineCommentWith3Slashes)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -75,7 +75,7 @@ TEST(LexerCommentTest, LineCommentContainingBlockCommentStart)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -93,7 +93,7 @@ TEST(LexerCommentTest, LineCommentEndingWithSlash)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -111,7 +111,7 @@ TEST(LexerCommentTest, BlockComment)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -129,7 +129,7 @@ TEST(LexerCommentTest, BlockCommentOverMultipleLines)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -147,7 +147,7 @@ TEST(LexerCommentTest, BlockCommentStartingWith2Stars)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -165,7 +165,7 @@ TEST(LexerCommentTest, BlockCommentEndingWith2Stars)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -183,7 +183,7 @@ TEST(LexerCommentTest, BlockCommentNested)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -201,7 +201,7 @@ TEST(LexerCommentTest, BlockCommentNestedStartingWith2Slashes)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -219,7 +219,7 @@ TEST(LexerCommentTest, BlockCommentNestedStartingWith2Stars)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -237,7 +237,7 @@ TEST(LexerCommentTest, BlockCommentNestedEndingWith2Stars)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -255,7 +255,7 @@ TEST(LexerCommentTest, BlockCommentNestedEndingWith2Slashes)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -273,7 +273,7 @@ TEST(LexerCommentTest, BlockCommentNestedInnerEmpty)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -291,7 +291,7 @@ TEST(LexerCommentTest, BlockCommentNestedInner3Stars)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -309,7 +309,7 @@ TEST(LexerCommentTest, BlockCommentNestedStartsNoWhitespace)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -327,7 +327,7 @@ TEST(LexerCommentTest, BlockCommentNestedEndsNoWhitespace)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -345,7 +345,7 @@ TEST(LexerCommentTest, BlockCommentContainsLineComment)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
@@ -363,7 +363,7 @@ TEST(LexerCommentTest, BlockCommentNestedDeeper)
   token_t* token = lexer_next(lexer);
   ASSERT_NE((void*)NULL, token);
   ASSERT_EQ(TK_INT, token_get_id(token));
-  ASSERT_EQ(1, token_int(token));
+  ASSERT_EQ((unsigned int)1, token_int(token));
   token_free(token);
 
   lexer_close(lexer);
