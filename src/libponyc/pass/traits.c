@@ -195,7 +195,7 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
   ast_error(method, "conflicting implementation for %s in %s", name,
     ast_name(ast_child(target)));
 
-  ast_error(existing_body, "previous implementation is here");
+  ast_error((ast_t*)existing_body, "previous implementation is here");
   return false;
 }
 
