@@ -8,10 +8,12 @@ actor Spreader
   new create(env: Env) =>
     _env = env
 
-    var count: U64 = try _env.args(1).u64() else 10 end
+    var count: U64 = try _env.args(1).u64() else U64(10) end
 
     if count > 0 then
       _count = count
+      _result = 0
+      _received = 0
       spawn_child()
       spawn_child()
     else
