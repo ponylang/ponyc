@@ -260,10 +260,6 @@ bool expr_identity(ast_t* ast)
 
   if(!could_subtype(l_type, r_type) && !could_subtype(r_type, l_type))
   {
-    // TODO: remove this
-    could_subtype(l_type, r_type);
-    could_subtype(r_type, l_type);
-
     ast_error(ast, "left and right side must be related types");
     return false;
   }
