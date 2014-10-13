@@ -1,6 +1,6 @@
 actor Spreader
-  var _parent: (Spreader | None)
   var _env: Env
+  var _parent: (Spreader | None)
   var _count: U64
   var _result: U64
   var _received: U64
@@ -17,7 +17,7 @@ actor Spreader
       spawn_child()
       spawn_child()
     else
-      env.stdout.print("1 actor")
+      _env.stdout.print("1 actor")
     end
 
   new spread(parent: Spreader, count: U64) =>
@@ -26,8 +26,6 @@ actor Spreader
     else
       _parent = parent
       _count = count
-      _result = 0
-      _received = 0
 
       spawn_child()
       spawn_child()
