@@ -296,23 +296,38 @@ static ast_t* narrow_literal(ast_t* a, ast_t* b)
 }
 
 
+static bool nominal_check(ast_t* check, const char* category)
+{
+  ast_t* attempt = type_builtin(check, category);
+  bool ok = is_subtype(check, attempt);
+  ast_free_unattached(attempt);
+
+  if(ok)
+    ast_free_unattached(check);
+
+  return ok;
+}
+
+
 static ast_t* nominal_literal(token_id literal_id, ast_t* type)
 {
-  ast_t* attempt = type_builtin(type, "Signed");
+  ast_t* check = ast_dup(type);
+  ast_t* cap = ast_childidx(check, 3);
+  ast_setid(cap, TK_VAL);
 
-  if(is_subtype(type, attempt) && (literal_id == TK_INTLITERAL))
+  if(literal_id == TK_INTLITERAL)
+  {
+    if(nominal_check(check, "Signed"))
+      return type;
+
+    if(nominal_check(check, "Unsigned"))
+      return type;
+  }
+
+  if(nominal_check(check, "Float"))
     return type;
 
-  attempt = type_builtin(type, "Unsigned");
-
-  if(is_subtype(type, attempt) && (literal_id == TK_INTLITERAL))
-    return type;
-
-  attempt = type_builtin(type, "Float");
-
-  if(is_subtype(type, attempt))
-    return type;
-
+  ast_free_unattached(check);
   return NULL;
 }
 
