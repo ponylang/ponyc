@@ -181,8 +181,9 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
   if(existing_body == NULL)
   {
     // First body we've found for this name, use it
+    ast_t* existing_members = ast_childidx(target, 4);
+    ast_append(existing_members, method);
     ast_set(target, name, method, SYM_NONE);
-    add_method(target, method);
     return true;
   }
 
