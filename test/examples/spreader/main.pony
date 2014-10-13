@@ -12,8 +12,8 @@ actor Spreader
 
     if count > 0 then
       _count = count
-      spawn_child(count)
-      spawn_child(count)
+      spawn_child()
+      spawn_child()
     else
       env.stdout.print("1 actor")
     end
@@ -27,8 +27,8 @@ actor Spreader
       _result = 0
       _received = 0
 
-      spawn_child(_count - 1)
-      spawn_child(_count - 1)
+      spawn_child()
+      spawn_child()
     end
 
   be result(i: U64) =>
@@ -44,7 +44,7 @@ actor Spreader
       end
     end
 
-  fun ref spawn_child(count: U64) =>
+  fun ref spawn_child() =>
     Spreader.spread(this, _count - 1)
 
 actor Main
