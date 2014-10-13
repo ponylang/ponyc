@@ -30,10 +30,42 @@ static void add_method(ast_t* target, ast_t* method)
 {
   ast_t* existing_members = ast_childidx(target, 4);
 
-  if(ast_id(existing_members) == TK_NONE)
-    ast_replace(&existing_members, method);
-  else
+  // If the method being added has no implementation, accept it.
+  ast_t* method_body = ast_childidx(method, 6);
+
+  if(ast_id(method_body) == TK_NONE)
+  {
     ast_append(existing_members, method);
+    return;
+  }
+
+  // Find existing method with this name.
+  const char* name = ast_name(ast_childidx(method, 1));
+  ast_t* existing = ast_get(target, name, NULL);
+
+  if(existing == NULL)
+  {
+    // If there's no existing method, accept it.
+    ast_append(existing_members, method);
+    return;
+  }
+
+  // If the existing method has no implementation, accept it.
+  ast_t* existing_body = ast_childidx(method, 6);
+
+  if(ast_id(existing_body) == TK_NONE)
+  {
+    ast_append(existing_members, method);
+    return;
+  }
+
+  // Strip the incoming implementation before accepting it.
+  method = ast_dup(method);
+  method_body = ast_childidx(method, 6);
+
+  ast_t* none = ast_from(method_body, TK_NONE);
+  ast_replace(&method_body, none);
+  ast_append(existing_members, method);
 }
 
 
@@ -162,6 +194,8 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
 
   ast_error(method, "conflicting implementation for %s in %s", name,
     ast_name(ast_child(target)));
+
+  ast_error(existing_body, "previous implementation is here");
   return false;
 }
 
