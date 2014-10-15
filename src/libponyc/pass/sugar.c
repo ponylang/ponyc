@@ -259,7 +259,7 @@ static ast_result_t sugar_for(ast_t** astp)
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
           NONE NONE)
         NODE(TK_SEQ, AST_SCOPE
-          NODE(TK_ASSIGN,
+          NODE_ERROR_AT(TK_ASSIGN, for_idseq,
             NODE(TK_VAR, TREE(for_idseq) TREE(for_type))
             NODE(TK_CALL,
               NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
