@@ -348,9 +348,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
   LLVMSetGlobalConstant(g->desc, true);
 }
 
-static LLVMValueRef desc_field(compile_t* c, LLVMValueRef object, int index)
+static LLVMValueRef desc_field(compile_t* c, LLVMValueRef desc, int index)
 {
-  LLVMValueRef desc = gendesc_fetch(c, object);
   LLVMValueRef ptr = LLVMBuildStructGEP(c->builder, desc, index, "");
   return LLVMBuildLoad(c->builder, ptr, "");
 }
@@ -363,12 +362,12 @@ LLVMValueRef gendesc_fetch(compile_t* c, LLVMValueRef object)
 
 LLVMValueRef gendesc_trace(compile_t* c, LLVMValueRef object)
 {
-  return desc_field(c, object, DESC_TRACE);
+  return desc_field(c, gendesc_fetch(c, object), DESC_TRACE);
 }
 
 LLVMValueRef gendesc_dispatch(compile_t* c, LLVMValueRef object)
 {
-  return desc_field(c, object, DESC_DISPATCH);
+  return desc_field(c, gendesc_fetch(c, object), DESC_DISPATCH);
 }
 
 LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
@@ -384,14 +383,14 @@ LLVMValueRef gendesc_vtable(compile_t* c, LLVMValueRef object, size_t colour)
   return LLVMBuildLoad(c->builder, func_ptr, "");
 }
 
-LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef object)
+LLVMValueRef gendesc_fieldcount(compile_t* c, LLVMValueRef desc)
 {
-  return desc_field(c, object, DESC_FIELD_COUNT);
+  return desc_field(c, desc, DESC_FIELD_COUNT);
 }
 
-LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef object, size_t index)
+LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef desc, size_t index)
 {
-  LLVMValueRef fields = desc_field(c, object, DESC_FIELDS);
+  LLVMValueRef fields = desc_field(c, desc, DESC_FIELDS);
 
   LLVMValueRef gep[2];
   gep[0] = LLVMConstInt(c->i32, 0, false);
@@ -401,29 +400,14 @@ LLVMValueRef gendesc_fielddesc(compile_t* c, LLVMValueRef object, size_t index)
   return LLVMBuildLoad(c->builder, field_desc, "");
 }
 
-LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
-{
-  return make_type_id(c, genname_type(type));
-}
-
-LLVMValueRef gendesc_isdesc(compile_t* c, LLVMValueRef object,
-  LLVMValueRef desc)
-{
-  LLVMValueRef object_desc = gendesc_fetch(c, object);
-  object_desc = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
-  desc = LLVMBuildPtrToInt(c->builder, desc, c->intptr, "");
-
-  return LLVMBuildICmp(c->builder, LLVMIntEQ, object_desc, desc, "");
-}
-
-LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
+LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 {
   // Get the trait identifier.
   LLVMValueRef trait_id = gendesc_typeid(c, type);
 
   // Read the count and the trait list from the descriptor.
-  LLVMValueRef count = desc_field(c, object, DESC_TRAIT_COUNT);
-  LLVMValueRef list = desc_field(c, object, DESC_TRAITS);
+  LLVMValueRef count = desc_field(c, desc, DESC_TRAIT_COUNT);
+  LLVMValueRef list = desc_field(c, desc, DESC_TRAITS);
 
   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
@@ -465,4 +449,9 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef object, ast_t* type)
   LLVMAddIncoming(result, &test_id, &body_block, 1);
 
   return result;
+}
+
+LLVMValueRef gendesc_typeid(compile_t* c, ast_t* type)
+{
+  return make_type_id(c, genname_type(type));
 }

@@ -32,19 +32,31 @@ trait ArithmeticConvertible
   fun box f32(): F32 => compiler_intrinsic
   fun box f64(): F64 => compiler_intrinsic
 
-trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A]
+trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A],
+  Hashable[A], Ordered[A]
   fun box add(y: A): A => compiler_intrinsic
   fun box sub(y: A): A => compiler_intrinsic
   fun box mul(y: A): A => compiler_intrinsic
   fun box div(y: A): A => compiler_intrinsic
   fun box mod(y: A): A => compiler_intrinsic
   fun box neg(): A => compiler_intrinsic
-  fun box eq(y: A): Bool => compiler_intrinsic
-  fun box ne(y: A): Bool => compiler_intrinsic
-  fun box lt(y: A): Bool => compiler_intrinsic
-  fun box le(y: A): Bool => compiler_intrinsic
-  fun box ge(y: A): Bool => compiler_intrinsic
-  fun box gt(y: A): Bool => compiler_intrinsic
+  fun box eq(y: A box): Bool => compiler_intrinsic
+  fun box ne(y: A box): Bool => compiler_intrinsic
+  fun box lt(y: A box): Bool => compiler_intrinsic
+  fun box le(y: A box): Bool => compiler_intrinsic
+  fun box ge(y: A box): Bool => compiler_intrinsic
+  fun box gt(y: A box): Bool => compiler_intrinsic
+
+  fun box hash(): U64 =>
+    var x = u64()
+    x = (not x) + (x << 21);
+    x = x xor (x >> 24);
+    x = (x + (x << 3)) + (x << 8);
+    x = x xor (x >> 14);
+    x = (x + (x << 2)) + (x << 4);
+    x = x xor (x >> 28);
+    x = x + (x << 31);
+    x
 
 trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun box and_(y: A): A => compiler_intrinsic

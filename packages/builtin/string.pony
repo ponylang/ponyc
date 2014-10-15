@@ -1,7 +1,7 @@
 trait Stringable
   fun box string(): String
 
-class String val is Ordered[String]
+class String val is Ordered[String], Hashable[String]
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
@@ -438,5 +438,7 @@ class String val is Ordered[String]
       _size = @snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
     end
     this
+
+  fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
   /*fun box string(): String => this*/

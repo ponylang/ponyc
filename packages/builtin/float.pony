@@ -57,6 +57,7 @@ primitive F32 is Real[F32]
   fun box atanh(): F32 => @atanhf[F32](this)
 
   fun box string(): String iso^ => recover String.from_f32(this) end
+  fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 => f64().i128()
   fun box u128(): U128 => f64().u128()
@@ -116,6 +117,7 @@ primitive F64 is Real[F64]
   fun box atanh(): F64 => @atanh[F64](this)
 
   fun box string(): String iso^ => recover String.from_f64(this) end
+  fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 =>
     var bit = bits()
