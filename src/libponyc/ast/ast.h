@@ -487,9 +487,13 @@ void ast_extract_children(ast_t* parent, size_t child_count,
   }
 
 /// Add a new node with the specified token ID and optionally children
-#define NODE(id, ...) \
+#define NODE(id, ...) NODE_ERROR_AT(id, basis_ast, __VA_ARGS__)
+
+/// Add a new node with the specified token ID and optionally children with
+/// error reports indicating the specified node
+#define NODE_ERROR_AT(id, error_at, ...) \
   { \
-    node = ast_from(basis_ast, id); \
+    node = ast_from(error_at, id); \
     TREE(node); \
     { \
       ast_t* parent = node; \
