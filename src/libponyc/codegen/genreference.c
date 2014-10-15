@@ -19,17 +19,9 @@ LLVMValueRef gen_param(compile_t* c, ast_t* ast)
   return LLVMGetParam(codegen_fun(c), index + 1);
 }
 
-LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
+static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
+  ast_t* l_type, ast_t* right)
 {
-  AST_GET_CHILDREN(ast, left, right);
-
-  LLVMValueRef l_value = gen_expr(c, left);
-
-  if(l_value == NULL)
-    return NULL;
-
-  ast_t* l_type = ast_type(left);
-
   switch(ast_id(l_type))
   {
     case TK_NOMINAL:
@@ -54,11 +46,27 @@ LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
       return LLVMBuildExtractValue(c->builder, l_value, index, "");
     }
 
+    case TK_ARROW:
+      return make_fieldptr(c, l_value, ast_childidx(l_type, 1), right);
+
     default: {}
   }
 
   assert(0);
   return NULL;
+}
+
+LLVMValueRef gen_fieldptr(compile_t* c, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, left, right);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+
+  if(l_value == NULL)
+    return NULL;
+
+  ast_t* l_type = ast_type(left);
+  return make_fieldptr(c, l_value, l_type, right);
 }
 
 LLVMValueRef gen_fieldload(compile_t* c, ast_t* ast)
