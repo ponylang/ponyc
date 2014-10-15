@@ -182,7 +182,7 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   // Remove the arrow node
   token_id arrow_id = ast_id(arrow);
-  ast_remove(arrow, error);
+  ast_remove(arrow);
 
   if(!check_tribool(def->cap, cap, def->desc, "receiver capability", cap))
     return false;

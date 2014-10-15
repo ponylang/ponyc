@@ -6,33 +6,69 @@
 #include "../pass/names.h"
 #include <assert.h>
 
-static void append_one_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
+static void append_one_to_union(ast_t* ast, ast_t* append)
 {
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    // don't append if we're already in the type expression
-    if(is_union)
+    ast_t* next = ast_sibling(child);
+
+    if(is_subtype(append, child))
     {
-      if(is_subtype(append, child))
-        return;
-    } else {
-      if(is_subtype(child, append))
-        return;
+      // If the incoming type is a subtype of a type that is already in the
+      // union, then do not bother to append it.
+      return;
+    } else if(is_subtype(child, append)) {
+      // If a type in the union is a subtype of the incoming type, then remove
+      // it from the union.
+      ast_remove(child);
     }
 
-    child = ast_sibling(child);
+    child = next;
   }
 
   ast_append(ast, append);
+}
+
+static void append_one_to_isect(ast_t* ast, ast_t* append)
+{
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    ast_t* next = ast_sibling(child);
+
+    if(is_subtype(child, append))
+    {
+      // If the incoming type is a supertype of a type that is already in the
+      // intersection, then do not bother to append it.
+      return;
+    } else if(is_subtype(append, child)) {
+      // If a type in the intersection is a supertype of the incoming type,
+      // then remove it from the intersection.
+      ast_remove(child);
+    }
+
+    child = next;
+  }
+
+  ast_append(ast, append);
+}
+
+static void append_one_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
+{
+  if(is_union)
+    append_one_to_union(ast, append);
+  else
+    append_one_to_isect(ast, append);
 }
 
 static void append_to_typeexpr(ast_t* ast, ast_t* append, bool is_union)
 {
   if(ast_id(ast) == ast_id(append))
   {
-    // add each element of the typeexpr to the new typeexpr
+    // Add each element of the typeexpr to the new typeexpr.
     ast_t* child = ast_child(append);
 
     while(child != NULL)
@@ -74,6 +110,16 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
   ast_t* type = ast_from(l_type, t);
   append_to_typeexpr(type, l_type, is_union);
   append_to_typeexpr(type, r_type, is_union);
+
+  // If there's only one element, remove the type expression node.
+  ast_t* child = ast_child(type);
+
+  if(ast_sibling(child) == NULL)
+  {
+    child = ast_dup(child);
+    ast_free_unattached(type);
+    type = child;
+  }
 
   return type;
 }
@@ -223,5 +269,37 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
     return false;
   }
 
+  return true;
+}
+
+bool flatten_union(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+  ast_t* type = NULL;
+
+  while(child != NULL)
+  {
+    type = type_union(type, child);
+    child = ast_sibling(child);
+  }
+
+  ast_replace(astp, type);
+  return true;
+}
+
+bool flatten_isect(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  ast_t* child = ast_child(ast);
+  ast_t* type = NULL;
+
+  while(child != NULL)
+  {
+    type = type_isect(type, child);
+    child = ast_sibling(child);
+  }
+
+  ast_replace(astp, type);
   return true;
 }

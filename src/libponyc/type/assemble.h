@@ -44,6 +44,18 @@ ast_t* type_for_fun(ast_t* ast);
  */
 bool type_for_idseq(ast_t* idseq, ast_t* type);
 
+/**
+ * Replaces astp with an ast that removes any elements that are subtypes of
+ * other elements and does a capability union on interface types.
+ */
+bool flatten_union(ast_t** astp);
+
+/**
+ * Replaces astp with an ast that removes any elements that are supertypes of
+ * other elements.
+ */
+bool flatten_isect(ast_t** astp);
+
 PONY_EXTERN_C_END
 
 #endif

@@ -253,12 +253,15 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
 
 static bool could_subtype_arrow(ast_t* sub, ast_t* super)
 {
-  // If we have the same viewpoint, check the right side.
-  AST_GET_CHILDREN(sub, sub_left, sub_right);
-  AST_GET_CHILDREN(super, super_left, super_right);
+  if(ast_id(super) == TK_ARROW)
+  {
+    // If we have the same viewpoint, check the right side.
+    AST_GET_CHILDREN(sub, sub_left, sub_right);
+    AST_GET_CHILDREN(super, super_left, super_right);
 
-  if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
-    return true;
+    if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
+      return true;
+  }
 
   // Check the upper bounds.
   ast_t* upper = viewpoint_upper(sub);

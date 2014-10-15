@@ -891,25 +891,17 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   return child;
 }
 
-void ast_remove(ast_t* ast, ast_t* previous_sibling)
+void ast_remove(ast_t* ast)
 {
   assert(ast != NULL);
+  assert(ast->parent != NULL);
 
-  if(previous_sibling != NULL)
-  {
-    previous_sibling->sibling = ast->sibling;
-  }
+  ast_t* last = ast_previous(ast);
+
+  if(last != NULL)
+    last->sibling = ast->sibling;
   else
-  {
-    // ast is eldest child
-    ast_t* parent = ast->parent;
-
-    if(parent != NULL)
-    {
-      assert(parent->child == ast);
-      parent->child = ast->sibling;
-    }
-  }
+    ast->parent->child = ast->sibling;
 
   ast->parent = NULL;
   ast->sibling = NULL;

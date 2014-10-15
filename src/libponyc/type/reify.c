@@ -2,6 +2,7 @@
 #include "subtype.h"
 #include "../ast/token.h"
 #include "viewpoint.h"
+#include "assemble.h"
 #include <assert.h>
 
 static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
@@ -29,42 +30,41 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   if(type != NULL)
     reify_one(&type, typeparam, typearg);
 
-  switch(ast_id(ast))
-  {
-    case TK_TYPEPARAMREF:
-      if(reify_typeparamref(astp, typeparam, typearg))
-        return true;
-      break;
-
-    case TK_ARROW:
-    {
-      // reify both sides
-      ast_t* left = ast_child(ast);
-      ast_t* right = ast_sibling(left);
-
-      bool flatten = reify_one(&left, typeparam, typearg);
-      flatten |= reify_one(&right, typeparam, typearg);
-
-      // if we reified either side, flatten this arrow type to the viewpoint
-      // adapted right side.
-      if(flatten)
-      {
-        ast = viewpoint_type(left, right);
-        ast_replace(astp, ast);
-      }
-
-      return flatten;
-    }
-
-    default: {}
-  }
+  if(ast_id(ast) == TK_TYPEPARAMREF)
+    return reify_typeparamref(astp, typeparam, typearg);
 
   ast_t* child = ast_child(ast);
+  bool flatten = false;
 
   while(child != NULL)
   {
-    reify_one(&child, typeparam, typearg);
+    flatten |= reify_one(&child, typeparam, typearg);
     child = ast_sibling(child);
+  }
+
+  // Flatten type expressions after reifying them.
+  if(flatten)
+  {
+    switch(ast_id(ast))
+    {
+      case TK_UNIONTYPE:
+        flatten_union(astp);
+        return true;
+
+      case TK_ISECTTYPE:
+        flatten_isect(astp);
+        return true;
+
+      case TK_ARROW:
+      {
+        AST_GET_CHILDREN(ast, left, right);
+        ast = viewpoint_type(left, right);
+        ast_replace(astp, ast);
+        return true;
+      }
+
+      default: {}
+    }
   }
 
   return false;

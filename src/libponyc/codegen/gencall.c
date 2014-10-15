@@ -33,7 +33,7 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
   return invoke;
 }
 
-static LLVMValueRef make_arg(compile_t* c, ast_t* arg, LLVMTypeRef type)
+static LLVMValueRef make_arg(compile_t* c, LLVMTypeRef type, ast_t* arg)
 {
   LLVMValueRef value = gen_expr(c, arg);
 
@@ -279,7 +279,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   for(int i = need_receiver; i < count; i++)
   {
-    LLVMValueRef value = make_arg(c, arg, params[i]);
+    LLVMValueRef value = make_arg(c, params[i], arg);
 
     if(value == NULL)
       return NULL;

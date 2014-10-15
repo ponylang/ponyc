@@ -3,6 +3,8 @@
 #include "../type/assemble.h"
 #include "../type/matchtype.h"
 #include "../type/alias.h"
+#include "../type/lookup.h"
+#include "../ds/stringtab.h"
 #include <assert.h>
 
 bool expr_match(ast_t* ast)
@@ -20,20 +22,7 @@ bool expr_match(ast_t* ast)
 
   while(the_case != NULL)
   {
-    AST_GET_CHILDREN(the_case, pattern, guard, body);
-
-    ast_t* pattern_type = ast_type(pattern);
-
-    // TODO: This is too strict. Other than captures, we should allow patterns
-    // where the pattern type could be a subtype of the expression type (without
-    // aliasing) as well, since it is equivalent to identity.
-    if(!could_subtype(a_type, pattern_type))
-    {
-      ast_error(pattern, "match expression can never be of this type");
-      ast_free_unattached(a_type);
-      return false;
-    }
-
+    ast_t* body = ast_childidx(the_case, 2);
     ast_t* body_type = ast_type(body);
     type = type_union(type, body_type);
 
@@ -71,45 +60,179 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static bool is_valid_pattern(ast_t* ast)
-{
-  switch(ast_id(ast))
-  {
-    case TK_TUPLE:
-    {
-      // A tuple is valid if every child is valid.
-      ast_t* child = ast_child(ast);
+static bool is_valid_pattern(ast_t* match_type, ast_t* pattern);
 
-      while(child != NULL)
+static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
+{
+  switch(ast_id(match_type))
+  {
+    case TK_UNIONTYPE:
+    {
+      // If some possible type can match, we can match.
+      ast_t* match_child = ast_child(match_type);
+
+      while(match_child != NULL)
       {
-        if(!is_valid_pattern(child))
+        if(is_valid_tuple_pattern(match_type, pattern))
+          return true;
+
+        match_child = ast_sibling(match_child);
+      }
+
+      return false;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // If every possible type can match, we can match.
+      ast_t* match_child = ast_child(match_type);
+
+      while(match_child != NULL)
+      {
+        if(!is_valid_tuple_pattern(match_type, pattern))
           return false;
 
-        child = ast_sibling(child);
+        match_child = ast_sibling(match_child);
       }
 
       return true;
     }
 
-    case TK_SEQ:
+    case TK_TUPLETYPE:
     {
-      // TODO: allow this as well?
-      // Only valid for single element sequences.
-      ast_t* child = ast_child(ast);
-
-      if(ast_sibling(child) != NULL)
-      {
-        ast_error(child, "patterns cannot contain sequences");
+      // Check for a cardinality match.
+      if(ast_childcount(match_type) != ast_childcount(pattern))
         return false;
+
+      // Check every element pairwise.
+      ast_t* match_child = ast_child(match_type);
+      ast_t* pattern_child = ast_child(pattern);
+
+      while(match_child != NULL)
+      {
+        if(!is_valid_pattern(match_child, pattern_child))
+          return false;
+
+        match_child = ast_sibling(match_child);
+        pattern_child = ast_sibling(pattern_child);
       }
 
-      return is_valid_pattern(child);
+      return true;
     }
 
     default: {}
   }
 
-  // All other constructs are valid.
+  // The match type is not a tuple nor does it contain a tuple, so it cannot
+  // match a tuple.
+  return false;
+}
+
+static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
+{
+  switch(ast_id(pattern))
+  {
+    case TK_VAR:
+    case TK_LET:
+    {
+      // There must exist some subtype of an alias of match_type that is a
+      // subtype of the capture type.
+      ast_t* a_type = alias(match_type);
+      ast_t* capture_type = ast_childidx(pattern, 1);
+      bool ok = could_subtype(a_type, capture_type);
+      ast_free_unattached(a_type);
+
+      if(!ok)
+        ast_error(pattern, "this capture can never match");
+
+      return ok;
+    }
+
+    case TK_TUPLE:
+      return is_valid_tuple_pattern(match_type, pattern);
+
+    case TK_SEQ:
+    {
+      // We are only interested in the last expression in the sequence.
+      ast_t* last = ast_childlast(pattern);
+      return is_valid_pattern(match_type, last);
+    }
+
+    default:
+    {
+      // Structural equality, pattern.eq(match).
+      ast_t* fun = lookup(pattern, ast_type(pattern), stringtab("eq"));
+
+      if(fun == NULL)
+      {
+        ast_error(pattern,
+          "this pattern element doesn't support structural equality");
+        return false;
+      }
+
+      if(ast_id(fun) != TK_FUN)
+      {
+        ast_error(pattern, "eq is not a function on this pattern element");
+        ast_error(fun, "definition of eq is here");
+        return false;
+      }
+
+      AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
+      bool ok = true;
+
+      if(ast_id(typeparams) != TK_NONE)
+      {
+        ast_error(pattern, "polymorphic eq not supported in pattern matching");
+        ok = false;
+      }
+
+      if(!is_bool(result))
+      {
+        ast_error(pattern, "eq must return Bool when pattern matching");
+        ok = false;
+      }
+
+      if(ast_id(partial) != TK_NONE)
+      {
+        ast_error(pattern, "eq cannot be partial when pattern matching");
+        ok = false;
+      }
+
+      ast_t* param = ast_child(params);
+
+      if(ast_sibling(param) != NULL)
+      {
+        ast_error(pattern,
+          "eq must take a single argument when pattern matching");
+        ok = false;
+      } else {
+        ast_t* param_type;
+
+        if(ast_id(param) == TK_PARAM)
+          param_type = ast_childidx(param, 1);
+        else
+          param_type = param;
+
+        ast_t* a_type = alias(match_type);
+        bool sub_ok = could_subtype(a_type, param_type);
+        ast_free_unattached(a_type);
+
+        if(!sub_ok)
+        {
+          ast_error(pattern,
+            "the match expression will never be a type that could be "
+            "passed to eq on this pattern");
+          ok = false;
+        }
+      }
+
+      if(!ok)
+        ast_error(fun, "definition of eq is here");
+
+      return ok;
+    }
+  }
+
   return true;
 }
 
@@ -126,8 +249,18 @@ bool expr_case(ast_t* ast)
     return false;
   }
 
-  if(!is_valid_pattern(pattern))
+  ast_t* cases = ast_parent(ast);
+  ast_t* match = ast_parent(cases);
+  ast_t* match_expr = ast_child(match);
+  ast_t* match_type = ast_type(match_expr);
+
+  // TODO: Need to get the capability union for the match type so that pattern
+  // matching can never recover capabilities.
+  if(!is_valid_pattern(match_type, pattern))
+  {
+    ast_error(pattern, "this pattern can never match");
     return false;
+  }
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {

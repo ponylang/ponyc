@@ -129,6 +129,57 @@ static bool expr_typeaccess(ast_t* ast)
   return ret;
 }
 
+static bool make_tuple_index(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  const char* name = ast_name(ast);
+
+  if(name[0] != '_')
+    return false;
+
+  for(size_t i = 1; name[i] != '\0'; i++)
+  {
+    if((name[i] < '0') || (name[i] > '9'))
+      return false;
+  }
+
+  size_t index = strtol(&name[1], NULL, 10) - 1;
+  ast_t* node = ast_from_int(ast, index);
+  ast_replace(astp, node);
+
+  return true;
+}
+
+static bool expr_tupleaccess(ast_t* ast)
+{
+  // Left is a postfix expression, right is a lookup name.
+  ast_t* left = ast_child(ast);
+  ast_t* right = ast_sibling(left);
+  ast_t* type = ast_type(left);
+
+  // Change the lookup name to an integer index.
+  if(!make_tuple_index(&right))
+  {
+    ast_error(right,
+      "lookup on a tuple must take the form _X, where X is an integer");
+    return false;
+  }
+
+  // Make sure our index is in bounds.
+  type = ast_childidx(type, (size_t)ast_int(right));
+
+  if(type == NULL)
+  {
+    ast_error(right, "tuple index is out of bounds");
+    return false;
+  }
+
+  ast_setid(ast, TK_FLETREF);
+  ast_settype(ast, type);
+  ast_inheriterror(ast);
+  return true;
+}
+
 static bool expr_memberaccess(ast_t* ast)
 {
   // left is a postfix expression, right is an id
@@ -209,36 +260,6 @@ static bool expr_memberaccess(ast_t* ast)
   return ret;
 }
 
-static bool expr_tupleaccess(ast_t* ast)
-{
-  // left is a postfix expression, right is an integer
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  ast_t* type = ast_type(left);
-
-  assert(ast_id(right) == TK_INT);
-
-  // element of a tuple
-  if((type == NULL) || (ast_id(type) != TK_TUPLETYPE))
-  {
-    ast_error(right, "member by position can only be used on a tuple");
-    return false;
-  }
-
-  type = ast_childidx(type, (size_t)ast_int(right));
-
-  if(type == NULL)
-  {
-    ast_error(right, "tuple index is out of bounds");
-    return false;
-  }
-
-  ast_setid(ast, TK_FLETREF);
-  ast_settype(ast, type);
-  ast_inheriterror(ast);
-  return true;
-}
-
 bool expr_qualify(ast_t* ast)
 {
   // left is a postfix expression, right is a typeargs
@@ -303,33 +324,25 @@ bool expr_dot(ast_t* ast)
   // left is a postfix expression, right is an integer or an id
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
+  assert(ast_id(right) == TK_ID);
 
-  switch(ast_id(right))
+  switch(ast_id(left))
   {
-    case TK_ID:
-    {
-      switch(ast_id(left))
-      {
-        case TK_PACKAGEREF:
-          return expr_packageaccess(ast);
+    case TK_PACKAGEREF:
+      return expr_packageaccess(ast);
 
-        case TK_TYPEREF:
-          return expr_typeaccess(ast);
-
-        default: {}
-      }
-
-      return expr_memberaccess(ast);
-    }
-
-    case TK_INT:
-      return expr_tupleaccess(ast);
+    case TK_TYPEREF:
+      return expr_typeaccess(ast);
 
     default: {}
   }
 
-  assert(0);
-  return false;
+  ast_t* type = ast_type(left);
+
+  if(ast_id(type) == TK_TUPLETYPE)
+    return expr_tupleaccess(ast);
+
+  return expr_memberaccess(ast);
 }
 
 bool expr_call(ast_t* ast)
