@@ -4,44 +4,45 @@
 #include "genexpr.h"
 #include <assert.h>
 
-static LLVMValueRef base_is(compile_t* c, ast_t* left_type, ast_t* right_type,
-  LLVMValueRef l_value, LLVMValueRef r_value);
-
-static LLVMValueRef unbox_is(compile_t* c, ast_t* left_type, ast_t* right_type,
-  LLVMValueRef l_value, LLVMValueRef r_value)
-{
-  // Here, left_type will be a primitive type. We only accept the right side if
-  // it is a boxed version of the exact same type.
-  gentype_t g;
-
-  if(!gentype(c, left_type, &g))
-    return NULL;
-
-  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef unbox_block = codegen_block(c, "unbox");
-  LLVMBasicBlockRef post_block = codegen_block(c, "post");
-
-  LLVMValueRef test = gendesc_isdesc(c, r_value, g.desc);
-  LLVMBuildCondBr(c->builder, test, unbox_block, post_block);
-
-  LLVMPositionBuilderAtEnd(c->builder, unbox_block);
-  r_value = unbox_value(c, r_value, left_type);
-  test = base_is(c, left_type, right_type, l_value, r_value);
-
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
-  LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
-  LLVMAddIncoming(phi, &zero, &entry_block, 1);
-  LLVMAddIncoming(phi, &test, &unbox_block, 1);
-
-  return phi;
-}
+// TODO: not needed?
+// static LLVMValueRef unbox_is(compile_t* c, ast_t* left_type, ast_t* right_type,
+//   LLVMValueRef l_value, LLVMValueRef r_value)
+// {
+//   // Here, left_type will be a primitive type. We only accept the right side if
+//   // it is a boxed version of the exact same type.
+//   gentype_t g;
+//
+//   if(!gentype(c, left_type, &g))
+//     return NULL;
+//
+//   assert(LLVMTypeOf(l_value) == g.primitive);
+//
+//   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
+//   LLVMBasicBlockRef unbox_block = codegen_block(c, "unbox");
+//   LLVMBasicBlockRef post_block = codegen_block(c, "post");
+//
+//   LLVMValueRef test = gendesc_isdesc(c, r_value, g.desc);
+//   LLVMBuildCondBr(c->builder, test, unbox_block, post_block);
+//
+//   LLVMPositionBuilderAtEnd(c->builder, unbox_block);
+//   r_value = unbox_value(c, r_value, left_type);
+//   test = gen_is_value(c, left_type, right_type, l_value, r_value);
+//
+//   LLVMPositionBuilderAtEnd(c->builder, post_block);
+//   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
+//   LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
+//   LLVMAddIncoming(phi, &zero, &entry_block, 1);
+//   LLVMAddIncoming(phi, &test, &unbox_block, 1);
+//
+//   return phi;
+// }
 
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
   assert(ast_id(left_type) == TK_TUPLETYPE);
   assert(ast_id(right_type) == TK_TUPLETYPE);
+  assert(ast_childcount(left_type) == ast_childcount(right_type));
 
   // Pairwise comparison.
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
@@ -64,7 +65,8 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
     // Test the element.
     LLVMValueRef l_elem = LLVMBuildExtractValue(c->builder, l_value, i, "");
     LLVMValueRef r_elem = LLVMBuildExtractValue(c->builder, r_value, i, "");
-    LLVMValueRef test = base_is(c, left_child, right_child, l_elem, r_elem);
+    LLVMValueRef test = gen_is_value(c, left_child, right_child, l_elem,
+      r_elem);
 
     // If false, go directly to the post block.
     LLVMBuildCondBr(c->builder, test, next_block, post_block);
@@ -89,39 +91,7 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   return phi;
 }
 
-static LLVMValueRef tuple_is_union(compile_t* c, ast_t* left_type,
-  ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value)
-{
-  // TODO:
-  return LLVMConstInt(c->i1, 0, false);
-}
-
-static LLVMValueRef tuple_is_isect(compile_t* c, ast_t* left_type,
-  ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value)
-{
-  // TODO:
-  return LLVMConstInt(c->i1, 0, false);
-}
-
-static LLVMValueRef tuple_is_object(compile_t* c, ast_t* left_type,
-  ast_t* right_type, LLVMValueRef l_value, LLVMValueRef r_value)
-{
-  switch(ast_id(right_type))
-  {
-    case TK_UNIONTYPE:
-      return tuple_is_union(c, left_type, right_type, l_value, r_value);
-
-    case TK_ISECTTYPE:
-      return tuple_is_isect(c, left_type, right_type, l_value, r_value);
-
-    default: {}
-  }
-
-  // A tuple can't be any other type.
-  return LLVMConstInt(c->i1, 0, false);
-}
-
-static LLVMValueRef base_is(compile_t* c, ast_t* left_type, ast_t* right_type,
+LLVMValueRef gen_is_value(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {
   LLVMTypeRef l_type = LLVMTypeOf(l_value);
@@ -131,14 +101,11 @@ static LLVMValueRef base_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   {
     case LLVMIntegerTypeKind:
     {
-      // If it's the same type, just compare.
+      // If it's the same type, compare.
       if(l_type == r_type)
         return LLVMBuildICmp(c->builder, LLVMIntEQ, l_value, r_value, "");
 
-      // If it's a pointer type, try to unbox it.
-      if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
-        return unbox_is(c, left_type, right_type, l_value, r_value);
-
+      // It can't have the same identity, even if it's the same value.
       return LLVMConstInt(c->i1, 0, false);
     }
 
@@ -149,33 +116,25 @@ static LLVMValueRef base_is(compile_t* c, ast_t* left_type, ast_t* right_type,
       if(l_type == r_type)
         return LLVMBuildFCmp(c->builder, LLVMRealOEQ, l_value, r_value, "");
 
-      // If it's a pointer type, try to unbox it.
-      if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
-        return unbox_is(c, left_type, right_type, l_value, r_value);
-
+      // It can't have the same identity, even if it's the same value.
       return LLVMConstInt(c->i1, 0, false);
     }
 
     case LLVMStructTypeKind:
     {
-      // Need to look at the descriptor.
-      if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
-        return tuple_is_object(c, left_type, right_type, l_value, r_value);
+      // Pairwise comparison.
+      if(LLVMGetTypeKind(r_type) == LLVMStructTypeKind)
+        return tuple_is(c, left_type, right_type, l_value, r_value);
 
-      // Pairwise match.
-      return tuple_is(c, left_type, right_type, l_value, r_value);
+      // It can't have the same identity, even if it's the same value.
+      return LLVMConstInt(c->i1, 0, false);
     }
 
     case LLVMPointerTypeKind:
     {
-      // If it's not a pointer type, try to unbox ourself.
+      // It can't have the same identity, even if it's the same value.
       if(LLVMGetTypeKind(r_type) != LLVMPointerTypeKind)
-      {
-        if(ast_id(right_type) == TK_TUPLETYPE)
-          return tuple_is_object(c, right_type, left_type, r_value, l_value);
-
-        return unbox_is(c, right_type, left_type, r_value, l_value);
-      }
+        return LLVMConstInt(c->i1, 0, false);
 
       // Pointers must be to the same address.
       l_value = LLVMBuildPtrToInt(c->builder, l_value, c->intptr, "");
@@ -202,7 +161,7 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
-  return base_is(c, left_type, right_type, l_value, r_value);
+  return gen_is_value(c, left_type, right_type, l_value, r_value);
 }
 
 LLVMValueRef gen_isnt(compile_t* c, ast_t* ast)
