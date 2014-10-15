@@ -1,7 +1,7 @@
 trait Stringable
   fun box string(): String
 
-class String val is Ordered[String], Hashable[String]
+class String val is Ordered[String], Hashable[String], Stringable
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
@@ -441,4 +441,14 @@ class String val is Ordered[String], Hashable[String]
 
   fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
-  //fun box string(): String =>
+  fun box string(): String =>
+    var len = _size
+    var ptr = _ptr._concat(_size + 1, Pointer[U8](0), 0)
+
+    recover
+      var str = String._empty()
+      str._size = len
+      str._alloc = len + 1
+      str._ptr = consume ptr
+      consume str
+    end
