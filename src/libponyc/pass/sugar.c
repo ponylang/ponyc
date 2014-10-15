@@ -252,7 +252,7 @@ static ast_result_t sugar_for(ast_t** astp)
   REPLACE(astp,
     NODE(TK_SEQ, AST_SCOPE
       NODE(TK_ASSIGN,
-        NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) TREE(for_type))
+        NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) NONE)
         TREE(for_iter))
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_CALL,
