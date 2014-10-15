@@ -95,6 +95,11 @@ class String val is Ordered[String], Hashable[String]
     _ptr = Pointer[U8](0)
     from_f64_in_place(x)
 
+  new _empty() =>
+    _size = 0
+    _alloc = 0
+    _ptr = Pointer[U8](0)
+
   new _reserve(size: U64) =>
     _size = size
     _alloc = size + 1
@@ -121,51 +126,45 @@ class String val is Ordered[String], Hashable[String]
       error
     end
 
-  fun box lower(): String iso^ =>
-    recover
-      var str = String._reserve(_size)
+  fun box lower(): String ref^ =>
+    var str = String._reserve(_size)
 
-      for i in Range[U64](0, _size) do
-        var c = _ptr._apply(i)
+    for i in Range[U64](0, _size) do
+      var c = _ptr._apply(i)
 
-        if (c >= 0x41) and (c <= 0x5A) then
-          c = c + 0x20
-        end
-
-        str._ptr._update(i, c)
+      if (c >= 0x41) and (c <= 0x5A) then
+        c = c + 0x20
       end
 
-      consume str
+      str._ptr._update(i, c)
     end
 
-  fun box upper(): String iso^ =>
-    recover
-      var str = String._reserve(_size)
+    consume str
 
-      for i in Range[U64](0, _size) do
-        var c = _ptr._apply(i)
+  fun box upper(): String ref^ =>
+    var str = String._reserve(_size)
 
-        if (c >= 0x61) and (c <= 0x7A) then
-          c = c - 0x20
-        end
+    for i in Range[U64](0, _size) do
+      var c = _ptr._apply(i)
 
-        str._ptr._update(i, c)
+      if (c >= 0x61) and (c <= 0x7A) then
+        c = c - 0x20
       end
 
-      consume str
+      str._ptr._update(i, c)
     end
 
-  fun box reverse(): String iso^ =>
-    recover
-      var str = String._reserve(_size)
+    consume str
 
-      for i in Range[U64](0, _size) do
-        var c = _ptr._apply(i)
-        str._ptr._update(_size - i - 1, c)
-      end
+  fun box reverse(): String ref^ =>
+    var str = String._reserve(_size)
 
-      consume str
+    for i in Range[U64](0, _size) do
+      var c = _ptr._apply(i)
+      str._ptr._update(_size - i - 1, c)
     end
+
+    consume str
 
   fun ref reverse_in_place(): String ref =>
     var i: U64 = 0
@@ -180,33 +179,34 @@ class String val is Ordered[String], Hashable[String]
     end
     this
 
-  fun box substring(from: I64, to: I64): String iso^ =>
-    recover
-      var start = offset_to_index(from)
-      var finish = offset_to_index(to).min(_size)
-      var str: String ref
+  fun box substring(from: I64, to: I64): String ref^ =>
+    var start = offset_to_index(from)
+    var finish = offset_to_index(to).min(_size)
+    var str: String ref
 
-      if (start < _size) and (start < finish) then
-        var len = finish - start
-        str = String._reserve(len)
+    if (start < _size) and (start < finish) then
+      var len = finish - start
+      str = String._reserve(len)
 
-        for i in Range[U64](start, finish + 1) do
-          var c = _ptr._apply(i)
-          str._ptr._update(i - start, c)
-        end
-      else
-        str = String
+      for i in Range[U64](start, finish + 1) do
+        var c = _ptr._apply(i)
+        str._ptr._update(i - start, c)
       end
-
-      consume str
+    else
+      str = String
     end
+
+    consume str
 
   fun box add(that: String box): String =>
     var len = _size + that._size
+    var ptr = _ptr._concat(_size, that._ptr, that._size + 1)
+
     recover
-      var str = String._reserve(len)
-      str._ptr._copy(0, _ptr, _size)
-      str._ptr._copy(_size, that._ptr, that._size + 1)
+      var str = String._empty()
+      str._size = len
+      str._alloc = len + 1
+      str._ptr = consume ptr
       consume str
     end
 
@@ -441,4 +441,4 @@ class String val is Ordered[String], Hashable[String]
 
   fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
-  /*fun box string(): String => this*/
+  //fun box string(): String =>

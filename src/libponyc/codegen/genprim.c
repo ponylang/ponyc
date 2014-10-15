@@ -161,6 +161,49 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   LLVMBuildRet(c->builder, args[2]);
   codegen_finishfun(c);
 
+  // concat
+  name = genname_fun(g->type_name, "_concat", NULL);
+
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = g->use_type;
+  params[3] = c->i64;
+
+  ftype = LLVMFunctionType(g->use_type, params, 4, false);
+  fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  base = LLVMGetParam(fun, 0);
+  base = LLVMBuildBitCast(c->builder, base, c->void_ptr, "");
+  len = LLVMGetParam(fun, 1);
+
+  LLVMValueRef with = LLVMGetParam(fun, 2);
+  with = LLVMBuildBitCast(c->builder, with, c->void_ptr, "");
+  LLVMValueRef withlen = LLVMGetParam(fun, 3);
+
+  LLVMValueRef total_len = LLVMBuildAdd(c->builder, len, withlen, "");
+  args[0] = LLVMBuildMul(c->builder, total_len, l_size, "");
+
+  result = gencall_runtime(c, "pony_alloc", args, 1, "");
+
+  args[0] = result;
+  args[1] = base;
+  args[2] = len;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  offset = LLVMBuildPtrToInt(c->builder, result, c->i64, "");
+  offset = LLVMBuildAdd(c->builder, offset, len, "");
+  offset = LLVMBuildIntToPtr(c->builder, offset, c->void_ptr, "");
+
+  args[0] = offset;
+  args[1] = with;
+  args[2] = withlen;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
   return true;
 }
 

@@ -890,7 +890,7 @@ void codegen_finishfun(compile_t* c)
   {
     LLVMRunFunctionPassManager(c->fpm, frame->fun);
   } else {
-    errorf(NULL, "function verification failed");
+    LLVMDumpValue(frame->fun);
   }
 
   pop_frame(c);
