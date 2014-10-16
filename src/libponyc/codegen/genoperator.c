@@ -156,7 +156,7 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
 }
 
 static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
-  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_ui, LLVMIntPredicate cmp_si)
+  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
 {
   ast_t* type = ast_type(left);
   bool sign = is_signed(type);

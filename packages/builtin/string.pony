@@ -164,6 +164,7 @@ class String val is Ordered[String], Hashable[String], Stringable
       str._ptr._update(_size - i - 1, c)
     end
 
+    str._ptr._update(_size, 0)
     consume str
 
   fun ref reverse_in_place(): String ref =>
@@ -179,19 +180,22 @@ class String val is Ordered[String], Hashable[String], Stringable
     end
     this
 
+  // The range is inclusive.
   fun box substring(from: I64, to: I64): String ref^ =>
     var start = offset_to_index(from)
     var finish = offset_to_index(to).min(_size)
     var str: String ref
 
     if (start < _size) and (start < finish) then
-      var len = finish - start
+      var len = (finish - start) + 1
       str = String._reserve(len)
 
       for i in Range[U64](start, finish + 1) do
         var c = _ptr._apply(i)
         str._ptr._update(i - start, c)
       end
+
+      str._ptr._update(len, 0)
     else
       str = String
     end

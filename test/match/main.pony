@@ -40,7 +40,7 @@ actor Main
       _env.stdout.print("Animal")
     | var y: (Animal tag | Vegetable tag) =>
       _env.stdout.print("Animal or Vegetable")
-    | var y: None =>
+    | var y: None tag =>
       _env.stdout.print("None")
     else
       _env.stdout.print("Unknown")
@@ -48,7 +48,7 @@ actor Main
 
   fun box test2(x: U32) =>
     match x
-    | 3 => _env.stdout.print("Three")
+    | U32(5) - U32(2) => _env.stdout.print("Three")
     else
       _env.stdout.print("Unknown")
     end
