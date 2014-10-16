@@ -207,6 +207,49 @@ class String val is Ordered[String], Hashable[String], Stringable
 
     consume str
 
+  //The range is inclusive.
+  fun box cut(from: I64, to: I64): String iso^ =>
+    var start = offset_to_index(from)
+    var finish = offset_to_index(to).min(_size)
+    var str: String iso
+
+    if (start < _size) and (start < finish) and (finish < _size) then
+      var len = _size - ((finish - start) + 1)
+      str = recover String._reserve(len) end
+
+      for i in Range[U64](0, start) do
+        var c = _ptr._apply(i)
+        str._set(i, c)
+      end
+
+      for j in Range[U64](finish + 1, _size) do
+        var c = _ptr._apply(j)
+        str._set(start + (j - (finish + 1)), c)
+      end
+    else
+      str = recover String end
+    end
+
+    consume str
+
+  //The range is inclusive.
+  fun ref cut_in_place(from: I64, to: I64): String ref =>
+    var start = offset_to_index(from)
+    var finish = offset_to_index(to)
+
+    if(start < _size) and (start < finish) and (finish < _size) then
+      var len = _size - ((finish - start) + 1)
+
+      for j in Range[U64](finish + 1, _size) do
+        _ptr._update(start + (j - (finish + 1)), _ptr._apply(j))
+      end
+
+      _size = len
+      _ptr._update(len, 0) //make sure its a C string under the hood.
+    end
+
+    this
+
   fun box add(that: String box): String =>
     var len = _size + that._size
     var ptr = _ptr._concat(_size, that._ptr, that._size + 1)

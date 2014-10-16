@@ -40,9 +40,9 @@ static const opt_arg_t* find_match(opt_state_t* s)
 
   const char* match_name;
   const opt_arg_t* match = NULL;
-  
+
   parse_option_name(s);
-     
+
   for(s->match_type = MATCH_LONG; s->match_type <= MATCH_SHORT; ++s->match_type)
   {
     for(const opt_arg_t* p = s->args; !end_reached(p); ++p)
@@ -57,7 +57,7 @@ static const opt_arg_t* find_match(opt_state_t* s)
         match_name = &p->short_opt;
         match_length = 1;
       }
-      
+
       if(!strncmp(match_name, s->opt_start, match_length))
       {
         if(match_length == strlen(match_name))
@@ -229,7 +229,7 @@ int opt_next(opt_state_t* s)
     if(m->flag == OPT_ARG_REQUIRED)
       parse_short_opt_arg(s);
   }
- 
+
   strip_accepted_opts(s);
 
   return m->id;
