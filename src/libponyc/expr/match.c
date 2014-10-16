@@ -149,13 +149,29 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
     }
 
     case TK_TUPLE:
+    {
+      // Treat a one element tuple as a normal expression.
+      ast_t* child = ast_child(pattern);
+
+      if(ast_sibling(child) == NULL)
+        return is_valid_pattern(match_type, child);
+
       return is_valid_tuple_pattern(match_type, pattern);
+    }
 
     case TK_SEQ:
     {
-      // We are only interested in the last expression in the sequence.
-      ast_t* last = ast_childlast(pattern);
-      return is_valid_pattern(match_type, last);
+      // Patterns cannot contain sequences.
+      ast_t* child = ast_child(pattern);
+      ast_t* next = ast_sibling(child);
+
+      if(next != NULL)
+      {
+        ast_error(next, "expression in patterns cannot be sequences");
+        return false;
+      }
+
+      return is_valid_pattern(match_type, child);
     }
 
     default:
