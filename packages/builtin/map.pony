@@ -73,7 +73,7 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
       var entry = _array(i)
 
       match entry
-      | var (k, v): (Key, this->Value) =>
+      | (var k: Key, var v: this->Value) =>
         if k == key then
           return (i, v)
         end
@@ -104,7 +104,7 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
       var entry = _old(i)
 
       match entry
-      | var (k, v): (Key, Value) =>
+      | (var k: Key, var v: Value) =>
         this(k) = v
       end
     end

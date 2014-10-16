@@ -475,6 +475,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
   {
     case TK_UNIONTYPE:
     {
+      // TODO: this currently crashes if there is a tuple in the union
       bool tag = cap_for_type(type) == TK_TAG;
 
       if(tag)
