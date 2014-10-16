@@ -262,6 +262,24 @@ class String val is Ordered[String], Hashable[String], Stringable
       consume str
     end
 
+  fun box compare(that: String box, n: U64): I32 =>
+    var i = n
+    var j: U64 = 0
+    var k: U64 = 0
+
+    while(i > 0) do
+      if _ptr._apply(j) != that._ptr._apply(k) then
+        return _ptr._apply(j).i32() - that._ptr._apply(k).i32()
+      end
+
+      j = j + 1
+      k = k + 1
+      i = i - 1
+    end
+
+    //The two strings are equal
+    I32(0) //TODO: remove conversion once literal typing works
+
   fun box eq(that: String box): Bool =>
     if _size == that._size then
       for i in Range[U64](0, _size) do

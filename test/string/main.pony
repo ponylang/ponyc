@@ -2,7 +2,7 @@ actor Main
   new create(env: Env) =>
     var a: String val = "test".cut(1,2)
     var b: String val = "test".cut(0,1)
-    var c: String val = "aardwark".cut(1,5)
+    var c: String val = "aardvark".cut(1,5)
     var d: String val = "wombat".cut(3,6)
 
     var e: String val =
@@ -19,7 +19,7 @@ actor Main
 
     var g: String val =
       recover
-        var s = String.append("aardwark").cut_in_place(1,5)
+        var s = String.append("aardvark").cut_in_place(1,5)
         consume s
       end
 
