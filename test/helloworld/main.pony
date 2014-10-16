@@ -1,14 +1,10 @@
 actor Main
   new create(env: Env) =>
-    var str2: String = recover
-      var str: String ref = String
+    var str: String ref = String
 
-      for s in env.args.values() do
-        str.append(s)
-        str.append(" ")
-      end
-
-      consume str
+    for s in env.args.values() do
+      str.append(s)
+      str.append(" ")
     end
 
-    env.stdout.print((str2 + "!").lower())
+    env.stdout.print((str + "!").lower())
