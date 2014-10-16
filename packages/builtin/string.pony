@@ -104,6 +104,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     _size = size
     _alloc = size + 1
     _ptr = Pointer[U8](_alloc)
+    _ptr._update(size, 0)
 
   fun box length(): U64 => _size
 
@@ -126,8 +127,13 @@ class String val is Ordered[String], Hashable[String], Stringable
       error
     end
 
-  fun box lower(): String ref^ =>
-    var str = String._reserve(_size)
+  // Unsafe update, used internally.
+  fun ref _set(i: U64, char: U8): U8 =>
+    _ptr._update(i, char)
+
+  fun box lower(): String iso^ =>
+    var len = _size
+    var str = recover String._reserve(len) end
 
     for i in Range[U64](0, _size) do
       var c = _ptr._apply(i)
@@ -136,13 +142,14 @@ class String val is Ordered[String], Hashable[String], Stringable
         c = c + 0x20
       end
 
-      str._ptr._update(i, c)
+      str._set(i, c)
     end
 
     consume str
 
-  fun box upper(): String ref^ =>
-    var str = String._reserve(_size)
+  fun box upper(): String iso^ =>
+    var len = _size
+    var str = recover String._reserve(len) end
 
     for i in Range[U64](0, _size) do
       var c = _ptr._apply(i)
@@ -151,20 +158,20 @@ class String val is Ordered[String], Hashable[String], Stringable
         c = c - 0x20
       end
 
-      str._ptr._update(i, c)
+      str._set(i, c)
     end
 
     consume str
 
-  fun box reverse(): String ref^ =>
-    var str = String._reserve(_size)
+  fun box reverse(): String iso^ =>
+    var len = _size
+    var str = recover String._reserve(len) end
 
     for i in Range[U64](0, _size) do
       var c = _ptr._apply(i)
-      str._ptr._update(_size - i - 1, c)
+      str._set(_size - i - 1, c)
     end
 
-    str._ptr._update(_size, 0)
     consume str
 
   fun ref reverse_in_place(): String ref =>
@@ -181,23 +188,21 @@ class String val is Ordered[String], Hashable[String], Stringable
     this
 
   // The range is inclusive.
-  fun box substring(from: I64, to: I64): String ref^ =>
+  fun box substring(from: I64, to: I64): String iso^ =>
     var start = offset_to_index(from)
     var finish = offset_to_index(to).min(_size)
-    var str: String ref
+    var str: String iso
 
     if (start < _size) and (start < finish) then
       var len = (finish - start) + 1
-      str = String._reserve(len)
+      str = recover String._reserve(len) end
 
       for i in Range[U64](start, finish + 1) do
         var c = _ptr._apply(i)
-        str._ptr._update(i - start, c)
+        str._set(i - start, c)
       end
-
-      str._ptr._update(len, 0)
     else
-      str = String
+      str = recover String end
     end
 
     consume str
