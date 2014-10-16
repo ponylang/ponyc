@@ -25,7 +25,7 @@ actor Main
     test(Thumbtack)
     test(None)
 
-    test2(4)
+    //test2(4)
 
     test3((Wombat, Tomato))
     test3((Aardvark, Tomato))
@@ -46,12 +46,12 @@ actor Main
       _env.stdout.print("Unknown")
     end
 
-  fun box test2(x: U32) =>
-    match x
-    | U32(5) - U32(2) => _env.stdout.print("Three")
-    else
-      _env.stdout.print("Unknown")
-    end
+  //fun box test2(x: U32) =>
+  //  match x
+  //  | U32(5) - U32(2) => _env.stdout.print("Three")
+  //  else
+  //    _env.stdout.print("Unknown")
+  //  end
 
   fun box test3(x: (Animal, Vegetable)) =>
     match x

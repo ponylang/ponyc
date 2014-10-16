@@ -73,7 +73,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
       while(match_child != NULL)
       {
-        if(is_valid_tuple_pattern(match_type, pattern))
+        if(is_valid_tuple_pattern(match_child, pattern))
           return true;
 
         match_child = ast_sibling(match_child);
@@ -89,7 +89,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
       while(match_child != NULL)
       {
-        if(!is_valid_tuple_pattern(match_type, pattern))
+        if(!is_valid_tuple_pattern(match_child, pattern))
           return false;
 
         match_child = ast_sibling(match_child);
@@ -139,6 +139,16 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
       // subtype of the capture type.
       ast_t* a_type = alias(match_type);
       ast_t* capture_type = ast_childidx(pattern, 1);
+
+      // Disallow capturing tuples.
+      if(ast_id(capture_type) == TK_TUPLETYPE)
+      {
+        ast_error(capture_type,
+          "can't capture a tuple, change this into a tuple of capture "
+          "expressions");
+        return false;
+      }
+
       bool ok = could_subtype(a_type, capture_type);
       ast_free_unattached(a_type);
 
