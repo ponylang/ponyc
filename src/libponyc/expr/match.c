@@ -130,6 +130,12 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
 static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 {
+  if(ast_type(pattern) == NULL)
+  {
+    ast_error(pattern, "not a matchable pattern");
+    return false;
+  }
+
   switch(ast_id(pattern))
   {
     case TK_VAR:
@@ -279,6 +285,12 @@ bool expr_case(ast_t* ast)
   ast_t* match = ast_parent(cases);
   ast_t* match_expr = ast_child(match);
   ast_t* match_type = ast_type(match_expr);
+
+  if(match_type == NULL)
+  {
+    ast_error(match_expr, "not a matchable expression");
+    return false;
+  }
 
   // TODO: Need to get the capability union for the match type so that pattern
   // matching can never recover capabilities.

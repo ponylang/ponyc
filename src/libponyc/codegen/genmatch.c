@@ -9,6 +9,7 @@
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
+#include "../type/lookup.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
 
@@ -23,6 +24,22 @@ static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
 
 static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block);
+
+static ast_t* eq_param_type(ast_t* pattern)
+{
+  ast_t* pattern_type = ast_type(pattern);
+  ast_t* fun = lookup(pattern, pattern_type, stringtab("eq"));
+
+  AST_GET_CHILDREN(fun, ignore_cap, ignore_id, ignore_typeparams, params,
+    ignore_result, ignore_partial);
+
+  ast_t* param = ast_child(params);
+
+  if(ast_id(param) == TK_PARAM)
+    return ast_childidx(param, 1);
+
+  return param;
+}
 
 static LLVMValueRef pointer_to_fields(compile_t* c, LLVMValueRef object)
 {
@@ -518,20 +535,37 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
 static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  // TODO: get the type of eq's RHS
-  // if we aren't statically a subtype, need to dynamically check type
-  // if it checks out
-  // then generate the pattern
-  // and call PatternType_eq(pattern, value)
-  // may need to box or unbox
+  // Get the type of the right-hand side of the pattern's eq() function.
+  ast_t* param_type = eq_param_type(pattern);
 
-  // The pattern is not a tuple and it is not a capture. It is either an object
-  // or a primitive type.
-  LLVMValueRef r_value = gen_expr(c, pattern);
+  if(!is_subtype(type, param_type))
+  {
+    // We should have an object_ptr. Anything else should have been rejected
+    // by the type checker.
+    assert(LLVMTypeOf(value) == c->object_ptr);
+
+    // Switch to dynamic value checking.
+    LLVMValueRef desc = gendesc_fetch(c, value);
+    return dynamic_value_object(c, value, desc, pattern, next_block);
+  }
+
+  LLVMValueRef l_value = gen_expr(c, pattern);
+
+  if(l_value == NULL)
+    return false;
+
+  gentype_t g;
+
+  if(!gentype(c, param_type, &g))
+    return false;
+
+  LLVMValueRef r_value = gen_assign_cast(c, g.use_type, value, type);
 
   if(r_value == NULL)
     return false;
 
+  // TODO: actually call eq
+  // could be a virtual call
   ast_error(pattern, "not implemented: static_value");
   return false;
 }

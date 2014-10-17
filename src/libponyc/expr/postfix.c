@@ -321,10 +321,8 @@ bool expr_qualify(ast_t* ast)
 
 bool expr_dot(ast_t* ast)
 {
-  // left is a postfix expression, right is an integer or an id
+  // Left is a postfix expression, right an id.
   ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
-  assert(ast_id(right) == TK_ID);
 
   switch(ast_id(left))
   {
