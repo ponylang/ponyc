@@ -136,39 +136,12 @@
       "src/ponyc/**.h",
       "src/ponyc/**.c"
     }
-    local delete = ""
-    local create = ""
     configuration "gmake"
-      buildoptions "-std=gnu11"
-      delete = "rm -rf $(TARGETDIR)/builtin $(TARGETDIR)/random $(TARGETDIR)/math"
-      builtin = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
-      random = "ln -sf " .. path.getabsolute("packages/random") .. " $(TARGETDIR)"
-      math = "ln -sf " .. path.getabsolute("packages/math") .. " $(TARGETDIR)"
-      postbuildcommands { delete, builtin, random, math, create }
+      buildoptions "-std=gnu11" 
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
-      -- premake produces posix-style absolute paths
-      local function get_absolute_path(s)
-        return path.getabsolute(s):gsub("%/", "\\")
-      end
-      local function delete_command(s)
-        return "rmdir /Q \"$(TargetDir)\\" .. s
-      end
-      local function link_command(d, s)
-        return "mklink /J \"$(TargetDir)\\" .. d .. "\" \"" .. get_absolute_path(s) .. "\""
-      end
-
-      postbuildcommands { 
-        delete_command("builtin"),
-        delete_command("random"),
-        delete_command("math"),
-        link_command("builtin", "./packages/builtin"),
-        link_command("random", "./packages/random"),
-        link_command("math", "./packages/math")
-      }
     configuration "*"
       link_libponyc()
-
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "gtest"
