@@ -1,10 +1,7 @@
 class Fibonacci[A: (Integer[A] & Unsigned)] is Iterator[A]
-  var _first: A
-  var _second: A
-
-  new create() =>
-    _first = 0
-    _second = 1
+  var _last: A = 0
+  var _next: A = 0
+  var _uber_next: A = 1
 
   fun box apply(n: U8): A =>
     if n == 0 then
@@ -25,8 +22,7 @@ class Fibonacci[A: (Integer[A] & Unsigned)] is Iterator[A]
 
     return (((2 * fib_j) + fib_i) * ((2 * fib_j) - fib_i)) - 2
 
-  //Fibonacci is an infinite sequence
-  //User has to break out of the loop.
-  fun box has_next(): Bool => true
+  //The generator stops on overflow.
+  fun box has_next(): Bool => _last <= _next
 
-  fun ref next(): A => _first = _second = _first + _second
+  fun ref next(): A => _last = _next = _uber_next = _next + _uber_next ; _last
