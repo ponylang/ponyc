@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <platform.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <sys/mman.h>
@@ -11,14 +12,31 @@ void* virtual_alloc(size_t bytes)
 #if defined(PLATFORM_IS_WINDOWS)
   return VirtualAlloc(NULL, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #elif defined(PLATFORM_IS_POSIX_BASED)
-  return mmap(0, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+  void* p = mmap(0, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1,
+    0);
+
+  if(p == MAP_FAILED)
+  {
+    perror("out of memory: ");
+    abort();
+  }
+
+  return p;
 #endif
 }
 
 void* virtual_realloc(void* p, size_t old_bytes, size_t new_bytes)
 {
 #if defined(PLATFORM_IS_LINUX)
-  return mremap(p, old_bytes, new_bytes, MREMAP_MAYMOVE);
+  void* p = mremap(p, old_bytes, new_bytes, MREMAP_MAYMOVE);
+
+  if(p == MAP_FAILED)
+  {
+    perror("out of memory: ");
+    abort();
+  }
+
+  return p;
 #else
   void* q = virtual_alloc(new_bytes);
   memcpy(q, p, old_bytes);

@@ -16,6 +16,8 @@ pony_actor_t* scheduler_worksteal();
 
 void scheduler_add(pony_actor_t* actor);
 
+void scheduler_respond();
+
 uint32_t scheduler_cores();
 
 void scheduler_terminate();
