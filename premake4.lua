@@ -163,10 +163,10 @@ solution "ponyc"
     files { "src/ponyc/**.c", "src/ponyc/**.h" }
     link_libponyc()
     postbuildcommands {
-      "rm -rf $(TARGETDIR)/builtin",
+      "rm -rf $(TARGETDIR)/builtin $(TARGETDIR)/random",
       "-ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)",
-      "rm -rf $(TARGETDIR)/random",
       "-ln -sf " .. path.getabsolute("packages/random") .. " $(TARGETDIR)",
+      "-ln -sf " .. path.getabsolute("packages/math") .. " $(TARGETDIR)"
     }
 
   project "gtest"
