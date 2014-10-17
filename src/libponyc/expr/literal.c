@@ -234,7 +234,9 @@ static void propogate_coercion(ast_t* ast, ast_t* type)
 
 bool is_type_arith_literal(ast_t* ast)
 {
-  assert(ast != NULL);
+  if(ast == NULL)
+    return false;
+
   token_id id = ast_id(ast);
   return (id == TK_INTLITERAL) || (id == TK_FLOATLITERAL);
 }

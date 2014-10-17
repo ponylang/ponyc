@@ -423,7 +423,15 @@ bool expr_call(ast_t* ast)
         else
           p_type = param;
 
-        if(is_type_arith_literal(ast_type(arg)) &&
+        ast_t* arg_type = ast_type(arg);
+
+        if(arg_type == NULL)
+        {
+          ast_error(arg, "can't use return, break or continue in an argument");
+          return false;
+        }
+
+        if(is_type_arith_literal(arg_type) &&
           !coerce_literals(arg, p_type))
         {
           ast_error(arg, "can't determine a type for this number");
