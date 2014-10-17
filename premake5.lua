@@ -152,10 +152,10 @@
         return path.getabsolute(s):gsub("%/", "\\")
       end
       local function delete_command(s)
-        return "rmdir /Q $(TargetDir)\\" .. s
+        return "rmdir /Q \"$(TargetDir)\\" .. s
       end
       local function link_command(d, s)
-        return "mklink /J $(TargetDir)\\" .. d .. "\"" .. get_absolute_path(s) .. "\""
+        return "mklink /J \"$(TargetDir)\\" .. d .. "\" \"" .. get_absolute_path(s) .. "\""
       end
 
       postbuildcommands { 
