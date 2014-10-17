@@ -140,17 +140,34 @@
     local create = ""
     configuration "gmake"
       buildoptions "-std=gnu11"
-      delete = "rm -rf $(TARGETDIR)/builtin"
-      create = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      delete = "rm -rf $(TARGETDIR)/builtin $(TARGETDIR)/random $(TARGETDIR)/math"
+      builtin = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      random = "ln -sf " .. path.getabsolute("packages/random") .. " $(TARGETDIR)"
+      math = "ln -sf " .. path.getabsolute("packages/math") .. " $(TARGETDIR)"
+      postbuildcommands { delete, builtin, random, math, create }
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
       -- premake produces posix-style absolute paths
-      local path = path.getabsolute("./packages/builtin"):gsub("%/", "\\")
-      delete = "rmdir /Q $(TargetDir)\\builtin"
-      create = "mklink /J $(TargetDir)\\builtin \"" .. path .. "\""
+      local function get_absolute_path(s)
+        return path.getabsolute(s):gsub("%/", "\\")
+      end
+      local function delete_command(s)
+        return "rmdir /Q \"$(TargetDir)\\" .. s
+      end
+      local function link_command(d, s)
+        return "mklink /J \"$(TargetDir)\\" .. d .. "\" \"" .. get_absolute_path(s) .. "\""
+      end
+
+      postbuildcommands { 
+        delete_command("builtin"),
+        delete_command("random"),
+        delete_command("math"),
+        link_command("builtin", "./packages/builtin"),
+        link_command("random", "./packages/random"),
+        link_command("math", "./packages/math")
+      }
     configuration "*"
       link_libponyc()
-      postbuildcommands { delete, create }
 
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
@@ -203,8 +220,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
 end
 
   if _ACTION == "clean" then
-    os.rmdir("bin")
-    os.rmdir("obj")
+    --os.rmdir("bin") os.rmdir clears out the link targets of symbolic links...
+    --os.rmdir("obj")
   end
 
   -- Allow for out-of-source builds.
