@@ -165,14 +165,10 @@ static void* small_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
     n->m = (char*) POOL_ALLOC(block_t);
     n->size = sizeclass;
     n->slots = sizeclass_empty[sizeclass];
-    n->next = chunk;
+    n->shallow = sizeclass_empty[sizeclass];
+    n->next = NULL;
 
     pagemap_set(n->m, n);
-
-    for(int i = 0; i < HEAP_MAX; i += 64)
-    {
-      assert(pagemap_get(n->m + i) == n);
-    }
 
     heap->small_free[sizeclass] = n;
     chunk = n;
@@ -202,6 +198,7 @@ static void* large_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk->size = size;
   chunk->m = (char*) pool_alloc_size(size);
   chunk->slots = 0;
+  chunk->shallow = 0;
 
   char* p = chunk->m;
   char* end = chunk->m + chunk->size;

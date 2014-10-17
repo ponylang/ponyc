@@ -265,6 +265,8 @@ void pony_sendv(pony_actor_t* to, pony_msg_t* m)
     if(!has_flag(to, FLAG_UNSCHEDULED))
       scheduler_add(to);
   }
+
+  scheduler_respond();
 }
 
 void pony_send(pony_actor_t* to, uint32_t id)

@@ -81,7 +81,7 @@ static bool add_default_constructor(ast_t* ast, ast_t* members)
     return false;
   }
 
-  ast_add(members, make_create(ast));
+  ast_append(members, make_create(ast));
   return true;
 }
 

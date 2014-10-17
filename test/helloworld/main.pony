@@ -1,6 +1,6 @@
 actor Main
   new create(env: Env) =>
-    var str: String ref = String
+    var str = String
 
     for s in env.args.values() do
       str.append(s)

@@ -565,7 +565,7 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
     return false;
 
   // TODO: actually call eq
-  // could be a virtual call
+  // could be a virtual call, could be a special cased call
   ast_error(pattern, "not implemented: static_value");
   return false;
 }
