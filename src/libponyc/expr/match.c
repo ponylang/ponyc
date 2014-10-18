@@ -60,9 +60,10 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static bool is_valid_pattern(ast_t* match_type, ast_t* pattern);
+static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors);
 
-static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
+static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
+  bool errors)
 {
   switch(ast_id(match_type))
   {
@@ -73,12 +74,14 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
       while(match_child != NULL)
       {
-        if(is_valid_tuple_pattern(match_child, pattern))
+        if(is_valid_tuple_pattern(match_child, pattern, false))
           return true;
 
         match_child = ast_sibling(match_child);
       }
 
+      ast_error(pattern,
+        "no possible type of the match expression can match this pattern");
       return false;
     }
 
@@ -89,7 +92,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
       while(match_child != NULL)
       {
-        if(!is_valid_tuple_pattern(match_child, pattern))
+        if(!is_valid_tuple_pattern(match_child, pattern, errors))
           return false;
 
         match_child = ast_sibling(match_child);
@@ -110,7 +113,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
 
       while(match_child != NULL)
       {
-        if(!is_valid_pattern(match_child, pattern_child))
+        if(!is_valid_pattern(match_child, pattern_child, errors))
           return false;
 
         match_child = ast_sibling(match_child);
@@ -128,11 +131,13 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern)
   return false;
 }
 
-static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
+static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
 {
   if(ast_type(pattern) == NULL)
   {
-    ast_error(pattern, "not a matchable pattern");
+    if(errors)
+      ast_error(pattern, "not a matchable pattern");
+
     return false;
   }
 
@@ -149,16 +154,18 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
       // Disallow capturing tuples.
       if(ast_id(capture_type) == TK_TUPLETYPE)
       {
-        ast_error(capture_type,
-          "can't capture a tuple, change this into a tuple of capture "
-          "expressions");
+        if(errors)
+          ast_error(capture_type,
+            "can't capture a tuple, change this into a tuple of capture "
+            "expressions");
+
         return false;
       }
 
       bool ok = could_subtype(a_type, capture_type);
       ast_free_unattached(a_type);
 
-      if(!ok)
+      if(!ok && errors)
         ast_error(pattern, "this capture can never match");
 
       return ok;
@@ -170,9 +177,9 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
       ast_t* child = ast_child(pattern);
 
       if(ast_sibling(child) == NULL)
-        return is_valid_pattern(match_type, child);
+        return is_valid_pattern(match_type, child, errors);
 
-      return is_valid_tuple_pattern(match_type, pattern);
+      return is_valid_tuple_pattern(match_type, pattern, errors);
     }
 
     case TK_SEQ:
@@ -183,11 +190,13 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 
       if(next != NULL)
       {
-        ast_error(next, "expression in patterns cannot be sequences");
+        if(errors)
+          ast_error(next, "expression in patterns cannot be sequences");
+
         return false;
       }
 
-      return is_valid_pattern(match_type, child);
+      return is_valid_pattern(match_type, child, errors);
     }
 
     default:
@@ -197,15 +206,21 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 
       if(fun == NULL)
       {
-        ast_error(pattern,
-          "this pattern element doesn't support structural equality");
+        if(errors)
+          ast_error(pattern,
+            "this pattern element doesn't support structural equality");
+
         return false;
       }
 
       if(ast_id(fun) != TK_FUN)
       {
-        ast_error(pattern, "eq is not a function on this pattern element");
-        ast_error(fun, "definition of eq is here");
+        if(errors)
+        {
+          ast_error(pattern, "eq is not a function on this pattern element");
+          ast_error(fun, "definition of eq is here");
+        }
+
         return false;
       }
 
@@ -214,19 +229,26 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 
       if(ast_id(typeparams) != TK_NONE)
       {
-        ast_error(pattern, "polymorphic eq not supported in pattern matching");
+        if(errors)
+          ast_error(pattern,
+            "polymorphic eq not supported in pattern matching");
+
         ok = false;
       }
 
       if(!is_bool(result))
       {
-        ast_error(pattern, "eq must return Bool when pattern matching");
+        if(errors)
+          ast_error(pattern, "eq must return Bool when pattern matching");
+
         ok = false;
       }
 
       if(ast_id(partial) != TK_NONE)
       {
-        ast_error(pattern, "eq cannot be partial when pattern matching");
+        if(errors)
+          ast_error(pattern, "eq cannot be partial when pattern matching");
+
         ok = false;
       }
 
@@ -234,8 +256,10 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 
       if(ast_sibling(param) != NULL)
       {
-        ast_error(pattern,
-          "eq must take a single argument when pattern matching");
+        if(errors)
+          ast_error(pattern,
+            "eq must take a single argument when pattern matching");
+
         ok = false;
       } else {
         ast_t* param_type;
@@ -251,14 +275,16 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern)
 
         if(!sub_ok)
         {
-          ast_error(pattern,
-            "the match expression will never be a type that could be "
-            "passed to eq on this pattern");
+          if(errors)
+            ast_error(pattern,
+              "the match expression will never be a type that could be "
+              "passed to eq on this pattern");
+
           ok = false;
         }
       }
 
-      if(!ok)
+      if(!ok && errors)
         ast_error(fun, "definition of eq is here");
 
       return ok;
@@ -294,7 +320,7 @@ bool expr_case(ast_t* ast)
 
   // TODO: Need to get the capability union for the match type so that pattern
   // matching can never recover capabilities.
-  if(!is_valid_pattern(match_type, pattern))
+  if(!is_valid_pattern(match_type, pattern, true))
   {
     ast_error(pattern, "this pattern can never match");
     return false;
