@@ -3,9 +3,7 @@
 #include "gendesc.h"
 #include "genexpr.h"
 #include "genoperator.h"
-#include "genreference.h"
-#include "genfun.h"
-#include "genident.h"
+#include "gencall.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
@@ -564,10 +562,15 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   if(r_value == NULL)
     return false;
 
-  // TODO: actually call eq
-  // could be a virtual call, could be a special cased call
-  ast_error(pattern, "not implemented: static_value");
-  return false;
+  LLVMValueRef test = gen_pattern_eq(c, pattern, r_value);
+
+  if(test == NULL)
+    return false;
+
+  LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+  LLVMBuildCondBr(c->builder, test, continue_block, next_block);
+  LLVMPositionBuilderAtEnd(c->builder, continue_block);
+  return true;
 }
 
 static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,

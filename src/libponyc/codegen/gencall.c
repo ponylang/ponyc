@@ -8,6 +8,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include "../type/cap.h"
+#include "../ds/stringtab.h"
 #include <string.h>
 #include <assert.h>
 
@@ -168,6 +169,54 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   return false;
 }
 
+static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
+  LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
+{
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  LLVMValueRef func;
+
+  if(g.use_type == c->object_ptr)
+  {
+    // Virtual, get the function by selector colour.
+    int colour = painter_get_colour(c->painter, method_name);
+
+    // Get the function from the vtable.
+    func = gendesc_vtable(c, l_value, colour);
+
+    // TODO: What if the function signature takes a primitive but the real
+    // underlying function accepts a union type of that primitive with something
+    // else, and so requires a boxed primitive? Or the real function could take
+    // a trait that the primitive provides.
+
+    // Cast to the right function type.
+    LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
+
+    if(proto == NULL)
+    {
+      ast_error(from, "couldn't locate '%s'", method_name);
+      return NULL;
+    }
+
+    LLVMTypeRef f_type = LLVMTypeOf(proto);
+    func = LLVMBuildBitCast(c->builder, func, f_type, "method");
+  } else {
+    // Static, get the actual function.
+    func = genfun_proto(c, &g, method_name, typeargs);
+
+    if(func == NULL)
+    {
+      ast_error(from, "couldn't locate '%s'", method_name);
+      return NULL;
+    }
+  }
+
+  return func;
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.
@@ -214,58 +263,23 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   ast_t* type = ast_type(receiver);
-  gentype_t g;
+  const char* method_name = ast_name(method);
 
-  if(!gentype(c, type, &g))
-    return NULL;
-
+  // Generate the receiver if we need one.
   LLVMValueRef l_value = NULL;
 
   if(need_receiver == 1)
     l_value = gen_expr(c, receiver);
 
-  // Static or virtual call?
-  const char* method_name = ast_name(method);
-  LLVMTypeRef f_type;
-  LLVMValueRef func;
+  // Static or virtual dispatch.
+  LLVMValueRef func = dispatch_function(c, ast, type, l_value, method_name,
+    typeargs);
 
-  if(g.use_type == c->object_ptr)
-  {
-    // Virtual, get the function by selector colour.
-    int colour = painter_get_colour(c->painter, method_name);
+  if(func == NULL)
+    return NULL;
 
-    // Get the function from the vtable.
-    func = gendesc_vtable(c, l_value, colour);
-
-    // TODO: What if the function signature takes a primitive but the real
-    // underlying function accepts a union type of that primitive with something
-    // else, and so requires a boxed primitive? Or the real function could take
-    // a trait that the primitive provides.
-
-    // Cast to the right function type.
-    LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
-
-    if(proto == NULL)
-    {
-      ast_error(ast, "couldn't locate '%s'", method_name);
-      return NULL;
-    }
-
-    f_type = LLVMTypeOf(proto);
-    func = LLVMBuildBitCast(c->builder, func, f_type, "method");
-  } else {
-    // Static, get the actual function.
-    func = genfun_proto(c, &g, method_name, typeargs);
-
-    if(func == NULL)
-    {
-      ast_error(ast, "couldn't locate '%s'", method_name);
-      return NULL;
-    }
-
-    f_type = LLVMTypeOf(func);
-  }
-
+  // Generate the arguments.
+  LLVMTypeRef f_type = LLVMTypeOf(func);
   size_t count = ast_childcount(positional) + need_receiver;
 
   VLA(LLVMValueRef, args, count);
@@ -288,6 +302,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
+  // Call the function.
   if(ast_canerror(ast))
   {
     // If we can error out and we're called in the body of a try expression,
@@ -300,6 +315,54 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   return codegen_call(c, func, args, count);
+}
+
+LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
+{
+  // This is used for structural equality in pattern matching.
+  ast_t* pattern_type = ast_type(pattern);
+  AST_GET_CHILDREN(pattern_type, package, id);
+
+  // Special case equality on primitive types.
+  if(ast_name(package) == c->str_1)
+  {
+    const char* name = ast_name(id);
+
+    if((name == c->str_Bool) ||
+      (name == c->str_I8) ||
+      (name == c->str_I16) ||
+      (name == c->str_I32) ||
+      (name == c->str_I64) ||
+      (name == c->str_I128) ||
+      (name == c->str_U8) ||
+      (name == c->str_U16) ||
+      (name == c->str_U32) ||
+      (name == c->str_U64) ||
+      (name == c->str_U128) ||
+      (name == c->str_F32) ||
+      (name == c->str_F64)
+      )
+    {
+      return gen_eq_rvalue(c, pattern, r_value);
+    }
+  }
+
+  // Generate the receiver.
+  LLVMValueRef l_value = gen_expr(c, pattern);
+
+  // Static or virtual dispatch.
+  LLVMValueRef func = dispatch_function(c, pattern, pattern_type, l_value,
+    stringtab("eq"), NULL);
+
+  if(func == NULL)
+    return NULL;
+
+  // Call the function. We know it isn't partial.
+  LLVMValueRef args[2];
+  args[0] = l_value;
+  args[1] = r_value;
+
+  return codegen_call(c, func, args, 2);
 }
 
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
