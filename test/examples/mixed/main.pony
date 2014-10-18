@@ -10,10 +10,10 @@ actor Worker
 
     var result = factorize(a*b)
 
-    var wrong_a = try result(0) != 86028157 else true end
-    var wrong_b = try result(1) != 329545133 else true end
+    var correct =
+      try (result(0) == 86028157) and (result(1) == 329545133) else false end
 
-    if (result.length() != 2) or wrong_a or wrong_b then
+    if (result.length() != 2) or not correct then
       _env.stdout.print("factorization error")
     else
       _env.stdout.print("factorization done")
