@@ -365,9 +365,6 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
 static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  ast_t* pattern_type = ast_type(pattern);
-  assert(ast_id(pattern_type) != TK_TUPLETYPE);
-
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
 
@@ -457,9 +454,6 @@ static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
 static bool dynamic_value_object(compile_t* c, LLVMValueRef object,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
-  ast_t* pattern_type = ast_type(pattern);
-  assert(ast_id(pattern_type) != TK_TUPLETYPE);
-
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
 
