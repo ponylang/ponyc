@@ -69,27 +69,29 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
     var h = key.hash()
     var index = h and mask
 
-    for i in Range[U64](0, index_del) do
-      var entry = _array(i)
+    try
+      for i in Range[U64](0, index_del) do
+        var entry = _array(i)
 
-      match entry
-      | (var k: Key, var v: this->Value) =>
-        if k == key then
-          return (i, v)
+        match entry
+        | (var k: Key, var v: this->Value) =>
+          if k == key then
+            return (i, v)
+          end
+        | _MapEmpty =>
+          if index_del <= mask then
+            return (index_del, _MapEmpty)
+          else
+            return (i, _MapEmpty)
+          end
+        | _MapDeleted =>
+          if index_del > mask then
+            index_del = i
+          end
         end
-      | _MapEmpty =>
-        if index_del <= mask then
-          return (index_del, _MapEmpty)
-        else
-          return (i, _MapEmpty)
-        end
-      | _MapDeleted =>
-        if index_del > mask then
-          index_del = i
-        end
+
+        index = (h + ((i + (i * i)) >> 1)) and mask;
       end
-
-      index = (h + ((i + (i * i)) >> 1)) and mask;
     end
 
     (index_del, _MapDeleted)
@@ -100,11 +102,13 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
       .init(_MapEmpty, _old.length() << 2)
     _count = 0
 
-    for i in Range[U64](0, _old.length()) do
-      var entry = _old(i)
+    try
+      for i in Range[U64](0, _old.length()) do
+        var entry = _old(i)
 
-      match entry
-      | (var k: Key, var v: Value) =>
-        this(k) = v
+        match entry
+        | (var k: Key, var v: Value) =>
+          this(k) = v
+        end
       end
     end

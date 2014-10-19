@@ -33,6 +33,12 @@ class Array[A]
       _ptr._update(i, with)
     end
 
+  // Replace this with a default argument on create().
+  new prealloc(len: U64) =>
+    _size = 0
+    _alloc = len
+    _ptr = Pointer[A](len)
+
   fun box length(): U64 => _size
 
   fun box carray(): this->Pointer[A] => _ptr
@@ -67,7 +73,7 @@ class Array[A]
     this
 
   fun ref concat(iter: Iterator[A] ref) =>
-    for v in iter do append(v) end
+    try for v in iter do append(v) end end
 
   fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)
@@ -88,11 +94,11 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
 
   fun box has_next(): Bool => _i < _array.length()
 
-  fun ref next(): U64 ? =>
+  fun ref next(): U64 =>
     if _i < _array.length() then
       _i = _i + 1
     else
-      error
+      _i
     end
 
 class ArrayValues[A, B: Array[A] box] is Iterator[B->A]

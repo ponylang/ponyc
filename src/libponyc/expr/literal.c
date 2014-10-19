@@ -153,6 +153,31 @@ bool expr_nominal(ast_t** astp)
   return check_constraints(typeparams, typeargs);
 }
 
+static bool show_partiality(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  bool found = false;
+
+  while(child != NULL)
+  {
+    if(ast_canerror(child))
+      found |= show_partiality(child);
+
+    child = ast_sibling(child);
+  }
+
+  if(found)
+    return true;
+
+  if(ast_canerror(ast))
+  {
+    ast_error(ast, "an error can be raised here");
+    return true;
+  }
+
+  return false;
+}
+
 bool expr_fun(ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 4);
@@ -193,6 +218,7 @@ bool expr_fun(ast_t* ast)
     if(ast_canerror(body))
     {
       ast_error(can_error, "function body is partial but the function is not");
+      show_partiality(body);
       return false;
     }
   }
