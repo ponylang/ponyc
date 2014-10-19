@@ -861,6 +861,7 @@ LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
   // Add the function and set the calling convention.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
   LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
+  LLVMSetLinkage(fun, LLVMInternalLinkage);
 
   // Set the noalias attribute on all arguments. This is fortran-like semantics
   // for parameter aliasing, similar to C restrict.

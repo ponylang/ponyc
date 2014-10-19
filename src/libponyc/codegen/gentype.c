@@ -57,6 +57,7 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 
   g->desc = LLVMAddGlobal(c->module, g->desc_type, g->desc_name);
   LLVMSetGlobalConstant(g->desc, true);
+  LLVMSetLinkage(g->desc, LLVMInternalLinkage);
 }
 
 static void make_global_instance(compile_t* c, gentype_t* g)
@@ -86,6 +87,7 @@ static void make_global_instance(compile_t* c, gentype_t* g)
   g->instance = LLVMAddGlobal(c->module, g->structure, inst_name);
   LLVMSetInitializer(g->instance, value);
   LLVMSetGlobalConstant(g->instance, true);
+  LLVMSetLinkage(g->instance, LLVMInternalLinkage);
 }
 
 /**

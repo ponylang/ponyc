@@ -86,6 +86,7 @@ static LLVMValueRef make_type_id(compile_t* c, const char* type_name)
 
   global = LLVMAddGlobal(c->module, c->i32, name);
   LLVMSetGlobalConstant(global, true);
+  LLVMSetLinkage(global, LLVMInternalLinkage);
 
   LLVMValueRef id = LLVMConstInt(c->i32, c->next_type_id++, false);
   LLVMSetInitializer(global, id);
@@ -152,6 +153,7 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   const char* name = genname_traitlist(g->type_name);
   LLVMValueRef global = LLVMAddGlobal(c->module, type, name);
   LLVMSetGlobalConstant(global, true);
+  LLVMSetLinkage(global, LLVMInternalLinkage);
   LLVMSetInitializer(global, trait_array);
 
   return global;
@@ -213,6 +215,7 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
   const char* name = genname_fieldlist(g->type_name);
   LLVMValueRef global = LLVMAddGlobal(c->module, type, name);
   LLVMSetGlobalConstant(global, true);
+  LLVMSetLinkage(global, LLVMInternalLinkage);
   LLVMSetInitializer(global, field_array);
 
   return global;
