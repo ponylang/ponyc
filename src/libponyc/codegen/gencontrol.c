@@ -46,6 +46,7 @@ static bool is_result_needed(ast_t* ast)
       return is_result_needed(ast_parent(parent));
 
     case TK_TRY:
+    case TK_SEQ:
       // Only if parent needed.
       return is_result_needed(parent);
 
