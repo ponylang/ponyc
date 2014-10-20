@@ -544,6 +544,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     LLVMRunPassManager(lpm, c->module);
   }
 
+#ifndef NDEBUG
   char* msg;
 
   if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
@@ -552,6 +553,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     LLVMDisposeMessage(msg);
     return false;
   }
+#endif
 
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
@@ -902,12 +904,16 @@ void codegen_finishfun(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
 
+#ifndef NDEBUG
   if(LLVMVerifyFunction(frame->fun, LLVMPrintMessageAction) == 0)
   {
     LLVMRunFunctionPassManager(c->fpm, frame->fun);
   } else {
     LLVMDumpValue(frame->fun);
   }
+#else
+  LLVMRunFunctionPassManager(c->fpm, frame->fun);
+#endif
 
   pop_frame(c);
 }
