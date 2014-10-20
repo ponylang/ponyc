@@ -556,6 +556,7 @@ DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT TOKEN(NULL, TK_AT);
   OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
