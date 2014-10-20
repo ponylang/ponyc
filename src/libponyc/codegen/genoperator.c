@@ -217,6 +217,7 @@ LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   if(r_value == NULL)
     return NULL;
 
+  next_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
