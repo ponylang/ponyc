@@ -1,0 +1,6 @@
+Pony
+    filter remove_matches ^\s*//
+    filter call_regexp_common C
+    filter remove_inline //.*$
+    extension pony
+    3rd_gen_scale 1.0

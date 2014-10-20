@@ -4,39 +4,6 @@
 #include "genexpr.h"
 #include <assert.h>
 
-// TODO: not needed?
-// static LLVMValueRef unbox_is(compile_t* c, ast_t* left_type, ast_t* right_type,
-//   LLVMValueRef l_value, LLVMValueRef r_value)
-// {
-//   // Here, left_type will be a primitive type. We only accept the right side if
-//   // it is a boxed version of the exact same type.
-//   gentype_t g;
-//
-//   if(!gentype(c, left_type, &g))
-//     return NULL;
-//
-//   assert(LLVMTypeOf(l_value) == g.primitive);
-//
-//   LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-//   LLVMBasicBlockRef unbox_block = codegen_block(c, "unbox");
-//   LLVMBasicBlockRef post_block = codegen_block(c, "post");
-//
-//   LLVMValueRef test = gendesc_isdesc(c, r_value, g.desc);
-//   LLVMBuildCondBr(c->builder, test, unbox_block, post_block);
-//
-//   LLVMPositionBuilderAtEnd(c->builder, unbox_block);
-//   r_value = unbox_value(c, r_value, left_type);
-//   test = gen_is_value(c, left_type, right_type, l_value, r_value);
-//
-//   LLVMPositionBuilderAtEnd(c->builder, post_block);
-//   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
-//   LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
-//   LLVMAddIncoming(phi, &zero, &entry_block, 1);
-//   LLVMAddIncoming(phi, &test, &unbox_block, 1);
-//
-//   return phi;
-// }
-
 static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMValueRef l_value, LLVMValueRef r_value)
 {

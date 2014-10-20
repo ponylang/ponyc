@@ -1,19 +1,17 @@
 actor Spreader
   var _env: Env
-  var _parent: (Spreader | None)
   var _count: U64
-  var _result: U64
-  var _received: U64
+
+  var _parent: (Spreader | None) = None
+  var _result: U64 = U64(0)
+  var _received: U64 = U64(0)
 
   new create(env: Env) =>
     _env = env
 
-    var count: U64 = try _env.args(1).u64() else U64(10) end
+    _count = try _env.args(1).u64() else U64(10) end
 
-    if count > 0 then
-      _count = count
-      _result = 0
-      _received = 0
+    if _count > 0 then
       spawn_child()
       spawn_child()
     else

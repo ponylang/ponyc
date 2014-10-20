@@ -6,6 +6,65 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
+static bool is_result_needed(ast_t* ast)
+{
+  // If we're not in a sequence, then we need the result.
+  ast_t* seq = ast_parent(ast);
+
+  if(ast_id(seq) != TK_SEQ)
+    return true;
+
+  // If we are not the last element of the sequence, we don't need the result.
+  if(ast_sibling(ast) != NULL)
+    return false;
+
+  ast_t* parent = ast_parent(seq);
+
+  switch(ast_id(parent))
+  {
+    case TK_IF:
+    case TK_WHILE:
+    case TK_MATCH:
+      // Condition needed, body/else needed only if parent needed.
+      if(ast_child(parent) == seq)
+        return true;
+
+      return is_result_needed(parent);
+
+    case TK_REPEAT:
+      // Cond needed, body/else needed only if parent needed.
+      if(ast_childidx(parent, 1) == seq)
+        return true;
+
+      return is_result_needed(parent);
+
+    case TK_CASE:
+      // Pattern, guard needed, body needed only if MATCH needed
+      if(ast_childidx(parent, 2) != seq)
+        return true;
+
+      return is_result_needed(ast_parent(parent));
+
+    case TK_TRY:
+      // Only if parent needed.
+      return is_result_needed(parent);
+
+    case TK_SEQ:
+      // Only if sequence needed.
+      return is_result_needed(seq);
+
+    case TK_NEW:
+    case TK_BE:
+      // Not needed if at the end of constructor or behaviour.
+      return false;
+
+    default: {}
+  }
+
+  // All others needed.
+  return true;
+}
+
 LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
@@ -29,6 +88,7 @@ LLVMValueRef gen_seq(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
   ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, cond, left, right);
 
@@ -74,7 +134,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   if(l_value != GEN_NOVALUE)
   {
-    l_value = gen_assign_cast(c, phi_type.use_type, l_value, left_type);
+    if(needed)
+      l_value = gen_assign_cast(c, phi_type.use_type, l_value, left_type);
 
     if(l_value == NULL)
       return NULL;
@@ -90,7 +151,8 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // If the right side returns, we don't branch to the post block.
   if(r_value != GEN_NOVALUE)
   {
-    r_value = gen_assign_cast(c, phi_type.use_type, r_value, right_type);
+    if(needed)
+      r_value = gen_assign_cast(c, phi_type.use_type, r_value, right_type);
 
     if(r_value == NULL)
       return NULL;
@@ -106,19 +168,25 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   // Continue in the post block.
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  if(needed)
+  {
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
-  if(l_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &l_value, &then_block, 1);
+    if(l_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &l_value, &then_block, 1);
 
-  if(r_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &r_value, &else_block, 1);
+    if(r_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &r_value, &else_block, 1);
 
-  return phi;
+    return phi;
+  }
+
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   ast_t* type = ast_type(ast);
@@ -141,7 +209,10 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  LLVMValueRef phi;
+
+  if(needed)
+    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // init
   // This jumps either to the body or the else clause. This is not evaluated
@@ -157,7 +228,9 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef l_value = gen_expr(c, body);
-  l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_type);
+
+  if(needed)
+    l_value = gen_assign_cast(c, phi_type.use_type, l_value, body_type);
 
   if(l_value == NULL)
     return NULL;
@@ -181,22 +254,31 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(r_value == NULL)
     return NULL;
 
-  r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
+  if(needed)
+    r_value = gen_assign_cast(c, phi_type.use_type, r_value, else_type);
+
   LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMAddIncoming(phi, &l_value, &body_from, 1);
 
-  if(r_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &r_value, &else_from, 1);
+  if(needed)
+  {
+    LLVMAddIncoming(phi, &l_value, &body_from, 1);
 
-  return phi;
+    if(r_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &r_value, &else_from, 1);
+
+    return phi;
+  }
+
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
   ast_t* type = ast_type(ast);
@@ -219,12 +301,17 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  LLVMValueRef phi;
+
+  if(needed)
+    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // body
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type.use_type, value, body_type);
+
+  if(needed)
+    value = gen_assign_cast(c, phi_type.use_type, value, body_type);
 
   if(value == NULL)
     return NULL;
@@ -254,18 +341,26 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(else_value == NULL)
     return NULL;
 
-  else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+  if(needed)
+    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+
   LLVMBasicBlockRef else_from = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
   // post
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMAddIncoming(phi, &value, &body_from, 1);
 
-  if(else_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &else_value, &else_from, 1);
+  if(needed)
+  {
+    LLVMAddIncoming(phi, &value, &body_from, 1);
 
-  return phi;
+    if(else_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &else_value, &else_from, 1);
+
+    return phi;
+  }
+
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
@@ -305,12 +400,17 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 
   // get the phi node
   LLVMValueRef post_phi = LLVMGetFirstInstruction(target);
-  LLVMTypeRef phi_type = LLVMTypeOf(post_phi);
+  bool needed = (post_phi != NULL) && LLVMIsAPHINode(post_phi);
 
   // build the break block
   LLVMPositionBuilderAtEnd(c->builder, break_block);
   LLVMValueRef value = gen_expr(c, body);
-  value = gen_assign_cast(c, phi_type, value, body_type);
+
+  if(needed)
+  {
+    LLVMTypeRef phi_type = LLVMTypeOf(post_phi);
+    value = gen_assign_cast(c, phi_type, value, body_type);
+  }
 
   if(value == NULL)
     return NULL;
@@ -319,7 +419,9 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
   LLVMBuildBr(c->builder, target);
 
   // add break value to the post block phi node
-  LLVMAddIncoming(post_phi, &value, &break_block, 1);
+  if(needed)
+    LLVMAddIncoming(post_phi, &value, &break_block, 1);
+
   return GEN_NOVALUE;
 }
 
@@ -351,6 +453,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
   AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
   ast_t* type = ast_type(ast);
@@ -379,7 +482,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(body_value != GEN_NOVALUE)
   {
-    body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_type);
+    if(needed)
+      body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_type);
 
     if(body_value == NULL)
       return NULL;
@@ -407,7 +511,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 
   if(else_value != GEN_NOVALUE)
   {
-    else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+    if(needed)
+      else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
 
     if(else_value == NULL)
       return NULL;
@@ -424,15 +529,20 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // continue in the post block
   LLVMPositionBuilderAtEnd(c->builder, post_block);
 
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  if(needed)
+  {
+    LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
-  if(body_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &body_value, &block, 1);
+    if(body_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &body_value, &block, 1);
 
-  if(else_value != GEN_NOVALUE)
-    LLVMAddIncoming(phi, &else_value, &else_block, 1);
+    if(else_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &else_value, &else_block, 1);
 
-  return phi;
+    return phi;
+  }
+
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)

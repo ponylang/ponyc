@@ -1,3 +1,5 @@
+use "math"
+
 actor Main
   var _env: Env
 
@@ -10,10 +12,11 @@ actor Main
 
     test_i128_f()
     test_u128_f()
+    test_fib(10)
 
   fun ref test_i128_f() =>
-    var x: I128 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    var y: I128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    var x: I128 = I128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+    var y: I128 = I128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
 
     _env.stdout.print(x.string() + ", " + y.string())
 
@@ -28,8 +31,8 @@ actor Main
     _env.stdout.print(x.string() + ", " + y.string())
 
   fun ref test_u128_f() =>
-    var x: U128 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    var y: U128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    var x: U128 = U128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+    var y: U128 = U128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
 
     _env.stdout.print(x.string() + ", " + y.string())
 
@@ -42,3 +45,22 @@ actor Main
     y = yf.u128()
 
     _env.stdout.print(x.string() + ", " + y.string())
+
+  fun ref test_fib(n: U64) =>
+    _env.stdout.print("=== Fibonacci Generator ===")
+
+    var i: U8 = 0
+
+    for fib in Fibonacci[U128]() do
+      _env.stdout.print("Fibonacci(" + i.string() + ")= " + fib.string())
+      i = i + 1
+      if i == n then break fib end
+    end
+
+    _env.stdout.print("=== Fibonacci Application ===")
+
+    var fib = Fibonacci[U128]()
+
+    for j in Range[U8](0, n) do
+      _env.stdout.print("Fibonacci(" + j.string() + ")= " + fib(j).string())
+    end

@@ -155,15 +155,10 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   return phi;
 }
 
-static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
-  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
+static LLVMValueRef make_cmp_value(compile_t* c, bool sign,
+  LLVMValueRef l_value, LLVMValueRef r_value, LLVMRealPredicate cmp_f,
+  LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
 {
-  ast_t* type = ast_type(left);
-  bool sign = is_signed(type);
-
-  LLVMValueRef l_value = gen_expr(c, left);
-  LLVMValueRef r_value = gen_expr(c, right);
-
   if((l_value == NULL) || (r_value == NULL))
     return NULL;
 
@@ -185,6 +180,18 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
     return LLVMBuildICmp(c->builder, cmp_si, l_value, r_value, "");
 
   return LLVMBuildICmp(c->builder, cmp_ui, l_value, r_value, "");
+}
+
+static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
+  LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
+{
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+
+  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef r_value = gen_expr(c, right);
+
+  return make_cmp_value(c, sign, l_value, r_value, cmp_f, cmp_si, cmp_ui);
 }
 
 LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
@@ -210,6 +217,7 @@ LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   if(r_value == NULL)
     return NULL;
 
+  next_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
@@ -539,6 +547,16 @@ LLVMValueRef gen_not(compile_t* c, ast_t* ast)
 LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right)
 {
   return make_cmp(c, left, right, LLVMRealOEQ, LLVMIntEQ, LLVMIntEQ);
+}
+
+LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value)
+{
+  ast_t* type = ast_type(left);
+  bool sign = is_signed(type);
+  LLVMValueRef l_value = gen_expr(c, left);
+
+  return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,
+    LLVMIntEQ);
 }
 
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right)

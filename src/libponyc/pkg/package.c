@@ -331,7 +331,9 @@ static void add_exec_dir(const char* file)
 #elif defined PLATFORM_IS_LINUX
   ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX);
   success = (r >= 0);
-  if(success) path[r] = '\0';
+
+  if(success)
+    path[r] = '\0';
 #elif defined PLATFORM_IS_MACOSX
   uint32_t size = sizeof(path);
   int r = _NSGetExecutablePath(path, &size);
@@ -356,6 +358,13 @@ static void add_exec_dir(const char* file)
   }
 
   p[1] = '\0';
+  add_path(path);
+
+#ifdef PLATFORM_IS_WINDOWS
+  strcat(path, "..\\..\\packages");
+#else
+  strcat(path, "../../packages");
+#endif
   add_path(path);
 }
 

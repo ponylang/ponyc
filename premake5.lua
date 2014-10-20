@@ -136,22 +136,12 @@
       "src/ponyc/**.h",
       "src/ponyc/**.c"
     }
-    local delete = ""
-    local create = ""
     configuration "gmake"
-      buildoptions "-std=gnu11"
-      delete = "rm -rf $(TARGETDIR)/builtin"
-      create = "ln -sf " .. path.getabsolute("packages/builtin") .. " $(TARGETDIR)"
+      buildoptions "-std=gnu11" 
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
-      -- premake produces posix-style absolute paths
-      local path = path.getabsolute("./packages/builtin"):gsub("%/", "\\")
-      delete = "rmdir /Q $(TargetDir)\\builtin"
-      create = "mklink /J $(TargetDir)\\builtin \"" .. path .. "\""
     configuration "*"
       link_libponyc()
-      postbuildcommands { delete, create }
-
 
 if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "gtest"
@@ -203,8 +193,8 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
 end
 
   if _ACTION == "clean" then
-    os.rmdir("bin")
-    os.rmdir("obj")
+    --os.rmdir("bin") os.rmdir clears out the link targets of symbolic links...
+    --os.rmdir("obj")
   end
 
   -- Allow for out-of-source builds.

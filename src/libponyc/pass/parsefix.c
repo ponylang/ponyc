@@ -177,12 +177,17 @@ static bool check_method(ast_t* ast, int method_def_index)
     return false;
   }
 
-  AST_GET_CHILDREN(ast, cap, id, ignore0, ignore1, return_type, error, arrow,
-    body);
+  AST_GET_CHILDREN(ast, cap, c_api, id, ignore0, ignore1, return_type, error,
+    arrow, body);
 
   // Remove the arrow node
   token_id arrow_id = ast_id(arrow);
   ast_remove(arrow);
+
+  // Move the C-API marker to the end of the ast node.
+  ast_t* c_api_append = ast_dup(c_api);
+  ast_remove(c_api);
+  ast_append(ast, c_api_append);
 
   if(!check_tribool(def->cap, cap, def->desc, "receiver capability", cap))
     return false;

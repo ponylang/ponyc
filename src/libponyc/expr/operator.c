@@ -187,7 +187,9 @@ bool expr_assign(ast_t* ast)
     // set the type node
     AST_GET_CHILDREN(left, idseq, type);
     ast_replace(&type, a_type);
+
     ast_settype(left, a_type);
+    ast_inheriterror(ast);
 
     // set the type for each component
     return type_for_idseq(idseq, a_type);

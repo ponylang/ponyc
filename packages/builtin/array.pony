@@ -1,19 +1,3 @@
-class Pointer[A]
-  new create(len: U64) => compiler_intrinsic
-
-  fun ref _realloc(len: U64): Pointer[A] => compiler_intrinsic
-
-  fun box _apply(i: U64): this->A => compiler_intrinsic
-
-  fun ref _update(i: U64, v: A): A^ => compiler_intrinsic
-
-  fun ref _copy(offset: U64, src: Pointer[A] box, len: U64): U64 =>
-    compiler_intrinsic
-
-  fun box _concat(len: U64, with: Pointer[A] box, withlen: U64): Pointer[A] iso^
-    =>
-    compiler_intrinsic
-
 class Array[A]
   var _size: U64
   var _alloc: U64
@@ -32,6 +16,12 @@ class Array[A]
     for i in Range[U64](0, len) do
       _ptr._update(i, with)
     end
+
+  // Replace this with a default argument on create().
+  new prealloc(len: U64) =>
+    _size = 0
+    _alloc = len
+    _ptr = Pointer[A](len)
 
   fun box length(): U64 => _size
 
@@ -67,7 +57,7 @@ class Array[A]
     this
 
   fun ref concat(iter: Iterator[A] ref) =>
-    for v in iter do append(v) end
+    try for v in iter do append(v) end end
 
   fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)
@@ -88,11 +78,11 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
 
   fun box has_next(): Bool => _i < _array.length()
 
-  fun ref next(): U64 ? =>
+  fun ref next(): U64 =>
     if _i < _array.length() then
       _i = _i + 1
     else
-      error
+      _i
     end
 
 class ArrayValues[A, B: Array[A] box] is Iterator[B->A]

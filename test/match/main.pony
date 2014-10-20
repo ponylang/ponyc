@@ -25,10 +25,19 @@ actor Main
     test(Thumbtack)
     test(None)
 
-    //test2(4)
+    test2(3)
+    test2(4)
 
     test3((Wombat, Tomato))
     test3((Aardvark, Tomato))
+
+    test4(3)
+    test4(None)
+    test4(4)
+
+    test5((Wombat, Tomato))
+    test5((I32(1), "Hi"))
+    test5((Aardvark, Tomato))
 
   fun box test(x: Any) =>
     match x
@@ -46,12 +55,12 @@ actor Main
       _env.stdout.print("Unknown")
     end
 
-  //fun box test2(x: U32) =>
-  //  match x
-  //  | U32(5) - U32(2) => _env.stdout.print("Three")
-  //  else
-  //    _env.stdout.print("Unknown")
-  //  end
+  fun box test2(x: U32) =>
+    match x
+    | U32(5) - U32(2) => _env.stdout.print("Three")
+    else
+      _env.stdout.print("Not Three")
+    end
 
   fun box test3(x: (Animal, Vegetable)) =>
     match x
@@ -61,12 +70,20 @@ actor Main
       _env.stdout.print("Unknown")
     end
 
-  /*fun box test4(x: ((Animal, Vegetable) | (I32, String))) =>
+  fun box test4(x: (U32 | None)) =>
+    match x
+    | U32(3) => _env.stdout.print("Three")
+    | None => _env.stdout.print("None")
+    else
+      _env.stdout.print("Unknown")
+    end
+
+  fun box test5(x: ((Animal, Vegetable) | (I32, String))) =>
     match x
     | (var a: Wombat, var b: Tomato) =>
       _env.stdout.print("Wombat, Tomato")
-    | (1, "Hi") =>
-      _env.stdout.print("1, 2, Hi")
+    | (I32(1), "Hi") =>
+      _env.stdout.print("1, Hi")
     else
       _env.stdout.print("Unknown")
-    end*/
+    end

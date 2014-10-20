@@ -10,17 +10,17 @@ actor Worker
 
     var result = factorize(a*b)
 
-    var wrong_a = try result(0) != 86028157 else true end
-    var wrong_b = try result(1) != 329545133 else true end
+    var correct =
+      try (result(0) == 86028157) and (result(1) == 329545133) else false end
 
-    if (result.length() != 2) or wrong_a or wrong_b then
+    if (result.length() != 2) or not correct then
       _env.stdout.print("factorization error")
     else
       _env.stdout.print("factorization done")
     end
 
-  fun tag factorize(bigint: U64) : Array[U64] =>
-    var factors = Array[U64]()
+  fun ref factorize(bigint: U64) : Array[U64] =>
+    var factors = Array[U64]
 
     if bigint <= U64(3) then
       factors.append(bigint)
@@ -41,6 +41,7 @@ actor Worker
       end
     end
 
+    factors.append(d)
     factors
 
 actor Ring

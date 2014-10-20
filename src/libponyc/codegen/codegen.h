@@ -23,6 +23,8 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 
+#define GEN_NOTNEEDED (LLVMConstInt(c->i1, 1, false))
+
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;

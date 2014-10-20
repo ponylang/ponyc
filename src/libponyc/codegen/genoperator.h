@@ -44,6 +44,8 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right);
 
 LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right);
 
+LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value);
+
 LLVMValueRef gen_ne(compile_t* c, ast_t* left, ast_t* right);
 
 LLVMValueRef gen_is(compile_t* c, ast_t* ast);
