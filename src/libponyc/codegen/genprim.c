@@ -204,6 +204,19 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
+  // u64
+  name = genname_fun(g->type_name, "u64", NULL);
+
+  ftype = LLVMFunctionType(c->i64, &g->use_type, 1, false);
+  fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  ptr = LLVMGetParam(fun, 0);
+  result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
   return true;
 }
 

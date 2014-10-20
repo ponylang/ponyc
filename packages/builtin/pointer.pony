@@ -13,3 +13,5 @@ class Pointer[A]
   fun box _concat(len: U64, with: Pointer[A] box, withlen: U64): Pointer[A] iso^
     =>
     compiler_intrinsic
+
+  fun tag u64(): U64 => compiler_intrinsic
