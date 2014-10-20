@@ -11,7 +11,8 @@ class Env val
       for i in Range[U64](0, argc) do
         array.append(
           recover
-            String.from_cstring(argv._update(i, recover Pointer[U8](0) end))
+            String.from_cstring(
+              argv._update(i, recover Pointer[U8]._null() end))
           end
           )
       end

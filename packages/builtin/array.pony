@@ -6,26 +6,31 @@ class Array[A]
   new create() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[A](0)
+    _ptr = Pointer[A]._null()
 
   new init(with: A, len: U64) =>
     _size = len
     _alloc = len
-    _ptr = Pointer[A](len)
+    _ptr = Pointer[A]._create(len)
 
     for i in Range[U64](0, len) do
       _ptr._update(i, with)
     end
 
+  new from_carray(ptr: Pointer[A] ref, len: U64) =>
+    _size = len
+    _alloc = len
+    _ptr = ptr
+
   // Replace this with a default argument on create().
   new prealloc(len: U64) =>
     _size = 0
     _alloc = len
-    _ptr = Pointer[A](len)
+    _ptr = Pointer[A]._create(len)
 
   fun box length(): U64 => _size
 
-  fun box carray(): this->Pointer[A] => _ptr
+  fun box carray(): Pointer[A] box => _ptr
 
   fun box apply(i: U64): this->A ? =>
     if i < _size then
