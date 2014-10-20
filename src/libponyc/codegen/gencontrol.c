@@ -46,9 +46,17 @@ static bool is_result_needed(ast_t* ast)
       return is_result_needed(ast_parent(parent));
 
     case TK_TRY:
-    case TK_SEQ:
       // Only if parent needed.
       return is_result_needed(parent);
+
+    case TK_SEQ:
+      // Only if sequence needed.
+      return is_result_needed(seq);
+
+    case TK_NEW:
+    case TK_BE:
+      // Not needed if at the end of constructor or behaviour.
+      return false;
 
     default: {}
   }
@@ -173,7 +181,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     return phi;
   }
 
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_while(compile_t* c, ast_t* ast)
@@ -265,7 +273,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
     return phi;
   }
 
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
@@ -352,7 +360,7 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
     return phi;
   }
 
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
@@ -534,7 +542,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     return phi;
   }
 
-  return GEN_NOVALUE;
+  return GEN_NOTNEEDED;
 }
 
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
