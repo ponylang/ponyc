@@ -12,7 +12,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     _ptr = Pointer[U8](1)
     _ptr._update(0, 0)
 
-  new from_cstring(str: Pointer[U8] box) =>
+  new from_cstring(str: Pointer[U8] ref) =>
     _size = 0
 
     while str._apply(_size) != 0 do
@@ -20,8 +20,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     end
 
     _alloc = _size + 1
-    _ptr = Pointer[U8](_alloc)
-    _ptr._copy(0, str, _alloc)
+    _ptr = str
 
   new from_i8(x: I8, base: U8) =>
     _size = 0

@@ -2,7 +2,7 @@ class Env val
   let stdout: Stdout
   let args: Array[String] val
 
-  new _create(argc: U64, argv: Pointer[Pointer[U8] val] val) =>
+  new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso) =>
     stdout = Stdout
 
     args = recover
@@ -11,7 +11,7 @@ class Env val
       for i in Range[U64](0, argc) do
         array.append(
           recover
-            String.from_cstring(argv._apply(i))
+            String.from_cstring(argv._update(i, recover Pointer[U8](0) end))
           end
           )
       end
