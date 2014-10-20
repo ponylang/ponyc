@@ -162,7 +162,6 @@ bool expr_assign(ast_t* ast)
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
 
   if(!is_lvalue(left))
   {
@@ -171,6 +170,10 @@ bool expr_assign(ast_t* ast)
   }
 
   // assignment is based on the alias of the right hand side
+  if(!coerce_literals(right, l_type, NULL))
+    return false;
+
+  ast_t* r_type = ast_type(right);
   ast_t* a_type = alias(r_type);
 
   if(l_type == NULL)
@@ -190,12 +193,7 @@ bool expr_assign(ast_t* ast)
     return type_for_idseq(idseq, a_type);
   }
 
-  bool ok_sub = is_subtype(a_type, l_type);
-
-  if(ok_sub)
-    ok_sub = coerce_literals(right, l_type);
-
-  if(!ok_sub)
+  if(!is_subtype(a_type, l_type))
   {
     ast_error(ast, "right side must be a subtype of left side");
     ast_free_unattached(a_type);

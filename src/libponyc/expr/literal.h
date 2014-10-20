@@ -14,9 +14,15 @@ bool expr_compiler_intrinsic(ast_t* ast);
 bool expr_nominal(ast_t** astp);
 bool expr_fun(ast_t* ast);
 
-bool is_type_arith_literal(ast_t* ast);
-ast_t* is_literal_subtype(token_id literal_id, ast_t* target);
-bool coerce_literals(ast_t* ast, ast_t* target_type);
+/// Coerce the given AST to be of the given target type, if it is a literal.
+/// @param out_type_changed Report whether the type of ast has been changed.
+///   May be NULL.
+/// @return True on success, false on error
+bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed);
+
+/// If the given type is a literal, turn it into a concrete type.
+/// Must only be called after reification.
+ast_t* concrete_literal(ast_t* type);
 
 PONY_EXTERN_C_END
 
