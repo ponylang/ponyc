@@ -39,6 +39,16 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
     return true;
   }
 
+  if(!strcmp(attribute, OS_POSIX_NAME))
+  {
+#if defined PLATFORM_IS_LINUX || defined PLATFORM_IS_MACOSX
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
   if(!strcmp(attribute, OS_HAS_I128_NAME))
   {
 #ifdef PLATFORM_IS_VISUAL_STUDIO

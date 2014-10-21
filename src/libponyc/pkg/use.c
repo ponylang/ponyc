@@ -91,6 +91,7 @@ static void eval_binary(ast_t* ast, bool* out_left, bool* out_right,
 static bool eval_condition(ast_t* ast, bool release, bool* error)
 {
   assert(ast != NULL);
+  assert(error != NULL);
 
   bool left, right;
 
@@ -128,7 +129,8 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
     return true;
 
   default:
-    assert(0);
+    ast_error(ast, "Invalid use guard expression");
+    *error = true;
     return false;
   }
 }

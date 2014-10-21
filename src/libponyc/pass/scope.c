@@ -128,10 +128,10 @@ bool use_package(ast_t* ast, const char* path, ast_t* name, pass_opt_t* options)
   return true;
 }
 
-static bool scope_package(ast_t* ast)
+static bool scope_package(ast_t* ast, pass_opt_t* options)
 {
   // Every package has an implicit use "builtin" command
-  return use_package(ast, stringtab("builtin"), NULL, NULL);
+  return use_package(ast, stringtab("builtin"), NULL, options);
 }
 
 static bool scope_method(ast_t* ast, bool dups)
@@ -230,7 +230,7 @@ static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
   switch(ast_id(ast))
   {
     case TK_PACKAGE:
-      if(!scope_package(ast))
+      if(!scope_package(ast, options))
         return AST_ERROR;
       break;
 

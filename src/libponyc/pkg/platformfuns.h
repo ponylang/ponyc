@@ -9,6 +9,7 @@ PONY_EXTERN_C_BEGIN
 #define OS_LINUX_NAME "linux"
 #define OS_MACOSX_NAME "osx"
 #define OS_WINDOWS_NAME "windows"
+#define OS_POSIX_NAME "posix"
 #define OS_HAS_I128_NAME "has_i128"
 #define OS_DEBUG_NAME "debug"
 
