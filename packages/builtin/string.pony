@@ -1,4 +1,4 @@
-trait Stringable
+trait Stringable box
   fun box string(): String
 
 class String val is Ordered[String], Hashable[String], Stringable
