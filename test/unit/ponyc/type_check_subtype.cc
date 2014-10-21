@@ -54,6 +54,11 @@ TEST_F(SubTypeTest, IsSubType)
   DO(test_binary(is_subtype, t_bar, t_structural, true));
 
 
+  DO(test_binary(is_subtype, t_bar, t_t1, true));
+  DO(test_binary(is_subtype, t_bar, t_t2, false));
+  DO(test_binary(is_subtype, t_bar, t_t3, true));
+
+
   /* TODO: Everything else
   DO(test_binary(is_subtype, t_u_lit, t_u_lit, true));
   DO(test_binary(is_subtype, t_s_lit, t_s_lit, true));

@@ -300,7 +300,7 @@ bool expr_qualify(ast_t* ast)
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 
-      if(!check_constraints(typeparams, right))
+      if(!check_constraints(typeparams, right, true))
         return false;
 
       type = reify(type, typeparams, right);

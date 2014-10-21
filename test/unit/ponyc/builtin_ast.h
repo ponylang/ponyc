@@ -27,6 +27,7 @@ extern const char* t_f64;
 extern const char* t_string;
 extern const char* t_t1;
 extern const char* t_t2;
+extern const char* t_t3;
 extern const char* t_foo;
 extern const char* t_bar;
 extern const char* t_structural;

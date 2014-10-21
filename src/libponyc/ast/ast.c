@@ -74,7 +74,7 @@ static void print_compact(ast_t* ast, size_t indent, bool type)
     printf(in);
 
   ast_t* child = ast->child;
-  bool parens = (child != NULL) || (ast->type != NULL);
+  bool parens = type || (child != NULL) || (ast->type != NULL);
 
   if(parens)
     printf(type ? "[" : "(");
@@ -106,7 +106,7 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
     printf(in);
 
   ast_t* child = ast->child;
-  bool parens = (child != NULL) || (ast->type != NULL);
+  bool parens = type || (child != NULL) || (ast->type != NULL);
 
   if(parens)
     printf(type ? "[" : "(");

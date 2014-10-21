@@ -9,6 +9,8 @@
 #include "../type/cap.h"
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
+
 
 bool expr_literal(ast_t* ast, const char* name)
 {
@@ -149,7 +151,7 @@ bool expr_nominal(ast_t** astp)
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 
-  return check_constraints(typeparams, typeargs);
+  return check_constraints(typeparams, typeargs, true);
 }
 
 static bool show_partiality(ast_t* ast)
@@ -290,6 +292,20 @@ static void free_literal_set(literal_set_t* set)
   free(set);
 }
 
+/*
+static void literal_set_print(literal_set_t* set)
+{
+  if(set == NULL)
+    return;
+
+  printf("Set free: %x {\n", set->uif_free_set);
+
+  for(constraint_t* p = set->constraints; p != NULL; p = p->next)
+    printf("  Constraint %p %x\n", p->formal_param, p->uif_set);
+
+  printf("}\n");
+}
+*/
 
 static bool is_type_arith_literal(ast_t* ast)
 {
@@ -316,10 +332,6 @@ static void propogate_coercion(ast_t* ast, ast_t* type)
 }
 
 
-#define NUMBER_UIF_MASK  0xFFF
-#define FLOAT_UIF_MASK   0x003
-#define INTEGER_UIF_MASK 0xFFC
-
 static const char* const _uif_types[] =
 {
   "F64", "F32",
@@ -334,39 +346,16 @@ static const char* const _uif_types[] =
 };
 
 
-// Report the UIF mask to use for the specified literal type
-static int uif_mask(token_id literal_id)
+// Generate the correct literal mask for the given ID
+// Return 0 is given ID is not a literal
+static int get_uif_mask(token_id id)
 {
-  switch(literal_id)
+  switch(id)
   {
-    case TK_INTLITERAL: return NUMBER_UIF_MASK;
-    case TK_FLOATLITERAL: return FLOAT_UIF_MASK;
-
-    default:
-      assert(0);
-      return 0;
+    case TK_INTLITERAL: return 0xFFF;
+    case TK_FLOATLITERAL: return 0x003;
+    default: return 0;
   }
-}
-
-
-// Generate the uif set that satisfies the given type
-static int make_uif_set(ast_t* type)
-{
-  assert(type != NULL);
-
-  int set = 0;
-
-  for(int i = 0; _uif_types[i] != NULL; i++)
-  {
-    ast_t* uif = type_builtin(type, _uif_types[i]);
-
-    if(is_subtype(uif, type))
-      set |= (1 << i);
-
-    ast_free(uif);
-  }
-
-  return set;
 }
 
 
@@ -378,7 +367,22 @@ static literal_set_t* make_literal_set(ast_t* type)
   p->constraints = NULL;
 
   if(type != NULL)
-    p->uif_free_set = make_uif_set(type);
+  {
+    int set = 0;
+
+    for(int i = 0; _uif_types[i] != NULL; i++)
+    {
+      ast_t* uif = type_builtin(type, _uif_types[i]);
+      ast_setid(ast_childidx(uif, 3), TK_ISO);
+
+      if(is_subtype(uif, type))
+        set |= (1 << i);
+
+      ast_free(uif);
+    }
+
+    p->uif_free_set = set;
+  }
 
   return p;
 }
@@ -403,10 +407,25 @@ static literal_set_t* make_constraint_set(ast_t* type_param)
   bool is_number = is_subtype(constraint, number);
   ast_free(number);
 
-  if(!is_number)  // The type param may not have any UIF types
+  if(!is_number)  // The type param may have non UIF types
     return p;
 
-  int uif_set = make_uif_set(constraint);
+  int uif_set = 0;
+
+  for(int i = 0; _uif_types[i] != NULL; i++)
+  {
+    ast_t* uif = type_builtin(type_param, _uif_types[i]);
+    ast_setid(ast_childidx(uif, 3), TK_VAL);
+
+    BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
+    BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
+
+    if(check_constraints(params, args, true))
+      uif_set |= (1 << i);
+
+    ast_free(args);
+    ast_free(params);
+  }
 
   if(((uif_set - 1) & uif_set) == 0)
   {
@@ -419,7 +438,7 @@ static literal_set_t* make_constraint_set(ast_t* type_param)
     // UIF set contains more than one type, start a constraint list
     constraint_t* c = (constraint_t*)malloc(sizeof(constraint_t));
     c->formal_param = type_param;
-    c->uif_set = make_uif_set(constraint);
+    c->uif_set = uif_set;
     c->next = NULL;
     p->constraints = c;
   }
@@ -597,6 +616,8 @@ static literal_set_t* determine_literal_set(ast_t* type)
       break;
   }
 
+  printf("Oops\n");
+  ast_print(type);
   assert(0);
   return NULL;
 }
@@ -661,9 +682,10 @@ static bool build_literal_type(literal_set_t* set, int uif_mask,
   ast_t* actual_type = type_builtin(ast, _uif_types[best_free]);
   AST_GET_CHILDREN(actual_type, ignore0, ignore1, ignore2, cap, ephemeral);
   assert(cap != NULL);
-  ast_setid(cap, TK_ISO);
-  assert(ephemeral != NULL);
-  ast_setid(ephemeral, TK_HAT);
+  ast_setid(cap, TK_VAL);
+  //ast_setid(cap, TK_ISO);
+  //assert(ephemeral != NULL);
+  //ast_setid(ephemeral, TK_HAT);
   propogate_coercion(ast, actual_type);
   return true;
 }
@@ -724,12 +746,12 @@ static bool coerce_tuple(ast_t* ast, ast_t* target_type,
 bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
 {
   assert(ast != NULL);
-  assert(target_type != NULL);
 
   if(out_type_changed != NULL)
     *out_type_changed = false;
 
-  if(ast_id(ast) == TK_TUPLE)
+  if(ast_id(ast) == TK_TUPLE && ast_type(ast) != NULL &&
+    ast_id(ast_type(ast)) == TK_TUPLETYPE)
     return coerce_tuple(ast, target_type, out_type_changed);
 
   ast_t* expr_type = ast_type(ast);
@@ -738,11 +760,20 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
   if(!is_type_arith_literal(expr_type))
     return true;
 
-  literal_set_t* set = determine_literal_set(ast_type(ast));
+  if(target_type == NULL)
+  {
+    // We're doing local and type inference together
+    // TODO(andy): Maybe a better error message?
+    ast_error(ast, "cannot determine type of literal");
+    return false;
+  }
+
+  literal_set_t* set = determine_literal_set(target_type);
   if(set == NULL)
     return false;
 
-  bool r = build_literal_type(set, uif_mask(ast_id(ast)), ast, target_type);
+  int mask = get_uif_mask(ast_id(ast_type(ast)));
+  bool r = build_literal_type(set, mask, ast, target_type);
 
   if(!r)
     ast_error(ast, "cannot determine type of literal");
@@ -759,34 +790,28 @@ ast_t* concrete_literal(ast_t* type)
 {
   assert(type != NULL);
   
-  int mask;
+  int mask = get_uif_mask(ast_id(type));
 
-  switch(ast_id(type))
-  {
-    case TK_INTLITERAL: mask = NUMBER_UIF_MASK; break;
-    case TK_FLOATLITERAL: mask = FLOAT_UIF_MASK; break;
-
-    default: return type;
-  }
-
+  if(mask == 0) // Not a literal
+    return type;
 
   for(int i = 0; _uif_types[i] != NULL; i++)
   {
-    if((i & mask) != 0)
+    if((mask & 1) != 0)
     {
       ast_t* uif = type_builtin(type, _uif_types[i]);
 
-      if(is_subtype(uif, type))
+      if(is_subtype(uif, ast_child(type)))
       {
         ast_t* cap = ast_childidx(uif, 3);
         assert(cap != NULL);
-        ast_setid(cap, TK_TAG);
-
-        ast_add(type, uif); // Ensuire uif is eventually freed
+        ast_setid(cap, TK_VAL);
+        ast_add(type, uif); // Ensure uif is eventually freed
         return uif;
       }
 
       ast_free(uif);
+      mask >>= 1;
     }
   }
 

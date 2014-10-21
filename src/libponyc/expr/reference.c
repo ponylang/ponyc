@@ -100,6 +100,9 @@ bool expr_field(ast_t* ast)
   if(ast_id(init) != TK_NONE)
   {
     // initialiser type must match declared type
+    if(!coerce_literals(init, type, NULL))
+      return false;
+
     ast_t* init_type = alias(ast_type(init));
     bool ok = is_subtype(init_type, type);
     ast_free_unattached(init_type);

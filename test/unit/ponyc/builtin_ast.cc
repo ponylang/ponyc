@@ -30,6 +30,7 @@ const char* t_f64 =    "(nominal{dataref F64} x (id F64) x tag x)";
 const char* t_string = "(nominal{dataref String} x (id String) x val x)";
 const char* t_t1 =     "(nominal{dataref T1} x (id T1) x val x)";
 const char* t_t2 =     "(nominal{dataref T2} x (id T2) x val x)";
+const char* t_t3 =     "(nominal{dataref T3} x (id T3) x val x)";
 const char* t_foo =    "(nominal{dataref Foo} x (id Foo) x val x)";
 const char* t_bar =    "(nominal{dataref Bar} x (id Bar) x val x)";
 
@@ -102,8 +103,11 @@ const char* builtin =
 "        (nominal x (id Float) x x x)))"
 
 // User type definitions
-"    (trait{scope}{def T1} (id T1) x ref x members)"
+"    (trait{scope}{def T1} (id T1) x ref"
+"      (types (nominal{dataref T3} x (id T3) x ref x))"
+"      members)"
 "    (trait{scope}{def T2} (id T2) x ref x members)"
+"    (trait{scope}{def T3} (id T3) x ref x members)"
 "    (class{scope}{def Foo} (id Foo) x ref x members)"
 "    (class{scope f}{def Bar} (id Bar) x ref"
 "      (types (nominal{dataref T1} x (id T1) x ref x))"

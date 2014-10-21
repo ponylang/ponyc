@@ -161,7 +161,7 @@ void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
   *target = ast;
 }
 
-bool check_constraints(ast_t* typeparams, ast_t* typeargs)
+bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
 {
   // reify the type parameters with the typeargs
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
@@ -180,8 +180,12 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs)
     // TODO: is iso/trn a subtype of a ref/val/box for constraints? no.
     if(!is_subtype(typearg, constraint))
     {
-      ast_error(typearg, "type argument is outside its constraint");
-      ast_error(typeparam, "constraint is here");
+      if(report_errors)
+      {
+        ast_error(typearg, "type argument is outside its constraint");
+        ast_error(typeparam, "constraint is here");
+      }
+
       ast_free_unattached(r_typeparams);
       return false;
     }
