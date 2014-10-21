@@ -185,6 +185,9 @@ bool expr_fun(ast_t* ast)
   ast_t* can_error = ast_sibling(type);
   ast_t* body = ast_sibling(can_error);
 
+  if(!coerce_literals(body, type, NULL))
+    return false;
+
   if(ast_id(body) == TK_NONE)
     return true;
 
@@ -307,13 +310,14 @@ static void literal_set_print(literal_set_t* set)
 }
 */
 
-static bool is_type_arith_literal(ast_t* ast)
+bool is_type_literal(ast_t* ast)
 {
   if(ast == NULL)
     return false;
 
   token_id id = ast_id(ast);
-  return (id == TK_INTLITERAL) || (id == TK_FLOATLITERAL);
+  return /*(id == TK_NUMBERLITERAL) ||*/ (id == TK_INTLITERAL) ||
+    (id == TK_FLOATLITERAL);
 }
 
 
@@ -322,7 +326,7 @@ static void propogate_coercion(ast_t* ast, ast_t* type)
   assert(ast != NULL);
   assert(type != NULL);
 
-  if(!is_type_arith_literal(ast_type(ast)))
+  if(!is_type_literal(ast_type(ast)))
     return;
 
   ast_settype(ast, type);
@@ -341,8 +345,6 @@ static const char* const _uif_types[] =
   "I16", "U16",
   "I8", "U8",
   NULL
-//  "U8", "I8", "U16", "I16", "U32", "I32", "U64", "I64", "U128", "I128",
-//  "F32", "F64", NULL
 };
 
 
@@ -352,6 +354,7 @@ static int get_uif_mask(token_id id)
 {
   switch(id)
   {
+    //case TK_NUMBERLITERAL: return 0xFFF;
     case TK_INTLITERAL: return 0xFFF;
     case TK_FLOATLITERAL: return 0x003;
     default: return 0;
@@ -755,9 +758,8 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
     return coerce_tuple(ast, target_type, out_type_changed);
 
   ast_t* expr_type = ast_type(ast);
-  assert(expr_type != NULL);
 
-  if(!is_type_arith_literal(expr_type))
+  if(!is_type_literal(expr_type))
     return true;
 
   if(target_type == NULL)

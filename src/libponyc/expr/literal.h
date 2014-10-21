@@ -14,6 +14,9 @@ bool expr_compiler_intrinsic(ast_t* ast);
 bool expr_nominal(ast_t** astp);
 bool expr_fun(ast_t* ast);
 
+/// Report whether the given type AST is a literal type
+bool is_type_literal(ast_t* ast);
+
 /// Coerce the given AST to be of the given target type, if it is a literal.
 /// @param out_type_changed Report whether the type of ast has been changed.
 ///   May be NULL.

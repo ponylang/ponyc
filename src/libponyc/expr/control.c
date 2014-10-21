@@ -1,5 +1,6 @@
 #include "control.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include "../type/assemble.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -273,7 +274,6 @@ bool expr_continue(ast_t* ast)
 bool expr_return(ast_t* ast)
 {
   ast_t* body = ast_child(ast);
-  ast_t* type = ast_type(body);
   ast_t* fun = ast_enclosing_method_body(ast);
 
   if(fun == NULL)
@@ -302,6 +302,11 @@ bool expr_return(ast_t* ast)
   }
 
   ast_t* result = ast_childidx(fun, 4);
+
+  if(!coerce_literals(body, result, NULL))
+    return false;
+
+  ast_t* type = ast_type(body);
 
   if(!is_subtype(type, result))
   {
