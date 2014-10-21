@@ -1,5 +1,7 @@
 class Pointer[A]
-  new create(len: U64) => compiler_intrinsic
+  new _create(len: U64) => compiler_intrinsic
+
+  new _null() => compiler_intrinsic
 
   fun ref _realloc(len: U64): Pointer[A] => compiler_intrinsic
 

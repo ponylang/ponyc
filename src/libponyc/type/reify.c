@@ -1,8 +1,9 @@
 #include "reify.h"
 #include "subtype.h"
-#include "../ast/token.h"
 #include "viewpoint.h"
 #include "assemble.h"
+#include "alias.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
@@ -177,7 +178,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
-    // TODO: is iso/trn a subtype of a ref/val/box for constraints? no.
+    // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, constraint))
     {
       if(report_errors)
@@ -189,6 +190,27 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       ast_free_unattached(r_typeparams);
       return false;
     }
+
+    ast_t* a_typearg = alias(typearg);
+    ast_t* a_constraint = alias(constraint);
+
+    // In addition, an alias of the bound type must be a subtype of an alias of
+    // the constraint.
+    if(!is_subtype(a_typearg, a_constraint))
+    {
+      ast_error(typearg,
+        "an alias of the type argument must be a subtype of an alias of the "
+        "constraint");
+      ast_error(typeparam, "constraint is here");
+
+      ast_free_unattached(a_typearg);
+      ast_free_unattached(a_constraint);
+      ast_free_unattached(r_typeparams);
+      return false;
+    }
+
+    ast_free_unattached(a_typearg);
+    ast_free_unattached(a_constraint);
 
     r_typeparam = ast_sibling(r_typeparam);
     typeparam = ast_sibling(typeparam);

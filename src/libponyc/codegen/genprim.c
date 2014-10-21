@@ -49,7 +49,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   // create
-  const char* name = genname_fun(g->type_name, "create", NULL);
+  const char* name = genname_fun(g->type_name, "_create", NULL);
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
   // If there's already a create function, we're done.
@@ -70,6 +70,18 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+
+  // null
+  name = genname_fun(g->type_name, "_null", NULL);
+
+  ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
+  fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  result = LLVMConstNull(g->use_type);
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);

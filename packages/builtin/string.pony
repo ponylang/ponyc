@@ -9,10 +9,10 @@ class String val is Ordered[String], Hashable[String], Stringable
   new create() =>
     _size = 0
     _alloc = 1
-    _ptr = Pointer[U8](1)
+    _ptr = Pointer[U8]._create(1)
     _ptr._update(0, 0)
 
-  new from_cstring(str: Pointer[U8] box) =>
+  new from_cstring(str: Pointer[U8] ref) =>
     _size = 0
 
     while str._apply(_size) != 0 do
@@ -20,95 +20,94 @@ class String val is Ordered[String], Hashable[String], Stringable
     end
 
     _alloc = _size + 1
-    _ptr = Pointer[U8](_alloc)
-    _ptr._copy(0, str, _alloc)
+    _ptr = str
 
   new from_i8(x: I8, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_i64_in_place(x.i64(), base)
 
   new from_i16(x: I16, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_i64_in_place(x.i64(), base)
 
   new from_i32(x: I32, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_i64_in_place(x.i64(), base)
 
   new from_i64(x: I64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_i64_in_place(x, base)
 
   new from_i128(x: I128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_i128_in_place(x, base)
 
   new from_u8(x: U8, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_u64_in_place(x.u64(), base)
 
   new from_u16(x: U16, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_u64_in_place(x.u64(), base)
 
   new from_u32(x: U32, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_u64_in_place(x.u64(), base)
 
   new from_u64(x: U64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_u64_in_place(x, base)
 
   new from_u128(x: U128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_u128_in_place(x, base)
 
   new from_f32(x: F32) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_f64_in_place(x.f64())
 
   new from_f64(x: F64) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
     from_f64_in_place(x)
 
   new _empty() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8](0)
+    _ptr = Pointer[U8]._null()
 
   new _reserve(size: U64) =>
     _size = size
     _alloc = size + 1
-    _ptr = Pointer[U8](_alloc)
+    _ptr = Pointer[U8]._create(_alloc)
     _ptr._update(size, 0)
 
   fun box length(): U64 => _size
 
-  fun box cstring(): this->Pointer[U8] => _ptr
+  fun box cstring(): Pointer[U8] box => _ptr
 
   fun box apply(i: I64): U8 ? =>
     var j = offset_to_index(i)
@@ -513,7 +512,7 @@ class String val is Ordered[String], Hashable[String], Stringable
 
   fun box string(): String =>
     var len = _size
-    var ptr = _ptr._concat(_size + 1, Pointer[U8](0), 0)
+    var ptr = _ptr._concat(_size + 1, Pointer[U8]._null(), 0)
 
     recover
       var str = String._empty()
