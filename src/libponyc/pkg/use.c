@@ -73,17 +73,72 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
 }
 
 
-// Evalute the children of the given binary condition node
-static void eval_binary(ast_t* ast, bool* out_left, bool* out_right,
+// Evalute the argument (if any) of the given condition call
+static bool eval_call_arg(size_t expected_count, ast_t* positional,
   bool release, bool* error)
 {
-  assert(ast != NULL);
-  assert(out_left != NULL);
-  assert(out_right != NULL);
+  assert(expected_count == 0 || expected_count == 1);
+  assert(positional != NULL);
+  assert(error != NULL);
 
-  AST_GET_CHILDREN(ast, left, right);
-  *out_left = eval_condition(left, release, error);
-  *out_right = eval_condition(right, release, error);
+  size_t actual_count = ast_childcount(positional);
+
+  if(actual_count != expected_count)
+  {
+    ast_error(positional, "Invalid arguments");
+    *error = true;
+    return false;
+  }
+
+  if(actual_count == 0)
+    return false;
+
+  return eval_condition(ast_child(positional), release, error);
+}
+
+
+// Evaluate the given condition call
+static bool eval_call(ast_t* ast, bool release, bool* error)
+{
+  assert(ast != NULL);
+  assert(error != NULL);
+
+  AST_GET_CHILDREN(ast, lhs, positional, named);
+  assert(lhs != NULL);
+  assert(positional != NULL);
+  assert(named != NULL);
+
+  if(ast_id(lhs) != TK_DOT || ast_id(named) != TK_NONE)
+  {
+    ast_error(ast, "Invalid use guard expression");
+    *error = true;
+    return false;
+  }
+
+  AST_GET_CHILDREN(lhs, left, call_id);
+
+  bool left_val = eval_condition(left, release, error);
+
+  if(*error)
+    return false;
+
+  const char* call_name = ast_name(call_id);
+
+  if(strcmp(call_name, "and_") == 0)
+    return left_val & eval_call_arg(1, positional, release, error);
+
+  if(strcmp(call_name, "or_") == 0)
+    return left_val | eval_call_arg(1, positional, release, error);
+
+  if(strcmp(call_name, "xor_") == 0)
+    return left_val ^ eval_call_arg(1, positional, release, error);
+
+  if(strcmp(call_name, "not_") == 0)
+    return !eval_call_arg(0, positional, release, error);
+
+  ast_error(ast, "Invalid use guard expression");
+  *error = true;
+  return false;
 }
 
 
@@ -93,45 +148,41 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
   assert(ast != NULL);
   assert(error != NULL);
 
-  bool left, right;
-
   switch(ast_id(ast))
   {
-  case TK_AND:
-    eval_binary(ast, &left, &right, release, error);
-    return left & right;
+    case TK_CALL:
+      return eval_call(ast, release, error);
 
-  case TK_OR:
-    eval_binary(ast, &left, &right, release, error);
-    return left | right;
+    case TK_TUPLE:
+      return eval_condition(ast_child(ast), release, error);
 
-  case TK_XOR:
-    eval_binary(ast, &left, &right, release, error);
-    return left ^ right;
+    case TK_SEQ:
+      if(ast_childidx(ast, 1) != NULL)
+      {
+        ast_error(ast, "Sequence not allowed in use guard expression");
+        *error = true;
+        return false;
+      }
 
-  case TK_NOT:
-    return !eval_condition(ast_child(ast), release, error);
+      return eval_condition(ast_child(ast), release, error);
 
-  case TK_TUPLE:
-    return eval_condition(ast_child(ast), release, error);
+    case TK_REFERENCE:
+      {
+        const char* name = ast_name(ast_child(ast));
+        bool result;
+        if(os_is_target(name, release, &result))
+          return result;
 
-  case TK_REFERENCE:
-    {
-      const char* name = ast_name(ast_child(ast));
-      bool result;
-      if(os_is_target(name, release, &result))
-        return result;
+        ast_error(ast, "\"%s\" is not a valid use condition value\n", name);
+        *error = true;
+        return false;
+      }
+      return true;
 
-      ast_error(ast, "\"%s\" is not a valid use condition value\n", name);
+    default:
+      ast_error(ast, "Invalid use guard expression");
       *error = true;
       return false;
-    }
-    return true;
-
-  default:
-    ast_error(ast, "Invalid use guard expression");
-    *error = true;
-    return false;
   }
 }
 
