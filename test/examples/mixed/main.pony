@@ -37,7 +37,7 @@ actor Worker
         factors.append(d)
         n = n / d
       else
-        d = if d == 2 then U64(3) else (d + 2) end
+        d = if d == 2 then 3 else (d + 2) end
       end
     end
 
@@ -107,10 +107,10 @@ actor Ring
     next
 
 actor Main
-  var _size: U32 = U32(50)
-  var _count: U32 = U32(20)
-  var _pass: U32 = U32(10000)
-  var _repetitions: U32 = U32(5)
+  var _size: U32 = 50
+  var _count: U32 = 20
+  var _pass: U32 = 10000
+  var _repetitions: U32 = 5
   var _env: Env
 
   new create(env: Env) =>
@@ -124,7 +124,7 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    var i: U64 = U64(1)
+    var i: U64 = 1
 
     while i < _env.args.length() do
       var arg = _env.args(i)
