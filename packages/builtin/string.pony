@@ -131,10 +131,11 @@ class String val is Ordered[String], Hashable[String], Stringable
     _ptr._update(i, char)
 
   fun box lower(): String iso^ =>
-    var len = _size
+    let len = _size
     var str = recover String._reserve(len) end
+    var i: U64 = 0
 
-    for i in Range[U64](0, _size) do
+    while i < len do
       var c = _ptr._apply(i)
 
       if (c >= 0x41) and (c <= 0x5A) then
@@ -142,15 +143,17 @@ class String val is Ordered[String], Hashable[String], Stringable
       end
 
       str._set(i, c)
+      i = i + 1
     end
 
     consume str
 
   fun box upper(): String iso^ =>
-    var len = _size
+    let len = _size
     var str = recover String._reserve(len) end
+    var i: U64 = 0
 
-    for i in Range[U64](0, _size) do
+    while i < len do
       var c = _ptr._apply(i)
 
       if (c >= 0x61) and (c <= 0x7A) then
@@ -158,17 +161,20 @@ class String val is Ordered[String], Hashable[String], Stringable
       end
 
       str._set(i, c)
+      i = i + 1
     end
 
     consume str
 
   fun box reverse(): String iso^ =>
-    var len = _size
+    let len = _size
     var str = recover String._reserve(len) end
+    var i: U64 = 0
 
-    for i in Range[U64](0, _size) do
+    while i < len do
       var c = _ptr._apply(i)
       str._set(_size - i - 1, c)
+      i = i + 1
     end
 
     consume str
@@ -188,17 +194,19 @@ class String val is Ordered[String], Hashable[String], Stringable
 
   // The range is inclusive.
   fun box substring(from: I64, to: I64): String iso^ =>
-    var start = offset_to_index(from)
-    var finish = offset_to_index(to).min(_size)
+    let start = offset_to_index(from)
+    let finish = offset_to_index(to).min(_size)
     var str: String iso
 
     if (start < _size) and (start < finish) then
-      var len = (finish - start) + 1
+      let len = (finish - start) + 1
       str = recover String._reserve(len) end
+      var i = start
 
-      for i in Range[U64](start, finish + 1) do
+      while i <= finish do
         var c = _ptr._apply(i)
         str._set(i - start, c)
+        i = i + 1
       end
     else
       str = recover String end
@@ -208,22 +216,27 @@ class String val is Ordered[String], Hashable[String], Stringable
 
   //The range is inclusive.
   fun box cut(from: I64, to: I64): String iso^ =>
-    var start = offset_to_index(from)
-    var finish = offset_to_index(to).min(_size)
+    let start = offset_to_index(from)
+    let finish = offset_to_index(to).min(_size)
     var str: String iso
 
     if (start < _size) and (start < finish) and (finish < _size) then
-      var len = _size - ((finish - start) + 1)
+      let len = _size - ((finish - start) + 1)
       str = recover String._reserve(len) end
+      var i: U64 = 0
 
-      for i in Range[U64](0, start) do
+      while i < start do
         var c = _ptr._apply(i)
         str._set(i, c)
+        i = i + 1
       end
 
-      for j in Range[U64](finish + 1, _size) do
+      var j = finish + 1
+
+      while j < _size do
         var c = _ptr._apply(j)
         str._set(start + (j - (finish + 1)), c)
+        j = j + 1
       end
     else
       str = recover String end
@@ -233,14 +246,16 @@ class String val is Ordered[String], Hashable[String], Stringable
 
   //The range is inclusive.
   fun ref cut_in_place(from: I64, to: I64): String ref =>
-    var start = offset_to_index(from)
-    var finish = offset_to_index(to)
+    let start = offset_to_index(from)
+    let finish = offset_to_index(to)
 
     if(start < _size) and (start < finish) and (finish < _size) then
-      var len = _size - ((finish - start) + 1)
+      let len = _size - ((finish - start) + 1)
+      var j = finish + 1
 
-      for j in Range[U64](finish + 1, _size) do
+      while j < _size do
         _ptr._update(start + (j - (finish + 1)), _ptr._apply(j))
+        j = j + 1
       end
 
       _size = len
@@ -250,8 +265,8 @@ class String val is Ordered[String], Hashable[String], Stringable
     this
 
   fun box add(that: String box): String =>
-    var len = _size + that._size
-    var ptr = _ptr._concat(_size, that._ptr, that._size + 1)
+    let len = _size + that._size
+    let ptr = _ptr._concat(_size, that._ptr, that._size + 1)
 
     recover
       var str = String._empty()
@@ -266,7 +281,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     var j: U64 = 0
     var k: U64 = 0
 
-    while(i > 0) do
+    while i > 0 do
       if _ptr._apply(j) != that._ptr._apply(k) then
         return _ptr._apply(j).i32() - that._ptr._apply(k).i32()
       end
@@ -281,10 +296,13 @@ class String val is Ordered[String], Hashable[String], Stringable
 
   fun box eq(that: String box): Bool =>
     if _size == that._size then
-      for i in Range[U64](0, _size) do
+      var i: U64 = 0
+
+      while i < _size do
         if _ptr._apply(i) != that._ptr._apply(i) then
           return false
         end
+        i = i + 1
       end
       true
     else
@@ -292,24 +310,31 @@ class String val is Ordered[String], Hashable[String], Stringable
     end
 
   fun box lt(that: String box): Bool =>
-    var len = _size.min(that._size)
-    for i in Range[U64](0, len) do
+    let len = _size.min(that._size)
+    var i: U64 = 0
+
+    while i < len do
       if _ptr._apply(i) < that._ptr._apply(i) then
         return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
         return false
       end
+      i = i + 1
     end
+
     _size < that._size
 
   fun box le(that: String box): Bool =>
-    var len = _size.min(that._size)
-    for i in Range[U64](0, len) do
+    let len = _size.min(that._size)
+    var i: U64 = 0
+
+    while i < len do
       if _ptr._apply(i) < that._ptr._apply(i) then
         return true
       elseif _ptr._apply(i) > that._ptr._apply(i) then
         return false
       end
+      i = i + 1
     end
     _size <= that._size
 

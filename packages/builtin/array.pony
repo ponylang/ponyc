@@ -13,8 +13,11 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
-    for i in Range[U64](0, len) do
+    var i: U64 = 0
+
+    while i < len do
       _ptr._update(i, with)
+      i = i + 1
     end
 
   new from_carray(ptr: Pointer[A] ref, len: U64) =>

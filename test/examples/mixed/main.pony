@@ -96,7 +96,7 @@ actor Ring
   fun ref spawn_ring() : Ring =>
     var next: Ring = this
 
-    for i in Range[U32](0, (_size - 1)) do
+    for i in Range[U32](0, _size - 1) do
       next = Ring.neighbor(next)
     end
 

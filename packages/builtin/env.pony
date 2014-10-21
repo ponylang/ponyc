@@ -7,14 +7,16 @@ class Env val
 
     args = recover
       var array = Array[String]
+      var i: U64 = 0
 
-      for i in Range[U64](0, argc) do
+      while i < argc do
         array.append(
           recover
             String.from_cstring(
               argv._update(i, recover Pointer[U8]._null() end))
           end
           )
+        i = i + 1
       end
 
       consume array

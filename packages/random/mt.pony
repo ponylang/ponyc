@@ -10,10 +10,12 @@ class MT is Random
 
     try
       _state(0) = x
+      var i: U64 = 1
 
-      for i in Range[U64](1, _n()) do
+      while i < _n() do
         x = ((x xor (x >> 62)) * 6364136223846793005) + i
         _state(i) = x
+        i = i + 1
       end
     end
 
@@ -35,22 +37,27 @@ class MT is Random
     try
       _index = 0
       var x = _state(0)
+      var i: U64 = 0
 
-      for i in Range[U64](0, _m()) do
+      while i < _m() do
         x = _lower(i, x)
+        i = i + 1
       end
 
       x = _state(_m())
+      i = _m()
 
-      for i in Range[U64](_m(), _n() - 1) do
+      while i < _n1() do
         x = _upper(i, x)
+        i = i + 1
       end
 
-      _upper(_n() - 1, _state(_n() - 1))
+      _upper(_n1(), _state(_n1()))
     end
 
   fun tag _n(): U64 => 312
   fun tag _m(): U64 => 156
+  fun tag _n1(): U64 => _n() - 1
 
   fun tag _mask(x: U64, y: U64): U64 =>
     (x and 0xffffffff80000000) or (y and 0x000000007fffffff)
