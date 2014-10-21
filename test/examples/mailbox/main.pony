@@ -29,21 +29,21 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    var i = 1
+    var i: U64 = 1
 
     while i < _env.args.length() do
       var arg = _env.args(i)
+      var value = _env.args(i + 1)
+      i = i + 2
 
       match arg
       | "--size" =>
-        _size = _env.args(i + 1).u32()
+        _size = value.u32()
       | "--pass" =>
-        _pass = _env.args(i + 1).u32()
+        _pass = value.u32()
       else
         error
       end
-
-      i = i + 1
     end
 
   fun ref usage() =>

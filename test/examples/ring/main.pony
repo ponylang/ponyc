@@ -41,7 +41,7 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    var i = 1
+    var i: U64 = 1
 
     while i < _env.args.length() do
       // Every option has an argument.
