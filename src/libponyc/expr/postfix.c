@@ -445,10 +445,7 @@ bool expr_call(ast_t* ast)
         }
 
         if(!coerce_literals(arg, p_type, NULL))
-        {
-          ast_error(arg, "can't determine a type for this number");
           return false;
-        }
 
         ast_t* a_type = alias(ast_type(arg));
         send &= sendable(a_type);
@@ -583,6 +580,10 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   while((arg != NULL) && (param != NULL) && ast_id(param) != TK_ELLIPSIS)
   {
     ast_t* p_type = ast_childidx(param, 1);
+
+    if(!coerce_literals(arg, p_type, NULL))
+      return false;
+
     ast_t* a_type = ast_type(arg);
 
     if(!is_subtype(a_type, p_type))
@@ -605,6 +606,15 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   {
     ast_error(named_args, "too few arguments");
     return false;
+  }
+
+  for(; arg != NULL; arg = ast_sibling(arg))
+  {
+    if(is_type_literal(ast_type(arg)))
+    {
+      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
+      return false;
+    }
   }
 
   // Check return types
@@ -633,6 +643,15 @@ bool expr_ffi(ast_t* ast)
     return expr_declared_ffi(ast, decl);
 
   // We do not have a declaration
+  for(ast_t* arg = ast_child(args); arg != NULL; arg = ast_sibling(arg))
+  {
+    if(is_type_literal(ast_type(arg)))
+    {
+      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
+      return false;
+    }
+  }
+
   ast_t* return_type = ast_child(return_typeargs);
 
   if(return_type == NULL)

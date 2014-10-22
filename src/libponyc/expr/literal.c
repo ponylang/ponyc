@@ -767,7 +767,7 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
 
   if(target_type == NULL)
   {
-    // We're doing local and type inference together
+    // We're doing local and literal type inference together
     // TODO(andy): Maybe a better error message?
     ast_error(ast, "cannot determine type of literal (7)");
     return false;

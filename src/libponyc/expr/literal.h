@@ -20,7 +20,8 @@ bool is_type_literal(ast_t* type);
 /// Coerce the given AST to be of the given target type, if it is a literal.
 /// @param out_type_changed Report whether the type of ast has been changed.
 ///   May be NULL.
-/// @return True on success, false on error
+/// @return True on success, false on error. If false is returned an error will
+///   already have been reported.
 bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed);
 
 
