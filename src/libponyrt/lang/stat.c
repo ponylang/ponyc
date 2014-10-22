@@ -54,7 +54,7 @@ void os_stat(const char* path, pony_stat_t* p)
 #endif
 
   p->mode = st.st_mode & 0777;
-  p->hard_links = st.st_nlink;
+  p->hard_links = (uint32_t)st.st_nlink;
   p->uid = st.st_uid;
   p->gid = st.st_gid;
   p->size = st.st_size;
