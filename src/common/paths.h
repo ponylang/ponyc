@@ -6,6 +6,8 @@
  */
 #ifdef PLATFORM_IS_WINDOWS
 #  include <io.h>
+#  include <sys/types.h> 
+#  include <sys/stat.h>
 typedef struct PONY_DIR { HANDLE ptr; WIN32_FIND_DATA info; } PONY_DIR;
 #  define PONY_DIRINFO WIN32_FIND_DATA
 #  define PONY_IO_PATH_TOO_LONG UINT32_MAX
