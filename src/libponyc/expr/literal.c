@@ -875,7 +875,7 @@ static bool combine_arg_types(int fn_index, ast_t* ast, ast_t* left,
     if(!coerce_literals(left, right_type, NULL))
       return false;
 
-    ast_settype(ast, left_type);
+    ast_settype(ast, ast_type(left));
     return true;
   }
 
@@ -918,6 +918,7 @@ bool coerce_literal_operator(ast_t* ast)
   if(left_type == NULL || ast_id(left_type) != TK_OPERATORLITERAL)
     return true; // Not a literal operator
 
+  assert(ast_id(lhs) == TK_DOT);
   AST_GET_CHILDREN(lhs, left, call_id);
   assert(call_id != NULL);
   assert(ast_id(call_id) == TK_ID);
@@ -955,7 +956,8 @@ bool coerce_literal_operator(ast_t* ast)
     }
   }
 
-  return true;
+  // Need to reprocess TK_DOT to lookup functions
+  return pass_expr(&lhs, NULL) == AST_OK;
 }
 
 
