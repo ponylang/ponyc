@@ -7,6 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+bool is_result_needed(ast_t* ast);
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options);
 
 PONY_EXTERN_C_END
