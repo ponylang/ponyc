@@ -64,13 +64,16 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
     end
 
   fun box _search(key: Key): (U64, (this->Value | _MapEmpty | _MapDeleted)) =>
+    let len: U64 = _array.length()
     var index_del = _array.length()
     var mask = index_del - 1
     var h = key.hash()
     var index = h and mask
 
     try
-      for i in Range[U64](0, index_del) do
+      var i: U64 = 0
+
+      while i < len do
         var entry = _array(i)
 
         match entry
@@ -91,6 +94,7 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
         end
 
         index = (h + ((i + (i * i)) >> 1)) and mask;
+        i = i + 1
       end
     end
 
@@ -98,17 +102,22 @@ class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
 
   fun ref _resize() =>
     var _old = _array
+    let old_len = _old.length()
+
     _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)]
-      .init(_MapEmpty, _old.length() << 2)
+      .init(_MapEmpty, old_len << 2)
     _count = 0
 
     try
-      for i in Range[U64](0, _old.length()) do
+      var i: U64 = 0
+      while i < old_len do
         var entry = _old(i)
 
         match entry
         | (var k: Key, var v: Value) =>
           this(k) = v
         end
+
+        i = i + 1
       end
     end

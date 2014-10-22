@@ -221,7 +221,7 @@ actor ContractHost[A, B: Contract[A]]
     var tokens = recover Array[Token iso] end
     tokens.reserve(_contract.participants())
 
-    for i in Range(1, _contract.participants()) do
+    for i in Range(0, _contract.participants()) do
       var t = recover Token end
       _ledger.append((t, None))
       tokens.append(consume t)
