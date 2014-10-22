@@ -337,6 +337,7 @@ ast_t* ast_enclosing_type(ast_t* ast);
 ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
+ast_t* ast_enclosing_ffi_type(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
 ast_t* ast_enclosing_pattern(ast_t* ast);

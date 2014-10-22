@@ -257,5 +257,7 @@ bool expr_recover(ast_t* ast)
   ast_t* type = ast_type(child);
 
   ast_settype(ast, recover_type(type));
+  ast_inheriterror(ast);
+
   return true;
 }

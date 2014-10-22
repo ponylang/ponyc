@@ -277,7 +277,7 @@ DEF(ref);
   TOKEN("name", TK_ID);
   DONE();
 
-// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
+// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN [QUESTION]
 DEF(ffi);
   TOKEN(NULL, TK_AT);
   TOKEN("ffi name", TK_ID);
@@ -286,6 +286,7 @@ DEF(ffi);
   OPT RULE("ffi arguments", positional);
   OPT RULE("ffi arguments", named);
   SKIP(NULL, TK_RPAREN);
+  OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
 // ref | literal | tuple | array | object | ffi
@@ -610,7 +611,7 @@ DEF(use_uri);
   TOKEN(NULL, TK_STRING);
   DONE();
 
-// AT ID typeparams (LPAREN | LPAREN_NEW) [params] RPAREN
+// AT ID typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
 DEF(use_ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFIDECL);
@@ -621,6 +622,7 @@ DEF(use_ffi);
   OPT RULE("ffi parameters", params);
   AST_NODE(TK_NONE);  // Named parameters
   SKIP(NULL, TK_RPAREN);
+  OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
 // ID ASSIGN

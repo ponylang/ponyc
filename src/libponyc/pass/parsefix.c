@@ -488,7 +488,8 @@ static ast_result_t parse_fix_ephemeral(ast_t* ast)
   // TODO(andy): This allows some illegal cases through, eg ephemeral argument
   // of a function within a structural, where that whole structural is a return
   // type of a function
-  if(ast_enclosing_method_type(ast) == NULL)
+  if((ast_enclosing_method_type(ast) == NULL) &&
+    (ast_enclosing_ffi_type(ast) == NULL))
   {
     ast_error(ast,
       "ephemeral types can only appear in function return types");
