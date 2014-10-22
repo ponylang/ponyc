@@ -1,7 +1,7 @@
 #include "postfix.h"
 #include "reference.h"
 #include "literal.h"
-#include "../ast/token.h"
+#include "../pass/expr.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
@@ -9,6 +9,7 @@
 #include "../type/lookup.h"
 #include "../type/alias.h"
 #include "../type/cap.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 static bool expr_packageaccess(ast_t* ast)
@@ -514,18 +515,20 @@ bool expr_call(ast_t* ast)
       {
         case TK_FUNREF:
         {
-          // if args and result are sendable, don't alias the receiver
-          send &= sendable(result);
+          // We can ignore the result type if the result is not used.
+          if(is_result_needed(ast))
+            send &= sendable(result);
 
-          // check receiver cap
+          // Check receiver cap.
           ast_t* receiver = ast_child(left);
 
-          // dig through function qualification
+          // Dig through function qualification.
           if(ast_id(receiver) == TK_FUNREF)
             receiver = ast_child(receiver);
 
           ast_t* r_type = ast_type(receiver);
 
+          // If args and result are sendable, don't alias the receiver.
           if(!send)
             r_type = alias(r_type);
 
@@ -537,6 +540,19 @@ bool expr_call(ast_t* ast)
           {
             ast_error(ast,
               "receiver capability is not a subtype of method capability");
+
+            if(!send)
+            {
+              rcap = cap_for_type(ast_type(receiver));
+
+              if(is_cap_sub_cap(rcap, fcap))
+              {
+                ast_error(ast,
+                  "this would be possible if the arguments and return value "
+                  "were all sendable");
+              }
+            }
+
             return false;
           }
 

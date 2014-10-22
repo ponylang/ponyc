@@ -1,6 +1,6 @@
 actor Main
   new create(env: Env) =>
-    var str = String
+    var str = recover String end
 
     try
       for s in env.args.values() do
@@ -9,4 +9,4 @@ actor Main
       end
     end
 
-    env.stdout.print((str + "!").lower())
+    env.stdout.print(consume str)

@@ -8,6 +8,65 @@
 #include "../expr/match.h"
 #include <assert.h>
 
+bool is_result_needed(ast_t* ast)
+{
+  // If we're not in a sequence, then we need the result.
+  ast_t* seq = ast_parent(ast);
+
+  if(ast_id(seq) != TK_SEQ)
+    return true;
+
+  // If we are not the last element of the sequence, we don't need the result.
+  if(ast_sibling(ast) != NULL)
+    return false;
+
+  ast_t* parent = ast_parent(seq);
+
+  switch(ast_id(parent))
+  {
+    case TK_IF:
+    case TK_WHILE:
+    case TK_MATCH:
+      // Condition needed, body/else needed only if parent needed.
+      if(ast_child(parent) == seq)
+        return true;
+
+      return is_result_needed(parent);
+
+    case TK_REPEAT:
+      // Cond needed, body/else needed only if parent needed.
+      if(ast_childidx(parent, 1) == seq)
+        return true;
+
+      return is_result_needed(parent);
+
+    case TK_CASE:
+      // Pattern, guard needed, body needed only if MATCH needed
+      if(ast_childidx(parent, 2) != seq)
+        return true;
+
+      return is_result_needed(ast_parent(parent));
+
+    case TK_TRY:
+      // Only if parent needed.
+      return is_result_needed(parent);
+
+    case TK_SEQ:
+      // Only if sequence needed.
+      return is_result_needed(seq);
+
+    case TK_NEW:
+    case TK_BE:
+      // Not needed if at the end of constructor or behaviour.
+      return false;
+
+    default: {}
+  }
+
+  // All others needed.
+  return true;
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
