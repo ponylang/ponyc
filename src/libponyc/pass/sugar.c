@@ -174,14 +174,6 @@ static ast_result_t sugar_fun(ast_t* ast)
   ast_t* type = type_sugar(ast, NULL, "None");
   ast_replace(&result, type);
 
-  // Add None at the end of the body, if there is one
-  if(ast_id(body) == TK_SEQ)
-  {
-    ast_t* last = ast_childlast(body);
-    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, ref);
-  }
-
   return AST_OK;
 }
 

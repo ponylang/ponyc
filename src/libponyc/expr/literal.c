@@ -1,6 +1,5 @@
 #include "literal.h"
-#include "../ast/token.h"
-#include "../ds/stringtab.h"
+#include "reference.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
 #include "../type/subtype.h"
@@ -8,6 +7,8 @@
 #include "../type/assemble.h"
 #include "../type/reify.h"
 #include "../type/cap.h"
+#include "../ast/token.h"
+#include "../ds/stringtab.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -195,20 +196,6 @@ bool expr_fun(ast_t* ast)
   ast_t* def = ast_enclosing_type(ast);
   bool is_trait = ast_id(def) == TK_TRAIT;
 
-  // if specified, body type must match return type
-  ast_t* body_type = ast_type(body);
-
-  if(body_type == NULL)
-  {
-    ast_t* last = ast_childlast(body);
-    ast_error(type, "function body always results in an error");
-    ast_error(last, "function body expression is here");
-    return false;
-  }
-
-  if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
-    return true;
-
   // check partial functions
   if(ast_id(can_error) == TK_QUESTION)
   {
@@ -228,7 +215,33 @@ bool expr_fun(ast_t* ast)
     }
   }
 
-  if((ast_id(ast) == TK_FUN) && !is_subtype(body_type, type))
+  // Only examine return types for functions.
+  if(ast_id(ast) != TK_FUN)
+    return true;
+
+  // If the return type is None, add a None at the end of the body.
+  if(is_none(type))
+  {
+    ast_t* last = ast_childlast(body);
+    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
+    ast_append(body, ref);
+    expr_reference(ref);
+    return true;
+  }
+
+  ast_t* body_type = ast_type(body);
+
+  // The last statement is an error, and we've already checked any return
+  // expressions in the method.
+  if(body_type == NULL)
+    return true;
+
+  // If it's a compiler intrinsic, ignore it.
+  if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
+    return true;
+
+  // The body type must match the return type.
+  if(!is_subtype(body_type, type))
   {
     ast_t* last = ast_childlast(body);
     ast_error(type, "function body isn't a subtype of the result type");
@@ -654,7 +667,7 @@ static int best_type(int actual_set, int required_mask)
 
 // Generate the type for the given literal set restricted to the given literal
 // id. Return false on error.
-static bool build_literal_type(literal_set_t* set, int uif_mask, 
+static bool build_literal_type(literal_set_t* set, int uif_mask,
   ast_t* ast, ast_t* target_type)
 {
   assert(set != NULL);
@@ -949,10 +962,10 @@ bool coerce_literal_operator(ast_t* ast)
 void concrete_literal(ast_t* ast)
 {
   assert(ast != NULL);
-  
+
   ast_t* type = ast_type(ast);
   assert(type != NULL);
-  
+
   int mask = get_uif_mask(ast_id(type));
 
   if(mask == 0) // Not a literal

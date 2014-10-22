@@ -271,6 +271,19 @@ bool expr_continue(ast_t* ast)
   return true;
 }
 
+static bool is_method_result(ast_t* body, ast_t* ast)
+{
+  if(ast == body)
+    return true;
+
+  ast_t* parent = ast_parent(ast);
+
+  if((ast_id(parent) == TK_SEQ) && (ast_sibling(ast) != NULL))
+    return false;
+
+  return is_method_result(body, parent);
+}
+
 bool expr_return(ast_t* ast)
 {
   ast_t* body = ast_child(ast);
@@ -301,6 +314,13 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
+  if(is_method_result(ast_childidx(fun, 6), ast))
+  {
+    ast_error(ast,
+      "use return only to exit early from a method, not at the end");
+    return false;
+  }
+
   ast_t* result = ast_childidx(fun, 4);
 
   if(!coerce_literals(body, result, NULL))
@@ -317,12 +337,6 @@ bool expr_return(ast_t* ast)
 
   // Has no type.
   ast_inheriterror(ast);
-
-  // Add an additional type to the function body.
-  ast_t* fun_body = ast_childidx(fun, 6);
-  ast_t* fun_type = ast_type(fun_body);
-  type = type_union(type, fun_type);
-  ast_settype(fun_body, type);
 
   return true;
 }

@@ -181,8 +181,6 @@ __pony_spec_malloc__(void* pony_alloc(size_t size));
  */
 __pony_spec_malloc__(void* pony_realloc(void* p, size_t size));
 
-// TODO: pony_free() for when escape analysis shows a reference doesn't survive
-
 /// Trigger GC next time the current actor is scheduled
 void pony_triggergc();
 
