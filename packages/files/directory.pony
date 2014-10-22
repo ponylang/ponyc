@@ -1,11 +1,13 @@
-class Directory
-  var files: Array[String] val
+class Directory val
+  let path: String
+  let files: Array[String] val
 
-  new create(path: String) ? =>
+  new create(from: String) ? =>
+    path = from
     files = recover
       var list = Array[String]
 
-      @os_opendir[None](path.cstring()) ?
+      @os_opendir[None](from.cstring()) ?
 
       while true do
         var entry = @os_readdir[Pointer[U8] iso^]()
