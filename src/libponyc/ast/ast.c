@@ -494,6 +494,34 @@ ast_t* ast_enclosing_method_body(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_ffi_type(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(token_get_id(ast->t))
+    {
+      case TK_AT:
+      {
+        // only if we are in the ffi return type
+        ast_t* type = ast_childidx(ast, 1);
+
+        if(type == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_enclosing_loop(ast_t* ast)
 {
   ast_t* last = NULL;

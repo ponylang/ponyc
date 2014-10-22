@@ -584,8 +584,10 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   assert(decl != NULL);
   assert(ast_id(decl) == TK_FFIDECL);
 
-  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args);
-  AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params);
+  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args,
+    call_error);
+  AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
+    decl_error);
 
   // Check args vs params
   ast_t* param = ast_child(params);
@@ -641,6 +643,19 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
     return false;
   }
 
+  // Check partiality
+  if((ast_id(decl_error) == TK_NONE) && (ast_id(call_error) != TK_NONE))
+  {
+    ast_error(call_error, "call is partial but the declaration is not");
+    return false;
+  }
+
+  if((ast_id(decl_error) == TK_QUESTION) ||
+    (ast_id(call_error) == TK_QUESTION))
+  {
+    ast_seterror(call);
+  }
+
   ast_settype(call, decl_ret_type);
   return true;
 }
@@ -648,7 +663,7 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
 
 bool expr_ffi(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, name, return_typeargs, args);
+  AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   assert(name != NULL);
 
   ast_t* decl = ast_get(ast, ast_name(name), NULL);
@@ -675,5 +690,9 @@ bool expr_ffi(ast_t* ast)
   }
 
   ast_settype(ast, return_type);
+
+  if(ast_id(question) == TK_QUESTION)
+    ast_seterror(ast);
+
   return true;
 }

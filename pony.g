@@ -17,7 +17,7 @@ use
   ;
 
 use_ffi
-  :  '@' ID type_args '(' params? ')'
+  :  '@' ID type_args '(' params? ')' '?'?
   ;
 
 typealias
@@ -169,7 +169,7 @@ atom
   |  '(' positional ')' // tuple
   |  '[' positional? named? ']' // array
   |  '{' ('is' types)? members '}' // object
-  |  '@' ID type_args? '(' positional? ')' // ffi
+  |  '@' ID type_args? '(' positional? ')' '?'? // ffi
   ;
 
 idseq
