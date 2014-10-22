@@ -4,10 +4,10 @@
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
-static __thread HANDLE opendir_handle;
-static __thread WIN32_FIND_DATA opendir_data;
+static __pony_thread_local HANDLE opendir_handle;
+static __pony_thread_local WIN32_FIND_DATA opendir_data;
 #elif defined(PLATFORM_IS_POSIX_BASED)
-static __thread DIR* opendir_handle;
+static __pony_thread_local DIR* opendir_handle;
 #endif
 
 void os_opendir(const char* path)
@@ -16,7 +16,7 @@ void os_opendir(const char* path)
   size_t path_len = strlen(path);
 
   if(path_len > (MAX_PATH - 3))
-    return NULL;
+    return;
 
   TCHAR win_path[MAX_PATH];
   memcpy(win_path, path, path_len);
@@ -43,11 +43,13 @@ const char* os_readdir()
     return NULL;
 
   size_t len = strlen(opendir_data.cFileName) + 1;
-  char* cstring = pony_alloc(len);
+  char* cstring = (char*)pony_alloc(len);
   memcpy(cstring, opendir_data.cFileName, len);
 
-  opendir_handle = FindNextFile(opendir_handle, &opendir_data);
-  return cstring;
+  if(FindNextFile(opendir_handle, &opendir_data))
+    return cstring;
+
+  return NULL;
 #elif defined(PLATFORM_IS_POSIX_BASED)
   struct dirent entry;
   struct dirent* result;
