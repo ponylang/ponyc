@@ -1,6 +1,7 @@
 #include "literal.h"
 #include "../ast/token.h"
 #include "../ds/stringtab.h"
+#include "../pass/expr.h"
 #include "../pass/names.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
@@ -310,29 +311,35 @@ static void literal_set_print(literal_set_t* set)
 }
 */
 
-bool is_type_literal(ast_t* ast)
+bool is_type_literal(ast_t* type)
 {
-  if(ast == NULL)
+  if(type == NULL)
     return false;
 
-  token_id id = ast_id(ast);
-  return /*(id == TK_NUMBERLITERAL) ||*/ (id == TK_INTLITERAL) ||
-    (id == TK_FLOATLITERAL);
+  token_id id = ast_id(type);
+  return (id == TK_NUMBERLITERAL) || (id == TK_INTLITERAL) ||
+    (id == TK_FLOATLITERAL) || (id == TK_OPERATORLITERAL);
 }
 
 
-static void propogate_coercion(ast_t* ast, ast_t* type)
+static bool propogate_coercion(ast_t* ast, ast_t* type)
 {
   assert(ast != NULL);
   assert(type != NULL);
 
-  if(!is_type_literal(ast_type(ast)))
-    return;
-
-  ast_settype(ast, type);
-
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-    propogate_coercion(p, type);
+    if(!propogate_coercion(p, type))
+      return false;
+
+  // Need to reprocess TK_DOTs to lookup functions
+  // Have to set type before this since if
+  if(ast_id(ast) == TK_DOT)
+    return pass_expr(&ast, NULL) == AST_OK;
+
+  if(is_type_literal(ast_type(ast)))
+    ast_settype(ast, type);
+
+  return true;
 }
 
 
@@ -354,8 +361,8 @@ static int get_uif_mask(token_id id)
 {
   switch(id)
   {
-    //case TK_NUMBERLITERAL: return 0xFFF;
-    case TK_INTLITERAL: return 0xFFF;
+    case TK_NUMBERLITERAL: return 0xFFF;
+    case TK_INTLITERAL: return 0xFFC;
     case TK_FLOATLITERAL: return 0x003;
     default: return 0;
   }
@@ -670,11 +677,11 @@ static bool build_literal_type(literal_set_t* set, int uif_mask,
       // Constraints can be better than the free set, so we need them
       ast_t* type = ast_type(ast);
       assert(type != NULL);
-      assert(ast_id(type) == TK_INTLITERAL || ast_id(type) == TK_FLOATLITERAL);
+      assert(ast_id(type) == TK_NUMBERLITERAL ||
+        ast_id(type) == TK_INTLITERAL || ast_id(type) == TK_FLOATLITERAL);
       assert(ast_childcount(type) == 0);
       ast_add(type, target_type);
-      propogate_coercion(ast, type);
-      return true;
+      return propogate_coercion(ast, type);
     }
   }
 
@@ -686,11 +693,7 @@ static bool build_literal_type(literal_set_t* set, int uif_mask,
   AST_GET_CHILDREN(actual_type, ignore0, ignore1, ignore2, cap, ephemeral);
   assert(cap != NULL);
   ast_setid(cap, TK_VAL);
-  //ast_setid(cap, TK_ISO);
-  //assert(ephemeral != NULL);
-  //ast_setid(ephemeral, TK_HAT);
-  propogate_coercion(ast, actual_type);
-  return true;
+  return propogate_coercion(ast, actual_type);
 }
 
 
@@ -766,7 +769,7 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
   {
     // We're doing local and type inference together
     // TODO(andy): Maybe a better error message?
-    ast_error(ast, "cannot determine type of literal");
+    ast_error(ast, "cannot determine type of literal (7)");
     return false;
   }
 
@@ -778,7 +781,8 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
   bool r = build_literal_type(set, mask, ast, target_type);
 
   if(!r)
-    ast_error(ast, "cannot determine type of literal");
+    ast_error(ast, "cannot coerce %s literal to suitable type",
+      ast_get_print(ast_type(ast)));
 
   if(out_type_changed != NULL)
     *out_type_changed = true;
@@ -788,14 +792,171 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
 }
 
 
-ast_t* concrete_literal(ast_t* type)
+bool coerce_literal_member(ast_t* ast)
 {
+  assert(ast != NULL);
+
+  if(ast_id(ast_parent(ast)) != TK_CALL)
+  {
+    ast_error(ast_child(ast), "cannot determine type of literal (5)");
+    return false;
+  }
+
+  ast_settype(ast, ast_from(ast, TK_OPERATORLITERAL));
+  return true;
+}
+
+
+static struct
+{
+  const char* name;
+  int arg_count;
+  bool is_int_only;
+  bool can_propogate_literal;
+} _operator_fns[] =
+{
+  { "add", 1, false, true },
+  { "sub", 1, false, true },
+  { "mul", 1, false, true },
+  { "div", 1, false, true },
+  { "mod", 1, false, true },
+  { "neg", 0, false, true },
+  { "shl", 1, true, true },
+  { "shr", 1, true, true },
+  { "and_", 1, true, true },
+  { "or_", 1, true, true },
+  { "xor_", 1, true, true },
+  { "not_", 0, true, true },
+  { "eq", 1, false, false },
+  { "ne", 1, false, false },
+  { "lt", 1, false, false },
+  { "le", 1, false, false },
+  { "gt", 1, false, false },
+  { "ge", 1, false, false },
+  { NULL, 0, false, false }  // Terminator
+};
+
+
+// Combine the types of the specified arguments
+static bool combine_arg_types(int fn_index, ast_t* ast, ast_t* left,
+  ast_t* right)
+{
+  assert(ast != NULL);
+  assert(left != NULL);
+
+  ast_t* left_type = ast_type(left);
+
+  if(_operator_fns[fn_index].arg_count == 0)
+  {
+    // Unary operator, result is type of argument
+    ast_settype(ast, left_type);
+    return true;
+  }
+
+  assert(right != NULL);
+  ast_t* right_type = ast_type(right);
+
+  if(!is_type_literal(right_type))
+  {
+    // Rhs is not literal, coerce lhs to type of rhs
+    if(!coerce_literals(left, right_type, NULL))
+      return false;
+
+    ast_settype(ast, left_type);
+    return true;
+  }
+
+  // Lhs and rhs are both literals
+  if(!_operator_fns[fn_index].can_propogate_literal)
+  {
+    ast_error(right, "cannot determine type of literal (4)");
+    return false;
+  }
+
+  token_id left_id = ast_id(left_type);
+  token_id right_id = ast_id(right_type);
+
+  if((left_id == TK_INTLITERAL && right_id == TK_FLOATLITERAL) ||
+    (left_id == TK_FLOATLITERAL && right_id == TK_INTLITERAL))
+  {
+    ast_error(right, "cannot determine type of literal (3)");
+    return false;
+  }
+
+  if(left_id == TK_NUMBERLITERAL)
+    ast_settype(ast, right_type);
+  else
+    ast_settype(ast, left_type);
+
+  return true;
+}
+
+
+bool coerce_literal_operator(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  AST_GET_CHILDREN(ast, lhs, positional, named);
+  assert(lhs != NULL);
+  assert(positional != NULL);
+  assert(named != NULL);
+
+  ast_t* left_type = ast_type(lhs);
+  if(left_type == NULL || ast_id(left_type) != TK_OPERATORLITERAL)
+    return true; // Not a literal operator
+
+  AST_GET_CHILDREN(lhs, left, call_id);
+  assert(call_id != NULL);
+  assert(ast_id(call_id) == TK_ID);
+
+  // Determine which operator this call is (if any)
+  const char* call_name = ast_name(call_id);
+  int fn;
+
+  for(fn = 0; _operator_fns[fn].name != NULL; fn++)
+  {
+    if(strcmp(call_name, _operator_fns[fn].name) == 0)
+      break;
+  }
+
+  if(_operator_fns[fn].name == NULL || // Not an operator function
+    ast_id(named) != TK_NONE || // Named arguments present
+    ast_childcount(positional) != _operator_fns[fn].arg_count) // Bad arg count
+  {
+    ast_error(ast, "cannot determine type of literal (1)");
+    return false;
+  }
+
+  if(!combine_arg_types(fn, ast, left, ast_child(positional)))
+    return false;
+
+  if(_operator_fns[fn].is_int_only)
+  {
+    if(ast_id(ast_type(ast)) == TK_NUMBERLITERAL)
+      ast_settype(ast, ast_from(ast, TK_INTLITERAL));
+
+    if(ast_id(ast_type(ast)) != TK_INTLITERAL)
+    {
+      ast_error(ast, "cannot apply %s to floats", call_name);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+void concrete_literal(ast_t* ast)
+{
+  assert(ast != NULL);
+  
+  ast_t* type = ast_type(ast);
   assert(type != NULL);
   
   int mask = get_uif_mask(ast_id(type));
 
   if(mask == 0) // Not a literal
-    return type;
+    return;
 
   for(int i = 0; _uif_types[i] != NULL; i++)
   {
@@ -808,8 +969,8 @@ ast_t* concrete_literal(ast_t* type)
         ast_t* cap = ast_childidx(uif, 3);
         assert(cap != NULL);
         ast_setid(cap, TK_VAL);
-        ast_add(type, uif); // Ensure uif is eventually freed
-        return uif;
+        ast_settype(ast, uif);
+        return;
       }
 
       ast_free(uif);
@@ -818,5 +979,4 @@ ast_t* concrete_literal(ast_t* type)
   }
 
   assert(0);
-  return NULL;
 }

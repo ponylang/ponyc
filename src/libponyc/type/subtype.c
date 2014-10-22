@@ -373,6 +373,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
       break;
     }
 
+    case TK_NUMBERLITERAL:
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
       // Compare to the constrained type we still carry around

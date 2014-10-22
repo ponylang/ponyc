@@ -187,13 +187,6 @@ static bool expr_memberaccess(ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
-  // TODO:
-  //if(is_type_arith_literal(type))
-  //{
-  //  ast_error(left, "Literal member access");
-  //  return false;
-  //}
-
   assert(ast_id(right) == TK_ID);
 
   ast_t* find = lookup(ast, type, ast_name(right));
@@ -338,6 +331,15 @@ bool expr_dot(ast_t* ast)
 
   ast_t* type = ast_type(left);
 
+  if(type == NULL)
+  {
+    ast_error(ast, "invalid left hand side");
+    return false;
+  }
+
+  if(is_type_literal(type))
+    return coerce_literal_member(ast);
+
   if(ast_id(type) == TK_TUPLETYPE)
     return expr_tupleaccess(ast);
 
@@ -350,10 +352,20 @@ bool expr_call(ast_t* ast)
   ast_t* type = ast_type(left);
   token_id token = ast_id(left);
 
+  if(!coerce_literal_operator(ast))
+    return false;
+
+  if(ast_type(ast) != NULL) // Type already set by literal handler
+    return true;
+
+  if(type != NULL && is_type_literal(type))
+  {
+    ast_error(ast, "Cannot call a literal");
+    return false;
+  }
+
   switch(token)
   {
-    case TK_INT:
-    case TK_FLOAT:
     case TK_STRING:
     case TK_ARRAY:
     case TK_OBJECT:

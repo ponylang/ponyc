@@ -90,6 +90,7 @@ ast_t* alias(ast_t* type)
     case TK_TYPEPARAMREF:
       return alias_for_type(type, 1);
 
+    case TK_NUMBERLITERAL:
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
       return ast_dup(type);

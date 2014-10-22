@@ -148,8 +148,11 @@ typedef enum token_id
   TK_STRUCTURAL,
   TK_THISTYPE,
   TK_FUNTYPE,
-  TK_INTLITERAL,
-  TK_FLOATLITERAL,
+
+  TK_NUMBERLITERAL, // A literal that could be any Number
+  TK_INTLITERAL, // A literal that could be any Signed or Unsigned
+  TK_FLOATLITERAL,  // A literal that could be any Float
+  TK_OPERATORLITERAL, // Operator function access to a literal
 
   TK_TYPEPARAMS,
   TK_TYPEPARAM,

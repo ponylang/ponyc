@@ -391,6 +391,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
           return true;
         }
 
+        case TK_NUMBERLITERAL:
         case TK_INTLITERAL:
         case TK_FLOATLITERAL:
           return true;
