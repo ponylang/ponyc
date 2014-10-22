@@ -151,7 +151,7 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   // start the post block so that a break can modify the phi node
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi;
+  LLVMValueRef phi = NULL;
 
   if(needed)
     phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
