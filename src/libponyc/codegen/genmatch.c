@@ -591,8 +591,16 @@ static bool static_value(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_subtype(type, param_type))
   {
     // We should have an object_ptr. Anything else should have been rejected
-    // by the type checker.
-    assert(LLVMTypeOf(value) == c->object_ptr);
+    // by the type checker. If we don't, it's a reified generic that could have
+    // matched in the type checker, but not now.
+    if(LLVMTypeOf(value) != c->object_ptr)
+    {
+      LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+      LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
+      LLVMBuildCondBr(c->builder, zero, continue_block, next_block);
+      LLVMPositionBuilderAtEnd(c->builder, continue_block);
+      return true;
+    }
 
     // Switch to dynamic value checking.
     LLVMValueRef desc = gendesc_fetch(c, value);
@@ -611,8 +619,16 @@ static bool static_capture(compile_t* c, LLVMValueRef value, ast_t* type,
   if(!is_subtype(type, pattern_type))
   {
     // We should have an object_ptr. Anything else should have been rejected
-    // by the type checker.
-    assert(LLVMTypeOf(value) == c->object_ptr);
+    // by the type checker. If we don't, it's a reified generic that could have
+    // matched in the type checker, but not now.
+    if(LLVMTypeOf(value) != c->object_ptr)
+    {
+      LLVMBasicBlockRef continue_block = codegen_block(c, "pattern_continue");
+      LLVMValueRef zero = LLVMConstInt(c->i1, 0, false);
+      LLVMBuildCondBr(c->builder, zero, continue_block, next_block);
+      LLVMPositionBuilderAtEnd(c->builder, continue_block);
+      return true;
+    }
 
     // Switch to dynamic capture.
     LLVMValueRef desc = gendesc_fetch(c, value);
