@@ -429,14 +429,7 @@ bool expr_call(ast_t* ast)
 
       while((arg != NULL) && (param != NULL))
       {
-        // param can be a type or an actual param
-        ast_t* p_type;
-
-        if(ast_id(param) == TK_PARAM)
-          p_type = ast_childidx(param, 1);
-        else
-          p_type = param;
-
+        ast_t* p_type = ast_childidx(param, 1);
         ast_t* arg_type = ast_type(arg);
 
         if(arg_type == NULL)
@@ -489,12 +482,9 @@ bool expr_call(ast_t* ast)
       // pick up default args
       while(param != NULL)
       {
-        if(ast_id(param) == TK_PARAM)
-          arg = ast_childidx(param, 2);
-        else
-          arg = NULL;
+        arg = ast_childidx(param, 2);
 
-        if((arg == NULL) || (ast_id(arg) == TK_NONE))
+        if(ast_id(arg) == TK_NONE)
         {
           ast_error(ast, "not enough arguments");
           return false;

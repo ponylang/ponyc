@@ -32,11 +32,7 @@ static ast_t* eq_param_type(ast_t* pattern)
     ignore_result, ignore_partial);
 
   ast_t* param = ast_child(params);
-
-  if(ast_id(param) == TK_PARAM)
-    return ast_childidx(param, 1);
-
-  return param;
+  return ast_childidx(param, 1);
 }
 
 static LLVMValueRef pointer_to_fields(compile_t* c, LLVMValueRef object)

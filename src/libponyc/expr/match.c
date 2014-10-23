@@ -259,13 +259,7 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
 
         ok = false;
       } else {
-        ast_t* param_type;
-
-        if(ast_id(param) == TK_PARAM)
-          param_type = ast_childidx(param, 1);
-        else
-          param_type = param;
-
+        ast_t* param_type = ast_childidx(param, 1);
         ast_t* a_type = alias(match_type);
         bool sub_ok = could_subtype(a_type, param_type);
         ast_free_unattached(a_type);
