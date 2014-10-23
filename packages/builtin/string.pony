@@ -130,6 +130,19 @@ class String val is Ordered[String], Hashable[String], Stringable
   fun ref _set(i: U64, char: U8): U8 =>
     _ptr._update(i, char)
 
+  fun box copy(): String iso^ =>
+    let len = _size
+    var str = recover String._reserve(len) end
+    var i: U64 = 0
+
+    while i < len do
+      var c = _ptr._apply(i)
+      str._set(i, c)
+      i = i + 1
+    end
+
+    consume str
+
   fun box lower(): String iso^ =>
     let len = _size
     var str = recover String._reserve(len) end
