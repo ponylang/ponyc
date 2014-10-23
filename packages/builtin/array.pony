@@ -20,6 +20,12 @@ class Array[A]
       i = i + 1
     end
 
+  //Put this in once we have codegen for polymorphic methods.
+  //new undefined[B: (A & Real[B] & Number)](len: U64) =>
+  //  _size = len
+  //  _alloc = len
+  //  _ptr = Pointer[A]._create(len)
+
   new from_carray(ptr: Pointer[A] ref, len: U64) =>
     _size = len
     _alloc = len
