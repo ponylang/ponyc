@@ -46,10 +46,6 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
       names_applycap_index(ast, cap, ephemeral, 3);
       return true;
 
-    case TK_STRUCTURAL:
-      names_applycap_index(ast, cap, ephemeral, 1);
-      return true;
-
     case TK_ARROW:
       return names_applycap(ast_childidx(ast, 1), cap, ephemeral);
 
@@ -239,6 +235,7 @@ bool names_nominal(ast_t* scope, ast_t** astp)
     case TK_TYPEPARAM:
       return names_typeparam(astp, def);
 
+    case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
     case TK_CLASS:

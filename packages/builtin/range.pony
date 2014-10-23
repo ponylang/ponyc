@@ -19,6 +19,6 @@ class Range[A: (Real[A] & Number) = U64] is Iterator[A]
 
   fun box has_next(): Bool => _idx < _max
 
-  fun ref next(): A^ => if _idx < _max then _idx = _idx + _inc else _idx end
+  fun ref next(): A => if _idx < _max then _idx = _idx + _inc else _idx end
 
   fun ref rewind() => _idx = _min

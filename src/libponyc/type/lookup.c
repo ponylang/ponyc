@@ -76,27 +76,6 @@ static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
   return find;
 }
 
-static ast_t* lookup_structural(ast_t* from, ast_t* type, const char* name,
-  bool errors)
-{
-  assert(ast_id(type) == TK_STRUCTURAL);
-
-  ast_t* find = ast_get(type, name, NULL);
-
-  if(name[0] == '_')
-  {
-    if(errors)
-      ast_error(from, "can't lookup a private name on a structural type");
-
-    return NULL;
-  }
-
-  if((find == NULL) && errors)
-    ast_error(from, "couldn't find '%s'", name);
-
-  return find;
-}
-
 static ast_t* lookup_typeparam(ast_t* from, ast_t* orig, ast_t* type,
   const char* name, bool errors)
 {
@@ -140,9 +119,6 @@ static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
 
     case TK_NOMINAL:
       return lookup_nominal(from, orig, type, name, errors);
-
-    case TK_STRUCTURAL:
-      return lookup_structural(from, type, name, errors);
 
     case TK_ARROW:
       return lookup_base(from, orig, ast_childidx(type, 1), name, errors);

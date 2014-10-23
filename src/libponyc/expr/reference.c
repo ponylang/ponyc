@@ -240,6 +240,7 @@ bool expr_reference(ast_t* ast)
       return true;
     }
 
+    case TK_INTERFACE:
     case TK_TRAIT:
     {
       ast_error(ast, "can't use a trait in an expression");

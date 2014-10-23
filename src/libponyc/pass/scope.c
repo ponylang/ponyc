@@ -45,6 +45,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
       break;
 
     case TK_TYPE:
+    case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
     case TK_CLASS:
@@ -148,25 +149,12 @@ static bool scope_method(ast_t* ast, bool dups)
   {
     case TK_PRIMITIVE:
     case TK_TRAIT:
+    case TK_INTERFACE:
       return true;
 
     case TK_CLASS:
     case TK_ACTOR:
       break;
-
-    case TK_STRUCTURAL:
-    {
-      // Disallow private members in structural types.
-      const char* name = ast_name(id);
-
-      if(name[0] == '_')
-      {
-        ast_error(id, "private method can't appear in structural types");
-        return false;
-      }
-
-      return true;
-    }
 
     default:
       assert(0);
@@ -240,6 +228,7 @@ static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
       break;
 
     case TK_TYPE:
+    case TK_INTERFACE:
     case TK_TRAIT:
     case TK_PRIMITIVE:
     case TK_CLASS:

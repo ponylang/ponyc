@@ -86,7 +86,6 @@ ast_t* alias(ast_t* type)
     case TK_NOMINAL:
       return alias_for_type(type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return alias_for_type(type, 1);
 
@@ -143,7 +142,6 @@ ast_t* consume_type(ast_t* type)
       return type;
     }
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
     {
       type = ast_dup(type);
@@ -195,7 +193,6 @@ ast_t* recover_type(ast_t* type)
     case TK_NOMINAL:
       return recover_for_type(type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return recover_for_type(type, 1);
 
@@ -242,7 +239,6 @@ ast_t* send_type(ast_t* type)
     case TK_NOMINAL:
       return send_for_type(type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return send_for_type(type, 1);
 
@@ -292,7 +288,6 @@ bool sendable(ast_t* type)
       return true;
 
     case TK_NOMINAL:
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
     case TK_ARROW:
       return cap_sendable(cap_for_type(type));

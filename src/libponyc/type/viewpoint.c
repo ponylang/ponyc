@@ -24,7 +24,6 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
     }
 
     case TK_NOMINAL:
-    case TK_STRUCTURAL:
     {
       token_id cap = cap_for_type(right);
 
@@ -139,7 +138,6 @@ static ast_t* viewpoint_cap(token_id cap, ast_t* type)
     case TK_NOMINAL:
       return viewpoint_for_type(cap, type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return viewpoint_for_type(cap, type, 1);
 
@@ -263,7 +261,6 @@ ast_t* viewpoint_lower(ast_t* type)
     case TK_NOMINAL:
       return viewpoint_lower_for_type(type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return viewpoint_lower_for_type(type, 1);
 
@@ -304,7 +301,6 @@ ast_t* viewpoint_tag(ast_t* type)
     case TK_NOMINAL:
       return viewpoint_tag_for_type(type, 3);
 
-    case TK_STRUCTURAL:
     case TK_TYPEPARAMREF:
       return viewpoint_tag_for_type(type, 1);
 
@@ -397,7 +393,6 @@ bool safe_to_write(ast_t* ast, ast_t* type)
           return true;
 
         case TK_NOMINAL:
-        case TK_STRUCTURAL:
         case TK_TYPEPARAMREF:
         case TK_ARROW:
         {

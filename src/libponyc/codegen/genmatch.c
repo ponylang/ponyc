@@ -97,6 +97,7 @@ static bool check_nominal(compile_t* c, LLVMValueRef desc, ast_t* pattern_type,
 
   switch(ast_id(def))
   {
+    case TK_INTERFACE:
     case TK_TRAIT:
       return check_trait(c, desc, pattern_type, next_block);
 
@@ -243,13 +244,6 @@ static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     case TK_NOMINAL:
       // We are trying to capture the match expression as a nominal.
       return check_nominal(c, desc, pattern_type, next_block);
-
-    case TK_STRUCTURAL:
-      // Currently, structural types that aren't supertypes aren't allowed in
-      // patterns, because we don't have a scheme for checking structural typing
-      // at runtime, so this will never be reached.
-      ast_error(pattern_type, "unexpected structural type in pattern");
-      return false;
 
     case TK_TUPLETYPE:
       // We are trying to capture the match expression as a tuple.

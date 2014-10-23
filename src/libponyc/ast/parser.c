@@ -92,57 +92,6 @@ DEF(typeargs);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// BE [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN
-DEF(betype);
-  TOKEN(NULL, TK_BE);
-  SCOPE();
-  AST_NODE(TK_NONE);  // Capability
-  OPT TOKEN("name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", types);
-  SKIP(NULL, TK_RPAREN);
-  AST_NODE(TK_NONE);  // Return type
-  AST_NODE(TK_NONE);  // Partial
-  AST_NODE(TK_NONE);  // =>
-  AST_NODE(TK_NONE);  // Body
-  DONE();
-
-// FUN CAP [ID] [typeparams] (LPAREN | LPAREN_NEW) [types] RPAREN [COLON type]
-// [QUESTION]
-DEF(funtype);
-  TOKEN(NULL, TK_FUN);
-  SCOPE();
-  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN("name", TK_ID);
-  OPT RULE("type parameters", typeparams);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  OPT RULE("parameters", types);
-  SKIP(NULL, TK_RPAREN);
-  IF(TK_COLON, RULE("return type", type));
-  OPT TOKEN(NULL, TK_QUESTION);
-  AST_NODE(TK_NONE);  // =>
-  AST_NODE(TK_NONE);  // Body
-  DONE();
-
-// {betype} {funtype}
-DEF(funs);
-  AST_NODE(TK_MEMBERS);
-  SEQ("behaviour types", betype);
-  SEQ("function types", funtype);
-  DONE();
-
-// LBRACE funs RBRACE [cap] [HAT]
-DEF(structural);
-  AST_NODE(TK_STRUCTURAL);
-  SCOPE();
-  SKIP(NULL, TK_LBRACE);
-  RULE("functions", funs);
-  SKIP(NULL, TK_RBRACE);
-  OPT TOKEN("capabality", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_HAT);
-  DONE();
-
 // ID [DOT ID] [typeargs]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
@@ -200,9 +149,9 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | typeexpr | nominal | structural)
+// (thistype | typeexpr | nominal)
 DEF(atomtype);
-  RULE("type", thistype, typeexpr, nominal, structural);
+  RULE("type", thistype, typeexpr, nominal);
   DONE();
 
 // ARROW type
@@ -587,9 +536,10 @@ DEF(members);
   SEQ("method", method);
   DONE();
 
-// (TRAIT | PRIMITIVE | CLASS | ACTOR) ID [typeparams] [CAP] [IS types] members
+// (INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) ID [typeparams] [CAP]
+// [IS types] members
 DEF(class_def);
-  TOKEN("entity", TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
+  TOKEN("entity", TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   SCOPE();
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);

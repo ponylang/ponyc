@@ -15,8 +15,6 @@ bool is_cap_sub_cap(token_id sub, token_id super);
  */
 token_id cap_for_receiver(ast_t* ast);
 
-token_id cap_for_fun(ast_t* fun);
-
 token_id cap_for_type(ast_t* type);
 
 token_id cap_viewpoint(token_id view, token_id cap);

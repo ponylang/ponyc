@@ -130,7 +130,6 @@ void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
   switch(ast_id(source))
   {
     case TK_NOMINAL: index = 3; break;
-    case TK_STRUCTURAL: index = 1; break;
     case TK_TYPEPARAMREF: index = 1; break;
     default: assert(0); return;
   }
@@ -144,7 +143,6 @@ void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
   switch(ast_id(*target))
   {
     case TK_NOMINAL: index = 3; break;
-    case TK_STRUCTURAL: index = 1; break;
     case TK_TYPEPARAMREF: index = 1; break;
     default: return;
   }
@@ -181,6 +179,9 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, constraint))
     {
+      // TODO: remove this
+      is_subtype(typearg, constraint);
+
       if(report_errors)
       {
         ast_error(typearg, "type argument is outside its constraint");
@@ -198,10 +199,13 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     // the constraint.
     if(!is_subtype(a_typearg, a_constraint))
     {
-      ast_error(typearg,
-        "an alias of the type argument must be a subtype of an alias of the "
-        "constraint");
-      ast_error(typeparam, "constraint is here");
+      if(report_errors)
+      {
+        ast_error(typearg,
+          "an alias of the type argument must be a subtype of an alias of the "
+          "constraint");
+        ast_error(typeparam, "constraint is here");
+      }
 
       ast_free_unattached(a_typearg);
       ast_free_unattached(a_constraint);

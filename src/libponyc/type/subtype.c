@@ -8,50 +8,21 @@
 #include "../expr/literal.h"
 #include <assert.h>
 
-static bool is_throws_sub_throws(ast_t* sub, ast_t* super)
-{
-  assert(
-    (ast_id(sub) == TK_NONE) ||
-    (ast_id(sub) == TK_QUESTION)
-    );
-  assert(
-    (ast_id(super) == TK_NONE) ||
-    (ast_id(super) == TK_QUESTION)
-    );
-
-  switch(ast_id(sub))
-  {
-    case TK_NONE:
-      return true;
-
-    case TK_QUESTION:
-      return ast_id(super) == TK_QUESTION;
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
+static bool is_isect_subtype(ast_t* sub, ast_t* super);
 
 static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
 {
-  int sub_index = ast_id(sub) == TK_NOMINAL ? 4 : 2;
-  int super_index = ast_id(super) == TK_NOMINAL ? 4 : 2;
+  assert(ast_id(sub) == TK_NOMINAL);
+  assert(ast_id(super) == TK_NOMINAL);
 
-  ast_t* sub_ephemeral = ast_childidx(sub, sub_index);
-  ast_t* super_ephemeral = ast_childidx(super, super_index);
+  AST_GET_CHILDREN(sub, sub_pkg, sub_id, sub_typeargs, sub_cap, sub_eph);
+  AST_GET_CHILDREN(super, super_pkg, super_id, super_typeargs, super_cap,
+    super_eph);
 
-  token_id sub_tcap = cap_for_type(sub);
-  token_id super_tcap = cap_for_type(super);
-
-  // ignore ephemerality if it isn't iso/trn and can't be recovered to iso/trn
-  if((ast_id(super_ephemeral) == TK_HAT) &&
-    (super_tcap < TK_VAL) &&
-    (ast_id(sub_ephemeral) != TK_HAT))
+  if((ast_id(super_eph) == TK_HAT) && (ast_id(sub_eph) != TK_HAT))
     return false;
 
-  return is_cap_sub_cap(sub_tcap, super_tcap);
+  return is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap));
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b)
@@ -59,7 +30,7 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   assert(ast_id(a) == TK_NOMINAL);
   assert(ast_id(b) == TK_NOMINAL);
 
-  // check typeargs are the same
+  // Check typeargs are the same.
   ast_t* a_arg = ast_child(ast_childidx(a, 2));
   ast_t* b_arg = ast_child(ast_childidx(b, 2));
 
@@ -72,44 +43,56 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
     b_arg = ast_sibling(b_arg);
   }
 
-  // make sure we had the same number of typeargs
+  // Make sure we had the same number of typeargs.
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
 static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
 {
-  // must be the same type of function
-  // TODO: could relax this
+  // Must be the same type of function.
   if(ast_id(sub) != ast_id(super))
     return false;
 
-  ast_t* sub_params = ast_childidx(sub, 3);
-  ast_t* sub_result = ast_sibling(sub_params);
-  ast_t* sub_throws = ast_sibling(sub_result);
+  AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params,
+    sub_result, sub_throws);
+  AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params,
+    super_result, super_throws);
 
-  ast_t* super_params = ast_childidx(super, 3);
-  ast_t* super_result = ast_sibling(super_params);
-  ast_t* super_throws = ast_sibling(super_result);
-
-  // TODO: reify with our own constraints?
-
-  // contravariant receiver
-  if(!is_cap_sub_cap(cap_for_fun(super), cap_for_fun(sub)))
+  // Must have the same name.
+  if(ast_name(sub_id) != ast_name(super_id))
     return false;
 
-  // contravariant parameters
+  // Contravariant receiver.
+  if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
+    return false;
+
+  // Contravariant type parameter constraints.
+  ast_t* sub_typeparam = ast_child(sub_typeparams);
+  ast_t* super_typeparam = ast_child(super_typeparams);
+
+  while((sub_typeparam != NULL) && (super_typeparam != NULL))
+  {
+    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
+    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
+
+    if(!is_subtype(super_constraint, sub_constraint))
+      return false;
+
+    sub_typeparam = ast_sibling(sub_typeparam);
+    super_typeparam = ast_sibling(super_typeparam);
+  }
+
+  if((sub_typeparam != NULL) || (super_typeparam != NULL))
+    return false;
+
+  // Contravariant parameters.
   ast_t* sub_param = ast_child(sub_params);
   ast_t* super_param = ast_child(super_params);
 
   while((sub_param != NULL) && (super_param != NULL))
   {
-    // extract the type if this is a parameter
-    // otherwise, this is already a type
-    ast_t* sub_type = (ast_id(sub_param) == TK_PARAM) ?
-      ast_childidx(sub_param, 1) : sub_param;
-
-    ast_t* super_type = (ast_id(super_param) == TK_PARAM) ?
-      ast_childidx(super_param, 1) : super_param;
+    ast_t* sub_type = ast_childidx(sub_param, 1);
+    ast_t* super_type = ast_childidx(super_param, 1);
 
     if(!is_subtype(super_type, sub_type))
       return false;
@@ -121,156 +104,77 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
   if((sub_param != NULL) || (super_param != NULL))
     return false;
 
-  // covariant results
+  // Covariant results.
   if(!is_subtype(sub_result, super_result))
     return false;
 
-  // covariant throws
-  if(!is_throws_sub_throws(sub_throws, super_throws))
+  // Covariant throws.
+  if((ast_id(sub_throws) == TK_QUESTION) &&
+    (ast_id(super_throws) != TK_QUESTION))
     return false;
 
   return true;
 }
 
-static bool is_structural_sub_fun(ast_t* sub, ast_t* fun)
+static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
 {
-  // must have some function that is a subtype of fun
-  ast_t* members = ast_child(sub);
-  ast_t* sub_fun = ast_child(members);
-
-  while(sub_fun != NULL)
-  {
-    if(is_fun_sub_fun(sub_fun, fun))
-      return true;
-
-    sub_fun = ast_sibling(sub_fun);
-  }
-
-  return false;
-}
-
-static bool is_structural_sub_structural(ast_t* sub, ast_t* super)
-{
-  // must be a subtype of every function in super
-  ast_t* members = ast_child(super);
-  ast_t* fun = ast_child(members);
-
-  while(fun != NULL)
-  {
-    if(!is_structural_sub_fun(sub, fun))
-      return false;
-
-    fun = ast_sibling(fun);
-  }
-
-  return true;
-}
-
-static bool is_member_sub_fun(ast_t* member, ast_t* typeparams,
-  ast_t* typeargs, ast_t* fun)
-{
-  switch(ast_id(member))
-  {
-    case TK_FVAR:
-    case TK_FLET:
-      return false;
-
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-    {
-      ast_t* r_fun = reify(member, typeparams, typeargs);
-      bool is_sub = is_fun_sub_fun(r_fun, fun);
-      ast_free_unattached(r_fun);
-      return is_sub;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-static bool is_type_sub_fun(ast_t* def, ast_t* typeargs,
-  ast_t* fun)
-{
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-
-  while(member != NULL)
-  {
-    if(is_member_sub_fun(member, typeparams, typeargs, fun))
-      return true;
-
-    member = ast_sibling(member);
-  }
-
-  return false;
-}
-
-static bool is_nominal_sub_structural(ast_t* sub, ast_t* super)
-{
-  assert(ast_id(sub) == TK_NOMINAL);
-  assert(ast_id(super) == TK_STRUCTURAL);
-
-  if(!check_cap_and_ephemeral(sub, super))
-    return false;
-
-  ast_t* def = (ast_t*)ast_data(sub);
-  assert(def != NULL);
-
-  // must be a subtype of every function in super
-  ast_t* typeargs = ast_childidx(sub, 2);
-  ast_t* members = ast_child(super);
-  ast_t* fun = ast_child(members);
-
-  while(fun != NULL)
-  {
-    if(!is_type_sub_fun(def, typeargs, fun))
-      return false;
-
-    fun = ast_sibling(fun);
-  }
-
-  return true;
-}
-
-static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
-{
-  assert(sub != NULL);
-  assert(super != NULL);
-  assert(ast_id(sub) == TK_NOMINAL);
-  assert(ast_id(super) == TK_NOMINAL);
-
-  if(!check_cap_and_ephemeral(sub, super))
-    return false;
-
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* super_def = (ast_t*)ast_data(super);
-  assert(sub_def != NULL);
-  assert(super_def != NULL);
 
-  // if we are the same nominal type, our typeargs must be the same
-  if(sub_def == super_def)
-    return is_eq_typeargs(sub, super);
+  ast_t* sub_typeargs = ast_childidx(sub, 2);
+  ast_t* super_typeargs = ast_childidx(sub, 2);
 
-  // get our typeparams and typeargs
+  ast_t* sub_typeparams = ast_childidx(sub_def, 1);
+  ast_t* super_typeparams = ast_childidx(super_def, 1);
+
+  ast_t* super_members = ast_childidx(super_def, 4);
+  ast_t* super_member = ast_child(super_members);
+
+  while(super_member != NULL)
+  {
+    ast_t* super_member_id = ast_child(super_member);
+
+    sym_status_t s;
+    ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), &s);
+
+    if(sub_member == NULL)
+      return false;
+
+    ast_t* r_sub_member = reify(sub_member, sub_typeparams, sub_typeargs);
+    ast_t* r_super_member = reify(super_member, super_typeparams,
+      super_typeargs);
+
+    bool ok = is_fun_sub_fun(r_sub_member, r_super_member);
+    ast_free_unattached(r_sub_member);
+    ast_free_unattached(r_super_member);
+
+    if(!ok)
+      return false;
+
+    super_member = ast_sibling(super_member);
+  }
+
+  return true;
+}
+
+static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
+{
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+
+  // Get our typeparams and typeargs.
   ast_t* typeparams = ast_childidx(sub_def, 1);
   ast_t* typeargs = ast_childidx(sub, 2);
 
-  // check traits, depth first
+  // Check traits, depth first.
   ast_t* traits = ast_childidx(sub_def, 3);
-  assert(traits != NULL);
   ast_t* trait = ast_child(traits);
 
   while(trait != NULL)
   {
-    // reify the trait
+    // Reify the trait with our typeargs.
     ast_t* r_trait = reify(trait, typeparams, typeargs);
 
-    // use the cap and ephemerality of the subtype
+    // Use the cap and ephemerality of the subtype.
     reify_cap_and_ephemeral(sub, &r_trait);
     bool is_sub = is_subtype(r_trait, super);
     ast_free_unattached(r_trait);
@@ -282,6 +186,60 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   }
 
   return false;
+}
+
+// Both sub and super are nominal types.
+static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
+{
+  if(!check_cap_and_ephemeral(sub, super))
+    return false;
+
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
+
+  // If we are the same nominal type, our typeargs must be the same.
+  if(sub_def == super_def)
+    return is_eq_typeargs(sub, super);
+
+  switch(ast_id(super_def))
+  {
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+      // If we aren't the same type, we can't be a subtype of a concrete type.
+      return false;
+
+    case TK_INTERFACE:
+      // Check for a structural subtype.
+      return is_nominal_sub_interface(sub, super);
+
+    case TK_TRAIT:
+      // Check for a nominal subtype.
+      return is_nominal_sub_trait(sub, super);
+
+    default: {}
+  }
+
+  return false;
+}
+
+// Both sub and super are tuples.
+static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super)
+{
+  // All elements must be pairwise subtypes.
+  ast_t* sub_child = ast_child(sub);
+  ast_t* super_child = ast_child(super);
+
+  while((sub_child != NULL) && (super_child != NULL))
+  {
+    if(!is_subtype(sub_child, super_child))
+      return false;
+
+    sub_child = ast_sibling(sub_child);
+    super_child = ast_sibling(super_child);
+  }
+
+  return (sub_child == NULL) && (super_child == NULL);
 }
 
 static bool is_literal(ast_t* type, const char* name)
@@ -296,26 +254,174 @@ static bool is_literal(ast_t* type, const char* name)
   return ast_name(ast_childidx(type, 1)) == stringtab(name);
 }
 
-static bool pointer_supertype(ast_t* type)
+// The subtype is either a nominal or a tuple, the super type is a union.
+static bool is_subtype_union(ast_t* sub, ast_t* super)
 {
-  // Note that a pointer can't be a subtype of any structural type, not even
-  // the empty structural type.
+  // Must be a subtype of one element of the union.
+  ast_t* child = ast_child(super);
 
-  // Things that can be a supertype of a Pointer.
-  switch(ast_id(type))
+  while(child != NULL)
   {
-    case TK_NOMINAL:
-      // A nominal must also be a Pointer. The type parameter will be checked
-      // later on.
-      return is_literal(type, "Pointer");
-
-    case TK_TYPEPARAMREF:
-      // A typeparam checks correctly already.
+    if(is_subtype(sub, child))
       return true;
 
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
+// The subtype is either a nominal or a tuple, the super type is an isect.
+static bool is_subtype_isect(ast_t* sub, ast_t* super)
+{
+  // Must be a subtype of all elements of the intersection.
+  ast_t* child = ast_child(super);
+
+  while(child != NULL)
+  {
+    if(!is_subtype(sub, child))
+      return false;
+
+    child = ast_sibling(child);
+  }
+
+  return true;
+}
+
+// The subtype is either a nominal or a tuple, the super type is an arrow.
+static bool is_subtype_arrow(ast_t* sub, ast_t* super)
+{
+  // Must be a subtype of the lower bounds.
+  ast_t* lower = viewpoint_lower(super);
+  bool ok = is_subtype(sub, lower);
+  ast_free_unattached(lower);
+
+  return ok;
+}
+
+// The subtype is either a nominal or a tuple, the super type is a typeparam.
+static bool is_subtype_typeparam(ast_t* sub, ast_t* super)
+{
+  // Must be a subtype of the lower bounds of the constraint.
+  ast_t* def = (ast_t*)ast_data(super);
+  ast_t* constraint = ast_childidx(def, 1);
+
+  // TODO: do other constraints have a lower bounds?
+  if(ast_id(constraint) == TK_NOMINAL)
+  {
+    ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+    switch(ast_id(constraint_def))
+    {
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+        return is_subtype(sub, constraint);
+
+      default: {}
+    }
+  }
+
+  return false;
+}
+
+// The subtype is a union, the supertype could be anything.
+static bool is_union_subtype(ast_t* sub, ast_t* super)
+{
+  // All elements of the union must be a subtype of super.
+  ast_t* child = ast_child(sub);
+
+  while(child != NULL)
+  {
+    if(!is_subtype(child, super))
+      return false;
+
+    child = ast_sibling(child);
+  }
+
+  return true;
+}
+
+// The subtype is an isect, the supertype is an isect.
+static bool is_isect_sub_isect(ast_t* sub, ast_t* super)
+{
+  // For every type in super, there must be some type in sub that is a subtype.
+  ast_t* super_child = ast_child(super);
+
+  while(super_child != NULL)
+  {
+    if(!is_isect_subtype(sub, super_child))
+      return false;
+
+    super_child = ast_sibling(super_child);
+  }
+
+  return true;
+}
+
+// The subtype is an isect, the supertype could be anything.
+static bool is_isect_subtype(ast_t* sub, ast_t* super)
+{
+  if(ast_id(super) == TK_ISECTTYPE)
+    return is_isect_sub_isect(sub, super);
+
+  // One element of the intersection must be a subtype of super.
+  ast_t* child = ast_child(sub);
+
+  while(child != NULL)
+  {
+    if(is_subtype(child, super))
+      return true;
+
+    child = ast_sibling(child);
+  }
+
+  return false;
+}
+
+// The subtype is a tuple, the supertype is nominal.
+static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super)
+{
+  // Allow the tuple to be a subtype of an empty interface with tag cap.
+  // TODO: Or change the way generic constraints work?
+  ast_t* def = (ast_t*)ast_data(super);
+
+  if(ast_id(def) != TK_INTERFACE)
+    return false;
+
+  ast_t* members = ast_childidx(def, 4);
+
+  if(ast_child(members) != NULL)
+    return false;
+
+  AST_GET_CHILDREN(super, super_pkg, super_id, super_typeargs, super_cap,
+    super_eph);
+
+  return (ast_id(super_cap) == TK_TAG) && (ast_id(super_eph) == TK_NONE);
+}
+
+// The subtype is a tuple, the supertype could be anything.
+static bool is_tuple_subtype(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+      return is_tuple_sub_nominal(sub, super);
+
+    case TK_TYPEPARAMREF:
+      return is_subtype_typeparam(sub, super);
+
+    case TK_UNIONTYPE:
+      return is_subtype_union(sub, super);
+
+    case TK_ISECTTYPE:
+      return is_subtype_isect(sub, super);
+
+    case TK_TUPLETYPE:
+      return is_tuple_sub_tuple(sub, super);
+
     case TK_ARROW:
-      // Check the right side of an arrow type.
-      return pointer_supertype(ast_childidx(type, 1));
+      return is_subtype_arrow(sub, super);
 
     default: {}
   }
@@ -323,270 +429,227 @@ static bool pointer_supertype(ast_t* type)
   return false;
 }
 
+// The subtype is a pointer, the supertype could be anything.
+static bool is_pointer_subtype(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+    {
+      // Must be a Pointer, and the type argument must be the same.
+      return is_literal(super, "Pointer") &&
+        is_eq_typeargs(sub, super) &&
+        check_cap_and_ephemeral(sub, super);
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      // We must be a subtype of the constraint.
+      ast_t* def = (ast_t*)ast_data(super);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_pointer_subtype(sub, constraint);
+    }
+
+    case TK_ARROW:
+    {
+      // We must be a subtype of the lower bounds.
+      ast_t* lower = viewpoint_lower(super);
+      bool ok = is_pointer_subtype(sub, lower);
+      ast_free_unattached(lower);
+      return ok;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
+// The subtype is a nominal, the supertype could be anything.
+static bool is_nominal_subtype(ast_t* sub, ast_t* super)
+{
+  // Special case Pointer[A]. It can only be a subtype of itself, because
+  // in the code generator, a pointer has no vtable.
+  if(is_literal(sub, "Pointer"))
+    return is_pointer_subtype(sub, super);
+
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+      return is_nominal_sub_nominal(sub, super);
+
+    case TK_TYPEPARAMREF:
+      return is_subtype_typeparam(sub, super);
+
+    case TK_UNIONTYPE:
+      return is_subtype_union(sub, super);
+
+    case TK_ISECTTYPE:
+      return is_subtype_isect(sub, super);
+
+    case TK_ARROW:
+      return is_subtype_arrow(sub, super);
+
+    default: {}
+  }
+
+  return false;
+}
+
+// The subtype is a typeparam, the supertype is a typeparam.
+static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super)
+{
+  // If the supertype is also a typeparam, we must be the same typeparam by
+  // identity and be a subtype by cap and ephemeral.
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
+
+  if(sub_def != super_def)
+    return false;
+
+  AST_GET_CHILDREN(sub, sub_id, sub_cap, sub_eph);
+  AST_GET_CHILDREN(super, super_id, super_cap, super_eph);
+
+  if((ast_id(super_eph) == TK_HAT) && (ast_id(sub_eph) != TK_HAT))
+    return false;
+
+  ast_t* constraint = ast_childidx(sub_def, 1);
+  token_id t_sub_cap = ast_id(sub_cap);
+  token_id t_super_cap = ast_id(super_cap);
+
+  if(t_sub_cap == TK_NONE)
+    t_sub_cap = cap_for_type(constraint);
+
+  if(t_super_cap == TK_NONE)
+    t_super_cap = cap_for_type(constraint);
+
+  return is_cap_sub_cap(t_sub_cap, t_super_cap);
+}
+
+// The subtype is a typeparam, the supertype could be anything.
+static bool is_typeparam_subtype(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_TYPEPARAMREF:
+      if(is_typeparam_sub_typeparam(sub, super))
+        return true;
+      break;
+
+    case TK_UNIONTYPE:
+      if(is_subtype_union(sub, super))
+        return true;
+      break;
+
+    case TK_ISECTTYPE:
+      if(is_subtype_isect(sub, super))
+        return true;
+      break;
+
+    case TK_ARROW:
+      if(is_subtype_arrow(sub, super))
+        return true;
+      break;
+
+    default: {}
+  }
+
+  // We can be a subtype if our upper bounds, ie our constraint, is a subtype.
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* constraint = ast_childidx(sub_def, 1);
+
+  // Use the cap and ephemerality of the typeparam.
+  reify_cap_and_ephemeral(sub, &constraint);
+  bool ok = is_subtype(constraint, super);
+  ast_free_unattached(constraint);
+
+  return ok;
+}
+
+// The subtype is an arrow, the supertype is an arrow.
+static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super)
+{
+  // If the supertype is also a viewpoint and the viewpoint is the same, then
+  // we are a subtype if our adapted type is a subtype of the supertype's
+  // adapted type.
+  AST_GET_CHILDREN(sub, sub_left, sub_right);
+  AST_GET_CHILDREN(super, super_left, super_right);
+
+  return is_eqtype(sub_left, super_left) && is_subtype(sub_right, super_right);
+}
+
+// The subtype is an arrow, the supertype could be anything.
+static bool is_arrow_subtype(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_UNIONTYPE:
+      if(is_subtype_union(sub, super))
+        return true;
+      break;
+
+    case TK_ISECTTYPE:
+      if(is_subtype_isect(sub, super))
+        return true;
+      break;
+
+    case TK_ARROW:
+      if(is_arrow_sub_arrow(sub, super))
+        return true;
+      break;
+
+    default: {}
+  }
+
+  // Otherwise, we are a subtype if our upper bounds is a subtype of super.
+  ast_t* upper = viewpoint_upper(sub);
+  bool ok = is_subtype(upper, super);
+  ast_free_unattached(upper);
+  return ok;
+}
+
 bool is_subtype(ast_t* sub, ast_t* super)
 {
   assert(sub != NULL);
   assert(super != NULL);
 
-  // check if the subtype is a union, isect, type param, type alias or viewpoint
   switch(ast_id(sub))
   {
     case TK_UNIONTYPE:
-    {
-      // all elements of the union must be subtypes
-      ast_t* child = ast_child(sub);
-
-      while(child != NULL)
-      {
-        if(!is_subtype(child, super))
-          return false;
-
-        child = ast_sibling(child);
-      }
-
-      return true;
-    }
+      return is_union_subtype(sub, super);
 
     case TK_ISECTTYPE:
-    {
-      // one element of the intersection must be a subtype
-      ast_t* child = ast_child(sub);
+      return is_isect_subtype(sub, super);
 
-      while(child != NULL)
-      {
-        if(is_subtype(child, super))
-          return true;
-
-        child = ast_sibling(child);
-      }
-
-      return false;
-    }
+    case TK_TUPLETYPE:
+      return is_tuple_subtype(sub, super);
 
     case TK_NOMINAL:
-    {
-      // Special case Pointer[A]. It can only be a subtype of itself, because
-      // in the code generator, a pointer has no vtable.
-      if(is_literal(sub, "Pointer") && !pointer_supertype(super))
-        return false;
-
-      break;
-    }
-
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      // Compare to the constrained type we still carry around
-      return is_subtype(ast_child(sub), super);
+      return is_nominal_subtype(sub, super);
 
     case TK_TYPEPARAMREF:
-    {
-      // check if our constraint is a subtype of super
-      ast_t* def = (ast_t*)ast_data(sub);
-      ast_t* constraint = ast_childidx(def, 1);
-
-      // if it isn't, keep trying
-      if(ast_id(constraint) != TK_NONE)
-      {
-        // use the cap and ephemerality of the typeparam
-        reify_cap_and_ephemeral(sub, &constraint);
-        bool ok = is_subtype(constraint, super);
-        ast_free_unattached(constraint);
-
-        if(ok)
-          return true;
-      }
-      break;
-    }
+      return is_typeparam_subtype(sub, super);
 
     case TK_ARROW:
-    {
-      // an arrow type can be a subtype if its upper bounds is a subtype
-      ast_t* upper = viewpoint_upper(sub);
-      bool ok = is_subtype(upper, super);
-      ast_free_unattached(upper);
+      return is_arrow_subtype(sub, super);
 
-      if(ok)
-        return true;
-      break;
-    }
+    case TK_THISTYPE:
+      return ast_id(super) == TK_THISTYPE;
 
     case TK_FUNTYPE:
       return false;
 
-    default: {}
-  }
-
-  // check if the supertype is a union, isect, type alias or viewpoint
-  switch(ast_id(super))
-  {
-    case TK_UNIONTYPE:
-    {
-      // must be a subtype of one element of the union
-      ast_t* child = ast_child(super);
-
-      while(child != NULL)
-      {
-        if(is_subtype(sub, child))
-          return true;
-
-        child = ast_sibling(child);
-      }
-
-      return false;
-    }
-
-    case TK_ISECTTYPE:
-    {
-      // must be a subtype of all elements of the intersection
-      ast_t* child = ast_child(super);
-
-      while(child != NULL)
-      {
-        if(!is_subtype(sub, child))
-          return false;
-
-        child = ast_sibling(child);
-      }
-
-      return true;
-    }
-
-    case TK_ARROW:
-    {
-      // an arrow type can be a supertype if its lower bounds is a supertype
-      ast_t* lower = viewpoint_lower(super);
-      bool ok = is_subtype(sub, lower);
-      ast_free_unattached(lower);
-
-      if(ok)
-        return true;
-      break;
-    }
-
-    case TK_TYPEPARAMREF:
-    {
-      // we can be a subtype of a typeparam if its constraint is concrete
-      ast_t* def = (ast_t*)ast_data(super);
-      ast_t* constraint = ast_childidx(def, 1);
-
-      if(ast_id(constraint) == TK_NOMINAL)
-      {
-        ast_t* constraint_def = (ast_t*)ast_data(constraint);
-
-        switch(ast_id(constraint_def))
-        {
-          case TK_PRIMITIVE:
-          case TK_CLASS:
-          case TK_ACTOR:
-            if(is_eqtype(sub, constraint))
-              return true;
-            break;
-
-          default: {}
-        }
-      }
-      break;
-    }
-
-    case TK_FUNTYPE:
-      return false;
-
-    default: {}
-  }
-
-  switch(ast_id(sub))
-  {
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
       return is_fun_sub_fun(sub, super);
 
-    case TK_TUPLETYPE:
-    {
-      switch(ast_id(super))
-      {
-        case TK_STRUCTURAL:
-        {
-          // A tuple is a subtype of {} tag.
-          AST_GET_CHILDREN(super, members, cap);
-          return (ast_child(members) == NULL) && (ast_id(cap) == TK_TAG);
-        }
-
-        case TK_TUPLETYPE:
-        {
-          // elements must be pairwise subtypes
-          ast_t* sub_child = ast_child(sub);
-          ast_t* super_child = ast_child(super);
-
-          while((sub_child != NULL) && (super_child != NULL))
-          {
-            if(!is_subtype(sub_child, super_child))
-              return false;
-
-            sub_child = ast_sibling(sub_child);
-            super_child = ast_sibling(super_child);
-          }
-
-          return (sub_child == NULL) && (super_child == NULL);
-        }
-
-        default: {}
-      }
-
-      return false;
-    }
-
-    case TK_NOMINAL:
-    {
-      switch(ast_id(super))
-      {
-        case TK_NOMINAL:
-          return is_nominal_sub_nominal(sub, super);
-
-        case TK_STRUCTURAL:
-          return is_nominal_sub_structural(sub, super);
-
-        default: {}
-      }
-
-      return false;
-    }
-
-    case TK_STRUCTURAL:
-    {
-      if(ast_id(super) != TK_STRUCTURAL)
-        return false;
-
-      return is_structural_sub_structural(sub, super);
-    }
-
-    case TK_TYPEPARAMREF:
-    {
-      if(ast_id(super) != TK_TYPEPARAMREF)
-        return false;
-
-      if(!check_cap_and_ephemeral(sub, super))
-        return false;
-
-      return ast_data(sub) == ast_data(super);
-    }
-
-    case TK_ARROW:
-    {
-      if(ast_id(super) != TK_ARROW)
-        return false;
-
-      ast_t* left = ast_child(sub);
-      ast_t* right = ast_sibling(left);
-      ast_t* super_left = ast_child(super);
-      ast_t* super_right = ast_sibling(super_left);
-
-      return is_eqtype(left, super_left) && is_subtype(right, super_right);
-    }
-
-    case TK_THISTYPE:
-      return ast_id(super) == TK_THISTYPE;
+    case TK_NUMBERLITERAL:
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      // Compare to the constrained type we still carry around.
+      return is_subtype(ast_child(sub), super);
 
     default: {}
   }

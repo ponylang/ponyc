@@ -33,7 +33,7 @@ trait ArithmeticConvertible
   fun box f64(): F64 => compiler_intrinsic
 
 trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A],
-  Hashable[A], Ordered[A]
+  Hashable, Ordered[A]
   fun box add(y: A): A => compiler_intrinsic
   fun box sub(y: A): A => compiler_intrinsic
   fun box mul(y: A): A => compiler_intrinsic

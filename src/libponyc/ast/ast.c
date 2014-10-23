@@ -399,6 +399,7 @@ ast_t* ast_enclosing_type(ast_t* ast)
   {
     switch(token_get_id(ast->t))
     {
+      case TK_INTERFACE:
       case TK_TRAIT:
       case TK_PRIMITIVE:
       case TK_CLASS:
@@ -623,10 +624,6 @@ ast_t* ast_enclosing_constraint(ast_t* ast)
   {
     switch(token_get_id(ast->t))
     {
-      case TK_STRUCTURAL:
-        // if we're inside a structural type, we aren't a nominal constraint
-        return NULL;
-
       case TK_TYPEPARAM:
       {
         // only if we are in the constraint

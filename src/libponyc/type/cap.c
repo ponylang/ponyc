@@ -66,16 +66,6 @@ token_id cap_for_receiver(ast_t* ast)
   return TK_REF;
 }
 
-token_id cap_for_fun(ast_t* fun)
-{
-  assert((ast_id(fun) == TK_NEW) ||
-    (ast_id(fun) == TK_BE) ||
-    (ast_id(fun) == TK_FUN)
-    );
-
-  return ast_id(ast_child(fun));
-}
-
 token_id cap_for_type(ast_t* type)
 {
   switch(ast_id(type))
@@ -116,9 +106,6 @@ token_id cap_for_type(ast_t* type)
 
     case TK_NOMINAL:
       return ast_id(ast_childidx(type, 3));
-
-    case TK_STRUCTURAL:
-      return ast_id(ast_childidx(type, 1));
 
     case TK_TYPEPARAMREF:
     {

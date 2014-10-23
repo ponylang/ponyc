@@ -194,7 +194,7 @@ bool expr_fun(ast_t* ast)
     return true;
 
   ast_t* def = ast_enclosing_type(ast);
-  bool is_trait = ast_id(def) == TK_TRAIT;
+  bool is_trait = (ast_id(def) == TK_TRAIT) || (ast_id(def) == TK_INTERFACE);
 
   // check partial functions
   if(ast_id(can_error) == TK_QUESTION)
@@ -243,6 +243,9 @@ bool expr_fun(ast_t* ast)
   // The body type must match the return type.
   if(!is_subtype(body_type, type))
   {
+    // TODO: remove this
+    is_subtype(body_type, type);
+
     ast_t* last = ast_childlast(body);
     ast_error(type, "function body isn't a subtype of the result type");
     ast_error(last, "function body expression is here");
@@ -601,7 +604,6 @@ static literal_set_t* determine_literal_set(ast_t* type)
   switch(ast_id(type))
   {
     case TK_NOMINAL:
-    case TK_STRUCTURAL:
       return make_literal_set(type);
 
     case TK_UNIONTYPE:

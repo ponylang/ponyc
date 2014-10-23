@@ -488,10 +488,14 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   ast_t* def = (ast_t*)ast_data(ast);
 
   // For traits, just return a raw object pointer.
-  if(ast_id(def) == TK_TRAIT)
+  switch(ast_id(def))
   {
-    g->use_type = c->object_ptr;
-    return true;
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      g->use_type = c->object_ptr;
+      return true;
+
+    default: {}
   }
 
   // If we already exist or we're preliminary, we're done.
@@ -596,7 +600,6 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-    case TK_STRUCTURAL:
       // Just a raw object pointer.
       g->use_type = c->object_ptr;
       return true;

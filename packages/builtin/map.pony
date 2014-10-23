@@ -1,10 +1,10 @@
-trait Hashable[A]
+trait Hashable
   fun box hash(): U64
 
 primitive _MapEmpty is Comparable[_MapEmpty]
 primitive _MapDeleted is Comparable[_MapDeleted]
 
-class Map[Key: (Hashable[Key] val & Comparable[Key] val), Value]
+class Map[Key: (Hashable val & Comparable[Key] val), Value]
   var _count: U64 = 0
   var _array: Array[((Key, Value) | _MapEmpty | _MapDeleted)] =
     Array[((Key, Value) | _MapEmpty | _MapDeleted)].init(_MapEmpty, 8)

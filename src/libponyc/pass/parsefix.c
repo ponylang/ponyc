@@ -10,7 +10,7 @@
 #define DEF_ACTOR 1
 #define DEF_PRIMITIVE 2
 #define DEF_TRAIT 3
-#define DEF_STRUCT 4
+#define DEF_INTERFACE 4
 #define DEF_ENTITY_COUNT 5
 
 #define DEF_FUN 0
@@ -42,7 +42,7 @@ static const entity_def_t _entity_def[DEF_ENTITY_COUNT] =
   { "actor",           true,  true,  tb_no  },
   { "primitive",       false, false, tb_no  },
   { "trait",           false, false, tb_opt },
-  { "structural type", false, false, tb_opt }
+  { "interface",       false, false, tb_opt }
 };
 
 
@@ -64,17 +64,17 @@ static const method_def_t _method_def[DEF_METHOD_COUNT] =
   { "actor function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
   { "primitive function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
   { "trait function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_opt },
-  { "structural function",    true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_no  },
+  { "interface function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_opt },
   { "class behaviour",        false },
   { "actor behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_yes },
   { "primitive behaviour",    false },
   { "trait behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
-  { "structural behaviour",   true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_no  },
+  { "interface behaviour",    true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
   { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
   { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_yes },
   { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
   { "trait constructor",      false },
-  { "structural constructor", false }
+  { "interface constructor",  false }
 };
 
 
@@ -357,24 +357,6 @@ static ast_result_t parse_fix_type_alias(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_structural(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  const entity_def_t* def = &_entity_def[DEF_STRUCT];
-  AST_GET_CHILDREN(ast, members, defcap);
-
-  if(!check_tribool(def->cap, defcap, def->desc, "default capability", defcap))
-    return AST_ERROR;
-
-  // Check for illegal members
-  if(!check_members(members, DEF_STRUCT))
-    return AST_ERROR;
-
-  return AST_OK;
-}
-
-
 // TODO(andy): This should be moved to a later pass. It's pointless checking
 // the types of the left and right children until type aliases have been
 // resolved
@@ -404,10 +386,6 @@ static bool check_arrow_left(ast_t* ast)
       return true;
     }
 
-    case TK_STRUCTURAL:
-      ast_error(ast, "can't use a structural type as a viewpoint");
-      return false;
-
     case TK_THISTYPE:
       return true;
 
@@ -431,7 +409,6 @@ static bool check_arrow_right(ast_t* ast)
       return false;
 
     case TK_NOMINAL:
-    case TK_STRUCTURAL:
     case TK_ARROW:
       return true;
 
@@ -485,14 +462,10 @@ static ast_result_t parse_fix_ephemeral(ast_t* ast)
 {
   assert(ast != NULL);
 
-  // TODO(andy): This allows some illegal cases through, eg ephemeral argument
-  // of a function within a structural, where that whole structural is a return
-  // type of a function
   if((ast_enclosing_method_type(ast) == NULL) &&
     (ast_enclosing_ffi_type(ast) == NULL))
   {
-    ast_error(ast,
-      "ephemeral types can only appear in function return types");
+    ast_error(ast, "ephemeral types can only appear in function return types");
     return AST_ERROR;
   }
 
@@ -741,7 +714,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);
     case TK_ACTOR:      return parse_fix_entity(ast, DEF_ACTOR);
     case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);
-    case TK_STRUCTURAL: return parse_fix_structural(ast);
+    case TK_INTERFACE:   return parse_fix_entity(ast, DEF_INTERFACE);
     case TK_THISTYPE:   return parse_fix_thistype(ast);
     case TK_HAT:        return parse_fix_ephemeral(ast);
     case TK_BANG:       return parse_fix_bang(ast);

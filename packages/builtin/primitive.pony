@@ -1,4 +1,4 @@
-type Any is {} tag
+interface Any tag
 
 primitive None is Comparable[None], Stringable
   fun box string(): String => "None"

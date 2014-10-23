@@ -69,7 +69,8 @@ trait Good
  * This is a structural type. Anything with an apply function of the given
  * signature is this type.
  */
-type Notify is {fun tag ((Good iso | None))} tag
+interface Notify tag
+  fun tag apply(a: (Good iso | None))
 
 // A buyer has a purse and can be told to buy goods from a seller
 actor Buyer
@@ -92,7 +93,8 @@ actor Buyer
 /* A seller has a purse and an inventory. It can be asked to sell goods with
  * a given description.
  */
-type Factory is {fun tag (): Good^} tag
+interface Factory tag
+  fun tag apply(): Good^
 
 type Inventory is Map[String, (U64, Factory)]
 

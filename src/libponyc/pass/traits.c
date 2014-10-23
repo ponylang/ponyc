@@ -74,7 +74,8 @@ static void add_method(ast_t* target, ast_t* method)
 static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
 {
   assert(ast_id(target) == TK_ACTOR || ast_id(target) == TK_CLASS ||
-    ast_id(target) == TK_PRIMITIVE || ast_id(target) == TK_TRAIT);
+    ast_id(target) == TK_PRIMITIVE || ast_id(target) == TK_TRAIT ||
+    ast_id(target) == TK_INTERFACE);
   assert(fn != NULL);
 
   ast_t* trait_refs = ast_childidx(target, 3);
@@ -85,7 +86,7 @@ static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
     ast_t* trait_def = (ast_t*)ast_data(t);
     assert(trait_def != NULL);
 
-    if(ast_id(trait_def) != TK_TRAIT)
+    if((ast_id(trait_def) != TK_TRAIT) && (ast_id(trait_def) != TK_INTERFACE))
       return false;
 
     if(!build_trait_def(trait_def))
@@ -127,7 +128,7 @@ static bool attach_method_to_trait(ast_t* target, ast_t* method)
 /// traits
 static bool build_trait_def(ast_t* trait)
 {
-  assert(ast_id(trait) == TK_TRAIT);
+  assert((ast_id(trait) == TK_TRAIT) || (ast_id(trait) == TK_INTERFACE));
   ast_state_t state = (ast_state_t)(uint64_t)ast_data(trait);
 
   // Check for recursive definitions
@@ -249,6 +250,7 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_INTERFACE:
     case TK_TRAIT:
       if(!build_trait_def(ast))
         return AST_ERROR;

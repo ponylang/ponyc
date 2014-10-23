@@ -25,7 +25,7 @@ typealias
   ;
 
 class_
-  :  ('trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
+  :  ('interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
   ;
 
 members
@@ -56,7 +56,6 @@ atom_type
   :  'this' // only used for viewpoint adaptation
   |  '(' tuple_type ')'
   |  ID ('.' ID)? type_args? cap? '^'? // nominal type
-  |  '{' fun_type* '}' cap? '^'? // structural type
   ;
 
 tuple_type
@@ -65,11 +64,6 @@ tuple_type
 
 infix_type
   :  type (('|' | '&') type)*
-  ;
-
-fun_type
-  :  'be' ID? type_params? '(' types? ')'
-  |  'fun' cap ID? type_params? '(' types? ')' oftype? '?'?
   ;
 
 // the @ is a cheat: means the symbol "not on a new line"
@@ -177,24 +171,12 @@ idseq
   ;
 
 idseq_multi
-  :  '(' idseq_element (',' idseq_element)*  ')'
+  :  '(' idseq_element (',' idseq_element)* ')'
   ;
 
 idseq_element
   :  ID
   |  idseq_multi
-  ;
-
-tuple
-  :  '(' positional ')'
-  ;
-
-array
-  :  '[' positional? named? ']'
-  ;
-
-object
-  :  '{' ('is' types)? members '}'
   ;
 
 positional

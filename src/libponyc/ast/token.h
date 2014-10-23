@@ -80,6 +80,7 @@ typedef enum token_id
 
   TK_USE,
   TK_TYPE,
+  TK_INTERFACE,
   TK_TRAIT,
   TK_PRIMITIVE,
   TK_CLASS,
@@ -145,7 +146,6 @@ typedef enum token_id
   TK_ISECTTYPE,
   TK_TUPLETYPE,
   TK_NOMINAL,
-  TK_STRUCTURAL,
   TK_THISTYPE,
   TK_FUNTYPE,
 

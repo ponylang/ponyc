@@ -57,7 +57,7 @@ static bool could_subtype_with_typeparam(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool could_subtype_interface_interface(ast_t* sub, ast_t* super)
+static bool could_subtype_trait_trait(ast_t* sub, ast_t* super)
 {
   // The subtype cap must be a subtype of the supertype cap.
   token_id sub_cap = cap_for_type(sub);
@@ -66,14 +66,15 @@ static bool could_subtype_interface_interface(ast_t* sub, ast_t* super)
   return is_cap_sub_cap(sub_cap, super_cap);
 }
 
-static bool could_subtype_interface_nominal(ast_t* sub, ast_t* super)
+static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
 {
   ast_t* def = (ast_t*)ast_data(super);
 
   switch(ast_id(def))
   {
+    case TK_INTERFACE:
     case TK_TRAIT:
-      return could_subtype_interface_interface(sub, super);
+      return could_subtype_trait_trait(sub, super);
 
     case TK_PRIMITIVE:
     case TK_CLASS:
@@ -103,15 +104,12 @@ static bool could_subtype_interface_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
-static bool could_subtype_interface(ast_t* sub, ast_t* super)
+static bool could_subtype_trait(ast_t* sub, ast_t* super)
 {
   switch(ast_id(super))
   {
     case TK_NOMINAL:
-      return could_subtype_interface_nominal(sub, super);
-
-    case TK_STRUCTURAL:
-      return could_subtype_interface_interface(sub, super);
+      return could_subtype_trait_nominal(sub, super);
 
     case TK_UNIONTYPE:
       return could_subtype_with_union(sub, super);
@@ -120,7 +118,7 @@ static bool could_subtype_interface(ast_t* sub, ast_t* super)
       return could_subtype_with_isect(sub, super);
 
     case TK_TUPLETYPE:
-      // An interface can never be a tuple. While a tuple can be passed as a
+      // A trait can never be a tuple. While a tuple can be passed as a
       // {} tag, a {} tag can't be pattern matched as a tuple because it can't
       // be read, which means it can't be destructured. For identity, we depend
       // on checking in the other direction.
@@ -157,8 +155,9 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
       return ok;
     }
 
+    case TK_INTERFACE:
     case TK_TRAIT:
-      return could_subtype_interface(sub, super);
+      return could_subtype_trait(sub, super);
 
     default: {}
   }
@@ -223,11 +222,8 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
   {
     case TK_NOMINAL:
       // A tuple can't be a nominal type.
+      // TODO: what about Any? or other empty interfaces?
       return false;
-
-    case TK_STRUCTURAL:
-      // Only if we could be a subtype, ie a {} tag.
-      return is_subtype(sub, super);
 
     case TK_UNIONTYPE:
       return could_subtype_with_union(sub, super);
@@ -295,9 +291,6 @@ bool could_subtype(ast_t* sub, ast_t* super)
   {
     case TK_NOMINAL:
       return could_subtype_nominal(sub, super);
-
-    case TK_STRUCTURAL:
-      return could_subtype_interface(sub, super);
 
     case TK_UNIONTYPE:
       return could_subtype_union(sub, super);

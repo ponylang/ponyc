@@ -1,7 +1,7 @@
 trait Stringable box
   fun box string(): String
 
-class String val is Ordered[String], Hashable[String], Stringable
+class String val is Ordered[String], Hashable, Stringable
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]

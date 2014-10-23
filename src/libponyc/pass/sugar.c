@@ -105,15 +105,15 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 {
   ast_t* constraint = ast_childidx(ast, 1);
 
-  // If no constraint is specified for a formal parameter use Any
-  // TODO(andy): Should we create a nominal to Any instead of the structural?
   if(ast_id(constraint) == TK_NONE)
   {
     REPLACE(&constraint,
-      NODE(TK_STRUCTURAL,
-        NODE(TK_MEMBERS)
-        NODE(TK_TAG)  // Capability
-        NONE));       // Ephemeral
+      NODE(TK_NOMINAL,
+        NONE
+        ID("Any")
+        NONE
+        NODE(TK_TAG)
+        NONE));
   }
 
   return AST_OK;
@@ -173,31 +173,6 @@ static ast_result_t sugar_fun(ast_t* ast)
   // Return value is not specified, set it to None
   ast_t* type = type_sugar(ast, NULL, "None");
   ast_replace(&result, type);
-
-  return AST_OK;
-}
-
-
-static ast_result_t sugar_structural(ast_t* ast)
-{
-  ast_t* cap = ast_childidx(ast, 1);
-
-  if(ast_id(cap) == TK_NONE)
-  {
-    token_id defcap;
-
-    // For typeparams default capability is tag, otherwise it is ref
-    // TODO(andy): This is not right. The constraint type (if any) of a type
-    // parameter defaults to tag since it is an upper bound. The default type
-    // (if any) for the type parameter, and any inner structural types of the
-    // constraint, should be ref as normal.
-    if(ast_nearest(ast, TK_TYPEPARAM) != NULL)
-      defcap = TK_TAG;
-    else
-      defcap = TK_REF;
-
-    ast_setid(cap, defcap);
-  }
 
   return AST_OK;
 }
@@ -421,12 +396,12 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_PRIMITIVE:  return sugar_member(ast, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, TK_TAG);
-    case TK_TRAIT:      return sugar_member(ast, false, TK_REF);
+    case TK_TRAIT:
+    case TK_INTERFACE:   return sugar_member(ast, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
     case TK_NEW:        return sugar_new(ast);
     case TK_BE:         return sugar_be(ast);
     case TK_FUN:        return sugar_fun(ast);
-    case TK_STRUCTURAL: return sugar_structural(ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:

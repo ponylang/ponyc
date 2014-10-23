@@ -65,7 +65,7 @@ class Array[A]
       end
 
       _size = _size - 1
-      deleted
+      consume deleted
     else
       error
     end

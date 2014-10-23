@@ -81,7 +81,6 @@ const char* genname_type(ast_t* ast)
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
-    case TK_STRUCTURAL:
       return stringtab("$object");
 
     case TK_TUPLETYPE:

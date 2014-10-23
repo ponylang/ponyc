@@ -87,6 +87,7 @@ static const lexsym_t keywords[] =
 
   { "use", TK_USE },
   { "type", TK_TYPE },
+  { "interface", TK_INTERFACE },
   { "trait", TK_TRAIT },
   { "primitive", TK_PRIMITIVE },
   { "class", TK_CLASS },
@@ -161,7 +162,6 @@ static const lexsym_t abstract[] =
   { "isecttype", TK_ISECTTYPE },
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
-  { "structural", TK_STRUCTURAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
 

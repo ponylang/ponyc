@@ -86,9 +86,9 @@ symtab: name -> TYPEPARAM | PARAM
 Methods initially have an extra child for the => before the body child. This is
 removed during the parse fix pass.
 (
-  NEW: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE [QUESTION] [SEQ] [AT]
-  BE: NONE ID [TYPEPARAMS] [PARAMS | TYPES] NONE NONE [SEQ] [AT]
-  FUN: cap ID [TYPEPARAMS] [PARAMS | TYPES] [type] [QUESTION] [SEQ] [AT]
+  NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [AT]
+  BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [AT]
+  FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ] [AT]
 )
 
 TYPEPARAMS: {TYPEPARAM}
@@ -112,9 +112,6 @@ type
 
   NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
   data: type definition
-
-  STRUCTURAL: MEMBERS cap [HAT]
-  symtab: name -> method
 )
 
 cap
