@@ -143,6 +143,29 @@ class String val is Ordered[String], Hashable[String], Stringable
 
     consume str
 
+  fun box contains(s: String): I64 =>
+    if _size < s._size then return -1 end
+
+    var i: U64 = 0
+
+    while i < _size do
+      if _ptr._apply(i) == s._ptr._apply(0) then
+        var j: U64 = i + 1
+
+        while j < _size do
+          if _ptr._apply(j) != s._ptr._apply(j - i) then
+            return -1
+          end
+        end
+
+        return i.i64()
+      end
+
+      i = i + 1
+    end
+
+    -1
+
   fun box lower(): String iso^ =>
     let len = _size
     var str = recover String._reserve(len) end
@@ -233,7 +256,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     let finish = offset_to_index(to).min(_size)
     var str: String iso
 
-    if (start < _size) and (start < finish) and (finish < _size) then
+    if (start < _size) and (start <= finish) and (finish < _size) then
       let len = _size - ((finish - start) + 1)
       str = recover String._reserve(len) end
       var i: U64 = 0
@@ -260,9 +283,9 @@ class String val is Ordered[String], Hashable[String], Stringable
   //The range is inclusive.
   fun ref cut_in_place(from: I64, to: I64): String ref =>
     let start = offset_to_index(from)
-    let finish = offset_to_index(to)
+    let finish = offset_to_index(to).min(_size)
 
-    if(start < _size) and (start < finish) and (finish < _size) then
+    if(start < _size) and (start <= finish) and (finish < _size) then
       let len = _size - ((finish - start) + 1)
       var j = finish + 1
 
@@ -305,7 +328,7 @@ class String val is Ordered[String], Hashable[String], Stringable
     end
 
     //The two strings are equal
-    I32(0) //TODO: remove conversion once literal typing works
+    0
 
   fun box eq(that: String box): Bool =>
     if _size == that._size then

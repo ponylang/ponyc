@@ -49,6 +49,8 @@ class Array[A]
       error
     end
 
+  //fun ref remove(i: U64) =>
+
   fun ref reserve(len: U64): Array[A] =>
     if _alloc < len then
       _alloc = len.max(8).next_pow2()
