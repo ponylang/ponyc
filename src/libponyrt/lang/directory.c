@@ -4,7 +4,7 @@
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
-static __pony_thread_local HANDLE opendir_handle;
+static __pony_thread_local HANDLE opendir_handle = INVALID_HANDLE_VALUE;
 static __pony_thread_local WIN32_FIND_DATA opendir_data;
 #elif defined(PLATFORM_IS_POSIX_BASED)
 static __pony_thread_local DIR* opendir_handle;
@@ -36,21 +36,41 @@ void os_opendir(const char* path)
 #endif
 }
 
+void os_closedir()
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  if(opendir_handle != INVALID_HANDLE_VALUE)
+  {
+    FindClose(opendir_handle);
+    opendir_handle = INVALID_HANDLE_VALUE;
+  }
+#elif defined(PLATFORM_IS_POSIX_BASED)
+  if(opendir_handle != NULL)
+  {
+    closedir(opendir_handle);
+    opendir_handle = NULL;
+  }
+#endif
+}
+
 const char* os_readdir()
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  if(opendir_handle == NULL)
+  if(opendir_handle == INVALID_HANDLE_VALUE)
     return NULL;
 
   size_t len = strlen(opendir_data.cFileName) + 1;
   char* cstring = (char*)pony_alloc(len);
   memcpy(cstring, opendir_data.cFileName, len);
 
-  if(FindNextFile(opendir_handle, &opendir_data))
-    return cstring;
+  if(!FindNextFile(opendir_handle, &opendir_data))
+    os_closedir();
 
-  return NULL;
+  return cstring;
 #elif defined(PLATFORM_IS_POSIX_BASED)
+  if(opendir_handle == NULL)
+    return NULL;
+
   struct dirent entry;
   struct dirent* result;
 
@@ -67,14 +87,5 @@ const char* os_readdir()
   return cstring;
 #else
   return NULL;
-#endif
-}
-
-void os_closedir()
-{
-#if defined(PLATFORM_IS_WINDOWS)
-  FindClose(opendir_handle);
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  closedir(opendir_handle);
 #endif
 }
