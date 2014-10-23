@@ -1,5 +1,4 @@
 #include <platform.h>
-#include <stdio.h>
 
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
