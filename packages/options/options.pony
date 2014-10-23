@@ -68,7 +68,7 @@ class Options ref is Iterator[_Result]
 
     try
       for i in _env.args.values() do
-        _args.append(i.copy())
+        _args.append(i.clone())
       end
     end
 
@@ -220,7 +220,7 @@ class Options ref is Iterator[_Result]
       | var m: Option =>
         if m.requires_arg() then
           try
-            let argument = _args(_index)
+            let argument = _args(_index).clone()
 
             if m.has_domain() and not m.accepts(argument) then error end
 
@@ -234,9 +234,9 @@ class Options ref is Iterator[_Result]
             _index = _index + 1
           else
             _error = true
-            _env.stdout.print("[Options Error]: " + m.name + ": " +
+            _env.stdout.print("[Options Error]:" +
               " No argument supplied or the supplied argument is not in the" +
-              " option's domain: " + m.name + " " + argument)
+              " option's domain: --" + m.name + " " + argument)
             return ParseError
           end
         end
