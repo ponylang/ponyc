@@ -264,7 +264,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       return AST_FATAL;
 
     case TK_OBJECT:
-      // TODO: create a structural type for the object
+      // TODO: create a type for the object
       // TODO: make sure it fulfills any traits it claims to have
       ast_error(ast, "not implemented (object)");
       return AST_FATAL;

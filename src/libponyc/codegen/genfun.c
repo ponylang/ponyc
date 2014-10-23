@@ -597,7 +597,6 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
         if(ast_id(typeparams) != TK_NONE)
         {
-          // TODO: polymorphic constructors
           ast_error(typeparams,
             "not implemented (codegen for polymorphic constructors)");
           return false;
@@ -627,7 +626,6 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
         if(ast_id(typeparams) != TK_NONE)
         {
-          // TODO: polymorphic behaviours
           ast_error(typeparams,
             "not implemented (codegen for polymorphic behaviours)");
           return false;
@@ -647,7 +645,6 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
         if(ast_id(typeparams) != TK_NONE)
         {
-          // TODO: polymorphic functions
           ast_error(typeparams,
             "not implemented (codegen for polymorphic functions)");
           return false;

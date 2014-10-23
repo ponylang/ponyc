@@ -187,11 +187,6 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
     // Get the function from the vtable.
     func = gendesc_vtable(c, l_value, colour);
 
-    // TODO: What if the function signature takes a primitive but the real
-    // underlying function accepts a union type of that primitive with something
-    // else, and so requires a boxed primitive? Or the real function could take
-    // a trait that the primitive provides.
-
     // Cast to the right function type.
     LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
 

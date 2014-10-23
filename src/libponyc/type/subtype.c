@@ -10,6 +10,18 @@
 
 static bool is_isect_subtype(ast_t* sub, ast_t* super);
 
+static bool is_literal(ast_t* type, const char* name)
+{
+  if(type == NULL)
+    return false;
+
+  if(ast_id(type) != TK_NOMINAL)
+    return false;
+
+  // Don't have to check the package, since literals are all builtins.
+  return ast_name(ast_childidx(type, 1)) == stringtab(name);
+}
+
 static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
 {
   assert(ast_id(sub) == TK_NOMINAL);
@@ -240,18 +252,6 @@ static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super)
   }
 
   return (sub_child == NULL) && (super_child == NULL);
-}
-
-static bool is_literal(ast_t* type, const char* name)
-{
-  if(type == NULL)
-    return false;
-
-  if(ast_id(type) != TK_NOMINAL)
-    return false;
-
-  // don't have to check the package, since literals are all builtins
-  return ast_name(ast_childidx(type, 1)) == stringtab(name);
 }
 
 // The subtype is either a nominal or a tuple, the super type is a union.

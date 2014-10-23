@@ -31,10 +31,7 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
       {
         case TK_VAL:
         case TK_TAG:
-        {
-          ast_free_unattached(left);
           return right;
-        }
 
         default: {}
       }
@@ -153,10 +150,16 @@ ast_t* viewpoint(ast_t* left, ast_t* right)
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
 
-  // if the left side is 'this' and has box capability, we return an arrow type
+  // If the left side is 'this' and has box capability, we return an arrow type
   // to allow the receiver to type check for ref and val receivers as well.
   if((ast_id(left) == TK_THIS) && (ast_id(l_type) == TK_ARROW))
-    return make_arrow_type(ast_from(l_type, TK_THISTYPE), r_type);
+  {
+    ast_t* this_type = ast_from(l_type, TK_THISTYPE);
+    ast_t* result = make_arrow_type(this_type, r_type);
+    ast_free_unattached(this_type);
+
+    return result;
+  }
 
   return viewpoint_type(l_type, r_type);
 }

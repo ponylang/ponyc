@@ -16,8 +16,6 @@ bool expr_match(ast_t* ast)
   ast_t* a_type = alias(expr_type);
   ast_t* type = NULL;
 
-  // TODO: check for unreachable cases, check for exhaustive match if there is
-  // no else branch
   ast_t* the_case = ast_child(cases);
 
   while(the_case != NULL)
@@ -36,7 +34,6 @@ bool expr_match(ast_t* ast)
     ast_t* else_type = ast_type(else_clause);
     type = type_union(type, else_type);
   } else {
-    // TODO: remove this when we know there is exhaustive match
     type = type_union(type, type_builtin(ast, "None"));
   }
 
