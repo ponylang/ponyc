@@ -383,7 +383,6 @@ static bool is_isect_subtype(ast_t* sub, ast_t* super)
 static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super)
 {
   // Allow the tuple to be a subtype of an empty interface with tag cap.
-  // TODO: Or change the way generic constraints work?
   ast_t* def = (ast_t*)ast_data(super);
 
   if(ast_id(def) != TK_INTERFACE)

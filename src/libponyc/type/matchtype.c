@@ -51,10 +51,9 @@ static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
 
 static bool could_subtype_with_typeparam(ast_t* sub, ast_t* super)
 {
-  // TODO: Could be a subtype of a typeparam only if the typeparam is the same
-  // cardinality and is composed entirely of concrete types. Otherwise,
-  // we don't know the lower bounds of the constraint.
-  return false;
+  // Could only be a subtype if it is a subtype, since we don't know the lower
+  // bounds of the constraint any more accurately than is_subtype() does.
+  return is_subtype(sub, super);
 }
 
 static bool could_subtype_trait_trait(ast_t* sub, ast_t* super)
@@ -221,9 +220,7 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
   switch(ast_id(super))
   {
     case TK_NOMINAL:
-      // A tuple can't be a nominal type.
-      // TODO: what about Any? or other empty interfaces?
-      return false;
+      return is_subtype(sub, super);
 
     case TK_UNIONTYPE:
       return could_subtype_with_union(sub, super);
@@ -268,8 +265,8 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
 
 static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 {
-  // If we're the same typeparam, check subtyping to make sure cap is ok.
-  if((ast_id(super) == TK_TYPEPARAMREF) && (ast_data(sub) == ast_data(super)))
+  // If the supertype is a typeparam, we have to be a subtype.
+  if(ast_id(super) == TK_TYPEPARAMREF)
     return is_subtype(sub, super);
 
   // Check our constraint.
