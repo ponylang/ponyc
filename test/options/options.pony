@@ -1,3 +1,5 @@
+use "options"
+
 actor Main
   new create(env: Env) =>
     var opt = Options(env)

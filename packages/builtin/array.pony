@@ -49,7 +49,20 @@ class Array[A]
       error
     end
 
-  //fun ref remove(i: U64) =>
+  fun ref delete(i: U64): A^ ? =>
+    if i < _size then
+      let deleted = _ptr._apply(i)
+      let n = i + 1
+
+      while n < _size do
+        _ptr._update(n - 1, _ptr._apply(n))
+      end
+
+      _size = _size - 1
+      deleted
+    else
+      error
+    end
 
   fun ref reserve(len: U64): Array[A] =>
     if _alloc < len then

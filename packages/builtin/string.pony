@@ -143,7 +143,7 @@ class String val is Ordered[String], Hashable[String], Stringable
 
     consume str
 
-  fun box contains(s: String): I64 =>
+  fun box find(s: String): I64 =>
     if _size < s._size then return -1 end
 
     var i: U64 = 0
