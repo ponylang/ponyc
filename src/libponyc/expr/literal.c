@@ -243,9 +243,6 @@ bool expr_fun(ast_t* ast)
   // The body type must match the return type.
   if(!is_subtype(body_type, type))
   {
-    // TODO: remove this
-    is_subtype(body_type, type);
-
     ast_t* last = ast_childlast(body);
     ast_error(type, "function body isn't a subtype of the result type");
     ast_error(last, "function body expression is here");

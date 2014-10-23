@@ -179,9 +179,6 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, constraint))
     {
-      // TODO: remove this
-      is_subtype(typearg, constraint);
-
       if(report_errors)
       {
         ast_error(typearg, "type argument is outside its constraint");
