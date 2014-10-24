@@ -144,6 +144,7 @@ actor Worker
     while i < _y do
       real.append(((F32(2.0)/_size.f32())*i.f32()) - 1.5)
       imag.append(((F32(2.0)/_size.f32())*i.f32()) - 1.0)
+      i = i + 1
     end
 
     _real = consume real
