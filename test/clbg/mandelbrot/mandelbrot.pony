@@ -82,13 +82,13 @@ actor Worker
       var n = _x
 
       while n < _y do
-        let p = _initial(_chunk)._2 //TODO: Bug
+        let p = _initial(_chunk)._2 //TODO: Bug, #62
         let prefetch_i = p(n - _x)
         var m: U64 = 0
 
         while m < _size do
           for i in Range[U64](0, 8) do
-            let gr = _initial(m/_chunk_size)._1 //TODO: Bug
+            let gr = _initial(m/_chunk_size)._1 //TODO: Bug, #62
             group_r.update(i, gr(i))
             group_i.update(i, prefetch_i)
           end
@@ -104,7 +104,7 @@ actor Worker
             for j in Range[U64](0, 8) do
               let r = group_r(j)
               let i = group_i(j)
-              let ri = _initial(m/_chunk_size)._1 //TODO: Bug
+              let ri = _initial(m/_chunk_size)._1 //TODO: Bug, #62
 
               group_r.update(j, ((r*r) - (i*i)) + ri(j))
               group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
