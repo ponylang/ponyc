@@ -9,7 +9,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include <stdio.h>
 
 typedef enum ast_token_id
 {
@@ -448,6 +447,9 @@ static ast_t* get_nodes(build_parser_t* builder, ast_token_id terminator)
       if(ast == NULL)
         build_error(builder, "Syntax error");
 
+      if(ast_id(ast) == TK_MINUS && ast_childcount(ast) == 1)
+        ast_setid(ast, TK_UNARY_MINUS);
+
       return ast;
     }
 
@@ -698,19 +700,6 @@ ast_t* builder_get_root(builder_t* builder)
   return ast_child(builder->dummy_root);
 }
 
-/*
-ast_t* builder_extract_root(builder_t* builder)
-{
-  if(builder == NULL)
-    return NULL;
-
-  assert(builder->dummy_root != NULL);
-  ast_t* root;
-  ast_t** children[1] = {&root};
-  ast_extract_children(builder->dummy_root, 1, children);
-  return root;
-}
-*/
 
 ast_t* builder_find_sub_tree(builder_t* builder, const char* name)
 {
@@ -763,10 +752,6 @@ static bool compare_asts(ast_t* prev, ast_t* expected, ast_t* actual,
 
   token_id expected_id = ast_id(expected);
   token_id actual_id = ast_id(actual);
-
-  // Allow unary and binary minuses to match
-  if(expected_id == TK_UNARY_MINUS) expected_id = TK_MINUS;
-  if(actual_id == TK_UNARY_MINUS)   actual_id = TK_MINUS;
 
   if(expected_id != actual_id)
   {
