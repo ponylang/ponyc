@@ -229,6 +229,7 @@ DEF(ref);
 // AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN [QUESTION]
 DEF(ffi);
   TOKEN(NULL, TK_AT);
+  MAP_ID(TK_AT, TK_FFICALL);
   TOKEN("ffi name", TK_ID);
   OPT RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);

@@ -140,6 +140,7 @@ typedef enum token_id
   TK_FVAR,
   TK_FLET,
   TK_FFIDECL,
+  TK_FFICALL,
 
   TK_TYPES,
   TK_UNIONTYPE,
