@@ -1,85 +1,159 @@
 actor Worker
+  var _coordinator: Bool = false
+  var _next: Worker
   var _main: Main
-  var _start: U64
-  var _finish: U64
   var _size: U64
-  var _length: U64
-  var _initial_real: Array[F32]
-  var _initial_imaginary: Array[F32]
+  var _chunk: U64
+  var _chunk_size: U64
+  var _iter: U64
+  var _limit: F32
+  var _x: U64
+  var _y: U64
 
-  new create(main: Main, start: U64, finish: U64, length: U64, iter: U64,
-    limit: F32)
-    =>
-    _main = main
-    _start = start
-    _finish = finish
-    _size = finish - start
-    _length = length
+  var _real: Array[F32] val
+  var _imag: Array[F32] val
+  var _initial: Array[(Array[F32] val, Array[F32] val)] val
 
-    _initial_real = Array[F32].prealloc(_size)
-    _initial_imaginary = Array[F32].prealloc(_size)
+  new create(main: Main, size: U64, chunk_size: U64, iter: U64, limit: F32) =>
+    let actors = ((size + (chunk_size - 1)) / chunk_size) - 1;
+    var rest = size % chunk_size
 
-    var i: U64 = start
+    if rest == 0 then rest = chunk_size end
 
-    while i < finish do
-      _initial_real.append(((F32(2.0)/_length.f32())*i.f32()) - 1.5)
-      _initial_imaginary.append(((F32(2.0)/_length.f32())*i.f32()) - 1.0)
+    var i: U64 = 0
+    var n: Worker = this
+
+    var x: U64 = 0
+    var y: U64 = 0
+
+    while i <= actors do
+      x = i * chunk_size
+      y = x + chunk_size
+      n = Worker.init(main, n, size, i, chunk_size, x, y, iter, limit)
       i = i + 1
     end
 
-    try
-      escape_time(iter, limit)
-      main.done()
+    _coordinator = true
+    _next = n
+    _main = main
+    _size = size
+    _chunk = actors + 1
+    _chunk_size = chunk_size
+    _iter = iter
+    _limit = limit
+    _x = y
+    _y = y + rest
+
+    prepare()
+
+  new init(main: Main, next: Worker, size: U64, chunk: U64, chunk_size: U64,
+    from: U64, to: U64, iter: U64, limit: F32)
+    =>
+    _next = next
+    _main = main
+    _size = size
+    _chunk = chunk
+    _chunk_size = chunk_size
+    _iter = iter
+    _limit = limit
+    _x = from
+    _y = to
+
+    prepare()
+
+  be accumulate(view: Array[(Array[F32] val, Array[F32] val)] iso) =>
+    view.append((_real, _imag))
+
+    if not _coordinator then
+      _next.accumulate(consume view)
     else
-      main.fail()
+      _initial = consume view
+      _next.escape_time(_initial)
     end
 
-  fun ref escape_time(iterations: U64, limit: F32) ? =>
-    let _group_real: Array[F32] = Array[F32].init(0, 8)
-    let _group_imaginary: Array[F32] = Array[F32].init(0, 8)
-    var y: U64 = _start
-
-    while y < _finish do
-      let prefetch_i = _initial_imaginary(y - _start)
-      var k: U64 = 0
-
-      while k < _size do
-        var j: U64 = 0
-
-        while j < 8 do
-          _group_real.update(j, _initial_real(k + j))
-          _group_imaginary.update(j, prefetch_i)
-          j = j + 1
-        end
-
-        var bitmap: U8 = 0xFF
-        var n = iterations
-
-        repeat
-          var pixel_mask: U8 = 0x80
-          var pixel: U64 = 0
-
-          while pixel < 8 do
-            let r: F32 = _group_real(pixel)
-            let i: F32 = _group_imaginary(pixel)
-
-            _group_real.update(pixel, ((r*r) - (i*i)) + _initial_real(k + pixel))
-            _group_imaginary.update(pixel, (F32(2.0)*r*i) + prefetch_i)
-
-            if ((r * r) + (i * i)) > limit then
-              bitmap = bitmap and not pixel_mask
-            end
-
-            pixel_mask = pixel_mask >> 1
-            pixel = pixel + 1
-          end
-          n = n - 1
-        until (bitmap != 0) and (n > 0) end
-
-        _main.draw((y*(_length/8)) + (k/8), bitmap)
-        k = k + 8
+  be escape_time(initial: Array[(Array[F32] val, Array[F32] val)] val) =>
+    try
+      if not _coordinator then
+        _next.escape_time(initial)
       end
-      y = y + 1
+
+      let group_r = Array[F32].init(0, 8)
+      let group_i = Array[F32].init(0, 8)
+      var n = _x
+
+      while n < _y do
+        let p = _initial(_chunk)._2 //TODO: Bug, #62
+        let prefetch_i = p(n - _x)
+        var m: U64 = 0
+
+        while m < _size do
+          for i in Range[U64](0, 8) do
+            let gr = _initial(m/_chunk_size)._1 //TODO: Bug, #62
+            group_r.update(i, gr(i))
+            group_i.update(i, prefetch_i)
+          end
+
+          var bitmap: U8 = 0xFF
+          var iterations: U64 = _iter
+
+          repeat
+            iterations = iterations - 1
+
+            var mask: U8 = 0x80
+
+            for j in Range[U64](0, 8) do
+              let r = group_r(j)
+              let i = group_i(j)
+              let ri = _initial(m/_chunk_size)._1 //TODO: Bug, #62
+
+              group_r.update(j, ((r*r) - (i*i)) + ri(j))
+              group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
+
+              if ((r*r) + (i*i)) > _limit then
+                bitmap = bitmap and not mask
+              end
+
+              mask = mask >> 1
+            end
+          until (bitmap == 0) or (iterations == 0) end
+
+          _main.draw(((n * _size)/8) + (m/8), bitmap)
+          m = m + 8
+        end
+        n = n + 1
+      end
+    end
+
+    if _coordinator then
+      _next.done()
+    end
+
+  be done() =>
+    if _coordinator then
+      _main.dump()
+    else
+      _next.done()
+    end
+
+  fun ref prepare() =>
+    var real: Array[F32] iso = recover Array[F32].prealloc(_y - _x) end
+    var imag: Array[F32] iso = recover Array[F32].prealloc(_y - _x) end
+
+    var i: U64 = _x
+
+    while i < _y do
+      real.append(((F32(2.0)/_size.f32())*i.f32()) - 1.5)
+      imag.append(((F32(2.0)/_size.f32())*i.f32()) - 1.0)
+    end
+
+    _real = consume real
+    _imag = consume imag
+
+    if _coordinator then
+      var view: Array[(Array[F32] val, Array[F32] val)] iso =
+        recover Array[(Array[F32] val, Array[F32] val)].prealloc(2) end
+
+      _next.accumulate(consume view)
     end
 
 actor Main
@@ -87,7 +161,7 @@ actor Main
   var _square_limit: F32 = 4.0
   var _iterations: U64 = 50
   var _lateral_length: U64 = 16000
-  var _chunk_length: U64 = 256
+  var _chunk_size: U64 = 16
   var _done: U64 = 0
   var _actors: U64
   var _image: Array[U8]
@@ -102,22 +176,15 @@ actor Main
       usage()
     end
 
-  be fail() =>
-    _env.stdout.print("Failed computing mandelbrot image!")
+  be dump() =>
+    @fprintf[I32](I32(1), "P4\n%jd %jd\n".cstring(), _lateral_length,
+      _lateral_length)
 
-  be done() =>
-    _done = _done + 1
-
-    if _done == _actors then
-      _env.stdout.print("Dump image")
-    end
+    @fwrite[U64](_image.carray(), (_lateral_length * _lateral_length)/8,
+      I32(1), I32(1))
 
   be draw(coord: U64, pixels: U8) =>
-    try
-      _image.update(coord, pixels)
-    else
-      fail()
-    end
+    try _image.update(coord, pixels) end
 
   fun ref arguments() ? =>
     var n: U64 = 1
@@ -130,48 +197,19 @@ actor Main
       match option
       | "--limit" => _square_limit = value.f32()
       | "--iterations" => _iterations = value.u64()
-      | "--lateral_length" => _lateral_length = (value.u64() + 7) and not 7
-      | "--chunk_length" => _chunk_length = (value.u64() + 7) and not 7
+      | "--lateral_length" => _lateral_length = ((value.u64() + 7)/8)*8
+      | "--chunk_size" => _chunk_size = ((value.u64() + 7)/8)*8
       else
         error
       end
 
-      if _chunk_length > _lateral_length then error end
+      if _chunk_size > _lateral_length then error end
     end
 
   fun ref mandelbrot() =>
     //TODO: issue: #58, otherwise problematic for large bitmaps
-    _image = Array[U8].init(0, (_lateral_length * _lateral_length) >> 3)
-
-    var rest = _lateral_length % _chunk_length
-    let half = _chunk_length >> 0
-
-    _actors =
-      if rest > 0 then
-        if rest > half then
-          rest = rest - half
-          (_lateral_length / _chunk_length) + 2
-        else
-          (_lateral_length / _chunk_length) + 1
-        end
-      else
-        rest = _chunk_length
-        _lateral_length / _chunk_length
-      end
-
-    var n: U64 = 0
-    var x: U64 = 0
-    var y: U64 = 0
-
-    while n < (_actors - 1) do
-      x = n * _chunk_length
-      y = x + _chunk_length
-
-      Worker(this, x, y, _lateral_length, _iterations, _square_limit)
-      n = n + 1
-    end
-
-    Worker(this, y, y + rest, _lateral_length, _iterations, _square_limit)
+    _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 3))
+    Worker(this, _lateral_length, _chunk_size, _iterations, _square_limit)
 
   fun ref usage() =>
     _env.stdout.print(
@@ -187,7 +225,8 @@ actor Main
       Available options:
 
       --limit           Square of the limit that pixels need to exceed in order
-                        to escape from the Mandelbrot set. Defaults to 4.0.
+                        to escape from the Mandelbrot set.
+                        Defaults to 4.0.
 
       --iterations      Maximum amount of iterations to be done for each pixel.
                         Defaults to 50.
@@ -195,8 +234,8 @@ actor Main
       --lateral_length  Lateral length of the resulting mandelbrot image.
                         Defaults to 16000.
 
-      --chunk_length    Maximum lateral length of chunks the image should be
+      --chunk_size      Maximum line count of chunks the image should be
                         divided into for divide & conquer processing.
-                        Defaults to 256.
+                        Defaults to 16.
       """
       )
