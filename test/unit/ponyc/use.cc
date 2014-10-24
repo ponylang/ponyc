@@ -322,7 +322,11 @@ TEST_F(UseTest, OsNameCaseSensitiveInCondition)
 TEST_F(UseTest, AndOpInCondition)
 {
   const char* before =
-    "(use x \"test:foo\" (and (reference (id linux)) (reference (id osx))))";
+    "(use x \"test:foo\"\n"
+    "  (tuple (seq (call\n"
+    "    (. (reference (id linux)) (id and_))\n"
+    "    (positionalargs (reference (id osx)))\n"
+    "    x))))";
 
   const char* after =
     "(x)";
@@ -339,7 +343,10 @@ TEST_F(UseTest, AndOpInCondition)
 TEST_F(UseTest, NotOpInCondition)
 {
   const char* before =
-    "(use x \"test:foo\" (not (reference (id debug))))";
+    "(use x \"test:foo\"\n"
+    "  (tuple (seq (call\n"
+    "    (. (reference (id debug)) (id not_))\n"
+    "    x x))))";
 
   const char* after =
     "(use x \"test:foo\" x)";
