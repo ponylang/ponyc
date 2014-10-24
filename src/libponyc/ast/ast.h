@@ -442,7 +442,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
  * AST_SCOPE  adds a symbol table to the enclosing node.
  */
 
-/** Builds an AST to replace the specified existing tree.
+/** Builds an AST based on the specified existing tree.
  * A variable with the name given by var is defined and the created tree is
  * stored in it.
  * An existing node must be provided in existing, all created nodes are based

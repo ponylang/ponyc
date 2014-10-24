@@ -503,7 +503,7 @@ ast_t* ast_enclosing_ffi_type(ast_t* ast)
   {
     switch(token_get_id(ast->t))
     {
-      case TK_AT:
+      case TK_FFICALL:
       {
         // only if we are in the ffi return type
         ast_t* type = ast_childidx(ast, 1);

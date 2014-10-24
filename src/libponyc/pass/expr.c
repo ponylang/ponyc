@@ -315,7 +315,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       ast_inheriterror(ast);
       break;
 
-    case TK_AT:
+    case TK_FFICALL:
       if(!expr_ffi(ast))
         return AST_FATAL;
       break;

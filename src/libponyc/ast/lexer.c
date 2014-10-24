@@ -156,6 +156,7 @@ static const lexsym_t abstract[] =
   { "fvar", TK_FVAR },
   { "flet", TK_FLET },
   { "ffidecl", TK_FFIDECL },
+  { "fficall", TK_FFICALL },
 
   { "types", TK_TYPES },
   { "uniontype", TK_UNIONTYPE },

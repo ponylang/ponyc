@@ -19,62 +19,67 @@
 #define DEF_METHOD_COUNT 15
 
 
-typedef enum tribool_t
-{
-  tb_no,
-  tb_opt,
-  tb_yes
-} tribool_t;
-
-typedef struct entity_def_t
+typedef struct permission_def_t
 {
   const char* desc;
-  bool main_allowed;
-  bool field_allowed;
-  tribool_t cap;
-  bool field;
-} entity_def_t;
+  const char* permissions;
+} permission_def_t;
+
+// Element permissions are specified by strings with a single character for
+// each element.
+// Y indicates the element must be present.
+// N indicates the element must not be present.
+// X indicates the element is optional.
+// The entire permission string being NULL indicates that the whole thing is
+// not allowed.
+
+#define ENTITY_MAIN 0
+#define ENTITY_FIELD 2
+#define ENTITY_CAP 4
 
 // Index by DEF_<ENTITY>
-static const entity_def_t _entity_def[DEF_ENTITY_COUNT] =
-{ //                   Main   field  cap
-  { "class",           false, true,  tb_opt },
-  { "actor",           true,  true,  tb_no  },
-  { "primitive",       false, false, tb_no  },
-  { "trait",           false, false, tb_opt },
-  { "interface",       false, false, tb_opt }
+static const permission_def_t _entity_def[DEF_ENTITY_COUNT] =
+{ //                           Main
+  //                           | field
+  //                           | | cap
+  //                           | | |
+  { "class",                  "N X X" },
+  { "actor",                  "X X N" },
+  { "primitive",              "N N N" },
+  { "trait",                  "N N X" },
+  { "interface",              "N N X" }
 };
 
-
-typedef struct method_def_t
-{
-  const char* desc;
-  bool allowed;
-  tribool_t cap;
-  tribool_t name;
-  tribool_t return_type;
-  tribool_t error;
-  tribool_t body;
-} method_def_t;
+#define METHOD_CAP 0
+#define METHOD_AT 2
+#define METHOD_NAME 4
+#define METHOD_RETURN 6
+#define METHOD_ERROR 8
+#define METHOD_BODY 10
 
 // Index by DEF_<ENTITY> + DEF_<METHOD>
-static const method_def_t _method_def[DEF_METHOD_COUNT] =
-{ //                         allowed cap     name    return  error   body
-  { "class function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
-  { "actor function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
-  { "primitive function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_yes },
-  { "trait function",         true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_opt },
-  { "interface function",     true,  tb_yes, tb_opt, tb_opt, tb_opt, tb_opt },
-  { "class behaviour",        false },
-  { "actor behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_yes },
-  { "primitive behaviour",    false },
-  { "trait behaviour",        true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
-  { "interface behaviour",    true,  tb_no,  tb_yes, tb_no,  tb_no,  tb_opt },
-  { "class constructor",      true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
-  { "actor constructor",      true,  tb_no,  tb_opt, tb_no,  tb_no,  tb_yes },
-  { "primitive constructor",  true,  tb_no,  tb_opt, tb_no,  tb_opt, tb_yes },
-  { "trait constructor",      false },
-  { "interface constructor",  false }
+static const permission_def_t _method_def[DEF_METHOD_COUNT] =
+{ //                           cap
+  //                           | at
+  //                           | | name
+  //                           | | | return
+  //                           | | | | error
+  //                           | | | | | body
+  { "class function",         "Y N X X X Y" },
+  { "actor function",         "Y X X X X Y" },
+  { "primitive function",     "Y N X X X Y" },
+  { "trait function",         "Y N X X X X" },
+  { "interface function",     "Y N X X X X" },
+  { "class behaviour",        NULL },
+  { "actor behaviour",        "N X Y N N Y" },
+  { "primitive behaviour",    NULL },
+  { "trait behaviour",        "N N Y N N X" },
+  { "interface behaviour",    "N N Y N N X" },
+  { "class constructor",      "N N X N X Y" },
+  { "actor constructor",      "N X X N N Y" },
+  { "primitive constructor",  "N N X N X Y" },
+  { "trait constructor",      NULL },
+  { "interface constructor",  NULL }
 };
 
 
@@ -139,23 +144,27 @@ static bool check_traits(ast_t* traits)
 }
 
 
-// Check one specific part of a method or entity
-static bool check_tribool(tribool_t allowed, ast_t* actual,
-  const char* context, const char* part_desc, ast_t* report_at)
+// Check permission for one specific element of a method or entity
+static bool check_permission(const permission_def_t* def, int element,
+  ast_t* actual, const char* context, ast_t* report_at)
 {
+  assert(def != NULL);
   assert(actual != NULL);
   assert(context != NULL);
-  assert(part_desc != NULL);
 
-  if(allowed == tb_no && ast_id(actual) != TK_NONE)
+  char permission = def->permissions[element];
+
+  assert(permission == 'Y' || permission == 'N' || permission == 'X');
+
+  if(permission == 'N' && ast_id(actual) != TK_NONE)
   {
-    ast_error(actual, "%s cannot specify %s", context, part_desc);
+    ast_error(actual, "%s cannot specify %s", def->desc, context);
     return false;
   }
 
-  if(allowed == tb_yes && ast_id(actual) == TK_NONE)
+  if(permission == 'Y' && ast_id(actual) == TK_NONE)
   {
-    ast_error(report_at, "%s must specify %s", context, part_desc);
+    ast_error(report_at, "%s must specify %s", def->desc, context);
     return false;
   }
 
@@ -169,27 +178,28 @@ static bool check_method(ast_t* ast, int method_def_index)
   assert(ast != NULL);
   assert(method_def_index >= 0 && method_def_index < DEF_METHOD_COUNT);
 
-  const method_def_t* def = &_method_def[method_def_index];
+  const permission_def_t* def = &_method_def[method_def_index];
 
-  if(!def->allowed)
+  if(def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
     return false;
   }
 
-  AST_GET_CHILDREN(ast, cap, c_api, id, ignore0, ignore1, return_type, error,
-    arrow, body);
+  AST_EXTRACT_CHILDREN(ast, cap, c_api, id, type_params, params, return_type,
+    error, arrow, body);
 
-  // Remove the arrow node
-  token_id arrow_id = ast_id(arrow);
-  ast_remove(arrow);
+  // Rebuild node without arrow node and with C_API marker at end
+  ast_add(ast, c_api);
+  ast_add(ast, body);
+  ast_add(ast, error);
+  ast_add(ast, return_type);
+  ast_add(ast, params);
+  ast_add(ast, type_params);
+  ast_add(ast, id);
+  ast_add(ast, cap);
 
-  // Move the C-API marker to the end of the ast node.
-  ast_t* c_api_append = ast_dup(c_api);
-  ast_remove(c_api);
-  ast_append(ast, c_api_append);
-
-  if(!check_tribool(def->cap, cap, def->desc, "receiver capability", cap))
+  if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
 
   if(ast_id(cap) == TK_ISO || ast_id(cap) == TK_TRN)
@@ -198,18 +208,22 @@ static bool check_method(ast_t* ast, int method_def_index)
     return false;
   }
 
-  if(!check_tribool(def->name, id, def->desc, "name", id))
+  if(!check_permission(def, METHOD_AT, c_api, "C callback", c_api))
     return false;
 
-  if(!check_tribool(def->return_type, return_type, def->desc, "return type",
-    ast))
+  if(!check_permission(def, METHOD_NAME, id, "name", id))
     return false;
 
-  if(!check_tribool(def->error, error, def->desc, "?", ast))
+  if(!check_permission(def, METHOD_RETURN, return_type, "return type", ast))
     return false;
 
-  if(!check_tribool(def->body, body, def->desc, "body", ast))
+  if(!check_permission(def, METHOD_ERROR, error, "?", ast))
     return false;
+
+  if(!check_permission(def, METHOD_BODY, body, "body", ast))
+    return false;
+
+  token_id arrow_id = ast_id(arrow);
 
   if(arrow_id == TK_DBLARROW && ast_id(body) == TK_NONE)
   {
@@ -246,7 +260,7 @@ static bool check_members(ast_t* members, int entity_def_index)
   assert(members != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
 
-  const entity_def_t* def = &_entity_def[entity_def_index];
+  const permission_def_t* def = &_entity_def[entity_def_index];
   ast_t* member = ast_child(members);
   const char* be_name = NULL;
   const char* fun_name = NULL;
@@ -257,7 +271,7 @@ static bool check_members(ast_t* members, int entity_def_index)
     {
       case TK_FLET:
       case TK_FVAR:
-        if(!def->field_allowed)
+        if(def->permissions[ENTITY_FIELD] == 'N')
         {
           ast_error(member, "Can't have fields in %s", def->desc);
           return false;
@@ -319,17 +333,17 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
   assert(ast != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
 
-  const entity_def_t* def = &_entity_def[entity_def_index];
+  const permission_def_t* def = &_entity_def[entity_def_index];
   AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members);
 
   // Check if we're called Main
-  if(!def->main_allowed && ast_name(id) == stringtab("Main"))
+  if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
   {
     ast_error(ast, "Main must be an actor");
     return AST_ERROR;
   }
 
-  if(!check_tribool(def->cap, defcap, def->desc, "default capability", defcap))
+  if(!check_permission(def, ENTITY_CAP,  defcap, "default capability", defcap))
     return AST_ERROR;
 
   // Check referenced traits
@@ -720,7 +734,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_BANG:       return parse_fix_bang(ast);
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_FFIDECL:    return parse_fix_ffi(ast, false);
-    case TK_AT:         return parse_fix_ffi(ast, true);
+    case TK_FFICALL:    return parse_fix_ffi(ast, true);
     case TK_ELLIPSIS:   return parse_fix_ellipsis(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:

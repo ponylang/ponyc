@@ -31,9 +31,9 @@ TEST(SugarTest, DataType)
     "(primitive (id Foo) x x x members)";
 
   const char* after =
-    "(primitive (id Foo) x val x"
-    "  (members"
-    "    (new x (id create) x x x x (seq 0))))";
+    "(primitive (id Foo) x val x\n"
+    "  (members\n"
+    "    (new x (id create) x x x x (seq true) x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -51,7 +51,8 @@ TEST(SugarTest, ClassWithField)
 TEST(SugarTest, ClassWithCreateConstructor)
 {
   const char* before =
-    "(class (id Foo) x iso x (members (new ref (id create) x x x x (seq 3))))";
+    "(class (id Foo) x iso x\n"
+    "  (members (new ref (id create) x x x x (seq 3) x)))";
 
   DO(test_good_sugar(before, before));
 }
@@ -60,7 +61,8 @@ TEST(SugarTest, ClassWithCreateConstructor)
 TEST(SugarTest, ClassWithCreateFunction)
 {
   const char* before =
-    "(class (id Foo) x iso x (members (fun ref (id create) x x x x (seq 3))))";
+    "(class (id Foo) x iso x\n"
+    "  (members (fun ref (id create) x x x x (seq 3) x)))";
 
   DO(test_bad_sugar(before, AST_ERROR));
 }
@@ -72,9 +74,9 @@ TEST(SugarTest, ClassWithoutFieldOrCreate)
     "(class (id Foo) x iso x members)";
 
   const char* after =
-    "(class (id Foo) x iso x"
-    "  (members"
-    "    (new x (id create) x x x x (seq 0))))";
+    "(class (id Foo) x iso x\n"
+    "  (members\n"
+    "    (new x (id create) x x x x (seq true) x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -101,10 +103,12 @@ TEST(SugarTest, ActorWithField)
 TEST(SugarTest, ActorWithCreateConstructor)
 {
   const char* before =
-    "(actor (id Foo) x x x (members (new ref (id create) x x x x (seq 3))))";
+    "(actor (id Foo) x x x\n"
+    "  (members (new ref (id create) x x x x (seq 3) x)))";
 
   const char* after =
-    "(actor (id Foo) x tag x (members (new ref (id create) x x x x (seq 3))))";
+    "(actor (id Foo) x tag x\n"
+    "  (members (new ref (id create) x x x x (seq 3) x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -134,9 +138,9 @@ TEST(SugarTest, ActorWithoutFieldOrCreate)
     "(actor (id Foo) x x x members)";
 
   const char* after =
-    "(actor (id Foo) x tag x"
-    "  (members"
-    "    (new x (id create) x x x x (seq 0))))";
+    "(actor (id Foo) x tag x\n"
+    "  (members\n"
+    "    (new x (id create) x x x x (seq true) x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -170,7 +174,7 @@ TEST(SugarTest, TypeParamWithConstraint)
 TEST(SugarTest, TypeParamWithoutConstraint)
 {
   const char* before = "(typeparam (id foo) x x)";
-  const char* after  = "(typeparam (id foo) (structural members tag x) x)";
+  const char* after  = "(typeparam (id foo) (nominal x (id Any) x tag x) x)";
 
   DO(test_good_sugar(before, after));
 }
@@ -182,8 +186,8 @@ TEST(SugarTest, ConstructorNoNameNoReturnType)
     "(class (id foo) x x x (members (new{def start} ref x x x x x x)))";
 
   const char* after =
-    "(class (id foo) x x x"
-    "  (members (new ref (id create) x x"
+    "(class (id foo) x x x\n"
+    "  (members (new ref (id create) x x\n"
     "    (nominal x (id foo) x ref ^) x x)))";
 
   DO(test_good_sugar(before, after));
@@ -197,8 +201,8 @@ TEST(SugarTest, ConstructorInActor)
     "  (new{def start} ref (id make) x x x x x)))";
 
   const char* after =
-    "(actor (id foo) x x x"
-    "  (members (new ref (id make) x x"
+    "(actor (id foo) x x x\n"
+    "  (members (new ref (id make) x x\n"
     "    (nominal x (id foo) x tag ^) x x)))";
 
   DO(test_good_sugar(before, after));
@@ -209,12 +213,12 @@ TEST(SugarTest, ConstructorInDataType)
 {
   const char* before =
     "(primitive (id foo) x x x (members"
-    "  (new{def start} ref (id make) x x x x x)))";
+    "  (new{def start} ref (id make) x x x x x x)))";
 
   const char* after =
-    "(primitive (id foo) x x x"
-    "  (members (new ref (id make) x x"
-    "    (nominal x (id foo) x tag ^) x x)))";
+    "(primitive (id foo) x x x\n"
+    "  (members (new ref (id make) x x\n"
+    "    (nominal x (id foo) x val ^) x x x)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -230,21 +234,21 @@ TEST(SugarTest, ConstructorInGenericClass)
     "  ) x x (members (new{def start} ref (id bar) x x x x x)))";
 
   const char* after =
-    "(class (id foo)"
-    "  (typeparams"
-    "    (typeparam (id A) (nominal (id B) x x x) x)"
-    "    (typeparam (id C) x x)"
-    "  )"
-    "  x x"
-    "  (members (new ref (id bar) x x"
-    "    (nominal"
-    "      x (id foo)"
-    "      (typeargs"
-    "        (nominal x (id A) x x x)"
-    "        (nominal x (id C) x x x)"
-    "      )"
-    "      ref ^"
-    "    )"
+    "(class (id foo)\n"
+    "  (typeparams\n"
+    "    (typeparam (id A) (nominal (id B) x x x) x)\n"
+    "    (typeparam (id C) x x)\n"
+    "  )\n"
+    "  x x\n"
+    "  (members (new ref (id bar) x x\n"
+    "    (nominal\n"
+    "      x (id foo)\n"
+    "      (typeargs\n"
+    "        (nominal x (id A) x x x)\n"
+    "        (nominal x (id C) x x x)\n"
+    "      )\n"
+    "      ref ^\n"
+    "    )\n"
     "    x x)))";
 
   DO(test_good_sugar(before, after));
@@ -257,8 +261,8 @@ TEST(SugarTest, BehaviourReturnType)
     "(actor (id foo) x x x (members (be{def start} tag (id foo) x x x x x)))";
 
   const char* after =
-    "(actor (id foo) x x x"
-    "  (members (be tag (id foo) x x"
+    "(actor (id foo) x x x\n"
+    "  (members (be tag (id foo) x x\n"
     "    (nominal x (id foo) x tag x) x x)))";
 
   DO(test_good_sugar(before, after));
@@ -301,71 +305,16 @@ TEST(SugarTest, FunctionNoReturnNoBody)
 TEST(SugarTest, FunctionNoReturnBody)
 {
   const char* before =
-    "(fun ref (id foo) x x x x (seq 3))";
+    "(fun ref (id foo) x x x x (seq 3) x)";
 
   const char* after =
-    "(fun"
-    "  ref (id foo) x x"
-    "  (nominal x (id None) x x x) x"
-    "  (seq 3 (reference (id None))))";
+    "(fun\n"
+    "  ref (id foo) x x\n"
+    "  (nominal x (id None) x x x) x\n"
+    "  (seq 3) x)";
 
   DO(test_good_sugar(before, after));
 }
-
-
-TEST(SugarTest, StructuralWithCapability)
-{
-  const char* before = "(structural members box x)";
-
-  DO(test_good_sugar(before, before));
-}
-
-
-TEST(SugarTest, StructuralWithoutCapabilityInTypeParam)
-{
-  const char* before =
-    "(typeparam (id foo) (structural{def start} members x x) x)";
-
-  const char* after =
-    "(typeparam (id foo) (structural members tag x) x)";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-TEST(SugarTest, StructuralWithoutCapabilityNotInTypeParam)
-{
-  const char* before = "(structural members x x)";
-  const char* after =  "(structural members ref x)";
-
-  DO(test_good_sugar(before, after));
-}
-
-
-// TODO(andy): This currently fails because of a known bug. See
-// sugar_structural() in sugar.c
-/*
-TEST(SugarTest, StructuralWithoutCapabilityInInnerInTypeParam)
-{
-  const char* before =
-    "(typeparam (id foo)"
-    "  (structural"
-    "    (members"
-    "      (fun ref (id bar) x (params"
-    "        (param (id y) (structural{def start} members x x) x))))"
-    "    box x) x)";
-
-  const char* after =
-    "(typeparam (id foo)"
-    "  (structural"
-    "    (members"
-    "      (fun ref (id bar) x (params"
-    "        (param (id y) (structural{def start} members ref x) x))))"
-    "    box x) x)";
-
-  DO(test_good_sugar(before, after));
-}
-*/
 
 
 TEST(SugarTest, IfWithoutElse)
@@ -444,18 +393,18 @@ TEST(SugarTest, ForWithoutElse)
 {
   const char* before = "(for (idseq (id i)) x (seq 3) (seq 4) x)";
   const char* after =
-    "(seq{scope}"
-    "  (= (var (idseq (id hygid)) x) (seq 3))"
-    "  (while{scope}"
-    "    (call (. (reference (id hygid)) (id has_next)) x x)"
-    "    (seq{scope}"
-    "      (="
-    "        (var (idseq (id i)) x)"
-    "        (call (. (reference (id hygid)) (id next)) x x))"
-    "      (seq 4)"
-    "    )"
-    "    (seq (reference (id None)))"
-    "  )"
+    "(seq{scope}\n"
+    "  (= (var (idseq (id hygid)) x) (seq 3))\n"
+    "  (while{scope}\n"
+    "    (call (. (reference (id hygid)) (id has_next)) x x)\n"
+    "    (seq{scope}\n"
+    "      (=\n"
+    "        (var (idseq (id i)) x)\n"
+    "        (call (. (reference (id hygid)) (id next)) x x))\n"
+    "      (seq 4)\n"
+    "    )\n"
+    "    (seq (reference (id None)))\n"
+    "  )\n"
     ")";
 
   DO(test_good_sugar(before, after));
@@ -468,18 +417,18 @@ TEST(SugarTest, ForWithElseAndIteratorType)
     "(for (idseq (id i)) (nominal x (id Foo) x x x) (seq 3) (seq 4) (seq 5))";
 
   const char* after =
-    "(seq{scope}"
-    "  (= (var (idseq (id hygid)) (nominal x (id Foo) x x x)) (seq 3))"
-    "  (while{scope}"
-    "    (call (. (reference (id hygid)) (id has_next)) x x)"
-    "    (seq{scope}"
-    "      (="
-    "        (var (idseq (id i)) (nominal x (id Foo) x x x))"
-    "        (call (. (reference (id hygid)) (id next)) x x))"
-    "      (seq 4)"
-    "    )"
-    "    (seq 5)"
-    "  )"
+    "(seq{scope}\n"
+    "  (= (var (idseq (id hygid)) x) (seq 3))\n"
+    "  (while{scope}\n"
+    "    (call (. (reference (id hygid)) (id has_next)) x x)\n"
+    "    (seq{scope}\n"
+    "      (=\n"
+    "        (var (idseq (id i)) (nominal x (id Foo) x x x))\n"
+    "        (call (. (reference (id hygid)) (id next)) x x))\n"
+    "      (seq 4)\n"
+    "    )\n"
+    "    (seq 5)\n"
+    "  )\n"
     ")";
 
   DO(test_good_sugar(before, after));
@@ -500,8 +449,8 @@ TEST(SugarTest, CaseWithBody)
 TEST(SugarTest, CaseWithBodyAndFollowingCase)
 {
   const char* before =
-    "(cases"
-    "  (case{def start} 1 x (seq 2))"
+    "(cases\n"
+    "  (case{def start} 1 x (seq 2))\n"
     "  (case 3 x (seq 4)))";
 
   DO(test_good_sugar(before, before));
@@ -511,13 +460,13 @@ TEST(SugarTest, CaseWithBodyAndFollowingCase)
 TEST(SugarTest, CaseWithNoBody)
 {
   const char* before =
-    "(cases"
-    "  (case{def start} 1 x x)"
+    "(cases\n"
+    "  (case{def start} 1 x x)\n"
     "  (case 2 x (seq 3)))";
 
   const char* after  =
-    "(cases"
-    "  (case 1 x (seq 3))"
+    "(cases\n"
+    "  (case 1 x (seq 3))\n"
     "  (case 2 x (seq 3)))";
 
   DO(test_good_sugar(before, after));
@@ -527,17 +476,17 @@ TEST(SugarTest, CaseWithNoBody)
 TEST(SugarTest, CaseWithNoBodyMultiple)
 {
   const char* before =
-    "(cases"
-    "  (case{def start} 1 x x)"
-    "  (case 2 x x)"
-    "  (case 3 x x)"
+    "(cases\n"
+    "  (case{def start} 1 x x)\n"
+    "  (case 2 x x)\n"
+    "  (case 3 x x)\n"
     "  (case 4 x (seq 5)))";
 
   const char* after =
-    "(cases"
-    "  (case 1 x (seq 5))"
-    "  (case 2 x x)"
-    "  (case 3 x x)"
+    "(cases\n"
+    "  (case 1 x (seq 5))\n"
+    "  (case 2 x x)\n"
+    "  (case 3 x x)\n"
     "  (case 4 x (seq 5)))";
 
   DO(test_good_sugar(before, after));
@@ -557,9 +506,9 @@ TEST(SugarTest, UpdateNoArgs)
   const char* before = "(= (call (seq 1) x x)(seq 2))";
 
   const char* after  =
-    "(call"
-    "  (. (seq 1) (id update))"
-    "  (positionalargs (seq 2))"
+    "(call\n"
+    "  (. (seq 1) (id update))\n"
+    "  (positionalargs (seq 2))\n"
     "  x)";
 
   DO(test_good_sugar(before, after));
@@ -569,21 +518,21 @@ TEST(SugarTest, UpdateNoArgs)
 TEST(SugarTest, UpdateWithArgs)
 {
   const char* before =
-    "(="
-    "  (call"
-    "    (seq 1)"
-    "    (positionalargs (seq 2) (seq 3))"
-    "    (namedargs"
-    "      (namedarg (id foo) (seq 4))"
-    "      (namedarg (id bar) (seq 5))))"
+    "(=\n"
+    "  (call\n"
+    "    (seq 1)\n"
+    "    (positionalargs (seq 2) (seq 3))\n"
+    "    (namedargs\n"
+    "      (namedarg (id foo) (seq 4))\n"
+    "      (namedarg (id bar) (seq 5))))\n"
     "  (seq 6))";
 
   const char* after =
-    "(call"
-    "  (. (seq 1) (id update))"
-    "  (positionalargs (seq 2) (seq 3) (seq 6))"
-    "  (namedargs"
-    "    (namedarg (id foo) (seq 4))"
+    "(call\n"
+    "  (. (seq 1) (id update))\n"
+    "  (positionalargs (seq 2) (seq 3) (seq 6))\n"
+    "  (namedargs\n"
+    "    (namedarg (id foo) (seq 4))\n"
     "    (namedarg (id bar) (seq 5))))";
 
   DO(test_good_sugar(before, after));
