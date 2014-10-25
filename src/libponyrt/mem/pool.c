@@ -196,10 +196,9 @@ void* pool_alloc_size(size_t size)
 
 void* pool_realloc_size(void* p, size_t old_size, size_t new_size)
 {
-  if(new_size <= old_size)
-    return p;
+  assert(p != NULL);
 
-  if(new_size <= POOL_MIN)
+  if(new_size <= old_size)
     return p;
 
   if(new_size <= POOL_THRESHOLD)

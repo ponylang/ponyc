@@ -191,6 +191,18 @@ static void* small_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
   return m;
 }
 
+static void large_pagemap(chunk_t* chunk)
+{
+  char* p = chunk->m;
+  char* end = p + chunk->size;
+
+  while(p < end)
+  {
+    pagemap_set(p, chunk);
+    p += HEAP_MAX;
+  }
+}
+
 static void* large_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
 {
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
@@ -200,14 +212,7 @@ static void* large_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
   chunk->slots = 0;
   chunk->shallow = 0;
 
-  char* p = chunk->m;
-  char* end = chunk->m + chunk->size;
-
-  while(p < end)
-  {
-    pagemap_set(p, chunk);
-    p += HEAP_MAX;
-  }
+  large_pagemap(chunk);
 
   chunk->next = heap->large;
   heap->large = chunk;
@@ -282,9 +287,13 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
   if(size <= chunk->size)
     return p;
 
+  // Adjust heap used.
+  heap->used += size - chunk->size;
+
   // Reallocate the large_malloc.
   chunk->m = (char*)pool_realloc_size(p, chunk->size, size);
   chunk->size = size;
+  large_pagemap(chunk);
 
   return chunk->m;
 }
