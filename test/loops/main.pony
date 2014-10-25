@@ -7,7 +7,7 @@ actor Main
     y = while x < 10 do
       x = x + 1
     else
-      0
+      U64(0)
     end
 
     env.stdout.print(y.string() + ", expected 9")
@@ -15,11 +15,11 @@ actor Main
     x = 0
     y = while x < 10 do
       if x == 3 then
-        break 99
+        break U64(99)
       end
       x = x + 1
     else
-      0
+      U64(0)
     end
 
     env.stdout.print(y.string() + ", expected 99")
@@ -41,7 +41,7 @@ actor Main
     y = repeat
       x = x + 1
     until x >= 10 else
-      0
+      U64(0)
     end
 
     env.stdout.print(y.string() + ", expected 9")
@@ -49,11 +49,11 @@ actor Main
     x = 0
     y = repeat
       if x == 3 then
-        break 99
+        break U64(99)
       end
       x = x + 1
     until x >= 10 else
-      0
+      U64(0)
     end
 
     env.stdout.print(y.string() + ", expected 99")

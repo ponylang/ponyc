@@ -283,6 +283,7 @@ bool sendable(ast_t* type)
       return true;
     }
 
+    case TK_NUMBERLITERAL:
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
       return true;
