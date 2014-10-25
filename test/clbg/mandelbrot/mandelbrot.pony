@@ -134,8 +134,12 @@ actor Worker
     end
 
   fun ref prepare() =>
-    var real: Array[F32] iso = recover Array[F32].prealloc(_y - _x) end
-    var imag: Array[F32] iso = recover Array[F32].prealloc(_y - _x) end
+    let n = _y - _x
+
+    //TODO: Clarify: With commit 5de614fb5f335911dd48346364d71701d2da65f5
+    //cannot do _y - _x within recover. (1)
+    var real: Array[F32] iso = recover Array[F32].prealloc(n) end
+    var imag: Array[F32] iso = recover Array[F32].prealloc(n) end
 
     var i: U64 = _x
 
@@ -149,8 +153,11 @@ actor Worker
     _imag = consume imag
 
     if _coordinator then
+      let m = _chunk
+
+      //TODO: Clarify (1)
       var view: Array[(Array[F32] val, Array[F32] val)] iso =
-        recover Array[(Array[F32] val, Array[F32] val)].prealloc(_chunk) end
+        recover Array[(Array[F32] val, Array[F32] val)].prealloc(m) end
 
       _next.accumulate(consume view)
     end
