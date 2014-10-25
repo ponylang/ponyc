@@ -103,7 +103,7 @@ actor Worker
             for j in Range[U64](0, 8) do
               let r = group_r(j)
               let i = group_i(j)
-            
+
               group_r.update(j, ((r*r) - (i*i)) + (_initial(m/_chunk_size)._1)(j))
               group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
 
@@ -150,7 +150,7 @@ actor Worker
 
     if _coordinator then
       var view: Array[(Array[F32] val, Array[F32] val)] iso =
-        recover Array[(Array[F32] val, Array[F32] val)].prealloc(2) end
+        recover Array[(Array[F32] val, Array[F32] val)].prealloc(_chunk) end
 
       _next.accumulate(consume view)
     end
