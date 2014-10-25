@@ -274,9 +274,10 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMValueRef test = LLVMBuildICmp(c->builder, LLVMIntULT, phi, count, "");
   LLVMBuildCondBr(c->builder, test, body_block, post_block);
 
-  // The phi node is the index. Get the address and trace it.
+  // The phi node is the index. Get the element and trace it.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
+  elem = LLVMBuildLoad(c->builder, elem, "");
   gencall_trace(c, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.

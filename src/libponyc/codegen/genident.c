@@ -52,6 +52,7 @@ static LLVMValueRef tuple_is(compile_t* c, ast_t* left_type, ast_t* right_type,
   LLVMPositionBuilderAtEnd(c->builder, this_block);
   LLVMBuildBr(c->builder, post_block);
 
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef one = LLVMConstInt(c->i1, 1, false);
   LLVMAddIncoming(phi, &one, &this_block, 1);
 

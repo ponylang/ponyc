@@ -459,10 +459,15 @@ static void trace_actor(compile_t* c, LLVMValueRef value)
   gencall_runtime(c, "pony_traceactor", args, 1, "");
 }
 
-static void trace_known(compile_t* c, LLVMValueRef value, const char* name)
+static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
 {
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return false;
+
   // get the trace function statically
-  const char* fun = genname_trace(name);
+  const char* fun = genname_trace(g.type_name);
 
   LLVMValueRef args[2];
   args[1] = LLVMGetNamedFunction(c->module, fun);
@@ -478,6 +483,8 @@ static void trace_known(compile_t* c, LLVMValueRef value, const char* name)
     args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
     gencall_runtime(c, "pony_trace", args, 1, "");
   }
+
+  return true;
 }
 
 static void trace_unknown(compile_t* c, LLVMValueRef value)
@@ -574,11 +581,12 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
         case TK_CLASS:
           if(tag)
+          {
             trace_tag(c, value);
-          else
-            trace_known(c, value, genname_type(type));
+            return true;
+          }
 
-          return true;
+          return trace_known(c, value, type);
 
         case TK_ACTOR:
           trace_actor(c, value);

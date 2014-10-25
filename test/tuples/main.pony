@@ -2,25 +2,38 @@ actor Main
   var _tuple: (U32, U32) = (3, 5)
 
   new create(env: Env) =>
+    try
+      var a = Array[(Array[F32], Array[F32])]
+      a.append((Array[F32], Array[F32]))
+      a(0)._1.append(99)
+
+      var x = (a(0)._1)(0)
+      env.stdout.print(x.string())
+    else
+      env.stdout.print("error")
+    end
+
     var test: (U32, U32) = (3, 5)
     var (a, b): (U32, U32) = (1, 2)
 
-    if _tuple == test then
-      @printf[I32]("eq\n".cstring())
+    if _tuple is test then
+      env.stdout.print("is")
     else
-      @printf[I32]("ne\n".cstring())
+      env.stdout.print("isnt")
     end
 
-    @printf[I32]("%d, %d\n".cstring(), _tuple.0, _tuple.1)
+    env.stdout.print(_tuple._1.string() + ", " + _tuple._2.string())
 
     _tuple = var tuple = (a, b) = (b, a)
 
-    @printf[I32]("%d, %d\n".cstring(), a, b)
-    @printf[I32]("%d, %d\n".cstring(), tuple.0, tuple.1)
-    @printf[I32]("%d, %d\n".cstring(), _tuple.0, _tuple.1)
+    env.stdout.print(a.string() + ", " + b.string())
+    env.stdout.print(tuple._1.string() + ", " + tuple._2.string())
+    env.stdout.print(_tuple._1.string() + ", " + _tuple._2.string())
 
     var array = Array[String].append("Hello").append("World").append("!")
 
-    for (index, value) in array.pairs() do
-      @printf[I32]("%d: %s\n".cstring(), index.i32(), value.cstring())
+    try
+      for (index, value) in array.pairs() do
+        env.stdout.print(index.string() + ": " + value)
+      end
     end

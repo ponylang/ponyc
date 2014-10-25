@@ -370,6 +370,7 @@ bool expr_call(ast_t* ast)
     case TK_STRING:
     case TK_ARRAY:
     case TK_OBJECT:
+    case TK_TUPLE:
     case TK_THIS:
     case TK_FVARREF:
     case TK_FLETREF:
@@ -552,12 +553,6 @@ bool expr_call(ast_t* ast)
       ast_settype(ast, result);
       ast_inheriterror(ast);
       return true;
-    }
-
-    case TK_TUPLE:
-    {
-      ast_error(ast, "can't call a tuple");
-      return false;
     }
 
     default: {}
