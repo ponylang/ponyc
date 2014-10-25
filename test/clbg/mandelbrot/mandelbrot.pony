@@ -82,7 +82,7 @@ actor Worker
       var n = _x
 
       while n < _y do
-        let prefetch_i = (_initial(_chunk)._2)(n/_chunk_size)
+        let prefetch_i = (_initial(_chunk)._2)(n - _x)
         var m: U64 = 0
 
         while m < _size do
