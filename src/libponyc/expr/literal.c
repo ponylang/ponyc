@@ -4,7 +4,7 @@
 #include "../pass/names.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
+#include "../type/alias.h"
 #include "../type/reify.h"
 #include "../type/cap.h"
 #include "../ast/token.h"
@@ -27,11 +27,16 @@ bool expr_literal(ast_t* ast, const char* name)
 
 bool expr_this(ast_t* ast)
 {
-  // TODO: If in a recover expression, may not have access to "this".
-  // Or we could lower it to tag, since it can't be assigned to. If in a
-  // constructor, lower it to tag if not all fields are defined.
+  // TODO: If in a constructor, lower it to tag if not all fields are defined.
   ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
   ast_settype(ast, type);
+
+  if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
+  {
+    ast_error(ast,
+      "can't access a non-sendable 'this' from inside a recover expression");
+    return false;
+  }
 
   ast_t* nominal;
 

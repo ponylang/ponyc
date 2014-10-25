@@ -182,7 +182,7 @@ class Options ref is Iterator[_Result]
       let start: U64 =
         match (current(0), current(1))
         | ("-".u8(), "-".u8()) => 2
-        | ("-".u8(), Any) => 1
+        | ("-".u8(), var some: Any) => 1
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options

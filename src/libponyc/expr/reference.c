@@ -292,10 +292,18 @@ bool expr_reference(ast_t* ast)
       if(!valid_reference(ast, status))
         return false;
 
+      ast_t* type = ast_type(def);
+
+      if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
+      {
+        ast_error(ast,
+          "can't access a non-sendable parameter from inside a recover "
+          "expression");
+        return false;
+      }
+
       // Get the type of the parameter and attach it to our reference.
-      // TODO: If in a recover expression, may not have access to the param.
-      // Or we could lower it to tag, since it can't be assigned to.
-      ast_settype(ast, ast_type(def));
+      ast_settype(ast, type);
       ast_setid(ast, TK_PARAMREF);
       return true;
     }
@@ -346,11 +354,27 @@ bool expr_reference(ast_t* ast)
           return false;
       }
 
+      ast_t* type = ast_type(def);
+
+      if(!sendable(type))
+      {
+        ast_t* recover = ast_nearest(ast, TK_RECOVER);
+
+        if(recover != NULL)
+        {
+          ast_t* def_recover = ast_nearest(def, TK_RECOVER);
+
+          if(recover != def_recover)
+          {
+            ast_error(ast, "can't access a non-sendable local defined outside "
+              "of a recover expression from within that recover expression");
+            return false;
+          }
+        }
+      }
+
       // Get the type of the local and attach it to our reference.
-      // TODO: If there is a recover expression between us and the definition,
-      // may not have access to the local. For a let, we could lower it to tag,
-      // since it can't be assigned to, but for var we have to deny access.
-      ast_settype(ast, ast_type(def));
+      ast_settype(ast, type);
       return true;
     }
 
