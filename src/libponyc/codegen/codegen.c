@@ -544,6 +544,9 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     LLVMRunPassManager(lpm, c->module);
   }
 
+  // TODO: testing stack alloc
+  stack_alloc(c);
+
 #ifndef NDEBUG
   char* msg;
 

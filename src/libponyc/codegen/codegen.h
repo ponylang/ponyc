@@ -137,6 +137,9 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count);
 
+// Implemented in host.cc.
+void stack_alloc(compile_t* c);
+
 PONY_EXTERN_C_END
 
 #endif
