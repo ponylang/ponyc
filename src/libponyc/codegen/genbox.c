@@ -16,18 +16,13 @@ LLVMValueRef gen_box(compile_t* c, ast_t* type, LLVMValueRef value)
   if(l_type != g.primitive)
     return NULL;
 
-  // Allocate the object as 'this'.
-  LLVMValueRef this_ptr = gencall_alloc(c, g.structure_ptr);
-
-  // Set the descriptor.
-  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 0, "");
-  LLVMBuildStore(c->builder, g.desc, desc_ptr);
+  // Allocate the object.
+  LLVMValueRef this_ptr = gencall_allocstruct(c, &g);
 
   // Store the primitive in element 1.
   LLVMValueRef value_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
   LLVMBuildStore(c->builder, value, value_ptr);
 
-  // Return 'this'.
   return this_ptr;
 }
 

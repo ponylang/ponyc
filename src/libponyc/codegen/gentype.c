@@ -66,11 +66,9 @@ static void make_global_instance(compile_t* c, gentype_t* g)
   if(g->underlying != TK_PRIMITIVE)
     return;
 
+  // No instance for base types.
   if(g->primitive != NULL)
-  {
-    g->instance = LLVMConstNull(g->primitive);
     return;
-  }
 
   // Check for an existing instance.
   const char* inst_name = genname_instance(g->type_name);

@@ -10,6 +10,8 @@ bool is_subtype(ast_t* sub, ast_t* super);
 
 bool is_eqtype(ast_t* a, ast_t* b);
 
+bool is_pointer(ast_t* type);
+
 bool is_none(ast_t* type);
 
 bool is_bool(ast_t* type);

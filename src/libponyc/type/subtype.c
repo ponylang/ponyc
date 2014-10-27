@@ -436,7 +436,7 @@ static bool is_pointer_subtype(ast_t* sub, ast_t* super)
     case TK_NOMINAL:
     {
       // Must be a Pointer, and the type argument must be the same.
-      return is_literal(super, "Pointer") &&
+      return is_pointer(super) &&
         is_eq_typeargs(sub, super) &&
         check_cap_and_ephemeral(sub, super);
     }
@@ -470,7 +470,7 @@ static bool is_nominal_subtype(ast_t* sub, ast_t* super)
 {
   // Special case Pointer[A]. It can only be a subtype of itself, because
   // in the code generator, a pointer has no vtable.
-  if(is_literal(sub, "Pointer"))
+  if(is_pointer(sub))
     return is_pointer_subtype(sub, super);
 
   switch(ast_id(super))
@@ -660,6 +660,11 @@ bool is_subtype(ast_t* sub, ast_t* super)
 bool is_eqtype(ast_t* a, ast_t* b)
 {
   return is_subtype(a, b) && is_subtype(b, a);
+}
+
+bool is_pointer(ast_t* type)
+{
+  return is_literal(type, "Pointer");
 }
 
 bool is_none(ast_t* type)

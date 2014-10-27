@@ -315,7 +315,7 @@ static int behaviour_index(gentype_t* g, const char* name)
   return -1;
 }
 
-static void codegen_main(compile_t* c, gentype_t* g)
+static void codegen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 {
   LLVMTypeRef params[2];
   params[0] = c->i32;
@@ -326,7 +326,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, func);
 
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -337,15 +337,17 @@ static void codegen_main(compile_t* c, gentype_t* g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef m = gencall_create(c, g);
+  LLVMValueRef m = gencall_create(c, main_g);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
   gencall_runtime(c, "pony_become", &object, 1, "");
 
   // Create an Env on the main actor's heap.
   const char* env_name = "$1_Env";
   const char* env_create = genname_fun(env_name, "_create", NULL);
-  args[0] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
-  LLVMValueRef env = gencall_runtime(c, env_create, args, 2, "env");
+  args[2] = args[1];
+  args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
+  args[0] = gencall_alloc(c, env_g);
+  LLVMValueRef env = gencall_runtime(c, env_create, args, 3, "env");
   LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
   // Create a type for the message.
@@ -359,7 +361,7 @@ static void codegen_main(compile_t* c, gentype_t* g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  int index = behaviour_index(g, stringtab("create"));
+  int index = behaviour_index(main_g, stringtab("create"));
   args[1] = LLVMConstInt(c->i32, 0, false);
   args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
@@ -404,21 +406,27 @@ static bool codegen_program(compile_t* c, ast_t* program)
   genprim_builtins(c, package);
 
   const char* main_actor = stringtab("Main");
-  ast_t* m = ast_get(package, main_actor, NULL);
+  ast_t* main_def = ast_get(package, main_actor, NULL);
 
-  if(m == NULL)
+  if(main_def == NULL)
   {
     errorf(NULL, "no Main actor found in package '%s'", c->filename);
     return false;
   }
 
-  // Generate the Main actor.
-  gentype_t g;
+  // Generate the Main actor and the Env class.
+  gentype_t main_g, env_g;
 
-  if(!genprim(c, m, package_name(package), main_actor, &g))
+  if(!genprim(c, main_def, package_name(package), main_actor, &main_g))
     return false;
 
-  codegen_main(c, &g);
+  const char* env_class = stringtab("Env");
+  ast_t* env_def = ast_get(package, env_class, NULL);
+
+  if(!genprim(c, env_def, package_name(package), env_class, &env_g))
+    return false;
+
+  codegen_main(c, &main_g, &env_g);
   return true;
 }
 

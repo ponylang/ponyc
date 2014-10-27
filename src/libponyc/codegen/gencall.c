@@ -221,28 +221,8 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     return special;
 
   AST_GET_CHILDREN(ast, postfix, positional, named);
-
-  int need_receiver;
-
-  switch(ast_id(postfix))
-  {
-    case TK_NEWREF:
-    case TK_NEWBEREF:
-      need_receiver = 0;
-      break;
-
-    case TK_BEREF:
-    case TK_FUNREF:
-      need_receiver = 1;
-      break;
-
-    default:
-      assert(0);
-      return NULL;
-  }
-
-  ast_t* typeargs = NULL;
   AST_GET_CHILDREN(postfix, receiver, method);
+  ast_t* typeargs = NULL;
 
   // Dig through function qualification.
   if(ast_id(receiver) == TK_FUNREF)
@@ -260,11 +240,42 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(receiver);
   const char* method_name = ast_name(method);
 
-  // Generate the receiver if we need one.
-  LLVMValueRef l_value = NULL;
+  // Generate the receiver.
+  LLVMValueRef l_value;
 
-  if(need_receiver == 1)
-    l_value = gen_expr(c, receiver);
+  switch(ast_id(postfix))
+  {
+    case TK_NEWREF:
+    {
+      gentype_t g;
+
+      if(!gentype(c, type, &g))
+        return NULL;
+
+      l_value = gencall_alloc(c, &g);
+      break;
+    }
+
+    case TK_NEWBEREF:
+    {
+      gentype_t g;
+
+      if(!gentype(c, type, &g))
+        return NULL;
+
+      l_value = gencall_create(c, &g);
+      break;
+    }
+
+    case TK_BEREF:
+    case TK_FUNREF:
+      l_value = gen_expr(c, receiver);
+      break;
+
+    default:
+      assert(0);
+      return NULL;
+  }
 
   // Static or virtual dispatch.
   LLVMValueRef func = dispatch_function(c, ast, type, l_value, method_name,
@@ -275,18 +286,22 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
   // Generate the arguments.
   LLVMTypeRef f_type = LLVMTypeOf(func);
-  size_t count = ast_childcount(positional) + need_receiver;
+  size_t count = ast_childcount(positional) + 1;
 
   VLA(LLVMValueRef, args, count);
   VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
-  if(need_receiver == 1)
-    args[0] = l_value;
-
   ast_t* arg = ast_child(positional);
+  int i = 0;
 
-  for(int i = need_receiver; i < count; i++)
+  if(l_value != NULL)
+  {
+    args[0] = l_value;
+    i++;
+  }
+
+  while(arg != NULL)
   {
     LLVMValueRef value = make_arg(c, params[i], arg);
 
@@ -295,6 +310,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 
     args[i] = value;
     arg = ast_sibling(arg);
+    i++;
   }
 
   // Call the function.
@@ -306,10 +322,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     ast_t* try_expr = ast_enclosing_try(ast, &clause);
 
     if((try_expr != NULL) && (clause == 0))
-      return invoke_fun(c, try_expr, func, args, (int)count, "", true);
+      return invoke_fun(c, try_expr, func, args, i, "", true);
   }
 
-  return codegen_call(c, func, args, count);
+  return codegen_call(c, func, args, i);
 }
 
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
@@ -429,16 +445,41 @@ LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
   return LLVMBuildBitCast(c->builder, result, g->use_type, "");
 }
 
-LLVMValueRef gencall_alloc(compile_t* c, LLVMTypeRef type)
+LLVMValueRef gencall_alloc(compile_t* c, gentype_t* g)
 {
-  LLVMTypeRef l_type = LLVMGetElementType(type);
-  size_t size = LLVMABISizeOfType(c->target_data, l_type);
+  // Do nothing for primitives.
+  if(g->primitive != NULL)
+    return NULL;
 
+  // Do nothing for Pointer.
+  if(is_pointer(g->ast))
+    return NULL;
+
+  // Use the global instance if we have one.
+  if(g->instance != NULL)
+    return g->instance;
+
+  return gencall_allocstruct(c, g);
+}
+
+LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
+{
+  // We explicitly want a boxed version.
+  // Get the size of the structure.
+  size_t size = LLVMABISizeOfType(c->target_data, g->structure);
+
+  // Allocate the object.
   LLVMValueRef args[1];
   args[0] = LLVMConstInt(c->i64, size, false);
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
-  return LLVMBuildBitCast(c->builder, result, type, "");
+  result = LLVMBuildBitCast(c->builder, result, g->structure_ptr, "");
+
+  // Set the descriptor.
+  LLVMValueRef desc_ptr = LLVMBuildStructGEP(c->builder, result, 0, "");
+  LLVMBuildStore(c->builder, g->desc, desc_ptr);
+
+  return result;
 }
 
 static void trace_tag(compile_t* c, LLVMValueRef value)
