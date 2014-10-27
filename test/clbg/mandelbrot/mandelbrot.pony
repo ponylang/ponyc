@@ -74,6 +74,7 @@ actor Worker
   be escape_time(initial: Array[(Array[F32] val, Array[F32] val)] val) =>
     if not _coordinator then
       _next.escape_time(initial)
+      _initial = initial
     end
 
     let group_r = Array[F32].init(0, 8)
