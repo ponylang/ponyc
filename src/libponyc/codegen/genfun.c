@@ -519,67 +519,6 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_box(compile_t* c, gentype_t* g)
-{
-  if(g->primitive == NULL)
-    return NULL;
-
-  // Create a boxing function.
-  const char* box_name = genname_box(g->type_name);
-  LLVMValueRef box_fn = LLVMGetNamedFunction(c->module, box_name);
-
-  if(box_fn != NULL)
-    return box_fn;
-
-  LLVMTypeRef box_type = LLVMFunctionType(g->structure_ptr, &g->primitive, 1,
-    false);
-  box_fn = codegen_addfun(c, box_name, box_type);
-  codegen_startfun(c, box_fn);
-
-  // Allocate the object as 'this'.
-  LLVMValueRef this_ptr = gencall_alloc(c, g->structure_ptr);
-  set_descriptor(c, g->desc, this_ptr);
-
-  // Store the primitive in element 1.
-  LLVMValueRef primitive = LLVMGetParam(box_fn, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
-  LLVMBuildStore(c->builder, primitive, primitive_ptr);
-
-  // Return 'this'.
-  LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c);
-
-  return box_fn;
-}
-
-LLVMValueRef genfun_unbox(compile_t* c, gentype_t* g)
-{
-  if(g->primitive == NULL)
-    return NULL;
-
-  // Create an unboxing function.
-  const char* unbox_name = genname_unbox(g->type_name);
-  LLVMValueRef unbox_fn = LLVMGetNamedFunction(c->module, unbox_name);
-
-  if(unbox_fn != NULL)
-    return unbox_fn;
-
-  LLVMTypeRef unbox_type = LLVMFunctionType(g->primitive, &g->structure_ptr, 1,
-    false);
-  unbox_fn = codegen_addfun(c, unbox_name, unbox_type);
-  codegen_startfun(c, unbox_fn);
-
-  // Extract the primitive type from element 1 and return it.
-  LLVMValueRef this_ptr = LLVMGetParam(unbox_fn, 0);
-  LLVMValueRef primitive_ptr = LLVMBuildStructGEP(c->builder, this_ptr, 1, "");
-  LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
-
-  LLVMBuildRet(c->builder, primitive);
-  codegen_finishfun(c);
-
-  return unbox_fn;
-}
-
 bool genfun_methods(compile_t* c, gentype_t* g)
 {
   ast_t* def = (ast_t*)ast_data(g->ast);

@@ -518,8 +518,6 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   } else {
     // Create a box type.
     make_box_type(c, g);
-    genfun_box(c, g);
-    genfun_unbox(c, g);
   }
 
   // Generate a dispatch function if necessary.
@@ -557,9 +555,7 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   setup_tuple_fields(g);
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
-  // Generate a boxing function and a descriptor.
-  genfun_box(c, g);
-  genfun_unbox(c, g);
+  // Generate a descriptor.
   gendesc_init(c, g);
 
   free_fields(g);

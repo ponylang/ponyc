@@ -17,7 +17,7 @@
 
 enum
 {
-  OPT_OPTIMISE,
+  OPT_DEBUG,
   OPT_PATHS,
   OPT_OUTPUT,
 
@@ -35,7 +35,7 @@ enum
 
 static opt_arg_t args[] =
 {
-  {"opt", 'O', OPT_ARG_NONE, OPT_OPTIMISE},
+  {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
 
@@ -60,7 +60,7 @@ static void usage()
     "The package directory defaults to the current directory."
     "\n"
     "Often needed options:\n"
-    "  --opt, -O       Optimise the output.\n"
+    "  --debug, -d     Don't optimise the output.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
     "  --output, -o    Write output to this directory.\n"
@@ -152,6 +152,7 @@ int main(int argc, char* argv[])
 {
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
+  opt.release = true;
   opt.output = ".";
 
   ast_setwidth(get_width());
@@ -166,7 +167,7 @@ int main(int argc, char* argv[])
   {
     switch(id)
     {
-      case OPT_OPTIMISE: opt.release = true; break;
+      case OPT_DEBUG: opt.release = false; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
 

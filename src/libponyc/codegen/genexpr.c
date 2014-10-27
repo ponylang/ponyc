@@ -1,6 +1,6 @@
 #include "genexpr.h"
 #include "genname.h"
-#include "genfun.h"
+#include "genbox.h"
 #include "gencontrol.h"
 #include "genident.h"
 #include "genmatch.h"
@@ -110,52 +110,6 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   return NULL;
 }
 
-LLVMValueRef box_value(compile_t* c, LLVMValueRef value, ast_t* type)
-{
-  LLVMTypeRef l_type = LLVMTypeOf(value);
-
-  if(LLVMGetTypeKind(l_type) == LLVMPointerTypeKind)
-    return value;
-
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  if(l_type != g.primitive)
-    return NULL;
-
-  LLVMValueRef box_fn = genfun_box(c, &g);
-
-  if(box_fn != NULL)
-    value = codegen_call(c, box_fn, &value, 1);
-
-  return value;
-}
-
-LLVMValueRef unbox_value(compile_t* c, LLVMValueRef value, ast_t* type)
-{
-  LLVMTypeRef l_type = LLVMTypeOf(value);
-
-  if(LLVMGetTypeKind(l_type) != LLVMPointerTypeKind)
-    return value;
-
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return NULL;
-
-  LLVMValueRef unbox_fn = genfun_unbox(c, &g);
-
-  if(unbox_fn != NULL)
-  {
-    value = LLVMBuildBitCast(c->builder, value, g.structure_ptr, "");
-    value = codegen_call(c, unbox_fn, &value, 1);
-  }
-
-  return value;
-}
-
 static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
   LLVMValueRef r_value, ast_t* type)
 {
@@ -205,10 +159,10 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
     case LLVMHalfTypeKind:
     case LLVMFloatTypeKind:
     case LLVMDoubleTypeKind:
-      return unbox_value(c, r_value, type);
+      return gen_unbox(c, type, r_value);
 
     case LLVMPointerTypeKind:
-      r_value = box_value(c, r_value, type);
+      r_value = gen_box(c, type, r_value);
       return LLVMBuildBitCast(c->builder, r_value, l_type, "");
 
     case LLVMStructTypeKind:
