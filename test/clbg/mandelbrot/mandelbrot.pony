@@ -72,54 +72,83 @@ actor Worker
     end
 
   be escape_time(initial: Array[(Array[F32] val, Array[F32] val)] val) =>
-    try
-      if not _coordinator then
-        _next.escape_time(initial)
-      end
+    if not _coordinator then
+      _next.escape_time(initial)
+    end
 
-      let group_r = Array[F32].init(0, 8)
-      let group_i = Array[F32].init(0, 8)
-      var n = _x
+    let group_r = Array[F32].init(0, 8)
+    let group_i = Array[F32].init(0, 8)
+    var n = _x
 
-      while n < _y do
-        let prefetch_i = (_initial(_chunk)._2)(n - _x)
-        var m: U64 = 0
+    while n < _y do
+      let prefetch_i =
+        try
+          (_initial(_chunk)._2)(n - _x)
+        else
+          _main.index_error("initial get", _chunk, n - _x)
+          F32(0)
+        end
 
-        while m < _size do
-          for i in Range[U64](0, 8) do
-            let gr =
+      var m: U64 = 0
+
+      while m < _size do
+        for i in Range[U64](0, 8) do
+          try
             group_r.update(i, (_initial(m/_chunk_size)._1)(i))
-            group_i.update(i, prefetch_i)
+          else
+            _main.index_error("group_r update _initial", m/_chunk_size, i)
           end
 
-          var bitmap: U8 = 0xFF
-          var iterations: U64 = _iter
-
-          repeat
-            iterations = iterations - 1
-
-            var mask: U8 = 0x80
-
-            for j in Range[U64](0, 8) do
-              let r = group_r(j)
-              let i = group_i(j)
-
-              group_r.update(j, ((r*r) - (i*i)) + (_initial(m/_chunk_size)._1)(j))
-              group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
-
-              if ((r*r) + (i*i)) > _limit then
-                bitmap = bitmap and not mask
-              end
-
-              mask = mask >> 1
-            end
-          until (bitmap == 0) or (iterations == 0) end
-
-          _main.draw(((n * _size)/8) + (m/8), bitmap)
-          m = m + 8
+          try
+            group_i.update(i, prefetch_i)
+          else
+            _main.index_error("group_i update prefetch_i", i, None)
+          end
         end
-        n = n + 1
+
+        var bitmap: U8 = 0xFF
+        var iterations: U64 = _iter
+
+        repeat
+          iterations = iterations - 1
+
+          var mask: U8 = 0x80
+
+          for j in Range[U64](0, 8) do
+            var r: F32 = 0.0
+            var i: F32 = 0.0
+
+            try
+              r = group_r(j)
+              i = group_i(j)
+            else
+              _main.index_error("group_r group_i get", j, None)
+            end
+
+            try
+              group_r.update(j, ((r*r) - (i*i)) + (_initial(m/_chunk_size)._1)(j))
+            else
+              _main.index_error("group_r update _initial", m/_chunk_size, j)
+            end
+
+            try
+              group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
+            else
+              _main.index_error("group_i update prefetch_i", j, None)
+            end
+
+            if ((r*r) + (i*i)) > _limit then
+              bitmap = bitmap and not mask
+            end
+
+            mask = mask >> 1
+          end
+        until (bitmap == 0) or (iterations == 0) end
+
+        _main.draw(((n * _size)/8) + (m/8), bitmap)
+        m = m + 8
       end
+      n = n + 1
     end
 
     if _coordinator then
@@ -181,6 +210,9 @@ actor Main
     else
       usage()
     end
+
+  be index_error(msg: String, x: U64, y: Stringable) =>
+    _env.stdout.print(msg + ": " + x.string() + " " + y.string())
 
   be dump() =>
     @fprintf[I32](I32(1), "P4\n%jd %jd\n".cstring(), _lateral_length,
