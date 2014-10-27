@@ -6,12 +6,7 @@
   "(nominal{dataref " #name "} x (id " #name ") x " #cap " x)"
 
 extern const char* t_bool;
-extern const char* t_u_lit;
-extern const char* t_s_lit;
-extern const char* t_f_lit;
 extern const char* t_none;
-extern const char* t_true;
-extern const char* t_false;
 extern const char* t_u8;
 extern const char* t_u16;
 extern const char* t_u32;
@@ -30,7 +25,11 @@ extern const char* t_t2;
 extern const char* t_t3;
 extern const char* t_foo;
 extern const char* t_bar;
-extern const char* t_structural;
+extern const char* t_iface;
 extern const char* builtin;
+
+// T1 provides T3
+// Bar provides T1
+// Bar looks like Iface
 
 #endif
