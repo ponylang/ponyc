@@ -53,10 +53,6 @@ static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
   c->frame = frame->prev;
-
-  if(frame->restore_builder != NULL)
-    LLVMPositionBuilderAtEnd(c->builder, frame->restore_builder);
-
   free(frame);
 }
 
@@ -908,6 +904,9 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun)
 
 void codegen_pausefun(compile_t* c)
 {
+  if(c->frame->restore_builder != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
+
   pop_frame(c);
 }
 
@@ -926,6 +925,42 @@ void codegen_finishfun(compile_t* c)
   LLVMRunFunctionPassManager(c->fpm, frame->fun);
 #endif
 
+  if(c->frame->restore_builder != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
+
+  pop_frame(c);
+}
+
+void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
+  LLVMBasicBlockRef break_target)
+{
+  compile_frame_t* frame = push_frame(c);
+
+  frame->fun = frame->prev->fun;
+  frame->restore_builder = frame->prev->restore_builder;
+  frame->break_target = break_target;
+  frame->continue_target = continue_target;
+  frame->invoke_target = frame->prev->invoke_target;
+}
+
+void codegen_poploop(compile_t* c)
+{
+  pop_frame(c);
+}
+
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
+{
+  compile_frame_t* frame = push_frame(c);
+
+  frame->fun = frame->prev->fun;
+  frame->restore_builder = frame->prev->restore_builder;
+  frame->break_target = frame->prev->break_target;
+  frame->continue_target = frame->prev->continue_target;
+  frame->invoke_target = invoke_target;
+}
+
+void codegen_poptry(compile_t* c)
+{
   pop_frame(c);
 }
 

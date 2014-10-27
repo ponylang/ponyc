@@ -80,8 +80,6 @@ FLET: ID [type] [infix]
 method
 ------
 data: During traits pass, trait method body came from (NULL for none).
-During codegen, the LLVMBasicBlockRef for the except_block if the function or
-constructor can error out.
 symtab: name -> TYPEPARAM | PARAM
 Methods initially have an extra child for the => before the body child. This is
 removed during the parse fix pass.
@@ -230,13 +228,11 @@ control
   The final child is the else body.
 
   WHILE: SEQ SEQ [SEQ]
-  data: during codegen, holds the LLVMBasicBlockRef for the init_block
   symtab: name -> VAR | VAL
   Children are (in order) condition, loop body, else body.
   The condition child does not have a symbol table.
 
   REPEAT: SEQ SEQ [SEQ]
-  data: during codegen, holds the LLVMBasicBlockRef for the cond_block
   symtab: name -> VAR | VAL
   Children are (in order) loop body, condition.
   The loop body child does not have a symbol table.
@@ -246,7 +242,6 @@ control
   loop body, else body.
 
   TRY: SEQ [SEQ] [SEQ]
-  data: during codegen, holds the LLVMBasicBlockRef for the else_block
   the then_clause (index 2) holds the LLVMValueRef for the indirectbr
   instruction
   Children are (in order) try body, else body, then body.

@@ -12,7 +12,7 @@
 #include <string.h>
 #include <assert.h>
 
-static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
+static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef* args, int count, const char* ret, bool fastcc)
 {
   if(fun == NULL)
@@ -20,9 +20,9 @@ static LLVMValueRef invoke_fun(compile_t* c, ast_t* try_expr, LLVMValueRef fun,
 
   LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef then_block = LLVMInsertBasicBlockInContext(c->context,
-    this_block, "then");
+    this_block, "invoke");
   LLVMMoveBasicBlockAfter(then_block, this_block);
-  LLVMBasicBlockRef else_block = (LLVMBasicBlockRef)ast_data(try_expr);
+  LLVMBasicBlockRef else_block = c->frame->invoke_target;
 
   LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
@@ -313,17 +313,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     i++;
   }
 
-  // Call the function.
-  if(ast_canerror(ast))
-  {
-    // If we can error out and we're called in the body of a try expression,
-    // generate an invoke instead of a call.
-    size_t clause;
-    ast_t* try_expr = ast_enclosing_try(ast, &clause);
-
-    if((try_expr != NULL) && (clause == 0))
-      return invoke_fun(c, try_expr, func, args, i, "", true);
-  }
+  // If we can error out and we have an invoke target, generate an invoke
+  // instead of a call.
+  if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
+    return invoke_fun(c, func, args, i, "", true);
 
   return codegen_call(c, func, args, i);
 }
@@ -530,35 +523,35 @@ static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
 
 static void trace_unknown(compile_t* c, LLVMValueRef value)
 {
-  // determine if this is an actor or not
+  // Determine if this is an actor or not.
   LLVMValueRef dispatch = gendesc_dispatch(c, value);
   LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
 
-  // build a conditional
-  LLVMBasicBlockRef then_block = codegen_block(c, "then");
-  LLVMBasicBlockRef else_block = codegen_block(c, "else");
-  LLVMBasicBlockRef merge_block = codegen_block(c, "merge");
+  // Build a conditional.
+  LLVMBasicBlockRef then_block = codegen_block(c, "trace_then");
+  LLVMBasicBlockRef else_block = codegen_block(c, "trace_else");
+  LLVMBasicBlockRef post_block = codegen_block(c, "trace_post");
 
   LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
 
-  // if we're an object
+  // We're an object.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
 
-  // get the trace function from the type descriptor
+  // Get the trace function from the type descriptor.
   LLVMValueRef args[2];
   args[0] = value;
   args[1] = gendesc_trace(c, value);
 
   gencall_runtime(c, "pony_traceobject", args, 2, "");
-  LLVMBuildBr(c->builder, merge_block);
+  LLVMBuildBr(c->builder, post_block);
 
-  // if we're an actor
+  // We're an actor.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
   gencall_runtime(c, "pony_traceactor", args, 1, "");
-  LLVMBuildBr(c->builder, merge_block);
+  LLVMBuildBr(c->builder, post_block);
 
-  // continue in the merge block
-  LLVMPositionBuilderAtEnd(c->builder, merge_block);
+  // Continue in the post block.
+  LLVMPositionBuilderAtEnd(c->builder, post_block);
 }
 
 static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
@@ -658,12 +651,12 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
   return false;
 }
 
-void gencall_throw(compile_t* c, ast_t* try_expr)
+void gencall_throw(compile_t* c)
 {
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
 
-  if(try_expr != NULL)
-    invoke_fun(c, try_expr, func, NULL, 0, "", false);
+  if(c->frame->invoke_target != NULL)
+    invoke_fun(c, func, NULL, 0, "", false);
   else
     LLVMBuildCall(c->builder, func, NULL, 0, "");
 

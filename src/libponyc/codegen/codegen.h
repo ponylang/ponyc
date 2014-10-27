@@ -30,6 +30,10 @@ typedef struct compile_frame_t
   LLVMValueRef fun;
   LLVMBasicBlockRef restore_builder;
 
+  LLVMBasicBlockRef break_target;
+  LLVMBasicBlockRef continue_target;
+  LLVMBasicBlockRef invoke_target;
+
   struct compile_frame_t* prev;
 } compile_frame_t;
 
@@ -129,6 +133,15 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun);
 void codegen_pausefun(compile_t* c);
 
 void codegen_finishfun(compile_t* c);
+
+void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
+  LLVMBasicBlockRef break_target);
+
+void codegen_poploop(compile_t* c);
+
+void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target);
+
+void codegen_poptry(compile_t* c);
 
 LLVMValueRef codegen_fun(compile_t* c);
 

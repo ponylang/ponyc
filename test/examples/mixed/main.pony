@@ -37,7 +37,7 @@ actor Worker
         factors.append(d)
         n = n / d
       else
-        d = if d == 2 then 3 else (d + 2) end
+        d = if d == 2 then U64(3) else (d + 2) end
       end
     end
 
