@@ -38,9 +38,8 @@
       buildoptions "-pg"
       linkoptions "-pg"
 
-    --TODO profile build Visual Studio
-    --configuration { "Profile", "vs*" }
-    --  linkoptions "/PROFILE"
+    configuration { "Profile", "vs*" }
+      buildoptions "/PROFILE"
 
     configuration "vs*"
       debugdir "."
@@ -92,7 +91,6 @@
         "-std=gnu11"
       }
       defines {
-        "_DEBUG",
         "_GNU_SOURCE",
         "__STDC_CONSTANT_MACROS",
         "__STDC_FORMAT_MACROS",
