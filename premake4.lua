@@ -87,7 +87,6 @@ solution "ponyc"
       "src/common/"
     }
     defines {
-      "_DEBUG",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS"
@@ -144,7 +143,6 @@ solution "ponyc"
       "src/common/"
     }
     defines {
-      "_DEBUG",
       "__STDC_CONSTANT_MACROS",
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
