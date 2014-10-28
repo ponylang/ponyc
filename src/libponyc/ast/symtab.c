@@ -67,6 +67,7 @@ static bool pred_branch(symbol_t* sym, void* arg)
 
     case SYM_UNDEFINED:
     case SYM_CONSUMED:
+      assert(sym->branch_count == 0);
       return true;
 
     default: {}

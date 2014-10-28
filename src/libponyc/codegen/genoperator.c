@@ -313,7 +313,6 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
     case TK_VAR:
     case TK_LET:
     {
-      // TODO: this should be true any time the l_value is uninitialised.
       // Generate the locals.
       if(gen_localdecl(c, left) == NULL)
         return NULL;
