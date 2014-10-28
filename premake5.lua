@@ -25,7 +25,7 @@
     configuration "Release or Profile"
       defines "NDEBUG"
       optimize "Speed"
-      flags { "LinkTimeOptimization" }
+      --flags { "LinkTimeOptimization" }
 
       if not os.is("windows") then
         linkoptions {
