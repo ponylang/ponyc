@@ -143,19 +143,18 @@ actor Main
 
     try
       arguments()
+
+      //TODO: Issue #58, otherwise problematic for large bitmaps
+      //See packages/builtin/array.pony:23-27
+      _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 8))
+
+      Worker
+        .spawn_ring(this, _lateral_length, _chunk_size)
+        .mandelbrot(_square_limit, _iterations)
     else
+      _image = Array[U8]
       usage()
     end
-
-    //TODO: Issue #58, otherwise problematic for large bitmaps
-    //See packages/builtin/array.pony:23-27
-
-    //TODO: move remainder into try block, once init tracking is done.
-    _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 8))
-
-    Worker
-      .spawn_ring(this, _lateral_length, _chunk_size)
-      .mandelbrot(_square_limit, _iterations)
 
   be draw(coord: U64, pixels: U8) =>
     try _image.update(coord, pixels) end
