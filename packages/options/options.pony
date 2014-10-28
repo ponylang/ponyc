@@ -47,13 +47,16 @@ class Option is Stringable
     end
     true
 
-  fun box token(): String => name
-    /*match (name, short)
-    | (String, None) => "(" + name + ")"
-    | (String, var s: String) => "(" + name + ", " + s + ")"
-    end*/
+  fun box token(): String =>
+    match (name, short)
+    | (String, var s: String) => return "(" + name + ", " + s + ")"
+    end
 
-  fun box string(): String => ""
+    "(" + name + ")"
+
+  //TODO: Requires proper string formatter
+  fun box string(): String =>
+    ""
 
 class Options ref is Iterator[_Result]
   var _env: Env
