@@ -135,36 +135,11 @@ static bool scope_package(ast_t* ast, pass_opt_t* options)
   return use_package(ast, stringtab("builtin"), NULL, options);
 }
 
-static bool scope_method(ast_t* ast, bool dups)
+static void set_fields_undefined(ast_t* ast)
 {
-  ast_t* id = ast_childidx(ast, 1);
-
-  if(!set_scope(ast_parent(ast), id, ast, dups))
-    return false;
+  assert(ast_id(ast) == TK_NEW);
 
   ast_t* members = ast_parent(ast);
-  ast_t* type = ast_parent(members);
-
-  switch(ast_id(type))
-  {
-    case TK_PRIMITIVE:
-    case TK_TRAIT:
-    case TK_INTERFACE:
-      return true;
-
-    case TK_CLASS:
-    case TK_ACTOR:
-      break;
-
-    default:
-      assert(0);
-      return false;
-  }
-
-  // If this isn't a constructor, we accept SYM_DEFINED for our fields.
-  if(ast_id(ast) != TK_NEW)
-    return true;
-
   ast_t* member = ast_child(members);
 
   while(member != NULL)
@@ -185,12 +160,22 @@ static bool scope_method(ast_t* ast, bool dups)
         break;
       }
 
-      default:
-        return true;
+      default: {}
     }
 
     member = ast_sibling(member);
   }
+}
+
+static bool scope_method(ast_t* ast, bool dups)
+{
+  ast_t* id = ast_childidx(ast, 1);
+
+  if(!set_scope(ast_parent(ast), id, ast, dups))
+    return false;
+
+  if(ast_id(ast) == TK_NEW)
+    set_fields_undefined(ast);
 
   return true;
 }

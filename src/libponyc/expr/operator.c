@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "../pass/expr.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/matchtype.h"
@@ -10,7 +11,7 @@
 #include "../type/viewpoint.h"
 #include <assert.h>
 
-static bool assign_id(ast_t* ast, bool let)
+static bool assign_id(ast_t* ast, bool let, bool need_value)
 {
   assert(ast_id(ast) == TK_ID);
   const char* name = ast_name(ast);
@@ -21,6 +22,12 @@ static bool assign_id(ast_t* ast, bool let)
   switch(status)
   {
     case SYM_UNDEFINED:
+      if(need_value)
+      {
+        ast_error(ast, "the left side is undefined but its value is used");
+        return false;
+      }
+
       ast_setstatus(ast, name, SYM_DEFINED);
       return true;
 
@@ -44,7 +51,7 @@ static bool assign_id(ast_t* ast, bool let)
   return false;
 }
 
-static bool is_lvalue(ast_t* ast)
+static bool is_lvalue(ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
   {
@@ -56,7 +63,7 @@ static bool is_lvalue(ast_t* ast)
 
       while(id != NULL)
       {
-        if(!assign_id(id, ast_id(ast) == TK_LET))
+        if(!assign_id(id, ast_id(ast) == TK_LET, need_value))
           return false;
 
         id = ast_sibling(id);
@@ -68,7 +75,7 @@ static bool is_lvalue(ast_t* ast)
     case TK_VARREF:
     {
       ast_t* id = ast_child(ast);
-      return assign_id(id, false);
+      return assign_id(id, false, need_value);
     }
 
     case TK_LETREF:
@@ -82,7 +89,7 @@ static bool is_lvalue(ast_t* ast)
       AST_GET_CHILDREN(ast, left, right);
 
       if(ast_id(left) == TK_THIS)
-        return assign_id(right, false);
+        return assign_id(right, false, need_value);
 
       return true;
     }
@@ -103,7 +110,7 @@ static bool is_lvalue(ast_t* ast)
         return false;
       }
 
-      return assign_id(right, true);
+      return assign_id(right, true, need_value);
     }
 
     case TK_TUPLE:
@@ -113,7 +120,7 @@ static bool is_lvalue(ast_t* ast)
 
       while(child != NULL)
       {
-        if(!is_lvalue(child))
+        if(!is_lvalue(child, need_value))
           return false;
 
         child = ast_sibling(child);
@@ -131,7 +138,7 @@ static bool is_lvalue(ast_t* ast)
       if(ast_sibling(child) != NULL)
         return false;
 
-      return is_lvalue(child);
+      return is_lvalue(child, need_value);
     }
 
     default: {}
@@ -163,7 +170,7 @@ bool expr_assign(ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(left))
+  if(!is_lvalue(left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;

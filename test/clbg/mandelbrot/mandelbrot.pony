@@ -1,159 +1,126 @@
+class Complex
+  var r: F32
+  var i: F32
+
+  new create(r': F32, i': F32) =>
+    r = r'
+    i = i'
+
 actor Worker
-  var _coordinator: Bool = false
-  var _next: Worker
   var _main: Main
+  var _from: U64
+  var _to: U64
   var _size: U64
-  var _chunk: U64
-  var _chunk_size: U64
-  var _iter: U64
-  var _limit: F32
-  var _x: U64
-  var _y: U64
+  var _next: Worker
+  var _coordinator: Bool = false
+  var _complex: Array[Complex val] val
 
-  var _real: Array[F32] val
-  var _imag: Array[F32] val
-  var _initial: Array[(Array[F32] val, Array[F32] val)] val
+  new create(main: Main, from: U64, to: U64, size: U64, next: Worker,
+    clx: Array[Complex val] val)
+    =>
+    _main = main
+    _from = from
+    _to = to
+    _size = size
+    _next = next
+    _complex = clx
 
-  new create(main: Main, size: U64, chunk_size: U64, iter: U64, limit: F32) =>
-    let actors = ((size + (chunk_size - 1)) / chunk_size) - 1;
+  new spawn_ring(main: Main, size: U64, chunk_size: U64) =>
+    let actors = ((size + (chunk_size - 1)) / chunk_size) - 1
     var rest = size % chunk_size
 
     if rest == 0 then rest = chunk_size end
 
     var i: U64 = 0
-    var n: Worker = this
 
-    var x: U64 = 0
-    var y: U64 = 0
+    var clx: Array[Complex val] iso =
+      recover Array[Complex val].prealloc(size) end
 
-    while i <= actors do
-      x = i * chunk_size
-      y = x + chunk_size
-      n = Worker.init(main, n, size, i, chunk_size, x, y, iter, limit)
+    while i < size do
+      let real = ((F32(2.0)/size.f32())*i.f32()) - 1.5
+      let imag = ((F32(2.0)/size.f32())*i.f32()) - 1.0
+
+      clx.append(recover Complex(real, imag) end)
+
       i = i + 1
     end
 
+    _complex = consume clx
+
+    var n: Worker = this
+
+    var j: U64 = 0
+    var x: U64 = 0
+    var y: U64 = 0
+
+    while j <= actors do
+      x = j * chunk_size
+      y = x + chunk_size
+      n = Worker(main, x, y, size, n, _complex)
+      j = j + 1
+    end
+
+    _main = main
+    _from = y
+    _to = y + rest
+    _size = size
     _coordinator = true
     _next = n
-    _main = main
-    _size = size
-    _chunk = actors + 1
-    _chunk_size = chunk_size
-    _iter = iter
-    _limit = limit
-    _x = y
-    _y = y + rest
 
-    prepare()
+  be mandelbrot(limit: F32, iterations: U64) =>
+    _next.pixels(limit, iterations)
 
-  new init(main: Main, next: Worker, size: U64, chunk: U64, chunk_size: U64,
-    from: U64, to: U64, iter: U64, limit: F32)
-    =>
-    _next = next
-    _main = main
-    _size = size
-    _chunk = chunk
-    _chunk_size = chunk_size
-    _iter = iter
-    _limit = limit
-    _x = from
-    _y = to
-
-    prepare()
-
-  be accumulate(view: Array[(Array[F32] val, Array[F32] val)] iso) =>
-    view.append((_real, _imag))
-
+  be pixels(limit: F32, iterations: U64) =>
     if not _coordinator then
-      _next.accumulate(consume view)
+      _next.pixels(limit, iterations)
     else
-      _initial = consume view
-      _next.escape_time(_initial)
-    end
-
-  be escape_time(initial: Array[(Array[F32] val, Array[F32] val)] val) =>
-    if not _coordinator then
-      _next.escape_time(initial)
-      _initial = initial
-    end
-
-    let group_r = Array[F32].init(0, 8)
-    let group_i = Array[F32].init(0, 8)
-    var n = _x
-
-    while n < _y do
-      let prefetch_i =
-        try
-          (_initial(_chunk)._2)(n - _x)
-        else
-          _main.index_error("initial get", _chunk, n - _x)
-          F32(0)
-        end
-
-      var m: U64 = 0
-
-      while m < _size do
-        for i in Range[U64](0, 8) do
-          try
-            group_r.update(i, (_initial(m/_chunk_size)._1)(i))
-          else
-            _main.index_error("group_r update _initial", m/_chunk_size, i)
-          end
-
-          try
-            group_i.update(i, prefetch_i)
-          else
-            _main.index_error("group_i update prefetch_i", i, None)
-          end
-        end
-
-        var bitmap: U8 = 0xFF
-        var iterations: U64 = _iter
-
-        repeat
-          iterations = iterations - 1
-
-          var mask: U8 = 0x80
-
-          for j in Range[U64](0, 8) do
-            var r: F32 = 0.0
-            var i: F32 = 0.0
-
-            try
-              r = group_r(j)
-              i = group_i(j)
-            else
-              _main.index_error("group_r group_i get", j, None)
-            end
-
-            try
-              group_r.update(j, ((r*r) - (i*i)) + (_initial(m/_chunk_size)._1)(j))
-            else
-              _main.index_error("group_r update _initial", m/_chunk_size, j)
-            end
-
-            try
-              group_i.update(j, ((F32(2.0)*r*i) + prefetch_i))
-            else
-              _main.index_error("group_i update prefetch_i", j, None)
-            end
-
-            if ((r*r) + (i*i)) > _limit then
-              bitmap = bitmap and not mask
-            end
-
-            mask = mask >> 1
-          end
-        until (bitmap == 0) or (iterations == 0) end
-
-        _main.draw(((n * _size)/8) + (m/8), bitmap)
-        m = m + 8
-      end
-      n = n + 1
-    end
-
-    if _coordinator then
       _next.done()
+    end
+
+    var y = _from
+
+    try
+      while y < _to do
+        let prefetch_i = _complex(y).i
+
+        var x: U64 = 0
+
+        while x < _size do
+          let group = Array[Complex].prealloc(8)
+
+          for i in Range[U64](0, 8) do
+            group.append(Complex(_complex(x).r, prefetch_i))
+          end
+
+          var bitmap: U8 = 0xFF
+          var n = iterations
+
+          repeat
+            n = n - 1
+            var mask: U8 = 0x80
+
+            for j in Range[U64](0, 8) do
+              let c = group(j)
+              let r = c.r
+              let i = c.i
+
+              c.r = ((r * r) - (i * i)) + _complex(x + j).r
+
+              if ((r * r) + (i * i)) > limit then
+                bitmap = bitmap and not mask
+              end
+
+              mask = mask >> 1
+            end
+          until (bitmap == 0) or (n == 0) end
+
+          _main.draw(((y * _size)/8) + (x/8), bitmap)
+          x = x + 8
+        end
+        y = y + 1
+      end
+    else
+      _main.fail()
     end
 
   be done() =>
@@ -163,43 +130,12 @@ actor Worker
       _next.done()
     end
 
-  fun ref prepare() =>
-    let n = _y - _x
-
-    //TODO: Clarify: With commit 5de614fb5f335911dd48346364d71701d2da65f5
-    //cannot do _y - _x within recover. (1)
-    var real: Array[F32] iso = recover Array[F32].prealloc(n) end
-    var imag: Array[F32] iso = recover Array[F32].prealloc(n) end
-
-    var i: U64 = _x
-
-    while i < _y do
-      real.append(((F32(2.0)/_size.f32())*i.f32()) - 1.5)
-      imag.append(((F32(2.0)/_size.f32())*i.f32()) - 1.0)
-      i = i + 1
-    end
-
-    _real = consume real
-    _imag = consume imag
-
-    if _coordinator then
-      let m = _chunk
-
-      //TODO: Clarify (1)
-      var view: Array[(Array[F32] val, Array[F32] val)] iso =
-        recover Array[(Array[F32] val, Array[F32] val)].prealloc(m) end
-
-      _next.accumulate(consume view)
-    end
-
 actor Main
   let _env: Env
   var _square_limit: F32 = 4.0
   var _iterations: U64 = 50
   var _lateral_length: U64 = 16000
   var _chunk_size: U64 = 16
-  var _done: U64 = 0
-  var _actors: U64
   var _image: Array[U8]
 
   new create(env: Env) =>
@@ -207,13 +143,22 @@ actor Main
 
     try
       arguments()
-      mandelbrot()
     else
       usage()
     end
 
-  be index_error(msg: String, x: U64, y: Stringable) =>
-    _env.stdout.print(msg + ": " + x.string() + " " + y.string())
+    //TODO: Issue #58, otherwise problematic for large bitmaps
+    //See packages/builtin/array.pony:23-27
+
+    //TODO: move remainder into try block, once init tracking is done.
+    _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 8))
+
+    Worker
+      .spawn_ring(this, _lateral_length, _chunk_size)
+      .mandelbrot(_square_limit, _iterations)
+
+  be draw(coord: U64, pixels: U8) =>
+    try _image.update(coord, pixels) end
 
   be dump() =>
     @fprintf[I32](I32(1), "P4\n%jd %jd\n".cstring(), _lateral_length,
@@ -222,8 +167,8 @@ actor Main
     @fwrite[U64](_image.carray(), (_lateral_length * _lateral_length)/8,
       I32(1), I32(1))
 
-  be draw(coord: U64, pixels: U8) =>
-    try _image.update(coord, pixels) end
+  be fail() =>
+    _env.stdout.print("Failed computing mandelbrot set!")
 
   fun ref arguments() ? =>
     var n: U64 = 1
@@ -244,11 +189,6 @@ actor Main
 
       if _chunk_size > _lateral_length then error end
     end
-
-  fun ref mandelbrot() =>
-    //TODO: issue: #58, otherwise problematic for large bitmaps
-    _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 3))
-    Worker(this, _lateral_length, _chunk_size, _iterations, _square_limit)
 
   fun ref usage() =>
     _env.stdout.print(

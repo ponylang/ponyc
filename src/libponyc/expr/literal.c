@@ -186,43 +186,50 @@ static bool show_partiality(ast_t* ast)
   return false;
 }
 
-bool expr_fun(ast_t* ast)
+static bool check_fields_defined(ast_t* ast)
 {
+  assert(ast_id(ast) == TK_NEW);
+
+  ast_t* members = ast_parent(ast);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        sym_status_t status;
+        ast_t* id = ast_child(member);
+        ast_t* def = ast_get(ast, ast_name(id), &status);
+
+        if((def != member) || (status != SYM_DEFINED))
+        {
+          ast_error(ast, "field left undefined in constructor");
+          ast_error(def, "field is here");
+          return false;
+        }
+
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return true;
+}
+
+static bool check_return_type(ast_t* ast)
+{
+  assert(ast_id(ast) == TK_FUN);
+
   ast_t* type = ast_childidx(ast, 4);
   ast_t* can_error = ast_sibling(type);
   ast_t* body = ast_sibling(can_error);
-
-  if(!coerce_literals(body, type, NULL))
-    return false;
-
-  if(ast_id(body) == TK_NONE)
-    return true;
-
-  ast_t* def = ast_enclosing_type(ast);
-  bool is_trait = (ast_id(def) == TK_TRAIT) || (ast_id(def) == TK_INTERFACE);
-
-  // check partial functions
-  if(ast_id(can_error) == TK_QUESTION)
-  {
-    // if a partial function, check that we might actually error
-    if(!is_trait && !ast_canerror(body))
-    {
-      ast_error(can_error, "function body is not partial but the function is");
-      return false;
-    }
-  } else {
-    // if not a partial function, check that we can't error
-    if(ast_canerror(body))
-    {
-      ast_error(can_error, "function body is partial but the function is not");
-      show_partiality(body);
-      return false;
-    }
-  }
-
-  // Only examine return types for functions.
-  if(ast_id(ast) != TK_FUN)
-    return true;
 
   // If the return type is None, add a None at the end of the body.
   if(is_none(type))
@@ -252,6 +259,54 @@ bool expr_fun(ast_t* ast)
     ast_error(type, "function body isn't a subtype of the result type");
     ast_error(last, "function body expression is here");
     return false;
+  }
+
+  return true;
+}
+
+bool expr_fun(ast_t* ast)
+{
+  ast_t* type = ast_childidx(ast, 4);
+  ast_t* can_error = ast_sibling(type);
+  ast_t* body = ast_sibling(can_error);
+
+  if(!coerce_literals(body, type, NULL))
+    return false;
+
+  if(ast_id(body) == TK_NONE)
+    return true;
+
+  ast_t* def = ast_enclosing_type(ast);
+  bool is_trait = (ast_id(def) == TK_TRAIT) || (ast_id(def) == TK_INTERFACE);
+
+  // Check partial functions.
+  if(ast_id(can_error) == TK_QUESTION)
+  {
+    // If a partial function, check that we might actually error.
+    if(!is_trait && !ast_canerror(body))
+    {
+      ast_error(can_error, "function body is not partial but the function is");
+      return false;
+    }
+  } else {
+    // If not a partial function, check that we can't error.
+    if(ast_canerror(body))
+    {
+      ast_error(can_error, "function body is partial but the function is not");
+      show_partiality(body);
+      return false;
+    }
+  }
+
+  switch(ast_id(ast))
+  {
+    case TK_NEW:
+      return check_fields_defined(ast);
+
+    case TK_FUN:
+      return check_return_type(ast);
+
+    default: {}
   }
 
   return true;

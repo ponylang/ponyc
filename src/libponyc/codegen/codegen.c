@@ -608,7 +608,11 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     file_o = suffix_filename(opt->output, c->filename, ".s");
   } else {
     fmt = LLVMObjectFile;
+#ifdef PLATFORM_IS_WINDOWS
+    file_o = suffix_filename(opt->output, c->filename, ".obj");
+#else
     file_o = suffix_filename(opt->output, c->filename, ".o");
+#endif
   }
 
   char* err;
