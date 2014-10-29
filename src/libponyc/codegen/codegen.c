@@ -411,18 +411,30 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   // Generate the Main actor and the Env class.
-  gentype_t main_g, env_g;
+  gentype_t main_g;
+  ast_t* main_ast = genprim(c, main_def, package_name(package), main_actor,
+    &main_g);
 
-  if(!genprim(c, main_def, package_name(package), main_actor, &main_g))
+  if(main_ast == NULL)
     return false;
 
   const char* env_class = stringtab("Env");
   ast_t* env_def = ast_get(package, env_class, NULL);
 
-  if(!genprim(c, env_def, package_name(package), env_class, &env_g))
+  gentype_t env_g;
+  ast_t* env_ast = genprim(c, env_def, package_name(package), env_class,
+    &env_g);
+
+  if(env_ast == NULL)
+  {
+    ast_free_unattached(main_ast);
     return false;
+  }
 
   codegen_main(c, &main_g, &env_g);
+
+  ast_free_unattached(main_ast);
+  ast_free_unattached(env_ast);
   return true;
 }
 

@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool genprim(compile_t* c, ast_t* scope, const char* package,
+ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
   const char* name, gentype_t* g);
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim);

@@ -5,7 +5,7 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 
-bool genprim(compile_t* c, ast_t* scope, const char* package,
+ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
   const char* name, gentype_t* g)
 {
   ast_t* ast = ast_from(scope, TK_NOMINAL);
@@ -15,10 +15,13 @@ bool genprim(compile_t* c, ast_t* scope, const char* package,
   ast_add(ast, ast_from_string(scope, name));
   ast_add(ast, ast_from_string(scope, package));
 
-  bool ok = names_nominal(scope, &ast) && gentype(c, ast, g);
-  ast_free_unattached(ast);
+  if(!names_nominal(scope, &ast) || !gentype(c, ast, g))
+  {
+    ast_free_unattached(ast);
+    return NULL;
+  }
 
-  return ok;
+  return ast;
 }
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
