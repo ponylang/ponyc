@@ -13,6 +13,9 @@
 
 static void make_box_type(compile_t* c, gentype_t* g)
 {
+  if(g->primitive == NULL)
+    return;
+
   if(g->structure == NULL)
   {
     const char* box_name = genname_box(g->type_name);
@@ -174,6 +177,9 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   {
     // Fill in our global instance if the type is not opaque.
     make_global_instance(c, g);
+
+    // Fill in a box type if we need one.
+    make_box_type(c, g);
     return true;
   }
 
