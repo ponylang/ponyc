@@ -24,7 +24,8 @@ actor Main
 
     env.stdout.print(_tuple._1.string() + ", " + _tuple._2.string())
 
-    _tuple = var tuple = (a, b) = (b, a)
+    var tuple = (a, b) = (b, a)
+    _tuple = tuple
 
     env.stdout.print(a.string() + ", " + b.string())
     env.stdout.print(tuple._1.string() + ", " + tuple._2.string())
