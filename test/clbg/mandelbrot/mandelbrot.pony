@@ -140,6 +140,7 @@ actor Main
 
   new create(env: Env) =>
     _env = env
+    _image = Array[U8] //init tracking
 
     try
       arguments()
@@ -152,7 +153,6 @@ actor Main
         .spawn_ring(this, _lateral_length, _chunk_size)
         .mandelbrot(_square_limit, _iterations)
     else
-      _image = Array[U8]
       usage()
     end
 

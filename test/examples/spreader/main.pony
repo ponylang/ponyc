@@ -1,6 +1,6 @@
 actor Spreader
-  var _env: Env
-  var _count: U64
+  var _env: (Env | None)
+  var _count: U64 = 0
 
   var _parent: (Spreader | None) = None
   var _result: U64 = U64(0)
@@ -9,16 +9,18 @@ actor Spreader
   new create(env: Env) =>
     _env = env
 
-    _count = try _env.args(1).u64() else U64(10) end
+    _count = try env.args(1).u64() else U64(10) end
 
     if _count > 0 then
       spawn_child()
       spawn_child()
     else
-      _env.stdout.print("1 actor")
+      env.stdout.print("1 actor")
     end
 
   new spread(parent: Spreader, count: U64) =>
+    _env = None
+
     if count == 0 then
       parent.result(1)
     else
@@ -34,11 +36,11 @@ actor Spreader
     _result = _result + i
 
     if _received == 2 then
-      match _parent
-      | var p: Spreader =>
+      match (_parent, _env)
+      | (var p: Spreader, var e: Any) =>
         p.result(_result + 1)
-      | var p: None =>
-        _env.stdout.print((_result + 1).string() + " actors")
+      | (var p: None, var e: Env) =>
+        e.stdout.print((_result + 1).string() + " actors")
       end
     end
 
