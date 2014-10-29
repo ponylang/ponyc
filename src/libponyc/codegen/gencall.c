@@ -169,17 +169,12 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   return false;
 }
 
-static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
+static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, gentype_t* g,
   LLVMValueRef l_value, const char* method_name, ast_t* typeargs)
 {
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return NULL;
-
   LLVMValueRef func;
 
-  if(g.use_type == c->object_ptr)
+  if(g->use_type == c->object_ptr)
   {
     // Virtual, get the function by selector colour.
     int colour = painter_get_colour(c->painter, method_name);
@@ -188,7 +183,7 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
     func = gendesc_vtable(c, l_value, colour);
 
     // Cast to the right function type.
-    LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
+    LLVMValueRef proto = genfun_proto(c, g, method_name, typeargs);
 
     if(proto == NULL)
     {
@@ -200,7 +195,7 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // Static, get the actual function.
-    func = genfun_proto(c, &g, method_name, typeargs);
+    func = genfun_proto(c, g, method_name, typeargs);
 
     if(func == NULL)
     {
@@ -210,6 +205,22 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, ast_t* type,
   }
 
   return func;
+}
+
+static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
+{
+  if(ast_id(postfix) != TK_NEWREF)
+    return true;
+
+  // No receiver if a new primitive.
+  if(g->primitive != NULL)
+    return false;
+
+  // No receiver if a new Pointer.
+  if(is_pointer(g->ast))
+    return false;
+
+  return true;
 }
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
@@ -240,66 +251,32 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(receiver);
   const char* method_name = ast_name(method);
 
-  // Generate the receiver.
-  LLVMValueRef l_value;
+  // Generate the receiver type.
+  gentype_t g;
 
-  switch(ast_id(postfix))
-  {
-    case TK_NEWREF:
-    {
-      gentype_t g;
-
-      if(!gentype(c, type, &g))
-        return NULL;
-
-      l_value = gencall_alloc(c, &g);
-      break;
-    }
-
-    case TK_NEWBEREF:
-    {
-      gentype_t g;
-
-      if(!gentype(c, type, &g))
-        return NULL;
-
-      l_value = gencall_create(c, &g);
-      break;
-    }
-
-    case TK_BEREF:
-    case TK_FUNREF:
-      l_value = gen_expr(c, receiver);
-      break;
-
-    default:
-      assert(0);
-      return NULL;
-  }
-
-  // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, ast, type, l_value, method_name,
-    typeargs);
-
-  if(func == NULL)
+  if(!gentype(c, type, &g))
     return NULL;
 
+  bool need_receiver = call_needs_receiver(postfix, &g);
+
   // Generate the arguments.
-  LLVMTypeRef f_type = LLVMTypeOf(func);
-  size_t count = ast_childcount(positional) + 1;
+  LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
+
+  if(proto == NULL)
+  {
+    ast_error(ast, "couldn't locate '%s'", method_name);
+    return NULL;
+  }
+
+  LLVMTypeRef f_type = LLVMTypeOf(proto);
+  size_t count = ast_childcount(positional) + need_receiver;
 
   VLA(LLVMValueRef, args, count);
   VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(LLVMGetElementType(f_type), params);
 
   ast_t* arg = ast_child(positional);
-  int i = 0;
-
-  if(l_value != NULL)
-  {
-    args[0] = l_value;
-    i++;
-  }
+  int i = need_receiver;
 
   while(arg != NULL)
   {
@@ -312,6 +289,38 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
     i++;
   }
+
+  // Generate the receiver. Must be done after the arguments because the args
+  // could change things in the receiver expression that must be accounted for.
+  if(need_receiver)
+  {
+    switch(ast_id(postfix))
+    {
+      case TK_NEWREF:
+        args[0] = gencall_alloc(c, &g);
+        break;
+
+      case TK_NEWBEREF:
+        args[0] = gencall_create(c, &g);
+        break;
+
+      case TK_BEREF:
+      case TK_FUNREF:
+        args[0] = gen_expr(c, receiver);
+        break;
+
+      default:
+        assert(0);
+        return NULL;
+    }
+  }
+
+  // Static or virtual dispatch.
+  LLVMValueRef func = dispatch_function(c, ast, &g, args[0], method_name,
+    typeargs);
+
+  if(func == NULL)
+    return NULL;
 
   // If we can error out and we have an invoke target, generate an invoke
   // instead of a call.
@@ -354,8 +363,13 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   // Generate the receiver.
   LLVMValueRef l_value = gen_expr(c, pattern);
 
+  gentype_t g;
+
+  if(!gentype(c, pattern_type, &g))
+    return NULL;
+
   // Static or virtual dispatch.
-  LLVMValueRef func = dispatch_function(c, pattern, pattern_type, l_value,
+  LLVMValueRef func = dispatch_function(c, pattern, &g, l_value,
     stringtab("eq"), NULL);
 
   if(func == NULL)
