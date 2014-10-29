@@ -32,7 +32,7 @@ class Option is Stringable
   fun ref add_param(value: String, help: (String | None)) =>
     _domain.append((value, help))
 
-  fun ref accepts(value: String): Bool =>
+  fun ref accepts(value: String val): Bool =>
     try
       for (v, h) in _domain.values() do
         if v == value then return true end
@@ -182,10 +182,10 @@ class Options ref is Iterator[_Result]
     try
       let current = _args(_index)
 
-      let start: U64 =
+      let start: I64 =
         match (current(0), current(1))
-        | ("-".u8(), "-".u8()) => 2
-        | ("-".u8(), var some: Any) => 1
+        | ("-".u8(), "-".u8()) => I64(2)      //TODO: remove when literal
+        | ("-".u8(), var some: Any) => I64(1) //inference works
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options
@@ -223,7 +223,7 @@ class Options ref is Iterator[_Result]
       | var m: Option =>
         if m.requires_arg() then
           try
-            let argument = _args(_index).clone()
+            let argument: String val = _args(_index).clone()
 
             if m.has_domain() and not m.accepts(argument) then error end
 
@@ -239,7 +239,7 @@ class Options ref is Iterator[_Result]
             _error = true
             _env.stdout.print("[Options Error]:" +
               " No argument supplied or the supplied argument is not in the" +
-              " option's domain: --" + m.name + " " + argument)
+              " option's domain: --" + m.name)
             return ParseError
           end
         end
