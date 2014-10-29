@@ -41,11 +41,15 @@ bool is_result_needed(ast_t* ast)
       return is_result_needed(parent);
 
     case TK_CASE:
+    {
       // Pattern, guard needed, body needed only if MATCH needed
       if(ast_childidx(parent, 2) != seq)
         return true;
 
-      return is_result_needed(ast_parent(parent));
+      ast_t* cases = ast_parent(parent);
+      ast_t* match = ast_parent(cases);
+      return is_result_needed(match);
+    }
 
     case TK_TRY:
       // Only if parent needed.

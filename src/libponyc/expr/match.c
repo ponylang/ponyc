@@ -12,48 +12,67 @@ bool expr_match(ast_t* ast)
   assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
 
-  ast_t* expr_type = ast_type(expr);
-  ast_t* a_type = alias(expr_type);
+  ast_t* cases_type = ast_type(cases);
+  ast_t* else_type = ast_type(else_clause);
+
   ast_t* type = NULL;
+  size_t branch_count = 0;
 
-  ast_t* the_case = ast_child(cases);
-
-  while(the_case != NULL)
+  if(cases_type != NULL)
   {
-    ast_t* body = ast_childidx(the_case, 2);
-    ast_t* body_type = ast_type(body);
-    type = type_union(type, body_type);
-
-    the_case = ast_sibling(the_case);
+    type = type_union(type, cases_type);
+    ast_inheritbranch(ast, cases);
+    branch_count++;
   }
 
-  ast_free_unattached(a_type);
-
-  if(ast_id(else_clause) != TK_NONE)
+  if(else_type != NULL)
   {
-    ast_t* else_type = ast_type(else_clause);
     type = type_union(type, else_type);
-  } else {
-    type = type_union(type, type_builtin(ast, "None"));
+    ast_inheritbranch(ast, else_clause);
+    branch_count++;
   }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  ast_consolidate_branches(ast, branch_count);
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
 bool expr_cases(ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASES);
-  ast_t* child = ast_child(ast);
+  ast_t* the_case = ast_child(ast);
 
-  if(child == NULL)
+  if(the_case == NULL)
   {
     ast_error(ast, "match must have at least one case");
     return false;
   }
 
+  ast_t* type = NULL;
+  size_t branch_count = 0;
+
+  while(the_case != NULL)
+  {
+    AST_GET_CHILDREN(the_case, pattern, guard, body);
+    ast_t* body_type = ast_type(body);
+
+    if(body_type != NULL)
+    {
+      type = type_union(type, body_type);
+      ast_inheritbranch(ast, the_case);
+      branch_count++;
+    }
+
+    the_case = ast_sibling(the_case);
+  }
+
+  ast_settype(ast, type);
   ast_inheriterror(ast);
+  ast_consolidate_branches(ast, branch_count);
   return true;
 }
 
@@ -288,9 +307,7 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
 bool expr_case(ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASE);
-
-  ast_t* pattern = ast_child(ast);
-  ast_t* guard = ast_sibling(pattern);
+  AST_GET_CHILDREN(ast, pattern, guard, body);
 
   if((ast_id(pattern) == TK_NONE) && (ast_id(guard) == TK_NONE))
   {

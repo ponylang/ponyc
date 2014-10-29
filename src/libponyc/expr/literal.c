@@ -192,6 +192,7 @@ static bool check_fields_defined(ast_t* ast)
 
   ast_t* members = ast_parent(ast);
   ast_t* member = ast_child(members);
+  bool result = true;
 
   while(member != NULL)
   {
@@ -206,9 +207,8 @@ static bool check_fields_defined(ast_t* ast)
 
         if((def != member) || (status != SYM_DEFINED))
         {
-          ast_error(ast, "field left undefined in constructor");
-          ast_error(def, "field is here");
-          return false;
+          ast_error(def, "field left undefined in constructor");
+          result = false;
         }
 
         break;
@@ -220,7 +220,10 @@ static bool check_fields_defined(ast_t* ast)
     member = ast_sibling(member);
   }
 
-  return true;
+  if(!result)
+    ast_error(ast, "constructor with undefined fields is here");
+
+  return result;
 }
 
 static bool check_return_type(ast_t* ast)

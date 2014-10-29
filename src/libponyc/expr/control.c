@@ -48,37 +48,36 @@ bool expr_if(ast_t* ast)
 
   ast_t* l_type = ast_type(left);
   ast_t* r_type = ast_type(right);
-  ast_t* type = type_union(l_type, r_type);
 
-  if(type == NULL)
+  ast_t* type = NULL;
+  size_t branch_count = 0;
+
+  if(l_type != NULL)
   {
-    if(ast_sibling(ast) != NULL)
-    {
-      ast_error(ast_sibling(ast), "unreachable code");
-      return false;
-    }
-  } else {
-    if(l_type == NULL)
-    {
-      // Left side returns, get symbol status from the right.
-      ast_inheritstatus(ast, right);
-    } else if(r_type == NULL) {
-      // Right side returns, get symbol status from the left.
-      ast_inheritstatus(ast, left);
-    } else {
-      // Defined if defined in both branches. Undefined if undefined in either
-      // branch.
-      ast_inheritbranch(ast, left);
-      ast_inheritbranch(ast, right);
-      ast_consolidate_branches(ast, 2);
-    }
+    type = type_union(type, l_type);
+    ast_inheritbranch(ast, left);
+    branch_count++;
   }
 
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
+  if(r_type != NULL)
+  {
+    type = type_union(type, r_type);
+    ast_inheritbranch(ast, right);
+    branch_count++;
+  }
+
+  if((type == NULL) && (ast_sibling(ast) != NULL))
+  {
+    ast_error(ast_sibling(ast), "unreachable code");
+    return false;
+  }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  ast_consolidate_branches(ast, branch_count);
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -105,28 +104,27 @@ bool expr_while(ast_t* ast)
   }
 
   // Union with any existing type due to a break expression.
-  ast_t* type = type_union(l_type, r_type);
-  type = type_union(type, ast_type(ast));
+  ast_t* type = ast_type(ast);
+
+  type = type_union(type, l_type);
+  ast_inheritbranch(ast, left);
+  size_t branch_count = 1;
 
   // TODO: A break statement in the body means some definitions might not
   // happen.
-  if(r_type == NULL)
+  if(r_type != NULL)
   {
-    // Right side returns, get symbol status from the left.
-    ast_inheritstatus(ast, left);
-  } else {
-    // Defined if defined in both branches. Undefined if undefined in either
-    // branch.
+    type = type_union(type, r_type);
     ast_inheritbranch(ast, left);
-    ast_inheritbranch(ast, right);
-    ast_consolidate_branches(ast, 2);
+    branch_count++;
   }
-
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  ast_consolidate_branches(ast, branch_count);
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
@@ -151,28 +149,27 @@ bool expr_repeat(ast_t* ast)
   }
 
   // Union with any existing type due to a break expression.
-  ast_t* type = type_union(body_type, else_type);
-  type = type_union(type, ast_type(body));
+  ast_t* type = ast_type(ast);
+
+  type = type_union(type, body_type);
+  ast_inheritbranch(ast, body);
+  size_t branch_count = 1;
 
   // TODO: A break statement in the body means some definitions might not
   // happen.
-  if(else_type == NULL)
+  if(else_type != NULL)
   {
-    // Else clause returns, get symbol status from the body.
-    ast_inheritstatus(ast, body);
-  } else {
-    // Defined if defined in both branches. Undefined if undefined in either
-    // branch.
-    ast_inheritbranch(ast, body);
+    type = type_union(type, else_type);
     ast_inheritbranch(ast, else_clause);
-    ast_consolidate_branches(ast, 2);
+    branch_count++;
   }
-
-  // Push our symbol status to our parent scope.
-  ast_inheritstatus(ast_parent(ast), ast);
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  ast_consolidate_branches(ast, branch_count);
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 

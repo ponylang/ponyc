@@ -90,18 +90,11 @@ static bool resolve_branch(symbol_t* dst, symbol_t* src, void* arg)
       // Branch count should always be 0 or 1.
       assert(src->branch_count <= 1);
 
-      switch(dst->status)
-      {
-        case SYM_UNDEFINED:
-          dst->branch_count += src->branch_count;
-          return true;
+      // Should be undefined in the parent scope as well.
+      assert(dst->status == SYM_UNDEFINED);
 
-        case SYM_DEFINED:
-          return true;
-
-        default: {}
-      }
-      break;
+      dst->branch_count += src->branch_count;
+      return true;
 
     default: {}
   }
@@ -118,9 +111,11 @@ static bool apply_branch(symbol_t* sym, void* arg)
     assert(sym->branch_count <= count);
 
     if(sym->branch_count == count)
+    {
       sym->status = SYM_DEFINED;
-    else
+    } else {
       sym->branch_count = 0;
+    }
   }
 
   return true;

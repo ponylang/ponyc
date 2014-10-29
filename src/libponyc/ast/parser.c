@@ -355,6 +355,7 @@ DEF(caseexpr);
 // {caseexpr}
 DEF(cases);
   AST_NODE(TK_CASES);
+  SCOPE();
   SEQ("cases", caseexpr);
   DONE();
 
