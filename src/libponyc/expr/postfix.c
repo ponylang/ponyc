@@ -107,10 +107,10 @@ static bool expr_typeaccess(ast_t* ast)
         return false;
 
       ast_t* call = ast_from(ast, TK_CALL);
+      ast_swap(dot, call);
+      ast_add(call, dot); // the LHS goes at the end, not the beginning
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
-      ast_swap(dot, call);
-      ast_add(call, dot);
 
       if(!expr_call(call))
         return false;
@@ -349,9 +349,9 @@ bool expr_dot(ast_t* ast)
 
 bool expr_call(ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* type = ast_type(left);
-  token_id token = ast_id(left);
+  AST_GET_CHILDREN(ast, positional, named, lhs);
+  ast_t* type = ast_type(lhs);
+  token_id token = ast_id(lhs);
 
   if(!coerce_literal_operator(ast))
     return false;
@@ -382,8 +382,8 @@ bool expr_call(ast_t* ast)
       // apply sugar
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "apply"));
-      ast_swap(left, dot);
-      ast_add(dot, left);
+      ast_swap(lhs, dot);
+      ast_add(dot, lhs);
 
       if(!expr_dot(dot))
         return false;
@@ -413,9 +413,6 @@ bool expr_call(ast_t* ast)
           "can't call a function with unqualified type parameters");
         return false;
       }
-
-      ast_t* positional = ast_sibling(left);
-      ast_t* named = ast_sibling(positional);
 
       // TODO: named arguments
       if(ast_id(named) != TK_NONE)
@@ -508,7 +505,7 @@ bool expr_call(ast_t* ast)
             send &= sendable(result);
 
           // Check receiver cap.
-          ast_t* receiver = ast_child(left);
+          ast_t* receiver = ast_child(lhs);
 
           // Dig through function qualification.
           if(ast_id(receiver) == TK_FUNREF)

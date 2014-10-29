@@ -182,7 +182,7 @@ infix
   AND: expr expr
   XOR: expr expr
   OR: expr expr
-  ASSIGN: expr expr
+  ASSIGN: expr expr // note that the LHS comes second, to handle init tracking
 )
 
 local
@@ -207,7 +207,7 @@ postfix
   DOT: expr (ID | INT)
   BANG: expr INT
   QUALIFY: expr TYPEARGS
-  CALL: expr [POSITIONALARGS] [NAMEDARGS]
+  CALL: [POSITIONALARGS] [NAMEDARGS] expr // note the receiver comes last
 
   AT: ID TYPEARGS [POSITIONALARGS] NONE
   The final child is initially any named arguments. The parse fix pass gives an

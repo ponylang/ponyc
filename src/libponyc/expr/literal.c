@@ -970,8 +970,9 @@ static bool combine_arg_types(int fn_index, ast_t* ast, ast_t* left,
 bool coerce_literal_operator(ast_t* ast)
 {
   assert(ast != NULL);
+  assert(ast_id(ast) == TK_CALL);
 
-  AST_GET_CHILDREN(ast, lhs, positional, named);
+  AST_GET_CHILDREN(ast, positional, named, lhs);
   assert(lhs != NULL);
   assert(positional != NULL);
   assert(named != NULL);

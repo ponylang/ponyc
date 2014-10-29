@@ -585,8 +585,9 @@ LLVMValueRef gen_gt(compile_t* c, ast_t* left, ast_t* right)
 
 LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
 {
-  // Must generate the right hand side before the left hand side.
-  AST_GET_CHILDREN(ast, left, right);
+  // Must generate the right hand side before the left hand side. Left and
+  // right are swapped for type checking, so we fetch them in reverse order.
+  AST_GET_CHILDREN(ast, right, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if(r_value == NULL)

@@ -212,7 +212,8 @@ static ast_result_t sugar_try(ast_t* ast)
 
 static ast_result_t sugar_for(ast_t** astp)
 {
-  AST_EXTRACT_CHILDREN(*astp, for_idseq, for_type, for_iter, for_body, for_else);
+  AST_EXTRACT_CHILDREN(*astp, for_idseq, for_type, for_iter, for_body,
+    for_else);
 
   expand_none(for_else);
   const char* iter_name = package_hygienic_id_string(*astp);
@@ -220,18 +221,22 @@ static ast_result_t sugar_for(ast_t** astp)
   REPLACE(astp,
     NODE(TK_SEQ, AST_SCOPE
       NODE(TK_ASSIGN,
+        TREE(for_iter)
         NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) NONE)
-        TREE(for_iter))
+        )
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_CALL,
+          NONE NONE
           NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
-          NONE NONE)
+          )
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
-            NODE(TK_VAR, TREE(for_idseq) TREE(for_type))
             NODE(TK_CALL,
+              NONE NONE
               NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
-              NONE NONE))
+              )
+            NODE(TK_VAR, TREE(for_idseq) TREE(for_type))
+            )
           TREE(for_body))
         TREE(for_else))));
 
@@ -294,7 +299,8 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
 
-  AST_GET_CHILDREN(ast, call, value);
+  // Left and right sides are swapped, so we fetch them in reverse order here.
+  AST_GET_CHILDREN(ast, value, call);
 
   if(ast_id(call) != TK_CALL)
     return AST_OK;
@@ -304,7 +310,7 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // TODO(andy): Due to complications with optional arguments we should hand z
   // in as a named argument, once we have those
-  AST_EXTRACT_CHILDREN(call, expr, positional, named);
+  AST_EXTRACT_CHILDREN(call, positional, named, expr);
 
   // If there are no positional arguments yet, positional will be a TK_NONE
   ast_setid(positional, TK_POSITIONALARGS);
@@ -312,9 +318,10 @@ static ast_result_t sugar_update(ast_t** astp)
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NODE(TK_DOT, TREE(expr) ID("update"))
       TREE(positional)
-      TREE(named)));
+      TREE(named)
+      NODE(TK_DOT, TREE(expr) ID("update"))
+      ));
 
   return AST_OK;
 }
@@ -353,9 +360,10 @@ ast_result_t sugar_binop(ast_t** astp)
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NODE(TK_DOT, TREE(left) ID(method))
       NODE(TK_POSITIONALARGS, TREE(right))
-      NONE));
+      NONE
+      NODE(TK_DOT, TREE(left) ID(method))
+      ));
 
   return AST_OK;
 }
@@ -380,8 +388,9 @@ ast_result_t sugar_unop(ast_t** astp)
 
   REPLACE(astp,
     NODE(TK_CALL,
+      NONE NONE
       NODE(TK_DOT, TREE(expr) ID(method))
-      NONE NONE));
+      ));
 
   return AST_OK;
 }

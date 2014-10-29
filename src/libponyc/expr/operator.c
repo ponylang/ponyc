@@ -166,8 +166,9 @@ bool expr_identity(ast_t* ast)
 
 bool expr_assign(ast_t* ast)
 {
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  // Left and right are swapped in the AST to make sure we type check the
+  // right side before the left. Fetch them in the opposite order.
+  AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
   if(!is_lvalue(left, is_result_needed(ast)))

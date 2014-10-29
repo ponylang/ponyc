@@ -1,11 +1,12 @@
 #include "reference.h"
 #include "literal.h"
 #include "postfix.h"
-#include "../ast/token.h"
+#include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
+#include "../ast/token.h"
 #include <assert.h>
 
 /**
@@ -34,19 +35,13 @@ static bool is_assigned_to(ast_t* ast)
   {
     case TK_ASSIGN:
     {
-      // Has to be the left hand side of an assignment.
-      if(ast_child(parent) != ast)
+      // Has to be the left hand side of an assignment. Left and right sides
+      // are swapped, so we must be the second child.
+      if(ast_childidx(parent, 1) != ast)
         return false;
 
       // The result of that assignment can't be used.
-      parent = ast_parent(parent);
-
-      // Must be in a sequence.
-      if(ast_id(parent) != TK_SEQ)
-        return false;
-
-      // Cannot be the last expression in the sequence.
-      return ast_childlast(parent) != ast;
+      return !is_result_needed(parent);
     }
 
     case TK_SEQ:
@@ -199,10 +194,10 @@ bool expr_typeref(ast_t* ast)
 
       // call the default constructor with no arguments
       ast_t* call = ast_from(ast, TK_CALL);
+      ast_swap(dot, call);
+      ast_add(call, dot); // receiver comes last
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
-      ast_swap(dot, call);
-      ast_add(call, dot);
 
       return expr_call(call);
     }

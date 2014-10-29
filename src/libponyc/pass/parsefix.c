@@ -715,6 +715,17 @@ static ast_result_t parse_fix_nominal(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_nodeorder(ast_t* ast)
+{
+  // Swap the order of the nodes. We want to typecheck the right side before
+  // the left side to make sure we handle consume tracking correctly. This
+  // applies to TK_ASSIGN and TK_CALL.
+  ast_t* left = ast_pop(ast);
+  ast_append(ast, left);
+  return AST_OK;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
   assert(astp != NULL);
@@ -740,6 +751,8 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
     case TK_NOMINAL:    return parse_fix_nominal(ast);
+    case TK_ASSIGN:
+    case TK_CALL:       return parse_fix_nodeorder(ast);
     default: break;
   }
 

@@ -103,7 +103,7 @@ static bool eval_call(ast_t* ast, bool release, bool* error)
   assert(ast != NULL);
   assert(error != NULL);
 
-  AST_GET_CHILDREN(ast, lhs, positional, named);
+  AST_GET_CHILDREN(ast, positional, named, lhs);
   assert(lhs != NULL);
   assert(positional != NULL);
   assert(named != NULL);
@@ -201,7 +201,7 @@ static bool process_condition(ast_t* ast, ast_t* cond, bool release,
   // Evaluate condition expression
   bool error = false;
   bool val = eval_condition(cond, release, &error);
-  
+
   if(error)
   {
     // Couldn't evaluate condition, give up compilation
