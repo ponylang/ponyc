@@ -286,6 +286,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
   LLVMValueRef inc = LLVMBuildAdd(c->builder, phi, one, "");
+  body_block = LLVMGetInsertBlock(c->builder);
   LLVMAddIncoming(phi, &inc, &body_block, 1);
   LLVMBuildBr(c->builder, cond_block);
 

@@ -108,7 +108,7 @@ type
   TYPEPARAMREF: ID [cap] [HAT]
   THISTYPE: no children
 
-  NOMINAL: [ID] ID [TYPEARGS] cap [HAT]
+  NOMINAL: [ID] ID [TYPEARGS] cap [HAT] [ID]
   data: type definition
 )
 
@@ -365,6 +365,7 @@ void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
 void ast_print(ast_t* ast);
+const char* ast_print_type(ast_t* type);
 void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)

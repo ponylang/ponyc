@@ -691,7 +691,11 @@ static bool case_body(compile_t* c, ast_t* body,
   body_value = gen_assign_cast(c, phi_type, body_value, body_type);
 
   if(body_value == NULL)
+  {
+    // TODO: remove this
+    body_value = gen_expr(c, body);
     return false;
+  }
 
   LLVMBuildBr(c->builder, post_block);
 

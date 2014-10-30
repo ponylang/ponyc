@@ -4,6 +4,8 @@
 #include "gencall.h"
 #include "gencontrol.h"
 #include "genexpr.h"
+#include "../pass/names.h"
+#include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
@@ -58,7 +60,10 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
         if(ast_id(body) != TK_NONE)
         {
           // Reify the initialiser.
-          ast_t* var = lookup(NULL, g->ast, ast_name(id));
+          ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, false);
+          ast_t* var = lookup(NULL, this_type, ast_name(id));
+          ast_free_unattached(this_type);
+
           assert(var != NULL);
           body = ast_childidx(var, 2);
 
@@ -98,8 +103,9 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
 
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
-  // reify with both the type and the function-level typeargs
-  ast_t* fun = lookup(NULL, g->ast, name);
+  ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, false);
+  ast_t* fun = lookup(NULL, this_type, name);
+  ast_free_unattached(this_type);
   assert(fun != NULL);
 
   if(typeargs != NULL)

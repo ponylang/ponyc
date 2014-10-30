@@ -206,6 +206,8 @@ bool expr_assign(ast_t* ast)
   if(!is_subtype(a_type, l_type))
   {
     ast_error(ast, "right side must be a subtype of left side");
+    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_error(l_type, "left side type: %s", ast_print_type(l_type));
     ast_free_unattached(a_type);
     return false;
   }
