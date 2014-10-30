@@ -394,13 +394,13 @@ TEST(SugarTest, ForWithoutElse)
   const char* before = "(for (idseq (id i)) x (seq 3) (seq 4) x)";
   const char* after =
     "(seq{scope}\n"
-    "  (= (var (idseq (id hygid)) x) (seq 3))\n"
+    "  (= (seq 3) (var (idseq (id hygid)) x))\n"
     "  (while{scope}\n"
-    "    (call (. (reference (id hygid)) (id has_next)) x x)\n"
+    "    (call x x (. (reference (id hygid)) (id has_next)))\n"
     "    (seq{scope}\n"
     "      (=\n"
-    "        (var (idseq (id i)) x)\n"
-    "        (call (. (reference (id hygid)) (id next)) x x))\n"
+    "        (call x x (. (reference (id hygid)) (id next)))\n"
+    "        (var (idseq (id i)) x))\n"
     "      (seq 4)\n"
     "    )\n"
     "    (seq (reference (id None)))\n"
@@ -418,13 +418,13 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
   const char* after =
     "(seq{scope}\n"
-    "  (= (var (idseq (id hygid)) x) (seq 3))\n"
+    "  (= (seq 3) (var (idseq (id hygid)) x))\n"
     "  (while{scope}\n"
-    "    (call (. (reference (id hygid)) (id has_next)) x x)\n"
+    "    (call x x (. (reference (id hygid)) (id has_next)))\n"
     "    (seq{scope}\n"
     "      (=\n"
-    "        (var (idseq (id i)) (nominal x (id Foo) x x x))\n"
-    "        (call (. (reference (id hygid)) (id next)) x x))\n"
+    "        (call x x (. (reference (id hygid)) (id next)))\n"
+    "        (var (idseq (id i)) (nominal x (id Foo) x x x)))\n"
     "      (seq 4)\n"
     "    )\n"
     "    (seq 5)\n"
@@ -503,13 +503,13 @@ TEST(SugarTest, UpdateLhsNotCall)
 
 TEST(SugarTest, UpdateNoArgs)
 {
-  const char* before = "(= (call (seq 1) x x)(seq 2))";
+  const char* before = "(= (seq 2)(call x x (seq 1)))";
 
   const char* after  =
     "(call\n"
-    "  (. (seq 1) (id update))\n"
     "  (positionalargs (seq 2))\n"
-    "  x)";
+    "  x\n"
+    "  (. (seq 1) (id update)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -519,21 +519,21 @@ TEST(SugarTest, UpdateWithArgs)
 {
   const char* before =
     "(=\n"
+    "  (seq 6)\n"
     "  (call\n"
-    "    (seq 1)\n"
     "    (positionalargs (seq 2) (seq 3))\n"
     "    (namedargs\n"
     "      (namedarg (id foo) (seq 4))\n"
-    "      (namedarg (id bar) (seq 5))))\n"
-    "  (seq 6))";
+    "      (namedarg (id bar) (seq 5)))\n"
+    "    (seq 1)))";
 
   const char* after =
     "(call\n"
-    "  (. (seq 1) (id update))\n"
     "  (positionalargs (seq 2) (seq 3) (seq 6))\n"
     "  (namedargs\n"
     "    (namedarg (id foo) (seq 4))\n"
-    "    (namedarg (id bar) (seq 5))))";
+    "    (namedarg (id bar) (seq 5)))\n"
+    "  (. (seq 1) (id update)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -544,7 +544,7 @@ TEST(SugarTest, UpdateWithArgs)
 TEST(SugarTest, Add)
 {
   const char* before = "(+ 1 2)";
-  const char* after = "(call (. 1 (id add))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id add)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -553,7 +553,7 @@ TEST(SugarTest, Add)
 TEST(SugarTest, Sub)
 {
   const char* before = "(- 1 2)";
-  const char* after = "(call (. 1 (id sub))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id sub)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -562,7 +562,7 @@ TEST(SugarTest, Sub)
 TEST(SugarTest, Multiply)
 {
   const char* before = "(* 1 2)";
-  const char* after = "(call (. 1 (id mul))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id mul)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -571,7 +571,7 @@ TEST(SugarTest, Multiply)
 TEST(SugarTest, Divide)
 {
   const char* before = "(/ 1 2)";
-  const char* after = "(call (. 1 (id div))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id div)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -580,7 +580,7 @@ TEST(SugarTest, Divide)
 TEST(SugarTest, Mod)
 {
   const char* before = "(% 1 2)";
-  const char* after = "(call (. 1 (id mod))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id mod)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -589,7 +589,7 @@ TEST(SugarTest, Mod)
 TEST(SugarTest, UnaryMinus)
 {
   const char* before = "(- 1)";
-  const char* after = "(call (. 1 (id neg)) x x)";
+  const char* after = "(call x x (. 1 (id neg)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -598,7 +598,7 @@ TEST(SugarTest, UnaryMinus)
 TEST(SugarTest, ShiftLeft)
 {
   const char* before = "(<< 1 2)";
-  const char* after = "(call (. 1 (id shl))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id shl)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -607,7 +607,7 @@ TEST(SugarTest, ShiftLeft)
 TEST(SugarTest, ShiftRight)
 {
   const char* before = "(>> 1 2)";
-  const char* after = "(call (. 1 (id shr))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id shr)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -616,7 +616,7 @@ TEST(SugarTest, ShiftRight)
 TEST(SugarTest, And)
 {
   const char* before = "(and 1 2)";
-  const char* after = "(call (. 1 (id and_))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id and_)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -625,7 +625,7 @@ TEST(SugarTest, And)
 TEST(SugarTest, Or)
 {
   const char* before = "(or 1 2)";
-  const char* after = "(call (. 1 (id or_))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id or_)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -634,7 +634,7 @@ TEST(SugarTest, Or)
 TEST(SugarTest, Xor)
 {
   const char* before = "(xor 1 2)";
-  const char* after = "(call (. 1 (id xor_))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id xor_)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -643,7 +643,7 @@ TEST(SugarTest, Xor)
 TEST(SugarTest, Not)
 {
   const char* before = "(not 1)";
-  const char* after = "(call (. 1 (id not_)) x x)";
+  const char* after = "(call x x (. 1 (id not_)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -652,7 +652,7 @@ TEST(SugarTest, Not)
 TEST(SugarTest, Eq)
 {
   const char* before = "(== 1 2)";
-  const char* after = "(call (. 1 (id eq))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id eq)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -661,7 +661,7 @@ TEST(SugarTest, Eq)
 TEST(SugarTest, Ne)
 {
   const char* before = "(!= 1 2)";
-  const char* after = "(call (. 1 (id ne))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id ne)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -670,7 +670,7 @@ TEST(SugarTest, Ne)
 TEST(SugarTest, Lt)
 {
   const char* before = "(< 1 2)";
-  const char* after = "(call (. 1 (id lt))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id lt)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -679,7 +679,7 @@ TEST(SugarTest, Lt)
 TEST(SugarTest, Le)
 {
   const char* before = "(<= 1 2)";
-  const char* after = "(call (. 1 (id le))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id le)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -688,7 +688,7 @@ TEST(SugarTest, Le)
 TEST(SugarTest, Gt)
 {
   const char* before = "(> 1 2)";
-  const char* after = "(call (. 1 (id gt))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id gt)))";
 
   DO(test_good_sugar(before, after));
 }
@@ -697,7 +697,7 @@ TEST(SugarTest, Gt)
 TEST(SugarTest, Ge)
 {
   const char* before = "(>= 1 2)";
-  const char* after = "(call (. 1 (id ge))(positionalargs 2) x)";
+  const char* after = "(call (positionalargs 2) x (. 1 (id ge)))";
 
   DO(test_good_sugar(before, after));
 }

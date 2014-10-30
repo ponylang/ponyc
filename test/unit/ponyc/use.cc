@@ -324,9 +324,9 @@ TEST_F(UseTest, AndOpInCondition)
   const char* before =
     "(use x \"test:foo\"\n"
     "  (tuple (seq (call\n"
-    "    (. (reference (id linux)) (id and_))\n"
     "    (positionalargs (reference (id osx)))\n"
-    "    x))))";
+    "    x\n"
+    "    (. (reference (id linux)) (id and_))))))";
 
   const char* after =
     "(x)";
@@ -345,8 +345,7 @@ TEST_F(UseTest, NotOpInCondition)
   const char* before =
     "(use x \"test:foo\"\n"
     "  (tuple (seq (call\n"
-    "    (. (reference (id debug)) (id not_))\n"
-    "    x x))))";
+    "    x x (. (reference (id debug)) (id not_))))))";
 
   const char* after =
     "(use x \"test:foo\" x)";
