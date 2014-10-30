@@ -226,7 +226,7 @@ class String val is Ordered[String], Hashable, Stringable
     let finish = offset_to_index(to).min(_size)
     var str: String iso
 
-    if (start < _size) and (start < finish) then
+    if (start < _size) and (start <= finish) then
       let len = (finish - start) + 1
       str = recover String._reserve(len) end
       var i = start

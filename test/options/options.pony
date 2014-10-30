@@ -71,6 +71,6 @@ actor Main
           env.stdout.print("Target AST width: " + arg.string())
       | ("immerr", None) =>
           env.stdout.print("Errors will be reported immediately!")
-      | ParseError => opt.usage()
+      | ParseError => env.stdout.print("Giving up!") //opt.usage()
       end
     end

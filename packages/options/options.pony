@@ -194,8 +194,9 @@ class Options ref is Iterator[_Result]
                 //_skip_non_options
         end
 
-      let finish = current.find("="(0))
-      let name: String val = current.substring(start, finish)
+      var finish = current.find("="(0))
+      let sub_end = if finish == -1 then finish else finish - 1 end
+      let name: String val = current.substring(start, sub_end)
 
       match _select(name, (start == 1))
       | (var x: Option, var y: Option) =>
@@ -231,8 +232,10 @@ class Options ref is Iterator[_Result]
         end
       | var m: Option =>
         if m.requires_arg() then
+          var argument: String val = "None"
+
           try
-            let argument: String val = _args(_index).clone()
+            argument = _args(_index).clone()
 
             if m.has_domain() and not m.accepts(argument) then error end
 
@@ -247,7 +250,7 @@ class Options ref is Iterator[_Result]
             _error = true
             _env.stdout.print("[Options Error]:" +
               " No argument supplied or the supplied argument is not in the" +
-              " option's domain: --" + m.name)
+              " option's domain: --" + m.name + "[=| ]" + argument)
             return ParseError
           end
         end
