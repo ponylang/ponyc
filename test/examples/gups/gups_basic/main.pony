@@ -84,11 +84,11 @@ actor Main
     _env.stdout.print(
       """
       gups_basic [OPTIONS]
-        --logtable  N   log2 of the total table size. Defaults to 20."
-        --iterate   N   number of iterations. Defaults to 10000."
-        --chunk     N   chunk size. Defaults to 1024."
-        --streamers N   number of streamers. Defaults to 4."
-        --updaters  N   number of updaters. Defaults to 8."
+        --logtable  N   log2 of the total table size. Defaults to 20.
+        --iterate   N   number of iterations. Defaults to 10000.
+        --chunk     N   chunk size. Defaults to 1024.
+        --streamers N   number of streamers. Defaults to 4.
+        --updaters  N   number of updaters. Defaults to 8.
       """
       )
 
@@ -147,7 +147,7 @@ actor Updater
   var table:Array[U64] ref
 
   new create(index:U64, size:U64) =>
-    table = Array[U64].init(size, 0)
+    table = Array[U64].init(0, size)
 
     var offset = index * size;
     for i in Range[U64](0, size - 1) do
