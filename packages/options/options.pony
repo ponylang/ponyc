@@ -215,12 +215,14 @@ class Options ref is Iterator[_Result]
     end
 
   fun box has_next(): Bool =>
-    not _error and (_index < _configuration.length())
+    not _error and (_index < _args.length())
 
   fun ref next(): _Result =>
     if _skip_non_options() then
       match _find_match()
-      | _Ambiguous => _error = true ; ParseError
+      | _Ambiguous =>
+        _error = true
+        ParseError
       | None =>
         _index = _index + 1
         if has_next() then
