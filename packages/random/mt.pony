@@ -25,7 +25,7 @@ class MT is Random
       _populate()
     end
 
-    var x = _state(_index)
+    var x = try _state(_index) else U64(0) end //TODO FIX: access is safe
     _index = _index + 1
 
     x = x xor ((x >> 29) and 0x5555555555555555)
