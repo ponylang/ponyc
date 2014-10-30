@@ -138,7 +138,7 @@ class Options ref is Iterator[_Result]
 
     false
 
-  fun ref _select(s: String) : ((Option | None), (Option | None)) =>
+  fun ref _select(s: String, sopt: Bool) : ((Option | None), (Option | None)) =>
     var long: (Option | None) = None
     var short: (Option | None) = None
 
@@ -146,21 +146,22 @@ class Options ref is Iterator[_Result]
       for i in _configuration.values() do
         match i
         | var opt: Option =>
-
-          match opt.short
-          | var sn : String =>
-            if sn.compare(s, 1) == 0 then //TODO FIX
-              match short
-              | None => short = opt
-              | var prev: Option => return (prev, opt)
+          if sopt then
+            match (opt.short, sopt)
+            | (var sn: String, true) =>
+              if sn.compare(s, 1) == 0 then
+                match short
+                | None => short = opt
+                | var prev: Option => return (prev, opt)
+                end
               end
             end
-          end
-
-          if opt.name == s then
-            match long
-            | None => long = opt
-            | var prev: Option => return (prev, opt)
+          else
+            if opt.name == s then
+              match long
+              | None => long = opt
+              | var prev: Option => return (prev, opt)
+              end
             end
           end
         end
@@ -169,20 +170,13 @@ class Options ref is Iterator[_Result]
 
     (long, short)
 
-  fun ref strip_accepted() =>
+  fun ref _strip_accepted() =>
     try
       let current = _args(_index)
+      let len = current.length()
+      let short = if len == 1 then (current(0) == "-"(0)) else false end
 
-      let dangling_short =
-        if (current.length() == 1) then
-          (current(0) == "-"(0))
-        else
-          false
-        end
-
-      let dangling_long = (current.length() == 0)
-
-      if dangling_short or dangling_long then
+      if (len == 0) or short then
         _args.delete(_index)
       end
     end
@@ -200,22 +194,18 @@ class Options ref is Iterator[_Result]
                 //_skip_non_options
         end
 
-      let finish = current.find("=")
+      let finish = current.find("="(0))
       let name: String val = current.substring(start, finish)
 
-      match _select(name)
+      match _select(name, (start == 1))
       | (var x: Option, var y: Option) =>
-        if x isnt y then
-          _env.stdout.print("[Options Error]: The two options " +
-            x.token() + " and " + y.token() + " are ambiguous!")
-          return _Ambiguous
-        end
-        //suboptimal code repetition
-        _args(_index) = current.cut_in_place(0, finish) ; strip_accepted() ; x
+        _env.stdout.print("[Options Error]: The two options " +
+          x.token() + " and " + y.token() + " are ambiguous!")
+        _Ambiguous
       | (None, var y: Option) =>
-        _args(_index) = current.cut_in_place(1, 1) ; strip_accepted() ; y
+        _args(_index) = current.cut_in_place(1, 1) ; _strip_accepted() ; y
       | (var x: Option, None) =>
-        _args(_index) = current.cut_in_place(0, finish) ; strip_accepted() ; x
+        _args(_index) = current.cut_in_place(0, finish) ; _strip_accepted() ; x
       else
         error
       end
