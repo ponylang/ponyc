@@ -143,21 +143,13 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun box find(s: String): I64 =>
-    if _size < s._size then return -1 end
+  fun box find(c: U8): I64 =>
+    if _size == 0 then return -1 end
 
     var i: U64 = 0
 
     while i < _size do
-      if _ptr._apply(i) == s._ptr._apply(0) then
-        var j: U64 = i + 1
-
-        while j < _size do
-          if _ptr._apply(j) != s._ptr._apply(j - i) then
-            return -1
-          end
-        end
-
+      if _ptr._apply(i) == c then
         return i.i64()
       end
 
