@@ -329,6 +329,9 @@ bool expr_return(ast_t* ast)
   {
     ast_error(body,
       "body of return doesn't match the function return type");
+
+    ast_error(result, "function return type: %s", ast_print_type(result));
+    ast_error(type, "return body type: %s", ast_print_type(type));
     return false;
   }
 

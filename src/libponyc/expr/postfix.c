@@ -462,6 +462,9 @@ bool expr_call(ast_t* ast)
           else
             ast_error(arg, "argument not a subtype of parameter");
 
+          ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
+          ast_error(a_type, "argument type: %s", ast_print_type(a_type));
+
           ast_free_unattached(a_type);
           return false;
         }
@@ -526,6 +529,9 @@ bool expr_call(ast_t* ast)
             ast_error(ast,
               "receiver capability is not a subtype of method capability");
 
+            ast_error(receiver, "receiver type: %s", ast_print_type(r_type));
+            ast_error(cap, "expected capability");
+
             if(!send)
             {
               rcap = cap_for_type(ast_type(receiver));
@@ -587,6 +593,8 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
     if(!is_subtype(a_type, p_type))
     {
       ast_error(arg, "argument not a subtype of parameter");
+      ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
+      ast_error(a_type, "argument type: %s", ast_print_type(a_type));
       return false;
     }
 

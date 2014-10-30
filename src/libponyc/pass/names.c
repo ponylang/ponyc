@@ -173,6 +173,7 @@ static bool names_type(ast_t** astp, ast_t* def)
   }
 
   // keep the actual package id
+  ast_append(ast, package);
   ast_replace(&package, package_id(def));
 
   // store our definition for later use

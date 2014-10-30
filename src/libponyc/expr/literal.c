@@ -261,6 +261,8 @@ static bool check_return_type(ast_t* ast)
     ast_t* last = ast_childlast(body);
     ast_error(type, "function body isn't a subtype of the result type");
     ast_error(last, "function body expression is here");
+    ast_error(type, "function return type: %s", ast_print_type(type));
+    ast_error(body_type, "function body type: %s", ast_print_type(body_type));
     return false;
   }
 

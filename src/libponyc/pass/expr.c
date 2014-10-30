@@ -90,11 +90,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_NEW:
-      // TODO: check that the object is fully initialised
-      if(!expr_fun(ast))
-        return AST_FATAL;
-      break;
-
     case TK_BE:
     case TK_FUN:
       if(!expr_fun(ast))
@@ -268,8 +263,8 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       return AST_FATAL;
 
     case TK_OBJECT:
-      // TODO: create a type for the object
-      // TODO: make sure it fulfills any traits it claims to have
+      // TODO: create a type for the object, make sure it fulfills any traits it
+      // claims to have
       ast_error(ast, "not implemented (object)");
       return AST_FATAL;
 
