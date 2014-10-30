@@ -29,7 +29,7 @@ actor Main
         var updaters = Array[Updater]
         updaters.reserve(count)
 
-        for i in Range[U64](0, count - 1) do
+        for i in Range[U64](0, count) do
           updaters.append(Updater(i, size))
         end
 
@@ -58,7 +58,7 @@ actor Main
     if (_updater_count = _updater_count - 1) == 1 then
       var runtime: U64 = 0 /*Time.now() - _start*/
       var gups = _updates.f32() / runtime.f32() / F32(1e9)
-      _env.stdout.print("Time: " + runtime.string() + " GUPS: " gups.string())
+      _env.stdout.print("Time: " + runtime.string() + " GUPS: " + gups.string())
     end
 
   fun ref arguments() ? =>
