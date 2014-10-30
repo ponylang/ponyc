@@ -188,7 +188,9 @@ typedef enum token_id
   TK_LETREF,
   TK_PARAMREF,
 
-  TK_TEST
+  // Token types for testing
+  TK_TEST,
+  TK_TEST_SCOPE
 } token_id;
 
 

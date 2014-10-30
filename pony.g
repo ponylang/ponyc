@@ -135,6 +135,7 @@ control
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'recover' seq 'end'
+  |  'use' ':'? '(' (expr)+ ')' // For testing only
   ;
 
 elseif

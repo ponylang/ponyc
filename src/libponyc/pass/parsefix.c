@@ -6,6 +6,11 @@
 #include <assert.h>
 #include <string.h>
 
+
+// Allow all code, just fixup tree
+static bool allow_all = false;
+
+
 #define DEF_CLASS 0
 #define DEF_ACTOR 1
 #define DEF_PRIMITIVE 2
@@ -180,7 +185,7 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   const permission_def_t* def = &_method_def[method_def_index];
 
-  if(def->permissions == NULL)
+  if(!allow_all && def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
     return false;
@@ -198,6 +203,9 @@ static bool check_method(ast_t* ast, int method_def_index)
   ast_add(ast, type_params);
   ast_add(ast, id);
   ast_add(ast, cap);
+
+  if(allow_all)
+    return true;
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
@@ -369,85 +377,6 @@ static ast_result_t parse_fix_type_alias(ast_t* ast)
 
   return AST_OK;
 }
-
-
-// TODO(andy): This should be moved to a later pass. It's pointless checking
-// the types of the left and right children until type aliases have been
-// resolved
-/*
-static bool check_arrow_left(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  switch(ast_id(ast))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-      ast_error(ast, "can't use a type expression as a viewpoint");
-      return false;
-
-    case TK_NOMINAL:
-    {
-      AST_GET_CHILDREN(ast, ignore0, ignore1, ignore2, cap, ephemeral);
-
-      if(!check_tribool(tb_no, cap, "viewpoint", "capability"))
-        return false;
-
-      if(!check_tribool(tb_no, ephemeral, "viewpoint", "ephemeral type"))
-        return false;
-
-      return true;
-    }
-
-    case TK_THISTYPE:
-      return true;
-
-    default:
-      assert(0);
-      return false;
-  }
-}
-
-
-static bool check_arrow_right(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  switch(ast_id(ast))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-      ast_error(ast, "can't use a type expression in a viewpoint");
-      return false;
-
-    case TK_NOMINAL:
-    case TK_ARROW:
-      return true;
-
-    case TK_THISTYPE:
-      ast_error(ast, "can't use 'this' in a viewpoint");
-      return false;
-
-    default:
-      assert(0);
-      return false;
-  }
-}
-
-
-static ast_result_t parse_fix_arrow(ast_t* ast)
-{
-  assert(ast != NULL);
-  AST_GET_CHILDREN(ast, left, right);
-
-  if(!check_arrow_left(left) || !check_arrow_right(right))
-    return AST_ERROR;
-
-  return AST_OK;
-}
-*/
 
 
 static ast_result_t parse_fix_thistype(ast_t* ast)
@@ -726,20 +655,63 @@ static ast_result_t parse_fix_nodeorder(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_test_scope(ast_t* ast)
+{
+  // Only allowed in testing
+  if(!allow_all)
+  {
+    ast_error(ast, "Unexpected use command in method body");
+    return AST_FATAL;
+  }
+
+  // Replace tests cope with a normal sequence scope
+  ast_setid(ast, TK_SEQ);
+
+  if(ast_id(ast_child(ast)) == TK_COLON)
+    ast_scope(ast);
+
+  ast_free(ast_pop(ast));
+  return AST_OK;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
   assert(astp != NULL);
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  switch(ast_id(ast))
+  token_id id = ast_id(ast);
+
+  // Functions that fix up the tree
+  switch(id)
+  {
+    case TK_NOMINAL:    return parse_fix_nominal(ast);
+    case TK_ASSIGN:
+    case TK_CALL:       return parse_fix_nodeorder(ast);
+    case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
+
+    default: break;
+  }
+
+  if(allow_all)
+  {
+    // Don't check anything, just fix up the tree
+    if(id == TK_FUN || id == TK_BE || id == TK_NEW)
+      check_method(ast, 0);
+
+    return AST_OK;
+  }
+
+  // Functions that just check for illegal code
+  switch(id)
   {
     case TK_TYPE:       return parse_fix_type_alias(ast);
     case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);
     case TK_ACTOR:      return parse_fix_entity(ast, DEF_ACTOR);
     case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);
-    case TK_INTERFACE:   return parse_fix_entity(ast, DEF_INTERFACE);
+    case TK_INTERFACE:  return parse_fix_entity(ast, DEF_INTERFACE);
     case TK_THISTYPE:   return parse_fix_thistype(ast);
     case TK_HAT:        return parse_fix_ephemeral(ast);
     case TK_BANG:       return parse_fix_bang(ast);
@@ -750,14 +722,17 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
-    case TK_NOMINAL:    return parse_fix_nominal(ast);
-    case TK_ASSIGN:
-    case TK_CALL:       return parse_fix_nodeorder(ast);
     default: break;
   }
 
-  if(is_expr_infix(ast_id(ast)))
+  if(is_expr_infix(id))
     return parse_fix_infix_expr(ast);
 
   return AST_OK;
+}
+
+
+void parse_fix_allow_all(bool allow)
+{
+  allow_all = allow;
 }

@@ -3,435 +3,558 @@
 
 #include <ast/ast.h>
 #include <ast/builder.h>
-#include <ast/source.h>
-#include <ast/token.h>
+#include <pkg/package.h>
+#include <pass/parsefix.h>
+#include <pass/pass.h>
 #include <pass/sugar.h>
 
 #include "util.h"
+
+
+static const char* builtin = "primitive U32";
 
 class SugarTest: public testing::Test
 {};
 
 
-static void test_good_sugar(const char* before, const char* after)
+static void test_good_sugar(const char* short_form, const char* full_form)
 {
-  DO(test_pass_fn_good(before, after, pass_sugar, "start"));
+  package_add_magic("builtin", builtin);
+  package_suppress_build_message();
+  free_errors();
+
+  limit_passes("sugar");
+  package_add_magic("short", short_form);
+  ast_t* short_ast = program_load(stringtab("short"), NULL);
+
+  if(short_ast == NULL)
+  {
+    print_errors();
+    ASSERT_NE((void*)NULL, short_ast);
+  }
+
+  limit_passes("parsefix");
+  parse_fix_allow_all(true);
+  package_add_magic("full", full_form);
+  ast_t* full_ast = program_load(stringtab("full"), NULL);
+
+  if(full_ast == NULL)
+  {
+    print_errors();
+    ASSERT_NE((void*)NULL, full_ast);
+  }
+
+  bool r = build_compare_asts(full_ast, short_ast);
+
+  if(!r)
+  {
+    printf("Full form:\n");
+    ast_print(full_ast);
+    printf("Short form:\n");
+    ast_print(short_ast);
+    print_errors();
+  }
+
+  ASSERT_TRUE(r);
+
+  // Reset state for next test
+  parse_fix_allow_all(false);
 }
 
 
-static void test_bad_sugar(const char* desc, ast_result_t expect_result)
+static void test_bad_sugar(const char* src, ast_result_t expect_result)
 {
-  DO(test_pass_fn_bad(desc, pass_sugar, "start", expect_result));
+  package_add_magic("prog", src);
+  package_add_magic("builtin", builtin);
+  limit_passes("sugar");
+  package_suppress_build_message();
+  free_errors();
+
+  ast_t* ast = program_load(stringtab("prog"), NULL);
+
+  if(ast != NULL)
+  {
+    ast_print(ast);
+    ASSERT_EQ((void*)NULL, ast);
+  }
 }
 
 
 TEST(SugarTest, DataType)
 {
-  const char* before =
-    "(primitive (id Foo) x x x members)";
+  const char* short_form =
+    "primitive Foo";
 
-  const char* after =
-    "(primitive (id Foo) x val x\n"
-    "  (members\n"
-    "    (new x (id create) x x x x (seq true) x)))";
+  const char* full_form =
+    "primitive Foo val new create(): Foo val^ => true";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ClassWithField)
 {
-  const char* before =
-    "(class (id Foo) x iso x (members (flet (id m) x x)))";
+  // Create constructor should not be added if there are uninitialsed fields
+  const char* short_form =
+    "class Foo iso let m:U32";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
+}
+
+
+TEST(SugarTest, ClassWithInitialisedField)
+{
+  // Create constructor should be added if there are only initialsed fields
+  const char* short_form =
+    "class Foo iso let m:U32 = 3";
+
+  const char* full_form =
+    "class Foo iso let m:U32 = 3 new create(): Foo ref^ => true";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ClassWithCreateConstructor)
 {
-  const char* before =
-    "(class (id Foo) x iso x\n"
-    "  (members (new ref (id create) x x x x (seq 3) x)))";
+  // Create constructor should not be added if it's already there
+  const char* short_form =
+    "class Foo iso new create() => 3";
 
-  DO(test_good_sugar(before, before));
+  const char* full_form =
+    "class Foo iso new create(): Foo ref^ => 3";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ClassWithCreateFunction)
 {
-  const char* before =
-    "(class (id Foo) x iso x\n"
-    "  (members (fun ref (id create) x x x x (seq 3) x)))";
+  // Create function clashes with create constructor
+  const char* short_form =
+    "class Foo fun ref create() => 3";
 
-  DO(test_bad_sugar(before, AST_ERROR));
+  DO(test_bad_sugar(short_form, AST_ERROR));
+}
+
+
+TEST(SugarTest, ClassWithCreateFunctionAndField)
+{
+  // Field stops addition of create constructor, so create function is fine
+  const char* short_form =
+    "class Foo ref let m:U32 fun ref create(): U32 val => 3";
+
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, ClassWithoutFieldOrCreate)
 {
-  const char* before =
-    "(class (id Foo) x iso x members)";
+  const char* short_form =
+    "class Foo iso";
 
-  const char* after =
-    "(class (id Foo) x iso x\n"
-    "  (members\n"
-    "    (new x (id create) x x x x (seq true) x)))";
+  const char* full_form =
+    "class Foo iso new create(): Foo ref^ => true";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ClassWithoutDefCap)
 {
-  const char* before = "(class (id foo) x x   x (members (flet (id m) x x)))";
-  const char* after =  "(class (id foo) x ref x (members (flet (id m) x x)))";
+  const char* short_form = "class Foo     let m:U32";
+  const char* full_form =  "class Foo ref let m:U32";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ActorWithField)
 {
-  const char* before = "(actor (id Foo) x x   x (members (flet (id m) x x)))";
-  const char* after =  "(actor (id Foo) x tag x (members (flet (id m) x x)))";
+  // Create constructor should not be added if there are uninitialsed fields
+  const char* short_form = "actor Foo     let m:U32";
+  const char* full_form =  "actor Foo tag let m:U32";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, ActorWithInitialisedField)
+{
+  // Create constructor should be added if there are only initialsed fields
+  const char* short_form =
+    "actor Foo let m:U32 = 3";
+
+  const char* full_form =
+    "actor Foo tag let m:U32 = 3 new create(): Foo tag^ => true";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ActorWithCreateConstructor)
 {
-  const char* before =
-    "(actor (id Foo) x x x\n"
-    "  (members (new ref (id create) x x x x (seq 3) x)))";
+  // Create constructor should not be added if it's already there
+  const char* short_form =
+    "actor Foo new create() => 3";
 
-  const char* after =
-    "(actor (id Foo) x tag x\n"
-    "  (members (new ref (id create) x x x x (seq 3) x)))";
+  const char* full_form =
+    "actor Foo tag new create(): Foo tag^ => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ActorWithCreateFunction)
 {
-  const char* before =
-    "(actor (id Foo) x x x (members (fun ref (id create) x x x x (seq 3))))";
+  // Create function clashes with create constructor
+  const char* short_form =
+    "actor Foo fun ref create() => 3";
 
-  DO(test_bad_sugar(before, AST_ERROR));
+  DO(test_bad_sugar(short_form, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithCreateFunctionAndField)
+{
+  // Field stops addition of create constructor, so create function is fine
+  const char* short_form =
+    "actor Foo     let m:U32 fun ref create(): U32 val => 3";
+
+  const char* full_form =
+    "actor Foo tag let m:U32 fun ref create(): U32 val => 3";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ActorWithCreateBehaviour)
 {
-  const char* before =
-    "(actor (id Foo) x x x (members (be ref (id create) x x x x (seq 3))))";
+  // Create behaviour clashes with create constructor
+  const char* short_form =
+    "actor Foo be create() => 3";
 
-  DO(test_bad_sugar(before, AST_ERROR));
+  DO(test_bad_sugar(short_form, AST_ERROR));
+}
+
+
+TEST(SugarTest, ActorWithCreateBehaviourAndField)
+{
+  // Field stops addition of create constructor, so create behaviour is fine
+  const char* short_form =
+    "actor Foo     let m:U32 be create() => 3";
+
+  const char* full_form =
+    "actor Foo tag let m:U32 be create(): Foo tag => 3";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ActorWithoutFieldOrCreate)
 {
-  const char* before =
-    "(actor (id Foo) x x x members)";
+  const char* short_form =
+    "actor Foo";
 
-  const char* after =
-    "(actor (id Foo) x tag x\n"
-    "  (members\n"
-    "    (new x (id create) x x x x (seq true) x)))";
+  const char* full_form =
+    "actor Foo tag new create(): Foo tag^ => true";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, ActorWithoutDefCap)
+{
+  const char* short_form = "actor Foo     let m:U32";
+  const char* full_form =  "actor Foo tag let m:U32";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, TraitWithCap)
 {
-  const char* before = "(trait (id foo) x box x x)";
+  const char* short_form = "trait Foo box";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, TraitWithoutCap)
 {
-  const char* before = "(trait (id foo) x x   x x)";
-  const char* after  = "(trait (id foo) x ref x x)";
+  const char* short_form = "trait Foo";
+  const char* full_form =  "trait Foo ref";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, TypeParamWithConstraint)
 {
-  const char* before = "(typeparam (id foo) thistype x)";
+  const char* short_form = "class Foo[A: U32] ref var y:U32";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, TypeParamWithoutConstraint)
 {
-  const char* before = "(typeparam (id foo) x x)";
-  const char* after  = "(typeparam (id foo) (nominal x (id Any) x tag x) x)";
+  const char* short_form = "class Foo[A]          ref var y:U32";
+  const char* full_form =  "class Foo[A: Any tag] ref var y:U32";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ConstructorNoNameNoReturnType)
 {
-  const char* before =
-    "(class (id foo) x x x (members (new{def start} ref x x x x x x)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  new() => 3";
 
-  const char* after =
-    "(class (id foo) x x x\n"
-    "  (members (new ref (id create) x x\n"
-    "    (nominal x (id foo) x ref ^) x x)))";
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  new create(): Foo ref^ => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ConstructorInActor)
 {
-  const char* before =
-    "(actor (id foo) x x x (members"
-    "  (new{def start} ref (id make) x x x x x)))";
+  const char* short_form =
+    "actor Foo var y:U32\n"
+    "  new() => 3";
 
-  const char* after =
-    "(actor (id foo) x x x\n"
-    "  (members (new ref (id make) x x\n"
-    "    (nominal x (id foo) x tag ^) x x)))";
+  const char* full_form =
+    "actor Foo tag var y:U32\n"
+    "  new create(): Foo tag^ => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ConstructorInDataType)
 {
-  const char* before =
-    "(primitive (id foo) x x x (members"
-    "  (new{def start} ref (id make) x x x x x x)))";
+  const char* short_form =
+    "primitive Foo\n"
+    "  new() => 3";
 
-  const char* after =
-    "(primitive (id foo) x x x\n"
-    "  (members (new ref (id make) x x\n"
-    "    (nominal x (id foo) x val ^) x x x)))";
+  const char* full_form =
+    "primitive Foo val\n"
+    "  new create(): Foo val^ => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ConstructorInGenericClass)
 {
-  const char* before =
-    "(class (id foo)"
-    "  (typeparams"
-    "    (typeparam (id A) (nominal (id B) x x x) x)"
-    "    (typeparam (id C) x x)"
-    "  ) x x (members (new{def start} ref (id bar) x x x x x)))";
+  const char* short_form =
+    "class Foo[A: B, C] ref var y:U32\n"
+    "  new bar() => 3";
 
-  const char* after =
-    "(class (id foo)\n"
-    "  (typeparams\n"
-    "    (typeparam (id A) (nominal (id B) x x x) x)\n"
-    "    (typeparam (id C) x x)\n"
-    "  )\n"
-    "  x x\n"
-    "  (members (new ref (id bar) x x\n"
-    "    (nominal\n"
-    "      x (id foo)\n"
-    "      (typeargs\n"
-    "        (nominal x (id A) x x x)\n"
-    "        (nominal x (id C) x x x)\n"
-    "      )\n"
-    "      ref ^\n"
-    "    )\n"
-    "    x x)))";
+  const char* full_form =
+    "class Foo[A: B, C: Any tag] ref var y:U32\n"
+    "  new bar(): Foo[A, C] ref^ => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, BehaviourReturnType)
 {
-  const char* before =
-    "(actor (id foo) x x x (members (be{def start} tag (id foo) x x x x x)))";
+  const char* short_form = "actor Foo     var y:U32 be foo()         => 3";
+  const char* full_form =  "actor Foo tag var y:U32 be foo():Foo tag => 3";
 
-  const char* after =
-    "(actor (id foo) x x x\n"
-    "  (members (be tag (id foo) x x\n"
-    "    (nominal x (id foo) x tag x) x x)))";
-
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, FunctionComplete)
 {
-  const char* before =
-    "(fun ref (id foo) x x (nominal x (id U32) x x x) x (seq 3))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun box foo(): U32 val => 3";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, FunctionNoName)
 {
-  const char* before =
-    "(fun ref x x x (nominal x (id U32) x x x) x (seq 3))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun box (): U32 val => 3";
 
-  const char* after =
-    "(fun ref (id apply) x x (nominal x (id U32) x x x) x (seq 3))";
+  const char* full_form =
+    "class Foo ref var y:U32 fun box apply(): U32 val => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, FunctionNoReturnNoBody)
 {
-  const char* before =
-    "(fun ref (id foo) x x x x x)";
+  const char* short_form =
+    "trait Foo ref fun box foo()";
 
-  const char* after =
-    "(fun ref (id foo) x x (nominal x (id None) x x x) x x)";
+  const char* full_form =
+    "trait Foo ref fun box foo(): None";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, FunctionNoReturnBody)
 {
-  const char* before =
-    "(fun ref (id foo) x x x x (seq 3) x)";
+  const char* short_form =
+    "trait Foo ref fun box foo() => 3";
 
-  const char* after =
-    "(fun\n"
-    "  ref (id foo) x x\n"
-    "  (nominal x (id None) x x x) x\n"
-    "  (seq 3) x)";
+  const char* full_form =
+    "trait Foo ref fun box foo(): None => 3";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, IfWithoutElse)
 {
-  const char* before = "(if (seq 3) (seq 1) x)";
-  const char* after =  "(if (seq 3) (seq 1) (seq (reference (id None))))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  if 1 then 2 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  if 1 then 2 else None end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, IfWithElse)
 {
-  const char* before = "(if (seq 3) (seq 1) (seq 2))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  if 1 then 2 else 3 end";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, WhileWithoutElse)
 {
-  const char* before = "(while (seq 3) (seq 1) x)";
-  const char* after =  "(while (seq 3) (seq 1) (seq (reference (id None))))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  while 1 do 2 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  while 1 do 2 else None end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, WhileWithElse)
 {
-  const char* before = "(while (seq 3) (seq 1) (seq 2))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  while 1 do 2 else 3 end";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, TryWithElseOAndThen)
 {
-  const char* before = "(try (seq 1) (seq 2) (seq 3))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 else 2 then 3 end";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, TryWithoutElseOrThen)
 {
-  const char* before = "(try (seq 1) x x)";
-  const char* after =
-    "(try (seq 1) (seq (reference (id None))) (seq (reference (id None))))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 else None then None end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, TryWithoutElse)
 {
-  const char* before = "(try (seq 1) x (seq 3))";
-  const char* after =
-    "(try (seq 1) (seq (reference (id None))) (seq 3))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 then 2 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 else None then 2 end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, TryWithoutThen)
 {
-  const char* before = "(try (seq 1) (seq 2) x)";
-  const char* after =
-    "(try (seq 1) (seq 2) (seq (reference (id None))))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 else 2 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  try 1 else 2 then None end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ForWithoutElse)
 {
-  const char* before = "(for (idseq (id i)) x (seq 3) (seq 4) x)";
-  const char* after =
-    "(seq{scope}\n"
-    "  (= (seq 3) (var (idseq (id hygid)) x))\n"
-    "  (while{scope}\n"
-    "    (call x x (. (reference (id hygid)) (id has_next)))\n"
-    "    (seq{scope}\n"
-    "      (=\n"
-    "        (call x x (. (reference (id hygid)) (id next)))\n"
-    "        (var (idseq (id i)) x))\n"
-    "      (seq 4)\n"
-    "    )\n"
-    "    (seq (reference (id None)))\n"
-    "  )\n"
-    ")";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  for i in 1 do 2 end";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  use:(\n"
+    "    var hygid = use:(1)\n"
+    "    while hygid.has_next() do\n"
+    "      var i = hygid.next()\n"
+    "      use:(2)\n"
+    "    else None end\n"
+    "  )";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ForWithElseAndIteratorType)
 {
-  const char* before =
-    "(for (idseq (id i)) (nominal x (id Foo) x x x) (seq 3) (seq 4) (seq 5))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  for i:U32 in 1 do 2 else 3 end";
 
-  const char* after =
-    "(seq{scope}\n"
-    "  (= (seq 3) (var (idseq (id hygid)) x))\n"
-    "  (while{scope}\n"
-    "    (call x x (. (reference (id hygid)) (id has_next)))\n"
-    "    (seq{scope}\n"
-    "      (=\n"
-    "        (call x x (. (reference (id hygid)) (id next)))\n"
-    "        (var (idseq (id i)) (nominal x (id Foo) x x x)))\n"
-    "      (seq 4)\n"
-    "    )\n"
-    "    (seq 5)\n"
-    "  )\n"
-    ")";
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  use:(\n"
+    "    var hygid = use:(1)\n"
+    "    while hygid.has_next() do\n"
+    "      var i:U32 = hygid.next()\n"
+    "      use:(2)\n"
+    "    else\n"
+    "      3\n"
+    "    end\n"
+    "  )";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
@@ -440,102 +563,141 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
 TEST(SugarTest, CaseWithBody)
 {
-  const char* before = "(case 1 x (seq 2))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1 => 2\n"
+    "  else\n"
+    "    3\n"
+    "  end";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, CaseWithBodyAndFollowingCase)
 {
-  const char* before =
-    "(cases\n"
-    "  (case{def start} 1 x (seq 2))\n"
-    "  (case 3 x (seq 4)))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1 => 2\n"
+    "  |3 => 4\n"
+    "  else\n"
+    "    5\n"
+    "  end";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, CaseWithNoBody)
 {
-  const char* before =
-    "(cases\n"
-    "  (case{def start} 1 x x)\n"
-    "  (case 2 x (seq 3)))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1\n"
+    "  |2 => 3\n"
+    "  else\n"
+    "    4\n"
+    "  end";
 
-  const char* after  =
-    "(cases\n"
-    "  (case 1 x (seq 3))\n"
-    "  (case 2 x (seq 3)))";
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1 => 3\n"
+    "  |2 => 3\n"
+    "  else\n"
+    "    4\n"
+    "  end";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, CaseWithNoBodyMultiple)
 {
-  const char* before =
-    "(cases\n"
-    "  (case{def start} 1 x x)\n"
-    "  (case 2 x x)\n"
-    "  (case 3 x x)\n"
-    "  (case 4 x (seq 5)))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1\n"
+    "  |2\n"
+    "  |3\n"
+    "  |4 => 5\n"
+    "  else\n"
+    "    6\n"
+    "  end";
 
-  const char* after =
-    "(cases\n"
-    "  (case 1 x (seq 5))\n"
-    "  (case 2 x x)\n"
-    "  (case 3 x x)\n"
-    "  (case 4 x (seq 5)))";
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1 => 5\n"
+    "  |2 => 5\n"
+    "  |3 => 5\n"
+    "  |4 => 5\n"
+    "  else\n"
+    "    6\n"
+    "  end";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, MatchWithNoElse)
+{
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1=> 2\n"
+    "  end";
+
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  match(x)\n"
+    "  |1 => 2\n"
+    "  else\n"
+    "    None\n"
+    "  end";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, UpdateLhsNotCall)
 {
-  const char* before = "(= (reference (id foo)) (seq 1))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  foo = 1";
 
-  DO(test_good_sugar(before, before));
+  DO(test_good_sugar(short_form, short_form));
 }
 
 
 TEST(SugarTest, UpdateNoArgs)
 {
-  const char* before = "(= (seq 2)(call x x (seq 1)))";
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  foo() = 1";
 
-  const char* after  =
-    "(call\n"
-    "  (positionalargs (seq 2))\n"
-    "  x\n"
-    "  (. (seq 1) (id update)))";
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  foo.update(1)";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, UpdateWithArgs)
 {
-  const char* before =
-    "(=\n"
-    "  (seq 6)\n"
-    "  (call\n"
-    "    (positionalargs (seq 2) (seq 3))\n"
-    "    (namedargs\n"
-    "      (namedarg (id foo) (seq 4))\n"
-    "      (namedarg (id bar) (seq 5)))\n"
-    "    (seq 1)))";
+  // TODO(andy): Once we have named args this is totally broken
+  const char* short_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  foo(2, 3, bar = 4) = 1";
 
-  const char* after =
-    "(call\n"
-    "  (positionalargs (seq 2) (seq 3) (seq 6))\n"
-    "  (namedargs\n"
-    "    (namedarg (id foo) (seq 4))\n"
-    "    (namedarg (id bar) (seq 5)))\n"
-    "  (. (seq 1) (id update)))";
+  const char* full_form =
+    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
+    "  foo.update(2, 3, bar = 4, 1)";
 
-  DO(test_good_sugar(before, after));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
@@ -543,161 +705,251 @@ TEST(SugarTest, UpdateWithArgs)
 
 TEST(SugarTest, Add)
 {
-  const char* before = "(+ 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id add)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 + 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.add(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Sub)
 {
-  const char* before = "(- 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id sub)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 - 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.sub(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Multiply)
 {
-  const char* before = "(* 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id mul)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 * 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.mul(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Divide)
 {
-  const char* before = "(/ 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id div)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 / 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.div(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Mod)
 {
-  const char* before = "(% 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id mod)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 % 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.mod(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, UnaryMinus)
 {
-  const char* before = "(- 1)";
-  const char* after = "(call x x (. 1 (id neg)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => -1";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.neg()";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ShiftLeft)
 {
-  const char* before = "(<< 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id shl)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 << 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.shl(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, ShiftRight)
 {
-  const char* before = "(>> 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id shr)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 >> 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.shr(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, And)
 {
-  const char* before = "(and 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id and_)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 and 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.and_(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Or)
 {
-  const char* before = "(or 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id or_)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 or 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.or_(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Xor)
 {
-  const char* before = "(xor 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id xor_)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 xor 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.xor_(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Not)
 {
-  const char* before = "(not 1)";
-  const char* after = "(call x x (. 1 (id not_)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => not 1";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.not_()";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Eq)
 {
-  const char* before = "(== 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id eq)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 == 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.eq(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Ne)
 {
-  const char* before = "(!= 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id ne)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 != 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.ne(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Lt)
 {
-  const char* before = "(< 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id lt)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 < 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.lt(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Le)
 {
-  const char* before = "(<= 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id le)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 <= 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.le(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Gt)
 {
-  const char* before = "(> 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id gt)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 > 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.gt(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
 TEST(SugarTest, Ge)
 {
-  const char* before = "(>= 1 2)";
-  const char* after = "(call (positionalargs 2) x (. 1 (id ge)))";
+  const char* short_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1 >= 2";
 
-  DO(test_good_sugar(before, after));
+  const char* full_form =
+    "class Foo ref var y:U32\n"
+    "  fun ref f(): U32 val => 1.ge(2)";
+
+  DO(test_good_sugar(short_form, full_form));
 }

@@ -205,6 +205,7 @@ static const lexsym_t abstract[] =
   { "paramref", TK_PARAMREF },
 
   { "test", TK_TEST },
+  { "testscope", TK_TEST_SCOPE },
   { NULL, (token_id)0 }
 };
 

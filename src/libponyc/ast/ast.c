@@ -1081,7 +1081,7 @@ static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
   if(r >= avail)
   {
     buffer->size = buffer->size + r + 1;
-    buffer->m = realloc(buffer->m, buffer->size);
+    buffer->m = (char*)realloc(buffer->m, buffer->size);
     avail = buffer->size - buffer->offset;
 
     va_start(ap, fmt);

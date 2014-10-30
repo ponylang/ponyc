@@ -5,6 +5,7 @@
 DECL(type);
 DECL(rawseq);
 DECL(seq);
+DECL(expr);
 DECL(assignment);
 DECL(term);
 DECL(infix);
@@ -433,12 +434,24 @@ DEF(prefixminus);
   SKIP(NULL, TK_MINUS, TK_MINUS_NEW);
   RULE("value", term);
   DONE();
+  
+// use ':'? '(' expr {expr} ')'
+// For testing only, thrown out by parsefix
+DEF(test_scope);
+  TOKEN("", TK_USE);
+  MAP_ID(TK_USE, TK_TEST_SCOPE);
+  OPT TOKEN("", TK_COLON);
+  SKIP("", TK_LPAREN);
+  RULE("value", expr);
+  SEQ("value", expr);
+  SKIP("", TK_RPAREN);
+  DONE();
 
 // local | cond | match | whileloop | repeat | forloop | try | recover |
-// prefix | prefixminus | postfix
+// prefix | prefixminus | postfix | test_scope
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, try_block,
-    recover, prefix, prefixminus, postfix);
+    recover, prefix, prefixminus, postfix, test_scope);
   DONE();
 
 // BINOP term

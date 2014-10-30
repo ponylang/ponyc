@@ -9,7 +9,7 @@
 static ast_t* make_create(ast_t* ast)
 {
   BUILD(create, ast,
-    NODE(TK_NEW,
+    NODE(TK_NEW, AST_SCOPE
       NONE          // cap
       ID("create")  // name
       NONE          // typeparams
@@ -186,6 +186,7 @@ static void expand_none(ast_t* ast)
     return;
 
   ast_setid(ast, TK_SEQ);
+  ast_scope(ast);
   BUILD(ref, ast, NODE(TK_REFERENCE, ID("None")));
   ast_add(ast, ref);
 }
@@ -225,9 +226,11 @@ static ast_result_t sugar_for(ast_t** astp)
         NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) NONE)
         )
       NODE(TK_WHILE, AST_SCOPE
-        NODE(TK_CALL,
-          NONE NONE
-          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
+        NODE(TK_SEQ,
+          NODE(TK_CALL,
+            NONE NONE
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
+            )
           )
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
@@ -299,7 +302,6 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_ASSIGN);
 
-  // Left and right sides are swapped, so we fetch them in reverse order here.
   AST_GET_CHILDREN(ast, value, call);
 
   if(ast_id(call) != TK_CALL)
@@ -314,7 +316,9 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // If there are no positional arguments yet, positional will be a TK_NONE
   ast_setid(positional, TK_POSITIONALARGS);
-  ast_append(positional, value);
+  ast_t* value_seq = ast_from(value, TK_SEQ);
+  ast_add(value_seq, value);
+  ast_append(positional, value_seq);
 
   REPLACE(astp,
     NODE(TK_CALL,
@@ -327,69 +331,29 @@ static ast_result_t sugar_update(ast_t** astp)
 }
 
 
-ast_result_t sugar_binop(ast_t** astp)
+ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
-  ast_t* ast = *astp;
-  const char* method;
-
-  switch(ast_id(ast))
-  {
-    case TK_PLUS: method = "add"; break;
-    case TK_MINUS: method = "sub"; break;
-    case TK_MULTIPLY: method = "mul"; break;
-    case TK_DIVIDE: method = "div"; break;
-    case TK_MOD: method = "mod"; break;
-    case TK_LSHIFT: method = "shl"; break;
-    case TK_RSHIFT: method = "shr"; break;
-    case TK_AND: method = "and_"; break;
-    case TK_OR: method = "or_"; break;
-    case TK_XOR: method = "xor_"; break;
-    case TK_EQ: method = "eq"; break;
-    case TK_NE: method = "ne"; break;
-    case TK_LT: method = "lt"; break;
-    case TK_LE: method = "le"; break;
-    case TK_GE: method = "ge"; break;
-    case TK_GT: method = "gt"; break;
-
-    default:
-      assert(0);
-      return AST_ERROR;
-  }
-
-  AST_GET_CHILDREN(ast, left, right);
+  AST_GET_CHILDREN(*astp, left, right);
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS, TREE(right))
+      NODE(TK_POSITIONALARGS, NODE(TK_SEQ, TREE(right)))
       NONE
-      NODE(TK_DOT, TREE(left) ID(method))
+      NODE(TK_DOT, TREE(left) ID(fn_name))
       ));
 
   return AST_OK;
 }
 
 
-ast_result_t sugar_unop(ast_t** astp)
+ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 {
-  ast_t* ast = *astp;
-  const char* method;
-
-  switch(ast_id(ast))
-  {
-    case TK_UNARY_MINUS: method = "neg"; break;
-    case TK_NOT: method = "not_"; break;
-
-    default:
-      assert(0);
-      return AST_ERROR;
-  }
-
-  AST_GET_CHILDREN(ast, expr);
+  AST_GET_CHILDREN(*astp, expr);
 
   REPLACE(astp,
     NODE(TK_CALL,
       NONE NONE
-      NODE(TK_DOT, TREE(expr) ID(method))
+      NODE(TK_DOT, TREE(expr) ID(fn_name))
       ));
 
   return AST_OK;
@@ -421,24 +385,24 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
-    case TK_PLUS:
-    case TK_MINUS:
-    case TK_MULTIPLY:
-    case TK_DIVIDE:
-    case TK_MOD:
-    case TK_LSHIFT:
-    case TK_RSHIFT:
-    case TK_AND:
-    case TK_OR:
-    case TK_XOR:
-    case TK_EQ:
-    case TK_NE:
-    case TK_LT:
-    case TK_LE:
-    case TK_GE:
-    case TK_GT:         return sugar_binop(astp);
-    case TK_UNARY_MINUS:
-    case TK_NOT:        return sugar_unop(astp);
+    case TK_PLUS:       return sugar_binop(astp, "add");
+    case TK_MINUS:      return sugar_binop(astp, "sub");
+    case TK_MULTIPLY:   return sugar_binop(astp, "mul");
+    case TK_DIVIDE:     return sugar_binop(astp, "div");
+    case TK_MOD:        return sugar_binop(astp, "mod");
+    case TK_LSHIFT:     return sugar_binop(astp, "shl");
+    case TK_RSHIFT:     return sugar_binop(astp, "shr");
+    case TK_AND:        return sugar_binop(astp, "and_");
+    case TK_OR:         return sugar_binop(astp, "or_");
+    case TK_XOR:        return sugar_binop(astp, "xor_");
+    case TK_EQ:         return sugar_binop(astp, "eq");
+    case TK_NE:         return sugar_binop(astp, "ne");
+    case TK_LT:         return sugar_binop(astp, "lt");
+    case TK_LE:         return sugar_binop(astp, "le");
+    case TK_GE:         return sugar_binop(astp, "ge");
+    case TK_GT:         return sugar_binop(astp, "gt");
+    case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
+    case TK_NOT:        return sugar_unop(astp, "not_");
     default:            return AST_OK;
   }
 }
