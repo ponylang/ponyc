@@ -128,7 +128,7 @@ class Options ref is Iterator[_Result]
       try
         let current = _args(_index)
 
-        if (current(0) == "-".u8()) and (current(1) != 0) then
+        if (current(0) == "-"(0)) and (current(1) != 0) then
           return true
         end
       end
@@ -166,6 +166,7 @@ class Options ref is Iterator[_Result]
       return (None, None)
     end
 
+
     (long, short)
 
   fun ref strip_accepted() =>
@@ -186,23 +187,30 @@ class Options ref is Iterator[_Result]
 
       let start: I64 =
         match (current(0), current(1))
-        | ("-".u8(), "-".u8()) => I64(2)      //TODO: remove when literal
-        | ("-".u8(), var some: Any) => I64(1) //inference works
+        | ("-"(0), "-"(0)) => I64(2)        //TODO: remove when literal
+        | ("-"(0), var some: Any) => I64(1) //inference works
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options
         end
 
       let finish = current.find("=")
+      _env.stdout.print(start.string() + " " + finish.string() + " " + current)
       let name: String val = current.substring(start, finish)
+      _env.stdout.print(name)
+
+      var long = false;
+      var short = false;
 
       match _select(name)
       | (var x: Option, var y: Option) =>
         if x isnt y then
           _env.stdout.print("[Options Error]: The two options " +
             x.token() + " and " y.token() + " are ambiguous!")
-          _Ambiguous
+          return _Ambiguous
         end
+        //suboptimal code repetition
+        _args(_index) = current.cut_in_place(0, finish) ; strip_accepted() ; x
       | (None, var y: Option) =>
         _args(_index) = current.cut_in_place(1, 1) ; strip_accepted() ; y
       | (var x: Option, None) =>
