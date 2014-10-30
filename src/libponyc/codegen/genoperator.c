@@ -603,5 +603,9 @@ LLVMValueRef gen_assign_value(compile_t* c, ast_t* left, LLVMValueRef right,
   if(right == NULL)
     return NULL;
 
-  return assign_rvalue(c, left, right_type, right);
+  // This is from pattern matching and we should not generate the alloca again.
+  ast_t* idseq = ast_child(left);
+  ast_t* id = ast_child(idseq);
+
+  return assign_rvalue(c, id, right_type, right);
 }

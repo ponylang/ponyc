@@ -105,8 +105,10 @@ type
   UNIONTYPE: {type}
   ISECTTYPE: {type}
   TUPLETYPE: {type}
-  TYPEPARAMREF: ID [cap] [HAT]
   THISTYPE: no children
+
+  TYPEPARAMREF: ID [cap] [HAT]
+  data: typeparam definition
 
   NOMINAL: [ID] ID [TYPEARGS] cap [HAT] [ID]
   data: type definition
@@ -136,6 +138,7 @@ ELLIPSIS: no children
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL
+data: during type checking, whether the expr can error or not
 Some SEQ nodes do not have symbol tables. These are indicated in the parent
 nodes.
 
@@ -269,8 +272,7 @@ atom
   STRING: no children
 
   ID: no children
-  data: From name resolution contains reference to target definition.
-  During codegen, holds the LLVMValueRef for the alloca.
+  data: During codegen, holds the LLVMValueRef for the alloca.
 )
 
 POSITIONALARGS: {SEQ}
