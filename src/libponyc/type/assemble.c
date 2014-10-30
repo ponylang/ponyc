@@ -303,3 +303,16 @@ bool flatten_isect(ast_t** astp)
   ast_replace(astp, type);
   return true;
 }
+
+ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, bool ephemeral)
+{
+  assert(ast_id(type) == TK_NOMINAL);
+  type = ast_dup(type);
+
+  AST_GET_CHILDREN(type, package, id, typeargs, tcap, eph);
+
+  ast_setid(tcap, cap);
+  ast_setid(eph, ephemeral ? TK_HAT : TK_NONE);
+
+  return type;
+}

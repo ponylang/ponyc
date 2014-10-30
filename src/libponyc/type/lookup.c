@@ -1,8 +1,10 @@
 #include "lookup.h"
 #include "assemble.h"
 #include "reify.h"
-#include "../ast/token.h"
 #include "viewpoint.h"
+#include "subtype.h"
+#include "../ast/token.h"
+#include <stdio.h>
 #include <assert.h>
 
 static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
@@ -16,62 +18,65 @@ static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
   ast_t* type_name = ast_child(def);
   ast_t* find = ast_get(def, name, NULL);
 
-  if(find != NULL)
+  if(find == NULL)
   {
-    if((name[0] == '_') && (from != NULL))
-    {
-      switch(ast_id(find))
-      {
-        case TK_FVAR:
-        case TK_FLET:
-          if(ast_enclosing_type(from) != def)
-          {
-            if(errors)
-            {
-              ast_error(from,
-                "can't lookup private fields from outside the type");
-            }
-
-            return NULL;
-          }
-          break;
-
-        case TK_NEW:
-        case TK_BE:
-        case TK_FUN:
-        {
-          ast_t* package1 = ast_nearest(def, TK_PACKAGE);
-          ast_t* package2 = ast_nearest(from, TK_PACKAGE);
-
-          if(package1 != package2)
-          {
-            if(errors)
-            {
-              ast_error(from,
-                "can't lookup private methods from outside the package");
-            }
-
-            return NULL;
-          }
-          break;
-        }
-
-        default:
-          assert(0);
-          return NULL;
-      }
-    }
-
-    find = ast_dup(find);
-    flatten_thistype(&find, orig);
-
-    ast_t* typeparams = ast_sibling(type_name);
-    ast_t* typeargs = ast_childidx(type, 2);
-    find = reify(find, typeparams, typeargs);
-  } else {
     if(errors)
       ast_error(from, "couldn't find '%s' in '%s'", name, ast_name(type_name));
+
+    return NULL;
   }
+
+  if((name[0] == '_') && (from != NULL))
+  {
+    switch(ast_id(find))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+        if(ast_enclosing_type(from) != def)
+        {
+          if(errors)
+          {
+            ast_error(from,
+              "can't lookup private fields from outside the type");
+          }
+
+          return NULL;
+        }
+        break;
+
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+      {
+        ast_t* package1 = ast_nearest(def, TK_PACKAGE);
+        ast_t* package2 = ast_nearest(from, TK_PACKAGE);
+
+        if(package1 != package2)
+        {
+          if(errors)
+          {
+            ast_error(from,
+              "can't lookup private methods from outside the package");
+          }
+
+          return NULL;
+        }
+        break;
+      }
+
+      default:
+        assert(0);
+        return NULL;
+    }
+  }
+
+  ast_t* typeparams = ast_sibling(type_name);
+  ast_t* typeargs = ast_childidx(type, 2);
+
+  find = ast_dup(find);
+  replace_thistype(&find, orig);
+  find = reify(find, typeparams, typeargs);
+  flatten_arrows(&find);
 
   return find;
 }

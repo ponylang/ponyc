@@ -56,6 +56,11 @@ bool flatten_union(ast_t** astp);
  */
 bool flatten_isect(ast_t** astp);
 
+/**
+ * Change cap and ephemeral on a nominal type.
+ */
+ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, bool ephemeral);
+
 PONY_EXTERN_C_END
 
 #endif

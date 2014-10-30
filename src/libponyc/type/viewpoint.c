@@ -320,39 +320,51 @@ ast_t* viewpoint_tag(ast_t* type)
   return NULL;
 }
 
-void flatten_thistype(ast_t** astp, ast_t* type)
+void replace_thistype(ast_t** astp, ast_t* type)
 {
   ast_t* ast = *astp;
-  ast_t* l_type = ast_type(ast);
 
-  if(l_type != NULL)
-    flatten_thistype(&l_type, type);
-
-  switch(ast_id(ast))
+  if(ast_id(ast) == TK_THISTYPE)
   {
-    case TK_ARROW:
-    {
-      ast_t* left = ast_child(ast);
-      ast_t* right = ast_sibling(left);
+    ast_replace(astp, type);
+    return;
+  }
 
-      if(ast_id(left) == TK_THISTYPE)
-      {
-        ast_t* r_right = viewpoint_type(type, right);
+  ast_t* node_type = ast_type(ast);
 
-        if(r_right != NULL)
-          ast_replace(astp, r_right);
-        return;
-      }
-    }
+  if(node_type != NULL)
+    replace_thistype(&node_type, type);
 
-    default: {}
+  ast_t* child = ast_child(ast);
+
+  while(child != NULL)
+  {
+    replace_thistype(&child, type);
+    child = ast_sibling(child);
+  }
+}
+
+void flatten_arrows(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  ast_t* node_type = ast_type(ast);
+
+  if(node_type != NULL)
+    flatten_arrows(&node_type);
+
+  if(ast_id(ast) == TK_ARROW)
+  {
+    AST_GET_CHILDREN(ast, left, right);
+    ast_t* flat = viewpoint_type(left, right);
+    ast_replace(astp, flat);
+    return;
   }
 
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    flatten_thistype(&child, type);
+    flatten_arrows(&child);
     child = ast_sibling(child);
   }
 }
