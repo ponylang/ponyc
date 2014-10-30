@@ -221,7 +221,13 @@ class Options ref is Iterator[_Result]
     if _skip_non_options() then
       match _find_match()
       | _Ambiguous => _error = true ; ParseError
-      | None => if has_next() then return next() end return (None, None)
+      | None =>
+        _index = _index + 1
+        if has_next() then
+          return next()
+        else
+          return (None, None)
+        end
       | var m: Option =>
         if m.requires_arg() then
           try
