@@ -58,10 +58,11 @@ class Array[A]
   fun ref delete(i: U64): A^ ? =>
     if i < _size then
       let deleted = _ptr._apply(i)
-      let n = i + 1
+      var n = i + 1
 
       while n < _size do
         _ptr._update(n - 1, _ptr._apply(n))
+        n = n + 1
       end
 
       _size = _size - 1

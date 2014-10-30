@@ -52,7 +52,7 @@ class Option is Stringable
     | (String, var s: String) => return "(" + name + ", " + s + ")"
     end
 
-    "(" + name + ")"
+    "\"" + name + "\""
 
   //TODO: Requires proper string formatter
   fun box string(): String =>
@@ -146,38 +146,44 @@ class Options ref is Iterator[_Result]
       for i in _configuration.values() do
         match i
         | var opt: Option =>
-          let ln = opt.name
-
-          if
-            (ln.compare(s, s.length()) == 0) and (ln.length() == s.length())
-          then
-            long = opt
-          end
 
           match opt.short
           | var sn : String =>
-            if sn.compare(s, 1) == 0 then
-              short = opt
+            if sn.compare(s, 1) == 0 then //TODO FIX
+              match short
+              | None => short = opt
+              | var prev: Option => return (prev, opt)
+              end
+            end
+          end
+
+          if opt.name == s then
+            match long
+            | None => long = opt
+            | var prev: Option => return (prev, opt)
             end
           end
         end
       end
-    else
-      return (None, None)
     end
-
 
     (long, short)
 
   fun ref strip_accepted() =>
     try
       let current = _args(_index)
-      let dangling_short = (current.length() == 1) and (current(0) == "-".u8())
-      let dangling_long = current.length() == 0
+
+      let dangling_short =
+        if (current.length() == 1) then
+          (current(0) == "-"(0))
+        else
+          false
+        end
+
+      let dangling_long = (current.length() == 0)
 
       if dangling_short or dangling_long then
         _args.delete(_index)
-        _index = _index + 1
       end
     end
 
@@ -195,18 +201,13 @@ class Options ref is Iterator[_Result]
         end
 
       let finish = current.find("=")
-      _env.stdout.print(start.string() + " " + finish.string() + " " + current)
       let name: String val = current.substring(start, finish)
-      _env.stdout.print(name)
-
-      var long = false;
-      var short = false;
 
       match _select(name)
       | (var x: Option, var y: Option) =>
         if x isnt y then
           _env.stdout.print("[Options Error]: The two options " +
-            x.token() + " and " y.token() + " are ambiguous!")
+            x.token() + " and " + y.token() + " are ambiguous!")
           return _Ambiguous
         end
         //suboptimal code repetition
@@ -245,14 +246,13 @@ class Options ref is Iterator[_Result]
 
             if m.has_domain() and not m.accepts(argument) then error end
 
+            try _args.delete(_index) end
+
             match m.arg
             | StringArgument => return (m.name, argument)
             | I64Argument => return (m.name, argument.i64())
             | F64Argument => return (m.name, argument.f64())
             end
-
-            try _args.delete(_index) end
-            _index = _index + 1
           else
             _error = true
             _env.stdout.print("[Options Error]:" +
