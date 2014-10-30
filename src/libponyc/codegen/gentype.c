@@ -368,8 +368,6 @@ static bool make_trace(compile_t* c, gentype_t* g)
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
-  LLVMSetValueName(arg, "arg");
-
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
     "object");
 
@@ -389,7 +387,6 @@ static bool make_trace(compile_t* c, gentype_t* g)
     LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
 
     LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
-    LLVMSetValueName(arg, "arg");
     need_trace = trace_elements(c, g, arg);
 
     LLVMBuildRetVoid(c->builder);

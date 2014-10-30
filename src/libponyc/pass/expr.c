@@ -10,58 +10,48 @@
 
 bool is_result_needed(ast_t* ast)
 {
-  // If we're not in a sequence, then we need the result.
-  ast_t* seq = ast_parent(ast);
-
-  if(ast_id(seq) != TK_SEQ)
-    return true;
-
-  // If we are not the last element of the sequence, we don't need the result.
-  if(ast_sibling(ast) != NULL)
-    return false;
-
-  ast_t* parent = ast_parent(seq);
+  ast_t* parent = ast_parent(ast);
 
   switch(ast_id(parent))
   {
+    case TK_SEQ:
+      // If we're not the last element, we don't need the result.
+      if(ast_sibling(ast) != NULL)
+        return false;
+
+      return is_result_needed(parent);
+
     case TK_IF:
     case TK_WHILE:
     case TK_MATCH:
       // Condition needed, body/else needed only if parent needed.
-      if(ast_child(parent) == seq)
+      if(ast_child(parent) == ast)
         return true;
 
       return is_result_needed(parent);
 
     case TK_REPEAT:
       // Cond needed, body/else needed only if parent needed.
-      if(ast_childidx(parent, 1) == seq)
+      if(ast_childidx(parent, 1) == ast)
         return true;
 
       return is_result_needed(parent);
 
     case TK_CASE:
-    {
-      // Pattern, guard needed, body needed only if MATCH needed
-      if(ast_childidx(parent, 2) != seq)
+      // Pattern, guard needed, body needed only if parent needed
+      if(ast_childidx(parent, 2) != ast)
         return true;
 
-      ast_t* cases = ast_parent(parent);
-      ast_t* match = ast_parent(cases);
-      return is_result_needed(match);
-    }
+      return is_result_needed(parent);
 
+    case TK_CASES:
     case TK_TRY:
       // Only if parent needed.
       return is_result_needed(parent);
 
-    case TK_SEQ:
-      // Only if sequence needed.
-      return is_result_needed(seq);
-
     case TK_NEW:
     case TK_BE:
-      // Not needed if at the end of constructor or behaviour.
+      // Result of a constructor or behaviour isn't needed.
       return false;
 
     default: {}

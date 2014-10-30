@@ -148,7 +148,9 @@ class Options ref is Iterator[_Result]
         | var opt: Option =>
           let ln = opt.name
 
-          if (ln.compare(s, s.length()) == 0) and (ln.length() == s.length()) then
+          if
+            (ln.compare(s, s.length()) == 0) and (ln.length() == s.length())
+          then
             long = opt
           end
 

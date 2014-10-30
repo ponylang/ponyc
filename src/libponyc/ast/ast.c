@@ -1143,7 +1143,7 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
         print_buffer(buffer, " %s", token_print(cap->t));
 
       if(ast_id(ephemeral) != TK_NONE)
-        print_buffer(buffer, " %s", token_print(ephemeral->t));
+        print_buffer(buffer, "%s", token_print(ephemeral->t));
 
       break;
     }

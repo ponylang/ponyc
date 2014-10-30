@@ -368,7 +368,11 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   if((try_expr != NULL) && (clause != 2))
     gen_expr(c, ast_childidx(try_expr, 2));
 
-  LLVMBuildRet(c->builder, value);
+  LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(codegen_fun(c)));
+  LLVMTypeRef r_type = LLVMGetReturnType(f_type);
+  LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(expr));
+  LLVMBuildRet(c->builder, ret);
+
   return GEN_NOVALUE;
 }
 

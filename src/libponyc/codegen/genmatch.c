@@ -4,6 +4,7 @@
 #include "genexpr.h"
 #include "genoperator.h"
 #include "gencall.h"
+#include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
@@ -687,29 +688,28 @@ static bool case_body(compile_t* c, ast_t* body,
   if(body_value == GEN_NOVALUE)
     return true;
 
-  ast_t* body_type = ast_type(body);
-  body_value = gen_assign_cast(c, phi_type, body_value, body_type);
-
-  if(body_value == NULL)
+  if(is_result_needed(body))
   {
-    // TODO: remove this
-    body_value = gen_expr(c, body);
-    return false;
+    ast_t* body_type = ast_type(body);
+    body_value = gen_assign_cast(c, phi_type, body_value, body_type);
+
+    if(body_value == NULL)
+      return false;
+
+    LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
+    LLVMAddIncoming(phi, &body_value, &block, 1);
   }
 
   LLVMBuildBr(c->builder, post_block);
-
-  LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
-  LLVMAddIncoming(phi, &body_value, &block, 1);
-
   return true;
 }
 
 LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 {
+  bool needed = is_result_needed(ast);
+  ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
-  ast_t* type = ast_type(ast);
   gentype_t phi_type;
 
   // We will have no type if all branches have return statements.
@@ -729,7 +729,12 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   // Start the post block so that a case can modify the phi node.
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  LLVMValueRef phi;
+
+  if(needed)
+    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  else
+    phi = GEN_NOTNEEDED;
 
   // Iterate over the cases.
   ast_t* the_case = ast_child(cases);

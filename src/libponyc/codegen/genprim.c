@@ -247,9 +247,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, trace_fn);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
-
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
-  LLVMSetValueName(arg, "arg");
 
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
