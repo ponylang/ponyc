@@ -227,11 +227,18 @@ DEF(ref);
   TOKEN("name", TK_ID);
   DONE();
 
-// AT ID typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN [QUESTION]
+// ID {DOT ID}
+DEF(ffi_name);
+  AST_NODE(TK_IDSEQ);
+  TOKEN("ffi name", TK_ID);
+  WHILE(TK_DOT, TOKEN("ffi name", TK_ID));
+  DONE();
+
+// AT ffi_name typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN [QUESTION]
 DEF(ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFICALL);
-  TOKEN("ffi name", TK_ID);
+  RULE("ffi name", ffi_name);
   OPT RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi arguments", positional);
@@ -434,7 +441,7 @@ DEF(prefixminus);
   SKIP(NULL, TK_MINUS, TK_MINUS_NEW);
   RULE("value", term);
   DONE();
-  
+
 // use ':'? '(' expr {expr} ')'
 // For testing only, thrown out by parsefix
 DEF(test_scope);
@@ -576,12 +583,12 @@ DEF(use_uri);
   TOKEN(NULL, TK_STRING);
   DONE();
 
-// AT ID typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
+// AT ffi_name typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
 DEF(use_ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFIDECL);
   SCOPE();
-  TOKEN("ffi name", TK_ID);
+  RULE("ffi name", ffi_name);
   RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi parameters", params);

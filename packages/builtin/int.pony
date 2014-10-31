@@ -8,6 +8,7 @@ primitive I8 is Integer[I8]
     if this < that then this else that end
 
   fun box abs(): I8 => if this < 0 then -this else this end
+  fun box popcount(): I8 => @llvm.ctpop.i8[I8](this)
 
   fun box string(): String iso^ => recover String.from_i8(this, 10) end
 

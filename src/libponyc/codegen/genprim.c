@@ -478,13 +478,16 @@ static void special_number_constructors(compile_t* c)
 
 static void fp_as_bits(compile_t* c)
 {
-  const char* name = genname_fun("$1_F32", "from_bits", NULL);
-  LLVMTypeRef f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
-  LLVMValueRef fun = codegen_addfun(c, name, f_type);
+  const char* name;
+  LLVMTypeRef f_type;
+  LLVMValueRef fun, result;
+
+  name = genname_fun("$1_F32", "from_bits", NULL);
+  f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
+  fun = codegen_addfun(c, name, f_type);
 
   codegen_startfun(c, fun);
-  LLVMValueRef result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0),
-    c->f32, "");
+  result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 

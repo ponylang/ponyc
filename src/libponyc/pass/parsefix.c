@@ -474,16 +474,48 @@ static ast_result_t parse_fix_match(ast_t* ast)
 static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
-  AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
+  AST_GET_CHILDREN(ast, idseq, typeargs, args, named_args);
 
-  // Prefix '@' to name
-  assert(id != NULL);
-  const char* name = ast_name(id);
-  size_t len = strlen(name) + 1; // +1 for terminator
-  VLA(char, new_name, len + 1); // +1 for @
+  // Prefix '@' to the concatenated name.
+  assert(idseq != NULL);
+  ast_t* id = ast_child(idseq);
+  size_t len = 0;
+
+  while(id != NULL)
+  {
+    // Space for trailing dot if needed.
+    const char* name = ast_name(id);
+    len += strlen(name) + 1;
+    id = ast_sibling(id);
+  }
+
+  // Space for @ and terminator.
+  len += 2;
+  VLA(char, new_name, len);
   new_name[0] = '@';
-  memcpy(new_name + 1, name, len);
-  ast_set_name(id, new_name);
+
+  id = ast_child(idseq);
+  size_t offset = 1;
+
+  while(id != NULL)
+  {
+    const char* name = ast_name(id);
+    len = strlen(name);
+    memcpy(new_name + offset, name, len);
+    offset += len;
+
+    id = ast_sibling(id);
+
+    if(id != NULL)
+    {
+      new_name[offset] = '.';
+      offset++;
+    }
+  }
+
+  new_name[offset] = '\0';
+  id = ast_from_string(idseq, new_name);
+  ast_replace(&idseq, id);
 
   if((ast_child(typeargs) == NULL && !return_optional ) ||
     ast_childidx(typeargs, 1) != NULL)

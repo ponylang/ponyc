@@ -14,6 +14,8 @@ primitive U8 is Integer[U8]
     x = x or (x >> 4)
     x + 1
 
+  fun box popcount(): U8 => @llvm.ctpop.i8[U8](this)
+
   fun box string(): String iso^ => recover String.from_u8(this, 10) end
 
 primitive U16 is Integer[U16]

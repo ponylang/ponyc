@@ -386,6 +386,7 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args);
+  ast_t* decl = ast_get(ast, ast_name(id), NULL);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -402,9 +403,67 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   if(func == NULL)
   {
-    // If we have no prototype, make an external vararg function.
-    LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
-    func = LLVMAddFunction(c->module, f_name, f_type);
+    // If we have no prototype, declare one.
+    if(!strncmp(f_name, "llvm.", 5))
+    {
+      // Intrinsic, so use the exact types we supply.
+      int count = (int)ast_childcount(args);
+      VLA(LLVMTypeRef, f_params, count);
+      count = 0;
+
+      ast_t* arg = ast_child(args);
+
+      while(arg != NULL)
+      {
+        ast_t* p_type = ast_type(arg);
+        gentype_t param_g;
+
+        if(!gentype(c, p_type, &param_g))
+          return NULL;
+
+        f_params[count++] = g.use_type;
+        arg = ast_sibling(arg);
+      }
+
+      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count, false);
+      func = LLVMAddFunction(c->module, f_name, f_type);
+    } else if(decl == NULL) {
+      // No declaration, so make it varargs.
+      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
+      func = LLVMAddFunction(c->module, f_name, f_type);
+    } else {
+      // Use the declaration.
+      AST_GET_CHILDREN(decl, decl_id, decl_typeargs, decl_params);
+      int count = (int)ast_childcount(decl_params);
+      VLA(LLVMTypeRef, f_params, count);
+
+      count = 0;
+      bool vararg = false;
+
+      ast_t* decl_param = ast_child(decl_params);
+
+      while(decl_param != NULL)
+      {
+        if(ast_id(decl_param) == TK_ELLIPSIS)
+        {
+          vararg = true;
+        } else {
+          ast_t* p_type = ast_type(decl_param);
+          gentype_t param_g;
+
+          if(!gentype(c, p_type, &param_g))
+            return NULL;
+
+          f_params[count++] = g.use_type;
+        }
+
+        decl_param = ast_sibling(decl_param);
+      }
+
+      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count,
+        vararg);
+      func = LLVMAddFunction(c->module, f_name, f_type);
+    }
   }
 
   // Generate the arguments.
