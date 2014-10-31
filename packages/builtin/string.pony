@@ -292,6 +292,20 @@ class String val is Ordered[String], Hashable, Stringable
 
     this
 
+  fun ref strip_char(c: U8): U64 =>
+    var i: U64 = 0
+    var n: U64 = 0
+
+    while i < _size do
+      if _ptr._apply(i) == c then
+        cut_in_place(i.i64(), i.i64())
+        n = n + 1
+      end
+      i = i + 1
+    end
+
+    n
+
   fun box add(that: String box): String =>
     let len = _size + that._size
     let ptr = _ptr._concat(_size, that._ptr, that._size + 1)
