@@ -5,6 +5,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "gencall.h"
+#include "dwarf.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
@@ -432,6 +433,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   codegen_main(c, &main_g, &env_g);
+
+  if(!c->release)
+    dwarf_program(c, program);
 
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);

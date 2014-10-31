@@ -147,7 +147,10 @@ solution "ponyc"
       "__STDC_FORMAT_MACROS",
       "__STDC_LIMIT_MACROS",
     }
-    files { "src/libponyc/codegen/host.cc" }
+    files {
+      "src/libponyc/codegen/host.cc",
+      "src/libponyc/codegen/debug.cc"
+    }
 
   project "ponyc"
     kind "ConsoleApp"
