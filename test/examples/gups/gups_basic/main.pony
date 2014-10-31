@@ -1,5 +1,3 @@
-use "random"
-
 actor Main
   let _env: Env
   var _logtable: U64 = 20
@@ -98,16 +96,16 @@ actor Streamer
   let shift:U64
   let mask:U64
   let chunk:U64
-  let rand: MT
+  let rand: PolyRand
 
   new create(main':Main, updaters':Array[Updater] val, size:U64, chunk':U64,
     seed:U64) =>
     main = main'
     updaters = updaters'
-    shift = size/*.log2()*/ //TODO
+    shift = size.width() - size.clz()
     mask = updaters.length() - 1
     chunk = chunk'
-    rand = MT(seed)
+    rand = PolyRand(seed)
 
   be apply(iterate:U64) =>
     let upts = updaters.length()
@@ -121,7 +119,7 @@ actor Streamer
 
     try
       for i in Range[U64](0, chks) do
-        var datum = rand.next()
+        var datum = rand()
         var updater = (datum >> shift) and mask
         list(updater).append(datum)
       end
@@ -163,3 +161,53 @@ actor Updater
     end
 
   be done(main:Main) => main.updater_done()
+
+class PolyRand
+  let poly: U64
+  let period: U64
+  var last: U64
+
+  new create(seed:U64) =>
+    poly = 7
+    period = 1317624576693539401
+    last = 1
+    _seed(seed)
+
+  fun ref apply():U64 =>
+    last = (last << 1) xor if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
+
+  fun ref _seed(seed:U64) =>
+    var n = seed % period
+
+    if n == 0 then
+      last = U64(1)
+    else
+      var m2 = Array[U64].init(64, 0)
+      last = U64(1)
+
+      for i in Range[U64](0, 63) do
+        try m2(i) = last end
+        apply()
+        apply()
+      end
+
+      var i = 64 - n.clz()
+      last = U64(2)
+
+      while i > 0 do
+        var temp: U64 = 0
+
+        for j in Range[U64](0, 63) do
+          if ((last >> j) and 1) != 0 then
+            try temp = temp xor m2(j) end
+          end
+        end
+
+        last = temp
+        i = i - 1
+
+        if ((n >> i) and 1) != 0 then
+          apply()
+        end
+      end
+    end
