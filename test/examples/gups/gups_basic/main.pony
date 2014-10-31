@@ -148,7 +148,7 @@ actor Updater
     table = Array[U64].init(0, size)
 
     var offset = index * size;
-    for i in Range[U64](0, size - 1) do
+    for i in Range[U64](0, size) do
       try table(i) = i + offset end
     end
 
@@ -180,10 +180,10 @@ class PolyRand
     var n = seed % period
 
     if n == 0 then
-      last = U64(1)
+      last = 1
     else
-      var m2 = Array[U64].init(64, 0)
-      last = U64(1)
+      var m2 = Array[U64].init(0, 64)
+      last = 1
 
       for i in Range[U64](0, 63) do
         try m2(i) = last end
@@ -197,7 +197,7 @@ class PolyRand
       while i > 0 do
         var temp: U64 = 0
 
-        for j in Range[U64](0, 63) do
+        for j in Range[U64](0, 64) do
           if ((last >> j) and 1) != 0 then
             try temp = temp xor m2(j) end
           end
