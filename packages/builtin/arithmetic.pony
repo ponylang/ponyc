@@ -4,6 +4,7 @@ trait Arithmetic[A: Arithmetic[A]]
   fun box mul(y: A): A
   fun box div(y: A): A
   fun box mod(y: A): A
+  fun box divmod(y: A): (A, A) => (this / y, this % y)
   fun box neg(): A
 
 trait Logical[A: Logical[A]]
@@ -12,7 +13,7 @@ trait Logical[A: Logical[A]]
   fun box xor_(y: A): A
   fun box not_(): A
 
-trait Bits[A: Bits[A]] is Logical[A], Arithmetic[A]
+trait Bits[A: Bits[A]] is Logical[A]
   fun box shl(y: A): A
   fun box shr(y: A): A
 
@@ -70,6 +71,8 @@ trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun box bswap(): A
   fun box popcount(): A
   fun box clz(): A
+  fun box ctz(): A
+  fun box width(): A
 
 type Number is (Signed | Unsigned | Float)
 
