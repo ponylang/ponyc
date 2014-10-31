@@ -445,13 +445,13 @@ DEF(prefixminus);
 // use ':'? '(' expr {expr} ')'
 // For testing only, thrown out by parsefix
 DEF(test_scope);
-  TOKEN("", TK_USE);
+  TOKEN(NULL, TK_USE);
   MAP_ID(TK_USE, TK_TEST_SCOPE);
-  OPT TOKEN("", TK_COLON);
-  SKIP("", TK_LPAREN);
+  OPT TOKEN(NULL, TK_COLON);
+  SKIP(NULL, TK_LPAREN);
   RULE("value", expr);
   SEQ("value", expr);
-  SKIP("", TK_RPAREN);
+  SKIP(NULL, TK_RPAREN);
   DONE();
 
 // local | cond | match | whileloop | repeat | forloop | try | recover |
