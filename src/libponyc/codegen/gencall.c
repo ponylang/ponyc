@@ -421,7 +421,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         if(!gentype(c, p_type, &param_g))
           return NULL;
 
-        f_params[count++] = g.use_type;
+        f_params[count++] = param_g.use_type;
         arg = ast_sibling(arg);
       }
 
@@ -454,7 +454,7 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
           if(!gentype(c, p_type, &param_g))
             return NULL;
 
-          f_params[count++] = g.use_type;
+          f_params[count++] = param_g.use_type;
         }
 
         decl_param = ast_sibling(decl_param);

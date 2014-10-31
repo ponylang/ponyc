@@ -6,11 +6,14 @@ primitive F32 is Real[F32]
   new from_bits(i: U32) => compiler_intrinsic
   fun box bits(): U32 => compiler_intrinsic
 
-  fun box abs(): F32 => if this < 0 then -this else this end
-  fun box ceil(): F32 => @ceilf[F32](this)
-  fun box floor(): F32 => @floorf[F32](this)
-  fun box round(): F32 => @roundf[F32](this)
-  fun box trunc(): F32 => @truncf[F32](this)
+  fun box min(y: F32): F32 => @llvm.minnum.f32[F32](this, y)
+  fun box max(y: F32): F32 => @llvm.maxnum.f32[F32](this, y)
+
+  fun box abs(): F32 => @llvm.fabs.f32[F32](this)
+  fun box ceil(): F32 => @llvm.ceil.f32[F32](this)
+  fun box floor(): F32 => @llvm.floor.f32[F32](this)
+  fun box round(): F32 => @llvm.round.f32[F32](this)
+  fun box trunc(): F32 => @llvm.trunc.f32[F32](this)
 
   fun box finite(): Bool =>
   I32(0) != if Platform.windows() then
@@ -30,17 +33,20 @@ primitive F32 is Real[F32]
       @isnanf[I32](this)
     end
 
-  fun box log(): F32 => @logf[F32](this)
-  fun box log10(): F32 => @log10f[F32](this)
+  fun box log(): F32 => @llvm.log.f32[F32](this)
+  fun box log2(): F32 => @llvm.log2.f32[F32](this)
+  fun box log10(): F32 => @llvm.log10.f32[F32](this)
   fun box logb(): F32 => @logbf[F32](this)
 
-  fun box pow(y: F32): F32 => @powf[F32](this, y)
+  fun box pow(y: F32): F32 => @llvm.pow.f32[F32](this, y)
+  fun box powi(y: I32): F32 => @llvm.powi.f32[F32](this, y)
   fun box sqrt(): F32 => @llvm.sqrt.f32[F32](this)
   fun box cbrt(): F32 => @cbrtf[F32](this)
-  fun box exp(): F32 => @expf[F32](this)
+  fun box exp(): F32 => @llvm.exp.f32[F32](this)
+  fun box exp2(): F32 => @llvm.exp2.f32[F32](this)
 
-  fun box cos(): F32 => @cosf[F32](this)
-  fun box sin(): F32 => @sinf[F32](this)
+  fun box cos(): F32 => @llvm.cos.f32[F32](this)
+  fun box sin(): F32 => @llvm.sin.f32[F32](this)
   fun box tan(): F32 => @tanf[F32](this)
 
   fun box cosh(): F32 => @coshf[F32](this)
@@ -70,11 +76,14 @@ primitive F64 is Real[F64]
   new from_bits(i: U64) => compiler_intrinsic
   fun box bits(): U64 => compiler_intrinsic
 
-  fun box abs(): F64 => if this < 0 then -this else this end
-  fun box ceil(): F64 => @ceil[F64](this)
-  fun box floor(): F64 => @floor[F64](this)
-  fun box round(): F64 => @round[F64](this)
-  fun box trunc(): F64 => @trunc[F64](this)
+  fun box min(y: F64): F64 => @llvm.minnum.f64[F64](this, y)
+  fun box max(y: F64): F64 => @llvm.maxnum.f64[F64](this, y)
+
+  fun box abs(): F64 => @llvm.fabs.f64[F64](this)
+  fun box ceil(): F64 => @llvm.ceil.f64[F64](this)
+  fun box floor(): F64 => @llvm.floor.f64[F64](this)
+  fun box round(): F64 => @llvm.round.f64[F64](this)
+  fun box trunc(): F64 => @llvm.trunc.f64[F64](this)
 
   fun box finite(): Bool =>
     I32(0) != if Platform.windows() then
@@ -90,17 +99,20 @@ primitive F64 is Real[F64]
       @isnan[I32](this)
     end
 
-  fun box log(): F64 => @log[F64](this)
-  fun box log10(): F64 => @log10[F64](this)
+  fun box log(): F64 => @llvm.log.f64[F64](this)
+  fun box log2(): F64 => @llvm.log2.f64[F64](this)
+  fun box log10(): F64 => @llvm.log10.f64[F64](this)
   fun box logb(): F64 => @logb[F64](this)
 
-  fun box pow(y: F64): F64 => @pow[F64](this, y)
+  fun box pow(y: F64): F64 => @llvm.pow.f64[F64](this, y)
+  fun box powi(y: I32): F64 => @llvm.powi.f64[F64](this, y)
   fun box sqrt(): F64 => @llvm.sqrt.f64[F64](this)
   fun box cbrt(): F64 => @cbrt[F64](this)
-  fun box exp(): F64 => @exp[F64](this)
+  fun box exp(): F64 => @llvm.exp.f64[F64](this)
+  fun box exp2(): F64 => @llvm.exp2.f64[F64](this)
 
-  fun box cos(): F64 => @cos[F64](this)
-  fun box sin(): F64 => @sin[F64](this)
+  fun box cos(): F64 => @llvm.cos.f64[F64](this)
+  fun box sin(): F64 => @llvm.sin.f64[F64](this)
   fun box tan(): F64 => @tan[F64](this)
 
   fun box cosh(): F64 => @cosh[F64](this)

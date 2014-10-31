@@ -66,6 +66,11 @@ trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun box shl(y: A): A => compiler_intrinsic
   fun box shr(y: A): A => compiler_intrinsic
 
+  fun box abs(): A
+  fun box bswap(): A
+  fun box popcount(): A
+  fun box clz(): A
+
 type Number is (Signed | Unsigned | Float)
 
 type Signed is (I8 | I16 | I32 | I64 | I128)

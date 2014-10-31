@@ -14,7 +14,11 @@ primitive U8 is Integer[U8]
     x = x or (x >> 4)
     x + 1
 
+  fun box abs(): U8 => this
+  fun box bswap(): U8 => this
   fun box popcount(): U8 => @llvm.ctpop.i8[U8](this)
+  fun box clz(): U8 => @llvm.ctlz.i8[U8](this, false)
+  fun box ctz(): U8 => @llvm.cttz.i8[U8](this, false)
 
   fun box string(): String iso^ => recover String.from_u8(this, 10) end
 
@@ -35,6 +39,12 @@ primitive U16 is Integer[U16]
     x = x or (x >> 8)
     x + 1
 
+  fun box abs(): U16 => this
+  fun box bswap(): U16 => @llvm.bswap.i16[U16](this)
+  fun box popcount(): U16 => @llvm.ctpop.i16[U16](this)
+  fun box clz(): U16 => @llvm.ctlz.i16[U16](this, false)
+  fun box ctz(): U16 => @llvm.cttz.i16[U16](this, false)
+
   fun box string(): String iso^ => recover String.from_u16(this, 10) end
 
 primitive U32 is Integer[U32]
@@ -54,6 +64,12 @@ primitive U32 is Integer[U32]
     x = x or (x >> 8)
     x = x or (x >> 16)
     x + 1
+
+  fun box abs(): U32 => this
+  fun box bswap(): U32 => @llvm.bswap.i32[U32](this)
+  fun box popcount(): U32 => @llvm.ctpop.i32[U32](this)
+  fun box clz(): U32 => @llvm.ctlz.i32[U32](this, false)
+  fun box ctz(): U32 => @llvm.cttz.i32[U32](this, false)
 
   fun box string(): String iso^ => recover String.from_u32(this, 10) end
 
@@ -76,6 +92,12 @@ primitive U64 is Integer[U64]
     x = x or (x >> 32)
     x + 1
 
+  fun box abs(): U64 => this
+  fun box bswap(): U64 => @llvm.bswap.i64[U64](this)
+  fun box popcount(): U64 => @llvm.ctpop.i64[U64](this)
+  fun box clz(): U64 => @llvm.ctlz.i64[U64](this, false)
+  fun box ctz(): U64 => @llvm.cttz.i64[U64](this, false)
+
   fun box string(): String iso^ => recover String.from_u64(this, 10) end
 
 primitive U128 is Integer[U128]
@@ -97,6 +119,12 @@ primitive U128 is Integer[U128]
     x = x or (x >> 32)
     x = x or (x >> 64)
     x + 1
+
+  fun box abs(): U128 => this
+  fun box bswap(): U128 => @llvm.bswap.i128[U128](this)
+  fun box popcount(): U128 => @llvm.ctpop.i128[U128](this)
+  fun box clz(): U128 => @llvm.ctlz.i128[U128](this, false)
+  fun box ctz(): U128 => @llvm.cttz.i128[U128](this, false)
 
   fun box string(): String iso^ => recover String.from_u128(this, 10) end
 
