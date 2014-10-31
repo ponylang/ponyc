@@ -1,10 +1,21 @@
-#include "dwarf.h"
-#include "../pkg/package.h"
-#include "../ast/source.h"
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable:4244)
+#  pragma warning(disable:4800)
+#  pragma warning(disable:4267)
+#endif
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/Support/Path.h>
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
+
+#include "dwarf.h"
+#include "../pkg/package.h"
+#include "../ast/source.h"
 
 #define DW_LANG_Pony 0x8002
 #define PRODUCER "ponyc"
