@@ -170,9 +170,16 @@ class Options ref is Iterator[_Result]
 
     (long, short)
 
-  fun ref _strip_accepted() =>
+  fun ref _strip_accepted(option: Option) =>
     try
       let current = _args(_index)
+
+      if option.requires_arg() then
+        //if current is non-empty the rest (without - or =) must be the arg.
+        current.strip_char("-"(0))
+        current.strip_char("="(0))
+      end
+
       let len = current.length()
       let short = if len == 1 then (current(0) == "-"(0)) else false end
 
@@ -204,9 +211,9 @@ class Options ref is Iterator[_Result]
           x.token() + " and " + y.token() + " are ambiguous!")
         _Ambiguous
       | (None, var y: Option) =>
-        _args(_index) = current.cut_in_place(1, 1) ; _strip_accepted() ; y
+        _args(_index) = current.cut_in_place(1, 1) ; _strip_accepted(y) ; y
       | (var x: Option, None) =>
-        _args(_index) = current.cut_in_place(0, finish) ; _strip_accepted() ; x
+        _args(_index) = current.cut_in_place(0, finish) ; _strip_accepted(x) ; x
       else
         error
       end
