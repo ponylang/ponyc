@@ -14,6 +14,13 @@ primitive I8 is Integer[I8]
   fun box ctz(): I8 => @llvm.cttz.i8[I8](this, false)
   fun box width(): I8 => 8
 
+  fun box addc(y: I8): (I8, Bool) =>
+    @llvm.sadd.with.overflow.i8[(I8, Bool)](this, y)
+  fun box subc(y: I8): (I8, Bool) =>
+    @llvm.ssub.with.overflow.i8[(I8, Bool)](this, y)
+  fun box mulc(y: I8): (I8, Bool) =>
+    @llvm.smul.with.overflow.i8[(I8, Bool)](this, y)
+
   fun box string(): String iso^ => recover String.from_i8(this, 10) end
 
 primitive I16 is Integer[I16]
@@ -31,6 +38,13 @@ primitive I16 is Integer[I16]
   fun box clz(): I16 => @llvm.ctlz.i16[I16](this, false)
   fun box ctz(): I16 => @llvm.cttz.i16[I16](this, false)
   fun box width(): I16 => 16
+
+  fun box addc(y: I16): (I16, Bool) =>
+    @llvm.sadd.with.overflow.i16[(I16, Bool)](this, y)
+  fun box subc(y: I16): (I16, Bool) =>
+    @llvm.ssub.with.overflow.i16[(I16, Bool)](this, y)
+  fun box mulc(y: I16): (I16, Bool) =>
+    @llvm.smul.with.overflow.i16[(I16, Bool)](this, y)
 
   fun box string(): String iso^ => recover String.from_i16(this, 10) end
 
@@ -50,6 +64,13 @@ primitive I32 is Integer[I32]
   fun box ctz(): I32 => @llvm.cttz.i32[I32](this, false)
   fun box width(): I32 => 32
 
+  fun box addc(y: I32): (I32, Bool) =>
+    @llvm.sadd.with.overflow.i32[(I32, Bool)](this, y)
+  fun box subc(y: I32): (I32, Bool) =>
+    @llvm.ssub.with.overflow.i32[(I32, Bool)](this, y)
+  fun box mulc(y: I32): (I32, Bool) =>
+    @llvm.smul.with.overflow.i32[(I32, Bool)](this, y)
+
   fun box string(): String iso^ => recover String.from_i32(this, 10) end
 
 primitive I64 is Integer[I64]
@@ -68,6 +89,13 @@ primitive I64 is Integer[I64]
   fun box ctz(): I64 => @llvm.cttz.i64[I64](this, false)
   fun box width(): I64 => 64
 
+  fun box addc(y: I64): (I64, Bool) =>
+    @llvm.sadd.with.overflow.i64[(I64, Bool)](this, y)
+  fun box subc(y: I64): (I64, Bool) =>
+    @llvm.ssub.with.overflow.i64[(I64, Bool)](this, y)
+  fun box mulc(y: I64): (I64, Bool) =>
+    @llvm.smul.with.overflow.i64[(I64, Bool)](this, y)
+
   fun box string(): String iso^ => recover String.from_i64(this, 10) end
 
 primitive I128 is Integer[I128]
@@ -85,6 +113,13 @@ primitive I128 is Integer[I128]
   fun box clz(): I128 => @llvm.ctlz.i128[I128](this, false)
   fun box ctz(): I128 => @llvm.cttz.i128[I128](this, false)
   fun box width(): I128 => 128
+
+  fun box addc(y: I128): (I128, Bool) =>
+    @llvm.sadd.with.overflow.i128[(I128, Bool)](this, y)
+  fun box subc(y: I128): (I128, Bool) =>
+    @llvm.ssub.with.overflow.i128[(I128, Bool)](this, y)
+  fun box mulc(y: I128): (I128, Bool) =>
+    @llvm.smul.with.overflow.i128[(I128, Bool)](this, y)
 
   fun box string(): String iso^ => recover String.from_i128(this, 10) end
 

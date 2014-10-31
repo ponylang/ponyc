@@ -74,6 +74,10 @@ trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun box ctz(): A
   fun box width(): A
 
+  fun box addc(y: A): (A, Bool)
+  fun box subc(y: A): (A, Bool)
+  fun box mulc(y: A): (A, Bool)
+
 type Number is (Signed | Unsigned | Float)
 
 type Signed is (I8 | I16 | I32 | I64 | I128)
