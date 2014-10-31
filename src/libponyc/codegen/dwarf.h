@@ -6,14 +6,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-//implemented in debug.cc
-void* LLVMGetDebugBuilder(LLVMModuleRef m);
-
-void LLVMCreateDebugCompileUnit(void* builder, int lang, const char* producer,
-  const char* path, bool optimized);
-
-void LLVMDebugInfoFinalize(void* builder);
-
 void dwarf_program(compile_t*c, ast_t* program);
 
 PONY_EXTERN_C_END

@@ -149,7 +149,7 @@ solution "ponyc"
     }
     files {
       "src/libponyc/codegen/host.cc",
-      "src/libponyc/codegen/debug.cc"
+      "src/libponyc/codegen/dwarf.cc"
     }
 
   project "ponyc"
