@@ -108,7 +108,6 @@ static bool names_typealias(ast_t** astp, ast_t* def)
   ast_t* cap = ast_childidx(ast, 3);
   ast_t* ephemeral = ast_sibling(cap);
   alias = ast_dup(alias);
-  //alias = ast_dup(ast_child(alias));
 
   if(!names_applycap(alias, cap, ephemeral))
   {
@@ -138,11 +137,18 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
     return false;
   }
 
-  // change to a typeparamref
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "can't specify a capability on a type parameter");
+    return false;
+  }
+
+  // Change to a typeparamref.
   ast_t* typeparamref = ast_from(ast, TK_TYPEPARAMREF);
   ast_add(typeparamref, ephemeral);
   ast_add(typeparamref, cap);
   ast_add(typeparamref, type);
+
   ast_setdata(typeparamref, def);
   ast_replace(astp, typeparamref);
 
@@ -156,10 +162,8 @@ static bool names_type(ast_t** astp, ast_t* def)
   ast_t* cap = ast_childidx(ast, 3);
   ast_t* defcap;
 
-  // a nominal constraint without a capability is set to tag, otherwise to
-  // the default capability for the type. if the nominal type in a
-  // constraint appears inside a structural type, use the default cap for
-  // the type, not tag.
+  // A nominal constraint without a capability is set to tag, otherwise to
+  // the default capability for the type.
   if(ast_id(cap) == TK_NONE)
   {
     if(ast_id(def) == TK_PRIMITIVE)
@@ -172,11 +176,11 @@ static bool names_type(ast_t** astp, ast_t* def)
     ast_replace(&cap, defcap);
   }
 
-  // keep the actual package id
+  // Keep the actual package id.
   ast_append(ast, package);
   ast_replace(&package, package_id(def));
 
-  // store our definition for later use
+  // Store our definition for later use.
   ast_setdata(ast, def);
   return true;
 }
@@ -289,6 +293,35 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   return AST_OK;
 }
 
+ast_result_t flatten_typeparamref(ast_t* ast)
+{
+  // Get the lowest capability that could fulfill the constraint.
+  ast_t* def = (ast_t*)ast_data(ast);
+
+  AST_GET_CHILDREN(def, id, constraint, default_type);
+  token_id constraint_cap = cap_for_type(constraint);
+  token_id typeparam_cap = cap_typeparam(constraint_cap);
+
+  // Set the typeparamref cap.
+  AST_GET_CHILDREN(ast, t_id, t_cap, t_ephemeral);
+  ast_setid(t_cap, typeparam_cap);
+
+  return AST_OK;
+}
+
+ast_result_t flatten_tuple(ast_t* ast)
+{
+  ast_t* constraint = ast_enclosing_constraint(ast);
+
+  if(constraint != NULL)
+  {
+    ast_error(ast, "tuple types can't be used as constraints");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -304,6 +337,12 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       if(!flatten_isect(astp))
         return AST_ERROR;
       break;
+
+    case TK_TUPLETYPE:
+      return flatten_tuple(ast);
+
+    case TK_TYPEPARAMREF:
+      return flatten_typeparamref(ast);
 
     default: {}
   }

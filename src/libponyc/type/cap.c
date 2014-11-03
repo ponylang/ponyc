@@ -108,16 +108,7 @@ token_id cap_for_type(ast_t* type)
       return ast_id(ast_childidx(type, 3));
 
     case TK_TYPEPARAMREF:
-    {
-      token_id cap = ast_id(ast_childidx(type, 1));
-
-      if(cap != TK_NONE)
-        return cap;
-
-      ast_t* def = (ast_t*)ast_data(type);
-      ast_t* constraint = ast_childidx(def, 1);
-      return cap_for_type(constraint);
-    }
+      return ast_id(ast_childidx(type, 1));
 
     case TK_ARROW:
     {
@@ -157,7 +148,6 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_TRN: return TK_TRN;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_NONE;
         default: return TK_BOX;
       }
     }
@@ -170,7 +160,6 @@ token_id cap_viewpoint(token_id view, token_id cap)
       switch(cap)
       {
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_NONE;
         default: return TK_VAL;
       }
       break;
@@ -183,7 +172,6 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_ISO: return TK_TAG;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
-        case TK_NONE: return TK_NONE;
         default: return TK_BOX;
       }
       break;
@@ -213,7 +201,6 @@ token_id cap_viewpoint_lower(token_id cap)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_VAL;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_ISO;
     default: {}
   }
 
@@ -231,7 +218,23 @@ token_id cap_alias(token_id cap)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_BOX;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_NONE;
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_alias_bind(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_TAG;
+    case TK_TRN: return TK_TAG; // Prevent trn from binding to a box constraint.
+    case TK_REF: return TK_REF;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_BOX;
+    case TK_TAG: return TK_TAG;
     default: {}
   }
 
@@ -249,7 +252,6 @@ token_id cap_recover(token_id cap)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_VAL;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_NONE;
     default: {}
   }
 
@@ -267,7 +269,23 @@ token_id cap_send(token_id cap)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_TAG;
     case TK_TAG: return TK_TAG;
-    case TK_NONE: return TK_TAG;
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
+token_id cap_typeparam(token_id cap)
+{
+  switch(cap)
+  {
+    case TK_ISO: return TK_ISO;
+    case TK_TRN: return TK_TRN;
+    case TK_REF: return TK_REF;
+    case TK_VAL: return TK_VAL;
+    case TK_BOX: return TK_BOX;
+    case TK_TAG: return TK_ISO;
     default: {}
   }
 

@@ -235,6 +235,39 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
   return false;
 }
 
+// The subtype is a nominal, the super type is a typeparam.
+static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
+{
+  // Must be a subtype of the lower bounds of the constraint.
+  ast_t* def = (ast_t*)ast_data(super);
+  ast_t* constraint = ast_childidx(def, 1);
+
+  // TODO: do other constraints have a lower bounds?
+  if(ast_id(constraint) == TK_NOMINAL)
+  {
+    ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+    switch(ast_id(constraint_def))
+    {
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+      {
+        token_id sub_cap = ast_id(ast_childidx(sub, 3));
+        token_id constraint_cap = cap_for_type(constraint);
+        token_id typeparam_cap = cap_typeparam(constraint_cap);
+
+        return is_cap_sub_cap(sub_cap, typeparam_cap) &&
+          is_subtype(sub, constraint);
+      }
+
+      default: {}
+    }
+  }
+
+  return false;
+}
+
 // Both sub and super are tuples.
 static bool is_tuple_sub_tuple(ast_t* sub, ast_t* super)
 {
@@ -297,32 +330,6 @@ static bool is_subtype_arrow(ast_t* sub, ast_t* super)
   ast_free_unattached(lower);
 
   return ok;
-}
-
-// The subtype is either a nominal or a tuple, the super type is a typeparam.
-static bool is_subtype_typeparam(ast_t* sub, ast_t* super)
-{
-  // Must be a subtype of the lower bounds of the constraint.
-  ast_t* def = (ast_t*)ast_data(super);
-  ast_t* constraint = ast_childidx(def, 1);
-
-  // TODO: do other constraints have a lower bounds?
-  if(ast_id(constraint) == TK_NOMINAL)
-  {
-    ast_t* constraint_def = (ast_t*)ast_data(constraint);
-
-    switch(ast_id(constraint_def))
-    {
-      case TK_PRIMITIVE:
-      case TK_CLASS:
-      case TK_ACTOR:
-        return is_subtype(sub, constraint);
-
-      default: {}
-    }
-  }
-
-  return false;
 }
 
 // The subtype is a union, the supertype could be anything.
@@ -408,7 +415,8 @@ static bool is_tuple_subtype(ast_t* sub, ast_t* super)
       return is_tuple_sub_nominal(sub, super);
 
     case TK_TYPEPARAMREF:
-      return is_subtype_typeparam(sub, super);
+      // A tuple can never be a strict subtype of a type parameter.
+      return false;
 
     case TK_UNIONTYPE:
       return is_subtype_union(sub, super);
@@ -479,7 +487,7 @@ static bool is_nominal_subtype(ast_t* sub, ast_t* super)
       return is_nominal_sub_nominal(sub, super);
 
     case TK_TYPEPARAMREF:
-      return is_subtype_typeparam(sub, super);
+      return is_nominal_sub_typeparam(sub, super);
 
     case TK_UNIONTYPE:
       return is_subtype_union(sub, super);
@@ -513,15 +521,8 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super)
   if((ast_id(super_eph) == TK_HAT) && (ast_id(sub_eph) != TK_HAT))
     return false;
 
-  ast_t* constraint = ast_childidx(sub_def, 1);
   token_id t_sub_cap = ast_id(sub_cap);
   token_id t_super_cap = ast_id(super_cap);
-
-  if(t_sub_cap == TK_NONE)
-    t_sub_cap = cap_for_type(constraint);
-
-  if(t_super_cap == TK_NONE)
-    t_super_cap = cap_for_type(constraint);
 
   return is_cap_sub_cap(t_sub_cap, t_super_cap);
 }
@@ -558,12 +559,7 @@ static bool is_typeparam_subtype(ast_t* sub, ast_t* super)
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* constraint = ast_childidx(sub_def, 1);
 
-  // Use the cap and ephemerality of the typeparam.
-  reify_cap_and_ephemeral(sub, &constraint);
-  bool ok = is_subtype(constraint, super);
-  ast_free_unattached(constraint);
-
-  return ok;
+  return is_subtype(constraint, super);
 }
 
 // The subtype is an arrow, the supertype is an arrow.

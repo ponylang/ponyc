@@ -16,8 +16,9 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   if(ast_name(ref_name) != ast_name(param_name))
     return false;
 
-  typearg = ast_dup(typearg);
-  reify_cap_and_ephemeral(ast, &typearg);
+  // Keep ephemerality.
+  if(ast_id(ast_childidx(ast, 2)) == TK_HAT)
+    typearg = consume_type(typearg);
 
   ast_replace(astp, typearg);
   return true;
@@ -82,10 +83,10 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     (ast_id(typeargs) == TK_NONE)
     );
 
-  // duplicate the node
+  // Duplicate the node.
   ast_t* r_ast = ast_dup(ast);
 
-  // iterate pairwise through the params and the args
+  // Iterate pairwise through the params and the args.
   ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
 
@@ -104,20 +105,25 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     return NULL;
   }
 
-  // pick up default type arguments if they exist
+  // Pick up default type arguments if they exist.
   while(typeparam != NULL)
   {
     typearg = ast_childidx(typeparam, 2);
 
     if(ast_id(typearg) == TK_NONE)
-    {
-      ast_error(typeargs, "not enough type arguments");
-      ast_free(r_ast);
-      return NULL;
-    }
+      break;
 
+    // Append the default type argument to the typeargs list.
+    ast_append(typeargs, typearg);
     reify_one(&r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
+  }
+
+  if(typeparam != NULL)
+  {
+    ast_error(typeargs, "not enough type arguments");
+    ast_free(r_ast);
+    return NULL;
   }
 
   return r_ast;
@@ -125,37 +131,15 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
 void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
 {
-  int index;
-
-  switch(ast_id(source))
-  {
-    case TK_NOMINAL: index = 3; break;
-    case TK_TYPEPARAMREF: index = 1; break;
-    default: assert(0); return;
-  }
-
-  ast_t* cap = ast_childidx(source, index);
-  ast_t* ephemeral = ast_sibling(cap);
-
-  if((ast_id(cap) == TK_NONE) && (ast_id(ephemeral) == TK_NONE))
-    return;
-
-  switch(ast_id(*target))
-  {
-    case TK_NOMINAL: index = 3; break;
-    case TK_TYPEPARAMREF: index = 1; break;
-    default: return;
-  }
-
+  assert(ast_id(source) == TK_NOMINAL);
+  assert(ast_id(*target) == TK_NOMINAL);
   ast_t* ast = ast_dup(*target);
-  ast_t* tcap = ast_childidx(ast, index);
-  ast_t* tephemeral = ast_sibling(tcap);
 
-  if(ast_id(cap) != TK_NONE)
-    ast_replace(&tcap, cap);
+  AST_GET_CHILDREN(source, pkg, id, typeargs, cap, ephemeral);
+  AST_GET_CHILDREN(ast, t_pkg, t_id, t_typeargs, t_cap, t_ephemeral);
 
-  if(ast_id(ephemeral) != TK_NONE)
-    ast_replace(&tephemeral, ephemeral);
+  ast_replace(&t_cap, cap);
+  ast_replace(&t_ephemeral, ephemeral);
 
   *target = ast;
 }
@@ -172,7 +156,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
   ast_t* typeparam = ast_child(typeparams);
   ast_t* typearg = ast_child(typeargs);
 
-  while((r_typeparam != NULL) && (typearg != NULL))
+  while(r_typeparam != NULL)
   {
     ast_t* constraint = ast_childidx(r_typeparam, 1);
 
@@ -189,7 +173,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       return false;
     }
 
-    ast_t* a_typearg = alias(typearg);
+    ast_t* a_typearg = alias_bind(typearg);
     ast_t* a_constraint = alias(constraint);
 
     // In addition, an alias of the bound type must be a subtype of an alias of
@@ -217,6 +201,9 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }
+
+  assert(r_typeparam == NULL);
+  assert(typearg == NULL);
 
   ast_free_unattached(r_typeparams);
   return true;

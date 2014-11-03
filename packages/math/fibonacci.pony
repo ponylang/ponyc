@@ -1,4 +1,4 @@
-class Fibonacci[A: (Integer[A] & Unsigned)] is Iterator[A]
+class Fibonacci[A: (Integer[A] box & Unsigned)] is Iterator[A]
   var _last: A = 0
   var _next: A = 0
   var _uber_next: A = 1

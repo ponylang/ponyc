@@ -278,6 +278,10 @@ static void init_runtime(compile_t* c)
   // i8* memcpy(...)
   type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
   LLVMAddFunction(c->module, "memcpy", type);
+
+  // i8* memmove(...)
+  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
+  LLVMAddFunction(c->module, "memmove", type);
 }
 
 static int behaviour_index(gentype_t* g, const char* name)

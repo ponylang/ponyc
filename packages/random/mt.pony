@@ -3,18 +3,18 @@ class MT is Random
   var _index: U64
 
   new create(seed: U64 = 5489) =>
-    _state = Array[U64].init(0, _n())
+    _state = Array[U64].prealloc(_n())
     _index = _n()
 
     var x = seed
 
     try
-      _state(0) = x
+      _state.append(x)
       var i: U64 = 1
 
       while i < _n() do
         x = ((x xor (x >> 62)) * 6364136223846793005) + i
-        _state(i) = x
+        _state.append(x)
         i = i + 1
       end
     end

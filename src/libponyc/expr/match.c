@@ -98,6 +98,13 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
 
       ast_error(pattern,
         "no possible type of the match expression can match this pattern");
+
+      ast_error(match_type, "match type: %s",
+        ast_print_type(alias(match_type)));
+
+      ast_error(pattern, "pattern type: %s",
+        ast_print_type(ast_type(pattern)));
+
       return false;
     }
 
@@ -179,11 +186,16 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
       }
 
       bool ok = could_subtype(a_type, capture_type);
-      ast_free_unattached(a_type);
 
       if(!ok && errors)
+      {
         ast_error(pattern, "this capture can never match");
+        ast_error(a_type, "match type alias: %s", ast_print_type(a_type));
+        ast_error(capture_type, "capture type: %s",
+          ast_print_type(capture_type));
+      }
 
+      ast_free_unattached(a_type);
       return ok;
     }
 
@@ -329,10 +341,7 @@ bool expr_case(ast_t* ast)
   // TODO: Need to get the capability union for the match type so that pattern
   // matching can never recover capabilities.
   if(!is_valid_pattern(match_type, pattern, true))
-  {
-    ast_error(pattern, "this pattern can never match");
     return false;
-  }
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
   {

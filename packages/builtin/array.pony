@@ -8,17 +8,18 @@ class Array[A]
     _alloc = 0
     _ptr = Pointer[A]._null()
 
-  new init(with: A, len: U64) =>
-    _size = len
-    _alloc = len
-    _ptr = Pointer[A]._create(len)
-
-    var i: U64 = 0
-
-    while i < len do
-      _ptr._update(i, with)
-      i = i + 1
-    end
+  //Put this in once we have codegen for polymorphic methods.
+  //new init[B: (A & Any box)](with: B, len: U64) =>
+  //  _size = len
+  //  _alloc = len
+  //  _ptr = Pointer[A]._create(len)
+  //
+  //  var i: U64 = 0
+  //
+  //  while i < len do
+  //    _ptr._update(i, with)
+  //    i = i + 1
+  //  end
 
   //Put this in once we have codegen for polymorphic methods.
   //new undefined[B: (A & Real[B] & Number)](len: U64) =>
@@ -50,23 +51,15 @@ class Array[A]
 
   fun ref update(i: U64, v: A): A^ ? =>
     if i < _size then
-      _ptr._update(i, v)
+      _ptr._update(i, consume v)
     else
       error
     end
 
   fun ref delete(i: U64): A^ ? =>
     if i < _size then
-      let deleted = _ptr._apply(i)
-      var n = i + 1
-
-      while n < _size do
-        _ptr._update(n - 1, _ptr._apply(n))
-        n = n + 1
-      end
-
       _size = _size - 1
-      consume deleted
+      _ptr._delete(i, _size - i)
     else
       error
     end
@@ -82,12 +75,17 @@ class Array[A]
 
   fun ref append(v: A): Array[A] =>
     reserve(_size + 1)
-    _ptr._update(_size, v)
+    _ptr._update(_size, consume v)
     _size = _size + 1
     this
 
-  fun ref concat(iter: Iterator[A] ref) =>
-    try for v in iter do append(v) end end
+  //Put this in once we have codegen for polymorphic methods.
+  //fun ref concat[B: (A & Any box)](iter: Iterator[B]) =>
+  //  try
+  //    for v in iter do
+  //      append(v)
+  //    end
+  //  end
 
   fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)

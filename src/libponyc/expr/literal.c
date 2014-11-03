@@ -140,8 +140,17 @@ bool expr_nominal(ast_t** astp)
 
   ast_t* ast = *astp;
 
-  if(ast_id(ast) != TK_NOMINAL)
-    return true;
+  switch(ast_id(ast))
+  {
+    case TK_TYPEPARAMREF:
+      return flatten_typeparamref(ast) == AST_OK;
+
+    case TK_NOMINAL:
+      break;
+
+    default:
+      return true;
+  }
 
   // If still nominal, check constraints.
   ast_t* def = (ast_t*)ast_data(ast);

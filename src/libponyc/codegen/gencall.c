@@ -10,6 +10,7 @@
 #include "../type/cap.h"
 #include "../ds/stringtab.h"
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
@@ -425,8 +426,15 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         arg = ast_sibling(arg);
       }
 
-      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count, false);
-      func = LLVMAddFunction(c->module, f_name, f_type);
+      // We may have generated the function by generating a parameter type.
+      func = LLVMGetNamedFunction(c->module, f_name);
+
+      if(func == NULL)
+      {
+        LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count,
+          false);
+        func = LLVMAddFunction(c->module, f_name, f_type);
+      }
     } else if(decl == NULL) {
       // No declaration, so make it varargs.
       LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);

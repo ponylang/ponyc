@@ -6,8 +6,10 @@ primitive F32 is Real[F32]
   new from_bits(i: U32) => compiler_intrinsic
   fun box bits(): U32 => compiler_intrinsic
 
-  fun box min(y: F32): F32 => @llvm.minnum.f32[F32](this, y)
-  fun box max(y: F32): F32 => @llvm.maxnum.f32[F32](this, y)
+  fun box min(y: F32): F32 => if this < y then this else y end
+    //@llvm.minnum.f32[F32](this, y)
+  fun box max(y: F32): F32 => if this > y then this else y end
+    //@llvm.maxnum.f32[F32](this, y)
 
   fun box abs(): F32 => @llvm.fabs.f32[F32](this)
   fun box ceil(): F32 => @llvm.ceil.f32[F32](this)
@@ -76,8 +78,10 @@ primitive F64 is Real[F64]
   new from_bits(i: U64) => compiler_intrinsic
   fun box bits(): U64 => compiler_intrinsic
 
-  fun box min(y: F64): F64 => @llvm.minnum.f64[F64](this, y)
-  fun box max(y: F64): F64 => @llvm.maxnum.f64[F64](this, y)
+  fun box min(y: F64): F64 => if this < y then this else y end
+    //@llvm.minnum.f64[F64](this, y)
+  fun box max(y: F64): F64 => if this > y then this else y end
+    //@llvm.maxnum.f64[F64](this, y)
 
   fun box abs(): F64 => @llvm.fabs.f64[F64](this)
   fun box ceil(): F64 => @llvm.ceil.f64[F64](this)
