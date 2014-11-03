@@ -2,7 +2,7 @@
 #define ds_hash_h
 
 #include "fun.h"
-#include <pony.h>
+#include "../pony.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
