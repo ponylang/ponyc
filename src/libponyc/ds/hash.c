@@ -91,17 +91,3 @@ uint64_t inthash(uint64_t key)
 
   return key;
 }
-
-size_t next_pow2(size_t v)
-{
-  v--;
-
-  v |= v >> 1;
-  v |= v >> 2;
-  v |= v >> 4;
-  v |= v >> 8;
-  v |= v >> 16;
-  v |= v >> 32;
-
-  return v + 1;
-}

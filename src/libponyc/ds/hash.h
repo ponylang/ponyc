@@ -2,6 +2,7 @@
 #define HASH_H
 
 #include <platform.h>
+#include "../libponyrt/ds/fun.h"
 #include <stdint.h>
 #include <stddef.h>
 
@@ -16,8 +17,6 @@ uint64_t strhash(const char* str);
 uint64_t ptrhash(const void* p);
 
 uint64_t inthash(uint64_t key);
-
-size_t next_pow2(size_t v);
 
 PONY_EXTERN_C_END
 
