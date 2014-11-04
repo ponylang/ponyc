@@ -18,11 +18,12 @@ function link_libponyc()
   linkoptions {
     llvm_config("--ldflags")
   }
-  links { "libponyc", "libponyrt", "libponycc", "z", "curses" }
+  links { "libponyc", "libponyrt", "libponycc" }
   local output = llvm_config("--libs")
   for lib in string.gmatch(output, "-l(%S+)") do
     links { lib }
   end
+  links { "z", "curses" }
   configuration("not macosx")
     links {
       "tinfo",
