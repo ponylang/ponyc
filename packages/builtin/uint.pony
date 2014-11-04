@@ -174,7 +174,7 @@ primitive U128 is Integer[U128]
     else
       if y == 0 then
         // TODO: returning (0, 0) causes a codegen error
-        var qr: (U128, U128) = (0, 0)
+        let qr: (U128, U128) = (0, 0)
         return qr
       end
 
@@ -204,7 +204,7 @@ primitive U128 is Integer[U128]
     if Platform.has_i128() then
       this / y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       q
     end
 
@@ -212,15 +212,15 @@ primitive U128 is Integer[U128]
     if Platform.has_i128() then
       this % y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       r
     end
 
   fun box f32(): F32 => this.f64().f32()
 
   fun box f64(): F64 =>
-    var low = this.u64()
-    var high = (this >> 64).u64()
-    var x = low.f64()
-    var y = high.f64() * (U128(1) << 64).f64()
+    let low = this.u64()
+    let high = (this >> 64).u64()
+    let x = low.f64()
+    let y = high.f64() * (U128(1) << 64).f64()
     x + y

@@ -25,7 +25,7 @@ class MT is Random
       _populate()
     end
 
-    var x = try _state(_index) else U64(0) end //TODO FIX: access is safe
+    var x = try _state(_index) else U64(0) end //TODO: access is safe
     _index = _index + 1
 
     x = x xor ((x >> 29) and 0x5555555555555555)
@@ -65,15 +65,15 @@ class MT is Random
   fun tag _matrix(x: U64): U64 => (x and 1) * 0xb5026f5aa96619e9
 
   fun tag _mix(x: U64, y: U64): U64 =>
-    var z = _mask(x, y)
+    let z = _mask(x, y)
     (z >> 1) xor _matrix(z)
 
   fun ref _lower(i: U64, x: U64): U64 ? =>
-    var y = _state(i + 1)
+    let y = _state(i + 1)
     _state(i) = _state(i + _m()) xor _mix(x, y)
     y
 
   fun ref _upper(i: U64, x: U64): U64 ? =>
-    var y = _state(i + 1)
+    let y = _state(i + 1)
     _state(i) = _state(i - _m()) xor _mix(x, y)
     y

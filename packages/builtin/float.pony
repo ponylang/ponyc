@@ -136,17 +136,17 @@ primitive F64 is Real[F64]
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 =>
-    var bit = bits()
-    var high = (bit >> 32).u32()
-    var ex = ((high and 0x7FF00000) >> 20) - 1023
+    let bit = bits()
+    let high = (bit >> 32).u32()
+    let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if ex < 0 then
       return I128(0)
     end
 
-    var s = ((high and 0x80000000) >> 31).i128()
+    let s = ((high and 0x80000000) >> 31).i128()
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).i128()
-    var ex' = ex.i128()
+    let ex' = ex.i128()
 
     if ex' > 52 then
       r = r << (ex' - 52)
@@ -157,16 +157,16 @@ primitive F64 is Real[F64]
     (r xor s) - s
 
   fun box u128(): U128 =>
-    var bit = bits()
-    var high = (bit >> 32).u32()
-    var ex = ((high and 0x7FF00000) >> 20) - 1023
+    let bit = bits()
+    let high = (bit >> 32).u32()
+    let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if (ex < 0) or ((high and 0x80000000) != 0) then
       return U128(0)
     end
 
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).u128()
-    var ex' = ex.u128()
+    let ex' = ex.u128()
 
     if ex' > 52 then
       r = r << (ex' - 52)

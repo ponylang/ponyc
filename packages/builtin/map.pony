@@ -22,7 +22,7 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
   //
   //  if found then
   //    match _array(index)
-  //    | (var k: Key, var v: this->Value) =>
+  //    | (let k: Key, let v: this->Value) =>
   //      return v
   //    end
   //  end
@@ -30,11 +30,11 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
 
   fun ref update(key: Key, value: Value): (Value^ | None) =>
     try
-      var (index, found) = _search(key)
-      var prev = _array(index) = (key, consume value)
+      let (index, found) = _search(key)
+      let prev = _array(index) = (key, consume value)
 
       match consume prev
-      | (var k: Key, var v: Value) =>
+      | (let k: Key, let v: Value) =>
         return consume v
       else
         _count = _count + 1
@@ -48,14 +48,14 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
 
   fun ref remove(key: Key): (Value^ | None) =>
     try
-      var (index, found) = _search(key)
+      let (index, found) = _search(key)
 
       if found then
-        var prev = _array(index) = _MapDeleted
+        let prev = _array(index) = _MapDeleted
         _count = _count - 1
 
         match consume prev
-        | (var k: Key, var v: Value) =>
+        | (let k: Key, let v: Value) =>
           return consume v
         end
       end
@@ -65,16 +65,16 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
   fun box _search(key: Key): (U64, Bool) =>
     let len: U64 = _array.length()
     var index_del = _array.length()
-    var mask = index_del - 1
-    var h = key.hash()
+    let mask = index_del - 1
+    let h = key.hash()
     var index = h and mask
 
     try
       for i in Range(0, len) do
-        var entry = _array(i)
+        let entry = _array(i)
 
         match entry
-        | (var k: Key, var v: Any) =>
+        | (let k: Key, let v: Any) =>
           if k == key then
             return (i, true)
           end
@@ -97,7 +97,7 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
     (index_del, false)
 
   fun ref _resize() =>
-    var _old = _array
+    let _old = _array
     let old_len = _old.length()
     let new_len = old_len * 4
 
@@ -110,10 +110,10 @@ class Map[Key: (Hashable val & Comparable[Key] val), Value]
 
     try
       for i in Range(0, old_len) do
-        var entry = _old(i) = _MapDeleted
+        let entry = _old(i) = _MapDeleted
 
         match consume entry
-        | (var k: Key, var v: Value) =>
+        | (let k: Key, let v: Value) =>
           this(k) = consume v
         end
       end

@@ -97,7 +97,7 @@ class Array[A]
     ArrayPairs[A, this->Array[A]](this)
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>
@@ -114,7 +114,7 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
     end
 
 class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>
@@ -126,7 +126,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun ref next(): B->A ? => _array(_i = _i + 1)
 
 class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>

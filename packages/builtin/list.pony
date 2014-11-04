@@ -29,7 +29,7 @@ class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
 
   fun ref next(): N->A ? =>
     match _next
-    | var next': N =>
+    | let next': N =>
       _next = next'.next()
       next'.item()
     else

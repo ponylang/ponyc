@@ -32,7 +32,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
   {
     case TK_ID:
     {
-      if(ast_enclosing_pattern(value))
+      if(ast_enclosing_pattern(value) != NULL)
         status = SYM_DEFINED;
       else
         status = SYM_UNDEFINED;

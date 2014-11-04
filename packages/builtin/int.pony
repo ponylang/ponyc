@@ -129,7 +129,7 @@ primitive I128 is Integer[I128]
     else
       if y == 0 then
         // TODO: returning (0, 0) causes a codegen error
-        var qr: (I128, I128) = (I128(0), I128(0))
+        let qr: (I128, I128) = (I128(0), I128(0))
         return qr
       end
 
@@ -148,7 +148,7 @@ primitive I128 is Integer[I128]
         minus = not minus
       end
 
-      var (q, r) = num.u128().divmod(den.u128())
+      let (q, r) = num.u128().divmod(den.u128())
       var (q', r') = (q.i128(), r.i128())
 
       if minus then
@@ -162,7 +162,7 @@ primitive I128 is Integer[I128]
     if Platform.has_i128() then
       this / y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       q
     end
 
@@ -170,7 +170,7 @@ primitive I128 is Integer[I128]
     if Platform.has_i128() then
       this % y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       r
     end
 
