@@ -183,7 +183,7 @@ static bool expr_tupleaccess(ast_t* ast)
 
 static bool expr_memberaccess(ast_t* ast)
 {
-  // left is a postfix expression, right is an id
+  // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);

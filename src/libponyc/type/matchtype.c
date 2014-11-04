@@ -45,7 +45,10 @@ static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
   // Check the lower bounds of super.
   ast_t* lower = viewpoint_lower(super);
   bool ok = could_subtype(sub, lower);
-  ast_free_unattached(lower);
+
+  if(lower != sub)
+    ast_free_unattached(lower);
+
   return ok;
 }
 
@@ -84,8 +87,12 @@ static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
       ast_t* t_sub = viewpoint_tag(sub);
       ast_t* t_super = viewpoint_tag(super);
       bool ok = is_subtype(t_super, t_sub);
-      ast_free_unattached(t_sub);
-      ast_free_unattached(t_super);
+
+      if(t_sub != sub)
+        ast_free_unattached(t_sub);
+
+      if(t_super != super)
+        ast_free_unattached(t_super);
 
       if(!ok)
         return false;
@@ -145,14 +152,8 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-    {
-      // With a concrete type, an alias of the subtype must be a subtype of
-      // the supertype.
-      ast_t* a_sub = alias(sub);
-      bool ok = is_subtype(a_sub, super);
-      ast_free_unattached(a_sub);
-      return ok;
-    }
+      // With a concrete type, the subtype must be a subtype of the supertype.
+      return is_subtype(sub, super);
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -259,7 +260,10 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
   // Check the upper bounds.
   ast_t* upper = viewpoint_upper(sub);
   bool ok = could_subtype(upper, super);
-  ast_free_unattached(upper);
+
+  if(upper != sub)
+    ast_free_unattached(upper);
+
   return ok;
 }
 

@@ -120,7 +120,7 @@ bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
   ast_t* type = ast_childidx(find, 1);
   ast_settype(find, type);
 
-  // viewpoint adapted type of the field
+  // Viewpoint adapted type of the field.
   ast_t* ftype = viewpoint(left, find);
 
   if(ftype == NULL)
