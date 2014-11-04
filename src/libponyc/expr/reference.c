@@ -236,9 +236,20 @@ bool expr_reference(ast_t* ast)
     }
 
     case TK_INTERFACE:
+    {
+      ast_error(ast, "can't use an interface in an expression");
+      return false;
+    }
+
     case TK_TRAIT:
     {
       ast_error(ast, "can't use a trait in an expression");
+      return false;
+    }
+
+    case TK_TYPE:
+    {
+      ast_error(ast, "can't use a type alias in an expression");
       return false;
     }
 
@@ -268,10 +279,10 @@ bool expr_reference(ast_t* ast)
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
-      ast_free(ast);
 
       ast_t* self = ast_from(ast, TK_THIS);
       ast_add(dot, self);
+      ast_free(ast);
 
       if(!expr_this(self))
         return false;

@@ -20,24 +20,25 @@ actor Main
       .usage_text("Rarely needed options:")
       .add("ieee-math", None, "Force strict IEEE 754 compliance.", None)
       .add("cpu", "c", "Set the target CPU.", StringArgument)
-      .add("features", "f", "CPU features to enable or disable.", StringArgument)
+      .add("features", "f", "CPU features to enable or disable.",
+        StringArgument)
       .add("triple", None, "Set the target triple.", None)
       .usage_text("Debugging options:")
       .add("pass", "r", "Restrict phases.", StringArgument)
-      .param("parse", None)
-      .param("parsefix", None)
-      .param("sugar", None)
-      .param("scope1", None)
-      .param("name", None)
-      .param("flatten", None)
-      .param("traits", None)
-      .param("scope2", None)
-      .param("expr", None)
-      .param("ir", "Output LLVM IR.")
-      .param("bitcode", "Output LLVM bitcode.")
-      .param("asm", "Output assembly")
-      .param("obj", "Output an object file.")
-      .param("all", "The default: generate an executable.")
+        .param("parse", None)
+        .param("parsefix", None)
+        .param("sugar", None)
+        .param("scope1", None)
+        .param("name", None)
+        .param("flatten", None)
+        .param("traits", None)
+        .param("scope2", None)
+        .param("expr", None)
+        .param("ir", "Output LLVM IR.")
+        .param("bitcode", "Output LLVM bitcode.")
+        .param("asm", "Output assembly")
+        .param("obj", "Output an object file.")
+        .param("all", "The default: generate an executable.")
       .add("ast", "a", "Output an abstract syntax tree.", None)
       .add("trace", "t", "Enable parse trace.", None)
       .add("width", "w", "Width to target when printing the AST.", I64Argument)
@@ -45,7 +46,8 @@ actor Main
         None)
 
     for option in opt do
-      //Since short option names are optional, matching is based on the long opt.
+      //Since short option names are optional, matching is based on the
+      //long opt.
       match option
       | ("opt", None) =>
           env.stdout.print("Output will be optimised!")

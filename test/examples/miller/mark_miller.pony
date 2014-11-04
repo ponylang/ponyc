@@ -30,7 +30,7 @@ class Purse
   // result - like throwing an exception, but with no value thrown.
   fun ref deposit(amount: U64, from: Purse) ? =>
     // make sure there's enough in 'from' and _balance doesn't overflow
-    if (mint == from.mint) and
+    if (mint is from.mint) and
       (from._balance >= amount) and
       ((_balance + amount) >= _balance)
     then
@@ -45,7 +45,8 @@ class Purse
   fun ref withdraw(amount: U64): Purse iso^ ? =>
     if _balance >= amount then
       // recover is used to get an isolated Purse
-      var to = recover Purse(mint) end
+      var m: Mint = mint
+      var to = recover Purse(m) end
       _balance = _balance - amount
       to._balance = amount
       // consume is used to get an ephemeral Purse
@@ -57,9 +58,10 @@ class Purse
 
   // This empties the purse into a new ephemeral isolated purse
   fun ref remainder(): Purse iso^ =>
-    var to = recover Purse(mint) end
-    _balance = _balance - amount
-    to._balance = amount
+    var m: Mint = mint
+    var to = recover Purse(m) end
+    to._balance = _balance
+    _balance = 0
     consume to
 
 // Things that can be bought
@@ -96,16 +98,14 @@ actor Buyer
 interface Factory tag
   fun tag apply(): Good^
 
-type Inventory is Map[String, (U64, Factory)]
-
 actor Seller
   var _purse: Purse
-  var _inventory: Inventory
+  var _inventory: Map[String, (U64, Factory)]
 
   // The seller should also have a mechanism for populating its inventory.
   new create(purse: Purse) =>
     _purse = purse
-    _inventory = Inventory
+    _inventory = Map[String, (U64, Factory)]
 
   /* This asynchronously attempts to buy a good with a given description. A
    * purse containing the payment is supplied along with a result function to
@@ -239,7 +239,7 @@ actor ContractHost[A, B: Contract[A]]
   // when all tokens are satisfied, the contract is executed
   be submit(side: U64, t: Token iso, arg: A) =>
     try
-      if _ledger(side).1 is t then
+      if _ledger(side)._1 is t then
         _ledger(side) = (t, arg)
         var a = Array[A]
         for (t', arg') in _ledger.values() do
@@ -260,7 +260,7 @@ actor ContractHost[A, B: Contract[A]]
   be cancel(side: U64, t: Token) =>
     // by setting the arg for this token to None, the contract will never run
     try
-      if _ledger(side).1 is t then
+      if _ledger(side)._1 is t then
         _ledger(side) = (t, None)
       end
     end

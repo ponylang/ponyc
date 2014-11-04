@@ -404,6 +404,17 @@ bool safe_to_write(ast_t* ast, ast_t* type)
           return true;
         }
 
+        case TK_ARROW:
+        {
+          ast_t* upper = viewpoint_upper(type);
+          bool ok = safe_to_write(ast, upper);
+
+          if(upper != type)
+            ast_free_unattached(upper);
+
+          return ok;
+        }
+
         case TK_NUMBERLITERAL:
         case TK_INTLITERAL:
         case TK_FLOATLITERAL:
@@ -411,8 +422,9 @@ bool safe_to_write(ast_t* ast, ast_t* type)
 
         case TK_NOMINAL:
         case TK_TYPEPARAMREF:
-        case TK_ARROW:
         {
+          // TODO: if the field (without adaptation) is safe, then it's ok as
+          // well. So iso.tag = ref should be allowed.
           // If left is x.f, we need the type of x to determine safe to write.
           ast_t* left = ast_child(ast);
           ast_t* l_type = ast_type(left);

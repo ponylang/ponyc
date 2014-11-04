@@ -264,17 +264,22 @@ static bool check_return_type(ast_t* ast)
   if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
     return true;
 
-  // The body type must match the return type.
-  if(!is_subtype(body_type, type))
+  // The body type must match the return type, without subsumption, or an alias
+  // of the body type must be a subtype of the return type.
+  ast_t* a_type = alias(body_type);
+
+  if(!is_eqtype(body_type, type) && !is_subtype(a_type, type))
   {
     ast_t* last = ast_childlast(body);
-    ast_error(type, "function body isn't a subtype of the result type");
+    ast_error(type, "function body isn't the result type");
     ast_error(last, "function body expression is here");
     ast_error(type, "function return type: %s", ast_print_type(type));
     ast_error(body_type, "function body type: %s", ast_print_type(body_type));
+    ast_free_unattached(a_type);
     return false;
   }
 
+  ast_free_unattached(a_type);
   return true;
 }
 
