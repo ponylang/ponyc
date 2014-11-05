@@ -114,13 +114,6 @@ primitive I128 is Integer[I128]
   fun box ctz(): I128 => @llvm.cttz.i128[I128](this, false)
   fun box width(): I128 => 128
 
-  fun box addc(y: I128): (I128, Bool) =>
-    @llvm.sadd.with.overflow.i128[(I128, Bool)](this, y)
-  fun box subc(y: I128): (I128, Bool) =>
-    @llvm.ssub.with.overflow.i128[(I128, Bool)](this, y)
-  fun box mulc(y: I128): (I128, Bool) =>
-    @llvm.smul.with.overflow.i128[(I128, Bool)](this, y)
-
   fun box string(): String iso^ => recover String.from_i128(this, 10) end
 
   fun box divmod(y: I128): (I128, I128) =>

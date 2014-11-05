@@ -41,7 +41,13 @@ primitive F32 is Real[F32]
   fun box logb(): F32 => @logbf[F32](this)
 
   fun box pow(y: F32): F32 => @llvm.pow.f32[F32](this, y)
-  fun box powi(y: I32): F32 => @llvm.powi.f32[F32](this, y)
+  fun box powi(y: I32): F32 =>
+    if Platform.windows() then
+      pow(y.f32())
+    else
+      @llvm.powi.f32[F32](this, y)
+    end
+
   fun box sqrt(): F32 => @llvm.sqrt.f32[F32](this)
   fun box cbrt(): F32 => @cbrtf[F32](this)
   fun box exp(): F32 => @llvm.exp.f32[F32](this)
@@ -109,7 +115,13 @@ primitive F64 is Real[F64]
   fun box logb(): F64 => @logb[F64](this)
 
   fun box pow(y: F64): F64 => @llvm.pow.f64[F64](this, y)
-  fun box powi(y: I32): F64 => @llvm.powi.f64[F64](this, y)
+  fun box powi(y: I32): F64 =>
+    if Platform.windows() then
+      pow(y.f64())
+    else
+      @llvm.powi.f64[F64](this, y)
+    end
+
   fun box sqrt(): F64 => @llvm.sqrt.f64[F64](this)
   fun box cbrt(): F64 => @cbrt[F64](this)
   fun box exp(): F64 => @llvm.exp.f64[F64](this)
