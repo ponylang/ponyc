@@ -105,9 +105,18 @@ static ast_t* viewpoint_for_type(token_id view, token_id eph, ast_t* type,
     cap = ast_childidx(type, cap_index);
     ast_setid(cap, rcap);
 
-    if(eph == TK_HAT && (view >= TK_ISO) && (view <= TK_TRN))
+    if(eph == TK_HAT && is_cap_sub_cap(view, TK_TRN))
     {
       // If we're adapting from an ephemeral type, make this type ephemeral.
+      // iso^->iso = iso^, previous views were iso, alias(iso^) ~ alias(iso)
+      // iso^->trn = trn^, previous views were tag, alias(trn^) ~ alias(tag)
+      // trn^->iso = iso^, previous views were iso, alias(iso^) ~ alias(iso)
+      // trn^->trn = trn^, previous views were trn, alias(trn^) ~ alias(trn)
+      // alias(iso)->x isn't alllowed
+      // alias(trn)->x = box->x
+      // alias(iso^) ~ alias(box->iso)
+      // alias(trn^) ~ alias(box->trn)
+      // Doesn't work for ref, isn't needed for val, box or tag.
       ast_t* ephemeral = ast_sibling(cap);
       ast_setid(ephemeral, eph);
     }
