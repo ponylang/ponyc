@@ -3,7 +3,7 @@ class Pointer[A]
   new _create(len: U64) => compiler_intrinsic
 
   // A null pointer.
-  new _null() => compiler_intrinsic
+  new null() => compiler_intrinsic
 
   // Keep the array, but reserve space for len instances of A.
   fun ref _realloc(len: U64): Pointer[A] => compiler_intrinsic

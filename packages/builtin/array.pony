@@ -6,7 +6,7 @@ class Array[A]
   new create() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[A]._null()
+    _ptr = Pointer[A].null()
 
   //Put this in once we have codegen for polymorphic methods.
   //new init[B: (A & Any box)](with: B, len: U64) =>
@@ -22,10 +22,10 @@ class Array[A]
   //  end
 
   //Put this in once we have codegen for polymorphic methods.
-  //new undefined[B: (A & Real[B] & Number)](len: U64) =>
-  //  _size = len
-  //  _alloc = len
-  //  _ptr = Pointer[A]._create(len)
+  new undefined/*[B: (A & Real[B] & Number)]*/(len: U64) =>
+    _size = len
+    _alloc = len
+    _ptr = Pointer[A]._create(len)
 
   new from_carray(ptr: Pointer[A] ref, len: U64) =>
     _size = len
@@ -38,9 +38,16 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
+  fun box carray(): Pointer[A] tag => _ptr
+
   fun box length(): U64 => _size
 
-  fun box carray(): Pointer[A] box => _ptr
+  fun ref reserve(len: U64): Array[A] =>
+    if _alloc < len then
+      _alloc = len.max(8).next_pow2()
+      _ptr = _ptr._realloc(_alloc)
+    end
+    this
 
   fun box apply(i: U64): this->A ? =>
     if i < _size then
@@ -64,14 +71,13 @@ class Array[A]
       error
     end
 
-  fun ref reserve(len: U64): Array[A] =>
-    if _alloc < len then
-      _alloc = len.max(8).next_pow2()
-      _ptr = _ptr._realloc(_alloc)
-    end
+  fun ref truncate(len: U64): Array[A] =>
+    _size = _size.min(len)
     this
 
-  fun ref clear() => _size = 0
+  fun ref clear(): Array[A] =>
+    _size = 0
+    this
 
   fun ref append(v: A): Array[A] =>
     reserve(_size + 1)

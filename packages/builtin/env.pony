@@ -13,7 +13,7 @@ class Env val
         array.append(
           recover
             String.from_cstring(
-              argv._update(i, recover Pointer[U8]._null() end))
+              argv._update(i, recover Pointer[U8].null() end))
           end
           )
         i = i + 1
@@ -28,3 +28,4 @@ class Env val
 
 actor Stdout
   be print(a: String) => @printf[I32]("%s\n".cstring(), a.cstring())
+  be write(a: String) => @printf[I32]("%s".cstring(), a.cstring())

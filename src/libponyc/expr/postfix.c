@@ -522,7 +522,6 @@ bool expr_call(ast_t* ast)
 
           token_id rcap = cap_for_type(r_type);
           token_id fcap = ast_id(cap);
-          ast_free_unattached(r_type);
 
           if(!is_cap_sub_cap(rcap, fcap))
           {
@@ -544,9 +543,11 @@ bool expr_call(ast_t* ast)
               }
             }
 
+            ast_free_unattached(r_type);
             return false;
           }
 
+          ast_free_unattached(r_type);
           break;
         }
 

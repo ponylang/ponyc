@@ -49,7 +49,7 @@ static void pointer_create(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
 static void pointer_null(compile_t* c, gentype_t* g)
 {
-  const char* name = genname_fun(g->type_name, "_null", NULL);
+  const char* name = genname_fun(g->type_name, "null", NULL);
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
