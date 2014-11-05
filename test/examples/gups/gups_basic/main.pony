@@ -7,12 +7,12 @@ actor Main
   var _updater_count: U64 = 8
   var _updates: U64 = 0
   var _to: Array[Updater] val
-  var _start: (I64, U32) = (0, 0)
+  var _start: U64
 
   new create(env:Env) =>
     _env = env
-
     _to = recover Array[Updater] end //init tracking...
+    _start = Time.nanos()
 
     try
       arguments()
@@ -34,8 +34,6 @@ actor Main
         consume updaters
       end
 
-      @gettimeofday[I32](_start, U64(0))
-
       for i in Range(0, _streamer_count) do
         Streamer(this, _to, size, _chunk, _chunk * _iterate * i)(_iterate)
       end
@@ -54,13 +52,11 @@ actor Main
 
   be updater_done() =>
     if (_updater_count = _updater_count - 1) == 1 then
-      var finish: (I64, U32) = (0, 0)
-      @gettimeofday[I32](finish, U64(0))
-      var runtime: F64 =
-        (finish._1.f64() - _start._1.f64()) +
-        ((finish._2.f64() - _start._2.f64()) / 1e6)
-      var gups = _updates.f64() / runtime / 1e9
-      _env.stdout.print("Time: " + runtime.string() + " GUPS: " + gups.string())
+      var elapsed = (Time.nanos() - _start).f64()
+      var gups = _updates.f64() / elapsed
+      _env.stdout.print(
+        "Time: " + (elapsed / 1e9).string() + " GUPS: " + gups.string()
+        )
     end
 
   fun ref arguments() ? =>
