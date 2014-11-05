@@ -77,7 +77,7 @@ static bool valid_reference(ast_t* ast, sym_status_t status)
       if(is_assigned_to(ast))
         return true;
 
-      ast_error(ast, "can't use an undefined local in an expression");
+      ast_error(ast, "can't use an undefined variable in an expression");
       return false;
 
     default: {}

@@ -7,7 +7,7 @@ actor Main
   var _updater_count: U64 = 8
   var _updates: U64 = 0
   var _to: Array[Updater] val
-  //var _start: Time
+  var _start: (I64, U32) = (0, 0)
 
   new create(env:Env) =>
     _env = env
@@ -27,16 +27,16 @@ actor Main
         var updaters = Array[Updater]
         updaters.reserve(count)
 
-        for i in Range[U64](0, count) do
+        for i in Range(0, count) do
           updaters.append(Updater(i, size))
         end
 
         consume updaters
       end
 
-      //_start = Time.now()
+      @gettimeofday[I32](_start, U64(0))
 
-      for i in Range[U64](0, _streamer_count) do
+      for i in Range(0, _streamer_count) do
         Streamer(this, _to, size, _chunk, _chunk * _iterate * i)(_iterate)
       end
     else
@@ -54,8 +54,12 @@ actor Main
 
   be updater_done() =>
     if (_updater_count = _updater_count - 1) == 1 then
-      var runtime: U64 = 0 /*Time.now() - _start*/
-      var gups = _updates.f32() / runtime.f32() / F32(1e9)
+      var finish: (I64, U32) = (0, 0)
+      @gettimeofday[I32](finish, U64(0))
+      var runtime: F64 =
+        (finish._1.f64() - _start._1.f64()) +
+        ((finish._2.f64() - _start._2.f64()) / 1e6)
+      var gups = _updates.f64() / runtime / 1e9
       _env.stdout.print("Time: " + runtime.string() + " GUPS: " + gups.string())
     end
 
@@ -113,12 +117,12 @@ actor Streamer
 
     var list = recover Array[Array[U64] iso].prealloc(upts) end
 
-    for i in Range[U64](0, upts) do
+    for i in Range(0, upts) do
       list.append(recover Array[U64].prealloc(chks) end)
     end
 
     try
-      for i in Range[U64](0, chks) do
+      for i in Range(0, chks) do
         var datum = rand()
         var updater = (datum >> shift) and mask
         list(updater).append(datum)
@@ -145,11 +149,11 @@ actor Updater
   var table:Array[U64] ref
 
   new create(index:U64, size:U64) =>
-    table = Array[U64].init(0, size)
+    table = Array[U64].prealloc(size)
 
     var offset = index * size;
-    for i in Range[U64](0, size) do
-      try table(i) = i + offset end
+    for i in Range(0, size) do
+      table.append(i + offset)
     end
 
   be apply(data:Array[U64] val) =>
@@ -174,7 +178,8 @@ class PolyRand
     _seed(seed)
 
   fun ref apply():U64 =>
-    last = (last << 1) xor if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
+    last = (last << 1) xor
+      if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
 
   fun ref _seed(seed:U64) =>
     var n = seed % period
@@ -182,11 +187,11 @@ class PolyRand
     if n == 0 then
       last = 1
     else
-      var m2 = Array[U64].init(0, 64)
+      var m2 = Array[U64].prealloc(64)
       last = 1
 
-      for i in Range[U64](0, 63) do
-        try m2(i) = last end
+      for i in Range(0, 63) do
+        m2.append(last)
         apply()
         apply()
       end
@@ -197,7 +202,7 @@ class PolyRand
       while i > 0 do
         var temp: U64 = 0
 
-        for j in Range[U64](0, 64) do
+        for j in Range(0, 64) do
           if ((last >> j) and 1) != 0 then
             try temp = temp xor m2(j) end
           end
