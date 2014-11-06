@@ -4,9 +4,11 @@
 #include <string.h>
 
 #if defined(PLATFORM_IS_WINDOWS)
+#include <direct.h>
 static __pony_thread_local HANDLE opendir_handle = INVALID_HANDLE_VALUE;
 static __pony_thread_local WIN32_FIND_DATA opendir_data;
 #elif defined(PLATFORM_IS_POSIX_BASED)
+#include <unistd.h>
 static __pony_thread_local DIR* opendir_handle;
 #endif
 
@@ -19,6 +21,22 @@ static bool skip_entry(const char* entry, size_t len)
     return true;
 
   return false;
+}
+
+char* os_cwd()
+{
+#if defined(PLATFORM_IS_WINDOWS)
+  char* cwd = _getcwd(NULL, 0);
+#else
+  char* cwd = getcwd(NULL, 0);
+#endif
+
+  size_t len = strlen(cwd) + 1;
+  char* cstring = (char*)pony_alloc(len);
+  memcpy(cstring, cwd, len);
+  free(cwd);
+
+  return cstring;
 }
 
 void os_opendir(const char* path)
