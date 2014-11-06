@@ -588,26 +588,26 @@ static token_t* string(lexer_t* lexer)
 
       switch(c)
       {
-      case 'a':  append(lexer, 0x07); break;
-      case 'b':  append(lexer, 0x08); break;
-      case 'e':  append(lexer, 0x1B); break;
-      case 'f':  append(lexer, 0x0C); break;
-      case 'n':  append(lexer, 0x0A); break;
-      case 'r':  append(lexer, 0x0D); break;
-      case 't':  append(lexer, 0x09); break;
-      case 'v':  append(lexer, 0x0B); break;
-      case '\"': append(lexer, 0x22); break;
-      case '\\': append(lexer, 0x5C); break;
-      case '0':  append(lexer, 0x00); break;
+        case 'a':  append(lexer, 0x07); break;
+        case 'b':  append(lexer, 0x08); break;
+        case 'e':  append(lexer, 0x1B); break;
+        case 'f':  append(lexer, 0x0C); break;
+        case 'n':  append(lexer, 0x0A); break;
+        case 'r':  append(lexer, 0x0D); break;
+        case 't':  append(lexer, 0x09); break;
+        case 'v':  append(lexer, 0x0B); break;
+        case '\"': append(lexer, 0x22); break;
+        case '\\': append(lexer, 0x5C); break;
+        case '0':  append(lexer, 0x00); break;
 
-      case 'x':  r = append_unicode(lexer, 2); break;
-      case 'u':  r = append_unicode(lexer, 4); break;
-      case 'U':  r = append_unicode(lexer, 6); break;
+        case 'x':  r = append_unicode(lexer, 2); break;
+        case 'u':  r = append_unicode(lexer, 4); break;
+        case 'U':  r = append_unicode(lexer, 6); break;
 
-      default:
-        lexerror(lexer, "Invalid escape sequence: \\%c", c);
-        r = false;
-        break;
+        default:
+          lexerror(lexer, "Invalid escape sequence: \\%c", c);
+          r = false;
+          break;
       }
 
       if(!r)
@@ -617,6 +617,96 @@ static token_t* string(lexer_t* lexer)
       }
     } else {
       append(lexer, next_char);
+      adv(lexer, 1);
+    }
+  }
+}
+
+
+static token_t* character(lexer_t* lexer)
+{
+  adv(lexer, 1);  // Consume leading '
+  __uint128_t value = 0;
+
+  while(true)
+  {
+    if(is_eof(lexer))
+    {
+      lexerror(lexer, "Character literal doesn't terminate");
+      return make_token(lexer, TK_LEX_ERROR);
+    }
+
+    char next_char = look(lexer);
+
+    if(next_char == '\'')
+    {
+      adv(lexer, 1);
+      token_t* t = make_token(lexer, TK_INT);
+      token_set_int(t, value);
+      return t;
+    }
+
+    if(next_char == '\\')
+    {
+      if(lexer->len < 2)
+      {
+        lexerror(lexer, "Character literal doesn't terminate");
+        return make_token(lexer, TK_LEX_ERROR);
+      }
+
+      adv(lexer, 1);
+      char c = look(lexer);
+      adv(lexer, 1);
+
+      switch(c)
+      {
+        case 'a':  value = (value << 8) | 0x07; break;
+        case 'b':  value = (value << 8) | 0x08; break;
+        case 'e':  value = (value << 8) | 0x1B; break;
+        case 'f':  value = (value << 8) | 0x0C; break;
+        case 'n':  value = (value << 8) | 0x0A; break;
+        case 'r':  value = (value << 8) | 0x0D; break;
+        case 't':  value = (value << 8) | 0x09; break;
+        case 'v':  value = (value << 8) | 0x0B; break;
+        case '\"': value = (value << 8) | 0x22; break;
+        case '\\': value = (value << 8) | 0x5C; break;
+        case '0':  value = (value << 8) | 0x00; break;
+
+        case 'x':
+          if(lexer->len < 2)
+          {
+            lexerror(lexer, "Character literal doesn't terminate");
+            return make_token(lexer, TK_LEX_ERROR);
+          }
+
+          for(int i = 0; i < 2; i++)
+          {
+            c = look(lexer);
+
+            if((c >= '0') && (c <= '9'))
+              c = c - '0';
+            else if((c >= 'a') && (c <= 'f'))
+              c = c - 'a' + 10;
+            else if((c >= 'A') && (c <= 'F'))
+              c = c - 'A' + 10;
+            else
+            {
+              lexerror(lexer, "Invalid hex value: %c", c);
+              return make_token(lexer, TK_LEX_ERROR);
+            }
+
+            value = (value << 4) | c;
+            adv(lexer, 1);
+          }
+
+          break;
+
+        default:
+          lexerror(lexer, "Invalid escape sequence: \\%c", c);
+          return make_token(lexer, TK_LEX_ERROR);
+      }
+    } else {
+      value = (value << 8) | next_char;
       adv(lexer, 1);
     }
   }
@@ -792,15 +882,17 @@ static token_t* number(lexer_t* lexer)
   {
     switch(lookn(lexer, 2))
     {
-    case 'x':
-    case 'X':
-      adv(lexer, 2);  // Consume 0x
-      return nondecimal_number(lexer, 16, "hexadecimal number");
+      case 'x':
+      case 'X':
+        adv(lexer, 2);  // Consume 0x
+        return nondecimal_number(lexer, 16, "hexadecimal number");
 
-    case 'b':
-    case 'B':
-      adv(lexer, 2);  // Consume 0b
-      return nondecimal_number(lexer, 2, "binary number");
+      case 'b':
+      case 'B':
+        adv(lexer, 2);  // Consume 0b
+        return nondecimal_number(lexer, 2, "binary number");
+
+      default: {}
     }
   }
 
@@ -949,37 +1041,41 @@ token_t* lexer_next(lexer_t* lexer)
 
     switch(c)
     {
-    case '\n':
-      lexer->newline = true;
-      adv(lexer, 1);
-      break;
-
-    case '\r':
-    case '\t':
-    case ' ':
-      adv(lexer, 1);
-      break;
-
-    case '/':
-      t = slash(lexer);
-      break;
-
-    case '\"':
-      t = string(lexer);
-      break;
-
-    default:
-      if(isdigit(c))
-      {
-        t = number(lexer);
-      } else if(isalpha(c) || (c == '_')) {
-        t = identifier(lexer);
-      } else if(is_symbol_char(c)) {
-        t = symbol(lexer);
-      } else {
-        lexerror(lexer, "Unrecognized character: %c", c);
+      case '\n':
+        lexer->newline = true;
         adv(lexer, 1);
-      }
+        break;
+
+      case '\r':
+      case '\t':
+      case ' ':
+        adv(lexer, 1);
+        break;
+
+      case '/':
+        t = slash(lexer);
+        break;
+
+      case '\"':
+        t = string(lexer);
+        break;
+
+      case '\'':
+        t = character(lexer);
+        break;
+
+      default:
+        if(isdigit(c))
+        {
+          t = number(lexer);
+        } else if(isalpha(c) || (c == '_')) {
+          t = identifier(lexer);
+        } else if(is_symbol_char(c)) {
+          t = symbol(lexer);
+        } else {
+          lexerror(lexer, "Unrecognized character: %c", c);
+          adv(lexer, 1);
+        }
     }
   }
 

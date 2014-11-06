@@ -225,6 +225,7 @@ INT
   :  DIGIT+
   |  '0' 'x' HEX+
   |  '0' 'b' BINARY+
+  |  '\'' (ESC | ~('\'' | '\\'))* '\''
   ;
 
 FLOAT
