@@ -91,7 +91,6 @@
         "-std=gnu11"
       }
       defines {
-        "_GNU_SOURCE",
         "__STDC_CONSTANT_MACROS",
         "__STDC_FORMAT_MACROS",
         "__STDC_LIMIT_MACROS"
@@ -135,7 +134,7 @@
       "src/ponyc/**.c"
     }
     configuration "gmake"
-      buildoptions "-std=gnu11" 
+      buildoptions "-std=gnu11"
     configuration "vs*"
       cppforce { "src/ponyc/**.c" }
     configuration "*"
@@ -164,12 +163,12 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
   project "testc"
     targetname "testc"
     testsuite()
-    includedirs { 
-      "utils/gtest", 
-      "src/common", 
-      "src/libponyc" 
+    includedirs {
+      "utils/gtest",
+      "src/common",
+      "src/libponyc"
     }
-    files { 
+    files {
       "test/unit/ponyc/**.h",
       "test/unit/ponyc/**.cc"
     }
@@ -182,10 +181,10 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     targetname "testrt"
     testsuite()
     links "libponyrt"
-    includedirs { 
-      "utils/gtest", 
-      "src/common", 
-      "src/libponyrt" 
+    includedirs {
+      "utils/gtest",
+      "src/common",
+      "src/libponyrt"
     }
     files { "test/unit/ponyrt/**.cc" }
 end
