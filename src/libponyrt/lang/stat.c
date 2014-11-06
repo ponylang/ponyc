@@ -43,6 +43,8 @@ typedef struct pony_stat_t
   bool symlink;
 } pony_stat_t;
 
+PONY_EXTERN_C_BEGIN
+
 bool os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
@@ -130,3 +132,5 @@ bool os_stat(const char* path, pony_stat_t* p)
 
   return true;
 }
+
+PONY_EXTERN_C_END
