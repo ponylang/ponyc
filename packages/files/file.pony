@@ -211,7 +211,7 @@ class File
     if not _handle.is_null() then
       if Platform.windows() then
         var fd = @_fileno[I32](_handle)
-        var h = @_get_os_fhandle[U64](fd)
+        var h = @_get_osfhandle[U64](fd)
         @FlushFileBuffers[I32](h)
       else
         var fd = @fileno[I32](_handle)
