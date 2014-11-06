@@ -1,27 +1,27 @@
 primitive _FileHandle
 
 class File
-  var _path: String
+  let path: String
+  let writeable: Bool
   var _handle: Pointer[_FileHandle]
-  var _write: Bool
   var _last_line_length: U64 = 256
 
   // Open for read/write, creating if it doesn't exist, truncating it if it
   // does exist.
-  new create(path: String) ? =>
-    _path = path
+  new create(path': String) ? =>
+    path = path'
+    writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "w+b".cstring())
-    _write = true
 
     if _handle.u64() == 0 then
       error
     end
 
   // Open for read only, failing if it doesn't exist.
-  new open(path: String) ? =>
-    _path = path
+  new open(path': String) ? =>
+    path = path'
+    writeable = false
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "rb".cstring())
-    _write = false
 
     if _handle.u64() == 0 then
       error
@@ -29,10 +29,10 @@ class File
 
   // Open for read/write, creating if it doesn't exist, preserving the contents
   // if it does exist.
-  new modify(path: String) ? =>
-    _path = path
+  new modify(path': String) ? =>
+    path = path'
+    writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "r+b".cstring())
-    _write = true
 
     if _handle.u64() == 0 then
       error
@@ -48,17 +48,6 @@ class File
       @fclose[I32](_handle)
       _handle = Pointer[_FileHandle].null()
     end
-
-  // Flush the file.
-  fun ref flush(): File =>
-    if _handle.u64() != 0 then
-      if Platform.linux() then
-        @fflush_unlocked[I32](_handle)
-      else
-        @fflush[I32](_handle)
-      end
-    end
-    this
 
   // Returns a line as a String.
   fun ref line(): String =>
@@ -100,6 +89,24 @@ class File
       recover String end
     end
 
+  // Returns false if the file wasn't opened with write permission.
+  // Returns false and closes the file if not all the bytes were written.
+  fun ref print(data: String): Bool =>
+    if writeable and (_handle.u64() != 0) then
+      var len = if Platform.linux() then
+        @fwrite_unlocked[U64](data.cstring(), U64(1), data.length(), _handle)
+      else
+        @fwrite[U64](data.cstring(), U64(1), data.length(), _handle)
+      end
+
+      if len == data.length() then
+        return true
+      end
+
+      close()
+    end
+    false
+
   // Returns up to len bytes.
   fun ref read(len: U64): Array[U8] iso^ =>
     if _handle.u64() != 0 then
@@ -120,20 +127,18 @@ class File
   // Returns false if the file wasn't opened with write permission.
   // Returns false and closes the file if not all the bytes were written.
   fun ref write(data: Array[U8] box): Bool =>
-    if _write then
-      if _handle.u64() != 0 then
-        var len = if Platform.linux() then
-          @fwrite_unlocked[U64](data.carray(), U64(1), data.length(), _handle)
-        else
-          @fwrite[U64](data.carray(), U64(1), data.length(), _handle)
-        end
-
-        if len == data.length() then
-          return true
-        end
-
-        close()
+    if writeable and (_handle.u64() != 0) then
+      var len = if Platform.linux() then
+        @fwrite_unlocked[U64](data.carray(), U64(1), data.length(), _handle)
+      else
+        @fwrite[U64](data.carray(), U64(1), data.length(), _handle)
       end
+
+      if len == data.length() then
+        return true
+      end
+
+      close()
     end
     false
 
@@ -148,6 +153,14 @@ class File
     else
       U64(0)
     end
+
+  // Return the total length of the file.
+  fun ref length(): U64 =>
+    var pos = position()
+    from_end(0)
+    var len = position()
+    from_start(pos)
+    len
 
   // Set the cursor position relative to the start of the file.
   fun ref from_start(offset: U64): File =>
@@ -181,6 +194,51 @@ class File
       end
     end
     this
+
+  // Flush the file.
+  fun ref flush(): File =>
+    if _handle.u64() != 0 then
+      if Platform.linux() then
+        @fflush_unlocked[I32](_handle)
+      else
+        @fflush[I32](_handle)
+      end
+    end
+    this
+
+  // Sync the file contents to physical storage.
+  fun ref sync(): File =>
+    if _handle.u64() != 0 then
+      if Platform.windows() then
+        var fd = @_fileno[I32](_handle)
+        var h = @_get_os_fhandle[U64](fd)
+        @FlushFileBuffers[I32](h)
+      else
+        var fd = @fileno[I32](_handle)
+        @fsync[I32](fd)
+      end
+    end
+    this
+
+  // Change the file size. If it is made larger, the new contents are undefined.
+  fun ref set_length(len: U64): Bool =>
+    if writeable and (_handle.u64() != 0) then
+      flush()
+      var pos = position()
+      var success = if Platform.windows() then
+        var fd = @_fileno[I32](_handle)
+        @_chsize_s[I32](fd, len) == 0
+      else
+        var fd = @fileno[I32](_handle)
+        @ftruncate[I32](fd, len) == 0
+      end
+
+      if pos >= len then
+        from_end(0)
+      end
+      success
+    end
+    false
 
   fun ref lines(): FileLines => FileLines(this)
 

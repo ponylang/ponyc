@@ -561,6 +561,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   if(opt->release)
   {
+    printf("=== Optimising ===\n");
+
     // Module pass manager.
     LLVMRunPassManager(mpm, c->module);
 
@@ -572,6 +574,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   stack_alloc(c);
 
 #ifndef NDEBUG
+  printf("=== Verifying ===\n");
+
   char* msg;
 
   if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
@@ -590,6 +594,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
    * user then has to link both the .o and the runtime. Would need a flag for
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
+  printf("=== Generating output ===\n");
 
   if(pass_limit == PASS_LLVM_IR)
   {
@@ -650,6 +655,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     return true;
 
   // Link the program.
+  printf("=== Linking ===\n");
+
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(opt->triple, '-');
 
@@ -875,6 +882,8 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 {
+  printf("=== Generating IR ===\n");
+
   compile_t c;
   memset(&c, 0, sizeof(compile_t));
 
