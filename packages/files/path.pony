@@ -108,6 +108,8 @@ primitive Path
     // TODO:
     path
 
+  // Returns the program's working directory. Setting the working directory is
+  // not supported, as it is not concurrency-safe.
   fun tag cwd(): String iso^ =>
     recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
