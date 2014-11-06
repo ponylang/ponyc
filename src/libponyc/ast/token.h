@@ -153,6 +153,7 @@ typedef enum token_id
   TK_NUMBERLITERAL, // A literal that could be any Number
   TK_INTLITERAL, // A literal that could be any Signed or Unsigned
   TK_FLOATLITERAL,  // A literal that could be any Float
+  TK_TUPLELITERAL,  // A tuple containing at least 1 literal
   TK_OPERATORLITERAL, // Operator function access to a literal
 
   TK_TYPEPARAMS,
