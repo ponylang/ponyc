@@ -66,9 +66,9 @@ bool os_stat(const char* path, pony_stat_t* p)
   p->change_time = st.st_ctime;
 
 #if defined(PLATFORM_IS_LINUX)
-  p->access_time_nsec = st.st_atimensec;
-  p->modified_time_nsec = st.st_mtimensec;
-  p->change_time_nsec = st.st_ctimensec;
+  p->access_time_nsec = st.st_atim.tv_nsec;
+  p->modified_time_nsec = st.st_mtim.tv_nsec;
+  p->change_time_nsec = st.st_ctim.tv_nsec;
 #elif defined(PLATFORM_IS_MACOSX)
   p->access_time_nsec = st.st_atimespec.tv_nsec;
   p->modified_time_nsec = st.st_mtimespec.tv_nsec;
