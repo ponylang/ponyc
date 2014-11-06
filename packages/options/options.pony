@@ -194,14 +194,14 @@ class Options ref is Iterator[_Result]
 
       let start: I64 =
         match (current(0), current(1))
-        | ('-', '-') => I64(2)        //TODO: remove when literal
-        | ('-', var some: Any) => I64(1) //inference works
+        | (U8('-'), U8('-')) => I64(2)        //TODO: remove when literal
+        | (U8('-'), var some: Any) => I64(1) //inference works
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options
         end
 
-      var finish = current.find('=')
+      let finish = try current.find('=') else I64(-1) end
       let sub_end = if finish == -1 then finish else finish - 1 end
       let name: String val = current.substring(start, sub_end)
 

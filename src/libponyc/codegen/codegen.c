@@ -424,11 +424,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
 
   const char* env_class = stringtab("Env");
-  ast_t* env_def = ast_get(package, env_class, NULL);
 
   gentype_t env_g;
-  ast_t* env_ast = genprim(c, env_def, package_name(package), env_class,
-    &env_g);
+  ast_t* env_ast = genprim(c, main_def, NULL, env_class, &env_g);
 
   if(env_ast == NULL)
   {

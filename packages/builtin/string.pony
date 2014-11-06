@@ -158,9 +158,7 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun box find(c: U8): I64 =>
-    if _size == 0 then return -1 end
-
+  fun box find(c: U8): I64 ? =>
     var i: U64 = 0
 
     while i < _size do
@@ -170,8 +168,7 @@ class String val is Ordered[String], Hashable, Stringable
 
       i = i + 1
     end
-
-    -1
+    error
 
   fun box lower(): String iso^ =>
     let len = _size

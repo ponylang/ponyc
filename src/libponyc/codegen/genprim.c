@@ -13,7 +13,11 @@ ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from_string(scope, name));
-  ast_add(ast, ast_from_string(scope, package));
+
+  if(package != NULL)
+    ast_add(ast, ast_from_string(scope, package));
+  else
+    ast_add(ast, ast_from(scope, TK_NONE));
 
   if(!names_nominal(scope, &ast) || !gentype(c, ast, g))
   {
