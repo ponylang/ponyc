@@ -431,7 +431,21 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
       if(func == NULL)
       {
-        LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count,
+        LLVMTypeRef r_type;
+
+        if(g.underlying == TK_TUPLETYPE)
+        {
+          // Can't use the named type. Build an unnamed type with the same
+          // elements.
+          int count = LLVMCountStructElementTypes(g.use_type);
+          VLA(LLVMTypeRef, e_types, count);
+          LLVMGetStructElementTypes(g.use_type, e_types);
+          r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
+        } else {
+          r_type = g.use_type;
+        }
+
+        LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count,
           false);
         func = LLVMAddFunction(c->module, f_name, f_type);
       }

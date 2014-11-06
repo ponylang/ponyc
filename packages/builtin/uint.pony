@@ -123,9 +123,8 @@ primitive U64 is Integer[U64]
   fun box ctz(): U64 => @llvm.cttz.i64[U64](this, false)
   fun box width(): U64 => 64
 
-  //TODO: crashing in optimiser in LLVM 3.5
-  //fun box addc(y: U64): (U64, Bool) =>
-  //  @llvm.uadd.with.overflow.i64[(U64, Bool)](this, y)
+  fun box addc(y: U64): (U64, Bool) =>
+    @llvm.uadd.with.overflow.i64[(U64, Bool)](this, y)
   fun box subc(y: U64): (U64, Bool) =>
     @llvm.usub.with.overflow.i64[(U64, Bool)](this, y)
   fun box mulc(y: U64): (U64, Bool) =>
