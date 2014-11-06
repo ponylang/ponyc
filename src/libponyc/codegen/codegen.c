@@ -424,11 +424,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
 
   const char* env_class = stringtab("Env");
-  ast_t* env_def = ast_get(package, env_class, NULL);
 
   gentype_t env_g;
-  ast_t* env_ast = genprim(c, env_def, package_name(package), env_class,
-    &env_g);
+  ast_t* env_ast = genprim(c, main_def, NULL, env_class, &env_g);
 
   if(env_ast == NULL)
   {
@@ -438,8 +436,8 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   codegen_main(c, &main_g, &env_g);
 
-  if(!c->release)
-    dwarf_program(c, program);
+  if(c->symbols)
+    dwarf_program(c, package);
 
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
@@ -454,8 +452,9 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
 
-  // Keep track of whether or not we're optimising.
+  // Keep track of whether or not we're optimising or emitting debug symbols.
   c->release = opt->release;
+  c->symbols = opt->symbols;
   c->ieee_math = opt->ieee_math;
 
   // LLVM context and machine settings.

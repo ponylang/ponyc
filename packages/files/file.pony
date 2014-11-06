@@ -13,7 +13,7 @@ class File
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "w+b".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
@@ -23,7 +23,7 @@ class File
     writeable = false
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "rb".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
@@ -34,24 +34,24 @@ class File
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "r+b".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
   // Returns true if the file is currently open.
-  fun box valid(): Bool => _handle.u64() != 0
+  fun box valid(): Bool => not _handle.is_null()
 
   // Close the file. Future operations will do nothing. If this isn't done,
   // the underlying file descriptor will leak.
   fun ref close() =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       @fclose[I32](_handle)
       _handle = Pointer[_FileHandle].null()
     end
 
   // Returns a line as a String.
   fun ref line(): String =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       var offset = U64(0)
       var len = _last_line_length
       var result = recover String end
@@ -72,7 +72,7 @@ class File
         result.recalc()
 
         var done = try
-          (r.u64() == 0) or (result(result.length().i64() - 1) == 10)
+          r.is_null() or (result(result.length().i64() - 1) == '\n')
         else
           true
         end
@@ -92,7 +92,7 @@ class File
   // Returns false if the file wasn't opened with write permission.
   // Returns false and closes the file if not all the bytes were written.
   fun ref print(data: String): Bool =>
-    if writeable and (_handle.u64() != 0) then
+    if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
         @fwrite_unlocked[U64](data.cstring(), U64(1), data.length(), _handle)
       else
@@ -109,7 +109,7 @@ class File
 
   // Returns up to len bytes.
   fun ref read(len: U64): Array[U8] iso^ =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       var result = recover Array[U8].undefined(len) end
 
       var r = if Platform.linux() then
@@ -127,7 +127,7 @@ class File
   // Returns false if the file wasn't opened with write permission.
   // Returns false and closes the file if not all the bytes were written.
   fun ref write(data: Array[U8] box): Bool =>
-    if writeable and (_handle.u64() != 0) then
+    if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
         @fwrite_unlocked[U64](data.carray(), U64(1), data.length(), _handle)
       else
@@ -144,7 +144,7 @@ class File
 
   // Return the current cursor position in the file.
   fun box position(): U64 =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       if Platform.windows() then
         @_ftelli64[U64](_handle)
       else
@@ -157,14 +157,14 @@ class File
   // Return the total length of the file.
   fun ref length(): U64 =>
     var pos = position()
-    from_end(0)
+    seek_end(0)
     var len = position()
-    from_start(pos)
+    seek_start(pos)
     len
 
   // Set the cursor position relative to the start of the file.
-  fun ref from_start(offset: U64): File =>
-    if _handle.u64() != 0 then
+  fun ref seek_start(offset: U64): File =>
+    if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, offset, I32(0))
       else
@@ -174,8 +174,8 @@ class File
     this
 
   // Set the cursor position relative to the end of the file.
-  fun ref from_end(offset: U64): File =>
-    if _handle.u64() != 0 then
+  fun ref seek_end(offset: U64): File =>
+    if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, -offset, I32(2))
       else
@@ -186,7 +186,7 @@ class File
 
   // Move the cursor position.
   fun ref seek(offset: I64): File =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, offset, I32(1))
       else
@@ -197,7 +197,7 @@ class File
 
   // Flush the file.
   fun ref flush(): File =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       if Platform.linux() then
         @fflush_unlocked[I32](_handle)
       else
@@ -208,7 +208,7 @@ class File
 
   // Sync the file contents to physical storage.
   fun ref sync(): File =>
-    if _handle.u64() != 0 then
+    if not _handle.is_null() then
       if Platform.windows() then
         var fd = @_fileno[I32](_handle)
         var h = @_get_os_fhandle[U64](fd)
@@ -222,7 +222,7 @@ class File
 
   // Change the file size. If it is made larger, the new contents are undefined.
   fun ref set_length(len: U64): Bool =>
-    if writeable and (_handle.u64() != 0) then
+    if writeable and (not _handle.is_null()) then
       flush()
       var pos = position()
       var success = if Platform.windows() then
@@ -234,7 +234,7 @@ class File
       end
 
       if pos >= len then
-        from_end(0)
+        seek_end(0)
       end
       success
     end

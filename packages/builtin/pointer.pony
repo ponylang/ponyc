@@ -26,4 +26,5 @@ class Pointer[A]
     =>
     compiler_intrinsic
 
+  fun tag is_null(): Bool => compiler_intrinsic
   fun tag u64(): U64 => compiler_intrinsic

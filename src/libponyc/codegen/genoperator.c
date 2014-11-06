@@ -20,8 +20,7 @@ static bool is_constant_i1(compile_t* c, LLVMValueRef val)
     return false;
 
   LLVMTypeRef type = LLVMTypeOf(val);
-
-  return type != c->i1;
+  return type == c->i1;
 }
 
 static bool is_always_true(compile_t* c, LLVMValueRef val)
