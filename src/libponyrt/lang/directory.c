@@ -12,6 +12,8 @@ static __pony_thread_local WIN32_FIND_DATA opendir_data;
 static __pony_thread_local DIR* opendir_handle;
 #endif
 
+PONY_EXTERN_C_BEGIN
+
 static bool skip_entry(const char* entry, size_t len)
 {
   if((len == 1) && (entry[0] == '.'))
@@ -134,3 +136,5 @@ const char* os_readdir()
   return NULL;
 #endif
 }
+
+PONY_EXTERN_C_END
