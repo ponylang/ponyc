@@ -128,7 +128,7 @@ class Options ref is Iterator[_Result]
       try
         let current = _args(_index)
 
-        if (current(0) == "-"(0)) and (current(1) != 0) then
+        if (current(0) == '-') and (current(1) != 0) then
           return true
         end
       end
@@ -181,7 +181,7 @@ class Options ref is Iterator[_Result]
       end
 
       let len = current.length()
-      let short = if len == 1 then (current(0) == "-"(0)) else false end
+      let short = if len == 1 then (current(0) == '-') else false end
 
       if (len == 0) or short then
         _args.delete(_index)

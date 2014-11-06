@@ -12,7 +12,7 @@ class Directory val
       while true do
         let entry = @os_readdir[Pointer[U8] iso^]()
 
-        if entry.u64() == 0 then
+        if entry.is_null() then
           break None
         end
 

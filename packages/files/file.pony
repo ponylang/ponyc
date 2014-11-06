@@ -13,7 +13,7 @@ class File
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "w+b".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
@@ -23,7 +23,7 @@ class File
     writeable = false
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "rb".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
@@ -34,7 +34,7 @@ class File
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "r+b".cstring())
 
-    if _handle.u64() == 0 then
+    if _handle.is_null() then
       error
     end
 
@@ -72,7 +72,7 @@ class File
         result.recalc()
 
         var done = try
-          (r.u64() == 0) or (result(result.length().i64() - 1) == 10)
+          r.is_null() or (result(result.length().i64() - 1) == '\n')
         else
           true
         end
