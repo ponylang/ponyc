@@ -684,11 +684,11 @@ static token_t* character(lexer_t* lexer)
             c = look(lexer);
 
             if((c >= '0') && (c <= '9'))
-              c = c - '0';
+              c = (char)(c - '0');
             else if((c >= 'a') && (c <= 'f'))
-              c = c - 'a' + 10;
+              c = (char)(c - 'a' + 10);
             else if((c >= 'A') && (c <= 'F'))
-              c = c - 'A' + 10;
+              c = (char)(c - 'A' + 10);
             else
             {
               lexerror(lexer, "Invalid hex value: %c", c);
