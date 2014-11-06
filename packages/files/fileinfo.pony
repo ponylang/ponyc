@@ -6,9 +6,9 @@ class FileInfo val
   let uid: U32 = 0
   let gid: U32 = 0
   let size: U64 = 0
-  let access_time: U64 = 0
-  let modified_time: U64 = 0
-  let change_time: U64 = 0
+  let access_time: (I64, I64) = (0, 0)
+  let modified_time: (I64, I64) = (0, 0)
+  let change_time: (I64, I64) = (0, 0)
 
   let file: Bool = false
   let directory: Bool = false

@@ -12,9 +12,12 @@ typedef struct pony_stat_t
   uint32_t uid;
   uint32_t gid;
   uint64_t size;
-  uint64_t access_time;
-  uint64_t modified_time;
-  uint64_t change_time;
+  int64_t access_time;
+  int64_t access_time_nsec;
+  int64_t modified_time;
+  int64_t modified_time_nsec;
+  int64_t change_time;
+  int64_t change_time_nsec;
 
   bool file;
   bool directory;
@@ -61,6 +64,20 @@ bool os_stat(const char* path, pony_stat_t* p)
   p->access_time = st.st_atime;
   p->modified_time = st.st_mtime;
   p->change_time = st.st_ctime;
+
+#if defined(PLATFORM_IS_LINUX)
+  p->access_time_nsec = st.st_atimensec;
+  p->modified_time_nsec = st.st_mtimensec;
+  p->change_time_nsec = st.st_ctimensec;
+#elif defined(PLATFORM_IS_MACOSX)
+  p->access_time_nsec = st.st_atimespec.tv_nsec;
+  p->modified_time_nsec = st.st_mtimespec.tv_nsec;
+  p->change_time_nsec = st.st_ctimespec.tv_nsec;
+#elif defined(PLATFORM_IS_WINDOWS)
+  p->access_time_nsec = 0;
+  p->modified_time_nsec = 0;
+  p->change_time_nsec = 0;
+#endif
 
   return true;
 }
