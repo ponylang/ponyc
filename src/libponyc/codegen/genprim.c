@@ -24,6 +24,266 @@ ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
   return ast;
 }
 
+static void pointer_create(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_create", NULL);
+  LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &c->i64, 1, false);
+  fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef len = LLVMGetParam(fun, 0);
+  LLVMValueRef total = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total, 1, "");
+  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_null(compile_t* c, gentype_t* g)
+{
+  const char* name = genname_fun(g->type_name, "null", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef result = LLVMConstNull(g->use_type);
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_realloc", NULL);
+
+  LLVMTypeRef params[2];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef args[2];
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+
+  LLVMValueRef len = LLVMGetParam(fun, 1);
+  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 2, "");
+  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_apply(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  const char* name = genname_fun(g->type_name, "_apply", NULL);
+
+  LLVMTypeRef params[2];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 2, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  LLVMValueRef index = LLVMGetParam(fun, 1);
+  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
+  LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
+  result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  const char* name = genname_fun(g->type_name, "_update", NULL);
+
+  LLVMTypeRef params[3];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = elem_g->use_type;
+
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  LLVMValueRef index = LLVMGetParam(fun, 1);
+  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
+  LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
+  result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
+  LLVMBuildStore(c->builder, LLVMGetParam(fun, 2), loc);
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_delete", NULL);
+
+  LLVMTypeRef params[3];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  LLVMValueRef index = LLVMGetParam(fun, 1);
+  LLVMValueRef len = LLVMGetParam(fun, 2);
+  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
+  LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
+  result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
+
+  LLVMValueRef base = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef offset1 = LLVMBuildMul(c->builder, index, l_size, "");
+  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset1, l_size, "");
+
+  LLVMValueRef args[3];
+  args[0] = LLVMBuildAdd(c->builder, base, offset1, "");
+  args[1] = LLVMBuildAdd(c->builder, base, offset2, "");
+  args[2] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  args[0] = LLVMBuildIntToPtr(c->builder, args[0], c->void_ptr, "");
+  args[1] = LLVMBuildIntToPtr(c->builder, args[1], c->void_ptr, "");
+
+  gencall_runtime(c, "memmove", args, 3, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_copy(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_copy", NULL);
+
+  LLVMTypeRef params[4];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = g->use_type;
+  params[3] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(c->i64, params, 4, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef dst = LLVMGetParam(fun, 0);
+  LLVMValueRef offset = LLVMGetParam(fun, 1);
+  LLVMValueRef src = LLVMGetParam(fun, 2);
+  LLVMValueRef len = LLVMGetParam(fun, 3);
+
+  offset = LLVMBuildMul(c->builder, offset, l_size, "");
+  len = LLVMBuildMul(c->builder, len, l_size, "");
+
+  dst = LLVMBuildPtrToInt(c->builder, dst, c->i64, "");
+  dst = LLVMBuildAdd(c->builder, dst, offset, "");
+
+  LLVMValueRef args[3];
+  args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, src, c->void_ptr, "");
+  args[2] = len;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  LLVMBuildRet(c->builder, len);
+  codegen_finishfun(c);
+}
+
+static void pointer_concat(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_concat", NULL);
+
+  LLVMTypeRef params[4];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = g->use_type;
+  params[3] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 4, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef base = LLVMGetParam(fun, 0);
+  base = LLVMBuildBitCast(c->builder, base, c->void_ptr, "");
+  LLVMValueRef len = LLVMGetParam(fun, 1);
+  len = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef with = LLVMGetParam(fun, 2);
+  with = LLVMBuildBitCast(c->builder, with, c->void_ptr, "");
+  LLVMValueRef withlen = LLVMGetParam(fun, 3);
+  withlen = LLVMBuildMul(c->builder, withlen, l_size, "");
+
+  LLVMValueRef total_len = LLVMBuildAdd(c->builder, len, withlen, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total_len, 1, "");
+
+  LLVMValueRef args[3];
+  args[0] = result;
+  args[1] = base;
+  args[2] = len;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, result, c->i64, "");
+  offset = LLVMBuildAdd(c->builder, offset, len, "");
+  offset = LLVMBuildIntToPtr(c->builder, offset, c->void_ptr, "");
+
+  args[0] = offset;
+  args[1] = with;
+  args[2] = withlen;
+  gencall_runtime(c, "memcpy", args, 3, "");
+
+  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer_u64(compile_t* c, gentype_t* g)
+{
+  const char* name = genname_fun(g->type_name, "u64", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(c->i64, &g->use_type, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
   ast_t* typeargs = ast_childidx(g->ast, 2);
@@ -47,190 +307,22 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   if(prelim)
     return true;
 
-  // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g.use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
-
-  // create
+  // If there's already a create function, we're done.
   const char* name = genname_fun(g->type_name, "_create", NULL);
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
-  // If there's already a create function, we're done.
   if(fun != NULL)
     return true;
 
-  LLVMTypeRef params[4];
-  params[0] = c->i64;
-
-  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 1, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef len = LLVMGetParam(fun, 0);
-
-  LLVMValueRef args[4];
-  args[0] = LLVMBuildMul(c->builder, len, l_size, "");
-
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
-  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // null
-  name = genname_fun(g->type_name, "_null", NULL);
-
-  ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  result = LLVMConstNull(g->use_type);
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // realloc
-  name = genname_fun(g->type_name, "_realloc", NULL);
-
-  params[0] = g->use_type;
-  params[1] = c->i64;
-
-  ftype = LLVMFunctionType(g->use_type, params, 2, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
-
-  len = LLVMGetParam(fun, 1);
-  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
-
-  result = gencall_runtime(c, "pony_realloc", args, 2, "");
-  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // apply
-  name = genname_fun(g->type_name, "_apply", NULL);
-
-  params[0] = g->use_type;
-  params[1] = c->i64;
-
-  ftype = LLVMFunctionType(elem_g.use_type, params, 2, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  ptr = LLVMGetParam(fun, 0);
-  LLVMValueRef index = LLVMGetParam(fun, 1);
-  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
-  result = LLVMBuildLoad(c->builder, loc, "");
-  result = LLVMBuildBitCast(c->builder, result, elem_g.use_type, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // update
-  name = genname_fun(g->type_name, "_update", NULL);
-
-  params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = elem_g.use_type;
-
-  ftype = LLVMFunctionType(elem_g.use_type, params, 3, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  ptr = LLVMGetParam(fun, 0);
-  index = LLVMGetParam(fun, 1);
-  loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
-  result = LLVMBuildLoad(c->builder, loc, "");
-  result = LLVMBuildBitCast(c->builder, result, elem_g.use_type, "");
-  LLVMBuildStore(c->builder, LLVMGetParam(fun, 2), loc);
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // copy
-  name = genname_fun(g->type_name, "_copy", NULL);
-
-  params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = g->use_type;
-  params[3] = c->i64;
-
-  ftype = LLVMFunctionType(c->i64, params, 4, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef base = LLVMGetParam(fun, 0);
-  base = LLVMBuildPtrToInt(c->builder, base, c->i64, "");
-  LLVMValueRef offset = LLVMGetParam(fun, 1);
-  base = LLVMBuildAdd(c->builder, base, offset, "");
-
-  args[0] = LLVMBuildIntToPtr(c->builder, base, c->void_ptr, "");
-  args[1] = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 2), c->void_ptr, "");
-  args[2] = LLVMGetParam(fun, 3);
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  LLVMBuildRet(c->builder, args[2]);
-  codegen_finishfun(c);
-
-  // concat
-  name = genname_fun(g->type_name, "_concat", NULL);
-
-  params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = g->use_type;
-  params[3] = c->i64;
-
-  ftype = LLVMFunctionType(g->use_type, params, 4, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  base = LLVMGetParam(fun, 0);
-  base = LLVMBuildBitCast(c->builder, base, c->void_ptr, "");
-  len = LLVMGetParam(fun, 1);
-
-  LLVMValueRef with = LLVMGetParam(fun, 2);
-  with = LLVMBuildBitCast(c->builder, with, c->void_ptr, "");
-  LLVMValueRef withlen = LLVMGetParam(fun, 3);
-
-  LLVMValueRef total_len = LLVMBuildAdd(c->builder, len, withlen, "");
-  args[0] = LLVMBuildMul(c->builder, total_len, l_size, "");
-
-  result = gencall_runtime(c, "pony_alloc", args, 1, "");
-
-  args[0] = result;
-  args[1] = base;
-  args[2] = len;
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  offset = LLVMBuildPtrToInt(c->builder, result, c->i64, "");
-  offset = LLVMBuildAdd(c->builder, offset, len, "");
-  offset = LLVMBuildIntToPtr(c->builder, offset, c->void_ptr, "");
-
-  args[0] = offset;
-  args[1] = with;
-  args[2] = withlen;
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-
-  // u64
-  name = genname_fun(g->type_name, "u64", NULL);
-
-  ftype = LLVMFunctionType(c->i64, &g->use_type, 1, false);
-  fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  ptr = LLVMGetParam(fun, 0);
-  result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
+  pointer_create(c, g, &elem_g);
+  pointer_null(c, g);
+  pointer_realloc(c, g, &elem_g);
+  pointer_apply(c, g, &elem_g);
+  pointer_update(c, g, &elem_g);
+  pointer_delete(c, g, &elem_g);
+  pointer_copy(c, g, &elem_g);
+  pointer_concat(c, g, &elem_g);
+  pointer_u64(c, g);
 
   return true;
 }

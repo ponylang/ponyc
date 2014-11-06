@@ -22,13 +22,13 @@ typedef struct pony_stat_t
   bool symlink;
 } pony_stat_t;
 
-void os_stat(const char* path, pony_stat_t* p)
+bool os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
   struct __stat64 st;
 
   if(_stat64(path, &st) != 0)
-    pony_throw();
+    return false;
 
   p->file = (st.st_mode & _S_IFREG) == _S_IFREG;
   p->directory = (st.st_mode & _S_IFDIR) == _S_IFDIR;
@@ -38,14 +38,14 @@ void os_stat(const char* path, pony_stat_t* p)
   struct stat st;
 
   if(lstat(path, &st) != 0)
-    pony_throw();
+    return false;
 
   p->symlink = S_ISLNK(st.st_mode) != 0;
 
   if(p->symlink)
   {
     if(stat(path, &st) != 0)
-      pony_throw();
+      return false;
   }
 
   p->file = S_ISREG(st.st_mode) != 0;
@@ -61,4 +61,6 @@ void os_stat(const char* path, pony_stat_t* p)
   p->access_time = st.st_atime;
   p->modified_time = st.st_mtime;
   p->change_time = st.st_ctime;
+
+  return true;
 }

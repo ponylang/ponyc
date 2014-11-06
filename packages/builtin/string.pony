@@ -25,96 +25,111 @@ class String val is Ordered[String], Hashable, Stringable
   new from_i8(x: I8, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_i64_in_place(x.i64(), base)
 
   new from_i16(x: I16, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_i64_in_place(x.i64(), base)
 
   new from_i32(x: I32, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_i64_in_place(x.i64(), base)
 
   new from_i64(x: I64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_i64_in_place(x, base)
 
   new from_i128(x: I128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_i128_in_place(x, base)
 
   new from_u8(x: U8, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_u64_in_place(x.u64(), base)
 
   new from_u16(x: U16, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_u64_in_place(x.u64(), base)
 
   new from_u32(x: U32, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_u64_in_place(x.u64(), base)
 
   new from_u64(x: U64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_u64_in_place(x, base)
 
   new from_u128(x: U128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_u128_in_place(x, base)
 
   new from_f32(x: F32) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_f64_in_place(x.f64())
 
   new from_f64(x: F64) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
     from_f64_in_place(x)
 
   new _empty() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8]._null()
+    _ptr = Pointer[U8].null()
 
-  new _reserve(size: U64) =>
+  new prealloc(size: U64) =>
     _size = size
     _alloc = size + 1
     _ptr = Pointer[U8]._create(_alloc)
     _ptr._update(size, 0)
 
+  fun box cstring(): Pointer[U8] tag => _ptr
+
   fun box length(): U64 => _size
 
-  fun box cstring(): Pointer[U8] box => _ptr
+  fun ref reserve(len: U64): String ref =>
+    if _alloc < len then
+      _alloc = len.max(8).next_pow2()
+      _ptr = _ptr._realloc(_alloc)
+    end
+    this
+
+  fun ref recalc(): String ref =>
+    _size = 0
+
+    while (_size < _alloc) and (_ptr._apply(_size) > 0) do
+      _size = _size + 1
+    end
+    this
 
   fun box apply(i: I64): U8 ? =>
-    var j = offset_to_index(i)
+    let j = offset_to_index(i)
     if j < _size then _ptr._apply(j) else error end
 
   fun ref update(i: I64, char: U8): U8 ? =>
-    var j = offset_to_index(i)
+    let j = offset_to_index(i)
 
     if j < _size then
       if char == 0 then
@@ -132,11 +147,11 @@ class String val is Ordered[String], Hashable, Stringable
 
   fun box clone(): String iso^ =>
     let len = _size
-    var str = recover String._reserve(len) end
+    let str = recover String.prealloc(len) end
     var i: U64 = 0
 
     while i < len do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
       str._set(i, c)
       i = i + 1
     end
@@ -160,7 +175,7 @@ class String val is Ordered[String], Hashable, Stringable
 
   fun box lower(): String iso^ =>
     let len = _size
-    var str = recover String._reserve(len) end
+    let str = recover String.prealloc(len) end
     var i: U64 = 0
 
     while i < len do
@@ -178,7 +193,7 @@ class String val is Ordered[String], Hashable, Stringable
 
   fun box upper(): String iso^ =>
     let len = _size
-    var str = recover String._reserve(len) end
+    let str = recover String.prealloc(len) end
     var i: U64 = 0
 
     while i < len do
@@ -196,11 +211,11 @@ class String val is Ordered[String], Hashable, Stringable
 
   fun box reverse(): String iso^ =>
     let len = _size
-    var str = recover String._reserve(len) end
+    let str = recover String.prealloc(len) end
     var i: U64 = 0
 
     while i < len do
-      var c = _ptr._apply(i)
+      let c = _ptr._apply(i)
       str._set(_size - i - 1, c)
       i = i + 1
     end
@@ -212,7 +227,7 @@ class String val is Ordered[String], Hashable, Stringable
     var j = _size - 1
 
     while i < j do
-      var x = _ptr._apply(i)
+      let x = _ptr._apply(i)
       _ptr._update(i, _ptr._apply(j))
       _ptr._update(j, x)
       i = i + 1
@@ -228,11 +243,11 @@ class String val is Ordered[String], Hashable, Stringable
 
     if (start < _size) and (start <= finish) then
       let len = (finish - start) + 1
-      str = recover String._reserve(len) end
+      str = recover String.prealloc(len) end
       var i = start
 
       while i <= finish do
-        var c = _ptr._apply(i)
+        let c = _ptr._apply(i)
         str._set(i - start, c)
         i = i + 1
       end
@@ -250,11 +265,11 @@ class String val is Ordered[String], Hashable, Stringable
 
     if (start < _size) and (start <= finish) and (finish < _size) then
       let len = _size - ((finish - start) + 1)
-      str = recover String._reserve(len) end
+      str = recover String.prealloc(len) end
       var i: U64 = 0
 
       while i < start do
-        var c = _ptr._apply(i)
+        let c = _ptr._apply(i)
         str._set(i, c)
         i = i + 1
       end
@@ -262,7 +277,7 @@ class String val is Ordered[String], Hashable, Stringable
       var j = finish + 1
 
       while j < _size do
-        var c = _ptr._apply(j)
+        let c = _ptr._apply(j)
         str._set(start + (j - (finish + 1)), c)
         j = j + 1
       end
@@ -311,7 +326,7 @@ class String val is Ordered[String], Hashable, Stringable
     let ptr = _ptr._concat(_size, that._ptr, that._size + 1)
 
     recover
-      var str = String._empty()
+      let str = String._empty()
       str._size = len
       str._alloc = len + 1
       str._ptr = consume ptr
@@ -446,15 +461,15 @@ class String val is Ordered[String], Hashable, Stringable
       _alloc = 32
       _ptr = _ptr._realloc(32)
 
-      var table = _int_table()
+      let table = _int_table()
       var value = x
-      var div = base.i64()
+      let div = base.i64()
       var i: U64 = 0
 
       repeat
-        var tmp = value
+        let tmp = value
         value = value / div
-        var index = (tmp - (value * div)).u64()
+        let index = (tmp - (value * div)).u64()
         _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
@@ -481,15 +496,15 @@ class String val is Ordered[String], Hashable, Stringable
       _alloc = 32
       _ptr = _ptr._realloc(32)
 
-      var table = _int_table()
+      let table = _int_table()
       var value = x
-      var div = base.u64()
+      let div = base.u64()
       var i: U64 = 0
 
       repeat
-        var tmp = value
+        let tmp = value
         value = value / div
-        var index = tmp - (value * div)
+        let index = tmp - (value * div)
         _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
@@ -511,15 +526,15 @@ class String val is Ordered[String], Hashable, Stringable
       _alloc = 64
       _ptr = _ptr._realloc(64)
 
-      var table = _int_table()
+      let table = _int_table()
       var value = x
-      var div = base.i128()
+      let div = base.i128()
       var i: U64 = 0
 
       repeat
-        var tmp = value
+        let tmp = value
         value = value / div
-        var index = (tmp - (value * div)).u64()
+        let index = (tmp - (value * div)).u64()
         _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
@@ -546,15 +561,15 @@ class String val is Ordered[String], Hashable, Stringable
       _alloc = 64
       _ptr = _ptr._realloc(64)
 
-      var table = _int_table()
+      let table = _int_table()
       var value = x
-      var div = base.u128()
+      let div = base.u128()
       var i: U64 = 0
 
       repeat
-        var tmp = value
+        let tmp = value
         value = value / div
-        var index = (tmp - (value * div)).u64()
+        let index = (tmp - (value * div)).u64()
         _ptr._update(i, table._ptr._apply(index + 35))
         i = i + 1
       until value == 0 end
@@ -578,11 +593,11 @@ class String val is Ordered[String], Hashable, Stringable
   fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
   fun box string(): String =>
-    var len = _size
-    var ptr = _ptr._concat(_size + 1, Pointer[U8]._null(), 0)
+    let len = _size
+    let ptr = _ptr._concat(_size + 1, Pointer[U8].null(), 0)
 
     recover
-      var str = String._empty()
+      let str = String._empty()
       str._size = len
       str._alloc = len + 1
       str._ptr = consume ptr

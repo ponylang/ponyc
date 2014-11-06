@@ -1,3 +1,3 @@
-trait Iterator[A]
-  fun box has_next(): Bool
+interface Iterator[A]
+  fun ref has_next(): Bool
   fun ref next(): A ?

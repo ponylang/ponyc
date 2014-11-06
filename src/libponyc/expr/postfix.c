@@ -183,7 +183,7 @@ static bool expr_tupleaccess(ast_t* ast)
 
 static bool expr_memberaccess(ast_t* ast)
 {
-  // left is a postfix expression, right is an id
+  // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
@@ -522,7 +522,6 @@ bool expr_call(ast_t* ast)
 
           token_id rcap = cap_for_type(r_type);
           token_id fcap = ast_id(cap);
-          ast_free_unattached(r_type);
 
           if(!is_cap_sub_cap(rcap, fcap))
           {
@@ -544,9 +543,11 @@ bool expr_call(ast_t* ast)
               }
             }
 
+            ast_free_unattached(r_type);
             return false;
           }
 
+          ast_free_unattached(r_type);
           break;
         }
 

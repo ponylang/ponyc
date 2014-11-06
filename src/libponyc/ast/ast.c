@@ -1042,6 +1042,7 @@ void ast_free(ast_t* ast)
 
   token_free(ast->t);
   symtab_free(ast->symtab);
+  free(ast);
 }
 
 void ast_free_unattached(ast_t* ast)

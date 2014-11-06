@@ -1,5 +1,5 @@
 // Produces (max, min]
-class Reverse[A: (Real[A] & Number) = U64] is Iterator[A]
+class Reverse[A: (Real[A] box & Number) = U64] is Iterator[A]
   let _min: A
   let _max: A
   let _dec: A

@@ -159,13 +159,6 @@ primitive U128 is Integer[U128]
   fun box ctz(): U128 => @llvm.cttz.i128[U128](this, false)
   fun box width(): U128 => 128
 
-  fun box addc(y: U128): (U128, Bool) =>
-    @llvm.uadd.with.overflow.i128[(U128, Bool)](this, y)
-  fun box subc(y: U128): (U128, Bool) =>
-    @llvm.usub.with.overflow.i128[(U128, Bool)](this, y)
-  fun box mulc(y: U128): (U128, Bool) =>
-    @llvm.umul.with.overflow.i128[(U128, Bool)](this, y)
-
   fun box string(): String iso^ => recover String.from_u128(this, 10) end
 
   fun box divmod(y: U128): (U128, U128) =>
@@ -174,7 +167,7 @@ primitive U128 is Integer[U128]
     else
       if y == 0 then
         // TODO: returning (0, 0) causes a codegen error
-        var qr: (U128, U128) = (0, 0)
+        let qr: (U128, U128) = (0, 0)
         return qr
       end
 
@@ -204,7 +197,7 @@ primitive U128 is Integer[U128]
     if Platform.has_i128() then
       this / y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       q
     end
 
@@ -212,15 +205,15 @@ primitive U128 is Integer[U128]
     if Platform.has_i128() then
       this % y
     else
-      var (q, r) = divmod(y)
+      let (q, r) = divmod(y)
       r
     end
 
   fun box f32(): F32 => this.f64().f32()
 
   fun box f64(): F64 =>
-    var low = this.u64()
-    var high = (this >> 64).u64()
-    var x = low.f64()
-    var y = high.f64() * (U128(1) << 64).f64()
+    let low = this.u64()
+    let high = (this >> 64).u64()
+    let x = low.f64()
+    let y = high.f64() * (U128(1) << 64).f64()
     x + y

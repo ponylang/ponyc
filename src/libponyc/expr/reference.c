@@ -77,7 +77,7 @@ static bool valid_reference(ast_t* ast, sym_status_t status)
       if(is_assigned_to(ast))
         return true;
 
-      ast_error(ast, "can't use an undefined local in an expression");
+      ast_error(ast, "can't use an undefined variable in an expression");
       return false;
 
     default: {}
@@ -120,7 +120,7 @@ bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
   ast_t* type = ast_childidx(find, 1);
   ast_settype(find, type);
 
-  // viewpoint adapted type of the field
+  // Viewpoint adapted type of the field.
   ast_t* ftype = viewpoint(left, find);
 
   if(ftype == NULL)
@@ -236,9 +236,20 @@ bool expr_reference(ast_t* ast)
     }
 
     case TK_INTERFACE:
+    {
+      ast_error(ast, "can't use an interface in an expression");
+      return false;
+    }
+
     case TK_TRAIT:
     {
       ast_error(ast, "can't use a trait in an expression");
+      return false;
+    }
+
+    case TK_TYPE:
+    {
+      ast_error(ast, "can't use a type alias in an expression");
       return false;
     }
 
@@ -268,10 +279,10 @@ bool expr_reference(ast_t* ast)
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
-      ast_free(ast);
 
       ast_t* self = ast_from(ast, TK_THIS);
       ast_add(dot, self);
+      ast_free(ast);
 
       if(!expr_this(self))
         return false;
@@ -385,7 +396,10 @@ bool expr_local(ast_t* ast)
   ast_t* idseq = ast_child(ast);
   ast_settype(ast, ast_type(idseq));
 
-  if((ast_id(ast) == TK_LET) && (ast_id(ast_parent(ast)) != TK_ASSIGN))
+  if((ast_id(ast) == TK_LET) &&
+    (ast_id(ast_parent(ast)) != TK_ASSIGN) &&
+    (ast_enclosing_pattern(ast) == NULL)
+    )
   {
     ast_error(ast, "can't declare a let local without assigning to it");
     return false;

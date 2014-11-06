@@ -92,23 +92,40 @@ static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
   return type;
 }
 
-static ast_t* viewpoint_for_type(token_id view, ast_t* type, int cap_index)
+static ast_t* viewpoint_for_type(token_id view, token_id eph, ast_t* type,
+  int cap_index)
 {
   ast_t* cap = ast_childidx(type, cap_index);
   token_id tcap = ast_id(cap);
   token_id rcap = cap_viewpoint(view, tcap);
 
-  if(tcap != rcap)
+  if((tcap != rcap) || (eph == TK_HAT))
   {
     type = ast_dup(type);
     cap = ast_childidx(type, cap_index);
     ast_setid(cap, rcap);
+
+    if(eph == TK_HAT && is_cap_sub_cap(view, TK_TRN))
+    {
+      // If we're adapting from an ephemeral type, make this type ephemeral.
+      // iso^->iso = iso^, previous views were iso, alias(iso^) ~ alias(iso)
+      // iso^->trn = trn^, previous views were tag, alias(trn^) ~ alias(tag)
+      // trn^->iso = iso^, previous views were iso, alias(iso^) ~ alias(iso)
+      // trn^->trn = trn^, previous views were trn, alias(trn^) ~ alias(trn)
+      // alias(iso)->x isn't alllowed
+      // alias(trn)->x = box->x
+      // alias(iso^) ~ alias(box->iso)
+      // alias(trn^) ~ alias(box->trn)
+      // Doesn't work for ref, isn't needed for val, box or tag.
+      ast_t* ephemeral = ast_sibling(cap);
+      ast_setid(ephemeral, eph);
+    }
   }
 
   return type;
 }
 
-static ast_t* viewpoint_cap(token_id cap, ast_t* type)
+static ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type)
 {
   if(cap == TK_TAG)
     return NULL;
@@ -119,13 +136,13 @@ static ast_t* viewpoint_cap(token_id cap, ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // adapt all elements
+      // Adapt all elements.
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* child = ast_child(type);
 
       while(child != NULL)
       {
-        ast_append(r_type, viewpoint_cap(cap, child));
+        ast_append(r_type, viewpoint_cap(cap, eph, child));
         child = ast_sibling(child);
       }
 
@@ -133,10 +150,10 @@ static ast_t* viewpoint_cap(token_id cap, ast_t* type)
     }
 
     case TK_NOMINAL:
-      return viewpoint_for_type(cap, type, 3);
+      return viewpoint_for_type(cap, eph, type, 3);
 
     case TK_TYPEPARAMREF:
-      return viewpoint_for_type(cap, type, 1);
+      return viewpoint_for_type(cap, eph, type, 1);
 
     default: {}
   }
@@ -173,8 +190,8 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       if(ast_id(r_type) == TK_ARROW)
         return make_arrow_type(l_type, r_type);
 
-      token_id cap = ast_id(ast_childidx(l_type, 3));
-      return viewpoint_cap(cap, r_type);
+      AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
+      return viewpoint_cap(ast_id(cap), ast_id(eph), r_type);
     }
 
     case TK_TYPEPARAMREF:
@@ -182,30 +199,24 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       if(ast_id(r_type) == TK_ARROW)
         return make_arrow_type(l_type, r_type);
 
-      token_id cap = ast_id(ast_childidx(l_type, 1));
+      // If the left side is a type parameter, return an arrow type if the
+      // capability is box, otherwise adapt the type.
+      AST_GET_CHILDREN(l_type, id, cap, eph);
+      token_id tcap = ast_id(cap);
 
-      // if the left side is a type parameter with no capability, return an
-      // arrow type if the constraint is box, otherwise use the constraint cap.
-      if(cap == TK_NONE)
-      {
-        ast_t* def = (ast_t*)ast_data(l_type);
-        ast_t* constraint = ast_childidx(def, 1);
-        cap = cap_for_type(constraint);
+      if(tcap == TK_BOX)
+        return make_arrow_type(l_type, r_type);
 
-        if(cap == TK_BOX)
-          return make_arrow_type(l_type, r_type);
-      }
-
-      return viewpoint_cap(cap, r_type);
+      return viewpoint_cap(tcap, ast_id(eph), r_type);
     }
 
     case TK_ARROW:
     {
-      // a viewpoint type picks up another level of arrow type
+      // A viewpoint type picks up another level of arrow type.
       ast_t* ast = ast_dup(l_type);
       ast_t* child = ast_childidx(ast, 1);
 
-      // arrow is right associative
+      // Arrow is right associative.
       while(ast_id(child) == TK_ARROW)
         child = ast_childidx(child, 1);
 
@@ -234,7 +245,7 @@ ast_t* viewpoint_upper(ast_t* type)
   {
     ast_t* right = ast_childidx(type, 1);
     ast_t* r_right = viewpoint_upper(right);
-    return viewpoint_cap(TK_BOX, r_right);
+    return viewpoint_cap(TK_BOX, TK_NONE, r_right);
   }
 
   return type;
@@ -402,6 +413,17 @@ bool safe_to_write(ast_t* ast, ast_t* type)
           return true;
         }
 
+        case TK_ARROW:
+        {
+          ast_t* upper = viewpoint_upper(type);
+          bool ok = safe_to_write(ast, upper);
+
+          if(upper != type)
+            ast_free_unattached(upper);
+
+          return ok;
+        }
+
         case TK_NUMBERLITERAL:
         case TK_INTLITERAL:
         case TK_FLOATLITERAL:
@@ -409,8 +431,9 @@ bool safe_to_write(ast_t* ast, ast_t* type)
 
         case TK_NOMINAL:
         case TK_TYPEPARAMREF:
-        case TK_ARROW:
         {
+          // TODO: if the field (without adaptation) is safe, then it's ok as
+          // well. So iso.tag = ref should be allowed.
           // If left is x.f, we need the type of x to determine safe to write.
           ast_t* left = ast_child(ast);
           ast_t* l_type = ast_type(left);

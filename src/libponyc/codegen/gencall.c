@@ -1,5 +1,6 @@
 #include "gencall.h"
 #include "genoperator.h"
+#include "genreference.h"
 #include "gentype.h"
 #include "genexpr.h"
 #include "gendesc.h"
@@ -10,6 +11,7 @@
 #include "../type/cap.h"
 #include "../ds/stringtab.h"
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
@@ -386,7 +388,6 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
 LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args);
-  ast_t* decl = ast_get(ast, ast_name(id), NULL);
 
   // Get the function name, +1 to skip leading @
   const char* f_name = ast_name(id) + 1;
@@ -425,43 +426,18 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         arg = ast_sibling(arg);
       }
 
-      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count, false);
-      func = LLVMAddFunction(c->module, f_name, f_type);
-    } else if(decl == NULL) {
-      // No declaration, so make it varargs.
-      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
-      func = LLVMAddFunction(c->module, f_name, f_type);
-    } else {
-      // Use the declaration.
-      AST_GET_CHILDREN(decl, decl_id, decl_typeargs, decl_params);
-      int count = (int)ast_childcount(decl_params);
-      VLA(LLVMTypeRef, f_params, count);
+      // We may have generated the function by generating a parameter type.
+      func = LLVMGetNamedFunction(c->module, f_name);
 
-      count = 0;
-      bool vararg = false;
-
-      ast_t* decl_param = ast_child(decl_params);
-
-      while(decl_param != NULL)
+      if(func == NULL)
       {
-        if(ast_id(decl_param) == TK_ELLIPSIS)
-        {
-          vararg = true;
-        } else {
-          ast_t* p_type = ast_type(decl_param);
-          gentype_t param_g;
-
-          if(!gentype(c, p_type, &param_g))
-            return NULL;
-
-          f_params[count++] = param_g.use_type;
-        }
-
-        decl_param = ast_sibling(decl_param);
+        LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count,
+          false);
+        func = LLVMAddFunction(c->module, f_name, f_type);
       }
-
-      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, f_params, count,
-        vararg);
+    } else {
+      // Make it varargs.
+      LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
       func = LLVMAddFunction(c->module, f_name, f_type);
     }
   }
@@ -477,6 +453,30 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
     if(f_args[i] == NULL)
       return NULL;
+
+    // Check if the argument is a reference to a tuple.
+    ast_t* last = ast_childlast(arg);
+    ast_t* arg_type = ast_type(last);
+
+    if(ast_id(arg_type) == TK_TUPLETYPE)
+    {
+      switch(ast_id(last))
+      {
+        case TK_FVARREF:
+        case TK_FLETREF:
+          // Pass a pointer to the tuple instead of the value.
+          f_args[i] = gen_fieldptr(c, last);
+          break;
+
+        case TK_VARREF:
+        case TK_LETREF:
+          // Pass a pointer to the tuple instead of the value.
+          f_args[i] = gen_localptr(c, last);
+          break;
+
+        default: {}
+      }
+    }
 
     arg = ast_sibling(arg);
   }

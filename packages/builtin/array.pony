@@ -6,25 +6,26 @@ class Array[A]
   new create() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[A]._null()
-
-  new init(with: A, len: U64) =>
-    _size = len
-    _alloc = len
-    _ptr = Pointer[A]._create(len)
-
-    var i: U64 = 0
-
-    while i < len do
-      _ptr._update(i, with)
-      i = i + 1
-    end
+    _ptr = Pointer[A].null()
 
   //Put this in once we have codegen for polymorphic methods.
-  //new undefined[B: (A & Real[B] & Number)](len: U64) =>
+  //new init[B: (A & Any box)](with: B, len: U64) =>
   //  _size = len
   //  _alloc = len
   //  _ptr = Pointer[A]._create(len)
+  //
+  //  var i: U64 = 0
+  //
+  //  while i < len do
+  //    _ptr._update(i, with)
+  //    i = i + 1
+  //  end
+
+  //Put this in once we have codegen for polymorphic methods.
+  new undefined/*[B: (A & Real[B] & Number)]*/(len: U64) =>
+    _size = len
+    _alloc = len
+    _ptr = Pointer[A]._create(len)
 
   new from_carray(ptr: Pointer[A] ref, len: U64) =>
     _size = len
@@ -37,9 +38,16 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
+  fun box carray(): Pointer[A] tag => _ptr
+
   fun box length(): U64 => _size
 
-  fun box carray(): Pointer[A] box => _ptr
+  fun ref reserve(len: U64): Array[A] =>
+    if _alloc < len then
+      _alloc = len.max(8).next_pow2()
+      _ptr = _ptr._realloc(_alloc)
+    end
+    this
 
   fun box apply(i: U64): this->A ? =>
     if i < _size then
@@ -50,44 +58,40 @@ class Array[A]
 
   fun ref update(i: U64, v: A): A^ ? =>
     if i < _size then
-      _ptr._update(i, v)
+      _ptr._update(i, consume v)
     else
       error
     end
 
   fun ref delete(i: U64): A^ ? =>
     if i < _size then
-      let deleted = _ptr._apply(i)
-      var n = i + 1
-
-      while n < _size do
-        _ptr._update(n - 1, _ptr._apply(n))
-        n = n + 1
-      end
-
       _size = _size - 1
-      consume deleted
+      _ptr._delete(i, _size - i)
     else
       error
     end
 
-  fun ref reserve(len: U64): Array[A] =>
-    if _alloc < len then
-      _alloc = len.max(8).next_pow2()
-      _ptr = _ptr._realloc(_alloc)
-    end
+  fun ref truncate(len: U64): Array[A] =>
+    _size = _size.min(len)
     this
 
-  fun ref clear() => _size = 0
+  fun ref clear(): Array[A] =>
+    _size = 0
+    this
 
   fun ref append(v: A): Array[A] =>
     reserve(_size + 1)
-    _ptr._update(_size, v)
+    _ptr._update(_size, consume v)
     _size = _size + 1
     this
 
-  fun ref concat(iter: Iterator[A] ref) =>
-    try for v in iter do append(v) end end
+  //Put this in once we have codegen for polymorphic methods.
+  //fun ref concat[B: (A & Any box)](iter: Iterator[B]) =>
+  //  try
+  //    for v in iter do
+  //      append(v)
+  //    end
+  //  end
 
   fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)
@@ -99,7 +103,7 @@ class Array[A]
     ArrayPairs[A, this->Array[A]](this)
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>
@@ -116,7 +120,7 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
     end
 
 class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>
@@ -128,7 +132,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun ref next(): B->A ? => _array(_i = _i + 1)
 
 class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
-  var _array: B
+  let _array: B
   var _i: U64
 
   new create(array: B) =>

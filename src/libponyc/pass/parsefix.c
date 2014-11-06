@@ -3,8 +3,8 @@
 #include "../pkg/package.h"
 #include "../type/assemble.h"
 #include "../ds/stringtab.h"
-#include <assert.h>
 #include <string.h>
+#include <assert.h>
 
 
 // Allow all code, just fixup tree
@@ -479,7 +479,9 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
   // Prefix '@' to the concatenated name.
   assert(idseq != NULL);
   ast_t* id = ast_child(idseq);
-  size_t len = 0;
+
+  // Space for @ and terminator.
+  size_t len = 2;
 
   while(id != NULL)
   {
@@ -489,8 +491,6 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
     id = ast_sibling(id);
   }
 
-  // Space for @ and terminator.
-  len += 2;
   VLA(char, new_name, len);
   new_name[0] = '@';
 

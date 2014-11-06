@@ -6,8 +6,10 @@ primitive F32 is Real[F32]
   new from_bits(i: U32) => compiler_intrinsic
   fun box bits(): U32 => compiler_intrinsic
 
-  fun box min(y: F32): F32 => @llvm.minnum.f32[F32](this, y)
-  fun box max(y: F32): F32 => @llvm.maxnum.f32[F32](this, y)
+  fun box min(y: F32): F32 => if this < y then this else y end
+    //@llvm.minnum.f32[F32](this, y)
+  fun box max(y: F32): F32 => if this > y then this else y end
+    //@llvm.maxnum.f32[F32](this, y)
 
   fun box abs(): F32 => @llvm.fabs.f32[F32](this)
   fun box ceil(): F32 => @llvm.ceil.f32[F32](this)
@@ -39,7 +41,13 @@ primitive F32 is Real[F32]
   fun box logb(): F32 => @logbf[F32](this)
 
   fun box pow(y: F32): F32 => @llvm.pow.f32[F32](this, y)
-  fun box powi(y: I32): F32 => @llvm.powi.f32[F32](this, y)
+  fun box powi(y: I32): F32 =>
+    if Platform.windows() then
+      pow(y.f32())
+    else
+      @llvm.powi.f32[F32](this, y)
+    end
+
   fun box sqrt(): F32 => @llvm.sqrt.f32[F32](this)
   fun box cbrt(): F32 => @cbrtf[F32](this)
   fun box exp(): F32 => @llvm.exp.f32[F32](this)
@@ -76,8 +84,10 @@ primitive F64 is Real[F64]
   new from_bits(i: U64) => compiler_intrinsic
   fun box bits(): U64 => compiler_intrinsic
 
-  fun box min(y: F64): F64 => @llvm.minnum.f64[F64](this, y)
-  fun box max(y: F64): F64 => @llvm.maxnum.f64[F64](this, y)
+  fun box min(y: F64): F64 => if this < y then this else y end
+    //@llvm.minnum.f64[F64](this, y)
+  fun box max(y: F64): F64 => if this > y then this else y end
+    //@llvm.maxnum.f64[F64](this, y)
 
   fun box abs(): F64 => @llvm.fabs.f64[F64](this)
   fun box ceil(): F64 => @llvm.ceil.f64[F64](this)
@@ -105,7 +115,13 @@ primitive F64 is Real[F64]
   fun box logb(): F64 => @logb[F64](this)
 
   fun box pow(y: F64): F64 => @llvm.pow.f64[F64](this, y)
-  fun box powi(y: I32): F64 => @llvm.powi.f64[F64](this, y)
+  fun box powi(y: I32): F64 =>
+    if Platform.windows() then
+      pow(y.f64())
+    else
+      @llvm.powi.f64[F64](this, y)
+    end
+
   fun box sqrt(): F64 => @llvm.sqrt.f64[F64](this)
   fun box cbrt(): F64 => @cbrt[F64](this)
   fun box exp(): F64 => @llvm.exp.f64[F64](this)
@@ -132,17 +148,17 @@ primitive F64 is Real[F64]
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 =>
-    var bit = bits()
-    var high = (bit >> 32).u32()
-    var ex = ((high and 0x7FF00000) >> 20) - 1023
+    let bit = bits()
+    let high = (bit >> 32).u32()
+    let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if ex < 0 then
       return I128(0)
     end
 
-    var s = ((high and 0x80000000) >> 31).i128()
+    let s = ((high and 0x80000000) >> 31).i128()
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).i128()
-    var ex' = ex.i128()
+    let ex' = ex.i128()
 
     if ex' > 52 then
       r = r << (ex' - 52)
@@ -153,16 +169,16 @@ primitive F64 is Real[F64]
     (r xor s) - s
 
   fun box u128(): U128 =>
-    var bit = bits()
-    var high = (bit >> 32).u32()
-    var ex = ((high and 0x7FF00000) >> 20) - 1023
+    let bit = bits()
+    let high = (bit >> 32).u32()
+    let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if (ex < 0) or ((high and 0x80000000) != 0) then
       return U128(0)
     end
 
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).u128()
-    var ex' = ex.u128()
+    let ex' = ex.u128()
 
     if ex' > 52 then
       r = r << (ex' - 52)

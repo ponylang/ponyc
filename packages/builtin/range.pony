@@ -1,5 +1,5 @@
 // Produces [min, max)
-class Range[A: (Real[A] & Number) = U64] is Iterator[A]
+class Range[A: (Real[A] box & Number) = U64] is Iterator[A]
   let _min: A
   let _max: A
   let _inc: A

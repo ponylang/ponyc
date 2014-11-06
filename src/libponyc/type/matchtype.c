@@ -42,10 +42,13 @@ static bool could_subtype_with_isect(ast_t* sub, ast_t* super)
 
 static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
 {
-  // Check the upper bounds of super.
-  ast_t* upper = viewpoint_upper(super);
-  bool ok = could_subtype(sub, upper);
-  ast_free_unattached(upper);
+  // Check the lower bounds of super.
+  ast_t* lower = viewpoint_lower(super);
+  bool ok = could_subtype(sub, lower);
+
+  if(lower != sub)
+    ast_free_unattached(lower);
+
   return ok;
 }
 
@@ -84,8 +87,12 @@ static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
       ast_t* t_sub = viewpoint_tag(sub);
       ast_t* t_super = viewpoint_tag(super);
       bool ok = is_subtype(t_super, t_sub);
-      ast_free_unattached(t_sub);
-      ast_free_unattached(t_super);
+
+      if(t_sub != sub)
+        ast_free_unattached(t_sub);
+
+      if(t_super != super)
+        ast_free_unattached(t_super);
 
       if(!ok)
         return false;
@@ -145,14 +152,8 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-    {
-      // With a concrete type, an alias of the subtype must be a subtype of
-      // the supertype.
-      ast_t* a_sub = alias(sub);
-      bool ok = is_subtype(a_sub, super);
-      ast_free_unattached(a_sub);
-      return ok;
-    }
+      // With a concrete type, the subtype must be a subtype of the supertype.
+      return is_subtype(sub, super);
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -259,26 +260,49 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
   // Check the upper bounds.
   ast_t* upper = viewpoint_upper(sub);
   bool ok = could_subtype(upper, super);
-  ast_free_unattached(upper);
+
+  if(upper != sub)
+    ast_free_unattached(upper);
+
   return ok;
 }
 
 static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 {
-  // If the supertype is a typeparam, we have to be a subtype.
-  if(ast_id(super) == TK_TYPEPARAMREF)
-    return is_subtype(sub, super);
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+    {
+      // If our constraint could be a subtype of super, all reifications could
+      // be a subtype of super.
+      ast_t* def = (ast_t*)ast_data(sub);
+      ast_t* constraint = ast_childidx(def, 1);
 
-  // Check our constraint.
-  ast_t* def = (ast_t*)ast_data(sub);
-  ast_t* constraint = ast_childidx(def, 1);
+      return could_subtype(constraint, super);
+    }
 
-  // Use the cap and ephemerality of the typeparam.
-  reify_cap_and_ephemeral(sub, &constraint);
-  bool ok = could_subtype(constraint, super);
-  ast_free_unattached(constraint);
+    case TK_UNIONTYPE:
+      return could_subtype_with_union(sub, super);
 
-  return ok;
+    case TK_ISECTTYPE:
+      return could_subtype_with_isect(sub, super);
+
+    case TK_TUPLETYPE:
+      // A type parameter can't be constrainted to a tuple.
+      return false;
+
+    case TK_ARROW:
+      return could_subtype_with_arrow(sub, super);
+
+    case TK_TYPEPARAMREF:
+      // If the supertype is a typeparam, we have to be a subtype.
+      return is_subtype(sub, super);
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }
 
 bool could_subtype(ast_t* sub, ast_t* super)

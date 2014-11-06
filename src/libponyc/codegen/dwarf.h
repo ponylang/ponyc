@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-void dwarf_module(compile_t*c, ast_t* ast);
+void dwarf_program(compile_t*c, ast_t* program);
 
 PONY_EXTERN_C_END
 

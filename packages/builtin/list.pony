@@ -3,7 +3,7 @@ class ListNode[A]
   var _next: (ListNode[A] | None)
 
   new create(item': A, next': (ListNode[A] | None)) =>
-    _item = item'
+    _item = consume item'
     _next = next'
 
   fun box item(): this->A => _item
@@ -15,7 +15,7 @@ class List[A]
 
   new create() => _head = None
 
-  fun ref push(a: A) => _head = ListNode[A](a, _head)
+  fun ref push(a: A) => _head = ListNode[A](consume a, _head)
 
   fun box values(): ListValues[A, this->ListNode[A]]^ =>
     ListValues[A, this->ListNode[A]](_head)
@@ -23,13 +23,13 @@ class List[A]
 class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
   var _next: (N | None)
 
-  new create(head: (N | None)) => _next = head
+  new create(head: (N | None)) => _next = consume head
 
   fun box has_next(): Bool => _next isnt None
 
   fun ref next(): N->A ? =>
     match _next
-    | var next': N =>
+    | let next': N =>
       _next = next'.next()
       next'.item()
     else

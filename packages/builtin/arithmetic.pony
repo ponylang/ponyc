@@ -1,4 +1,4 @@
-trait Arithmetic[A: Arithmetic[A]]
+trait Arithmetic[A: Arithmetic[A] box]
   fun box add(y: A): A
   fun box sub(y: A): A
   fun box mul(y: A): A
@@ -7,13 +7,13 @@ trait Arithmetic[A: Arithmetic[A]]
   fun box divmod(y: A): (A, A) => (this / y, this % y)
   fun box neg(): A
 
-trait Logical[A: Logical[A]]
+trait Logical[A: Logical[A] box]
   fun box and_(y: A): A
   fun box or_(y: A): A
   fun box xor_(y: A): A
   fun box not_(): A
 
-trait Bits[A: Bits[A]] is Logical[A]
+trait Bits[A: Bits[A] box] is Logical[A]
   fun box shl(y: A): A
   fun box shr(y: A): A
 
@@ -33,7 +33,7 @@ trait ArithmeticConvertible
   fun box f32(): F32 => compiler_intrinsic
   fun box f64(): F64 => compiler_intrinsic
 
-trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A],
+trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
   Hashable, Ordered[A]
   fun box add(y: A): A => compiler_intrinsic
   fun box sub(y: A): A => compiler_intrinsic
@@ -41,12 +41,12 @@ trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A],
   fun box div(y: A): A => compiler_intrinsic
   fun box mod(y: A): A => compiler_intrinsic
   fun box neg(): A => compiler_intrinsic
-  fun box eq(y: A box): Bool => compiler_intrinsic
-  fun box ne(y: A box): Bool => compiler_intrinsic
-  fun box lt(y: A box): Bool => compiler_intrinsic
-  fun box le(y: A box): Bool => compiler_intrinsic
-  fun box ge(y: A box): Bool => compiler_intrinsic
-  fun box gt(y: A box): Bool => compiler_intrinsic
+  fun box eq(y: A): Bool => compiler_intrinsic
+  fun box ne(y: A): Bool => compiler_intrinsic
+  fun box lt(y: A): Bool => compiler_intrinsic
+  fun box le(y: A): Bool => compiler_intrinsic
+  fun box ge(y: A): Bool => compiler_intrinsic
+  fun box gt(y: A): Bool => compiler_intrinsic
 
   fun box hash(): U64 =>
     var x = u64()
@@ -59,7 +59,7 @@ trait Real[A: Real[A]] is Stringable, ArithmeticConvertible, Arithmetic[A],
     x = x + (x << 31);
     x
 
-trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
+trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun box and_(y: A): A => compiler_intrinsic
   fun box or_(y: A): A => compiler_intrinsic
   fun box xor_(y: A): A => compiler_intrinsic
@@ -73,10 +73,6 @@ trait Integer[A: Integer[A]] is Real[A], Logical[A], Bits[A]
   fun box clz(): A
   fun box ctz(): A
   fun box width(): A
-
-  fun box addc(y: A): (A, Bool)
-  fun box subc(y: A): (A, Bool)
-  fun box mulc(y: A): (A, Bool)
 
 type Number is (Signed | Unsigned | Float)
 
