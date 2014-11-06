@@ -437,7 +437,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   codegen_main(c, &main_g, &env_g);
 
   if(c->symbols)
-    dwarf_program(c, package, main_def, &main_g);
+    dwarf_program(c, package);
 
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
