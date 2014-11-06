@@ -18,6 +18,7 @@
 enum
 {
   OPT_DEBUG,
+  OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
 
@@ -36,6 +37,7 @@ enum
 static opt_arg_t args[] =
 {
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
+  {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
 
@@ -61,6 +63,7 @@ static void usage()
     "\n"
     "Often needed options:\n"
     "  --debug, -d     Don't optimise the output.\n"
+    "  --strip, -s     Don't emit debug symbols.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
     "  --output, -o    Write output to this directory.\n"
@@ -153,6 +156,7 @@ int main(int argc, char* argv[])
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
   opt.release = true;
+  opt.symbols = true;
   opt.output = ".";
 
   ast_setwidth(get_width());
@@ -168,6 +172,7 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_DEBUG: opt.release = false; break;
+      case OPT_STRIP: opt.symbols = false; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
 
