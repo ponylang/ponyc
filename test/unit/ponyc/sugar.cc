@@ -104,7 +104,7 @@ TEST(SugarTest, ClassWithField)
 
 TEST(SugarTest, ClassWithInitialisedField)
 {
-  // Create constructor should be added if there are only initialsed fields
+  // Create constructor should be added if there are only initialised fields
   const char* short_form =
     "class Foo iso let m:U32 = 3";
 

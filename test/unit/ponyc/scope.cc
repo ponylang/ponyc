@@ -358,14 +358,14 @@ TEST_F(ScopeTest, ParentScopeNameClash)
 TEST_F(ScopeTest, SiblingScopeNoClash)
 {
   const char* tree =
-    "(package{scope}"
+    "(program{scope} (package{scope}"
     "  (module{scope}{def start}"
     "    (class{scope} (id Bar1) x x x"
     "      (members"
     "        (fun{scope} ref (id foo) x x x x x)))"
     "    (class{scope} (id Bar2) x x x"
     "      (members"
-    "        (fun{scope} ref (id foo) x x x x x)))))";
+    "        (fun{scope} ref (id foo) x x x x x))))))";
 
   DO(build(tree));
 
@@ -376,7 +376,7 @@ TEST_F(ScopeTest, SiblingScopeNoClash)
 TEST_F(ScopeTest, Package)
 {
   const char* tree =
-    "(program{scope} (package{scope}{def start} (module{scope})))";
+    "(program{scope} (package{scope} (module{scope}{def start})))";
 
   const char* builtin =
     "primitive U32";
@@ -388,7 +388,7 @@ TEST_F(ScopeTest, Package)
 
   ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
 
-  // Builtin types go in the package symbol table
+  // Builtin types go in the module symbol table
   symtab_t* package_symtab = ast_get_symtab(start);
   ASSERT_NE((void*)NULL, symtab_get(package_symtab, stringtab("U32"), NULL));
 }

@@ -1,3 +1,5 @@
+use "lib:rt" where linux
+
 primitive Time
   // Wall-clock adjusted system time.
   fun tag seconds(): I64 => @time[I64](U64(0))
