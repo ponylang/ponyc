@@ -567,6 +567,7 @@ DEF(class_def);
   OPT RULE("type parameters", typeparams);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   IF(TK_IS, RULE("provided types", types));
+  OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
   DONE();
 

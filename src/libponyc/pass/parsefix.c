@@ -657,6 +657,18 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
+static ast_result_t parse_fix_docstring(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, docstring, members);
+
+  // Move the docstring to the end
+  ast_append(ast, docstring);
+  ast_remove(docstring);
+
+  return AST_OK;
+}
+
+
 static ast_result_t parse_fix_nominal(ast_t* ast)
 {
   // If we didn't have a package, the first two children will be ID NONE
@@ -718,6 +730,11 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that fix up the tree
   switch(id)
   {
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+    case TK_TRAIT:
+    case TK_INTERFACE:  parse_fix_docstring(ast); break;
     case TK_NOMINAL:    return parse_fix_nominal(ast);
     case TK_ASSIGN:
     case TK_CALL:       return parse_fix_nodeorder(ast);

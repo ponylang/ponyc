@@ -38,7 +38,7 @@ TEST(ParseEntityTest, ActorMinimal)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (actor{scope} (id Foo) x x x members)\n"
+    "  (actor{scope} (id Foo) x x x members x)\n"
     ")))";
 
   DO(parse_test_good(src, expect));
@@ -68,8 +68,9 @@ TEST(ParseEntityTest, ActorMaximal)
     "      (fvar (id f4) (nominal x (id T4) x x x) 9)\n"
     "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
     "      (be{scope} x (id m2) x x x x (seq 2) x)\n"
-    "      (fun{scope} ref (id m3) x x x x (seq 3) x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m3) x x x x (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -81,7 +82,7 @@ TEST(ParseEntityTest, ActorCanBeCalledMain)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (actor{scope} (id Main) x x x members)\n"
+    "  (actor{scope} (id Main) x x x members x)\n"
     ")))";
 
   DO(parse_test_good(src, expect));
@@ -104,7 +105,7 @@ TEST(ParseEntityTest, ClassMinimal)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (class{scope} (id Foo) x x x members)\n"
+    "  (class{scope} (id Foo) x x x members x)\n"
     ")))";
 
   DO(parse_test_good(src, expect));
@@ -132,8 +133,9 @@ TEST(ParseEntityTest, ClassMaximal)
     "      (fvar (id f3) (nominal (id P3) (id T3) x x x) x)\n"
     "      (fvar (id f4) (nominal x (id T4) x x x) 9)\n"
     "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
-    "      (fun{scope} ref (id m2) x x x x (seq 2) x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m2) x x x x (seq 2) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -163,7 +165,7 @@ TEST(ParseEntityTest, PrimitiveMinimal)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (primitive{scope} (id Foo) x x x members)\n"
+    "  (primitive{scope} (id Foo) x x x members x)\n"
     ")))";
 
   DO(parse_test_good(src, expect));
@@ -183,8 +185,9 @@ TEST(ParseEntityTest, PrimitiveMaximal)
     "    (types (nominal x (id T) x x x))\n"
     "    (members\n"
     "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
-    "      (fun{scope} ref (id m3) x x x x (seq 3) x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m3) x x x x (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -230,7 +233,7 @@ TEST(ParseEntityTest, TraitMinimal)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (trait{scope} (id Foo) x x x members)\n"
+    "  (trait{scope} (id Foo) x x x members x)\n"
     ")))";
 
   DO(parse_test_good(src, expect));
@@ -250,8 +253,9 @@ TEST(ParseEntityTest, TraitMaximal)
     "    (types (nominal x (id T) x x x))\n"
     "    (members\n"
     "      (be{scope} x (id m1) x x x x (seq 1) x)\n"
-    "      (fun{scope} ref (id m2) x x x x (seq 2) x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m2) x x x x (seq 2) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -312,8 +316,9 @@ TEST(ParseEntityTest, FunctionMinimal)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (fun{scope} ref x x x x x (seq 3) x)\n"
-    ")))))";
+    "      (fun{scope} ref x x x x x (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -330,8 +335,9 @@ TEST(ParseEntityTest, FunctionMaximal)
     "      (fun{scope} ref (id m)\n"
     "        (typeparams (typeparam (id A) x x))\n"
     "        (params (param (id y) (nominal x (id U32) x x x) x))\n"
-    "        (nominal x (id I16) x x x) ? (seq 3) @)\n"
-    ")))))";
+    "        (nominal x (id I16) x x x) ? (seq 3) @))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -377,8 +383,9 @@ TEST(ParseEntityTest, TraitFunctionBodiesAreOptional)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (trait{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (fun{scope} ref (id m) x x x x x x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m) x x x x x x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -392,8 +399,9 @@ TEST(ParseEntityTest, InterfaceFunctionBodiesAreOptional)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (interface{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (fun{scope} ref (id m) x x x x x x)\n"
-    ")))))";
+    "      (fun{scope} ref (id m) x x x x x x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -449,8 +457,9 @@ TEST(ParseEntityTest, Behaviour)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (actor{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (be{scope} x (id m) x x x x (seq 3) x)\n"
-    ")))))";
+    "      (be{scope} x (id m) x x x x (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -504,8 +513,9 @@ TEST(ParseEntityTest, TraitBehaviourBodiesAreOptional)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (trait{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (be{scope} x (id m) x x x x x x)\n"
-    ")))))";
+    "      (be{scope} x (id m) x x x x x x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -537,8 +547,9 @@ TEST(ParseEntityTest, ConstructorMinimal)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (new{scope} x x x x x x (seq 3) x)\n"
-    ")))))";
+    "      (new{scope} x x x x x x (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -555,8 +566,9 @@ TEST(ParseEntityTest, ConstructorMaximal)
     "      (new{scope} x (id m)\n"
     "        (typeparams (typeparam (id A) x x))\n"
     "        (params (param (id y) (nominal x (id U32) x x x) x))\n"
-    "        x ? (seq 3) x)\n"
-    ")))))";
+    "        x ? (seq 3) x))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }
@@ -610,8 +622,9 @@ TEST(ParseEntityTest, ActorConstructorCanBeCCallable)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (actor{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (new{scope} x (id m) x x x x (seq 3) @)\n"
-    ")))))";
+    "      (new{scope} x (id m) x x x x (seq 3) @))\n"
+    "    x\n"
+    "))))";
 
   DO(parse_test_good(src, expect));
 }

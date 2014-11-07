@@ -1,6 +1,12 @@
 primitive Path
-  // Set the FileMode for a file or directory.
+  """
+  Operations on paths that do not require an open file or directory.
+  """
+
   fun tag chmod(path: String, mode: FileMode box): Bool =>
+    """
+    Set the FileMode for a file or directory.
+    """
     var m: U32 = 0
 
     if Platform.windows() then
@@ -29,20 +35,26 @@ primitive Path
       @chmod[I32](path.cstring(), m) == 0
     end
 
-  // Set the owner and group for a file or directory.
   fun tag chown(path: String, uid: U32, gid: U32): Bool =>
+    """
+    Set the owner and group for a file or directory.
+    """
     if Platform.windows() then
       false
     else
       @chown[I32](path.cstring(), uid, gid) == 0
     end
 
-  // Set the last access, modification times of a path to now.
   fun tag touch(path: String): Bool =>
+    """
+    Set the last access and modification times of a path to now.
+    """
     set_time(path, Time.now(), Time.now())
 
-  // Set the last access, modification times of a path to the given values.
   fun tag set_time(path: String, atime: (I64, I64), mtime: (I64, I64)): Bool =>
+    """
+    Set the last access and modification times of a path to the given values.
+    """
     if Platform.windows() then
       var tv: (I64, I64) = (atime._1, mtime._1)
       @_utime64[I32](path.cstring(), tv) == 0
@@ -52,24 +64,34 @@ primitive Path
       @utimes[I32](path.cstring(), tv) == 0
     end
 
-  // Determine if a byte is a path separator.
   fun tag is_sep(c: U8): Bool =>
+    """
+    Determine if a byte is a path separator.
+    """
     (c == '/') or (Platform.windows() and (c == '\\'))
 
-  // Return the path separator as a string.
   fun tag sep(): String =>
+    """
+    Return the path separator as a string.
+    """
     if Platform.windows() then "\\" else "/" end
 
-  // Determine if a byte is a list separator.
   fun tag is_list_sep(c: U8): Bool =>
+    """
+    Determine if a byte is a list separator.
+    """
     if Platform.windows() then c == ';' else c == ':' end
 
-  // Return the list separator as a string.
   fun tag list_sep(): String =>
+    """
+    Return the list separator as a string.
+    """
     if Platform.windows() then ";" else ":" end
 
-  // Return true if the path is an absolute path.
   fun tag is_abs(path: String): Bool =>
+    """
+    Return true if the path is an absolute path.
+    """
     try
       if Platform.windows() then
         var c = path(0)
@@ -82,9 +104,11 @@ primitive Path
       false
     end
 
-  // Join two paths together. If the next_path is absolute, simply return it.
-  // Paths have Path.clean() called on them before being returned.
   fun tag join(path: String, next_path: String): String =>
+    """
+    Join two paths together. If the next_path is absolute, simply return it.
+    Paths have Path.clean() called on them before being returned.
+    """
     if path.length() == 0 then
       clean(next_path)
     elseif next_path.length() == 0 then
@@ -108,9 +132,11 @@ primitive Path
     // TODO:
     path
 
-  // Returns the program's working directory. Setting the working directory is
-  // not supported, as it is not concurrency-safe.
   fun tag cwd(): String iso^ =>
+    """
+    Returns the program's working directory. Setting the working directory is
+    not supported, as it is not concurrency-safe.
+    """
     recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun tag abs(path: String): String =>
@@ -137,6 +163,10 @@ primitive Path
     path
 
   fun tag volume(path: String): String =>
+    """
+    On Windows, this returns the drive letter at the beginning of the path,
+    if there is one. Otherwise, this returns an empty string.
+    """
     if Platform.windows() then
       try
         var c = path(0)
@@ -155,8 +185,10 @@ primitive Path
     // TODO:
     path
 
-  // Returns true if the path exists. Returns false for a broken symlink.
   fun tag exists(path: String): Bool =>
+    """
+    Returns true if the path exists. Returns false for a broken symlink.
+    """
     try
       FileInfo(path)
       true
@@ -168,9 +200,11 @@ primitive Path
     // TODO:
     false
 
-  // Remove the file or directory. The directory contents will be removed as
-  // well, recursively. Symlinks will not be traversed.
   fun tag remove(path: String): Bool =>
+    """
+    Remove the file or directory. The directory contents will be removed as
+    well, recursively. Symlinks will be removed but not traversed.
+    """
     try
       var info = FileInfo(path)
 
@@ -201,12 +235,16 @@ primitive Path
       false
     end
 
-  // Rename a file or directory.
   fun tag rename(path: String, new_path: String): Bool =>
+    """
+    Rename a file or directory.
+    """
     @rename[I32](path.cstring(), new_path.cstring()) == 0
 
-  // Create a symlink to a file or directory.
   fun tag symlink(path: String, link_path: String): Bool =>
+    """
+    Create a symlink to a file or directory. Does nothing on Windows.
+    """
     if Platform.windows() then
       false
     else
