@@ -429,9 +429,9 @@ DEF(recover);
   SKIP(NULL, TK_END);
   DONE();
 
-// (NOT | CONSUME) term
+// (NOT | CONSUME | AMP) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_CONSUME);
+  TOKEN("prefix", TK_NOT, TK_CONSUME, TK_AMP);
   RULE("expression", term);
   DONE();
 

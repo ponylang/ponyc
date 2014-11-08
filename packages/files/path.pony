@@ -5,7 +5,8 @@ primitive Path
 
   fun tag chmod(path: String, mode: FileMode box): Bool =>
     """
-    Set the FileMode for a file or directory.
+    Set the FileMode for a path. On Windows, if any read flag is set, the path
+    is made readable, and if any write flag is set, the path is made writeable.
     """
     var m: U32 = 0
 
@@ -37,7 +38,7 @@ primitive Path
 
   fun tag chown(path: String, uid: U32, gid: U32): Bool =>
     """
-    Set the owner and group for a file or directory.
+    Set the owner and group for a path. Does nothing on Windows.
     """
     if Platform.windows() then
       false
@@ -140,6 +141,9 @@ primitive Path
     recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun tag abs(path: String): String =>
+    """
+    Returns a cleaned, absolute path.
+    """
     if is_abs(path) then
       clean(path)
     else
@@ -190,8 +194,7 @@ primitive Path
     Returns true if the path exists. Returns false for a broken symlink.
     """
     try
-      FileInfo(path)
-      true
+      not FileInfo(path).broken
     else
       false
     end

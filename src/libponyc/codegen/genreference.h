@@ -22,6 +22,8 @@ LLVMValueRef gen_localptr(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_localload(compile_t* c, ast_t* ast);
 
+LLVMValueRef gen_addressof(compile_t* c, ast_t* ast);
+
 LLVMValueRef gen_int(compile_t* c, ast_t* ast);
 
 LLVMValueRef gen_float(compile_t* c, ast_t* ast);

@@ -160,6 +160,25 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
   return LLVMBuildLoad(c->builder, local_ptr, "");
 }
 
+LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
+{
+  ast_t* expr = ast_child(ast);
+
+  switch(ast_id(expr))
+  {
+    case TK_VARREF:
+      return gen_localptr(c, expr);
+
+    case TK_FVARREF:
+      return gen_fieldptr(c, expr);
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
   // We may not be a concrete literal type here. Pick an appropriate concrete

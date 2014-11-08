@@ -122,6 +122,10 @@ bool expr_compiler_intrinsic(ast_t* ast)
   ast_t* body = ast_childidx(fun, 6);
   ast_t* child = ast_child(body);
 
+  // Allow a docstring before the compiler_instrinsic.
+  if(ast_id(child) == TK_STRING)
+    child = ast_sibling(child);
+
   if((child != ast) || (ast_sibling(child) != NULL))
   {
     ast_error(ast, "a compiler intrinsic must be the entire body");

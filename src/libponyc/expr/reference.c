@@ -94,7 +94,7 @@ bool expr_field(ast_t* ast)
 
   if(ast_id(init) != TK_NONE)
   {
-    // initialiser type must match declared type
+    // Initialiser type must match declared type.
     if(!coerce_literals(init, type, NULL))
       return false;
 
@@ -434,4 +434,51 @@ bool expr_idseq(ast_t* ast)
 
   ast_settype(ast, type);
   return type_for_idseq(ast, type);
+}
+
+bool expr_addressof(ast_t* ast)
+{
+  ast_t* expr = ast_child(ast);
+
+  switch(ast_id(expr))
+  {
+    case TK_FVARREF:
+    case TK_VARREF:
+      break;
+
+    case TK_FLETREF:
+    case TK_LETREF:
+      ast_error(ast, "can't take the address of a let local or let field");
+      return false;
+
+    default:
+      ast_error(ast, "can only take the address of a field or local variable");
+      return false;
+  }
+
+  // Check we're in an FFI call.
+  ast_t* seq = ast_parent(ast);
+  bool ok = false;
+
+  if(ast_id(seq) == TK_SEQ)
+  {
+    ast_t* positional = ast_parent(seq);
+
+    if(ast_id(positional) == TK_POSITIONALARGS)
+    {
+      ast_t* ffi = ast_parent(positional);
+      ok = (ast_id(ffi) == TK_FFICALL);
+    }
+  }
+
+  if(!ok)
+  {
+    ast_error(ast, "can only take the address of an FFI argument");
+    return false;
+  }
+
+  // Set the type to Pointer[ast_type(expr)].
+  ast_t* type = type_pointer_to(ast_type(expr));
+  ast_settype(ast, type);
+  return true;
 }

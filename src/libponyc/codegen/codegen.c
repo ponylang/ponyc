@@ -802,6 +802,7 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeAllTargets();
   LLVMInitializeAllTargetMCs();
   LLVMInitializeAllAsmPrinters();
+  LLVMInitializeAllAsmParsers();
   LLVMEnablePrettyStackTrace();
   LLVMInstallFatalErrorHandler(codegen_fatal);
 

@@ -468,30 +468,6 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     if(f_args[i] == NULL)
       return NULL;
 
-    // Check if the argument is a reference to a tuple.
-    ast_t* last = ast_childlast(arg);
-    ast_t* arg_type = ast_type(last);
-
-    if(ast_id(arg_type) == TK_TUPLETYPE)
-    {
-      switch(ast_id(last))
-      {
-        case TK_FVARREF:
-        case TK_FLETREF:
-          // Pass a pointer to the tuple instead of the value.
-          f_args[i] = gen_fieldptr(c, last);
-          break;
-
-        case TK_VARREF:
-        case TK_LETREF:
-          // Pass a pointer to the tuple instead of the value.
-          f_args[i] = gen_localptr(c, last);
-          break;
-
-        default: {}
-      }
-    }
-
     arg = ast_sibling(arg);
   }
 

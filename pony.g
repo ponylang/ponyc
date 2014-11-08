@@ -164,7 +164,7 @@ atom
   |  '(' positional ')' // tuple
   |  '[' positional? named? ']' // array
   |  '{' ('is' types)? members '}' // object
-  |  '@' ID type_args? '(' positional? ')' '?'? // ffi
+  |  '@' ID ('.' ID)* type_args? '(' positional? ')' '?'? // ffi
   ;
 
 idseq
@@ -189,7 +189,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume'
+  :  'not' | '-' | 'consume' | '&'
   ;
 
 binop
