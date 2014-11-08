@@ -5,6 +5,10 @@ class FileInfo val
 
   The UID and GID are UNIX-style user and group IDs. These will be zero on
   Windows. The change_time will actually be the file creation time on Windows.
+
+  A symlink will report information about itself, other than the size which
+  will be the size of the target. A broken symlink will report as much as it
+  can and will set the broken flag.
   """
   let path: String
 
@@ -21,8 +25,12 @@ class FileInfo val
   let directory: Bool = false
   let pipe: Bool = false
   let symlink: Bool = false
+  let broken: Bool = false
 
   new create(from: String) ? =>
+    """
+    This will raise an error if the path doesn't exist.
+    """
     path = from
 
     if not @os_stat[Bool](from.cstring(), this) then

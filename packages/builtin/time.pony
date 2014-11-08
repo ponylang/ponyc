@@ -1,11 +1,20 @@
 use "lib:rt" where linux
 
 primitive Time
-  // Wall-clock adjusted system time.
-  fun tag seconds(): I64 => @time[I64](U64(0))
+  """
+  A collection of ways to the current time.
+  """
 
-  // Wall-clock adjusted system time with nanoseconds.
+  fun tag seconds(): I64 =>
+    """
+    The wall-clock adjusted system time.
+    """
+    @time[I64](U64(0))
+
   fun tag now(): (I64, I64) =>
+    """
+    The wall-clock adjusted system time with nanoseconds.
+    """
     if Platform.osx() then
       var ts: (I64, I64) = (0, 0)
       @gettimeofday[I32](ts, U64(0))
@@ -26,8 +35,10 @@ primitive Time
       (I64(0), I64(0))
     end
 
-  // Monotonic unadjusted nanoseconds.
   fun tag nanos(): U64 =>
+    """
+    Monotonic unadjusted nanoseconds.
+    """
     if Platform.osx() then
       @mach_absolute_time[U64]()
     elseif Platform.linux() then
@@ -46,5 +57,9 @@ primitive Time
       U64(0)
     end
 
-  // Processor cycle count.
-  fun tag cycles(): U64 => @llvm.readcyclecounter[U64]()
+  fun tag cycles(): U64 =>
+    """
+    Processor cycle count. Don't use this for performance timing, as it does
+    not control for out-of-order execution.
+    """
+    @llvm.readcyclecounter[U64]()

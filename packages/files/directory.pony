@@ -1,13 +1,18 @@
 class Directory val
   """
-  TODO: on Windows this can find all the hard links to a file.
+  The entries will include everything in the directory. The path for the entry
+  will be relative to the directory, so it will contain no directory separators.
+  The entries will not include "." or "..".
   """
   let path: String
-  let files: Array[String] val
+  let entries: Array[String] val
 
   new create(from: String) ? =>
+    """
+    This will raise an error if the path doesn't exist or it is not a directory.
+    """
     path = from
-    files = recover
+    entries = recover
       let list = Array[String]
 
       @os_opendir[None](from.cstring()) ?

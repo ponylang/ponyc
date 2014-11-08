@@ -211,8 +211,8 @@ primitive Path
       if info.directory and not info.symlink then
         var directory = Directory(path)
 
-        for file in directory.files.values() do
-          if not remove(join(path, file)) then
+        for entry in directory.entries.values() do
+          if not remove(join(path, entry)) then
             return false
           end
         end
@@ -241,14 +241,14 @@ primitive Path
     """
     @rename[I32](path.cstring(), new_path.cstring()) == 0
 
-  fun tag symlink(path: String, link_path: String): Bool =>
+  fun tag symlink(target: String, link_name: String): Bool =>
     """
-    Create a symlink to a file or directory. Does nothing on Windows.
+    Create a symlink to a file or directory.
     """
     if Platform.windows() then
-      false
+      @CreateSymbolicLink[I32](link_name.cstring(), target.cstring()) != 0
     else
-      @symlink[I32](path.cstring(), link_path.cstring()) == 0
+      @symlink[I32](target.cstring(), link_name.cstring()) == 0
     end
 
   fun tag readlink(path: String): String =>
