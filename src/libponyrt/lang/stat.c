@@ -45,6 +45,16 @@ typedef struct pony_stat_t
 
 PONY_EXTERN_C_BEGIN
 
+#ifdef PLATFORM_IS_WINDOWS
+void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
+{
+  int64_t epoch = ((int64_t)ft->dwHighDateTime << 32) | ft->dwLowDateTime;
+  epoch -= 116444736000000000;
+  *s = epoch / 10000000;
+  *ns = (epoch - (*s * 10000000)) * 100
+}
+#endif
+
 bool os_stat(const char* path, pony_stat_t* p)
 {
 #if defined(PLATFORM_IS_WINDOWS)
@@ -53,10 +63,13 @@ bool os_stat(const char* path, pony_stat_t* p)
   if(_stat64(path, &st) != 0)
     return false;
 
+  WIN32_FILE_ATTRIBUTE_DATA fa;
+  GetFileAttributesEx(path, GetFileExInfoStandard, &fa);
+
   p->file = (st.st_mode & _S_IFREG) == _S_IFREG;
-  p->directory = (st.st_mode & _S_IFDIR) == _S_IFDIR;
+  p->directory = (fa.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
   p->pipe = (st.st_mode & _S_IFIFO) == _S_IFIFO;
-  p->symlink = false;
+  p->symlink = (fa.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 
   p->mode->setuid = false;
   p->mode->setgid = false;
@@ -73,6 +86,11 @@ bool os_stat(const char* path, pony_stat_t* p)
   p->mode->any_read = (st.st_mode & _S_IREAD) == _S_IREAD;
   p->mode->any_write = (st.st_mode & _S_IWRITE) == _S_IWRITE;
   p->mode->any_exec = (st.st_mode & _S_IEXEC) == _S_IEXEC;
+
+  filetime_to_ts(&fa.ftLastAccessTime, &p->access_time, &p->access_time_nsec);
+  filetime_to_ts(&fa.ftLastWriteTime, &p->modified_time,
+    &p->modified_time_nsec);
+  filetime_to_ts(&fa.ftCreationTime, &p->change_time, &p->change_time_nsec);
 #elif defined(PLATFORM_IS_POSIX_BASED)
   struct stat st;
 
@@ -106,12 +124,7 @@ bool os_stat(const char* path, pony_stat_t* p)
   p->mode->any_read = (st.st_mode & S_IROTH) != 0;
   p->mode->any_write = (st.st_mode & S_IWOTH) != 0;
   p->mode->any_exec = (st.st_mode & S_IXOTH) != 0;
-#endif
 
-  p->hard_links = (uint32_t)st.st_nlink;
-  p->uid = st.st_uid;
-  p->gid = st.st_gid;
-  p->size = st.st_size;
   p->access_time = st.st_atime;
   p->modified_time = st.st_mtime;
   p->change_time = st.st_ctime;
@@ -124,11 +137,14 @@ bool os_stat(const char* path, pony_stat_t* p)
   p->access_time_nsec = st.st_atimespec.tv_nsec;
   p->modified_time_nsec = st.st_mtimespec.tv_nsec;
   p->change_time_nsec = st.st_ctimespec.tv_nsec;
-#elif defined(PLATFORM_IS_WINDOWS)
-  p->access_time_nsec = 0;
-  p->modified_time_nsec = 0;
-  p->change_time_nsec = 0;
 #endif
+
+#endif
+
+  p->hard_links = (uint32_t)st.st_nlink;
+  p->uid = st.st_uid;
+  p->gid = st.st_gid;
+  p->size = st.st_size;
 
   return true;
 }

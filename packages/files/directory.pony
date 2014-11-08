@@ -1,4 +1,7 @@
 class Directory val
+  """
+  TODO: on Windows this can find all the hard links to a file.
+  """
   let path: String
   let files: Array[String] val
 

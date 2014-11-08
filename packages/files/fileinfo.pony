@@ -1,18 +1,11 @@
-class FileMode
-  var setuid: Bool = false
-  var setgid: Bool = false
-  var sticky: Bool = false
-  var owner_read: Bool = false
-  var owner_write: Bool = false
-  var owner_exec: Bool = false
-  var group_read: Bool = false
-  var group_write: Bool = false
-  var group_exec: Bool = false
-  var any_read: Bool = false
-  var any_write: Bool = false
-  var any_exec: Bool = false
-
 class FileInfo val
+  """
+  This contains file system metadata for a path. The times are in the same
+  format as Time.now(), i.e. seconds and nanoseconds since the epoch.
+
+  The UID and GID are UNIX-style user and group IDs. These will be zero on
+  Windows. The change_time will actually be the file creation time on Windows.
+  """
   let path: String
 
   let mode: FileMode val = recover FileMode end
