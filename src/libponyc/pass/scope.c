@@ -204,7 +204,7 @@ static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
   {
     case TK_MODULE:
       if(!scope_module(ast, options))
-        return AST_ERROR;
+        return AST_FATAL;
       break;
 
     case TK_USE:

@@ -1,14 +1,19 @@
 primitive _FileHandle
 
 class File
+  """
+  Operations on a file.
+  """
   let path: String
   let writeable: Bool
   var _handle: Pointer[_FileHandle]
   var _last_line_length: U64 = 256
 
-  // Open for read/write, creating if it doesn't exist, truncating it if it
-  // does exist.
   new create(path': String) ? =>
+    """
+    Open for read/write, creating if it doesn't exist, truncating it if it
+    does exist.
+    """
     path = path'
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "w+b".cstring())
@@ -17,8 +22,10 @@ class File
       error
     end
 
-  // Open for read only, failing if it doesn't exist.
   new open(path': String) ? =>
+    """
+    Open for read only, failing if it doesn't exist.
+    """
     path = path'
     writeable = false
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "rb".cstring())
@@ -27,9 +34,11 @@ class File
       error
     end
 
-  // Open for read/write, creating if it doesn't exist, preserving the contents
-  // if it does exist.
   new modify(path': String) ? =>
+    """
+    Open for read/write, creating if it doesn't exist, preserving the contents
+    if it does exist.
+    """
     path = path'
     writeable = true
     _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "r+b".cstring())
@@ -38,19 +47,26 @@ class File
       error
     end
 
-  // Returns true if the file is currently open.
-  fun box valid(): Bool => not _handle.is_null()
+  fun box valid(): Bool =>
+    """
+    Returns true if the file is currently open.
+    """
+    not _handle.is_null()
 
-  // Close the file. Future operations will do nothing. If this isn't done,
-  // the underlying file descriptor will leak.
   fun ref close() =>
+    """
+    Close the file. Future operations will do nothing. If this isn't done,
+    the underlying file descriptor will leak.
+    """
     if not _handle.is_null() then
       @fclose[I32](_handle)
       _handle = Pointer[_FileHandle].null()
     end
 
-  // Returns a line as a String.
   fun ref line(): String =>
+    """
+    Returns a line as a String.
+    """
     if not _handle.is_null() then
       var offset = U64(0)
       var len = _last_line_length
@@ -89,9 +105,11 @@ class File
       recover String end
     end
 
-  // Returns false if the file wasn't opened with write permission.
-  // Returns false and closes the file if not all the bytes were written.
   fun ref print(data: String): Bool =>
+    """
+    Returns false if the file wasn't opened with write permission.
+    Returns false and closes the file if not all the bytes were written.
+    """
     if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
         @fwrite_unlocked[U64](data.cstring(), U64(1), data.length(), _handle)
@@ -107,8 +125,10 @@ class File
     end
     false
 
-  // Returns up to len bytes.
   fun ref read(len: U64): Array[U8] iso^ =>
+    """
+    Returns up to len bytes.
+    """
     if not _handle.is_null() then
       var result = recover Array[U8].undefined(len) end
 
@@ -124,9 +144,11 @@ class File
       recover Array[U8] end
     end
 
-  // Returns false if the file wasn't opened with write permission.
-  // Returns false and closes the file if not all the bytes were written.
   fun ref write(data: Array[U8] box): Bool =>
+    """
+    Returns false if the file wasn't opened with write permission.
+    Returns false and closes the file if not all the bytes were written.
+    """
     if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
         @fwrite_unlocked[U64](data.carray(), U64(1), data.length(), _handle)
@@ -142,8 +164,10 @@ class File
     end
     false
 
-  // Return the current cursor position in the file.
   fun box position(): U64 =>
+    """
+    Return the current cursor position in the file.
+    """
     if not _handle.is_null() then
       if Platform.windows() then
         @_ftelli64[U64](_handle)
@@ -154,16 +178,20 @@ class File
       U64(0)
     end
 
-  // Return the total length of the file.
   fun ref length(): U64 =>
+    """
+    Return the total length of the file.
+    """
     var pos = position()
     seek_end(0)
     var len = position()
     seek_start(pos)
     len
 
-  // Set the cursor position relative to the start of the file.
   fun ref seek_start(offset: U64): File =>
+    """
+    Set the cursor position relative to the start of the file.
+    """
     if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, offset, I32(0))
@@ -173,8 +201,10 @@ class File
     end
     this
 
-  // Set the cursor position relative to the end of the file.
   fun ref seek_end(offset: U64): File =>
+    """
+    Set the cursor position relative to the end of the file.
+    """
     if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, -offset, I32(2))
@@ -184,8 +214,10 @@ class File
     end
     this
 
-  // Move the cursor position.
   fun ref seek(offset: I64): File =>
+    """
+    Move the cursor position.
+    """
     if not _handle.is_null() then
       if Platform.windows() then
         @_fseeki64[I32](_handle, offset, I32(1))
@@ -195,8 +227,10 @@ class File
     end
     this
 
-  // Flush the file.
   fun ref flush(): File =>
+    """
+    Flush the file.
+    """
     if not _handle.is_null() then
       if Platform.linux() then
         @fflush_unlocked[I32](_handle)
@@ -206,8 +240,10 @@ class File
     end
     this
 
-  // Sync the file contents to physical storage.
   fun ref sync(): File =>
+    """
+    Sync the file contents to physical storage.
+    """
     if not _handle.is_null() then
       if Platform.windows() then
         var fd = @_fileno[I32](_handle)
@@ -220,8 +256,10 @@ class File
     end
     this
 
-  // Change the file size. If it is made larger, the new contents are undefined.
   fun ref set_length(len: U64): Bool =>
+    """
+    Change the file size. If it is made larger, the new contents are undefined.
+    """
     if writeable and (not _handle.is_null()) then
       flush()
       var pos = position()
@@ -240,9 +278,16 @@ class File
     end
     false
 
-  fun ref lines(): FileLines => FileLines(this)
+  fun ref lines(): FileLines =>
+    """
+    Returns an iterator for reading lines from the file.
+    """
+    FileLines(this)
 
 class FileLines is Iterator[String]
+  """
+  Iterate over the lines in a file.
+  """
   var file: File
   var line: String
 

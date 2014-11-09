@@ -31,6 +31,12 @@ bool expr_this(ast_t* ast)
   ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
   ast_settype(ast, type);
 
+  if(ast_enclosing_default_arg(ast) != NULL)
+  {
+    ast_error(ast, "can't reference 'this' in a default argument");
+    return false;
+  }
+
   if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
   {
     ast_error(ast,

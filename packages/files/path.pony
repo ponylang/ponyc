@@ -97,7 +97,7 @@ primitive Path
       if Platform.windows() then
         var c = path(0)
         is_sep(c) or
-        ((c >= 'A') and (c <= 'Z') and (path(1) == ':') and is_sep(path(2)))
+          ((c >= 'A') and (c <= 'Z') and (path(1) == ':') and is_sep(path(2)))
       else
         is_sep(path(0))
       end
@@ -155,16 +155,48 @@ primitive Path
     path
 
   fun tag base(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the path after the last separator, or the whole path if there is no
+    separator.
+    """
+    try
+      var i = path.rfind(sep())
+      path.substring(i + 1, -1)
+    else
+      path
+    end
 
   fun tag dir(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the path before the last separator, or the whole path if there is no
+    separator.
+    """
+    try
+      var i = path.rfind(sep())
+      path.substring(0, i - 1)
+    else
+      path
+    end
 
   fun tag ext(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the file extension, i.e. the part after the last dot as long as that
+    dot is after all separators. Return an empty string for no extension.
+    """
+    try
+      var i = path.rfind(".")
+
+      var j = try
+        path.rfind(sep())
+      else
+        i
+      end
+
+      if i >= j then
+        return path.substring(i + 1, -1)
+      end
+    end
+    recover String end
 
   fun tag volume(path: String): String =>
     """
@@ -182,12 +214,52 @@ primitive Path
     recover String end
 
   fun tag from_slash(path: String): String =>
-    // TODO:
-    path
+    """
+    Changes each / in the path to the OS specific separator.
+    """
+    if Platform.windows() then
+      var s = path.clone()
+      var len = s.length().i64()
+      var i: I64 = 0
+
+      try
+        while i < len do
+          if s(i) == '/' then
+            s(i) = sep()(0)
+          end
+
+          i = i + 1
+        end
+      end
+
+      consume s
+    else
+      path
+    end
 
   fun tag to_slash(path: String): String =>
-    // TODO:
-    path
+    """
+    Changes each OS specific separator in the path to /.
+    """
+    if Platform.windows() then
+      var s = path.clone()
+      var len = s.length().i64()
+      var i: I64 = 0
+
+      try
+        while i < len do
+          if s(i) == sep()(0) then
+            s(i) = '/'
+          end
+
+          i = i + 1
+        end
+      end
+
+      consume s
+    else
+      path
+    end
 
   fun tag exists(path: String): Bool =>
     """
@@ -249,7 +321,7 @@ primitive Path
     Create a symlink to a file or directory.
     """
     if Platform.windows() then
-      @CreateSymbolicLink[I32](link_name.cstring(), target.cstring()) != 0
+      @CreateSymbolicLink[U8](link_name.cstring(), target.cstring()) != 0
     else
       @symlink[I32](target.cstring(), link_name.cstring()) == 0
     end

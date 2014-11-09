@@ -495,6 +495,34 @@ ast_t* ast_enclosing_method_body(ast_t* ast)
   return NULL;
 }
 
+ast_t* ast_enclosing_default_arg(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(token_get_id(ast->t))
+    {
+      case TK_PARAM:
+      {
+        // Only if we are in the default argument.
+        ast_t* defarg = ast_childidx(ast, 2);
+
+        if(defarg == last)
+          return ast;
+        break;
+      }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
 ast_t* ast_enclosing_ffi_type(ast_t* ast)
 {
   ast_t* last = NULL;

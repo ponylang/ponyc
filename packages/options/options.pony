@@ -201,7 +201,7 @@ class Options ref is Iterator[_Result]
                 //_skip_non_options
         end
 
-      let finish = try current.find('=') else I64(-1) end
+      let finish = try current.find("=") else I64(-1) end
       let sub_end = if finish == -1 then finish else finish - 1 end
       let name: String val = current.substring(start, sub_end)
 

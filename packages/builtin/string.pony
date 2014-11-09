@@ -1,18 +1,30 @@
-trait Stringable box
+interface Stringable box
+  """
+  Things that can be turned into a String.
+  """
   fun box string(): String
 
 class String val is Ordered[String], Hashable, Stringable
+  """
+  Strings don't specify an encoding.
+  """
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
 
   new create() =>
+    """
+    A zero length, but valid, string.
+    """
     _size = 0
     _alloc = 1
     _ptr = Pointer[U8]._create(1)
     _ptr._update(0, 0)
 
   new from_cstring(str: Pointer[U8] ref) =>
+    """
+    The cstring is not copied, so this should be done with care.
+    """
     _size = 0
 
     while str._apply(_size) != 0 do
@@ -21,6 +33,20 @@ class String val is Ordered[String], Hashable, Stringable
 
     _alloc = _size + 1
     _ptr = str
+
+  new copy_cstring(str: Pointer[U8] ref) =>
+    """
+    The cstring is copied, so this is always safe.
+    """
+    _size = 0
+
+    while str._apply(_size) != 0 do
+      _size = _size + 1
+    end
+
+    _alloc = _size + 1
+    _ptr = Pointer[U8]._create(_alloc)
+    _ptr._copy(0, str, _alloc)
 
   new from_i8(x: I8, base: U8) =>
     _size = 0
@@ -100,7 +126,7 @@ class String val is Ordered[String], Hashable, Stringable
     _ptr = Pointer[U8].null()
 
   new prealloc(size: U64) =>
-    _size = size
+    _size = 0
     _alloc = size + 1
     _ptr = Pointer[U8]._create(_alloc)
     _ptr._update(size, 0)
@@ -141,8 +167,10 @@ class String val is Ordered[String], Hashable, Stringable
       error
     end
 
-  // Unsafe update, used internally.
   fun ref _set(i: U64, char: U8): U8 =>
+    """
+    Unsafe update, used internally.
+    """
     _ptr._update(i, char)
 
   fun box clone(): String iso^ =>
@@ -158,15 +186,59 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun box find(c: U8): I64 ? =>
+  fun box find(s: String box): I64 ? =>
+    """
+    Return the index of the first instance of s in the string. Raise an error
+    if there are no occurences of s or s is empty.
+    """
     var i: U64 = 0
 
     while i < _size do
-      if _ptr._apply(i) == c then
+      var j: U64 = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same then
         return i.i64()
       end
 
       i = i + 1
+    end
+    error
+
+  fun box rfind(s: String): I64 ? =>
+    """
+    Return the index of the last instance of s in the string. Raise an error
+    if there are no occurences of s or s is empty.
+    """
+    var i: U64 = _size - s._size
+
+    while i < _size do
+      var j: U64 = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same then
+        return i.i64()
+      end
+
+      i = i - 1
     end
     error
 

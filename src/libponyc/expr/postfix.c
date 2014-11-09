@@ -480,7 +480,7 @@ bool expr_call(ast_t* ast)
         return false;
       }
 
-      // pick up default args
+      // Pick up default args.
       while(param != NULL)
       {
         arg = ast_childidx(param, 2);
@@ -491,12 +491,8 @@ bool expr_call(ast_t* ast)
           return false;
         }
 
-        // TODO: the meaning of 'this' in the default arg is the receiver, not
-        // the caller. can't just copy it.
-        ast_error(positional, "not implemented (default arguments)");
-        return false;
-
-        // param = ast_sibling(param);
+        ast_append(positional, arg);
+        param = ast_sibling(param);
       }
 
       switch(token)

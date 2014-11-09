@@ -2,7 +2,7 @@ use "lib:rt" where linux
 
 primitive Time
   """
-  A collection of ways to the current time.
+  A collection of ways to fetch the current time.
   """
 
   fun tag seconds(): I64 =>

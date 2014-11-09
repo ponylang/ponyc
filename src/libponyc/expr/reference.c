@@ -99,15 +99,18 @@ bool expr_field(ast_t* ast)
       return false;
 
     ast_t* init_type = alias(ast_type(init));
-    bool ok = is_subtype(init_type, type);
-    ast_free_unattached(init_type);
 
-    if(!ok)
+    if(!is_subtype(init_type, type))
     {
       ast_error(init,
         "field/param initialiser is not a subtype of the field/param type");
+      ast_error(ast, "field/param type: %s", ast_print_type(type));
+      ast_error(ast, "initialiser type: %s", ast_print_type(init_type));
+      ast_free_unattached(init_type);
       return false;
     }
+
+    ast_free_unattached(init_type);
   }
 
   ast_settype(ast, type);
@@ -300,6 +303,12 @@ bool expr_reference(ast_t* ast)
 
       ast_t* type = ast_type(def);
 
+      if(ast_enclosing_default_arg(ast) != NULL)
+      {
+        ast_error(ast, "can't reference a parameter in a default argument");
+        return false;
+      }
+
       if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
       {
         ast_error(ast,
@@ -322,10 +331,10 @@ bool expr_reference(ast_t* ast)
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
-      ast_free(ast);
 
       ast_t* self = ast_from(ast, TK_THIS);
       ast_add(dot, self);
+      ast_free(ast);
 
       if(!expr_this(self))
         return false;
@@ -449,6 +458,10 @@ bool expr_addressof(ast_t* ast)
     case TK_FLETREF:
     case TK_LETREF:
       ast_error(ast, "can't take the address of a let local or let field");
+      return false;
+
+    case TK_PARAMREF:
+      ast_error(ast, "can't take the address of a function parameter");
       return false;
 
     default:

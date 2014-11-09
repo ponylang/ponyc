@@ -11,4 +11,6 @@ actor Main
       for line in file.lines() do
         env.stdout.write(line)
       end
+
+      file.close()
     end
