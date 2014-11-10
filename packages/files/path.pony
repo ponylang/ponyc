@@ -5,34 +5,13 @@ primitive Path
 
   fun tag chmod(path: String, mode: FileMode box): Bool =>
     """
-    Set the FileMode for a path. On Windows, if any read flag is set, the path
-    is made readable, and if any write flag is set, the path is made writeable.
+    Set the FileMode for a path.
     """
-    var m: U32 = 0
+    var m = mode._os()
 
     if Platform.windows() then
-      if mode.owner_read or mode.group_read or mode.any_read then
-        m = m or 0x100
-      end
-
-      if mode.owner_write or mode.group_write or mode.any_write then
-        m = m or 0x80
-      end
-
       @_chmod[I32](path.cstring(), m) == 0
     else
-      if mode.setuid then m = m or 0x800 end
-      if mode.setgid then m = m or 0x400 end
-      if mode.sticky then m = m or 0x200 end
-      if mode.owner_read then m = m or 0x100 end
-      if mode.owner_write then m = m or 0x80 end
-      if mode.owner_exec then m = m or 0x40 end
-      if mode.group_read then m = m or 0x20 end
-      if mode.group_write then m = m or 0x10 end
-      if mode.group_exec then m = m or 0x8 end
-      if mode.any_read then m = m or 0x4 end
-      if mode.any_write then m = m or 0x2 end
-      if mode.any_exec then m = m or 0x1 end
       @chmod[I32](path.cstring(), m) == 0
     end
 
@@ -271,9 +250,37 @@ primitive Path
       false
     end
 
-  fun tag mkdir(path: String): Bool =>
-    // TODO:
-    false
+  fun tag mkdir(path: String, mode: FileMode box): Bool =>
+    """
+    Creates the directory. Will recursively create each element. Returns true
+    if the directory exists when we're done, false if it does not. On Windows,
+    the mode is ignored.
+    """
+    var offset: I64 = 0
+    var m = mode._os()
+
+    repeat
+      var element = try
+        offset = path.find(sep(), offset) + 1
+        path.substring(0, offset - 2)
+      else
+        offset = -1
+        path
+      end
+
+      if Platform.windows() then
+        @_mkdir[I32](element.cstring())
+      else
+        @mkdir[I32](element.cstring(), m)
+      end
+    until offset < 0 end
+
+    try
+      FileInfo(path)
+      true
+    else
+      false
+    end
 
   fun tag remove(path: String): Bool =>
     """

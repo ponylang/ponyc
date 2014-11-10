@@ -186,12 +186,12 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun box find(s: String box): I64 ? =>
+  fun box find(s: String box, offset: I64 = 0): I64 ? =>
     """
     Return the index of the first instance of s in the string. Raise an error
     if there are no occurences of s or s is empty.
     """
-    var i: U64 = 0
+    var i: U64 = offset_to_index(offset)
 
     while i < _size do
       var j: U64 = 0
@@ -214,12 +214,12 @@ class String val is Ordered[String], Hashable, Stringable
     end
     error
 
-  fun box rfind(s: String): I64 ? =>
+  fun box rfind(s: String, offset: I64 = -1): I64 ? =>
     """
     Return the index of the last instance of s in the string. Raise an error
     if there are no occurences of s or s is empty.
     """
-    var i: U64 = _size - s._size
+    var i: U64 = offset_to_index(offset) - s._size
 
     while i < _size do
       var j: U64 = 0
