@@ -109,23 +109,23 @@ protected:
     DO(test_bin_op(op_id, t_t1, t_iface, t_bool));
     DO(test_bin_op(op_id, t_iface, t_t1, t_bool));
 
-    DO(test_bin_op_bad(op_id, t_u8, t_bool));
-    DO(test_bin_op_bad(op_id, t_bool, t_u8));
-    DO(test_bin_op_bad(op_id, t_u8, t_u16));
-    DO(test_bin_op_bad(op_id, t_u8, t_i8));
-    DO(test_bin_op_bad(op_id, t_f32, t_i32));
-    DO(test_bin_op_bad(op_id, t_string, t_i32));
-    DO(test_bin_op_bad(op_id, t_f32, t_string));
-    DO(test_bin_op_bad(op_id, t_foo, t_u8));
-    DO(test_bin_op_bad(op_id, t_foo, t_string));
-    DO(test_bin_op_bad(op_id, t_i16, t_foo));
-    DO(test_bin_op_bad(op_id, t_string, t_foo));
+    DO(test_bin_op(op_id, t_u8, t_bool, t_bool));
+    DO(test_bin_op(op_id, t_bool, t_u8, t_bool));
+    DO(test_bin_op(op_id, t_u8, t_u16, t_bool));
+    DO(test_bin_op(op_id, t_u8, t_i8, t_bool));
+    DO(test_bin_op(op_id, t_f32, t_i32, t_bool));
+    DO(test_bin_op(op_id, t_string, t_i32, t_bool));
+    DO(test_bin_op(op_id, t_f32, t_string, t_bool));
+    DO(test_bin_op(op_id, t_foo, t_u8, t_bool));
+    DO(test_bin_op(op_id, t_foo, t_string, t_bool));
+    DO(test_bin_op(op_id, t_i16, t_foo, t_bool));
+    DO(test_bin_op(op_id, t_string, t_foo, t_bool));
 
-    DO(test_bin_op_bad(op_id, t_foo, t_bar));
-    DO(test_bin_op_bad(op_id, t_foo, t_t1));
-    DO(test_bin_op_bad(op_id, t_t1, t_foo));
-    DO(test_bin_op_bad(op_id, t_foo, t_iface));
-    DO(test_bin_op_bad(op_id, t_iface, t_foo));
+    DO(test_bin_op(op_id, t_foo, t_bar, t_bool));
+    DO(test_bin_op(op_id, t_foo, t_t1, t_bool));
+    DO(test_bin_op(op_id, t_t1, t_foo, t_bool));
+    DO(test_bin_op(op_id, t_foo, t_iface, t_bool));
+    DO(test_bin_op(op_id, t_iface, t_foo, t_bool));
   }
 };
 

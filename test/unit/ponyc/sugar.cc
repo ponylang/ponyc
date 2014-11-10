@@ -299,8 +299,8 @@ TEST(SugarTest, TypeParamWithConstraint)
 
 TEST(SugarTest, TypeParamWithoutConstraint)
 {
-  const char* short_form = "class Foo[A]          ref var y:U32";
-  const char* full_form =  "class Foo[A: Any tag] ref var y:U32";
+  const char* short_form = "class Foo[A]    ref var y:U32";
+  const char* full_form =  "class Foo[A: A] ref var y:U32";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -355,7 +355,7 @@ TEST(SugarTest, ConstructorInGenericClass)
     "  new bar() => 3";
 
   const char* full_form =
-    "class Foo[A: B, C: Any tag] ref var y:U32\n"
+    "class Foo[A: B, C: C] ref var y:U32\n"
     "  new bar(): Foo[A, C] ref^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
@@ -680,7 +680,7 @@ TEST(SugarTest, UpdateNoArgs)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  foo.update(1)";
+    "  foo.update(where value = 1)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -688,14 +688,13 @@ TEST(SugarTest, UpdateNoArgs)
 
 TEST(SugarTest, UpdateWithArgs)
 {
-  // TODO(andy): Once we have named args this is totally broken
   const char* short_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  foo(2, 3, bar = 4) = 1";
+    "  foo(2, 3 where bar = 4) = 1";
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  foo.update(2, 3, bar = 4, 1)";
+    "  foo.update(2, 3 where bar = 4, value = 1)";
 
   DO(test_good_sugar(short_form, full_form));
 }
