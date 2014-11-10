@@ -56,9 +56,9 @@ class Array[A]
       error
     end
 
-  fun ref update(i: U64, v: A): A^ ? =>
+  fun ref update(i: U64, value: A): A^ ? =>
     if i < _size then
-      _ptr._update(i, consume v)
+      _ptr._update(i, consume value)
     else
       error
     end
@@ -79,9 +79,9 @@ class Array[A]
     _size = 0
     this
 
-  fun ref append(v: A): Array[A]^ =>
+  fun ref append(value: A): Array[A]^ =>
     reserve(_size + 1)
-    _ptr._update(_size, consume v)
+    _ptr._update(_size, consume value)
     _size = _size + 1
     this
 

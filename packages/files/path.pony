@@ -109,6 +109,13 @@ primitive Path
     end
 
   fun tag clean(path: String): String =>
+    """
+    Replace multiple separators with a single separator.
+    Remove instances of . from the path.
+    Remove instances of .. and the preceding path element from the path.
+    The result will have no trailing slash unless it is a root directory.
+    If the result would be empty, "." will be returned instead.
+    """
     // TODO:
     path
 

@@ -167,10 +167,10 @@ DEF(type);
   OPT TOP RULE("viewpoint", viewpoint);
   DONE();
 
-// term ASSIGN rawseq
+// ID ASSIGN rawseq
 DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
-  RULE("argument name", term);
+  TOKEN("argument name", TK_ID);
   SKIP(NULL, TK_ASSIGN);
   RULE("argument value", rawseq);
   DONE();

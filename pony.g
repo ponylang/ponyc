@@ -185,7 +185,7 @@ positional
   ;
 
 named
-  :  'where' term '=' seq (',' term '=' seq)*
+  :  'where' ID '=' seq (',' ID '=' seq)*
   ;
 
 unop

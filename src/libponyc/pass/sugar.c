@@ -309,17 +309,22 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // We are of the form:  x(y) = z
   // Replace us with:     x.update(y, z)
-
-  // TODO(andy): Due to complications with optional arguments we should hand z
-  // in as a named argument, once we have those
   AST_EXTRACT_CHILDREN(call, positional, named, expr);
 
-  // If there are no positional arguments yet, positional will be a TK_NONE
-  ast_setid(positional, TK_POSITIONALARGS);
+  // Embed the value in a SEQ.
   ast_t* value_seq = ast_from(value, TK_SEQ);
   ast_add(value_seq, value);
-  ast_append(positional, value_seq);
 
+  // Build a new namedarg.
+  BUILD(namedarg, TK_NAMEDARG
+    ID("value")
+    TREE(value_seq)
+    );
+
+  // Append the named arg to our existing list.
+  ast_append(named, namedarg);
+
+  // Replace with the update call.
   REPLACE(astp,
     NODE(TK_CALL,
       TREE(positional)

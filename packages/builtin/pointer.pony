@@ -29,7 +29,7 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun ref _update(i: U64, v: A): A^ =>
+  fun ref _update(i: U64, value: A): A^ =>
     """
     Set index i and return the previous value.
     """
