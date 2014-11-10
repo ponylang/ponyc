@@ -35,18 +35,18 @@ trait ArithmeticConvertible
 
 trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
   Hashable, Ordered[A]
-  fun box add(y: A): A => compiler_intrinsic
-  fun box sub(y: A): A => compiler_intrinsic
-  fun box mul(y: A): A => compiler_intrinsic
-  fun box div(y: A): A => compiler_intrinsic
-  fun box mod(y: A): A => compiler_intrinsic
-  fun box neg(): A => compiler_intrinsic
-  fun box eq(y: A): Bool => compiler_intrinsic
-  fun box ne(y: A): Bool => compiler_intrinsic
-  fun box lt(y: A): Bool => compiler_intrinsic
-  fun box le(y: A): Bool => compiler_intrinsic
-  fun box ge(y: A): Bool => compiler_intrinsic
-  fun box gt(y: A): Bool => compiler_intrinsic
+  fun box add(y: A): A => this + y
+  fun box sub(y: A): A => this - y
+  fun box mul(y: A): A => this * y
+  fun box div(y: A): A => this / y
+  fun box mod(y: A): A => this % y
+  fun box neg(): A => -this
+  fun box eq(y: A): Bool => this == y
+  fun box ne(y: A): Bool => this != y
+  fun box lt(y: A): Bool => this < y
+  fun box le(y: A): Bool => this <= y
+  fun box ge(y: A): Bool => this >= y
+  fun box gt(y: A): Bool => this > y
 
   fun box hash(): U64 =>
     var x = u64()
@@ -60,12 +60,12 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
     x
 
 trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
-  fun box and_(y: A): A => compiler_intrinsic
-  fun box or_(y: A): A => compiler_intrinsic
-  fun box xor_(y: A): A => compiler_intrinsic
-  fun box not_(): A => compiler_intrinsic
-  fun box shl(y: A): A => compiler_intrinsic
-  fun box shr(y: A): A => compiler_intrinsic
+  fun box and_(y: A): A => this and y
+  fun box or_(y: A): A => this or y
+  fun box xor_(y: A): A => this xor y
+  fun box not_(): A => not this
+  fun box shl(y: A): A => this << y
+  fun box shr(y: A): A => this >> y
 
   fun box abs(): A
   fun box bswap(): A

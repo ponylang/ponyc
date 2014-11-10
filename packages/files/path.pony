@@ -5,39 +5,19 @@ primitive Path
 
   fun tag chmod(path: String, mode: FileMode box): Bool =>
     """
-    Set the FileMode for a file or directory.
+    Set the FileMode for a path.
     """
-    var m: U32 = 0
+    var m = mode._os()
 
     if Platform.windows() then
-      if mode.owner_read or mode.group_read or mode.any_read then
-        m = m or 0x100
-      end
-
-      if mode.owner_write or mode.group_write or mode.any_write then
-        m = m or 0x80
-      end
-
       @_chmod[I32](path.cstring(), m) == 0
     else
-      if mode.setuid then m = m or 0x800 end
-      if mode.setgid then m = m or 0x400 end
-      if mode.sticky then m = m or 0x200 end
-      if mode.owner_read then m = m or 0x100 end
-      if mode.owner_write then m = m or 0x80 end
-      if mode.owner_exec then m = m or 0x40 end
-      if mode.group_read then m = m or 0x20 end
-      if mode.group_write then m = m or 0x10 end
-      if mode.group_exec then m = m or 0x8 end
-      if mode.any_read then m = m or 0x4 end
-      if mode.any_write then m = m or 0x2 end
-      if mode.any_exec then m = m or 0x1 end
       @chmod[I32](path.cstring(), m) == 0
     end
 
   fun tag chown(path: String, uid: U32, gid: U32): Bool =>
     """
-    Set the owner and group for a file or directory.
+    Set the owner and group for a path. Does nothing on Windows.
     """
     if Platform.windows() then
       false
@@ -96,7 +76,7 @@ primitive Path
       if Platform.windows() then
         var c = path(0)
         is_sep(c) or
-        ((c >= 'A') and (c <= 'Z') and (path(1) == ':') and is_sep(path(2)))
+          ((c >= 'A') and (c <= 'Z') and (path(1) == ':') and is_sep(path(2)))
       else
         is_sep(path(0))
       end
@@ -129,6 +109,13 @@ primitive Path
     end
 
   fun tag clean(path: String): String =>
+    """
+    Replace multiple separators with a single separator.
+    Remove instances of . from the path.
+    Remove instances of .. and the preceding path element from the path.
+    The result will have no trailing slash unless it is a root directory.
+    If the result would be empty, "." will be returned instead.
+    """
     // TODO:
     path
 
@@ -140,6 +127,9 @@ primitive Path
     recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun tag abs(path: String): String =>
+    """
+    Returns a cleaned, absolute path.
+    """
     if is_abs(path) then
       clean(path)
     else
@@ -151,16 +141,48 @@ primitive Path
     path
 
   fun tag base(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the path after the last separator, or the whole path if there is no
+    separator.
+    """
+    try
+      var i = path.rfind(sep())
+      path.substring(i + 1, -1)
+    else
+      path
+    end
 
   fun tag dir(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the path before the last separator, or the whole path if there is no
+    separator.
+    """
+    try
+      var i = path.rfind(sep())
+      path.substring(0, i - 1)
+    else
+      path
+    end
 
   fun tag ext(path: String): String =>
-    // TODO:
-    path
+    """
+    Return the file extension, i.e. the part after the last dot as long as that
+    dot is after all separators. Return an empty string for no extension.
+    """
+    try
+      var i = path.rfind(".")
+
+      var j = try
+        path.rfind(sep())
+      else
+        i
+      end
+
+      if i >= j then
+        return path.substring(i + 1, -1)
+      end
+    end
+    recover String end
 
   fun tag volume(path: String): String =>
     """
@@ -178,27 +200,94 @@ primitive Path
     recover String end
 
   fun tag from_slash(path: String): String =>
-    // TODO:
-    path
+    """
+    Changes each / in the path to the OS specific separator.
+    """
+    if Platform.windows() then
+      var s = path.clone()
+      var len = s.length().i64()
+      var i: I64 = 0
+
+      try
+        while i < len do
+          if s(i) == '/' then
+            s(i) = sep()(0)
+          end
+
+          i = i + 1
+        end
+      end
+
+      consume s
+    else
+      path
+    end
 
   fun tag to_slash(path: String): String =>
-    // TODO:
-    path
+    """
+    Changes each OS specific separator in the path to /.
+    """
+    if Platform.windows() then
+      var s = path.clone()
+      var len = s.length().i64()
+      var i: I64 = 0
+
+      try
+        while i < len do
+          if s(i) == sep()(0) then
+            s(i) = '/'
+          end
+
+          i = i + 1
+        end
+      end
+
+      consume s
+    else
+      path
+    end
 
   fun tag exists(path: String): Bool =>
     """
     Returns true if the path exists. Returns false for a broken symlink.
     """
     try
+      not FileInfo(path).broken
+    else
+      false
+    end
+
+  fun tag mkdir(path: String, mode: FileMode box): Bool =>
+    """
+    Creates the directory. Will recursively create each element. Returns true
+    if the directory exists when we're done, false if it does not. On Windows,
+    the mode is ignored.
+    """
+    var offset: I64 = 0
+    var m = mode._os()
+
+    repeat
+      var element = try
+        offset = path.find(sep(), offset) + 1
+        path.substring(0, offset - 2)
+      else
+        offset = -1
+        path
+      end
+
+      if Platform.windows() then
+        @_mkdir[I32](element.cstring())
+      else
+        @mkdir[I32](element.cstring(), m)
+      end
+    until offset < 0 end
+
+    try
       FileInfo(path)
       true
     else
       false
     end
-
-  fun tag mkdir(path: String): Bool =>
-    // TODO:
-    false
 
   fun tag remove(path: String): Bool =>
     """
@@ -211,8 +300,8 @@ primitive Path
       if info.directory and not info.symlink then
         var directory = Directory(path)
 
-        for file in directory.files.values() do
-          if not remove(join(path, file)) then
+        for entry in directory.entries.values() do
+          if not remove(join(path, entry)) then
             return false
           end
         end
@@ -241,14 +330,14 @@ primitive Path
     """
     @rename[I32](path.cstring(), new_path.cstring()) == 0
 
-  fun tag symlink(path: String, link_path: String): Bool =>
+  fun tag symlink(target: String, link_name: String): Bool =>
     """
-    Create a symlink to a file or directory. Does nothing on Windows.
+    Create a symlink to a file or directory.
     """
     if Platform.windows() then
-      false
+      @CreateSymbolicLink[U8](link_name.cstring(), target.cstring()) != 0
     else
-      @symlink[I32](path.cstring(), link_path.cstring()) == 0
+      @symlink[I32](target.cstring(), link_name.cstring()) == 0
     end
 
   fun tag readlink(path: String): String =>

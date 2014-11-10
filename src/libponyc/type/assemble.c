@@ -150,6 +150,29 @@ ast_t* type_builtin(ast_t* from, const char* name)
   return ast;
 }
 
+ast_t* type_pointer_to(ast_t* to)
+{
+  BUILD(pointer, to,
+    NODE(TK_NOMINAL,
+      NONE // Package
+      ID("Pointer")
+      NODE(TK_TYPEARGS,
+        TREE(to)
+        )
+      NONE // Capability
+      NONE // Ephemeral
+      ));
+
+  if(!names_nominal(to, &pointer))
+  {
+    ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
+    ast_free(pointer);
+    return NULL;
+  }
+
+  return pointer;
+}
+
 ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 {
   return type_base(from, package, name);

@@ -167,10 +167,10 @@ DEF(type);
   OPT TOP RULE("viewpoint", viewpoint);
   DONE();
 
-// term ASSIGN rawseq
+// ID ASSIGN rawseq
 DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
-  RULE("argument name", term);
+  TOKEN("argument name", TK_ID);
   SKIP(NULL, TK_ASSIGN);
   RULE("argument value", rawseq);
   DONE();
@@ -429,9 +429,9 @@ DEF(recover);
   SKIP(NULL, TK_END);
   DONE();
 
-// (NOT | CONSUME) term
+// (NOT | CONSUME | AMP) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_CONSUME);
+  TOKEN("prefix", TK_NOT, TK_CONSUME, TK_AMP);
   RULE("expression", term);
   DONE();
 

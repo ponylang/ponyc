@@ -12,6 +12,7 @@ bool expr_typeref(ast_t* ast);
 bool expr_reference(ast_t* ast);
 bool expr_local(ast_t* ast);
 bool expr_idseq(ast_t* ast);
+bool expr_addressof(ast_t* ast);
 
 PONY_EXTERN_C_END
 

@@ -149,25 +149,29 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   const char* name = genname_fun(g->type_name, "_delete", NULL);
 
-  LLVMTypeRef params[3];
+  LLVMTypeRef params[4];
   params[0] = g->use_type;
   params[1] = c->i64;
   params[2] = c->i64;
+  params[3] = c->i64;
 
-  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 4, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  LLVMValueRef index = LLVMGetParam(fun, 1);
-  LLVMValueRef len = LLVMGetParam(fun, 2);
-  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
+  LLVMValueRef offset = LLVMGetParam(fun, 1);
+  LLVMValueRef n = LLVMGetParam(fun, 2);
+  LLVMValueRef len = LLVMGetParam(fun, 3);
+
+  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &offset, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
   result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
 
   LLVMValueRef base = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
-  LLVMValueRef offset1 = LLVMBuildMul(c->builder, index, l_size, "");
-  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset1, l_size, "");
+  LLVMValueRef offset1 = LLVMBuildMul(c->builder, offset, l_size, "");
+  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset, n, "");
+  offset2 = LLVMBuildMul(c->builder, offset2, l_size, "");
 
   LLVMValueRef args[3];
   args[0] = LLVMBuildAdd(c->builder, base, offset1, "");
@@ -633,10 +637,53 @@ static void fp_as_bits(compile_t* c)
   codegen_finishfun(c);
 }
 
+static void make_cpuid(compile_t* c)
+{
+  LLVMTypeRef elems[4] = {c->i32, c->i32, c->i32, c->i32};
+  LLVMTypeRef r_type = LLVMStructTypeInContext(c->context, elems, 4, false);
+  LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
+  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
+    "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
+  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
+
+  LLVMValueRef result = LLVMBuildCall(c->builder, cpuid, &zero, 1, "");
+  LLVMBuildRet(c->builder, result);
+
+  codegen_finishfun(c);
+}
+
+static void make_rdtscp(compile_t* c)
+{
+  // i64 @llvm.x86.rdtscp(i8*)
+  LLVMTypeRef f_type = LLVMFunctionType(c->i64, &c->void_ptr, 1, false);
+  LLVMValueRef rdtscp = LLVMAddFunction(c->module, "llvm.x86.rdtscp", f_type);
+
+  // i64 @internal.x86.rdtscp(i32*)
+  LLVMTypeRef i32_ptr = LLVMPointerType(c->i32, 0);
+  f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
+  LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
+  LLVMSetFunctionCallConv(fun, LLVMCCallConv);
+  codegen_startfun(c, fun);
+
+  // Cast i32* to i8* and call the intrinsic.
+  LLVMValueRef arg = LLVMGetParam(fun, 0);
+  arg = LLVMBuildBitCast(c->builder, arg, c->void_ptr, "");
+  LLVMValueRef result = LLVMBuildCall(c->builder, rdtscp, &arg, 1, "");
+  LLVMBuildRet(c->builder, result);
+
+  codegen_finishfun(c);
+}
+
 void genprim_builtins(compile_t* c, ast_t* package)
 {
   number_conversions(c);
   number_constructors(c);
   special_number_constructors(c);
   fp_as_bits(c);
+  make_cpuid(c);
+  make_rdtscp(c);
 }

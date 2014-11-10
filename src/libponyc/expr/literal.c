@@ -28,8 +28,32 @@ bool expr_literal(ast_t* ast, const char* name)
 bool expr_this(ast_t* ast)
 {
   // TODO: If in a constructor, lower it to tag if not all fields are defined.
-  ast_t* type = type_for_this(ast, cap_for_receiver(ast), false);
+
+  // If this is the return value of a function, it is ephemeral.
+  ast_t* parent = ast_parent(ast);
+  bool ephemeral = false;
+
+  switch(ast_id(parent))
+  {
+    case TK_RETURN:
+      ephemeral = true;
+      break;
+
+    case TK_SEQ:
+      ephemeral = ast_id(ast_parent(parent)) == TK_FUN;
+      break;
+
+    default: {}
+  }
+
+  ast_t* type = type_for_this(ast, cap_for_receiver(ast), ephemeral);
   ast_settype(ast, type);
+
+  if(ast_enclosing_default_arg(ast) != NULL)
+  {
+    ast_error(ast, "can't reference 'this' in a default argument");
+    return false;
+  }
 
   if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
   {
@@ -129,6 +153,10 @@ bool expr_compiler_intrinsic(ast_t* ast)
   ast_t* fun = ast_enclosing_method_body(ast);
   ast_t* body = ast_childidx(fun, 6);
   ast_t* child = ast_child(body);
+
+  // Allow a docstring before the compiler_instrinsic.
+  if(ast_id(child) == TK_STRING)
+    child = ast_sibling(child);
 
   if((child != ast) || (ast_sibling(child) != NULL))
   {

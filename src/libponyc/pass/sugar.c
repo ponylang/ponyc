@@ -104,16 +104,16 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create,
 
 static ast_result_t sugar_typeparam(ast_t* ast)
 {
-  ast_t* constraint = ast_childidx(ast, 1);
+  AST_GET_CHILDREN(ast, id, constraint);
 
   if(ast_id(constraint) == TK_NONE)
   {
     REPLACE(&constraint,
       NODE(TK_NOMINAL,
         NONE
-        ID("Any")
+        TREE(id)
         NONE
-        NODE(TK_TAG)
+        NONE
         NONE));
   }
 
@@ -308,18 +308,27 @@ static ast_result_t sugar_update(ast_t** astp)
     return AST_OK;
 
   // We are of the form:  x(y) = z
-  // Replace us with:     x.update(y, z)
-
-  // TODO(andy): Due to complications with optional arguments we should hand z
-  // in as a named argument, once we have those
+  // Replace us with:     x.update(y where value = z)
   AST_EXTRACT_CHILDREN(call, positional, named, expr);
 
-  // If there are no positional arguments yet, positional will be a TK_NONE
-  ast_setid(positional, TK_POSITIONALARGS);
+  // If there are no named arguments yet, named will be a TK_NONE
+  ast_setid(named, TK_NAMEDARGS);
+
+  // Embed the value in a SEQ
   ast_t* value_seq = ast_from(value, TK_SEQ);
   ast_add(value_seq, value);
-  ast_append(positional, value_seq);
 
+  // Build a new namedarg
+  BUILD(namedarg, ast,
+    NODE(TK_NAMEDARG,
+      ID("value")
+      TREE(value_seq)
+      ));
+
+  // Append the named arg to our existing list
+  ast_append(named, namedarg);
+
+  // Replace with the update call
   REPLACE(astp,
     NODE(TK_CALL,
       TREE(positional)

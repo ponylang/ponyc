@@ -1,18 +1,30 @@
-trait Stringable box
+interface Stringable box
+  """
+  Things that can be turned into a String.
+  """
   fun box string(): String
 
 class String val is Ordered[String], Hashable, Stringable
+  """
+  Strings don't specify an encoding.
+  """
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[U8]
 
   new create() =>
+    """
+    A zero length, but valid, string.
+    """
     _size = 0
     _alloc = 1
     _ptr = Pointer[U8]._create(1)
     _ptr._update(0, 0)
 
   new from_cstring(str: Pointer[U8] ref) =>
+    """
+    The cstring is not copied, so this should be done with care.
+    """
     _size = 0
 
     while str._apply(_size) != 0 do
@@ -21,6 +33,20 @@ class String val is Ordered[String], Hashable, Stringable
 
     _alloc = _size + 1
     _ptr = str
+
+  new copy_cstring(str: Pointer[U8] ref) =>
+    """
+    The cstring is copied, so this is always safe.
+    """
+    _size = 0
+
+    while str._apply(_size) != 0 do
+      _size = _size + 1
+    end
+
+    _alloc = _size + 1
+    _ptr = Pointer[U8]._create(_alloc)
+    _ptr._copy(0, str, _alloc)
 
   new from_i8(x: I8, base: U8) =>
     _size = 0
@@ -100,7 +126,7 @@ class String val is Ordered[String], Hashable, Stringable
     _ptr = Pointer[U8].null()
 
   new prealloc(size: U64) =>
-    _size = size
+    _size = 0
     _alloc = size + 1
     _ptr = Pointer[U8]._create(_alloc)
     _ptr._update(size, 0)
@@ -109,14 +135,14 @@ class String val is Ordered[String], Hashable, Stringable
 
   fun box length(): U64 => _size
 
-  fun ref reserve(len: U64): String ref =>
+  fun ref reserve(len: U64): String ref^ =>
     if _alloc < len then
       _alloc = len.max(8).next_pow2()
       _ptr = _ptr._realloc(_alloc)
     end
     this
 
-  fun ref recalc(): String ref =>
+  fun ref recalc(): String ref^ =>
     _size = 0
 
     while (_size < _alloc) and (_ptr._apply(_size) > 0) do
@@ -128,21 +154,23 @@ class String val is Ordered[String], Hashable, Stringable
     let j = offset_to_index(i)
     if j < _size then _ptr._apply(j) else error end
 
-  fun ref update(i: I64, char: U8): U8 ? =>
+  fun ref update(i: I64, value: U8): U8 ? =>
     let j = offset_to_index(i)
 
     if j < _size then
-      if char == 0 then
+      if value == 0 then
         _size = j
       end
 
-      _ptr._update(j, char)
+      _ptr._update(j, value)
     else
       error
     end
 
-  // Unsafe update, used internally.
   fun ref _set(i: U64, char: U8): U8 =>
+    """
+    Unsafe update, used internally.
+    """
     _ptr._update(i, char)
 
   fun box clone(): String iso^ =>
@@ -158,17 +186,90 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun box find(c: U8): I64 ? =>
-    var i: U64 = 0
+  fun box find(s: String box, offset: I64 = 0): I64 ? =>
+    """
+    Return the index of the first instance of s in the string. Raise an error
+    if there are no occurences of s or s is empty.
+    """
+    var i = offset_to_index(offset)
 
     while i < _size do
-      if _ptr._apply(i) == c then
+      var j: U64 = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same then
         return i.i64()
       end
 
       i = i + 1
     end
     error
+
+  fun box rfind(s: String, offset: I64 = -1): I64 ? =>
+    """
+    Return the index of the last instance of s in the string. Raise an error
+    if there are no occurences of s or s is empty.
+    """
+    var i = offset_to_index(offset) - s._size
+
+    while i < _size do
+      var j: U64 = 0
+
+      var same = while j < s._size do
+        if _ptr._apply(i + j) != s._ptr._apply(j) then
+          break false
+        end
+        j = j + 1
+        true
+      else
+        false
+      end
+
+      if same then
+        return i.i64()
+      end
+
+      i = i - 1
+    end
+    error
+
+  fun box at(s: String, offset: I64): Bool =>
+    """
+    Returns true if the substring s is present at the given offset.
+    """
+    var i = offset_to_index(offset)
+    var j: U64 = 0
+
+    while j < s._size do
+      if _ptr._apply(i + j) != s._ptr._apply(j) then
+        return false
+      end
+      j = j + 1
+    end
+    false
+
+  fun ref delete(offset: I64, len: U64): String ref^ =>
+    """
+    Delete len bytes at the supplied offset, compacting the string in place.
+    """
+    var i = offset_to_index(offset)
+
+    if i < _size then
+      var n = len.min(_size - i)
+      _size = _size - n
+      _ptr._delete(i, n, _size - i)
+      _ptr._update(_size, 0)
+    end
+    this
 
   fun box lower(): String iso^ =>
     let len = _size
@@ -219,7 +320,7 @@ class String val is Ordered[String], Hashable, Stringable
 
     consume str
 
-  fun ref reverse_in_place(): String ref =>
+  fun ref reverse_in_place(): String ref^ =>
     var i: U64 = 0
     var j = _size - 1
 
@@ -285,7 +386,7 @@ class String val is Ordered[String], Hashable, Stringable
     consume str
 
   //The range is inclusive.
-  fun ref cut_in_place(from: I64, to: I64): String ref =>
+  fun ref cut_in_place(from: I64, to: I64): String ref^ =>
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
 
@@ -392,7 +493,7 @@ class String val is Ordered[String], Hashable, Stringable
     end
     _size <= that._size
 
-  fun ref append(that: String box): String ref =>
+  fun ref append(that: String box): String ref^ =>
     if((_size + that._size) >= _alloc) then
       _alloc = _size + that._size + 1
       _ptr = _ptr._realloc(_alloc)
@@ -447,7 +548,7 @@ class String val is Ordered[String], Hashable, Stringable
   fun tag _int_table(): String =>
     "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
 
-  fun ref from_i64_in_place(x: I64, base: U8): String ref =>
+  fun ref from_i64_in_place(x: I64, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
       _size = 0
       _alloc = 1
@@ -482,7 +583,7 @@ class String val is Ordered[String], Hashable, Stringable
     end
     this
 
-  fun ref from_u64_in_place(x: U64, base: U8): String ref =>
+  fun ref from_u64_in_place(x: U64, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
       _size = 0
       _alloc = 1
@@ -512,7 +613,7 @@ class String val is Ordered[String], Hashable, Stringable
     end
     this
 
-  fun ref from_i128_in_place(x: I128, base: U8): String ref =>
+  fun ref from_i128_in_place(x: I128, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
       _size = 0
       _alloc = 1
@@ -547,7 +648,7 @@ class String val is Ordered[String], Hashable, Stringable
     end
     this
 
-  fun ref from_u128_in_place(x: U128, base: U8): String ref =>
+  fun ref from_u128_in_place(x: U128, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
       _size = 0
       _alloc = 1
@@ -577,7 +678,7 @@ class String val is Ordered[String], Hashable, Stringable
     end
     this
 
-  fun ref from_f64_in_place(x: F64): String ref =>
+  fun ref from_f64_in_place(x: F64): String ref^ =>
     _alloc = 32
     _ptr = _ptr._realloc(32)
     if Platform.windows() then

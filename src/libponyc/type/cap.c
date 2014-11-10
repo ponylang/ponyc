@@ -286,6 +286,7 @@ token_id cap_typeparam(token_id cap)
     case TK_VAL: return TK_VAL;
     case TK_BOX: return TK_BOX;
     case TK_TAG: return TK_ISO;
+    case TK_NONE: return TK_ISO; // For typeparamref in constraints.
     default: {}
   }
 

@@ -4,6 +4,7 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include <assert.h>
 
 static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
@@ -43,6 +44,9 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     flatten |= reify_one(&child, typeparam, typearg);
     child = ast_sibling(child);
   }
+
+  if(ast_sibling(typeparam) == NULL)  // This is the last type param to reify
+    reify_literals(ast);
 
   // Flatten type expressions after reifying them.
   if(flatten)
@@ -166,7 +170,8 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       if(report_errors)
       {
         ast_error(typearg, "type argument is outside its constraint");
-        ast_error(typeparam, "constraint is here");
+        ast_error(typearg, "argument: %s", ast_print_type(typearg));
+        ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
       }
 
       ast_free_unattached(r_typeparams);

@@ -349,7 +349,7 @@ bool expr_dot(ast_t* ast)
 
 bool expr_call(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, positional, named, lhs);
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
   token_id token = ast_id(lhs);
 
@@ -402,10 +402,7 @@ bool expr_call(ast_t* ast)
       bool sending = (token == TK_NEWBEREF) || (token == TK_BEREF);
       bool send = true;
 
-      ast_t* cap = ast_child(type);
-      ast_t* typeparams = ast_sibling(cap);
-      ast_t* params = ast_sibling(typeparams);
-      ast_t* result = ast_sibling(params);
+      AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
       if(ast_id(typeparams) != TK_NONE)
       {
@@ -414,19 +411,82 @@ bool expr_call(ast_t* ast)
         return false;
       }
 
-      // TODO: named arguments
-      if(ast_id(named) != TK_NONE)
+      // Fill out the positional args to be as long as the param list.
+      size_t param_len = ast_childcount(params);
+      size_t arg_len = ast_childcount(positional);
+
+      if(arg_len > param_len)
       {
-        ast_error(named, "not implemented (named arguments)");
+        ast_error(ast, "too many arguments");
         return false;
       }
 
-      // check positional args vs params
+      while(arg_len < param_len)
+      {
+        ast_append(positional, ast_from(positional, TK_NONE));
+        arg_len++;
+      }
+
+      // Named arguments.
+      ast_t* namedarg = ast_child(namedargs);
+
+      while(namedarg != NULL)
+      {
+        AST_GET_CHILDREN(namedarg, arg_id, arg);
+
+        ast_t* param = ast_child(params);
+        size_t param_index = 0;
+
+        while(param != NULL)
+        {
+          AST_GET_CHILDREN(param, param_id);
+
+          if(ast_name(arg_id) == ast_name(param_id))
+            break;
+
+          param = ast_sibling(param);
+          param_index++;
+        }
+
+        if(param == NULL)
+        {
+          ast_error(arg_id, "not a parameter name");
+          return false;
+        }
+
+        ast_t* arg_replace = ast_childidx(positional, param_index);
+
+        if(ast_id(arg_replace) != TK_NONE)
+        {
+          ast_error(arg_id, "named argument is already supplied");
+          ast_error(arg_replace, "supplied argument is here");
+          return false;
+        }
+
+        ast_replace(&arg_replace, arg);
+        namedarg = ast_sibling(namedarg);
+      }
+
+      // Check positional args vs params.
       ast_t* param = ast_child(params);
       ast_t* arg = ast_child(positional);
 
-      while((arg != NULL) && (param != NULL))
+      while(arg != NULL)
       {
+        // Pick up a default argument if needed.
+        if(ast_id(arg) == TK_NONE)
+        {
+          ast_t* def_arg = ast_childidx(param, 2);
+
+          if(ast_id(def_arg) == TK_NONE)
+          {
+            ast_error(ast, "not enough arguments");
+            return false;
+          }
+
+          ast_replace(&arg, def_arg);
+        }
+
         ast_t* p_type = ast_childidx(param, 1);
         ast_t* arg_type = ast_type(arg);
 
@@ -472,31 +532,6 @@ bool expr_call(ast_t* ast)
         ast_free_unattached(a_type);
         arg = ast_sibling(arg);
         param = ast_sibling(param);
-      }
-
-      if(arg != NULL)
-      {
-        ast_error(arg, "too many arguments");
-        return false;
-      }
-
-      // pick up default args
-      while(param != NULL)
-      {
-        arg = ast_childidx(param, 2);
-
-        if(ast_id(arg) == TK_NONE)
-        {
-          ast_error(ast, "not enough arguments");
-          return false;
-        }
-
-        // TODO: the meaning of 'this' in the default arg is the receiver, not
-        // the caller. can't just copy it.
-        ast_error(positional, "not implemented (default arguments)");
-        return false;
-
-        // param = ast_sibling(param);
       }
 
       switch(token)
