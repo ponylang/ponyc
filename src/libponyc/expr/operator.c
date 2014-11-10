@@ -181,7 +181,7 @@ bool expr_assign(ast_t* ast)
     return false;
   }
 
-  if(!coerce_literals(right, l_type, NULL))
+  if(!coerce_literals(right, l_type))
     return false;
 
   // assignment is based on the alias of the right hand side

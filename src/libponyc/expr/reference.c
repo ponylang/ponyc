@@ -95,7 +95,7 @@ bool expr_field(ast_t* ast)
   if(ast_id(init) != TK_NONE)
   {
     // initialiser type must match declared type
-    if(!coerce_literals(init, type, NULL))
+    if(!coerce_literals(init, type))
       return false;
 
     ast_t* init_type = alias(ast_type(init));

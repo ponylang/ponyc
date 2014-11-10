@@ -6,6 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+void literals_init();
+
 bool expr_literal(ast_t* ast, const char* name);
 bool expr_this(ast_t* ast);
 bool expr_tuple(ast_t* ast);
@@ -22,8 +24,9 @@ bool is_type_literal(ast_t* type);
 ///   May be NULL.
 /// @return True on success, false on error. If false is returned an error will
 ///   already have been reported.
-bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed);
+bool coerce_literals(ast_t* literals, ast_t* target_type);
 
+void reify_literals(ast_t* ast);
 
 bool coerce_literal_member(ast_t* ast);
 
@@ -31,7 +34,7 @@ bool coerce_literal_operator(ast_t* ast);
 
 /// If the type of the given AST is a literal, turn it into a concrete type.
 /// Must only be called after reification.
-void concrete_literal(ast_t* ast);
+//void concrete_literal(ast_t* ast);
 
 PONY_EXTERN_C_END
 

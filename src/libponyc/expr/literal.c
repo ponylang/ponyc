@@ -93,6 +93,14 @@ bool expr_tuple(ast_t* ast)
         return false;
       }
 
+      if(is_type_literal(c_type))
+      {
+        // If any tuple members are literal, the whole tuple is
+        ast_free(type);
+        type = ast_from(ast, TK_TUPLELITERAL);
+        break;
+      }
+
       ast_append(type, c_type);
       child = ast_sibling(child);
     }
@@ -289,7 +297,7 @@ bool expr_fun(ast_t* ast)
   ast_t* can_error = ast_sibling(type);
   ast_t* body = ast_sibling(can_error);
 
-  if(!coerce_literals(body, type, NULL))
+  if(!coerce_literals(body, type))
     return false;
 
   if(ast_id(body) == TK_NONE)
@@ -332,38 +340,81 @@ bool expr_fun(ast_t* ast)
 }
 
 
-#if 0
-
 // New literal inference
 
-typedef enum lit_result_t
+typedef enum
 {
-  LIT_OK,         // Type found
-  LIT_CONSTRAINT, // A type exists but depends on a constraint
-  LIT_NO_TYPE     // No legal type found
-};
+	LIT_OK,
+	LIT_CONSTRAINED,
+	LIT_NO_TYPES
+} lit_result_t;
 
 
-static int determine_tuple_types(ast_t* literals, ast_t* type);
+static lit_result_t uif_expr(ast_t* literals, ast_t** type_ptr);
 
 
-#define UIF_TYPES   0x0FFF
-#define OTHER_TYPES 0x1000  // None-UIF types
-#define ALL_TYPES   0x1FFF
-#define CONSTRAINED -1
-#define NO_TYPES    0
+#define UIF_COUNT   12
+#define UIF_TYPES   0xFFF
 
+static const char* _str_dollar_1;
 
-static const char* const _uif_types[] =
+static const char* _str_uif_types[UIF_COUNT] =
 {
   "F64", "F32",
   "I128", "U128",
   "I64", "U64",
   "I32", "U32",
   "I16", "U16",
-  "I8", "U8",
-  NULL
+  "I8", "U8"
 };
+
+
+/// Setup interned strings to make type comparisons quicker
+void literals_init()
+{
+  _str_dollar_1 = stringtab("$1");
+
+  for(int i = 0; i < UIF_COUNT; i++)
+    _str_uif_types[i] = stringtab(_str_uif_types[i]);
+}
+  
+
+// Generate the correct literal mask for the given ID
+static int uif_mask(token_id id)
+{
+  switch(id)
+  {
+    case TK_NUMBERLITERAL: return 0xFFF;
+    case TK_INTLITERAL: return 0xFFC;
+    case TK_FLOATLITERAL: return 0x003;
+    default:
+      assert(0);
+      return 0;
+  }
+}
+
+
+// Return the index of the best UIF type in the given non-empty set
+static ast_t* best_uif_in_set(int set, ast_t* from_type)
+{
+  assert((set != 0) && ((set & ~UIF_TYPES) == 0));
+
+  for(int64_t i = 0; i < UIF_COUNT; i++)
+  {
+    if((set & 1) != 0)
+    {
+      ast_t* type = type_builtin(from_type, _str_uif_types[i]);
+      ast_setid(ast_childidx(type, 3), TK_ISO);
+      ast_setid(ast_childidx(type, 4), TK_HAT);
+      return type;
+    }
+
+    set >>= 1;
+  }
+
+  assert(0);
+  return NULL;
+}
 
 
 // Compare now good the types a and b are for the given literal
@@ -372,13 +423,14 @@ static const char* const _uif_types[] =
 //   <0 if b is better than a
 //   >0 if a is better than b
 //   0 if a and b are equal
-static int compare_literal(ast_t* a, ast_t* b, ast_t* literals)
+static int compare_uif_types(ast_t* a, ast_t* b, ast_t* literals)
 {
   assert(a != NULL);
   assert(b != NULL);
   assert(literals != NULL);
+  assert(ast_type(literals) != NULL);
 
-  switch(ast_id(literals))
+  switch(ast_id(ast_type(literals)))
   {
     case TK_TUPLELITERAL:
     {
@@ -391,7 +443,7 @@ static int compare_literal(ast_t* a, ast_t* b, ast_t* literals)
         assert(child_a != NULL);
         assert(child_b != NULL);
 
-        int r = compare_literal(child_a, child_b, p);
+        int r = compare_uif_types(child_a, child_b, p);
 
         if(r != 0)
           return r;
@@ -400,7 +452,7 @@ static int compare_literal(ast_t* a, ast_t* b, ast_t* literals)
         child_b = ast_sibling(child_b);
       }
 
-      // All eleemnts match, tuples are equal
+      // All elements match, tuples are equal
       assert(child_a == NULL);
       assert(child_b == NULL);
       return 0;
@@ -409,8 +461,33 @@ static int compare_literal(ast_t* a, ast_t* b, ast_t* literals)
     case TK_NUMBERLITERAL:
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
-      // TODO
-      return 1;
+    {
+      assert(ast_id(a) == TK_NOMINAL);
+      AST_GET_CHILDREN(a, package_a, id_a);
+      assert(ast_name(package_a) == _str_dollar_1);
+      const char* name_a = ast_name(id_a);
+
+      assert(ast_id(b) == TK_NOMINAL);
+      AST_GET_CHILDREN(b, package_b, id_b);
+      assert(ast_name(package_b) == _str_dollar_1);
+      const char* name_b = ast_name(id_b);
+
+      if(name_a == name_b)  // Types are equal
+        return 0;
+
+      // Check through the UIF types in order, the first match wins
+      for(int i = 0; i < UIF_TYPES; i++)
+      {
+        if(name_a == _str_uif_types[i]) // A is better
+          return 1;
+
+        if(name_b == _str_uif_types[i]) // B is better
+          return -1;
+      }
+
+      assert(0);
+      return 0;
+    }
 
     default:
       // Not a literal
@@ -419,313 +496,554 @@ static int compare_literal(ast_t* a, ast_t* b, ast_t* literals)
 }
 
 
-// Determine the UIF types that satisfy the given type
-static int make_literal_set(ast_t* type)
+// Pick the best of 2 types for the given literal and discard the other
+// Either type may be NULL
+static ast_t* best_uif_type(ast_t* a, ast_t* b, ast_t* literals)
+{
+  assert(literals != NULL);
+
+  if(a == NULL)
+    return b;
+
+  if(b == NULL)
+    return a;
+
+  if(compare_uif_types(a, b, literals) < 0)
+  {
+    // B is better
+    ast_free(a);
+    return b;
+  }
+
+  // A is better (or the same)
+  ast_free(b);
+  return a;
+}
+
+
+// Determine the UIF types that satisfy the given "simple" type.
+// Here a simple type is defined as a non-tuple type that does not depend on
+// any formal parameters.
+// The UIF types to check for is specified by the mask parameter, which must be
+// a subset of UIF_TYPES.
+static int uifset_simple_type(ast_t* type, int mask)
 {
   assert(type != NULL);
+  assert((mask != 0) && ((mask & ~UIF_TYPES) == 0));
 
   int set = 0;
-  ast_t* number = type_builtin(type, "Number");
 
-  if(!is_subtype(type, number))
-    set = OTHER_TYPES;
-
-  ast_free(number);
-
-  for(int i = 0; _uif_types[i] != NULL; i++)
+  for(int i = 0; i < UIF_COUNT; i++)
   {
-    ast_t* uif = type_builtin(type, _uif_types[i]);
-    ast_setid(ast_childidx(uif, 3), TK_ISO);
+    if((mask & (1 << i)) != 0)
+    {
+      ast_t* uif = type_builtin(type, _str_uif_types[i]);
+      ast_setid(ast_childidx(uif, 3), TK_ISO);
 
-    if(is_subtype(uif, type))
-      set |= (1 << i);
+      if(is_subtype(uif, type))
+        set |= (1 << i);
 
-    ast_free(uif);
+      ast_free(uif);
+    }
   }
 
   return set;
 }
 
 
-// Determine the UIF types that the given constraint may be
-static int get_constraint_typeset(ast_t* ast)
+// Determine the UIF types that the given formal parameter may be
+// The legal UIF types are specified by the mask parameter
+static lit_result_t uif_formal_param(ast_t* type_param, int mask,
+	int* out_uif_set)
 {
-  assert(ast != NULL);
+  assert(type_param != NULL);
+  assert(ast_id(type_param) == TK_TYPEPARAM);
+  assert((mask != 0) && ((mask & ~UIF_TYPES) == 0));
+  assert(out_uif_set != NULL);
 
-  switch(ast_id(ast))
+  ast_t* constraint = ast_childidx(type_param, 1);
+  assert(constraint != NULL);
+
+  // If the constraint is not a subtype of Number then there are no legal types
+  // in the set
+  ast_t* number = type_builtin(type_param, "Number");
+  bool is_number = is_subtype(constraint, number);
+  ast_free(number);
+
+  if(!is_number)  // The formal param may have non UIF types
+    return LIT_NO_TYPES;
+
+  int uif_set = 0;
+
+  for(int i = 0; i < UIF_COUNT; i++)
   {
-    case TK_UNIONTYPE:
-    {
-      int r = NO_TYPES;
+    ast_t* uif = type_builtin(type_param, _str_uif_types[i]);
 
-      for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-        r |= get_constraint_typeset(p);
+    BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
+    BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
 
-      return r;
-    }
-      
-    case TK_ISECTTYPE:
-    {
-      int r = ALL_TYPES;
+    if(check_constraints(params, args, true))
+      uif_set |= (1 << i);
 
-      for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-        r &= get_constraint_typeset(p);
-
-      return r;
-    }
-
-    case TK_ARROW:
-      // Since we don't care about capabilities we can just use the rhs
-      assert(ast_id(ast_childidx(ast, 1)) == TK_NOMINAL);
-      return make_literal_set(ast_childidx(ast, 1));
-
-    case TK_TYPEPARAMREF:
-      // TODO(andy): To handle nested formal parameters we need to spot loops
-      ast_error(ast,
-        "Nested formal parameters not yet supported for literal inference");
-      return NO_TYPES;
-
-    case TK_NOMINAL:
-      return make_literal_set(ast);
-
-    default:
-      assert(0);
-      return NO_TYPES;
+    ast_free(args);
+    ast_free(params);
   }
+
+  if((uif_set & ~mask) != 0)
+  {
+    // We are not guaranteed constraint is a legal type for us
+    return LIT_NO_TYPES;
+  }
+
+  *out_uif_set = uif_set;
+  return LIT_OK;
 }
 
 
 // Determine the UIF types that the given intersection type may be
-static int get_intersection_typeset(ast_t* ast)
+static lit_result_t uif_intersect(ast_t* ast, int mask, int* out_uif_set)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_ISECTTYPE);
   assert(ast_type(ast) == NULL);
-  assert(ast_child(ast) != NULL);
+  assert(ast_child(ast) != NULL);;
+  assert((mask != 0) && ((mask & ~UIF_TYPES) == 0));
+  assert(out_uif_set != NULL);
 
-  ast_t* constraint = NULL;
-  int constraint_type_set = 0;
-  int possible_type_set = 0xFFF;
+  ast_t* formal_param = NULL;
+  int constraint_uif_set = 0;
+  int possible_uif_set = mask;
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
   {
     if(ast_id(p) == TK_TYPEPARAMREF)
     {
       // We have a formal parameter
-      ast_t* p_constraint = ast_childidx(p, 1);
+      ast_t* fp_def = (ast_t*)ast_data(p);
 
       // TODO(andy): handle single type constraints
 
-      if(constraint != NULL && p_constraint != constraint)
+      if(formal_param != NULL && fp_def != formal_param)
       {
         // We are intersecting (at least) 2 formal parameters, we are
         // guaranteed that we can't always pick a suitable type
-        return NO_TYPES;
+        return LIT_NO_TYPES;
       }
 
-      constraint = p_constraint;
-      constraint_type_set = get_constraint_typeset(p_constraint);
+      formal_param = fp_def;
+      lit_result_t r = uif_formal_param(fp_def, mask, &constraint_uif_set);
 
-      if((constraint_type_set & OTHER_TYPES) != 0)
-        return NO_TYPES;
+      if(r == LIT_NO_TYPES)  // Constraint allows types we don't
+        return LIT_NO_TYPES;
     }
     else
     {
       // We have a non-generic type
-      possible_type_set &= make_literal_set(p);
+      possible_uif_set &= uifset_simple_type(p, mask);
     }
   }
 
-  if((possible_type_set & OTHER_TYPES) != 0 || possible_type_set == 0)
-    return NO_TYPES;
-
-  if(constraint != NULL)
+  if(formal_param != NULL)
   {
-    // All UIF types the constraint might be must be allowed by the other types
-    if((constraint_type_set & possible_type_set) != constraint_type_set)
-      return NO_TYPES;
+    // All types the constraint might be must be allowed by the other types
+    if((constraint_uif_set & possible_uif_set) != constraint_uif_set)
+      return LIT_NO_TYPES;
 
-    return CONSTRAINED;
+    return LIT_CONSTRAINED;
   }
 
-  /*
-  ast_t* type = ast_from(ast, TK_UNIONTYPE);
-
-  for(int i = 0; _uif_types[i] != NULL; i++)
-  {
-    if((possible_type_set & (1 << i)) != 0)
-      ast_add(type, type_builtin(type, _uif_types[i])));
-  }
-
-  ast_settype(ast, type);
-  */
-
-  return possible_type_set;
+  *out_uif_set = possible_uif_set;
+  return LIT_OK;
 }
 
 
 // Determine the UIF types that the given non-tuple type may be
-static int get_nontuple_typeset(ast_t* ast)
+static lit_result_t uif_mono(ast_t* ast, int mask, int* out_uif_set)
 {
-  assert(ast != NULL);
+	assert(ast != NULL);
+	assert((mask != 0) && ((mask & ~UIF_TYPES) == 0));
+	assert(out_uif_set != NULL);
 
   switch(ast_id(ast))
   {
     case TK_UNIONTYPE:
     {
-      int r = 0;
+      int union_set = 0;
 
       for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-        r |= get_nontuple_typeset(p);
+      {
+        int child_set;
+        lit_result_t r = uif_mono(p, mask, &child_set);
 
-      return r;
+        if(r == LIT_CONSTRAINED)
+          return LIT_CONSTRAINED;
+
+        union_set |= child_set;
+      }
+
+      *out_uif_set = union_set;
+      return LIT_OK;
     }
 
     case TK_ISECTTYPE:
-      return get_intersection_typeset(ast);
+      return uif_intersect(ast, mask, out_uif_set);
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
       assert(ast_id(ast_childidx(ast, 1)) == TK_NOMINAL);
-      return make_literal_set(ast_childidx(ast, 1));
+      *out_uif_set = uifset_simple_type(ast_childidx(ast, 1), mask);
+      return LIT_OK;
 
     case TK_TYPEPARAMREF:
-      if(get_constraint_typeset(ast) == NO_TYPES)
-        return NO_TYPES;
+    {
+      // We don't actually care what UIF types this type parameter can be, just
+      // whether we're guaranteed it is one
+      int x = 0;
+      if(uif_formal_param((ast_t*)ast_data(ast), mask, &x) == LIT_NO_TYPES)
+        return LIT_NO_TYPES;
 
-      return CONSTRAINED;
+      return LIT_CONSTRAINED;
+    }
 
     case TK_TUPLETYPE:
       // Incorrect cardinality
-      return NO_TYPES;
+      return LIT_NO_TYPES;
 
     case TK_NOMINAL:
-      return make_literal_set(ast);
+      *out_uif_set = uifset_simple_type(ast, mask);
+      return LIT_OK;
 
     default:
       assert(0);
-      return NO_TYPES;
+      return LIT_NO_TYPES;
   }
 }
 
 
 // Determine the best set of UIF types for the given tuple union
-static int determine_tuple_union_types(ast_t* literals, ast_t* type)
+static lit_result_t uif_tuple_union(ast_t* literals, ast_t** type_ptr)
 {
   assert(literals != NULL);
   assert(ast_id(literals) == TK_TUPLE);
+  assert(type_ptr != NULL);
+
+  ast_t* type = *type_ptr;
   assert(type != NULL);
   assert(ast_id(type) == TK_UNIONTYPE);
 
   ast_t* best = NULL;  // Best unconstrained child type
-  ast_t* constraints = ast_from(literals, TK_NONE);  // Constrained child types
+  ast_t* constraints = ast_from(type, TK_UNIONTYPE); // Constrained child types
   ast_t* child;
 
   while((child = ast_pop(type)) != NULL)
   {
-    switch(determine_tuple_types(literals, child))
+    switch(uif_expr(literals, &child))
     {
-      case CONSTRAINED:
+      case LIT_CONSTRAINED:
         // Child is constrained, add it to our list
         ast_add(constraints, child);
         break;
 
-      case NO_TYPES:
+      case LIT_NO_TYPES:
         // Child has no legal types, discard it
         ast_free(child);
         break;
 
-      case UIF_TYPES:
+      case LIT_OK:
         // Child is a valid type, keep the best one
-        best = best_literal(best, child, literals);
-        break;
-
-      default:
-        assert(0);
+        best = best_uif_type(best, child, literals);
         break;
     }
   }
 
-  int r = NO_TYPES;
+  if(best == NULL && ast_child(constraints) == NULL)
+  {
+    // No legal types in union
+    ast_free(constraints);
+    return LIT_NO_TYPES;
+  }
 
-  // Put the child types we've kept back into the union
+  // Determine if we are constrained
+  lit_result_t r = (ast_child(constraints) == NULL) ? LIT_OK : LIT_CONSTRAINED;
+
+  // Add our best unconstrained type (if any) to our constrained list
   if(best != NULL)
+    ast_add(constraints, best);
+
+  if(ast_childcount(constraints) == 1)
   {
-    ast_add(type, best);
-    r = UIF_TYPES;
+    // We only have a single child, replace union with it
+    ast_t* t = ast_pop(constraints);
+    ast_free(constraints);
+    constraints = t;
   }
 
-  while((child = ast_pop(constraints)) != NULL)
-  {
-    ast_add(type, child);
-    r = CONSTRAINED;
-  }
-
+  // Replace union with our trimmed union (or single child)
+  ast_replace(type_ptr, constraints);
   return r;
 }
 
 
 // Determine the best set of UIF types for the given tuple
-static int determine_tuple_types(ast_t* literals, ast_t* type)
+static lit_result_t uif_tuple_value(ast_t* literals, ast_t* type)
 {
   assert(literals != NULL);
   assert(ast_id(literals) == TK_TUPLE);
   assert(type != NULL);
   assert(ast_id(type) == TK_TUPLETYPE);
 
-  int result = UIF_TYPES;
+  lit_result_t result = LIT_OK;
 
   ast_t* lit_child = ast_child(literals);
   ast_t* type_child = ast_child(type);
 
   while(lit_child != NULL && type_child != NULL)
   {
-    int r;
+    lit_result_t r = uif_expr(lit_child, &type_child);
 
-    switch(ast_id(lit_child))
-    {
-      case TK_TUPLELITERAL:
-        // We have a nested tuple, recurse
-        r = determine_tuple_types(lit_child, type_child);
-        break;
+    if(r == LIT_NO_TYPES) // Element is bad, discard whole tuple
+      return LIT_NO_TYPES;
 
-      case TK_NUMBERLITERAL:
-      case TK_INTLITERAL:
-      case TK_FLOATLITERAL:
-        // A simple literal
-        r = get_nontuple_typeset(type_child);
+    if(r == LIT_CONSTRAINED)  // Element is constrained, so whole tuple is
+      result = LIT_CONSTRAINED;
 
-        if(r != NO_TYPES && r != CONSTRAINED) // Store set for use later
-          ast_setdata(type_child, (void*)r);
-
-        break;
-
-      default:
-      {
-        // Not a new literal, type must be compatible
-        bool match = is_subtype(ast_type(lit_child), type_child);
-        r = match ? UIF_TYPES : NO_TYPES;
-        break;
-      }
-    }
-
-    if(r == NO_TYPES) // Element is bad, discard whole tuple
-      return NO_TYPES;
-
-    if(r == CONSTRAINED)  // Element is constrained, so whole tuple is
-      result = CONSTRAINED;
+    lit_child = ast_sibling(lit_child);
+    type_child = ast_sibling(type_child);
   }
 
   if(lit_child != NULL || type_child != NULL) // Cardinalities don't match
-    return NO_TYPES;
+    return LIT_NO_TYPES;
 
   return result;
 }
 
 
+static lit_result_t uif_tuple(ast_t* literals, ast_t** type_ptr)
+{
+  assert(literals != NULL);
+  assert(ast_type(literals) != NULL);
+  assert(ast_id(ast_type(literals)) == TK_TUPLELITERAL);
+  assert(type_ptr != NULL);
+
+  ast_t* type = *type_ptr;
+  assert(type != NULL);
+
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+      return uif_tuple_union(literals, type_ptr);
+
+    case TK_TUPLETYPE:
+      return uif_tuple_value(literals, type);
+
+    default:
+      ast_error(type, "Internal error: invalid literal tuple type node %s",
+        ast_get_print(type));
+      assert(0);
+      return LIT_NO_TYPES;
+  }
+}
 
 
-#else
+static lit_result_t uif_expr(ast_t* literals, ast_t** type_ptr)
+{
+  assert(literals != NULL);
+  assert(ast_type(literals) != NULL);
+  assert(type_ptr != NULL);
+
+  ast_t* type = *type_ptr;
+  assert(type != NULL);
+
+  token_id literal_id = ast_id(ast_type(literals));
+
+  switch(ast_id(ast_type(literals)))
+  {
+    case TK_TUPLELITERAL:
+      // Tuple literal
+      return uif_tuple(literals, type_ptr);
+
+    case TK_NUMBERLITERAL:
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+    {
+      // Non-tuple literal
+      int uif_set;
+      lit_result_t r = uif_mono(type, uif_mask(literal_id), &uif_set);
+
+      if(r == LIT_OK)  // Replace specified type with best legal type
+        ast_replace(type_ptr, best_uif_in_set(uif_set, type));
+
+      return r;
+    }
+
+    default:
+      // Not a new literal, type must be compatible
+      if(is_subtype(ast_type(literals), type))
+        return LIT_OK;
+
+      return LIT_NO_TYPES;
+  }
+}
+
+
+// Propogate a non-tuple type coercion down the tree
+static void propogate_coercion(ast_t* ast, ast_t* type)
+{
+  assert(ast != NULL);
+  assert(type != NULL);
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    propogate_coercion(p, type);
+
+  // Need to reprocess TK_DOTs to lookup functions
+  // Have to set type before this
+  if(ast_id(ast) == TK_DOT)
+  {
+    ast_result_t r = pass_expr(&ast, NULL);
+    (void)r;
+    assert(r == AST_OK);
+  }
+
+  if(is_type_literal(ast_type(ast)))
+    ast_settype(ast, ast_dup(type));
+}
+
+
+// Apply the given type to the given literals
+static void apply_type(ast_t* literals, ast_t* type)
+{
+  assert(literals != NULL);
+  assert(type != NULL);
+
+  switch(ast_id(ast_type(literals)))
+  {
+    case TK_NUMBERLITERAL:
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      propogate_coercion(literals, type);
+      break;
+
+    case TK_TUPLELITERAL:
+    {
+      assert(ast_id(type) == TK_TUPLETYPE);
+
+      ast_t* tuple_type = ast_from(literals, TK_TUPLETYPE);
+      ast_t* prev_child = NULL;
+
+      ast_t* lit_child = ast_child(literals);
+      ast_t* type_child = ast_child(type);
+
+      while(lit_child != NULL)
+      {
+        assert(type_child != NULL);
+
+        apply_type(lit_child, type_child);
+        ast_t* child_type = ast_type(lit_child);
+        assert(child_type != NULL);
+        child_type = ast_dup(child_type);
+
+        if(prev_child == NULL)
+          prev_child = ast_add(tuple_type, child_type);
+        else
+          prev_child = ast_add_sibling(prev_child, child_type);
+
+        lit_child = ast_sibling(lit_child);
+        type_child = ast_sibling(type_child);
+      }
+
+      assert(type_child == NULL);
+      ast_settype(literals, tuple_type);
+      break;
+    }
+
+    default:
+      // Nothing to do for non-literals
+      break;
+  }
+}
+
+
+// Public methods
+
+bool is_type_literal(ast_t* type)
+{
+  if(type == NULL)
+    return false;
+
+  token_id id = ast_id(type);
+  return (id == TK_NUMBERLITERAL) || (id == TK_INTLITERAL) ||
+    (id == TK_FLOATLITERAL) || (id == TK_OPERATORLITERAL) ||
+    (id == TK_TUPLELITERAL);
+}
+
+
+bool coerce_literals(ast_t* literals, ast_t* target_type)
+{
+  assert(literals != NULL);
+
+  ast_t* literals_type = ast_type(literals);
+
+  if(!is_type_literal(literals_type)) // Not a literal, nothing to do
+    return true;
+
+  if(target_type == NULL)
+  {
+    // We're doing local and literal type inference together
+    ast_error(literals, "cannot infer expression and variable types");
+    return false;
+  }
+
+  // TODO(andy): canonicalise type
+  ast_t* canonical_type = ast_dup(target_type);
+
+  lit_result_t expr_result = uif_expr(literals, &canonical_type);
+
+  if(expr_result == LIT_NO_TYPES)
+  {
+    ast_error(literals, "cannot coerce %s literal to suitable type",
+      ast_get_print(literals_type));
+    ast_free(canonical_type);
+    return false;
+  }
+
+  if(expr_result == LIT_CONSTRAINED)
+  {
+    // We know there is a legal type, but we don't know exactly what until
+    // reification. Store semi-processed type for later
+    ast_add(literals_type, canonical_type);
+    return true;
+  }
+  
+  // We know the exact type, apply it to the literal tree
+  apply_type(literals, canonical_type);
+  ast_free(canonical_type);
+  return true;
+}
+
+
+void reify_literals(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  // We only care about nodes whose type is a literal with a child
+  ast_t* type = ast_type(ast);
+
+  if(type == NULL || ast_child(type) == NULL || !is_type_literal(type))
+    return;
+
+  ast_t* canonical_type = ast_pop(type);
+
+  lit_result_t expr_result = uif_expr(ast, &canonical_type);
+  (void)expr_result;  // So release build doesn't complain
+  assert(expr_result == LIT_OK);
+
+  apply_type(ast, canonical_type);
+  ast_free(canonical_type);
+}
+
+
+
+#if 0
 
 /** When a literal is coerced to the type of an expression, we need to work out
 what legal types that expression can be. This may be arbitarilly complex due to
@@ -1277,6 +1595,8 @@ bool coerce_literals(ast_t* ast, ast_t* target_type, bool* out_type_changed)
   return r;
 }
 
+#endif
+
 
 bool coerce_literal_member(ast_t* ast)
 {
@@ -1345,7 +1665,7 @@ static bool combine_arg_types(int fn_index, ast_t* ast, ast_t* left,
   if(!is_type_literal(right_type))
   {
     // Rhs is not literal, coerce lhs to type of rhs
-    if(!coerce_literals(left, right_type, NULL))
+    if(!coerce_literals(left, right_type))
       return false;
 
     ast_settype(ast, ast_type(left));
@@ -1433,41 +1753,3 @@ bool coerce_literal_operator(ast_t* ast)
   // Need to reprocess TK_DOT to lookup functions
   return pass_expr(&lhs, NULL) == AST_OK;
 }
-
-
-void concrete_literal(ast_t* ast)
-{
-  assert(ast != NULL);
-
-  ast_t* type = ast_type(ast);
-  assert(type != NULL);
-
-  int mask = get_uif_mask(ast_id(type));
-
-  if(mask == 0) // Not a literal
-    return;
-
-  for(int i = 0; _uif_types[i] != NULL; i++)
-  {
-    if((mask & 1) != 0)
-    {
-      ast_t* uif = type_builtin(type, _uif_types[i]);
-
-      if(is_subtype(uif, ast_child(type)))
-      {
-        ast_t* cap = ast_childidx(uif, 3);
-        assert(cap != NULL);
-        ast_setid(cap, TK_VAL);
-        ast_settype(ast, uif);
-        return;
-      }
-
-      ast_free(uif);
-      mask >>= 1;
-    }
-  }
-
-  assert(0);
-}
-
-#endif

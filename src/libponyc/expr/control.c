@@ -320,7 +320,7 @@ bool expr_return(ast_t* ast)
 
   ast_t* result = ast_childidx(fun, 4);
 
-  if(!coerce_literals(body, result, NULL))
+  if(!coerce_literals(body, result))
     return false;
 
   ast_t* type = ast_type(body);

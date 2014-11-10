@@ -436,7 +436,7 @@ bool expr_call(ast_t* ast)
           return false;
         }
 
-        if(!coerce_literals(arg, p_type, NULL))
+        if(!coerce_literals(arg, p_type))
           return false;
 
         ast_t* a_type = alias(ast_type(arg));
@@ -586,7 +586,7 @@ static bool expr_declared_ffi(ast_t* call, ast_t* decl)
   {
     ast_t* p_type = ast_childidx(param, 1);
 
-    if(!coerce_literals(arg, p_type, NULL))
+    if(!coerce_literals(arg, p_type))
       return false;
 
     ast_t* a_type = ast_type(arg);

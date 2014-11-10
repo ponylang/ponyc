@@ -6,6 +6,7 @@
 #include "../ast/parser.h"
 #include "../ast/ast.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -383,6 +384,7 @@ bool package_init(const char* name, pass_opt_t* opt)
 
   add_exec_dir(name);
   use_register_std();
+  literals_init();
   return true;
 }
 

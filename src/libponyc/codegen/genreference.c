@@ -162,9 +162,6 @@ LLVMValueRef gen_localload(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 {
-  // We may not be a concrete literal type here. Pick an appropriate concrete
-  // literal type.
-  concrete_literal(ast);
   ast_t* type = ast_type(ast);
 
   gentype_t g;
@@ -193,9 +190,6 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_float(compile_t* c, ast_t* ast)
 {
-  // We may not be a concrete literal type here. Pick an appropriate concrete
-  // literal type.
-  concrete_literal(ast);
   ast_t* type = ast_type(ast);
 
   gentype_t g;
