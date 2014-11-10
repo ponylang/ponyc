@@ -145,9 +145,7 @@ actor Main
     try
       arguments()
 
-      //TODO: Issue #58, otherwise problematic for large bitmaps
-      //See packages/builtin/array.pony:23-27
-      _image = Array[U8].init(0, _lateral_length * (_lateral_length >> 3))
+      _image = Array[U8].undefined(_lateral_length * (_lateral_length >> 3))
 
       Worker
         .spawn_ring(this, _lateral_length, _chunk_size)
