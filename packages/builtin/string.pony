@@ -520,7 +520,7 @@ class String val is Ordered[String], Hashable, Stringable
     if Platform.windows() then
       i64().i128()
     else
-      @strtoll[I128](_ptr, U64(0),I32(10))
+      @strtoll[I128](_ptr, U64(0), I32(10))
     end
 
   fun box u8(): U8 => u64().u8()

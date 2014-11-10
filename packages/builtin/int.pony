@@ -121,9 +121,7 @@ primitive I128 is Integer[I128]
       (this / y, this % y)
     else
       if y == 0 then
-        // TODO: returning (0, 0) causes a codegen error
-        let qr: (I128, I128) = (I128(0), I128(0))
-        return qr
+        return (0, 0)
       end
 
       var num: I128 = this

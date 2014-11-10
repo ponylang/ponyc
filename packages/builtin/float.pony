@@ -96,17 +96,17 @@ primitive F64 is Real[F64]
   fun box trunc(): F64 => @llvm.trunc.f64[F64](this)
 
   fun box finite(): Bool =>
-    I32(0) != if Platform.windows() then
-      @_finite[I32](this)
+    if Platform.windows() then
+      @_finite[I32](this) != 0
     else
-      @finite[I32](this)
+      @finite[I32](this) != 0
     end
 
   fun box nan(): Bool =>
-    I32(0) != if Platform.windows() then
-      @_isnan[I32](this)
+    if Platform.windows() then
+      @_isnan[I32](this) != 0
     else
-      @isnan[I32](this)
+      @isnan[I32](this) != 0
     end
 
   fun box log(): F64 => @llvm.log.f64[F64](this)
@@ -153,7 +153,7 @@ primitive F64 is Real[F64]
     let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if ex < 0 then
-      return I128(0)
+      return 0
     end
 
     let s = ((high and 0x80000000) >> 31).i128()
@@ -163,7 +163,7 @@ primitive F64 is Real[F64]
     if ex' > 52 then
       r = r << (ex' - 52)
     else
-      r = r >> (I128(52) - ex')
+      r = r >> (52 - ex')
     end
 
     (r xor s) - s
@@ -174,7 +174,7 @@ primitive F64 is Real[F64]
     let ex = ((high and 0x7FF00000) >> 20) - 1023
 
     if (ex < 0) or ((high and 0x80000000) != 0) then
-      return U128(0)
+      return 0
     end
 
     var r = ((bit and 0x000FFFFFFFFFFFFF) or 0x0010000000000000).u128()
@@ -183,7 +183,7 @@ primitive F64 is Real[F64]
     if ex' > 52 then
       r = r << (ex' - 52)
     else
-      r = r >> (U128(52) - ex')
+      r = r >> (52 - ex')
     end
 
     r.u128()

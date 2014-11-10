@@ -166,9 +166,7 @@ primitive U128 is Integer[U128]
       (this / y, this % y)
     else
       if y == 0 then
-        // TODO: returning (0, 0) causes a codegen error
-        let qr: (U128, U128) = (0, 0)
-        return qr
+        return (0, 0)
       end
 
       var quot: U128 = 0

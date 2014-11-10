@@ -1,8 +1,16 @@
 class Env val
+  """
+  An environment holds the command line and other values injected into the
+  program by default by the runtime.
+  """
   let stdout: Stdout
   let args: Array[String] val
 
   new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso) =>
+    """
+    Builds an environment from the command line. This is done before the Main
+    actor is created.
+    """
     stdout = Stdout
 
     args = recover
@@ -23,6 +31,9 @@ class Env val
     end
 
   new create(stdout': Stdout, args': Array[String] val) =>
+    """
+    Build an artificial environment.
+    """
     stdout = stdout'
     args = args'
 

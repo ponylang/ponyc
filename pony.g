@@ -55,7 +55,7 @@ type
 atom_type
   :  'this' // only used for viewpoint adaptation
   |  '(' tuple_type ')'
-  |  ID ('.' ID)? type_args? cap? '^'? // nominal type
+  |  ID ('.' ID)? type_args? cap? ('^' | '!')? // nominal type
   ;
 
 tuple_type
