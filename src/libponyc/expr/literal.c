@@ -627,7 +627,7 @@ static lit_result_t uif_formal_param(ast_t* type_param, int mask,
   return LIT_OK;
 }
 
-
+/*
 // Determine the UIF types that the given intersection type may be
 static lit_result_t uif_intersect(ast_t* ast, int mask, int* out_uif_set)
 {
@@ -683,6 +683,7 @@ static lit_result_t uif_intersect(ast_t* ast, int mask, int* out_uif_set)
   *out_uif_set = possible_uif_set;
   return LIT_OK;
 }
+*/
 
 
 // Determine the UIF types that the given non-tuple type may be
@@ -714,7 +715,10 @@ static lit_result_t uif_mono(ast_t* ast, int mask, int* out_uif_set)
     }
 
     case TK_ISECTTYPE:
-      return uif_intersect(ast, mask, out_uif_set);
+      //return uif_intersect(ast, mask, out_uif_set);
+      ast_error(ast,
+        "Literal inference not yet supported for intersect types");
+      return LIT_NO_TYPES;
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
@@ -863,6 +867,11 @@ static lit_result_t uif_tuple(ast_t* literals, ast_t** type_ptr)
 
     case TK_TUPLETYPE:
       return uif_tuple_value(literals, type);
+
+    case TK_ISECTTYPE:
+      ast_error(literals,
+        "Literal inference not yet supported for intersect types");
+      return LIT_NO_TYPES;
 
     default:
       ast_error(type, "Internal error: invalid literal tuple type node %s",
