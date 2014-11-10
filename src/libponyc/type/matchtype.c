@@ -273,10 +273,22 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
   {
     case TK_NOMINAL:
     {
+      // If we are a subtype, then we also could be.
+      if(is_subtype(sub, super))
+        return true;
+
       // If our constraint could be a subtype of super, all reifications could
       // be a subtype of super.
-      ast_t* def = (ast_t*)ast_data(sub);
-      ast_t* constraint = ast_childidx(def, 1);
+      ast_t* sub_def = (ast_t*)ast_data(sub);
+      ast_t* constraint = ast_childidx(sub_def, 1);
+
+      if(ast_id(constraint) == TK_TYPEPARAMREF)
+      {
+        ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+        if(constraint_def == sub_def)
+          return false;
+      }
 
       return could_subtype(constraint, super);
     }
@@ -307,6 +319,10 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 
 bool could_subtype(ast_t* sub, ast_t* super)
 {
+  // If we are a subtype, then we also could be.
+  if(is_subtype(sub, super))
+    return true;
+
   // Does a subtype of sub exist that is a subtype of super?
   switch(ast_id(sub))
   {

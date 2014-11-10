@@ -154,15 +154,15 @@ class String val is Ordered[String], Hashable, Stringable
     let j = offset_to_index(i)
     if j < _size then _ptr._apply(j) else error end
 
-  fun ref update(i: I64, char: U8): U8 ? =>
+  fun ref update(i: I64, value: U8): U8 ? =>
     let j = offset_to_index(i)
 
     if j < _size then
-      if char == 0 then
+      if value == 0 then
         _size = j
       end
 
-      _ptr._update(j, char)
+      _ptr._update(j, value)
     else
       error
     end

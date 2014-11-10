@@ -386,33 +386,14 @@ static bool is_isect_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
-// The subtype is a tuple, the supertype is nominal.
-static bool is_tuple_sub_nominal(ast_t* sub, ast_t* super)
-{
-  // Allow the tuple to be a subtype of an empty interface with tag cap.
-  ast_t* def = (ast_t*)ast_data(super);
-
-  if(ast_id(def) != TK_INTERFACE)
-    return false;
-
-  ast_t* members = ast_childidx(def, 4);
-
-  if(ast_child(members) != NULL)
-    return false;
-
-  AST_GET_CHILDREN(super, super_pkg, super_id, super_typeargs, super_cap,
-    super_eph);
-
-  return (ast_id(super_cap) == TK_TAG) && (ast_id(super_eph) == TK_NONE);
-}
-
 // The subtype is a tuple, the supertype could be anything.
 static bool is_tuple_subtype(ast_t* sub, ast_t* super)
 {
   switch(ast_id(super))
   {
     case TK_NOMINAL:
-      return is_tuple_sub_nominal(sub, super);
+      // A tuple can never be a strict subtype of a nominal type.
+      return false;
 
     case TK_TYPEPARAMREF:
       // A tuple can never be a strict subtype of a type parameter.
@@ -558,6 +539,14 @@ static bool is_typeparam_subtype(ast_t* sub, ast_t* super)
   // We can be a subtype if our upper bounds, ie our constraint, is a subtype.
   ast_t* sub_def = (ast_t*)ast_data(sub);
   ast_t* constraint = ast_childidx(sub_def, 1);
+
+  if(ast_id(constraint) == TK_TYPEPARAMREF)
+  {
+    ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+    if(constraint_def == sub_def)
+      return false;
+  }
 
   return is_subtype(constraint, super);
 }

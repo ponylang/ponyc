@@ -104,16 +104,16 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create,
 
 static ast_result_t sugar_typeparam(ast_t* ast)
 {
-  ast_t* constraint = ast_childidx(ast, 1);
+  AST_GET_CHILDREN(ast, id, constraint);
 
   if(ast_id(constraint) == TK_NONE)
   {
     REPLACE(&constraint,
       NODE(TK_NOMINAL,
         NONE
-        ID("Any")
+        TREE(id)
         NONE
-        NODE(TK_TAG)
+        NONE
         NONE));
   }
 
@@ -316,10 +316,11 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_add(value_seq, value);
 
   // Build a new namedarg.
-  BUILD(namedarg, TK_NAMEDARG
-    ID("value")
-    TREE(value_seq)
-    );
+  BUILD(namedarg, ast,
+    NODE(TK_NAMEDARG,
+      ID("value")
+      TREE(value_seq)
+      ));
 
   // Append the named arg to our existing list.
   ast_append(named, namedarg);

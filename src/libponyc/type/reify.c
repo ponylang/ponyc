@@ -166,7 +166,8 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       if(report_errors)
       {
         ast_error(typearg, "type argument is outside its constraint");
-        ast_error(typeparam, "constraint is here");
+        ast_error(typearg, "argument: %s", ast_print_type(typearg));
+        ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
       }
 
       ast_free_unattached(r_typeparams);
