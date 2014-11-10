@@ -149,25 +149,29 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   const char* name = genname_fun(g->type_name, "_delete", NULL);
 
-  LLVMTypeRef params[3];
+  LLVMTypeRef params[4];
   params[0] = g->use_type;
   params[1] = c->i64;
   params[2] = c->i64;
+  params[3] = c->i64;
 
-  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 4, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  LLVMValueRef index = LLVMGetParam(fun, 1);
-  LLVMValueRef len = LLVMGetParam(fun, 2);
-  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &index, 1, "");
+  LLVMValueRef offset = LLVMGetParam(fun, 1);
+  LLVMValueRef n = LLVMGetParam(fun, 2);
+  LLVMValueRef len = LLVMGetParam(fun, 3);
+
+  LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &offset, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
   result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
 
   LLVMValueRef base = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
-  LLVMValueRef offset1 = LLVMBuildMul(c->builder, index, l_size, "");
-  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset1, l_size, "");
+  LLVMValueRef offset1 = LLVMBuildMul(c->builder, offset, l_size, "");
+  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset, n, "");
+  offset2 = LLVMBuildMul(c->builder, offset2, l_size, "");
 
   LLVMValueRef args[3];
   args[0] = LLVMBuildAdd(c->builder, base, offset1, "");

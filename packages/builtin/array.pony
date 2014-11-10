@@ -42,7 +42,7 @@ class Array[A]
 
   fun box length(): U64 => _size
 
-  fun ref reserve(len: U64): Array[A] =>
+  fun ref reserve(len: U64): Array[A]^ =>
     if _alloc < len then
       _alloc = len.max(8).next_pow2()
       _ptr = _ptr._realloc(_alloc)
@@ -66,20 +66,20 @@ class Array[A]
   fun ref delete(i: U64): A^ ? =>
     if i < _size then
       _size = _size - 1
-      _ptr._delete(i, _size - i)
+      _ptr._delete(i, 1, _size - i)
     else
       error
     end
 
-  fun ref truncate(len: U64): Array[A] =>
+  fun ref truncate(len: U64): Array[A]^ =>
     _size = _size.min(len)
     this
 
-  fun ref clear(): Array[A] =>
+  fun ref clear(): Array[A]^ =>
     _size = 0
     this
 
-  fun ref append(v: A): Array[A] =>
+  fun ref append(v: A): Array[A]^ =>
     reserve(_size + 1)
     _ptr._update(_size, consume v)
     _size = _size + 1
