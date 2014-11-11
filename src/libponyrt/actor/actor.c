@@ -235,6 +235,7 @@ pony_actor_t* pony_create(pony_type_t* type)
 
   messageq_init(&actor->q);
   heap_init(&actor->heap);
+  gc_done(&actor->gc);
 
   if(this_actor != NULL)
   {

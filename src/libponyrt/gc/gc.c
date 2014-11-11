@@ -33,6 +33,7 @@ static void current_actor_dec(gc_t* gc)
   if(gc->rc_mark != gc->mark)
   {
     gc->rc_mark = gc->mark;
+    assert(gc->rc > 0);
     gc->rc--;
   }
 }
