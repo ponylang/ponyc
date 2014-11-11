@@ -91,14 +91,13 @@ actor Worker
           let group = Array[Complex].prealloc(8)
 
           for i in Range[U64](0, 8) do
-            group.append(Complex(_complex(x).r, prefetch_i))
+            group.append(Complex(_complex(x + i).r, prefetch_i))
           end
 
           var bitmap: U8 = 0xFF
           var n = iterations
 
           repeat
-            n = n - 1
             var mask: U8 = 0x80
 
             for j in Range[U64](0, 8) do
@@ -107,6 +106,7 @@ actor Worker
               let i = c.i
 
               c.r = ((r * r) - (i * i)) + _complex(x + j).r
+              c.i = (2.0*r*i) + prefetch_i
 
               if ((r * r) + (i * i)) > limit then
                 bitmap = bitmap and not mask
@@ -114,16 +114,13 @@ actor Worker
 
               mask = mask >> 1
             end
-          until (bitmap == 0) or (n == 0) end
+          until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          _main.draw(((y * _size)/8) + (x/8), bitmap)
+          _main.draw((y * (_size >> 3)) + (x >> 3), bitmap)
           x = x + 8
         end
         y = y + 1
       end
-    else
-      Stdout.print(_from.string() + " " + _to.string())
-      _main.fail()
     end
 
   be done() =>
