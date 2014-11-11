@@ -244,8 +244,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
 
   // Allocate the message, setting its size and ID.
   LLVMValueRef args[2];
-  args[1] = LLVMConstInt(c->i32, size, false);
-  args[0] = LLVMConstInt(c->i32, index, false);
+  args[0] = LLVMConstInt(c->i32, size, false);
+  args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 

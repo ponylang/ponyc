@@ -6,7 +6,7 @@
 void messageq_init(messageq_t* q)
 {
   pony_msg_t* stub = (pony_msg_t*)pool_alloc(0);
-  stub->index = 0;
+  stub->size = 0;
   stub->next = NULL;
 
   q->head = (pony_msg_t*)((uintptr_t)stub | 1);
@@ -18,7 +18,7 @@ void messageq_destroy(messageq_t* q)
   pony_msg_t* tail = q->tail;
   assert(((uintptr_t)q->head & ~(uintptr_t)1) == (uintptr_t)tail);
 
-  pool_free(tail->index, tail);
+  pool_free(tail->size, tail);
   q->head = NULL;
   q->tail = NULL;
 }
@@ -48,7 +48,7 @@ pony_msg_t* messageq_pop(messageq_t* q)
   if(next != NULL)
   {
     q->tail = next;
-    pool_free(tail->index, tail);
+    pool_free(tail->size, tail);
   }
 
   return next;

@@ -280,7 +280,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 
 		  //TODO
 
-			pool_free(m->msg.index, m);
+			pool_free(m->msg.size, m);
 		  break;
 		}
 
@@ -380,8 +380,8 @@ void dist_join(char* host, char* port)
 
 void dist_delegate(pony_msg_t* msg)
 {
-	pony_msg_t* clone = pool_alloc(msg->index);
-	size_t size = pool_size(msg->index);
+	pony_msg_t* clone = pool_alloc(msg->size);
+	size_t size = pool_size(msg->size);
 	memcpy(clone, msg, size);
 
 	delegate_msg_t* m = (delegate_msg_t*)pony_alloc_msg(0, DIST_DELEGATE);

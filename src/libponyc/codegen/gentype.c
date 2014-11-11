@@ -296,7 +296,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   LLVMSetValueName(g->dispatch_msg, "msg");
 
   // Read the message ID.
-  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, g->dispatch_msg, 0, "");
+  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, g->dispatch_msg, 1, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we

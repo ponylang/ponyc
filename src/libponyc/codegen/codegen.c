@@ -148,8 +148,8 @@ static void init_runtime(compile_t* c)
   c->actor_pad = LLVMArrayType(c->i8, 265);
 
   // message
-  params[0] = c->i32;
-  params[1] = c->i32;
+  params[0] = c->i32; // size
+  params[1] = c->i32; // id
   c->msg_type = LLVMStructCreateNamed(c->context, "$message");
   c->msg_ptr = LLVMPointerType(c->msg_type, 0);
   LLVMStructSetBody(c->msg_type, params, 2, false);

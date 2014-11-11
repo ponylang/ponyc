@@ -36,7 +36,7 @@ typedef struct pony_actor_pad_t
  */
 typedef struct pony_msg_t
 {
-  uint32_t index;
+  uint32_t size;
   uint32_t id;
   struct pony_msg_t* next;
 } pony_msg_t;
@@ -122,7 +122,7 @@ pony_type_t* pony_lookup_type(uint32_t id);
 __pony_spec_malloc__(pony_actor_t* pony_create(pony_type_t* type));
 
 /// Allocates a message and sets up the header.
-pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id);
+pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
 
 /// Sends a message to an actor.
 void pony_sendv(pony_actor_t* to, pony_msg_t* m);

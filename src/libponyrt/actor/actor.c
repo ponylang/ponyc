@@ -123,7 +123,7 @@ bool actor_run(pony_actor_t* actor)
     msg = actor->continuation;
     actor->continuation = NULL;
     bool ret = handle_message(actor, msg);
-    pool_free(msg->index, msg);
+    pool_free(msg->size, msg);
 
     if(ret)
       return !has_flag(actor, FLAG_UNSCHEDULED);
@@ -249,10 +249,10 @@ pony_actor_t* pony_create(pony_type_t* type)
   return actor;
 }
 
-pony_msg_t* pony_alloc_msg(uint32_t index, uint32_t id)
+pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
 {
-  pony_msg_t* msg = (pony_msg_t*)pool_alloc(index);
-  msg->index = index;
+  pony_msg_t* msg = (pony_msg_t*)pool_alloc(size);
+  msg->size = size;
   msg->id = id;
 
   return msg;
