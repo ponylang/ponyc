@@ -126,8 +126,21 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     if(!gentype(c, type, &g))
       return NULL;
 
+    // All alloca should happen in the entry block of a function.
+    LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+    LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(codegen_fun(c));
+    LLVMValueRef inst = LLVMGetFirstInstruction(entry_block);
+
+    if(inst != NULL)
+      LLVMPositionBuilderBefore(c->builder, inst);
+    else
+      LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
     const char* name = ast_name(id);
     LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
+
+    // Put the builder back where it was.
+    LLVMPositionBuilderAtEnd(c->builder, this_block);
 
     ast_t* def = ast_get(ast, name, NULL);
     ast_setdata(def, l_value);

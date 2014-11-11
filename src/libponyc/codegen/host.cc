@@ -5,15 +5,18 @@
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #endif
+
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Function.h>
 #include <llvm/Analysis/CaptureTracking.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Support/Host.h>
+
 #ifdef _MSC_VER
 #  pragma warning(pop)
 #endif
 
+#include <stdio.h>
 #include "codegen.h"
 
 using namespace llvm;
@@ -48,6 +51,14 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
 
   Type* type = unwrap(c->i8);
   Value* size = call->getArgOperand(0);
+
+  ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
+  size_t alloc_size = int_size->getZExtValue();
+
+  // Limit stack allocations to 1 kb each.
+  if(alloc_size > 1024)
+    return;
+
   AllocaInst* alloca = new AllocaInst(type, size);
   ReplaceInstWithInst(call, alloca);
 }
