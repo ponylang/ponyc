@@ -1,13 +1,5 @@
 use "files"
 
-class Complex
-  var r: F32
-  var i: F32
-
-  new create(r': F32, i': F32) =>
-    r = r'
-    i = i'
-
 actor Worker
   var _main: Main
   var _from: U64
@@ -15,10 +7,10 @@ actor Worker
   var _size: U64
   var _next: Worker
   var _coordinator: Bool = false
-  var _complex: Array[Complex val] val
+  var _complex: Array[(F32, F32)] val
 
   new create(main: Main, from: U64, to: U64, size: U64, next: Worker,
-    clx: Array[Complex val] val)
+    clx: Array[(F32, F32)] val)
     =>
     _main = main
     _from = from
@@ -35,14 +27,14 @@ actor Worker
 
     var i: U64 = 0
 
-    var clx: Array[Complex val] iso =
-      recover Array[Complex val].prealloc(size) end
+    var clx: Array[(F32, F32)] iso =
+      recover Array[(F32, F32)].prealloc(size) end
 
     while i < size do
       let real = ((F32(2.0)/size.f32())*i.f32()) - 1.5
       let imag = ((F32(2.0)/size.f32())*i.f32()) - 1.0
 
-      clx.append(recover Complex(real, imag) end)
+      clx.append((real, imag))
 
       i = i + 1
     end
@@ -83,15 +75,15 @@ actor Worker
 
     try
       while y < _to do
-        let prefetch_i = _complex(y).i
+        let prefetch_i = _complex(y)._2
 
         var x: U64 = 0
 
         while x < _size do
-          let group = Array[Complex].prealloc(8)
+          let group = Array[(F32, F32)].prealloc(8)
 
           for i in Range[U64](0, 8) do
-            group.append(Complex(_complex(x + i).r, prefetch_i))
+            group.append((_complex(x + i)._1, prefetch_i))
           end
 
           var bitmap: U8 = 0xFF
@@ -102,11 +94,13 @@ actor Worker
 
             for j in Range[U64](0, 8) do
               let c = group(j)
-              let r = c.r
-              let i = c.i
+              let r = c._1
+              let i = c._2
 
-              c.r = ((r * r) - (i * i)) + _complex(x + j).r
-              c.i = (2.0*r*i) + prefetch_i
+              let new_r = ((r * r) - (i * i)) + _complex(x + j)._1
+              let new_i = (2.0*r*i) + prefetch_i
+
+              group.update(j, (new_r, new_i))
 
               if ((r * r) + (i * i)) > limit then
                 bitmap = bitmap and not mask
