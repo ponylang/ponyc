@@ -73,6 +73,14 @@ actor Worker
 
     var y = _from
 
+    let to = _to
+    let size = _size
+
+    var view: Array[(U64, U8)] iso =
+      recover
+        Array[(U64, U8)].prealloc((to - y) * size)
+      end
+
     try
       while y < _to do
         let prefetch_i = _complex(y)._2
@@ -110,12 +118,15 @@ actor Worker
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          _main.draw((y * (_size >> 3)) + (x >> 3), bitmap)
+          //_main.draw((y * (_size >> 3)) + (x >> 3), bitmap)
+          view.append(((y * (_size >> 3)) + (x >> 3), bitmap))
           x = x + 8
         end
         y = y + 1
       end
     end
+
+    _main.draw(consume view)
 
   be done() =>
     if _coordinator then
@@ -150,8 +161,13 @@ actor Main
       usage()
     end
 
-  be draw(coord: U64, pixels: U8) =>
-    try _image.update(coord, pixels) end
+  be draw(pixels: Array[(U64, U8)] val) =>
+    try
+      for bitmap in pixels.values() do
+        _image.update(bitmap._1, bitmap._2)
+      end
+    end
+    //try _image.update(coord, pixels) end
 
   be dump() =>
     let x: String val = _lateral_length.string()
@@ -159,9 +175,6 @@ actor Main
     match _outfile
     | var o: File => o.print("P4\n"+ x + " " + x + "\n") ; o.write(_image)
     end
-
-  be fail() =>
-    _env.stdout.print("Failed computing mandelbrot set!")
 
   fun ref arguments() ? =>
     var n: U64 = 1
