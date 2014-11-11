@@ -122,6 +122,7 @@ actor Worker
         y = y + 1
       end
     else
+      Stdout.print(_from.string() + " " + _to.string())
       _main.fail()
     end
 
@@ -162,10 +163,10 @@ actor Main
     try _image.update(coord, pixels) end
 
   be dump() =>
-    let x = _lateral_length.string()
+    let x: String val = _lateral_length.string()
 
     match _outfile
-    | var o: File => o.print("P4\n"+ x + " " + y + "\n") ; o.write(_image)
+    | var o: File => o.print("P4\n"+ x + " " + x + "\n") ; o.write(_image)
     end
 
   be fail() =>
