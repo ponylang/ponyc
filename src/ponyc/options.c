@@ -17,10 +17,10 @@ static bool end_reached(const opt_arg_t* arg)
 static bool has_argument(opt_state_t* s, const opt_arg_t* arg)
 {
   bool short_arg = ((s->match_type == MATCH_SHORT) &&
-    (*(s->opt_start + 1) || s->idx < *s->argc));
+    (*(s->opt_start + 1) || s->idx < (*s->argc)-1));
 
   bool long_arg = ((s->match_type == MATCH_LONG) &&
-    ((*s->opt_end == '=') || s->idx < *s->argc));
+    ((*s->opt_end == '=') || s->idx < (*s->argc)-1));
 
   return (short_arg | long_arg);
 }
