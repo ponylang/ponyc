@@ -55,7 +55,7 @@ actor Worker
     var x: U64 = 0
     var y: U64 = 0
 
-    while j <= actors do
+    while j < actors do
       x = j * chunk_size
       y = x + chunk_size
       n = Worker(main, x, y, size, n, _complex)
