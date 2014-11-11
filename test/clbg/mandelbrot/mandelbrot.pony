@@ -1,3 +1,5 @@
+use "files"
+
 class Complex
   var r: F32
   var i: F32
@@ -137,10 +139,12 @@ actor Main
   var _lateral_length: U64 = 16000
   var _chunk_size: U64 = 16
   var _image: Array[U8]
+  var _outfile: (File | None)
 
   new create(env: Env) =>
     _env = env
     _image = Array[U8] //init tracking
+    _outfile = None
 
     try
       arguments()
@@ -158,11 +162,11 @@ actor Main
     try _image.update(coord, pixels) end
 
   be dump() =>
-    @fprintf[I32](I32(1), "P4\n%jd %jd\n".cstring(), _lateral_length,
-      _lateral_length)
+    let x = _lateral_length.string()
 
-    @fwrite[U64](_image.carray(), (_lateral_length * _lateral_length)/8,
-      I32(1), I32(1))
+    match _outfile
+    | var o: File => o.print("P4\n"+ x + " " + y + "\n") ; o.write(_image)
+    end
 
   be fail() =>
     _env.stdout.print("Failed computing mandelbrot set!")
@@ -180,6 +184,7 @@ actor Main
       | "--iterations" => _iterations = value.u64()
       | "--lateral_length" => _lateral_length = ((value.u64() + 7)/8)*8
       | "--chunk_size" => _chunk_size = ((value.u64() + 7)/8)*8
+      | "--output" => _outfile = File(value)
       else
         error
       end
