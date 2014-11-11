@@ -216,5 +216,7 @@ actor Main
       --chunk_size      Maximum line count of chunks the image should be
                         divided into for divide & conquer processing.
                         Defaults to 16.
+
+      --output          File to write the output to.
       """
       )
