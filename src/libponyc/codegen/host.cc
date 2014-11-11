@@ -49,7 +49,6 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
   if(PointerMayBeCaptured(call, true, true))
     return;
 
-  Type* type = unwrap(c->i8);
   Value* size = call->getArgOperand(0);
 
   ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
@@ -59,8 +58,19 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
   if(alloc_size > 1024)
     return;
 
-  AllocaInst* alloca = new AllocaInst(type, size);
-  ReplaceInstWithInst(call, alloca);
+  // All alloca should happen in the entry block of a function.
+  LLVMBasicBlockRef block = LLVMGetInstructionParent(inst);
+  LLVMValueRef func = LLVMGetBasicBlockParent(block);
+  block = LLVMGetFirstBasicBlock(func);
+  LLVMValueRef first_inst = LLVMGetFirstInstruction(block);
+  LLVMPositionBuilderBefore(c->builder, first_inst);
+
+  LLVMValueRef len = LLVMConstInt(c->i64, alloc_size, false);
+  LLVMValueRef alloca = LLVMBuildArrayAlloca(c->builder, c->i8, len, "");
+
+  Value* alloca_value = unwrap(alloca);
+  BasicBlock::iterator iter(call);
+  ReplaceInstWithValue(call->getParent()->getInstList(), iter, alloca_value);
 }
 
 static void stack_alloc_block(compile_t* c, LLVMBasicBlockRef block)
