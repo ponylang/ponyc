@@ -148,6 +148,7 @@ actor Updater
     table = Array[U64].prealloc(size)
 
     var offset = index * size;
+
     for i in Range(0, size) do
       table.append(i + offset)
     end
@@ -192,7 +193,7 @@ class PolyRand
         apply()
       end
 
-      var i = 64 - n.clz()
+      var i: U64 = 64 - n.clz()
       last = U64(2)
 
       while i > 0 do
