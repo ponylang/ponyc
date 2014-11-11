@@ -81,6 +81,8 @@ actor Worker
         Array[(U64, U8)].prealloc((to - y) * size)
       end
 
+    let group = Array[(F32, F32)].undefined(8)
+
     try
       while y < _to do
         let prefetch_i = _complex(y)._2
@@ -88,10 +90,8 @@ actor Worker
         var x: U64 = 0
 
         while x < _size do
-          let group = Array[(F32, F32)].prealloc(8)
-
           for i in Range[U64](0, 8) do
-            group.append((_complex(x + i)._1, prefetch_i))
+            group.update(i, (_complex(x + i)._1, prefetch_i))
           end
 
           var bitmap: U8 = 0xFF
@@ -118,7 +118,6 @@ actor Worker
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          //_main.draw((y * (_size >> 3)) + (x >> 3), bitmap)
           view.append(((y * (_size >> 3)) + (x >> 3), bitmap))
           x = x + 8
         end
@@ -167,7 +166,6 @@ actor Main
         _image.update(bitmap._1, bitmap._2)
       end
     end
-    //try _image.update(coord, pixels) end
 
   be dump() =>
     let x: String val = _lateral_length.string()
