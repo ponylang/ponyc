@@ -36,6 +36,18 @@ class List[A]
     """
     Pops a value from the head of the list.
     TODO: make the result A^
+      make ListNode._item: (A | None)
+      pattern match item(), raise error on None
+        need A! to make it work
+        or unconsumable let
+        or an expression that changes the type of an identifier for the
+          following block
+          when _item: A do
+            _item
+          else
+            error
+          end
+      destructively read _item here
     """
     match _head
     | var head: ListNode[A] =>

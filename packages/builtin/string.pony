@@ -126,7 +126,7 @@ class String val is Ordered[String], Hashable, Stringable
     _ptr = Pointer[U8].null()
 
   new prealloc(size: U64) =>
-    _size = 0
+    _size = size
     _alloc = size + 1
     _ptr = Pointer[U8]._create(_alloc)
     _ptr._update(size, 0)
