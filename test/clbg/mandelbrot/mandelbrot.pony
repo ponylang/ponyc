@@ -21,8 +21,11 @@ actor Worker
         var col: U64 = 0
 
         while col < width do
-          for j in Range(0, 8) do
+          var j: U64 = 0
+
+          while j < 8 do
             group.update(j, (complex(col + j)._1, prefetch_i))
+            j = j + 1
           end
 
           var bitmap: U8 = 0xFF
@@ -30,8 +33,9 @@ actor Worker
 
           repeat
             var mask: U8 = 0x80
+            var k: U64 = 0
 
-            for k in Range(0, 8) do
+            while k < 8 do
               let c = group(k)
               let r = c._1
               let i = c._2
@@ -46,6 +50,7 @@ actor Worker
               end
 
               mask = mask >> 1
+              k = k + 1
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
