@@ -71,14 +71,12 @@ actor Worker
       _next.done()
     end
 
+    let len = (_to - _from) * (_size >> 3)
     var y = _from
-
-    let to = _to
-    let size = _size
 
     var view: Array[(U64, U8)] iso =
       recover
-        Array[(U64, U8)].prealloc((to - y) * size)
+        Array[(U64, U8)].prealloc(len)
       end
 
     let group = Array[(F32, F32)].undefined(8)
