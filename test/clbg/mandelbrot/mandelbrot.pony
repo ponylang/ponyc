@@ -5,7 +5,6 @@ actor Worker
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
     limit: F32, complex: Array[(F32, F32)] val)
     =>
-
     var view: Array[U8] iso =
       recover
         Array[U8].prealloc((y - x) * (width >> 3))
@@ -65,6 +64,7 @@ actor Main
   var limit: F32 = 4.0
   var chunks: U64 = 16
   var width: U64 = 16000
+  var header: U64 = 0
   var complex: Array[(F32, F32)] val
   var outfile: (File | None) = None
   var actors: U64
@@ -92,7 +92,12 @@ actor Main
     var x: U64 = 0
     var y: U64 = 0
 
-    match outfile | var f: File => f.set_length(width * (width >> 3)) end
+    match outfile
+    | var f: File =>
+      f.print("P4\n " + width.string() + " " + width.string() + "\n")
+      header = f.length()
+      f.set_length((width * (width >> 3)) + header)
+      end
 
     for k in Range(0, actors - 1) do
       x = k * chunks
@@ -106,7 +111,7 @@ actor Main
   be draw(offset: U64, pixels: Array[U8] val) =>
     match outfile
     | var out: File =>
-      out.seek_start(offset)
+      out.seek_start(header + offset)
       out.write(pixels)
       if (actors = actors - 1) == 1 then
         out.close()
