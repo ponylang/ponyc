@@ -2,27 +2,13 @@ use "files"
 use "options"
 
 actor Worker
-  var complex: Array[(F32, F32)]
-
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
-    limit: F32)
+    limit: F32, complex: Array[(F32, F32)] val)
     =>
-    complex = Array[(F32, F32)].prealloc(width)
 
-    for j in Range(0, width) do
-      let r = ((F32(2.0)/width.f32())*j.f32()) - 1.5
-      let i = ((F32(2.0)/width.f32())*j.f32()) - 1.0
-      complex.append((r, i))
-    end
-
-    compute(main, x, y, width, iterations, limit)
-
-  fun ref compute(main: Main, x: U64, y: U64, width: U64, iterations: U64,
-    limit: F32)
-    =>
-    var view: Array[(U64, U8)] iso =
+    var view: Array[U8] iso =
       recover
-        Array[(U64, U8)].prealloc((y - x) * (width >> 3))
+        Array[U8].prealloc((y - x) * (width >> 3))
       end
 
     let group = Array[(F32, F32)].undefined(8)
@@ -64,60 +50,67 @@ actor Worker
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          view.append(((from * (width >> 3)) + (col >> 3), bitmap))
+          view.append(bitmap)
+
           col = col + 8
         end
         from = from + 1
       end
     end
 
-    main.draw(consume view)
+    main.draw(x * (width >> 3), consume view)
 
 actor Main
   var iterations: U64 = 50
   var limit: F32 = 4.0
   var chunks: U64 = 16
   var width: U64 = 16000
+  var complex: Array[(F32, F32)] val
   var outfile: (File | None) = None
-  var image: Array[U8]
   var actors: U64
 
   new create(env: Env) =>
     arguments(env)
 
-    image = Array[U8].undefined(width * (width >> 3))
     actors = ((width + (chunks - 1)) / chunks)
 
     var rest = width % chunks
 
     if rest == 0 then rest = chunks end
 
+    let length = width
+    var c = recover Array[(F32, F32)].prealloc(length) end
+
+    for j in Range(0, width) do
+      let r = ((F32(2.0)/width.f32())*j.f32()) - 1.5
+      let i = ((F32(2.0)/width.f32())*j.f32()) - 1.0
+      c.append((r, i))
+    end
+
+    complex = consume c
+
     var x: U64 = 0
     var y: U64 = 0
 
-    for i in Range(0, actors - 1) do
-      x = i * chunks
+    match outfile | var f: File => f.set_length(width * (width >> 3)) end
+
+    for k in Range(0, actors - 1) do
+      x = k * chunks
       y = x + chunks
-      Worker.mandelbrot(this, x, y, width, iterations, limit)
-      i = i + 1
+      Worker.mandelbrot(this, x, y, width, iterations, limit, complex)
+      k = k + 1
     end
 
-    Worker.mandelbrot(this, y, y + rest, width, iterations, limit)
+    Worker.mandelbrot(this, y, y + rest, width, iterations, limit, complex)
 
-  be draw(pixels: Array[(U64, U8)] val) =>
-    try
-      for bitmap in pixels.values() do
-        image.update(bitmap._1, bitmap._2)
-      end
-
-      if (actors = actors - 1) == 1 then dump() end
-    end
-
-  fun ref dump() =>
-    let x: String val = width.string()
-
+  be draw(offset: U64, pixels: Array[U8] val) =>
     match outfile
-    | var out: File => out.print("P4\n" + x + " " + x + "\n") ; out.write(image)
+    | var out: File =>
+      out.seek_start(offset)
+      out.write(pixels)
+      if (actors = actors - 1) == 1 then
+        out.close()
+      end
     end
 
   fun ref arguments(env: Env) =>
