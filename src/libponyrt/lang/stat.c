@@ -52,7 +52,7 @@ void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
   int64_t epoch = ((int64_t)ft->dwHighDateTime << 32) | ft->dwLowDateTime;
   epoch -= 116444736000000000;
   *s = epoch / 10000000;
-  *ns = (epoch - (*s * 10000000)) * 100
+  *ns = (epoch - (*s * 10000000)) * 100;
 }
 #endif
 
