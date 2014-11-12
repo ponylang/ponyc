@@ -149,8 +149,7 @@ actor Main
       The binary output can be converted to a BMP with the following command
       (ImageMagick Tools required):
 
-        convert <output> -background black -alpha remove -alpha off -colors 16
-                         -compress none BMP2:<output>.bmp
+        convert <output> JPEG:<output>.jpg
 
       Available options:
 
