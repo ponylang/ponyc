@@ -1,95 +1,43 @@
 use "files"
+use "options"
 
 actor Worker
-  var _main: Main
-  var _from: U64
-  var _to: U64
-  var _size: U64
-  var _next: Worker
-  var _coordinator: Bool = false
-  var _complex: Array[(F32, F32)] val
+  var complex: Array[(F32, F32)]
 
-  new create(main: Main, from: U64, to: U64, size: U64, next: Worker,
-    clx: Array[(F32, F32)] val)
+  new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
+    limit: F32)
     =>
-    _main = main
-    _from = from
-    _to = to
-    _size = size
-    _next = next
-    _complex = clx
+    complex = Array[(F32, F32)].prealloc(width)
 
-  new spawn_ring(main: Main, size: U64, chunk_size: U64) =>
-    let actors = ((size + (chunk_size - 1)) / chunk_size) - 1
-    var rest = size % chunk_size
-
-    if rest == 0 then rest = chunk_size end
-
-    var i: U64 = 0
-
-    var clx: Array[(F32, F32)] iso =
-      recover Array[(F32, F32)].prealloc(size) end
-
-    while i < size do
-      let real = ((F32(2.0)/size.f32())*i.f32()) - 1.5
-      let imag = ((F32(2.0)/size.f32())*i.f32()) - 1.0
-
-      clx.append((real, imag))
-
-      i = i + 1
+    for j in Range(0, width) do
+      let r = ((F32(2.0)/width.f32())*j.f32()) - 1.5
+      let i = ((F32(2.0)/width.f32())*j.f32()) - 1.0
+      complex.append((r, i))
     end
 
-    _complex = consume clx
+    compute(main, x, y, width, iterations, limit)
 
-    var n: Worker = this
-
-    var j: U64 = 0
-    var x: U64 = 0
-    var y: U64 = 0
-
-    while j < actors do
-      x = j * chunk_size
-      y = x + chunk_size
-      n = Worker(main, x, y, size, n, _complex)
-      j = j + 1
-    end
-
-    _main = main
-    _from = y
-    _to = y + rest
-    _size = size
-    _coordinator = true
-    _next = n
-
-  be mandelbrot(limit: F32, iterations: U64) =>
-    _next.pixels(limit, iterations)
-
-  be pixels(limit: F32, iterations: U64) =>
-    if not _coordinator then
-      _next.pixels(limit, iterations)
-    else
-      _next.done()
-    end
-
-    let len = (_to - _from) * (_size >> 3)
-    var y = _from
-
+  fun ref compute(main: Main, x: U64, y: U64, width: U64, iterations: U64,
+    limit: F32)
+    =>
     var view: Array[(U64, U8)] iso =
       recover
-        Array[(U64, U8)].prealloc(len)
+        Array[(U64, U8)].prealloc((y - x) * (width >> 3))
       end
 
     let group = Array[(F32, F32)].undefined(8)
 
+    var from = x
+
     try
-      while y < _to do
-        let prefetch_i = _complex(y)._2
+      while from < y do
+        let prefetch_i = complex(from)._2
 
-        var x: U64 = 0
+        var col: U64 = 0
 
-        while x < _size do
-          for i in Range[U64](0, 8) do
-            group.update(i, (_complex(x + i)._1, prefetch_i))
+        while col < width do
+          for j in Range(0, 8) do
+            group.update(j, (complex(col + j)._1, prefetch_i))
           end
 
           var bitmap: U8 = 0xFF
@@ -98,15 +46,15 @@ actor Worker
           repeat
             var mask: U8 = 0x80
 
-            for j in Range[U64](0, 8) do
-              let c = group(j)
+            for k in Range(0, 8) do
+              let c = group(k)
               let r = c._1
               let i = c._2
 
-              let new_r = ((r * r) - (i * i)) + _complex(x + j)._1
+              let new_r = ((r * r) - (i * i)) + complex(col + k)._1
               let new_i = (2.0*r*i) + prefetch_i
 
-              group.update(j, (new_r, new_i))
+              group.update(k, (new_r, new_i))
 
               if ((r * r) + (i * i)) > limit then
                 bitmap = bitmap and not mask
@@ -116,110 +64,111 @@ actor Worker
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          view.append(((y * (_size >> 3)) + (x >> 3), bitmap))
-          x = x + 8
+          view.append(((from * (width >> 3)) + (col >> 3), bitmap))
+          col = col + 8
         end
-        y = y + 1
+        from = from + 1
       end
     end
 
-    _main.draw(consume view)
-
-  be done() =>
-    if _coordinator then
-      _main.dump()
-    else
-      _next.done()
-    end
+    main.draw(consume view)
 
 actor Main
-  let _env: Env
-  var _square_limit: F32 = 4.0
-  var _iterations: U64 = 50
-  var _lateral_length: U64 = 16000
-  var _chunk_size: U64 = 16
-  var _image: Array[U8]
-  var _outfile: (File | None)
+  var iterations: U64 = 50
+  var limit: F32 = 4.0
+  var chunks: U64 = 16
+  var width: U64 = 16000
+  var outfile: (File | None) = None
+  var image: Array[U8]
+  var actors: U64
 
   new create(env: Env) =>
-    _env = env
-    _image = Array[U8] //init tracking
-    _outfile = None
+    arguments(env)
 
-    try
-      arguments()
+    image = Array[U8].undefined(width * (width >> 3))
+    actors = ((width + (chunks - 1)) / chunks)
 
-      _image = Array[U8].undefined(_lateral_length * (_lateral_length >> 3))
+    var rest = width % chunks
 
-      Worker
-        .spawn_ring(this, _lateral_length, _chunk_size)
-        .mandelbrot(_square_limit, _iterations)
-    else
-      usage()
+    if rest == 0 then rest = chunks end
+
+    var x: U64 = 0
+    var y: U64 = 0
+
+    for i in Range(0, actors - 1) do
+      x = i * chunks
+      y = x + chunks
+      Worker.mandelbrot(this, x, y, width, iterations, limit)
+      i = i + 1
     end
+
+    Worker.mandelbrot(this, y, y + rest, width, iterations, limit)
 
   be draw(pixels: Array[(U64, U8)] val) =>
     try
       for bitmap in pixels.values() do
-        _image.update(bitmap._1, bitmap._2)
+        image.update(bitmap._1, bitmap._2)
       end
+
+      if (actors = actors - 1) == 1 then dump() end
     end
 
-  be dump() =>
-    let x: String val = _lateral_length.string()
+  fun ref dump() =>
+    let x: String val = width.string()
 
-    match _outfile
-    | var o: File => o.print("P4\n"+ x + " " + x + "\n") ; o.write(_image)
+    match outfile
+    | var out: File => out.print("P4\n" + x + " " + x + "\n") ; out.write(image)
     end
 
-  fun ref arguments() ? =>
-    var n: U64 = 1
+  fun ref arguments(env: Env) =>
+    let options = Options(env)
 
-    while n < _env.args.length() do
-      var option = _env.args(n)
-      var value = _env.args(n + 1)
-      n = n + 2
+    options
+      .add("iterations", "i", None, I64Argument)
+      .add("limit", "l", None, F64Argument)
+      .add("chunks", "c", None, I64Argument)
+      .add("width", "w", None, I64Argument)
+      .add("output", "o", None, StringArgument)
 
+    for option in options do
       match option
-      | "--limit" => _square_limit = value.f32()
-      | "--iterations" => _iterations = value.u64()
-      | "--lateral_length" => _lateral_length = ((value.u64() + 7)/8)*8
-      | "--chunk_size" => _chunk_size = ((value.u64() + 7)/8)*8
-      | "--output" => _outfile = File(value)
-      else
-        error
+      | ("iterations", var arg: I64) => iterations = arg.u64()
+      | ("limit", var arg: F64) => limit = arg.f32()
+      | ("chunks", var arg: I64) => chunks = arg.u64()
+      | ("width", var arg: I64) => width = arg.u64()
+      | ("output", var arg: String) => outfile = try File(arg) end
+      | ParseError => usage(env) //usage to be generated by options package
       end
-
-      if _chunk_size > _lateral_length then error end
     end
 
-  fun ref usage() =>
-    _env.stdout.print(
+  fun tag usage(env: Env) =>
+    env.stdout.print(
       """
       mandelbrot [OPTIONS]
 
-      The output is written to stdout. The binary output can be converted to
-      a BMP with the following command (ImageMagick Tools required):
+      The binary output can be converted to a BMP with the following command
+      (ImageMagick Tools required):
 
         convert <output> -background black -alpha remove -alpha off -colors 16
                          -compress none BMP2:<output>.bmp
 
       Available options:
 
-      --limit           Square of the limit that pixels need to exceed in order
+      --iterations, -i  Maximum amount of iterations to be done for each pixel.
+                        Defaults to 50.
+
+      --limit, -l       Square of the limit that pixels need to exceed in order
                         to escape from the Mandelbrot set.
                         Defaults to 4.0.
 
-      --iterations      Maximum amount of iterations to be done for each pixel.
-                        Defaults to 50.
-
-      --lateral_length  Lateral length of the resulting mandelbrot image.
-                        Defaults to 16000.
-
-      --chunk_size      Maximum line count of chunks the image should be
+      --chunks, -c      Maximum line count of chunks the image should be
                         divided into for divide & conquer processing.
                         Defaults to 16.
 
-      --output          File to write the output to.
+      --width, -w       Lateral length of the resulting mandelbrot image.
+                        Defaults to 16000.
+
+      --output, -o      File to write the output to.
+
       """
       )
