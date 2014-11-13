@@ -1,3 +1,5 @@
+use "options"
+
 actor Main
   let _env: Env
   var _logtable: U64 = 20
@@ -17,7 +19,6 @@ actor Main
     try
       arguments()
 
-      //without U64(1), error is: Cannot apply shl to floats?
       var size = (U64(1) << _logtable) / _updater_count
       _updates = _chunk * _iterate * _streamer_count
 
@@ -36,8 +37,6 @@ actor Main
       for i in Range(0, _streamer_count) do
         Streamer(this, _to, size, _chunk, _chunk * _iterate * i)(_iterate)
       end
-    else
-      usage()
     end
 
   be streamer_done() =>
@@ -59,21 +58,23 @@ actor Main
     end
 
   fun ref arguments() ? =>
-    var n: U64 = 1
+    var options = Options(_env)
 
-    while n < _env.args.length() do
-      var option = _env.args(n)
-      var value = _env.args(n + 1)
-      n = n + 2
+    options
+      .add("logtable", "l", None, I64Argument)
+      .add("iterate", "i", None, I64Argument)
+      .add("chunk", "c", None, I64Argument)
+      .add("streamers", "s", None, I64Argument)
+      .add("updaters", "u", None, I64Argument)
 
+    for option in options do
       match option
-      | "--logtable" => _logtable = value.u64()
-      | "--iterate" => _iterate = value.u64()
-      | "--chunk" => _chunk = value.u64()
-      | "--streamers" => _streamer_count = value.u64()
-      | "--updaters" => _updater_count = value.u64()
-      else
-        error
+      | ("logtable", var arg: I64) => _logtable = arg.u64()
+      | ("iterate", var arg: I64) => _iterate = arg.u64()
+      | ("chunk", var arg: I64) => _chunk = arg.u64()
+      | ("streamers", var arg: I64) => _streamer_count = arg.u64()
+      | ("updaters", var arg: I64) => _updater_count = arg.u64()
+      | ParseError => usage() ; error
       end
     end
 
