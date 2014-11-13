@@ -3,63 +3,61 @@ use "options"
 
 actor Worker
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
-    limit: F32, complex: Array[(F32, F32)] val)
+    limit: F32, real: Array[F32] val, imaginary: Array[F32] val)
     =>
     var view: Array[U8] iso =
       recover
         Array[U8].prealloc((y - x) * (width >> 3))
       end
 
-    let group = Array[(F32, F32)].undefined(8)
+    let group_r = Array[F32].undefined(8)
+    let group_i = Array[F32].undefined(8)
 
-    var from = x
+    var row = x
 
-    try
-      while from < y do
-        let prefetch_i = complex(from)._2
+    while row < y do
+      let prefetch_i = imaginary.unsafe_get(row)
 
-        var col: U64 = 0
+      var col: U64 = 0
 
-        while col < width do
-          var j: U64 = 0
+      while col < width do
+        var j: U64 = 0
 
-          while j < 8 do
-            group.update(j, (complex(col + j)._1, prefetch_i))
-            j = j + 1
-          end
-
-          var bitmap: U8 = 0xFF
-          var n = iterations
-
-          repeat
-            var mask: U8 = 0x80
-            var k: U64 = 0
-
-            while k < 8 do
-              let c = group(k)
-              let r = c._1
-              let i = c._2
-
-              let new_r = ((r * r) - (i * i)) + complex(col + k)._1
-              let new_i = (2.0*r*i) + prefetch_i
-
-              group.update(k, (new_r, new_i))
-
-              if ((r * r) + (i * i)) > limit then
-                bitmap = bitmap and not mask
-              end
-
-              mask = mask >> 1
-              k = k + 1
-            end
-          until (bitmap == 0) or ((n = n - 1) == 1) end
-
-          view.append(bitmap)
-
-          col = col + 8
+        while j < 8 do
+          group_r.unsafe_set(j, real.unsafe_get(col + j))
+          group_i.unsafe_set(j, prefetch_i)
+          j = j + 1
         end
-        from = from + 1
+
+        var bitmap: U8 = 0xFF
+        var n = iterations
+
+        repeat
+          var mask: U8 = 0x80
+          var k: U64 = 0
+
+          while k < 8 do
+            let r = group_r.unsafe_get(k)
+            let i = group_i.unsafe_get(k)
+
+            group_r.unsafe_set(k, ((r * r) - (i * i)) +
+              real.unsafe_get(col + k))
+            group_i.unsafe_set(k, (2.0 * r * i) + prefetch_i)
+
+            if ((r * r) + (i * i)) > limit then
+              bitmap = bitmap and not mask
+            end
+
+            mask = mask >> 1
+            k = k + 1
+          end
+        until (bitmap == 0) or ((n = n - 1) == 1) end
+
+        view.append(bitmap)
+
+        col = col + 8
       end
+      row = row + 1
     end
 
     main.draw(x * (width >> 3), consume view)
@@ -71,22 +69,26 @@ actor Main
   var width: U64 = 16000
   var actors: U64 = 0
   var header: U64 = 0
-  var complex: Array[(F32, F32)] val
+  var real: Array[F32] val
+  var imaginary: Array[F32] val
   var outfile: (File | None) = None
 
   new create(env: Env) =>
     arguments(env)
 
     let length = width
-    var c = recover Array[(F32, F32)].prealloc(length) end
+    let recip_width = 2.0 / width.f32()
+
+    var r = recover Array[F32].prealloc(length) end
+    var i = recover Array[F32].prealloc(length) end
 
     for j in Range(0, width) do
-      let r = ((F32(2.0)/width.f32())*j.f32()) - 1.5
-      let i = ((F32(2.0)/width.f32())*j.f32()) - 1.0
-      c.append((r, i))
+      r.append((recip_width * j.f32()) - 1.5)
+      i.append((recip_width * j.f32()) - 1.0)
     end
 
-    complex = consume c
+    real = consume r
+    imaginary = consume i
 
     create_outfile()
     spawn_actors()
@@ -122,10 +124,11 @@ actor Main
     for i in Range(0, actors - 1) do
       x = i * chunks
       y = x + chunks
-      Worker.mandelbrot(this, x, y, width, iterations, limit, complex)
+      Worker.mandelbrot(this, x, y, width, iterations, limit, real, imaginary)
     end
 
-    Worker.mandelbrot(this, y, y + rest, width, iterations, limit, complex)
+    Worker.mandelbrot(this, y, y + rest, width, iterations, limit, real,
+      imaginary)
 
   fun ref arguments(env: Env) =>
     let options = Options(env)
