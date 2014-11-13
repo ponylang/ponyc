@@ -11,7 +11,7 @@ actor Main
   var _to: Array[Updater] val
   var _start: U64
 
-  new create(env:Env) =>
+  new create(env: Env) =>
     _env = env
     _to = recover Array[Updater] end //init tracking...
     _start = Time.nanos()
@@ -91,15 +91,15 @@ actor Main
       )
 
 actor Streamer
-  let main:Main
-  let updaters:Array[Updater] val
-  let shift:U64
-  let mask:U64
-  let chunk:U64
+  let main: Main
+  let updaters: Array[Updater] val
+  let shift: U64
+  let mask: U64
+  let chunk: U64
   let rand: PolyRand
 
-  new create(main':Main, updaters':Array[Updater] val, size:U64, chunk':U64,
-    seed:U64) =>
+  new create(main': Main, updaters': Array[Updater] val, size: U64, chunk': U64,
+    seed: U64) =>
     main = main'
     updaters = updaters'
     shift = size.width() - size.clz()
@@ -107,7 +107,7 @@ actor Streamer
     chunk = chunk'
     rand = PolyRand(seed)
 
-  be apply(iterate:U64) =>
+  be apply(iterate: U64) =>
     let upts = updaters.length()
     let chks = chunk
 
@@ -124,7 +124,7 @@ actor Streamer
         list(updater).append(datum)
       end
 
-      var vlist:Array[Array[U64] iso] val = consume list
+      var vlist: Array[Array[U64] iso] val = consume list
 
       for i in vlist.keys() do
         var data = vlist(i)
@@ -142,9 +142,9 @@ actor Streamer
     end
 
 actor Updater
-  var table:Array[U64] ref
+  var table: Array[U64] ref
 
-  new create(index:U64, size:U64) =>
+  new create(index: U64, size: U64) =>
     table = Array[U64].prealloc(size)
 
     var offset = index * size;
@@ -153,7 +153,7 @@ actor Updater
       table.append(i + offset)
     end
 
-  be apply(data:Array[U64] val) =>
+  be apply(data: Array[U64] val) =>
     try
       for datum in data.values() do
         var i = datum and (table.length() - 1)
@@ -161,24 +161,24 @@ actor Updater
       end
     end
 
-  be done(main:Main) => main.updater_done()
+  be done(main: Main) => main.updater_done()
 
 class PolyRand
   let poly: U64
   let period: U64
   var last: U64
 
-  new create(seed:U64) =>
+  new create(seed: U64) =>
     poly = 7
     period = 1317624576693539401
     last = 1
     _seed(seed)
 
-  fun ref apply():U64 =>
+  fun ref apply(): U64 =>
     last = (last << 1) xor
       if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
 
-  fun ref _seed(seed:U64) =>
+  fun ref _seed(seed: U64) =>
     var n = seed % period
 
     if n == 0 then
