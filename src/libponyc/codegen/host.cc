@@ -49,9 +49,15 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
   if(PointerMayBeCaptured(call, true, true))
     return;
 
+  // TODO: what if it's not constant? could we still alloca?
+  // https://github.com/ldc-developers/ldc/blob/master/gen/passes/
+  // GarbageCollect2Stack.cpp
   Value* size = call->getArgOperand(0);
-
   ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
+
+  if(int_size == NULL)
+    return;
+
   size_t alloc_size = int_size->getZExtValue();
 
   // Limit stack allocations to 1 kb each.

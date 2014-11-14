@@ -1,6 +1,7 @@
 #include "postfix.h"
 #include "reference.h"
 #include "literal.h"
+#include "control.h"
 #include "../pass/expr.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -484,10 +485,25 @@ bool expr_call(ast_t* ast)
             return false;
           }
 
-          ast_replace(&arg, def_arg);
+          ast_setid(arg, TK_SEQ);
+          ast_add(arg, def_arg);
+
+          // Type check the arg.
+          if(ast_type(def_arg) == NULL)
+          {
+            if(ast_visit(&arg, NULL, pass_expr, NULL) != AST_OK)
+              return false;
+          } else {
+            if(!expr_seq(arg))
+              return false;
+          }
         }
 
         ast_t* p_type = ast_childidx(param, 1);
+
+        if(!coerce_literals(arg, p_type))
+          return false;
+
         ast_t* arg_type = ast_type(arg);
 
         if(arg_type == NULL)
@@ -496,10 +512,7 @@ bool expr_call(ast_t* ast)
           return false;
         }
 
-        if(!coerce_literals(arg, p_type))
-          return false;
-
-        ast_t* a_type = alias(ast_type(arg));
+        ast_t* a_type = alias(arg_type);
         send &= sendable(a_type);
 
         // If we are sending, we need to drop to a sending capability before

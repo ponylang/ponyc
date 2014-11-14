@@ -19,9 +19,7 @@ char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 
 // In case we need to change the internal calling convention.
-// #define GEN_CALLCONV LLVMFastCallConv
-// TODO: remove this
-#define GEN_CALLCONV LLVMCCallConv
+#define GEN_CALLCONV LLVMFastCallConv
 
 #define GEN_NOVALUE ((LLVMValueRef)1)
 

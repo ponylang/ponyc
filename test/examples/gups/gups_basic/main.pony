@@ -13,7 +13,7 @@ actor Main
 
   new create(env: Env) =>
     _env = env
-    _to = recover Array[Updater] end //init tracking...
+    _to = recover Array[Updater] end
     _start = Time.nanos()
 
     try

@@ -1,3 +1,10 @@
+primitive _PathSep is Comparable[_PathSep]
+primitive _PathDot is Comparable[_PathDot]
+primitive _PathDot2 is Comparable[_PathDot2]
+primitive _PathOther is Comparable[_PathOther]
+
+type _PathState is (_PathSep | _PathDot | _PathDot2 | _PathOther)
+
 primitive Path
   """
   Operations on paths that do not require an open file or directory.
@@ -56,27 +63,13 @@ primitive Path
     """
     if Platform.windows() then "\\" else "/" end
 
-  fun tag is_list_sep(c: U8): Bool =>
-    """
-    Determine if a byte is a list separator.
-    """
-    if Platform.windows() then c == ';' else c == ':' end
-
-  fun tag list_sep(): String =>
-    """
-    Return the list separator as a string.
-    """
-    if Platform.windows() then ";" else ":" end
-
   fun tag is_abs(path: String): Bool =>
     """
     Return true if the path is an absolute path.
     """
     try
       if Platform.windows() then
-        var c = path(0)
-        is_sep(c) or
-          ((c >= 'A') and (c <= 'Z') and (path(1) == ':') and is_sep(path(2)))
+        is_sep(path(0)) or _drive_letter(path)
       else
         is_sep(path(0))
       end
@@ -87,7 +80,7 @@ primitive Path
   fun tag join(path: String, next_path: String): String =>
     """
     Join two paths together. If the next_path is absolute, simply return it.
-    Paths have Path.clean() called on them before being returned.
+    The returned path will be cleaned.
     """
     if path.length() == 0 then
       clean(next_path)
@@ -116,10 +109,85 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    // TODO:
-    path
+    var s = recover path.clone() end
+    let base: I64 = Path.volume(path).length().i64()
+    var i: I64 = base
+    var state: _PathState = _PathOther
 
-  fun tag cwd(): String iso^ =>
+    try
+      while i.u64() < s.length() do
+        if is_sep(s(i)) then
+          match state
+          | _PathSep =>
+            s.delete(i, 1)
+            i = i - 1
+          | _PathDot =>
+            s.delete(i - 1, 2)
+            i = i - 2
+          | _PathDot2 =>
+            if i > (base + 2) then
+              try
+                var prev = s.rfind(sep(), i - 3)
+
+                if s.compare("..", 2, prev + 1) != 0 then
+                  var len = i - prev
+                  s.delete(prev + 1, len.u64())
+                  i = i - len
+                end
+              else
+                if i == (base + 3) then
+                  s.delete(i - 2, 3)
+                  i = i - 3
+                end
+              end
+            end
+          end
+          state = _PathSep
+        elseif s(i) == '.' then
+          match state
+          | _PathDot =>
+            state = _PathDot2
+          | _PathDot2 =>
+            state = _PathOther
+          else
+            state = _PathDot
+          end
+        else
+          state = _PathOther
+        end
+
+        i = i + 1
+      end
+
+      match state
+      | _PathSep where s.length() > 1 =>
+        s.delete(-1, 1)
+      | _PathDot =>
+        s.delete(-2, 2)
+      | _PathDot2 =>
+        if i > (base + 2) then
+          try
+            var prev = s.rfind(sep(), -3)
+
+            if s.compare("..", 2, prev + 1) != 0 then
+              s.delete(prev, s.length() - prev.u64())
+            end
+          else
+            if s.length() == (base.u64() + 3) then
+              s.delete(-2, 2)
+            end
+          end
+        end
+      end
+    end
+
+    if s.length() > 0 then
+      s
+    else
+      "."
+    end
+
+  fun tag cwd(): String =>
     """
     Returns the program's working directory. Setting the working directory is
     not supported, as it is not concurrency-safe.
@@ -133,12 +201,99 @@ primitive Path
     if is_abs(path) then
       clean(path)
     else
-      clean(join(cwd(), path))
+      join(cwd(), path)
     end
 
-  fun tag rel(base: String, path: String): String =>
-    // TODO:
-    path
+  fun tag rel(base: String, target: String): String ? =>
+    """
+    Returns a path such that Path.join(base, Path.rel(base, target)) == target.
+    Raises an error if this isn't possible.
+    """
+    var base_clean = Path.clean(base)
+    var target_clean = Path.clean(target)
+
+    if base_clean == target_clean then
+      return "."
+    end
+
+    var base_i: I64 = 0
+
+    if Platform.windows() then
+      base_clean = Path.abs(base_clean)
+      target_clean = Path.abs(target_clean)
+
+      var base_vol = Path.volume(base_clean)
+      var target_vol = Path.volume(target_clean)
+
+      if base_vol != target_vol then
+        error
+      end
+
+      base_i = base_vol.length().i64()
+    end
+
+    var base_0 = base_i
+    var target_i = base_i
+    var target_0 = target_i
+
+    while true do
+      base_i = try
+        base_clean.find(sep(), base_i)
+      else
+        base_clean.length().i64()
+      end
+
+      target_i = try
+        target_clean.find(sep(), target_i)
+      else
+        target_clean.length().i64()
+      end
+
+      if
+        (base_i != target_i) or
+        (base_clean.compare(
+          target_clean, target_i.u64()) != 0)
+      then
+        break None
+      end
+
+      if base_i < base_clean.length().i64() then
+        base_i = base_i + 1
+      end
+
+      if target_i < target_clean.length().i64() then
+        target_i = target_i + 1
+      end
+
+      base_0 = base_i
+      target_0 = target_i
+    end
+
+    if
+      ((base_i - base_0) == 2) and
+      (base_clean.compare("..", 2, base_0) == 0)
+    then
+      error
+    end
+
+    if base_0.u64() != base_clean.length() then
+      var result = recover String end
+
+      try
+        while true do
+          base_i = base_clean.find(sep(), base_i) + 1
+          result.append("..")
+          result.append(sep())
+        end
+      end
+
+      result.append("..")
+      result.append(sep())
+      result.append(target_clean.substring(target_0, -1))
+      consume result
+    else
+      target_clean.substring(target_0, -1)
+    end
 
   fun tag base(path: String): String =>
     """
@@ -154,12 +309,12 @@ primitive Path
 
   fun tag dir(path: String): String =>
     """
-    Return the path before the last separator, or the whole path if there is no
-    separator.
+    Return a cleaned path before the last separator, or the whole path if there
+    is no separator.
     """
     try
       var i = path.rfind(sep())
-      path.substring(0, i - 1)
+      Path.clean(path.substring(0, i - 1))
     else
       path
     end
@@ -182,22 +337,66 @@ primitive Path
         return path.substring(i + 1, -1)
       end
     end
-    recover String end
+    ""
 
   fun tag volume(path: String): String =>
     """
-    On Windows, this returns the drive letter at the beginning of the path,
-    if there is one. Otherwise, this returns an empty string.
+    On Windows, this returns the drive letter or UNC base at the beginning of
+    the path, if there is one. Otherwise, this returns an empty string.
     """
     if Platform.windows() then
+      var offset: I64 = 0
+
+      if path.compare("""\\?\""", 4) == 0 then
+        offset = 4
+
+        if path.compare("""UNC\""", 4, offset) == 0 then
+          return _network_share(path, offset + 4)
+        end
+      end
+
+      if _drive_letter(path, offset) then
+        return path.substring(0, offset + 1)
+      end
+
       try
-        var c = path(0)
-        if (c >= 'A') and (c <= 'Z') and (path(1) == ':') then
-          return path.substring(0, 0)
+        if is_sep(path(offset)) and is_sep(path(offset + 1)) then
+          return _network_share(path, offset + 2)
         end
       end
     end
-    recover String end
+    ""
+
+  fun tag _drive_letter(path: String, offset: I64 = 0): Bool =>
+    """
+    Look for a drive letter followed by a ':', returning true if we find it.
+    """
+    try
+      var c = path(offset)
+
+      (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))) and
+        (path(offset + 1) == ':')
+    else
+      false
+    end
+
+  fun tag _network_share(path: String, offset: I64 = 0): String =>
+    """
+    Look for a host, a \, and a resource. Return the path up to that point if
+    we found one, otherwise an empty String.
+    """
+    try
+      var next = path.find("\\", offset) + 1
+
+      try
+        next = path.find("\\", next) - 1
+        path.substring(0, next)
+      else
+        path
+      end
+    else
+      ""
+    end
 
   fun tag from_slash(path: String): String =>
     """
@@ -211,7 +410,7 @@ primitive Path
       try
         while i < len do
           if s(i) == '/' then
-            s(i) = sep()(0)
+            s(i) = '\\'
           end
 
           i = i + 1
@@ -234,7 +433,7 @@ primitive Path
 
       try
         while i < len do
-          if s(i) == sep()(0) then
+          if s(i) == '\\' then
             s(i) = '/'
           end
 
@@ -257,14 +456,12 @@ primitive Path
       false
     end
 
-  fun tag mkdir(path: String, mode: FileMode box): Bool =>
+  fun tag mkdir(path: String): Bool =>
     """
     Creates the directory. Will recursively create each element. Returns true
-    if the directory exists when we're done, false if it does not. On Windows,
-    the mode is ignored.
+    if the directory exists when we're done, false if it does not.
     """
     var offset: I64 = 0
-    var m = mode._os()
 
     repeat
       var element = try
@@ -278,16 +475,11 @@ primitive Path
       if Platform.windows() then
         @_mkdir[I32](element.cstring())
       else
-        @mkdir[I32](element.cstring(), m)
+        @mkdir[I32](element.cstring(), U32(0x1FF))
       end
     until offset < 0 end
 
-    try
-      FileInfo(path)
-      true
-    else
-      false
-    end
+    exists(path)
 
   fun tag remove(path: String): Bool =>
     """
@@ -340,10 +532,46 @@ primitive Path
       @symlink[I32](target.cstring(), link_name.cstring()) == 0
     end
 
-  fun tag readlink(path: String): String =>
-    // TODO:
-    path
+  fun tag canonical(path: String): String ? =>
+    """
+    Return the equivalent canonical absolute path. Raise an error if there
+    isn't one.
+    """
+    var cstring = @os_realpath[Pointer[U8] iso^](path.cstring())
 
-  fun tag realpath(path: String): String =>
-    // TODO:
-    path
+    if cstring.is_null() then
+      error
+    else
+      recover String.from_cstring(consume cstring) end
+    end
+
+  fun tag is_list_sep(c: U8): Bool =>
+    """
+    Determine if a byte is a path list separator.
+    """
+    if Platform.windows() then c == ';' else c == ':' end
+
+  fun tag list_sep(): String =>
+    """
+    Return the path list separator as a string.
+    """
+    if Platform.windows() then ";" else ":" end
+
+  fun tag split_list(path: String): Array[String] iso^ =>
+    """
+    Separate a list of paths into an array of cleaned paths.
+    """
+    var array = recover Array[String] end
+    var offset: I64 = 0
+
+    try
+      while true do
+        var next = path.find(list_sep(), offset)
+        array.append(Path.clean(path.substring(offset, next - 1)))
+        offset = next + 1
+      end
+    else
+      array.append(Path.clean(path.substring(offset, -1)))
+    end
+
+    consume array

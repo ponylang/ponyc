@@ -431,10 +431,22 @@ class String val is Ordered[String], Hashable, Stringable
       consume str
     end
 
-  fun box compare(that: String box, n: U64): I32 =>
+  fun box compare(that: String box, n: U64,
+    offset: I64 = 0, that_offset: I64 = 0): I32 =>
+    """
+    Starting at this + offset, compare n characters with that + offset. Return
+    zero if the strings are the same. Return a negative number if this is
+    less than that, a positive number if this is more than that.
+    """
     var i = n
-    var j: U64 = 0
-    var k: U64 = 0
+    var j: U64 = offset_to_index(offset)
+    var k: U64 = offset_to_index(that_offset)
+
+    if (j + n) > _size then
+      return -1
+    elseif (k + n) > that._size then
+      return 1
+    end
 
     while i > 0 do
       if _ptr._apply(j) != that._ptr._apply(k) then
@@ -445,8 +457,6 @@ class String val is Ordered[String], Hashable, Stringable
       k = k + 1
       i = i - 1
     end
-
-    //The two strings are equal
     0
 
   fun box eq(that: String box): Bool =>

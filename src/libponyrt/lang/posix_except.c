@@ -48,8 +48,8 @@ _Unwind_Reason_Code pony_personality_v0(int version, _Unwind_Action actions,
 
   if(actions & _UA_CLEANUP_PHASE)
   {
-    // We should always find a cleanup clause.
-    assert(actions & _UA_HANDLER_FRAME);
+    if(!(actions & _UA_HANDLER_FRAME))
+      return _URC_CONTINUE_UNWIND;
 
     // No need to search again, just set the registers.
     _Unwind_SetGR(context, __builtin_eh_return_data_regno(0),

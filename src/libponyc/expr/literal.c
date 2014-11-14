@@ -274,21 +274,7 @@ static bool check_fields_defined(ast_t* ast)
 static bool check_return_type(ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
-
-  ast_t* type = ast_childidx(ast, 4);
-  ast_t* can_error = ast_sibling(type);
-  ast_t* body = ast_sibling(can_error);
-
-  // If the return type is None, add a None at the end of the body.
-  if(is_none(type))
-  {
-    ast_t* last = ast_childlast(body);
-    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, ref);
-    expr_reference(ref);
-    return true;
-  }
-
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
   ast_t* body_type = ast_type(body);
 
   // The last statement is an error, and we've already checked any return
@@ -299,6 +285,16 @@ static bool check_return_type(ast_t* ast)
   // If it's a compiler intrinsic, ignore it.
   if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
     return true;
+
+  // If the return type is None, add a None at the end of the body.
+  if(is_none(type))
+  {
+    ast_t* last = ast_childlast(body);
+    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
+    ast_append(body, ref);
+    expr_reference(ref);
+    return true;
+  }
 
   // The body type must match the return type, without subsumption, or an alias
   // of the body type must be a subtype of the return type.
@@ -405,7 +401,7 @@ void literals_init()
   for(int i = 0; i < UIF_COUNT; i++)
     _str_uif_types[i] = stringtab(_str_uif_types[i]);
 }
-  
+
 
 // Generate the correct literal mask for the given ID
 static int uif_mask(token_id id)
@@ -432,8 +428,8 @@ static ast_t* best_uif_in_set(int set, ast_t* from_type)
     if((set & 1) != 0)
     {
       ast_t* type = type_builtin(from_type, _str_uif_types[i]);
-      ast_setid(ast_childidx(type, 3), TK_ISO);
-      ast_setid(ast_childidx(type, 4), TK_HAT);
+      ast_setid(ast_childidx(type, 3), TK_VAL);
+      ast_setid(ast_childidx(type, 4), TK_NONE);
       return type;
     }
 
@@ -566,7 +562,7 @@ static int uifset_simple_type(ast_t* type, int mask)
     if((mask & (1 << i)) != 0)
     {
       ast_t* uif = type_builtin(type, _str_uif_types[i]);
-      ast_setid(ast_childidx(uif, 3), TK_ISO);
+      ast_setid(ast_childidx(uif, 3), TK_VAL);
 
       if(is_subtype(uif, type))
         set |= (1 << i);
@@ -1050,7 +1046,7 @@ bool coerce_literals(ast_t* literals, ast_t* target_type)
     ast_add(literals_type, canonical_type);
     return true;
   }
-  
+
   // We know the exact type, apply it to the literal tree
   apply_type(literals, canonical_type);
   ast_free(canonical_type);
@@ -1225,7 +1221,7 @@ static literal_set_t* make_literal_set(ast_t* type)
     for(int i = 0; _uif_types[i] != NULL; i++)
     {
       ast_t* uif = type_builtin(type, _uif_types[i]);
-      ast_setid(ast_childidx(uif, 3), TK_ISO);
+      ast_setid(ast_childidx(uif, 3), TK_VAL);
 
       if(is_subtype(uif, type))
         set |= (1 << i);

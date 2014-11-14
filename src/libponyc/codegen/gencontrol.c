@@ -49,17 +49,19 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
     return NULL;
 
   // If the conditional is constant, generate only one branch.
+  bool gen_left = true;
+  bool gen_right = true;
+
   if(LLVMIsAConstantInt(c_value))
   {
     int value = (int)LLVMConstIntGetZExtValue(c_value);
 
     if(value == 0)
-      return gen_expr(c, right);
-
-    return gen_expr(c, left);
+      gen_left = false;
+    else
+      gen_right = false;
   }
 
-  // build a conditional
   LLVMBasicBlockRef then_block = codegen_block(c, "if_then");
   LLVMBasicBlockRef else_block = codegen_block(c, "if_else");
   LLVMBasicBlockRef post_block = NULL;
@@ -72,7 +74,17 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   // Left branch.
   LLVMPositionBuilderAtEnd(c->builder, then_block);
-  LLVMValueRef l_value = gen_expr(c, left);
+  LLVMValueRef l_value;
+
+  if(gen_left)
+  {
+    l_value = gen_expr(c, left);
+  } else if(type != NULL) {
+    l_value = LLVMConstNull(phi_type.use_type);
+  } else {
+    LLVMBuildUnreachable(c->builder);
+    l_value = GEN_NOVALUE;
+  }
 
   if(l_value != GEN_NOVALUE)
   {
@@ -88,7 +100,17 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
 
   // Right branch.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
-  LLVMValueRef r_value = gen_expr(c, right);
+  LLVMValueRef r_value;
+
+  if(gen_right)
+  {
+    r_value = gen_expr(c, right);
+  } else if(type != NULL) {
+    r_value = LLVMConstNull(phi_type.use_type);
+  } else {
+    LLVMBuildUnreachable(c->builder);
+    r_value = GEN_NOVALUE;
+  }
 
   // If the right side returns, we don't branch to the post block.
   if(r_value != GEN_NOVALUE)
@@ -432,8 +454,8 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
     false);
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
-    c->personality, 0, "");
-  LLVMSetCleanup(landing, true);
+    c->personality, 1, "");
+  LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
 
   LLVMValueRef else_value = gen_expr(c, else_clause);
 

@@ -90,8 +90,8 @@ actor Main
     real = consume r
     imaginary = consume i
 
-    create_outfile()
     spawn_actors()
+    create_outfile()
 
   be draw(offset: U64, pixels: Array[U8] val) =>
     match outfile
