@@ -109,75 +109,99 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    var s = recover path.clone() end
-    let base: I64 = Path.volume(path).length().i64()
-    var i: I64 = base
+    var s = recover String.reserve(path.length()) end
+    var volume = Path.volume(path)
+    s.append(volume)
+
     var state: _PathState = _PathOther
+    var i: I64 = volume.length().i64()
+    var backtrack: I64 = -1
+    let n = path.length().i64()
 
     try
-      while i.u64() < s.length() do
-        if is_sep(s(i)) then
-          match state
-          | _PathSep =>
-            s.delete(i, 1)
-            i = i - 1
-          | _PathDot =>
-            s.delete(i - 1, 2)
-            i = i - 2
-          | _PathDot2 =>
-            if i > (base + 2) then
-              try
-                var prev = s.rfind(sep(), i - 3)
+      var c = path(i)
 
-                if s.compare("..", 2, prev + 1) != 0 then
-                  var len = i - prev
-                  s.delete(prev + 1, len.u64())
-                  i = i - len
-                end
+      if is_sep(c) then
+        s.append(sep())
+        i = i + 1
+        state = _PathSep
+      elseif c == '.' then
+        i = i + 1
+        state = _PathDot
+      else
+        backtrack = s.length().i64()
+      end
+
+      while i < n do
+        c = path(i)
+
+        if is_sep(c) then
+          match state
+          | _PathDot2 =>
+            if backtrack == -1 then
+              s.append("..")
+              s.append(sep())
+            else
+              s.delete(backtrack, -1)
+
+              try
+                backtrack = s.rfind(sep(), -1) + 1
               else
-                if i == (base + 3) then
-                  s.delete(i - 2, 3)
-                  i = i - 3
-                end
+                backtrack = volume.length().i64()
+              end
+
+              if (s.length() == 0) or (s.compare("../", 3, backtrack) == 0) then
+                backtrack = -1
               end
             end
+          | _PathOther =>
+            s.append(sep())
           end
           state = _PathSep
-        elseif s(i) == '.' then
+        elseif c == '.' then
           match state
+          | _PathSep =>
+            state = _PathDot
           | _PathDot =>
             state = _PathDot2
           | _PathDot2 =>
+            backtrack = s.length().i64()
+            s.append("...")
             state = _PathOther
-          else
-            state = _PathDot
+          | _PathOther =>
+            s.append(".")
           end
         else
+          match state
+          | _PathSep =>
+            backtrack = s.length().i64()
+          | _PathDot =>
+            backtrack = s.length().i64()
+            s.append(".")
+          | _PathDot2 =>
+            backtrack = s.length().i64()
+            s.append("..")
+          end
+          s.append_byte(c)
           state = _PathOther
         end
 
         i = i + 1
       end
+    end
 
-      match state
-      | _PathSep where s.length() > 1 =>
+    match state
+    | _PathDot2 =>
+      if backtrack == -1 then
+        s.append("..")
+      else
+        s.delete(backtrack, -1)
+      end
+    end
+
+    try
+      if is_sep(s(-1)) then
         s.delete(-1, 1)
-      | _PathDot =>
-        s.delete(-2, 2)
-      | _PathDot2 =>
-        if i > (base + 2) then
-          try
-            var prev = s.rfind(sep(), -3)
-
-            if s.compare("..", 2, prev + 1) != 0 then
-              s.delete(prev, s.length() - prev.u64())
-            end
-          else
-            if s.length() == (base.u64() + 3) then
-              s.delete(-2, 2)
-            end
-          end
-        end
       end
     end
 

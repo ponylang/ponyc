@@ -512,6 +512,16 @@ class String val is Ordered[String], Hashable, Stringable
     _size = _size + that._size
     this
 
+  fun ref append_byte(value: U8): String ref^ =>
+    if((_size + 1) >= _alloc) then
+      _alloc = _size + 2
+      _ptr = _ptr._realloc(_alloc)
+    end
+    _ptr._update(_size, value)
+    _ptr._update(_size + 1, 0)
+    _size = _size + 1
+    this
+
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
