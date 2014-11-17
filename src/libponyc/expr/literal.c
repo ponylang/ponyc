@@ -303,8 +303,7 @@ static bool check_return_type(ast_t* ast)
   if(!is_eqtype(body_type, type) && !is_subtype(a_type, type))
   {
     ast_t* last = ast_childlast(body);
-    ast_error(type, "function body isn't the result type");
-    ast_error(last, "function body expression is here");
+    ast_error(last, "function body isn't the result type");
     ast_error(type, "function return type: %s", ast_print_type(type));
     ast_error(body_type, "function body type: %s", ast_print_type(body_type));
     ast_free_unattached(a_type);

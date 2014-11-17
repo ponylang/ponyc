@@ -6,7 +6,6 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
 #include "../type/lookup.h"
 #include "../type/alias.h"
 #include "../type/cap.h"

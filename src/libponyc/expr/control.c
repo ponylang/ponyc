@@ -2,8 +2,8 @@
 #include "../ast/token.h"
 #include "../expr/literal.h"
 #include "../type/assemble.h"
-#include "../type/assemble.h"
 #include "../type/subtype.h"
+#include "../type/alias.h"
 #include <assert.h>
 
 bool expr_seq(ast_t* ast)
@@ -324,19 +324,22 @@ bool expr_return(ast_t* ast)
     return false;
 
   ast_t* type = ast_type(body);
+  ast_t* a_type = alias(type);
 
-  if(!is_subtype(type, result))
+  if(!is_eqtype(type, result) && !is_subtype(a_type, result))
   {
     ast_error(body,
       "body of return doesn't match the function return type");
 
     ast_error(result, "function return type: %s", ast_print_type(result));
     ast_error(type, "return body type: %s", ast_print_type(type));
+    ast_free_unattached(a_type);
     return false;
   }
 
+  ast_free_unattached(a_type);
+
   // Has no type.
   ast_inheriterror(ast);
-
   return true;
 }
