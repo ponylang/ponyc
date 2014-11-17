@@ -145,7 +145,7 @@ primitive Path
               s.delete(backtrack, -1)
 
               try
-                backtrack = s.rfind(sep(), -1) + 1
+                backtrack = s.rfind(sep(), 0, -1) + 1
               else
                 backtrack = volume.length().i64()
               end
@@ -262,13 +262,13 @@ primitive Path
 
     while true do
       base_i = try
-        base_clean.find(sep(), base_i)
+        base_clean.find(sep(), 0, base_i)
       else
         base_clean.length().i64()
       end
 
       target_i = try
-        target_clean.find(sep(), target_i)
+        target_clean.find(sep(), 0, target_i)
       else
         target_clean.length().i64()
       end
@@ -305,7 +305,7 @@ primitive Path
 
       try
         while true do
-          base_i = base_clean.find(sep(), base_i) + 1
+          base_i = base_clean.find(sep(), 0, base_i) + 1
           result.append("..")
           result.append(sep())
         end
@@ -410,10 +410,10 @@ primitive Path
     we found one, otherwise an empty String.
     """
     try
-      var next = path.find("\\", offset) + 1
+      var next = path.find("\\", 0, offset) + 1
 
       try
-        next = path.find("\\", next) - 1
+        next = path.find("\\", 0, next) - 1
         path.substring(0, next)
       else
         path
@@ -489,7 +489,7 @@ primitive Path
 
     repeat
       var element = try
-        offset = path.find(sep(), offset) + 1
+        offset = path.find(sep(), 0, offset) + 1
         path.substring(0, offset - 2)
       else
         offset = -1
@@ -590,7 +590,7 @@ primitive Path
 
     try
       while true do
-        var next = path.find(list_sep(), offset)
+        var next = path.find(list_sep(), 0, offset)
         array.append(Path.clean(path.substring(offset, next - 1)))
         offset = next + 1
       end
