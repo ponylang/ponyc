@@ -186,12 +186,13 @@ class String val is Ordered[String box], Hashable, Stringable
 
     consume str
 
-  fun box find(s: String box, offset: I64 = 0): I64 ? =>
+  fun box find(s: String box, nth: U64 = 0, offset: I64 = 0): I64 ? =>
     """
-    Return the index of the first instance of s in the string. Raise an error
-    if there are no occurences of s or s is empty.
+    Return the index of the n-th instance of s in the string starting from the
+    beginning. Raise an error if there is no n-th occurence of s or s is empty.
     """
     var i = offset_to_index(offset)
+    var steps = nth
 
     while i < _size do
       var j: U64 = 0
@@ -207,19 +208,22 @@ class String val is Ordered[String box], Hashable, Stringable
       end
 
       if same then
-        return i.i64()
+        if (steps == 0) or ((steps = steps - 1) == 1) then
+          return i.i64()
+        end
       end
 
       i = i + 1
     end
     error
 
-  fun box rfind(s: String, offset: I64 = -1): I64 ? =>
+  fun box rfind(s: String, nth: U64 = 0, offset: I64 = -1): I64 ? =>
     """
-    Return the index of the last instance of s in the string. Raise an error
-    if there are no occurences of s or s is empty.
+    Return the index of n-th instance of s in the string starting from the end.
+    Raise an error if there is no n-th occurence of s or s is empty.
     """
     var i = offset_to_index(offset) - s._size
+    var steps = nth + 1
 
     while i < _size do
       var j: U64 = 0
@@ -234,13 +238,36 @@ class String val is Ordered[String box], Hashable, Stringable
         false
       end
 
-      if same then
+      if same and ((steps = steps - 1) == 1) then
         return i.i64()
       end
 
       i = i - 1
     end
     error
+
+  fun box count(s: String, offset: I64 = 0): U64 =>
+    """
+    Counts the occurrences of s in the string.
+    """
+    let j: I64 = (_size - s.length()).i64()
+    var i: U64 = 0
+    var k = offset
+
+    if j < 0 then
+      return 0
+    elseif (j == 0) and (this == s) then
+      return 1
+    end
+
+    try
+      while k < j do
+        k = find(s, 0, k) + s.length().i64()
+        i = i + 1
+      end
+    end
+
+    i
 
   fun box at(s: String, offset: I64): Bool =>
     """
