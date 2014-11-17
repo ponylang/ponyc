@@ -11,7 +11,7 @@ class Env val
     Builds an environment from the command line. This is done before the Main
     actor is created.
     """
-    stdout = Stdout
+    stdout = Stdout._create()
 
     args = recover
       let array = Array[String]
@@ -38,5 +38,7 @@ class Env val
     args = args'
 
 actor Stdout
+  new _create() => None
+
   be print(a: String) => @printf[I32]("%s\n".cstring(), a.cstring())
   be write(a: String) => @printf[I32]("%s".cstring(), a.cstring())

@@ -44,7 +44,7 @@ bool is_cap_sub_cap(token_id sub, token_id super)
   return sub <= super;
 }
 
-token_id cap_for_receiver(ast_t* ast)
+token_id cap_for_this(ast_t* ast)
 {
   // If this is a primitive, it's a val.
   ast_t* def = ast_enclosing_type(ast);
@@ -184,98 +184,6 @@ token_id cap_viewpoint(token_id view, token_id cap)
   return TK_NONE;
 }
 
-token_id cap_viewpoint_lower(token_id cap)
-{
-  // For any chain of arrows, return a capability that is a subtype of the
-  // resulting capability.
-  // iso <: ref->iso, iso <: val->iso, iso <: box->iso
-  // trn <: ref->trn, trn <: val->trn, trn <: box->trn
-  // val <: ref->val, val <: val->val, val <: box->val
-  // val <: ref->box, val <: val->val, val <: box->box
-  // tag <: ref->tag, tag <: val->tag, tag <: box->tag
-  switch(cap)
-  {
-    case TK_ISO: return TK_ISO;
-    case TK_TRN: return TK_TRN;
-    case TK_REF: return TK_TRN;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_VAL;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
-token_id cap_alias(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO: return TK_TAG;
-    case TK_TRN: return TK_BOX;
-    case TK_REF: return TK_REF;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_BOX;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
-token_id cap_alias_bind(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO: return TK_TAG;
-    case TK_TRN: return TK_TAG; // Prevent trn from binding to a box constraint.
-    case TK_REF: return TK_REF;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_BOX;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
-token_id cap_recover(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO: return TK_ISO;
-    case TK_TRN: return TK_ISO;
-    case TK_REF: return TK_ISO;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_VAL;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
-token_id cap_send(token_id cap)
-{
-  switch(cap)
-  {
-    case TK_ISO: return TK_ISO;
-    case TK_TRN: return TK_TAG;
-    case TK_REF: return TK_TAG;
-    case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_TAG;
-    case TK_TAG: return TK_TAG;
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
 token_id cap_typeparam(token_id cap)
 {
   switch(cap)
@@ -339,63 +247,6 @@ bool cap_safetowrite(token_id into, token_id cap)
       break;
 
     case TK_REF:
-      return true;
-
-    default: {}
-  }
-
-  return false;
-}
-
-bool cap_compatible(ast_t* a, ast_t* b)
-{
-  token_id ta = cap_for_type(a);
-  token_id tb = cap_for_type(b);
-
-  switch(ta)
-  {
-    case TK_ISO:
-      return tb == TK_TAG;
-
-    case TK_TRN:
-      switch(tb)
-      {
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_REF:
-      switch(tb)
-      {
-        case TK_REF:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_VAL:
-      switch(tb)
-      {
-        case TK_VAL:
-        case TK_BOX:
-        case TK_TAG:
-          return true;
-
-        default: {}
-      }
-      break;
-
-    case TK_BOX:
-      return tb != TK_ISO;
-
-    case TK_TAG:
       return true;
 
     default: {}

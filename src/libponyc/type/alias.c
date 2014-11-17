@@ -8,85 +8,87 @@ static ast_t* alias_for_type(ast_t* type, int index)
 {
   ast_t* ephemeral = ast_childidx(type, index + 1);
 
-  if(ast_id(ephemeral) == TK_HAT)
+  switch(ast_id(ephemeral))
   {
-    // ephemeral capability becomes non-ephemeral
-    type = ast_dup(type);
-    ephemeral = ast_childidx(type, index + 1);
-    ast_replace(&ephemeral, ast_from(type, TK_NONE));
-  } else {
-    // non-ephemeral capability gets aliased
-    ast_t* cap = ast_childidx(type, index);
-    token_id tcap = ast_id(cap);
-    token_id acap = cap_alias(tcap);
-
-    if(tcap != acap)
-    {
+    case TK_EPHEMERAL:
       type = ast_dup(type);
-      cap = ast_childidx(type, index);
-      ast_replace(&cap, ast_from(type, acap));
-    }
+      ephemeral = ast_childidx(type, index + 1);
+      ast_setid(ephemeral, TK_NONE);
+      return type;
+
+    case TK_NONE:
+      type = ast_dup(type);
+      ephemeral = ast_childidx(type, index + 1);
+      ast_setid(ephemeral, TK_BORROWED);
+      return type;
+
+    case TK_BORROWED:
+      return type;
+
+    default: {}
   }
 
-  return type;
+  assert(0);
+  return NULL;
 }
 
 static ast_t* alias_bind_for_type(ast_t* type, int index)
 {
-  ast_t* ephemeral = ast_childidx(type, index + 1);
+  ast_t* cap = ast_childidx(type, index);
 
-  if(ast_id(ephemeral) == TK_HAT)
+  switch(ast_id(cap))
   {
-    // ephemeral capability becomes non-ephemeral
-    type = ast_dup(type);
-    ephemeral = ast_childidx(type, index + 1);
-    ast_replace(&ephemeral, ast_from(type, TK_NONE));
-  } else {
-    // non-ephemeral capability gets aliased
-    ast_t* cap = ast_childidx(type, index);
-    token_id tcap = ast_id(cap);
-    token_id acap = cap_alias_bind(tcap);
-
-    if(tcap != acap)
-    {
+    case TK_ISO:
+    case TK_TRN:
+      // Prevent trn from binding to a box constraint.
       type = ast_dup(type);
       cap = ast_childidx(type, index);
-      ast_replace(&cap, ast_from(type, acap));
-    }
+      ast_setid(cap, TK_TAG);
+      return type;
+
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      return type;
+
+    default: {}
   }
 
-  return type;
+  assert(0);
+  return NULL;
 }
 
 static ast_t* recover_for_type(ast_t* type, int index)
 {
   ast_t* cap = ast_childidx(type, index);
   token_id tcap = ast_id(cap);
-  token_id rcap = cap_recover(tcap);
+  token_id rcap;
 
-  if(tcap != rcap)
+  switch(tcap)
   {
-    type = ast_dup(type);
-    cap = ast_childidx(type, index);
-    ast_replace(&cap, ast_from(cap, rcap));
+    case TK_ISO:
+    case TK_VAL:
+    case TK_TAG:
+      return type;
+
+    case TK_TRN:
+    case TK_REF:
+      rcap = TK_ISO;
+      break;
+
+    case TK_BOX:
+      rcap = TK_VAL;
+      break;
+
+    default:
+      assert(0);
+      return NULL;
   }
 
-  return type;
-}
-
-static ast_t* send_for_type(ast_t* type, int index)
-{
-  ast_t* cap = ast_childidx(type, index);
-  token_id tcap = ast_id(cap);
-  token_id rcap = cap_send(tcap);
-
-  if(tcap != rcap)
-  {
-    type = ast_dup(type);
-    cap = ast_childidx(type, index);
-    ast_replace(&cap, ast_from(cap, rcap));
-  }
-
+  type = ast_dup(type);
+  cap = ast_childidx(type, index);
+  ast_setid(cap, rcap);
   return type;
 }
 
@@ -200,7 +202,7 @@ ast_t* consume_type(ast_t* type)
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // consume each element
+      // Consume each element.
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* child = ast_child(type);
 
@@ -217,7 +219,20 @@ ast_t* consume_type(ast_t* type)
     {
       type = ast_dup(type);
       ast_t* ephemeral = ast_childidx(type, 4);
-      ast_replace(&ephemeral, ast_from(ephemeral, TK_HAT));
+
+      switch(ast_id(ephemeral))
+      {
+        case TK_NONE:
+          ast_setid(ephemeral, TK_EPHEMERAL);
+          break;
+
+        case TK_BORROWED:
+          ast_setid(ephemeral, TK_NONE);
+          break;
+
+        default: {}
+      }
+
       return type;
     }
 
@@ -225,13 +240,26 @@ ast_t* consume_type(ast_t* type)
     {
       type = ast_dup(type);
       ast_t* ephemeral = ast_childidx(type, 2);
-      ast_replace(&ephemeral, ast_from(ephemeral, TK_HAT));
+
+      switch(ast_id(ephemeral))
+      {
+        case TK_NONE:
+          ast_setid(ephemeral, TK_EPHEMERAL);
+          break;
+
+        case TK_BORROWED:
+          ast_setid(ephemeral, TK_NONE);
+          break;
+
+        default: {}
+      }
+
       return type;
     }
 
     case TK_ARROW:
     {
-      // consume just the right side. the left side is either 'this' or a type
+      // Consume just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
       ast_t* r_type = ast_from(type, TK_ARROW);
       ast_t* left = ast_child(type);
@@ -283,52 +311,6 @@ ast_t* recover_type(ast_t* type)
       ast_t* left = ast_child(type);
       ast_t* right = ast_sibling(left);
       ast_add(r_type, recover_type(right));
-      ast_add(r_type, left);
-      return r_type;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
-ast_t* send_type(ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // Send type for each element.
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_append(r_type, send_type(child));
-        child = ast_sibling(child);
-      }
-
-      return r_type;
-    }
-
-    case TK_NOMINAL:
-      return send_for_type(type, 3);
-
-    case TK_TYPEPARAMREF:
-      return send_for_type(type, 1);
-
-    case TK_ARROW:
-    {
-      // Send type just for the right side. Left side is either 'this' or a type
-      // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, send_type(right));
       ast_add(r_type, left);
       return r_type;
     }

@@ -514,19 +514,6 @@ bool expr_call(ast_t* ast)
         ast_t* a_type = alias(arg_type);
         send &= sendable(a_type);
 
-        // If we are sending, we need to drop to a sending capability before
-        // checking subtyping.
-        if(sending)
-        {
-          ast_t* s_type = send_type(a_type);
-
-          if(s_type != a_type)
-          {
-            ast_free_unattached(a_type);
-            a_type = s_type;
-          }
-        }
-
         if(!is_subtype(a_type, p_type))
         {
           if(sending)
@@ -561,40 +548,45 @@ bool expr_call(ast_t* ast)
           if(ast_id(receiver) == TK_FUNREF)
             receiver = ast_child(receiver);
 
+          // Receiver type, alias of receiver type, and target type.
           ast_t* r_type = ast_type(receiver);
+          ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
+          ast_t* a_type;
 
-          // If args and result are sendable, don't alias the receiver.
-          if(!send)
-            r_type = alias(r_type);
+          if(send)
+            a_type = r_type;
+          else
+            a_type = alias(r_type);
 
-          token_id rcap = cap_for_type(r_type);
-          token_id fcap = ast_id(cap);
+          bool ok = is_subtype(a_type, t_type);
 
-          if(!is_cap_sub_cap(rcap, fcap))
+          if(!ok)
           {
             ast_error(ast,
               "receiver capability is not a subtype of method capability");
-
             ast_error(receiver, "receiver type: %s", ast_print_type(r_type));
-            ast_error(cap, "expected capability");
+            ast_error(cap, "target type: %s", ast_print_type(t_type));
 
-            if(!send)
+            if(!send && is_subtype(r_type, t_type))
             {
-              rcap = cap_for_type(ast_type(receiver));
-
-              if(is_cap_sub_cap(rcap, fcap))
-              {
-                ast_error(ast,
-                  "this would be possible if the arguments and return value "
-                  "were all sendable");
-              }
+              ast_error(ast,
+                "this would be possible if the arguments and return value "
+                "were all sendable");
             }
 
             ast_free_unattached(r_type);
             return false;
           }
 
+          if(a_type != r_type)
+            ast_free_unattached(a_type);
+
           ast_free_unattached(r_type);
+          ast_free_unattached(t_type);
+
+          if(!ok)
+            return false;
+
           break;
         }
 

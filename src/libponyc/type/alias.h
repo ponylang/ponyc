@@ -16,8 +16,6 @@ ast_t* consume_type(ast_t* type);
 
 ast_t* recover_type(ast_t* type);
 
-ast_t* send_type(ast_t* type);
-
 bool sendable(ast_t* type);
 
 PONY_EXTERN_C_END

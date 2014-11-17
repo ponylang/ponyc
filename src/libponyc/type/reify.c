@@ -18,7 +18,7 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     return false;
 
   // Keep ephemerality.
-  if(ast_id(ast_childidx(ast, 2)) == TK_HAT)
+  if(ast_id(ast_childidx(ast, 2)) == TK_EPHEMERAL)
     typearg = consume_type(typearg);
 
   ast_replace(astp, typearg);
@@ -178,19 +178,20 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       return false;
     }
 
-    ast_t* a_typearg = alias_bind(typearg);
-    ast_t* a_constraint = alias(constraint);
-
     // In addition, an alias of the bound type must be a subtype of an alias of
-    // the constraint.
+    // the constraint. We use a different alias operation because we are not
+    // interested in ephemerality or borrowing, and we don't want trn bound
+    // where a box is expected.
+    ast_t* a_typearg = alias_bind(typearg);
+    ast_t* a_constraint = alias_bind(constraint);
+
     if(!is_subtype(a_typearg, a_constraint))
     {
       if(report_errors)
       {
-        ast_error(typearg,
-          "an alias of the type argument must be a subtype of an alias of the "
-          "constraint");
-        ast_error(typeparam, "constraint is here");
+        ast_error(typearg, "iso and trn can only bind to themselves or tag");
+        ast_error(typearg, "argument: %s", ast_print_type(typearg));
+        ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
       }
 
       ast_free_unattached(a_typearg);

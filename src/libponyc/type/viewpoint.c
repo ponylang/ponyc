@@ -80,15 +80,38 @@ static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
 {
   ast_t* cap = ast_childidx(type, cap_index);
   token_id tcap = ast_id(cap);
-  token_id rcap = cap_viewpoint_lower(tcap);
 
-  if(tcap != rcap)
+  // For any chain of arrows, return a capability that is a subtype of the
+  // resulting capability.
+  // iso <: ref->iso, iso <: val->iso, iso <: box->iso
+  // trn <: ref->trn, trn <: val->trn, trn <: box->trn
+  // val <: ref->val, val <: val->val, val <: box->val
+  // val <: ref->box, val <: val->val, val <: box->box
+  // tag <: ref->tag, tag <: val->tag, tag <: box->tag
+  switch(tcap)
   {
-    type = ast_dup(type);
-    cap = ast_childidx(type, cap_index);
-    ast_setid(cap, rcap);
+    case TK_ISO:
+    case TK_VAL:
+    case TK_TAG:
+      return type;
+
+    case TK_TRN:
+    case TK_REF:
+      tcap = TK_TRN;
+      break;
+
+    case TK_BOX:
+      tcap = TK_VAL;
+      break;
+
+    default:
+      assert(0);
+      return NULL;
   }
 
+  type = ast_dup(type);
+  cap = ast_childidx(type, cap_index);
+  ast_setid(cap, tcap);
   return type;
 }
 
@@ -99,13 +122,13 @@ static ast_t* viewpoint_for_type(token_id view, token_id eph, ast_t* type,
   token_id tcap = ast_id(cap);
   token_id rcap = cap_viewpoint(view, tcap);
 
-  if((tcap != rcap) || (eph == TK_HAT))
+  if((tcap != rcap) || (eph == TK_EPHEMERAL))
   {
     type = ast_dup(type);
     cap = ast_childidx(type, cap_index);
     ast_setid(cap, rcap);
 
-    if(eph == TK_HAT && is_cap_sub_cap(view, TK_TRN))
+    if(eph == TK_EPHEMERAL && ((view == TK_ISO) || (view == TK_TRN)))
     {
       // If we're adapting from an ephemeral type, make this type ephemeral.
       // iso^->iso = iso^, previous views were iso, alias(iso^) ~ alias(iso)
@@ -387,7 +410,6 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_VAR:
     case TK_LET:
     case TK_VARREF:
-    case TK_PARAMREF:
       return true;
 
     case TK_FVARREF:
@@ -434,7 +456,8 @@ bool safe_to_write(ast_t* ast, ast_t* type)
         {
           // TODO: if the field (without adaptation) is safe, then it's ok as
           // well. So iso.tag = ref should be allowed.
-          // If left is x.f, we need the type of x to determine safe to write.
+          // If the ast is x.f, we need the type of x to determine safe to
+          // write.
           ast_t* left = ast_child(ast);
           ast_t* l_type = ast_type(left);
           token_id l_cap = cap_for_type(l_type);

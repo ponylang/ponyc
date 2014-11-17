@@ -144,7 +144,7 @@ static ast_result_t sugar_new(ast_t* ast)
     default: cap = TK_REF; break;
   }
 
-  ast_replace(&result, type_for_this(ast, cap, true));
+  ast_replace(&result, type_for_this(ast, cap, TK_EPHEMERAL));
   return AST_OK;
 }
 
@@ -155,7 +155,7 @@ static ast_result_t sugar_be(ast_t* ast)
   ast_t* result = ast_childidx(ast, 4);
   assert(ast_id(result) == TK_NONE);
 
-  ast_replace(&result, type_for_this(ast, TK_TAG, false));
+  ast_replace(&result, type_for_this(ast, TK_TAG, TK_NONE));
   return AST_OK;
 }
 

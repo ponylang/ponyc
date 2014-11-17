@@ -4,6 +4,7 @@
 #include "cap.h"
 #include "alias.h"
 #include "reify.h"
+#include "assemble.h"
 #include <assert.h>
 
 static bool could_subtype_with_union(ast_t* sub, ast_t* super)
@@ -61,11 +62,13 @@ static bool could_subtype_with_typeparam(ast_t* sub, ast_t* super)
 
 static bool could_subtype_trait_trait(ast_t* sub, ast_t* super)
 {
-  // The subtype cap must be a subtype of the supertype cap.
-  token_id sub_cap = cap_for_type(sub);
-  token_id super_cap = cap_for_type(super);
+  // The subtype cap/eph must be a subtype of the supertype cap/eph.
+  AST_GET_CHILDREN(super, sup_pkg, sup_id, sup_typeargs, sup_cap, sup_eph);
+  ast_t* r_type = set_cap_and_ephemeral(sub, ast_id(sup_cap), ast_id(sup_eph));
+  bool ok = is_subtype(sub, r_type);
+  ast_free_unattached(r_type);
 
-  return is_cap_sub_cap(sub_cap, super_cap);
+  return ok;
 }
 
 static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
@@ -82,25 +85,17 @@ static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
     case TK_CLASS:
     case TK_ACTOR:
     {
-      // The supertype without capability must be a subtype of the
-      // subtype without capability.
-      ast_t* t_sub = viewpoint_tag(sub);
-      ast_t* t_super = viewpoint_tag(super);
-      bool ok = is_subtype(t_super, t_sub);
+      // If we set sub cap/eph to the same as super, both sub and super must
+      // be a subtype of the new type. That is, the concrete type must provide
+      // the trait and the trait must be a subtype of the concrete type's
+      // capability and ephemerality.
+      AST_GET_CHILDREN(super, sup_pkg, sup_id, sup_typeargs, sup_cap, sup_eph);
+      ast_t* r_type = set_cap_and_ephemeral(sub,
+        ast_id(sup_cap), ast_id(sup_eph));
 
-      if(t_sub != sub)
-        ast_free_unattached(t_sub);
-
-      if(t_super != super)
-        ast_free_unattached(t_super);
-
-      if(!ok)
-        return false;
-
-      // The subtype cap must be a subtype of the supertype cap.
-      token_id sub_cap = cap_for_type(sub);
-      token_id super_cap = cap_for_type(super);
-      return is_cap_sub_cap(sub_cap, super_cap);
+      bool ok = is_subtype(sub, r_type) && is_subtype(super, r_type);
+      ast_free_unattached(r_type);
+      return ok;
     }
 
     default: {}

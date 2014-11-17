@@ -188,7 +188,7 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
   return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
+ast_t* type_for_this(ast_t* ast, token_id cap, token_id ephemeral)
 {
   ast_t* def = ast_enclosing_type(ast);
   assert(def != NULL);
@@ -198,7 +198,7 @@ ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral)
   const char* name = ast_name(id);
 
   ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(nominal, ast_from(ast, ephemeral ? TK_HAT : TK_NONE));
+  ast_add(nominal, ast_from(ast, ephemeral));
 
   if(cap == TK_BOX)
     ast_add(nominal, ast_from(ast, TK_REF));
@@ -327,15 +327,43 @@ bool flatten_isect(ast_t** astp)
   return true;
 }
 
-ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, bool ephemeral)
+ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
 {
-  assert(ast_id(type) == TK_NOMINAL);
-  type = ast_dup(type);
+  switch(ast_id(type))
+  {
+    case TK_ISECTTYPE:
+      // If the source is an intersection type, just set it for the first type
+      // in the list. We're using the for subtyping, and we will be a subtype
+      // of every type in the list.
+      return set_cap_and_ephemeral(ast_child(type), cap, ephemeral);
 
-  AST_GET_CHILDREN(type, package, id, typeargs, tcap, eph);
+    case TK_NOMINAL:
+    {
+      type = ast_dup(type);
+      AST_GET_CHILDREN(type, package, id, typeargs, tcap, eph);
 
-  ast_setid(tcap, cap);
-  ast_setid(eph, ephemeral ? TK_HAT : TK_NONE);
+      ast_setid(tcap, cap);
+      ast_setid(eph, ephemeral);
+      return type;
+    }
 
-  return type;
+    case TK_TYPEPARAMREF:
+    {
+      type = ast_dup(type);
+      AST_GET_CHILDREN(type, id, tcap, eph);
+
+      ast_setid(tcap, cap);
+      ast_setid(eph, ephemeral);
+      return type;
+    }
+
+    case TK_ARROW:
+      // Just use the lhs of the viewpoint type.
+      return set_cap_and_ephemeral(ast_childidx(type, 1), cap, ephemeral);
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
 }

@@ -13,7 +13,7 @@ bool is_cap_sub_cap(token_id sub, token_id super);
  * functions, it is defined by the function signature. A field initialiser is
  * considered part of a constructor.
  */
-token_id cap_for_receiver(ast_t* ast);
+token_id cap_for_this(ast_t* ast);
 
 /**
  * Gets the capability for a type. Upper bounds of union and arrow types, lower
@@ -22,16 +22,6 @@ token_id cap_for_receiver(ast_t* ast);
 token_id cap_for_type(ast_t* type);
 
 token_id cap_viewpoint(token_id view, token_id cap);
-
-token_id cap_viewpoint_lower(token_id cap);
-
-token_id cap_alias(token_id cap);
-
-token_id cap_alias_bind(token_id cap);
-
-token_id cap_recover(token_id cap);
-
-token_id cap_send(token_id cap);
 
 /**
  * Given the capability of a constraint, derive the capability to use for a
@@ -43,8 +33,6 @@ token_id cap_typeparam(token_id cap);
 bool cap_sendable(token_id cap);
 
 bool cap_safetowrite(token_id into, token_id cap);
-
-bool cap_compatible(ast_t* a, ast_t* b);
 
 PONY_EXTERN_C_END
 

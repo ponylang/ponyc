@@ -93,14 +93,14 @@ DEF(typeargs);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// ID [DOT ID] [typeargs]
+// ID [DOT ID] [typeargs] [ISO | TRN | REF | VAL | BOX | TAG] [HAT | BANG]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
   IF(TK_DOT, TOKEN("name", TK_ID));
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_HAT);
+  OPT TOKEN(NULL, TK_HAT, TK_BANG);
   DONE();
 
 // PIPE type

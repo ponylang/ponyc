@@ -1,5 +1,6 @@
 #include "names.h"
 #include "../type/assemble.h"
+#include "../type/alias.h"
 #include "../type/cap.h"
 #include "../pkg/package.h"
 #include <assert.h>
@@ -271,6 +272,28 @@ static bool names_arrow(ast_t* ast)
   return false;
 }
 
+static bool names_async(ast_t* ast)
+{
+  ast_t* params = ast_childidx(ast, 3);
+  ast_t* param = ast_child(params);
+  bool ok = true;
+
+  while(param != NULL)
+  {
+    AST_GET_CHILDREN(param, id, type, def);
+
+    if(!sendable(type))
+    {
+      ast_error(type, "asynchronous methods must have sendable parameters");
+      ok = false;
+    }
+
+    param = ast_sibling(param);
+  }
+
+  return ok;
+}
+
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -284,6 +307,18 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 
     case TK_ARROW:
       if(!names_arrow(ast))
+        return AST_ERROR;
+      break;
+
+    case TK_NEW:
+    {
+      if((ast_id(ast_enclosing_type(ast)) == TK_ACTOR) && !names_async(ast))
+        return AST_ERROR;
+      break;
+    }
+
+    case TK_BE:
+      if(!names_async(ast))
         return AST_ERROR;
       break;
 

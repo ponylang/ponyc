@@ -412,32 +412,25 @@ static ast_result_t parse_fix_ephemeral(ast_t* ast)
     return AST_ERROR;
   }
 
+  ast_setid(ast, TK_EPHEMERAL);
   return AST_OK;
 }
 
 
 static ast_result_t parse_fix_bang(ast_t* ast)
 {
-  // TODO: syntactic sugar for partial application
-  /*
-  a!method(b, c)
+  assert(ast != NULL);
 
+  if(ast_id(ast_parent(ast)) != TK_NOMINAL)
+    return AST_OK;
+
+  if(ast_enclosing_local_type(ast) == NULL)
   {
-    var $0: Receiver method_cap = a
-    var $1: Param1 = b
-    var $2: Param2 = c
+    ast_error(ast, "borrowed types can only appear in parameters or locals");
+    return AST_ERROR;
+  }
 
-    fun cap apply(remaining args on method): method_result =>
-      $0.method($1, $2, remaining args on method)
-  } cap ^
-
-  cap
-    never tag (need to read our receiver)
-    never iso or trn (but can recover)
-    val: ParamX val or tag, method_cap val or tag
-    box: val <: ParamX, val <: method_cap
-    ref: otherwise
-  */
+  ast_setid(ast, TK_BORROWED);
   return AST_OK;
 }
 

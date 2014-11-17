@@ -22,19 +22,74 @@ static bool is_literal(ast_t* type, const char* name)
   return ast_name(ast_childidx(type, 1)) == stringtab(name);
 }
 
+static ast_t* fetch_cap(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      return ast_childidx(type, 3);
+
+    case TK_TYPEPARAMREF:
+      return ast_childidx(type, 1);
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
 static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
 {
-  assert(ast_id(sub) == TK_NOMINAL);
-  assert(ast_id(super) == TK_NOMINAL);
+  ast_t* sub_cap = fetch_cap(sub);
+  ast_t* sub_eph = ast_sibling(sub_cap);
+  ast_t* super_cap = fetch_cap(super);
+  ast_t* super_eph = ast_sibling(super_cap);
 
-  AST_GET_CHILDREN(sub, sub_pkg, sub_id, sub_typeargs, sub_cap, sub_eph);
-  AST_GET_CHILDREN(super, super_pkg, super_id, super_typeargs, super_cap,
-    super_eph);
+  token_id t_sub_cap = ast_id(sub_cap);
+  token_id t_sub_eph = ast_id(sub_eph);
+  token_id t_super_cap = ast_id(super_cap);
+  token_id t_super_eph = ast_id(super_eph);
+  token_id t_alt_cap = t_sub_cap;
 
-  if((ast_id(super_eph) == TK_HAT) && (ast_id(sub_eph) != TK_HAT))
-    return false;
+  // Adjusted for borrowing.
+  if(t_sub_eph == TK_BORROWED)
+  {
+    switch(t_alt_cap)
+    {
+      case TK_ISO: t_alt_cap = TK_TAG; break;
+      case TK_TRN: t_alt_cap = TK_BOX; break;
+      default: {}
+    }
+  }
 
-  return is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap));
+  switch(t_super_eph)
+  {
+    case TK_EPHEMERAL:
+      // Sub must be ephemeral.
+      if(t_sub_eph != TK_EPHEMERAL)
+        return false;
+
+      // Capability must be a sub-capability.
+      return is_cap_sub_cap(t_sub_cap, t_super_cap);
+
+    case TK_NONE:
+      // Check the adjusted capability.
+      return is_cap_sub_cap(t_alt_cap, t_super_cap);
+
+    case TK_BORROWED:
+      // Borrow a capability.
+      if(t_sub_cap == t_super_cap)
+        return true;
+
+      // Or alias a capability.
+      return is_cap_sub_cap(t_alt_cap, t_super_cap);
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b)
@@ -253,12 +308,10 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
       case TK_CLASS:
       case TK_ACTOR:
       {
-        token_id sub_cap = ast_id(ast_childidx(sub, 3));
-        token_id constraint_cap = cap_for_type(constraint);
-        token_id typeparam_cap = cap_typeparam(constraint_cap);
+        if(!is_subtype(sub, constraint))
+          return false;
 
-        return is_cap_sub_cap(sub_cap, typeparam_cap) &&
-          is_subtype(sub, constraint);
+        return check_cap_and_ephemeral(sub, super);
       }
 
       default: {}
@@ -496,16 +549,7 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super)
   if(sub_def != super_def)
     return false;
 
-  AST_GET_CHILDREN(sub, sub_id, sub_cap, sub_eph);
-  AST_GET_CHILDREN(super, super_id, super_cap, super_eph);
-
-  if((ast_id(super_eph) == TK_HAT) && (ast_id(sub_eph) != TK_HAT))
-    return false;
-
-  token_id t_sub_cap = ast_id(sub_cap);
-  token_id t_super_cap = ast_id(super_cap);
-
-  return is_cap_sub_cap(t_sub_cap, t_super_cap);
+  return check_cap_and_ephemeral(sub, super);
 }
 
 // The subtype is a typeparam, the supertype could be anything.

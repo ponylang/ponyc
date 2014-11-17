@@ -31,22 +31,23 @@ bool expr_this(ast_t* ast)
 
   // If this is the return value of a function, it is ephemeral.
   ast_t* parent = ast_parent(ast);
-  bool ephemeral = false;
+  token_id ephemeral = TK_NONE;
 
   switch(ast_id(parent))
   {
     case TK_RETURN:
-      ephemeral = true;
+      ephemeral = TK_EPHEMERAL;
       break;
 
     case TK_SEQ:
-      ephemeral = ast_id(ast_parent(parent)) == TK_FUN;
+      if(ast_id(ast_parent(parent)) == TK_FUN)
+        ephemeral = TK_EPHEMERAL;
       break;
 
     default: {}
   }
 
-  ast_t* type = type_for_this(ast, cap_for_receiver(ast), ephemeral);
+  ast_t* type = type_for_this(ast, cap_for_this(ast), ephemeral);
   ast_settype(ast, type);
 
   if(ast_enclosing_default_arg(ast) != NULL)
@@ -298,20 +299,22 @@ static bool check_return_type(ast_t* ast)
 
   // The body type must match the return type, without subsumption, or an alias
   // of the body type must be a subtype of the return type.
-  ast_t* a_type = alias(body_type);
+  ast_t* a_type = alias(type);
+  ast_t* a_body_type = alias(body_type);
+  bool ok = true;
 
-  if(!is_eqtype(body_type, type) && !is_subtype(a_type, type))
+  if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
   {
     ast_t* last = ast_childlast(body);
     ast_error(last, "function body isn't the result type");
     ast_error(type, "function return type: %s", ast_print_type(type));
     ast_error(body_type, "function body type: %s", ast_print_type(body_type));
-    ast_free_unattached(a_type);
-    return false;
+    ok = false;
   }
 
   ast_free_unattached(a_type);
-  return true;
+  ast_free_unattached(a_body_type);
+  return ok;
 }
 
 bool expr_fun(ast_t* ast)

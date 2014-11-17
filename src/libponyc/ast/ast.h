@@ -107,10 +107,10 @@ type
   TUPLETYPE: {type}
   THISTYPE: no children
 
-  TYPEPARAMREF: ID [cap] [HAT]
+  TYPEPARAMREF: ID [cap] [EPHEMERAL | BORROWED]
   data: typeparam definition
 
-  NOMINAL: [ID] ID [TYPEARGS] cap [HAT] [ID]
+  NOMINAL: [ID] ID [TYPEARGS] cap [EPHEMERAL | BORROWED] [ID]
   data: type definition
 )
 
@@ -337,6 +337,7 @@ ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
 ast_t* ast_enclosing_pattern(ast_t* ast);
 ast_t* ast_enclosing_constraint(ast_t* ast);
+ast_t* ast_enclosing_local_type(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);

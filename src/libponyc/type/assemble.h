@@ -36,7 +36,7 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type);
 /**
  * Build a type to describe the current class/actor.
  */
-ast_t* type_for_this(ast_t* ast, token_id cap, bool ephemeral);
+ast_t* type_for_this(ast_t* ast, token_id cap, token_id ephemeral);
 
 /**
  * Build a type to describe a function signature.
@@ -64,7 +64,7 @@ bool flatten_isect(ast_t** astp);
 /**
  * Change cap and ephemeral on a nominal type.
  */
-ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, bool ephemeral);
+ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral);
 
 PONY_EXTERN_C_END
 

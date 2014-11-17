@@ -318,28 +318,31 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
-  ast_t* result = ast_childidx(fun, 4);
+  ast_t* type = ast_childidx(fun, 4);
 
-  if(!coerce_literals(body, result))
+  if(!coerce_literals(body, type))
     return false;
 
-  ast_t* type = ast_type(body);
+  // The body type must match the return type, without subsumption, or an alias
+  // of the body type must be a subtype of the return type.
+  ast_t* body_type = ast_type(body);
   ast_t* a_type = alias(type);
+  ast_t* a_body_type = alias(body_type);
+  bool ok = true;
 
-  if(!is_eqtype(type, result) && !is_subtype(a_type, result))
+  if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
   {
-    ast_error(body,
-      "body of return doesn't match the function return type");
-
-    ast_error(result, "function return type: %s", ast_print_type(result));
-    ast_error(type, "return body type: %s", ast_print_type(type));
-    ast_free_unattached(a_type);
-    return false;
+    ast_t* last = ast_childlast(body);
+    ast_error(last, "returned value isn't the return type");
+    ast_error(type, "function return type: %s", ast_print_type(type));
+    ast_error(body_type, "returned value type: %s", ast_print_type(body_type));
+    ok = false;
   }
 
   ast_free_unattached(a_type);
+  ast_free_unattached(a_body_type);
 
   // Has no type.
   ast_inheriterror(ast);
-  return true;
+  return ok;
 }

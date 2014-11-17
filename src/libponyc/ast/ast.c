@@ -447,13 +447,18 @@ ast_t* ast_enclosing_method_type(ast_t* ast)
       case TK_BE:
       case TK_FUN:
       {
-        // only if we are in the method return type
+        // Only if we are in the method return type.
         ast_t* type = ast_childidx(ast, 4);
 
         if(type == last)
           return ast;
         break;
       }
+
+      case TK_TYPEPARAM:
+      case TK_TYPEARGS:
+        // Not if we are in a type parameter or type argument.
+        return NULL;
 
       default: {}
     }
@@ -533,13 +538,23 @@ ast_t* ast_enclosing_ffi_type(ast_t* ast)
     {
       case TK_FFICALL:
       {
-        // only if we are in the ffi return type
+        // Only if we are in the ffi return type.
         ast_t* type = ast_childidx(ast, 1);
 
         if(type == last)
           return ast;
         break;
       }
+
+      case TK_TYPEPARAM:
+        // Not if we are in a type parameter.
+        return NULL;
+
+      case TK_TYPEARGS:
+        // Only if our parent is an ffi call.
+        if(token_get_id(ast->parent->t) != TK_FFICALL)
+          return NULL;
+        break;
 
       default: {}
     }
@@ -654,13 +669,48 @@ ast_t* ast_enclosing_constraint(ast_t* ast)
     {
       case TK_TYPEPARAM:
       {
-        // only if we are in the constraint
+        // Only if we are in the constraint.
         ast_t* constraint = ast_childidx(ast, 1);
 
         if(constraint == last)
           return ast;
         break;
       }
+
+      default: {}
+    }
+
+    last = ast;
+    ast = ast->parent;
+  }
+
+  return NULL;
+}
+
+ast_t* ast_enclosing_local_type(ast_t* ast)
+{
+  ast_t* last = NULL;
+
+  while(ast != NULL)
+  {
+    switch(token_get_id(ast->t))
+    {
+      case TK_VAR:
+      case TK_LET:
+      case TK_PARAM:
+      {
+        // Only if we are in the type.
+        ast_t* type = ast_childidx(ast, 1);
+
+        if(type == last)
+          return ast;
+        break;
+      }
+
+      case TK_TYPEPARAM:
+      case TK_TYPEARGS:
+        // Not if we are in a type parameter or type argument.
+        return NULL;
 
       default: {}
     }
