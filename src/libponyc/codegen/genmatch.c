@@ -662,7 +662,12 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
       ast_t* child = ast_child(pattern);
 
       if(ast_sibling(child) == NULL)
+      {
+        // Pass on the element in the seq instead of the seq.
+        assert(ast_id(child) == TK_SEQ);
+        child = ast_child(child);
         return static_match(c, value, type, child, next_block);
+      }
 
       // Destructure the match expression (or element thereof).
       return static_tuple(c, value, type, pattern, next_block);
