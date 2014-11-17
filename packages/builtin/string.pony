@@ -4,7 +4,7 @@ interface Stringable box
   """
   fun box string(): String
 
-class String val is Ordered[String], Hashable, Stringable
+class String val is Ordered[String box], Hashable, Stringable
   """
   Strings don't specify an encoding.
   """

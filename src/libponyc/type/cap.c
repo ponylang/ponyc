@@ -68,6 +68,8 @@ token_id cap_for_receiver(ast_t* ast)
 
 token_id cap_for_type(ast_t* type)
 {
+  // This is used for receiver cap, sendability, safe-to-write, and determining
+  // if a union or intersection is a tag when doing garbage collection.
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
@@ -99,10 +101,9 @@ token_id cap_for_type(ast_t* type)
     }
 
     case TK_TUPLETYPE:
-    {
-      // should never be looking for the cap of a tuple
-      break;
-    }
+      // This will only be examined when checking for a tag in garbage
+      // collection.
+      return TK_REF;
 
     case TK_NOMINAL:
       return ast_id(ast_childidx(type, 3));
@@ -112,9 +113,8 @@ token_id cap_for_type(ast_t* type)
 
     case TK_ARROW:
     {
-      // arrow types arise when something could be box, ref or val. cap_for_type
-      // is used for receiver cap, sendability and safe to write. for all of
-      // these, we can treat any arrow as a view through box.
+      // Arrow types arise when something could be box, ref or val. We can treat
+      // any arrow as a view through box.
       return cap_viewpoint(TK_BOX, cap_for_type(ast_childidx(type, 1)));
     }
 
