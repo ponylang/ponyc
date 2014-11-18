@@ -105,7 +105,13 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   while(child != NULL)
   {
     LLVMValueRef value = gen_expr(c, child);
-    tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
+
+    if(value == NULL)
+      return NULL;
+
+    if(value != GEN_NOVALUE)
+      tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
+
     child = ast_sibling(child);
   }
 
