@@ -46,7 +46,7 @@ class List[A]
     _head = ListNode[A](consume a, _head)
     this
 
-  fun ref pop(): A ? =>
+  fun ref pop(): A^ ? =>
     """
     Pops a value from the head of the list.
     """

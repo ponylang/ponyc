@@ -264,11 +264,7 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
   {
     case TK_NOMINAL:
     {
-      // If we are a subtype, then we also could be.
-      if(is_subtype(sub, super))
-        return true;
-
-      // If our constraint could be a subtype of super, all reifications could
+      // If our constraint could be a subtype of super, some reifications could
       // be a subtype of super.
       ast_t* sub_def = (ast_t*)ast_data(sub);
       ast_t* constraint = ast_childidx(sub_def, 1);
@@ -291,7 +287,7 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
       return could_subtype_with_isect(sub, super);
 
     case TK_TUPLETYPE:
-      // A type parameter can't be constrainted to a tuple.
+      // A type parameter can't be constrained to a tuple.
       return false;
 
     case TK_ARROW:
