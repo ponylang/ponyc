@@ -308,6 +308,9 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 
 bool could_subtype(ast_t* sub, ast_t* super)
 {
+  if(ast_id(super) == TK_DONTCARE)
+    return true;
+
   // If we are a subtype, then we also could be.
   if(is_subtype(sub, super))
     return true;

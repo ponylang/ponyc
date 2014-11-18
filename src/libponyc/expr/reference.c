@@ -495,3 +495,54 @@ bool expr_addressof(ast_t* ast)
   ast_settype(ast, type);
   return true;
 }
+
+bool expr_dontcare(ast_t* ast)
+{
+  // We are a tuple element. That tuple must either be a pattern or the LHS
+  // of an assignment. It can be embedded in other tuples.
+  ast_t* tuple = ast_parent(ast);
+  assert(ast_id(tuple) == TK_TUPLE);
+
+  ast_t* parent = ast_parent(tuple);
+
+  while(ast_id(parent) == TK_TUPLE)
+  {
+    tuple = parent;
+    parent = ast_parent(tuple);
+  }
+
+  switch(ast_id(parent))
+  {
+    case TK_ASSIGN:
+    {
+      AST_GET_CHILDREN(parent, right, left);
+
+      if(tuple == left)
+      {
+        ast_settype(ast, ast);
+        return true;
+      }
+
+      break;
+    }
+
+    case TK_CASE:
+    {
+      AST_GET_CHILDREN(parent, pattern, guard, body);
+
+      if(tuple == pattern)
+      {
+        ast_settype(ast, ast);
+        return true;
+      }
+
+      break;
+    }
+
+    default: {}
+  }
+
+  ast_error(ast, "the don't care token can only appear in a tuple, either on "
+    "the LHS of an assignment or in a pattern");
+  return false;
+}

@@ -1266,6 +1266,10 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
       print_buffer(buffer, "this");
       break;
 
+    case TK_DONTCARE:
+      print_buffer(buffer, "_");
+      break;
+
     default:
       assert(0);
   }

@@ -294,6 +294,60 @@ static bool check_value(compile_t* c, ast_t* pattern, ast_t* param_type,
   return true;
 }
 
+static bool dynamic_tuple_element(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block, int elem)
+{
+  // If we have a capture, generate the alloca now.
+  switch(ast_id(pattern))
+  {
+    case TK_VAR:
+    case TK_LET:
+      if(gen_localdecl(c, pattern) == NULL)
+        return false;
+      break;
+
+    default: {}
+  }
+
+  // Get the field offset and field descriptor from the tuple descriptor.
+  LLVMValueRef field = gendesc_fielddesc(c, desc, elem);
+  LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field, 0, "");
+  LLVMValueRef field_desc = LLVMBuildExtractValue(c->builder, field, 1, "");
+  LLVMValueRef field_ptr = field_pointer(c, ptr, offset);
+
+  // If we have a null descriptor, load the object.
+  LLVMBasicBlockRef null_block = codegen_block(c, "null_desc");
+  LLVMBasicBlockRef nonnull_block = codegen_block(c, "nonnull_desc");
+  LLVMBasicBlockRef continue_block = codegen_block(c, "merge_desc");
+  LLVMValueRef test = LLVMBuildIsNull(c->builder, field_desc, "");
+  LLVMBuildCondBr(c->builder, test, null_block, nonnull_block);
+
+  // Load the object, load its descriptor, and continue from there.
+  LLVMPositionBuilderAtEnd(c->builder, null_block);
+  LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
+  LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr, ptr_type,
+    "");
+  LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
+  LLVMValueRef object_desc = gendesc_fetch(c, object);
+
+  if(!dynamic_match_object(c, object, object_desc, pattern, next_block))
+    return false;
+
+  LLVMBuildBr(c->builder, continue_block);
+
+  // Continue with the pointer and descriptor.
+  LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
+
+  if(!dynamic_match_ptr(c, field_ptr, field_desc, pattern, next_block))
+    return false;
+
+  LLVMBuildBr(c->builder, continue_block);
+
+  // Merge the two branches.
+  LLVMPositionBuilderAtEnd(c->builder, continue_block);
+  return true;
+}
+
 static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   ast_t* pattern, LLVMBasicBlockRef next_block)
 {
@@ -306,57 +360,25 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
 
   for(int i = 0; pattern_child != NULL; i++)
   {
-    // Skip over the SEQ node.
-    ast_t* pattern_expr = ast_child(pattern_child);
-
-    // If we have a capture, generate the alloca now.
-    switch(ast_id(pattern_expr))
+    switch(ast_id(pattern_child))
     {
-      case TK_VAR:
-      case TK_LET:
-        if(gen_localdecl(c, pattern_expr) == NULL)
+      case TK_SEQ:
+      {
+        // Skip over the SEQ node.
+        ast_t* pattern_expr = ast_child(pattern_child);
+
+        if(!dynamic_tuple_element(c, ptr, desc, pattern_expr, next_block, i))
           return false;
         break;
+      }
 
-      default: {}
+      case TK_DONTCARE:
+        // Ignore the element.
+        break;
+
+      default: assert(0);
     }
 
-    // Get the field offset and field descriptor from the tuple descriptor.
-    LLVMValueRef field = gendesc_fielddesc(c, desc, i);
-    LLVMValueRef offset = LLVMBuildExtractValue(c->builder, field, 0, "");
-    LLVMValueRef field_desc = LLVMBuildExtractValue(c->builder, field, 1, "");
-    LLVMValueRef field_ptr = field_pointer(c, ptr, offset);
-
-    // If we have a null descriptor, load the object.
-    LLVMBasicBlockRef null_block = codegen_block(c, "null_desc");
-    LLVMBasicBlockRef nonnull_block = codegen_block(c, "nonnull_desc");
-    LLVMBasicBlockRef continue_block = codegen_block(c, "merge_desc");
-    LLVMValueRef test = LLVMBuildIsNull(c->builder, field_desc, "");
-    LLVMBuildCondBr(c->builder, test, null_block, nonnull_block);
-
-    // Load the object, load its descriptor, and continue from there.
-    LLVMPositionBuilderAtEnd(c->builder, null_block);
-    LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-    LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr, ptr_type,
-      "");
-    LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
-    LLVMValueRef object_desc = gendesc_fetch(c, object);
-
-    if(!dynamic_match_object(c, object, object_desc, pattern_expr, next_block))
-      return false;
-
-    LLVMBuildBr(c->builder, continue_block);
-
-    // Continue with the pointer and descriptor.
-    LLVMPositionBuilderAtEnd(c->builder, nonnull_block);
-
-    if(!dynamic_match_ptr(c, field_ptr, field_desc, pattern_expr, next_block))
-      return false;
-
-    LLVMBuildBr(c->builder, continue_block);
-
-    // Merge the two branches.
-    LLVMPositionBuilderAtEnd(c->builder, continue_block);
     pattern_child = ast_sibling(pattern_child);
   }
 
@@ -540,12 +562,26 @@ static bool static_tuple_from_tuple(compile_t* c, LLVMValueRef value,
   // Destructure the tuple and continue pattern matching on each element.
   for(int i = 0; pattern_child != NULL; i++)
   {
-    // Skip over the SEQ node.
-    ast_t* pattern_expr = ast_child(pattern_child);
-    LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
+    switch(ast_id(pattern_child))
+    {
+      case TK_SEQ:
+      {
+        // Skip over the SEQ node.
+        ast_t* pattern_expr = ast_child(pattern_child);
+        LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
 
-    if(!static_match(c, elem, type_child, pattern_expr, next_block))
-      return false;
+        if(!static_match(c, elem, type_child, pattern_expr, next_block))
+          return false;
+
+        break;
+      }
+
+      case TK_DONTCARE:
+        // Ignore the element.
+        break;
+
+      default: assert(0);
+    }
 
     type_child = ast_sibling(type_child);
     pattern_child = ast_sibling(pattern_child);

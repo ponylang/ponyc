@@ -78,6 +78,7 @@ static const lexsym_t symbols[] =
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
+  { "_", TK_DONTCARE },
 
   { NULL, (token_id)0 }
 };
@@ -936,6 +937,12 @@ static void read_id(lexer_t* lexer)
 static token_t* identifier(lexer_t* lexer)
 {
   read_id(lexer);
+
+  if(!strcmp(lexer->buffer, "_"))
+  {
+    lexer->buflen = 0;
+    return make_token(lexer, TK_DONTCARE);
+  }
 
   for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
