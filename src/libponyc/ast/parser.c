@@ -538,6 +538,9 @@ DEF(method);
   OPT TOKEN(NULL, TK_QUESTION);
   OPT TOKEN(NULL, TK_DBLARROW);
   OPT RULE("function body", rawseq);
+  // Order should be:
+  // cap id type_params params return_type error body c_api arrow
+  REORDER(0, 2, 3, 4, 5, 6, 8, 1, 7);
   DONE();
 
 // (VAR | VAL) ID [COLON type] [ASSIGN infix]

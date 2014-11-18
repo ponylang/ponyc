@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <stdio.h>
+#include <assert.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -331,6 +332,31 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
       add_ast(parser, sub_ast, &state); \
     } \
     RESET_STATE(); \
+  }
+
+
+
+/// Change the order of the children of the current node.
+/// Desired order is specified as a list of indices of the current order. All
+/// indices must appear exactly once in the list or bad things may happen.
+#define REORDER(...) \
+  { \
+    static const int order[] = { __VA_ARGS__ }; \
+    static ast_t* children[sizeof(order) / sizeof(int)]; \
+    size_t count = (sizeof(order) / sizeof(int)); \
+    assert(ast_childcount(state.ast) == count); \
+    state.last_child = NULL; \
+    for(size_t i = 0; i < count; i++) \
+    { \
+      children[i] = ast_pop(state.ast); \
+    } \
+    for(size_t i = 0; i < count; i++) \
+    { \
+      ast_t* t = children[order[i]]; \
+      assert(t != NULL); \
+      children[order[i]] = NULL; \
+      add_ast(parser, t, &state); \
+    } \
   }
 
 

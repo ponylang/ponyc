@@ -10,14 +10,15 @@ static ast_t* make_create(ast_t* ast)
 {
   BUILD(create, ast,
     NODE(TK_NEW, AST_SCOPE
-      NONE          // cap
-      ID("create")  // name
-      NONE          // typeparams
-      NONE          // params
-      NONE          // return type
-      NONE          // error
-      NODE(TK_SEQ, NODE(TK_TRUE))
-      NONE));       // C API
+    NONE          // cap
+    ID("create")  // name
+    NONE          // typeparams
+    NONE          // params
+    NONE          // return type
+    NONE          // error
+    NODE(TK_SEQ, NODE(TK_TRUE))
+    NONE          // C API
+    NODE(TK_DBLARROW)));
 
   return create;
 }
@@ -381,7 +382,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CLASS:      return sugar_member(ast, true, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:   return sugar_member(ast, false, TK_REF);
+    case TK_INTERFACE:  return sugar_member(ast, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
     case TK_NEW:        return sugar_new(ast);
     case TK_BE:         return sugar_be(ast);
