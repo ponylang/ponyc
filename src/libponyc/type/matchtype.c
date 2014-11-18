@@ -119,10 +119,6 @@ static bool could_subtype_trait(ast_t* sub, ast_t* super)
       return could_subtype_with_isect(sub, super);
 
     case TK_TUPLETYPE:
-      // A trait can never be a tuple. While a tuple can be passed as a
-      // {} tag, a {} tag can't be pattern matched as a tuple because it can't
-      // be read, which means it can't be destructured. For identity, we depend
-      // on checking in the other direction.
       return false;
 
     case TK_ARROW:

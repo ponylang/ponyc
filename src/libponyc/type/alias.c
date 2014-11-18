@@ -368,3 +368,47 @@ bool sendable(ast_t* type)
   assert(0);
   return false;
 }
+
+bool borrowed_type(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // A type expression is borrowed if any component is borrowed.
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(borrowed_type(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ARROW:
+      // A viewpoint type is borrowed if the RHS is borrowed.
+      return borrowed_type(ast_childidx(type, 1));
+
+    case TK_NOMINAL:
+      return ast_id(ast_childidx(type, 4)) == TK_BORROWED;
+
+    case TK_TYPEPARAMREF:
+      return ast_id(ast_childidx(type, 2)) == TK_BORROWED;
+
+    case TK_NUMBERLITERAL:
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      return false;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}

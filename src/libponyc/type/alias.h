@@ -18,6 +18,8 @@ ast_t* recover_type(ast_t* type);
 
 bool sendable(ast_t* type);
 
+bool borrowed_type(ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif
