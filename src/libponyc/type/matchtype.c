@@ -144,7 +144,8 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_CLASS:
     case TK_ACTOR:
       // With a concrete type, the subtype must be a subtype of the supertype.
-      return is_subtype(sub, super);
+      // If we've got this far, we aren't.
+      return false;
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -212,7 +213,7 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
   switch(ast_id(super))
   {
     case TK_NOMINAL:
-      return is_subtype(sub, super);
+      return false;
 
     case TK_UNIONTYPE:
       return could_subtype_with_union(sub, super);
@@ -294,8 +295,9 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
       return could_subtype_with_arrow(sub, super);
 
     case TK_TYPEPARAMREF:
-      // If the supertype is a typeparam, we have to be a subtype.
-      return is_subtype(sub, super);
+      // If the supertype is a typeparam, we have to be a subtype. If we've
+      // got this far, we aren't.
+      return false;
 
     default: {}
   }
@@ -330,6 +332,46 @@ bool could_subtype(ast_t* sub, ast_t* super)
 
     case TK_TYPEPARAMREF:
       return could_subtype_typeparam(sub, super);
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool contains_interface(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      return ast_id(def) == TK_INTERFACE;
+    }
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(contains_interface(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_ARROW:
+      return contains_interface(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+      return false;
 
     default: {}
   }

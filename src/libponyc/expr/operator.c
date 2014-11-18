@@ -149,20 +149,6 @@ static bool is_lvalue(ast_t* ast, bool need_value)
 
 bool expr_identity(ast_t* ast)
 {
-#if 0
-  AST_GET_CHILDREN(ast, left, right);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  if(!could_subtype(l_type, r_type) && !could_subtype(r_type, l_type))
-  {
-    ast_error(ast, "left and right side must be related types");
-    ast_error(left, "left type: %s", ast_print_type(l_type));
-    ast_error(right, "right type: %s", ast_print_type(r_type));
-    return false;
-  }
-#endif
-
   ast_settype(ast, type_builtin(ast, "Bool"));
   ast_inheriterror(ast);
   return true;
