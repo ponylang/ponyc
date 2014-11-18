@@ -1,3 +1,5 @@
+use "collections"
+
 actor Main
   new create(env: Env) =>
     var a = Array[U64].prealloc(2)

@@ -1,3 +1,5 @@
+use "collections"
+
 class Circle
   var _radius: F32
 

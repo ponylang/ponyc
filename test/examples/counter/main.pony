@@ -1,3 +1,5 @@
+use "collections"
+
 actor Counter
   var _count: U32
 

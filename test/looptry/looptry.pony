@@ -1,3 +1,5 @@
+use "collections"
+
 actor Main
   new create(env: Env) =>
     let group_r = Array[F32].prealloc(8)
