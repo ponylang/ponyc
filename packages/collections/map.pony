@@ -23,7 +23,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
 
    if found then
      match _array(index)
-     | (let k: Key, let v: this->Value!) =>
+     | (_, let v: this->Value!) =>
        return consume v
      end
    end
@@ -35,7 +35,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       let prev = _array(index) = (key, consume value)
 
       match consume prev
-      | (let k: Key, let v: Value) =>
+      | (_, let v: Value) =>
         return consume v
       else
         _size = _size + 1
@@ -56,7 +56,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
         _size = _size - 1
 
         match consume prev
-        | (let k: Key, let v: Value) =>
+        | (_, let v: Value) =>
           return consume v
         end
       end
@@ -85,7 +85,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
         let entry = _array(idx)
 
         match entry
-        | (let k: Key, let v: this->Value!) =>
+        | (let k: Key, _) =>
           if k == key then
             return (idx, true)
           end
@@ -154,7 +154,7 @@ class MapKeys[
   fun box has_next(): Bool => _i < _map.space()
 
   fun ref next(): Key ? =>
-    (_i, var k: Key, var v: M->Value!) = _map.index(_i)
+    (_i, var k: Key, _) = _map.index(_i)
     k
 
 class MapValues[
@@ -172,7 +172,7 @@ class MapValues[
   fun box has_next(): Bool => _i < _map.space()
 
   fun ref next(): M->Value ? =>
-    (_i, var k: Key, var v: M->Value!) = _map.index(_i)
+    (_i, _, var v: M->Value!) = _map.index(_i)
     consume v
 
 class MapPairs[

@@ -96,14 +96,17 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
         match_child = ast_sibling(match_child);
       }
 
-      ast_error(pattern,
-        "no possible type of the match expression can match this pattern");
+      if(errors)
+      {
+        ast_error(pattern,
+          "no possible type of the match expression can match this pattern");
 
-      ast_error(match_type, "match type: %s",
-        ast_print_type(alias(match_type)));
+        ast_error(match_type, "match type: %s",
+          ast_print_type(alias(match_type)));
 
-      ast_error(pattern, "pattern type: %s",
-        ast_print_type(ast_type(pattern)));
+        ast_error(pattern, "pattern type: %s",
+          ast_print_type(ast_type(pattern)));
+      }
 
       return false;
     }
@@ -236,6 +239,10 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
 
       return is_valid_pattern(match_type, child, errors);
     }
+
+    case TK_DONTCARE:
+      // It's always ok not to care.
+      return true;
 
     default:
     {

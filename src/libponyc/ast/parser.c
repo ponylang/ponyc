@@ -208,12 +208,17 @@ DEF(array);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// (LPAREN | LPAREN_NEW) rawseq {COMMA rawseq} RPAREN
+// DONTCARE
+DEF(dontcare);
+  TOKEN(NULL, TK_DONTCARE);
+  DONE();
+
+// (LPAREN | LPAREN_NEW) (rawseq | dontcare) {COMMA (rawseq | dontcare)} RPAREN
 DEF(tuple);
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("value", rawseq);
-  WHILE(TK_COMMA, RULE("value", rawseq));
+  RULE("value", rawseq, dontcare);
+  WHILE(TK_COMMA, RULE("value", rawseq, dontcare));
   SKIP(NULL, TK_RPAREN);
   DONE();
 

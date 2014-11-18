@@ -99,6 +99,10 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &g))
     return NULL;
 
+  // If we contain TK_DONTCARE, we have no usable value.
+  if(g.primitive == NULL)
+    return GEN_NOVALUE;
+
   LLVMValueRef tuple = LLVMGetUndef(g.primitive);
   int i = 0;
 
@@ -109,6 +113,9 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     if(value == NULL)
       return NULL;
 
+    // We'll have an undefined element if one of our source elements is a
+    // variable declaration. This is ok, since the tuple value will never be
+    // used.
     if(value != GEN_NOVALUE)
       tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
 

@@ -55,6 +55,10 @@ static bool is_lvalue(ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
   {
+    case TK_DONTCARE:
+      // Can only assign to it if we don't need the value.
+      return !need_value;
+
     case TK_VAR:
     case TK_LET:
     {

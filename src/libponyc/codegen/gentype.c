@@ -579,9 +579,40 @@ bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g)
   return gentype(c, ast, g);
 }
 
+static bool contains_dontcare(ast_t* ast)
+{
+  switch(ast_id(ast))
+  {
+    case TK_DONTCARE:
+      return true;
+
+    case TK_TUPLETYPE:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        if(contains_dontcare(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
 bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 {
   memset(g, 0, sizeof(gentype_t));
+
+  if(contains_dontcare(ast))
+    return true;
 
   g->ast = ast;
   g->type_name = genname_type(ast);

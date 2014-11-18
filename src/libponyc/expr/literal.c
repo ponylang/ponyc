@@ -112,10 +112,15 @@ bool expr_tuple(ast_t* ast)
 
       if(c_type == NULL)
       {
-        ast_error(child,
-          "a tuple can't contain a control flow statement that never results "
-          "in a value");
-        return false;
+        if(ast_id(child) == TK_DONTCARE)
+        {
+          c_type = child;
+        } else {
+          ast_error(child,
+            "a tuple can't contain a control flow statement that never results "
+            "in a value");
+          return false;
+        }
       }
 
       if(is_type_literal(c_type))

@@ -258,6 +258,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_AMP:
       if(!expr_addressof(ast))
         return AST_FATAL;
+      break;
+
+    case TK_DONTCARE:
+      if(!expr_dontcare(ast))
+        return AST_FATAL;
+      break;
 
     default: {}
   }

@@ -255,16 +255,29 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
 
   while(child != NULL)
   {
-    // The actual tuple expression is inside a sequence node.
-    ast_t* expr = ast_child(child);
+    switch(ast_id(child))
+    {
+      case TK_SEQ:
+      {
+        // The actual tuple expression is inside a sequence node.
+        ast_t* expr = ast_child(child);
 
-    // Extract the tuple value.
-    LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
-      i++, "");
+        // Extract the tuple value.
+        LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
+          i++, "");
 
-    // Recurse, assigning pairwise.
-    if(assign_rvalue(c, expr, rtype_child, rvalue_child) == NULL)
-      return false;
+        // Recurse, assigning pairwise.
+        if(assign_rvalue(c, expr, rtype_child, rvalue_child) == NULL)
+          return false;
+        break;
+      }
+
+      case TK_DONTCARE:
+        // Ignore this element.
+        break;
+
+      default: assert(0);
+    }
 
     child = ast_sibling(child);
     rtype_child = ast_sibling(rtype_child);

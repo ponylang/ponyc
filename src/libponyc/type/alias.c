@@ -198,6 +198,9 @@ ast_t* consume_type(ast_t* type)
 {
   switch(ast_id(type))
   {
+    case TK_DONTCARE:
+      return type;
+
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:

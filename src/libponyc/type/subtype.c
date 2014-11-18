@@ -642,6 +642,9 @@ bool is_subtype(ast_t* sub, ast_t* super)
   assert(sub != NULL);
   assert(super != NULL);
 
+  if(ast_id(super) == TK_DONTCARE)
+    return true;
+
   switch(ast_id(sub))
   {
     case TK_UNIONTYPE:
