@@ -186,7 +186,7 @@ class String val is Ordered[String box], Hashable, Stringable
 
     consume str
 
-  fun box find(s: String box, nth: U64 = 0, offset: I64 = 0): I64 ? =>
+  fun box find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
     """
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
@@ -217,13 +217,13 @@ class String val is Ordered[String box], Hashable, Stringable
     end
     error
 
-  fun box rfind(s: String, nth: U64 = 0, offset: I64 = -1): I64 ? =>
+  fun box rfind(s: String, offset: I64 = -1, nth: U64 = 0): I64 ? =>
     """
     Return the index of n-th instance of s in the string starting from the end.
     Raise an error if there is no n-th occurence of s or s is empty.
     """
     var i = offset_to_index(offset) - s._size
-    var steps = nth + 1
+    var steps = nth
 
     while i < _size do
       var j: U64 = 0
