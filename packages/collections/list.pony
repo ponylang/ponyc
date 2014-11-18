@@ -25,7 +25,8 @@ class ListNode[A]
       error
     end
 
-  fun box next(): (this->ListNode[A] | None) => _next
+  fun box next(): (this->ListNode[A] | None) =>
+    _next
 
 class List[A]
   """
@@ -38,6 +39,24 @@ class List[A]
     Creates an empty list.
     """
     _head = None
+
+  fun box size(): U64 =>
+    """
+    Returns the number of items in the list.
+    """
+    var len: U64 = 0
+    var node = _head
+
+    while true do
+      match node
+      | var n: this->ListNode[A] =>
+        len = len + 1
+        node = n.next()
+      else
+        return len
+      end
+    end
+    len
 
   fun ref push(a: A): List[A]^ =>
     """

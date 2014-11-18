@@ -1,35 +1,63 @@
 interface Hashable
+  """
+  Anything with a hash method is hashable.
+  """
   fun box hash(): U64
 
 primitive _MapEmpty is Comparable[_MapEmpty]
 primitive _MapDeleted is Comparable[_MapDeleted]
 
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
+  """
+  A quadratic probing hash map. Resize occurs at a load factor of 0.75. A
+  resized map has 2 times the space.
+  """
   var _size: U64 = 0
-  var _array: Array[((Key, Value) | _MapEmpty | _MapDeleted)] =
-    Array[((Key, Value) | _MapEmpty | _MapDeleted)].prealloc(8)
+  var _array: Array[((Key, Value) | _MapEmpty | _MapDeleted)]
 
-  new create() =>
-    for i in Range(0, 8) do
+  new create(prealloc: U64 = 8) =>
+    """
+    Defaults to a prealloc of 8.
+    """
+    var n = prealloc.next_pow2()
+    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)].prealloc(n)
+
+    for i in Range(0, n) do
       _array.append(_MapEmpty)
     end
 
-  fun box size(): U64 => _size
+  fun box size(): U64 =>
+    """
+    The number of items in the map.
+    """
+    _size
 
-  fun box space(): U64 => _array.space()
+  fun box space(): U64 =>
+    """
+    The available space in the map. Resize will happen when
+    size / space >= 0.75.
+    """
+    _array.space()
 
   fun box apply(key: Key): this->Value ? =>
-   var (index, found) = _search(key)
+    """
+    Gets a value from the map. Raises an error if no such item exists.
+    """
+    var (index, found) = _search(key)
 
-   if found then
-     match _array(index)
-     | (_, let v: this->Value!) =>
-       return consume v
-     end
-   end
-   error
+    if found then
+      match _array(index)
+      | (_, let v: this->Value!) =>
+        return consume v
+      end
+    end
+    error
 
   fun ref update(key: Key, value: Value): (Value^ | None) =>
+    """
+    Sets a value in the map. Returns the old value if there was one, otherwise
+    returns None. If there was no previous value, this may trigger a resize.
+    """
     try
       let (index, found) = _search(key)
       let prev = _array(index) = (key, consume value)
@@ -40,14 +68,18 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       else
         _size = _size + 1
 
-        if (_size * 2) > _array.size() then
+        if (_size * 4) > (_array.size() * 3) then
           _resize()
         end
       end
     end
     None
 
-  fun ref remove(key: Key): (Value^ | None) =>
+  fun ref remove(key: Key): Value^ ? =>
+    """
+    Delete a value from the map and returns it. Raises an error if there was no
+    value for the given key.
+    """
     try
       let (index, found) = _search(key)
 
@@ -61,9 +93,13 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
         end
       end
     end
-    None
+    error
 
   fun box index(idx: U64 = -1): (U64, Key, this->Value) ? =>
+    """
+    Given an index, return the next index that has a populated key and value.
+    Raise an error if there is no next populated index.
+    """
     for i in Range(idx + 1, _array.size()) do
       let entry = _array(i)
 
@@ -75,6 +111,9 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     error
 
   fun box _search(key: Key): (U64, Bool) =>
+    """
+    Return a slot number and whether or not it's currently occupied.
+    """
     var idx_del = _array.size()
     let mask = idx_del - 1
     let h = key.hash()
@@ -108,9 +147,12 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     (idx_del, false)
 
   fun ref _resize() =>
+    """
+    Double the available space.
+    """
     let _old = _array
     let old_len = _old.size()
-    let new_len = old_len * 4
+    let new_len = old_len * 2
 
     _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)].prealloc(new_len)
     _size = 0
@@ -131,64 +173,118 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     end
 
   fun box keys(): MapKeys[Key, Value, this->Map[Key, Value]]^ =>
+    """
+    Return an iterator over the keys.
+    """
     MapKeys[Key, Value, this->Map[Key, Value]](this)
 
   fun box values(): MapValues[Key, Value, this->Map[Key, Value]]^ =>
+    """
+    Return an iterator over the values.
+    """
     MapValues[Key, Value, this->Map[Key, Value]](this)
 
   fun box pairs(): MapPairs[Key, Value, this->Map[Key, Value]]^ =>
+    """
+    Return an iterator over the keys and values.
+    """
     MapPairs[Key, Value, this->Map[Key, Value]](this)
 
 class MapKeys[
   Key: (Hashable box & Comparable[Key] box),
   Value,
   M: Map[Key, Value] box] is Iterator[Key]
-
-  var _map: M
-  var _i: U64
+  """
+  An iterator over the keys in a map.
+  """
+  let _map: M
+  var _i: U64 = -1
+  var _count: U64 = 0
 
   new create(map: M) =>
+    """
+    Creates an iterator for the given map.
+    """
     _map = map
-    _i = if _map.size() > 0 then U64(0) else U64(-1) end
 
-  fun box has_next(): Bool => _i < _map.space()
+  fun box has_next(): Bool =>
+    """
+    True if it believes there are remaining entries. May not be right if values
+    were added or removed from the map.
+    """
+    _count < _map.size()
 
   fun ref next(): Key ? =>
+    """
+    Returns the next key, or raises an error if there isn't one. If keys are
+    added during iteration, this may not return all keys.
+    """
     (_i, var k: Key, _) = _map.index(_i)
+    _count = _count + 1
     k
 
 class MapValues[
   Key: (Hashable box & Comparable[Key] box),
   Value,
   M: Map[Key, Value] box] is Iterator[M->Value]
-
-  var _map: M
-  var _i: U64
+  """
+  An iterator over the values in a map.
+  """
+  let _map: M
+  var _i: U64 = -1
+  var _count: U64 = 0
 
   new create(map: M) =>
+    """
+    Creates an iterator for the given map.
+    """
     _map = map
-    _i = if _map.size() > 0 then U64(0) else U64(-1) end
 
-  fun box has_next(): Bool => _i < _map.space()
+  fun box has_next(): Bool =>
+    """
+    True if it believes there are remaining entries. May not be right if values
+    were added or removed from the map.
+    """
+    _count < _map.size()
 
   fun ref next(): M->Value ? =>
+    """
+    Returns the next value, or raises an error if there isn't one. If values are
+    added during iteration, this may not return all values.
+    """
     (_i, _, var v: M->Value!) = _map.index(_i)
+    _count = _count + 1
     consume v
 
 class MapPairs[
   Key: (Hashable box & Comparable[Key] box),
   Value,
   M: Map[Key, Value] box] is Iterator[(Key, M->Value)]
-
-  var _map: M
-  var _i: U64
+  """
+  An iterator over the keys and values in a map.
+  """
+  let _map: M
+  var _i: U64 = -1
+  var _count: U64 = 0
 
   new create(map: M) =>
+    """
+    Creates an iterator for the given map.
+    """
     _map = map
-    _i = if _map.size() > 0 then U64(0) else U64(-1) end
 
-  fun box has_next(): Bool => _i < _map.space()
+  fun box has_next(): Bool =>
+    """
+    True if it believes there are remaining entries. May not be right if values
+    were added or removed from the map.
+    """
+    _count < _map.size()
 
   fun ref next(): (Key, M->Value) ? =>
+    """
+    Returns the next entry, or raises an error if there isn't one. If entries
+    are added during iteration, this may not return all entries.
+    """
     (_i, var k: Key, var v: M->Value!) = _map.index(_i)
+    _count = _count + 1
     (k, consume v)
