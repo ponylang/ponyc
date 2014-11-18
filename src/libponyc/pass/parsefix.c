@@ -191,18 +191,8 @@ static bool check_method(ast_t* ast, int method_def_index)
     return false;
   }
 
-  AST_EXTRACT_CHILDREN(ast, cap, c_api, id, type_params, params, return_type,
-    error, arrow, body);
-
-  // Rebuild node without arrow node and with C_API marker at end
-  ast_add(ast, c_api);
-  ast_add(ast, body);
-  ast_add(ast, error);
-  ast_add(ast, return_type);
-  ast_add(ast, params);
-  ast_add(ast, type_params);
-  ast_add(ast, id);
-  ast_add(ast, cap);
+  AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
+    error, body, c_api, arrow);
 
   if(allow_all)
     return true;
