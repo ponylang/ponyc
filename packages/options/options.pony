@@ -27,7 +27,7 @@ class Option is Stringable
     _domain = Array[(String, (String | None))]
 
   fun ref has_domain(): Bool =>
-    _domain.length() > 0
+    _domain.size() > 0
 
   fun ref add_param(value: String, help: (String | None)) =>
     _domain.append((value, help))
@@ -67,7 +67,7 @@ class Options ref is Iterator[_Result]
 
   new create(env: Env) =>
     _env = env
-    _args = Array[String ref].prealloc(_env.args.length())
+    _args = Array[String ref].prealloc(_env.args.size())
 
     try
       for i in _env.args.values() do
@@ -92,7 +92,7 @@ class Options ref is Iterator[_Result]
     this
 
   fun ref param(value: String, help: (String | None)): Options =>
-    for i in Reverse[U64](_configuration.length(), 0) do
+    for i in Reverse[U64](_configuration.size(), 0) do
       try
         match _configuration(i)
         | var option: Option =>
@@ -124,7 +124,7 @@ class Options ref is Iterator[_Result]
     end
 
   fun ref _skip_non_options(): Bool =>
-    while _index < _args.length() do
+    while _index < _args.size() do
       try
         let current = _args(_index)
 
@@ -180,7 +180,7 @@ class Options ref is Iterator[_Result]
         current.strip_char('=')
       end
 
-      let len = current.length()
+      let len = current.size()
       let short = if len == 1 then (current(0) == '-') else false end
 
       if (len == 0) or short then
@@ -222,7 +222,7 @@ class Options ref is Iterator[_Result]
     end
 
   fun box has_next(): Bool =>
-    not _error and (_index < _args.length())
+    not _error and (_index < _args.size())
 
   fun ref next(): _Result =>
     if _skip_non_options() then

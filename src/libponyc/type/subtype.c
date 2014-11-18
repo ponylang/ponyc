@@ -189,7 +189,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
   ast_t* super_def = (ast_t*)ast_data(super);
 
   ast_t* sub_typeargs = ast_childidx(sub, 2);
-  ast_t* super_typeargs = ast_childidx(sub, 2);
+  ast_t* super_typeargs = ast_childidx(super, 2);
 
   ast_t* sub_typeparams = ast_childidx(sub_def, 1);
   ast_t* super_typeparams = ast_childidx(super_def, 1);

@@ -142,7 +142,7 @@ actor Main
     print_energy()
 
   fun ref advance(dt: F64) =>
-    let count = system.length()
+    let count = system.size()
     var i: U64 = 0
 
     while i < count do
@@ -177,7 +177,7 @@ actor Main
     try
       i = 0
 
-      while i < system.length() do
+      while i < system.size() do
         let body = system(i)
         body.integrate(dt)
         //body.x = body.x + (body.vx * dt)
@@ -191,7 +191,7 @@ actor Main
     _env.stdout.print(energy().string())
 
   fun ref energy(): F64 =>
-    let count = system.length()
+    let count = system.size()
     var e: F64 = 0
     var i: U64 = 0
 
@@ -219,7 +219,7 @@ actor Main
     try
       var i: U64 = 0
 
-      while i < system.length() do
+      while i < system.size() do
         var body = system(i)
         px = px - (body.vx * body.mass)
         py = py - (body.vy * body.mass)

@@ -8,8 +8,8 @@ class Array[A]
     _alloc = 0
     _ptr = Pointer[A].null()
 
-  //Put this in once we have codegen for polymorphic methods.
-  //new init[B: (A & Any box)](with: B, len: U64) =>
+  // Put this in once we have codegen for polymorphic methods.
+  // new init[B: (A & Any box)](with: B, len: U64) =>
   //  _size = len
   //  _alloc = len
   //  _ptr = Pointer[A]._create(len)
@@ -21,7 +21,7 @@ class Array[A]
   //    i = i + 1
   //  end
 
-  //Put this in once we have codegen for polymorphic methods.
+  // Put this in once we have codegen for polymorphic methods.
   new undefined/*[B: (A & Real[B] & Number)]*/(len: U64) =>
     _size = len
     _alloc = len
@@ -40,7 +40,9 @@ class Array[A]
 
   fun box carray(): Pointer[A] tag => _ptr
 
-  fun box length(): U64 => _size
+  fun box size(): U64 => _size
+
+  fun box space(): U64 => _alloc
 
   fun ref reserve(len: U64): Array[A]^ =>
     if _alloc < len then
@@ -118,10 +120,10 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.length()
+  fun box has_next(): Bool => _i < _array.size()
 
   fun ref next(): U64 =>
-    if _i < _array.length() then
+    if _i < _array.size() then
       _i = _i + 1
     else
       _i
@@ -135,7 +137,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.length()
+  fun box has_next(): Bool => _i < _array.size()
 
   fun ref next(): B->A ? => _array(_i = _i + 1)
 
@@ -147,6 +149,6 @@ class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.length()
+  fun box has_next(): Bool => _i < _array.size()
 
   fun ref next(): (U64, B->A) ? => (_i, _array(_i = _i + 1))

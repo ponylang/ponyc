@@ -61,7 +61,7 @@ actor Main
 
   be confirm() =>
     _actor_count = _actor_count + 1
-    if _actor_count == actors.length() then
+    if _actor_count == actors.size() then
       let elapsed = Time.nanos() - start
       let gups = updates.f32() / elapsed.f32() / F32(1e9)
       _env.stdout.print("Time: " + elapsed.string() + " GUPS: " + gups.string())
@@ -162,7 +162,7 @@ actor Updater
     for i in vlist.keys() do
       let data = vlist(i)
 
-      if data.length() > 0 then
+      if data.size() > 0 then
         match others
         | var neighbors: Array[Updater] val =>
           neighbors(i).receive(consume data)
@@ -178,7 +178,7 @@ actor Updater
 
   be receive(data: Array[U64] iso) =>
     for datum in data.values() do
-      var i = datum and (data.length() - 1)
+      var i = datum and (data.size() - 1)
       table(i) = table(i) xor datum
     end
     reuse.push(data)

@@ -107,7 +107,7 @@ actor Main
     match outfile
     | var f: File =>
       f.print("P4\n " + width.string() + " " + width.string() + "\n")
-      header = f.length()
+      header = f.size()
       f.set_length((width * (width >> 3)) + header)
     end
 

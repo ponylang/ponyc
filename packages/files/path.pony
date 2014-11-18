@@ -82,9 +82,9 @@ primitive Path
     Join two paths together. If the next_path is absolute, simply return it.
     The returned path will be cleaned.
     """
-    if path.length() == 0 then
+    if path.size() == 0 then
       clean(next_path)
-    elseif next_path.length() == 0 then
+    elseif next_path.size() == 0 then
       clean(path)
     elseif is_abs(next_path) then
       clean(next_path)
@@ -109,14 +109,14 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    var s = recover String.reserve(path.length()) end
+    var s = recover String.reserve(path.size()) end
     var volume = Path.volume(path)
     s.append(volume)
 
     var state: _PathState = _PathOther
-    var i: I64 = volume.length().i64()
+    var i: I64 = volume.size().i64()
     var backtrack: I64 = -1
-    let n = path.length().i64()
+    let n = path.size().i64()
 
     try
       var c = path(i)
@@ -129,7 +129,7 @@ primitive Path
         i = i + 1
         state = _PathDot
       else
-        backtrack = s.length().i64()
+        backtrack = s.size().i64()
       end
 
       while i < n do
@@ -147,10 +147,10 @@ primitive Path
               try
                 backtrack = s.rfind(sep()) + 1
               else
-                backtrack = volume.length().i64()
+                backtrack = volume.size().i64()
               end
 
-              if (s.length() == 0) or (s.compare("../", 3, backtrack) == 0) then
+              if (s.size() == 0) or (s.compare("../", 3, backtrack) == 0) then
                 backtrack = -1
               end
             end
@@ -165,7 +165,7 @@ primitive Path
           | _PathDot =>
             state = _PathDot2
           | _PathDot2 =>
-            backtrack = s.length().i64()
+            backtrack = s.size().i64()
             s.append("...")
             state = _PathOther
           | _PathOther =>
@@ -174,12 +174,12 @@ primitive Path
         else
           match state
           | _PathSep =>
-            backtrack = s.length().i64()
+            backtrack = s.size().i64()
           | _PathDot =>
-            backtrack = s.length().i64()
+            backtrack = s.size().i64()
             s.append(".")
           | _PathDot2 =>
-            backtrack = s.length().i64()
+            backtrack = s.size().i64()
             s.append("..")
           end
           s.append_byte(c)
@@ -205,7 +205,7 @@ primitive Path
       end
     end
 
-    if s.length() > 0 then
+    if s.size() > 0 then
       s
     else
       "."
@@ -253,7 +253,7 @@ primitive Path
         error
       end
 
-      base_i = base_vol.length().i64()
+      base_i = base_vol.size().i64()
     end
 
     var base_0 = base_i
@@ -264,13 +264,13 @@ primitive Path
       base_i = try
         base_clean.find(sep(), base_i)
       else
-        base_clean.length().i64()
+        base_clean.size().i64()
       end
 
       target_i = try
         target_clean.find(sep(), target_i)
       else
-        target_clean.length().i64()
+        target_clean.size().i64()
       end
 
       if
@@ -281,11 +281,11 @@ primitive Path
         break None
       end
 
-      if base_i < base_clean.length().i64() then
+      if base_i < base_clean.size().i64() then
         base_i = base_i + 1
       end
 
-      if target_i < target_clean.length().i64() then
+      if target_i < target_clean.size().i64() then
         target_i = target_i + 1
       end
 
@@ -300,7 +300,7 @@ primitive Path
       error
     end
 
-    if base_0.u64() != base_clean.length() then
+    if base_0.u64() != base_clean.size() then
       var result = recover String end
 
       try
@@ -428,7 +428,7 @@ primitive Path
     """
     if Platform.windows() then
       var s = path.clone()
-      var len = s.length().i64()
+      var len = s.size().i64()
       var i: I64 = 0
 
       try
@@ -452,7 +452,7 @@ primitive Path
     """
     if Platform.windows() then
       var s = path.clone()
-      var len = s.length().i64()
+      var len = s.size().i64()
       var i: I64 = 0
 
       try

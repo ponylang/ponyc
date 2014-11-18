@@ -133,7 +133,9 @@ class String val is Ordered[String box], Hashable, Stringable
 
   fun box cstring(): Pointer[U8] tag => _ptr
 
-  fun box length(): U64 => _size
+  fun box size(): U64 => _size
+
+  fun box space(): U64 => _alloc
 
   fun ref reserve(len: U64): String ref^ =>
     if _alloc < len then
@@ -250,7 +252,7 @@ class String val is Ordered[String box], Hashable, Stringable
     """
     Counts the occurrences of s in the string.
     """
-    let j: I64 = (_size - s.length()).i64()
+    let j: I64 = (_size - s.size()).i64()
     var i: U64 = 0
     var k = offset
 
@@ -262,7 +264,7 @@ class String val is Ordered[String box], Hashable, Stringable
 
     try
       while k < j do
-        k = find(s, k, 0) + s.length().i64()
+        k = find(s, k, 0) + s.size().i64()
         i = i + 1
       end
     end

@@ -88,13 +88,13 @@ class File
         result.recalc()
 
         var done = try
-          r.is_null() or (result(result.length().i64() - 1) == '\n')
+          r.is_null() or (result(result.size().i64() - 1) == '\n')
         else
           true
         end
 
         if not done then
-          offset = result.length()
+          offset = result.size()
           len = len * 2
         end
       until done end
@@ -112,12 +112,12 @@ class File
     """
     if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
-        @fwrite_unlocked[U64](data.cstring(), U64(1), data.length(), _handle)
+        @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _handle)
       else
-        @fwrite[U64](data.cstring(), U64(1), data.length(), _handle)
+        @fwrite[U64](data.cstring(), U64(1), data.size(), _handle)
       end
 
-      if len == data.length() then
+      if len == data.size() then
         return true
       end
 
@@ -151,12 +151,12 @@ class File
     """
     if writeable and (not _handle.is_null()) then
       var len = if Platform.linux() then
-        @fwrite_unlocked[U64](data.carray(), U64(1), data.length(), _handle)
+        @fwrite_unlocked[U64](data.carray(), U64(1), data.size(), _handle)
       else
-        @fwrite[U64](data.carray(), U64(1), data.length(), _handle)
+        @fwrite[U64](data.carray(), U64(1), data.size(), _handle)
       end
 
-      if len == data.length() then
+      if len == data.size() then
         return true
       end
 
@@ -178,7 +178,7 @@ class File
       U64(0)
     end
 
-  fun ref length(): U64 =>
+  fun ref size(): U64 =>
     """
     Return the total length of the file.
     """
@@ -295,6 +295,6 @@ class FileLines is Iterator[String]
     file = from
     line = file.line()
 
-  fun ref has_next(): Bool => line.length() > 0
+  fun ref has_next(): Bool => line.size() > 0
 
   fun ref next(): String => line = file.line()

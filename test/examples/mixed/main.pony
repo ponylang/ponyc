@@ -13,7 +13,7 @@ actor Worker
     var correct =
       try (result(0) == 86028157) and (result(1) == 329545133) else false end
 
-    if (result.length() != 2) or not correct then
+    if (result.size() != 2) or not correct then
       _env.stdout.print("factorization error")
     else
       _env.stdout.print("factorization done")
@@ -126,7 +126,7 @@ actor Main
   fun ref parse_args() ? =>
     var i: U64 = 1
 
-    while i < _env.args.length() do
+    while i < _env.args.size() do
       var arg = _env.args(i)
       var value = _env.args(i + 1)
       i = i + 2

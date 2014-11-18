@@ -103,12 +103,12 @@ actor Streamer
     main = main'
     updaters = updaters'
     shift = size.width() - size.clz()
-    mask = updaters.length() - 1
+    mask = updaters.size() - 1
     chunk = chunk'
     rand = PolyRand(seed)
 
   be apply(iterate: U64) =>
-    let upts = updaters.length()
+    let upts = updaters.size()
     let chks = chunk
 
     var list = recover Array[Array[U64] iso].prealloc(upts) end
@@ -129,7 +129,7 @@ actor Streamer
       for i in vlist.keys() do
         var data = vlist(i)
 
-        if data.length() > 0 then
+        if data.size() > 0 then
           updaters(i)(data)
         end
       end
@@ -156,7 +156,7 @@ actor Updater
   be apply(data: Array[U64] val) =>
     try
       for datum in data.values() do
-        var i = datum and (table.length() - 1)
+        var i = datum and (table.size() - 1)
         table(i) = table(i) xor datum
       end
     end
