@@ -1,5 +1,7 @@
+use "options"
+
 actor Main
-  let env:Env
+  let _env:Env
 
   var _logtable: U64 = 20
   var _iterate: U64 = 10000
@@ -10,8 +12,8 @@ actor Main
   var actors: Array[Updater] val
   var start: U64
 
-  new create(env':Env) =>
-    env = env'
+  new create(env: Env) =>
+    _env = env
     updates = 0
     actors = recover Array[Updater] end //init tracking...
 
@@ -62,31 +64,32 @@ actor Main
     if _actor_count == actors.length() then
       let elapsed = Time.nanos() - start
       let gups = updates.f32() / elapsed.f32() / F32(1e9)
-      env.stdout.print("Time: " + elapsed.string() + " GUPS: " + gups.string())
+      _env.stdout.print("Time: " + elapsed.string() + " GUPS: " + gups.string())
     end
 
   fun ref arguments() ? =>
-    var n: U64 = 1
+    var options = Options(_env)
 
-    while n < env.args.length() do
-      var option = env.args(n)
-      var value = env.args(n + 1)
-      n = n + 2
+    options
+      .add("logtable", "l", None, I64Argument)
+      .add("iterate", "i", None, I64Argument)
+      .add("chunk", "c", None, I64Argument)
+      .add("actors", "a", None, I64Argument)
 
+    for option in options do
       match option
-      | "--logtable" => _logtable = value.u64()
-      | "--iterate" => _iterate = value.u64()
-      | "--chunk" => _chunk = value.u64()
-      | "--actors" => _actor_count = value.u64()
-      else
-        error
+      | ("logtable", var arg: I64) => _logtable = arg.u64()
+      | ("iterate", var arg: I64) => _iterate = arg.u64()
+      | ("chunk", var arg: I64) => _chunk = arg.u64()
+      | ("actors", var arg: I64) => _actor_count = arg.u64()
+      | ParseError => usage() ; error
       end
     end
 
   fun ref usage() =>
-    env.stdout.print(
+    _env.stdout.print(
       """
-      gups_basic [OPTIONS]
+      gups_opt [OPTIONS]
         --logtable  N   log2 of the total table size. Defaults to 20.
         --iterate   N   number of iterations. Defaults to 10000.
         --chunk     N   chunk size. Defaults to 1024.
@@ -106,8 +109,8 @@ actor Updater
   var others: (Array[Updater] val | None)
   var table: Array[U64]
 
-  new create(main':Main, updaters': U64, index':U64, size:U64, chunk':U64,
-    seed:U64)
+  new create(main':Main, updaters': U64, index': U64, size: U64, chunk': U64,
+    seed: U64)
     =>
     main = main'
     index = index'
@@ -125,16 +128,16 @@ actor Updater
       try table(i) = i + offset end
     end
 
-  be neighbours(others':Array[Updater] val) =>
+  be neighbours(others': Array[Updater] val) =>
     others = others'
 
-  be apply(iterate:U64) =>
+  be apply(iterate: U64) =>
     let count = updaters
     let chk = chunk
 
     var list = recover Array[Array[U64] iso].prealloc(count) end
 
-    for i in Range[U64](0, updaters) do
+    for i in Range(0, updaters) do
       list.append(
         try
           reuse.pop()
@@ -144,8 +147,8 @@ actor Updater
         )
     end
 
-    for i in Range[U64](0, chunk) do
-      var datum = rand.next()
+    for i in Range(0, chunk) do
+      var datum = rand()
       var updater = (datum >> shift) and mask
       if updater == index then
         table(i) = table(i) xor datum
@@ -154,13 +157,16 @@ actor Updater
       end
     end
 
-    var vlist:Array[Array[U64] iso] val = list
+    var vlist: Array[Array[U64] iso] val = consume list
 
-    for i in vlist.indices() do
-      var data = vlist(i)
+    for i in vlist.keys() do
+      let data = vlist(i)
 
-      if data.size() > 0 then
-        updaters(i)(data)
+      if data.length() > 0 then
+        match others
+        | var neighbors: Array[Updater] val =>
+          neighbors(i).receive(consume data)
+        end
       end
     end
 
@@ -170,7 +176,7 @@ actor Updater
       main.done()
     end
 
-  be receive(data:Array[U64] iso) =>
+  be receive(data: Array[U64] iso) =>
     for datum in data.values() do
       var i = datum and (data.length() - 1)
       table(i) = table(i) xor datum
@@ -185,17 +191,17 @@ class PolyRand
   let period: U64
   var last: U64
 
-  new create(seed:U64) =>
+  new create(seed: U64) =>
     poly = 7
     period = 1317624576693539401
     last = 1
     _seed(seed)
 
-  fun ref apply():U64 =>
+  fun ref apply(): U64 =>
     last = (last << 1) xor
       if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
 
-  fun ref _seed(seed:U64) =>
+  fun ref _seed(seed: U64) =>
     var n = seed % period
 
     if n == 0 then

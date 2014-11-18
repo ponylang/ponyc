@@ -194,8 +194,8 @@ class Options ref is Iterator[_Result]
 
       let start: I64 =
         match (current(0), current(1))
-        | (U8('-'), U8('-')) => I64(2)        //TODO: remove when literal
-        | (U8('-'), var some: Any) => I64(1) //inference works
+        | (U8('-'), U8('-')) => I64(2)          //TODO: remove when literal
+        | (U8('-'), var some: U8) => I64(1) //inference works
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options
