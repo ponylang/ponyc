@@ -264,7 +264,7 @@ class String val is Ordered[String box], Hashable, Stringable
 
     try
       while k < j do
-        k = find(s, k, 0) + s.size().i64()
+        k = find(s, k) + s.size().i64()
         i = i + 1
       end
     end
