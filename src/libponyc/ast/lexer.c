@@ -57,7 +57,6 @@ static const lexsym_t symbols[] =
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
-  { "!", TK_BANG },
   { ":", TK_COLON },
   { ";", TK_SEMI },
   { "=", TK_ASSIGN },
@@ -67,7 +66,6 @@ static const lexsym_t symbols[] =
   { "*", TK_MULTIPLY },
   { "/", TK_DIVIDE },
   { "%", TK_MOD },
-  { "^", TK_HAT },
   { "@", TK_AT },
 
   { "<", TK_LT },
@@ -75,6 +73,9 @@ static const lexsym_t symbols[] =
 
   { "|", TK_PIPE },
   { "&", TK_AMP },
+  { "^", TK_EPHEMERAL },
+  { "!", TK_BORROWED },
+
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
 
@@ -165,9 +166,6 @@ static const lexsym_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
-
-  { "^", TK_EPHEMERAL },
-  { "!", TK_BORROWED },
 
   { "number", TK_NUMBERLITERAL },
   { "integer", TK_INTLITERAL },

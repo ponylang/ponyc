@@ -247,10 +247,10 @@ static ast_result_t sugar_for(ast_t** astp)
 }
 
 
+/*
 static ast_result_t sugar_bang(ast_t** astp)
 {
   // TODO: syntactic sugar for partial application
-  /*
   a!method(b, c)
 
   {
@@ -268,9 +268,10 @@ static ast_result_t sugar_bang(ast_t** astp)
     val: ParamX val or tag, method_cap val or tag
     box: val <: ParamX, val <: method_cap
     ref: otherwise
-  */
+
   return AST_OK;
 }
+*/
 
 
 static ast_result_t sugar_case(ast_t* ast)
@@ -391,7 +392,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_REPEAT:     return sugar_else(ast);
     case TK_TRY:        return sugar_try(ast);
     case TK_FOR:        return sugar_for(astp);
-    case TK_BANG:       return sugar_bang(astp);
+//    case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_PLUS:       return sugar_binop(astp, "add");

@@ -412,12 +412,11 @@ static ast_result_t parse_fix_ephemeral(ast_t* ast)
     return AST_ERROR;
   }
 
-  ast_setid(ast, TK_EPHEMERAL);
   return AST_OK;
 }
 
 
-static ast_result_t parse_fix_bang(ast_t* ast)
+static ast_result_t parse_fix_borrowed(ast_t* ast)
 {
   assert(ast != NULL);
 
@@ -430,7 +429,6 @@ static ast_result_t parse_fix_bang(ast_t* ast)
     return AST_ERROR;
   }
 
-  ast_setid(ast, TK_BORROWED);
   return AST_OK;
 }
 
@@ -755,8 +753,8 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);
     case TK_INTERFACE:  return parse_fix_entity(ast, DEF_INTERFACE);
     case TK_THISTYPE:   return parse_fix_thistype(ast);
-    case TK_HAT:        return parse_fix_ephemeral(ast);
-    case TK_BANG:       return parse_fix_bang(ast);
+    case TK_EPHEMERAL:  return parse_fix_ephemeral(ast);
+    case TK_BORROWED:   return parse_fix_borrowed(ast);
     case TK_MATCH:      return parse_fix_match(ast);
     case TK_FFIDECL:    return parse_fix_ffi(ast, false);
     case TK_FFICALL:    return parse_fix_ffi(ast, true);

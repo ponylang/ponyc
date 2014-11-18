@@ -15,7 +15,7 @@ static token_id _next_token_at_end;
 
 DEF(token_test);
   AST_NODE(TK_COLON);
-  TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -25,7 +25,7 @@ DEF(token_test);
 
 DEF(token_opt_test);
   AST_NODE(TK_COLON);
-  OPT TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  OPT TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -35,7 +35,7 @@ DEF(token_opt_test);
 
 DEF(token_top_test);
   AST_NODE(TK_COLON);
-  TOP TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  TOP TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -45,7 +45,7 @@ DEF(token_top_test);
 
 DEF(token_opt_top_test);
   AST_NODE(TK_COLON);
-  OPT TOP TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  OPT TOP TOKEN(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -55,7 +55,7 @@ DEF(token_opt_top_test);
 
 DEF(skip_test);
   AST_NODE(TK_COLON);
-  SKIP(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  SKIP(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -65,7 +65,7 @@ DEF(skip_test);
 
 DEF(skip_opt_test);
   AST_NODE(TK_COLON);
-  OPT SKIP(NULL, TK_PLUS, TK_MULTIPLY, TK_BANG);
+  OPT SKIP(NULL, TK_PLUS, TK_MULTIPLY, TK_AT);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -152,13 +152,13 @@ TEST(ParserApiTokenTest, TokenNotFirstPresent)
 
 TEST(ParserApiTokenTest, TokenLastPresent)
 {
-  const char* code = "!;";
+  const char* code = "@;";
 
   source_t* src = source_open_string(code);
   _reached_end = false;
 
   ast_t* ast = parse(src, token_test, "test");
-  DO(check_tree("(: !)", ast));
+  DO(check_tree("(: @)", ast));
   DO(check_end_state(TK_SEMI));
 
   ast_free(ast);
@@ -333,7 +333,7 @@ TEST(ParserApiTokenTest, SkipNotFirstPresent)
 
 TEST(ParserApiTokenTest, SkipLastPresent)
 {
-  const char* code = "!;";
+  const char* code = "@;";
 
   source_t* src = source_open_string(code);
   _reached_end = false;

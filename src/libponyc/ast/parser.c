@@ -100,7 +100,7 @@ DEF(nominal);
   IF(TK_DOT, TOKEN("name", TK_ID));
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_HAT, TK_BANG);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
 // PIPE type
@@ -260,7 +260,7 @@ DEF(dot);
 
 // BANG ID
 DEF(bang);
-  TOKEN(NULL, TK_BANG);
+  TOKEN(NULL, TK_BORROWED); // TODO: Change to a different symbol?
   TOKEN("method name", TK_ID);
   DONE();
 

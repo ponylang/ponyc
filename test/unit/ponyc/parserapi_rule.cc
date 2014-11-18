@@ -15,8 +15,8 @@ DEF(base_dot);
   TOKEN(NULL, TK_DOT);
   DONE();
 
-DEF(base_bang);
-  TOKEN(NULL, TK_BANG);
+DEF(base_at);
+  TOKEN(NULL, TK_AT);
   DONE();
 
 DEF(base_plus);
@@ -26,7 +26,7 @@ DEF(base_plus);
 
 DEF(rule_test);
   TOKEN(NULL, TK_COLON);
-  RULE("test", base_dot, base_bang, base_plus);
+  RULE("test", base_dot, base_at, base_plus);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -35,7 +35,7 @@ DEF(rule_test);
 
 DEF(rule_opt_test);
   TOKEN(NULL, TK_COLON);
-  OPT RULE("test", base_dot, base_bang, base_plus);
+  OPT RULE("test", base_dot, base_at, base_plus);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -45,7 +45,7 @@ DEF(rule_opt_test);
 DEF(rule_top_test);
   TOKEN(NULL, TK_COLON);
   TOKEN(NULL, TK_COLON);
-  TOP RULE("test", base_dot, base_bang, base_plus);
+  TOP RULE("test", base_dot, base_at, base_plus);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -55,7 +55,7 @@ DEF(rule_top_test);
 DEF(rule_opt_top_test);
   TOKEN(NULL, TK_COLON);
   TOKEN(NULL, TK_COLON);
-  OPT TOP RULE("test", base_dot, base_bang, base_plus);
+  OPT TOP RULE("test", base_dot, base_at, base_plus);
   _reached_end = true;
   _opt_at_end = state.opt;
   _top_at_end = state.top;
@@ -126,13 +126,13 @@ TEST(ParserApiRuleTest, RuleFirstPresent)
 
 TEST(ParserApiRuleTest, RuleNotFirstPresent)
 {
-  const char* code = ":!;";
+  const char* code = ":@;";
 
   source_t* src = source_open_string(code);
   _reached_end = false;
 
   ast_t* ast = parse(src, rule_test, "test");
-  DO(check_tree("(: !)", ast));
+  DO(check_tree("(: @)", ast));
   DO(check_end_state(TK_SEMI));
 
   ast_free(ast);

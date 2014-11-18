@@ -40,7 +40,6 @@ typedef enum token_id
   TK_ARROW,
   TK_DBLARROW,
   TK_DOT,
-  TK_BANG,
   TK_COLON,
   TK_SEMI,
   TK_ASSIGN,
@@ -50,7 +49,6 @@ typedef enum token_id
   TK_MULTIPLY,
   TK_DIVIDE,
   TK_MOD,
-  TK_HAT,
   TK_AT,
 
   TK_LSHIFT,
@@ -66,6 +64,9 @@ typedef enum token_id
 
   TK_PIPE,
   TK_AMP,
+  TK_EPHEMERAL,
+  TK_BORROWED,
+
   TK_QUESTION,
   TK_UNARY_MINUS,
   TK_ELLIPSIS,
@@ -149,9 +150,6 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
-
-  TK_EPHEMERAL,
-  TK_BORROWED,
 
   TK_NUMBERLITERAL, // A literal that could be any Number
   TK_INTLITERAL, // A literal that could be any Signed or Unsigned
