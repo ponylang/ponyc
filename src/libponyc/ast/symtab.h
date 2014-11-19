@@ -9,6 +9,7 @@ PONY_EXTERN_C_BEGIN
 typedef enum
 {
   SYM_NONE,
+  SYM_NOCASE,
   SYM_DEFINED,
   SYM_UNDEFINED,
   SYM_CONSUMED
@@ -17,12 +18,16 @@ typedef enum
 typedef struct symbol_t symbol_t;
 DECLARE_TABLE(symtab, symbol_t);
 
+bool is_type_name(const char* name);
+
 symtab_t* symtab_new();
 
 bool symtab_add(symtab_t* symtab, const char* name, void* value,
   sym_status_t status);
 
 void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status);
+
+void* symtab_get_case(symtab_t* symtab, const char* name, sym_status_t* status);
 
 sym_status_t symtab_get_status(symtab_t* symtab, const char* name);
 

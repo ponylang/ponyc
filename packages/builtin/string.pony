@@ -169,12 +169,6 @@ class String val is Ordered[String box], Stringable
       error
     end
 
-  fun ref _set(i: U64, char: U8): U8 =>
-    """
-    Unsafe update, used internally.
-    """
-    _ptr._update(i, char)
-
   fun box clone(): String iso^ =>
     let len = _size
     let str = recover String.prealloc(len) end
@@ -750,3 +744,9 @@ class String val is Ordered[String box], Stringable
       str._ptr = consume ptr
       consume str
     end
+
+  fun ref _set(i: U64, char: U8): U8 =>
+    """
+    Unsafe update, used internally.
+    """
+    _ptr._update(i, char)

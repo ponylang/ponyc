@@ -1,8 +1,11 @@
 #include "symtab.h"
+#include "../ds/stringtab.h"
 #include "../ds/hash.h"
 #include "../ds/functions.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 #include <assert.h>
 
 typedef struct symbol_t
@@ -122,7 +125,32 @@ static bool apply_branch(symbol_t* sym, void* arg)
   return true;
 }
 
+static const char* name_without_case(const char* name)
+{
+  size_t len = strlen(name) + 1;
+  VLA(char, buf, len);
+
+  if(is_type_name(name))
+  {
+    for(size_t i = 0; i < len; i++)
+      buf[i] = (char)toupper(name[i]);
+  } else {
+    for(size_t i = 0; i < len; i++)
+      buf[i] = (char)tolower(name[i]);
+  }
+
+  return stringtab(buf);
+}
+
 DEFINE_TABLE(symtab, symbol_t, sym_hash, sym_cmp, sym_dup, sym_free);
+
+bool is_type_name(const char* name)
+{
+  if(*name == '_')
+    name++;
+
+  return (*name >= 'A') && (*name <= 'Z');
+}
 
 symtab_t* symtab_new()
 {
@@ -132,7 +160,18 @@ symtab_t* symtab_new()
 bool symtab_add(symtab_t* symtab, const char* name, void* value,
   sym_status_t status)
 {
+  const char* no_case = name_without_case(name);
   bool present;
+
+  if(no_case != name)
+  {
+    symbol_t case_marker = {no_case, value, SYM_NOCASE};
+    symtab_insert(symtab, &case_marker, &present);
+
+    if(present)
+      return false;
+  }
+
   symbol_t sym = {name, value, status};
   symtab_insert(symtab, &sym, &present);
 
@@ -149,6 +188,9 @@ void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status)
     if(status != NULL)
       *status = s2->status;
 
+    if(s2->status == SYM_NOCASE)
+      return NULL;
+
     return s2->value;
   }
 
@@ -158,12 +200,30 @@ void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status)
   return NULL;
 }
 
-sym_status_t symtab_get_status(symtab_t* symtab, const char* name)
+void* symtab_get_case(symtab_t* symtab, const char* name, sym_status_t* status)
 {
+  // Same as symtab_get, but is partially case insensitive. That is, type names
+  // are compared as uppercase and other symbols are compared as lowercase.
   symbol_t s1 = {name, NULL, SYM_NONE};
   symbol_t* s2 = symtab_find(symtab, &s1);
 
-  return s2 != NULL ? s2->status : SYM_NONE;
+  if(s2 != NULL)
+  {
+    if(status != NULL)
+      *status = s2->status;
+
+    return s2->value;
+  }
+
+  const char* no_case = name_without_case(name);
+
+  if(no_case != name)
+    return symtab_get_case(symtab, no_case, status);
+
+  if(status != NULL)
+    *status = SYM_NONE;
+
+  return NULL;
 }
 
 bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status)
