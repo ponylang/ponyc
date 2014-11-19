@@ -1,4 +1,5 @@
 #include "parserapi.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
@@ -293,7 +294,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
     return PARSE_ERROR;
 
   // Create a parser and attach the lexer
-  parser_t* parser = (parser_t*)calloc(1, sizeof(parser_t));
+  parser_t* parser = POOL_ALLOC(parser_t);
   parser->source = source;
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
@@ -320,7 +321,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
 
   lexer_close(lexer);
   token_free(parser->token);
-  free(parser);
+  POOL_FREE(parser_t, parser);
 
   return ast;
 }

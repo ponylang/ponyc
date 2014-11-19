@@ -1,6 +1,7 @@
 #include "lexer.h"
 #include "token.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -298,9 +299,12 @@ static void append(lexer_t* lexer, char c)
   if(lexer->buflen >= lexer->alloc)
   {
     size_t new_len = (lexer->alloc > 0) ? lexer->alloc << 1 : 64;
-    char* new_buf = (char*)malloc(new_len);
+    char* new_buf = (char*)pool_alloc_size(new_len);
     memcpy(new_buf, lexer->buffer, lexer->alloc);
-    free(lexer->buffer);
+
+    if(lexer->alloc > 0)
+      pool_free_size(lexer->alloc, lexer->buffer);
+
     lexer->buffer = new_buf;
     lexer->alloc = new_len;
   }
@@ -1004,7 +1008,9 @@ lexer_t* lexer_open(source_t* source)
 {
   assert(source != NULL);
 
-  lexer_t* lexer = (lexer_t*)calloc(1, sizeof(lexer_t));
+  lexer_t* lexer = POOL_ALLOC(lexer_t);
+  memset(lexer, 0, sizeof(lexer_t));
+
   lexer->source = source;
   lexer->len = source->len;
   lexer->line = 1;
@@ -1021,9 +1027,9 @@ void lexer_close(lexer_t* lexer)
     return;
 
   if(lexer->buffer != NULL)
-    free(lexer->buffer);
+    pool_free_size(lexer->alloc, lexer->buffer);
 
-  free(lexer);
+  POOL_FREE(lexer_t, lexer);
 }
 
 

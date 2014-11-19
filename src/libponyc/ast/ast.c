@@ -4,6 +4,8 @@
 #include "../ds/stringtab.h"
 #include "../pass/pass.h"
 #include "../pkg/program.h"
+#include "../pkg/package.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -185,7 +187,8 @@ ast_t* ast_blank(token_id id)
 
 ast_t* ast_token(token_t* t)
 {
-  ast_t* ast = (ast_t*)calloc(1, sizeof(ast_t));
+  ast_t* ast = POOL_ALLOC(ast_t);
+  memset(ast, 0, sizeof(ast_t));
   ast->t = t;
 
   switch(token_get_id(t))
@@ -1133,7 +1136,7 @@ void ast_free(ast_t* ast)
       break;
 
     case TK_PACKAGE:
-      free(ast->data);
+      package_free((package_t*)ast->data);
       break;
 
     case TK_MODULE:
@@ -1146,7 +1149,7 @@ void ast_free(ast_t* ast)
 
   token_free(ast->t);
   symtab_free(ast->symtab);
-  free(ast);
+  POOL_FREE(ast_t, ast);
 }
 
 void ast_free_unattached(ast_t* ast)

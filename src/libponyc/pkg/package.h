@@ -8,6 +8,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef struct package_t package_t;
+
 /**
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
@@ -56,6 +58,11 @@ ast_t* program_load(const char* path, pass_opt_t* options);
  * Load a package. Used by program_load() and when handling 'use' statements.
  */
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options);
+
+/**
+ * Free the package_t that is set as the ast_data of a package node.
+ */
+void package_free(package_t* package);
 
 /**
  * Gets the package name, but not wrapped in an AST node.

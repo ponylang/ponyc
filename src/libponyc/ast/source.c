@@ -1,6 +1,7 @@
 #include "source.h"
 #include "error.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -27,9 +28,9 @@ source_t* source_open(const char* file)
 
   fseek(fp, 0, SEEK_SET);
 
-  source_t* source = (source_t*)malloc(sizeof(source_t));
+  source_t* source = POOL_ALLOC(source_t);
   source->file = stringtab(file);
-  source->m = (char*)malloc(size);
+  source->m = (char*)pool_alloc_size(size);
   source->len = size;
 
   ssize_t read = fread(source->m, sizeof(char), size, fp);
@@ -37,8 +38,8 @@ source_t* source_open(const char* file)
   if(read < size)
   {
     errorf(file, "failed to read entire file");
-    free(source->m);
-    free(source);
+    pool_free_size(source->len, source->m);
+    POOL_FREE(source_t, source);
     fclose(fp);
     return NULL;
   }
@@ -50,10 +51,10 @@ source_t* source_open(const char* file)
 
 source_t* source_open_string(const char* source_code)
 {
-  source_t* source = (source_t*)malloc(sizeof(source_t));
+  source_t* source = POOL_ALLOC(source_t);
   source->file = NULL;
   source->len = strlen(source_code);
-  source->m = (char*)malloc(source->len);
+  source->m = (char*)pool_alloc_size(source->len);
 
   memcpy(source->m, source_code, source->len);
 
@@ -67,7 +68,7 @@ void source_close(source_t* source)
     return;
 
   if(source->m != NULL)
-    free(source->m);
+    pool_free_size(source->len, source->m);
 
-  free(source);
+  POOL_FREE(source_t, source);
 }

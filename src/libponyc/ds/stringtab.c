@@ -1,6 +1,7 @@
 #include "stringtab.h"
 #include "hash.h"
 #include "table.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,12 +24,17 @@ static bool str_cmp(const char* a, const char* b)
 
 static const char* str_dup(const char* a)
 {
-  return strdup(a);
+  size_t len = strlen(a) + 1;
+  char* n = (char*)pool_alloc_size(len);
+  memcpy(n, a, len);
+
+  return n;
 }
 
 static void str_free(const char* a)
 {
-  free((char*)a);
+  size_t len = strlen(a) + 1;
+  pool_free_size(len, (char*)a);
 }
 
 DEFINE_LIST(strlist, const char, ptr_hash, ptr_cmp, NULL);

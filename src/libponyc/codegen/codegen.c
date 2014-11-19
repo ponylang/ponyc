@@ -10,6 +10,7 @@
 #include "../pkg/program.h"
 #include "../ast/error.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <platform.h>
 
 #include <llvm-c/Initialization.h>
@@ -41,8 +42,8 @@ static void codegen_fatal(const char* reason)
 
 static compile_frame_t* push_frame(compile_t* c)
 {
-  compile_frame_t* frame = (compile_frame_t*)calloc(1,
-    sizeof(compile_frame_t));
+  compile_frame_t* frame = POOL_ALLOC(compile_frame_t);
+  memset(frame, 0, sizeof(compile_frame_t));
 
   frame->prev = c->frame;
   c->frame = frame;
@@ -54,7 +55,7 @@ static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
   c->frame = frame->prev;
-  free(frame);
+  POOL_FREE(compile_frame_t, frame);
 }
 
 static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
@@ -666,24 +667,27 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   }
 
   const char* file_exe = suffix_filename(opt->output, c->filename, "");
-  arch = strndup(opt->triple, arch - opt->triple);
+
+  size_t len = (arch - opt->triple);
+  VLA(char, arch_buf, len + 1);
+  memcpy(arch_buf, opt->triple, len);
+  arch_buf[len] = '\0';
   program_lib_build_args(program, "", "", "-l", "");
 
-  size_t ld_len = 128 + strlen(arch) + strlen(file_exe) + strlen(file_o) +
+  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
     link_path_length() + program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
     "-o %s %s",
-    arch, file_exe, file_o
+    arch_buf, file_exe, file_o
     );
 
   // User specified libraries go here, in any order.
   strcat(ld_cmd, program_lib_args(program));
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lponyrt -lSystem");
-  free(arch);
 #elif defined(PLATFORM_IS_LINUX)
   const char* file_exe = suffix_filename(opt->output, c->filename, "");
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");

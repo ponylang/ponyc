@@ -1,7 +1,9 @@
 #include "table.h"
 #include "list.h"
 #include "hash.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
+#include <string.h>
 
 struct table_t
 {
@@ -11,9 +13,11 @@ struct table_t
 
 table_t* table_create(size_t size)
 {
-  table_t* table = (table_t*)malloc(sizeof(table_t));
+  table_t* table = POOL_ALLOC(table_t);
   table->size = next_pow2(size);
-  table->node = (list_t**)calloc(table->size, sizeof(list_t*));
+
+  table->node = (list_t**)pool_alloc_size(table->size * sizeof(list_t*));
+  memset(table->node, 0, table->size * sizeof(list_t*));
 
   return table;
 }
@@ -114,6 +118,6 @@ void table_free(table_t* table, free_fn fr)
   for(int i = 0; i < table->size; i++)
     list_free(table->node[i], fr);
 
-  free(table->node);
-  free(table);
+  pool_free_size(table->size * sizeof(list_t*), table->node);
+  POOL_FREE(table_t, table);
 }

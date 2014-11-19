@@ -4,6 +4,7 @@
 #include "parserapi.h"
 #include "symtab.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -119,7 +120,7 @@ static void add_subtree_ref(build_parser_t* builder, ast_t* node,
 {
   assert(builder != NULL);
 
-  builder_ref_t* newref = (builder_ref_t*)malloc(sizeof(builder_ref_t));
+  builder_ref_t* newref = POOL_ALLOC(builder_ref_t);
   newref->node = node;
   newref->name = name;
   newref->symtab = symtab;
@@ -559,7 +560,7 @@ static ast_t* build_ast(source_t* source, symtab_t* symtab)
   while(p != NULL)
   {
     builder_ref_t* next = p->next;
-    free(p);
+    POOL_FREE(builder_ref_t, p);
     p = next;
   }
 
@@ -573,7 +574,7 @@ static void add_source(builder_t* builder, source_t* source)
   assert(builder != NULL);
   assert(source != NULL);
 
-  builder_src_t* newsrc = (builder_src_t*)malloc(sizeof(builder_src_t));
+  builder_src_t* newsrc = POOL_ALLOC(builder_src_t);
   newsrc->source = source;
   newsrc->next = builder->sources;
   builder->sources = newsrc;
@@ -599,7 +600,7 @@ builder_t* builder_create(const char* description)
   }
 
   // Success, create builder
-  builder_t* builder = (builder_t*)malloc(sizeof(builder_t));
+  builder_t* builder = POOL_ALLOC(builder_t);
 
   builder->sources = NULL;
   builder->defs = symtab;
@@ -724,9 +725,11 @@ void builder_free(builder_t* builder)
   {
     builder_src_t* next = p->next;
     source_close(p->source);
-    free(p);
+    POOL_FREE(builder_src_t, p);
     p = next;
   }
+
+  POOL_FREE(builder_t, builder);
 }
 
 
