@@ -1,20 +1,11 @@
 #include "scope.h"
-#include "../ast/token.h"
 #include "../type/assemble.h"
 #include "../pkg/package.h"
 #include "../pkg/use.h"
+#include "../ast/symtab.h"
+#include "../ast/token.h"
 #include "../ds/stringtab.h"
 #include <assert.h>
-
-static bool is_type_id(const char* s)
-{
-  int i = 0;
-
-  if(s[i] == '_')
-    i++;
-
-  return (s[i] >= 'A') && (s[i] <= 'Z');
-}
 
 /**
  * Insert a name->AST mapping into the specified scope.
@@ -73,13 +64,13 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
       return false;
   }
 
-  if(is_type && !is_type_id(s))
+  if(is_type && !is_type_name(s))
   {
     ast_error(name, "type name '%s' must start A-Z or _(A-Z)", s);
     return false;
   }
 
-  if(is_id && is_type_id(s))
+  if(is_id && is_type_name(s))
   {
     ast_error(name, "identifier '%s' can't start A-Z or _(A-Z)", s);
     return false;
@@ -87,12 +78,12 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
 
   if(!ast_set(scope, s, value, status) && !dups)
   {
-    ast_error(name, "can't reuse name '%s'", s);
-
     ast_t* prev = ast_get(scope, s, NULL);
+    ast_t* prev_nocase = ast_get_case(scope, s, NULL);
 
-    if(prev != NULL)
-      ast_error(prev, "previous use of '%s'", s);
+    ast_error(name, "can't reuse name '%s'", s);
+    ast_error(prev_nocase, "previous use of '%s'%s",
+      s, (prev == NULL) ? " differs only by case" : "");
 
     return false;
   }

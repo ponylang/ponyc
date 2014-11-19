@@ -1,6 +1,7 @@
 #include "genprim.h"
 #include "genname.h"
 #include "gentype.h"
+#include "genfun.h"
 #include "gencall.h"
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
@@ -277,23 +278,6 @@ static void pointer_concat(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
-static void pointer_is_null(compile_t* c, gentype_t* g)
-{
-  const char* name = genname_fun(g->type_name, "is_null", NULL);
-
-  LLVMTypeRef ftype = LLVMFunctionType(c->i1, &g->use_type, 1, false);
-  LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
-  LLVMValueRef zero = LLVMConstInt(c->i64, 0, false);
-  result = LLVMBuildICmp(c->builder, LLVMIntEQ, result, zero, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-}
-
 static void pointer_u64(compile_t* c, gentype_t* g)
 {
   const char* name = genname_fun(g->type_name, "u64", NULL);
@@ -311,6 +295,9 @@ static void pointer_u64(compile_t* c, gentype_t* g)
 
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 {
+  // No trace function is generated, so the "contents" of a pointer are never
+  // traced. The only exception is for the pointer held by an array, which has
+  // a special trace function generated in genprim_array_trace.
   ast_t* typeargs = ast_childidx(g->ast, 2);
   ast_t* typearg = ast_child(typeargs);
 
@@ -347,10 +334,9 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_delete(c, g, &elem_g);
   pointer_copy(c, g, &elem_g);
   pointer_concat(c, g, &elem_g);
-  pointer_is_null(c, g);
   pointer_u64(c, g);
 
-  return true;
+  return genfun_methods(c, g);
 }
 
 void genprim_array_trace(compile_t* c, gentype_t* g)

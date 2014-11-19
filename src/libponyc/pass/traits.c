@@ -177,18 +177,28 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
     return true;
 
   const char* name = ast_name(ast_childidx(method, 1));
-  void* existing_body = ast_get(target, name, NULL);
+  ast_t* existing_body = ast_get(target, name, NULL);
 
   if(existing_body == NULL)
   {
     // First body we've found for this name, use it
     ast_t* existing_members = ast_childidx(target, 4);
     ast_append(existing_members, method);
-    ast_set(target, name, method, SYM_NONE);
+
+    if(!ast_set(target, name, method, SYM_NONE))
+    {
+      ast_t* previous = ast_get_case(target, name, NULL);
+      assert(previous != NULL);
+
+      ast_error(method, "method name differs only in case");
+      ast_error(previous, "previous definition is here");
+      return false;
+    }
+
     return true;
   }
 
-  if(ast_data((ast_t*)existing_body) == NULL)
+  if(ast_data(existing_body) == NULL)
   {
     // Existing body is from the target type, use that
     return true;
@@ -197,7 +207,7 @@ static bool attach_body_to_concrete(ast_t* target, ast_t* method)
   ast_error(method, "conflicting implementation for %s in %s", name,
     ast_name(ast_child(target)));
 
-  ast_error((ast_t*)existing_body, "previous implementation is here");
+  ast_error(existing_body, "previous implementation is here");
   return false;
 }
 
