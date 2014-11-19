@@ -1,6 +1,8 @@
 #include "colour.h"
 #include "../ast/symtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 #include <stdio.h>
@@ -134,7 +136,7 @@ static void add_def(painter_t* painter, ast_t* ast)
   }
 
   // Setup definition record
-  def_record_t* n = (def_record_t*)malloc(sizeof(def_record_t));
+  def_record_t* n = POOL_ALLOC(def_record_t);
   n->ast = ast;
   n->typemap_index = painter->typemap_index;
   n->typemap_mask = painter->typemap_mask;
@@ -150,11 +152,12 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   assert(painter != NULL);
   assert(name != NULL);
 
-  name_record_t* n = (name_record_t*)malloc(sizeof(name_record_t));
+  name_record_t* n = POOL_ALLOC(name_record_t);
   n->name = name;
   n->colour = UNASSIGNED_COLOUR;
   n->type_count = 0;
-  n->type_map = (uint64_t*)calloc(painter->typemap_size, sizeof(uint64_t));
+  n->type_map = (uint64_t*)pool_alloc_size(
+    painter->typemap_size * sizeof(uint64_t));
   n->next = NULL;
   *painter->name_next = n;
   painter->name_next = &n->next;
@@ -173,7 +176,8 @@ static colour_record_t* add_colour(painter_t* painter)
   colour_record_t* n = &painter->colours[index];
   n->colour = index;
   n->type_count = 0;
-  n->type_map = (uint64_t*)calloc(painter->typemap_size, sizeof(uint64_t));
+  n->type_map = (uint64_t*)pool_alloc_size(
+    painter->typemap_size * sizeof(uint64_t));
   painter->colour_count++;
 
   return n;
@@ -236,7 +240,7 @@ static void painter_clear(painter_t* painter)
   while(def != NULL)
   {
     def_record_t* next = def->next;
-    free(def);
+    POOL_FREE(def_record_t, def);
     def = next;
   }
 
@@ -244,17 +248,19 @@ static void painter_clear(painter_t* painter)
   while(n != NULL)
   {
     name_record_t* next = n->next;
-    free(n->type_map);
-    free(n);
+    pool_free_size(painter->typemap_size * sizeof(uint64_t), n->type_map);
+    POOL_FREE(name_record_t, n);
     n = next;
   }
 
   if(painter->colours != NULL)
   {
     for(int i = 0; i < painter->colour_count; i++)
-      free(painter->colours[i].type_map);
+      pool_free_size(painter->typemap_size * sizeof(uint64_t),
+        painter->colours[i].type_map);
 
-    free(painter->colours);
+    pool_free_size(painter->name_count * sizeof(colour_record_t),
+      painter->colours);
     painter->colours = NULL;
   }
 
@@ -270,7 +276,6 @@ static void painter_clear(painter_t* painter)
   painter->typemap_index = -1;
   painter->typemap_mask = 0;
   painter->name_count = 0;
-
 }
 
 
@@ -395,9 +400,10 @@ static void find_vtable_sizes(painter_t* painter)
 
 painter_t* painter_create()
 {
-  painter_t* p = (painter_t*)calloc(1, sizeof(painter_t));
+  painter_t* p = POOL_ALLOC(painter_t);
+  memset(p, 0, sizeof(painter_t));
+
   p->typemap_index = -1;
-  p->typemap_mask = 0;
   return p;
 }
 
@@ -424,8 +430,8 @@ void painter_colour(painter_t* painter, ast_t* typedefs)
   find_names_types_use(painter);
 
   // Allocate colour records
-  painter->colours = (colour_record_t*)calloc(painter->name_count,
-    sizeof(colour_record_t));
+  painter->colours = (colour_record_t*)pool_alloc_size(
+    painter->name_count * sizeof(colour_record_t));
 
   assign_colours_to_names(painter);
   find_vtable_sizes(painter);
@@ -472,6 +478,6 @@ void painter_free(painter_t* painter)
   if(painter == NULL)
     return;
 
-  //painter_clear(painter);
-  free(painter);
+  painter_clear(painter);
+  POOL_FREE(painter_t, painter);
 }

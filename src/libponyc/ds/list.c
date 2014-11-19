@@ -1,4 +1,5 @@
 #include "list.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <assert.h>
 
@@ -10,7 +11,7 @@ struct list_t
 
 list_t* list_push(list_t* list, const void* data)
 {
-  list_t* l = (list_t*)malloc(sizeof(list_t));
+  list_t* l = POOL_ALLOC(list_t);
   l->data = (void*)data;
   l->next = list;
 
@@ -19,7 +20,7 @@ list_t* list_push(list_t* list, const void* data)
 
 list_t* list_append(list_t* list, const void* data)
 {
-  list_t* l = (list_t*)malloc(sizeof(list_t));
+  list_t* l = POOL_ALLOC(list_t);
   l->data = (void*)data;
   l->next = NULL;
 
@@ -207,7 +208,7 @@ void list_free(list_t* list, free_fn f)
     if(f != NULL)
       f(list->data);
 
-    free(list);
+    POOL_FREE(list_t, list);
     list = next;
   }
 }

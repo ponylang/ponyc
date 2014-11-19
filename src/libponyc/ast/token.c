@@ -1,6 +1,7 @@
 #include "token.h"
 #include "lexer.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,8 @@ typedef struct token_t
 
 token_t* token_new(token_id id, source_t* source)
 {
-  token_t* t = (token_t*)calloc(1, sizeof(token_t));
+  token_t* t = POOL_ALLOC(token_t);
+  memset(t, 0, sizeof(token_t));
   t->id = id;
   t->source = source;
   return t;
@@ -40,7 +42,7 @@ token_t* token_new(token_id id, source_t* source)
 token_t* token_dup(token_t* token)
 {
   assert(token != NULL);
-  token_t* t = (token_t*)malloc(sizeof(token_t));
+  token_t* t = POOL_ALLOC(token_t);
   memcpy(t, token, sizeof(token_t));
   t->printed = NULL;
   return t;
@@ -61,9 +63,9 @@ void token_free(token_t* token)
     return;
 
   if(token->printed != NULL)
-    free(token->printed);
+    pool_free_size(64, token->printed);
 
-  free(token);
+  POOL_FREE(token_t, token);
 }
 
 
@@ -115,20 +117,20 @@ const char* token_print(token_t* token)
 
     case TK_INT:
       if (token->printed == NULL)
-        token->printed = (char*)malloc(32);
+        token->printed = (char*)pool_alloc_size(64);
 
-      snprintf(token->printed, 32, __zu, (size_t)token->integer);
+      snprintf(token->printed, 64, __zu, (size_t)token->integer);
       return token->printed;
 
     case TK_FLOAT:
     {
       if(token->printed == NULL)
-        token->printed = (char*)malloc(32);
+        token->printed = (char*)pool_alloc_size(64);
 
-      int r = snprintf(token->printed, 32, "%g", token->real);
+      int r = snprintf(token->printed, 64, "%g", token->real);
 
       if(strcspn(token->printed, ".e") == r)
-        snprintf(token->printed + r, 32 - r, ".0");
+        snprintf(token->printed + r, 64 - r, ".0");
 
       return token->printed;
     }
@@ -148,9 +150,9 @@ const char* token_print(token_t* token)
     return p;
 
   if(token->printed == NULL)
-    token->printed = (char*)malloc(32);
+    token->printed = (char*)pool_alloc_size(64);
 
-  snprintf(token->printed, 32, "Unknown_token_%d", token->id);
+  snprintf(token->printed, 64, "Unknown_token_%d", token->id);
   return token->printed;
 }
 

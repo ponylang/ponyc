@@ -2,6 +2,7 @@
 #include "../ds/stringtab.h"
 #include "../ds/hash.h"
 #include "../ds/functions.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,7 +29,7 @@ static bool sym_cmp(symbol_t* a, symbol_t* b)
 
 static symbol_t* sym_dup(symbol_t* sym)
 {
-  symbol_t* s = (symbol_t*)malloc(sizeof(symbol_t));
+  symbol_t* s = POOL_ALLOC(symbol_t);
   s->name = sym->name;
   s->value = sym->value;
   s->status = sym->status;
@@ -39,7 +40,7 @@ static symbol_t* sym_dup(symbol_t* sym)
 
 static void sym_free(symbol_t* sym)
 {
-  free(sym);
+  POOL_FREE(symbol_t, sym);
 }
 
 static bool pred_inherit(symbol_t* sym, void* arg)

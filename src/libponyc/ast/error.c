@@ -1,5 +1,6 @@
 #include "error.h"
 #include "../ds/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -83,7 +84,7 @@ void free_errors()
   while(e != NULL)
   {
     errormsg_t* next = e->next;
-    free(e);
+    POOL_FREE(errormsg_t, e);
     e = next;
   }
 
@@ -107,7 +108,8 @@ void errorv(source_t* source, size_t line, size_t pos, const char* fmt,
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  errormsg_t* e = (errormsg_t*)calloc(1, sizeof(errormsg_t));
+  errormsg_t* e = POOL_ALLOC(errormsg_t);
+  memset(e, 0, sizeof(errormsg_t));
 
   if(source != NULL)
     e->file = source->file;
@@ -160,7 +162,9 @@ void errorfv(const char* file, const char* fmt, va_list ap)
   char buf[LINE_LEN];
   vsnprintf(buf, LINE_LEN, fmt, ap);
 
-  errormsg_t* e = (errormsg_t*)calloc(1, sizeof(errormsg_t));
+  errormsg_t* e = POOL_ALLOC(errormsg_t);
+  memset(e, 0, sizeof(errormsg_t));
+
   e->file = stringtab(file);
   e->msg = stringtab(buf);
   add_error(e);

@@ -5,6 +5,7 @@
 #include "program.h"
 #include "../pass/pass.h"
 #include "../pass/scope.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -282,7 +283,7 @@ void use_register_handler(const char* scheme, bool allow_name,
   assert(scheme != NULL);
   assert(handler != NULL);
 
-  use_t* s = (use_t*)calloc(1, sizeof(use_t));
+  use_t* s = POOL_ALLOC(use_t);
   s->scheme = stringtab(scheme);
   s->scheme_len = strlen(scheme);
   s->allow_name = allow_name;
@@ -303,7 +304,7 @@ void use_clear_handlers()
   while(p != NULL)
   {
     use_t* next = p->next;
-    free(p);
+    POOL_FREE(use_t, p);
     p = next;
   }
 

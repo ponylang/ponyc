@@ -1,11 +1,12 @@
 #include <platform.h>
+#include "../../libponyrt/mem/pool.h"
 
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
 #ifdef PLATFORM_IS_WINDOWS
   size_t path_len = strlen(path);
 
-  if (path_len > (MAX_PATH - 3))
+  if(path_len > (MAX_PATH - 3))
   {
     *err = PONY_IO_PATH_TOO_LONG;
     return NULL;
@@ -15,15 +16,15 @@ PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
   strcpy(win_path, path);
   strcat(win_path, "\\*");
 
-  PONY_DIR* dir = (PONY_DIR*)malloc(sizeof(PONY_DIR));
+  PONY_DIR* dir = POOL_ALLOC(PONY_DIR);
 
   dir->ptr = FindFirstFile(win_path, &dir->info);
 
-  if (dir->ptr == INVALID_HANDLE_VALUE)
+  if(dir->ptr == INVALID_HANDLE_VALUE)
   {
     *err = GetLastError();
     FindClose(dir->ptr);
-    free(dir);
+    POOL_FREE(PONY_DIR, dir);
 
     return NULL;
   }
@@ -73,7 +74,7 @@ void pony_closedir(PONY_DIR* dir)
 {
 #ifdef PLATFORM_IS_WINDOWS
   FindClose(dir->ptr);
-  free(dir);
+  PONY_FREE(PONY_DIR, dir);
 #elif defined(PLATFORM_IS_POSIX_BASED)
   closedir(dir);
 #endif

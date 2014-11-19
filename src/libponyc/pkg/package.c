@@ -7,6 +7,7 @@
 #include "../ast/ast.h"
 #include "../ast/token.h"
 #include "../expr/literal.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -278,7 +279,7 @@ static ast_t* create_package(ast_t* program, const char* name)
   ast_t* package = ast_blank(TK_PACKAGE);
   uint32_t pkg_id = program_assign_pkg_id(program);
 
-  package_t* pkg = (package_t*)malloc(sizeof(package_t));
+  package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
   pkg->id = id_to_string(pkg_id);
   pkg->next_hygienic_id = 0;
@@ -438,7 +439,7 @@ void package_add_paths(const char* paths)
 
 void package_add_magic(const char* path, const char* src)
 {
-  magic_package_t* n = (magic_package_t*)malloc(sizeof(magic_package_t));
+  magic_package_t* n = POOL_ALLOC(magic_package_t);
   n->path = stringtab(path);
   n->src = src;
   n->next = magic_packages;
@@ -517,6 +518,12 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 }
 
 
+void package_free(package_t* package)
+{
+  POOL_FREE(package_t, package);
+}
+
+
 const char* package_name(ast_t* ast)
 {
   package_t* pkg = (package_t*)ast_data(ast_nearest(ast, TK_PACKAGE));
@@ -589,7 +596,7 @@ void package_done(pass_opt_t* opt)
   while(p != NULL)
   {
     magic_package_t* next = p->next;
-    free(p);
+    POOL_FREE(magic_package_t, p);
     p = next;
   }
 
