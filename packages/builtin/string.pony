@@ -188,7 +188,7 @@ class String val is Ordered[String box], Stringable
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
     """
     var i = offset_to_index(offset)
-    var steps = nth
+    var steps = nth + 1
 
     while i < _size do
       var j: U64 = 0
@@ -203,10 +203,8 @@ class String val is Ordered[String box], Stringable
         false
       end
 
-      if same then
-        if (steps == 0) or ((steps = steps - 1) == 1) then
-          return i.i64()
-        end
+      if same and ((steps = steps - 1) == 1) then
+        return i.i64()
       end
 
       i = i + 1
@@ -219,7 +217,7 @@ class String val is Ordered[String box], Stringable
     Raise an error if there is no n-th occurence of s or s is empty.
     """
     var i = offset_to_index(offset) - s._size
-    var steps = nth
+    var steps = nth + 1
 
     while i < _size do
       var j: U64 = 0

@@ -94,7 +94,7 @@ class Options ref is Iterator[_Result]
     this
 
   fun ref param(value: String, help: (String | None)): Options =>
-    for i in Reverse[U64](_configuration.size(), 0) do
+    for i in Reverse(_configuration.size(), 0) do
       try
         match _configuration(i)
         | var option: Option =>

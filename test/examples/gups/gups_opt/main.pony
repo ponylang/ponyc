@@ -126,6 +126,7 @@ actor Updater
     table = Array[U64].undefined(size)
 
     var offset = index * size
+
     for i in Range[U64](0, size - 1) do
       try table(i) = i + offset end
     end
@@ -137,10 +138,10 @@ actor Updater
     let count = updaters
     let chk = chunk
 
-    var list = recover Array[Array[U64] iso].prealloc(count) end
+    var array = Array[Array[U64] iso].prealloc(count)
 
     for i in Range(0, updaters) do
-      list.append(
+      array.append(
         try
           reuse.pop()
         else
@@ -152,22 +153,25 @@ actor Updater
     for i in Range(0, chunk) do
       var datum = rand()
       var updater = (datum >> shift) and mask
-      if updater == index then
-        table(i) = table(i) xor datum
-      else
-        list(updater).append(datum)
+
+      try
+        if updater == index then
+          table(i) = table(i) xor datum
+        else
+          array(updater).append(datum)
+        end
       end
     end
 
-    var vlist: Array[Array[U64] iso] val = consume list
+    for i in Range(0, array.size()) do
+      try
+        let data = array.delete(i)
 
-    for i in vlist.keys() do
-      let data = vlist(i)
-
-      if data.size() > 0 then
-        match others
-        | var neighbors: Array[Updater] val =>
-          neighbors(i).receive(consume data)
+        if data.size() > 0 then
+          match others
+          | var next: Array[Updater] val =>
+            try next(i).receive(consume data) end
+          end
         end
       end
     end
@@ -179,11 +183,14 @@ actor Updater
     end
 
   be receive(data: Array[U64] iso) =>
-    for datum in data.values() do
-      var i = datum and (data.size() - 1)
-      table(i) = table(i) xor datum
+    try
+      for i in Range(0, data.size()) do
+        let datum = data(i)
+        var j = datum and (data.size() - 1)
+        table(j) = table(j) xor datum
+      end
+      reuse.push(consume data)
     end
-    reuse.push(data)
 
   be done() =>
     main.confirm()
