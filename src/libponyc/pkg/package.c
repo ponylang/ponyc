@@ -520,7 +520,8 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 
 void package_free(package_t* package)
 {
-  POOL_FREE(package_t, package);
+  if(package != NULL)
+    POOL_FREE(package_t, package);
 }
 
 

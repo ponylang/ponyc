@@ -1,13 +1,7 @@
 #include "program.h"
-#include "../ds/list.h"
 #include "../ds/stringtab.h"
 #include <string.h>
 #include <assert.h>
-
-
-PONY_EXTERN_C_BEGIN
-DECLARE_LIST(strlist, const char);
-PONY_EXTERN_C_END
 
 
 // Per program state
@@ -74,7 +68,7 @@ uint32_t program_assign_pkg_id(ast_t* ast)
 
   program_t* data = (program_t*)ast_data(program);
   assert(data != NULL);
-  
+
   return data->next_package_id++;
 }
 
