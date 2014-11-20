@@ -153,6 +153,8 @@ static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
 
 int main(int argc, char* argv[])
 {
+  stringtab_init();
+
   pass_opt_t opt;
   memset(&opt, 0, sizeof(pass_opt_t));
   opt.release = true;

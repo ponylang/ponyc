@@ -1,5 +1,5 @@
 #include "stringtab.h"
-#include "table.h"
+#include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
@@ -16,15 +16,6 @@ static bool str_cmp(const char* a, const char* b)
   return !strcmp(a, b);
 }
 
-static const char* str_dup(const char* a)
-{
-  size_t len = strlen(a) + 1;
-  char* n = (char*)pool_alloc_size(len);
-  memcpy(n, a, len);
-
-  return n;
-}
-
 static void str_free(const char* a)
 {
   size_t len = strlen(a) + 1;
@@ -32,23 +23,37 @@ static void str_free(const char* a)
 }
 
 DEFINE_LIST(strlist, const char, ptr_cmp, NULL);
-DEFINE_TABLE(strtable, const char, hash_str, str_cmp, str_dup, str_free);
 
-static strtable_t* table;
+DECLARE_HASHMAP(strtable, const char);
+DEFINE_HASHMAP(strtable, const char, hash_str, str_cmp, pool_alloc_size,
+  pool_free_size, str_free, NULL);
+
+static strtable_t table;
+
+void stringtab_init()
+{
+  strtable_init(&table, 4096);
+}
 
 const char* stringtab(const char* string)
 {
   if(string == NULL)
     return NULL;
 
-  if(table == NULL)
-    table = strtable_create(4096);
+  const char* prev = strtable_get(&table, string);
 
-  bool present;
-  return strtable_insert(table, string, &present);
+  if(prev != NULL)
+    return prev;
+
+  size_t len = strlen(string) + 1;
+  char* n = (char*)pool_alloc_size(len);
+  memcpy(n, string, len);
+
+  strtable_put(&table, n);
+  return n;
 }
 
 void stringtab_done()
 {
-  strtable_free(table);
+  strtable_destroy(&table);
 }
