@@ -257,14 +257,3 @@ bool symtab_no_private(symbol_t* symbol, void* arg)
   // Strip out private symbols.
   return symbol->name[0] != '_';
 }
-
-static bool print_symbol(symbol_t* symbol, void* arg)
-{
-  printf("%s\n", symbol->name);
-  return true;
-}
-
-void symtab_print(symtab_t* symtab)
-{
-  symtab_apply(symtab, print_symbol, NULL);
-}

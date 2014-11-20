@@ -564,7 +564,7 @@ bool expr_call(ast_t* ast)
           {
             ast_error(ast,
               "receiver capability is not a subtype of method capability");
-            ast_error(receiver, "receiver type: %s", ast_print_type(r_type));
+            ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
             ast_error(cap, "target type: %s", ast_print_type(t_type));
 
             if(!send && is_subtype(r_type, t_type))
