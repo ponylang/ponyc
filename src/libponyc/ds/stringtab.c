@@ -1,5 +1,4 @@
 #include "stringtab.h"
-#include "hash.h"
 #include "table.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
@@ -33,7 +32,7 @@ static void str_free(const char* a)
 }
 
 DEFINE_LIST(strlist, const char, ptr_cmp, NULL);
-DEFINE_TABLE(strtable, const char, strhash, str_cmp, str_dup, str_free);
+DEFINE_TABLE(strtable, const char, hash_str, str_cmp, str_dup, str_free);
 
 static strtable_t* table;
 

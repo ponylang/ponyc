@@ -1,7 +1,5 @@
 #include "symtab.h"
 #include "../ds/stringtab.h"
-#include "../ds/hash.h"
-#include "../ds/functions.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -19,7 +17,7 @@ typedef struct symbol_t
 
 static uint64_t sym_hash(symbol_t* sym)
 {
-  return ptrhash(sym->name);
+  return hash_ptr(sym->name);
 }
 
 static bool sym_cmp(symbol_t* a, symbol_t* b)
