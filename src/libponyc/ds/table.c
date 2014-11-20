@@ -1,6 +1,6 @@
 #include "table.h"
-#include "list.h"
 #include "hash.h"
+#include "../../libponyrt/ds/list.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>

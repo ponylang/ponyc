@@ -1,3 +1,5 @@
+use "collections"
+
 primitive StringArgument is Comparable[StringArgument]
 primitive I64Argument is Comparable[I64Argument]
 primitive F64Argument is Comparable[F64Argument]

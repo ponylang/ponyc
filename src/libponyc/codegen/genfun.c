@@ -9,7 +9,7 @@
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
-#include "../ds/hash.h"
+#include "../../libponyrt/ds/fun.h"
 #include <string.h>
 #include <assert.h>
 

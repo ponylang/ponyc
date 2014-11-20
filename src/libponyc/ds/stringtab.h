@@ -2,7 +2,7 @@
 #define STRINGTAB_H
 
 #include <platform.h>
-#include "list.h"
+#include "../../libponyrt/ds/list.h"
 
 PONY_EXTERN_C_BEGIN
 

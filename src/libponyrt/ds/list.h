@@ -67,11 +67,11 @@ void list_free(list_t* list, free_fn f);
   } \
   name##_t* name##_push(name##_t* list, elem* data) \
   { \
-    return (name##_t*)list_push((list_t*)list, data); \
+    return (name##_t*)list_push((list_t*)list, (void*)data); \
   } \
   name##_t* name##_append(name##_t* list, elem* data) \
   { \
-    return (name##_t*)list_append((list_t*)list, data); \
+    return (name##_t*)list_append((list_t*)list, (void*)data); \
   } \
   name##_t* name##_next(name##_t* list) \
   { \
@@ -88,12 +88,12 @@ void list_free(list_t* list, free_fn f);
   elem* name##_find(name##_t* list, elem* data) \
   { \
     name##_cmp_fn cmp = cmpf; \
-    return (elem*)list_find((list_t*)list, (cmp_fn)cmp, data); \
+    return (elem*)list_find((list_t*)list, (cmp_fn)cmp, (void*)data); \
   } \
   ssize_t name##_findindex(name##_t* list, elem* data) \
   { \
     name##_cmp_fn cmp = cmpf; \
-    return list_findindex((list_t*)list, (cmp_fn)cmp, data); \
+    return list_findindex((list_t*)list, (cmp_fn)cmp, (void*)data); \
   } \
   bool name##_subset(name##_t* a, name##_t* b) \
   { \
