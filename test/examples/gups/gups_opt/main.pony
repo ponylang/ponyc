@@ -64,9 +64,10 @@ actor Main
   be confirm() =>
     _actor_count = _actor_count + 1
     if _actor_count == actors.size() then
-      let elapsed = Time.nanos() - start
-      let gups = updates.f32() / elapsed.f32() / F32(1e9)
-      _env.stdout.print("Time: " + elapsed.string() + " GUPS: " + gups.string())
+      let elapsed = (Time.nanos() - start).f64()
+      let gups = updates.f64() / elapsed
+      _env.stdout.print("Time: " + (elapsed / 1e9).string() +
+        " GUPS: " + gups.string())
     end
 
   fun ref arguments() ? =>
