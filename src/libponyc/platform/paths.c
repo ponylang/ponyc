@@ -74,7 +74,7 @@ void pony_closedir(PONY_DIR* dir)
 {
 #ifdef PLATFORM_IS_WINDOWS
   FindClose(dir->ptr);
-  PONY_FREE(PONY_DIR, dir);
+  POOL_FREE(PONY_DIR, dir);
 #elif defined(PLATFORM_IS_POSIX_BASED)
   closedir(dir);
 #endif
