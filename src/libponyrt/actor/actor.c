@@ -16,7 +16,7 @@ enum
   FLAG_PENDINGDESTROY = 1 << 3,
 };
 
-struct pony_actor_t
+typedef struct pony_actor_t
 {
   pony_type_t* type;
   messageq_t q;
@@ -27,7 +27,7 @@ struct pony_actor_t
   gc_t gc;
   struct pony_actor_t* next;
   uint8_t flags;
-};
+} pony_actor_t;
 
 static __pony_thread_local pony_actor_t* this_actor;
 
@@ -112,6 +112,7 @@ bool actor_run(pony_actor_t* actor)
     if(actor->type->trace != NULL)
       actor->type->trace(actor);
 
+    gc_handlestack();
     gc_mark(&actor->gc);
     gc_sweep(&actor->gc);
     gc_done(&actor->gc);

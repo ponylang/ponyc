@@ -1,3 +1,5 @@
+use "collections"
+
 actor Worker
   var _env: Env
 

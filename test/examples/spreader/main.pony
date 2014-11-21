@@ -37,7 +37,7 @@ actor Spreader
 
     if _received == 2 then
       match (_parent, _env)
-      | (var p: Spreader, var e: Any) =>
+      | (var p: Spreader, _) =>
         p.result(_result + 1)
       | (var p: None, var e: Env) =>
         e.stdout.print((_result + 1).string() + " actors")

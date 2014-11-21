@@ -7,11 +7,6 @@
 void* virtual_alloc(size_t bytes);
 
 /**
- * Reallocates memory in the virtual address space.
- */
-void* virtual_realloc(void* p, size_t old_bytes, size_t new_bytes);
-
-/**
  * Deallocates a chunk of memory that was previously allocated with
  * virtual_alloc.
  */

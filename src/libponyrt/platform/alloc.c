@@ -25,26 +25,6 @@ void* virtual_alloc(size_t bytes)
 #endif
 }
 
-void* virtual_realloc(void* p, size_t old_bytes, size_t new_bytes)
-{
-#if defined(PLATFORM_IS_LINUX)
-  void* q = mremap(p, old_bytes, new_bytes, MREMAP_MAYMOVE);
-
-  if(q == MAP_FAILED)
-  {
-    perror("out of memory: ");
-    abort();
-  }
-
-  return q;
-#else
-  void* q = virtual_alloc(new_bytes);
-  memcpy(q, p, old_bytes);
-  virtual_free(p, old_bytes);
-  return q;
-#endif
-}
-
 bool virtual_free(void* p, size_t bytes)
 {
 #if defined(PLATFORM_IS_WINDOWS)

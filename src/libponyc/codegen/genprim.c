@@ -359,7 +359,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   // Read the count and the base pointer.
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type, "array");
-  LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, object, 2, "");
+  LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
   LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "count");
   LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");

@@ -1,3 +1,5 @@
+use "collections"
+
 actor Ring
   var _next: (Ring | None)
   var _stdout: Stdout

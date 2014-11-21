@@ -189,6 +189,7 @@ actor Updater
         var j = datum and (data.size() - 1)
         table(j) = table(j) xor datum
       end
+      data.clear()
       reuse.push(consume data)
     end
 

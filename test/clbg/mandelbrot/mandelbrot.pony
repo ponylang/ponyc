@@ -1,5 +1,6 @@
 use "files"
 use "options"
+use "collections"
 
 actor Worker
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,

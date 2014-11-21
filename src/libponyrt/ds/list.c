@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <assert.h>
 
-struct list_t
+typedef struct list_t
 {
   void* data;
   struct list_t* next;
-};
+} list_t;
 
 list_t* list_pop(list_t* list, void** data)
 {

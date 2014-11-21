@@ -1,10 +1,15 @@
 #include "gc.h"
 #include "../actor/actor.h"
+#include "../ds/stack.h"
 #include "../mem/pagemap.h"
 #include <string.h>
 #include <assert.h>
 
+DECLARE_STACK(gcstack, void);
+DEFINE_STACK(gcstack, void);
+
 static __pony_thread_local actormap_t acquire;
+static __pony_thread_local gcstack_t* stack;
 
 static void acquire_actor(pony_actor_t* actor)
 {
@@ -64,11 +69,15 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       object_mark(obj, gc->mark);
 
       if(f != NULL)
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     }
   } else {
     // get the actor
-    actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
+    actorref_t* aref = actormap_getactor(&gc->foreign, actor);
+    assert(aref != NULL);
 
     if(!actorref_marked(aref, gc->mark))
     {
@@ -85,7 +94,8 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
     }
 
     // get the object
-    object_t* obj = actorref_getorput(aref, p, gc->mark);
+    object_t* obj = actorref_getobject(aref, p);
+    assert(obj != NULL);
 
     if(!object_marked(obj, gc->mark))
     {
@@ -99,7 +109,10 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       object_mark(obj, gc->mark);
 
       if(f != NULL)
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     }
   }
 }
@@ -131,7 +144,10 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       object_mark(obj, gc->mark);
 
       if(f != NULL)
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     }
   } else {
     // get the actor
@@ -160,7 +176,10 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       object_mark(obj, gc->mark);
 
       if(f != NULL)
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     }
   }
 }
@@ -183,7 +202,10 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
     {
       // mark in our heap and recurse if it wasn't already marked
       if(!heap_mark(chunk, p))
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     } else {
       // no recurse function, so do a shallow mark. if the same address is
       // later marked with a recurse function, it will recurse.
@@ -206,7 +228,10 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       object_mark(obj, gc->mark);
 
       if(f != NULL)
-        f(p);
+      {
+        stack = gcstack_push(stack, p);
+        stack = gcstack_push(stack, f);
+      }
     }
   }
 }
@@ -268,6 +293,19 @@ void gc_createactor(gc_t* gc, pony_actor_t* actor)
   actorref_inc_more(aref);
   gc->delta = deltamap_update(gc->delta,
     actorref_actor(aref), actorref_rc(aref));
+}
+
+void gc_handlestack()
+{
+  pony_trace_fn f;
+  void *p;
+
+  while(stack != NULL)
+  {
+    stack = gcstack_pop(stack, (void**)&f);
+    stack = gcstack_pop(stack, &p);
+    f(p);
+  }
 }
 
 void gc_mark(gc_t* gc)

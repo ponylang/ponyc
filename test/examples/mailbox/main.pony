@@ -1,3 +1,5 @@
+use "collections"
+
 actor Mailer
   be ping(receiver: Main, pass: U32) =>
     for i in Range[U32](0, pass) do

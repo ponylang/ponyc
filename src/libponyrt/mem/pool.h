@@ -14,8 +14,6 @@ __pony_spec_malloc__(void* pool_alloc(size_t index));
 void pool_free(size_t index, void* p);
 
 __pony_spec_malloc__(void* pool_alloc_size(size_t size));
-__pony_spec_malloc__(void* pool_realloc_size(void* p, size_t old_size,
-  size_t new_size));
 void pool_free_size(size_t size, void* p);
 
 size_t pool_size(size_t index);
