@@ -15,7 +15,7 @@ actor Spreader
       spawn_child()
       spawn_child()
     else
-      env.stdout.print("1 actor")
+      env.out.println("1 actor")
     end
 
   new spread(parent: Spreader, count: U64) =>
@@ -40,7 +40,7 @@ actor Spreader
       | (var p: Spreader, _) =>
         p.result(_result + 1)
       | (var p: None, var e: Env) =>
-        e.stdout.print((_result + 1).string() + " actors")
+        e.out.println((_result + 1).string() + " actors")
       end
     end
 

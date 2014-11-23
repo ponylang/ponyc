@@ -2,15 +2,15 @@ use "collections"
 
 actor Ring
   var _next: (Ring | None)
-  var _stdout: Stdout
+  var _env: Env
 
-  new create(stdout: Stdout) =>
+  new create(env: Env) =>
     _next = None
-    _stdout = stdout
+    _env = env
 
-  new with(neighbor: Ring, stdout: Stdout) =>
+  new with(neighbor: Ring, env: Env) =>
     _next = neighbor
-    _stdout = stdout
+    _env = env
 
   be set(neighbor: Ring) =>
     _next = neighbor
@@ -22,7 +22,7 @@ actor Ring
         n.pass(i - 1)
       end
     else
-      _stdout.print("done")
+      _env.out.println("done")
     end
 
 actor Main
@@ -69,11 +69,11 @@ actor Main
     var current: Ring
 
     for j in Range[U32](0, _ring_count) do
-      first = Ring(_env.stdout)
+      first = Ring(_env)
       next = first
 
       for k in Range[U32](0, _ring_size - 1) do
-        current = Ring.with(next, _env.stdout)
+        current = Ring.with(next, _env)
         next = current
       end
 
@@ -85,7 +85,7 @@ actor Main
     end
 
   fun box usage() =>
-    _env.stdout.print(
+    _env.out.println(
       """
       rings OPTIONS
         --size N number of actors in each ring

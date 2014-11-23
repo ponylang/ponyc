@@ -125,6 +125,12 @@ class File
     end
     false
 
+  fun ref println(data: String): Bool =>
+    """
+    Same as as print, but adds a newline.
+    """
+    print(data) and print("\n")
+
   fun ref read(len: U64): Array[U8] iso^ =>
     """
     Returns up to len bytes.

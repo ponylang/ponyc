@@ -1,6 +1,7 @@
 #include <platform.h>
 #include <pony.h>
 #include "lang.h"
+#include <stdio.h>
 
 typedef struct pony_mode_t
 {
@@ -166,6 +167,16 @@ bool os_stat(const char* path, pony_stat_t* p)
 #endif
 
   return true;
+}
+
+FILE* os_stdout()
+{
+  return stdout;
+}
+
+FILE* os_stderr()
+{
+  return stderr;
 }
 
 PONY_EXTERN_C_END

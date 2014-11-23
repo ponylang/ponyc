@@ -9,4 +9,4 @@ actor Main
       end
     end
 
-    env.stdout.print(consume str)
+    env.out.println(consume str)

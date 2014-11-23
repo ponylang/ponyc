@@ -10,7 +10,7 @@ actor Main
       U64(0)
     end
 
-    env.stdout.print(y.string() + ", expected 9")
+    env.out.println(y.string() + ", expected 9")
 
     x = 0
     y = while x < 10 do
@@ -22,7 +22,7 @@ actor Main
       U64(0)
     end
 
-    env.stdout.print(y.string() + ", expected 99")
+    env.out.println(y.string() + ", expected 99")
 
     x = 0
     y = while x < 10 do
@@ -35,7 +35,7 @@ actor Main
       x
     end
 
-    env.stdout.print(y.string() + ", expected 999")
+    env.out.println(y.string() + ", expected 999")
 
     x = 0
     y = repeat
@@ -44,7 +44,7 @@ actor Main
       U64(0)
     end
 
-    env.stdout.print(y.string() + ", expected 9")
+    env.out.println(y.string() + ", expected 9")
 
     x = 0
     y = repeat
@@ -56,7 +56,7 @@ actor Main
       U64(0)
     end
 
-    env.stdout.print(y.string() + ", expected 99")
+    env.out.println(y.string() + ", expected 99")
 
     x = 0
     y = repeat
@@ -69,4 +69,4 @@ actor Main
       x
     end
 
-    env.stdout.print(y.string() + ", expected 999")
+    env.out.println(y.string() + ", expected 999")

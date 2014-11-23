@@ -3,7 +3,8 @@ class Env val
   An environment holds the command line and other values injected into the
   program by default by the runtime.
   """
-  let stdout: Stdout
+  let out: StdStream
+  let err: StdStream
   let args: Array[String] val
 
   new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso) =>
@@ -11,7 +12,8 @@ class Env val
     Builds an environment from the command line. This is done before the Main
     actor is created.
     """
-    stdout = Stdout._create()
+    out = StdStream._out()
+    err = StdStream._err()
 
     args = recover
       let array = Array[String]
@@ -30,15 +32,40 @@ class Env val
       consume array
     end
 
-  new create(stdout': Stdout, args': Array[String] val) =>
+  new create(out': StdStream, err': StdStream, args': Array[String] val) =>
     """
     Build an artificial environment.
     """
-    stdout = stdout'
+    out = out'
+    err = err'
     args = args'
 
-actor Stdout
-  new _create() => None
+actor StdStream
+  var _stream: Pointer[U8]
 
-  be print(a: String) => @printf[I32]("%s\n".cstring(), a.cstring())
-  be write(a: String) => @printf[I32]("%s".cstring(), a.cstring())
+  new _out() =>
+    _stream = @os_stdout[Pointer[U8]]()
+
+  new _err() =>
+    _stream = @os_stderr[Pointer[U8]]()
+
+  be print(data: String) =>
+    _print(data)
+
+  be println(data: String) =>
+    _print(data)
+    _print("\n")
+
+  be write(data: Array[U8] val) =>
+    if Platform.linux() then
+      @fwrite_unlocked[U64](data.carray(), U64(1), data.size(), _stream)
+    else
+      @fwrite[U64](data.carray(), U64(1), data.size(), _stream)
+    end
+
+  fun ref _print(data: String) =>
+    if Platform.linux() then
+      @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _stream)
+    else
+      @fwrite[U64](data.cstring(), U64(1), data.size(), _stream)
+    end

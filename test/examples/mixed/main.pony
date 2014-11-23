@@ -16,9 +16,9 @@ actor Worker
       try (result(0) == 86028157) and (result(1) == 329545133) else false end
 
     if (result.size() != 2) or not correct then
-      _env.stdout.print("factorization error")
+      _env.out.println("factorization error")
     else
-      _env.stdout.print("factorization done")
+      _env.out.println("factorization done")
     end
 
   fun ref factorize(bigint: U64) : Array[U64] =>
@@ -81,7 +81,7 @@ actor Ring
       _next.pass(i - 1)
     else
       match _env
-      | var e: Env => e.stdout.print("message cycle done")
+      | var e: Env => e.out.println("message cycle done")
       end
 
       if _repetitions > 0 then
@@ -153,7 +153,7 @@ actor Main
     end
 
   fun ref usage() =>
-    _env.stdout.print(
+    _env.out.println(
       """
       mixed OPTIONS
         --size    N   number of actors in each ring"
