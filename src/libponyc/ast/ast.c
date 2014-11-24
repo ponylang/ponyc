@@ -1180,7 +1180,18 @@ static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
   va_end(ap);
 
   if(r < 0)
+  {
+#ifdef PLATFORM_IS_WINDOWS
+    va_start(ap, fmt);
+    r = _vscprintf(fmt, ap);
+    va_end(ap);
+
+    if(r < 0)
+      return;
+#else
     return;
+#endif
+  }
 
   if(r >= avail)
   {
