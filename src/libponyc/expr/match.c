@@ -4,7 +4,7 @@
 #include "../type/matchtype.h"
 #include "../type/alias.h"
 #include "../type/lookup.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <assert.h>
 
 bool expr_match(ast_t* ast)

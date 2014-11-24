@@ -8,7 +8,7 @@
 #include "../type/reify.h"
 #include "../type/cap.h"
 #include "../ast/token.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>

@@ -2,7 +2,7 @@
 #include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <assert.h>
 
 

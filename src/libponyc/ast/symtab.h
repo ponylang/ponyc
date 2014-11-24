@@ -2,7 +2,7 @@
 #define SYMTAB_H
 
 #include <platform.h>
-#include "../ds/table.h"
+#include "../../libponyrt/ds/hash.h"
 
 PONY_EXTERN_C_BEGIN
 
@@ -16,22 +16,26 @@ typedef enum
 } sym_status_t;
 
 typedef struct symbol_t symbol_t;
-DECLARE_TABLE(symtab, symbol_t);
+typedef struct symtab_t symtab_t;
 
 bool is_type_name(const char* name);
 
 symtab_t* symtab_new();
 
+symtab_t* symtab_dup(symtab_t* symtab);
+
+void symtab_free(symtab_t* symtab);
+
 bool symtab_add(symtab_t* symtab, const char* name, void* value,
   sym_status_t status);
 
-void* symtab_get(symtab_t* symtab, const char* name, sym_status_t* status);
+void* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status);
 
-void* symtab_get_case(symtab_t* symtab, const char* name, sym_status_t* status);
+void* symtab_find_case(symtab_t* symtab, const char* name, sym_status_t* status);
 
 sym_status_t symtab_get_status(symtab_t* symtab, const char* name);
 
-bool symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status);
+void symtab_set_status(symtab_t* symtab, const char* name, sym_status_t status);
 
 void symtab_inherit_status(symtab_t* dst, symtab_t* src);
 
@@ -39,7 +43,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src);
 
 void symtab_consolidate_branches(symtab_t* symtab, size_t count);
 
-bool symtab_no_private(symbol_t* symbol, void* arg);
+bool symtab_merge_public(symtab_t* dst, symtab_t* src);
 
 PONY_EXTERN_C_END
 

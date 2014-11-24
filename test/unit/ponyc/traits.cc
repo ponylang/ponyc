@@ -4,7 +4,7 @@
 #include <ast/ast.h>
 #include <ast/builder.h>
 #include <pass/traits.h>
-#include <ds/stringtab.h>
+#include <ast/stringtab.h>
 
 #include "util.h"
 #include "builtin_ast.h"

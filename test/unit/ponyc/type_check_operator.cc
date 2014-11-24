@@ -4,7 +4,7 @@
 #include <ast/ast.h>
 #include <ast/lexer.h>
 #include <pass/expr.h>
-#include <ds/stringtab.h>
+#include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
 

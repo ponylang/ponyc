@@ -9,7 +9,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include "../type/cap.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>

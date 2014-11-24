@@ -1,6 +1,6 @@
 #include "source.h"
 #include "error.h"
-#include "../ds/stringtab.h"
+#include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>

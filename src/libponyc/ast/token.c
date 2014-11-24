@@ -1,6 +1,6 @@
 #include "token.h"
 #include "lexer.h"
-#include "../ds/stringtab.h"
+#include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdio.h>
 #include <stdlib.h>

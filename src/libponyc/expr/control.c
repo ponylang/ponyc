@@ -152,7 +152,10 @@ bool expr_repeat(ast_t* ast)
   ast_t* type = ast_type(ast);
 
   type = type_union(type, body_type);
-  ast_inheritbranch(ast, body);
+
+  // TODO: doesn't work correctly: body has no scope, so consume/define is
+  // going into the repeat node.
+  // ast_inheritbranch(ast, body);
   size_t branch_count = 1;
 
   // TODO: A break statement in the body means some definitions might not

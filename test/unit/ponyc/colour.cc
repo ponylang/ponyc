@@ -3,7 +3,7 @@
 
 #include <ast/builder.h>
 #include <codegen/colour.h>
-#include <ds/stringtab.h>
+#include <ast/stringtab.h>
 
 #include "util.h"
 
