@@ -54,7 +54,7 @@ actor Main
     if (_updater_count = _updater_count - 1) == 1 then
       var elapsed = (Time.nanos() - _start).f64()
       var gups = _updates.f64() / elapsed
-      _env.out.println(
+      _env.out.print(
         "Time: " + (elapsed / 1e9).string() + " GUPS: " + gups.string()
         )
     end
@@ -81,7 +81,7 @@ actor Main
     end
 
   fun ref usage() =>
-    _env.out.println(
+    _env.out.print(
       """
       gups_basic [OPTIONS]
         --logtable  N   log2 of the total table size. Defaults to 20.

@@ -29,12 +29,12 @@ actor Main
         consume s
       end
 
-    env.out.println(a + " expected: tt")
-    env.out.println(b + " expected: st")
-    env.out.println(c + " expected: ark")
-    env.out.println(d + " expected: empty string")
-    env.out.println("===")
-    env.out.println(e + " expected: tt")
-    env.out.println(f + " expected: st")
-    env.out.println(g + " expected: ark")
-    env.out.println(h + " expected: wombat")
+    env.out.print(a + " expected: tt")
+    env.out.print(b + " expected: st")
+    env.out.print(c + " expected: ark")
+    env.out.print(d + " expected: empty string")
+    env.out.print("===")
+    env.out.print(e + " expected: tt")
+    env.out.print(f + " expected: st")
+    env.out.print(g + " expected: ark")
+    env.out.print(h + " expected: wombat")

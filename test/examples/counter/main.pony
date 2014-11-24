@@ -29,4 +29,4 @@ actor Main
     counter.get_and_reset(this)
 
   be display(result: U32) =>
-    _env.out.println(result.string())
+    _env.out.print(result.string())

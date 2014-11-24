@@ -22,7 +22,7 @@ actor Ring
         n.pass(i - 1)
       end
     else
-      _env.out.println("done")
+      _env.out.print("done")
     end
 
 actor Main
@@ -85,7 +85,7 @@ actor Main
     end
 
   fun box usage() =>
-    _env.out.println(
+    _env.out.print(
       """
       rings OPTIONS
         --size N number of actors in each ring

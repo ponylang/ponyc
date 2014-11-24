@@ -18,7 +18,7 @@ actor Main
         r = group_r(j)
         i = group_i(j)
       else
-        env.out.println("index error")
+        env.out.print("index error")
         break None
       end
     end

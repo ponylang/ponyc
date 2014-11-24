@@ -136,12 +136,12 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
  *
  */
 #ifdef PLATFORM_IS_CLANG_OR_GCC
-#  define __pony_popcount(X) __builtin_popcount( (X) )
+#  define __pony_popcount(X) __builtin_popcount((X))
 #  define __pony_popcount64(X) __pony_popcount(X)
-#  define __pony_ffs(X) __builtin_ffs( (X) )
-#  define __pony_ffsl(X) __builtin_ffsl( (X) )
-#  define __pony_clz(X) __builtin_clz( (X) )
-#  define __pony_clzl(X) __builtin_clzl( (X) )
+#  define __pony_ffs(X) __builtin_ffs((X))
+#  define __pony_ffsl(X) __builtin_ffsl((X))
+#  define __pony_clz(X) __builtin_clz((X))
+#  define __pony_clzl(X) __builtin_clzl((X))
 #  ifdef __clang__
 #    define __pony_rdtsc() __builtin_readcyclecounter()
 #  else
@@ -149,8 +149,8 @@ inline int snprintf(char* str, size_t size, const char* format, ...)
 #  endif
 #else
 #  include <intrin.h>
-#  define __pony_popcount(X) __popcnt(( X ))
-#  define __pony_popcount64(X) __popcnt64(( X ))
+#  define __pony_popcount(X) __popcnt((X))
+#  define __pony_popcount64(X) __popcnt64((X))
 
 static __declspec(thread) DWORD lsb;
 
@@ -178,7 +178,7 @@ static __declspec(thread) DWORD lsb;
               __declspec(align(BYTES)) IDENT
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)
 #  define __pony_spec_align__(IDENT, BYTES) \
-              IDENT __attribute__( (aligned (BYTES)) )
+              IDENT __attribute__((aligned (BYTES)))
 #endif
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
@@ -197,7 +197,7 @@ static __declspec(thread) DWORD lsb;
 #if defined(PLATFORM_IS_VISUAL_STUDIO) || defined(__cplusplus)
 #  define EXPR_NONE 0
 #  define __pony_choose_expr(COND, THEN, ELSE) \
-            (( COND ) ? ( THEN ) : ( ELSE ))
+            ((COND) ? (THEN) : (ELSE))
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)
 #  define EXPR_NONE ((void) 0)
 #  define __pony_choose_expr(COND, THEN, ELSE) \

@@ -10,6 +10,6 @@ actor Main
       end
 
       for (k, v) in map.pairs() do
-        env.out.println(k + ": " + v.string())
+        env.out.print(k + ": " + v.string())
       end
     end

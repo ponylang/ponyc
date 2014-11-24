@@ -39,33 +39,3 @@ class Env val
     out = out'
     err = err'
     args = args'
-
-actor StdStream
-  var _stream: Pointer[U8]
-
-  new _out() =>
-    _stream = @os_stdout[Pointer[U8]]()
-
-  new _err() =>
-    _stream = @os_stderr[Pointer[U8]]()
-
-  be print(data: String) =>
-    _print(data)
-
-  be println(data: String) =>
-    _print(data)
-    _print("\n")
-
-  be write(data: Array[U8] val) =>
-    if Platform.linux() then
-      @fwrite_unlocked[U64](data.carray(), U64(1), data.size(), _stream)
-    else
-      @fwrite[U64](data.carray(), U64(1), data.size(), _stream)
-    end
-
-  fun ref _print(data: String) =>
-    if Platform.linux() then
-      @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _stream)
-    else
-      @fwrite[U64](data.cstring(), U64(1), data.size(), _stream)
-    end

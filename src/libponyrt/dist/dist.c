@@ -168,8 +168,8 @@ static void join_node(dist_t* d)
 		}
 		else if(child->temporary)
 		{
-			sock_close( child->socket );
-			POOL_FREE( node_t, child );
+			sock_close(child->socket);
+			POOL_FREE(node_t, child);
 
 			continue;
 		}
@@ -179,14 +179,14 @@ static void join_node(dist_t* d)
 		}
 
 		asio_event_t* e = asio_event_create(
-			sock_get_fd( child->socket ),
+			sock_get_fd(child->socket),
 			filter,
 			DIST_IO_NOTIFY,
 			false,
 			child
 			);
 
-		asio_event_subscribe( e );
+		asio_event_subscribe(e);
   }
 }
 

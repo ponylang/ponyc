@@ -49,7 +49,7 @@ actor Main
     end
 
   fun ref usage() =>
-    _env.out.println(
+    _env.out.print(
       """
       mailbox OPTIONS
         --size N   number of sending actors

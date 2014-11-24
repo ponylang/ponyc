@@ -108,7 +108,7 @@ class Options ref is Iterator[_Result]
 
     _error = true
 
-    _env.out.println("[Options Error]: Attempt to attach parameter \""
+    _env.out.print("[Options Error]: Attempt to attach parameter \""
         + value + "\" without an option")
 
     this
@@ -122,7 +122,7 @@ class Options ref is Iterator[_Result]
         help.append(s.string())
       end
 
-      _env.out.println(consume help)
+      _env.out.print(consume help)
     end
 
   fun ref _skip_non_options(): Bool =>
@@ -209,7 +209,7 @@ class Options ref is Iterator[_Result]
 
       match _select(name, (start == 1))
       | (var x: Option, var y: Option) =>
-        _env.out.println("[Options Error]: The two options " +
+        _env.out.print("[Options Error]: The two options " +
           x.token() + " and " + y.token() + " are ambiguous!")
         _Ambiguous
       | (None, var y: Option) =>
@@ -257,7 +257,7 @@ class Options ref is Iterator[_Result]
             end
           else
             _error = true
-            _env.out.println("[Options Error]:" +
+            _env.out.print("[Options Error]:" +
               " No argument supplied or the supplied argument is not in the" +
               " option's domain: --" + m.name + "[=| ]" + argument)
             return ParseError

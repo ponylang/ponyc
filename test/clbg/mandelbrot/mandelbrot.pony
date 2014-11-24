@@ -107,7 +107,7 @@ actor Main
   fun ref create_outfile() =>
     match outfile
     | var f: File =>
-      f.println("P4\n " + width.string() + " " + width.string() + "\n")
+      f.print("P4\n " + width.string() + " " + width.string() + "\n")
       header = f.size()
       f.set_length((width * (width >> 3)) + header)
     end
@@ -153,7 +153,7 @@ actor Main
     end
 
   fun tag usage(env: Env) =>
-    env.out.println(
+    env.out.print(
       """
       mandelbrot [OPTIONS]
 

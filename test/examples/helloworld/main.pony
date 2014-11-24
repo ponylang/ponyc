@@ -1,3 +1,3 @@
 actor Main
   new create(env: Env) =>
-    env.out.println("Hello, world.")
+    env.out.print("Hello, world.")

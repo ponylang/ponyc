@@ -498,7 +498,7 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
   id = ast_from_string(idseq, new_name);
   ast_replace(&idseq, id);
 
-  if((ast_child(typeargs) == NULL && !return_optional ) ||
+  if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)
   {
     ast_error(typeargs, "FFIs must specify a single return type");

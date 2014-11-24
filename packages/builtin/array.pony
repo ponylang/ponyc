@@ -38,7 +38,7 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
-  fun box carray(): Pointer[A] tag => _ptr
+  fun box cstring(): Pointer[A] tag => _ptr
 
   fun box size(): U64 => _size
 
