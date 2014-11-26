@@ -1,28 +1,25 @@
 Building on Linux
 =================
 
-First, install premake4 and LLVM 3.5 using your package manager. You may need to install zlib and ncurses as well.
+First, install LLVM 3.5 using your package manager. You may need to install zlib and ncurses as well.
 
 This will build ponyc and compile helloworld:
 
-$ premake4 gmake
 $ make config=release
-$ ./bin/release/ponyc test/examples/helloworld
+$ ./build/release/ponyc examples/helloworld
 
 Building on Mac OSX
 ===================
 
-First, install homebrew if you haven't already (http://brew.sh). Then brew both llvm35 and premake4, like this:
+First, install homebrew if you haven't already (http://brew.sh). Then brew llvm35, like this:
 
 $ brew tap homebrew/versions
 $ brew install llvm35
-$ brew install premake
 
 This will build ponyc and compile helloworld:
 
-$ premake4 gmake
 $ make config=release
-$ ./bin/release/ponyc test/examples/helloworld
+$ ./build/release/ponyc examples/helloworld
 
 Building on Windows
 ===================
@@ -35,4 +32,4 @@ You may also need to install zlib and ncurses.
 
 $ premake5 vs2013
 $ Release build with Visual Studio (ponyc.sln)
-$ ./bin/release/ponyc test/examples/helloworld
+$ ./build/release/ponyc examples/helloworld
