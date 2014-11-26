@@ -18,13 +18,13 @@ PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 
-lib   := $(PONY_BUILD_DIR)/lib
-bin   := $(PONY_BUILD_DIR)/bin
-tests := $(PONY_BUILD_DIR)/tests
+lib   := $(PONY_BUILD_DIR)
+bin   := $(PONY_BUILD_DIR)
+tests := $(PONY_BUILD_DIR)
 
 $(shell mkdir -p $(lib))
-$(shell mkdir -p $(bin))
-$(shell mkdir -p $(tests))
+#$(shell mkdir -p $(bin))
+#$(shell mkdir -p $(tests))
 
 obj  := $(PONY_BUILD_DIR)/obj
 
@@ -53,11 +53,11 @@ libponyc.except += src/libponyc/platform/vcvars.c
 # Third party, but requires compilation. Defined as
 # (1) a name and output directory.
 # (2) a list of the source files to be compiled.
-gtest := $(lib)
-gtest.dir := lib/gtest
-gtest.files := $(gtest.dir)/gtest_main.cc $(gtest.dir)/gtest-all.cc
+libgtest := $(lib)
+libgtest.dir := lib/gtest
+libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
 
-libraries := libponyc libponycc libponyrt gtest
+libraries := libponyc libponycc libponyrt libgtest
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
 # (1) a name (stored in prebuilt)
@@ -92,7 +92,7 @@ libponyc.tests.include := src/common/ src/libponyc/ lib/gtest/
 libponyrt.tests.include := src/common/ src/libponyrt/ lib/gtest/
 
 ponyc.include := src/common/
-gtest.include := lib/gtest/
+libgtest.include := lib/gtest/
 
 # target specific build options
 libponyc.options = -D__STDC_CONSTANT_MACROS
@@ -110,8 +110,8 @@ ponyc.options = -Wconversion -Wno-sign-conversion
 
 # Link relationships.
 ponyc.links = libponyc libponycc libponyrt llvm
-libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
-libponyrt.tests.links = libponyrt gtest
+libponyc.tests.links = libgtest libponyc libponycc libponyrt llvm
+libponyrt.tests.links = libgtest libponyrt
 
 # Overwrite the default linker for a target.
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)

@@ -106,7 +106,7 @@ else
 $(1): print_$(1) $($(1))/$(1)
 $($(1))/$(1): print_$(1) $(ofiles)
 	@echo 'Linking $(1)'
-	$(linker) -o $$@ $(ofiles) $(linkcmd)
+	@$(linker) -o $$@ $(ofiles) $(linkcmd)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))

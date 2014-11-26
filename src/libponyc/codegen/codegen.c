@@ -890,16 +890,16 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  dwarf_init(&c);
+  //dwarf_init(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)
   {
-    ok = dwarf_finalise(c.dwarf);
+    //ok = dwarf_finalise(c.dwarf);
     ok &= codegen_finalise(program, &c, opt, pass_limit);
   }
 
-  dwarf_cleanup(&c.dwarf);
+  //dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }
