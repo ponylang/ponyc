@@ -895,7 +895,7 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   if(ok)
   {
-    ok = dwarf_finalise(c.dwarf)
+    ok = dwarf_finalise(c.dwarf);
     ok &= codegen_finalise(program, &c, opt, pass_limit);
   }
 

@@ -53,14 +53,14 @@ define PREPARE
   $(eval $(call ENUMERATE,$(1)))
   $(eval $(call PICK_COMPILER,$(sourcefiles)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,$(sourcefiles))))
-  $(eval dependencies := $(subst .o,.d,$(objectfiles)))
+  $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,$(objectfiles)))))
 endef
 
 define EXPAND_OBJCMD
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .o,,$(1)))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) -c -o $$@ $$< -I $(subst $(space), -I ,$($(2).include))
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) -c -o $$@ $$< $($(2).options) -I $(subst $(space), -I ,$($(2).include))
 endef
 
 define EXPAND_COMMAND
@@ -78,4 +78,5 @@ $(1): $(ofiles)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))
+-include $(dependencies)
 endef

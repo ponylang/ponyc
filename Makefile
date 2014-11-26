@@ -4,7 +4,7 @@ endif
 
 # default settings (silent debug build)
 LIB_EXT ?= a
-BUILD_FLAGS = -mcx16 -march=native -Werror -Wall -Wconversion -Wno-sign-conversion
+BUILD_FLAGS = -mcx16 -march=native -Werror -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
@@ -85,6 +85,12 @@ ponyc := $(bin)
 
 binaries := ponyc
 
+# Tests suites are directly attached to the libraries they test.
+libponyc.tests  := $(tests)
+libponyrt.tests := $(tests)
+
+tests := libponyc.tests libponyrt.tests
+
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
 libponyc.include := src/common/ $(llvm.include)/
@@ -94,13 +100,19 @@ libponyrt.include := src/common/ src/libponyrt/
 ponyc.include := src/common/
 gtest.include := lib/gtest/
 
-# Tests suites are directly attached to the libraries they test.
-libponyc.tests  := $(tests)
-libponyrt.tests := $(tests)
-
-tests := libponyc.tests libponyrt.tests
-
 # target specific build options
+libponyc.options = -D__STDC_CONSTANT_MACROS
+libponyc.options += -D__STDC_FORMAT_MACROS
+libponyc.options += -D__STDC_LIMIT_MACROS
+libponyc.options += -Wconversion -Wno-sign-conversion
+
+libponyrt.options = -Wconversion -Wno-sign-conversion
+
+libponycc.options = -D__STDC_CONSTANT_MACROS
+libponycc.options += -D__STDC_FORMAT_MACROS
+libponycc.options += -D__STDC_LIMIT_MACROS
+
+ponyc.options = -Wconversion -Wno-sign-conversion
 
 # link relationships
 ponyc.links = libponyc libponycc libponyrt llvm

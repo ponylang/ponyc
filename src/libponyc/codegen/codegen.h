@@ -14,6 +14,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+typedef struct dwarf_t dwarf_t;
+
 // Missing from C API.
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
@@ -82,6 +84,8 @@ typedef struct compile_t
   const char* str_le;
   const char* str_ge;
   const char* str_gt;
+
+  dwarf_t* dwarf;
 
   LLVMContextRef context;
   LLVMTargetMachineRef machine;
