@@ -39,7 +39,7 @@ ifneq (,$(shell which llvm-config-3.5 2> /dev/null))
 endif
 
 ifndef LLVM_CONFIG
-  $(error No LLVM 3.5 installation found: $(LLVM_CONFIG))
+  $(error No LLVM 3.5 installation found!)
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
