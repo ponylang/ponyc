@@ -95,7 +95,7 @@ void HashMapTest::free_buckets(size_t len, void* p)
  */
 TEST_F(HashMapTest, InitialSizeCacheLine)
 {
-  ASSERT_EQ(INITIAL_SIZE, _map.contents.size);
+  ASSERT_EQ((size_t)INITIAL_SIZE, _map.contents.size);
 }
 
 /** The size of a list is the number of distinct elements
@@ -105,7 +105,7 @@ TEST_F(HashMapTest, HashMapSize)
 {
   put_elements(100);
 
-  ASSERT_EQ(100, testmap_size(&_map));
+  ASSERT_EQ((size_t)100, testmap_size(&_map));
 }
 
 /** Hash maps are resized by (size << 3)
@@ -115,17 +115,17 @@ TEST_F(HashMapTest, Resize)
 {
   put_elements(BELOW_HALF);
 
-  ASSERT_EQ(BELOW_HALF, testmap_size(&_map));
+  ASSERT_EQ((size_t)BELOW_HALF, testmap_size(&_map));
   // the map was not resized yet.
-  ASSERT_EQ(INITIAL_SIZE, _map.contents.size);
+  ASSERT_EQ((size_t)INITIAL_SIZE, _map.contents.size);
 
   elem_t* curr = get_element();
   curr->key = BELOW_HALF;
 
   testmap_put(&_map, curr);
 
-  ASSERT_EQ(BELOW_HALF+1, testmap_size(&_map));
-  ASSERT_EQ(INITIAL_SIZE << 3, _map.contents.size);
+  ASSERT_EQ((size_t)BELOW_HALF+1, testmap_size(&_map));
+  ASSERT_EQ((size_t)INITIAL_SIZE << 3, _map.contents.size);
 }
 
 /** After having put an element with a
@@ -201,14 +201,14 @@ TEST_F(HashMapTest, DeleteElement)
 
   size_t l = testmap_size(&_map);
 
-  ASSERT_EQ(l, 2);
+  ASSERT_EQ(l, (size_t)2);
 
   elem_t* n1 = testmap_remove(&_map, e1);
 
   l = testmap_size(&_map);
 
   ASSERT_EQ(n1, e1);
-  ASSERT_EQ(l, 1);
+  ASSERT_EQ(l, (size_t)1);
 
   elem_t* n2 = testmap_get(&_map, e2);
 
@@ -221,7 +221,7 @@ TEST_F(HashMapTest, DeleteElement)
 TEST_F(HashMapTest, MapIterator)
 {
   elem_t* curr = NULL;
-  uint32_t expect = 0;
+  size_t expect = 0;
 
   for(uint32_t i = 0; i < 100; i++)
   {
@@ -239,7 +239,7 @@ TEST_F(HashMapTest, MapIterator)
   size_t c = 0; //executions
   size_t e = 0; //sum
 
-  ASSERT_EQ(l, 100);
+  ASSERT_EQ(l, (size_t)100);
 
   while((curr = testmap_next(&_map, &s)) != NULL)
   {

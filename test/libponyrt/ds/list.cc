@@ -63,7 +63,7 @@ TEST_F(ListTest, InitializeList)
 
 
   ASSERT_TRUE(list != NULL);
-  ASSERT_EQ(1, testlist_length(list));
+  ASSERT_EQ((size_t)1, testlist_length(list));
 }
 
 /** A call to list_length returns the number of elements
@@ -79,7 +79,7 @@ TEST_F(ListTest, ListLength)
   list = testlist_append(list, &e2);
   list = testlist_append(list, &e3);
 
-  ASSERT_EQ(3, testlist_length(list));
+  ASSERT_EQ((size_t)3, testlist_length(list));
 }
 
 /** A call to list_append appends an element to

@@ -64,5 +64,5 @@ TEST(DsFunTest, NumbersToNextPow)
  */
 TEST(DsFunTest, PowersOfTwoAreNotRounded)
 {
-  ASSERT_EQ(128, next_pow2(128));
+  ASSERT_EQ((size_t)128, next_pow2(128));
 }

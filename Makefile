@@ -154,6 +154,12 @@ ponyc.links = libponyc libponycc libponyrt llvm
 libponyc.tests.links = libgtest libponyc libponycc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
+ifeq ($(OSTYPE),linux)
+  ponyc.links += pthread dl
+  libponyc.tests.links += pthread dl
+  libponyrt.tests.links += pthread
+endif
+
 # Overwrite the default linker for a target.
 ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 
