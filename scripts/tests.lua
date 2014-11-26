@@ -1,2 +1,0 @@
-function dotests()
-end

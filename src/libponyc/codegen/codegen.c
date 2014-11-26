@@ -5,7 +5,7 @@
 #include "gendesc.h"
 #include "genfun.h"
 #include "gencall.h"
-#include "dwarf.h"
+#include "../debug/dwarf.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
@@ -436,9 +436,6 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   codegen_main(c, &main_g, &env_g);
-
-  if(c->symbols)
-    dwarf_program(c, package);
 
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
@@ -893,11 +890,16 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   init_module(&c, program, opt);
   init_runtime(&c);
+  dwarf_init(&c);
   bool ok = codegen_program(&c, program);
 
   if(ok)
-    ok = codegen_finalise(program, &c, opt, pass_limit);
+  {
+    ok = dwarf_finalise(c.dwarf)
+    ok &= codegen_finalise(program, &c, opt, pass_limit);
+  }
 
+  dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }
