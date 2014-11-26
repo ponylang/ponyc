@@ -3,7 +3,7 @@
 *.s
 *.ll
 *.bc
-bin
+build/
 work
 .gitattributes
 _ReSharper.*

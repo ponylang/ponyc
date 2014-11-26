@@ -4,7 +4,7 @@ endif
 
 # default settings (silent debug build)
 LIB_EXT ?= a
-BUILD_FLAGS = -m64 -mcx16 -march=native -Werror
+BUILD_FLAGS = -mcx16 -march=native -Werror -Wall -Wconversion -Wno-sign-conversion
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
