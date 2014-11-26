@@ -167,13 +167,13 @@ help:
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'
-	@echo '  libponycc         Pony compiler C++ LLVM bindings'
+	@echo '  libponycc         Pony compiler host info and debugger support'
 	@echo '  libponyrt         Pony runtime'
 	@echo '  libponyc.tests    Test suite for libponyc'
 	@echo '  libponyrt.tests   Test suite for libponyrt'
 	@echo '  ponyc             Pony compiler executable'
 	@echo
-	@echo '  all               Build all targets (default)'
+	@echo '  all               Build all of the above (default)'
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'
 	@echo
