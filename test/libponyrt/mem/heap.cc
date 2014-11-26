@@ -14,7 +14,7 @@ TEST(Heap, Init)
   heap_init(&heap);
 
   void* p = heap_alloc(actor, &heap, 127);
-  ASSERT_EQ(128, heap.used);
+  ASSERT_EQ((size_t)128, heap.used);
 
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
   ASSERT_EQ(actor, heap_owner(chunk));
@@ -22,29 +22,29 @@ TEST(Heap, Init)
   void* internal = (char*)p + 9;
   size_t size = heap_base(chunk, &internal);
   ASSERT_EQ(p, internal);
-  ASSERT_EQ(size, 128);
+  ASSERT_EQ(size, (size_t)128);
 
   void* p2 = heap_alloc(actor, &heap, 99);
   ASSERT_NE(p, p2);
-  ASSERT_EQ(256, heap.used);
+  ASSERT_EQ((size_t)256, heap.used);
 
   heap.next_gc = 0;
   heap_startgc(&heap);
   heap_mark(chunk, p);
   heap_endgc(&heap);
-  ASSERT_EQ(128, heap.used);
+  ASSERT_EQ((size_t)128, heap.used);
 
   void* p3 = heap_alloc(actor, &heap, 107);
   ASSERT_EQ(p2, p3);
 
   heap_used(&heap, 1024);
-  ASSERT_EQ(1280, heap.used);
+  ASSERT_EQ((size_t)1280, heap.used);
 
   heap.next_gc = 0;
   heap_startgc(&heap);
   heap_mark_shallow(chunk, p3);
   heap_endgc(&heap);
-  ASSERT_EQ(128, heap.used);
+  ASSERT_EQ((size_t)128, heap.used);
 
   void* p4 = heap_alloc(actor, &heap, 67);
   ASSERT_EQ(p, p4);

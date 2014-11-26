@@ -3,23 +3,7 @@
 *.s
 *.ll
 *.bc
-Makefile
-bin
-Build
-Bench
-*.make
-lib
-obj
-output
-hmm*
+build/
+work
 .gitattributes
-*.bc
 _ReSharper.*
-
-# Visual Studio files
-*.vcxproj*
-*.sln
-*.suo
-*.opensdf
-*.sdf
-

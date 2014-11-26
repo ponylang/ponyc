@@ -172,6 +172,7 @@ actor Updater
           match others
           | var next: Array[Updater] val =>
             try next(i).receive(consume data) end
+            let test = data
           end
         end
       end
