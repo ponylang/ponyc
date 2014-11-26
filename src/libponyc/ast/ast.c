@@ -393,79 +393,6 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
   return ast;
 }
 
-ast_t* ast_enclosing_method_type(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-      {
-        // Only if we are in the method return type.
-        ast_t* type = ast_childidx(ast, 4);
-
-        if(type == last)
-          return ast;
-        break;
-      }
-
-      case TK_TYPEPARAM:
-      case TK_TYPEARGS:
-        // Not if we are in a type parameter or type argument.
-        return NULL;
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
-ast_t* ast_enclosing_ffi_type(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_FFICALL:
-      {
-        // Only if we are in the ffi return type.
-        ast_t* type = ast_childidx(ast, 1);
-
-        if(type == last)
-          return ast;
-        break;
-      }
-
-      case TK_TYPEPARAM:
-        // Not if we are in a type parameter.
-        return NULL;
-
-      case TK_TYPEARGS:
-        // Only if our parent is an ffi call.
-        if(token_get_id(ast->parent->t) != TK_FFICALL)
-          return NULL;
-        break;
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
 ast_t* ast_enclosing_loop(ast_t* ast)
 {
   ast_t* last = NULL;
@@ -547,41 +474,6 @@ ast_t* ast_enclosing_constraint(ast_t* ast)
           return ast;
         break;
       }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
-ast_t* ast_enclosing_local_type(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_VAR:
-      case TK_LET:
-      case TK_PARAM:
-      {
-        // Only if we are in the type.
-        ast_t* type = ast_childidx(ast, 1);
-
-        if(type == last)
-          return ast;
-        break;
-      }
-
-      case TK_TYPEPARAM:
-      case TK_TYPEARGS:
-        // Not if we are in a type parameter or type argument.
-        return NULL;
 
       default: {}
     }
@@ -1266,6 +1158,13 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       t->frame->method = *ast;
       break;
 
+    case TK_TYPEARGS:
+      pop = push_frame(t);
+      t->frame->method_type = NULL;
+      t->frame->ffi_type = NULL;
+      t->frame->local_type = NULL;
+      break;
+
     case TK_CASE:
       pop = push_frame(t);
       t->frame->the_case = *ast;
@@ -1285,18 +1184,57 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         case TK_NEW:
         case TK_BE:
         case TK_FUN:
-          if(ast_childidx(parent, 6) == *ast)
+        {
+          AST_GET_CHILDREN(parent,
+            cap, id, typeparams, params, result, error, body);
+
+          if(result == *ast)
           {
+            pop = push_frame(t);
+            t->frame->method_type = *ast;
+          } else if(body == *ast) {
             pop = push_frame(t);
             t->frame->method_body = *ast;
           }
           break;
+        }
+
+        case TK_TYPEARGS:
+        {
+          switch(ast_id(ast_parent(parent)))
+          {
+            case TK_FFIDECL:
+            case TK_FFICALL:
+              pop = push_frame(t);
+              t->frame->ffi_type = *ast;
+              break;
+
+            default: {}
+          }
+          break;
+        }
 
         case TK_PARAM:
-          if(ast_childidx(parent, 2) == *ast)
+        {
+          AST_GET_CHILDREN(parent, id, type, def_arg);
+
+          if(type == *ast)
           {
             pop = push_frame(t);
+            t->frame->local_type = *ast;
+          } else if(def_arg == *ast) {
+            pop = push_frame(t);
             t->frame->def_arg = *ast;
+          }
+          break;
+        }
+
+        case TK_VAR:
+        case TK_LET:
+          if(ast_childidx(parent, 1) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->local_type = *ast;
           }
           break;
 
