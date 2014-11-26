@@ -284,28 +284,25 @@ static bool is_method_result(ast_t* body, ast_t* ast)
   return is_method_result(body, parent);
 }
 
-bool expr_return(ast_t* ast)
+bool expr_return(typecheck_t* t, ast_t* ast)
 {
-  ast_t* body = ast_child(ast);
-  ast_t* fun = ast_enclosing_method_body(ast);
-
-  if(fun == NULL)
+  if(t->frame->method_body == NULL)
   {
     ast_error(ast, "return must occur in a method body");
     return false;
   }
 
-  // TODO: is this right? isn't fun a TK_SEQ here?
-  if(ast_id(fun) == TK_NEW)
+  switch(ast_id(t->frame->method))
   {
-    ast_error(ast, "can't return a value in a constructor");
-    return false;
-  }
+    case TK_NEW:
+      ast_error(ast, "can't return a value in a constructor");
+      return false;
 
-  if(ast_id(fun) == TK_BE)
-  {
-    ast_error(ast, "can't return a value in a behaviour");
-    return false;
+    case TK_BE:
+      ast_error(ast, "can't return a value in a behaviour");
+      return false;
+
+    default: {}
   }
 
   if(ast_sibling(ast) != NULL)
@@ -315,14 +312,15 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
-  if(is_method_result(ast_childidx(fun, 6), ast))
+  if(is_method_result(t->frame->method_body, ast))
   {
     ast_error(ast,
       "use return only to exit early from a method, not at the end");
     return false;
   }
 
-  ast_t* type = ast_childidx(fun, 4);
+  ast_t* type = ast_childidx(t->frame->method, 4);
+  ast_t* body = ast_child(ast);
 
   if(!coerce_literals(body, type))
     return false;

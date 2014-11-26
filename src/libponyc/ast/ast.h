@@ -303,6 +303,7 @@ typedef struct typecheck_frame_t
   ast_t* module;
   ast_t* type;
   ast_t* method;
+  ast_t* method_body;
   ast_t* recover;
 
   struct typecheck_frame_t* prev;

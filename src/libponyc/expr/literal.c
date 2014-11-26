@@ -154,11 +154,15 @@ bool expr_error(ast_t* ast)
   return true;
 }
 
-bool expr_compiler_intrinsic(ast_t* ast)
+bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
 {
-  ast_t* fun = ast_enclosing_method_body(ast);
-  ast_t* body = ast_childidx(fun, 6);
-  ast_t* child = ast_child(body);
+  if(t->frame->method_body == NULL)
+  {
+    ast_error(ast, "a compiler intrinsic must be a method body");
+    return false;
+  }
+
+  ast_t* child = ast_child(t->frame->method_body);
 
   // Allow a docstring before the compiler_instrinsic.
   if(ast_id(child) == TK_STRING)

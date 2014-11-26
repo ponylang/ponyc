@@ -1292,7 +1292,7 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
-static void push_frame(typecheck_t* t)
+static bool push_frame(typecheck_t* t)
 {
   typecheck_frame_t* f = POOL_ALLOC(typecheck_frame_t);
 
@@ -1305,6 +1305,7 @@ static void push_frame(typecheck_t* t)
   }
 
   t->frame = f;
+  return true;
 }
 
 static void pop_frame(typecheck_t* t)
@@ -1320,23 +1321,20 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
-  bool pop = true;
+  bool pop = false;
 
   switch(ast_id(*ast))
   {
     case TK_PACKAGE:
-      push_frame(t);
+      // Can occur in a module as a result of a use expression.
+      pop = push_frame(t);
       t->frame->package = *ast;
       t->frame->module = NULL;
-      t->frame->type = NULL;
-      t->frame->method = NULL;
       break;
 
     case TK_MODULE:
-      push_frame(t);
+      pop = push_frame(t);
       t->frame->module = *ast;
-      t->frame->type = NULL;
-      t->frame->method = NULL;
       break;
 
     case TK_INTERFACE:
@@ -1344,25 +1342,46 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      push_frame(t);
+      pop = push_frame(t);
       t->frame->type = *ast;
-      t->frame->method = NULL;
       break;
 
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      push_frame(t);
+      pop = push_frame(t);
       t->frame->method = *ast;
       break;
 
+    case TK_SEQ:
+    {
+      ast_t* parent = ast_parent(*ast);
+
+      switch(ast_id(parent))
+      {
+        case TK_NEW:
+        case TK_BE:
+        case TK_FUN:
+        {
+          if(ast_childidx(parent, 6) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->method_body = *ast;
+          }
+          break;
+        }
+
+        default: {}
+      }
+      break;
+    }
+
     case TK_RECOVER:
-      push_frame(t);
+      pop = push_frame(t);
       t->frame->recover = *ast;
       break;
 
-    default:
-      pop = false;
+    default: {}
   }
 
   ast_result_t ret = AST_OK;

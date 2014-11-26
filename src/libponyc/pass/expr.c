@@ -114,7 +114,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_RETURN:
-      if(!expr_return(ast))
+      if(!expr_return(t, ast))
         return AST_FATAL;
       break;
 
@@ -241,7 +241,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_COMPILER_INTRINSIC:
-      if(!expr_compiler_intrinsic(ast))
+      if(!expr_compiler_intrinsic(t, ast))
         return AST_FATAL;
       break;
 
