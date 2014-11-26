@@ -104,12 +104,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_BREAK:
-      if(!expr_break(ast))
+      if(!expr_break(t, ast))
         return AST_FATAL;
       break;
 
     case TK_CONTINUE:
-      if(!expr_continue(ast))
+      if(!expr_continue(t, ast))
         return AST_FATAL;
       break;
 
@@ -125,12 +125,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_ASSIGN:
-      if(!expr_assign(ast))
+      if(!expr_assign(t, ast))
         return AST_FATAL;
       break;
 
     case TK_CONSUME:
-      if(!expr_consume(ast))
+      if(!expr_consume(t, ast))
         return AST_FATAL;
       break;
 

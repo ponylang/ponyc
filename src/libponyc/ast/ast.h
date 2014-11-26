@@ -307,6 +307,10 @@ typedef struct typecheck_frame_t
   ast_t* local_type;
   ast_t* the_case;
   ast_t* pattern;
+  ast_t* loop;
+  ast_t* loop_body;
+  ast_t* loop_else;
+  ast_t* try_expr;
   ast_t* recover;
 
   struct typecheck_frame_t* prev;
@@ -347,8 +351,7 @@ void ast_settype(ast_t* ast, ast_t* type);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
-ast_t* ast_enclosing_loop(ast_t* ast);
-ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
+ast_t* ast_try_clause(ast_t* ast, size_t* clause);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);

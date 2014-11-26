@@ -393,47 +393,7 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
   return ast;
 }
 
-ast_t* ast_enclosing_loop(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_WHILE:
-      {
-        // only if we are in the loop body
-        ast_t* body = ast_childidx(ast, 1);
-        assert(ast_id(body) == TK_SEQ);
-
-        if(body == last)
-          return ast;
-        break;
-      }
-
-      case TK_REPEAT:
-      {
-        // only if we are in the loop body
-        ast_t* body = ast_child(ast);
-        assert(ast_id(body) == TK_SEQ);
-
-        if(body == last)
-          return ast;
-        break;
-      }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
-ast_t* ast_enclosing_try(ast_t* ast, size_t* clause)
+ast_t* ast_try_clause(ast_t* ast, size_t* clause)
 {
   ast_t* last = NULL;
 
@@ -1142,6 +1102,17 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       t->frame->the_case = *ast;
       break;
 
+    case TK_WHILE:
+    case TK_REPEAT:
+      pop = push_frame(t);
+      t->frame->loop = *ast;
+      break;
+
+    case TK_TRY:
+      pop = push_frame(t);
+      t->frame->try_expr = *ast;
+      break;
+
     case TK_RECOVER:
       pop = push_frame(t);
       t->frame->recover = *ast;
@@ -1225,6 +1196,36 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
             t->frame->pattern = *ast;
           }
           break;
+
+        case TK_WHILE:
+        {
+          AST_GET_CHILDREN(parent, cond, body, else_clause);
+
+          if(body == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->loop_body = *ast;
+          } else if(else_clause == *ast) {
+            pop = push_frame(t);
+            t->frame->loop_else = *ast;
+          }
+          break;
+        }
+
+        case TK_REPEAT:
+        {
+          AST_GET_CHILDREN(parent, body, cond, else_clause);
+
+          if(body == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->loop_body = *ast;
+          } else if(else_clause == *ast) {
+            pop = push_frame(t);
+            t->frame->loop_else = *ast;
+          }
+          break;
+        }
 
         default: {}
       }

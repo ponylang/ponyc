@@ -383,7 +383,7 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
   LLVMValueRef value = gen_expr(c, expr);
 
   size_t clause;
-  ast_t* try_expr = ast_enclosing_try(ast, &clause);
+  ast_t* try_expr = ast_try_clause(ast, &clause);
 
   // Do the then block only if we return in the body or else clause.
   // In the then block, return without doing the then block.
@@ -498,7 +498,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
 LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 {
   size_t clause;
-  ast_t* try_expr = ast_enclosing_try(ast, &clause);
+  ast_t* try_expr = ast_try_clause(ast, &clause);
 
   // Do the then block only if we error out in the else clause.
   if((try_expr != NULL) && (clause == 1))
