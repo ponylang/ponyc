@@ -50,7 +50,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
   ast_t* type = type_for_this(t, ast, cap_for_this(t, ast), ephemeral);
   ast_settype(ast, type);
 
-  if(ast_enclosing_default_arg(ast) != NULL)
+  if(t->frame->def_arg != NULL)
   {
     ast_error(ast, "can't reference 'this' in a default argument");
     return false;

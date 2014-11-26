@@ -428,34 +428,6 @@ ast_t* ast_enclosing_method_type(ast_t* ast)
   return NULL;
 }
 
-ast_t* ast_enclosing_default_arg(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_PARAM:
-      {
-        // Only if we are in the default argument.
-        ast_t* defarg = ast_childidx(ast, 2);
-
-        if(defarg == last)
-          return ast;
-        break;
-      }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
 ast_t* ast_enclosing_ffi_type(ast_t* ast)
 {
   ast_t* last = NULL;
@@ -1294,29 +1266,6 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       t->frame->method = *ast;
       break;
 
-    case TK_SEQ:
-    {
-      ast_t* parent = ast_parent(*ast);
-
-      switch(ast_id(parent))
-      {
-        case TK_NEW:
-        case TK_BE:
-        case TK_FUN:
-        {
-          if(ast_childidx(parent, 6) == *ast)
-          {
-            pop = push_frame(t);
-            t->frame->method_body = *ast;
-          }
-          break;
-        }
-
-        default: {}
-      }
-      break;
-    }
-
     case TK_CASE:
       pop = push_frame(t);
       t->frame->the_case = *ast;
@@ -1333,6 +1282,24 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       switch(ast_id(parent))
       {
+        case TK_NEW:
+        case TK_BE:
+        case TK_FUN:
+          if(ast_childidx(parent, 6) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->method_body = *ast;
+          }
+          break;
+
+        case TK_PARAM:
+          if(ast_childidx(parent, 2) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->def_arg = *ast;
+          }
+          break;
+
         case TK_CASE:
           if(ast_child(parent) == *ast)
           {

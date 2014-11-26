@@ -303,7 +303,7 @@ bool expr_reference(typecheck_t* t, ast_t* ast)
 
       ast_t* type = ast_type(def);
 
-      if(ast_enclosing_default_arg(ast) != NULL)
+      if(t->frame->def_arg != NULL)
       {
         ast_error(ast, "can't reference a parameter in a default argument");
         return false;

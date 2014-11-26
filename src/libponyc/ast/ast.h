@@ -299,6 +299,7 @@ typedef struct typecheck_frame_t
   ast_t* module;
   ast_t* type;
   ast_t* method;
+  ast_t* def_arg;
   ast_t* method_body;
   ast_t* the_case;
   ast_t* pattern;
@@ -343,7 +344,6 @@ void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_method_type(ast_t* ast);
-ast_t* ast_enclosing_default_arg(ast_t* ast);
 ast_t* ast_enclosing_ffi_type(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
