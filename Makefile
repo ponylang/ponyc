@@ -30,18 +30,27 @@ else
   BUILD_FLAGS += -g -DDEBUG
 endif
 
+ifneq (,$(shell which llvm-config 2> /dev/null))
+  LLVM_CONFIG = llvm-config
+endif
+
+ifneq (,$(shell which llvm-config-3.5 2> /dev/null))
+  LLVM_CONFIG = llvm-config-3.5
+endif
+
+ifndef LLVM_CONFIG
+  $(error No LLVM 3.5 installation found: $(LLVM_CONFIG))
+endif
+
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 
+$(shell mkdir -p $(PONY_BUILD_DIR))
+
 lib   := $(PONY_BUILD_DIR)
 bin   := $(PONY_BUILD_DIR)
 tests := $(PONY_BUILD_DIR)
-
-$(shell mkdir -p $(lib))
-#$(shell mkdir -p $(bin))
-#$(shell mkdir -p $(tests))
-
 obj  := $(PONY_BUILD_DIR)/obj
 
 # Libraries. Defined as
@@ -96,9 +105,9 @@ libraries := libponyc libponycc libponyrt libgtest
 # (2) the linker flags necessary to link against the prebuilt library/libraries.
 # (3) a list of include directories for a set of libraries.
 # (4) a list of the libraries to link against.
-llvm.ldflags := $(shell llvm-config-3.5 --ldflags)
-llvm.include := $(shell llvm-config-3.5 --includedir)
-llvm.libs    := $(shell llvm-config-3.5 --libs) -lz -lcurses
+llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
+llvm.include := $(shell $(LLVM_CONFIG) --includedir)
+llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lcurses
 
 prebuilt := llvm
 
