@@ -122,10 +122,9 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 }
 
 
-static ast_result_t sugar_new(ast_t* ast)
+static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, ignore0, id, ignore2, ignore3, result);
-  ast_t* def = ast_enclosing_type(ast);
 
   if(ast_id(id) == TK_NONE)
   {
@@ -138,25 +137,25 @@ static ast_result_t sugar_new(ast_t* ast)
   assert(ast_id(result) == TK_NONE);
   token_id cap;
 
-  switch(ast_id(def))
+  switch(ast_id(t->frame->type))
   {
     case TK_PRIMITIVE: cap = TK_VAL; break;
     case TK_ACTOR: cap = TK_TAG; break;
     default: cap = TK_REF; break;
   }
 
-  ast_replace(&result, type_for_this(ast, cap, TK_EPHEMERAL));
+  ast_replace(&result, type_for_this(t, ast, cap, TK_EPHEMERAL));
   return AST_OK;
 }
 
 
-static ast_result_t sugar_be(ast_t* ast)
+static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
   // Return type is This tag
   ast_t* result = ast_childidx(ast, 4);
   assert(ast_id(result) == TK_NONE);
 
-  ast_replace(&result, type_for_this(ast, TK_TAG, TK_NONE));
+  ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
   return AST_OK;
 }
 
@@ -212,13 +211,13 @@ static ast_result_t sugar_try(ast_t* ast)
 }
 
 
-static ast_result_t sugar_for(ast_t** astp)
+static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, for_idseq, for_type, for_iter, for_body,
     for_else);
 
   expand_none(for_else);
-  const char* iter_name = package_hygienic_id_string(*astp);
+  const char* iter_name = package_hygienic_id(t);
 
   REPLACE(astp,
     NODE(TK_SEQ, AST_SCOPE
@@ -373,6 +372,7 @@ ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
   assert(ast != NULL);
 
@@ -384,15 +384,15 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:
     case TK_INTERFACE:  return sugar_member(ast, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
-    case TK_NEW:        return sugar_new(ast);
-    case TK_BE:         return sugar_be(ast);
+    case TK_NEW:        return sugar_new(t, ast);
+    case TK_BE:         return sugar_be(t, ast);
     case TK_FUN:        return sugar_fun(ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:
     case TK_REPEAT:     return sugar_else(ast);
     case TK_TRY:        return sugar_try(ast);
-    case TK_FOR:        return sugar_for(astp);
+    case TK_FOR:        return sugar_for(t, astp);
 //    case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);

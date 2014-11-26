@@ -25,7 +25,7 @@ bool expr_literal(ast_t* ast, const char* name)
   return true;
 }
 
-bool expr_this(ast_t* ast)
+bool expr_this(typecheck_t* t, ast_t* ast)
 {
   // TODO: If in a constructor, lower it to tag if not all fields are defined.
 
@@ -47,16 +47,16 @@ bool expr_this(ast_t* ast)
     default: {}
   }
 
-  ast_t* type = type_for_this(ast, cap_for_this(ast), ephemeral);
+  ast_t* type = type_for_this(t, ast, cap_for_this(t, ast), ephemeral);
   ast_settype(ast, type);
 
-  if(ast_enclosing_default_arg(ast) != NULL)
+  if(t->frame->def_arg != NULL)
   {
     ast_error(ast, "can't reference 'this' in a default argument");
     return false;
   }
 
-  if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
+  if(!sendable(type) && (t->frame->recover != NULL))
   {
     ast_error(ast,
       "can't access a non-sendable 'this' from inside a recover expression");
@@ -75,7 +75,7 @@ bool expr_this(ast_t* ast)
 
   while(typearg != NULL)
   {
-    if(!expr_nominal(&typearg))
+    if(!expr_nominal(t, &typearg))
     {
       ast_error(ast, "couldn't create a type for 'this'");
       ast_free(type);
@@ -85,7 +85,7 @@ bool expr_this(ast_t* ast)
     typearg = ast_sibling(typearg);
   }
 
-  if(!expr_nominal(&nominal))
+  if(!expr_nominal(t, &nominal))
   {
     ast_error(ast, "couldn't create a type for 'this'");
     ast_free(type);
@@ -154,11 +154,15 @@ bool expr_error(ast_t* ast)
   return true;
 }
 
-bool expr_compiler_intrinsic(ast_t* ast)
+bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
 {
-  ast_t* fun = ast_enclosing_method_body(ast);
-  ast_t* body = ast_childidx(fun, 6);
-  ast_t* child = ast_child(body);
+  if(t->frame->method_body == NULL)
+  {
+    ast_error(ast, "a compiler intrinsic must be a method body");
+    return false;
+  }
+
+  ast_t* child = ast_child(t->frame->method_body);
 
   // Allow a docstring before the compiler_instrinsic.
   if(ast_id(child) == TK_STRING)
@@ -174,10 +178,10 @@ bool expr_compiler_intrinsic(ast_t* ast)
   return true;
 }
 
-bool expr_nominal(ast_t** astp)
+bool expr_nominal(typecheck_t* t, ast_t** astp)
 {
   // Resolve typealiases and typeparam references.
-  if(!names_nominal(*astp, astp))
+  if(!names_nominal(t, *astp, astp))
     return false;
 
   ast_t* ast = *astp;
@@ -277,7 +281,7 @@ static bool check_fields_defined(ast_t* ast)
   return result;
 }
 
-static bool check_return_type(ast_t* ast)
+static bool check_return_type(typecheck_t* t, ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -298,7 +302,7 @@ static bool check_return_type(ast_t* ast)
     ast_t* last = ast_childlast(body);
     BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
-    expr_reference(ref);
+    expr_reference(t, ref);
     return true;
   }
 
@@ -322,7 +326,7 @@ static bool check_return_type(ast_t* ast)
   return ok;
 }
 
-bool expr_fun(ast_t* ast)
+bool expr_fun(typecheck_t* t, ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 4);
   ast_t* can_error = ast_sibling(type);
@@ -334,8 +338,9 @@ bool expr_fun(ast_t* ast)
   if(ast_id(body) == TK_NONE)
     return true;
 
-  ast_t* def = ast_enclosing_type(ast);
-  bool is_trait = (ast_id(def) == TK_TRAIT) || (ast_id(def) == TK_INTERFACE);
+  bool is_trait =
+    (ast_id(t->frame->type) == TK_TRAIT) ||
+    (ast_id(t->frame->type) == TK_INTERFACE);
 
   // Check partial functions.
   if(ast_id(can_error) == TK_QUESTION)
@@ -362,7 +367,7 @@ bool expr_fun(ast_t* ast)
       return check_fields_defined(ast);
 
     case TK_FUN:
-      return check_return_type(ast);
+      return check_return_type(t, ast);
 
     default: {}
   }

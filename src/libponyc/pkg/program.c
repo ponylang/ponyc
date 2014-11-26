@@ -62,11 +62,9 @@ void program_free(program_t* program)
 uint32_t program_assign_pkg_id(ast_t* ast)
 {
   assert(ast != NULL);
+  assert(ast_id(ast) == TK_PROGRAM);
 
-  ast_t* program = ast_nearest(ast, TK_PROGRAM);
-  assert(program != NULL);
-
-  program_t* data = (program_t*)ast_data(program);
+  program_t* data = (program_t*)ast_data(ast);
   assert(data != NULL);
 
   return data->next_package_id++;

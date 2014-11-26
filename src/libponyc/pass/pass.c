@@ -6,6 +6,7 @@
 #include "names.h"
 #include "traits.h"
 #include "expr.h"
+#include "../../libponyrt/mem/pool.h"
 
 #include <string.h>
 #include <stdbool.h>
@@ -50,6 +51,29 @@ const char* pass_name(pass_id pass)
     default:            return "error";
   }
 }
+
+
+void pass_opt_init(pass_opt_t* options)
+{
+  memset(options, 0, sizeof(pass_opt_t));
+
+  // Start with an empty typechecker frame.
+  options->check.frame = POOL_ALLOC(typecheck_frame_t);
+  memset(options->check.frame, 0, sizeof(typecheck_frame_t));
+}
+
+
+void pass_opt_done(pass_opt_t* options)
+{
+  // Pop all the typechecker frames.
+  while(options->check.frame != NULL)
+  {
+    typecheck_frame_t* f = options->check.frame;
+    options->check.frame = f->prev;
+    POOL_FREE(typecheck_frame_t, f);
+  }
+}
+
 
 
 // Do a single pass, if the limit allows

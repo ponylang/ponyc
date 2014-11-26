@@ -76,10 +76,11 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors);
+static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
+  bool errors);
 
-static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
-  bool errors)
+static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
+  ast_t* pattern, bool errors)
 {
   switch(ast_id(match_type))
   {
@@ -90,7 +91,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
 
       while(match_child != NULL)
       {
-        if(is_valid_tuple_pattern(match_child, pattern, false))
+        if(is_valid_tuple_pattern(t, match_child, pattern, false))
           return true;
 
         match_child = ast_sibling(match_child);
@@ -118,7 +119,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
 
       while(match_child != NULL)
       {
-        if(!is_valid_tuple_pattern(match_child, pattern, errors))
+        if(!is_valid_tuple_pattern(t, match_child, pattern, errors))
           return false;
 
         match_child = ast_sibling(match_child);
@@ -139,7 +140,7 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
 
       while(match_child != NULL)
       {
-        if(!is_valid_pattern(match_child, pattern_child, errors))
+        if(!is_valid_pattern(t, match_child, pattern_child, errors))
           return false;
 
         match_child = ast_sibling(match_child);
@@ -157,7 +158,8 @@ static bool is_valid_tuple_pattern(ast_t* match_type, ast_t* pattern,
   return false;
 }
 
-static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
+static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
+  bool errors)
 {
   if(ast_type(pattern) == NULL)
   {
@@ -218,9 +220,9 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
       ast_t* child = ast_child(pattern);
 
       if(ast_sibling(child) == NULL)
-        return is_valid_pattern(match_type, child, errors);
+        return is_valid_pattern(t, match_type, child, errors);
 
-      return is_valid_tuple_pattern(match_type, pattern, errors);
+      return is_valid_tuple_pattern(t, match_type, pattern, errors);
     }
 
     case TK_SEQ:
@@ -237,7 +239,7 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
         return false;
       }
 
-      return is_valid_pattern(match_type, child, errors);
+      return is_valid_pattern(t, match_type, child, errors);
     }
 
     case TK_DONTCARE:
@@ -247,7 +249,7 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
     default:
     {
       // Structural equality, pattern.eq(match).
-      ast_t* fun = lookup(pattern, ast_type(pattern), stringtab("eq"));
+      ast_t* fun = lookup(t, pattern, ast_type(pattern), stringtab("eq"));
 
       if(fun == NULL)
       {
@@ -343,7 +345,7 @@ static bool is_valid_pattern(ast_t* match_type, ast_t* pattern, bool errors)
   return true;
 }
 
-bool expr_case(ast_t* ast)
+bool expr_case(typecheck_t* t, ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASE);
   AST_GET_CHILDREN(ast, pattern, guard, body);
@@ -367,7 +369,7 @@ bool expr_case(ast_t* ast)
 
   // TODO: Need to get the capability union for the match type so that pattern
   // matching can never recover capabilities.
-  if(!is_valid_pattern(match_type, pattern, true))
+  if(!is_valid_pattern(t, match_type, pattern, true))
     return false;
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))

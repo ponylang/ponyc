@@ -73,7 +73,6 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
-
 /** Pass options.
  */
 typedef struct pass_opt_t
@@ -86,6 +85,8 @@ typedef struct pass_opt_t
   char* triple;
   char* cpu;
   char* features;
+
+  typecheck_t check;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the
@@ -98,6 +99,14 @@ bool limit_passes(const char* pass);
  * The returned string is a literal and should not be freed.
  */
 const char* pass_name(pass_id pass);
+
+/** Initialise pass options.
+ */
+void pass_opt_init(pass_opt_t* options);
+
+/** Finish with pass options.
+ */
+void pass_opt_done(pass_opt_t* options);
 
 /** Apply the per package passes to the given AST.
  * Returns true on success, false on failure.

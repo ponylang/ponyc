@@ -28,7 +28,7 @@ primitive U8 is Integer[U8]
   fun box mulc(y: U8): (U8, Bool) =>
     @llvm.umul.with.overflow.i8[(U8, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u8(this, 10) end
+  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
 
 primitive U16 is Integer[U16]
   new create(from: U128) => compiler_intrinsic
@@ -61,7 +61,7 @@ primitive U16 is Integer[U16]
   fun box mulc(y: U16): (U16, Bool) =>
     @llvm.umul.with.overflow.i16[(U16, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u16(this, 10) end
+  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
 
 primitive U32 is Integer[U32]
   new create(from: U128) => compiler_intrinsic
@@ -95,7 +95,7 @@ primitive U32 is Integer[U32]
   fun box mulc(y: U32): (U32, Bool) =>
     @llvm.umul.with.overflow.i32[(U32, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u32(this, 10) end
+  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
 
 primitive U64 is Integer[U64]
   new create(from: U128) => compiler_intrinsic

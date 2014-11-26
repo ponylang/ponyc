@@ -252,13 +252,9 @@ control
   CASES: {CASE}
 )
 
-CASE: [PATTERN] [SEQ] [SEQ]
+CASE: [INFIX] [SEQ] [SEQ]
 symtab: name -> VAR | VAL
-Children are (in order) comparison expression, as, guard, body.
-
-PATTERN: {PATTERN | PATTERNVAR | INT | FLOAT | STRING}
-
-PATTERNID: IDSEQ [TYPE]
+Children are (in order) pattern, guard, body.
 
 atom
 ----
@@ -281,6 +277,8 @@ NAMEDARG: term SEQ
 
 */
 
+typedef struct ast_t ast_t;
+
 typedef enum
 {
   AST_OK,
@@ -295,7 +293,29 @@ typedef enum
   AST_STATE_DONE
 } ast_state_t;
 
-typedef struct ast_t ast_t;
+typedef struct typecheck_frame_t
+{
+  ast_t* package;
+  ast_t* module;
+  ast_t* type;
+  ast_t* constraint;
+  ast_t* method;
+  ast_t* def_arg;
+  ast_t* method_body;
+  ast_t* method_type;
+  ast_t* ffi_type;
+  ast_t* local_type;
+  ast_t* the_case;
+  ast_t* pattern;
+  ast_t* recover;
+
+  struct typecheck_frame_t* prev;
+} typecheck_frame_t;
+
+typedef struct typecheck_t
+{
+  typecheck_frame_t* frame;
+} typecheck_t;
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -327,17 +347,8 @@ void ast_settype(ast_t* ast, ast_t* type);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
-ast_t* ast_enclosing_type(ast_t* ast);
-ast_t* ast_enclosing_method(ast_t* ast);
-ast_t* ast_enclosing_method_type(ast_t* ast);
-ast_t* ast_enclosing_method_body(ast_t* ast);
-ast_t* ast_enclosing_default_arg(ast_t* ast);
-ast_t* ast_enclosing_ffi_type(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
-ast_t* ast_enclosing_pattern(ast_t* ast);
-ast_t* ast_enclosing_constraint(ast_t* ast);
-ast_t* ast_enclosing_local_type(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);

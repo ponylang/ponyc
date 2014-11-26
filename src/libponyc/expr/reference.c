@@ -150,7 +150,7 @@ bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
   return true;
 }
 
-bool expr_typeref(ast_t* ast)
+bool expr_typeref(typecheck_t* t, ast_t* ast)
 {
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
@@ -163,12 +163,12 @@ bool expr_typeref(ast_t* ast)
 
     case TK_DOT:
       // has to be valid
-      return expr_nominal(&type);
+      return expr_nominal(t, &type);
 
     case TK_CALL:
     {
       // has to be valid
-      if(!expr_nominal(&type))
+      if(!expr_nominal(t, &type))
         return false;
 
       // transform to a default constructor
@@ -177,13 +177,13 @@ bool expr_typeref(ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      return expr_dot(dot);
+      return expr_dot(t, dot);
     }
 
     default:
     {
       // has to be valid
-      if(!expr_nominal(&type))
+      if(!expr_nominal(t, &type))
         return false;
 
       // transform to a default constructor
@@ -192,7 +192,7 @@ bool expr_typeref(ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      if(!expr_dot(dot))
+      if(!expr_dot(t, dot))
         return false;
 
       // call the default constructor with no arguments
@@ -202,14 +202,14 @@ bool expr_typeref(ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
 
-      return expr_call(call);
+      return expr_call(t, call);
     }
   }
 
   return true;
 }
 
-bool expr_reference(ast_t* ast)
+bool expr_reference(typecheck_t* t, ast_t* ast)
 {
   // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
@@ -269,7 +269,7 @@ bool expr_reference(ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(ast);
+      return expr_typeref(t, ast);
     }
 
     case TK_FVAR:
@@ -287,10 +287,10 @@ bool expr_reference(ast_t* ast)
       ast_add(dot, self);
       ast_free(ast);
 
-      if(!expr_this(self))
+      if(!expr_this(t, self))
         return false;
 
-      return expr_dot(dot);
+      return expr_dot(t, dot);
     }
 
     case TK_PARAM:
@@ -303,13 +303,13 @@ bool expr_reference(ast_t* ast)
 
       ast_t* type = ast_type(def);
 
-      if(ast_enclosing_default_arg(ast) != NULL)
+      if(t->frame->def_arg != NULL)
       {
         ast_error(ast, "can't reference a parameter in a default argument");
         return false;
       }
 
-      if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
+      if(!sendable(type) && (t->frame->recover != NULL))
       {
         ast_error(ast,
           "can't access a non-sendable parameter from inside a recover "
@@ -336,10 +336,10 @@ bool expr_reference(ast_t* ast)
       ast_add(dot, self);
       ast_free(ast);
 
-      if(!expr_this(self))
+      if(!expr_this(t, self))
         return false;
 
-      return expr_dot(dot);
+      return expr_dot(t, dot);
     }
 
     case TK_ID:
@@ -373,13 +373,11 @@ bool expr_reference(ast_t* ast)
 
       if(!sendable(type))
       {
-        ast_t* recover = ast_nearest(ast, TK_RECOVER);
-
-        if(recover != NULL)
+        if(t->frame->recover != NULL)
         {
           ast_t* def_recover = ast_nearest(def, TK_RECOVER);
 
-          if(recover != def_recover)
+          if(t->frame->recover != def_recover)
           {
             ast_error(ast, "can't access a non-sendable local defined outside "
               "of a recover expression from within that recover expression");
@@ -400,14 +398,14 @@ bool expr_reference(ast_t* ast)
   return false;
 }
 
-bool expr_local(ast_t* ast)
+bool expr_local(typecheck_t* t, ast_t* ast)
 {
   ast_t* idseq = ast_child(ast);
   ast_settype(ast, ast_type(idseq));
 
   if((ast_id(ast) == TK_LET) &&
     (ast_id(ast_parent(ast)) != TK_ASSIGN) &&
-    (ast_enclosing_pattern(ast) == NULL)
+    (t->frame->pattern == NULL)
     )
   {
     ast_error(ast, "can't declare a let local without assigning to it");

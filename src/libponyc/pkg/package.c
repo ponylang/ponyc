@@ -563,23 +563,15 @@ const char* package_filename(ast_t* package)
 }
 
 
-ast_t* package_hygienic_id(ast_t* ast)
+const char* package_hygienic_id(typecheck_t* t)
 {
-  return ast_from_string(ast, package_hygienic_id_string(ast));
-}
-
-
-const char* package_hygienic_id_string(ast_t* ast)
-{
-  ast_t* package = ast_nearest(ast, TK_PACKAGE);
-
-  if(package == NULL)
+  if(t->frame->package == NULL)
   {
     // We are not within a package, we must be testing
     return stringtab("hygid");
   }
 
-  package_t* pkg = (package_t*)ast_data(package);
+  package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 
   return id_to_string(id);
@@ -589,7 +581,6 @@ const char* package_hygienic_id_string(ast_t* ast)
 void package_done(pass_opt_t* opt)
 {
   codegen_shutdown(opt);
-
   strlist_free(search);
   search = NULL;
 

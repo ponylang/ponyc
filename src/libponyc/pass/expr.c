@@ -63,12 +63,13 @@ bool is_result_needed(ast_t* ast)
 
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!expr_nominal(astp))
+      if(!expr_nominal(t, astp))
         return AST_FATAL;
       break;
 
@@ -82,7 +83,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      if(!expr_fun(ast))
+      if(!expr_fun(t, ast))
         return AST_FATAL;
       break;
 
@@ -93,7 +94,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_VAR:
     case TK_LET:
-      if(!expr_local(ast))
+      if(!expr_local(t, ast))
         return AST_FATAL;
       break;
 
@@ -113,7 +114,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_RETURN:
-      if(!expr_return(ast))
+      if(!expr_return(t, ast))
         return AST_FATAL;
       break;
 
@@ -139,17 +140,17 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_DOT:
-      if(!expr_dot(ast))
+      if(!expr_dot(t, ast))
         return AST_FATAL;
       break;
 
     case TK_QUALIFY:
-      if(!expr_qualify(ast))
+      if(!expr_qualify(t, ast))
         return AST_FATAL;
       break;
 
     case TK_CALL:
-      if(!expr_call(ast))
+      if(!expr_call(t, ast))
         return AST_FATAL;
       break;
 
@@ -184,7 +185,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_CASE:
-      if(!expr_case(ast))
+      if(!expr_case(t, ast))
         return AST_FATAL;
       break;
 
@@ -205,12 +206,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       return AST_FATAL;
 
     case TK_REFERENCE:
-      if(!expr_reference(ast))
+      if(!expr_reference(t, ast))
         return AST_FATAL;
       break;
 
     case TK_THIS:
-      if(!expr_this(ast))
+      if(!expr_this(t, ast))
         return AST_FATAL;
       break;
 
@@ -240,7 +241,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_COMPILER_INTRINSIC:
-      if(!expr_compiler_intrinsic(ast))
+      if(!expr_compiler_intrinsic(t, ast))
         return AST_FATAL;
       break;
 

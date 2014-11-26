@@ -7,11 +7,11 @@
 #include <stdio.h>
 #include <assert.h>
 
-static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
+static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
   const char* name, bool errors);
 
-static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
-  const char* name, bool errors)
+static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
+  ast_t* type, const char* name, bool errors)
 {
   assert(ast_id(type) == TK_NOMINAL);
   ast_t* def = (ast_t*)ast_data(type);
@@ -26,13 +26,13 @@ static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
     return NULL;
   }
 
-  if((name[0] == '_') && (from != NULL))
+  if((name[0] == '_') && (from != NULL) && (t != NULL))
   {
     switch(ast_id(find))
     {
       case TK_FVAR:
       case TK_FLET:
-        if(ast_enclosing_type(from) != def)
+        if(t->frame->type != def)
         {
           if(errors)
           {
@@ -48,10 +48,7 @@ static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
       case TK_BE:
       case TK_FUN:
       {
-        ast_t* package1 = ast_nearest(def, TK_PACKAGE);
-        ast_t* package2 = ast_nearest(from, TK_PACKAGE);
-
-        if(package1 != package2)
+        if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
         {
           if(errors)
           {
@@ -81,17 +78,17 @@ static ast_t* lookup_nominal(ast_t* from, ast_t* orig, ast_t* type,
   return find;
 }
 
-static ast_t* lookup_typeparam(ast_t* from, ast_t* orig, ast_t* type,
-  const char* name, bool errors)
+static ast_t* lookup_typeparam(typecheck_t* t, ast_t* from, ast_t* orig,
+  ast_t* type, const char* name, bool errors)
 {
   ast_t* def = (ast_t*)ast_data(type);
   ast_t* constraint = ast_childidx(def, 1);
 
   // lookup on the constraint instead
-  return lookup_base(from, orig, constraint, name, errors);
+  return lookup_base(t, from, orig, constraint, name, errors);
 }
 
-static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
+static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
   const char* name, bool errors)
 {
   switch(ast_id(type))
@@ -106,7 +103,7 @@ static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
 
       while(child != NULL)
       {
-        ast_t* result = lookup_base(from, orig, child, name, false);
+        ast_t* result = lookup_base(t, from, orig, child, name, false);
 
         if(result != NULL)
           return result;
@@ -123,13 +120,13 @@ static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
       return NULL;
 
     case TK_NOMINAL:
-      return lookup_nominal(from, orig, type, name, errors);
+      return lookup_nominal(t, from, orig, type, name, errors);
 
     case TK_ARROW:
-      return lookup_base(from, orig, ast_childidx(type, 1), name, errors);
+      return lookup_base(t, from, orig, ast_childidx(type, 1), name, errors);
 
     case TK_TYPEPARAMREF:
-      return lookup_typeparam(from, orig, type, name, errors);
+      return lookup_typeparam(t, from, orig, type, name, errors);
 
     case TK_FUNTYPE:
       ast_error(from, "can't lookup by name on a function type");
@@ -142,7 +139,7 @@ static ast_t* lookup_base(ast_t* from, ast_t* orig, ast_t* type,
   return NULL;
 }
 
-ast_t* lookup(ast_t* from, ast_t* type, const char* name)
+ast_t* lookup(typecheck_t* t, ast_t* from, ast_t* type, const char* name)
 {
-  return lookup_base(from, type, type, name, true);
+  return lookup_base(t, from, type, type, name, true);
 }

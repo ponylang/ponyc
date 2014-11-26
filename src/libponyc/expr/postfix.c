@@ -12,7 +12,7 @@
 #include "../ast/token.h"
 #include <assert.h>
 
-static bool expr_packageaccess(ast_t* ast)
+static bool expr_packageaccess(typecheck_t* t, ast_t* ast)
 {
   // left is a packageref, right is an id
   ast_t* left = ast_child(ast);
@@ -45,10 +45,10 @@ static bool expr_packageaccess(ast_t* ast)
 
   ast_settype(ast, type_sugar(ast, package_name, type_name));
   ast_setid(ast, TK_TYPEREF);
-  return expr_typeref(ast);
+  return expr_typeref(t, ast);
 }
 
-static bool expr_typeaccess(ast_t* ast)
+static bool expr_typeaccess(typecheck_t* t, ast_t* ast)
 {
   // left is a typeref, right is an id
   ast_t* left = ast_child(ast);
@@ -58,7 +58,7 @@ static bool expr_typeaccess(ast_t* ast)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(ast, type, ast_name(right));
+  ast_t* find = lookup(t, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -103,7 +103,7 @@ static bool expr_typeaccess(ast_t* ast)
       ast_swap(left, dot);
       ast_add(dot, left);
 
-      if(!expr_dot(dot))
+      if(!expr_dot(t, dot))
         return false;
 
       ast_t* call = ast_from(ast, TK_CALL);
@@ -112,10 +112,10 @@ static bool expr_typeaccess(ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 
-      if(!expr_call(call))
+      if(!expr_call(t, call))
         return false;
 
-      return expr_dot(ast);
+      return expr_dot(t, ast);
     }
 
     default:
@@ -181,7 +181,7 @@ static bool expr_tupleaccess(ast_t* ast)
   return true;
 }
 
-static bool expr_memberaccess(ast_t* ast)
+static bool expr_memberaccess(typecheck_t* t, ast_t* ast)
 {
   // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
@@ -190,7 +190,7 @@ static bool expr_memberaccess(ast_t* ast)
 
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(ast, type, ast_name(right));
+  ast_t* find = lookup(t, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -255,7 +255,7 @@ static bool expr_memberaccess(ast_t* ast)
   return ret;
 }
 
-bool expr_qualify(ast_t* ast)
+bool expr_qualify(typecheck_t* t, ast_t* ast)
 {
   // left is a postfix expression, right is a typeargs
   ast_t* left = ast_child(ast);
@@ -282,7 +282,7 @@ bool expr_qualify(ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(ast);
+      return expr_typeref(t, ast);
     }
 
     case TK_NEWREF:
@@ -314,7 +314,7 @@ bool expr_qualify(ast_t* ast)
   return false;
 }
 
-bool expr_dot(ast_t* ast)
+bool expr_dot(typecheck_t* t, ast_t* ast)
 {
   // Left is a postfix expression, right an id.
   ast_t* left = ast_child(ast);
@@ -322,10 +322,10 @@ bool expr_dot(ast_t* ast)
   switch(ast_id(left))
   {
     case TK_PACKAGEREF:
-      return expr_packageaccess(ast);
+      return expr_packageaccess(t, ast);
 
     case TK_TYPEREF:
-      return expr_typeaccess(ast);
+      return expr_typeaccess(t, ast);
 
     default: {}
   }
@@ -344,10 +344,10 @@ bool expr_dot(ast_t* ast)
   if(ast_id(type) == TK_TUPLETYPE)
     return expr_tupleaccess(ast);
 
-  return expr_memberaccess(ast);
+  return expr_memberaccess(t, ast);
 }
 
-bool expr_call(ast_t* ast)
+bool expr_call(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
@@ -385,10 +385,10 @@ bool expr_call(ast_t* ast)
       ast_swap(lhs, dot);
       ast_add(dot, lhs);
 
-      if(!expr_dot(dot))
+      if(!expr_dot(t, dot))
         return false;
 
-      return expr_call(ast);
+      return expr_call(t, ast);
     }
 
     case TK_NEWREF:

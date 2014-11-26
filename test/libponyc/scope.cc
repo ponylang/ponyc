@@ -182,7 +182,10 @@ TEST_F(ScopeTest, Local)
 
   ast_t* id_ast = ast_child(start);
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_FUN, "foo", id_ast));
   DO(symtab_entry(TK_CLASS, "foo", NULL));
@@ -204,7 +207,10 @@ TEST_F(ScopeTest, MultipleLocals)
 
   AST_GET_CHILDREN(start, foo_ast, bar_ast, aardvark_ast);
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_FUN, "foo", foo_ast));
   DO(symtab_entry(TK_FUN, "bar", bar_ast));
@@ -226,7 +232,10 @@ TEST_F(ScopeTest, Actor)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_ACTOR, "Foo", NULL));
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
@@ -242,7 +251,10 @@ TEST_F(ScopeTest, Class)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_CLASS, "Foo", NULL));
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
@@ -258,7 +270,10 @@ TEST_F(ScopeTest, Data)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_PRIMITIVE, "Foo", NULL));
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
@@ -274,7 +289,10 @@ TEST_F(ScopeTest, Trait)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_TRAIT, "Foo", NULL));
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
@@ -289,7 +307,10 @@ TEST_F(ScopeTest, Type)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   DO(symtab_entry(TK_MODULE, "Foo", NULL));
   DO(symtab_entry(TK_PACKAGE, "Foo", start));
@@ -304,7 +325,10 @@ TEST_F(ScopeTest, NonTypeCannotHaveTypeName)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_ERROR, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_ERROR, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 }
 
 
@@ -315,7 +339,10 @@ TEST_F(ScopeTest, TypeCannotHaveNonTypeName)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_ERROR, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_ERROR, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 }
 
 
@@ -329,10 +356,13 @@ TEST_F(ScopeTest, SameScopeNameClash)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
 
   ast_t* bad_ast = builder_find_sub_tree(builder, "bad");
-  ASSERT_EQ(AST_ERROR, pass_scope(&bad_ast, NULL));
+  ASSERT_EQ(AST_ERROR, pass_scope(&bad_ast, &opt));
+  pass_opt_done(&opt);
 }
 
 
@@ -348,10 +378,13 @@ TEST_F(ScopeTest, ParentScopeNameClash)
 
   DO(build(tree));
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
 
   ast_t* bad_ast = builder_find_sub_tree(builder, "bad");
-  ASSERT_EQ(AST_ERROR, pass_scope(&bad_ast, NULL));
+  ASSERT_EQ(AST_ERROR, pass_scope(&bad_ast, &opt));
+  pass_opt_done(&opt);
 }
 
 
@@ -386,7 +419,10 @@ TEST_F(ScopeTest, Package)
   package_add_magic("builtin", builtin);
   limit_passes("scope1");
 
-  ASSERT_EQ(AST_OK, pass_scope(&start, NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
+  pass_opt_done(&opt);
 
   // Builtin types go in the module symbol table
   symtab_t* package_symtab = ast_get_symtab(start);

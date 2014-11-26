@@ -86,18 +86,11 @@ const char* package_path(ast_t* package);
 const char* package_filename(ast_t* package);
 
 /**
- * Gets an AST ID node with a string set to a hygienic ID. Hygienic IDs are
- * handed out on a per-package basis. The first one will be $0, the second $1,
- * etc.
- */
-ast_t* package_hygienic_id(ast_t* ast);
-
-/**
  * Gets a string set to a hygienic ID. Hygienic IDs are handed out on a
  * per-package basis. The first one will be $0, the second $1, etc.
  * The returned string will be a string table entry and should not be freed.
  */
-const char* package_hygienic_id_string(ast_t* ast);
+const char* package_hygienic_id(typecheck_t* t);
 
 /**
  * Cleans up the list of search directories and shuts down the code generator.

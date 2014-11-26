@@ -9,12 +9,12 @@ PONY_EXTERN_C_BEGIN
 void literals_init();
 
 bool expr_literal(ast_t* ast, const char* name);
-bool expr_this(ast_t* ast);
+bool expr_this(typecheck_t* t, ast_t* ast);
 bool expr_tuple(ast_t* ast);
 bool expr_error(ast_t* ast);
-bool expr_compiler_intrinsic(ast_t* ast);
-bool expr_nominal(ast_t** astp);
-bool expr_fun(ast_t* ast);
+bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast);
+bool expr_nominal(typecheck_t* t, ast_t** astp);
+bool expr_fun(typecheck_t* t, ast_t* ast);
 
 /// Report whether the given type AST is a literal type
 bool is_type_literal(ast_t* type);

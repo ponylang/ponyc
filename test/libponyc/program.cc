@@ -24,25 +24,6 @@ TEST(ProgramTest, PackageID)
 }
 
 
-TEST(ProgramTest, PackageIdFromChild)
-{
-  ast_t* prog = ast_blank(TK_PROGRAM);
-  ASSERT_NE((void*)NULL, prog);
-
-  ast_t* child = ast_blank(TK_WHILE);
-  ast_add(prog, child);
-
-  ASSERT_EQ((unsigned int)0, program_assign_pkg_id(child));
-  ASSERT_EQ((unsigned int)1, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)2, program_assign_pkg_id(child));
-  ASSERT_EQ((unsigned int)3, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)4, program_assign_pkg_id(prog));
-  ASSERT_EQ((unsigned int)5, program_assign_pkg_id(child));
-
-  ast_free(prog);
-}
-
-
 TEST(ProgramTest, NoLibs)
 {
   ast_t* prog = ast_blank(TK_PROGRAM);

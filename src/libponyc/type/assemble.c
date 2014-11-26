@@ -140,7 +140,7 @@ ast_t* type_builtin(ast_t* from, const char* name)
 {
   ast_t* ast = type_base(from, NULL, name);
 
-  if(!names_nominal(from, &ast))
+  if(!names_nominal(NULL, from, &ast))
   {
     ast_error(from, "unable to validate '%s'", name);
     ast_free(ast);
@@ -163,7 +163,7 @@ ast_t* type_pointer_to(ast_t* to)
       NONE // Ephemeral
       ));
 
-  if(!names_nominal(to, &pointer))
+  if(!names_nominal(NULL, to, &pointer))
   {
     ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
     ast_free(pointer);
@@ -188,12 +188,10 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
   return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(ast_t* ast, token_id cap, token_id ephemeral)
+ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
+  token_id ephemeral)
 {
-  ast_t* def = ast_enclosing_type(ast);
-  assert(def != NULL);
-
-  ast_t* id = ast_child(def);
+  ast_t* id = ast_child(t->frame->type);
   ast_t* typeparams = ast_sibling(id);
   const char* name = ast_name(id);
 

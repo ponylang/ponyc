@@ -57,5 +57,8 @@ void parse_test_bad(const char* src)
   limit_passes("parsefix");
   package_suppress_build_message();
 
-  ASSERT_EQ((void*)NULL, program_load(stringtab("prog"), NULL));
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ASSERT_EQ((void*)NULL, program_load(stringtab("prog"), &opt));
+  pass_opt_done(&opt);
 }
