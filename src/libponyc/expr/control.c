@@ -220,13 +220,9 @@ bool expr_try(ast_t* ast)
   return true;
 }
 
-bool expr_break(ast_t* ast)
+bool expr_break(typecheck_t* t, ast_t* ast)
 {
-  ast_t* loop = ast_enclosing_loop(ast);
-  ast_t* body = ast_child(ast);
-  ast_t* type = ast_type(body);
-
-  if(loop == NULL)
+  if(t->frame->loop_body == NULL)
   {
     ast_error(ast, "must be in a loop");
     return false;
@@ -243,18 +239,19 @@ bool expr_break(ast_t* ast)
   ast_inheriterror(ast);
 
   // Add type to loop.
-  ast_t* loop_type = ast_type(loop);
+  ast_t* body = ast_child(ast);
+  ast_t* type = ast_type(body);
+  ast_t* loop_type = ast_type(t->frame->loop);
+
   type = type_union(type, loop_type);
-  ast_settype(loop, type);
+  ast_settype(t->frame->loop, type);
 
   return true;
 }
 
-bool expr_continue(ast_t* ast)
+bool expr_continue(typecheck_t* t, ast_t* ast)
 {
-  ast_t* loop = ast_enclosing_loop(ast);
-
-  if(loop == NULL)
+  if(t->frame->loop_body == NULL)
   {
     ast_error(ast, "must be in a loop");
     return false;

@@ -51,7 +51,7 @@ static bool assign_id(ast_t* ast, bool let, bool need_value)
   return false;
 }
 
-static bool is_lvalue(ast_t* ast, bool need_value)
+static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 {
   switch(ast_id(ast))
   {
@@ -108,7 +108,7 @@ static bool is_lvalue(ast_t* ast, bool need_value)
         return false;
       }
 
-      if(ast_enclosing_loop(ast) != NULL)
+      if(t->frame->loop_body != NULL)
       {
         ast_error(ast, "can't assign to a let field in a loop");
         return false;
@@ -124,7 +124,7 @@ static bool is_lvalue(ast_t* ast, bool need_value)
 
       while(child != NULL)
       {
-        if(!is_lvalue(child, need_value))
+        if(!is_lvalue(t, child, need_value))
           return false;
 
         child = ast_sibling(child);
@@ -142,7 +142,7 @@ static bool is_lvalue(ast_t* ast, bool need_value)
       if(ast_sibling(child) != NULL)
         return false;
 
-      return is_lvalue(child, need_value);
+      return is_lvalue(t, child, need_value);
     }
 
     default: {}
@@ -158,14 +158,14 @@ bool expr_identity(ast_t* ast)
   return true;
 }
 
-bool expr_assign(ast_t* ast)
+bool expr_assign(typecheck_t* t, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(left, is_result_needed(ast)))
+  if(!is_lvalue(t, left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
@@ -220,7 +220,7 @@ bool expr_assign(ast_t* ast)
   return true;
 }
 
-bool expr_consume(ast_t* ast)
+bool expr_consume(typecheck_t* t, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
 
@@ -240,9 +240,8 @@ bool expr_consume(ast_t* ast)
   const char* name = ast_name(id);
 
   // Can't consume from an outer scope while inside a loop.
-  ast_t* loop = ast_enclosing_loop(ast);
-
-  if((loop != NULL) && !ast_within_scope(loop, ast, name))
+  if((t->frame->loop_body != NULL) &&
+    !ast_within_scope(t->frame->loop_body, ast, name))
   {
     ast_error(ast, "can't consume from an outer scope in a loop");
     return false;
