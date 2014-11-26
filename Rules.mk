@@ -3,14 +3,20 @@ space := $(empty) $(empty)
 
 ##########################################################################
 #                                                                        #
-# DIRECTORY: determines the source dir of a specific target              #
+# DIRECTORY: Determines the source dir of a specific target              #
 #                                                                        #
-# ENUMERATE: enumerates input and output files for a specific target     #
+# ENUMERATE: Enumerates input and output files for a specific target     #
 #                                                                        #
 # PICK_COMPILER: Chooses a C or C++ compiler depending on the target.    #
 #                                                                        #
-# EXPAND_COMMAND: macro that expands to a proper make command for each   #
+# CONFIGURE_LIBS: Builds a string of libraries to link for a targets     #
+#                 link dependency.                                       #
+#                                                                        #
+# CONFIGURE_LINKER: Assembles the linker flags required for a target.    #
+#                                                                        #
+# EXPAND_COMMAND: Macro that expands to a proper make command for each   #
 #                 target.                                                #
+#                                                                        #
 ##########################################################################
 define DIRECTORY
   $(eval sourcedir := )
@@ -48,10 +54,27 @@ define PICK_COMPILER
   endif
 endef
 
+define CONFIGURE_LIBS
+  ifneq (,$$(filter $(1),$(prebuilt)))
+    linkcmd += $($(1).ldflags)
+    libs += $($(1).libs)
+  else
+    libs += -l$(subst lib,,$(1))
+  endif
+endef
+
+define CONFIGURE_LINKER
+  $(eval linkcmd := $(LINKER_FLAGS) -L $(lib))
+  $(eval libs :=)
+  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
+  linkcmd += $(libs)
+endef
+
 define PREPARE
   $(eval $(call DIRECTORY,$(1)))
   $(eval $(call ENUMERATE,$(1)))
   $(eval $(call PICK_COMPILER,$(sourcefiles)))
+  $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,$(sourcefiles))))
   $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,$(objectfiles)))))
 endef
@@ -78,8 +101,8 @@ $($(1))/$(1).$(LIB_EXT): $(ofiles)
 else
 $(1): print_$(1) $($(1))/$(1)
 $($(1))/$(1): print_$(1) $(ofiles)
-	@echo 'Producing binary $(1)'
-	@$(compiler) -o $$@ $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
+	@echo 'Linking $(1)'
+	$(compiler) -o $$@ $(ofiles) $(linkcmd)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))

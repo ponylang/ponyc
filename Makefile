@@ -1,24 +1,17 @@
-ifeq ($(verbose),1)
-  PRINT := @echo "$(1)";
-endif
-
-# default settings (silent debug build)
+# Default settings (silent debug build).
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=native -Werror -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
-DEFINES =
-PRINT =
 
 ifeq ($(config),release)
-  BUILD_FLAGS += -O3
+  BUILD_FLAGS += -O3 -DNDEBUG
   LINKER_FLAGS += -fuse-ld=gold
-  DEFINES += NDEBUG
+  DEFINES +=
 else
   config = debug
-  BUILD_FLAGS += -g
-  DEFINES += DEBUG
+  BUILD_FLAGS += -g -DDEBUG
 endif
 
 PONY_BUILD_DIR   ?= build/$(config)
@@ -34,8 +27,6 @@ $(shell mkdir -p $(bin))
 $(shell mkdir -p $(tests))
 
 obj  := $(PONY_BUILD_DIR)/obj
-
-LINKER_FLAGS += -L$(lib)
 
 # Libraries. Defined as
 # (1) a name and output directory
@@ -75,7 +66,7 @@ libraries := libponyc libponycc libponyrt gtest
 # (4) a list of the libraries to link against.
 llvm.ldflags := $(shell llvm-config-3.5 --ldflags)
 llvm.include := $(shell llvm-config-3.5 --includedir)
-llvm.libs    := $(shell llvm-config-3.5 --libs)
+llvm.libs    := $(shell llvm-config-3.5 --libs) -lz -lcurses
 
 prebuilt := llvm
 
@@ -114,23 +105,18 @@ libponycc.options += -D__STDC_LIMIT_MACROS
 
 ponyc.options = -Wconversion -Wno-sign-conversion
 
-# link relationships
+# Link relationships.
 ponyc.links = libponyc libponycc libponyrt llvm
 libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
-libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
+libponyrt.tests.links = libponyrt gtest
 
 # make targets
 targets := $(libraries) $(binaries) $(tests)
 
 .PHONY: all $(targets)
-
 all: $(targets)
 
--include Rules.mk
-
-$(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
-
-# dependencies
+# Dependencies
 libponycc:
 libponyrt:
 libponyc: libponycc libponyrt
@@ -138,6 +124,11 @@ libponyc.tests: libponyc gtest
 libponyrt.tests: libponyrt gtest
 ponyc: libponyc
 gtest:
+
+# Generic make section, edit with care.
+-include Rules.mk
+
+$(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 stats:
 	@echo
