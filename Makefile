@@ -35,7 +35,7 @@ $(shell mkdir -p $(tests))
 
 obj  := $(PONY_BUILD_DIR)/obj
 
-LINKER_FLAGS += -L $(lib)/
+LINKER_FLAGS += -L$(lib)
 
 # libraries
 libponyc  := $(lib)/libponyc

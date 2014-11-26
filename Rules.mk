@@ -67,7 +67,7 @@ define EXPAND_DEPCMD
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .d,,$(1)))
 	@echo 'DEPEND $$(notdir $$@)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MM -MT $$(subst .d,.o,$$@) -MF $$@ $(BUILD_FLAGS) $$<
+	@$(compiler) -MMD -MP $$(subst .d,.o,$$@) -MF $$@ $(BUILD_FLAGS) $$<
 endef
 
 define EXPAND_COMMAND
@@ -77,7 +77,7 @@ $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
 ifneq ($(filter $(1),$(libraries)),)
 $(1): $(ofiles)
 	@echo 'LINK $(1)'
-	@$(compiler) -o $($(1))/$(1).$(LIB_EXT) $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
+	@$(AR) -rcs $($(1))/$(1).$(LIB_EXT) $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
 else
 $(1): $(ofiles)
 	@echo 'BINARY $(1)'
