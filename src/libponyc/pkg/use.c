@@ -23,8 +23,8 @@ typedef struct use_t
 static bool eval_condition(ast_t* ast, bool release, bool* error);
 
 
-use_t* handlers = NULL;
-use_t* default_handler = NULL;
+static use_t* handlers = NULL;
+static use_t* default_handler = NULL;
 
 
 // Find the handler for the given URI
@@ -226,7 +226,8 @@ static bool process_condition(ast_t* ast, ast_t* cond, bool release,
 
 
 // Handle a uri command
-bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias, pass_opt_t* options)
+static bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias,
+  pass_opt_t* options)
 {
   assert(uri != NULL);
   assert(alias != NULL);
@@ -256,7 +257,7 @@ bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias, pass_opt_t* options)
 
 
 // Handle an ffi command
-bool ffi_command(ast_t* alias)
+static bool ffi_command(ast_t* alias)
 {
   assert(alias != NULL);
 

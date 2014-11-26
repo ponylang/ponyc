@@ -23,7 +23,7 @@ char* os_realpath(const char* path)
   size_t len = strlen(resolved) + 1;
 
 #ifdef PLATFORM_IS_WINDOWS
-  for( ; resolved[len - 1] == '\\'; --len)
+  for(; resolved[len - 1] == '\\'; --len)
     resolved[len - 1] = '\0';
 #endif
 

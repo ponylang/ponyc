@@ -188,7 +188,7 @@ actor Main
     end
 
   fun ref print_energy() =>
-    _env.stdout.print(energy().string())
+    _env.out.print(energy().string())
 
   fun ref energy(): F64 =>
     let count = system.size()

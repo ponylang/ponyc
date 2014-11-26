@@ -1,3 +1,5 @@
+use "collections"
+
 actor Mailer
   be ping(receiver: Main, pass: U32) =>
     for i in Range[U32](0, pass) do
@@ -47,7 +49,7 @@ actor Main
     end
 
   fun ref usage() =>
-    _env.stdout.print(
+    _env.out.print(
       """
       mailbox OPTIONS
         --size N   number of sending actors

@@ -32,6 +32,7 @@ void pony_gc_mark()
 void pony_send_done()
 {
   pony_actor_t* actor = actor_current();
+  gc_handlestack();
   gc_sendacquire();
   gc_done(actor_gc(actor));
 }
@@ -39,32 +40,24 @@ void pony_send_done()
 void pony_recv_done()
 {
   pony_actor_t* actor = actor_current();
+  gc_handlestack();
   gc_done(actor_gc(actor));
 }
 
 void pony_trace(void* p)
 {
-  if(p != NULL)
-  {
-    pony_actor_t* actor = actor_current();
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
-  }
+  pony_actor_t* actor = actor_current();
+  trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
 }
 
 void pony_traceactor(pony_actor_t* p)
 {
-  if(p != NULL)
-  {
-    pony_actor_t* actor = actor_current();
-    trace_actor(actor, actor_gc(actor), p);
-  }
+  pony_actor_t* actor = actor_current();
+  trace_actor(actor, actor_gc(actor), p);
 }
 
 void pony_traceobject(void* p, pony_trace_fn f)
 {
-  if(p != NULL)
-  {
-    pony_actor_t* actor = actor_current();
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, f);
-  }
+  pony_actor_t* actor = actor_current();
+  trace_object(actor, actor_heap(actor), actor_gc(actor), p, f);
 }

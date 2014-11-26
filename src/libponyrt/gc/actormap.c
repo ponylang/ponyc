@@ -8,13 +8,13 @@
 #include <string.h>
 #include <assert.h>
 
-struct actorref_t
+typedef struct actorref_t
 {
   pony_actor_t* actor;
   size_t rc;
   size_t mark;
   objectmap_t map;
-};
+} actorref_t;
 
 static uint64_t actorref_hash(actorref_t* aref)
 {

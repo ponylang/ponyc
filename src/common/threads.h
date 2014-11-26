@@ -13,7 +13,7 @@
 typedef void* (*thread_fn) (void* arg);
 
 #  define DECLARE_THREAD_FN(NAME) void* NAME (void* arg)
-#  define DEFINE_THREAD_FN(NAME, BODY) void* NAME (void* arg ) BODY
+#  define DEFINE_THREAD_FN(NAME, BODY) void* NAME (void* arg) BODY
 #elif defined(PLATFORM_IS_WINDOWS)
 #  include <process.h>
 #  define pony_thread_id_t HANDLE
@@ -25,7 +25,7 @@ typedef uint32_t(__stdcall *thread_fn) (void* arg);
 #endif
 
 #if defined(PLATFORM_IS_VISUAL_STUDIO)
-#  define __pony_thread_local __declspec( thread )
+#  define __pony_thread_local __declspec(thread)
 #elif defined(PLATFORM_IS_CLANG_OR_GCC)
 #  define __pony_thread_local __thread
 #endif

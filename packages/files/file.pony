@@ -105,7 +105,32 @@ class File
       recover String end
     end
 
-  fun ref print(data: String): Bool =>
+  fun ref read(len: U64): Array[U8] iso^ =>
+    """
+    Returns up to len bytes.
+    """
+    if not _handle.is_null() then
+      var result = recover Array[U8].undefined(len) end
+
+      var r = if Platform.linux() then
+        @fread_unlocked[U64](result.cstring(), U64(1), len, _handle)
+      else
+        @fread[U64](result.cstring(), U64(1), len, _handle)
+      end
+
+      result.truncate(r)
+      consume result
+    else
+      recover Array[U8] end
+    end
+
+  fun ref print(data: Bytes box): Bool =>
+    """
+    Same as write, buts adds a newline.
+    """
+    write(data) and write("\n")
+
+  fun ref write(data: Bytes box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
     Returns false and closes the file if not all the bytes were written.
@@ -115,45 +140,6 @@ class File
         @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _handle)
       else
         @fwrite[U64](data.cstring(), U64(1), data.size(), _handle)
-      end
-
-      if len == data.size() then
-        return true
-      end
-
-      close()
-    end
-    false
-
-  fun ref read(len: U64): Array[U8] iso^ =>
-    """
-    Returns up to len bytes.
-    """
-    if not _handle.is_null() then
-      var result = recover Array[U8].undefined(len) end
-
-      var r = if Platform.linux() then
-        @fread_unlocked[U64](result.carray(), U64(1), len, _handle)
-      else
-        @fread[U64](result.carray(), U64(1), len, _handle)
-      end
-
-      result.truncate(r)
-      consume result
-    else
-      recover Array[U8] end
-    end
-
-  fun ref write(data: Array[U8] box): Bool =>
-    """
-    Returns false if the file wasn't opened with write permission.
-    Returns false and closes the file if not all the bytes were written.
-    """
-    if writeable and (not _handle.is_null()) then
-      var len = if Platform.linux() then
-        @fwrite_unlocked[U64](data.carray(), U64(1), data.size(), _handle)
-      else
-        @fwrite[U64](data.carray(), U64(1), data.size(), _handle)
       end
 
       if len == data.size() then

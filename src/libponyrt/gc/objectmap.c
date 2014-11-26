@@ -5,12 +5,12 @@
 #include "../mem/pool.h"
 #include <assert.h>
 
-struct object_t
+typedef struct object_t
 {
   void* address;
   size_t rc;
   size_t mark;
-};
+} object_t;
 
 static uint64_t object_hash(object_t* obj)
 {

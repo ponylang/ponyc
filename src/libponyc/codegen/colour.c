@@ -187,7 +187,7 @@ static colour_record_t* add_colour(painter_t* painter)
 // Find the name record with the specified name
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
-  return (name_record_t*)symtab_get(painter->name_table, name, NULL);
+  return (name_record_t*)symtab_find(painter->name_table, name, NULL);
 }
 
 

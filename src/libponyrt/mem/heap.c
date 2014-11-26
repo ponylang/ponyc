@@ -11,7 +11,7 @@
 #define HEAP_MIN (1 << HEAP_MINBITS)
 #define HEAP_MAX (1 << HEAP_MAXBITS)
 
-struct chunk_t
+typedef struct chunk_t
 {
   // immutable
   pony_actor_t* actor;
@@ -23,7 +23,7 @@ struct chunk_t
   uint32_t shallow;
 
   struct chunk_t* next;
-};
+} chunk_t;
 
 typedef char block_t[HEAP_MAX];
 typedef void (*chunk_fn)(chunk_t* chunk);
@@ -287,15 +287,10 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
   if(size <= chunk->size)
     return p;
 
-  // Adjust heap used.
-  heap->used += size - chunk->size;
-
-  // Reallocate the large_malloc.
-  chunk->m = (char*)pool_realloc_size(p, chunk->size, size);
-  chunk->size = size;
-  large_pagemap(chunk);
-
-  return chunk->m;
+  // Get new memory and copy from the old memory.
+  void* q = heap_alloc(actor, heap, size);
+  memcpy(q, p, chunk->size);
+  return q;
 }
 
 void heap_used(heap_t* heap, size_t size)

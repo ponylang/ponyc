@@ -22,17 +22,17 @@ __pony_spec_align__(
 
     struct scheduler_t* victim;
 
-    // the following are accessed by other scheduler threads
+    // The following are accessed by other scheduler threads.
     __pony_spec_align__(scheduler_t* thief, 64);
-    uint32_t waiting; //in the process of work stealing?
+    uint32_t waiting;
   }, 64
 );
 
 static DECLARE_THREAD_FN(run_thread);
 
-// scheduler global data
+// Scheduler global data.
 static uint32_t scheduler_count;
-static uint32_t scheduler_waiting; //schedulers waiting, global
+static uint32_t scheduler_waiting;
 static scheduler_t* scheduler;
 static bool detect_quiescence;
 static bool shutdown_on_stop;
@@ -42,7 +42,7 @@ static mpmcq_t inject;
 
 static __pony_thread_local scheduler_t* this_scheduler;
 
-// forward declaration
+// Forward declaration.
 static void push(scheduler_t* sched, pony_actor_t* actor);
 
 /**
@@ -61,7 +61,7 @@ static void handle_inject(scheduler_t* sched)
  */
 static pony_actor_t* pop(scheduler_t* sched)
 {
-  // clear the injection queue
+  // Clear the injection queue.
   handle_inject(sched);
 
   pony_actor_t* actor = sched->tail;
@@ -118,11 +118,11 @@ static bool quiescent(scheduler_t* sched)
     uint32_t waiting = __pony_atomic_load_n(&scheduler_waiting,
       PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
 
-    // under these circumstances, the CD will always go on the current
+    // Under these circumstances, the CD will always go on the current
     // scheduler.
     if(waiting == scheduler_count)
     {
-      // it's safe to manipulate our victim, since we know it's paused as well
+      // It's safe to manipulate our victim, since we know it's paused as well.
       if(sched->victim != NULL)
       {
         __pony_atomic_store_n(&sched->victim->thief, NULL, PONY_ATOMIC_RELEASE,
@@ -269,27 +269,24 @@ static void run(scheduler_t* sched)
 {
   while(true)
   {
-    // get an actor from our queue
+    // Get an actor from our queue.
     pony_actor_t* actor = pop(sched);
 
     if(actor == NULL)
     {
-      // wait until we get an actor
+      // Wait until we get an actor.
       actor = request(sched);
 
-      // termination
+      // Termination.
       if(actor == NULL)
         return;
     } else {
-      // respond to our thief. we hold an actor for ourself, to make sure we
+      // Respond to our thief. We hold an actor for ourself, to make sure we
       // never give away our last actor.
-
-      // TODO: if we're currently processing a system actor, we might give
-      // away something we'd prefer to stay local.
       respond(sched);
     }
 
-    // if this returns true, reschedule the actor on our queue
+    // If this returns true, reschedule the actor on our queue.
     if(actor_run(actor))
       push(sched, actor);
   }
@@ -342,7 +339,7 @@ void scheduler_init(uint32_t threads, bool forcecd)
 
   assert(physical <= logical);
 
-  // if no thread count is specified, use the physical core count
+  // If no thread count is specified, use the physical core count.
   if(threads == 0)
     threads = physical;
 
@@ -352,7 +349,7 @@ void scheduler_init(uint32_t threads, bool forcecd)
 
   if(scheduler_count <= physical)
   {
-    // assign threads to physical processors
+    // Assign threads to physical processors.
     uint32_t index = 0;
 
     for(uint32_t i = 0; i < scheduler_count; i++)
@@ -364,7 +361,7 @@ void scheduler_init(uint32_t threads, bool forcecd)
       }
     }
   } else {
-    // assign threads to logical processors
+    // Assign threads to logical processors.
     for(uint32_t i = 0; i < scheduler_count; i++)
       scheduler[i].cpu = i % logical;
   }

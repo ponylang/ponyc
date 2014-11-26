@@ -57,7 +57,7 @@ struct sock_t
 
 static size_t bytes_left(void* offset, sock_chunk_t* chunk)
 {
-	return BUFFER_SIZE - ( offset - (void*)chunk->data );
+	return BUFFER_SIZE - (offset - (void*)chunk->data);
 }
 
 static size_t bytes_available(void* offset, sock_chunk_t* chunk)
@@ -154,7 +154,7 @@ static sock_t* create_socket(const char* host, const char* service,
 
 	set_non_blocking(s->fd);
 	freeaddrinfo(res);
-  s->status = ( ASIO_WRITABLE | ASIO_READABLE );
+  s->status = (ASIO_WRITABLE | ASIO_READABLE);
 
 	return s;
 }
@@ -388,7 +388,8 @@ uint32_t sock_read(sock_t* sock)
 	{
 		rc = asio_read(sock->fd, reads->writep, left, &read);
 
-		if(rc & ( ASIO_ERROR | ASIO_WOULDBLOCK )) break;
+		if(rc & (ASIO_ERROR | ASIO_WOULDBLOCK))
+			break;
 
 		reads->writep += read;
 		reads->size += read;

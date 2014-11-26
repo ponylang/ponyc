@@ -1,7 +1,7 @@
 #include "ast.h"
 #include "symtab.h"
 #include "token.h"
-#include "../ds/stringtab.h"
+#include "stringtab.h"
 #include "../pass/pass.h"
 #include "../pkg/program.h"
 #include "../pkg/package.h"
@@ -164,10 +164,7 @@ static ast_t* duplicate(ast_t* parent, ast_t* ast)
   n->type = duplicate(n, ast->type);
 
   if(ast->symtab != NULL)
-  {
-    n->symtab = symtab_new();
-    symtab_merge(n->symtab, ast->symtab, NULL, NULL, NULL, NULL);
-  }
+    n->symtab = symtab_dup(ast->symtab);
 
   if(parent != NULL)
     n->sibling = duplicate(parent, ast->sibling);
@@ -824,7 +821,7 @@ ast_t* ast_get(ast_t* ast, const char* name, sym_status_t* status)
     if(ast->symtab != NULL)
     {
       sym_status_t status2;
-      ast_t* value = (ast_t*)symtab_get(ast->symtab, name, &status2);
+      ast_t* value = (ast_t*)symtab_find(ast->symtab, name, &status2);
 
       if((status != NULL) && (*status == SYM_NONE))
         *status = status2;
@@ -851,7 +848,7 @@ ast_t* ast_get_case(ast_t* ast, const char* name, sym_status_t* status)
     if(ast->symtab != NULL)
     {
       sym_status_t status2;
-      ast_t* value = (ast_t*)symtab_get_case(ast->symtab, name, &status2);
+      ast_t* value = (ast_t*)symtab_find_case(ast->symtab, name, &status2);
 
       if((status != NULL) && (*status == SYM_NONE))
         *status = status2;
@@ -909,8 +906,7 @@ bool ast_merge(ast_t* dst, ast_t* src)
   while(dst->symtab == NULL)
     dst = dst->scope;
 
-  return symtab_merge(dst->symtab, src->symtab, symtab_no_private, NULL, NULL,
-    NULL);
+  return symtab_merge_public(dst->symtab, src->symtab);
 }
 
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
@@ -920,7 +916,7 @@ bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
     if(inner->symtab != NULL)
     {
       sym_status_t status2;
-      ast_t* value = (ast_t*)symtab_get(inner->symtab, name, &status2);
+      ast_t* value = (ast_t*)symtab_find(inner->symtab, name, &status2);
 
       if(value != NULL)
         return true;
@@ -1184,7 +1180,18 @@ static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
   va_end(ap);
 
   if(r < 0)
+  {
+#ifdef PLATFORM_IS_WINDOWS
+    va_start(ap, fmt);
+    r = _vscprintf(fmt, ap);
+    va_end(ap);
+
+    if(r < 0)
+      return;
+#else
     return;
+#endif
+  }
 
   if(r >= avail)
   {

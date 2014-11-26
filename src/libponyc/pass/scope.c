@@ -4,7 +4,7 @@
 #include "../pkg/use.h"
 #include "../ast/symtab.h"
 #include "../ast/token.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <assert.h>
 
 /**

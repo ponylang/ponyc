@@ -17,9 +17,9 @@ class ListNode[A]
       error
     end
 
-  fun ref pop(): this->A^ ? =>
+  fun ref pop(): A^ ? =>
     match _item = None
-    | var some: this->A =>
+    | var some: A =>
       consume some
     else
       error

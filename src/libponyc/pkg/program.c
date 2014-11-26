@@ -1,5 +1,5 @@
 #include "program.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <string.h>
 #include <assert.h>
 

@@ -14,10 +14,10 @@ actor Counter
     _count = 0
 
 actor Main
-  var _stdout: Stdout
+  var _env: Env
 
   new create(env: Env) =>
-    _stdout = env.stdout
+    _env = env
 
     var count: U32 = try env.args(1).u32() else U32(10) end
     var counter = Counter
@@ -29,4 +29,4 @@ actor Main
     counter.get_and_reset(this)
 
   be display(result: U32) =>
-    _stdout.print(result.string())
+    _env.out.print(result.string())

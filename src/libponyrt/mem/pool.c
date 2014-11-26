@@ -194,40 +194,6 @@ void* pool_alloc_size(size_t size)
   return virtual_alloc(size);
 }
 
-void* pool_realloc_size(void* p, size_t old_size, size_t new_size)
-{
-  assert(p != NULL);
-
-  if(new_size <= old_size)
-    return p;
-
-  if(new_size <= POOL_THRESHOLD)
-  {
-    if(old_size <= POOL_THRESHOLD)
-      old_size = next_pow2(old_size);
-
-    new_size = next_pow2(new_size);
-
-    if(new_size <= old_size)
-      return p;
-
-    void* q = pool_alloc(__pony_ffsl(new_size) - (POOL_MIN_BITS + 1));
-    memcpy(q, p, old_size);
-    pool_free_size(old_size, p);
-    return q;
-  }
-
-  if(old_size <= POOL_THRESHOLD)
-  {
-    void* q = virtual_alloc(new_size);
-    memcpy(q, p, old_size);
-    pool_free_size(old_size, p);
-    return q;
-  }
-
-  return virtual_realloc(p, old_size, new_size);
-}
-
 void pool_free_size(size_t size, void* p)
 {
   if(size <= POOL_MIN)

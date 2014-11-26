@@ -10,7 +10,7 @@
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/lookup.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include <assert.h>
 
 static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,

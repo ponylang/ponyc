@@ -27,5 +27,5 @@ actor Main
         "Circumference: " + c.get_circumference().string() + "\n" +
         "Area: " + c.get_area().string() + "\n"
 
-      env.stdout.print(str)
+      env.out.print(str)
     end

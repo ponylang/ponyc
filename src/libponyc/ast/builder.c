@@ -3,7 +3,7 @@
 #include "lexer.h"
 #include "parserapi.h"
 #include "symtab.h"
-#include "../ds/stringtab.h"
+#include "stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -140,7 +140,7 @@ static bool process_refs(build_parser_t* builder)
     assert(p->name != NULL);
     assert(p->node != NULL);
 
-    ast_t* subtree = (ast_t*)symtab_get(builder->defs, p->name, NULL);
+    ast_t* subtree = (ast_t*)symtab_find(builder->defs, p->name, NULL);
 
     if(subtree == NULL)
     {
@@ -587,7 +587,7 @@ builder_t* builder_create(const char* description)
     return NULL;
 
   source_t* source = source_open_string(description);
-  symtab_t* symtab = symtab_create(10);
+  symtab_t* symtab = symtab_new();
 
   ast_t* ast = build_ast(source, symtab);
 
@@ -707,7 +707,7 @@ ast_t* builder_find_sub_tree(builder_t* builder, const char* name)
   if(builder == NULL || name == NULL)
     return NULL;
 
-  return (ast_t*)symtab_get(builder->defs, stringtab(name), NULL);
+  return (ast_t*)symtab_find(builder->defs, stringtab(name), NULL);
 }
 
 

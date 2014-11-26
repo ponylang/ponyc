@@ -104,7 +104,7 @@ bool cpu_physical(uint32_t cpu)
     char name[16];
     size_t len = fread(name, 1, 15, fp);
     name[len] = '\0';
-    fclose( fp );
+    fclose(fp);
 
     if(cpu != atoi(name))
       return false;

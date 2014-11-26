@@ -50,29 +50,29 @@ actor Main
       //long opt.
       match option
       | ("opt", None) =>
-          env.stdout.print("Output will be optimised!")
+          env.out.print("Output will be optimised!")
       | ("path", var arg: String) =>
-          env.stdout.print("Search path: " + arg)
+          env.out.print("Search path: " + arg)
       | ("output", var arg: String) =>
-          env.stdout.print("Output path: " + arg)
+          env.out.print("Output path: " + arg)
       | ("ieee-math", None) =>
-          env.stdout.print("Enforce IEEE 754 math")
+          env.out.print("Enforce IEEE 754 math")
       | ("cpu", var arg: String) =>
-          env.stdout.print("Target CPU: " + arg)
+          env.out.print("Target CPU: " + arg)
       | ("features", var arg: String) =>
-          env.stdout.print("Feature settings: " + arg)
+          env.out.print("Feature settings: " + arg)
       | ("triple", var arg: String) =>
-          env.stdout.print("Target triple: " + arg)
+          env.out.print("Target triple: " + arg)
       | ("pass", var arg: String) =>
-          env.stdout.print("Restrict phase to: " + arg)
+          env.out.print("Restrict phase to: " + arg)
       | ("ast", None) =>
-          env.stdout.print("Printing an AST!")
+          env.out.print("Printing an AST!")
       | ("trace", None) =>
-          env.stdout.print("Enable trace parse!")
+          env.out.print("Enable trace parse!")
       | ("width", var arg: I64) =>
-          env.stdout.print("Target AST width: " + arg.string())
+          env.out.print("Target AST width: " + arg.string())
       | ("immerr", None) =>
-          env.stdout.print("Errors will be reported immediately!")
-      | ParseError => env.stdout.print("Giving up!") //opt.usage()
+          env.out.print("Errors will be reported immediately!")
+      | ParseError => env.out.print("Giving up!") //opt.usage()
       end
     end

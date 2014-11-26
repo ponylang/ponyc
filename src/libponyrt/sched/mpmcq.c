@@ -9,7 +9,7 @@ struct mpmcq_node_t
   void* data;
 };
 
-void mpmcq_init( mpmcq_t* q )
+void mpmcq_init(mpmcq_t* q)
 {
   mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
   node->data = NULL;

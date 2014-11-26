@@ -4,7 +4,7 @@
 #include <ast/ast.h>
 #include <ast/builder.h>
 #include <ast/source.h>
-#include <ds/stringtab.h>
+#include <ast/stringtab.h>
 #include <pass/pass.h>
 #include <pkg/package.h>
 
@@ -110,7 +110,7 @@ void symtab_entry(ast_t* tree, const char* name, ast_t* expected)
 {
   symtab_t* symtab = ast_get_symtab(tree);
   ASSERT_NE((void*)NULL, symtab);
-  ASSERT_EQ(expected, symtab_get(symtab, stringtab(name), NULL));
+  ASSERT_EQ(expected, symtab_find(symtab, stringtab(name), NULL));
 }
 */
 
@@ -122,7 +122,7 @@ void check_symtab_entry(ast_t* scope, const char* name, const char* expected)
   symtab_t* symtab = ast_get_symtab(scope);
   ASSERT_NE((void*)NULL, symtab);
 
-  void* entry = symtab_get(symtab, stringtab(name), NULL);
+  void* entry = symtab_find(symtab, stringtab(name), NULL);
 
   if(expected == NULL)
   {

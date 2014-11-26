@@ -9,7 +9,7 @@
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../ast/error.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
 #include <platform.h>
 

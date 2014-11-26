@@ -4,7 +4,7 @@
 #include "alias.h"
 #include "assemble.h"
 #include "viewpoint.h"
-#include "../ds/stringtab.h"
+#include "../ast/stringtab.h"
 #include "../expr/literal.h"
 #include <assert.h>
 

@@ -42,48 +42,48 @@ actor Main
   fun box test(x: Any) =>
     match x
     | var y: Wombat tag =>
-      _env.stdout.print("Wombat")
+      _env.out.print("Wombat")
     | var y: Aardvark tag =>
-      _env.stdout.print("Aardvark")
+      _env.out.print("Aardvark")
     | var y: Animal tag =>
-      _env.stdout.print("Animal")
+      _env.out.print("Animal")
     | var y: (Animal tag | Vegetable tag) =>
-      _env.stdout.print("Animal or Vegetable")
+      _env.out.print("Animal or Vegetable")
     | var y: None tag =>
-      _env.stdout.print("None")
+      _env.out.print("None")
     else
-      _env.stdout.print("Unknown")
+      _env.out.print("Unknown")
     end
 
   fun box test2(x: U32) =>
     match x
-    | U32(5) - U32(2) => _env.stdout.print("Three")
+    | U32(5) - U32(2) => _env.out.print("Three")
     else
-      _env.stdout.print("Not Three")
+      _env.out.print("Not Three")
     end
 
   fun box test3(x: (Animal, Vegetable)) =>
     match x
     | (var a: Wombat, var b: Tomato) =>
-      _env.stdout.print("Wombat, Tomato")
+      _env.out.print("Wombat, Tomato")
     else
-      _env.stdout.print("Unknown")
+      _env.out.print("Unknown")
     end
 
   fun box test4(x: (U32 | None)) =>
     match x
-    | U32(3) => _env.stdout.print("Three")
-    | None => _env.stdout.print("None")
+    | U32(3) => _env.out.print("Three")
+    | None => _env.out.print("None")
     else
-      _env.stdout.print("Unknown")
+      _env.out.print("Unknown")
     end
 
   fun box test5(x: ((Animal, Vegetable) | (I32, String))) =>
     match x
     | (var a: Wombat, var b: Tomato) =>
-      _env.stdout.print("Wombat, Tomato")
+      _env.out.print("Wombat, Tomato")
     | (I32(1), "Hi") =>
-      _env.stdout.print("1, Hi")
+      _env.out.print("1, Hi")
     else
-      _env.stdout.print("Unknown")
+      _env.out.print("Unknown")
     end

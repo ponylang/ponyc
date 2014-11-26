@@ -1,7 +1,7 @@
 #include "../libponyc/ast/parserapi.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
-#include "../libponyc/ds/stringtab.h"
+#include "../libponyc/ast/stringtab.h"
 #include <platform.h>
 
 #include "options.h"

@@ -1,5 +1,6 @@
 use "files"
 use "options"
+use "collections"
 
 actor Worker
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
@@ -152,7 +153,7 @@ actor Main
     end
 
   fun tag usage(env: Env) =>
-    env.stdout.print(
+    env.out.print(
       """
       mandelbrot [OPTIONS]
 
