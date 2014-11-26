@@ -88,6 +88,9 @@ libponyc.include := src/common/ $(llvm.include)/
 libponycc.include := src/common/ $(llvm.include)/
 libponyrt.include := src/common/ src/libponyrt/
 
+libponyc.tests.include := src/common/ src/libponyc/ lib/gtest/
+libponyrt.tests.include := src/common/ src/libponyrt/ lib/gtest/
+
 ponyc.include := src/common/
 gtest.include := lib/gtest/
 
@@ -109,6 +112,9 @@ ponyc.options = -Wconversion -Wno-sign-conversion
 ponyc.links = libponyc libponycc libponyrt llvm
 libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
 libponyrt.tests.links = libponyrt gtest
+
+# Overwrite the default linker for a target.
+ponyc.linker = $(CXX) #compile as C but link as CPP (llvm)
 
 # make targets
 targets := $(libraries) $(binaries) $(tests)

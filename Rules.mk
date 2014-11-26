@@ -1,6 +1,3 @@
-empty :=
-space := $(empty) $(empty)
-
 ##########################################################################
 #                                                                        #
 # DIRECTORY: Determines the source dir of a specific target              #
@@ -66,10 +63,15 @@ define CONFIGURE_LIBS
 endef
 
 define CONFIGURE_LINKER
+  $(eval linker := $(compiler))
   $(eval linkcmd := $(LINKER_FLAGS) -L $(lib))
   $(eval libs :=)
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
   linkcmd += $(libs)
+
+  ifdef $(1).linker
+    linker := $($(1).linker)
+  endif
 endef
 
 define PREPARE
@@ -85,7 +87,7 @@ define EXPAND_OBJCMD
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .o,,$(1)))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) -I $(subst $(space), -I ,$($(2).include))
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) $(addprefix -I,$($(2).include))
 endef
 
 define EXPAND_COMMAND
@@ -104,7 +106,7 @@ else
 $(1): print_$(1) $($(1))/$(1)
 $($(1))/$(1): print_$(1) $(ofiles)
 	@echo 'Linking $(1)'
-	$(compiler) -o $$@ $(ofiles) $(linkcmd)
+	$(linker) -o $$@ $(ofiles) $(linkcmd)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))
