@@ -1,3 +1,19 @@
+# Determine the operating system
+OSTYPE ?=
+
+ifeq ($(OS),Windows_NT)
+  OSTYPE = windows
+else
+  UNAME_S := $(shell uname -s)
+  ifeq ($(UNAME_S),Linux)
+    OSTYPE = linux
+  endif
+
+  ifeq ($(UNAME_S),Darwin)
+    OSTYPE = osx
+  endif
+endif
+
 # Default settings (silent debug build).
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=native -Werror -Wall
@@ -49,6 +65,22 @@ libponyc.except := $(libponycc.files)
 libponyc.except += src/libponyc/platform/signed.cc
 libponyc.except += src/libponyc/platform/unsigned.cc
 libponyc.except += src/libponyc/platform/vcvars.c
+
+# Handle platform specific code to avoid "no symbols" warnings.
+libponyrt.except =
+
+ifneq ($(OSTYPE),windows)
+  libponyrt.except += src/libponyrt/asio/iocp.c
+  libponyrt.except += src/libponyrt/lang/win_except.c
+endif
+
+ifeq ($(OSTYPE),linux)
+  libponyrt.except += src/libponyrt/asio/kqueue.c
+endif
+
+ifeq ($(OSTYPE),osx)
+  libponyrt.except += src/libponyrt/asio/epoll.c
+endif
 
 # Third party, but requires compilation. Defined as
 # (1) a name and output directory.
