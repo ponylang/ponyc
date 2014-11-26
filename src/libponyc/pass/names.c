@@ -156,7 +156,7 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   return true;
 }
 
-static bool names_type(ast_t** astp, ast_t* def)
+static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   ast_t* package = ast_child(ast);
@@ -169,7 +169,7 @@ static bool names_type(ast_t** astp, ast_t* def)
   {
     if(ast_id(def) == TK_PRIMITIVE)
       defcap = ast_from(cap, TK_VAL);
-    else if(ast_enclosing_constraint(ast) != NULL)
+    else if((t != NULL) && (t->frame->constraint != NULL))
       defcap = ast_from(cap, TK_TAG);
     else
       defcap = ast_childidx(def, 2);
@@ -186,7 +186,7 @@ static bool names_type(ast_t** astp, ast_t* def)
   return true;
 }
 
-bool names_nominal(ast_t* scope, ast_t** astp)
+bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp)
 {
   ast_t* ast = *astp;
 
@@ -246,7 +246,7 @@ bool names_nominal(ast_t* scope, ast_t** astp)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      return names_type(astp, def);
+      return names_type(t, astp, def);
 
     default: {}
   }
@@ -308,7 +308,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!names_nominal(ast, astp))
+      if(!names_nominal(t, ast, astp))
         return AST_ERROR;
       break;
 
@@ -351,11 +351,9 @@ ast_result_t flatten_typeparamref(ast_t* ast)
   return AST_OK;
 }
 
-ast_result_t flatten_tuple(ast_t* ast)
+ast_result_t flatten_tuple(typecheck_t* t, ast_t* ast)
 {
-  ast_t* constraint = ast_enclosing_constraint(ast);
-
-  if(constraint != NULL)
+  if(t->frame->constraint != NULL)
   {
     ast_error(ast, "tuple types can't be used as constraints");
     return AST_ERROR;
@@ -366,6 +364,7 @@ ast_result_t flatten_tuple(ast_t* ast)
 
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
@@ -381,7 +380,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TUPLETYPE:
-      return flatten_tuple(ast);
+      return flatten_tuple(t, ast);
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(ast);

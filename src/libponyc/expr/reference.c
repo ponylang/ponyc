@@ -163,12 +163,12 @@ bool expr_typeref(typecheck_t* t, ast_t* ast)
 
     case TK_DOT:
       // has to be valid
-      return expr_nominal(&type);
+      return expr_nominal(t, &type);
 
     case TK_CALL:
     {
       // has to be valid
-      if(!expr_nominal(&type))
+      if(!expr_nominal(t, &type))
         return false;
 
       // transform to a default constructor
@@ -183,7 +183,7 @@ bool expr_typeref(typecheck_t* t, ast_t* ast)
     default:
     {
       // has to be valid
-      if(!expr_nominal(&type))
+      if(!expr_nominal(t, &type))
         return false;
 
       // transform to a default constructor

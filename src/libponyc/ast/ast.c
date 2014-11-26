@@ -457,34 +457,6 @@ ast_t* ast_enclosing_try(ast_t* ast, size_t* clause)
   return NULL;
 }
 
-ast_t* ast_enclosing_constraint(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_TYPEPARAM:
-      {
-        // Only if we are in the constraint.
-        ast_t* constraint = ast_childidx(ast, 1);
-
-        if(constraint == last)
-          return ast;
-        break;
-      }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
 ast_t* ast_parent(ast_t* ast)
 {
   return ast->parent;
@@ -1181,6 +1153,14 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
       switch(ast_id(parent))
       {
+        case TK_TYPEPARAM:
+          if(ast_childidx(parent, 1) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->constraint = *ast;
+          }
+          break;
+
         case TK_NEW:
         case TK_BE:
         case TK_FUN:

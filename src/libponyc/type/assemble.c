@@ -140,7 +140,7 @@ ast_t* type_builtin(ast_t* from, const char* name)
 {
   ast_t* ast = type_base(from, NULL, name);
 
-  if(!names_nominal(from, &ast))
+  if(!names_nominal(NULL, from, &ast))
   {
     ast_error(from, "unable to validate '%s'", name);
     ast_free(ast);
@@ -163,7 +163,7 @@ ast_t* type_pointer_to(ast_t* to)
       NONE // Ephemeral
       ));
 
-  if(!names_nominal(to, &pointer))
+  if(!names_nominal(NULL, to, &pointer))
   {
     ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
     ast_free(pointer);

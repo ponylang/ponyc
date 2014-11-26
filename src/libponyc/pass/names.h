@@ -7,13 +7,13 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool names_nominal(ast_t* scope, ast_t** astp);
+bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp);
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options);
 
 ast_result_t flatten_typeparamref(ast_t* ast);
 
-ast_result_t flatten_tuple(ast_t* ast);
+ast_result_t flatten_tuple(typecheck_t* t, ast_t* ast);
 
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options);
 

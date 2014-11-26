@@ -20,7 +20,7 @@ ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
   else
     ast_add(ast, ast_from(scope, TK_NONE));
 
-  if(!names_nominal(scope, &ast) || !gentype(c, ast, g))
+  if(!names_nominal(NULL, scope, &ast) || !gentype(c, ast, g))
   {
     ast_free_unattached(ast);
     return NULL;

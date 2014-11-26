@@ -13,7 +13,7 @@ bool expr_this(typecheck_t* t, ast_t* ast);
 bool expr_tuple(ast_t* ast);
 bool expr_error(ast_t* ast);
 bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast);
-bool expr_nominal(ast_t** astp);
+bool expr_nominal(typecheck_t* t, ast_t** astp);
 bool expr_fun(typecheck_t* t, ast_t* ast);
 
 /// Report whether the given type AST is a literal type

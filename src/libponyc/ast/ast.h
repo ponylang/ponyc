@@ -298,6 +298,7 @@ typedef struct typecheck_frame_t
   ast_t* package;
   ast_t* module;
   ast_t* type;
+  ast_t* constraint;
   ast_t* method;
   ast_t* def_arg;
   ast_t* method_body;
@@ -348,7 +349,6 @@ void ast_erase(ast_t* ast);
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
-ast_t* ast_enclosing_constraint(ast_t* ast);
 
 ast_t* ast_parent(ast_t* ast);
 ast_t* ast_child(ast_t* ast);

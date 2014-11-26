@@ -75,7 +75,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
 
   while(typearg != NULL)
   {
-    if(!expr_nominal(&typearg))
+    if(!expr_nominal(t, &typearg))
     {
       ast_error(ast, "couldn't create a type for 'this'");
       ast_free(type);
@@ -85,7 +85,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
     typearg = ast_sibling(typearg);
   }
 
-  if(!expr_nominal(&nominal))
+  if(!expr_nominal(t, &nominal))
   {
     ast_error(ast, "couldn't create a type for 'this'");
     ast_free(type);
@@ -178,10 +178,10 @@ bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-bool expr_nominal(ast_t** astp)
+bool expr_nominal(typecheck_t* t, ast_t** astp)
 {
   // Resolve typealiases and typeparam references.
-  if(!names_nominal(*astp, astp))
+  if(!names_nominal(t, *astp, astp))
     return false;
 
   ast_t* ast = *astp;
