@@ -67,12 +67,15 @@ define EXPAND_COMMAND
 $(eval $(call PREPARE,$(1)))
 $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
 
+print_$(1):
+	@echo "==== Building $(1) ($(config)) ===="
+
 ifneq ($(filter $(1),$(libraries)),)
-$(1): $(ofiles)
+$(1): print_$(1) $(ofiles)
 	@echo 'Linking $(1)'
 	@$(AR) -rcs $($(1))/$(1).$(LIB_EXT) $(ofiles)
 else
-$(1): $(ofiles)
+$(1): print_$(1) $(ofiles)
 	@echo 'Producing binary $(1)'
 	@$(compiler) -o $($(1))/$(1) $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
 endif
