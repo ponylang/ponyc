@@ -295,6 +295,7 @@ bool expr_return(ast_t* ast)
     return false;
   }
 
+  // TODO: is this right? isn't fun a TK_SEQ here?
   if(ast_id(fun) == TK_NEW)
   {
     ast_error(ast, "can't return a value in a constructor");

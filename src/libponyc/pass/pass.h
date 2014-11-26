@@ -73,7 +73,6 @@ typedef enum pass_id
   PASS_ALL
 } pass_id;
 
-
 /** Pass options.
  */
 typedef struct pass_opt_t
@@ -86,6 +85,8 @@ typedef struct pass_opt_t
   char* triple;
   char* cpu;
   char* features;
+
+  typecheck_t check;
 } pass_opt_t;
 
 /** Limit processing to the specified pass. All passes up to and including the

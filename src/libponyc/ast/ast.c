@@ -393,48 +393,6 @@ ast_t* ast_nearest(ast_t* ast, token_id id)
   return ast;
 }
 
-ast_t* ast_enclosing_type(ast_t* ast)
-{
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_INTERFACE:
-      case TK_TRAIT:
-      case TK_PRIMITIVE:
-      case TK_CLASS:
-      case TK_ACTOR:
-        return ast;
-
-      default: {}
-    }
-
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
-ast_t* ast_enclosing_method(ast_t* ast)
-{
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-        return ast;
-
-      default: {}
-    }
-
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
 ast_t* ast_enclosing_method_type(ast_t* ast)
 {
   ast_t* last = NULL;
@@ -1334,9 +1292,79 @@ void ast_error(ast_t* ast, const char* fmt, ...)
   va_end(ap);
 }
 
+static void push_frame(typecheck_t* t)
+{
+  typecheck_frame_t* f = POOL_ALLOC(typecheck_frame_t);
+
+  if(t->frame != NULL)
+  {
+    memcpy(f, t->frame, sizeof(typecheck_frame_t));
+    f->prev = t->frame;
+  } else {
+    memset(f, 0, sizeof(typecheck_frame_t));
+  }
+
+  t->frame = f;
+}
+
+static void pop_frame(typecheck_t* t)
+{
+  typecheck_frame_t* f = t->frame;
+  assert(f != NULL);
+
+  t->frame = f->prev;
+  POOL_FREE(typecheck_frame_t, f);
+}
+
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
+  bool pop = true;
+
+  switch(ast_id(*ast))
+  {
+    case TK_PACKAGE:
+      push_frame(t);
+      t->frame->package = *ast;
+      t->frame->module = NULL;
+      t->frame->type = NULL;
+      t->frame->method = NULL;
+      break;
+
+    case TK_MODULE:
+      push_frame(t);
+      t->frame->module = *ast;
+      t->frame->type = NULL;
+      t->frame->method = NULL;
+      break;
+
+    case TK_INTERFACE:
+    case TK_TRAIT:
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+    case TK_ACTOR:
+      push_frame(t);
+      t->frame->type = *ast;
+      t->frame->method = NULL;
+      break;
+
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      push_frame(t);
+      t->frame->method = *ast;
+      break;
+
+    case TK_RECOVER:
+      push_frame(t);
+      t->frame->recover = *ast;
+      break;
+
+    default:
+      pop = false;
+  }
+
   ast_result_t ret = AST_OK;
 
   if(pre != NULL)
@@ -1395,6 +1423,9 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
         return AST_FATAL;
     }
   }
+
+  if(pop)
+    pop_frame(t);
 
   return ret;
 }

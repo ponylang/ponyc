@@ -48,24 +48,6 @@ class String val is Ordered[String box], Stringable
     _ptr = Pointer[U8]._create(_alloc)
     _ptr._copy(0, str, _alloc)
 
-  new from_i8(x: I8, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_i64_in_place(x.i64(), base)
-
-  new from_i16(x: I16, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_i64_in_place(x.i64(), base)
-
-  new from_i32(x: I32, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_i64_in_place(x.i64(), base)
-
   new from_i64(x: I64, base: U8) =>
     _size = 0
     _alloc = 0
@@ -78,24 +60,6 @@ class String val is Ordered[String box], Stringable
     _ptr = Pointer[U8].null()
     from_i128_in_place(x, base)
 
-  new from_u8(x: U8, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_u64_in_place(x.u64(), base)
-
-  new from_u16(x: U16, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_u64_in_place(x.u64(), base)
-
-  new from_u32(x: U32, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_u64_in_place(x.u64(), base)
-
   new from_u64(x: U64, base: U8) =>
     _size = 0
     _alloc = 0
@@ -107,12 +71,6 @@ class String val is Ordered[String box], Stringable
     _alloc = 0
     _ptr = Pointer[U8].null()
     from_u128_in_place(x, base)
-
-  new from_f32(x: F32) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8].null()
-    from_f64_in_place(x.f64())
 
   new from_f64(x: F64) =>
     _size = 0
@@ -614,7 +572,7 @@ class String val is Ordered[String box], Stringable
       until value == 0 end
 
       if x < 0 then
-        _ptr._update(i, 45)
+        _ptr._update(i, '-')
         i = i + 1
       end
 
@@ -679,7 +637,7 @@ class String val is Ordered[String box], Stringable
       until value == 0 end
 
       if x < 0 then
-        _ptr._update(i, 45)
+        _ptr._update(i, '-')
         i = i + 1
       end
 

@@ -302,6 +302,7 @@ static bool names_async(ast_t* ast)
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
@@ -318,7 +319,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 
     case TK_NEW:
     {
-      if((ast_id(ast_enclosing_type(ast)) == TK_ACTOR) && !names_async(ast))
+      if((ast_id(t->frame->type) == TK_ACTOR) && !names_async(ast))
         return AST_ERROR;
       break;
     }

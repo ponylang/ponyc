@@ -188,12 +188,10 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
   return type_typeexpr(TK_ISECTTYPE, l_type, r_type);
 }
 
-ast_t* type_for_this(ast_t* ast, token_id cap, token_id ephemeral)
+ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
+  token_id ephemeral)
 {
-  ast_t* def = ast_enclosing_type(ast);
-  assert(def != NULL);
-
-  ast_t* id = ast_child(def);
+  ast_t* id = ast_child(t->frame->type);
   ast_t* typeparams = ast_sibling(id);
   const char* name = ast_name(id);
 

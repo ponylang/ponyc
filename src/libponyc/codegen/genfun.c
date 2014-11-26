@@ -61,7 +61,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
         {
           // Reify the initialiser.
           ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
-          ast_t* var = lookup(NULL, this_type, ast_name(id));
+          ast_t* var = lookup(NULL, NULL, this_type, ast_name(id));
           ast_free_unattached(this_type);
 
           assert(var != NULL);
@@ -104,7 +104,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
-  ast_t* fun = lookup(NULL, this_type, name);
+  ast_t* fun = lookup(NULL, NULL, this_type, name);
   ast_free_unattached(this_type);
   assert(fun != NULL);
 

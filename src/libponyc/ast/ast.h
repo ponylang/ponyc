@@ -281,6 +281,8 @@ NAMEDARG: term SEQ
 
 */
 
+typedef struct ast_t ast_t;
+
 typedef enum
 {
   AST_OK,
@@ -295,7 +297,21 @@ typedef enum
   AST_STATE_DONE
 } ast_state_t;
 
-typedef struct ast_t ast_t;
+typedef struct typecheck_frame_t
+{
+  ast_t* package;
+  ast_t* module;
+  ast_t* type;
+  ast_t* method;
+  ast_t* recover;
+
+  struct typecheck_frame_t* prev;
+} typecheck_frame_t;
+
+typedef struct typecheck_t
+{
+  typecheck_frame_t* frame;
+} typecheck_t;
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -327,8 +343,6 @@ void ast_settype(ast_t* ast, ast_t* type);
 void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
-ast_t* ast_enclosing_type(ast_t* ast);
-ast_t* ast_enclosing_method(ast_t* ast);
 ast_t* ast_enclosing_method_type(ast_t* ast);
 ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_default_arg(ast_t* ast);

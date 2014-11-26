@@ -13,7 +13,7 @@ bool is_cap_sub_cap(token_id sub, token_id super);
  * functions, it is defined by the function signature. A field initialiser is
  * considered part of a constructor.
  */
-token_id cap_for_this(ast_t* ast);
+token_id cap_for_this(typecheck_t* t, ast_t* ast);
 
 /**
  * Gets the capability for a type. Upper bounds of union and arrow types, lower

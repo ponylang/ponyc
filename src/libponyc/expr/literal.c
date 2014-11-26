@@ -25,7 +25,7 @@ bool expr_literal(ast_t* ast, const char* name)
   return true;
 }
 
-bool expr_this(ast_t* ast)
+bool expr_this(typecheck_t* t, ast_t* ast)
 {
   // TODO: If in a constructor, lower it to tag if not all fields are defined.
 
@@ -47,7 +47,7 @@ bool expr_this(ast_t* ast)
     default: {}
   }
 
-  ast_t* type = type_for_this(ast, cap_for_this(ast), ephemeral);
+  ast_t* type = type_for_this(t, ast, cap_for_this(t, ast), ephemeral);
   ast_settype(ast, type);
 
   if(ast_enclosing_default_arg(ast) != NULL)
@@ -56,7 +56,7 @@ bool expr_this(ast_t* ast)
     return false;
   }
 
-  if(!sendable(type) && (ast_nearest(ast, TK_RECOVER) != NULL))
+  if(!sendable(type) && (t->frame->recover != NULL))
   {
     ast_error(ast,
       "can't access a non-sendable 'this' from inside a recover expression");
@@ -277,7 +277,7 @@ static bool check_fields_defined(ast_t* ast)
   return result;
 }
 
-static bool check_return_type(ast_t* ast)
+static bool check_return_type(typecheck_t* t, ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -298,7 +298,7 @@ static bool check_return_type(ast_t* ast)
     ast_t* last = ast_childlast(body);
     BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
-    expr_reference(ref);
+    expr_reference(t, ref);
     return true;
   }
 
@@ -322,7 +322,7 @@ static bool check_return_type(ast_t* ast)
   return ok;
 }
 
-bool expr_fun(ast_t* ast)
+bool expr_fun(typecheck_t* t, ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 4);
   ast_t* can_error = ast_sibling(type);
@@ -334,8 +334,9 @@ bool expr_fun(ast_t* ast)
   if(ast_id(body) == TK_NONE)
     return true;
 
-  ast_t* def = ast_enclosing_type(ast);
-  bool is_trait = (ast_id(def) == TK_TRAIT) || (ast_id(def) == TK_INTERFACE);
+  bool is_trait =
+    (ast_id(t->frame->type) == TK_TRAIT) ||
+    (ast_id(t->frame->type) == TK_INTERFACE);
 
   // Check partial functions.
   if(ast_id(can_error) == TK_QUESTION)
@@ -362,7 +363,7 @@ bool expr_fun(ast_t* ast)
       return check_fields_defined(ast);
 
     case TK_FUN:
-      return check_return_type(ast);
+      return check_return_type(t, ast);
 
     default: {}
   }

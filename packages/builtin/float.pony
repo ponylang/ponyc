@@ -70,7 +70,7 @@ primitive F32 is Real[F32]
   fun box asinh(): F32 => @asinhf[F32](this)
   fun box atanh(): F32 => @atanhf[F32](this)
 
-  fun box string(): String iso^ => recover String.from_f32(this) end
+  fun box string(): String iso^ => recover String.from_f64(f64()) end
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 => f64().i128()

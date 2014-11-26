@@ -189,6 +189,7 @@ static bool scope_idseq(ast_t* ast, bool dups)
 
 static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
 {
+  typecheck_t* t = &options->check;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
@@ -210,7 +211,7 @@ static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
     case TK_CLASS:
     case TK_ACTOR:
     case TK_FFIDECL:
-      if(!set_scope(ast_nearest(ast, TK_PACKAGE), ast_child(ast), ast, dups))
+      if(!set_scope(t->frame->package, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 

@@ -369,7 +369,7 @@ static ast_result_t parse_fix_type_alias(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_thistype(ast_t* ast)
+static ast_result_t parse_fix_thistype(typecheck_t* t, ast_t* ast)
 {
   assert(ast != NULL);
   ast_t* parent = ast_parent(ast);
@@ -381,7 +381,7 @@ static ast_result_t parse_fix_thistype(ast_t* ast)
     return AST_ERROR;
   }
 
-  if(ast_enclosing_method(ast) == NULL)
+  if(t->frame->method == NULL)
   {
     ast_error(ast, "can only use 'this' for a viewpoint in a method");
     return AST_ERROR;
@@ -702,6 +702,8 @@ static ast_result_t parse_fix_test_scope(ast_t* ast)
 
 ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
+  typecheck_t* t = &options->check;
+
   assert(astp != NULL);
   ast_t* ast = *astp;
   assert(ast != NULL);
@@ -742,7 +744,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_ACTOR:      return parse_fix_entity(ast, DEF_ACTOR);
     case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);
     case TK_INTERFACE:  return parse_fix_entity(ast, DEF_INTERFACE);
-    case TK_THISTYPE:   return parse_fix_thistype(ast);
+    case TK_THISTYPE:   return parse_fix_thistype(t, ast);
     case TK_EPHEMERAL:  return parse_fix_ephemeral(ast);
     case TK_BORROWED:   return parse_fix_borrowed(ast);
     case TK_MATCH:      return parse_fix_match(ast);
