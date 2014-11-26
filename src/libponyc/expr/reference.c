@@ -398,14 +398,14 @@ bool expr_reference(typecheck_t* t, ast_t* ast)
   return false;
 }
 
-bool expr_local(ast_t* ast)
+bool expr_local(typecheck_t* t, ast_t* ast)
 {
   ast_t* idseq = ast_child(ast);
   ast_settype(ast, ast_type(idseq));
 
   if((ast_id(ast) == TK_LET) &&
     (ast_id(ast_parent(ast)) != TK_ASSIGN) &&
-    (ast_enclosing_pattern(ast) == NULL)
+    (t->frame->pattern == NULL)
     )
   {
     ast_error(ast, "can't declare a let local without assigning to it");

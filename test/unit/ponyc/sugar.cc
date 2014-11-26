@@ -19,13 +19,16 @@ class SugarTest: public testing::Test
 
 static void test_good_sugar(const char* short_form, const char* full_form)
 {
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+
   package_add_magic("builtin", builtin);
   package_suppress_build_message();
   free_errors();
 
   limit_passes("sugar");
   package_add_magic("short", short_form);
-  ast_t* short_ast = program_load(stringtab("short"), NULL);
+  ast_t* short_ast = program_load(stringtab("short"), &opt);
 
   if(short_ast == NULL)
   {
@@ -36,7 +39,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
   limit_passes("parsefix");
   parse_fix_allow_all(true);
   package_add_magic("full", full_form);
-  ast_t* full_ast = program_load(stringtab("full"), NULL);
+  ast_t* full_ast = program_load(stringtab("full"), &opt);
 
   if(full_ast == NULL)
   {
@@ -59,6 +62,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 
   // Reset state for next test
   parse_fix_allow_all(false);
+  pass_opt_done(&opt);
 }
 
 
@@ -70,7 +74,10 @@ static void test_bad_sugar(const char* src, ast_result_t expect_result)
   package_suppress_build_message();
   free_errors();
 
-  ast_t* ast = program_load(stringtab("prog"), NULL);
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ast_t* ast = program_load(stringtab("prog"), &opt);
+  pass_opt_done(&opt);
 
   if(ast != NULL)
   {

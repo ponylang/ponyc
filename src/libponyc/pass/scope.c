@@ -10,7 +10,8 @@
 /**
  * Insert a name->AST mapping into the specified scope.
  */
-static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
+static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
+  bool dups)
 {
   assert(ast_id(name) == TK_ID);
   const char* s = ast_name(name);
@@ -23,7 +24,7 @@ static bool set_scope(ast_t* scope, ast_t* name, ast_t* value, bool dups)
   {
     case TK_ID:
     {
-      if(ast_enclosing_pattern(value) != NULL)
+      if((t != NULL) && (t->frame->pattern != NULL))
         status = SYM_DEFINED;
       else
         status = SYM_UNDEFINED;
@@ -108,7 +109,7 @@ bool use_package(ast_t* ast, const char* path, ast_t* name, pass_opt_t* options)
   }
 
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
-    return set_scope(ast, name, package, false);
+    return set_scope(NULL, ast, name, package, false);
 
   // We do not have an alias
   if(!ast_merge(ast, package))
@@ -158,11 +159,11 @@ static void set_fields_undefined(ast_t* ast)
   }
 }
 
-static bool scope_method(ast_t* ast, bool dups)
+static bool scope_method(typecheck_t* t, ast_t* ast, bool dups)
 {
   ast_t* id = ast_childidx(ast, 1);
 
-  if(!set_scope(ast_parent(ast), id, ast, dups))
+  if(!set_scope(t, ast_parent(ast), id, ast, dups))
     return false;
 
   if(ast_id(ast) == TK_NEW)
@@ -171,14 +172,14 @@ static bool scope_method(ast_t* ast, bool dups)
   return true;
 }
 
-static bool scope_idseq(ast_t* ast, bool dups)
+static bool scope_idseq(typecheck_t* t, ast_t* ast, bool dups)
 {
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     // Each ID resolves to itself.
-    if(!set_scope(ast_parent(ast), child, child, dups))
+    if(!set_scope(t, ast_parent(ast), child, child, dups))
       return false;
 
     child = ast_sibling(child);
@@ -211,31 +212,31 @@ static ast_result_t do_scope(ast_t** astp, pass_opt_t* options, bool dups)
     case TK_CLASS:
     case TK_ACTOR:
     case TK_FFIDECL:
-      if(!set_scope(t->frame->package, ast_child(ast), ast, dups))
+      if(!set_scope(t, t->frame->package, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
-      if(!set_scope(ast, ast_child(ast), ast, dups))
+      if(!set_scope(t, ast, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      if(!scope_method(ast, dups))
+      if(!scope_method(t, ast, dups))
         return AST_ERROR;
       break;
 
     case TK_TYPEPARAM:
-      if(!set_scope(ast, ast_child(ast), ast, dups))
+      if(!set_scope(t, ast, ast_child(ast), ast, dups))
         return AST_ERROR;
       break;
 
     case TK_IDSEQ:
-      if(!scope_idseq(ast, dups))
+      if(!scope_idseq(t, ast, dups))
         return AST_ERROR;
       break;
 

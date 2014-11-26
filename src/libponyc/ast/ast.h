@@ -252,13 +252,9 @@ control
   CASES: {CASE}
 )
 
-CASE: [PATTERN] [SEQ] [SEQ]
+CASE: [INFIX] [SEQ] [SEQ]
 symtab: name -> VAR | VAL
-Children are (in order) comparison expression, as, guard, body.
-
-PATTERN: {PATTERN | PATTERNVAR | INT | FLOAT | STRING}
-
-PATTERNID: IDSEQ [TYPE]
+Children are (in order) pattern, guard, body.
 
 atom
 ----
@@ -304,6 +300,8 @@ typedef struct typecheck_frame_t
   ast_t* type;
   ast_t* method;
   ast_t* method_body;
+  ast_t* the_case;
+  ast_t* pattern;
   ast_t* recover;
 
   struct typecheck_frame_t* prev;
@@ -345,12 +343,10 @@ void ast_erase(ast_t* ast);
 
 ast_t* ast_nearest(ast_t* ast, token_id id);
 ast_t* ast_enclosing_method_type(ast_t* ast);
-ast_t* ast_enclosing_method_body(ast_t* ast);
 ast_t* ast_enclosing_default_arg(ast_t* ast);
 ast_t* ast_enclosing_ffi_type(ast_t* ast);
 ast_t* ast_enclosing_loop(ast_t* ast);
 ast_t* ast_enclosing_try(ast_t* ast, size_t* clause);
-ast_t* ast_enclosing_pattern(ast_t* ast);
 ast_t* ast_enclosing_constraint(ast_t* ast);
 ast_t* ast_enclosing_local_type(ast_t* ast);
 

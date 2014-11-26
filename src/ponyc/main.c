@@ -156,7 +156,8 @@ int main(int argc, char* argv[])
   stringtab_init();
 
   pass_opt_t opt;
-  memset(&opt, 0, sizeof(pass_opt_t));
+  pass_opt_init(&opt);
+
   opt.release = true;
   opt.symbols = true;
   opt.output = ".";
@@ -231,6 +232,7 @@ int main(int argc, char* argv[])
     package_done(&opt);
   }
 
+  pass_opt_done(&opt);
   stringtab_done();
 
   return ok ? 0 : -1;

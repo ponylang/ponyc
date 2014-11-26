@@ -373,10 +373,6 @@ static void add_exec_dir(const char* file)
 
 bool package_init(const char* name, pass_opt_t* opt)
 {
-  // Start with an empty typechecker frame.
-  opt->check.frame = POOL_ALLOC(typecheck_frame_t);
-  memset(opt->check.frame, 0, sizeof(typecheck_frame_t));
-
   if(!codegen_init(opt))
     return false;
 
@@ -585,15 +581,6 @@ const char* package_hygienic_id(typecheck_t* t)
 void package_done(pass_opt_t* opt)
 {
   codegen_shutdown(opt);
-
-  // Pop all the typechecker frames.
-  while(opt->check.frame != NULL)
-  {
-    typecheck_frame_t* f = opt->check.frame;
-    opt->check.frame = f->prev;
-    POOL_FREE(typecheck_frame_t, f);
-  }
-
   strlist_free(search);
   search = NULL;
 

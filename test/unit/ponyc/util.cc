@@ -184,7 +184,11 @@ void load_test_program(const char* name, ast_t** out_prog)
   free_errors();
 
   package_suppress_build_message();
-  ast_t* program = program_load(stringtab(name), NULL);
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  ast_t* program = program_load(stringtab(name), &opt);
+  pass_opt_done(&opt);
 
   if(program == NULL)
     print_errors();

@@ -428,36 +428,6 @@ ast_t* ast_enclosing_method_type(ast_t* ast)
   return NULL;
 }
 
-ast_t* ast_enclosing_method_body(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-      {
-        // only if we are in the method body
-        ast_t* body = ast_childidx(ast, 6);
-
-        if(body == last)
-          return ast;
-        break;
-      }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
 ast_t* ast_enclosing_default_arg(ast_t* ast)
 {
   ast_t* last = NULL;
@@ -576,35 +546,6 @@ ast_t* ast_enclosing_try(ast_t* ast, size_t* clause)
       {
         *clause = ast_index(last);
         return ast;
-      }
-
-      default: {}
-    }
-
-    last = ast;
-    ast = ast->parent;
-  }
-
-  return NULL;
-}
-
-ast_t* ast_enclosing_pattern(ast_t* ast)
-{
-  ast_t* last = NULL;
-
-  while(ast != NULL)
-  {
-    switch(token_get_id(ast->t))
-    {
-      case TK_CASE:
-      {
-        // Only if we are in the pattern.
-        ast_t* pattern = ast_child(ast);
-
-        if(pattern == last)
-          return ast;
-
-        return NULL;
       }
 
       default: {}
@@ -1376,12 +1317,34 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       break;
     }
 
+    case TK_CASE:
+      pop = push_frame(t);
+      t->frame->the_case = *ast;
+      break;
+
     case TK_RECOVER:
       pop = push_frame(t);
       t->frame->recover = *ast;
       break;
 
-    default: {}
+    default:
+    {
+      ast_t* parent = ast_parent(*ast);
+
+      switch(ast_id(parent))
+      {
+        case TK_CASE:
+          if(ast_child(parent) == *ast)
+          {
+            pop = push_frame(t);
+            t->frame->pattern = *ast;
+          }
+          break;
+
+        default: {}
+      }
+      break;
+    }
   }
 
   ast_result_t ret = AST_OK;

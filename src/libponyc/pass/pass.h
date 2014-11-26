@@ -100,6 +100,14 @@ bool limit_passes(const char* pass);
  */
 const char* pass_name(pass_id pass);
 
+/** Initialise pass options.
+ */
+void pass_opt_init(pass_opt_t* options);
+
+/** Finish with pass options.
+ */
+void pass_opt_done(pass_opt_t* options);
+
 /** Apply the per package passes to the given AST.
  * Returns true on success, false on failure.
  */
