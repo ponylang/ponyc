@@ -58,16 +58,9 @@ endef
 
 define EXPAND_OBJCMD
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .o,,$(1)))
-	@echo 'COMPILE $$(notdir $$<)'
+	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) $(BUILD_FLAGS) -c -o $$@ $$< -I $(subst $(space), -I ,$($(2).include))
-endef
-
-define EXPAND_DEPCMD
-$(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .d,,$(1)))
-	@echo 'DEPEND $$(notdir $$@)'
-	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $$(subst .d,.o,$$@) -MF $$@ $(BUILD_FLAGS) $$<
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) -c -o $$@ $$< -I $(subst $(space), -I ,$($(2).include))
 endef
 
 define EXPAND_COMMAND
@@ -76,15 +69,13 @@ $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
 
 ifneq ($(filter $(1),$(libraries)),)
 $(1): $(ofiles)
-	@echo 'LINK $(1)'
+	@echo 'Linking $(1)'
 	@$(AR) -rcs $($(1))/$(1).$(LIB_EXT) $(ofiles)
 else
 $(1): $(ofiles)
-	@echo 'BINARY $(1)'
+	@echo 'Producing binary $(1)'
 	@$(compiler) -o $($(1))/$(1) $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))
-$(foreach dfile,$(dependencies),$(eval $(call EXPAND_DEPCMD,$(dfile))))
-
 endef
