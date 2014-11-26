@@ -142,13 +142,13 @@ stats:
 	@echo 'Compiler and standard library '
 	@echo '------------------------------'
 	@echo
-	@cloc --read-lang-def=misc/pony.cloc src packages
+	@cloc --read-lang-def=pony.cloc src packages
 	@echo
 	@echo '------------------------------'
 	@echo 'Test suite:'
 	@echo '------------------------------'
 	@echo
-	@cloc --read-lang-def=misc/pony.cloc test
+	@cloc --read-lang-def=pony.cloc test
 
 clean:
 	@rm -rf build
