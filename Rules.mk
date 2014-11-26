@@ -47,10 +47,12 @@ define ENUMERATE
 endef
 
 define PICK_COMPILER
-  $(eval compiler := $(CC) $(ALL_CFLAGS))
+  $(eval compiler := $(CC))
+	$(eval flags:= $(ALL_CFLAGS))
 
   ifneq ($$(filter $(suffix $(sourcefiles)),.cc),)
-    compiler := $(CXX) $(ALL_CXXFLAGS)
+    compiler := $(CXX)
+		flags := $(ALL_CXXFLAGS)
   endif
 endef
 
@@ -83,7 +85,7 @@ define EXPAND_OBJCMD
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .o,,$(1)))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) -c -o $$@ $$< $($(2).options) -I $(subst $(space), -I ,$($(2).include))
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) -I $(subst $(space), -I ,$($(2).include))
 endef
 
 define EXPAND_COMMAND
