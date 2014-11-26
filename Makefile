@@ -37,10 +37,11 @@ obj  := $(PONY_BUILD_DIR)/obj
 
 LINKER_FLAGS += -L$(lib)
 
-# libraries
-libponyc  := $(lib)/libponyc
-libponycc := $(lib)/libponycc
-libponyrt := $(lib)/libponyrt
+# Libraries. Defined as
+# (1) a name and output directory
+libponyc  := $(lib)
+libponycc := $(lib)
+libponyrt := $(lib)
 
 # Define special case rules for a targets source files. By default
 # this makefile assumes that a targets source files can be found
@@ -68,7 +69,7 @@ gtest.files := $(gtest.dir)/gtest_main.cc $(gtest.dir)/gtest-all.cc
 libraries := libponyc libponycc libponyrt gtest
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
-# (1) a name (without a target directory), stored in "prebuilt".
+# (1) a name (stored in prebuilt)
 # (2) the linker flags necessary to link against the prebuilt library/libraries.
 # (3) a list of include directories for a set of libraries.
 # (4) a list of the libraries to link against.
@@ -102,7 +103,9 @@ tests := libponyc.tests libponyrt.tests
 # target specific build options
 
 # link relationships
-libponyc.links = -lponycc
+ponyc.links = libponyc libponycc libponyrt llvm
+libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
+libponyc.tests.links = libponyc libponycc libponyrt llvm gtest
 
 # make targets
 targets := $(libraries) $(binaries) $(tests)

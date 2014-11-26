@@ -77,7 +77,7 @@ $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
 ifneq ($(filter $(1),$(libraries)),)
 $(1): $(ofiles)
 	@echo 'LINK $(1)'
-	@$(AR) -rcs $($(1))/$(1).$(LIB_EXT) $(ofiles) $(LINKER_FLAGS) $($(1).ldflags) $($(1).links)
+	@$(AR) -rcs $($(1))/$(1).$(LIB_EXT) $(ofiles)
 else
 $(1): $(ofiles)
 	@echo 'BINARY $(1)'
