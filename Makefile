@@ -165,12 +165,10 @@ targets := $(libraries) $(binaries) $(tests)
 all: $(targets)
 
 # Dependencies
-libponyrt:
-libponyc: libponyrt
-libponyc.tests: libponyc gtest
-libponyrt.tests: libponyrt gtest
-gtest:
-ponyc:libponyc libponyrt
+libponyc.depends := libponyrt
+libponyc.tests.depends := libponyc libgtest
+libponyrt.tests.depends := libponyrt libgtest
+ponyc.depends := libponyc libponyrt
 
 # Generic make section, edit with care.
 ##########################################################################
@@ -275,19 +273,20 @@ define EXPAND_COMMAND
 $(eval $(call PREPARE,$(1)))
 $(eval ofiles := $(subst .c,,$(subst .cc,,$(objectfiles))))
 
-print_$(1):
-	@echo "==== Building $(1) ($(config)) ===="
+$(eval POSTBUILD := @echo "==== Built $(1) ($(config)) ====")
 
 ifneq ($(filter $(1),$(libraries)),)
-$(1): print_$(1) $($(1))/$(1).$(LIB_EXT)
-$($(1))/$(1).$(LIB_EXT): $(ofiles)
+$($(1))/$(1).$(LIB_EXT): $($(1).depends) $(ofiles)
 	@echo 'Linking $(1)'
 	@$(AR) -rcs $$@ $(ofiles)
+$(1): $($(1))/$(1).$(LIB_EXT)
+	$(POSTBUILD)
 else
-$(1): print_$(1) $($(1))/$(1)
-$($(1))/$(1): $(ofiles)
+$($(1))/$(1): $($(1).depends) $(ofiles)
 	@echo 'Linking $(1)'
 	@$(linker) -o $$@ $(ofiles) $(linkcmd)
+$(1): $($(1))/$(1)
+	$(POSTBUILD)
 endif
 
 $(foreach ofile,$(objectfiles),$(eval $(call EXPAND_OBJCMD,$(ofile),$(1))))
@@ -312,7 +311,7 @@ stats:
 
 clean:
 	@rm -rf build/$(config)
-	-@rmdir build 2>/dev/null || true
+	-@rmdir build 2>/dev/null ||:
 	@echo 'Repository cleaned ($(config)).'
 
 help:
