@@ -70,15 +70,11 @@ libponyrt := $(lib)
 # Note that it is possible to collect files and exceptions with
 # arbitrarily complex shell commands, as long as ':=' is used
 # for definition, instead of '='.
-libponycc.dir := src/libponyc
-libponycc.files := src/libponyc/debug/dwarf.cc
-libponycc.files += src/libponyc/debug/symbols.cc
-libponycc.files += src/libponyc/codegen/host.cc
-
-libponyc.except := $(libponycc.files)
-libponyc.except += src/libponyc/platform/signed.cc
-libponyc.except += src/libponyc/platform/unsigned.cc
-libponyc.except += src/libponyc/platform/vcvars.c
+ifneq ($(OSTYPE),windows)
+  libponyc.except += src/libponyc/platform/signed.cc
+  libponyc.except += src/libponyc/platform/unsigned.cc
+  libponyc.except += src/libponyc/platform/vcvars.c
+endif
 
 # Handle platform specific code to avoid "no symbols" warnings.
 libponyrt.except =
@@ -103,7 +99,7 @@ libgtest := $(lib)
 libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
 
-libraries := libponyc libponycc libponyrt libgtest
+libraries := libponyc libponyrt libgtest
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
 # (1) a name (stored in prebuilt)
@@ -111,7 +107,7 @@ libraries := libponyc libponycc libponyrt libgtest
 # (3) a list of include directories for a set of libraries.
 # (4) a list of the libraries to link against.
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
-llvm.include := $(shell $(LLVM_CONFIG) --includedir)
+llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lcurses
 
 prebuilt := llvm
@@ -130,15 +126,15 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := src/common/ $(llvm.include)/
-libponycc.include := src/common/ $(llvm.include)/
-libponyrt.include := src/common/ src/libponyrt/
+libponyc.include := -I src/common/ $(llvm.include)/
+libponycc.include := -I src/common/ $(llvm.include)/
+libponyrt.include := -I src/common/ -I src/libponyrt/
 
-libponyc.tests.include := src/common/ src/libponyc/ lib/gtest/
-libponyrt.tests.include := src/common/ src/libponyrt/ lib/gtest/
+libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
+libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := src/common/
-libgtest.include := lib/gtest/
+ponyc.include := -I src/common/
+libgtest.include := -isystem lib/gtest/
 
 # target specific build options
 libponyc.options = -D__STDC_CONSTANT_MACROS
@@ -148,15 +144,9 @@ libponyc.options += -Wconversion -Wno-sign-conversion
 
 libponyrt.options = -Wconversion -Wno-sign-conversion
 
-libponycc.options = -D__STDC_CONSTANT_MACROS
-libponycc.options += -D__STDC_FORMAT_MACROS
-libponycc.options += -D__STDC_LIMIT_MACROS
-
-ponyc.options = -Wconversion -Wno-sign-conversion
-
 # Link relationships.
-ponyc.links = libponyc libponycc libponyrt llvm
-libponyc.tests.links = libgtest libponyc libponycc libponyrt llvm
+ponyc.links = libponyc libponyrt llvm
+libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
@@ -175,12 +165,11 @@ targets := $(libraries) $(binaries) $(tests)
 all: $(targets)
 
 # Dependencies
-libponycc:
+ponyc:
 libponyrt:
-libponyc: libponycc libponyrt
+libponyc: libponyrt
 libponyc.tests: libponyc gtest
 libponyrt.tests: libponyrt gtest
-ponyc: libponyc
 gtest:
 
 # Generic make section, edit with care.
@@ -190,7 +179,8 @@ gtest:
 #                                                                        #
 # ENUMERATE: Enumerates input and output files for a specific target     #
 #                                                                        #
-# PICK_COMPILER: Chooses a C or C++ compiler depending on the target.    #
+# CONFIGURE_COMPILER: Chooses a C or C++ compiler depending on the       #
+#                     target file.                                       #
 #                                                                        #
 # CONFIGURE_LIBS: Builds a string of libraries to link for a targets     #
 #                 link dependency.                                       #
@@ -229,11 +219,11 @@ define ENUMERATE
   endif
 endef
 
-define PICK_COMPILER
+define CONFIGURE_COMPILER
   $(eval compiler := $(CC))
-  $(eval flags:= $(ALL_CFLAGS))
+  $(eval flags := $(ALL_CFLAGS))
 
-  ifneq ($$(filter $(suffix $(sourcefiles)),.cc),)
+  ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)
     flags := $(ALL_CXXFLAGS)
   endif
@@ -249,31 +239,36 @@ define CONFIGURE_LIBS
 endef
 
 define CONFIGURE_LINKER
-  $(eval linker := $(compiler))
   $(eval linkcmd := $(LINKER_FLAGS) -L $(lib))
+  $(eval linker := $(CC))
   $(eval libs :=)
-  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
-  linkcmd += $(libs)
 
   ifdef $(1).linker
     linker := $($(1).linker)
+  else ifneq (,$$(filter .cc,$(suffix $(sourcefiles))))
+    linker := $(CXX)
   endif
+
+  $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
+  linkcmd += $(libs)
 endef
 
 define PREPARE
   $(eval $(call DIRECTORY,$(1)))
   $(eval $(call ENUMERATE,$(1)))
-  $(eval $(call PICK_COMPILER,$(sourcefiles)))
   $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,$(sourcefiles))))
   $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,$(objectfiles)))))
 endef
 
 define EXPAND_OBJCMD
-$(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(subst .o,,$(1)))
+$(eval file := $(subst .o,,$(1)))
+$(eval $(call CONFIGURE_COMPILER,$(file)))
+
+$(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) $(addprefix -I,$($(2).include))
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) $($(2).include)
 endef
 
 define EXPAND_COMMAND
@@ -330,7 +325,6 @@ help:
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'
-	@echo '  libponycc         Pony compiler host info and debugger support'
 	@echo '  libponyrt         Pony runtime'
 	@echo '  libponyc.tests    Test suite for libponyc'
 	@echo '  libponyrt.tests   Test suite for libponyrt'
