@@ -165,12 +165,12 @@ targets := $(libraries) $(binaries) $(tests)
 all: $(targets)
 
 # Dependencies
-ponyc:
 libponyrt:
 libponyc: libponyrt
 libponyc.tests: libponyc gtest
 libponyrt.tests: libponyrt gtest
 gtest:
+ponyc:libponyc libponyrt
 
 # Generic make section, edit with care.
 ##########################################################################
@@ -312,6 +312,7 @@ stats:
 
 clean:
 	@rm -rf build/$(config)
+	-@rmdir build 2>/dev/null || true
 	@echo 'Repository cleaned ($(config)).'
 
 help:
