@@ -3,6 +3,7 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
+#include "../ast/frame.h"
 
 PONY_EXTERN_C_BEGIN
 

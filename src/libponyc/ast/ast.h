@@ -8,9 +8,7 @@
 
 #include <platform.h>
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-extern "C" {
-#endif
+PONY_EXTERN_C_BEGIN
 
 /* Description of AST forms produced after parse fix pass.
 
@@ -293,34 +291,6 @@ typedef enum
   AST_STATE_DONE
 } ast_state_t;
 
-typedef struct typecheck_frame_t
-{
-  ast_t* package;
-  ast_t* module;
-  ast_t* type;
-  ast_t* constraint;
-  ast_t* method;
-  ast_t* def_arg;
-  ast_t* method_body;
-  ast_t* method_type;
-  ast_t* ffi_type;
-  ast_t* local_type;
-  ast_t* the_case;
-  ast_t* pattern;
-  ast_t* loop;
-  ast_t* loop_body;
-  ast_t* loop_else;
-  ast_t* try_expr;
-  ast_t* recover;
-
-  struct typecheck_frame_t* prev;
-} typecheck_frame_t;
-
-typedef struct typecheck_t
-{
-  typecheck_frame_t* frame;
-} typecheck_t;
-
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
 ast_t* ast_token(token_t* t);
@@ -531,8 +501,6 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
 
-#if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
-}
-#endif
+PONY_EXTERN_C_END
 
 #endif
