@@ -20,13 +20,18 @@ BUILD_FLAGS = -mcx16 -march=native -Werror -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
+config ?= debug
+
+ifdef config
+  ifeq (,$(filter $(config),debug release))
+    $(error Unknown configuration "$(config)")
+  endif
+endif
 
 ifeq ($(config),release)
   BUILD_FLAGS += -O3 -DNDEBUG
   LINKER_FLAGS += -fuse-ld=gold
-  DEFINES +=
 else
-  config = debug
   BUILD_FLAGS += -g -DDEBUG
 endif
 
@@ -311,7 +316,8 @@ stats:
 	@cloc --read-lang-def=pony.cloc test
 
 clean:
-	@rm -rf build
+	@rm -rf build/$(config)
+	@rmdir --ignore-fail-on-non-empty build
 	@echo 'Repository cleaned.'
 
 help:
