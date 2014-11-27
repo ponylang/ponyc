@@ -393,13 +393,13 @@ DEF(whileloop);
   SKIP(NULL, TK_END);
   DONE();
 
-// REPEAT rawseq UNTIL rawseq [ELSE seq] END
+// REPEAT seq UNTIL seq [ELSE seq] END
 DEF(repeat);
   TOKEN(NULL, TK_REPEAT);
   SCOPE();
-  RULE("repeat body", rawseq);
+  RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", rawseq);
+  RULE("condition expression", seq);
   IF(TK_ELSE, RULE("else clause", seq));
   SKIP(NULL, TK_END);
   DONE();
