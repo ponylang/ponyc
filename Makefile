@@ -312,8 +312,7 @@ stats:
 
 clean:
 	@rm -rf build/$(config)
-	@rmdir --ignore-fail-on-non-empty build
-	@echo 'Repository cleaned.'
+	@echo 'Repository cleaned ($(config)).'
 
 help:
 	@echo
