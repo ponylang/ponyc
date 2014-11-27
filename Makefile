@@ -163,6 +163,7 @@ targets := $(libraries) $(binaries) $(tests)
 
 .PHONY: all $(targets)
 all: $(targets)
+	@:
 
 # Dependencies
 libponyc.depends := libponyrt
