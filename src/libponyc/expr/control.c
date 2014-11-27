@@ -15,22 +15,9 @@ bool expr_seq(ast_t* ast)
 
   // Type is unioned with the type of the last child.
   type = type_union(type, last_type);
-
   ast_settype(ast, type);
   ast_inheriterror(ast);
 
-  // TODO: if we are the body of try expression, we need to push
-  // our symbol consumes to the else and then blocks
-  // In the body of a try, we might stop execution with any node that can
-  // error out, so a DEFINE can only override an UNDEFINE *for the else block*
-  // if it appears before the next node that can error out.
-  // mark undefined as undefined_throw when we hit a throw
-  // when we mark undefined_throw as defined, mark it as defined_throw instead
-  // when we mark defined_throw as undefined, mark it as undefined_throw instead
-  // treat defined_throw and undefined_throw like defined and undefined
-  // but when we push our symbol status to the else block, treat both as
-  // undefined
-  // only need to do this in a try body
   return true;
 }
 
@@ -106,22 +93,22 @@ bool expr_while(ast_t* ast)
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
+  // No symbol status is inherited from the loop body. Nothing from outside the
+  // loop body can be consumed, and definitions in the body may not occur.
   type = type_union(type, l_type);
-  ast_inheritbranch(ast, left);
-  size_t branch_count = 1;
 
-  // TODO: A break statement in the body means some definitions might not
-  // happen.
   if(r_type != NULL)
   {
     type = type_union(type, r_type);
     ast_inheritbranch(ast, left);
-    branch_count++;
+
+    // Use a branch count of two instead of one. This means we will pick up any
+    // consumes, but not any definitions, since definitions may not occur.
+    ast_consolidate_branches(ast, 2);
   }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
-  ast_consolidate_branches(ast, branch_count);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
@@ -151,25 +138,22 @@ bool expr_repeat(ast_t* ast)
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
+  // No symbol status is inherited from the loop body or condition. Nothing from
+  // outside can be consumed, and definitions inside may not occur.
   type = type_union(type, body_type);
 
-  // TODO: doesn't work correctly: body has no scope, so consume/define is
-  // going into the repeat node.
-  // ast_inheritbranch(ast, body);
-  size_t branch_count = 1;
-
-  // TODO: A break statement in the body means some definitions might not
-  // happen.
   if(else_type != NULL)
   {
     type = type_union(type, else_type);
     ast_inheritbranch(ast, else_clause);
-    branch_count++;
+
+    // Use a branch count of two instead of one. This means we will pick up any
+    // consumes, but not any definitions, since definitions may not occur.
+    ast_consolidate_branches(ast, 2);
   }
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
-  ast_consolidate_branches(ast, branch_count);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
@@ -217,6 +201,19 @@ bool expr_try(ast_t* ast)
   if(ast_canerror(else_clause) || ast_canerror(then_clause))
     ast_seterror(ast);
 
+  return true;
+}
+
+bool expr_recover(ast_t* ast)
+{
+  ast_t* child = ast_child(ast);
+  ast_t* type = ast_type(child);
+
+  ast_settype(ast, recover_type(type));
+  ast_inheriterror(ast);
+
+  // Push our symbol status to our parent scope.
+  ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
