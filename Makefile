@@ -210,7 +210,8 @@ define ENUMERATE
   ifdef $(1).files
     sourcefiles := $$($(1).files)
   else
-    sourcefiles := $$(shell find $$(sourcedir) -type f -name "*.c" -or -name "*.cc" | grep -v '.*/\.')
+    sourcefiles := $$(shell find $$(sourcedir) -type f -name "*.c" -or -name\
+      "*.cc" | grep -v '.*/\.')
   endif
 
   ifdef $(1).except
@@ -256,8 +257,10 @@ define PREPARE
   $(eval $(call DIRECTORY,$(1)))
   $(eval $(call ENUMERATE,$(1)))
   $(eval $(call CONFIGURE_LINKER,$(1)))
-  $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,$(sourcefiles))))
-  $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,$(objectfiles)))))
+  $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
+    $(sourcefiles))))
+  $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,\
+    $(objectfiles)))))
 endef
 
 define EXPAND_OBJCMD
@@ -267,7 +270,8 @@ $(eval $(call CONFIGURE_COMPILER,$(file)))
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options) $($(2).include)
+	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options)\
+    $($(2).include)
 endef
 
 define EXPAND_COMMAND
