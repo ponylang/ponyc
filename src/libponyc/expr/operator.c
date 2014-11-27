@@ -239,11 +239,19 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
   ast_t* id = ast_child(child);
   const char* name = ast_name(id);
 
-  // Can't consume from an outer scope while inside a loop.
+  // Can't consume from an outer scope while in a loop condition.
+  if((t->frame->loop_cond != NULL) &&
+    !ast_within_scope(t->frame->loop_cond, ast, name))
+  {
+    ast_error(ast, "can't consume from an outer scope in a loop condition");
+    return false;
+  }
+
+  // Can't consume from an outer scope while in a loop body.
   if((t->frame->loop_body != NULL) &&
     !ast_within_scope(t->frame->loop_body, ast, name))
   {
-    ast_error(ast, "can't consume from an outer scope in a loop");
+    ast_error(ast, "can't consume from an outer scope in a loop body");
     return false;
   }
 

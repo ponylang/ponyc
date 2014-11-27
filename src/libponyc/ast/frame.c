@@ -165,8 +165,11 @@ bool frame_push(typecheck_t* t, ast_t* ast)
         {
           AST_GET_CHILDREN(parent, cond, body, else_clause);
 
-          if(body == ast)
+          if(cond == ast)
           {
+            pop = push_frame(t);
+            t->frame->loop_cond = ast;
+          } else if(body == ast) {
             pop = push_frame(t);
             t->frame->loop_body = ast;
           } else if(else_clause == ast) {
@@ -184,6 +187,9 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           {
             pop = push_frame(t);
             t->frame->loop_body = ast;
+          } else if(cond == ast) {
+            pop = push_frame(t);
+            t->frame->loop_cond = ast;
           } else if(else_clause == ast) {
             pop = push_frame(t);
             t->frame->loop_else = ast;
