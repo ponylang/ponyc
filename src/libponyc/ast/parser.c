@@ -393,27 +393,31 @@ DEF(whileloop);
   SKIP(NULL, TK_END);
   DONE();
 
-// REPEAT rawseq UNTIL rawseq [ELSE seq] END
+// REPEAT seq UNTIL seq [ELSE seq] END
 DEF(repeat);
   TOKEN(NULL, TK_REPEAT);
   SCOPE();
-  RULE("repeat body", rawseq);
+  RULE("repeat body", seq);
   SKIP(NULL, TK_UNTIL);
-  RULE("condition expression", rawseq);
+  RULE("condition expression", seq);
   IF(TK_ELSE, RULE("else clause", seq));
   SKIP(NULL, TK_END);
   DONE();
 
-// FOR idseq [COLON type] IN seq DO seq [ELSE seq] END
+// FOR idseq [COLON type] IN rawseq DO rawseq [ELSE seq] END
+// =>
+// (SEQ
+//   (ASSIGN hygienic iterator)
+//   (WHILE hygienic.has_next() (SEQ (ASSIGN idseq hygienic.next()) body) else))
 DEF(forloop);
   TOKEN(NULL, TK_FOR);
   SCOPE();
   RULE("iterator name", idseq);
   IF(TK_COLON, RULE("iterator type", type));
   SKIP(NULL, TK_IN);
-  RULE("sequence", seq);
+  RULE("iterator", rawseq);
   SKIP(NULL, TK_DO);
-  RULE("for body", seq);
+  RULE("for body", rawseq);
   IF(TK_ELSE, RULE("else clause", seq));
   SKIP(NULL, TK_END);
   DONE();
@@ -427,10 +431,11 @@ DEF(try_block);
   SKIP(NULL, TK_END);
   DONE();
 
-// RECOVER seq END
+// RECOVER rawseq END
 DEF(recover);
   TOKEN(NULL, TK_RECOVER);
-  RULE("recover body", seq);
+  SCOPE();
+  RULE("recover body", rawseq);
   SKIP(NULL, TK_END);
   DONE();
 

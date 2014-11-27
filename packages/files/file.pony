@@ -71,8 +71,9 @@ class File
       var offset = U64(0)
       var len = _last_line_length
       var result = recover String end
+      var done = false
 
-      repeat
+      while not done do
         result.reserve(len)
 
         var r = if Platform.linux() then
@@ -87,7 +88,7 @@ class File
 
         result.recalc()
 
-        var done = try
+        done = try
           r.is_null() or (result(result.size().i64() - 1) == '\n')
         else
           true
@@ -97,7 +98,7 @@ class File
           offset = result.size()
           len = len * 2
         end
-      until done end
+      end
 
       _last_line_length = len
       consume result

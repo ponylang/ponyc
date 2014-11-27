@@ -220,7 +220,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
   const char* iter_name = package_hygienic_id(t);
 
   REPLACE(astp,
-    NODE(TK_SEQ, AST_SCOPE
+    NODE(TK_SEQ,
       NODE(TK_ASSIGN,
         TREE(for_iter)
         NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) NONE)
