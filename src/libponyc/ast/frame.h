@@ -20,6 +20,7 @@ typedef struct typecheck_frame_t
   ast_t* the_case;
   ast_t* pattern;
   ast_t* loop;
+  ast_t* loop_cond;
   ast_t* loop_body;
   ast_t* loop_else;
   ast_t* try_expr;
