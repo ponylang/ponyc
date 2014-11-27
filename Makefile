@@ -285,7 +285,7 @@ $($(1))/$(1).$(LIB_EXT): $(ofiles)
 	@$(AR) -rcs $$@ $(ofiles)
 else
 $(1): print_$(1) $($(1))/$(1)
-$($(1))/$(1): print_$(1) $(ofiles)
+$($(1))/$(1): $(ofiles)
 	@echo 'Linking $(1)'
 	@$(linker) -o $$@ $(ofiles) $(linkcmd)
 endif
