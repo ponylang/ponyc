@@ -427,7 +427,7 @@ static void normalise_string(lexer_t* lexer)
     while(rem > 0)
     {
       char* line_end = strchr(line_start, '\n');
-      size_t line_len = (line_end == NULL) ? rem : line_end - line_start + 1;
+      size_t line_len = (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
       memmove(compacted, line_start + ws, line_len - ws);
 
       line_start += line_len;

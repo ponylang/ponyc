@@ -52,7 +52,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 	{
 		if((event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1)) > 0)
 		{
-			for(i = 0; i < event_cnt; i++)
+			for(i = 0; i < (uint32_t)event_cnt; i++)
 			{
 				ev = &(b->events[i]);
 

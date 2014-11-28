@@ -106,7 +106,7 @@ bool cpu_physical(uint32_t cpu)
     name[len] = '\0';
     fclose(fp);
 
-    if(cpu != atoi(name))
+    if(cpu != (uint32_t)atoi(name))
       return false;
   }
 #else
