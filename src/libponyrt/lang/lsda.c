@@ -204,6 +204,7 @@ bool lsda_init(lsda_t* lsda, exception_context_t* context)
 _Unwind_Reason_Code lsda_scan(lsda_t* lsda, _Unwind_Action actions,
   uintptr_t* lp)
 {
+  (void)actions;
   const uint8_t* p = lsda->call_site_table;
 
   while(p < lsda->action_table)

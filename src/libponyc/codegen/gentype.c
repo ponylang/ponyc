@@ -268,7 +268,7 @@ static bool setup_type_fields(gentype_t* g)
 
 static void free_fields(gentype_t* g)
 {
-  for(size_t i = 0; i < g->field_count; i++)
+  for(int i = 0; i < g->field_count; i++)
     ast_free_unattached(g->fields[i]);
 
   free(g->fields);
@@ -472,7 +472,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
 
 static bool make_components(compile_t* c, gentype_t* g)
 {
-  for(size_t i = 0; i < g->field_count; i++)
+  for(int i = 0; i < g->field_count; i++)
   {
     gentype_t field_g;
 

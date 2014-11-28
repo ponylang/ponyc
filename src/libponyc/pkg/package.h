@@ -14,13 +14,8 @@ typedef struct package_t package_t;
  * Initialises the search directories. This is composed of a "packages"
  * directory relative to the executable, plus a collection of directories
  * specified in the PONYPATH environment variable.
- *
- * @param name The path to the executable file, generally argv[0]. The real
- *   path will be determined from argv[0].
- *
- * @param opt Pass options, used to initialise the code generator.
  */
-bool package_init(const char* name, pass_opt_t* opt);
+bool package_init(pass_opt_t* opt);
 
 /**
  * Gets the list of search paths.

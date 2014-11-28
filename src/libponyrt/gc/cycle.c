@@ -437,10 +437,10 @@ static bool detect(detector_t* d, view_t* view)
   perceivedmap_put(&d->perceived, per);
 
   int count2 = collect_white(per, view, 0);
-  (void)count2;
 
+  (void)count2;
   assert(count2 == count);
-  assert(viewmap_size(&per->map) == count);
+  assert(viewmap_size(&per->map) == (size_t)count);
 
   send_conf(per);
   return true;

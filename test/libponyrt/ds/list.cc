@@ -46,8 +46,8 @@ void ListTest::remember_head(testlist_t* list)
 
 elem_t* ListTest::times2(elem_t* e, void* arg)
 {
+  (void)arg;
   e->val = e->val << 1;
-
   return e;
 }
 

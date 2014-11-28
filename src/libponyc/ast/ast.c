@@ -889,7 +889,7 @@ static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
 #endif
   }
 
-  if(r >= avail)
+  if((size_t)r >= avail)
   {
     buffer->size = buffer->size + r + 1;
     buffer->m = (char*)realloc(buffer->m, buffer->size);
@@ -899,7 +899,7 @@ static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
     r = vsnprintf(buffer->m + buffer->offset, avail, fmt, ap);
     va_end(ap);
 
-    assert((r > 0) && (r < buffer->size));
+    assert((r > 0) && ((size_t)r < buffer->size));
   }
 
   buffer->offset += r;

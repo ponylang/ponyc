@@ -14,7 +14,7 @@ static bool end_reached(const opt_arg_t* arg)
     (arg->id == UINT32_MAX) && (arg->flag == UINT32_MAX);
 }
 
-static bool has_argument(opt_state_t* s, const opt_arg_t* arg)
+static bool has_argument(opt_state_t* s)
 {
   bool short_arg = ((s->match_type == MATCH_SHORT) &&
     (*(s->opt_start + 1) || s->idx < (*s->argc)-1));
@@ -207,7 +207,7 @@ int opt_next(opt_state_t* s)
     return -2;
   }
 
-  if ((m->flag == OPT_ARG_REQUIRED) && !has_argument(s, m))
+  if ((m->flag == OPT_ARG_REQUIRED) && !has_argument(s))
   {
     printf("%s: '%s' option requires an argument!\n", s->argv[0],
       s->argv[s->idx]);

@@ -190,7 +190,7 @@ static void join_node(dist_t* d)
   }
 }
 
-static void handle_remote_message(dist_t* d, node_t* n, uint16_t type)
+static void handle_remote_message(node_t* n, uint16_t type)
 {
 	switch(type)
 	{
@@ -315,7 +315,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 						m->flags = ASIO_READABLE;
 						asio_event_send(m->event, m->flags);
 
-          	handle_remote_message(d, n, proto);
+          	handle_remote_message(n, proto);
 						proto_reset(n->proto);
 					}
       	}

@@ -53,36 +53,28 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 {
 	asio_backend_t* b = arg;
 
-	struct kevent* ev;
-	asio_event_t* pev;
-
-	uint32_t i;
-	uint32_t aflags;
-	int32_t event_cnt;
-
 	while(true)
 	{
-		event_cnt = kevent(b->kq, NULL, 0, b->fired, MAX_EVENTS, NULL);
+		int32_t event_cnt = kevent(b->kq, NULL, 0, b->fired, MAX_EVENTS, NULL);
 
 		if(event_cnt > 0)
 		{
-			for(i = 0; i < event_cnt; i++)
+			for(int32_t i = 0; i < event_cnt; i++)
 			{
-				ev = &(b->fired[i]);
+				struct kevent* ev = &(b->fired[i]);
 
-				if(ev->ident == b->wakeup[0])
+				if(ev->ident == (uintptr_t)b->wakeup[0])
 				{
 					close(b->kq);
 					close(b->wakeup[0]);
 					close(b->wakeup[1]);
-
 					break;
 				}
 
-				pev = ev->udata;
+				asio_event_t* pev = ev->udata;
 
 				//TODO FILES etc.
-				aflags = (ev->filter & EVFILT_READ ? ASIO_READABLE : 0)
+				uint32_t aflags = (ev->filter & EVFILT_READ ? ASIO_READABLE : 0)
 								| (ev->filter & EVFILT_WRITE ? ASIO_WRITABLE : 0)
 								| (ev->flags & EV_EOF ? ASIO_PEER_SHUTDOWN : 0)
 								| (ev->flags & EV_ERROR ? ASIO_ERROR : 0);

@@ -197,7 +197,7 @@ static uint32_t flush_data(sock_t* s, size_t* nrp)
 
 	curr = writes->head->next;
 
-	for(size_t i = 1; i < writes->chunks - 1; i++)
+	for(int i = 1; i < writes->chunks - 1; i++)
 	{
 		iov[i].iov_base = curr->data;
 		iov[i].iov_len = BUFFER_SIZE;

@@ -116,13 +116,6 @@ void hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
     fr(map->size * sizeof(void*), map->buckets);
 }
 
-hashmap_t* hashmap_compact(hashmap_t* map, hash_fn hash, cmp_fn cmp,
-  alloc_fn alloc, free_size_fn fr)
-{
-  //TODO
-  return NULL;
-}
-
 void* hashmap_get(hashmap_t* map, void* key, hash_fn hash, cmp_fn cmp)
 {
   if(map->count == 0)

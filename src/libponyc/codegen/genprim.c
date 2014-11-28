@@ -427,7 +427,7 @@ static void number_conversions(compile_t* c)
     {"$1_F32", "f32", c->f32, 32, false, true},
     {"$1_F64", "f64", c->f64, 64, false, true},
 
-    {NULL, NULL, NULL, false, false}
+    {NULL, NULL, NULL, false, false, false}
   };
 
   bool has_i128;
@@ -664,7 +664,7 @@ static void make_rdtscp(compile_t* c)
   codegen_finishfun(c);
 }
 
-void genprim_builtins(compile_t* c, ast_t* package)
+void genprim_builtins(compile_t* c)
 {
   number_conversions(c);
   number_constructors(c);

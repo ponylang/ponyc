@@ -47,7 +47,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
     default: {}
   }
 
-  ast_t* type = type_for_this(t, ast, cap_for_this(t, ast), ephemeral);
+  ast_t* type = type_for_this(t, ast, cap_for_this(t), ephemeral);
   ast_settype(ast, type);
 
   if(t->frame->def_arg != NULL)
@@ -1661,7 +1661,7 @@ bool coerce_literal_member(ast_t* ast)
 static struct
 {
   const char* name;
-  int arg_count;
+  size_t arg_count;
   bool is_int_only;
   bool can_propogate_literal;
 } _operator_fns[] =

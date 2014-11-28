@@ -216,7 +216,7 @@ static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
-  LLVMValueRef func, int index, bool ctor)
+  LLVMValueRef func, int index)
 {
   // Get the parameter types.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -377,7 +377,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // Send the arguments in a message to 'this'.
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index, false);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
@@ -451,7 +451,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
 
   // Send the arguments in a message to 'this'.
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index, true);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);

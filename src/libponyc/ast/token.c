@@ -129,7 +129,7 @@ const char* token_print(token_t* token)
 
       int r = snprintf(token->printed, 64, "%g", token->real);
 
-      if(strcspn(token->printed, ".e") == r)
+      if(strcspn(token->printed, ".e") == (size_t)r)
         snprintf(token->printed + r, 64 - r, ".0");
 
       return token->printed;

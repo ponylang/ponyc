@@ -34,13 +34,6 @@ void hashmap_init(hashmap_t* map, size_t size, alloc_fn alloc);
  */
 void hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem);
 
-/** Compact a hash map.
- *
- *  Automatic compaction is not provided.
- */
-hashmap_t* hashmap_compact(hashmap_t* map, hash_fn hash, cmp_fn cmp,
-  alloc_fn alloc, free_size_fn fr);
-
 /** Retrieve an element from a hash map.
  *
  *  Returns a pointer to the element, or NULL.
@@ -86,7 +79,6 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
   typedef struct name##_t { hashmap_t contents; } name##_t; \
   void name##_init(name##_t* map, size_t size); \
   void name##_destroy(name##_t* map); \
-  name##_t* name##_compact(name##_t* map); \
   type* name##_get(name##_t* map, type* key); \
   type* name##_put(name##_t* map, type* entry); \
   type* name##_remove(name##_t* map, type* entry); \
@@ -111,13 +103,6 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
   { \
     name##_free_fn freef = free_elem; \
     hashmap_destroy((hashmap_t*)map, fr, (free_fn)freef); \
-  } \
-  name##_t* name##_compact(name##_t* map) \
-  { \
-    name##_hash_fn hashf = hash; \
-    name##_cmp_fn cmpf = cmp; \
-    return (name##_t*)hashmap_compact((hashmap_t*)map, (hash_fn)hashf, \
-      (cmp_fn)cmpf, alloc, fr); \
   } \
   type* name##_get(name##_t* map, type* key) \
   { \

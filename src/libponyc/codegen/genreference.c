@@ -8,6 +8,7 @@
 
 LLVMValueRef gen_this(compile_t* c, ast_t* ast)
 {
+  (void)ast;
   return LLVMGetParam(codegen_fun(c), 0);
 }
 
@@ -166,6 +167,8 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
+  (void)c;
+
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
   ast_t* def = ast_get(ast, name, NULL);

@@ -276,7 +276,7 @@ static char look(lexer_t* lexer)
 
 
 // look(lexer) is equivalent to lookn(lexer, 1)
-static char lookn(lexer_t* lexer, int chars)
+static char lookn(lexer_t* lexer, size_t chars)
 {
   if(lexer->len < chars)
     return '\0';
@@ -982,7 +982,7 @@ static token_t* symbol(lexer_t* lexer)
 {
   char sym[3];
 
-  for(int i = 0; i < (int)sizeof(sym); ++i)
+  for(size_t i = 0; i < sizeof(sym); ++i)
     sym[i] = lookn(lexer, i + 1);
 
   for(const lexsym_t* p = symbols; p->symbol != NULL; p++)

@@ -45,7 +45,7 @@ static void read_header(proto_t* p, sock_t* s)
  	p->header_complete = true;
 }
 
-static uint16_t get_message_type(proto_t* p, sock_t* s)
+static uint16_t get_message_type(proto_t* p)
 {
 	uint16_t type;
 
@@ -88,7 +88,7 @@ uint16_t proto_receive(proto_t** p, sock_t* s)
 	  rc = sock_read(s);
 
 		if(check_for_message(self, s))
-			return get_message_type(self, s);
+			return get_message_type(self);
 
 		if(rc & (ASIO_ERROR | ASIO_WOULDBLOCK))
 			break;

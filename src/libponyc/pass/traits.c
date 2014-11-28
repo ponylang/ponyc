@@ -256,6 +256,7 @@ static bool check_sig_with_body(ast_t* target, ast_t* method)
 
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
+  (void)options;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))

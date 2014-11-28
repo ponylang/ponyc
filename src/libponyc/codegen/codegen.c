@@ -405,7 +405,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   // The first package is the main package. If it has a Main actor, this
   // is a program, otherwise this is a library.
   ast_t* package = ast_child(program);
-  genprim_builtins(c, package);
+  genprim_builtins(c);
 
   const char* main_actor = stringtab("Main");
   ast_t* main_def = ast_get(package, main_actor, NULL);

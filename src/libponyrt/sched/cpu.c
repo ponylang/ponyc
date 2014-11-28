@@ -109,6 +109,8 @@ bool cpu_physical(uint32_t cpu)
     if(cpu != atoi(name))
       return false;
   }
+#else
+  (void)cpu;
 #endif
 
   return true;

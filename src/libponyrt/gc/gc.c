@@ -46,6 +46,7 @@ static void current_actor_dec(gc_t* gc)
 void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   void* p, pony_trace_fn f)
 {
+  (void)heap;
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
   // don't gc memory that wasn't pony_allocated

@@ -31,6 +31,8 @@ _Unwind_Reason_Code pony_personality_v0(int version, _Unwind_Action actions,
   uint64_t ex_class, struct _Unwind_Exception* exception,
   struct _Unwind_Context* context)
 {
+  (void)ex_class;
+
   if(version != 1 || exception == NULL || context == NULL)
     return _URC_FATAL_PHASE1_ERROR;
 

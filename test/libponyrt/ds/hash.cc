@@ -87,6 +87,7 @@ void HashMapTest::free_elem(elem_t* p)
 
 void HashMapTest::free_buckets(size_t len, void* p)
 {
+  (void)len;
   free(p);
 }
 

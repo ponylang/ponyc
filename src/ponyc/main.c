@@ -78,6 +78,8 @@ static void usage()
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
     "\n"
+
+#ifndef NDEBUG
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
@@ -100,6 +102,7 @@ static void usage()
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors imemdiately rather than deferring.\n"
     "\n"
+#endif
     );
 }
 
@@ -219,7 +222,7 @@ int main(int argc, char* argv[])
     return -1;
   }
 
-  if(package_init(argv[0], &opt))
+  if(package_init(&opt))
   {
     if(argc == 1)
     {

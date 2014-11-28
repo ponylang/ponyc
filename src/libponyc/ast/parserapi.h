@@ -161,7 +161,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define DEF(rule) \
   static ast_t* rule(parser_t* parser) \
   { \
-    rule_state_t state = {#rule, NULL, NULL, false, false, false, false, false}
+    rule_state_t state = {#rule, NULL, NULL, \
+      false, false, false, false, false, TK_NONE, 0, 0}
 
 
 /** Add a node to our AST.

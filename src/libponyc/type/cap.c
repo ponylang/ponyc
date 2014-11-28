@@ -44,7 +44,7 @@ bool is_cap_sub_cap(token_id sub, token_id super)
   return sub <= super;
 }
 
-token_id cap_for_this(typecheck_t* t, ast_t* ast)
+token_id cap_for_this(typecheck_t* t)
 {
   // If this is a primitive, it's a val.
   if(ast_id(t->frame->type) == TK_PRIMITIVE)

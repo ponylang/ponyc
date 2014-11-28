@@ -66,7 +66,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 }
 
 
-static void test_bad_sugar(const char* src, ast_result_t expect_result)
+static void test_bad_sugar(const char* src)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
@@ -141,7 +141,7 @@ TEST(SugarTest, ClassWithCreateFunction)
   const char* short_form =
     "class Foo fun ref create() => 3";
 
-  DO(test_bad_sugar(short_form, AST_ERROR));
+  DO(test_bad_sugar(short_form));
 }
 
 
@@ -218,7 +218,7 @@ TEST(SugarTest, ActorWithCreateFunction)
   const char* short_form =
     "actor Foo fun ref create() => 3";
 
-  DO(test_bad_sugar(short_form, AST_ERROR));
+  DO(test_bad_sugar(short_form));
 }
 
 
@@ -241,7 +241,7 @@ TEST(SugarTest, ActorWithCreateBehaviour)
   const char* short_form =
     "actor Foo be create() => 3";
 
-  DO(test_bad_sugar(short_form, AST_ERROR));
+  DO(test_bad_sugar(short_form));
 }
 
 

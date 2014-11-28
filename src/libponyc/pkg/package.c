@@ -322,7 +322,7 @@ static void add_path(const char* path)
 
 // Determine the absolute path of the directory the current executable is in
 // and add it to our search path
-static void add_exec_dir(const char* file)
+static void add_exec_dir()
 {
   char path[FILENAME_MAX];
   bool success;
@@ -371,7 +371,7 @@ static void add_exec_dir(const char* file)
 }
 
 
-bool package_init(const char* name, pass_opt_t* opt)
+bool package_init(pass_opt_t* opt)
 {
   if(!codegen_init(opt))
     return false;
@@ -383,7 +383,7 @@ bool package_init(const char* name, pass_opt_t* opt)
   add_path("/usr/local/lib");
 #endif
 
-  add_exec_dir(name);
+  add_exec_dir();
   use_register_std();
   literals_init();
   return true;

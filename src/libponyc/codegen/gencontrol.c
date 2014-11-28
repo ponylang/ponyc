@@ -372,6 +372,8 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
+  (void)ast;
+
   // Jump to the continue target.
   LLVMBuildBr(c->builder, c->frame->continue_target);
   return GEN_NOVALUE;

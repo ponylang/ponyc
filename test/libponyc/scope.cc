@@ -442,15 +442,16 @@ TEST_F(ScopeTest, Use)
   const char* builtin =
     "primitive U32";
 
-  pass_opt_t opts = { true };
-
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
+  pass_opt_t opts;
+  pass_opt_init(&opts);
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+  pass_opt_done(&opts);
 
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
@@ -471,15 +472,16 @@ TEST_F(ScopeTest, UseAs)
   const char* builtin =
     "primitive U32";
 
-  pass_opt_t opts = { true };
-
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
+  pass_opt_t opts;
+  pass_opt_init(&opts);
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+  pass_opt_done(&opts);
 
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
@@ -501,15 +503,16 @@ TEST_F(ScopeTest, UseConditionTrue)
   const char* builtin =
     "primitive U32";
 
-  pass_opt_t opts = { false };
-
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
+  pass_opt_t opts;
+  pass_opt_init(&opts);
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+  pass_opt_done(&opts);
 
   // Use imported types go in the module symbol table
   ast_t* module = find_sub_tree(ast, TK_MODULE);
@@ -530,15 +533,16 @@ TEST_F(ScopeTest, UseConditionFalse)
   const char* builtin =
     "primitive U32";
 
-  pass_opt_t opts = { true };
-
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
   limit_passes("scope1");
 
+  pass_opt_t opts;
+  pass_opt_init(&opts);
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
+  pass_opt_done(&opts);
 
   // Nothing should be imported
   ast_t* module = find_sub_tree(ast, TK_MODULE);
