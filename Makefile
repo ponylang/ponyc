@@ -16,7 +16,8 @@ endif
 
 # Default settings (silent debug build).
 LIB_EXT ?= a
-BUILD_FLAGS = -mcx16 -march=native -Werror -Wextra -Wall
+BUILD_FLAGS = -mcx16 -march=native -Werror -Wconversion -Wno-sign-conversion \
+  -Wextra -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
@@ -140,12 +141,9 @@ libgtest.include := -isystem lib/gtest/
 libponyc.options = -D__STDC_CONSTANT_MACROS
 libponyc.options += -D__STDC_FORMAT_MACROS
 libponyc.options += -D__STDC_LIMIT_MACROS
-libponyc.options += -Wconversion -Wno-sign-conversion
-
-libponyrt.options = -Wconversion -Wno-sign-conversion
 
 # target specific disabling of build options
-libgtest.disable = -Wextra
+libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
 
 # Link relationships.
 ponyc.links = libponyc libponyrt llvm
