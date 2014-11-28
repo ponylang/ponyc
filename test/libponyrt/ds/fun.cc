@@ -54,7 +54,7 @@ TEST(DsFunTest, NumbersToNextPow)
   ASSERT_EQ(
     1,
     __pony_popcount64(
-      next_pow2(i)
+      (unsigned int)next_pow2(i)
     )
   );
 }
