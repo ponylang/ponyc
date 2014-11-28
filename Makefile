@@ -16,7 +16,7 @@ endif
 
 # Default settings (silent debug build).
 LIB_EXT ?= a
-BUILD_FLAGS = -mcx16 -march=native -Werror -Wall
+BUILD_FLAGS = -mcx16 -march=native -Werror -Wextra -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
@@ -144,6 +144,9 @@ libponyc.options += -Wconversion -Wno-sign-conversion
 
 libponyrt.options = -Wconversion -Wno-sign-conversion
 
+# target specific disabling of build options
+libgtest.disable = -Wextra
+
 # Link relationships.
 ponyc.links = libponyc libponyrt llvm
 libponyc.tests.links = libgtest libponyc libponyrt llvm
@@ -270,8 +273,8 @@ $(eval $(call CONFIGURE_COMPILER,$(file)))
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(BUILD_FLAGS) $(flags) -c -o $$@ $$< $($(2).options)\
-    $($(2).include)
+	@$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) $(flags) \
+    -c -o $$@ $$< $($(2).options) $($(2).include)
 endef
 
 define EXPAND_COMMAND
