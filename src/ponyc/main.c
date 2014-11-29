@@ -23,6 +23,7 @@ enum
   OPT_OUTPUT,
 
   OPT_IEEEMATH,
+  OPT_NORESTRICT,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -42,8 +43,9 @@ static opt_arg_t args[] =
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
 
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
-  {"cpu", 'c', OPT_ARG_REQUIRED, OPT_CPU},
-  {"features", 'f', OPT_ARG_REQUIRED, OPT_FEATURES},
+  {"no-restrict", 0, OPT_ARG_NONE, OPT_NORESTRICT},
+  {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
+  {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
@@ -59,9 +61,9 @@ static void usage()
   printf(
     "ponyc [OPTIONS] <package directory>\n"
     "\n"
-    "The package directory defaults to the current directory."
+    "The package directory defaults to the current directory.\n"
     "\n"
-    "Often needed options:\n"
+    "Options:\n"
     "  --debug, -d     Don't optimise the output.\n"
     "  --strip, -s     Don't emit debug symbols.\n"
     "  --path, -p      Add an additional search path.\n"
@@ -71,9 +73,10 @@ static void usage()
     "\n"
     "Rarely needed options:\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
-    "  --cpu, -c       Set the target CPU.\n"
+    "  --no-restrict   Disable pointer aliasing optimisations.\n"
+    "  --cpu           Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
-    "  --features, -f  CPU features to enable or disable.\n"
+    "  --features      CPU features to enable or disable.\n"
     "    =+this,-that  Use + to enable, - to disable.\n"
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
@@ -183,6 +186,7 @@ int main(int argc, char* argv[])
       case OPT_OUTPUT: opt.output = s.arg_val; break;
 
       case OPT_IEEEMATH: opt.ieee_math = true; break;
+      case OPT_NORESTRICT: opt.no_restrict = true; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;

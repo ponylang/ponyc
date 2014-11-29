@@ -418,8 +418,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   // Generate the Main actor and the Env class.
   gentype_t main_g;
-  ast_t* main_ast = genprim(c, main_def, package_name(package), main_actor,
-    &main_g);
+  ast_t* main_ast = genprim(c, main_def, NULL, main_actor, &main_g);
 
   if(main_ast == NULL)
     return false;
@@ -454,6 +453,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->release = opt->release;
   c->symbols = opt->symbols;
   c->ieee_math = opt->ieee_math;
+  c->no_restrict = opt->no_restrict;
 
   // LLVM context and machine settings.
   c->context = LLVMContextCreate();
@@ -558,7 +558,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   if(opt->release)
   {
-    printf("=== Optimising ===\n");
+    printf("Optimising\n");
 
     // Module pass manager.
     LLVMRunPassManager(mpm, c->module);
@@ -571,7 +571,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   stack_alloc(c);
 
 #ifndef NDEBUG
-  printf("=== Verifying ===\n");
+  printf("Verifying\n");
 
   char* msg;
 
@@ -591,11 +591,10 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
    * user then has to link both the .o and the runtime. Would need a flag for
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
-  printf("=== Generating output ===\n");
-
   if(pass_limit == PASS_LLVM_IR)
   {
     const char* file_o = suffix_filename(opt->output, c->filename, ".ll");
+    printf("Writing %s\n", file_o);
     char* err;
 
     if(LLVMPrintModuleToFile(c->module, file_o, &err) != 0)
@@ -611,6 +610,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   if(pass_limit == PASS_BITCODE)
   {
     const char* file_o = suffix_filename(opt->output, c->filename, ".bc");
+    printf("Writing %s\n", file_o);
 
     if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
     {
@@ -637,6 +637,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 #endif
   }
 
+  printf("Writing %s\n", file_o);
   char* err;
 
   if(LLVMTargetMachineEmitToFile(
@@ -651,9 +652,6 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   if(pass_limit < PASS_ALL)
     return true;
 
-  // Link the program.
-  printf("=== Linking ===\n");
-
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(opt->triple, '-');
 
@@ -664,6 +662,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   }
 
   const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  printf("Linking %s\n", file_exe);
 
   size_t len = (arch - opt->triple);
   VLA(char, arch_buf, len + 1);
@@ -687,6 +686,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   strcat(ld_cmd, " -lponyrt -lSystem");
 #elif defined(PLATFORM_IS_LINUX)
   const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  printf("Linking %s\n", file_exe);
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
@@ -724,6 +724,7 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   }
 
   const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
+  printf("Linking %s\n", file_exe);
   program_lib_build_args(program, "", "", "", ".lib");
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
@@ -779,8 +780,6 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 #endif
 
   unlink(file_o);
-
-  printf("=== Compiled %s ===\n", file_exe);
   return true;
 }
 
@@ -883,7 +882,7 @@ void codegen_shutdown(pass_opt_t* opt)
 
 bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 {
-  printf("=== Generating IR ===\n");
+  printf("Generating\n");
 
   compile_t c;
   memset(&c, 0, sizeof(compile_t));
@@ -909,6 +908,9 @@ LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
   // Add the function and set the calling convention.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
   LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
+
+  if(c->no_restrict)
+    return fun;
 
   // Set the noalias attribute on all arguments. This is fortran-like semantics
   // for parameter aliasing, similar to C restrict.

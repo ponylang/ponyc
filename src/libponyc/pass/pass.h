@@ -81,6 +81,7 @@ typedef struct pass_opt_t
   bool release;
   bool symbols;
   bool ieee_math;
+  bool no_restrict;
   const char* output;
 
   char* triple;

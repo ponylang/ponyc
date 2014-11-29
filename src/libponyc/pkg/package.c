@@ -489,7 +489,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   package = create_package(program, name);
 
   if(report_build)
-    printf("=== Building %s ===\n", name);
+    printf("Building %s\n", name);
 
   if(magic != NULL)
   {

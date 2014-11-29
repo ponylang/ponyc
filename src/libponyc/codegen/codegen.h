@@ -47,6 +47,7 @@ typedef struct compile_t
   bool release;
   bool symbols;
   bool ieee_math;
+  bool no_restrict;
 
   const char* str_1;
   const char* str_Bool;
