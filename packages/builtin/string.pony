@@ -96,13 +96,21 @@ class String val is Ordered[String box], Stringable
   fun box space(): U64 => _alloc
 
   fun ref reserve(len: U64): String ref^ =>
-    if _alloc < len then
-      _alloc = len.max(8).next_pow2()
+    """
+    Reserve space for len bytes. An additional byte will be reserved for the
+    null terminator.
+    """
+    if _alloc <= len then
+      _alloc = (len + 1).max(8).next_pow2()
       _ptr = _ptr._realloc(_alloc)
     end
     this
 
   fun ref recalc(): String ref^ =>
+    """
+    Recalculates the string length. This is only needed if the string is
+    changed via an FFI call.
+    """
     _size = 0
 
     while (_size < _alloc) and (_ptr._apply(_size) > 0) do
@@ -110,24 +118,121 @@ class String val is Ordered[String box], Stringable
     end
     this
 
-  fun box apply(i: I64): U8 ? =>
-    let j = offset_to_index(i)
-    if j < _size then _ptr._apply(j) else error end
+  fun box utf32(offset: I64): (U32, U8) ? =>
+    """
+    Return a UTF32 representation of the character at the given offset and the
+    number of bytes needed to encode that character. If the offset does not
+    point to the beginning of a valid UTF8 encoding, return 0xFFFD (the unicode
+    replacement character) and a length of one. Raise an error if the offset is
+    out of bounds.
+    """
+    let i = offset_to_index(offset)
+    let err: (U32, U8) = (0xFFFD, 1)
 
-  fun ref update(i: I64, value: U8): U8 ? =>
-    let j = offset_to_index(i)
+    if i >= _size then error end
+    var c = _ptr._apply(i)
 
-    if j < _size then
+    if c < 0x80 then
+      // 1-byte
+      (c.u32(), U8(1))
+    elseif c < 0xC2 then
+      // Stray continuation.
+      err
+    elseif c < 0xE0 then
+      // 2-byte
+      if (i + 1) >= _size then
+        // Not enough bytes.
+        err
+      else
+        var c2 = _ptr._apply(i + 1)
+        if (c2 and 0xC0) != 0x80 then
+          // Not a continuation byte.
+          err
+        else
+          (((c.u32() << 6) + c2.u32()) - 0x3080, U8(2))
+        end
+      end
+    elseif c < 0xF0 then
+      // 3-byte.
+      if (i + 2) >= _size then
+        // Not enough bytes.
+        err
+      else
+        var c2 = _ptr._apply(i + 1)
+        var c3 = _ptr._apply(i + 2)
+        if
+          // Not continuation bytes.
+          ((c2 and 0xC0) != 0x80) or
+          ((c3 and 0xC0) != 0x80) or
+          // Overlong encoding.
+          ((c == 0xE0) and (c2 < 0xA0))
+        then
+          err
+        else
+          (((c.u32() << 12) + (c2.u32() << 6) + c3.u32()) - 0xE2080, U8(3))
+        end
+      end
+    elseif c < 0xF5 then
+      // 4-byte.
+      if (i + 3) >= _size then
+        // Not enough bytes.
+        err
+      else
+        var c2 = _ptr._apply(i + 1)
+        var c3 = _ptr._apply(i + 2)
+        var c4 = _ptr._apply(i + 3)
+        if
+          // Not continuation bytes.
+          ((c2 and 0xC0) != 0x80) or
+          ((c3 and 0xC0) != 0x80) or
+          ((c4 and 0xC0) != 0x80) or
+          // Overlong encoding.
+          ((c == 0xF0) and (c2 < 0x90)) or
+          // UTF32 would be > 0x10FFFF.
+          ((c == 0xF4) and (c2 >= 0x90))
+        then
+          err
+        else
+          (((c.u32() << 18) +
+            (c2.u32() << 12) +
+            (c3.u32() << 6) +
+            c4.u32()) - 0x3C82080, U8(4))
+        end
+      end
+    else
+      // UTF32 would be > 0x10FFFF.
+      err
+    end
+
+  fun box apply(offset: I64): U8 ? =>
+    """
+    Returns the byte at the given offset. Raise an error if the offset is out
+    of bounds.
+    """
+    let i = offset_to_index(offset)
+    if i < _size then _ptr._apply(i) else error end
+
+  fun ref update(offset: I64, value: U8): U8 ? =>
+    """
+    Changes a byte in the string, returning the previous byte at that offset.
+    Raise an error if the offset is out of bounds.
+    """
+    let i = offset_to_index(offset)
+
+    if i < _size then
       if value == 0 then
-        _size = j
+        _size = i
       end
 
-      _ptr._update(j, value)
+      _ptr._update(i, value)
     else
       error
     end
 
   fun box clone(): String iso^ =>
+    """
+    Returns a copy of the string.
+    """
     let len = _size
     let str = recover String.prealloc(len) end
     var i: U64 = 0
@@ -200,7 +305,7 @@ class String val is Ordered[String box], Stringable
 
   fun box count(s: String, offset: I64 = 0): U64 =>
     """
-    Counts the occurrences of s in the string.
+    Counts the non-overlapping occurrences of s in the string.
     """
     let j: I64 = (_size - s.size()).i64()
     var i: U64 = 0
@@ -251,6 +356,9 @@ class String val is Ordered[String box], Stringable
     this
 
   fun box lower(): String iso^ =>
+    """
+    Returns a lower case version of the string.
+    """
     let len = _size
     let str = recover String.prealloc(len) end
     var i: U64 = 0
@@ -269,6 +377,9 @@ class String val is Ordered[String box], Stringable
     consume str
 
   fun box upper(): String iso^ =>
+    """
+    Returns an upper case version of the string.
+    """
     let len = _size
     let str = recover String.prealloc(len) end
     var i: U64 = 0
@@ -287,6 +398,9 @@ class String val is Ordered[String box], Stringable
     consume str
 
   fun box reverse(): String iso^ =>
+    """
+    Returns a reversed version of the string.
+    """
     let len = _size
     let str = recover String.prealloc(len) end
     var i: U64 = 0
@@ -369,7 +483,7 @@ class String val is Ordered[String box], Stringable
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
 
-    if(start < _size) and (start <= finish) and (finish < _size) then
+    if (start < _size) and (start <= finish) and (finish < _size) then
       let len = _size - ((finish - start) + 1)
       var j = finish + 1
 
@@ -483,22 +597,57 @@ class String val is Ordered[String box], Stringable
     _size <= that._size
 
   fun ref append(that: String box): String ref^ =>
-    if((_size + that._size) >= _alloc) then
-      _alloc = _size + that._size + 1
-      _ptr = _ptr._realloc(_alloc)
-    end
+    reserve(_size + that._size)
     _ptr._copy(_size, that._ptr, that._size + 1)
     _size = _size + that._size
     this
 
   fun ref append_byte(value: U8): String ref^ =>
-    if((_size + 1) >= _alloc) then
-      _alloc = _size + 2
-      _ptr = _ptr._realloc(_alloc)
-    end
+    reserve(_size + 1)
     _ptr._update(_size, value)
     _ptr._update(_size + 1, 0)
     _size = _size + 1
+    this
+
+  fun ref append_utf32(value: U32): String ref^ =>
+    reserve(_size + 4)
+
+    if value < 0x80 then
+      _ptr._update(_size, value.u8())
+      _size = _size + 1
+    elseif value < 0x800 then
+      _ptr._update(_size, ((value >> 6) or 0xC0).u8())
+      _ptr._update(_size + 1, ((value and 0x3F) or 0x80).u8())
+      _size = _size + 2
+    elseif value < 0xD800 then
+      _ptr._update(_size, ((value >> 12) or 0xE0).u8())
+      _ptr._update(_size + 1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(_size + 2, ((value and 0x3F) or 0x80).u8())
+      _size = _size + 3
+    elseif value < 0xE000 then
+      // UTF-16 surrogate pairs are not allowed.
+      _ptr._update(_size, 0xEF)
+      _ptr._update(_size + 1, 0xBF)
+      _ptr._update(_size + 2, 0xBD)
+      _size = _size + 3
+    elseif value < 0x10000 then
+      _ptr._update(_size, ((value >> 12) or 0xE0).u8())
+      _ptr._update(_size + 1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(_size + 2, ((value and 0x3F) or 0x80).u8())
+      _size = _size + 3
+    elseif value < 0x110000 then
+      _ptr._update(_size, ((value >> 18) or 0xF0).u8())
+      _ptr._update(_size + 1, (((value >> 12) and 0x3F) or 0x80).u8())
+      _ptr._update(_size + 2, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(_size + 3, ((value and 0x3F) or 0x80).u8())
+      _size = _size + 4
+    else
+      // Code points beyond 0x10FFFF are not allowed.
+      _ptr._update(_size, 0xEF)
+      _ptr._update(_size + 1, 0xBF)
+      _ptr._update(_size + 2, 0xBD)
+      _size = _size + 3
+    end
     this
 
   fun box offset_to_index(i: I64): U64 =>
@@ -549,14 +698,12 @@ class String val is Ordered[String box], Stringable
 
   fun ref from_i64_in_place(x: I64, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
+      reserve(0)
       _size = 0
-      _alloc = 1
-      _ptr = _ptr._realloc(1)
       _ptr._update(0, 0)
     else
+      reserve(31)
       _size = 0
-      _alloc = 32
-      _ptr = _ptr._realloc(32)
 
       let table = _int_table()
       var value = x
@@ -584,14 +731,12 @@ class String val is Ordered[String box], Stringable
 
   fun ref from_u64_in_place(x: U64, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
+      reserve(0)
       _size = 0
-      _alloc = 1
-      _ptr = _ptr._realloc(1)
       _ptr._update(0, 0)
     else
+      reserve(31)
       _size = 0
-      _alloc = 32
-      _ptr = _ptr._realloc(32)
 
       let table = _int_table()
       var value = x
@@ -614,14 +759,12 @@ class String val is Ordered[String box], Stringable
 
   fun ref from_i128_in_place(x: I128, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
+      reserve(0)
       _size = 0
-      _alloc = 1
-      _ptr = _ptr._realloc(1)
       _ptr._update(0, 0)
     else
+      reserve(63)
       _size = 0
-      _alloc = 64
-      _ptr = _ptr._realloc(64)
 
       let table = _int_table()
       var value = x
@@ -649,14 +792,12 @@ class String val is Ordered[String box], Stringable
 
   fun ref from_u128_in_place(x: U128, base: U8): String ref^ =>
     if (base < 2) or (base > 36) then
+      reserve(0)
       _size = 0
-      _alloc = 1
-      _ptr = _ptr._realloc(1)
       _ptr._update(0, 0)
     else
+      reserve(63)
       _size = 0
-      _alloc = 64
-      _ptr = _ptr._realloc(64)
 
       let table = _int_table()
       var value = x
@@ -678,8 +819,7 @@ class String val is Ordered[String box], Stringable
     this
 
   fun ref from_f64_in_place(x: F64): String ref^ =>
-    _alloc = 32
-    _ptr = _ptr._realloc(32)
+    reserve(31)
     if Platform.windows() then
       _size = @_snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
     else

@@ -74,6 +74,8 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun box ctz(): A
   fun box width(): A
 
+  fun box character(): String iso^ => u32().character()
+
 type Number is (Signed | Unsigned | Float)
 
 type Signed is (I8 | I16 | I32 | I64 | I128)

@@ -96,6 +96,7 @@ primitive U32 is Integer[U32]
     @llvm.umul.with.overflow.i32[(U32, Bool)](this, y)
 
   fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
+  fun box character(): String iso^ => recover String.append_utf32(this) end
 
 primitive U64 is Integer[U64]
   new create(from: U128) => compiler_intrinsic
