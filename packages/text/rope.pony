@@ -3,7 +3,7 @@
 type _Node is ((Rope box, Rope box) | String)
 
 class Rope val is Stringable
-  let _rope: _Node
+  let _node: _Node
   let _depth: U64
   let _size: U64
   let _linebreaks: U64
@@ -13,10 +13,10 @@ class Rope val is Stringable
     """
     Creates a new Rope from a String.
     """
-    blocksize = blocksize'
+    _blocksize = blocksize'
     let len = from.size()
 
-    if len < blocksize then
+    if len < blocksize' then
       _depth = 1
       _size = len
       _linebreaks = from.count("\n")
@@ -29,7 +29,7 @@ class Rope val is Stringable
       _depth = left._depth.max(right._depth + 1)
       _size = left._size + right._size
       _linebreaks = left._linebreaks + right._linebreaks
-      _node = (left, right)
+      _node = (consume left, consume right)
     end
 
   new _internal(depth': U64, size': U64, linebreaks': U64, blocksize': U64,
@@ -45,7 +45,7 @@ class Rope val is Stringable
     if nth == 0 then return 0 end
 
     match (_node, nth)
-    | ((var left: Rope, var right: Rope), var n: U64) =>
+    | ((var left: Rope box, var right: Rope box), var n: U64) =>
       if n <= left._linebreaks then
         left._linebreak(n)
       else

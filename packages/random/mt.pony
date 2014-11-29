@@ -8,15 +8,13 @@ class MT is Random
 
     var x = seed
 
-    try
-      _state.append(x)
-      var i: U64 = 1
+    _state.append(x)
+    var i: U64 = 1
 
-      while i < _n() do
-        x = ((x xor (x >> 62)) * 6364136223846793005) + i
-        _state.append(x)
-        i = i + 1
-      end
+    while i < _n() do
+      x = ((x xor (x >> 62)) * 6364136223846793005) + i
+      _state.append(x)
+      i = i + 1
     end
 
   // A random integer in [0, 2^64 - 1]
