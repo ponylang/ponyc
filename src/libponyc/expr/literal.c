@@ -27,8 +27,6 @@ bool expr_literal(ast_t* ast, const char* name)
 
 bool expr_this(typecheck_t* t, ast_t* ast)
 {
-  // TODO: If in a constructor, lower it to tag if not all fields are defined.
-
   // If this is the return value of a function, it is ephemeral.
   ast_t* parent = ast_parent(ast);
   token_id ephemeral = TK_NONE;

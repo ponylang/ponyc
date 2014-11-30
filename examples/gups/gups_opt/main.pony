@@ -48,9 +48,9 @@ actor Main
       for a in actors.values() do
         a(iterate)
       end
-  else
-    usage()
-  end
+    else
+      usage()
+    end
 
   be done() =>
     if (_actor_count = _actor_count - 1) == 1 then

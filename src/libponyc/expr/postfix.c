@@ -347,16 +347,358 @@ bool expr_dot(typecheck_t* t, ast_t* ast)
   return expr_memberaccess(t, ast);
 }
 
+static bool expr_apply(typecheck_t* t, ast_t* ast)
+{
+  // Sugar .apply()
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  ast_t* dot = ast_from(ast, TK_DOT);
+  ast_add(dot, ast_from_string(ast, "apply"));
+  ast_swap(lhs, dot);
+  ast_add(dot, lhs);
+
+  if(!expr_dot(t, dot))
+    return false;
+
+  return expr_call(t, ast);
+}
+
+static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
+{
+  // If we're in a field initialiser, we're incomplete by definition.
+  if(t->frame->method == NULL)
+    return true;
+
+  // If we're not in a constructor, we're complete by definition.
+  if(ast_id(t->frame->method) != TK_NEW)
+    return false;
+
+  // Check if all fields have been marked as defined.
+  ast_t* members = ast_childidx(t->frame->type, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FLET:
+      case TK_FVAR:
+      {
+        sym_status_t status;
+        ast_t* id = ast_child(member);
+        ast_get(ast, ast_name(id), &status);
+
+        if(status != SYM_DEFINED)
+          return true;
+
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return false;
+}
+
+static bool extend_positional_args(ast_t* params, ast_t* positional)
+{
+  // Fill out the positional args to be as long as the param list.
+  size_t param_len = ast_childcount(params);
+  size_t arg_len = ast_childcount(positional);
+
+  if(arg_len > param_len)
+  {
+    ast_error(positional, "too many arguments");
+    return false;
+  }
+
+  while(arg_len < param_len)
+  {
+    ast_append(positional, ast_from(positional, TK_NONE));
+    arg_len++;
+  }
+
+  return true;
+}
+
+static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
+{
+  ast_t* namedarg = ast_child(namedargs);
+
+  while(namedarg != NULL)
+  {
+    AST_GET_CHILDREN(namedarg, arg_id, arg);
+
+    ast_t* param = ast_child(params);
+    size_t param_index = 0;
+
+    while(param != NULL)
+    {
+      AST_GET_CHILDREN(param, param_id);
+
+      if(ast_name(arg_id) == ast_name(param_id))
+        break;
+
+      param = ast_sibling(param);
+      param_index++;
+    }
+
+    if(param == NULL)
+    {
+      ast_error(arg_id, "not a parameter name");
+      return false;
+    }
+
+    ast_t* arg_replace = ast_childidx(positional, param_index);
+
+    if(ast_id(arg_replace) != TK_NONE)
+    {
+      ast_error(arg_id, "named argument is already supplied");
+      ast_error(arg_replace, "supplied argument is here");
+      return false;
+    }
+
+    ast_replace(&arg_replace, arg);
+    namedarg = ast_sibling(namedarg);
+  }
+
+  return true;
+}
+
+static bool apply_default_arg(ast_t* param, ast_t* arg)
+{
+  // Pick up a default argument if needed.
+  if(ast_id(arg) != TK_NONE)
+    return true;
+
+  ast_t* def_arg = ast_childidx(param, 2);
+
+  if(ast_id(def_arg) == TK_NONE)
+  {
+    ast_error(arg, "not enough arguments");
+    return false;
+  }
+
+  ast_setid(arg, TK_SEQ);
+  ast_add(arg, def_arg);
+
+  // Type check the arg.
+  if(ast_type(def_arg) == NULL)
+  {
+    if(ast_visit(&arg, NULL, pass_expr, NULL) != AST_OK)
+      return false;
+  } else {
+    if(!expr_seq(arg))
+      return false;
+  }
+
+  return true;
+}
+
+static bool check_arg_types(ast_t* params, ast_t* positional, bool incomplete)
+{
+  // Check positional args vs params.
+  ast_t* param = ast_child(params);
+  ast_t* arg = ast_child(positional);
+
+  while(arg != NULL)
+  {
+    if(!apply_default_arg(param, arg))
+      return false;
+
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!coerce_literals(arg, p_type))
+      return false;
+
+    ast_t* arg_type = ast_type(arg);
+
+    if(arg_type == NULL)
+    {
+      ast_error(arg, "can't use return, break or continue in an argument");
+      return false;
+    } else if(ast_id(arg_type) == TK_FUNTYPE) {
+      ast_error(arg, "can't use a method as an argument");
+      return false;
+    }
+
+    ast_t* a_type = alias(arg_type);
+
+    if(incomplete)
+    {
+      ast_t* expr = ast_child(arg);
+
+      // If 'this' is incomplete and the arg is 'this', change the type to tag.
+      if((ast_id(expr) == TK_THIS) && (ast_sibling(expr) == NULL))
+      {
+        ast_t* tag_type = set_cap_and_ephemeral(a_type, TK_TAG, TK_NONE);
+        ast_free_unattached(a_type);
+        a_type = tag_type;
+      }
+    }
+
+    if(!is_subtype(a_type, p_type))
+    {
+      ast_error(arg, "argument not a subtype of parameter");
+      ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
+      ast_error(a_type, "argument type: %s", ast_print_type(a_type));
+
+      ast_free_unattached(a_type);
+      return false;
+    }
+
+    ast_free_unattached(a_type);
+    arg = ast_sibling(arg);
+    param = ast_sibling(param);
+  }
+
+  return true;
+}
+
+static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
+{
+  // We can recover the receiver (ie not alias the receiver type) if all
+  // arguments are sendable and the result is either sendable or unused.
+  if(is_result_needed(ast) && !sendable(result))
+    return false;
+
+  ast_t* arg = ast_child(positional);
+
+  while(arg != NULL)
+  {
+    ast_t* arg_type = ast_type(arg);
+    ast_t* a_type = alias(arg_type);
+
+    bool ok = sendable(a_type);
+    ast_free_unattached(a_type);
+
+    if(!ok)
+      return false;
+
+    arg = ast_sibling(arg);
+  }
+
+  return true;
+}
+
+static bool check_receiver_cap(ast_t* ast, bool incomplete)
+{
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  ast_t* type = ast_type(lhs);
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+  // Check receiver cap.
+  ast_t* receiver = ast_child(lhs);
+
+  // Dig through function qualification.
+  if(ast_id(receiver) == TK_FUNREF)
+    receiver = ast_child(receiver);
+
+  // Receiver type, alias of receiver type, and target type.
+  ast_t* r_type = ast_type(receiver);
+  ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
+  ast_t* a_type;
+
+  // If we can recover the receiver, we don't alias it here.
+  bool can_recover = auto_recover_call(ast, positional, result);
+
+  if(can_recover)
+    a_type = r_type;
+  else
+    a_type = alias(r_type);
+
+  if(incomplete && (ast_id(receiver) == TK_THIS))
+  {
+    // If 'this' is incomplete and the arg is 'this', change the type to tag.
+    ast_t* tag_type = set_cap_and_ephemeral(a_type, TK_TAG, TK_NONE);
+
+    if(a_type != r_type)
+      ast_free_unattached(a_type);
+
+    a_type = tag_type;
+  } else {
+    incomplete = false;
+  }
+
+  bool ok = is_subtype(a_type, t_type);
+
+  if(!ok)
+  {
+    ast_error(ast,
+      "receiver capability is not a subtype of method capability");
+    ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
+    ast_error(cap, "target type: %s", ast_print_type(t_type));
+
+    if(!can_recover && is_subtype(r_type, t_type))
+    {
+      ast_error(ast,
+        "this would be possible if the arguments and return value "
+        "were all sendable");
+    }
+
+    if(incomplete && is_subtype(r_type, t_type))
+    {
+      ast_error(ast,
+        "this would be possible if all the field of 'this' were assigned to "
+        "at this point");
+    }
+  }
+
+  if(a_type != r_type)
+    ast_free_unattached(a_type);
+
+  ast_free_unattached(r_type);
+  ast_free_unattached(t_type);
+  return ok;
+}
+
+static bool expr_methodcall(typecheck_t* t, ast_t* ast)
+{
+  // TODO: use args to decide unbound type parameters
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  ast_t* type = ast_type(lhs);
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(ast, "can't call a function with unqualified type parameters");
+    return false;
+  }
+
+  if(!extend_positional_args(params, positional))
+    return false;
+
+  if(!apply_named_args(params, positional, namedargs))
+    return false;
+
+  bool incomplete = is_this_incomplete(t, ast);
+
+  if(!check_arg_types(params, positional, incomplete))
+    return false;
+
+  if((ast_id(lhs) == TK_FUNREF) && !check_receiver_cap(ast, incomplete))
+    return false;
+
+  ast_settype(ast, result);
+  ast_inheriterror(ast);
+  return true;
+}
+
 bool expr_call(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
-  token_id token = ast_id(lhs);
 
   if(!coerce_literal_operator(ast))
     return false;
 
-  if(ast_type(ast) != NULL) // Type already set by literal handler
+  // Type already set by literal handler
+  if(ast_type(ast) != NULL)
     return true;
 
   if(type != NULL && is_type_literal(type))
@@ -365,7 +707,7 @@ bool expr_call(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  switch(token)
+  switch(ast_id(lhs))
   {
     case TK_STRING:
     case TK_ARRAY:
@@ -378,228 +720,13 @@ bool expr_call(typecheck_t* t, ast_t* ast)
     case TK_LETREF:
     case TK_PARAMREF:
     case TK_CALL:
-    {
-      // apply sugar
-      ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "apply"));
-      ast_swap(lhs, dot);
-      ast_add(dot, lhs);
-
-      if(!expr_dot(t, dot))
-        return false;
-
-      return expr_call(t, ast);
-    }
+      return expr_apply(t, ast);
 
     case TK_NEWREF:
     case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
-    {
-      // TODO: use args to decide unbound type parameters
-      assert(ast_id(type) == TK_FUNTYPE);
-
-      bool sending = (token == TK_NEWBEREF) || (token == TK_BEREF);
-      bool send = true;
-
-      AST_GET_CHILDREN(type, cap, typeparams, params, result);
-
-      if(ast_id(typeparams) != TK_NONE)
-      {
-        ast_error(ast,
-          "can't call a function with unqualified type parameters");
-        return false;
-      }
-
-      // Fill out the positional args to be as long as the param list.
-      size_t param_len = ast_childcount(params);
-      size_t arg_len = ast_childcount(positional);
-
-      if(arg_len > param_len)
-      {
-        ast_error(ast, "too many arguments");
-        return false;
-      }
-
-      while(arg_len < param_len)
-      {
-        ast_append(positional, ast_from(positional, TK_NONE));
-        arg_len++;
-      }
-
-      // Named arguments.
-      ast_t* namedarg = ast_child(namedargs);
-
-      while(namedarg != NULL)
-      {
-        AST_GET_CHILDREN(namedarg, arg_id, arg);
-
-        ast_t* param = ast_child(params);
-        size_t param_index = 0;
-
-        while(param != NULL)
-        {
-          AST_GET_CHILDREN(param, param_id);
-
-          if(ast_name(arg_id) == ast_name(param_id))
-            break;
-
-          param = ast_sibling(param);
-          param_index++;
-        }
-
-        if(param == NULL)
-        {
-          ast_error(arg_id, "not a parameter name");
-          return false;
-        }
-
-        ast_t* arg_replace = ast_childidx(positional, param_index);
-
-        if(ast_id(arg_replace) != TK_NONE)
-        {
-          ast_error(arg_id, "named argument is already supplied");
-          ast_error(arg_replace, "supplied argument is here");
-          return false;
-        }
-
-        ast_replace(&arg_replace, arg);
-        namedarg = ast_sibling(namedarg);
-      }
-
-      // Check positional args vs params.
-      ast_t* param = ast_child(params);
-      ast_t* arg = ast_child(positional);
-
-      while(arg != NULL)
-      {
-        // Pick up a default argument if needed.
-        if(ast_id(arg) == TK_NONE)
-        {
-          ast_t* def_arg = ast_childidx(param, 2);
-
-          if(ast_id(def_arg) == TK_NONE)
-          {
-            ast_error(ast, "not enough arguments");
-            return false;
-          }
-
-          ast_setid(arg, TK_SEQ);
-          ast_add(arg, def_arg);
-
-          // Type check the arg.
-          if(ast_type(def_arg) == NULL)
-          {
-            if(ast_visit(&arg, NULL, pass_expr, NULL) != AST_OK)
-              return false;
-          } else {
-            if(!expr_seq(arg))
-              return false;
-          }
-        }
-
-        ast_t* p_type = ast_childidx(param, 1);
-
-        if(!coerce_literals(arg, p_type))
-          return false;
-
-        ast_t* arg_type = ast_type(arg);
-
-        if(arg_type == NULL)
-        {
-          ast_error(arg, "can't use return, break or continue in an argument");
-          return false;
-        } else if(ast_id(arg_type) == TK_FUNTYPE) {
-          ast_error(arg, "can't use a method as an argument");
-          return false;
-        }
-
-        ast_t* a_type = alias(arg_type);
-        send &= sendable(a_type);
-
-        if(!is_subtype(a_type, p_type))
-        {
-          if(sending)
-            ast_error(arg, "sent argument not a subtype of parameter");
-          else
-            ast_error(arg, "argument not a subtype of parameter");
-
-          ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
-          ast_error(a_type, "argument type: %s", ast_print_type(a_type));
-
-          ast_free_unattached(a_type);
-          return false;
-        }
-
-        ast_free_unattached(a_type);
-        arg = ast_sibling(arg);
-        param = ast_sibling(param);
-      }
-
-      switch(token)
-      {
-        case TK_FUNREF:
-        {
-          // We can ignore the result type if the result is not used.
-          if(is_result_needed(ast))
-            send &= sendable(result);
-
-          // Check receiver cap.
-          ast_t* receiver = ast_child(lhs);
-
-          // Dig through function qualification.
-          if(ast_id(receiver) == TK_FUNREF)
-            receiver = ast_child(receiver);
-
-          // Receiver type, alias of receiver type, and target type.
-          ast_t* r_type = ast_type(receiver);
-          ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
-          ast_t* a_type;
-
-          if(send)
-            a_type = r_type;
-          else
-            a_type = alias(r_type);
-
-          bool ok = is_subtype(a_type, t_type);
-
-          if(!ok)
-          {
-            ast_error(ast,
-              "receiver capability is not a subtype of method capability");
-            ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
-            ast_error(cap, "target type: %s", ast_print_type(t_type));
-
-            if(!send && is_subtype(r_type, t_type))
-            {
-              ast_error(ast,
-                "this would be possible if the arguments and return value "
-                "were all sendable");
-            }
-
-            ast_free_unattached(r_type);
-            return false;
-          }
-
-          if(a_type != r_type)
-            ast_free_unattached(a_type);
-
-          ast_free_unattached(r_type);
-          ast_free_unattached(t_type);
-
-          if(!ok)
-            return false;
-
-          break;
-        }
-
-        default: {}
-      }
-
-      ast_settype(ast, result);
-      ast_inheriterror(ast);
-      return true;
-    }
+      return expr_methodcall(t, ast);
 
     default: {}
   }
