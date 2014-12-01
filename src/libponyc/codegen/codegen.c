@@ -111,10 +111,10 @@ static void init_runtime(compile_t* c)
   c->str_div = stringtab("div");
   c->str_mod = stringtab("mod");
   c->str_neg = stringtab("neg");
-  c->str_and = stringtab("and_");
-  c->str_or = stringtab("or_");
-  c->str_xor = stringtab("xor_");
-  c->str_not = stringtab("not_");
+  c->str_and = stringtab("op_and");
+  c->str_or = stringtab("op_or");
+  c->str_xor = stringtab("op_xor");
+  c->str_not = stringtab("op_not");
   c->str_shl = stringtab("shl");
   c->str_shr = stringtab("shr");
   c->str_eq = stringtab("eq");

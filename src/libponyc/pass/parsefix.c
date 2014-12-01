@@ -699,6 +699,60 @@ static ast_result_t parse_fix_test_scope(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_id(ast_t* ast)
+{
+  const char* p = ast_name(ast);
+  ast_result_t r = AST_OK;
+
+  bool has_underscore = false;
+  bool has_prime = false;
+  bool err_double_underscore = false;
+  bool err_prime = false;
+
+  while(*p != '\0')
+  {
+    switch(*p)
+    {
+      case '_':
+        if(has_underscore && !err_double_underscore)
+        {
+          ast_error(ast, "double underscore is not allowed in identifiers");
+          err_double_underscore = true;
+          r = AST_ERROR;
+        }
+
+        has_underscore = true;
+        break;
+
+      case '\'':
+        has_prime = true;
+        break;
+
+      default:
+        has_underscore = false;
+
+        if(has_prime && !err_prime)
+        {
+          ast_error(ast, "prime (') can only appear at the end of identifiers");
+          err_prime = true;
+          r = AST_ERROR;
+        }
+        break;
+    }
+
+    p++;
+  }
+
+  if(has_underscore)
+  {
+    ast_error(ast, "a trailing underscore is not allowed in identifiers");
+    r = AST_ERROR;
+  }
+
+  return r;
+}
+
+
 ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -753,6 +807,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_CONSUME:    return parse_fix_consume(ast);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
+    case TK_ID:         return parse_fix_id(ast);
     default: break;
   }
 

@@ -403,9 +403,9 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_MOD:        return sugar_binop(astp, "mod");
     case TK_LSHIFT:     return sugar_binop(astp, "shl");
     case TK_RSHIFT:     return sugar_binop(astp, "shr");
-    case TK_AND:        return sugar_binop(astp, "and_");
-    case TK_OR:         return sugar_binop(astp, "or_");
-    case TK_XOR:        return sugar_binop(astp, "xor_");
+    case TK_AND:        return sugar_binop(astp, "op_and");
+    case TK_OR:         return sugar_binop(astp, "op_or");
+    case TK_XOR:        return sugar_binop(astp, "op_xor");
     case TK_EQ:         return sugar_binop(astp, "eq");
     case TK_NE:         return sugar_binop(astp, "ne");
     case TK_LT:         return sugar_binop(astp, "lt");
@@ -413,7 +413,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_GE:         return sugar_binop(astp, "ge");
     case TK_GT:         return sugar_binop(astp, "gt");
     case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
-    case TK_NOT:        return sugar_unop(astp, "not_");
+    case TK_NOT:        return sugar_unop(astp, "op_not");
     default:            return AST_OK;
   }
 }

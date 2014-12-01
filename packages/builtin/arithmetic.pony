@@ -8,10 +8,10 @@ trait Arithmetic[A: Arithmetic[A] box]
   fun box neg(): A
 
 trait Logical[A: Logical[A] box]
-  fun box and_(y: A): A
-  fun box or_(y: A): A
-  fun box xor_(y: A): A
-  fun box not_(): A
+  fun box op_and(y: A): A
+  fun box op_or(y: A): A
+  fun box op_xor(y: A): A
+  fun box op_not(): A
 
 trait Bits[A: Bits[A] box] is Logical[A]
   fun box shl(y: A): A
@@ -60,10 +60,10 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
     x
 
 trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
-  fun box and_(y: A): A => this and y
-  fun box or_(y: A): A => this or y
-  fun box xor_(y: A): A => this xor y
-  fun box not_(): A => not this
+  fun box op_and(y: A): A => this and y
+  fun box op_or(y: A): A => this or y
+  fun box op_xor(y: A): A => this xor y
+  fun box op_not(): A => not this
   fun box shl(y: A): A => this << y
   fun box shr(y: A): A => this >> y
 

@@ -125,16 +125,16 @@ static bool eval_call(ast_t* ast, bool release, bool* error)
 
   const char* call_name = ast_name(call_id);
 
-  if(strcmp(call_name, "and_") == 0)
+  if(strcmp(call_name, "op_and") == 0)
     return left_val & eval_call_arg(1, positional, release, error);
 
-  if(strcmp(call_name, "or_") == 0)
+  if(strcmp(call_name, "op_or") == 0)
     return left_val | eval_call_arg(1, positional, release, error);
 
-  if(strcmp(call_name, "xor_") == 0)
+  if(strcmp(call_name, "op_xor") == 0)
     return left_val ^ eval_call_arg(1, positional, release, error);
 
-  if(strcmp(call_name, "not_") == 0)
+  if(strcmp(call_name, "op_not") == 0)
     return !eval_call_arg(0, positional, release, error);
 
   ast_error(ast, "Invalid use guard expression");
