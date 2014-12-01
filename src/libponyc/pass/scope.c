@@ -5,6 +5,7 @@
 #include "../ast/symtab.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 /**
@@ -19,6 +20,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
   sym_status_t status = SYM_NONE;
   bool is_type = false;
   bool is_id = false;
+  bool prime_ok = false;
 
   switch(ast_id(value))
   {
@@ -30,6 +32,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
         status = SYM_UNDEFINED;
 
       is_id = true;
+      prime_ok = true;
       break;
     }
 
@@ -48,9 +51,14 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
 
     case TK_FVAR:
     case TK_FLET:
+      status = SYM_DEFINED;
+      is_id = true;
+      break;
+
     case TK_PARAM:
       status = SYM_DEFINED;
       is_id = true;
+      prime_ok = true;
       break;
 
     case TK_PACKAGE:
@@ -75,6 +83,17 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
   {
     ast_error(name, "identifier '%s' can't start A-Z or _(A-Z)", s);
     return false;
+  }
+
+  if(!prime_ok)
+  {
+    size_t last = strlen(s) - 1;
+
+    if(s[last] == '\'')
+    {
+      ast_error(name, "only parameters and locals can contain prime (')");
+      return false;
+    }
   }
 
   if(!ast_set(scope, s, value, status) && !dups)
