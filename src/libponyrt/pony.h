@@ -1,12 +1,19 @@
 #ifndef pony_pony_h
 #define pony_pony_h
 
-#include <platform.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-PONY_EXTERN_C_BEGIN
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#if defined(_WIN64) && defined(_MSC_VER)
+#  define ATTRIBUTE_MALLOC(f) __declspec(restrict) f
+#else
+#  define ATTRIBUTE_MALLOC(f) f __attribute__((malloc))
+#endif
 
 /** Opaque definition of an actor.
  *
@@ -119,7 +126,7 @@ pony_type_t* pony_lookup_type(uint32_t id);
  * and arguments an actor is able to receive, and the dispatch function that
  * handles received messages.
  */
-__pony_spec_malloc__(pony_actor_t* pony_create(pony_type_t* type));
+ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_type_t* type));
 
 /// Allocates a message and sets up the header.
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
@@ -172,14 +179,14 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m);
  * This is garbage collected memory. This can only be done while an actor is
  * handling a message, so that there is a current actor.
  */
-__pony_spec_malloc__(void* pony_alloc(size_t size));
+ATTRIBUTE_MALLOC(void* pony_alloc(size_t size));
 
 /** Reallocate memory on the current actor's heap.
  *
  * Take heap memory and expand it. This is a no-op if there's already enough
  * space, otherwise it allocates and copies.
  */
-__pony_spec_malloc__(void* pony_realloc(void* p, size_t size));
+ATTRIBUTE_MALLOC(void* pony_realloc(void* p, size_t size));
 
 /// Trigger GC next time the current actor is scheduled
 void pony_triggergc();
@@ -325,6 +332,8 @@ int pony_stop();
  */
 void pony_exitcode(int code);
 
-PONY_EXTERN_C_END
+#ifdef __cplusplus
+}
+#endif
 
 #endif
