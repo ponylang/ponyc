@@ -237,7 +237,7 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     targetname "testc"
     testsuite()
     includedirs {
-      "utils/gtest",
+      "lib/gtest",
       "src/common",
       "src/libponyc"
     }

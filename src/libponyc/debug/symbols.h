@@ -1,9 +1,17 @@
 #ifndef DEBUG_SYMBOLS_H
 #define DEBUG_SYMBOLS_H
 
-#include "../../libponyrt/ds/hash.h"
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable:4003)
+#  pragma warning(disable:4267)
+#endif
 
 #include <llvm/IR/Metadata.h>
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 typedef struct symbol_t symbol_t;
 typedef struct symbols_t symbols_t;
