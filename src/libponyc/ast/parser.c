@@ -538,7 +538,6 @@ DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_AT);
   OPT TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
@@ -549,8 +548,8 @@ DEF(method);
   OPT TOKEN(NULL, TK_DBLARROW);
   OPT RULE("function body", rawseq);
   // Order should be:
-  // cap id type_params params return_type error body c_api arrow
-  REORDER(0, 2, 3, 4, 5, 6, 8, 1, 7);
+  // cap id type_params params return_type error body arrow
+  REORDER(0, 1, 2, 3, 4, 5, 7, 6);
   DONE();
 
 // (VAR | VAL) ID [COLON type] [ASSIGN infix]
@@ -571,17 +570,21 @@ DEF(members);
   SEQ("method", method);
   DONE();
 
-// (INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) ID [typeparams] [CAP]
-// [IS types] members
+// (INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams] [CAP]
+// [IS types] [STRING] members
 DEF(class_def);
   TOKEN("entity", TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   SCOPE();
+  OPT TOKEN(NULL, TK_AT);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   IF(TK_IS, RULE("provided types", types));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
+  // Order should be:
+  // id type_params cap provides members c_api docstring
+  REORDER(1, 2, 3, 4, 6, 0, 5);
   DONE();
 
 // TYPE ID IS type

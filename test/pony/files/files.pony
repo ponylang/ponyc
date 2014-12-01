@@ -1,6 +1,6 @@
 use "files"
 
-actor Main
+actor @Main
   new create(env: Env) =>
     try
       var file = File.open(env.args(1))

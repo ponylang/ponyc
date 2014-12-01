@@ -814,7 +814,7 @@ static bool check_return_type(typecheck_t* t, ast_t* ast)
 bool expr_fun(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast,
-    cap, id, typeparams, params, type, can_error, body, c_api);
+    cap, id, typeparams, params, type, can_error, body);
 
   if(!coerce_literals(body, type))
     return false;

@@ -402,12 +402,9 @@ static void codegen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
 static bool codegen_program(compile_t* c, ast_t* program)
 {
-  // The first package is the main package. If it has a Main actor, this
-  // is a program, otherwise this is a library.
-  ast_t* package = ast_child(program);
-  genprim_builtins(c);
-
+  // The first package is the main package. It has to have a Main actor.
   const char* main_actor = stringtab("Main");
+  ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
 
   if(main_def == NULL)
@@ -418,7 +415,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
 
   // Generate the Main actor and the Env class.
   gentype_t main_g;
-  ast_t* main_ast = genprim(c, main_def, NULL, main_actor, &main_g);
+  ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);
 
   if(main_ast == NULL)
     return false;
@@ -426,7 +423,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   const char* env_class = stringtab("Env");
 
   gentype_t env_g;
-  ast_t* env_ast = genprim(c, main_def, NULL, env_class, &env_g);
+  ast_t* env_ast = genprim(c, main_def, env_class, &env_g);
 
   if(env_ast == NULL)
   {
@@ -441,6 +438,60 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return true;
 }
 
+static bool codegen_library(compile_t* c, ast_t* program)
+{
+  // Look for C-API actors in every package.
+  bool found = false;
+  ast_t* package = ast_child(program);
+
+  while(package != NULL)
+  {
+    ast_t* module = ast_child(package);
+
+    while(module != NULL)
+    {
+      ast_t* entity = ast_child(module);
+
+      while(entity != NULL)
+      {
+        if(ast_id(entity) == TK_ACTOR)
+        {
+          ast_t* c_api = ast_childidx(entity, 5);
+
+          if(ast_id(c_api) == TK_AT)
+          {
+            // We have an actor marked as C-API.
+            ast_t* id = ast_child(entity);
+
+            // Generate the actor.
+            gentype_t g;
+            ast_t* ast = genprim(c, entity, ast_name(id), &g);
+
+            if(ast == NULL)
+              return false;
+
+            found = true;
+          }
+        }
+
+        entity = ast_sibling(entity);
+      }
+
+      module = ast_sibling(module);
+    }
+
+    package = ast_sibling(package);
+  }
+
+  if(!found)
+  {
+    errorf(NULL, "no C-API actors found in package '%s'", c->filename);
+    return false;
+  }
+
+  return true;
+}
+
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->painter = painter_create();
@@ -451,6 +502,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // Keep track of whether or not we're optimising or emitting debug symbols.
   c->release = opt->release;
+  c->library = opt->library;
   c->symbols = opt->symbols;
   c->ieee_math = opt->ieee_math;
   c->no_restrict = opt->no_restrict;
@@ -564,7 +616,8 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
     LLVMRunPassManager(mpm, c->module);
 
     // LTO pass manager.
-    LLVMRunPassManager(lpm, c->module);
+    if(!c->library)
+      LLVMRunPassManager(lpm, c->module);
   }
 
   // Allocate on the stack instead of the heap where possible.
@@ -651,6 +704,12 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   if(pass_limit < PASS_ALL)
     return true;
+
+  if(c->library)
+  {
+    // TODO:
+    return true;
+  }
 
 #if defined(PLATFORM_IS_MACOSX)
   char* arch = strchr(opt->triple, '-');
@@ -890,7 +949,14 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
   init_module(&c, program, opt);
   init_runtime(&c);
   //dwarf_init(&c);
-  bool ok = codegen_program(&c, program);
+  genprim_builtins(&c);
+
+  bool ok;
+
+  if(c.library)
+    ok = codegen_library(&c, program);
+  else
+    ok = codegen_program(&c, program);
 
   if(ok)
   {
@@ -907,7 +973,9 @@ LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
 {
   // Add the function and set the calling convention.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
-  LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
+
+  if(!c->library)
+    LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
 
   if(c->no_restrict)
     return fun;
@@ -1019,6 +1087,9 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count)
 {
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
-  LLVMSetInstructionCallConv(result, GEN_CALLCONV);
+
+  if(!c->library)
+    LLVMSetInstructionCallConv(result, GEN_CALLCONV);
+
   return result;
 }

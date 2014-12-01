@@ -79,6 +79,7 @@ typedef enum pass_id
 typedef struct pass_opt_t
 {
   bool release;
+  bool library;
   bool symbols;
   bool ieee_math;
   bool no_restrict;

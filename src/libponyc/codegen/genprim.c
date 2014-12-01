@@ -6,19 +6,14 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 
-ast_t* genprim(compile_t* c, ast_t* scope, const char* package,
-  const char* name, gentype_t* g)
+ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
 {
   ast_t* ast = ast_from(scope, TK_NOMINAL);
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from(scope, TK_NONE));
   ast_add(ast, ast_from_string(scope, name));
-
-  if(package != NULL)
-    ast_add(ast, ast_from_string(scope, package));
-  else
-    ast_add(ast, ast_from(scope, TK_NONE));
+  ast_add(ast, ast_from(scope, TK_NONE));
 
   if(!names_nominal(NULL, scope, &ast) || !gentype(c, ast, g))
   {

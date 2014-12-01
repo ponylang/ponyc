@@ -45,6 +45,7 @@ typedef struct compile_t
   const char* filename;
   uint32_t next_type_id;
   bool release;
+  bool library;
   bool symbols;
   bool ieee_math;
   bool no_restrict;

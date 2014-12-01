@@ -29,7 +29,7 @@ static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
 
-  if(fastcc)
+  if(fastcc && !c->library)
     LLVMSetInstructionCallConv(invoke, GEN_CALLCONV);
 
   LLVMPositionBuilderAtEnd(c->builder, then_block);

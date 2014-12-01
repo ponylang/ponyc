@@ -41,48 +41,47 @@ typedef struct permission_def_t
 #define ENTITY_MAIN 0
 #define ENTITY_FIELD 2
 #define ENTITY_CAP 4
+#define ENTITY_C_API 6
 
 // Index by DEF_<ENTITY>
 static const permission_def_t _entity_def[DEF_ENTITY_COUNT] =
 { //                           Main
   //                           | field
   //                           | | cap
-  //                           | | |
-  { "class",                  "N X X" },
-  { "actor",                  "X X N" },
-  { "primitive",              "N N N" },
-  { "trait",                  "N N X" },
-  { "interface",              "N N X" }
+  //                           | | | c_api
+  { "class",                  "N X X N" },
+  { "actor",                  "X X N X" },
+  { "primitive",              "N N N N" },
+  { "trait",                  "N N X N" },
+  { "interface",              "N N X N" }
 };
 
 #define METHOD_CAP 0
-#define METHOD_AT 2
-#define METHOD_NAME 4
-#define METHOD_RETURN 6
-#define METHOD_ERROR 8
-#define METHOD_BODY 10
+#define METHOD_NAME 2
+#define METHOD_RETURN 4
+#define METHOD_ERROR 6
+#define METHOD_BODY 8
 
 // Index by DEF_<ENTITY> + DEF_<METHOD>
 static const permission_def_t _method_def[DEF_METHOD_COUNT] =
 { //                           cap
-  //                           | at
-  //                           | | name
-  //                           | | | return
-  //                           | | | | error
-  //                           | | | | | body
-  { "class function",         "Y N X X X Y" },
-  { "actor function",         "Y X X X X Y" },
-  { "primitive function",     "Y N X X X Y" },
-  { "trait function",         "Y N X X X X" },
-  { "interface function",     "Y N X X X X" },
+  //                           | name
+  //                           | | return
+  //                           | | | error
+  //                           | | | | body
+  { "class function",         "Y X X X Y" },
+  { "actor function",         "Y X X X Y" },
+  { "primitive function",     "Y X X X Y" },
+  { "trait function",         "Y X X X X" },
+  { "interface function",     "Y X X X X" },
   { "class behaviour",        NULL },
-  { "actor behaviour",        "N X Y N N Y" },
+  { "actor behaviour",        "N Y N N Y" },
   { "primitive behaviour",    NULL },
-  { "trait behaviour",        "N N Y N N X" },
-  { "interface behaviour",    "N N Y N N X" },
-  { "class constructor",      "N N X N X Y" },
-  { "actor constructor",      "N X X N N Y" },
-  { "primitive constructor",  "N N X N X Y" },
+  { "trait behaviour",        "N Y N N X" },
+  { "interface behaviour",    "N Y N N X" },
+  { "class constructor",      "N X N X Y" },
+  { "actor constructor",      "N X N N Y" },
+  { "primitive constructor",  "N X N X Y" },
   { "trait constructor",      NULL },
   { "interface constructor",  NULL }
 };
@@ -192,7 +191,7 @@ static bool check_method(ast_t* ast, int method_def_index)
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
-    error, body, c_api, arrow);
+    error, body, arrow);
 
   if(allow_all)
     return true;
@@ -205,9 +204,6 @@ static bool check_method(ast_t* ast, int method_def_index)
     ast_error(cap, "receiver capability must not be iso or trn");
     return false;
   }
-
-  if(!check_permission(def, METHOD_AT, c_api, "C callback", c_api))
-    return false;
 
   if(!check_permission(def, METHOD_NAME, id, "name", id))
     return false;
@@ -332,7 +328,7 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
 
   const permission_def_t* def = &_entity_def[entity_def_index];
-  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members);
+  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
 
   // Check if we're called Main
   if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
@@ -341,8 +337,17 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     return AST_ERROR;
   }
 
-  if(!check_permission(def, ENTITY_CAP,  defcap, "default capability", defcap))
+  if(!check_permission(def, ENTITY_CAP, defcap, "default capability", defcap))
     return AST_ERROR;
+
+  if(!check_permission(def, ENTITY_C_API, c_api, "C api", c_api))
+    return AST_ERROR;
+
+  if((ast_id(c_api) == TK_AT) && (ast_id(typeparams) != TK_NONE))
+  {
+    ast_error(c_api, "generic actor cannot specify C api");
+    return AST_ERROR;
+  }
 
   // Check referenced traits
   if(!check_traits(provides))
@@ -637,18 +642,6 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
-static ast_result_t parse_fix_docstring(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, docstring, members);
-
-  // Move the docstring to the end
-  ast_append(ast, docstring);
-  ast_remove(docstring);
-
-  return AST_OK;
-}
-
-
 static ast_result_t parse_fix_nominal(ast_t* ast)
 {
   // If we didn't have a package, the first two children will be ID NONE
@@ -766,11 +759,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that fix up the tree
   switch(id)
   {
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-    case TK_ACTOR:
-    case TK_TRAIT:
-    case TK_INTERFACE:  parse_fix_docstring(ast); break;
     case TK_NOMINAL:    return parse_fix_nominal(ast);
     case TK_ASSIGN:
     case TK_CALL:       return parse_fix_nodeorder(ast);
