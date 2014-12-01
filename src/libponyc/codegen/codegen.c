@@ -604,14 +604,39 @@ static const char* suffix_filename(const char* dir, const char* file,
   return stringtab(filename);
 }
 
-static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
+static bool invoke_system(const char* command, const char* program)
 {
 #if defined(PLATFORM_IS_POSIX_BASED)
+  return system(command) != 0;
+#elif defined(PLATFORM_IS_WINDOWS)
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  DWORD code = 0;
+
+  memset(&si, 0, sizeof(STARTUPINFO));
+
+  if(!CreateProcess(TEXT(program), TEXT((char*)command), NULL, NULL,
+    FALSE, 0, NULL, NULL, &si, &pi))
+  {
+    return false;
+  }
+
+  WaitForSingleObject(pi.hProcess, INFINITE);
+  GetExitCodeProcess(pi.hProcess, &code);
+  CloseHandle(pi.hProcess);
+
+  return code == 0;
+#endif
+}
+
+static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
+{
   size_t len = strlen(c->filename);
   VLA(char, libname, len + 4);
   memcpy(libname, "lib", 3);
   memcpy(libname + 3, c->filename, len + 1);
 
+#if defined(PLATFORM_IS_POSIX_BASED)
   const char* file_lib = suffix_filename(opt->output, libname, ".a");
   printf("Archiving %s\n", file_lib);
 
@@ -620,13 +645,33 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
 
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
 
-  if(system(cmd) != 0)
+  if(!invoke_system(cmd, NULL))
   {
     errorf(NULL, "unable to link");
     return false;
   }
 #elif defined(PLATFORM_IS_WINDOWS)
-  // TODO: Link static library on windows.
+  const char* file_lib = suffix_filename(opt->output, libname, ".lib");
+  printf("Archiving %s\n", file_lib);
+
+  vcvars_t vcvars;
+
+  if(!vcvars_get(&vcvars))
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+
+  len = 128 + strlen(file_lib) + strlen(file_o);
+  VLA(char, cmd, len);
+
+  snprintf(cmd, len, " /NOLOGO /OUT:%s %s", file_lib, file_o);
+
+  if(!invoke_system(cmd, vcvars.ar))
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
 #endif
 
   return true;
@@ -668,7 +713,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lponyrt -lSystem");
 
-  if(system(ld_cmd) != 0)
+  if(!invoke_system(ld_cmd, NULL))
   {
     errorf(NULL, "unable to link");
     return false;
@@ -704,7 +749,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "/usr/lib/x86_64-linux-gnu/crtn.o"
     );
 
-  if(system(ld_cmd) != 0)
+  if(!invoke_system(ld_cmd, NULL))
   {
     errorf(NULL, "unable to link");
     return false;
@@ -739,24 +784,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   strcat(ld_cmd, program_lib_args(program));
   strcat(ld_cmd, " ponyrt.lib kernel32.lib msvcrt.lib");
 
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-  DWORD code = 0;
-
-  memset(&si, 0, sizeof(STARTUPINFO));
-
-  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL,
-    FALSE, 0, NULL, NULL, &si, &pi))
-  {
-    errorf(NULL, "unable to invoke linker");
-    return false;
-  }
-
-  WaitForSingleObject(pi.hProcess, INFINITE);
-  GetExitCodeProcess(pi.hProcess, &code);
-  CloseHandle(pi.hProcess);
-
-  if(code != 0)
+  if(!invoke_system(ld_cmd, vcvars.link))
   {
     errorf(NULL, "unable to link");
     return false;
