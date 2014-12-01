@@ -482,8 +482,47 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
+static bool genfun_allocator(compile_t* c, gentype_t* g)
+{
+  // No allocator for primitive types or pointers.
+  if((g->primitive != NULL) || is_pointer(g->ast))
+    return true;
+
+  const char* funname = genname_fun(g->type_name, "Alloc", NULL);
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, funname, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef result;
+
+  switch(g->underlying)
+  {
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+      // Allocate the object or return the global instance.
+      result = gencall_alloc(c, g);
+      break;
+
+    case TK_ACTOR:
+      // Allocate the actor.
+      result = gencall_create(c, g);
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+  return true;
+}
+
 bool genfun_methods(compile_t* c, gentype_t* g)
 {
+  if(!genfun_allocator(c, g))
+    return false;
+
   ast_t* def = (ast_t*)ast_data(g->ast);
   ast_t* members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
