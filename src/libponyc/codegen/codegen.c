@@ -73,8 +73,10 @@ static LLVMTargetMachineRef make_machine(pass_opt_t* opt)
   LLVMCodeGenOptLevel opt_level =
     opt->release ? LLVMCodeGenLevelAggressive : LLVMCodeGenLevelNone;
 
+  LLVMRelocMode reloc = opt->library ? LLVMRelocPIC : LLVMRelocDefault;
+
   LLVMTargetMachineRef machine = LLVMCreateTargetMachine(target, opt->triple,
-    opt->cpu, opt->features, opt_level, LLVMRelocDefault, LLVMCodeModelDefault);
+    opt->cpu, opt->features, opt_level, reloc, LLVMCodeModelDefault);
 
   if(machine == NULL)
   {
@@ -602,6 +604,168 @@ static const char* suffix_filename(const char* dir, const char* file,
   return stringtab(filename);
 }
 
+static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
+{
+#if defined(PLATFORM_IS_POSIX_BASED)
+  size_t len = strlen(c->filename);
+  VLA(char, libname, len + 4);
+  memcpy(libname, "lib", 3);
+  memcpy(libname + 3, c->filename, len + 1);
+
+  const char* file_lib = suffix_filename(opt->output, libname, ".a");
+  printf("Archiving %s\n", file_lib);
+
+  len = 128 + strlen(file_lib) + strlen(file_o);
+  VLA(char, cmd, len);
+
+  snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
+
+  if(system(cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#elif defined(PLATFORM_IS_WINDOWS)
+  // TODO: Link static library on windows.
+#endif
+
+  return true;
+}
+
+static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
+  const char* file_o)
+{
+#if defined(PLATFORM_IS_MACOSX)
+  char* arch = strchr(opt->triple, '-');
+
+  if(arch == NULL)
+  {
+    errorf(NULL, "couldn't determine architecture from %s", opt->triple);
+    return false;
+  }
+
+  const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  printf("Linking %s\n", file_exe);
+
+  size_t len = (arch - opt->triple);
+  VLA(char, arch_buf, len + 1);
+  memcpy(arch_buf, opt->triple, len);
+  arch_buf[len] = '\0';
+  program_lib_build_args(program, "", "", "-l", "");
+
+  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
+    link_path_length() + program_lib_arg_length(program);
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
+    "-o %s %s",
+    arch_buf, file_exe, file_o
+    );
+
+  // User specified libraries go here, in any order.
+  strcat(ld_cmd, program_lib_args(program));
+  append_link_paths(ld_cmd);
+  strcat(ld_cmd, " -lponyrt -lSystem");
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#elif defined(PLATFORM_IS_LINUX)
+  const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  printf("Linking %s\n", file_exe);
+  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
+
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
+    program_lib_arg_length(program);
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
+    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+    "-o %s "
+    "/usr/lib/x86_64-linux-gnu/crt1.o "
+    "/usr/lib/x86_64-linux-gnu/crti.o "
+    "%s ",
+    file_exe, file_o
+    );
+
+  append_link_paths(ld_cmd);
+
+  // User specified libraries go here, surrounded with --start-group and
+  // --end-group so that we don't have to determine an ordering.
+  strcat(ld_cmd, program_lib_args(program));
+
+  strcat(ld_cmd,
+    " -lponyrt -lpthread -lm -lc "
+    "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
+    "/usr/lib/x86_64-linux-gnu/crtn.o"
+    );
+
+  if(system(ld_cmd) != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#elif defined(PLATFORM_IS_WINDOWS)
+  vcvars_t vcvars;
+
+  if(!vcvars_get(&vcvars))
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+
+  const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
+  printf("Linking %s\n", file_exe);
+  program_lib_build_args(program, "", "", "", ".lib");
+
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
+    vcvars_get_path_length(&vcvars) + program_lib_arg_length(program);
+  VLA(char, ld_cmd, ld_len);
+
+  snprintf(ld_cmd, ld_len,
+    " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "/OUT:%s "
+    "%s "
+    "/LIBPATH:\"%s\" "
+    "/LIBPATH:\"%s\" ",
+    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt
+    );
+
+  append_link_paths(ld_cmd);
+  strcat(ld_cmd, program_lib_args(program));
+  strcat(ld_cmd, " ponyrt.lib kernel32.lib msvcrt.lib");
+
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+  DWORD code = 0;
+
+  memset(&si, 0, sizeof(STARTUPINFO));
+
+  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL,
+    FALSE, 0, NULL, NULL, &si, &pi))
+  {
+    errorf(NULL, "unable to invoke linker");
+    return false;
+  }
+
+  WaitForSingleObject(pi.hProcess, INFINITE);
+  GetExitCodeProcess(pi.hProcess, &code);
+  CloseHandle(pi.hProcess);
+
+  if(code != 0)
+  {
+    errorf(NULL, "unable to link");
+    return false;
+  }
+#endif
+
+  return true;
+}
+
 static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
   pass_id pass_limit)
 {
@@ -707,136 +871,12 @@ static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
 
   if(c->library)
   {
-    // TODO:
-    return true;
+    if(!link_lib(c, opt, file_o))
+      return false;
+  } else {
+    if(!link_exe(c, opt, program, file_o))
+      return false;
   }
-
-#if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(opt->triple, '-');
-
-  if(arch == NULL)
-  {
-    errorf(NULL, "couldn't determine architecture from %s", opt->triple);
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
-  printf("Linking %s\n", file_exe);
-
-  size_t len = (arch - opt->triple);
-  VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, opt->triple, len);
-  arch_buf[len] = '\0';
-  program_lib_build_args(program, "", "", "-l", "");
-
-  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
-    link_path_length() + program_lib_arg_length(program);
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
-    "-o %s %s",
-    arch_buf, file_exe, file_o
-    );
-
-  // User specified libraries go here, in any order.
-  strcat(ld_cmd, program_lib_args(program));
-  append_link_paths(ld_cmd);
-  strcat(ld_cmd, " -lponyrt -lSystem");
-#elif defined(PLATFORM_IS_LINUX)
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
-  printf("Linking %s\n", file_exe);
-  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
-    program_lib_arg_length(program);
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
-    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-    "-o %s "
-    "/usr/lib/x86_64-linux-gnu/crt1.o "
-    "/usr/lib/x86_64-linux-gnu/crti.o "
-    "%s ",
-    file_exe, file_o
-    );
-
-  append_link_paths(ld_cmd);
-
-  // User specified libraries go here, surrounded with --start-group and
-  // --end-group so that we don't have to determine an ordering.
-  strcat(ld_cmd, program_lib_args(program));
-
-  strcat(ld_cmd,
-    " -lponyrt -lpthread -lm -lc "
-    "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
-    "/usr/lib/x86_64-linux-gnu/crtn.o"
-    );
-#else
-  vcvars_t vcvars;
-
-  if(!vcvars_get(&vcvars))
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
-  printf("Linking %s\n", file_exe);
-  program_lib_build_args(program, "", "", "", ".lib");
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
-    vcvars_get_path_length(&vcvars) + program_lib_arg_length(program);
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
-    "/OUT:%s "
-    "%s "
-    "/LIBPATH:\"%s\" "
-    "/LIBPATH:\"%s\" ",
-    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt
-    );
-
-  append_link_paths(ld_cmd);
-  strcat(ld_cmd, program_lib_args(program));
-
-  strcat(ld_cmd,
-    " ponyrt.lib kernel32.lib msvcrt.lib"
-    );
-#endif
-
-#if defined(PLATFORM_IS_POSIX_BASED)
-  if(system(ld_cmd) != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#elif defined(PLATFORM_IS_WINDOWS)
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-  DWORD code = 0;
-
-  memset(&si, 0, sizeof(STARTUPINFO));
-
-  if(!CreateProcess(TEXT(vcvars.link), TEXT(ld_cmd), NULL, NULL,
-    FALSE, 0, NULL, NULL, &si, &pi))
-  {
-    errorf(NULL, "unable to invoke linker");
-    return false;
-  }
-
-  WaitForSingleObject(pi.hProcess, INFINITE);
-  GetExitCodeProcess(pi.hProcess, &code);
-  CloseHandle(pi.hProcess);
-
-  if(code != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#endif
 
   unlink(file_o);
   return true;
