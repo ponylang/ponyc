@@ -73,15 +73,32 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
       return false;
   }
 
-  if(is_type && !is_type_name(s))
+  if(is_type)
   {
-    ast_error(name, "type name '%s' must start A-Z or _(A-Z)", s);
-    return false;
+    if(!is_type_name(s))
+    {
+      ast_error(name, "type names must start A-Z or _(A-Z)");
+      return false;
+    }
+
+    // The first character can be an underscore.
+    const char* p = s + 1;
+
+    while(*p != '\0')
+    {
+      if(*p == '_')
+      {
+        ast_error(name, "type names must not have underscores in them");
+        return false;
+      }
+
+      p++;
+    }
   }
 
   if(is_id && is_type_name(s))
   {
-    ast_error(name, "identifier '%s' can't start A-Z or _(A-Z)", s);
+    ast_error(name, "identifiers can't start A-Z or _(A-Z)");
     return false;
   }
 

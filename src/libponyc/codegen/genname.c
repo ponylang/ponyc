@@ -6,7 +6,7 @@
 
 static void name_append(char* name, const char* append)
 {
-  strcat(name, "__");
+  strcat(name, "_");
   strcat(name, append);
 }
 

@@ -316,14 +316,17 @@ static const char* string_to_symbol(const char* string)
     if(
       (buf[i] == '_') ||
       ((buf[i] >= 'a') && (buf[i] <= 'z')) ||
-      ((buf[i] >= 'A') && (buf[i] <= 'Z')) ||
-      ((buf[i] >= '0') && (buf[i] <= '9')))
+      ((buf[i] >= '0') && (buf[i] <= '9'))
+      )
     {
-      continue;
+      // Do nothing.
+    } else if((buf[i] >= 'A') && (buf[i] <= 'Z')) {
+      // Force lower case.
+      buf[i] |= 0x20;
+    } else {
+      // Smash a non-symbol character to an underscore.
+      buf[i] = '_';
     }
-
-    // Smash a non-symbol character to an underscore.
-    buf[i] = '_';
   }
 
   return stringtab(buf);
