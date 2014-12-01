@@ -360,3 +360,16 @@ bool expr_return(typecheck_t* t, ast_t* ast)
   ast_inheriterror(ast);
   return ok;
 }
+
+bool expr_error(ast_t* ast)
+{
+  if(ast_sibling(ast) != NULL)
+  {
+    ast_error(ast, "error must be the last expression in a sequence");
+    ast_error(ast_sibling(ast), "error is followed with this expression");
+    return false;
+  }
+
+  ast_seterror(ast);
+  return true;
+}
