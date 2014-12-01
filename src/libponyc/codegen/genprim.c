@@ -412,20 +412,20 @@ static void number_conversions(compile_t* c)
 {
   num_conv_t conv[] =
   {
-    {"$1__I8", "i8", c->i8, 8, true, false},
-    {"$1__I16", "i16", c->i16, 16, true, false},
-    {"$1__I32", "i32", c->i32, 32, true, false},
-    {"$1__I64", "i64", c->i64, 64, true, false},
-    {"$1__I128", "i128", c->i128, 128, true, false},
+    {"I8", "i8", c->i8, 8, true, false},
+    {"I16", "i16", c->i16, 16, true, false},
+    {"I32", "i32", c->i32, 32, true, false},
+    {"I64", "i64", c->i64, 64, true, false},
+    {"I128", "i128", c->i128, 128, true, false},
 
-    {"$1__U8", "u8", c->i8, 8, false, false},
-    {"$1__U16", "u16", c->i16, 16, false, false},
-    {"$1__U32", "u32", c->i32, 32, false, false},
-    {"$1__U64", "u64", c->i64, 64, false, false},
-    {"$1__U128", "u128", c->i128, 128, false, false},
+    {"U8", "u8", c->i8, 8, false, false},
+    {"U16", "u16", c->i16, 16, false, false},
+    {"U32", "u32", c->i32, 32, false, false},
+    {"U64", "u64", c->i64, 64, false, false},
+    {"U128", "u128", c->i128, 128, false, false},
 
-    {"$1__F32", "f32", c->f32, 32, false, true},
-    {"$1__F64", "f64", c->f64, 64, false, true},
+    {"F32", "f32", c->f32, 32, false, true},
+    {"F64", "f64", c->f64, 64, false, true},
 
     {NULL, NULL, NULL, false, false, false}
   };
@@ -505,20 +505,20 @@ static void number_constructors(compile_t* c)
 {
   num_cons_t cons[] =
   {
-    {"$1__I8", c->i8, c->i128, false},
-    {"$1__I16", c->i16, c->i128, false},
-    {"$1__I32", c->i32, c->i128, false},
-    {"$1__I64", c->i64, c->i128, false},
-    {"$1__I128", c->i128, c->i128, false},
+    {"I8", c->i8, c->i128, false},
+    {"I16", c->i16, c->i128, false},
+    {"I32", c->i32, c->i128, false},
+    {"I64", c->i64, c->i128, false},
+    {"I128", c->i128, c->i128, false},
 
-    {"$1__U8", c->i8, c->i128, false},
-    {"$1__U16", c->i16, c->i128, false},
-    {"$1__U32", c->i32, c->i128, false},
-    {"$1__U64", c->i64, c->i128, false},
-    {"$1__U128", c->i128, c->i128, false},
+    {"U8", c->i8, c->i128, false},
+    {"U16", c->i16, c->i128, false},
+    {"U32", c->i32, c->i128, false},
+    {"U64", c->i64, c->i128, false},
+    {"U128", c->i128, c->i128, false},
 
-    {"$1__F32", c->f32, c->f64, true},
-    {"$1__F64", c->f64, c->f64, true},
+    {"F32", c->f32, c->f64, true},
+    {"F64", c->f64, c->f64, true},
 
     {NULL, NULL, NULL, false}
   };
@@ -547,7 +547,7 @@ static void number_constructors(compile_t* c)
 
 static void special_number_constructors(compile_t* c)
 {
-  const char* name = genname_fun("$1__F32", "pi", NULL);
+  const char* name = genname_fun("F32", "pi", NULL);
   LLVMTypeRef f_type = LLVMFunctionType(c->f32, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
@@ -555,7 +555,7 @@ static void special_number_constructors(compile_t* c)
   LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 3.14159265358979323846));
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F32", "e", NULL);
+  name = genname_fun("F32", "e", NULL);
   f_type = LLVMFunctionType(c->f32, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -563,7 +563,7 @@ static void special_number_constructors(compile_t* c)
   LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 2.71828182845904523536));
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F64", "pi", NULL);
+  name = genname_fun("F64", "pi", NULL);
   f_type = LLVMFunctionType(c->f64, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -571,7 +571,7 @@ static void special_number_constructors(compile_t* c)
   LLVMBuildRet(c->builder, LLVMConstReal(c->f64, 3.14159265358979323846));
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F64", "e", NULL);
+  name = genname_fun("F64", "e", NULL);
   f_type = LLVMFunctionType(c->f64, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -586,7 +586,7 @@ static void fp_as_bits(compile_t* c)
   LLVMTypeRef f_type;
   LLVMValueRef fun, result;
 
-  name = genname_fun("$1__F32", "from_bits", NULL);
+  name = genname_fun("F32", "from_bits", NULL);
   f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -595,7 +595,7 @@ static void fp_as_bits(compile_t* c)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F32", "bits", NULL);
+  name = genname_fun("F32", "bits", NULL);
   f_type = LLVMFunctionType(c->i32, &c->f32, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -604,7 +604,7 @@ static void fp_as_bits(compile_t* c)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F64", "from_bits", NULL);
+  name = genname_fun("F64", "from_bits", NULL);
   f_type = LLVMFunctionType(c->f64, &c->i64, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
@@ -613,7 +613,7 @@ static void fp_as_bits(compile_t* c)
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
 
-  name = genname_fun("$1__F64", "bits", NULL);
+  name = genname_fun("F64", "bits", NULL);
   f_type = LLVMFunctionType(c->i64, &c->f64, 1, false);
   fun = codegen_addfun(c, name, f_type);
 

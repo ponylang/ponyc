@@ -81,6 +81,11 @@ const char* package_path(ast_t* package);
 const char* package_filename(ast_t* package);
 
 /**
+ * Gets the symbol wart for the package.
+ */
+const char* package_symbol(ast_t* package);
+
+/**
  * Gets a string set to a hygienic ID. Hygienic IDs are handed out on a
  * per-package basis. The first one will be $0, the second $1, etc.
  * The returned string will be a string table entry and should not be freed.

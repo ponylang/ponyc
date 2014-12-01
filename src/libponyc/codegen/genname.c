@@ -1,4 +1,5 @@
 #include "genname.h"
+#include "../pkg/package.h"
 #include "../ast/stringtab.h"
 #include <string.h>
 #include <assert.h>
@@ -41,7 +42,8 @@ static void typeargs_append(char* name, ast_t* typeargs)
   }
 }
 
-static const char* build_name(const char* a, const char* b, ast_t* typeargs)
+static const char* build_name(const char* a, const char* b,
+  ast_t* typeargs)
 {
   size_t len = typeargs_len(typeargs);
 
@@ -72,7 +74,11 @@ static const char* nominal_name(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, package, name, typeargs);
 
-  return build_name(ast_name(package), ast_name(name), typeargs);
+  ast_t* def = (ast_t*)ast_data(ast);
+  ast_t* pkg = ast_nearest(def, TK_PACKAGE);
+  const char* s = package_symbol(pkg);
+
+  return build_name(s, ast_name(name), typeargs);
 }
 
 const char* genname_type(ast_t* ast)
@@ -151,7 +157,8 @@ const char* genname_instance(const char* type)
   return build_name(type, "$inst", NULL);
 }
 
-const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
+const char* genname_fun(const char* type, const char* name,
+  ast_t* typeargs)
 {
   return build_name(type, name, typeargs);
 }

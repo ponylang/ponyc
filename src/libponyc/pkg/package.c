@@ -51,7 +51,9 @@
 typedef struct package_t
 {
   const char* path; // Absolute path
-  const char* id;
+  const char* id; // Hygienic identifier
+  const char* filename; // Filename if we are an executable
+  const char* symbol; // Wart to use for symbol names
   size_t next_hygienic_id;
 } package_t;
 
@@ -273,6 +275,86 @@ static const char* id_to_string(size_t id)
 }
 
 
+static bool symbol_in_use(ast_t* program, const char* symbol)
+{
+  ast_t* package = ast_child(program);
+
+  while(package != NULL)
+  {
+    package_t* pkg = (package_t*)ast_data(package);
+
+    if(pkg->symbol == symbol)
+      return true;
+
+    package = ast_sibling(package);
+  }
+
+  return false;
+}
+
+
+static const char* string_to_symbol(const char* string)
+{
+  bool prefix = false;
+
+  if(!((string[0] >= 'a') && (string[0] <= 'z')) &&
+    !((string[0] >= 'A') && (string[0] <= 'Z')))
+  {
+    // If it doesn't start with a letter, prefix an underscore.
+    prefix = true;
+  }
+
+  size_t len = strlen(string);
+  VLA(char, buf, len + prefix + 1);
+  memcpy(buf + prefix, string, len + 1);
+
+  if(prefix)
+    buf[0] = '_';
+
+  for(size_t i = prefix; i < len; i++)
+  {
+    if(
+      (buf[i] == '_') ||
+      ((buf[i] >= 'a') && (buf[i] <= 'z')) ||
+      ((buf[i] >= 'A') && (buf[i] <= 'Z')) ||
+      ((buf[i] >= '0') && (buf[i] <= '9')))
+    {
+      continue;
+    }
+
+    // Smash a non-symbol character to an underscore.
+    buf[i] = '_';
+  }
+
+  return stringtab(buf);
+}
+
+
+static const char* symbol_suffix(const char* symbol, size_t suffix)
+{
+  size_t len = strlen(symbol);
+  VLA(char, buf, len + 32);
+  snprintf(buf, len + 32, "%s" __zu, symbol, suffix);
+
+  return stringtab(buf);
+}
+
+
+static const char* create_package_symbol(ast_t* program, const char* filename)
+{
+  const char* symbol = string_to_symbol(filename);
+  size_t suffix = 1;
+
+  while(symbol_in_use(program, symbol))
+  {
+    symbol = symbol_suffix(symbol, suffix);
+    suffix++;
+  }
+
+  return symbol;
+}
+
+
 // Create a package AST, set up its state and add it to the given program
 static ast_t* create_package(ast_t* program, const char* name)
 {
@@ -282,6 +364,21 @@ static ast_t* create_package(ast_t* program, const char* name)
   package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
   pkg->id = id_to_string(pkg_id);
+
+  const char* p = strrchr(pkg->path, PATH_SLASH);
+
+  if(p == NULL)
+    p = pkg->path;
+  else
+    p = p + 1;
+
+  pkg->filename = stringtab(p);
+
+  if(pkg_id > 1)
+    pkg->symbol = create_package_symbol(program, pkg->filename);
+  else
+    pkg->symbol = NULL;
+
   pkg->next_hygienic_id = 0;
   ast_setdata(package, pkg);
 
@@ -547,6 +644,7 @@ const char* package_path(ast_t* package)
   return pkg->path;
 }
 
+
 const char* package_filename(ast_t* package)
 {
   assert(package != NULL);
@@ -554,12 +652,18 @@ const char* package_filename(ast_t* package)
   package_t* pkg = (package_t*)ast_data(package);
   assert(pkg != NULL);
 
-  const char* p = strrchr(pkg->path, PATH_SLASH);
+  return pkg->filename;
+}
 
-  if(p == NULL)
-    return pkg->path;
 
-  return p + 1;
+const char* package_symbol(ast_t* package)
+{
+  assert(package != NULL);
+  assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+  assert(pkg != NULL);
+
+  return pkg->symbol;
 }
 
 

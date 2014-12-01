@@ -344,7 +344,7 @@ static void codegen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   gencall_runtime(c, "pony_become", &object, 1, "");
 
   // Create an Env on the main actor's heap.
-  const char* env_name = "$1__Env";
+  const char* env_name = "Env";
   const char* env_create = genname_fun(env_name, "_create", NULL);
   args[2] = args[1];
   args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
