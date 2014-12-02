@@ -70,6 +70,7 @@ obj  := $(PONY_BUILD_DIR)/obj
 libponyc  := $(lib)
 libponycc := $(lib)
 libponyrt := $(lib)
+libponyrt-pic := $(lib)
 
 # Define special case rules for a targets source files. By default
 # this makefile assumes that a targets source files can be found
@@ -99,6 +100,9 @@ ifeq ($(OSTYPE),osx)
   libponyrt.except += src/libponyrt/asio/epoll.c
 endif
 
+libponyrt-pic.dir := src/libponyrt
+libponyrt-pic.except := $(libponyrt.except)
+
 # Third party, but requires compilation. Defined as
 # (1) a name and output directory.
 # (2) a list of the source files to be compiled.
@@ -106,7 +110,7 @@ libgtest := $(lib)
 libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
 
-libraries := libponyc libponyrt libgtest
+libraries := libponyc libponyrt libponyrt-pic libgtest
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
 # (1) a name (stored in prebuilt)
@@ -136,6 +140,7 @@ tests := libponyc.tests libponyrt.tests
 libponyc.include := -I src/common/ $(llvm.include)/
 libponycc.include := -I src/common/ $(llvm.include)/
 libponyrt.include := -I src/common/ -I src/libponyrt/
+libponyrt-pic.include := $(libponyrt.include)
 
 libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
@@ -148,7 +153,7 @@ libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 
-libponyrt.buildoptions += -fpic
+libponyrt-pic.buildoptions += -fpic
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
@@ -337,6 +342,7 @@ help:
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'
 	@echo '  libponyrt         Pony runtime'
+	@echo '  libponyrt-pic     Pony runtime -fpic'
 	@echo '  libponyc.tests    Test suite for libponyc'
 	@echo '  libponyrt.tests   Test suite for libponyrt'
 	@echo '  ponyc             Pony compiler executable'
