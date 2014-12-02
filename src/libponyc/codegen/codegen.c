@@ -607,19 +607,16 @@ static const char* suffix_filename(const char* dir, const char* file,
   return stringtab(filename);
 }
 
-static bool invoke_system(const char* command, const char* program)
+#if defined(PLATFORM_IS_WINDOWS)
+static bool system(const char* program, char* command)
 {
-#if defined(PLATFORM_IS_POSIX_BASED)
-  (void)program;
-  return system(command) != 0;
-#elif defined(PLATFORM_IS_WINDOWS)
   STARTUPINFO si;
   PROCESS_INFORMATION pi;
   DWORD code = 0;
 
   memset(&si, 0, sizeof(STARTUPINFO));
 
-  if(!CreateProcess(TEXT(program), TEXT((char*)command), NULL, NULL,
+  if(!CreateProcess(TEXT(program), TEXT(command), NULL, NULL,
     FALSE, 0, NULL, NULL, &si, &pi))
   {
     return false;
@@ -630,13 +627,13 @@ static bool invoke_system(const char* command, const char* program)
   CloseHandle(pi.hProcess);
 
   return code == 0;
-#endif
 }
+#endif
 
 static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
 {
   size_t len = strlen(c->filename);
-  
+
 #if defined(PLATFORM_IS_POSIX_BASED)
   VLA(char, libname, len + 4);
   memcpy(libname, "lib", 3);
@@ -650,7 +647,7 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
 
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
 
-  if(!invoke_system(cmd, NULL))
+  if(system(cmd) != 0)
   {
     errorf(NULL, "unable to link");
     return false;
@@ -675,7 +672,7 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
 
   snprintf(cmd, len, " /NOLOGO /OUT:%s %s", file_lib, file_o);
 
-  if(!invoke_system(cmd, vcvars.ar))
+  if(!system(vcvars.ar, cmd))
   {
     errorf(NULL, "unable to link");
     return false;
@@ -721,7 +718,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   append_link_paths(ld_cmd);
   strcat(ld_cmd, " -lponyrt -lSystem");
 
-  if(!invoke_system(ld_cmd, NULL))
+  if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
     return false;
@@ -757,7 +754,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "/usr/lib/x86_64-linux-gnu/crtn.o"
     );
 
-  if(!invoke_system(ld_cmd, NULL))
+  if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
     return false;
@@ -792,7 +789,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   strcat(ld_cmd, program_lib_args(program));
   strcat(ld_cmd, " ponyrt.lib kernel32.lib msvcrt.lib");
 
-  if(!invoke_system(ld_cmd, vcvars.link))
+  if(!system(vcvars.link, ld_cmd))
   {
     errorf(NULL, "unable to link");
     return false;
