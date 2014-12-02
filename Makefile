@@ -23,6 +23,12 @@ ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
 config ?= debug
 
+ifndef verbose
+  SILENT = @
+else
+  SILENT =
+endif
+
 ifdef config
   ifeq (,$(filter $(config),debug release))
     $(error Unknown configuration "$(config)")
@@ -138,9 +144,11 @@ ponyc.include := -I src/common/
 libgtest.include := -isystem lib/gtest/
 
 # target specific build options
-libponyc.options = -D__STDC_CONSTANT_MACROS
-libponyc.options += -D__STDC_FORMAT_MACROS
-libponyc.options += -D__STDC_LIMIT_MACROS
+libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
+libponyc.buildoptions += -D__STDC_FORMAT_MACROS
+libponyc.buildoptions += -D__STDC_LIMIT_MACROS
+
+libponyrt.buildoptions += -fpic
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
@@ -251,7 +259,7 @@ define CONFIGURE_LINKER
   endif
 
   $(foreach lk,$($(1).links),$(eval $(call CONFIGURE_LIBS,$(lk))))
-  linkcmd += $(libs)
+  linkcmd += $(libs) $($(1).linkoptions)
 endef
 
 define PREPARE
@@ -271,8 +279,8 @@ $(eval $(call CONFIGURE_COMPILER,$(file)))
 $(subst .c,,$(subst .cc,,$(1))): $(subst $(outdir)/,$(sourcedir)/,$(file))
 	@echo '$$(notdir $$<)'
 	@mkdir -p $$(dir $$@)
-	@$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) $(flags) \
-    -c -o $$@ $$< $($(2).options) $($(2).include)
+	$(SILENT)$(compiler) -MMD -MP $(filter-out $($(2).disable),$(BUILD_FLAGS)) \
+    $(flags) $($(2).buildoptions) -c -o $$@ $$<  $($(2).include)
 endef
 
 define EXPAND_COMMAND
@@ -284,12 +292,12 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	@$(AR) -rcs $$@ $(ofiles)
+	$(SILENT)$(AR) -rcs $$@ $(ofiles)
 $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	@$(linker) -o $$@ $(ofiles) $(linkcmd)
+	$(SILENT)$(linker) -o $$@ $(ofiles) $(linkcmd)
 $(1): $($(1))/$(1)
 endif
 
