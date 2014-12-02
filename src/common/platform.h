@@ -7,7 +7,7 @@
 /** Convenience macro for making extern "C" more succinct.
  *
  */
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#if defined(__cplusplus)
 #  define PONY_EXTERN_C_BEGIN extern "C" {
 #  define PONY_EXTERN_C_END }
 #else
