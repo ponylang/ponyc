@@ -379,18 +379,19 @@ static void normalise_string(lexer_t* lexer)
   if(lexer->buflen == 0)
     return;
 
-  // make sure we have a null terminated string
+  // Make sure we have a null terminated string.
   append(lexer, '\0');
 
-  // if we aren't multiline, do nothing
+  // If we aren't multiline, do nothing.
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
     return;
 
-  // calculate leading whitespace
+  // Calculate leading whitespace.
   char* buf = lexer->buffer;
   size_t ws = lexer->buflen;
   size_t ws_this_line = 0;
   bool in_leading_ws = true;
+
   for(size_t i = 0; i < lexer->buflen; i++)
   {
     char c = lexer->buffer[i];
@@ -417,7 +418,7 @@ static void normalise_string(lexer_t* lexer)
     }
   }
 
-  // trim leading whitespace on each line
+  // Trim leading whitespace on each line.
   if(ws > 0)
   {
     char* line_start = lexer->buffer;
@@ -427,7 +428,8 @@ static void normalise_string(lexer_t* lexer)
     while(rem > 0)
     {
       char* line_end = strchr(line_start, '\n');
-      size_t line_len = (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
+      size_t line_len =
+        (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
       memmove(compacted, line_start + ws, line_len - ws);
 
       line_start += line_len;
@@ -436,7 +438,7 @@ static void normalise_string(lexer_t* lexer)
     }
   }
 
-  // trim a leading newline if there is one
+  // Trim a leading newline if there is one.
   buf = lexer->buffer;
 
   if((buf[0] == '\r') && (buf[1] == '\n'))

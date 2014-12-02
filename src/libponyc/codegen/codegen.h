@@ -11,6 +11,7 @@
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Analysis.h>
+#include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
 
@@ -49,6 +50,8 @@ typedef struct compile_t
   bool symbols;
   bool ieee_math;
   bool no_restrict;
+
+  FILE* header;
 
   const char* str_1;
   const char* str_Bool;

@@ -8,7 +8,7 @@ interface Bytes
 actor StdStream
   """
   Asynchronous access to stdout and stderr. The constructors are private to
-  ensure that access ir provided only via an environment.
+  ensure that access is provided only via an environment.
   """
   var _stream: Pointer[U8]
 

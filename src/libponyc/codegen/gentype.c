@@ -4,6 +4,7 @@
 #include "genprim.h"
 #include "gencall.h"
 #include "genfun.h"
+#include "genheader.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -542,6 +543,10 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     codegen_startfun(c, g->dispatch_fn);
     codegen_finishfun(c);
   }
+
+  // Write to the header file.
+  if(c->library)
+    genheader(c, g);
 
   free_fields(g);
   return true;

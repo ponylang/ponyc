@@ -16,7 +16,6 @@
 #include <llvm-c/Initialization.h>
 #include <llvm-c/BitWriter.h>
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -33,6 +32,37 @@
 static LLVMPassManagerBuilderRef pmb;
 static LLVMPassManagerRef mpm;
 static LLVMPassManagerRef lpm;
+
+static const char* suffix_filename(const char* dir, const char* file,
+  const char* extension)
+{
+  // Copy to a string with space for a suffix.
+  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
+  VLA(char, filename, len + 1);
+
+  // Start with no suffix.
+  snprintf(filename, len, "%s/%s%s", dir, file, extension);
+  int suffix = 0;
+
+  while(suffix < 100)
+  {
+    struct stat s;
+    int err = stat(filename, &s);
+
+    if((err == -1) || !S_ISDIR(s.st_mode))
+      break;
+
+    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
+  }
+
+  if(suffix >= 100)
+  {
+    errorf(NULL, "couldn't pick an unused file name");
+    return NULL;
+  }
+
+  return stringtab(filename);
+}
 
 static void codegen_fatal(const char* reason)
 {
@@ -440,7 +470,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   return true;
 }
 
-static bool codegen_library(compile_t* c, ast_t* program)
+static bool generate_actors(compile_t* c, ast_t* program)
 {
   // Look for C-API actors in every package.
   bool found = false;
@@ -492,6 +522,50 @@ static bool codegen_library(compile_t* c, ast_t* program)
   }
 
   return true;
+}
+
+static bool codegen_library(compile_t* c, pass_opt_t* opt, ast_t* program)
+{
+  // Open a header file.
+  const char* file_h = suffix_filename(opt->output, c->filename, ".h");
+  c->header = fopen(file_h, "wt");
+
+  if(c->header == NULL)
+  {
+    errorf(NULL, "couldn't write to %s", file_h);
+    return false;
+  }
+
+  fprintf(c->header,
+    "#ifndef pony_%s_h\n"
+    "#define pony_%s_h\n"
+    "\n"
+    "#ifdef __cplusplus\n"
+    "extern \"C\" {\n"
+    "#endif\n"
+    "\n"
+    "\n",
+    c->filename,
+    c->filename
+    );
+
+  bool ok = generate_actors(c, program);
+
+  fprintf(c->header,
+    "\n"
+    "#ifdef __cplusplus\n"
+    "}\n"
+    "#endif\n"
+    "\n"
+    "#endif\n"
+    );
+
+  fclose(c->header);
+
+  if(!ok)
+    unlink(file_h);
+
+  return ok;
 }
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
@@ -571,37 +645,6 @@ static void append_link_paths(char* str)
 #endif
     p = strlist_next(p);
   }
-}
-
-static const char* suffix_filename(const char* dir, const char* file,
-  const char* extension)
-{
-  // Copy to a string with space for a suffix.
-  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
-  VLA(char, filename, len + 1);
-
-  // Start with no suffix.
-  snprintf(filename, len, "%s/%s%s", dir, file, extension);
-  int suffix = 0;
-
-  while(suffix < 100)
-  {
-    struct stat s;
-    int err = stat(filename, &s);
-
-    if((err == -1) || !S_ISDIR(s.st_mode))
-      break;
-
-    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
-  }
-
-  if(suffix >= 100)
-  {
-    errorf(NULL, "couldn't pick an unused file name");
-    return NULL;
-  }
-
-  return stringtab(filename);
 }
 
 static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
@@ -994,7 +1037,7 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
   bool ok;
 
   if(c.library)
-    ok = codegen_library(&c, program);
+    ok = codegen_library(&c, opt, program);
   else
     ok = codegen_program(&c, program);
 

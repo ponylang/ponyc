@@ -5,11 +5,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(_MSC_VER)
 extern "C" {
 #endif
 
-#if defined(_WIN64) && defined(_MSC_VER)
+#if defined(_MSC_VER)
 #  define ATTRIBUTE_MALLOC(f) __declspec(restrict) f
 #else
 #  define ATTRIBUTE_MALLOC(f) f __attribute__((malloc))
@@ -332,7 +332,7 @@ int pony_stop();
  */
 void pony_exitcode(int code);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(_MSC_VER)
 }
 #endif
 
