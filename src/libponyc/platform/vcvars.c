@@ -152,7 +152,7 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
 {
   search_t* sdk = (search_t*)p;
 
-  //it seesm to be the case that sub nodes ending
+  //it seems to be the case that sub nodes ending
   //with an 'A' are .NET Framework SDKs
   if(name[strlen(name) - 1] == 'A')
     return;
@@ -196,7 +196,25 @@ static bool find_kernel32(vcvars_t* vcvars)
   return true;
 }
 
-static bool find_msvcrt(vcvars_t* vcvars)
+static bool find_executable(const char* path, const char* name, char* dest)
+{
+  TCHAR exe[MAX_PATH + 1];
+  strcpy(exe, path);
+  strcat(exe, name);
+
+  if((GetFileAttributes(exe) != INVALID_FILE_ATTRIBUTES))
+  {
+    strcpy(dest, exe);
+    return true;
+  }
+  else
+  {
+    errorf(NULL, "unable to locate %s", name);
+    return false;
+  }
+}
+
+static bool find_msvcrt_and_linker(vcvars_t* vcvars)
 {
   search_t vs;
   memset(vs.version, 0, MAX_VER_LEN + 1);
@@ -210,23 +228,12 @@ static bool find_msvcrt(vcvars_t* vcvars)
   strcpy(vcvars->msvcrt, vs.path);
   strcat(vcvars->msvcrt, "VC\\lib\\amd64");
 
-  //find the linker relative to vs.path
-  //we expect one to be at vs.path\bin
-  TCHAR linker_path[MAX_PATH + 1];
-  strcpy(linker_path, vs.path);
-  strcat(linker_path, "VC\\bin\\link.exe");
+  //Find the linker relative to vs.path. We expect one to be at vs.path\bin.
+  //The same applies to the lib archiver.
+  bool ok = find_executable(vs.path, "VC\\bin\\link.exe", vcvars->link);
+  ok &= find_executable(vs.path, "VC\\bin\\lib.exe", vcvars->ar);
 
-  if((GetFileAttributes(linker_path) != INVALID_FILE_ATTRIBUTES))
-  {
-    strcpy(vcvars->link, linker_path);
-  }
-  else
-  {
-    errorf(NULL, "unable to locate link.exe");
-    return false;
-  }
-
-  return true;
+  return ok;
 }
 
 bool vcvars_get(vcvars_t* vcvars)
@@ -234,9 +241,9 @@ bool vcvars_get(vcvars_t* vcvars)
   if(!find_kernel32(vcvars))
     return false;
 
-  if(!find_msvcrt(vcvars))
+  if(!find_msvcrt_and_linker(vcvars))
     return false;
-  
+
   return true;
 }
 

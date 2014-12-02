@@ -1,4 +1,5 @@
 #include "symbols.h"
+#include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
 
 static uint64_t symbol_hash(symbol_t* s);

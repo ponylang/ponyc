@@ -1,3 +1,80 @@
+  local force_cpp = { }
+    function cppforce(inFiles)
+      for _, val in ipairs(inFiles) do
+        for _, fname in ipairs(os.matchfiles(val)) do
+          table.insert(force_cpp, path.getabsolute(fname))
+        end
+      end
+  end
+
+-- gmake
+  premake.override(path, "iscfile", function(base, fname)
+    if table.contains(force_cpp, fname) then
+      return false
+    else
+      return base(fname)
+    end
+  end)
+
+-- Visual Studio
+  premake.override(premake.vstudio.vc2010, "additionalCompileOptions", function(base, cfg, condition)
+    if cfg.abspath then
+      if table.contains(force_cpp, cfg.abspath) then
+        _p(3,'<CompileAs %s>CompileAsCpp</CompileAs>', condition)
+      end
+    end
+    return base(cfg, condition)
+  end)
+
+  function link_libponyc()
+    configuration "gmake"
+    linkoptions {
+      llvm_config("--ldflags")
+    }
+    configuration "vs*"
+    libdirs {
+      llvm_config("--libdir")
+    }
+    configuration "*"
+    links { "libponyc", "libponyrt" }
+    local output = llvm_config("--libs")
+    for lib in string.gmatch(output, "-l(%S+)") do
+      links { lib }
+    end
+  end
+
+  function llvm_config(opt)
+    --expect symlink of llvm-config to your config version (e.g llvm-config-3.4)
+    local stream = assert(io.popen("llvm-config " .. opt))
+    local output = ""
+    --llvm-config contains '\n'
+    while true do
+      local curr = stream:read("*l")
+      if curr == nil then
+        break
+      end
+      output = output .. curr
+    end
+    stream:close()
+    return output
+  end
+
+  function testsuite()
+    kind "ConsoleApp"
+    language "C++"
+    links "gtest"
+    configuration "gmake"
+    buildoptions { "-std=gnu++11" }
+    configuration "*"
+    if (_OPTIONS["run-tests"]) then
+      configuration "gmake"
+      postbuildcommands { "$(TARGET)" }
+      configuration "vs*"
+      postbuildcommands { "\"$(TargetPath)\"" }
+      configuration "*"
+    end
+  end
+
   solution "ponyc"
     configurations { "Debug", "Release", "Profile" }
     location( _OPTIONS["to"] )
@@ -9,18 +86,18 @@
     }
 
     configuration "Debug"
-      targetdir "bin/debug"
-      objdir "obj/debug"
+      targetdir "build/debug"
+      objdir "build/debug/obj"
       defines "DEBUG"
       flags { "Symbols" }
 
     configuration "Release"
-      targetdir "bin/release"
-      objdir "obj/release"
+      targetdir "build/release"
+      objdir "build/release/obj"
 
     configuration "Profile"
-      targetdir "bin/profile"
-      objdir "obj/profile"
+      targetdir "build/profile"
+      objdir "build/profile/obj"
 
     configuration "Release or Profile"
       defines "NDEBUG"
@@ -66,10 +143,6 @@
 
     configuration "vs*"
       architecture "x64"
-
-  dofile("scripts/properties.lua")
-  dofile("scripts/llvm.lua")
-  dofile("scripts/helper.lua")
 
   project "libponyc"
     targetname "ponyc"
@@ -156,21 +229,21 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
       "utils/gtest"
     }
     files {
-      "utils/gtest/gtest-all.cc",
-      "utils/gtest/gtest_main.cc"
+      "lib/gtest/gtest-all.cc",
+      "lib/gtest/gtest_main.cc"
     }
 
   project "testc"
     targetname "testc"
     testsuite()
     includedirs {
-      "utils/gtest",
+      "lib/gtest",
       "src/common",
       "src/libponyc"
     }
     files {
-      "test/unit/ponyc/**.h",
-      "test/unit/ponyc/**.cc"
+      "test/libponyc/**.h",
+      "test/libponyc/**.cc"
     }
     link_libponyc()
     configuration "vs*"
@@ -182,16 +255,15 @@ if ( _OPTIONS["with-tests"] or _OPTIONS["run-tests"] ) then
     testsuite()
     links "libponyrt"
     includedirs {
-      "utils/gtest",
+      "lib/gtest",
       "src/common",
       "src/libponyrt"
     }
-    files { "test/unit/ponyrt/**.cc" }
+    files { "test/libponyrt/**.cc" }
 end
 
   if _ACTION == "clean" then
-    --os.rmdir("bin") os.rmdir clears out the link targets of symbolic links...
-    --os.rmdir("obj")
+    os.rmdir("build")
   end
 
   -- Allow for out-of-source builds.
@@ -209,31 +281,4 @@ end
   newoption {
     trigger = "run-tests",
     description = "Run the test suite on every successful build."
-  }
-
-  newoption {
-    trigger     = "use-docsgen",
-    description = "Select a tool for generating the API documentation",
-    allowed = {
-      { "sphinx", "Chooses Sphinx as documentation tool. (Default)" },
-      { "doxygen", "Chooses Doxygen as documentation tool." }
-    }
-  }
-
-  dofile("scripts/release.lua")
-
-  -- Package release versions of ponyc for all supported platforms.
-  newaction {
-    trigger     = "release",
-    description = "Prepare a new ponyc release.",
-    execute     = dorelease
-  }
-
-  dofile("scripts/docs.lua")
-
-  newaction {
-    trigger     = "docs",
-    value       = "tool",
-    description = "Produce API documentation.",
-    execute     = dodocs
   }
