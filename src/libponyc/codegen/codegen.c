@@ -415,6 +415,9 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
   }
 
+  // Emit debug info for this compile unit.
+  dwarf_compileunit(c->dwarf, package);
+
   // Generate the Main actor and the Env class.
   gentype_t main_g;
   ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);
@@ -607,6 +610,7 @@ static const char* suffix_filename(const char* dir, const char* file,
 static bool invoke_system(const char* command, const char* program)
 {
 #if defined(PLATFORM_IS_POSIX_BASED)
+  (void)program;
   return system(command) != 0;
 #elif defined(PLATFORM_IS_WINDOWS)
   STARTUPINFO si;
