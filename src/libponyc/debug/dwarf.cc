@@ -18,6 +18,7 @@
 #include "dwarf.h"
 #include "symbols.h"
 #include "../ast/error.h"
+#include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 
 #define DW_LANG_Pony 0x8002
@@ -39,12 +40,44 @@ struct dwarf_t
   DICompileUnit unit;
 };
 
+void dwarf_compileunit(dwarf_t* dwarf, ast_t* package)
+{
+  if(!dwarf->emit)
+    return;
+
+  const char* file = package_filename(package);
+  const char* path = package_path(package);
+
+  DIBuilder* builder = dwarf->builder;
+
+  dwarf->unit = builder->createCompileUnit(DW_LANG_Pony, file, path, PRODUCER,
+    dwarf->optimized, StringRef(), 0);
+}
+
+void dwarf_nominal(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
+{
+  if(!dwarf->emit)
+    return;
+
+  (void)ast;
+  (void)g;
+}
+
+void dwarf_pointer(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
+{
+  if(!dwarf->emit)
+    return;
+
+  (void)ast;
+  (void)g;
+}
+
 void dwarf_init(compile_t* c)
 {
   dwarf_t* self;
 
   if(c->symbols)
-    printf("=== Emitting debug symbols ===\n");
+    printf("Emitting debug symbols\n");
 
   self = POOL_ALLOC(dwarf_t);
   memset(self, 0, sizeof(dwarf_t));
@@ -66,7 +99,7 @@ bool dwarf_finalise(dwarf_t* d)
 
   d->builder->finalize();
 
-  if(d->unit && !d->unit.Verify())
+  if(!d->unit.Verify())
   {
     errorf(NULL, "debug info verification failed!");
     return false;

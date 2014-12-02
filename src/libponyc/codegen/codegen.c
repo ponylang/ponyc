@@ -416,7 +416,7 @@ static bool codegen_program(compile_t* c, ast_t* program)
   }
 
   // Emit debug info for this compile unit.
-  dwarf_compileunit(c->dwarf, package);
+  //dwarf_compileunit(c->dwarf, package);
 
   // Generate the Main actor and the Env class.
   gentype_t main_g;
