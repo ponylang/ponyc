@@ -632,11 +632,12 @@ static bool invoke_system(const char* command, const char* program)
 static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
 {
   size_t len = strlen(c->filename);
+  
+#if defined(PLATFORM_IS_POSIX_BASED)
   VLA(char, libname, len + 4);
   memcpy(libname, "lib", 3);
   memcpy(libname + 3, c->filename, len + 1);
 
-#if defined(PLATFORM_IS_POSIX_BASED)
   const char* file_lib = suffix_filename(opt->output, libname, ".a");
   printf("Archiving %s\n", file_lib);
 
@@ -651,6 +652,9 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
     return false;
   }
 #elif defined(PLATFORM_IS_WINDOWS)
+  VLA(char, libname, len + 1);
+  memcpy(libname, c->filename, len + 1);
+
   const char* file_lib = suffix_filename(opt->output, libname, ".lib");
   printf("Archiving %s\n", file_lib);
 
