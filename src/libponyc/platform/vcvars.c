@@ -196,14 +196,15 @@ static bool find_kernel32(vcvars_t* vcvars)
   return true;
 }
 
-static bool find_executable(const char* path, const char* name, const char* dest)
+static bool find_executable(const char* path, const char* name, char* dest)
 {
   TCHAR exe[MAX_PATH + 1];
   strcpy(exe, path);
-  strcpy(exe, name);
+  strcat(exe, name);
 
   if((GetFileAttributes(exe) != INVALID_FILE_ATTRIBUTES))
   {
+    strcpy(dest, exe);
     return true;
   }
   else
