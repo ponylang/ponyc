@@ -4,6 +4,7 @@
 #include "colour.h"
 #include "../pass/pass.h"
 #include "../ast/ast.h"
+#include "../ast/printbuf.h"
 
 #include <platform.h>
 #include <llvm-c/Core.h>
@@ -52,6 +53,7 @@ typedef struct compile_t
   bool no_restrict;
 
   FILE* header;
+  printbuf_t* header_buf;
 
   const char* str_1;
   const char* str_Bool;

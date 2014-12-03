@@ -27,7 +27,7 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
-  new from_carray(ptr: Pointer[A] ref, len: U64) =>
+  new from_cstring(ptr: Pointer[A] ref, len: U64) =>
     _size = len
     _alloc = len
     _ptr = ptr

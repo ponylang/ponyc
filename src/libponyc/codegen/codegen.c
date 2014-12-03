@@ -543,6 +543,8 @@ static bool codegen_library(compile_t* c, pass_opt_t* opt, ast_t* program)
     "#ifndef pony_%s_h\n"
     "#define pony_%s_h\n"
     "\n"
+    "/* This is an auto-generated header file. Do not edit. */\n"
+    "\n"
     "#include <stdint.h>\n"
     "#include <stdbool.h>\n"
     "\n"
@@ -550,12 +552,21 @@ static bool codegen_library(compile_t* c, pass_opt_t* opt, ast_t* program)
     "extern \"C\" {\n"
     "#endif\n"
     "\n"
+    "#ifdef _MSC_VER\n"
+    "typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;\n"
+    "typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;\n"
+    "#endif\n"
     "\n",
     c->filename,
     c->filename
     );
 
+  c->header_buf = printbuf_new();
   bool ok = generate_actors(c, program);
+
+  fwrite(c->header_buf->m, 1, c->header_buf->offset, c->header);
+  printbuf_free(c->header_buf);
+  c->header_buf = NULL;
 
   fprintf(c->header,
     "\n"
@@ -567,6 +578,7 @@ static bool codegen_library(compile_t* c, pass_opt_t* opt, ast_t* program)
     );
 
   fclose(c->header);
+  c->header = NULL;
 
   if(!ok)
     unlink(file_h);

@@ -3,6 +3,7 @@
 #include "symtab.h"
 #include "token.h"
 #include "stringtab.h"
+#include "printbuf.h"
 #include "../pass/pass.h"
 #include "../pkg/program.h"
 #include "../pkg/package.h"
@@ -860,61 +861,15 @@ void ast_print(ast_t* ast)
   printf("\n");
 }
 
-typedef struct print_buffer_t
-{
-  char* m;
-  size_t size;
-  size_t offset;
-} print_buffer_t;
+static void print_type(printbuf_t* buffer, ast_t* type);
 
-static void print_buffer(print_buffer_t* buffer, const char* fmt, ...)
-{
-  size_t avail = buffer->size - buffer->offset;
-  va_list ap;
-
-  va_start(ap, fmt);
-  int r = vsnprintf(buffer->m + buffer->offset, avail, fmt, ap);
-  va_end(ap);
-
-  if(r < 0)
-  {
-#ifdef PLATFORM_IS_WINDOWS
-    va_start(ap, fmt);
-    r = _vscprintf(fmt, ap);
-    va_end(ap);
-
-    if(r < 0)
-      return;
-#else
-    return;
-#endif
-  }
-
-  if((size_t)r >= avail)
-  {
-    buffer->size = buffer->size + r + 1;
-    buffer->m = (char*)realloc(buffer->m, buffer->size);
-    avail = buffer->size - buffer->offset;
-
-    va_start(ap, fmt);
-    r = vsnprintf(buffer->m + buffer->offset, avail, fmt, ap);
-    va_end(ap);
-
-    assert((r > 0) && ((size_t)r < buffer->size));
-  }
-
-  buffer->offset += r;
-}
-
-static void print_type(print_buffer_t* buffer, ast_t* type);
-
-static void print_typeexpr(print_buffer_t* buffer, ast_t* type, const char* sep,
+static void print_typeexpr(printbuf_t* buffer, ast_t* type, const char* sep,
   bool square)
 {
   if(square)
-    print_buffer(buffer, "[");
+    printbuf(buffer, "[");
   else
-    print_buffer(buffer, "(");
+    printbuf(buffer, "(");
 
   ast_t* child = ast_child(type);
 
@@ -924,18 +879,18 @@ static void print_typeexpr(print_buffer_t* buffer, ast_t* type, const char* sep,
     print_type(buffer, child);
 
     if(next != NULL)
-      print_buffer(buffer, "%s", sep);
+      printbuf(buffer, "%s", sep);
 
     child = next;
   }
 
   if(square)
-    print_buffer(buffer, "]");
+    printbuf(buffer, "]");
   else
-    print_buffer(buffer, ")");
+    printbuf(buffer, ")");
 }
 
-static void print_type(print_buffer_t* buffer, ast_t* type)
+static void print_type(printbuf_t* buffer, ast_t* type)
 {
   switch(ast_id(type))
   {
@@ -944,18 +899,18 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
       AST_GET_CHILDREN(type, package, id, typeargs, cap, ephemeral, origpkg);
 
       if(ast_id(origpkg) != TK_NONE)
-        print_buffer(buffer, "%s.", ast_name(origpkg));
+        printbuf(buffer, "%s.", ast_name(origpkg));
 
-      print_buffer(buffer, "%s", ast_name(id));
+      printbuf(buffer, "%s", ast_name(id));
 
       if(ast_id(typeargs) != TK_NONE)
         print_typeexpr(buffer, typeargs, ", ", true);
 
       if(ast_id(cap) != TK_NONE)
-        print_buffer(buffer, " %s", token_print(cap->t));
+        printbuf(buffer, " %s", token_print(cap->t));
 
       if(ast_id(ephemeral) != TK_NONE)
-        print_buffer(buffer, "%s", token_print(ephemeral->t));
+        printbuf(buffer, "%s", token_print(ephemeral->t));
 
       break;
     }
@@ -975,13 +930,13 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, ephemeral);
-      print_buffer(buffer, "%s", ast_name(id));
+      printbuf(buffer, "%s", ast_name(id));
 
       if(ast_id(cap) != TK_NONE)
-        print_buffer(buffer, " %s", token_print(cap->t));
+        printbuf(buffer, " %s", token_print(cap->t));
 
       if(ast_id(ephemeral) != TK_NONE)
-        print_buffer(buffer, " %s", token_print(ephemeral->t));
+        printbuf(buffer, " %s", token_print(ephemeral->t));
 
       break;
     }
@@ -990,17 +945,17 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
     {
       AST_GET_CHILDREN(type, left, right);
       print_type(buffer, left);
-      print_buffer(buffer, "->");
+      printbuf(buffer, "->");
       print_type(buffer, right);
       break;
     }
 
     case TK_THISTYPE:
-      print_buffer(buffer, "this");
+      printbuf(buffer, "this");
       break;
 
     case TK_DONTCARE:
-      print_buffer(buffer, "_");
+      printbuf(buffer, "_");
       break;
 
     default:
@@ -1010,11 +965,13 @@ static void print_type(print_buffer_t* buffer, ast_t* type)
 
 const char* ast_print_type(ast_t* type)
 {
-  print_buffer_t buffer;
-  memset(&buffer, 0, sizeof(print_buffer_t));
+  printbuf_t* buffer = printbuf_new();
+  print_type(buffer, type);
 
-  print_type(&buffer, type);
-  return stringtab(buffer.m);
+  const char* s = stringtab(buffer->m);
+  printbuf_free(buffer);
+
+  return s;
 }
 
 void ast_setwidth(size_t w)
