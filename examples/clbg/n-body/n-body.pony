@@ -108,7 +108,7 @@ class Body
   fun tag _days_per_year(): F64 => 365.24
 
 actor Main
-  let system: Array[Body] = Array[Body].prealloc(5)
+  let system: Array[Body] = Array[Body](5)
   let sun: Body = Body.sun()
   let _env: Env
 

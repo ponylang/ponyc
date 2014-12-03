@@ -217,9 +217,7 @@ static bool setup_type_fields(gentype_t* g)
   ast_t* typeargs = ast_childidx(g->ast, 2);
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* members = ast_childidx(def, 4);
-  ast_t* member;
-
-  member = ast_child(members);
+  ast_t* member = ast_child(members);
 
   while(member != NULL)
   {

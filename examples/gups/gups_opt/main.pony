@@ -139,14 +139,14 @@ actor Updater
     let count = updaters
     let chk = chunk
 
-    var array = Array[Array[U64] iso].prealloc(count)
+    var array = Array[Array[U64] iso](count)
 
     for i in Range(0, updaters) do
       array.append(
         try
           reuse.pop()
         else
-          recover Array[U64].prealloc(chk) end
+          recover Array[U64](chk) end
         end
         )
     end
@@ -218,7 +218,7 @@ class PolyRand
     if n == 0 then
       last = 1
     else
-      var m2 = Array[U64].prealloc(64)
+      var m2 = Array[U64](64)
       last = 1
 
       for i in Range(0, 63) do

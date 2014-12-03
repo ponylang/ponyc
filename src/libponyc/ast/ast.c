@@ -403,6 +403,7 @@ ast_t* ast_try_clause(ast_t* ast, size_t* clause)
     switch(token_get_id(ast->t))
     {
       case TK_TRY:
+      case TK_TRY2:
       {
         *clause = ast_index(last);
         return ast;

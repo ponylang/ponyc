@@ -131,9 +131,9 @@ static const lexsym_t keywords[] =
   { "repeat", TK_REPEAT },
   { "until", TK_UNTIL },
   { "match", TK_MATCH },
-  { "as", TK_AS },
   { "where", TK_WHERE },
   { "try", TK_TRY },
+  { "with", TK_WITH },
   { "error", TK_ERROR },
 
   { "not", TK_NOT },
@@ -193,6 +193,7 @@ static const lexsym_t abstract[] =
   { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
+  { "try", TK_TRY2 },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },

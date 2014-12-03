@@ -123,9 +123,10 @@ typedef enum token_id
   TK_FOR,
   TK_IN,
   TK_MATCH,
-  TK_AS,
   TK_WHERE,
   TK_TRY,
+  TK_TRY2,
+  TK_WITH,
   TK_ERROR,
 
   TK_NOT,

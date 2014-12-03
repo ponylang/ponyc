@@ -18,24 +18,33 @@ bool expr_seq(ast_t* ast)
   ast_settype(ast, type);
   ast_inheriterror(ast);
 
-  // Propagate consumes forward in a try expression.
+  if(!ast_has_scope(ast))
+    return true;
+
   ast_t* parent = ast_parent(ast);
 
-  if(ast_id(parent) == TK_TRY)
+  switch(ast_id(parent))
   {
-    AST_GET_CHILDREN(parent, body, else_clause, then_clause);
-
-    if(body == ast)
+    case TK_TRY:
+    case TK_TRY2:
     {
-      // Push our consumes, but not defines, to the else clause.
-      ast_inheritbranch(else_clause, body);
-      ast_consolidate_branches(else_clause, 2);
-    } else if(else_clause == ast) {
-      // Push our consumes, but not defines, to the then clause. This includes
-      // the consumes from the body.
-      ast_inheritbranch(then_clause, else_clause);
-      ast_consolidate_branches(then_clause, 2);
+      // Propagate consumes forward in a try expression.
+      AST_GET_CHILDREN(parent, body, else_clause, then_clause);
+
+      if(body == ast)
+      {
+        // Push our consumes, but not defines, to the else clause.
+        ast_inheritbranch(else_clause, body);
+        ast_consolidate_branches(else_clause, 2);
+      } else if(else_clause == ast) {
+        // Push our consumes, but not defines, to the then clause. This includes
+        // the consumes from the body.
+        ast_inheritbranch(then_clause, else_clause);
+        ast_consolidate_branches(then_clause, 2);
+      }
     }
+
+    default: {}
   }
 
   return true;
@@ -187,7 +196,7 @@ bool expr_try(ast_t* ast)
   ast_t* then_clause = ast_sibling(else_clause);
 
   // It has to be possible for the left side to result in an error.
-  if(!ast_canerror(body))
+  if((ast_id(ast) == TK_TRY) && !ast_canerror(body))
   {
     ast_error(body, "try expression never results in an error");
     return false;

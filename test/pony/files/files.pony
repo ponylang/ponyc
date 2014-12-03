@@ -1,13 +1,11 @@
 use "files"
 
-actor @Main
+actor Main
   new create(env: Env) =>
     try
-      var file = File.open(env.args(1))
-
-      for line in file.lines() do
-        env.out.write(line)
+      with file = File.open(env.args(1)) do
+        for line in file.lines() do
+          env.out.write(line)
+        end
       end
-
-      file.close()
     end

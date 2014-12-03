@@ -49,10 +49,10 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun box _concat(len: U64, with: Pointer[A] box, withlen: U64): Pointer[A] iso^
+  fun box _concat(len: U64, that: Pointer[A] box, thatlen: U64): Pointer[A] iso^
     =>
     """
-    Create a new array that is this + with, length len + withlen.
+    Create a new array that is this + that, length len + thatlen.
     """
     compiler_intrinsic
 

@@ -62,7 +62,7 @@ primitive Time
     Processor cycle count. Don't use this for performance timing, as it does
     not control for out-of-order execution.
     """
-    @llvm.readcyclecounter[U64]()
+    @"llvm.readcyclecounter"[U64]()
 
   fun tag perf_begin(): U64 =>
     """
@@ -70,8 +70,8 @@ primitive Time
     will prevent instructions from before this call leaking into the block and
     instructions after this call being executed earlier.
     """
-    @internal.x86.cpuid[(I32, I32, I32, I32)](I32(0))
-    @llvm.x86.rdtsc[U64]()
+    @"internal.x86.cpuid"[(I32, I32, I32, I32)](I32(0))
+    @"llvm.x86.rdtsc"[U64]()
 
   fun tag perf_end(): U64 =>
     """
@@ -80,6 +80,6 @@ primitive Time
     instructions before this call being executed later.
     """
     var aux: I32 = 0
-    var ts = @internal.x86.rdtscp[U64](&aux)
-    @internal.x86.cpuid[(I32, I32, I32, I32)](I32(0))
+    var ts = @"internal.x86.rdtscp"[U64](&aux)
+    @"internal.x86.cpuid"[(I32, I32, I32, I32)](I32(0))
     ts

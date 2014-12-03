@@ -62,11 +62,11 @@ class Rope val is Stringable
   fun box linebreaks(): U64 => _linebreaks
   fun box blocksize(): U64 => _blocksize
 
-  fun box concat(with: this->Rope ref): this->Rope ref =>
+  fun box concat(that: this->Rope ref): this->Rope ref =>
     """
     Concatenates two Ropes.
     """
-    match (left._size, with._size)
+    match (left._size, that._size)
     | (_, 0) => this
     | (0, _) => right
     else
@@ -75,7 +75,7 @@ class Rope val is Stringable
       let linebreaks' = _linebreaks + rope._linebreaks
       let blocksize' = _blocksize.max(rope._blocksize)
 
-      Rope(depth', size', linebreaks', blocksize', (this, with))
+      Rope(depth', size', linebreaks', blocksize', (this, that))
     end
 
   fun box subrope(start: I64, length: I64): Rope =>

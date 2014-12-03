@@ -53,7 +53,7 @@ class File
     """
     not _handle.is_null()
 
-  fun ref close() =>
+  fun ref dispose() =>
     """
     Close the file. Future operations will do nothing. If this isn't done,
     the underlying file descriptor will leak.
@@ -147,7 +147,7 @@ class File
         return true
       end
 
-      close()
+      dispose()
     end
     false
 

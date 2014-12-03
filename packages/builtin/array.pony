@@ -3,13 +3,13 @@ class Array[A]
   var _alloc: U64
   var _ptr: Pointer[A]
 
-  new create() =>
+  new create(len: U64 = 0) =>
     _size = 0
-    _alloc = 0
-    _ptr = Pointer[A].null()
+    _alloc = len
+    _ptr = Pointer[A]._create(len)
 
   // Put this in once we have codegen for polymorphic methods.
-  // new init[B: (A & Any box)](with: B, len: U64) =>
+  // new init[B: (A & Any box)](from: B, len: U64) =>
   //  _size = len
   //  _alloc = len
   //  _ptr = Pointer[A]._create(len)
@@ -17,7 +17,7 @@ class Array[A]
   //  var i: U64 = 0
   //
   //  while i < len do
-  //    _ptr._update(i, with)
+  //    _ptr._update(i, from)
   //    i = i + 1
   //  end
 
@@ -31,12 +31,6 @@ class Array[A]
     _size = len
     _alloc = len
     _ptr = ptr
-
-  // Replace this with a default argument on create().
-  new prealloc(len: U64) =>
-    _size = 0
-    _alloc = len
-    _ptr = Pointer[A]._create(len)
 
   fun box cstring(): Pointer[A] tag => _ptr
 

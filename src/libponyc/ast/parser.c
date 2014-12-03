@@ -232,18 +232,12 @@ DEF(ref);
   TOKEN("name", TK_ID);
   DONE();
 
-// ID {DOT ID}
-DEF(ffi_name);
-  AST_NODE(TK_IDSEQ);
-  TOKEN("ffi name", TK_ID);
-  WHILE(TK_DOT, TOKEN("ffi name", TK_ID));
-  DONE();
-
-// AT ffi_name typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN [QUESTION]
+// AT (ID | STRING) typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
+// [QUESTION]
 DEF(ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFICALL);
-  RULE("ffi name", ffi_name);
+  TOKEN("ffi name", TK_ID, TK_STRING);
   OPT RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi arguments", positional);
@@ -407,11 +401,11 @@ DEF(repeat);
 // FOR idseq [COLON type] IN rawseq DO rawseq [ELSE seq] END
 // =>
 // (SEQ
-//   (ASSIGN hygienic iterator)
-//   (WHILE hygienic.has_next() (SEQ (ASSIGN idseq hygienic.next()) body) else))
+//   (ASSIGN (LET $1) iterator)
+//   (WHILE $1.has_next()
+//     (SEQ (ASSIGN (LET idseq type) $1.next()) body) else))
 DEF(forloop);
   TOKEN(NULL, TK_FOR);
-  SCOPE();
   RULE("iterator name", idseq);
   IF(TK_COLON, RULE("iterator type", type));
   SKIP(NULL, TK_IN);
@@ -419,6 +413,26 @@ DEF(forloop);
   SKIP(NULL, TK_DO);
   RULE("for body", rawseq);
   IF(TK_ELSE, RULE("else clause", seq));
+  SKIP(NULL, TK_END);
+  DONE();
+
+// WITH idseq [COLON type] = rawseq DO rawseq [ELSE rawseq] END
+// =>
+// (SEQ
+//   (ASSIGN (LET $1 initialiser))
+//   (TRY
+//     (SEQ (ASSIGN (LET idseq) $1) body)
+//     (SEQ (ASSIGN (LET idseq) $1) else)
+//     (SEQ $1.dispose())))
+DEF(with);
+  TOKEN(NULL, TK_WITH);
+  RULE("with name", idseq);
+  IF(TK_COLON, RULE("with type", type));
+  SKIP(NULL, TK_ASSIGN);
+  RULE("initialiser", rawseq);
+  SKIP(NULL, TK_DO);
+  RULE("with body", rawseq);
+  IF(TK_ELSE, RULE("else clause", rawseq));
   SKIP(NULL, TK_END);
   DONE();
 
@@ -464,10 +478,10 @@ DEF(test_scope);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// local | cond | match | whileloop | repeat | forloop | try | recover |
+// local | cond | match | whileloop | repeat | forloop | with | try | recover |
 // prefix | prefixminus | postfix | test_scope
 DEF(term);
-  RULE("value", local, cond, match, whileloop, repeat, forloop, try_block,
+  RULE("value", local, cond, match, whileloop, repeat, forloop, with, try_block,
     recover, prefix, prefixminus, postfix, test_scope);
   DONE();
 
@@ -600,12 +614,12 @@ DEF(use_uri);
   TOKEN(NULL, TK_STRING);
   DONE();
 
-// AT ffi_name typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
+// AT (ID | STRING) typeparams (LPAREN | LPAREN_NEW) [params] RPAREN [QUESTION]
 DEF(use_ffi);
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFIDECL);
   SCOPE();
-  RULE("ffi name", ffi_name);
+  TOKEN("ffi name", TK_ID, TK_STRING);
   RULE("return type", typeargs);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("ffi parameters", params);

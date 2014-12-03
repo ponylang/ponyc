@@ -223,7 +223,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
     NODE(TK_SEQ,
       NODE(TK_ASSIGN,
         TREE(for_iter)
-        NODE(TK_VAR, NODE(TK_IDSEQ, ID(iter_name)) NONE)
+        NODE(TK_LET, NODE(TK_IDSEQ, ID(iter_name)) NONE)
         )
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
@@ -238,10 +238,42 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
               NONE NONE
               NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
               )
-            NODE(TK_VAR, TREE(for_idseq) TREE(for_type))
+            NODE(TK_LET, TREE(for_idseq) TREE(for_type))
             )
           TREE(for_body))
         TREE(for_else))));
+
+  return AST_OK;
+}
+
+
+static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
+{
+  AST_EXTRACT_CHILDREN(*astp, idseq, type, init, body, else_clause);
+
+  expand_none(else_clause);
+  const char* init_name = package_hygienic_id(t);
+
+  REPLACE(astp,
+    NODE(TK_SEQ,
+      NODE(TK_ASSIGN,
+        TREE(init)
+        NODE(TK_LET, NODE(TK_IDSEQ, ID(init_name)) NONE))
+      NODE(TK_TRY2, AST_SCOPE
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_ASSIGN,
+            NODE(TK_REFERENCE, ID(init_name))
+            NODE(TK_LET, TREE(idseq) TREE(type)))
+          TREE(body))
+        NODE(TK_SEQ, AST_SCOPE
+          NODE(TK_ASSIGN,
+            NODE(TK_REFERENCE, ID(init_name))
+            NODE(TK_LET, TREE(idseq) TREE(type)))
+          TREE(else_clause))
+        NODE(TK_SEQ, AST_SCOPE
+          NODE_ERROR_AT(TK_CALL, idseq,
+            NONE NONE
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(init_name)) ID("dispose")))))));
 
   return AST_OK;
 }
@@ -393,6 +425,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_REPEAT:     return sugar_else(ast);
     case TK_TRY:        return sugar_try(ast);
     case TK_FOR:        return sugar_for(t, astp);
+    case TK_WITH:       return sugar_with(t, astp);
 //    case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);

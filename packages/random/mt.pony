@@ -3,7 +3,7 @@ class MT is Random
   var _index: U64
 
   new create(seed: U64 = 5489) =>
-    _state = Array[U64].prealloc(_n())
+    _state = Array[U64](_n())
     _index = _n()
 
     var x = seed

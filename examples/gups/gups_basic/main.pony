@@ -113,10 +113,10 @@ actor Streamer
     let upts = updaters.size()
     let chks = chunk
 
-    var list = recover Array[Array[U64] iso].prealloc(upts) end
+    var list = recover Array[Array[U64] iso](upts) end
 
     for i in Range(0, upts) do
-      list.append(recover Array[U64].prealloc(chks) end)
+      list.append(recover Array[U64](chks) end)
     end
 
     try
@@ -147,7 +147,7 @@ actor Updater
   var table: Array[U64] ref
 
   new create(index: U64, size: U64) =>
-    table = Array[U64].prealloc(size)
+    table = Array[U64](size)
 
     var offset = index * size;
 
@@ -186,7 +186,7 @@ class PolyRand
     if n == 0 then
       last = 1
     else
-      var m2 = Array[U64].prealloc(64)
+      var m2 = Array[U64](64)
       last = 1
 
       for i in Range(0, 63) do

@@ -20,7 +20,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     Defaults to a prealloc of 8.
     """
     var n = prealloc.next_pow2()
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)].prealloc(n)
+    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
@@ -154,7 +154,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     let old_len = _old.size()
     let new_len = old_len * 2
 
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)].prealloc(new_len)
+    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](new_len)
     _size = 0
 
     for i in Range(0, new_len) do

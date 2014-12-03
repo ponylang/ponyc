@@ -8,7 +8,7 @@ actor Worker
     =>
     var view: Array[U8] iso =
       recover
-        Array[U8].prealloc((y - x) * (width >> 3))
+        Array[U8]((y - x) * (width >> 3))
       end
 
     let group_r = Array[F32].undefined(8)
@@ -80,8 +80,8 @@ actor Main
     let length = width
     let recip_width = 2.0 / width.f32()
 
-    var r = recover Array[F32].prealloc(length) end
-    var i = recover Array[F32].prealloc(length) end
+    var r = recover Array[F32](length) end
+    var i = recover Array[F32](length) end
 
     for j in Range(0, width) do
       r.append((recip_width * j.f32()) - 1.5)

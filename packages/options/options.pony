@@ -69,7 +69,7 @@ class Options ref is Iterator[_Result]
 
   new create(env: Env) =>
     _env = env
-    _args = Array[String ref].prealloc(_env.args.size())
+    _args = Array[String ref](_env.args.size())
 
     try
       for i in _env.args.values() do

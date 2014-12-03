@@ -9,7 +9,9 @@
 
 static const char* c_type_name(compile_t* c, gentype_t* g)
 {
-  if(g->type_name == c->str_Bool)
+  if(g->use_type == c->object_ptr)
+    return "void*";
+  else if(g->type_name == c->str_Bool)
     return "bool";
   else if(g->type_name == c->str_I8)
     return "int8_t";
@@ -160,7 +162,8 @@ static void print_methods(compile_t* c, gentype_t* g)
 
 void genheader(compile_t* c, gentype_t* g)
 {
-  // TODO: tuples, 128 bit int types, Pointer types
+  // TODO: tuples, 128 bit int types, Pointer types.
+  // TODO: All typedefs must come before all function signatures.
   if(g->primitive != NULL)
     return;
 

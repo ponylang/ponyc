@@ -4,11 +4,7 @@ actor Ring
   var _next: (Ring | None)
   var _env: Env
 
-  new create(env: Env) =>
-    _next = None
-    _env = env
-
-  new with(neighbor: Ring, env: Env) =>
+  new create(env: Env, neighbor: (Ring | None) = None) =>
     _next = neighbor
     _env = env
 
@@ -73,7 +69,7 @@ actor Main
       next = first
 
       for k in Range[U32](0, _ring_size - 1) do
-        current = Ring.with(next, _env)
+        current = Ring(_env, next)
         next = current
       end
 

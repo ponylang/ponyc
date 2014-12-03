@@ -46,6 +46,7 @@ bool is_result_needed(ast_t* ast)
 
     case TK_CASES:
     case TK_TRY:
+    case TK_TRY2:
       // Only if parent needed.
       return is_result_needed(parent);
 
@@ -170,6 +171,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TRY:
+    case TK_TRY2:
       if(!expr_try(ast))
         return AST_FATAL;
       break;
