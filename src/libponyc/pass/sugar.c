@@ -249,32 +249,52 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 
 static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 {
-  AST_EXTRACT_CHILDREN(*astp, idseq, type, init, body, else_clause);
-
+  AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
   expand_none(else_clause);
-  const char* init_name = package_hygienic_id(t);
 
-  REPLACE(astp,
+  BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(TK_ASSIGN,
-        TREE(init)
-        NODE(TK_LET, NODE(TK_IDSEQ, ID(init_name)) NONE))
       NODE(TK_TRY2, AST_SCOPE
         NODE(TK_SEQ, AST_SCOPE
-          NODE(TK_ASSIGN,
-            NODE(TK_REFERENCE, ID(init_name))
-            NODE(TK_LET, TREE(idseq) TREE(type)))
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE
-          NODE(TK_ASSIGN,
-            NODE(TK_REFERENCE, ID(init_name))
-            NODE(TK_LET, TREE(idseq) TREE(type)))
           TREE(else_clause))
-        NODE(TK_SEQ, AST_SCOPE
-          NODE_ERROR_AT(TK_CALL, idseq,
-            NONE NONE
-            NODE(TK_DOT, NODE(TK_REFERENCE, ID(init_name)) ID("dispose")))))));
+        NODE(TK_SEQ, AST_SCOPE))));
 
+  ast_t* try = ast_child(replace);
+  AST_GET_CHILDREN(try, try_body, try_else, try_then);
+
+  ast_t* withelem = ast_child(withexpr);
+
+  while(withelem != NULL)
+  {
+    AST_GET_CHILDREN(withelem, idseq, type, init);
+    const char* init_name = package_hygienic_id(t);
+
+    BUILD(assign, idseq,
+      NODE(TK_ASSIGN,
+        TREE(init)
+        NODE(TK_LET, NODE(TK_IDSEQ, ID(init_name)) NONE)));
+
+    BUILD(local, idseq,
+      NODE(TK_ASSIGN,
+        NODE(TK_REFERENCE, ID(init_name))
+        NODE(TK_LET, TREE(idseq) TREE(type))));
+
+    BUILD(dispose, idseq,
+      NODE_ERROR_AT(TK_CALL, idseq,
+        NONE NONE
+        NODE(TK_DOT, NODE(TK_REFERENCE, ID(init_name)) ID("dispose"))));
+
+    ast_add(replace, assign);
+    ast_add(try_body, local);
+    ast_add(try_else, local);
+    ast_add(try_then, dispose);
+
+    withelem = ast_sibling(withelem);
+  }
+
+  ast_replace(astp, replace);
   return AST_OK;
 }
 

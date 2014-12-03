@@ -416,20 +416,33 @@ DEF(forloop);
   SKIP(NULL, TK_END);
   DONE();
 
-// WITH idseq [COLON type] = rawseq DO rawseq [ELSE rawseq] END
-// =>
-// (SEQ
-//   (ASSIGN (LET $1 initialiser))
-//   (TRY
-//     (SEQ (ASSIGN (LET idseq) $1) body)
-//     (SEQ (ASSIGN (LET idseq) $1) else)
-//     (SEQ $1.dispose())))
-DEF(with);
-  TOKEN(NULL, TK_WITH);
+// idseq [COLON type] = rawseq
+DEF(withelem);
+  AST_NODE(TK_SEQ);
   RULE("with name", idseq);
   IF(TK_COLON, RULE("with type", type));
   SKIP(NULL, TK_ASSIGN);
   RULE("initialiser", rawseq);
+  DONE();
+
+// withelem {COMMA withelem}
+DEF(withexpr);
+  AST_NODE(TK_SEQ);
+  RULE(NULL, withelem);
+  WHILE(TK_COMMA, RULE(NULL, withelem));
+  DONE();
+
+// WITH withexpr DO rawseq [ELSE rawseq] END
+// =>
+// (SEQ
+//   (ASSIGN (LET $1 initialiser))*
+//   (TRY
+//     (SEQ (ASSIGN (LET idseq) $1)* body)
+//     (SEQ (ASSIGN (LET idseq) $1)* else)
+//     (SEQ $1.dispose()*)))
+DEF(with);
+  TOKEN(NULL, TK_WITH);
+  RULE(NULL, withexpr);
   SKIP(NULL, TK_DO);
   RULE("with body", rawseq);
   IF(TK_ELSE, RULE("else clause", rawseq));
