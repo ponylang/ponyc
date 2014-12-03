@@ -403,7 +403,7 @@ static void normalise_string(lexer_t* lexer)
       {
         ws_this_line++;
       }
-      else
+      else if((c != '\r') && (c != '\n'))
       {
         if(ws_this_line < ws)
           ws = ws_this_line;
@@ -431,10 +431,14 @@ static void normalise_string(lexer_t* lexer)
       char* line_end = strchr(line_start, '\n');
       size_t line_len =
         (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
-      memmove(compacted, line_start + ws, line_len - ws);
+
+      if(line_len > ws)
+      {
+        memmove(compacted, line_start + ws, line_len - ws);
+        compacted += line_len - ws;
+      }
 
       line_start += line_len;
-      compacted += line_len - ws;
       rem -= line_len;
     }
   }
