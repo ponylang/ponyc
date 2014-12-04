@@ -19,11 +19,33 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     """
     Defaults to a prealloc of 8.
     """
-    var n = prealloc.next_pow2()
+    let n = prealloc.next_pow2()
     _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
+    end
+
+  new from(array: Array[(Key, Value)]) =>
+    """
+    Create a map from an array of tuples. Because the value may be isolated,
+    this removes the tuples from the array, leaving it empty.
+    """
+    let n = array.size().next_pow2()
+    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
+
+    for i in Range(0, n) do
+      _array.append(_MapEmpty)
+    end
+
+    try
+      var i = array.size()
+
+      while i > 0 do
+        i = i - 1
+        let (k, v) = array.delete(i)
+        update(consume k, consume v)
+      end
     end
 
   fun box size(): U64 =>
