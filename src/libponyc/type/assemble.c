@@ -1,5 +1,4 @@
 #include "assemble.h"
-#include "assemble.h"
 #include "subtype.h"
 #include "lookup.h"
 #include "../ast/token.h"
@@ -126,12 +125,11 @@ static ast_t* type_typeexpr(token_id t, ast_t* l_type, ast_t* r_type)
 
 static ast_t* type_base(ast_t* from, const char* package, const char* name)
 {
-  ast_t* ast = ast_from(from, TK_NOMINAL);
-  ast_add(ast, ast_from(from, TK_NONE)); // ephemerality
-  ast_add(ast, ast_from(from, TK_NONE)); // capability
-  ast_add(ast, ast_from(from, TK_NONE)); // typeargs
-  ast_add(ast, ast_from_string(from, name)); // name
-  ast_add(ast, ast_from_string(from, package));
+  BUILD(ast, from,
+    NODE(TK_NOMINAL,
+      ID(package)
+      ID(name)
+      NONE NONE NONE));
 
   return ast;
 }

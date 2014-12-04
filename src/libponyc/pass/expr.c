@@ -6,6 +6,7 @@
 #include "../expr/postfix.h"
 #include "../expr/control.h"
 #include "../expr/match.h"
+#include "../expr/array.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -197,9 +198,9 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_ARRAY:
-      // TODO: determine our type by looking at every expr in the array
-      ast_error(ast, "not implemented (array)");
-      return AST_FATAL;
+      if(!expr_array(t, astp))
+        return AST_FATAL;
+      break;
 
     case TK_OBJECT:
       // TODO: create a type for the object, make sure it fulfills any traits it

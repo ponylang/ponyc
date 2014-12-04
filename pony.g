@@ -167,7 +167,7 @@ atom
   |  ID
   |  'this'
   |  '(' positional ')' // tuple
-  |  '[' positional? named? ']' // array
+  |  '[' positional ']' // array
   |  '{' ('is' types)? members '}' // object
   |  '@' ID ('.' ID)* type_args? '(' positional? ')' '?'? // ffi
   ;

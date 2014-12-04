@@ -199,12 +199,12 @@ DEF(object);
   SKIP(NULL, TK_RBRACE);
   DONE();
 
-// (LSQUARE | LSQUARE_NEW) [positional] [named] RSQUARE
+// (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
 DEF(array);
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
-  OPT RULE("array element", positional);
-  OPT RULE("array element", named);
+  RULE("array element", rawseq);
+  WHILE(TK_COMMA, RULE("array element", rawseq));
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
