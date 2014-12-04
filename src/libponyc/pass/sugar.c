@@ -261,8 +261,8 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
           TREE(else_clause))
         NODE(TK_SEQ, AST_SCOPE))));
 
-  ast_t* try = ast_child(replace);
-  AST_GET_CHILDREN(try, try_body, try_else, try_then);
+  ast_t* tryexpr = ast_child(replace);
+  AST_GET_CHILDREN(tryexpr, try_body, try_else, try_then);
 
   ast_t* withelem = ast_child(withexpr);
 
