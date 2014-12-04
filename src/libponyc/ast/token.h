@@ -87,6 +87,7 @@ typedef enum token_id
   TK_PRIMITIVE,
   TK_CLASS,
   TK_ACTOR,
+  TK_OBJECT,
 
   TK_IS,
   TK_ISNT,
@@ -174,7 +175,6 @@ typedef enum token_id
   TK_CALL,
   TK_TUPLE,
   TK_ARRAY,
-  TK_OBJECT,
   TK_CASES,
   TK_CASE,
 

@@ -75,7 +75,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value,
 
   if(is_type)
   {
-    if(!is_type_name(s))
+    if(!is_type_name(s) && (s[0] != '$'))
     {
       ast_error(name, "type names must start A-Z or _(A-Z)");
       return false;

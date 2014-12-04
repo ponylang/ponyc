@@ -12,7 +12,7 @@
 #include "../ast/token.h"
 #include <assert.h>
 
-static bool expr_packageaccess(typecheck_t* t, ast_t* ast)
+static bool expr_packageaccess(pass_opt_t* opt, ast_t* ast)
 {
   // left is a packageref, right is an id
   ast_t* left = ast_child(ast);
@@ -45,11 +45,13 @@ static bool expr_packageaccess(typecheck_t* t, ast_t* ast)
 
   ast_settype(ast, type_sugar(ast, package_name, type_name));
   ast_setid(ast, TK_TYPEREF);
-  return expr_typeref(t, ast);
+  return expr_typeref(opt, ast);
 }
 
-static bool expr_typeaccess(typecheck_t* t, ast_t* ast)
+static bool expr_typeaccess(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
+
   // left is a typeref, right is an id
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
@@ -103,7 +105,7 @@ static bool expr_typeaccess(typecheck_t* t, ast_t* ast)
       ast_swap(left, dot);
       ast_add(dot, left);
 
-      if(!expr_dot(t, dot))
+      if(!expr_dot(opt, dot))
         return false;
 
       ast_t* call = ast_from(ast, TK_CALL);
@@ -112,10 +114,10 @@ static bool expr_typeaccess(typecheck_t* t, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 
-      if(!expr_call(t, call))
+      if(!expr_call(opt, call))
         return false;
 
-      return expr_dot(t, ast);
+      return expr_dot(opt, ast);
     }
 
     default:
@@ -255,7 +257,7 @@ static bool expr_memberaccess(typecheck_t* t, ast_t* ast)
   return ret;
 }
 
-bool expr_qualify(typecheck_t* t, ast_t* ast)
+bool expr_qualify(pass_opt_t* opt, ast_t* ast)
 {
   // left is a postfix expression, right is a typeargs
   ast_t* left = ast_child(ast);
@@ -282,7 +284,7 @@ bool expr_qualify(typecheck_t* t, ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(t, ast);
+      return expr_typeref(opt, ast);
     }
 
     case TK_NEWREF:
@@ -314,18 +316,20 @@ bool expr_qualify(typecheck_t* t, ast_t* ast)
   return false;
 }
 
-bool expr_dot(typecheck_t* t, ast_t* ast)
+bool expr_dot(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
+
   // Left is a postfix expression, right an id.
   ast_t* left = ast_child(ast);
 
   switch(ast_id(left))
   {
     case TK_PACKAGEREF:
-      return expr_packageaccess(t, ast);
+      return expr_packageaccess(opt, ast);
 
     case TK_TYPEREF:
-      return expr_typeaccess(t, ast);
+      return expr_typeaccess(opt, ast);
 
     default: {}
   }
@@ -347,7 +351,7 @@ bool expr_dot(typecheck_t* t, ast_t* ast)
   return expr_memberaccess(t, ast);
 }
 
-static bool expr_apply(typecheck_t* t, ast_t* ast)
+static bool expr_apply(pass_opt_t* opt, ast_t* ast)
 {
   // Sugar .apply()
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
@@ -357,10 +361,10 @@ static bool expr_apply(typecheck_t* t, ast_t* ast)
   ast_swap(lhs, dot);
   ast_add(dot, lhs);
 
-  if(!expr_dot(t, dot))
+  if(!expr_dot(opt, dot))
     return false;
 
-  return expr_call(t, ast);
+  return expr_call(opt, ast);
 }
 
 static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
@@ -468,7 +472,7 @@ static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
   return true;
 }
 
-static bool apply_default_arg(ast_t* param, ast_t* arg)
+static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 {
   // Pick up a default argument if needed.
   if(ast_id(arg) != TK_NONE)
@@ -488,7 +492,7 @@ static bool apply_default_arg(ast_t* param, ast_t* arg)
   // Type check the arg.
   if(ast_type(def_arg) == NULL)
   {
-    if(ast_visit(&arg, NULL, pass_expr, NULL) != AST_OK)
+    if(ast_visit(&arg, NULL, pass_expr, opt) != AST_OK)
       return false;
   } else {
     if(!expr_seq(arg))
@@ -498,7 +502,8 @@ static bool apply_default_arg(ast_t* param, ast_t* arg)
   return true;
 }
 
-static bool check_arg_types(ast_t* params, ast_t* positional, bool incomplete)
+static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
+  bool incomplete)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -506,7 +511,7 @@ static bool check_arg_types(ast_t* params, ast_t* positional, bool incomplete)
 
   while(arg != NULL)
   {
-    if(!apply_default_arg(param, arg))
+    if(!apply_default_arg(opt, param, arg))
       return false;
 
     ast_t* p_type = ast_childidx(param, 1);
@@ -656,7 +661,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   return ok;
 }
 
-static bool expr_methodcall(typecheck_t* t, ast_t* ast)
+static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
 {
   // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
@@ -676,9 +681,9 @@ static bool expr_methodcall(typecheck_t* t, ast_t* ast)
   if(!apply_named_args(params, positional, namedargs))
     return false;
 
-  bool incomplete = is_this_incomplete(t, ast);
+  bool incomplete = is_this_incomplete(&opt->check, ast);
 
-  if(!check_arg_types(params, positional, incomplete))
+  if(!check_arg_types(opt, params, positional, incomplete))
     return false;
 
   if((ast_id(lhs) == TK_FUNREF) && !check_receiver_cap(ast, incomplete))
@@ -689,7 +694,7 @@ static bool expr_methodcall(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-bool expr_call(typecheck_t* t, ast_t* ast)
+bool expr_call(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
@@ -720,13 +725,13 @@ bool expr_call(typecheck_t* t, ast_t* ast)
     case TK_LETREF:
     case TK_PARAMREF:
     case TK_CALL:
-      return expr_apply(t, ast);
+      return expr_apply(opt, ast);
 
     case TK_NEWREF:
     case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
-      return expr_methodcall(t, ast);
+      return expr_methodcall(opt, ast);
 
     default: {}
   }

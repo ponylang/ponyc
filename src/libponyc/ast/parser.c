@@ -192,11 +192,10 @@ DEF(positional);
 
 // LBRACE [IS types] members RBRACE
 DEF(object);
-  AST_NODE(TK_OBJECT);
-  SKIP(NULL, TK_LBRACE);
+  TOKEN(NULL, TK_OBJECT);
   IF(TK_IS, RULE("provided type", types));
   RULE("object member", members);
-  SKIP(NULL, TK_RBRACE);
+  SKIP(NULL, TK_END);
   DONE();
 
 // (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE

@@ -95,6 +95,7 @@ static const lexsym_t keywords[] =
   { "primitive", TK_PRIMITIVE },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
+  { "object", TK_OBJECT },
 
   { "is", TK_IS },
   { "isnt", TK_ISNT },
@@ -190,7 +191,6 @@ static const lexsym_t abstract[] =
   { "call", TK_CALL },
   { "tuple", TK_TUPLE },
   { "array", TK_ARRAY },
-  { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY2 },
