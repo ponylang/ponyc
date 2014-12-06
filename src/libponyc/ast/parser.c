@@ -256,9 +256,9 @@ DEF(dot);
   TOKEN("member name", TK_ID);
   DONE();
 
-// BANG ID
-DEF(bang);
-  TOKEN(NULL, TK_BORROWED); // TODO: Change to a different symbol?
+// TILDE ID
+DEF(tilde);
+  TOKEN(NULL, TK_TILDE);
   TOKEN("method name", TK_ID);
   DONE();
 
@@ -277,10 +277,10 @@ DEF(call);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// atom {dot | bang | qualify | call}
+// atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  TOP SEQ("postfix expression", dot, bang, qualify, call);
+  TOP SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID

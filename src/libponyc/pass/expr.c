@@ -146,6 +146,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_FATAL;
       break;
 
+    case TK_TILDE:
+      if(!expr_tilde(options, ast))
+        return AST_FATAL;
+      break;
+
     case TK_QUALIFY:
       if(!expr_qualify(options, ast))
         return AST_FATAL;

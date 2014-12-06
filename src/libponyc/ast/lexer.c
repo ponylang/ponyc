@@ -58,6 +58,7 @@ static const lexsym_t symbols[] =
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
+  { "~", TK_TILDE },
   { ":", TK_COLON },
   { ";", TK_SEMI },
   { "=", TK_ASSIGN },
@@ -208,6 +209,10 @@ static const lexsym_t abstract[] =
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
+  { "newapp", TK_NEWAPP },
+  { "newbeapp", TK_NEWBEAPP },
+  { "beapp", TK_BEAPP },
+  { "funapp", TK_FUNAPP },
 
   { "test", TK_TEST },
   { "testscope", TK_TEST_SCOPE },

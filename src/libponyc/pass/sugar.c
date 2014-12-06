@@ -298,33 +298,6 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 }
 
 
-/*
-static ast_result_t sugar_bang(ast_t** astp)
-{
-  // TODO: syntactic sugar for partial application
-  a!method(b, c)
-
-  {
-    var $0: Receiver method_cap = a
-    var $1: Param1 = b
-    var $2: Param2 = c
-
-    fun cap apply(remaining args on method): method_result =>
-      $0.method($1, $2, remaining args on method)
-  } cap ^
-
-  cap
-    never tag (need to read our receiver)
-    never iso or trn (but can recover)
-    val: ParamX val or tag, method_cap val or tag
-    box: val <: ParamX, val <: method_cap
-    ref: otherwise
-
-  return AST_OK;
-}
-*/
-
-
 static ast_result_t sugar_case(ast_t* ast)
 {
   ast_t* body = ast_childidx(ast, 2);
@@ -560,7 +533,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_TRY:        return sugar_try(ast);
     case TK_FOR:        return sugar_for(t, astp);
     case TK_WITH:       return sugar_with(t, astp);
-//    case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);

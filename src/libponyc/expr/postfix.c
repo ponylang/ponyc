@@ -291,6 +291,10 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
     case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
+    case TK_NEWAPP:
+    case TK_NEWBEAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
     {
       // qualify the function
       assert(ast_id(type) == TK_FUNTYPE);
@@ -320,7 +324,7 @@ bool expr_dot(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
 
-  // Left is a postfix expression, right an id.
+  // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
 
   switch(ast_id(left))
@@ -349,6 +353,45 @@ bool expr_dot(pass_opt_t* opt, ast_t* ast)
     return expr_tupleaccess(ast);
 
   return expr_memberaccess(t, ast);
+}
+
+bool expr_tilde(pass_opt_t* opt, ast_t* ast)
+{
+  if(!expr_dot(opt, ast))
+    return false;
+
+  switch(ast_id(ast))
+  {
+    case TK_NEWREF:
+      ast_setid(ast, TK_NEWAPP);
+      return true;
+
+    case TK_NEWBEREF:
+      ast_setid(ast, TK_NEWBEAPP);
+      return true;
+
+    case TK_BEREF:
+      ast_setid(ast, TK_BEAPP);
+      return true;
+
+    case TK_FUNREF:
+      ast_setid(ast, TK_FUNAPP);
+      return true;
+
+    case TK_TYPEREF:
+      ast_error(ast, "can't do partial application on a package");
+      return false;
+
+    case TK_FVARREF:
+    case TK_FLETREF:
+      ast_error(ast, "can't do partial application of a field");
+      return false;
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
 }
 
 static bool expr_apply(pass_opt_t* opt, ast_t* ast)
@@ -405,6 +448,20 @@ static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
   }
 
   return false;
+}
+
+static bool check_type_params(ast_t* lhs)
+{
+  ast_t* type = ast_type(lhs);
+  ast_t* typeparams = ast_childidx(type, 1);
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(lhs, "can't call a function with unqualified type parameters");
+    return false;
+  }
+
+  return true;
 }
 
 static bool extend_positional_args(ast_t* params, ast_t* positional)
@@ -474,10 +531,7 @@ static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
 
 static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 {
-  // Pick up a default argument if needed.
-  if(ast_id(arg) != TK_NONE)
-    return true;
-
+  // Pick up a default argument.
   ast_t* def_arg = ast_childidx(param, 2);
 
   if(ast_id(def_arg) == TK_NONE)
@@ -503,7 +557,7 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
 }
 
 static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
-  bool incomplete)
+  bool incomplete, bool partial)
 {
   // Check positional args vs params.
   ast_t* param = ast_child(params);
@@ -511,8 +565,20 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
   while(arg != NULL)
   {
-    if(!apply_default_arg(opt, param, arg))
-      return false;
+    if(ast_id(arg) == TK_NONE)
+    {
+      if(partial)
+      {
+        // Don't check missing arguments for partial application.
+        arg = ast_sibling(arg);
+        param = ast_sibling(param);
+        continue;
+      } else {
+        // Pick up a default argument if we can.
+        if(!apply_default_arg(opt, param, arg))
+          return false;
+      }
+    }
 
     ast_t* p_type = ast_childidx(param, 1);
 
@@ -661,7 +727,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   return ok;
 }
 
-static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
+static bool expr_methodapplication(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
@@ -669,11 +735,8 @@ static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
   ast_t* type = ast_type(lhs);
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
-  if(ast_id(typeparams) != TK_NONE)
-  {
-    ast_error(ast, "can't call a function with unqualified type parameters");
+  if(!check_type_params(lhs))
     return false;
-  }
 
   if(!extend_positional_args(params, positional))
     return false;
@@ -683,15 +746,48 @@ static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
 
   bool incomplete = is_this_incomplete(&opt->check, ast);
 
-  if(!check_arg_types(opt, params, positional, incomplete))
+  if(!check_arg_types(opt, params, positional, incomplete, partial))
     return false;
 
-  if((ast_id(lhs) == TK_FUNREF) && !check_receiver_cap(ast, incomplete))
+  switch(ast_id(lhs))
+  {
+    case TK_FUNREF:
+    case TK_FUNAPP:
+      if(!check_receiver_cap(ast, incomplete))
+        return false;
+      break;
+
+    default: {}
+  }
+
+  return true;
+}
+
+static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
+{
+  if(!expr_methodapplication(opt, ast, false))
     return false;
+
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  ast_t* type = ast_type(lhs);
+  ast_t* result = ast_childidx(type, 3);
 
   ast_settype(ast, result);
   ast_inheriterror(ast);
   return true;
+}
+
+static bool expr_partialapplication(pass_opt_t* opt, ast_t* ast)
+{
+  if(!expr_methodapplication(opt, ast, true))
+    return false;
+
+  // TODO:
+  // build an anonymous type and replace the expression with a create call
+  // typecheck the anonymous type
+
+  ast_error(ast, "not implemented: partial application");
+  return false;
 }
 
 bool expr_call(pass_opt_t* opt, ast_t* ast)
@@ -732,6 +828,12 @@ bool expr_call(pass_opt_t* opt, ast_t* ast)
     case TK_BEREF:
     case TK_FUNREF:
       return expr_methodcall(opt, ast);
+
+    case TK_NEWAPP:
+    case TK_NEWBEAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
+      return expr_partialapplication(opt, ast);
 
     default: {}
   }
