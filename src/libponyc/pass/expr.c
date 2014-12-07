@@ -85,7 +85,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      if(!expr_fun(t, ast))
+      if(!expr_fun(options, ast))
         return AST_FATAL;
       break;
 
@@ -142,17 +142,22 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_DOT:
-      if(!expr_dot(t, ast))
+      if(!expr_dot(options, ast))
+        return AST_FATAL;
+      break;
+
+    case TK_TILDE:
+      if(!expr_tilde(options, ast))
         return AST_FATAL;
       break;
 
     case TK_QUALIFY:
-      if(!expr_qualify(t, ast))
+      if(!expr_qualify(options, ast))
         return AST_FATAL;
       break;
 
     case TK_CALL:
-      if(!expr_call(t, ast))
+      if(!expr_call(options, ast))
         return AST_FATAL;
       break;
 
@@ -198,18 +203,12 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_ARRAY:
-      if(!expr_array(t, astp))
+      if(!expr_array(options, astp))
         return AST_FATAL;
       break;
 
-    case TK_OBJECT:
-      // TODO: create a type for the object, make sure it fulfills any traits it
-      // claims to have
-      ast_error(ast, "not implemented (object)");
-      return AST_FATAL;
-
     case TK_REFERENCE:
-      if(!expr_reference(t, ast))
+      if(!expr_reference(options, ast))
         return AST_FATAL;
       break;
 

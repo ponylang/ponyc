@@ -154,8 +154,9 @@ bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
   return true;
 }
 
-bool expr_typeref(typecheck_t* t, ast_t* ast)
+bool expr_typeref(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
@@ -181,7 +182,7 @@ bool expr_typeref(typecheck_t* t, ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      return expr_dot(t, dot);
+      return expr_dot(opt, dot);
     }
 
     default:
@@ -196,7 +197,7 @@ bool expr_typeref(typecheck_t* t, ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      if(!expr_dot(t, dot))
+      if(!expr_dot(opt, dot))
         return false;
 
       // call the default constructor with no arguments
@@ -206,15 +207,17 @@ bool expr_typeref(typecheck_t* t, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
 
-      return expr_call(t, call);
+      return expr_call(opt, call);
     }
   }
 
   return true;
 }
 
-bool expr_reference(typecheck_t* t, ast_t* ast)
+bool expr_reference(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
+
   // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
 
@@ -273,7 +276,7 @@ bool expr_reference(typecheck_t* t, ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(t, ast);
+      return expr_typeref(opt, ast);
     }
 
     case TK_FVAR:
@@ -294,7 +297,7 @@ bool expr_reference(typecheck_t* t, ast_t* ast)
       if(!expr_this(t, self))
         return false;
 
-      return expr_dot(t, dot);
+      return expr_dot(opt, dot);
     }
 
     case TK_PARAM:
@@ -343,7 +346,7 @@ bool expr_reference(typecheck_t* t, ast_t* ast)
       if(!expr_this(t, self))
         return false;
 
-      return expr_dot(t, dot);
+      return expr_dot(opt, dot);
     }
 
     case TK_ID:
@@ -766,7 +769,7 @@ static bool check_fields_defined(ast_t* ast)
   return result;
 }
 
-static bool check_return_type(typecheck_t* t, ast_t* ast)
+static bool check_return_type(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -787,7 +790,7 @@ static bool check_return_type(typecheck_t* t, ast_t* ast)
     ast_t* last = ast_childlast(body);
     BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
-    expr_reference(t, ref);
+    expr_reference(opt, ref);
     return true;
   }
 
@@ -811,8 +814,10 @@ static bool check_return_type(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
-bool expr_fun(typecheck_t* t, ast_t* ast)
+bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
+
   AST_GET_CHILDREN(ast,
     cap, id, typeparams, params, type, can_error, body);
 
@@ -851,7 +856,7 @@ bool expr_fun(typecheck_t* t, ast_t* ast)
       return check_fields_defined(ast);
 
     case TK_FUN:
-      return check_return_type(t, ast);
+      return check_return_type(opt, ast);
 
     default: {}
   }

@@ -192,11 +192,10 @@ DEF(positional);
 
 // LBRACE [IS types] members RBRACE
 DEF(object);
-  AST_NODE(TK_OBJECT);
-  SKIP(NULL, TK_LBRACE);
+  TOKEN(NULL, TK_OBJECT);
   IF(TK_IS, RULE("provided type", types));
   RULE("object member", members);
-  SKIP(NULL, TK_RBRACE);
+  SKIP(NULL, TK_END);
   DONE();
 
 // (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
@@ -257,9 +256,9 @@ DEF(dot);
   TOKEN("member name", TK_ID);
   DONE();
 
-// BANG ID
-DEF(bang);
-  TOKEN(NULL, TK_BORROWED); // TODO: Change to a different symbol?
+// TILDE ID
+DEF(tilde);
+  TOKEN(NULL, TK_TILDE);
   TOKEN("method name", TK_ID);
   DONE();
 
@@ -278,10 +277,10 @@ DEF(call);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// atom {dot | bang | qualify | call}
+// atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  TOP SEQ("postfix expression", dot, bang, qualify, call);
+  TOP SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID

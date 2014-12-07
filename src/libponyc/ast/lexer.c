@@ -58,6 +58,7 @@ static const lexsym_t symbols[] =
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
+  { "~", TK_TILDE },
   { ":", TK_COLON },
   { ";", TK_SEMI },
   { "=", TK_ASSIGN },
@@ -95,6 +96,7 @@ static const lexsym_t keywords[] =
   { "primitive", TK_PRIMITIVE },
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
+  { "object", TK_OBJECT },
 
   { "is", TK_IS },
   { "isnt", TK_ISNT },
@@ -190,7 +192,6 @@ static const lexsym_t abstract[] =
   { "call", TK_CALL },
   { "tuple", TK_TUPLE },
   { "array", TK_ARRAY },
-  { "object", TK_OBJECT },
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY2 },
@@ -208,6 +209,10 @@ static const lexsym_t abstract[] =
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
+  { "newapp", TK_NEWAPP },
+  { "newbeapp", TK_NEWBEAPP },
+  { "beapp", TK_BEAPP },
+  { "funapp", TK_FUNAPP },
 
   { "test", TK_TEST },
   { "testscope", TK_TEST_SCOPE },

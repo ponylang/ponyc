@@ -40,6 +40,7 @@ typedef enum token_id
   TK_ARROW,
   TK_DBLARROW,
   TK_DOT,
+  TK_TILDE,
   TK_COLON,
   TK_SEMI,
   TK_ASSIGN,
@@ -87,6 +88,7 @@ typedef enum token_id
   TK_PRIMITIVE,
   TK_CLASS,
   TK_ACTOR,
+  TK_OBJECT,
 
   TK_IS,
   TK_ISNT,
@@ -174,7 +176,6 @@ typedef enum token_id
   TK_CALL,
   TK_TUPLE,
   TK_ARRAY,
-  TK_OBJECT,
   TK_CASES,
   TK_CASE,
 
@@ -191,6 +192,10 @@ typedef enum token_id
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
+  TK_NEWAPP,
+  TK_NEWBEAPP,
+  TK_BEAPP,
+  TK_FUNAPP,
 
   // Token types for testing
   TK_TEST,

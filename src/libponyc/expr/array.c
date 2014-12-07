@@ -1,10 +1,11 @@
 #include "array.h"
 #include "reference.h"
 #include "postfix.h"
+#include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
 
-bool expr_array(typecheck_t* t, ast_t** astp)
+bool expr_array(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
   size_t size = ast_childcount(ast);
@@ -44,10 +45,10 @@ bool expr_array(typecheck_t* t, ast_t** astp)
       NONE
       TREE(dot)));
 
-  if(!expr_reference(t, ref) ||
-    !expr_qualify(t, qualify) ||
-    !expr_dot(t, dot) ||
-    !expr_call(t, call)
+  if(!expr_reference(opt, ref) ||
+    !expr_qualify(opt, qualify) ||
+    !expr_dot(opt, dot) ||
+    !expr_call(opt, call)
     )
     return false;
 
@@ -68,8 +69,8 @@ bool expr_array(typecheck_t* t, ast_t** astp)
 
     ast_replace(astp, append);
 
-    if(!expr_dot(t, append_dot) ||
-      !expr_call(t, append)
+    if(!expr_dot(opt, append_dot) ||
+      !expr_call(opt, append)
       )
       return false;
 

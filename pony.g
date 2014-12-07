@@ -154,7 +154,7 @@ withexpr
 postfix
   :  atom
      (  '.' ID // member access
-     |  '!' ID // partial application, syntactic sugar
+     |  '~' ID // partial application, syntactic sugar
      |  type_args // type arguments
      |  '@(' positional? named? ')' // call
      )*
@@ -168,7 +168,7 @@ atom
   |  'this'
   |  '(' positional ')' // tuple
   |  '[' positional ']' // array
-  |  '{' ('is' types)? members '}' // object
+  |  'object' ('is' types)? members 'end' // object
   |  '@' ID ('.' ID)* type_args? '(' positional? ')' '?'? // ffi
   ;
 

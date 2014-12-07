@@ -17,7 +17,6 @@ static ast_t* make_create(ast_t* ast)
     NONE          // return type
     NONE          // error
     NODE(TK_SEQ, NODE(TK_TRUE))
-    NONE          // C API
     NODE(TK_DBLARROW)));
 
   return create;
@@ -299,33 +298,6 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 }
 
 
-/*
-static ast_result_t sugar_bang(ast_t** astp)
-{
-  // TODO: syntactic sugar for partial application
-  a!method(b, c)
-
-  {
-    var $0: Receiver method_cap = a
-    var $1: Param1 = b
-    var $2: Param2 = c
-
-    fun cap apply(remaining args on method): method_result =>
-      $0.method($1, $2, remaining args on method)
-  } cap ^
-
-  cap
-    never tag (need to read our receiver)
-    never iso or trn (but can recover)
-    val: ParamX val or tag, method_cap val or tag
-    box: val <: ParamX, val <: method_cap
-    ref: otherwise
-
-  return AST_OK;
-}
-*/
-
-
 static ast_result_t sugar_case(ast_t* ast)
 {
   ast_t* body = ast_childidx(ast, 2);
@@ -393,6 +365,121 @@ static ast_result_t sugar_update(ast_t** astp)
 }
 
 
+static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
+{
+  typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
+  AST_GET_CHILDREN(ast, provides, members);
+  ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
+
+  // Create a new anonymous type.
+  BUILD(def, ast,
+    NODE(TK_CLASS, AST_SCOPE
+      TREE(c_id)
+      NONE
+      NONE
+      TREE(provides)
+      NODE(TK_MEMBERS)
+      NONE
+      NONE));
+
+  // We will have a create method in the type.
+  BUILD(create, members,
+    NODE(TK_NEW, AST_SCOPE
+    NONE
+    ID("create")
+    NONE
+    NODE(TK_PARAMS)
+    NONE
+    NONE
+    NODE(TK_SEQ)
+    NODE(TK_DBLARROW)));
+
+  // We will replace object..end with $0.create(...)
+  BUILD(call, ast,
+    NODE(TK_CALL,
+      NODE(TK_POSITIONALARGS)
+      NONE
+      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
+
+  ast_t* create_params = ast_childidx(create, 3);
+  ast_t* create_body = ast_childidx(create, 6);
+  ast_t* create_args = ast_child(call);
+  ast_t* target_members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        AST_GET_CHILDREN(member, id, type, init);
+        ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
+
+        // The field is: var/let id: type
+        BUILD(field, member,
+          NODE(ast_id(member),
+            TREE(id)
+            TREE(type)
+            NONE));
+
+        // The param is: $0: type
+        BUILD(param, member,
+          NODE(TK_PARAM,
+            TREE(p_id)
+            TREE(type)
+            NONE));
+
+        // The body of create contains: id = consume $0
+        BUILD(assign, init,
+          NODE(TK_ASSIGN,
+            NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
+            NODE(TK_REFERENCE, TREE(id))));
+
+        ast_append(target_members, field);
+        ast_append(create_params, param);
+        ast_append(create_body, assign);
+        ast_append(create_args, init);
+        break;
+      }
+
+      default:
+        // Keep all the methods as they are.
+        ast_append(target_members, member);
+        break;
+    }
+
+    member = ast_sibling(member);
+  }
+
+  // Add the create function at the end.
+  ast_append(target_members, create);
+
+  // Add the new type to the current module.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  // Replace object..end with $0.create(...)
+  ast_replace(astp, call);
+
+  // Sugar the call.
+  ast_result_t r = ast_visit(astp, pass_sugar, NULL, opt);
+
+  if(r != AST_OK)
+    return r;
+
+  // Sugar the anonymous type.
+  r = ast_visit(&def, pass_sugar, NULL, opt);
+
+  if(r != AST_OK)
+    return r;
+
+  return AST_OK;
+}
+
+
 ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
@@ -446,9 +533,9 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_TRY:        return sugar_try(ast);
     case TK_FOR:        return sugar_for(t, astp);
     case TK_WITH:       return sugar_with(t, astp);
-//    case TK_BANG:       return sugar_bang(astp);
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
+    case TK_OBJECT:     return sugar_object(options, astp);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");
     case TK_MULTIPLY:   return sugar_binop(astp, "mul");
