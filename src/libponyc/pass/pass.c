@@ -55,11 +55,9 @@ const char* pass_name(pass_id pass)
 
 void pass_opt_init(pass_opt_t* options)
 {
-  memset(options, 0, sizeof(pass_opt_t));
-
   // Start with an empty typechecker frame.
-  options->check.frame = POOL_ALLOC(typecheck_frame_t);
-  memset(options->check.frame, 0, sizeof(typecheck_frame_t));
+  memset(options, 0, sizeof(pass_opt_t));
+  frame_push(&options->check, NULL);
 }
 
 
@@ -67,11 +65,7 @@ void pass_opt_done(pass_opt_t* options)
 {
   // Pop all the typechecker frames.
   while(options->check.frame != NULL)
-  {
-    typecheck_frame_t* f = options->check.frame;
-    options->check.frame = f->prev;
-    POOL_FREE(typecheck_frame_t, f);
-  }
+    frame_pop(&options->check);
 }
 
 
@@ -93,6 +87,25 @@ static bool do_pass(ast_t** astp, bool* out_result, pass_opt_t* options,
   }
 
   return false;
+}
+
+
+bool type_passes(ast_t* type, pass_opt_t* options)
+{
+  ast_t* module = ast_parent(type);
+  ast_t* package = ast_parent(module);
+
+  frame_push(&options->check, NULL);
+  frame_push(&options->check, package);
+  frame_push(&options->check, module);
+
+  bool ok = package_passes(type, options);
+
+  frame_pop(&options->check);
+  frame_pop(&options->check);
+  frame_pop(&options->check);
+
+  return ok;
 }
 
 

@@ -24,7 +24,21 @@ ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
   return ast;
 }
 
-static void pointer_create(compile_t* c, gentype_t* g, gentype_t* elem_g)
+static void pointer_create(compile_t* c, gentype_t* g)
+{
+  const char* name = genname_fun(g->type_name, "create", NULL);
+
+  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef result = LLVMConstNull(g->use_type);
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
+static void pointer__create(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
   size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
@@ -42,20 +56,6 @@ static void pointer_create(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total, 1, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
-
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-}
-
-static void pointer_null(compile_t* c, gentype_t* g)
-{
-  const char* name = genname_fun(g->type_name, "null", NULL);
-
-  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
-  LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef result = LLVMConstNull(g->use_type);
 
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -321,8 +321,8 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   if(fun != NULL)
     return true;
 
-  pointer_create(c, g, &elem_g);
-  pointer_null(c, g);
+  pointer_create(c, g);
+  pointer__create(c, g, &elem_g);
   pointer_realloc(c, g, &elem_g);
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);

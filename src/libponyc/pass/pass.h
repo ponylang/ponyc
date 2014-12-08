@@ -111,7 +111,12 @@ void pass_opt_init(pass_opt_t* options);
  */
 void pass_opt_done(pass_opt_t* options);
 
-/** Apply the per package passes to the given AST.
+/** Apply the per package passes to the given type definition AST.
+ * This is used only for anonymous types.
+ */
+bool type_passes(ast_t* type, pass_opt_t* options);
+
+/** Apply the per package passes to the given package AST.
  * Returns true on success, false on failure.
  */
 bool package_passes(ast_t* package, pass_opt_t* options);

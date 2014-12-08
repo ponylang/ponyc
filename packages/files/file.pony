@@ -60,7 +60,7 @@ class File
     """
     if not _handle.is_null() then
       @fclose[I32](_handle)
-      _handle = Pointer[_FileHandle].null()
+      _handle = Pointer[_FileHandle]
     end
 
   fun ref line(): String =>

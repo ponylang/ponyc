@@ -24,6 +24,17 @@ bool frame_push(typecheck_t* t, ast_t* ast)
 {
   bool pop = false;
 
+  if(ast == NULL)
+  {
+    typecheck_frame_t* prev = t->frame;
+
+    pop = push_frame(t);
+    memset(t->frame, 0, sizeof(typecheck_frame_t));
+    t->frame->prev = prev;
+
+    return pop;
+  }
+
   switch(ast_id(ast))
   {
     case TK_PACKAGE:

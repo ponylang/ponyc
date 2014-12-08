@@ -4,9 +4,11 @@
 #include "../expr/reference.h"
 #include "../expr/operator.h"
 #include "../expr/postfix.h"
+#include "../expr/call.h"
 #include "../expr/control.h"
 #include "../expr/match.h"
 #include "../expr/array.h"
+#include "../expr/ffi.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -157,7 +159,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_CALL:
-      if(!expr_call(options, ast))
+      if(!expr_call(options, astp))
         return AST_FATAL;
       break;
 
