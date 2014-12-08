@@ -23,7 +23,7 @@ class Env val
         array.append(
           recover
             String.from_cstring(
-              argv._update(i, recover Pointer[U8].null() end))
+              argv._update(i, recover Pointer[U8] end))
           end
           )
         i = i + 1

@@ -51,37 +51,37 @@ class String val is Ordered[String box], Stringable
   new from_i64(x: I64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
     from_i64_in_place(x, base)
 
   new from_i128(x: I128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
     from_i128_in_place(x, base)
 
   new from_u64(x: U64, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
     from_u64_in_place(x, base)
 
   new from_u128(x: U128, base: U8) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
     from_u128_in_place(x, base)
 
   new from_f64(x: F64) =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
     from_f64_in_place(x)
 
   new _empty() =>
     _size = 0
     _alloc = 0
-    _ptr = Pointer[U8].null()
+    _ptr = Pointer[U8]
 
   new prealloc(size: U64) =>
     _size = size
@@ -831,7 +831,7 @@ class String val is Ordered[String box], Stringable
 
   fun box string(): String =>
     let len = _size
-    let ptr = _ptr._concat(_size + 1, Pointer[U8].null(), 0)
+    let ptr = _ptr._concat(_size + 1, Pointer[U8], 0)
 
     recover
       let str = String._empty()

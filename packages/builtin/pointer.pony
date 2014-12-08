@@ -4,15 +4,15 @@ class Pointer[A]
   included in a union or intersection, or be a subtype of any interface. Most
   functions on a Pointer[A] are private to maintain memory safety.
   """
-  new _create(len: U64) =>
+  new create() =>
     """
-    Space for len instances of A.
+    A null pointer.
     """
     compiler_intrinsic
 
-  new null() =>
+  new _create(len: U64) =>
     """
-    A null pointer.
+    Space for len instances of A.
     """
     compiler_intrinsic
 

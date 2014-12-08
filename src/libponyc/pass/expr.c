@@ -7,6 +7,7 @@
 #include "../expr/control.h"
 #include "../expr/match.h"
 #include "../expr/array.h"
+#include "../expr/ffi.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)

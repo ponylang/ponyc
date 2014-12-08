@@ -386,14 +386,14 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // We will have a create method in the type.
   BUILD(create, members,
     NODE(TK_NEW, AST_SCOPE
-    NONE
-    ID("create")
-    NONE
-    NODE(TK_PARAMS)
-    NONE
-    NONE
-    NODE(TK_SEQ)
-    NODE(TK_DBLARROW)));
+      NONE
+      ID("create")
+      NONE
+      NODE(TK_PARAMS)
+      NONE
+      NONE
+      NODE(TK_SEQ)
+      NODE(TK_DBLARROW)));
 
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
@@ -404,8 +404,8 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);
-  ast_t* create_args = ast_child(call);
-  ast_t* target_members = ast_childidx(def, 4);
+  ast_t* call_args = ast_child(call);
+  ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
   while(member != NULL)
@@ -438,16 +438,16 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
             NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
             NODE(TK_REFERENCE, TREE(id))));
 
-        ast_append(target_members, field);
+        ast_append(class_members, field);
         ast_append(create_params, param);
         ast_append(create_body, assign);
-        ast_append(create_args, init);
+        ast_append(call_args, init);
         break;
       }
 
       default:
         // Keep all the methods as they are.
-        ast_append(target_members, member);
+        ast_append(class_members, member);
         break;
     }
 
@@ -455,7 +455,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   }
 
   // Add the create function at the end.
-  ast_append(target_members, create);
+  ast_append(class_members, create);
 
   // Add the new type to the current module.
   ast_t* module = ast_nearest(ast, TK_MODULE);

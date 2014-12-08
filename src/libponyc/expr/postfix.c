@@ -2,6 +2,7 @@
 #include "reference.h"
 #include "literal.h"
 #include "control.h"
+#include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -640,14 +641,17 @@ static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
 
   while(arg != NULL)
   {
-    ast_t* arg_type = ast_type(arg);
-    ast_t* a_type = alias(arg_type);
+    if(ast_id(arg) != TK_NONE)
+    {
+      ast_t* arg_type = ast_type(arg);
+      ast_t* a_type = alias(arg_type);
 
-    bool ok = sendable(a_type);
-    ast_free_unattached(a_type);
+      bool ok = sendable(a_type);
+      ast_free_unattached(a_type);
 
-    if(!ok)
-      return false;
+      if(!ok)
+        return false;
+    }
 
     arg = ast_sibling(arg);
   }
@@ -770,7 +774,7 @@ static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
-  ast_t* result = ast_childidx(type, 3);
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
   ast_settype(ast, result);
   ast_inheriterror(ast);
@@ -779,11 +783,111 @@ static bool expr_methodcall(pass_opt_t* opt, ast_t* ast)
 
 static bool expr_partialapplication(pass_opt_t* opt, ast_t* ast)
 {
+  typecheck_t* t = &opt->check;
+
   if(!expr_methodapplication(opt, ast, true))
     return false;
 
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+  ast_t* type = ast_type(lhs);
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+  // Create a new anonymous type.
+  ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
+
+  BUILD(def, ast,
+    NODE(TK_CLASS, AST_SCOPE
+      TREE(c_id)
+      NONE
+      NONE
+      NONE
+      NODE(TK_MEMBERS)
+      NONE
+      NONE));
+
+  // We will have a create method in the type.
+  BUILD(create, ast,
+    NODE(TK_NEW, AST_SCOPE
+      NONE
+      ID("create")
+      NONE
+      NODE(TK_PARAMS)
+      NONE
+      NONE
+      NODE(TK_SEQ)
+      NODE(TK_DBLARROW)));
+
+  // We will have an apply method in the type.
+  token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
+
+  BUILD(apply, ast,
+    NODE(TK_FUN, AST_SCOPE
+      TREE(cap)
+      ID("apply")
+      NONE
+      NODE(TK_PARAMS)
+      TREE(result)
+      NODE(can_error)
+      NODE(TK_SEQ)
+      NODE(TK_DBLARROW)));
+
+  // We will replace partial application with $0.create(...)
+  BUILD(call, ast,
+    NODE(TK_CALL,
+      NONE
+      NODE(TK_NAMEDARGS)
+      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
+
+  ast_t* create_params = ast_childidx(create, 3);
+  ast_t* create_body = ast_childidx(create, 6);
+  ast_t* apply_params = ast_childidx(apply, 3);
+  // ast_t* apply_body = ast_childidx(apply, 6);
+  ast_t* call_namedargs = ast_childidx(call, 1);
+  ast_t* class_members = ast_childidx(def, 4);
+
+  ast_t* arg = ast_child(positional);
+  ast_t* param = ast_child(params);
+
+  while(arg != NULL)
+  {
+    if(ast_id(arg) == TK_NONE)
+    {
+      // A parameter of the apply method, using the same name, type and default
+      // argument.
+      ast_append(apply_params, param);
+    } else {
+      AST_GET_CHILDREN(param, id, type);
+      ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
+
+      // A field in the type.
+      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(type) NONE));
+
+      // A parameter of the constructor.
+      BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(type) NONE));
+
+      // An assignment in the constructor body.
+      BUILD(assign, arg,
+        NODE(TK_ASSIGN,
+          NODE(TK_REFERENCE, TREE(id))
+          NODE(TK_CONSUME, TREE(p_id))));
+
+      // A named argument at the call site.
+      BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
+
+      // TODO: The receiver is this as well.
+      ast_append(class_members, field);
+      ast_append(create_params, ctor_param);
+      ast_append(create_body, assign);
+      ast_append(call_namedargs, call_arg);
+    }
+
+    arg = ast_sibling(arg);
+    param = ast_sibling(param);
+  }
+
   // TODO:
-  // build an anonymous type and replace the expression with a create call
+  // apply body
+  // replace the expression with a create call
   // typecheck the anonymous type
 
   ast_error(ast, "not implemented: partial application");
@@ -840,126 +944,4 @@ bool expr_call(pass_opt_t* opt, ast_t* ast)
 
   assert(0);
   return false;
-}
-
-
-static bool expr_declared_ffi(ast_t* call, ast_t* decl)
-{
-  assert(call != NULL);
-  assert(decl != NULL);
-  assert(ast_id(decl) == TK_FFIDECL);
-
-  AST_GET_CHILDREN(call, call_name, call_ret_typeargs, args, named_args,
-    call_error);
-  AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
-    decl_error);
-
-  // Check args vs params
-  ast_t* param = ast_child(params);
-  ast_t* arg = ast_child(args);
-
-  while((arg != NULL) && (param != NULL) && ast_id(param) != TK_ELLIPSIS)
-  {
-    ast_t* p_type = ast_childidx(param, 1);
-
-    if(!coerce_literals(arg, p_type))
-      return false;
-
-    ast_t* a_type = ast_type(arg);
-
-    if(!is_subtype(a_type, p_type))
-    {
-      ast_error(arg, "argument not a subtype of parameter");
-      ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
-      ast_error(a_type, "argument type: %s", ast_print_type(a_type));
-      return false;
-    }
-
-    arg = ast_sibling(arg);
-    param = ast_sibling(param);
-  }
-
-  if(arg != NULL && param == NULL)
-  {
-    ast_error(arg, "too many arguments");
-    return false;
-  }
-
-  if(param != NULL && ast_id(param) != TK_ELLIPSIS)
-  {
-    ast_error(named_args, "too few arguments");
-    return false;
-  }
-
-  for(; arg != NULL; arg = ast_sibling(arg))
-  {
-    if(is_type_literal(ast_type(arg)))
-    {
-      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
-      return false;
-    }
-  }
-
-  // Check return types
-  ast_t* call_ret_type = ast_child(call_ret_typeargs);
-  ast_t* decl_ret_type = ast_child(decl_ret_typeargs);
-
-  if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
-  {
-    ast_error(call_ret_type, "call return type does not match declaration");
-    return false;
-  }
-
-  // Check partiality
-  if((ast_id(decl_error) == TK_NONE) && (ast_id(call_error) != TK_NONE))
-  {
-    ast_error(call_error, "call is partial but the declaration is not");
-    return false;
-  }
-
-  if((ast_id(decl_error) == TK_QUESTION) ||
-    (ast_id(call_error) == TK_QUESTION))
-  {
-    ast_seterror(call);
-  }
-
-  ast_settype(call, decl_ret_type);
-  return true;
-}
-
-
-bool expr_ffi(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
-  assert(name != NULL);
-
-  ast_t* decl = ast_get(ast, ast_name(name), NULL);
-
-  if(decl != NULL)  // We have a declaration
-    return expr_declared_ffi(ast, decl);
-
-  // We do not have a declaration
-  for(ast_t* arg = ast_child(args); arg != NULL; arg = ast_sibling(arg))
-  {
-    if(is_type_literal(ast_type(arg)))
-    {
-      ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
-      return false;
-    }
-  }
-
-  ast_t* return_type = ast_child(return_typeargs);
-
-  if(return_type == NULL)
-  {
-    ast_error(name, "FFIs without declarations must specify return type");
-    return false;
-  }
-
-  ast_settype(ast, return_type);
-
-  if(ast_id(question) == TK_QUESTION)
-    ast_seterror(ast);
-
-  return true;
 }
