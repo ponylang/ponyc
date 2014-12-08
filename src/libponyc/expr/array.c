@@ -49,7 +49,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   if(!expr_reference(opt, ref) ||
     !expr_qualify(opt, qualify) ||
     !expr_dot(opt, dot) ||
-    !expr_call(opt, call)
+    !expr_call(opt, &call)
     )
     return false;
 
@@ -71,7 +71,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     ast_replace(astp, append);
 
     if(!expr_dot(opt, append_dot) ||
-      !expr_call(opt, append)
+      !expr_call(opt, &append)
       )
       return false;
 

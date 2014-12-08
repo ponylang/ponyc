@@ -159,7 +159,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_CALL:
-      if(!expr_call(options, ast))
+      if(!expr_call(options, astp))
         return AST_FATAL;
       break;
 

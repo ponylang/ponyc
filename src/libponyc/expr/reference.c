@@ -207,7 +207,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
 
-      return expr_call(opt, call);
+      return expr_call(opt, &call);
     }
   }
 

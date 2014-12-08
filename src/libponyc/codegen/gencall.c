@@ -238,9 +238,16 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   ast_t* typeargs = NULL;
 
   // Dig through function qualification.
-  if(ast_id(receiver) == TK_FUNREF)
+  switch(ast_id(receiver))
   {
-    AST_GET_CHILDREN_NO_DECL(receiver, receiver, typeargs);
+    case TK_NEWREF:
+    case TK_BEREF:
+    case TK_FUNREF:
+      typeargs = method;
+      AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
+      break;
+
+    default: {}
   }
 
   if(typeargs != NULL)

@@ -110,7 +110,7 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 
-      if(!expr_call(opt, call))
+      if(!expr_call(opt, &call))
         return false;
 
       return expr_dot(opt, ast);
@@ -179,7 +179,7 @@ static bool tuple_access(ast_t* ast)
   return true;
 }
 
-static bool member_access(typecheck_t* t, ast_t* ast)
+static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 {
   // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
@@ -249,7 +249,10 @@ static bool member_access(typecheck_t* t, ast_t* ast)
   }
 
   ast_free_unattached(find);
-  ast_inheriterror(ast);
+
+  if(!partial)
+    ast_inheriterror(ast);
+
   return ret;
 }
 
@@ -316,7 +319,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-bool expr_dot(pass_opt_t* opt, ast_t* ast)
+static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   typecheck_t* t = &opt->check;
 
@@ -348,12 +351,17 @@ bool expr_dot(pass_opt_t* opt, ast_t* ast)
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);
 
-  return member_access(t, ast);
+  return member_access(t, ast, partial);
+}
+
+bool expr_dot(pass_opt_t* opt, ast_t* ast)
+{
+  return dot_or_tilde(opt, ast, false);
 }
 
 bool expr_tilde(pass_opt_t* opt, ast_t* ast)
 {
-  if(!expr_dot(opt, ast))
+  if(!dot_or_tilde(opt, ast, true))
     return false;
 
   switch(ast_id(ast))

@@ -2,6 +2,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "literal.h"
+#include "reference.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../type/alias.h"
@@ -22,7 +23,7 @@ static bool insert_apply(pass_opt_t* opt, ast_t* ast)
   if(!expr_dot(opt, dot))
     return false;
 
-  return expr_call(opt, ast);
+  return expr_call(opt, &ast);
 }
 
 static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
@@ -395,14 +396,33 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-static bool partial_application(pass_opt_t* opt, ast_t* ast)
+static bool partial_application(pass_opt_t* opt, ast_t** astp)
 {
+  ast_t* ast = *astp;
   typecheck_t* t = &opt->check;
 
   if(!method_application(opt, ast, true))
     return false;
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
+
+  // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
+  AST_GET_CHILDREN(lhs, receiver, method);
+  ast_t* typeargs = NULL;
+
+  switch(ast_id(receiver))
+  {
+    case TK_NEWAPP:
+    case TK_BEAPP:
+    case TK_FUNAPP:
+      typeargs = method;
+      AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
+      break;
+
+    default: {}
+  }
+
+  // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
@@ -436,7 +456,7 @@ static bool partial_application(pass_opt_t* opt, ast_t* ast)
 
   BUILD(apply, ast,
     NODE(TK_FUN, AST_SCOPE
-      TREE(cap)
+      NODE(TK_REF)
       ID("apply")
       NONE
       NODE(TK_PARAMS)
@@ -446,42 +466,56 @@ static bool partial_application(pass_opt_t* opt, ast_t* ast)
       NODE(TK_DBLARROW)));
 
   // We will replace partial application with $0.create(...)
+  BUILD(call_receiver, ast, NODE(TK_REFERENCE, TREE(c_id)));
+  BUILD(call_dot, ast, NODE(TK_DOT, TREE(call_receiver) ID("create")));
+
   BUILD(call, ast,
     NODE(TK_CALL,
       NONE
       NODE(TK_NAMEDARGS)
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
+      TREE(call_dot)));
 
+  ast_t* class_members = ast_childidx(def, 4);
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);
   ast_t* apply_params = ast_childidx(apply, 3);
-  // ast_t* apply_body = ast_childidx(apply, 6);
+  ast_t* apply_body = ast_childidx(apply, 6);
   ast_t* call_namedargs = ast_childidx(call, 1);
-  ast_t* class_members = ast_childidx(def, 4);
 
   // Add the receiver to the anonymous type.
-  ast_t* r_id = ast_from_string(lhs, package_hygienic_id(t));
-  ast_t* r_field_id = ast_from_string(lhs, package_hygienic_id(t));
+  ast_t* r_id = ast_from_string(receiver, package_hygienic_id(t));
+  ast_t* r_field_id = ast_from_string(receiver, package_hygienic_id(t));
+  ast_t* r_type = ast_type(receiver);
 
   // A field in the type.
-  BUILD(r_field, lhs, NODE(TK_FLET, TREE(r_field_id) TREE(type) NONE));
+  BUILD(r_field, receiver, NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE));
 
   // A parameter of the constructor.
-  BUILD(r_ctor_param, lhs, NODE(TK_PARAM, TREE(r_id) TREE(type) NONE));
+  BUILD(r_ctor_param, receiver, NODE(TK_PARAM, TREE(r_id) TREE(r_type) NONE));
 
   // An assignment in the constructor body.
-  BUILD(r_assign, lhs,
+  BUILD(r_assign, receiver,
     NODE(TK_ASSIGN,
       NODE(TK_REFERENCE, TREE(r_field_id))
-      NODE(TK_CONSUME, TREE(r_id))));
+      NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(r_id)))));
 
   // A named argument at the call site.
-  BUILD(r_call_arg, lhs, NODE(TK_NAMEDARG, TREE(r_id) TREE(lhs)));
+  BUILD(r_call_arg, receiver, NODE(TK_NAMEDARG, TREE(r_id) TREE(receiver)));
 
   ast_append(class_members, r_field);
   ast_append(create_params, r_ctor_param);
   ast_append(create_body, r_assign);
   ast_append(call_namedargs, r_call_arg);
+
+  // Add a call to the original method to the apply body.
+  BUILD(apply_call, ast,
+    NODE(TK_CALL,
+      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method))
+      NODE(TK_POSITIONALARGS)
+      NONE));
+
+  ast_append(apply_body, apply_call);
+  ast_t* apply_args = ast_childidx(apply_call, 1);
 
   // Add the arguments to the anonymous type.
   ast_t* arg = ast_child(positional);
@@ -489,51 +523,78 @@ static bool partial_application(pass_opt_t* opt, ast_t* ast)
 
   while(arg != NULL)
   {
+    AST_GET_CHILDREN(param, id, p_type);
+
     if(ast_id(arg) == TK_NONE)
     {
       // A parameter of the apply method, using the same name, type and default
       // argument.
       ast_append(apply_params, param);
+
+      // An arg in the call to the original method.
+      BUILD(apply_arg, param, NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(id))));
+      ast_append(apply_args, apply_arg);
     } else {
-      AST_GET_CHILDREN(param, id, type);
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
 
       // A field in the type.
-      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(type) NONE));
+      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(p_type) NONE));
 
       // A parameter of the constructor.
-      BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(type) NONE));
+      BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(p_type) NONE));
 
       // An assignment in the constructor body.
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
           NODE(TK_REFERENCE, TREE(id))
-          NODE(TK_CONSUME, TREE(p_id))));
+          NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))));
 
       // A named argument at the call site.
       BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
+
+      // An arg in the call to the original method.
+      BUILD(apply_arg, arg, NODE(TK_REFERENCE, TREE(id)));
 
       ast_append(class_members, field);
       ast_append(create_params, ctor_param);
       ast_append(create_body, assign);
       ast_append(call_namedargs, call_arg);
+      ast_append(apply_args, apply_arg);
     }
 
     arg = ast_sibling(arg);
     param = ast_sibling(param);
   }
 
-  // TODO:
-  // apply body
-  // replace the expression with a create call
-  // typecheck the anonymous type
+  // Add create and apply to the anonymous type.
+  ast_append(class_members, create);
+  ast_append(class_members, apply);
 
-  ast_error(ast, "not implemented: partial application");
-  return false;
+  // Typecheck the anonymous type.
+  ast_add(t->frame->module, def);
+
+  if(!type_passes(def, opt))
+    return false;
+
+  // Typecheck the create call.
+  if(!expr_reference(opt, call_receiver))
+    return false;
+
+  if(!expr_dot(opt, call_dot))
+    return false;
+
+  if(!expr_call(opt, &call))
+    return false;
+
+  // Replace the partial application with the create call.
+  ast_replace(astp, call);
+  return true;
 }
 
-bool expr_call(pass_opt_t* opt, ast_t* ast)
+bool expr_call(pass_opt_t* opt, ast_t** astp)
 {
+  ast_t* ast = *astp;
+
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
 
@@ -575,7 +636,7 @@ bool expr_call(pass_opt_t* opt, ast_t* ast)
     case TK_NEWBEAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
-      return partial_application(opt, ast);
+      return partial_application(opt, astp);
 
     default: {}
   }
