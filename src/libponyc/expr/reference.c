@@ -1,6 +1,7 @@
 #include "reference.h"
 #include "literal.h"
 #include "postfix.h"
+#include "call.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
 #include "../type/subtype.h"
@@ -9,7 +10,6 @@
 #include "../type/viewpoint.h"
 #include "../type/cap.h"
 #include "../type/reify.h"
-#include "../ast/token.h"
 #include <string.h>
 #include <assert.h>
 

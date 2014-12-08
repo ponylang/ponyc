@@ -4,6 +4,7 @@
 #include "../expr/reference.h"
 #include "../expr/operator.h"
 #include "../expr/postfix.h"
+#include "../expr/call.h"
 #include "../expr/control.h"
 #include "../expr/match.h"
 #include "../expr/array.h"

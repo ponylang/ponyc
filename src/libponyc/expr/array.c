@@ -1,6 +1,7 @@
 #include "array.h"
 #include "reference.h"
 #include "postfix.h"
+#include "call.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../type/assemble.h"
