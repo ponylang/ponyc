@@ -161,16 +161,12 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
     ast_t* sub_type = ast_childidx(sub_param, 1);
     ast_t* super_type = ast_childidx(super_param, 1);
 
-    if(is_machine_word(super_type))
-    {
-      // Machine word parameters must be invariant rather than contravariant.
-      if(!is_eqtype(super_type, sub_type))
-        return false;
-    } else {
-      // All other parameter types may be contravariant.
-      if(!is_subtype(super_type, sub_type))
-        return false;
-    }
+    // If the supertype is a machine word, the subtype must be a machine word.
+    if(is_machine_word(super_type) && !is_machine_word(sub_type))
+      return false;
+
+    if(!is_subtype(super_type, sub_type))
+      return false;
 
     sub_param = ast_sibling(sub_param);
     super_param = ast_sibling(super_param);
