@@ -814,6 +814,105 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+static bool check_main_create(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_ACTOR)
+    return true;
+
+  ast_t* type_id = ast_child(t->frame->type);
+
+  if(strcmp(ast_name(type_id), "Main"))
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "create"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams,
+      "the create constructor of a Main actor must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(params,
+      "the create constructor of a Main actor must take a single Env "
+      "parameter");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param != NULL)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!is_env(p_type))
+    {
+      ast_error(p_type, "must be of type Env");
+      ok = false;
+    }
+  }
+
+  return ok;
+}
+
+static bool check_finaliser(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_ACTOR)
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "_final"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(ast, "actor _final must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_REF)
+  {
+    ast_error(cap, "actor _final must be ref");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "actor _final must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 0)
+  {
+    ast_error(params, "actor _final must not have parameters");
+    ok = false;
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(result, "actor _final must return None");
+    ok = false;
+  }
+
+  if(ast_id(can_error) != TK_NONE)
+  {
+    ast_error(can_error, "actor _final cannot raise an error");
+    ok = false;
+  }
+
+  return ok;
+}
+
 bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
@@ -850,10 +949,13 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
+  if(!check_finaliser(t, ast))
+    return false;
+
   switch(ast_id(ast))
   {
     case TK_NEW:
-      return check_fields_defined(ast);
+      return check_fields_defined(ast) && check_main_create(t, ast);
 
     case TK_FUN:
       return check_return_type(opt, ast);

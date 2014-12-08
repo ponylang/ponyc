@@ -14,6 +14,8 @@ bool is_pointer(ast_t* type);
 
 bool is_none(ast_t* type);
 
+bool is_env(ast_t* type);
+
 bool is_bool(ast_t* type);
 
 bool is_machine_word(ast_t* type);

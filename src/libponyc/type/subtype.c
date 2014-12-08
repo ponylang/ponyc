@@ -708,6 +708,11 @@ bool is_none(ast_t* type)
   return is_literal(type, "None");
 }
 
+bool is_env(ast_t* type)
+{
+  return is_literal(type, "Env");
+}
+
 bool is_bool(ast_t* type)
 {
   return is_literal(type, "Bool");
