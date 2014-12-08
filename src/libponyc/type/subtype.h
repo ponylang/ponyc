@@ -16,6 +16,8 @@ bool is_none(ast_t* type);
 
 bool is_bool(ast_t* type);
 
+bool is_machine_word(ast_t* type);
+
 bool is_signed(ast_t* type);
 
 PONY_EXTERN_C_END
