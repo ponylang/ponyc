@@ -63,6 +63,28 @@ static const char* crt_directory()
 
   return NULL;
 }
+
+static const char* gccs_directory()
+{
+  static const char* dir[] =
+  {
+    "/lib/x86_64-linux-gnu/",
+    "/lib64/",
+    NULL
+  };
+
+  for(const char** p = dir; *p != NULL; p++)
+  {
+    char filename[PATH_MAX];
+    strcpy(filename, *p);
+    strcat(filename, "libgcc_s.so.1");
+
+    if(file_exists(filename))
+      return *p;
+  }
+
+  return NULL;
+}
 #endif
 
 static const char* suffix_filename(const char* dir, const char* file,
@@ -820,10 +842,11 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
 
   const char* crt_dir = crt_directory();
+  const char* gccs_dir = gccs_directory();
 
-  if(crt_dir == NULL)
+  if((crt_dir == NULL) || (gccs_dir == NULL))
   {
-    errorf(NULL, "could not find crt1.o");
+    errorf(NULL, "could not find CRT");
     return false;
   }
 
@@ -846,12 +869,9 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   // User specified libraries go here, surrounded with --start-group and
   // --end-group so that we don't have to determine an ordering.
   strcat(ld_cmd, program_lib_args(program));
-
-  strcat(ld_cmd,
-    " -lponyrt -lpthread -lm -lc "
-    "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
-    );
-
+  strcat(ld_cmd, " -lponyrt -lpthread -lm -lc ");
+  strcat(ld_cmd, gccs_dir);
+  strcat(ld_cmd, "libgcc_s.so.1 ");
   strcat(ld_cmd, crt_dir);
   strcat(ld_cmd, "crtn.o");
 
