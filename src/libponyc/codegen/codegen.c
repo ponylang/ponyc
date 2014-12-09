@@ -53,7 +53,7 @@ static const char* crt_directory()
 
   for(const char** p = dir; *p != NULL; p++)
   {
-    char filename[MAX_PATH];
+    char filename[PATH_MAX];
     strcpy(filename, *p);
     strcat(filename, "crt1.o");
 
@@ -850,9 +850,10 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   strcat(ld_cmd,
     " -lponyrt -lpthread -lm -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
-    "%scrtn.o",
-    crt_dir
     );
+
+  strcat(ld_cmd, crt_dir);
+  strcat(ld_cmd, "crtn.o");
 
   if(system(ld_cmd) != 0)
   {
