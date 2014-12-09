@@ -33,6 +33,38 @@ static LLVMPassManagerBuilderRef pmb;
 static LLVMPassManagerRef mpm;
 static LLVMPassManagerRef lpm;
 
+#if defined(PLATFORM_IS_LINUX)
+static bool file_exists(const char* filename)
+{
+  struct stat s;
+  int err = stat(filename, &s);
+
+  return (err != -1) && S_ISREG(s.st_mode);
+}
+
+static const char* crt_directory()
+{
+  static const char* dir[] =
+  {
+    "/usr/lib/x86_64-linux-gnu/",
+    "/usr/lib64/",
+    NULL
+  };
+
+  for(const char** p = dir; *p != NULL; p++)
+  {
+    char filename[MAX_PATH];
+    strcpy(filename, *p);
+    strcat(filename, "crt1.o");
+
+    if(file_exists(filename))
+      return *p;
+  }
+
+  return NULL;
+}
+#endif
+
 static const char* suffix_filename(const char* dir, const char* file,
   const char* extension)
 {
@@ -46,6 +78,7 @@ static const char* suffix_filename(const char* dir, const char* file,
 
   while(suffix < 100)
   {
+    // Overwrite files but not directories.
     struct stat s;
     int err = stat(filename, &s);
 
@@ -786,6 +819,14 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   printf("Linking %s\n", file_exe);
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
 
+  const char* crt_dir = crt_directory();
+
+  if(crt_dir == NULL)
+  {
+    errorf(NULL, "could not find crt1.o");
+    return false;
+  }
+
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
     program_lib_arg_length(program);
   VLA(char, ld_cmd, ld_len);
@@ -794,10 +835,10 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
     "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
     "-o %s "
-    "/usr/lib/x86_64-linux-gnu/crt1.o "
-    "/usr/lib/x86_64-linux-gnu/crti.o "
+    "%scrt1.o "
+    "%scrti.o "
     "%s ",
-    file_exe, file_o
+    file_exe, crt_dir, crt_dir, file_o
     );
 
   append_link_paths(ld_cmd);
@@ -809,7 +850,8 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   strcat(ld_cmd,
     " -lponyrt -lpthread -lm -lc "
     "/lib/x86_64-linux-gnu/libgcc_s.so.1 "
-    "/usr/lib/x86_64-linux-gnu/crtn.o"
+    "%scrtn.o",
+    crt_dir
     );
 
   if(system(ld_cmd) != 0)
