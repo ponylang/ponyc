@@ -18,4 +18,4 @@ actor Main
     generic = Array[U64]
     traitfield = U64(0)
 
-    env.stdout.print("Wahey!")
+    env.out.print("Wahey!")
