@@ -16,29 +16,6 @@
 #  pragma warning(disable:4996)
 #endif
 
-#if defined(PLATFORM_IS_WINDOWS)
-static bool system(const char* program, char* command)
-{
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-  DWORD code = 0;
-
-  memset(&si, 0, sizeof(STARTUPINFO));
-
-  if(!CreateProcess(TEXT(program), TEXT(command), NULL, NULL,
-    FALSE, 0, NULL, NULL, &si, &pi))
-  {
-    return false;
-  }
-
-  WaitForSingleObject(pi.hProcess, INFINITE);
-  GetExitCodeProcess(pi.hProcess, &code);
-  CloseHandle(pi.hProcess);
-
-  return code == 0;
-}
-#endif
-
 #if defined(PLATFORM_IS_LINUX)
 static bool file_exists(const char* filename)
 {
@@ -353,16 +330,16 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "cmd /C \"\"%s\" /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
     "/OUT:%s "
     "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib",
-    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
+    "%s %s ponyrt.lib kernel32.lib msvcrt.lib\"",
+    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
     );
 
-  if(!system(vcvars.link, ld_cmd))
+  if(system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link");
     return false;
