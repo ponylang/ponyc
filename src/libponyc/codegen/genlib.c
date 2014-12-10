@@ -102,12 +102,12 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
     return false;
   }
 
-  len = 32 + strlen(file_lib) + strlen(file_o);
+  len = 128 + strlen(file_lib) + strlen(file_o);
   VLA(char, cmd, len);
 
-  snprintf(cmd, len, " /NOLOGO /OUT:%s %s", file_lib, file_o);
+  snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar, file_lib, file_o);
 
-  if(!system(vcvars.ar, cmd))
+  if(system(cmd) == -1)
   {
     errorf(NULL, "unable to link");
     return false;
