@@ -16,52 +16,53 @@ actor Worker
 
     var row = x
 
-    while row < y do
-      let prefetch_i = imaginary.unsafe_get(row)
+    try
+      while row < y do
+        let prefetch_i = imaginary(row)
 
-      var col: U64 = 0
+        var col: U64 = 0
 
-      while col < width do
-        var j: U64 = 0
+        while col < width do
+          var j: U64 = 0
 
-        while j < 8 do
-          group_r.unsafe_set(j, real.unsafe_get(col + j))
-          group_i.unsafe_set(j, prefetch_i)
-          j = j + 1
-        end
-
-        var bitmap: U8 = 0xFF
-        var n = iterations
-
-        repeat
-          var mask: U8 = 0x80
-          var k: U64 = 0
-
-          while k < 8 do
-            let r = group_r.unsafe_get(k)
-            let i = group_i.unsafe_get(k)
-
-            group_r.unsafe_set(k, ((r * r) - (i * i)) +
-              real.unsafe_get(col + k))
-            group_i.unsafe_set(k, (2.0 * r * i) + prefetch_i)
-
-            if ((r * r) + (i * i)) > limit then
-              bitmap = bitmap and not mask
-            end
-
-            mask = mask >> 1
-            k = k + 1
+          while j < 8 do
+            group_r.update(j, real(col + j))
+            group_i.update(j, prefetch_i)
+            j = j + 1
           end
-        until (bitmap == 0) or ((n = n - 1) == 1) end
 
-        view.append(bitmap)
+          var bitmap: U8 = 0xFF
+          var n = iterations
 
-        col = col + 8
+          repeat
+            var mask: U8 = 0x80
+            var k: U64 = 0
+
+            while k < 8 do
+              let r = group_r(k)
+              let i = group_i(k)
+
+              group_r.update(k, ((r * r) - (i * i)) + real(col + k))
+              group_i.update(k, (2.0 * r * i) + prefetch_i)
+
+              if ((r * r) + (i * i)) > limit then
+                bitmap = bitmap and not mask
+              end
+
+              mask = mask >> 1
+              k = k + 1
+            end
+          until (bitmap == 0) or ((n = n - 1) == 1) end
+
+          view.append(bitmap)
+
+          col = col + 8
+        end
+        row = row + 1
       end
-      row = row + 1
-    end
 
-    main.draw(x * (width >> 3), consume view)
+      main.draw(x * (width >> 3), consume view)
+    end
 
 actor Main
   var iterations: U64 = 50
@@ -70,8 +71,8 @@ actor Main
   var width: U64 = 16000
   var actors: U64 = 0
   var header: U64 = 0
-  var real: Array[F32] val
-  var imaginary: Array[F32] val
+  var real: Array[F32] val = recover Array[F32] end
+  var imaginary: Array[F32] val = recover Array[F32] end
   var outfile: (File | None) = None
 
   new create(env: Env) =>
@@ -100,7 +101,7 @@ actor Main
       out.seek_start(header + offset)
       out.write(pixels)
       if (actors = actors - 1) == 1 then
-        out.close()
+        out.dispose()
       end
     end
 

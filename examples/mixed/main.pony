@@ -1,4 +1,5 @@
 use "collections"
+use "options"
 
 actor Worker
   var _env: Env
@@ -66,7 +67,8 @@ actor Ring
     | var w: Worker => w.work()
     end
 
-    _next = spawn_ring()
+
+    _next = spawn_ring(_size, _pass)
 
   new neighbor(n: Ring) =>
     _env = None
@@ -91,19 +93,19 @@ actor Ring
         | var w: Worker => w.work()
         end
 
-        _next = spawn_ring()
+        _next = spawn_ring(_size, _pass)
       end
     end
 
-  fun ref spawn_ring() : Ring =>
+  fun tag spawn_ring(size: U32, pass': U32) : Ring =>
     var next: Ring = this
 
-    for i in Range[U32](0, _size - 1) do
+    for i in Range[U32](0, size - 1) do
       next = Ring.neighbor(next)
     end
 
-    if _pass > 0 then
-      pass(_pass * _size)
+    if pass' > 0 then
+      pass(pass' * size)
     end
 
     next
@@ -118,32 +120,25 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    try
-      parse_args()
-      start_benchmark()
-    else
-      usage()
-    end
+    arguments()
+    start_benchmark()
 
-  fun ref parse_args() ? =>
-    var i: U64 = 1
+  fun ref arguments() =>
+    let options = Options(_env)
 
-    while i < _env.args.size() do
-      var arg = _env.args(i)
-      var value = _env.args(i + 1)
-      i = i + 2
+    options
+      .add("size", "s", None, I64Argument)
+      .add("count", "c", None, I64Argument)
+      .add("pass", "p", None, I64Argument)
+      .add("repeat", "r", None, I64Argument)
 
-      match arg
-      | "--size" =>
-        _size = value.u32()
-      | "--count" =>
-        _count = value.u32()
-      | "--pass" =>
-        _pass = value.u32()
-      | "--repeat" =>
-        _repetitions = value.u32()
-      else
-        error
+    for option in options do
+      match option
+      | ("size", var arg: I64) => _size = arg.u32()
+      | ("count", var arg: I64) => _count = arg.u32()
+      | ("pass", var arg: I64) => _pass = arg.u32()
+      | ("repeat", var arg: I64) => _repetitions = arg.u32()
+      | ParseError => usage()
       end
     end
 
