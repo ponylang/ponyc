@@ -449,6 +449,10 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     member = ast_sibling(member);
   }
 
+  // End the constructor with None, in case it has no parameters.
+  BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
+  ast_append(create_body, none);
+
   // Add the create function at the end.
   ast_append(class_members, create);
 
