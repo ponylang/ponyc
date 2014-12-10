@@ -1,18 +1,22 @@
 type _LeafNode is (String, U64)
-type _ConcatNode is (Rope box, Rope box)
+type _ConcatNode is (Rope, Rope)
+type _RopeNode is (_LeafNode | _ConcatNode)
+
+interface _Collector
+  fun ref apply(string: String box): String ref
 
 class Rope val is Stringable, Ordered[Rope]
   var _size: U64
   var _depth: U64
   var _linebreaks: U64
-  var _node: (_LeafNode | _ConcatNode)
+  var node: _RopeNode
 
   new create(from: String = "", blocksize: U64 = 32) =>
     if from.size() < blocksize then
       _depth = 1
       _size = from.size()
       _linebreaks = from.count("\n");
-      _node = (from, blocksize)
+      node = (from, blocksize)
     else
       let offset = (from.size()/2).i64()
       let left = recover Rope(from.substring(0, offset - 1), blocksize) end
@@ -21,7 +25,7 @@ class Rope val is Stringable, Ordered[Rope]
       _size = left._size + right._size
       _depth = left._depth.max(right._depth)
       _linebreaks = left._linebreaks + right._linebreaks
-      _node = (consume left, consume right)
+      node = (consume left, consume right)
     end
 
   fun box size(): U64 => _size
@@ -34,11 +38,11 @@ class Rope val is Stringable, Ordered[Rope]
     bounds.
     """*/
 
-  fun box concat(that: this->Rope ref): this->Rope ref =>
+  fun val concat(that: Rope): Rope =>
     """
     Concatenates this Rope with that Rope.
     """
-    match (this._node, that._node)
+    match (this.node, that.node)
     | (("", _), _) => that
     | (_, ("", _)) => this
     else
@@ -46,7 +50,7 @@ class Rope val is Stringable, Ordered[Rope]
       rope._size = this._size + that._size
       rope._depth = this._depth.max(that._depth)
       rope._linebreaks = this._linebreaks + that._linebreaks
-      rope._node = (this, that)
+      rope.node = (this, that)
       rope
     end
 
@@ -60,12 +64,14 @@ class Rope val is Stringable, Ordered[Rope]
     Returns a Rope that contains all bytes of this Rope within
     [start, start+length].
     """
+    recover Rope end
 
-  fun box position(cursor: U64): (U64, U64) ? =>
+  fun box position(cursor: U64): (U64, U64) /*?*/ =>
     """
     Returns the line and column position based on an absolute cursor position
     within a Rope. Raise an error if the cursor position is out of bounds.
     """
+    (U64(0), U64(0))
 
   /*fun box balance(): Rope =>
     """
@@ -77,20 +83,22 @@ class Rope val is Stringable, Ordered[Rope]
     """
     Converts a Rope to a String.
     """
-    var str = recover String.prealloc(_size) end
+    let len = _size
+    let str = recover String.prealloc(len) end
 
-    let toString = object
-      fun tag apply(result: String ref, rope: Rope) =>
-        match rope._node
+    let traverse = object
+      fun tag apply(result: String iso!, rope: Rope box) =>
+        match rope.node
         | (var leaf: String, _) =>
-          result.concat(leaf)
+          result.append(leaf)
         | (var left: Rope, var right: Rope) =>
           apply(result, left)
           apply(result, right)
         end
     end
 
-    toString(str, this)
+    traverse(str, this)
+    consume str
 
   fun box eq(that: Rope): Bool =>
     """
