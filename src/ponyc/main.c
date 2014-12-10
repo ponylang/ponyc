@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
       case OPT_IMMERR: error_set_immediate(true); break;
 
       case OPT_PASSES:
-        if(!limit_passes(s.arg_val))
+        if(!limit_passes(&opt, s.arg_val))
         {
           usage();
           return -1;

@@ -1,125 +1,23 @@
 #include "codegen.h"
+#include "genlib.h"
+#include "genexe.h"
 #include "genprim.h"
 #include "genname.h"
-#include "gentype.h"
 #include "gendesc.h"
-#include "genfun.h"
-#include "gencall.h"
 #include "../debug/dwarf.h"
 #include "../pkg/package.h"
-#include "../pkg/program.h"
-#include "../ast/error.h"
-#include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+
 #include <platform.h>
-
 #include <llvm-c/Initialization.h>
-#include <llvm-c/BitWriter.h>
-
-#include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <assert.h>
-#include <sys/stat.h>
-
-#ifdef PLATFORM_IS_POSIX_BASED
-#  include <unistd.h>
-#else
-   //disable warnings of unlink being deprecated
-#  pragma warning(disable:4996)
-#endif
 
 static LLVMPassManagerBuilderRef pmb;
 static LLVMPassManagerRef mpm;
 static LLVMPassManagerRef lpm;
 
-#if defined(PLATFORM_IS_LINUX)
-static bool file_exists(const char* filename)
-{
-  struct stat s;
-  int err = stat(filename, &s);
-
-  return (err != -1) && S_ISREG(s.st_mode);
-}
-
-static const char* crt_directory()
-{
-  static const char* dir[] =
-  {
-    "/usr/lib/x86_64-linux-gnu/",
-    "/usr/lib64/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "crt1.o");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-
-static const char* gccs_directory()
-{
-  static const char* dir[] =
-  {
-    "/lib/x86_64-linux-gnu/",
-    "/lib64/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "libgcc_s.so.1");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-#endif
-
-static const char* suffix_filename(const char* dir, const char* file,
-  const char* extension)
-{
-  // Copy to a string with space for a suffix.
-  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
-  VLA(char, filename, len + 1);
-
-  // Start with no suffix.
-  snprintf(filename, len, "%s/%s%s", dir, file, extension);
-  int suffix = 0;
-
-  while(suffix < 100)
-  {
-    // Overwrite files but not directories.
-    struct stat s;
-    int err = stat(filename, &s);
-
-    if((err == -1) || !S_ISDIR(s.st_mode))
-      break;
-
-    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
-  }
-
-  if(suffix >= 100)
-  {
-    errorf(NULL, "couldn't pick an unused file name");
-    return NULL;
-  }
-
-  return stringtab(filename);
-}
-
-static void codegen_fatal(const char* reason)
+static void fatal_error(const char* reason)
 {
   printf("%s\n", reason);
   print_errors();
@@ -372,277 +270,11 @@ static void init_runtime(compile_t* c)
   LLVMAddFunction(c->module, "memmove", type);
 }
 
-static int behaviour_index(gentype_t* g, const char* name)
-{
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  int index = 0;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      case TK_BE:
-      {
-        AST_GET_CHILDREN(member, ignore, id);
-
-        if(ast_name(id) == name)
-          return index;
-
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return -1;
-}
-
-static void codegen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
-{
-  LLVMTypeRef params[2];
-  params[0] = c->i32;
-  params[1] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
-
-  LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 2, false);
-  LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
-
-  codegen_startfun(c, func);
-
-  LLVMValueRef args[3];
-  args[0] = LLVMGetParam(func, 0);
-  LLVMSetValueName(args[0], "argc");
-
-  args[1] = LLVMGetParam(func, 1);
-  LLVMSetValueName(args[1], "argv");
-
-  // Initialise the pony runtime with argc and argv, getting a new argc.
-  args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
-
-  // Create the main actor and become it.
-  LLVMValueRef m = gencall_create(c, main_g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
-
-  // Create an Env on the main actor's heap.
-  const char* env_name = "Env";
-  const char* env_create = genname_fun(env_name, "_create", NULL);
-  args[2] = args[1];
-  args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
-  args[0] = gencall_alloc(c, env_g);
-  LLVMValueRef env = gencall_runtime(c, env_create, args, 3, "env");
-  LLVMSetInstructionCallConv(env, GEN_CALLCONV);
-
-  // Create a type for the message.
-  LLVMTypeRef f_params[4];
-  f_params[0] = c->i32;
-  f_params[1] = c->i32;
-  f_params[2] = c->void_ptr;
-  f_params[3] = LLVMTypeOf(env);
-  LLVMTypeRef msg_type = LLVMStructTypeInContext(c->context, f_params, 4,
-    false);
-  LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
-
-  // Allocate the message, setting its size and ID.
-  int index = behaviour_index(main_g, stringtab("create"));
-  args[1] = LLVMConstInt(c->i32, 0, false);
-  args[0] = LLVMConstInt(c->i32, index, false);
-  LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
-  LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
-
-  // Set the message contents.
-  LLVMValueRef env_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, 3, "");
-  LLVMBuildStore(c->builder, env, env_ptr);
-
-  // Trace the message.
-  gencall_runtime(c, "pony_gc_send", NULL, 0, "");
-  const char* env_trace = genname_trace(env_name);
-
-  args[0] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[1] = LLVMGetNamedFunction(c->module, env_trace);
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
-  gencall_runtime(c, "pony_send_done", NULL, 0, "");
-
-  // Send the message.
-  args[0] = object;
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
-
-  // Start the runtime.
-  LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
-  LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
-
-  // Return the runtime exit code.
-  LLVMBuildRet(c->builder, rc);
-
-  codegen_finishfun(c);
-
-  // External linkage for main().
-  LLVMSetLinkage(func, LLVMExternalLinkage);
-}
-
-static bool codegen_program(compile_t* c, ast_t* program)
-{
-  // The first package is the main package. It has to have a Main actor.
-  const char* main_actor = stringtab("Main");
-  ast_t* package = ast_child(program);
-  ast_t* main_def = ast_get(package, main_actor, NULL);
-
-  if(main_def == NULL)
-  {
-    errorf(NULL, "no Main actor found in package '%s'", c->filename);
-    return false;
-  }
-
-  // Emit debug info for this compile unit.
-  //dwarf_compileunit(c->dwarf, package);
-
-  // Generate the Main actor and the Env class.
-  gentype_t main_g;
-  ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);
-
-  if(main_ast == NULL)
-    return false;
-
-  const char* env_class = stringtab("Env");
-
-  gentype_t env_g;
-  ast_t* env_ast = genprim(c, main_def, env_class, &env_g);
-
-  if(env_ast == NULL)
-  {
-    ast_free_unattached(main_ast);
-    return false;
-  }
-
-  codegen_main(c, &main_g, &env_g);
-
-  ast_free_unattached(main_ast);
-  ast_free_unattached(env_ast);
-  return true;
-}
-
-static bool generate_actors(compile_t* c, ast_t* program)
-{
-  // Look for C-API actors in every package.
-  bool found = false;
-  ast_t* package = ast_child(program);
-
-  while(package != NULL)
-  {
-    ast_t* module = ast_child(package);
-
-    while(module != NULL)
-    {
-      ast_t* entity = ast_child(module);
-
-      while(entity != NULL)
-      {
-        if(ast_id(entity) == TK_ACTOR)
-        {
-          ast_t* c_api = ast_childidx(entity, 5);
-
-          if(ast_id(c_api) == TK_AT)
-          {
-            // We have an actor marked as C-API.
-            ast_t* id = ast_child(entity);
-
-            // Generate the actor.
-            gentype_t g;
-            ast_t* ast = genprim(c, entity, ast_name(id), &g);
-
-            if(ast == NULL)
-              return false;
-
-            found = true;
-          }
-        }
-
-        entity = ast_sibling(entity);
-      }
-
-      module = ast_sibling(module);
-    }
-
-    package = ast_sibling(package);
-  }
-
-  if(!found)
-  {
-    errorf(NULL, "no C-API actors found in package '%s'", c->filename);
-    return false;
-  }
-
-  return true;
-}
-
-static bool codegen_library(compile_t* c, pass_opt_t* opt, ast_t* program)
-{
-  // Open a header file.
-  const char* file_h = suffix_filename(opt->output, c->filename, ".h");
-  c->header = fopen(file_h, "wt");
-
-  if(c->header == NULL)
-  {
-    errorf(NULL, "couldn't write to %s", file_h);
-    return false;
-  }
-
-  fprintf(c->header,
-    "#ifndef pony_%s_h\n"
-    "#define pony_%s_h\n"
-    "\n"
-    "/* This is an auto-generated header file. Do not edit. */\n"
-    "\n"
-    "#include <stdint.h>\n"
-    "#include <stdbool.h>\n"
-    "\n"
-    "#ifdef __cplusplus\n"
-    "extern \"C\" {\n"
-    "#endif\n"
-    "\n"
-    "#ifdef _MSC_VER\n"
-    "typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;\n"
-    "typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;\n"
-    "#endif\n"
-    "\n",
-    c->filename,
-    c->filename
-    );
-
-  c->header_buf = printbuf_new();
-  bool ok = generate_actors(c, program);
-
-  fwrite(c->header_buf->m, 1, c->header_buf->offset, c->header);
-  printbuf_free(c->header_buf);
-  c->header_buf = NULL;
-
-  fprintf(c->header,
-    "\n"
-    "#ifdef __cplusplus\n"
-    "}\n"
-    "#endif\n"
-    "\n"
-    "#endif\n"
-    );
-
-  fclose(c->header);
-  c->header = NULL;
-
-  if(!ok)
-    unlink(file_h);
-
-  return ok;
-}
-
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
+  c->mpm = mpm;
+  c->lpm = lpm;
+
   c->painter = painter_create();
   painter_colour(c->painter, program);
 
@@ -680,361 +312,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->frame = NULL;
 }
 
-static const char* get_link_path()
-{
-  strlist_t* paths = package_paths();
-  size_t len = 0;
-
-  while(paths != NULL)
-  {
-    const char* path = strlist_data(paths);
-    len += strlen(path);
-
-#ifdef PLATFORM_IS_POSIX_BASED
-    len += 6;
-#else
-    len += 12;
-#endif
-
-    paths = strlist_next(paths);
-  }
-
-  VLA(char, buf, len + 1);
-  char* p = buf;
-  paths = package_paths();
-
-  while(paths != NULL)
-  {
-    const char* path = strlist_data(paths);
-    len = strlen(path);
-
-#ifdef PLATFORM_IS_POSIX_BASED
-    strcpy(p, " -L \"");
-    p += 5;
-#else
-    strcpy(p, " /LIBPATH:\"");
-    p += 11;
-#endif
-
-    memcpy(p, path, len + 1);
-    p += len;
-
-    strcpy(p, "\"");
-    p++;
-
-    paths = strlist_next(paths);
-  }
-
-  return stringtab(buf);
-}
-
-#if defined(PLATFORM_IS_WINDOWS)
-static bool system(const char* program, char* command)
-{
-  STARTUPINFO si;
-  PROCESS_INFORMATION pi;
-  DWORD code = 0;
-
-  memset(&si, 0, sizeof(STARTUPINFO));
-
-  if(!CreateProcess(TEXT(program), TEXT(command), NULL, NULL,
-    FALSE, 0, NULL, NULL, &si, &pi))
-  {
-    return false;
-  }
-
-  WaitForSingleObject(pi.hProcess, INFINITE);
-  GetExitCodeProcess(pi.hProcess, &code);
-  CloseHandle(pi.hProcess);
-
-  return code == 0;
-}
-#endif
-
-static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
-{
-  size_t len = strlen(c->filename);
-
-#if defined(PLATFORM_IS_POSIX_BASED)
-  VLA(char, libname, len + 4);
-  memcpy(libname, "lib", 3);
-  memcpy(libname + 3, c->filename, len + 1);
-
-  const char* file_lib = suffix_filename(opt->output, libname, ".a");
-  printf("Archiving %s\n", file_lib);
-
-  len = 32 + strlen(file_lib) + strlen(file_o);
-  VLA(char, cmd, len);
-
-  snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
-
-  if(system(cmd) != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#elif defined(PLATFORM_IS_WINDOWS)
-  VLA(char, libname, len + 1);
-  memcpy(libname, c->filename, len + 1);
-
-  const char* file_lib = suffix_filename(opt->output, libname, ".lib");
-  printf("Archiving %s\n", file_lib);
-
-  vcvars_t vcvars;
-
-  if(!vcvars_get(&vcvars))
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-
-  len = 32 + strlen(file_lib) + strlen(file_o);
-  VLA(char, cmd, len);
-
-  snprintf(cmd, len, " /NOLOGO /OUT:%s %s", file_lib, file_o);
-
-  if(!system(vcvars.ar, cmd))
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#endif
-
-  return true;
-}
-
-static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
-  const char* file_o)
-{
-#if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(opt->triple, '-');
-
-  if(arch == NULL)
-  {
-    errorf(NULL, "couldn't determine architecture from %s", opt->triple);
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
-  printf("Linking %s\n", file_exe);
-
-  size_t len = (arch - opt->triple);
-  VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, opt->triple, len);
-  arch_buf[len] = '\0';
-
-  program_lib_build_args(program, "", "", "-l", "");
-  const char* link_path = get_link_path();
-  const char* lib_args = program_lib_args(program);
-
-  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
-    strlen(lib_args) + strlen(link_path);
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
-    "-o %s %s %s %s -lponyrt -lSystem",
-    arch_buf, file_exe, file_o, lib_args, link_path
-    );
-
-  if(system(ld_cmd) != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#elif defined(PLATFORM_IS_LINUX)
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
-  printf("Linking %s\n", file_exe);
-
-  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
-  const char* link_path = get_link_path();
-  const char* lib_args = program_lib_args(program);
-
-  const char* crt_dir = crt_directory();
-  const char* gccs_dir = gccs_directory();
-
-  if((crt_dir == NULL) || (gccs_dir == NULL))
-  {
-    errorf(NULL, "could not find CRT");
-    return false;
-  }
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
-    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-    "-o %s "
-    "%scrt1.o "
-    "%scrti.o "
-    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
-    );
-
-  if(system(ld_cmd) != 0)
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#elif defined(PLATFORM_IS_WINDOWS)
-  vcvars_t vcvars;
-
-  if(!vcvars_get(&vcvars))
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-
-  const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
-  printf("Linking %s\n", file_exe);
-
-  program_lib_build_args(program, "", "", "", ".lib");
-  const char* link_path = get_link_path();
-  const char* lib_args = program_lib_args(program);
-
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
-    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
-    strlen(lib_args);
-  VLA(char, ld_cmd, ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    " /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
-    "/OUT:%s "
-    "%s "
-    "/LIBPATH:\"%s\" "
-    "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib",
-    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
-    );
-
-  if(!system(vcvars.link, ld_cmd))
-  {
-    errorf(NULL, "unable to link");
-    return false;
-  }
-#endif
-
-  return true;
-}
-
-static bool codegen_finalise(ast_t* program, compile_t* c, pass_opt_t* opt,
-  pass_id pass_limit)
-{
-  // Finalise the function passes.
-  LLVMFinalizeFunctionPassManager(c->fpm);
-
-  if(opt->release)
-  {
-    printf("Optimising\n");
-
-    // Module pass manager.
-    LLVMRunPassManager(mpm, c->module);
-
-    // LTO pass manager.
-    if(!c->library)
-      LLVMRunPassManager(lpm, c->module);
-  }
-
-  // Allocate on the stack instead of the heap where possible.
-  stack_alloc(c);
-
-#ifndef NDEBUG
-  printf("Verifying\n");
-
-  char* msg;
-
-  if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
-  {
-    errorf(NULL, "module verification failed: %s", msg);
-    LLVMDisposeMessage(msg);
-    return false;
-  }
-#endif
-
-  /*
-   * Could store the pony runtime as a bitcode file. Build an executable by
-   * amalgamating the program and the runtime.
-   *
-   * For building a library, could generate a .o without the runtime in it. The
-   * user then has to link both the .o and the runtime. Would need a flag for
-   * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
-   */
-  if(pass_limit == PASS_LLVM_IR)
-  {
-    const char* file_o = suffix_filename(opt->output, c->filename, ".ll");
-    printf("Writing %s\n", file_o);
-    char* err;
-
-    if(LLVMPrintModuleToFile(c->module, file_o, &err) != 0)
-    {
-      errorf(NULL, "couldn't write IR to %s: %s", file_o, err);
-      LLVMDisposeMessage(err);
-      return false;
-    }
-
-    return true;
-  }
-
-  if(pass_limit == PASS_BITCODE)
-  {
-    const char* file_o = suffix_filename(opt->output, c->filename, ".bc");
-    printf("Writing %s\n", file_o);
-
-    if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
-    {
-      errorf(NULL, "couldn't write bitcode to %s", file_o);
-      return false;
-    }
-
-    return true;
-  }
-
-  LLVMCodeGenFileType fmt;
-  const char* file_o;
-
-  if(pass_limit == PASS_ASM)
-  {
-    fmt = LLVMAssemblyFile;
-    file_o = suffix_filename(opt->output, c->filename, ".s");
-  } else {
-    fmt = LLVMObjectFile;
-#ifdef PLATFORM_IS_WINDOWS
-    file_o = suffix_filename(opt->output, c->filename, ".obj");
-#else
-    file_o = suffix_filename(opt->output, c->filename, ".o");
-#endif
-  }
-
-  printf("Writing %s\n", file_o);
-  char* err;
-
-  if(LLVMTargetMachineEmitToFile(
-      c->machine, c->module, (char*)file_o, fmt, &err) != 0
-    )
-  {
-    errorf(NULL, "couldn't create file: %s", err);
-    LLVMDisposeMessage(err);
-    return false;
-  }
-
-  if(pass_limit < PASS_ALL)
-    return true;
-
-  if(c->library)
-  {
-    if(!link_lib(c, opt, file_o))
-      return false;
-  } else {
-    if(!link_exe(c, opt, program, file_o))
-      return false;
-  }
-
-  unlink(file_o);
-  return true;
-}
-
 static void codegen_cleanup(compile_t* c)
 {
   while(c->frame != NULL)
@@ -1056,7 +333,7 @@ bool codegen_init(pass_opt_t* opt)
   LLVMInitializeAllAsmPrinters();
   LLVMInitializeAllAsmParsers();
   LLVMEnablePrettyStackTrace();
-  LLVMInstallFatalErrorHandler(codegen_fatal);
+  LLVMInstallFatalErrorHandler(fatal_error);
 
   LLVMPassRegistryRef passreg = LLVMGetGlobalPassRegistry();
   LLVMInitializeCore(passreg);
@@ -1132,7 +409,7 @@ void codegen_shutdown(pass_opt_t* opt)
   LLVMShutdown();
 }
 
-bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
+bool codegen(ast_t* program, pass_opt_t* opt)
 {
   printf("Generating\n");
 
@@ -1141,23 +418,17 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  //dwarf_init(&c);
+  // dwarf_init(&c);
   genprim_builtins(&c);
 
   bool ok;
 
   if(c.library)
-    ok = codegen_library(&c, opt, program);
+    ok = genlib(&c, opt, program);
   else
-    ok = codegen_program(&c, program);
+    ok = genexe(&c, opt, program);
 
-  if(ok)
-  {
-    //ok = dwarf_finalise(c.dwarf);
-    ok &= codegen_finalise(program, &c, opt, pass_limit);
-  }
-
-  //dwarf_cleanup(&c.dwarf);
+  // dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }
@@ -1285,4 +556,36 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
     LLVMSetInstructionCallConv(result, GEN_CALLCONV);
 
   return result;
+}
+
+const char* suffix_filename(const char* dir, const char* file,
+  const char* extension)
+{
+  // Copy to a string with space for a suffix.
+  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
+  VLA(char, filename, len + 1);
+
+  // Start with no suffix.
+  snprintf(filename, len, "%s/%s%s", dir, file, extension);
+  int suffix = 0;
+
+  while(suffix < 100)
+  {
+    // Overwrite files but not directories.
+    struct stat s;
+    int err = stat(filename, &s);
+
+    if((err == -1) || !S_ISDIR(s.st_mode))
+      break;
+
+    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
+  }
+
+  if(suffix >= 100)
+  {
+    errorf(NULL, "couldn't pick an unused file name");
+    return NULL;
+  }
+
+  return stringtab(filename);
 }

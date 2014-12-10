@@ -144,8 +144,7 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_CLASS:
     case TK_ACTOR:
       // With a concrete type, the subtype must be a subtype of the supertype.
-      // If we've got this far, we aren't.
-      return false;
+      return is_subtype(sub, super);
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -162,16 +161,24 @@ static bool could_subtype_union(ast_t* sub, ast_t* super)
 {
   // Some component type must be a possible match with the supertype.
   ast_t* child = ast_child(sub);
+  bool ok = false;
 
   while(child != NULL)
   {
     if(could_subtype(child, super))
-      return true;
+    {
+      ok = true;
+      break;
+    }
 
     child = ast_sibling(child);
   }
 
-  return false;
+  if(!ok)
+    return false;
+
+  // TODO: No component can deny the supertype.
+  return true;
 }
 
 static bool could_subtype_isect(ast_t* sub, ast_t* super)
@@ -295,9 +302,8 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
       return could_subtype_with_arrow(sub, super);
 
     case TK_TYPEPARAMREF:
-      // If the supertype is a typeparam, we have to be a subtype. If we've
-      // got this far, we aren't.
-      return false;
+      // If the supertype is a typeparam, we have to be a subtype.
+      return is_subtype(sub, super);
 
     default: {}
   }
@@ -309,10 +315,6 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 bool could_subtype(ast_t* sub, ast_t* super)
 {
   if(ast_id(super) == TK_DONTCARE)
-    return true;
-
-  // If we are a subtype, then we also could be.
-  if(is_subtype(sub, super))
     return true;
 
   // Does a subtype of sub exist that is a subtype of super?
