@@ -12,15 +12,13 @@
 #include <stdbool.h>
 
 
-static pass_id pass_limit = PASS_ALL;
-
-bool limit_passes(const char* pass)
+bool limit_passes(pass_opt_t* opt, const char* pass)
 {
   for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)
   {
     if(strcmp(pass, pass_name(i)) == 0)
     {
-      pass_limit = i;
+      opt->limit = i;
       return true;
     }
   }
@@ -57,6 +55,7 @@ void pass_opt_init(pass_opt_t* options)
 {
   // Start with an empty typechecker frame.
   memset(options, 0, sizeof(pass_opt_t));
+  options->limit = PASS_ALL;
   frame_push(&options->check, NULL);
 }
 
@@ -74,7 +73,7 @@ void pass_opt_done(pass_opt_t* options)
 static bool do_pass(ast_t** astp, bool* out_result, pass_opt_t* options,
   pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
 {
-  if(pass_limit < pass)
+  if(options->limit < pass)
   {
     *out_result = true;
     return true;
@@ -111,7 +110,7 @@ bool type_passes(ast_t* type, pass_opt_t* options)
 
 bool package_passes(ast_t* package, pass_opt_t* options)
 {
-  if(pass_limit == PASS_PARSE)
+  if(options->limit == PASS_PARSE)
     return true;
 
   bool r;
@@ -134,7 +133,7 @@ bool package_passes(ast_t* package, pass_opt_t* options)
   if(do_pass(&package, &r, options, PASS_TRAITS, pass_traits, NULL))
     return r;
 
-  if(pass_limit != PASS_TRAITS)
+  if(options->limit != PASS_TRAITS)
     ast_clear(package);
 
   if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope2, NULL))
@@ -149,8 +148,8 @@ bool package_passes(ast_t* package, pass_opt_t* options)
 
 bool program_passes(ast_t* program, pass_opt_t* opt)
 {
-  if(pass_limit < PASS_LLVM_IR)
+  if(opt->limit < PASS_LLVM_IR)
     return true;
 
-  return codegen(program, opt, pass_limit);
+  return codegen(program, opt);
 }

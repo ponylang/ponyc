@@ -21,12 +21,12 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 {
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "sugar");
 
   package_add_magic("builtin", builtin);
   package_suppress_build_message();
   free_errors();
 
-  limit_passes("sugar");
   package_add_magic("short", short_form);
   ast_t* short_ast = program_load(stringtab("short"), &opt);
 
@@ -36,7 +36,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
     ASSERT_NE((void*)NULL, short_ast);
   }
 
-  limit_passes("parsefix");
+  limit_passes(&opt, "parsefix");
   parse_fix_allow_all(true);
   package_add_magic("full", full_form);
   ast_t* full_ast = program_load(stringtab("full"), &opt);
@@ -70,12 +70,12 @@ static void test_bad_sugar(const char* src)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
-  limit_passes("sugar");
   package_suppress_build_message();
   free_errors();
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "sugar");
   ast_t* ast = program_load(stringtab("prog"), &opt);
   pass_opt_done(&opt);
 

@@ -78,6 +78,7 @@ typedef enum pass_id
  */
 typedef struct pass_opt_t
 {
+  pass_id limit;
   bool release;
   bool library;
   bool symbols;
@@ -96,7 +97,7 @@ typedef struct pass_opt_t
  * specified pass will occur.
  * Returns true on success, false on invalid pass name.
  */
-bool limit_passes(const char* pass);
+bool limit_passes(pass_opt_t* opt, const char* pass);
 
 /** Report the name of the specified pass.
  * The returned string is a literal and should not be freed.

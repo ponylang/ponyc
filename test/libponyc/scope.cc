@@ -417,10 +417,10 @@ TEST_F(ScopeTest, Package)
   DO(build(tree));
 
   package_add_magic("builtin", builtin);
-  limit_passes("scope1");
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "scope1");
   ASSERT_EQ(AST_OK, pass_scope(&start, &opt));
   pass_opt_done(&opt);
 
@@ -446,10 +446,10 @@ TEST_F(ScopeTest, Use)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  limit_passes("scope1");
 
   pass_opt_t opts;
   pass_opt_init(&opts);
+  limit_passes(&opts, "scope1");
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
   pass_opt_done(&opts);
 
@@ -476,10 +476,10 @@ TEST_F(ScopeTest, UseAs)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  limit_passes("scope1");
 
   pass_opt_t opts;
   pass_opt_init(&opts);
+  limit_passes(&opts, "scope1");
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
   pass_opt_done(&opts);
 
@@ -507,10 +507,10 @@ TEST_F(ScopeTest, UseConditionTrue)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  limit_passes("scope1");
 
   pass_opt_t opts;
   pass_opt_init(&opts);
+  limit_passes(&opts, "scope1");
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
   pass_opt_done(&opts);
 
@@ -537,10 +537,10 @@ TEST_F(ScopeTest, UseConditionFalse)
 
   package_add_magic("builtin", builtin);
   package_add_magic("test", used_package);
-  limit_passes("scope1");
 
   pass_opt_t opts;
   pass_opt_init(&opts);
+  limit_passes(&opts, "scope1");
   ASSERT_EQ(AST_OK, pass_scope(&start, &opts));
   pass_opt_done(&opts);
 

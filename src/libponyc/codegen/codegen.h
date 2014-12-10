@@ -43,6 +43,8 @@ typedef struct compile_frame_t
 
 typedef struct compile_t
 {
+  LLVMPassManagerRef mpm;
+  LLVMPassManagerRef lpm;
   painter_t* painter;
   const char* filename;
   uint32_t next_type_id;
@@ -136,7 +138,7 @@ bool codegen_init(pass_opt_t* opt);
 
 void codegen_shutdown(pass_opt_t* opt);
 
-bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit);
+bool codegen(ast_t* program, pass_opt_t* opt);
 
 LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type);
 
@@ -161,6 +163,9 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count);
+
+const char* suffix_filename(const char* dir, const char* file,
+  const char* extension);
 
 // Implemented in host.cc.
 void stack_alloc(compile_t* c);
