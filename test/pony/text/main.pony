@@ -15,7 +15,7 @@ actor Main
         env.out.print("  Depth: " + rope.depth().string())
         env.out.print("  Size: " + rope.size().string())
         env.out.print("  Linebreaks: " + rope.linebreaks().string())
-        env.out.print("  Blocksize: " + rope.blocksize().string())
+        // env.out.print("  Blocksize: " + rope.blocksize().string())
 
         env.out.print(rope.string())
       end
