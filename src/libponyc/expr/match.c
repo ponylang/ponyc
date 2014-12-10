@@ -142,7 +142,15 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
     {
       // Check for a cardinality match.
       if(ast_childcount(match_type) != ast_childcount(pattern))
+      {
+        if(errors)
+        {
+          ast_error(pattern,
+            "pattern and type are tuples of different cardinality");
+        }
+
         return MATCHTYPE_REJECT;
+      }
 
       // Check every element pairwise.
       ast_t* match_child = ast_child(match_type);
@@ -150,7 +158,7 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        matchtype_t ok = is_valid_tuple_pattern(t, match_child, pattern,
+        matchtype_t ok = is_valid_pattern(t, match_child, pattern_child,
           errors);
 
         if(ok != MATCHTYPE_ACCEPT)
