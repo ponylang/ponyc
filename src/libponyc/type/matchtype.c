@@ -312,7 +312,7 @@ static matchtype_t could_subtype_typeparam(ast_t* sub, ast_t* super)
 
     case TK_TYPEPARAMREF:
       // If the supertype is a typeparam, we have to be a subtype.
-      return is_subtype(sub, super);
+      return is_subtype(sub, super) ? MATCHTYPE_ACCEPT : MATCHTYPE_REJECT;
 
     default: {}
   }
