@@ -162,7 +162,17 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
           errors);
 
         if(ok != MATCHTYPE_ACCEPT)
+        {
+          if(errors)
+          {
+            ast_error(pattern, "type can never match tuple element");
+            ast_error(match_child, "match type: %s",
+              ast_print_type(match_child));
+            ast_error(pattern_child, "pattern type: %s",
+              ast_print_type(ast_type(pattern_child)));
+          }
           return ok;
+        }
 
         match_child = ast_sibling(match_child);
         pattern_child = ast_sibling(pattern_child);

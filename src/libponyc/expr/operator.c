@@ -207,13 +207,16 @@ bool expr_assign(typecheck_t* t, ast_t* ast)
   }
 
   bool ok_safe = safe_to_write(left, a_type);
-  ast_free_unattached(a_type);
 
   if(!ok_safe)
   {
     ast_error(ast, "not safe to write right side to left side");
+    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_free_unattached(a_type);
     return false;
   }
+
+  ast_free_unattached(a_type);
 
   ast_settype(ast, consume_type(l_type));
   ast_inheriterror(ast);

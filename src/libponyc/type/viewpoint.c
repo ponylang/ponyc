@@ -3,6 +3,37 @@
 #include "cap.h"
 #include <assert.h>
 
+static ast_t* make_single_arrow(ast_t* left, ast_t* right)
+{
+  switch(ast_id(left))
+  {
+    case TK_ARROW:
+    {
+      ast_t* arrow = ast_dup(left);
+      ast_t* child = ast_childidx(arrow, 1);
+
+      // Arrow is right associative.
+      while(ast_id(child) == TK_ARROW)
+        child = ast_childidx(child, 1);
+
+      ast_t* view = viewpoint_type(child, right);
+
+      if(view == NULL)
+        return NULL;
+
+      ast_replace(&child, right);
+      return arrow;
+    }
+
+    default: {}
+  }
+
+  ast_t* arrow = ast_from(left, TK_ARROW);
+  ast_add(arrow, right);
+  ast_add(arrow, left);
+  return arrow;
+}
+
 static ast_t* make_arrow_type(ast_t* left, ast_t* right)
 {
   switch(ast_id(right))
@@ -24,6 +55,7 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
     }
 
     case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
     {
       token_id cap = cap_for_type(right);
 
@@ -36,20 +68,11 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
         default: {}
       }
 
-      ast_t* arrow = ast_from(left, TK_ARROW);
-      ast_add(arrow, right);
-      ast_add(arrow, left);
-      return arrow;
+      return make_single_arrow(left, right);
     }
 
-    case TK_TYPEPARAMREF:
     case TK_ARROW:
-    {
-      ast_t* arrow = ast_from(left, TK_ARROW);
-      ast_add(arrow, right);
-      ast_add(arrow, left);
-      return arrow;
-    }
+      return make_single_arrow(left, right);
 
     default: {}
   }
@@ -234,24 +257,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     }
 
     case TK_ARROW:
-    {
-      // A viewpoint type picks up another level of arrow type.
-      ast_t* ast = ast_dup(l_type);
-      ast_t* child = ast_childidx(ast, 1);
-
-      // Arrow is right associative.
-      while(ast_id(child) == TK_ARROW)
-        child = ast_childidx(child, 1);
-
-      ast_t* view = viewpoint_type(child, r_type);
-
-      if(view == NULL)
-        return NULL;
-
-      ast_replace(&child, view);
-      return ast;
-    }
-
     case TK_THISTYPE:
       return make_arrow_type(l_type, r_type);
 
