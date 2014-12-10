@@ -2,6 +2,7 @@
 #include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
+#include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include <assert.h>
 
@@ -167,12 +168,20 @@ static ast_result_t sugar_fun(ast_t* ast)
   if(ast_id(id) == TK_NONE)
     ast_replace(&id, ast_from_string(id, "apply"));
 
-  if(ast_id(result) != TK_NONE)
-    return AST_OK;
-
   // Return value is not specified, set it to None
-  ast_t* type = type_sugar(ast, NULL, "None");
-  ast_replace(&result, type);
+  if(ast_id(result) == TK_NONE)
+  {
+    ast_t* type = type_sugar(ast, NULL, "None");
+    ast_replace(&result, type);
+  }
+
+  // If the return type is None, add a None at the end of the body.
+  if(is_none(result))
+  {
+    ast_t* last = ast_childlast(body);
+    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
+    ast_append(body, ref);
+  }
 
   return AST_OK;
 }

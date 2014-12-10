@@ -333,7 +333,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     if(incomplete && is_subtype(r_type, t_type))
     {
       ast_error(ast,
-        "this would be possible if all the field of 'this' were assigned to "
+        "this would be possible if all the fields of 'this' were assigned to "
         "at this point");
     }
   }

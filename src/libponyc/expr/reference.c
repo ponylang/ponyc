@@ -770,7 +770,7 @@ static bool check_fields_defined(ast_t* ast)
   return result;
 }
 
-static bool check_return_type(pass_opt_t* opt, ast_t* ast)
+static bool check_return_type(ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -784,16 +784,6 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   // If it's a compiler intrinsic, ignore it.
   if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
     return true;
-
-  // If the return type is None, add a None at the end of the body.
-  if(is_none(type))
-  {
-    ast_t* last = ast_childlast(body);
-    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, ref);
-    expr_reference(opt, ref);
-    return true;
-  }
 
   // The body type must match the return type, without subsumption, or an alias
   // of the body type must be a subtype of the return type.
@@ -959,7 +949,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
       return check_fields_defined(ast) && check_main_create(t, ast);
 
     case TK_FUN:
-      return check_return_type(opt, ast);
+      return check_return_type(ast);
 
     default: {}
   }
