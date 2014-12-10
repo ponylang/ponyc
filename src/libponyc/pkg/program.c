@@ -147,19 +147,6 @@ void program_lib_build_args(ast_t* program,
 }
 
 
-size_t program_lib_arg_length(ast_t* program)
-{
-  assert(program != NULL);
-  assert(ast_id(program) == TK_PROGRAM);
-
-  program_t* data = (program_t*)ast_data(program);
-  assert(data != NULL);
-  assert(data->lib_args != NULL); // Args have been built
-
-  return data->lib_args_size;
-}
-
-
 const char* program_lib_args(ast_t* program)
 {
   assert(program != NULL);

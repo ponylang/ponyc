@@ -680,44 +680,52 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->frame = NULL;
 }
 
-static size_t link_path_length()
+static const char* get_link_path()
 {
-  strlist_t* p = package_paths();
+  strlist_t* paths = package_paths();
   size_t len = 0;
 
-  while(p != NULL)
+  while(paths != NULL)
   {
-    const char* path = strlist_data(p);
+    const char* path = strlist_data(paths);
     len += strlen(path);
+
 #ifdef PLATFORM_IS_POSIX_BASED
     len += 6;
 #else
     len += 12;
 #endif
-    p = strlist_next(p);
+
+    paths = strlist_next(paths);
   }
 
-  return len;
-}
+  VLA(char, buf, len + 1);
+  char* p = buf;
+  paths = package_paths();
 
-static void append_link_paths(char* str)
-{
-  strlist_t* p = package_paths();
-
-  while(p != NULL)
+  while(paths != NULL)
   {
-    const char* path = strlist_data(p);
+    const char* path = strlist_data(paths);
+    len = strlen(path);
+
 #ifdef PLATFORM_IS_POSIX_BASED
-    strcat(str, " -L \"");
-    strcat(str, path);
-    strcat(str, "\"");
+    strcpy(p, " -L \"");
+    p += 5;
 #else
-    strcat(str, " /LIBPATH:\"");
-    strcat(str, path);
-    strcat(str, "\"");
+    strcpy(p, " /LIBPATH:\"");
+    p += 11;
 #endif
-    p = strlist_next(p);
+
+    memcpy(p, path, len + 1);
+    p += len;
+
+    strcpy(p, "\"");
+    p++;
+
+    paths = strlist_next(paths);
   }
+
+  return stringtab(buf);
 }
 
 #if defined(PLATFORM_IS_WINDOWS)
@@ -814,22 +822,20 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   VLA(char, arch_buf, len + 1);
   memcpy(arch_buf, opt->triple, len);
   arch_buf[len] = '\0';
+
   program_lib_build_args(program, "", "", "-l", "");
+  const char* link_path = get_link_path();
+  const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
-    link_path_length() + program_lib_arg_length(program);
+    strlen(link_path) + strlen(lib_args);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
-    "-o %s %s",
-    arch_buf, file_exe, file_o
+    "-o %s %s %s %s -lponyrt -lSystem",
+    arch_buf, file_exe, file_o, lib_args, link_path
     );
-
-  // User specified libraries go here, in any order.
-  strcat(ld_cmd, program_lib_args(program));
-  append_link_paths(ld_cmd);
-  strcat(ld_cmd, " -lponyrt -lSystem");
 
   if(system(ld_cmd) != 0)
   {
@@ -839,7 +845,10 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
 #elif defined(PLATFORM_IS_LINUX)
   const char* file_exe = suffix_filename(opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
+
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
+  const char* link_path = get_link_path();
+  const char* lib_args = program_lib_args(program);
 
   const char* crt_dir = crt_directory();
   const char* gccs_dir = gccs_directory();
@@ -850,8 +859,8 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     return false;
   }
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
-    program_lib_arg_length(program);
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
+    strlen(lib_args);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -860,20 +869,9 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "-o %s "
     "%scrt1.o "
     "%scrti.o "
-    "%s ",
-    file_exe, crt_dir, crt_dir, file_o
+    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
     );
-
-  append_link_paths(ld_cmd);
-
-  // User specified libraries go here, surrounded with --start-group and
-  // --end-group so that we don't have to determine an ordering.
-  strcat(ld_cmd, program_lib_args(program));
-  strcat(ld_cmd, " -lponyrt -lpthread -lm -lc ");
-  strcat(ld_cmd, gccs_dir);
-  strcat(ld_cmd, "libgcc_s.so.1 ");
-  strcat(ld_cmd, crt_dir);
-  strcat(ld_cmd, "crtn.o");
 
   if(system(ld_cmd) != 0)
   {
@@ -891,10 +889,13 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
 
   const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
   printf("Linking %s\n", file_exe);
-  program_lib_build_args(program, "", "", "", ".lib");
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + link_path_length() +
-    vcvars_get_path_length(&vcvars) + program_lib_arg_length(program);
+  program_lib_build_args(program, "", "", "", ".lib");
+  const char* link_path = get_link_path();
+  const char* lib_args = program_lib_args(program);
+
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
+    strlen(lib_args) + vcvars_get_path_length(&vcvars);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -902,13 +903,10 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "/OUT:%s "
     "%s "
     "/LIBPATH:\"%s\" "
-    "/LIBPATH:\"%s\" ",
-    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt
+    "/LIBPATH:\"%s\" "
+    "%s %s ponyrt.lib kernel32.lib msvcrt.lib",
+    file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
     );
-
-  append_link_paths(ld_cmd);
-  strcat(ld_cmd, program_lib_args(program));
-  strcat(ld_cmd, " ponyrt.lib kernel32.lib msvcrt.lib");
 
   if(!system(vcvars.link, ld_cmd))
   {
