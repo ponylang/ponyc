@@ -76,10 +76,10 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
-  bool errors);
+static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
+  ast_t* pattern, bool errors);
 
-static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
+static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
   ast_t* pattern, bool errors)
 {
   switch(ast_id(match_type))
@@ -88,16 +88,23 @@ static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
     {
       // If some possible type can match, we can match.
       ast_t* match_child = ast_child(match_type);
+      matchtype_t ok = MATCHTYPE_REJECT;
 
       while(match_child != NULL)
       {
-        if(is_valid_tuple_pattern(t, match_child, pattern, false))
-          return true;
+        matchtype_t sub_ok = is_valid_tuple_pattern(t, match_child, pattern,
+          false);
+
+        if(sub_ok != MATCHTYPE_REJECT)
+          ok = sub_ok;
+
+        if(ok == MATCHTYPE_DENY)
+          break;
 
         match_child = ast_sibling(match_child);
       }
 
-      if(errors)
+      if((ok != MATCHTYPE_ACCEPT) && errors)
       {
         ast_error(pattern,
           "no possible type of the match expression can match this pattern");
@@ -109,7 +116,7 @@ static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
           ast_print_type(ast_type(pattern)));
       }
 
-      return false;
+      return ok;
     }
 
     case TK_ISECTTYPE:
@@ -119,20 +126,23 @@ static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        if(!is_valid_tuple_pattern(t, match_child, pattern, errors))
-          return false;
+        matchtype_t ok = is_valid_tuple_pattern(t, match_child, pattern,
+          errors);
+
+        if(ok != MATCHTYPE_ACCEPT)
+          return ok;
 
         match_child = ast_sibling(match_child);
       }
 
-      return true;
+      return MATCHTYPE_ACCEPT;
     }
 
     case TK_TUPLETYPE:
     {
       // Check for a cardinality match.
       if(ast_childcount(match_type) != ast_childcount(pattern))
-        return false;
+        return MATCHTYPE_REJECT;
 
       // Check every element pairwise.
       ast_t* match_child = ast_child(match_type);
@@ -140,14 +150,17 @@ static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        if(!is_valid_pattern(t, match_child, pattern_child, errors))
-          return false;
+        matchtype_t ok = is_valid_tuple_pattern(t, match_child, pattern,
+          errors);
+
+        if(ok != MATCHTYPE_ACCEPT)
+          return ok;
 
         match_child = ast_sibling(match_child);
         pattern_child = ast_sibling(pattern_child);
       }
 
-      return true;
+      return MATCHTYPE_ACCEPT;
     }
 
     default: {}
@@ -155,18 +168,16 @@ static bool is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
   // The match type is not a tuple nor does it contain a tuple, so it cannot
   // match a tuple.
-  return false;
+  return MATCHTYPE_REJECT;
 }
 
-static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
-  bool errors)
+static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
+  ast_t* pattern, bool errors)
 {
   if(ast_type(pattern) == NULL)
   {
-    if(errors)
-      ast_error(pattern, "not a matchable pattern");
-
-    return false;
+    ast_error(pattern, "not a matchable pattern");
+    return MATCHTYPE_DENY;
   }
 
   switch(ast_id(pattern))
@@ -182,17 +193,16 @@ static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
       // Disallow capturing tuples.
       if(ast_id(capture_type) == TK_TUPLETYPE)
       {
-        if(errors)
-          ast_error(capture_type,
-            "can't capture a tuple, change this into a tuple of capture "
-            "expressions");
+        ast_error(capture_type,
+          "can't capture a tuple, change this into a tuple of capture "
+          "expressions");
 
-        return false;
+        return MATCHTYPE_DENY;
       }
 
-      bool ok = could_subtype(a_type, capture_type);
+      matchtype_t ok = could_subtype(a_type, capture_type);
 
-      if(!ok && errors)
+      if((ok != MATCHTYPE_ACCEPT) && errors)
       {
         ast_error(pattern, "this capture can never match");
         ast_error(a_type, "match type alias: %s", ast_print_type(a_type));
@@ -202,12 +212,11 @@ static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
 
       if(contains_interface(capture_type))
       {
-        if(errors)
-          ast_error(pattern, "this capture type contains an interface, which "
-            "cannot be matched dynamically"
-            );
+        ast_error(pattern, "this capture type contains an interface, which "
+          "cannot be matched dynamically"
+          );
 
-        ok = false;
+        ok = MATCHTYPE_DENY;
       }
 
       ast_free_unattached(a_type);
@@ -233,10 +242,8 @@ static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
 
       if(next != NULL)
       {
-        if(errors)
-          ast_error(next, "expression in patterns cannot be sequences");
-
-        return false;
+        ast_error(next, "expression in patterns cannot be sequences");
+        return MATCHTYPE_DENY;
       }
 
       return is_valid_pattern(t, match_type, child, errors);
@@ -244,7 +251,7 @@ static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
 
     case TK_DONTCARE:
       // It's always ok not to care.
-      return true;
+      return MATCHTYPE_ACCEPT;
 
     default:
     {
@@ -253,96 +260,81 @@ static bool is_valid_pattern(typecheck_t* t, ast_t* match_type, ast_t* pattern,
 
       if(fun == NULL)
       {
-        if(errors)
-          ast_error(pattern,
-            "this pattern element doesn't support structural equality");
+        ast_error(pattern,
+          "this pattern element doesn't support structural equality");
 
-        return false;
+        return MATCHTYPE_DENY;
       }
 
       if(ast_id(fun) != TK_FUN)
       {
-        if(errors)
-        {
-          ast_error(pattern, "eq is not a function on this pattern element");
-          ast_error(fun, "definition of eq is here");
-        }
-
-        return false;
+        ast_error(pattern, "eq is not a function on this pattern element");
+        ast_error(fun, "definition of eq is here");
+        return MATCHTYPE_DENY;
       }
 
       AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
-      bool ok = true;
+      matchtype_t ok = MATCHTYPE_ACCEPT;
 
       if(ast_id(typeparams) != TK_NONE)
       {
-        if(errors)
-          ast_error(pattern,
-            "polymorphic eq not supported in pattern matching");
+        ast_error(pattern,
+          "polymorphic eq not supported in pattern matching");
 
-        ok = false;
+        ok = MATCHTYPE_DENY;
       }
 
       if(!is_bool(result))
       {
-        if(errors)
-          ast_error(pattern, "eq must return Bool when pattern matching");
-
-        ok = false;
+        ast_error(pattern, "eq must return Bool when pattern matching");
+        ok = MATCHTYPE_DENY;
       }
 
       if(ast_id(partial) != TK_NONE)
       {
-        if(errors)
-          ast_error(pattern, "eq cannot be partial when pattern matching");
-
-        ok = false;
+        ast_error(pattern, "eq cannot be partial when pattern matching");
+        ok = MATCHTYPE_DENY;
       }
 
       ast_t* param = ast_child(params);
 
       if(ast_sibling(param) != NULL)
       {
-        if(errors)
-          ast_error(pattern,
-            "eq must take a single argument when pattern matching");
+        ast_error(pattern,
+          "eq must take a single argument when pattern matching");
 
-        ok = false;
+        ok = MATCHTYPE_DENY;
       } else {
         ast_t* param_type = ast_childidx(param, 1);
         ast_t* a_type = alias(match_type);
-        bool sub_ok = could_subtype(a_type, param_type);
+        ok = could_subtype(a_type, param_type);
         ast_free_unattached(a_type);
 
-        if(!sub_ok)
+        if((ok != MATCHTYPE_ACCEPT) && errors)
         {
-          if(errors)
-            ast_error(pattern,
-              "the match expression will never be a type that could be "
-              "passed to eq on this pattern");
-
-          ok = false;
+          ast_error(pattern,
+            "the match expression will never be a type that could be "
+            "passed to eq on this pattern");
         }
 
         if(contains_interface(param_type))
         {
-          if(errors)
-            ast_error(pattern, "the parameter of eq on this pattern contains "
-              "an interface, which cannot be matched dynamically"
-              );
+          ast_error(pattern, "the parameter of eq on this pattern contains "
+            "an interface, which cannot be matched dynamically"
+            );
 
-          ok = false;
+          ok = MATCHTYPE_DENY;
         }
       }
 
-      if(!ok && errors)
+      if((ok != MATCHTYPE_ACCEPT) && errors)
         ast_error(fun, "definition of eq is here");
 
       return ok;
     }
   }
 
-  return true;
+  return MATCHTYPE_ACCEPT;
 }
 
 bool expr_case(typecheck_t* t, ast_t* ast)
@@ -367,9 +359,7 @@ bool expr_case(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  // TODO: Need to get the capability union for the match type so that pattern
-  // matching can never recover capabilities.
-  if(!is_valid_pattern(t, match_type, pattern, true))
+  if(is_valid_pattern(t, match_type, pattern, true) != MATCHTYPE_ACCEPT)
     return false;
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))

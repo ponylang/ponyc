@@ -222,23 +222,18 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
     NODE(TK_SEQ,
       NODE(TK_ASSIGN,
         TREE(for_iter)
-        NODE(TK_LET, NODE(TK_IDSEQ, ID(iter_name)) NONE)
-        )
+        NODE(TK_LET, NODE(TK_IDSEQ, ID(iter_name)) NONE))
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
           NODE(TK_CALL,
             NONE NONE
-            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))
-            )
-          )
+            NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
             NODE(TK_CALL,
               NONE NONE
-              NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))
-              )
-            NODE(TK_LET, TREE(for_idseq) TREE(for_type))
-            )
+              NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next")))
+            NODE(TK_LET, TREE(for_idseq) TREE(for_type)))
           TREE(for_body))
         TREE(for_else))));
 

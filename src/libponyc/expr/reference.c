@@ -504,13 +504,14 @@ bool expr_addressof(ast_t* ast)
 bool expr_dontcare(ast_t* ast)
 {
   // We are a tuple element. That tuple must either be a pattern or the LHS
-  // of an assignment. It can be embedded in other tuples.
+  // of an assignment. It can be embedded in other tuples, which may appear
+  // in sequences.
   ast_t* tuple = ast_parent(ast);
   assert(ast_id(tuple) == TK_TUPLE);
 
   ast_t* parent = ast_parent(tuple);
 
-  while(ast_id(parent) == TK_TUPLE)
+  while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
   {
     tuple = parent;
     parent = ast_parent(tuple);

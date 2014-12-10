@@ -7,7 +7,7 @@
 #include "assemble.h"
 #include <assert.h>
 
-static bool could_subtype_with_union(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_with_union(ast_t* sub, ast_t* super)
 {
   ast_t* child = ast_child(super);
 
@@ -15,16 +15,18 @@ static bool could_subtype_with_union(ast_t* sub, ast_t* super)
   {
     child = ast_sibling(child);
 
-    if(could_subtype(sub, child))
-      return true;
+    matchtype_t ok = could_subtype(sub, child);
+
+    if(ok != MATCHTYPE_ACCEPT)
+      return ok;
 
     child = ast_sibling(child);
   }
 
-  return false;
+  return MATCHTYPE_ACCEPT;
 }
 
-static bool could_subtype_with_isect(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_with_isect(ast_t* sub, ast_t* super)
 {
   ast_t* child = ast_child(super);
 
@@ -32,20 +34,22 @@ static bool could_subtype_with_isect(ast_t* sub, ast_t* super)
   {
     child = ast_sibling(child);
 
-    if(!could_subtype(sub, child))
-      return false;
+    matchtype_t ok = could_subtype(sub, child);
+
+    if(ok != MATCHTYPE_ACCEPT)
+      return ok;
 
     child = ast_sibling(child);
   }
 
-  return true;
+  return MATCHTYPE_ACCEPT;
 }
 
-static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_with_arrow(ast_t* sub, ast_t* super)
 {
   // Check the lower bounds of super.
   ast_t* lower = viewpoint_lower(super);
-  bool ok = could_subtype(sub, lower);
+  matchtype_t ok = could_subtype(sub, lower);
 
   if(lower != sub)
     ast_free_unattached(lower);
@@ -53,14 +57,14 @@ static bool could_subtype_with_arrow(ast_t* sub, ast_t* super)
   return ok;
 }
 
-static bool could_subtype_with_typeparam(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_with_typeparam(ast_t* sub, ast_t* super)
 {
   // Could only be a subtype if it is a subtype, since we don't know the lower
   // bounds of the constraint any more accurately than is_subtype() does.
-  return is_subtype(sub, super);
+  return is_subtype(sub, super) ? MATCHTYPE_ACCEPT : MATCHTYPE_REJECT;
 }
 
-static bool could_subtype_trait_trait(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_trait_trait(ast_t* sub, ast_t* super)
 {
   // The subtype cap/eph must be a subtype of the supertype cap/eph.
   AST_GET_CHILDREN(super, sup_pkg, sup_id, sup_typeargs, sup_cap, sup_eph);
@@ -68,10 +72,10 @@ static bool could_subtype_trait_trait(ast_t* sub, ast_t* super)
   bool ok = is_subtype(sub, r_type);
   ast_free_unattached(r_type);
 
-  return ok;
+  return ok ? MATCHTYPE_ACCEPT : MATCHTYPE_REJECT;
 }
 
-static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_trait_nominal(ast_t* sub, ast_t* super)
 {
   ast_t* def = (ast_t*)ast_data(super);
 
@@ -95,17 +99,17 @@ static bool could_subtype_trait_nominal(ast_t* sub, ast_t* super)
 
       bool ok = is_subtype(sub, r_type) && is_subtype(super, r_type);
       ast_free_unattached(r_type);
-      return ok;
+      return ok ? MATCHTYPE_ACCEPT : MATCHTYPE_REJECT;
     }
 
     default: {}
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
-static bool could_subtype_trait(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_trait(ast_t* sub, ast_t* super)
 {
   switch(ast_id(super))
   {
@@ -119,7 +123,7 @@ static bool could_subtype_trait(ast_t* sub, ast_t* super)
       return could_subtype_with_isect(sub, super);
 
     case TK_TUPLETYPE:
-      return false;
+      return MATCHTYPE_REJECT;
 
     case TK_ARROW:
       return could_subtype_with_arrow(sub, super);
@@ -131,10 +135,10 @@ static bool could_subtype_trait(ast_t* sub, ast_t* super)
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
-static bool could_subtype_nominal(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_nominal(ast_t* sub, ast_t* super)
 {
   ast_t* def = (ast_t*)ast_data(sub);
 
@@ -144,7 +148,7 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_CLASS:
     case TK_ACTOR:
       // With a concrete type, the subtype must be a subtype of the supertype.
-      return is_subtype(sub, super);
+      return is_subtype(sub, super) ? MATCHTYPE_ACCEPT : MATCHTYPE_REJECT;
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -154,50 +158,50 @@ static bool could_subtype_nominal(ast_t* sub, ast_t* super)
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
-static bool could_subtype_union(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_union(ast_t* sub, ast_t* super)
 {
   // Some component type must be a possible match with the supertype.
   ast_t* child = ast_child(sub);
-  bool ok = false;
+  matchtype_t ok = MATCHTYPE_REJECT;
 
   while(child != NULL)
   {
-    if(could_subtype(child, super))
-    {
-      ok = true;
-      break;
-    }
+    matchtype_t sub_ok = could_subtype(child, super);
+
+    if(sub_ok != MATCHTYPE_REJECT)
+      ok = sub_ok;
+
+    if(ok == MATCHTYPE_DENY)
+      return ok;
 
     child = ast_sibling(child);
   }
 
-  if(!ok)
-    return false;
-
-  // TODO: No component can deny the supertype.
-  return true;
+  return ok;
 }
 
-static bool could_subtype_isect(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_isect(ast_t* sub, ast_t* super)
 {
   // All components type must be a possible match with the supertype.
   ast_t* child = ast_child(sub);
 
   while(child != NULL)
   {
-    if(!could_subtype(child, super))
-      return false;
+    matchtype_t ok = could_subtype(child, super);
+
+    if(ok != MATCHTYPE_ACCEPT)
+      return ok;
 
     child = ast_sibling(child);
   }
 
-  return true;
+  return MATCHTYPE_ACCEPT;
 }
 
-static bool could_subtype_tuple_tuple(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_tuple_tuple(ast_t* sub, ast_t* super)
 {
   // Must pairwise match with the supertype.
   ast_t* sub_child = ast_child(sub);
@@ -205,22 +209,27 @@ static bool could_subtype_tuple_tuple(ast_t* sub, ast_t* super)
 
   while((sub_child != NULL) && (super_child != NULL))
   {
-    if(!could_subtype(sub_child, super_child))
-      return false;
+    matchtype_t ok = could_subtype(sub_child, super_child);
+
+    if(ok != MATCHTYPE_ACCEPT)
+      return ok;
 
     sub_child = ast_sibling(sub_child);
     super_child = ast_sibling(super_child);
   }
 
-  return (sub_child == NULL) && (super_child == NULL);
+  if((sub_child == NULL) && (super_child == NULL))
+    return MATCHTYPE_ACCEPT;
+
+  return MATCHTYPE_REJECT;
 }
 
-static bool could_subtype_tuple(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_tuple(ast_t* sub, ast_t* super)
 {
   switch(ast_id(super))
   {
     case TK_NOMINAL:
-      return false;
+      return MATCHTYPE_REJECT;
 
     case TK_UNIONTYPE:
       return could_subtype_with_union(sub, super);
@@ -241,10 +250,10 @@ static bool could_subtype_tuple(ast_t* sub, ast_t* super)
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
-static bool could_subtype_arrow(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_arrow(ast_t* sub, ast_t* super)
 {
   if(ast_id(super) == TK_ARROW)
   {
@@ -253,12 +262,12 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
     AST_GET_CHILDREN(super, super_left, super_right);
 
     if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
-      return true;
+      return MATCHTYPE_ACCEPT;
   }
 
   // Check the upper bounds.
   ast_t* upper = viewpoint_upper(sub);
-  bool ok = could_subtype(upper, super);
+  matchtype_t ok = could_subtype(upper, super);
 
   if(upper != sub)
     ast_free_unattached(upper);
@@ -266,7 +275,7 @@ static bool could_subtype_arrow(ast_t* sub, ast_t* super)
   return ok;
 }
 
-static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
+static matchtype_t could_subtype_typeparam(ast_t* sub, ast_t* super)
 {
   switch(ast_id(super))
   {
@@ -282,7 +291,7 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
         ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
         if(constraint_def == sub_def)
-          return false;
+          return MATCHTYPE_REJECT;
       }
 
       return could_subtype(constraint, super);
@@ -296,7 +305,7 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
 
     case TK_TUPLETYPE:
       // A type parameter can't be constrained to a tuple.
-      return false;
+      return MATCHTYPE_REJECT;
 
     case TK_ARROW:
       return could_subtype_with_arrow(sub, super);
@@ -309,13 +318,13 @@ static bool could_subtype_typeparam(ast_t* sub, ast_t* super)
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
-bool could_subtype(ast_t* sub, ast_t* super)
+matchtype_t could_subtype(ast_t* sub, ast_t* super)
 {
   if(ast_id(super) == TK_DONTCARE)
-    return true;
+    return MATCHTYPE_ACCEPT;
 
   // Does a subtype of sub exist that is a subtype of super?
   switch(ast_id(sub))
@@ -342,7 +351,7 @@ bool could_subtype(ast_t* sub, ast_t* super)
   }
 
   assert(0);
-  return false;
+  return MATCHTYPE_DENY;
 }
 
 bool contains_interface(ast_t* type)
