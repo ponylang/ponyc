@@ -30,8 +30,6 @@ TEST(ProgramTest, NoLibs)
   ASSERT_NE((void*)NULL, prog);
 
   program_lib_build_args(prog, "pre", "post", "", "");
-
-  ASSERT_EQ((unsigned int)0, program_lib_arg_length(prog));
   ASSERT_STREQ("", program_lib_args(prog));
 
   ast_free(prog);
@@ -48,8 +46,6 @@ TEST(ProgramTest, OneLib)
   program_lib_build_args(prog, "", "", "", "");
 
   const char* expect = " foo ";
-
-  ASSERT_EQ(strlen(expect), program_lib_arg_length(prog));
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -66,8 +62,6 @@ TEST(ProgramTest, OneLibWithAmbles)
   program_lib_build_args(prog, "pre", "post", "lpre", "lpost");
 
   const char* expect = " prelprefoolpost post";
-
-  ASSERT_EQ(strlen(expect), program_lib_arg_length(prog));
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -86,8 +80,6 @@ TEST(ProgramTest, MultipleLibs)
   program_lib_build_args(prog, "", "", "", "");
 
   const char* expect = " foo bar wombat ";
-
-  ASSERT_EQ(strlen(expect), program_lib_arg_length(prog));
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -106,8 +98,6 @@ TEST(ProgramTest, MultipleLibsWithAmbles)
   program_lib_build_args(prog, "pre", "post", "lpre", "lpost");
 
   const char* expect = " prelprefoolpost lprebarlpost lprewombatlpost post";
-
-  ASSERT_EQ(strlen(expect), program_lib_arg_length(prog));
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -128,8 +118,6 @@ TEST(ProgramTest, RepeatedLibs)
   program_lib_build_args(prog, "", "", "", "");
 
   const char* expect = " foo bar wombat ";
-
-  ASSERT_EQ(strlen(expect), program_lib_arg_length(prog));
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);

@@ -119,7 +119,7 @@ libraries := libponyc libponyrt libponyrt-pic libgtest
 # (4) a list of the libraries to link against.
 llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
-llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lcurses
+llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
 prebuilt := llvm
 

@@ -408,14 +408,12 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
   AST_GET_CHILDREN(lhs, receiver, method);
-  ast_t* typeargs = NULL;
 
   switch(ast_id(receiver))
   {
     case TK_NEWAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
-      typeargs = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
 
