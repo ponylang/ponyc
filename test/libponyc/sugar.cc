@@ -531,11 +531,11 @@ TEST(SugarTest, ForWithoutElse)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use:(\n"
-    "    var hygid = use:(1)\n"
+    "  use(\n"
+    "    let hygid = use(1)\n"
     "    while hygid.has_next() do\n"
-    "      var i = hygid.next()\n"
-    "      use:(2)\n"
+    "      let i = hygid.next()\n"
+    "      use(2)\n"
     "    else None end\n"
     "  )";
 
@@ -551,11 +551,11 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use:(\n"
-    "    var hygid = use:(1)\n"
+    "  use(\n"
+    "    let hygid = use(1)\n"
     "    while hygid.has_next() do\n"
-    "      var i:U32 = hygid.next()\n"
-    "      use:(2)\n"
+    "      let i:U32 = hygid.next()\n"
+    "      use(2)\n"
     "    else\n"
     "      3\n"
     "    end\n"
@@ -829,7 +829,7 @@ TEST(SugarTest, And)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.and_(2)";
+    "  fun ref f(): U32 val => 1.op_and(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -843,7 +843,7 @@ TEST(SugarTest, Or)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.or_(2)";
+    "  fun ref f(): U32 val => 1.op_or(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -857,7 +857,7 @@ TEST(SugarTest, Xor)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.xor_(2)";
+    "  fun ref f(): U32 val => 1.op_xor(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -871,7 +871,7 @@ TEST(SugarTest, Not)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.not_()";
+    "  fun ref f(): U32 val => 1.op_not()";
 
   DO(test_good_sugar(short_form, full_form));
 }
