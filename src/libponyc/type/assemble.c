@@ -327,12 +327,6 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
 {
   switch(ast_id(type))
   {
-    case TK_ISECTTYPE:
-      // If the source is an intersection type, just set it for the first type
-      // in the list. We're using the for subtyping, and we will be a subtype
-      // of every type in the list.
-      return set_cap_and_ephemeral(ast_child(type), cap, ephemeral);
-
     case TK_NOMINAL:
     {
       type = ast_dup(type);

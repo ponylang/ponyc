@@ -648,9 +648,9 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
       if(tag)
       {
-        // TODO: Check our underlying type. If, in the union, that underlying
-        // type could be a tag, trace this as a tag. Otherwise, trace this as
-        // an unknown.
+        // TODO: GC, check our underlying type. If, in the union, that
+        // underlying type could be a tag, trace this as a tag. Otherwise,
+        // trace this as an unknown.
         trace_tag(c, value);
       } else {
         // This union type can never be a tag.
@@ -702,6 +702,7 @@ bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
 
     case TK_ISECTTYPE:
     {
+      // TODO: GC, could be an actor
       bool tag = cap_for_type(type) == TK_TAG;
 
       if(tag)

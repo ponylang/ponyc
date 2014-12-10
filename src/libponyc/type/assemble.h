@@ -64,7 +64,7 @@ bool flatten_union(ast_t** astp);
 bool flatten_isect(ast_t** astp);
 
 /**
- * Change cap and ephemeral on a nominal type.
+ * Change cap and ephemeral on a nominal, typeparamref or arrow type.
  */
 ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral);
 
