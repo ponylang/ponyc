@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -332,7 +332,7 @@ int pony_stop();
  */
 void pony_exitcode(int code);
 
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#if defined(__cplusplus)
 }
 #endif
 
