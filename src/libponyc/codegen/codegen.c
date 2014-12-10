@@ -763,7 +763,7 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
   const char* file_lib = suffix_filename(opt->output, libname, ".a");
   printf("Archiving %s\n", file_lib);
 
-  len = 128 + strlen(file_lib) + strlen(file_o);
+  len = 32 + strlen(file_lib) + strlen(file_o);
   VLA(char, cmd, len);
 
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
@@ -828,7 +828,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
-    strlen(link_path) + strlen(lib_args);
+    strlen(lib_args) + strlen(link_path);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -860,7 +860,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   }
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args);
+    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -894,8 +894,9 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + vcvars_get_path_length(&vcvars);
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
+    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
+    strlen(lib_args);
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,

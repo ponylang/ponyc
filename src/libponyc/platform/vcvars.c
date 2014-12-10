@@ -29,13 +29,13 @@ void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
   }
 }
 
-bool query_registry(HKEY key, bool query_subkeys, 
+bool query_registry(HKEY key, bool query_subkeys,
   query_callback_fn fn, void* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
 
-  //Processing a leaf node in the registry, give it 
+  //Processing a leaf node in the registry, give it
   //to the callback.
   if(!query_subkeys)
   {
@@ -81,7 +81,7 @@ bool query_registry(HKEY key, bool query_subkeys,
   return true;
 }
 
-static bool find_registry_key(char* path, query_callback_fn query, 
+static bool find_registry_key(char* path, query_callback_fn query,
   bool query_subkeys, void* p)
 {
   bool success = true;
@@ -104,7 +104,7 @@ static bool find_registry_key(char* path, query_callback_fn query,
     if(!query_registry(key, query_subkeys, query, p))
       success = false;
   }
- 
+
   RegCloseKey(key);
 
   return success;
@@ -128,10 +128,10 @@ static void pick_newest_vs(HKEY key, char* name, void* p)
   while(true)
   {
     status = RegEnumValue(key, idx, new_version, &size, NULL, NULL, NULL, NULL);
-    
+
     if(status != ERROR_SUCCESS)
       break;
-    
+
     if((strlen(vs->version) == 0)
       || (strncmp(vs->version, new_version, strlen(vs->version)) < 0))
     {
@@ -190,7 +190,7 @@ static bool find_kernel32(vcvars_t* vcvars)
     return false;
   }
 
-  strcpy(vcvars->kernel32, sdk.path); 
+  strcpy(vcvars->kernel32, sdk.path);
   strcat(vcvars->kernel32, "Lib\\winv6.3\\um\\x64");
 
   return true;
@@ -245,12 +245,6 @@ bool vcvars_get(vcvars_t* vcvars)
     return false;
 
   return true;
-}
-
-size_t vcvars_get_path_length(vcvars_t* vcvars)
-{
-  //space seperated paths
-  return (2 * ((MAX_PATH + 1) + 11));
 }
 
 #endif

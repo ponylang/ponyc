@@ -2,8 +2,8 @@ use "collections"
 
 actor Main
   new create(env: Env) =>
-    let group_r = Array[F32].prealloc(8)
-    let group_i = Array[F32].prealloc(8)
+    let group_r = Array[F32](8)
+    let group_i = Array[F32](8)
 
     for i in Range(0, 8) do
       group_r.append(0)
