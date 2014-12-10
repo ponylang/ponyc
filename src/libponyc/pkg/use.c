@@ -92,7 +92,7 @@ static bool eval_call_arg(size_t expected_count, ast_t* positional,
   }
 
   if(actual_count == 0)
-    return false;
+    return true;
 
   return eval_condition(ast_child(positional), release, error);
 }
@@ -135,7 +135,7 @@ static bool eval_call(ast_t* ast, bool release, bool* error)
     return left_val ^ eval_call_arg(1, positional, release, error);
 
   if(strcmp(call_name, "op_not") == 0)
-    return !eval_call_arg(0, positional, release, error);
+    return eval_call_arg(0, positional, release, error) && !left_val;
 
   ast_error(ast, "Invalid use guard expression");
   *error = true;
