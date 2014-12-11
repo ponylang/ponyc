@@ -141,7 +141,7 @@ static matchtype_t could_subtype_trait_nominal(ast_t* sub, ast_t* super)
       if(!is_subtype(sub, r_type))
       {
         ast_free_unattached(r_type);
-        return MATCHTYPE_ACCEPT;
+        return MATCHTYPE_DENY;
       }
 
       // Otherwise, accept.
@@ -230,20 +230,25 @@ static matchtype_t could_subtype_union(ast_t* sub, ast_t* super)
 
 static matchtype_t could_subtype_isect(ast_t* sub, ast_t* super)
 {
-  // All components type must be a possible match with the supertype.
+  // If any component is a match, we're a match. Otherwise return the worst
+  // of reject or deny.
   ast_t* child = ast_child(sub);
+  matchtype_t ok = MATCHTYPE_REJECT;
 
   while(child != NULL)
   {
-    matchtype_t ok = could_subtype(child, super);
+    matchtype_t sub_ok = could_subtype(child, super);
 
-    if(ok != MATCHTYPE_ACCEPT)
-      return ok;
+    if(sub_ok == MATCHTYPE_ACCEPT)
+      return sub_ok;
+
+    if(ok == MATCHTYPE_DENY)
+      ok = sub_ok;
 
     child = ast_sibling(child);
   }
 
-  return MATCHTYPE_ACCEPT;
+  return ok;
 }
 
 static matchtype_t could_subtype_tuple_tuple(ast_t* sub, ast_t* super)
