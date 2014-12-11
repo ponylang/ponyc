@@ -94,7 +94,9 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      ast_error(from, "can't lookup by name on a union type");
+      if(errors)
+        ast_error(from, "can't lookup by name on a union type");
+
       return NULL;
 
     case TK_ISECTTYPE:
@@ -116,7 +118,9 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
     }
 
     case TK_TUPLETYPE:
-      ast_error(from, "can't lookup by name on a tuple");
+      if(errors)
+        ast_error(from, "can't lookup by name on a tuple");
+
       return NULL;
 
     case TK_NOMINAL:
@@ -129,7 +133,9 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
       return lookup_typeparam(t, from, orig, type, name, errors);
 
     case TK_FUNTYPE:
-      ast_error(from, "can't lookup by name on a function type");
+      if(errors)
+        ast_error(from, "can't lookup by name on a function type");
+
       return NULL;
 
     default: {}
