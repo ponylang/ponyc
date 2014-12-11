@@ -10,11 +10,6 @@ static bool trace_as_tag(compile_t* c, LLVMValueRef value, ast_t* type)
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-    {
-      // TODO: complicated due to disjoint sets.
-      return false;
-    }
-
     case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(type);
