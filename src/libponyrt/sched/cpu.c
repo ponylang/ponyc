@@ -1,7 +1,9 @@
 #define _GNU_SOURCE
 #include <platform.h>
 #if defined(PLATFORM_IS_LINUX)
-#include <numa.h>
+#ifdef USE_NUMA
+  #include <numa.h>
+#endif
 #include <sched.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -54,13 +56,15 @@ static bool cpu_physical(uint32_t cpu)
 uint32_t cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
+#ifdef USE_NUMA
   if(numa_available())
   {
     struct bitmask* cpus = numa_get_run_node_mask();
     return numa_bitmask_weight(cpus);
   }
+#endif
 
-  uint32_t max = sysconf(_SC_NPROCESSORS_ONLN);
+  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
   uint32_t count = 0;
 
   for(uint32_t i = 0; i < max; i++)
@@ -120,6 +124,7 @@ uint32_t cpu_count()
 void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
+#ifdef USE_NUMA
   if(numa_available())
   {
     // Assign only numa-available cores.
@@ -140,13 +145,16 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
       if(core >= max)
         core = 0;
     }
-  } else {
-    // Physical cores come first, so assign in sequence.
-    uint32_t max = sysconf(_SC_NPROCESSORS_ONLN);
 
-    for(uint32_t i = 0; i < count; i++)
-      scheduler[i].cpu = i % max;
+    return;
   }
+#endif
+
+  // Physical cores come first, so assign in sequence.
+  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+
+  for(uint32_t i = 0; i < count; i++)
+    scheduler[i].cpu = i % max;
 #else
   // Affinity groups rather than processor numbers.
   for(uint32_t i = 0; i < count; i++)
@@ -160,9 +168,12 @@ void cpu_affinity(uint32_t cpu)
   // Affinity is handled when spawning the thread.
   (void)cpu;
 
+#ifdef USE_NUMA
   // Allocate memory on the local node.
   if(numa_available())
     numa_set_localalloc();
+#endif
+
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;

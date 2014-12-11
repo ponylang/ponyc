@@ -1,7 +1,9 @@
 #include <platform.h>
 
 #if defined(PLATFORM_IS_LINUX)
-#include <numa.h>
+#ifdef USE_NUMA
+  #include <numa.h>
+#endif
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
@@ -31,6 +33,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
   }
 
+#ifdef USE_NUMA
   if(numa_available())
   {
     struct rlimit limit;
@@ -42,6 +45,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
       pthread_attr_setstack(&attr, stack, limit.rlim_cur);
     }
   }
+#endif
 
   if(pthread_create(thread, &attr, start, arg))
     return false;
