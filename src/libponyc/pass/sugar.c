@@ -176,10 +176,9 @@ static ast_result_t sugar_fun(ast_t* ast)
   }
 
   // If the return type is None, add a None at the end of the body.
-  if(is_none(result))
+  if(is_none(result) && (ast_id(body) != TK_NONE))
   {
-    ast_t* last = ast_childlast(body);
-    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
+    BUILD(ref, body, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
   }
 
