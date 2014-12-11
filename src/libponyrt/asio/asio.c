@@ -41,7 +41,7 @@ static void start()
 	if(__pony_atomic_compare_exchange_n(&running_base, &existing,
 		new_base, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
 	{
-		if(!pony_thread_create(&running_base->tid, asio_backend_dispatch,
+		if(!pony_thread_create(&running_base->tid, asio_backend_dispatch, -1,
 			running_base->backend))
 		  exit(EXIT_FAILURE);
 

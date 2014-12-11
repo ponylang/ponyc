@@ -537,8 +537,7 @@ static void collect(detector_t* d, perceived_t* per)
     actor_destroy(view->actor);
     viewmap_remove(&d->views, view);
 
-    // TODO: are we sure no other actor has a viewref to this view?
-    // they don't have a live one, but they could have an out-of-date one?
+    // no other actor has a viewref to this view
     view_free(view);
   }
 

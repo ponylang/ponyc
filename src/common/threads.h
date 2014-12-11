@@ -30,9 +30,13 @@ typedef uint32_t(__stdcall *thread_fn) (void* arg);
 #  define __pony_thread_local __thread
 #endif
 
-bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, void* arg);
+bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
+  void* arg);
+
 bool pony_thread_join(pony_thread_id_t thread);
+
 void pony_thread_detach(pony_thread_id_t thread);
+
 pony_thread_id_t pony_thread_self();
 
 #endif

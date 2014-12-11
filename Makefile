@@ -164,9 +164,9 @@ libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ponyc.links += pthread dl
-  libponyc.tests.links += pthread dl
-  libponyrt.tests.links += pthread
+  ponyc.links += numa pthread dl
+  libponyc.tests.links += numa pthread dl
+  libponyrt.tests.links += numa pthread
 endif
 
 # Overwrite the default linker for a target.

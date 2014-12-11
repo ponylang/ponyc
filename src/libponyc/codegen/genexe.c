@@ -299,7 +299,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "-o %s "
     "%scrt1.o "
     "%scrti.o "
-    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    "%s %s %s -lponyrt -lnuma -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
     );
 
