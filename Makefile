@@ -23,6 +23,13 @@ ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
 config ?= debug
 
+ifdef use
+  ifneq (,$(filter $(use), numa))
+    ALL_CFLAGS += -DUSE_NUMA
+		LINK_NUMA = true
+	endif
+endif
+
 ifndef verbose
   SILENT = @
 else
@@ -164,9 +171,15 @@ libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ponyc.links += numa pthread dl
-  libponyc.tests.links += numa pthread dl
-  libponyrt.tests.links += numa pthread
+  ifeq ($(LINK_NUMA),true)
+    ponyc.links += numa
+		libponyc.tests.links += numa
+		libponyrt.tests.links += numa
+  endif
+
+  ponyc.links += pthread dl
+  libponyc.tests.links += pthread dl
+  libponyrt.tests.links += pthread
 endif
 
 # Overwrite the default linker for a target.
