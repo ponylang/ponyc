@@ -235,7 +235,7 @@ endef
 
 define CONFIGURE_COMPILER
   $(eval compiler := $(CC))
-  $(eval flags := $(ALL_CFLAGS))
+  $(eval flags := $(ALL_CFLAGS) $(CFLAGS) $(CXXFLAGS))
 
   ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)
