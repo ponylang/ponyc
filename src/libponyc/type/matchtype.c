@@ -184,6 +184,33 @@ static matchtype_t could_subtype_trait(ast_t* sub, ast_t* super)
   return MATCHTYPE_DENY;
 }
 
+static matchtype_t could_subtype_entity(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return could_subtype_or_deny(sub, super);
+
+    case TK_UNIONTYPE:
+      return could_subtype_with_union(sub, super);
+
+    case TK_ISECTTYPE:
+      return could_subtype_with_isect(sub, super);
+
+    case TK_TUPLETYPE:
+      return MATCHTYPE_REJECT;
+
+    case TK_ARROW:
+      return could_subtype_with_arrow(sub, super);
+
+    default: {}
+  }
+
+  assert(0);
+  return MATCHTYPE_DENY;
+}
+
 static matchtype_t could_subtype_nominal(ast_t* sub, ast_t* super)
 {
   ast_t* def = (ast_t*)ast_data(sub);
@@ -193,7 +220,7 @@ static matchtype_t could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      return could_subtype_or_deny(sub, super);
+      return could_subtype_entity(sub, super);
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -311,8 +338,8 @@ static matchtype_t could_subtype_arrow(ast_t* sub, ast_t* super)
     AST_GET_CHILDREN(sub, sub_left, sub_right);
     AST_GET_CHILDREN(super, super_left, super_right);
 
-    if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
-      return MATCHTYPE_ACCEPT;
+    if(is_eqtype(sub_left, super_left))
+      return could_subtype(sub_right, super_right);
   }
 
   // Check the upper bounds.

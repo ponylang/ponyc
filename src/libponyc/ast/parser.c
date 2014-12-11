@@ -646,12 +646,12 @@ DEF(use_name);
   SKIP(NULL, TK_ASSIGN);
   DONE();
 
-// USE [ID ASSIGN] (STRING | USE_FFI) [where infix]
+// USE [ID ASSIGN] (STRING | USE_FFI) [IF infix]
 DEF(use);
   TOKEN(NULL, TK_USE);
   OPT RULE("name", use_name);
   RULE("specifier", use_uri, use_ffi);
-  IF(TK_WHERE, RULE("use condition", infix));
+  IF(TK_IF, RULE("use condition", infix));
   DONE();
 
 // {use} {class | typealias}
