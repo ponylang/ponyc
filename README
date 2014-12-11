@@ -8,6 +8,10 @@ This will build ponyc and compile helloworld:
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
 
+To build a NUMA-aware runtime, install libnuma-dev using your package manager and build as follows:
+
+$ make use=numa config=release
+
 Building on Mac OSX
 ===================
 
