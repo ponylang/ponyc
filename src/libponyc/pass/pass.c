@@ -4,6 +4,7 @@
 #include "sugar.h"
 #include "scope.h"
 #include "names.h"
+#include "flatten.h"
 #include "traits.h"
 #include "expr.h"
 #include "../../libponyrt/mem/pool.h"

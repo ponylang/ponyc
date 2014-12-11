@@ -4,6 +4,7 @@
 #include "call.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
+#include "../pass/flatten.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"

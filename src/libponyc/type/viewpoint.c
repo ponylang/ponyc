@@ -3,23 +3,6 @@
 #include "cap.h"
 #include <assert.h>
 
-static token_id single_cap(ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_NOMINAL:
-      return ast_id(ast_childidx(type, 3));
-
-    case TK_TYPEPARAMREF:
-      return ast_id(ast_childidx(type, 1));
-
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
-}
-
 static ast_t* make_single_arrow(ast_t* left, ast_t* right)
 {
   switch(ast_id(left))
@@ -74,7 +57,7 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
     {
-      switch(single_cap(right))
+      switch(cap_single(right))
       {
         case TK_VAL:
         case TK_TAG:
@@ -463,7 +446,7 @@ static bool safe_field_write(token_id cap, ast_t* type)
 
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
-      return cap_safetowrite(cap, single_cap(type));
+      return cap_safetowrite(cap, cap_single(type));
 
     default: {}
   }
@@ -492,7 +475,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
       ast_t* l_type = ast_type(left);
       assert(ast_id(l_type) == TK_NOMINAL);
 
-      token_id l_cap = single_cap(l_type);
+      token_id l_cap = cap_single(l_type);
 
       // If the RHS is safe to write, we're done.
       if(safe_field_write(l_cap, type))
