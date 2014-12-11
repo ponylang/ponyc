@@ -357,8 +357,16 @@ bool sendable(ast_t* type)
     }
 
     case TK_NOMINAL:
+    {
+      ast_t* cap = ast_childidx(type, 3);
+      return cap_sendable(ast_id(cap));
+    }
+
     case TK_TYPEPARAMREF:
-      return cap_sendable(cap_for_type(type));
+    {
+      ast_t* cap = ast_childidx(type, 1);
+      return cap_sendable(ast_id(cap));
+    }
 
     case TK_NUMBERLITERAL:
     case TK_INTLITERAL:

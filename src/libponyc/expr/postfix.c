@@ -182,10 +182,8 @@ static bool tuple_access(ast_t* ast)
 static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 {
   // Left is a postfix expression, right is an id.
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
-
   assert(ast_id(right) == TK_ID);
 
   ast_t* find = lookup(t, ast, type, ast_name(right));
@@ -206,14 +204,14 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 
     case TK_FVAR:
     {
-      if(!expr_fieldref(ast, left, find, TK_FVARREF))
+      if(!expr_fieldref(ast, find, TK_FVARREF))
         return false;
       break;
     }
 
     case TK_FLET:
     {
-      if(!expr_fieldref(ast, left, find, TK_FLETREF))
+      if(!expr_fieldref(ast, find, TK_FLETREF))
         return false;
       break;
     }

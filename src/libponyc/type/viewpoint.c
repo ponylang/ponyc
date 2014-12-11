@@ -3,6 +3,23 @@
 #include "cap.h"
 #include <assert.h>
 
+static token_id single_cap(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      return ast_id(ast_childidx(type, 3));
+
+    case TK_TYPEPARAMREF:
+      return ast_id(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
 static ast_t* make_single_arrow(ast_t* left, ast_t* right)
 {
   switch(ast_id(left))
@@ -57,9 +74,7 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
     {
-      token_id cap = cap_for_type(right);
-
-      switch(cap)
+      switch(single_cap(right))
       {
         case TK_VAL:
         case TK_TAG:
@@ -408,6 +423,55 @@ void flatten_arrows(ast_t** astp)
   }
 }
 
+static bool safe_field_write(token_id cap, ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // Safe to write if every component is safe to write.
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!safe_field_write(cap, child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_ARROW:
+    {
+      ast_t* upper = viewpoint_upper(type);
+      bool ok = safe_field_write(cap, upper);
+
+      if(upper != type)
+        ast_free_unattached(upper);
+
+      return ok;
+    }
+
+    case TK_NUMBERLITERAL:
+    case TK_INTLITERAL:
+    case TK_FLOATLITERAL:
+      return true;
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return cap_safetowrite(cap, single_cap(type));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 bool safe_to_write(ast_t* ast, ast_t* type)
 {
   switch(ast_id(ast))
@@ -421,59 +485,23 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_FVARREF:
     case TK_FLETREF:
     {
-      switch(ast_id(type))
-      {
-        case TK_UNIONTYPE:
-        case TK_ISECTTYPE:
-        case TK_TUPLETYPE:
-        {
-          // Safe to write if every component is safe to write.
-          ast_t* child = ast_child(type);
+      // If the ast is x.f, we need the type of x, which will be a nominal
+      // type, since we were able to lookup a field on it.
+      AST_GET_CHILDREN(ast, left, right);
 
-          while(child != NULL)
-          {
-            if(!safe_to_write(ast, child))
-              return false;
+      ast_t* l_type = ast_type(left);
+      assert(ast_id(l_type) == TK_NOMINAL);
 
-            child = ast_sibling(child);
-          }
+      token_id l_cap = single_cap(l_type);
 
-          return true;
-        }
+      // If the RHS is safe to write, we're done.
+      if(safe_field_write(l_cap, type))
+        return true;
 
-        case TK_ARROW:
-        {
-          ast_t* upper = viewpoint_upper(type);
-          bool ok = safe_to_write(ast, upper);
-
-          if(upper != type)
-            ast_free_unattached(upper);
-
-          return ok;
-        }
-
-        case TK_NUMBERLITERAL:
-        case TK_INTLITERAL:
-        case TK_FLOATLITERAL:
-          return true;
-
-        case TK_NOMINAL:
-        case TK_TYPEPARAMREF:
-        {
-          // TODO: if the field (without adaptation) is safe, then it's ok as
-          // well. So iso.tag = ref should be allowed.
-          // If the ast is x.f, we need the type of x to determine safe to
-          // write.
-          ast_t* left = ast_child(ast);
-          ast_t* l_type = ast_type(left);
-          token_id l_cap = cap_for_type(l_type);
-
-          return cap_safetowrite(l_cap, cap_for_type(type));
-        }
-
-        default: {}
-      }
-      break;
+      // If the field type (without adaptation) is safe, then it's ok as
+      // well. So iso.tag = ref should be allowed.
+      ast_t* r_type = ast_type(right);
+      return safe_field_write(l_cap, r_type);
     }
 
     case TK_TUPLE:
