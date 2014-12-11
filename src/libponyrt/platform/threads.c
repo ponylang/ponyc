@@ -1,9 +1,11 @@
+#define _GNU_SOURCE
 #include <platform.h>
 
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
   #include <numa.h>
 #endif
+#include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
@@ -41,7 +43,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
     if(getrlimit(RLIMIT_STACK, &limit) == 0)
     {
       int node = numa_node_of_cpu(cpu);
-      void* stack = numa_alloc_onnode(node, limit.rlim_cur);
+      void* stack = numa_alloc_onnode(limit.rlim_cur, node);
       pthread_attr_setstack(&attr, stack, limit.rlim_cur);
     }
   }
