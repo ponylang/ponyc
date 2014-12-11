@@ -21,12 +21,6 @@ token_id cap_single(ast_t* type);
  */
 token_id cap_for_this(typecheck_t* t);
 
-/**
- * Gets the capability for a type. Upper bounds of union and arrow types, lower
- * bounds of isect types. Fails on tuple types.
- */
-token_id cap_for_type(ast_t* type);
-
 token_id cap_viewpoint(token_id view, token_id cap);
 
 bool cap_sendable(token_id cap);

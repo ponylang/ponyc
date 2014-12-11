@@ -22,8 +22,6 @@ LLVMValueRef gencall_alloc(compile_t* c, gentype_t* g);
 
 LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g);
 
-bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type);
-
 void gencall_throw(compile_t* c);
 
 PONY_EXTERN_C_END

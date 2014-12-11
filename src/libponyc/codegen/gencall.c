@@ -1,17 +1,14 @@
 #include "gencall.h"
 #include "genoperator.h"
 #include "genreference.h"
-#include "gentype.h"
 #include "genexpr.h"
 #include "gendesc.h"
 #include "genfun.h"
 #include "genname.h"
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
-#include "../type/cap.h"
 #include "../ast/stringtab.h"
 #include <string.h>
-#include <stdio.h>
 #include <assert.h>
 
 static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
@@ -543,183 +540,6 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
   LLVMBuildStore(c->builder, g->desc, desc_ptr);
 
   return result;
-}
-
-static void trace_tag(compile_t* c, LLVMValueRef value)
-{
-  // cast the value to a void pointer
-  LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
-
-  gencall_runtime(c, "pony_trace", args, 1, "");
-}
-
-static void trace_actor(compile_t* c, LLVMValueRef value)
-{
-  // cast the value to an object pointer
-  LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
-
-  gencall_runtime(c, "pony_traceactor", args, 1, "");
-}
-
-static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
-{
-  gentype_t g;
-
-  if(!gentype(c, type, &g))
-    return false;
-
-  // get the trace function statically
-  const char* fun = genname_trace(g.type_name);
-
-  LLVMValueRef args[2];
-  args[1] = LLVMGetNamedFunction(c->module, fun);
-
-  // if this type has no trace function, don't try to recurse in the runtime
-  if(args[1] != NULL)
-  {
-    // cast the value to an object pointer
-    args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
-    gencall_runtime(c, "pony_traceobject", args, 2, "");
-  } else {
-    // cast the value to a void pointer
-    args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
-    gencall_runtime(c, "pony_trace", args, 1, "");
-  }
-
-  return true;
-}
-
-static void trace_unknown(compile_t* c, LLVMValueRef value)
-{
-  // Determine if this is an actor or not.
-  LLVMValueRef dispatch = gendesc_dispatch(c, value);
-  LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
-
-  // Build a conditional.
-  LLVMBasicBlockRef then_block = codegen_block(c, "trace_then");
-  LLVMBasicBlockRef else_block = codegen_block(c, "trace_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "trace_post");
-
-  LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
-
-  // We're an object.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-
-  // Get the trace function from the type descriptor.
-  LLVMValueRef args[2];
-  args[0] = value;
-  args[1] = gendesc_trace(c, value);
-
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // We're an actor.
-  LLVMPositionBuilderAtEnd(c->builder, else_block);
-  gencall_runtime(c, "pony_traceactor", args, 1, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // Continue in the post block.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-}
-
-static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
-{
-  // Invoke the trace function directly. Do not trace the address of the tuple.
-  const char* type_name = genname_type(type);
-  const char* trace_name = genname_tracetuple(type_name);
-  LLVMValueRef trace_fn = LLVMGetNamedFunction(c->module, trace_name);
-
-  // There will be no trace function if the tuple doesn't need tracing.
-  if(trace_fn == NULL)
-    return false;
-
-  return (LLVMBuildCall(c->builder, trace_fn, &value, 1, "") != NULL);
-}
-
-bool gencall_trace(compile_t* c, LLVMValueRef value, ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    {
-      bool tag = cap_for_type(type) == TK_TAG;
-
-      if(tag)
-      {
-        // TODO: GC, check our underlying type. If, in the union, that
-        // underlying type could be a tag, trace this as a tag. Otherwise,
-        // trace this as an unknown.
-        // This could be an actor.
-        trace_tag(c, value);
-      } else {
-        // This union type can never be a tag.
-        trace_unknown(c, value);
-      }
-
-      return true;
-    }
-
-    case TK_TUPLETYPE:
-      return trace_tuple(c, value, type);
-
-    case TK_NOMINAL:
-    {
-      bool tag = cap_for_type(type) == TK_TAG;
-
-      switch(ast_id((ast_t*)ast_data(type)))
-      {
-        case TK_INTERFACE:
-        case TK_TRAIT:
-          if(tag)
-            // TODO: This could be an actor.
-            trace_tag(c, value);
-          else
-            trace_unknown(c, value);
-
-          return true;
-
-        case TK_PRIMITIVE:
-          // do nothing
-          return false;
-
-        case TK_CLASS:
-          if(tag)
-          {
-            trace_tag(c, value);
-            return true;
-          }
-
-          return trace_known(c, value, type);
-
-        case TK_ACTOR:
-          trace_actor(c, value);
-          return true;
-
-        default: {}
-      }
-      break;
-    }
-
-    case TK_ISECTTYPE:
-    {
-      // TODO: GC, could be an actor
-      bool tag = cap_for_type(type) == TK_TAG;
-
-      if(tag)
-        trace_tag(c, value);
-      else
-        trace_unknown(c, value);
-
-      return true;
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
 }
 
 void gencall_throw(compile_t* c)

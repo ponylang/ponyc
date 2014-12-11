@@ -3,6 +3,7 @@
 #include "gentype.h"
 #include "genfun.h"
 #include "gencall.h"
+#include "gentrace.h"
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 
@@ -378,7 +379,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
   elem = LLVMBuildLoad(c->builder, elem, "");
-  gencall_trace(c, elem, typearg);
+  gentrace(c, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
