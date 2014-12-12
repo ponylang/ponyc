@@ -1,10 +1,11 @@
 interface Any tag
 
 primitive None is Stringable
-  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft): String iso^
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U8 = ' '): String iso^
   =>
-    "None".string(fmt, prec, width, align)
+    "None".string(fmt, prefix, prec, width, align, fill)
 
 primitive Bool is Logical[Bool], Stringable
   fun box eq(y: Bool box): Bool => this == y
@@ -14,7 +15,9 @@ primitive Bool is Logical[Bool], Stringable
   fun box op_xor(y: Bool): Bool => this xor y
   fun box op_not(): Bool => not this
 
-  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft): String iso^
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U8 = ' '): String iso^
   =>
-    (if this then "true" else "false" end).string(fmt, prec, width, align)
+    (if this then "true" else "false" end).string(fmt, prefix, prec, width,
+      align, fill)

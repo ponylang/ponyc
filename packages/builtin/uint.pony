@@ -1,11 +1,5 @@
-primitive U8 is Integer[U8]
+primitive U8 is UnsignedInteger[U8]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U8): U8 =>
-    if this > that then this else that end
-
-  fun box min(that: U8): U8 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U8 =>
     var x = this - 1
@@ -15,6 +9,9 @@ primitive U8 is Integer[U8]
     x + 1
 
   fun box abs(): U8 => this
+  fun box max(that: U8): U8 => if this > that then this else that end
+  fun box min(that: U8): U8 => if this < that then this else that end
+
   fun box bswap(): U8 => this
   fun box popcount(): U8 => @"llvm.ctpop.i8"[U8](this)
   fun box clz(): U8 => @"llvm.ctlz.i8"[U8](this, false)
@@ -28,19 +25,8 @@ primitive U8 is Integer[U8]
   fun box mulc(y: U8): (U8, Bool) =>
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
-  fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
-    width: U64 = 0, align: Align = AlignRight): String iso^
-  =>
-    u64().string(fmt, prec, width, align)
-
-primitive U16 is Integer[U16]
+primitive U16 is UnsignedInteger[U16]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U16): U16 =>
-    if this > that then this else that end
-
-  fun box min(that: U16): U16 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U16 =>
     var x = this - 1
@@ -51,6 +37,9 @@ primitive U16 is Integer[U16]
     x + 1
 
   fun box abs(): U16 => this
+  fun box max(that: U16): U16 => if this > that then this else that end
+  fun box min(that: U16): U16 => if this < that then this else that end
+
   fun box bswap(): U16 => @"llvm.bswap.i16"[U16](this)
   fun box popcount(): U16 => @"llvm.ctpop.i16"[U16](this)
   fun box clz(): U16 => @"llvm.ctlz.i16"[U16](this, false)
@@ -64,19 +53,8 @@ primitive U16 is Integer[U16]
   fun box mulc(y: U16): (U16, Bool) =>
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
-  fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
-    width: U64 = 0, align: Align = AlignRight): String iso^
-  =>
-    u64().string(fmt, prec, width, align)
-
-primitive U32 is Integer[U32]
+primitive U32 is UnsignedInteger[U32]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U32): U32 =>
-    if this > that then this else that end
-
-  fun box min(that: U32): U32 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U32 =>
     var x = this - 1
@@ -88,6 +66,9 @@ primitive U32 is Integer[U32]
     x + 1
 
   fun box abs(): U32 => this
+  fun box max(that: U32): U32 => if this > that then this else that end
+  fun box min(that: U32): U32 => if this < that then this else that end
+
   fun box bswap(): U32 => @"llvm.bswap.i32"[U32](this)
   fun box popcount(): U32 => @"llvm.ctpop.i32"[U32](this)
   fun box clz(): U32 => @"llvm.ctlz.i32"[U32](this, false)
@@ -101,19 +82,8 @@ primitive U32 is Integer[U32]
   fun box mulc(y: U32): (U32, Bool) =>
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
-  fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
-    width: U64 = 0, align: Align = AlignRight): String iso^
-  =>
-    u64().string(fmt, prec, width, align)
-
-primitive U64 is Integer[U64]
+primitive U64 is UnsignedInteger[U64]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U64): U64 =>
-    if this > that then this else that end
-
-  fun box min(that: U64): U64 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U64 =>
     var x = this - 1
@@ -126,6 +96,9 @@ primitive U64 is Integer[U64]
     x + 1
 
   fun box abs(): U64 => this
+  fun box max(that: U64): U64 => if this > that then this else that end
+  fun box min(that: U64): U64 => if this < that then this else that end
+
   fun box bswap(): U64 => @"llvm.bswap.i64"[U64](this)
   fun box popcount(): U64 => @"llvm.ctpop.i64"[U64](this)
   fun box clz(): U64 => @"llvm.ctlz.i64"[U64](this, false)
@@ -139,78 +112,8 @@ primitive U64 is Integer[U64]
   fun box mulc(y: U64): (U64, Bool) =>
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
 
-  fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
-    width: U64 = 0, align: Align = AlignRight): String iso^
-  =>
-    var table = IntTable.large()
-
-    var base = match fmt
-    | IntUTF32 => return recover String.append_utf32(u32()) end
-    | IntBinary => I64(2)
-    | IntOctal => I64(8)
-    | IntHex => I64(16)
-    | IntHexSmall => table = IntTable.small(); I64(16)
-    else
-      I64(10)
-    end
-
-    recover
-      var s = String.reserve(prec.max(width.max(31)))
-      var value = this
-      let div = base.u64()
-      var i: I64 = 0
-
-      try
-        while value != 0 do
-          let tmp = value
-          value = value / div
-          let index = tmp - (value * div)
-          s.append_byte(table((index + 15).i64()))
-          i = i + 1
-        end
-
-        while i < prec.i64() do
-          s.append_byte('0')
-          i = i + 1
-        end
-
-        var pre: U64 = 0
-        var post: U64 = 0
-
-        if i.u64() < width then
-          let rem = width - i.u64()
-
-          match align
-          | AlignLeft => post = rem
-          | AlignRight => pre = rem
-          | AlignCenter => pre = rem / 2; post = rem - pre
-          end
-        end
-
-        while pre > 0 do
-          s.append_byte(' ')
-          pre = pre - 1
-        end
-
-        s.reverse_in_place()
-
-        while post > 0 do
-          s.append_byte(' ')
-          post = post - 1
-        end
-      end
-
-      consume s
-    end
-
-primitive U128 is Integer[U128]
+primitive U128 is UnsignedInteger[U128]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U128): U128 =>
-    if this > that then this else that end
-
-  fun box min(that: U128): U128 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U128 =>
     var x = this - 1
@@ -224,75 +127,20 @@ primitive U128 is Integer[U128]
     x + 1
 
   fun box abs(): U128 => this
+  fun box max(that: U128): U128 => if this > that then this else that end
+  fun box min(that: U128): U128 => if this < that then this else that end
+
   fun box bswap(): U128 => @"llvm.bswap.i128"[U128](this)
   fun box popcount(): U128 => @"llvm.ctpop.i128"[U128](this)
   fun box clz(): U128 => @"llvm.ctlz.i128"[U128](this, false)
   fun box ctz(): U128 => @"llvm.cttz.i128"[U128](this, false)
   fun box bitwidth(): U128 => 128
 
-  fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
-    width: U64 = 0, align: Align = AlignRight): String iso^
+  fun box string(fmt: IntFormat = FormatDefault,
+    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
-    var table = IntTable.large()
-
-    var base = match fmt
-    | IntUTF32 => return recover String.append_utf32(u32()) end
-    | IntBinary => I64(2)
-    | IntOctal => I64(8)
-    | IntHex => I64(16)
-    | IntHexSmall => table = IntTable.small(); I64(16)
-    else
-      I64(10)
-    end
-
-    recover
-      var s = String.reserve(prec.max(width.max(31)))
-      var value = this
-      let div = base.u128()
-      var i: I64 = 0
-
-      try
-        while value != 0 do
-          let tmp = value
-          value = value / div
-          let index = tmp - (value * div)
-          s.append_byte(table((index + 15).i64()))
-          i = i + 1
-        end
-
-        while i < prec.i64() do
-          s.append_byte('0')
-          i = i + 1
-        end
-
-        var pre: U64 = 0
-        var post: U64 = 0
-
-        if i.u64() < width then
-          let rem = width - i.u64()
-
-          match align
-          | AlignLeft => post = rem
-          | AlignRight => pre = rem
-          | AlignCenter => pre = rem / 2; post = rem - pre
-          end
-        end
-
-        while pre > 0 do
-          s.append_byte(' ')
-          pre = pre - 1
-        end
-
-        s.reverse_in_place()
-
-        while post > 0 do
-          s.append_byte(' ')
-          post = post - 1
-        end
-      end
-
-      consume s
-    end
+    ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
 
   fun box divmod(y: U128): (U128, U128) =>
     if Platform.has_i128() then

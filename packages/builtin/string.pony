@@ -1,4 +1,5 @@
 primitive FormatDefault
+primitive PrefixDefault
 primitive AlignLeft
 primitive AlignRight
 primitive AlignCenter
@@ -12,8 +13,9 @@ interface Stringable box
   """
   Things that can be turned into a String.
   """
-  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft): String iso^
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U8 = ' '): String iso^
 
 class String val is Ordered[String box], Stringable
   """
@@ -670,8 +672,9 @@ class String val is Ordered[String box], Stringable
 
   fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
-  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft): String iso^
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U8 = ' '): String iso^
   =>
     let copy_len = _size.min(prec.u64())
     let len = copy_len.max(width.u64())

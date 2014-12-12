@@ -22,12 +22,12 @@ primitive F32 is Real[F32]
   new from_bits(i: U32) => compiler_intrinsic
   fun box bits(): U32 => compiler_intrinsic
 
+  fun box abs(): F32 => @"llvm.fabs.f32"[F32](this)
   fun box min(y: F32): F32 => if this < y then this else y end
     //@"llvm.minnum.f32"[F32](this, y)
   fun box max(y: F32): F32 => if this > y then this else y end
     //@"llvm.maxnum.f32"[F32](this, y)
 
-  fun box abs(): F32 => @"llvm.fabs.f32"[F32](this)
   fun box ceil(): F32 => @"llvm.ceil.f32"[F32](this)
   fun box floor(): F32 => @"llvm.floor.f32"[F32](this)
   fun box round(): F32 => @"llvm.round.f32"[F32](this)
@@ -86,10 +86,11 @@ primitive F32 is Real[F32]
   fun box asinh(): F32 => @asinhf[F32](this)
   fun box atanh(): F32 => @atanhf[F32](this)
 
-  fun box string(fmt: FloatFormat = FormatDefault, prec: U64 = 6,
-    width: U64 = 0, align: Align = AlignRight): String iso^
+  fun box string(fmt: FloatFormat = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
-    f64().string(fmt, prec, width, align)
+    ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
 
   fun box hash(): U64 => bits().hash()
 
@@ -104,12 +105,12 @@ primitive F64 is Real[F64]
   new from_bits(i: U64) => compiler_intrinsic
   fun box bits(): U64 => compiler_intrinsic
 
+  fun box abs(): F64 => @"llvm.fabs.f64"[F64](this)
   fun box min(y: F64): F64 => if this < y then this else y end
     //@"llvm.minnum.f64"[F64](this, y)
   fun box max(y: F64): F64 => if this > y then this else y end
     //@"llvm.maxnum.f64"[F64](this, y)
 
-  fun box abs(): F64 => @"llvm.fabs.f64"[F64](this)
   fun box ceil(): F64 => @"llvm.ceil.f64"[F64](this)
   fun box floor(): F64 => @"llvm.floor.f64"[F64](this)
   fun box round(): F64 => @"llvm.round.f64"[F64](this)
@@ -164,36 +165,11 @@ primitive F64 is Real[F64]
   fun box asinh(): F64 => @asinh[F64](this)
   fun box atanh(): F64 => @atanh[F64](this)
 
-  fun box string(fmt: FloatFormat = FormatDefault, prec: U64 = 6,
-    width: U64 = 0, align: Align = AlignRight): String iso^
+  fun box string(fmt: FloatFormat = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
-    // TODO: align
-    recover
-      var s = String.prealloc((prec + 8).max(width.max(31)))
-      var f = String.reserve(31).append("%")
-
-      if width > 0 then f.append(width.string()) end
-      f.append(".").append(prec.string())
-
-      match fmt
-      | FloatExp => f.append("e")
-      | FloatExpLarge => f.append("E")
-      | FloatFix => f.append("f")
-      | FloatFixLarge => f.append("F")
-      | FloatGeneral => f.append("g")
-      | FloatGeneralLarge => f.append("G")
-      else
-        f.append("g")
-      end
-
-      if Platform.windows() then
-        @_snprintf[I32](s.cstring(), s.space(), f.cstring(), this).u64()
-      else
-        @snprintf[I32](s.cstring(), s.space(), f.cstring(), this).u64()
-      end
-
-      s.recalc()
-    end
+    ToString._f64(this, fmt, prefix, prec, width, align, fill)
 
   fun box hash(): U64 => bits().hash()
 

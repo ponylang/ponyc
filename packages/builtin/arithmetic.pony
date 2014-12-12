@@ -48,6 +48,10 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
   fun box ge(y: A): Bool => this >= y
   fun box gt(y: A): Bool => this > y
 
+  fun box abs(): A
+  fun box max(that: A): A
+  fun box min(that: A): A
+
   fun box hash(): U64 =>
     var x = u64()
     x = (not x) + (x << 21);
@@ -67,14 +71,26 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun box shl(y: A): A => this << y
   fun box shr(y: A): A => this >> y
 
-  fun box abs(): A
   fun box bswap(): A
   fun box popcount(): A
   fun box clz(): A
   fun box ctz(): A
   fun box bitwidth(): A
 
-  fun box character(): String iso^ => u32().character()
+trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
+  fun box string(fmt: IntFormat = FormatDefault,
+    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
+  =>
+    ToString._u64(abs().u64(), this.i64() < 0, fmt, prefix, prec, width, align,
+      fill)
+
+trait UnsignedInteger[A: UnsignedInteger[A] box] is Integer[A]
+  fun box string(fmt: IntFormat = FormatDefault,
+    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
+  =>
+    ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
 type Number is (Signed | Unsigned | Float)
 
