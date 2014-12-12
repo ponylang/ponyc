@@ -79,7 +79,9 @@ class Rope val is Stringable, Ordered[Rope]
     with the minimal external path length for a given text instance.
     """*/
 
-  fun box string(): String =>
+  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
+    width: U64 = 0, align: Align = AlignLeft): String iso^
+  =>
     """
     Converts a Rope to a String.
     """

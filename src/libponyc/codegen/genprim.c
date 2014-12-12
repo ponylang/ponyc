@@ -184,96 +184,6 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
-static void pointer_copy(compile_t* c, gentype_t* g, gentype_t* elem_g)
-{
-  // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
-
-  const char* name = genname_fun(g->type_name, "_copy", NULL);
-
-  LLVMTypeRef params[4];
-  params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = g->use_type;
-  params[3] = c->i64;
-
-  LLVMTypeRef ftype = LLVMFunctionType(c->i64, params, 4, false);
-  LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef dst = LLVMGetParam(fun, 0);
-  LLVMValueRef offset = LLVMGetParam(fun, 1);
-  LLVMValueRef src = LLVMGetParam(fun, 2);
-  LLVMValueRef len = LLVMGetParam(fun, 3);
-
-  offset = LLVMBuildMul(c->builder, offset, l_size, "");
-  len = LLVMBuildMul(c->builder, len, l_size, "");
-
-  dst = LLVMBuildPtrToInt(c->builder, dst, c->i64, "");
-  dst = LLVMBuildAdd(c->builder, dst, offset, "");
-
-  LLVMValueRef args[3];
-  args[0] = LLVMBuildIntToPtr(c->builder, dst, c->void_ptr, "");
-  args[1] = LLVMBuildBitCast(c->builder, src, c->void_ptr, "");
-  args[2] = len;
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  LLVMBuildRet(c->builder, len);
-  codegen_finishfun(c);
-}
-
-static void pointer_concat(compile_t* c, gentype_t* g, gentype_t* elem_g)
-{
-  // Set up a constant integer for the allocation size.
-  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
-  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
-
-  const char* name = genname_fun(g->type_name, "_concat", NULL);
-
-  LLVMTypeRef params[4];
-  params[0] = g->use_type;
-  params[1] = c->i64;
-  params[2] = g->use_type;
-  params[3] = c->i64;
-
-  LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 4, false);
-  LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
-
-  LLVMValueRef base = LLVMGetParam(fun, 0);
-  base = LLVMBuildBitCast(c->builder, base, c->void_ptr, "");
-  LLVMValueRef len = LLVMGetParam(fun, 1);
-  len = LLVMBuildMul(c->builder, len, l_size, "");
-
-  LLVMValueRef with = LLVMGetParam(fun, 2);
-  with = LLVMBuildBitCast(c->builder, with, c->void_ptr, "");
-  LLVMValueRef withlen = LLVMGetParam(fun, 3);
-  withlen = LLVMBuildMul(c->builder, withlen, l_size, "");
-
-  LLVMValueRef total_len = LLVMBuildAdd(c->builder, len, withlen, "");
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total_len, 1, "");
-
-  LLVMValueRef args[3];
-  args[0] = result;
-  args[1] = base;
-  args[2] = len;
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  LLVMValueRef offset = LLVMBuildPtrToInt(c->builder, result, c->i64, "");
-  offset = LLVMBuildAdd(c->builder, offset, len, "");
-  offset = LLVMBuildIntToPtr(c->builder, offset, c->void_ptr, "");
-
-  args[0] = offset;
-  args[1] = with;
-  args[2] = withlen;
-  gencall_runtime(c, "memcpy", args, 3, "");
-
-  result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
-  LLVMBuildRet(c->builder, result);
-  codegen_finishfun(c);
-}
-
 static void pointer_u64(compile_t* c, gentype_t* g)
 {
   const char* name = genname_fun(g->type_name, "u64", NULL);
@@ -328,8 +238,6 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);
   pointer_delete(c, g, &elem_g);
-  pointer_copy(c, g, &elem_g);
-  pointer_concat(c, g, &elem_g);
   pointer_u64(c, g);
 
   return genfun_methods(c, g);

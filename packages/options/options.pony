@@ -57,8 +57,10 @@ class Option is Stringable
     "\"" + name + "\""
 
   //TODO: Requires proper string formatter
-  fun box string(): String =>
-    ""
+  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
+    width: U64 = 0, align: Align = AlignLeft): String iso^
+  =>
+    recover String end
 
 class Options ref is Iterator[_Result]
   var _env: Env

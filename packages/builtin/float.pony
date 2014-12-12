@@ -1,3 +1,19 @@
+primitive FloatExp
+primitive FloatExpLarge
+primitive FloatFix
+primitive FloatFixLarge
+primitive FloatGeneral
+primitive FloatGeneralLarge
+
+type FloatFormat is
+  ( FormatDefault
+  | FloatExp
+  | FloatExpLarge
+  | FloatFix
+  | FloatFixLarge
+  | FloatGeneral
+  | FloatGeneralLarge)
+
 primitive F32 is Real[F32]
   new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
@@ -70,7 +86,11 @@ primitive F32 is Real[F32]
   fun box asinh(): F32 => @asinhf[F32](this)
   fun box atanh(): F32 => @atanhf[F32](this)
 
-  fun box string(): String iso^ => recover String.from_f64(f64()) end
+  fun box string(fmt: FloatFormat = FormatDefault, prec: U64 = 6,
+    width: U64 = 0, align: Align = AlignRight): String iso^
+  =>
+    f64().string(fmt, prec, width, align)
+
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 => f64().i128()
@@ -144,7 +164,37 @@ primitive F64 is Real[F64]
   fun box asinh(): F64 => @asinh[F64](this)
   fun box atanh(): F64 => @atanh[F64](this)
 
-  fun box string(): String iso^ => recover String.from_f64(this) end
+  fun box string(fmt: FloatFormat = FormatDefault, prec: U64 = 6,
+    width: U64 = 0, align: Align = AlignRight): String iso^
+  =>
+    // TODO: align
+    recover
+      var s = String.prealloc((prec + 8).max(width.max(31)))
+      var f = String.reserve(31).append("%")
+
+      if width > 0 then f.append(width.string()) end
+      f.append(".").append(prec.string())
+
+      match fmt
+      | FloatExp => f.append("e")
+      | FloatExpLarge => f.append("E")
+      | FloatFix => f.append("f")
+      | FloatFixLarge => f.append("F")
+      | FloatGeneral => f.append("g")
+      | FloatGeneralLarge => f.append("G")
+      else
+        f.append("g")
+      end
+
+      if Platform.windows() then
+        @_snprintf[I32](s.cstring(), s.space(), f.cstring(), this).u64()
+      else
+        @snprintf[I32](s.cstring(), s.space(), f.cstring(), this).u64()
+      end
+
+      s.recalc()
+    end
+
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 =>

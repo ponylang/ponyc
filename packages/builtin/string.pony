@@ -1,8 +1,19 @@
+primitive FormatDefault
+primitive AlignLeft
+primitive AlignRight
+primitive AlignCenter
+
+type Align is
+  ( AlignLeft
+  | AlignRight
+  | AlignCenter)
+
 interface Stringable box
   """
   Things that can be turned into a String.
   """
-  fun box string(): String
+  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
+    width: U64 = 0, align: Align = AlignLeft): String iso^
 
 class String val is Ordered[String box], Stringable
   """
@@ -21,67 +32,36 @@ class String val is Ordered[String box], Stringable
     _ptr = Pointer[U8]._create(1)
     _ptr._update(0, 0)
 
-  new from_cstring(str: Pointer[U8] ref) =>
+  new from_cstring(str: Pointer[U8] ref, len: U64 = 0) =>
     """
     The cstring is not copied, so this should be done with care.
     """
-    _size = 0
+    _size = len
 
-    while str._apply(_size) != 0 do
-      _size = _size + 1
+    if len == 0 then
+      while str._apply(_size) != 0 do
+        _size = _size + 1
+      end
     end
 
     _alloc = _size + 1
     _ptr = str
 
-  new copy_cstring(str: Pointer[U8] ref) =>
+  new copy_cstring(str: Pointer[U8] ref, len: U64 = 0) =>
     """
     The cstring is copied, so this is always safe.
     """
-    _size = 0
+    _size = len
 
-    while str._apply(_size) != 0 do
-      _size = _size + 1
+    if len == 0 then
+      while str._apply(_size) != 0 do
+        _size = _size + 1
+      end
     end
 
     _alloc = _size + 1
     _ptr = Pointer[U8]._create(_alloc)
-    _ptr._copy(0, str, _alloc)
-
-  new from_i64(x: I64, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
-    from_i64_in_place(x, base)
-
-  new from_i128(x: I128, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
-    from_i128_in_place(x, base)
-
-  new from_u64(x: U64, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
-    from_u64_in_place(x, base)
-
-  new from_u128(x: U128, base: U8) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
-    from_u128_in_place(x, base)
-
-  new from_f64(x: F64) =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
-    from_f64_in_place(x)
-
-  new _empty() =>
-    _size = 0
-    _alloc = 0
-    _ptr = Pointer[U8]
+    @memcpy[Pointer[U8]](_ptr, str, _alloc)
 
   new prealloc(size: U64) =>
     _size = size
@@ -414,15 +394,17 @@ class String val is Ordered[String box], Stringable
     consume str
 
   fun ref reverse_in_place(): String ref^ =>
-    var i: U64 = 0
-    var j = _size - 1
+    if _size > 1 then
+      var i: U64 = 0
+      var j = _size - 1
 
-    while i < j do
-      let x = _ptr._apply(i)
-      _ptr._update(i, _ptr._apply(j))
-      _ptr._update(j, x)
-      i = i + 1
-      j = j - 1
+      while i < j do
+        let x = _ptr._apply(i)
+        _ptr._update(i, _ptr._apply(j))
+        _ptr._update(j, x)
+        i = i + 1
+        j = j - 1
+      end
     end
     this
 
@@ -514,15 +496,9 @@ class String val is Ordered[String box], Stringable
 
   fun box add(that: String box): String =>
     let len = _size + that._size
-    let ptr = _ptr._concat(_size, that._ptr, that._size + 1)
-
-    recover
-      let str = String._empty()
-      str._size = len
-      str._alloc = len + 1
-      str._ptr = consume ptr
-      consume str
-    end
+    let ptr = recover Pointer[U8]._create(len + 1) end
+    @memcpy[Pointer[U8]](ptr.u64() + _size, that._ptr, that._size + 1)
+    recover String.from_cstring(consume ptr, len) end
 
   fun box compare(that: String box, n: U64,
     offset: I64 = 0, that_offset: I64 = 0): I32 =>
@@ -598,7 +574,7 @@ class String val is Ordered[String box], Stringable
 
   fun ref append(that: String box): String ref^ =>
     reserve(_size + that._size)
-    _ptr._copy(_size, that._ptr, that._size + 1)
+    @memcpy[Pointer[U8]](_ptr.u64() + _size, that._ptr, that._size + 1)
     _size = _size + that._size
     this
 
@@ -690,156 +666,35 @@ class String val is Ordered[String box], Stringable
     end
 
   fun box f32(): F32 => @strtof[F32](_ptr, U64(0))
-
   fun box f64(): F64 => @strtod[F64](_ptr, U64(0))
-
-  fun tag _int_table(): String =>
-    "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"
-
-  fun ref from_i64_in_place(x: I64, base: U8): String ref^ =>
-    if (base < 2) or (base > 36) then
-      reserve(0)
-      _size = 0
-      _ptr._update(0, 0)
-    else
-      reserve(31)
-      _size = 0
-
-      let table = _int_table()
-      var value = x
-      let div = base.i64()
-      var i: U64 = 0
-
-      repeat
-        let tmp = value
-        value = value / div
-        let index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(index + 35))
-        i = i + 1
-      until value == 0 end
-
-      if x < 0 then
-        _ptr._update(i, '-')
-        i = i + 1
-      end
-
-      _ptr._update(i, 0)
-      _size = i
-      reverse_in_place()
-    end
-    this
-
-  fun ref from_u64_in_place(x: U64, base: U8): String ref^ =>
-    if (base < 2) or (base > 36) then
-      reserve(0)
-      _size = 0
-      _ptr._update(0, 0)
-    else
-      reserve(31)
-      _size = 0
-
-      let table = _int_table()
-      var value = x
-      let div = base.u64()
-      var i: U64 = 0
-
-      repeat
-        let tmp = value
-        value = value / div
-        let index = tmp - (value * div)
-        _ptr._update(i, table._ptr._apply(index + 35))
-        i = i + 1
-      until value == 0 end
-
-      _ptr._update(i, 0)
-      _size = i
-      reverse_in_place()
-    end
-    this
-
-  fun ref from_i128_in_place(x: I128, base: U8): String ref^ =>
-    if (base < 2) or (base > 36) then
-      reserve(0)
-      _size = 0
-      _ptr._update(0, 0)
-    else
-      reserve(63)
-      _size = 0
-
-      let table = _int_table()
-      var value = x
-      let div = base.i128()
-      var i: U64 = 0
-
-      repeat
-        let tmp = value
-        value = value / div
-        let index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(index + 35))
-        i = i + 1
-      until value == 0 end
-
-      if x < 0 then
-        _ptr._update(i, '-')
-        i = i + 1
-      end
-
-      _ptr._update(i, 0)
-      _size = i
-      reverse_in_place()
-    end
-    this
-
-  fun ref from_u128_in_place(x: U128, base: U8): String ref^ =>
-    if (base < 2) or (base > 36) then
-      reserve(0)
-      _size = 0
-      _ptr._update(0, 0)
-    else
-      reserve(63)
-      _size = 0
-
-      let table = _int_table()
-      var value = x
-      let div = base.u128()
-      var i: U64 = 0
-
-      repeat
-        let tmp = value
-        value = value / div
-        let index = (tmp - (value * div)).u64()
-        _ptr._update(i, table._ptr._apply(index + 35))
-        i = i + 1
-      until value == 0 end
-
-      _ptr._update(i, 0)
-      _size = i
-      reverse_in_place()
-    end
-    this
-
-  fun ref from_f64_in_place(x: F64): String ref^ =>
-    reserve(31)
-    if Platform.windows() then
-      _size = @_snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
-    else
-      _size = @snprintf[I32](_ptr, _alloc, "%.14g".cstring(), x).u64()
-    end
-    this
 
   fun box hash(): U64 => @hash_block[U64](_ptr, _size)
 
-  fun box string(): String =>
-    let len = _size
-    let ptr = _ptr._concat(_size + 1, Pointer[U8], 0)
+  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
+    width: U64 = 0, align: Align = AlignLeft): String iso^
+  =>
+    let copy_len = _size.min(prec.u64())
+    let len = copy_len.max(width.u64())
 
-    recover
-      let str = String._empty()
-      str._size = len
-      str._alloc = len + 1
-      str._ptr = consume ptr
-      consume str
+    let ptr = recover Pointer[U8]._create(len + 1) end
+
+    match align
+    | AlignLeft =>
+      @memcpy[Pointer[U8]](ptr, _ptr, copy_len)
+      @memset[Pointer[U8]](ptr.u64() + copy_len, U32(' '), len - copy_len)
+    | AlignRight =>
+      @memset[Pointer[U8]](ptr, U32(' '), len - copy_len)
+      @memcpy[Pointer[U8]](ptr.u64() + (len - copy_len), _ptr, copy_len)
+    | AlignCenter =>
+      let half = (len - copy_len) / 2
+      @memset[Pointer[U8]](ptr, U32(' '), half)
+      @memcpy[Pointer[U8]](ptr.u64() + half, _ptr, copy_len)
+      @memset[Pointer[U8]](ptr.u64() + copy_len + half, U32(' '),
+        len - copy_len - half)
     end
+
+    ptr._update(len, 0)
+    recover String.from_cstring(consume ptr, len) end
 
   fun ref _set(i: U64, char: U8): U8 =>
     """

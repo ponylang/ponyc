@@ -1,4 +1,4 @@
-trait Arithmetic[A: Arithmetic[A] box]
+interface Arithmetic[A: Arithmetic[A] box]
   fun box add(y: A): A
   fun box sub(y: A): A
   fun box mul(y: A): A
@@ -7,13 +7,13 @@ trait Arithmetic[A: Arithmetic[A] box]
   fun box divmod(y: A): (A, A) => (this / y, this % y)
   fun box neg(): A
 
-trait Logical[A: Logical[A] box]
+interface Logical[A: Logical[A] box]
   fun box op_and(y: A): A
   fun box op_or(y: A): A
   fun box op_xor(y: A): A
   fun box op_not(): A
 
-trait Bits[A: Bits[A] box] is Logical[A]
+interface Bits[A: Bits[A] box] is Logical[A]
   fun box shl(y: A): A
   fun box shr(y: A): A
 
@@ -72,7 +72,7 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun box popcount(): A
   fun box clz(): A
   fun box ctz(): A
-  fun box width(): A
+  fun box bitwidth(): A
 
   fun box character(): String iso^ => u32().character()
 
