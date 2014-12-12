@@ -142,7 +142,6 @@ primitive U64 is Integer[U64]
   fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
     width: U64 = 0, align: Align = AlignRight): String iso^
   =>
-    // TODO: align
     var table = IntTable.large()
 
     var base = match fmt
@@ -175,13 +174,33 @@ primitive U64 is Integer[U64]
           i = i + 1
         end
 
-        while i < width.i64() do
+        var pre: U64 = 0
+        var post: U64 = 0
+
+        if i.u64() < width then
+          let rem = width - i.u64()
+
+          match align
+          | AlignLeft => post = rem
+          | AlignRight => pre = rem
+          | AlignCenter => pre = rem / 2; post = rem - pre
+          end
+        end
+
+        while pre > 0 do
           s.append_byte(' ')
-          i = i + 1
+          pre = pre - 1
+        end
+
+        s.reverse_in_place()
+
+        while post > 0 do
+          s.append_byte(' ')
+          post = post - 1
         end
       end
 
-      s.reverse_in_place()
+      consume s
     end
 
 primitive U128 is Integer[U128]
@@ -214,7 +233,6 @@ primitive U128 is Integer[U128]
   fun box string(fmt: IntFormat = FormatDefault, prec: U64 = 1,
     width: U64 = 0, align: Align = AlignRight): String iso^
   =>
-    // TODO: align
     var table = IntTable.large()
 
     var base = match fmt
@@ -247,13 +265,33 @@ primitive U128 is Integer[U128]
           i = i + 1
         end
 
-        while i < width.i64() do
+        var pre: U64 = 0
+        var post: U64 = 0
+
+        if i.u64() < width then
+          let rem = width - i.u64()
+
+          match align
+          | AlignLeft => post = rem
+          | AlignRight => pre = rem
+          | AlignCenter => pre = rem / 2; post = rem - pre
+          end
+        end
+
+        while pre > 0 do
           s.append_byte(' ')
-          i = i + 1
+          pre = pre - 1
+        end
+
+        s.reverse_in_place()
+
+        while post > 0 do
+          s.append_byte(' ')
+          post = post - 1
         end
       end
 
-      s.reverse_in_place()
+      consume s
     end
 
   fun box divmod(y: U128): (U128, U128) =>
