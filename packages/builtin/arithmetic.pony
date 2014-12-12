@@ -92,6 +92,13 @@ trait UnsignedInteger[A: UnsignedInteger[A] box] is Integer[A]
   =>
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
+trait FloatingPoint[A: FloatingPoint[A] box] is Real[A]
+  fun box string(fmt: FloatFormat = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+    align: Align = AlignRight, fill: U8 = ' '): String iso^
+  =>
+    ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
+
 type Number is (Signed | Unsigned | Float)
 
 type Signed is (I8 | I16 | I32 | I64 | I128)

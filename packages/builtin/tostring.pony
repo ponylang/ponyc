@@ -19,6 +19,22 @@ type IntPrefix is
   | IntNoPrefix
   | IntSignPrefix)
 
+primitive FloatExp
+primitive FloatExpLarge
+primitive FloatFix
+primitive FloatFixLarge
+primitive FloatGeneral
+primitive FloatGeneralLarge
+
+type FloatFormat is
+  ( FormatDefault
+  | FloatExp
+  | FloatExpLarge
+  | FloatFix
+  | FloatFixLarge
+  | FloatGeneral
+  | FloatGeneralLarge)
+
 primitive ToString
   fun tag _large(): String => "FEDCBA9876543210123456789ABCDEF"
   fun tag _small(): String => "fedcba9876543210123456789abcdef"

@@ -1,20 +1,4 @@
-primitive FloatExp
-primitive FloatExpLarge
-primitive FloatFix
-primitive FloatFixLarge
-primitive FloatGeneral
-primitive FloatGeneralLarge
-
-type FloatFormat is
-  ( FormatDefault
-  | FloatExp
-  | FloatExpLarge
-  | FloatFix
-  | FloatFixLarge
-  | FloatGeneral
-  | FloatGeneralLarge)
-
-primitive F32 is Real[F32]
+primitive F32 is FloatingPoint[F32]
   new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
@@ -86,18 +70,12 @@ primitive F32 is Real[F32]
   fun box asinh(): F32 => @asinhf[F32](this)
   fun box atanh(): F32 => @atanhf[F32](this)
 
-  fun box string(fmt: FloatFormat = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
-    align: Align = AlignRight, fill: U8 = ' '): String iso^
-  =>
-    ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
-
   fun box hash(): U64 => bits().hash()
 
   fun box i128(): I128 => f64().i128()
   fun box u128(): U128 => f64().u128()
 
-primitive F64 is Real[F64]
+primitive F64 is FloatingPoint[F64]
   new create(from: F64) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
@@ -164,12 +142,6 @@ primitive F64 is Real[F64]
   fun box acosh(): F64 => @acosh[F64](this)
   fun box asinh(): F64 => @asinh[F64](this)
   fun box atanh(): F64 => @atanh[F64](this)
-
-  fun box string(fmt: FloatFormat = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
-    align: Align = AlignRight, fill: U8 = ' '): String iso^
-  =>
-    ToString._f64(this, fmt, prefix, prec, width, align, fill)
 
   fun box hash(): U64 => bits().hash()
 
