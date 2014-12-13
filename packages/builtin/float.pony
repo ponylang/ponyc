@@ -35,6 +35,11 @@ primitive F32 is FloatingPoint[F32]
       @isnanf[I32](this)
     end
 
+  fun box frexp(): (F32, U32) =>
+    var exp: U32 = 0
+    var m = @frexp[F64](f64(), &exp)
+    (m.f32(), exp)
+
   fun box log(): F32 => @"llvm.log.f32"[F32](this)
   fun box log2(): F32 => @"llvm.log2.f32"[F32](this)
   fun box log10(): F32 => @"llvm.log10.f32"[F32](this)
@@ -107,6 +112,11 @@ primitive F64 is FloatingPoint[F64]
     else
       @isnan[I32](this) != 0
     end
+
+  fun box frexp(): (F64, U32) =>
+    var exp: U32 = 0
+    var m = @frexp[F64](this, &exp)
+    (m, exp)
 
   fun box log(): F64 => @"llvm.log.f64"[F64](this)
   fun box log2(): F64 => @"llvm.log2.f64"[F64](this)

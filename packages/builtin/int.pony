@@ -92,7 +92,7 @@ primitive I128 is SignedInteger[I128]
   fun box bitwidth(): I128 => 128
 
   fun box string(fmt: IntFormat = FormatDefault,
-    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
     ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,

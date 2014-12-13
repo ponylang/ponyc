@@ -137,7 +137,7 @@ primitive U128 is UnsignedInteger[U128]
   fun box bitwidth(): U128 => 128
 
   fun box string(fmt: IntFormat = FormatDefault,
-    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
     ToString._u128(this, false, fmt, prefix, prec, width, align, fill)

@@ -79,7 +79,7 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
 
 trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
   fun box string(fmt: IntFormat = FormatDefault,
-    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
     ToString._u64(abs().u64(), this.i64() < 0, fmt, prefix, prec, width, align,
@@ -87,14 +87,14 @@ trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
 
 trait UnsignedInteger[A: UnsignedInteger[A] box] is Integer[A]
   fun box string(fmt: IntFormat = FormatDefault,
-    prefix: IntPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
 trait FloatingPoint[A: FloatingPoint[A] box] is Real[A]
   fun box string(fmt: FloatFormat = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U8 = ' '): String iso^
   =>
     ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
