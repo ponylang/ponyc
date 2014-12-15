@@ -3,6 +3,7 @@
 #include "mpmcq.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
+#include "../asio/asio.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
@@ -80,7 +81,8 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
 
 /**
  * If we can terminate, return true. If all schedulers are waiting, one of
- * them will tell the cycle detector to try to terminate.
+ * them will stop the ASIO back end and tell the cycle detector to try to
+ * terminate.
  */
 static bool quiescent(scheduler_t* sched)
 {
@@ -97,9 +99,10 @@ static bool quiescent(scheduler_t* sched)
     uint32_t waiting = __pony_atomic_load_n(&scheduler_waiting,
       PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
 
-    // Under these circumstances, the CD will always go on the current
-    // scheduler.
-    if(waiting == scheduler_count)
+    // If all scheduler threads are waiting and it is possible to stop the ASIO
+    // back end, then we can terminate the cycle detector, which will
+    // eventually call scheduler_terminate().
+    if((waiting == scheduler_count) && asio_stop())
     {
       // It's safe to manipulate our victim, since we know it's paused as well.
       if(sched->victim != NULL)
@@ -111,7 +114,10 @@ static bool quiescent(scheduler_t* sched)
       __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
         PONY_ATOMIC_NO_TYPE);
 
+      // Under these circumstances, the CD will always go on the current
+      // scheduler.
       cycle_terminate(sched->forcecd);
+      sched->finish = false;
     }
   }
 

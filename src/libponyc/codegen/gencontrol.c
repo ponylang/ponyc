@@ -394,8 +394,14 @@ LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(codegen_fun(c)));
   LLVMTypeRef r_type = LLVMGetReturnType(f_type);
-  LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(expr));
-  LLVMBuildRet(c->builder, ret);
+
+  if(LLVMGetTypeKind(r_type) != LLVMVoidTypeKind)
+  {
+    LLVMValueRef ret = gen_assign_cast(c, r_type, value, ast_type(expr));
+    LLVMBuildRet(c->builder, ret);
+  } else {
+    LLVMBuildRetVoid(c->builder);
+  }
 
   return GEN_NOVALUE;
 }

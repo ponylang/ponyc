@@ -14,7 +14,7 @@ struct asio_base_t
 {
 	pony_thread_id_t tid;
 	asio_backend_t* backend;
-	uint32_t subscriptions;
+	uint64_t noisy_count;
 };
 
 static asio_base_t* running_base;
@@ -74,19 +74,35 @@ static uint32_t exec(op_fn* fn, int fd, struct iovec* iov, int chunks,
 
 asio_backend_t* asio_get_backend()
 {
-	if(running_base == NULL) start();
+	if(running_base == NULL)
+		start();
+
 	return running_base->backend;
 }
 
 bool asio_stop()
 {
-	if(running_base->subscriptions > 0)
+	if(__pony_atomic_load_n(
+		&running_base->noisy_count, PONY_ATOMIC_ACQUIRE, uint64_t) > 0)
 		return false;
 
-  //TODO FIX: this is not thread safe
   asio_backend_terminate(running_base->backend);
+	POOL_FREE(asio_base_t, running_base);
+	running_base = NULL;
 
 	return true;
+}
+
+void asio_noisy_add()
+{
+	__pony_atomic_fetch_add(&running_base->noisy_count, 1, PONY_ATOMIC_RELEASE,
+	  uint64_t);
+}
+
+void asio_noisy_remove()
+{
+	__pony_atomic_fetch_sub(&running_base->noisy_count, 1, PONY_ATOMIC_RELEASE,
+	  uint64_t);
 }
 
 uint32_t asio_writev(int fd, struct iovec* iov, int chunks, size_t* nrp)

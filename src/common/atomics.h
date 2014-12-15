@@ -77,6 +77,10 @@
 
 #elif defined(PLATFORM_IS_VISUAL_STUDIO)
 
+#pragma intrinsic(_InterlockedExchangePointer)
+#pragma intrinsic(_InterlockedCompareExchangePointer)
+#pragma intrinsic(_InterlockedCompareExchange128)
+
 #define PONY_ATOMIC_RELAXED relaxed
 #define PONY_ATOMIC_CONSUME consume
 #define PONY_ATOMIC_ACQUIRE acquire
@@ -125,18 +129,24 @@
             *(PTR) = VAL
 #  define __pony_atomic_store_n_release_none(PTR, VAL) \
             *(PTR) = VAL
+#  define __pony_atomic_load_n_acquire_uint64_t(PTR) \
+            *(PTR)
 #  define __pony_atomic_fetch_add_relaxed_uint32_t(PTR, VAL) \
-            InterlockedAddNoFence((volatile LONG*)PTR, VAL)
+            InterlockedAddNoFence((LONG volatile*)PTR, VAL)
 #  define __pony_atomic_fetch_sub_relaxed_uint32_t(PTR, VAL) \
-            InterlockedAddNoFence((volatile LONG*)PTR, (-1)*VAL)
+            InterlockedAddNoFence((LONG volatile*)PTR, -(VAL))
+#  define __pony_atomic_fetch_add_release_uint64_t(PTR, VAL) \
+            InterlockedAdd64((LONGLONG volatile*)PTR, VAL)
+#  define __pony_atomic_fetch_sub_release_uint64_t(PTR, VAL) \
+            InterlockedAdd64((LONGLONG volatile*)PTR, -(VAL))
 #  define __pony_atomic_exchange_n_relaxed_intptr_t(PTR, VAL) \
-            InterlockedExchangePointerNoFence((volatile PVOID*)PTR, VAL)
+            _InterlockedExchangePointer((volatile PVOID*)PTR, VAL)
 #  define __pony_atomic_compare_exchange_n_relaxed_intptr_t(PTR, EXPP, VAL) \
-            (InterlockedCompareExchangePointerNoFence((volatile PVOID*)PTR, \
+            (_InterlockedCompareExchangePointer((PVOID volatile*)PTR, \
               VAL, *(EXPP)) == *(EXPP))
 #  define __pony_atomic_compare_exchange_n_relaxed___int128_t(PTR, EXPP, VAL) \
-            InterlockedCompareExchange128((volatile LONG64*)PTR, VAL.high, \
-              VAL.low, (LONG64*)EXPP)
+            _InterlockedCompareExchange128((LONGLONG volatile*)PTR, VAL.high, \
+              VAL.low, (LONGLONG*)EXPP)
 #endif
 
 #endif

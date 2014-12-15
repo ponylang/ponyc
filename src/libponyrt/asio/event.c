@@ -17,19 +17,14 @@ asio_event_t* asio_event_create(int fd, uint32_t eflags, uint32_t msg_id,
 
 	e->owner = actor_current();
 
-  //TODO FIX: only if this is the first I/O registration
 	actor_inc_rc();
-
 	return e;
 }
 
-void asio_event_dtor(asio_event_t** ev)
+void asio_event_dtor(asio_event_t* ev)
 {
-	//TODO FIX: only if this is the actors last event
 	actor_dec_rc();
-
-	POOL_FREE(asio_event_t, *ev);
-	*ev = NULL;
+	POOL_FREE(asio_event_t, ev);
 }
 
 void asio_event_send(asio_event_t* ev, uint32_t flags)

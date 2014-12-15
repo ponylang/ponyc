@@ -19,19 +19,18 @@
 
 PONY_EXTERN_C_BEGIN
 
-enum ASIO_FLAGS
+enum
 {
-	ASIO_SUCCESS             = 0x0001,
-	ASIO_FILT_READ           = 0x0002,
-	ASIO_FILT_WRITE          = 0x0004,
-	ASIO_READABLE            = 0x0008,
-	ASIO_WRITABLE            = 0x0010,
-	ASIO_LISTENING           = 0x0020,
-	ASIO_PEER_SHUTDOWN       = 0x0040,
-	ASIO_CLOSED_UNEXPECTEDLY = 0x0080,
-	ASIO_ERROR               = 0x0100,
-
-	ASIO_WOULDBLOCK          = 0x0200
+	ASIO_SUCCESS             = 1 << 0,
+	ASIO_FILT_READ           = 1 << 1,
+	ASIO_FILT_WRITE          = 1 << 2,
+	ASIO_READABLE            = 1 << 3,
+	ASIO_WRITABLE            = 1 << 4,
+	ASIO_LISTENING           = 1 << 5,
+	ASIO_PEER_SHUTDOWN       = 1 << 6,
+	ASIO_CLOSED_UNEXPECTEDLY = 1 << 7,
+	ASIO_ERROR               = 1 << 8,
+	ASIO_WOULDBLOCK          = 1 << 9
 };
 
 /** Opaque definition of a backend.
@@ -66,25 +65,6 @@ asio_backend_t* asio_backend_init();
  */
 asio_backend_t* asio_get_backend();
 
-/** Destroys an ASIO backend.
- *
- *  I/O resource descriptors are not closed upon destruction of a backend.
- *
- *  Destroying a backend causes the dispatch loop to be exited, such that the
- *  ASIO thread can terminate.
- */
-void asio_backend_terminate(asio_backend_t* backend);
-
-/** Entry point for the ASIO thread.
- *
- *  Errors are not handled within this function but are delegated to the actor
- *  that has subscribed for an event.
- *
- *  The return code of the ASIO thread is not of interest. Therefore, the ASIO
- *  thread is detached an does not need to be joined.
- */
-DECLARE_THREAD_FN(asio_backend_dispatch);
-
 /** Attempts to stop an asynchronous event mechanism.
  *
  *  Stopping an event mechanism is only possible if there are no pending "noisy"
@@ -94,6 +74,14 @@ DECLARE_THREAD_FN(asio_backend_dispatch);
  *  shut down.
  */
 bool asio_stop();
+
+/** Add a noisy event subscription.
+ */
+void asio_noisy_add();
+
+/** Remove a noisy event subscription.
+ */
+void asio_noisy_remove();
 
 /** Writes a vector of data to a file descriptor.
  *
@@ -118,6 +106,25 @@ uint32_t asio_readv(int fd, struct iovec* iov, int chunks, size_t* nrp);
  *  This is a wrapper for asio_readv for convenience.
  */
 uint32_t asio_read(int fd, void* dest, size_t len, size_t* nrp);
+
+/** Destroys an ASIO backend.
+ *
+ *  I/O resource descriptors are not closed upon destruction of a backend.
+ *
+ *  Destroying a backend causes the dispatch loop to be exited, such that the
+ *  ASIO thread can terminate.
+ */
+void asio_backend_terminate(asio_backend_t* backend);
+
+/** Entry point for the ASIO thread.
+ *
+ *  Errors are not handled within this function but are delegated to the actor
+ *  that has subscribed for an event.
+ *
+ *  The return code of the ASIO thread is not of interest. Therefore, the ASIO
+ *  thread is detached an does not need to be joined.
+ */
+DECLARE_THREAD_FN(asio_backend_dispatch);
 
 PONY_EXTERN_C_END
 
