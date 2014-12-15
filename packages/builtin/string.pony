@@ -1,22 +1,3 @@
-primitive FormatDefault
-primitive PrefixDefault
-primitive AlignLeft
-primitive AlignRight
-primitive AlignCenter
-
-type Align is
-  ( AlignLeft
-  | AlignRight
-  | AlignCenter)
-
-interface Stringable box
-  """
-  Things that can be turned into a String.
-  """
-  fun box string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignLeft, fill: U8 = ' '): String iso^
-
 class String val is Ordered[String box], Stringable
   """
   Strings don't specify an encoding.
@@ -25,57 +6,110 @@ class String val is Ordered[String box], Stringable
   var _alloc: U64
   var _ptr: Pointer[U8]
 
-  new create() =>
+  new create(size: U64 = 0) =>
     """
-    A zero length, but valid, string.
+    An empty string. Enough space for size bytes is reserved.
     """
     _size = 0
-    _alloc = 1
-    _ptr = Pointer[U8]._create(1)
-    _ptr._update(0, 0)
-
-  new from_cstring(str: Pointer[U8] ref, len: U64 = 0) =>
-    """
-    The cstring is not copied, so this should be done with care.
-    """
-    _size = len
-
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
-      end
-    end
-
-    _alloc = _size + 1
-    _ptr = str
-
-  new copy_cstring(str: Pointer[U8] ref, len: U64 = 0) =>
-    """
-    The cstring is copied, so this is always safe.
-    """
-    _size = len
-
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
-      end
-    end
-
-    _alloc = _size + 1
-    _ptr = Pointer[U8]._create(_alloc)
-    @memcpy[Pointer[U8]](_ptr, str, _alloc)
-
-  new prealloc(size: U64) =>
-    _size = size
     _alloc = size + 1
     _ptr = Pointer[U8]._create(_alloc)
-    _ptr._update(size, 0)
+    _ptr._update(0, 0)
 
-  fun box cstring(): Pointer[U8] tag => _ptr
+  new from_cstring(str: Pointer[U8] ref, len: U64 = 0, copy: Bool = true) =>
+    """
+    If the cstring is not copied, this should be done with care.
+    """
+    _size = len
 
-  fun box size(): U64 => _size
+    if len == 0 then
+      while str._apply(_size) != 0 do
+        _size = _size + 1
+      end
+    end
 
-  fun box space(): U64 => _alloc
+    if copy then
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      @memcpy[Pointer[U8]](_ptr, str, _alloc)
+    else
+      _alloc = _size + 1
+      _ptr = str
+    end
+
+  new from_utf32(value: U32) =>
+    """
+    Create a UTF-8 string from a single UTF-32 code point.
+    """
+    if value < 0x80 then
+      _size = 1
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, value.u8())
+    elseif value < 0x800 then
+      _size = 2
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, ((value >> 6) or 0xC0).u8())
+      _ptr._update(1, ((value and 0x3F) or 0x80).u8())
+    elseif value < 0xD800 then
+      _size = 3
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, ((value >> 12) or 0xE0).u8())
+      _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(2, ((value and 0x3F) or 0x80).u8())
+    elseif value < 0xE000 then
+      // UTF-16 surrogate pairs are not allowed.
+      _size = 3
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, 0xEF)
+      _ptr._update(1, 0xBF)
+      _ptr._update(2, 0xBD)
+      _size = _size + 3
+    elseif value < 0x10000 then
+      _size = 3
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, ((value >> 12) or 0xE0).u8())
+      _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(2, ((value and 0x3F) or 0x80).u8())
+    elseif value < 0x110000 then
+      _size = 4
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, ((value >> 18) or 0xF0).u8())
+      _ptr._update(1, (((value >> 12) and 0x3F) or 0x80).u8())
+      _ptr._update(2, (((value >> 6) and 0x3F) or 0x80).u8())
+      _ptr._update(3, ((value and 0x3F) or 0x80).u8())
+    else
+      // Code points beyond 0x10FFFF are not allowed.
+      _size = 3
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._create(_alloc)
+      _ptr._update(0, 0xEF)
+      _ptr._update(1, 0xBF)
+      _ptr._update(2, 0xBD)
+    end
+    _ptr._update(_size, 0)
+
+  fun box cstring(): Pointer[U8] tag =>
+    """
+    Returns a C compatible pointer to a null terminated string.
+    """
+    _ptr
+
+  fun box size(): U64 =>
+    """
+    Returns the length of the string.
+    """
+    _size
+
+  fun box space(): U64 =>
+    """
+    Returns the amount of allocated space.
+    """
+    _alloc
 
   fun ref reserve(len: U64): String ref^ =>
     """
@@ -216,15 +250,9 @@ class String val is Ordered[String box], Stringable
     Returns a copy of the string.
     """
     let len = _size
-    let str = recover String.prealloc(len) end
-    var i: U64 = 0
-
-    while i < len do
-      let c = _ptr._apply(i)
-      str._set(i, c)
-      i = i + 1
-    end
-
+    let str = recover String(len) end
+    @memcpy[Pointer[U8]](str._ptr, _ptr, len + 1)
+    str._size = len
     consume str
 
   fun box find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
@@ -337,65 +365,92 @@ class String val is Ordered[String box], Stringable
     end
     this
 
+  fun box substring(from: I64, to: I64): String iso^ =>
+    """
+    Returns a substring. From and to are inclusive. Returns an empty string if
+    nothing is in the range.
+    """
+    let start = offset_to_index(from)
+    let finish = offset_to_index(to).min(_size)
+    let ptr = _ptr.u64()
+
+    if (start < _size) and (start <= finish) then
+      recover
+        let len = (finish - start) + 1
+        var str = String(len)
+        @memcpy[Pointer[U8]](str._ptr, ptr + start, len)
+        str._size = len
+        str._set(len, 0)
+        consume str
+      end
+    else
+      recover String end
+    end
+
   fun box lower(): String iso^ =>
     """
     Returns a lower case version of the string.
     """
-    let len = _size
-    let str = recover String.prealloc(len) end
+    var s = clone()
+    s.lower_in_place()
+    consume s
+
+  fun ref lower_in_place(): String ref^ =>
+    """
+    Transforms the string to lower case. Currently only knows ASCII case.
+    """
     var i: U64 = 0
 
-    while i < len do
+    while i < _size do
       var c = _ptr._apply(i)
 
       if (c >= 0x41) and (c <= 0x5A) then
-        c = c + 0x20
+        _set(i, c + 0x20)
       end
 
-      str._set(i, c)
       i = i + 1
     end
-
-    consume str
+    this
 
   fun box upper(): String iso^ =>
     """
-    Returns an upper case version of the string.
+    Returns an upper case version of the string. Currently only knows ASCII
+    case.
     """
-    let len = _size
-    let str = recover String.prealloc(len) end
+    var s = clone()
+    s.upper_in_place()
+    consume s
+
+  fun ref upper_in_place(): String ref^ =>
+    """
+    Transforms the string to upper case.
+    """
     var i: U64 = 0
 
-    while i < len do
+    while i < _size do
       var c = _ptr._apply(i)
 
       if (c >= 0x61) and (c <= 0x7A) then
-        c = c - 0x20
+        _set(i, c - 0x20)
       end
 
-      str._set(i, c)
       i = i + 1
     end
-
-    consume str
+    this
 
   fun box reverse(): String iso^ =>
     """
     Returns a reversed version of the string.
     """
-    let len = _size
-    let str = recover String.prealloc(len) end
-    var i: U64 = 0
-
-    while i < len do
-      let c = _ptr._apply(i)
-      str._set(_size - i - 1, c)
-      i = i + 1
-    end
-
-    consume str
+    var s = clone()
+    s.reverse_in_place()
+    consume s
 
   fun ref reverse_in_place(): String ref^ =>
+    """
+    Reverses the byte order in the string. This needs to be changed to handle
+    UTF-8 correctly.
+    """
     if _size > 1 then
       var i: U64 = 0
       var j = _size - 1
@@ -410,60 +465,61 @@ class String val is Ordered[String box], Stringable
     end
     this
 
-  // The range is inclusive.
-  fun box substring(from: I64, to: I64): String iso^ =>
-    let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size)
-    var str: String iso
+  fun ref append(that: String box): String ref^ =>
+    """
+    Append that to this.
+    """
+    reserve(_size + that._size)
+    @memcpy[Pointer[U8]](_ptr.u64() + _size, that._ptr, that._size + 1)
+    _size = _size + that._size
+    this
 
-    if (start < _size) and (start <= finish) then
-      let len = (finish - start) + 1
-      str = recover String.prealloc(len) end
-      var i = start
+  fun ref append_byte(value: U8): String ref^ =>
+    """
+    Append an arbitrary byte to the string.
+    """
+    reserve(_size + 1)
+    _ptr._update(_size, value)
+    _size = _size + 1
+    _ptr._update(_size, 0)
+    this
 
-      while i <= finish do
-        let c = _ptr._apply(i)
-        str._set(i - start, c)
-        i = i + 1
-      end
-    else
-      str = recover String end
-    end
+  fun box insert(offset: I64, that: String): String iso^ =>
+    """
+    Returns a version of the string with the given string inserted at the given
+    offset.
+    """
+    var s = clone()
+    s.insert_in_place(offset, that)
+    consume s
 
-    consume str
+  fun ref insert_in_place(offset: I64, that: String): String ref^ =>
+    """
+    Inserts the given string at the given offset. Appends the string if the
+    offset is out of bounds.
+    """
+    reserve(_size + that._size)
+    var index = offset_to_index(offset).min(_size)
+    @memmove[Pointer[U8]](_ptr.u64() + index + that._size,
+      _ptr.u64() + index, that._size)
+    @memcpy[Pointer[U8]](_ptr.u64() + index, that._ptr, that._size)
+    _size = _size + that._size
+    _ptr._update(_size, 0)
+    this
 
-  //The range is inclusive.
   fun box cut(from: I64, to: I64): String iso^ =>
-    let start = offset_to_index(from)
-    let finish = offset_to_index(to).min(_size)
-    var str: String iso
+    """
+    Returns a version of the string with the given range deleted. The range is
+    inclusive.
+    """
+    var s = clone()
+    s.cut_in_place(from, to)
+    consume s
 
-    if (start < _size) and (start <= finish) and (finish < _size) then
-      let len = _size - ((finish - start) + 1)
-      str = recover String.prealloc(len) end
-      var i: U64 = 0
-
-      while i < start do
-        let c = _ptr._apply(i)
-        str._set(i, c)
-        i = i + 1
-      end
-
-      var j = finish + 1
-
-      while j < _size do
-        let c = _ptr._apply(j)
-        str._set(start + (j - (finish + 1)), c)
-        j = j + 1
-      end
-    else
-      str = recover String end
-    end
-
-    consume str
-
-  //The range is inclusive.
   fun ref cut_in_place(from: I64, to: I64): String ref^ =>
+    """
+    Cuts the given range out of the string.
+    """
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
 
@@ -477,33 +533,41 @@ class String val is Ordered[String box], Stringable
       end
 
       _size = len
-      _ptr._update(len, 0) //make sure its a C string under the hood.
+      _ptr._update(len, 0)
     end
-
     this
 
-  fun ref strip_char(c: U8): U64 =>
-    var i: U64 = 0
+  fun ref strip(s: String): U64 =>
+    """
+    Remove all instances of s from the string. Returns the count of removed
+    instances.
+    """
+    var i: I64 = 0
     var n: U64 = 0
 
-    while i < _size do
-      if _ptr._apply(i) == c then
-        cut_in_place(i.i64(), i.i64())
+    try
+      while true do
+        i = find(s, i)
+        cut_in_place(i, (i + s.size().i64()) - 1)
         n = n + 1
       end
-      i = i + 1
     end
-
     n
 
   fun box add(that: String box): String =>
+    """
+    Return a string that is a concatenation of this and that.
+    """
     let len = _size + that._size
-    let ptr = recover Pointer[U8]._create(len + 1) end
-    @memcpy[Pointer[U8]](ptr.u64() + _size, that._ptr, that._size + 1)
-    recover String.from_cstring(consume ptr, len) end
+    var s = recover String(len) end
+    @memcpy[Pointer[U8]](s._ptr, _ptr, _size)
+    @memcpy[Pointer[U8]](s._ptr.u64() + _size, that._ptr, that._size + 1)
+    s._size = len
+    consume s
 
-  fun box compare(that: String box, n: U64,
-    offset: I64 = 0, that_offset: I64 = 0): I32 =>
+  fun box compare(that: String box, n: U64, offset: I64 = 0,
+    that_offset: I64 = 0): I32
+  =>
     """
     Starting at this + offset, compare n characters with that + offset. Return
     zero if the strings are the same. Return a negative number if this is
@@ -531,21 +595,20 @@ class String val is Ordered[String box], Stringable
     0
 
   fun box eq(that: String box): Bool =>
+    """
+    Returns true if the two strings have the same contents.
+    """
     if _size == that._size then
-      var i: U64 = 0
-
-      while i < _size do
-        if _ptr._apply(i) != that._ptr._apply(i) then
-          return false
-        end
-        i = i + 1
-      end
-      true
+      @memcmp[I32](_ptr, that._ptr, _size) == 0
     else
       false
     end
 
   fun box lt(that: String box): Bool =>
+    """
+    Returns true if this is lexically less than that. Needs to be made UTF-8
+    safe.
+    """
     let len = _size.min(that._size)
     var i: U64 = 0
 
@@ -557,10 +620,13 @@ class String val is Ordered[String box], Stringable
       end
       i = i + 1
     end
-
     _size < that._size
 
   fun box le(that: String box): Bool =>
+    """
+    Returns true if this is lexically less than or equal to that. Needs to be
+    made UTF-8 safe.
+    """
     let len = _size.min(that._size)
     var i: U64 = 0
 
@@ -573,60 +639,6 @@ class String val is Ordered[String box], Stringable
       i = i + 1
     end
     _size <= that._size
-
-  fun ref append(that: String box): String ref^ =>
-    reserve(_size + that._size)
-    @memcpy[Pointer[U8]](_ptr.u64() + _size, that._ptr, that._size + 1)
-    _size = _size + that._size
-    this
-
-  fun ref append_byte(value: U8): String ref^ =>
-    reserve(_size + 1)
-    _ptr._update(_size, value)
-    _ptr._update(_size + 1, 0)
-    _size = _size + 1
-    this
-
-  fun ref append_utf32(value: U32): String ref^ =>
-    reserve(_size + 4)
-
-    if value < 0x80 then
-      _ptr._update(_size, value.u8())
-      _size = _size + 1
-    elseif value < 0x800 then
-      _ptr._update(_size, ((value >> 6) or 0xC0).u8())
-      _ptr._update(_size + 1, ((value and 0x3F) or 0x80).u8())
-      _size = _size + 2
-    elseif value < 0xD800 then
-      _ptr._update(_size, ((value >> 12) or 0xE0).u8())
-      _ptr._update(_size + 1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(_size + 2, ((value and 0x3F) or 0x80).u8())
-      _size = _size + 3
-    elseif value < 0xE000 then
-      // UTF-16 surrogate pairs are not allowed.
-      _ptr._update(_size, 0xEF)
-      _ptr._update(_size + 1, 0xBF)
-      _ptr._update(_size + 2, 0xBD)
-      _size = _size + 3
-    elseif value < 0x10000 then
-      _ptr._update(_size, ((value >> 12) or 0xE0).u8())
-      _ptr._update(_size + 1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(_size + 2, ((value and 0x3F) or 0x80).u8())
-      _size = _size + 3
-    elseif value < 0x110000 then
-      _ptr._update(_size, ((value >> 18) or 0xF0).u8())
-      _ptr._update(_size + 1, (((value >> 12) and 0x3F) or 0x80).u8())
-      _ptr._update(_size + 2, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(_size + 3, ((value and 0x3F) or 0x80).u8())
-      _size = _size + 4
-    else
-      // Code points beyond 0x10FFFF are not allowed.
-      _ptr._update(_size, 0xEF)
-      _ptr._update(_size + 1, 0xBF)
-      _ptr._update(_size + 2, 0xBD)
-      _size = _size + 3
-    end
-    this
 
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
@@ -674,33 +686,41 @@ class String val is Ordered[String box], Stringable
 
   fun box string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignLeft, fill: U8 = ' '): String iso^
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
+    // TODO: fill character
     let copy_len = _size.min(prec.u64())
     let len = copy_len.max(width.u64())
-
-    let ptr = recover Pointer[U8]._create(len + 1) end
+    let str = recover String(len) end
 
     match align
     | AlignLeft =>
-      @memcpy[Pointer[U8]](ptr, _ptr, copy_len)
-      @memset[Pointer[U8]](ptr.u64() + copy_len, U32(' '), len - copy_len)
+      @memcpy[Pointer[U8]](str._ptr, _ptr, copy_len)
+      @memset[Pointer[U8]](str._ptr.u64() + copy_len, U32(' '), len - copy_len)
     | AlignRight =>
-      @memset[Pointer[U8]](ptr, U32(' '), len - copy_len)
-      @memcpy[Pointer[U8]](ptr.u64() + (len - copy_len), _ptr, copy_len)
+      @memset[Pointer[U8]](str._ptr, U32(' '), len - copy_len)
+      @memcpy[Pointer[U8]](str._ptr.u64() + (len - copy_len), _ptr, copy_len)
     | AlignCenter =>
       let half = (len - copy_len) / 2
-      @memset[Pointer[U8]](ptr, U32(' '), half)
-      @memcpy[Pointer[U8]](ptr.u64() + half, _ptr, copy_len)
-      @memset[Pointer[U8]](ptr.u64() + copy_len + half, U32(' '),
+      @memset[Pointer[U8]](str._ptr, U32(' '), half)
+      @memcpy[Pointer[U8]](str._ptr.u64() + half, _ptr, copy_len)
+      @memset[Pointer[U8]](str._ptr.u64() + copy_len + half, U32(' '),
         len - copy_len - half)
     end
 
-    ptr._update(len, 0)
-    recover String.from_cstring(consume ptr, len) end
+    str._size = len
+    str._set(len, 0)
+    consume str
 
-  fun ref _set(i: U64, char: U8): U8 =>
+  // fun box format(args: Array[String] box): String ? =>
+  //   recover
+  //     var s = String.
+  //   var i: U64 = 0
+  //
+  //   while i < _size do
+
+  fun ref _set(i: U64, value: U8): U8 =>
     """
     Unsafe update, used internally.
     """
-    _ptr._update(i, char)
+    _ptr._update(i, value)

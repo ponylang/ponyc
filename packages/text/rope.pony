@@ -79,14 +79,15 @@ class Rope val is Stringable, Ordered[Rope]
     with the minimal external path length for a given text instance.
     """*/
 
-  fun box string(fmt: FormatDefault = FormatDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft): String iso^
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     """
     Converts a Rope to a String.
     """
     let len = _size
-    let str = recover String.prealloc(len) end
+    let str = recover String(len) end
 
     let traverse = object
       fun tag apply(result: String iso!, rope: Rope box) =>

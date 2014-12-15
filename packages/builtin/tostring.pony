@@ -1,3 +1,22 @@
+interface Stringable box
+  """
+  Things that can be turned into a String.
+  """
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+
+primitive FormatDefault
+primitive PrefixDefault
+primitive AlignLeft
+primitive AlignRight
+primitive AlignCenter
+
+type Align is
+  ( AlignLeft
+  | AlignRight
+  | AlignCenter)
+
 primitive IntUTF32
 primitive IntBinary
 primitive IntBinaryBare
@@ -45,8 +64,8 @@ type FloatFormat is
   | FloatGeneralLarge)
 
 primitive ToString
-  fun tag _large(): String => "FEDCBA9876543210123456789ABCDEF"
-  fun tag _small(): String => "fedcba9876543210123456789abcdef"
+  fun tag _large(): String => "0123456789ABCDEF"
+  fun tag _small(): String => "0123456789abcdef"
 
   fun tag _fmt_int(fmt: IntFormat): (U64, String, String) =>
     match fmt
@@ -76,56 +95,57 @@ primitive ToString
 
   fun tag _extend_digits(s: String ref, digits: U64) =>
     while s.size() < digits do
-      s.append_byte('0')
+      s.append("0")
     end
 
-  fun tag _pad(s: String ref, width: U64, align: Align, fill: U8) =>
+  fun tag _pad(s: String ref, width: U64, align: Align, fill: U32) =>
     var pre: U64 = 0
     var post: U64 = 0
 
     if s.size() < width then
       let rem = width - s.size()
+      let fills = String.from_utf32(fill)
 
       match align
       | AlignLeft => post = rem
       | AlignRight => pre = rem
       | AlignCenter => pre = rem / 2; post = rem - pre
       end
-    end
 
-    while pre > 0 do
-      s.append_byte(fill)
-      pre = pre - 1
-    end
+      while pre > 0 do
+        s.append(fills)
+        pre = pre - 1
+      end
 
-    s.reverse_in_place()
+      s.reverse_in_place()
 
-    while post > 0 do
-      s.append_byte(fill)
-      post = post - 1
+      while post > 0 do
+        s.append(fills)
+        post = post - 1
+      end
+    else
+      s.reverse_in_place()
     end
 
   fun tag _u64(x: U64, neg: Bool, fmt: IntFormat, prefix: NumberPrefix,
-    prec: U64, width: U64, align: Align, fill: U8): String iso^
+    prec: U64, width: U64, align: Align, fill: U32): String iso^
   =>
     match fmt
-    | IntUTF32 => return recover String.append_utf32(x.u32()) end
+    | IntUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
     (var base: U64, var typestring: String, var table: String) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
 
     recover
-      var s = String.reserve((prec + 1).max(width.max(31)))
+      var s = String((prec + 1).max(width.max(31)))
       var value = x
       var i: I64 = 0
 
       try
         while value != 0 do
-          let tmp = value
-          value = value / base
-          let index = tmp - (value * base)
-          s.append_byte(table((index + 15).i64()))
+          let index = ((value = value / base) - (value * base)).i64()
+          s.append_byte(table(index))
           i = i + 1
         end
       end
@@ -139,10 +159,10 @@ primitive ToString
 
   fun tag _u128(x: U128, neg: Bool, fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
-    align: Align = AlignLeft, fill: U8 = ' '): String iso^
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     match fmt
-    | IntUTF32 => return recover String.append_utf32(x.u32()) end
+    | IntUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
     (var base': U64, var typestring: String, var table: String) = _fmt_int(fmt)
@@ -150,16 +170,14 @@ primitive ToString
     var base = base'.u128()
 
     recover
-      var s = String.reserve((prec + 1).max(width.max(31)))
+      var s = String((prec + 1).max(width.max(31)))
       var value = x
       var i: I64 = 0
 
       try
         while value != 0 do
-          let tmp = value
-          value = value / base
-          let index = tmp - (value * base)
-          s.append_byte(table((index + 15).i64()))
+          let index = ((value = value / base) - (value * base)).i64()
+          s.append_byte(table(index))
           i = i + 1
         end
       end
@@ -173,12 +191,12 @@ primitive ToString
 
   fun tag _f64(x: F64, fmt: FloatFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
-    align: Align = AlignRight, fill: U8 = ' '): String iso^
+    align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     // TODO: prefix, align, fill
     recover
-      var s = String.prealloc((prec + 8).max(width.max(31)))
-      var f = String.reserve(31).append("%")
+      var s = String((prec + 8).max(width.max(31)))
+      var f = String(31).append("%")
 
       if width > 0 then f.append(width.string()) end
       f.append(".").append(prec.string())

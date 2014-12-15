@@ -111,7 +111,7 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    var s = recover String.reserve(path.size()) end
+    var s = recover String(path.size()) end
     var volume = Path.volume(path)
     s.append(volume)
 

@@ -59,7 +59,7 @@ class Option is Stringable
   //TODO: Requires proper string formatter
   fun box string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft, fill: U8 = ' '): String iso^
+    width: U64 = 0, align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     recover String end
 
@@ -180,9 +180,9 @@ class Options is Iterator[_Result]
       let current = _args(_index)
 
       if option.requires_arg() then
-        //if current is non-empty the rest (without - or =) must be the arg.
-        current.strip_char('-')
-        current.strip_char('=')
+        // If current is non-empty the rest (without - or =) must be the arg.
+        current.strip("-")
+        current.strip("=")
       end
 
       let len = current.size()
