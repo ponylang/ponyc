@@ -643,46 +643,86 @@ class String val is Ordered[String box], Stringable
   fun box offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-  fun box i8(): I8 => i64().i8()
-  fun box i16(): I16 => i64().i16()
-  fun box i32(): I32 => i64().i32()
+  fun box i8(offset: I64 = 0): I8 => i64(offset).i8()
+  fun box i16(offset: I64 = 0): I16 => i64(offset).i16()
+  fun box i32(offset: I64 = 0): I32 => i64(offset).i32()
 
-  fun box i64(): I64 =>
-    if Platform.windows() then
-      @_strtoi64[I64](_ptr, U64(0), I32(10))
+  fun box i64(offset: I64 = 0): I64 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        @_strtoi64[I64](_ptr.u64(), U64(0), I32(10))
+      else
+        @strtol[I64](_ptr.u64(), U64(0), I32(10))
+      end
     else
-      @strtol[I64](_ptr, U64(0), I32(10))
+      I64(0)
     end
 
-  fun box i128(): I128 =>
-    if Platform.windows() then
-      i64().i128()
+  fun box i128(offset: I64 = 0): I128 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        i64(offset).i128()
+      else
+        @strtoll[I128](_ptr.u64() + index, U64(0), I32(10))
+      end
     else
-      @strtoll[I128](_ptr, U64(0), I32(10))
+      I128(0)
     end
 
-  fun box u8(): U8 => u64().u8()
-  fun box u16(): U16 => u64().u16()
-  fun box u32(): U32 => u64().u32()
+  fun box u8(offset: I64 = 0): U8 => u64(offset).u8()
+  fun box u16(offset: I64 = 0): U16 => u64(offset).u16()
+  fun box u32(offset: I64 = 0): U32 => u64(offset).u32()
 
-  fun box u64(): U64 =>
-    if Platform.windows() then
-      @_strtoui64[U64](_ptr, U64(0), I32(10))
+  fun box u64(offset: I64 = 0): U64 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        @_strtoui64[U64](_ptr.u64() + index, U64(0), I32(10))
+      else
+        @strtoul[U64](_ptr.u64() + index, U64(0), I32(10))
+      end
     else
-      @strtoul[U64](_ptr, U64(0), I32(10))
+      U64(0)
     end
 
-  fun box u128(): U128 =>
-    if Platform.windows() then
-      u64().u128()
+  fun box u128(offset: I64 = 0): U128 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        u64(offset).u128()
+      else
+        @strtoull[U128](_ptr.u64() + index, U64(0), I32(10))
+      end
     else
-      @strtoull[U128](_ptr, U64(0), I32(10))
+      U128(0)
     end
 
-  fun box f32(): F32 => @strtof[F32](_ptr, U64(0))
-  fun box f64(): F64 => @strtod[F64](_ptr, U64(0))
+  fun box f32(offset: I64 = 0): F32 =>
+    var index = offset_to_index(offset)
 
-  fun box hash(): U64 => @hash_block[U64](_ptr, _size)
+    if index < _size then
+      @strtof[F32](_ptr.u64() + index, U64(0))
+    else
+      F32(0)
+    end
+
+  fun box f64(offset: I64 = 0): F64 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      @strtod[F64](_ptr, U64(0))
+    else
+      F64(0)
+    end
+
+  fun box hash(): U64 =>
+    @hash_block[U64](_ptr, _size)
 
   fun box string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
