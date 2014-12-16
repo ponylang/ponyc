@@ -52,22 +52,27 @@ static void print_token(token_t* token)
   }
 }
 
-static size_t length(ast_t* ast, size_t indent)
+static size_t length(ast_t* ast, size_t indent, bool type)
 {
   size_t len = (indent * in_len) + strlen(token_print(ast->t));
-  ast_t* child = ast->child;
 
-  if(child != NULL)
+  ast_t* child = ast->child;
+  bool parens = type || (child != NULL) || (ast->type != NULL);
+
+  if(parens)
     len += 2;
+
+  if(ast->symtab != NULL)
+    len += 6;
 
   while(child != NULL)
   {
-    len += 1 + length(child, 0);
+    len += 1 + length(child, 0, false);
     child = child->sibling;
   }
 
   if(ast->type != NULL)
-    len += 1 + length(ast->type, 0);
+    len += 1 + length(ast->type, 0, true);
 
   return len;
 }
@@ -84,6 +89,7 @@ static void print_compact(ast_t* ast, size_t indent, bool type)
     printf(type ? "[" : "(");
 
   print_token(ast->t);
+
   if(ast->symtab != NULL)
     printf(":scope");
 
@@ -141,7 +147,7 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
 
 static void print(ast_t* ast, size_t indent, bool type)
 {
-  size_t len = length(ast, indent);
+  size_t len = length(ast, indent, type);
 
   if(len <= width)
   {
