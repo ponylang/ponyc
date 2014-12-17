@@ -101,7 +101,7 @@ int pony_init(int argc, char** argv)
   WORD ver = MAKEWORD(2, 2);
   WSADATA data;
 
-  WSAStartup(wVersionRequested, &data);
+  WSAStartup(ver, &data);
 #endif
 
   pony_exitcode(0);
