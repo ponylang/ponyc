@@ -6,10 +6,6 @@
 #include "asio.h"
 #include "../mem/pool.h"
 
-#ifndef PLATFORM_IS_WINDOWS
-
-typedef ssize_t op_fn(int fd, const struct iovec *iov, int iovcnt);
-
 struct asio_base_t
 {
 	pony_thread_id_t tid;
@@ -54,24 +50,6 @@ static void start()
 	}
 }
 
-/** Wrapper for writev and readv.
- */
-static uint32_t exec(op_fn* fn, int fd, struct iovec* iov, int chunks,
-	size_t* nrp)
-{
-	ssize_t ret;
-	*nrp = 0;
-
-	ret = fn(fd, iov, chunks);
-
-	if(ret < 0)
-		return (errno == EWOULDBLOCK) ? ASIO_WOULDBLOCK : ASIO_ERROR;
-
-  if(nrp != NULL) *nrp += ret;
-
-  return ASIO_SUCCESS;
-}
-
 asio_backend_t* asio_get_backend()
 {
 	if(running_base == NULL)
@@ -107,25 +85,3 @@ void asio_noisy_remove()
 	__pony_atomic_fetch_sub(&running_base->noisy_count, 1, PONY_ATOMIC_RELEASE,
 	  uint64_t);
 }
-
-uint32_t asio_writev(int fd, struct iovec* iov, int chunks, size_t* nrp)
-{
-	return exec(writev, fd, iov, chunks, nrp);
-}
-
-uint32_t asio_readv(int fd, struct iovec* iov, int chunks, size_t* nrp)
-{
-	return exec(readv, fd, iov, chunks, nrp);
-}
-
-uint32_t asio_read(int fd, void* dest, size_t len, size_t* nrp)
-{
-	struct iovec iov[1];
-
-	iov[0].iov_len = len;
-  iov[0].iov_base = dest;
-
-	return asio_readv(fd, iov, 1, nrp);
-}
-
-#endif

@@ -83,30 +83,6 @@ void asio_noisy_add();
  */
 void asio_noisy_remove();
 
-/** Writes a vector of data to a file descriptor.
- *
- *  Any I/O is non-blocking. The requested write operation may therefore return
- *  without having written the entire vector.
- *
- *  Returns the status of the requested operation.
- */
-uint32_t asio_writev(int fd, struct iovec* iov, int chunks, size_t* nrp);
-
-/** Reads data from a file descriptor.
- *
- *  A call to readv attempts to read as much data from the file descriptor as
- *  provided within iov.
- *
- *  Returns the status of the requested operation.
- */
-uint32_t asio_readv(int fd, struct iovec* iov, int chunks, size_t* nrp);
-
-/** Reads data from a file descriptor.
- *
- *  This is a wrapper for asio_readv for convenience.
- */
-uint32_t asio_read(int fd, void* dest, size_t len, size_t* nrp);
-
 /** Destroys an ASIO backend.
  *
  *  I/O resource descriptors are not closed upon destruction of a backend.

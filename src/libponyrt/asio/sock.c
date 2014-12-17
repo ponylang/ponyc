@@ -27,6 +27,8 @@ enum
 	BIND
 };
 
+typedef ssize_t op_fn(int fd, const struct iovec *iov, int iovcnt);
+
 typedef struct sock_chunk_t
 {
 	void* next;
@@ -94,6 +96,44 @@ static void set_non_blocking(int fd)
 	fcntl(fd, F_SETFL, flags);
 	#endif //TODO WINDOWS
 	#endif
+}
+
+/** Wrapper for writev and readv.
+ */
+static uint32_t exec(op_fn* fn, int fd, struct iovec* iov, int chunks,
+	size_t* nrp)
+{
+	ssize_t ret;
+	*nrp = 0;
+
+	ret = fn(fd, iov, chunks);
+
+	if(ret < 0)
+		return (errno == EWOULDBLOCK) ? ASIO_WOULDBLOCK : ASIO_ERROR;
+
+  if(nrp != NULL) *nrp += ret;
+
+  return ASIO_SUCCESS;
+}
+
+static uint32_t sock_writev(int fd, struct iovec* iov, int chunks, size_t* nrp)
+{
+	return exec(writev, fd, iov, chunks, nrp);
+}
+
+static uint32_t sock_readv(int fd, struct iovec* iov, int chunks, size_t* nrp)
+{
+	return exec(readv, fd, iov, chunks, nrp);
+}
+
+static uint32_t sock_read1(int fd, void* dest, size_t len, size_t* nrp)
+{
+	struct iovec iov[1];
+
+	iov[0].iov_len = len;
+  iov[0].iov_base = dest;
+
+	return sock_readv(fd, iov, 1, nrp);
 }
 
 static sock_t* create_socket(const char* host, const char* service,
@@ -212,7 +252,7 @@ static uint32_t flush_data(sock_t* s, size_t* nrp)
 			writes->tail);
 	}
 
-	return asio_writev(s->fd, iov, writes->chunks, nrp);
+	return sock_writev(s->fd, iov, writes->chunks, nrp);
 }
 
 static void buffer_advance(chunk_list_t* list, void** p, size_t bytes)
@@ -386,7 +426,7 @@ uint32_t sock_read(sock_t* sock)
 
 	while(left > 0)
 	{
-		rc = asio_read(sock->fd, reads->writep, left, &read);
+		rc = sock_read1(sock->fd, reads->writep, left, &read);
 
 		if(rc & (ASIO_ERROR | ASIO_WOULDBLOCK))
 			break;
