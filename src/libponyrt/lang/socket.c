@@ -16,6 +16,15 @@
 typedef int SOCKET;
 #endif
 
+static bool connect_in_progress()
+{
+#ifdef PLATFORM_IS_WINDOWS
+  return WSAGetLastError() == WSAEWOULDBLOCK;
+#else
+  return errno == EINPROGRESS;
+#endif
+}
+
 static int set_nonblocking(SOCKET s)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -87,7 +96,7 @@ static int os_socket(const char* host, const char* service, int family,
         } else {
           int ok = connect(fd, p->ai_addr, p->ai_addrlen);
 
-          if((ok != 0) && (errno != EINPROGRESS))
+          if((ok != 0) && !connect_in_progress())
             r |= ok;
         }
       }
@@ -197,5 +206,16 @@ ssize_t os_send(int fd, const void* buf, size_t len)
   return send(s, buf, len, MSG_NOSIGNAL);
 #else
   return send(s, buf, len, 0);
+#endif
+}
+
+int os_closesocket(int fd)
+{
+  SOCKET s = fd;
+
+#ifdef PLATFORM_IS_WINDOWS
+  return closesocket(s);
+#else
+  return close(s);
 #endif
 }

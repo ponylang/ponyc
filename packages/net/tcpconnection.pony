@@ -88,6 +88,6 @@ actor TCPConnection
     _event = _Event.dispose(_event)
 
     if _fd != -1 then
-      @close[I32](_fd)
+      @os_closesocket[I32](_fd)
       _fd = -1
     end
