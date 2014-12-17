@@ -108,7 +108,7 @@ int pony_init(int argc, char** argv)
   scheduler_init(opt.threads, opt.forcecd);
   cycle_create();
 
-#ifndef PLATFORM_IS_WINDOWS
+#if 0
   if(opt.distrib)
   {
     dist_create(opt.port, opt.child_count, opt.master);

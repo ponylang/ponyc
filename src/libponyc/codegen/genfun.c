@@ -608,3 +608,38 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
   return true;
 }
+
+uint32_t genfun_behaviour_index(gentype_t* g, const char* name)
+{
+  if(g->underlying != TK_ACTOR)
+    return -1;
+
+  ast_t* def = (ast_t*)ast_data(g->ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  int index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      case TK_BE:
+      {
+        AST_GET_CHILDREN(member, ignore, id);
+
+        if(ast_name(id) == name)
+          return index;
+
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return -1;
+}

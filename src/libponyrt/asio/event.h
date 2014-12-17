@@ -39,8 +39,8 @@ typedef struct asio_msg_t
  *  An event is noisy, if it should prevent the runtime system from terminating
  *  based on quiescence.
  */
-asio_event_t* asio_event_create(int fd, uint32_t eflags, uint32_t msg_id,
-	bool noisy, void* udata);
+asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id, int fd,
+  uint32_t eflags, bool noisy, void* udata);
 
 /** Deallocates an ASIO event.
  *

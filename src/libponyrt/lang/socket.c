@@ -165,10 +165,16 @@ int os_connect_tcp6(const char* host, const char* service)
   return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
-asio_event_t* os_socket_event(int fd, uint32_t msg_id)
+asio_event_t* os_socket_event(pony_actor_t* handler, int fd)
 {
-  asio_event_t* ev = asio_event_create(fd, ASIO_FILT_READ | ASIO_FILT_WRITE,
-    msg_id, true, NULL);
+  pony_type_t* type = *(pony_type_t**)handler;
+  uint32_t msg_id = type->event_notify;
+
+  if(msg_id == (uint32_t)-1)
+    return NULL;
+
+  asio_event_t* ev = asio_event_create(handler, msg_id, fd,
+    ASIO_FILT_READ | ASIO_FILT_WRITE, true, NULL);
 
   asio_event_subscribe(ev);
   return ev;

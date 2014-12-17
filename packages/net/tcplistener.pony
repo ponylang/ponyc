@@ -18,7 +18,6 @@ actor TCPListener
   var _fd: U32
   var _event: Pointer[_Event]
 
-  // TODO: programmatically determine behaviour IDs
   new create(handler: TCPNewConnection, host: String = "", service: String = "")
   =>
     """
@@ -26,7 +25,7 @@ actor TCPListener
     """
     _handler = handler
     _fd = @os_listen_tcp[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 3)
+    _event = _Event.socket(this, _fd)
 
   new ip4(handler: TCPNewConnection, host: String = "", service: String = "") =>
     """
@@ -34,7 +33,7 @@ actor TCPListener
     """
     _handler = handler
     _fd = @os_listen_tcp4[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 3)
+    _event = _Event.socket(this, _fd)
 
   new ip6(handler: TCPNewConnection, host: String = "", service: String = "") =>
     """
@@ -42,9 +41,9 @@ actor TCPListener
     """
     _handler = handler
     _fd = @os_listen_tcp6[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 3)
+    _event = _Event.socket(this, _fd)
 
-  be _handle_event(event: Pointer[_Event] tag, flags: U32) =>
+  be _event_notify(event: Pointer[_Event] tag, flags: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """

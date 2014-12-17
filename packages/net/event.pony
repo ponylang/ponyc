@@ -1,3 +1,6 @@
+interface _EventNotify tag
+  be _event_notify(event: Pointer[_Event] tag, flags: U32)
+
 primitive _Event
   fun tag readable(flags: U32): Bool =>
     """
@@ -11,12 +14,12 @@ primitive _Event
     """
     (flags and (1 << 4)) != 0
 
-  fun tag socket(fd: U32, msg: U32): Pointer[_Event] =>
+  fun tag socket(e: _EventNotify, fd: U32): Pointer[_Event] =>
     """
     Creates a socket event notification.
     """
     if fd != -1 then
-      @os_socket_event[Pointer[_Event]](fd, msg)
+      @os_socket_event[Pointer[_Event]](e, fd)
     else
       Pointer[_Event]
     end

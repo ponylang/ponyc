@@ -1,7 +1,9 @@
 #include "gendesc.h"
 #include "genname.h"
 #include "gentype.h"
+#include "genfun.h"
 #include "../type/reify.h"
+#include "../ast/stringtab.h"
 #include <assert.h>
 
 #define DESC_ID 0
@@ -13,11 +15,12 @@
 #define DESC_DESERIALISE 6
 #define DESC_DISPATCH 7
 #define DESC_FINALISE 8
-#define DESC_TRAITS 9
-#define DESC_FIELDS 10
-#define DESC_VTABLE 11
+#define DESC_EVENT_NOTIFY 9
+#define DESC_TRAITS 10
+#define DESC_FIELDS 11
+#define DESC_VTABLE 12
 
-#define DESC_LENGTH 12
+#define DESC_LENGTH 13
 
 static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   const char* name)
@@ -311,6 +314,7 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
   params[DESC_DESERIALISE] = c->trace_fn;
   params[DESC_DISPATCH] = c->dispatch_fn;
   params[DESC_FINALISE] = c->final_fn;
+  params[DESC_EVENT_NOTIFY] = c->i32;
   params[DESC_TRAITS] = LLVMPointerType(LLVMArrayType(c->i32, traits), 0);
   params[DESC_FIELDS] = LLVMPointerType(
     LLVMArrayType(c->field_descriptor, fields), 0);
@@ -342,6 +346,8 @@ void gendesc_init(compile_t* c, gentype_t* g)
     c->dispatch_fn);
   args[DESC_FINALISE] = make_function_ptr(c, genname_finalise(g->type_name),
     c->final_fn);
+  args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32,
+    genfun_behaviour_index(g, stringtab("_event_notify")), false);
   args[DESC_TRAITS] = make_trait_list(c, g);
   args[DESC_FIELDS] = make_field_list(c, g);
   args[DESC_VTABLE] = make_vtable(c, g);

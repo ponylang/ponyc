@@ -722,7 +722,11 @@ static pony_type_t cycle_type =
   NULL,
   NULL,
   cycle_dispatch,
-  NULL
+  NULL,
+  0,
+  NULL,
+  NULL,
+  {}
 };
 
 void cycle_create()

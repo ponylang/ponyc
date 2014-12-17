@@ -99,13 +99,17 @@ ifneq ($(OSTYPE),windows)
   libponyrt.except += src/libponyrt/lang/win_except.c
 endif
 
-ifeq ($(OSTYPE),linux)
+ifneq ($(OSTYPE),linux)
+  libponyrt.except += src/libponyrt/asio/epoll.c
+endif
+
+ifneq ($(OSTYPE),osx)
   libponyrt.except += src/libponyrt/asio/kqueue.c
 endif
 
-ifeq ($(OSTYPE),osx)
-  libponyrt.except += src/libponyrt/asio/epoll.c
-endif
+libponyrt.except += src/libponyrt/asio/sock.c
+libponyrt.except += src/libponyrt/dist/dist.c
+libponyrt.except += src/libponyrt/dist/proto.c
 
 libponyrt-pic.dir := src/libponyrt
 libponyrt-pic.except := $(libponyrt.except)

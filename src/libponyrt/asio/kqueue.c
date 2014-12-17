@@ -74,7 +74,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 
 				asio_event_t* pev = ev->udata;
 
-				//TODO FILES etc.
+				// TODO files etc.
 				uint32_t aflags = (ev->filter & EVFILT_READ ? ASIO_READABLE : 0)
 								| (ev->filter & EVFILT_WRITE ? ASIO_WRITABLE : 0)
 								| (ev->flags & EV_EOF ? ASIO_PEER_SHUTDOWN : 0)
@@ -108,7 +108,7 @@ void asio_event_subscribe(asio_event_t* ev)
 	if(oldmask == mask)
 		return;
 
-  //EV_CLEAR enforces edge triggered behaviour
+  // EV_CLEAR enforces edge triggered behaviour.
 	EV_SET(&new_event, ev->fd, mask, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, ev);
 	kevent(b->kq, &new_event, 1, NULL, 0, &t);
 }

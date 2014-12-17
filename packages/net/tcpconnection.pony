@@ -8,36 +8,35 @@ actor TCPConnection
   var _readable: Bool = false
   var _writeable: Bool = false
 
-  // TODO: programmatically determine behaviour IDs
   new create(host: String, service: String) =>
     """
     Connect via IPv4 or IPv6.
     """
     _fd = @os_connect_tcp[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 4)
+    _event = _Event.socket(this, _fd)
 
   new ip4(host: String, service: String) =>
     """
     Connect via IPv4.
     """
     _fd = @os_connect_tcp4[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 4)
+    _event = _Event.socket(this, _fd)
 
   new ip6(host: String, service: String) =>
     """
     Connect via IPv6.
     """
     _fd = @os_connect_tcp6[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(_fd, 4)
+    _event = _Event.socket(this, _fd)
 
   new _accepted(fd: U32) =>
     """
     A new connection accepted on a server.
     """
     _fd = fd
-    _event = _Event.socket(_fd, 4)
+    _event = _Event.socket(this, _fd)
 
-  be _handle_event(event: Pointer[_Event] tag, flags: U32) =>
+  be _event_notify(event: Pointer[_Event] tag, flags: U32) =>
     if _Event.writeable(flags) then
       if not _connected then
         if not @os_connected[Bool](_fd) then
