@@ -41,10 +41,11 @@ actor TCPConnection
     if _Event.writeable(flags) then
       if not _connected then
         if not @os_connected[Bool](_fd) then
-          // TODO: notify of a failed connection?
+          // TODO: notify of a failed connection
           return _final()
         end
 
+        // TODO: notify of a successful connection
         _connected = true
       end
 
@@ -59,8 +60,19 @@ actor TCPConnection
       None
     end
 
-  be write(data: Bytes val) =>
+  be write(data: Array[U8] val) =>
     // TODO: write to the socket if we can, store for later otherwise
+    if _writeable then
+      var len = @os_send[I64](_fd, data.cstring(), data.size())
+    end
+    None
+
+  be local_bind(notify: TCPBindNotify) =>
+    // TODO: get the local name
+    None
+
+  be remote_bind(notify: TCPBindNotify) =>
+    // TODO: get the remote name
     None
 
   be dispose() =>

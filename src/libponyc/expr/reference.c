@@ -201,15 +201,15 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      if(!expr_dot(opt, dot))
-        return false;
-
       // call the default constructor with no arguments
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // receiver comes last
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
+
+      if(!expr_dot(opt, dot))
+        return false;
 
       return expr_call(opt, &call);
     }

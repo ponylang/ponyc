@@ -4,6 +4,12 @@ interface TCPNewConnection val
   """
   fun val apply(connection: TCPConnection)
 
+interface TCPBindNotify val
+  """
+  Retrieve a bound host and service.
+  """
+  fun val apply(host: String, service: String)
+
 actor TCPListener
   """
   Listens for new network connections.
@@ -59,6 +65,10 @@ actor TCPListener
     Change the handler.
     """
     _handler = handler
+
+  be local_bind(notify: TCPBindNotify) =>
+    // TODO: get the local name
+    None
 
   be dispose() =>
     """

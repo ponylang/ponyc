@@ -220,9 +220,6 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     {
       ast_error(arg, "can't use return, break or continue in an argument");
       return false;
-    } else if(ast_id(arg_type) == TK_FUNTYPE) {
-      ast_error(arg, "can't use a method as an argument");
-      return false;
     }
 
     ast_t* a_type = alias(arg_type);

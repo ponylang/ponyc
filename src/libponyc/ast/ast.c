@@ -970,6 +970,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "_");
       break;
 
+    case TK_FUNTYPE:
+      printbuf(buffer, "function");
+      break;
+
     default:
       assert(0);
   }

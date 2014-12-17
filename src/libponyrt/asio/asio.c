@@ -82,6 +82,9 @@ asio_backend_t* asio_get_backend()
 
 bool asio_stop()
 {
+	if(running_base == NULL)
+		return true;
+
 	if(__pony_atomic_load_n(
 		&running_base->noisy_count, PONY_ATOMIC_ACQUIRE, uint64_t) > 0)
 		return false;

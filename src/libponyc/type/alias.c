@@ -136,6 +136,9 @@ ast_t* alias(ast_t* type)
       return r_type;
     }
 
+    case TK_FUNTYPE:
+      return type;
+
     default: {}
   }
 
@@ -272,6 +275,9 @@ ast_t* consume_type(ast_t* type)
       return r_type;
     }
 
+    case TK_FUNTYPE:
+      return type;
+
     default: {}
   }
 
@@ -317,6 +323,9 @@ ast_t* recover_type(ast_t* type)
       ast_add(r_type, left);
       return r_type;
     }
+
+    case TK_FUNTYPE:
+      return type;
 
     default: {}
   }
@@ -371,6 +380,7 @@ bool sendable(ast_t* type)
     case TK_NUMBERLITERAL:
     case TK_INTLITERAL:
     case TK_FLOATLITERAL:
+    case TK_FUNTYPE:
       return true;
 
     default: {}

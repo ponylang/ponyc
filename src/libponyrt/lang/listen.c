@@ -170,3 +170,12 @@ bool os_connected(int fd)
 
   return val == 0;
 }
+
+ssize_t os_send(int fd, const void* buf, size_t len)
+{
+#if defined(PLATFORM_IS_LINUX)
+  return send(fd, buf, len, MSG_NOSIGNAL);
+#elif defined(PLATFORM_IS_MACOSX)
+  return send(fd, buf, len, 0);
+#endif
+}
