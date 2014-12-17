@@ -8,6 +8,25 @@
 #include <string.h>
 #include <unistd.h>
 
+#ifdef PLATFORM_IS_WINDOWS
+#include <winsock.h>
+#include <Ws2def.h>
+#include <Ws2tcpip.h>
+#else
+typedef int SOCKET;
+#endif
+
+static int set_nonblocking(SOCKET s)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  u_long flag = 1;
+  return ioctlsocket(s, FIONBIO, &flag);
+#else
+  int flags = fcntl(s, F_GETFL, 0);
+  return fcntl(s, F_SETFL, flags | O_NONBLOCK);
+#endif
+}
+
 static int os_socket(const char* host, const char* service, int family,
   int socktype, int proto, bool server)
 {
@@ -28,7 +47,7 @@ static int os_socket(const char* host, const char* service, int family,
     return -1;
 
   struct addrinfo* p = result;
-  int fd = -1;
+  SOCKET fd = -1;
 
   while(p != NULL)
   {
@@ -54,8 +73,7 @@ static int os_socket(const char* host, const char* service, int family,
 #endif
 
 #ifndef PLATFORM_IS_LINUX
-      int flags = fcntl(fd, F_GETFL, 0);
-      r |= fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+      r |= set_nonblocking(fd);
 #endif
 
       if(r == 0)
@@ -85,7 +103,7 @@ static int os_socket(const char* host, const char* service, int family,
   }
 
   freeaddrinfo(result);
-  return fd;
+  return (int)fd;
 }
 
 int os_listen_tcp(const char* host, const char* service)
@@ -144,28 +162,28 @@ asio_event_t* os_socket_event(int fd, uint32_t msg_id)
 
 int os_accept(int fd)
 {
-#ifdef PLATFORM_IS_LINUX
-  int s = accept4(fd, NULL, NULL, SOCK_NONBLOCK);
-#else
-  int s = accept(fd, NULL, NULL);
+  SOCKET s = fd;
 
-  if(s != -1)
-  {
-    int flags = fcntl(s, F_GETFL, 0);
-    fcntl(s, F_SETFL, flags | O_NONBLOCK);
-  }
+#ifdef PLATFORM_IS_LINUX
+  SOCKET ns = accept4(s, NULL, NULL, SOCK_NONBLOCK);
+#else
+  SOCKET ns = accept(s, NULL, NULL);
+
+  if(ns != -1)
+    set_nonblocking(ns);
 #endif
 
-  return s;
+  return (int)ns;
 }
 
 // Check this when a connection gets its first writeable event.
 bool os_connected(int fd)
 {
+  SOCKET s = fd;
   int val = 0;
   socklen_t len = sizeof(int);
 
-  if(getsockopt(fd, SOL_SOCKET, SO_ERROR, &val, &len) == -1)
+  if(getsockopt(s, SOL_SOCKET, SO_ERROR, &val, &len) == -1)
     return false;
 
   return val == 0;
@@ -173,9 +191,11 @@ bool os_connected(int fd)
 
 ssize_t os_send(int fd, const void* buf, size_t len)
 {
+  SOCKET s = fd;
+
 #if defined(PLATFORM_IS_LINUX)
-  return send(fd, buf, len, MSG_NOSIGNAL);
-#elif defined(PLATFORM_IS_MACOSX)
-  return send(fd, buf, len, 0);
+  return send(s, buf, len, MSG_NOSIGNAL);
+#else
+  return send(s, buf, len, 0);
 #endif
 }
