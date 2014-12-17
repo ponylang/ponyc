@@ -55,12 +55,17 @@ static void print_token(token_t* token)
 static size_t length(ast_t* ast, size_t indent, bool type)
 {
   size_t len = (indent * in_len) + strlen(token_print(ast->t));
-
   ast_t* child = ast->child;
-  bool parens = type || (child != NULL) || (ast->type != NULL);
 
-  if(parens)
+  if(type || (child != NULL) || (ast->type != NULL))
     len += 2;
+
+  switch(token_get_id(ast->t))
+  {
+    case TK_STRING: len += 6; break;
+    case TK_ID: len += 5; break;
+    default: {}
+  }
 
   if(ast->symtab != NULL)
     len += 6;
@@ -122,6 +127,7 @@ static void print_extended(ast_t* ast, size_t indent, bool type)
     printf(type ? "[" : "(");
 
   print_token(ast->t);
+
   if(ast->symtab != NULL)
     printf(":scope");
 
@@ -149,7 +155,7 @@ static void print(ast_t* ast, size_t indent, bool type)
 {
   size_t len = length(ast, indent, type);
 
-  if(len <= width)
+  if(len < width)
   {
     print_compact(ast, indent, type);
   } else {
