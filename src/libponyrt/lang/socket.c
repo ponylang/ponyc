@@ -1,20 +1,24 @@
 #include "../asio/asio.h"
 #include "../asio/event.h"
 #include <stdbool.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <netdb.h>
 #include <string.h>
-#include <unistd.h>
+#include <platform.h>
 
 #ifdef PLATFORM_IS_WINDOWS
-#include <winsock.h>
-#include <Ws2def.h>
-#include <Ws2tcpip.h>
+#include <ws2tcpip.h>
+#include <winSock2.h>
 #else
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
 typedef int SOCKET;
 #endif
+
+PONY_EXTERN_C_BEGIN
+
+int os_closesocket(int fd);
 
 static bool connect_in_progress()
 {
@@ -44,7 +48,7 @@ static int os_socket(const char* host, const char* service, int family,
   hints.ai_flags = AI_ADDRCONFIG;
   hints.ai_family = family;
   hints.ai_socktype = socktype;
-	hints.ai_protocol = proto;
+  hints.ai_protocol = proto;
 
   if(server)
     hints.ai_flags |= AI_PASSIVE;
@@ -73,7 +77,7 @@ static int os_socket(const char* host, const char* service, int family,
       if(server)
       {
         int reuseaddr = 1;
-        r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int));
+        r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr, sizeof(int));
       }
 
 #ifdef PLATFORM_IS_MACOSX
@@ -89,12 +93,13 @@ static int os_socket(const char* host, const char* service, int family,
       {
         if(server)
         {
-          r |= bind(fd, p->ai_addr, p->ai_addrlen);
+          r |= bind(fd, p->ai_addr, (int)p->ai_addrlen);
 
           if((r == 0) && (socktype == SOCK_STREAM))
             r |= listen(fd, SOMAXCONN);
-        } else {
-          int ok = connect(fd, p->ai_addr, p->ai_addrlen);
+        }
+        else {
+          int ok = connect(fd, p->ai_addr, (int)p->ai_addrlen);
 
           if((ok != 0) && !connect_in_progress())
             r |= ok;
@@ -104,7 +109,7 @@ static int os_socket(const char* host, const char* service, int family,
       if(r == 0)
         break;
 
-      close(fd);
+      os_closesocket((int)fd);
       fd = -1;
     }
 
@@ -192,7 +197,7 @@ bool os_connected(int fd)
   int val = 0;
   socklen_t len = sizeof(int);
 
-  if(getsockopt(s, SOL_SOCKET, SO_ERROR, &val, &len) == -1)
+  if(getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&val, &len) == -1)
     return false;
 
   return val == 0;
@@ -205,7 +210,7 @@ ssize_t os_send(int fd, const void* buf, size_t len)
 #if defined(PLATFORM_IS_LINUX)
   return send(s, buf, len, MSG_NOSIGNAL);
 #else
-  return send(s, buf, len, 0);
+  return send(s, (const char*)buf, (int)len, 0);
 #endif
 }
 
@@ -219,3 +224,5 @@ int os_closesocket(int fd)
   return close(s);
 #endif
 }
+
+PONY_EXTERN_C_END
