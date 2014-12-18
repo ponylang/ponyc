@@ -192,7 +192,7 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
       // The current control type is not a literal, fix that
       ast_t* old_control = control_type;
       control_type = ast_from(branch, TK_LITERAL);
-      ast_add(control_type, old_control);
+      ast_settype(control_type, old_control);
     }
 
     assert(ast_id(control_type) == TK_LITERAL);

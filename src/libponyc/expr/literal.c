@@ -464,7 +464,10 @@ static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
 
   for(ast_t* p = ast_child(lit_type); p != NULL; p = ast_sibling(p))
   {
+    assert(ast_id(p) == TK_LITERALBRANCH);
     ast_t* branch = (ast_t*)ast_data(p);
+    assert(branch != NULL);
+
     if(!coerce_literal_to_type(branch, target_type, cached_type))
     {
       ast_free_unattached(block_type);

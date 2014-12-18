@@ -32,7 +32,7 @@ primitive Time
       var nsec = (epoch - (sec * 10000000)) * 100
       (sec, nsec)
     else
-      (I64(0), I64(0))
+      (0, 0)
     end
 
   fun tag nanos(): U64 =>
