@@ -1,4 +1,4 @@
-#ifdef PLATFORM_IS_LINUX
+#ifdef __linux__
 #define _GNU_SOURCE
 #endif
 #include <platform.h>
