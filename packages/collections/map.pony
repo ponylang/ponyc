@@ -19,6 +19,18 @@ primitive _MapDeleted
 //   fun box eq(that: Identity[A] box): Bool =>
 //     _item is that._item
 
+interface Hasher[A]
+  fun box hash(a: A): U64
+  fun box compare(a: A, b: A): Bool
+
+primitive ValueHasher[A: (Hashable box & Comparable[A] box)]
+  fun box hash(a: A): U64 => a.hash()
+  fun box compare(a: A, b: A): Bool => a == b
+
+// primitive IdentityHasher[A]
+//   fun box hash(a: A): U64 => a // pointer hash somehow?
+//   fun box compare(a: A, b: A): Bool => a is b
+
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
   """
   A quadratic probing hash map. Resize occurs at a load factor of 0.75. A

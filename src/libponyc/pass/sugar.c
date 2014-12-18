@@ -223,27 +223,21 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 
 static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, ignore0, id, ignore2, ignore3, result);
-
-  if(ast_id(id) == TK_NONE)
-  {
-    // Set the name to "create" if there isn't one
-    ast_replace(&id, ast_from_string(id, "create"));
-  }
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
   // Return type is This ref^ for classes, This val^ for primitives, and
   // This tag^ for actors.
   assert(ast_id(result) == TK_NONE);
-  token_id cap;
+  token_id tcap;
 
   switch(ast_id(t->frame->type))
   {
-    case TK_PRIMITIVE: cap = TK_VAL; break;
-    case TK_ACTOR: cap = TK_TAG; break;
-    default: cap = TK_REF; break;
+    case TK_PRIMITIVE: tcap = TK_VAL; break;
+    case TK_ACTOR: tcap = TK_TAG; break;
+    default: tcap = TK_REF; break;
   }
 
-  ast_replace(&result, type_for_this(t, ast, cap, TK_EPHEMERAL));
+  ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
   return AST_OK;
 }
 
@@ -261,11 +255,7 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 
 static ast_result_t sugar_fun(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, ignore0, id, ignore2, ignore3, result, ignore5, body);
-
-  // Set the name to "apply" if there isn't one
-  if(ast_id(id) == TK_NONE)
-    ast_replace(&id, ast_from_string(id, "apply"));
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
   // Return value is not specified, set it to None
   if(ast_id(result) == TK_NONE)

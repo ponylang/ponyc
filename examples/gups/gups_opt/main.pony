@@ -24,7 +24,7 @@ actor Main
     try
       arguments()
 
-      var size = (U64(1) << _logtable) / _actor_count
+      var size = (1 << _logtable) / _actor_count
       updates = _chunk * _iterate * _actor_count
 
       let count = _actor_count
@@ -210,7 +210,7 @@ class PolyRand
 
   fun ref apply(): U64 =>
     last = (last << 1) xor
-      if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
+      if (last and (1 << 63)) != 0 then poly else 0 end
 
   fun ref _seed(seed: U64) =>
     var n = seed % period
@@ -228,7 +228,7 @@ class PolyRand
       end
 
       var i: U64 = 64 - n.clz()
-      last = U64(2)
+      last = 2
 
       while i > 0 do
         var temp: U64 = 0

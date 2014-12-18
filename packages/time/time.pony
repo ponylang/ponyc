@@ -54,7 +54,7 @@ primitive Time
       var qpc = pc._1.u64() or (pc._2.u64() << 32)
       (qpc * 1000000000) / qpf
     else
-      U64(0)
+      0
     end
 
   fun tag cycles(): U64 =>

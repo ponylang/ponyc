@@ -182,7 +182,7 @@ class File
         @ftell[U64](_handle)
       end
     else
-      U64(0)
+      0
     end
 
   fun ref size(): U64 =>

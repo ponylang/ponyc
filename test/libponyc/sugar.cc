@@ -291,11 +291,11 @@ TEST(SugarTest, TypeParamWithoutConstraint)
 }
 
 
-TEST(SugarTest, ConstructorNoNameNoReturnType)
+TEST(SugarTest, ConstructorNoReturnType)
 {
   const char* short_form =
     "class Foo ref var y:U32\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "class Foo ref var y:U32\n"
@@ -309,7 +309,7 @@ TEST(SugarTest, ConstructorInActor)
 {
   const char* short_form =
     "actor Foo var y:U32\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "actor Foo tag var y:U32\n"
@@ -323,7 +323,7 @@ TEST(SugarTest, ConstructorInDataType)
 {
   const char* short_form =
     "primitive Foo\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "primitive Foo val\n"
@@ -364,18 +364,6 @@ TEST(SugarTest, FunctionComplete)
     "class Foo ref var y:U32 fun box foo(): U32 val => 3";
 
   DO(test_good_sugar(short_form, short_form));
-}
-
-
-TEST(SugarTest, FunctionNoName)
-{
-  const char* short_form =
-    "class Foo ref var y:U32 fun box (): U32 val => 3";
-
-  const char* full_form =
-    "class Foo ref var y:U32 fun box apply(): U32 val => 3";
-
-  DO(test_good_sugar(short_form, full_form));
 }
 
 
