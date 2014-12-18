@@ -114,7 +114,11 @@ typedef const struct _pony_type_t
   uint32_t event_notify;
   uint32_t** traits;
   void* fields;
+#ifndef _MSC_VER
   void* vtable[0];
+#else
+  void* vtable;
+#endif
 } pony_type_t;
 
 /// This function must be supplied by the program, not the runtime.

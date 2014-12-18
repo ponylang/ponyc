@@ -303,7 +303,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib\"",
+    "%s %s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
     vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
     );
 

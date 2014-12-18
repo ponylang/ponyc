@@ -4,7 +4,6 @@
 
 #include <string.h>
 
-<<<<<<< Updated upstream
 asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
   uint64_t fd, uint32_t eflags, bool noisy, void* udata)
 {

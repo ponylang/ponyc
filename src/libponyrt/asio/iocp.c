@@ -30,13 +30,6 @@ void asio_backend_terminate(asio_backend_t* b)
 
 DEFINE_THREAD_FN(asio_backend_dispatch,
 {
-  asio_backend_t* b = (asio_backend_t*)arg;
-
-  while(true)
-  {
-
-  }
-
   return NULL;
 });
 
