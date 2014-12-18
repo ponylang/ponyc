@@ -167,46 +167,79 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
-      // doesn't have to be valid yet
+      // Doesn't have to be valid yet.
       break;
 
     case TK_DOT:
-      // has to be valid
+      // Has to be valid.
       return expr_nominal(t, &type);
 
     case TK_CALL:
     {
-      // has to be valid
+      // Has to be valid.
       if(!expr_nominal(t, &type))
         return false;
 
-      // transform to a default constructor
+      // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      return expr_dot(opt, dot);
+      if(!expr_dot(opt, dot))
+        return false;
+
+      // If the default constructor has no parameters, transform to an apply
+      // call.
+      if(ast_id(dot) == TK_NEWREF)
+      {
+        type = ast_type(dot);
+        assert(ast_id(type) == TK_FUNTYPE);
+        AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+        if(ast_id(params) == TK_NONE)
+        {
+          // Add a call node.
+          ast_t* call = ast_from(dot, TK_CALL);
+          ast_add(call, ast_from(call, TK_NONE)); // Named
+          ast_add(call, ast_from(call, TK_NONE)); // Positional
+          ast_swap(dot, call);
+          ast_append(call, dot);
+
+          if(!expr_call(opt, &call))
+            return false;
+
+          // Add a dot node.
+          ast_t* apply = ast_from(call, TK_DOT);
+          ast_add(apply, ast_from_string(call, "apply"));
+          ast_swap(call, apply);
+          ast_add(apply, call);
+
+          if(!expr_dot(opt, apply))
+            return false;
+        }
+      }
+      return true;
     }
 
     default:
     {
-      // has to be valid
+      // Has to be valid.
       if(!expr_nominal(t, &type))
         return false;
 
-      // transform to a default constructor
+      // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      // call the default constructor with no arguments
+      // Call the default constructor with no arguments.
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
-      ast_add(call, dot); // receiver comes last
-      ast_add(call, ast_from(ast, TK_NONE)); // named args
-      ast_add(call, ast_from(ast, TK_NONE)); // positional args
+      ast_add(call, dot); // Receiver comes last.
+      ast_add(call, ast_from(ast, TK_NONE)); // Named args.
+      ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
 
       if(!expr_dot(opt, dot))
         return false;
