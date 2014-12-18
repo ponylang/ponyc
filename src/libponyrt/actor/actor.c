@@ -215,16 +215,6 @@ void actor_setnext(pony_actor_t* actor, pony_actor_t* next)
   actor->next = next;
 }
 
-void actor_inc_rc()
-{
-  this_actor->gc.rc++;
-}
-
-void actor_dec_rc()
-{
-  this_actor->gc.rc--;
-}
-
 pony_actor_t* pony_create(pony_type_t* type)
 {
   assert(type != NULL);

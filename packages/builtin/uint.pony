@@ -1,11 +1,5 @@
-primitive U8 is Integer[U8]
+primitive U8 is UnsignedInteger[U8]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U8): U8 =>
-    if this > that then this else that end
-
-  fun box min(that: U8): U8 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U8 =>
     var x = this - 1
@@ -15,11 +9,14 @@ primitive U8 is Integer[U8]
     x + 1
 
   fun box abs(): U8 => this
+  fun box max(that: U8): U8 => if this > that then this else that end
+  fun box min(that: U8): U8 => if this < that then this else that end
+
   fun box bswap(): U8 => this
   fun box popcount(): U8 => @"llvm.ctpop.i8"[U8](this)
   fun box clz(): U8 => @"llvm.ctlz.i8"[U8](this, false)
   fun box ctz(): U8 => @"llvm.cttz.i8"[U8](this, false)
-  fun box width(): U8 => 8
+  fun box bitwidth(): U8 => 8
 
   fun box addc(y: U8): (U8, Bool) =>
     @"llvm.uadd.with.overflow.i8"[(U8, Bool)](this, y)
@@ -28,16 +25,8 @@ primitive U8 is Integer[U8]
   fun box mulc(y: U8): (U8, Bool) =>
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
-
-primitive U16 is Integer[U16]
+primitive U16 is UnsignedInteger[U16]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U16): U16 =>
-    if this > that then this else that end
-
-  fun box min(that: U16): U16 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U16 =>
     var x = this - 1
@@ -48,11 +37,14 @@ primitive U16 is Integer[U16]
     x + 1
 
   fun box abs(): U16 => this
+  fun box max(that: U16): U16 => if this > that then this else that end
+  fun box min(that: U16): U16 => if this < that then this else that end
+
   fun box bswap(): U16 => @"llvm.bswap.i16"[U16](this)
   fun box popcount(): U16 => @"llvm.ctpop.i16"[U16](this)
   fun box clz(): U16 => @"llvm.ctlz.i16"[U16](this, false)
   fun box ctz(): U16 => @"llvm.cttz.i16"[U16](this, false)
-  fun box width(): U16 => 16
+  fun box bitwidth(): U16 => 16
 
   fun box addc(y: U16): (U16, Bool) =>
     @"llvm.uadd.with.overflow.i16"[(U16, Bool)](this, y)
@@ -61,16 +53,8 @@ primitive U16 is Integer[U16]
   fun box mulc(y: U16): (U16, Bool) =>
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
-
-primitive U32 is Integer[U32]
+primitive U32 is UnsignedInteger[U32]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U32): U32 =>
-    if this > that then this else that end
-
-  fun box min(that: U32): U32 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U32 =>
     var x = this - 1
@@ -82,11 +66,14 @@ primitive U32 is Integer[U32]
     x + 1
 
   fun box abs(): U32 => this
+  fun box max(that: U32): U32 => if this > that then this else that end
+  fun box min(that: U32): U32 => if this < that then this else that end
+
   fun box bswap(): U32 => @"llvm.bswap.i32"[U32](this)
   fun box popcount(): U32 => @"llvm.ctpop.i32"[U32](this)
   fun box clz(): U32 => @"llvm.ctlz.i32"[U32](this, false)
   fun box ctz(): U32 => @"llvm.cttz.i32"[U32](this, false)
-  fun box width(): U32 => 32
+  fun box bitwidth(): U32 => 32
 
   fun box addc(y: U32): (U32, Bool) =>
     @"llvm.uadd.with.overflow.i32"[(U32, Bool)](this, y)
@@ -95,17 +82,8 @@ primitive U32 is Integer[U32]
   fun box mulc(y: U32): (U32, Bool) =>
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u64(u64(), 10) end
-  fun box character(): String iso^ => recover String.append_utf32(this) end
-
-primitive U64 is Integer[U64]
+primitive U64 is UnsignedInteger[U64]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U64): U64 =>
-    if this > that then this else that end
-
-  fun box min(that: U64): U64 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U64 =>
     var x = this - 1
@@ -118,11 +96,14 @@ primitive U64 is Integer[U64]
     x + 1
 
   fun box abs(): U64 => this
+  fun box max(that: U64): U64 => if this > that then this else that end
+  fun box min(that: U64): U64 => if this < that then this else that end
+
   fun box bswap(): U64 => @"llvm.bswap.i64"[U64](this)
   fun box popcount(): U64 => @"llvm.ctpop.i64"[U64](this)
   fun box clz(): U64 => @"llvm.ctlz.i64"[U64](this, false)
   fun box ctz(): U64 => @"llvm.cttz.i64"[U64](this, false)
-  fun box width(): U64 => 64
+  fun box bitwidth(): U64 => 64
 
   fun box addc(y: U64): (U64, Bool) =>
     @"llvm.uadd.with.overflow.i64"[(U64, Bool)](this, y)
@@ -131,16 +112,8 @@ primitive U64 is Integer[U64]
   fun box mulc(y: U64): (U64, Bool) =>
     @"llvm.umul.with.overflow.i64"[(U64, Bool)](this, y)
 
-  fun box string(): String iso^ => recover String.from_u64(this, 10) end
-
-primitive U128 is Integer[U128]
+primitive U128 is UnsignedInteger[U128]
   new create(from: U128) => compiler_intrinsic
-
-  fun box max(that: U128): U128 =>
-    if this > that then this else that end
-
-  fun box min(that: U128): U128 =>
-    if this < that then this else that end
 
   fun box next_pow2(): U128 =>
     var x = this - 1
@@ -154,13 +127,20 @@ primitive U128 is Integer[U128]
     x + 1
 
   fun box abs(): U128 => this
+  fun box max(that: U128): U128 => if this > that then this else that end
+  fun box min(that: U128): U128 => if this < that then this else that end
+
   fun box bswap(): U128 => @"llvm.bswap.i128"[U128](this)
   fun box popcount(): U128 => @"llvm.ctpop.i128"[U128](this)
   fun box clz(): U128 => @"llvm.ctlz.i128"[U128](this, false)
   fun box ctz(): U128 => @"llvm.cttz.i128"[U128](this, false)
-  fun box width(): U128 => 128
+  fun box bitwidth(): U128 => 128
 
-  fun box string(): String iso^ => recover String.from_u128(this, 10) end
+  fun box string(fmt: IntFormat = FormatDefault,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    align: Align = AlignRight, fill: U32 = ' '): String iso^
+  =>
+    ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
 
   fun box divmod(y: U128): (U128, U128) =>
     if Platform.has_i128() then

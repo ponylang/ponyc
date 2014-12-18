@@ -1,9 +1,13 @@
 .DS_Store
 *.o
+*.obj
 *.s
 *.ll
 *.bc
+*.a
+*.exe
 build/
-work
+work/
+output/
 .gitattributes
 _ReSharper.*

@@ -141,7 +141,7 @@ static matchtype_t could_subtype_trait_nominal(ast_t* sub, ast_t* super)
       if(!is_subtype(sub, r_type))
       {
         ast_free_unattached(r_type);
-        return MATCHTYPE_ACCEPT;
+        return MATCHTYPE_DENY;
       }
 
       // Otherwise, accept.
@@ -184,6 +184,33 @@ static matchtype_t could_subtype_trait(ast_t* sub, ast_t* super)
   return MATCHTYPE_DENY;
 }
 
+static matchtype_t could_subtype_entity(ast_t* sub, ast_t* super)
+{
+  switch(ast_id(super))
+  {
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return could_subtype_or_deny(sub, super);
+
+    case TK_UNIONTYPE:
+      return could_subtype_with_union(sub, super);
+
+    case TK_ISECTTYPE:
+      return could_subtype_with_isect(sub, super);
+
+    case TK_TUPLETYPE:
+      return MATCHTYPE_REJECT;
+
+    case TK_ARROW:
+      return could_subtype_with_arrow(sub, super);
+
+    default: {}
+  }
+
+  assert(0);
+  return MATCHTYPE_DENY;
+}
+
 static matchtype_t could_subtype_nominal(ast_t* sub, ast_t* super)
 {
   ast_t* def = (ast_t*)ast_data(sub);
@@ -193,7 +220,7 @@ static matchtype_t could_subtype_nominal(ast_t* sub, ast_t* super)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
-      return could_subtype_or_deny(sub, super);
+      return could_subtype_entity(sub, super);
 
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -230,20 +257,25 @@ static matchtype_t could_subtype_union(ast_t* sub, ast_t* super)
 
 static matchtype_t could_subtype_isect(ast_t* sub, ast_t* super)
 {
-  // All components type must be a possible match with the supertype.
+  // If any component is a match, we're a match. Otherwise return the worst
+  // of reject or deny.
   ast_t* child = ast_child(sub);
+  matchtype_t ok = MATCHTYPE_REJECT;
 
   while(child != NULL)
   {
-    matchtype_t ok = could_subtype(child, super);
+    matchtype_t sub_ok = could_subtype(child, super);
 
-    if(ok != MATCHTYPE_ACCEPT)
-      return ok;
+    if(sub_ok == MATCHTYPE_ACCEPT)
+      return sub_ok;
+
+    if(ok == MATCHTYPE_DENY)
+      ok = sub_ok;
 
     child = ast_sibling(child);
   }
 
-  return MATCHTYPE_ACCEPT;
+  return ok;
 }
 
 static matchtype_t could_subtype_tuple_tuple(ast_t* sub, ast_t* super)
@@ -306,8 +338,8 @@ static matchtype_t could_subtype_arrow(ast_t* sub, ast_t* super)
     AST_GET_CHILDREN(sub, sub_left, sub_right);
     AST_GET_CHILDREN(super, super_left, super_right);
 
-    if(is_eqtype(sub_left, super_left) && could_subtype(sub_right, super_right))
-      return MATCHTYPE_ACCEPT;
+    if(is_eqtype(sub_left, super_left))
+      return could_subtype(sub_right, super_right);
   }
 
   // Check the upper bounds.

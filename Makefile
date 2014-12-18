@@ -23,6 +23,13 @@ ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
 config ?= debug
 
+ifdef use
+  ifneq (,$(filter $(use), numa))
+    ALL_CFLAGS += -DUSE_NUMA
+		LINK_NUMA = true
+	endif
+endif
+
 ifndef verbose
   SILENT = @
 else
@@ -92,13 +99,17 @@ ifneq ($(OSTYPE),windows)
   libponyrt.except += src/libponyrt/lang/win_except.c
 endif
 
-ifeq ($(OSTYPE),linux)
+ifneq ($(OSTYPE),linux)
+  libponyrt.except += src/libponyrt/asio/epoll.c
+endif
+
+ifneq ($(OSTYPE),osx)
   libponyrt.except += src/libponyrt/asio/kqueue.c
 endif
 
-ifeq ($(OSTYPE),osx)
-  libponyrt.except += src/libponyrt/asio/epoll.c
-endif
+libponyrt.except += src/libponyrt/asio/sock.c
+libponyrt.except += src/libponyrt/dist/dist.c
+libponyrt.except += src/libponyrt/dist/proto.c
 
 libponyrt-pic.dir := src/libponyrt
 libponyrt-pic.except := $(libponyrt.except)
@@ -164,6 +175,12 @@ libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
+  ifeq ($(LINK_NUMA),true)
+    ponyc.links += numa
+		libponyc.tests.links += numa
+		libponyrt.tests.links += numa
+  endif
+
   ponyc.links += pthread dl
   libponyc.tests.links += pthread dl
   libponyrt.tests.links += pthread
@@ -235,7 +252,7 @@ endef
 
 define CONFIGURE_COMPILER
   $(eval compiler := $(CC))
-  $(eval flags := $(ALL_CFLAGS))
+  $(eval flags := $(ALL_CFLAGS) $(CFLAGS) $(CXXFLAGS))
 
   ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)

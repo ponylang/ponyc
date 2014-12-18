@@ -43,19 +43,6 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun ref _copy(offset: U64, src: Pointer[A] box, len: U64): U64 =>
-    """
-    Copy len instances of A from src to &this[offset]
-    """
-    compiler_intrinsic
-
-  fun box _concat(len: U64, that: Pointer[A] box, thatlen: U64): Pointer[A] iso^
-    =>
-    """
-    Create a new array that is this + that, length len + thatlen.
-    """
-    compiler_intrinsic
-
   fun tag u64(): U64 =>
     """
     Convert the pointer into a 64 bit integer.

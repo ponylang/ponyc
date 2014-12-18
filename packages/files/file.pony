@@ -125,6 +125,26 @@ class File
       recover Array[U8] end
     end
 
+  fun ref read_string(len: U64): String iso^ =>
+    """
+    Returns up to len bytes. The resulting string may have internal null
+    characters.
+    """
+    if not _handle.is_null() then
+      var result = recover String(len) end
+
+      var r = if Platform.linux() then
+        @fread_unlocked[U64](result.cstring(), U64(1), len, _handle)
+      else
+        @fread[U64](result.cstring(), U64(1), len, _handle)
+      end
+
+      result.truncate(r)
+      consume result
+    else
+      recover String end
+    end
+
   fun ref print(data: Bytes box): Bool =>
     """
     Same as write, buts adds a newline.

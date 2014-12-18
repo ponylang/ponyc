@@ -1,11 +1,11 @@
 use "collections"
 
-primitive StringArgument is Comparable[StringArgument]
-primitive I64Argument is Comparable[I64Argument]
-primitive F64Argument is Comparable[F64Argument]
-primitive ParseError is Comparable[ParseError]
+primitive StringArgument
+primitive I64Argument
+primitive F64Argument
+primitive ParseError
 
-primitive _Ambiguous is Comparable[_Ambiguous]
+primitive _Ambiguous
 
 type _Match is (None | Option | _Ambiguous)
 type _ArgType is (None | StringArgument | I64Argument | F64Argument)
@@ -21,7 +21,7 @@ class Option is Stringable
 
   new create(name': String, short': (String | None), help: (String | None),
     arg': _ArgType)
-    =>
+  =>
     name = name'
     short = short'
     arg = arg'
@@ -34,33 +34,36 @@ class Option is Stringable
   fun ref add_param(value: String, help: (String | None)) =>
     _domain.append((value, help))
 
-  fun ref accepts(value: String val): Bool =>
+  fun ref accepts(value: String): Bool =>
     try
       for (v, h) in _domain.values() do
         if v == value then return true end
       end
     end
-
     false
 
   fun ref requires_arg(): Bool =>
     match arg
-    | None => return false
+    | None => false
+    else
+      true
     end
-    true
 
   fun box token(): String =>
     match (name, short)
-    | (String, var s: String) => return "(" + name + ", " + s + ")"
+    | (String, var s: String) => "(" + name + ", " + s + ")"
+    else
+      "\"" + name + "\""
     end
 
-    "\"" + name + "\""
-
   //TODO: Requires proper string formatter
-  fun box string(): String =>
-    ""
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1,
+    width: U64 = 0, align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  =>
+    recover String end
 
-class Options ref is Iterator[_Result]
+class Options is Iterator[_Result]
   var _env: Env
   var _args: Array[String ref]
   var _configuration: Array[(String | Option)]
@@ -89,7 +92,7 @@ class Options ref is Iterator[_Result]
 
   fun ref add(name: String, short: (String | None), help: (String | None),
     arg: _ArgType): Options
-    =>
+  =>
     _configuration.append(Option(name, short, help, arg))
     this
 
@@ -177,9 +180,9 @@ class Options ref is Iterator[_Result]
       let current = _args(_index)
 
       if option.requires_arg() then
-        //if current is non-empty the rest (without - or =) must be the arg.
-        current.strip_char('-')
-        current.strip_char('=')
+        // If current is non-empty the rest (without - or =) must be the arg.
+        current.strip("-")
+        current.strip("=")
       end
 
       let len = current.size()

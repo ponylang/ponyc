@@ -118,38 +118,6 @@ static const char* get_link_path()
   return stringtab(buf);
 }
 
-static int behaviour_index(gentype_t* g, const char* name)
-{
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  int index = 0;
-
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      case TK_BE:
-      {
-        AST_GET_CHILDREN(member, ignore, id);
-
-        if(ast_name(id) == name)
-          return index;
-
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return -1;
-}
-
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 {
   LLVMTypeRef params[2];
@@ -196,7 +164,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  int index = behaviour_index(main_g, stringtab("create"));
+  uint32_t index = genfun_behaviour_index(main_g, stringtab("create"));
   args[1] = LLVMConstInt(c->i32, 0, false);
   args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
@@ -299,7 +267,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "-o %s "
     "%scrt1.o "
     "%scrti.o "
-    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    "%s %s %s -lponyrt -lnuma -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
     );
 
@@ -335,7 +303,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib\"",
+    "%s %s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
     vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
     );
 

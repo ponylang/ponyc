@@ -1,9 +1,8 @@
+//use "math"
+
 type _LeafNode is (String, U64)
 type _ConcatNode is (Rope, Rope)
 type _RopeNode is (_LeafNode | _ConcatNode)
-
-interface _Collector
-  fun ref apply(string: String box): String ref
 
 class Rope val is Stringable, Ordered[Rope]
   var _size: U64
@@ -23,20 +22,51 @@ class Rope val is Stringable, Ordered[Rope]
       let right = recover Rope(from.substring(offset, -1), blocksize) end
 
       _size = left._size + right._size
-      _depth = left._depth.max(right._depth)
+      _depth = left._depth.max(right._depth) + 1
       _linebreaks = left._linebreaks + right._linebreaks
       node = (consume left, consume right)
     end
 
-  fun box size(): U64 => _size
-  fun box depth(): U64 => _depth
-  fun box linebreaks(): U64 => _linebreaks
+  fun val size(): U64 => _size
+  fun val depth(): U64 => _depth
+  fun val linecount(): U64 => _linebreaks
 
   /*fun box apply(index: U64): U8 ? =>
     """
     Returns the byte at the given index. Raise an error if the index is out of
     bounds.
     """*/
+
+  fun val count(s: String): U64 =>
+    """
+    Counts the non-overlapping occurrences of s in the Rope.
+    """
+    0
+
+  fun val find(s: String, nth: U64): I64 ? =>
+    """
+    Returns the index of the nth occurrence of s in this Rope. Raise an error
+    if there is no n-th occurrence or if this Rope is empty.
+    """
+    match (node, nth)
+    | ((var left: Rope, var right: Rope), var n: U64) =>
+      let left_included =
+        if s == "\n" then
+          left._linebreaks
+        else
+          left.count(s)
+        end
+
+      if n <= left_included then
+        left.find(s, n)
+      else
+        left._size.i64() + right.find(s, n - left_included)
+      end
+    | ((var leaf: String, _), var n: U64) =>
+      leaf.find("\n" where nth = n)
+    else
+      error //TODO exhaustive match
+    end
 
   fun val concat(that: Rope): Rope =>
     """
@@ -59,14 +89,60 @@ class Rope val is Stringable, Ordered[Rope]
     Returns true if this Rope contains that Rope, false otherwise.
     """*/
 
-  fun box subrope(start: I64, length: I64): Rope =>
+  fun val subrope(start: I64, offset: I64): Rope =>
     """
-    Returns a Rope that contains all bytes of this Rope within
-    [start, start+length].
+    Returns a Rope that contains all bytes of this Rope[start, start+offset].
+    Returns an empty Rope if the requested range is out of bounds.
     """
-    recover Rope end
+    let recurse = object
+      fun tag apply(start: I64, offset: I64, node: _RopeNode): Rope =>
+        match node
+        | (var l: Rope, var r: Rope) =>
+          let spans_left = (start <= 0) and (offset >= l.size().i64())
+          let spans_right = (start <= l.size().i64()) and
+            ((start + offset) >= (l.size() + r.size()).i64())
 
-  fun box position(cursor: U64): (U64, U64) /*?*/ =>
+          let left =
+            if spans_left then
+              l
+            else
+              l.subrope(start, offset)
+            end
+
+          let right =
+            if spans_right then
+              r
+            else
+              r.subrope(start - l.size().i64(), offset - left.size().i64())
+            end
+
+          left.concat(right)
+        | (var leaf: String, var size: U64) =>
+          recover Rope(leaf.substring(start, offset), size) end
+        else
+          //TODO: exhaustive match
+          recover Rope end
+        end
+    end
+
+    if (offset <= 0) or (start >= _size.i64()) then
+      recover Rope end
+    else
+      recurse(start, offset, node)
+    end
+
+  fun val readlines(start: U64, n: U64 = 1): Rope =>
+    """
+    Returns a Rope that holds up to n many lines starting from the line
+    number denoted by start.
+    """
+    let marker = find("\n", start)
+    let cursor = find("\n", start + n)
+    let length = (marker.i64() - cursor.i64()).abs()
+
+    subrope(marker.min(cursor).i64(), length)
+
+  fun val position(cursor: U64): (U64, U64) /*?*/ =>
     """
     Returns the line and column position based on an absolute cursor position
     within a Rope. Raise an error if the cursor position is out of bounds.
@@ -79,12 +155,15 @@ class Rope val is Stringable, Ordered[Rope]
     with the minimal external path length for a given text instance.
     """*/
 
-  fun box string(): String =>
+  fun box string(fmt: FormatDefault = FormatDefault,
+    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+    align: Align = AlignLeft, fill: U32 = ' '): String iso^
+  =>
     """
     Converts a Rope to a String.
     """
     let len = _size
-    let str = recover String.prealloc(len) end
+    let str = recover String(len) end
 
     let traverse = object
       fun tag apply(result: String iso!, rope: Rope box) =>
@@ -100,16 +179,24 @@ class Rope val is Stringable, Ordered[Rope]
     traverse(str, this)
     consume str
 
+  //Put this in once Fibonacci compiles (literal inference with generics)
+  //fun box balanced(): Bool =>
+  //  """
+  //  Returns true if the given Rope is balanced, false otherwise.
+  //  """
+  //  Fibonacci(_depth + 2) <= _size
+
   fun box eq(that: Rope): Bool =>
     """
-    Returns true if this is structurally equivalent to that, false otherwise.
+    Returns true if this Rope is structurally equivalent to that Rope,
+    false otherwise.
     """
     false
 
   fun box lt(that: Rope): Bool =>
     """
-    Returns true if all strings in this are less than all strings in that, false
-    otherwise.
+    Returns true if all strings in this Rope are less than all strings in that
+    Rope, false otherwise.
     """
     false
 
@@ -120,15 +207,31 @@ class Rope val is Stringable, Ordered[Rope]
     RopeLeafIterator(this)
 
   fun box chars(): RopeCharIterator =>
-    RopeCharIterator(this)
+    RopeCharIterator(this) */
 
-  fun box lines(): RopeLineIterator =>
-    RopeLineIterator(this)
+  fun val lines(steps: U64 = 1): RopeLineIterator =>
+    RopeLineIterator(this, steps)
 
-class RopeNodeIterator is Iterable[Rope]
+/*class RopeNodeIterator is Iterator[Rope]
 
-class RopeLeafIterator is Iterable[String]
+class RopeLeafIterator is Iterator[String]
 
-class RopeCharIterator is Iterable[U8]
+class RopeCharIterator is Iterator[U8] */
 
-class RopeLineIterator is Iterable[String]*/
+class RopeLineIterator is Iterator[String]
+  let _rope: Rope
+  let _steps: U64
+  var _index: U64
+
+  new create(rope: Rope, steps: U64) =>
+    _rope = rope
+    _steps = steps
+    _index = 0
+
+  fun ref has_next(): Bool =>
+    _index < _rope.size()
+
+  fun ref next(): String =>
+    let line = _rope.readlines(index, steps)
+    index = index + steps
+    line.string()

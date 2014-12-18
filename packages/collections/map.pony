@@ -4,8 +4,8 @@ interface Hashable
   """
   fun box hash(): U64
 
-primitive _MapEmpty is Comparable[_MapEmpty]
-primitive _MapDeleted is Comparable[_MapDeleted]
+primitive _MapEmpty
+primitive _MapDeleted
 
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
   """

@@ -1,4 +1,4 @@
-use "lib:rt" where linux
+use "lib:rt" if linux
 
 primitive Time
   """

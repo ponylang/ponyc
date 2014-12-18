@@ -24,6 +24,8 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
 
 bool genfun_methods(compile_t* c, gentype_t* g);
 
+uint32_t genfun_behaviour_index(gentype_t* g, const char* name);
+
 PONY_EXTERN_C_END
 
 #endif

@@ -3,30 +3,10 @@
 #include "mpmcq.h"
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
+#include "../asio/asio.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
-
-typedef struct scheduler_t scheduler_t;
-
-__pony_spec_align__(
-  struct scheduler_t
-  {
-    pony_thread_id_t tid;
-    uint32_t cpu;
-    bool finish;
-    bool forcecd;
-
-    pony_actor_t* head;
-    pony_actor_t* tail;
-
-    struct scheduler_t* victim;
-
-    // The following are accessed by other scheduler threads.
-    __pony_spec_align__(scheduler_t* thief, 64);
-    uint32_t waiting;
-  }, 64
-);
 
 static DECLARE_THREAD_FN(run_thread);
 
@@ -101,7 +81,8 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
 
 /**
  * If we can terminate, return true. If all schedulers are waiting, one of
- * them will tell the cycle detector to try to terminate.
+ * them will stop the ASIO back end and tell the cycle detector to try to
+ * terminate.
  */
 static bool quiescent(scheduler_t* sched)
 {
@@ -118,9 +99,10 @@ static bool quiescent(scheduler_t* sched)
     uint32_t waiting = __pony_atomic_load_n(&scheduler_waiting,
       PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
 
-    // Under these circumstances, the CD will always go on the current
-    // scheduler.
-    if(waiting == scheduler_count)
+    // If all scheduler threads are waiting and it is possible to stop the ASIO
+    // back end, then we can terminate the cycle detector, which will
+    // eventually call scheduler_terminate().
+    if((waiting == scheduler_count) && asio_stop())
     {
       // It's safe to manipulate our victim, since we know it's paused as well.
       if(sched->victim != NULL)
@@ -132,7 +114,10 @@ static bool quiescent(scheduler_t* sched)
       __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
         PONY_ATOMIC_NO_TYPE);
 
+      // Under these circumstances, the CD will always go on the current
+      // scheduler.
       cycle_terminate(sched->forcecd);
+      sched->finish = false;
     }
   }
 
@@ -332,39 +317,15 @@ static void scheduler_shutdown()
 
 void scheduler_init(uint32_t threads, bool forcecd)
 {
-  uint32_t physical = 0;
-  uint32_t logical = 0;
-
-  cpu_count(&physical, &logical);
-
-  assert(physical <= logical);
-
-  // If no thread count is specified, use the physical core count.
+  // If no thread count is specified, use the available physical core count.
   if(threads == 0)
-    threads = physical;
+    threads = cpu_count();
 
   scheduler_count = threads;
   scheduler_waiting = 0;
   scheduler = (scheduler_t*)calloc(scheduler_count, sizeof(scheduler_t));
 
-  if(scheduler_count <= physical)
-  {
-    // Assign threads to physical processors.
-    uint32_t index = 0;
-
-    for(uint32_t i = 0; i < scheduler_count; i++)
-    {
-      if(cpu_physical(i))
-      {
-        scheduler[index].cpu = i;
-        index++;
-      }
-    }
-  } else {
-    // Assign threads to logical processors.
-    for(uint32_t i = 0; i < scheduler_count; i++)
-      scheduler[i].cpu = i % logical;
-  }
+  cpu_assign(scheduler_count, scheduler);
 
   scheduler[0].finish = true;
   scheduler[0].forcecd = forcecd;
@@ -389,7 +350,8 @@ bool scheduler_start(pony_termination_t termination)
 
   for(uint32_t i = start; i < scheduler_count; i++)
   {
-    if(!pony_thread_create(&scheduler[i].tid, run_thread, &scheduler[i]))
+    if(!pony_thread_create(&scheduler[i].tid, run_thread, scheduler[i].cpu,
+      &scheduler[i]))
       return false;
   }
 

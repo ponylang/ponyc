@@ -13,7 +13,7 @@ module
   ;
 
 use
-  :  'use' (ID '=')? (STRING | use_ffi) ('where' expr)?
+  :  'use' (ID '=')? (STRING | use_ffi) ('if' expr)?
   ;
 
 use_ffi

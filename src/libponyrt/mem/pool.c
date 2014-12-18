@@ -77,7 +77,6 @@ static pool_global_t pool_global[POOL_COUNT] =
   {POOL_MIN << 14, POOL_MAX / (POOL_MIN << 14), 0},
 };
 
-// TODO: free on thread exit
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 
 static pool_item_t* pool_block(pool_local_t* thread, pool_global_t* global)

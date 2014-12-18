@@ -4,6 +4,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef PLATFORM_IS_WINDOWS
+#include <Winsock2.h>
+#endif
+
 typedef struct options_t
 {
   // concurrent options
@@ -93,11 +97,18 @@ int pony_init(int argc, char** argv)
   memset(&opt, 0, sizeof(options_t));
   argc = parse_opts(argc, argv, &opt);
 
+#ifdef PLATFORM_IS_WINDOWS
+  WORD ver = MAKEWORD(2, 2);
+  WSADATA data;
+
+  WSAStartup(ver, &data);
+#endif
+
   pony_exitcode(0);
   scheduler_init(opt.threads, opt.forcecd);
   cycle_create();
 
-#ifndef PLATFORM_IS_WINDOWS
+#if 0
   if(opt.distrib)
   {
     dist_create(opt.port, opt.child_count, opt.master);
