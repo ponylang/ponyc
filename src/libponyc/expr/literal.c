@@ -10,14 +10,12 @@
 #include <string.h>
 #include <assert.h>
 
-#include <stdio.h>
-
 
 #define UIF_ERROR       -1
 #define UIF_NO_TYPES    0
+#define UIF_INT_MASK    0x03FF
 #define UIF_ALL_TYPES   0x0FFF
 #define UIF_CONSTRAINED 0x1000
-#define UIF_MIN_FLOAT   10
 #define UIF_COUNT       12
 
 static const char* _str_uif_types[UIF_COUNT] =
@@ -27,12 +25,19 @@ static const char* _str_uif_types[UIF_COUNT] =
   "F32", "F64"
 };
 
+typedef struct uif_type_info_t
+{
+  ast_t* type;
+  const char* name;
+  bool valid_for_float;
+} uif_type_info_t;
+
 
 // Forward declarations
-static int uif_typeset(ast_t* ast, ast_t** formal);
+static int uifset(ast_t* type, ast_t** formal);
 
 static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
-  int non_tuple_type);
+  uif_type_info_t* cached_type);
 
 
 bool expr_literal(ast_t* ast, const char* name)
@@ -88,7 +93,7 @@ static int uifset_simple_type(ast_t* type)
 
 
 // Determine the UIF types that the given formal parameter may be
-static int uif_formal_param(ast_t* type_param_ref, ast_t** formal)
+static int uifset_formal_param(ast_t* type_param_ref, ast_t** formal)
 {
   assert(type_param_ref != NULL);
   assert(ast_id(type_param_ref) == TK_TYPEPARAMREF);
@@ -118,8 +123,6 @@ static int uif_formal_param(ast_t* type_param_ref, ast_t** formal)
   bool is_number = is_subtype(constraint, number);
   ast_free(number);
   ast_free(real);
-
-  //printf("Is real %d, is number %d\n", is_real, is_number);
 
   if(!is_real || !is_number)
     // The formal param is not a subset of (Real[A] & Number)
@@ -158,7 +161,7 @@ static int uif_formal_param(ast_t* type_param_ref, ast_t** formal)
 
 
 // Determine the UIF types that the given non-tuple union type may be
-static int uif_union_typeset(ast_t* type, ast_t** formal)
+static int uifset_union(ast_t* type, ast_t** formal)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_UNIONTYPE);
@@ -168,7 +171,7 @@ static int uif_union_typeset(ast_t* type, ast_t** formal)
   // Process all elements of the union
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uif_typeset(p, formal);
+    int r = uifset(p, formal);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -192,7 +195,7 @@ static int uif_union_typeset(ast_t* type, ast_t** formal)
 
 
 // Determine the UIF types that the given non-tuple intersection type may be
-static int uif_intersect_typeset(ast_t* type, ast_t** formal)
+static int uifset_intersect(ast_t* type, ast_t** formal)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_ISECTTYPE);
@@ -202,7 +205,7 @@ static int uif_intersect_typeset(ast_t* type, ast_t** formal)
 
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uif_typeset(p, formal);
+    int r = uifset(p, formal);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -235,7 +238,7 @@ static int uif_intersect_typeset(ast_t* type, ast_t** formal)
 
 
 // Determine the UIF types that the given non-tuple type may be
-static int uif_typeset(ast_t* type, ast_t** formal)
+static int uifset(ast_t* type, ast_t** formal)
 {
   assert(type != NULL);
   assert(formal != NULL);
@@ -243,18 +246,18 @@ static int uif_typeset(ast_t* type, ast_t** formal)
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      return uif_union_typeset(type, formal);
+      return uifset_union(type, formal);
 
     case TK_ISECTTYPE:
-      return uif_intersect_typeset(type, formal);
+      return uifset_intersect(type, formal);
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
       assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
-      return uif_typeset(ast_childidx(type, 1), formal);
+      return uifset(ast_childidx(type, 1), formal);
 
     case TK_TYPEPARAMREF:
-      return uif_formal_param(type, formal);
+      return uifset_formal_param(type, formal);
 
     case TK_TUPLETYPE:
       // Incorrect cardinality
@@ -271,16 +274,19 @@ static int uif_typeset(ast_t* type, ast_t** formal)
 }
 
 
-static bool uif_type(ast_t* literal, ast_t* target_type, bool require_float)
+// Fill the given UIF type cache
+static bool uif_type_fill_cache(ast_t* type, uif_type_info_t* cached_type)
 {
-  assert(literal != NULL);
+  assert(type != NULL);
+  assert(cached_type != NULL);
+  assert(cached_type->type == NULL);
 
   ast_t* formal = NULL;
-  int r = uif_typeset(target_type, &formal);
+  int r = uifset(type, &formal);
 
   if(r == UIF_ERROR || r == UIF_NO_TYPES)
   {
-    ast_error(literal, "Could not infer literal type");
+    ast_error(type, "Could not infer literal type");
     return false;
   }
 
@@ -288,12 +294,15 @@ static bool uif_type(ast_t* literal, ast_t* target_type, bool require_float)
   {
     // Type is a formal parameter
     assert(formal != NULL);
+    const char* name = ast_name(ast_child(formal));
 
-    BUILD(type, literal,
+    BUILD(uif_type, type,
       NODE(TK_TYPEPARAMREF, DATA(formal)
-        ID(ast_name(ast_child(formal))) NODE(TK_VAL) NONE));
+        ID(name) NODE(TK_VAL) NONE));
 
-    ast_settype(literal, type);
+    cached_type->type = uif_type;
+    cached_type->valid_for_float = ((r & UIF_INT_MASK) == 0);
+    cached_type->name = name;
     return true;
   }
 
@@ -302,20 +311,43 @@ static bool uif_type(ast_t* literal, ast_t* target_type, bool require_float)
   {
     if(r == (1 << i))
     {
-      if(require_float && i < UIF_MIN_FLOAT)
-      {
-        ast_error(literal, "Inferred integer type %s for float literal",
-          _str_uif_types[i]);
-        return false;
-      }
-
-      ast_settype(literal, type_builtin(literal, _str_uif_types[i]));
+      cached_type->valid_for_float = (((1 << i) & UIF_INT_MASK) == 0);
+      cached_type->type = type_builtin(type, _str_uif_types[i]);
+      cached_type->name = _str_uif_types[i];
       return true;
     }
   }
 
-  ast_error(literal, "Multiple possible types for literal");
+  ast_error(type, "Multiple possible types for literal");
   return false;
+}
+
+
+// Assign a UIF type from the given target type to the given AST
+static bool get_uif_type(ast_t* literal, ast_t* target_type,
+  uif_type_info_t* cached_type, bool require_float)
+{
+  assert(literal != NULL);
+  assert(cached_type != NULL);
+
+  if(cached_type->type == NULL)
+  {
+    // This is the first time we've needed this type, find it
+    if(!uif_type_fill_cache(target_type, cached_type))
+      return false;
+  }
+
+  assert(cached_type->type != NULL);
+
+  if(require_float && !cached_type->valid_for_float)
+  {
+    ast_error(literal, "Inferred possibly integer type %s for float literal",
+      cached_type->name);
+    return false;
+  }
+
+  ast_settype(literal, cached_type->type);
+  return true;
 }
 
 
@@ -420,7 +452,7 @@ static bool coerce_tuple(ast_t* literal_expr, ast_t* target_type)
 
 // Coerce a literal control block to be the specified target type
 static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
-  int non_tuple_type)
+  uif_type_info_t* cached_type)
 {
   assert(literal_expr != NULL);
 
@@ -433,7 +465,7 @@ static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
   for(ast_t* p = ast_child(lit_type); p != NULL; p = ast_sibling(p))
   {
     ast_t* branch = (ast_t*)ast_data(p);
-    if(!coerce_literal_to_type(branch, target_type, non_tuple_type))
+    if(!coerce_literal_to_type(branch, target_type, cached_type))
     {
       ast_free_unattached(block_type);
       return false;
@@ -449,7 +481,7 @@ static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
 
 // Coerce a literal expression to given tuple or non-tuple types
 static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
-  int non_tuple_type)
+  uif_type_info_t* cached_type)
 {
   assert(literal_expr != NULL);
 
@@ -461,7 +493,7 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
     return true;
 
   if(ast_child(lit_type) != NULL) // Control block literal
-    return coerce_control_block(literal_expr, target_type, non_tuple_type);
+    return coerce_control_block(literal_expr, target_type, cached_type);
 
   switch(ast_id(literal_expr))
   {
@@ -469,16 +501,16 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
       return coerce_tuple(literal_expr, target_type);
 
     case TK_INT:
-      return uif_type(literal_expr, target_type, false);
+      return get_uif_type(literal_expr, target_type, cached_type, false);
 
     case TK_FLOAT:
-      return uif_type(literal_expr, target_type, true);
+      return get_uif_type(literal_expr, target_type, cached_type, true);
 
     case TK_SEQ:
     {
       // Only coerce the last expression in the sequence
       ast_t* last = ast_childlast(literal_expr);
-      if(!coerce_literal_to_type(last, target_type, non_tuple_type))
+      if(!coerce_literal_to_type(last, target_type, cached_type))
         return false;
 
       ast_settype(literal_expr, ast_type(last));
@@ -490,10 +522,10 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
       AST_GET_CHILDREN(literal_expr, positional, named, receiver);
       ast_t* arg = ast_child(positional);
 
-      if(!coerce_literal_to_type(receiver, target_type, non_tuple_type))
+      if(!coerce_literal_to_type(receiver, target_type, cached_type))
         return false;
 
-      if(arg != NULL && !coerce_literal_to_type(arg, target_type, non_tuple_type))
+      if(arg != NULL && !coerce_literal_to_type(arg, target_type, cached_type))
         return false;
 
       ast_settype(literal_expr, ast_type(ast_child(receiver)));
@@ -502,7 +534,7 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
 
     case TK_DOT:
       if(!coerce_literal_to_type(ast_child(literal_expr), target_type,
-        non_tuple_type))
+        cached_type))
         return false;
       
       // We've determined the type of an operator, need to look up the function
@@ -531,7 +563,8 @@ bool coerce_literals(ast_t* literal_expr, ast_t* target_type)
     ast_id(lit_type) != TK_OPERATORLITERAL)
     return true;
 
-  return coerce_literal_to_type(literal_expr, target_type, 0);
+  uif_type_info_t cached_type = { NULL, NULL, false };
+  return coerce_literal_to_type(literal_expr, target_type, &cached_type);
 }
 
 
