@@ -111,7 +111,7 @@ void asio_event_subscribe(asio_event_t* ev)
     return;
 
   epoll_ctl(b->epfd, (oldmask != 0) && (oldmask != ep.events) ? EPOLL_CTL_MOD :
-    EPOLL_CTL_ADD, ev->fd, &ep);
+    EPOLL_CTL_ADD, (int)ev->fd, &ep);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
@@ -121,7 +121,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
 	if(ev->noisy)
 		asio_noisy_remove();
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
 
   asio_event_dtor(ev);
 }
