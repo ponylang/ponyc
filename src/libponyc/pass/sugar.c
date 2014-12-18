@@ -45,7 +45,8 @@ static bool has_member(ast_t* members, const char* name)
         break;
     }
 
-    if(ast_name(id) == name)
+    // Note, members may not have names yet
+    if(ast_id(id) != TK_NONE && ast_name(id) == name)
       return true;
 
     member = ast_sibling(member);
@@ -57,7 +58,8 @@ static bool has_member(ast_t* members, const char* name)
 
 static void add_default_constructor(ast_t* members)
 {
-  // If we have no uninitialised fields and no "create" constructor, add one.
+  // If we have no uninitialised fields and no "create" member, add a "create"
+  // constructor
   if(has_member(members, "create"))
     return;
 
@@ -117,6 +119,9 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
     typeparam = ast_sibling(typeparam);
   }
 
+  if(ast_child(typeargs) == NULL)
+    ast_setid(typeargs, TK_NONE);
+
   ast_t* type = make_nominal(id, typeargs);
 
   if(!has_member(members, "eq"))
@@ -141,7 +146,8 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_IS,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))));
+            NODE(TK_REFERENCE, ID("that"))))
+        NODE(TK_DBLARROW)));
 
     ast_append(members, eq);
   }
@@ -168,7 +174,8 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_ISNT,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))));
+            NODE(TK_REFERENCE, ID("that"))))
+        NODE(TK_DBLARROW)));
 
     ast_append(members, eq);
   }
@@ -177,7 +184,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 }
 
 
-static ast_result_t sugar_member(ast_t* ast, bool add_create,
+static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   token_id def_def_cap)
 {
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
@@ -188,7 +195,7 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create,
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, def_def_cap);
 
-  if(ast_id(ast) == TK_PRIMITIVE)
+  if(add_eq)
     add_comparable(id, typeparams, members);
 
   return AST_OK;
@@ -605,11 +612,11 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_PRIMITIVE:  return sugar_member(ast, true, TK_VAL);
-    case TK_CLASS:      return sugar_member(ast, true, TK_REF);
-    case TK_ACTOR:      return sugar_member(ast, true, TK_TAG);
+    case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
+    case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
+    case TK_ACTOR:      return sugar_member(ast, true, false, TK_TAG);
     case TK_TRAIT:
-    case TK_INTERFACE:  return sugar_member(ast, false, TK_REF);
+    case TK_INTERFACE:  return sugar_member(ast, false, false, TK_REF);
     case TK_TYPEPARAM:  return sugar_typeparam(ast);
     case TK_NEW:        return sugar_new(t, ast);
     case TK_BE:         return sugar_be(t, ast);

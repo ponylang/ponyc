@@ -66,6 +66,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 }
 
 
+/* Not currently used, but may be one day
 static void test_bad_sugar(const char* src)
 {
   package_add_magic("prog", src);
@@ -85,6 +86,7 @@ static void test_bad_sugar(const char* src)
     ASSERT_EQ((void*)NULL, ast);
   }
 }
+*/
 
 
 TEST(SugarTest, DataType)
@@ -93,7 +95,10 @@ TEST(SugarTest, DataType)
     "primitive Foo";
 
   const char* full_form =
-    "primitive Foo val new create(): Foo val^ => true";
+    "primitive Foo val\n"
+    "  new create(): Foo val^ => true\n"
+    "  fun box eq(that:Foo): Bool => this is that\n"
+    "  fun box ne(that:Foo): Bool => this isnt that\n";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -137,21 +142,14 @@ TEST(SugarTest, ClassWithCreateConstructor)
 
 TEST(SugarTest, ClassWithCreateFunction)
 {
-  // Create function clashes with create constructor
+  // Create function doesn't clash with create constructor
   const char* short_form =
-    "class Foo fun ref create() => 3";
+    "class Foo fun ref create():U32 => 3";
 
-  DO(test_bad_sugar(short_form));
-}
+  const char* full_form =
+    "class Foo ref fun ref create():U32 => 3";
 
-
-TEST(SugarTest, ClassWithCreateFunctionAndField)
-{
-  // Field stops addition of create constructor, so create function is fine
-  const char* short_form =
-    "class Foo ref let m:U32 fun ref create(): U32 val => 3";
-
-  DO(test_good_sugar(short_form, short_form));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
@@ -214,22 +212,12 @@ TEST(SugarTest, ActorWithCreateConstructor)
 
 TEST(SugarTest, ActorWithCreateFunction)
 {
-  // Create function clashes with create constructor
+  // Create function doesn't clash with create constructor
   const char* short_form =
-    "actor Foo fun ref create() => 3";
-
-  DO(test_bad_sugar(short_form));
-}
-
-
-TEST(SugarTest, ActorWithCreateFunctionAndField)
-{
-  // Field stops addition of create constructor, so create function is fine
-  const char* short_form =
-    "actor Foo     let m:U32 fun ref create(): U32 val => 3";
+    "actor Foo fun ref create():U32 => 3";
 
   const char* full_form =
-    "actor Foo tag let m:U32 fun ref create(): U32 val => 3";
+    "actor Foo tag fun ref create():U32 => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -237,22 +225,12 @@ TEST(SugarTest, ActorWithCreateFunctionAndField)
 
 TEST(SugarTest, ActorWithCreateBehaviour)
 {
-  // Create behaviour clashes with create constructor
+  // Create behaviour doesn't clash with create constructor
   const char* short_form =
     "actor Foo be create() => 3";
 
-  DO(test_bad_sugar(short_form));
-}
-
-
-TEST(SugarTest, ActorWithCreateBehaviourAndField)
-{
-  // Field stops addition of create constructor, so create behaviour is fine
-  const char* short_form =
-    "actor Foo     let m:U32 be create() => 3";
-
   const char* full_form =
-    "actor Foo tag let m:U32 be create(): Foo tag => 3";
+    "actor Foo tag be create():Foo tag => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -349,7 +327,9 @@ TEST(SugarTest, ConstructorInDataType)
 
   const char* full_form =
     "primitive Foo val\n"
-    "  new create(): Foo val^ => 3";
+    "  new create(): Foo val^ => 3\n"
+    "  fun box eq(that:Foo): Bool => this is that\n"
+    "  fun box ne(that:Foo): Bool => this isnt that\n";
 
   DO(test_good_sugar(short_form, full_form));
 }
