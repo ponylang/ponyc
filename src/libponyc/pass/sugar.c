@@ -564,18 +564,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_replace(astp, call);
 
   // Sugar the call.
-  ast_result_t r = ast_visit(astp, pass_sugar, NULL, opt);
-
-  if(r != AST_OK)
-    return r;
-
-  // Sugar the anonymous type.
-  r = ast_visit(&def, pass_sugar, NULL, opt);
-
-  if(r != AST_OK)
-    return r;
-
-  return AST_OK;
+  return ast_visit(astp, pass_sugar, NULL, opt);
 }
 
 

@@ -14,11 +14,7 @@ PONY_EXTERN_C_BEGIN
  */
 typedef struct asio_event_t
 {
-#ifdef PLATFORM_IS_WINDOWS
-  intptr_t fd;
-#else
-	int fd;         			/* file descriptor */
-#endif
+  uintptr_t fd;
 	uint32_t eflags;			/* event filter flags */
 	pony_actor_t* owner;	/* owning actor */
 	uint32_t msg_id;      /* I/O handler (actor message) */

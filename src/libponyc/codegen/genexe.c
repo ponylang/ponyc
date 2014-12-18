@@ -17,6 +17,13 @@
 #endif
 
 #if defined(PLATFORM_IS_LINUX)
+
+#ifdef USE_NUMA
+  #define NUMA_LIB "-lnuma"
+#else
+  #define NUMA_LIB ""
+#endif
+
 static bool file_exists(const char* filename)
 {
   struct stat s;
@@ -267,8 +274,9 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     "-o %s "
     "%scrt1.o "
     "%scrti.o "
-    "%s %s %s -lponyrt -lnuma -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
+    "%s %s %s -lponyrt %s -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, NUMA_LIB,
+    gccs_dir, crt_dir
     );
 
   if(system(ld_cmd) != 0)

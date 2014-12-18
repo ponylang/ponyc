@@ -7,6 +7,18 @@ interface Hashable
 primitive _MapEmpty
 primitive _MapDeleted
 
+// class Identity[A] is Hashable, Comparable[Identity[A] box]
+//   var _item: A
+//
+//   new create(item: A) =>
+//     _item = consume item
+//
+//   fun box hash(): U64 =>
+//     Pointer[A].to(_item).hash()
+//
+//   fun box eq(that: Identity[A] box): Bool =>
+//     _item is that._item
+
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
   """
   A quadratic probing hash map. Resize occurs at a load factor of 0.75. A
