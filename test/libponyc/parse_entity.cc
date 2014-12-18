@@ -430,13 +430,13 @@ TEST(ParseEntityTest, AliasMustHaveType)
 
 TEST(ParseEntityTest, FunctionMinimal)
 {
-  const char* src = "class Foo fun ref () => 3";
+  const char* src = "class Foo fun ref apply() => 3";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (fun{scope} ref x x x x x (seq 3) =>))\n"
+    "      (fun{scope} ref (id apply) x x x x (seq 3) =>))\n"
     "    x x\n"
     "))))";
 
@@ -677,13 +677,13 @@ TEST(ParseEntityTest, InterfaceBehaviourCannotBeCCallable)
 
 TEST(ParseEntityTest, ConstructorMinimal)
 {
-  const char* src = "class Foo new () => 3";
+  const char* src = "class Foo new create() => 3";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (new{scope} x x x x x x (seq 3) =>))\n"
+    "      (new{scope} x (id create) x x x x (seq 3) =>))\n"
     "    x x\n"
     "))))";
 
@@ -793,8 +793,8 @@ TEST(ParseEntityTest, UseUri)
   const char* src =
     "use \"foo1\" "
     "use bar = \"foo2\" "
-    "use \"foo3\" where wombat "
-    "use bar = \"foo4\" where wombat";
+    "use \"foo3\" if wombat "
+    "use bar = \"foo4\" if wombat";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
@@ -812,7 +812,7 @@ TEST(ParseEntityTest, UseFfi)
 {
   const char* src =
     "use @foo1[U32](a:I32, b:String, ...) ?"
-    "use @foo2[U32]() where wombat";
+    "use @foo2[U32]() if wombat";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
@@ -866,7 +866,7 @@ TEST(ParseEntityTest, UseFfiEllipsisMustBeLast)
 
 TEST(ParseEntityTest, UseGuardsAreExpressions)
 {
-  const char* src = "use \"foo\" where a and b";
+  const char* src = "use \"foo\" if a and b";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
@@ -879,7 +879,7 @@ TEST(ParseEntityTest, UseGuardsAreExpressions)
 
 TEST(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
 {
-  const char* src1 = "use \"foo\" where (a and b) or c";
+  const char* src1 = "use \"foo\" if (a and b) or c";
 
   const char* expect1 =
     "(program{scope} (package{scope} (module{scope}\n"
