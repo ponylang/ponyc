@@ -24,6 +24,12 @@ asio_backend_t* asio_backend_init()
   b->epfd = epoll_create1(EPOLL_CLOEXEC);
   b->wakeup = eventfd(0, EFD_NONBLOCK);
 
+  if(b->epfd == 0 || b->wakeup == 0)
+  {
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
+
   struct epoll_event ep;
   ep.data.ptr = b;
 

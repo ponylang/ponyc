@@ -14,7 +14,11 @@ PONY_EXTERN_C_BEGIN
  */
 typedef struct asio_event_t
 {
+#ifdef PLATFORM_IS_WINDOWS
+  intptr_t fd;
+#else
 	int fd;         			/* file descriptor */
+#endif
 	uint32_t eflags;			/* event filter flags */
 	pony_actor_t* owner;	/* owning actor */
 	uint32_t msg_id;      /* I/O handler (actor message) */
@@ -39,8 +43,8 @@ typedef struct asio_msg_t
  *  An event is noisy, if it should prevent the runtime system from terminating
  *  based on quiescence.
  */
-asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id, int fd,
-  uint32_t eflags, bool noisy, void* udata);
+asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
+  uint64_t fd, uint32_t eflags, bool noisy, void* udata);
 
 /** Deallocates an ASIO event.
  *

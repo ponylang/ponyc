@@ -4,8 +4,9 @@
 
 #include <string.h>
 
-asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id, int fd,
-  uint32_t eflags, bool noisy, void* udata)
+<<<<<<< Updated upstream
+asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
+  uint64_t fd, uint32_t eflags, bool noisy, void* udata)
 {
 	asio_event_t* ev = POOL_ALLOC(asio_event_t);
 

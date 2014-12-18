@@ -165,7 +165,7 @@ int os_connect_tcp6(const char* host, const char* service)
   return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
-asio_event_t* os_socket_event(pony_actor_t* handler, int fd)
+asio_event_t* os_socket_event(pony_actor_t* handler, uint64_t fd)
 {
   pony_type_t* type = *(pony_type_t**)handler;
   uint32_t msg_id = type->event_notify;
