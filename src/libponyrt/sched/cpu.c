@@ -1,5 +1,8 @@
+#ifdef PLATFORM_IS_LINUX
 #define _GNU_SOURCE
+#endif
 #include <platform.h>
+
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
   #include <numa.h>

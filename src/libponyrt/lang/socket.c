@@ -1,8 +1,12 @@
+#ifdef PLATFORM_IS_LINUX
+#define _GNU_SOURCE
+#endif
+#include <platform.h>
+
 #include "../asio/asio.h"
 #include "../asio/event.h"
 #include <stdbool.h>
 #include <string.h>
-#include <platform.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 #include <ws2tcpip.h>
