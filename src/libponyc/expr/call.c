@@ -7,6 +7,7 @@
 #include "../pass/expr.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/reify.h"
 #include "../type/subtype.h"
 #include <assert.h>
 
@@ -70,13 +71,25 @@ static bool check_type_params(ast_t* lhs)
 {
   ast_t* type = ast_type(lhs);
   ast_t* typeparams = ast_childidx(type, 1);
+  assert(ast_id(type) == TK_FUNTYPE);
 
-  if(ast_id(typeparams) != TK_NONE)
+  if(ast_id(typeparams) == TK_NONE)
+    return true;
+
+  BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
+
+  if(!check_constraints(typeparams, typeargs, true))
   {
-    ast_error(lhs, "can't call a function with unqualified type parameters");
+    ast_free_unattached(typeargs);
     return false;
   }
 
+  type = reify(type, typeparams, typeargs);
+  typeparams = ast_childidx(type, 1);
+  ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
+  ast_free_unattached(typeargs);
+
+  ast_settype(lhs, type);
   return true;
 }
 
@@ -206,9 +219,6 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
     if(arg_type == NULL)
     {
       ast_error(arg, "can't use return, break or continue in an argument");
-      return false;
-    } else if(ast_id(arg_type) == TK_FUNTYPE) {
-      ast_error(arg, "can't use a method as an argument");
       return false;
     }
 
@@ -351,11 +361,11 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
-  ast_t* type = ast_type(lhs);
-  AST_GET_CHILDREN(type, cap, typeparams, params, result);
-
   if(!check_type_params(lhs))
     return false;
+
+  ast_t* type = ast_type(lhs);
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
   if(!extend_positional_args(params, positional))
     return false;

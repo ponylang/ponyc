@@ -8,6 +8,25 @@
 #include "../type/lookup.h"
 #include <assert.h>
 
+static bool method_access(ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  switch(ast_id(parent))
+  {
+    case TK_QUALIFY:
+      return method_access(parent);
+
+    case TK_CALL:
+      return true;
+
+    default: {}
+  }
+
+  ast_error(ast, "can't reference a method without calling it");
+  return false;
+}
+
 static bool package_access(pass_opt_t* opt, ast_t* ast)
 {
   // left is a packageref, right is an id
@@ -48,7 +67,7 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
 
-  // left is a typeref, right is an id
+  // Left is a typeref, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
@@ -85,6 +104,8 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
 
       if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
         ast_seterror(ast);
+
+      ret = method_access(ast);
       break;
     }
 
@@ -101,14 +122,14 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
       ast_swap(left, dot);
       ast_add(dot, left);
 
-      if(!expr_dot(opt, dot))
-        return false;
-
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // the LHS goes at the end, not the beginning
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
+
+      if(!expr_dot(opt, dot))
+        return false;
 
       if(!expr_call(opt, &call))
         return false;
@@ -182,10 +203,8 @@ static bool tuple_access(ast_t* ast)
 static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 {
   // Left is a postfix expression, right is an id.
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
-
   assert(ast_id(right) == TK_ID);
 
   ast_t* find = lookup(t, ast, type, ast_name(right));
@@ -206,14 +225,14 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 
     case TK_FVAR:
     {
-      if(!expr_fieldref(ast, left, find, TK_FVARREF))
+      if(!expr_fieldref(ast, find, TK_FVARREF))
         return false;
       break;
     }
 
     case TK_FLET:
     {
-      if(!expr_fieldref(ast, left, find, TK_FLETREF))
+      if(!expr_fieldref(ast, find, TK_FLETREF))
         return false;
       break;
     }
@@ -237,6 +256,8 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 
       if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
         ast_seterror(ast);
+
+      ret = method_access(ast);
       break;
     }
 
@@ -258,7 +279,7 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 
 bool expr_qualify(pass_opt_t* opt, ast_t* ast)
 {
-  // left is a postfix expression, right is a typeargs
+  // Left is a postfix expression, right is a typeargs.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
@@ -268,7 +289,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
   {
     case TK_TYPEREF:
     {
-      // qualify the type
+      // Qualify the type.
       assert(ast_id(type) == TK_NOMINAL);
 
       if(ast_id(ast_childidx(type, 2)) != TK_NONE)
@@ -295,7 +316,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
     case TK_BEAPP:
     case TK_FUNAPP:
     {
-      // qualify the function
+      // Qualify the function.
       assert(ast_id(type) == TK_FUNTYPE);
       ast_t* typeparams = ast_childidx(type, 1);
 

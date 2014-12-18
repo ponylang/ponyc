@@ -417,7 +417,7 @@ TEST(SugarTest, FunctionNoReturnBody)
     "trait Foo ref fun box foo() => 3";
 
   const char* full_form =
-    "trait Foo ref fun box foo(): None => 3 ; None";
+    "trait Foo ref fun box foo(): None => 3; None";
 
   DO(test_good_sugar(short_form, full_form));
 }

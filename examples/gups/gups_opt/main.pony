@@ -117,7 +117,7 @@ actor Updater
     =>
     main = main'
     index = index'
-    shift = size.width() - size.clz()
+    shift = size.bitwidth() - size.clz()
     updaters = updaters'
     mask = updaters - 1
     chunk = chunk'

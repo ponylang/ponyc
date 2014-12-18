@@ -131,6 +131,9 @@ ast_t* alias(ast_t* type)
       return r_type;
     }
 
+    case TK_FUNTYPE:
+      return type;
+
     default: {}
   }
 
@@ -262,6 +265,9 @@ ast_t* consume_type(ast_t* type)
       return r_type;
     }
 
+    case TK_FUNTYPE:
+      return type;
+
     default: {}
   }
 
@@ -308,6 +314,9 @@ ast_t* recover_type(ast_t* type)
       return r_type;
     }
 
+    case TK_FUNTYPE:
+      return type;
+
     default: {}
   }
 
@@ -347,8 +356,19 @@ bool sendable(ast_t* type)
     }
 
     case TK_NOMINAL:
+    {
+      ast_t* cap = ast_childidx(type, 3);
+      return cap_sendable(ast_id(cap));
+    }
+
     case TK_TYPEPARAMREF:
-      return cap_sendable(cap_for_type(type));
+    {
+      ast_t* cap = ast_childidx(type, 1);
+      return cap_sendable(ast_id(cap));
+    }
+
+    case TK_FUNTYPE:
+      return true;
 
     default: {}
   }

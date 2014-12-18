@@ -4,6 +4,7 @@
 #include "call.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
+#include "../pass/flatten.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
@@ -121,11 +122,14 @@ bool expr_field(ast_t* ast)
   return true;
 }
 
-bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
+bool expr_fieldref(ast_t* ast, ast_t* find, token_id t)
 {
+  AST_GET_CHILDREN(ast, left, right);
+
   // Attach the type.
   ast_t* type = ast_childidx(find, 1);
   ast_settype(find, type);
+  ast_settype(right, type);
 
   // Viewpoint adapted type of the field.
   ast_t* ftype = viewpoint(left, find);
@@ -197,15 +201,15 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       ast_swap(ast, dot);
       ast_add(dot, ast);
 
-      if(!expr_dot(opt, dot))
-        return false;
-
       // call the default constructor with no arguments
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
       ast_add(call, dot); // receiver comes last
       ast_add(call, ast_from(ast, TK_NONE)); // named args
       ast_add(call, ast_from(ast, TK_NONE)); // positional args
+
+      if(!expr_dot(opt, dot))
+        return false;
 
       return expr_call(opt, &call);
     }

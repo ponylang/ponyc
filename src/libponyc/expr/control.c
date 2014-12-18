@@ -321,19 +321,6 @@ bool expr_return(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  switch(ast_id(t->frame->method))
-  {
-    case TK_NEW:
-      ast_error(ast, "can't return a value in a constructor");
-      return false;
-
-    case TK_BE:
-      ast_error(ast, "can't return a value in a behaviour");
-      return false;
-
-    default: {}
-  }
-
   if(ast_sibling(ast) != NULL)
   {
     ast_error(ast, "must be the last expression in a sequence");
@@ -354,9 +341,27 @@ bool expr_return(typecheck_t* t, ast_t* ast)
   if(!coerce_literals(body, type))
     return false;
 
-  // The body type must match the return type, without subsumption, or an alias
-  // of the body type must be a subtype of the return type.
   ast_t* body_type = ast_type(body);
+
+  switch(ast_id(t->frame->method))
+  {
+    case TK_NEW:
+      ast_error(ast, "can't return a value in a constructor");
+      return false;
+
+    case TK_BE:
+      if(!is_none(body_type))
+      {
+        ast_error(ast, "return in a behaviour must return None");
+        return false;
+      }
+      return true;
+
+    default: {}
+  }
+
+  // The body type must be a subtype of the return type, and an alias of the
+  // body type must be a subtype of an alias of the return type.
   ast_t* a_type = alias(type);
   ast_t* a_body_type = alias(body_type);
   bool ok = true;

@@ -104,7 +104,7 @@ actor Streamer
     seed: U64) =>
     main = main'
     updaters = updaters'
-    shift = size.width() - size.clz()
+    shift = size.bitwidth() - size.clz()
     mask = updaters.size() - 1
     chunk = chunk'
     rand = PolyRand(seed)
