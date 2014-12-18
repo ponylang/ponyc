@@ -1,4 +1,4 @@
-#ifdef PLATFORM_IS_LINUX
+#ifdef __linux__
 #define _GNU_SOURCE
 #endif
 #include <platform.h>
@@ -33,6 +33,7 @@ static bool connect_in_progress()
 #endif
 }
 
+#ifndef PLATFORM_IS_LINUX
 static int set_nonblocking(SOCKET s)
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -43,6 +44,7 @@ static int set_nonblocking(SOCKET s)
   return fcntl(s, F_SETFL, flags | O_NONBLOCK);
 #endif
 }
+#endif
 
 static SOCKET os_socket(const char* host, const char* service, int family,
   int socktype, int proto, bool server)
