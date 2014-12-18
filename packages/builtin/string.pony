@@ -666,7 +666,7 @@ class String val is Ordered[String box], Stringable
         @strtol[I64](_ptr.u64(), U64(0), I32(10))
       end
     else
-      I64(0)
+      0
     end
 
   fun box i128(offset: I64 = 0): I128 =>
@@ -679,7 +679,7 @@ class String val is Ordered[String box], Stringable
         @strtoll[I128](_ptr.u64() + index, U64(0), I32(10))
       end
     else
-      I128(0)
+      0
     end
 
   fun box u8(offset: I64 = 0): U8 => u64(offset).u8()
@@ -696,7 +696,7 @@ class String val is Ordered[String box], Stringable
         @strtoul[U64](_ptr.u64() + index, U64(0), I32(10))
       end
     else
-      U64(0)
+      0
     end
 
   fun box u128(offset: I64 = 0): U128 =>
@@ -709,7 +709,7 @@ class String val is Ordered[String box], Stringable
         @strtoull[U128](_ptr.u64() + index, U64(0), I32(10))
       end
     else
-      U128(0)
+      0
     end
 
   fun box f32(offset: I64 = 0): F32 =>

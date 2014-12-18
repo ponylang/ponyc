@@ -18,21 +18,21 @@ primitive F32 is FloatingPoint[F32]
   fun box trunc(): F32 => @"llvm.trunc.f32"[F32](this)
 
   fun box finite(): Bool =>
-    I32(0) != if Platform.windows() then
-      @_finite[I32](this.f64())
+    if Platform.windows() then
+      @_finite[I32](this.f64()) != 0
     elseif Platform.osx() then
-      @finite[I32](this.f64())
+      @finite[I32](this.f64()) != 0
     else
-      @finitef[I32](this)
+      @finitef[I32](this) != 0
     end
 
   fun box nan(): Bool =>
-    I32(0) != if Platform.windows() then
-      @_isnan[I32](this.f64())
+    if Platform.windows() then
+      @_isnan[I32](this.f64()) != 0
     elseif Platform.osx() then
-      @isnan[I32](this.f64())
+      @isnan[I32](this.f64()) != 0
     else
-      @isnanf[I32](this)
+      @isnanf[I32](this) != 0
     end
 
   fun box frexp(): (F32, U32) =>
