@@ -18,7 +18,7 @@ class Pointer[A]
 
   fun ref _realloc(len: U64): Pointer[A] =>
     """
-    Keep the array, but reserve space for len instances of A.
+    Keep the contents, but reserve space for len instances of A.
     """
     compiler_intrinsic
 

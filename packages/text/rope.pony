@@ -131,7 +131,7 @@ class Rope val is Stringable, Ordered[Rope]
       recurse(start, offset, node)
     end
 
-  fun val readlines(start: U64, n: U64 = 1): Rope =>
+  fun val readlines(start: U64, n: U64 = 1): Rope ? =>
     """
     Returns a Rope that holds up to n many lines starting from the line
     number denoted by start.
@@ -231,7 +231,7 @@ class RopeLineIterator is Iterator[String]
   fun ref has_next(): Bool =>
     _index < _rope.size()
 
-  fun ref next(): String =>
-    let line = _rope.readlines(index, steps)
-    index = index + steps
+  fun ref next(): String ? =>
+    let line = _rope.readlines(_index, _steps)
+    _index = _index + _steps
     line.string()

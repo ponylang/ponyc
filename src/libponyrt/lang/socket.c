@@ -40,7 +40,7 @@ static int set_nonblocking(SOCKET s)
 #endif
 }
 
-static int os_socket(const char* host, const char* service, int family,
+static SOCKET os_socket(const char* host, const char* service, int family,
   int socktype, int proto, bool server)
 {
   struct addrinfo hints;
@@ -77,7 +77,8 @@ static int os_socket(const char* host, const char* service, int family,
       if(server)
       {
         int reuseaddr = 1;
-        r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr, sizeof(int));
+        r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+          (const char*)&reuseaddr, sizeof(int));
       }
 
 #ifdef PLATFORM_IS_MACOSX
@@ -165,7 +166,7 @@ int os_connect_tcp6(const char* host, const char* service)
   return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
-asio_event_t* os_socket_event(pony_actor_t* handler, uint64_t fd)
+asio_event_t* os_socket_event(pony_actor_t* handler, int fd)
 {
   pony_type_t* type = *(pony_type_t**)handler;
   uint32_t msg_id = type->event_notify;
