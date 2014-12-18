@@ -134,6 +134,15 @@ class String val is Ordered[String box], Stringable
     end
     this
 
+  fun ref truncate(len: U64): String ref^ =>
+    """
+    Truncates the string at the minimum of len and space. Ensures there is a
+    null terminator. Does not check for null terminators inside the string.
+    """
+    _size = len.min(_alloc - 1)
+    _ptr._update(_size + 1, 0)
+    this
+
   fun box utf32(offset: I64): (U32, U8) ? =>
     """
     Return a UTF32 representation of the character at the given offset and the
