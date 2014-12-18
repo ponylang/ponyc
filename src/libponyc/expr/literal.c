@@ -134,7 +134,7 @@ static int uif_formal_param(ast_t* type_param_ref, ast_t** formal)
     BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
     BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
 
-    if(check_constraints(params, args, true))
+    if(check_constraints(params, args, false))
       uif_set |= (1 << i);
 
     ast_free(args);
