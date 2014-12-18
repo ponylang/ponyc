@@ -4,7 +4,6 @@
 #include "assemble.h"
 #include "alias.h"
 #include "../ast/token.h"
-#include "../expr/literal.h"
 #include <assert.h>
 
 static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
@@ -44,9 +43,6 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     flatten |= reify_one(&child, typeparam, typearg);
     child = ast_sibling(child);
   }
-
-  if(ast_sibling(typeparam) == NULL)  // This is the last type param to reify
-    reify_literals(ast);
 
   // Flatten type expressions after reifying them.
   if(flatten)

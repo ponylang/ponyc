@@ -25,6 +25,11 @@ ast_t* type_pointer_to(ast_t* to);
 ast_t* type_sugar(ast_t* from, const char* package, const char* name);
 
 /**
+* Add a branch type to a control structure type.
+*/
+ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch);
+
+/**
  * Build a type that is the union of these two types.
  */
 ast_t* type_union(ast_t* l_type, ast_t* r_type);

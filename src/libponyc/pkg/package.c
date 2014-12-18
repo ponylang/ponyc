@@ -489,7 +489,6 @@ bool package_init(pass_opt_t* opt)
 
   add_exec_dir();
   use_register_std();
-  literals_init();
   return true;
 }
 

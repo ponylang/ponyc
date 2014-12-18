@@ -427,6 +427,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
  * ID         adds a TK_ID node with the given ID name.
  * NONE       is syntactic sugar to add a TK_NONE node.
  * AST_SCOPE  adds a symbol table to the enclosing node.
+ * DATA       sets the data field of the enclosing node.
  */
 
 /** Builds an AST based on the specified existing tree.
@@ -502,6 +503,9 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
+
+/// Set the data field of the enclosing node
+#define DATA(target) ast_setdata(parent, (void*)(target));
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

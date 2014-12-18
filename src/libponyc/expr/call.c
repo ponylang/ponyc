@@ -593,21 +593,14 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
 
-  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
-  ast_t* type = ast_type(lhs);
-
-  if(!coerce_literal_operator(ast))
+  if(!literal_call(ast))
     return false;
 
   // Type already set by literal handler
   if(ast_type(ast) != NULL)
     return true;
 
-  if(type != NULL && is_type_literal(type))
-  {
-    ast_error(ast, "Cannot call a literal");
-    return false;
-  }
+  AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
   switch(ast_id(lhs))
   {

@@ -345,8 +345,12 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
   }
 
-  if(is_type_literal(type))
-    return coerce_literal_member(ast);
+  if(!literal_member_access(ast))
+    return false;
+
+  // Type already set by literal handler
+  if(ast_type(ast) != NULL)
+    return true;
 
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);

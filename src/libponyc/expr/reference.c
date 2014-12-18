@@ -653,7 +653,7 @@ bool expr_tuple(ast_t* ast)
       {
         // If any tuple members are literal, the whole tuple is
         ast_free(type);
-        type = ast_from(ast, TK_TUPLELITERAL);
+        type = ast_from(ast, TK_LITERAL);
         break;
       }
 
@@ -911,11 +911,11 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast,
     cap, id, typeparams, params, type, can_error, body);
 
-  if(!coerce_literals(body, type))
-    return false;
-
   if(ast_id(body) == TK_NONE)
     return true;
+
+  if(!coerce_literals(body, type))
+    return false;
 
   bool is_trait =
     (ast_id(t->frame->type) == TK_TRAIT) ||

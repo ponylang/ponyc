@@ -680,12 +680,6 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_FUN:
       return is_fun_sub_fun(sub, super);
 
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      // Compare to the constrained type we still carry around.
-      return is_subtype(ast_child(sub), super);
-
     default: {}
   }
 

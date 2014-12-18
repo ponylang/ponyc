@@ -119,11 +119,6 @@ ast_t* alias(ast_t* type)
     case TK_TYPEPARAMREF:
       return alias_for_type(type, 1);
 
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      return ast_dup(type);
-
     case TK_ARROW:
     {
       // alias just the right side. the left side is either 'this' or a type
@@ -169,11 +164,6 @@ ast_t* alias_bind(ast_t* type)
 
     case TK_TYPEPARAMREF:
       return alias_bind_for_type(type, 1);
-
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      return ast_dup(type);
 
     case TK_ARROW:
     {
@@ -360,11 +350,6 @@ bool sendable(ast_t* type)
     case TK_TYPEPARAMREF:
       return cap_sendable(cap_for_type(type));
 
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      return true;
-
     default: {}
   }
 
@@ -403,11 +388,6 @@ bool borrowed_type(ast_t* type)
 
     case TK_TYPEPARAMREF:
       return ast_id(ast_childidx(type, 2)) == TK_BORROWED;
-
-    case TK_NUMBERLITERAL:
-    case TK_INTLITERAL:
-    case TK_FLOATLITERAL:
-      return false;
 
     default: {}
   }

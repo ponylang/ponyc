@@ -2,6 +2,7 @@
 #include "subtype.h"
 #include "lookup.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include "../pass/names.h"
 #include <assert.h>
 
@@ -174,6 +175,47 @@ ast_t* type_pointer_to(ast_t* to)
 ast_t* type_sugar(ast_t* from, const char* package, const char* name)
 {
   return type_base(from, package, name);
+}
+
+ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
+{
+  assert(branch != NULL);
+
+  if(is_type_literal(ast_type(branch)))
+  {
+    // The new branch is a literal
+    if(control_type == NULL)
+      control_type = ast_from(branch, TK_LITERAL);
+
+    if(ast_id(control_type) != TK_LITERAL)
+    {
+      // The current control type is not a literal, fix that
+      ast_t* old_control = control_type;
+      control_type = ast_from(branch, TK_LITERAL);
+      ast_add(control_type, old_control);
+    }
+
+    assert(ast_id(control_type) == TK_LITERAL);
+
+    // Add a literal branch reference to the new branch
+    ast_t* member = ast_from(branch, TK_LITERALBRANCH);
+    ast_setdata(member, (void*)branch);
+    ast_append(control_type, member);
+    return control_type;
+  }
+
+  if(control_type != NULL && ast_id(control_type) == TK_LITERAL)
+  {
+    // New branch is not literal, but the control structure is
+    // Add new branch type to the control structure's non-literal aspect
+    ast_t* non_literal_type = ast_type(control_type);
+    non_literal_type = type_union(non_literal_type, ast_type(branch));
+    ast_settype(control_type, non_literal_type);
+    return control_type;
+  }
+
+  // No literals here, just union the types
+  return type_union(control_type, ast_type(branch));
 }
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)

@@ -227,11 +227,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_INT:
       // Integer literals can be integers or floats
-      ast_settype(ast, ast_from(ast, TK_NUMBERLITERAL));
+      make_literal_type(ast);
       break;
 
     case TK_FLOAT:
-      ast_settype(ast, ast_from(ast, TK_FLOATLITERAL));
+      make_literal_type(ast);
       break;
 
     case TK_STRING:
