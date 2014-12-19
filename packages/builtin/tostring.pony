@@ -69,16 +69,16 @@ primitive ToString
 
   fun tag _fmt_int(fmt: IntFormat): (U64, String, String) =>
     match fmt
-    | IntBinary => (U64(2), "b0", _large())
-    | IntBinaryBare => (U64(2), "", _large())
-    | IntOctal => (U64(8), "o0", _large())
-    | IntOctalBare => (U64(8), "", _large())
-    | IntHex => (U64(16), "x0", _large())
-    | IntHexBare => (U64(16), "", _large())
-    | IntHexSmall => (U64(16), "x0", _small())
-    | IntHexSmallBare => (U64(16), "", _small())
+    | IntBinary => (2, "b0", _large())
+    | IntBinaryBare => (2, "", _large())
+    | IntOctal => (8, "o0", _large())
+    | IntOctalBare => (8, "", _large())
+    | IntHex => (16, "x0", _large())
+    | IntHexBare => (16, "", _large())
+    | IntHexSmall => (16, "x0", _small())
+    | IntHexSmallBare => (16, "", _small())
     else
-      (U64(10), "", _large())
+      (10, "", _large())
     end
 
   fun tag _prefix(neg: Bool, prefix: NumberPrefix): String =>

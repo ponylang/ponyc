@@ -20,14 +20,14 @@ bool expr_match(ast_t* ast)
 
   if(cases_type != NULL)
   {
-    type = type_union(type, cases_type);
+    type = control_type_add_branch(type, cases);
     ast_inheritbranch(ast, cases);
     branch_count++;
   }
 
   if(else_type != NULL)
   {
-    type = type_union(type, else_type);
+    type = control_type_add_branch(type, else_clause);
     ast_inheritbranch(ast, else_clause);
     branch_count++;
   }
@@ -62,7 +62,7 @@ bool expr_cases(ast_t* ast)
 
     if(body_type != NULL)
     {
-      type = type_union(type, body_type);
+      type = control_type_add_branch(type, body);
       ast_inheritbranch(ast, the_case);
       branch_count++;
     }
