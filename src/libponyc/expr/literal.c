@@ -81,6 +81,7 @@ static int uifset_simple_type(ast_t* type)
   {
     ast_t* uif = type_builtin(type, _str_uif_types[i]);
     ast_setid(ast_childidx(uif, 3), TK_VAL);
+    ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
     if(is_subtype(uif, type))
       set |= (1 << i);
@@ -275,7 +276,8 @@ static int uifset(ast_t* type, ast_t** formal)
 
 
 // Fill the given UIF type cache
-static bool uif_type_fill_cache(ast_t* type, uif_type_info_t* cached_type)
+static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
+  uif_type_info_t* cached_type)
 {
   assert(type != NULL);
   assert(cached_type != NULL);
@@ -286,7 +288,7 @@ static bool uif_type_fill_cache(ast_t* type, uif_type_info_t* cached_type)
 
   if(r == UIF_ERROR || r == UIF_NO_TYPES)
   {
-    ast_error(type, "Could not infer literal type");
+    ast_error(literal, "Could not infer literal type");
     return false;
   }
 
@@ -333,7 +335,7 @@ static bool get_uif_type(ast_t* literal, ast_t* target_type,
   if(cached_type->type == NULL)
   {
     // This is the first time we've needed this type, find it
-    if(!uif_type_fill_cache(target_type, cached_type))
+    if(!uif_type_fill_cache(literal, target_type, cached_type))
       return false;
   }
 

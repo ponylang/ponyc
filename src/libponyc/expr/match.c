@@ -1,4 +1,5 @@
 #include "match.h"
+#include "literal.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/matchtype.h"
@@ -11,6 +12,14 @@ bool expr_match(ast_t* ast)
 {
   assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
+
+  // A literal match expression should have been caught by the cases, but check
+  // again to avoid an assert if we've missed a case
+  if(is_type_literal(ast_type(expr)))
+  {
+    ast_error(expr, "Cannot infer type for literal match expression");
+    return false;
+  }
 
   ast_t* cases_type = ast_type(cases);
   ast_t* else_type = ast_type(else_clause);
@@ -361,6 +370,22 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
   return MATCHTYPE_ACCEPT;
 }
 
+// Infer the types of any literals in the pattern of the given case
+static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type)
+{
+  assert(pattern != NULL);
+  assert(match_expr_type != NULL);
+
+  if(is_type_literal(match_expr_type))
+  {
+    ast_error(match_expr_type,
+      "Cannot infer type for literal match expression");
+    return false;
+  }
+
+  return coerce_literals(pattern, match_expr_type);
+}
+
 bool expr_case(typecheck_t* t, ast_t* ast)
 {
   assert(ast_id(ast) == TK_CASE);
@@ -382,6 +407,9 @@ bool expr_case(typecheck_t* t, ast_t* ast)
     ast_error(match_expr, "not a matchable expression");
     return false;
   }
+
+  if(!infer_pattern_type(pattern, match_type))
+    return false;
 
   if(is_valid_pattern(t, match_type, pattern, true) != MATCHTYPE_ACCEPT)
     return false;
