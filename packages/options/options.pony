@@ -199,8 +199,8 @@ class Options is Iterator[_Result]
 
       let start: I64 =
         match (current(0), current(1))
-        | (U8('-'), U8('-')) => 2
-        | (U8('-'), var some: U8) => 1
+        | ('-', '-') => 2
+        | ('-', var some: U8) => 1
         else
           error //cannot happen, otherwise current would have been identified by
                 //_skip_non_options
