@@ -241,8 +241,10 @@ static int uifset_intersect(ast_t* type, ast_t** formal)
 // Determine the UIF types that the given non-tuple type may be
 static int uifset(ast_t* type, ast_t** formal)
 {
-  assert(type != NULL);
   assert(formal != NULL);
+
+  if(type == NULL)
+    return UIF_NO_TYPES;
 
   switch(ast_id(type))
   {
@@ -279,7 +281,6 @@ static int uifset(ast_t* type, ast_t** formal)
 static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
   uif_type_info_t* cached_type)
 {
-  assert(type != NULL);
   assert(cached_type != NULL);
   assert(cached_type->type == NULL);
 
@@ -291,6 +292,8 @@ static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
     ast_error(literal, "Could not infer literal type");
     return false;
   }
+
+  assert(type != NULL);
 
   if((r & UIF_CONSTRAINED) != 0)
   {
@@ -620,11 +623,11 @@ static bool unify(ast_t* ast)
   assert(ast != NULL);
 
   ast_t* type = ast_type(ast);
-  assert(type != NULL);
 
-  if(ast_id(type) != TK_LITERAL) // Not literal, nothing to unify
+  if(!is_type_literal(type)) // Not literal, nothing to unify
     return true;
 
+  assert(type != NULL);
   ast_t* non_literal = (ast_t*)ast_data(type);
 
   if(non_literal != NULL)
