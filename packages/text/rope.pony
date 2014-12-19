@@ -147,7 +147,7 @@ class Rope val is Stringable, Ordered[Rope]
     Returns the line and column position based on an absolute cursor position
     within a Rope. Raise an error if the cursor position is out of bounds.
     """
-    (U64(0), U64(0))
+    (0, 0)
 
   /*fun box balance(): Rope =>
     """

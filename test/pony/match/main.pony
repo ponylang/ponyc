@@ -36,7 +36,7 @@ actor Main
     test4(4)
 
     test5((Wombat, Tomato))
-    test5((I32(1), "Hi"))
+    test5((1, "Hi"))
     test5((Aardvark, Tomato))
 
   fun box test(x: Any) =>

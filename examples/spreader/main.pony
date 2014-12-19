@@ -3,13 +3,13 @@ actor Spreader
   var _count: U64 = 0
 
   var _parent: (Spreader | None) = None
-  var _result: U64 = U64(0)
-  var _received: U64 = U64(0)
+  var _result: U64 = 0
+  var _received: U64 = 0
 
   new create(env: Env) =>
     _env = env
 
-    _count = try env.args(1).u64() else U64(10) end
+    _count = try env.args(1).u64() else 10 end
 
     if _count > 0 then
       spawn_child()

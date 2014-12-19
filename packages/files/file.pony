@@ -68,7 +68,7 @@ class File
     Returns a line as a String.
     """
     if not _handle.is_null() then
-      var offset = U64(0)
+      var offset: U64 = 0
       var len = _last_line_length
       var result = recover String end
       var done = false

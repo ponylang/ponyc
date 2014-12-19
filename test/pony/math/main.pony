@@ -6,7 +6,7 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    var x = U32(7)
+    var x: U32 = 7
     var y: U32 = x
     _env.out.print(y.string())
 
@@ -15,8 +15,8 @@ actor Main
     test_fib(10)
 
   fun ref test_i128_f() =>
-    var x: I128 = I128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
-    var y: I128 = I128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+    var x: I128 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    var y: I128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
     _env.out.print(x.string() + ", " + y.string())
 
@@ -31,8 +31,8 @@ actor Main
     _env.out.print(x.string() + ", " + y.string())
 
   fun ref test_u128_f() =>
-    var x: U128 = U128(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
-    var y: U128 = U128(0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+    var x: U128 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    var y: U128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
 
     _env.out.print(x.string() + ", " + y.string())
 

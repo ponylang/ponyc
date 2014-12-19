@@ -159,7 +159,7 @@ class String val is Ordered[String box], Stringable
 
     if c < 0x80 then
       // 1-byte
-      (c.u32(), U8(1))
+      (c.u32(), 1)
     elseif c < 0xC2 then
       // Stray continuation.
       err
@@ -174,7 +174,7 @@ class String val is Ordered[String box], Stringable
           // Not a continuation byte.
           err
         else
-          (((c.u32() << 6) + c2.u32()) - 0x3080, U8(2))
+          (((c.u32() << 6) + c2.u32()) - 0x3080, 2)
         end
       end
     elseif c < 0xF0 then
@@ -194,7 +194,7 @@ class String val is Ordered[String box], Stringable
         then
           err
         else
-          (((c.u32() << 12) + (c2.u32() << 6) + c3.u32()) - 0xE2080, U8(3))
+          (((c.u32() << 12) + (c2.u32() << 6) + c3.u32()) - 0xE2080, 3)
         end
       end
     elseif c < 0xF5 then
@@ -221,7 +221,7 @@ class String val is Ordered[String box], Stringable
           (((c.u32() << 18) +
             (c2.u32() << 12) +
             (c3.u32() << 6) +
-            c4.u32()) - 0x3C82080, U8(4))
+            c4.u32()) - 0x3C82080, 4)
         end
       end
     else

@@ -46,7 +46,7 @@ static int set_nonblocking(SOCKET s)
 }
 #endif
 
-static SOCKET os_socket(const char* host, const char* service, int family,
+static int os_socket(const char* host, const char* service, int family,
   int socktype, int proto, bool server)
 {
   struct addrinfo hints;
@@ -129,47 +129,47 @@ static SOCKET os_socket(const char* host, const char* service, int family,
 
 int os_listen_tcp(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, true);
 }
 
 int os_listen_tcp4(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, true);
 }
 
 int os_listen_tcp6(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, true);
 }
 
 int os_listen_udp(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket(host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
 int os_listen_udp4(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket(host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
 int os_listen_udp6(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket(host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
 int os_connect_tcp(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, false);
+  return os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
 int os_connect_tcp4(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, false);
+  return os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
 int os_connect_tcp6(const char* host, const char* service)
 {
-  return (int)os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
+  return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
 }
 
 asio_event_t* os_socket_event(pony_actor_t* handler, int fd)

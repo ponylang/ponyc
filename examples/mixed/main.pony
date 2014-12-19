@@ -25,7 +25,7 @@ actor Worker
   fun ref factorize(bigint: U64) : Array[U64] =>
     var factors = Array[U64]
 
-    if bigint <= U64(3) then
+    if bigint <= 3 then
       factors.append(bigint)
       return factors
     end
@@ -40,7 +40,7 @@ actor Worker
         factors.append(d)
         n = n / d
       else
-        d = if d == 2 then U64(3) else (d + 2) end
+        d = if d == 2 then 3 else (d + 2) end
       end
     end
 
