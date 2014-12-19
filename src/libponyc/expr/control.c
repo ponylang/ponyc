@@ -211,11 +211,8 @@ bool expr_try(ast_t* ast)
     return false;
   }
 
-  // The then clause does not affect the type of the expression.
-  ast_t* body_type = ast_type(body);
-  ast_t* else_type = ast_type(else_clause);
-  ast_t* then_type = ast_type(then_clause);
-  ast_t* type = control_type_add_branch(body_type, else_type);
+  ast_t* type = control_type_add_branch(NULL, body);
+  type = control_type_add_branch(type, else_clause);
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
@@ -223,9 +220,18 @@ bool expr_try(ast_t* ast)
     return false;
   }
 
+  // The then clause does not affect the type of the expression.
+  ast_t* then_type = ast_type(then_clause);
+
   if(then_type == NULL)
   {
     ast_error(then_clause, "then clause always terminates the function");
+    return false;
+  }
+
+  if(is_type_literal(then_type))
+  {
+    ast_error(then_clause, "Cannot infer type of unused literal");
     return false;
   }
 
