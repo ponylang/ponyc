@@ -32,7 +32,7 @@ class MT is Random
       x = x xor ((x << 37) and 0xfff7eee000000000)
       x xor (x >> 43)
     else
-      U64(0)
+      0
     end
 
   fun ref _populate() =>

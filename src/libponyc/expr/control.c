@@ -215,7 +215,7 @@ bool expr_try(ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
   ast_t* then_type = ast_type(then_clause);
-  ast_t* type = type_union(body_type, else_type);
+  ast_t* type = control_type_add_branch(body_type, else_type);
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
