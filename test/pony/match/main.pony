@@ -57,7 +57,7 @@ actor Main
 
   fun box test2(x: U32) =>
     match x
-    | U32(5) - U32(2) => _env.out.print("Three")
+    | 5 - 2 => _env.out.print("Three")
     else
       _env.out.print("Not Three")
     end
@@ -72,7 +72,7 @@ actor Main
 
   fun box test4(x: (U32 | None)) =>
     match x
-    | U32(3) => _env.out.print("Three")
+    | 3 => _env.out.print("Three")
     | None => _env.out.print("None")
     else
       _env.out.print("Unknown")
@@ -82,7 +82,7 @@ actor Main
     match x
     | (var a: Wombat, var b: Tomato) =>
       _env.out.print("Wombat, Tomato")
-    | (I32(1), "Hi") =>
+    | (1, "Hi") =>
       _env.out.print("1, Hi")
     else
       _env.out.print("Unknown")
