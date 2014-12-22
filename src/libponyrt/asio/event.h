@@ -14,9 +14,9 @@ PONY_EXTERN_C_BEGIN
  */
 typedef struct asio_event_t
 {
-	int fd;          /* file descriptor */
-	uint32_t eflags;      /* event filter flags */
-	pony_actor_t* owner;  /* owning actor */
+  uintptr_t fd;
+	uint32_t eflags;			/* event filter flags */
+	pony_actor_t* owner;	/* owning actor */
 	uint32_t msg_id;      /* I/O handler (actor message) */
 
 	bool noisy;           /* prevents termination? */
@@ -39,15 +39,15 @@ typedef struct asio_msg_t
  *  An event is noisy, if it should prevent the runtime system from terminating
  *  based on quiescence.
  */
-asio_event_t* asio_event_create(int fd, uint32_t eflags, uint32_t msg_id,
-	bool noisy, void* udata);
+asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
+  uint64_t fd, uint32_t eflags, bool noisy, void* udata);
 
 /** Deallocates an ASIO event.
  *
  *  Deallocation does not imply deactivation. The user is responsible to
  *  unsubscribe an event before deallocating it.
  */
-void asio_event_dtor(asio_event_t** ev);
+void asio_event_dtor(asio_event_t* ev);
 
 /** Subscribe and unsubscribe are implemented in the corresponding I/O mechanism
  *  files epoll.c, kqueue.c, ...
@@ -65,7 +65,7 @@ void asio_event_subscribe(asio_event_t* ev);
  *  After a call to unsubscribe, the caller will not receive any further event
  *  notifications for I/O events on the corresponding resource.
  *
- *  An event is not deallocated upon unsubscription.
+ *  An event is deallocated upon unsubscription.
  */
 void asio_event_unsubscribe(asio_event_t* ev);
 

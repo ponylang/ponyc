@@ -4,21 +4,21 @@ class Pointer[A]
   included in a union or intersection, or be a subtype of any interface. Most
   functions on a Pointer[A] are private to maintain memory safety.
   """
+  new create() =>
+    """
+    A null pointer.
+    """
+    compiler_intrinsic
+
   new _create(len: U64) =>
     """
     Space for len instances of A.
     """
     compiler_intrinsic
 
-  new null() =>
-    """
-    A null pointer.
-    """
-    compiler_intrinsic
-
   fun ref _realloc(len: U64): Pointer[A] =>
     """
-    Keep the array, but reserve space for len instances of A.
+    Keep the contents, but reserve space for len instances of A.
     """
     compiler_intrinsic
 
@@ -40,19 +40,6 @@ class Pointer[A]
     the underlying array, and return the new length (offset + len). The
     array length before this should be offset + n + len. Returns the first
     deleted element.
-    """
-    compiler_intrinsic
-
-  fun ref _copy(offset: U64, src: Pointer[A] box, len: U64): U64 =>
-    """
-    Copy len instances of A from src to &this[offset]
-    """
-    compiler_intrinsic
-
-  fun box _concat(len: U64, that: Pointer[A] box, thatlen: U64): Pointer[A] iso^
-    =>
-    """
-    Create a new array that is this + that, length len + thatlen.
     """
     compiler_intrinsic
 

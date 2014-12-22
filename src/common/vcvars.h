@@ -11,6 +11,4 @@ typedef struct vcvars_t
 
 bool vcvars_get(vcvars_t* vcvars);
 
-size_t vcvars_get_path_length(vcvars_t* vcvars);
-
 #endif

@@ -115,10 +115,10 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    let n = try
+    let n: U64 = try
       env.args(1).u64()
     else
-      U64(50000000)
+      50000000
     end
 
     // Initial system

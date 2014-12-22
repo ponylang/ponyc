@@ -18,10 +18,9 @@ void parse_test_good(const char* src, const char* expect)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
-  limit_passes("parsefix");
 
   ast_t* actual_ast;
-  DO(load_test_program("prog", &actual_ast));
+  DO(load_test_program("parsefix", "prog", &actual_ast));
 
   if(expect != NULL)
   {
@@ -54,11 +53,11 @@ void parse_test_bad(const char* src)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
-  limit_passes("parsefix");
   package_suppress_build_message();
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "parsefix");
   ASSERT_EQ((void*)NULL, program_load(stringtab("prog"), &opt));
   pass_opt_done(&opt);
 }

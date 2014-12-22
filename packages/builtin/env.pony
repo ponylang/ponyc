@@ -23,7 +23,7 @@ class Env val
         array.append(
           recover
             String.from_cstring(
-              argv._update(i, recover Pointer[U8].null() end))
+              argv._update(i, recover Pointer[U8] end))
           end
           )
         i = i + 1
@@ -39,3 +39,10 @@ class Env val
     out = out'
     err = err'
     args = args'
+
+  fun tag exitcode(code: I32) =>
+    """
+    Sets the application exit code. If this is called more than once, the last
+    value set will be the exit code. The exit code defaults to 0.
+    """
+    @pony_exitcode[None](code)

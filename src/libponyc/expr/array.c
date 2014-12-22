@@ -1,8 +1,10 @@
 #include "array.h"
 #include "reference.h"
 #include "postfix.h"
+#include "call.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
+#include "../type/alias.h"
 #include "../type/assemble.h"
 
 bool expr_array(pass_opt_t* opt, ast_t** astp)
@@ -29,10 +31,14 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   BUILD(ref, ast, NODE(TK_REFERENCE, ID("Array")));
 
+  ast_t* a_type = alias(type);
+
   BUILD(qualify, ast,
     NODE(TK_QUALIFY,
       TREE(ref)
-      NODE(TK_TYPEARGS, TREE(type))));
+      NODE(TK_TYPEARGS, TREE(a_type))));
+
+  ast_free_unattached(type);
 
   BUILD(dot, ast, NODE(TK_DOT, TREE(qualify) ID("create")));
 
@@ -48,7 +54,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   if(!expr_reference(opt, ref) ||
     !expr_qualify(opt, qualify) ||
     !expr_dot(opt, dot) ||
-    !expr_call(opt, call)
+    !expr_call(opt, &call)
     )
     return false;
 
@@ -70,7 +76,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     ast_replace(astp, append);
 
     if(!expr_dot(opt, append_dot) ||
-      !expr_call(opt, append)
+      !expr_call(opt, &append)
       )
       return false;
 

@@ -4,32 +4,32 @@
 
 #include <string.h>
 
-asio_event_t* asio_event_create(int fd, uint32_t eflags, uint32_t msg_id,
-	bool noisy, void* udata)
+asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
+  uint64_t fd, uint32_t eflags, bool noisy, void* udata)
 {
-	asio_event_t* e = POOL_ALLOC(asio_event_t);
+	asio_event_t* ev = POOL_ALLOC(asio_event_t);
 
-	e->fd = fd;
-	e->eflags = eflags;
-	e->msg_id = msg_id;
-	e->noisy = noisy;
-	e->udata = udata;
+	ev->fd = fd;
+	ev->eflags = eflags;
+	ev->owner = handler;
+	ev->msg_id = msg_id;
+	ev->noisy = noisy;
+	ev->udata = udata;
 
-	e->owner = actor_current();
+	pony_gc_send();
+	pony_traceactor(ev->owner);
+	pony_send_done();
 
-  //TODO FIX: only if this is the first I/O registration
-	actor_inc_rc();
-
-	return e;
+	return ev;
 }
 
-void asio_event_dtor(asio_event_t** ev)
+void asio_event_dtor(asio_event_t* ev)
 {
-	//TODO FIX: only if this is the actors last event
-	actor_dec_rc();
+	pony_gc_recv();
+	pony_traceactor(ev->owner);
+	pony_recv_done();
 
-	POOL_FREE(asio_event_t, *ev);
-	*ev = NULL;
+	POOL_FREE(asio_event_t, ev);
 }
 
 void asio_event_send(asio_event_t* ev, uint32_t flags)

@@ -17,14 +17,14 @@ actor Main
   new create(env: Env) =>
     _env = env
     updates = 0
-    actors = recover Array[Updater] end //init tracking...
+    actors = recover Array[Updater] end
 
     start = Time.nanos()
 
     try
       arguments()
 
-      var size = (U64(1) << _logtable) / _actor_count
+      var size = (1 << _logtable) / _actor_count
       updates = _chunk * _iterate * _actor_count
 
       let count = _actor_count
@@ -84,7 +84,7 @@ actor Main
       | ("logtable", var arg: I64) => _logtable = arg.u64()
       | ("iterate", var arg: I64) => _iterate = arg.u64()
       | ("chunk", var arg: I64) => _chunk = arg.u64()
-      | ("actors", var arg: I64) => _actor_count = arg.u64()
+      | ("actors", var arg: I64) => _actor_count = arg.u64().next_pow2()
       | ParseError => usage() ; error
       end
     end
@@ -117,7 +117,7 @@ actor Updater
     =>
     main = main'
     index = index'
-    shift = size.width() - size.clz()
+    shift = size.bitwidth() - size.clz()
     updaters = updaters'
     mask = updaters - 1
     chunk = chunk'
@@ -210,7 +210,7 @@ class PolyRand
 
   fun ref apply(): U64 =>
     last = (last << 1) xor
-      if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
+      if (last and (1 << 63)) != 0 then poly else 0 end
 
   fun ref _seed(seed: U64) =>
     var n = seed % period
@@ -228,7 +228,7 @@ class PolyRand
       end
 
       var i: U64 = 64 - n.clz()
-      last = U64(2)
+      last = 2
 
       while i > 0 do
         var temp: U64 = 0

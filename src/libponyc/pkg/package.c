@@ -267,10 +267,14 @@ static const char* find_path(ast_t* from, const char* path)
 
 // Convert the given ID to a hygenic string. The resulting string should not be
 // deleted and is valid indefinitely.
-static const char* id_to_string(size_t id)
+static const char* id_to_string(const char* prefix, size_t id)
 {
-  char buffer[32];
-  snprintf(buffer, 32, "$"__zu, id);
+  if(prefix == NULL)
+    prefix = "";
+
+  size_t len = strlen(prefix);
+  VLA(char, buffer, len + 32);
+  snprintf(buffer, len + 32, "%s$"__zu, prefix, id);
   return stringtab(buffer);
 }
 
@@ -366,7 +370,7 @@ static ast_t* create_package(ast_t* program, const char* name)
 
   package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
-  pkg->id = id_to_string(pkg_id);
+  pkg->id = id_to_string(NULL, pkg_id);
 
   const char* p = strrchr(pkg->path, PATH_SLASH);
 
@@ -485,7 +489,6 @@ bool package_init(pass_opt_t* opt)
 
   add_exec_dir();
   use_register_std();
-  literals_init();
   return true;
 }
 
@@ -681,7 +684,7 @@ const char* package_hygienic_id(typecheck_t* t)
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 
-  return id_to_string(id);
+  return id_to_string(pkg->id, id);
 }
 
 

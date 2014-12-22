@@ -23,13 +23,17 @@ class MT is Random
       _populate()
     end
 
-    var x = try _state(_index) else U64(0) end //TODO: access is safe
-    _index = _index + 1
+    try
+      var x = _state(_index)
+      _index = _index + 1
 
-    x = x xor ((x >> 29) and 0x5555555555555555)
-    x = x xor ((x << 17) and 0x71d67fffeda60000)
-    x = x xor ((x << 37) and 0xfff7eee000000000)
-    x xor (x >> 43)
+      x = x xor ((x >> 29) and 0x5555555555555555)
+      x = x xor ((x << 17) and 0x71d67fffeda60000)
+      x = x xor ((x << 37) and 0xfff7eee000000000)
+      x xor (x >> 43)
+    else
+      0
+    end
 
   fun ref _populate() =>
     try

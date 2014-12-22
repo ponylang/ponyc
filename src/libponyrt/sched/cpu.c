@@ -1,6 +1,12 @@
+#ifdef __linux__
 #define _GNU_SOURCE
+#endif
 #include <platform.h>
+
 #if defined(PLATFORM_IS_LINUX)
+#ifdef USE_NUMA
+  #include <numa.h>
+#endif
 #include <sched.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -26,73 +32,9 @@ static uint32_t property(const char* key)
 }
 #endif
 
-void cpu_count(uint32_t* physical, uint32_t* logical)
-{
 #if defined(PLATFORM_IS_LINUX)
-  int count = (int)sysconf(_SC_NPROCESSORS_ONLN);
-  int res = 0;
-
-  for(int i = 0; i < count; i++)
-  {
-    if(cpu_physical(i))
-      res++;
-  }
-
-  *physical = res;
-  *logical = count;
-#elif defined(PLATFORM_IS_MACOSX)
-  *physical = property("hw.physicalcpu");
-  *logical = property("hw.logicalcpu");
-#elif defined(PLATFORM_IS_WINDOWS)
-  PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
-  PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
-  DWORD len = 0;
-  DWORD offset = 0;
-
-  while(true)
-  {
-    DWORD rc = GetLogicalProcessorInformation(info, &len);
-
-    if(rc != FALSE)
-      break;
-
-    if(GetLastError() == ERROR_INSUFFICIENT_BUFFER)
-    {
-      ptr = info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(len);
-      continue;
-    }
-    else
-    {
-      *physical = 0;
-      *logical = 0;
-
-      return;
-    }
-  }
-
-  while(offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= len)
-  {
-    switch(info->Relationship)
-    {
-      case RelationProcessorCore:
-        *physical += 1;
-        *logical += (uint32_t)__pony_popcount64(info->ProcessorMask);
-        break;
-
-      default: {}
-    }
-
-    offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-    info++;
-  }
-
-  free(ptr);
-#endif
-}
-
-bool cpu_physical(uint32_t cpu)
+static bool cpu_physical(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX)
   char file[FILENAME_MAX];
   snprintf(file, FILENAME_MAX,
     "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpu);
@@ -109,21 +51,132 @@ bool cpu_physical(uint32_t cpu)
     if(cpu != (uint32_t)atoi(name))
       return false;
   }
-#else
-  (void)cpu;
-#endif
 
   return true;
+}
+#endif
+
+uint32_t cpu_count()
+{
+#if defined(PLATFORM_IS_LINUX)
+#ifdef USE_NUMA
+  if(numa_available())
+  {
+    struct bitmask* cpus = numa_get_run_node_mask();
+    return numa_bitmask_weight(cpus);
+  }
+#endif
+
+  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+  uint32_t count = 0;
+
+  for(uint32_t i = 0; i < max; i++)
+  {
+    if(cpu_physical(i))
+      count++;
+  }
+
+  return count;
+#elif defined(PLATFORM_IS_MACOSX)
+  return property("hw.physicalcpu");
+#elif defined(PLATFORM_IS_WINDOWS)
+  PSYSTEM_LOGICAL_PROCESSOR_INFORMATION info = NULL;
+  PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = NULL;
+  DWORD len = 0;
+  DWORD offset = 0;
+  uint32_t count = 0;
+
+  while(true)
+  {
+    DWORD rc = GetLogicalProcessorInformation(info, &len);
+
+    if(rc != FALSE)
+      break;
+
+    if(GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+    {
+      ptr = info = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(len);
+      continue;
+    } else {
+      return 0;
+    }
+  }
+
+  while((offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION)) <= len)
+  {
+    switch(info->Relationship)
+    {
+      case RelationProcessorCore:
+        count++;
+        break;
+
+      default: {}
+    }
+
+    offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+    info++;
+  }
+
+  if(ptr != NULL)
+    free(ptr);
+
+  return count;
+#endif
+}
+
+void cpu_assign(uint32_t count, scheduler_t* scheduler)
+{
+#if defined(PLATFORM_IS_LINUX)
+#ifdef USE_NUMA
+  if(numa_available())
+  {
+    // Assign only numa-available cores.
+    struct bitmask* cpus = numa_get_run_node_mask();
+    uint32_t max = numa_bitmask_nbytes(cpus) * 8;
+
+    uint32_t core = 0;
+    uint32_t thread = 0;
+
+    while(thread < count)
+    {
+      if(numa_bitmask_isbitset(cpus, core))
+        scheduler[thread++].cpu = core;
+
+      core++;
+
+      // Wrap around if we have more threads than cores.
+      if(core >= max)
+        core = 0;
+    }
+
+    return;
+  }
+#endif
+
+  // Physical cores come first, so assign in sequence.
+  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+
+  for(uint32_t i = 0; i < count; i++)
+    scheduler[i].cpu = i % max;
+#else
+  // Affinity groups rather than processor numbers.
+  for(uint32_t i = 0; i < count; i++)
+    scheduler[i].cpu = i;
+#endif
 }
 
 void cpu_affinity(uint32_t cpu)
 {
 #if defined(PLATFORM_IS_LINUX)
-  cpu_set_t set;
-  CPU_ZERO(&set);
-  CPU_SET(cpu, &set);
+  // Affinity is handled when spawning the thread.
+  (void)cpu;
 
-  sched_setaffinity(0, 1, &set);
+#ifdef USE_NUMA
+  // Allocate memory on the local node.
+  if(numa_available())
+    numa_set_localalloc();
+#endif
+
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;

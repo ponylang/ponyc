@@ -4,9 +4,11 @@
 #include "../expr/reference.h"
 #include "../expr/operator.h"
 #include "../expr/postfix.h"
+#include "../expr/call.h"
 #include "../expr/control.h"
 #include "../expr/match.h"
 #include "../expr/array.h"
+#include "../expr/ffi.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -146,13 +148,18 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_FATAL;
       break;
 
+    case TK_TILDE:
+      if(!expr_tilde(options, ast))
+        return AST_FATAL;
+      break;
+
     case TK_QUALIFY:
       if(!expr_qualify(options, ast))
         return AST_FATAL;
       break;
 
     case TK_CALL:
-      if(!expr_call(options, ast))
+      if(!expr_call(options, astp))
         return AST_FATAL;
       break;
 
@@ -220,11 +227,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_INT:
       // Integer literals can be integers or floats
-      ast_settype(ast, ast_from(ast, TK_NUMBERLITERAL));
+      make_literal_type(ast);
       break;
 
     case TK_FLOAT:
-      ast_settype(ast, ast_from(ast, TK_FLOATLITERAL));
+      make_literal_type(ast);
       break;
 
     case TK_STRING:

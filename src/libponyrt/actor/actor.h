@@ -40,11 +40,6 @@ pony_actor_t* actor_next(pony_actor_t* actor);
 
 void actor_setnext(pony_actor_t* actor, pony_actor_t* next);
 
-//TODO: refactoring
-void actor_inc_rc();
-
-void actor_dec_rc();
-
 PONY_EXTERN_C_END
 
 #endif

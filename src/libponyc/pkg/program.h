@@ -30,12 +30,6 @@ void program_lib_build_args(ast_t* program,
   const char* global_preamble, const char* global_postamble,
   const char* lib_premable, const char* lib_postamble);
 
-/** Report the length of the command line options for the user specified
- * libraries, if any.
- * May only be called after program_lib_build_args().
- */
-size_t program_lib_arg_length(ast_t* program);
-
 /** Report the command line options for the user specified libraries, if any.
  * May only be called after program_lib_build_args().
  * The returned string is valid for the lifetime of the associated AST and

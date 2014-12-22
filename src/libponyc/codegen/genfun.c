@@ -2,6 +2,7 @@
 #include "gentype.h"
 #include "genname.h"
 #include "gencall.h"
+#include "gentrace.h"
 #include "gencontrol.h"
 #include "genexpr.h"
 #include "../pass/names.h"
@@ -261,7 +262,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
     LLVMBuildStore(c->builder, arg, arg_ptr);
 
-    need_trace |= gencall_trace(c, arg, ast_type(param));
+    need_trace |= gentrace(c, arg, ast_type(param));
     param = ast_sibling(param);
   }
 
@@ -308,7 +309,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 2, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
 
-    need_trace |= gencall_trace(c, args[i], ast_type(param));
+    need_trace |= gentrace(c, args[i], ast_type(param));
     param = ast_sibling(param);
   }
 
@@ -606,4 +607,39 @@ bool genfun_methods(compile_t* c, gentype_t* g)
   }
 
   return true;
+}
+
+uint32_t genfun_behaviour_index(gentype_t* g, const char* name)
+{
+  if(g->underlying != TK_ACTOR)
+    return -1;
+
+  ast_t* def = (ast_t*)ast_data(g->ast);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+  int index = 0;
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      case TK_BE:
+      {
+        AST_GET_CHILDREN(member, ignore, id);
+
+        if(ast_name(id) == name)
+          return index;
+
+        index++;
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return -1;
 }

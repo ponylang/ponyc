@@ -36,7 +36,7 @@ void check_symtab_entry(ast_t* scope, const char* name, const char* expected);
 void check_symtab_entry(builder_t* builder, const char* scope,
   const char* name, const char* expected);
 
-void load_test_program(const char* name, ast_t** out_prog);
+void load_test_program(const char* pass, const char* name, ast_t** out_prog);
 
 /** Check that the symbol table of the given AST has an entry for the specified
 * name matching the given AST description.

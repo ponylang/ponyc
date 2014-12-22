@@ -1,9 +1,9 @@
 use "time"
 
-primitive _PathSep is Comparable[_PathSep]
-primitive _PathDot is Comparable[_PathDot]
-primitive _PathDot2 is Comparable[_PathDot2]
-primitive _PathOther is Comparable[_PathOther]
+primitive _PathSep
+primitive _PathDot
+primitive _PathDot2
+primitive _PathOther
 
 type _PathState is (_PathSep | _PathDot | _PathDot2 | _PathOther)
 
@@ -111,7 +111,7 @@ primitive Path
     The result will have no trailing slash unless it is a root directory.
     If the result would be empty, "." will be returned instead.
     """
-    var s = recover String.reserve(path.size()) end
+    var s = recover String(path.size()) end
     var volume = Path.volume(path)
     s.append(volume)
 

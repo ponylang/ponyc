@@ -87,33 +87,6 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
 };
 
 
-/*
-static bool typecheck_main(ast_t* ast)
-{
-  // TODO: check create exists, takes no type params and has correct sig (Env->None)
-  const char* m = stringtab("Main");
-  AST_GET_CHILDREN(ast, id, typeparams);
-
-  if(ast_name(id) != m)
-    return true;
-
-  if(ast_id(ast) != TK_ACTOR) // Now checked elsewhere
-  {
-    ast_error(ast, "Main must be an actor");
-    return false;
-  }
-
-  if(ast_id(typeparams) != TK_NONE) // Not currently checked
-  {
-    ast_error(ast, "Main cannot have type parameters");
-    return false;
-  }
-
-  return true;
-}
-*/
-
-
 static bool check_traits(ast_t* traits)
 {
   assert(traits != NULL);

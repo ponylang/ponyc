@@ -19,7 +19,7 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    var count: U32 = try env.args(1).u32() else U32(10) end
+    var count: U32 = try env.args(1).u32() else 10 end
     var counter = Counter
 
     for i in Range[U32](0, count) do

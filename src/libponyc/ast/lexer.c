@@ -58,6 +58,7 @@ static const lexsym_t symbols[] =
   { ",", TK_COMMA },
 
   { ".", TK_DOT },
+  { "~", TK_TILDE },
   { ":", TK_COLON },
   { ";", TK_SEMI },
   { "=", TK_ASSIGN },
@@ -170,10 +171,8 @@ static const lexsym_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
 
-  { "number", TK_NUMBERLITERAL },
-  { "integer", TK_INTLITERAL },
-  { "float", TK_FLOATLITERAL },
-  { "tuplelit", TK_TUPLELITERAL },
+  { "literal", TK_LITERAL },
+  { "branch", TK_LITERALBRANCH },
   { "opliteral", TK_OPERATORLITERAL },
 
   { "typeparams", TK_TYPEPARAMS },
@@ -208,6 +207,10 @@ static const lexsym_t abstract[] =
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
+  { "newapp", TK_NEWAPP },
+  { "newbeapp", TK_NEWBEAPP },
+  { "beapp", TK_BEAPP },
+  { "funapp", TK_FUNAPP },
 
   { "test", TK_TEST },
   { "testscope", TK_TEST_SCOPE },

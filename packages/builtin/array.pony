@@ -45,14 +45,6 @@ class Array[A]
     end
     this
 
-  // Use only to test performance without bounds checking.
-  // This is in preparation for bounds checking elimination in the compiler.
-  fun box unsafe_get(i: U64): this->A =>
-    _ptr._apply(i)
-
-  fun ref unsafe_set(i: U64, value: A): A^ =>
-    _ptr._update(i, consume value)
-
   fun box apply(i: U64): this->A ? =>
     if i < _size then
       _ptr._apply(i)

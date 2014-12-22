@@ -21,5 +21,4 @@ actor Main
     generictrait = "Test"
 
     var x: U64 = 0
-
     env.out.print("Wahey!")

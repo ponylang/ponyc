@@ -174,26 +174,26 @@ bool expr_assign(typecheck_t* t, ast_t* ast)
   if(!coerce_literals(right, l_type))
     return false;
 
-  // assignment is based on the alias of the right hand side
+  // Assignment is based on the alias of the right hand side.
   ast_t* r_type = ast_type(right);
   ast_t* a_type = alias(r_type);
 
   if(l_type == NULL)
   {
-    // local type inference
+    // Local type inference.
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
 
-    // returns the right side since there was no previous value to read
+    // Returns the right side since there was no previous value to read.
     ast_settype(ast, a_type);
 
-    // set the type node
+    // Set the type node.
     AST_GET_CHILDREN(left, idseq, type);
     ast_replace(&type, a_type);
 
     ast_settype(left, a_type);
     ast_inheriterror(ast);
 
-    // set the type for each component
+    // Set the type for each component.
     return type_for_idseq(idseq, a_type);
   }
 
@@ -207,13 +207,16 @@ bool expr_assign(typecheck_t* t, ast_t* ast)
   }
 
   bool ok_safe = safe_to_write(left, a_type);
-  ast_free_unattached(a_type);
 
   if(!ok_safe)
   {
     ast_error(ast, "not safe to write right side to left side");
+    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_free_unattached(a_type);
     return false;
   }
+
+  ast_free_unattached(a_type);
 
   ast_settype(ast, consume_type(l_type));
   ast_inheriterror(ast);

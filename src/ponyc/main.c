@@ -116,22 +116,28 @@ static size_t get_width()
 {
   size_t width = 80;
 #ifdef PLATFORM_IS_WINDOWS
-  CONSOLE_SCREEN_BUFFER_INFO info;
-
-  if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
+  if(_isatty(_fileno(stdout)))
   {
-    int cols = info.srWindow.Right - info.srWindow.Left + 1;
+    CONSOLE_SCREEN_BUFFER_INFO info;
 
-    if(cols > width)
-      width = cols;
+    if(GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info))
+    {
+      int cols = info.srWindow.Right - info.srWindow.Left + 1;
+
+      if(cols > width)
+        width = cols;
+    }
   }
 #else
-  struct winsize ws;
-
-  if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws))
+  if(isatty(STDOUT_FILENO))
   {
-    if(ws.ws_col > width)
-      width = ws.ws_col;
+    struct winsize ws;
+
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+    {
+      if(ws.ws_col > width)
+        width = ws.ws_col;
+    }
   }
 #endif
   return width;
@@ -201,7 +207,7 @@ int main(int argc, char* argv[])
       case OPT_IMMERR: error_set_immediate(true); break;
 
       case OPT_PASSES:
-        if(!limit_passes(s.arg_val))
+        if(!limit_passes(&opt, s.arg_val))
         {
           usage();
           return -1;

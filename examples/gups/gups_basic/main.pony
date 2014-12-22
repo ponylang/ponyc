@@ -21,7 +21,7 @@ actor Main
     try
       arguments()
 
-      var size = (U64(1) << _logtable) / _updater_count
+      var size = (1 << _logtable) / _updater_count
       _updates = _chunk * _iterate * _streamer_count
 
       let count = _updater_count
@@ -104,7 +104,7 @@ actor Streamer
     seed: U64) =>
     main = main'
     updaters = updaters'
-    shift = size.width() - size.clz()
+    shift = size.bitwidth() - size.clz()
     mask = updaters.size() - 1
     chunk = chunk'
     rand = PolyRand(seed)
@@ -178,7 +178,7 @@ class PolyRand
 
   fun ref apply(): U64 =>
     last = (last << 1) xor
-      if (last and (U64(1) << 63)) != 0 then poly else U64(0) end
+      if (last and (1 << 63)) != 0 then poly else 0 end
 
   fun ref _seed(seed: U64) =>
     var n = seed % period
@@ -196,7 +196,7 @@ class PolyRand
       end
 
       var i: U64 = 64 - n.clz()
-      last = U64(2)
+      last = 2
 
       while i > 0 do
         var temp: U64 = 0

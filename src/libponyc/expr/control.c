@@ -8,13 +8,22 @@
 
 bool expr_seq(ast_t* ast)
 {
+  // Any expression other than the last that is still literal is an error
+  for(ast_t* p = ast_child(ast); ast_sibling(p) != NULL; p = ast_sibling(p))
+  {
+    if(is_type_literal(ast_type(p)))
+    {
+      ast_error(p, "Cannot infer type of unused literal");
+      return false;
+    }
+  }
+
   // We might already have a type due to a return expression.
   ast_t* type = ast_type(ast);
   ast_t* last = ast_childlast(ast);
-  ast_t* last_type = ast_type(last);
 
   // Type is unioned with the type of the last child.
-  type = type_union(type, last_type);
+  type = control_type_add_branch(type, last);
   ast_settype(ast, type);
   ast_inheriterror(ast);
 
@@ -70,14 +79,14 @@ bool expr_if(ast_t* ast)
 
   if(l_type != NULL)
   {
-    type = type_union(type, l_type);
+    type = control_type_add_branch(type, left);
     ast_inheritbranch(ast, left);
     branch_count++;
   }
 
   if(r_type != NULL)
   {
-    type = type_union(type, r_type);
+    type = control_type_add_branch(type, right);
     ast_inheritbranch(ast, right);
     branch_count++;
   }
@@ -99,13 +108,11 @@ bool expr_if(ast_t* ast)
 
 bool expr_while(ast_t* ast)
 {
-  ast_t* cond = ast_child(ast);
-  ast_t* left = ast_sibling(cond);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, cond, body, else_clause);
 
   ast_t* cond_type = ast_type(cond);
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
+  ast_t* body_type = ast_type(body);
+  ast_t* else_type = ast_type(else_clause);
 
   if(!is_bool(cond_type))
   {
@@ -113,8 +120,9 @@ bool expr_while(ast_t* ast)
     return false;
   }
 
-  if(l_type == NULL)
+  if(body_type == NULL)
   {
+    // All body code paths end with return, break, etc
     ast_error(ast, "loop body can never repeat");
     return false;
   }
@@ -124,12 +132,12 @@ bool expr_while(ast_t* ast)
 
   // No symbol status is inherited from the loop body. Nothing from outside the
   // loop body can be consumed, and definitions in the body may not occur.
-  type = type_union(type, l_type);
+  type = control_type_add_branch(type, body);
 
-  if(r_type != NULL)
+  if(else_type != NULL)
   {
-    type = type_union(type, r_type);
-    ast_inheritbranch(ast, left);
+    type = control_type_add_branch(type, else_clause);
+    ast_inheritbranch(ast, body);
 
     // Use a branch count of two instead of one. This means we will pick up any
     // consumes, but not any definitions, since definitions may not occur.
@@ -160,6 +168,7 @@ bool expr_repeat(ast_t* ast)
 
   if(body_type == NULL)
   {
+    // All body code paths end with return, break, etc
     ast_error(ast, "loop body can never repeat");
     return false;
   }
@@ -169,11 +178,11 @@ bool expr_repeat(ast_t* ast)
 
   // No symbol status is inherited from the loop body or condition. Nothing from
   // outside can be consumed, and definitions inside may not occur.
-  type = type_union(type, body_type);
+  type = control_type_add_branch(type, body);
 
   if(else_type != NULL)
   {
-    type = type_union(type, else_type);
+    type = control_type_add_branch(type, else_clause);
     ast_inheritbranch(ast, else_clause);
 
     // Use a branch count of two instead of one. This means we will pick up any
@@ -202,11 +211,8 @@ bool expr_try(ast_t* ast)
     return false;
   }
 
-  // The then clause does not affect the type of the expression.
-  ast_t* body_type = ast_type(body);
-  ast_t* else_type = ast_type(else_clause);
-  ast_t* then_type = ast_type(then_clause);
-  ast_t* type = type_union(body_type, else_type);
+  ast_t* type = control_type_add_branch(NULL, body);
+  type = control_type_add_branch(type, else_clause);
 
   if((type == NULL) && (ast_sibling(ast) != NULL))
   {
@@ -214,9 +220,18 @@ bool expr_try(ast_t* ast)
     return false;
   }
 
+  // The then clause does not affect the type of the expression.
+  ast_t* then_type = ast_type(then_clause);
+
   if(then_type == NULL)
   {
     ast_error(then_clause, "then clause always terminates the function");
+    return false;
+  }
+
+  if(is_type_literal(then_type))
+  {
+    ast_error(then_clause, "Cannot infer type of unused literal");
     return false;
   }
 
@@ -264,11 +279,10 @@ bool expr_break(typecheck_t* t, ast_t* ast)
 
   // Add type to loop.
   ast_t* body = ast_child(ast);
-  ast_t* type = ast_type(body);
   ast_t* loop_type = ast_type(t->frame->loop);
 
-  type = type_union(type, loop_type);
-  ast_settype(t->frame->loop, type);
+  loop_type = control_type_add_branch(loop_type, body);
+  ast_settype(t->frame->loop, loop_type);
 
   return true;
 }
@@ -313,19 +327,6 @@ bool expr_return(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  switch(ast_id(t->frame->method))
-  {
-    case TK_NEW:
-      ast_error(ast, "can't return a value in a constructor");
-      return false;
-
-    case TK_BE:
-      ast_error(ast, "can't return a value in a behaviour");
-      return false;
-
-    default: {}
-  }
-
   if(ast_sibling(ast) != NULL)
   {
     ast_error(ast, "must be the last expression in a sequence");
@@ -346,9 +347,27 @@ bool expr_return(typecheck_t* t, ast_t* ast)
   if(!coerce_literals(body, type))
     return false;
 
-  // The body type must match the return type, without subsumption, or an alias
-  // of the body type must be a subtype of the return type.
   ast_t* body_type = ast_type(body);
+
+  switch(ast_id(t->frame->method))
+  {
+    case TK_NEW:
+      ast_error(ast, "can't return a value in a constructor");
+      return false;
+
+    case TK_BE:
+      if(!is_none(body_type))
+      {
+        ast_error(ast, "return in a behaviour must return None");
+        return false;
+      }
+      return true;
+
+    default: {}
+  }
+
+  // The body type must be a subtype of the return type, and an alias of the
+  // body type must be a subtype of an alias of the return type.
   ast_t* a_type = alias(type);
   ast_t* a_body_type = alias(body_type);
   bool ok = true;

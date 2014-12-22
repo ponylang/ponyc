@@ -15,7 +15,7 @@
 #include "../ds/hash.h"
 #include "../mem/pool.h"
 
-#ifndef PLATFORM_IS_WINDOWS
+#if 0
 
 #define LISTEN_BACKLOG 50
 
@@ -179,9 +179,10 @@ static void join_node(dist_t* d)
 		}
 
 		asio_event_t* e = asio_event_create(
+			actor_current(),
+			DIST_IO_NOTIFY,
 			sock_get_fd(child->socket),
 			filter,
-			DIST_IO_NOTIFY,
 			false,
 			child
 			);
@@ -236,8 +237,14 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 		  d->master = m->master;
 		  d->cluster.self.socket = sock_listen(m->port, LISTEN_BACKLOG);
 
-	    asio_event_t* e = asio_event_create(sock_get_fd(d->cluster.self.socket),
-				ASIO_FILT_READ, DIST_IO_NOTIFY, false, &d->cluster.self);
+	    asio_event_t* e = asio_event_create(
+				actor_current(),
+				DIST_IO_NOTIFY,
+				sock_get_fd(d->cluster.self.socket),
+				ASIO_FILT_READ,
+				false,
+				&d->cluster.self
+				);
 
 	    asio_event_subscribe(e);
 		  break;
@@ -259,6 +266,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 				flt |= ASIO_FILT_WRITE;
 
       asio_event_t* e = asio_event_create(
+				actor_current(),
 				sock_get_fd(d->cluster.parent.socket),
 				flt,
 			  DIST_IO_NOTIFY,

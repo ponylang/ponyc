@@ -60,7 +60,7 @@ class File
     """
     if not _handle.is_null() then
       @fclose[I32](_handle)
-      _handle = Pointer[_FileHandle].null()
+      _handle = Pointer[_FileHandle]
     end
 
   fun ref line(): String =>
@@ -68,7 +68,7 @@ class File
     Returns a line as a String.
     """
     if not _handle.is_null() then
-      var offset = U64(0)
+      var offset: U64 = 0
       var len = _last_line_length
       var result = recover String end
       var done = false
@@ -125,6 +125,26 @@ class File
       recover Array[U8] end
     end
 
+  fun ref read_string(len: U64): String iso^ =>
+    """
+    Returns up to len bytes. The resulting string may have internal null
+    characters.
+    """
+    if not _handle.is_null() then
+      var result = recover String(len) end
+
+      var r = if Platform.linux() then
+        @fread_unlocked[U64](result.cstring(), U64(1), len, _handle)
+      else
+        @fread[U64](result.cstring(), U64(1), len, _handle)
+      end
+
+      result.truncate(r)
+      consume result
+    else
+      recover String end
+    end
+
   fun ref print(data: Bytes box): Bool =>
     """
     Same as write, buts adds a newline.
@@ -162,7 +182,7 @@ class File
         @ftell[U64](_handle)
       end
     else
-      U64(0)
+      0
     end
 
   fun ref size(): U64 =>

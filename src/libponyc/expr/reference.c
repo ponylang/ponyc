@@ -1,15 +1,16 @@
 #include "reference.h"
 #include "literal.h"
 #include "postfix.h"
+#include "call.h"
 #include "../pass/expr.h"
 #include "../pass/names.h"
+#include "../pass/flatten.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
 #include "../type/alias.h"
 #include "../type/viewpoint.h"
 #include "../type/cap.h"
 #include "../type/reify.h"
-#include "../ast/token.h"
 #include <string.h>
 #include <assert.h>
 
@@ -121,11 +122,14 @@ bool expr_field(ast_t* ast)
   return true;
 }
 
-bool expr_fieldref(ast_t* ast, ast_t* left, ast_t* find, token_id t)
+bool expr_fieldref(ast_t* ast, ast_t* find, token_id t)
 {
+  AST_GET_CHILDREN(ast, left, right);
+
   // Attach the type.
   ast_t* type = ast_childidx(find, 1);
   ast_settype(find, type);
+  ast_settype(right, type);
 
   // Viewpoint adapted type of the field.
   ast_t* ftype = viewpoint(left, find);
@@ -163,35 +167,20 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
-      // doesn't have to be valid yet
+      // Doesn't have to be valid yet.
       break;
 
     case TK_DOT:
-      // has to be valid
+      // Has to be valid.
       return expr_nominal(t, &type);
 
     case TK_CALL:
     {
-      // has to be valid
+      // Has to be valid.
       if(!expr_nominal(t, &type))
         return false;
 
-      // transform to a default constructor
-      ast_t* dot = ast_from(ast, TK_DOT);
-      ast_add(dot, ast_from_string(ast, "create"));
-      ast_swap(ast, dot);
-      ast_add(dot, ast);
-
-      return expr_dot(opt, dot);
-    }
-
-    default:
-    {
-      // has to be valid
-      if(!expr_nominal(t, &type))
-        return false;
-
-      // transform to a default constructor
+      // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
@@ -200,14 +189,62 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       if(!expr_dot(opt, dot))
         return false;
 
-      // call the default constructor with no arguments
+      // If the default constructor has no parameters, transform to an apply
+      // call.
+      if(ast_id(dot) == TK_NEWREF)
+      {
+        type = ast_type(dot);
+        assert(ast_id(type) == TK_FUNTYPE);
+        AST_GET_CHILDREN(type, cap, typeparams, params, result);
+
+        if(ast_id(params) == TK_NONE)
+        {
+          // Add a call node.
+          ast_t* call = ast_from(dot, TK_CALL);
+          ast_add(call, ast_from(call, TK_NONE)); // Named
+          ast_add(call, ast_from(call, TK_NONE)); // Positional
+          ast_swap(dot, call);
+          ast_append(call, dot);
+
+          if(!expr_call(opt, &call))
+            return false;
+
+          // Add a dot node.
+          ast_t* apply = ast_from(call, TK_DOT);
+          ast_add(apply, ast_from_string(call, "apply"));
+          ast_swap(call, apply);
+          ast_add(apply, call);
+
+          if(!expr_dot(opt, apply))
+            return false;
+        }
+      }
+      return true;
+    }
+
+    default:
+    {
+      // Has to be valid.
+      if(!expr_nominal(t, &type))
+        return false;
+
+      // Transform to a default constructor.
+      ast_t* dot = ast_from(ast, TK_DOT);
+      ast_add(dot, ast_from_string(ast, "create"));
+      ast_swap(ast, dot);
+      ast_add(dot, ast);
+
+      // Call the default constructor with no arguments.
       ast_t* call = ast_from(ast, TK_CALL);
       ast_swap(dot, call);
-      ast_add(call, dot); // receiver comes last
-      ast_add(call, ast_from(ast, TK_NONE)); // named args
-      ast_add(call, ast_from(ast, TK_NONE)); // positional args
+      ast_add(call, dot); // Receiver comes last.
+      ast_add(call, ast_from(ast, TK_NONE)); // Named args.
+      ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
 
-      return expr_call(opt, call);
+      if(!expr_dot(opt, dot))
+        return false;
+
+      return expr_call(opt, &call);
     }
   }
 
@@ -504,13 +541,14 @@ bool expr_addressof(ast_t* ast)
 bool expr_dontcare(ast_t* ast)
 {
   // We are a tuple element. That tuple must either be a pattern or the LHS
-  // of an assignment. It can be embedded in other tuples.
+  // of an assignment. It can be embedded in other tuples, which may appear
+  // in sequences.
   ast_t* tuple = ast_parent(ast);
   assert(ast_id(tuple) == TK_TUPLE);
 
   ast_t* parent = ast_parent(tuple);
 
-  while(ast_id(parent) == TK_TUPLE)
+  while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
   {
     tuple = parent;
     parent = ast_parent(tuple);
@@ -652,7 +690,7 @@ bool expr_tuple(ast_t* ast)
       {
         // If any tuple members are literal, the whole tuple is
         ast_free(type);
-        type = ast_from(ast, TK_TUPLELITERAL);
+        type = ast_from(ast, TK_LITERAL);
         break;
       }
 
@@ -769,7 +807,7 @@ static bool check_fields_defined(ast_t* ast)
   return result;
 }
 
-static bool check_return_type(pass_opt_t* opt, ast_t* ast)
+static bool check_return_type(ast_t* ast)
 {
   assert(ast_id(ast) == TK_FUN);
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
@@ -783,16 +821,6 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   // If it's a compiler intrinsic, ignore it.
   if(ast_id(body_type) == TK_COMPILER_INTRINSIC)
     return true;
-
-  // If the return type is None, add a None at the end of the body.
-  if(is_none(type))
-  {
-    ast_t* last = ast_childlast(body);
-    BUILD(ref, last, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, ref);
-    expr_reference(opt, ref);
-    return true;
-  }
 
   // The body type must match the return type, without subsumption, or an alias
   // of the body type must be a subtype of the return type.
@@ -814,6 +842,105 @@ static bool check_return_type(pass_opt_t* opt, ast_t* ast)
   return ok;
 }
 
+static bool check_main_create(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_ACTOR)
+    return true;
+
+  ast_t* type_id = ast_child(t->frame->type);
+
+  if(strcmp(ast_name(type_id), "Main"))
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "create"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams,
+      "the create constructor of a Main actor must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(params,
+      "the create constructor of a Main actor must take a single Env "
+      "parameter");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param != NULL)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!is_env(p_type))
+    {
+      ast_error(p_type, "must be of type Env");
+      ok = false;
+    }
+  }
+
+  return ok;
+}
+
+static bool check_finaliser(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_ACTOR)
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "_final"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(ast, "actor _final must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_REF)
+  {
+    ast_error(cap, "actor _final must be ref");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "actor _final must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 0)
+  {
+    ast_error(params, "actor _final must not have parameters");
+    ok = false;
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(result, "actor _final must return None");
+    ok = false;
+  }
+
+  if(ast_id(can_error) != TK_NONE)
+  {
+    ast_error(can_error, "actor _final cannot raise an error");
+    ok = false;
+  }
+
+  return ok;
+}
+
 bool expr_fun(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
@@ -821,11 +948,11 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast,
     cap, id, typeparams, params, type, can_error, body);
 
-  if(!coerce_literals(body, type))
-    return false;
-
   if(ast_id(body) == TK_NONE)
     return true;
+
+  if(!coerce_literals(body, type))
+    return false;
 
   bool is_trait =
     (ast_id(t->frame->type) == TK_TRAIT) ||
@@ -850,13 +977,16 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
+  if(!check_finaliser(t, ast))
+    return false;
+
   switch(ast_id(ast))
   {
     case TK_NEW:
-      return check_fields_defined(ast);
+      return check_fields_defined(ast) && check_main_create(t, ast);
 
     case TK_FUN:
-      return check_return_type(opt, ast);
+      return check_return_type(ast);
 
     default: {}
   }

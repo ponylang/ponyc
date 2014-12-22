@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -102,18 +102,23 @@ typedef void (*pony_final_fn)(void* p);
 /// Describes a type to the runtime.
 typedef const struct _pony_type_t
 {
-  uint32_t id; // Will be used in serialisation.
-  uint32_t size; // Size in bytes.
+  uint32_t id;
+  uint32_t size;
   uint32_t trait_count;
-  uint32_t tuple_count;
+  uint32_t field_count;
   pony_trace_fn trace;
   pony_trace_fn serialise;
   pony_trace_fn deserialise;
   pony_dispatch_fn dispatch;
   pony_final_fn final;
-  // uint32_t** traits;
-  // pony_type_t** tuple;
-  // void* vtable[0];
+  uint32_t event_notify;
+  uint32_t** traits;
+  void* fields;
+#ifndef _MSC_VER
+  void* vtable[0];
+#else
+  void* vtable;
+#endif
 } pony_type_t;
 
 /// This function must be supplied by the program, not the runtime.
@@ -332,7 +337,7 @@ int pony_stop();
  */
 void pony_exitcode(int code);
 
-#if defined(__cplusplus) && !defined(_MSC_VER)
+#if defined(__cplusplus)
 }
 #endif
 

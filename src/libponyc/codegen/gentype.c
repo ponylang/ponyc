@@ -2,7 +2,7 @@
 #include "genname.h"
 #include "gendesc.h"
 #include "genprim.h"
-#include "gencall.h"
+#include "gentrace.h"
 #include "genfun.h"
 #include "genheader.h"
 #include "../pkg/package.h"
@@ -319,7 +319,7 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
       "");
     LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gencall_trace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, value, g->fields[i]);
   }
 
   return need_trace;
@@ -332,7 +332,7 @@ static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef tuple)
   for(int i = 0; i < g->field_count; i++)
   {
     LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
-    need_trace |= gencall_trace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, value, g->fields[i]);
   }
 
   return need_trace;

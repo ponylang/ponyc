@@ -63,7 +63,8 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 			{
 				struct kevent* ev = &(b->fired[i]);
 
-				if(ev->ident == (uintptr_t)b->wakeup[0])
+				if((ev->ident == (uintptr_t)b->wakeup[0]) &&
+					(ev->filter == EVFILT_READ))
 				{
 					close(b->kq);
 					close(b->wakeup[0]);
@@ -73,7 +74,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 
 				asio_event_t* pev = ev->udata;
 
-				//TODO FILES etc.
+				// TODO files etc.
 				uint32_t aflags = (ev->filter & EVFILT_READ ? ASIO_READABLE : 0)
 								| (ev->filter & EVFILT_WRITE ? ASIO_WRITABLE : 0)
 								| (ev->flags & EV_EOF ? ASIO_PEER_SHUTDOWN : 0)
@@ -87,11 +88,14 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 	POOL_FREE(asio_backend_t, b);
 
 	return NULL;
-})
+});
 
 void asio_event_subscribe(asio_event_t* ev)
 {
 	asio_backend_t* b = asio_get_backend();
+
+	if(ev->noisy)
+		asio_noisy_add();
 
 	struct kevent new_event;
 
@@ -104,7 +108,7 @@ void asio_event_subscribe(asio_event_t* ev)
 	if(oldmask == mask)
 		return;
 
-  //EV_CLEAR enforces edge triggered behaviour
+  // EV_CLEAR enforces edge triggered behaviour.
 	EV_SET(&new_event, ev->fd, mask, EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, ev);
 	kevent(b->kq, &new_event, 1, NULL, 0, &t);
 }
@@ -113,12 +117,15 @@ void asio_event_unsubscribe(asio_event_t* ev)
 {
 	asio_backend_t* b = asio_get_backend();
 
+	if(ev->noisy)
+		asio_noisy_remove();
+
 	struct kevent new_event;
 
 	EV_SET(&new_event, ev->fd, 0, EV_DELETE, 0, 0, 0);
 	kevent(b->kq, &new_event, 1, NULL, 0, &t);
 
-	asio_event_dtor(&ev);
+	asio_event_dtor(ev);
 }
 
 #endif

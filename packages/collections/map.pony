@@ -4,8 +4,32 @@ interface Hashable
   """
   fun box hash(): U64
 
-primitive _MapEmpty is Comparable[_MapEmpty]
-primitive _MapDeleted is Comparable[_MapDeleted]
+primitive _MapEmpty
+primitive _MapDeleted
+
+// class Identity[A] is Hashable, Comparable[Identity[A] box]
+//   var _item: A
+//
+//   new create(item: A) =>
+//     _item = consume item
+//
+//   fun box hash(): U64 =>
+//     Pointer[A].to(_item).hash()
+//
+//   fun box eq(that: Identity[A] box): Bool =>
+//     _item is that._item
+
+interface Hasher[A]
+  fun box hash(a: A): U64
+  fun box compare(a: A, b: A): Bool
+
+primitive ValueHasher[A: (Hashable box & Comparable[A] box)]
+  fun box hash(a: A): U64 => a.hash()
+  fun box compare(a: A, b: A): Bool => a == b
+
+// primitive IdentityHasher[A]
+//   fun box hash(a: A): U64 => a // pointer hash somehow?
+//   fun box compare(a: A, b: A): Bool => a is b
 
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
   """

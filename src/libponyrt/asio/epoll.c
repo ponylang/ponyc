@@ -24,8 +24,14 @@ asio_backend_t* asio_backend_init()
   b->epfd = epoll_create1(EPOLL_CLOEXEC);
   b->wakeup = eventfd(0, EFD_NONBLOCK);
 
+  if(b->epfd == 0 || b->wakeup == 0)
+  {
+    POOL_FREE(asio_backend_t, b);
+    return NULL;
+  }
+
   struct epoll_event ep;
-  ep.data.fd = b->wakeup;
+  ep.data.ptr = b;
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
 
@@ -56,11 +62,10 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
       {
         ev = &(b->events[i]);
 
-        if(ev->data.fd == b->wakeup)
+        if(ev->data.ptr == b)
         {
           close(b->epfd);
           close(b->wakeup);
-
           break;
         }
 
@@ -80,11 +85,15 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
   POOL_FREE(asio_backend_t, b);
 
   return NULL;
-})
+});
 
 void asio_event_subscribe(asio_event_t* ev)
 {
   asio_backend_t* b = asio_get_backend();
+
+	if(ev->noisy)
+		asio_noisy_add();
+
   uint32_t oldmask = (ev->eflags >> 16);
 
   struct epoll_event ep;
@@ -102,16 +111,19 @@ void asio_event_subscribe(asio_event_t* ev)
     return;
 
   epoll_ctl(b->epfd, (oldmask != 0) && (oldmask != ep.events) ? EPOLL_CTL_MOD :
-  EPOLL_CTL_ADD, ev->fd, &ep);
+    EPOLL_CTL_ADD, (int)ev->fd, &ep);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
 {
   asio_backend_t* b = asio_get_backend();
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, ev->fd, NULL);
+	if(ev->noisy)
+		asio_noisy_remove();
 
-  asio_event_dtor(&ev);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
+
+  asio_event_dtor(ev);
 }
 
 #endif

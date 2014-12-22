@@ -44,6 +44,23 @@ bool is_cap_sub_cap(token_id sub, token_id super)
   return sub <= super;
 }
 
+token_id cap_single(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      return ast_id(ast_childidx(type, 3));
+
+    case TK_TYPEPARAMREF:
+      return ast_id(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
+}
+
 token_id cap_for_this(typecheck_t* t)
 {
   // If this is a primitive, it's a val.
@@ -60,65 +77,6 @@ token_id cap_for_this(typecheck_t* t)
 
   // If it's a behaviour or a constructor, it's a ref.
   return TK_REF;
-}
-
-token_id cap_for_type(ast_t* type)
-{
-  // This is used for receiver cap, sendability, safe-to-write, and determining
-  // if a union or intersection is a tag when doing garbage collection.
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    {
-      ast_t* child = ast_child(type);
-      token_id cap = TK_ISO;
-
-      while(child != NULL)
-      {
-        cap = cap_upper_bounds(cap, cap_for_type(child));
-        child = ast_sibling(child);
-      }
-
-      return cap;
-    }
-
-    case TK_ISECTTYPE:
-    {
-      ast_t* child = ast_child(type);
-      token_id cap = TK_TAG;
-
-      while(child != NULL)
-      {
-        cap = cap_lower_bounds(cap, cap_for_type(child));
-        child = ast_sibling(child);
-      }
-
-      return cap;
-    }
-
-    case TK_TUPLETYPE:
-      // This will only be examined when checking for a tag in garbage
-      // collection.
-      return TK_REF;
-
-    case TK_NOMINAL:
-      return ast_id(ast_childidx(type, 3));
-
-    case TK_TYPEPARAMREF:
-      return ast_id(ast_childidx(type, 1));
-
-    case TK_ARROW:
-    {
-      // Arrow types arise when something could be box, ref or val. We can treat
-      // any arrow as a view through box.
-      return cap_viewpoint(TK_BOX, cap_for_type(ast_childidx(type, 1)));
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return TK_NONE;
 }
 
 token_id cap_viewpoint(token_id view, token_id cap)
@@ -180,7 +138,12 @@ token_id cap_viewpoint(token_id view, token_id cap)
   return TK_NONE;
 }
 
-token_id cap_typeparam(token_id cap)
+/**
+ * Given the capability of a constraint, derive the capability to use for a
+ * typeparamref of that constraint. Returns the lowest capability that could
+ * be a subtype of the constraint.
+ */
+static token_id cap_typeparam(token_id cap)
 {
   switch(cap)
   {
@@ -249,4 +212,53 @@ bool cap_safetowrite(token_id into, token_id cap)
   }
 
   return false;
+}
+
+token_id cap_from_constraint(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(type);
+      token_id cap = TK_ISO;
+
+      while(child != NULL)
+      {
+        cap = cap_upper_bounds(cap, cap_from_constraint(child));
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+      token_id cap = TK_TAG;
+
+      while(child != NULL)
+      {
+        cap = cap_lower_bounds(cap, cap_from_constraint(child));
+        child = ast_sibling(child);
+      }
+
+      return cap;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return cap_typeparam(cap_single(type));
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+      return cap_typeparam(cap_viewpoint(TK_BOX, cap_single(right)));
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return TK_NONE;
 }

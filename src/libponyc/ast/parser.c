@@ -256,9 +256,9 @@ DEF(dot);
   TOKEN("member name", TK_ID);
   DONE();
 
-// BANG ID
-DEF(bang);
-  TOKEN(NULL, TK_BORROWED); // TODO: Change to a different symbol?
+// TILDE ID
+DEF(tilde);
+  TOKEN(NULL, TK_TILDE);
   TOKEN("method name", TK_ID);
   DONE();
 
@@ -277,10 +277,10 @@ DEF(call);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// atom {dot | bang | qualify | call}
+// atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  TOP SEQ("postfix expression", dot, bang, qualify, call);
+  TOP SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID
@@ -558,13 +558,13 @@ DEF(seq);
   SEQ("value", expr);
   DONE();
 
-// (FUN | BE | NEW) [CAP] [ID] [typeparams] (LPAREN | LPAREN_NEW) [params]
+// (FUN | BE | NEW) [CAP] ID [typeparams] (LPAREN | LPAREN_NEW) [params]
 // RPAREN [COLON type] [QUESTION] [ARROW rawseq]
 DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN("function name", TK_ID);
+  TOKEN("function name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
@@ -646,12 +646,12 @@ DEF(use_name);
   SKIP(NULL, TK_ASSIGN);
   DONE();
 
-// USE [ID ASSIGN] (STRING | USE_FFI) [where infix]
+// USE [ID ASSIGN] (STRING | USE_FFI) [IF infix]
 DEF(use);
   TOKEN(NULL, TK_USE);
   OPT RULE("name", use_name);
   RULE("specifier", use_uri, use_ffi);
-  IF(TK_WHERE, RULE("use condition", infix));
+  IF(TK_IF, RULE("use condition", infix));
   DONE();
 
 // {use} {class | typealias}

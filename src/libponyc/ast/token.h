@@ -40,6 +40,7 @@ typedef enum token_id
   TK_ARROW,
   TK_DBLARROW,
   TK_DOT,
+  TK_TILDE,
   TK_COLON,
   TK_SEMI,
   TK_ASSIGN,
@@ -154,10 +155,8 @@ typedef enum token_id
   TK_THISTYPE,
   TK_FUNTYPE,
 
-  TK_NUMBERLITERAL, // A literal that could be any Number
-  TK_INTLITERAL, // A literal that could be any Signed or Unsigned
-  TK_FLOATLITERAL,  // A literal that could be any Float
-  TK_TUPLELITERAL,  // A tuple containing at least 1 literal
+  TK_LITERAL, // A literal expression whose type is not yet inferred
+  TK_LITERALBRANCH, // Literal branch of a control structure
   TK_OPERATORLITERAL, // Operator function access to a literal
 
   TK_TYPEPARAMS,
@@ -191,6 +190,10 @@ typedef enum token_id
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
+  TK_NEWAPP,
+  TK_NEWBEAPP,
+  TK_BEAPP,
+  TK_FUNAPP,
 
   // Token types for testing
   TK_TEST,

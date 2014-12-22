@@ -21,12 +21,12 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 {
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "sugar");
 
   package_add_magic("builtin", builtin);
   package_suppress_build_message();
   free_errors();
 
-  limit_passes("sugar");
   package_add_magic("short", short_form);
   ast_t* short_ast = program_load(stringtab("short"), &opt);
 
@@ -36,7 +36,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
     ASSERT_NE((void*)NULL, short_ast);
   }
 
-  limit_passes("parsefix");
+  limit_passes(&opt, "parsefix");
   parse_fix_allow_all(true);
   package_add_magic("full", full_form);
   ast_t* full_ast = program_load(stringtab("full"), &opt);
@@ -66,16 +66,17 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 }
 
 
+/* Not currently used, but may be one day
 static void test_bad_sugar(const char* src)
 {
   package_add_magic("prog", src);
   package_add_magic("builtin", builtin);
-  limit_passes("sugar");
   package_suppress_build_message();
   free_errors();
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, "sugar");
   ast_t* ast = program_load(stringtab("prog"), &opt);
   pass_opt_done(&opt);
 
@@ -85,6 +86,7 @@ static void test_bad_sugar(const char* src)
     ASSERT_EQ((void*)NULL, ast);
   }
 }
+*/
 
 
 TEST(SugarTest, DataType)
@@ -93,7 +95,10 @@ TEST(SugarTest, DataType)
     "primitive Foo";
 
   const char* full_form =
-    "primitive Foo val new create(): Foo val^ => true";
+    "primitive Foo val\n"
+    "  new create(): Foo val^ => true\n"
+    "  fun box eq(that:Foo): Bool => this is that\n"
+    "  fun box ne(that:Foo): Bool => this isnt that\n";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -137,21 +142,14 @@ TEST(SugarTest, ClassWithCreateConstructor)
 
 TEST(SugarTest, ClassWithCreateFunction)
 {
-  // Create function clashes with create constructor
+  // Create function doesn't clash with create constructor
   const char* short_form =
-    "class Foo fun ref create() => 3";
+    "class Foo fun ref create():U32 => 3";
 
-  DO(test_bad_sugar(short_form));
-}
+  const char* full_form =
+    "class Foo ref fun ref create():U32 => 3";
 
-
-TEST(SugarTest, ClassWithCreateFunctionAndField)
-{
-  // Field stops addition of create constructor, so create function is fine
-  const char* short_form =
-    "class Foo ref let m:U32 fun ref create(): U32 val => 3";
-
-  DO(test_good_sugar(short_form, short_form));
+  DO(test_good_sugar(short_form, full_form));
 }
 
 
@@ -214,22 +212,12 @@ TEST(SugarTest, ActorWithCreateConstructor)
 
 TEST(SugarTest, ActorWithCreateFunction)
 {
-  // Create function clashes with create constructor
+  // Create function doesn't clash with create constructor
   const char* short_form =
-    "actor Foo fun ref create() => 3";
-
-  DO(test_bad_sugar(short_form));
-}
-
-
-TEST(SugarTest, ActorWithCreateFunctionAndField)
-{
-  // Field stops addition of create constructor, so create function is fine
-  const char* short_form =
-    "actor Foo     let m:U32 fun ref create(): U32 val => 3";
+    "actor Foo fun ref create():U32 => 3";
 
   const char* full_form =
-    "actor Foo tag let m:U32 fun ref create(): U32 val => 3";
+    "actor Foo tag fun ref create():U32 => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -237,22 +225,12 @@ TEST(SugarTest, ActorWithCreateFunctionAndField)
 
 TEST(SugarTest, ActorWithCreateBehaviour)
 {
-  // Create behaviour clashes with create constructor
+  // Create behaviour doesn't clash with create constructor
   const char* short_form =
     "actor Foo be create() => 3";
 
-  DO(test_bad_sugar(short_form));
-}
-
-
-TEST(SugarTest, ActorWithCreateBehaviourAndField)
-{
-  // Field stops addition of create constructor, so create behaviour is fine
-  const char* short_form =
-    "actor Foo     let m:U32 be create() => 3";
-
   const char* full_form =
-    "actor Foo tag let m:U32 be create(): Foo tag => 3";
+    "actor Foo tag be create():Foo tag => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -313,11 +291,11 @@ TEST(SugarTest, TypeParamWithoutConstraint)
 }
 
 
-TEST(SugarTest, ConstructorNoNameNoReturnType)
+TEST(SugarTest, ConstructorNoReturnType)
 {
   const char* short_form =
     "class Foo ref var y:U32\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "class Foo ref var y:U32\n"
@@ -331,7 +309,7 @@ TEST(SugarTest, ConstructorInActor)
 {
   const char* short_form =
     "actor Foo var y:U32\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "actor Foo tag var y:U32\n"
@@ -345,11 +323,13 @@ TEST(SugarTest, ConstructorInDataType)
 {
   const char* short_form =
     "primitive Foo\n"
-    "  new() => 3";
+    "  new create() => 3";
 
   const char* full_form =
     "primitive Foo val\n"
-    "  new create(): Foo val^ => 3";
+    "  new create(): Foo val^ => 3\n"
+    "  fun box eq(that:Foo): Bool => this is that\n"
+    "  fun box ne(that:Foo): Bool => this isnt that\n";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -387,18 +367,6 @@ TEST(SugarTest, FunctionComplete)
 }
 
 
-TEST(SugarTest, FunctionNoName)
-{
-  const char* short_form =
-    "class Foo ref var y:U32 fun box (): U32 val => 3";
-
-  const char* full_form =
-    "class Foo ref var y:U32 fun box apply(): U32 val => 3";
-
-  DO(test_good_sugar(short_form, full_form));
-}
-
-
 TEST(SugarTest, FunctionNoReturnNoBody)
 {
   const char* short_form =
@@ -417,7 +385,7 @@ TEST(SugarTest, FunctionNoReturnBody)
     "trait Foo ref fun box foo() => 3";
 
   const char* full_form =
-    "trait Foo ref fun box foo(): None => 3";
+    "trait Foo ref fun box foo(): None => 3; None";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -531,11 +499,11 @@ TEST(SugarTest, ForWithoutElse)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use:(\n"
-    "    var hygid = use:(1)\n"
+    "  use(\n"
+    "    let hygid = use(1)\n"
     "    while hygid.has_next() do\n"
-    "      var i = hygid.next()\n"
-    "      use:(2)\n"
+    "      let i = hygid.next()\n"
+    "      use(2)\n"
     "    else None end\n"
     "  )";
 
@@ -551,11 +519,11 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use:(\n"
-    "    var hygid = use:(1)\n"
+    "  use(\n"
+    "    let hygid = use(1)\n"
     "    while hygid.has_next() do\n"
-    "      var i:U32 = hygid.next()\n"
-    "      use:(2)\n"
+    "      let i:U32 = hygid.next()\n"
+    "      use(2)\n"
     "    else\n"
     "      3\n"
     "    end\n"
@@ -829,7 +797,7 @@ TEST(SugarTest, And)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.and_(2)";
+    "  fun ref f(): U32 val => 1.op_and(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -843,7 +811,7 @@ TEST(SugarTest, Or)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.or_(2)";
+    "  fun ref f(): U32 val => 1.op_or(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -857,7 +825,7 @@ TEST(SugarTest, Xor)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.xor_(2)";
+    "  fun ref f(): U32 val => 1.op_xor(2)";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -871,7 +839,7 @@ TEST(SugarTest, Not)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  fun ref f(): U32 val => 1.not_()";
+    "  fun ref f(): U32 val => 1.op_not()";
 
   DO(test_good_sugar(short_form, full_form));
 }

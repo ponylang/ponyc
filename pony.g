@@ -13,7 +13,7 @@ module
   ;
 
 use
-  :  'use' (ID '=')? (STRING | use_ffi) ('where' expr)?
+  :  'use' (ID '=')? (STRING | use_ffi) ('if' expr)?
   ;
 
 use_ffi
@@ -154,7 +154,7 @@ withexpr
 postfix
   :  atom
      (  '.' ID // member access
-     |  '!' ID // partial application, syntactic sugar
+     |  '~' ID // partial application, syntactic sugar
      |  type_args // type arguments
      |  '@(' positional? named? ')' // call
      )*

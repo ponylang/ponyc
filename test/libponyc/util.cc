@@ -179,7 +179,7 @@ void check_tree(const char* expected, ast_t* actual_ast)
 }
 
 
-void load_test_program(const char* name, ast_t** out_prog)
+void load_test_program(const char* pass, const char* name, ast_t** out_prog)
 {
   free_errors();
 
@@ -187,6 +187,7 @@ void load_test_program(const char* name, ast_t** out_prog)
 
   pass_opt_t opt;
   pass_opt_init(&opt);
+  limit_passes(&opt, pass);
   ast_t* program = program_load(stringtab(name), &opt);
   pass_opt_done(&opt);
 

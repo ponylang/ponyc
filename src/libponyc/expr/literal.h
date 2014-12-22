@@ -7,29 +7,30 @@
 
 PONY_EXTERN_C_BEGIN
 
-void literals_init();
 
 bool expr_literal(ast_t* ast, const char* name);
+
+/// Set the given AST node to have literal type
+void make_literal_type(ast_t* ast);
 
 /// Report whether the given type AST is a literal type
 bool is_type_literal(ast_t* type);
 
 /// Coerce the given AST to be of the given target type, if it is a literal.
-/// @param out_type_changed Report whether the type of ast has been changed.
-///   May be NULL.
 /// @return True on success, false on error. If false is returned an error will
 ///   already have been reported.
 bool coerce_literals(ast_t* literals, ast_t* target_type);
 
-void reify_literals(ast_t* ast);
+/// Handle a member access, possibly involving literals.
+/// On exit all literals will have been removed from the expression or the type
+/// type of the expression will have been set.
+bool literal_member_access(ast_t* ast);
 
-bool coerce_literal_member(ast_t* ast);
+/// Handle a call, possibly involving literals.
+/// On exit all literals will have been removed from the expression or the type
+/// type of the expression will have been set.
+bool literal_call(ast_t* ast);
 
-bool coerce_literal_operator(ast_t* ast);
-
-/// If the type of the given AST is a literal, turn it into a concrete type.
-/// Must only be called after reification.
-//void concrete_literal(ast_t* ast);
 
 PONY_EXTERN_C_END
 

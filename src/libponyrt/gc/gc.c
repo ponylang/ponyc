@@ -78,7 +78,17 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   } else {
     // get the actor
     actorref_t* aref = actormap_getactor(&gc->foreign, actor);
-    assert(aref != NULL);
+
+    // we've reached this by tracing a tag through a union
+    if(aref == NULL)
+      return;
+
+    // get the object
+    object_t* obj = actorref_getobject(aref, p);
+
+    // we've reached this by tracing a tag through a union
+    if(obj == NULL)
+      return;
 
     if(!actorref_marked(aref, gc->mark))
     {
@@ -93,10 +103,6 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       gc->delta = deltamap_update(gc->delta,
         actorref_actor(aref), actorref_rc(aref));
     }
-
-    // get the object
-    object_t* obj = actorref_getobject(aref, p);
-    assert(obj != NULL);
 
     if(!object_marked(obj, gc->mark))
     {
@@ -215,10 +221,19 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   } else {
     // mark the owner
     actorref_t* aref = actormap_getactor(&gc->foreign, actor);
-    actorref_mark(aref, gc->mark);
+
+    // we've reached this by tracing a tag through a union
+    if(aref == NULL)
+      return;
 
     // get the object
     object_t* obj = actorref_getobject(aref, p);
+
+    // we've reached this by tracing a tag through a union
+    if(obj == NULL)
+      return;
+
+    actorref_mark(aref, gc->mark);
 
     if(!object_marked(obj, gc->mark))
     {
@@ -285,6 +300,11 @@ void gc_markactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
     return;
 
   actorref_t* aref = actormap_getactor(&gc->foreign, actor);
+
+  // we've reached this by tracing a tag through a union
+  if(aref == NULL)
+    return;
+
   actorref_mark(aref, gc->mark);
 }
 

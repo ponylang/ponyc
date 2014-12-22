@@ -1,4 +1,4 @@
-use "lib:rt" where linux
+use "lib:rt" if linux
 
 primitive Time
   """
@@ -32,7 +32,7 @@ primitive Time
       var nsec = (epoch - (sec * 10000000)) * 100
       (sec, nsec)
     else
-      (I64(0), I64(0))
+      (0, 0)
     end
 
   fun tag nanos(): U64 =>
@@ -54,7 +54,7 @@ primitive Time
       var qpc = pc._1.u64() or (pc._2.u64() << 32)
       (qpc * 1000000000) / qpf
     else
-      U64(0)
+      0
     end
 
   fun tag cycles(): U64 =>
