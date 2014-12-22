@@ -17,10 +17,23 @@ static ast_t* alias_for_type(ast_t* type, int index)
       return type;
 
     case TK_NONE:
-      type = ast_dup(type);
-      ephemeral = ast_childidx(type, index + 1);
-      ast_setid(ephemeral, TK_BORROWED);
+    {
+      ast_t* cap = ast_childidx(type, index);
+
+      switch(ast_id(cap))
+      {
+        case TK_ISO:
+        case TK_TRN:
+          type = ast_dup(type);
+          ephemeral = ast_childidx(type, index + 1);
+          ast_setid(ephemeral, TK_BORROWED);
+          break;
+
+        default: {}
+      }
+
       return type;
+    }
 
     case TK_BORROWED:
       return type;

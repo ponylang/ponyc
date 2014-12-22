@@ -166,18 +166,20 @@ class Rope val is Stringable, Ordered[Rope]
     let str = recover String(len) end
 
     let traverse = object
-      fun tag apply(result: String iso!, rope: Rope box) =>
+      fun tag apply(result: String iso, rope: Rope box): String iso^ =>
         match rope.node
         | (var leaf: String, _) =>
           result.append(leaf)
+          consume result
         | (var left: Rope, var right: Rope) =>
-          apply(result, left)
-          apply(result, right)
+          var result' = apply(consume result, left)
+          apply(consume result', right)
+        else
+          consume result
         end
     end
 
-    traverse(str, this)
-    consume str
+    traverse(consume str, this)
 
   //Put this in once Fibonacci compiles (literal inference with generics)
   //fun box balanced(): Bool =>
