@@ -445,9 +445,6 @@ static bool codegen_program(compile_t* c, ast_t* program)
     return false;
   }
 
-  // Emit debug info for this compile unit.
-  //dwarf_compileunit(c->dwarf, package);
-
   // Generate the Main actor and the Env class.
   gentype_t main_g;
   ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);
@@ -1079,8 +1076,11 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  //dwarf_init(&c);
   genprim_builtins(&c);
+
+  // Emit debug info for this compile unit.
+  dwarf_init(&c);
+  dwarf_compileunit(c.dwarf, program);
 
   bool ok;
 
@@ -1091,11 +1091,11 @@ bool codegen(ast_t* program, pass_opt_t* opt, pass_id pass_limit)
 
   if(ok)
   {
-    //ok = dwarf_finalise(c.dwarf);
+    ok = dwarf_finalise(c.dwarf);
     ok &= codegen_finalise(program, &c, opt, pass_limit);
   }
 
-  //dwarf_cleanup(&c.dwarf);
+  dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }

@@ -8,6 +8,7 @@
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
+#include "../debug/dwarf.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -475,6 +476,8 @@ static bool make_components(compile_t* c, gentype_t* g)
 
     if(!gentype(c, g->fields[i], &field_g))
       return false;
+
+    dwarf_field(c->dwarf, g, &field_g);
   }
 
   return true;
@@ -491,6 +494,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     case TK_INTERFACE:
     case TK_TRAIT:
       g->use_type = c->object_ptr;
+      dwarf_trait(c->dwarf, def, g);
       return true;
 
     default: {}
@@ -504,6 +508,12 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   {
     // Not a primitive type. Generate all the fields and a trace function.
     setup_type_fields(g);
+
+    // Forward declare debug symbols for this nominal, if needed.
+    // At this point, this can only be TK_CLASS or TK_ACTOR ast nodes. TK_TYPE
+    // has been translated to any of the former during reification.
+    dwarf_forward(c->dwarf, def, g);
+
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
     if(!ok)
@@ -512,6 +522,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
       return false;
     }
   } else {
+    // Emit debug symbols for a basic type (U8, U16, U32...)
+    dwarf_basic(c->dwarf, g);
+
     // Create a box type.
     make_box_type(c, g);
   }
@@ -538,6 +551,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     codegen_finishfun(c);
   }
 
+  // Emit debug symbols, if needed.
+  //dwarf_composite(c, def, g, false);
+
   // Write to the header file.
   if(c->library)
     genheader(c, g);
@@ -553,7 +569,13 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
     return true;
 
   setup_tuple_fields(g);
+
+  dwarf_forward(c->dwarf, ast, g);
+
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
+
+  // Emit debug symbols for tuple type.
+  dwarf_tuple(c->dwarf, ast, g);
 
   // Generate a descriptor.
   gendesc_init(c, g);
