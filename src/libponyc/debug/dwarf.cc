@@ -199,7 +199,8 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g)
     ast_t* typeargs = ast_childidx(type, 2);
     ast_t* target = ast_child(typeargs);
 
-    
+    (void)target;
+
   }
 }
 
@@ -263,8 +264,8 @@ void dwarf_composite(dwarf_t* dwarf, ast_t* def, gentype_t* g)
 
   get_typeinfo(dwarf, NULL, g->use_type, &info);
 
-  d->type = builder->createPointerType(actual, info.size, info.align);
-  d->qualified = builder->createQualifiedType(DW_TAG_const_type, d->type);
+  //d->type = builder->createPointerType(actual, info.size, info.align);
+  //d->qualified = builder->createQualifiedType(DW_TAG_const_type, d->type);
 }
 
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
