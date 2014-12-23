@@ -138,7 +138,9 @@ ELLIPSIS: no children
 
 SEQ: {jump | expr}
 symtab: name -> VAR | VAL
-data: during type checking, whether the expr can error or not
+data:
+  During parsing, whether sequence is a test scope (1) or not (0)
+  During type checking, whether the expr can error or not
 Some SEQ nodes do not have symbol tables. These are indicated in the parent
 nodes.
 

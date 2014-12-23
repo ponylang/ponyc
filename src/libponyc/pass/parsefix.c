@@ -603,22 +603,15 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
-static ast_result_t parse_fix_test_scope(ast_t* ast)
+static ast_result_t parse_fix_sequence(ast_t* ast)
 {
-  // Only allowed in testing
-  if(!allow_all)
+  if(ast_data(ast) == (void*)1)
   {
+    // Test sequence, not allowed outside parse pass
     ast_error(ast, "Unexpected use command in method body");
     return AST_FATAL;
   }
 
-  // Replace tests cope with a normal sequence scope
-  ast_setid(ast, TK_SEQ);
-
-  if(ast_id(ast_child(ast)) == TK_COLON)
-    ast_scope(ast);
-
-  ast_free(ast_pop(ast));
   return AST_OK;
 }
 
@@ -687,14 +680,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
-  // Functions that fix up the tree
-  switch(id)
-  {
-    case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
-
-    default: break;
-  }
-
   if(allow_all)
   {
     // Don't check anything, just fix up the tree
@@ -707,6 +692,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that just check for illegal code
   switch(id)
   {
+    case TK_SEQ:        return parse_fix_sequence(ast);
     case TK_TYPE:       return parse_fix_type_alias(ast);
     case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);

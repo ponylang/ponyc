@@ -85,6 +85,33 @@ ast_t* postfix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 }
 
 
+ast_t* test_seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  // The exisiting AST is a pointless TK_USE, possibly with a TK_COLON child.
+  // The new AST is a valid raw sequence. We need to mark the seauence as
+  // being a test and possibly give it a scope.
+  (void)state;
+
+  assert(existing != NULL);
+  assert(ast_id(existing) == TK_USE);
+
+  ast_t* is_scope_ast = ast_child(existing);
+  assert(is_scope_ast != NULL);
+  assert(ast_id(is_scope_ast) == TK_COLON || ast_id(is_scope_ast) == TK_NONE);
+
+  assert(new_ast != NULL);
+  assert(ast_id(new_ast) == TK_SEQ);
+
+  ast_setdata(new_ast, (void*)1); // Indicates we're a test sequence
+
+  if(ast_id(is_scope_ast) == TK_COLON)
+    ast_scope(new_ast);
+
+  ast_free(existing);
+  return new_ast;
+}
+
+
 // Rules
 
 // type {COMMA type}
@@ -531,15 +558,13 @@ DEF(prefixminus);
   RULE("value", term);
   DONE();
 
-// use ':'? '(' expr {expr} ')'
+// 'use' ':'? '(' expr {expr} ')'
 // For testing only, thrown out by parsefix
-DEF(test_scope);
+DEF(test_seq);
   TOKEN(NULL, TK_USE);
-  MAP_ID(TK_USE, TK_TEST_SCOPE);
   OPT TOKEN(NULL, TK_COLON);
   SKIP(NULL, TK_LPAREN);
-  RULE("value", expr);
-  SEQ("value", expr);
+  CUSTOMBUILD(test_seq_builder) RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
@@ -547,7 +572,7 @@ DEF(test_scope);
 // prefix | prefixminus | postfix | test_scope
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with, try_block,
-    recover, prefix, prefixminus, postfix, test_scope);
+    recover, prefix, prefixminus, postfix, test_seq);
   DONE();
 
 // BINOP term
