@@ -211,7 +211,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     ast_t* p_type = ast_childidx(param, 1);
 
-    if(!coerce_literals(arg, p_type))
+    if(!coerce_literals(&arg, p_type, opt))
       return false;
 
     ast_t* arg_type = ast_type(arg);
@@ -603,7 +603,7 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
 
-  if(!literal_call(ast))
+  if(!literal_call(ast, opt))
     return false;
 
   // Type already set by literal handler

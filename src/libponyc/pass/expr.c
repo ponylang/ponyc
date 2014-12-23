@@ -80,7 +80,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_FVAR:
     case TK_FLET:
     case TK_PARAM:
-      if(!expr_field(ast))
+      if(!expr_field(options, ast))
         return AST_FATAL;
       break;
 
@@ -118,7 +118,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_RETURN:
-      if(!expr_return(t, ast))
+      if(!expr_return(options, ast))
         return AST_FATAL;
       break;
 
@@ -129,7 +129,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_ASSIGN:
-      if(!expr_assign(t, ast))
+      if(!expr_assign(options, ast))
         return AST_FATAL;
       break;
 
@@ -195,7 +195,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_CASE:
-      if(!expr_case(t, ast))
+      if(!expr_case(options, ast))
         return AST_FATAL;
       break;
 
@@ -256,7 +256,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_FFICALL:
-      if(!expr_ffi(ast))
+      if(!expr_ffi(options, ast))
         return AST_FATAL;
       break;
 

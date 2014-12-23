@@ -2,6 +2,7 @@
 #include "reference.h"
 #include "postfix.h"
 #include "call.h"
+#include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
 #include "../type/alias.h"
@@ -22,7 +23,16 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
     {
       ast_error(child,
         "can't use an expression without a value in an array constructor");
+      ast_free_unattached(type);
       return false;
+    }
+
+    if(is_type_literal(c_type))
+    {
+      // At least one array element is literal, so whole array is
+      ast_free_unattached(type);
+      make_literal_type(ast);
+      return true;
     }
 
     type = type_union(type, c_type);

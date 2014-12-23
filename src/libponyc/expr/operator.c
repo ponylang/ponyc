@@ -158,20 +158,22 @@ bool expr_identity(ast_t* ast)
   return true;
 }
 
-bool expr_assign(typecheck_t* t, ast_t* ast)
+bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
+  assert(ast != NULL);
+
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(t, left, is_result_needed(ast)))
+  if(!is_lvalue(&opt->check, left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
   }
 
-  if(!coerce_literals(right, l_type))
+  if(!coerce_literals(&right, l_type, opt))
     return false;
 
   // Assignment is based on the alias of the right hand side.

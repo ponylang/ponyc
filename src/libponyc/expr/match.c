@@ -6,6 +6,7 @@
 #include "../type/alias.h"
 #include "../type/lookup.h"
 #include "../ast/stringtab.h"
+#include "../pass/pass.h"
 #include <assert.h>
 
 bool expr_match(ast_t* ast)
@@ -371,7 +372,8 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
 }
 
 // Infer the types of any literals in the pattern of the given case
-static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type)
+static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type,
+  pass_opt_t* opt)
 {
   assert(pattern != NULL);
   assert(match_expr_type != NULL);
@@ -383,11 +385,12 @@ static bool infer_pattern_type(ast_t* pattern, ast_t* match_expr_type)
     return false;
   }
 
-  return coerce_literals(pattern, match_expr_type);
+  return coerce_literals(&pattern, match_expr_type, opt);
 }
 
-bool expr_case(typecheck_t* t, ast_t* ast)
+bool expr_case(pass_opt_t* opt, ast_t* ast)
 {
+  assert(opt != NULL);
   assert(ast_id(ast) == TK_CASE);
   AST_GET_CHILDREN(ast, pattern, guard, body);
 
@@ -408,10 +411,11 @@ bool expr_case(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  if(!infer_pattern_type(pattern, match_type))
+  if(!infer_pattern_type(pattern, match_type, opt))
     return false;
 
-  if(is_valid_pattern(t, match_type, pattern, true) != MATCHTYPE_ACCEPT)
+  matchtype_t is_valid = is_valid_pattern(&opt->check, match_type, pattern, true);
+  if(is_valid != MATCHTYPE_ACCEPT)
     return false;
 
   if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))

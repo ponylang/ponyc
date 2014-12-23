@@ -92,7 +92,7 @@ static bool valid_reference(ast_t* ast, sym_status_t status)
   return false;
 }
 
-bool expr_field(ast_t* ast)
+bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* type = ast_childidx(ast, 1);
   ast_t* init = ast_sibling(type);
@@ -100,7 +100,7 @@ bool expr_field(ast_t* ast)
   if(ast_id(init) != TK_NONE)
   {
     // Initialiser type must match declared type.
-    if(!coerce_literals(init, type))
+    if(!coerce_literals(&init, type, opt))
       return false;
 
     ast_t* init_type = alias(ast_type(init));
@@ -688,10 +688,10 @@ bool expr_tuple(ast_t* ast)
 
       if(is_type_literal(c_type))
       {
-        // If any tuple members are literal, the whole tuple is
+        // At least one tuple member is literal, so whole tuple is
         ast_free(type);
-        type = ast_from(ast, TK_LITERAL);
-        break;
+        make_literal_type(ast);
+        return true;
       }
 
       ast_append(type, c_type);
@@ -951,7 +951,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   if(ast_id(body) == TK_NONE)
     return true;
 
-  if(!coerce_literals(body, type))
+  if(!coerce_literals(&body, type, opt))
     return false;
 
   bool is_trait =
