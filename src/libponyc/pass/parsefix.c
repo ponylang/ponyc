@@ -7,10 +7,6 @@
 #include <assert.h>
 
 
-// Allow all code, just fixup tree
-static bool allow_all = false;
-
-
 #define DEF_CLASS 0
 #define DEF_ACTOR 1
 #define DEF_PRIMITIVE 2
@@ -157,7 +153,7 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   const permission_def_t* def = &_method_def[method_def_index];
 
-  if(!allow_all && def->permissions == NULL)
+  if(def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
     return false;
@@ -165,9 +161,6 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, arrow);
-
-  if(allow_all)
-    return true;
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
@@ -680,15 +673,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
-  if(allow_all)
-  {
-    // Don't check anything, just fix up the tree
-    if(id == TK_FUN || id == TK_BE || id == TK_NEW)
-      check_method(ast, 0);
-
-    return AST_OK;
-  }
-
   // Functions that just check for illegal code
   switch(id)
   {
@@ -721,10 +705,4 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     return parse_fix_infix_expr(ast);
 
   return AST_OK;
-}
-
-
-void parse_fix_allow_all(bool allow)
-{
-  allow_all = allow;
 }
