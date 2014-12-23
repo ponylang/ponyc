@@ -305,6 +305,33 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
   }
 
 
+/** If the next token is the specified id consume it and parse the specified
+ * "then" block of tokens and / or rules.
+ * If the condition id is not found the next token is not consumed and the
+ * specified "else" block of tokens and / or rules is parsed.
+ * Example:
+ *    IFELSE(TK_COLON, RULE("foo", type), RULE("bar", no_type));
+ */
+#define IFELSE(id, thenbody, elsebody) \
+  { \
+    static const token_id id_set[] = { id, TK_NONE }; \
+    state.opt = true; \
+    const char* cond_desc = token_id_desc(id); \
+    ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
+    HANDLE_ERRORS(sub_ast, cond_desc); \
+    RESET_STATE(); \
+    if(sub_ast == NULL) \
+    { \
+      state.matched = true; \
+      thenbody; \
+    } \
+    else \
+    { \
+      elsebody; \
+    } \
+  }
+
+
 /** Repeatedly try to parse one optional token or rule and every time it
  * succeeds parse the specified block of tokens and / or rules.
  * When the condition id is not found the next token is not consumed.

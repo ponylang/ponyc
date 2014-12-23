@@ -97,7 +97,11 @@ DEF(typeargs);
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
-  IF(TK_DOT, TOKEN("name", TK_ID));
+  IFELSE(TK_DOT,
+    TOKEN("name", TK_ID),
+    AST_NODE(TK_NONE);
+    REORDER(1, 0);
+  );
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);

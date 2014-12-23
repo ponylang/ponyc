@@ -603,25 +603,6 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
-static ast_result_t parse_fix_nominal(ast_t* ast)
-{
-  // If we didn't have a package, the first two children will be ID NONE
-  // change them to NONE ID so the package is always first
-  ast_t* package = ast_child(ast);
-  ast_t* type = ast_sibling(package);
-
-  if(ast_id(type) == TK_NONE)
-  {
-    ast_pop(ast);
-    ast_pop(ast);
-    ast_add(ast, package);
-    ast_add(ast, type);
-  }
-
-  return AST_OK;
-}
-
-
 static ast_result_t parse_fix_nodeorder(ast_t* ast)
 {
   // Swap the order of the nodes. We want to typecheck the right side before
@@ -720,7 +701,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that fix up the tree
   switch(id)
   {
-    case TK_NOMINAL:    return parse_fix_nominal(ast);
     case TK_ASSIGN:
     case TK_CALL:       return parse_fix_nodeorder(ast);
     case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
