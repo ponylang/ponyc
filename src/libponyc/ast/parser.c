@@ -39,6 +39,7 @@ DECL(members);
 
 // Tree builders
 
+// Standard infix operator AST builder
 ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 {
   (void)state;
@@ -49,6 +50,7 @@ ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 }
 
 
+// Reversed infix AST builder for assignment
 ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 {
   (void)state;
@@ -58,6 +60,29 @@ ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
   return new_ast;
 }
 
+
+// Postfix operator AST builder to special case call child order
+ast_t* postfix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  assert(new_ast != NULL);
+
+  if(ast_id(new_ast) == TK_CALL)
+  {
+    // Call
+    // New AST goes at the top, existing goes on the right
+    ast_append(new_ast, existing);
+  }
+  else
+  {
+    // Dot, tilde or qualify
+    // New AST goes at the top, existing goes on the left
+    ast_add(new_ast, existing);
+  }
+
+  return new_ast;
+}
 
 
 // Rules
@@ -307,7 +332,8 @@ DEF(call);
 // atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  CUSTOMBUILD(infix_builder) SEQ("postfix expression", dot, tilde, qualify, call);
+  CUSTOMBUILD(postfix_builder)
+    SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID

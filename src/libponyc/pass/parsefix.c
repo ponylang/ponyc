@@ -603,17 +603,6 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
-static ast_result_t parse_fix_nodeorder(ast_t* ast)
-{
-  // Swap the order of the nodes. We want to typecheck the right side before
-  // the left side to make sure we handle consume tracking correctly. This
-  // applies to TK_ASSIGN and TK_CALL.
-  ast_t* left = ast_pop(ast);
-  ast_append(ast, left);
-  return AST_OK;
-}
-
-
 static ast_result_t parse_fix_test_scope(ast_t* ast)
 {
   // Only allowed in testing
@@ -701,8 +690,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that fix up the tree
   switch(id)
   {
-    //case TK_ASSIGN:
-    case TK_CALL:       return parse_fix_nodeorder(ast);
     case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
 
     default: break;
