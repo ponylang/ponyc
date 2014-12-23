@@ -37,6 +37,81 @@ DECL(members);
 */
 
 
+// Tree builders
+
+// Standard infix operator AST builder
+ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  // New AST goes at the top
+  ast_add(new_ast, existing);
+  return new_ast;
+}
+
+
+// Reversed infix AST builder for assignment
+ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  // New AST goes at the top, existing goes on the right
+  ast_append(new_ast, existing);
+  return new_ast;
+}
+
+
+// Postfix operator AST builder to special case call child order
+ast_t* postfix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  assert(new_ast != NULL);
+
+  if(ast_id(new_ast) == TK_CALL)
+  {
+    // Call
+    // New AST goes at the top, existing goes on the right
+    ast_append(new_ast, existing);
+  }
+  else
+  {
+    // Dot, tilde or qualify
+    // New AST goes at the top, existing goes on the left
+    ast_add(new_ast, existing);
+  }
+
+  return new_ast;
+}
+
+
+ast_t* test_seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  // The exisiting AST is a pointless TK_USE, possibly with a TK_COLON child.
+  // The new AST is a valid raw sequence. We need to mark the seauence as
+  // being a test and possibly give it a scope.
+  (void)state;
+
+  assert(existing != NULL);
+  assert(ast_id(existing) == TK_USE);
+
+  ast_t* is_scope_ast = ast_child(existing);
+  assert(is_scope_ast != NULL);
+  assert(ast_id(is_scope_ast) == TK_COLON || ast_id(is_scope_ast) == TK_NONE);
+
+  assert(new_ast != NULL);
+  assert(ast_id(new_ast) == TK_SEQ);
+
+  ast_setdata(new_ast, (void*)1); // Indicates we're a test sequence
+
+  if(ast_id(is_scope_ast) == TK_COLON)
+    ast_scope(new_ast);
+
+  ast_free(existing);
+  return new_ast;
+}
+
+
 // Rules
 
 // type {COMMA type}
@@ -78,7 +153,7 @@ DEF(params);
 // LSQUARE typeparam {COMMA typeparam} RSQUARE
 DEF(typeparams);
   AST_NODE(TK_TYPEPARAMS);
-  SKIP(NULL, TK_LSQUARE);
+  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
   RULE("type parameter", typeparam);
   WHILE(TK_COMMA, RULE("type parameter", typeparam));
   SKIP(NULL, TK_RSQUARE);
@@ -97,7 +172,11 @@ DEF(typeargs);
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
-  IF(TK_DOT, TOKEN("name", TK_ID));
+  IFELSE(TK_DOT,
+    TOKEN("name", TK_ID),
+    AST_NODE(TK_NONE);
+    REORDER(1, 0);
+  );
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   OPT TOKEN(NULL, TK_EPHEMERAL);
@@ -120,7 +199,7 @@ DEF(isecttype);
 // type {uniontype | isecttype}
 DEF(infixtype);
   RULE("type", type);
-  OPT TOP SEQ("type", uniontype, isecttype);
+  CUSTOMBUILD(infix_builder) SEQ("type", uniontype, isecttype);
   DONE();
 
 // COMMA infixtype
@@ -134,7 +213,7 @@ DEF(tupletypeop);
 // infixtype {tupletypeop}
 DEF(tupletype);
   RULE("type", infixtype);
-  OPT TOP RULE("type", tupletypeop);
+  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("type", tupletypeop);
   DONE();
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
@@ -169,7 +248,7 @@ DEF(viewpoint);
 // atomtype [viewpoint]
 DEF(type);
   RULE("type", atomtype);
-  OPT TOP RULE("viewpoint", viewpoint);
+  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("viewpoint", viewpoint);
   DONE();
 
 // ID ASSIGN rawseq
@@ -280,7 +359,8 @@ DEF(call);
 // atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  TOP SEQ("postfix expression", dot, tilde, qualify, call);
+  CUSTOMBUILD(postfix_builder)
+    SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID
@@ -478,15 +558,13 @@ DEF(prefixminus);
   RULE("value", term);
   DONE();
 
-// use ':'? '(' expr {expr} ')'
+// 'use' ':'? '(' expr {expr} ')'
 // For testing only, thrown out by parsefix
-DEF(test_scope);
+DEF(test_seq);
   TOKEN(NULL, TK_USE);
-  MAP_ID(TK_USE, TK_TEST_SCOPE);
   OPT TOKEN(NULL, TK_COLON);
   SKIP(NULL, TK_LPAREN);
-  RULE("value", expr);
-  SEQ("value", expr);
+  CUSTOMBUILD(test_seq_builder) RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
@@ -494,7 +572,7 @@ DEF(test_scope);
 // prefix | prefixminus | postfix | test_scope
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with, try_block,
-    recover, prefix, prefixminus, postfix, test_scope);
+    recover, prefix, prefixminus, postfix, test_seq);
   DONE();
 
 // AS type
@@ -526,7 +604,7 @@ DEF(binop);
 // term {binop | asop}
 DEF(infix);
   RULE("value", term);
-  TOP SEQ("value", binop, asop);
+  CUSTOMBUILD(infix_builder) SEQ("value", binop, asop);
   DONE();
 
 // ASSIGNOP assignment
@@ -538,39 +616,45 @@ DEF(assignop);
 // term [assignop]
 DEF(assignment);
   RULE("value", infix);
-  OPT TOP RULE("value", assignop);
-  DONE();
-
-// (RETURN | BREAK) assignment
-DEF(returnexpr);
-  TOKEN(NULL, TK_RETURN, TK_BREAK);
-  RULE("return value", assignment);
+  OPT_NO_DFLT CUSTOMBUILD(infix_reverse) RULE("value", assignop);
   DONE();
 
 // CONTINUE | ERROR | COMPILER_INTRINSIC
-DEF(statement);
-  TOKEN("statement", TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
+DEF(jump);
+  TOKEN("statement", TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR,
+    TK_COMPILER_INTRINSIC);
+  OPT RULE("return value", rawseq);
   DONE();
 
-// (statement | returnexpr | assignment) [SEMI]
+// assignment [SEMI]
 DEF(expr);
-  RULE("statement", statement, returnexpr, assignment);
+  RULE("value", assignment);
   OPT SKIP(NULL, TK_SEMI);
   DONE();
 
-// expr {expr}
-DEF(rawseq);
+// expr {expr} [jump]
+DEF(longseq);
   AST_NODE(TK_SEQ);
   RULE("value", expr);
   SEQ("value", expr);
+  OPT_NO_DFLT RULE("value", jump);
   DONE();
 
-// expr {expr}
-DEF(seq);
+// jump
+DEF(jumpseq);
   AST_NODE(TK_SEQ);
+  RULE("value", jump);
+  DONE();
+
+// (longseq | jumpseq)
+DEF(rawseq);
+  RULE("value", longseq, jumpseq);
+  DONE();
+
+// rawseq
+DEF(seq);
+  RULE("value", rawseq);
   SCOPE();
-  RULE("value", expr);
-  SEQ("value", expr);
   DONE();
 
 // (FUN | BE | NEW) [CAP] ID [typeparams] (LPAREN | LPAREN_NEW) [params]
