@@ -51,7 +51,7 @@ void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
 
   if(new_ast == RULE_NOT_FOUND)
   {
-    if(state->top) // Not found, but no default needed
+    if(state->top || state->no_dflt) // Not found, but no default needed
       return;
 
     // Rule wasn't found and TOP is not set, so make a default

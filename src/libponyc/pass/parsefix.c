@@ -572,6 +572,24 @@ static ast_result_t parse_fix_consume(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
+{
+  assert(ast != NULL);
+
+  ast_t* value_seq = ast_child(ast);
+  assert(value_seq != NULL);
+  assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
+
+  if(ast_childcount(value_seq) > max_value_count)
+  {
+    ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t parse_fix_lparen(ast_t** astp)
 {
   // Remove TK_LPAREN nodes
@@ -736,6 +754,10 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_FFICALL:    return parse_fix_ffi(ast, true);
     case TK_ELLIPSIS:   return parse_fix_ellipsis(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
+    case TK_RETURN:
+    case TK_BREAK:      return parse_fix_return(ast, 1);
+    case TK_CONTINUE:
+    case TK_ERROR:      return parse_fix_return(ast, 0);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
     case TK_ID:         return parse_fix_id(ast);

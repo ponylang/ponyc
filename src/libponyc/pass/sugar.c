@@ -288,6 +288,14 @@ static void expand_none(ast_t* ast)
 }
 
 
+static ast_result_t sugar_return(ast_t* ast)
+{
+  ast_t* return_value = ast_child(ast);
+  expand_none(return_value);
+  return AST_OK;
+}
+
+
 static ast_result_t sugar_else(ast_t* ast)
 {
   ast_t* else_clause = ast_childidx(ast, 2);
@@ -611,6 +619,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NEW:        return sugar_new(t, ast);
     case TK_BE:         return sugar_be(t, ast);
     case TK_FUN:        return sugar_fun(ast);
+    case TK_RETURN:
+    case TK_BREAK:      return sugar_return(ast);
     case TK_IF:
     case TK_MATCH:
     case TK_WHILE:

@@ -526,36 +526,42 @@ DEF(assignment);
   OPT TOP RULE("value", assignop);
   DONE();
 
-// (RETURN | BREAK) assignment
-DEF(returnexpr);
-  TOKEN(NULL, TK_RETURN, TK_BREAK);
-  RULE("return value", assignment);
-  DONE();
-
 // CONTINUE | ERROR | COMPILER_INTRINSIC
-DEF(statement);
-  TOKEN("statement", TK_CONTINUE, TK_ERROR, TK_COMPILER_INTRINSIC);
+DEF(jump);
+  TOKEN("statement", TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR,
+    TK_COMPILER_INTRINSIC);
+  OPT RULE("return value", rawseq);
   DONE();
 
-// (statement | returnexpr | assignment) [SEMI]
+// assignment [SEMI]
 DEF(expr);
-  RULE("statement", statement, returnexpr, assignment);
+  RULE("value", assignment);
   OPT SKIP(NULL, TK_SEMI);
   DONE();
 
-// expr {expr}
-DEF(rawseq);
+// expr {expr} [jump]
+DEF(longseq);
   AST_NODE(TK_SEQ);
   RULE("value", expr);
   SEQ("value", expr);
+  OPT_NO_DFLT RULE("value", jump);
   DONE();
 
-// expr {expr}
-DEF(seq);
+// jump
+DEF(jumpseq);
   AST_NODE(TK_SEQ);
+  RULE("value", jump);
+  DONE();
+
+// (longseq | jumpseq)
+DEF(rawseq);
+  RULE("value", longseq, jumpseq);
+  DONE();
+
+// rawseq
+DEF(seq);
+  RULE("value", rawseq);
   SCOPE();
-  RULE("value", expr);
-  SEQ("value", expr);
   DONE();
 
 // (FUN | BE | NEW) [CAP] ID [typeparams] (LPAREN | LPAREN_NEW) [params]
