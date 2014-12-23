@@ -92,6 +92,23 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     var (index, found) = _search(key)
 
     if found then
+      // (_array(index) as (this->Key, this->Value))._2
+      //
+      // (match _array(index)
+      // | ($1: this->Key!, $2: this->Value!) => (consume $1, consume $2)
+      // else
+      //   error
+      // end)._2
+
+      // return _array(index) as (_, this->Value)
+
+      // match _array(index)
+      // | (_, $1: this->Value!) => consume $1
+      // else
+      //   error
+      // end
+
+      // TODO: remove this
       match _array(index)
       | (_, let v: this->Value!) =>
         return consume v
@@ -141,7 +158,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     end
     error
 
-  fun box index(idx: U64 = -1): (U64, Key, this->Value) ? =>
+  fun box index(idx: U64 = -1): (U64, this->Key, this->Value) ? =>
     """
     Given an index, return the next index that has a populated key and value.
     Raise an error if there is no next populated index.
@@ -150,7 +167,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       let entry = _array(i)
 
       match entry
-      | (let k: Key!, let v: this->Value!) =>
+      | (let k: this->Key, let v: this->Value!) =>
         return (i, consume k, consume v)
       end
     end
@@ -170,7 +187,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
         let entry = _array(idx)
 
         match entry
-        | (let k: Key, _) =>
+        | (let k: this->Key, _) =>
           if k == key then
             return (idx, true)
           end
@@ -239,7 +256,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
 class MapKeys[
   Key: (Hashable box & Comparable[Key] box),
   Value,
-  M: Map[Key, Value] box] is Iterator[Key]
+  M: Map[Key, Value] box] is Iterator[M->Key]
   """
   An iterator over the keys in a map.
   """
@@ -260,12 +277,12 @@ class MapKeys[
     """
     _count < _map.size()
 
-  fun ref next(): Key ? =>
+  fun ref next(): M->Key ? =>
     """
     Returns the next key, or raises an error if there isn't one. If keys are
     added during iteration, this may not return all keys.
     """
-    (_i, var k: Key, _) = _map.index(_i)
+    (_i, var k: M->Key, _) = _map.index(_i)
     _count = _count + 1
     k
 
@@ -305,7 +322,7 @@ class MapValues[
 class MapPairs[
   Key: (Hashable box & Comparable[Key] box),
   Value,
-  M: Map[Key, Value] box] is Iterator[(Key, M->Value)]
+  M: Map[Key, Value] box] is Iterator[(M->Key, M->Value)]
   """
   An iterator over the keys and values in a map.
   """
@@ -326,11 +343,11 @@ class MapPairs[
     """
     _count < _map.size()
 
-  fun ref next(): (Key, M->Value) ? =>
+  fun ref next(): (M->Key, M->Value) ? =>
     """
     Returns the next entry, or raises an error if there isn't one. If entries
     are added during iteration, this may not return all entries.
     """
-    (_i, var k: Key, var v: M->Value!) = _map.index(_i)
+    (_i, var k: M->Key, var v: M->Value!) = _map.index(_i)
     _count = _count + 1
     (k, consume v)

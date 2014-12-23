@@ -342,12 +342,12 @@ static matchtype_t could_subtype_arrow(ast_t* sub, ast_t* super)
       return could_subtype(sub_right, super_right);
   }
 
-  // Check the upper bounds.
-  ast_t* upper = viewpoint_upper(sub);
-  matchtype_t ok = could_subtype(upper, super);
+  // Check the lower bounds.
+  ast_t* lower = viewpoint_lower(sub);
+  matchtype_t ok = could_subtype(super, lower);
 
-  if(upper != sub)
-    ast_free_unattached(upper);
+  if(lower != sub)
+    ast_free_unattached(lower);
 
   return ok;
 }

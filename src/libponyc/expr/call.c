@@ -307,7 +307,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   bool can_recover = auto_recover_call(ast, positional, result);
 
   if(can_recover)
-    a_type = consume_type(r_type);
+    a_type = r_type;
   else
     a_type = alias(r_type);
 

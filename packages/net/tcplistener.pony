@@ -1,9 +1,3 @@
-interface TCPNewConnection val
-  """
-  Specifies what to do when a new connection is accepted.
-  """
-  fun val apply(connection: TCPConnection)
-
 interface TCPBindNotify val
   """
   Retrieve a bound host and service.
@@ -14,11 +8,12 @@ actor TCPListener
   """
   Listens for new network connections.
   """
-  var _handler: TCPNewConnection
+  var _handler: TCPConnectionNotify
   var _fd: U32
   var _event: Pointer[_Event]
 
-  new create(handler: TCPNewConnection, host: String = "", service: String = "")
+  new create(handler: TCPConnectionNotify, host: String = "",
+    service: String = "")
   =>
     """
     Listens for both IPv4 and IPv6 connections.
@@ -27,7 +22,9 @@ actor TCPListener
     _fd = @os_listen_tcp[U32](host.cstring(), service.cstring())
     _event = _Event.socket(this, _fd)
 
-  new ip4(handler: TCPNewConnection, host: String = "", service: String = "") =>
+  new ip4(handler: TCPConnectionNotify, host: String = "",
+    service: String = "")
+  =>
     """
     Listens for IPv4 connections.
     """
@@ -35,7 +32,9 @@ actor TCPListener
     _fd = @os_listen_tcp4[U32](host.cstring(), service.cstring())
     _event = _Event.socket(this, _fd)
 
-  new ip6(handler: TCPNewConnection, host: String = "", service: String = "") =>
+  new ip6(handler: TCPConnectionNotify, host: String = "",
+    service: String = "")
+  =>
     """
     Listens for IPv6 connections.
     """
@@ -59,7 +58,7 @@ actor TCPListener
       end
     end
 
-  be set_handler(handler: TCPNewConnection) =>
+  be set_handler(handler: TCPConnectionNotify) =>
     """
     Change the handler.
     """

@@ -1,4 +1,5 @@
 use "math"
+use "collections"
 
 actor Main
   var _env: Env
@@ -49,18 +50,18 @@ actor Main
   fun ref test_fib(n: U64) =>
     _env.out.print("=== Fibonacci Generator ===")
 
-    var i: U8 = 0
+    var i: U64 = 0
 
-    for fib in Fibonacci[U128]() do
+    for fib in Fibonacci[U128] do
       _env.out.print("Fibonacci(" + i.string() + ")= " + fib.string())
       i = i + 1
-      if i == n then break fib end
     end
 
+    _env.out.print("Biggest fib(n) = " + i.string())
     _env.out.print("=== Fibonacci Application ===")
 
-    var fib = Fibonacci[U128]()
+    var fib = Fibonacci[U128]
 
-    for j in Range[U8](0, n) do
+    for j in Range[U8](0, n.u8()) do
       _env.out.print("Fibonacci(" + j.string() + ")= " + fib(j).string())
     end

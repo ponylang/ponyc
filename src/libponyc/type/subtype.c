@@ -304,7 +304,6 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
   ast_t* def = (ast_t*)ast_data(super);
   ast_t* constraint = ast_childidx(def, 1);
 
-  // TODO: do other constraints have a lower bounds?
   if(ast_id(constraint) == TK_NOMINAL)
   {
     ast_t* constraint_def = (ast_t*)ast_data(constraint);
@@ -315,10 +314,15 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
       case TK_CLASS:
       case TK_ACTOR:
       {
+        // Must be a subtype of the constraint.
         if(!is_subtype(sub, constraint))
           return false;
 
-        return check_cap_and_ephemeral(sub, super);
+        // Capability must be a subtype of the lower bounds of the typeparam.
+        ast_t* lower = viewpoint_lower(super);
+        bool ok = check_cap_and_ephemeral(sub, lower);
+        ast_free_unattached(lower);
+        return ok;
       }
 
       default: {}
@@ -381,7 +385,7 @@ static bool is_subtype_isect(ast_t* sub, ast_t* super)
   return true;
 }
 
-// The subtype is either a nominal or a tuple, the super type is an arrow.
+// The subtype is a nominal, typeparamref or tuple, the super type is an arrow.
 static bool is_subtype_arrow(ast_t* sub, ast_t* super)
 {
   // Must be a subtype of the lower bounds.
@@ -620,16 +624,40 @@ static bool is_arrow_subtype(ast_t* sub, ast_t* super)
   switch(ast_id(super))
   {
     case TK_UNIONTYPE:
+      // A->B <: (C | D)
       if(is_subtype_union(sub, super))
         return true;
       break;
 
     case TK_ISECTTYPE:
+      // A->B <: (C & D)
       if(is_subtype_isect(sub, super))
         return true;
       break;
 
+    case TK_TYPEPARAMREF:
+    {
+      // A->B <: C
+      ast_t* right = ast_child(sub);
+
+      if(is_eqtype(right, super))
+      {
+        // C->B <: C
+        // If we are adapted by the supertype, we are a subtype if our lower
+        // bounds is a subtype of super.
+        ast_t* lower = viewpoint_lower(sub);
+        bool ok = is_subtype(lower, super);
+        ast_free_unattached(lower);
+        return ok;
+      }
+
+      if(ast_id(right) != TK_THISTYPE)
+        return false;
+      break;
+    }
+
     case TK_ARROW:
+      // A->B <: C->D
       if(is_arrow_sub_arrow(sub, super))
         return true;
       break;

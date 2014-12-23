@@ -10,6 +10,9 @@ class ListNode[A]
     _next = next'
 
   fun box item(): this->A ? =>
+    // _item as this->A
+
+    // TODO: remove this
     match _item
     | var some: this->A! =>
       consume some

@@ -17,7 +17,7 @@ actor Main
   new create(env: Env) =>
     _env = env
     updates = 0
-    actors = recover Array[Updater] end //init tracking...
+    actors = recover Array[Updater] end
 
     start = Time.nanos()
 
@@ -84,7 +84,7 @@ actor Main
       | ("logtable", var arg: I64) => _logtable = arg.u64()
       | ("iterate", var arg: I64) => _iterate = arg.u64()
       | ("chunk", var arg: I64) => _chunk = arg.u64()
-      | ("actors", var arg: I64) => _actor_count = arg.u64()
+      | ("actors", var arg: I64) => _actor_count = arg.u64().next_pow2()
       | ParseError => usage() ; error
       end
     end
