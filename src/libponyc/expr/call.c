@@ -151,6 +151,10 @@ static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
       return false;
     }
 
+    // Extract named argument expression to avoid copying it
+    ast_free(ast_pop(namedarg));  // ID
+    arg = ast_pop(namedarg);  // Expression
+
     ast_replace(&arg_replace, arg);
     namedarg = ast_sibling(namedarg);
   }
