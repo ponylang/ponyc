@@ -49,6 +49,17 @@ ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 }
 
 
+ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  // New AST goes at the top, existing goes on the right
+  ast_append(new_ast, existing);
+  return new_ast;
+}
+
+
+
 // Rules
 
 // type {COMMA type}
@@ -539,7 +550,7 @@ DEF(assignop);
 // term [assignop]
 DEF(assignment);
   RULE("value", infix);
-  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("value", assignop);
+  OPT_NO_DFLT CUSTOMBUILD(infix_reverse) RULE("value", assignop);
   DONE();
 
 // CONTINUE | ERROR | COMPILER_INTRINSIC

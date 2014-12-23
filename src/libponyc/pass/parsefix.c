@@ -701,7 +701,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   // Functions that fix up the tree
   switch(id)
   {
-    case TK_ASSIGN:
+    //case TK_ASSIGN:
     case TK_CALL:       return parse_fix_nodeorder(ast);
     case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
 
