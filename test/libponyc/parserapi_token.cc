@@ -7,6 +7,7 @@
 
 #include "util.h"
 
+/*
 static bool _reached_end;
 static bool _opt_at_end;
 static bool _top_at_end;
@@ -394,3 +395,4 @@ TEST(ParserApiTokenTest, SkipOptFirstPresent)
   ast_free(ast);
   source_close(src);
 }
+*/

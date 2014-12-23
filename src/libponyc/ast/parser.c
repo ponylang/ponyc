@@ -37,6 +37,18 @@ DECL(members);
 */
 
 
+// Tree builders
+
+ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  (void)state;
+
+  // New AST goes at the top
+  ast_add(new_ast, existing);
+  return new_ast;
+}
+
+
 // Rules
 
 // type {COMMA type}
@@ -124,7 +136,7 @@ DEF(isecttype);
 // type {uniontype | isecttype}
 DEF(infixtype);
   RULE("type", type);
-  OPT TOP SEQ("type", uniontype, isecttype);
+  CUSTOMBUILD(infix_builder) SEQ("type", uniontype, isecttype);
   DONE();
 
 // COMMA infixtype
@@ -138,7 +150,7 @@ DEF(tupletypeop);
 // infixtype {tupletypeop}
 DEF(tupletype);
   RULE("type", infixtype);
-  OPT TOP RULE("type", tupletypeop);
+  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("type", tupletypeop);
   DONE();
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
@@ -168,7 +180,7 @@ DEF(viewpoint);
 // atomtype [viewpoint]
 DEF(type);
   RULE("type", atomtype);
-  OPT TOP RULE("viewpoint", viewpoint);
+  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("viewpoint", viewpoint);
   DONE();
 
 // ID ASSIGN rawseq
@@ -284,7 +296,7 @@ DEF(call);
 // atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  TOP SEQ("postfix expression", dot, tilde, qualify, call);
+  CUSTOMBUILD(infix_builder) SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID
@@ -515,7 +527,7 @@ DEF(binop);
 // term {binop}
 DEF(infix);
   RULE("value", term);
-  TOP SEQ("value", binop);
+  CUSTOMBUILD(infix_builder) SEQ("value", binop);
   DONE();
 
 // ASSIGNOP assignment
@@ -527,7 +539,7 @@ DEF(assignop);
 // term [assignop]
 DEF(assignment);
   RULE("value", infix);
-  OPT TOP RULE("value", assignop);
+  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("value", assignop);
   DONE();
 
 // CONTINUE | ERROR | COMPILER_INTRINSIC

@@ -51,10 +51,10 @@ void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
 
   if(new_ast == RULE_NOT_FOUND)
   {
-    if(state->top || state->no_dflt) // Not found, but no default needed
+    if(state->no_dflt) // Not found, but no default needed
       return;
 
-    // Rule wasn't found and TOP is not set, so make a default
+    // Rule wasn't found and NO_DFLT is not set, so make a default
     new_ast = ast_new(parser->token, TK_NONE);
   }
 
@@ -68,26 +68,25 @@ void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
   else
   {
     // Add the new AST to our existing AST
-
-    if(state->top)
-    {
-      // New AST goes at the top
-      state->last_child = ast_childlast(new_ast);
-      ast_add(new_ast, state->ast);
-      state->ast = new_ast;
-    }
-    else
-    {
-      // Existing AST goes at the top
-
-      if(state->last_child == NULL)  // New AST is the first child
-        ast_add(state->ast, new_ast);
-      else  // Add new AST to end of children
-        ast_add_sibling(state->last_child, new_ast);
-
-      state->last_child = new_ast;
-    }
+    assert(state->builder != NULL);
+    state->ast = state->builder(state->ast, new_ast, state);
   }
+}
+
+
+ast_t* default_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  assert(state != NULL);
+
+  // Existing AST goes at the top
+
+  if(state->last_child == NULL)  // New AST is the first child
+    ast_add(existing, new_ast);
+  else  // Add new AST to end of children
+    ast_add_sibling(state->last_child, new_ast);
+
+  state->last_child = new_ast;
+  return existing;
 }
 
 
