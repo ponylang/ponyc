@@ -24,6 +24,7 @@ static ast_t* alias_for_type(ast_t* type, int index)
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_NONE:
           type = ast_dup(type);
           ephemeral = ast_childidx(type, index + 1);
           ast_setid(ephemeral, TK_BORROWED);

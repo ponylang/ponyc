@@ -1,6 +1,7 @@
 #include "sugar.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
+#include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
@@ -565,6 +566,86 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 }
 
 
+static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
+  ast_t* body)
+{
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+    {
+      BUILD(pattern_child, pattern, NODE(TK_SEQ, NODE(TK_TUPLE)));
+      ast_append(pattern, pattern_child);
+      pattern_child = ast_child(pattern_child);
+
+      BUILD(body_child, body, NODE(TK_SEQ, NODE(TK_TUPLE)));
+      ast_append(body, body_child);
+      body_child = ast_child(body_child);
+
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        add_as_type(t, child, pattern_child, body_child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+
+    case TK_DONTCARE:
+    {
+      ast_append(pattern, type);
+      break;
+    }
+
+    default:
+    {
+      const char* name = package_hygienic_id(t);
+      ast_t* a_type = alias(type);
+
+      BUILD(pattern_elem, pattern,
+        NODE(TK_SEQ,
+          NODE(TK_LET,
+            NODE(TK_IDSEQ, ID(name))
+            TREE(a_type)
+            )));
+
+      BUILD(body_elem, body,
+        NODE(TK_SEQ,
+          NODE(TK_CONSUME,
+            NODE(TK_REFERENCE, ID(name)))));
+
+      ast_append(pattern, pattern_elem);
+      ast_append(body, body_elem);
+      break;
+    }
+  }
+}
+
+
+ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
+{
+  typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
+  AST_GET_CHILDREN(ast, expr, type);
+
+  BUILD(pattern, ast, NODE(TK_TUPLE));
+  BUILD(body, ast, NODE(TK_SEQ, NODE(TK_TUPLE)));
+  add_as_type(t, type, pattern, ast_child(body));
+
+  REPLACE(astp,
+    NODE(TK_MATCH, AST_SCOPE
+      TREE(expr)
+      NODE(TK_CASES, AST_SCOPE
+        NODE(TK_CASE, AST_SCOPE
+          TREE(pattern)
+          NONE
+          TREE(body)))
+      NODE(TK_SEQ, NODE(TK_ERROR))));
+
+  return ast_visit(astp, pass_sugar, NULL, opt);
+}
+
+
 ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
@@ -621,6 +702,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);
+    case TK_AS:         return sugar_as(options, astp);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");
     case TK_MULTIPLY:   return sugar_binop(astp, "mul");

@@ -63,7 +63,7 @@ class File
       _handle = Pointer[_FileHandle]
     end
 
-  fun ref line(): String =>
+  fun ref line(): String iso^ =>
     """
     Returns a line as a String.
     """

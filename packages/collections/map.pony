@@ -92,29 +92,10 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     var (index, found) = _search(key)
 
     if found then
-      // (_array(index) as (this->Key, this->Value))._2
-      //
-      // (match _array(index)
-      // | ($1: this->Key!, $2: this->Value!) => (consume $1, consume $2)
-      // else
-      //   error
-      // end)._2
-
-      // return _array(index) as (_, this->Value)
-
-      // match _array(index)
-      // | (_, $1: this->Value!) => consume $1
-      // else
-      //   error
-      // end
-
-      // TODO: remove this
-      match _array(index)
-      | (_, let v: this->Value!) =>
-        return consume v
-      end
+      _array(index) as (_, this->Value)
+    else
+      error
     end
-    error
 
   fun ref update(key: Key, value: Value): (Value^ | None) =>
     """
@@ -158,20 +139,24 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     end
     error
 
-  fun box index(idx: U64 = -1): (U64, this->Key, this->Value) ? =>
+  fun box next_index(prev: U64 = -1): U64 ? =>
     """
     Given an index, return the next index that has a populated key and value.
     Raise an error if there is no next populated index.
     """
-    for i in Range(idx + 1, _array.size()) do
-      let entry = _array(i)
-
-      match entry
-      | (let k: this->Key, let v: this->Value!) =>
-        return (i, consume k, consume v)
+    for i in Range(prev + 1, _array.size()) do
+      match _array(i)
+      | (let k: this->Key, _) => return i
       end
     end
     error
+
+  fun box index(i: U64): (this->Key, this->Value) ? =>
+    """
+    Returns the key and value at a given index.
+    Raise an error if the index is not populated.
+    """
+    _array(i) as (this->Key, this->Value)
 
   fun box _search(key: Key): (U64, Bool) =>
     """
@@ -282,9 +267,8 @@ class MapKeys[
     Returns the next key, or raises an error if there isn't one. If keys are
     added during iteration, this may not return all keys.
     """
-    (_i, var k: M->Key, _) = _map.index(_i)
-    _count = _count + 1
-    k
+    _i = _map.next_index(_i)
+    _map.index(_i)._1
 
 class MapValues[
   Key: (Hashable box & Comparable[Key] box),
@@ -315,9 +299,8 @@ class MapValues[
     Returns the next value, or raises an error if there isn't one. If values are
     added during iteration, this may not return all values.
     """
-    (_i, _, var v: M->Value!) = _map.index(_i)
-    _count = _count + 1
-    consume v
+    _i = _map.next_index(_i)
+    _map.index(_i)._2
 
 class MapPairs[
   Key: (Hashable box & Comparable[Key] box),
@@ -348,6 +331,5 @@ class MapPairs[
     Returns the next entry, or raises an error if there isn't one. If entries
     are added during iteration, this may not return all entries.
     """
-    (_i, var k: M->Key, var v: M->Value!) = _map.index(_i)
-    _count = _count + 1
-    (k, consume v)
+    _i = _map.next_index(_i)
+    _map.index(_i)

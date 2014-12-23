@@ -927,3 +927,41 @@ TEST(SugarTest, Ge)
 
   DO(test_good_sugar(short_form, full_form));
 }
+
+
+TEST(SugarTest, As)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo | Bar)): Foo ? => a as Foo";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo | Bar)): Foo ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo) => (consume hygid)\n"
+    "    else\n"
+    "      error\n"
+    "    end\n";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, AsTuple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? => a as (Foo, Bar)";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo, let hygid: Bar) => (consume hygid, consume hygid)\n"
+    "    else\n"
+    "      error\n"
+    "    end\n";
+
+  DO(test_good_sugar(short_form, full_form));
+}

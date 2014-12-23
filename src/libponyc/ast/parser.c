@@ -100,7 +100,7 @@ DEF(nominal);
   IF(TK_DOT, TOKEN("name", TK_ID));
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
+  OPT TOKEN(NULL, TK_EPHEMERAL);
   DONE();
 
 // PIPE type
@@ -150,9 +150,14 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | typeexpr | nominal)
+// DONTCARE
+DEF(dontcare);
+  TOKEN(NULL, TK_DONTCARE);
+  DONE();
+
+// (thistype | typeexpr | nominal | dontcare)
 DEF(atomtype);
-  RULE("type", thistype, typeexpr, nominal);
+  RULE("type", thistype, typeexpr, nominal, dontcare);
   DONE();
 
 // ARROW type
@@ -205,11 +210,6 @@ DEF(array);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
   SKIP(NULL, TK_RSQUARE);
-  DONE();
-
-// DONTCARE
-DEF(dontcare);
-  TOKEN(NULL, TK_DONTCARE);
   DONE();
 
 // (LPAREN | LPAREN_NEW) (rawseq | dontcare) {COMMA (rawseq | dontcare)} RPAREN
@@ -497,6 +497,21 @@ DEF(term);
     recover, prefix, prefixminus, postfix, test_scope);
   DONE();
 
+// AS type
+// For tuple types, use multiple matches.
+// (AS expr type) =>
+// (MATCH expr
+//   (CASES
+//     (CASE
+//       (LET (IDSEQ $1) type)
+//       NONE
+//       (SEQ (CONSUME $1))))
+//   (SEQ ERROR))
+DEF(asop);
+  TOKEN("as", TK_AS);
+  RULE("type", type);
+  DONE();
+
 // BINOP term
 DEF(binop);
   TOKEN("binary operator",
@@ -508,10 +523,10 @@ DEF(binop);
   RULE("value", term);
   DONE();
 
-// term {binop}
+// term {binop | asop}
 DEF(infix);
   RULE("value", term);
-  TOP SEQ("value", binop);
+  TOP SEQ("value", binop, asop);
   DONE();
 
 // ASSIGNOP assignment

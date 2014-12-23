@@ -661,9 +661,9 @@ class String val is Ordered[String box], Stringable
 
     if index < _size then
       if Platform.windows() then
-        @_strtoi64[I64](_ptr.u64(), U64(0), I32(10))
+        @_strtoi64[I64](_ptr.u64() + index, U64(0), I32(10))
       else
-        @strtol[I64](_ptr.u64(), U64(0), I32(10))
+        @strtol[I64](_ptr.u64() + index, U64(0), I32(10))
       end
     else
       0
@@ -725,7 +725,7 @@ class String val is Ordered[String box], Stringable
     var index = offset_to_index(offset)
 
     if index < _size then
-      @strtod[F64](_ptr, U64(0))
+      @strtod[F64](_ptr.u64() + index, U64(0))
     else
       F64(0)
     end
