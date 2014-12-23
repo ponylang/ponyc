@@ -78,7 +78,7 @@ DEF(params);
 // LSQUARE typeparam {COMMA typeparam} RSQUARE
 DEF(typeparams);
   AST_NODE(TK_TYPEPARAMS);
-  SKIP(NULL, TK_LSQUARE);
+  SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
   RULE("type parameter", typeparam);
   WHILE(TK_COMMA, RULE("type parameter", typeparam));
   SKIP(NULL, TK_RSQUARE);
