@@ -1,3 +1,9 @@
+interface TCPConnectionNotify val
+  """
+  Specifies what to do when a new connection is accepted.
+  """
+  fun val apply(connection: TCPConnection)
+
 actor TCPConnection
   """
   A TCP connection.

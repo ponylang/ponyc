@@ -286,12 +286,6 @@ static bool names_async(ast_t* ast)
       ok = false;
     }
 
-    if(borrowed_type(type))
-    {
-      ast_error(type, "asynchronous methods cannot have borrowed parameters");
-      ok = false;
-    }
-
     param = ast_sibling(param);
   }
 

@@ -6,6 +6,7 @@
 
 #include "util.h"
 
+/*
 static bool _entered_body;
 static bool _opt_in_body;
 static bool _top_in_body;
@@ -25,7 +26,6 @@ DEF(if_test);
     TOKEN(NULL, TK_MINUS));
   _reached_end = true;
   _opt_at_end = state.opt;
-  _top_at_end = state.top;
   _next_token_at_end = current_token_id(parser);
   DONE();
 
@@ -424,3 +424,4 @@ TEST(ParserApiCondTest, SeqTopMulti)
   ast_free(ast);
   source_close(src);
 }
+*/

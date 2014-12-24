@@ -36,8 +36,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
     ASSERT_NE((void*)NULL, short_ast);
   }
 
-  limit_passes(&opt, "parsefix");
-  parse_fix_allow_all(true);
+  limit_passes(&opt, "parse");
   package_add_magic("full", full_form);
   ast_t* full_ast = program_load(stringtab("full"), &opt);
 
@@ -61,7 +60,6 @@ static void test_good_sugar(const char* short_form, const char* full_form)
   ASSERT_TRUE(r);
 
   // Reset state for next test
-  parse_fix_allow_all(false);
   pass_opt_done(&opt);
 }
 
@@ -924,6 +922,44 @@ TEST(SugarTest, Ge)
   const char* full_form =
     "class Foo ref var y:U32\n"
     "  fun ref f(): U32 val => 1.ge(2)";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, As)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo | Bar)): Foo ? => a as Foo";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo | Bar)): Foo ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo) => (consume hygid)\n"
+    "    else\n"
+    "      error\n"
+    "    end\n";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, AsTuple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? => a as (Foo, Bar)";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo, let hygid: Bar) => (consume hygid, consume hygid)\n"
+    "    else\n"
+    "      error\n"
+    "    end\n";
 
   DO(test_good_sugar(short_form, full_form));
 }

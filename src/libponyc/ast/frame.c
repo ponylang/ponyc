@@ -173,6 +173,18 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           }
           break;
 
+        case TK_AS:
+        {
+          AST_GET_CHILDREN(parent, expr, type);
+
+          if(type == ast)
+          {
+            pop = push_frame(t);
+            t->frame->as_type = ast;
+          }
+          break;
+        }
+
         case TK_WHILE:
         {
           AST_GET_CHILDREN(parent, cond, body, else_clause);

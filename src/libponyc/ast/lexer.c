@@ -76,7 +76,6 @@ static const lexsym_t symbols[] =
   { "|", TK_PIPE },
   { "&", TK_AMP },
   { "^", TK_EPHEMERAL },
-  { "!", TK_BORROWED },
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
@@ -98,6 +97,7 @@ static const lexsym_t keywords[] =
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
 
+  { "as", TK_AS },
   { "is", TK_IS },
   { "isnt", TK_ISNT },
 
@@ -170,6 +170,7 @@ static const lexsym_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
+  { "!", TK_BORROWED },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },

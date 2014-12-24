@@ -151,6 +151,10 @@ static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
       return false;
     }
 
+    // Extract named argument expression to avoid copying it
+    ast_free(ast_pop(namedarg));  // ID
+    arg = ast_pop(namedarg);  // Expression
+
     ast_replace(&arg_replace, arg);
     namedarg = ast_sibling(namedarg);
   }
@@ -211,7 +215,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     ast_t* p_type = ast_childidx(param, 1);
 
-    if(!coerce_literals(arg, p_type))
+    if(!coerce_literals(&arg, p_type, opt))
       return false;
 
     ast_t* arg_type = ast_type(arg);
@@ -307,7 +311,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   bool can_recover = auto_recover_call(ast, positional, result);
 
   if(can_recover)
-    a_type = consume_type(r_type);
+    a_type = r_type;
   else
     a_type = alias(r_type);
 
@@ -603,7 +607,7 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
 
-  if(!literal_call(ast))
+  if(!literal_call(ast, opt))
     return false;
 
   // Type already set by literal handler

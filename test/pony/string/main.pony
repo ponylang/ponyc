@@ -38,3 +38,11 @@ actor Main
     env.out.print(f + " expected: st")
     env.out.print(g + " expected: ark")
     env.out.print(h + " expected: wombat")
+
+    try
+      var idx1 = "123123123".find("3")
+      env.out.print(idx1.string())
+
+      var idx2 = "123123123".find("3", idx1 + 1)
+      env.out.print(idx2.string())
+    end

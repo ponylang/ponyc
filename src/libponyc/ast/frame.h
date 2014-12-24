@@ -17,6 +17,7 @@ typedef struct typecheck_frame_t
   ast_t* method_type;
   ast_t* ffi_type;
   ast_t* local_type;
+  ast_t* as_type;
   ast_t* the_case;
   ast_t* pattern;
   ast_t* loop;

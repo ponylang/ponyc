@@ -10,20 +10,10 @@ class ListNode[A]
     _next = next'
 
   fun box item(): this->A ? =>
-    match _item
-    | var some: this->A! =>
-      consume some
-    else
-      error
-    end
+    _item as this->A
 
   fun ref pop(): A^ ? =>
-    match _item = None
-    | var some: A =>
-      consume some
-    else
-      error
-    end
+    (_item = None) as A^
 
   fun box next(): (this->ListNode[A] | None) =>
     _next

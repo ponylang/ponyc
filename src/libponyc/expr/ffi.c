@@ -3,7 +3,7 @@
 #include "../type/subtype.h"
 #include <assert.h>
 
-static bool declared_ffi(ast_t* call, ast_t* decl)
+static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 {
   assert(call != NULL);
   assert(decl != NULL);
@@ -22,7 +22,7 @@ static bool declared_ffi(ast_t* call, ast_t* decl)
   {
     ast_t* p_type = ast_childidx(param, 1);
 
-    if(!coerce_literals(arg, p_type))
+    if(!coerce_literals(&arg, p_type, opt))
       return false;
 
     ast_t* a_type = ast_type(arg);
@@ -87,7 +87,7 @@ static bool declared_ffi(ast_t* call, ast_t* decl)
   return true;
 }
 
-bool expr_ffi(ast_t* ast)
+bool expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   assert(name != NULL);
@@ -95,7 +95,7 @@ bool expr_ffi(ast_t* ast)
   ast_t* decl = ast_get(ast, ast_name(name), NULL);
 
   if(decl != NULL)  // We have a declaration
-    return declared_ffi(ast, decl);
+    return declared_ffi(opt, ast, decl);
 
   // We do not have a declaration
   for(ast_t* arg = ast_child(args); arg != NULL; arg = ast_sibling(arg))

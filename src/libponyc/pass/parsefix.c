@@ -7,10 +7,6 @@
 #include <assert.h>
 
 
-// Allow all code, just fixup tree
-static bool allow_all = false;
-
-
 #define DEF_CLASS 0
 #define DEF_ACTOR 1
 #define DEF_PRIMITIVE 2
@@ -157,7 +153,7 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   const permission_def_t* def = &_method_def[method_def_index];
 
-  if(!allow_all && def->permissions == NULL)
+  if(def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
     return false;
@@ -165,9 +161,6 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, arrow);
-
-  if(allow_all)
-    return true;
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
@@ -373,9 +366,15 @@ static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
 {
   assert(ast != NULL);
 
-  if((t->frame->method_type == NULL) && (t->frame->ffi_type == NULL))
+  if((t->frame->method_type == NULL) &&
+    (t->frame->ffi_type == NULL) &&
+    (t->frame->as_type == NULL)
+    )
   {
-    ast_error(ast, "ephemeral types can only appear in function return types");
+    ast_error(ast,
+      "ephemeral types can only appear in 'as' expression types and function "
+      "return types");
+
     return AST_ERROR;
   }
 
@@ -572,6 +571,24 @@ static ast_result_t parse_fix_consume(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
+{
+  assert(ast != NULL);
+
+  ast_t* value_seq = ast_child(ast);
+  assert(value_seq != NULL);
+  assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
+
+  if(ast_childcount(value_seq) > max_value_count)
+  {
+    ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t parse_fix_lparen(ast_t** astp)
 {
   // Remove TK_LPAREN nodes
@@ -585,52 +602,15 @@ static ast_result_t parse_fix_lparen(ast_t** astp)
 }
 
 
-static ast_result_t parse_fix_nominal(ast_t* ast)
+static ast_result_t parse_fix_sequence(ast_t* ast)
 {
-  // If we didn't have a package, the first two children will be ID NONE
-  // change them to NONE ID so the package is always first
-  ast_t* package = ast_child(ast);
-  ast_t* type = ast_sibling(package);
-
-  if(ast_id(type) == TK_NONE)
+  if(ast_data(ast) == (void*)1)
   {
-    ast_pop(ast);
-    ast_pop(ast);
-    ast_add(ast, package);
-    ast_add(ast, type);
-  }
-
-  return AST_OK;
-}
-
-
-static ast_result_t parse_fix_nodeorder(ast_t* ast)
-{
-  // Swap the order of the nodes. We want to typecheck the right side before
-  // the left side to make sure we handle consume tracking correctly. This
-  // applies to TK_ASSIGN and TK_CALL.
-  ast_t* left = ast_pop(ast);
-  ast_append(ast, left);
-  return AST_OK;
-}
-
-
-static ast_result_t parse_fix_test_scope(ast_t* ast)
-{
-  // Only allowed in testing
-  if(!allow_all)
-  {
+    // Test sequence, not allowed outside parse pass
     ast_error(ast, "Unexpected use command in method body");
     return AST_FATAL;
   }
 
-  // Replace tests cope with a normal sequence scope
-  ast_setid(ast, TK_SEQ);
-
-  if(ast_id(ast_child(ast)) == TK_COLON)
-    ast_scope(ast);
-
-  ast_free(ast_pop(ast));
   return AST_OK;
 }
 
@@ -699,29 +679,10 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
-  // Functions that fix up the tree
-  switch(id)
-  {
-    case TK_NOMINAL:    return parse_fix_nominal(ast);
-    case TK_ASSIGN:
-    case TK_CALL:       return parse_fix_nodeorder(ast);
-    case TK_TEST_SCOPE: return parse_fix_test_scope(ast);
-
-    default: break;
-  }
-
-  if(allow_all)
-  {
-    // Don't check anything, just fix up the tree
-    if(id == TK_FUN || id == TK_BE || id == TK_NEW)
-      check_method(ast, 0);
-
-    return AST_OK;
-  }
-
   // Functions that just check for illegal code
   switch(id)
   {
+    case TK_SEQ:        return parse_fix_sequence(ast);
     case TK_TYPE:       return parse_fix_type_alias(ast);
     case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);
@@ -736,6 +697,10 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_FFICALL:    return parse_fix_ffi(ast, true);
     case TK_ELLIPSIS:   return parse_fix_ellipsis(ast);
     case TK_CONSUME:    return parse_fix_consume(ast);
+    case TK_RETURN:
+    case TK_BREAK:      return parse_fix_return(ast, 1);
+    case TK_CONTINUE:
+    case TK_ERROR:      return parse_fix_return(ast, 0);
     case TK_LPAREN:
     case TK_LPAREN_NEW: return parse_fix_lparen(astp);
     case TK_ID:         return parse_fix_id(ast);
@@ -746,10 +711,4 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     return parse_fix_infix_expr(ast);
 
   return AST_OK;
-}
-
-
-void parse_fix_allow_all(bool allow)
-{
-  allow_all = allow;
 }

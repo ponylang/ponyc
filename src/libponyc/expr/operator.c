@@ -158,20 +158,22 @@ bool expr_identity(ast_t* ast)
   return true;
 }
 
-bool expr_assign(typecheck_t* t, ast_t* ast)
+bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
   // right side before the left. Fetch them in the opposite order.
+  assert(ast != NULL);
+
   AST_GET_CHILDREN(ast, right, left);
   ast_t* l_type = ast_type(left);
 
-  if(!is_lvalue(t, left, is_result_needed(ast)))
+  if(!is_lvalue(&opt->check, left, is_result_needed(ast)))
   {
     ast_error(ast, "left side must be something that can be assigned to");
     return false;
   }
 
-  if(!coerce_literals(right, l_type))
+  if(!coerce_literals(&right, l_type, opt))
     return false;
 
   // Assignment is based on the alias of the right hand side.
@@ -182,19 +184,23 @@ bool expr_assign(typecheck_t* t, ast_t* ast)
   {
     // Local type inference.
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
+    ast_t* i_type = infer(a_type);
+
+    if(i_type != a_type)
+      ast_free_unattached(a_type);
 
     // Returns the right side since there was no previous value to read.
-    ast_settype(ast, a_type);
+    ast_settype(ast, i_type);
 
     // Set the type node.
     AST_GET_CHILDREN(left, idseq, type);
-    ast_replace(&type, a_type);
+    ast_replace(&type, i_type);
 
-    ast_settype(left, a_type);
+    ast_settype(left, i_type);
     ast_inheriterror(ast);
 
     // Set the type for each component.
-    return type_for_idseq(idseq, a_type);
+    return type_for_idseq(idseq, i_type);
   }
 
   if(!is_subtype(a_type, l_type))

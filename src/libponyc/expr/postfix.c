@@ -366,7 +366,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
   }
 
-  if(!literal_member_access(ast))
+  if(!literal_member_access(ast, opt))
     return false;
 
   // Type already set by literal handler

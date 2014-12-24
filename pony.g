@@ -37,7 +37,7 @@ field
   ;
 
 method
-  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? '=>'? seq?
+  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? ('=>' seq)?
   ;
 
 oftype
@@ -55,7 +55,7 @@ type
 atom_type
   :  'this' // only used for viewpoint adaptation
   |  '(' tuple_type ')'
-  |  ID ('.' ID)? type_args? cap? ('^' | '!')? // nominal type
+  |  ID ('.' ID)? type_args? cap? '^'? // nominal type
   ;
 
 tuple_type
@@ -66,10 +66,8 @@ infix_type
   :  type (('|' | '&') type)*
   ;
 
-// the @ is a cheat: means the symbol "not on a new line"
-// without the @, it could be on a new line or not
 type_params
-  :  '@[' type_param (',' type_param)* ']'
+  :  '[' type_param (',' type_param)* ']'
   ;
 
 type_param
@@ -90,22 +88,23 @@ params
 
 param
   :  ID oftype ('=' infix)?
-  | '...'
+  |  '...'
   ;
 
 seq
-  :  (expr)+
+  :  expr+ jump?
+  |  jump
   ;
 
 expr
-  :  (jump | assignment) ';'?
+  :  assignment ';'?
   ;
-  
+
 jump
-  :  'return' assignment
-  |  'break' assignment
-  |  'continue'
-  |  'error'
+  :  'return' seq? // more than one expr here is an error
+  |  'break' seq? // more than one expr here is an error
+  |  'continue' seq? // sequences here are errors
+  |  'error' seq? // sequences here are errors
   ;
 
 assignment
@@ -113,7 +112,7 @@ assignment
   ;
 
 infix
-  :  term (binop term)*
+  :  term ((binop term) | ('as' type)) *
   ;
 
 term

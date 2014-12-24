@@ -66,7 +66,6 @@ typedef enum token_id
   TK_PIPE,
   TK_AMP,
   TK_EPHEMERAL,
-  TK_BORROWED,
 
   TK_QUESTION,
   TK_UNARY_MINUS,
@@ -90,6 +89,7 @@ typedef enum token_id
   TK_ACTOR,
   TK_OBJECT,
 
+  TK_AS,
   TK_IS,
   TK_ISNT,
 
@@ -154,6 +154,7 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
+  TK_BORROWED,
 
   TK_LITERAL, // A literal expression whose type is not yet inferred
   TK_LITERALBRANCH, // Literal branch of a control structure

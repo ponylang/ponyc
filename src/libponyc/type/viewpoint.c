@@ -97,26 +97,27 @@ static ast_t* viewpoint_tag_for_type(ast_t* type, int cap_index)
   return type;
 }
 
-static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
+static ast_t* viewpoint_lower_for_nominal(ast_t* type)
 {
-  ast_t* cap = ast_childidx(type, cap_index);
+  ast_t* cap = ast_childidx(type, 3);
   token_id tcap = ast_id(cap);
 
   // For any chain of arrows, return a capability that is a subtype of the
   // resulting capability.
-  // iso <: ref->iso, iso <: val->iso, iso <: box->iso
-  // trn <: ref->trn, trn <: val->trn, trn <: box->trn
-  // val <: ref->val, val <: val->val, val <: box->val
-  // val <: ref->box, val <: val->val, val <: box->box
-  // tag <: ref->tag, tag <: val->tag, tag <: box->tag
+  // ref->iso = iso, val->iso = val, box->iso = tag => iso
+  // ref->trn = trn, val->trn = val, box->trn = box => trn
+  // ref->ref = ref, val->ref = val, box->ref = box => trn
+  // ref->val = val, val->val = val, box->val = val => val
+  // ref->box = box, val->box = val, box->box = box => val
+  // ref->tag = tag, val->tag = tag, box->tag = tag => tag
   switch(tcap)
   {
     case TK_ISO:
+    case TK_TRN:
     case TK_VAL:
     case TK_TAG:
       return type;
 
-    case TK_TRN:
     case TK_REF:
       tcap = TK_TRN;
       break;
@@ -131,7 +132,42 @@ static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
   }
 
   type = ast_dup(type);
-  cap = ast_childidx(type, cap_index);
+  cap = ast_childidx(type, 3);
+  ast_setid(cap, tcap);
+  return type;
+}
+
+static ast_t* viewpoint_lower_for_typeparam(ast_t* type)
+{
+  ast_t* cap = ast_childidx(type, 1);
+  token_id tcap = ast_id(cap);
+
+  // Have to use the lower bounds for what could bind to this capability.
+  // iso = iso, trn = trn, ref = ref, val = val, box = trn, tag = iso
+  // Then map the same way as nominals.
+  switch(tcap)
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+      return type;
+
+    case TK_REF:
+    case TK_BOX:
+      tcap = TK_TRN;
+      break;
+
+    case TK_TAG:
+      tcap = TK_ISO;
+      break;
+
+    default:
+      assert(0);
+      return NULL;
+  }
+
+  type = ast_dup(type);
+  cap = ast_childidx(type, 1);
   ast_setid(cap, tcap);
   return type;
 }
@@ -299,10 +335,10 @@ ast_t* viewpoint_lower(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return viewpoint_lower_for_type(type, 3);
+      return viewpoint_lower_for_nominal(type);
 
     case TK_TYPEPARAMREF:
-      return viewpoint_lower_for_type(type, 1);
+      return viewpoint_lower_for_typeparam(type);
 
     case TK_ARROW:
     {

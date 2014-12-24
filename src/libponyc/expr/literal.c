@@ -25,20 +25,6 @@ static const char* _str_uif_types[UIF_COUNT] =
   "F32", "F64"
 };
 
-typedef struct uif_type_info_t
-{
-  ast_t* type;
-  const char* name;
-  bool valid_for_float;
-} uif_type_info_t;
-
-
-// Forward declarations
-static int uifset(ast_t* type, ast_t** formal);
-
-static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
-  uif_type_info_t* cached_type);
-
 
 bool expr_literal(ast_t* ast, const char* name)
 {
@@ -68,6 +54,88 @@ bool is_type_literal(ast_t* type)
 }
 
 
+// Type chains
+
+// TODO: explain what the hell is going on
+
+#define CHAIN_CARD_BASE   0 // Basic type
+#define CHAIN_CARD_ARRAY  1 // Array member
+
+typedef struct lit_chain_t
+{
+  size_t cardinality; // Tuple cardinality / CHAIN_CARD_* value
+  size_t index;
+  ast_t* formal;
+  ast_t* cached_type;
+  const char* name;
+  bool valid_for_float;
+  struct lit_chain_t* next; // Next node
+} lit_chain_t;
+
+
+static int uifset(ast_t* type, lit_chain_t* chain);
+
+static bool coerce_literal_to_type(ast_t** literal_expr, ast_t* target_type,
+  lit_chain_t* chain, pass_opt_t* options);
+
+
+static void chain_init_head(lit_chain_t* head)
+{
+  assert(head != NULL);
+
+  head->cardinality = CHAIN_CARD_BASE;
+  head->formal = NULL;
+  head->cached_type = NULL;
+  head->name = NULL;
+  head->valid_for_float = false;
+  head->next = head;
+}
+
+
+static void chain_clear_cache(lit_chain_t* chain)
+{
+  assert(chain != NULL);
+
+  while(chain->cardinality != CHAIN_CARD_BASE)
+    chain = chain->next;
+
+  chain->formal = NULL;
+  chain->cached_type = NULL;
+  chain->name = NULL;
+  chain->valid_for_float = false;
+}
+
+
+static void chain_add(lit_chain_t* chain, lit_chain_t* new_link,
+  size_t cardinality)
+{
+  assert(new_link != NULL);
+  assert(cardinality != CHAIN_CARD_BASE);
+
+  new_link->cardinality = cardinality;
+  new_link->index = 0;
+
+  assert(chain != NULL);
+  assert(chain->next != NULL);
+  new_link->next = chain->next;
+  chain->next = new_link;
+
+  chain_clear_cache(new_link);
+}
+
+
+static void chain_remove(lit_chain_t* old_tail)
+{
+  assert(old_tail != NULL);
+  assert(old_tail->next != NULL);
+  assert(old_tail->next->next != NULL);
+  assert(old_tail->next->next->cardinality == CHAIN_CARD_BASE);
+
+  old_tail->next = old_tail->next->next;
+  chain_clear_cache(old_tail);
+}
+
+
 // Determine the UIF types that satisfy the given "simple" type.
 // Here a simple type is defined as a non-tuple type that does not depend on
 // any formal parameters.
@@ -94,7 +162,7 @@ static int uifset_simple_type(ast_t* type)
 
 
 // Determine the UIF types that the given formal parameter may be
-static int uifset_formal_param(ast_t* type_param_ref, ast_t** formal)
+static int uifset_formal_param(ast_t* type_param_ref, lit_chain_t* chain)
 {
   assert(type_param_ref != NULL);
   assert(ast_id(type_param_ref) == TK_TYPEPARAMREF);
@@ -103,7 +171,7 @@ static int uifset_formal_param(ast_t* type_param_ref, ast_t** formal)
 
   assert(type_param != NULL);
   assert(ast_id(type_param) == TK_TYPEPARAM);
-  assert(formal != NULL);
+  assert(chain != NULL);
 
   ast_t* constraint = ast_childidx(type_param, 1);
   assert(constraint != NULL);
@@ -149,20 +217,21 @@ static int uifset_formal_param(ast_t* type_param_ref, ast_t** formal)
     return UIF_NO_TYPES;
 
   // Given formal parameter is legal to coerce to
-  if(*formal != NULL && *formal != type_param)
+  if(chain->formal != NULL && chain->formal != type_param)
   {
     ast_error(type_param_ref,
       "Cannot infer a literal type with multiple formal parameters");
     return UIF_ERROR;
   }
 
-  *formal = type_param;
+  chain->formal = type_param;
+  chain->name = ast_name(ast_child(type_param));
   return uif_set | UIF_CONSTRAINED;
 }
 
 
 // Determine the UIF types that the given non-tuple union type may be
-static int uifset_union(ast_t* type, ast_t** formal)
+static int uifset_union(ast_t* type, lit_chain_t* chain)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_UNIONTYPE);
@@ -172,7 +241,7 @@ static int uifset_union(ast_t* type, ast_t** formal)
   // Process all elements of the union
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uifset(p, formal);
+    int r = uifset(p, chain);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -196,7 +265,7 @@ static int uifset_union(ast_t* type, ast_t** formal)
 
 
 // Determine the UIF types that the given non-tuple intersection type may be
-static int uifset_intersect(ast_t* type, ast_t** formal)
+static int uifset_intersect(ast_t* type, lit_chain_t* chain)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_ISECTTYPE);
@@ -206,7 +275,7 @@ static int uifset_intersect(ast_t* type, ast_t** formal)
 
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uifset(p, formal);
+    int r = uifset(p, chain);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -238,10 +307,10 @@ static int uifset_intersect(ast_t* type, ast_t** formal)
 }
 
 
-// Determine the UIF types that the given non-tuple type may be
-static int uifset(ast_t* type, ast_t** formal)
+// Determine the UIF types that the given type may be
+static int uifset(ast_t* type, lit_chain_t* chain)
 {
-  assert(formal != NULL);
+  assert(chain != NULL);
 
   if(type == NULL)
     return UIF_NO_TYPES;
@@ -249,24 +318,42 @@ static int uifset(ast_t* type, ast_t** formal)
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      return uifset_union(type, formal);
+      return uifset_union(type, chain);
 
     case TK_ISECTTYPE:
-      return uifset_intersect(type, formal);
+      return uifset_intersect(type, chain);
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
       assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
-      return uifset(ast_childidx(type, 1), formal);
+      return uifset(ast_childidx(type, 1), chain);
 
     case TK_TYPEPARAMREF:
-      return uifset_formal_param(type, formal);
+      if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
+        return UIF_NO_TYPES;
+
+      return uifset_formal_param(type, chain);
 
     case TK_TUPLETYPE:
-      // Incorrect cardinality
-      return UIF_NO_TYPES;
+      if(chain->cardinality != ast_childcount(type)) // Incorrect cardinality
+        return UIF_NO_TYPES;
+
+      return uifset(ast_childidx(type, chain->index), chain->next);
 
     case TK_NOMINAL:
+      if(strcmp(ast_name(ast_childidx(type, 1)), "Array") == 0)
+      {
+        if(chain->cardinality != CHAIN_CARD_ARRAY) // Incorrect cardinality
+          return UIF_NO_TYPES;
+
+        ast_t* type_args = ast_childidx(type, 2);
+        assert(ast_childcount(type_args) == 1);
+        return uifset(ast_child(type_args), chain->next);
+      }
+
+      if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
+        return UIF_NO_TYPES;
+
       return uifset_simple_type(type);
 
     default:
@@ -278,14 +365,13 @@ static int uifset(ast_t* type, ast_t** formal)
 
 
 // Fill the given UIF type cache
-static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
-  uif_type_info_t* cached_type)
+static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
 {
-  assert(cached_type != NULL);
-  assert(cached_type->type == NULL);
+  assert(chain_head != NULL);
+  assert(chain_head->cardinality == CHAIN_CARD_BASE);
 
-  ast_t* formal = NULL;
-  int r = uifset(type, &formal);
+  chain_head->formal = NULL;
+  int r = uifset(type, chain_head->next);
 
   if(r == UIF_ERROR || r == UIF_NO_TYPES)
   {
@@ -298,16 +384,15 @@ static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
   if((r & UIF_CONSTRAINED) != 0)
   {
     // Type is a formal parameter
-    assert(formal != NULL);
-    const char* name = ast_name(ast_child(formal));
+    assert(chain_head->formal != NULL);
+    assert(chain_head->name != NULL);
 
     BUILD(uif_type, type,
-      NODE(TK_TYPEPARAMREF, DATA(formal)
-        ID(name) NODE(TK_VAL) NONE));
+      NODE(TK_TYPEPARAMREF, DATA(chain_head->formal)
+      ID(chain_head->name) NODE(TK_VAL) NONE));
 
-    cached_type->type = uif_type;
-    cached_type->valid_for_float = ((r & UIF_INT_MASK) == 0);
-    cached_type->name = name;
+    chain_head->cached_type = uif_type;
+    chain_head->valid_for_float = ((r & UIF_INT_MASK) == 0);
     return true;
   }
 
@@ -316,9 +401,10 @@ static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
   {
     if(r == (1 << i))
     {
-      cached_type->valid_for_float = (((1 << i) & UIF_INT_MASK) == 0);
-      cached_type->type = type_builtin(type, _str_uif_types[i]);
-      cached_type->name = _str_uif_types[i];
+      chain_head->valid_for_float = (((1 << i) & UIF_INT_MASK) == 0);
+      chain_head->cached_type = type_builtin(type, _str_uif_types[i]);
+      //ast_setid(ast_childidx(chain_head->cached_type, 4), TK_EPHEMERAL);
+      chain_head->name = _str_uif_types[i];
       return true;
     }
   }
@@ -329,136 +415,81 @@ static bool uif_type_fill_cache(ast_t* literal, ast_t* type,
 
 
 // Assign a UIF type from the given target type to the given AST
-static bool get_uif_type(ast_t* literal, ast_t* target_type,
-  uif_type_info_t* cached_type, bool require_float)
+static bool uif_type_from_chain(ast_t* literal, ast_t* target_type,
+  lit_chain_t* chain, bool require_float)
 {
   assert(literal != NULL);
-  assert(cached_type != NULL);
+  assert(chain != NULL);
 
-  if(cached_type->type == NULL)
+  lit_chain_t* chain_head = chain;
+  while(chain_head->cardinality != CHAIN_CARD_BASE)
+    chain_head = chain_head->next;
+
+  if(chain_head->cached_type == NULL)
   {
     // This is the first time we've needed this type, find it
-    if(!uif_type_fill_cache(literal, target_type, cached_type))
+    if(!uif_type(literal, target_type, chain_head))
       return false;
   }
 
-  assert(cached_type->type != NULL);
-
-  if(require_float && !cached_type->valid_for_float)
+  if(require_float && !chain_head->valid_for_float)
   {
     ast_error(literal, "Inferred possibly integer type %s for float literal",
-      cached_type->name);
+      chain_head->name);
     return false;
   }
 
-  ast_settype(literal, cached_type->type);
+  ast_settype(literal, chain_head->cached_type);
   return true;
 }
 
 
-// Extract a copy of the specified element of tuple elements of the correct
-// cardinality of the given type. NULL for none
-static ast_t* extract_tuple_element(ast_t* type, size_t cardinality,
-  size_t index)
+// Coerce a literal group (tuple or array) to be the specified target type
+static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
+  size_t cardinality, pass_opt_t* options)
 {
-  if(type == NULL)
-    return NULL;
-
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    {
-      ast_t* compound_type = NULL;
-
-      // Process each element, building up a union or intersection
-      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
-      {
-        ast_t* t = extract_tuple_element(p, cardinality, index);
-
-        if(t != NULL)
-        {
-          if(ast_id(type) == TK_UNIONTYPE)
-            compound_type = type_union(compound_type, t);
-          else
-            compound_type = type_isect(compound_type, t);
-        }
-      }
-
-      return compound_type;
-    }
-
-    case TK_TUPLETYPE:
-      if(ast_childcount(type) != cardinality)
-        return NULL;
-
-      return ast_dup(ast_childidx(type, index));
-
-    case TK_TYPEPARAMREF:
-      // Although a type parameter can have a tuple type, the tuple elements
-      // have no useful constraint, so they are not relevant to us
-      return NULL;
-
-    case TK_ARROW:
-    case TK_NOMINAL:
-      return NULL;
-
-    case TK_ARRAY:
-      // TODO
-      return NULL;
-
-    default:
-      ast_error(type, "Internal error: tuple type extraction, node %d",
-        ast_id(type));
-      assert(0);
-      return NULL;
-  }
-}
-
-
-// Coerce a literal tuple to be the specified target type
-static bool coerce_tuple(ast_t* literal_expr, ast_t* target_type)
-{
+  assert(astp != NULL);
+  ast_t* literal_expr = *astp;
   assert(literal_expr != NULL);
-  assert(ast_id(literal_expr) == TK_TUPLE);
+  assert(ast_id(literal_expr) == TK_TUPLE || ast_id(literal_expr) == TK_ARRAY);
+  assert(chain != NULL);
+  assert(cardinality != CHAIN_CARD_BASE);
 
-  size_t cardinality = ast_childcount(literal_expr);
   size_t i = 0;
-  ast_t* tuple_type = ast_from(literal_expr, TK_TUPLETYPE);
-  ast_settype(literal_expr, tuple_type);
+  lit_chain_t link;
 
-  // Process each tuple element separately
+  chain_add(chain, &link, cardinality);
+
+  // Process each group element separately
   for(ast_t* p = ast_child(literal_expr); p != NULL; p = ast_sibling(p))
   {
-    ast_t* child_lit_type = ast_type(p);
-    assert(child_lit_type != NULL);
-
-    if(ast_id(child_lit_type) == TK_LITERAL)
+    if(is_type_literal(ast_type(p)))
     {
-      // This element is a literal, get the type element and coerce to it
-      ast_t* child_tuple_type = extract_tuple_element(target_type,
-        cardinality, i);
+      // This element is a literal
+      if(cardinality != CHAIN_CARD_ARRAY)
+      {
+        chain_clear_cache(&link);
+        link.index = i;
+      }
 
-      bool r = coerce_literals(p, child_tuple_type);
-      ast_free_unattached(child_tuple_type);
-
-      if(!r)
+      if(!coerce_literal_to_type(&p, target_type, &link, options))
         return false;
     }
-
-    ast_append(tuple_type, ast_type(p));
 
     i++;
   }
 
+  chain_remove(chain);
   return true;
 }
 
 
 // Coerce a literal control block to be the specified target type
-static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
-  uif_type_info_t* cached_type)
+static bool coerce_control_block(ast_t** astp, ast_t* target_type,
+  lit_chain_t* chain, pass_opt_t* options)
 {
+  assert(astp != NULL);
+  ast_t* literal_expr = *astp;
   assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
@@ -473,7 +504,7 @@ static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
     ast_t* branch = (ast_t*)ast_data(p);
     assert(branch != NULL);
 
-    if(!coerce_literal_to_type(branch, target_type, cached_type))
+    if(!coerce_literal_to_type(&branch, target_type, chain, options))
     {
       ast_free_unattached(block_type);
       return false;
@@ -488,9 +519,11 @@ static bool coerce_control_block(ast_t* literal_expr, ast_t* target_type,
 
 
 // Coerce a literal expression to given tuple or non-tuple types
-static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
-  uif_type_info_t* cached_type)
+static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
+  lit_chain_t* chain, pass_opt_t* options)
 {
+  assert(astp != NULL);
+  ast_t* literal_expr = *astp;
   assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
@@ -501,24 +534,36 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
     return true;
 
   if(ast_child(lit_type) != NULL) // Control block literal
-    return coerce_control_block(literal_expr, target_type, cached_type);
+    return coerce_control_block(astp, target_type, chain, options);
 
   switch(ast_id(literal_expr))
   {
     case TK_TUPLE:  // Tuple literal
-      return coerce_tuple(literal_expr, target_type);
+    {
+      size_t cardinality = ast_childcount(literal_expr);
+      if(!coerce_group(astp, target_type, chain, cardinality, options))
+        return false;
+
+      break;
+    }
 
     case TK_INT:
-      return get_uif_type(literal_expr, target_type, cached_type, false);
+      return uif_type_from_chain(literal_expr, target_type, chain, false);
 
     case TK_FLOAT:
-      return get_uif_type(literal_expr, target_type, cached_type, true);
+      return uif_type_from_chain(literal_expr, target_type, chain, true);
+
+    case TK_ARRAY:
+      if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, options))
+        return false;
+
+      break;
 
     case TK_SEQ:
     {
       // Only coerce the last expression in the sequence
       ast_t* last = ast_childlast(literal_expr);
-      if(!coerce_literal_to_type(last, target_type, cached_type))
+      if(!coerce_literal_to_type(&last, target_type, chain, options))
         return false;
 
       ast_settype(literal_expr, ast_type(last));
@@ -530,10 +575,11 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
       AST_GET_CHILDREN(literal_expr, positional, named, receiver);
       ast_t* arg = ast_child(positional);
 
-      if(!coerce_literal_to_type(receiver, target_type, cached_type))
+      if(!coerce_literal_to_type(&receiver, target_type, chain, options))
         return false;
 
-      if(arg != NULL && !coerce_literal_to_type(arg, target_type, cached_type))
+      if(arg != NULL &&
+        !coerce_literal_to_type(&arg, target_type, chain, options))
         return false;
 
       ast_settype(literal_expr, ast_type(ast_child(receiver)));
@@ -541,13 +587,13 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
     }
 
     case TK_DOT:
-      if(!coerce_literal_to_type(ast_child(literal_expr), target_type,
-        cached_type))
+    {
+      ast_t* receiver = ast_child(literal_expr);
+      if(!coerce_literal_to_type(&receiver, target_type, chain, options))
         return false;
-      
-      // We've determined the type of an operator, need to look up the function
-      ast_settype(literal_expr, NULL);
-      return (pass_expr(&literal_expr, NULL) == AST_OK);
+
+      break;
+    }
 
     default:
       ast_error(literal_expr, "Internal error, coerce_literal_to_type node %s",
@@ -555,11 +601,18 @@ static bool coerce_literal_to_type(ast_t* literal_expr, ast_t* target_type,
       assert(0);
       return false;
   }
+
+
+  // Need to reprocess node now all the literals have types
+  ast_settype(literal_expr, NULL);
+  return (pass_expr(astp, options) == AST_OK);
 }
 
 
-bool coerce_literals(ast_t* literal_expr, ast_t* target_type)
+bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
 {
+  assert(astp != NULL);
+  ast_t* literal_expr = *astp;
   assert(literal_expr != NULL);
 
   if(ast_id(literal_expr) == TK_NONE)
@@ -571,10 +624,10 @@ bool coerce_literals(ast_t* literal_expr, ast_t* target_type)
     ast_id(lit_type) != TK_OPERATORLITERAL)
     return true;
 
-  uif_type_info_t cached_type = { NULL, NULL, false };
-  return coerce_literal_to_type(literal_expr, target_type, &cached_type);
+  lit_chain_t chain;
+  chain_init_head(&chain);
+  return coerce_literal_to_type(astp, target_type, &chain, options);
 }
-
 
 typedef struct lit_op_info_t
 {
@@ -618,7 +671,7 @@ static lit_op_info_t* lookup_literal_op(const char* name)
 
 
 // Unify all the branches of the given AST to the same type
-static bool unify(ast_t* ast)
+static bool unify(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
 
@@ -633,7 +686,7 @@ static bool unify(ast_t* ast)
   if(non_literal != NULL)
   {
     // Type has a non-literal element, coerce literals to that
-    return coerce_literals(ast, non_literal);
+    return coerce_literals(&ast, non_literal, options);
   }
 
   // Still a pure literal
@@ -641,14 +694,14 @@ static bool unify(ast_t* ast)
 }
 
 
-bool literal_member_access(ast_t* ast)
+bool literal_member_access(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_DOT || ast_id(ast) == TK_TILDE);
 
   AST_GET_CHILDREN(ast, receiver, name_node);
 
-  if(!unify(receiver))
+  if(!unify(receiver, options))
     return false;
 
   ast_t* recv_type = ast_type(receiver);
@@ -677,7 +730,7 @@ bool literal_member_access(ast_t* ast)
 }
 
 
-bool literal_call(ast_t* ast)
+bool literal_call(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(ast_id(ast) == TK_CALL);
@@ -704,14 +757,14 @@ bool literal_call(ast_t* ast)
 
   if(arg != NULL)
   {
-    if(!unify(arg))
+    if(!unify(arg, options))
       return false;
 
     ast_t* arg_type = ast_type(arg);
     assert(arg_type != NULL);
 
     if(ast_id(arg_type) != TK_LITERAL)  // Apply argument type to receiver
-      return coerce_literals(receiver, arg_type);
+      return coerce_literals(&receiver, arg_type, options);
 
     if(!op->can_propogate_literal)
     {
