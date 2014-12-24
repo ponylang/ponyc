@@ -167,18 +167,17 @@ static void print_method(compile_t* c, gentype_t* g, const char* name,
   if(fun == NULL)
     return;
 
-  AST_GET_CHILDREN(fun, cap, id, typeparams, params, rtype, can_error, body);
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, rtype, can_error, body,
+    docstring);
 
   // Print the docstring if we have one.
-  ast_t* first = ast_child(body);
-
-  if((ast_id(first) == TK_STRING) && (ast_sibling(first) != NULL))
+  if(ast_id(docstring) == TK_STRING)
   {
     printbuf(c->header_buf,
       "/*\n"
       "%s"
       "*/\n",
-      ast_name(first)
+      ast_name(docstring)
       );
   }
 

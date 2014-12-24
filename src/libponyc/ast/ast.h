@@ -81,12 +81,10 @@ method
 ------
 data: During traits pass, trait method body came from (NULL for none).
 symtab: name -> TYPEPARAM | PARAM
-Methods initially have an extra child for the => before the body child. This is
-removed during the parse fix pass.
 (
-  NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ]
-  BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ]
-  FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ]
+  NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
+  BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
+  FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ] [STRING]
 )
 
 TYPEPARAMS: {TYPEPARAM}

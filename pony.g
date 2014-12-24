@@ -17,7 +17,7 @@ use
   ;
 
 use_ffi
-  :  '@' ID type_args '(' params? ')' '?'?
+  :  '@' (ID | STRING) type_args '(' params? ')' '?'?
   ;
 
 typealias
@@ -25,7 +25,7 @@ typealias
   ;
 
 class_
-  :  ('interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? members
+  :  ('interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? STRING? members
   ;
 
 members
@@ -37,7 +37,7 @@ field
   ;
 
 method
-  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? ('=>' seq)?
+  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? STRING? ('=>' seq)?
   ;
 
 oftype
@@ -168,7 +168,7 @@ atom
   |  '(' positional ')' // tuple
   |  '[' positional ']' // array
   |  'object' ('is' types)? members 'end' // object
-  |  '@' ID ('.' ID)* type_args? '(' positional? ')' '?'? // ffi
+  |  '@' (ID | STRING) type_args? '(' positional? ')' '?'? // ffi
   ;
 
 idseq

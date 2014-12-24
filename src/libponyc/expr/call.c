@@ -460,8 +460,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       NONE
       NONE
-      NODE(TK_SEQ)
-      NODE(TK_DBLARROW)));
+      NODE(TK_SEQ)));
 
   // We will have an apply method in the type.
   token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
@@ -474,8 +473,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       TREE(result)
       NODE(can_error)
-      NODE(TK_SEQ)
-      NODE(TK_DBLARROW)));
+      NODE(TK_SEQ)));
 
   // We will replace partial application with $0.create(...)
   BUILD(call_receiver, ast, NODE(TK_REFERENCE, TREE(c_id)));
