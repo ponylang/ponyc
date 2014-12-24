@@ -36,8 +36,7 @@ static void test_good_sugar(const char* short_form, const char* full_form)
     ASSERT_NE((void*)NULL, short_ast);
   }
 
-  limit_passes(&opt, "parsefix");
-  parse_fix_allow_all(true);
+  limit_passes(&opt, "parse");
   package_add_magic("full", full_form);
   ast_t* full_ast = program_load(stringtab("full"), &opt);
 
@@ -61,7 +60,6 @@ static void test_good_sugar(const char* short_form, const char* full_form)
   ASSERT_TRUE(r);
 
   // Reset state for next test
-  parse_fix_allow_all(false);
   pass_opt_done(&opt);
 }
 
