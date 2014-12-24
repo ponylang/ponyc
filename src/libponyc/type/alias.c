@@ -201,6 +201,93 @@ ast_t* alias_bind(ast_t* type)
   return NULL;
 }
 
+ast_t* infer(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_DONTCARE:
+      return type;
+
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      // Infer each element.
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, infer(child));
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* ephemeral = ast_childidx(type, 4);
+
+      if(ast_id(ephemeral) == TK_BORROWED)
+      {
+        type = ast_dup(type);
+        AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
+        ast_setid(eph, TK_NONE);
+
+        switch(ast_id(cap))
+        {
+          case TK_ISO: ast_setid(cap, TK_TAG); break;
+          case TK_TRN: ast_setid(cap, TK_BOX); break;
+          default: break;
+        }
+      }
+
+      return type;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* ephemeral = ast_childidx(type, 2);
+
+      if(ast_id(ephemeral) == TK_BORROWED)
+      {
+        type = ast_dup(type);
+        AST_GET_CHILDREN(type, id, cap, eph);
+        ast_setid(eph, TK_NONE);
+
+        switch(ast_id(cap))
+        {
+          case TK_ISO: ast_setid(cap, TK_TAG); break;
+          case TK_TRN: ast_setid(cap, TK_BOX); break;
+          default: break;
+        }
+      }
+
+      return type;
+    }
+
+    case TK_ARROW:
+    {
+      // Infer just the right side. The left side is either 'this' or a type
+      // parameter, and stays the same.
+      ast_t* r_type = ast_from(type, TK_ARROW);
+      AST_GET_CHILDREN(type, left, right);
+      ast_add(r_type, infer(right));
+      ast_add(r_type, left);
+      return r_type;
+    }
+
+    case TK_FUNTYPE:
+      return type;
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
 ast_t* consume_type(ast_t* type)
 {
   switch(ast_id(type))
@@ -383,45 +470,6 @@ bool sendable(ast_t* type)
 
     case TK_FUNTYPE:
       return true;
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
-}
-
-bool borrowed_type(ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // A type expression is borrowed if any component is borrowed.
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        if(borrowed_type(child))
-          return true;
-
-        child = ast_sibling(child);
-      }
-
-      return false;
-    }
-
-    case TK_ARROW:
-      // A viewpoint type is borrowed if the RHS is borrowed.
-      return borrowed_type(ast_childidx(type, 1));
-
-    case TK_NOMINAL:
-      return ast_id(ast_childidx(type, 4)) == TK_BORROWED;
-
-    case TK_TYPEPARAMREF:
-      return ast_id(ast_childidx(type, 2)) == TK_BORROWED;
 
     default: {}
   }
