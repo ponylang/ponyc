@@ -104,9 +104,8 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     """
     try
       let (index, found) = _search(key)
-      let prev = _array(index) = (key, consume value)
 
-      match consume prev
+      match _array(index) = (key, consume value)
       | (_, let v: Value) =>
         return consume v
       else
@@ -128,10 +127,9 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       let (index, found) = _search(key)
 
       if found then
-        let prev = _array(index) = _MapDeleted
         _size = _size - 1
 
-        match consume prev
+        match _array(index) = _MapDeleted
         | (_, let v: Value) =>
           return consume v
         end
@@ -211,9 +209,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
 
     try
       for i in Range(0, old_len) do
-        let entry = _old(i) = _MapDeleted
-
-        match consume entry
+        match _old(i) = _MapDeleted
         | (let k: Key, let v: Value) =>
           this(k) = consume v
         end

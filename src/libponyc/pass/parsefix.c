@@ -366,9 +366,15 @@ static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
 {
   assert(ast != NULL);
 
-  if((t->frame->method_type == NULL) && (t->frame->ffi_type == NULL))
+  if((t->frame->method_type == NULL) &&
+    (t->frame->ffi_type == NULL) &&
+    (t->frame->as_type == NULL)
+    )
   {
-    ast_error(ast, "ephemeral types can only appear in function return types");
+    ast_error(ast,
+      "ephemeral types can only appear in 'as' expression types and function "
+      "return types");
+
     return AST_ERROR;
   }
 
