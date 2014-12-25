@@ -663,17 +663,17 @@ DEF(method);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  TOKEN("function name", TK_ID);
+  TOKEN("method name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
   SKIP(NULL, TK_RPAREN);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
-  OPT TOKEN(NULL, TK_DBLARROW);
-  OPT RULE("function body", rawseq);
+  OPT TOKEN(NULL, TK_STRING);
+  IF(TK_DBLARROW, RULE("method body", rawseq));
   // Order should be:
-  // cap id type_params params return_type error body arrow
+  // cap id type_params params return_type error body docstring
   REORDER(0, 1, 2, 3, 4, 5, 7, 6);
   DONE();
 

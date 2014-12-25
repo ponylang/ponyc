@@ -18,8 +18,7 @@ static ast_t* make_create(ast_t* ast)
     NONE          // params
     NONE          // return type
     NONE          // error
-    NODE(TK_SEQ, NODE(TK_TRUE))
-    NODE(TK_DBLARROW)));
+    NODE(TK_SEQ, NODE(TK_TRUE))));
 
   return create;
 }
@@ -147,8 +146,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_IS,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NODE(TK_DBLARROW)));
+            NODE(TK_REFERENCE, ID("that"))))));
 
     ast_append(members, eq);
   }
@@ -175,8 +173,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_ISNT,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))
-        NODE(TK_DBLARROW)));
+            NODE(TK_REFERENCE, ID("that"))))));
 
     ast_append(members, eq);
   }
@@ -493,8 +490,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       NONE
       NONE
-      NODE(TK_SEQ)
-      NODE(TK_DBLARROW)));
+      NODE(TK_SEQ)));
 
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,

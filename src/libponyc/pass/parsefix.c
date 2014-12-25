@@ -160,7 +160,7 @@ static bool check_method(ast_t* ast, int method_def_index)
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
-    error, body, arrow);
+    error, body, docstring);
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
@@ -183,18 +183,25 @@ static bool check_method(ast_t* ast, int method_def_index)
   if(!check_permission(def, METHOD_BODY, body, "body", ast))
     return false;
 
-  token_id arrow_id = ast_id(arrow);
-
-  if(arrow_id == TK_DBLARROW && ast_id(body) == TK_NONE)
+  if(ast_id(docstring) == TK_STRING)
   {
-    ast_error(body, "Method body expected after =>");
-    return false;
-  }
+    if(ast_id(body) != TK_NONE)
+    {
+      ast_error(docstring,
+        "methods with bodies must put docstrings in the body");
+      return false;
+    }
+  } else {
+    ast_t* first = ast_child(body);
 
-  if(arrow_id == TK_NONE && ast_id(body) == TK_SEQ)
-  {
-    ast_error(body, "Missing => before method body");
-    return false;
+    if((first != NULL) &&
+      (ast_id(first) == TK_STRING) &&
+      (ast_sibling(first) != NULL)
+      )
+    {
+      ast_pop(body);
+      ast_replace(&docstring, first);
+    }
   }
 
   return true;
