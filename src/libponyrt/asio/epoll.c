@@ -72,7 +72,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
         pev = ev->data.ptr;
 
         aflags = (ev->events & EPOLLIN ? ASIO_READABLE : 0)
-               | (ev->events & EPOLLOUT ? ASIO_WRITABLE : 0)
+               | (ev->events & EPOLLOUT ? ASIO_WRITEABLE : 0)
                | (ev->events & EPOLLRDHUP ? ASIO_PEER_SHUTDOWN : 0)
                | (ev->events & EPOLLHUP ? ASIO_CLOSED_UNEXPECTEDLY : 0)
                | (ev->events & EPOLLERR ? ASIO_ERROR : 0);

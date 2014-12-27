@@ -208,19 +208,6 @@ static bool check_method(ast_t* ast, int method_def_index)
 }
 
 
-// Check that we haven't already seen the given kind of method
-static bool check_seen_member(ast_t* member, const char* member_kind,
-  const char* seen_name, const char* seen_kind)
-{
-  if(seen_name == NULL)
-    return true;
-
-  ast_error(member, "%s %s comes after %s %s", member_kind,
-    ast_name(ast_childidx(member, 1)), seen_kind, seen_name);
-  return false;
-}
-
-
 // Check whether the given entity members are legal in their entity
 static bool check_members(ast_t* members, int entity_def_index)
 {
@@ -229,8 +216,6 @@ static bool check_members(ast_t* members, int entity_def_index)
 
   const permission_def_t* def = &_entity_def[entity_def_index];
   ast_t* member = ast_child(members);
-  const char* be_name = NULL;
-  const char* fun_name = NULL;
 
   while(member != NULL)
   {
@@ -246,25 +231,14 @@ static bool check_members(ast_t* members, int entity_def_index)
         break;
 
       case TK_NEW:
-        if(!check_method(member, entity_def_index + DEF_NEW) ||
-          !check_seen_member(member, "constructor", be_name, "behaviour") ||
-          !check_seen_member(member, "constructor", fun_name, "function"))
+        if(!check_method(member, entity_def_index + DEF_NEW))
           return false;
-
         break;
 
       case TK_BE:
       {
-        if(!check_method(member, entity_def_index + DEF_BE) ||
-          !check_seen_member(member, "behaviour", fun_name, "function"))
+        if(!check_method(member, entity_def_index + DEF_BE))
           return false;
-
-        ast_t* id = ast_childidx(member, 1);
-
-        if(ast_id(id) != TK_NONE)
-          be_name = ast_name(id);
-        else
-          be_name = "apply";
         break;
       }
 
@@ -272,13 +246,6 @@ static bool check_members(ast_t* members, int entity_def_index)
       {
         if(!check_method(member, entity_def_index + DEF_FUN))
           return false;
-
-        ast_t* id = ast_childidx(member, 1);
-
-        if(ast_id(id) != TK_NONE)
-          fun_name = ast_name(id);
-        else
-          fun_name = "apply";
         break;
       }
 

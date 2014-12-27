@@ -33,7 +33,7 @@ members
   ;
 
 field
-  :  ('var' | 'let') ID oftype? ('=' infix)?
+  :  ('var' | 'let') ID oftype ('=' infix)?
   ;
 
 method

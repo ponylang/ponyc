@@ -194,7 +194,7 @@ static sock_t* create_socket(const char* host, const char* service,
 
 	set_non_blocking(s->fd);
 	freeaddrinfo(res);
-  s->status = (ASIO_WRITABLE | ASIO_READABLE);
+  s->status = (ASIO_WRITEABLE | ASIO_READABLE);
 
 	return s;
 }
@@ -516,12 +516,12 @@ uint32_t sock_flush(sock_t* s)
 
 			s->writes.chunks--;
 
-			s->status |= ASIO_WRITABLE;
+			s->status |= ASIO_WRITEABLE;
 			return rc;
 		}
 	}
 
-	if(rc & ASIO_WOULDBLOCK) s->status &= ~ASIO_WRITABLE;
+	if(rc & ASIO_WOULDBLOCK) s->status &= ~ASIO_WRITEABLE;
 
 	return rc;
 }

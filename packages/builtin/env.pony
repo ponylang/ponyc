@@ -16,7 +16,7 @@ class Env val
     err = StdStream._err()
 
     args = recover
-      let array = Array[String]
+      let array = Array[String](argc)
       var i: U64 = 0
 
       while i < argc do

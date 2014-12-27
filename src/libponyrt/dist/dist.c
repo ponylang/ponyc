@@ -329,7 +329,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
       	}
       }
 
-      if((m->flags & ASIO_WRITABLE) != 0)
+      if((m->flags & ASIO_WRITEABLE) != 0)
 			{
 				if(proto_finish(n->proto) == ASIO_SUCCESS)
 				{

@@ -280,7 +280,7 @@ primitive Path
         (base_clean.compare(
           target_clean, target_i.u64()) != 0)
       then
-        break None
+        break
       end
 
       if base_i < base_clean.size().i64() then

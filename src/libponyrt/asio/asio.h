@@ -25,7 +25,7 @@ enum
 	ASIO_FILT_READ           = 1 << 1,
 	ASIO_FILT_WRITE          = 1 << 2,
 	ASIO_READABLE            = 1 << 3,
-	ASIO_WRITABLE            = 1 << 4,
+	ASIO_WRITEABLE            = 1 << 4,
 	ASIO_LISTENING           = 1 << 5,
 	ASIO_PEER_SHUTDOWN       = 1 << 6,
 	ASIO_CLOSED_UNEXPECTEDLY = 1 << 7,
