@@ -6,13 +6,13 @@ primitive _Event
     """
     Returns true if the flags contain the readable flag.
     """
-    (flags and (1 << 3)) != 0
+    (flags and (1 << 0)) != 0
 
   fun tag writeable(flags: U32): Bool =>
     """
     Returns true if the flags contain the writeable flag.
     """
-    (flags and (1 << 4)) != 0
+    (flags and (1 << 1)) != 0
 
   fun tag socket(e: _EventNotify, fd: U32): Pointer[_Event] =>
     """

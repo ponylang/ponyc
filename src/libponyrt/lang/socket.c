@@ -197,7 +197,7 @@ asio_event_t* os_socket_event(pony_actor_t* handler, int fd)
     return NULL;
 
   asio_event_t* ev = asio_event_create(handler, msg_id, fd,
-    ASIO_FILT_READ | ASIO_FILT_WRITE, true, NULL);
+    ASIO_READ | ASIO_WRITE, true, NULL);
 
   asio_event_subscribe(ev);
   return ev;

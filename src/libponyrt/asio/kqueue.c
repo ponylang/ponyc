@@ -74,11 +74,11 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 			switch(ev->filter)
 			{
 				case EVFILT_READ:
-					asio_event_send(pev, ASIO_READABLE);
+					asio_event_send(pev, ASIO_READ);
 					break;
 
 				case EVFILT_WRITE:
-					asio_event_send(pev, ASIO_WRITEABLE);
+					asio_event_send(pev, ASIO_WRITE);
 					break;
 
 				default: {}
@@ -101,13 +101,13 @@ void asio_event_subscribe(asio_event_t* ev)
 	int i = 0;
 
   // EV_CLEAR enforces edge triggered behaviour.
-	if(ev->eflags & ASIO_FILT_READ)
+	if(ev->eflags & ASIO_READ)
 	{
 		EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, ev);
 		i++;
 	}
 
-	if(ev->eflags & ASIO_FILT_WRITE)
+	if(ev->eflags & ASIO_WRITE)
 	{
 		EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, ev);
 		i++;
@@ -127,13 +127,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
 	struct kevent event[2];
 	int i = 0;
 
-	if(ev->eflags & ASIO_FILT_READ)
+	if(ev->eflags & ASIO_READ)
 	{
 		EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
 		i++;
 	}
 
-	if(ev->eflags & ASIO_FILT_WRITE)
+	if(ev->eflags & ASIO_WRITE)
 	{
 		EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
 		i++;

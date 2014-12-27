@@ -1,3 +1,5 @@
+#if 0
+
 #include "sock.h"
 #include "asio.h"
 #include "../mem/pool.h"
@@ -540,5 +542,7 @@ bool sock_close(sock_t* sock)
 
 	return true;
 }
+
+#endif
 
 #endif

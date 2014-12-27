@@ -297,8 +297,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 			asio_msg_t* m = (asio_msg_t*)msg;
       node_t* n = (node_t*)m->event->udata;
 
-			if((m->flags & (ASIO_ERROR | ASIO_PEER_SHUTDOWN |
-				ASIO_CLOSED_UNEXPECTEDLY)) != 0)
+			if(m->flags & ASIO_ERROR) != 0)
 			{
       	sock_close(n->socket); // TODO error handling / termination
 
@@ -307,7 +306,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 				break;
 			}
 
-      if((m->flags & ASIO_READABLE) != 0)
+      if((m->flags & ASIO_READ) != 0)
       {
       	if(n == &d->cluster.self)
 				{
@@ -320,7 +319,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
 				  if(proto != PROTO_NOP)
 					{
 						assert(m->event->owner == self);
-						m->flags = ASIO_READABLE;
+						m->flags = ASIO_READ;
 						asio_event_send(m->event, m->flags);
 
           	handle_remote_message(n, proto);
@@ -329,7 +328,7 @@ static void dispatch(pony_actor_t* self, pony_msg_t* msg)
       	}
       }
 
-      if((m->flags & ASIO_WRITEABLE) != 0)
+      if((m->flags & ASIO_WRITE) != 0)
 			{
 				if(proto_finish(n->proto) == ASIO_SUCCESS)
 				{

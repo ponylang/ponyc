@@ -52,6 +52,9 @@ actor TCPListener is Socket
     _final()
 
   fun box _get_fd(): U32 =>
+    """
+    Private call to get the file descriptor, used by the Socket trait.
+    """
     _fd
 
   be _event_notify(event: Pointer[_Event] tag, flags: U32) =>

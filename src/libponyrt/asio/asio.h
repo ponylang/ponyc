@@ -21,16 +21,8 @@ PONY_EXTERN_C_BEGIN
 
 enum
 {
-	ASIO_SUCCESS             = 1 << 0,
-	ASIO_FILT_READ           = 1 << 1,
-	ASIO_FILT_WRITE          = 1 << 2,
-	ASIO_READABLE            = 1 << 3,
-	ASIO_WRITEABLE            = 1 << 4,
-	ASIO_LISTENING           = 1 << 5,
-	ASIO_PEER_SHUTDOWN       = 1 << 6,
-	ASIO_CLOSED_UNEXPECTEDLY = 1 << 7,
-	ASIO_ERROR               = 1 << 8,
-	ASIO_WOULDBLOCK          = 1 << 9
+	ASIO_READ	= 1 << 0,
+	ASIO_WRITE = 1 << 1,
 };
 
 /** Opaque definition of a backend.

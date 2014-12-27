@@ -71,11 +71,10 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 
         pev = ev->data.ptr;
 
-        aflags = (ev->events & EPOLLIN ? ASIO_READABLE : 0)
-               | (ev->events & EPOLLOUT ? ASIO_WRITEABLE : 0)
-               | (ev->events & EPOLLRDHUP ? ASIO_PEER_SHUTDOWN : 0)
-               | (ev->events & EPOLLHUP ? ASIO_CLOSED_UNEXPECTEDLY : 0)
-               | (ev->events & EPOLLERR ? ASIO_ERROR : 0);
+        aflags =
+          (ev->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR) ?
+            ASIO_READ : 0)
+          | (ev->events & EPOLLOUT ? ASIO_WRITE : 0);
 
         asio_event_send(pev, aflags);
       }
@@ -94,24 +93,14 @@ void asio_event_subscribe(asio_event_t* ev)
 	if(ev->noisy)
 		asio_noisy_add();
 
-  uint32_t oldmask = (ev->eflags >> 16);
-
   struct epoll_event ep;
   ep.data.ptr = ev;
 
-  ep.events = (ev->eflags & ASIO_FILT_READ ? EPOLLIN : 0)
-            | (ev->eflags & ASIO_FILT_WRITE ? EPOLLOUT : 0)
-            | EPOLLET
-            | EPOLLRDHUP
-            | EPOLLHUP;
+  ep.events = (ev->eflags & ASIO_READ ? EPOLLIN : 0)
+    | (ev->eflags & ASIO_WRITE ? EPOLLOUT : 0)
+    | EPOLLRDHUP | EPOLLET;
 
-  ev->eflags |= (ev->eflags << 16);
-
-  if(oldmask == ep.events)
-    return;
-
-  epoll_ctl(b->epfd, (oldmask != 0) && (oldmask != ep.events) ? EPOLL_CTL_MOD :
-    EPOLL_CTL_ADD, (int)ev->fd, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->fd, &ep);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
@@ -122,7 +111,6 @@ void asio_event_unsubscribe(asio_event_t* ev)
 		asio_noisy_remove();
 
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
-
   asio_event_dtor(ev);
 }
 

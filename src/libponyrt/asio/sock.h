@@ -1,3 +1,5 @@
+#if 0
+
 #ifndef asio_sock_h
 #define asio_sock_h
 
@@ -88,5 +90,7 @@ size_t sock_read_buffer_size(sock_t* s);
 bool sock_close(sock_t* sock);
 
 PONY_EXTERN_C_END
+
+#endif
 
 #endif
