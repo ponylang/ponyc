@@ -10,6 +10,8 @@ class ClientSide is TCPConnectionNotify
     try
       let (host, service) = conn.remote_address()
       _env.out.print("connected to " + host + ":" + service)
+      conn.set_nodelay(true)
+      conn.set_keepalive(10)
       conn.write("client says hi")
     end
 

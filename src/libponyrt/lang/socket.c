@@ -14,9 +14,10 @@
 #include <winsock2.h>
 #else
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <netdb.h>
+#include <fcntl.h>
 #include <unistd.h>
 typedef int SOCKET;
 #endif
@@ -56,6 +57,7 @@ static int set_nonblocking(SOCKET s)
 }
 #endif
 
+// TODO: Use Happy Eyeballs. Try to connect to all addresses at once.
 static int os_socket_addrinfo(struct addrinfo* p, bool server)
 {
 #ifdef PLATFORM_IS_LINUX
@@ -321,6 +323,46 @@ size_t os_recv(int fd, void* buf, size_t len)
   }
 
   return (size_t)recvd;
+}
+
+void os_keepalive(int fd, int secs)
+{
+  SOCKET s = fd;
+  int on = (secs > 0) ? 1 : 0;
+  setsockopt(s, SOL_SOCKET,  SO_KEEPALIVE, (const char*)&on, sizeof(int));
+
+  if(on == 0)
+    return;
+
+#if defined(PLATFORM_IS_LINUX)
+  int probes = secs / 2;
+  setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
+
+  int idle = secs / 2;
+  setsockopt(s, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(int));
+
+  int intvl = 1;
+  setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(int));
+#elif defined(PLATFORM_IS_MACOSX)
+  setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, &secs, sizeof(int));
+#elif defined(PLATFORM_IS_WINDOWS)
+  DWORD ret = 0;
+
+  struct tcp_keepalive k;
+  k.onoff = 1;
+  k.keepalivetime = secs / 2;
+  k.keepaliveinterval = 1;
+
+  WSAIoctl(s, SIO_KEEPALIVE_VALS, sizeof(struct tcp_keepalive), NULL, 0, &ret,
+    NULL, NULL);
+#endif
+}
+
+void os_nodelay(int fd, bool state)
+{
+  SOCKET s = fd;
+  int val = state;
+  setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (const char*)&val, sizeof(int));
 }
 
 void os_closesocket(int fd)

@@ -3,6 +3,8 @@ use "collections"
 actor TCPConnection is Socket
   """
   A TCP connection.
+
+  TODO: happy eyeballs
   """
   var _notify: TCPConnectionNotify
   var _fd: U32
@@ -83,6 +85,25 @@ actor TCPConnection is Socket
     Change the notifier.
     """
     _notify = notify
+
+  fun ref set_nodelay(state: Bool) =>
+    """
+    Turn Nagle on/off. Defaults to on. This can only be set on a connected
+    socket.
+    """
+    if _connected then
+      @os_nodelay[None](_fd, state)
+    end
+
+  fun ref set_keepalive(secs: U32) =>
+    """
+    Sets the TCP keepalive timeout to approximately secs seconds. Exact timing
+    is OS dependent. If secs is zero, TCP keepalive is disabled. TCP keepalive
+    is disabled by default. This can only be set on a connected socket.
+    """
+    if _connected then
+      @os_keepalive[None](_fd, secs)
+    end
 
   fun box _get_fd(): U32 =>
     """
