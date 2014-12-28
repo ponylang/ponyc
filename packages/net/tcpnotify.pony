@@ -5,6 +5,9 @@ interface TCPConnectionNotify
   fun ref accepted(conn: TCPConnection ref) =>
     None
 
+  fun ref connecting(conn: TCPConnection ref) =>
+    None
+
   fun ref connected(conn: TCPConnection ref) =>
     None
 

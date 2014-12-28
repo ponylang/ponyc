@@ -6,6 +6,9 @@ class ClientSide is TCPConnectionNotify
   new create(env: Env) =>
     _env = env
 
+  fun ref connecting(conn: TCPConnection ref) =>
+    _env.out.print("connecting")
+
   fun ref connected(conn: TCPConnection ref) =>
     try
       let (host, service) = conn.remote_address()

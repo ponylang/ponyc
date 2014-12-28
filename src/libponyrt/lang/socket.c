@@ -24,6 +24,7 @@ typedef int SOCKET;
 
 PONY_EXTERN_C_BEGIN
 
+asio_event_t* os_socket_event(pony_actor_t* owner, int fd);
 void os_closesocket(int fd);
 
 static bool connect_in_progress()
@@ -57,8 +58,7 @@ static int set_nonblocking(SOCKET s)
 }
 #endif
 
-// TODO: Use Happy Eyeballs. Try to connect to all addresses at once.
-static int os_socket_addrinfo(struct addrinfo* p, bool server)
+static int socket_from_addrinfo(struct addrinfo* p, bool server)
 {
 #ifdef PLATFORM_IS_LINUX
   int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol);
@@ -110,8 +110,13 @@ static int os_socket_addrinfo(struct addrinfo* p, bool server)
   return -1;
 }
 
-static int os_socket(const char* host, const char* service, int family,
-  int socktype, int proto, bool server)
+/**
+ * For a server, this finds an address to listen on and returns either a valid
+ * file descriptor or -1. For a client, this starts Happy Eyeballs and returns
+ * the number of connection attempts in-flight, which may be 0.
+ */
+static int os_socket(pony_actor_t* owner, const char* host,
+  const char* service, int family, int socktype, int proto, bool server)
 {
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
@@ -126,83 +131,107 @@ static int os_socket(const char* host, const char* service, int family,
   struct addrinfo *result;
 
   if(getaddrinfo(host, service, &hints, &result) != 0)
-    return -1;
+    return server ? -1 : 0;
 
   struct addrinfo* p = result;
-  int fd = -1;
+  int count = 0;
 
   while(p != NULL)
   {
-    fd = os_socket_addrinfo(p, server);
+    int fd = socket_from_addrinfo(p, server);
 
     if(fd != -1)
-      break;
+    {
+      os_socket_event(owner, fd);
+
+      if(server)
+      {
+        freeaddrinfo(result);
+        return fd;
+      }
+
+      count++;
+    }
 
     p = p->ai_next;
   }
 
   freeaddrinfo(result);
-  return fd;
+  return count;
 }
 
-int os_listen_tcp(const char* host, const char* service)
+asio_event_t* os_socket_event(pony_actor_t* owner, int fd)
 {
-  return os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, true);
-}
-
-int os_listen_tcp4(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, true);
-}
-
-int os_listen_tcp6(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, true);
-}
-
-int os_listen_udp(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP, true);
-}
-
-int os_listen_udp4(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP, true);
-}
-
-int os_listen_udp6(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP, true);
-}
-
-int os_connect_tcp(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP, false);
-}
-
-int os_connect_tcp4(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP, false);
-}
-
-int os_connect_tcp6(const char* host, const char* service)
-{
-  return os_socket(host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP, false);
-}
-
-asio_event_t* os_socket_event(pony_actor_t* handler, int fd)
-{
-  pony_type_t* type = *(pony_type_t**)handler;
+  pony_type_t* type = *(pony_type_t**)owner;
   uint32_t msg_id = type->event_notify;
 
   if(msg_id == (uint32_t)-1)
     return NULL;
 
-  asio_event_t* ev = asio_event_create(handler, msg_id, fd,
+  asio_event_t* ev = asio_event_create(owner, msg_id, fd,
     ASIO_READ | ASIO_WRITE, true, NULL);
 
   asio_event_subscribe(ev);
   return ev;
+}
+
+int os_socket_event_fd(asio_event_t* ev)
+{
+  return (int)ev->fd;
+}
+
+int os_listen_tcp(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
+    true);
+}
+
+int os_listen_tcp4(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
+    true);
+}
+
+int os_listen_tcp6(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
+    true);
+}
+
+int os_listen_udp(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP,
+    true);
+}
+
+int os_listen_udp4(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP,
+    true);
+}
+
+int os_listen_udp6(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP,
+    true);
+}
+
+int os_connect_tcp(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
+    false);
+}
+
+int os_connect_tcp4(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
+    false);
+}
+
+int os_connect_tcp6(pony_actor_t* owner, const char* host, const char* service)
+{
+  return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
+    false);
 }
 
 int os_accept(int fd)

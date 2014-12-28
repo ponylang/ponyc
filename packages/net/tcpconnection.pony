@@ -2,13 +2,12 @@ use "collections"
 
 actor TCPConnection is Socket
   """
-  A TCP connection.
-
-  TODO: happy eyeballs
+  A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
   """
   var _notify: TCPConnectionNotify
-  var _fd: U32
-  var _event: Pointer[_Event]
+  var _connect_count: U32
+  var _fd: U32 = -1
+  var _event: Pointer[_Event] tag = Pointer[_Event]
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
@@ -21,32 +20,36 @@ actor TCPConnection is Socket
     Connect via IPv4 or IPv6.
     """
     _notify = consume notify
-    _fd = @os_connect_tcp[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(this, _fd)
+    _connect_count = @os_connect_tcp[U32](this, host.cstring(),
+      service.cstring())
+    _notify_connecting()
 
   new ip4(notify: TCPConnectionNotify iso, host: String, service: String) =>
     """
     Connect via IPv4.
     """
     _notify = consume notify
-    _fd = @os_connect_tcp4[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(this, _fd)
+    _connect_count = @os_connect_tcp4[U32](this, host.cstring(),
+      service.cstring())
+    _notify_connecting()
 
   new ip6(notify: TCPConnectionNotify iso, host: String, service: String) =>
     """
     Connect via IPv6.
     """
     _notify = consume notify
-    _fd = @os_connect_tcp6[U32](host.cstring(), service.cstring())
-    _event = _Event.socket(this, _fd)
+    _connect_count = @os_connect_tcp6[U32](this, host.cstring(),
+      service.cstring())
+    _notify_connecting()
 
   new _accept(notify: TCPConnectionNotify iso, fd: U32) =>
     """
     A new connection accepted on a server.
     """
     _notify = consume notify
+    _connect_count = 0
     _fd = fd
-    _event = _Event.socket(this, _fd)
+    _event = @os_socket_event[Pointer[_Event]](this, fd)
     _connected = true
     _notify.accepted(this)
 
@@ -66,7 +69,7 @@ actor TCPConnection is Socket
       else
         _close()
       end
-    elseif _connected and not _closing then
+    elseif not _closing then
       _pending.append(_TCPPendingWrite(data, 0))
     end
 
@@ -76,7 +79,7 @@ actor TCPConnection is Socket
     """
     _closing = true
 
-    if _pending.size() == 0 then
+    if (_connect_count == 0) and (_pending.size() == 0) then
       _close()
     end
 
@@ -116,15 +119,30 @@ actor TCPConnection is Socket
     Handle socket events.
     """
     if _Event.writeable(flags) then
-      if not _connected then
-        if not @os_connected[Bool](_fd) then
-          // TODO: what if we got multiple addresses from getaddrinfo?
-          _notify.connect_failed(this)
-          return _close()
-        end
+      if event isnt _event then
+        var fd = @os_socket_event_fd[U32](event)
+        _connect_count = _connect_count - 1
 
-        _notify.connected(this)
-        _connected = true
+        if not _connected then
+          if @os_connected[Bool](fd) then
+            _fd = fd
+            _event = event
+            _connected = true
+            _notify.connected(this)
+          else
+            _Event.dispose(event)
+            @os_closesocket[None](fd)
+
+            if _connect_count == 0 then
+              _notify.connect_failed(this)
+              return
+            end
+          end
+        else
+          _Event.dispose(event)
+          @os_closesocket[None](fd)
+          return
+        end
       end
 
       _writeable = true
@@ -133,8 +151,6 @@ actor TCPConnection is Socket
     if _Event.readable(flags) then
       _readable = true
     end
-
-    // TODO: error events?
 
     _pending_writes()
     _pending_reads()
@@ -170,7 +186,7 @@ actor TCPConnection is Socket
       end
     end
 
-    if _closing and (_pending.size() == 0) then
+    if _closing and (_connect_count == 0) and (_pending.size() == 0) then
       _close()
     end
 
@@ -211,6 +227,16 @@ actor TCPConnection is Socket
       end
     else
       _close()
+    end
+
+  fun ref _notify_connecting() =>
+    """
+    Inform the notifier that we're connecting.
+    """
+    if _connect_count > 0 then
+      _notify.connecting(this)
+    else
+      _notify.connect_failed(this)
     end
 
   fun ref _close() =>

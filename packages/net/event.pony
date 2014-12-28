@@ -14,17 +14,7 @@ primitive _Event
     """
     (flags and (1 << 1)) != 0
 
-  fun tag socket(e: _EventNotify, fd: U32): Pointer[_Event] =>
-    """
-    Creates a socket event notification.
-    """
-    if fd != -1 then
-      @os_socket_event[Pointer[_Event]](e, fd)
-    else
-      Pointer[_Event]
-    end
-
-  fun tag dispose(event: Pointer[_Event]): Pointer[_Event] =>
+  fun tag dispose(event: Pointer[_Event] tag): Pointer[_Event] tag =>
     """
     Disposes of an event notification.
     """
