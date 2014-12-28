@@ -475,8 +475,14 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     arg = ast_sibling(arg);
   }
 
-  // Call it.
-  LLVMValueRef result = LLVMBuildCall(c->builder, func, f_args, count, "");
+  // If we can error out and we have an invoke target, generate an invoke
+  // instead of a call.
+  LLVMValueRef result;
+
+  if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
+    result = invoke_fun(c, func, f_args, count, "", false);
+  else
+    result = LLVMBuildCall(c->builder, func, f_args, count, "");
 
   // Special case a None return value, which is used for void functions.
   if(is_none(type))

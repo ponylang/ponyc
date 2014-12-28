@@ -21,7 +21,7 @@ class Directory val
         let entry = @os_readdir[Pointer[U8] iso^]()
 
         if entry.is_null() then
-          break None
+          break
         end
 
         list.append(recover String.from_cstring(consume entry) end)

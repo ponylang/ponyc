@@ -6,25 +6,15 @@ primitive _Event
     """
     Returns true if the flags contain the readable flag.
     """
-    (flags and (1 << 3)) != 0
+    (flags and (1 << 0)) != 0
 
   fun tag writeable(flags: U32): Bool =>
     """
     Returns true if the flags contain the writeable flag.
     """
-    (flags and (1 << 4)) != 0
+    (flags and (1 << 1)) != 0
 
-  fun tag socket(e: _EventNotify, fd: U32): Pointer[_Event] =>
-    """
-    Creates a socket event notification.
-    """
-    if fd != -1 then
-      @os_socket_event[Pointer[_Event]](e, fd)
-    else
-      Pointer[_Event]
-    end
-
-  fun tag dispose(event: Pointer[_Event]): Pointer[_Event] =>
+  fun tag dispose(event: Pointer[_Event] tag): Pointer[_Event] tag =>
     """
     Disposes of an event notification.
     """

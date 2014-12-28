@@ -246,7 +246,7 @@ actor ContractHost[A, B: Contract[A]]
           match arg
           | var arg'': A => a.append(arg'')
           else
-            return None
+            return
           end
         end
         _contract.run(a)

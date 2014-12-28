@@ -1,4 +1,5 @@
 #include "sugar.h"
+#include "parsefix.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
@@ -12,13 +13,15 @@ static ast_t* make_create(ast_t* ast)
 {
   BUILD(create, ast,
     NODE(TK_NEW, AST_SCOPE
-    NONE          // cap
-    ID("create")  // name
-    NONE          // typeparams
-    NONE          // params
-    NONE          // return type
-    NONE          // error
-    NODE(TK_SEQ, NODE(TK_TRUE))));
+      NONE          // cap
+      ID("create")  // name
+      NONE          // typeparams
+      NONE          // params
+      NONE          // return type
+      NONE          // error
+      NODE(TK_SEQ, NODE(TK_TRUE))
+      NONE
+      ));
 
   return create;
 }
@@ -146,7 +149,8 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_IS,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))));
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE));
 
     ast_append(members, eq);
   }
@@ -173,7 +177,8 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
         NODE(TK_SEQ,
           NODE(TK_ISNT,
             NODE(TK_THIS)
-            NODE(TK_REFERENCE, ID("that"))))));
+            NODE(TK_REFERENCE, ID("that"))))
+        NONE));
 
     ast_append(members, eq);
   }
@@ -490,7 +495,8 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       NONE
       NONE
-      NODE(TK_SEQ)));
+      NODE(TK_SEQ)
+      NONE));
 
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
@@ -561,6 +567,12 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Add the new type to the current module.
   ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_append(module, def);
+
+  // Parsefix the new class.
+  ast_result_t fix = ast_visit(&def, pass_parse_fix, NULL, opt);
+
+  if(fix != AST_OK)
+    return fix;
 
   // Replace object..end with $0.create(...)
   ast_replace(astp, call);
