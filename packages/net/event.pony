@@ -14,6 +14,12 @@ primitive _Event
     """
     (flags and (1 << 1)) != 0
 
+  fun tag receive(event: Pointer[_Event] tag) =>
+    """
+    This must be called when an event is received.
+    """
+    @asio_event_recv[None](event)
+
   fun tag dispose(event: Pointer[_Event] tag): Pointer[_Event] tag =>
     """
     Disposes of an event notification.

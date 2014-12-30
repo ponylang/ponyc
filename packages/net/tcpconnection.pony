@@ -118,6 +118,8 @@ actor TCPConnection is Socket
     """
     Handle socket events.
     """
+    _Event.receive(event)
+
     if _Event.writeable(flags) then
       if event isnt _event then
         var fd = @os_socket_event_fd[U32](event)
@@ -216,7 +218,7 @@ actor TCPConnection is Socket
         end
 
         data.truncate(len)
-        _notify.read(this, consume data)
+        _notify.received(this, consume data)
 
         sum = sum + len
 
