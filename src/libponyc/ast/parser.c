@@ -692,7 +692,7 @@ DEF(assignment);
 DEF(jump);
   TOKEN("statement", TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR,
     TK_COMPILER_INTRINSIC);
-  OPT_NO_DFLT RULE("return value", rawseq);
+  OPT RULE("return value", rawseq);
   DONE();
 
 // assignment [SEMI]
