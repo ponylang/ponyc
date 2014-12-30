@@ -177,6 +177,7 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
+  TK_NOSEMI,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -253,15 +254,17 @@ const char* token_print(token_t* token);
 */
 const char* token_id_desc(token_id id);
 
-
 /// Report the source the given token was loaded from
 source_t* token_source(token_t* token);
 
-// Report the line number the given token was found at
+/// Report the line number the given token was found at
 size_t token_line_number(token_t* token);
 
-// Report the position within the line that the given token was found at
+/// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
+
+/// Report whether the given token is the first on a line
+bool token_is_first_on_line(token_t* token);
 
 
 // Write accessors
@@ -286,6 +289,9 @@ void token_set_int(token_t* token, __uint128_t value);
 
 /// Set the given token's position within its source file
 void token_set_pos(token_t* token, size_t line, size_t pos);
+
+/// Set that the given token is the first on a line
+void token_set_first_on_line(token_t* token);
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

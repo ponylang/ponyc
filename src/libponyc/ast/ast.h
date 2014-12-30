@@ -308,6 +308,7 @@ void ast_setid(ast_t* ast, token_id id);
 token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
+bool ast_is_first_on_line(ast_t* ast);
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);
 bool ast_canerror(ast_t* ast);

@@ -589,6 +589,23 @@ static ast_result_t parse_fix_sequence(ast_t* ast)
 }
 
 
+static ast_result_t parse_fix_semi(ast_t* ast)
+{
+  // Only unnecessary semis make it out of the parser
+  ast_error(ast,
+    "Unexpected semi colon, only use to separate expressions on the same line"
+    );
+  return AST_FATAL;
+}
+
+
+static ast_result_t parse_fix_nosemi(ast_t* ast)
+{
+  ast_error(ast, "Use a semi colon to separate expressions on the same line");
+  return AST_FATAL;
+}
+
+
 static ast_result_t parse_fix_id(ast_t* ast)
 {
   const char* p = ast_name(ast);
@@ -657,6 +674,8 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   switch(id)
   {
     case TK_SEQ:        return parse_fix_sequence(ast);
+    case TK_SEMI:       return parse_fix_semi(ast);
+    case TK_NOSEMI:     return parse_fix_nosemi(ast);
     case TK_TYPE:       return parse_fix_type_alias(ast);
     case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
     case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);

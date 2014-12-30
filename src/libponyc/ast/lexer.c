@@ -194,6 +194,7 @@ static const lexsym_t abstract[] =
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY2 },
+  { "nosemi", TK_NOSEMI },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
@@ -1104,6 +1105,9 @@ token_t* lexer_next(lexer_t* lexer)
         }
     }
   }
+
+  if(lexer->newline)
+    token_set_first_on_line(t);
 
   lexer->newline = false; // We've found a symbol, so no longer a new line
   token_set_pos(t, symbol_line, symbol_pos);
