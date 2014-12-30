@@ -58,6 +58,7 @@ actor TCPListener is Socket
     """
     When we are readable, we accept new connections until none remain.
     """
+    _Event.receive(event)
     _event = event
 
     if _Event.readable(flags) then
@@ -68,7 +69,7 @@ actor TCPListener is Socket
           break
         end
 
-        TCPConnection._accept(_notify.connection(this), s)
+        TCPConnection._accept(_notify.connected(this), s)
       end
     end
 

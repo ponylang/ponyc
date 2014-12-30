@@ -22,24 +22,24 @@ static const unsigned char the_key[16] = {
 static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
 {
   uint64_t k0 = *(uint64_t*)(key);
-	uint64_t k1 = *(uint64_t*)(key + 8);
-	uint64_t b = (uint64_t)len << 56;
+  uint64_t k1 = *(uint64_t*)(key + 8);
+  uint64_t b = (uint64_t)len << 56;
 
-	uint64_t v0 = k0 ^ 0x736f6d6570736575ULL;
-	uint64_t v1 = k1 ^ 0x646f72616e646f6dULL;
-	uint64_t v2 = k0 ^ 0x6c7967656e657261ULL;
-	uint64_t v3 = k1 ^ 0x7465646279746573ULL;
+  uint64_t v0 = k0 ^ 0x736f6d6570736575ULL;
+  uint64_t v1 = k1 ^ 0x646f72616e646f6dULL;
+  uint64_t v2 = k0 ^ 0x6c7967656e657261ULL;
+  uint64_t v3 = k1 ^ 0x7465646279746573ULL;
 
   const char* end = (in + len) - (len % 8);
 
-	for(; in != end; in += 8)
+  for(; in != end; in += 8)
   {
-		uint64_t m = *(uint64_t*)in;
-		v3 ^= m;
+    uint64_t m = *(uint64_t*)in;
+    v3 ^= m;
     SIPROUND;
     SIPROUND;
-		v0 ^= m;
-	}
+    v0 ^= m;
+  }
 
   switch(len & 7)
   {
@@ -52,17 +52,17 @@ static uint64_t siphash24(const unsigned char* key, const char* in, size_t len)
     case 1: b |= ((uint64_t)in[0]);
   }
 
-	v3 ^= b;
+  v3 ^= b;
   SIPROUND;
   SIPROUND;
-	v0 ^= b;
+  v0 ^= b;
   v2 ^= 0xff;
   SIPROUND;
   SIPROUND;
   SIPROUND;
   SIPROUND;
 
-	return v0 ^ v1 ^ v2 ^ v3;
+  return v0 ^ v1 ^ v2 ^ v3;
 }
 
 uint64_t hash_block(const void* p, size_t len)
