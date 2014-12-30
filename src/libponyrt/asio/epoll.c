@@ -32,7 +32,6 @@ asio_backend_t* asio_backend_init()
 
   struct epoll_event ep;
   ep.data.ptr = b;
-
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
 
   return b;
@@ -47,42 +46,33 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 {
   asio_backend_t* b = arg;
 
-  struct epoll_event* ev;
-  asio_event_t* pev;
-
-  uint32_t i;
-  uint32_t aflags;
-  int32_t event_cnt;
-
   while(true)
   {
-    if((event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1)) > 0)
+    int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
+
+    for(int i = 0; i < event_cnt; i++)
     {
-      for(i = 0; i < (uint32_t)event_cnt; i++)
+      struct epoll_event* ep = &(b->events[i]);
+
+      if(ep->data.ptr == b)
       {
-        ev = &(b->events[i]);
-
-        if(ev->data.ptr == b)
-        {
-          close(b->epfd);
-          close(b->wakeup);
-          break;
-        }
-
-        pev = ev->data.ptr;
-
-        aflags =
-          (ev->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR) ?
-            ASIO_READ : 0)
-          | (ev->events & EPOLLOUT ? ASIO_WRITE : 0);
-
-        asio_event_send(pev, aflags);
+        close(b->epfd);
+        close(b->wakeup);
+        break;
       }
+
+      asio_event_t* ev = ep->data.ptr;
+
+      uint32_t flags =
+        (ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR) ?
+          ASIO_READ : 0)
+        | (ep->events & EPOLLOUT ? ASIO_WRITE : 0);
+
+      asio_event_send(ev, flags);
     }
   }
 
   POOL_FREE(asio_backend_t, b);
-
   return NULL;
 });
 
@@ -96,8 +86,8 @@ void asio_event_subscribe(asio_event_t* ev)
   struct epoll_event ep;
   ep.data.ptr = ev;
 
-  ep.events = (ev->eflags & ASIO_READ ? EPOLLIN : 0)
-    | (ev->eflags & ASIO_WRITE ? EPOLLOUT : 0)
+  ep.events = (ev->flags & ASIO_READ ? EPOLLIN : 0)
+    | (ev->flags & ASIO_WRITE ? EPOLLOUT : 0)
     | EPOLLRDHUP | EPOLLET;
 
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->fd, &ep);
@@ -111,7 +101,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
     asio_noisy_remove();
 
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
-  asio_event_dtor(ev);
+  asio_event_destroy(ev);
 }
 
 #endif

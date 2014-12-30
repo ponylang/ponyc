@@ -58,10 +58,10 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 
     for(int i = 0; i < count; i++)
     {
-      struct kevent* ev = &(b->fired[i]);
+      struct kevent* ep = &(b->fired[i]);
+      uintptr_t fd = ep->ident;
 
-      if((ev->ident == (uintptr_t)b->wakeup[0]) &&
-        (ev->filter == EVFILT_READ))
+      if((fd == (uintptr_t)b->wakeup[0]) && (ep->filter == EVFILT_READ))
       {
         close(b->kq);
         close(b->wakeup[0]);
@@ -69,16 +69,16 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
         break;
       }
 
-      asio_event_t* pev = ev->udata;
+      asio_event_t* ev = ep->udata;
 
-      switch(ev->filter)
+      switch(ep->filter)
       {
         case EVFILT_READ:
-          asio_event_send(pev, ASIO_READ);
+          asio_event_send(ev, ASIO_READ);
           break;
 
         case EVFILT_WRITE:
-          asio_event_send(pev, ASIO_WRITE);
+          asio_event_send(ev, ASIO_WRITE);
           break;
 
         default: {}
@@ -101,13 +101,13 @@ void asio_event_subscribe(asio_event_t* ev)
   int i = 0;
 
   // EV_CLEAR enforces edge triggered behaviour.
-  if(ev->eflags & ASIO_READ)
+  if(ev->flags & ASIO_READ)
   {
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
   }
 
-  if(ev->eflags & ASIO_WRITE)
+  if(ev->flags & ASIO_WRITE)
   {
     EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, ev);
     i++;
@@ -127,13 +127,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
   struct kevent event[2];
   int i = 0;
 
-  if(ev->eflags & ASIO_READ)
+  if(ev->flags & ASIO_READ)
   {
     EV_SET(&event[i], ev->fd, EVFILT_READ, EV_DELETE, 0, 0, ev);
     i++;
   }
 
-  if(ev->eflags & ASIO_WRITE)
+  if(ev->flags & ASIO_WRITE)
   {
     EV_SET(&event[i], ev->fd, EVFILT_WRITE, EV_DELETE, 0, 0, ev);
     i++;
@@ -141,8 +141,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   struct timespec t = {0, 0};
   kevent(b->kq, event, i, NULL, 0, &t);
-
-  asio_event_dtor(ev);
+  asio_event_destroy(ev);
 }
 
 #endif

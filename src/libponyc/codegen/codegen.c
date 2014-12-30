@@ -221,6 +221,16 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_type, params, 2, false);
   LLVMAddFunction(c->module, "pony_traceobject", type);
 
+  // void pony_traceunknown($object*)
+  params[0] = c->object_ptr;
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  LLVMAddFunction(c->module, "pony_traceunknown", type);
+
+  // void pony_trace_tag_or_actor($object*)
+  params[0] = c->object_ptr;
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  LLVMAddFunction(c->module, "pony_trace_tag_or_actor", type);
+
   // void pony_gc_send()
   type = LLVMFunctionType(c->void_type, NULL, 0, false);
   LLVMAddFunction(c->module, "pony_gc_send", type);

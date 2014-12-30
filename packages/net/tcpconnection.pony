@@ -118,6 +118,8 @@ actor TCPConnection is Socket
     """
     Handle socket events.
     """
+    _Event.receive(event)
+
     if _Event.writeable(flags) then
       if event isnt _event then
         var fd = @os_socket_event_fd[U32](event)
