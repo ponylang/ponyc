@@ -60,7 +60,7 @@ uint32_t cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
-  if(numa_available())
+  if(numa_available() != -1)
   {
     struct bitmask* cpus = numa_get_run_node_mask();
     return numa_bitmask_weight(cpus);
@@ -128,7 +128,7 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
-  if(numa_available())
+  if(numa_available() != -1)
   {
     // Assign only numa-available cores.
     struct bitmask* cpus = numa_get_run_node_mask();
@@ -173,7 +173,7 @@ void cpu_affinity(uint32_t cpu)
 
 #ifdef USE_NUMA
   // Allocate memory on the local node.
-  if(numa_available())
+  if(numa_available() != -1)
     numa_set_localalloc();
 #endif
 
