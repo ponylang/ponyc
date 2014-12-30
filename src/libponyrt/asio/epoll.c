@@ -90,8 +90,8 @@ void asio_event_subscribe(asio_event_t* ev)
 {
   asio_backend_t* b = asio_get_backend();
 
-	if(ev->noisy)
-		asio_noisy_add();
+  if(ev->noisy)
+    asio_noisy_add();
 
   struct epoll_event ep;
   ep.data.ptr = ev;
@@ -107,8 +107,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
 {
   asio_backend_t* b = asio_get_backend();
 
-	if(ev->noisy)
-		asio_noisy_remove();
+  if(ev->noisy)
+    asio_noisy_remove();
 
   epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
   asio_event_dtor(ev);

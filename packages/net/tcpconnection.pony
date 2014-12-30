@@ -216,7 +216,7 @@ actor TCPConnection is Socket
         end
 
         data.truncate(len)
-        _notify.read(this, consume data)
+        _notify.received(this, consume data)
 
         sum = sum + len
 

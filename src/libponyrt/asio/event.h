@@ -15,20 +15,20 @@ PONY_EXTERN_C_BEGIN
 typedef struct asio_event_t
 {
   uintptr_t fd;
-	uint32_t eflags;			/* event filter flags */
-	pony_actor_t* owner;	/* owning actor */
-	uint32_t msg_id;      /* I/O handler (actor message) */
+  uint32_t eflags;      /* event filter flags */
+  pony_actor_t* owner;  /* owning actor */
+  uint32_t msg_id;      /* I/O handler (actor message) */
 
-	bool noisy;           /* prevents termination? */
-	void* udata;	        /* opaque user data */
+  bool noisy;           /* prevents termination? */
+  void* udata;          /* opaque user data */
 } asio_event_t;
 
 /// Message that carries an event and event flags.
 typedef struct asio_msg_t
 {
-	pony_msg_t msg;
-	asio_event_t* event;
-	uint32_t flags;
+  pony_msg_t msg;
+  asio_event_t* event;
+  uint32_t flags;
 } asio_msg_t;
 
 /** Create a new event.

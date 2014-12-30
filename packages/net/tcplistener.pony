@@ -68,7 +68,7 @@ actor TCPListener is Socket
           break
         end
 
-        TCPConnection._accept(_notify.connection(this), s)
+        TCPConnection._accept(_notify.connected(this), s)
       end
     end
 

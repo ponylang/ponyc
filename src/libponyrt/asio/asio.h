@@ -21,8 +21,8 @@ PONY_EXTERN_C_BEGIN
 
 enum
 {
-	ASIO_READ	= 1 << 0,
-	ASIO_WRITE = 1 << 1,
+  ASIO_READ  = 1 << 0,
+  ASIO_WRITE = 1 << 1,
 };
 
 /** Opaque definition of a backend.

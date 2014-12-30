@@ -6,6 +6,7 @@
 *.bc
 *.a
 *.exe
+*.sublime*
 build/
 work/
 output/
