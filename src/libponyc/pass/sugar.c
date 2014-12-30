@@ -650,13 +650,13 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 
   REPLACE(astp,
     NODE(TK_MATCH, AST_SCOPE
-      TREE(expr)
+      NODE(TK_SEQ, TREE(expr))
       NODE(TK_CASES, AST_SCOPE
         NODE(TK_CASE, AST_SCOPE
           TREE(pattern)
           NONE
           TREE(body)))
-      NODE(TK_SEQ, NODE(TK_ERROR))));
+      NODE(TK_SEQ, AST_SCOPE NODE(TK_ERROR))));
 
   return ast_visit(astp, pass_sugar, NULL, opt);
 }

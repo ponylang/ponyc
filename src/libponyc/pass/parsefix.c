@@ -1,4 +1,5 @@
 #include "parsefix.h"
+#include "../ast/parser.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/assemble.h"
@@ -473,38 +474,6 @@ static ast_result_t parse_fix_ellipsis(ast_t* ast)
 }
 
 
-static bool is_expr_infix(token_id id)
-{
-  switch(id)
-  {
-    case TK_AND:
-    case TK_OR:
-    case TK_XOR:
-    case TK_PLUS:
-    case TK_MINUS:
-    case TK_MULTIPLY:
-    case TK_DIVIDE:
-    case TK_MOD:
-    case TK_LSHIFT:
-    case TK_RSHIFT:
-    case TK_IS:
-    case TK_ISNT:
-    case TK_EQ:
-    case TK_NE:
-    case TK_LT:
-    case TK_LE:
-    case TK_GE:
-    case TK_GT:
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-
 static ast_result_t parse_fix_infix_expr(ast_t* ast)
 {
   assert(ast != NULL);
@@ -514,11 +483,13 @@ static ast_result_t parse_fix_infix_expr(ast_t* ast)
 
   assert(left != NULL);
   token_id left_op = ast_id(left);
-  bool left_clash = (left_op != op) && is_expr_infix(left_op);
+  bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
+    (ast_data(left) != (void*)1);
 
   assert(right != NULL);
   token_id right_op = ast_id(right);
-  bool right_clash = (right_op != op) && is_expr_infix(right_op);
+  bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
+    (ast_data(right) != (void*)1);
 
   if(left_clash || right_clash)
   {
@@ -550,29 +521,22 @@ static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
   assert(ast != NULL);
 
   ast_t* value_seq = ast_child(ast);
-  assert(value_seq != NULL);
-  assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
 
-  if(ast_childcount(value_seq) > max_value_count)
+  size_t value_count = 0;
+
+  if(value_seq != NULL)
+  {
+    assert(ast_id(value_seq) == TK_SEQ || ast_id(value_seq) == TK_NONE);
+    value_count = ast_childcount(value_seq);
+  }
+
+  if(value_count > max_value_count)
   {
     ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
     return AST_ERROR;
   }
 
   return AST_OK;
-}
-
-
-static ast_result_t parse_fix_lparen(ast_t** astp)
-{
-  // Remove TK_LPAREN nodes
-  ast_t* child = ast_pop(*astp);
-  assert(child != NULL);
-  ast_replace(astp, child);
-
-  // The recursive descent pass won't now process our child because it thinks
-  // that's us. So we have to process our child explicitly.
-  return pass_parse_fix(astp, NULL);
 }
 
 
@@ -670,7 +634,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
-  // Functions that just check for illegal code
   switch(id)
   {
     case TK_SEQ:        return parse_fix_sequence(ast);
@@ -694,8 +657,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_BREAK:      return parse_fix_return(ast, 1);
     case TK_CONTINUE:
     case TK_ERROR:      return parse_fix_return(ast, 0);
-    case TK_LPAREN:
-    case TK_LPAREN_NEW: return parse_fix_lparen(astp);
     case TK_ID:         return parse_fix_id(ast);
     default: break;
   }

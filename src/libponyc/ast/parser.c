@@ -36,6 +36,38 @@ DECL(members);
 */
 
 
+bool is_expr_infix(token_id id)
+{
+  switch(id)
+  {
+    case TK_AND:
+    case TK_OR:
+    case TK_XOR:
+    case TK_PLUS:
+    case TK_MINUS:
+    case TK_MULTIPLY:
+    case TK_DIVIDE:
+    case TK_MOD:
+    case TK_LSHIFT:
+    case TK_RSHIFT:
+    case TK_IS:
+    case TK_ISNT:
+    case TK_EQ:
+    case TK_NE:
+    case TK_LT:
+    case TK_LE:
+    case TK_GE:
+    case TK_GT:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+
 // Tree builders
 
 // Standard infix operator AST builder
@@ -240,9 +272,10 @@ DEF(tupletype);
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
 DEF(typeexpr);
-  TOKEN(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
+  if(is_expr_infix(ast_id(state.ast))) ast_setdata(state.ast, (void*)1);
   DONE();
 
 // THIS
@@ -659,7 +692,7 @@ DEF(assignment);
 DEF(jump);
   TOKEN("statement", TK_RETURN, TK_BREAK, TK_CONTINUE, TK_ERROR,
     TK_COMPILER_INTRINSIC);
-  OPT RULE("return value", rawseq);
+  OPT_NO_DFLT RULE("return value", rawseq);
   DONE();
 
 // assignment [SEMI]

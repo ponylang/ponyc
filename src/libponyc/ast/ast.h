@@ -99,9 +99,15 @@ TYPES: {type}
 type
 ----
 (
-  ARROW: type type
   UNIONTYPE: {type}
+  data: During parse and parsefix passes indicates if union was immediately
+  inside grouping parentheses in the source. 1 => in parentheses, 0 => not.
+
   ISECTTYPE: {type}
+  data: During parse and parsefix passes indicates if intersect was immediately
+  inside grouping parentheses in the source. 1 => in parentheses, 0 => not.
+
+  ARROW: type type
   TUPLETYPE: {type}
   THISTYPE: no children
 
@@ -166,6 +172,9 @@ data: during type checking, whether the expr can error or not
 
 infix
 -----
+data: During parse and parsefix passes infix operators other than assign use
+the data field to indicate if they were immediately inside grouping parentheses
+in the source. 1 => in parentheses, 0 => not.
 (
   MULTIPLY: expr expr
   DIVIDE: expr expr
