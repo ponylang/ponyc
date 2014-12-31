@@ -122,6 +122,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
 
   AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params,
     sub_result, sub_throws);
+
   AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params,
     super_result, super_throws);
 
@@ -168,10 +169,14 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
     ast_t* sub_type = ast_childidx(sub_param, 1);
     ast_t* super_type = ast_childidx(super_param, 1);
 
-    // If the supertype is a machine word, the subtype must be a machine word.
+    // If either parameter type is a machine word, the other must be as well.
+    if(is_machine_word(sub_type) && !is_machine_word(super_type))
+      return false;
+
     if(is_machine_word(super_type) && !is_machine_word(sub_type))
       return false;
 
+    // Contravariant: the super type must be a subtype of the sub type.
     if(!is_subtype(super_type, sub_type))
       return false;
 
