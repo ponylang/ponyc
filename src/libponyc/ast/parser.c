@@ -5,7 +5,6 @@
 DECL(type);
 DECL(rawseq);
 DECL(seq);
-DECL(expr);
 DECL(assignment);
 DECL(term);
 DECL(infix);
@@ -35,6 +34,38 @@ DECL(members);
  *  infix (& |)
  *  tuple elements (,) - lowest precedence
 */
+
+
+bool is_expr_infix(token_id id)
+{
+  switch(id)
+  {
+    case TK_AND:
+    case TK_OR:
+    case TK_XOR:
+    case TK_PLUS:
+    case TK_MINUS:
+    case TK_MULTIPLY:
+    case TK_DIVIDE:
+    case TK_MOD:
+    case TK_LSHIFT:
+    case TK_RSHIFT:
+    case TK_IS:
+    case TK_ISNT:
+    case TK_EQ:
+    case TK_NE:
+    case TK_LT:
+    case TK_LE:
+    case TK_GE:
+    case TK_GT:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      return true;
+
+    default:
+      return false;
+  }
+}
 
 
 // Tree builders
@@ -85,34 +116,57 @@ ast_t* postfix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 }
 
 
-ast_t* test_seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+// Remove the [no]semi node at the top of the last expression in the given
+// sequence, if it is not an error
+static void prune_semi(rule_state_t* state, bool last_in_sequence)
 {
-  // The exisiting AST is a pointless TK_USE, possibly with a TK_COLON child.
-  // The new AST is a valid raw sequence. We need to mark the seauence as
-  // being a test and possibly give it a scope.
-  (void)state;
+  assert(state != NULL);
+  assert(state->ast != NULL);
+  assert(ast_id(state->ast) == TK_SEQ);
 
-  assert(existing != NULL);
-  assert(ast_id(existing) == TK_USE);
+  ast_t* semi_node = state->last_child;
+  if(semi_node == NULL)
+    return;
 
-  ast_t* is_scope_ast = ast_child(existing);
-  assert(is_scope_ast != NULL);
-  assert(ast_id(is_scope_ast) == TK_COLON || ast_id(is_scope_ast) == TK_NONE);
+  token_id id = ast_id(semi_node);
+  if(id != TK_SEMI && id != TK_NOSEMI)  // [no]semi not found, nothing to do
+      return;
 
-  assert(new_ast != NULL);
-  assert(ast_id(new_ast) == TK_SEQ);
+  assert(ast_childcount(semi_node) == 2);
+  AST_GET_CHILDREN(semi_node, next_token, expr);
 
-  ast_setdata(new_ast, (void*)1); // Indicates we're a test sequence
+  assert(next_token != NULL);
+  assert(ast_id(next_token) == TK_NOSEMI);
 
-  if(ast_id(is_scope_ast) == TK_COLON)
-    ast_scope(new_ast);
+  bool any_newlines = ast_is_first_on_line(semi_node) ||
+    ast_is_first_on_line(next_token);
 
-  ast_free(existing);
-  return new_ast;
+  if(id == TK_SEMI && (any_newlines || last_in_sequence)) // Unnecessary ;
+    return;
+
+  if(id == TK_NOSEMI && !any_newlines && !last_in_sequence) // Missing ;
+    return;
+
+  // [no]semi found is legal, prune it
+  ast_free(ast_pop(semi_node));  // next_token
+  ast_pop(semi_node);  // expr
+  ast_replace(&semi_node, expr);
+  state->last_child = expr;
 }
 
 
-// Rules
+// Sequence AST builder, handling semi colons
+ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  // Get rid of any unnecessary trailing ;
+  prune_semi(state, false);
+
+  // Now build as normal
+  return default_builder(existing, new_ast, state);
+}
+
+
+// Parse rules
 
 // type {COMMA type}
 DEF(types);
@@ -218,9 +272,10 @@ DEF(tupletype);
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
 DEF(typeexpr);
-  TOKEN(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
+  if(is_expr_infix(ast_id(state.ast))) ast_setdata(state.ast, (void*)1);
   DONE();
 
 // THIS
@@ -515,7 +570,7 @@ DEF(withexpr);
 // =>
 // (SEQ
 //   (ASSIGN (LET $1 initialiser))*
-//   (TRY
+//   (TRY2
 //     (SEQ (ASSIGN (LET idseq) $1)* body)
 //     (SEQ (ASSIGN (LET idseq) $1)* else)
 //     (SEQ $1.dispose()*)))
@@ -557,15 +612,29 @@ DEF(prefixminus);
   SKIP(NULL, TK_MINUS, TK_MINUS_NEW);
   RULE("value", term);
   DONE();
+  
+// '(' rawseq ')'
+// For testing only, thrown out by parsefix
+DEF(test_seq_no_scope);
+  SKIP(NULL, TK_LPAREN);
+  RULE("sequence", rawseq);
+  SKIP(NULL, TK_RPAREN);
+  ast_setdata(state.ast, (void*)1); // Mark sequence as test
+  DONE();
+
+// ':' test_seq_no_scope
+// For testing only, thrown out by parsefix
+DEF(test_seq_scope);
+  SKIP(NULL, TK_COLON);
+  RULE("sequence", test_seq_no_scope);
+  SCOPE();
+  DONE();
 
 // 'use' ':'? '(' expr {expr} ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq);
-  TOKEN(NULL, TK_USE);
-  OPT TOKEN(NULL, TK_COLON);
-  SKIP(NULL, TK_LPAREN);
-  CUSTOMBUILD(test_seq_builder) RULE("sequence", rawseq);
-  SKIP(NULL, TK_RPAREN);
+  SKIP(NULL, TK_USE);
+  RULE("sequence", test_seq_no_scope, test_seq_scope);
   DONE();
 
 // local | cond | match | whileloop | repeat | forloop | with | try | recover |
@@ -627,17 +696,21 @@ DEF(jump);
   DONE();
 
 // assignment [SEMI]
+// =>
+// ((SEMI | NOSEMI) NOSEMI assignment)
 DEF(expr);
   RULE("value", assignment);
-  OPT SKIP(NULL, TK_SEMI);
+  CUSTOMBUILD(infix_builder) OPT_DFLT(TK_NOSEMI) TOKEN(NULL, TK_SEMI);
+  AST_NODE(TK_NOSEMI); // Gets position of NEXT token (not yet matched)
   DONE();
 
 // expr {expr} [jump]
 DEF(longseq);
   AST_NODE(TK_SEQ);
   RULE("value", expr);
-  SEQ("value", expr);
-  OPT_NO_DFLT RULE("value", jump);
+  CUSTOMBUILD(seq_builder) SEQ("value", expr);
+  CUSTOMBUILD(seq_builder) OPT_NO_DFLT RULE("value", jump);
+  prune_semi(&state, true);  // In case of trailing semi
   DONE();
 
 // jump

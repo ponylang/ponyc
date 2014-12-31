@@ -60,11 +60,8 @@ uint32_t cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
-  if(numa_available())
-  {
-    struct bitmask* cpus = numa_get_run_node_mask();
-    return numa_bitmask_weight(cpus);
-  }
+  if(numa_available() != -1)
+    return numa_num_configured_cpus();
 #endif
 
   uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
@@ -128,28 +125,30 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
-  if(numa_available())
+  if(numa_available() != -1)
   {
     // Assign only numa-available cores.
-    struct bitmask* cpus = numa_get_run_node_mask();
-    uint32_t max = numa_bitmask_nbytes(cpus) * 8;
+    struct bitmask* nodes = numa_get_run_node_mask();
 
     uint32_t core = 0;
     uint32_t thread = 0;
+    uint32_t node = 0;
 
     while(thread < count)
     {
-      if(numa_bitmask_isbitset(cpus, core))
+      //check whether we can run on the numa node a core is
+      //belonging to
+      node = numa_node_of_cpu(core);
+
+      if(numa_bitmask_isbitset(nodes, node))
         scheduler[thread++].cpu = core;
 
       core++;
 
-      // Wrap around if we have more threads than cores.
-      if(core >= max)
+      // Wrap around if we have more threads than usable cores.
+      if(core >= count)
         core = 0;
     }
-
-    return;
   }
 #endif
 
@@ -173,7 +172,7 @@ void cpu_affinity(uint32_t cpu)
 
 #ifdef USE_NUMA
   // Allocate memory on the local node.
-  if(numa_available())
+  if(numa_available() != -1)
     numa_set_localalloc();
 #endif
 

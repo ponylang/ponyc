@@ -54,13 +54,13 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
 
   fun box hash(): U64 =>
     var x = u64()
-    x = (not x) + (x << 21);
-    x = x xor (x >> 24);
-    x = (x + (x << 3)) + (x << 8);
-    x = x xor (x >> 14);
-    x = (x + (x << 2)) + (x << 4);
-    x = x xor (x >> 28);
-    x = x + (x << 31);
+    x = (not x) + (x << 21)
+    x = x xor (x >> 24)
+    x = (x + (x << 3)) + (x << 8)
+    x = x xor (x >> 14)
+    x = (x + (x << 2)) + (x << 4)
+    x = x xor (x >> 28)
+    x = x + (x << 31)
     x
 
 trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
