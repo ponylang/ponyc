@@ -149,7 +149,7 @@ actor Updater
   new create(index: U64, size: U64) =>
     table = Array[U64](size)
 
-    var offset = index * size;
+    var offset = index * size
 
     for i in Range(0, size) do
       table.append(i + offset)
