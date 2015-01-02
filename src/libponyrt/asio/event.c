@@ -6,7 +6,7 @@
 asio_event_t* asio_event_create(pony_actor_t* owner, uint32_t msg_id,
   uintptr_t fd, uint32_t flags, bool noisy, void* udata)
 {
-  asio_event_t* ev = pony_alloc(sizeof(asio_event_t));
+  asio_event_t* ev = POOL_ALLOC(asio_event_t);
 
   ev->fd = fd;
   ev->flags = flags;
@@ -17,7 +17,6 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uint32_t msg_id,
 
   // The event is effectively being sent to another thread, so mark it here.
   pony_gc_send();
-  pony_trace(ev);
   pony_traceactor(owner);
 
   if(udata != NULL)
@@ -32,13 +31,13 @@ void asio_event_destroy(asio_event_t* ev)
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
   pony_gc_recv();
-  pony_trace(ev);
   pony_traceactor(ev->owner);
 
   if(ev->udata != NULL)
     pony_traceunknown(ev->udata);
 
   pony_recv_done();
+  POOL_FREE(asio_event_t, ev);
 }
 
 void asio_event_send(asio_event_t* ev, uint32_t flags)
@@ -48,13 +47,4 @@ void asio_event_send(asio_event_t* ev, uint32_t flags)
   m->flags = flags;
 
   pony_sendv(ev->owner, &m->msg);
-}
-
-void asio_event_recv(asio_event_t* ev)
-{
-  // When we receive an event in a message, we will have "unmarked" it. We need
-  // to indicate that the asio thread still has it.
-  pony_gc_send();
-  pony_trace(ev);
-  pony_send_done();
 }

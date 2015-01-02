@@ -303,7 +303,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   if(ast_id(type) != TK_TUPLETYPE)
   {
-    ast_error(type, "must specify a tuple type for multiple identifiers");
+    ast_error(idseq, "must specify a tuple type for multiple identifiers");
     return false;
   }
 
@@ -315,7 +315,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
     if(t == NULL)
     {
-      ast_error(type, "not enough types specified");
+      ast_error(id, "not enough types specified");
       return false;
     }
 
@@ -326,7 +326,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   if(ast_childidx(type, index) != NULL)
   {
-    ast_error(type, "too many types specified");
+    ast_error(idseq, "too many types specified");
     return false;
   }
 
