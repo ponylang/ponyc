@@ -2,13 +2,13 @@
 #include "event.h"
 #ifdef ASIO_USE_KQUEUE
 
+#include "../actor/messageq.h"
 #include "../mem/pool.h"
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <string.h>
 #include <stdbool.h>
-
 #include <unistd.h>
 
 struct asio_backend_t
@@ -16,12 +16,22 @@ struct asio_backend_t
   int kq;
   int wakeup[2];
   struct kevent fired[MAX_EVENTS];
+  messageq_t q;
 };
+
+static void handle_queue(asio_backend_t* b)
+{
+  asio_msg_t* msg;
+
+  while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
+    asio_event_send(msg->event, 0);
+}
 
 asio_backend_t* asio_backend_init()
 {
   asio_backend_t* b = POOL_ALLOC(asio_backend_t);
   memset(b, 0, sizeof(asio_backend_t));
+  messageq_init(&b->q);
 
   b->kq = kqueue();
 
@@ -84,9 +94,14 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
         default: {}
       }
     }
+
+    handle_queue(b);
   }
 
+  handle_queue(b);
+  messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
+
   return NULL;
 });
 
@@ -122,7 +137,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
   asio_backend_t* b = asio_get_backend();
 
   if(ev->noisy)
+  {
     asio_noisy_remove();
+    ev->noisy = false;
+  }
+
+  if(ev->flags == 0)
+    return;
 
   struct kevent event[2];
   int i = 0;
@@ -141,7 +162,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   struct timespec t = {0, 0};
   kevent(b->kq, event, i, NULL, 0, &t);
-  asio_event_destroy(ev);
+
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(0, 0);
+  msg->event = ev;
+  msg->flags = 0;
+  messageq_push(&b->q, (pony_msg_t*)msg);
+
+  ev->flags = 0;
 }
 
 #endif

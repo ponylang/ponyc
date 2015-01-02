@@ -264,6 +264,7 @@ class MapKeys[
     added during iteration, this may not return all keys.
     """
     _i = _map.next_index(_i)
+    _count = _count + 1
     _map.index(_i)._1
 
 class MapValues[
@@ -296,6 +297,7 @@ class MapValues[
     added during iteration, this may not return all values.
     """
     _i = _map.next_index(_i)
+    _count = _count + 1
     _map.index(_i)._2
 
 class MapPairs[
@@ -328,4 +330,5 @@ class MapPairs[
     are added during iteration, this may not return all entries.
     """
     _i = _map.next_index(_i)
+    _count = _count + 1
     _map.index(_i)

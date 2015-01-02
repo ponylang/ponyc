@@ -1,12 +1,15 @@
-actor TCPListener is Socket
+use "net"
+
+actor TCPListener
   """
   Listens for new network connections.
   """
   var _notify: TCPListenNotify
   var _fd: U32
   var _event: Pointer[_Event] tag = Pointer[_Event]
+  var _closed: Bool = false
 
-  new create(notify: TCPListenNotify iso, host: String = "localhost",
+  new create(notify: TCPListenNotify iso, host: String = "",
     service: String = "0")
   =>
     """
@@ -16,7 +19,7 @@ actor TCPListener is Socket
     _fd = @os_listen_tcp[U32](this, host.cstring(), service.cstring())
     _notify_listening()
 
-  new ip4(notify: TCPListenNotify iso, host: String = "localhost",
+  new ip4(notify: TCPListenNotify iso, host: String = "",
     service: String = "0")
   =>
     """
@@ -26,7 +29,7 @@ actor TCPListener is Socket
     _fd = @os_listen_tcp4[U32](this, host.cstring(), service.cstring())
     _notify_listening()
 
-  new ip6(notify: TCPListenNotify iso, host: String = "localhost",
+  new ip6(notify: TCPListenNotify iso, host: String = "",
     service: String = "0")
   =>
     """
@@ -36,17 +39,25 @@ actor TCPListener is Socket
     _fd = @os_listen_tcp6[U32](this, host.cstring(), service.cstring())
     _notify_listening()
 
+  be dispose() =>
+    """
+    Stop listening.
+    """
+    _close()
+
+  fun box local_address(): IPAddress =>
+    """
+    Return the bound IP address.
+    """
+    let ip = recover IPAddress end
+    @os_sockname[None](_fd, ip)
+    consume ip
+
   fun ref set_notify(notify: TCPListenNotify) =>
     """
     Change the notifier.
     """
     _notify = notify
-
-  be dispose() =>
-    """
-    Stop listening.
-    """
-    _final()
 
   fun box _get_fd(): U32 =>
     """
@@ -58,19 +69,24 @@ actor TCPListener is Socket
     """
     When we are readable, we accept new connections until none remain.
     """
-    _Event.receive(event)
-    _event = event
+    if not _closed then
+      _event = event
 
-    if _Event.readable(flags) then
-      while true do
-        var s = @os_accept[U32](_fd)
+      if _Event.readable(flags) then
+        while true do
+          var fd = @os_accept[U32](_fd)
 
-        if s == -1 then
-          break
+          if fd == -1 then
+            break
+          end
+
+          TCPConnection._accept(_notify.connected(this), fd)
         end
-
-        TCPConnection._accept(_notify.connected(this), s)
       end
+    end
+
+    if _Event.disposable(flags) then
+      _event = _Event.dispose(event)
     end
 
   fun ref _notify_listening() =>
@@ -83,11 +99,12 @@ actor TCPListener is Socket
       _notify.not_listening(this)
     end
 
-  fun ref _final() =>
+  fun ref _close() =>
     """
     Dispose of resources.
     """
-    _event = _Event.dispose(_event)
+    _Event.unsubscribe(_event)
+    _closed = true
 
     if _fd != -1 then
       @os_closesocket[None](_fd)
