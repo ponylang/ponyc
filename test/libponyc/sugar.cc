@@ -64,7 +64,6 @@ static void test_good_sugar(const char* short_form, const char* full_form)
 }
 
 
-/* Not currently used, but may be one day
 static void test_bad_sugar(const char* src)
 {
   package_add_magic("prog", src);
@@ -84,7 +83,6 @@ static void test_bad_sugar(const char* src)
     ASSERT_EQ((void*)NULL, ast);
   }
 }
-*/
 
 
 TEST(SugarTest, DataType)
@@ -931,16 +929,17 @@ TEST(SugarTest, As)
 {
   const char* short_form =
     "class Foo ref\n"
-    "  fun ref f(a: (Foo | Bar)): Foo ? => a as Foo";
+    "  fun ref f(a: (Foo | Bar)): Foo ? => a as Foo ref";
 
   const char* full_form =
     "class Foo ref\n"
     "  fun ref f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo) => (consume hygid)\n"
+    "    | let hygid: Foo ref => consume hygid\n"
     "    else\n"
     "      error\n"
-    "    end\n";
+    "    end\n"
+    "  new create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -950,16 +949,93 @@ TEST(SugarTest, AsTuple)
 {
   const char* short_form =
     "class Foo ref\n"
-    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? => a as (Foo, Bar)";
+    "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? => a as (Foo ref, Bar ref)";
 
   const char* full_form =
     "class Foo ref\n"
     "  fun ref f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
-    "    | (let hygid: Foo, let hygid: Bar) => (consume hygid, consume hygid)\n"
+    "    | (let hygid: Foo ref, let hygid: Bar ref) =>\n"
+    "      (consume hygid, consume hygid)\n"
     "    else\n"
     "      error\n"
-    "    end\n";
+    "    end\n"
+    "  new create(): Foo ref^ => true";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, AsNestedTuple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
+    "    a as (Foo ref, (Bar ref, Baz ref))";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo ref, (let hygid: Bar ref, let hygid: Baz ref)) =>\n"
+    "      (consume hygid, (consume hygid, consume hygid))\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+    "  new create(): Foo ref^ => true";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, AsDontCare)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: Foo): Foo ? => a as (_)";
+
+  DO(test_bad_sugar(short_form));
+}
+
+
+TEST(SugarTest, AsDontCare2Tuple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): Foo ? => a as (Foo ref, _)";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar)): Foo ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo ref, _) =>\n"
+    "      consume hygid\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+    "  new create(): Foo ref^ => true";
+
+  DO(test_good_sugar(short_form, full_form));
+}
+
+
+TEST(SugarTest, AsDontCareMultiTuple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
+    "    a as (Foo ref, _, Baz ref)";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun ref f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
+    "    match a\n"
+    "    | (let hygid: Foo ref, _, let hygid: Baz ref) =>\n"
+    "      (consume hygid, consume hygid)\n"
+    "    else\n"
+    "      error\n"
+    "    end\n"
+    "  new create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
