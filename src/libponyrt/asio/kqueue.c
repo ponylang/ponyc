@@ -137,7 +137,13 @@ void asio_event_unsubscribe(asio_event_t* ev)
   asio_backend_t* b = asio_get_backend();
 
   if(ev->noisy)
+  {
     asio_noisy_remove();
+    ev->noisy = false;
+  }
+
+  if(ev->flags == 0)
+    return;
 
   struct kevent event[2];
   int i = 0;
@@ -161,6 +167,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
   msg->event = ev;
   msg->flags = 0;
   messageq_push(&b->q, (pony_msg_t*)msg);
+
+  ev->flags = 0;
 }
 
 #endif
