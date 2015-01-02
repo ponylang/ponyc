@@ -14,18 +14,26 @@ primitive _Event
     """
     (flags and (1 << 1)) != 0
 
-  fun tag receive(event: Pointer[_Event] tag) =>
+  fun tag disposable(flags: U32): Bool =>
     """
-    This must be called when an event is received.
+    Returns true if the event should be disposed of.
     """
-    @asio_event_recv[None](event)
+    flags == 0
 
-  fun tag dispose(event: Pointer[_Event] tag): Pointer[_Event] tag =>
+  fun tag unsubscribe(event: Pointer[_Event] tag) =>
     """
-    Disposes of an event notification.
+    Unsubscribes an event.
     """
     if not event.is_null() then
       @asio_event_unsubscribe[None](event)
+    end
+
+  fun tag dispose(event: Pointer[_Event] tag): Pointer[_Event] tag =>
+    """
+    Disposes of an event.
+    """
+    if not event.is_null() then
+      @asio_event_destroy[None](event)
       Pointer[_Event]
     else
       event
