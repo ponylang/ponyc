@@ -1,3 +1,5 @@
+#if 0
+
 #define __STDC_FORMAT_MACROS
 #include <stdio.h>
 #include <string.h>
@@ -14,8 +16,6 @@
 #include "../asio/sock.h"
 #include "../ds/hash.h"
 #include "../mem/pool.h"
-
-#if 0
 
 #define LISTEN_BACKLOG 50
 

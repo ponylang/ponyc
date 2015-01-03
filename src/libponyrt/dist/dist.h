@@ -1,3 +1,5 @@
+#if 0
+
 #ifndef dist_dist_h
 #define dist_dist_h
 
@@ -40,5 +42,7 @@ void dist_delegate(pony_msg_t* msg);
 void dist_finish();
 
 PONY_EXTERN_C_END
+
+#endif
 
 #endif

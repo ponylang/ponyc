@@ -69,7 +69,7 @@ void pony_traceunknown(void* p)
 
   if(type->dispatch != NULL)
   {
-    trace_actor(actor, actor_gc(actor), p);
+    trace_actor(actor, actor_gc(actor), (pony_actor_t*)p);
   } else {
     trace_object(actor, actor_heap(actor), actor_gc(actor), p, type->trace);
   }
@@ -81,7 +81,7 @@ void pony_trace_tag_or_actor(void* p)
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
-    trace_actor(actor, actor_gc(actor), p);
+    trace_actor(actor, actor_gc(actor), (pony_actor_t*)p);
   else
     trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
 }
