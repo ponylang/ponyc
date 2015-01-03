@@ -11,8 +11,9 @@
 #include <stdio.h>
 
 #ifdef PLATFORM_IS_WINDOWS
-#include <ws2tcpip.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mstcpip.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>

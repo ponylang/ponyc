@@ -1,3 +1,5 @@
+#if 0
+
 #include "proto.h"
 #include "../asio/asio.h"
 #include "../mem/pool.h"
@@ -154,5 +156,7 @@ void proto_reset(proto_t* p)
 
   p->header_complete = false;
 }
+
+#endif
 
 #endif
