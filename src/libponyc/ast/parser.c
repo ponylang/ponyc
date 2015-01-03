@@ -166,6 +166,41 @@ ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 }
 
 
+// Build a tuple
+ast_t* tuple_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  if(ast_id(existing) != TK_TUPLE)
+  {
+    // Not a tuple yet
+    BUILD(tuple, existing, NODE(TK_TUPLE) TREE(existing));
+    state->ast = tuple;
+    state->last_child = existing;
+    existing = tuple;
+  }
+
+  // We have a tuple, add new AST to it
+  return default_builder(existing, new_ast, state);
+}
+
+
+// Build a tuple type
+ast_t* tuple_type_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+{
+  if(ast_id(existing) != TK_TUPLETYPE)
+  {
+    // Not a tuple type yet
+    BUILD(tuple, existing, NODE(TK_TUPLETYPE) TREE(existing));
+    state->ast = tuple;
+    state->last_child = existing;
+    existing = tuple;
+  }
+
+  // We have a tuple type, add new AST to it
+  return default_builder(existing, new_ast, state);
+}
+
+
+
 // Parse rules
 
 // type {COMMA type}
@@ -256,22 +291,21 @@ DEF(infixtype);
   CUSTOMBUILD(infix_builder) SEQ("type", uniontype, isecttype);
   DONE();
 
-// COMMA infixtype
-DEF(tupletypeop);
-  TOKEN(NULL, TK_COMMA);
-  MAP_ID(TK_COMMA, TK_TUPLETYPE);
-  RULE("type", infixtype);
-  WHILE(TK_COMMA, RULE("type", infixtype));
+// DONTCARE
+DEF(dontcare);
+  TOKEN(NULL, TK_DONTCARE);
   DONE();
-
-// infixtype {tupletypeop}
+  
+// (infixtype | dontcare) (COMMA (infixtype | dontcare))*
 DEF(tupletype);
-  RULE("type", infixtype);
-  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("type", tupletypeop);
+  RULE("type", infixtype, dontcare);
+  WHILE(TK_COMMA,
+    CUSTOMBUILD(tuple_type_builder) RULE("type", infixtype, dontcare)
+  );
   DONE();
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
-DEF(typeexpr);
+DEF(groupedtype);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
@@ -284,14 +318,9 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// DONTCARE
-DEF(dontcare);
-  TOKEN(NULL, TK_DONTCARE);
-  DONE();
-
 // (thistype | typeexpr | nominal | dontcare)
 DEF(atomtype);
-  RULE("type", thistype, typeexpr, nominal, dontcare);
+  RULE("type", thistype, groupedtype, nominal);
   DONE();
 
 // ARROW type
@@ -346,13 +375,18 @@ DEF(array);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// (LPAREN | LPAREN_NEW) (rawseq | dontcare) {COMMA (rawseq | dontcare)} RPAREN
+// (rawseq | dontcare) (COMMA (rawseq | dontcare))*
 DEF(tuple);
-  AST_NODE(TK_TUPLE);
-  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("value", rawseq, dontcare);
-  WHILE(TK_COMMA, RULE("value", rawseq, dontcare));
+  WHILE(TK_COMMA, CUSTOMBUILD(tuple_builder) RULE("value", rawseq, dontcare));
+  DONE();
+
+// (LPAREN | LPAREN_NEW) tuple RPAREN
+DEF(groupedexpr);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
+  if(is_expr_infix(ast_id(state.ast))) ast_setdata(state.ast, (void*)1);
   DONE();
 
 // THIS | TRUE | FALSE | INT | FLOAT | STRING
@@ -381,7 +415,7 @@ DEF(ffi);
 
 // ref | literal | tuple | array | object | ffi
 DEF(atom);
-  RULE("value", ref, literal, tuple, array, object, ffi);
+  RULE("value", ref, literal, groupedexpr, array, object, ffi);
   DONE();
 
 // DOT ID

@@ -885,7 +885,7 @@ TEST(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (use x \"foo\"\n"
     "    (or\n"
-    "     (tuple (seq (and (reference (id a)) (reference (id b)))))\n"
+    "     (seq (and (reference (id a)) (reference (id b))))\n"
     "     (reference (id c))))\n"
     ")))";
 
