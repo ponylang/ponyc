@@ -106,7 +106,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool server)
   }
 
   if(r == 0)
-    return fd;
+    return (int)fd;
 
   os_closesocket((int)fd);
   return -1;
@@ -478,7 +478,7 @@ void os_keepalive(int fd, int secs)
   k.keepalivetime = secs / 2;
   k.keepaliveinterval = 1;
 
-  WSAIoctl(s, SIO_KEEPALIVE_VALS, sizeof(struct tcp_keepalive), NULL, 0, &ret,
+  WSAIoctl(s, SIO_KEEPALIVE_VALS, NULL, sizeof(struct tcp_keepalive), NULL, 0, &ret,
     NULL, NULL);
 #endif
 }
