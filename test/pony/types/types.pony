@@ -17,6 +17,9 @@ actor Main
       wombat.t2(env)
 
     let writer = object
-      fun tag apply(out: File, matnr: String, quantity: F64, unit: String) =>
-        out.write(matnr + "\t" + quantity.string() + "\t" + unit)
+      fun tag apply(a: String, b: String): String =>
+        a + b
     end
+
+    let partial = writer~apply("foo")
+    env.out.print(partial("bar"))
