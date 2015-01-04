@@ -8,10 +8,12 @@
 #include "../asio/event.h"
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 #ifdef PLATFORM_IS_WINDOWS
-#include <ws2tcpip.h>
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mstcpip.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -104,7 +106,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool server)
   }
 
   if(r == 0)
-    return fd;
+    return (int)fd;
 
   os_closesocket((int)fd);
   return -1;
@@ -128,6 +130,9 @@ static int os_socket(pony_actor_t* owner, const char* host,
   if(server)
     hints.ai_flags |= AI_PASSIVE;
 
+  if((host != NULL) && (host[0] == '\0'))
+    host = NULL;
+
   struct addrinfo *result;
 
   if(getaddrinfo(host, service, &hints, &result) != 0)
@@ -142,10 +147,13 @@ static int os_socket(pony_actor_t* owner, const char* host,
 
     if(fd != -1)
     {
-      os_socket_event(owner, fd);
+      asio_event_t* ev = os_socket_event(owner, fd);
 
       if(server)
       {
+        // Send the event to servers, so that it can be unsubscribed before any
+        // connections are accepted.
+        asio_event_send(ev, ASIO_READ);
         freeaddrinfo(result);
         return fd;
       }
@@ -268,12 +276,37 @@ typedef struct
   char* serv;
 } hostserv_t;
 
-static hostserv_t os_nameinfo(struct sockaddr_storage* addr, socklen_t len)
+typedef struct
+{
+  pony_type_t* type;
+  struct sockaddr_storage addr;
+} ipaddress_t;
+
+static socklen_t address_length(ipaddress_t* ipaddr)
+{
+  switch(ipaddr->addr.ss_family)
+  {
+    case AF_INET:
+      return sizeof(struct sockaddr_in);
+
+    case AF_INET6:
+      return sizeof(struct sockaddr_in6);
+
+    default:
+      pony_throw();
+  }
+
+  return 0;
+}
+
+hostserv_t os_nameinfo(ipaddress_t* ipaddr)
 {
   char host[NI_MAXHOST];
   char serv[NI_MAXSERV];
 
-  int r = getnameinfo((struct sockaddr*)addr, len, host, NI_MAXHOST,
+  socklen_t len = address_length(ipaddr);
+
+  int r = getnameinfo((struct sockaddr*)&ipaddr->addr, len, host, NI_MAXHOST,
     serv, NI_MAXSERV, 0);
 
   if(r != 0)
@@ -292,28 +325,46 @@ static hostserv_t os_nameinfo(struct sockaddr_storage* addr, socklen_t len)
   return h;
 }
 
-hostserv_t os_sockname(int fd)
+struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 {
-  SOCKET s = fd;
-  struct sockaddr_storage addr;
-  socklen_t len = sizeof(struct sockaddr_storage);
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_flags = AI_ADDRCONFIG | AI_PASSIVE;
+  hints.ai_family = family;
 
-  if(getsockname(s, (struct sockaddr*)&addr, &len) != 0)
-    pony_throw();
+  if((host != NULL) && (host[0] == '\0'))
+    host = NULL;
 
-  return os_nameinfo(&addr, len);
+  struct addrinfo *result;
+
+  if(getaddrinfo(host, service, &hints, &result) != 0)
+    return NULL;
+
+  return result;
 }
 
-hostserv_t os_peername(int fd)
+void os_getaddr(struct addrinfo* addr, ipaddress_t* ipaddr)
+{
+  memcpy(&ipaddr->addr, addr->ai_addr, addr->ai_addrlen);
+}
+
+struct addrinfo* os_nextaddr(struct addrinfo* addr)
+{
+  return addr->ai_next;
+}
+
+void os_sockname(int fd, ipaddress_t* ipaddr)
 {
   SOCKET s = fd;
-  struct sockaddr_storage addr;
   socklen_t len = sizeof(struct sockaddr_storage);
+  getsockname(s, (struct sockaddr*)&ipaddr->addr, &len);
+}
 
-  if(getpeername(s, (struct sockaddr*)&addr, &len) != 0)
-    pony_throw();
-
-  return os_nameinfo(&addr, len);
+void os_peername(int fd, ipaddress_t* ipaddr)
+{
+  SOCKET s = fd;
+  socklen_t len = sizeof(struct sockaddr_storage);
+  getpeername(s, (struct sockaddr*)&ipaddr->addr, &len);
 }
 
 size_t os_send(int fd, const void* buf, size_t len)
@@ -340,6 +391,51 @@ size_t os_recv(int fd, void* buf, size_t len)
 {
   SOCKET s = fd;
   ssize_t recvd = recv(s, (char*)buf, (int)len, 0);
+
+  if(recvd < 0)
+  {
+    if(would_block())
+      return 0;
+
+    pony_throw();
+  } else if(recvd == 0) {
+    pony_throw();
+  }
+
+  return (size_t)recvd;
+}
+
+size_t os_sendto(int fd, const void* buf, size_t len, ipaddress_t* ipaddr)
+{
+  socklen_t addrlen = address_length(ipaddr);
+
+#if defined(PLATFORM_IS_LINUX)
+  ssize_t sent = sendto(fd, buf, len, MSG_NOSIGNAL,
+    (struct sockaddr*)&ipaddr->addr, addrlen);
+#else
+  SOCKET s = fd;
+  ssize_t sent = sendto(s, (const char*)buf, (int)len, 0,
+    (struct sockaddr*)&ipaddr->addr, addrlen);
+#endif
+
+  if(sent < 0)
+  {
+    if(would_block())
+      return 0;
+
+    pony_throw();
+  }
+
+  return (size_t)sent;
+}
+
+size_t os_recvfrom(int fd, void* buf, size_t len, ipaddress_t* ipaddr)
+{
+  SOCKET s = fd;
+  socklen_t addrlen = sizeof(struct sockaddr_storage);
+
+  ssize_t recvd = recvfrom(s, (char*)buf, (int)len, 0,
+    (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
   {
@@ -382,7 +478,7 @@ void os_keepalive(int fd, int secs)
   k.keepalivetime = secs / 2;
   k.keepaliveinterval = 1;
 
-  WSAIoctl(s, SIO_KEEPALIVE_VALS, sizeof(struct tcp_keepalive), NULL, 0, &ret,
+  WSAIoctl(s, SIO_KEEPALIVE_VALS, NULL, sizeof(struct tcp_keepalive), NULL, 0, &ret,
     NULL, NULL);
 #endif
 }

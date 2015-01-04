@@ -334,12 +334,14 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
           NODE(TK_CALL,
-            NONE NONE
+            NONE
+            NONE
             NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq,
             NODE(TK_CALL,
-              NONE NONE
+              NONE
+              NONE
               NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next")))
             NODE(TK_LET, TREE(for_idseq) TREE(for_type)))
           TREE(for_body))
@@ -581,37 +583,40 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   return ast_visit(astp, pass_sugar, NULL, opt);
 }
 
-
 static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
   ast_t* body)
 {
+  assert(type != NULL);
+
   switch(ast_id(type))
   {
     case TK_TUPLETYPE:
     {
-      BUILD(pattern_child, pattern, NODE(TK_SEQ, NODE(TK_TUPLE)));
-      ast_append(pattern, pattern_child);
-      pattern_child = ast_child(pattern_child);
+      BUILD(tuple_pattern, pattern, NODE(TK_SEQ, NODE(TK_TUPLE)));
+      ast_append(pattern, tuple_pattern);
+      ast_t* pattern_child = ast_child(tuple_pattern);
 
-      BUILD(body_child, body, NODE(TK_SEQ, NODE(TK_TUPLE)));
-      ast_append(body, body_child);
-      body_child = ast_child(body_child);
+      BUILD(tuple_body, body, NODE(TK_SEQ, NODE(TK_TUPLE)));
+      ast_t* body_child = ast_child(tuple_body);
 
-      ast_t* child = ast_child(type);
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+        add_as_type(t, p, pattern_child, body_child);
 
-      while(child != NULL)
+      if(ast_childcount(body_child) == 1)
       {
-        add_as_type(t, child, pattern_child, body_child);
-        child = ast_sibling(child);
+        // Only one child, not actually a tuple
+        ast_t* t = ast_pop(body_child);
+        ast_free(tuple_body);
+        tuple_body = t;
       }
+
+      ast_append(body, tuple_body);
       break;
     }
 
     case TK_DONTCARE:
-    {
       ast_append(pattern, type);
       break;
-    }
 
     default:
     {
@@ -622,8 +627,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
         NODE(TK_SEQ,
           NODE(TK_LET,
             NODE(TK_IDSEQ, ID(name))
-            TREE(a_type)
-            )));
+            TREE(a_type))));
 
       BUILD(body_elem, body,
         NODE(TK_SEQ,
@@ -644,19 +648,35 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, expr, type);
 
-  BUILD(pattern, ast, NODE(TK_TUPLE));
-  BUILD(body, ast, NODE(TK_SEQ, NODE(TK_TUPLE)));
-  add_as_type(t, type, pattern, ast_child(body));
+  ast_t* pattern_root = ast_from(type, TK_LEX_ERROR);
+  ast_t* body_root = ast_from(type, TK_LEX_ERROR);
+  add_as_type(t, type, pattern_root, body_root);
+
+  ast_t* body = ast_pop(body_root);
+  ast_free(body_root);
+
+  if(body == NULL)
+  {
+    // No body implies all types are "don't care"
+    ast_error(ast, "Cannot treat value as \"don't care\"");
+    ast_free(pattern_root);
+    return AST_ERROR;
+  }
+
+  // Don't need top sequence in pattern
+  assert(ast_id(ast_child(pattern_root)) == TK_SEQ);
+  ast_t* pattern = ast_pop(ast_child(pattern_root));
+  ast_free(pattern_root);
 
   REPLACE(astp,
     NODE(TK_MATCH, AST_SCOPE
-      TREE(expr)
+      NODE(TK_SEQ, TREE(expr))
       NODE(TK_CASES, AST_SCOPE
         NODE(TK_CASE, AST_SCOPE
           TREE(pattern)
           NONE
           TREE(body)))
-      NODE(TK_SEQ, NODE(TK_ERROR))));
+      NODE(TK_SEQ, AST_SCOPE NODE(TK_ERROR, NONE))));
 
   return ast_visit(astp, pass_sugar, NULL, opt);
 }
@@ -683,7 +703,8 @@ ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 
   REPLACE(astp,
     NODE(TK_CALL,
-      NONE NONE
+      NONE
+      NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))
       ));
 

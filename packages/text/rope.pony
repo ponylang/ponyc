@@ -14,7 +14,7 @@ class Rope val is Stringable, Ordered[Rope]
     if from.size() < blocksize then
       _depth = 1
       _size = from.size()
-      _linebreaks = from.count("\n");
+      _linebreaks = from.count("\n")
       node = (from, blocksize)
     else
       let offset = (from.size()/2).i64()

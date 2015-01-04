@@ -117,7 +117,11 @@ static bool quiescent(scheduler_t* sched)
       // Under these circumstances, the CD will always go on the current
       // scheduler.
       cycle_terminate(sched->forcecd);
-      sched->finish = false;
+
+      if(sched->forcecd)
+        sched->forcecd = false;
+      else
+        sched->finish = false;
     }
   }
 
@@ -227,7 +231,7 @@ static void respond(scheduler_t* sched)
   scheduler_t* thief = (scheduler_t*)__pony_atomic_load_n(&sched->thief,
     PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
 
-  if(thief == NULL)
+  if(thief <= (scheduler_t*)1)
     return;
 
   pony_actor_t* actor = pop(sched);

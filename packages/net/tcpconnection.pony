@@ -1,6 +1,6 @@
 use "collections"
 
-actor TCPConnection is Socket
+actor TCPConnection
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
   """
@@ -11,7 +11,7 @@ actor TCPConnection is Socket
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
-  var _closing: Bool = false
+  var _closed: Bool = false
   var _pending: List[_TCPPendingWrite] = List[_TCPPendingWrite]
   var _last_read: U64 = 64
 
@@ -69,7 +69,7 @@ actor TCPConnection is Socket
       else
         _close()
       end
-    elseif not _closing then
+    elseif not _closed then
       _pending.append(_TCPPendingWrite(data, 0))
     end
 
@@ -77,11 +77,27 @@ actor TCPConnection is Socket
     """
     Close the connection once all writes are sent.
     """
-    _closing = true
+    _closed = true
 
     if (_connect_count == 0) and (_pending.size() == 0) then
       _close()
     end
+
+  fun box local_address(): IPAddress =>
+    """
+    Return the local IP address.
+    """
+    let ip = recover IPAddress end
+    @os_sockname[None](_fd, ip)
+    consume ip
+
+  fun box remote_address(): IPAddress =>
+    """
+    Return the remote IP address.
+    """
+    let ip = recover IPAddress end
+    @os_peername[None](_fd, ip)
+    consume ip
 
   fun ref set_notify(notify: TCPConnectionNotify ref) =>
     """
@@ -118,48 +134,77 @@ actor TCPConnection is Socket
     """
     Handle socket events.
     """
-    if _Event.writeable(flags) then
-      if event isnt _event then
+    if event isnt _event then
+      if _Event.writeable(flags) then
+        // A connection has completed.
         var fd = @os_socket_event_fd[U32](event)
         _connect_count = _connect_count - 1
 
-        if not _connected then
+        if not _connected and not _closed then
+          // We don't have a connection yet.
           if @os_connected[Bool](fd) then
+            // The connection was successful, make it ours.
             _fd = fd
             _event = event
             _connected = true
             _notify.connected(this)
           else
-            _Event.dispose(event)
+            // The connection failed, unsubscribe the event and close.
+            _Event.unsubscribe(event)
             @os_closesocket[None](fd)
 
             if _connect_count == 0 then
+              // All connections failed.
               _notify.connect_failed(this)
-              return
             end
+
+            // We're done.
+            return
           end
         else
-          _Event.dispose(event)
+          // We're already connected, unsubscribe the event and close.
+          _Event.unsubscribe(event)
           @os_closesocket[None](fd)
+
+          // We're done.
           return
         end
+      else
+        // It's not our event.
+        if _Event.disposable(flags) then
+          // It's disposable, so dispose of it.
+          _Event.dispose(event)
+        end
+
+        // We're done.
+        return
+      end
+    end
+
+    // At this point, it's our event.
+    if not _closed then
+      if _Event.writeable(flags) then
+        _writeable = true
+        _pending_writes()
       end
 
-      _writeable = true
+      if _Event.readable(flags) then
+        _readable = true
+        _pending_reads()
+      end
     end
 
-    if _Event.readable(flags) then
-      _readable = true
+    if _Event.disposable(flags) then
+      _event = _Event.dispose(_event)
     end
-
-    _pending_writes()
-    _pending_reads()
 
   be _read_again() =>
     """
     Resume reading.
     """
-    _pending_reads()
+    if not _closed then
+      _pending_reads()
+    end
 
   fun ref _pending_writes() =>
     """
@@ -186,7 +231,7 @@ actor TCPConnection is Socket
       end
     end
 
-    if _closing and (_connect_count == 0) and (_pending.size() == 0) then
+    if _closed and (_connect_count == 0) and (_pending.size() == 0) then
       _close()
     end
 
@@ -196,10 +241,6 @@ actor TCPConnection is Socket
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    if _closing then
-      return
-    end
-
     try
       var sum: U64 = 0
 
@@ -216,7 +257,7 @@ actor TCPConnection is Socket
         end
 
         data.truncate(len)
-        _notify.read(this, consume data)
+        _notify.received(this, consume data)
 
         sum = sum + len
 
@@ -246,17 +287,12 @@ actor TCPConnection is Socket
     if _connected then
       _notify.closed(this)
     end
-    _final()
 
-  fun ref _final() =>
-    """
-    Dispose of resources.
-    """
-    _event = _Event.dispose(_event)
+    _Event.unsubscribe(_event)
     _connected = false
     _readable = false
     _writeable = false
-    _closing = false
+    _closed = true
 
     if _fd != -1 then
       @os_closesocket[None](_fd)

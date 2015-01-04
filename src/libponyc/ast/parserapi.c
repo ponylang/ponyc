@@ -51,11 +51,11 @@ void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
 
   if(new_ast == RULE_NOT_FOUND)
   {
-    if(state->no_dflt) // Not found, but no default needed
+    if(state->deflt_id == TK_EOF) // Not found, but no default needed
       return;
 
     // Rule wasn't found and NO_DFLT is not set, so make a default
-    new_ast = ast_new(parser->token, TK_NONE);
+    new_ast = ast_new(parser->token, state->deflt_id);
   }
 
   process_deferred_ast(parser, state);
@@ -122,7 +122,7 @@ ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
     return PARSE_ERROR;
   }
 
-  if(sub_ast == RULE_NOT_FOUND && !state->opt)
+  if(sub_ast == RULE_NOT_FOUND && state->deflt_id == TK_LEX_ERROR)
   {
     // Required token / sub rule not found
     ast_free(state->ast);
@@ -180,7 +180,8 @@ ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(parser->trace)
   {
     printf("Rule %s: Looking for %s token%s %s. Found %s. ",
-      state->fn_name, state->opt ? "optional" : "required",
+      state->fn_name,
+      (state->deflt_id == TK_LEX_ERROR) ? "required" : "optional",
       (id_set[1] == TK_NONE) ? "" : "s", desc, token_print(parser->token));
   }
 
@@ -231,7 +232,8 @@ ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(parser->trace)
   {
     printf("Rule %s: Looking for %s rule%s \"%s\"\n",
-      state->fn_name, state->opt ? "optional" : "required",
+      state->fn_name,
+      (state->deflt_id == TK_LEX_ERROR) ? "required" : "optional",
       (rule_set[1] == NULL) ? "" : "s", desc);
   }
 

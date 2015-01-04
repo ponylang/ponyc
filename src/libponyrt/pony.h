@@ -277,6 +277,20 @@ void pony_traceactor(pony_actor_t* p);
  */
 void pony_traceobject(void* p, pony_trace_fn f);
 
+/** Trace unknown.
+ *
+ * This should be called for fields in an object with an unknown type, but which
+ * are not tags.
+ */
+void pony_traceunknown(void* p);
+
+/** Trace a tag or an actor
+ *
+ * This should be called for fields in an object that might be an actor or might
+ * be a tag.
+ */
+void pony_trace_tag_or_actor(void* p);
+
 /** Initialize the runtime.
  *
  * Call this first. It will strip out command line arguments that you should

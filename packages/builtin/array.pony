@@ -106,7 +106,8 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.size()
+  fun box has_next(): Bool =>
+    _i < _array.size()
 
   fun ref next(): U64 =>
     if _i < _array.size() then
@@ -123,9 +124,11 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.size()
+  fun box has_next(): Bool =>
+    _i < _array.size()
 
-  fun ref next(): B->A ? => _array(_i = _i + 1)
+  fun ref next(): B->A ? =>
+    _array(_i = _i + 1)
 
 class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
   let _array: B
@@ -135,6 +138,8 @@ class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool => _i < _array.size()
+  fun box has_next(): Bool =>
+    _i < _array.size()
 
-  fun ref next(): (U64, B->A) ? => (_i, _array(_i = _i + 1))
+  fun ref next(): (U64, B->A) ? =>
+    (_i, _array(_i = _i + 1))

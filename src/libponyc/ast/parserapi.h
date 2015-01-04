@@ -83,9 +83,11 @@ typedef struct rule_state_t
   ast_t* ast;           // AST built for this rule
   ast_t* last_child;    // Last child added to current ast
   builder_fn_t builder; // Function to build resulting AST
+  token_id deflt_id;    // ID of node to create when an optional token or rule
+                        // is not found.
+                        // TK_EOF = do not create a default
+                        // TL_LEX_ERROR = rule is not optional
   bool matched;         // Has the rule matched yet
-  bool opt;             // Is the next sub item optional
-  bool no_dflt;         // Don't generate default node for missing optionals
   bool scope;           // Is this rule a scope
   bool deferred;        // Do we have a deferred AST node
   token_id deferred_id; // ID of deferred AST node
@@ -134,8 +136,7 @@ token_id current_token_id(parser_t* parser);
 
 #define RESET_STATE() \
   state.builder = default_builder; \
-  state.opt = false; \
-  state.no_dflt = false;
+  state.deflt_id = TK_LEX_ERROR;
 
 #define THROW_ERROR(desc) \
   { \
@@ -169,8 +170,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define DEF(rule) \
   static ast_t* rule(parser_t* parser) \
   { \
-    rule_state_t state = {#rule, NULL, NULL, default_builder, \
-      false, false, false, false, false, TK_NONE, 0, 0}
+    rule_state_t state = {#rule, NULL, NULL, default_builder, TK_LEX_ERROR, \
+      false, false, false, TK_NONE, 0, 0}
 
 
 /** Add a node to our AST.
@@ -198,23 +199,22 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define SCOPE()   state.scope = true
 
 
-/** Specify that the following token or rule is optional.
+/** Specify the action if the following token or rule is not found.
  * May be applied to TOKEN, SKIP and RULE.
- * When used in combination with TOP the order does not matter.
- * Example:
+ *
+ * (none)       Default is an error if token or rule not found.
+ * OPT          TK_NONE node created if token or rule not found.
+ * OPT_DFLT     Specified ID created if token or rule not found.
+ * OPT_NO_DFLT  No AST node created if token or rule not found.
+ *
+ * Examples:
  *    OPT TOKEN("foo", TK_FOO);
- */
-#define OPT state.opt = true;
-
-
-/** Specify that the following token or rule is optional and no default should
- * be created if the token or rule is not found.
- * May be applied to TOKEN, SKIP and RULE.
- * When used in combination with TOP the order does not matter.
- * Example:
+ *    OPT_DFLT(TK_TRUE) TOKEN("foo", TK_FOO);
  *    OPT_NO_DFLT TOKEN("foo", TK_FOO);
  */
-#define OPT_NO_DFLT state.opt = true; state.no_dflt = true;
+#define OPT           state.deflt_id = TK_NONE;
+#define OPT_DFLT(id)  state.deflt_id = id;
+#define OPT_NO_DFLT   state.deflt_id = TK_EOF;
 
 
 /** Specify the build function to use to construct the AST, instead of using
@@ -293,19 +293,20 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define IF(id, body) \
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
-    state.opt = true; \
+    state.deflt_id = TK_NONE; \
     const char* cond_desc = token_id_desc(id); \
     ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
     HANDLE_ERRORS(sub_ast, cond_desc); \
-    RESET_STATE(); \
     if(sub_ast == NULL) \
     { \
+      RESET_STATE(); \
       state.matched = true; \
       body; \
     } \
     else \
     { \
       add_ast(parser, RULE_NOT_FOUND, &state); \
+      RESET_STATE(); \
     } \
   }
 
@@ -320,7 +321,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define IFELSE(id, thenbody, elsebody) \
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
-    state.opt = true; \
+    state.deflt_id = TK_NONE; \
     const char* cond_desc = token_id_desc(id); \
     ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
     HANDLE_ERRORS(sub_ast, cond_desc); \
@@ -349,7 +350,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
     const char* cond_desc = token_id_desc(id); \
     while(true) \
     { \
-      state.opt = true; \
+      state.deflt_id = TK_NONE; \
       ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false);\
       HANDLE_ERRORS(sub_ast, cond_desc); \
       RESET_STATE(); \

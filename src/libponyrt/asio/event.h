@@ -15,39 +15,38 @@ PONY_EXTERN_C_BEGIN
 typedef struct asio_event_t
 {
   uintptr_t fd;
-	uint32_t eflags;			/* event filter flags */
-	pony_actor_t* owner;	/* owning actor */
-	uint32_t msg_id;      /* I/O handler (actor message) */
+  uint32_t flags;       /* event filter flags */
+  pony_actor_t* owner;  /* owning actor */
+  uint32_t msg_id;      /* I/O handler (actor message) */
 
-	bool noisy;           /* prevents termination? */
-	void* udata;	        /* opaque user data */
+  bool noisy;           /* prevents termination? */
+  void* udata;          /* opaque user data */
 } asio_event_t;
 
 /// Message that carries an event and event flags.
 typedef struct asio_msg_t
 {
-	pony_msg_t msg;
-	asio_event_t* event;
-	uint32_t flags;
+  pony_msg_t msg;
+  asio_event_t* event;
+  uint32_t flags;
 } asio_msg_t;
 
 /** Create a new event.
  *
- *  The owning actor of this event is determined internally. We assume that the
- *  owning actor is always the actor that calls this function.
- *
  *  An event is noisy, if it should prevent the runtime system from terminating
  *  based on quiescence.
  */
-asio_event_t* asio_event_create(pony_actor_t* handler, uint32_t msg_id,
-  uint64_t fd, uint32_t eflags, bool noisy, void* udata);
+asio_event_t* asio_event_create(pony_actor_t* owner, uint32_t msg_id,
+  uintptr_t fd, uint32_t flags, bool noisy, void* udata);
+
+/// Send a triggered event.
+void asio_event_send(asio_event_t* ev, uint32_t flags);
 
 /** Deallocates an ASIO event.
  *
- *  Deallocation does not imply deactivation. The user is responsible to
- *  unsubscribe an event before deallocating it.
+ *  Called automatically when unsubscribing.
  */
-void asio_event_dtor(asio_event_t* ev);
+void asio_event_destroy(asio_event_t* ev);
 
 /** Subscribe and unsubscribe are implemented in the corresponding I/O mechanism
  *  files epoll.c, kqueue.c, ...
@@ -67,10 +66,7 @@ void asio_event_subscribe(asio_event_t* ev);
  *
  *  An event is deallocated upon unsubscription.
  */
-void asio_event_unsubscribe(asio_event_t* ev);
-
-/// Send a triggered event.
-void asio_event_send(asio_event_t* ev, uint32_t flags);
+void asio_event_subscribe(asio_event_t* ev);
 
 PONY_EXTERN_C_END
 

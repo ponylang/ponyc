@@ -49,34 +49,8 @@ static void trace_tag(compile_t* c, LLVMValueRef value)
 
 static void trace_tag_or_actor(compile_t* c, LLVMValueRef value)
 {
-  // Determine if this is an actor or not.
-  LLVMValueRef dispatch = gendesc_dispatch(c, value);
-  LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
-
-  // Build a conditional.
-  LLVMBasicBlockRef then_block = codegen_block(c, "trace_then");
-  LLVMBasicBlockRef else_block = codegen_block(c, "trace_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "trace_post");
-
-  LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
-
   // We're an object.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-
-  // Get the trace function from the type descriptor.
-  LLVMValueRef args[1];
-  args[0] = value;
-
-  gencall_runtime(c, "pony_trace", args, 1, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // We're an actor.
-  LLVMPositionBuilderAtEnd(c->builder, else_block);
-  gencall_runtime(c, "pony_traceactor", args, 1, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // Continue in the post block.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  gencall_runtime(c, "pony_trace_tag_or_actor", &value, 1, "");
 }
 
 static void trace_actor(compile_t* c, LLVMValueRef value)
@@ -118,35 +92,8 @@ static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
 
 static void trace_unknown(compile_t* c, LLVMValueRef value)
 {
-  // Determine if this is an actor or not.
-  LLVMValueRef dispatch = gendesc_dispatch(c, value);
-  LLVMValueRef is_object = LLVMBuildIsNull(c->builder, dispatch, "is_object");
-
-  // Build a conditional.
-  LLVMBasicBlockRef then_block = codegen_block(c, "trace_then");
-  LLVMBasicBlockRef else_block = codegen_block(c, "trace_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "trace_post");
-
-  LLVMBuildCondBr(c->builder, is_object, then_block, else_block);
-
   // We're an object.
-  LLVMPositionBuilderAtEnd(c->builder, then_block);
-
-  // Get the trace function from the type descriptor.
-  LLVMValueRef args[2];
-  args[0] = value;
-  args[1] = gendesc_trace(c, value);
-
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // We're an actor.
-  LLVMPositionBuilderAtEnd(c->builder, else_block);
-  gencall_runtime(c, "pony_traceactor", args, 1, "");
-  LLVMBuildBr(c->builder, post_block);
-
-  // Continue in the post block.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  gencall_runtime(c, "pony_traceunknown", &value, 1, "");
 }
 
 static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)

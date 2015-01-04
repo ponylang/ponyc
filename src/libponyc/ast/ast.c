@@ -289,6 +289,11 @@ size_t ast_pos(ast_t* ast)
   return token_line_position(ast->t);
 }
 
+bool ast_is_first_on_line(ast_t* ast)
+{
+  return token_is_first_on_line(ast->t);
+}
+
 void* ast_data(ast_t* ast)
 {
   if(ast == NULL)
@@ -1049,7 +1054,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           return AST_FATAL;
       }
 
-      child = next;
+      if(next == NULL)
+        child = ast_sibling(child);
+      else
+        child = next;
     }
   }
 

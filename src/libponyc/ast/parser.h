@@ -6,4 +6,7 @@
 
 ast_t* parser(source_t* source);
 
+/// Report whether the specified token is an infix operator
+bool is_expr_infix(token_id id);
+
 #endif

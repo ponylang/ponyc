@@ -303,7 +303,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   if(ast_id(type) != TK_TUPLETYPE)
   {
-    ast_error(type, "must specify a tuple type for multiple identifiers");
+    ast_error(idseq, "must specify a tuple type for multiple identifiers");
     return false;
   }
 
@@ -315,7 +315,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
     if(t == NULL)
     {
-      ast_error(type, "not enough types specified");
+      ast_error(id, "not enough types specified");
       return false;
     }
 
@@ -326,7 +326,7 @@ bool type_for_idseq(ast_t* idseq, ast_t* type)
 
   if(ast_childidx(type, index) != NULL)
   {
-    ast_error(type, "too many types specified");
+    ast_error(idseq, "too many types specified");
     return false;
   }
 
@@ -369,6 +369,20 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
 {
   switch(ast_id(type))
   {
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+      type = ast_from(type, TK_ISECTTYPE);
+
+      while(child != NULL)
+      {
+        ast_append(type, set_cap_and_ephemeral(child, cap, ephemeral));
+        child = ast_sibling(child);
+      }
+
+      return type;
+    }
+
     case TK_NOMINAL:
     {
       type = ast_dup(type);

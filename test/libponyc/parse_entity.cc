@@ -80,9 +80,9 @@ TEST(ParseEntityTest, ActorMaximal)
     "      (flet (id f2) (nominal x (id T2) x x x) 5)\n"
     "      (fvar (id f3) (nominal (id P3) (id T3) x x x) x)\n"
     "      (fvar (id f4) (nominal x (id T4) x x x) 9)\n"
-    "      (new{scope} x (id m1) x x x x (seq 1) =>)\n"
-    "      (be{scope} x (id m2) x x x x (seq 2) =>)\n"
-    "      (fun{scope} ref (id m3) x x x x (seq 3) =>))\n"
+    "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
+    "      (be{scope} x (id m2) x x x x (seq 2) x)\n"
+    "      (fun{scope} ref (id m3) x x x x (seq 3) x))\n"
     "    x \"Doc\"\n"
     "))))";
 
@@ -156,8 +156,8 @@ TEST(ParseEntityTest, ClassMaximal)
     "      (flet (id f2) (nominal x (id T2) x x x) 5)\n"
     "      (fvar (id f3) (nominal (id P3) (id T3) x x x) x)\n"
     "      (fvar (id f4) (nominal x (id T4) x x x) 9)\n"
-    "      (new{scope} x (id m1) x x x x (seq 1) =>)\n"
-    "      (fun{scope} ref (id m2) x x x x (seq 2) =>))\n"
+    "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
+    "      (fun{scope} ref (id m2) x x x x (seq 2) x))\n"
     "    x \"Doc\"\n"
     "))))";
 
@@ -218,8 +218,8 @@ TEST(ParseEntityTest, PrimitiveMaximal)
     "  (primitive{scope} (id Foo) (typeparams (typeparam (id A) x x)) x\n"
     "    (types (nominal x (id T) x x x))\n"
     "    (members\n"
-    "      (new{scope} x (id m1) x x x x (seq 1) =>)\n"
-    "      (fun{scope} ref (id m3) x x x x (seq 3) =>))\n"
+    "      (new{scope} x (id m1) x x x x (seq 1) x)\n"
+    "      (fun{scope} ref (id m3) x x x x (seq 3) x))\n"
     "    x \"Doc\"\n"
     "))))";
 
@@ -295,8 +295,8 @@ TEST(ParseEntityTest, TraitMaximal)
     "  (trait{scope} (id Foo) (typeparams (typeparam (id A) x x)) box\n"
     "    (types (nominal x (id T) x x x))\n"
     "    (members\n"
-    "      (be{scope} x (id m1) x x x x (seq 1) =>)\n"
-    "      (fun{scope} ref (id m2) x x x x (seq 2) =>))\n"
+    "      (be{scope} x (id m1) x x x x (seq 1) x)\n"
+    "      (fun{scope} ref (id m2) x x x x (seq 2) x))\n"
     "    x \"Doc\"\n"
     "))))";
 
@@ -364,8 +364,8 @@ TEST(ParseEntityTest, InterfaceMaximal)
     "  (interface{scope} (id Foo) (typeparams (typeparam (id A) x x)) box\n"
     "    (types (nominal x (id T) x x x))\n"
     "    (members\n"
-    "      (be{scope} x (id m1) x x x x (seq 1) =>)\n"
-    "      (fun{scope} ref (id m2) x x x x (seq 2) =>))\n"
+    "      (be{scope} x (id m1) x x x x (seq 1) x)\n"
+    "      (fun{scope} ref (id m2) x x x x (seq 2) x))\n"
     "    x \"Doc\"\n"
     "))))";
 
@@ -436,7 +436,7 @@ TEST(ParseEntityTest, FunctionMinimal)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (fun{scope} ref (id apply) x x x x (seq 3) =>))\n"
+    "      (fun{scope} ref (id apply) x x x x (seq 3) x))\n"
     "    x x\n"
     "))))";
 
@@ -455,7 +455,7 @@ TEST(ParseEntityTest, FunctionMaximal)
     "      (fun{scope} ref (id m)\n"
     "        (typeparams (typeparam (id A) x x))\n"
     "        (params (param (id y) (nominal x (id U32) x x x) x))\n"
-    "        (nominal x (id I16) x x x) ? (seq 3) =>))\n"
+    "        (nominal x (id I16) x x x) ? (seq 3) x))\n"
     "    x x\n"
     "))))";
 
@@ -577,7 +577,7 @@ TEST(ParseEntityTest, Behaviour)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (actor{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (be{scope} x (id m) x x x x (seq 3) =>))\n"
+    "      (be{scope} x (id m) x x x x (seq 3) x))\n"
     "    x x\n"
     "))))";
 
@@ -683,7 +683,7 @@ TEST(ParseEntityTest, ConstructorMinimal)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (class{scope} (id Foo) x x x\n"
     "    (members\n"
-    "      (new{scope} x (id create) x x x x (seq 3) =>))\n"
+    "      (new{scope} x (id create) x x x x (seq 3) x))\n"
     "    x x\n"
     "))))";
 
@@ -702,7 +702,7 @@ TEST(ParseEntityTest, ConstructorMaximal)
     "      (new{scope} x (id m)\n"
     "        (typeparams (typeparam (id A) x x))\n"
     "        (params (param (id y) (nominal x (id U32) x x x) x))\n"
-    "        x ? (seq 3) =>))\n"
+    "        x ? (seq 3) x))\n"
     "    x x\n"
     "))))";
 
@@ -885,7 +885,7 @@ TEST(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
     "(program{scope} (package{scope} (module{scope}\n"
     "  (use x \"foo\"\n"
     "    (or\n"
-    "     (tuple (seq (and (reference (id a)) (reference (id b)))))\n"
+    "     (seq (and (reference (id a)) (reference (id b))))\n"
     "     (reference (id c))))\n"
     ")))";
 

@@ -1,15 +1,16 @@
 class Directory val
   """
   The entries will include everything in the directory. The path for the entry
-  will be relative to the directory, so it will contain no directory separators.
-  The entries will not include "." or "..".
+  will be relative to the directory, so it will contain no directory
+  separators. The entries will not include "." or "..".
   """
   let path: String
   let entries: Array[String] val
 
   new create(from: String) ? =>
     """
-    This will raise an error if the path doesn't exist or it is not a directory.
+    This will raise an error if the path doesn't exist or it is not a
+    directory.
     """
     path = from
     entries = recover

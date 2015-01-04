@@ -59,7 +59,7 @@ atom_type
   ;
 
 tuple_type
-  :  infix_type (',' infix_type)*
+  :  (infix_type | '_') (',' (infix_type | '_'))*
   ;
 
 infix_type
@@ -165,7 +165,7 @@ atom
   |  STRING
   |  ID
   |  'this'
-  |  '(' positional ')' // tuple
+  |  '(' tuple ')' // tuple
   |  '[' positional ']' // array
   |  'object' ('is' types)? members 'end' // object
   |  '@' (ID | STRING) type_args? '(' positional? ')' '?'? // ffi
@@ -182,6 +182,10 @@ idseq_multi
 idseq_element
   :  ID
   |  idseq_multi
+  ;
+  
+tuple
+  :  (seq | '_') (',' (seq | '_'))*
   ;
 
 positional
@@ -222,7 +226,8 @@ Type:
 // Lexer
 
 ID
-  :  (LETTER | '_') (LETTER | DIGIT | '_' | '\'')*
+  :  LETTER (LETTER | DIGIT | '_' | '\'')*
+  |  '_' (LETTER | DIGIT | '_' | '\'')+
   ;
 
 INT

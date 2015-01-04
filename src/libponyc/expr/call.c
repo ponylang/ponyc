@@ -460,7 +460,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       NONE
       NONE
-      NODE(TK_SEQ)));
+      NODE(TK_SEQ)
+      NONE));
 
   // We will have an apply method in the type.
   token_id can_error = ast_canerror(lhs) ? TK_QUESTION : TK_NONE;
@@ -473,7 +474,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_PARAMS)
       TREE(result)
       NODE(can_error)
-      NODE(TK_SEQ)));
+      NODE(TK_SEQ)
+      NONE));
 
   // We will replace partial application with $0.create(...)
   BUILD(call_receiver, ast, NODE(TK_REFERENCE, TREE(c_id)));
@@ -506,8 +508,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // An assignment in the constructor body.
   BUILD(r_assign, receiver,
     NODE(TK_ASSIGN,
-      NODE(TK_REFERENCE, TREE(r_field_id))
-      NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(r_id)))));
+      NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(r_id)))
+      NODE(TK_REFERENCE, TREE(r_field_id))));
 
   // A named argument at the call site.
   BUILD(r_call_arg, receiver, NODE(TK_NAMEDARG, TREE(r_id) TREE(receiver)));
@@ -520,12 +522,12 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // Add a call to the original method to the apply body.
   BUILD(apply_call, ast,
     NODE(TK_CALL,
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method))
       NODE(TK_POSITIONALARGS)
-      NONE));
+      NONE
+      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method))));
 
   ast_append(apply_body, apply_call);
-  ast_t* apply_args = ast_childidx(apply_call, 1);
+  ast_t* apply_args = ast_child(apply_call);
 
   // Add the arguments to the anonymous type.
   ast_t* arg = ast_child(positional);
@@ -556,8 +558,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       // An assignment in the constructor body.
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
-          NODE(TK_REFERENCE, TREE(id))
-          NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))));
+          NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
+          NODE(TK_REFERENCE, TREE(id))));
 
       // A named argument at the call site.
       BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));

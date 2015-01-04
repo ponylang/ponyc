@@ -732,7 +732,7 @@ static pony_type_t cycle_type =
 void cycle_create()
 {
   cycle_detector = pony_create(&cycle_type);
-	actor_setsystem(cycle_detector);
+  actor_setsystem(cycle_detector);
   pony_send(cycle_detector, CYCLE_INIT);
 }
 
