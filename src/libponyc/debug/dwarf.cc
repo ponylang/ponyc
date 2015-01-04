@@ -57,7 +57,7 @@ typedef struct typeinfo_t
   size_t pos;
   size_t size;
   size_t align;
-} typeeinfo_t;
+} typeinfo_t;
 
 static DIFile mdfile(dwarf_t* dwarf, ast_t* module)
 {
@@ -296,7 +296,6 @@ void dwarf_init(compile_t* c)
 
   self = POOL_ALLOC(dwarf_t);
   memset(self, 0, sizeof(dwarf_t));
-
   self->symbols = symbols_init(0);
   self->optimized = c->release;
   self->emit = c->symbols;

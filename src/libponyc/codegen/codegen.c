@@ -431,8 +431,8 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   genprim_builtins(&c);
 
   // Emit debug info for this compile unit.
-  //dwarf_init(&c);
-  //dwarf_compileunit(c.dwarf, program);
+  dwarf_init(&c);
+  dwarf_compileunit(c.dwarf, program);
 
   bool ok;
 
@@ -441,7 +441,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   else
     ok = genexe(&c, opt, program);
 
-  // dwarf_cleanup(&c.dwarf);
+  dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }
