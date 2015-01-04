@@ -1054,7 +1054,10 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           return AST_FATAL;
       }
 
-      child = next;
+      if(next == NULL)
+        child = ast_sibling(child);
+      else
+        child = next;
     }
   }
 
