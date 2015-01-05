@@ -150,13 +150,15 @@ ast_t* alias(ast_t* type)
 
     case TK_ARROW:
     {
-      // alias just the right side. the left side is either 'this' or a type
+      // Alias just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(alias(right))));
+
       return r_type;
     }
 
@@ -201,11 +203,13 @@ ast_t* alias_bind(ast_t* type)
     {
       // Alias just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias_bind(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(alias_bind(right))));
+
       return r_type;
     }
 
@@ -286,10 +290,13 @@ ast_t* infer(ast_t* type)
     {
       // Infer just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
       AST_GET_CHILDREN(type, left, right);
-      ast_add(r_type, infer(right));
-      ast_add(r_type, left);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(infer(right))));
+
       return r_type;
     }
 
@@ -373,11 +380,13 @@ ast_t* consume_type(ast_t* type)
     {
       // Consume just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, consume_type(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(consume_type(right))));
+
       return r_type;
     }
 
