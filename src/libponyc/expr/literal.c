@@ -752,7 +752,12 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
   lit_op_info_t* op = (lit_op_info_t*)ast_data(recv_type);
   assert(op != NULL);
 
-  // TODO: Should we allow named arguments?
+  if(ast_childcount(named_args) != 0)
+  {
+    ast_error(named_args, "Cannot use named arguments with literal operator");
+    return false;
+  }
+
   ast_t* arg = ast_child(positional_args);
 
   if(arg != NULL)
