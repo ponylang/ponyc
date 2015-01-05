@@ -513,6 +513,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
+  bool has_fields = false;
+  bool has_behaviours = false;
+
   while(member != NULL)
   {
     switch(ast_id(member))
@@ -547,8 +550,16 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         ast_append(create_params, param);
         ast_append(create_body, assign);
         ast_append(call_args, init);
+
+        has_fields = true;
         break;
       }
+
+      case TK_BE:
+        // If we have behaviours, we must be an actor.
+        ast_append(class_members, member);
+        has_behaviours = true;
+        break;
 
       default:
         // Keep all the methods as they are.
@@ -559,9 +570,21 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     member = ast_sibling(member);
   }
 
-  // End the constructor with None, in case it has no parameters.
-  BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
-  ast_append(create_body, none);
+  if(!has_fields)
+  {
+    // Change the type from a class to a primitive.
+    ast_setid(def, TK_PRIMITIVE);
+
+    // End the constructor with None, since it has no parameters.
+    BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
+    ast_append(create_body, none);
+  }
+
+  if(has_behaviours)
+  {
+    // Change the type to an actor.
+    ast_setid(def, TK_ACTOR);
+  }
 
   // Add the create function at the end.
   ast_append(class_members, create);
