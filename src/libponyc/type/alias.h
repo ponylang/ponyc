@@ -18,7 +18,7 @@ ast_t* infer(ast_t* type);
 
 ast_t* consume_type(ast_t* type);
 
-ast_t* recover_type(ast_t* type);
+ast_t* recover_type(ast_t* type, token_id cap);
 
 bool sendable(ast_t* type);
 

@@ -295,7 +295,7 @@ DEF(infixtype);
 DEF(dontcare);
   TOKEN(NULL, TK_DONTCARE);
   DONE();
-  
+
 // (infixtype | dontcare) (COMMA (infixtype | dontcare))*
 DEF(tupletype);
   RULE("type", infixtype, dontcare);
@@ -626,10 +626,11 @@ DEF(try_block);
   SKIP(NULL, TK_END);
   DONE();
 
-// RECOVER rawseq END
+// RECOVER [CAP] rawseq END
 DEF(recover);
   TOKEN(NULL, TK_RECOVER);
   SCOPE();
+  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   RULE("recover body", rawseq);
   SKIP(NULL, TK_END);
   DONE();
@@ -646,7 +647,7 @@ DEF(prefixminus);
   SKIP(NULL, TK_MINUS, TK_MINUS_NEW);
   RULE("value", term);
   DONE();
-  
+
 // '(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq_no_scope);

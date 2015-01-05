@@ -73,27 +73,32 @@ static ast_t* alias_bind_for_type(ast_t* type, int index)
   return NULL;
 }
 
-static ast_t* recover_for_type(ast_t* type, int index)
+static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
 {
   ast_t* cap = ast_childidx(type, index);
   token_id tcap = ast_id(cap);
-  token_id rcap;
+
+  if(rcap == tcap)
+    return type;
 
   switch(tcap)
   {
     case TK_ISO:
-    case TK_VAL:
-    case TK_TAG:
-      return type;
-
     case TK_TRN:
     case TK_REF:
-      rcap = TK_ISO;
+      // These recover as iso, so any rcap is acceptable.
       break;
 
+    case TK_VAL:
     case TK_BOX:
-      rcap = TK_VAL;
+      // These recover as val, so mutable rcaps are not acceptable.
+      if(rcap < TK_VAL)
+        return NULL;
       break;
+
+    case TK_TAG:
+      // Recovers as itself, so no rcap is acceptable.
+      return NULL;
 
     default:
       assert(0);
@@ -376,7 +381,7 @@ ast_t* consume_type(ast_t* type)
   return NULL;
 }
 
-ast_t* recover_type(ast_t* type)
+ast_t* recover_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
@@ -390,7 +395,15 @@ ast_t* recover_type(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, recover_type(child));
+        ast_t* r_right = recover_type(child, cap);
+
+        if(r_right == NULL)
+        {
+          ast_free_unattached(r_type);
+          return NULL;
+        }
+
+        ast_append(r_type, r_right);
         child = ast_sibling(child);
       }
 
@@ -398,19 +411,23 @@ ast_t* recover_type(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return recover_for_type(type, 3);
+      return recover_for_type(type, 3, cap);
 
     case TK_TYPEPARAMREF:
-      return recover_for_type(type, 1);
+      return recover_for_type(type, 1, cap);
 
     case TK_ARROW:
     {
       // recover just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
+      AST_GET_CHILDREN(type, left, right);
+      ast_t* r_right = recover_type(right, cap);
+
+      if(r_right == NULL)
+        return NULL;
+
       ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, recover_type(right));
+      ast_add(r_type, r_right);
       ast_add(r_type, left);
       return r_type;
     }

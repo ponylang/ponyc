@@ -250,10 +250,18 @@ bool expr_try(ast_t* ast)
 
 bool expr_recover(ast_t* ast)
 {
-  ast_t* child = ast_child(ast);
-  ast_t* type = ast_type(child);
+  AST_GET_CHILDREN(ast, cap, expr);
+  ast_t* type = ast_type(expr);
+  ast_t* r_type = recover_type(type, ast_id(cap));
 
-  ast_settype(ast, recover_type(type));
+  if(r_type == NULL)
+  {
+    ast_error(ast, "can't recover to this capability");
+    ast_error(expr, "expression type is %s", ast_print_type(type));
+    return false;
+  }
+
+  ast_settype(ast, r_type);
   ast_inheriterror(ast);
 
   // Push our symbol status to our parent scope.

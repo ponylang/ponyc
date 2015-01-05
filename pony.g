@@ -134,7 +134,7 @@ control
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
-  |  'recover' seq 'end'
+  |  'recover' cap? seq 'end'
   |  'use' ':'? '(' (expr)+ ')' // For testing only
   ;
 
