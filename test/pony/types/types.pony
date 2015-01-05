@@ -13,9 +13,13 @@ class Wombat is T1, T2
 actor Main
   new create(env: Env) =>
     let wombat: (T1 & T2) = Wombat
-      wombat.t1(env)
-      wombat.t2(env)
+    wombat.t1(env)
+    wombat.t2(env)
 
+    test_primitive(env)
+    test_actor(env)
+
+  fun ref test_primitive(env: Env) =>
     let writer = object
       fun tag apply(a: String, b: String): String =>
         a + b
@@ -23,3 +27,14 @@ actor Main
 
     let partial = writer~apply("foo")
     env.out.print(partial("bar"))
+
+  fun ref test_actor(env: Env) =>
+    let writer = object
+      let _env: Env = env
+
+      be apply(a: String, b: String) =>
+        _env.out.print(a + b)
+    end
+
+    let partial = writer~apply("foo")
+    partial("bar")
