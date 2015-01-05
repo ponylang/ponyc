@@ -14,6 +14,7 @@ class ScopeTest: public testing::Test
 {
 protected:
   ast_t* ast;
+  ast_t* package;
   ast_t* target;
   builder_t* builder;
   pass_opt_t opt;
@@ -37,6 +38,8 @@ protected:
   {
     DO(build_ast_from_string(desc, &ast, &builder));
     target = builder_find_sub_tree(builder, "target");
+    package = find_sub_tree(ast, TK_PACKAGE);
+    ASSERT_NE((void*)NULL, package);
   }
 
   void symtab_entry(token_id scope_id, const char* name, ast_t* expect)
@@ -50,7 +53,7 @@ protected:
 
   ast_result_t run_scope()
   {
-    return ast_visit(&ast, pass_scope, NULL, &opt);
+    return ast_visit(&package, pass_scope, NULL, &opt);
   }
 };
 
