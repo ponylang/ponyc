@@ -389,6 +389,13 @@ bool expr_tilde(pass_opt_t* opt, ast_t* ast)
   if(!dot_or_tilde(opt, ast, true))
     return false;
 
+  if(ast_id(ast) == TK_TILDE && ast_type(ast) != NULL &&
+    ast_id(ast_type(ast)) == TK_OPERATORLITERAL)
+  {
+    ast_error(ast, "can't do partial application on a literal number");
+    return false;
+  }
+
   switch(ast_id(ast))
   {
     case TK_NEWREF:
