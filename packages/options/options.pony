@@ -202,13 +202,14 @@ class Options is Iterator[_Result]
         | ('-', '-') => 2
         | ('-', var some: U8) => 1
         else
-          error //cannot happen, otherwise current would have been identified by
-                //_skip_non_options
+          // Cannot happen, otherwise current would have been identified by
+          // _skip_non_options
+          error
         end
 
       let finish: I64 = try current.find("=") else -1 end
       let sub_end = if finish == -1 then finish else finish - 1 end
-      let name: String val = current.substring(start, sub_end)
+      let name: String = current.substring(start, sub_end)
 
       match _select(name, (start == 1))
       | (var x: Option, var y: Option) =>
@@ -216,9 +217,13 @@ class Options is Iterator[_Result]
           x.token() + " and " + y.token() + " are ambiguous!")
         _Ambiguous
       | (None, var y: Option) =>
-        _args(_index) = current.cut_in_place(1, 1) ; _strip_accepted(y) ; y
+        _args(_index) = current.cut_in_place(1, 1)
+        _strip_accepted(y)
+        y
       | (var x: Option, None) =>
-        _args(_index) = current.cut_in_place(0, finish) ; _strip_accepted(x) ; x
+        _args(_index) = current.cut_in_place(0, finish)
+        _strip_accepted(x)
+        x
       else
         error
       end
@@ -244,7 +249,7 @@ class Options is Iterator[_Result]
         end
       | var m: Option =>
         if m.requires_arg() then
-          var argument: String val = "None"
+          var argument: String = "None"
 
           try
             argument = _args(_index).clone()

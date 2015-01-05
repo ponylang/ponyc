@@ -84,9 +84,19 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
   switch(tcap)
   {
     case TK_ISO:
+    {
+      // If ephemeral, any rcap is acceptable. Otherwise, only tag is. This is because
+      // the iso may have come from outside the recover expression.
+      ast_t* eph = ast_sibling(cap);
+
+      if((ast_id(eph) != TK_EPHEMERAL) && (rcap != TK_TAG))
+        return NULL;
+      break;
+    }
+
     case TK_TRN:
     case TK_REF:
-      // These recover as iso, so any rcap is acceptable.
+      // These recovers as iso, so any rcap is acceptable.
       break;
 
     case TK_VAL:
@@ -475,14 +485,14 @@ bool sendable(ast_t* type)
 
     case TK_NOMINAL:
     {
-      ast_t* cap = ast_childidx(type, 3);
-      return cap_sendable(ast_id(cap));
+      AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
+      return (ast_id(eph) != TK_BORROWED) && cap_sendable(ast_id(cap));
     }
 
     case TK_TYPEPARAMREF:
     {
-      ast_t* cap = ast_childidx(type, 1);
-      return cap_sendable(ast_id(cap));
+      AST_GET_CHILDREN(type, id, cap, eph);
+      return (ast_id(eph) != TK_BORROWED) && cap_sendable(ast_id(cap));
     }
 
     case TK_FUNTYPE:
