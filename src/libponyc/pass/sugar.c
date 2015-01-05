@@ -705,6 +705,17 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 }
 
 
+ast_result_t sugar_recover(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, expr);
+
+  if(ast_id(cap) == TK_NONE)
+    ast_setid(cap, TK_ISO);
+
+  return AST_OK;
+}
+
+
 ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
@@ -765,6 +776,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);
     case TK_AS:         return sugar_as(options, astp);
+    case TK_RECOVER:    return sugar_recover(ast);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");
     case TK_MULTIPLY:   return sugar_binop(astp, "mul");

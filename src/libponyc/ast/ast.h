@@ -208,7 +208,7 @@ prefix
 ------
 (
   CONSUME: expr
-  RECOVER: expr
+  RECOVER: cap expr
   NOT: expr
   MINUS: expr
 )
