@@ -71,7 +71,8 @@ bool is_expr_infix(token_id id)
 // Tree builders
 
 // Standard infix operator AST builder
-ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* infix_builder(ast_t* existing, ast_t* new_ast,
+  rule_state_t* state)
 {
   (void)state;
 
@@ -82,7 +83,8 @@ ast_t* infix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 
 
 // Reversed infix AST builder for assignment
-ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* infix_reverse(ast_t* existing, ast_t* new_ast,
+  rule_state_t* state)
 {
   (void)state;
 
@@ -93,7 +95,8 @@ ast_t* infix_reverse(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 
 
 // Postfix operator AST builder to special case call child order
-ast_t* postfix_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* postfix_builder(ast_t* existing, ast_t* new_ast,
+  rule_state_t* state)
 {
   (void)state;
 
@@ -156,7 +159,7 @@ static void prune_semi(rule_state_t* state, bool last_in_sequence)
 
 
 // Sequence AST builder, handling semi colons
-ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 {
   // Get rid of any unnecessary trailing ;
   prune_semi(state, false);
@@ -167,7 +170,8 @@ ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 
 
 // Build a tuple
-ast_t* tuple_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* tuple_builder(ast_t* existing, ast_t* new_ast,
+  rule_state_t* state)
 {
   if(ast_id(existing) != TK_TUPLE)
   {
@@ -184,7 +188,8 @@ ast_t* tuple_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
 
 
 // Build a tuple type
-ast_t* tuple_type_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
+static ast_t* tuple_type_builder(ast_t* existing, ast_t* new_ast,
+  rule_state_t* state)
 {
   if(ast_id(existing) != TK_TUPLETYPE)
   {

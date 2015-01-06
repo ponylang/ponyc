@@ -409,19 +409,19 @@ static void number_constructors(compile_t* c)
 {
   num_cons_t cons[] =
   {
-    {"I8", c->i8, c->i128, false},
-    {"I16", c->i16, c->i128, false},
-    {"I32", c->i32, c->i128, false},
-    {"I64", c->i64, c->i128, false},
+    {"I8", c->i8, c->i8, false},
+    {"I16", c->i16, c->i16, false},
+    {"I32", c->i32, c->i32, false},
+    {"I64", c->i64, c->i64, false},
     {"I128", c->i128, c->i128, false},
 
-    {"U8", c->i8, c->i128, false},
-    {"U16", c->i16, c->i128, false},
-    {"U32", c->i32, c->i128, false},
-    {"U64", c->i64, c->i128, false},
+    {"U8", c->i8, c->i8, false},
+    {"U16", c->i16, c->i16, false},
+    {"U32", c->i32, c->i32, false},
+    {"U64", c->i64, c->i64, false},
     {"U128", c->i128, c->i128, false},
 
-    {"F32", c->f32, c->f64, true},
+    {"F32", c->f32, c->f32, true},
     {"F64", c->f64, c->f64, true},
 
     {NULL, NULL, NULL, false}

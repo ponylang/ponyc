@@ -1,5 +1,5 @@
 primitive U8 is UnsignedInteger[U8]
-  new create(from: U128) => compiler_intrinsic
+  new create(from: U8) => compiler_intrinsic
 
   fun box next_pow2(): U8 =>
     var x = this - 1
@@ -26,7 +26,7 @@ primitive U8 is UnsignedInteger[U8]
     @"llvm.umul.with.overflow.i8"[(U8, Bool)](this, y)
 
 primitive U16 is UnsignedInteger[U16]
-  new create(from: U128) => compiler_intrinsic
+  new create(from: U16) => compiler_intrinsic
 
   fun box next_pow2(): U16 =>
     var x = this - 1
@@ -54,7 +54,7 @@ primitive U16 is UnsignedInteger[U16]
     @"llvm.umul.with.overflow.i16"[(U16, Bool)](this, y)
 
 primitive U32 is UnsignedInteger[U32]
-  new create(from: U128) => compiler_intrinsic
+  new create(from: U32) => compiler_intrinsic
 
   fun box next_pow2(): U32 =>
     var x = this - 1
@@ -83,7 +83,7 @@ primitive U32 is UnsignedInteger[U32]
     @"llvm.umul.with.overflow.i32"[(U32, Bool)](this, y)
 
 primitive U64 is UnsignedInteger[U64]
-  new create(from: U128) => compiler_intrinsic
+  new create(from: U64) => compiler_intrinsic
 
   fun box next_pow2(): U64 =>
     var x = this - 1
