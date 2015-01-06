@@ -101,7 +101,7 @@ class File
       end
 
       _last_line_length = len
-      consume result
+      result
     else
       recover String end
     end
@@ -120,7 +120,7 @@ class File
       end
 
       result.truncate(r)
-      consume result
+      result
     else
       recover Array[U8] end
     end
@@ -140,7 +140,7 @@ class File
       end
 
       result.truncate(r)
-      consume result
+      result
     else
       recover String end
     end

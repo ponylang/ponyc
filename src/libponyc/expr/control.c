@@ -1,8 +1,9 @@
 #include "control.h"
+#include "literal.h"
 #include "../ast/frame.h"
 #include "../ast/token.h"
-#include "../expr/literal.h"
 #include "../pass/pass.h"
+#include "../pass/expr.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/alias.h"
@@ -316,24 +317,11 @@ bool expr_continue(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-static bool is_method_result(ast_t* body, ast_t* ast)
-{
-  if(ast == body)
-    return true;
-
-  ast_t* parent = ast_parent(ast);
-
-  if((ast_id(parent) == TK_SEQ) && (ast_sibling(ast) != NULL))
-    return false;
-
-  return is_method_result(body, parent);
-}
-
 bool expr_return(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_frame_t* frame = opt->check.frame;
+  typecheck_t* t = &opt->check;
 
-  if(frame->method_body == NULL)
+  if(t->frame->method_body == NULL)
   {
     ast_error(ast, "return must occur in a method body");
     return false;
@@ -346,14 +334,14 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(is_method_result(frame->method_body, ast))
+  if(is_method_result(t, ast))
   {
     ast_error(ast,
       "use return only to exit early from a method, not at the end");
     return false;
   }
 
-  ast_t* type = ast_childidx(frame->method, 4);
+  ast_t* type = ast_childidx(t->frame->method, 4);
   ast_t* body = ast_child(ast);
 
   if(!coerce_literals(&body, type, opt))
@@ -361,7 +349,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   ast_t* body_type = ast_type(body);
 
-  switch(ast_id(frame->method))
+  switch(ast_id(t->frame->method))
   {
     case TK_NEW:
       ast_error(ast, "can't return a value in a constructor");

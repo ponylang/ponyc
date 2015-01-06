@@ -316,7 +316,7 @@ primitive Path
       result.append("..")
       result.append(sep())
       result.append(target_clean.substring(target_0, -1))
-      consume result
+      result
     else
       target_clean.substring(target_0, -1)
     end
@@ -443,7 +443,7 @@ primitive Path
         end
       end
 
-      consume s
+      s
     else
       path
     end
@@ -467,7 +467,7 @@ primitive Path
         end
       end
 
-      consume s
+      s
     else
       path
     end
@@ -600,4 +600,4 @@ primitive Path
       array.append(Path.clean(path.substring(offset, -1)))
     end
 
-    consume array
+    array

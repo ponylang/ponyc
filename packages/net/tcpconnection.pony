@@ -63,14 +63,14 @@ actor TCPConnection
         var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
 
         if len < data.size() then
-          _pending.append(_TCPPendingWrite(data, len))
+          _pending.push(_TCPPendingWrite(data, len))
           _writeable = false
         end
       else
         _close()
       end
     elseif not _closed then
-      _pending.append(_TCPPendingWrite(data, 0))
+      _pending.push(_TCPPendingWrite(data, 0))
     end
 
   be dispose() =>
@@ -89,7 +89,7 @@ actor TCPConnection
     """
     let ip = recover IPAddress end
     @os_sockname[None](_fd, ip)
-    consume ip
+    ip
 
   fun box remote_address(): IPAddress =>
     """
@@ -97,7 +97,7 @@ actor TCPConnection
     """
     let ip = recover IPAddress end
     @os_peername[None](_fd, ip)
-    consume ip
+    ip
 
   fun ref set_notify(notify: TCPConnectionNotify ref) =>
     """
@@ -224,7 +224,7 @@ actor TCPConnection
           pending.offset = len + offset
           _writeable = false
         else
-          _pending.pop()
+          _pending.shift()
         end
       else
         _close()

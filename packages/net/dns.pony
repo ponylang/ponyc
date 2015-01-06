@@ -43,6 +43,6 @@ primitive DNS
       @freeaddrinfo[None](result)
     end
 
-    consume list
+    list
 
 primitive _AddrInfo

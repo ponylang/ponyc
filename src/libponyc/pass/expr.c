@@ -65,6 +65,76 @@ bool is_result_needed(ast_t* ast)
   return true;
 }
 
+bool is_method_result(typecheck_t* t, ast_t* ast)
+{
+  if(ast == t->frame->method_body)
+    return true;
+
+  ast_t* parent = ast_parent(ast);
+
+  switch(ast_id(parent))
+  {
+    case TK_SEQ:
+      // More expressions in a sequence means we're not the result.
+      if(ast_sibling(ast) != NULL)
+        return false;
+      break;
+
+    case TK_IF:
+    case TK_WHILE:
+    case TK_MATCH:
+      // The condition is not the result.
+      if(ast_child(parent) == ast)
+        return false;
+      break;
+
+    case TK_REPEAT:
+      // The condition is not the result.
+      if(ast_childidx(parent, 1) == ast)
+        return false;
+      break;
+
+    case TK_CASE:
+      // The pattern and the guard are not the result.
+      if(ast_childidx(parent, 2) != ast)
+        return false;
+      break;
+
+    case TK_CASES:
+    case TK_RECOVER:
+      // These can be results.
+      break;
+
+    case TK_TRY:
+    case TK_TRY2:
+      // The finally block is not the result.
+      if(ast_childidx(parent, 2) == ast)
+        return false;
+      break;
+
+    default:
+      // Other expressions are not results.
+      return false;
+  }
+
+  return is_method_result(t, parent);
+}
+
+bool is_method_return(typecheck_t* t, ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  if(ast_id(parent) == TK_SEQ)
+  {
+    parent = ast_parent(parent);
+
+    if(ast_id(parent) == TK_RETURN)
+      return true;
+  }
+
+  return is_method_result(t, ast);
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;

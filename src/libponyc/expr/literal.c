@@ -254,6 +254,7 @@ static int uifset_union(ast_t* type, lit_chain_t* chain)
     if(child_valid && others_valid && (child_formal != others_formal))
     {
       // We're unioning a formal parameter and a UIF type, not allowed
+      ast_error(type, "Could not infer literal type, ambiguous union");
       return UIF_ERROR;
     }
     
@@ -373,9 +374,12 @@ static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
   chain_head->formal = NULL;
   int r = uifset(type, chain_head->next);
 
-  if(r == UIF_ERROR || r == UIF_NO_TYPES)
+  if(r == UIF_ERROR)
+    return false;
+  
+  if(r == UIF_NO_TYPES)
   {
-    ast_error(literal, "Could not infer literal type");
+    ast_error(literal, "Could not infer literal type, no valid types found");
     return false;
   }
 
@@ -752,7 +756,12 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
   lit_op_info_t* op = (lit_op_info_t*)ast_data(recv_type);
   assert(op != NULL);
 
-  // TODO: Should we allow named arguments?
+  if(ast_childcount(named_args) != 0)
+  {
+    ast_error(named_args, "Cannot use named arguments with literal operator");
+    return false;
+  }
+
   ast_t* arg = ast_child(positional_args);
 
   if(arg != NULL)

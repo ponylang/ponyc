@@ -262,7 +262,7 @@ class String val is Ordered[String box], Stringable
     let str = recover String(len) end
     @memcpy[Pointer[U8]](str._ptr, _ptr, len + 1)
     str._size = len
-    consume str
+    str
 
   fun box find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
     """
@@ -390,7 +390,7 @@ class String val is Ordered[String box], Stringable
         @memcpy[Pointer[U8]](str._ptr, ptr + start, len)
         str._size = len
         str._set(len, 0)
-        consume str
+        str
       end
     else
       recover String end
@@ -402,7 +402,7 @@ class String val is Ordered[String box], Stringable
     """
     var s = clone()
     s.lower_in_place()
-    consume s
+    s
 
   fun ref lower_in_place(): String ref^ =>
     """
@@ -428,7 +428,7 @@ class String val is Ordered[String box], Stringable
     """
     var s = clone()
     s.upper_in_place()
-    consume s
+    s
 
   fun ref upper_in_place(): String ref^ =>
     """
@@ -453,7 +453,7 @@ class String val is Ordered[String box], Stringable
     """
     var s = clone()
     s.reverse_in_place()
-    consume s
+    s
 
   fun ref reverse_in_place(): String ref^ =>
     """
@@ -500,7 +500,7 @@ class String val is Ordered[String box], Stringable
     """
     var s = clone()
     s.insert_in_place(offset, that)
-    consume s
+    s
 
   fun ref insert_in_place(offset: I64, that: String): String ref^ =>
     """
@@ -523,7 +523,7 @@ class String val is Ordered[String box], Stringable
     """
     var s = clone()
     s.cut_in_place(from, to)
-    consume s
+    s
 
   fun ref cut_in_place(from: I64, to: I64): String ref^ =>
     """
@@ -572,7 +572,7 @@ class String val is Ordered[String box], Stringable
     @memcpy[Pointer[U8]](s._ptr, _ptr, _size)
     @memcpy[Pointer[U8]](s._ptr.u64() + _size, that._ptr, that._size + 1)
     s._size = len
-    consume s
+    s
 
   fun box compare(that: String box, n: U64, offset: I64 = 0,
     that_offset: I64 = 0): I32
@@ -759,7 +759,7 @@ class String val is Ordered[String box], Stringable
 
     str._size = len
     str._set(len, 0)
-    consume str
+    str
 
   // fun box format(args: Array[String] box): String ? =>
   //   recover

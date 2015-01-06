@@ -362,7 +362,13 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       }
 
       // Get the type of the parameter and attach it to our reference.
-      ast_settype(ast, type);
+      // Automatically consume a parameter if the function is done.
+      ast_t* r_type = type;
+
+      if(is_method_return(t, ast))
+        r_type = consume_type(type);
+
+      ast_settype(ast, r_type);
       ast_setid(ast, TK_PARAMREF);
       return true;
     }
@@ -431,7 +437,13 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       }
 
       // Get the type of the local and attach it to our reference.
-      ast_settype(ast, type);
+      // Automatically consume a local if the function is done.
+      ast_t* r_type = type;
+
+      if(is_method_return(t, ast))
+        r_type = consume_type(type);
+
+      ast_settype(ast, r_type);
       return true;
     }
 
@@ -593,22 +605,12 @@ bool expr_dontcare(ast_t* ast)
 bool expr_this(typecheck_t* t, ast_t* ast)
 {
   // If this is the return value of a function, it is ephemeral.
-  ast_t* parent = ast_parent(ast);
-  token_id ephemeral = TK_NONE;
+  token_id ephemeral;
 
-  switch(ast_id(parent))
-  {
-    case TK_RETURN:
-      ephemeral = TK_EPHEMERAL;
-      break;
-
-    case TK_SEQ:
-      if(ast_id(ast_parent(parent)) == TK_FUN)
-        ephemeral = TK_EPHEMERAL;
-      break;
-
-    default: {}
-  }
+  if(is_method_return(t, ast))
+    ephemeral = TK_EPHEMERAL;
+  else
+    ephemeral = TK_NONE;
 
   ast_t* type = type_for_this(t, ast, cap_for_this(t), ephemeral);
   ast_settype(ast, type);
