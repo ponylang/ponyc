@@ -181,7 +181,9 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
 {
   assert(branch != NULL);
 
-  if(is_type_literal(ast_type(branch)))
+  ast_t* branch_type = ast_type(branch);
+
+  if(is_type_literal(branch_type))
   {
     // The new branch is a literal
     if(control_type == NULL)
@@ -201,6 +203,16 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     ast_t* member = ast_from(branch, TK_LITERALBRANCH);
     ast_setdata(member, (void*)branch);
     ast_append(control_type, member);
+
+    ast_t* branch_non_lit = ast_type(branch_type);
+
+    if(branch_non_lit != NULL)
+    {
+      // The branch's literal type has a non-literal component
+      ast_t* non_literal_type = ast_type(control_type);
+      ast_settype(control_type, type_union(non_literal_type, branch_non_lit));
+    }
+
     return control_type;
   }
 
@@ -209,13 +221,13 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     // New branch is not literal, but the control structure is
     // Add new branch type to the control structure's non-literal aspect
     ast_t* non_literal_type = ast_type(control_type);
-    non_literal_type = type_union(non_literal_type, ast_type(branch));
+    non_literal_type = type_union(non_literal_type, branch_type);
     ast_settype(control_type, non_literal_type);
     return control_type;
   }
 
   // No literals here, just union the types
-  return type_union(control_type, ast_type(branch));
+  return type_union(control_type, branch_type);
 }
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)

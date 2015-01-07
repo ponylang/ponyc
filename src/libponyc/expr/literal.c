@@ -78,6 +78,8 @@ static int uifset(ast_t* type, lit_chain_t* chain);
 static bool coerce_literal_to_type(ast_t** literal_expr, ast_t* target_type,
   lit_chain_t* chain, pass_opt_t* options);
 
+static bool unify(ast_t* ast, pass_opt_t* options);
+
 
 static void chain_init_head(lit_chain_t* head)
 {
@@ -413,7 +415,7 @@ static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
     }
   }
 
-  ast_error(type, "Multiple possible types for literal");
+  ast_error(literal, "Multiple possible types for literal");
   return false;
 }
 
@@ -516,6 +518,13 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
 
     block_type = type_union(block_type, ast_type(branch));
   }
+
+  // block_type may be a sub-tree of the current type of literal_expr.
+  // This means we must copy it before setting it as the type since ast_settype
+  // will first free the existing type of literal_expr, which may include
+  // block_type.
+  if(ast_parent(block_type) != NULL)
+    block_type = ast_dup(block_type);
 
   ast_settype(literal_expr, block_type);
   return true;
@@ -628,6 +637,9 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
     ast_id(lit_type) != TK_OPERATORLITERAL)
     return true;
 
+  if(target_type == NULL && !unify(literal_expr, options))
+    return false;
+
   lit_chain_t chain;
   chain_init_head(&chain);
   return coerce_literal_to_type(astp, target_type, &chain, options);
@@ -685,7 +697,7 @@ static bool unify(ast_t* ast, pass_opt_t* options)
     return true;
 
   assert(type != NULL);
-  ast_t* non_literal = (ast_t*)ast_data(type);
+  ast_t* non_literal = ast_type(type);
 
   if(non_literal != NULL)
   {

@@ -373,6 +373,9 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
   if(ast_type(ast) != NULL)
     return true;
 
+  type = ast_type(left); // Literal handling may have changed lhs type
+  assert(type != NULL);
+
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);
 
