@@ -1,5 +1,5 @@
 primitive F32 is FloatingPoint[F32]
-  new create(from: F64) => compiler_intrinsic
+  new create(from: F32) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 

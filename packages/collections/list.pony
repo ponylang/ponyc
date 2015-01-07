@@ -1,34 +1,25 @@
-class ListNode[A]
-  """
-  A node in a list.
-  """
-  var _item: (A | None)
-  var _next: (ListNode[A] | None)
-
-  new create(item': A, next': (ListNode[A] | None) = None) =>
-    _item = consume item'
-    _next = next'
-
-  fun box item(): this->A ? =>
-    _item as this->A
-
-  fun ref pop(): A^ ? =>
-    (_item = None) as A^
-
-  fun ref append(next: ListNode[A]): ListNode[A]^ =>
-    _next = next
-    this
-
-  fun box next(): (this->ListNode[A] | None) =>
-    _next
-
 class List[A]
   """
-  A singly linked list.
+  A doubly linked list.
   """
-  var _head: (ListNode[A] | None) = None
-  var _tail: (ListNode[A] | None) = None
-  var _size: U64 = 0
+  var _head: (ListNode[A] | None)
+  var _tail: (ListNode[A] | None)
+  var _size: U64
+
+  new create(node: (ListNode[A] | None) = None) =>
+    """
+    Create a new list, optionally starting with an existing node.
+    """
+    _head = node
+    _tail = node
+
+    match node
+    | var node': ListNode[A] =>
+      node'.remove()
+      _size = 1
+    else
+      _size = 0
+    end
 
   fun box size(): U64 =>
     """
@@ -42,48 +33,58 @@ class List[A]
     """
     _head as this->ListNode[A]
 
-  fun ref append(a: A): List[A]^ =>
+  fun box tail(): this->ListNode[A] ? =>
     """
-    Appends a value to the tail of the list.
+    Get the tail of the list.
     """
-    match _tail
-    | var tail: ListNode[A] =>
-      var next = ListNode[A](consume a)
-      tail.append(next)
-      _tail = next
-      _size = _size + 1
-    else
-      push(consume a)
-    end
-    this
+    _tail as this->ListNode[A]
 
   fun ref push(a: A): List[A]^ =>
     """
-    Pushes a value to the head of the list.
+    Adds a value to the tail of the list.
     """
-    _head = ListNode[A](consume a, _head)
-
-    if _size == 0 then
-      _tail = _head
+    match _tail
+    | var tail': ListNode[A] =>
+      tail'.append(ListNode[A](consume a))
+    else
+      unshift(consume a)
     end
-
-    _size = _size + 1
     this
 
   fun ref pop(): A^ ? =>
     """
-    Pops a value from the head of the list.
+    Removes a value from the tail of the list.
+    """
+    match _tail
+    | var tail': ListNode[A] =>
+      tail'.remove().pop()
+    else
+      error
+    end
+
+  fun ref unshift(a: A): List[A]^ =>
+    """
+    Adds a value to the head of the list.
+    """
+    let node = ListNode[A](consume a)
+
+    match _head
+    | var head': ListNode[A] =>
+      head'.prepend(node)
+    else
+      _head = node
+      _tail = node
+      _size = 1
+    end
+    this
+
+  fun ref shift(): A^ ? =>
+    """
+    Removes a value from the head of the list.
     """
     match _head
     | var head': ListNode[A] =>
-      _size = _size - 1
-      _head = head'.next()
-
-      if _size == 0 then
-        _tail = None
-      end
-
-      head'.pop()
+      head'.remove().pop()
     else
       error
     end
@@ -93,6 +94,18 @@ class List[A]
     Return an iterator on the values in the list.
     """
     ListValues[A, this->ListNode[A]](_head)
+
+  fun ref _increment() =>
+    _size = _size + 1
+
+  fun ref _decrement() =>
+    _size = _size - 1
+
+  fun ref _set_head(head': (ListNode[A] | None)) =>
+    _head = head'
+
+  fun ref _set_tail(tail': (ListNode[A] | None)) =>
+    _tail = tail'
 
 class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
   """

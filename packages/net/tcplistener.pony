@@ -51,7 +51,7 @@ actor TCPListener
     """
     let ip = recover IPAddress end
     @os_sockname[None](_fd, ip)
-    consume ip
+    ip
 
   fun ref set_notify(notify: TCPListenNotify) =>
     """

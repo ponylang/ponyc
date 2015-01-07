@@ -154,7 +154,7 @@ primitive ToString
       _extend_digits(s, prec)
       s.append(prestring)
       _pad(s, width, align, fill)
-      consume s
+      s
     end
 
   fun tag _u128(x: U128, neg: Bool, fmt: IntFormat = FormatDefault,
@@ -186,7 +186,7 @@ primitive ToString
       _extend_digits(s, prec)
       s.append(prestring)
       _pad(s, width, align, fill)
-      consume s
+      s
     end
 
   fun tag _f64(x: F64, fmt: FloatFormat = FormatDefault,
