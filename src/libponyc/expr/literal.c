@@ -415,7 +415,7 @@ static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
     }
   }
 
-  ast_error(type, "Multiple possible types for literal");
+  ast_error(literal, "Multiple possible types for literal");
   return false;
 }
 
