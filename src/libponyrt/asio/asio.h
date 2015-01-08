@@ -23,6 +23,7 @@ enum
 {
   ASIO_READ  = 1 << 0,
   ASIO_WRITE = 1 << 1,
+  ASIO_TIMER = 1 << 2
 };
 
 /** Opaque definition of a backend.

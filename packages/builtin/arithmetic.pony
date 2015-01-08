@@ -76,6 +76,8 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun box clz(): A
   fun box ctz(): A
   fun box bitwidth(): A
+  fun box rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
+  fun box rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
 trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
   fun box string(fmt: IntFormat = FormatDefault,

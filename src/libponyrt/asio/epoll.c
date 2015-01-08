@@ -57,7 +57,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 {
   asio_backend_t* b = arg;
 
-  while(true)
+  while(b->epfd != -1)
   {
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
 
@@ -69,6 +69,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
       {
         close(b->epfd);
         close(b->wakeup);
+        b->epfd = -1;
         break;
       }
 
@@ -85,10 +86,8 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
     handle_queue(b);
   }
 
-  handle_queue(b);
   messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
-
   return NULL;
 });
 
@@ -106,7 +105,7 @@ void asio_event_subscribe(asio_event_t* ev)
     | (ev->flags & ASIO_WRITE ? EPOLLOUT : 0)
     | EPOLLRDHUP | EPOLLET;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->fd, &ep);
+  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->data, &ep);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
@@ -122,7 +121,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
   if(ev->flags == 0)
     return;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->data, NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(0, 0);
   msg->event = ev;
