@@ -150,6 +150,8 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
       if(core >= count)
         core = 0;
     }
+
+    numa_bitmask_free(nodes);
   }
 #endif
 
