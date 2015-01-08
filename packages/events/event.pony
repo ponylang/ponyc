@@ -12,13 +12,19 @@ primitive Event
     event pointer replaces the one passed in.
     """
     if not event.is_null() then
-      @asio_event_unsubscribe[None](event)
-    end
-
-    if nsec != -1 then
-      @asio_event_create[Pointer[Event]](owner, nsec, U32(4), true)
+      if nsec != -1 then
+        @asio_event_update[None](event, nsec)
+        event
+      else
+        @asio_event_unsubscribe[None](event)
+        Pointer[Event]
+      end
     else
-      Pointer[Event]
+      if nsec != -1 then
+        @asio_event_create[Pointer[Event]](owner, nsec, U32(4), true)
+      else
+        Pointer[Event]
+      end
     end
 
   fun tag socket(owner: EventNotify, fd: U32): Pointer[Event] tag =>

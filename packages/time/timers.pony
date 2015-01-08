@@ -25,7 +25,7 @@ actor Timers
       _wheel.append(_TimingWheel(i))
     end
 
-  be set(timer: Timer iso) =>
+  be apply(timer: Timer iso) =>
     """
     Sets a timer. Fire it if need be, schedule it on the right timing wheel,
     then rearm the timer.
@@ -42,7 +42,13 @@ actor Timers
     """
     Dipose of this set of timing wheels.
     """
-    // TODO:
+    try
+      for wheel in _wheel.values() do
+        wheel.clear()
+      end
+    end
+
+    _event = Event.timer(this, _event, -1)
 
   be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """

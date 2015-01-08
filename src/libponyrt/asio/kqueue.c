@@ -141,6 +141,24 @@ void asio_event_subscribe(asio_event_t* ev)
   kevent(b->kq, event, i, NULL, 0, &t);
 }
 
+void asio_event_update(asio_event_t* ev, uintptr_t data)
+{
+  asio_backend_t* b = asio_get_backend();
+
+  struct kevent event[1];
+  int i = 0;
+
+  if(ev->flags & ASIO_TIMER)
+  {
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      NOTE_NSECONDS, data, ev);
+    i++;
+  }
+
+  struct timespec t = {0, 0};
+  kevent(b->kq, event, i, NULL, 0, &t);
+}
+
 void asio_event_unsubscribe(asio_event_t* ev)
 {
   asio_backend_t* b = asio_get_backend();

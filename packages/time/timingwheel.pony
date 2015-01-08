@@ -80,6 +80,18 @@ class _TimingWheel
       -1
     end
 
+  fun ref clear() =>
+    """
+    Cancels all pending timers.
+    """
+    try
+      for list in _list.values() do
+        for timer in list.values() do
+          timer._cancel()
+        end
+      end
+    end
+
   fun box _slot(time: U64): U64 =>
     """
     Return the slot for a given time.

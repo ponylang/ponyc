@@ -38,20 +38,16 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   uint32_t flags, bool noisy);
 
 /** Deallocates an ASIO event.
- *
- *  Called automatically when unsubscribing.
  */
 void asio_event_destroy(asio_event_t* ev);
 
 uintptr_t asio_event_data(asio_event_t* ev);
 
-void asio_event_setdata(asio_event_t* ev, uintptr_t data);
-
 /// Send a triggered event.
 void asio_event_send(asio_event_t* ev, uint32_t flags);
 
-/** Subscribe and unsubscribe are implemented in the corresponding I/O mechanism
- *  files epoll.c, kqueue.c, ...
+/* Subscribe and unsubscribe are implemented in the corresponding I/O
+ * mechanism. Files epoll.c, kqueue.c, ...
  */
 
 /** Subscribe an event for notifications.
@@ -61,12 +57,16 @@ void asio_event_send(asio_event_t* ev, uint32_t flags);
  */
 void asio_event_subscribe(asio_event_t* ev);
 
+/** Update an event.
+ *
+ * Used for timers.
+ */
+void asio_event_update(asio_event_t* ev, uintptr_t data);
+
 /** Unsubscribe an event.
  *
  *  After a call to unsubscribe, the caller will not receive any further event
  *  notifications for I/O events on the corresponding resource.
- *
- *  An event is deallocated upon unsubscription.
  */
 void asio_event_subscribe(asio_event_t* ev);
 

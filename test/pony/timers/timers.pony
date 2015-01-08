@@ -12,10 +12,16 @@ class TimerPrint is TimerNotify
     _env.out.print("timer: " + _count.string())
     _count < 10
 
+  fun ref cancel(timer: Timer) =>
+    _env.out.print("timer cancelled")
+
 actor Main
   new create(env: Env) =>
     let timers = Timers(0)
     let timer = recover
-      Timer.create(TimerPrint(env), 500000000, 500000000) // 500 ms
+      Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
     end
-    timers.set(consume timer)
+
+    let timer_tag = timer
+    timers(consume timer)
+    timers.cancel(timer_tag)

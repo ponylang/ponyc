@@ -1,9 +1,9 @@
 use "collections"
 
-interface TimerNotify
-  fun ref apply(timer: Timer, count: U64): Bool
-
 class Timer
+  """
+  A timer.
+  """
   var _expiration: U64
   var _interval: U64
   var _notify: TimerNotify
@@ -36,6 +36,7 @@ class Timer
     Remove the timer from any list.
     """
     _node.remove()
+    _notify.cancel(this)
 
   fun ref _get_node(): ListNode[Timer] =>
     """
