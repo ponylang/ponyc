@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #elif defined(PLATFORM_IS_MACOSX)
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <mach/mach.h>
@@ -208,7 +209,12 @@ bool cpu_core_pause(uint64_t tsc)
     return false;
 
 #ifndef PLATFORM_IS_WINDOWS
+  // 1000m cycles is about 300ms
   struct timespec ts = {0, 0};
+
+  if((tsc2 - tsc) > 1000000000)
+    ts.tv_nsec = 1000000;
+
   nanosleep(&ts, NULL);
 #else
   Sleep(0);

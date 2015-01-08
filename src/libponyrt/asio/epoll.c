@@ -6,6 +6,7 @@
 #include "../mem/pool.h"
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <sys/timerfd.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
@@ -57,7 +58,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
 {
   asio_backend_t* b = arg;
 
-  while(true)
+  while(b->epfd != -1)
   {
     int event_cnt = epoll_wait(b->epfd, b->events, MAX_EVENTS, -1);
 
@@ -69,28 +70,58 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
       {
         close(b->epfd);
         close(b->wakeup);
+        b->epfd = -1;
         break;
       }
 
       asio_event_t* ev = ep->data.ptr;
+      uint32_t flags = 0;
 
-      uint32_t flags =
-        (ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR) ?
-          ASIO_READ : 0)
-        | (ep->events & EPOLLOUT ? ASIO_WRITE : 0);
+      if(ev->flags & ASIO_READ)
+      {
+        if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+          flags |= ASIO_READ;
+      }
 
-      asio_event_send(ev, flags);
+      if(ev->flags & ASIO_WRITE)
+      {
+        if(ep->events & EPOLLOUT)
+          flags |= ASIO_WRITE;
+      }
+
+      if(ev->flags & ASIO_TIMER)
+      {
+        if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+        {
+          uint64_t missed;
+          read((int)ev->data, &missed, sizeof(uint64_t));
+          flags |= ASIO_TIMER;
+        }
+      }
+
+      if(flags != 0)
+        asio_event_send(ev, flags);
     }
 
     handle_queue(b);
   }
 
-  handle_queue(b);
   messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
-
   return NULL;
 });
+
+static void timer_set_nsec(int fd, uint64_t nsec)
+{
+  struct itimerspec ts;
+
+  ts.it_interval.tv_sec = 0;
+  ts.it_interval.tv_nsec = 0;
+  ts.it_value.tv_sec = nsec / 1000000000;
+  ts.it_value.tv_nsec = nsec - (ts.it_value.tv_sec * 1000000000);
+
+  timerfd_settime(fd, 0, &ts, NULL);
+}
 
 void asio_event_subscribe(asio_event_t* ev)
 {
@@ -101,12 +132,31 @@ void asio_event_subscribe(asio_event_t* ev)
 
   struct epoll_event ep;
   ep.data.ptr = ev;
+  ep.events = EPOLLRDHUP | EPOLLET;
 
-  ep.events = (ev->flags & ASIO_READ ? EPOLLIN : 0)
-    | (ev->flags & ASIO_WRITE ? EPOLLOUT : 0)
-    | EPOLLRDHUP | EPOLLET;
+  if(ev->flags & ASIO_READ)
+    ep.events |= EPOLLIN;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->fd, &ep);
+  if(ev->flags & ASIO_WRITE)
+    ep.events |= EPOLLOUT;
+
+  if(ev->flags & ASIO_TIMER)
+  {
+    int fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    timer_set_nsec(fd, ev->data);
+    ev->data = fd;
+    ep.events |= EPOLLIN;
+  }
+
+  epoll_ctl(b->epfd, EPOLL_CTL_ADD, (int)ev->data, &ep);
+}
+
+void asio_event_update(asio_event_t* ev, uintptr_t data)
+{
+  if(ev->flags & ASIO_TIMER)
+  {
+    timer_set_nsec((int)ev->data, data);
+  }
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
@@ -122,7 +172,16 @@ void asio_event_unsubscribe(asio_event_t* ev)
   if(ev->flags == 0)
     return;
 
-  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->fd, NULL);
+  epoll_ctl(b->epfd, EPOLL_CTL_DEL, (int)ev->data, NULL);
+
+  if(ev->flags & ASIO_TIMER)
+  {
+    if(ev->data != (uintptr_t)-1)
+    {
+      close((int)ev->data);
+      ev->data = -1;
+    }
+  }
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(0, 0);
   msg->event = ev;

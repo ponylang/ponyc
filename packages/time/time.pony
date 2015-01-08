@@ -100,6 +100,16 @@ primitive Time
       0
     end
 
+  fun tag wall_to_nanos(wall: (I64, I64)): U64 =>
+    """
+    Converts a wall-clock adjusted system time to monotonic unadjusted
+    nanoseconds.
+    """
+    let wall_now = now()
+    nanos() +
+      (((wall._1 * 1000000000) + wall._2) -
+      ((wall_now._1 * 1000000000) + wall_now._2)).u64()
+
   fun tag cycles(): U64 =>
     """
     Processor cycle count. Don't use this for performance timing, as it does
