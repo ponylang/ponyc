@@ -176,9 +176,9 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
-    if(ev->data != -1)
+    if(ev->data != (uintptr_t)-1)
     {
-      close(ev->data);
+      close((int)ev->data);
       ev->data = -1;
     }
   }
