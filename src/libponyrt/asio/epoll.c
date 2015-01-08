@@ -92,7 +92,11 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
       if(ev->flags & ASIO_TIMER)
       {
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+        {
+          uint64_t missed;
+          read((int)ev->data, &missed, sizeof(uint64_t));
           flags |= ASIO_TIMER;
+        }
       }
 
       if(flags != 0)
@@ -149,8 +153,6 @@ void asio_event_subscribe(asio_event_t* ev)
 
 void asio_event_update(asio_event_t* ev, uintptr_t data)
 {
-  asio_backend_t* b = asio_get_backend();
-
   if(ev->flags & ASIO_TIMER)
   {
     timer_set_nsec((int)ev->data, data);
