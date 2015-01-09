@@ -1,8 +1,20 @@
+# Getting help
+
+* [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
+
+* Use the [mailing list](mailto:developers@causality.io).
+
+* A tutorial is pending.
+
 # Editor support
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
 
 * Atom: [language-pony](https://atom.io/packages/language-pony)
+
+* Visual Studio: pending.
+
+* Vim: pending.
 
 # Building on Linux
 
@@ -23,7 +35,7 @@ $ make use=numa config=release
 
 # Building on Mac OSX
 
-First, install homebrew if you haven't already (http://brew.sh). Then brew llvm35, like this:
+First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm35, like this:
 
 ```
 $ brew tap homebrew/versions
@@ -50,3 +62,7 @@ $ premake5 vs2013
 $ Release build with Visual Studio (ponyc.sln)
 $ ./build/release/ponyc examples/helloworld
 ```
+
+# Known problems
+
+The Windows build does not yet fully support the `net` and `time` packages.
