@@ -125,6 +125,9 @@ bool expr_fieldref(ast_t* ast, ast_t* find, token_id t)
 {
   AST_GET_CHILDREN(ast, left, right);
 
+  AST_GET_CHILDREN(find, id, ftype, init);
+  ast_settype(find, ftype);
+
   // Viewpoint adapted type of the field.
   ast_t* type = viewpoint(left, find);
 
