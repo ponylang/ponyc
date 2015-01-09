@@ -6,8 +6,8 @@ class Timer
   """
   var _expiration: U64
   var _interval: U64
-  var _notify: TimerNotify
-  var _node: ListNode[Timer]
+  let _notify: TimerNotify
+  let _node: ListNode[Timer]
 
   new create(notify: TimerNotify, expiration: U64, interval: U64 = 0) =>
     """

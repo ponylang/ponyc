@@ -30,10 +30,9 @@ static ast_t* eq_param_type(ast_t* pattern)
   ast_t* pattern_type = ast_type(pattern);
   ast_t* fun = lookup(NULL, pattern, pattern_type, stringtab("eq"));
 
-  AST_GET_CHILDREN(fun, ignore_cap, ignore_id, ignore_typeparams, params,
-    ignore_result, ignore_partial);
-
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
   ast_t* param = ast_child(params);
+
   return ast_childidx(param, 1);
 }
 

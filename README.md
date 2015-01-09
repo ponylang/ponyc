@@ -1,32 +1,43 @@
-Building on Linux
-=================
+# Editor support
+
+* Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
+
+* Atom: [language-pony](https://atom.io/packages/language-pony)
+
+# Building on Linux
 
 First, install LLVM 3.5 using your package manager. You may need to install zlib and ncurses as well.
 
 This will build ponyc and compile helloworld:
 
+```
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+```
 
 To build a NUMA-aware runtime, install libnuma-dev using your package manager and build as follows:
 
+```
 $ make use=numa config=release
+```
 
-Building on Mac OSX
-===================
+# Building on Mac OSX
 
 First, install homebrew if you haven't already (http://brew.sh). Then brew llvm35, like this:
 
+```
 $ brew tap homebrew/versions
 $ brew install llvm35
+```
 
 This will build ponyc and compile helloworld:
 
+```
 $ make config=release
 $ ./build/release/ponyc examples/helloworld
+```
 
-Building on Windows
-===================
+# Building on Windows
 
 The LLVM 3.5 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.5 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
@@ -34,6 +45,8 @@ You will also need to build and install premake5 (not premake4) from source. We 
 
 You may also need to install zlib and ncurses.
 
+```
 $ premake5 vs2013
 $ Release build with Visual Studio (ponyc.sln)
 $ ./build/release/ponyc examples/helloworld
+```

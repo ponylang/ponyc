@@ -1,7 +1,7 @@
 use "collections"
 use "events"
 
-actor Timers
+actor Timers is EnvelopeReceiver
   """
   A hierarchical set of timing wheels.
   """
@@ -25,18 +25,26 @@ actor Timers
       _wheel.append(_TimingWheel(i))
     end
 
-  be apply(timer: Timer iso) =>
+  be apply(envelope: Envelope[Timer]) =>
     """
     Sets a timer. Fire it if need be, schedule it on the right timing wheel,
     then rearm the timer.
     """
-    timer._slop(_slop)
-    _fire(consume timer)
-    _advance()
+    try
+      let timer = envelope(this)
+      timer._slop(_slop)
+      _fire(timer)
+      _advance()
+    end
 
-  be cancel(timer: Timer tag) =>
-    // TODO: find the timer and cancel it
-    None
+  be cancel(envelope: Envelope[Timer]) =>
+    """
+    Cancels a timer.
+    """
+    try
+      let timer = envelope(this)
+      timer._cancel()
+    end
 
   be dispose() =>
     """
@@ -49,6 +57,8 @@ actor Timers
     end
 
     _event = Event.timer(this, _event, -1)
+
+  be _envelope_receiver() => None
 
   be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """

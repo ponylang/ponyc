@@ -94,8 +94,7 @@ static bool valid_reference(ast_t* ast, sym_status_t status)
 
 bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
-  ast_t* type = ast_childidx(ast, 1);
-  ast_t* init = ast_sibling(type);
+  AST_GET_CHILDREN(ast, id, type, init);
 
   if(ast_id(init) != TK_NONE)
   {
@@ -126,15 +125,10 @@ bool expr_fieldref(ast_t* ast, ast_t* find, token_id t)
 {
   AST_GET_CHILDREN(ast, left, right);
 
-  // Attach the type.
-  ast_t* type = ast_childidx(find, 1);
-  ast_settype(find, type);
-  ast_settype(right, type);
-
   // Viewpoint adapted type of the field.
-  ast_t* ftype = viewpoint(left, find);
+  ast_t* type = viewpoint(left, find);
 
-  if(ftype == NULL)
+  if(type == NULL)
   {
     ast_error(ast, "can't read a field from a tag");
     return false;
@@ -154,7 +148,7 @@ bool expr_fieldref(ast_t* ast, ast_t* find, token_id t)
   }
 
   ast_setid(ast, t);
-  ast_settype(ast, ftype);
+  ast_settype(ast, type);
   return true;
 }
 
