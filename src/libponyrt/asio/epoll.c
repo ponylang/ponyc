@@ -94,7 +94,8 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
         if(ep->events & (EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR))
         {
           uint64_t missed;
-          read((int)ev->data, &missed, sizeof(uint64_t));
+          ssize_t rc = read((int)ev->data, &missed, sizeof(uint64_t));
+          (void)rc;
           flags |= ASIO_TIMER;
         }
       }

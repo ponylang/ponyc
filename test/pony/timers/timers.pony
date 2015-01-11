@@ -17,11 +17,18 @@ class TimerPrint is TimerNotify
 
 actor Main
   new create(env: Env) =>
-    let timers = Timers(0)
-    let timer = recover
+    let timers = Timers
+
+    let t1 = recover
       Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
     end
 
-    let timer_tag = timer
-    timers(consume timer)
-    timers.cancel(timer_tag)
+    let t1' = t1
+    timers(consume t1)
+    timers.cancel(t1')
+
+    let t2 = recover
+      Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
+    end
+
+    timers(consume t2)

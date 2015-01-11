@@ -12,7 +12,7 @@ interface TimerNotify
 
   fun ref cancel(timer: Timer) =>
     """
-    Called if the timer is cancelled. This isn't called if the notifier returns
-    false.
+    Called if the timer is cancelled. This is also called if the notifier
+    returns false.
     """
     None

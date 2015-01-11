@@ -136,12 +136,6 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
     return false;
   }
 
-  if(ast_id(cap) != TK_NONE)
-  {
-    ast_error(cap, "can't specify a capability on a type parameter");
-    return false;
-  }
-
   // Change to a typeparamref.
   ast_t* typeparamref = ast_from(ast, TK_TYPEPARAMREF);
   ast_add(typeparamref, ephemeral);
