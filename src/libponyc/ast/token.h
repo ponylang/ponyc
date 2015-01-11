@@ -178,6 +178,7 @@ typedef enum token_id
   TK_CASES,
   TK_CASE,
   TK_NOSEMI,
+  TK_IDENTITY,
 
   TK_REFERENCE,
   TK_PACKAGEREF,

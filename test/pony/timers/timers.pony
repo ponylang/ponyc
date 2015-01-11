@@ -1,5 +1,4 @@
 use "time"
-use "events"
 
 class TimerPrint is TimerNotify
   var _env: Env
@@ -18,25 +17,18 @@ class TimerPrint is TimerNotify
 
 actor Main
   new create(env: Env) =>
-    let timers = Timers(0)
+    let timers = Timers
 
-    let t1 = recover val
-      Envelope[Timer](timers,
-        recover
-          Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
-        end
-        )
+    let t1 = recover
+      Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
     end
 
-    timers(t1)
-    timers.cancel(t1)
+    let t1' = t1
+    timers(consume t1)
+    timers.cancel(t1')
 
-    let t2 = recover val
-      Envelope[Timer](timers,
-        recover
-          Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
-        end
-        )
+    let t2 = recover
+      Timer(TimerPrint(env), 500000000, 500000000) // 500 ms
     end
 
-    timers(t2)
+    timers(consume t2)

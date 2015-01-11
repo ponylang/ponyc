@@ -1,12 +1,13 @@
 use "collections"
 use "events"
 
-actor Timers is EnvelopeReceiver
+actor Timers
   """
   A hierarchical set of timing wheels.
   """
   var _current: U64 = 0
   let _slop: U64
+  let _map: Map[Identity[Timer tag], Timer] = Map[Identity[Timer tag], Timer]
   let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
   let _pending: List[Timer] = List[Timer]
   var _event: Pointer[Event] tag = Pointer[Event]
@@ -25,25 +26,24 @@ actor Timers is EnvelopeReceiver
       _wheel.append(_TimingWheel(i))
     end
 
-  be apply(envelope: Envelope[Timer]) =>
+  be apply(timer: Timer iso) =>
     """
     Sets a timer. Fire it if need be, schedule it on the right timing wheel,
     then rearm the timer.
     """
-    try
-      let timer = envelope(this)
-      timer._slop(_slop)
-      _fire(timer)
-      _advance()
-    end
+    let timer': Timer ref = consume timer
+    _map(Identity[Timer tag](timer')) = timer'
+    timer'._slop(_slop)
+    _fire(timer')
+    _advance()
 
-  be cancel(envelope: Envelope[Timer]) =>
+  be cancel(timer: Timer tag) =>
     """
     Cancels a timer.
     """
     try
-      let timer = envelope(this)
-      timer._cancel()
+      let timer' = _map.remove(Identity[Timer tag](timer))
+      timer'._cancel()
     end
 
   be dispose() =>
@@ -54,11 +54,10 @@ actor Timers is EnvelopeReceiver
       for wheel in _wheel.values() do
         wheel.clear()
       end
+      _map.clear()
     end
 
     _event = Event.timer(this, _event, -1)
-
-  be _envelope_receiver() => None
 
   be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """
@@ -98,6 +97,9 @@ actor Timers is EnvelopeReceiver
     based on how long it is until it expires.
     """
     if not timer._fire(_current) then
+      try
+        _map.remove(Identity[Timer tag](timer))
+      end
       return
     end
 

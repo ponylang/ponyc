@@ -105,6 +105,9 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
     case TK_AMP:
       return gen_addressof(c, ast);
 
+    case TK_IDENTITY:
+      return gen_identity(c, ast);
+
     case TK_DONTCARE:
       return GEN_NOVALUE;
 

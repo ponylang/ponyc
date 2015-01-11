@@ -196,9 +196,11 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   switch(ast_id(expr))
   {
     case TK_VARREF:
+    case TK_LETREF:
       return gen_localptr(c, expr);
 
     case TK_FVARREF:
+    case TK_FLETREF:
       return gen_fieldptr(c, expr);
 
     default: {}
@@ -206,6 +208,63 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
 
   assert(0);
   return NULL;
+}
+
+static LLVMValueRef gen_identity_from_value(compile_t* c, LLVMValueRef value)
+{
+  LLVMTypeRef type = LLVMTypeOf(value);
+
+  switch(LLVMGetTypeKind(type))
+  {
+    case LLVMFloatTypeKind:
+      value = LLVMBuildBitCast(c->builder, value, c->i32, "");
+      return LLVMBuildZExt(c->builder, value, c->i64, "");
+
+    case LLVMDoubleTypeKind:
+      return LLVMBuildBitCast(c->builder, value, c->i64, "");
+
+    case LLVMIntegerTypeKind:
+    {
+      uint32_t width = LLVMGetIntTypeWidth(type);
+
+      if(width < 64)
+        value = LLVMBuildZExt(c->builder, value, c->i64, "");
+      else if(width > 64)
+        value = LLVMBuildTrunc(c->builder, value, c->i64, "");
+
+      return value;
+    }
+
+    case LLVMStructTypeKind:
+    {
+      uint32_t count = LLVMCountStructElementTypes(type);
+      LLVMValueRef result = LLVMConstInt(c->i64, 0, false);
+
+      for(uint32_t i = 0; i < count; i++)
+      {
+        LLVMValueRef elem = LLVMBuildExtractValue(c->builder, value, i, "");
+        elem = gen_identity_from_value(c, elem);
+        result = LLVMBuildXor(c->builder, result, elem, "");
+      }
+
+      return result;
+    }
+
+    case LLVMPointerTypeKind:
+      return LLVMBuildPtrToInt(c->builder, value, c->i64, "");
+
+    default: {}
+  }
+
+  assert(0);
+  return NULL;
+}
+
+LLVMValueRef gen_identity(compile_t* c, ast_t* ast)
+{
+  ast_t* expr = ast_child(ast);
+  LLVMValueRef value = gen_expr(c, expr);
+  return gen_identity_from_value(c, value);
 }
 
 LLVMValueRef gen_int(compile_t* c, ast_t* ast)

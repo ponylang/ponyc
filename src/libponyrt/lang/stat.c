@@ -179,9 +179,4 @@ FILE* os_stderr()
   return stderr;
 }
 
-void* os_envelope_unseal(void* contents)
-{
-  return contents;
-}
-
 PONY_EXTERN_C_END

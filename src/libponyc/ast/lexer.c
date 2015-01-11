@@ -195,6 +195,7 @@ static const lexsym_t abstract[] =
   { "case", TK_CASE },
   { "try", TK_TRY2 },
   { "nosemi", TK_NOSEMI },
+  { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },

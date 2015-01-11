@@ -70,6 +70,7 @@ class Timer
       _expiration = _expiration + (count * _interval)
 
       if not _notify(this, count) then
+        _notify.cancel(this)
         return false
       end
     end
