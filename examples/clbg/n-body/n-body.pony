@@ -88,10 +88,10 @@ class Body
     z = z + (vz * dt)
 
   // Kinetic energy: 0.5 m v^2
-  fun box ke(): F64 => mass * ((vx * vx) + (vy * vy) + (vz * vz)) * 0.5
+  fun ke(): F64 => mass * ((vx * vx) + (vy * vy) + (vz * vz)) * 0.5
 
   // Potential energy: m0 m1 / d
-  fun box pe(that: Body box): F64 =>
+  fun pe(that: Body box): F64 =>
     let dx = x - that.x
     let dy = y - that.y
     let dz = z - that.z

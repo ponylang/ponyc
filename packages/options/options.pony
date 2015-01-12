@@ -49,7 +49,7 @@ class Option is Stringable
       true
     end
 
-  fun box token(): String =>
+  fun token(): String =>
     match (name, short)
     | (String, var s: String) => "(" + name + ", " + s + ")"
     else
@@ -57,7 +57,7 @@ class Option is Stringable
     end
 
   //TODO: Requires proper string formatter
-  fun box string(fmt: FormatDefault = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1,
     width: U64 = 0, align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -116,7 +116,7 @@ class Options is Iterator[_Result]
 
     this
 
-  fun box usage() =>
+  fun usage() =>
     var help: String iso = recover String end
 
     try
@@ -231,7 +231,7 @@ class Options is Iterator[_Result]
       None
     end
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     not _error and (_index < _args.size())
 
   fun ref next(): _Result =>

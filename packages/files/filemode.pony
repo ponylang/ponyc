@@ -58,7 +58,7 @@ class FileMode
     any_read = false
     this
 
-  fun box _os(): U32 =>
+  fun _os(): U32 =>
     """
     Get the OS specific integer for a file mode. On Windows, if any read flag is
     set, the path is made readable, and if any write flag is set, the path is

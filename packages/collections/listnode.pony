@@ -13,7 +13,7 @@ class ListNode[A]
     """
     _item = consume item
 
-  fun box apply(): this->A ? =>
+  fun apply(): this->A ? =>
     """
     Return the item, if we have one, otherwise raise an error.
     """
@@ -121,13 +121,13 @@ class ListNode[A]
     end
     this
 
-  fun box prev(): (this->ListNode[A] | None) =>
+  fun prev(): (this->ListNode[A] | None) =>
     """
     Return the previous node.
     """
     _prev
 
-  fun box next(): (this->ListNode[A] | None) =>
+  fun next(): (this->ListNode[A] | None) =>
     """
     Return the next node.
     """

@@ -32,11 +32,11 @@ class Array[A]
     _alloc = len
     _ptr = ptr
 
-  fun box cstring(): Pointer[A] tag => _ptr
+  fun cstring(): Pointer[A] tag => _ptr
 
-  fun box size(): U64 => _size
+  fun size(): U64 => _size
 
-  fun box space(): U64 => _alloc
+  fun space(): U64 => _alloc
 
   fun ref reserve(len: U64): Array[A]^ =>
     if _alloc < len then
@@ -45,7 +45,7 @@ class Array[A]
     end
     this
 
-  fun box apply(i: U64): this->A ? =>
+  fun apply(i: U64): this->A ? =>
     if i < _size then
       _ptr._apply(i)
     else
@@ -89,13 +89,13 @@ class Array[A]
   //    end
   //  end
 
-  fun box keys(): ArrayKeys[A, this->Array[A]]^ =>
+  fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)
 
-  fun box values(): ArrayValues[A, this->Array[A]]^ =>
+  fun values(): ArrayValues[A, this->Array[A]]^ =>
     ArrayValues[A, this->Array[A]](this)
 
-  fun box pairs(): ArrayPairs[A, this->Array[A]]^ =>
+  fun pairs(): ArrayPairs[A, this->Array[A]]^ =>
     ArrayPairs[A, this->Array[A]](this)
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
@@ -106,7 +106,7 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     _i < _array.size()
 
   fun ref next(): U64 =>
@@ -124,7 +124,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     _i < _array.size()
 
   fun ref next(): B->A ? =>
@@ -138,7 +138,7 @@ class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
     _array = array
     _i = 0
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     _i < _array.size()
 
   fun ref next(): (U64, B->A) ? =>

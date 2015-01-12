@@ -270,11 +270,14 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 
 static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
-  // Return type is This tag
-  ast_t* result = ast_childidx(ast, 4);
-  assert(ast_id(result) == TK_NONE);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
+  // Set the receiver cap to tag.
+  ast_setid(cap, TK_TAG);
+
+  // Return type is This tag
   ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+
   return AST_OK;
 }
 
@@ -283,7 +286,11 @@ static ast_result_t sugar_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
-  // Return value is not specified, set it to None
+  // If the receiver cap is not specified, set it to box.
+  if(ast_id(cap) == TK_NONE)
+    ast_setid(cap, TK_BOX);
+
+  // If the return value is not specified, set it to None
   if(ast_id(result) == TK_NONE)
   {
     ast_t* type = type_sugar(ast, NULL, "None");

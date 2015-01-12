@@ -66,11 +66,11 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
   //                           | | return
   //                           | | | error
   //                           | | | | body
-  { "class function",         "Y X X X Y" },
-  { "actor function",         "Y X X X Y" },
-  { "primitive function",     "Y X X X Y" },
-  { "trait function",         "Y X X X X" },
-  { "interface function",     "Y X X X X" },
+  { "class function",         "X X X X Y" },
+  { "actor function",         "X X X X Y" },
+  { "primitive function",     "X X X X Y" },
+  { "trait function",         "X X X X X" },
+  { "interface function",     "X X X X X" },
   { "class behaviour",        NULL },
   { "actor behaviour",        "N Y N N Y" },
   { "primitive behaviour",    NULL },

@@ -93,19 +93,19 @@ class String val is Ordered[String box], Stringable
     end
     _ptr._update(_size, 0)
 
-  fun box cstring(): Pointer[U8] tag =>
+  fun cstring(): Pointer[U8] tag =>
     """
     Returns a C compatible pointer to a null terminated string.
     """
     _ptr
 
-  fun box size(): U64 =>
+  fun size(): U64 =>
     """
     Returns the length of the string.
     """
     _size
 
-  fun box space(): U64 =>
+  fun space(): U64 =>
     """
     Returns the amount of allocated space.
     """
@@ -143,7 +143,7 @@ class String val is Ordered[String box], Stringable
     _ptr._update(_size + 1, 0)
     this
 
-  fun box utf32(offset: I64): (U32, U8) ? =>
+  fun utf32(offset: I64): (U32, U8) ? =>
     """
     Return a UTF32 representation of the character at the given offset and the
     number of bytes needed to encode that character. If the offset does not
@@ -229,7 +229,7 @@ class String val is Ordered[String box], Stringable
       err
     end
 
-  fun box apply(offset: I64): U8 ? =>
+  fun apply(offset: I64): U8 ? =>
     """
     Returns the byte at the given offset. Raise an error if the offset is out
     of bounds.
@@ -254,7 +254,7 @@ class String val is Ordered[String box], Stringable
       error
     end
 
-  fun box clone(): String iso^ =>
+  fun clone(): String iso^ =>
     """
     Returns a copy of the string.
     """
@@ -264,7 +264,7 @@ class String val is Ordered[String box], Stringable
     str._size = len
     str
 
-  fun box find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
+  fun find(s: String box, offset: I64 = 0, nth: U64 = 0): I64 ? =>
     """
     Return the index of the n-th instance of s in the string starting from the
     beginning. Raise an error if there is no n-th occurence of s or s is empty.
@@ -293,7 +293,7 @@ class String val is Ordered[String box], Stringable
     end
     error
 
-  fun box rfind(s: String, offset: I64 = -1, nth: U64 = 0): I64 ? =>
+  fun rfind(s: String, offset: I64 = -1, nth: U64 = 0): I64 ? =>
     """
     Return the index of n-th instance of s in the string starting from the end.
     Raise an error if there is no n-th occurence of s or s is empty.
@@ -322,7 +322,7 @@ class String val is Ordered[String box], Stringable
     end
     error
 
-  fun box count(s: String, offset: I64 = 0): U64 =>
+  fun count(s: String, offset: I64 = 0): U64 =>
     """
     Counts the non-overlapping occurrences of s in the string.
     """
@@ -345,7 +345,7 @@ class String val is Ordered[String box], Stringable
 
     i
 
-  fun box at(s: String, offset: I64): Bool =>
+  fun at(s: String, offset: I64): Bool =>
     """
     Returns true if the substring s is present at the given offset.
     """
@@ -374,7 +374,7 @@ class String val is Ordered[String box], Stringable
     end
     this
 
-  fun box substring(from: I64, to: I64): String iso^ =>
+  fun substring(from: I64, to: I64): String iso^ =>
     """
     Returns a substring. From and to are inclusive. Returns an empty string if
     nothing is in the range.
@@ -396,7 +396,7 @@ class String val is Ordered[String box], Stringable
       recover String end
     end
 
-  fun box lower(): String iso^ =>
+  fun lower(): String iso^ =>
     """
     Returns a lower case version of the string.
     """
@@ -421,7 +421,7 @@ class String val is Ordered[String box], Stringable
     end
     this
 
-  fun box upper(): String iso^ =>
+  fun upper(): String iso^ =>
     """
     Returns an upper case version of the string. Currently only knows ASCII
     case.
@@ -447,7 +447,7 @@ class String val is Ordered[String box], Stringable
     end
     this
 
-  fun box reverse(): String iso^ =>
+  fun reverse(): String iso^ =>
     """
     Returns a reversed version of the string.
     """
@@ -493,7 +493,7 @@ class String val is Ordered[String box], Stringable
     _ptr._update(_size, 0)
     this
 
-  fun box insert(offset: I64, that: String): String iso^ =>
+  fun insert(offset: I64, that: String): String iso^ =>
     """
     Returns a version of the string with the given string inserted at the given
     offset.
@@ -516,7 +516,7 @@ class String val is Ordered[String box], Stringable
     _ptr._update(_size, 0)
     this
 
-  fun box cut(from: I64, to: I64): String iso^ =>
+  fun cut(from: I64, to: I64): String iso^ =>
     """
     Returns a version of the string with the given range deleted. The range is
     inclusive.
@@ -563,7 +563,7 @@ class String val is Ordered[String box], Stringable
     end
     n
 
-  fun box add(that: String box): String =>
+  fun add(that: String box): String =>
     """
     Return a string that is a concatenation of this and that.
     """
@@ -574,7 +574,7 @@ class String val is Ordered[String box], Stringable
     s._size = len
     s
 
-  fun box compare(that: String box, n: U64, offset: I64 = 0,
+  fun compare(that: String box, n: U64, offset: I64 = 0,
     that_offset: I64 = 0): I32
   =>
     """
@@ -603,7 +603,7 @@ class String val is Ordered[String box], Stringable
     end
     0
 
-  fun box eq(that: String box): Bool =>
+  fun eq(that: String box): Bool =>
     """
     Returns true if the two strings have the same contents.
     """
@@ -613,7 +613,7 @@ class String val is Ordered[String box], Stringable
       false
     end
 
-  fun box lt(that: String box): Bool =>
+  fun lt(that: String box): Bool =>
     """
     Returns true if this is lexically less than that. Needs to be made UTF-8
     safe.
@@ -631,7 +631,7 @@ class String val is Ordered[String box], Stringable
     end
     _size < that._size
 
-  fun box le(that: String box): Bool =>
+  fun le(that: String box): Bool =>
     """
     Returns true if this is lexically less than or equal to that. Needs to be
     made UTF-8 safe.
@@ -649,14 +649,14 @@ class String val is Ordered[String box], Stringable
     end
     _size <= that._size
 
-  fun box offset_to_index(i: I64): U64 =>
+  fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-  fun box i8(offset: I64 = 0): I8 => i64(offset).i8()
-  fun box i16(offset: I64 = 0): I16 => i64(offset).i16()
-  fun box i32(offset: I64 = 0): I32 => i64(offset).i32()
+  fun i8(offset: I64 = 0): I8 => i64(offset).i8()
+  fun i16(offset: I64 = 0): I16 => i64(offset).i16()
+  fun i32(offset: I64 = 0): I32 => i64(offset).i32()
 
-  fun box i64(offset: I64 = 0): I64 =>
+  fun i64(offset: I64 = 0): I64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -669,7 +669,7 @@ class String val is Ordered[String box], Stringable
       0
     end
 
-  fun box i128(offset: I64 = 0): I128 =>
+  fun i128(offset: I64 = 0): I128 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -682,11 +682,11 @@ class String val is Ordered[String box], Stringable
       0
     end
 
-  fun box u8(offset: I64 = 0): U8 => u64(offset).u8()
-  fun box u16(offset: I64 = 0): U16 => u64(offset).u16()
-  fun box u32(offset: I64 = 0): U32 => u64(offset).u32()
+  fun u8(offset: I64 = 0): U8 => u64(offset).u8()
+  fun u16(offset: I64 = 0): U16 => u64(offset).u16()
+  fun u32(offset: I64 = 0): U32 => u64(offset).u32()
 
-  fun box u64(offset: I64 = 0): U64 =>
+  fun u64(offset: I64 = 0): U64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -699,7 +699,7 @@ class String val is Ordered[String box], Stringable
       0
     end
 
-  fun box u128(offset: I64 = 0): U128 =>
+  fun u128(offset: I64 = 0): U128 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -712,7 +712,7 @@ class String val is Ordered[String box], Stringable
       0
     end
 
-  fun box f32(offset: I64 = 0): F32 =>
+  fun f32(offset: I64 = 0): F32 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -721,7 +721,7 @@ class String val is Ordered[String box], Stringable
       F32(0)
     end
 
-  fun box f64(offset: I64 = 0): F64 =>
+  fun f64(offset: I64 = 0): F64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
@@ -730,10 +730,10 @@ class String val is Ordered[String box], Stringable
       F64(0)
     end
 
-  fun box hash(): U64 =>
+  fun hash(): U64 =>
     @hash_block[U64](_ptr, _size)
 
-  fun box string(fmt: FormatDefault = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -761,7 +761,7 @@ class String val is Ordered[String box], Stringable
     str._set(len, 0)
     str
 
-  // fun box format(args: Array[String] box): String ? =>
+  // fun format(args: Array[String] box): String ? =>
   //   recover
   //     var s = String.
   //   var i: U64 = 0

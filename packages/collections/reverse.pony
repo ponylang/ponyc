@@ -17,7 +17,7 @@ class Reverse[A: (Real[A] box & Number) = U64] is Iterator[A]
     _dec = dec
     _idx = max
 
-  fun box has_next(): Bool => _idx >= (_min + _dec)
+  fun has_next(): Bool => _idx >= (_min + _dec)
 
   fun ref next(): A =>
     if _idx >= (_min + _dec) then

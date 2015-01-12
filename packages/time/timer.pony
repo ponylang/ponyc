@@ -77,7 +77,7 @@ class Timer
 
     (_interval > 0) or ((_expiration - current) < (1 << 63))
 
-  fun box _next(): U64 =>
+  fun _next(): U64 =>
     """
     Returns the next expiration time.
     """

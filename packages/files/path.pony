@@ -12,7 +12,7 @@ primitive Path
   Operations on paths that do not require an open file or directory.
   """
 
-  fun tag chmod(path: String, mode: FileMode box): Bool =>
+  fun chmod(path: String, mode: FileMode box): Bool =>
     """
     Set the FileMode for a path.
     """
@@ -24,7 +24,7 @@ primitive Path
       @chmod[I32](path.cstring(), m) == 0
     end
 
-  fun tag chown(path: String, uid: U32, gid: U32): Bool =>
+  fun chown(path: String, uid: U32, gid: U32): Bool =>
     """
     Set the owner and group for a path. Does nothing on Windows.
     """
@@ -34,13 +34,13 @@ primitive Path
       @chown[I32](path.cstring(), uid, gid) == 0
     end
 
-  fun tag touch(path: String): Bool =>
+  fun touch(path: String): Bool =>
     """
     Set the last access and modification times of a path to now.
     """
     set_time(path, Time.now(), Time.now())
 
-  fun tag set_time(path: String, atime: (I64, I64), mtime: (I64, I64)): Bool =>
+  fun set_time(path: String, atime: (I64, I64), mtime: (I64, I64)): Bool =>
     """
     Set the last access and modification times of a path to the given values.
     """
@@ -53,19 +53,19 @@ primitive Path
       @utimes[I32](path.cstring(), tv) == 0
     end
 
-  fun tag is_sep(c: U8): Bool =>
+  fun is_sep(c: U8): Bool =>
     """
     Determine if a byte is a path separator.
     """
     (c == '/') or (Platform.windows() and (c == '\\'))
 
-  fun tag sep(): String =>
+  fun sep(): String =>
     """
     Return the path separator as a string.
     """
     if Platform.windows() then "\\" else "/" end
 
-  fun tag is_abs(path: String): Bool =>
+  fun is_abs(path: String): Bool =>
     """
     Return true if the path is an absolute path.
     """
@@ -79,7 +79,7 @@ primitive Path
       false
     end
 
-  fun tag join(path: String, next_path: String): String =>
+  fun join(path: String, next_path: String): String =>
     """
     Join two paths together. If the next_path is absolute, simply return it.
     The returned path will be cleaned.
@@ -103,7 +103,7 @@ primitive Path
       clean(path + sep() + next_path)
     end
 
-  fun tag clean(path: String): String =>
+  fun clean(path: String): String =>
     """
     Replace multiple separators with a single separator.
     Remove instances of . from the path.
@@ -213,14 +213,14 @@ primitive Path
       "."
     end
 
-  fun tag cwd(): String =>
+  fun cwd(): String =>
     """
     Returns the program's working directory. Setting the working directory is
     not supported, as it is not concurrency-safe.
     """
     recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
-  fun tag abs(path: String): String =>
+  fun abs(path: String): String =>
     """
     Returns a cleaned, absolute path.
     """
@@ -230,7 +230,7 @@ primitive Path
       join(cwd(), path)
     end
 
-  fun tag rel(base: String, target: String): String ? =>
+  fun rel(base: String, target: String): String ? =>
     """
     Returns a path such that Path.join(base, Path.rel(base, target)) == target.
     Raises an error if this isn't possible.
@@ -321,7 +321,7 @@ primitive Path
       target_clean.substring(target_0, -1)
     end
 
-  fun tag base(path: String): String =>
+  fun base(path: String): String =>
     """
     Return the path after the last separator, or the whole path if there is no
     separator.
@@ -333,7 +333,7 @@ primitive Path
       path
     end
 
-  fun tag dir(path: String): String =>
+  fun dir(path: String): String =>
     """
     Return a cleaned path before the last separator, or the whole path if there
     is no separator.
@@ -345,7 +345,7 @@ primitive Path
       path
     end
 
-  fun tag ext(path: String): String =>
+  fun ext(path: String): String =>
     """
     Return the file extension, i.e. the part after the last dot as long as that
     dot is after all separators. Return an empty string for no extension.
@@ -365,7 +365,7 @@ primitive Path
     end
     ""
 
-  fun tag volume(path: String): String =>
+  fun volume(path: String): String =>
     """
     On Windows, this returns the drive letter or UNC base at the beginning of
     the path, if there is one. Otherwise, this returns an empty string.
@@ -393,7 +393,7 @@ primitive Path
     end
     ""
 
-  fun tag _drive_letter(path: String, offset: I64 = 0): Bool =>
+  fun _drive_letter(path: String, offset: I64 = 0): Bool =>
     """
     Look for a drive letter followed by a ':', returning true if we find it.
     """
@@ -406,7 +406,7 @@ primitive Path
       false
     end
 
-  fun tag _network_share(path: String, offset: I64 = 0): String =>
+  fun _network_share(path: String, offset: I64 = 0): String =>
     """
     Look for a host, a \, and a resource. Return the path up to that point if
     we found one, otherwise an empty String.
@@ -424,7 +424,7 @@ primitive Path
       ""
     end
 
-  fun tag from_slash(path: String): String =>
+  fun from_slash(path: String): String =>
     """
     Changes each / in the path to the OS specific separator.
     """
@@ -448,7 +448,7 @@ primitive Path
       path
     end
 
-  fun tag to_slash(path: String): String =>
+  fun to_slash(path: String): String =>
     """
     Changes each OS specific separator in the path to /.
     """
@@ -472,7 +472,7 @@ primitive Path
       path
     end
 
-  fun tag exists(path: String): Bool =>
+  fun exists(path: String): Bool =>
     """
     Returns true if the path exists. Returns false for a broken symlink.
     """
@@ -482,7 +482,7 @@ primitive Path
       false
     end
 
-  fun tag mkdir(path: String): Bool =>
+  fun mkdir(path: String): Bool =>
     """
     Creates the directory. Will recursively create each element. Returns true
     if the directory exists when we're done, false if it does not.
@@ -507,7 +507,7 @@ primitive Path
 
     exists(path)
 
-  fun tag remove(path: String): Bool =>
+  fun remove(path: String): Bool =>
     """
     Remove the file or directory. The directory contents will be removed as
     well, recursively. Symlinks will be removed but not traversed.
@@ -542,13 +542,13 @@ primitive Path
       false
     end
 
-  fun tag rename(path: String, new_path: String): Bool =>
+  fun rename(path: String, new_path: String): Bool =>
     """
     Rename a file or directory.
     """
     @rename[I32](path.cstring(), new_path.cstring()) == 0
 
-  fun tag symlink(target: String, link_name: String): Bool =>
+  fun symlink(target: String, link_name: String): Bool =>
     """
     Create a symlink to a file or directory.
     """
@@ -558,7 +558,7 @@ primitive Path
       @symlink[I32](target.cstring(), link_name.cstring()) == 0
     end
 
-  fun tag canonical(path: String): String ? =>
+  fun canonical(path: String): String ? =>
     """
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
@@ -571,19 +571,19 @@ primitive Path
       recover String.from_cstring(consume cstring) end
     end
 
-  fun tag is_list_sep(c: U8): Bool =>
+  fun is_list_sep(c: U8): Bool =>
     """
     Determine if a byte is a path list separator.
     """
     if Platform.windows() then c == ';' else c == ':' end
 
-  fun tag list_sep(): String =>
+  fun list_sep(): String =>
     """
     Return the path list separator as a string.
     """
     if Platform.windows() then ";" else ":" end
 
-  fun tag split_list(path: String): Array[String] iso^ =>
+  fun split_list(path: String): Array[String] iso^ =>
     """
     Separate a list of paths into an array of cleaned paths.
     """
