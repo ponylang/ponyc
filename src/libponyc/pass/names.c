@@ -55,7 +55,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
   return false;
 }
 
-static bool names_resolvealias(ast_t* def, ast_t* type)
+static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t* type)
 {
   ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
 
@@ -77,14 +77,14 @@ static bool names_resolvealias(ast_t* def, ast_t* type)
       return false;
   }
 
-  if(ast_visit(&type, NULL, pass_names, NULL) != AST_OK)
+  if(ast_visit(&type, NULL, pass_names, opt) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 
-static bool names_typealias(ast_t** astp, ast_t* def)
+static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
 
@@ -100,7 +100,7 @@ static bool names_typealias(ast_t** astp, ast_t* def)
   // make sure the alias is resolved
   ast_t* alias = ast_childidx(def, 1);
 
-  if(!names_resolvealias(def, alias))
+  if(!names_resolvealias(opt, def, alias))
     return false;
 
   // apply our cap and ephemeral to the result
@@ -178,8 +178,9 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   return true;
 }
 
-bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp)
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
 {
+  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   if(ast_data(ast) != NULL)
@@ -228,7 +229,7 @@ bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp)
   switch(ast_id(def))
   {
     case TK_TYPE:
-      return names_typealias(astp, def);
+      return names_typealias(opt, astp, def);
 
     case TK_TYPEPARAM:
       return names_typeparam(astp, def);
@@ -319,7 +320,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!names_nominal(t, ast, astp))
+      if(!names_nominal(options, ast, astp))
         return AST_ERROR;
       break;
 

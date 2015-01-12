@@ -143,7 +143,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!expr_nominal(t, astp))
+      if(!expr_nominal(options, astp))
         return AST_FATAL;
       break;
 
@@ -285,7 +285,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_THIS:
-      if(!expr_this(t, ast))
+      if(!expr_this(options, ast))
         return AST_FATAL;
       break;
 
