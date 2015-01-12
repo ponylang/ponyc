@@ -43,16 +43,13 @@ typedef struct compile_frame_t
 
 typedef struct compile_t
 {
+  pass_opt_t* opt;
+
   LLVMPassManagerRef mpm;
   LLVMPassManagerRef lpm;
   painter_t* painter;
   const char* filename;
   uint32_t next_type_id;
-  bool release;
-  bool library;
-  bool symbols;
-  bool ieee_math;
-  bool no_restrict;
 
   FILE* header;
   printbuf_t* header_buf;

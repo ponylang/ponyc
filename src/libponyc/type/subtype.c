@@ -779,12 +779,12 @@ bool is_machine_word(ast_t* type)
     is_literal(type, "F64");
 }
 
-bool is_signed(ast_t* type)
+bool is_signed(pass_opt_t* opt, ast_t* type)
 {
   if(type == NULL)
     return false;
 
-  ast_t* builtin = type_builtin(type, "Signed");
+  ast_t* builtin = type_builtin(opt, type, "Signed");
 
   if(builtin == NULL)
     return false;

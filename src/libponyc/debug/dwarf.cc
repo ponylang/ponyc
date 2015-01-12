@@ -76,15 +76,15 @@ void dwarf_init(compile_t* c)
 {
   dwarf_t* self;
 
-  if(c->symbols)
+  if(c->opt->symbols)
     printf("Emitting debug symbols\n");
 
   self = POOL_ALLOC(dwarf_t);
   memset(self, 0, sizeof(dwarf_t));
 
   self->symbols = symbols_init(0);
-  self->optimized = c->release;
-  self->emit = c->symbols;
+  self->optimized = c->opt->release;
+  self->emit = c->opt->symbols;
   self->module = unwrap(c->module);
   self->layout = unwrap(c->target_data);
   self->builder = new DIBuilder(*unwrap(c->module));

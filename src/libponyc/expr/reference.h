@@ -13,7 +13,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast);
 bool expr_reference(pass_opt_t* opt, ast_t* ast);
 bool expr_local(typecheck_t* t, ast_t* ast);
 bool expr_idseq(ast_t* ast);
-bool expr_addressof(ast_t* ast);
+bool expr_addressof(pass_opt_t* opt, ast_t* ast);
 bool expr_dontcare(ast_t* ast);
 bool expr_this(pass_opt_t* opt, ast_t* ast);
 bool expr_tuple(ast_t* ast);

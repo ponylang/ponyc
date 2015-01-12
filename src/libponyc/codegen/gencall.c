@@ -26,7 +26,7 @@ static LLVMValueRef invoke_fun(compile_t* c, LLVMValueRef fun,
   LLVMValueRef invoke = LLVMBuildInvoke(c->builder, fun, args, count,
     then_block, else_block, ret);
 
-  if(fastcc && !c->library)
+  if(fastcc && !c->opt->library)
     LLVMSetInstructionCallConv(invoke, GEN_CALLCONV);
 
   LLVMPositionBuilderAtEnd(c->builder, then_block);
@@ -107,7 +107,7 @@ static LLVMValueRef special_case_platform(compile_t* c, ast_t* ast)
   const char* method_name = ast_name(method);
   bool is_target;
 
-  if(os_is_target(method_name, c->release, &is_target))
+  if(os_is_target(method_name, c->opt->release, &is_target))
     return LLVMConstInt(c->i1, is_target ? 1 : 0, false);
 
   ast_error(ast, "unknown Platform setting");
@@ -155,7 +155,7 @@ static bool special_case_call(compile_t* c, ast_t* ast, LLVMValueRef* value)
   if((name == c->str_I128) || (name == c->str_U128))
   {
     bool has_i128;
-    os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+    os_is_target(OS_HAS_I128_NAME, c->opt->release, &has_i128);
     return special_case_operator(c, ast, value, false, has_i128);
   }
 

@@ -518,7 +518,7 @@ bool expr_idseq(ast_t* ast)
   return type_for_idseq(ast, type);
 }
 
-bool expr_addressof(ast_t* ast)
+bool expr_addressof(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
 
@@ -553,7 +553,7 @@ bool expr_addressof(ast_t* ast)
       if(ast_id(parent) == TK_FFICALL)
       {
         // Set the type to Pointer[ast_type(expr)].
-        ast_t* type = type_pointer_to(ast_type(expr));
+        ast_t* type = type_pointer_to(opt, ast_type(expr));
         ast_settype(ast, type);
         return true;
       }
@@ -561,7 +561,7 @@ bool expr_addressof(ast_t* ast)
   }
 
   // Turn this into an identity operation. Set the type to U64.
-  ast_t* type = type_builtin(expr, "U64");
+  ast_t* type = type_builtin(opt, expr, "U64");
   ast_settype(ast, type);
   ast_setid(ast, TK_IDENTITY);
   return true;

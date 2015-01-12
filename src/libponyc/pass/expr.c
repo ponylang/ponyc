@@ -194,7 +194,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_IS:
     case TK_ISNT:
-      if(!expr_identity(ast))
+      if(!expr_identity(options, ast))
         return AST_FATAL;
       break;
 
@@ -291,7 +291,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_TRUE:
     case TK_FALSE:
-      if(!expr_literal(ast, "Bool"))
+      if(!expr_literal(options, ast, "Bool"))
         return AST_FATAL;
       break;
 
@@ -308,7 +308,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       if(ast_id(ast_parent(ast)) == TK_PACKAGE)
         return AST_OK;
 
-      if(!expr_literal(ast, "String"))
+      if(!expr_literal(options, ast, "String"))
         return AST_FATAL;
       break;
 
@@ -334,7 +334,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_AMP:
-      if(!expr_addressof(ast))
+      if(!expr_addressof(options, ast))
         return AST_FATAL;
       break;
 

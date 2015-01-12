@@ -145,24 +145,24 @@ TEST_F(SubTypeTest, IsBool)
 }
 
 
-TEST_F(SubTypeTest, IsSigned)
-{
-  DO(test_unary(is_signed, t_bool, false));
-  DO(test_unary(is_signed, t_u8, false));
-  DO(test_unary(is_signed, t_u16, false));
-  DO(test_unary(is_signed, t_u32, false));
-  DO(test_unary(is_signed, t_u64, false));
-  DO(test_unary(is_signed, t_u128, false));
-  DO(test_unary(is_signed, t_i8, true));
-  DO(test_unary(is_signed, t_i16, true));
-  DO(test_unary(is_signed, t_i32, true));
-  DO(test_unary(is_signed, t_i64, true));
-  DO(test_unary(is_signed, t_i128, true));
-  DO(test_unary(is_signed, t_f32, false));
-  DO(test_unary(is_signed, t_f64, false));
-  DO(test_unary(is_signed, t_none, false));
-  DO(test_unary(is_signed, t_string, false));
-  DO(test_unary(is_signed, t_t1, false));
-  DO(test_unary(is_signed, t_foo, false));
-  DO(test_unary(is_signed, t_iface, false));
-}
+// TEST_F(SubTypeTest, IsSigned)
+// {
+//   DO(test_unary(is_signed, t_bool, false));
+//   DO(test_unary(is_signed, t_u8, false));
+//   DO(test_unary(is_signed, t_u16, false));
+//   DO(test_unary(is_signed, t_u32, false));
+//   DO(test_unary(is_signed, t_u64, false));
+//   DO(test_unary(is_signed, t_u128, false));
+//   DO(test_unary(is_signed, t_i8, true));
+//   DO(test_unary(is_signed, t_i16, true));
+//   DO(test_unary(is_signed, t_i32, true));
+//   DO(test_unary(is_signed, t_i64, true));
+//   DO(test_unary(is_signed, t_i128, true));
+//   DO(test_unary(is_signed, t_f32, false));
+//   DO(test_unary(is_signed, t_f64, false));
+//   DO(test_unary(is_signed, t_none, false));
+//   DO(test_unary(is_signed, t_string, false));
+//   DO(test_unary(is_signed, t_t1, false));
+//   DO(test_unary(is_signed, t_foo, false));
+//   DO(test_unary(is_signed, t_iface, false));
+// }

@@ -151,9 +151,9 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
   return false;
 }
 
-bool expr_identity(ast_t* ast)
+bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
-  ast_settype(ast, type_builtin(ast, "Bool"));
+  ast_settype(ast, type_builtin(opt, ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
