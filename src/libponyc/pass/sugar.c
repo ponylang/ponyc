@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 
@@ -697,7 +698,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 }
 
 
-ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
+static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
@@ -737,7 +738,7 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 }
 
 
-ast_result_t sugar_recover(ast_t* ast)
+static ast_result_t sugar_recover(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, expr);
 
@@ -748,7 +749,7 @@ ast_result_t sugar_recover(ast_t* ast)
 }
 
 
-ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
 
@@ -763,7 +764,7 @@ ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 }
 
 
-ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, expr);
 
@@ -773,6 +774,25 @@ ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
       NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))
       ));
+
+  return AST_OK;
+}
+
+
+static ast_result_t sugar_ffi(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
+
+  // Prefix '@' to the name.
+  const char* name = ast_name(id);
+  size_t len = strlen(name) + 1;
+
+  VLA(char, new_name, len + 1);
+  new_name[0] = '@';
+  memcpy(new_name + 1, name, len);
+
+  ast_t* new_id = ast_from_string(id, new_name);
+  ast_replace(&id, new_id);
 
   return AST_OK;
 }
@@ -828,6 +848,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_GT:         return sugar_binop(astp, "gt");
     case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
     case TK_NOT:        return sugar_unop(astp, "op_not");
+    case TK_FFIDECL:
+    case TK_FFICALL:    return sugar_ffi(ast);
     default:            return AST_OK;
   }
 }

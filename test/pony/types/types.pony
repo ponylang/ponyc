@@ -29,6 +29,7 @@ actor Main
 
     test_primitive(env)
     test_actor(env)
+    test_literal_ffi()
 
   fun ref test_primitive(env: Env) =>
     let writer = object
@@ -49,3 +50,12 @@ actor Main
 
     let partial = writer~apply("foo")
     partial("bar")
+
+  fun ref test_literal_ffi() =>
+    let writer = object
+      fun tag apply(a: String, b: String) =>
+        @printf[I32]("%s\t%s\n".cstring(), a.cstring(), b.cstring())
+    end
+
+    let partial = writer~apply("Test")
+    partial("wombat")
