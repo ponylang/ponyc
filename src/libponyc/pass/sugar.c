@@ -191,7 +191,7 @@ static ast_result_t sugar_module(ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
 
-  if(ast_id(docstring) != TK_STRING)
+  if((docstring == NULL) || (ast_id(docstring) != TK_STRING))
     return AST_OK;
 
   ast_t* package = ast_parent(ast);
