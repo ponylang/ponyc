@@ -20,7 +20,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     Defaults to a prealloc of 8.
     """
     let n = prealloc.next_pow2()
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
+    _array = _array.create(n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
@@ -32,7 +32,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     this removes the tuples from the array, leaving it empty.
     """
     let n = array.size().next_pow2()
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
+    _array = _array.create(n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
@@ -134,7 +134,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
 
   fun ref clear(): Map[Key, Value]^ =>
     _size = 0
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)]
+    _array = _array.create()
     this
 
   fun box _search(key: Key): (U64, Bool) =>
@@ -181,7 +181,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     let old_len = _old.size()
     let new_len = old_len * 2
 
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](new_len)
+    _array = _array.create(new_len)
     _size = 0
 
     for i in Range(0, new_len) do
