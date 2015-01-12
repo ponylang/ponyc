@@ -47,7 +47,7 @@ data: program_t
 symtab: path -> PACKAGE
 Always the root node.
 
-PACKAGE: {MODULE}
+PACKAGE: {MODULE} [STRING]
 data: package_t
 symtab: name -> entity
 

@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  use* (typealias | class_)*
+  :  STRING? use* (typealias | class_)*
   ;
 
 use
