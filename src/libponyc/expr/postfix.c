@@ -225,32 +225,47 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 
     case TK_FVAR:
     {
-      if(!expr_fieldref(ast, find, TK_FVARREF))
+      if(!expr_fieldref(t, ast, find, TK_FVARREF))
         return false;
       break;
     }
 
     case TK_FLET:
     {
-      if(!expr_fieldref(ast, find, TK_FLETREF))
+      if(!expr_fieldref(t, ast, find, TK_FLETREF))
         return false;
       break;
     }
 
     case TK_NEW:
-    {
-      ast_error(right, "can't look up a constructor on an expression");
-      ret = false;
-      break;
-    }
-
     case TK_BE:
     case TK_FUN:
     {
-      if(ast_id(find) == TK_BE)
-        ast_setid(ast, TK_BEREF);
-      else
-        ast_setid(ast, TK_FUNREF);
+      switch(ast_id(find))
+      {
+        case TK_NEW:
+        {
+          ast_t* def = (ast_t*)ast_data(type);
+
+          if((ast_id(type) == TK_NOMINAL) && (ast_id(def) == TK_ACTOR))
+            ast_setid(ast, TK_NEWBEREF);
+          else
+            ast_setid(ast, TK_NEWREF);
+          break;
+        }
+
+        case TK_BE:
+          ast_setid(ast, TK_BEREF);
+          break;
+
+        case TK_FUN:
+          ast_setid(ast, TK_FUNREF);
+          break;
+
+        default:
+          assert(0);
+          return false;
+      }
 
       ast_settype(ast, type_for_fun(find));
 
