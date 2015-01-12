@@ -31,6 +31,14 @@ actor Main
     test_actor(env)
     test_literal_ffi()
 
+    env.out.write(
+      """
+      Triple quoted string with empty line:
+
+      Some space should be between this line and the previous one.
+      """
+      )
+
   fun ref test_primitive(env: Env) =>
     let writer = object
       fun tag apply(a: String, b: String): String =>
