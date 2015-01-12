@@ -59,7 +59,7 @@ actor Main
       end
     end
 
-  fun box setup_ring() =>
+  fun setup_ring() =>
     var first: Ring
     var next: Ring
     var current: Ring
@@ -80,7 +80,7 @@ actor Main
       end
     end
 
-  fun box usage() =>
+  fun usage() =>
     _env.out.print(
       """
       rings OPTIONS

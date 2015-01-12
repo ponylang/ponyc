@@ -6,7 +6,7 @@ class List[A]
   var _tail: (ListNode[A] | None) = None
   var _size: U64 = 0
 
-  fun box size(): U64 =>
+  fun size(): U64 =>
     """
     Returns the number of items in the list.
     """
@@ -21,13 +21,13 @@ class List[A]
     _size = 0
     this
 
-  fun box head(): this->ListNode[A] ? =>
+  fun head(): this->ListNode[A] ? =>
     """
     Get the head of the list.
     """
     _head as this->ListNode[A]
 
-  fun box tail(): this->ListNode[A] ? =>
+  fun tail(): this->ListNode[A] ? =>
     """
     Get the tail of the list.
     """
@@ -103,7 +103,7 @@ class List[A]
     """
     head().remove().pop()
 
-  fun box values(): ListValues[A, this->ListNode[A]]^ =>
+  fun values(): ListValues[A, this->ListNode[A]]^ =>
     """
     Return an iterator on the values in the list.
     """
@@ -139,7 +139,7 @@ class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
     """
     _next = head
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     """
     If we have a list node, we have more values.
     """

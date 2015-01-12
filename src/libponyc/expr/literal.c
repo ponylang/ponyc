@@ -26,9 +26,9 @@ static const char* _str_uif_types[UIF_COUNT] =
 };
 
 
-bool expr_literal(ast_t* ast, const char* name)
+bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name)
 {
-  ast_t* type = type_builtin(ast, name);
+  ast_t* type = type_builtin(opt, ast, name);
 
   if(type == NULL)
     return false;
@@ -73,7 +73,7 @@ typedef struct lit_chain_t
 } lit_chain_t;
 
 
-static int uifset(ast_t* type, lit_chain_t* chain);
+static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain);
 
 static bool coerce_literal_to_type(ast_t** literal_expr, ast_t* target_type,
   lit_chain_t* chain, pass_opt_t* options);
@@ -141,7 +141,7 @@ static void chain_remove(lit_chain_t* old_tail)
 // Determine the UIF types that satisfy the given "simple" type.
 // Here a simple type is defined as a non-tuple type that does not depend on
 // any formal parameters.
-static int uifset_simple_type(ast_t* type)
+static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
 {
   assert(type != NULL);
 
@@ -149,7 +149,7 @@ static int uifset_simple_type(ast_t* type)
 
   for(int i = 0; i < UIF_COUNT; i++)
   {
-    ast_t* uif = type_builtin(type, _str_uif_types[i]);
+    ast_t* uif = type_builtin(opt, type, _str_uif_types[i]);
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
@@ -164,7 +164,8 @@ static int uifset_simple_type(ast_t* type)
 
 
 // Determine the UIF types that the given formal parameter may be
-static int uifset_formal_param(ast_t* type_param_ref, lit_chain_t* chain)
+static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
+  lit_chain_t* chain)
 {
   assert(type_param_ref != NULL);
   assert(ast_id(type_param_ref) == TK_TYPEPARAMREF);
@@ -180,8 +181,8 @@ static int uifset_formal_param(ast_t* type_param_ref, lit_chain_t* chain)
 
   // If the constraint is not a subtype of (Real[A] & Number) then there are no
   // legal types in the set
-  ast_t* number = type_builtin(type_param, "Number");
-  ast_t* real = type_builtin(type_param, "Real");
+  ast_t* number = type_builtin(opt, type_param, "Number");
+  ast_t* real = type_builtin(opt, type_param, "Real");
   ast_setid(ast_childidx(real, 3), TK_BOX);
 
   ast_t* p_ref = ast_childidx(real, 2);
@@ -203,7 +204,7 @@ static int uifset_formal_param(ast_t* type_param_ref, lit_chain_t* chain)
 
   for(int i = 0; i < UIF_COUNT; i++)
   {
-    ast_t* uif = type_builtin(type_param, _str_uif_types[i]);
+    ast_t* uif = type_builtin(opt, type_param, _str_uif_types[i]);
 
     BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
     BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
@@ -233,7 +234,7 @@ static int uifset_formal_param(ast_t* type_param_ref, lit_chain_t* chain)
 
 
 // Determine the UIF types that the given non-tuple union type may be
-static int uifset_union(ast_t* type, lit_chain_t* chain)
+static int uifset_union(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_UNIONTYPE);
@@ -243,7 +244,7 @@ static int uifset_union(ast_t* type, lit_chain_t* chain)
   // Process all elements of the union
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uifset(p, chain);
+    int r = uifset(opt, p, chain);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -259,7 +260,7 @@ static int uifset_union(ast_t* type, lit_chain_t* chain)
       ast_error(type, "Could not infer literal type, ambiguous union");
       return UIF_ERROR;
     }
-    
+
     uif_set |= r;
   }
 
@@ -268,7 +269,7 @@ static int uifset_union(ast_t* type, lit_chain_t* chain)
 
 
 // Determine the UIF types that the given non-tuple intersection type may be
-static int uifset_intersect(ast_t* type, lit_chain_t* chain)
+static int uifset_intersect(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
   assert(type != NULL);
   assert(ast_id(type) == TK_ISECTTYPE);
@@ -278,7 +279,7 @@ static int uifset_intersect(ast_t* type, lit_chain_t* chain)
 
   for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
   {
-    int r = uifset(p, chain);
+    int r = uifset(opt, p, chain);
 
     if(r == UIF_ERROR)  // Propogate errors
       return UIF_ERROR;
@@ -311,7 +312,7 @@ static int uifset_intersect(ast_t* type, lit_chain_t* chain)
 
 
 // Determine the UIF types that the given type may be
-static int uifset(ast_t* type, lit_chain_t* chain)
+static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
   assert(chain != NULL);
 
@@ -321,27 +322,27 @@ static int uifset(ast_t* type, lit_chain_t* chain)
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      return uifset_union(type, chain);
+      return uifset_union(opt, type, chain);
 
     case TK_ISECTTYPE:
-      return uifset_intersect(type, chain);
+      return uifset_intersect(opt, type, chain);
 
     case TK_ARROW:
       // Since we don't care about capabilities we can just use the rhs
       assert(ast_id(ast_childidx(type, 1)) == TK_NOMINAL);
-      return uifset(ast_childidx(type, 1), chain);
+      return uifset(opt, ast_childidx(type, 1), chain);
 
     case TK_TYPEPARAMREF:
       if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
         return UIF_NO_TYPES;
 
-      return uifset_formal_param(type, chain);
+      return uifset_formal_param(opt, type, chain);
 
     case TK_TUPLETYPE:
       if(chain->cardinality != ast_childcount(type)) // Incorrect cardinality
         return UIF_NO_TYPES;
 
-      return uifset(ast_childidx(type, chain->index), chain->next);
+      return uifset(opt, ast_childidx(type, chain->index), chain->next);
 
     case TK_NOMINAL:
       if(strcmp(ast_name(ast_childidx(type, 1)), "Array") == 0)
@@ -351,13 +352,13 @@ static int uifset(ast_t* type, lit_chain_t* chain)
 
         ast_t* type_args = ast_childidx(type, 2);
         assert(ast_childcount(type_args) == 1);
-        return uifset(ast_child(type_args), chain->next);
+        return uifset(opt, ast_child(type_args), chain->next);
       }
 
       if(chain->cardinality != CHAIN_CARD_BASE) // Incorrect cardinality
         return UIF_NO_TYPES;
 
-      return uifset_simple_type(type);
+      return uifset_simple_type(opt, type);
 
     default:
       ast_error(type, "Internal error: uif type, node %d", ast_id(type));
@@ -368,17 +369,18 @@ static int uifset(ast_t* type, lit_chain_t* chain)
 
 
 // Fill the given UIF type cache
-static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
+static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
+  lit_chain_t* chain_head)
 {
   assert(chain_head != NULL);
   assert(chain_head->cardinality == CHAIN_CARD_BASE);
 
   chain_head->formal = NULL;
-  int r = uifset(type, chain_head->next);
+  int r = uifset(opt, type, chain_head->next);
 
   if(r == UIF_ERROR)
     return false;
-  
+
   if(r == UIF_NO_TYPES)
   {
     ast_error(literal, "Could not infer literal type, no valid types found");
@@ -408,7 +410,7 @@ static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
     if(r == (1 << i))
     {
       chain_head->valid_for_float = (((1 << i) & UIF_INT_MASK) == 0);
-      chain_head->cached_type = type_builtin(type, _str_uif_types[i]);
+      chain_head->cached_type = type_builtin(opt, type, _str_uif_types[i]);
       //ast_setid(ast_childidx(chain_head->cached_type, 4), TK_EPHEMERAL);
       chain_head->name = _str_uif_types[i];
       return true;
@@ -421,8 +423,8 @@ static bool uif_type(ast_t* literal, ast_t* type, lit_chain_t* chain_head)
 
 
 // Assign a UIF type from the given target type to the given AST
-static bool uif_type_from_chain(ast_t* literal, ast_t* target_type,
-  lit_chain_t* chain, bool require_float)
+static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
+  ast_t* target_type, lit_chain_t* chain, bool require_float)
 {
   assert(literal != NULL);
   assert(chain != NULL);
@@ -434,7 +436,7 @@ static bool uif_type_from_chain(ast_t* literal, ast_t* target_type,
   if(chain_head->cached_type == NULL)
   {
     // This is the first time we've needed this type, find it
-    if(!uif_type(literal, target_type, chain_head))
+    if(!uif_type(opt, literal, target_type, chain_head))
       return false;
   }
 
@@ -561,10 +563,12 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     }
 
     case TK_INT:
-      return uif_type_from_chain(literal_expr, target_type, chain, false);
+      return uif_type_from_chain(options, literal_expr, target_type, chain,
+        false);
 
     case TK_FLOAT:
-      return uif_type_from_chain(literal_expr, target_type, chain, true);
+      return uif_type_from_chain(options, literal_expr, target_type, chain,
+        true);
 
     case TK_ARRAY:
       if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, options))

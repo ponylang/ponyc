@@ -2,7 +2,7 @@ interface EventNotify tag
   be _event_notify(event: Pointer[Event] tag, flags: U32)
 
 primitive Event
-  fun tag timer(owner: EventNotify, event: Pointer[Event] tag, nsec: U64):
+  fun timer(owner: EventNotify, event: Pointer[Event] tag, nsec: U64):
     Pointer[Event] tag
   =>
     """
@@ -27,13 +27,13 @@ primitive Event
       end
     end
 
-  fun tag socket(owner: EventNotify, fd: U32): Pointer[Event] tag =>
+  fun socket(owner: EventNotify, fd: U32): Pointer[Event] tag =>
     """
     Create a socket event for a file descriptor.
     """
     @asio_event_create[Pointer[Event]](owner, fd.u64(), U32(3), true)
 
-  fun tag fd(event: Pointer[Event] tag): U32 =>
+  fun fd(event: Pointer[Event] tag): U32 =>
     """
     Returns the file descriptor associated with an event.
     """
@@ -43,25 +43,25 @@ primitive Event
       0
     end
 
-  fun tag readable(flags: U32): Bool =>
+  fun readable(flags: U32): Bool =>
     """
     Returns true if the flags contain the readable flag.
     """
     (flags and (1 << 0)) != 0
 
-  fun tag writeable(flags: U32): Bool =>
+  fun writeable(flags: U32): Bool =>
     """
     Returns true if the flags contain the writeable flag.
     """
     (flags and (1 << 1)) != 0
 
-  fun tag disposable(flags: U32): Bool =>
+  fun disposable(flags: U32): Bool =>
     """
     Returns true if the event should be disposed of.
     """
     flags == 0
 
-  fun tag unsubscribe(event: Pointer[Event] tag) =>
+  fun unsubscribe(event: Pointer[Event] tag) =>
     """
     Unsubscribes an event.
     """
@@ -69,7 +69,7 @@ primitive Event
       @asio_event_unsubscribe[None](event)
     end
 
-  fun tag dispose(event: Pointer[Event] tag): Pointer[Event] tag =>
+  fun dispose(event: Pointer[Event] tag): Pointer[Event] tag =>
     """
     Disposes of an event.
     """

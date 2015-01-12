@@ -282,6 +282,7 @@ static void init_runtime(compile_t* c)
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
+  c->opt = opt;
   c->mpm = mpm;
   c->lpm = lpm;
 
@@ -290,13 +291,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
-
-  // Keep track of whether or not we're optimising or emitting debug symbols.
-  c->release = opt->release;
-  c->library = opt->library;
-  c->symbols = opt->symbols;
-  c->ieee_math = opt->ieee_math;
-  c->no_restrict = opt->no_restrict;
 
   // LLVM context and machine settings.
   c->context = LLVMContextCreate();
@@ -436,10 +430,10 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
   bool ok;
 
-  if(c.library)
-    ok = genlib(&c, opt, program);
+  if(c.opt->library)
+    ok = genlib(&c, program);
   else
-    ok = genexe(&c, opt, program);
+    ok = genexe(&c, program);
 
   // dwarf_cleanup(&c.dwarf);
   codegen_cleanup(&c);
@@ -451,10 +445,10 @@ LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type)
   // Add the function and set the calling convention.
   LLVMValueRef fun = LLVMAddFunction(c->module, name, type);
 
-  if(!c->library)
+  if(!c->opt->library)
     LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
 
-  if(c->no_restrict)
+  if(c->opt->no_restrict)
     return fun;
 
   // Set the noalias attribute on all arguments. This is fortran-like semantics
@@ -565,7 +559,7 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
 {
   LLVMValueRef result = LLVMBuildCall(c->builder, fun, args, (int)count, "");
 
-  if(!c->library)
+  if(!c->opt->library)
     LLVMSetInstructionCallConv(result, GEN_CALLCONV);
 
   return result;

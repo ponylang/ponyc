@@ -10,19 +10,19 @@ class Identity[A] is Hashable, Comparable[Identity[A]]
     """
     data = consume data'
 
-  fun box hash(): U64 =>
+  fun hash(): U64 =>
     """
     Generate a hash based on the identity of the data.
     """
     (&data).hash()
 
-  fun box eq(that: Identity[A] box): Bool =>
+  fun eq(that: Identity[A] box): Bool =>
     """
     Check the identity of the data.
     """
     data is that.data
 
-  fun box ne(that: Identity[A] box): Bool =>
+  fun ne(that: Identity[A] box): Bool =>
     """
     Check the identity of the data.
     """

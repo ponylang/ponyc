@@ -108,7 +108,7 @@ actor Timers
       _get_wheel(rem).schedule(consume timer)
     end
 
-  fun box _next(): U64 =>
+  fun _next(): U64 =>
     """
     Return the next time at which the timing wheels should be advanced. This is
     adjusted for slop, so it yields nanoseconds. If no events are pending, this

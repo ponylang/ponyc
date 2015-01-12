@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 
@@ -191,7 +192,7 @@ static ast_result_t sugar_module(ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
 
-  if(ast_id(docstring) != TK_STRING)
+  if((docstring == NULL) || (ast_id(docstring) != TK_STRING))
     return AST_OK;
 
   ast_t* package = ast_parent(ast);
@@ -251,16 +252,21 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
-  // Return type is This ref^ for classes, This val^ for primitives, and
-  // This tag^ for actors.
+  // Return type default to ref^ for classes, val^ for primitives, and
+  // tag^ for actors.
   assert(ast_id(result) == TK_NONE);
-  token_id tcap;
+  token_id tcap = ast_id(cap);
 
-  switch(ast_id(t->frame->type))
+  if(tcap == TK_NONE)
   {
-    case TK_PRIMITIVE: tcap = TK_VAL; break;
-    case TK_ACTOR: tcap = TK_TAG; break;
-    default: tcap = TK_REF; break;
+    switch(ast_id(t->frame->type))
+    {
+      case TK_PRIMITIVE: tcap = TK_VAL; break;
+      case TK_ACTOR: tcap = TK_TAG; break;
+      default: tcap = TK_REF; break;
+    }
+
+    ast_setid(cap, tcap);
   }
 
   ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
@@ -270,11 +276,11 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 
 static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
-  // Return type is This tag
-  ast_t* result = ast_childidx(ast, 4);
-  assert(ast_id(result) == TK_NONE);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
+  // Return type is This tag
   ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+
   return AST_OK;
 }
 
@@ -283,7 +289,11 @@ static ast_result_t sugar_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
-  // Return value is not specified, set it to None
+  // If the receiver cap is not specified, set it to box.
+  if(ast_id(cap) == TK_NONE)
+    ast_setid(cap, TK_BOX);
+
+  // If the return value is not specified, set it to None
   if(ast_id(result) == TK_NONE)
   {
     ast_t* type = type_sugar(ast, NULL, "None");
@@ -688,7 +698,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 }
 
 
-ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
+static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
@@ -728,7 +738,7 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 }
 
 
-ast_result_t sugar_recover(ast_t* ast)
+static ast_result_t sugar_recover(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, expr);
 
@@ -739,7 +749,7 @@ ast_result_t sugar_recover(ast_t* ast)
 }
 
 
-ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
 
@@ -754,7 +764,7 @@ ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 }
 
 
-ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, expr);
 
@@ -764,6 +774,25 @@ ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
       NONE
       NODE(TK_DOT, TREE(expr) ID(fn_name))
       ));
+
+  return AST_OK;
+}
+
+
+static ast_result_t sugar_ffi(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
+
+  // Prefix '@' to the name.
+  const char* name = ast_name(id);
+  size_t len = strlen(name) + 1;
+
+  VLA(char, new_name, len + 1);
+  new_name[0] = '@';
+  memcpy(new_name + 1, name, len);
+
+  ast_t* new_id = ast_from_string(id, new_name);
+  ast_replace(&id, new_id);
 
   return AST_OK;
 }
@@ -819,6 +848,8 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_GT:         return sugar_binop(astp, "gt");
     case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
     case TK_NOT:        return sugar_unop(astp, "op_not");
+    case TK_FFIDECL:
+    case TK_FFICALL:    return sugar_ffi(ast);
     default:            return AST_OK;
   }
 }

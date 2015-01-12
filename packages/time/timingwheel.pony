@@ -67,7 +67,7 @@ class _TimingWheel
 
     (pending and 1) != 0
 
-  fun box next(current: U64): U64 =>
+  fun next(current: U64): U64 =>
     """
     Given a current time, return the next time at which this timing wheel
     should be advanced. Returns -1 if no timers are on this timing wheel.
@@ -92,7 +92,7 @@ class _TimingWheel
       end
     end
 
-  fun box _slot(time: U64): U64 =>
+  fun _slot(time: U64): U64 =>
     """
     Return the slot for a given time.
     """

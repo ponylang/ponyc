@@ -180,7 +180,6 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
 
 bool expr_typeref(pass_opt_t* opt, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
@@ -192,12 +191,12 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
 
     case TK_DOT:
       // Has to be valid.
-      return expr_nominal(t, &type);
+      return expr_nominal(opt, &type);
 
     case TK_CALL:
     {
       // Has to be valid.
-      if(!expr_nominal(t, &type))
+      if(!expr_nominal(opt, &type))
         return false;
 
       // Transform to a default constructor.
@@ -245,7 +244,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
     default:
     {
       // Has to be valid.
-      if(!expr_nominal(t, &type))
+      if(!expr_nominal(opt, &type))
         return false;
 
       // Transform to a default constructor.
@@ -351,7 +350,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       ast_add(dot, self);
       ast_free(ast);
 
-      if(!expr_this(t, self))
+      if(!expr_this(opt, self))
         return false;
 
       return expr_dot(opt, dot);
@@ -406,7 +405,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       ast_add(dot, self);
       ast_free(ast);
 
-      if(!expr_this(t, self))
+      if(!expr_this(opt, self))
         return false;
 
       return expr_dot(opt, dot);
@@ -519,7 +518,7 @@ bool expr_idseq(ast_t* ast)
   return type_for_idseq(ast, type);
 }
 
-bool expr_addressof(ast_t* ast)
+bool expr_addressof(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
 
@@ -554,7 +553,7 @@ bool expr_addressof(ast_t* ast)
       if(ast_id(parent) == TK_FFICALL)
       {
         // Set the type to Pointer[ast_type(expr)].
-        ast_t* type = type_pointer_to(ast_type(expr));
+        ast_t* type = type_pointer_to(opt, ast_type(expr));
         ast_settype(ast, type);
         return true;
       }
@@ -562,7 +561,7 @@ bool expr_addressof(ast_t* ast)
   }
 
   // Turn this into an identity operation. Set the type to U64.
-  ast_t* type = type_builtin(expr, "U64");
+  ast_t* type = type_builtin(opt, expr, "U64");
   ast_settype(ast, type);
   ast_setid(ast, TK_IDENTITY);
   return true;
@@ -620,9 +619,10 @@ bool expr_dontcare(ast_t* ast)
   return false;
 }
 
-bool expr_this(typecheck_t* t, ast_t* ast)
+bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
   // If this is the return value of a function, it is ephemeral.
+  typecheck_t* t = &opt->check;
   token_id ephemeral;
 
   if(is_method_return(t, ast))
@@ -658,7 +658,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
 
   while(typearg != NULL)
   {
-    if(!expr_nominal(t, &typearg))
+    if(!expr_nominal(opt, &typearg))
     {
       ast_error(ast, "couldn't create a type for 'this'");
       ast_free(type);
@@ -668,7 +668,7 @@ bool expr_this(typecheck_t* t, ast_t* ast)
     typearg = ast_sibling(typearg);
   }
 
-  if(!expr_nominal(t, &nominal))
+  if(!expr_nominal(opt, &nominal))
   {
     ast_error(ast, "couldn't create a type for 'this'");
     ast_free(type);
@@ -724,10 +724,10 @@ bool expr_tuple(ast_t* ast)
   return true;
 }
 
-bool expr_nominal(typecheck_t* t, ast_t** astp)
+bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 {
   // Resolve typealiases and typeparam references.
-  if(!names_nominal(t, *astp, astp))
+  if(!names_nominal(opt, *astp, astp))
     return false;
 
   ast_t* ast = *astp;

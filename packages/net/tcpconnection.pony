@@ -84,7 +84,7 @@ actor TCPConnection
       _close()
     end
 
-  fun box local_address(): IPAddress =>
+  fun local_address(): IPAddress =>
     """
     Return the local IP address.
     """
@@ -92,7 +92,7 @@ actor TCPConnection
     @os_sockname[None](_fd, ip)
     ip
 
-  fun box remote_address(): IPAddress =>
+  fun remote_address(): IPAddress =>
     """
     Return the remote IP address.
     """

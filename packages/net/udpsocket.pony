@@ -59,7 +59,7 @@ actor UDPSocket
     """
     _close()
 
-  fun box local_address(): IPAddress =>
+  fun local_address(): IPAddress =>
     """
     Return the bound IP address.
     """

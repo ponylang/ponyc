@@ -4,7 +4,7 @@ primitive Time
   """
   A collection of ways to fetch the current time.
   """
-  fun tag now(): (I64, I64) =>
+  fun now(): (I64, I64) =>
     """
     The wall-clock adjusted system time with nanoseconds.
     """
@@ -28,13 +28,13 @@ primitive Time
       (0, 0)
     end
 
-  fun tag seconds(): I64 =>
+  fun seconds(): I64 =>
     """
     The wall-clock adjusted system time.
     """
     @time[I64](U64(0))
 
-  fun tag millis(): U64 =>
+  fun millis(): U64 =>
     """
     Monotonic unadjusted milliseconds.
     """
@@ -56,7 +56,7 @@ primitive Time
       0
     end
 
-  fun tag micros(): U64 =>
+  fun micros(): U64 =>
     """
     Monotonic unadjusted microseconds.
     """
@@ -78,7 +78,7 @@ primitive Time
       0
     end
 
-  fun tag nanos(): U64 =>
+  fun nanos(): U64 =>
     """
     Monotonic unadjusted nanoseconds.
     """
@@ -100,7 +100,7 @@ primitive Time
       0
     end
 
-  fun tag wall_to_nanos(wall: (I64, I64)): U64 =>
+  fun wall_to_nanos(wall: (I64, I64)): U64 =>
     """
     Converts a wall-clock adjusted system time to monotonic unadjusted
     nanoseconds.
@@ -110,14 +110,14 @@ primitive Time
       (((wall._1 * 1000000000) + wall._2) -
       ((wall_now._1 * 1000000000) + wall_now._2)).u64()
 
-  fun tag cycles(): U64 =>
+  fun cycles(): U64 =>
     """
     Processor cycle count. Don't use this for performance timing, as it does
     not control for out-of-order execution.
     """
     @"llvm.readcyclecounter"[U64]()
 
-  fun tag perf_begin(): U64 =>
+  fun perf_begin(): U64 =>
     """
     Get a cycle count for beginning a performance testing block. This will
     will prevent instructions from before this call leaking into the block and
@@ -126,7 +126,7 @@ primitive Time
     @"internal.x86.cpuid"[(I32, I32, I32, I32)](I32(0))
     @"llvm.x86.rdtsc"[U64]()
 
-  fun tag perf_end(): U64 =>
+  fun perf_end(): U64 =>
     """
     Get a cycle count for ending a performance testing block. This will
     will prevent instructions from after this call leaking into the block and

@@ -11,12 +11,12 @@ PONY_EXTERN_C_BEGIN
  * Creates an AST node for a builtin type.
  * Validates the type.
  */
-ast_t* type_builtin(ast_t* from, const char* name);
+ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name);
 
 /**
  * For some type A, creates the nominal type Pointer[A].
  */
-ast_t* type_pointer_to(ast_t* to);
+ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to);
 
 /**
  * Creates an AST node for a package and type.

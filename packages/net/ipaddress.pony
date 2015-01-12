@@ -14,19 +14,19 @@ class IPAddress val
   let addr4: U32 = 0
   let scope: U32 = 0
 
-  fun box ip4(): Bool =>
+  fun ip4(): Bool =>
     """
     Returns true for an IPv4 address.
     """
     family == 2
 
-  fun box ip6(): Bool =>
+  fun ip6(): Bool =>
     """
     Returns true for an IPv6 address.
     """
     family == 10
 
-  fun box name(): (String, String) ? =>
+  fun name(): (String, String) ? =>
     """
     Return the host and service name.
     """
