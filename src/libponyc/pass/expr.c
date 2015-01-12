@@ -305,6 +305,9 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_STRING:
+      if(ast_id(ast_parent(ast)) == TK_PACKAGE)
+        return AST_OK;
+
       if(!expr_literal(ast, "String"))
         return AST_FATAL;
       break;

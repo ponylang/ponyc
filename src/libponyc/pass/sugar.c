@@ -187,6 +187,29 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 }
 
 
+static ast_result_t sugar_module(ast_t* ast)
+{
+  ast_t* docstring = ast_child(ast);
+
+  if(ast_id(docstring) != TK_STRING)
+    return AST_OK;
+
+  ast_t* package = ast_parent(ast);
+  ast_t* package_docstring = ast_childlast(package);
+
+  if(ast_id(package_docstring) == TK_STRING)
+  {
+    ast_error(docstring, "the package already has a docstring");
+    ast_error(package_docstring, "the existing docstring is here");
+    return AST_ERROR;
+  }
+
+  ast_append(package, docstring);
+  ast_remove(docstring);
+  return AST_OK;
+}
+
+
 static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   token_id def_def_cap)
 {
@@ -754,6 +777,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_MODULE:     return sugar_module(ast);
     case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, false, TK_TAG);

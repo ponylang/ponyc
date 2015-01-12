@@ -870,6 +870,7 @@ DEF(use);
 DEF(module);
   AST_NODE(TK_MODULE);
   SCOPE();
+  OPT_NO_DFLT TOKEN("package docstring", TK_STRING);
   SEQ("use command", use);
   SEQ("class, actor, primitive or trait definition", class_def, typealias);
   SKIP("class, actor, primitive, trait or method", TK_EOF);
