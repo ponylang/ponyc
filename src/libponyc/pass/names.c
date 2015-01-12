@@ -264,9 +264,8 @@ static bool names_arrow(ast_t* ast)
   return false;
 }
 
-static bool names_async(ast_t* ast)
+static bool names_sendable_params(ast_t* params)
 {
-  ast_t* params = ast_childidx(ast, 3);
   ast_t* param = ast_child(params);
   bool ok = true;
 
@@ -276,7 +275,7 @@ static bool names_async(ast_t* ast)
 
     if(!sendable(type))
     {
-      ast_error(type, "asynchronous methods must have sendable parameters");
+      ast_error(type, "this parameter must be sendable (iso, val or tag)");
       ok = false;
     }
 
@@ -284,6 +283,32 @@ static bool names_async(ast_t* ast)
   }
 
   return ok;
+}
+
+static bool names_constructor(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+      return names_sendable_params(params);
+
+    default: {}
+  }
+
+  return true;
+}
+
+static bool names_async(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  return names_sendable_params(params);
 }
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
@@ -305,8 +330,20 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 
     case TK_NEW:
     {
-      if((ast_id(t->frame->type) == TK_ACTOR) && !names_async(ast))
-        return AST_ERROR;
+      switch(ast_id(t->frame->type))
+      {
+        case TK_CLASS:
+          if(!names_constructor(ast))
+            return AST_ERROR;
+          break;
+
+        case TK_ACTOR:
+          if(!names_async(ast))
+            return AST_ERROR;
+          break;
+
+        default: {}
+      }
       break;
     }
 

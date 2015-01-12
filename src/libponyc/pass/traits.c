@@ -98,8 +98,6 @@ static bool foreach_provided_method(ast_t* target, trait_method_fn fn)
 
     for(ast_t* m = ast_child(methods); m != NULL; m = ast_sibling(m))
     {
-      assert(ast_id(m) == TK_FUN || ast_id(m) == TK_BE);
-
       // Reify the method with the type parameters from trait definition and
       // the reified type arguments from trait reference
       ast_t* r_method = reify(m, type_params, type_args);

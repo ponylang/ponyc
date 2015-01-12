@@ -66,21 +66,21 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
   //                           | | return
   //                           | | | error
   //                           | | | | body
-  { "class function",         "X X X X Y" },
-  { "actor function",         "X X X X Y" },
-  { "primitive function",     "X X X X Y" },
-  { "trait function",         "X X X X X" },
-  { "interface function",     "X X X X X" },
+  { "class function",         "X Y X X Y" },
+  { "actor function",         "X Y X X Y" },
+  { "primitive function",     "X Y X X Y" },
+  { "trait function",         "X Y X X X" },
+  { "interface function",     "X Y X X X" },
   { "class behaviour",        NULL },
   { "actor behaviour",        "N Y N N Y" },
   { "primitive behaviour",    NULL },
   { "trait behaviour",        "N Y N N X" },
   { "interface behaviour",    "N Y N N X" },
-  { "class constructor",      "N X N X Y" },
-  { "actor constructor",      "N X N N Y" },
-  { "primitive constructor",  "N X N X Y" },
-  { "trait constructor",      NULL },
-  { "interface constructor",  NULL }
+  { "class constructor",      "X Y N X Y" },
+  { "actor constructor",      "N Y N N Y" },
+  { "primitive constructor",  "N Y N X Y" },
+  { "trait constructor",      "X Y N X N" },
+  { "interface constructor",  "X Y N X N" },
 };
 
 
@@ -165,12 +165,6 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
-
-  if(ast_id(cap) == TK_ISO || ast_id(cap) == TK_TRN)
-  {
-    ast_error(cap, "receiver capability must not be iso or trn");
-    return false;
-  }
 
   if(!check_permission(def, METHOD_NAME, id, "name", id))
     return false;

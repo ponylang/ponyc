@@ -130,15 +130,29 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
   if(ast_name(sub_id) != ast_name(super_id))
     return false;
 
-  if(ast_id(sub) == TK_FUN)
+  switch(ast_id(sub))
   {
-    // Contravariant receiver.
-    if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
-      return false;
+    case TK_NEW:
+      // Covariant receiver.
+      if(!is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap)))
+        return false;
 
-    // Covariant results.
-    if(!is_subtype(sub_result, super_result))
-      return false;
+      // Covariant results.
+      if(!is_subtype(sub_result, super_result))
+        return false;
+      break;
+
+    case TK_FUN:
+      // Contravariant receiver.
+      if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
+        return false;
+
+      // Covariant results.
+      if(!is_subtype(sub_result, super_result))
+        return false;
+      break;
+
+    default: {}
   }
 
   // Contravariant type parameter constraints.

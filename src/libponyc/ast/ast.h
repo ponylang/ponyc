@@ -82,8 +82,8 @@ method
 data: During traits pass, trait method body came from (NULL for none).
 symtab: name -> TYPEPARAM | PARAM
 (
-  NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
-  BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
+  NEW: cap ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
+  BE: cap ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
   FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ] [STRING]
 )
 

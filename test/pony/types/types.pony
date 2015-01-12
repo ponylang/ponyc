@@ -1,5 +1,14 @@
 use "files"
 
+trait K1
+  new tag create()
+
+trait K2
+  new iso create()
+
+actor A1 is K1
+  new create() => None
+
 trait T1
   fun tag t1(env: Env) =>
     env.out.print("T1")
@@ -8,7 +17,9 @@ trait T2
   fun tag t2(env: Env) =>
     env.out.print("T2")
 
-class Wombat is T1, T2
+class Wombat is T1, T2, K1, K2
+  new iso create() =>
+    None
 
 actor Main
   new create(env: Env) =>

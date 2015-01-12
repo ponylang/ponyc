@@ -251,16 +251,21 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
-  // Return type is This ref^ for classes, This val^ for primitives, and
-  // This tag^ for actors.
+  // Return type default to ref^ for classes, val^ for primitives, and
+  // tag^ for actors.
   assert(ast_id(result) == TK_NONE);
-  token_id tcap;
+  token_id tcap = ast_id(cap);
 
-  switch(ast_id(t->frame->type))
+  if(tcap == TK_NONE)
   {
-    case TK_PRIMITIVE: tcap = TK_VAL; break;
-    case TK_ACTOR: tcap = TK_TAG; break;
-    default: tcap = TK_REF; break;
+    switch(ast_id(t->frame->type))
+    {
+      case TK_PRIMITIVE: tcap = TK_VAL; break;
+      case TK_ACTOR: tcap = TK_TAG; break;
+      default: tcap = TK_REF; break;
+    }
+
+    ast_setid(cap, tcap);
   }
 
   ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
@@ -271,9 +276,6 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-
-  // Set the receiver cap to tag.
-  ast_setid(cap, TK_TAG);
 
   // Return type is This tag
   ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));

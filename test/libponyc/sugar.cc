@@ -92,7 +92,7 @@ TEST(SugarTest, DataType)
 
   const char* full_form =
     "primitive Foo val\n"
-    "  new create(): Foo val^ => true\n"
+    "  new val create(): Foo val^ => true\n"
     "  fun box eq(that:Foo): Bool => this is that\n"
     "  fun box ne(that:Foo): Bool => this isnt that\n";
 
@@ -117,7 +117,7 @@ TEST(SugarTest, ClassWithInitialisedField)
     "class Foo iso let m:U32 = 3";
 
   const char* full_form =
-    "class Foo iso let m:U32 = 3 new create(): Foo ref^ => true";
+    "class Foo iso let m:U32 = 3 new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -130,7 +130,7 @@ TEST(SugarTest, ClassWithCreateConstructor)
     "class Foo iso new create() => 3";
 
   const char* full_form =
-    "class Foo iso new create(): Foo ref^ => 3";
+    "class Foo iso new ref create(): Foo ref^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -155,7 +155,7 @@ TEST(SugarTest, ClassWithoutFieldOrCreate)
     "class Foo iso";
 
   const char* full_form =
-    "class Foo iso new create(): Foo ref^ => true";
+    "class Foo iso new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -187,7 +187,7 @@ TEST(SugarTest, ActorWithInitialisedField)
     "actor Foo let m:U32 = 3";
 
   const char* full_form =
-    "actor Foo tag let m:U32 = 3 new create(): Foo tag^ => true";
+    "actor Foo tag let m:U32 = 3 new tag create(): Foo tag^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -200,7 +200,7 @@ TEST(SugarTest, ActorWithCreateConstructor)
     "actor Foo new create() => 3";
 
   const char* full_form =
-    "actor Foo tag new create(): Foo tag^ => 3";
+    "actor Foo tag new tag create(): Foo tag^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -238,7 +238,7 @@ TEST(SugarTest, ActorWithoutFieldOrCreate)
     "actor Foo";
 
   const char* full_form =
-    "actor Foo tag new create(): Foo tag^ => true";
+    "actor Foo tag new tag create(): Foo tag^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -295,7 +295,7 @@ TEST(SugarTest, ConstructorNoReturnType)
 
   const char* full_form =
     "class Foo ref var y:U32\n"
-    "  new create(): Foo ref^ => 3";
+    "  new ref create(): Foo ref^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -309,7 +309,7 @@ TEST(SugarTest, ConstructorInActor)
 
   const char* full_form =
     "actor Foo tag var y:U32\n"
-    "  new create(): Foo tag^ => 3";
+    "  new tag create(): Foo tag^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -323,7 +323,7 @@ TEST(SugarTest, ConstructorInDataType)
 
   const char* full_form =
     "primitive Foo val\n"
-    "  new create(): Foo val^ => 3\n"
+    "  new val create(): Foo val^ => 3\n"
     "  fun box eq(that:Foo): Bool => this is that\n"
     "  fun box ne(that:Foo): Bool => this isnt that\n";
 
@@ -339,7 +339,7 @@ TEST(SugarTest, ConstructorInGenericClass)
 
   const char* full_form =
     "class Foo[A: B, C: C] ref var y:U32\n"
-    "  new bar(): Foo[A, C] ref^ => 3";
+    "  new ref bar(): Foo[A, C] ref^ => 3";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -939,7 +939,7 @@ TEST(SugarTest, As)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new create(): Foo ref^ => true";
+    "  new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -960,7 +960,7 @@ TEST(SugarTest, AsTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new create(): Foo ref^ => true";
+    "  new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -982,7 +982,7 @@ TEST(SugarTest, AsNestedTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new create(): Foo ref^ => true";
+    "  new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -1013,7 +1013,7 @@ TEST(SugarTest, AsDontCare2Tuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new create(): Foo ref^ => true";
+    "  new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
@@ -1035,7 +1035,7 @@ TEST(SugarTest, AsDontCareMultiTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new create(): Foo ref^ => true";
+    "  new ref create(): Foo ref^ => true";
 
   DO(test_good_sugar(short_form, full_form));
 }
