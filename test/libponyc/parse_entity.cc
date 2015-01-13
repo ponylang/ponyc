@@ -800,14 +800,14 @@ TEST(ParseEntityTest, UseFfi)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (use x (ffidecl{scope} (id \"@foo1\")\n"
+    "  (use x (ffidecl{scope} (id \"foo1\")\n"
     "    (typeargs (nominal x (id U32) x x x))\n"
     "    (params\n"
     "      (param (id a) (nominal x (id I32) x x x) x)\n"
     "      (param (id b) (nominal x (id String) x x x) x)\n"
     "      ...)\n"
     "    x ?) x)\n"
-    "  (use x (ffidecl{scope} (id \"@foo2\")\n"
+    "  (use x (ffidecl{scope} (id \"foo2\")\n"
     "    (typeargs (nominal x (id U32) x x x))\n"
     "    x x x) (reference (id wombat)))\n"
     ")))";
