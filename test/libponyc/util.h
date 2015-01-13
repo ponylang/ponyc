@@ -80,6 +80,26 @@ void test_pass_fn_bad(const char* before,
   ast_result_t expect_result);
 
 
+
+/** Check that the 2 given sources compile without error and generate the same
+ * AST. The maximum pass for each source may be specified separately.
+ * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+ */
+void test_same(const char* src1, const char* pass1,
+  const char* src2, const char* pass2);
+
+/** Check that the given source compiles without error.
+ * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+ */
+void test_compile(const char* src, const char* pass);
+
+/** Check that the given source fails to compile.
+* Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+*/
+void test_fail(const char* src, const char* pass);
+
+
+
 /** Check that the given source code compiles, generating the specified result.
  * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
  *
