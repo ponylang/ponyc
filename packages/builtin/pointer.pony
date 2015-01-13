@@ -22,7 +22,7 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun box _apply(i: U64): this->A =>
+  fun _apply(i: U64): this->A =>
     """
     Retrieve index i.
     """

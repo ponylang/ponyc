@@ -195,6 +195,7 @@ static const lexsym_t abstract[] =
   { "case", TK_CASE },
   { "try", TK_TRY2 },
   { "nosemi", TK_NOSEMI },
+  { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
@@ -437,10 +438,14 @@ static void normalise_string(lexer_t* lexer)
       size_t line_len =
         (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
 
-      if(line_len > ws)
+      if(line_start != line_end)
       {
-        memmove(compacted, line_start + ws, line_len - ws);
-        compacted += line_len - ws;
+        size_t trim = (line_len < ws) ? line_len : ws;
+        memmove(compacted, line_start + trim, line_len - trim);
+        compacted += line_len - trim;
+      } else {
+        memmove(compacted, line_start, line_len);
+        compacted += line_len;
       }
 
       line_start += line_len;

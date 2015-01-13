@@ -7,17 +7,23 @@ class ListNode[A]
   var _prev: (ListNode[A] | None) = None
   var _next: (ListNode[A] | None) = None
 
-  new create(item: A) =>
+  new create(item: (A | None) = None) =>
     """
     Create a node. Initially, it is not in any list.
     """
     _item = consume item
 
-  fun box item(): this->A ? =>
+  fun apply(): this->A ? =>
     """
     Return the item, if we have one, otherwise raise an error.
     """
     _item as this->A
+
+  fun ref update(value: (A | None)): (A^ | None) =>
+    """
+    Replace the item and return the previous one.
+    """
+    _item = consume value
 
   fun ref pop(): A^ ? =>
     """
@@ -30,7 +36,7 @@ class ListNode[A]
     Prepend a node to this one. If prev is already in a list, it is removed
     before it is prepended.
     """
-    if _prev is prev then
+    if (_prev is prev) or (prev is this) then
       return this
     end
 
@@ -45,6 +51,7 @@ class ListNode[A]
         list'._set_head(prev)
       end
 
+      prev._list = list'
       prev._prev = _prev
       prev._next = this
       _prev = prev
@@ -54,10 +61,10 @@ class ListNode[A]
 
   fun ref append(next: ListNode[A]): ListNode[A]^ =>
     """
-    Append a node to this one. If prev is already in a list, it is removed
+    Append a node to this one. If next is already in a list, it is removed
     before it is appended.
     """
-    if _next is next then
+    if (_next is next) or (next is this) then
       return this
     end
 
@@ -72,6 +79,7 @@ class ListNode[A]
         list'._set_tail(next)
       end
 
+      next._list = list'
       next._prev = this
       next._next = _next
       _next = next
@@ -107,18 +115,28 @@ class ListNode[A]
         list'._set_head(None)
         list'._set_tail(None)
       end
+
       list'._decrement()
+      _list = None
     end
     this
 
-  fun box prev(): (this->ListNode[A] | None) =>
+  fun prev(): (this->ListNode[A] | None) =>
     """
     Return the previous node.
     """
     _prev
 
-  fun box next(): (this->ListNode[A] | None) =>
+  fun next(): (this->ListNode[A] | None) =>
     """
     Return the next node.
     """
     _next
+
+  fun ref _set_list(list: List[A]): ListNode[A]^ =>
+    """
+    Make this node the only node on the given list.
+    """
+    remove()
+    _list = list
+    this

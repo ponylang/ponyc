@@ -2,94 +2,108 @@ class List[A]
   """
   A doubly linked list.
   """
-  var _head: (ListNode[A] | None)
-  var _tail: (ListNode[A] | None)
-  var _size: U64
+  var _head: (ListNode[A] | None) = None
+  var _tail: (ListNode[A] | None) = None
+  var _size: U64 = 0
 
-  new create(node: (ListNode[A] | None) = None) =>
-    """
-    Create a new list, optionally starting with an existing node.
-    """
-    _head = node
-    _tail = node
-
-    match node
-    | var node': ListNode[A] =>
-      node'.remove()
-      _size = 1
-    else
-      _size = 0
-    end
-
-  fun box size(): U64 =>
+  fun size(): U64 =>
     """
     Returns the number of items in the list.
     """
     _size
 
-  fun box head(): this->ListNode[A] ? =>
+  fun ref clear(): List[A]^ =>
+    """
+    Empties the list.
+    """
+    _head = None
+    _tail = None
+    _size = 0
+    this
+
+  fun head(): this->ListNode[A] ? =>
     """
     Get the head of the list.
     """
     _head as this->ListNode[A]
 
-  fun box tail(): this->ListNode[A] ? =>
+  fun tail(): this->ListNode[A] ? =>
     """
     Get the tail of the list.
     """
     _tail as this->ListNode[A]
 
+  fun ref prepend(node: ListNode[A]): List[A]^ =>
+    """
+    Adds a node to the head of the list.
+    """
+    match _head
+    | var head': ListNode[A] =>
+      head'.prepend(node)
+    else
+      _set_both(node)
+    end
+    this
+
+  fun ref append(node: ListNode[A]): List[A]^ =>
+    """
+    Adds a node to the tail of the list.
+    """
+    match _tail
+    | var tail': ListNode[A] =>
+      tail'.append(node)
+    else
+      _set_both(node)
+    end
+    this
+
+  fun ref append_list(that: List[A]): List[A]^ =>
+    """
+    Remove all nodes from that and append them to this.
+    """
+    if this isnt that then
+      while that._size > 0 do
+        try append(that.head()) end
+      end
+    end
+    this
+
+  fun ref prepend_list(that: List[A]): List[A]^ =>
+    """
+    Remove all nodes from that and prepend them to this.
+    """
+    if this isnt that then
+      while that._size > 0 do
+        try prepend(that.tail()) end
+      end
+    end
+    this
+
   fun ref push(a: A): List[A]^ =>
     """
     Adds a value to the tail of the list.
     """
-    match _tail
-    | var tail': ListNode[A] =>
-      tail'.append(ListNode[A](consume a))
-    else
-      unshift(consume a)
-    end
-    this
+    append(ListNode[A](consume a))
 
   fun ref pop(): A^ ? =>
     """
     Removes a value from the tail of the list.
     """
-    match _tail
-    | var tail': ListNode[A] =>
-      tail'.remove().pop()
-    else
-      error
-    end
+    tail().remove().pop()
 
   fun ref unshift(a: A): List[A]^ =>
     """
     Adds a value to the head of the list.
     """
-    let node = ListNode[A](consume a)
-
-    match _head
-    | var head': ListNode[A] =>
-      head'.prepend(node)
-    else
-      _head = node
-      _tail = node
-      _size = 1
-    end
-    this
+    prepend(ListNode[A](consume a))
 
   fun ref shift(): A^ ? =>
     """
     Removes a value from the head of the list.
     """
-    match _head
-    | var head': ListNode[A] =>
-      head'.remove().pop()
-    else
-      error
-    end
+    head().remove().pop()
 
-  fun box values(): ListValues[A, this->ListNode[A]]^ =>
+  fun values(): ListValues[A, this->ListNode[A]]^ =>
     """
     Return an iterator on the values in the list.
     """
@@ -107,6 +121,12 @@ class List[A]
   fun ref _set_tail(tail': (ListNode[A] | None)) =>
     _tail = tail'
 
+  fun ref _set_both(node: ListNode[A]) =>
+    node._set_list(this)
+    _head = node
+    _tail = node
+    _size = 1
+
 class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
   """
   Iterate over the values in a list.
@@ -119,7 +139,7 @@ class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
     """
     _next = head
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     """
     If we have a list node, we have more values.
     """
@@ -132,7 +152,7 @@ class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
     match _next
     | let next': N =>
       _next = next'.next()
-      next'.item()
+      next'()
     else
       error
     end

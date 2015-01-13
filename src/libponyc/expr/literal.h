@@ -8,7 +8,7 @@
 PONY_EXTERN_C_BEGIN
 
 
-bool expr_literal(ast_t* ast, const char* name);
+bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name);
 
 /// Set the given AST node to have literal type
 void make_literal_type(ast_t* ast);

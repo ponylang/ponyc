@@ -55,7 +55,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
   return false;
 }
 
-static bool names_resolvealias(ast_t* def, ast_t* type)
+static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t* type)
 {
   ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
 
@@ -77,14 +77,14 @@ static bool names_resolvealias(ast_t* def, ast_t* type)
       return false;
   }
 
-  if(ast_visit(&type, NULL, pass_names, NULL) != AST_OK)
+  if(ast_visit(&type, NULL, pass_names, opt) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
   return true;
 }
 
-static bool names_typealias(ast_t** astp, ast_t* def)
+static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
 
@@ -100,7 +100,7 @@ static bool names_typealias(ast_t** astp, ast_t* def)
   // make sure the alias is resolved
   ast_t* alias = ast_childidx(def, 1);
 
-  if(!names_resolvealias(def, alias))
+  if(!names_resolvealias(opt, def, alias))
     return false;
 
   // apply our cap and ephemeral to the result
@@ -133,12 +133,6 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   if(ast_id(typeargs) != TK_NONE)
   {
     ast_error(typeargs, "can't qualify a type parameter with type arguments");
-    return false;
-  }
-
-  if(ast_id(cap) != TK_NONE)
-  {
-    ast_error(cap, "can't specify a capability on a type parameter");
     return false;
   }
 
@@ -184,8 +178,9 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   return true;
 }
 
-bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp)
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
 {
+  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   if(ast_data(ast) != NULL)
@@ -234,7 +229,7 @@ bool names_nominal(typecheck_t* t, ast_t* scope, ast_t** astp)
   switch(ast_id(def))
   {
     case TK_TYPE:
-      return names_typealias(astp, def);
+      return names_typealias(opt, astp, def);
 
     case TK_TYPEPARAM:
       return names_typeparam(astp, def);
@@ -270,9 +265,8 @@ static bool names_arrow(ast_t* ast)
   return false;
 }
 
-static bool names_async(ast_t* ast)
+static bool names_sendable_params(ast_t* params)
 {
-  ast_t* params = ast_childidx(ast, 3);
   ast_t* param = ast_child(params);
   bool ok = true;
 
@@ -282,7 +276,7 @@ static bool names_async(ast_t* ast)
 
     if(!sendable(type))
     {
-      ast_error(type, "asynchronous methods must have sendable parameters");
+      ast_error(type, "this parameter must be sendable (iso, val or tag)");
       ok = false;
     }
 
@@ -290,6 +284,32 @@ static bool names_async(ast_t* ast)
   }
 
   return ok;
+}
+
+static bool names_constructor(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+      return names_sendable_params(params);
+
+    default: {}
+  }
+
+  return true;
+}
+
+static bool names_async(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  return names_sendable_params(params);
 }
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
@@ -300,7 +320,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!names_nominal(t, ast, astp))
+      if(!names_nominal(options, ast, astp))
         return AST_ERROR;
       break;
 
@@ -311,8 +331,20 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 
     case TK_NEW:
     {
-      if((ast_id(t->frame->type) == TK_ACTOR) && !names_async(ast))
-        return AST_ERROR;
+      switch(ast_id(t->frame->type))
+      {
+        case TK_CLASS:
+          if(!names_constructor(ast))
+            return AST_ERROR;
+          break;
+
+        case TK_ACTOR:
+          if(!names_async(ast))
+            return AST_ERROR;
+          break;
+
+        default: {}
+      }
       break;
     }
 

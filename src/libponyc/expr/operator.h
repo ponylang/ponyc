@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool expr_identity(ast_t* ast);
+bool expr_identity(pass_opt_t* opt, ast_t* ast);
 bool expr_assign(pass_opt_t* opt, ast_t* ast);
 bool expr_consume(typecheck_t* t, ast_t* ast);
 

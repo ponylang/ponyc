@@ -1,7 +1,9 @@
+use "events"
+
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32 = -1
-  var _event: Pointer[_Event] tag = Pointer[_Event]
+  var _event: Pointer[Event] tag = Pointer[Event]
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
@@ -57,7 +59,7 @@ actor UDPSocket
     """
     _close()
 
-  fun box local_address(): IPAddress =>
+  fun local_address(): IPAddress =>
     """
     Return the bound IP address.
     """
@@ -71,27 +73,21 @@ actor UDPSocket
     """
     _notify = notify
 
-  fun box _get_fd(): U32 =>
-    """
-    Private call to get the file descriptor, used by the Socket trait.
-    """
-    _fd
-
-  be _event_notify(event: Pointer[_Event] tag, flags: U32) =>
+  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """
     if not _closed then
       _event = event
 
-      if _Event.readable(flags) then
+      if Event.readable(flags) then
         _readable = true
         _pending_reads()
       end
     end
 
-    if _Event.disposable(flags) then
-      _event = _Event.dispose(event)
+    if Event.disposable(flags) then
+      _event = Event.dispose(event)
     end
 
   be _read_again() =>
@@ -150,7 +146,7 @@ actor UDPSocket
     """
     Inform the notifier that we've closed.
     """
-    _Event.unsubscribe(_event)
+    Event.unsubscribe(_event)
     _readable = false
     _closed = true
 

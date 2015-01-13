@@ -1,58 +1,58 @@
 interface Arithmetic[A: Arithmetic[A] box]
-  fun box add(y: A): A
-  fun box sub(y: A): A
-  fun box mul(y: A): A
-  fun box div(y: A): A
-  fun box mod(y: A): A
-  fun box divmod(y: A): (A, A) => (this / y, this % y)
-  fun box neg(): A
+  fun add(y: A): A
+  fun sub(y: A): A
+  fun mul(y: A): A
+  fun div(y: A): A
+  fun mod(y: A): A
+  fun divmod(y: A): (A, A) => (this / y, this % y)
+  fun neg(): A
 
 interface Logical[A: Logical[A] box]
-  fun box op_and(y: A): A
-  fun box op_or(y: A): A
-  fun box op_xor(y: A): A
-  fun box op_not(): A
+  fun op_and(y: A): A
+  fun op_or(y: A): A
+  fun op_xor(y: A): A
+  fun op_not(): A
 
 interface Bits[A: Bits[A] box] is Logical[A]
-  fun box shl(y: A): A
-  fun box shr(y: A): A
+  fun shl(y: A): A
+  fun shr(y: A): A
 
 trait ArithmeticConvertible
-  fun box i8(): I8 => compiler_intrinsic
-  fun box i16(): I16 => compiler_intrinsic
-  fun box i32(): I32 => compiler_intrinsic
-  fun box i64(): I64 => compiler_intrinsic
-  fun box i128(): I128 => compiler_intrinsic
+  fun i8(): I8 => compiler_intrinsic
+  fun i16(): I16 => compiler_intrinsic
+  fun i32(): I32 => compiler_intrinsic
+  fun i64(): I64 => compiler_intrinsic
+  fun i128(): I128 => compiler_intrinsic
 
-  fun box u8(): U8 => compiler_intrinsic
-  fun box u16(): U16 => compiler_intrinsic
-  fun box u32(): U32 => compiler_intrinsic
-  fun box u64(): U64 => compiler_intrinsic
-  fun box u128(): U128 => compiler_intrinsic
+  fun u8(): U8 => compiler_intrinsic
+  fun u16(): U16 => compiler_intrinsic
+  fun u32(): U32 => compiler_intrinsic
+  fun u64(): U64 => compiler_intrinsic
+  fun u128(): U128 => compiler_intrinsic
 
-  fun box f32(): F32 => compiler_intrinsic
-  fun box f64(): F64 => compiler_intrinsic
+  fun f32(): F32 => compiler_intrinsic
+  fun f64(): F64 => compiler_intrinsic
 
 trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
   Ordered[A]
-  fun box add(y: A): A => this + y
-  fun box sub(y: A): A => this - y
-  fun box mul(y: A): A => this * y
-  fun box div(y: A): A => this / y
-  fun box mod(y: A): A => this % y
-  fun box neg(): A => -this
-  fun box eq(y: A): Bool => this == y
-  fun box ne(y: A): Bool => this != y
-  fun box lt(y: A): Bool => this < y
-  fun box le(y: A): Bool => this <= y
-  fun box ge(y: A): Bool => this >= y
-  fun box gt(y: A): Bool => this > y
+  fun add(y: A): A => this + y
+  fun sub(y: A): A => this - y
+  fun mul(y: A): A => this * y
+  fun div(y: A): A => this / y
+  fun mod(y: A): A => this % y
+  fun neg(): A => -this
+  fun eq(y: A): Bool => this == y
+  fun ne(y: A): Bool => this != y
+  fun lt(y: A): Bool => this < y
+  fun le(y: A): Bool => this <= y
+  fun ge(y: A): Bool => this >= y
+  fun gt(y: A): Bool => this > y
 
-  fun box abs(): A
-  fun box max(that: A): A
-  fun box min(that: A): A
+  fun abs(): A
+  fun max(that: A): A
+  fun min(that: A): A
 
-  fun box hash(): U64 =>
+  fun hash(): U64 =>
     var x = u64()
     x = (not x) + (x << 21)
     x = x xor (x >> 24)
@@ -64,21 +64,23 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
     x
 
 trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
-  fun box op_and(y: A): A => this and y
-  fun box op_or(y: A): A => this or y
-  fun box op_xor(y: A): A => this xor y
-  fun box op_not(): A => not this
-  fun box shl(y: A): A => this << y
-  fun box shr(y: A): A => this >> y
+  fun op_and(y: A): A => this and y
+  fun op_or(y: A): A => this or y
+  fun op_xor(y: A): A => this xor y
+  fun op_not(): A => not this
+  fun shl(y: A): A => this << y
+  fun shr(y: A): A => this >> y
 
-  fun box bswap(): A
-  fun box popcount(): A
-  fun box clz(): A
-  fun box ctz(): A
-  fun box bitwidth(): A
+  fun bswap(): A
+  fun popcount(): A
+  fun clz(): A
+  fun ctz(): A
+  fun bitwidth(): A
+  fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
+  fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
 trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
-  fun box string(fmt: IntFormat = FormatDefault,
+  fun string(fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
@@ -86,14 +88,14 @@ trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
       fill)
 
 trait UnsignedInteger[A: UnsignedInteger[A] box] is Integer[A]
-  fun box string(fmt: IntFormat = FormatDefault,
+  fun string(fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
 trait FloatingPoint[A: FloatingPoint[A] box] is Real[A]
-  fun box string(fmt: FloatFormat = FormatDefault,
+  fun string(fmt: FloatFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>

@@ -17,8 +17,23 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
     return false;
 
   // Keep ephemerality.
-  if(ast_id(ast_childidx(ast, 2)) == TK_EPHEMERAL)
-    typearg = consume_type(typearg);
+  switch(ast_id(ast_childidx(ast, 2)))
+  {
+    case TK_EPHEMERAL:
+      typearg = consume_type(typearg);
+      break;
+
+    case TK_NONE:
+      break;
+
+    case TK_BORROWED:
+      typearg = alias(typearg);
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
 
   ast_replace(astp, typearg);
   return true;

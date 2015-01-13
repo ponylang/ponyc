@@ -17,7 +17,7 @@ class Range[A: (Real[A] box & Number) = U64] is Iterator[A]
     _inc = inc
     _idx = min
 
-  fun box has_next(): Bool => _idx < _max
+  fun has_next(): Bool => _idx < _max
 
   fun ref next(): A => if _idx < _max then _idx = _idx + _inc else _idx end
 

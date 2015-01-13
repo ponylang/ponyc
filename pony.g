@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  use* (typealias | class_)*
+  :  STRING? use* (typealias | class_)*
   ;
 
 use
@@ -112,7 +112,7 @@ assignment
   ;
 
 infix
-  :  term ((binop term) | ('as' type)) *
+  :  term ((binop term) | ('as' type))*
   ;
 
 term
@@ -166,7 +166,7 @@ atom
   |  ID
   |  'this'
   |  '(' tuple ')' // tuple
-  |  '[' positional ']' // array
+  |  '[' ('as' type ':')? positional ']' // array
   |  'object' ('is' types)? members 'end' // object
   |  '@' (ID | STRING) type_args? '(' positional? ')' '?'? // ffi
   ;

@@ -5,15 +5,21 @@
 
 ast_result_t flatten_typeparamref(ast_t* ast)
 {
+  AST_GET_CHILDREN(ast, id, cap, ephemeral);
+
   // Get the lowest capability that could fulfill the constraint.
   ast_t* def = (ast_t*)ast_data(ast);
+  AST_GET_CHILDREN(def, name, constraint, default_type);
 
-  AST_GET_CHILDREN(def, id, constraint, default_type);
-  token_id cap = cap_from_constraint(constraint);
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "can't specify a capability on a type parameter");
+    return AST_ERROR;
+  }
 
   // Set the typeparamref cap.
-  AST_GET_CHILDREN(ast, t_id, t_cap, t_ephemeral);
-  ast_setid(t_cap, cap);
+  token_id tcap = cap_from_constraint(constraint);
+  ast_setid(cap, tcap);
 
   return AST_OK;
 }

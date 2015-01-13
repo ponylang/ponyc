@@ -65,7 +65,7 @@ static bool generate_actors(compile_t* c, ast_t* program)
   return true;
 }
 
-static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
+static bool link_lib(compile_t* c, const char* file_o)
 {
   size_t len = strlen(c->filename);
 
@@ -74,7 +74,7 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
   memcpy(libname, "lib", 3);
   memcpy(libname + 3, c->filename, len + 1);
 
-  const char* file_lib = suffix_filename(opt->output, libname, ".a");
+  const char* file_lib = suffix_filename(c->opt->output, libname, ".a");
   printf("Archiving %s\n", file_lib);
 
   len = 32 + strlen(file_lib) + strlen(file_o);
@@ -91,7 +91,7 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
   VLA(char, libname, len + 1);
   memcpy(libname, c->filename, len + 1);
 
-  const char* file_lib = suffix_filename(opt->output, libname, ".lib");
+  const char* file_lib = suffix_filename(c->opt->output, libname, ".lib");
   printf("Archiving %s\n", file_lib);
 
   vcvars_t vcvars;
@@ -117,10 +117,10 @@ static bool link_lib(compile_t* c, pass_opt_t* opt, const char* file_o)
   return true;
 }
 
-bool genlib(compile_t* c, pass_opt_t* opt, ast_t* program)
+bool genlib(compile_t* c, ast_t* program)
 {
   // Open a header file.
-  const char* file_h = suffix_filename(opt->output, c->filename, ".h");
+  const char* file_h = suffix_filename(c->opt->output, c->filename, ".h");
   c->header = fopen(file_h, "wt");
 
   if(c->header == NULL)
@@ -176,15 +176,15 @@ bool genlib(compile_t* c, pass_opt_t* opt, ast_t* program)
     return false;
   }
 
-  const char* file_o = genobj(c, opt);
+  const char* file_o = genobj(c);
 
   if(file_o == NULL)
     return false;
 
-  if(opt->limit < PASS_ALL)
+  if(c->opt->limit < PASS_ALL)
     return true;
 
-  if(!link_lib(c, opt, file_o))
+  if(!link_lib(c, file_o))
     return false;
 
   unlink(file_o);

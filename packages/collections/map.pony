@@ -2,34 +2,10 @@ interface Hashable
   """
   Anything with a hash method is hashable.
   """
-  fun box hash(): U64
+  fun hash(): U64
 
 primitive _MapEmpty
 primitive _MapDeleted
-
-// class Identity[A] is Hashable, Comparable[Identity[A] box]
-//   var _item: A
-//
-//   new create(item: A) =>
-//     _item = consume item
-//
-//   fun box hash(): U64 =>
-//     Pointer[A].to(_item).hash()
-//
-//   fun box eq(that: Identity[A] box): Bool =>
-//     _item is that._item
-
-interface Hasher[A]
-  fun box hash(a: A): U64
-  fun box compare(a: A, b: A): Bool
-
-primitive ValueHasher[A: (Hashable box & Comparable[A] box)]
-  fun box hash(a: A): U64 => a.hash()
-  fun box compare(a: A, b: A): Bool => a == b
-
-// primitive IdentityHasher[A]
-//   fun box hash(a: A): U64 => a // pointer hash somehow?
-//   fun box compare(a: A, b: A): Bool => a is b
 
 class Map[Key: (Hashable box & Comparable[Key] box), Value]
   """
@@ -44,7 +20,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     Defaults to a prealloc of 8.
     """
     let n = prealloc.next_pow2()
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
+    _array = _array.create(n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
@@ -56,7 +32,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     this removes the tuples from the array, leaving it empty.
     """
     let n = array.size().next_pow2()
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](n)
+    _array = _array.create(n)
 
     for i in Range(0, n) do
       _array.append(_MapEmpty)
@@ -72,20 +48,20 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       end
     end
 
-  fun box size(): U64 =>
+  fun size(): U64 =>
     """
     The number of items in the map.
     """
     _size
 
-  fun box space(): U64 =>
+  fun space(): U64 =>
     """
     The available space in the map. Resize will happen when
     size / space >= 0.75.
     """
     _array.space()
 
-  fun box apply(key: Key): this->Value ? =>
+  fun apply(key: Key): this->Value ? =>
     """
     Gets a value from the map. Raises an error if no such item exists.
     """
@@ -137,7 +113,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     end
     error
 
-  fun box next_index(prev: U64 = -1): U64 ? =>
+  fun next_index(prev: U64 = -1): U64 ? =>
     """
     Given an index, return the next index that has a populated key and value.
     Raise an error if there is no next populated index.
@@ -149,14 +125,19 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     end
     error
 
-  fun box index(i: U64): (this->Key, this->Value) ? =>
+  fun index(i: U64): (this->Key, this->Value) ? =>
     """
     Returns the key and value at a given index.
     Raise an error if the index is not populated.
     """
     _array(i) as (this->Key, this->Value)
 
-  fun box _search(key: Key): (U64, Bool) =>
+  fun ref clear(): Map[Key, Value]^ =>
+    _size = 0
+    _array = _array.create()
+    this
+
+  fun _search(key: Key): (U64, Bool) =>
     """
     Return a slot number and whether or not it's currently occupied.
     """
@@ -200,7 +181,7 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
     let old_len = _old.size()
     let new_len = old_len * 2
 
-    _array = Array[((Key, Value) | _MapEmpty | _MapDeleted)](new_len)
+    _array = _array.create(new_len)
     _size = 0
 
     for i in Range(0, new_len) do
@@ -216,19 +197,19 @@ class Map[Key: (Hashable box & Comparable[Key] box), Value]
       end
     end
 
-  fun box keys(): MapKeys[Key, Value, this->Map[Key, Value]]^ =>
+  fun keys(): MapKeys[Key, Value, this->Map[Key, Value]]^ =>
     """
     Return an iterator over the keys.
     """
     MapKeys[Key, Value, this->Map[Key, Value]](this)
 
-  fun box values(): MapValues[Key, Value, this->Map[Key, Value]]^ =>
+  fun values(): MapValues[Key, Value, this->Map[Key, Value]]^ =>
     """
     Return an iterator over the values.
     """
     MapValues[Key, Value, this->Map[Key, Value]](this)
 
-  fun box pairs(): MapPairs[Key, Value, this->Map[Key, Value]]^ =>
+  fun pairs(): MapPairs[Key, Value, this->Map[Key, Value]]^ =>
     """
     Return an iterator over the keys and values.
     """
@@ -251,7 +232,7 @@ class MapKeys[
     """
     _map = map
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     """
     True if it believes there are remaining entries. May not be right if values
     were added or removed from the map.
@@ -284,7 +265,7 @@ class MapValues[
     """
     _map = map
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     """
     True if it believes there are remaining entries. May not be right if values
     were added or removed from the map.
@@ -317,7 +298,7 @@ class MapPairs[
     """
     _map = map
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     """
     True if it believes there are remaining entries. May not be right if values
     were added or removed from the map.

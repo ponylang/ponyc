@@ -31,7 +31,7 @@ class Rope val is Stringable, Ordered[Rope]
   fun val depth(): U64 => _depth
   fun val linecount(): U64 => _linebreaks
 
-  /*fun box apply(index: U64): U8 ? =>
+  /*fun apply(index: U64): U8 ? =>
     """
     Returns the byte at the given index. Raise an error if the index is out of
     bounds.
@@ -84,7 +84,7 @@ class Rope val is Stringable, Ordered[Rope]
       rope
     end
 
-  /*fun box contains(that: Rope): Bool =>
+  /*fun contains(that: Rope): Bool =>
     """
     Returns true if this Rope contains that Rope, false otherwise.
     """*/
@@ -149,13 +149,13 @@ class Rope val is Stringable, Ordered[Rope]
     """
     (0, 0)
 
-  /*fun box balance(): Rope =>
+  /*fun balance(): Rope =>
     """
     Returns an optimal Rope, i.e. its underlying tree data structure is a tree
     with the minimal external path length for a given text instance.
     """*/
 
-  fun box string(fmt: FormatDefault = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -182,33 +182,33 @@ class Rope val is Stringable, Ordered[Rope]
     traverse(consume str, this)
 
   //Put this in once Fibonacci compiles (literal inference with generics)
-  //fun box balanced(): Bool =>
+  //fun balanced(): Bool =>
   //  """
   //  Returns true if the given Rope is balanced, false otherwise.
   //  """
   //  Fibonacci(_depth + 2) <= _size
 
-  fun box eq(that: Rope): Bool =>
+  fun eq(that: Rope): Bool =>
     """
     Returns true if this Rope is structurally equivalent to that Rope,
     false otherwise.
     """
     false
 
-  fun box lt(that: Rope): Bool =>
+  fun lt(that: Rope): Bool =>
     """
     Returns true if all strings in this Rope are less than all strings in that
     Rope, false otherwise.
     """
     false
 
-  /*fun box nodes(): RopeNodeIterator =>
+  /*fun nodes(): RopeNodeIterator =>
     RopeNodeIterator(this)
 
-  fun box leaves(): RopeLeafIterator =>
+  fun leaves(): RopeLeafIterator =>
     RopeLeafIterator(this)
 
-  fun box chars(): RopeCharIterator =>
+  fun chars(): RopeCharIterator =>
     RopeCharIterator(this) */
 
   fun val lines(steps: U64 = 1): RopeLineIterator =>

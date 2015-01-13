@@ -1,4 +1,4 @@
-use "net"
+use "events"
 
 actor TCPListener
   """
@@ -6,7 +6,7 @@ actor TCPListener
   """
   var _notify: TCPListenNotify
   var _fd: U32
-  var _event: Pointer[_Event] tag = Pointer[_Event]
+  var _event: Pointer[Event] tag = Pointer[Event]
   var _closed: Bool = false
 
   new create(notify: TCPListenNotify iso, host: String = "",
@@ -45,7 +45,7 @@ actor TCPListener
     """
     _close()
 
-  fun box local_address(): IPAddress =>
+  fun local_address(): IPAddress =>
     """
     Return the bound IP address.
     """
@@ -59,20 +59,14 @@ actor TCPListener
     """
     _notify = notify
 
-  fun box _get_fd(): U32 =>
-    """
-    Private call to get the file descriptor, used by the Socket trait.
-    """
-    _fd
-
-  be _event_notify(event: Pointer[_Event] tag, flags: U32) =>
+  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """
     if not _closed then
       _event = event
 
-      if _Event.readable(flags) then
+      if Event.readable(flags) then
         while true do
           var fd = @os_accept[U32](_fd)
 
@@ -85,8 +79,8 @@ actor TCPListener
       end
     end
 
-    if _Event.disposable(flags) then
-      _event = _Event.dispose(event)
+    if Event.disposable(flags) then
+      _event = Event.dispose(event)
     end
 
   fun ref _notify_listening() =>
@@ -103,7 +97,7 @@ actor TCPListener
     """
     Dispose of resources.
     """
-    _Event.unsubscribe(_event)
+    Event.unsubscribe(_event)
     _closed = true
 
     if _fd != -1 then

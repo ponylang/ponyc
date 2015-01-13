@@ -78,7 +78,7 @@ static LLVMValueRef make_binop(compile_t* c, ast_t* left, ast_t* right,
   {
     LLVMValueRef result = build_f(c->builder, l_value, r_value, "");
 
-    if(!c->ieee_math)
+    if(!c->opt->ieee_math)
       LLVMSetUnsafeAlgebra(result);
 
     return result;
@@ -92,7 +92,7 @@ LLVMValueRef make_divmod(compile_t* c, ast_t* left, ast_t* right,
   build_binop build_f, build_binop build_ui, build_binop build_si)
 {
   ast_t* type = ast_type(left);
-  bool sign = is_signed(type);
+  bool sign = is_signed(c->opt, type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -185,7 +185,7 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
   LLVMRealPredicate cmp_f, LLVMIntPredicate cmp_si, LLVMIntPredicate cmp_ui)
 {
   ast_t* type = ast_type(left);
-  bool sign = is_signed(type);
+  bool sign = is_signed(c->opt, type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -450,7 +450,7 @@ LLVMValueRef gen_shl(compile_t* c, ast_t* left, ast_t* right)
 LLVMValueRef gen_shr(compile_t* c, ast_t* left, ast_t* right)
 {
   ast_t* type = ast_type(left);
-  bool sign = is_signed(type);
+  bool sign = is_signed(c->opt, type);
 
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
@@ -563,7 +563,7 @@ LLVMValueRef gen_eq(compile_t* c, ast_t* left, ast_t* right)
 LLVMValueRef gen_eq_rvalue(compile_t* c, ast_t* left, LLVMValueRef r_value)
 {
   ast_t* type = ast_type(left);
-  bool sign = is_signed(type);
+  bool sign = is_signed(c->opt, type);
   LLVMValueRef l_value = gen_expr(c, left);
 
   return make_cmp_value(c, sign, l_value, r_value, LLVMRealOEQ, LLVMIntEQ,

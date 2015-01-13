@@ -4,7 +4,6 @@
 #include "../pkg/package.h"
 #include "../type/assemble.h"
 #include "../ast/stringtab.h"
-#include <string.h>
 #include <assert.h>
 
 
@@ -66,21 +65,21 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
   //                           | | return
   //                           | | | error
   //                           | | | | body
-  { "class function",         "Y X X X Y" },
-  { "actor function",         "Y X X X Y" },
-  { "primitive function",     "Y X X X Y" },
-  { "trait function",         "Y X X X X" },
-  { "interface function",     "Y X X X X" },
+  { "class function",         "X Y X X Y" },
+  { "actor function",         "X Y X X Y" },
+  { "primitive function",     "X Y X X Y" },
+  { "trait function",         "X Y X X X" },
+  { "interface function",     "X Y X X X" },
   { "class behaviour",        NULL },
   { "actor behaviour",        "N Y N N Y" },
   { "primitive behaviour",    NULL },
   { "trait behaviour",        "N Y N N X" },
   { "interface behaviour",    "N Y N N X" },
-  { "class constructor",      "N X N X Y" },
-  { "actor constructor",      "N X N N Y" },
-  { "primitive constructor",  "N X N X Y" },
-  { "trait constructor",      NULL },
-  { "interface constructor",  NULL }
+  { "class constructor",      "X Y N X Y" },
+  { "actor constructor",      "N Y N N Y" },
+  { "primitive constructor",  "N Y N X Y" },
+  { "trait constructor",      "X Y N X N" },
+  { "interface constructor",  "X Y N X N" },
 };
 
 
@@ -165,12 +164,6 @@ static bool check_method(ast_t* ast, int method_def_index)
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     return false;
-
-  if(ast_id(cap) == TK_ISO || ast_id(cap) == TK_TRN)
-  {
-    ast_error(cap, "receiver capability must not be iso or trn");
-    return false;
-  }
 
   if(!check_permission(def, METHOD_NAME, id, "name", id))
     return false;
@@ -407,17 +400,6 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
-
-  // Prefix '@' to the concatenated name.
-  const char* name = ast_name(id);
-  size_t len = strlen(name) + 1;
-
-  VLA(char, new_name, len + 1);
-  new_name[0] = '@';
-  memcpy(new_name + 1, name, len);
-
-  ast_t* new_id = ast_from_string(id, new_name);
-  ast_replace(&id, new_id);
 
   if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)

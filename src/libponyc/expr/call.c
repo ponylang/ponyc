@@ -114,7 +114,8 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
   return true;
 }
 
-static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
+static bool apply_named_args(ast_t* params, ast_t* positional,
+  ast_t* namedargs)
 {
   ast_t* namedarg = ast_child(namedargs);
 
