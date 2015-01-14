@@ -8,19 +8,19 @@ primitive ParseError
 primitive _Ambiguous
 
 type _Match is (None | Option | _Ambiguous)
-type _ArgType is (None | StringArgument | I64Argument | F64Argument)
+type OptionType is (None | StringArgument | I64Argument | F64Argument)
 type _ParsedOption is ((String | None), (None | String | I64 | F64))
 type _Result is (_ParsedOption | ParseError)
 
 class Option is Stringable
   var name: String
   var short: (String | None)
-  var arg: _ArgType
+  var arg: OptionType
   var _help: (String | None)
   var _domain: Array[(String, (String | None))]
 
   new create(name': String, short': (String | None), help: (String | None),
-    arg': _ArgType)
+    arg': OptionType)
   =>
     name = name'
     short = short'
@@ -91,7 +91,7 @@ class Options is Iterator[_Result]
     this
 
   fun ref add(name: String, short: (String | None), help: (String | None),
-    arg: _ArgType): Options
+    arg: OptionType): Options
   =>
     _configuration.append(Option(name, short, help, arg))
     this
@@ -115,6 +115,17 @@ class Options is Iterator[_Result]
         + value + "\" without an option")
 
     this
+
+  fun ref get(long: String, arg: OptionType): _Result =>
+    while has_next() do
+      match (next(), arg)
+      | ((long, let str: String), StringArgument) => return (long, str)
+      | ((long, let int: I64), I64Argument) => return (long, int)
+      | ((long, let float: F64), F64Argument) => return (long, float)
+      end
+    end
+
+    ParseError
 
   fun usage() =>
     var help: String iso = recover String end
