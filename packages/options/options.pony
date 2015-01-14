@@ -116,16 +116,15 @@ class Options is Iterator[_Result]
 
     this
 
-  fun ref get(long: String, arg: OptionType): _Result =>
-    while has_next() do
-      match (next(), arg)
-      | ((long, let str: String), StringArgument) => return (long, str)
-      | ((long, let int: I64), I64Argument) => return (long, int)
-      | ((long, let float: F64), F64Argument) => return (long, float)
+  fun ref get(long: String): _Result ? =>
+    for option in this do
+      match option
+      | (long, _) => return option
+      | ParseError => error
       end
     end
-
-    ParseError
+    
+    error
 
   fun usage() =>
     var help: String iso = recover String end
