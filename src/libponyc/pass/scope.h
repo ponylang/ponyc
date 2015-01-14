@@ -16,12 +16,6 @@ PONY_EXTERN_C_BEGIN
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options);
 
 /**
- * In the second scope pass, traits can have multiple definitions of the same
- * method, so don't fail if a method already exists.
- */
-ast_result_t pass_scope2(ast_t** astp, pass_opt_t* options);
-
-/**
 * Import a package, either with a qualifying name or by merging it into the
 * current scope.
 */

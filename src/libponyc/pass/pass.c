@@ -35,11 +35,10 @@ const char* pass_name(pass_id pass)
     case PASS_PARSE:    return "parse";
     case PASS_PARSE_FIX:return "parsefix";
     case PASS_SUGAR:    return "sugar";
-    case PASS_SCOPE1:   return "scope1";
+    case PASS_SCOPE:    return "scope";
     case PASS_NAME_RESOLUTION: return "name";
     case PASS_FLATTEN:  return "flatten";
     case PASS_TRAITS:   return "traits";
-    case PASS_SCOPE2:   return "scope2";
     case PASS_EXPR:     return "expr";
     case PASS_AST:      return "ast";
     case PASS_LLVM_IR:  return "ir";
@@ -122,7 +121,7 @@ bool package_passes(ast_t* package, pass_opt_t* options)
   if(do_pass(&package, &r, options, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_SCOPE1, pass_scope, NULL))
+  if(do_pass(&package, &r, options, PASS_SCOPE, pass_scope, NULL))
     return r;
 
   if(do_pass(&package, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
@@ -132,12 +131,6 @@ bool package_passes(ast_t* package, pass_opt_t* options)
     return r;
 
   if(do_pass(&package, &r, options, PASS_TRAITS, pass_traits, NULL))
-    return r;
-
-  if(options->limit != PASS_TRAITS)
-    ast_clear(package);
-
-  if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope2, NULL))
     return r;
 
   if(do_pass(&package, &r, options, PASS_EXPR, NULL, pass_expr))

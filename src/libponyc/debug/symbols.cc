@@ -2,6 +2,12 @@
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
 
+enum
+{
+  SYMBOL_DBG,
+  SYMBOL_FILE
+};
+
 static uint64_t symbol_hash(symbol_t* s);
 static bool symbol_cmp(symbol_t* a, symbol_t* b);
 static void symbol_free(symbol_t* s);
@@ -27,6 +33,9 @@ static bool symbol_cmp(symbol_t* a, symbol_t* b)
 
 static void symbol_free(symbol_t* s)
 {
+  if(s->kind == SYMBOL_DBG)
+    POOL_FREE(dbg_symbol_t, s->dbg);
+
   POOL_FREE(symbol_t, s);
 }
 
@@ -49,7 +58,7 @@ void symbols_destroy(symbols_t** symbols)
   *symbols = NULL;
 }
 
-symbol_t* symbols_get(symbols_t* symbols, const char* name)
+symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file)
 {
   symbol_t key;
   key.name = name;
@@ -59,10 +68,16 @@ symbol_t* symbols_get(symbols_t* symbols, const char* name)
   if(value == NULL)
   {
     value = POOL_ALLOC(symbol_t);
-    memset(value, 0, sizeof(symbol_t));
-
     value->name = name;
-    value->node = NULL;
+    value->file = NULL;
+    value->kind = SYMBOL_FILE;
+
+    if(!file)
+    {
+      value->dbg = POOL_ALLOC(dbg_symbol_t);
+      value->kind = SYMBOL_DBG;
+      memset(value->dbg, 0, sizeof(dbg_symbol_t));
+    }
 
     symbolmap_put(&symbols->map, value);
   }

@@ -422,8 +422,11 @@ bool codegen(ast_t* program, pass_opt_t* opt)
 
   init_module(&c, program, opt);
   init_runtime(&c);
-  // dwarf_init(&c);
   genprim_builtins(&c);
+
+  // Emit debug info for this compile unit.
+  //dwarf_init(&c);
+  //dwarf_compileunit(c.dwarf, program);
 
   bool ok;
 

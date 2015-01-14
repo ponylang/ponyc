@@ -6,6 +6,7 @@
 #include "gentrace.h"
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
+#include "../debug/dwarf.h"
 
 ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
 {
@@ -231,9 +232,12 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   if(fun != NULL)
     return true;
+  // Emit debug symbol for this pointer type instance.
+  //dwarf_pointer(c->dwarf, &elem_g);
 
   pointer_create(c, g);
   pointer__create(c, g, &elem_g);
+
   pointer_realloc(c, g, &elem_g);
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);
