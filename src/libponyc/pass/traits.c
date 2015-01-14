@@ -370,8 +370,46 @@ static bool build_entity_def(ast_t* entity)
 }
 
 
-// Check resulting methods are compatible with the given concret entity
-static bool check_concrete_methods(ast_t* entity)
+// Sort out symbol table for copied method body
+static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
+{
+  (void)options;
+  ast_t* ast = *astp;
+
+  if(ast_has_scope(ast))
+  ast_clear_local(ast);
+
+  switch(ast_id(ast))
+  {
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_PARAM:
+    case TK_TYPEPARAM:
+      assert(ast_child(ast) != NULL);
+      ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED);
+      break;
+
+    case TK_IDSEQ:
+    {
+      ast_t* scope = ast_parent(ast);
+
+      for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+        ast_set(scope, ast_name(p), p, SYM_DEFINED);
+
+      break;
+    }
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+
+// Check resulting methods are compatible with the containing entity and patch
+// up symbol tables
+static bool post_process_methods(ast_t* entity, pass_opt_t* options,
+  bool is_concrete)
 {
   assert(entity != NULL);
 
@@ -382,6 +420,7 @@ static bool check_concrete_methods(ast_t* entity)
   {
     token_id variety = ast_id(m);
 
+    // Check behaviour compatability
     if(variety == TK_BE)
     {
       switch(ast_id(entity))
@@ -402,20 +441,34 @@ static bool check_concrete_methods(ast_t* entity)
 
     if(variety == TK_BE || variety == TK_FUN || variety == TK_NEW)
     {
+      // Check concrete method bodies
       if(ast_data(m) == BODY_AMBIGUOUS)
       {
-        ast_error(m, "multiple possible method bodies from traits");
-        r = false;
+        if(is_concrete)
+        {
+          ast_error(m, "multiple possible method bodies from traits");
+          r = false;
+        }
       }
       else if(ast_data(m) == NULL)
       {
-        assert(ast_id(ast_childidx(m, 6)) == TK_NONE);
-        ast_error(m, "no body found for method");
-        r = false;
+        if(is_concrete)
+        {
+          assert(ast_id(ast_childidx(m, 6)) == TK_NONE);
+          ast_error(m, "no body found for method %d %s %s", is_concrete,
+            ast_get_print(entity), ast_name(ast_child(entity)));
+          r = false;
+        }
       }
       else
       {
         assert(ast_id(ast_childidx(m, 6)) != TK_NONE);
+
+        if(ast_data(m) != entity)
+        {
+          // Sort out copied symbol tables
+          ast_visit(&m, rescope, NULL, options);
+        }
       }
     }
   }
@@ -426,14 +479,14 @@ static bool check_concrete_methods(ast_t* entity)
 
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
-  (void)options;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
   {
     case TK_INTERFACE:
     case TK_TRAIT:
-      if(!build_entity_def(ast))
+      if(!build_entity_def(ast) ||
+        !post_process_methods(ast, options, false))
         return AST_ERROR;
 
       break;
@@ -442,7 +495,7 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
     case TK_CLASS:
     case TK_ACTOR:
       if(!build_entity_def(ast) ||
-        !check_concrete_methods(ast))
+        !post_process_methods(ast, options, true))
         return AST_ERROR;
 
       break;

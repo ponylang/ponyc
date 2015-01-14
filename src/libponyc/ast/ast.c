@@ -663,6 +663,15 @@ void ast_clear(ast_t* ast)
   }
 }
 
+void ast_clear_local(ast_t* ast)
+{
+  if(ast->symtab != NULL)
+  {
+    symtab_free(ast->symtab);
+    ast_scope(ast);
+  }
+}
+
 ast_t* ast_add(ast_t* parent, ast_t* child)
 {
   assert(parent != NULL);
