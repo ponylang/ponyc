@@ -233,7 +233,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   if(fun != NULL)
     return true;
   // Emit debug symbol for this pointer type instance.
-  dwarf_pointer(c->dwarf, &elem_g);
+  //dwarf_pointer(c->dwarf, &elem_g);
 
   pointer_create(c, g);
   pointer__create(c, g, &elem_g);
