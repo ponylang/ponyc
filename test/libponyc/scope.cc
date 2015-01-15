@@ -25,7 +25,7 @@ protected:
     use_register_std();
     package_add_magic("builtin", "primitive U32");
     pass_opt_init(&opt);
-    limit_passes(&opt, "scope1");
+    limit_passes(&opt, "scope");
   }
 
   virtual void TearDown()

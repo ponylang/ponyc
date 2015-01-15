@@ -663,6 +663,15 @@ void ast_clear(ast_t* ast)
   }
 }
 
+void ast_clear_local(ast_t* ast)
+{
+  if(ast->symtab != NULL)
+  {
+    symtab_free(ast->symtab);
+    ast_scope(ast);
+  }
+}
+
 ast_t* ast_add(ast_t* parent, ast_t* child)
 {
   assert(parent != NULL);
@@ -797,31 +806,27 @@ void ast_replace(ast_t** prev, ast_t* next)
   *prev = next;
 }
 
-/* TODO(andy): This is no longer used, but I'm leaving it here for now in case
- * someone needs it later. Remove this when we tidy up asts.
-void ast_reverse(ast_t* ast)
+void ast_reorder_children(ast_t* ast, const size_t* new_order)
 {
-  if(ast == NULL)
-    return;
+  assert(ast != NULL);
+  assert(new_order != NULL);
 
-  ast_t* cur = ast->child;
-  ast_t* next;
-  ast_t* last = NULL;
+  size_t count = ast_childcount(ast);
+  VLA(ast_t*, children, count);
 
-  while(cur != NULL)
+  for(size_t i = 0; i < count; i++)
+    children[i] = ast_pop(ast);
+
+  for(size_t i = 0; i < count; i++)
   {
-    assert(cur->parent == ast);
-
-    ast_reverse(cur);
-    next = cur->sibling;
-    cur->sibling = last;
-    last = cur;
-    cur = next;
+    size_t index = new_order[i];
+    assert(index < count);
+    ast_t* t = children[index];
+    assert(t != NULL);
+    ast_append(ast, t);
+    children[index] = NULL;
   }
-
-  ast->child = last;
 }
-*/
 
 void ast_free(ast_t* ast)
 {

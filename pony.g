@@ -135,7 +135,8 @@ control
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
   |  'recover' cap? seq 'end'
-  |  'use' ':'? '(' (expr)+ ')' // For testing only
+  |  '$:(' (expr)+ ')' // For testing only
+  |  '$(' (expr)+ ')' // For testing only
   ;
 
 elseif
@@ -183,7 +184,7 @@ idseq_element
   :  ID
   |  idseq_multi
   ;
-  
+
 tuple
   :  (seq | '_') (',' (seq | '_'))*
   ;

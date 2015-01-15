@@ -1,4 +1,5 @@
 #include "parserapi.h"
+#include "parser.h"
 #include <stdio.h>
 
 // Forward declarations
@@ -36,174 +37,47 @@ DECL(members);
 */
 
 
-bool is_expr_infix(token_id id)
+// Remove the [no]semi node at the top of the each expression in the given
+// sequence, if it is not an error.
+// Each sequence eleemnt should be one of:
+// (; NOSEMI expression)
+// (NOSEMI NOSEMI expression)
+// (jump [expression])
+static void prune_semi(ast_t* ast)
 {
-  switch(id)
-  {
-    case TK_AND:
-    case TK_OR:
-    case TK_XOR:
-    case TK_PLUS:
-    case TK_MINUS:
-    case TK_MULTIPLY:
-    case TK_DIVIDE:
-    case TK_MOD:
-    case TK_LSHIFT:
-    case TK_RSHIFT:
-    case TK_IS:
-    case TK_ISNT:
-    case TK_EQ:
-    case TK_NE:
-    case TK_LT:
-    case TK_LE:
-    case TK_GE:
-    case TK_GT:
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-      return true;
+  assert(ast != NULL);
+  assert(ast_id(ast) == TK_SEQ);
 
-    default:
-      return false;
+  // Check each expression in the sequence for ; correctness
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+  {
+    token_id id = ast_id(p);
+    if(id == TK_SEMI || id == TK_NOSEMI)
+    {
+      bool any_newlines = ast_is_first_on_line(p);
+      bool last_in_seq = (ast_sibling(p) == NULL);
+
+      // Remove child NOSEMI
+      ast_t* child = ast_pop(p);
+      assert(child != NULL);
+      assert(ast_id(child) == TK_NOSEMI);
+
+      if(ast_is_first_on_line(child))
+        any_newlines = true;
+
+      ast_free(child);
+
+      if((id == TK_SEMI && !any_newlines && !last_in_seq) || // Correct ;
+        (id == TK_NOSEMI && (any_newlines || last_in_seq)))  // Correct no ;
+      {
+        // This is correct, remove [no]semi
+        ast_t* expr = ast_pop(p);
+        assert(ast_child(p) == NULL);
+        ast_replace(&p, expr);
+      }
+    }
   }
 }
-
-
-// Tree builders
-
-// Standard infix operator AST builder
-static ast_t* infix_builder(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state)
-{
-  (void)state;
-
-  // New AST goes at the top
-  ast_add(new_ast, existing);
-  return new_ast;
-}
-
-
-// Reversed infix AST builder for assignment
-static ast_t* infix_reverse(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state)
-{
-  (void)state;
-
-  // New AST goes at the top, existing goes on the right
-  ast_append(new_ast, existing);
-  return new_ast;
-}
-
-
-// Postfix operator AST builder to special case call child order
-static ast_t* postfix_builder(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state)
-{
-  (void)state;
-
-  assert(new_ast != NULL);
-
-  if(ast_id(new_ast) == TK_CALL)
-  {
-    // Call
-    // New AST goes at the top, existing goes on the right
-    ast_append(new_ast, existing);
-  }
-  else
-  {
-    // Dot, tilde or qualify
-    // New AST goes at the top, existing goes on the left
-    ast_add(new_ast, existing);
-  }
-
-  return new_ast;
-}
-
-
-// Remove the [no]semi node at the top of the last expression in the given
-// sequence, if it is not an error
-static void prune_semi(rule_state_t* state, bool last_in_sequence)
-{
-  assert(state != NULL);
-  assert(state->ast != NULL);
-  assert(ast_id(state->ast) == TK_SEQ);
-
-  ast_t* semi_node = state->last_child;
-  if(semi_node == NULL)
-    return;
-
-  token_id id = ast_id(semi_node);
-  if(id != TK_SEMI && id != TK_NOSEMI)  // [no]semi not found, nothing to do
-      return;
-
-  assert(ast_childcount(semi_node) == 2);
-  AST_GET_CHILDREN(semi_node, next_token, expr);
-
-  assert(next_token != NULL);
-  assert(ast_id(next_token) == TK_NOSEMI);
-
-  bool any_newlines = ast_is_first_on_line(semi_node) ||
-    ast_is_first_on_line(next_token);
-
-  if(id == TK_SEMI && (any_newlines || last_in_sequence)) // Unnecessary ;
-    return;
-
-  if(id == TK_NOSEMI && !any_newlines && !last_in_sequence) // Missing ;
-    return;
-
-  // [no]semi found is legal, prune it
-  ast_free(ast_pop(semi_node));  // next_token
-  ast_pop(semi_node);  // expr
-  ast_replace(&semi_node, expr);
-  state->last_child = expr;
-}
-
-
-// Sequence AST builder, handling semi colons
-static ast_t* seq_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
-{
-  // Get rid of any unnecessary trailing ;
-  prune_semi(state, false);
-
-  // Now build as normal
-  return default_builder(existing, new_ast, state);
-}
-
-
-// Build a tuple
-static ast_t* tuple_builder(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state)
-{
-  if(ast_id(existing) != TK_TUPLE)
-  {
-    // Not a tuple yet
-    BUILD(tuple, existing, NODE(TK_TUPLE) TREE(existing));
-    state->ast = tuple;
-    state->last_child = existing;
-    existing = tuple;
-  }
-
-  // We have a tuple, add new AST to it
-  return default_builder(existing, new_ast, state);
-}
-
-
-// Build a tuple type
-static ast_t* tuple_type_builder(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state)
-{
-  if(ast_id(existing) != TK_TUPLETYPE)
-  {
-    // Not a tuple type yet
-    BUILD(tuple, existing, NODE(TK_TUPLETYPE) TREE(existing));
-    state->ast = tuple;
-    state->last_child = existing;
-    existing = tuple;
-  }
-
-  // We have a tuple type, add new AST to it
-  return default_builder(existing, new_ast, state);
-}
-
 
 
 // Parse rules
@@ -278,6 +152,7 @@ DEF(nominal);
 
 // PIPE type
 DEF(uniontype);
+  INFIX_BUILD();
   AST_NODE(TK_UNIONTYPE);
   SKIP(NULL, TK_PIPE);
   RULE("type", type);
@@ -285,6 +160,7 @@ DEF(uniontype);
 
 // AMP type
 DEF(isecttype);
+  INFIX_BUILD();
   AST_NODE(TK_ISECTTYPE);
   SKIP(NULL, TK_AMP);
   RULE("type", type);
@@ -293,7 +169,7 @@ DEF(isecttype);
 // type {uniontype | isecttype}
 DEF(infixtype);
   RULE("type", type);
-  CUSTOMBUILD(infix_builder) SEQ("type", uniontype, isecttype);
+  SEQ("type", uniontype, isecttype);
   DONE();
 
 // DONTCARE
@@ -303,18 +179,20 @@ DEF(dontcare);
 
 // (infixtype | dontcare) (COMMA (infixtype | dontcare))*
 DEF(tupletype);
+  INFIX_BUILD();
+  TOKEN(NULL, TK_COMMA);
+  MAP_ID(TK_COMMA, TK_TUPLETYPE);
   RULE("type", infixtype, dontcare);
-  WHILE(TK_COMMA,
-    CUSTOMBUILD(tuple_type_builder) RULE("type", infixtype, dontcare)
-  );
+  WHILE(TK_COMMA, RULE("type", infixtype, dontcare));
   DONE();
 
 // (LPAREN | LPAREN_NEW) tupletype RPAREN
 DEF(groupedtype);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("type", tupletype);
+  RULE("type", infixtype, dontcare);
+  OPT_NO_DFLT RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
-  if(is_expr_infix(ast_id(state.ast))) ast_setdata(state.ast, (void*)1);
+  SET_FLAG(AST_IN_PARENS);
   DONE();
 
 // THIS
@@ -330,6 +208,7 @@ DEF(atomtype);
 
 // ARROW type
 DEF(viewpoint);
+  INFIX_BUILD();
   TOKEN(NULL, TK_ARROW);
   RULE("viewpoint", type);
   DONE();
@@ -337,7 +216,7 @@ DEF(viewpoint);
 // atomtype [viewpoint]
 DEF(type);
   RULE("type", atomtype);
-  OPT_NO_DFLT CUSTOMBUILD(infix_builder) RULE("viewpoint", viewpoint);
+  OPT_NO_DFLT RULE("viewpoint", viewpoint);
   DONE();
 
 // ID ASSIGN rawseq
@@ -382,16 +261,20 @@ DEF(array);
 
 // (rawseq | dontcare) (COMMA (rawseq | dontcare))*
 DEF(tuple);
+  INFIX_BUILD();
+  TOKEN(NULL, TK_COMMA);
+  MAP_ID(TK_COMMA, TK_TUPLE);
   RULE("value", rawseq, dontcare);
-  WHILE(TK_COMMA, CUSTOMBUILD(tuple_builder) RULE("value", rawseq, dontcare));
+  WHILE(TK_COMMA, RULE("value", rawseq, dontcare));
   DONE();
 
 // (LPAREN | LPAREN_NEW) tuple RPAREN
 DEF(groupedexpr);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("value", tuple);
+  RULE("value", rawseq, dontcare);
+  OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
-  if(is_expr_infix(ast_id(state.ast))) ast_setdata(state.ast, (void*)1);
+  SET_FLAG(AST_IN_PARENS);
   DONE();
 
 // THIS | TRUE | FALSE | INT | FLOAT | STRING
@@ -425,24 +308,28 @@ DEF(atom);
 
 // DOT ID
 DEF(dot);
+  INFIX_BUILD();
   TOKEN(NULL, TK_DOT);
   TOKEN("member name", TK_ID);
   DONE();
 
 // TILDE ID
 DEF(tilde);
+  INFIX_BUILD();
   TOKEN(NULL, TK_TILDE);
   TOKEN("method name", TK_ID);
   DONE();
 
 // typeargs
 DEF(qualify);
+  INFIX_BUILD();
   AST_NODE(TK_QUALIFY);
   RULE("type arguments", typeargs);
   DONE();
 
 // LPAREN [positional] [named] RPAREN
 DEF(call);
+  INFIX_REVERSE();
   AST_NODE(TK_CALL);
   SKIP(NULL, TK_LPAREN);
   OPT RULE("argument", positional);
@@ -453,8 +340,7 @@ DEF(call);
 // atom {dot | tilde | qualify | call}
 DEF(postfix);
   RULE("value", atom);
-  CUSTOMBUILD(postfix_builder)
-    SEQ("postfix expression", dot, tilde, qualify, call);
+  SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
 // ID
@@ -660,35 +546,31 @@ DEF(prefixminus);
   RULE("value", term);
   DONE();
 
-// '(' rawseq ')'
+// '$(' rawseq ')'
 // For testing only, thrown out by parsefix
-DEF(test_seq_no_scope);
-  SKIP(NULL, TK_LPAREN);
+DEF(test_seq);
+  SKIP(NULL, TK_TEST_SEQ);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  ast_setdata(state.ast, (void*)1); // Mark sequence as test
+  SET_FLAG(TEST_ONLY);
   DONE();
 
-// ':' test_seq_no_scope
+// '$:(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq_scope);
-  SKIP(NULL, TK_COLON);
-  RULE("sequence", test_seq_no_scope);
+  SKIP(NULL, TK_TEST_SEQ_SCOPE);
+  RULE("sequence", rawseq);
+  SKIP(NULL, TK_RPAREN);
+  SET_FLAG(TEST_ONLY);
   SCOPE();
   DONE();
 
-// 'use' ':'? '(' expr {expr} ')'
-// For testing only, thrown out by parsefix
-DEF(test_seq);
-  SKIP(NULL, TK_USE);
-  RULE("sequence", test_seq_no_scope, test_seq_scope);
-  DONE();
-
 // local | cond | match | whileloop | repeat | forloop | with | try | recover |
-// consume | prefix | prefixminus | postfix | test_scope
+// consume | prefix | prefixminus | postfix | test_SCOPE()
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, prefix, prefixminus, postfix, test_seq);
+    try_block, recover, consume, prefix, prefixminus, postfix, test_seq,
+    test_seq_scope);
   DONE();
 
 // AS type
@@ -702,12 +584,14 @@ DEF(term);
 //       (SEQ (CONSUME $1))))
 //   (SEQ ERROR))
 DEF(asop);
+  INFIX_BUILD();
   TOKEN("as", TK_AS);
   RULE("type", type);
   DONE();
 
 // BINOP term
 DEF(binop);
+  INFIX_BUILD();
   TOKEN("binary operator",
     TK_AND, TK_OR, TK_XOR,
     TK_PLUS, TK_MINUS, TK_MULTIPLY, TK_DIVIDE, TK_MOD,
@@ -720,11 +604,12 @@ DEF(binop);
 // term {binop | asop}
 DEF(infix);
   RULE("value", term);
-  CUSTOMBUILD(infix_builder) SEQ("value", binop, asop);
+  SEQ("value", binop, asop);
   DONE();
 
 // ASSIGNOP assignment
 DEF(assignop);
+  INFIX_REVERSE();
   TOKEN("assign operator", TK_ASSIGN);
   RULE("assign rhs", assignment);
   DONE();
@@ -732,7 +617,7 @@ DEF(assignop);
 // term [assignop]
 DEF(assignment);
   RULE("value", infix);
-  OPT_NO_DFLT CUSTOMBUILD(infix_reverse) RULE("value", assignop);
+  OPT_NO_DFLT RULE("value", assignop);
   DONE();
 
 // RETURN | BREAK | CONTINUE | ERROR | COMPILER_INTRINSIC
@@ -742,22 +627,27 @@ DEF(jump);
   OPT RULE("return value", rawseq);
   DONE();
 
-// assignment [SEMI]
+// [SEMI]
 // =>
-// ((SEMI | NOSEMI) NOSEMI assignment)
+// ((SEMI | NOSEMI) NOSEMI)
+DEF(semi);
+  INFIX_REVERSE();
+  OPT_DFLT(TK_NOSEMI) TOKEN(NULL, TK_SEMI);
+  AST_NODE(TK_NOSEMI); // Gets position of NEXT token (not yet matched)
+  DONE();
+
+// assignment [semi]
 DEF(expr);
   RULE("value", assignment);
-  CUSTOMBUILD(infix_builder) OPT_DFLT(TK_NOSEMI) TOKEN(NULL, TK_SEMI);
-  AST_NODE(TK_NOSEMI); // Gets position of NEXT token (not yet matched)
+  RULE(";", semi);
   DONE();
 
 // expr {expr} [jump]
 DEF(longseq);
   AST_NODE(TK_SEQ);
   RULE("value", expr);
-  CUSTOMBUILD(seq_builder) SEQ("value", expr);
-  CUSTOMBUILD(seq_builder) OPT_NO_DFLT RULE("value", jump);
-  prune_semi(&state, true);  // In case of trailing semi
+  SEQ("value", expr);
+  OPT_NO_DFLT RULE("value", jump);
   DONE();
 
 // jump
@@ -769,6 +659,7 @@ DEF(jumpseq);
 // (longseq | jumpseq)
 DEF(rawseq);
   RULE("value", longseq, jumpseq);
+  REWRITE(prune_semi(ast));
   DONE();
 
 // rawseq

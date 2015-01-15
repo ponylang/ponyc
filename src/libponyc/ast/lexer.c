@@ -80,6 +80,8 @@ static const lexsym_t symbols[] =
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
   { "_", TK_DONTCARE },
+  { "$:(", TK_TEST_SEQ_SCOPE },
+  { "$(", TK_TEST_SEQ },
 
   { NULL, (token_id)0 }
 };
@@ -220,7 +222,6 @@ static const lexsym_t abstract[] =
   { "funapp", TK_FUNAPP },
 
   { "test", TK_TEST },
-  { "testscope", TK_TEST_SCOPE },
   { NULL, (token_id)0 }
 };
 

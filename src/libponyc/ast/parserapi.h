@@ -69,20 +69,12 @@ typedef struct parser_t
 } parser_t;
 
 
-typedef struct rule_state_t rule_state_t;
-
-typedef ast_t* (*rule_t)(parser_t* parser);
-typedef ast_t* (*builder_fn_t)(ast_t* existing, ast_t* new_ast,
-  rule_state_t* state);
-
-
 /// State of parsing current rule
 typedef struct rule_state_t
 {
   const char* fn_name;  // Name of the current function, for tracing
   ast_t* ast;           // AST built for this rule
   ast_t* last_child;    // Last child added to current ast
-  builder_fn_t builder; // Function to build resulting AST
   token_id deflt_id;    // ID of node to create when an optional token or rule
                         // is not found.
                         // TK_EOF = do not create a default
@@ -95,55 +87,31 @@ typedef struct rule_state_t
 } rule_state_t;
 
 
+typedef void (*builder_fn_t)(rule_state_t* state, ast_t* new_ast);
+
+typedef ast_t* (*rule_t)(parser_t* parser, builder_fn_t *out_builder);
+
+
+#define PARSE_OK        ((ast_t*)0)   // Requested parse successful
 #define PARSE_ERROR     ((ast_t*)1)   // A parse error has occured
 #define RULE_NOT_FOUND  ((ast_t*)2)   // Sub item was not found
 
 
 // Functions used by macros
 
-void process_deferred_ast(parser_t* parser, rule_state_t* state);
+void infix_builder(rule_state_t* state, ast_t* new_ast);
 
-void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state);
+void infix_reverse_builder(rule_state_t* state, ast_t* new_ast);
 
-ast_t* default_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state);
+void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id);
 
-void add_deferrable_ast(parser_t* parser, token_id id, rule_state_t* state);
+ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const token_id* id_set, bool make_ast, bool* out_found);
 
-ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
-  const char* desc);
+ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const rule_t* rule_set, bool* out_found);
 
-ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const token_id* id_set, bool make_ast);
-
-ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set);
-
-void syntax_error(parser_t* parser, const char* expected);
-
-token_id current_token_id(parser_t* parser);
-
-
-// Worker macros
-
-#define NORMALISE_TOKEN_DESC(desc, deflt) \
-  ((desc == NULL) ? token_id_desc(deflt) : desc)
-
-#define HANDLE_ERRORS(sub_ast, desc) \
-  { \
-    ast_t* r = sub_result(parser, &state, sub_ast, desc); \
-    if(r != NULL) return r;  \
-  }
-
-#define RESET_STATE() \
-  state.builder = default_builder; \
-  state.deflt_id = TK_LEX_ERROR;
-
-#define THROW_ERROR(desc) \
-  { \
-    syntax_error(parser, desc); \
-    ast_free(state.ast); \
-    return PARSE_ERROR; \
-  }
+ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
 
 // External API
@@ -163,14 +131,15 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 
 /// Rule forward declaration
 #define DECL(rule) \
-  static ast_t* rule(parser_t* parser)
+  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder)
 
 
 /// Rule definition
 #define DEF(rule) \
-  static ast_t* rule(parser_t* parser) \
+  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder) \
   { \
-    rule_state_t state = {#rule, NULL, NULL, default_builder, TK_LEX_ERROR, \
+    (void)out_builder; \
+    rule_state_t state = {#rule, NULL, NULL, TK_LEX_ERROR, \
       false, false, false, TK_NONE, 0, 0}
 
 
@@ -182,7 +151,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
  * Example:
  *    AST_NODE(TK_CASE);
  */
-#define AST_NODE(ID)  add_deferrable_ast(parser, ID, &state)
+#define AST_NODE(ID)  add_deferrable_ast(parser, &state, ID)
 
 
 /** Map our AST node ID.
@@ -217,14 +186,23 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define OPT_NO_DFLT   state.deflt_id = TK_EOF;
 
 
-/** Specify the build function to use to construct the AST, instead of using
- * the default.
- * May be applied to AST_NODE, TOKEN, RULE and SEQ. For SEQ it applies to each
- * rule matched by the sequence in turn.
+/** Specify the build function the parent rule should use to combine the result
+ * of this rule into their AST.
+ * If not specified the default of append to parent AST is used.
+ * An arbitrary function (of type builder_fn_t) may be specified, but there are
+ * also standard functions predefined.
+ *
  * Example:
- *    CUSTOMBUILD(infix_builder) TOKEN("foo", TK_FOO);
+ *    CUSTOMBUILD(infix_builder);
+ *
+ * Predefined functions:
+ *    INFIX_BUILD     For infix operators (eg +).
+ *    INFIX_REVERSE   For infix operators requiring the existing parent AST to
+ *                    be the last child (eg call).
  */
-#define CUSTOMBUILD(builder_fn) state.builder = builder_fn;
+#define CUSTOMBUILD(builder_fn) *out_builder = builder_fn
+#define INFIX_BUILD()   *out_builder = infix_builder
+#define INFIX_REVERSE() *out_builder = infix_reverse_builder
 
 
 /** Attempt to match one of the given set of tokens.
@@ -239,11 +217,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define TOKEN(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
-    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, true); \
-    HANDLE_ERRORS(sub_ast, desc_str); \
-    add_ast(parser, sub_ast, &state); \
-    RESET_STATE(); \
+    ast_t* r = parse_token_set(parser, &state, desc, id_set, true, NULL); \
+    if(r != PARSE_OK) return r; \
   }
 
 
@@ -258,10 +233,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define SKIP(desc, ...) \
   { \
     static const token_id id_set[] = { __VA_ARGS__, TK_NONE }; \
-    const char* desc_str = NORMALISE_TOKEN_DESC(desc, id_set[0]); \
-    ast_t* sub_ast = token_in_set(parser, &state, desc_str, id_set, false); \
-    HANDLE_ERRORS(sub_ast, desc_str); \
-    RESET_STATE(); \
+    ast_t* r = parse_token_set(parser, &state, desc, id_set, false, NULL); \
+    if(r != PARSE_OK) return r; \
   }
 
 
@@ -276,10 +249,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define RULE(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
-    HANDLE_ERRORS(sub_ast, desc); \
-    add_ast(parser, sub_ast, &state); \
-    RESET_STATE(); \
+    ast_t* r = parse_rule_set(parser, &state, desc, rule_set, NULL); \
+    if(r != PARSE_OK) return r; \
   }
 
 
@@ -294,19 +265,12 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
     state.deflt_id = TK_NONE; \
-    const char* cond_desc = token_id_desc(id); \
-    ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
-    HANDLE_ERRORS(sub_ast, cond_desc); \
-    if(sub_ast == NULL) \
-    { \
-      RESET_STATE(); \
-      state.matched = true; \
+    bool found = false; \
+    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
+      false, &found); \
+    if(r != PARSE_OK) return r; \
+    if(found) { \
       body; \
-    } \
-    else \
-    { \
-      add_ast(parser, RULE_NOT_FOUND, &state); \
-      RESET_STATE(); \
     } \
   }
 
@@ -321,18 +285,14 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define IFELSE(id, thenbody, elsebody) \
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
-    state.deflt_id = TK_NONE; \
-    const char* cond_desc = token_id_desc(id); \
-    ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false); \
-    HANDLE_ERRORS(sub_ast, cond_desc); \
-    RESET_STATE(); \
-    if(sub_ast == NULL) \
-    { \
-      state.matched = true; \
+    state.deflt_id = TK_EOF; \
+    bool found = false; \
+    ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
+      false, &found); \
+    if(r != PARSE_OK) return r; \
+    if(found) { \
       thenbody; \
-    } \
-    else \
-    { \
+    } else { \
       elsebody; \
     } \
   }
@@ -347,15 +307,14 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define WHILE(id, body) \
   { \
     static const token_id id_set[] = { id, TK_NONE }; \
-    const char* cond_desc = token_id_desc(id); \
+    bool found = true; \
     while(true) \
     { \
-      state.deflt_id = TK_NONE; \
-      ast_t* sub_ast = token_in_set(parser, &state, cond_desc, id_set, false);\
-      HANDLE_ERRORS(sub_ast, cond_desc); \
-      RESET_STATE(); \
-      if(sub_ast == RULE_NOT_FOUND) break; \
-      state.matched = true; \
+      state.deflt_id = TK_EOF; \
+      ast_t* r = parse_token_set(parser, &state, token_id_desc(id), id_set, \
+        false, &found); \
+      if(r != PARSE_OK) return r; \
+      if(!found) break; \
       body; \
     } \
   }
@@ -370,48 +329,64 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 #define SEQ(desc, ...) \
   { \
     static const rule_t rule_set[] = { __VA_ARGS__, NULL }; \
-    while(true) \
+    bool found = true; \
+    while(found) \
     { \
-      ast_t* sub_ast = rule_in_set(parser, &state, desc, rule_set); \
-      if(sub_ast == RULE_NOT_FOUND) break; \
-      HANDLE_ERRORS(sub_ast, desc); \
-      add_ast(parser, sub_ast, &state); \
+      state.deflt_id = TK_EOF; \
+      ast_t* r = parse_rule_set(parser, &state, desc, rule_set, &found); \
+      if(r != PARSE_OK) return r; \
     } \
-    RESET_STATE(); \
   }
 
 
-
-/// Change the order of the children of the current node.
-/// Desired order is specified as a list of indices of the current order. All
-/// indices must appear exactly once in the list or bad things may happen.
+/** Change the order of the children of the current node.
+ * Desired order is specified as a list of indices of the current order. All
+ * indices must appear exactly once in the list or bad things may happen.
+ *
+ * Example:
+ *    REORDER(1, 2, 0, 3);
+ */
 #define REORDER(...) \
   { \
-    static const int order[] = { __VA_ARGS__ }; \
-    static ast_t* children[sizeof(order) / sizeof(int)]; \
-    size_t count = (sizeof(order) / sizeof(int)); \
-    assert(ast_childcount(state.ast) == count); \
+    static const size_t order[] = { __VA_ARGS__ }; \
+    assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
+    ast_reorder_children(state.ast, order); \
     state.last_child = NULL; \
-    for(size_t i = 0; i < count; i++) \
-    { \
-      children[i] = ast_pop(state.ast); \
-    } \
-    for(size_t i = 0; i < count; i++) \
-    { \
-      ast_t* t = children[order[i]]; \
-      assert(t != NULL); \
-      children[order[i]] = NULL; \
-      add_ast(parser, t, &state); \
-    } \
   }
+
+
+/** Execute arbitrary C code to rewrite the AST as desired or perform any other
+ * task.
+ * The local variable "ast" is available as both an in and out parameter for
+ * accessing the tree produced by the current rule. Any unneeded nodes should
+ * be freed within the provided code.
+ *
+ * Example:
+ *    REWRITE(ast_print(ast));
+ */
+#define REWRITE(body) \
+  { \
+    ast_t* ast = state.ast; \
+    body; \
+    state.ast = ast; \
+    state.last_child = NULL; \
+  }
+
+
+/** Set a data field flag, which are used to communicate extra information
+ * between the parser and parsefix pass.
+ * The value specified is the flag value, not the flag index.
+ *
+ * Example:
+ *      SET_FLAG(FOO_FLAG);
+ */
+#define SET_FLAG(f) \
+  ast_setdata(state.ast, (void*)(f | (uint64_t)ast_data(state.ast)))
 
 
 /// Must appear at the end of each defined rule
 #define DONE() \
-    process_deferred_ast(parser, &state); \
-    if(state.scope && state.ast != NULL) ast_scope(state.ast); \
-    if(parser->trace) printf("Rule %s: Complete\n", state.fn_name); \
-    return state.ast; \
+    return parse_rule_complete(parser, &state); \
   }
 
 PONY_EXTERN_C_END

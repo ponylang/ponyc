@@ -246,3 +246,76 @@ void test_pass_fn_bad(const char* before,
 
   builder_free(actual_builder);
 }
+
+
+static const char* builtin =
+  "primitive U32\n"
+  "primitive None\n"
+  "primitive Bool";
+
+
+void test_same(const char* src1, const char* pass1,
+  const char* src2, const char* pass2)
+{
+  package_add_magic("builtin", builtin);
+  free_errors();
+
+  ast_t* actual_ast1;
+  package_add_magic("prog1", src1);
+  DO(load_test_program(pass1, "prog1", &actual_ast1));
+  ast_t* package1 = ast_child(actual_ast1);
+
+  ast_t* actual_ast2;
+  package_add_magic("prog2", src2);
+  DO(load_test_program(pass2, "prog2", &actual_ast2));
+  ast_t* package2 = ast_child(actual_ast2);
+
+  bool r = build_compare_asts(package2, package1);
+
+  if(!r)
+  {
+    printf("Expected:\n");
+    ast_print(package2);
+    printf("Got:\n");
+    ast_print(package1);
+    print_errors();
+  }
+
+  ASSERT_TRUE(r);
+
+  ast_free(actual_ast1);
+  ast_free(actual_ast2);
+}
+
+
+void test_compile(const char* src, const char* pass)
+{
+  package_add_magic("builtin", builtin);
+  free_errors();
+
+  ast_t* actual_ast;
+  package_add_magic("prog", src);
+  DO(load_test_program(pass, "prog", &actual_ast));
+
+  ast_free(actual_ast);
+}
+
+
+void test_fail(const char* src, const char* pass)
+{
+  package_add_magic("builtin", builtin);
+  free_errors();
+
+  package_add_magic("prog", src);
+
+  free_errors();
+  package_suppress_build_message();
+
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  limit_passes(&opt, pass);
+  ast_t* program = program_load(stringtab("prog"), &opt);
+  pass_opt_done(&opt);
+
+  ASSERT_EQ((void*)NULL, program);
+}

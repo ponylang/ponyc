@@ -77,7 +77,10 @@ obj  := $(PONY_BUILD_DIR)/obj
 libponyc  := $(lib)
 libponycc := $(lib)
 libponyrt := $(lib)
-libponyrt-pic := $(lib)
+
+ifeq ($(OSTYPE),linux)
+  libponyrt-pic := $(lib)
+endif
 
 # Define special case rules for a targets source files. By default
 # this makefile assumes that a targets source files can be found
@@ -111,8 +114,10 @@ libponyrt.except += src/libponyrt/asio/sock.c
 libponyrt.except += src/libponyrt/dist/dist.c
 libponyrt.except += src/libponyrt/dist/proto.c
 
-libponyrt-pic.dir := src/libponyrt
-libponyrt-pic.except := $(libponyrt.except)
+ifeq ($(OSTYPE),linux)
+  libponyrt-pic.dir := src/libponyrt
+  libponyrt-pic.except := $(libponyrt.except)
+endif
 
 # Third party, but requires compilation. Defined as
 # (1) a name and output directory.
@@ -121,7 +126,11 @@ libgtest := $(lib)
 libgtest.dir := lib/gtest
 libgtest.files := $(libgtest.dir)/gtest_main.cc $(libgtest.dir)/gtest-all.cc
 
-libraries := libponyc libponyrt libponyrt-pic libgtest
+ifeq ($(OSTYPE), linux)
+  libraries := libponyc libponyrt libponyrt-pic libgtest
+else
+  libraries := libponyc libponyrt libgtest
+endif
 
 # Third party, but prebuilt. Prebuilt libraries are defined as
 # (1) a name (stored in prebuilt)
@@ -164,7 +173,9 @@ libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 
-libponyrt-pic.buildoptions += -fpic
+ifeq ($(OSTYPE), linux)
+  libponyrt-pic.buildoptions += -fpic
+endif
 
 # target specific disabling of build options
 libgtest.disable = -Wconversion -Wno-sign-conversion -Wextra
