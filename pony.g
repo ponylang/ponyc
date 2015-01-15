@@ -184,7 +184,7 @@ idseq_element
   :  ID
   |  idseq_multi
   ;
-  
+
 tuple
   :  (seq | '_') (',' (seq | '_'))*
   ;
@@ -198,7 +198,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume' | '&'
+  :  'not' | '-' | 'consume' cap? | '&'
   ;
 
 binop

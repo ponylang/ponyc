@@ -24,12 +24,22 @@ ast_result_t flatten_typeparamref(ast_t* ast)
   return AST_OK;
 }
 
-ast_result_t flatten_tuple(typecheck_t* t, ast_t* ast)
+static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
 {
   if(t->frame->constraint != NULL)
   {
-    ast_error(ast, "tuple types can't be used as constraints");
-    return AST_ERROR;
+    switch(ast_id(ast))
+    {
+      case TK_TUPLETYPE:
+        ast_error(ast, "tuple types can't be used as constraints");
+        return AST_ERROR;
+
+      case TK_ARROW:
+        ast_error(ast, "arrow types can't be used as constraints");
+        return AST_ERROR;
+
+      default: {}
+    }
   }
 
   return AST_OK;
@@ -53,7 +63,8 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TUPLETYPE:
-      return flatten_tuple(t, ast);
+    case TK_ARROW:
+      return flatten_noconstraint(t, ast);
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(ast);

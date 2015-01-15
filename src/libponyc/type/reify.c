@@ -20,7 +20,7 @@ static bool reify_typeparamref(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   switch(ast_id(ast_childidx(ast, 2)))
   {
     case TK_EPHEMERAL:
-      typearg = consume_type(typearg);
+      typearg = consume_type(typearg, TK_NONE);
       break;
 
     case TK_NONE:

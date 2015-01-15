@@ -172,6 +172,10 @@ static const lexsym_t abstract[] =
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
+
+  { "boxgen", TK_BOX_GENERIC },
+  { "taggen", TK_TAG_GENERIC },
+  { "anygen", TK_ANY_GENERIC },
   { "!", TK_BORROWED },
 
   { "literal", TK_LITERAL },

@@ -526,9 +526,16 @@ DEF(recover);
   SKIP(NULL, TK_END);
   DONE();
 
-// (NOT | CONSUME | AMP) term
+// CONSUME [CAP] term
+DEF(consume);
+  TOKEN("consume", TK_CONSUME);
+  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  RULE("expression", term);
+  DONE();
+
+// (NOT | AMP) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_CONSUME, TK_AMP);
+  TOKEN("prefix", TK_NOT, TK_AMP);
   RULE("expression", term);
   DONE();
 
@@ -559,10 +566,11 @@ DEF(test_seq_scope);
   DONE();
 
 // local | cond | match | whileloop | repeat | forloop | with | try | recover |
-// prefix | prefixminus | postfix | test_SCOPE()
+// consume | prefix | prefixminus | postfix | test_SCOPE()
 DEF(term);
-  RULE("value", local, cond, match, whileloop, repeat, forloop, with, try_block,
-    recover, prefix, prefixminus, postfix, test_seq, test_seq_scope);
+  RULE("value", local, cond, match, whileloop, repeat, forloop, with,
+    try_block, recover, consume, prefix, prefixminus, postfix, test_seq,
+    test_seq_scope);
   DONE();
 
 // AS type

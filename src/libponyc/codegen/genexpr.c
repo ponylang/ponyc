@@ -52,7 +52,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_call(c, ast);
 
     case TK_CONSUME:
-      return gen_expr(c, ast_child(ast));
+      return gen_expr(c, ast_childidx(ast, 1));
 
     case TK_RECOVER:
       return gen_expr(c, ast_childidx(ast, 1));

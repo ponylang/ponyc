@@ -154,6 +154,10 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
+
+  TK_BOX_GENERIC,
+  TK_TAG_GENERIC,
+  TK_ANY_GENERIC,
   TK_BORROWED,
 
   TK_LITERAL, // A literal expression whose type is not yet inferred

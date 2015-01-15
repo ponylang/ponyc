@@ -3,45 +3,182 @@
 #include "viewpoint.h"
 #include <assert.h>
 
-static token_id cap_upper_bounds(token_id a, token_id b)
+static token_id cap_union_constraint(token_id a, token_id b)
 {
-  assert((a >= TK_ISO) && (a <= TK_TAG));
-  assert((b >= TK_ISO) && (b <= TK_TAG));
-
-  if(is_cap_sub_cap(a, b))
-    return b;
-
-  if(is_cap_sub_cap(b, a))
+  // Decide a capability for a type parameter that is constrained by a union.
+  // We don't get box or tag here, but we do get boxgen, taggen and anygen.
+  if(a == b)
     return a;
 
-  // one is ref and the other is val
-  return TK_BOX;
+  // Pick a type that allows only what both types allow.
+  switch(a)
+  {
+    case TK_REF:
+      switch(b)
+      {
+        case TK_VAL:
+        case TK_BOX_GENERIC:
+          return TK_BOX_GENERIC;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+      switch(b)
+      {
+        case TK_REF:
+        case TK_BOX_GENERIC:
+          return TK_BOX_GENERIC;
+
+        case TK_TAG_GENERIC:
+          return TK_TAG_GENERIC;
+
+        default: {}
+      }
+
+    case TK_BOX_GENERIC:
+      switch(b)
+      {
+        case TK_REF:
+        case TK_VAL:
+          return TK_BOX_GENERIC;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG_GENERIC:
+      switch(b)
+      {
+        case TK_VAL:
+          return TK_TAG_GENERIC;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  return TK_ANY_GENERIC;
 }
 
-static token_id cap_lower_bounds(token_id a, token_id b)
+static token_id cap_isect_constraint(token_id a, token_id b)
 {
-  assert((a >= TK_ISO) && (a <= TK_TAG));
-  assert((b >= TK_ISO) && (b <= TK_TAG));
-
+  // Decide a capability for a type parameter that is constrained by an isect.
+  // We don't get box or tag here, but we do get boxgen, taggen and anygen.
   if(is_cap_sub_cap(a, b))
     return a;
 
   if(is_cap_sub_cap(b, a))
     return b;
 
-  // one is ref and the other is val
-  return TK_TRN;
+  return TK_ANY_GENERIC;
 }
 
 bool is_cap_sub_cap(token_id sub, token_id super)
 {
-  assert((sub >= TK_ISO) && (sub <= TK_TAG));
-  assert((super >= TK_ISO) && (super <= TK_TAG));
+  switch(sub)
+  {
+    case TK_ISO:
+      return true;
 
-  if((sub == TK_REF) && (super == TK_VAL))
-    return false;
+    case TK_TRN:
+      switch(super)
+      {
+        case TK_TRN:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+        case TK_TAG_GENERIC:
+          return true;
 
-  return sub <= super;
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(super)
+      {
+        case TK_REF:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+      switch(super)
+      {
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+        case TK_TAG_GENERIC:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_BOX:
+      switch(super)
+      {
+        case TK_BOX:
+        case TK_TAG:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG:
+      return super == TK_TAG;
+
+    case TK_BOX_GENERIC:
+      switch(super)
+      {
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG_GENERIC:
+      switch(super)
+      {
+        case TK_TAG:
+        case TK_TAG_GENERIC:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    case TK_ANY_GENERIC:
+      switch(super)
+      {
+        case TK_TAG:
+        case TK_ANY_GENERIC:
+          return true;
+
+        default: {}
+      }
+      break;
+
+    default: {}
+  }
+
+  return false;
 }
 
 token_id cap_single(ast_t* type)
@@ -89,6 +226,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
       {
         case TK_ISO: return TK_ISO;
         case TK_VAL: return TK_VAL;
+        case TK_TAG_GENERIC: return TK_TAG_GENERIC;
         default: return TK_TAG;
       }
       break;
@@ -102,6 +240,8 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_TRN: return TK_TRN;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
+        case TK_TAG_GENERIC: return TK_TAG_GENERIC;
+        case TK_ANY_GENERIC: return TK_TAG;
         default: return TK_BOX;
       }
     }
@@ -114,6 +254,8 @@ token_id cap_viewpoint(token_id view, token_id cap)
       switch(cap)
       {
         case TK_TAG: return TK_TAG;
+        case TK_TAG_GENERIC: return TK_TAG_GENERIC;
+        case TK_ANY_GENERIC: return TK_TAG;
         default: return TK_VAL;
       }
       break;
@@ -126,6 +268,8 @@ token_id cap_viewpoint(token_id view, token_id cap)
         case TK_ISO: return TK_TAG;
         case TK_VAL: return TK_VAL;
         case TK_TAG: return TK_TAG;
+        case TK_TAG_GENERIC: return TK_TAG_GENERIC;
+        case TK_ANY_GENERIC: return TK_TAG;
         default: return TK_BOX;
       }
       break;
@@ -140,8 +284,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
 
 /**
  * Given the capability of a constraint, derive the capability to use for a
- * typeparamref of that constraint. Returns the lowest capability that could
- * be a subtype of the constraint.
+ * typeparamref of that constraint.
  */
 static token_id cap_typeparam(token_id cap)
 {
@@ -151,9 +294,12 @@ static token_id cap_typeparam(token_id cap)
     case TK_TRN: return TK_TRN;
     case TK_REF: return TK_REF;
     case TK_VAL: return TK_VAL;
-    case TK_BOX: return TK_BOX;
-    case TK_TAG: return TK_ISO;
-    case TK_NONE: return TK_ISO; // For typeparamref in constraints.
+    case TK_BOX: return TK_BOX_GENERIC;
+    case TK_TAG: return TK_TAG_GENERIC;
+    case TK_BOX_GENERIC: return TK_BOX_GENERIC;
+    case TK_TAG_GENERIC: return TK_TAG_GENERIC;
+    case TK_ANY_GENERIC: return TK_ANY_GENERIC;
+    case TK_NONE: return TK_ANY_GENERIC;
     default: {}
   }
 
@@ -161,13 +307,16 @@ static token_id cap_typeparam(token_id cap)
   return TK_NONE;
 }
 
-bool cap_sendable(token_id cap)
+bool cap_sendable(token_id cap, token_id eph)
 {
   switch(cap)
   {
     case TK_ISO:
+      return eph != TK_BORROWED;
+
     case TK_VAL:
     case TK_TAG:
+    case TK_TAG_GENERIC:
       return true;
 
     default: {}
@@ -186,6 +335,7 @@ bool cap_safetowrite(token_id into, token_id cap)
         case TK_ISO:
         case TK_VAL:
         case TK_TAG:
+        case TK_TAG_GENERIC:
           return true;
 
         default: {}
@@ -199,6 +349,7 @@ bool cap_safetowrite(token_id into, token_id cap)
         case TK_TRN:
         case TK_VAL:
         case TK_TAG:
+        case TK_TAG_GENERIC:
           return true;
 
         default: {}
@@ -221,11 +372,12 @@ token_id cap_from_constraint(ast_t* type)
     case TK_UNIONTYPE:
     {
       ast_t* child = ast_child(type);
-      token_id cap = TK_ISO;
+      token_id cap = cap_from_constraint(child);
+      child = ast_sibling(child);
 
       while(child != NULL)
       {
-        cap = cap_upper_bounds(cap, cap_from_constraint(child));
+        cap = cap_union_constraint(cap, cap_from_constraint(child));
         child = ast_sibling(child);
       }
 
@@ -235,11 +387,12 @@ token_id cap_from_constraint(ast_t* type)
     case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(type);
-      token_id cap = TK_TAG;
+      token_id cap = cap_from_constraint(child);
+      child = ast_sibling(child);
 
       while(child != NULL)
       {
-        cap = cap_lower_bounds(cap, cap_from_constraint(child));
+        cap = cap_isect_constraint(cap, cap_from_constraint(child));
         child = ast_sibling(child);
       }
 
@@ -249,12 +402,6 @@ token_id cap_from_constraint(ast_t* type)
     case TK_NOMINAL:
     case TK_TYPEPARAMREF:
       return cap_typeparam(cap_single(type));
-
-    case TK_ARROW:
-    {
-      AST_GET_CHILDREN(type, left, right);
-      return cap_typeparam(cap_viewpoint(TK_BOX, cap_single(right)));
-    }
 
     default: {}
   }

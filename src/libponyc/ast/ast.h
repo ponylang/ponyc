@@ -207,7 +207,7 @@ local
 prefix
 ------
 (
-  CONSUME: expr
+  CONSUME: cap expr
   RECOVER: cap expr
   NOT: expr
   MINUS: expr

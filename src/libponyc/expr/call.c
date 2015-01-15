@@ -509,7 +509,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // An assignment in the constructor body.
   BUILD(r_assign, receiver,
     NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(r_id)))
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(r_id)))
       NODE(TK_REFERENCE, TREE(r_field_id))));
 
   // A named argument at the call site.
@@ -545,7 +545,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ast_append(apply_params, param);
 
       // An arg in the call to the original method.
-      BUILD(apply_arg, param, NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(id))));
+      BUILD(apply_arg, param,
+        NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(id))));
       ast_append(apply_args, apply_arg);
     } else {
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
@@ -559,7 +560,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       // An assignment in the constructor body.
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
-          NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
+          NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
           NODE(TK_REFERENCE, TREE(id))));
 
       // A named argument at the call site.
