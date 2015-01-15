@@ -122,9 +122,14 @@ bool type_passes(ast_t* type, pass_opt_t* options);
 bool package_passes(ast_t* package, pass_opt_t* options);
 
 /** Apply the per program passes to the given AST.
-* Returns true on success, false on failure.
-*/
+ * Returns true on success, false on failure.
+ */
 bool program_passes(ast_t* program, pass_opt_t* options);
+
+/** Perform the code generation passes based on the given AST.
+ * Returns true on success, false on failure.
+ */
+bool generate_passes(ast_t* program, pass_opt_t* options);
 
 
 PONY_EXTERN_C_END

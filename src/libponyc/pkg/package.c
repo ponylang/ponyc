@@ -564,7 +564,13 @@ ast_t* program_load(const char* path, pass_opt_t* options)
   if(package_load(program, path, options) == NULL)
   {
     ast_free(program);
-    program = NULL;
+    return NULL;
+  }
+
+  if(!program_passes(program, options))
+  {
+    ast_free(program);
+    return NULL;
   }
 
   return program;

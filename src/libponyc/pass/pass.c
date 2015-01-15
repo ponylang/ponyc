@@ -124,26 +124,34 @@ bool package_passes(ast_t* package, pass_opt_t* options)
   if(do_pass(&package, &r, options, PASS_SCOPE, pass_scope, NULL))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
+  return true;
+}
+
+
+bool program_passes(ast_t* program, pass_opt_t* options)
+{
+  bool r;
+
+  if(do_pass(&program, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_FLATTEN, NULL, pass_flatten))
+  if(do_pass(&program, &r, options, PASS_FLATTEN, NULL, pass_flatten))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_TRAITS, pass_traits, NULL))
+  if(do_pass(&program, &r, options, PASS_TRAITS, pass_traits, NULL))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_EXPR, NULL, pass_expr))
+  if(do_pass(&program, &r, options, PASS_EXPR, NULL, pass_expr))
     return r;
 
   return true;
 }
 
 
-bool program_passes(ast_t* program, pass_opt_t* opt)
+bool generate_passes(ast_t* program, pass_opt_t* options)
 {
-  if(opt->limit < PASS_LLVM_IR)
+  if(options->limit < PASS_LLVM_IR)
     return true;
 
-  return codegen(program, opt);
+  return codegen(program, options);
 }

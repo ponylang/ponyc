@@ -156,7 +156,7 @@ static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
   if(print_ast)
     ast_print(program);
 
-  bool ok = program_passes(program, opt);
+  bool ok = generate_passes(program, opt);
   ast_free(program);
 
   print_errors();

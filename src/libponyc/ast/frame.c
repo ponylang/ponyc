@@ -37,6 +37,12 @@ bool frame_push(typecheck_t* t, ast_t* ast)
 
   switch(ast_id(ast))
   {
+    case TK_PROGRAM:
+      pop = push_frame(t);
+      t->frame->package = NULL;
+      t->frame->module = NULL;
+      break;
+
     case TK_PACKAGE:
       // Can occur in a module as a result of a use expression.
       pop = push_frame(t);
