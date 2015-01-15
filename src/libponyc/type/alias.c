@@ -64,6 +64,9 @@ static ast_t* alias_bind_for_type(ast_t* type, int index)
     case TK_VAL:
     case TK_BOX:
     case TK_TAG:
+    case TK_BOX_GENERIC:
+    case TK_TAG_GENERIC:
+    case TK_ANY_GENERIC:
       return type;
 
     default: {}
@@ -78,18 +81,19 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
   ast_t* cap = ast_childidx(type, index);
   token_id tcap = ast_id(cap);
 
-  if(rcap == tcap)
-    return type;
-
   switch(tcap)
   {
     case TK_ISO:
     {
-      // If ephemeral, any rcap is acceptable. Otherwise, only tag is. This is because
-      // the iso may have come from outside the recover expression.
+      if(rcap == TK_NONE)
+        rcap = TK_ISO;
+
+      // If ephemeral, any rcap is acceptable. Otherwise, only iso or tag is.
+      // This is because the iso may have come from outside the recover
+      // expression.
       ast_t* eph = ast_sibling(cap);
 
-      if((ast_id(eph) != TK_EPHEMERAL) && (rcap != TK_TAG))
+      if((ast_id(eph) != TK_EPHEMERAL) && (rcap != TK_ISO) && (rcap != TK_TAG))
         return NULL;
       break;
     }
@@ -97,18 +101,77 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
     case TK_TRN:
     case TK_REF:
       // These recovers as iso, so any rcap is acceptable.
+      if(rcap == TK_NONE)
+        rcap = TK_ISO;
       break;
 
     case TK_VAL:
     case TK_BOX:
       // These recover as val, so mutable rcaps are not acceptable.
+      if(rcap == TK_NONE)
+        rcap = TK_VAL;
+
       if(rcap < TK_VAL)
         return NULL;
       break;
 
     case TK_TAG:
-      // Recovers as itself, so no rcap is acceptable.
-      return NULL;
+      // Recovers as tag only.
+      if(rcap == TK_NONE)
+        rcap = TK_TAG;
+
+      if(rcap != TK_TAG)
+        return NULL;
+      break;
+
+    case TK_BOX_GENERIC:
+      // Could be ref or val, recovers as box or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_BOX_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
+      break;
+
+    case TK_TAG_GENERIC:
+      // Could be val or tag, recovers as tag or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_TAG_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_TAG:
+        case TK_TAG_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
+      break;
+
+    case TK_ANY_GENERIC:
+      // Could be anything, recovers as tag or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_ANY_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_TAG:
+        case TK_ANY_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
+      break;
 
     default:
       assert(0);
@@ -118,6 +181,39 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
   type = ast_dup(type);
   cap = ast_childidx(type, index);
   ast_setid(cap, rcap);
+  return type;
+}
+
+static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
+{
+  type = ast_dup(type);
+  ast_t* cap = ast_childidx(type, index);
+  ast_t* eph = ast_sibling(cap);
+  token_id tcap = ast_id(cap);
+
+  if(ccap == TK_NONE)
+    ccap = tcap;
+
+  switch(ast_id(eph))
+  {
+    case TK_NONE:
+      ast_setid(eph, TK_EPHEMERAL);
+      break;
+
+    case TK_BORROWED:
+      ast_setid(eph, TK_NONE);
+      break;
+
+    default: {}
+  }
+
+  if(!is_cap_sub_cap(tcap, ccap))
+  {
+    ast_free_unattached(type);
+    return NULL;
+  }
+
+  ast_setid(cap, tcap);
   return type;
 }
 
@@ -310,7 +406,7 @@ ast_t* infer(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type)
+ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
@@ -327,7 +423,15 @@ ast_t* consume_type(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, consume_type(child));
+        ast_t* r_right = consume_type(child, cap);
+
+        if(r_right == NULL)
+        {
+          ast_free_unattached(r_type);
+          return NULL;
+        }
+
+        ast_append(r_type, r_right);
         child = ast_sibling(child);
       }
 
@@ -335,46 +439,10 @@ ast_t* consume_type(ast_t* type)
     }
 
     case TK_NOMINAL:
-    {
-      type = ast_dup(type);
-      ast_t* ephemeral = ast_childidx(type, 4);
-
-      switch(ast_id(ephemeral))
-      {
-        case TK_NONE:
-          ast_setid(ephemeral, TK_EPHEMERAL);
-          break;
-
-        case TK_BORROWED:
-          ast_setid(ephemeral, TK_NONE);
-          break;
-
-        default: {}
-      }
-
-      return type;
-    }
+      return consume_for_type(type, 3, cap);
 
     case TK_TYPEPARAMREF:
-    {
-      type = ast_dup(type);
-      ast_t* ephemeral = ast_childidx(type, 2);
-
-      switch(ast_id(ephemeral))
-      {
-        case TK_NONE:
-          ast_setid(ephemeral, TK_EPHEMERAL);
-          break;
-
-        case TK_BORROWED:
-          ast_setid(ephemeral, TK_NONE);
-          break;
-
-        default: {}
-      }
-
-      return type;
-    }
+      return consume_for_type(type, 1, cap);
 
     case TK_ARROW:
     {
@@ -385,7 +453,7 @@ ast_t* consume_type(ast_t* type)
       BUILD(r_type, type,
         NODE(TK_ARROW,
           TREE(left)
-          TREE(consume_type(right))));
+          TREE(consume_type(right, cap))));
 
       return r_type;
     }
@@ -485,23 +553,27 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      // Test the lower bounds.
-      ast_t* lower = viewpoint_lower(ast_childidx(type, 1));
-      bool ok = sendable(lower);
-      ast_free_unattached(lower);
-      return ok;
+      // All possible resulting capabilities must be sendable.
+      // This boils down to simply testing the right-hand side.
+      // iso: ref->iso=iso, val->iso=val, box->iso=tag Y
+      // trn: N
+      // ref: N
+      // val: Y
+      // box: N
+      // tag: Y
+      return sendable(ast_childidx(type, 1));
     }
 
     case TK_NOMINAL:
     {
       AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
-      return (ast_id(eph) != TK_BORROWED) && cap_sendable(ast_id(cap));
+      return cap_sendable(ast_id(cap), ast_id(eph));
     }
 
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, eph);
-      return (ast_id(eph) != TK_BORROWED) && cap_sendable(ast_id(cap));
+      return cap_sendable(ast_id(cap), ast_id(eph));
     }
 
     case TK_FUNTYPE:

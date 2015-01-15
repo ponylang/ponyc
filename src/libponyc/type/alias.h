@@ -16,7 +16,7 @@ ast_t* alias_bind(ast_t* type);
 // Collapse borrowed types when doing local type inference.
 ast_t* infer(ast_t* type);
 
-ast_t* consume_type(ast_t* type);
+ast_t* consume_type(ast_t* type, token_id cap);
 
 ast_t* recover_type(ast_t* type, token_id cap);
 

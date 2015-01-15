@@ -1,4 +1,4 @@
-interface Arithmetic[A: Arithmetic[A] box]
+interface Arithmetic[A: Arithmetic[A] box] val
   fun add(y: A): A
   fun sub(y: A): A
   fun mul(y: A): A
@@ -7,17 +7,17 @@ interface Arithmetic[A: Arithmetic[A] box]
   fun divmod(y: A): (A, A) => (this / y, this % y)
   fun neg(): A
 
-interface Logical[A: Logical[A] box]
+interface Logical[A: Logical[A] box] val
   fun op_and(y: A): A
   fun op_or(y: A): A
   fun op_xor(y: A): A
   fun op_not(): A
 
-interface Bits[A: Bits[A] box] is Logical[A]
+interface Bits[A: Bits[A] box] val is Logical[A]
   fun shl(y: A): A
   fun shr(y: A): A
 
-trait ArithmeticConvertible
+trait _ArithmeticConvertible val
   fun i8(): I8 => compiler_intrinsic
   fun i16(): I16 => compiler_intrinsic
   fun i32(): I32 => compiler_intrinsic
@@ -33,8 +33,8 @@ trait ArithmeticConvertible
   fun f32(): F32 => compiler_intrinsic
   fun f64(): F64 => compiler_intrinsic
 
-trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
-  Ordered[A]
+trait Real[A: Real[A] box] val is
+  Stringable, _ArithmeticConvertible, Arithmetic[A], Ordered[A]
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
@@ -63,7 +63,7 @@ trait Real[A: Real[A] box] is Stringable, ArithmeticConvertible, Arithmetic[A],
     x = x + (x << 31)
     x
 
-trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
+trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y
@@ -79,7 +79,7 @@ trait Integer[A: Integer[A] box] is Real[A], Logical[A], Bits[A]
   fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
   fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
-trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
+trait SignedInteger[A: SignedInteger[A] box] val is Integer[A]
   fun string(fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
@@ -87,14 +87,14 @@ trait SignedInteger[A: SignedInteger[A] box] is Integer[A]
     ToString._u64(abs().u64(), this.i64() < 0, fmt, prefix, prec, width, align,
       fill)
 
-trait UnsignedInteger[A: UnsignedInteger[A] box] is Integer[A]
+trait UnsignedInteger[A: UnsignedInteger[A] box] val is Integer[A]
   fun string(fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
-trait FloatingPoint[A: FloatingPoint[A] box] is Real[A]
+trait FloatingPoint[A: FloatingPoint[A] box] val is Real[A]
   fun string(fmt: FloatFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^

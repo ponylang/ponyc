@@ -151,22 +151,22 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
 static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  ast_t* package = ast_child(ast);
-  ast_t* cap = ast_childidx(ast, 3);
-  ast_t* defcap;
+  AST_GET_CHILDREN(ast, package, id, typeparams, cap, eph);
 
-  // A nominal constraint without a capability is set to tag, otherwise to
-  // the default capability for the type.
-  if(ast_id(cap) == TK_NONE)
+  // A constraint without a capability is left alone, otherwise set the
+  // default capability for the type.
+  token_id tcap = ast_id(cap);
+
+  if(tcap == TK_NONE)
   {
     if(ast_id(def) == TK_PRIMITIVE)
-      defcap = ast_from(cap, TK_VAL);
-    else if((t != NULL) && (t->frame->constraint != NULL))
-      defcap = ast_from(cap, TK_TAG);
+      tcap = TK_VAL;
+    else if(t->frame->constraint != NULL)
+      tcap = TK_ANY_GENERIC;
     else
-      defcap = ast_childidx(def, 2);
+      tcap = ast_id(ast_childidx(def, 2));
 
-    ast_replace(&cap, defcap);
+    ast_setid(cap, tcap);
   }
 
   // Keep the actual package id.

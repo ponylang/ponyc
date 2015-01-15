@@ -4,9 +4,9 @@ actor Main
   var tuple: (U64, U64)
   var ntuple: (Env, Env)
   var union: (Env | None)
-  var intersect: (ArithmeticConvertible val & Unsigned)
+  var intersect: (_ArithmeticConvertible val & Unsigned)
   var generic: Array[U64]
-  var traitfield: ArithmeticConvertible val
+  var traitfield: _ArithmeticConvertible val
 
   new create(env: Env) =>
     self = this

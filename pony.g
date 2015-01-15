@@ -197,7 +197,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume' | '&'
+  :  'not' | '-' | 'consume' cap? | '&'
   ;
 
 binop

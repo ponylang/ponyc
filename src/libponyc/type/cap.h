@@ -23,7 +23,7 @@ token_id cap_for_this(typecheck_t* t);
 
 token_id cap_viewpoint(token_id view, token_id cap);
 
-bool cap_sendable(token_id cap);
+bool cap_sendable(token_id cap, token_id eph);
 
 bool cap_safetowrite(token_id into, token_id cap);
 

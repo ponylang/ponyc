@@ -27,6 +27,8 @@ actor Main
     wombat.t1(env)
     wombat.t2(env)
 
+    let foo = consume box wombat
+
     test_primitive(env)
     test_actor(env)
     test_literal_ffi()

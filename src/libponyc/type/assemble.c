@@ -243,23 +243,30 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
 ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
   token_id ephemeral)
 {
-  ast_t* id = ast_child(t->frame->type);
-  ast_t* typeparams = ast_sibling(id);
-  const char* name = ast_name(id);
-
-  ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(nominal, ast_from(ast, ephemeral));
+  bool make_arrow = false;
 
   if(cap == TK_BOX)
-    ast_add(nominal, ast_from(ast, TK_REF));
-  else
-    ast_add(nominal, ast_from(ast, cap));
+  {
+    cap = TK_REF;
+    make_arrow = true;
+  }
+
+  AST_GET_CHILDREN(t->frame->type, id, typeparams);
+
+  BUILD(typeargs, ast, NODE(TK_NONE));
+
+  BUILD(type, ast,
+    NODE(TK_NOMINAL,
+      NODE(TK_NONE)
+      TREE(id)
+      TREE(typeargs)
+      NODE(cap)
+      NODE(ephemeral)));
 
   if(ast_id(typeparams) == TK_TYPEPARAMS)
   {
+    ast_setid(typeargs, TK_TYPEARGS);
     ast_t* typeparam = ast_child(typeparams);
-    ast_t* typeargs = ast_from(ast, TK_TYPEARGS);
-    ast_add(nominal, typeargs);
 
     while(typeparam != NULL)
     {
@@ -269,35 +276,23 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
 
       typeparam = ast_sibling(typeparam);
     }
-  } else {
-    ast_add(nominal, ast_from(ast, TK_NONE)); // empty typeargs
   }
 
-  ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from(ast, TK_NONE));
+  if(make_arrow)
+  {
+    BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
+    return arrow;
+  }
 
-  if(cap != TK_BOX)
-    return nominal;
-
-  ast_t* arrow = ast_from(ast, TK_ARROW);
-  ast_add(arrow, nominal);
-  ast_add(arrow, ast_from(ast, TK_THISTYPE));
-  return arrow;
+  return type;
 }
 
 ast_t* type_for_fun(ast_t* ast)
 {
-  ast_t* cap = ast_child(ast);
-  ast_t* name = ast_sibling(cap);
-  ast_t* typeparams = ast_sibling(name);
-  ast_t* params = ast_sibling(typeparams);
-  ast_t* result = ast_sibling(params);
+  AST_GET_CHILDREN(ast, cap, name, typeparams, params, result);
 
-  ast_t* fun = ast_from(ast, TK_FUNTYPE);
-  ast_add(fun, result);
-  ast_add(fun, params);
-  ast_add(fun, typeparams);
-  ast_add(fun, cap);
+  BUILD(fun, ast,
+    NODE(TK_FUNTYPE, TREE(cap) TREE(typeparams) TREE(params) TREE(result)));
 
   return fun;
 }

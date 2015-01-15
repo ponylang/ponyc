@@ -147,12 +147,12 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
 {
   AST_GET_CHILDREN(ast, left, right);
+  ast_t* l_type = ast_type(left);
 
-  AST_GET_CHILDREN(find, id, ftype, init);
-  ast_settype(find, ftype);
+  AST_GET_CHILDREN(find, id, f_type, init);
 
   // Viewpoint adapted type of the field.
-  ast_t* type = viewpoint(left, find);
+  ast_t* type = viewpoint_type(l_type, f_type);
 
   if(type == NULL)
   {
@@ -385,7 +385,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       ast_t* r_type = type;
 
       if(is_method_return(t, ast))
-        r_type = consume_type(type);
+        r_type = consume_type(type, TK_NONE);
 
       ast_settype(ast, r_type);
       ast_setid(ast, TK_PARAMREF);
@@ -460,7 +460,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       ast_t* r_type = type;
 
       if(is_method_return(t, ast))
-        r_type = consume_type(type);
+        r_type = consume_type(type, TK_NONE);
 
       ast_settype(ast, r_type);
       return true;

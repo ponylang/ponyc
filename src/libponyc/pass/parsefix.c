@@ -486,7 +486,7 @@ static ast_result_t parse_fix_infix_expr(ast_t* ast)
 
 static ast_result_t parse_fix_consume(ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, term);
+  AST_GET_CHILDREN(ast, cap, term);
 
   if(ast_id(term) != TK_REFERENCE)
   {

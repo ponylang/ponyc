@@ -59,6 +59,7 @@ static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
     {
       case TK_ISO: t_alt_cap = TK_TAG; break;
       case TK_TRN: t_alt_cap = TK_BOX; break;
+      case TK_ANY_GENERIC: t_alt_cap = TK_TAG; break;
       default: {}
     }
   }
