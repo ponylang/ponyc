@@ -8,7 +8,7 @@
 static bool trace_enable = false;
 
 
-token_id current_token_id(parser_t* parser)
+static token_id current_token_id(parser_t* parser)
 {
   return token_get_id(parser->token);
 }
@@ -29,34 +29,94 @@ static void consume_token_no_ast(parser_t* parser)
 }
 
 
-/// Process our deferred AST node creation, if any
-void process_deferred_ast(parser_t* parser, rule_state_t* state)
+static void syntax_error(parser_t* parser, const char* expected)
 {
-  if(!state->deferred) // No deferment to process
-    return;
+  assert(parser != NULL);
+  assert(expected != NULL);
 
-  assert(state->ast == NULL);
-  token_t* deferred_token = token_new(state->deferred_id, parser->source);
-  token_set_pos(deferred_token, state->line, state->pos);
-  state->ast = ast_token(deferred_token);
-  state->deferred = false;
+  if(parser->last_matched == NULL)
+  {
+    error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token), "syntax error: no code found");
+  }
+  else
+  {
+    error(parser->source, token_line_number(parser->token),
+      token_line_position(parser->token),
+      "syntax error: expected %s after %s", expected, parser->last_matched);
+  }
 }
 
 
-/// Add the given AST to ours, handling deferment
-void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
+// Standard build functions
+
+void default_builder(rule_state_t* state, ast_t* new_ast)
 {
-  if(new_ast == PARSE_ERROR || new_ast == NULL)
-    return;
+  assert(state != NULL);
+  assert(new_ast != NULL);
 
-  if(new_ast == RULE_NOT_FOUND)
+  // Existing AST goes at the top
+
+  if(state->last_child == NULL)  // No valid last pointer
+    ast_append(state->ast, new_ast);
+  else  // Add new AST to end of children
+    ast_add_sibling(state->last_child, new_ast);
+
+  state->last_child = new_ast;
+}
+
+
+void infix_builder(rule_state_t* state, ast_t* new_ast)
+{
+  assert(state != NULL);
+  assert(new_ast != NULL);
+
+  // New AST goes at the top
+  ast_add(new_ast, state->ast);
+  state->ast = new_ast;
+  state->last_child = NULL;
+}
+
+
+void infix_reverse_builder(rule_state_t* state, ast_t* new_ast)
+{
+  assert(state != NULL);
+  assert(new_ast != NULL);
+
+  // New AST goes at the top, existing goes on the right
+  ast_append(new_ast, state->ast);
+  state->ast = new_ast;
+
+  // state->last_child is actually still valid, so leave it
+}
+
+
+// Functions called by macros
+
+// Process any deferred token we have
+static void process_deferred_ast(parser_t* parser, rule_state_t* state)
+{
+  assert(parser != NULL);
+  assert(state != NULL);
+
+  if(state->deferred)
   {
-    if(state->deflt_id == TK_EOF) // Not found, but no default needed
-      return;
-
-    // Rule wasn't found and NO_DFLT is not set, so make a default
-    new_ast = ast_new(parser->token, state->deflt_id);
+    token_t* deferred_token = token_new(state->deferred_id, parser->source);
+    token_set_pos(deferred_token, state->line, state->pos);
+    state->ast = ast_token(deferred_token);
+    state->deferred = false;
   }
+}
+
+
+// Add the given AST to ours, handling deferment
+static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
+  builder_fn_t build_fn)
+{
+  assert(parser != NULL);
+  assert(state != NULL);
+  assert(new_ast != NULL && new_ast != PARSE_ERROR);
+  assert(build_fn != NULL);
 
   process_deferred_ast(parser, state);
 
@@ -64,34 +124,18 @@ void add_ast(parser_t* parser, ast_t* new_ast, rule_state_t* state)
   {
     // The new AST is our only AST so far
     state->ast = new_ast;
+    state->last_child = NULL;
   }
   else
   {
     // Add the new AST to our existing AST
-    assert(state->builder != NULL);
-    state->ast = state->builder(state->ast, new_ast, state);
+    build_fn(state, new_ast);
   }
 }
 
 
-ast_t* default_builder(ast_t* existing, ast_t* new_ast, rule_state_t* state)
-{
-  assert(state != NULL);
-
-  // Existing AST goes at the top
-
-  if(state->last_child == NULL)  // New AST is the first child
-    ast_add(existing, new_ast);
-  else  // Add new AST to end of children
-    ast_add_sibling(state->last_child, new_ast);
-
-  state->last_child = new_ast;
-  return existing;
-}
-
-
-/// Add an AST node for the specified token, which may be deferred
-void add_deferrable_ast(parser_t* parser, token_id id, rule_state_t* state)
+// Add an AST node for the specified token, which may be deferred
+void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 {
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
@@ -103,26 +147,66 @@ void add_deferrable_ast(parser_t* parser, token_id id, rule_state_t* state)
     return;
   }
 
-  add_ast(parser, ast_new(parser->token, id), state);
+  add_ast(parser, state, ast_new(parser->token, id), default_builder);
 }
 
 
-/** Process the result from parsing a token or sub rule.
+/* Process the result from finding a token or sub rule.
+ * Args:
+ *    new_ast AST generate from found token or sub rule, NULL for none.
+ *    out_found reports whether an optional token was found. Only set on
+ *      success. May be set to NULL if this information is not needed.
+ *
  * Returns:
- *    NULL if rule should continue
- *    non-NULL if rule should immediately return that error value
+ *    PARSE_OK
  */
-ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
-  const char* desc)
+static ast_t* handle_found(parser_t* parser, rule_state_t* state,
+  ast_t* new_ast, builder_fn_t build_fn, bool* out_found)
 {
-  if(sub_ast == PARSE_ERROR)
+  assert(parser != NULL);
+  assert(state != NULL);
+
+  if(out_found != NULL)
+    *out_found = true;
+
+  if(!state->matched)
   {
-    // Propogate error
-    ast_free(state->ast);
-    return PARSE_ERROR;
+    // First token / sub rule in rule was found
+    if(parser->trace)
+      printf("Rule %s: Matched\n", state->fn_name);
+
+    state->matched = true;
   }
 
-  if(sub_ast == RULE_NOT_FOUND && state->deflt_id == TK_LEX_ERROR)
+  if(new_ast != NULL)
+    add_ast(parser, state, new_ast, build_fn);
+
+  state->deflt_id = TK_LEX_ERROR;
+  return PARSE_OK;
+}
+
+
+/* Process the result from not finding a token or sub rule.
+* Args:
+*    out_found reports whether an optional token was found. Only set on
+*      success. May be set to NULL if this information is not needed.
+*
+* Returns:
+ *    PARSE_OK if not error.
+ *    PARSE_ERROR to propogate a lexer error.
+ *    RULE_NOT_FOUND if current token is not is specified set.
+*/
+static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
+  const char* desc, bool* out_found)
+{
+  assert(parser != NULL);
+  assert(state != NULL);
+  assert(desc != NULL);
+
+  if(out_found != NULL)
+    *out_found = false;
+
+  if(state->deflt_id == TK_LEX_ERROR)
   {
     // Required token / sub rule not found
     ast_free(state->ast);
@@ -144,45 +228,53 @@ ast_t* sub_result(parser_t* parser, rule_state_t* state, ast_t* sub_ast,
     return PARSE_ERROR;
   }
 
-  if(sub_ast != RULE_NOT_FOUND && !state->matched)
-  {
-    // First token / sub rule in rule was found
-    if(parser->trace)
-      printf("Rule %s: Matched\n", state->fn_name);
+  if(state->deflt_id != TK_EOF) // Default node is specified
+    add_deferrable_ast(parser, state, state->deflt_id);
 
-    state->matched = true;
-  }
-
-  return NULL;
+  state->deflt_id = TK_LEX_ERROR;
+  return PARSE_OK;
 }
 
 
-/** Check if current token matches any in given set and consume on match.
+/* Check if current token matches any in given set and consume on match.
  * Args:
  *    id_set is a TK_NONE terminated list.
  *    make_ast specifies whether to construct an AST node on match or discard
- *      consumed token
+ *      consumed token.
+ *    out_found reports whether an optional token was found. Only set on
+ *      success. May be set to NULL if this information is not needed.
  *
  * Returns:
- *    New AST node if match found and make_ast is true
- *    NULL if match found and make_ast is false
- *    PARSE_ERROR to propogate a lexer error
- *    RULE_NOT_FOUND if current token is not is specified set
+ *    PARSE_OK on success.
+ *    PARSE_ERROR to propogate a lexer error.
+ *    RULE_NOT_FOUND if current token is not is specified set.
  */
-ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const token_id* id_set, bool make_ast)
+ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const token_id* id_set, bool make_ast, bool* out_found)
 {
+  assert(parser != NULL);
+  assert(state != NULL);
+  assert(id_set != NULL);
+
   token_id id = current_token_id(parser);
 
-  if(id == TK_LEX_ERROR)  // propgate error
+  if(id == TK_LEX_ERROR)
+  {
+    // Propgate error
+    ast_free(state->ast);
     return PARSE_ERROR;
+  }
+
+  if(desc == NULL)
+    desc = token_id_desc(id_set[0]);
 
   if(parser->trace)
   {
     printf("Rule %s: Looking for %s token%s %s. Found %s. ",
       state->fn_name,
       (state->deflt_id == TK_LEX_ERROR) ? "required" : "optional",
-      (id_set[1] == TK_NONE) ? "" : "s", desc, token_print(parser->token));
+      (id_set[1] == TK_NONE) ? "" : "s", desc,
+      token_print(parser->token));
   }
 
   for(const token_id* p = id_set; *p != TK_NONE; p++)
@@ -196,11 +288,12 @@ ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
       parser->last_matched = token_print(parser->token);
 
       if(make_ast)
-        return consume_token(parser);
+        return handle_found(parser, state, consume_token(parser),
+          default_builder, out_found);
 
       // AST not needed, discard token
       consume_token_no_ast(parser);
-      return NULL;
+      return handle_found(parser, state, NULL, NULL, out_found);
     }
   }
 
@@ -208,26 +301,37 @@ ast_t* token_in_set(parser_t* parser, rule_state_t* state, const char* desc,
   if(parser->trace)
     printf("Not compatible\n");
 
-  return RULE_NOT_FOUND;
+  return handle_not_found(parser, state, desc, out_found);
 }
 
 
-/** Check if any of the specified rules can be matched.
+/* Check if any of the specified rules can be matched.
  * Args:
  *    rule_set is a NULL terminated list.
+ *    out_found reports whether an optional token was found. Only set on
+ *      success. May be set to NULL if this information is not needed.
  *
  * Returns:
- *    Matched rule AST if match found
- *    PARSE_ERROR to propogate an error
- *    RULE_NOT_FOUND if no rules in given set can be matched
+ *    PARSE_OK on success.
+ *    PARSE_ERROR to propogate an error.
+ *    RULE_NOT_FOUND if no rules in given set can be matched.
  */
-ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
-  const rule_t* rule_set)
+ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
+  const rule_t* rule_set, bool* out_found)
 {
+  assert(parser != NULL);
+  assert(state != NULL);
+  assert(desc != NULL);
+  assert(rule_set != NULL);
+
   token_id id = current_token_id(parser);
 
-  if(id == TK_LEX_ERROR)  // propgate error
+  if(id == TK_LEX_ERROR)
+  {
+    // Propgate error
+    ast_free(state->ast);
     return PARSE_ERROR;
+  }
 
   if(parser->trace)
   {
@@ -239,43 +343,56 @@ ast_t* rule_in_set(parser_t* parser, rule_state_t* state, const char* desc,
 
   for(const rule_t* p = rule_set; *p != NULL; p++)
   {
-    ast_t* rule_ast = (*p)(parser);
+    builder_fn_t build_fn = default_builder;
+    ast_t* rule_ast = (*p)(parser, &build_fn);
 
     if(rule_ast == PARSE_ERROR)
-      return rule_ast;
+    {
+      // Propgate error
+      ast_free(state->ast);
+      return PARSE_ERROR;
+    }
 
     if(rule_ast != RULE_NOT_FOUND)
     {
       // Rule found
       parser->last_matched = desc;
-      return rule_ast;
+      return handle_found(parser, state, rule_ast, build_fn, out_found);
     }
   }
 
   // No rules in set can be matched
-  return RULE_NOT_FOUND;
+  return handle_not_found(parser, state, desc, out_found);
 }
 
 
-/// Report a syntax error
-void syntax_error(parser_t* parser, const char* expected)
+/* Tidy up a successfully parsed rule.
+ * Args:
+ *    rule_set is a NULL terminated list.
+ *    out_found reports whether an optional token was found. Only set on
+ *      success. May be set to NULL if this information is not needed.
+ *
+ * Returns:
+ *    AST created, NULL for none.
+ */
+ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
 {
   assert(parser != NULL);
-  assert(expected != NULL);
+  assert(state != NULL);
 
-  if(parser->last_matched == NULL)
-  {
-    error(parser->source, token_line_number(parser->token),
-      token_line_position(parser->token), "syntax error: no code found");
-  }
-  else
-  {
-    error(parser->source, token_line_number(parser->token),
-    token_line_position(parser->token),
-    "syntax error: expected %s after %s", expected, parser->last_matched);
-  }
+  process_deferred_ast(parser, state);
+
+  if(state->scope && state->ast != NULL)
+    ast_scope(state->ast);
+
+  if(parser->trace)
+    printf("Rule %s: Complete\n", state->fn_name);
+
+  return state->ast;
 }
 
+
+// Top level functions
 
 void parse_trace(bool enable)
 {
@@ -303,7 +420,8 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
   parser->trace = trace_enable;
 
   // Parse given start rule
-  ast_t* ast = start(parser);
+  builder_fn_t build_fn;
+  ast_t* ast = start(parser, &build_fn);
 
   if(ast == PARSE_ERROR)
     ast = NULL;

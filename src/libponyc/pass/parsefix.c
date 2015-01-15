@@ -83,6 +83,38 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
 };
 
 
+static bool is_expr_infix(token_id id)
+{
+  switch(id)
+  {
+    case TK_AND:
+    case TK_OR:
+    case TK_XOR:
+    case TK_PLUS:
+    case TK_MINUS:
+    case TK_MULTIPLY:
+    case TK_DIVIDE:
+    case TK_MOD:
+    case TK_LSHIFT:
+    case TK_RSHIFT:
+    case TK_IS:
+    case TK_ISNT:
+    case TK_EQ:
+    case TK_NE:
+    case TK_LT:
+    case TK_LE:
+    case TK_GE:
+    case TK_GT:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+
 static bool check_traits(ast_t* traits)
 {
   assert(traits != NULL);
@@ -244,6 +276,7 @@ static bool check_members(ast_t* members, int entity_def_index)
       }
 
       default:
+        ast_print(members);
         assert(0);
         return false;
     }
@@ -466,12 +499,12 @@ static ast_result_t parse_fix_infix_expr(ast_t* ast)
   assert(left != NULL);
   token_id left_op = ast_id(left);
   bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
-    (ast_data(left) != (void*)1);
+    ((AST_IN_PARENS & (uint64_t)ast_data(left)) == 0);
 
   assert(right != NULL);
   token_id right_op = ast_id(right);
   bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
-    (ast_data(right) != (void*)1);
+    ((AST_IN_PARENS & (uint64_t)ast_data(right)) == 0);
 
   if(left_clash || right_clash)
   {
@@ -516,19 +549,6 @@ static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
   {
     ast_error(ast_childidx(value_seq, max_value_count), "Unreachable code");
     return AST_ERROR;
-  }
-
-  return AST_OK;
-}
-
-
-static ast_result_t parse_fix_sequence(ast_t* ast)
-{
-  if(ast_data(ast) == (void*)1)
-  {
-    // Test sequence, not allowed outside parse pass
-    ast_error(ast, "Unexpected use command in method body");
-    return AST_FATAL;
   }
 
   return AST_OK;
@@ -616,35 +636,50 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
+  if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
+  {
+    // Test node, not allowed outside parse pass
+    ast_error(ast, "Illegal character '$' found");
+    return AST_FATAL;
+  }
+
+  ast_result_t r = AST_OK;
+
   switch(id)
   {
-    case TK_SEQ:        return parse_fix_sequence(ast);
-    case TK_SEMI:       return parse_fix_semi(ast);
-    case TK_NOSEMI:     return parse_fix_nosemi(ast);
-    case TK_TYPE:       return parse_fix_type_alias(ast);
-    case TK_PRIMITIVE:  return parse_fix_entity(ast, DEF_PRIMITIVE);
-    case TK_CLASS:      return parse_fix_entity(ast, DEF_CLASS);
-    case TK_ACTOR:      return parse_fix_entity(ast, DEF_ACTOR);
-    case TK_TRAIT:      return parse_fix_entity(ast, DEF_TRAIT);
-    case TK_INTERFACE:  return parse_fix_entity(ast, DEF_INTERFACE);
-    case TK_THISTYPE:   return parse_fix_thistype(t, ast);
-    case TK_EPHEMERAL:  return parse_fix_ephemeral(t, ast);
-    case TK_BORROWED:   return parse_fix_borrowed(t, ast);
-    case TK_MATCH:      return parse_fix_match(ast);
-    case TK_FFIDECL:    return parse_fix_ffi(ast, false);
-    case TK_FFICALL:    return parse_fix_ffi(ast, true);
-    case TK_ELLIPSIS:   return parse_fix_ellipsis(ast);
-    case TK_CONSUME:    return parse_fix_consume(ast);
+    case TK_PROGRAM:
+    case TK_PACKAGE:
+    case TK_MODULE: // Avoid clearing data
+      return AST_OK;
+
+    case TK_SEMI:       r = parse_fix_semi(ast); break;
+    case TK_NOSEMI:     r = parse_fix_nosemi(ast); break;
+    case TK_TYPE:       r = parse_fix_type_alias(ast); break;
+    case TK_PRIMITIVE:  r = parse_fix_entity(ast, DEF_PRIMITIVE); break;
+    case TK_CLASS:      r = parse_fix_entity(ast, DEF_CLASS); break;
+    case TK_ACTOR:      r = parse_fix_entity(ast, DEF_ACTOR); break;
+    case TK_TRAIT:      r = parse_fix_entity(ast, DEF_TRAIT); break;
+    case TK_INTERFACE:  r = parse_fix_entity(ast, DEF_INTERFACE); break;
+    case TK_THISTYPE:   r = parse_fix_thistype(t, ast); break;
+    case TK_EPHEMERAL:  r = parse_fix_ephemeral(t, ast); break;
+    case TK_BORROWED:   r = parse_fix_borrowed(t, ast); break;
+    case TK_MATCH:      r = parse_fix_match(ast); break;
+    case TK_FFIDECL:    r = parse_fix_ffi(ast, false); break;
+    case TK_FFICALL:    r = parse_fix_ffi(ast, true); break;
+    case TK_ELLIPSIS:   r = parse_fix_ellipsis(ast); break;
+    case TK_CONSUME:    r = parse_fix_consume(ast); break;
     case TK_RETURN:
-    case TK_BREAK:      return parse_fix_return(ast, 1);
+    case TK_BREAK:      r = parse_fix_return(ast, 1); break;
     case TK_CONTINUE:
-    case TK_ERROR:      return parse_fix_return(ast, 0);
-    case TK_ID:         return parse_fix_id(ast);
+    case TK_ERROR:      r = parse_fix_return(ast, 0); break;
+    case TK_ID:         r = parse_fix_id(ast); break;
     default: break;
   }
 
   if(is_expr_infix(id))
-    return parse_fix_infix_expr(ast);
+    r = parse_fix_infix_expr(ast);
 
-  return AST_OK;
+  // Clear parse info flags
+  ast_setdata(ast, 0);
+  return r;
 }

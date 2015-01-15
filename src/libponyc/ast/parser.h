@@ -6,7 +6,8 @@
 
 ast_t* parser(source_t* source);
 
-/// Report whether the specified token is an infix operator
-bool is_expr_infix(token_id id);
+// Flags to communicate extra info from parser to parsefix
+#define AST_IN_PARENS  1
+#define TEST_ONLY  2
 
 #endif

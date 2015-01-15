@@ -495,11 +495,11 @@ TEST(SugarTest, ForWithoutElse)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use(\n"
-    "    let hygid = use(1)\n"
+    "  $(\n"
+    "    let hygid = $(1)\n"
     "    while hygid.has_next() do\n"
     "      let i = hygid.next()\n"
-    "      use(2)\n"
+    "      $(2)\n"
     "    else None end\n"
     "  )";
 
@@ -515,11 +515,11 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  use(\n"
-    "    let hygid = use(1)\n"
+    "  $(\n"
+    "    let hygid = $(1)\n"
     "    while hygid.has_next() do\n"
     "      let i:U32 = hygid.next()\n"
-    "      use(2)\n"
+    "      $(2)\n"
     "    else\n"
     "      3\n"
     "    end\n"
