@@ -640,6 +640,12 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
+  token_id id = ast_id(ast);
+
+  if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
+    // These node all use the data field as pointers to stuff
+      return AST_OK;
+
   if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
   {
     // Test node, not allowed outside parse pass
@@ -653,16 +659,10 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     return AST_FATAL;
   }
 
-  token_id id = ast_id(ast);
   ast_result_t r = AST_OK;
 
   switch(id)
   {
-    case TK_PROGRAM:
-    case TK_PACKAGE:
-    case TK_MODULE: // Avoid clearing data
-      return AST_OK;
-
     case TK_SEMI:       r = parse_fix_semi(ast); break;
     case TK_TYPE:       r = parse_fix_type_alias(ast); break;
     case TK_PRIMITIVE:  r = parse_fix_entity(ast, DEF_PRIMITIVE); break;
