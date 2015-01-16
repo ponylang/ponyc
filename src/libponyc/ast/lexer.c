@@ -200,7 +200,6 @@ static const lexsym_t abstract[] =
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY2 },
-  { "nosemi", TK_NOSEMI },
   { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
@@ -220,6 +219,8 @@ static const lexsym_t abstract[] =
   { "newbeapp", TK_NEWBEAPP },
   { "beapp", TK_BEAPP },
   { "funapp", TK_FUNAPP },
+
+  { "\\n", TK_NEWLINE },
 
   { "test", TK_TEST },
   { NULL, (token_id)0 }

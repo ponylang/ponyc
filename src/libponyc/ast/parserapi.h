@@ -65,6 +65,7 @@ typedef struct parser_t
   lexer_t* lexer;
   token_t* token;
   const char* last_matched;
+  void* next_flags;     // Data flags to set on the next token created
   bool trace;
 } parser_t;
 
@@ -110,6 +111,8 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found);
+
+void parse_set_next_flags(parser_t* parser, uint64_t flags);
 
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
@@ -382,6 +385,14 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
  */
 #define SET_FLAG(f) \
   ast_setdata(state.ast, (void*)(f | (uint64_t)ast_data(state.ast)))
+
+
+/** Set the data field flags to use for the next token found in the source.
+ *
+ * Example:
+ *    NEXT_FLAGS(FOO_FLAG);
+ */
+#define NEXT_FLAGS(f)  parse_set_next_flags(parser, f)
 
 
 /// Must appear at the end of each defined rule

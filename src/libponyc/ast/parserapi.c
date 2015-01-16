@@ -17,6 +17,8 @@ static token_id current_token_id(parser_t* parser)
 static ast_t* consume_token(parser_t* parser)
 {
   ast_t* ast = ast_token(parser->token);
+  ast_setdata(ast, parser->next_flags);
+  parser->next_flags = NULL;
   parser->token = lexer_next(parser->lexer);
   return ast;
 }
@@ -279,6 +281,10 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 
   for(const token_id* p = id_set; *p != TK_NONE; p++)
   {
+    // Match new line if the next token is the first on a line
+    if(*p == TK_NEWLINE && token_is_first_on_line(parser->token))
+      return handle_found(parser, state, NULL, NULL, out_found);
+
     if(id == *p)
     {
       // Current token matches one in set
@@ -363,6 +369,14 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
 
   // No rules in set can be matched
   return handle_not_found(parser, state, desc, out_found);
+}
+
+
+// Set the data flags to use for the next token consumed from the source
+void parse_set_next_flags(parser_t* parser, uint64_t flags)
+{
+  assert(parser != NULL);
+  parser->next_flags = (void*)flags;
 }
 
 

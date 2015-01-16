@@ -557,18 +557,24 @@ static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
 
 static ast_result_t parse_fix_semi(ast_t* ast)
 {
-  // Only unnecessary semis make it out of the parser
-  ast_error(ast,
-    "Unexpected semi colon, only use to separate expressions on the same line"
-    );
-  return AST_FATAL;
-}
+  assert(ast_parent(ast) != NULL);
+  assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
+  bool any_newlines = ast_is_first_on_line(ast);  // Newline before ;
+  bool last_in_seq = (ast_sibling(ast) == NULL);
 
-static ast_result_t parse_fix_nosemi(ast_t* ast)
-{
-  ast_error(ast, "Use a semi colon to separate expressions on the same line");
-  return AST_FATAL;
+  if((LAST_ON_LINE & (uint64_t)ast_data(ast)) != 0) // Newline after ;
+    any_newlines = true;
+
+  if(any_newlines || last_in_seq)
+  {
+    // Unnecessary ;
+    ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
+      " the same line");
+    return AST_FATAL;
+  }
+
+  return AST_OK;
 }
 
 
@@ -634,8 +640,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  token_id id = ast_id(ast);
-
   if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
   {
     // Test node, not allowed outside parse pass
@@ -643,6 +647,13 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     return AST_FATAL;
   }
 
+  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
+  {
+    ast_error(ast, "Use a semi colon to separate expressions on the same line");
+    return AST_FATAL;
+  }
+
+  token_id id = ast_id(ast);
   ast_result_t r = AST_OK;
 
   switch(id)
@@ -653,7 +664,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
       return AST_OK;
 
     case TK_SEMI:       r = parse_fix_semi(ast); break;
-    case TK_NOSEMI:     r = parse_fix_nosemi(ast); break;
     case TK_TYPE:       r = parse_fix_type_alias(ast); break;
     case TK_PRIMITIVE:  r = parse_fix_entity(ast, DEF_PRIMITIVE); break;
     case TK_CLASS:      r = parse_fix_entity(ast, DEF_CLASS); break;

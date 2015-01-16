@@ -786,6 +786,20 @@ static ast_result_t sugar_ffi(ast_t* ast)
 }
 
 
+static ast_result_t sugar_semi(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  assert(ast_id(ast) == TK_SEMI);
+
+  // Semis are pointless, discard them
+  ast_t* expr = ast_pop(ast);
+  assert(expr != NULL);
+
+  ast_replace(astp, expr);
+  return AST_OK;
+}
+
+
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -837,6 +851,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NOT:        return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
     case TK_FFICALL:    return sugar_ffi(ast);
+    case TK_SEMI:       return sugar_semi(astp);
     default:            return AST_OK;
   }
 }

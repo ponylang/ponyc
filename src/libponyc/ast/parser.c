@@ -37,49 +37,6 @@ DECL(members);
 */
 
 
-// Remove the [no]semi node at the top of the each expression in the given
-// sequence, if it is not an error.
-// Each sequence eleemnt should be one of:
-// (; NOSEMI expression)
-// (NOSEMI NOSEMI expression)
-// (jump [expression])
-static void prune_semi(ast_t* ast)
-{
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_SEQ);
-
-  // Check each expression in the sequence for ; correctness
-  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-  {
-    token_id id = ast_id(p);
-    if(id == TK_SEMI || id == TK_NOSEMI)
-    {
-      bool any_newlines = ast_is_first_on_line(p);
-      bool last_in_seq = (ast_sibling(p) == NULL);
-
-      // Remove child NOSEMI
-      ast_t* child = ast_pop(p);
-      assert(child != NULL);
-      assert(ast_id(child) == TK_NOSEMI);
-
-      if(ast_is_first_on_line(child))
-        any_newlines = true;
-
-      ast_free(child);
-
-      if((id == TK_SEMI && !any_newlines && !last_in_seq) || // Correct ;
-        (id == TK_NOSEMI && (any_newlines || last_in_seq)))  // Correct no ;
-      {
-        // This is correct, remove [no]semi
-        ast_t* expr = ast_pop(p);
-        assert(ast_child(p) == NULL);
-        ast_replace(&p, expr);
-      }
-    }
-  }
-}
-
-
 // Parse rules
 
 // type {COMMA type}
@@ -627,19 +584,22 @@ DEF(jump);
   OPT RULE("return value", rawseq);
   DONE();
 
-// [SEMI]
-// =>
-// ((SEMI | NOSEMI) NOSEMI)
+// SEMI
 DEF(semi);
-  INFIX_REVERSE();
-  OPT_DFLT(TK_NOSEMI) TOKEN(NULL, TK_SEMI);
-  AST_NODE(TK_NOSEMI); // Gets position of NEXT token (not yet matched)
+  INFIX_BUILD();
+  TOKEN(NULL, TK_SEMI)
+  IFELSE(TK_NEWLINE, SET_FLAG(LAST_ON_LINE),);
+  DONE();
+
+// Always matches, consumes no tokens
+DEF(nosemi);
+  IFELSE(TK_NEWLINE, , NEXT_FLAGS(MISSING_SEMI));
   DONE();
 
 // assignment [semi]
 DEF(expr);
   RULE("value", assignment);
-  RULE(";", semi);
+  RULE(";", semi, nosemi);
   DONE();
 
 // expr {expr} [jump]
@@ -648,6 +608,7 @@ DEF(longseq);
   RULE("value", expr);
   SEQ("value", expr);
   OPT_NO_DFLT RULE("value", jump);
+  NEXT_FLAGS(0);
   DONE();
 
 // jump
@@ -659,7 +620,6 @@ DEF(jumpseq);
 // (longseq | jumpseq)
 DEF(rawseq);
   RULE("value", longseq, jumpseq);
-  REWRITE(prune_semi(ast));
   DONE();
 
 // rawseq

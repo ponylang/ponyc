@@ -181,7 +181,6 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
-  TK_NOSEMI,
   TK_IDENTITY,
 
   TK_REFERENCE,
@@ -201,6 +200,9 @@ typedef enum token_id
   TK_NEWBEAPP,
   TK_BEAPP,
   TK_FUNAPP,
+
+  // Pseudo tokens that never actually exist
+  TK_NEWLINE,  // Used by parser macros
 
   // Token types for testing
   TK_TEST,
