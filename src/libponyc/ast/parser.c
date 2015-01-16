@@ -444,8 +444,8 @@ DEF(withelem);
 // withelem {COMMA withelem}
 DEF(withexpr);
   AST_NODE(TK_SEQ);
-  RULE(NULL, withelem);
-  WHILE(TK_COMMA, RULE(NULL, withelem));
+  RULE("with expression", withelem);
+  WHILE(TK_COMMA, RULE("with expression", withelem));
   DONE();
 
 // WITH withexpr DO rawseq [ELSE rawseq] END
@@ -458,7 +458,7 @@ DEF(withexpr);
 //     (SEQ $1.dispose()*)))
 DEF(with);
   TOKEN(NULL, TK_WITH);
-  RULE(NULL, withexpr);
+  RULE("with expression", withexpr);
   SKIP(NULL, TK_DO);
   RULE("with body", rawseq);
   IF(TK_ELSE, RULE("else clause", rawseq));
