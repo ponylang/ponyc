@@ -100,6 +100,9 @@ bool type_passes(ast_t* type, pass_opt_t* options)
 
   bool ok = package_passes(type, options);
 
+  if(ok)
+    ok = program_passes(type, options);
+
   frame_pop(&options->check);
   frame_pop(&options->check);
   frame_pop(&options->check);

@@ -21,6 +21,10 @@ class Wombat is T1, T2, K1, K2
   new iso create() =>
     None
 
+actor Wombat2
+  be apply(env: Env) =>
+    env.out.print("Wombat2")
+
 actor Main
   new create(env: Env) =>
     let wombat: (T1 & T2) = Wombat
@@ -32,6 +36,7 @@ actor Main
     test_primitive(env)
     test_actor(env)
     test_literal_ffi()
+    test_as_apply(env)
 
     env.out.write(
       """
@@ -69,3 +74,7 @@ actor Main
 
     let partial = writer~apply("Test")
     partial("wombat")
+
+  fun ref test_as_apply(env: Env) =>
+    let wombat: (Wombat2 | None) = Wombat2
+    try (wombat as Wombat2)(env) end

@@ -620,19 +620,6 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
 
   switch(ast_id(lhs))
   {
-    case TK_STRING:
-    case TK_ARRAY:
-    case TK_OBJECT:
-    case TK_TUPLE:
-    case TK_THIS:
-    case TK_FVARREF:
-    case TK_FLETREF:
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_PARAMREF:
-    case TK_CALL:
-      return insert_apply(opt, ast);
-
     case TK_NEWREF:
     case TK_NEWBEREF:
     case TK_BEREF:
@@ -648,6 +635,5 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
-  return false;
+  return insert_apply(opt, ast);
 }
