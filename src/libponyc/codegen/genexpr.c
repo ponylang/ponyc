@@ -183,6 +183,9 @@ LLVMValueRef gen_assign_cast(compile_t* c, LLVMTypeRef l_type,
       return LLVMBuildBitCast(c->builder, r_value, l_type, "");
 
     case LLVMStructTypeKind:
+      if(LLVMGetTypeKind(r_type) == LLVMPointerTypeKind)
+        r_value = gen_unbox(c, type, r_value);
+
       return assign_to_tuple(c, l_type, r_value, type);
 
     default: {}

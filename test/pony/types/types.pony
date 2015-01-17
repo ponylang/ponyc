@@ -1,4 +1,5 @@
 use "files"
+use "collections"
 
 trait K1
   new tag create()
@@ -37,6 +38,7 @@ actor Main
     test_actor(env)
     test_literal_ffi()
     test_as_apply(env)
+    test_tuple_map(env)
 
     env.out.write(
       """
@@ -78,3 +80,12 @@ actor Main
   fun ref test_as_apply(env: Env) =>
     let wombat: (Wombat2 | None) = Wombat2
     try (wombat as Wombat2)(env) end
+
+  fun ref test_tuple_map(env: Env) =>
+    let map = Map[String, (U64, U64)]
+    map("hi") = (1, 2)
+
+    try
+      let (x, y) = map("hi")
+      env.out.print(x.string() + ", " + y.string())
+    end
