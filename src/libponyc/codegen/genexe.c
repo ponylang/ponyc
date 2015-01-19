@@ -338,9 +338,6 @@ bool genexe(compile_t* c, ast_t* program)
     return false;
   }
 
-  // Emit debug info for this compile unit.
-  //dwarf_compileunit(c->dwarf, package);
-
   // Generate the Main actor and the Env class.
   gentype_t main_g;
   ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);

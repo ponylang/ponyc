@@ -31,84 +31,52 @@
 using namespace llvm;
 using namespace llvm::dwarf;
 
-struct dwarf_info_t
+struct dwarf_t
+{
+  symbols_t* symbols;
+  bool emit;
+};
+
+typedef struct dwarf_type_t
+{
+  DIFile file;
+  size_t line;
+  size_t pos;
+} dwarf_type_t;
+
+struct dwarf_composite_t
 {
   size_t size;
   MDNode** members;
 };
 
-struct dwarf_t
+/**
+ * Collect type information such as file and line scope. Tuple types are 
+ * unscoped, because their declaration may be ambiguous.
+ */
+static void setup_dwarf(dwarf_t* dwarf, ast_t* ast, dwarf_type_t* type)
 {
-  symbols_t* symbols;
+  memset(type, 0, sizeof(dwarf_type_t));
 
-  bool optimized;
-  bool emit;
-
-  Module* module;
-  DataLayout* layout;
-  DIBuilder* builder;
-  DICompileUnit unit;
-};
-
-typedef struct typeinfo_t
-{
-  DIFile file;
-  size_t line;
-  size_t pos;
-  size_t size;
-  size_t align;
-} typeeinfo_t;
-
-static DIFile mdfile(dwarf_t* dwarf, ast_t* module)
-{
-  source_t* source = (source_t*)ast_data(module);
-  symbol_t* s = symbols_get(dwarf->symbols, source->file, true);
-
-  if(s->file == NULL)
+  if(g->underlying != TK_TUPLETYPE)
   {
-    StringRef name = sys::path::filename(source->file);
-    StringRef path = sys::path::parent_path(source->file);
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    assert(module != NULL);
 
-    s->file = dwarf->builder->createFile(name, path);
-  }
-
-  return (DIFile)s->file;
-}
-
-static void get_typeinfo(dwarf_t* dwarf, ast_t* ast, LLVMTypeRef typeref,
-  typeinfo_t* info)
-{
-  memset(info, 0, sizeof(typeinfo_t));
-
-  // Tuple types are unscoped, as their declaration may be ambiguous.
-  if((ast != NULL) && ast_id(ast) != TK_TUPLETYPE)
-  {
-    info->file = mdfile(dwarf, ast_nearest(ast, TK_MODULE));
-    info->line = ast_line(ast);
-    info->pos = ast_pos(ast);
-  }
-
-  if(typeref != NULL)
-  {
-    Type* type = unwrap(typeref);
-
-    info->size = dwarf->layout->getTypeSizeInBits(type);
-    info->align = dwarf->layout->getABITypeAlignment(type) << 3;
+    type->file = symbols_file(dwarf->symbols, module);
+    type->line = ast_line(ast);
+    type->pos = ast_pos(ast);
   }
 }
 
-void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
+void dwarf_compileunit(dwarf_t* dwarf, ast_t* ast)
 {
-  if(!dwarf->emit)
+  if(!dwarf->emit) 
     return;
 
-  ast_t* package = ast_child(program);
+  assert(ast_id(ast) == TK_PROGRAM);
 
-  StringRef file = StringRef(package_filename(package));
-  StringRef path = sys::path::parent_path(package_path(package));
-
-  dwarf->unit = dwarf->builder->createCompileUnit(DW_LANG_Pony, file, path,
-    PRODUCER, dwarf->optimized, StringRef(), 0);
+  symbols_compileunit(dwarf->symbols, ast_child(ast), dwarf->optimized);
 }
 
 void dwarf_forward(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
@@ -116,25 +84,25 @@ void dwarf_forward(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
   if(!dwarf->emit)
     return;
 
-  symbol_t* s = symbols_get(dwarf->symbols, g->type_name, false);
+  /*symbol_t* s = symbols_get(dwarf->symbols, g->type_name, false);
   dbg_symbol_t* d = s->dbg;
 
   if(d->type == NULL)
   {
     DIBuilder* builder = dwarf->builder;
 
-    g->debug_info = POOL_ALLOC(dwarf_info_t);
-    memset(g->debug_info, 0, sizeof(dwarf_info_t));
+    g->dwarf = POOL_ALLOC(dwarf_composite_t);
+    memset(g->dwarf, 0, sizeof(dwarf_composite_t));
 
     size_t n = g->field_count;
 
     if(g->underlying != TK_TUPLETYPE)
-      n += ast_childcount(ast_childidx(ast, 4)) - n;
+      n = ast_childcount(ast_childidx(ast, 4));
 
     if(n > 0)
     {
-      g->debug_info->size = n;
-      g->debug_info->members = (MDNode**)calloc(n, sizeof(MDNode*));
+      g->dwarf->size = n;
+      g->dwarf->members = (MDNode**)calloc(n, sizeof(MDNode*));
     }
 
     typeinfo_t info;
@@ -149,42 +117,22 @@ void dwarf_forward(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
 
     d->type = builder->createReplaceableForwardDecl(tag, g->type_name,
       dwarf->unit, info.file, (int)info.line);
-  }
+  }*/
 }
 
-void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
+void dwarf_basic(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
 {
   if(!dwarf->emit)
     return;
 
-  symbol_t* s = symbols_get(dwarf->symbols, g->type_name, false);
-  dbg_symbol_t* d = s->dbg;
+  dwarf_type_t type;
+  setup_dwarf(dwarf, ast, &type);
 
-  if(d->type == NULL)
-  {
-    typeinfo_t info;
-    get_typeinfo(dwarf, NULL, g->primitive, &info);
+  symbols_basic(dwarf->symbols, g, &type);
+  /*DIType basic = dwarf->builder->createBasicType(g->type_name, info.size,
+    info.align, type);
 
-    uint16_t basic_type = 0;
-
-    switch(g->type_name[0])
-    {
-      case 'U': basic_type = dwarf::DW_ATE_unsigned; break;
-      case 'I': basic_type = dwarf::DW_ATE_signed; break;
-      case 'F': basic_type = dwarf::DW_ATE_float; break;
-      case 'B': basic_type = dwarf::DW_ATE_boolean; break;
-      default: assert(0);
-    }
-
-    DIType basic = dwarf->builder->createBasicType(g->type_name, info.size,
-      info.align, basic_type);
-
-    DIType constant = dwarf->builder->createQualifiedType(DW_TAG_constant,
-      basic);
-
-    d->type = basic;
-    d->qualified = constant;
-  }
+  dwarf->builder->createQualifiedType(DW_TAG_constant, basic);*/
 }
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g)
@@ -200,32 +148,27 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g)
     ast_t* target = ast_child(typeargs);
 
     (void)target;
-
   }
 }
 
-void dwarf_trait(dwarf_t* dwarf, ast_t* def, gentype_t* g)
+void dwarf_trait(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
 {
   if(!dwarf->emit)
     return;
 
-  const char* name = ast_name(ast_child(def));
-  symbol_t* s = symbols_get(dwarf->symbols, name, false);
-  dbg_symbol_t* d = s->dbg;
+  const char* name = ast_name(ast_child(ast));
+  
+  dwarf_type_t type;
+  setup_dwarf(dwarf, ast, &type);
 
-  if(d->type == NULL)
-  {
-    typeinfo_t info;
-    get_typeinfo(dwarf, def, g->use_type, &info);
-
-    d->type = dwarf->builder->createClassType(dwarf->unit, name, info.file,
-      (int)info.line, info.size, info.align, 0, 0, DIType(), DIArray());
-  }
+  symbols_trait(dwarf->symbols, g, &type)
+  /*dwarf->builder->createClassType(dwarf->unit, name, info.file,
+    (int)info.line, info.size, info.align, 0, 0, DIType(), DIArray());*/
 }
 
 void dwarf_composite(dwarf_t* dwarf, ast_t* def, gentype_t* g)
 {
-  if(!dwarf->emit)
+  /*if(!dwarf->emit)
     return;
 
   symbol_t* s = symbols_get(dwarf->symbols, g->type_name, false);
@@ -265,7 +208,7 @@ void dwarf_composite(dwarf_t* dwarf, ast_t* def, gentype_t* g)
   get_typeinfo(dwarf, NULL, g->use_type, &info);
 
   //d->type = builder->createPointerType(actual, info.size, info.align);
-  //d->qualified = builder->createQualifiedType(DW_TAG_const_type, d->type);
+  //d->qualified = builder->createQualifiedType(DW_TAG_const_type, d->type);*/
 }
 
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
@@ -289,49 +232,18 @@ void dwarf_tuple(dwarf_t* dwarf, ast_t* ast, gentype_t* g)
 
 void dwarf_init(compile_t* c)
 {
-  dwarf_t* self;
-
   if(c->opt->symbols)
     printf("Emitting debug symbols\n");
 
-  self = POOL_ALLOC(dwarf_t);
-  memset(self, 0, sizeof(dwarf_t));
+  c->dwarf = POOL_ALLOC(dwarf_t);
+  memset(c->dwarf, 0, sizeof(dwarf_t));
 
-  self->symbols = symbols_init(0);
-  self->optimized = c->opt->release;
-  self->emit = c->opt->symbols;
-  self->module = unwrap(c->module);
-  self->layout = unwrap(c->target_data);
-  self->builder = new DIBuilder(*unwrap(c->module));
-
-  c->dwarf = self;
+  c->dwarf->symbols = symbols_init(c);
+  c->dwarf->emit = c->opt->symbols;
 }
 
-bool dwarf_finalise(dwarf_t* d)
+void dwarf_finalise(dwarf_t* dwarf)
 {
-  if(!d->emit)
-    return true;
-
-  d->builder->finalize();
-
-  if(!d->unit.Verify())
-  {
-    errorf(NULL, "debug info verification failed!");
-    return false;
-  }
-
-  return true;
-}
-
-void dwarf_cleanup(dwarf_t** d)
-{
-  dwarf_t* self = *d;
-
-  if(!self->emit)
-    return;
-
-  symbols_destroy(&self->symbols);
-  POOL_FREE(dwarf_t, self);
-
-  *d = NULL;
+  symbols_finalise(dwarf->symbols, dwarf->emit);
+  POOL_FREE(dwarf_t, dwarf);
 }
