@@ -35,21 +35,21 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
     CPU_SET(cpu, &set);
 
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
-  }
 
 #ifdef USE_NUMA
-  if(numa_available() != -1)
-  {
-    struct rlimit limit;
-
-    if(getrlimit(RLIMIT_STACK, &limit) == 0)
+    if(numa_available() != -1)
     {
-      int node = numa_node_of_cpu(cpu);
-      void* stack = numa_alloc_onnode(limit.rlim_cur, node);
-      pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+      struct rlimit limit;
+
+      if(getrlimit(RLIMIT_STACK, &limit) == 0)
+      {
+        int node = numa_node_of_cpu(cpu);
+        void* stack = numa_alloc_onnode(limit.rlim_cur, node);
+        pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+      }
     }
-  }
 #endif
+  }
 
   if(pthread_create(thread, &attr, start, arg))
     return false;

@@ -53,7 +53,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   BUILD(dot, ast, NODE(TK_DOT, TREE(qualify) ID("create")));
 
   ast_t* size_arg = ast_from_int(ast, size);
-  ast_settype(size_arg, type_builtin(ast, "U64"));
+  ast_settype(size_arg, type_builtin(opt, ast, "U64"));
 
   BUILD(call, ast,
     NODE(TK_CALL,

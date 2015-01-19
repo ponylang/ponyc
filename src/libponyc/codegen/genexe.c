@@ -208,24 +208,24 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMSetLinkage(func, LLVMExternalLinkage);
 }
 
-static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
+static bool link_exe(compile_t* c, ast_t* program,
   const char* file_o)
 {
 #if defined(PLATFORM_IS_MACOSX)
-  char* arch = strchr(opt->triple, '-');
+  char* arch = strchr(c->opt->triple, '-');
 
   if(arch == NULL)
   {
-    errorf(NULL, "couldn't determine architecture from %s", opt->triple);
+    errorf(NULL, "couldn't determine architecture from %s", c->opt->triple);
     return false;
   }
 
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  size_t len = (arch - opt->triple);
+  size_t len = (arch - c->opt->triple);
   VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, opt->triple, len);
+  memcpy(arch_buf, c->opt->triple, len);
   arch_buf[len] = '\0';
 
   program_lib_build_args(program, "", "", "-l", "");
@@ -248,7 +248,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     return false;
   }
 #elif defined(PLATFORM_IS_LINUX)
-  const char* file_exe = suffix_filename(opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
@@ -293,7 +293,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(opt->output, c->filename, ".exe");
+  const char* file_exe = suffix_filename(c->opt->output, c->filename, ".exe");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "", "", "", ".lib");
@@ -325,7 +325,7 @@ static bool link_exe(compile_t* c, pass_opt_t* opt, ast_t* program,
   return true;
 }
 
-bool genexe(compile_t* c, pass_opt_t* opt, ast_t* program)
+bool genexe(compile_t* c, ast_t* program)
 {
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = stringtab("Main");
@@ -337,9 +337,6 @@ bool genexe(compile_t* c, pass_opt_t* opt, ast_t* program)
     errorf(NULL, "no Main actor found in package '%s'", c->filename);
     return false;
   }
-
-  // Emit debug info for this compile unit.
-  //dwarf_compileunit(c->dwarf, package);
 
   // Generate the Main actor and the Env class.
   gentype_t main_g;
@@ -364,15 +361,15 @@ bool genexe(compile_t* c, pass_opt_t* opt, ast_t* program)
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
 
-  const char* file_o = genobj(c, opt);
+  const char* file_o = genobj(c);
 
   if(file_o == NULL)
     return false;
 
-  if(opt->limit < PASS_ALL)
+  if(c->opt->limit < PASS_ALL)
     return true;
 
-  if(!link_exe(c, opt, program, file_o))
+  if(!link_exe(c, program, file_o))
     return false;
 
   unlink(file_o);

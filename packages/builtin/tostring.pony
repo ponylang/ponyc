@@ -2,7 +2,7 @@ interface Stringable box
   """
   Things that can be turned into a String.
   """
-  fun box string(fmt: FormatDefault = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
 
@@ -64,10 +64,10 @@ type FloatFormat is
   | FloatGeneralLarge)
 
 primitive ToString
-  fun tag _large(): String => "0123456789ABCDEF"
-  fun tag _small(): String => "0123456789abcdef"
+  fun _large(): String => "0123456789ABCDEF"
+  fun _small(): String => "0123456789abcdef"
 
-  fun tag _fmt_int(fmt: IntFormat): (U64, String, String) =>
+  fun _fmt_int(fmt: IntFormat): (U64, String, String) =>
     match fmt
     | IntBinary => (2, "b0", _large())
     | IntBinaryBare => (2, "", _large())
@@ -81,7 +81,7 @@ primitive ToString
       (10, "", _large())
     end
 
-  fun tag _prefix(neg: Bool, prefix: NumberPrefix): String =>
+  fun _prefix(neg: Bool, prefix: NumberPrefix): String =>
     if neg then
       "-"
     else
@@ -93,12 +93,12 @@ primitive ToString
       end
     end
 
-  fun tag _extend_digits(s: String ref, digits: U64) =>
+  fun _extend_digits(s: String ref, digits: U64) =>
     while s.size() < digits do
       s.append("0")
     end
 
-  fun tag _pad(s: String ref, width: U64, align: Align, fill: U32) =>
+  fun _pad(s: String ref, width: U64, align: Align, fill: U32) =>
     var pre: U64 = 0
     var post: U64 = 0
 
@@ -127,7 +127,7 @@ primitive ToString
       s.reverse_in_place()
     end
 
-  fun tag _u64(x: U64, neg: Bool, fmt: IntFormat, prefix: NumberPrefix,
+  fun _u64(x: U64, neg: Bool, fmt: IntFormat, prefix: NumberPrefix,
     prec: U64, width: U64, align: Align, fill: U32): String iso^
   =>
     match fmt
@@ -154,10 +154,10 @@ primitive ToString
       _extend_digits(s, prec)
       s.append(prestring)
       _pad(s, width, align, fill)
-      consume s
+      s
     end
 
-  fun tag _u128(x: U128, neg: Bool, fmt: IntFormat = FormatDefault,
+  fun _u128(x: U128, neg: Bool, fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -186,10 +186,10 @@ primitive ToString
       _extend_digits(s, prec)
       s.append(prestring)
       _pad(s, width, align, fill)
-      consume s
+      s
     end
 
-  fun tag _f64(x: F64, fmt: FloatFormat = FormatDefault,
+  fun _f64(x: F64, fmt: FloatFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>

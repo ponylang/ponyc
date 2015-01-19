@@ -154,6 +154,10 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
+
+  TK_BOX_GENERIC,
+  TK_TAG_GENERIC,
+  TK_ANY_GENERIC,
   TK_BORROWED,
 
   TK_LITERAL, // A literal expression whose type is not yet inferred
@@ -177,7 +181,7 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
-  TK_NOSEMI,
+  TK_IDENTITY,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -197,9 +201,13 @@ typedef enum token_id
   TK_BEAPP,
   TK_FUNAPP,
 
+  // Pseudo tokens that never actually exist
+  TK_NEWLINE,  // Used by parser macros
+
   // Token types for testing
   TK_TEST,
-  TK_TEST_SCOPE
+  TK_TEST_SEQ,
+  TK_TEST_SEQ_SCOPE
 } token_id;
 
 

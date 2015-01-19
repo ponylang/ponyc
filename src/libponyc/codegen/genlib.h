@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-bool genlib(compile_t* c, pass_opt_t* opt, ast_t* program);
+bool genlib(compile_t* c, ast_t* program);
 
 PONY_EXTERN_C_END
 

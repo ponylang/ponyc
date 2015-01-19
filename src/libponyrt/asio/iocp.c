@@ -25,7 +25,7 @@ asio_backend_t* asio_backend_init()
 
 void asio_backend_terminate(asio_backend_t* b)
 {
-  
+
 }
 
 DEFINE_THREAD_FN(asio_backend_dispatch,
@@ -40,7 +40,8 @@ void asio_event_subscribe(asio_event_t* ev)
   if(ev->noisy)
     asio_noisy_add();
 
-  CreateIoCompletionPort((HANDLE)ev->fd, b->completion_port, (ULONG_PTR)ev, 0);
+  CreateIoCompletionPort((HANDLE)ev->data, b->completion_port,
+    (ULONG_PTR)ev, 0);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)

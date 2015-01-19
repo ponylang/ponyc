@@ -8,19 +8,19 @@ primitive ParseError
 primitive _Ambiguous
 
 type _Match is (None | Option | _Ambiguous)
-type _ArgType is (None | StringArgument | I64Argument | F64Argument)
+type OptionType is (None | StringArgument | I64Argument | F64Argument)
 type _ParsedOption is ((String | None), (None | String | I64 | F64))
 type _Result is (_ParsedOption | ParseError)
 
 class Option is Stringable
   var name: String
   var short: (String | None)
-  var arg: _ArgType
+  var arg: OptionType
   var _help: (String | None)
   var _domain: Array[(String, (String | None))]
 
   new create(name': String, short': (String | None), help: (String | None),
-    arg': _ArgType)
+    arg': OptionType)
   =>
     name = name'
     short = short'
@@ -49,7 +49,7 @@ class Option is Stringable
       true
     end
 
-  fun box token(): String =>
+  fun token(): String =>
     match (name, short)
     | (String, var s: String) => "(" + name + ", " + s + ")"
     else
@@ -57,7 +57,7 @@ class Option is Stringable
     end
 
   //TODO: Requires proper string formatter
-  fun box string(fmt: FormatDefault = FormatDefault,
+  fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1,
     width: U64 = 0, align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
@@ -91,7 +91,7 @@ class Options is Iterator[_Result]
     this
 
   fun ref add(name: String, short: (String | None), help: (String | None),
-    arg: _ArgType): Options
+    arg: OptionType): Options
   =>
     _configuration.append(Option(name, short, help, arg))
     this
@@ -116,7 +116,17 @@ class Options is Iterator[_Result]
 
     this
 
-  fun box usage() =>
+  fun ref get(long: String): _Result ? =>
+    for option in this do
+      match option
+      | (long, _) => return option
+      | ParseError => error
+      end
+    end
+    
+    error
+
+  fun usage() =>
     var help: String iso = recover String end
 
     try
@@ -202,13 +212,14 @@ class Options is Iterator[_Result]
         | ('-', '-') => 2
         | ('-', var some: U8) => 1
         else
-          error //cannot happen, otherwise current would have been identified by
-                //_skip_non_options
+          // Cannot happen, otherwise current would have been identified by
+          // _skip_non_options
+          error
         end
 
       let finish: I64 = try current.find("=") else -1 end
       let sub_end = if finish == -1 then finish else finish - 1 end
-      let name: String val = current.substring(start, sub_end)
+      let name: String = current.substring(start, sub_end)
 
       match _select(name, (start == 1))
       | (var x: Option, var y: Option) =>
@@ -216,9 +227,13 @@ class Options is Iterator[_Result]
           x.token() + " and " + y.token() + " are ambiguous!")
         _Ambiguous
       | (None, var y: Option) =>
-        _args(_index) = current.cut_in_place(1, 1) ; _strip_accepted(y) ; y
+        _args(_index) = current.cut_in_place(1, 1)
+        _strip_accepted(y)
+        y
       | (var x: Option, None) =>
-        _args(_index) = current.cut_in_place(0, finish) ; _strip_accepted(x) ; x
+        _args(_index) = current.cut_in_place(0, finish)
+        _strip_accepted(x)
+        x
       else
         error
       end
@@ -226,7 +241,7 @@ class Options is Iterator[_Result]
       None
     end
 
-  fun box has_next(): Bool =>
+  fun has_next(): Bool =>
     not _error and (_index < _args.size())
 
   fun ref next(): _Result =>
@@ -244,7 +259,7 @@ class Options is Iterator[_Result]
         end
       | var m: Option =>
         if m.requires_arg() then
-          var argument: String val = "None"
+          var argument: String = "None"
 
           try
             argument = _args(_index).clone()

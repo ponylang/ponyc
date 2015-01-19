@@ -64,6 +64,9 @@ static ast_t* alias_bind_for_type(ast_t* type, int index)
     case TK_VAL:
     case TK_BOX:
     case TK_TAG:
+    case TK_BOX_GENERIC:
+    case TK_TAG_GENERIC:
+    case TK_ANY_GENERIC:
       return type;
 
     default: {}
@@ -73,26 +76,101 @@ static ast_t* alias_bind_for_type(ast_t* type, int index)
   return NULL;
 }
 
-static ast_t* recover_for_type(ast_t* type, int index)
+static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
 {
   ast_t* cap = ast_childidx(type, index);
   token_id tcap = ast_id(cap);
-  token_id rcap;
 
   switch(tcap)
   {
     case TK_ISO:
-    case TK_VAL:
-    case TK_TAG:
-      return type;
+    {
+      if(rcap == TK_NONE)
+        rcap = TK_ISO;
+
+      // If ephemeral, any rcap is acceptable. Otherwise, only iso or tag is.
+      // This is because the iso may have come from outside the recover
+      // expression.
+      ast_t* eph = ast_sibling(cap);
+
+      if((ast_id(eph) != TK_EPHEMERAL) && (rcap != TK_ISO) && (rcap != TK_TAG))
+        return NULL;
+      break;
+    }
 
     case TK_TRN:
     case TK_REF:
-      rcap = TK_ISO;
+      // These recovers as iso, so any rcap is acceptable.
+      if(rcap == TK_NONE)
+        rcap = TK_ISO;
       break;
 
+    case TK_VAL:
     case TK_BOX:
-      rcap = TK_VAL;
+      // These recover as val, so mutable rcaps are not acceptable.
+      if(rcap == TK_NONE)
+        rcap = TK_VAL;
+
+      if(rcap < TK_VAL)
+        return NULL;
+      break;
+
+    case TK_TAG:
+      // Recovers as tag only.
+      if(rcap == TK_NONE)
+        rcap = TK_TAG;
+
+      if(rcap != TK_TAG)
+        return NULL;
+      break;
+
+    case TK_BOX_GENERIC:
+      // Could be ref or val, recovers as box or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_BOX_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_BOX:
+        case TK_TAG:
+        case TK_BOX_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
+      break;
+
+    case TK_TAG_GENERIC:
+      // Could be val or tag, recovers as tag or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_TAG_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_TAG:
+        case TK_TAG_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
+      break;
+
+    case TK_ANY_GENERIC:
+      // Could be anything, recovers as tag or itself.
+      if(rcap == TK_NONE)
+        rcap = TK_ANY_GENERIC;
+
+      switch(rcap)
+      {
+        case TK_TAG:
+        case TK_ANY_GENERIC:
+          break;
+
+        default:
+          return NULL;
+      }
       break;
 
     default:
@@ -103,6 +181,39 @@ static ast_t* recover_for_type(ast_t* type, int index)
   type = ast_dup(type);
   cap = ast_childidx(type, index);
   ast_setid(cap, rcap);
+  return type;
+}
+
+static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
+{
+  type = ast_dup(type);
+  ast_t* cap = ast_childidx(type, index);
+  ast_t* eph = ast_sibling(cap);
+  token_id tcap = ast_id(cap);
+
+  if(ccap == TK_NONE)
+    ccap = tcap;
+
+  switch(ast_id(eph))
+  {
+    case TK_NONE:
+      ast_setid(eph, TK_EPHEMERAL);
+      break;
+
+    case TK_BORROWED:
+      ast_setid(eph, TK_NONE);
+      break;
+
+    default: {}
+  }
+
+  if(!is_cap_sub_cap(tcap, ccap))
+  {
+    ast_free_unattached(type);
+    return NULL;
+  }
+
+  ast_setid(cap, tcap);
   return type;
 }
 
@@ -135,13 +246,15 @@ ast_t* alias(ast_t* type)
 
     case TK_ARROW:
     {
-      // alias just the right side. the left side is either 'this' or a type
+      // Alias just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(alias(right))));
+
       return r_type;
     }
 
@@ -186,11 +299,13 @@ ast_t* alias_bind(ast_t* type)
     {
       // Alias just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, alias_bind(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(alias_bind(right))));
+
       return r_type;
     }
 
@@ -271,10 +386,13 @@ ast_t* infer(ast_t* type)
     {
       // Infer just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
       AST_GET_CHILDREN(type, left, right);
-      ast_add(r_type, infer(right));
-      ast_add(r_type, left);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(infer(right))));
+
       return r_type;
     }
 
@@ -288,7 +406,7 @@ ast_t* infer(ast_t* type)
   return NULL;
 }
 
-ast_t* consume_type(ast_t* type)
+ast_t* consume_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
@@ -305,7 +423,15 @@ ast_t* consume_type(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, consume_type(child));
+        ast_t* r_right = consume_type(child, cap);
+
+        if(r_right == NULL)
+        {
+          ast_free_unattached(r_type);
+          return NULL;
+        }
+
+        ast_append(r_type, r_right);
         child = ast_sibling(child);
       }
 
@@ -313,56 +439,22 @@ ast_t* consume_type(ast_t* type)
     }
 
     case TK_NOMINAL:
-    {
-      type = ast_dup(type);
-      ast_t* ephemeral = ast_childidx(type, 4);
-
-      switch(ast_id(ephemeral))
-      {
-        case TK_NONE:
-          ast_setid(ephemeral, TK_EPHEMERAL);
-          break;
-
-        case TK_BORROWED:
-          ast_setid(ephemeral, TK_NONE);
-          break;
-
-        default: {}
-      }
-
-      return type;
-    }
+      return consume_for_type(type, 3, cap);
 
     case TK_TYPEPARAMREF:
-    {
-      type = ast_dup(type);
-      ast_t* ephemeral = ast_childidx(type, 2);
-
-      switch(ast_id(ephemeral))
-      {
-        case TK_NONE:
-          ast_setid(ephemeral, TK_EPHEMERAL);
-          break;
-
-        case TK_BORROWED:
-          ast_setid(ephemeral, TK_NONE);
-          break;
-
-        default: {}
-      }
-
-      return type;
-    }
+      return consume_for_type(type, 1, cap);
 
     case TK_ARROW:
     {
       // Consume just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
-      ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, consume_type(right));
-      ast_add(r_type, left);
+      AST_GET_CHILDREN(type, left, right);
+
+      BUILD(r_type, type,
+        NODE(TK_ARROW,
+          TREE(left)
+          TREE(consume_type(right, cap))));
+
       return r_type;
     }
 
@@ -376,7 +468,7 @@ ast_t* consume_type(ast_t* type)
   return NULL;
 }
 
-ast_t* recover_type(ast_t* type)
+ast_t* recover_type(ast_t* type, token_id cap)
 {
   switch(ast_id(type))
   {
@@ -390,7 +482,15 @@ ast_t* recover_type(ast_t* type)
 
       while(child != NULL)
       {
-        ast_append(r_type, recover_type(child));
+        ast_t* r_right = recover_type(child, cap);
+
+        if(r_right == NULL)
+        {
+          ast_free_unattached(r_type);
+          return NULL;
+        }
+
+        ast_append(r_type, r_right);
         child = ast_sibling(child);
       }
 
@@ -398,19 +498,23 @@ ast_t* recover_type(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return recover_for_type(type, 3);
+      return recover_for_type(type, 3, cap);
 
     case TK_TYPEPARAMREF:
-      return recover_for_type(type, 1);
+      return recover_for_type(type, 1, cap);
 
     case TK_ARROW:
     {
       // recover just the right side. the left side is either 'this' or a type
       // parameter, and stays the same.
+      AST_GET_CHILDREN(type, left, right);
+      ast_t* r_right = recover_type(right, cap);
+
+      if(r_right == NULL)
+        return NULL;
+
       ast_t* r_type = ast_from(type, TK_ARROW);
-      ast_t* left = ast_child(type);
-      ast_t* right = ast_sibling(left);
-      ast_add(r_type, recover_type(right));
+      ast_add(r_type, r_right);
       ast_add(r_type, left);
       return r_type;
     }
@@ -449,23 +553,27 @@ bool sendable(ast_t* type)
 
     case TK_ARROW:
     {
-      // Test the lower bounds.
-      ast_t* lower = viewpoint_lower(ast_childidx(type, 1));
-      bool ok = sendable(lower);
-      ast_free_unattached(lower);
-      return ok;
+      // All possible resulting capabilities must be sendable.
+      // This boils down to simply testing the right-hand side.
+      // iso: ref->iso=iso, val->iso=val, box->iso=tag Y
+      // trn: N
+      // ref: N
+      // val: Y
+      // box: N
+      // tag: Y
+      return sendable(ast_childidx(type, 1));
     }
 
     case TK_NOMINAL:
     {
-      ast_t* cap = ast_childidx(type, 3);
-      return cap_sendable(ast_id(cap));
+      AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
+      return cap_sendable(ast_id(cap), ast_id(eph));
     }
 
     case TK_TYPEPARAMREF:
     {
-      ast_t* cap = ast_childidx(type, 1);
-      return cap_sendable(ast_id(cap));
+      AST_GET_CHILDREN(type, id, cap, eph);
+      return cap_sendable(ast_id(cap), ast_id(eph));
     }
 
     case TK_FUNTYPE:

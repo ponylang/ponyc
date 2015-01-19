@@ -114,7 +114,8 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
   return true;
 }
 
-static bool apply_named_args(ast_t* params, ast_t* positional, ast_t* namedargs)
+static bool apply_named_args(ast_t* params, ast_t* positional,
+  ast_t* namedargs)
 {
   ast_t* namedarg = ast_child(namedargs);
 
@@ -508,7 +509,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // An assignment in the constructor body.
   BUILD(r_assign, receiver,
     NODE(TK_ASSIGN,
-      NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(r_id)))
+      NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(r_id)))
       NODE(TK_REFERENCE, TREE(r_field_id))));
 
   // A named argument at the call site.
@@ -544,7 +545,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ast_append(apply_params, param);
 
       // An arg in the call to the original method.
-      BUILD(apply_arg, param, NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(id))));
+      BUILD(apply_arg, param,
+        NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(id))));
       ast_append(apply_args, apply_arg);
     } else {
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
@@ -558,7 +560,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       // An assignment in the constructor body.
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
-          NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
+          NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
           NODE(TK_REFERENCE, TREE(id))));
 
       // A named argument at the call site.
@@ -618,19 +620,6 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
 
   switch(ast_id(lhs))
   {
-    case TK_STRING:
-    case TK_ARRAY:
-    case TK_OBJECT:
-    case TK_TUPLE:
-    case TK_THIS:
-    case TK_FVARREF:
-    case TK_FLETREF:
-    case TK_VARREF:
-    case TK_LETREF:
-    case TK_PARAMREF:
-    case TK_CALL:
-      return insert_apply(opt, ast);
-
     case TK_NEWREF:
     case TK_NEWBEREF:
     case TK_BEREF:
@@ -646,6 +635,5 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
-  return false;
+  return insert_apply(opt, ast);
 }

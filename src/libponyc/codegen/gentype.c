@@ -552,10 +552,10 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   }
 
   // Emit debug symbols, if needed.
-  //dwarf_composite(c, def, g, false);
+  dwarf_composite(c, def, g, false);
 
   // Write to the header file.
-  if(c->library)
+  if(c->opt->library)
     genheader(c, g);
 
   free_fields(g);

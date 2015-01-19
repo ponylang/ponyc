@@ -30,10 +30,9 @@ static ast_t* eq_param_type(ast_t* pattern)
   ast_t* pattern_type = ast_type(pattern);
   ast_t* fun = lookup(NULL, pattern, pattern_type, stringtab("eq"));
 
-  AST_GET_CHILDREN(fun, ignore_cap, ignore_id, ignore_typeparams, params,
-    ignore_result, ignore_partial);
-
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, partial);
   ast_t* param = ast_child(params);
+
   return ast_childidx(param, 1);
 }
 
@@ -418,7 +417,6 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   // Here, ptr is a pointer to a tuple field. It could be a primitive, an
   // object, or a nested tuple.
   ast_t* pattern_type = ast_type(pattern);
-  assert(ast_id(pattern_type) != TK_TUPLETYPE);
 
   // Check the runtime type. We pass a pointer to the fields because we may
   // still need to match a tuple type inside a type expression.
@@ -426,9 +424,9 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
     return false;
 
   // We now know that ptr points to something of type pattern_type, and that
-  // it isn't a boxed primitive, as that would go through the other path, ie
-  // dynamic_match_object(). We also know it isn't an unboxed tuple. We can
-  // load from ptr with a type based on the static type of the pattern.
+  // it isn't a boxed primitive or tuple, as that would go through the other
+  // path, ie dynamic_match_object(). We also know it isn't an unboxed tuple.
+  // We can load from ptr with a type based on the static type of the pattern.
   gentype_t g;
 
   if(!gentype(c, pattern_type, &g))
@@ -495,7 +493,6 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   ast_t* pattern_type = ast_type(pattern);
-  assert(ast_id(pattern_type) != TK_TUPLETYPE);
 
   // Build a base pointer that skips the object header.
   LLVMValueRef ptr = pointer_to_fields(c, object);
@@ -505,9 +502,9 @@ static bool dynamic_capture_object(compile_t* c, LLVMValueRef object,
   if(!check_type(c, ptr, desc, pattern_type, next_block))
     return false;
 
-  // We're not assigning to a tuple type, so as long as the type is correct,
-  // we can assign it, with gen_assign_value() handling boxing and unboxing.
-  // We pass the type of the pattern as the type of the object.
+  // As long as the type is correct, we can assign it, with gen_assign_value()
+  // handling boxing and unboxing. We pass the type of the pattern as the type
+  // of the object.
   return gen_assign_value(c, pattern, object, pattern_type) != NULL;
 }
 

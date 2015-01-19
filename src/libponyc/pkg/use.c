@@ -40,7 +40,7 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
   if(colon == NULL)
   {
     // No scheme specified, use default
-    *out_locator = text;
+    *out_locator = stringtab(text);
     return default_handler;
   }
 
@@ -53,7 +53,7 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
       strncmp(p->scheme, text, scheme_len) == 0)
     {
       // Matching scheme found
-      *out_locator = colon + 1;
+      *out_locator = stringtab(colon + 1);
       return p;
     }
   }

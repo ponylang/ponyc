@@ -151,9 +151,9 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
   return false;
 }
 
-bool expr_identity(ast_t* ast)
+bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
-  ast_settype(ast, type_builtin(ast, "Bool"));
+  ast_settype(ast, type_builtin(opt, ast, "Bool"));
   ast_inheriterror(ast);
   return true;
 }
@@ -224,16 +224,16 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   ast_free_unattached(a_type);
 
-  ast_settype(ast, consume_type(l_type));
+  ast_settype(ast, consume_type(l_type, TK_NONE));
   ast_inheriterror(ast);
   return true;
 }
 
 bool expr_consume(typecheck_t* t, ast_t* ast)
 {
-  ast_t* child = ast_child(ast);
+  AST_GET_CHILDREN(ast, cap, term);
 
-  switch(ast_id(child))
+  switch(ast_id(term))
   {
     case TK_VARREF:
     case TK_LETREF:
@@ -245,7 +245,7 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
       return false;
   }
 
-  ast_t* id = ast_child(child);
+  ast_t* id = ast_child(term);
   const char* name = ast_name(id);
 
   // Can't consume from an outer scope while in a loop condition.
@@ -266,7 +266,17 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
 
   ast_setstatus(ast, name, SYM_CONSUMED);
 
-  ast_t* type = ast_type(child);
-  ast_settype(ast, consume_type(type));
+  ast_t* type = ast_type(term);
+  token_id tcap = ast_id(cap);
+  ast_t* c_type = consume_type(type, tcap);
+
+  if(c_type == NULL)
+  {
+    ast_error(ast, "can't consume to this capability");
+    ast_error(term, "expression type is %s", ast_print_type(type));
+    return false;
+  }
+
+  ast_settype(ast, c_type);
   return true;
 }

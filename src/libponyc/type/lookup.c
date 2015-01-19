@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <assert.h>
 
-static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
-  const char* name, bool errors);
+static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
+  ast_t* type, const char* name, bool errors);
 
 static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
@@ -148,4 +148,9 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
 ast_t* lookup(typecheck_t* t, ast_t* from, ast_t* type, const char* name)
 {
   return lookup_base(t, from, type, type, name, true);
+}
+
+ast_t* lookup_try(typecheck_t* t, ast_t* from, ast_t* type, const char* name)
+{
+  return lookup_base(t, from, type, type, name, false);
 }

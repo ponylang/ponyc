@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  use* (typealias | class_)*
+  :  STRING? use* (typealias | class_)*
   ;
 
 use
@@ -112,7 +112,7 @@ assignment
   ;
 
 infix
-  :  term ((binop term) | ('as' type)) *
+  :  term ((binop term) | ('as' type))*
   ;
 
 term
@@ -134,8 +134,9 @@ control
   |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
-  |  'recover' seq 'end'
-  |  'use' ':'? '(' (expr)+ ')' // For testing only
+  |  'recover' cap? seq 'end'
+  |  '$:(' (expr)+ ')' // For testing only
+  |  '$(' (expr)+ ')' // For testing only
   ;
 
 elseif
@@ -166,7 +167,7 @@ atom
   |  ID
   |  'this'
   |  '(' tuple ')' // tuple
-  |  '[' positional ']' // array
+  |  '[' ('as' type ':')? positional ']' // array
   |  'object' ('is' types)? members 'end' // object
   |  '@' (ID | STRING) type_args? '(' positional? ')' '?'? // ffi
   ;
@@ -183,7 +184,7 @@ idseq_element
   :  ID
   |  idseq_multi
   ;
-  
+
 tuple
   :  (seq | '_') (',' (seq | '_'))*
   ;
@@ -197,7 +198,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume' | '&'
+  :  'not' | '-' | 'consume' cap? | '&'
   ;
 
 binop

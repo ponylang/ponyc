@@ -24,7 +24,7 @@ class Purse
     _balance = balance
 
   // The balance can be read by anyone, but not set
-  fun box balance(): U64 => _balance
+  fun balance(): U64 => _balance
 
   // The ? indicates this is a partial function, ie this can have an undefined
   // result - like throwing an exception, but with no value thrown.

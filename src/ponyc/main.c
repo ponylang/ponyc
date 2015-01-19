@@ -24,7 +24,7 @@ enum
   OPT_LIBRARY,
 
   OPT_IEEEMATH,
-  OPT_NORESTRICT,
+  OPT_RESTRICT,
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
@@ -45,7 +45,7 @@ static opt_arg_t args[] =
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
 
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
-  {"no-restrict", 0, OPT_ARG_NONE, OPT_NORESTRICT},
+  {"restrict", 0, OPT_ARG_NONE, OPT_RESTRICT},
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
@@ -76,7 +76,7 @@ static void usage()
     "\n"
     "Rarely needed options:\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
-    "  --no-restrict   Disable pointer aliasing optimisations.\n"
+    "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
     "    =name         Default is the host CPU.\n"
     "  --features      CPU features to enable or disable.\n"
@@ -91,11 +91,10 @@ static void usage()
     "    =parse\n"
     "    =parsefix\n"
     "    =sugar\n"
-    "    =scope1\n"
+    "    =scope\n"
     "    =name\n"
     "    =flatten\n"
     "    =traits\n"
-    "    =scope2\n"
     "    =expr\n"
     "    =ir           Output LLVM IR.\n"
     "    =bitcode      Output LLVM bitcode.\n"
@@ -157,7 +156,7 @@ static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
   if(print_ast)
     ast_print(program);
 
-  bool ok = program_passes(program, opt);
+  bool ok = generate_passes(program, opt);
   ast_free(program);
 
   print_errors();
@@ -175,6 +174,7 @@ int main(int argc, char* argv[])
 
   opt.release = true;
   opt.symbols = true;
+  opt.no_restrict = true;
   opt.output = ".";
 
   ast_setwidth(get_width());
@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
       case OPT_LIBRARY: opt.library = true; break;
 
       case OPT_IEEEMATH: opt.ieee_math = true; break;
-      case OPT_NORESTRICT: opt.no_restrict = true; break;
+      case OPT_RESTRICT: opt.no_restrict = false; break;
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;

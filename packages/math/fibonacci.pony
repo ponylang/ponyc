@@ -3,7 +3,7 @@ class Fibonacci[A: (Integer[A] box & Unsigned) = U64] is Iterator[A]
   var _next: A = 0
   var _uber_next: A = 1
 
-  fun box apply(n: U8): A =>
+  fun apply(n: U8): A =>
     if n == 0 then
       0
     elseif n == 1 then
@@ -23,6 +23,6 @@ class Fibonacci[A: (Integer[A] box & Unsigned) = U64] is Iterator[A]
     end
 
   //The generator stops on overflow.
-  fun box has_next(): Bool => _last <= _next
+  fun has_next(): Bool => _last <= _next
 
   fun ref next(): A => _last = _next = _uber_next = _next + _uber_next ; _last

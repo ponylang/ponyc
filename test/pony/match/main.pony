@@ -39,7 +39,7 @@ actor Main
     test5((1, "Hi"))
     test5((Aardvark, Tomato))
 
-  fun box test(x: Any) =>
+  fun test(x: Any) =>
     match x
     | var y: Wombat tag =>
       _env.out.print("Wombat")
@@ -55,14 +55,14 @@ actor Main
       _env.out.print("Unknown")
     end
 
-  fun box test2(x: U32) =>
+  fun test2(x: U32) =>
     match x
     | 5 - 2 => _env.out.print("Three")
     else
       _env.out.print("Not Three")
     end
 
-  fun box test3(x: (Animal, Vegetable)) =>
+  fun test3(x: (Animal, Vegetable)) =>
     match x
     | (var a: Wombat, var b: Tomato) =>
       _env.out.print("Wombat, Tomato")
@@ -70,7 +70,7 @@ actor Main
       _env.out.print("Unknown")
     end
 
-  fun box test4(x: (U32 | None)) =>
+  fun test4(x: (U32 | None)) =>
     match x
     | 3 => _env.out.print("Three")
     | None => _env.out.print("None")
@@ -78,7 +78,7 @@ actor Main
       _env.out.print("Unknown")
     end
 
-  fun box test5(x: ((Animal, Vegetable) | (I32, String))) =>
+  fun test5(x: ((Animal, Vegetable) | (I32, String))) =>
     match x
     | (var a: Wombat, var b: Tomato) =>
       _env.out.print("Wombat, Tomato")

@@ -17,7 +17,7 @@ ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
   ast_add(ast, ast_from_string(scope, name));
   ast_add(ast, ast_from(scope, TK_NONE));
 
-  if(!names_nominal(NULL, scope, &ast) || !gentype(c, ast, g))
+  if(!names_nominal(c->opt, scope, &ast) || !gentype(c, ast, g))
   {
     ast_free_unattached(ast);
     return NULL;
@@ -232,6 +232,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   if(fun != NULL)
     return true;
+  
   // Emit debug symbol for this pointer type instance.
   dwarf_pointer(c->dwarf, &elem_g);
 
@@ -339,7 +340,7 @@ static void number_conversions(compile_t* c)
   };
 
   bool has_i128;
-  os_is_target(OS_HAS_I128_NAME, c->release, &has_i128);
+  os_is_target(OS_HAS_I128_NAME, c->opt->release, &has_i128);
 
   for(num_conv_t* from = conv; from->type_name != NULL; from++)
   {
@@ -413,19 +414,19 @@ static void number_constructors(compile_t* c)
 {
   num_cons_t cons[] =
   {
-    {"I8", c->i8, c->i128, false},
-    {"I16", c->i16, c->i128, false},
-    {"I32", c->i32, c->i128, false},
-    {"I64", c->i64, c->i128, false},
+    {"I8", c->i8, c->i8, false},
+    {"I16", c->i16, c->i16, false},
+    {"I32", c->i32, c->i32, false},
+    {"I64", c->i64, c->i64, false},
     {"I128", c->i128, c->i128, false},
 
-    {"U8", c->i8, c->i128, false},
-    {"U16", c->i16, c->i128, false},
-    {"U32", c->i32, c->i128, false},
-    {"U64", c->i64, c->i128, false},
+    {"U8", c->i8, c->i8, false},
+    {"U16", c->i16, c->i16, false},
+    {"U32", c->i32, c->i32, false},
+    {"U64", c->i64, c->i64, false},
     {"U128", c->i128, c->i128, false},
 
-    {"F32", c->f32, c->f64, true},
+    {"F32", c->f32, c->f32, true},
     {"F64", c->f64, c->f64, true},
 
     {NULL, NULL, NULL, false}

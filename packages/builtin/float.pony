@@ -1,23 +1,23 @@
 primitive F32 is FloatingPoint[F32]
-  new create(from: F64) => compiler_intrinsic
+  new create(from: F32) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 
   new from_bits(i: U32) => compiler_intrinsic
-  fun box bits(): U32 => compiler_intrinsic
+  fun bits(): U32 => compiler_intrinsic
 
-  fun box abs(): F32 => @"llvm.fabs.f32"[F32](this)
-  fun box min(y: F32): F32 => if this < y then this else y end
+  fun abs(): F32 => @"llvm.fabs.f32"[F32](this)
+  fun min(y: F32): F32 => if this < y then this else y end
     //@"llvm.minnum.f32"[F32](this, y)
-  fun box max(y: F32): F32 => if this > y then this else y end
+  fun max(y: F32): F32 => if this > y then this else y end
     //@"llvm.maxnum.f32"[F32](this, y)
 
-  fun box ceil(): F32 => @"llvm.ceil.f32"[F32](this)
-  fun box floor(): F32 => @"llvm.floor.f32"[F32](this)
-  fun box round(): F32 => @"llvm.round.f32"[F32](this)
-  fun box trunc(): F32 => @"llvm.trunc.f32"[F32](this)
+  fun ceil(): F32 => @"llvm.ceil.f32"[F32](this)
+  fun floor(): F32 => @"llvm.floor.f32"[F32](this)
+  fun round(): F32 => @"llvm.round.f32"[F32](this)
+  fun trunc(): F32 => @"llvm.trunc.f32"[F32](this)
 
-  fun box finite(): Bool =>
+  fun finite(): Bool =>
     if Platform.windows() then
       @_finite[I32](this.f64()) != 0
     elseif Platform.osx() then
@@ -26,7 +26,7 @@ primitive F32 is FloatingPoint[F32]
       @finitef[I32](this) != 0
     end
 
-  fun box nan(): Bool =>
+  fun nan(): Bool =>
     if Platform.windows() then
       @_isnan[I32](this.f64()) != 0
     elseif Platform.osx() then
@@ -35,50 +35,50 @@ primitive F32 is FloatingPoint[F32]
       @isnanf[I32](this) != 0
     end
 
-  fun box frexp(): (F32, U32) =>
+  fun frexp(): (F32, U32) =>
     var exp: U32 = 0
     var m = @frexp[F64](f64(), &exp)
     (m.f32(), exp)
 
-  fun box log(): F32 => @"llvm.log.f32"[F32](this)
-  fun box log2(): F32 => @"llvm.log2.f32"[F32](this)
-  fun box log10(): F32 => @"llvm.log10.f32"[F32](this)
-  fun box logb(): F32 => @logbf[F32](this)
+  fun log(): F32 => @"llvm.log.f32"[F32](this)
+  fun log2(): F32 => @"llvm.log2.f32"[F32](this)
+  fun log10(): F32 => @"llvm.log10.f32"[F32](this)
+  fun logb(): F32 => @logbf[F32](this)
 
-  fun box pow(y: F32): F32 => @"llvm.pow.f32"[F32](this, y)
-  fun box powi(y: I32): F32 =>
+  fun pow(y: F32): F32 => @"llvm.pow.f32"[F32](this, y)
+  fun powi(y: I32): F32 =>
     if Platform.windows() then
       pow(y.f32())
     else
       @"llvm.powi.f32"[F32](this, y)
     end
 
-  fun box sqrt(): F32 => @"llvm.sqrt.f32"[F32](this)
-  fun box cbrt(): F32 => @cbrtf[F32](this)
-  fun box exp(): F32 => @"llvm.exp.f32"[F32](this)
-  fun box exp2(): F32 => @"llvm.exp2.f32"[F32](this)
+  fun sqrt(): F32 => @"llvm.sqrt.f32"[F32](this)
+  fun cbrt(): F32 => @cbrtf[F32](this)
+  fun exp(): F32 => @"llvm.exp.f32"[F32](this)
+  fun exp2(): F32 => @"llvm.exp2.f32"[F32](this)
 
-  fun box cos(): F32 => @"llvm.cos.f32"[F32](this)
-  fun box sin(): F32 => @"llvm.sin.f32"[F32](this)
-  fun box tan(): F32 => @tanf[F32](this)
+  fun cos(): F32 => @"llvm.cos.f32"[F32](this)
+  fun sin(): F32 => @"llvm.sin.f32"[F32](this)
+  fun tan(): F32 => @tanf[F32](this)
 
-  fun box cosh(): F32 => @coshf[F32](this)
-  fun box sinh(): F32 => @sinhf[F32](this)
-  fun box tanh(): F32 => @tanhf[F32](this)
+  fun cosh(): F32 => @coshf[F32](this)
+  fun sinh(): F32 => @sinhf[F32](this)
+  fun tanh(): F32 => @tanhf[F32](this)
 
-  fun box acos(): F32 => @acosf[F32](this)
-  fun box asin(): F32 => @asinf[F32](this)
-  fun box atan(): F32 => @atanf[F32](this)
-  fun box atan2(y: F32): F32 => @atan2f[F32](this, y)
+  fun acos(): F32 => @acosf[F32](this)
+  fun asin(): F32 => @asinf[F32](this)
+  fun atan(): F32 => @atanf[F32](this)
+  fun atan2(y: F32): F32 => @atan2f[F32](this, y)
 
-  fun box acosh(): F32 => @acoshf[F32](this)
-  fun box asinh(): F32 => @asinhf[F32](this)
-  fun box atanh(): F32 => @atanhf[F32](this)
+  fun acosh(): F32 => @acoshf[F32](this)
+  fun asinh(): F32 => @asinhf[F32](this)
+  fun atanh(): F32 => @atanhf[F32](this)
 
-  fun box hash(): U64 => bits().hash()
+  fun hash(): U64 => bits().hash()
 
-  fun box i128(): I128 => f64().i128()
-  fun box u128(): U128 => f64().u128()
+  fun i128(): I128 => f64().i128()
+  fun u128(): U128 => f64().u128()
 
 primitive F64 is FloatingPoint[F64]
   new create(from: F64) => compiler_intrinsic
@@ -86,76 +86,76 @@ primitive F64 is FloatingPoint[F64]
   new e() => compiler_intrinsic
 
   new from_bits(i: U64) => compiler_intrinsic
-  fun box bits(): U64 => compiler_intrinsic
+  fun bits(): U64 => compiler_intrinsic
 
-  fun box abs(): F64 => @"llvm.fabs.f64"[F64](this)
-  fun box min(y: F64): F64 => if this < y then this else y end
+  fun abs(): F64 => @"llvm.fabs.f64"[F64](this)
+  fun min(y: F64): F64 => if this < y then this else y end
     //@"llvm.minnum.f64"[F64](this, y)
-  fun box max(y: F64): F64 => if this > y then this else y end
+  fun max(y: F64): F64 => if this > y then this else y end
     //@"llvm.maxnum.f64"[F64](this, y)
 
-  fun box ceil(): F64 => @"llvm.ceil.f64"[F64](this)
-  fun box floor(): F64 => @"llvm.floor.f64"[F64](this)
-  fun box round(): F64 => @"llvm.round.f64"[F64](this)
-  fun box trunc(): F64 => @"llvm.trunc.f64"[F64](this)
+  fun ceil(): F64 => @"llvm.ceil.f64"[F64](this)
+  fun floor(): F64 => @"llvm.floor.f64"[F64](this)
+  fun round(): F64 => @"llvm.round.f64"[F64](this)
+  fun trunc(): F64 => @"llvm.trunc.f64"[F64](this)
 
-  fun box finite(): Bool =>
+  fun finite(): Bool =>
     if Platform.windows() then
       @_finite[I32](this) != 0
     else
       @finite[I32](this) != 0
     end
 
-  fun box nan(): Bool =>
+  fun nan(): Bool =>
     if Platform.windows() then
       @_isnan[I32](this) != 0
     else
       @isnan[I32](this) != 0
     end
 
-  fun box frexp(): (F64, U32) =>
+  fun frexp(): (F64, U32) =>
     var exp: U32 = 0
     var m = @frexp[F64](this, &exp)
     (m, exp)
 
-  fun box log(): F64 => @"llvm.log.f64"[F64](this)
-  fun box log2(): F64 => @"llvm.log2.f64"[F64](this)
-  fun box log10(): F64 => @"llvm.log10.f64"[F64](this)
-  fun box logb(): F64 => @logb[F64](this)
+  fun log(): F64 => @"llvm.log.f64"[F64](this)
+  fun log2(): F64 => @"llvm.log2.f64"[F64](this)
+  fun log10(): F64 => @"llvm.log10.f64"[F64](this)
+  fun logb(): F64 => @logb[F64](this)
 
-  fun box pow(y: F64): F64 => @"llvm.pow.f64"[F64](this, y)
-  fun box powi(y: I32): F64 =>
+  fun pow(y: F64): F64 => @"llvm.pow.f64"[F64](this, y)
+  fun powi(y: I32): F64 =>
     if Platform.windows() then
       pow(y.f64())
     else
       @"llvm.powi.f64"[F64](this, y)
     end
 
-  fun box sqrt(): F64 => @"llvm.sqrt.f64"[F64](this)
-  fun box cbrt(): F64 => @cbrt[F64](this)
-  fun box exp(): F64 => @"llvm.exp.f64"[F64](this)
-  fun box exp2(): F64 => @"llvm.exp2.f64"[F64](this)
+  fun sqrt(): F64 => @"llvm.sqrt.f64"[F64](this)
+  fun cbrt(): F64 => @cbrt[F64](this)
+  fun exp(): F64 => @"llvm.exp.f64"[F64](this)
+  fun exp2(): F64 => @"llvm.exp2.f64"[F64](this)
 
-  fun box cos(): F64 => @"llvm.cos.f64"[F64](this)
-  fun box sin(): F64 => @"llvm.sin.f64"[F64](this)
-  fun box tan(): F64 => @tan[F64](this)
+  fun cos(): F64 => @"llvm.cos.f64"[F64](this)
+  fun sin(): F64 => @"llvm.sin.f64"[F64](this)
+  fun tan(): F64 => @tan[F64](this)
 
-  fun box cosh(): F64 => @cosh[F64](this)
-  fun box sinh(): F64 => @sinh[F64](this)
-  fun box tanh(): F64 => @tanh[F64](this)
+  fun cosh(): F64 => @cosh[F64](this)
+  fun sinh(): F64 => @sinh[F64](this)
+  fun tanh(): F64 => @tanh[F64](this)
 
-  fun box acos(): F64 => @acos[F64](this)
-  fun box asin(): F64 => @asin[F64](this)
-  fun box atan(): F64 => @atan[F64](this)
-  fun box atan2(y: F64): F64 => @atan2[F64](this, y)
+  fun acos(): F64 => @acos[F64](this)
+  fun asin(): F64 => @asin[F64](this)
+  fun atan(): F64 => @atan[F64](this)
+  fun atan2(y: F64): F64 => @atan2[F64](this, y)
 
-  fun box acosh(): F64 => @acosh[F64](this)
-  fun box asinh(): F64 => @asinh[F64](this)
-  fun box atanh(): F64 => @atanh[F64](this)
+  fun acosh(): F64 => @acosh[F64](this)
+  fun asinh(): F64 => @asinh[F64](this)
+  fun atanh(): F64 => @atanh[F64](this)
 
-  fun box hash(): U64 => bits().hash()
+  fun hash(): U64 => bits().hash()
 
-  fun box i128(): I128 =>
+  fun i128(): I128 =>
     let bit = bits()
     let high = (bit >> 32).u32()
     let ex = ((high and 0x7FF00000) >> 20) - 1023
@@ -176,7 +176,7 @@ primitive F64 is FloatingPoint[F64]
 
     (r xor s) - s
 
-  fun box u128(): U128 =>
+  fun u128(): U128 =>
     let bit = bits()
     let high = (bit >> 32).u32()
     let ex = ((high and 0x7FF00000) >> 20) - 1023

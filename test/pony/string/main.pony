@@ -1,32 +1,32 @@
 actor Main
+  let _env: Env
+
   new create(env: Env) =>
-    var a: String val = "test".cut(1,2)
-    var b: String val = "test".cut(0,1)
-    var c: String val = "aardvark".cut(1,5)
-    var d: String val = "wombat".cut(3,6)
+    _env = env
 
-    var e: String val =
-      recover
-        var s = String.append("test").cut_in_place(1,2)
-        consume s
+    var a: String = "test".cut(1,2)
+    var b: String = "test".cut(0,1)
+    var c: String = "aardvark".cut(1,5)
+    var d: String = "wombat".cut(3,6)
+
+    var e =
+      recover val
+        String.append("test").cut_in_place(1,2)
       end
 
-    var f: String val =
-      recover
-        var s = String.append("test").cut_in_place(0,1)
-        consume s
+    var f =
+      recover val
+        String.append("test").cut_in_place(0,1)
       end
 
-    var g: String val =
-      recover
-        var s = String.append("aardvark").cut_in_place(1,5)
-        consume s
+    var g =
+      recover val
+        String.append("aardvark").cut_in_place(1,5)
       end
 
-    var h: String val =
-      recover
-        var s = String.append("wombat").cut_in_place(3,6)
-        consume s
+    var h =
+      recover val
+        String.append("wombat").cut_in_place(3,6)
       end
 
     env.out.print(a + " expected: tt")

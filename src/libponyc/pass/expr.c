@@ -65,6 +65,76 @@ bool is_result_needed(ast_t* ast)
   return true;
 }
 
+bool is_method_result(typecheck_t* t, ast_t* ast)
+{
+  if(ast == t->frame->method_body)
+    return true;
+
+  ast_t* parent = ast_parent(ast);
+
+  switch(ast_id(parent))
+  {
+    case TK_SEQ:
+      // More expressions in a sequence means we're not the result.
+      if(ast_sibling(ast) != NULL)
+        return false;
+      break;
+
+    case TK_IF:
+    case TK_WHILE:
+    case TK_MATCH:
+      // The condition is not the result.
+      if(ast_child(parent) == ast)
+        return false;
+      break;
+
+    case TK_REPEAT:
+      // The condition is not the result.
+      if(ast_childidx(parent, 1) == ast)
+        return false;
+      break;
+
+    case TK_CASE:
+      // The pattern and the guard are not the result.
+      if(ast_childidx(parent, 2) != ast)
+        return false;
+      break;
+
+    case TK_CASES:
+    case TK_RECOVER:
+      // These can be results.
+      break;
+
+    case TK_TRY:
+    case TK_TRY2:
+      // The finally block is not the result.
+      if(ast_childidx(parent, 2) == ast)
+        return false;
+      break;
+
+    default:
+      // Other expressions are not results.
+      return false;
+  }
+
+  return is_method_result(t, parent);
+}
+
+bool is_method_return(typecheck_t* t, ast_t* ast)
+{
+  ast_t* parent = ast_parent(ast);
+
+  if(ast_id(parent) == TK_SEQ)
+  {
+    parent = ast_parent(parent);
+
+    if(ast_id(parent) == TK_RETURN)
+      return true;
+  }
+
+  return is_method_result(t, ast);
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -73,7 +143,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!expr_nominal(t, astp))
+      if(!expr_nominal(options, astp))
         return AST_FATAL;
       break;
 
@@ -124,7 +194,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_IS:
     case TK_ISNT:
-      if(!expr_identity(ast))
+      if(!expr_identity(options, ast))
         return AST_FATAL;
       break;
 
@@ -215,13 +285,13 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_THIS:
-      if(!expr_this(t, ast))
+      if(!expr_this(options, ast))
         return AST_FATAL;
       break;
 
     case TK_TRUE:
     case TK_FALSE:
-      if(!expr_literal(ast, "Bool"))
+      if(!expr_literal(options, ast, "Bool"))
         return AST_FATAL;
       break;
 
@@ -235,7 +305,10 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_STRING:
-      if(!expr_literal(ast, "String"))
+      if(ast_id(ast_parent(ast)) == TK_PACKAGE)
+        return AST_OK;
+
+      if(!expr_literal(options, ast, "String"))
         return AST_FATAL;
       break;
 
@@ -261,7 +334,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_AMP:
-      if(!expr_addressof(ast))
+      if(!expr_addressof(options, ast))
         return AST_FATAL;
       break;
 

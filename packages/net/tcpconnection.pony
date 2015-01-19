@@ -1,4 +1,5 @@
 use "collections"
+use "events"
 
 actor TCPConnection
   """
@@ -7,7 +8,7 @@ actor TCPConnection
   var _notify: TCPConnectionNotify
   var _connect_count: U32
   var _fd: U32 = -1
-  var _event: Pointer[_Event] tag = Pointer[_Event]
+  var _event: Pointer[Event] tag = Pointer[Event]
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
@@ -49,7 +50,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @os_socket_event[Pointer[_Event]](this, fd)
+    _event = Event.socket(this, fd)
     _connected = true
     _notify.accepted(this)
 
@@ -63,14 +64,14 @@ actor TCPConnection
         var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
 
         if len < data.size() then
-          _pending.append(_TCPPendingWrite(data, len))
+          _pending.push(_TCPPendingWrite(data, len))
           _writeable = false
         end
       else
         _close()
       end
     elseif not _closed then
-      _pending.append(_TCPPendingWrite(data, 0))
+      _pending.push(_TCPPendingWrite(data, 0))
     end
 
   be dispose() =>
@@ -83,21 +84,21 @@ actor TCPConnection
       _close()
     end
 
-  fun box local_address(): IPAddress =>
+  fun local_address(): IPAddress =>
     """
     Return the local IP address.
     """
     let ip = recover IPAddress end
     @os_sockname[None](_fd, ip)
-    consume ip
+    ip
 
-  fun box remote_address(): IPAddress =>
+  fun remote_address(): IPAddress =>
     """
     Return the remote IP address.
     """
     let ip = recover IPAddress end
     @os_peername[None](_fd, ip)
-    consume ip
+    ip
 
   fun ref set_notify(notify: TCPConnectionNotify ref) =>
     """
@@ -124,20 +125,14 @@ actor TCPConnection
       @os_keepalive[None](_fd, secs)
     end
 
-  fun box _get_fd(): U32 =>
-    """
-    Private call to get the file descriptor, used by the Socket trait.
-    """
-    _fd
-
-  be _event_notify(event: Pointer[_Event] tag, flags: U32) =>
+  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
     """
     Handle socket events.
     """
     if event isnt _event then
-      if _Event.writeable(flags) then
+      if Event.writeable(flags) then
         // A connection has completed.
-        var fd = @os_socket_event_fd[U32](event)
+        var fd = Event.fd(event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
@@ -150,7 +145,7 @@ actor TCPConnection
             _notify.connected(this)
           else
             // The connection failed, unsubscribe the event and close.
-            _Event.unsubscribe(event)
+            Event.unsubscribe(event)
             @os_closesocket[None](fd)
 
             if _connect_count == 0 then
@@ -163,7 +158,7 @@ actor TCPConnection
           end
         else
           // We're already connected, unsubscribe the event and close.
-          _Event.unsubscribe(event)
+          Event.unsubscribe(event)
           @os_closesocket[None](fd)
 
           // We're done.
@@ -171,9 +166,9 @@ actor TCPConnection
         end
       else
         // It's not our event.
-        if _Event.disposable(flags) then
+        if Event.disposable(flags) then
           // It's disposable, so dispose of it.
-          _Event.dispose(event)
+          Event.dispose(event)
         end
 
         // We're done.
@@ -183,19 +178,19 @@ actor TCPConnection
 
     // At this point, it's our event.
     if not _closed then
-      if _Event.writeable(flags) then
+      if Event.writeable(flags) then
         _writeable = true
         _pending_writes()
       end
 
-      if _Event.readable(flags) then
+      if Event.readable(flags) then
         _readable = true
         _pending_reads()
       end
     end
 
-    if _Event.disposable(flags) then
-      _event = _Event.dispose(_event)
+    if Event.disposable(flags) then
+      _event = Event.dispose(_event)
     end
 
   be _read_again() =>
@@ -213,7 +208,7 @@ actor TCPConnection
     """
     while _writeable and (_pending.size() > 0) do
       try
-        var pending = _pending.head().item()
+        var pending = _pending.head()()
         var data = pending.data
         var offset = pending.offset
 
@@ -224,7 +219,7 @@ actor TCPConnection
           pending.offset = len + offset
           _writeable = false
         else
-          _pending.pop()
+          _pending.shift()
         end
       else
         _close()
@@ -288,7 +283,7 @@ actor TCPConnection
       _notify.closed(this)
     end
 
-    _Event.unsubscribe(_event)
+    Event.unsubscribe(_event)
     _connected = false
     _readable = false
     _writeable = false

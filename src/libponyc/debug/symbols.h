@@ -13,33 +13,31 @@
 #  pragma warning(pop)
 #endif
 
-typedef struct symbol_t symbol_t;
-typedef struct dbg_symbol_t dbg_type_t;
 typedef struct symbols_t symbols_t;
 
-struct dbg_symbol_t
-{
-  llvm::MDNode* type;
-  llvm::MDNode* qualified;
-};
+symbols_t* symbols_init(compile_t* c);
 
-struct symbol_t
-{
-  const char* name;
+DIFile symbols_file(symbols_t* symbols, ast_t* module);
 
-  union
-  {
-    dbg_symbol_t* dbg;
-    llvm::MDNode* file;
-  };
+void symbols_compileunit(symbols_t* symbols, ast_t* package);
 
-  uint16_t kind;
-};
+void symbols_basic(symbols_t* symbols, gentype_t* g, dwarf_type_t* type);
 
-symbols_t* symbols_init(size_t size);
+void symbols_trait(symbols_t* symbols, gentype_t* g, dwarf_type_t* type);
 
-void symbols_destroy(symbols_t** symbols);
+void symbols_composite(symbols_t* symbols, gentype_t* g, dwarf_type_t* type);
 
-symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file);
+void symbols_finalise(symbols_t* symbols, bool verify);
 
 #endif
+
+/*
+switch(g->type_name[0])
+  {
+    case 'U': type->tag = dwarf::DW_ATE_unsigned; break;
+    case 'I': type->tag = dwarf::DW_ATE_signed; break;
+    case 'F': type->tag = dwarf::DW_ATE_float; break;
+    case 'B': type->tag = dwarf::DW_ATE_boolean; break;
+    default: assert(0);
+  }
+*/

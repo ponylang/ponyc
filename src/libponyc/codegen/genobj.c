@@ -1,7 +1,7 @@
 #include "genobj.h"
 #include <llvm-c/BitWriter.h>
 
-const char* genobj(compile_t* c, pass_opt_t* opt)
+const char* genobj(compile_t* c)
 {
   // Finalise the DWARF info.
   // if(!dwarf_finalise(c->dwarf))
@@ -10,7 +10,7 @@ const char* genobj(compile_t* c, pass_opt_t* opt)
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
-  if(opt->release)
+  if(c->opt->release)
   {
     printf("Optimising\n");
 
@@ -18,7 +18,7 @@ const char* genobj(compile_t* c, pass_opt_t* opt)
     LLVMRunPassManager(c->mpm, c->module);
 
     // LTO pass manager.
-    if(!c->library)
+    if(!c->opt->library)
       LLVMRunPassManager(c->lpm, c->module);
   }
 
@@ -46,9 +46,9 @@ const char* genobj(compile_t* c, pass_opt_t* opt)
    * user then has to link both the .o and the runtime. Would need a flag for
    * PIC or not PIC. Could even generate a .a and maybe a .so/.dll.
    */
-  if(opt->limit == PASS_LLVM_IR)
+  if(c->opt->limit == PASS_LLVM_IR)
   {
-    const char* file_o = suffix_filename(opt->output, c->filename, ".ll");
+    const char* file_o = suffix_filename(c->opt->output, c->filename, ".ll");
     printf("Writing %s\n", file_o);
     char* err;
 
@@ -62,9 +62,9 @@ const char* genobj(compile_t* c, pass_opt_t* opt)
     return file_o;
   }
 
-  if(opt->limit == PASS_BITCODE)
+  if(c->opt->limit == PASS_BITCODE)
   {
-    const char* file_o = suffix_filename(opt->output, c->filename, ".bc");
+    const char* file_o = suffix_filename(c->opt->output, c->filename, ".bc");
     printf("Writing %s\n", file_o);
 
     if(LLVMWriteBitcodeToFile(c->module, file_o) != 0)
@@ -79,16 +79,16 @@ const char* genobj(compile_t* c, pass_opt_t* opt)
   LLVMCodeGenFileType fmt;
   const char* file_o;
 
-  if(opt->limit == PASS_ASM)
+  if(c->opt->limit == PASS_ASM)
   {
     fmt = LLVMAssemblyFile;
-    file_o = suffix_filename(opt->output, c->filename, ".s");
+    file_o = suffix_filename(c->opt->output, c->filename, ".s");
   } else {
     fmt = LLVMObjectFile;
 #ifdef PLATFORM_IS_WINDOWS
-    file_o = suffix_filename(opt->output, c->filename, ".obj");
+    file_o = suffix_filename(c->opt->output, c->filename, ".obj");
 #else
-    file_o = suffix_filename(opt->output, c->filename, ".o");
+    file_o = suffix_filename(c->opt->output, c->filename, ".o");
 #endif
   }
 

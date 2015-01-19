@@ -47,7 +47,7 @@ class File
       error
     end
 
-  fun box valid(): Bool =>
+  fun valid(): Bool =>
     """
     Returns true if the file is currently open.
     """
@@ -101,7 +101,7 @@ class File
       end
 
       _last_line_length = len
-      consume result
+      result
     else
       recover String end
     end
@@ -120,7 +120,7 @@ class File
       end
 
       result.truncate(r)
-      consume result
+      result
     else
       recover Array[U8] end
     end
@@ -140,7 +140,7 @@ class File
       end
 
       result.truncate(r)
-      consume result
+      result
     else
       recover String end
     end
@@ -171,7 +171,7 @@ class File
     end
     false
 
-  fun box position(): U64 =>
+  fun position(): U64 =>
     """
     Return the current cursor position in the file.
     """

@@ -463,30 +463,6 @@ TEST(ParseEntityTest, FunctionMaximal)
 }
 
 
-TEST(ParseEntityTest, FunctionMustHaveCapability)
-{
-  const char* src = "class Foo fun m() => 3";
-
-  DO(parse_test_bad(src));
-}
-
-
-TEST(ParseEntityTest, FunctionCannotHaveIsoCapability)
-{
-  const char* src = "class Foo fun iso m() => 3";
-
-  DO(parse_test_bad(src));
-}
-
-
-TEST(ParseEntityTest, FunctionCannotHaveTrnCapability)
-{
-  const char* src = "class Foo fun trn m() => 3";
-
-  DO(parse_test_bad(src));
-}
-
-
 TEST(ParseEntityTest, FunctionCannotHaveEllipsis)
 {
   const char* src = "class Foo ref fun m(x:U32, ...) => 3";
@@ -710,9 +686,17 @@ TEST(ParseEntityTest, ConstructorMaximal)
 }
 
 
-TEST(ParseEntityTest, ConstructorCannotHaveCapability)
+TEST(ParseEntityTest, PrimitiveConstructorCannotHaveCapability)
 {
-  const char* src = "class Foo new ref m() => 3";
+  const char* src = "primitive Foo new val m() => 3";
+
+  DO(parse_test_bad(src));
+}
+
+
+TEST(ParseEntityTest, ActorConstructorCannotHaveCapability)
+{
+  const char* src = "actor Foo new tag m() => 3";
 
   DO(parse_test_bad(src));
 }
@@ -816,14 +800,14 @@ TEST(ParseEntityTest, UseFfi)
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (use x (ffidecl{scope} (id \"@foo1\")\n"
+    "  (use x (ffidecl{scope} (id \"foo1\")\n"
     "    (typeargs (nominal x (id U32) x x x))\n"
     "    (params\n"
     "      (param (id a) (nominal x (id I32) x x x) x)\n"
     "      (param (id b) (nominal x (id String) x x x) x)\n"
     "      ...)\n"
     "    x ?) x)\n"
-    "  (use x (ffidecl{scope} (id \"@foo2\")\n"
+    "  (use x (ffidecl{scope} (id \"foo2\")\n"
     "    (typeargs (nominal x (id U32) x x x))\n"
     "    x x x) (reference (id wombat)))\n"
     ")))";

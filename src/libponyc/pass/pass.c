@@ -35,11 +35,10 @@ const char* pass_name(pass_id pass)
     case PASS_PARSE:    return "parse";
     case PASS_PARSE_FIX:return "parsefix";
     case PASS_SUGAR:    return "sugar";
-    case PASS_SCOPE1:   return "scope1";
+    case PASS_SCOPE:    return "scope";
     case PASS_NAME_RESOLUTION: return "name";
     case PASS_FLATTEN:  return "flatten";
     case PASS_TRAITS:   return "traits";
-    case PASS_SCOPE2:   return "scope2";
     case PASS_EXPR:     return "expr";
     case PASS_AST:      return "ast";
     case PASS_LLVM_IR:  return "ir";
@@ -101,6 +100,9 @@ bool type_passes(ast_t* type, pass_opt_t* options)
 
   bool ok = package_passes(type, options);
 
+  if(ok)
+    ok = program_passes(type, options);
+
   frame_pop(&options->check);
   frame_pop(&options->check);
   frame_pop(&options->check);
@@ -122,35 +124,37 @@ bool package_passes(ast_t* package, pass_opt_t* options)
   if(do_pass(&package, &r, options, PASS_SUGAR, pass_sugar, NULL))
     return r;
 
-  if(do_pass(&package, &r, options, PASS_SCOPE1, pass_scope, NULL))
-    return r;
-
-  if(do_pass(&package, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
-    return r;
-
-  if(do_pass(&package, &r, options, PASS_FLATTEN, NULL, pass_flatten))
-    return r;
-
-  if(do_pass(&package, &r, options, PASS_TRAITS, pass_traits, NULL))
-    return r;
-
-  if(options->limit != PASS_TRAITS)
-    ast_clear(package);
-
-  if(do_pass(&package, &r, options, PASS_SCOPE2, pass_scope2, NULL))
-    return r;
-
-  if(do_pass(&package, &r, options, PASS_EXPR, NULL, pass_expr))
+  if(do_pass(&package, &r, options, PASS_SCOPE, pass_scope, NULL))
     return r;
 
   return true;
 }
 
 
-bool program_passes(ast_t* program, pass_opt_t* opt)
+bool program_passes(ast_t* program, pass_opt_t* options)
 {
-  if(opt->limit < PASS_LLVM_IR)
+  bool r;
+
+  if(do_pass(&program, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
+    return r;
+
+  if(do_pass(&program, &r, options, PASS_FLATTEN, NULL, pass_flatten))
+    return r;
+
+  if(do_pass(&program, &r, options, PASS_TRAITS, pass_traits, NULL))
+    return r;
+
+  if(do_pass(&program, &r, options, PASS_EXPR, NULL, pass_expr))
+    return r;
+
+  return true;
+}
+
+
+bool generate_passes(ast_t* program, pass_opt_t* options)
+{
+  if(options->limit < PASS_LLVM_IR)
     return true;
 
-  return codegen(program, opt);
+  return codegen(program, options);
 }

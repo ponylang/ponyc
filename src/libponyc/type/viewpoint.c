@@ -79,24 +79,6 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
   return NULL;
 }
 
-static ast_t* viewpoint_tag_for_type(ast_t* type, int cap_index)
-{
-  ast_t* cap = ast_childidx(type, cap_index);
-  token_id tcap = ast_id(cap);
-
-  if(tcap != TK_TAG)
-  {
-    type = ast_dup(type);
-    cap = ast_childidx(type, cap_index);
-    ast_setid(cap, TK_TAG);
-
-    ast_t* ephemeral = ast_sibling(cap);
-    ast_setid(ephemeral, TK_NONE);
-  }
-
-  return type;
-}
-
 static ast_t* viewpoint_lower_for_nominal(ast_t* type)
 {
   ast_t* cap = ast_childidx(type, 3);
@@ -139,25 +121,31 @@ static ast_t* viewpoint_lower_for_nominal(ast_t* type)
 
 static ast_t* viewpoint_lower_for_typeparam(ast_t* type)
 {
-  ast_t* cap = ast_childidx(type, 1);
+  AST_GET_CHILDREN(type, id, cap, eph);
   token_id tcap = ast_id(cap);
 
-  // Have to use the lower bounds for what could bind to this capability.
-  // iso = iso, trn = trn, ref = ref, val = val, box = trn, tag = iso
-  // Then map the same way as nominals.
+  // ref->boxgen = trn, val->boxgen = val, box->boxgen = val => trn
+  // ref->taggen = val, val->taggen = val, box->taggen = val => val
+  // ref->anygen = iso, val->anygen = val, box->anygen = val => iso
   switch(tcap)
   {
     case TK_ISO:
     case TK_TRN:
     case TK_VAL:
+    case TK_TAG:
       return type;
 
     case TK_REF:
-    case TK_BOX:
+    case TK_BOX_GENERIC:
       tcap = TK_TRN;
       break;
 
-    case TK_TAG:
+    case TK_BOX:
+    case TK_TAG_GENERIC:
+      tcap = TK_VAL;
+      break;
+
+    case TK_ANY_GENERIC:
       tcap = TK_ISO;
       break;
 
@@ -242,35 +230,17 @@ static ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type)
   return NULL;
 }
 
-ast_t* viewpoint(ast_t* left, ast_t* right)
-{
-  ast_t* l_type = ast_type(left);
-  ast_t* r_type = ast_type(right);
-
-  // If the left side is 'this' and has box capability, we return an arrow type
-  // to allow the receiver to type check for ref and val receivers as well.
-  if((ast_id(left) == TK_THIS) && (ast_id(l_type) == TK_ARROW))
-  {
-    ast_t* this_type = ast_from(l_type, TK_THISTYPE);
-    ast_t* result = make_arrow_type(this_type, r_type);
-    ast_free_unattached(this_type);
-
-    return result;
-  }
-
-  return viewpoint_type(l_type, r_type);
-}
-
 ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 {
   switch(ast_id(l_type))
   {
     case TK_NOMINAL:
     {
+      AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
+
       if(ast_id(r_type) == TK_ARROW)
         return make_arrow_type(l_type, r_type);
 
-      AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
       return viewpoint_cap(ast_id(cap), ast_id(eph), r_type);
     }
 
@@ -284,7 +254,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       AST_GET_CHILDREN(l_type, id, cap, eph);
       token_id tcap = ast_id(cap);
 
-      if(tcap == TK_BOX)
+      if(tcap == TK_BOX_GENERIC)
         return make_arrow_type(l_type, r_type);
 
       return viewpoint_cap(tcap, ast_id(eph), r_type);
@@ -317,23 +287,6 @@ ast_t* viewpoint_lower(ast_t* type)
 {
   switch(ast_id(type))
   {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // adapt all elements
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_append(r_type, viewpoint_lower(child));
-        child = ast_sibling(child);
-      }
-
-      return r_type;
-    }
-
     case TK_NOMINAL:
       return viewpoint_lower_for_nominal(type);
 
@@ -344,46 +297,6 @@ ast_t* viewpoint_lower(ast_t* type)
     {
       ast_t* right = ast_childidx(type, 1);
       return viewpoint_lower(right);
-    }
-
-    default: {}
-  }
-
-  assert(0);
-  return NULL;
-}
-
-ast_t* viewpoint_tag(ast_t* type)
-{
-  switch(ast_id(type))
-  {
-    case TK_UNIONTYPE:
-    case TK_ISECTTYPE:
-    case TK_TUPLETYPE:
-    {
-      // adapt all elements
-      ast_t* r_type = ast_from(type, ast_id(type));
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        ast_append(r_type, viewpoint_tag(child));
-        child = ast_sibling(child);
-      }
-
-      return r_type;
-    }
-
-    case TK_NOMINAL:
-      return viewpoint_tag_for_type(type, 3);
-
-    case TK_TYPEPARAMREF:
-      return viewpoint_tag_for_type(type, 1);
-
-    case TK_ARROW:
-    {
-      ast_t* right = ast_childidx(type, 1);
-      return viewpoint_tag(right);
     }
 
     default: {}

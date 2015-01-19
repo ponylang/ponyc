@@ -5,25 +5,41 @@
 
 ast_result_t flatten_typeparamref(ast_t* ast)
 {
+  AST_GET_CHILDREN(ast, id, cap, ephemeral);
+
   // Get the lowest capability that could fulfill the constraint.
   ast_t* def = (ast_t*)ast_data(ast);
+  AST_GET_CHILDREN(def, name, constraint, default_type);
 
-  AST_GET_CHILDREN(def, id, constraint, default_type);
-  token_id cap = cap_from_constraint(constraint);
+  if(ast_id(cap) != TK_NONE)
+  {
+    ast_error(cap, "can't specify a capability on a type parameter");
+    return AST_ERROR;
+  }
 
   // Set the typeparamref cap.
-  AST_GET_CHILDREN(ast, t_id, t_cap, t_ephemeral);
-  ast_setid(t_cap, cap);
+  token_id tcap = cap_from_constraint(constraint);
+  ast_setid(cap, tcap);
 
   return AST_OK;
 }
 
-ast_result_t flatten_tuple(typecheck_t* t, ast_t* ast)
+static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
 {
   if(t->frame->constraint != NULL)
   {
-    ast_error(ast, "tuple types can't be used as constraints");
-    return AST_ERROR;
+    switch(ast_id(ast))
+    {
+      case TK_TUPLETYPE:
+        ast_error(ast, "tuple types can't be used as constraints");
+        return AST_ERROR;
+
+      case TK_ARROW:
+        ast_error(ast, "arrow types can't be used as constraints");
+        return AST_ERROR;
+
+      default: {}
+    }
   }
 
   return AST_OK;
@@ -47,7 +63,8 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TUPLETYPE:
-      return flatten_tuple(t, ast);
+    case TK_ARROW:
+      return flatten_noconstraint(t, ast);
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(ast);

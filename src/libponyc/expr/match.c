@@ -230,12 +230,6 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
 
       matchtype_t ok = could_subtype(a_type, capture_type);
 
-      if(ok != MATCHTYPE_ACCEPT)
-      {
-        // TODO: remove this
-        could_subtype(a_type, capture_type);
-      }
-
       if((ok != MATCHTYPE_ACCEPT) && errors)
       {
         ast_error(pattern, "this capture can never match");

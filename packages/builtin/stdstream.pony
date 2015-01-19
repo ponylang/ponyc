@@ -2,8 +2,8 @@ interface Bytes
   """
   Accept both a String and an Array[U8].
   """
-  fun box size(): U64
-  fun box cstring(): Pointer[U8] tag
+  fun size(): U64
+  fun cstring(): Pointer[U8] tag
 
 actor StdStream
   """

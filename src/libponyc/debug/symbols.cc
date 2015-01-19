@@ -8,9 +8,28 @@ enum
   SYMBOL_FILE
 };
 
-static uint64_t symbol_hash(symbol_t* s);
+typedef struct anchor_t
+{
+  llvm::MDNode* type;
+  llvm::MDNode* qualified;
+} anchor_t;
+
+typedef struct symbol_t
+{
+  const char* name;
+
+  union
+  {
+    anchor_t* anchor;
+    llvm::MDNode* file;
+  };
+
+  uint16_t kind;
+} symbol_t;
+
+static uint64_t symbol_hash(symbol_t* symbol);
 static bool symbol_cmp(symbol_t* a, symbol_t* b);
-static void symbol_free(symbol_t* s);
+static void symbol_free(symbol_t* symbol);
 
 DECLARE_HASHMAP(symbolmap, symbol_t);
 DEFINE_HASHMAP(symbolmap, symbol_t, symbol_hash, symbol_cmp,
@@ -19,11 +38,16 @@ DEFINE_HASHMAP(symbolmap, symbol_t, symbol_hash, symbol_cmp,
 struct symbols_t
 {
   symbolmap_t map;
+  
+  Module* module;
+  DataLayout* layout;
+  DIBuilder* builder;
+  DICompileUnit unit;
 };
 
-static uint64_t symbol_hash(symbol_t* s)
+static uint64_t symbol_hash(symbol_t* symbol)
 {
-  return hash_ptr(s->name);
+  return hash_ptr(symbol->name);
 }
 
 static bool symbol_cmp(symbol_t* a, symbol_t* b)
@@ -31,34 +55,37 @@ static bool symbol_cmp(symbol_t* a, symbol_t* b)
   return a->name == b->name;
 }
 
-static void symbol_free(symbol_t* s)
+static void symbol_free(symbol_t* symbol)
 {
-  if(s->kind == SYMBOL_DBG)
-    POOL_FREE(dbg_symbol_t, s->dbg);
+  if(symbol->kind == SYMBOL_DBG)
+    POOL_FREE(anchor_t, symbol->anchor);
 
-  POOL_FREE(symbol_t, s);
+  POOL_FREE(symbol_t, symbol);
 }
 
-symbols_t* symbols_init(size_t size)
+symbols_t* symbols_init(compile_t* c)
 {
   symbols_t* n = POOL_ALLOC(symbols_t);
+  memset(n, 0, sizeof(symbols_t));
 
-  symbolmap_init(&n->map, size);
+  symbolmap_init(&n->map, 0);
+  n->module = unwrap(c->module);
+  n->layout = unwrap(c->target_data);
+  n->builder = new DIBuilder(*c->module);
 
   return n;
 }
 
-void symbols_destroy(symbols_t** symbols)
+void symbols_finalise(symbols_t* symbols, bool verify)
 {
-  symbols_t* s = *symbols;
+  assert(symbols->unit.Verify());
+  symbols->builder->finalize();
 
-  symbolmap_destroy(&s->map);
-  POOL_FREE(symbols_t, s);
-
-  *symbols = NULL;
+  symbolmap_destroy(&symbols->map);
+  POOL_FREE(symbols_t, symbols);
 }
 
-symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file)
+/*symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file)
 {
   symbol_t key;
   key.name = name;
@@ -74,13 +101,13 @@ symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file)
 
     if(!file)
     {
-      value->dbg = POOL_ALLOC(dbg_symbol_t);
+      value->anchor = POOL_ALLOC(anchor_t);
       value->kind = SYMBOL_DBG;
-      memset(value->dbg, 0, sizeof(dbg_symbol_t));
+      memset(value->anchor, 0, sizeof(anchor_t));
     }
 
     symbolmap_put(&symbols->map, value);
   }
 
   return value;
-}
+}*/

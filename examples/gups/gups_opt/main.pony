@@ -108,13 +108,13 @@ actor Updater
   let mask: U64
   let chunk: U64
   let rand: PolyRand
-  let reuse: List[Array[U64] iso]
-  var others: (Array[Updater] val | None)
+  let reuse: List[Array[U64] iso] = List[Array[U64] iso]
+  var others: (Array[Updater] val | None) = None
   var table: Array[U64]
 
   new create(main':Main, updaters': U64, index': U64, size: U64, chunk': U64,
     seed: U64)
-    =>
+  =>
     main = main'
     index = index'
     shift = size.bitwidth() - size.clz()
@@ -122,8 +122,6 @@ actor Updater
     mask = updaters - 1
     chunk = chunk'
     rand = PolyRand(seed)
-    reuse = List[Array[U64] iso]
-    others = None
     table = Array[U64].undefined(size)
 
     var offset = index * size

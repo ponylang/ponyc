@@ -6,6 +6,7 @@
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 
@@ -187,6 +188,29 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 }
 
 
+static ast_result_t sugar_module(ast_t* ast)
+{
+  ast_t* docstring = ast_child(ast);
+
+  if((docstring == NULL) || (ast_id(docstring) != TK_STRING))
+    return AST_OK;
+
+  ast_t* package = ast_parent(ast);
+  ast_t* package_docstring = ast_childlast(package);
+
+  if(ast_id(package_docstring) == TK_STRING)
+  {
+    ast_error(docstring, "the package already has a docstring");
+    ast_error(package_docstring, "the existing docstring is here");
+    return AST_ERROR;
+  }
+
+  ast_append(package, docstring);
+  ast_remove(docstring);
+  return AST_OK;
+}
+
+
 static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   token_id def_def_cap)
 {
@@ -228,16 +252,21 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
-  // Return type is This ref^ for classes, This val^ for primitives, and
-  // This tag^ for actors.
+  // Return type default to ref^ for classes, val^ for primitives, and
+  // tag^ for actors.
   assert(ast_id(result) == TK_NONE);
-  token_id tcap;
+  token_id tcap = ast_id(cap);
 
-  switch(ast_id(t->frame->type))
+  if(tcap == TK_NONE)
   {
-    case TK_PRIMITIVE: tcap = TK_VAL; break;
-    case TK_ACTOR: tcap = TK_TAG; break;
-    default: tcap = TK_REF; break;
+    switch(ast_id(t->frame->type))
+    {
+      case TK_PRIMITIVE: tcap = TK_VAL; break;
+      case TK_ACTOR: tcap = TK_TAG; break;
+      default: tcap = TK_REF; break;
+    }
+
+    ast_setid(cap, tcap);
   }
 
   ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
@@ -247,11 +276,11 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 
 static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
-  // Return type is This tag
-  ast_t* result = ast_childidx(ast, 4);
-  assert(ast_id(result) == TK_NONE);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
+  // Return type is This tag
   ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+
   return AST_OK;
 }
 
@@ -260,7 +289,11 @@ static ast_result_t sugar_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
-  // Return value is not specified, set it to None
+  // If the receiver cap is not specified, set it to box.
+  if(ast_id(cap) == TK_NONE)
+    ast_setid(cap, TK_BOX);
+
+  // If the return value is not specified, set it to None
   if(ast_id(result) == TK_NONE)
   {
     ast_t* type = type_sugar(ast, NULL, "None");
@@ -513,6 +546,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_t* class_members = ast_childidx(def, 4);
   ast_t* member = ast_child(members);
 
+  bool has_fields = false;
+  bool has_behaviours = false;
+
   while(member != NULL)
   {
     switch(ast_id(member))
@@ -540,15 +576,23 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         // The body of create contains: id = consume $0
         BUILD(assign, init,
           NODE(TK_ASSIGN,
-            NODE(TK_CONSUME, NODE(TK_REFERENCE, TREE(p_id)))
+            NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
             NODE(TK_REFERENCE, TREE(id))));
 
         ast_append(class_members, field);
         ast_append(create_params, param);
         ast_append(create_body, assign);
         ast_append(call_args, init);
+
+        has_fields = true;
         break;
       }
+
+      case TK_BE:
+        // If we have behaviours, we must be an actor.
+        ast_append(class_members, member);
+        has_behaviours = true;
+        break;
 
       default:
         // Keep all the methods as they are.
@@ -559,9 +603,21 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     member = ast_sibling(member);
   }
 
-  // End the constructor with None, in case it has no parameters.
-  BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
-  ast_append(create_body, none);
+  if(!has_fields)
+  {
+    // Change the type from a class to a primitive.
+    ast_setid(def, TK_PRIMITIVE);
+
+    // End the constructor with None, since it has no parameters.
+    BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
+    ast_append(create_body, none);
+  }
+
+  if(has_behaviours)
+  {
+    // Change the type to an actor.
+    ast_setid(def, TK_ACTOR);
+  }
 
   // Add the create function at the end.
   ast_append(class_members, create);
@@ -631,8 +687,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 
       BUILD(body_elem, body,
         NODE(TK_SEQ,
-          NODE(TK_CONSUME,
-            NODE(TK_REFERENCE, ID(name)))));
+          NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, ID(name)))));
 
       ast_append(pattern, pattern_elem);
       ast_append(body, body_elem);
@@ -642,7 +697,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 }
 
 
-ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
+static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
@@ -682,7 +737,7 @@ ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
 }
 
 
-ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
 
@@ -697,7 +752,7 @@ ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 }
 
 
-ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
+static ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, expr);
 
@@ -712,6 +767,39 @@ ast_result_t sugar_unop(ast_t** astp, const char* fn_name)
 }
 
 
+static ast_result_t sugar_ffi(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
+
+  // Prefix '@' to the name.
+  const char* name = ast_name(id);
+  size_t len = strlen(name) + 1;
+
+  VLA(char, new_name, len + 1);
+  new_name[0] = '@';
+  memcpy(new_name + 1, name, len);
+
+  ast_t* new_id = ast_from_string(id, new_name);
+  ast_replace(&id, new_id);
+
+  return AST_OK;
+}
+
+
+static ast_result_t sugar_semi(ast_t** astp)
+{
+  ast_t* ast = *astp;
+  assert(ast_id(ast) == TK_SEMI);
+
+  // Semis are pointless, discard them
+  ast_t* expr = ast_pop(ast);
+  assert(expr != NULL);
+
+  ast_replace(astp, expr);
+  return AST_OK;
+}
+
+
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -720,6 +808,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_MODULE:     return sugar_module(ast);
     case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
     case TK_ACTOR:      return sugar_member(ast, true, false, TK_TAG);
@@ -760,6 +849,9 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_GT:         return sugar_binop(astp, "gt");
     case TK_UNARY_MINUS:return sugar_unop(astp, "neg");
     case TK_NOT:        return sugar_unop(astp, "op_not");
+    case TK_FFIDECL:
+    case TK_FFICALL:    return sugar_ffi(ast);
+    case TK_SEMI:       return sugar_semi(astp);
     default:            return AST_OK;
   }
 }

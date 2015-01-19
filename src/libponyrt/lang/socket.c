@@ -26,7 +26,6 @@ typedef int SOCKET;
 
 PONY_EXTERN_C_BEGIN
 
-asio_event_t* os_socket_event(pony_actor_t* owner, int fd);
 void os_closesocket(int fd);
 
 static bool connect_in_progress()
@@ -147,7 +146,8 @@ static int os_socket(pony_actor_t* owner, const char* host,
 
     if(fd != -1)
     {
-      asio_event_t* ev = os_socket_event(owner, fd);
+      asio_event_t* ev = asio_event_create(owner, fd,
+        ASIO_READ | ASIO_WRITE, true);
 
       if(server)
       {
@@ -166,26 +166,6 @@ static int os_socket(pony_actor_t* owner, const char* host,
 
   freeaddrinfo(result);
   return count;
-}
-
-asio_event_t* os_socket_event(pony_actor_t* owner, int fd)
-{
-  pony_type_t* type = *(pony_type_t**)owner;
-  uint32_t msg_id = type->event_notify;
-
-  if(msg_id == (uint32_t)-1)
-    return NULL;
-
-  asio_event_t* ev = asio_event_create(owner, msg_id, fd,
-    ASIO_READ | ASIO_WRITE, true, NULL);
-
-  asio_event_subscribe(ev);
-  return ev;
-}
-
-int os_socket_event_fd(asio_event_t* ev)
-{
-  return (int)ev->fd;
 }
 
 int os_listen_tcp(pony_actor_t* owner, const char* host, const char* service)

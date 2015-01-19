@@ -135,11 +135,11 @@ static ast_t* type_base(ast_t* from, const char* package, const char* name)
   return ast;
 }
 
-ast_t* type_builtin(ast_t* from, const char* name)
+ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 {
   ast_t* ast = type_base(from, NULL, name);
 
-  if(!names_nominal(NULL, from, &ast))
+  if(!names_nominal(opt, from, &ast))
   {
     ast_error(from, "unable to validate '%s'", name);
     ast_free(ast);
@@ -149,7 +149,7 @@ ast_t* type_builtin(ast_t* from, const char* name)
   return ast;
 }
 
-ast_t* type_pointer_to(ast_t* to)
+ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
 {
   BUILD(pointer, to,
     NODE(TK_NOMINAL,
@@ -162,7 +162,7 @@ ast_t* type_pointer_to(ast_t* to)
       NONE // Ephemeral
       ));
 
-  if(!names_nominal(NULL, to, &pointer))
+  if(!names_nominal(opt, to, &pointer))
   {
     ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
     ast_free(pointer);
@@ -181,7 +181,9 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
 {
   assert(branch != NULL);
 
-  if(is_type_literal(ast_type(branch)))
+  ast_t* branch_type = ast_type(branch);
+
+  if(is_type_literal(branch_type))
   {
     // The new branch is a literal
     if(control_type == NULL)
@@ -201,6 +203,16 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     ast_t* member = ast_from(branch, TK_LITERALBRANCH);
     ast_setdata(member, (void*)branch);
     ast_append(control_type, member);
+
+    ast_t* branch_non_lit = ast_type(branch_type);
+
+    if(branch_non_lit != NULL)
+    {
+      // The branch's literal type has a non-literal component
+      ast_t* non_literal_type = ast_type(control_type);
+      ast_settype(control_type, type_union(non_literal_type, branch_non_lit));
+    }
+
     return control_type;
   }
 
@@ -209,13 +221,13 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
     // New branch is not literal, but the control structure is
     // Add new branch type to the control structure's non-literal aspect
     ast_t* non_literal_type = ast_type(control_type);
-    non_literal_type = type_union(non_literal_type, ast_type(branch));
+    non_literal_type = type_union(non_literal_type, branch_type);
     ast_settype(control_type, non_literal_type);
     return control_type;
   }
 
   // No literals here, just union the types
-  return type_union(control_type, ast_type(branch));
+  return type_union(control_type, branch_type);
 }
 
 ast_t* type_union(ast_t* l_type, ast_t* r_type)
@@ -231,23 +243,30 @@ ast_t* type_isect(ast_t* l_type, ast_t* r_type)
 ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
   token_id ephemeral)
 {
-  ast_t* id = ast_child(t->frame->type);
-  ast_t* typeparams = ast_sibling(id);
-  const char* name = ast_name(id);
-
-  ast_t* nominal = ast_from(ast, TK_NOMINAL);
-  ast_add(nominal, ast_from(ast, ephemeral));
+  bool make_arrow = false;
 
   if(cap == TK_BOX)
-    ast_add(nominal, ast_from(ast, TK_REF));
-  else
-    ast_add(nominal, ast_from(ast, cap));
+  {
+    cap = TK_REF;
+    make_arrow = true;
+  }
+
+  AST_GET_CHILDREN(t->frame->type, id, typeparams);
+
+  BUILD(typeargs, ast, NODE(TK_NONE));
+
+  BUILD(type, ast,
+    NODE(TK_NOMINAL,
+      NODE(TK_NONE)
+      TREE(id)
+      TREE(typeargs)
+      NODE(cap)
+      NODE(ephemeral)));
 
   if(ast_id(typeparams) == TK_TYPEPARAMS)
   {
+    ast_setid(typeargs, TK_TYPEARGS);
     ast_t* typeparam = ast_child(typeparams);
-    ast_t* typeargs = ast_from(ast, TK_TYPEARGS);
-    ast_add(nominal, typeargs);
 
     while(typeparam != NULL)
     {
@@ -257,35 +276,23 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
 
       typeparam = ast_sibling(typeparam);
     }
-  } else {
-    ast_add(nominal, ast_from(ast, TK_NONE)); // empty typeargs
   }
 
-  ast_add(nominal, ast_from_string(ast, name));
-  ast_add(nominal, ast_from(ast, TK_NONE));
+  if(make_arrow)
+  {
+    BUILD(arrow, ast, NODE(TK_ARROW, NODE(TK_THISTYPE) TREE(type)));
+    return arrow;
+  }
 
-  if(cap != TK_BOX)
-    return nominal;
-
-  ast_t* arrow = ast_from(ast, TK_ARROW);
-  ast_add(arrow, nominal);
-  ast_add(arrow, ast_from(ast, TK_THISTYPE));
-  return arrow;
+  return type;
 }
 
 ast_t* type_for_fun(ast_t* ast)
 {
-  ast_t* cap = ast_child(ast);
-  ast_t* name = ast_sibling(cap);
-  ast_t* typeparams = ast_sibling(name);
-  ast_t* params = ast_sibling(typeparams);
-  ast_t* result = ast_sibling(params);
+  AST_GET_CHILDREN(ast, cap, name, typeparams, params, result);
 
-  ast_t* fun = ast_from(ast, TK_FUNTYPE);
-  ast_add(fun, result);
-  ast_add(fun, params);
-  ast_add(fun, typeparams);
-  ast_add(fun, cap);
+  BUILD(fun, ast,
+    NODE(TK_FUNTYPE, TREE(cap) TREE(typeparams) TREE(params) TREE(result)));
 
   return fun;
 }
@@ -369,10 +376,11 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
 {
   switch(ast_id(type))
   {
+    case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(type);
-      type = ast_from(type, TK_ISECTTYPE);
+      type = ast_from(type, ast_id(type));
 
       while(child != NULL)
       {

@@ -8,14 +8,14 @@
 #include "../type/lookup.h"
 #include <assert.h>
 
-static bool method_access(ast_t* ast)
+static bool is_method_called(ast_t* ast)
 {
   ast_t* parent = ast_parent(ast);
 
   switch(ast_id(parent))
   {
     case TK_QUALIFY:
-      return method_access(parent);
+      return is_method_called(parent);
 
     case TK_CALL:
       return true;
@@ -25,6 +25,87 @@ static bool method_access(ast_t* ast)
 
   ast_error(ast, "can't reference a method without calling it");
   return false;
+}
+
+static bool method_access(ast_t* ast, ast_t* method)
+{
+  switch(ast_id(method))
+  {
+    case TK_NEW:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+      ast_t* type = ast_type(left);
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(type))
+      {
+        case TK_NOMINAL:
+        {
+          switch(ast_id(def))
+          {
+            case TK_PRIMITIVE:
+            case TK_CLASS:
+              ast_setid(ast, TK_NEWREF);
+              break;
+
+            case TK_ACTOR:
+              ast_setid(ast, TK_NEWBEREF);
+              break;
+
+            case TK_TYPE:
+              ast_error(ast, "can't call a constructor on a type alias: %s",
+                ast_print_type(type));
+              return false;
+
+            case TK_INTERFACE:
+              ast_error(ast, "can't call a constructor on an interface: %s",
+                ast_print_type(type));
+              return false;
+
+            case TK_TRAIT:
+              ast_error(ast, "can't call a constructor on a trait: %s",
+                ast_print_type(type));
+              return false;
+
+            default:
+              assert(0);
+              return false;
+          }
+          break;
+        }
+
+        case TK_TYPEPARAMREF:
+          // TODO:
+          ast_error(ast, "can't call a constructor on a type parameter: %s",
+            ast_print_type(type));
+          return false;
+
+        default:
+          assert(0);
+          return false;
+      }
+      break;
+    }
+
+    case TK_BE:
+      ast_setid(ast, TK_BEREF);
+      break;
+
+    case TK_FUN:
+      ast_setid(ast, TK_FUNREF);
+      break;
+
+    default:
+      assert(0);
+      return false;
+  }
+
+  ast_settype(ast, type_for_fun(method));
+
+  if(ast_id(ast_childidx(method, 5)) == TK_QUESTION)
+    ast_seterror(ast);
+
+  return is_method_called(ast);
 }
 
 static bool package_access(pass_opt_t* opt, ast_t* ast)
@@ -85,29 +166,13 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(find))
   {
     case TK_TYPEPARAM:
-    {
       ast_error(right, "can't look up a typeparam on a type");
       ret = false;
       break;
-    }
 
     case TK_NEW:
-    {
-      ast_t* def = (ast_t*)ast_data(type);
-
-      if((ast_id(type) == TK_NOMINAL) && (ast_id(def) == TK_ACTOR))
-        ast_setid(ast, TK_NEWBEREF);
-      else
-        ast_setid(ast, TK_NEWREF);
-
-      ast_settype(ast, type_for_fun(find));
-
-      if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
-        ast_seterror(ast);
-
-      ret = method_access(ast);
+      ret = method_access(ast, find);
       break;
-    }
 
     case TK_FVAR:
     case TK_FLET:
@@ -138,11 +203,9 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
     }
 
     default:
-    {
       assert(0);
       ret = false;
       break;
-    }
   }
 
   ast_free_unattached(find);
@@ -217,56 +280,30 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
   switch(ast_id(find))
   {
     case TK_TYPEPARAM:
-    {
       ast_error(right, "can't look up a typeparam on an expression");
       ret = false;
       break;
-    }
 
     case TK_FVAR:
-    {
-      if(!expr_fieldref(ast, find, TK_FVARREF))
+      if(!expr_fieldref(t, ast, find, TK_FVARREF))
         return false;
       break;
-    }
 
     case TK_FLET:
-    {
-      if(!expr_fieldref(ast, find, TK_FLETREF))
+      if(!expr_fieldref(t, ast, find, TK_FLETREF))
         return false;
       break;
-    }
 
     case TK_NEW:
-    {
-      ast_error(right, "can't look up a constructor on an expression");
-      ret = false;
-      break;
-    }
-
     case TK_BE:
     case TK_FUN:
-    {
-      if(ast_id(find) == TK_BE)
-        ast_setid(ast, TK_BEREF);
-      else
-        ast_setid(ast, TK_FUNREF);
-
-      ast_settype(ast, type_for_fun(find));
-
-      if(ast_id(ast_childidx(find, 5)) == TK_QUESTION)
-        ast_seterror(ast);
-
-      ret = method_access(ast);
+      ret = method_access(ast, find);
       break;
-    }
 
     default:
-    {
       assert(0);
       ret = false;
       break;
-    }
   }
 
   ast_free_unattached(find);
@@ -373,6 +410,9 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
   if(ast_type(ast) != NULL)
     return true;
 
+  type = ast_type(left); // Literal handling may have changed lhs type
+  assert(type != NULL);
+
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);
 
@@ -388,6 +428,13 @@ bool expr_tilde(pass_opt_t* opt, ast_t* ast)
 {
   if(!dot_or_tilde(opt, ast, true))
     return false;
+
+  if(ast_id(ast) == TK_TILDE && ast_type(ast) != NULL &&
+    ast_id(ast_type(ast)) == TK_OPERATORLITERAL)
+  {
+    ast_error(ast, "can't do partial application on a literal number");
+    return false;
+  }
 
   switch(ast_id(ast))
   {

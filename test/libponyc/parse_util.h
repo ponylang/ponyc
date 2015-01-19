@@ -13,8 +13,8 @@
 void parse_test_good(const char* src, const char* expect);
 
 /** Check that the given source fails compilation with an error.
-* Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
-*/
+ * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
+ */
 void parse_test_bad(const char* src);
 
 

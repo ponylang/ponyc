@@ -47,7 +47,7 @@ data: program_t
 symtab: path -> PACKAGE
 Always the root node.
 
-PACKAGE: {MODULE}
+PACKAGE: {MODULE} [STRING]
 data: package_t
 symtab: name -> entity
 
@@ -82,8 +82,8 @@ method
 data: During traits pass, trait method body came from (NULL for none).
 symtab: name -> TYPEPARAM | PARAM
 (
-  NEW: NONE ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
-  BE: NONE ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
+  NEW: cap ID [TYPEPARAMS] [PARAMS] NONE [QUESTION] [SEQ] [STRING]
+  BE: cap ID [TYPEPARAMS] [PARAMS] NONE NONE [SEQ] [STRING]
   FUN: cap ID [TYPEPARAMS] [PARAMS] [type] [QUESTION] [SEQ] [STRING]
 )
 
@@ -207,8 +207,8 @@ local
 prefix
 ------
 (
-  CONSUME: expr
-  RECOVER: expr
+  CONSUME: cap expr
+  RECOVER: cap expr
   NOT: expr
   MINUS: expr
 )
@@ -354,6 +354,7 @@ void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_merge(ast_t* dst, ast_t* src);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 void ast_clear(ast_t* ast);
+void ast_clear_local(ast_t* ast);
 
 ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling);
@@ -362,6 +363,7 @@ ast_t* ast_append(ast_t* parent, ast_t* child);
 void ast_remove(ast_t* ast);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);
+void ast_reorder_children(ast_t* ast, const size_t* new_order);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
@@ -516,6 +518,37 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 
 /// Set the data field of the enclosing node
 #define DATA(target) ast_setdata(parent, (void*)(target));
+
+
+/** The macros below allow for easy walking of ASTs.
+ * Navigation errors (eg non-existent lookup) result in a NULL value, and any
+ * subsequent navigate is not attempted.
+ *
+ * At the tope level there must be exactly one:
+ * WALK_TREE  creates a variable to track position in AST.
+ *
+ * Within these macros the following are used to navigate the tree:
+ * CHILD      move to the nth child of the current node.
+ * LOOKUP     lookup the specified name in the current node's symbol table.
+ */
+
+/// Create a variable to track position in AST
+#define WALK_TREE(var, tree, ...) \
+  ast_t* var; \
+  { \
+    ast_t* t_pos = (tree); \
+    __VA_ARGS__ \
+    var = t_pos; \
+  }
+
+/// Move to the nth child of the current node
+#define CHILD(n) \
+  if(t_pos != NULL) t_pos = ast_childidx(t_pos, n);
+
+/// Lookup the specified name in the current node's symbol table
+#define LOOKUP(name) \
+  if(t_pos != NULL) t_pos = ast_get(t_pos, stringtab(name), NULL);
+
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }
