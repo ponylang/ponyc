@@ -127,7 +127,7 @@ typedef enum token_id
   TK_MATCH,
   TK_WHERE,
   TK_TRY,
-  TK_TRY2,
+  TK_TRY_NO_CHECK,
   TK_WITH,
   TK_ERROR,
 

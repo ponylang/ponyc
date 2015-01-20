@@ -391,7 +391,7 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 
   BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(TK_TRY2, AST_SCOPE
+      NODE(TK_TRY_NO_CHECK, AST_SCOPE
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE

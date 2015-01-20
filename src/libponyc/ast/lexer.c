@@ -199,7 +199,7 @@ static const lexsym_t abstract[] =
   { "array", TK_ARRAY },
   { "cases", TK_CASES },
   { "case", TK_CASE },
-  { "try", TK_TRY2 },
+  { "try", TK_TRY_NO_CHECK },
   { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
