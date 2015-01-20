@@ -29,6 +29,9 @@ static bool is_method_called(ast_t* ast)
 
 static bool method_access(ast_t* ast, ast_t* method)
 {
+  AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
+    body);
+
   switch(ast_id(method))
   {
     case TK_NEW:
@@ -45,11 +48,8 @@ static bool method_access(ast_t* ast, ast_t* method)
           {
             case TK_PRIMITIVE:
             case TK_CLASS:
-              ast_setid(ast, TK_NEWREF);
-              break;
-
             case TK_ACTOR:
-              ast_setid(ast, TK_NEWBEREF);
+              ast_setid(ast, TK_NEWREF);
               break;
 
             case TK_TYPE:
@@ -75,10 +75,18 @@ static bool method_access(ast_t* ast, ast_t* method)
         }
 
         case TK_TYPEPARAMREF:
-          // TODO:
-          ast_error(ast, "can't call a constructor on a type parameter: %s",
-            ast_print_type(type));
-          return false;
+        {
+          // Alter the return type of the method.
+          type = ast_dup(type);
+
+          AST_GET_CHILDREN(type, tid, tcap, teph);
+          ast_setid(tcap, ast_id(cap));
+          ast_setid(teph, TK_EPHEMERAL);
+          ast_replace(&result, type);
+
+          ast_setid(ast, TK_NEWREF);
+          break;
+        }
 
         default:
           assert(0);
@@ -102,7 +110,7 @@ static bool method_access(ast_t* ast, ast_t* method)
 
   ast_settype(ast, type_for_fun(method));
 
-  if(ast_id(ast_childidx(method, 5)) == TK_QUESTION)
+  if(ast_id(can_error) == TK_QUESTION)
     ast_seterror(ast);
 
   return is_method_called(ast);
@@ -345,11 +353,9 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
     }
 
     case TK_NEWREF:
-    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
     case TK_NEWAPP:
-    case TK_NEWBEAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
     {
@@ -440,10 +446,6 @@ bool expr_tilde(pass_opt_t* opt, ast_t* ast)
   {
     case TK_NEWREF:
       ast_setid(ast, TK_NEWAPP);
-      return true;
-
-    case TK_NEWBEREF:
-      ast_setid(ast, TK_NEWBEAPP);
       return true;
 
     case TK_BEREF:

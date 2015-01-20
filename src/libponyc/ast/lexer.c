@@ -207,7 +207,6 @@ static const lexsym_t abstract[] =
   { "typeref", TK_TYPEREF },
   { "typeparamref", TK_TYPEPARAMREF },
   { "newref", TK_NEWREF },
-  { "newberef", TK_NEWBEREF },
   { "beref", TK_BEREF },
   { "funref", TK_FUNREF },
   { "fvarref", TK_FVARREF },
@@ -216,7 +215,6 @@ static const lexsym_t abstract[] =
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
   { "newapp", TK_NEWAPP },
-  { "newbeapp", TK_NEWBEAPP },
   { "beapp", TK_BEAPP },
   { "funapp", TK_FUNAPP },
 

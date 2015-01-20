@@ -621,13 +621,11 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   switch(ast_id(lhs))
   {
     case TK_NEWREF:
-    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
       return method_call(opt, ast);
 
     case TK_NEWAPP:
-    case TK_NEWBEAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
       return partial_application(opt, astp);

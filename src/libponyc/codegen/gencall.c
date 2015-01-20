@@ -306,10 +306,6 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
         args[0] = gencall_alloc(c, &g);
         break;
 
-      case TK_NEWBEREF:
-        args[0] = gencall_create(c, &g);
-        break;
-
       case TK_BEREF:
       case TK_FUNREF:
         args[0] = gen_expr(c, receiver);
@@ -524,6 +520,9 @@ LLVMValueRef gencall_alloc(compile_t* c, gentype_t* g)
   // Use the global instance if we have one.
   if(g->instance != NULL)
     return g->instance;
+
+  if(g->underlying == TK_ACTOR)
+    return gencall_create(c, g);
 
   return gencall_allocstruct(c, g);
 }

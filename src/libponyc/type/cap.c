@@ -159,6 +159,9 @@ bool is_cap_sub_cap(token_id sub, token_id super)
         case TK_VAL:
         case TK_BOX:
         case TK_TAG:
+        case TK_BOX_GENERIC:
+        case TK_TAG_GENERIC:
+        case TK_ANY_GENERIC:
         case TK_ISO_BIND:
         case TK_ANY_BIND:
           return true;
