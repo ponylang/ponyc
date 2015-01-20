@@ -98,7 +98,7 @@ static bool add_method_to_list(ast_t* method, methods_t* method_info,
 
 
 // Add all methods from the provides list of the given entity into lists in the
-// given symbol table. 
+// given symbol table.
 static bool collate_provided(ast_t* entity, methods_t* method_info)
 {
   assert(entity != NULL);
@@ -139,7 +139,6 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
         const char* pkg_name = package_name(ast_nearest(entity, TK_PACKAGE));
         ast_set_name(ast_childidx(ret_type, 0), pkg_name);
         ast_set_name(ast_childidx(ret_type, 1), entity_name);
-        ast_setdata(r_method, (void*)entity);
       }
 
       if(!add_method_to_list(r_method, method_info, entity_name))
@@ -218,7 +217,7 @@ static bool methods_compatible(ast_t* list, ast_t* method, const char* name,
 
 
 // Attach the appropriate body (if any) from the given method list to the given
-// entity method 
+// entity method
 static void attach_body_from_list(ast_t* list, ast_t* entity_method)
 {
   assert(list != NULL);

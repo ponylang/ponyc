@@ -157,17 +157,23 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   // default capability for the type.
   token_id tcap = ast_id(cap);
 
-  if(tcap == TK_NONE)
+  if(t->frame->constraint != NULL)
   {
+    switch(tcap)
+    {
+      case TK_NONE: tcap = TK_ANY_GENERIC; break;
+      case TK_BOX: tcap = TK_BOX_GENERIC; break;
+      case TK_TAG: tcap = TK_TAG_GENERIC; break;
+      default: {}
+    }
+  } else if(tcap == TK_NONE) {
     if(ast_id(def) == TK_PRIMITIVE)
       tcap = TK_VAL;
-    else if(t->frame->constraint != NULL)
-      tcap = TK_ANY_GENERIC;
     else
       tcap = ast_id(ast_childidx(def, 2));
-
-    ast_setid(cap, tcap);
   }
+
+  ast_setid(cap, tcap);
 
   // Keep the actual package id.
   ast_append(ast, package);

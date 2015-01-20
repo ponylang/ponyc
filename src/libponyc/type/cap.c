@@ -68,11 +68,80 @@ static token_id cap_isect_constraint(token_id a, token_id b)
 {
   // Decide a capability for a type parameter that is constrained by an isect.
   // We don't get box or tag here, but we do get boxgen, taggen and anygen.
-  if(is_cap_sub_cap(a, b))
+  if(a == b)
     return a;
 
-  if(is_cap_sub_cap(b, a))
-    return b;
+  switch(a)
+  {
+    case TK_ISO:
+    case TK_TRN:
+      switch(b)
+      {
+        case TK_ANY_GENERIC:
+          return a;
+
+        default: {}
+      }
+      break;
+
+    case TK_REF:
+      switch(b)
+      {
+        case TK_BOX_GENERIC:
+        case TK_ANY_GENERIC:
+          return a;
+
+        default: {}
+      }
+      break;
+
+    case TK_VAL:
+      switch(b)
+      {
+        case TK_BOX_GENERIC:
+        case TK_TAG_GENERIC:
+        case TK_ANY_GENERIC:
+          return a;
+
+        default: {}
+      }
+      break;
+
+    case TK_BOX_GENERIC:
+      switch(b)
+      {
+        case TK_REF:
+        case TK_VAL:
+          return b;
+
+        case TK_TAG_GENERIC:
+          return TK_VAL;
+
+        case TK_ANY_GENERIC:
+          return a;
+
+        default: {}
+      }
+      break;
+
+    case TK_TAG_GENERIC:
+      switch(b)
+      {
+        case TK_VAL:
+          return b;
+
+        case TK_ANY_GENERIC:
+          return a;
+
+        default: {}
+      }
+      break;
+
+    case TK_ANY_GENERIC:
+      return b;
+
+    default: {}
+  }
 
   return TK_ANY_GENERIC;
 }
@@ -82,7 +151,21 @@ bool is_cap_sub_cap(token_id sub, token_id super)
   switch(sub)
   {
     case TK_ISO:
-      return true;
+      switch(super)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_ISO_BIND:
+        case TK_ANY_BIND:
+          return true;
+
+        default: {}
+      }
+      break;
 
     case TK_TRN:
       switch(super)
@@ -94,6 +177,8 @@ bool is_cap_sub_cap(token_id sub, token_id super)
         case TK_TAG:
         case TK_BOX_GENERIC:
         case TK_TAG_GENERIC:
+        case TK_TRN_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -106,7 +191,9 @@ bool is_cap_sub_cap(token_id sub, token_id super)
         case TK_REF:
         case TK_BOX:
         case TK_TAG:
-        case TK_BOX_GENERIC:
+        case TK_REF_BIND:
+        case TK_BOX_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -119,8 +206,11 @@ bool is_cap_sub_cap(token_id sub, token_id super)
         case TK_VAL:
         case TK_BOX:
         case TK_TAG:
-        case TK_BOX_GENERIC:
         case TK_TAG_GENERIC:
+        case TK_VAL_BIND:
+        case TK_BOX_BIND:
+        case TK_TAG_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -132,6 +222,8 @@ bool is_cap_sub_cap(token_id sub, token_id super)
       {
         case TK_BOX:
         case TK_TAG:
+        case TK_BOX_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -139,7 +231,16 @@ bool is_cap_sub_cap(token_id sub, token_id super)
       break;
 
     case TK_TAG:
-      return super == TK_TAG;
+      switch(super)
+      {
+        case TK_TAG:
+        case TK_TAG_BIND:
+        case TK_ANY_BIND:
+          return true;
+
+        default: {}
+      }
+      break;
 
     case TK_BOX_GENERIC:
       switch(super)
@@ -147,6 +248,8 @@ bool is_cap_sub_cap(token_id sub, token_id super)
         case TK_BOX:
         case TK_TAG:
         case TK_BOX_GENERIC:
+        case TK_BOX_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -158,6 +261,8 @@ bool is_cap_sub_cap(token_id sub, token_id super)
       {
         case TK_TAG:
         case TK_TAG_GENERIC:
+        case TK_TAG_BIND:
+        case TK_ANY_BIND:
           return true;
 
         default: {}
@@ -169,6 +274,7 @@ bool is_cap_sub_cap(token_id sub, token_id super)
       {
         case TK_TAG:
         case TK_ANY_GENERIC:
+        case TK_ANY_BIND:
           return true;
 
         default: {}

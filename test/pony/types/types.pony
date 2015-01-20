@@ -26,8 +26,12 @@ actor Wombat2
   be apply(env: Env) =>
     env.out.print("Wombat2")
 
+class Wombat3[A: K1 tag]
+
 actor Main
   new create(env: Env) =>
+    Wombat3[A1 tag]
+
     let wombat: (T1 & T2) = Wombat
     wombat.t1(env)
     wombat.t2(env)
