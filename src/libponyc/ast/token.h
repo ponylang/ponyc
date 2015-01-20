@@ -127,7 +127,7 @@ typedef enum token_id
   TK_MATCH,
   TK_WHERE,
   TK_TRY,
-  TK_TRY2,
+  TK_TRY_NO_CHECK,
   TK_WITH,
   TK_ERROR,
 
@@ -155,6 +155,13 @@ typedef enum token_id
   TK_THISTYPE,
   TK_FUNTYPE,
 
+  TK_ISO_BIND,
+  TK_TRN_BIND,
+  TK_REF_BIND,
+  TK_VAL_BIND,
+  TK_BOX_BIND,
+  TK_TAG_BIND,
+  TK_ANY_BIND,
   TK_BOX_GENERIC,
   TK_TAG_GENERIC,
   TK_ANY_GENERIC,
@@ -188,7 +195,6 @@ typedef enum token_id
   TK_TYPEREF,
   TK_TYPEPARAMREF,
   TK_NEWREF,
-  TK_NEWBEREF,
   TK_BEREF,
   TK_FUNREF,
   TK_FVARREF,
@@ -197,7 +203,6 @@ typedef enum token_id
   TK_LETREF,
   TK_PARAMREF,
   TK_NEWAPP,
-  TK_NEWBEAPP,
   TK_BEAPP,
   TK_FUNAPP,
 

@@ -90,7 +90,7 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       break;
 
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
       pop = push_frame(t);
       t->frame->try_expr = ast;
       break;

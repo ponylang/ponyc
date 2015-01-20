@@ -107,7 +107,7 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   while((typeparam != NULL) && (typearg != NULL))
   {
-    // reify the typeparam with the typearg
+    // Reify the typeparam with the typearg.
     reify_one(&r_ast, typeparam, typearg);
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
@@ -161,7 +161,7 @@ void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
 
 bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
 {
-  // reify the type parameters with the typeargs
+  // Reify the type parameters with the typeargs.
   ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
 
   if(r_typeparams == NULL)
@@ -173,7 +173,9 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
 
   while(r_typeparam != NULL)
   {
+    // Use the reified constraint.
     ast_t* constraint = ast_childidx(r_typeparam, 1);
+    constraint = alias_bind(constraint);
 
     // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, constraint))
@@ -186,33 +188,27 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       }
 
       ast_free_unattached(r_typeparams);
+      ast_free_unattached(constraint);
       return false;
     }
 
-    // In addition, an alias of the bound type must be a subtype of an alias of
-    // the constraint. We use a different alias operation because we are not
-    // interested in ephemerality or borrowing, and we don't want trn bound
-    // where a box is expected.
-    ast_t* a_typearg = alias_bind(typearg);
-    ast_t* a_constraint = alias_bind(constraint);
-
-    if(!is_subtype(a_typearg, a_constraint))
+    // A constructable constraint can only be fulfilled by a concrete typearg.
+    if(is_constructable(constraint) && !is_concrete(typearg))
     {
       if(report_errors)
       {
-        ast_error(typearg, "iso and trn can only bind to themselves or tag");
+        ast_error(typearg, "a constructable constraint can only be fulfilled "
+          "by a concrete type argument");
         ast_error(typearg, "argument: %s", ast_print_type(typearg));
         ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
       }
 
-      ast_free_unattached(a_typearg);
-      ast_free_unattached(a_constraint);
       ast_free_unattached(r_typeparams);
+      ast_free_unattached(constraint);
       return false;
     }
 
-    ast_free_unattached(a_typearg);
-    ast_free_unattached(a_constraint);
+    ast_free_unattached(constraint);
 
     r_typeparam = ast_sibling(r_typeparam);
     typeparam = ast_sibling(typeparam);

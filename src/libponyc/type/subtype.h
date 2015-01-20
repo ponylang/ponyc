@@ -22,6 +22,10 @@ bool is_machine_word(ast_t* type);
 
 bool is_signed(pass_opt_t* opt, ast_t* type);
 
+bool is_constructable(ast_t* type);
+
+bool is_concrete(ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif

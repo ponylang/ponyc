@@ -42,7 +42,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return gen_repeat(c, ast);
 
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
       return gen_try(c, ast);
 
     case TK_MATCH:

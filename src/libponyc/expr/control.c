@@ -38,7 +38,7 @@ bool expr_seq(ast_t* ast)
   switch(ast_id(parent))
   {
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
     {
       // Propagate consumes forward in a try expression.
       AST_GET_CHILDREN(parent, body, else_clause, then_clause);

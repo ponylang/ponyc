@@ -8,7 +8,8 @@ trait K2
   new iso create()
 
 actor A1 is K1
-  new create() => None
+  new create() => @printf[I32]("create A1 %p\n".cstring(), this)
+  be apply() => @printf[I32]("apply A1 %p\n".cstring(), this)
 
 trait T1
   fun tag t1(env: Env) =>
@@ -20,14 +21,22 @@ trait T2
 
 class Wombat is T1, T2, K1, K2
   new iso create() =>
-    None
+    @printf[I32]("create Wombat %p\n".cstring(), this)
+
+  fun apply() =>
+    @printf[I32]("apply Wombat %p\n".cstring(), this)
 
 actor Wombat2
   be apply(env: Env) =>
     env.out.print("Wombat2")
 
+class Wombat3[A: K2]
+  fun apply(): A => A
+
 actor Main
   new create(env: Env) =>
+    Wombat3[Wombat]()()
+
     let wombat: (T1 & T2) = Wombat
     wombat.t1(env)
     wombat.t2(env)

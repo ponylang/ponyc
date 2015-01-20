@@ -344,6 +344,10 @@ static ast_result_t sugar_try(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, ignore, else_clause, then_clause);
 
+  if(ast_id(else_clause) == TK_NONE && ast_id(then_clause) != TK_NONE)
+    // Then without else means we don't require a throwable in the try block
+    ast_setid(ast, TK_TRY_NO_CHECK);
+
   expand_none(else_clause);
   expand_none(then_clause);
 
@@ -391,7 +395,7 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 
   BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(TK_TRY2, AST_SCOPE
+      NODE(TK_TRY_NO_CHECK, AST_SCOPE
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE

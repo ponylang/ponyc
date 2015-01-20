@@ -49,7 +49,7 @@ bool is_result_needed(ast_t* ast)
 
     case TK_CASES:
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
       // Only if parent needed.
       return is_result_needed(parent);
 
@@ -106,7 +106,7 @@ bool is_method_result(typecheck_t* t, ast_t* ast)
       break;
 
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
       // The finally block is not the result.
       if(ast_childidx(parent, 2) == ast)
         return false;
@@ -249,7 +249,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_TRY:
-    case TK_TRY2:
+    case TK_TRY_NO_CHECK:
       if(!expr_try(ast))
         return AST_FATAL;
       break;

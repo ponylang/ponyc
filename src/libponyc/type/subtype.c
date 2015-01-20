@@ -794,3 +794,142 @@ bool is_signed(pass_opt_t* opt, ast_t* type)
   ast_free_unattached(builtin);
   return ok;
 }
+
+bool is_constructable(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_TUPLETYPE:
+      return false;
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_constructable(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+        {
+          ast_t* members = ast_childidx(def, 4);
+          ast_t* member = ast_child(members);
+
+          while(member != NULL)
+          {
+            if(ast_id(member) == TK_NEW)
+              return true;
+
+            member = ast_sibling(member);
+          }
+
+          return false;
+        }
+
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+      ast_t* constraint_def = (ast_t*)ast_data(constraint);
+
+      if(def == constraint_def)
+        return false;
+
+      return is_constructable(constraint);
+    }
+
+    case TK_ARROW:
+      return is_constructable(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool is_concrete(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_TUPLETYPE:
+      return false;
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_concrete(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          return false;
+
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_constructable(constraint);
+    }
+
+    case TK_ARROW:
+      return is_concrete(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}

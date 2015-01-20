@@ -48,32 +48,29 @@ static ast_t* alias_for_type(ast_t* type, int index)
 
 static ast_t* alias_bind_for_type(ast_t* type, int index)
 {
+  type = ast_dup(type);
   ast_t* cap = ast_childidx(type, index);
+  token_id tcap = ast_id(cap);
 
-  switch(ast_id(cap))
+  switch(tcap)
   {
-    case TK_ISO:
-    case TK_TRN:
-      // Prevent trn from binding to a box constraint.
-      type = ast_dup(type);
-      cap = ast_childidx(type, index);
-      ast_setid(cap, TK_TAG);
-      return type;
+    case TK_ISO: tcap = TK_ISO_BIND; break;
+    case TK_TRN: tcap = TK_TRN_BIND; break;
+    case TK_REF: tcap = TK_REF_BIND; break;
+    case TK_VAL: tcap = TK_VAL_BIND; break;
+    case TK_BOX: tcap = TK_BOX_BIND; break;
+    case TK_TAG: tcap = TK_TAG_BIND; break;
+    case TK_BOX_GENERIC: tcap = TK_BOX_BIND; break;
+    case TK_TAG_GENERIC: tcap = TK_TAG_BIND; break;
+    case TK_ANY_GENERIC: tcap = TK_ANY_BIND; break;
 
-    case TK_REF:
-    case TK_VAL:
-    case TK_BOX:
-    case TK_TAG:
-    case TK_BOX_GENERIC:
-    case TK_TAG_GENERIC:
-    case TK_ANY_GENERIC:
-      return type;
-
-    default: {}
+    default:
+      assert(0);
+      return NULL;
   }
 
-  assert(0);
-  return NULL;
+  ast_setid(cap, tcap);
+  return type;
 }
 
 static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
