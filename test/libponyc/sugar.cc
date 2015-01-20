@@ -436,7 +436,7 @@ TEST(SugarTest, WhileWithElse)
 }
 
 
-TEST(SugarTest, TryWithElseOAndThen)
+TEST(SugarTest, TryWithElseAndThen)
 {
   const char* short_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
@@ -459,7 +459,7 @@ TEST(SugarTest, TryWithoutElseOrThen)
   DO(test_good_sugar(short_form, full_form));
 }
 
-
+/*
 TEST(SugarTest, TryWithoutElse)
 {
   const char* short_form =
@@ -472,7 +472,7 @@ TEST(SugarTest, TryWithoutElse)
 
   DO(test_good_sugar(short_form, full_form));
 }
-
+*/
 
 TEST(SugarTest, TryWithoutThen)
 {
