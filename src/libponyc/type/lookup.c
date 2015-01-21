@@ -83,13 +83,26 @@ static ast_t* lookup_typeparam(typecheck_t* t, ast_t* from, ast_t* orig,
 {
   ast_t* def = (ast_t*)ast_data(type);
   ast_t* constraint = ast_childidx(def, 1);
+  ast_t* constraint_def = (ast_t*)ast_data(constraint);
 
-  // lookup on the constraint instead
+  if(def == constraint_def)
+  {
+    if(errors)
+    {
+      ast_t* type_id = ast_child(def);
+      const char* type_name = ast_name(type_id);
+      ast_error(from, "couldn't find '%s' in '%s'", name, type_name);
+    }
+
+    return NULL;
+  }
+
+  // Lookup on the constraint instead.
   return lookup_base(t, from, orig, constraint, name, errors);
 }
 
-static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig, ast_t* type,
-  const char* name, bool errors)
+static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
+  ast_t* type, const char* name, bool errors)
 {
   switch(ast_id(type))
   {
