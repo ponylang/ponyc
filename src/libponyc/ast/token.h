@@ -127,7 +127,7 @@ typedef enum token_id
   TK_MATCH,
   TK_WHERE,
   TK_TRY,
-  TK_TRY2,
+  TK_TRY_NO_CHECK,
   TK_WITH,
   TK_ERROR,
 
@@ -212,7 +212,8 @@ typedef enum token_id
   // Token types for testing
   TK_TEST,
   TK_TEST_SEQ,
-  TK_TEST_SEQ_SCOPE
+  TK_TEST_SEQ_SCOPE,
+  TK_TEST_TRY_NO_CHECK
 } token_id;
 
 
