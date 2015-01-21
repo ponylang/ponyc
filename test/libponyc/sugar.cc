@@ -459,7 +459,7 @@ TEST(SugarTest, TryWithoutElseOrThen)
   DO(test_good_sugar(short_form, full_form));
 }
 
-/*
+
 TEST(SugarTest, TryWithoutElse)
 {
   const char* short_form =
@@ -468,11 +468,11 @@ TEST(SugarTest, TryWithoutElse)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  try 1 else None then 2 end";
+    "  $try_no_check 1 else None then 2 end";
 
   DO(test_good_sugar(short_form, full_form));
 }
-*/
+
 
 TEST(SugarTest, TryWithoutThen)
 {
@@ -496,11 +496,11 @@ TEST(SugarTest, ForWithoutElse)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  $(\n"
-    "    let hygid = $(1)\n"
+    "  $seq(\n"
+    "    let hygid = $seq(1)\n"
     "    while hygid.has_next() do\n"
     "      let i = hygid.next()\n"
-    "      $(2)\n"
+    "      $seq(2)\n"
     "    else None end\n"
     "  )";
 
@@ -516,11 +516,11 @@ TEST(SugarTest, ForWithElseAndIteratorType)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  $(\n"
-    "    let hygid = $(1)\n"
+    "  $seq(\n"
+    "    let hygid = $seq(1)\n"
     "    while hygid.has_next() do\n"
     "      let i:U32 = hygid.next()\n"
-    "      $(2)\n"
+    "      $seq(2)\n"
     "    else\n"
     "      3\n"
     "    end\n"

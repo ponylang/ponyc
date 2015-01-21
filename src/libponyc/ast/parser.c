@@ -474,6 +474,17 @@ DEF(try_block);
   SKIP(NULL, TK_END);
   DONE();
 
+// '$try_no_check' seq [ELSE seq] [THEN seq] END
+DEF(test_try_block);
+  TOKEN(NULL, TK_TEST_TRY_NO_CHECK);
+  MAP_ID(TK_TEST_TRY_NO_CHECK, TK_TRY_NO_CHECK);
+  RULE("try body", seq);
+  IF(TK_ELSE, RULE("try else body", seq));
+  IF(TK_THEN, RULE("try then body", seq));
+  SKIP(NULL, TK_END);
+  SET_FLAG(TEST_ONLY);
+  DONE();
+
 // RECOVER [CAP] rawseq END
 DEF(recover);
   TOKEN(NULL, TK_RECOVER);
@@ -503,19 +514,21 @@ DEF(prefixminus);
   RULE("value", term);
   DONE();
 
-// '$(' rawseq ')'
+// '$seq' '(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq);
   SKIP(NULL, TK_TEST_SEQ);
+  SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
   SET_FLAG(TEST_ONLY);
   DONE();
 
-// '$:(' rawseq ')'
+// '$scope' '(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq_scope);
   SKIP(NULL, TK_TEST_SEQ_SCOPE);
+  SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
   SET_FLAG(TEST_ONLY);
@@ -527,7 +540,7 @@ DEF(test_seq_scope);
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, prefix, prefixminus, postfix, test_seq,
-    test_seq_scope);
+    test_seq_scope, test_try_block);
   DONE();
 
 // AS type

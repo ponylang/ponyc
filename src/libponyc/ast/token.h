@@ -212,7 +212,8 @@ typedef enum token_id
   // Token types for testing
   TK_TEST,
   TK_TEST_SEQ,
-  TK_TEST_SEQ_SCOPE
+  TK_TEST_SEQ_SCOPE,
+  TK_TEST_TRY_NO_CHECK
 } token_id;
 
 

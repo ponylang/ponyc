@@ -79,8 +79,6 @@ static const lexsym_t symbols[] =
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
-  { "$:(", TK_TEST_SEQ_SCOPE },
-  { "$(", TK_TEST_SEQ },
 
   { NULL, (token_id)0 }
 };
@@ -221,6 +219,15 @@ static const lexsym_t abstract[] =
   { "\\n", TK_NEWLINE },
 
   { "test", TK_TEST },
+  { NULL, (token_id)0 }
+};
+
+static const lexsym_t test_keywords[] =
+{
+  { "$scope", TK_TEST_SEQ_SCOPE },
+  { "$seq", TK_TEST_SEQ },
+  { "$try_no_check", TK_TEST_TRY_NO_CHECK },
+
   { NULL, (token_id)0 }
 };
 
@@ -978,6 +985,41 @@ static token_t* identifier(lexer_t* lexer)
 }
 
 
+static token_t* test_identifier(lexer_t* lexer)
+{
+  // $ already found, find rest of symbol
+  append(lexer, '$');
+  size_t len = 1;
+
+  while(true)
+  {
+    char c = lookn(lexer, len + 1);
+
+    if((c != '_') && (c != '\'') && !isalnum(c))
+      break;
+
+    append(lexer, c);
+    len++;
+  }
+
+  append(lexer, '\0');
+
+  for(const lexsym_t* p = test_keywords; p->symbol != NULL; p++)
+  {
+    if(!strcmp(lexer->buffer, p->symbol))
+    {
+      lexer->buflen = 0;
+      adv(lexer, len);
+      return make_token(lexer, p->id);
+    }
+  }
+
+  lexerror(lexer, "Unrecognized character: $");
+  adv(lexer, 1);
+  return make_token(lexer, TK_LEX_ERROR);
+}
+
+
 static token_id newline_symbols(token_id raw_token, bool newline)
 {
   if(!newline)
@@ -1094,6 +1136,10 @@ token_t* lexer_next(lexer_t* lexer)
         t = character(lexer);
         break;
 
+      case '$':
+        t = test_identifier(lexer);
+        break;
+
       default:
         if(isdigit(c))
         {
@@ -1105,6 +1151,7 @@ token_t* lexer_next(lexer_t* lexer)
         } else {
           lexerror(lexer, "Unrecognized character: %c", c);
           adv(lexer, 1);
+          t = make_token(lexer, TK_LEX_ERROR);
         }
     }
   }
@@ -1133,6 +1180,12 @@ const char* lexer_print(token_id id)
   }
 
   for(const lexsym_t* p = symbols; p->symbol != NULL; p++)
+  {
+    if(id == p->id)
+      return p->symbol;
+  }
+
+  for(const lexsym_t* p = test_keywords; p->symbol != NULL; p++)
   {
     if(id == p->id)
       return p->symbol;
