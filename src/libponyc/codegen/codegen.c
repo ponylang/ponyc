@@ -435,7 +435,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   else
     ok = genexe(&c, program);
 
-  dwarf_cleanup(&c.dwarf);
+  dwarf_shutdown(c.dwarf);
   codegen_cleanup(&c);
   return ok;
 }

@@ -182,6 +182,7 @@ static bool setup_name(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 
     // Fill in a box type if we need one.
     make_box_type(c, g);
+
     return true;
   }
 
@@ -477,7 +478,7 @@ static bool make_components(compile_t* c, gentype_t* g)
     if(!gentype(c, g->fields[i], &field_g))
       return false;
 
-    dwarf_field(c->dwarf, g, &field_g);
+    dwarf_field(c->dwarf, g, &field_g, i);
   }
 
   return true;
@@ -485,6 +486,7 @@ static bool make_components(compile_t* c, gentype_t* g)
 
 static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 {
+  bool composite = false;
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = (ast_t*)ast_data(ast);
 
@@ -494,7 +496,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     case TK_INTERFACE:
     case TK_TRAIT:
       g->use_type = c->object_ptr;
-      dwarf_trait(c->dwarf, def, g);
+      dwarf_trait(c->dwarf, g);
       return true;
 
     default: {}
@@ -512,7 +514,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // Forward declare debug symbols for this nominal, if needed.
     // At this point, this can only be TK_CLASS or TK_ACTOR ast nodes. TK_TYPE
     // has been translated to any of the former during reification.
-    dwarf_forward(c->dwarf, def, g);
+    composite = true;
+    dwarf_forward(c->dwarf, g);
 
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
@@ -551,8 +554,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     codegen_finishfun(c);
   }
 
-  // Emit debug symbols, if needed.
-  dwarf_composite(c, def, g, false);
+  // Finalise symbols for composite type.
+  if(composite)
+    dwarf_composite(c->dwarf, g);
 
   // Write to the header file.
   if(c->opt->library)
@@ -570,12 +574,12 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   setup_tuple_fields(g);
 
-  dwarf_forward(c->dwarf, ast, g);
+  dwarf_forward(c->dwarf, g);
 
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
   // Emit debug symbols for tuple type.
-  dwarf_tuple(c->dwarf, ast, g);
+  dwarf_composite(c->dwarf, g);
 
   // Generate a descriptor.
   gendesc_init(c, g);

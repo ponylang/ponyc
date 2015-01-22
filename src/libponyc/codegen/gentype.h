@@ -5,7 +5,6 @@
 #include "codegen.h"
 
 PONY_EXTERN_C_BEGIN
-typedef struct dwarf_composite_t dwarf_composite_t;
 
 typedef struct gentype_t
 {
@@ -23,6 +22,9 @@ typedef struct gentype_t
   int field_count;
   ast_t** fields;
 
+  uint64_t size;
+  uint64_t align;
+
   int vtable_size;
   LLVMTypeRef desc_type;
   LLVMValueRef desc;
@@ -31,8 +33,6 @@ typedef struct gentype_t
   LLVMValueRef dispatch_fn;
   LLVMValueRef dispatch_msg;
   LLVMValueRef dispatch_switch;
-
-  dwarf_composite_t* dwarf;
 } gentype_t;
 
 bool gentype_prelim(compile_t* c, ast_t* ast, gentype_t* g);
