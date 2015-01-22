@@ -9,7 +9,7 @@ options
 // Parser
 
 module
-  :  STRING? use* (typealias | class_)*
+  :  STRING? use* class_*
   ;
 
 use
@@ -20,12 +20,8 @@ use_ffi
   :  '@' (ID | STRING) type_args '(' params? ')' '?'?
   ;
 
-typealias
-  :  'type' ID 'is' type
-  ;
-
 class_
-  :  ('interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? STRING? members
+  :  ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? STRING? members
   ;
 
 members

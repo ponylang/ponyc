@@ -1,5 +1,6 @@
 #include "names.h"
 #include "../type/alias.h"
+#include "../type/reify.h"
 #include "../pkg/package.h"
 #include <assert.h>
 
@@ -87,47 +88,37 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t* type)
 static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
+  AST_GET_CHILDREN(ast, pkg, id, typeargs, cap, eph);
 
-  // type aliases can't have type arguments
-  ast_t* typeargs = ast_childidx(ast, 2);
-
-  if(ast_id(typeargs) != TK_NONE)
-  {
-    ast_error(typeargs, "type aliases can't have type arguments");
-    return false;
-  }
-
-  // make sure the alias is resolved
-  ast_t* alias = ast_childidx(def, 1);
+  // Make sure the alias is resolved,
+  AST_GET_CHILDREN(def, alias_id, typeparams, def_cap, provides);
+  ast_t* alias = ast_child(provides);
 
   if(!names_resolvealias(opt, def, alias))
     return false;
 
-  // apply our cap and ephemeral to the result
-  ast_t* cap = ast_childidx(ast, 3);
-  ast_t* ephemeral = ast_sibling(cap);
-  alias = ast_dup(alias);
+  // Reify the alias.
+  ast_t* r_alias = reify(alias, typeparams, typeargs);
 
-  if(!names_applycap(alias, cap, ephemeral))
+  if(r_alias == NULL)
+    return false;
+
+  // Apply our cap and ephemeral to the result.
+  if(!names_applycap(r_alias, cap, eph))
   {
-    ast_free_unattached(alias);
+    ast_free_unattached(r_alias);
     return false;
   }
 
-  // replace this with the alias
-  ast_replace(astp, alias);
+  // Replace this with the alias.
+  ast_replace(astp, r_alias);
   return true;
 }
 
 static bool names_typeparam(ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
-  ast_t* package = ast_child(ast);
-  ast_t* type = ast_sibling(package);
-  ast_t* typeargs = ast_sibling(type);
-  ast_t* cap = ast_sibling(typeargs);
-  ast_t* ephemeral = ast_sibling(cap);
-
+  AST_GET_CHILDREN(ast, package, type, typeargs, cap, ephemeral);
   assert(ast_id(package) == TK_NONE);
 
   if(ast_id(typeargs) != TK_NONE)
@@ -137,14 +128,13 @@ static bool names_typeparam(ast_t** astp, ast_t* def)
   }
 
   // Change to a typeparamref.
-  ast_t* typeparamref = ast_from(ast, TK_TYPEPARAMREF);
-  ast_add(typeparamref, ephemeral);
-  ast_add(typeparamref, cap);
-  ast_add(typeparamref, type);
+  REPLACE(astp,
+    NODE(TK_TYPEPARAMREF,
+      TREE(type)
+      TREE(cap)
+      TREE(ephemeral)));
 
-  ast_setdata(typeparamref, def);
-  ast_replace(astp, typeparamref);
-
+  ast_setdata(*astp, def);
   return true;
 }
 

@@ -7,7 +7,7 @@ actor Timers
   """
   var _current: U64 = 0
   let _slop: U64
-  let _map: Map[Identity[Timer tag], Timer] = Map[Identity[Timer tag], Timer]
+  let _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
   let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
   let _pending: List[Timer] = List[Timer]
   var _event: Pointer[Event] tag = Pointer[Event]
@@ -32,7 +32,7 @@ actor Timers
     then rearm the timer.
     """
     let timer': Timer ref = consume timer
-    _map(Identity[Timer tag](timer')) = timer'
+    _map(timer') = timer'
     timer'._slop(_slop)
     _fire(timer')
     _advance()
@@ -42,7 +42,7 @@ actor Timers
     Cancels a timer.
     """
     try
-      let timer' = _map.remove(Identity[Timer tag](timer))
+      let timer' = _map.remove(timer)
       timer'._cancel()
     end
 
@@ -98,7 +98,7 @@ actor Timers
     """
     if not timer._fire(_current) then
       try
-        _map.remove(Identity[Timer tag](timer))
+        _map.remove(timer)
       end
       return
     end

@@ -131,8 +131,8 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
     {
       ast_error(init,
         "field/param initialiser is not a subtype of the field/param type");
-      ast_error(ast, "field/param type: %s", ast_print_type(type));
-      ast_error(ast, "initialiser type: %s", ast_print_type(init_type));
+      ast_error(type, "field/param type: %s", ast_print_type(type));
+      ast_error(init, "initialiser type: %s", ast_print_type(init_type));
       ast_free_unattached(init_type);
       return false;
     }
@@ -302,23 +302,8 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
     }
 
     case TK_INTERFACE:
-    {
-      ast_error(ast, "can't use an interface in an expression");
-      return false;
-    }
-
     case TK_TRAIT:
-    {
-      ast_error(ast, "can't use a trait in an expression");
-      return false;
-    }
-
     case TK_TYPE:
-    {
-      ast_error(ast, "can't use a type alias in an expression");
-      return false;
-    }
-
     case TK_TYPEPARAM:
     case TK_PRIMITIVE:
     case TK_CLASS:
@@ -518,7 +503,7 @@ bool expr_idseq(ast_t* ast)
   return type_for_idseq(ast, type);
 }
 
-bool expr_addressof(pass_opt_t* opt, ast_t* ast)
+static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* expr = ast_child(ast);
 
@@ -539,6 +524,14 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
+  // Set the type to Pointer[ast_type(expr)].
+  ast_t* type = type_pointer_to(opt, ast_type(expr));
+  ast_settype(ast, type);
+  return true;
+}
+
+bool expr_addressof(pass_opt_t* opt, ast_t* ast)
+{
   // Check if we're in an FFI call.
   ast_t* parent = ast_parent(ast);
 
@@ -551,13 +544,24 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       parent = ast_parent(parent);
 
       if(ast_id(parent) == TK_FFICALL)
-      {
-        // Set the type to Pointer[ast_type(expr)].
-        ast_t* type = type_pointer_to(opt, ast_type(expr));
-        ast_settype(ast, type);
-        return true;
-      }
+        return expr_addressof_ffi(opt, ast);
     }
+  }
+
+  ast_t* expr = ast_child(ast);
+
+  switch(ast_id(expr))
+  {
+    case TK_FVARREF:
+    case TK_VARREF:
+    case TK_FLETREF:
+    case TK_LETREF:
+    case TK_PARAMREF:
+      break;
+
+    default:
+      ast_error(ast, "identity must be for a field, local or parameter");
+      return false;
   }
 
   // Turn this into an identity operation. Set the type to U64.

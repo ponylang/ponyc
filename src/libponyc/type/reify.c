@@ -87,17 +87,9 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   return false;
 }
 
-ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+static ast_t* reify_without_defaults(ast_t* ast, ast_t* typeparams,
+  ast_t* typeargs, ast_t** lastparam, ast_t** lastarg)
 {
-  assert(
-    (ast_id(typeparams) == TK_TYPEPARAMS) ||
-    (ast_id(typeparams) == TK_NONE)
-    );
-  assert(
-    (ast_id(typeargs) == TK_TYPEARGS) ||
-    (ast_id(typeargs) == TK_NONE)
-    );
-
   // Duplicate the node.
   ast_t* r_ast = ast_dup(ast);
 
@@ -112,6 +104,32 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     typeparam = ast_sibling(typeparam);
     typearg = ast_sibling(typearg);
   }
+
+  if(lastparam != NULL)
+    *lastparam = typeparam;
+
+  if(lastarg != NULL)
+    *lastarg = typearg;
+
+  return r_ast;
+}
+
+ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+{
+  assert(
+    (ast_id(typeparams) == TK_TYPEPARAMS) ||
+    (ast_id(typeparams) == TK_NONE)
+    );
+  assert(
+    (ast_id(typeargs) == TK_TYPEARGS) ||
+    (ast_id(typeargs) == TK_NONE)
+    );
+
+  // Duplicate the node.
+  ast_t* typeparam;
+  ast_t* typearg;
+  ast_t* r_ast = reify_without_defaults(ast, typeparams, typeargs, &typeparam,
+    &typearg);
 
   if(typearg != NULL)
   {
@@ -128,9 +146,12 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
     if(ast_id(typearg) == TK_NONE)
       break;
 
-    // Append the default type argument to the typeargs list.
-    ast_append(typeargs, typearg);
-    reify_one(&r_ast, typeparam, typearg);
+    // Reify the default typearg with the typeargs we have so far.
+    ast_t* r_typearg = reify_without_defaults(typearg, typeparams, typeargs,
+      NULL, NULL);
+
+    ast_append(typeargs, r_typearg);
+    reify_one(&r_ast, typeparam, r_typearg);
     typeparam = ast_sibling(typeparam);
   }
 

@@ -76,6 +76,7 @@ static const lexsym_t symbols[] =
   { "|", TK_PIPE },
   { "&", TK_AMP },
   { "^", TK_EPHEMERAL },
+  { "!", TK_BORROWED },
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
@@ -175,10 +176,17 @@ static const lexsym_t abstract[] =
   { "thistype", TK_THISTYPE },
   { "funtype", TK_FUNTYPE },
 
+  { "iso", TK_ISO_BIND },
+  { "trn", TK_TRN_BIND },
+  { "ref", TK_REF_BIND },
+  { "val", TK_VAL_BIND },
+  { "box", TK_BOX_BIND },
+  { "trn", TK_TAG_BIND },
+  { "any", TK_ANY_BIND },
+
   { "boxgen", TK_BOX_GENERIC },
   { "taggen", TK_TAG_GENERIC },
   { "anygen", TK_ANY_GENERIC },
-  { "!", TK_BORROWED },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },

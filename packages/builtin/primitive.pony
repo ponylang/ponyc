@@ -7,9 +7,9 @@ primitive None is Stringable
   =>
     "None".string(fmt, prefix, prec, width, align, fill)
 
-primitive Bool is Logical[Bool], Stringable
-  fun eq(y: Bool box): Bool => this == y
-  fun ne(y: Bool box): Bool => this != y
+primitive Bool is Logical[Bool], Comparable[Bool], Stringable
+  fun eq(y: Bool): Bool => this == y
+  fun ne(y: Bool): Bool => this != y
   fun op_and(y: Bool): Bool => this and y
   fun op_or(y: Bool): Bool => this or y
   fun op_xor(y: Bool): Bool => this xor y
