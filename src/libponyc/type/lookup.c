@@ -18,6 +18,22 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   ast_t* type_name = ast_child(def);
   ast_t* find = ast_get(def, name, NULL);
 
+  if(find != NULL)
+  {
+    switch(ast_id(find))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+        break;
+
+      default:
+        find = NULL;
+    }
+  }
+
   if(find == NULL)
   {
     if(errors)
