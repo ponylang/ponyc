@@ -107,12 +107,16 @@ bool frame_push(typecheck_t* t, ast_t* ast)
       switch(ast_id(parent))
       {
         case TK_TYPEPARAM:
-          if(ast_childidx(parent, 1) == ast)
+        {
+          AST_GET_CHILDREN(parent, id, constraint, def_type);
+
+          if(constraint == ast)
           {
             pop = push_frame(t);
             t->frame->constraint = ast;
           }
           break;
+        }
 
         case TK_NEW:
         case TK_BE:

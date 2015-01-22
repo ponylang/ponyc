@@ -93,7 +93,8 @@ DEF(typeargs);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// ID [DOT ID] [typeargs] [ISO | TRN | REF | VAL | BOX | TAG] [HAT | BANG]
+// ID [DOT ID] [typeargs] [ISO | TRN | REF | VAL | BOX | TAG]
+// [EPHEMERAL | BORROWED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
@@ -104,7 +105,7 @@ DEF(nominal);
   );
   OPT RULE("type arguments", typeargs);
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
-  OPT TOKEN(NULL, TK_EPHEMERAL);
+  OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
 // PIPE type
@@ -452,7 +453,7 @@ DEF(withexpr);
 // =>
 // (SEQ
 //   (ASSIGN (LET $1 initialiser))*
-//   (TRY2
+//   (TRY_NO_CHECK
 //     (SEQ (ASSIGN (LET idseq) $1)* body)
 //     (SEQ (ASSIGN (LET idseq) $1)* else)
 //     (SEQ $1.dispose()*)))
@@ -551,7 +552,7 @@ DEF(term);
 //     (CASE
 //       (LET (IDSEQ $1) type)
 //       NONE
-//       (SEQ (CONSUME $1))))
+//       (SEQ (CONSUME BORROWED $1))))
 //   (SEQ ERROR))
 DEF(asop);
   INFIX_BUILD();
@@ -679,10 +680,11 @@ DEF(members);
   SEQ("method", method);
   DONE();
 
-// (INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams] [CAP]
-// [IS types] [STRING] members
+// (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
+// [CAP] [IS types] [STRING] members
 DEF(class_def);
-  TOKEN("entity", TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
+  TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
+    TK_ACTOR);
   SCOPE();
   OPT TOKEN(NULL, TK_AT);
   TOKEN("name", TK_ID);
@@ -694,14 +696,6 @@ DEF(class_def);
   // Order should be:
   // id type_params cap provides members c_api docstring
   REORDER(1, 2, 3, 4, 6, 0, 5);
-  DONE();
-
-// TYPE ID IS type
-DEF(typealias);
-  TOKEN(NULL, TK_TYPE);
-  TOKEN("type name", TK_ID);
-  SKIP(NULL, TK_IS);
-  RULE("aliased type", type);
   DONE();
 
 // STRING
@@ -737,14 +731,16 @@ DEF(use);
   IF(TK_IF, RULE("use condition", infix));
   DONE();
 
-// {use} {class | typealias}
+// {use} {class}
 DEF(module);
   AST_NODE(TK_MODULE);
   SCOPE();
   OPT_NO_DFLT TOKEN("package docstring", TK_STRING);
   SEQ("use command", use);
-  SEQ("class, actor, primitive or trait definition", class_def, typealias);
-  SKIP("class, actor, primitive, trait or method", TK_EOF);
+  SEQ("type, interface, trait, primitive, class or actor definition",
+    class_def);
+  SKIP("type, interface, trait, primitive, class, actor, member or method",
+    TK_EOF);
   DONE();
 
 // external API

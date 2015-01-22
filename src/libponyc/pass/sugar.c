@@ -691,7 +691,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 
       BUILD(body_elem, body,
         NODE(TK_SEQ,
-          NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, ID(name)))));
+          NODE(TK_CONSUME, NODE(TK_BORROWED) NODE(TK_REFERENCE, ID(name)))));
 
       ast_append(pattern, pattern_elem);
       ast_append(body, body_elem);

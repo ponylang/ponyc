@@ -12,12 +12,13 @@
 #define DEF_PRIMITIVE 2
 #define DEF_TRAIT 3
 #define DEF_INTERFACE 4
-#define DEF_ENTITY_COUNT 5
+#define DEF_TYPEALIAS 5
+#define DEF_ENTITY_COUNT 6
 
 #define DEF_FUN 0
-#define DEF_BE 5
-#define DEF_NEW 10
-#define DEF_METHOD_COUNT 15
+#define DEF_BE 6
+#define DEF_NEW 12
+#define DEF_METHOD_COUNT 18
 
 
 typedef struct permission_def_t
@@ -49,7 +50,8 @@ static const permission_def_t _entity_def[DEF_ENTITY_COUNT] =
   { "actor",                  "X X N X" },
   { "primitive",              "N N N N" },
   { "trait",                  "N N X N" },
-  { "interface",              "N N X N" }
+  { "interface",              "N N X N" },
+  { "type alias",             "N N N N" }
 };
 
 #define METHOD_CAP 0
@@ -70,16 +72,19 @@ static const permission_def_t _method_def[DEF_METHOD_COUNT] =
   { "primitive function",     "X Y X X Y" },
   { "trait function",         "X Y X X X" },
   { "interface function",     "X Y X X X" },
+  { "type alias function",    NULL },
   { "class behaviour",        NULL },
   { "actor behaviour",        "N Y N N Y" },
   { "primitive behaviour",    NULL },
   { "trait behaviour",        "N Y N N X" },
   { "interface behaviour",    "N Y N N X" },
+  { "type alias behaviour",   NULL },
   { "class constructor",      "X Y N X Y" },
   { "actor constructor",      "N Y N N Y" },
   { "primitive constructor",  "N Y N X Y" },
   { "trait constructor",      "X Y N X N" },
   { "interface constructor",  "X Y N X N" },
+  { "type alias constructor", NULL }
 };
 
 
@@ -316,26 +321,23 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     return AST_ERROR;
   }
 
-  // Check referenced traits
-  if(!check_traits(provides))
-    return AST_ERROR;
+  if(entity_def_index != DEF_TYPEALIAS)
+  {
+    // Check referenced traits
+    if(!check_traits(provides))
+      return AST_ERROR;
+  } else {
+    // Check for a single type alias
+    if(ast_childcount(provides) != 1)
+    {
+      ast_error(provides, "a type alias must specify a single type");
+      return AST_ERROR;
+    }
+  }
 
   // Check for illegal members
   if(!check_members(members, entity_def_index))
     return AST_ERROR;
-
-  return AST_OK;
-}
-
-
-static ast_result_t parse_fix_type_alias(ast_t* ast)
-{
-  // Check if we're called Main
-  if(ast_name(ast_child(ast)) == stringtab("Main"))
-  {
-    ast_error(ast, "Main must be an actor");
-    return AST_ERROR;
-  }
 
   return AST_OK;
 }
@@ -664,7 +666,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
   switch(id)
   {
     case TK_SEMI:       r = parse_fix_semi(ast); break;
-    case TK_TYPE:       r = parse_fix_type_alias(ast); break;
+    case TK_TYPE:       r = parse_fix_entity(ast, DEF_TYPEALIAS); break;
     case TK_PRIMITIVE:  r = parse_fix_entity(ast, DEF_PRIMITIVE); break;
     case TK_CLASS:      r = parse_fix_entity(ast, DEF_CLASS); break;
     case TK_ACTOR:      r = parse_fix_entity(ast, DEF_ACTOR); break;

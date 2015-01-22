@@ -14,7 +14,6 @@
 /// @return The found sub tree or NULL if not found
 ast_t* find_sub_tree(ast_t* tree, token_id sub_id);
 
-
 /** Build an AST based on the given description, checking for errors.
  * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
  *
@@ -26,24 +25,7 @@ ast_t* find_sub_tree(ast_t* tree, token_id sub_id);
 void build_ast_from_string(const char* desc, ast_t** out_ast,
   builder_t** out_builder);
 
-
-/** Check that the symbol table of the given AST has an entry for the specified
- * name matching the given AST.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- */
-void check_symtab_entry(ast_t* scope, const char* name, const char* expected);
-
-void check_symtab_entry(builder_t* builder, const char* scope,
-  const char* name, const char* expected);
-
 void load_test_program(const char* pass, const char* name, ast_t** out_prog);
-
-/** Check that the symbol table of the given AST has an entry for the specified
-* name matching the given AST description.
-* Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
-*/
-//void check_symtab_entry_desc(ast_t* tree, const char* name,
-//  const char* expected);
 
 /** Check that the given AST matches the given description. Siblings of the AST
  * are ignored.
@@ -52,136 +34,51 @@ void load_test_program(const char* pass, const char* name, ast_t** out_prog);
 void check_tree(const char* expected, ast_t* actual);
 
 
-/** Check that an AST transforms to another AST under a single pass function
- * application at the node with the specified label.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- *
- * @param before Description of AST before transformation.
- * @param after Description of AST after transformation.
- * @param fn Pass function to apply.
- * @param label Label of node to apply pass function to. If NULL is passed or
- * specified label is not found, pass function is applied to root of tree.
- */
-void test_pass_fn_good(const char* before, const char* after,
-  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label);
+class PassTest : public testing::Test
+{
+protected:
+  ast_t* program; // AST produced from given source
+  ast_t* package; // AST of first package, cache of ast_child(program)
+
+  virtual void SetUp();
+  virtual void TearDown();
+
+  // Override the default builtin source
+  void set_builtin(const char* src);
+
+  // Add an additional package source
+  void add_package(const char* path, const char* src);
+
+  // Override the default path of the main package (useful for package loops)
+  void default_package_name(const char* path);
 
 
-/** Check that tranforming an AST under a single pass function application at
- * the node with the specified label fails.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- *
- * @param before Description of AST before transformation.
- * @param fn Pass function to apply.
- * @param label Label of node to apply pass function to. If NULL is passed or
- * specified label is not found, pass function is applied to root of tree.
- */
-void test_pass_fn_bad(const char* before,
-  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label,
-  ast_result_t expect_result);
+  // Test methods.
+  // These all check error with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
 
+  // Check that the given source compiles to the specified pass without error
+  void test_compile(const char* src, const char* pass);
 
+  // Check that the given source fails when compiled to the specified pass
+  void test_error(const char* src, const char* pass);
 
-/** Check that the 2 given sources compile without error and generate the same
- * AST. The maximum pass for each source may be specified separately.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- */
-void test_same(const char* src1, const char* pass1,
-  const char* src2, const char* pass2);
+  // Check that the 2 given sources compile to give the same AST for the first
+  // package
+  void test_equiv(const char* actual_src, const char* actual_pass,
+    const char* expect_src, const char* expect_pass);
 
-/** Check that the given source compiles without error.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- */
-void test_compile(const char* src, const char* pass);
+  // Check that the given source compiles to give the described AST for the
+  // whole program
+  void test_program_ast(const char* src, const char* pass, const char* desc);
 
-/** Check that the given source fails to compile.
-* Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
-*/
-void test_fail(const char* src, const char* pass);
+  // Check that the given source compiles to give the described AST for the
+  // first package
+  void test_package_ast(const char* src, const char* pass, const char* desc);
 
+private:
+  const char* _builtin_src;
+  const char* _first_pkg_path;
+};
 
-
-/** Check that the given source code compiles, generating the specified result.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- *
- * @param source Code to compile.
- * @param builtin Code to use for builtin package. NULL indicates use real
- * builtin.
- * @param pass Pass to limit compilation to, as defined in pass.h. NULL
- * indicates all passes.
- * @param expect Result we expect to see, checked with ASSERT.
- */
-//void test_compile(const char* source, const char* builtin, const char* pass,
-//  ast_result_t expect);
-
-/** Check that the given source code compiles without error and that the
- * resulting AST matches the given description.
- * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
- *
- * @param source Code to compile.
- * @param builtin Code to use for builtin package. NULL indicates use real
- * builtin.
- * @param pass Pass to limit compilation to, as defined in pass.h. NULL
- * indicates all passes.
- * @param sub_tree_id ID of the resulting subtree to check.
- * @param expect Description of the AST to expect for the specified subtree.
- */
-//void test_compile_and_check_ast(const char* source, const char* builtin,
-//  const char* pass, token_id sub_tree_id, const char* expect);
-
-/** Check that the given source code compiles without error and that the
-* type of the resulting AST matches the given description.
-* Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
-*
-* @param source Code to compile.
-* @param builtin Code to use for builtin package. NULL indicates use real
-* builtin.
-* @param pass Pass to limit compilation to, as defined in pass.h. NULL
-* indicates all passes.
-* @param sub_tree_id ID of the resulting subtree to check the type of.
-* @param expect Description of the AST to expect for the specified subtree
-* type.
-*/
-//void test_compile_and_check_type(const char* source, const char* builtin,
-//  const char* pass, token_id sub_tree_id, const char* expect);
-
-#endif
-
-
-#if 0
-
-ast_replace:
-build ast fragment from desc
-compare asts
-
-colour:
-build module ast from desc (handling src deletion)
-  could use source
-
-
-lexer tests:
-do tidy up in tear down function
-have next_token test function, etc
-
-parserapi test:
-similar to lexer tests
-compare existing ast to desc (handling src deletion)
-
-scope:
-compile until scope1 (check good)
-run pass scope1
-find sub tree(id)
-find and check symbtab entry, present + not
-
-sugar:
-build ast fragment from desc
-perform full pass
-compare asts
-
-type check:
-build module ast from desc with symbtab entries (handling src deletion)
-build ast fragment
-find test node
-add fragment to module
-compare node type to desc (handling src deletion)
 
 #endif

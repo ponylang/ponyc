@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "token.h"
 #include "symtab.h"
+#include "stringtab.h"
 
 #include <platform.h>
 
@@ -65,7 +66,7 @@ entity
 data: typechecking state
 symtab: name -> TYPEPARAM | FVAR | FVAL | method
 (
-  TYPE: ID [TYPEPARAMS] NONE [TYPES] MEMBERS NONE [STRING]
+  TYPE: ID [TYPEPARAMS] cap [TYPES] NONE NONE [STRING]
   PRIMITIVE: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
   TRAIT: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
   CLASS: ID [TYPEPARAMS] cap [TYPES] MEMBERS NONE [STRING]
