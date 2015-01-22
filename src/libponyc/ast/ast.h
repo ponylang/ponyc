@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "token.h"
 #include "symtab.h"
+#include "stringtab.h"
 
 #include <platform.h>
 

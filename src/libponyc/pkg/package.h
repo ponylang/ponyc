@@ -40,6 +40,11 @@ void package_add_paths(const char* paths);
 void package_add_magic(const char* path, const char* src);
 
 /**
+ * Clear any magic packages that have been added.
+ */
+void package_clear_magic();
+
+/**
  * Suppress printing "building" message for each package.
  */
 void package_suppress_build_message();

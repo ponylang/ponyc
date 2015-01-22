@@ -550,6 +550,20 @@ void package_add_magic(const char* path, const char* src)
 }
 
 
+void package_clear_magic()
+{
+  magic_package_t*p = magic_packages;
+  while(p != NULL)
+  {
+    magic_package_t* next = p->next;
+    POOL_FREE(magic_package_t, p);
+    p = next;
+  }
+
+  magic_packages = NULL;
+}
+
+
 void package_suppress_build_message()
 {
   report_build = false;
@@ -699,14 +713,5 @@ void package_done(pass_opt_t* opt)
   codegen_shutdown(opt);
   strlist_free(search);
   search = NULL;
-
-  magic_package_t*p = magic_packages;
-  while(p != NULL)
-  {
-    magic_package_t* next = p->next;
-    POOL_FREE(magic_package_t, p);
-    p = next;
-  }
-
-  magic_packages = NULL;
+  package_clear_magic();
 }

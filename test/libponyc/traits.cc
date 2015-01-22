@@ -2,56 +2,16 @@
 #include <platform.h>
 
 #include <ast/ast.h>
-#include <ast/builder.h>
-#include <pass/traits.h>
-#include <pkg/package.h>
-#include <ast/stringtab.h>
 
 #include "util.h"
-#include "builtin_ast.h"
+
+#define TEST_COMPILE(src) DO(test_compile(src, "traits"))
+#define TEST_ERROR(src) DO(test_error(src, "traits"))
+#define TEST_EQUIV(src, expect) DO(test_equiv(src, "traits", expect, "traits"))
 
 
-#define TEST_EXPECTED(src, expect) \
-  DO(test_same(src, "traits", expect, "traits"))
-
-#define TEST_BAD(src) \
-  DO(test_fail(src, "traits"))
-
-
-static const char* builtin2 =
-  "primitive U32\n"
-  "primitive None\n"
-  "primitive Bool";
-
-
-class TraitsTest : public testing::Test
-{
-protected:
-  ast_t* program;
-  ast_t* package;
-
-  virtual void SetUp()
-  {
-    program = NULL;
-  }
-
-  virtual void TearDown()
-  {
-    ast_free(program);
-    program = NULL;
-
-    if(HasFatalFailure())
-      print_errors();
-  }
-
-  void build(const char* src)
-  {
-    package_add_magic("builtin", builtin2);
-    package_add_magic("prog", src);
-    DO(load_test_program("traits", "prog", &program));
-    package = ast_child(program);
-  }
-};
+class TraitsTest : public PassTest
+{};
 
 
 TEST_F(TraitsTest, ClassGetsTraitBody)
@@ -69,7 +29,7 @@ TEST_F(TraitsTest, ClassGetsTraitBody)
     "  new create() => true\n"
     "  fun ref bar(): U32 => 1";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -81,7 +41,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
     "class C is T\n"
     "  fun ref bar(): U32 => 2";
 
-  DO(build(src));
+  TEST_COMPILE(src);
   WALK_TREE(body, package,
     LOOKUP("C")
     LOOKUP("bar")
@@ -98,7 +58,7 @@ TEST_F(TraitsTest, CannotProvideClass)
     "class C1\n"
     "class C2 is C1";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -109,7 +69,7 @@ TEST_F(TraitsTest, NoBody)
     "  fun ref bar(): U32\n"
     "class C is T";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -122,7 +82,7 @@ TEST_F(TraitsTest, AmbiguousBody)
     "  fun ref bar(): U32 => 2\n"
     "class C is T1, T2";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -151,7 +111,7 @@ TEST_F(TraitsTest, TransitiveTraits)
     "  fun ref f1(): Bool => 1\n"
     "  fun ref f2(): U32 => 2\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -160,7 +120,7 @@ TEST_F(TraitsTest, SingleTraitLoop)
   const char* src =
     "trait T is T";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -171,7 +131,7 @@ TEST_F(TraitsTest, MultiTraitLoop)
     "trait T2 is T3\n"
     "trait T3 is T1\n";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -183,7 +143,7 @@ TEST_F(TraitsTest, TraitAndClassNamesDontClash)
     "class C is T\n"
     "  var y: Bool";
 
-  DO(build(src));
+  TEST_COMPILE(src);
 }
 
 
@@ -210,7 +170,7 @@ TEST_F(TraitsTest, DiamondInheritance)
     "  new create() => true\n"
     "  fun ref bar(): U32 => 1\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -245,7 +205,7 @@ TEST_F(TraitsTest, MethodContravariance)
     "  new create() => true\n"
     "  fun ref bar(x: AB): U32 => 2\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -280,7 +240,7 @@ TEST_F(TraitsTest, MethodContravarianceMultiSource)
     "  new create() => true\n"
     "  fun ref bar(x: AB): U32 => 2\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -300,7 +260,7 @@ TEST_F(TraitsTest, MethodContravarianceMultiSourceClash)
     "class C is T1, T2\n"
     "  new create() => true";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -341,7 +301,7 @@ TEST_F(TraitsTest, MethodContravariance3Source)
     "  new create() => true\n"
     "  fun ref bar(x: AB): U32 => 3\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -383,7 +343,7 @@ TEST_F(TraitsTest, MethodContravariance3SourceReverseOrder)
     "  new create() => true\n"
     "  fun ref bar(x: AB): U32 => 3\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -401,7 +361,7 @@ TEST_F(TraitsTest, MethodReverseContravariance)
     "  new create() => true\n"
     "  fun ref bar(x: A): U32 => 2\n";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }
 
 
@@ -436,7 +396,7 @@ TEST_F(TraitsTest, MethodCovariance)
     "  new create() => true\n"
     "  fun ref bar(): A => 1\n";
 
-  TEST_EXPECTED(src, expect);
+  TEST_EQUIV(src, expect);
 }
 
 
@@ -454,5 +414,5 @@ TEST_F(TraitsTest, MethodReverseCovariance)
     "  new create() => true\n"
     "  fun ref bar(): AB => 1\n";
 
-  TEST_BAD(src);
+  TEST_ERROR(src);
 }

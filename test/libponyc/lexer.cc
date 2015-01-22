@@ -24,7 +24,7 @@ protected:
   void expect(size_t line, size_t pos, bool first_on_line, token_id id,
     const char* print)
   {
-    char buffer[40];
+    char buffer[80];
 
     snprintf(buffer, sizeof(buffer), "%d @ %lu.%lu %s\"", id, line, pos,
       first_on_line ? "first " : "");
@@ -47,7 +47,7 @@ protected:
       token_t* token = lexer_next(lexer);
       id = token_get_id(token);
 
-      char buffer[40];
+      char buffer[80];
       snprintf(buffer, sizeof(buffer), "%d @ %lu.%lu %s\"",
         token_get_id(token),
         token_line_number(token), token_line_position(token),
@@ -573,6 +573,7 @@ TEST_F(LexerTest, IntHexNoOverflow)
 {
   const char* src = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
 
+  // TODO: This is wrong, that's 2^64 - 1, should be 2^128 - 1
   expect(1, 1, true, TK_INT, "18446744073709551615");
   expect(1, 35, false, TK_EOF, "EOF");
   DO(test(src));

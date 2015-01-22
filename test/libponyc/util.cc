@@ -65,94 +65,6 @@ void build_ast_from_string(const char* desc, ast_t** out_ast,
 }
 
 
-/*
-void free_build_ast(ast_t* ast, source_t* src)
-{
-  if(ast == NULL)
-  {
-    source_close(src);
-    return;
-  }
-
-  printf("free %p\n", ast);
-  ast_print(ast);
-
-  if(find_sub_tree(ast, TK_MODULE) == NULL)
-    source_close(src);
-
-  ast_free(ast);
-}
-
-
-ast_t* parse_test_module(const char* desc)
-{
-  source_t* src = source_open_string(desc);
-  ast_t* ast = build_ast(src);
-
-  if(ast == NULL)
-    source_close(src);
-
-  return ast;
-}
-
-
-void add_to_symbtab(ast_t* scope, const char* name, const char* tree_desc)
-{
-  source_t* src = source_open_string(tree_desc);
-  ast_t* ast = build_ast(src);
-  ASSERT_NE((void*)NULL, ast);
-
-  ast_set(scope, stringtab(name), ast);
-}
-
-
-void symtab_entry(ast_t* tree, const char* name, ast_t* expected)
-{
-  symtab_t* symtab = ast_get_symtab(tree);
-  ASSERT_NE((void*)NULL, symtab);
-  ASSERT_EQ(expected, symtab_find(symtab, stringtab(name), NULL));
-}
-*/
-
-void check_symtab_entry(ast_t* scope, const char* name, const char* expected)
-{
-  ASSERT_NE((void*)NULL, scope);
-  ASSERT_NE((void*)NULL, name);
-
-  symtab_t* symtab = ast_get_symtab(scope);
-  ASSERT_NE((void*)NULL, symtab);
-
-  void* entry = symtab_find(symtab, stringtab(name), NULL);
-
-  if(expected == NULL)
-  {
-    ASSERT_EQ((void*)NULL, entry);
-    return;
-  }
-
-  ASSERT_NE((void*)NULL, entry);
-
-  builder_t* builder;
-  ast_t* expect_ast;
-  DO(build_ast_from_string(expected, &expect_ast, &builder));
-
-  ASSERT_TRUE(build_compare_asts_no_sibling(expect_ast, (ast_t*)entry));
-}
-
-
-void check_symtab_entry(builder_t* builder, const char* scope,
-  const char* name, const char* expected)
-{
-  ASSERT_NE((void*)NULL, builder);
-  ASSERT_NE((void*)NULL, scope);
-
-  ast_t* scope_ast = builder_find_sub_tree(builder, scope);
-  ASSERT_NE((void*)NULL, scope_ast);
-
-  check_symtab_entry(scope_ast, name, expected);
-}
-
-
 void check_tree(const char* expected, ast_t* actual_ast)
 {
   ASSERT_NE((void*)NULL, actual_ast);
@@ -200,122 +112,154 @@ void load_test_program(const char* pass, const char* name, ast_t** out_prog)
 }
 
 
-void test_pass_fn_good(const char* before, const char* after,
-  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label)
-{
-  free_errors();
-
-  // Build the before description into an AST
-  builder_t* actual_builder;
-  ast_t* actual_ast;
-  DO(build_ast_from_string(before, &actual_ast, &actual_builder));
-
-  ast_t* tree = builder_find_sub_tree(actual_builder, label);
-  if(tree == NULL)  // Given label not defined, use whole tree
-    tree = builder_get_root(actual_builder);
-
-  ASSERT_NE((void*)NULL, tree);
-
-  // Apply transform
-  ASSERT_EQ(AST_OK, fn(&tree, NULL));
-
-  // Check resulting AST
-  actual_ast = builder_get_root(actual_builder);
-
-  DO(check_tree(after, actual_ast));
-
-  builder_free(actual_builder);
-}
-
-
-void test_pass_fn_bad(const char* before,
-  ast_result_t(*fn)(ast_t**, pass_opt_t*), const char* label,
-  ast_result_t expect_result)
-{
-  builder_t* actual_builder;
-  ast_t* actual_ast;
-  DO(build_ast_from_string(before, &actual_ast, &actual_builder));
-
-  ast_t* tree = builder_find_sub_tree(actual_builder, label);
-  if(tree == NULL)  // Given label not defined, use whole tree
-    tree = builder_get_root(actual_builder);
-
-  ASSERT_NE((void*)NULL, tree);
-
-  ASSERT_EQ(expect_result, fn(&tree, NULL));
-
-  builder_free(actual_builder);
-}
-
-
-static const char* builtin =
+static const char* _builtin =
   "primitive U32\n"
   "primitive None\n"
   "primitive Bool";
 
 
-void test_same(const char* src1, const char* pass1,
-  const char* src2, const char* pass2)
+// class PassTest
+
+void PassTest::SetUp()
 {
-  package_add_magic("builtin", builtin);
+  program = NULL;
+  package = NULL;
+  _builtin_src = _builtin;
+  _first_pkg_path = "prog";
+  package_clear_magic();
+  package_suppress_build_message();
+  free_errors();
+}
+
+
+void PassTest::TearDown()
+{
+  ast_free(program);
+  program = NULL;
+  package = NULL;
+}
+
+
+void PassTest::set_builtin(const char* src)
+{
+  _builtin_src = src;
+}
+
+
+void PassTest::add_package(const char* path, const char* src)
+{
+  package_add_magic(path, src);
+}
+
+
+void PassTest::default_package_name(const char* path)
+{
+  _first_pkg_path = path;
+}
+
+
+// Test methods
+
+void PassTest::test_compile(const char* src, const char* pass)
+{
+  package_add_magic("builtin", _builtin_src);
+  package_add_magic(_first_pkg_path, src);
+
+  DO(load_test_program(pass, _first_pkg_path, &program));
+  package = ast_child(program);
+}
+
+
+void PassTest::test_error(const char* src, const char* pass)
+{
+  package_add_magic("builtin", _builtin_src);
+  package_add_magic(_first_pkg_path, src);
   free_errors();
 
-  ast_t* actual_ast1;
-  package_add_magic("prog1", src1);
-  DO(load_test_program(pass1, "prog1", &actual_ast1));
-  ast_t* package1 = ast_child(actual_ast1);
+  pass_opt_t opt;
+  pass_opt_init(&opt);
+  limit_passes(&opt, pass);
+  ast_t* program = program_load(stringtab(_first_pkg_path), &opt);
+  pass_opt_done(&opt);
 
-  ast_t* actual_ast2;
-  package_add_magic("prog2", src2);
-  DO(load_test_program(pass2, "prog2", &actual_ast2));
-  ast_t* package2 = ast_child(actual_ast2);
+  ASSERT_EQ((void*)NULL, program);
+  package = NULL;
+}
 
-  bool r = build_compare_asts(package2, package1);
+
+void PassTest::test_equiv(const char* actual_src, const char* actual_pass,
+  const char* expect_src, const char* expect_pass)
+{
+  DO(test_compile(actual_src, actual_pass));
+
+  package_add_magic("expect", expect_src);
+  ast_t* expect_ast;
+  DO(load_test_program(expect_pass, "expect", &expect_ast));
+  ast_t* expect_package = ast_child(expect_ast);
+
+  bool r = build_compare_asts(expect_package, package);
 
   if(!r)
   {
     printf("Expected:\n");
-    ast_print(package2);
+    ast_print(expect_package);
     printf("Got:\n");
-    ast_print(package1);
+    ast_print(package);
     print_errors();
   }
 
   ASSERT_TRUE(r);
 
-  ast_free(actual_ast1);
-  ast_free(actual_ast2);
+  ast_free(expect_ast);
 }
 
 
-void test_compile(const char* src, const char* pass)
+void PassTest::test_program_ast(const char* src, const char* pass, const char* desc)
 {
-  package_add_magic("builtin", builtin);
-  free_errors();
+  DO(test_compile(src, pass));
 
-  ast_t* actual_ast;
-  package_add_magic("prog", src);
-  DO(load_test_program(pass, "prog", &actual_ast));
+  builder_t* expect_builder;
+  ast_t* expect_ast;
+  DO(build_ast_from_string(desc, &expect_ast, &expect_builder));
 
-  ast_free(actual_ast);
+  bool r = build_compare_asts(expect_ast, program);
+
+  if(!r)
+  {
+    printf("Expected:\n");
+    ast_print(expect_ast);
+    printf("Got:\n");
+    ast_print(program);
+    print_errors();
+  }
+
+  ASSERT_TRUE(r);
+
+  builder_free(expect_builder);
 }
 
 
-void test_fail(const char* src, const char* pass)
+void PassTest::test_package_ast(const char* src, const char* pass, const char* desc)
 {
-  package_add_magic("builtin", builtin);
-  free_errors();
+  DO(test_compile(src, pass));
 
-  package_add_magic("prog", src);
+  builder_t* expect_builder;
+  ast_t* expect_ast;
+  DO(build_ast_from_string(desc, &expect_ast, &expect_builder));
+  ast_t* expect_package = ast_child(expect_ast);
 
-  free_errors();
-  package_suppress_build_message();
+  bool r = build_compare_asts(expect_package, package);
 
-  pass_opt_t opt;
-  pass_opt_init(&opt);
-  limit_passes(&opt, pass);
-  ast_t* program = program_load(stringtab("prog"), &opt);
-  pass_opt_done(&opt);
+  if(!r)
+  {
+    printf("Expected:\n");
+    ast_print(expect_package);
+    printf("Got:\n");
+    ast_print(package);
+    print_errors();
+  }
 
-  ASSERT_EQ((void*)NULL, program);
+  ASSERT_TRUE(r);
+
+  builder_free(expect_builder);
 }
