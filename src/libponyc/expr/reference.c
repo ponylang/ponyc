@@ -302,23 +302,8 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
     }
 
     case TK_INTERFACE:
-    {
-      ast_error(ast, "can't use an interface in an expression");
-      return false;
-    }
-
     case TK_TRAIT:
-    {
-      ast_error(ast, "can't use a trait in an expression");
-      return false;
-    }
-
     case TK_TYPE:
-    {
-      ast_error(ast, "can't use a type alias in an expression");
-      return false;
-    }
-
     case TK_TYPEPARAM:
     case TK_PRIMITIVE:
     case TK_CLASS:
