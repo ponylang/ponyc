@@ -7,36 +7,63 @@
 #include "../pass/names.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/subtype.h"
 
 bool expr_array(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
-  size_t size = ast_childcount(ast);
-  ast_t* child = ast_child(ast);
+  size_t size = ast_childcount(ast) - 1;
   ast_t* type = NULL;
+  bool told_type = false;
 
-  while(child != NULL)
+  AST_GET_CHILDREN(ast, type_spec, first_child);
+
+  if(ast_id(type_spec) != TK_NONE)
   {
-    ast_t* c_type = ast_type(child);
+    type = type_spec;
+    told_type = true;
+  }
+
+  for(ast_t* ele = first_child; ele != NULL; ele = ast_sibling(ele))
+  {
+    ast_t* c_type = ast_type(ele);
 
     if(c_type == NULL)
     {
-      ast_error(child,
+      ast_error(ele,
         "can't use an expression without a value in an array constructor");
       ast_free_unattached(type);
       return false;
     }
 
-    if(is_type_literal(c_type))
+    if(told_type)
     {
-      // At least one array element is literal, so whole array is
-      ast_free_unattached(type);
-      make_literal_type(ast);
-      return true;
-    }
+      // Don't need to free type here on exit
+      if(!coerce_literals(&ele, type, opt))
+        return false;
 
-    type = type_union(type, c_type);
-    child = ast_sibling(child);
+      c_type = ast_type(ele); // May have changed due to literals
+
+      if(!is_subtype(c_type, type))
+      {
+        ast_error(ele, "array element not a subtype of specified array type");
+        ast_error(type_spec, "array type: %s", ast_print_type(type));
+        ast_error(c_type, "element type: %s", ast_print_type(c_type));
+        return false;
+      }
+    }
+    else
+    {
+      if(is_type_literal(c_type))
+      {
+        // At least one array element is literal, so whole array is
+        ast_free_unattached(type);
+        make_literal_type(ast);
+        return true;
+      }
+
+      type = type_union(type, c_type);
+    }
   }
 
   BUILD(ref, ast, NODE(TK_REFERENCE, ID("Array")));
@@ -71,15 +98,13 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   ast_swap(ast, call);
   *astp = call;
 
-  child = ast_child(ast);
-
-  while(child != NULL)
+  for(ast_t* ele = ast_childidx(ast, 1); ele != NULL; ele = ast_sibling(ele))
   {
     BUILD(append_dot, ast, NODE(TK_DOT, TREE(*astp) ID("append")));
 
     BUILD(append, ast,
       NODE(TK_CALL,
-        NODE(TK_POSITIONALARGS, TREE(child))
+        NODE(TK_POSITIONALARGS, TREE(ele))
         NONE
         TREE(append_dot)));
 
@@ -89,8 +114,6 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       !expr_call(opt, &append)
       )
       return false;
-
-    child = ast_sibling(child);
   }
 
   ast_free_unattached(ast);

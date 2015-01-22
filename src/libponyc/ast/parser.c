@@ -208,10 +208,18 @@ DEF(object);
   SKIP(NULL, TK_END);
   DONE();
 
+// AS type ':'
+DEF(arraytype);
+  SKIP(NULL, TK_AS);
+  RULE("type", type);
+  SKIP(NULL, TK_COLON);
+  DONE();
+
 // (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
 DEF(array);
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
+  OPT RULE("element type", arraytype);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
   SKIP(NULL, TK_RSQUARE);
