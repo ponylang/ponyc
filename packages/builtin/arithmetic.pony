@@ -42,12 +42,12 @@ trait Real[A: Real[A] box] val is
   fun div(y: A): A => this / y
   fun mod(y: A): A => this % y
   fun neg(): A => -this
-  fun eq(y: A): Bool => this == y
-  fun ne(y: A): Bool => this != y
-  fun lt(y: A): Bool => this < y
-  fun le(y: A): Bool => this <= y
-  fun ge(y: A): Bool => this >= y
-  fun gt(y: A): Bool => this > y
+  fun eq(y: this->A): Bool => this == y
+  fun ne(y: this->A): Bool => this != y
+  fun lt(y: this->A): Bool => this < y
+  fun le(y: this->A): Bool => this <= y
+  fun ge(y: this->A): Bool => this >= y
+  fun gt(y: this->A): Bool => this > y
 
   fun abs(): A
   fun max(that: A): A

@@ -76,6 +76,7 @@ static const lexsym_t symbols[] =
   { "|", TK_PIPE },
   { "&", TK_AMP },
   { "^", TK_EPHEMERAL },
+  { "!", TK_BORROWED },
 
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
@@ -182,7 +183,6 @@ static const lexsym_t abstract[] =
   { "boxgen", TK_BOX_GENERIC },
   { "taggen", TK_TAG_GENERIC },
   { "anygen", TK_ANY_GENERIC },
-  { "!", TK_BORROWED },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },

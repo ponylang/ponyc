@@ -24,6 +24,7 @@ static ast_t* alias_for_type(ast_t* type, int index)
       {
         case TK_ISO:
         case TK_TRN:
+        case TK_ANY_GENERIC:
         case TK_NONE:
           type = ast_dup(type);
           ephemeral = ast_childidx(type, index + 1);
@@ -188,9 +189,6 @@ static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
   ast_t* eph = ast_sibling(cap);
   token_id tcap = ast_id(cap);
 
-  if(ccap == TK_NONE)
-    ccap = tcap;
-
   switch(ast_id(eph))
   {
     case TK_NONE:
@@ -198,7 +196,18 @@ static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
       break;
 
     case TK_BORROWED:
-      ast_setid(eph, TK_NONE);
+      if(ccap == TK_BORROWED)
+        ast_setid(eph, TK_NONE);
+      break;
+
+    default: {}
+  }
+
+  switch(ccap)
+  {
+    case TK_NONE:
+    case TK_BORROWED:
+      ccap = tcap;
       break;
 
     default: {}

@@ -30,7 +30,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if(!is_subtype(a_type, p_type))
     {
       ast_error(arg, "argument not a subtype of parameter");
-      ast_error(p_type, "parameter type: %s", ast_print_type(p_type));
+      ast_error(param, "parameter type: %s", ast_print_type(p_type));
       ast_error(a_type, "argument type: %s", ast_print_type(a_type));
       return false;
     }
