@@ -48,6 +48,7 @@ actor Main
     test_literal_ffi()
     test_as_apply(env)
     test_tuple_map(env)
+    test_assert()
 
     env.out.write(
       """
@@ -97,4 +98,10 @@ actor Main
     try
       let (x, y) = map("hi")
       env.out.print(x.string() + ", " + y.string())
+    end
+
+  fun ref test_assert() =>
+    try
+      Assert(true, "don't assert")
+      Assert(false)
     end
