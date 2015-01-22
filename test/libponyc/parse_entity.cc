@@ -412,7 +412,9 @@ TEST(ParseEntityTest, Alias)
   const char* src = "type Foo is Bar";
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (type (id Foo) (nominal x (id Bar) x x x)))))";
+    "  (type{scope} (id Foo) x x\n"
+    "    (types (nominal x (id Bar) x x x))\n"
+    "    members x x))))";
 
   DO(parse_test_good(src, expect));
 }
