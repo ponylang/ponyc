@@ -213,7 +213,8 @@ typedef enum token_id
   TK_TEST,
   TK_TEST_SEQ,
   TK_TEST_SEQ_SCOPE,
-  TK_TEST_TRY_NO_CHECK
+  TK_TEST_TRY_NO_CHECK,
+  TK_TEST_BORROWED
 } token_id;
 
 

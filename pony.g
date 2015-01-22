@@ -131,8 +131,8 @@ control
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
   |  'recover' cap? seq 'end'
-  |  '$:(' (expr)+ ')' // For testing only
-  |  '$(' (expr)+ ')' // For testing only
+  |  '$scope' '(' (expr)+ ')' // For testing only
+  |  '$seq' '(' (expr)+ ')' // For testing only
   ;
 
 elseif
@@ -194,7 +194,7 @@ named
   ;
 
 unop
-  :  'not' | '-' | 'consume' cap? | '&'
+  :  'not' | '-' | 'consume' (cap | '$borrowed')? | '&'
   ;
 
 binop
