@@ -80,6 +80,10 @@ static const lexsym_t symbols[] =
   { "?", TK_QUESTION },
   { "-", TK_UNARY_MINUS },
 
+  { "(", TK_LPAREN_NEW },
+  { "[", TK_LSQUARE_NEW },
+  { "-", TK_MINUS_NEW },
+
   { NULL, (token_id)0 }
 };
 
