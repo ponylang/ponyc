@@ -136,11 +136,8 @@ const char* token_print(token_t* token)
       return token->printed;
     }
 
-    case TK_TRUE:
-      return "true";
-
-    case TK_FALSE:
-      return "false";
+    case TK_LEX_ERROR:
+      return "LEX_ERROR";
 
     default:
       break;
