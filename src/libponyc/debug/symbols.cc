@@ -181,6 +181,7 @@ void symbols_declare(symbols_t* symbols, gentype_t* g, subnodes_t** members,
     subnodes_t* nodes = *members = (subnodes_t*)malloc(sizeof(subnodes_t));
 
     nodes->size = size;
+    nodes->offset = 0;
     nodes->children = (MDNode**)calloc(size, sizeof(MDNode*));
 
     uint16_t tag = 0;
@@ -253,14 +254,18 @@ void symbols_basic(symbols_t* symbols, gentype_t* g)
     DIType qualified = symbols->builder->createQualifiedType(DW_TAG_constant,
       type);
 
+    //TODO: REMOVE
+    symbols->builder->retainType(type);
+    symbols->builder->retainType(type);
+
     anchor->type = type;
     anchor->qualified = qualified;
   }
 }
 
-void symbols_pointer(symbols_t* symbols, const char* ptr, gentype_t* g)
+void symbols_pointer(symbols_t* symbols, gentype_t* ptr, gentype_t* g)
 {
-  symbol_t* pointer = get_lang_anchor(symbols, ptr);
+  symbol_t* pointer = get_lang_anchor(symbols, ptr->type_name);
   symbol_t* typearg = get_lang_anchor(symbols, g->type_name);
   anchor_t* target = typearg->anchor;
 
@@ -273,7 +278,10 @@ void symbols_pointer(symbols_t* symbols, const char* ptr, gentype_t* g)
   printf("DWARF pointer: Pointer[%s]\n", g->type_name);
 
   pointer->anchor->type = symbols->builder->createPointerType(target->type,
-    g->size, g->align);
+    ptr->size, ptr->align);
+
+  //TODO REMOVE
+  symbols->builder->retainType(pointer->anchor->type);
 }
 
 void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
@@ -299,6 +307,10 @@ void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
 
     anchor->qualified = symbols->builder->createQualifiedType(
       DW_TAG_const_type, anchor->type);
+
+    //TODO REMOVE
+    symbols->builder->retainType(anchor->type);
+    symbols->builder->retainType(anchor->qualified);
   }
 }
 
@@ -325,6 +337,9 @@ void symbols_member(symbols_t* symbols, gentype_t* field, subnodes_t* subnodes,
   subnodes->children[index] = symbols->builder->createMemberType(symbols->unit,
     name, scope->file, (int)scope->line, field->size, field->align, 
     subnodes->offset, visibility, use_type);
+
+  //TODO REMOVE
+  symbols->builder->retainType((DIType)subnodes->children[index]);
 
   subnodes->offset += field->size;
 }
@@ -360,6 +375,9 @@ void symbols_composite(symbols_t* symbols, gentype_t* g, size_t offset,
       scope->file, (int)scope->line, g->size, g->align, offset, 0, DIType(),
       fields);
   }
+
+  //TODO REMOVE
+  symbols->builder->retainType(actual);
 
   subnodes->prelim.replaceAllUsesWith(actual);
 

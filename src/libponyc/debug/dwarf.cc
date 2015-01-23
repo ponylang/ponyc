@@ -63,23 +63,28 @@ static void pop_frame(dwarf_t* dwarf)
 static void setup_dwarf(dwarf_t* dwarf, gentype_t* g, symbol_scope_t* scope, 
   bool definition)
 {
-  memset(scope, 0, sizeof(symbol_scope_t));
-  ast_t* ast = NULL;
+  ast_t* ast = g->ast;
+  Type* type = unwrap(g->use_type);
 
-  if(ast_id(g->ast) == TK_TUPLETYPE)
-    return;
-  
+  memset(scope, 0, sizeof(symbol_scope_t));
+   
   if(definition)
   {
-    ast = (ast_t*)ast_data(g->ast);
-    ast_t* module = ast_nearest(ast, TK_MODULE);
-    source_t* source = (source_t*)ast_data(module);
+    if(g->underlying != TK_TUPLETYPE)
+    {
+      ast = (ast_t*)ast_data(g->ast);
+      ast_t* module = ast_nearest(ast, TK_MODULE);
+      source_t* source = (source_t*)ast_data(module);
 
-    scope->file = symbols_file(dwarf->symbols, source->file);
+      scope->file = symbols_file(dwarf->symbols, source->file);
+    }
+  } else {
+    g->size = dwarf->layout->getTypeSizeInBits(type);
+    g->align = dwarf->layout->getABITypeAlignment(type) << 3;
   } 
 
-  scope->line = ast_line(g->ast);
-  scope->pos = ast_pos(g->ast);
+  scope->line = ast_line(ast);
+  scope->pos = ast_pos(ast);
 }
 
 void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
@@ -105,9 +110,9 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
     // just like fields.
     if(g->underlying != TK_TUPLETYPE)
     {
-      Type* ptr = unwrap(g->structure_ptr);
+      /*Type* ptr = unwrap(g->structure_ptr);
       g->size = dwarf->layout->getTypeSizeInBits(ptr);
-      g->align = dwarf->layout->getABITypeAlignment(ptr) << 3;
+      g->align = dwarf->layout->getABITypeAlignment(ptr) << 3;*/
 
       ast_t* def = (ast_t*)ast_data(g->ast);
       size += ast_childcount(ast_childidx(def, 4)) - size;
@@ -127,22 +132,18 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
   // Basic types are builtin, hence have no compilation
   // unit scope and their size and ABI alignment depends
   // on the primitive structure.
-  Type* type = unwrap(g->primitive);
-
-  g->size = dwarf->layout->getTypeSizeInBits(type);
-  g->align = dwarf->layout->getABITypeAlignment(type) << 3;
+  symbol_scope_t scope;
+  setup_dwarf(dwarf, g, &scope, true);
 
   symbols_basic(dwarf->symbols, g);
 }
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* ptr, gentype_t* g)
 {
-  Type* pointer = unwrap(g->use_type);
+  symbol_scope_t scope;
+  setup_dwarf(dwarf, ptr, &scope, false);
 
-  g->size = dwarf->layout->getTypeSizeInBits(pointer);
-  g->align = dwarf->layout->getABITypeAlignment(pointer) << 3;
-
-  symbols_pointer(dwarf->symbols, ptr->type_name, g);
+  symbols_pointer(dwarf->symbols, ptr, g);
 }
 
 void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
@@ -180,9 +181,6 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
   } else {
     type = unwrap(g->structure);
   }
-
-  g->size = dwarf->layout->getTypeSizeInBits(type);
-  g->align = dwarf->layout->getABITypeAlignment(type) << 3;
   
   symbols_composite(dwarf->symbols, g, offset, dwarf->frame->members,
     &scope);

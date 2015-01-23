@@ -45,7 +45,7 @@ void symbols_package(symbols_t* symbols, const char* path, const char* name);
 
 void symbols_basic(symbols_t* symbols, gentype_t* g);
 
-void symbols_pointer(symbols_t* symbols, const char* ptr, gentype_t* g);
+void symbols_pointer(symbols_t* symbols, gentype_t* ptr, gentype_t* g);
 
 void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope);
 
