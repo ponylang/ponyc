@@ -1,11 +1,11 @@
 #include "genobj.h"
+#include "../debug/dwarf.h"
 #include <llvm-c/BitWriter.h>
 
 const char* genobj(compile_t* c)
 {
   // Finalise the DWARF info.
-  // if(!dwarf_finalise(c->dwarf))
-  //   return NULL;
+  dwarf_finalise(c->dwarf);
 
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);

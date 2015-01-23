@@ -45,11 +45,13 @@ void symbols_package(symbols_t* symbols, const char* path, const char* name);
 
 void symbols_basic(symbols_t* symbols, gentype_t* g);
 
+void symbols_pointer(symbols_t* symbols, const char* ptr, gentype_t* g);
+
 void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope);
 
-void symbols_member(symbols_t* symbols, gentype_t* composite, gentype_t* field,
-  subnodes_t* subnodes, symbol_scope_t* scope, const char* name, bool priv, 
-  bool constant, size_t index);
+void symbols_member(symbols_t* symbols, gentype_t* field, subnodes_t* subnodes,
+  symbol_scope_t* scope, const char* name, bool priv, bool constant,
+  size_t index);
 
 void symbols_composite(symbols_t* symbols, gentype_t* g, size_t offset, 
   subnodes_t* subnodes, symbol_scope_t* scope);

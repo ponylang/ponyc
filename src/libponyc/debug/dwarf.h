@@ -29,7 +29,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g);
  * type (or boxed instances of tuples or primitive builtins) is dwarfed
  * as a simple pointer to type.
  */
-void dwarf_pointer(dwarf_t* dwarf, gentype_t* g);
+void dwarf_pointer(dwarf_t* dwarf, gentype_t* ptr, gentype_t* g);
 
 /**
  * Traits are dwarfed as composite types with no members, the actual debug
@@ -81,7 +81,7 @@ void dwarf_init(compile_t* c);
  * will not be included in the final binary without calling this 
  * finaliser. Frees all memory allocated during dwarfing.
  */
-void dwarf_shutdown(dwarf_t* d);
+void dwarf_finalise(dwarf_t* d);
 
 PONY_EXTERN_C_END
 

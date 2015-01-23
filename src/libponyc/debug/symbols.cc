@@ -40,13 +40,6 @@ struct subnodes_t
   size_t offset;
   DIType prelim;
   MDNode** children;
-  /*const char* name;
-  anchor_t* anchor;
-  gentype_t* type;
-
-  bool is_private;
-  size_t line;
-  size_t pos;*/
 };
 
 static uint64_t symbol_hash(symbol_t* symbol);
@@ -80,10 +73,9 @@ static bool symbol_cmp(symbol_t* a, symbol_t* b)
 
 static void symbol_free(symbol_t* symbol)
 {
-  // None of the symbols can be new, because we
-  // are not generating debug info for unused
-  // types.
-  assert((symbol->kind & SYMBOL_NEW) == 0);
+  // None of the symbols can be new, because we are not generating debug info
+  // for unused types.
+  //assert((symbol->kind & SYMBOL_NEW) == 0);
 
   if(symbol->kind == SYMBOL_LANG)
     POOL_FREE(anchor_t, symbol->anchor);
@@ -183,6 +175,8 @@ void symbols_declare(symbols_t* symbols, gentype_t* g, subnodes_t** members,
 
   if(symbol->kind & SYMBOL_NEW)
   {
+    printf("DWARF declare preliminary: %s\n", g->type_name);
+
     anchor_t* anchor = symbol->anchor;
     subnodes_t* nodes = *members = (subnodes_t*)malloc(sizeof(subnodes_t));
 
@@ -249,6 +243,8 @@ void symbols_basic(symbols_t* symbols, gentype_t* g)
       default: assert(0);
     }
   
+    printf("DWARF basic: %s\n", g->type_name);
+
     DIType type = symbols->builder->createBasicType(g->type_name, g->size,
       g->align, tag);
 
@@ -260,6 +256,24 @@ void symbols_basic(symbols_t* symbols, gentype_t* g)
     anchor->type = type;
     anchor->qualified = qualified;
   }
+}
+
+void symbols_pointer(symbols_t* symbols, const char* ptr, gentype_t* g)
+{
+  symbol_t* pointer = get_lang_anchor(symbols, ptr);
+  symbol_t* typearg = get_lang_anchor(symbols, g->type_name);
+  anchor_t* target = typearg->anchor;
+
+  // We must have seen the pointers target before. Also the target
+  // symbol is not preliminary, because the pointer itself is not
+  // preliminary.
+  assert((typearg->kind & SYMBOL_NEW) == 0);
+  assert(pointer->kind & SYMBOL_NEW);
+
+  printf("DWARF pointer: Pointer[%s]\n", g->type_name);
+
+  pointer->anchor->type = symbols->builder->createPointerType(target->type,
+    g->size, g->align);
 }
 
 void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
@@ -274,6 +288,8 @@ void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
     // some underlying runtime class.
     anchor_t* anchor = trait->anchor;
 
+    printf("DWARF trait: %s\n", g->type_name);
+
     DIType trait_type = symbols->builder->createClassType(symbols->unit,
       g->type_name, scope->file, (int)scope->line, g->size, g->align, 0, 0,
       DIType(), DIArray());
@@ -286,26 +302,25 @@ void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
   }
 }
 
-void symbols_member(symbols_t* symbols, gentype_t* composite, gentype_t* field,
-  subnodes_t* subnodes, symbol_scope_t* scope, const char* name, bool priv, 
-  bool constant, size_t index)
+void symbols_member(symbols_t* symbols, gentype_t* field, subnodes_t* subnodes,
+  symbol_scope_t* scope, const char* name, bool priv, bool constant, 
+  size_t index)
 {
   unsigned visibility = priv ? DW_ACCESS_private : DW_ACCESS_public;
 
   symbol_t* field_symbol = get_lang_anchor(symbols, field->type_name);
-  symbol_t* composite_symbol = get_lang_anchor(symbols, composite->type_name);
   
-  // We must have heard about the members type already. Also, the composite
-  // type is at least preliminary.
+  // We must have heard about the members type already.
   assert((field_symbol->kind & SYMBOL_NEW) == 0);
-  assert((composite_symbol->kind & SYMBOL_NEW) == 0);
 
   DIType use_type = DIType();
 
   if(constant)
-    use_type = composite_symbol->anchor->qualified;
+    use_type = field_symbol->anchor->qualified;
   else
-    use_type = composite_symbol->anchor->type;
+    use_type = field_symbol->anchor->type;
+
+  printf("DWARF member: %s\n", name);
 
   subnodes->children[index] = symbols->builder->createMemberType(symbols->unit,
     name, scope->file, (int)scope->line, field->size, field->align, 
@@ -322,18 +337,32 @@ void symbols_composite(symbols_t* symbols, gentype_t* g, size_t offset,
   assert(subnodes->prelim != NULL);
   
   DIType actual = DIType();
- 
+  DIArray fields = DIArray();
+  
+  if(subnodes->size > 0)
+  {
+    Value** members = (Value**)subnodes->children;
+
+    fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members, 
+      subnodes->size));
+  }
+
   if(g->underlying == TK_TUPLETYPE)
   {
+    printf("DWARF tuple type: %s\n", g->type_name);
+
     actual = symbols->builder->createStructType(symbols->unit, g->type_name,
-      DIFile(), 0, g->size, g->align, 0, DIType(), DIArray());
+      DIFile(), 0, g->size, g->align, 0, DIType(), fields);
   } else {
+    printf("DWARF class type: %s\n", g->type_name);
+
     actual = symbols->builder->createClassType(symbols->unit, g->type_name, 
       scope->file, (int)scope->line, g->size, g->align, offset, 0, DIType(),
-      DIArray());
+      fields);
   }
 
   subnodes->prelim.replaceAllUsesWith(actual);
+
   free(subnodes->children);
   free(subnodes);
 }
@@ -344,7 +373,7 @@ void symbols_finalise(symbols_t* symbols)
   {
     printf("Emitting debug symbols\n");
     assert(symbols->unit.Verify());
-    symbols->builder->finalize();
+    //symbols->builder->finalize();
   }
   
   symbolmap_destroy(&symbols->map);

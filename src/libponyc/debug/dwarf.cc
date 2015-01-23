@@ -135,20 +135,14 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
   symbols_basic(dwarf->symbols, g);
 }
 
-//TODO
-void dwarf_pointer(dwarf_t* dwarf, gentype_t* g)
+void dwarf_pointer(dwarf_t* dwarf, gentype_t* ptr, gentype_t* g)
 {
-  (void)dwarf;
+  Type* pointer = unwrap(g->use_type);
 
-  ast_t* type = g->ast;
+  g->size = dwarf->layout->getTypeSizeInBits(pointer);
+  g->align = dwarf->layout->getABITypeAlignment(pointer) << 3;
 
-  if(is_pointer(type))
-  {
-    ast_t* typeargs = ast_childidx(type, 2);
-    ast_t* target = ast_child(typeargs);
-
-    (void)target;
-  }
+  symbols_pointer(dwarf->symbols, ptr->type_name, g);
 }
 
 void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
@@ -199,7 +193,7 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   size_t index)
 {
-  const char* name = NULL;
+  const char* name = "anon";
   bool is_private = false;
   bool constant = false;
 
@@ -222,8 +216,8 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   symbol_scope_t scope;
   setup_dwarf(dwarf, field, &scope, false);
 
-  symbols_member(dwarf->symbols, composite, field, dwarf->frame->members,
-    &scope, name, is_private, constant, index);
+  symbols_member(dwarf->symbols, field, dwarf->frame->members, &scope,
+    name, is_private, constant, index);
 }
 
 void dwarf_init(compile_t* c)
@@ -234,7 +228,7 @@ void dwarf_init(compile_t* c)
   c->dwarf->frame = NULL;
 }
 
-void dwarf_shutdown(dwarf_t* dwarf)
+void dwarf_finalise(dwarf_t* dwarf)
 {
   symbols_finalise(dwarf->symbols);
   POOL_FREE(dwarf_t, dwarf);
