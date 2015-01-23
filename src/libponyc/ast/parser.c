@@ -208,10 +208,18 @@ DEF(object);
   SKIP(NULL, TK_END);
   DONE();
 
+// AS type ':'
+DEF(arraytype);
+  SKIP(NULL, TK_AS);
+  RULE("type", type);
+  SKIP(NULL, TK_COLON);
+  DONE();
+
 // (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
 DEF(array);
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
+  OPT RULE("element type", arraytype);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
   SKIP(NULL, TK_RSQUARE);
@@ -475,7 +483,7 @@ DEF(try_block);
   SKIP(NULL, TK_END);
   DONE();
 
-// '$try_no_check' seq [ELSE seq] [THEN seq] END
+// $TRY_NO_CHECK seq [ELSE seq] [THEN seq] END
 DEF(test_try_block);
   TOKEN(NULL, TK_TEST_TRY_NO_CHECK);
   MAP_ID(TK_TEST_TRY_NO_CHECK, TK_TRY_NO_CHECK);
@@ -495,27 +503,34 @@ DEF(recover);
   SKIP(NULL, TK_END);
   DONE();
 
-// CONSUME [CAP] term
+// CAP
+DEF(cap);
+  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  DONE();
+
+// $BORROWED
+DEF(test_borrowed);
+  TOKEN(NULL, TK_TEST_BORROWED);
+  MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
+  SET_FLAG(TEST_ONLY);
+  DONE();
+
+// CONSUME [cap | test_borrowed] term
 DEF(consume);
   TOKEN("consume", TK_CONSUME);
-  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT RULE("capability", cap, test_borrowed);
   RULE("expression", term);
   DONE();
 
-// (NOT | AMP) term
+// (NOT | AMP | MINUS | MINUS_NEW) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_AMP);
+  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS, TK_MINUS_NEW);
+  MAP_ID(TK_MINUS, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
   DONE();
 
-// (MINUS | MINUS_NEW) term
-DEF(prefixminus);
-  AST_NODE(TK_UNARY_MINUS);
-  SKIP(NULL, TK_MINUS, TK_MINUS_NEW);
-  RULE("value", term);
-  DONE();
-
-// '$seq' '(' rawseq ')'
+// $SEQ '(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq);
   SKIP(NULL, TK_TEST_SEQ);
@@ -525,7 +540,7 @@ DEF(test_seq);
   SET_FLAG(TEST_ONLY);
   DONE();
 
-// '$scope' '(' rawseq ')'
+// $SCOPE '(' rawseq ')'
 // For testing only, thrown out by parsefix
 DEF(test_seq_scope);
   SKIP(NULL, TK_TEST_SEQ_SCOPE);
@@ -540,7 +555,7 @@ DEF(test_seq_scope);
 // consume | prefix | prefixminus | postfix | test_SCOPE()
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with,
-    try_block, recover, consume, prefix, prefixminus, postfix, test_seq,
+    try_block, recover, consume, prefix, postfix, test_seq,
     test_seq_scope, test_try_block);
   DONE();
 

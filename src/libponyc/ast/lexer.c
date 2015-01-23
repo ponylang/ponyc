@@ -239,6 +239,7 @@ static const lexsym_t test_keywords[] =
   { "$scope", TK_TEST_SEQ_SCOPE },
   { "$seq", TK_TEST_SEQ },
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
+  { "$borrowed", TK_TEST_BORROWED },
 
   { NULL, (token_id)0 }
 };

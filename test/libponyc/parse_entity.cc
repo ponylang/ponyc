@@ -1,38 +1,41 @@
 #include <gtest/gtest.h>
-#include "parse_util.h"
+#include "util.h"
 
 
 // Parsing tests regarding entities, methods, fields and use commamnds
 
+#define TEST_AST(src, expect) DO(test_program_ast(src, "parsefix", expect))
+#define TEST_ERROR(src) DO(test_error(src, "parsefix"))
 
-class ParseEntityTest : public testing::Test
+
+class ParseEntityTest : public PassTest
 {};
 
 
 // Basic tests
 
-TEST(ParseEntityTest, Rubbish)
+TEST_F(ParseEntityTest, Rubbish)
 {
   const char* src = "rubbish";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, Empty)
+TEST_F(ParseEntityTest, Empty)
 {
   const char* src = "";
 
   const char* expect =
     "(program{scope} (package{scope} (module{scope})))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
 // Actors
 
-TEST(ParseEntityTest, ActorMinimal)
+TEST_F(ParseEntityTest, ActorMinimal)
 {
   const char* src = "actor Foo";
 
@@ -41,11 +44,11 @@ TEST(ParseEntityTest, ActorMinimal)
     "  (actor{scope} (id Foo) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ActorCApi)
+TEST_F(ParseEntityTest, ActorCApi)
 {
   const char* src = "actor @ Foo";
 
@@ -54,11 +57,11 @@ TEST(ParseEntityTest, ActorCApi)
     "  (actor{scope} (id Foo) x x x members @ x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ActorMaximal)
+TEST_F(ParseEntityTest, ActorMaximal)
 {
   const char* src =
     "actor Foo[A] is T"
@@ -86,11 +89,11 @@ TEST(ParseEntityTest, ActorMaximal)
     "    x \"Doc\"\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ActorCanBeCalledMain)
+TEST_F(ParseEntityTest, ActorCanBeCalledMain)
 {
   const char* src = "actor Main";
 
@@ -99,30 +102,30 @@ TEST(ParseEntityTest, ActorCanBeCalledMain)
     "  (actor{scope} (id Main) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ActorCannotSpecifyCapability)
+TEST_F(ParseEntityTest, ActorCannotSpecifyCapability)
 {
   const char* src = "actor box Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ActorCannotBeGenericAndCApi)
+TEST_F(ParseEntityTest, ActorCannotBeGenericAndCApi)
 {
   const char* src = "actor @ Foo[A]";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 
 // Classes
 
-TEST(ParseEntityTest, ClassMinimal)
+TEST_F(ParseEntityTest, ClassMinimal)
 {
   const char* src = "class Foo";
 
@@ -131,11 +134,11 @@ TEST(ParseEntityTest, ClassMinimal)
     "  (class{scope} (id Foo) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ClassMaximal)
+TEST_F(ParseEntityTest, ClassMaximal)
 {
   const char* src =
     "class Foo[A] box is T"
@@ -161,38 +164,38 @@ TEST(ParseEntityTest, ClassMaximal)
     "    x \"Doc\"\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ClassCannotBeCalledMain)
+TEST_F(ParseEntityTest, ClassCannotBeCalledMain)
 {
   const char* src = "class Main";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ClassCannotHaveBehaviour)
+TEST_F(ParseEntityTest, ClassCannotHaveBehaviour)
 {
   const char* src = "class Foo be m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ClassCannotBeCApi)
+TEST_F(ParseEntityTest, ClassCannotBeCApi)
 {
   const char* src = "class @ Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 
 // Primitives
 
-TEST(ParseEntityTest, PrimitiveMinimal)
+TEST_F(ParseEntityTest, PrimitiveMinimal)
 {
   const char* src = "primitive Foo";
 
@@ -201,11 +204,11 @@ TEST(ParseEntityTest, PrimitiveMinimal)
     "  (primitive{scope} (id Foo) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, PrimitiveMaximal)
+TEST_F(ParseEntityTest, PrimitiveMaximal)
 {
   const char* src =
     "primitive Foo[A] is T"
@@ -223,53 +226,53 @@ TEST(ParseEntityTest, PrimitiveMaximal)
     "    x \"Doc\"\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, PrimitiveCannotBeCalledMain)
+TEST_F(ParseEntityTest, PrimitiveCannotBeCalledMain)
 {
   const char* src = "primitive Main";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, PrimitiveCannotHaveFields)
+TEST_F(ParseEntityTest, PrimitiveCannotHaveFields)
 {
   const char* src = "primitive Foo var x:U32";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, PrimitiveCannotSpecifyCapability)
+TEST_F(ParseEntityTest, PrimitiveCannotSpecifyCapability)
 {
   const char* src = "primitive box Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, PrimitiveCannotHaveBehaviour)
+TEST_F(ParseEntityTest, PrimitiveCannotHaveBehaviour)
 {
   const char* src = "primitive Foo be m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, PrimitiveCannotBeCApi)
+TEST_F(ParseEntityTest, PrimitiveCannotBeCApi)
 {
   const char* src = "primitive @ Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Traits
 
-TEST(ParseEntityTest, TraitMinimal)
+TEST_F(ParseEntityTest, TraitMinimal)
 {
   const char* src = "trait Foo";
 
@@ -278,11 +281,11 @@ TEST(ParseEntityTest, TraitMinimal)
     "  (trait{scope} (id Foo) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, TraitMaximal)
+TEST_F(ParseEntityTest, TraitMaximal)
 {
   const char* src =
     "trait Foo[A] box is T"
@@ -300,45 +303,45 @@ TEST(ParseEntityTest, TraitMaximal)
     "    x \"Doc\"\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, TraitCannotBeCalledMain)
+TEST_F(ParseEntityTest, TraitCannotBeCalledMain)
 {
   const char* src = "trait Main";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitCannotHaveFields)
+TEST_F(ParseEntityTest, TraitCannotHaveFields)
 {
   const char* src = "trait Foo var x:U32";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitCannotHaveConstructor)
+TEST_F(ParseEntityTest, TraitCannotHaveConstructor)
 {
   const char* src = "trait Foo new m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitCannotBeCApi)
+TEST_F(ParseEntityTest, TraitCannotBeCApi)
 {
   const char* src = "trait @ Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Interfaces
 
-TEST(ParseEntityTest, InterfaceMinimal)
+TEST_F(ParseEntityTest, InterfaceMinimal)
 {
   const char* src = "interface Foo";
 
@@ -347,11 +350,11 @@ TEST(ParseEntityTest, InterfaceMinimal)
     "  (interface{scope} (id Foo) x x x members x x)\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, InterfaceMaximal)
+TEST_F(ParseEntityTest, InterfaceMaximal)
 {
   const char* src =
     "interface Foo[A] box is T"
@@ -369,66 +372,68 @@ TEST(ParseEntityTest, InterfaceMaximal)
     "    x \"Doc\"\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, InterfaceCannotBeCalledMain)
+TEST_F(ParseEntityTest, InterfaceCannotBeCalledMain)
 {
   const char* src = "interface Main";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, InterfaceCannotHaveFields)
+TEST_F(ParseEntityTest, InterfaceCannotHaveFields)
 {
   const char* src = "interface Foo var x:U32";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, InterfaceCannotHaveConstructor)
+TEST_F(ParseEntityTest, InterfaceCannotHaveConstructor)
 {
   const char* src = "interface Foo new m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, InterfaceCannotBeCApi)
+TEST_F(ParseEntityTest, InterfaceCannotBeCApi)
 {
   const char* src = "interface @ Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Aliases
 
-TEST(ParseEntityTest, Alias)
+TEST_F(ParseEntityTest, Alias)
 {
   const char* src = "type Foo is Bar";
   const char* expect =
     "(program{scope} (package{scope} (module{scope}\n"
-    "  (type (id Foo) (nominal x (id Bar) x x x)))))";
+    "  (type{scope} (id Foo) x x\n"
+    "    (types (nominal x (id Bar) x x x))\n"
+    "    members x x))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, AliasMustHaveType)
+TEST_F(ParseEntityTest, AliasMustHaveType)
 {
   const char* src = "type Foo";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Functions
 
-TEST(ParseEntityTest, FunctionMinimal)
+TEST_F(ParseEntityTest, FunctionMinimal)
 {
   const char* src = "class Foo fun ref apply() => 3";
 
@@ -440,11 +445,11 @@ TEST(ParseEntityTest, FunctionMinimal)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, FunctionMaximal)
+TEST_F(ParseEntityTest, FunctionMaximal)
 {
   const char* src = "actor Foo fun ref m[A](y:U32):I16 ? => 3";
 
@@ -459,19 +464,19 @@ TEST(ParseEntityTest, FunctionMaximal)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, FunctionCannotHaveEllipsis)
+TEST_F(ParseEntityTest, FunctionCannotHaveEllipsis)
 {
   const char* src = "class Foo ref fun m(x:U32, ...) => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitFunctionBodiesAreOptional)
+TEST_F(ParseEntityTest, TraitFunctionBodiesAreOptional)
 {
   const char* src = "trait Foo fun ref m()";
 
@@ -483,11 +488,11 @@ TEST(ParseEntityTest, TraitFunctionBodiesAreOptional)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, InterfaceFunctionBodiesAreOptional)
+TEST_F(ParseEntityTest, InterfaceFunctionBodiesAreOptional)
 {
   const char* src = "interface Foo fun ref m()";
 
@@ -499,53 +504,53 @@ TEST(ParseEntityTest, InterfaceFunctionBodiesAreOptional)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ClassFunctionMustHaveBody)
+TEST_F(ParseEntityTest, ClassFunctionMustHaveBody)
 {
   const char* src = "class Foo fun ref m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ClassFunctionCannotBeCCallable)
+TEST_F(ParseEntityTest, ClassFunctionCannotBeCCallable)
 {
   const char* src = "class Foo fun ref @m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, PrimitiveFunctionCannotBeCCallable)
+TEST_F(ParseEntityTest, PrimitiveFunctionCannotBeCCallable)
 {
   const char* src = "primitive Foo fun ref @m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitFunctionCannotBeCCallable)
+TEST_F(ParseEntityTest, TraitFunctionCannotBeCCallable)
 {
   const char* src = "trait Foo fun ref @m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, InterfaceFunctionCannotBeCCallable)
+TEST_F(ParseEntityTest, InterfaceFunctionCannotBeCCallable)
 {
   const char* src = "interface Foo fun ref @m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Behaviours
 
-TEST(ParseEntityTest, Behaviour)
+TEST_F(ParseEntityTest, Behaviour)
 {
   const char* src = "actor Foo be m() => 3";
 
@@ -557,51 +562,51 @@ TEST(ParseEntityTest, Behaviour)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, BehaviourCannotHaveCapability)
+TEST_F(ParseEntityTest, BehaviourCannotHaveCapability)
 {
   const char* src = "actor Foo be ref m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, BehaviourCannotHaveEllipsis)
+TEST_F(ParseEntityTest, BehaviourCannotHaveEllipsis)
 {
   const char* src = "actor Foo be m(x:U32, ...) => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, BehaviourCannotHaveReturnType)
+TEST_F(ParseEntityTest, BehaviourCannotHaveReturnType)
 {
   const char* src = "actor Foo be m():U32 => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, BehaviourCannotBePartial)
+TEST_F(ParseEntityTest, BehaviourCannotBePartial)
 {
   const char* src = "actor Foo be m() ? => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ActorBehaviourMustHaveBody)
+TEST_F(ParseEntityTest, ActorBehaviourMustHaveBody)
 {
   const char* src = "actor Foo be m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, TraitBehaviourBodiesAreOptional)
+TEST_F(ParseEntityTest, TraitBehaviourBodiesAreOptional)
 {
   const char* src = "trait Foo be m()";
 
@@ -613,11 +618,11 @@ TEST(ParseEntityTest, TraitBehaviourBodiesAreOptional)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, InterfaceBehaviourBodiesAreOptional)
+TEST_F(ParseEntityTest, InterfaceBehaviourBodiesAreOptional)
 {
   const char* src = "interface Foo be m()";
 
@@ -629,29 +634,29 @@ TEST(ParseEntityTest, InterfaceBehaviourBodiesAreOptional)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, TraitBehaviourCannotBeCCallable)
+TEST_F(ParseEntityTest, TraitBehaviourCannotBeCCallable)
 {
   const char* src = "trait Foo be ref @m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, InterfaceBehaviourCannotBeCCallable)
+TEST_F(ParseEntityTest, InterfaceBehaviourCannotBeCCallable)
 {
   const char* src = "interface Foo be ref @m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Constructors
 
-TEST(ParseEntityTest, ConstructorMinimal)
+TEST_F(ParseEntityTest, ConstructorMinimal)
 {
   const char* src = "class Foo new create() => 3";
 
@@ -663,11 +668,11 @@ TEST(ParseEntityTest, ConstructorMinimal)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, ConstructorMaximal)
+TEST_F(ParseEntityTest, ConstructorMaximal)
 {
   const char* src = "class Foo new m[A](y:U32) ? => 3";
 
@@ -682,97 +687,97 @@ TEST(ParseEntityTest, ConstructorMaximal)
     "    x x\n"
     "))))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, PrimitiveConstructorCannotHaveCapability)
+TEST_F(ParseEntityTest, PrimitiveConstructorCannotHaveCapability)
 {
   const char* src = "primitive Foo new val m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ActorConstructorCannotHaveCapability)
+TEST_F(ParseEntityTest, ActorConstructorCannotHaveCapability)
 {
   const char* src = "actor Foo new tag m() => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ConstructorCannotHaveEllipsis)
+TEST_F(ParseEntityTest, ConstructorCannotHaveEllipsis)
 {
   const char* src = "class Foo new m(x:U32, ...) => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ConstructorCannotHaveReturnType)
+TEST_F(ParseEntityTest, ConstructorCannotHaveReturnType)
 {
   const char* src = "class Foo new m():U32 => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ActorConstructorCannotBePartial)
+TEST_F(ParseEntityTest, ActorConstructorCannotBePartial)
 {
   const char* src = "actor Foo new m() ? => 3";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, ConstructorMustHaveBody)
+TEST_F(ParseEntityTest, ConstructorMustHaveBody)
 {
   const char* src = "class Foo new m()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Double arrow
 
-TEST(ParseEntityTest, DoubleArrowMissing)
+TEST_F(ParseEntityTest, DoubleArrowMissing)
 {
   const char* src = "class Foo fun ref f() 1";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, DoubleArrowWithoutBody)
+TEST_F(ParseEntityTest, DoubleArrowWithoutBody)
 {
   const char* src = "class Foo fun ref f() =>";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Field tests
 
-TEST(ParseEntityTest, FieldMustHaveType)
+TEST_F(ParseEntityTest, FieldMustHaveType)
 {
   const char* src = "class Foo var bar";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, LetFieldMustHaveType)
+TEST_F(ParseEntityTest, LetFieldMustHaveType)
 {
   const char* src = "class Foo let bar";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
 // Use command
 
-TEST(ParseEntityTest, UseUri)
+TEST_F(ParseEntityTest, UseUri)
 {
   const char* src =
     "use \"foo1\" "
@@ -788,11 +793,11 @@ TEST(ParseEntityTest, UseUri)
     "  (use (id bar) \"foo4\" (reference (id wombat)))\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, UseFfi)
+TEST_F(ParseEntityTest, UseFfi)
 {
   const char* src =
     "use @foo1[U32](a:I32, b:String, ...) ?"
@@ -812,43 +817,43 @@ TEST(ParseEntityTest, UseFfi)
     "    x x x) (reference (id wombat)))\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, UseFfiMustHaveReturnType)
+TEST_F(ParseEntityTest, UseFfiMustHaveReturnType)
 {
   const char* src = "use @foo()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, UseFfiMustHaveOnlyOneReturnType)
+TEST_F(ParseEntityTest, UseFfiMustHaveOnlyOneReturnType)
 {
   const char* src = "use @foo[U8, U16]()";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, UseFfiCannotHaveDefaultArguments)
+TEST_F(ParseEntityTest, UseFfiCannotHaveDefaultArguments)
 {
   const char* src = "use @foo[U32](x:U32 = 3)";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, UseFfiEllipsisMustBeLast)
+TEST_F(ParseEntityTest, UseFfiEllipsisMustBeLast)
 {
   const char* src = "use @foo[U32](a:U32, ..., b:U32)";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }
 
 
-TEST(ParseEntityTest, UseGuardsAreExpressions)
+TEST_F(ParseEntityTest, UseGuardsAreExpressions)
 {
   const char* src = "use \"foo\" if a and b";
 
@@ -857,11 +862,11 @@ TEST(ParseEntityTest, UseGuardsAreExpressions)
     "  (use x \"foo\" (and (reference (id a)) (reference (id b))))\n"
     ")))";
 
-  DO(parse_test_good(src, expect));
+  TEST_AST(src, expect);
 }
 
 
-TEST(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
+TEST_F(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
 {
   const char* src1 = "use \"foo\" if (a and b) or c";
 
@@ -873,17 +878,17 @@ TEST(ParseEntityTest, UseGuardsDoNotSupportOperatorPrecedence)
     "     (reference (id c))))\n"
     ")))";
 
-  DO(parse_test_good(src1, expect1));
+  TEST_AST(src1, expect1);
 
   const char* src2 = "use \"foo\" where a and b or c";
 
-  DO(parse_test_bad(src2));
+  TEST_ERROR(src2);
 }
 
 
-TEST(ParseEntityTest, UseMustBeBeforeClass)
+TEST_F(ParseEntityTest, UseMustBeBeforeClass)
 {
   const char* src = "class Foo use \"foo\"";
 
-  DO(parse_test_bad(src));
+  TEST_ERROR(src);
 }

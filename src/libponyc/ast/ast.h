@@ -269,8 +269,8 @@ Children are (in order) pattern, guard, body.
 atom
 ----
 (
-  TUPLE: [POSITIONALARGS] [NAMEDARGS]
-  ARRAY: [POSITIONALARGS] [NAMEDARGS]
+  TUPLE: {expr}
+  ARRAY: [TYPE] {expr}
   OBJECT: [TYPES] MEMBERS
   THIS: no children
   INT: no children
