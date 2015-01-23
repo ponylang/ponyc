@@ -60,28 +60,28 @@ static void pop_frame(dwarf_t* dwarf)
  * of tuple types is lexically unscoped, because tuple type names are
  * ambiguous.
  */
-static void setup_dwarf(dwarf_t* dwarf, gentype_t* g, symbol_scope_t* scope, 
-  bool definition)
+static void setup_dwarf(dwarf_t* dwarf, gentype_t* g, LLVMTypeRef typeref, 
+  symbol_scope_t* scope, bool definition, bool prelim)
 {
   ast_t* ast = g->ast;
-  Type* type = unwrap(g->use_type);
+  Type* type = unwrap(typeref);
 
   memset(scope, 0, sizeof(symbol_scope_t));
    
-  if(definition)
+  if(definition && ast_id(ast) != TK_TUPLETYPE)
   {
-    if(g->underlying != TK_TUPLETYPE)
-    {
-      ast = (ast_t*)ast_data(g->ast);
-      ast_t* module = ast_nearest(ast, TK_MODULE);
-      source_t* source = (source_t*)ast_data(module);
+    ast = (ast_t*)ast_data(ast);
+    ast_t* module = ast_nearest(ast, TK_MODULE);
+    source_t* source = (source_t*)ast_data(module);
 
-      scope->file = symbols_file(dwarf->symbols, source->file);
-    }
-  } else {
+    scope->file = symbols_file(dwarf->symbols, source->file); 
+  } 
+
+  if(!prelim)
+  {
     g->size = dwarf->layout->getTypeSizeInBits(type);
     g->align = dwarf->layout->getABITypeAlignment(type) << 3;
-  } 
+  }
 
   scope->line = ast_line(ast);
   scope->pos = ast_pos(ast);
@@ -103,6 +103,8 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
   if(!symbols_known_type(dwarf->symbols, g->type_name))
   {
     frame_t* frame = push_frame(dwarf);
+    
+    LLVMTypeRef typeref = g->structure;
     size_t size = g->field_count;
     
     // The field count for non-tuple types does not contain
@@ -116,12 +118,14 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 
       ast_t* def = (ast_t*)ast_data(g->ast);
       size += ast_childcount(ast_childidx(def, 4)) - size;
+    } else {
+      typeref = g->primitive;
     }
       
     frame->size = size;
     
     symbol_scope_t scope;
-    setup_dwarf(dwarf, g, &scope, true);
+    setup_dwarf(dwarf, g, typeref, &scope, true, true);
 
     symbols_declare(dwarf->symbols, g, &frame->members, size, &scope);
   }
@@ -133,7 +137,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
   // unit scope and their size and ABI alignment depends
   // on the primitive structure.
   symbol_scope_t scope;
-  setup_dwarf(dwarf, g, &scope, true);
+  setup_dwarf(dwarf, g, g->primitive, &scope, false, false);
 
   symbols_basic(dwarf->symbols, g);
 }
@@ -141,7 +145,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* ptr, gentype_t* g)
 {
   symbol_scope_t scope;
-  setup_dwarf(dwarf, ptr, &scope, false);
+  setup_dwarf(dwarf, ptr, ptr->use_type, &scope, false, false);
 
   symbols_pointer(dwarf->symbols, ptr, g);
 }
@@ -153,16 +157,13 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   // inherit. There is no need to set the size and
   // align to 0, because gentype_t was memset.
   symbol_scope_t scope;
-  setup_dwarf(dwarf, g, &scope, true);
+  setup_dwarf(dwarf, g, g->use_type, &scope, true, false);
 
   symbols_trait(dwarf->symbols, g, &scope);
 }
 
 void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
 {
-  symbol_scope_t scope;
-  setup_dwarf(dwarf, g, &scope, true);
-
   size_t offset = 0;
 
   switch(g->underlying)
@@ -173,15 +174,14 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
     default: {}
   }
 
-  Type* type = NULL;
+  LLVMTypeRef typeref = g->structure;
 
   if(g->underlying == TK_TUPLETYPE)
-  {
-    type = unwrap(g->primitive);
-  } else {
-    type = unwrap(g->structure);
-  }
+    typeref = g->primitive;
   
+  symbol_scope_t scope;
+  setup_dwarf(dwarf, g, typeref, &scope, true, false);
+
   symbols_composite(dwarf->symbols, g, offset, dwarf->frame->members,
     &scope);
 
@@ -212,7 +212,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   }
 
   symbol_scope_t scope;
-  setup_dwarf(dwarf, field, &scope, false);
+  setup_dwarf(dwarf, field, field->use_type, &scope, false, false);
 
   symbols_member(dwarf->symbols, field, dwarf->frame->members, &scope,
     name, is_private, constant, index);
