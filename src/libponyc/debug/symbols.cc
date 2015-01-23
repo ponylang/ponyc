@@ -373,7 +373,7 @@ void symbols_finalise(symbols_t* symbols)
   {
     printf("Emitting debug symbols\n");
     assert(symbols->unit.Verify());
-    //symbols->builder->finalize();
+    symbols->builder->finalize();
   }
   
   symbolmap_destroy(&symbols->map);
