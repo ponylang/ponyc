@@ -1,5 +1,4 @@
 #include "parsefix.h"
-#include "../ast/id.h"
 #include "../ast/parser.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
@@ -215,9 +214,6 @@ static bool check_method(ast_t* ast, int method_def_index)
   if(!check_permission(def, METHOD_BODY, body, "body", ast))
     return false;
 
-  if(!check_id_method(id))
-    return false;
-
   if(ast_id(docstring) == TK_STRING)
   {
     if(ast_id(body) != TK_NONE)
@@ -229,7 +225,6 @@ static bool check_method(ast_t* ast, int method_def_index)
   } else {
     ast_t* first = ast_child(body);
 
-    // TODO: Move this to sugar pass
     if((first != NULL) &&
       (ast_id(first) == TK_STRING) &&
       (ast_sibling(first) != NULL)
@@ -264,10 +259,6 @@ static bool check_members(ast_t* members, int entity_def_index)
           ast_error(member, "Can't have fields in %s", def->desc);
           return false;
         }
-
-        if(!check_id_field(ast_child(member)))
-          return false;
-
         break;
 
       case TK_NEW:
@@ -318,9 +309,6 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     return AST_ERROR;
   }
 
-  if(!check_id_type(id, def->desc))
-    return AST_ERROR;
-
   if(!check_permission(def, ENTITY_CAP, defcap, "default capability", defcap))
     return AST_ERROR;
 
@@ -338,9 +326,7 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     // Check referenced traits
     if(!check_traits(provides))
       return AST_ERROR;
-  }
-  else
-  {
+  } else {
     // Check for a single type alias
     if(ast_childcount(provides) != 1)
     {
@@ -385,7 +371,8 @@ static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
 
   if((t->frame->method_type == NULL) &&
     (t->frame->ffi_type == NULL) &&
-    (t->frame->as_type == NULL))
+    (t->frame->as_type == NULL)
+    )
   {
     ast_error(ast,
       "ephemeral types can only appear in 'as' expression types and function "
@@ -448,9 +435,6 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
-
-  if(ast_id(id) == TK_ID && !check_id_ffi(id))
-    return AST_ERROR;
 
   if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)
@@ -596,41 +580,57 @@ static ast_result_t parse_fix_semi(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_local(ast_t* ast)
+static ast_result_t parse_fix_id(ast_t* ast)
 {
-  if(!check_id_local(ast_child(ast)))
-    return AST_ERROR;
+  const char* p = ast_name(ast);
+  ast_result_t r = AST_OK;
 
-  return AST_OK;
-}
+  bool has_underscore = false;
+  bool has_prime = false;
+  bool err_double_underscore = false;
+  bool err_prime = false;
 
+  while(*p != '\0')
+  {
+    switch(*p)
+    {
+      case '_':
+        if(has_underscore && !err_double_underscore)
+        {
+          ast_error(ast, "double underscore is not allowed in identifiers");
+          err_double_underscore = true;
+          r = AST_ERROR;
+        }
 
-static ast_result_t parse_fix_param(ast_t* ast)
-{
-  if(!check_id_param(ast_child(ast)))
-    return AST_ERROR;
+        has_underscore = true;
+        break;
 
-  return AST_OK;
-}
+      case '\'':
+        has_prime = true;
+        break;
 
+      default:
+        has_underscore = false;
 
-static ast_result_t parse_fix_type_param(ast_t* ast)
-{
-  if(!check_id_type_param(ast_child(ast)))
-    return AST_ERROR;
+        if(has_prime && !err_prime)
+        {
+          ast_error(ast, "prime (') can only appear at the end of identifiers");
+          err_prime = true;
+          r = AST_ERROR;
+        }
+        break;
+    }
 
-  return AST_OK;
-}
+    p++;
+  }
 
+  if(has_underscore)
+  {
+    ast_error(ast, "a trailing underscore is not allowed in identifiers");
+    r = AST_ERROR;
+  }
 
-static ast_result_t parse_fix_use(ast_t* ast)
-{
-  ast_t* id = ast_child(ast);
-
-  if(ast_id(id) != TK_NONE && !check_id_package(id))
-    return AST_ERROR;
-
-  return AST_OK;
+  return r;
 }
 
 
@@ -684,10 +684,7 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_BREAK:      r = parse_fix_return(ast, 1); break;
     case TK_CONTINUE:
     case TK_ERROR:      r = parse_fix_return(ast, 0); break;
-    case TK_IDSEQ:      r = parse_fix_local(ast); break;
-    case TK_PARAM:      r = parse_fix_param(ast); break;
-    case TK_TYPEPARAM:  r = parse_fix_type_param(ast); break;
-    case TK_USE:        r = parse_fix_use(ast); break;
+    case TK_ID:         r = parse_fix_id(ast); break;
     default: break;
   }
 

@@ -303,6 +303,29 @@ TEST_F(ScopeTest, Type)
 }
 
 
+TEST_F(ScopeTest, NonTypeCannotHaveTypeName)
+{
+  const char* tree =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id Bar) x x x"
+    "    (members (fvar (id Foo) x x))))))";
+
+  DO(build(tree));
+  ASSERT_EQ(AST_ERROR, run_scope());
+}
+
+
+TEST_F(ScopeTest, TypeCannotHaveNonTypeName)
+{
+  const char* tree =
+    "(program{scope} (package{scope} (module{scope}"
+    "  (class{scope} (id rar) x x x x))))";
+
+  DO(build(tree));
+  ASSERT_EQ(AST_ERROR, run_scope());
+}
+
+
 TEST_F(ScopeTest, SameScopeNameClash)
 {
   const char* tree =
