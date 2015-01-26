@@ -6,6 +6,8 @@
 #include "../../libponyrt/mem/pool.h"
 #include "../../libponyrt/pony.h"
 
+#include <platform.h>
+
 #define OFFSET_CLASS (sizeof(void*) * 8)
 #define OFFSET_ACTOR (sizeof(pony_actor_pad_t) * 8)
 
@@ -29,7 +31,7 @@ struct dwarf_t
 };
 
 /**
- * Every call to dwarf_forward causes a dwarf_frame_t to be pushed onto
+ * Every call to dwarf_forward causes a frame_t to be pushed onto
  * the stack.
  */
 static frame_t* push_frame(dwarf_t* dwarf)
@@ -44,7 +46,7 @@ static frame_t* push_frame(dwarf_t* dwarf)
 }
 
 /**
- * Every call to dwarf_composite causes a dwarf_frame_t to be popped from
+ * Every call to dwarf_composite causes a frame_t to be popped from
  * the stack.
  */
 static void pop_frame(dwarf_t* dwarf)
@@ -112,10 +114,6 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
     // just like fields.
     if(g->underlying != TK_TUPLETYPE)
     {
-      /*Type* ptr = unwrap(g->structure_ptr);
-      g->size = dwarf->layout->getTypeSizeInBits(ptr);
-      g->align = dwarf->layout->getABITypeAlignment(ptr) << 3;*/
-
       ast_t* def = (ast_t*)ast_data(g->ast);
       size += ast_childcount(ast_childidx(def, 4)) - size;
     } else {
@@ -191,11 +189,14 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   size_t index)
 {
-  const char* name = "anon";
+  char buf[32];
+  memset(buf, 0, sizeof(buf));
+
+  const char* name = NULL;
+  
   bool is_private = false;
   bool constant = false;
 
-  // TK_TUPLETYPE fields are anonymous.
   if(composite->underlying != TK_TUPLETYPE)
   {
     ast_t* def = (ast_t*)ast_data(composite->ast);
@@ -209,6 +210,9 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
 
     name = ast_name(ast_child(field));
     is_private = name[0] == '_';
+  } else {
+    snprintf(buf, sizeof(buf), "_" __zu, index);
+    name = buf;
   }
 
   symbol_scope_t scope;
