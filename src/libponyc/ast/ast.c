@@ -274,6 +274,11 @@ void ast_setid(ast_t* ast, token_id id)
   token_set_id(ast->t, id);
 }
 
+void ast_setpos(ast_t* ast, size_t line, size_t pos)
+{
+  token_set_pos(ast->t, line, pos);
+}
+
 token_id ast_id(ast_t* ast)
 {
   return token_get_id(ast->t);

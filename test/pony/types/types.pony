@@ -1,6 +1,8 @@
 use "files"
 use "collections"
 
+primitive PrimParam[A]
+
 trait K1
   new tag create()
 
@@ -35,6 +37,14 @@ class Wombat3[A: K2]
 
 actor Main
   new create(env: Env) =>
+    let p1 = PrimParam[Wombat]
+    let p2 = PrimParam[Wombat2]
+    let p3 = PrimParam[Wombat2]
+
+    env.out.print((p1 is p2).string())
+    env.out.print((p1 is p3).string())
+    env.out.print((p2 is p3).string())
+
     Wombat3[Wombat]()()
 
     let wombat: (T1 & T2) = Wombat
