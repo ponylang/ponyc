@@ -195,25 +195,29 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
   while(r_typeparam != NULL)
   {
     // Use the reified constraint.
-    ast_t* constraint = ast_childidx(r_typeparam, 1);
-    constraint = alias_bind(constraint);
+    ast_t* r_constraint = ast_childidx(r_typeparam, 1);
+    r_constraint = alias_bind(r_constraint);
 
     // A bound type must be a subtype of the constraint.
-    if(!is_subtype(typearg, constraint))
+    if(!is_subtype(typearg, r_constraint))
     {
       if(report_errors)
       {
         ast_error(typearg, "type argument is outside its constraint");
         ast_error(typearg, "argument: %s", ast_print_type(typearg));
-        ast_error(typeparam, "constraint: %s", ast_print_type(constraint));
+        ast_error(typeparam, "constraint: %s", ast_print_type(r_constraint));
       }
 
       ast_free_unattached(r_typeparams);
-      ast_free_unattached(constraint);
+      ast_free_unattached(r_constraint);
       return false;
     }
 
+    ast_free_unattached(r_constraint);
+
     // A constructable constraint can only be fulfilled by a concrete typearg.
+    ast_t* constraint = ast_childidx(typeparam, 1);
+
     if(is_constructable(constraint) && !is_concrete(typearg))
     {
       if(report_errors)
@@ -225,11 +229,8 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
       }
 
       ast_free_unattached(r_typeparams);
-      ast_free_unattached(constraint);
       return false;
     }
-
-    ast_free_unattached(constraint);
 
     r_typeparam = ast_sibling(r_typeparam);
     typeparam = ast_sibling(typeparam);

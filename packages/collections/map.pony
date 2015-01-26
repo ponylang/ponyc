@@ -182,8 +182,8 @@ class MapHash[K, V, H: HashFunction[K] val]
     """
     Double the available space.
     """
-    let _old = _array
-    let old_len = _old.size()
+    let old = _array
+    let old_len = old.size()
     let new_len = old_len * 2
 
     _array = _array.create(new_len)
@@ -195,7 +195,7 @@ class MapHash[K, V, H: HashFunction[K] val]
 
     try
       for i in Range(0, old_len) do
-        match _old(i) = _MapDeleted
+        match old(i) = _MapDeleted
         | (let k: K, let v: V) =>
           this(consume k) = consume v
         end

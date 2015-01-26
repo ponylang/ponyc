@@ -37,7 +37,7 @@ class Wombat3[A: K2]
 
 actor Main
   new create(env: Env) =>
-    let p1 = PrimParam[Wombat]
+    let p1 = PrimParam[K1]
     let p2 = PrimParam[Wombat2]
     let p3 = PrimParam[Wombat2]
 
