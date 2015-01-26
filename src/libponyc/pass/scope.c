@@ -17,23 +17,27 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
   const char* s = ast_name(name);
 
   sym_status_t status = SYM_NONE;
+  bool is_type = false;
+  bool is_id = false;
+  bool prime_ok = false;
 
   switch(ast_id(value))
   {
     case TK_ID:
+    {
       if((t != NULL) && (t->frame->pattern != NULL))
         status = SYM_DEFINED;
       else
         status = SYM_UNDEFINED;
-      break;
 
-    case TK_FVAR:
-    case TK_FLET:
-    case TK_PARAM:
-      status = SYM_DEFINED;
+      is_id = true;
+      prime_ok = true;
       break;
+    }
 
     case TK_FFIDECL:
+      break;
+
     case TK_TYPE:
     case TK_INTERFACE:
     case TK_TRAIT:
@@ -41,15 +45,71 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
     case TK_CLASS:
     case TK_ACTOR:
     case TK_TYPEPARAM:
+      is_type = true;
+      break;
+
+    case TK_FVAR:
+    case TK_FLET:
+      status = SYM_DEFINED;
+      is_id = true;
+      break;
+
+    case TK_PARAM:
+      status = SYM_DEFINED;
+      is_id = true;
+      prime_ok = true;
+      break;
+
     case TK_PACKAGE:
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
+      is_id = true;
       break;
 
     default:
       assert(0);
       return false;
+  }
+
+  if(is_type)
+  {
+    if(!is_type_name(s) && (s[0] != '$'))
+    {
+      ast_error(name, "type names must start A-Z or _(A-Z)");
+      return false;
+    }
+
+    // The first character can be an underscore.
+    const char* p = s + 1;
+
+    while(*p != '\0')
+    {
+      if(*p == '_')
+      {
+        ast_error(name, "type names must not have underscores in them");
+        return false;
+      }
+
+      p++;
+    }
+  }
+
+  if(is_id && is_type_name(s))
+  {
+    ast_error(name, "identifiers can't start A-Z or _(A-Z)");
+    return false;
+  }
+
+  if(!prime_ok)
+  {
+    size_t last = strlen(s) - 1;
+
+    if(s[last] == '\'')
+    {
+      ast_error(name, "only parameters and locals can contain prime (')");
+      return false;
+    }
   }
 
   if(!ast_set(scope, s, value, status))
