@@ -142,13 +142,14 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, package, id, typeparams, cap, eph);
-
-  // A constraint without a capability is left alone, otherwise set the
-  // default capability for the type.
   token_id tcap = ast_id(cap);
 
-  if(t->frame->constraint != NULL)
+  if((tcap == TK_NONE) && (ast_id(def) == TK_PRIMITIVE))
   {
+    // A primitive without a capability is a val, even if it is a constraint.
+    tcap = TK_VAL;
+  } else if(t->frame->constraint != NULL) {
+    // A constraint is modified to a generic capability.
     switch(tcap)
     {
       case TK_NONE: tcap = TK_ANY_GENERIC; break;
@@ -157,10 +158,8 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
       default: {}
     }
   } else if(tcap == TK_NONE) {
-    if(ast_id(def) == TK_PRIMITIVE)
-      tcap = TK_VAL;
-    else
-      tcap = ast_id(ast_childidx(def, 2));
+    // Otherwise, we use the default capability.
+    tcap = ast_id(ast_childidx(def, 2));
   }
 
   ast_setid(cap, tcap);
