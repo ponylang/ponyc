@@ -33,35 +33,21 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     _map(value)
 
-  fun ref insert(value: A): HashSet[A, H]^ =>
+  fun ref add(value: A): HashSet[A, H]^ =>
     """
     Add a value to the set.
     """
     _map(value) = consume value
     this
 
-  fun ref remove(value: A!): A^ ? =>
+  fun ref sub(value: A!): A^ ? =>
     """
     Delete a value from the set and return it. Raises an error if the value
     wasn't in the set.
     """
     _map.remove(value)
 
-  fun clone[K: HashFunction[this->A!] val = H](): HashSet[this->A!, K]^ =>
-    """
-    Create a clone. The element type may be different due to aliasing and
-    viewpoint adaptation.
-    """
-    let r = HashSet[this->A!, K]
-
-    try
-      for value in values() do
-        r.insert(value)
-      end
-    end
-    r
-
-  fun union[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -71,12 +57,12 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
 
     try
       for value in that.values() do
-        r.insert(value)
+        r + value
       end
     end
     r
 
-  fun isect[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun op_and[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
   =>
     """
@@ -88,7 +74,34 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
       for value in values() do
         try
           that(value)
-          r.insert(value)
+          r + value
+        end
+      end
+    end
+    r
+
+  fun op_xor[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+    HashSet[this->A!, K]^
+  =>
+    """
+    Create a set with the elements that are in either set but not both.
+    """
+    let r = HashSet[this->A!, K]
+
+    try
+      for value in values() do
+        try
+          that(value)
+        else
+          r + value
+        end
+      end
+
+      for value in that.values() do
+        try
+          this(value)
+        else
+          r + value
         end
       end
     end
@@ -107,8 +120,22 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
         try
           that(value)
         else
-          r.insert(value)
+          r + value
         end
+      end
+    end
+    r
+
+  fun clone[K: HashFunction[this->A!] val = H](): HashSet[this->A!, K]^ =>
+    """
+    Create a clone. The element type may be different due to aliasing and
+    viewpoint adaptation.
+    """
+    let r = HashSet[this->A!, K]
+
+    try
+      for value in values() do
+        r + value
       end
     end
     r

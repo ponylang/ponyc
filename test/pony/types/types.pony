@@ -107,8 +107,7 @@ actor Main
     try (wombat as Wombat2)(_env) end
 
   fun ref test_tuple_map() =>
-    let map = Map[String, (U64, U64)]
-    map("hi") = (1, 2)
+    let map = Map[String, (U64, U64)] + ("hi", (1, 2)) + ("bye", (3, 4))
 
     try
       let (x, y) = map("hi")
@@ -122,7 +121,8 @@ actor Main
     end
 
   fun ref test_set() =>
-    var set1 = Set[String]
-    var set2 = Set[String]
-    var set3 = set1.union(set2)
+    var set1 = Set[String] + "hi"
+    var set2 = Set[String] + "there" + "hi"
+    var set3 = set1 or set2
+    var set4 = set1 xor set2
     set1 = set3

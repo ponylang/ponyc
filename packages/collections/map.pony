@@ -118,6 +118,23 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
+  fun ref add(kv: (K, V)): HashMap[K, V, H]^ =>
+    """
+    Set a value in the map using +. Return the map, allowing chaining.
+    """
+    let (k, v) = consume kv
+    this(consume k) = consume v
+    this
+
+  fun ref sub(key: K!): HashMap[K, V, H]^ =>
+    """
+    Remove a value from the map using -. Return the map, allowing chaining.
+    """
+    try
+      remove(key)
+    end
+    this
+
   fun next_index(prev: U64 = -1): U64 ? =>
     """
     Given an index, return the next index that has a populated key and value.
