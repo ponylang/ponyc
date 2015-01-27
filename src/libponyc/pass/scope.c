@@ -127,7 +127,8 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
   return true;
 }
 
-bool use_package(ast_t* ast, const char* path, ast_t* name, pass_opt_t* options)
+bool use_package(ast_t* ast, const char* path, ast_t* name,
+  pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(path != NULL);
@@ -210,17 +211,18 @@ static bool scope_method(typecheck_t* t, ast_t* ast)
 static bool scope_idseq(typecheck_t* t, ast_t* ast)
 {
   ast_t* child = ast_child(ast);
+  bool r = true;
 
   while(child != NULL)
   {
     // Each ID resolves to itself.
     if(!set_scope(t, ast_parent(ast), child, child))
-      return false;
+      r = false;
 
     child = ast_sibling(child);
   }
 
-  return true;
+  return r;
 }
 
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)

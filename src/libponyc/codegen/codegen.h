@@ -137,7 +137,7 @@ void codegen_shutdown(pass_opt_t* opt);
 
 bool codegen(ast_t* program, pass_opt_t* opt);
 
-LLVMValueRef codegen_addfun(compile_t*c, const char* name, LLVMTypeRef type);
+LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 
 void codegen_startfun(compile_t* c, LLVMValueRef fun);
 

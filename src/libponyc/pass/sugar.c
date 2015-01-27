@@ -49,8 +49,7 @@ static bool has_member(ast_t* members, const char* name)
         break;
     }
 
-    // Note, members may not have names yet
-    if(ast_id(id) != TK_NONE && ast_name(id) == name)
+    if(ast_name(id) == name)
       return true;
 
     member = ast_sibling(member);
