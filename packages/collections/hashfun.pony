@@ -6,28 +6,28 @@ interface Hashable
 
 trait HashFunction[A] val
   """
-  A pluggable hash function for a MapHash.
+  A pluggable hash function.
   """
   new val create()
     """
-    MapHash creates instances internally. Use a primitive if possible.
+    Data structures create instances internally. Use a primitive if possible.
     """
 
-  fun hash(x: A!): U64
+  fun hash(x: this->A!): U64
     """
     Calculate the hash of some type. This is an alias of the type parameter to
-    allow MapHash to hash things without consuming them.
+    allow data structures to hash things without consuming them.
     """
 
   fun eq(x: this->A!, y: this->A!): Bool
     """
     Determine equality between two keys with the same hash. This is done with
-    viewpoint adapted aliases to allow MapHash to determine equality in a box
-    fun without consuming keys.
+    viewpoint adapted aliases to allow data structures to determine equality
+    in a box fun without consuming keys.
     """
 
 primitive HashEq[A: (Hashable box & Comparable[A] box)] is HashFunction[A]
-  fun hash(x: A): U64 =>
+  fun hash(x: this->A): U64 =>
     """
     Use the hash function from the type parameter.
     """
@@ -40,7 +40,7 @@ primitive HashEq[A: (Hashable box & Comparable[A] box)] is HashFunction[A]
     x == y
 
 primitive HashIs[A] is HashFunction[A]
-  fun hash(x: A!): U64 =>
+  fun hash(x: this->A!): U64 =>
     """
     Hash the identity rather than the contents.
     """

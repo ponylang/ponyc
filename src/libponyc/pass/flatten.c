@@ -35,8 +35,12 @@ static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
         return AST_ERROR;
 
       case TK_ARROW:
-        ast_error(ast, "arrow types can't be used as constraints");
-        return AST_ERROR;
+        if(t->frame->method == NULL)
+        {
+          ast_error(ast, "arrow types can't be used as type constraints");
+          return AST_ERROR;
+        }
+        break;
 
       default: {}
     }

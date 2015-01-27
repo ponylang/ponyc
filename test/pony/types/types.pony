@@ -36,7 +36,11 @@ class Wombat3[A: K2]
   fun apply(): A => A
 
 actor Main
+  let _env: Env
+
   new create(env: Env) =>
+    _env = env
+
     let p1 = PrimParam[K1]
     let p2 = PrimParam[Wombat2]
     let p3 = PrimParam[Wombat2]
@@ -53,12 +57,13 @@ actor Main
 
     let foo = consume box wombat
 
-    test_primitive(env)
-    test_actor(env)
+    test_primitive()
+    test_actor()
     test_literal_ffi()
-    test_as_apply(env)
-    test_tuple_map(env)
+    test_as_apply()
+    test_tuple_map()
     test_assert()
+    test_set()
 
     env.out.write(
       """
@@ -68,18 +73,18 @@ actor Main
       """
       )
 
-  fun ref test_primitive(env: Env) =>
+  fun ref test_primitive() =>
     let writer = object
       fun tag apply(a: String, b: String): String =>
         a + b
     end
 
     let partial = writer~apply("foo")
-    env.out.print(partial("bar"))
+    _env.out.print(partial("bar"))
 
-  fun ref test_actor(env: Env) =>
+  fun ref test_actor() =>
     let writer = object
-      let _env: Env = env
+      let _env: Env = _env
 
       be apply(a: String, b: String) =>
         _env.out.print(a + b)
@@ -97,17 +102,17 @@ actor Main
     let partial = writer~apply("Test")
     partial("wombat")
 
-  fun ref test_as_apply(env: Env) =>
+  fun ref test_as_apply() =>
     let wombat: (Wombat2 | None) = Wombat2
-    try (wombat as Wombat2)(env) end
+    try (wombat as Wombat2)(_env) end
 
-  fun ref test_tuple_map(env: Env) =>
+  fun ref test_tuple_map() =>
     let map = Map[String, (U64, U64)]
     map("hi") = (1, 2)
 
     try
       let (x, y) = map("hi")
-      env.out.print(x.string() + ", " + y.string())
+      _env.out.print(x.string() + ", " + y.string())
     end
 
   fun ref test_assert() =>
@@ -115,3 +120,9 @@ actor Main
       Assert(true, "don't assert")
       Assert(false)
     end
+
+  fun ref test_set() =>
+    var set1 = Set[String]
+    var set2 = Set[String]
+    var set3 = set1.union(set2)
+    set1 = set3

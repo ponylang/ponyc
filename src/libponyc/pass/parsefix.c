@@ -385,23 +385,6 @@ static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_borrowed(typecheck_t* t, ast_t* ast)
-{
-  assert(ast != NULL);
-
-  if(ast_id(ast_parent(ast)) != TK_NOMINAL)
-    return AST_OK;
-
-  if(t->frame->local_type == NULL)
-  {
-    ast_error(ast, "borrowed types can only appear in parameters or locals");
-    return AST_ERROR;
-  }
-
-  return AST_OK;
-}
-
-
 static ast_result_t parse_fix_match(ast_t* ast)
 {
   assert(ast != NULL);
@@ -674,7 +657,6 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
     case TK_INTERFACE:  r = parse_fix_entity(ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = parse_fix_thistype(t, ast); break;
     case TK_EPHEMERAL:  r = parse_fix_ephemeral(t, ast); break;
-    case TK_BORROWED:   r = parse_fix_borrowed(t, ast); break;
     case TK_MATCH:      r = parse_fix_match(ast); break;
     case TK_FFIDECL:    r = parse_fix_ffi(ast, false); break;
     case TK_FFICALL:    r = parse_fix_ffi(ast, true); break;
