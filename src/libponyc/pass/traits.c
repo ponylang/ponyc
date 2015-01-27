@@ -268,11 +268,10 @@ static bool process_method_name(ast_t* list, ast_t* entity)
     // Method is explicitly defined in entity
     if(!methods_compatible(list, existing, name, entity))
       return false;
-  }
-  else
-  {
+  } else {
     // Method is not defined in entity
     existing = most_general_method(list, entity, name);
+
     if(existing == NULL)
       return false;
 
@@ -282,9 +281,9 @@ static bool process_method_name(ast_t* list, ast_t* entity)
     ast_set(entity, name, existing, SYM_NONE);
   }
 
+  // Current body (if any) is not provided by this entity, get one from the
+  // trait methods
   if(ast_data(existing) != (void*)entity)
-    // Current body (if any) is not provided by this entity, get one from the
-    // trait methods
     attach_body_from_list(list, existing);
 
   return true;
@@ -305,17 +304,18 @@ static bool process_provides(ast_t* entity, methods_t* method_info)
     token_id variety = ast_id(m);
 
     if((variety == TK_BE || variety == TK_FUN || variety == TK_NEW) &&
-      ast_id(ast_childidx(m, 6)) != TK_NONE)
+      ast_id(ast_childidx(m, 6)) != TK_NONE
+      )
       ast_setdata(m, entity);
   }
 
-  // Sort all inheritted methods into our name lists and symbol table
+  // Sort all inherited methods into our name lists and symbol table
   if(!collate_provided(entity, method_info))
     return false;
 
   bool r = true;
 
-  // Process inheritted methods
+  // Process inherited methods
   ast_t* name_lists = method_info->name_lists;
   assert(name_lists != NULL);
 
@@ -376,7 +376,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
   ast_t* ast = *astp;
 
   if(ast_has_scope(ast))
-  ast_clear_local(ast);
+    ast_clear_local(ast);
 
   switch(ast_id(ast))
   {
@@ -427,11 +427,13 @@ static bool post_process_methods(ast_t* entity, pass_opt_t* options,
         case TK_PRIMITIVE:
           ast_error(entity,
             "primitives can't provide traits that have behaviours");
-          return false;
+          r = false;
+          break;
 
         case TK_CLASS:
           ast_error(entity, "classes can't have provide that have behaviours");
-          return false;
+          r = false;
+          break;
 
         default:
           break;

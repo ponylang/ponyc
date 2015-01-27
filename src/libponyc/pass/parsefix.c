@@ -124,13 +124,14 @@ static bool check_traits(ast_t* traits)
 {
   assert(traits != NULL);
   ast_t* trait = ast_child(traits);
+  bool r = true;
 
   while(trait != NULL)
   {
     if(ast_id(trait) != TK_NOMINAL)
     {
       ast_error(trait, "traits must be nominal types");
-      return false;
+      r = false;
     }
 
     AST_GET_CHILDREN(trait, ignore0, ignore1, ignore2, cap, ephemeral);
@@ -138,19 +139,19 @@ static bool check_traits(ast_t* traits)
     if(ast_id(cap) != TK_NONE)
     {
       ast_error(cap, "can't specify a capability on a trait");
-      return false;
+      r = false;
     }
 
     if(ast_id(ephemeral) != TK_NONE)
     {
       ast_error(ephemeral, "a trait can't be ephemeral");
-      return false;
+      r = false;
     }
 
     trait = ast_sibling(trait);
   }
 
-  return true;
+  return r;
 }
 
 
@@ -187,32 +188,33 @@ static bool check_method(ast_t* ast, int method_def_index)
 {
   assert(ast != NULL);
   assert(method_def_index >= 0 && method_def_index < DEF_METHOD_COUNT);
+  bool r = true;
 
   const permission_def_t* def = &_method_def[method_def_index];
 
   if(def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
-    return false;
+    r = false;
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
     error, body, docstring);
 
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
-    return false;
+    r = false;
 
   if(!check_permission(def, METHOD_NAME, id, "name", id))
-    return false;
+    r = false;
 
   if(!check_permission(def, METHOD_RETURN, return_type, "return type", ast))
-    return false;
+    r = false;
 
   if(!check_permission(def, METHOD_ERROR, error, "?", ast))
-    return false;
+    r = false;
 
   if(!check_permission(def, METHOD_BODY, body, "body", ast))
-    return false;
+    r = false;
 
   if(ast_id(docstring) == TK_STRING)
   {
@@ -220,7 +222,7 @@ static bool check_method(ast_t* ast, int method_def_index)
     {
       ast_error(docstring,
         "methods with bodies must put docstrings in the body");
-      return false;
+      r = false;
     }
   } else {
     ast_t* first = ast_child(body);
@@ -235,7 +237,7 @@ static bool check_method(ast_t* ast, int method_def_index)
     }
   }
 
-  return true;
+  return r;
 }
 
 
@@ -244,6 +246,7 @@ static bool check_members(ast_t* members, int entity_def_index)
 {
   assert(members != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
+  bool r = true;
 
   const permission_def_t* def = &_entity_def[entity_def_index];
   ast_t* member = ast_child(members);
@@ -257,26 +260,26 @@ static bool check_members(ast_t* members, int entity_def_index)
         if(def->permissions[ENTITY_FIELD] == 'N')
         {
           ast_error(member, "Can't have fields in %s", def->desc);
-          return false;
+          r = false;
         }
         break;
 
       case TK_NEW:
         if(!check_method(member, entity_def_index + DEF_NEW))
-          return false;
+          r = false;
         break;
 
       case TK_BE:
       {
         if(!check_method(member, entity_def_index + DEF_BE))
-          return false;
+          r = false;
         break;
       }
 
       case TK_FUN:
       {
         if(!check_method(member, entity_def_index + DEF_FUN))
-          return false;
+          r = false;
         break;
       }
 
@@ -289,7 +292,7 @@ static bool check_members(ast_t* members, int entity_def_index)
     member = ast_sibling(member);
   }
 
-  return true;
+  return r;
 }
 
 
@@ -298,6 +301,7 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
 {
   assert(ast != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
+  ast_result_t r = AST_OK;
 
   const permission_def_t* def = &_entity_def[entity_def_index];
   AST_GET_CHILDREN(ast, id, typeparams, defcap, provides, members, c_api);
@@ -306,40 +310,43 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
   if(def->permissions[ENTITY_MAIN] == 'N' && ast_name(id) == stringtab("Main"))
   {
     ast_error(ast, "Main must be an actor");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
   if(!check_permission(def, ENTITY_CAP, defcap, "default capability", defcap))
-    return AST_ERROR;
+    r = AST_ERROR;
 
   if(!check_permission(def, ENTITY_C_API, c_api, "C api", c_api))
-    return AST_ERROR;
+    r = AST_ERROR;
 
-  if((ast_id(c_api) == TK_AT) && (ast_id(typeparams) != TK_NONE))
+  if(ast_id(c_api) == TK_AT)
   {
-    ast_error(c_api, "generic actor cannot specify C api");
-    return AST_ERROR;
+    if(ast_id(typeparams) != TK_NONE)
+    {
+      ast_error(typeparams, "generic actor cannot specify C api");
+      r = AST_ERROR;
+    }
   }
 
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
     if(!check_traits(provides))
-      return AST_ERROR;
+      r = AST_ERROR;
   } else {
     // Check for a single type alias
     if(ast_childcount(provides) != 1)
     {
       ast_error(provides, "a type alias must specify a single type");
-      return AST_ERROR;
+      r = AST_ERROR;
     }
   }
 
   // Check for illegal members
   if(!check_members(members, entity_def_index))
-    return AST_ERROR;
+    r = AST_ERROR;
 
-  return AST_OK;
+  return r;
 }
 
 
@@ -348,20 +355,21 @@ static ast_result_t parse_fix_thistype(typecheck_t* t, ast_t* ast)
   assert(ast != NULL);
   ast_t* parent = ast_parent(ast);
   assert(parent != NULL);
+  ast_result_t r = AST_OK;
 
   if(ast_id(parent) != TK_ARROW)
   {
     ast_error(ast, "in a type, 'this' can only be used as a viewpoint");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
   if(t->frame->method == NULL)
   {
     ast_error(ast, "can only use 'this' for a viewpoint in a method");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
-  return AST_OK;
+  return r;
 }
 
 
@@ -418,12 +426,13 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
+  ast_result_t r = AST_OK;
 
   if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)
   {
     ast_error(typeargs, "FFIs must specify a single return type");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
   for(ast_t* p = ast_child(args); p != NULL; p = ast_sibling(p))
@@ -436,7 +445,7 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
       if(ast_id(def_val) != TK_NONE)
       {
         ast_error(def_val, "FFIs parameters cannot have default values");
-        return AST_ERROR;
+        r = AST_ERROR;
       }
     }
   }
@@ -444,16 +453,17 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
   if(ast_id(named_args) != TK_NONE)
   {
     ast_error(typeargs, "FFIs cannot take named arguments");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
-  return AST_OK;
+  return r;
 }
 
 
 static ast_result_t parse_fix_ellipsis(ast_t* ast)
 {
   assert(ast != NULL);
+  ast_result_t r = AST_OK;
 
   ast_t* fn = ast_parent(ast_parent(ast));
   assert(fn != NULL);
@@ -461,16 +471,16 @@ static ast_result_t parse_fix_ellipsis(ast_t* ast)
   if(ast_id(fn) != TK_FFIDECL)
   {
     ast_error(ast, "... may only appear in FFI declarations");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
   if(ast_sibling(ast) != NULL)
   {
     ast_error(ast, "... must be the last parameter");
-    return AST_ERROR;
+    r = AST_ERROR;
   }
 
-  return AST_OK;
+  return r;
 }
 
 
@@ -556,7 +566,7 @@ static ast_result_t parse_fix_semi(ast_t* ast)
     // Unnecessary ;
     ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
       " the same line");
-    return AST_FATAL;
+    return AST_ERROR;
   }
 
   return AST_OK;
@@ -627,21 +637,15 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   token_id id = ast_id(ast);
 
+  // These node all use the data field as pointers to stuff
   if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
-    // These node all use the data field as pointers to stuff
-      return AST_OK;
+    return AST_OK;
 
   if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
   {
     // Test node, not allowed outside parse pass
     ast_error(ast, "Illegal character '$' found");
-    return AST_FATAL;
-  }
-
-  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
-  {
-    ast_error(ast, "Use a semi colon to separate expressions on the same line");
-    return AST_FATAL;
+    return AST_ERROR;
   }
 
   ast_result_t r = AST_OK;
@@ -672,6 +676,13 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   if(is_expr_infix(id))
     r = parse_fix_infix_expr(ast);
+
+  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
+  {
+    ast_error(ast,
+      "Use a semi colon to separate expressions on the same line");
+    r = AST_ERROR;
+  }
 
   // Clear parse info flags
   ast_setdata(ast, 0);

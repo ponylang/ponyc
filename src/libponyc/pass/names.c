@@ -184,7 +184,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
   AST_GET_CHILDREN(ast, package_id, type_id);
   bool local_package;
 
-  // find our actual package
+  // Find our actual package.
   if(ast_id(package_id) != TK_NONE)
   {
     const char* name = ast_name(package_id);
@@ -205,42 +205,50 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
     local_package = true;
   }
 
-  // find our definition
+  // Check for a private type.
   const char* name = ast_name(type_id);
+  bool r = true;
+
+  if(!local_package && (name[0] == '_'))
+  {
+    ast_error(type_id, "can't access a private type from another package");
+    r = false;
+  }
+
+  // Find our definition.
   ast_t* def = ast_get(scope, name, NULL);
 
   if(def == NULL)
   {
     ast_error(type_id, "can't find definition of '%s'", name);
-    return false;
+    r = false;
+  } else {
+    switch(ast_id(def))
+    {
+      case TK_TYPE:
+        r = names_typealias(opt, astp, def);
+        break;
+
+      case TK_TYPEPARAM:
+        r = names_typeparam(astp, def);
+        break;
+
+      case TK_INTERFACE:
+      case TK_TRAIT:
+      case TK_PRIMITIVE:
+      case TK_CLASS:
+      case TK_ACTOR:
+        r = names_type(t, astp, def);
+        break;
+
+      default:
+        ast_error(type_id, "definition of '%s' is not a type", name);
+        r = false;
+        break;
+    }
   }
 
-  if(!local_package && (name[0] == '_'))
-  {
-    ast_error(type_id, "can't access a private type from another package");
-    return false;
-  }
-
-  switch(ast_id(def))
-  {
-    case TK_TYPE:
-      return names_typealias(opt, astp, def);
-
-    case TK_TYPEPARAM:
-      return names_typeparam(astp, def);
-
-    case TK_INTERFACE:
-    case TK_TRAIT:
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-    case TK_ACTOR:
-      return names_type(t, astp, def);
-
-    default: {}
-  }
-
-  ast_error(type_id, "definition of '%s' is not a type", name);
-  return false;
+  return r;
 }
 
 static bool names_arrow(ast_t* ast)
