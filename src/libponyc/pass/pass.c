@@ -1,5 +1,5 @@
 #include "pass.h"
-#include "../codegen/codegen.h"
+#include "../ast/parser.h"
 #include "parsefix.h"
 #include "sugar.h"
 #include "scope.h"
@@ -7,6 +7,7 @@
 #include "flatten.h"
 #include "traits.h"
 #include "expr.h"
+#include "../codegen/codegen.h"
 #include "../../libponyrt/mem/pool.h"
 
 #include <string.h>
@@ -33,7 +34,7 @@ const char* pass_name(pass_id pass)
   switch(pass)
   {
     case PASS_PARSE:    return "parse";
-    case PASS_PARSE_FIX:return "parsefix";
+    case PASS_SYNTAX:   return "syntax";
     case PASS_SUGAR:    return "sugar";
     case PASS_SCOPE:    return "scope";
     case PASS_NAME_RESOLUTION: return "name";
@@ -66,7 +67,6 @@ void pass_opt_done(pass_opt_t* options)
   while(options->check.frame != NULL)
     frame_pop(&options->check);
 }
-
 
 
 // Do a single pass, if the limit allows
@@ -111,15 +111,23 @@ bool type_passes(ast_t* type, pass_opt_t* options)
 }
 
 
-bool package_passes(ast_t* package, pass_opt_t* options)
+bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
-  if(options->limit == PASS_PARSE)
-    return true;
+  if(!pass_parse(package, source))
+    return false;
 
   bool r;
 
-  if(do_pass(&package, &r, options, PASS_PARSE_FIX, pass_parse_fix, NULL))
+  if(do_pass(&package, &r, options, PASS_SYNTAX, pass_syntax, NULL))
     return r;
+
+  return true;
+}
+
+
+bool package_passes(ast_t* package, pass_opt_t* options)
+{
+  bool r;
 
   if(do_pass(&package, &r, options, PASS_SUGAR, pass_sugar, NULL))
     return r;

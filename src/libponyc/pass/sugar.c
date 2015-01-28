@@ -247,28 +247,56 @@ static ast_result_t sugar_typeparam(ast_t* ast)
 }
 
 
+static void sugar_docstring(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
+    error, body, docstring);
+
+  if(ast_id(docstring) == TK_NONE)
+  {
+    ast_t* first = ast_child(body);
+
+    // First expression in body is a docstring if it is a string literal and
+    // there are any other expressions in the body sequence
+    if((first != NULL) &&
+      (ast_id(first) == TK_STRING) &&
+      (ast_sibling(first) != NULL))
+    {
+      ast_pop(body);
+      ast_replace(&docstring, first);
+    }
+  }
+}
+
+
 static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result);
 
   // Return type default to ref^ for classes, val^ for primitives, and
   // tag^ for actors.
-  assert(ast_id(result) == TK_NONE);
-  token_id tcap = ast_id(cap);
-
-  if(tcap == TK_NONE)
+  if(ast_id(result) == TK_NONE)
   {
-    switch(ast_id(t->frame->type))
+    token_id tcap = ast_id(cap);
+
+    if(tcap == TK_NONE)
     {
-      case TK_PRIMITIVE: tcap = TK_VAL; break;
-      case TK_ACTOR: tcap = TK_TAG; break;
-      default: tcap = TK_REF; break;
+      switch(ast_id(t->frame->type))
+      {
+        case TK_PRIMITIVE: tcap = TK_VAL; break;
+        case TK_ACTOR: tcap = TK_TAG; break;
+        default: tcap = TK_REF; break;
+      }
+
+      ast_setid(cap, tcap);
     }
 
-    ast_setid(cap, tcap);
+    ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
   }
 
-  ast_replace(&result, type_for_this(t, ast, tcap, TK_EPHEMERAL));
+  sugar_docstring(ast);
   return AST_OK;
 }
 
@@ -277,9 +305,13 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
-  // Return type is This tag
-  ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+  if(ast_id(result) == TK_NONE)
+  {
+    // Return type is This tag
+    ast_replace(&result, type_for_this(t, ast, TK_TAG, TK_NONE));
+  }
 
+  sugar_docstring(ast);
   return AST_OK;
 }
 
@@ -287,7 +319,7 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-
+  
   // If the receiver cap is not specified, set it to box.
   if(ast_id(cap) == TK_NONE)
     ast_setid(cap, TK_BOX);
@@ -306,6 +338,7 @@ static ast_result_t sugar_fun(ast_t* ast)
     ast_append(body, ref);
   }
 
+  sugar_docstring(ast);
   return AST_OK;
 }
 
@@ -628,12 +661,6 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Add the new type to the current module.
   ast_t* module = ast_nearest(ast, TK_MODULE);
   ast_append(module, def);
-
-  // Parsefix the new class.
-  ast_result_t fix = ast_visit(&def, pass_parse_fix, NULL, opt);
-
-  if(fix != AST_OK)
-    return fix;
 
   // Replace object..end with $0.create(...)
   ast_replace(astp, call);

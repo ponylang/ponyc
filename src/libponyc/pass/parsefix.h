@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options);
+ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

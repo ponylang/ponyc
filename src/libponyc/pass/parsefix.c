@@ -1,4 +1,5 @@
 #include "parsefix.h"
+#include "../ast/id.h"
 #include "../ast/parser.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
@@ -55,35 +56,33 @@ static const permission_def_t _entity_def[DEF_ENTITY_COUNT] =
 };
 
 #define METHOD_CAP 0
-#define METHOD_NAME 2
-#define METHOD_RETURN 4
-#define METHOD_ERROR 6
-#define METHOD_BODY 8
+#define METHOD_RETURN 2
+#define METHOD_ERROR 4
+#define METHOD_BODY 6
 
 // Index by DEF_<ENTITY> + DEF_<METHOD>
 static const permission_def_t _method_def[DEF_METHOD_COUNT] =
 { //                           cap
-  //                           | name
-  //                           | | return
-  //                           | | | error
-  //                           | | | | body
-  { "class function",         "X Y X X Y" },
-  { "actor function",         "X Y X X Y" },
-  { "primitive function",     "X Y X X Y" },
-  { "trait function",         "X Y X X X" },
-  { "interface function",     "X Y X X X" },
+  //                           | return
+  //                           | | error
+  //                           | | | body
+  { "class function",         "X X X Y" },
+  { "actor function",         "X X X Y" },
+  { "primitive function",     "X X X Y" },
+  { "trait function",         "X X X X" },
+  { "interface function",     "X X X X" },
   { "type alias function",    NULL },
   { "class behaviour",        NULL },
-  { "actor behaviour",        "N Y N N Y" },
+  { "actor behaviour",        "N N N Y" },
   { "primitive behaviour",    NULL },
-  { "trait behaviour",        "N Y N N X" },
-  { "interface behaviour",    "N Y N N X" },
+  { "trait behaviour",        "N N N X" },
+  { "interface behaviour",    "N N N X" },
   { "type alias behaviour",   NULL },
-  { "class constructor",      "X Y N X Y" },
-  { "actor constructor",      "N Y N N Y" },
-  { "primitive constructor",  "N Y N X Y" },
-  { "trait constructor",      "X Y N X N" },
-  { "interface constructor",  "X Y N X N" },
+  { "class constructor",      "X N X Y" },
+  { "actor constructor",      "N N N Y" },
+  { "primitive constructor",  "N N X Y" },
+  { "trait constructor",      "X N X N" },
+  { "interface constructor",  "X N X N" },
   { "type alias constructor", NULL }
 };
 
@@ -195,7 +194,7 @@ static bool check_method(ast_t* ast, int method_def_index)
   if(def->permissions == NULL)
   {
     ast_error(ast, "%ss are not allowed", def->desc);
-    r = false;
+    return false;
   }
 
   AST_GET_CHILDREN(ast, cap, id, type_params, params, return_type,
@@ -204,7 +203,7 @@ static bool check_method(ast_t* ast, int method_def_index)
   if(!check_permission(def, METHOD_CAP, cap, "receiver capability", cap))
     r = false;
 
-  if(!check_permission(def, METHOD_NAME, id, "name", id))
+  if(!check_id_method(id))
     r = false;
 
   if(!check_permission(def, METHOD_RETURN, return_type, "return type", ast))
@@ -223,17 +222,6 @@ static bool check_method(ast_t* ast, int method_def_index)
       ast_error(docstring,
         "methods with bodies must put docstrings in the body");
       r = false;
-    }
-  } else {
-    ast_t* first = ast_child(body);
-
-    if((first != NULL) &&
-      (ast_id(first) == TK_STRING) &&
-      (ast_sibling(first) != NULL)
-      )
-    {
-      ast_pop(body);
-      ast_replace(&docstring, first);
     }
   }
 
@@ -262,6 +250,10 @@ static bool check_members(ast_t* members, int entity_def_index)
           ast_error(member, "Can't have fields in %s", def->desc);
           r = false;
         }
+
+        if(!check_id_field(ast_child(member)))
+          r = false;
+
         break;
 
       case TK_NEW:
@@ -297,7 +289,7 @@ static bool check_members(ast_t* members, int entity_def_index)
 
 
 // Check whether the given entity has illegal parts
-static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
+static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
 {
   assert(ast != NULL);
   assert(entity_def_index >= 0 && entity_def_index < DEF_ENTITY_COUNT);
@@ -312,6 +304,9 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     ast_error(ast, "Main must be an actor");
     r = AST_ERROR;
   }
+
+  if(!check_id_type(id, def->desc))
+    r = AST_ERROR;
 
   if(!check_permission(def, ENTITY_CAP, defcap, "default capability", defcap))
     r = AST_ERROR;
@@ -333,7 +328,9 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
     // Check referenced traits
     if(!check_traits(provides))
       r = AST_ERROR;
-  } else {
+  }
+  else
+  {
     // Check for a single type alias
     if(ast_childcount(provides) != 1)
     {
@@ -350,7 +347,7 @@ static ast_result_t parse_fix_entity(ast_t* ast, int entity_def_index)
 }
 
 
-static ast_result_t parse_fix_thistype(typecheck_t* t, ast_t* ast)
+static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 {
   assert(ast != NULL);
   ast_t* parent = ast_parent(ast);
@@ -373,14 +370,13 @@ static ast_result_t parse_fix_thistype(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
+static ast_result_t syntax_ephemeral(typecheck_t* t, ast_t* ast)
 {
   assert(ast != NULL);
 
   if((t->frame->method_type == NULL) &&
     (t->frame->ffi_type == NULL) &&
-    (t->frame->as_type == NULL)
-    )
+    (t->frame->as_type == NULL))
   {
     ast_error(ast,
       "ephemeral types can only appear in 'as' expression types and function "
@@ -393,7 +389,7 @@ static ast_result_t parse_fix_ephemeral(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_match(ast_t* ast)
+static ast_result_t syntax_match(ast_t* ast)
 {
   assert(ast != NULL);
 
@@ -422,11 +418,13 @@ static ast_result_t parse_fix_match(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
+static ast_result_t syntax_ffi(ast_t* ast, bool return_optional)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
   ast_result_t r = AST_OK;
+
+  // We don't check FFI names are legal, if the lexer allows it so do we
 
   if((ast_child(typeargs) == NULL && !return_optional) ||
     ast_childidx(typeargs, 1) != NULL)
@@ -460,7 +458,7 @@ static ast_result_t parse_fix_ffi(ast_t* ast, bool return_optional)
 }
 
 
-static ast_result_t parse_fix_ellipsis(ast_t* ast)
+static ast_result_t syntax_ellipsis(ast_t* ast)
 {
   assert(ast != NULL);
   ast_result_t r = AST_OK;
@@ -484,7 +482,7 @@ static ast_result_t parse_fix_ellipsis(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_infix_expr(ast_t* ast)
+static ast_result_t syntax_infix_expr(ast_t* ast)
 {
   assert(ast != NULL);
   AST_GET_CHILDREN(ast, left, right);
@@ -512,7 +510,7 @@ static ast_result_t parse_fix_infix_expr(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_consume(ast_t* ast)
+static ast_result_t syntax_consume(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
 
@@ -526,7 +524,7 @@ static ast_result_t parse_fix_consume(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
+static ast_result_t syntax_return(ast_t* ast, size_t max_value_count)
 {
   assert(ast != NULL);
 
@@ -550,7 +548,7 @@ static ast_result_t parse_fix_return(ast_t* ast, size_t max_value_count)
 }
 
 
-static ast_result_t parse_fix_semi(ast_t* ast)
+static ast_result_t syntax_semi(ast_t* ast)
 {
   assert(ast_parent(ast) != NULL);
   assert(ast_id(ast_parent(ast)) == TK_SEQ);
@@ -573,61 +571,45 @@ static ast_result_t parse_fix_semi(ast_t* ast)
 }
 
 
-static ast_result_t parse_fix_id(ast_t* ast)
+static ast_result_t syntax_local(ast_t* ast)
 {
-  const char* p = ast_name(ast);
-  ast_result_t r = AST_OK;
+  if(!check_id_local(ast_child(ast)))
+    return AST_ERROR;
 
-  bool has_underscore = false;
-  bool has_prime = false;
-  bool err_double_underscore = false;
-  bool err_prime = false;
-
-  while(*p != '\0')
-  {
-    switch(*p)
-    {
-      case '_':
-        if(has_underscore && !err_double_underscore)
-        {
-          ast_error(ast, "double underscore is not allowed in identifiers");
-          err_double_underscore = true;
-          r = AST_ERROR;
-        }
-
-        has_underscore = true;
-        break;
-
-      case '\'':
-        has_prime = true;
-        break;
-
-      default:
-        has_underscore = false;
-
-        if(has_prime && !err_prime)
-        {
-          ast_error(ast, "prime (') can only appear at the end of identifiers");
-          err_prime = true;
-          r = AST_ERROR;
-        }
-        break;
-    }
-
-    p++;
-  }
-
-  if(has_underscore)
-  {
-    ast_error(ast, "a trailing underscore is not allowed in identifiers");
-    r = AST_ERROR;
-  }
-
-  return r;
+  return AST_OK;
 }
 
 
-ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
+static ast_result_t syntax_param(ast_t* ast)
+{
+  if(!check_id_param(ast_child(ast)))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_type_param(ast_t* ast)
+{
+  if(!check_id_type_param(ast_child(ast)))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_use(ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+
+  if(ast_id(id) != TK_NONE && !check_id_package(id))
+    return AST_ERROR;
+
+  return AST_OK;
+}
+
+
+ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
 
@@ -652,30 +634,33 @@ ast_result_t pass_parse_fix(ast_t** astp, pass_opt_t* options)
 
   switch(id)
   {
-    case TK_SEMI:       r = parse_fix_semi(ast); break;
-    case TK_TYPE:       r = parse_fix_entity(ast, DEF_TYPEALIAS); break;
-    case TK_PRIMITIVE:  r = parse_fix_entity(ast, DEF_PRIMITIVE); break;
-    case TK_CLASS:      r = parse_fix_entity(ast, DEF_CLASS); break;
-    case TK_ACTOR:      r = parse_fix_entity(ast, DEF_ACTOR); break;
-    case TK_TRAIT:      r = parse_fix_entity(ast, DEF_TRAIT); break;
-    case TK_INTERFACE:  r = parse_fix_entity(ast, DEF_INTERFACE); break;
-    case TK_THISTYPE:   r = parse_fix_thistype(t, ast); break;
-    case TK_EPHEMERAL:  r = parse_fix_ephemeral(t, ast); break;
-    case TK_MATCH:      r = parse_fix_match(ast); break;
-    case TK_FFIDECL:    r = parse_fix_ffi(ast, false); break;
-    case TK_FFICALL:    r = parse_fix_ffi(ast, true); break;
-    case TK_ELLIPSIS:   r = parse_fix_ellipsis(ast); break;
-    case TK_CONSUME:    r = parse_fix_consume(ast); break;
+    case TK_SEMI:       r = syntax_semi(ast); break;
+    case TK_TYPE:       r = syntax_entity(ast, DEF_TYPEALIAS); break;
+    case TK_PRIMITIVE:  r = syntax_entity(ast, DEF_PRIMITIVE); break;
+    case TK_CLASS:      r = syntax_entity(ast, DEF_CLASS); break;
+    case TK_ACTOR:      r = syntax_entity(ast, DEF_ACTOR); break;
+    case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
+    case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
+    case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
+    case TK_EPHEMERAL:  r = syntax_ephemeral(t, ast); break;
+    case TK_MATCH:      r = syntax_match(ast); break;
+    case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
+    case TK_FFICALL:    r = syntax_ffi(ast, true); break;
+    case TK_ELLIPSIS:   r = syntax_ellipsis(ast); break;
+    case TK_CONSUME:    r = syntax_consume(ast); break;
     case TK_RETURN:
-    case TK_BREAK:      r = parse_fix_return(ast, 1); break;
+    case TK_BREAK:      r = syntax_return(ast, 1); break;
     case TK_CONTINUE:
-    case TK_ERROR:      r = parse_fix_return(ast, 0); break;
-    case TK_ID:         r = parse_fix_id(ast); break;
+    case TK_ERROR:      r = syntax_return(ast, 0); break;
+    case TK_IDSEQ:      r = syntax_local(ast); break;
+    case TK_PARAM:      r = syntax_param(ast); break;
+    case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
+    case TK_USE:        r = syntax_use(ast); break;
     default: break;
   }
 
   if(is_expr_infix(id))
-    r = parse_fix_infix_expr(ast);
+    r = syntax_infix_expr(ast);
 
   if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
   {

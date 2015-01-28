@@ -122,12 +122,14 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 /// Enable or disable parsing trace output
 void parse_trace(bool enable);
 
-/** Returns generated AST or NULL on error.
+/** Generates a module AST and attaches it to the given package AST.
  * The expected argument is used in the generated error message if nothing is
  * found. It is not stored.
- * It is the caller's responsibility to free the returned AST with ast_free().
+ * The given source is attached to the resulting AST on success and closed on
+ * failure.
  */
-ast_t* parse(source_t* source, rule_t start, const char* expected);
+bool parse(ast_t* package, source_t* source, rule_t start,
+  const char* expected);
 
 
 /* The API for parser rules starts here */
@@ -377,7 +379,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected);
 
 
 /** Set a data field flag, which are used to communicate extra information
- * between the parser and parsefix pass.
+ * between the parser and syntax pass.
  * The value specified is the flag value, not the flag index.
  *
  * Example:
