@@ -4,6 +4,7 @@
 #include <platform.h>
 #include "../ast/ast.h"
 #include "../ast/frame.h"
+#include "../ast/source.h"
 
 
 PONY_EXTERN_C_BEGIN
@@ -58,7 +59,7 @@ Produces an AST with all defaults, etc filled in.
 typedef enum pass_id
 {
   PASS_PARSE,
-  PASS_PARSE_FIX,
+  PASS_SYNTAX,
   PASS_SUGAR,
   PASS_SCOPE,
   PASS_NAME_RESOLUTION,
@@ -115,6 +116,13 @@ void pass_opt_done(pass_opt_t* options);
  * This is used only for anonymous types.
  */
 bool type_passes(ast_t* type, pass_opt_t* options);
+
+/** Apply the per module passes to the given source.
+ * Returns true on success, false on failure.
+ * The given source is attached to the resulting AST on success and closed on
+ * failure.
+ */
+bool module_passes(ast_t* package, pass_opt_t* options, source_t* source);
 
 /** Apply the per package passes to the given package AST.
  * Returns true on success, false on failure.

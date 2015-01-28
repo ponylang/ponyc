@@ -414,8 +414,9 @@ void parse_trace(bool enable)
 }
 
 
-ast_t* parse(source_t* source, rule_t start, const char* expected)
+bool parse(ast_t* package, source_t* source, rule_t start, const char* expected)
 {
+  assert(package != NULL);
   assert(source != NULL);
   assert(expected != NULL);
 
@@ -423,7 +424,7 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
   lexer_t* lexer = lexer_open(source);
 
   if(lexer == NULL)
-    return PARSE_ERROR;
+    return false;
 
   // Create a parser and attach the lexer
   parser_t* parser = POOL_ALLOC(parser_t);
@@ -446,15 +447,19 @@ ast_t* parse(source_t* source, rule_t start, const char* expected)
     ast = NULL;
   }
 
-  if(ast != NULL)
-  {
-    assert(ast_data(ast) == NULL);
-    ast_setdata(ast, source);
-  }
-
   lexer_close(lexer);
   token_free(parser->token);
   POOL_FREE(parser_t, parser);
 
-  return ast;
+  if(ast == NULL)
+  {
+    source_close(source);
+    return false;
+  }
+
+  assert(ast_id(ast) == TK_MODULE);
+  assert(ast_data(ast) == NULL);
+  ast_setdata(ast, source);
+  ast_add(package, ast);
+  return true;
 }

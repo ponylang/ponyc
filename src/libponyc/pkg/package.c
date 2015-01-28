@@ -86,7 +86,8 @@ static const char* find_magic_package(const char* path)
 
 // Attempt to parse the specified source file and add it to the given AST
 // @return true on success, false on error
-static bool parse_source_file(ast_t* package, const char* file_path)
+static bool parse_source_file(ast_t* package, const char* file_path,
+  pass_opt_t* options)
 {
   assert(package != NULL);
   assert(file_path != NULL);
@@ -98,39 +99,20 @@ static bool parse_source_file(ast_t* package, const char* file_path)
     return false;
   }
 
-  ast_t* module = parser(source);
-
-  if(module == NULL)
-  {
-    errorf(file_path, "couldn't parse file %s", file_path);
-    source_close(source);
-    return false;
-  }
-
-  ast_add(package, module);
-  return true;
+  return module_passes(package, options, source);
 }
 
 
 // Attempt to parse the specified source code and add it to the given AST
 // @return true on success, false on error
-static bool parse_source_code(ast_t* package, const char* src)
+static bool parse_source_code(ast_t* package, const char* src,
+  pass_opt_t* options)
 {
-  assert(package != NULL);
   assert(src != NULL);
   source_t* source = source_open_string(src);
   assert(source != NULL);
 
-  ast_t* module = parser(source);
-
-  if(module == NULL)
-  {
-    source_close(source);
-    return false;
-  }
-
-  ast_add(package, module);
-  return true;
+  return module_passes(package, options, source);
 }
 
 
@@ -154,7 +136,8 @@ static void path_cat(const char* part1, const char* part2,
 // Attempt to parse the source files in the specified directory and add them to
 // the given package AST
 // @return true on success, false on error
-static bool parse_files_in_dir(ast_t* package, const char* dir_path)
+static bool parse_files_in_dir(ast_t* package, const char* dir_path,
+  pass_opt_t* options)
 {
   PONY_ERRNO err = 0;
   PONY_DIR* dir = pony_opendir(dir_path, &err);
@@ -186,7 +169,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path)
     {
       char fullpath[FILENAME_MAX];
       path_cat(dir_path, name, fullpath);
-      r &= parse_source_file(package, fullpath);
+      r &= parse_source_file(package, fullpath, options);
     }
   }
 
@@ -598,6 +581,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 
   if(magic == NULL)
   {
+    // Lookup (and hence normalise) path
     name = find_path(from, path);
     if(name == NULL)
       return NULL;
@@ -606,7 +590,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   ast_t* program = ast_nearest(from, TK_PROGRAM);
   ast_t* package = ast_get(program, name, NULL);
 
-  if(package != NULL)
+  if(package != NULL) // Package already loaded
     return package;
 
   package = create_package(program, name);
@@ -616,12 +600,12 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 
   if(magic != NULL)
   {
-    if(!parse_source_code(package, magic))
+    if(!parse_source_code(package, magic, options))
       return NULL;
   }
   else
   {
-    if(!parse_files_in_dir(package, name))
+    if(!parse_files_in_dir(package, name, options))
       return NULL;
   }
 
@@ -632,10 +616,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   }
 
   if(!package_passes(package, options))
-  {
-    ast_error(package, "can't typecheck package '%s'", path);
     return NULL;
-  }
 
   return package;
 }
@@ -695,6 +676,8 @@ const char* package_symbol(ast_t* package)
 
 const char* package_hygienic_id(typecheck_t* t)
 {
+  // TODO: Turn this into an assert. With the new unit testing this should
+  // never happen.
   if(t->frame->package == NULL)
   {
     // We are not within a package, we must be testing

@@ -4,7 +4,6 @@
 #include <ast/ast.h>
 #include <ast/builder.h>
 #include <pkg/package.h>
-#include <pass/parsefix.h>
 #include <pass/pass.h>
 #include <pass/sugar.h>
 
