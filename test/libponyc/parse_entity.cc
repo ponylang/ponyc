@@ -4,8 +4,8 @@
 
 // Parsing tests regarding entities, methods, fields and use commamnds
 
-#define TEST_AST(src, expect) DO(test_program_ast(src, "parsefix", expect))
-#define TEST_ERROR(src) DO(test_error(src, "parsefix"))
+#define TEST_AST(src, expect) DO(test_program_ast(src, "syntax", expect))
+#define TEST_ERROR(src) DO(test_error(src, "syntax"))
 
 
 class ParseEntityTest : public PassTest

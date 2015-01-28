@@ -531,7 +531,7 @@ DEF(prefix);
   DONE();
 
 // $SEQ '(' rawseq ')'
-// For testing only, thrown out by parsefix
+// For testing only, thrown out by syntax pass
 DEF(test_seq);
   SKIP(NULL, TK_TEST_SEQ);
   SKIP(NULL, TK_LPAREN);
@@ -541,7 +541,7 @@ DEF(test_seq);
   DONE();
 
 // $SCOPE '(' rawseq ')'
-// For testing only, thrown out by parsefix
+// For testing only, thrown out by syntax pass
 DEF(test_seq_scope);
   SKIP(NULL, TK_TEST_SEQ_SCOPE);
   SKIP(NULL, TK_LPAREN);
@@ -759,7 +759,7 @@ DEF(module);
   DONE();
 
 // external API
-ast_t* parser(source_t* source)
+bool pass_parse(ast_t* package, source_t* source)
 {
-  return parse(source, module, "class, actor, primitive or trait");
+  return parse(package, source, module, "class, actor, primitive or trait");
 }

@@ -89,7 +89,7 @@ static void usage()
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
-    "    =parsefix\n"
+    "    =syntax\n"
     "    =sugar\n"
     "    =scope\n"
     "    =name\n"
