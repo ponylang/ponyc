@@ -14,7 +14,12 @@ bool expr_seq(ast_t* ast)
   // Any expression other than the last that is still literal is an error
   for(ast_t* p = ast_child(ast); ast_sibling(p) != NULL; p = ast_sibling(p))
   {
-    if(is_type_literal(ast_type(p)))
+    ast_t* p_type = ast_type(p);
+
+    if(p_type == NULL)
+      return false;
+
+    if(is_type_literal(p_type))
     {
       ast_error(p, "Cannot infer type of unused literal");
       return false;
@@ -67,8 +72,12 @@ bool expr_if(ast_t* ast)
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
   ast_t* right = ast_sibling(left);
+  ast_t* cond_type = ast_type(cond);
 
-  if(!is_bool(ast_type(cond)))
+  if(cond_type == NULL)
+    return false;
+
+  if(!is_bool(cond_type))
   {
     ast_error(cond, "condition must be a Bool");
     return false;
@@ -117,6 +126,9 @@ bool expr_while(ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* else_type = ast_type(else_clause);
 
+  if(cond_type == NULL)
+    return false;
+
   if(!is_bool(cond_type))
   {
     ast_error(cond, "condition must be a Bool");
@@ -162,6 +174,9 @@ bool expr_repeat(ast_t* ast)
   ast_t* body_type = ast_type(body);
   ast_t* cond_type = ast_type(cond);
   ast_t* else_type = ast_type(else_clause);
+
+  if(cond_type == NULL)
+    return false;
 
   if(!is_bool(cond_type))
   {
@@ -253,6 +268,10 @@ bool expr_recover(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, expr);
   ast_t* type = ast_type(expr);
+
+  if(type == NULL)
+    return false;
+
   ast_t* r_type = recover_type(type, ast_id(cap));
 
   if(r_type == NULL)
@@ -348,6 +367,9 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_t* body_type = ast_type(body);
+
+  if(body_type == NULL)
+    return false;
 
   switch(ast_id(t->frame->method))
   {

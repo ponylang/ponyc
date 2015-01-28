@@ -471,7 +471,12 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
   // Process each group element separately
   for(ast_t* p = ast_child(literal_expr); p != NULL; p = ast_sibling(p))
   {
-    if(is_type_literal(ast_type(p)))
+    ast_t* p_type = ast_type(p);
+
+    if(p_type == NULL)
+      return false;
+
+    if(is_type_literal(p_type))
     {
       // This element is a literal
       if(cardinality != CHAIN_CARD_ARRAY)
@@ -501,9 +506,11 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
   assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
-  assert(lit_type != NULL);
-  assert(ast_id(lit_type) == TK_LITERAL);
 
+  if(lit_type == NULL)
+    return false;
+
+  assert(ast_id(lit_type) == TK_LITERAL);
   ast_t* block_type = ast_type(lit_type);
 
   for(ast_t* p = ast_child(lit_type); p != NULL; p = ast_sibling(p))
@@ -520,6 +527,9 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
 
     block_type = type_union(block_type, ast_type(branch));
   }
+
+  if(block_type == NULL)
+    return false;
 
   // block_type may be a sub-tree of the current type of literal_expr.
   // This means we must copy it before setting it as the type since ast_settype
@@ -580,6 +590,7 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     {
       // Only coerce the last expression in the sequence
       ast_t* last = ast_childlast(literal_expr);
+
       if(!coerce_literal_to_type(&last, target_type, chain, options))
         return false;
 
@@ -694,8 +705,10 @@ static lit_op_info_t* lookup_literal_op(const char* name)
 static bool unify(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
-
   ast_t* type = ast_type(ast);
+
+  if(type == NULL)
+    return false;
 
   if(!is_type_literal(type)) // Not literal, nothing to unify
     return true;
@@ -725,7 +738,9 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options)
     return false;
 
   ast_t* recv_type = ast_type(receiver);
-  assert(recv_type != NULL);
+
+  if(recv_type == NULL)
+    return false;
 
   if(ast_id(recv_type) != TK_LITERAL) // Literals resolved
     return true;
@@ -758,7 +773,9 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
   AST_GET_CHILDREN(ast, positional_args, named_args, receiver);
 
   ast_t* recv_type = ast_type(receiver);
-  assert(recv_type != NULL);
+
+  if(recv_type == NULL)
+    return false;
 
   if(ast_id(recv_type) == TK_LITERAL)
   {
@@ -786,7 +803,9 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
       return false;
 
     ast_t* arg_type = ast_type(arg);
-    assert(arg_type != NULL);
+
+    if(arg_type == NULL)
+      return false;
 
     if(ast_id(arg_type) != TK_LITERAL)  // Apply argument type to receiver
       return coerce_literals(&receiver, arg_type, options);
