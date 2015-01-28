@@ -144,7 +144,8 @@ void* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
   return NULL;
 }
 
-void* symtab_find_case(symtab_t* symtab, const char* name, sym_status_t* status)
+void* symtab_find_case(symtab_t* symtab, const char* name,
+  sym_status_t* status)
 {
   // Same as symtab_get, but is partially case insensitive. That is, type names
   // are compared as uppercase and other symbols are compared as lowercase.
