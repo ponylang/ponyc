@@ -143,7 +143,7 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
     hashmap_trace((hashmap_t*)map, (pony_trace_fn)tracef); \
   } \
 
-#define HASH_INIT {0, 0, NULL}
+#define HASHMAP_INIT {0, 0, NULL}
 
 PONY_EXTERN_C_END
 
