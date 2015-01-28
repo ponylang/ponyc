@@ -27,7 +27,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     ast_t* a_type = ast_type(arg);
 
-    if(!is_subtype(a_type, p_type))
+    if((a_type != NULL) && !is_subtype(a_type, p_type))
     {
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
@@ -53,7 +53,9 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   for(; arg != NULL; arg = ast_sibling(arg))
   {
-    if(is_type_literal(ast_type(arg)))
+    ast_t* a_type = ast_type(arg);
+
+    if((a_type != NULL) && is_type_literal(a_type))
     {
       ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
       return false;
@@ -100,7 +102,9 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
   // We do not have a declaration
   for(ast_t* arg = ast_child(args); arg != NULL; arg = ast_sibling(arg))
   {
-    if(is_type_literal(ast_type(arg)))
+    ast_t* a_type = ast_type(arg);
+
+    if((a_type != NULL) && is_type_literal(a_type))
     {
       ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
       return false;

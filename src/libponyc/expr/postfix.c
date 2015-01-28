@@ -38,6 +38,10 @@ static bool method_access(ast_t* ast, ast_t* method)
     {
       AST_GET_CHILDREN(ast, left, right);
       ast_t* type = ast_type(left);
+
+      if(type == NULL)
+        return false;
+
       ast_t* def = (ast_t*)ast_data(type);
 
       switch(ast_id(type))
@@ -123,6 +127,9 @@ static bool package_access(pass_opt_t* opt, ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
+  if(type == NULL)
+    return false;
+
   assert(ast_id(left) == TK_PACKAGEREF);
   assert(ast_id(right) == TK_ID);
 
@@ -160,6 +167,9 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
+
+  if(type == NULL)
+    return false;
 
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
@@ -248,6 +258,9 @@ static bool tuple_access(ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
+  if(type == NULL)
+    return false;
+
   // Change the lookup name to an integer index.
   if(!make_tuple_index(&right))
   {
@@ -275,8 +288,11 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
 {
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
-  ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_ID);
+  ast_t* type = ast_type(left);
+
+  if(type == NULL)
+    return false;
 
   ast_t* find = lookup(t, ast, type, ast_name(right));
 
@@ -329,6 +345,9 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
+
+  if(type == NULL)
+    return false;
 
   switch(ast_id(left))
   {

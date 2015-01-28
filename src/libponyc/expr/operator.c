@@ -178,6 +178,10 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   // Assignment is based on the alias of the right hand side.
   ast_t* r_type = ast_type(right);
+
+  if(r_type == NULL)
+    return false;
+
   ast_t* a_type = alias(r_type);
 
   if(l_type == NULL)
@@ -267,6 +271,10 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
   ast_setstatus(ast, name, SYM_CONSUMED);
 
   ast_t* type = ast_type(term);
+
+  if(type == NULL)
+    return false;
+
   token_id tcap = ast_id(cap);
   ast_t* c_type = consume_type(type, tcap);
 

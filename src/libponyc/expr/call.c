@@ -70,6 +70,10 @@ static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
 static bool check_type_params(ast_t* lhs)
 {
   ast_t* type = ast_type(lhs);
+
+  if(type == NULL)
+    return false;
+
   ast_t* typeparams = ast_childidx(type, 1);
   assert(ast_id(type) == TK_FUNTYPE);
 
@@ -223,7 +227,23 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(arg_type == NULL)
     {
-      ast_error(arg, "can't use return, break or continue in an argument");
+      switch(ast_id(arg))
+      {
+        case TK_BREAK:
+          ast_error(arg, "can't use break in an argument");
+          break;
+
+        case TK_CONTINUE:
+          ast_error(arg, "can't use continue in an argument");
+          break;
+
+        case TK_RETURN:
+          ast_error(arg, "can't use return in an argument");
+          break;
+
+        default: {}
+      }
+
       return false;
     }
 
@@ -274,8 +294,11 @@ static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
     if(ast_id(arg) != TK_NONE)
     {
       ast_t* arg_type = ast_type(arg);
-      ast_t* a_type = alias(arg_type);
 
+      if(arg_type == NULL)
+        return false;
+
+      ast_t* a_type = alias(arg_type);
       bool ok = sendable(a_type);
       ast_free_unattached(a_type);
 
@@ -294,6 +317,10 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
   ast_t* type = ast_type(lhs);
+
+  if(type == NULL)
+    return false;
+
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
   // Check receiver cap.
@@ -305,6 +332,10 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
   // Receiver type, alias of receiver type, and target type.
   ast_t* r_type = ast_type(receiver);
+
+  if(r_type == NULL)
+    return false;
+
   ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
   ast_t* a_type;
 
@@ -370,6 +401,10 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
     return false;
 
   ast_t* type = ast_type(lhs);
+
+  if(type == NULL)
+    return false;
+
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
   if(!extend_positional_args(params, positional))
@@ -404,10 +439,14 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
-  AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
+  if(type == NULL)
+    return false;
+
+  AST_GET_CHILDREN(type, cap, typeparams, params, result);
   ast_settype(ast, result);
   ast_inheriterror(ast);
+
   return true;
 }
 
@@ -437,6 +476,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
+
+  if(type == NULL)
+    return false;
+
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
   // Create a new anonymous type.
@@ -499,6 +542,9 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_t* r_id = ast_from_string(receiver, package_hygienic_id(t));
   ast_t* r_field_id = ast_from_string(receiver, package_hygienic_id(t));
   ast_t* r_type = ast_type(receiver);
+
+  if(r_type == NULL)
+    return false;
 
   // A field in the type.
   BUILD(r_field, receiver, NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE));

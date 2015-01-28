@@ -125,7 +125,12 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
     if(!coerce_literals(&init, type, opt))
       return false;
 
-    ast_t* init_type = alias(ast_type(init));
+    ast_t* init_type = ast_type(init);
+
+    if(init_type == NULL)
+      return false;
+
+    init_type = alias(init_type);
 
     if(!is_subtype(init_type, type))
     {
@@ -148,6 +153,9 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
 {
   AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
+
+  if(l_type == NULL)
+    return false;
 
   AST_GET_CHILDREN(find, id, f_type, init);
 
@@ -183,6 +191,9 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
+  if(type == NULL)
+    return false;
+
   switch(ast_id(ast_parent(ast)))
   {
     case TK_QUALIFY:
@@ -213,6 +224,10 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       if(ast_id(dot) == TK_NEWREF)
       {
         type = ast_type(dot);
+
+        if(type == NULL)
+          return false;
+
         assert(ast_id(type) == TK_FUNTYPE);
         AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
@@ -348,6 +363,9 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
 
       ast_t* type = ast_type(def);
 
+      if(type == NULL)
+        return false;
+
       if(!valid_reference(t, ast, type, status))
         return false;
 
@@ -402,6 +420,9 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
         return false;
 
       ast_t* type = ast_type(def);
+
+      if(type == NULL)
+        return false;
 
       if(!valid_reference(t, ast, type, status))
         return false;
@@ -525,7 +546,12 @@ static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
   }
 
   // Set the type to Pointer[ast_type(expr)].
-  ast_t* type = type_pointer_to(opt, ast_type(expr));
+  ast_t* expr_type = ast_type(expr);
+
+  if(expr_type == NULL)
+    return false;
+
+  ast_t* type = type_pointer_to(opt, expr_type);
   ast_settype(ast, type);
   return true;
 }
@@ -704,8 +730,8 @@ bool expr_tuple(ast_t* ast)
           c_type = child;
         } else {
           ast_error(child,
-            "a tuple can't contain a control flow statement that never results "
-            "in a value");
+            "a tuple can't contain a control flow statement that never "
+            "results in a value");
           return false;
         }
       }

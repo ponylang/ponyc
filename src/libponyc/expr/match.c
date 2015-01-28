@@ -16,7 +16,12 @@ bool expr_match(ast_t* ast)
 
   // A literal match expression should have been caught by the cases, but check
   // again to avoid an assert if we've missed a case
-  if(is_type_literal(ast_type(expr)))
+  ast_t* expr_type = ast_type(expr);
+
+  if(expr_type == NULL)
+    return false;
+
+  if(is_type_literal(expr_type))
   {
     ast_error(expr, "Cannot infer type for literal match expression");
     return false;
@@ -408,14 +413,24 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   if(!infer_pattern_type(pattern, match_type, opt))
     return false;
 
-  matchtype_t is_valid = is_valid_pattern(&opt->check, match_type, pattern, true);
+  matchtype_t is_valid = is_valid_pattern(&opt->check, match_type, pattern,
+    true);
+
   if(is_valid != MATCHTYPE_ACCEPT)
     return false;
 
-  if((ast_id(guard) != TK_NONE) && !is_bool(ast_type(guard)))
+  if(ast_id(guard) != TK_NONE)
   {
-    ast_error(guard, "guard must be a boolean expression");
-    return false;
+    ast_t* guard_type = ast_type(guard);
+
+    if(guard_type == NULL)
+      return false;
+
+    if(!is_bool(guard_type))
+    {
+      ast_error(guard, "guard must be a boolean expression");
+      return false;
+    }
   }
 
   ast_inheriterror(ast);

@@ -183,6 +183,9 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
 
   ast_t* branch_type = ast_type(branch);
 
+  if(branch_type == NULL)
+    return control_type;
+
   if(is_type_literal(branch_type))
   {
     // The new branch is a literal
