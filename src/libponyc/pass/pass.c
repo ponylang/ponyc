@@ -1,6 +1,6 @@
 #include "pass.h"
 #include "../ast/parser.h"
-#include "parsefix.h"
+#include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
 #include "names.h"

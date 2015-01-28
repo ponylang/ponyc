@@ -1,5 +1,4 @@
 #include "sugar.h"
-#include "parsefix.h"
 #include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
