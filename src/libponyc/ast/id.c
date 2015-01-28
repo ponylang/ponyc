@@ -116,44 +116,51 @@ bool check_id(ast_t* id_node, const char* desc, int spec)
 
 bool check_id_type(ast_t* id_node, const char* entity_desc)
 {
+  // _?[A-Z][A-Za-z0-9]*
   return check_id(id_node, entity_desc,
     START_UPPER | ALLOW_LEADING_UNDERSCORE);
 }
 
 bool check_id_type_param(ast_t* id_node)
 {
+  // [A-Z][A-Za-z0-9]*
   return check_id(id_node, "type parameter",
     START_UPPER);
 }
 
 bool check_id_package(ast_t* id_node)
 {
+  // [a-z][A-Za-z0-9_]* (and no double or trailing underscores)
   return check_id(id_node, "package",
     START_LOWER | ALLOW_UNDERSCORE);
 }
 
 bool check_id_field(ast_t* id_node)
 {
+  // _?[a-z][A-Za-z0-9_]* (and no double or trailing underscores)
   return check_id(id_node, "field",
     START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE);
 }
 
 bool check_id_method(ast_t* id_node)
 {
+  // _?[a-z][A-Za-z0-9_]* (and no double or trailing underscores)
   return check_id(id_node, "method",
     START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE);
 }
 
 bool check_id_param(ast_t* id_node)
 {
+  // [a-z][A-Za-z0-9_]*'* (and no double or trailing underscores)
   return check_id(id_node, "parameter",
-    START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE | ALLOW_TICK);
+    START_LOWER | ALLOW_UNDERSCORE | ALLOW_TICK);
 }
 
 bool check_id_local(ast_t* id_node)
 {
+  // [a-z][A-Za-z0-9_]*'* (and no double or trailing underscores)
   return check_id(id_node, "local variable",
-    START_LOWER | ALLOW_LEADING_UNDERSCORE | ALLOW_UNDERSCORE | ALLOW_TICK);
+    START_LOWER | ALLOW_UNDERSCORE | ALLOW_TICK);
 }
 
 
