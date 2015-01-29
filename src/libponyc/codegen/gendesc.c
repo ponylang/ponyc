@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 #define DESC_ID 0
@@ -232,9 +233,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
   VLA(LLVMValueRef, vtable, vtable_size);
-
-  for(uint32_t i = 0; i < vtable_size; i++)
-    vtable[i] = LLVMConstNull(c->void_ptr);
+  memset(vtable, 0, vtable_size * sizeof(LLVMValueRef));
 
   reachable_type_t kt;
   kt.name = g->type_name;
@@ -253,6 +252,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
       const char* fullname = genname_fun(t->name, n->name, m->typeargs);
       uint32_t index = m->vtable_index;
       assert(index != (uint32_t)-1);
+      assert(vtable[index] == NULL);
 
       if(g->primitive != NULL)
         vtable[index] = make_unbox_function(c, g, fullname);
@@ -261,15 +261,21 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     }
   }
 
+  for(uint32_t i = 0; i < vtable_size; i++)
+  {
+    if(vtable[i] == NULL)
+      vtable[i] = LLVMConstNull(c->void_ptr);
+  }
+
   return LLVMConstArray(c->void_ptr, vtable, vtable_size);
 }
 
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 {
   const char* desc_name;
-  int traits;
-  int fields;
-  int vtable_size;
+  int traits = 0;
+  int fields = 0;
+  int vtable_size = 0;
 
   if(g != NULL)
   {
@@ -277,16 +283,13 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
     traits = trait_count(g);
 
     if(g->underlying == TK_TUPLETYPE)
+    {
       fields = g->field_count;
-    else
-      fields = 0;
-
-    vtable_size = genfun_vtable_size(c, g);
+    } else {
+      vtable_size = genfun_vtable_size(c, g);
+    }
   } else {
     desc_name = genname_descriptor(NULL);
-    traits = 0;
-    fields = 0;
-    vtable_size = 0;
   }
 
   LLVMTypeRef type = LLVMGetTypeByName(c->module, desc_name);

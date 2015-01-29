@@ -574,18 +574,22 @@ uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
   reachable_type_t kt;
   kt.name = g->type_name;
   reachable_type_t* t = reachable_types_get(c->reachable, &kt);
-  assert(t != NULL);
+
+  if(t == NULL)
+    return 0;
 
   return t->vtable_size;
 }
 
-uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
-  ast_t* typeargs)
+static uint32_t vtable_index(compile_t* c, const char* type_name,
+  const char* name, ast_t* typeargs)
 {
   reachable_type_t kt;
-  kt.name = g->type_name;
+  kt.name = type_name;
   reachable_type_t* t = reachable_types_get(c->reachable, &kt);
-  assert(t != NULL);
+
+  if(t == NULL)
+    return -1;
 
   reachable_method_name_t kn;
   kn.name = name;
@@ -600,8 +604,42 @@ uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
   reachable_method_t km;
   km.name = name;
   reachable_method_t* m = reachable_methods_get(&n->r_methods, &km);
-  assert(m != NULL);
-  assert(m->vtable_index != (uint32_t)-1);
 
+  if(m == NULL)
+    return -1;
+
+  assert(m->vtable_index != (uint32_t)-1);
   return m->vtable_index;
+}
+
+uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
+  ast_t* typeargs)
+{
+  switch(ast_id(g->ast))
+  {
+    case TK_NOMINAL:
+      return vtable_index(c, g->type_name, name, typeargs);
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(g->ast);
+
+      while(child != NULL)
+      {
+        const char* type_name = genname_type(child);
+        uint32_t index = vtable_index(c, type_name, name, typeargs);
+
+        if(index != (uint32_t)-1)
+          return index;
+
+        child = ast_sibling(child);
+      }
+
+      return -1;
+    }
+
+    default: {}
+  }
+
+  return -1;
 }
