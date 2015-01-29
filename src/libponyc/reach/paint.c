@@ -74,20 +74,11 @@
  * them.
  */
 
-//typedef struct def_record_t
-//{
-//  ast_t* ast;             // Defining AST
-//  int table_size;         // Required number of vtable entries
-//  int typemap_index;      // Position in type bitmaps
-//  uint64_t typemap_mask;  // "
-//  struct def_record_t* next;
-//} def_record_t;
 
 typedef struct name_record_t
 {
-  const char* name;       // Name
-  reachable_method_t* method;
-//  int colour;             // Assigned colour (vtable index)
+  const char* name;       // Name including type params
+  uint32_t colour;
   int type_count;         // Number of types using this name
   uint64_t* type_map;     // Bitmap of types using this name
   struct name_record_t* next;
@@ -103,61 +94,25 @@ typedef struct colour_record_t
 
 typedef struct painter_t
 {
-//  def_record_t* typedefs;
-//  def_record_t** typedef_next;
   name_record_t* names;
   name_record_t** name_next;
   symtab_t* name_table;   // Duplicate refs to name records for easy lookup
   colour_record_t* colours;
-  //uint64_t typemap_mask;  // Last assigned position in type bitmap
-  //int typemap_index;      // "
-  size_t typemap_size;       // Number of uint64_ts required in type bitmaps
+  size_t typemap_size;    // Number of uint64_ts required in type bitmaps
   int name_count;         // Number of method names used across all typedefs
   int colour_count;       // Number of colours assigned
-//  colour_opt_t options;
 } painter_t;
 
 
-#define UNASSIGNED_COLOUR -1
-
-/*
-// Add a type definition record
-static void add_def(painter_t* painter, ast_t* ast)
-{
-  assert(painter != NULL);
-  assert(ast != NULL);
-
-  // Advance to next position in type bitmap
-  painter->typemap_mask <<= 1;
-
-  if(painter->typemap_mask == 0)
-  {
-    painter->typemap_mask = 1;
-    painter->typemap_index++;
-  }
-
-  // Setup definition record
-  def_record_t* n = POOL_ALLOC(def_record_t);
-  n->ast = ast;
-  n->typemap_index = painter->typemap_index;
-  n->typemap_mask = painter->typemap_mask;
-  n->next = NULL;
-  *painter->typedef_next = n;
-  painter->typedef_next = &n->next;
-}
-*/
-
 // Add a method name record
-static name_record_t* add_name(painter_t* painter, const char* name,
-  reachable_method_t* method)
+static name_record_t* add_name(painter_t* painter, const char* name)
 {
   assert(painter != NULL);
   assert(name != NULL);
 
   name_record_t* n = POOL_ALLOC(name_record_t);
   n->name = name;
-  //n->colour = UNASSIGNED_COLOUR;
-  n->method = method;
+  n->colour = -1;
   n->type_count = 0;
   n->type_map = (uint64_t*)pool_alloc_size(
     painter->typemap_size * sizeof(uint64_t));
@@ -229,8 +184,7 @@ static void assign_name_to_colour(painter_t* painter, colour_record_t* colour,
     colour->type_map[i] |= name->type_map[i];
 
   colour->type_count += name->type_count;
-  assert(name->method != NULL);
-  name->method->vtable_index = colour->colour;
+  name->colour = colour->colour;
 }
 
 
@@ -287,76 +241,8 @@ static void painter_clear(painter_t* painter)
 #endif
 
 
-/*
-// Find concrete type definitions in the given AST
-static void find_types(painter_t* painter, ast_t* ast)
-{
-  assert(painter != NULL);
 
-  if(ast == NULL)
-    return;
-
-  switch(ast_id(ast))
-  {
-    case TK_PROGRAM:
-    case TK_PACKAGE:
-    case TK_MODULE:
-    {
-      // Recurse into children
-      ast_t* child = ast_child(ast);
-
-      while(child != NULL)
-      {
-        find_types(painter, child);
-        child = ast_sibling(child);
-      }
-      break;
-    }
-
-    case TK_ACTOR:
-    case TK_CLASS:
-    case TK_PRIMITIVE:
-      // We have a definition
-      add_def(painter, ast);
-      break;
-
-    default:
-      // Not an interesting sub-tree
-      break;
-  }
-}
-*/
-
-/*
 // Step 2
-static void find_names_types_use(painter_t* painter)
-{
-  for(def_record_t* def = painter->typedefs; def != NULL; def = def->next)
-  {
-    // We have a type definition, iterate through its members
-    ast_t* members = ast_child(ast_childidx(def->ast, 4));
-
-    for(ast_t* member = members; member != NULL; member = ast_sibling(member))
-    {
-      if(ast_id(member) == TK_FUN || ast_id(member) == TK_BE)
-      {
-        // We have a function or behaviour
-        const char* name = ast_name(ast_childidx(member, 1));
-
-        name_record_t* name_rec = find_name(painter, name);
-
-        if(name_rec == NULL)  // This is the first use of this name
-          name_rec = add_name(painter, name);
-
-        // Mark this name as using the current type
-        name_rec->type_map[def->typemap_index] |= def->typemap_mask;
-        name_rec->type_count++;
-      }
-    }
-  }
-}
-*/
-
 static void find_names_types_use(painter_t* painter, reachable_types_t* types)
 {
   assert(painter != NULL);
@@ -388,7 +274,7 @@ static void find_names_types_use(painter_t* painter, reachable_types_t* types)
         name_record_t* name_rec = find_name(painter, name);
 
         if(name_rec == NULL)  // This is the first use of this name
-          name_rec = add_name(painter, name, method);
+          name_rec = add_name(painter, name);
 
         // Mark this name as using the current type
         name_rec->type_map[typemap_index] |= typemap_mask;
@@ -412,6 +298,7 @@ static void assign_colours_to_names(painter_t* painter)
 {
   for(name_record_t* name = painter->names; name != NULL; name = name->next)
   {
+    printf("Assign colour to %s\n", name->name);
     // We have a name, try to match it with an existing colour
     colour_record_t* colour = NULL;
 
@@ -476,35 +363,52 @@ static void find_vtable_sizes(painter_t* painter, reachable_types_t* types)
 }
 
 
-/*
-painter_t* painter_create()
-{
-  painter_t* p = POOL_ALLOC(painter_t);
-  memset(p, 0, sizeof(painter_t));
-
-  p->typemap_index = -1;
-  return p;
-}
-*/
-
-/*
-colour_opt_t* painter_get_options(painter_t* painter)
+static void distribute_colours(painter_t* painter, reachable_types_t* types)
 {
   assert(painter != NULL);
-  return &painter->options;
+  assert(types != NULL);
+
+  size_t type_i = HASHMAP_BEGIN;
+  reachable_type_t* type;
+
+  while((type = (reachable_type_t*)reachable_types_next(types, &type_i))
+    != NULL)
+  {
+    size_t meth_name_i = HASHMAP_BEGIN;
+    reachable_method_name_t* meth_name;
+
+    while((meth_name = (reachable_method_name_t*)reachable_method_names_next(
+      &type->methods, &meth_name_i)) != NULL)
+    {
+      size_t method_i = HASHMAP_BEGIN;
+      reachable_method_t* method;
+
+      while((method = (reachable_method_t*)reachable_methods_next(
+        &meth_name->r_methods, &method_i)) != NULL)
+      {
+        const char* name = method->name;
+
+        name_record_t* name_rec = find_name(painter, name);
+        assert(name_rec != NULL);
+        method->vtable_index = name_rec->colour;
+      }
+    }
+  }
 }
-*/
+
 
 void paint(reachable_types_t* types)
 {
-  //assert(painter != NULL);
   assert(types != NULL);
+
+  size_t type_count = reachable_types_size(types);
+
+  if(type_count == 0) // Nothing to paint
+    return;
 
   painter_t painter;
   memset(&painter, 0, sizeof(painter_t));
 
-//  p->typemap_index = -1;
-  //painter_clear(&painter);
   painter.name_table = symtab_new();
   painter.names = NULL;
   painter.name_next = &painter.names;
@@ -512,15 +416,8 @@ void paint(reachable_types_t* types)
   painter.colour_count = 0;
   painter.name_count = 0;
 
-//  find_types(painter, taypedefs);
-  size_t type_count = reachable_types_size(types);
-//  painter->typemap_index = hashmap_size(types);
-
   // Determine the number of uint64_ts needed to contain our type bitmap
   painter.typemap_size = ((type_count - 1) / 64) + 1;
-
-  if(type_count == 0)
-    painter.typemap_size = 1;
 
   find_names_types_use(&painter, types);
 
@@ -530,52 +427,8 @@ void paint(reachable_types_t* types)
 
   assign_colours_to_names(&painter);
   find_vtable_sizes(&painter, types);
+  distribute_colours(&painter, types);
 
+  reach_dump(types);
   //painter_clear(&painter);
 }
-
-/*
-int painter_get_colour(painter_t* painter, const char* method_name)
-{
-  assert(painter != NULL);
-  assert(method_name != NULL);
-
-  // Lookup specified name record
-  name_record_t* name_rec = find_name(painter, method_name);
-
-  if(name_rec == NULL)  // Given name not found
-    return -1;
-
-  return name_rec->colour;
-}
-*/
-
-/*
-int painter_get_vtable_size(painter_t* painter, ast_t* type)
-{
-  assert(painter != NULL);
-  assert(type != NULL);
-
-  // Search for definition record
-  for(def_record_t* def = painter->typedefs; def != NULL; def = def->next)
-  {
-    if(def->ast == type)  // Specified definition found
-      return def->table_size;
-  }
-
-  // Specified definition not found, that's bad
-  assert(false);
-  return -1;
-}
-*/
-
-/*
-void painter_free(painter_t* painter)
-{
-  if(painter == NULL)
-    return;
-
-  painter_clear(painter);
-  POOL_FREE(painter_t, painter);
-}
-*/
