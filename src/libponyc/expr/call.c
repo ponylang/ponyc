@@ -67,8 +67,9 @@ static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
   return false;
 }
 
-static bool check_type_params(ast_t* lhs)
+static bool check_type_params(ast_t** astp)
 {
+  ast_t* lhs = *astp;
   ast_t* type = ast_type(lhs);
 
   if(type == NULL)
@@ -91,9 +92,10 @@ static bool check_type_params(ast_t* lhs)
   type = reify(type, typeparams, typeargs);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
-  ast_free_unattached(typeargs);
 
-  ast_settype(lhs, type);
+  REPLACE(astp, NODE(ast_id(lhs), TREE(lhs) TREE(typeargs)));
+  ast_settype(*astp, type);
+
   return true;
 }
 
@@ -397,7 +399,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
   // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
-  if(!check_type_params(lhs))
+  if(!check_type_params(&lhs))
     return false;
 
   ast_t* type = ast_type(lhs);

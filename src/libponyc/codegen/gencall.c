@@ -247,17 +247,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     default: {}
   }
 
-  if(typeargs != NULL)
-  {
-    ast_error(typeargs,
-      "not implemented (codegen for polymorphic methods)");
-    return NULL;
-  }
-
-  ast_t* type = ast_type(receiver);
-  const char* method_name = ast_name(method);
-
   // Generate the receiver type.
+  const char* method_name = ast_name(method);
+  ast_t* type = ast_type(receiver);
   gentype_t g;
 
   if(!gentype(c, type, &g))

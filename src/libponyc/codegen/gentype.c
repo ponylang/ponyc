@@ -634,6 +634,9 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 {
   memset(g, 0, sizeof(gentype_t));
 
+  if(ast == NULL)
+    return false;
+
   if(contains_dontcare(ast))
     return true;
 

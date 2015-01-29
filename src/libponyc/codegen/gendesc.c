@@ -347,7 +347,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[DESC_FINALISE] = make_function_ptr(c, genname_finalise(g->type_name),
     c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32,
-    genfun_behaviour_index(g, stringtab("_event_notify")), false);
+    genfun_vtable_index(c, g, stringtab("_event_notify"), NULL), false);
   args[DESC_TRAITS] = make_trait_list(c, g);
   args[DESC_FIELDS] = make_field_list(c, g);
   args[DESC_VTABLE] = make_vtable(c, g);

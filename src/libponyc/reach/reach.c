@@ -6,6 +6,7 @@
 #include "../type/subtype.h"
 #include "../../libponyrt/ds/stack.h"
 #include "../../libponyrt/mem/pool.h"
+#include <stdio.h>
 #include <assert.h>
 
 DECLARE_STACK(reachable_method_stack, reachable_method_t);
@@ -52,7 +53,7 @@ static void reachable_method_name_free(reachable_method_name_t* m)
   POOL_FREE(reachable_method_name_t, m);
 }
 
-DEFINE_HASHMAP(reachable_method_names_t, reachable_method_name_t,
+DEFINE_HASHMAP(reachable_method_names, reachable_method_name_t,
   reachable_method_name_hash, reachable_method_name_cmp, pool_alloc_size,
   pool_free_size, reachable_method_name_free, NULL);
 
@@ -84,8 +85,8 @@ DEFINE_HASHMAP(reachable_type_cache, reachable_type_t, reachable_type_hash,
 static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
   reachable_type_t* t, reachable_method_name_t* m, ast_t* typeargs)
 {
-  const char* name = genname_fun(t->name, m->name, typeargs);
-  reachable_method_t m1 = {name, NULL, NULL};
+  const char* name = genname_fun(NULL, m->name, typeargs);
+  reachable_method_t m1 = {name, NULL, NULL, 0};
   reachable_method_t* m2 = reachable_methods_get(&m->r_methods, &m1);
 
   if(m2 == NULL)
@@ -93,6 +94,7 @@ static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
     m2 = POOL_ALLOC(reachable_method_t);
     m2->name = name;
     m2->typeargs = ast_dup(typeargs);
+    m2->vtable_index = (uint32_t)-1;
 
     ast_t* fun = lookup(NULL, NULL, t->type, m->name);
 
@@ -155,6 +157,24 @@ static reachable_method_stack_t* add_method(reachable_method_stack_t* s,
   return s;
 }
 
+static reachable_method_stack_t* add_methods_to_type(
+  reachable_method_stack_t* s, reachable_type_t* from, reachable_type_t* to)
+{
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* m;
+
+  while((m = reachable_method_names_next(&from->methods, &i)) != NULL)
+  {
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m2;
+
+    while((m2 = reachable_methods_next(&m->r_methods, &j)) != NULL)
+      s = add_method(s, to, m->name, m2->typeargs);
+  }
+
+  return s;
+}
+
 static reachable_method_stack_t* add_types_to_trait(
   reachable_method_stack_t* s, reachable_types_t* r, reachable_type_t* t)
 {
@@ -173,19 +193,7 @@ static reachable_method_stack_t* add_types_to_trait(
         if(is_subtype(t2->type, t->type))
         {
           reachable_type_cache_put(&t->subtypes, t2);
-
-          // Add all our methods to t2.
-          size_t i = HASHMAP_BEGIN;
-          reachable_method_name_t* m;
-
-          while((m = reachable_method_names_next(&t->methods, &i)) != NULL)
-          {
-            size_t j = HASHMAP_BEGIN;
-            reachable_method_t* m2;
-
-            while((m2 = reachable_methods_next(&m->r_methods, &j)) != NULL)
-              s = add_method(s, t2, m->name, m2->typeargs);
-          }
+          s = add_methods_to_type(s, t, t2);
         }
         break;
 
@@ -196,7 +204,8 @@ static reachable_method_stack_t* add_types_to_trait(
   return s;
 }
 
-static void add_traits_to_type(reachable_types_t* r, reachable_type_t* t)
+static reachable_method_stack_t* add_traits_to_type(
+  reachable_method_stack_t* s, reachable_types_t* r, reachable_type_t* t)
 {
   size_t i = HASHMAP_BEGIN;
   reachable_type_t* t2;
@@ -210,19 +219,24 @@ static void add_traits_to_type(reachable_types_t* r, reachable_type_t* t)
       case TK_INTERFACE:
       case TK_TRAIT:
         if(is_subtype(t->type, t2->type))
+        {
           reachable_type_cache_put(&t->subtypes, t2);
+          s = add_methods_to_type(s, t2, t);
+        }
         break;
 
       default: {}
     }
   }
+
+  return s;
 }
 
 static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
   const char* type_name = genname_type(type);
-  reachable_type_t t1 = {type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}};
+  reachable_type_t t1 = {type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}, 0};
   reachable_type_t* t2 = reachable_types_get(r, &t1);
 
   if(t2 == NULL)
@@ -232,6 +246,7 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
     t2->type = ast_dup(type);
     reachable_method_names_init(&t2->methods, 0);
     reachable_type_cache_init(&t2->subtypes, 0);
+    t2->vtable_size = 0;
     reachable_types_put(r, t2);
 
     ast_t* def = (ast_t*)ast_data(type);
@@ -246,7 +261,7 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
       case TK_PRIMITIVE:
       case TK_CLASS:
       case TK_ACTOR:
-        add_traits_to_type(r, t2);
+        s = add_traits_to_type(s, r, t2);
         break;
 
       default: {}
@@ -320,6 +335,19 @@ static reachable_method_stack_t* reach_method(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
   // TODO: what if `type` is an isect type?
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+      break;
+
+    case TK_ISECTTYPE:
+      return s;
+
+    default:
+      assert(0);
+      return NULL;
+  }
+
   ast_t* this_type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   s = add_type(s, r, this_type, name, typeargs);
   ast_free_unattached(this_type);
@@ -353,5 +381,30 @@ void reach(reachable_types_t* r, ast_t* type, const char* name,
     reachable_method_t* m;
     s = reachable_method_stack_pop(s, &m);
     s = reach_body(s, r, m->r_fun);
+  }
+}
+
+void reach_dump(reachable_types_t* r)
+{
+  printf("REACH\n");
+
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(r, &i)) != NULL)
+  {
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_name_t* m;
+
+    while((m = reachable_method_names_next(&t->methods, &j)) != NULL)
+    {
+      size_t k = HASHMAP_BEGIN;
+      reachable_method_t* p;
+
+      while((p = reachable_methods_next(&m->r_methods, &k)) != NULL)
+      {
+        printf("  %s\n", p->name);
+      }
+    }
   }
 }

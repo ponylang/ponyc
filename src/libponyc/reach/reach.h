@@ -18,6 +18,7 @@ struct reachable_method_t
   const char* name;
   ast_t* typeargs;
   ast_t* r_fun;
+  uint32_t vtable_index;
 };
 
 struct reachable_method_name_t
@@ -32,6 +33,7 @@ struct reachable_type_t
   ast_t* type;
   reachable_method_names_t methods;
   reachable_type_cache_t subtypes;
+  uint32_t vtable_size;
 };
 
 /// Allocate a new set of reachable types.
@@ -47,5 +49,7 @@ void reach_free(reachable_types_t* r);
  */
 void reach(reachable_types_t* r, ast_t* type, const char* name,
   ast_t* typeargs);
+
+void reach_dump(reachable_types_t* r);
 
 #endif

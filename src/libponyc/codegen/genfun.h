@@ -14,17 +14,18 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs);
 
 LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, int index);
+  ast_t* typeargs);
 
 LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs);
 
 LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, int index);
+  ast_t* typeargs);
 
 bool genfun_methods(compile_t* c, gentype_t* g);
 
-uint32_t genfun_behaviour_index(gentype_t* g, const char* name);
+uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
+  ast_t* typeargs);
 
 PONY_EXTERN_C_END
 

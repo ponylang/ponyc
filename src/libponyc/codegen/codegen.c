@@ -286,6 +286,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->mpm = mpm;
   c->lpm = lpm;
 
+  c->reachable = reach_new();
   c->painter = painter_create();
   painter_colour(c->painter, program);
 
@@ -327,6 +328,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
   painter_free(c->painter);
+  reach_free(c->reachable);
 }
 
 bool codegen_init(pass_opt_t* opt)

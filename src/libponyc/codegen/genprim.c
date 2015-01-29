@@ -8,24 +8,6 @@
 #include "../pass/names.h"
 #include "../debug/dwarf.h"
 
-ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
-{
-  ast_t* ast = ast_from(scope, TK_NOMINAL);
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from_string(scope, name));
-  ast_add(ast, ast_from(scope, TK_NONE));
-
-  if(!names_nominal(c->opt, scope, &ast) || !gentype(c, ast, g))
-  {
-    ast_free_unattached(ast);
-    return NULL;
-  }
-
-  return ast;
-}
-
 static void pointer_create(compile_t* c, gentype_t* g)
 {
   const char* name = genname_fun(g->type_name, "create", NULL);

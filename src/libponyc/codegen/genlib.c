@@ -1,7 +1,7 @@
 #include "genlib.h"
 #include "genobj.h"
 #include "gentype.h"
-#include "genprim.h"
+#include "../type/assemble.h"
 #include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -11,7 +11,42 @@
 #  pragma warning(disable:4996)
 #endif
 
-static bool generate_actors(compile_t* c, ast_t* program)
+static bool reachable_methods(compile_t* c, ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+  ast_t* type = type_builtin(c->opt, ast, ast_name(id));
+
+  ast_t* def = (ast_t*)ast_data(type);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+      {
+        AST_GET_CHILDREN(member, cap, m_id, typeparams);
+
+        // Mark all non-polymorphic methods as reachable.
+        if(ast_id(typeparams) == TK_NONE)
+          reach(c->reachable, def, ast_name(m_id), NULL);
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  ast_free_unattached(type);
+  return true;
+}
+
+static bool reachable_actors(compile_t* c, ast_t* program)
 {
   // Look for C-API actors in every package.
   bool found = false;
@@ -34,13 +69,7 @@ static bool generate_actors(compile_t* c, ast_t* program)
           if(ast_id(c_api) == TK_AT)
           {
             // We have an actor marked as C-API.
-            ast_t* id = ast_child(entity);
-
-            // Generate the actor.
-            gentype_t g;
-            ast_t* ast = genprim(c, entity, ast_name(id), &g);
-
-            if(ast == NULL)
+            if(!reachable_methods(c, entity))
               return false;
 
             found = true;
@@ -60,6 +89,60 @@ static bool generate_actors(compile_t* c, ast_t* program)
   {
     errorf(NULL, "no C-API actors found in package '%s'", c->filename);
     return false;
+  }
+
+  return true;
+}
+
+static bool generate_actor(compile_t* c, ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+  ast_t* type = type_builtin(c->opt, ast, ast_name(id));
+
+  if(type == NULL)
+    return false;
+
+  gentype_t g;
+  bool ok = gentype(c, type, &g);
+  ast_free_unattached(type);
+
+  return ok;
+}
+
+static bool generate_actors(compile_t* c, ast_t* program)
+{
+  // Look for C-API actors in every package.
+  ast_t* package = ast_child(program);
+
+  while(package != NULL)
+  {
+    ast_t* module = ast_child(package);
+
+    while(module != NULL)
+    {
+      ast_t* entity = ast_child(module);
+
+      while(entity != NULL)
+      {
+        if(ast_id(entity) == TK_ACTOR)
+        {
+          ast_t* c_api = ast_childidx(entity, 5);
+
+          if(ast_id(c_api) == TK_AT)
+          {
+            // We have an actor marked as C-API.
+            if(!generate_actor(c, entity))
+              return false;
+          }
+        }
+
+        entity = ast_sibling(entity);
+      }
+
+      module = ast_sibling(module);
+    }
+
+    package = ast_sibling(package);
   }
 
   return true;
@@ -152,7 +235,7 @@ bool genlib(compile_t* c, ast_t* program)
     );
 
   c->header_buf = printbuf_new();
-  bool ok = generate_actors(c, program);
+  bool ok = reachable_actors(c, program) && generate_actors(c, program);
 
   fwrite(c->header_buf->m, 1, c->header_buf->offset, c->header);
   printbuf_free(c->header_buf);

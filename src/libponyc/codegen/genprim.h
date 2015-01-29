@@ -7,8 +7,6 @@
 
 PONY_EXTERN_C_BEGIN
 
-ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g);
-
 bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim);
 
 void genprim_array_trace(compile_t* c, gentype_t* g);
