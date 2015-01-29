@@ -1,7 +1,6 @@
 #ifndef CODEGEN_H
 #define CODEGEN_H
 
-#include "colour.h"
 #include "../reach/reach.h"
 #include "../pass/pass.h"
 #include "../ast/ast.h"
@@ -49,7 +48,6 @@ typedef struct compile_t
   LLVMPassManagerRef mpm;
   LLVMPassManagerRef lpm;
   reachable_types_t* reachable;
-  painter_t* painter;
   const char* filename;
   uint32_t next_type_id;
 

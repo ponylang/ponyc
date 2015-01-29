@@ -236,36 +236,28 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
   for(uint32_t i = 0; i < vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
 
-  while(member != NULL)
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
+
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
   {
-    switch(ast_id(member))
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m;
+
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
-      case TK_BE:
-      case TK_FUN:
-      {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        int colour = painter_get_colour(c->painter, funname);
+      uint32_t index = m->vtable_index;
+      const char* fullname = genname_fun(t->name, n->name, m->typeargs);
 
-        const char* fullname = genname_fun(g->type_name, funname, NULL);
-
-        if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, g, fullname);
-        else
-          vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
-
-        assert(vtable[colour] != NULL);
-        break;
-      }
-
-      default: {}
+      if(g->primitive != NULL)
+        vtable[index] = make_unbox_function(c, g, fullname);
+      else
+        vtable[index] = make_function_ptr(c, fullname, c->void_ptr);
     }
-
-    member = ast_sibling(member);
   }
 
   return LLVMConstArray(c->void_ptr, vtable, vtable_size);

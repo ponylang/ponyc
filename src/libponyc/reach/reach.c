@@ -124,7 +124,8 @@ static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
 static reachable_method_stack_t* add_method(reachable_method_stack_t* s,
   reachable_type_t* r, const char* name, ast_t* typeargs)
 {
-  reachable_method_name_t m1 = {name, {HASHMAP_INIT}};
+  reachable_method_name_t m1;
+  m1.name = name;
   reachable_method_name_t* m2 = reachable_method_names_get(&r->methods, &m1);
 
   if(m2 == NULL)
@@ -236,7 +237,8 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
   const char* type_name = genname_type(type);
-  reachable_type_t t1 = {type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}, 0};
+  reachable_type_t t1;
+  t1.name = type_name;
   reachable_type_t* t2 = reachable_types_get(r, &t1);
 
   if(t2 == NULL)

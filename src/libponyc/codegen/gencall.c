@@ -176,10 +176,10 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, gentype_t* g,
   if(g->use_type == c->object_ptr)
   {
     // Virtual, get the function by selector colour.
-    int colour = painter_get_colour(c->painter, method_name);
+    uint32_t index = genfun_vtable_index(c, g, method_name, typeargs);
 
     // Get the function from the vtable.
-    func = gendesc_vtable(c, l_value, colour);
+    func = gendesc_vtable(c, l_value, index);
 
     // Cast to the right function type.
     LLVMValueRef proto = genfun_proto(c, g, method_name, typeargs);

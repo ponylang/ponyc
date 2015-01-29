@@ -526,85 +526,44 @@ bool genfun_methods(compile_t* c, gentype_t* g)
   if(!genfun_allocator(c, g))
     return false;
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
 
-  while(member != NULL)
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
+
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
   {
-    switch(ast_id(member))
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m;
+    LLVMValueRef fun;
+
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
-      case TK_NEW:
+      switch(ast_id(m->r_fun))
       {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
+        case TK_NEW:
+          if(g->underlying == TK_ACTOR)
+            fun = genfun_newbe(c, g, n->name, m->typeargs);
+          else
+            fun = genfun_new(c, g, n->name, m->typeargs);
+          break;
 
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic constructors)");
-          return false;
-        }
+        case TK_BE:
+          fun = genfun_be(c, g, n->name, m->typeargs);
+          break;
 
-        LLVMValueRef fun;
+        case TK_FUN:
+          fun = genfun_fun(c, g, n->name, m->typeargs);
+          break;
 
-        switch(g->underlying)
-        {
-          case TK_ACTOR:
-            fun = genfun_newbe(c, g, ast_name(id), NULL);
-            break;
-
-          default:
-            fun = genfun_new(c, g, ast_name(id), NULL);
-        }
-
-        if(fun == NULL)
-          return false;
-
-        break;
+        default: {}
       }
 
-      case TK_BE:
-      {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic behaviours)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_be(c, g, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-
-        break;
-      }
-
-      case TK_FUN:
-      {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic functions)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_fun(c, g, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-
-        break;
-      }
-
-      default: {}
+      if(fun == NULL)
+        return false;
     }
-
-    member = ast_sibling(member);
   }
 
   return true;
@@ -612,9 +571,8 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
 uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
 {
-  reachable_type_t kt =
-    {g->type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}, 0};
-
+  reachable_type_t kt;
+  kt.name = g->type_name;
   reachable_type_t* t = reachable_types_get(c->reachable, &kt);
   assert(t != NULL);
 
@@ -624,20 +582,21 @@ uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
 uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs)
 {
-  reachable_type_t kt =
-    {g->type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}, 0};
-
+  reachable_type_t kt;
+  kt.name = g->type_name;
   reachable_type_t* t = reachable_types_get(c->reachable, &kt);
   assert(t != NULL);
 
-  reachable_method_name_t kn = {name, {HASHMAP_INIT}};
+  reachable_method_name_t kn;
+  kn.name = name;
   reachable_method_name_t* n = reachable_method_names_get(&t->methods, &kn);
   assert(n != NULL);
 
   if(typeargs != NULL)
     name = genname_fun(NULL, name, typeargs);
 
-  reachable_method_t km = {name, NULL, NULL, 0};
+  reachable_method_t km;
+  km.name = name;
   reachable_method_t* m = reachable_methods_get(&n->r_methods, &km);
   assert(m != NULL);
   assert(m->vtable_index != (uint32_t)-1);
