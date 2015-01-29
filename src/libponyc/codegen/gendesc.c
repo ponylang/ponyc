@@ -226,12 +226,14 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
 
 static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 {
-  if(g->vtable_size == 0)
+  uint32_t vtable_size = genfun_vtable_size(c, g);
+
+  if(vtable_size == 0)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
-  VLA(LLVMValueRef, vtable, g->vtable_size);
+  VLA(LLVMValueRef, vtable, vtable_size);
 
-  for(int i = 0; i < g->vtable_size; i++)
+  for(uint32_t i = 0; i < vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
   ast_t* def = (ast_t*)ast_data(g->ast);
@@ -266,7 +268,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     member = ast_sibling(member);
   }
 
-  return LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
+  return LLVMConstArray(c->void_ptr, vtable, vtable_size);
 }
 
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
@@ -286,7 +288,7 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
     else
       fields = 0;
 
-    vtable_size = g->vtable_size;
+    vtable_size = genfun_vtable_size(c, g);
   } else {
     desc_name = genname_descriptor(NULL);
     traits = 0;

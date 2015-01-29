@@ -40,7 +40,7 @@ static const char* c_type_name(compile_t* c, const char* name)
   return NULL;
 }
 
-static void print_base_type(compile_t* c, ast_t* type)
+static void print_base_type(compile_t* c, printbuf_t* buf, ast_t* type)
 {
   if(ast_id(type) == TK_NOMINAL)
   {
@@ -48,41 +48,41 @@ static void print_base_type(compile_t* c, ast_t* type)
     const char* c_name = c_type_name(c, name);
 
     if(c_name != NULL)
-      printbuf(c->header_buf, c_name);
+      printbuf(buf, c_name);
     else
-      printbuf(c->header_buf, "%s*", name);
+      printbuf(buf, "%s*", name);
   } else {
-    printbuf(c->header_buf, "void*");
+    printbuf(buf, "void*");
   }
 }
 
-static int print_pointer_type(compile_t* c, ast_t* type)
+static int print_pointer_type(compile_t* c, printbuf_t* buf, ast_t* type)
 {
   ast_t* typeargs = ast_childidx(type, 2);
   ast_t* elem = ast_child(typeargs);
 
   if(is_pointer(elem))
-    return print_pointer_type(c, elem) + 1;
+    return print_pointer_type(c, buf, elem) + 1;
 
-  print_base_type(c, elem);
+  print_base_type(c, buf, elem);
   return 1;
 }
 
-static void print_type_name(compile_t* c, ast_t* type)
+static void print_type_name(compile_t* c, printbuf_t* buf, ast_t* type)
 {
   if(is_pointer(type))
   {
-    printbuf(c->header_buf, "const ");
-    int depth = print_pointer_type(c, type);
+    printbuf(buf, "const ");
+    int depth = print_pointer_type(c, buf, type);
 
     for(int i = 0; i < depth; i++)
-      printbuf(c->header_buf, "*");
+      printbuf(buf, "*");
   } else {
-    print_base_type(c, type);
+    print_base_type(c, buf, type);
   }
 }
 
-static void print_params(compile_t* c, ast_t* params)
+static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
 {
   ast_t* param = ast_child(params);
 
@@ -91,29 +91,29 @@ static void print_params(compile_t* c, ast_t* params)
     AST_GET_CHILDREN(param, id, ptype);
 
     // Print the parameter.
-    printbuf(c->header_buf, ", ");
-    print_type_name(c, ptype);
+    printbuf(buf, ", ");
+    print_type_name(c, buf, ptype);
 
     // Smash trailing primes to underscores.
     const char* name = ast_name(id);
     size_t len = strlen(name) + 1;
-    VLA(char, buf, len);
-    memcpy(buf, name, len);
+    VLA(char, buffer, len);
+    memcpy(buffer, name, len);
 
     len--;
 
-    while(buf[--len] == '\'')
-      buf[len] = '_';
+    while(buffer[--len] == '\'')
+      buffer[len] = '_';
 
-    printbuf(c->header_buf, " %s", buf);
+    printbuf(buf, " %s", buffer);
 
     param = ast_sibling(param);
   }
 }
 
-static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
+static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
 {
-  ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
+  ast_t* this_type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
   ast_t* fun = lookup(NULL, NULL, this_type, name);
   ast_free_unattached(this_type);
   assert(fun != NULL);
@@ -152,17 +152,17 @@ static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
   return fun;
 }
 
-static void print_method(compile_t* c, gentype_t* g, const char* name,
-  ast_t* typeargs)
+static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
+  const char* name, ast_t* typeargs)
 {
-  const char* funname = genname_fun(g->type_name, name, typeargs);
+  const char* funname = genname_fun(t->name, name, typeargs);
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
 
   if(func == NULL)
     return;
 
   // Get a reified function.
-  ast_t* fun = get_fun(g, name, typeargs);
+  ast_t* fun = get_fun(t->type, name, typeargs);
 
   if(fun == NULL)
     return;
@@ -173,7 +173,7 @@ static void print_method(compile_t* c, gentype_t* g, const char* name,
   // Print the docstring if we have one.
   if(ast_id(docstring) == TK_STRING)
   {
-    printbuf(c->header_buf,
+    printbuf(buf,
       "/*\n"
       "%s"
       "*/\n",
@@ -182,69 +182,114 @@ static void print_method(compile_t* c, gentype_t* g, const char* name,
   }
 
   // Print the function signature.
-  print_type_name(c, rtype);
-  printbuf(c->header_buf, " %s(", funname);
+  print_type_name(c, buf, rtype);
+  printbuf(buf, " %s(", funname);
 
-  print_type_name(c, g->ast);
-  printbuf(c->header_buf, " self");
+  print_type_name(c, buf, t->type);
+  printbuf(buf, " self");
 
-  print_params(c, params);
+  print_params(c, buf, params);
 
-  printbuf(c->header_buf, ");\n\n");
+  printbuf(buf, ");\n\n");
   ast_free_unattached(fun);
 }
 
-static void print_methods(compile_t* c, gentype_t* g)
+static void print_methods(compile_t* c, reachable_type_t* t, printbuf_t* buf)
 {
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
 
-  while(member != NULL)
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
   {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-      {
-        AST_GET_CHILDREN(member, cap, id);
-        print_method(c, g, ast_name(id), NULL);
-        break;
-      }
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m;
 
-      default: {}
-    }
-
-    member = ast_sibling(member);
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
+      print_method(c, buf, t, n->name, m->typeargs);
   }
 }
 
-void genheader(compile_t* c, gentype_t* g)
+static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
 {
-  if(g->primitive != NULL)
-    return;
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
 
-  // Print the docstring if we have one.
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* docstring = ast_childidx(def, 6);
-
-  if(ast_id(docstring) == TK_STRING)
-    fprintf(c->header, "/*\n%s*/\n", ast_name(docstring));
-
-  // Forward declare an opaque type.
-  fprintf(c->header, "typedef struct %s %s;\n\n", g->type_name, g->type_name);
-
-  if(!is_pointer(g->ast))
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    // Function signature for the allocator.
-    printbuf(c->header_buf,
-      "/* Allocate a %s without initialising it. */\n%s* %s_Alloc();\n\n",
-      g->type_name,
-      g->type_name,
-      g->type_name
-      );
+    // Print the docstring if we have one.
+    ast_t* def = (ast_t*)ast_data(t->type);
+    ast_t* docstring = ast_childidx(def, 6);
+
+    if(ast_id(docstring) == TK_STRING)
+      fprintf(fp, "/*\n%s*/\n", ast_name(docstring));
+
+    // Forward declare an opaque type.
+    fprintf(fp, "typedef struct %s %s;\n\n", t->name, t->name);
+
+    if(!is_pointer(t->type))
+    {
+      // Function signature for the allocator.
+      printbuf(buf,
+        "/* Allocate a %s without initialising it. */\n%s* %s_Alloc();\n\n",
+        t->name,
+        t->name,
+        t->name
+        );
+    }
+
+    print_methods(c, t, buf);
+  }
+}
+
+bool genheader(compile_t* c)
+{
+  // Open a header file.
+  const char* file_h = suffix_filename(c->opt->output, c->filename, ".h");
+  FILE* fp = fopen(file_h, "wt");
+
+  if(fp == NULL)
+  {
+    errorf(NULL, "couldn't write to %s", file_h);
+    return false;
   }
 
-  print_methods(c, g);
+  fprintf(fp,
+    "#ifndef pony_%s_h\n"
+    "#define pony_%s_h\n"
+    "\n"
+    "/* This is an auto-generated header file. Do not edit. */\n"
+    "\n"
+    "#include <stdint.h>\n"
+    "#include <stdbool.h>\n"
+    "\n"
+    "#ifdef __cplusplus\n"
+    "extern \"C\" {\n"
+    "#endif\n"
+    "\n"
+    "#ifdef _MSC_VER\n"
+    "typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;\n"
+    "typedef struct __uint128_t { uint64_t low; uint64_t high; } "
+      "__uint128_t;\n"
+    "#endif\n"
+    "\n",
+    c->filename,
+    c->filename
+    );
+
+  printbuf_t* buf = printbuf_new();
+  print_types(c, fp, buf);
+  fwrite(buf->m, 1, buf->offset, fp);
+  printbuf_free(buf);
+
+  fprintf(fp,
+    "\n"
+    "#ifdef __cplusplus\n"
+    "}\n"
+    "#endif\n"
+    "\n"
+    "#endif\n"
+    );
+
+  fclose(fp);
+  return true;
 }

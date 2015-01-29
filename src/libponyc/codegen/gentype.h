@@ -23,7 +23,6 @@ typedef struct gentype_t
   int field_count;
   ast_t** fields;
 
-  int vtable_size;
   LLVMTypeRef desc_type;
   LLVMValueRef desc;
   LLVMValueRef instance;

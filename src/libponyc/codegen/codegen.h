@@ -53,9 +53,6 @@ typedef struct compile_t
   const char* filename;
   uint32_t next_type_id;
 
-  FILE* header;
-  printbuf_t* header_buf;
-
   const char* str_1;
   const char* str_Bool;
   const char* str_I8;

@@ -1,6 +1,6 @@
 #include "genlib.h"
 #include "genobj.h"
-#include "gentype.h"
+#include "genheader.h"
 #include "../type/assemble.h"
 #include <string.h>
 
@@ -188,7 +188,8 @@ static bool link_lib(compile_t* c, const char* file_o)
   len = 128 + strlen(file_lib) + strlen(file_o);
   VLA(char, cmd, len);
 
-  snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar, file_lib, file_o);
+  snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
+    file_lib, file_o);
 
   if(system(cmd) == -1)
   {
@@ -202,62 +203,11 @@ static bool link_lib(compile_t* c, const char* file_o)
 
 bool genlib(compile_t* c, ast_t* program)
 {
-  // Open a header file.
-  const char* file_h = suffix_filename(c->opt->output, c->filename, ".h");
-  c->header = fopen(file_h, "wt");
-
-  if(c->header == NULL)
-  {
-    errorf(NULL, "couldn't write to %s", file_h);
+  if(!reachable_actors(c, program) ||
+    !generate_actors(c, program) ||
+    !genheader(c)
+    )
     return false;
-  }
-
-  fprintf(c->header,
-    "#ifndef pony_%s_h\n"
-    "#define pony_%s_h\n"
-    "\n"
-    "/* This is an auto-generated header file. Do not edit. */\n"
-    "\n"
-    "#include <stdint.h>\n"
-    "#include <stdbool.h>\n"
-    "\n"
-    "#ifdef __cplusplus\n"
-    "extern \"C\" {\n"
-    "#endif\n"
-    "\n"
-    "#ifdef _MSC_VER\n"
-    "typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;\n"
-    "typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;\n"
-    "#endif\n"
-    "\n",
-    c->filename,
-    c->filename
-    );
-
-  c->header_buf = printbuf_new();
-  bool ok = reachable_actors(c, program) && generate_actors(c, program);
-
-  fwrite(c->header_buf->m, 1, c->header_buf->offset, c->header);
-  printbuf_free(c->header_buf);
-  c->header_buf = NULL;
-
-  fprintf(c->header,
-    "\n"
-    "#ifdef __cplusplus\n"
-    "}\n"
-    "#endif\n"
-    "\n"
-    "#endif\n"
-    );
-
-  fclose(c->header);
-  c->header = NULL;
-
-  if(!ok)
-  {
-    unlink(file_h);
-    return false;
-  }
 
   const char* file_o = genobj(c);
 

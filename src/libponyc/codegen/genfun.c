@@ -610,6 +610,17 @@ bool genfun_methods(compile_t* c, gentype_t* g)
   return true;
 }
 
+uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
+{
+  reachable_type_t kt =
+    {g->type_name, NULL, {HASHMAP_INIT}, {HASHMAP_INIT}, 0};
+
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  assert(t != NULL);
+
+  return t->vtable_size;
+}
+
 uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs)
 {
