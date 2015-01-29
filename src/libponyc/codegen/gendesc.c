@@ -267,9 +267,9 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
 {
   const char* desc_name;
-  int traits;
-  int fields;
-  int vtable_size;
+  int traits = 0;
+  int fields = 0;
+  int vtable_size = 0;
 
   if(g != NULL)
   {
@@ -277,16 +277,13 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
     traits = trait_count(g);
 
     if(g->underlying == TK_TUPLETYPE)
+    {
       fields = g->field_count;
-    else
-      fields = 0;
-
-    vtable_size = genfun_vtable_size(c, g);
+    } else {
+      vtable_size = genfun_vtable_size(c, g);
+    }
   } else {
     desc_name = genname_descriptor(NULL);
-    traits = 0;
-    fields = 0;
-    vtable_size = 0;
   }
 
   LLVMTypeRef type = LLVMGetTypeByName(c->module, desc_name);

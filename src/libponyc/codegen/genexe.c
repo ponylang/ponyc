@@ -358,13 +358,15 @@ bool genexe(compile_t* c, ast_t* program)
   gentype_t env_g;
 
   bool ok = gentype(c, main_ast, &main_g) && gentype(c, env_ast, &env_g);
+
+  if(ok)
+    gen_main(c, &main_g, &env_g);
+
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
 
   if(!ok)
     return false;
-
-  gen_main(c, &main_g, &env_g);
 
   const char* file_o = genobj(c);
 

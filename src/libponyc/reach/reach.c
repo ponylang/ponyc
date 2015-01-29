@@ -15,6 +15,9 @@ DEFINE_STACK(reachable_method_stack, reachable_method_t);
 static reachable_method_stack_t* reach_method(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs);
 
+static reachable_method_stack_t* reach_expr(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* ast);
+
 static uint64_t reachable_method_hash(reachable_method_t* m)
 {
   return hash_ptr(m->name);
@@ -276,6 +279,47 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   return s;
 }
 
+static reachable_method_stack_t* reach_pattern(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* ast)
+{
+  // TODO: look here for pattern matching on type when looking for interfaces
+  // could build a set of fully reified interfaces that get pattern matched
+  // later, we could go through all our reified types, and if they are that
+  // inteface, we can add the interface to the provides list
+  switch(ast_id(ast))
+  {
+    case TK_DONTCARE:
+      break;
+
+    case TK_VAR:
+    case TK_LET:
+      // TODO: matching type
+      break;
+
+    case TK_TUPLE:
+    case TK_SEQ:
+    {
+      ast_t* child = ast_child(ast);
+
+      while(child != NULL)
+      {
+        s = reach_pattern(s, r, child);
+        child = ast_sibling(child);
+      }
+      break;
+    }
+
+    default:
+    {
+      s = reach_method(s, r, ast_type(ast), stringtab("eq"), NULL);
+      s = reach_expr(s, r, ast);
+      break;
+    }
+  }
+
+  return s;
+}
+
 static reachable_method_stack_t* reach_call(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
@@ -302,6 +346,15 @@ static reachable_method_stack_t* reach_call(reachable_method_stack_t* s,
   return reach_method(s, r, type, method_name, typeargs);
 }
 
+static reachable_method_stack_t* reach_ffi(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
+  ast_t* return_type = ast_child(return_typeargs);
+
+  return add_type(s, r, return_type, NULL, NULL);
+}
+
 static reachable_method_stack_t* reach_expr(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
@@ -313,20 +366,32 @@ static reachable_method_stack_t* reach_expr(reachable_method_stack_t* s,
     case TK_INT:
     case TK_FLOAT:
     case TK_STRING:
-      s = reach_method(s, r, ast_type(ast), stringtab("create"), NULL);
+    {
+      ast_t* type = ast_type(ast);
+
+      if(type != NULL)
+        s = reach_method(s, r, type, stringtab("create"), NULL);
       break;
+    }
+
+    case TK_CASE:
+    {
+      AST_GET_CHILDREN(ast, pattern, guard, body);
+      s = reach_pattern(s, r, pattern);
+      s = reach_expr(s, r, guard);
+      return reach_expr(s, r, body);
+    }
 
     case TK_CALL:
       s = reach_call(s, r, ast);
       break;
 
+    case TK_FFICALL:
+      s = reach_ffi(s, r, ast);
+      break;
+
     default: {}
   }
-
-  // TODO: look here for pattern matching on type when looking for interfaces
-  // could build a set of fully reified interfaces that get pattern matched
-  // later, we could go through all our reified types, and if they are that
-  // inteface, we can add the interface to the provides list
 
   // Traverse all child expressions looking for calls.
   ast_t* child = ast_child(ast);
@@ -350,14 +415,27 @@ static reachable_method_stack_t* reach_body(reachable_method_stack_t* s,
 static reachable_method_stack_t* reach_method(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
-  // TODO: what if `type` is an isect type?
   switch(ast_id(type))
   {
     case TK_NOMINAL:
       break;
 
     case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_t* find = lookup_try(NULL, NULL, child, name);
+
+        if(find != NULL)
+          s = reach_method(s, r, child, name, typeargs);
+
+        child = ast_sibling(child);
+      }
+
       return s;
+    }
 
     default:
       assert(0);

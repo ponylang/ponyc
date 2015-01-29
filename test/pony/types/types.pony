@@ -80,7 +80,7 @@ actor Main
     end
 
     let partial = writer~apply("foo")
-    _env.out.print(partial("bar"))
+    _env.out.print(partial("bar1"))
 
   fun ref test_actor() =>
     let writer = object
@@ -91,7 +91,7 @@ actor Main
     end
 
     let partial = writer~apply("foo")
-    partial("bar")
+    partial("bar2")
 
   fun ref test_literal_ffi() =>
     let writer = object
@@ -121,8 +121,20 @@ actor Main
     end
 
   fun ref test_set() =>
-    var set1 = Set[String] + "hi"
+    var set1 = Set[String] + "hi" + "bye"
     var set2 = Set[String] + "there" + "hi"
     var set3 = set1 or set2
     var set4 = set1 xor set2
     set1 = set3
+
+    try
+      for value in set1.values() do
+        _env.out.print(value)
+      end
+    end
+
+    try
+      for value in set4.values() do
+        _env.out.print(value)
+      end
+    end

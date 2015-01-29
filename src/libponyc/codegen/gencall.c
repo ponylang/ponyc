@@ -177,6 +177,7 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, gentype_t* g,
   {
     // Virtual, get the function by selector colour.
     uint32_t index = genfun_vtable_index(c, g, method_name, typeargs);
+    assert(index != (uint32_t)-1);
 
     // Get the function from the vtable.
     func = gendesc_vtable(c, l_value, index);

@@ -5,8 +5,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include <stdio.h>
-
 /** We use a greedy algorithm that gives a reasonable trade-off between
  * computation (at compiletime) and resulting colour density (runtime memory).
  * We also employ various heuristics to improve our results.
@@ -298,7 +296,6 @@ static void assign_colours_to_names(painter_t* painter)
 {
   for(name_record_t* name = painter->names; name != NULL; name = name->next)
   {
-    printf("Assign colour to %s\n", name->name);
     // We have a name, try to match it with an existing colour
     colour_record_t* colour = NULL;
 
@@ -429,6 +426,5 @@ void paint(reachable_types_t* types)
   find_vtable_sizes(&painter, types);
   distribute_colours(&painter, types);
 
-  reach_dump(types);
   //painter_clear(&painter);
 }
