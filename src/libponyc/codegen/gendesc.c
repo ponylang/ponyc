@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "../type/reify.h"
 #include "../ast/stringtab.h"
+#include <string.h>
 #include <assert.h>
 
 #define DESC_ID 0
@@ -232,9 +233,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
   VLA(LLVMValueRef, vtable, vtable_size);
-
-  for(uint32_t i = 0; i < vtable_size; i++)
-    vtable[i] = LLVMConstNull(c->void_ptr);
+  memset(vtable, 0, vtable_size * sizeof(LLVMValueRef));
 
   reachable_type_t kt;
   kt.name = g->type_name;
@@ -253,12 +252,19 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
       const char* fullname = genname_fun(t->name, n->name, m->typeargs);
       uint32_t index = m->vtable_index;
       assert(index != (uint32_t)-1);
+      assert(vtable[index] == NULL);
 
       if(g->primitive != NULL)
         vtable[index] = make_unbox_function(c, g, fullname);
       else
         vtable[index] = make_function_ptr(c, fullname, c->void_ptr);
     }
+  }
+
+  for(uint32_t i = 0; i < vtable_size; i++)
+  {
+    if(vtable[i] == NULL)
+      vtable[i] = LLVMConstNull(c->void_ptr);
   }
 
   return LLVMConstArray(c->void_ptr, vtable, vtable_size);
