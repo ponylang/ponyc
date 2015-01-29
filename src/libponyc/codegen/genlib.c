@@ -1,6 +1,7 @@
 #include "genlib.h"
 #include "genobj.h"
 #include "genheader.h"
+#include "../reach/paint.h"
 #include "../type/assemble.h"
 #include <string.h>
 
@@ -91,6 +92,7 @@ static bool reachable_actors(compile_t* c, ast_t* program)
     return false;
   }
 
+  paint(c->reachable);
   return true;
 }
 

@@ -4,6 +4,7 @@
 #include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
+#include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
@@ -351,6 +352,7 @@ bool genexe(compile_t* c, ast_t* program)
 
   reach(c->reachable, main_ast, stringtab("create"), NULL);
   reach(c->reachable, env_ast, stringtab("_create"), NULL);
+  paint(c->reachable);
 
   gentype_t main_g;
   gentype_t env_g;

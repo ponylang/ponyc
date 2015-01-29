@@ -4,8 +4,6 @@
 #include "genprim.h"
 #include "genname.h"
 #include "gendesc.h"
-// TODO:
-// #include "../reach/paint.h"
 #include "../debug/dwarf.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
@@ -289,9 +287,6 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->lpm = lpm;
 
   c->reachable = reach_new();
-
-  // TODO:
-  // paint(c->reachable);
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
