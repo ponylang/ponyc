@@ -234,6 +234,7 @@ static void assign_name_to_colour(painter_t* painter, colour_record_t* colour,
 }
 
 
+#if 0
 // Clear all data from the painter in preperation for processing new data or
 // deletion
 static void painter_clear(painter_t* painter)
@@ -283,6 +284,7 @@ static void painter_clear(painter_t* painter)
 //  painter->typemap_mask = 0;
   painter->name_count = 0;
 }
+#endif
 
 
 /*
@@ -499,13 +501,18 @@ void paint(reachable_types_t* types)
   assert(types != NULL);
 
   painter_t painter;
-  //memset(p, 0, sizeof(painter_t));
+  memset(&painter, 0, sizeof(painter_t));
 
 //  p->typemap_index = -1;
-  painter_clear(&painter);
+  //painter_clear(&painter);
   painter.name_table = symtab_new();
+  painter.names = NULL;
+  painter.name_next = &painter.names;
+  painter.colours = NULL;
+  painter.colour_count = 0;
+  painter.name_count = 0;
 
-//  find_types(painter, typedefs);
+//  find_types(painter, taypedefs);
   size_t type_count = reachable_types_size(types);
 //  painter->typemap_index = hashmap_size(types);
 
@@ -524,7 +531,7 @@ void paint(reachable_types_t* types)
   assign_colours_to_names(&painter);
   find_vtable_sizes(&painter, types);
 
-  painter_clear(&painter);
+  //painter_clear(&painter);
 }
 
 /*
