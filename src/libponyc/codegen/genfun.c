@@ -590,7 +590,9 @@ uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
   reachable_method_name_t kn;
   kn.name = name;
   reachable_method_name_t* n = reachable_method_names_get(&t->methods, &kn);
-  assert(n != NULL);
+
+  if(n == NULL)
+    return -1;
 
   if(typeargs != NULL)
     name = genname_fun(NULL, name, typeargs);

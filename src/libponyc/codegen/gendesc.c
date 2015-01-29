@@ -250,8 +250,9 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 
     while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
-      uint32_t index = m->vtable_index;
       const char* fullname = genname_fun(t->name, n->name, m->typeargs);
+      uint32_t index = m->vtable_index;
+      assert(index != (uint32_t)-1);
 
       if(g->primitive != NULL)
         vtable[index] = make_unbox_function(c, g, fullname);

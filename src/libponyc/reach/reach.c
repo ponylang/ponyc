@@ -306,8 +306,22 @@ static reachable_method_stack_t* reach_expr(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
   // If this is a method call, mark the method as reachable.
-  if(ast_id(ast) == TK_CALL)
-    s = reach_call(s, r, ast);
+  switch(ast_id(ast))
+  {
+    case TK_TRUE:
+    case TK_FALSE:
+    case TK_INT:
+    case TK_FLOAT:
+    case TK_STRING:
+      s = reach_method(s, r, ast_type(ast), stringtab("create"), NULL);
+      break;
+
+    case TK_CALL:
+      s = reach_call(s, r, ast);
+      break;
+
+    default: {}
+  }
 
   // TODO: look here for pattern matching on type when looking for interfaces
   // could build a set of fully reified interfaces that get pattern matched
@@ -395,6 +409,7 @@ void reach_dump(reachable_types_t* r)
 
   while((t = reachable_types_next(r, &i)) != NULL)
   {
+    printf("  %s\n", t->name);
     size_t j = HASHMAP_BEGIN;
     reachable_method_name_t* m;
 
@@ -405,7 +420,7 @@ void reach_dump(reachable_types_t* r)
 
       while((p = reachable_methods_next(&m->r_methods, &k)) != NULL)
       {
-        printf("  %s\n", p->name);
+        printf("    %s\n", p->name);
       }
     }
   }
