@@ -8,24 +8,6 @@
 #include "../pass/names.h"
 #include "../debug/dwarf.h"
 
-ast_t* genprim(compile_t* c, ast_t* scope, const char* name, gentype_t* g)
-{
-  ast_t* ast = ast_from(scope, TK_NOMINAL);
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from(scope, TK_NONE));
-  ast_add(ast, ast_from_string(scope, name));
-  ast_add(ast, ast_from(scope, TK_NONE));
-
-  if(!names_nominal(c->opt, scope, &ast) || !gentype(c, ast, g))
-  {
-    ast_free_unattached(ast);
-    return NULL;
-  }
-
-  return ast;
-}
-
 static void pointer_create(compile_t* c, gentype_t* g)
 {
   const char* name = genname_fun(g->type_name, "create", NULL);
@@ -406,50 +388,41 @@ typedef struct num_cons_t
 {
   const char* type_name;
   LLVMTypeRef type;
-  LLVMTypeRef from;
-  bool is_float;
 } num_cons_t;
 
 static void number_constructors(compile_t* c)
 {
   num_cons_t cons[] =
   {
-    {"I8", c->i8, c->i8, false},
-    {"I16", c->i16, c->i16, false},
-    {"I32", c->i32, c->i32, false},
-    {"I64", c->i64, c->i64, false},
-    {"I128", c->i128, c->i128, false},
+    {"Bool", c->i1},
 
-    {"U8", c->i8, c->i8, false},
-    {"U16", c->i16, c->i16, false},
-    {"U32", c->i32, c->i32, false},
-    {"U64", c->i64, c->i64, false},
-    {"U128", c->i128, c->i128, false},
+    {"I8", c->i8},
+    {"I16", c->i16},
+    {"I32", c->i32},
+    {"I64", c->i64},
+    {"I128", c->i128},
 
-    {"F32", c->f32, c->f32, true},
-    {"F64", c->f64, c->f64, true},
+    {"U8", c->i8},
+    {"U16", c->i16},
+    {"U32", c->i32},
+    {"U64", c->i64},
+    {"U128", c->i128},
 
-    {NULL, NULL, NULL, false}
+    {"F32", c->f32},
+    {"F64", c->f64},
+
+    {NULL, NULL}
   };
 
   for(num_cons_t* con = cons; con->type_name != NULL; con++)
   {
     const char* name = genname_fun(con->type_name, "create", NULL);
-    LLVMTypeRef f_type = LLVMFunctionType(con->type, &con->from, 1, false);
+    LLVMTypeRef f_type = LLVMFunctionType(con->type, &con->type, 1, false);
     LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
     codegen_startfun(c, fun);
     LLVMValueRef arg = LLVMGetParam(fun, 0);
-    LLVMValueRef result;
-
-    if(con->type == con->from)
-      result = arg;
-    else if(con->is_float)
-      result = LLVMBuildFPTrunc(c->builder, arg, con->type, "");
-    else
-      result = LLVMBuildTrunc(c->builder, arg, con->type, "");
-
-    LLVMBuildRet(c->builder, result);
+    LLVMBuildRet(c->builder, arg);
     codegen_finishfun(c);
   }
 }

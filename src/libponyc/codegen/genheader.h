@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-void genheader(compile_t* c, gentype_t* g);
+bool genheader(compile_t* c);
 
 PONY_EXTERN_C_END
 

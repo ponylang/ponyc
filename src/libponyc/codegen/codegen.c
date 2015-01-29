@@ -286,8 +286,7 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->mpm = mpm;
   c->lpm = lpm;
 
-  c->painter = painter_create();
-  painter_colour(c->painter, program);
+  c->reachable = reach_new();
 
   // The name of the first package is the name of the program.
   c->filename = package_filename(ast_child(program));
@@ -326,7 +325,7 @@ static void codegen_cleanup(compile_t* c)
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
   LLVMDisposeTargetMachine(c->machine);
-  painter_free(c->painter);
+  reach_free(c->reachable);
 }
 
 bool codegen_init(pass_opt_t* opt)

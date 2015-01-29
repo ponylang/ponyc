@@ -4,7 +4,6 @@
 #include "genprim.h"
 #include "gentrace.h"
 #include "genfun.h"
-#include "genheader.h"
 #include "../pkg/package.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
@@ -42,19 +41,10 @@ static void make_global_descriptor(compile_t* c, gentype_t* g)
 {
   // Fetch or create a descriptor type.
   if(g->underlying == TK_TUPLETYPE)
-  {
-    // Tuples have no vtable.
     g->field_count = (int)ast_childcount(g->ast);
-    g->vtable_size = 0;
-  } else {
-    // Get the vtable size from the painter.
-    ast_t* def = (ast_t*)ast_data(g->ast);
-    g->vtable_size = painter_get_vtable_size(c->painter, def);
-  }
-
-  g->desc_type = gendesc_type(c, g);
 
   // Check for an existing descriptor.
+  g->desc_type = gendesc_type(c, g);
   g->desc = LLVMGetNamedGlobal(c->module, g->desc_name);
 
   if(g->desc != NULL)
@@ -560,10 +550,6 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   if(composite)
     dwarf_composite(c->dwarf, g);
 
-  // Write to the header file.
-  if(c->opt->library)
-    genheader(c, g);
-
   free_fields(g);
   return true;
 }
@@ -637,6 +623,9 @@ static bool contains_dontcare(ast_t* ast)
 bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
 {
   memset(g, 0, sizeof(gentype_t));
+
+  if(ast == NULL)
+    return false;
 
   if(contains_dontcare(ast))
     return true;

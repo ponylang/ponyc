@@ -217,7 +217,7 @@ static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
-  LLVMValueRef func, int index)
+  LLVMValueRef func, uint32_t index)
 {
   // Get the parameter types.
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -280,8 +280,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   return msg_type_ptr;
 }
 
-static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun, int index,
-  LLVMValueRef handler, LLVMTypeRef type)
+static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
+  uint32_t index, LLVMValueRef handler, LLVMTypeRef type)
 {
   // Add a case to the dispatch function to handle this message.
   codegen_startfun(c, g->dispatch_fn);
@@ -366,7 +366,7 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
 }
 
 LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, int index)
+  ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
@@ -378,6 +378,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // Send the arguments in a message to 'this'.
+  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
   LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
   // Return 'this'.
@@ -440,7 +441,7 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
 }
 
 LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, int index)
+  ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
@@ -451,6 +452,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   codegen_startfun(c, func);
 
   // Send the arguments in a message to 'this'.
+  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
   LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
 
@@ -524,122 +526,82 @@ bool genfun_methods(compile_t* c, gentype_t* g)
   if(!genfun_allocator(c, g))
     return false;
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  int be_index = 0;
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
 
-  while(member != NULL)
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
+
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
   {
-    switch(ast_id(member))
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m;
+    LLVMValueRef fun;
+
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
-      case TK_NEW:
+      switch(ast_id(m->r_fun))
       {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
+        case TK_NEW:
+          if(g->underlying == TK_ACTOR)
+            fun = genfun_newbe(c, g, n->name, m->typeargs);
+          else
+            fun = genfun_new(c, g, n->name, m->typeargs);
+          break;
 
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic constructors)");
-          return false;
-        }
+        case TK_BE:
+          fun = genfun_be(c, g, n->name, m->typeargs);
+          break;
 
-        LLVMValueRef fun;
+        case TK_FUN:
+          fun = genfun_fun(c, g, n->name, m->typeargs);
+          break;
 
-        switch(g->underlying)
-        {
-          case TK_ACTOR:
-            fun = genfun_newbe(c, g, ast_name(id), NULL, be_index++);
-            break;
-
-          default:
-            fun = genfun_new(c, g, ast_name(id), NULL);
-        }
-
-        if(fun == NULL)
-          return false;
-
-        break;
+        default: {}
       }
 
-      case TK_BE:
-      {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic behaviours)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_be(c, g, ast_name(id), NULL, be_index++);
-
-        if(fun == NULL)
-          return false;
-
-        break;
-      }
-
-      case TK_FUN:
-      {
-        AST_GET_CHILDREN(member, ignore, id, typeparams);
-
-        if(ast_id(typeparams) != TK_NONE)
-        {
-          ast_error(typeparams,
-            "not implemented (codegen for polymorphic functions)");
-          return false;
-        }
-
-        LLVMValueRef fun = genfun_fun(c, g, ast_name(id), NULL);
-
-        if(fun == NULL)
-          return false;
-
-        break;
-      }
-
-      default: {}
+      if(fun == NULL)
+        return false;
     }
-
-    member = ast_sibling(member);
   }
 
   return true;
 }
 
-uint32_t genfun_behaviour_index(gentype_t* g, const char* name)
+uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
 {
-  if(g->underlying != TK_ACTOR)
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  assert(t != NULL);
+
+  return t->vtable_size;
+}
+
+uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
+  ast_t* typeargs)
+{
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  assert(t != NULL);
+
+  reachable_method_name_t kn;
+  kn.name = name;
+  reachable_method_name_t* n = reachable_method_names_get(&t->methods, &kn);
+
+  if(n == NULL)
     return -1;
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
-  int index = 0;
+  if(typeargs != NULL)
+    name = genname_fun(NULL, name, typeargs);
 
-  while(member != NULL)
-  {
-    switch(ast_id(member))
-    {
-      case TK_NEW:
-      case TK_BE:
-      {
-        AST_GET_CHILDREN(member, ignore, id);
+  reachable_method_t km;
+  km.name = name;
+  reachable_method_t* m = reachable_methods_get(&n->r_methods, &km);
+  assert(m != NULL);
+  assert(m->vtable_index != (uint32_t)-1);
 
-        if(ast_name(id) == name)
-          return index;
-
-        index++;
-        break;
-      }
-
-      default: {}
-    }
-
-    member = ast_sibling(member);
-  }
-
-  return -1;
+  return m->vtable_index;
 }

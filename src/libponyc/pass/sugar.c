@@ -318,7 +318,7 @@ static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-  
+
   // If the receiver cap is not specified, set it to box.
   if(ast_id(cap) == TK_NONE)
     ast_setid(cap, TK_BOX);
@@ -422,11 +422,18 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 {
   AST_EXTRACT_CHILDREN(*astp, withexpr, body, else_clause);
+  token_id try_token;
+
+  if(ast_id(else_clause) == TK_NONE)
+    try_token = TK_TRY_NO_CHECK;
+  else
+    try_token = TK_TRY;
+
   expand_none(else_clause);
 
   BUILD(replace, *astp,
     NODE(TK_SEQ,
-      NODE(TK_TRY_NO_CHECK, AST_SCOPE
+      NODE(try_token, AST_SCOPE
         NODE(TK_SEQ, AST_SCOPE
           TREE(body))
         NODE(TK_SEQ, AST_SCOPE

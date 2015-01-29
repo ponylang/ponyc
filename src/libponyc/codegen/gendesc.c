@@ -226,47 +226,42 @@ static LLVMValueRef make_field_list(compile_t* c, gentype_t* g)
 
 static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
 {
-  if(g->vtable_size == 0)
+  uint32_t vtable_size = genfun_vtable_size(c, g);
+
+  if(vtable_size == 0)
     return LLVMConstArray(c->void_ptr, NULL, 0);
 
-  VLA(LLVMValueRef, vtable, g->vtable_size);
+  VLA(LLVMValueRef, vtable, vtable_size);
 
-  for(int i = 0; i < g->vtable_size; i++)
+  for(uint32_t i = 0; i < vtable_size; i++)
     vtable[i] = LLVMConstNull(c->void_ptr);
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* members = ast_childidx(def, 4);
-  ast_t* member = ast_child(members);
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
 
-  while(member != NULL)
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
+
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
   {
-    switch(ast_id(member))
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_t* m;
+
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
-      case TK_BE:
-      case TK_FUN:
-      {
-        ast_t* id = ast_childidx(member, 1);
-        const char* funname = ast_name(id);
-        int colour = painter_get_colour(c->painter, funname);
+      const char* fullname = genname_fun(t->name, n->name, m->typeargs);
+      uint32_t index = m->vtable_index;
+      assert(index != (uint32_t)-1);
 
-        const char* fullname = genname_fun(g->type_name, funname, NULL);
-
-        if(g->primitive != NULL)
-          vtable[colour] = make_unbox_function(c, g, fullname);
-        else
-          vtable[colour] = make_function_ptr(c, fullname, c->void_ptr);
-
-        assert(vtable[colour] != NULL);
-        break;
-      }
-
-      default: {}
+      if(g->primitive != NULL)
+        vtable[index] = make_unbox_function(c, g, fullname);
+      else
+        vtable[index] = make_function_ptr(c, fullname, c->void_ptr);
     }
-
-    member = ast_sibling(member);
   }
 
-  return LLVMConstArray(c->void_ptr, vtable, g->vtable_size);
+  return LLVMConstArray(c->void_ptr, vtable, vtable_size);
 }
 
 LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
@@ -286,7 +281,7 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
     else
       fields = 0;
 
-    vtable_size = g->vtable_size;
+    vtable_size = genfun_vtable_size(c, g);
   } else {
     desc_name = genname_descriptor(NULL);
     traits = 0;
@@ -347,7 +342,7 @@ void gendesc_init(compile_t* c, gentype_t* g)
   args[DESC_FINALISE] = make_function_ptr(c, genname_finalise(g->type_name),
     c->final_fn);
   args[DESC_EVENT_NOTIFY] = LLVMConstInt(c->i32,
-    genfun_behaviour_index(g, stringtab("_event_notify")), false);
+    genfun_vtable_index(c, g, stringtab("_event_notify"), NULL), false);
   args[DESC_TRAITS] = make_trait_list(c, g);
   args[DESC_FIELDS] = make_field_list(c, g);
   args[DESC_VTABLE] = make_vtable(c, g);

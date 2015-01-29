@@ -1,12 +1,13 @@
 #include "genexe.h"
 #include "genobj.h"
-#include "genprim.h"
 #include "gentype.h"
 #include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
+#include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
+#include "../type/assemble.h"
 #include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -171,7 +172,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = genfun_behaviour_index(main_g, stringtab("create"));
+  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
+    NULL);
+
   args[1] = LLVMConstInt(c->i32, 0, false);
   args[0] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
@@ -329,6 +332,8 @@ bool genexe(compile_t* c, ast_t* program)
 {
   // The first package is the main package. It has to have a Main actor.
   const char* main_actor = stringtab("Main");
+  const char* env_class = stringtab("Env");
+
   ast_t* package = ast_child(program);
   ast_t* main_def = ast_get(package, main_actor, NULL);
 
@@ -339,27 +344,24 @@ bool genexe(compile_t* c, ast_t* program)
   }
 
   // Generate the Main actor and the Env class.
+  ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
+  ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
+
+  reach(c->reachable, main_ast, stringtab("create"), NULL);
+  reach(c->reachable, env_ast, stringtab("_create"), NULL);
+  paint(c->reachable);
+
   gentype_t main_g;
-  ast_t* main_ast = genprim(c, main_def, main_actor, &main_g);
-
-  if(main_ast == NULL)
-    return false;
-
-  const char* env_class = stringtab("Env");
-
   gentype_t env_g;
-  ast_t* env_ast = genprim(c, main_def, env_class, &env_g);
 
-  if(env_ast == NULL)
-  {
-    ast_free_unattached(main_ast);
-    return false;
-  }
-
-  gen_main(c, &main_g, &env_g);
-
+  bool ok = gentype(c, main_ast, &main_g) && gentype(c, env_ast, &env_g);
   ast_free_unattached(main_ast);
   ast_free_unattached(env_ast);
+
+  if(!ok)
+    return false;
+
+  gen_main(c, &main_g, &env_g);
 
   const char* file_o = genobj(c);
 
