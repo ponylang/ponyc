@@ -3,20 +3,9 @@
 #include <stdio.h>
 
 #include <ast/ast.h>
-#include <ast/id.h>
+#include <ast/id_internal.h>
 
 #include "util.h"
-
-// Defined in id.c
-#define START_UPPER               0x01
-#define START_LOWER               0x02
-#define ALLOW_LEADING_UNDERSCORE  0x04
-#define ALLOW_UNDERSCORE          0x08
-#define ALLOW_TICK                0x10
-
-PONY_EXTERN_C_BEGIN
-bool check_id(ast_t* id_node, const char* desc, int spec);
-PONY_EXTERN_C_END
 
 
 static void test_id(const char* id, bool expect_pass, int spec)

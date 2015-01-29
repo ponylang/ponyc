@@ -1,20 +1,8 @@
 #include <assert.h>
 #include "id.h"
+#include "id_internal.h"
 
 
-// ID spec flags
-#define START_UPPER               0x01
-#define START_LOWER               0x02
-#define ALLOW_LEADING_UNDERSCORE  0x04
-#define ALLOW_UNDERSCORE          0x08
-#define ALLOW_TICK                0x10
-
-
-/* Check that the name in the given ID node meets the given spec.
- * If name is illegal an error will be generated.
- * The spec is supplied as a set of the above #defined flags.
- * This function is not static as it is linked to by the unit tests.
- */
 bool check_id(ast_t* id_node, const char* desc, int spec)
 {
   assert(id_node != NULL);
