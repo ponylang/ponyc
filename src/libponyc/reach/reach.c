@@ -273,6 +273,33 @@ static reachable_method_stack_t* add_fieldinit(reachable_method_stack_t* s,
 static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      assert(name == NULL);
+      assert(typeargs == NULL);
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        s = add_type(s, r, child, NULL, NULL);
+        child = ast_sibling(child);
+      }
+
+      return s;
+    }
+
+    case TK_NOMINAL:
+      break;
+
+    default:
+      assert(0);
+      return s;
+  }
+
   const char* type_name = genname_type(type);
   reachable_type_t t1;
   t1.name = type_name;
