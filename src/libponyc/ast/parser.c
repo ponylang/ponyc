@@ -660,6 +660,8 @@ DEF(seq);
 // (FUN | BE | NEW) [CAP] ID [typeparams] (LPAREN | LPAREN_NEW) [params]
 // RPAREN [COLON type] [QUESTION] [ARROW rawseq]
 DEF(method);
+  RESTART(TK_BE, TK_FUN, TK_NEW, TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE,
+    TK_CLASS, TK_ACTOR);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
   OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
@@ -679,6 +681,8 @@ DEF(method);
 
 // (VAR | VAL) ID [COLON type] [ASSIGN infix]
 DEF(field);
+  RESTART(TK_VAR, TK_LET, TK_BE, TK_FUN, TK_NEW, TK_TYPE, TK_INTERFACE,
+    TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   TOKEN(NULL, TK_VAR, TK_LET);
   MAP_ID(TK_VAR, TK_FVAR);
   MAP_ID(TK_LET, TK_FLET);
@@ -698,6 +702,7 @@ DEF(members);
 // (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
 // [CAP] [IS types] [STRING] members
 DEF(class_def);
+  RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
     TK_ACTOR);
   SCOPE();
@@ -740,6 +745,8 @@ DEF(use_name);
 
 // USE [ID ASSIGN] (STRING | USE_FFI) [IF infix]
 DEF(use);
+  RESTART(TK_USE, TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
+    TK_ACTOR);
   TOKEN(NULL, TK_USE);
   OPT RULE("name", use_name);
   RULE("specifier", use_uri, use_ffi);

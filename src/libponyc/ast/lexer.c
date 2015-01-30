@@ -321,7 +321,6 @@ static void string_terminate(lexer_t* lexer)
   lexerror(lexer, "String doesn't terminate");
   lexer->ptr += lexer->len;
   lexer->len = 0;
-  lexer->buflen = 0;
 }
 
 
@@ -496,7 +495,6 @@ static const char* save_token_text(lexer_t* lexer)
   append(lexer, '\0');
   const char* str = stringtab(lexer->buffer);
   assert(str != NULL);
-  lexer->buflen = 0;
 
   return str;
 }
@@ -986,10 +984,7 @@ static token_t* identifier(lexer_t* lexer)
   for(const lexsym_t* p = keywords; p->symbol != NULL; p++)
   {
     if(!strcmp(lexer->buffer, p->symbol))
-    {
-      lexer->buflen = 0;
       return make_token(lexer, p->id);
-    }
   }
 
   token_t* t = make_token(lexer, TK_ID);
@@ -1021,7 +1016,6 @@ static token_t* test_identifier(lexer_t* lexer)
   {
     if(!strcmp(lexer->buffer, p->symbol))
     {
-      lexer->buflen = 0;
       adv(lexer, len);
       return make_token(lexer, p->id);
     }
@@ -1115,6 +1109,7 @@ token_t* lexer_next(lexer_t* lexer)
   {
     symbol_line = lexer->line;
     symbol_pos = lexer->pos;
+    lexer->buflen = 0;
 
     if(is_eof(lexer))
     {

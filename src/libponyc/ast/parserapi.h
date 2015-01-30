@@ -58,16 +58,7 @@ PONY_EXTERN_C_BEGIN
 typedef struct lexer_t lexer_t;
 typedef struct source_t source_t;
 typedef struct token_t token_t;
-
-typedef struct parser_t
-{
-  source_t* source;
-  lexer_t* lexer;
-  token_t* token;
-  const char* last_matched;
-  void* next_flags;     // Data flags to set on the next token created
-  bool trace;
-} parser_t;
+typedef struct parser_t parser_t;
 
 
 /// State of parsing current rule
@@ -76,6 +67,8 @@ typedef struct rule_state_t
   const char* fn_name;  // Name of the current function, for tracing
   ast_t* ast;           // AST built for this rule
   ast_t* last_child;    // Last child added to current ast
+  const char* desc;     // Rule description (set by parent)
+  token_id* restart;    // Restart token set, NULL for none
   token_id deflt_id;    // ID of node to create when an optional token or rule
                         // is not found.
                         // TK_EOF = do not create a default
@@ -90,12 +83,13 @@ typedef struct rule_state_t
 
 typedef void (*builder_fn_t)(rule_state_t* state, ast_t* new_ast);
 
-typedef ast_t* (*rule_t)(parser_t* parser, builder_fn_t *out_builder);
+typedef ast_t* (*rule_t)(parser_t* parser, builder_fn_t *out_builder,
+  const char* rule_desc);
 
 
-#define PARSE_OK        ((ast_t*)0)   // Requested parse successful
-#define PARSE_ERROR     ((ast_t*)1)   // A parse error has occured
-#define RULE_NOT_FOUND  ((ast_t*)2)   // Sub item was not found
+#define PARSE_OK        ((ast_t*)1)   // Requested parse successful
+#define PARSE_ERROR     ((ast_t*)2)   // A parse error has occured
+#define RULE_NOT_FOUND  ((ast_t*)3)   // Sub item was not found
 
 
 // Functions used by macros
@@ -136,16 +130,45 @@ bool parse(ast_t* package, source_t* source, rule_t start,
 
 /// Rule forward declaration
 #define DECL(rule) \
-  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder)
+  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder, \
+    const char* rule_desc)
 
 
 /// Rule definition
 #define DEF(rule) \
-  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder) \
+  static ast_t* rule(parser_t* parser, builder_fn_t *out_builder, \
+    const char* rule_desc) \
   { \
     (void)out_builder; \
-    rule_state_t state = {#rule, NULL, NULL, TK_LEX_ERROR, \
+    rule_state_t state = {#rule, NULL, NULL, rule_desc, NULL, TK_LEX_ERROR, \
       false, false, false, TK_NONE, 0, 0}
+
+
+/** Specify a restart point.
+ * Restart points are used to partially recover after a parse error. This
+ * allows the remainder of the file to be parsed, potentially allowing for
+ * multiple errors to be reported in a single run.
+ *
+ * For a restart point all possible legal tokens that could after the current
+ * rule must be specified. If the rule does not parse correctly then we ignore
+ * all subsequent tokens until we find one in the given set at which point we
+ * attempt to continue parsing.
+ *
+ * If the rule does parse correctly then we check that the following token is
+ * in the given following set. If it isn't then we report an error and ignore
+ * all subsequent tokens until we find one in the set.
+ *
+ * Note:
+ * 1. EOF is automatically added to the provided set.
+ * 2. Must appear before any token or sub rule macros that may fail.
+ * 3. May only appear once in each rule.
+ *
+ * Example:
+ *    RESTART(TK_FUN, T_NEW, TK_BE);
+ */
+#define RESTART(...) \
+  token_id restart_set[] = { __VA_ARGS__, TK_EOF, TK_NONE }; \
+  state.restart = restart_set
 
 
 /** Add a node to our AST.
