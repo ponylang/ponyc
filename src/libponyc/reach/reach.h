@@ -4,6 +4,8 @@
 #include "../ast/ast.h"
 #include "../../libponyrt/ds/hash.h"
 
+PONY_EXTERN_C_BEGIN
+
 typedef struct reachable_method_t reachable_method_t;
 typedef struct reachable_method_name_t reachable_method_name_t;
 typedef struct reachable_type_t reachable_type_t;
@@ -51,5 +53,7 @@ void reach(reachable_types_t* r, ast_t* type, const char* name,
   ast_t* typeargs);
 
 void reach_dump(reachable_types_t* r);
+
+PONY_EXTERN_C_END
 
 #endif
