@@ -236,9 +236,70 @@ static reachable_method_stack_t* add_traits_to_type(
   return s;
 }
 
+static reachable_method_stack_t* add_fieldinit(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* type)
+{
+  ast_t* def = (ast_t*)ast_data(type);
+  ast_t* members = ast_childidx(def, 4);
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        AST_GET_CHILDREN(member, id, ftype, body);
+
+        if(ast_id(body) != TK_NONE)
+        {
+          ast_t* var = lookup(NULL, NULL, type, ast_name(id));
+          body = ast_childidx(var, 2);
+          s = reach_expr(s, r, body);
+        }
+        break;
+      }
+
+      default: {}
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return s;
+}
+
 static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
+    {
+      assert(name == NULL);
+      assert(typeargs == NULL);
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        s = add_type(s, r, child, NULL, NULL);
+        child = ast_sibling(child);
+      }
+
+      return s;
+    }
+
+    case TK_NOMINAL:
+      break;
+
+    default:
+      assert(0);
+      return s;
+  }
+
   const char* type_name = genname_type(type);
   reachable_type_t t1;
   t1.name = type_name;
@@ -266,6 +327,7 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
       case TK_PRIMITIVE:
       case TK_CLASS:
       case TK_ACTOR:
+        s = add_fieldinit(s, r, type);
         s = add_traits_to_type(s, r, t2);
         break;
 
@@ -273,8 +335,23 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
     }
   }
 
+  const char* notify = stringtab("_event_notify");
+  ast_t* find = lookup_try(NULL, NULL, type, notify);
+
+  if(find != NULL)
+    s = add_method(s, t2, notify, NULL);
+
   if(name != NULL)
     s = add_method(s, t2, name, typeargs);
+
+  AST_GET_CHILDREN(type, pkg, id, typeparams);
+  ast_t* typeparam = ast_child(typeparams);
+
+  while(typeparam != NULL)
+  {
+    s = add_type(s, r, typeparam, NULL, NULL);
+    typeparam = ast_sibling(typeparam);
+  }
 
   return s;
 }
@@ -442,11 +519,7 @@ static reachable_method_stack_t* reach_method(reachable_method_stack_t* s,
       return NULL;
   }
 
-  ast_t* this_type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
-  s = add_type(s, r, this_type, name, typeargs);
-  ast_free_unattached(this_type);
-
-  return s;
+  return add_type(s, r, type, name, typeargs);
 }
 
 reachable_types_t* reach_new()
