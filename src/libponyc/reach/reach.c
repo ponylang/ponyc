@@ -197,6 +197,7 @@ static reachable_method_stack_t* add_types_to_trait(
         if(is_subtype(t2->type, t->type))
         {
           reachable_type_cache_put(&t->subtypes, t2);
+          reachable_type_cache_put(&t2->subtypes, t);
           s = add_methods_to_type(s, t, t2);
         }
         break;
@@ -225,6 +226,7 @@ static reachable_method_stack_t* add_traits_to_type(
         if(is_subtype(t->type, t2->type))
         {
           reachable_type_cache_put(&t->subtypes, t2);
+          reachable_type_cache_put(&t2->subtypes, t);
           s = add_methods_to_type(s, t2, t);
         }
         break;
@@ -309,7 +311,7 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   {
     t2 = POOL_ALLOC(reachable_type_t);
     t2->name = type_name;
-    t2->type = ast_dup(type);
+    t2->type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
     reachable_method_names_init(&t2->methods, 0);
     reachable_type_cache_init(&t2->subtypes, 0);
     t2->vtable_size = 0;
@@ -359,10 +361,6 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
 static reachable_method_stack_t* reach_pattern(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
-  // TODO: look here for pattern matching on type when looking for interfaces
-  // could build a set of fully reified interfaces that get pattern matched
-  // later, we could go through all our reified types, and if they are that
-  // inteface, we can add the interface to the provides list
   switch(ast_id(ast))
   {
     case TK_DONTCARE:
@@ -370,8 +368,11 @@ static reachable_method_stack_t* reach_pattern(reachable_method_stack_t* s,
 
     case TK_VAR:
     case TK_LET:
-      // TODO: matching type
+    {
+      AST_GET_CHILDREN(ast, idseq, type);
+      s = add_type(s, r, type, NULL, NULL);
       break;
+    }
 
     case TK_TUPLE:
     case TK_SEQ:

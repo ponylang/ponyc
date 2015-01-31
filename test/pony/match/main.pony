@@ -2,7 +2,11 @@ trait Animal
 
 trait Vegetable
 
+interface Fooable
+  fun foo()
+
 class Wombat is Animal
+  fun foo() => None
 
 class Aardvark is Animal
 
@@ -38,6 +42,9 @@ actor Main
     test5((Wombat, Tomato))
     test5((1, "Hi"))
     test5((Aardvark, Tomato))
+
+    test6(Aardvark)
+    test6(Wombat)
 
   fun test(x: Any) =>
     match x
@@ -86,4 +93,12 @@ actor Main
       _env.out.print("1, Hi")
     else
       _env.out.print("Unknown")
+    end
+
+  fun test6(x: Any ref) =>
+    match x
+    | let foo: Fooable =>
+      _env.out.print("Fooable")
+    else
+      _env.out.print("Not Fooable")
     end

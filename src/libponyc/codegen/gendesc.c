@@ -98,7 +98,7 @@ static LLVMValueRef make_type_id(compile_t* c, const char* type_name)
   return id;
 }
 
-static int trait_count(gentype_t* g)
+static uint32_t trait_count(compile_t* c, gentype_t* g)
 {
   switch(g->underlying)
   {
@@ -106,9 +106,12 @@ static int trait_count(gentype_t* g)
     case TK_CLASS:
     case TK_ACTOR:
     {
-      ast_t* def = (ast_t*)ast_data(g->ast);
-      ast_t* traits = ast_childidx(def, 3);
-      return (int)ast_childcount(traits);
+      reachable_type_t kt;
+      kt.name = g->type_name;
+      reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+      assert(t != NULL);
+
+      return (uint32_t)reachable_type_cache_size(&t->subtypes);
     }
 
     default: {}
@@ -119,13 +122,13 @@ static int trait_count(gentype_t* g)
 
 static LLVMValueRef make_trait_count(compile_t* c, gentype_t* g)
 {
-  return LLVMConstInt(c->i32, trait_count(g), false);
+  return LLVMConstInt(c->i32, trait_count(c, g), false);
 }
 
 static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
 {
   // The list is an array of integers.
-  int count = trait_count(g);
+  uint32_t count = trait_count(c, g);
   LLVMTypeRef type = LLVMArrayType(c->i32, count);
 
   // If we have no traits, return a null pointer to a list.
@@ -135,21 +138,17 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   // Create a constant array of trait identifiers.
   VLA(LLVMValueRef, list, count);
 
-  ast_t* def = (ast_t*)ast_data(g->ast);
-  ast_t* typeargs = ast_childidx(g->ast, 2);
-  ast_t* typeparams = ast_childidx(def, 1);
-  ast_t* traits = ast_childidx(def, 3);
-  ast_t* trait = ast_child(traits);
-  int i = 0;
+  reachable_type_t kt;
+  kt.name = g->type_name;
+  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  assert(t != NULL);
 
-  while(trait != NULL)
-  {
-    ast_t* r_trait = reify(trait, typeparams, typeargs);
-    list[i++] = gendesc_typeid(c, r_trait);
-    ast_free_unattached(r_trait);
+  size_t i = HASHMAP_BEGIN;
+  size_t index = 0;
+  reachable_type_t* provide;
 
-    trait = ast_sibling(trait);
-  }
+  while((provide = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
+    list[index++] = make_type_id(c, provide->name);
 
   LLVMValueRef trait_array = LLVMConstArray(c->i32, list, count);
 
@@ -280,7 +279,7 @@ LLVMTypeRef gendesc_type(compile_t* c, gentype_t* g)
   if(g != NULL)
   {
     desc_name = g->desc_name;
-    traits = trait_count(g);
+    traits = trait_count(c, g);
 
     if(g->underlying == TK_TUPLETYPE)
     {
@@ -440,7 +439,8 @@ LLVMValueRef gendesc_istrait(compile_t* c, LLVMValueRef desc, ast_t* type)
 
   LLVMValueRef id_ptr = LLVMBuildGEP(c->builder, list, gep, 2, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "");
-  LLVMValueRef test_id = LLVMBuildICmp(c->builder, LLVMIntEQ, id, trait_id, "");
+  LLVMValueRef test_id = LLVMBuildICmp(c->builder, LLVMIntEQ, id, trait_id,
+    "");
 
   // Add one to the phi node.
   LLVMValueRef one = LLVMConstInt(c->i32, 1, false);

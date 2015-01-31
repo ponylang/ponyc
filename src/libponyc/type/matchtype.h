@@ -18,12 +18,6 @@ typedef enum
  */
 matchtype_t could_subtype(ast_t* sub, ast_t* super);
 
-/**
- * Determine if a type contains an interface type. We can't determine if a
- * type is an interface type at runtime.
- */
-bool contains_interface(ast_t* type);
-
 PONY_EXTERN_C_END
 
 #endif
