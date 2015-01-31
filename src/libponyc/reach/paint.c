@@ -1,9 +1,9 @@
 #include "paint.h"
-#include "../ast/symtab.h"
+#include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 /** We use a greedy algorithm that gives a reasonable trade-off between
  * computation (at compiletime) and resulting colour density (runtime memory).
@@ -14,22 +14,20 @@
  * The basic approach is that we determine all the types that use each method
  * name and then we try to group names that have disjoint type sets.
  *
- * Step 1.
- * First we walk the given AST finding type definitions. We store these in a
- * list and also take a count. This is all done purely as an optimisation for
- * later steps.
+ * Note that we only deal with method names here. Polymorphic methods are
+ * handled by name mangling before the painter is called.
  *
- * Step 2.
- * We walk through our types finding all function and behaviour definitions.
+ * Step 1.
+ * First we walk through the given set of reachable types finding all methods.
  * For each unique name we create a name record. In each of these records we
  * note which types use that name. We implement this using a bitmap. Because we
  * know in advance how many types there are we can store this as an array of
  * uints.
  *
- * Step 3.
+ * Step 2.
  * Various heuristics (see below).
  *
- * Step 4.
+ * Step 3.
  * We run through our name records. For each one we run through the colours
  * already assigned. If the set of types using the current name has no
  * intersection with the types using the current assigned colour, then that
@@ -39,13 +37,14 @@
  * If a name is not compatible with any assigned colour (or there are no
  * colours assigned yet) then that name is assigned to the first free colour.
  *
- * Step 5.
+ * Step 4.
  * Various heuristics (see below).
  *
- * Step 6.
- * For each type we run over the assigned colour and determine the size of the
- * vtable needed for that type. Since we store the colours in (reverse) order,
- * the largest used colour for a type is the first one we find.
+ * Step 5.
+ * For each method name in the set of reachable types we lookup our name record
+ * and fill in which colour has been assigned.
+ * While doing this we also determine the maximum colour used by each type and
+ * hence its vtable size.
  *
  * Heuristics.
  *
@@ -57,7 +56,7 @@
  * For any name that is used by more than some proportion of the types,
  * don't try to combine that name with others.
  *
- * 2. Step 4 is O(n^2) on the number of names. To prevent this exploding for
+ * 2. Step 3 is O(n^2) on the number of names. To prevent this exploding for
  * large n break the names into multiple groups and combine each group
  * separately. Do not try and combination between these groups. A simple
  * approach is just to put the first n names in one group, the next n in
@@ -72,34 +71,110 @@
  * them.
  */
 
+#define UNASSIGNED_COLOUR ((uint32_t)-1)
+
 
 typedef struct name_record_t
 {
   const char* name;       // Name including type params
-  uint32_t colour;
-  int type_count;         // Number of types using this name
+  uint32_t colour;        // Colour assigned to name
+  size_t typemap_size;    // Size of our type bitmap in uint64_ts
   uint64_t* type_map;     // Bitmap of types using this name
-  struct name_record_t* next;
 } name_record_t;
+
+
+// We keep our name records in a hash map
+static uint64_t name_record_hash(name_record_t* p)
+{
+  return hash_ptr(p->name);
+}
+
+static bool name_record_cmp(name_record_t* a, name_record_t* b)
+{
+  return a->name == b->name;
+}
+
+static void name_record_free(name_record_t* p)
+{
+  pool_free_size(p->typemap_size * sizeof(uint64_t), p->type_map);
+  POOL_FREE(name_record_t, p);
+}
+
+DECLARE_HASHMAP(name_records, name_record_t);
+DEFINE_HASHMAP(name_records, name_record_t, name_record_hash, name_record_cmp,
+  pool_alloc_size, pool_free_size, name_record_free, NULL);
+
 
 typedef struct colour_record_t
 {
-  int colour;             // Colour index
-  int type_count;         // Number of types using this name
+  uint32_t colour;        // Colour index
   uint64_t* type_map;     // Bitmap of types using this name
+  struct colour_record_t* next;
 } colour_record_t;
 
 
 typedef struct painter_t
 {
-  name_record_t* names;
-  name_record_t** name_next;
-  symtab_t* name_table;   // Duplicate refs to name records for easy lookup
-  colour_record_t* colours;
-  size_t typemap_size;    // Number of uint64_ts required in type bitmaps
-  int name_count;         // Number of method names used across all typedefs
-  int colour_count;       // Number of colours assigned
+  name_records_t names;     // Name records
+  colour_record_t* colours; // Linked list of colour records
+  colour_record_t** colour_next;  // ..
+  size_t typemap_size;      // Size of type bitmaps in uint64_ts
+  uint32_t colour_count;    // Number of colours assigned
 } painter_t;
+
+
+// Print out a type map, for debugging only
+static void print_typemap(size_t size, uint64_t* map)
+{
+  assert(map != NULL);
+
+  for(size_t i = 0; i < size; i++)
+  {
+    printf("  ");
+
+    for(uint64_t mask = 1; mask != 0; mask <<= 1)
+      printf("%c", ((map[i] & mask) == 0) ? '.' : 'T');
+
+    printf("\n");
+  }
+}
+
+
+// This is not static so compiler doesn't complain about it not being used
+void painter_print(painter_t* painter)
+{
+  assert(painter != NULL);
+
+  printf("Painter typemaps are %lu bits\n",
+    painter->typemap_size * sizeof(uint64_t) * 8);
+
+  printf("Painter names:\n");
+
+  size_t i = HASHMAP_BEGIN;
+  name_record_t* name;
+
+  while((name = name_records_next(&painter->names, &i)) != NULL)
+  {
+    printf("\"%s\" colour ", name->name);
+
+    if(name->colour == UNASSIGNED_COLOUR)
+      printf("unassigned\n");
+    else
+      printf("%u\n", name->colour);
+
+    print_typemap(name->typemap_size, name->type_map);
+  }
+
+  printf("Painter has %u colours:\n", painter->colour_count);
+
+  for(colour_record_t* c = painter->colours; c != NULL; c = c->next)
+  {
+    printf("  Colour %u\n", c->colour);
+    print_typemap(painter->typemap_size, c->type_map);
+  }
+
+  printf("Painter end\n");
+}
 
 
 // Add a method name record
@@ -108,17 +183,16 @@ static name_record_t* add_name(painter_t* painter, const char* name)
   assert(painter != NULL);
   assert(name != NULL);
 
+  size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
+
   name_record_t* n = POOL_ALLOC(name_record_t);
   n->name = name;
-  n->colour = -1;
-  n->type_count = 0;
-  n->type_map = (uint64_t*)pool_alloc_size(
-    painter->typemap_size * sizeof(uint64_t));
-  n->next = NULL;
-  *painter->name_next = n;
-  painter->name_next = &n->next;
-  symtab_add(painter->name_table, name, n, SYM_NONE);
-  painter->name_count++;
+  n->colour = UNASSIGNED_COLOUR;
+  n->typemap_size = painter->typemap_size;
+  n->type_map = (uint64_t*)pool_alloc_size(map_byte_count);
+  memset(n->type_map, 0, map_byte_count);
+
+  name_records_put(&painter->names, n);
   return n;
 }
 
@@ -128,14 +202,17 @@ static colour_record_t* add_colour(painter_t* painter)
 {
   assert(painter != NULL);
 
-  int index = painter->colour_count;
-  colour_record_t* n = &painter->colours[index];
-  n->colour = index;
-  n->type_count = 0;
-  n->type_map = (uint64_t*)pool_alloc_size(
-    painter->typemap_size * sizeof(uint64_t));
-  painter->colour_count++;
+  size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
 
+  colour_record_t* n = POOL_ALLOC(colour_record_t);
+  n->colour = painter->colour_count;
+  n->type_map = (uint64_t*)pool_alloc_size(map_byte_count);
+  n->next = NULL;
+  memset(n->type_map, 0, map_byte_count);
+
+  *painter->colour_next = n;
+  painter->colour_next = &n->next;
+  painter->colour_count++;
   return n;
 }
 
@@ -143,22 +220,21 @@ static colour_record_t* add_colour(painter_t* painter)
 // Find the name record with the specified name
 static name_record_t* find_name(painter_t* painter, const char* name)
 {
-  return (name_record_t*)symtab_find(painter->name_table, name, NULL);
+  name_record_t n = { name, 0, 0, NULL };
+  return name_records_get(&painter->names, &n);
 }
 
 
 // Check whether the given name can be assigned to the given colour.
 // Assignment can occur as long as the sets of types using the anme and colour
 // are distinct, ie there is no overlap in their bitmaps.
-static bool is_name_compatible(painter_t* painter, colour_record_t* colour,
-  name_record_t* name)
+static bool is_name_compatible(colour_record_t* colour, name_record_t* name)
 {
-  assert(painter != NULL);
   assert(colour != NULL);
   assert(name != NULL);
 
   // Check for type bitmap intersection
-  for(size_t i = 0; i < painter->typemap_size; i++)
+  for(size_t i = 0; i < name->typemap_size; i++)
   {
     if((colour->type_map[i] & name->type_map[i]) != 0)  // Type bitmaps overlap
       return false;
@@ -170,102 +246,42 @@ static bool is_name_compatible(painter_t* painter, colour_record_t* colour,
 
 
 // Assign the given name to the given colour
-static void assign_name_to_colour(painter_t* painter, colour_record_t* colour,
-  name_record_t* name)
+static void assign_name_to_colour(colour_record_t* colour, name_record_t* name)
 {
-  assert(painter != NULL);
   assert(colour != NULL);
   assert(name != NULL);
 
   // Union the type bitmaps
-  for(size_t i = 0; i < painter->typemap_size; i++)
+  for(size_t i = 0; i < name->typemap_size; i++)
     colour->type_map[i] |= name->type_map[i];
 
-  colour->type_count += name->type_count;
   name->colour = colour->colour;
 }
 
 
-#if 0
-// Clear all data from the painter in preperation for processing new data or
-// deletion
-static void painter_clear(painter_t* painter)
-{
-  assert(painter != NULL);
-
-/*
-  def_record_t* def = painter->typedefs;
-  while(def != NULL)
-  {
-    def_record_t* next = def->next;
-    POOL_FREE(def_record_t, def);
-    def = next;
-  }
-*/
-
-  name_record_t* n = painter->names;
-  while(n != NULL)
-  {
-    name_record_t* next = n->next;
-    pool_free_size(painter->typemap_size * sizeof(uint64_t), n->type_map);
-    POOL_FREE(name_record_t, n);
-    n = next;
-  }
-
-  if(painter->colours != NULL)
-  {
-    for(int i = 0; i < painter->colour_count; i++)
-      pool_free_size(painter->typemap_size * sizeof(uint64_t),
-        painter->colours[i].type_map);
-
-    pool_free_size(painter->name_count * sizeof(colour_record_t),
-      painter->colours);
-    painter->colours = NULL;
-  }
-
-  symtab_free(painter->name_table);
-
-//  painter->typedefs = NULL;
-//  painter->typedef_next = &painter->typedefs;
-  painter->names = NULL;
-  painter->name_next = &painter->names;
-  painter->name_table = NULL;
-  painter->colours = NULL;
-  painter->colour_count = 0;
-//  painter->typemap_index = -1;
-//  painter->typemap_mask = 0;
-  painter->name_count = 0;
-}
-#endif
-
-
-
-// Step 2
+// Step 1
 static void find_names_types_use(painter_t* painter, reachable_types_t* types)
 {
   assert(painter != NULL);
   assert(types != NULL);
 
-  size_t type_i = HASHMAP_BEGIN;
+  size_t i = HASHMAP_BEGIN;
   size_t typemap_index = 0;
   uint64_t typemap_mask = 1;
   reachable_type_t* type;
 
-  while((type = (reachable_type_t*)reachable_types_next(types, &type_i))
-    != NULL)
+  while((type = reachable_types_next(types, &i)) != NULL)
   {
     assert(typemap_index < painter->typemap_size);
-    size_t meth_name_i = HASHMAP_BEGIN;
-    reachable_method_name_t* meth_name;
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_name_t* mn;
 
-    while((meth_name = (reachable_method_name_t*)reachable_method_names_next(
-      &type->methods, &meth_name_i)) != NULL)
+    while((mn = reachable_method_names_next(&type->methods, &j)) != NULL)
     {
-      size_t method_i = HASHMAP_BEGIN;
+      size_t k = HASHMAP_BEGIN;
       reachable_method_t* method;
 
-      while((method = (reachable_method_t*)reachable_methods_next(
-        &meth_name->r_methods, &method_i)) != NULL)
+      while((method = reachable_methods_next(&mn->r_methods, &k)) != NULL)
       {
         const char* name = method->name;
 
@@ -276,10 +292,10 @@ static void find_names_types_use(painter_t* painter, reachable_types_t* types)
 
         // Mark this name as using the current type
         name_rec->type_map[typemap_index] |= typemap_mask;
-        name_rec->type_count++;
       }
     }
 
+    // Advance to next type bitmap entry
     typemap_mask <<= 1;
 
     if(typemap_mask == 0)
@@ -291,20 +307,23 @@ static void find_names_types_use(painter_t* painter, reachable_types_t* types)
 }
 
 
-// Step 4
+// Step 3
 static void assign_colours_to_names(painter_t* painter)
 {
-  for(name_record_t* name = painter->names; name != NULL; name = name->next)
+  size_t i = HASHMAP_BEGIN;
+  name_record_t* name;
+
+  while((name = name_records_next(&painter->names, &i)) != NULL)
   {
     // We have a name, try to match it with an existing colour
     colour_record_t* colour = NULL;
 
-    for(int i = 0; i < painter->colour_count; i++)
+    for(colour_record_t* c = painter->colours; c != NULL; c = c->next)
     {
-      if(is_name_compatible(painter, &painter->colours[i], name))
+      if(is_name_compatible(c, name))
       {
         // Name is compatible with colour
-        colour = &painter->colours[i];
+        colour = c;
         break;
       }
     }
@@ -315,81 +334,72 @@ static void assign_colours_to_names(painter_t* painter)
       colour = add_colour(painter);
     }
 
-    assign_name_to_colour(painter, colour, name);
+    assign_name_to_colour(colour, name);
   }
 }
 
 
-// Step 6
-static void find_vtable_sizes(painter_t* painter, reachable_types_t* types)
+// Step 5
+static void distribute_info(painter_t* painter, reachable_types_t* types)
 {
   assert(painter != NULL);
   assert(types != NULL);
 
-  size_t type_i = HASHMAP_BEGIN;
-  int typemap_index = 0;
-  uint64_t typemap_mask = 1;
+  size_t i = HASHMAP_BEGIN;
   reachable_type_t* type;
 
-  while((type = (reachable_type_t*)reachable_types_next(types, &type_i))
-    != NULL)
+  // Iterate over all types
+  while((type = reachable_types_next(types, &i)) != NULL)
   {
-    // Check this type against our colours
-    type->vtable_size = 0;
+    size_t j = HASHMAP_BEGIN;
+    reachable_method_name_t* mn;
+    uint32_t max_colour = 0;
 
-    for(int i = painter->colour_count - 1; i >= 0; i--)
+    // Iterate over all method names in type
+    while((mn = reachable_method_names_next(&type->methods, &j)) != NULL)
     {
-      colour_record_t* col = &painter->colours[i];
-
-      if((col->type_map[typemap_index] & typemap_mask) != 0)
-      {
-        // Type uses this colour
-        type->vtable_size = col->colour + 1;
-        break;
-      }
-    }
-
-    typemap_mask <<= 1;
-
-    if(typemap_mask == 0)
-    {
-      typemap_mask = 1;
-      typemap_index++;
-    }
-  }
-}
-
-
-static void distribute_colours(painter_t* painter, reachable_types_t* types)
-{
-  assert(painter != NULL);
-  assert(types != NULL);
-
-  size_t type_i = HASHMAP_BEGIN;
-  reachable_type_t* type;
-
-  while((type = (reachable_type_t*)reachable_types_next(types, &type_i))
-    != NULL)
-  {
-    size_t meth_name_i = HASHMAP_BEGIN;
-    reachable_method_name_t* meth_name;
-
-    while((meth_name = (reachable_method_name_t*)reachable_method_names_next(
-      &type->methods, &meth_name_i)) != NULL)
-    {
-      size_t method_i = HASHMAP_BEGIN;
+      size_t k = HASHMAP_BEGIN;
       reachable_method_t* method;
 
-      while((method = (reachable_method_t*)reachable_methods_next(
-        &meth_name->r_methods, &method_i)) != NULL)
+      while((method = reachable_methods_next(&mn->r_methods, &k)) != NULL)
       {
+        // Store colour assigned to name in reachable types set
         const char* name = method->name;
 
         name_record_t* name_rec = find_name(painter, name);
         assert(name_rec != NULL);
-        method->vtable_index = name_rec->colour;
+
+        uint32_t colour = name_rec->colour;
+        method->vtable_index = colour;
+
+        if(colour > max_colour)
+          max_colour = colour;
       }
     }
+
+    // Store vtable size for type
+    type->vtable_size = max_colour + 1;
+  }
+}
+
+
+// Free everything we've allocated
+static void painter_tidy(painter_t* painter)
+{
+  assert(painter != NULL);
+
+  size_t map_byte_count = painter->typemap_size * sizeof(uint64_t);
+
+  name_records_destroy(&painter->names);
+
+  colour_record_t* c = painter->colours;
+
+  while(c != NULL)
+  {
+    colour_record_t* next = c->next;
+    pool_free_size(map_byte_count, c->type_map);
+    POOL_FREE(sizeof(colour_record_t), c);
+    c = next;
   }
 }
 
@@ -404,27 +414,24 @@ void paint(reachable_types_t* types)
     return;
 
   painter_t painter;
-  memset(&painter, 0, sizeof(painter_t));
-
-  painter.name_table = symtab_new();
-  painter.names = NULL;
-  painter.name_next = &painter.names;
+  name_records_init(&painter.names, 8);
   painter.colours = NULL;
+  painter.colour_next = &painter.colours;
   painter.colour_count = 0;
-  painter.name_count = 0;
 
-  // Determine the number of uint64_ts needed to contain our type bitmap
+  // Determine the size needed to contain our type bitmap, round up to next
+  // whole uint64_t
   painter.typemap_size = ((type_count - 1) / 64) + 1;
 
+  // Step 1
   find_names_types_use(&painter, types);
 
-  // Allocate colour records
-  painter.colours = (colour_record_t*)pool_alloc_size(
-    painter.name_count * sizeof(colour_record_t));
-
+  // Step 3
   assign_colours_to_names(&painter);
-  find_vtable_sizes(&painter, types);
-  distribute_colours(&painter, types);
+  //painter_print(&painter);
 
-  //painter_clear(&painter);
+  // Step 5
+  distribute_info(&painter, types);
+
+  painter_tidy(&painter);
 }

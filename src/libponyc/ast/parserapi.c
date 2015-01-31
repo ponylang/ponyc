@@ -5,6 +5,17 @@
 #include <stdio.h>
 
 
+struct parser_t
+{
+  source_t* source;
+  lexer_t* lexer;
+  token_t* token;
+  const char* last_matched;
+  void* next_flags;     // Data flags to set on the next token created
+  bool failed;
+};
+
+
 static bool trace_enable = false;
 
 
@@ -153,6 +164,65 @@ void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 }
 
 
+// Ditch tokens until a legal one is found
+// The token set must be TK_NONE terminated
+static void ditch_restart(parser_t* parser, rule_state_t* state)
+{
+  assert(parser != NULL);
+  assert(state != NULL);
+  assert(state->restart != NULL);
+
+  if(trace_enable)
+    printf("Rule %s: Attempting recovery:\n", state->fn_name);
+
+  while(true)
+  {
+    token_id id = current_token_id(parser);
+
+    for(const token_id* p = state->restart; *p != TK_NONE; p++)
+    {
+      if(*p == id)
+      {
+        // Legal token found
+        if(trace_enable)
+          printf("  recovered with %s\n", token_print(parser->token));
+
+        return;
+      }
+    }
+
+    // Current token is not in legal set, ditch it
+    if(trace_enable)
+      printf("  ignoring %d %s %s\n", id, lexer_print(id), token_print(parser->token));
+
+    consume_token_no_ast(parser);
+  }
+}
+
+
+// Propgate an error, handling AST tidy up and restart points
+static ast_t* propogate_error(parser_t* parser, rule_state_t* state)
+{
+  assert(parser != NULL);
+  assert(state != NULL);
+
+  ast_free(state->ast);
+  state->ast = NULL;
+  parser->failed = true;
+
+  if(state->restart == NULL)
+  {
+    if(trace_enable)
+      printf("Rule %s: Propogate failure\n", state->fn_name);
+
+    return PARSE_ERROR;
+  }
+
+  ditch_restart(parser, state);
+  return NULL;
+}
+
+
 /* Process the result from finding a token or sub rule.
  * Args:
  *    new_ast AST generate from found token or sub rule, NULL for none.
@@ -174,7 +244,7 @@ static ast_t* handle_found(parser_t* parser, rule_state_t* state,
   if(!state->matched)
   {
     // First token / sub rule in rule was found
-    if(parser->trace)
+    if(trace_enable)
       printf("Rule %s: Matched\n", state->fn_name);
 
     state->matched = true;
@@ -208,33 +278,42 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
   if(out_found != NULL)
     *out_found = false;
 
-  if(state->deflt_id == TK_LEX_ERROR)
+  if(state->deflt_id != TK_LEX_ERROR)
   {
-    // Required token / sub rule not found
-    ast_free(state->ast);
+    // Optional token / sub rule not found
+    if(state->deflt_id != TK_EOF) // Default node is specified
+      add_deferrable_ast(parser, state, state->deflt_id);
 
-    if(!state->matched)
-    {
-      // Rule not matched
-      if(parser->trace)
-        printf("Rule %s: Not matched\n", state->fn_name);
-
-      return RULE_NOT_FOUND;
-    }
-
-    // Rule partially matched, error
-    if(parser->trace)
-      printf("Rule %s: Error\n", state->fn_name);
-
-    syntax_error(parser, desc);
-    return PARSE_ERROR;
+    state->deflt_id = TK_LEX_ERROR;
+    return PARSE_OK;
   }
 
-  if(state->deflt_id != TK_EOF) // Default node is specified
-    add_deferrable_ast(parser, state, state->deflt_id);
+  // Required token / sub rule not found
+  ast_free(state->ast);
+  state->ast = NULL;
 
-  state->deflt_id = TK_LEX_ERROR;
-  return PARSE_OK;
+  if(!state->matched)
+  {
+    // Rule not matched
+    if(trace_enable)
+      printf("Rule %s: Not matched\n", state->fn_name);
+
+    return RULE_NOT_FOUND;
+  }
+
+  // Rule partially matched, error
+  if(trace_enable)
+    printf("Rule %s: Error\n", state->fn_name);
+
+  syntax_error(parser, desc);
+  parser->failed = true;
+
+  if(state->restart == NULL)
+    return PARSE_ERROR;
+
+  // We have a restart point
+  ditch_restart(parser, state);
+  return NULL;
 }
 
 
@@ -250,6 +329,7 @@ static ast_t* handle_not_found(parser_t* parser, rule_state_t* state,
  *    PARSE_OK on success.
  *    PARSE_ERROR to propogate a lexer error.
  *    RULE_NOT_FOUND if current token is not is specified set.
+ *    NULL to propogate a restarted error.
  */
 ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   const token_id* id_set, bool make_ast, bool* out_found)
@@ -261,16 +341,12 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   token_id id = current_token_id(parser);
 
   if(id == TK_LEX_ERROR)
-  {
-    // Propgate error
-    ast_free(state->ast);
-    return PARSE_ERROR;
-  }
+    return propogate_error(parser, state);
 
   if(desc == NULL)
     desc = token_id_desc(id_set[0]);
 
-  if(parser->trace)
+  if(trace_enable)
   {
     printf("Rule %s: Looking for %s token%s %s. Found %s. ",
       state->fn_name,
@@ -288,7 +364,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     if(id == *p)
     {
       // Current token matches one in set
-      if(parser->trace)
+      if(trace_enable)
         printf("Compatible\n");
 
       parser->last_matched = token_print(parser->token);
@@ -304,7 +380,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   }
 
   // Current token does not match any in current set
-  if(parser->trace)
+  if(trace_enable)
     printf("Not compatible\n");
 
   return handle_not_found(parser, state, desc, out_found);
@@ -321,6 +397,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
  *    PARSE_OK on success.
  *    PARSE_ERROR to propogate an error.
  *    RULE_NOT_FOUND if no rules in given set can be matched.
+ *    NULL to propogate a restarted error.
  */
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found)
@@ -333,13 +410,9 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   token_id id = current_token_id(parser);
 
   if(id == TK_LEX_ERROR)
-  {
-    // Propgate error
-    ast_free(state->ast);
-    return PARSE_ERROR;
-  }
+    return propogate_error(parser, state);
 
-  if(parser->trace)
+  if(trace_enable)
   {
     printf("Rule %s: Looking for %s rule%s \"%s\"\n",
       state->fn_name,
@@ -350,14 +423,10 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   for(const rule_t* p = rule_set; *p != NULL; p++)
   {
     builder_fn_t build_fn = default_builder;
-    ast_t* rule_ast = (*p)(parser, &build_fn);
+    ast_t* rule_ast = (*p)(parser, &build_fn, desc);
 
     if(rule_ast == PARSE_ERROR)
-    {
-      // Propgate error
-      ast_free(state->ast);
-      return PARSE_ERROR;
-    }
+      return propogate_error(parser, state);
 
     if(rule_ast != RULE_NOT_FOUND)
     {
@@ -399,10 +468,44 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   if(state->scope && state->ast != NULL)
     ast_scope(state->ast);
 
-  if(parser->trace)
+  if(trace_enable)
     printf("Rule %s: Complete\n", state->fn_name);
 
-  return state->ast;
+  if(state->restart == NULL)
+    return state->ast;
+
+  // We have a restart point, check next token is legal
+  token_id id = current_token_id(parser);
+
+  if(trace_enable)
+    printf("Rule %s: Check restart set for next token %s\n", state->fn_name,
+      token_print(parser->token));
+
+  for(const token_id* p = state->restart; *p != TK_NONE; p++)
+  {
+    if(*p == id)
+    {
+      // Legal token found
+      if(trace_enable)
+        printf("Rule %s: Restart check successful\n", state->fn_name);
+
+      return state->ast;
+    }
+  }
+
+  // Next token is not in restart set, error
+  if(trace_enable)
+    printf("Rule %s: Restart check error\n", state->fn_name);
+
+  error(parser->source, token_line_number(parser->token),
+    token_line_position(parser->token),
+    "syntax error: unexpected token %s after %s", token_print(parser->token),
+    state->desc);
+
+  ast_free(state->ast);
+  parser->failed = true;
+  ditch_restart(parser, state);
+  return NULL;
 }
 
 
@@ -432,11 +535,11 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected)
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
   parser->last_matched = NULL;
-  parser->trace = trace_enable;
+  parser->failed = false;
 
   // Parse given start rule
   builder_fn_t build_fn;
-  ast_t* ast = start(parser, &build_fn);
+  ast_t* ast = start(parser, &build_fn, expected);
 
   if(ast == PARSE_ERROR)
     ast = NULL;
@@ -444,6 +547,12 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected)
   if(ast == RULE_NOT_FOUND)
   {
     syntax_error(parser, expected);
+    ast = NULL;
+  }
+
+  if(parser->failed)
+  {
+    ast_free(ast);
     ast = NULL;
   }
 
