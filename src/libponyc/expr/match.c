@@ -243,15 +243,6 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
           ast_print_type(capture_type));
       }
 
-      if(contains_interface(capture_type))
-      {
-        ast_error(pattern, "this capture type contains an interface, which "
-          "cannot be matched dynamically"
-          );
-
-        ok = MATCHTYPE_DENY;
-      }
-
       ast_free_unattached(a_type);
       return ok;
     }
@@ -348,15 +339,6 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
           ast_error(pattern,
             "the match expression will never be a type that could be "
             "passed to eq on this pattern");
-        }
-
-        if(contains_interface(param_type))
-        {
-          ast_error(pattern, "the parameter of eq on this pattern contains "
-            "an interface, which cannot be matched dynamically"
-            );
-
-          ok = MATCHTYPE_DENY;
         }
       }
 

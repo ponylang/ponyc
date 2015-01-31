@@ -16,8 +16,8 @@
 static bool check_type(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   ast_t* pattern_type, LLVMBasicBlockRef next_block);
 
-static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
-  ast_t* pattern, LLVMBasicBlockRef next_block);
+static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block);
 
 static bool dynamic_match_object(compile_t* c, LLVMValueRef object,
   LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block);
@@ -151,8 +151,8 @@ static bool check_tuple(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
     // Load the object, load its descriptor, and continue from there.
     LLVMPositionBuilderAtEnd(c->builder, null_block);
     LLVMTypeRef ptr_type = LLVMPointerType(c->object_ptr, 0);
-    LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr, ptr_type,
-      "");
+    LLVMValueRef object_ptr = LLVMBuildIntToPtr(c->builder, field_ptr,
+      ptr_type, "");
     LLVMValueRef object = LLVMBuildLoad(c->builder, object_ptr, "");
     LLVMValueRef object_desc = gendesc_fetch(c, object);
     object_ptr = pointer_to_fields(c, object);
@@ -384,8 +384,8 @@ static bool dynamic_tuple_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
   return true;
 }
 
-static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
-  ast_t* pattern, LLVMBasicBlockRef next_block)
+static bool dynamic_value_ptr(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   // Get the type of the right-hand side of the pattern's eq() function.
   ast_t* param_type = eq_param_type(pattern);
@@ -439,8 +439,8 @@ static bool dynamic_capture_ptr(compile_t* c, LLVMValueRef ptr,
   return gen_assign_value(c, pattern, value, pattern_type) != NULL;
 }
 
-static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr, LLVMValueRef desc,
-  ast_t* pattern, LLVMBasicBlockRef next_block)
+static bool dynamic_match_ptr(compile_t* c, LLVMValueRef ptr,
+  LLVMValueRef desc, ast_t* pattern, LLVMBasicBlockRef next_block)
 {
   switch(ast_id(pattern))
   {
@@ -606,7 +606,8 @@ static bool static_tuple(compile_t* c, LLVMValueRef value, ast_t* type,
       return static_tuple_from_tuple(c, value, type, pattern, next_block);
 
     case TK_ARROW:
-      return static_tuple(c, value, ast_childidx(type, 1), pattern, next_block);
+      return static_tuple(c, value, ast_childidx(type, 1), pattern,
+        next_block);
 
     default: {}
   }
