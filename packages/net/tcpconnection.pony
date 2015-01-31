@@ -1,5 +1,4 @@
 use "collections"
-use "events"
 
 actor TCPConnection
   """

@@ -21,8 +21,7 @@ class Array[A]
   //    i = i + 1
   //  end
 
-  // Put this in once we have codegen for polymorphic methods.
-  new undefined/*[B: (A & Real[B] & Number)]*/(len: U64) =>
+  new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
     _size = len
     _alloc = len
     _ptr = Pointer[A]._create(len)

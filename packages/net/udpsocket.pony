@@ -1,5 +1,3 @@
-use "events"
-
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32 = -1

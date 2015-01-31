@@ -535,6 +535,7 @@ bool parse(ast_t* package, source_t* source, rule_t start, const char* expected)
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
   parser->last_matched = NULL;
+  parser->next_flags = NULL;
   parser->failed = false;
 
   // Parse given start rule
