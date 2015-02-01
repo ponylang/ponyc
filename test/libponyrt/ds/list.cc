@@ -11,18 +11,7 @@ DECLARE_LIST(testlist, elem_t);
 
 class ListTest: public testing::Test
 {
-  protected:
-    testlist_t* list = NULL;
-    testlist_t* head = NULL;
-
-    virtual void TearDown()
-    {
-      testlist_free(head);
-      head = list = NULL;
-    }
-
   public:
-    void remember_head(testlist_t* list);
     static elem_t* times2(elem_t* e, void* arg);
     static bool compare(elem_t* a, elem_t* b);
 };
@@ -39,11 +28,6 @@ bool ListTest::compare(elem_t* a, elem_t* b)
   return a == b;
 }
 
-void ListTest::remember_head(testlist_t* list)
-{
-  head = list;
-}
-
 elem_t* ListTest::times2(elem_t* e, void* arg)
 {
   (void)arg;
@@ -58,12 +42,12 @@ TEST_F(ListTest, InitializeList)
 {
   elem_t e;
 
-  ASSERT_EQ(NULL, list);
-  list = testlist_append(list, &e);
-
+  testlist_t* list = testlist_append(NULL, &e);
 
   ASSERT_TRUE(list != NULL);
   ASSERT_EQ((size_t)1, testlist_length(list));
+
+  testlist_free(list);
 }
 
 /** A call to list_length returns the number of elements
@@ -75,11 +59,13 @@ TEST_F(ListTest, ListLength)
   elem_t e2;
   elem_t e3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
   list = testlist_append(list, &e3);
 
   ASSERT_EQ((size_t)3, testlist_length(list));
+
+  testlist_free(list);
 }
 
 /** A call to list_append appends an element to
@@ -95,23 +81,21 @@ TEST_F(ListTest, AppendElement)
   elem_t e1;
   elem_t e2;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
+  testlist_t* n = testlist_append(list, &e2);
 
-  remember_head(list);
+  ASSERT_EQ(n, list);
+  ASSERT_EQ(&e1, testlist_data(n));
 
-  list = testlist_append(list, &e2);
+  n = testlist_next(n);
 
-  ASSERT_EQ(head, list);
+  ASSERT_EQ(&e2, testlist_data(n));
 
-  ASSERT_EQ(&e1, testlist_data(list));
+  n = testlist_next(n);
 
-  list = testlist_next(list);
+  ASSERT_EQ(NULL, n);
 
-  ASSERT_EQ(&e2, testlist_data(list));
-
-  list = testlist_next(list);
-
-  ASSERT_EQ(NULL, list);
+  testlist_free(list);
 }
 
 /** A call to list_push prepends an element to the list.
@@ -123,16 +107,16 @@ TEST_F(ListTest, PushElement)
   elem_t e1;
   elem_t e2;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_push(list, &e2);
 
   ASSERT_EQ(&e2, testlist_data(list));
 
-  remember_head(list);
+  testlist_t* n = testlist_next(list);
 
-  list = testlist_next(list);
+  ASSERT_EQ(&e1, testlist_data(n));
 
-  ASSERT_EQ(&e1, testlist_data(list));
+  testlist_free(list);
 }
 
 /** A call to list_pop provides the head of the list.
@@ -145,9 +129,8 @@ TEST_F(ListTest, ListPop)
   elem_t e1;
   elem_t e2;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
-
   list = testlist_pop(list, &p);
 
   ASSERT_EQ(p, &e1);
@@ -158,6 +141,8 @@ TEST_F(ListTest, ListPop)
       testlist_index(list, 0)
     )
   );
+
+  testlist_free(list);
 }
 
 /** A call to list_index (with index > 0) advances
@@ -171,13 +156,13 @@ TEST_F(ListTest, ListIndexAbsolute)
   elem_t e1;
   elem_t e2;
 
-  list = testlist_append(list, &e1);
-  remember_head(list);
-
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
-  list = testlist_index(list, i);
 
-  ASSERT_EQ(&e2, testlist_data(list));
+  testlist_t* n = testlist_index(list, i);
+
+  ASSERT_EQ(&e2, testlist_data(n));
+  testlist_free(list);
 }
 
 /** A call to list_index with a negative index
@@ -191,16 +176,16 @@ TEST_F(ListTest, ListIndexRelative)
   elem_t e2;
   elem_t e3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
   list = testlist_append(list, &e3);
 
-  remember_head(list);
-
   //should advance list to the second-to-last element
-  list = testlist_index(list, i);
+  testlist_t* n = testlist_index(list, i);
 
-  ASSERT_EQ(&e2, testlist_data(list));
+  ASSERT_EQ(&e2, testlist_data(n));
+
+  testlist_free(list);
 }
 
 /** A call to list_find returns a matching element according
@@ -214,7 +199,7 @@ TEST_F(ListTest, ListFind)
   elem_t e2;
   elem_t e3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
 
   ASSERT_EQ(
@@ -226,6 +211,8 @@ TEST_F(ListTest, ListFind)
     NULL,
     testlist_find(list, &e3)
   );
+
+  testlist_free(list);
 }
 
 /** A call to list_findindex returns the position
@@ -237,7 +224,7 @@ TEST_F(ListTest, ListFindIndex)
   elem_t e2;
   elem_t e3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
 
   ASSERT_EQ(
@@ -249,6 +236,8 @@ TEST_F(ListTest, ListFindIndex)
     -1,
      testlist_findindex(list, &e3)
   );
+
+  testlist_free(list);
 }
 
 /** Lists where elements are pair-wise equivalent
@@ -290,12 +279,14 @@ TEST_F(ListTest, ListSubset)
 
   a = testlist_append(a, &e1);
   a = testlist_append(a, &e2);
-
-  b = testlist_append(a, &e1);
+  b = testlist_append(b, &e1);
 
   ASSERT_TRUE(
     testlist_subset(b, a)
   );
+
+  testlist_free(a);
+  testlist_free(b);
 }
 
 /** A call to list_reverse the returns a pointer
@@ -309,21 +300,21 @@ TEST_F(ListTest, ListReverse)
   elem_t e2;
   elem_t e3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
   list = testlist_append(list, &e3);
 
-  list = testlist_reverse(list);
+  testlist_t* r = testlist_reverse(list);
 
-  list = testlist_pop(list, &e);
+  r = testlist_pop(r, &e);
 
   ASSERT_EQ(e, &e3);
 
-  list = testlist_pop(list, &e);
+  r = testlist_pop(r, &e);
 
   ASSERT_EQ(e, &e2);
 
-  list = testlist_pop(list, &e);
+  testlist_pop(r, &e);
 
   ASSERT_EQ(e, &e1);
 }
@@ -343,20 +334,20 @@ TEST_F(ListTest, ListMap)
   e2.val = 2;
   e3.val = 3;
 
-  list = testlist_append(list, &e1);
+  testlist_t* list = testlist_append(NULL, &e1);
   list = testlist_append(list, &e2);
   list = testlist_append(list, &e3);
 
-  remember_head(list);
+  testlist_t* mapped = testlist_map(list, times2, NULL);
+  testlist_t* m = mapped;
 
-  list = testlist_map(list, times2, NULL);
-
-  for(uint32_t i = 1; i < 4; i++)
+  for(uint32_t i = 1; i < 3; i++)
   {
-    c = testlist_data(list);
-
+    c = testlist_data(m);
     ASSERT_EQ(i << 1, c->val);
-
-    list = testlist_next(list);
+    m = testlist_next(m);
   }
+
+  testlist_free(list);
+  testlist_free(mapped);
 }
