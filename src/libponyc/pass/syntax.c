@@ -253,7 +253,6 @@ static bool check_members(ast_t* members, int entity_def_index)
 
         if(!check_id_field(ast_child(member)))
           r = false;
-
         break;
 
       case TK_NEW:

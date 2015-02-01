@@ -1,5 +1,3 @@
-use "events"
-
 actor TCPListener
   """
   Listens for new network connections.
