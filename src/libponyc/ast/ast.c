@@ -412,7 +412,7 @@ void ast_erase(ast_t* ast)
 ast_t* ast_nearest(ast_t* ast, token_id id)
 {
   while((ast != NULL) && (token_get_id(ast->t) != id))
-    ast = ast->parent;
+    ast = ast->scope;
 
   return ast;
 }
