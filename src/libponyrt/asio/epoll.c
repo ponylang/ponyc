@@ -54,7 +54,7 @@ void asio_backend_terminate(asio_backend_t* b)
   eventfd_write(b->wakeup, 1);
 }
 
-DEFINE_THREAD_FN(asio_backend_dispatch,
+DECLARE_THREAD_FN(asio_backend_dispatch)
 {
   asio_backend_t* b = arg;
 
@@ -110,7 +110,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
   messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
-});
+}
 
 static void timer_set_nsec(int fd, uint64_t nsec)
 {

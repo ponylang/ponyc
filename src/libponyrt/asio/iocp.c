@@ -28,10 +28,10 @@ void asio_backend_terminate(asio_backend_t* b)
 
 }
 
-DEFINE_THREAD_FN(asio_backend_dispatch,
+DECLARE_THREAD_FN(asio_backend_dispatch)
 {
   return NULL;
-});
+}
 
 void asio_event_subscribe(asio_event_t* ev)
 {

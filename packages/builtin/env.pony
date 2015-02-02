@@ -3,6 +3,7 @@ class Env val
   An environment holds the command line and other values injected into the
   program by default by the runtime.
   """
+  let input: Stdin
   let out: StdStream
   let err: StdStream
   let args: Array[String] val
@@ -12,6 +13,9 @@ class Env val
     Builds an environment from the command line. This is done before the Main
     actor is created.
     """
+    @os_stdout_setup[None]()
+
+    input = Stdin._create(@os_stdin_setup[Bool]())
     out = StdStream._out()
     err = StdStream._err()
 
@@ -32,10 +36,12 @@ class Env val
       consume array
     end
 
-  new create(out': StdStream, err': StdStream, args': Array[String] val) =>
+  new create(input': Stdin, out': StdStream, err': StdStream,
+    args': Array[String] val) =>
     """
     Build an artificial environment.
     """
+    input = input'
     out = out'
     err = err'
     args = args'
