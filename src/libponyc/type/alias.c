@@ -219,7 +219,7 @@ static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
     return NULL;
   }
 
-  ast_setid(cap, tcap);
+  ast_setid(cap, ccap);
   return type;
 }
 

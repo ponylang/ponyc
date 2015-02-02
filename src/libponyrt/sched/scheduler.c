@@ -281,7 +281,7 @@ static void run(scheduler_t* sched)
   }
 }
 
-static DEFINE_THREAD_FN(run_thread,
+static DECLARE_THREAD_FN(run_thread)
 {
   scheduler_t* sched = (scheduler_t*) arg;
   this_scheduler = sched;
@@ -289,7 +289,7 @@ static DEFINE_THREAD_FN(run_thread,
   run(sched);
 
   return 0;
-});
+}
 
 static void scheduler_shutdown()
 {
@@ -335,10 +335,14 @@ void scheduler_init(uint32_t threads, bool forcecd)
   scheduler[0].forcecd = forcecd;
 
   mpmcq_init(&inject);
+  asio_init();
 }
 
 bool scheduler_start(pony_termination_t termination)
 {
+  if(!asio_start())
+    return false;
+
   detect_quiescence = termination == PONY_DONT_WAIT;
   shutdown_on_stop = termination == PONY_ASYNC_WAIT;
 
