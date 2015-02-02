@@ -4,7 +4,6 @@
 #include "genprim.h"
 #include "genname.h"
 #include "gendesc.h"
-#include "../debug/dwarf.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -424,8 +423,8 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   genprim_builtins(&c);
 
   // Emit debug info for this compile unit.
-  dwarf_init(&c);
-  dwarf_compileunit(c.dwarf, program);
+  dwarf_init(&c.dwarf, c.opt, c.target_data, c.module);
+  dwarf_compileunit(&c.dwarf, program);
 
   bool ok;
 
@@ -433,7 +432,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
     ok = genlib(&c, program);
   else
     ok = genexe(&c, program);
-  
+
   codegen_cleanup(&c);
   return ok;
 }

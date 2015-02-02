@@ -1,27 +1,47 @@
 #include "symbols.h"
+#include "../codegen/gentype.h"
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
 
-#define DW_LANG_Pony 0x8002
-#define DW_TAG_Producer "ponyc"
+#ifdef _MSC_VER
+#  pragma warning(push)
+#  pragma warning(disable:4003)
+#  pragma warning(disable:4244)
+#  pragma warning(disable:4800)
+#  pragma warning(disable:4267)
+#endif
+
+#include <llvm/IR/Module.h>
+#include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DataLayout.h>
+#include <llvm/Support/Path.h>
+#include <llvm/IR/Metadata.h>
+
+#ifdef _MSC_VER
+#  pragma warning(pop)
+#endif
 
 using namespace llvm;
 using namespace llvm::dwarf;
 
+typedef struct anchor_t anchor_t;
+typedef struct symbol_t symbol_t;
+
 enum
 {
-  SYMBOL_NEW = 1,
-  SYMBOL_LANG = 1 << 1,
+  SYMBOL_NEW  = 1 << 0,
+  SYMBOL_ANCHOR = 1 << 1,
   SYMBOL_FILE = 1 << 2
 };
 
-typedef struct anchor_t
+struct anchor_t
 {
   DIType type;
   DIType qualified;
-} anchor_t;
+};
 
-typedef struct symbol_t
+struct symbol_t
 {
   const char* name;
 
@@ -32,7 +52,7 @@ typedef struct symbol_t
   };
 
   uint16_t kind;
-} symbol_t;
+};
 
 struct subnodes_t
 {
@@ -53,12 +73,11 @@ DEFINE_HASHMAP(symbolmap, symbol_t, symbol_hash, symbol_cmp,
 struct symbols_t
 {
   symbolmap_t map;
-  
+
   DIBuilder* builder;
   DICompileUnit unit;
-  
+
   bool release;
-  bool emit;
 };
 
 static uint64_t symbol_hash(symbol_t* symbol)
@@ -77,13 +96,13 @@ static void symbol_free(symbol_t* symbol)
   // for unused types.
   //assert((symbol->kind & SYMBOL_NEW) == 0);
 
-  if(symbol->kind == SYMBOL_LANG)
+  if(symbol->kind == SYMBOL_ANCHOR)
     POOL_FREE(anchor_t, symbol->anchor);
 
   POOL_FREE(symbol_t, symbol);
 }
 
-static symbol_t* get_anchor(symbols_t* symbols, const char* name)
+static symbol_t* get_entry(symbols_t* symbols, const char* name)
 {
   symbol_t key;
   key.name = name;
@@ -106,9 +125,9 @@ static symbol_t* get_anchor(symbols_t* symbols, const char* name)
   return value;
 }
 
-static symbol_t* get_file_anchor(symbols_t* symbols, const char* fullpath)
+static DIFile get_file(symbols_t* symbols, const char* fullpath)
 {
-  symbol_t* symbol = get_anchor(symbols, fullpath);
+  symbol_t* symbol = get_entry(symbols, fullpath);
 
   if(symbol->kind & SYMBOL_NEW)
   {
@@ -119,12 +138,12 @@ static symbol_t* get_file_anchor(symbols_t* symbols, const char* fullpath)
     symbol->kind |= SYMBOL_FILE;
   }
 
-  return symbol;
+  return (DIFile)symbol->file;
 }
 
-static symbol_t* get_lang_anchor(symbols_t* symbols, const char* name)
+static symbol_t* get_anchor(symbols_t* symbols, const char* name)
 {
-  symbol_t* symbol = get_anchor(symbols, name);
+  symbol_t* symbol = get_entry(symbols, name);
 
   if(symbol->kind & SYMBOL_NEW)
   {
@@ -132,268 +151,234 @@ static symbol_t* get_lang_anchor(symbols_t* symbols, const char* name)
     memset(anchor, 0, sizeof(anchor_t));
 
     symbol->anchor = anchor;
-    symbol->kind |= SYMBOL_LANG;
+    symbol->kind |= SYMBOL_ANCHOR;
   }
 
   return symbol;
 }
 
-symbols_t* symbols_init(compile_t* c)
+void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
 {
-  symbols_t* s = POOL_ALLOC(symbols_t);
+  symbols_t* s = *symbols = POOL_ALLOC(symbols_t);
   memset(s, 0, sizeof(symbols_t));
 
   symbolmap_init(&s->map, 0);
-  s->builder = new DIBuilder(*unwrap(c->module));
-  s->release = c->opt->release;
-  s->emit = c->opt->symbols;
-
-  return s;
-}
-
-llvm::DIFile symbols_file(symbols_t* symbols, const char* fullpath)
-{
-  symbol_t* symbol = get_file_anchor(symbols, fullpath);
-  assert(symbol->kind & SYMBOL_FILE);
-  
-  return (DIFile)symbol->file;
-}
-
-bool symbols_known_type(symbols_t* symbols, const char* name)
-{
-  symbol_t key;
-  key.name = name;
-
-  return symbolmap_get(&symbols->map, &key) != NULL;
-}
-
-void symbols_declare(symbols_t* symbols, gentype_t* g, subnodes_t** members, 
-  size_t size, symbol_scope_t* scope)
-{
-  symbol_t* symbol = get_lang_anchor(symbols, g->type_name);
-  assert(symbol->kind & SYMBOL_LANG);
-
-  if(symbol->kind & SYMBOL_NEW)
-  {
-    printf("DWARF declare preliminary: %s\n", g->type_name);
-
-    anchor_t* anchor = symbol->anchor;
-    subnodes_t* nodes = *members = (subnodes_t*)malloc(sizeof(subnodes_t));
-
-    nodes->size = size;
-    nodes->offset = 0;
-    nodes->children = (MDNode**)calloc(size, sizeof(MDNode*));
-
-    uint16_t tag = 0;
-
-    if(g->underlying == TK_TUPLETYPE)
-      tag = DW_TAG_structure_type;
-    else
-      tag = DW_TAG_class_type;
-
-    // We do have to store the preliminary dwarf symbol seperately, because
-    // of resursive types and the fact that nominal types are used as pointers.
-    nodes->prelim = symbols->builder->createReplaceableForwardDecl(tag, 
-      g->type_name, symbols->unit, scope->file, (int)scope->line);
-
-    if(g->underlying == TK_TUPLETYPE)
-    {
-      // The actual use type is the structure itself. Also, tuples are
-      // constant structures.
-      anchor->type = symbols->builder->createQualifiedType(DW_TAG_constant, 
-        nodes->prelim);
-
-      // For convenience, we store the same type as qualified type.
-      anchor->qualified = anchor->type;
-    } else {
-      // The use type is a pointer to the structure.
-      anchor->type = symbols->builder->createPointerType(nodes->prelim,
-        g->size, g->align);
-      
-      // A let field or method parameter is equivalent to a 
-      // C <type>* const <identifier>.
-      anchor->qualified = symbols->builder->createQualifiedType(
-        DW_TAG_const_type, anchor->type);
-    }
-  }
+  s->builder = new DIBuilder(*unwrap(module));
+  s->release = optimised;
 }
 
 void symbols_package(symbols_t* symbols, const char* path, const char* name)
 {
   symbols->unit = symbols->builder->createCompileUnit(DW_LANG_Pony, name, path,
-    DW_TAG_Producer, symbols->release, StringRef(), 0, StringRef(), 
-    llvm::DIBuilder::FullDebug, symbols->emit);
+    DW_TAG_Producer, symbols->release, StringRef(), 0, StringRef(),
+    llvm::DIBuilder::FullDebug, true);
 }
 
-void symbols_basic(symbols_t* symbols, gentype_t* g)
+void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* basic = get_lang_anchor(symbols, g->type_name);
-  assert(basic->kind & SYMBOL_LANG);
+  symbol_t* basic = get_anchor(symbols, meta->name);
 
   if(basic->kind & SYMBOL_NEW)
   {
     anchor_t* anchor = basic->anchor;
-    uint16_t tag = 0;
-    
-    switch(g->type_name[0])
-    {
-      case 'U': tag = dwarf::DW_ATE_unsigned; break;
-      case 'I': tag = dwarf::DW_ATE_signed; break;
-      case 'F': tag = dwarf::DW_ATE_float; break;
-      case 'B': tag = dwarf::DW_ATE_boolean; break;
-      default: assert(0);
-    }
-  
-    printf("DWARF basic: %s\n", g->type_name);
+    uint16_t tag = dwarf::DW_ATE_unsigned;
 
-    DIType type = symbols->builder->createBasicType(g->type_name, g->size,
-      g->align, tag);
+    switch(meta->flags)
+    {
+      case DWARF_SIGNED:
+        tag = dwarf::DW_ATE_signed;
+        break;
+      case DWARF_FLOAT:
+        tag = dwarf::DW_ATE_float;
+        break;
+      case DWARF_BOOLEAN:
+        tag = dwarf::DW_ATE_boolean;
+        break;
+      default: {};
+    }
+
+    printf("DWARF basic: %s\n", meta->name);
+
+    DIType type = symbols->builder->createBasicType(meta->name, meta->size,
+      meta->align, tag);
 
     // Eventually, basic builtin types may be used as const, e.g. let field or
     // local, method/behaviour parameter.
     DIType qualified = symbols->builder->createQualifiedType(DW_TAG_constant,
       type);
 
-    //TODO: REMOVE
-    symbols->builder->retainType(type);
-    symbols->builder->retainType(type);
-
     anchor->type = type;
     anchor->qualified = qualified;
   }
 }
 
-void symbols_pointer(symbols_t* symbols, gentype_t* ptr, gentype_t* g)
+void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* pointer = get_lang_anchor(symbols, ptr->type_name);
-  symbol_t* typearg = get_lang_anchor(symbols, g->type_name);
+  symbol_t* pointer = get_anchor(symbols, meta->name);
+  symbol_t* typearg = get_anchor(symbols, meta->typearg);
+
+  anchor_t* symbol = pointer->anchor;
   anchor_t* target = typearg->anchor;
 
   // We must have seen the pointers target before. Also the target
   // symbol is not preliminary, because the pointer itself is not
   // preliminary.
-  assert((typearg->kind & SYMBOL_NEW) == 0);
   assert(pointer->kind & SYMBOL_NEW);
+  assert((typearg->kind & SYMBOL_NEW) == 0);
 
-  printf("DWARF pointer: Pointer[%s]\n", g->type_name);
+  printf("DWARF pointer: Pointer[%s]\n", meta->typearg);
 
-  pointer->anchor->type = symbols->builder->createPointerType(target->type,
-    ptr->size, ptr->align);
-
-  //TODO REMOVE
-  symbols->builder->retainType(pointer->anchor->type);
+  symbol->type = symbols->builder->createPointerType(target->type, meta->size,
+    meta->align);
 }
 
-void symbols_trait(symbols_t* symbols, gentype_t* g, symbol_scope_t* scope)
+void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* trait = get_lang_anchor(symbols, g->type_name);
-  assert(trait->kind & SYMBOL_LANG);
+  symbol_t* trait = get_anchor(symbols, meta->name);
 
   if(trait->kind & SYMBOL_NEW)
   {
-    // There is no qualified type for a trait, because traits are not used
-    // directly. Just like classes, traits are always used as pointers to 
-    // some underlying runtime class.
     anchor_t* anchor = trait->anchor;
 
-    printf("DWARF trait: %s\n", g->type_name);
+    printf("DWARF trait: %s\n", meta->name);
 
-    DIType trait_type = symbols->builder->createClassType(symbols->unit,
-      g->type_name, scope->file, (int)scope->line, g->size, g->align, 0, 0,
+    DIFile file = get_file(symbols, meta->file);
+
+    DIType type = symbols->builder->createClassType(symbols->unit, meta->name,
+      file, (int)meta->line, meta->size, meta->align, meta->offset, 0,
       DIType(), DIArray());
 
-    anchor->type = symbols->builder->createPointerType(trait_type, g->size,
-      g->align);
+    anchor->type = symbols->builder->createPointerType(type, meta->size,
+      meta->align);
 
     anchor->qualified = symbols->builder->createQualifiedType(
       DW_TAG_const_type, anchor->type);
-
-    //TODO REMOVE
-    symbols->builder->retainType(anchor->type);
-    symbols->builder->retainType(anchor->qualified);
   }
 }
 
-void symbols_member(symbols_t* symbols, gentype_t* field, subnodes_t* subnodes,
-  symbol_scope_t* scope, const char* name, bool priv, bool constant, 
-  size_t index)
+void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta)
 {
-  unsigned visibility = priv ? DW_ACCESS_private : DW_ACCESS_public;
+  symbol_t* symbol = get_anchor(symbols, meta->name);
 
-  symbol_t* field_symbol = get_lang_anchor(symbols, field->type_name);
-  
-  // We must have heard about the members type already.
-  assert((field_symbol->kind & SYMBOL_NEW) == 0);
+  printf("DWARF declare: %s\n", meta->name);
+
+  anchor_t* anchor = symbol->anchor;
+  subnodes_t* nodes = (subnodes_t*)POOL_ALLOC(subnodes_t);
+
+  nodes->size = meta->size;
+  nodes->offset = 0;
+  nodes->children = (MDNode**)pool_alloc_size(meta->size*sizeof(MDNode*));
+  memset(nodes->children, 0, meta->size*sizeof(MDNode*));
+
+  DIFile file = get_file(symbols, meta->file);
+  uint16_t tag = DW_TAG_class_type;
+
+  if(meta->flags & DWARF_TUPLE)
+    tag = DW_TAG_structure_type;
+
+  // We do have to store the preliminary dwarf symbol seperately, because
+  // of resursive types and the fact that nominal types are used as pointers.
+  nodes->prelim = symbols->builder->createReplaceableForwardDecl(tag,
+    meta->name, symbols->unit, file, (int)meta->line);
+
+  if(meta->flags & DWARF_TUPLE)
+  {
+    // The actual use type is the structure itself.
+    anchor->type = nodes->prelim;
+
+    anchor->qualified = symbols->builder->createQualifiedType(DW_TAG_constant,
+      nodes->prelim);
+  } else {
+    // The use type is a pointer to the structure.
+    anchor->type = symbols->builder->createPointerType(nodes->prelim,
+      meta->size, meta->align);
+
+    // A let field or method parameter is equivalent to a
+    // C <type>* const <identifier>.
+    anchor->qualified = symbols->builder->createQualifiedType(
+      DW_TAG_const_type, anchor->type);
+  }
+
+  frame->members = nodes;
+}
+
+void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta)
+{
+  subnodes_t* subnodes = frame->members;
+  unsigned visibility = DW_ACCESS_public;
+
+  if(meta->flags & DWARF_PRIVATE)
+    visibility = DW_ACCESS_private;
+
+  symbol_t* field_symbol = get_anchor(symbols, meta->name);
 
   DIType use_type = DIType();
 
-  if(constant)
+  if(meta->flags & DWARF_CONSTANT)
     use_type = field_symbol->anchor->qualified;
   else
     use_type = field_symbol->anchor->type;
 
-  printf("DWARF member: %s\n", name);
+  printf("DWARF member: %s\n", meta->name);
 
-  subnodes->children[index] = symbols->builder->createMemberType(symbols->unit,
-    name, scope->file, (int)scope->line, field->size, field->align, 
+  DIFile file = get_file(symbols, meta->file);
+
+  subnodes->children[frame->index] = symbols->builder->createMemberType(
+    symbols->unit, meta->name, file, (int)meta->line, meta->size, meta->align,
     subnodes->offset, visibility, use_type);
 
-  //TODO REMOVE
-  symbols->builder->retainType((DIType)subnodes->children[index]);
-
-  subnodes->offset += field->size;
+  subnodes->offset += meta->size;
+  frame->index += 1;
 }
 
-void symbols_composite(symbols_t* symbols, gentype_t* g, size_t offset, 
-  subnodes_t* subnodes, symbol_scope_t* scope)
+void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta)
 {
   // The composite was previously forward declared, and a preliminary
   // debug symbol exists.
-  assert(subnodes->prelim != NULL);
-  
+  subnodes_t* subnodes = frame->members;
+
+  DIFile file = get_file(symbols, meta->file);
   DIType actual = DIType();
   DIArray fields = DIArray();
-  
+
   if(subnodes->size > 0)
   {
     Value** members = (Value**)subnodes->children;
 
-    fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members, 
+    fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members,
       subnodes->size));
   }
 
-  if(g->underlying == TK_TUPLETYPE)
+  if(meta->flags & DWARF_TUPLE)
   {
-    printf("DWARF tuple type: %s\n", g->type_name);
+    printf("DWARF tuple type: %s\n", meta->name);
 
-    actual = symbols->builder->createStructType(symbols->unit, g->type_name,
-      DIFile(), 0, g->size, g->align, 0, DIType(), fields);
+    actual = symbols->builder->createStructType(symbols->unit, meta->name,
+      DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
   } else {
-    printf("DWARF class type: %s\n", g->type_name);
+    printf("DWARF class type: %s\n", meta->name);
 
-    actual = symbols->builder->createClassType(symbols->unit, g->type_name, 
-      scope->file, (int)scope->line, g->size, g->align, offset, 0, DIType(),
+    actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
+      (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
       fields);
   }
 
-  //TODO REMOVE
-  symbols->builder->retainType(actual);
-
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  free(subnodes->children);
-  free(subnodes);
+  pool_free_size(sizeof(MDNode*) * subnodes->size, subnodes->children);
+  POOL_FREE(subnodes_t, subnodes);
 }
 
 void symbols_finalise(symbols_t* symbols)
 {
-  if(symbols->emit)
-  {
-    printf("Emitting debug symbols\n");
-    assert(symbols->unit.Verify());
-    symbols->builder->finalize();
-  }
-  
+  printf("Emitting debug symbols\n");
+
+  assert(symbols->unit.Verify());
+  symbols->builder->finalize();
+
   symbolmap_destroy(&symbols->map);
   POOL_FREE(symbols_t, symbols);
 }

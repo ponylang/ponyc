@@ -1,12 +1,71 @@
 #ifndef DEBUG_DWARF_H
 #define DEBUG_DWARF_H
 
-#include <platform.h>
 #include "../ast/ast.h"
-#include "../codegen/codegen.h"
-#include "../codegen/gentype.h"
+
+#include <platform.h>
+#include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
+
+#define DW_LANG_Pony 0x8002
+#define DW_TAG_Producer "ponyc"
 
 PONY_EXTERN_C_BEGIN
+
+typedef struct dwarf_t dwarf_t;
+typedef struct dwarf_frame_t dwarf_frame_t;
+typedef struct dwarf_meta_t dwarf_meta_t;
+
+typedef struct gentype_t gentype_t;
+typedef struct symbols_t symbols_t;
+typedef struct subnodes_t subnodes_t;
+
+enum DWARF_FLAGS
+{
+  DWARF_FLOAT    = 1 << 0,
+  DWARF_SIGNED   = 1 << 1,
+  DWARF_BOOLEAN  = 1 << 2,
+  DWARF_TUPLE    = 1 << 3,
+  DWARF_PRIVATE  = 1 << 4,
+  DWARF_CONSTANT = 1 << 5
+};
+
+struct dwarf_t
+{
+  symbols_t* symbols;
+  pass_opt_t* opt;
+  LLVMTargetDataRef target_data;
+  dwarf_frame_t* frame;
+};
+
+struct dwarf_frame_t
+{
+  size_t size;
+  size_t index;
+  subnodes_t* members;
+  dwarf_frame_t* prev;
+};
+
+struct dwarf_meta_t
+{
+  const char* file;
+  const char* name;
+  const char* typearg;
+
+  size_t line;
+  size_t pos;
+  size_t offset;
+  size_t size;
+  size_t align;
+
+  uint8_t flags;
+};
+
+/**
+ * Initialise the debug symbol emitter.
+ */
+void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMTargetDataRef layout,
+  LLVMModuleRef module);
 
 /**
  * Emit debug symbols for a compilation unit. For Pony, there is always a
@@ -18,18 +77,18 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program);
 
 /**
  * Emit debug symbols for a Pony basic type: U8, ..., U128, I8, ..., I128,
- * Bool, F32, F64.
+ * Bool, F32, F64. Basic types are builtin, hence have no compilation
+ * unit scope and their size and ABI alignment depends on the primitive
+ * structure.
  */
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g);
 
 /**
  * Emit debug symbols for a pointer to some Pony nominal type. Note that
  * this can be Pointer[A], which would be dwarfed as A**. Pointer[U64]
- * instead is dwarfed as U64*. Consequently, the usage of any nominal
- * type (or boxed instances of tuples or primitive builtins) is dwarfed
- * as a simple pointer to type.
+ * instead is dwarfed as U64*...
  */
-void dwarf_pointer(dwarf_t* dwarf, gentype_t* ptr, gentype_t* g);
+void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg);
 
 /**
  * Traits are dwarfed as composite types with no members, the actual debug
@@ -56,11 +115,9 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
 /**
  * Emit debug symbols for a field of some composite type. This requires to
  * have called dwarf_forward beforehand. If the owning type is not forward
- * declared, all fields remain unused and therefore will not be in the final
- * binary.
+ * declared, behaviour is undefined.
  */
-void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
-  size_t index);
+void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field);
 
 /**
  * Finalise emitting the debug symbols for a composite type. By the nature
@@ -70,18 +127,11 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
 void dwarf_composite(dwarf_t* dwarf, gentype_t* g);
 
 /**
- * Initialise the debug symbol emitter. This always allocates a dwarf_t
- * structure, but symbols will only be emitted if compile_t.opt.symbols
- * is true.
- */
-void dwarf_init(compile_t* c);
-
-/**
  * Dump collected debug information into the object file. Debug symols
- * will not be included in the final binary without calling this 
+ * will not be included in the final binary without calling this
  * finaliser. Frees all memory allocated during dwarfing.
  */
-void dwarf_finalise(dwarf_t* d);
+void dwarf_finalise(dwarf_t* dwarf);
 
 PONY_EXTERN_C_END
 
