@@ -428,7 +428,7 @@ void paint(reachable_types_t* types)
 
   // Step 3
   assign_colours_to_names(&painter);
-  //painter_print(&painter);
+  // painter_print(&painter);
 
   // Step 5
   distribute_info(&painter, types);

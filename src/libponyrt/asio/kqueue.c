@@ -15,7 +15,6 @@ struct asio_backend_t
 {
   int kq;
   int wakeup[2];
-  struct kevent fired[MAX_EVENTS];
   messageq_t q;
 };
 
@@ -46,7 +45,7 @@ asio_backend_t* asio_backend_init()
 
 void asio_backend_terminate(asio_backend_t* b)
 {
-  char c = '\0';
+  char c = 1;
   write(b->wakeup[1], &c, 1);
 }
 
@@ -58,44 +57,58 @@ static void handle_queue(asio_backend_t* b)
     asio_event_send(msg->event, 0);
 }
 
-DEFINE_THREAD_FN(asio_backend_dispatch,
+static void retry_loop(asio_backend_t* b)
+{
+  char c = 0;
+  write(b->wakeup[1], &c, 1);
+}
+
+DECLARE_THREAD_FN(asio_backend_dispatch)
 {
   asio_backend_t* b = arg;
+  struct kevent fired[MAX_EVENTS];
 
   while(b->kq != -1)
   {
-    int count = kevent(b->kq, NULL, 0, b->fired, MAX_EVENTS, NULL);
+    int count = kevent(b->kq, NULL, 0, fired, MAX_EVENTS, NULL);
 
     for(int i = 0; i < count; i++)
     {
-      struct kevent* ep = &(b->fired[i]);
+      struct kevent* ep = &fired[i];
 
       if((ep->ident == (uintptr_t)b->wakeup[0]) && (ep->filter == EVFILT_READ))
       {
-        close(b->kq);
-        close(b->wakeup[0]);
-        close(b->wakeup[1]);
-        b->kq = -1;
-        break;
-      }
+        char terminate;
+        read(b->wakeup[0], &terminate, 1);
 
-      asio_event_t* ev = ep->udata;
-
-      switch(ep->filter)
-      {
-        case EVFILT_READ:
-          asio_event_send(ev, ASIO_READ);
+        if(terminate == 1)
+        {
+          close(b->kq);
+          close(b->wakeup[0]);
+          close(b->wakeup[1]);
+          b->kq = -1;
           break;
+        }
+      } else {
+        asio_event_t* ev = ep->udata;
 
-        case EVFILT_WRITE:
-          asio_event_send(ev, ASIO_WRITE);
-          break;
+        switch(ep->filter)
+        {
+          case EVFILT_READ:
+            if(ep->data > 0)
+              asio_event_send(ev, ASIO_READ);
+            break;
 
-        case EVFILT_TIMER:
-          asio_event_send(ev, ASIO_TIMER);
-          break;
+          case EVFILT_WRITE:
+            asio_event_send(ev, ASIO_WRITE);
+            break;
 
-        default: {}
+          case EVFILT_TIMER:
+            asio_event_send(ev, ASIO_TIMER);
+            break;
+
+          default: {}
+        }
       }
     }
 
@@ -105,7 +118,7 @@ DEFINE_THREAD_FN(asio_backend_dispatch,
   messageq_destroy(&b->q);
   POOL_FREE(asio_backend_t, b);
   return NULL;
-});
+}
 
 void asio_event_subscribe(asio_event_t* ev)
 {
@@ -137,8 +150,10 @@ void asio_event_subscribe(asio_event_t* ev)
     i++;
   }
 
-  struct timespec t = {0, 0};
-  kevent(b->kq, event, i, NULL, 0, &t);
+  kevent(b->kq, event, i, NULL, 0, NULL);
+
+  if(ev->data == STDIN_FILENO)
+    retry_loop(b);
 }
 
 void asio_event_update(asio_event_t* ev, uintptr_t data)
@@ -155,8 +170,7 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
     i++;
   }
 
-  struct timespec t = {0, 0};
-  kevent(b->kq, event, i, NULL, 0, &t);
+  kevent(b->kq, event, i, NULL, 0, NULL);
 }
 
 void asio_event_unsubscribe(asio_event_t* ev)
@@ -193,8 +207,7 @@ void asio_event_unsubscribe(asio_event_t* ev)
     i++;
   }
 
-  struct timespec t = {0, 0};
-  kevent(b->kq, event, i, NULL, 0, &t);
+  kevent(b->kq, event, i, NULL, 0, NULL);
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(0, 0);
   msg->event = ev;

@@ -3,6 +3,8 @@
 #include "lang.h"
 #include <stdio.h>
 
+PONY_EXTERN_C_BEGIN
+
 typedef struct pony_mode_t
 {
   pony_type_t* desc;
@@ -44,8 +46,6 @@ typedef struct pony_stat_t
   bool symlink;
   bool broken;
 } pony_stat_t;
-
-PONY_EXTERN_C_BEGIN
 
 #ifdef PLATFORM_IS_WINDOWS
 void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
@@ -167,16 +167,6 @@ bool os_stat(const char* path, pony_stat_t* p)
 #endif
 
   return true;
-}
-
-FILE* os_stdout()
-{
-  return stdout;
-}
-
-FILE* os_stderr()
-{
-  return stderr;
 }
 
 PONY_EXTERN_C_END

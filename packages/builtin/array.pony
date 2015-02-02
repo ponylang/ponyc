@@ -8,18 +8,17 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
-  // Put this in once we have codegen for polymorphic methods.
-  // new init[B: (A & Any box)](from: B, len: U64) =>
-  //  _size = len
-  //  _alloc = len
-  //  _ptr = Pointer[A]._create(len)
-  //
-  //  var i: U64 = 0
-  //
-  //  while i < len do
-  //    _ptr._update(i, from)
-  //    i = i + 1
-  //  end
+  new init[B: (A & A!) = A](from: B, len: U64) =>
+   _size = len
+   _alloc = len
+   _ptr = Pointer[A]._create(len)
+
+   var i: U64 = 0
+
+   while i < len do
+     _ptr._update(i, from)
+     i = i + 1
+   end
 
   new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
     _size = len
@@ -80,13 +79,12 @@ class Array[A]
     _size = _size + 1
     this
 
-  //Put this in once we have codegen for polymorphic methods.
-  //fun ref concat[B: (A & Any box)](iter: Iterator[B]) =>
-  //  try
-  //    for v in iter do
-  //      append(v)
-  //    end
-  //  end
+  fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>
+    try
+      for v in iter do
+        append(v)
+      end
+    end
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     ArrayKeys[A, this->Array[A]](this)
