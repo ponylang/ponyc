@@ -68,38 +68,58 @@ actor Stdin
       _read()
     end
 
+  be _read_again() =>
+    """
+    Resume reading.
+    """
+    _read()
+
   fun ref _read(): Bool =>
     """
-    Read a chunk of data from stdin.
+    Read a chunk of data from stdin. If we read 4 kb of data, send ourself a
+    resume message and stop reading, to avoid starving other actors.
     """
     try
       let notify = _notify as StdinNotify
-      var len = U64(64)
-      var data = recover Array[U8].undefined(len) end
-      len = @read[U64](U64(0), data.cstring(), data.space())
+      var sum: U64 = 0
 
-      match len
-      | -1 =>
-        // Error, possibly would block. Try again.
-        true
-      | 0 =>
-        // EOF. Close everything, stop reading.
-        Event.unsubscribe(_event)
-        notify.closed()
-        _notify = None
-        false
-      else
+      while true do
+        var len = U64(64)
+        var data = recover Array[U8].undefined(len) end
+        len = @read[U64](U64(0), data.cstring(), data.space())
+
+        match len
+        | -1 =>
+          // Error, possibly would block. Try again.
+          return true
+        | 0 =>
+          // EOF. Close everything, stop reading.
+          Event.unsubscribe(_event)
+          notify.closed()
+          _notify = None
+          return false
+        end
+
         data.truncate(len)
 
         if not notify(consume data) then
           // Notifier is done. Close everything, stop reading.
           Event.unsubscribe(_event)
           _notify = None
-          false
-        else
-          true
+          return false
+        end
+
+        sum = sum + len
+
+        if sum > (1 << 12) then
+          if _use_event then
+            _read_again()
+          end
+
+          break
         end
       end
+      true
     else
       // No notifier. Stop reading.
       Event.unsubscribe(_event)
