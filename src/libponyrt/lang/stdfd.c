@@ -121,8 +121,9 @@ bool os_stdin_setup()
   switch(type)
   {
     case FD_TYPE_TTY:
-      fd_tty(fd);
       fd_nonblocking(fd);
+      fd_tty(fd);
+      // fd_nonblocking(fd);
       return true;
 
     case FD_TYPE_PIPE:
