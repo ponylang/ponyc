@@ -122,6 +122,7 @@ bool os_stdin_setup()
   {
     case FD_TYPE_TTY:
       fd_tty(fd);
+      fd_nonblocking(fd);
       return true;
 
     case FD_TYPE_PIPE:
