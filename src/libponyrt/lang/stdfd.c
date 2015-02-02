@@ -74,11 +74,8 @@ static void fd_tty(int fd)
 
   if(tcgetattr(fd, &io) != -1)
   {
-    // io.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     io.c_iflag &= ~(BRKINT | INPCK | ISTRIP | IXON);
-    // io.c_oflag &= ~(OPOST);
     io.c_cflag |= (CS8);
-    // io.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     io.c_lflag &= ~(ECHO | ICANON | IEXTEN);
     io.c_cc[VMIN] = 1;
     io.c_cc[VTIME] = 0;
@@ -123,7 +120,6 @@ bool os_stdin_setup()
     case FD_TYPE_TTY:
       fd_nonblocking(fd);
       fd_tty(fd);
-      // fd_nonblocking(fd);
       return true;
 
     case FD_TYPE_PIPE:

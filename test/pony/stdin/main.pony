@@ -1,7 +1,7 @@
 class Notify is StdinNotify
   let _env: Env
 
-  new create(env: Env) =>
+  new iso create(env: Env) =>
     _env = env
 
   fun ref apply(data: Array[U8] iso): Bool =>
@@ -16,9 +16,6 @@ class Notify is StdinNotify
     _env.out.write(data')
     true
 
-  fun ref closed() =>
-    _env.out.print("stdin closed")
-
 actor Main
   new create(env: Env) =>
-    env.input(recover Notify(env) end)
+    env.input(Notify(env))
