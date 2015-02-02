@@ -450,6 +450,63 @@ TEST_F(LexerTest, EmptyStringAtEndOfSource)
 }
 
 
+TEST_F(LexerTest, KeywordAfterError)
+{
+  const char* src = "$ class";
+
+  expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, false, TK_CLASS, "class");
+  expect(1, 8, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IdAfterError)
+{
+  const char* src = "$ foo";
+
+  expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, false, TK_ID, "foo");
+  expect(1, 6, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, OperatorAfterError)
+{
+  const char* src = "$ ->";
+
+  expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, false, TK_ARROW, "->");
+  expect(1, 5, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IntegerAfterError)
+{
+  const char* src = "$ 1234";
+
+  expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, false, TK_INT, "1234");
+  expect(1, 7, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, MultipleAfterError)
+{
+  const char* src = "$ while foo 1234";
+
+  expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
+  expect(1, 3, false, TK_WHILE, "while");
+  expect(1, 9, false, TK_ID, "foo");
+  expect(1, 13, false, TK_INT, "1234");
+  expect(1, 17, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 // Numbers
 
 
