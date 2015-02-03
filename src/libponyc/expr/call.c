@@ -608,7 +608,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_REFERENCE, TREE(r_field_id))));
 
   // A named argument at the call site.
-  BUILD(r_call_arg, receiver, NODE(TK_NAMEDARG, TREE(r_id) TREE(receiver)));
+  BUILD(r_call_arg, receiver,
+    NODE(TK_NAMEDARG,
+      TREE(r_id)
+      NODE(TK_SEQ, TREE(receiver))));
 
   ast_append(class_members, r_field);
   ast_append(create_params, r_ctor_param);
@@ -641,7 +644,11 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
       // An arg in the call to the original method.
       BUILD(apply_arg, param,
-        NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(id))));
+        NODE(TK_SEQ,
+          NODE(TK_CONSUME,
+            NODE(TK_NONE)
+            NODE(TK_REFERENCE, TREE(id)))));
+
       ast_append(apply_args, apply_arg);
     } else {
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
@@ -659,10 +666,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           NODE(TK_REFERENCE, TREE(id))));
 
       // A named argument at the call site.
-      BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
+      BUILD(call_arg, arg,
+        NODE(TK_NAMEDARG,
+          TREE(p_id)
+          NODE(TK_SEQ, TREE(arg))));
 
       // An arg in the call to the original method.
-      BUILD(apply_arg, arg, NODE(TK_REFERENCE, TREE(id)));
+      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, TREE(id))));
 
       ast_append(class_members, field);
       ast_append(create_params, ctor_param);
