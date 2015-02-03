@@ -103,11 +103,29 @@ class List[A]
     """
     head().remove().pop()
 
+  fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
+    """
+    Return an iterator on the nodes in the list.
+    """
+    ListNodes[A, this->ListNode[A]](_head)
+
+  fun rnodes(): ListNodes[A, this->ListNode[A]]^ =>
+    """
+    Return an iterator on the nodes in the list.
+    """
+    ListNodes[A, this->ListNode[A]](_head, true)
+
   fun values(): ListValues[A, this->ListNode[A]]^ =>
     """
     Return an iterator on the values in the list.
     """
     ListValues[A, this->ListNode[A]](_head)
+
+  fun rvalues(): ListValues[A, this->ListNode[A]]^ =>
+    """
+    Return an iterator on the values in the list.
+    """
+    ListValues[A, this->ListNode[A]](_head, true)
 
   fun ref _increment() =>
     _size = _size + 1
@@ -127,17 +145,56 @@ class List[A]
     _tail = node
     _size = 1
 
+class ListNodes[A, N: ListNode[A] box] is Iterator[N]
+  """
+  Iterate over the nodes in a list.
+  """
+  var _next: (N | None)
+  let _reverse: Bool
+
+  new create(head: (N | None), reverse: Bool = false) =>
+    """
+    Keep the next list node to be examined.
+    """
+    _next = head
+    _reverse = reverse
+
+  fun has_next(): Bool =>
+    """
+    If we have a list node, we have more values.
+    """
+    _next isnt None
+
+  fun ref next(): N ? =>
+    """
+    Get the list node and replace it with the next one.
+    """
+    match _next
+    | let next': N =>
+      if _reverse then
+        _next = next'.prev()
+      else
+        _next = next'.next()
+      end
+
+      next'
+    else
+      error
+    end
+
 class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
   """
   Iterate over the values in a list.
   """
   var _next: (N | None)
+  let _reverse: Bool
 
-  new create(head: (N | None)) =>
+  new create(head: (N | None), reverse: Bool = false) =>
     """
     Keep the next list node to be examined.
     """
     _next = head
+    _reverse = reverse
 
   fun has_next(): Bool =>
     """
@@ -151,7 +208,12 @@ class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
     """
     match _next
     | let next': N =>
-      _next = next'.next()
+      if _reverse then
+        _next = next'.prev()
+      else
+        _next = next'.next()
+      end
+
       next'()
     else
       error

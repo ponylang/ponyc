@@ -1,3 +1,5 @@
+use "collections"
+
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32 = -1
@@ -39,7 +41,23 @@ actor UDPSocket
     _packet_size = size
     _notify_listening()
 
-  be write(data: Bytes val, to: IPAddress) =>
+  be write(data: Bytes, to: IPAddress) =>
+    """
+    Write a single sequence of bytes.
+    """
+    _write(data, to)
+
+  be writev(data: BytesList val, to: IPAddress) =>
+    """
+    Write a sequence of sequences of bytes.
+    """
+    try
+      for bytes in data.values() do
+        _write(bytes, to)
+      end
+    end
+
+  fun ref _write(data: Bytes, to: IPAddress) =>
     """
     Write the datagram to the socket.
     """
