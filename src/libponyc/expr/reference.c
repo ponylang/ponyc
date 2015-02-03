@@ -660,8 +660,12 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   else
     ephemeral = TK_NONE;
 
-  ast_t* type = type_for_this(t, ast, cap_for_this(t), ephemeral);
-  ast_settype(ast, type);
+  token_id cap = cap_for_this(t);
+
+  if(!cap_sendable(cap, ephemeral) && (t->frame->recover != NULL))
+    cap = TK_TAG;
+
+  ast_t* type = type_for_this(t, ast, cap, ephemeral);
 
   if(t->frame->def_arg != NULL)
   {
@@ -669,19 +673,18 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(!sendable(type) && (t->frame->recover != NULL))
-  {
-    ast_error(ast,
-      "can't access a non-sendable 'this' from inside a recover expression");
-    return false;
-  }
-
+  // Get the nominal type, which may be the right side of an arrow type.
   ast_t* nominal;
+  bool arrow;
 
   if(ast_id(type) == TK_NOMINAL)
+  {
     nominal = type;
-  else
+    arrow = false;
+  } else {
     nominal = ast_childidx(type, 1);
+    arrow = true;
+  }
 
   ast_t* typeargs = ast_childidx(nominal, 2);
   ast_t* typearg = ast_child(typeargs);
@@ -705,6 +708,12 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  if(arrow)
+    type = ast_parent(nominal);
+  else
+    type = nominal;
+
+  ast_settype(ast, type);
   return true;
 }
 

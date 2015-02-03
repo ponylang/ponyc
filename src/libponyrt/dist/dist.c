@@ -366,7 +366,8 @@ static pony_type_t type =
 
 void dist_create(char* port, uint32_t leaf_size, bool master)
 {
-  init_msg_t* m = (init_msg_t*)pony_alloc_msg(0, DIST_INIT);
+  init_msg_t* m = (init_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(init_msg_t)),
+    DIST_INIT);
   m->port = port;
   m->leaf_size = leaf_size;
   m->master = master;
@@ -378,7 +379,8 @@ void dist_create(char* port, uint32_t leaf_size, bool master)
 
 void dist_join(char* host, char* port)
 {
-  join_msg_t* m = (join_msg_t*)pony_alloc_msg(0, DIST_JOIN);
+  join_msg_t* m = (join_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(join_msg_t)),
+    DIST_JOIN);
   m->host = host;
   m->port = port;
 
@@ -391,7 +393,8 @@ void dist_delegate(pony_msg_t* msg)
   size_t size = pool_size(msg->size);
   memcpy(clone, msg, size);
 
-  delegate_msg_t* m = (delegate_msg_t*)pony_alloc_msg(0, DIST_DELEGATE);
+  delegate_msg_t* m = (delegate_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(delegate_msg_t)), DIST_DELEGATE);
   m->target = actor_current();
   m->delegate = clone;
 

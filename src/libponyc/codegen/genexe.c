@@ -8,6 +8,7 @@
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -175,8 +176,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
     NULL);
 
-  args[1] = LLVMConstInt(c->i32, 0, false);
-  args[0] = LLVMConstInt(c->i32, index, false);
+  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
+  args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 

@@ -11,6 +11,7 @@
 #include "../type/reify.h"
 #include "../type/lookup.h"
 #include "../../libponyrt/ds/fun.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -233,19 +234,11 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
     false);
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
-  // Calculate the index (power of 2) for the message size.
-  size_t size = LLVMABISizeOfType(c->target_data, msg_type);
-  size = next_pow2(size);
-
-  // Subtract 7 because we are looking to make 64 come out to zero.
-  if(size <= 64)
-    size = 0;
-  else
-    size = __pony_ffsl(size) - 7;
-
   // Allocate the message, setting its size and ID.
+  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
   LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i32, size, false);
+
+  args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
@@ -348,7 +341,7 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   codegen_startfun(c, func);
 
   ast_t* body = ast_childidx(fun, 6);
-  LLVMValueRef value = gen_seq(c, body);
+  LLVMValueRef value = gen_expr(c, body);
 
   if(value == NULL)
   {
@@ -394,7 +387,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   codegen_startfun(c, handler);
 
   ast_t* body = ast_childidx(fun, 6);
-  LLVMValueRef value = gen_seq(c, body);
+  LLVMValueRef value = gen_expr(c, body);
 
   if(value == NULL)
   {
@@ -428,7 +421,7 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return NULL;
 
   ast_t* body = ast_childidx(fun, 6);
-  LLVMValueRef value = gen_seq(c, body);
+  LLVMValueRef value = gen_expr(c, body);
 
   if(value == NULL)
     return NULL;
@@ -472,7 +465,7 @@ LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
 
   ast_t* body = ast_childidx(fun, 6);
-  LLVMValueRef value = gen_seq(c, body);
+  LLVMValueRef value = gen_expr(c, body);
 
   if(value == NULL)
     return NULL;
@@ -526,9 +519,7 @@ bool genfun_methods(compile_t* c, gentype_t* g)
   if(!genfun_allocator(c, g))
     return false;
 
-  reachable_type_t kt;
-  kt.name = g->type_name;
-  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  reachable_type_t* t = reach_type(c->reachable, g->type_name);
 
   size_t i = HASHMAP_BEGIN;
   reachable_method_name_t* n;
@@ -571,9 +562,7 @@ bool genfun_methods(compile_t* c, gentype_t* g)
 
 uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
 {
-  reachable_type_t kt;
-  kt.name = g->type_name;
-  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  reachable_type_t* t = reach_type(c->reachable, g->type_name);
 
   if(t == NULL)
     return 0;
@@ -584,16 +573,12 @@ uint32_t genfun_vtable_size(compile_t* c, gentype_t* g)
 static uint32_t vtable_index(compile_t* c, const char* type_name,
   const char* name, ast_t* typeargs)
 {
-  reachable_type_t kt;
-  kt.name = type_name;
-  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  reachable_type_t* t = reach_type(c->reachable, type_name);
 
   if(t == NULL)
     return -1;
 
-  reachable_method_name_t kn;
-  kn.name = name;
-  reachable_method_name_t* n = reachable_method_names_get(&t->methods, &kn);
+  reachable_method_name_t* n = reach_method_name(t, name);
 
   if(n == NULL)
     return -1;
@@ -601,9 +586,7 @@ static uint32_t vtable_index(compile_t* c, const char* type_name,
   if(typeargs != NULL)
     name = genname_fun(NULL, name, typeargs);
 
-  reachable_method_t km;
-  km.name = name;
-  reachable_method_t* m = reachable_methods_get(&n->r_methods, &km);
+  reachable_method_t* m = reach_method(n, name);
 
   if(m == NULL)
     return -1;

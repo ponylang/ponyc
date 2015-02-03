@@ -181,31 +181,31 @@ void pool_free(size_t index, void* p)
 
 void* pool_alloc_size(size_t size)
 {
-  if(size <= POOL_MIN)
-    return pool_alloc(0);
+  size_t index = pool_index(size);
 
-  if(size <= POOL_THRESHOLD)
-  {
-    size = next_pow2(size);
-    return pool_alloc(__pony_ffsl(size) - (POOL_MIN_BITS + 1));
-  }
+  if(index < POOL_COUNT)
+    return pool_alloc(index);
 
   return virtual_alloc(size);
 }
 
 void pool_free_size(size_t size, void* p)
 {
-  if(size <= POOL_MIN)
-    return pool_free(0, p);
+  size_t index = pool_index(size);
 
-  if(size <= POOL_THRESHOLD)
-  {
-    size = next_pow2(size);
-    pool_free(__pony_ffsl(size) - (POOL_MIN_BITS + 1), p);
-    return;
-  }
+  if(index < POOL_COUNT)
+    return pool_free(index, p);
 
   virtual_free(p, size);
+}
+
+size_t pool_index(size_t size)
+{
+  if(size <= POOL_MIN)
+    return 0;
+
+  size = next_pow2(size);
+  return __pony_ffsl(size) - (POOL_MIN_BITS + 1);
 }
 
 size_t pool_size(size_t index)
