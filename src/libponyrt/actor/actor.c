@@ -263,13 +263,14 @@ void pony_sendv(pony_actor_t* to, pony_msg_t* m)
 
 void pony_send(pony_actor_t* to, uint32_t id)
 {
-  pony_msg_t* m = pony_alloc_msg(0, id);
+  pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
   pony_sendv(to, m);
 }
 
 void pony_sendp(pony_actor_t* to, uint32_t id, void* p)
 {
-  pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(0, id);
+  pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgp_t)), id);
   m->p = p;
 
   pony_sendv(to, &m->msg);
@@ -277,7 +278,8 @@ void pony_sendp(pony_actor_t* to, uint32_t id, void* p)
 
 void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i)
 {
-  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(0, id);
+  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgi_t)), id);
   m->i = i;
 
   pony_sendv(to, &m->msg);
@@ -285,7 +287,8 @@ void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i)
 
 void pony_sendd(pony_actor_t* to, uint32_t id, double d)
 {
-  pony_msgd_t* m = (pony_msgd_t*)pony_alloc_msg(0, id);
+  pony_msgd_t* m = (pony_msgd_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgd_t)), id);
   m->d = d;
 
   pony_sendv(to, &m->msg);
@@ -293,7 +296,8 @@ void pony_sendd(pony_actor_t* to, uint32_t id, double d)
 
 void pony_sendargs(pony_actor_t* to, uint32_t id, int argc, char** argv)
 {
-  pony_main_msg_t* m = (pony_main_msg_t*)pony_alloc_msg(0, id);
+  pony_main_msg_t* m = (pony_main_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_main_msg_t)), id);
   m->argc = argc;
   m->argv = argv;
 

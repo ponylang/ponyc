@@ -738,7 +738,8 @@ void cycle_create()
 
 void cycle_block(pony_actor_t* actor, gc_t* gc)
 {
-  block_msg_t* m = (block_msg_t*)pony_alloc_msg(0, CYCLE_BLOCK);
+  block_msg_t* m = (block_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(block_msg_t)), CYCLE_BLOCK);
   m->actor = actor;
   m->rc = gc_rc(gc);
   m->delta = gc_delta(gc);

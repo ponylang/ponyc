@@ -5,8 +5,8 @@
 
 void messageq_init(messageq_t* q)
 {
-  pony_msg_t* stub = (pony_msg_t*)pool_alloc(0);
-  stub->size = 0;
+  pony_msg_t* stub = POOL_ALLOC(pony_msg_t);
+  stub->size = POOL_INDEX(sizeof(pony_msg_t));
   stub->next = NULL;
 
   q->head = (pony_msg_t*)((uintptr_t)stub | 1);

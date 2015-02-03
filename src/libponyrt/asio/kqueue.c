@@ -209,7 +209,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
 
   kevent(b->kq, event, i, NULL, 0, NULL);
 
-  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(0, 0);
+  asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
   msg->flags = 0;
   messageq_push(&b->q, (pony_msg_t*)msg);
