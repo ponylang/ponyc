@@ -608,10 +608,9 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       NODE(TK_REFERENCE, TREE(r_field_id))));
 
   // A named argument at the call site.
-  BUILD(r_call_arg, receiver,
-    NODE(TK_NAMEDARG,
-      TREE(r_id)
-      NODE(TK_SEQ, TREE(receiver))));
+  BUILD(r_call_seq, receiver, NODE(TK_SEQ, TREE(receiver)));
+  BUILD(r_call_arg, receiver, NODE(TK_NAMEDARG, TREE(r_id) TREE(r_call_seq)));
+  ast_settype(r_call_seq, r_type);
 
   ast_append(class_members, r_field);
   ast_append(create_params, r_ctor_param);

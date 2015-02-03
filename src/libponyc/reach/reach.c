@@ -98,7 +98,7 @@ static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
     m->typeargs = ast_dup(typeargs);
     m->vtable_index = (uint32_t)-1;
 
-    ast_t* fun = lookup(NULL, NULL, t->type, m->name);
+    ast_t* fun = lookup(NULL, NULL, t->type, n->name);
 
     if(typeargs != NULL)
     {
