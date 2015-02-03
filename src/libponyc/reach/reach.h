@@ -52,6 +52,14 @@ void reach_free(reachable_types_t* r);
 void reach(reachable_types_t* r, ast_t* type, const char* name,
   ast_t* typeargs);
 
+reachable_type_t* reach_type(reachable_types_t* r, const char* name);
+
+reachable_method_name_t* reach_method_name(reachable_type_t* t,
+  const char* name);
+
+reachable_method_t* reach_method(reachable_method_name_t* n,
+  const char* name);
+
 void reach_dump(reachable_types_t* r);
 
 PONY_EXTERN_C_END

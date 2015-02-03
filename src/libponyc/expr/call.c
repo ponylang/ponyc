@@ -484,6 +484,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
 
+  // Check if the apply method in the generated object literal can accept a box
+  // receiver. If not, it must be a ref receiver. It can accept a box receiver
+  // if box->receiver <: lhs->receiver and box->arg <: lhs->param.
+  // token_id apply_cap = TK_BOX;
+
+  // TODO:
+
   // Create a new anonymous type.
   ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
 

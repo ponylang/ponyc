@@ -106,9 +106,7 @@ static uint32_t trait_count(compile_t* c, gentype_t* g)
     case TK_CLASS:
     case TK_ACTOR:
     {
-      reachable_type_t kt;
-      kt.name = g->type_name;
-      reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+      reachable_type_t* t = reach_type(c->reachable, g->type_name);
       assert(t != NULL);
 
       return (uint32_t)reachable_type_cache_size(&t->subtypes);
@@ -138,9 +136,7 @@ static LLVMValueRef make_trait_list(compile_t* c, gentype_t* g)
   // Create a constant array of trait identifiers.
   VLA(LLVMValueRef, list, count);
 
-  reachable_type_t kt;
-  kt.name = g->type_name;
-  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  reachable_type_t* t = reach_type(c->reachable, g->type_name);
   assert(t != NULL);
 
   size_t i = HASHMAP_BEGIN;
@@ -234,9 +230,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
   VLA(LLVMValueRef, vtable, vtable_size);
   memset(vtable, 0, vtable_size * sizeof(LLVMValueRef));
 
-  reachable_type_t kt;
-  kt.name = g->type_name;
-  reachable_type_t* t = reachable_types_get(c->reachable, &kt);
+  reachable_type_t* t = reach_type(c->reachable, g->type_name);
 
   size_t i = HASHMAP_BEGIN;
   reachable_method_name_t* n;
