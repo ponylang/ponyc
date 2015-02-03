@@ -9,6 +9,7 @@
 #include "../type/assemble.h"
 #include "../type/reify.h"
 #include "../type/subtype.h"
+#include "../type/viewpoint.h"
 #include <assert.h>
 
 static bool insert_apply(pass_opt_t* opt, ast_t* ast)
@@ -266,6 +267,9 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(!is_subtype(a_type, p_type))
     {
+      // TODO: remove this
+      is_subtype(a_type, p_type);
+
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
       ast_error(a_type, "argument type: %s", ast_print_type(a_type));
@@ -452,6 +456,51 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,
+  ast_t* positional)
+{
+  // Check if the apply method in the generated object literal can accept a box
+  // receiver. If not, it must be a ref receiver. It can accept a box receiver
+  // if box->receiver <: lhs->receiver and box->arg <: lhs->param.
+  AST_GET_CHILDREN(ftype, cap, typeparams, params, result);
+
+  ast_t* type = ast_type(receiver);
+  ast_t* view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+  ast_t* need_type = set_cap_and_ephemeral(type, ast_id(cap), TK_NONE);
+
+  bool ok = is_subtype(view_type, need_type);
+  ast_free_unattached(view_type);
+  ast_free_unattached(need_type);
+
+  if(!ok)
+    return TK_REF;
+
+  ast_t* param = ast_child(params);
+  ast_t* arg = ast_child(positional);
+
+  while(arg != NULL)
+  {
+    if(ast_id(arg) != TK_NONE)
+    {
+      type = ast_type(arg);
+      view_type = viewpoint_cap(TK_BOX, TK_NONE, type);
+      need_type = ast_childidx(param, 1);
+
+      ok = is_subtype(view_type, need_type);
+      ast_free_unattached(view_type);
+      ast_free_unattached(need_type);
+
+      if(!ok)
+        return TK_REF;
+    }
+
+    arg = ast_sibling(arg);
+    param = ast_sibling(param);
+  }
+
+  return TK_BOX;
+}
+
 static bool partial_application(pass_opt_t* opt, ast_t** astp)
 {
   ast_t* ast = *astp;
@@ -482,14 +531,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   if(type == NULL)
     return false;
 
+  token_id apply_cap = partial_application_cap(type, receiver, positional);
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
-
-  // Check if the apply method in the generated object literal can accept a box
-  // receiver. If not, it must be a ref receiver. It can accept a box receiver
-  // if box->receiver <: lhs->receiver and box->arg <: lhs->param.
-  // token_id apply_cap = TK_BOX;
-
-  // TODO:
 
   // Create a new anonymous type.
   ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
@@ -521,7 +564,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   BUILD(apply, ast,
     NODE(TK_FUN, AST_SCOPE
-      NODE(TK_REF)
+      NODE(apply_cap)
       ID("apply")
       NONE
       NODE(TK_PARAMS)

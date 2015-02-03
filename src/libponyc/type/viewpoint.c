@@ -193,7 +193,7 @@ static ast_t* viewpoint_for_type(token_id view, token_id eph, ast_t* type,
   return type;
 }
 
-static ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type)
+ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type)
 {
   if(cap == TK_TAG)
     return NULL;

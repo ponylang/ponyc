@@ -6,6 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type);
+
 ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type);
 
 ast_t* viewpoint_upper(ast_t* type);
