@@ -131,6 +131,11 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   symbols_trait(dwarf->symbols, &meta);
 }
 
+void dwarf_unspecified(dwarf_t* dwarf, gentype_t* g)
+{
+  symbols_unspecified(dwarf->symbols, g->type_name);
+}
+
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 {
   dwarf_frame_t* frame = push_frame(dwarf);

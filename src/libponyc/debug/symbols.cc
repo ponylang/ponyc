@@ -250,6 +250,18 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
   }
 }
 
+void symbols_unspecified(symbols_t* symbols, const char* name)
+{
+  symbol_t* type = get_anchor(symbols, name);
+
+  if(type->kind & SYMBOL_NEW)
+  {
+    anchor_t* unspecified = type->anchor;
+    unspecified->type = symbols->builder->createUnspecifiedType(name);
+    unspecified->qualified = unspecified->type;
+  }
+}
+
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
