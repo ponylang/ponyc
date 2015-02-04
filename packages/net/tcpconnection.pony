@@ -53,24 +53,20 @@ actor TCPConnection
     _connected = true
     _notify.accepted(this)
 
-  be write(data: Bytes val) =>
+  be write(data: Bytes) =>
     """
-    Write as much as possible to the socket. Set _writeable to false if not
-    everything was written. On an error, dispose of the connection.
+    Write a single sequence of bytes.
     """
-    if _writeable then
-      try
-        var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
+    _write(data)
 
-        if len < data.size() then
-          _pending.push(_TCPPendingWrite(data, len))
-          _writeable = false
-        end
-      else
-        _close()
+  be writev(data: BytesList val) =>
+    """
+    Write a sequence of sequences of bytes.
+    """
+    try
+      for bytes in data.values() do
+        _write(bytes)
       end
-    elseif not _closed then
-      _pending.push(_TCPPendingWrite(data, 0))
     end
 
   be dispose() =>
@@ -200,6 +196,26 @@ actor TCPConnection
       _pending_reads()
     end
 
+  fun ref _write(data: Bytes) =>
+    """
+    Write as much as possible to the socket. Set _writeable to false if not
+    everything was written. On an error, dispose of the connection.
+    """
+    if _writeable then
+      try
+        var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
+
+        if len < data.size() then
+          _pending.push(_TCPPendingWrite(data, len))
+          _writeable = false
+        end
+      else
+        _close()
+      end
+    elseif not _closed then
+      _pending.push(_TCPPendingWrite(data, 0))
+    end
+
   fun ref _pending_writes() =>
     """
     Send pending data. If any data can't be sent, keep it and mark as not
@@ -297,9 +313,9 @@ class _TCPPendingWrite
   """
   Unwritten data.
   """
-  let data: Bytes val
+  let data: Bytes
   var offset: U64
 
-  new create(data': Bytes val, offset': U64) =>
+  new create(data': Bytes, offset': U64) =>
     data = data'
     offset = offset'

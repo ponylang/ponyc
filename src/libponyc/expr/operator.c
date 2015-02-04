@@ -237,6 +237,9 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
 
+  if(ast_type(term) == NULL)
+    return false;
+
   switch(ast_id(term))
   {
     case TK_VARREF:

@@ -293,9 +293,13 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
 ast_t* type_for_fun(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, name, typeparams, params, result);
+  token_id fcap = ast_id(cap);
+
+  if(fcap == TK_NONE)
+    fcap = TK_TAG;
 
   BUILD(fun, ast,
-    NODE(TK_FUNTYPE, TREE(cap) TREE(typeparams) TREE(params) TREE(result)));
+    NODE(TK_FUNTYPE, NODE(fcap) TREE(typeparams) TREE(params) TREE(result)));
 
   return fun;
 }

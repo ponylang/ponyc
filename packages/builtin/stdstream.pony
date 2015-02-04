@@ -1,9 +1,15 @@
-interface Bytes
+interface Bytes val
   """
   Accept both a String and an Array[U8].
   """
   fun size(): U64
   fun cstring(): Pointer[U8] tag
+
+interface BytesList val
+  """
+  Accept an iterable collection of String or Array[U8].
+  """
+  fun values(): Iterator[Bytes]
 
 actor StdStream
   """
@@ -24,20 +30,41 @@ actor StdStream
     """
     _stream = @os_stderr[Pointer[U8]]()
 
-  be print(data: Bytes val) =>
+  be print(data: Bytes) =>
     """
     Print some bytes and insert a newline afterwards.
     """
     _write(data)
     _write("\n")
 
-  be write(data: Bytes val) =>
+  be write(data: Bytes) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
     _write(data)
 
-  fun ref _write(data: Bytes val) =>
+  be printv(data: BytesList) =>
+    """
+    Print an array of Bytes.
+    """
+    try
+      for bytes in data.values() do
+        _write(bytes)
+        _write("\n")
+      end
+    end
+
+  be writev(data: BytesList) =>
+    """
+    Write an array of Bytes.
+    """
+    try
+      for bytes in data.values() do
+        _write(bytes)
+      end
+    end
+
+  fun ref _write(data: Bytes) =>
     """
     Write the bytes without explicitly flushing.
     """

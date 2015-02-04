@@ -889,11 +889,6 @@ static bool check_return_type(ast_t* ast)
 
   if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
   {
-    // TODO: remove this
-    bool b1 = is_subtype(body_type, type);
-    bool b2 = is_subtype(a_body_type, a_type);
-    (void)b1; (void)b2;
-
     ast_t* last = ast_childlast(body);
     ast_error(last, "function body isn't the result type");
     ast_error(type, "function return type: %s", ast_print_type(type));
