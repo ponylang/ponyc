@@ -763,6 +763,26 @@ bool is_bool(ast_t* type)
   return is_literal(type, "Bool");
 }
 
+bool is_float(ast_t* type)
+{
+  return is_literal(type, "F32") ||
+    is_literal(type, "F64");
+}
+
+bool is_integer(ast_t* type)
+{
+  return is_literal(type, "I8") ||
+    is_literal(type, "I16") ||
+    is_literal(type, "I32") ||
+    is_literal(type, "I64") ||
+    is_literal(type, "I128") ||
+    is_literal(type, "U8") ||
+    is_literal(type, "U16") ||
+    is_literal(type, "U32") ||
+    is_literal(type, "U64") ||
+    is_literal(type, "U128");
+}
+
 bool is_machine_word(ast_t* type)
 {
   return is_bool(type) ||
@@ -793,6 +813,11 @@ bool is_signed(pass_opt_t* opt, ast_t* type)
   bool ok = is_subtype(type, builtin);
   ast_free_unattached(builtin);
   return ok;
+}
+
+bool is_composite(ast_t* type)
+{
+  return !is_machine_word(type) && !is_pointer(type);
 }
 
 bool is_constructable(ast_t* type)

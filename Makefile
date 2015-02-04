@@ -26,8 +26,8 @@ config ?= debug
 ifdef use
   ifneq (,$(filter $(use), numa))
     ALL_CFLAGS += -DUSE_NUMA
-		LINK_NUMA = true
-	endif
+    LINK_NUMA = true
+  endif
 endif
 
 ifndef verbose

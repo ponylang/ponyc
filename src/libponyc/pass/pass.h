@@ -81,7 +81,6 @@ typedef struct pass_opt_t
   pass_id limit;
   bool release;
   bool library;
-  bool symbols;
   bool ieee_math;
   bool no_restrict;
   const char* output;

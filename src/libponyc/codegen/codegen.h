@@ -5,6 +5,7 @@
 #include "../pass/pass.h"
 #include "../ast/ast.h"
 #include "../ast/printbuf.h"
+#include "../debug/dwarf.h"
 
 #include <platform.h>
 #include <llvm-c/Core.h>
@@ -15,8 +16,6 @@
 #include <stdio.h>
 
 PONY_EXTERN_C_BEGIN
-
-typedef struct dwarf_t dwarf_t;
 
 // Missing from C API.
 char* LLVMGetHostCPUName();
@@ -88,7 +87,7 @@ typedef struct compile_t
   const char* str_ge;
   const char* str_gt;
 
-  dwarf_t* dwarf;
+  dwarf_t dwarf;
 
   LLVMContextRef context;
   LLVMTargetMachineRef machine;

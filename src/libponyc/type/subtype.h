@@ -18,9 +18,15 @@ bool is_env(ast_t* type);
 
 bool is_bool(ast_t* type);
 
+bool is_float(ast_t* type);
+
+bool is_integer(ast_t* type);
+
 bool is_machine_word(ast_t* type);
 
 bool is_signed(pass_opt_t* opt, ast_t* type);
+
+bool is_composite(ast_t* type);
 
 bool is_constructable(ast_t* type);
 

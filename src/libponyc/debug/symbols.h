@@ -1,45 +1,32 @@
 #ifndef DEBUG_SYMBOLS_H
 #define DEBUG_SYMBOLS_H
 
-#ifdef _MSC_VER
-#  pragma warning(push)
-#  pragma warning(disable:4003)
-#  pragma warning(disable:4267)
-#endif
+#include <platform.h>
+#include "dwarf.h"
 
-#include <llvm/IR/Metadata.h>
+PONY_EXTERN_C_BEGIN
 
-#ifdef _MSC_VER
-#  pragma warning(pop)
-#endif
+void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised);
 
-typedef struct symbol_t symbol_t;
-typedef struct dbg_symbol_t dbg_type_t;
-typedef struct symbols_t symbols_t;
+void symbols_package(symbols_t* symbols, const char* path, const char* name);
 
-struct dbg_symbol_t
-{
-  llvm::MDNode* type;
-  llvm::MDNode* qualified;
-};
+void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta);
 
-struct symbol_t
-{
-  const char* name;
+void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta);
 
-  union
-  {
-    dbg_symbol_t* dbg;
-    llvm::MDNode* file;
-  };
+void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta);
 
-  uint16_t kind;
-};
+void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta);
 
-symbols_t* symbols_init(size_t size);
+void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta);
 
-void symbols_destroy(symbols_t** symbols);
+void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta);
 
-symbol_t* symbols_get(symbols_t* symbols, const char* name, bool file);
+void symbols_finalise(symbols_t* symbols);
+
+PONY_EXTERN_C_END
 
 #endif
