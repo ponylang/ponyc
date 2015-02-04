@@ -197,8 +197,6 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
       default: {};
     }
 
-    printf("DWARF basic: %s\n", meta->name);
-
     DIType type = symbols->builder->createBasicType(meta->name, meta->size,
       meta->align, tag);
 
@@ -226,8 +224,6 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
   assert(pointer->kind & SYMBOL_NEW);
   assert((typearg->kind & SYMBOL_NEW) == 0);
 
-  printf("DWARF pointer: Pointer[%s]\n", meta->typearg);
-
   symbol->type = symbols->builder->createPointerType(target->type, meta->size,
     meta->align);
 }
@@ -239,8 +235,6 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
   if(trait->kind & SYMBOL_NEW)
   {
     anchor_t* anchor = trait->anchor;
-
-    printf("DWARF trait: %s\n", meta->name);
 
     DIFile file = get_file(symbols, meta->file);
 
@@ -260,8 +254,6 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
   symbol_t* symbol = get_anchor(symbols, meta->name);
-
-  printf("DWARF declare: %s\n", meta->name);
 
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = (subnodes_t*)POOL_ALLOC(subnodes_t);
@@ -321,8 +313,6 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   else
     use_type = field_symbol->anchor->type;
 
-  printf("DWARF member: %s\n", meta->name);
-
   DIFile file = get_file(symbols, meta->file);
 
   subnodes->children[frame->index] = symbols->builder->createMemberType(
@@ -354,13 +344,9 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   if(meta->flags & DWARF_TUPLE)
   {
-    printf("DWARF tuple type: %s\n", meta->name);
-
     actual = symbols->builder->createStructType(symbols->unit, meta->name,
       DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
   } else {
-    printf("DWARF class type: %s\n", meta->name);
-
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
       (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
       fields);
@@ -374,8 +360,6 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
 void symbols_finalise(symbols_t* symbols)
 {
-  printf("Emitting debug symbols\n");
-
   assert(symbols->unit.Verify());
   symbols->builder->finalize();
 
