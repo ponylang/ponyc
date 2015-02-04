@@ -58,6 +58,6 @@ interface TCPListenNotify
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^
     """
-    Create a new TCPConnectionNotify to attach to a new TCPConnection for a 
+    Create a new TCPConnectionNotify to attach to a new TCPConnection for a
     newly established connection to the server.
     """

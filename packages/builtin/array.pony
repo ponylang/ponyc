@@ -1,14 +1,23 @@
 class Array[A]
+  """
+  Contiguous memory to store elements of type A.
+  """
   var _size: U64
   var _alloc: U64
   var _ptr: Pointer[A]
 
   new create(len: U64 = 0) =>
+    """
+    Create an array with zero elements, but space for len elements.
+    """
     _size = 0
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
   new init[B: (A & A!) = A](from: B, len: U64) =>
+    """
+    Create an array of len elements, all initialised to the given value.
+    """
    _size = len
    _alloc = len
    _ptr = Pointer[A]._create(len)
@@ -21,22 +30,46 @@ class Array[A]
    end
 
   new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
+    """
+    Create an array of len elements, populating them with random memory. This
+    is only allowed for an array of numbers.
+    """
     _size = len
     _alloc = len
     _ptr = Pointer[A]._create(len)
 
   new from_cstring(ptr: Pointer[A] ref, len: U64) =>
+    """
+    Create an array from a C-style pointer and length. The contents are not
+    copied.
+    """
     _size = len
     _alloc = len
     _ptr = ptr
 
-  fun cstring(): Pointer[A] tag => _ptr
+  fun cstring(): Pointer[A] tag =>
+    """
+    Return the underlying C-style pointer.
+    """
+    _ptr
 
-  fun size(): U64 => _size
+  fun size(): U64 =>
+    """
+    The number of elements in the array.
+    """
+    _size
 
-  fun space(): U64 => _alloc
+  fun space(): U64 =>
+    """
+    The available space in the array.
+    """
+    _alloc
 
   fun ref reserve(len: U64): Array[A]^ =>
+    """
+    Reserve space for len elements, including whatever elements are already in
+    the array.
+    """
     if _alloc < len then
       _alloc = len.max(8).next_pow2()
       _ptr = _ptr._realloc(_alloc)
@@ -44,6 +77,9 @@ class Array[A]
     this
 
   fun apply(i: U64): this->A ? =>
+    """
+    Get the i-th element, raising an error if the index is out of bounds.
+    """
     if i < _size then
       _ptr._apply(i)
     else
@@ -51,13 +87,35 @@ class Array[A]
     end
 
   fun ref update(i: U64, value: A): A^ ? =>
+    """
+    Change the i-th element, raising an error if the index is out of bounds.
+    """
     if i < _size then
       _ptr._update(i, consume value)
     else
       error
     end
 
+  fun ref insert(i: U64, value: A): Array[A]^ ? =>
+    """
+    Insert an element into the array. Elements after this are moved up by one
+    index, extending the array.
+    """
+    if i < _size then
+      reserve(_size + 1)
+      _ptr._insert(i, 1, _size - i)
+      _ptr._update(i, consume value)
+      _size = _size + 1
+      this
+    else
+      error
+    end
+
   fun ref delete(i: U64): A^ ? =>
+    """
+    Delete an element from the array. Elements after this are moved down by one
+    index, compacting the array.
+    """
     if i < _size then
       _size = _size - 1
       _ptr._delete(i, 1, _size - i)
@@ -66,33 +124,79 @@ class Array[A]
     end
 
   fun ref truncate(len: U64): Array[A]^ =>
+    """
+    Truncate an array to the given length, discarding excess elements. If the
+    array is already smaller than len, do nothing.
+    """
     _size = _size.min(len)
     this
 
   fun ref clear(): Array[A]^ =>
+    """
+    Remove all elements from the array.
+    """
     _size = 0
     this
 
-  fun ref append(value: A): Array[A]^ =>
+  fun ref push(value: A): Array[A]^ =>
+    """
+    Add an element to the end of the array.
+    """
     reserve(_size + 1)
     _ptr._update(_size, consume value)
     _size = _size + 1
     this
 
+  fun ref pop(): A^ ? =>
+    """
+    Remove an element from the end of the array.
+    """
+    delete(_size - 1)
+
+  fun ref unshift(value: A): Array[A]^ ? =>
+    """
+    Add an element to the beginning of the array.
+    """
+    insert(0, consume value)
+
+  fun ref shift(): A^ ? =>
+    """
+    Remove an element from the beginning of the array.
+    """
+    delete(0)
+
+  fun ref append(value: A): Array[A]^ =>
+    """
+    Add an element to the end of the array.
+    """
+    push(consume value)
+
   fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>
+    """
+    Add a sequence of elements to the end of the array.
+    """
     try
       for v in iter do
-        append(v)
+        push(v)
       end
     end
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
+    """
+    Return an iterator over the indices in the array.
+    """
     ArrayKeys[A, this->Array[A]](this)
 
   fun values(): ArrayValues[A, this->Array[A]]^ =>
+    """
+    Return an iterator over the values in the array.
+    """
     ArrayValues[A, this->Array[A]](this)
 
   fun pairs(): ArrayPairs[A, this->Array[A]]^ =>
+    """
+    Return an iterator over the (index, value) pairs in the array.
+    """
     ArrayPairs[A, this->Array[A]](this)
 
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]

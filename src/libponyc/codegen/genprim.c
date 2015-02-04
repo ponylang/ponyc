@@ -121,6 +121,60 @@ static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
+static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
+{
+  // Set up a constant integer for the allocation size.
+  size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
+  LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
+
+  const char* name = genname_fun(g->type_name, "_insert", NULL);
+
+  LLVMTypeRef params[4];
+  params[0] = g->use_type;
+  params[1] = c->i64;
+  params[2] = c->i64;
+  params[3] = c->i64;
+
+  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 4, false);
+  LLVMValueRef fun = codegen_addfun(c, name, ftype);
+  codegen_startfun(c, fun);
+
+  LLVMValueRef ptr = LLVMGetParam(fun, 0);
+  LLVMValueRef offset = LLVMGetParam(fun, 1);
+  LLVMValueRef n = LLVMGetParam(fun, 2);
+  LLVMValueRef len = LLVMGetParam(fun, 3);
+
+  // base = &ptr[0]
+  // offset1 = offset * sizeof(elem)
+  // offset2 = (offset + n) * sizeof(elem)
+  LLVMValueRef base = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef offset1 = LLVMBuildMul(c->builder, offset, l_size, "");
+  LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset, n, "");
+  offset2 = LLVMBuildMul(c->builder, offset2, l_size, "");
+
+  LLVMValueRef args[3];
+  args[0] = LLVMBuildAdd(c->builder, base, offset2, "");
+  args[1] = LLVMBuildAdd(c->builder, base, offset1, "");
+  args[2] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  args[0] = LLVMBuildIntToPtr(c->builder, args[0], c->void_ptr, "");
+  args[1] = LLVMBuildIntToPtr(c->builder, args[1], c->void_ptr, "");
+
+  // memmove(
+  //  &ptr[(offset + n) * sizeof(elem)],
+  //  &ptr[offset * sizeof(elem)],
+  //  len * sizeof(elem)
+  // );
+  gencall_runtime(c, "memmove", args, 3, "");
+
+  // Return offset + n + len.
+  LLVMValueRef result = LLVMBuildAdd(c->builder, offset, n, "");
+  result = LLVMBuildAdd(c->builder, result, len, "");
+
+  LLVMBuildRet(c->builder, result);
+  codegen_finishfun(c);
+}
+
 static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
@@ -144,10 +198,14 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef n = LLVMGetParam(fun, 2);
   LLVMValueRef len = LLVMGetParam(fun, 3);
 
+  // Load the result from ptr[offset].
   LLVMValueRef loc = LLVMBuildGEP(c->builder, ptr, &offset, 1, "");
   LLVMValueRef result = LLVMBuildLoad(c->builder, loc, "");
   result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
 
+  // base = &ptr[0]
+  // offset1 = offset * sizeof(elem)
+  // offset2 = (offset + n) * sizeof(elem)
   LLVMValueRef base = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
   LLVMValueRef offset1 = LLVMBuildMul(c->builder, offset, l_size, "");
   LLVMValueRef offset2 = LLVMBuildAdd(c->builder, offset, n, "");
@@ -161,6 +219,11 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   args[0] = LLVMBuildIntToPtr(c->builder, args[0], c->void_ptr, "");
   args[1] = LLVMBuildIntToPtr(c->builder, args[1], c->void_ptr, "");
 
+  // memmove(
+  //  &ptr[offset * sizeof(elem)],
+  //  &ptr[(offset + n) * sizeof(elem)],
+  //  len * sizeof(elem)
+  // );
   gencall_runtime(c, "memmove", args, 3, "");
 
   LLVMBuildRet(c->builder, result);
@@ -214,6 +277,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   if(fun != NULL)
     return true;
+
   // Emit debug symbol for this pointer type instance.
   //dwarf_pointer(c->dwarf, &elem_g);
 
@@ -223,6 +287,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_realloc(c, g, &elem_g);
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);
+  pointer_insert(c, g, &elem_g);
   pointer_delete(c, g, &elem_g);
   pointer_u64(c, g);
 
