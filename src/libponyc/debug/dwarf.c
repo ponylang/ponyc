@@ -98,7 +98,7 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
   ast_t* package = ast_child(program);
 
   const char* path = package_path(package);
-  const char* name = package_filename(package);
+  const char* name = package_filename(package); //FIX
 
   symbols_package(dwarf->symbols, path, name);
 }
@@ -183,6 +183,13 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   }
 
   symbols_field(dwarf->symbols, dwarf->frame, &meta);
+}
+
+void dwarf_method(dwarf_t* dwarf, gentype_t* g, reachable_method_t* m)
+{
+  (void)dwarf;
+  (void)g;
+  (void)m;
 }
 
 void dwarf_composite(dwarf_t* dwarf, gentype_t* g)

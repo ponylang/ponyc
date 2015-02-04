@@ -2,6 +2,7 @@
 #define DEBUG_DWARF_H
 
 #include "../ast/ast.h"
+#include "../reach/reach.h"
 
 #include <platform.h>
 #include <llvm-c/Core.h>
@@ -118,6 +119,13 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
  * declared, behaviour is undefined.
  */
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field);
+
+/**
+ * Emit debug symbols for a method. A method itself is implicitly a new lexical
+ * scope. However, a method might have arbitrarily many nested lexical scopes
+ * which need to be introduced with a call to dwarf_lexical_scope.
+ */
+void dwarf_method(dwarf_t* dwarf, gentype_t* g, reachable_method_t* m);
 
 /**
  * Finalise emitting the debug symbols for a composite type. By the nature

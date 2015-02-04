@@ -649,6 +649,8 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
     case TK_ISECTTYPE:
       // Just a raw object pointer.
       g->use_type = c->object_ptr;
+      // treat union and intersection types just like traits and interfaces.
+      dwarf_trait(&c->dwarf, g);
       return true;
 
     default: {}
