@@ -355,7 +355,8 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
     anchor_t* tuple = symbol->anchor;
 
     tuple->type = actual = symbols->builder->createStructType(symbols->unit,
-      meta->name, DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
+      meta->name, file, (int)meta->line, meta->size, meta->align, 0, DIType(),
+      fields);
   } else {
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
       (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
