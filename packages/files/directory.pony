@@ -25,7 +25,7 @@ class Directory val
           break
         end
 
-        list.append(recover String.from_cstring(consume entry) end)
+        list.push(recover String.from_cstring(consume entry) end)
       end
 
       @os_closedir[None]()

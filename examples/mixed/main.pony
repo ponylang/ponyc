@@ -26,7 +26,7 @@ actor Worker
     var factors = Array[U64]
 
     if bigint <= 3 then
-      factors.append(bigint)
+      factors.push(bigint)
       return factors
     end
 
@@ -37,14 +37,14 @@ actor Worker
     while d < n do
       if (n % d) == 0 then
         i = i + 1
-        factors.append(d)
+        factors.push(d)
         n = n / d
       else
         d = if d == 2 then 3 else (d + 2) end
       end
     end
 
-    factors.append(d)
+    factors.push(d)
     factors
 
 actor Ring

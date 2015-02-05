@@ -166,12 +166,6 @@ class Array[A]
     """
     delete(0)
 
-  fun ref append(value: A): Array[A]^ =>
-    """
-    Add an element to the end of the array.
-    """
-    push(consume value)
-
   // TODO:
   // fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>
   //   """

@@ -24,7 +24,7 @@ class Env val
       var i: U64 = 0
 
       while i < argc do
-        array.append(
+        array.push(
           recover
             String.from_cstring(
               argv._update(i, recover Pointer[U8] end))

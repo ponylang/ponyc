@@ -35,7 +35,7 @@ actor Main
       updaters.reserve(count)
 
       for i in Range[U64](0, count) do
-        updaters.append(Updater(this, _actor_count, i, size, chunk,
+        updaters.push(Updater(this, _actor_count, i, size, chunk,
           chunk * iterate * i))
       end
 
@@ -140,7 +140,7 @@ actor Updater
     var array = Array[Array[U64] iso](count)
 
     for i in Range(0, updaters) do
-      array.append(
+      array.push(
         try
           reuse.pop()
         else
@@ -157,7 +157,7 @@ actor Updater
         if updater == index then
           table(i) = table(i) xor datum
         else
-          array(updater).append(datum)
+          array(updater).push(datum)
         end
       end
     end
@@ -220,7 +220,7 @@ class PolyRand
       last = 1
 
       for i in Range(0, 63) do
-        m2.append(last)
+        m2.push(last)
         apply()
         apply()
       end

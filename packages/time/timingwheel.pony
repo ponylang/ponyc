@@ -21,7 +21,7 @@ class _TimingWheel
     _list = Array[List[Timer]](_max())
 
     for i in Range(0, _max()) do
-      _list.append(List[Timer])
+      _list.push(List[Timer])
     end
 
   fun ref schedule(timer: Timer) =>

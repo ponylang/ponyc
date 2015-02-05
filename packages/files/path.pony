@@ -593,11 +593,11 @@ primitive Path
     try
       while true do
         var next = path.find(list_sep(), offset)
-        array.append(Path.clean(path.substring(offset, next - 1)))
+        array.push(Path.clean(path.substring(offset, next - 1)))
         offset = next + 1
       end
     else
-      array.append(Path.clean(path.substring(offset, -1)))
+      array.push(Path.clean(path.substring(offset, -1)))
     end
 
     array

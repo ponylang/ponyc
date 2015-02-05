@@ -22,7 +22,7 @@ actor Timers
     _set_time()
 
     for i in Range(0, _wheels()) do
-      _wheel.append(_TimingWheel(i))
+      _wheel.push(_TimingWheel(i))
     end
 
   be apply(timer: Timer iso) =>

@@ -28,7 +28,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _array = _array.create(n)
 
     for i in Range(0, n) do
-      _array.append(_MapEmpty)
+      _array.push(_MapEmpty)
     end
 
   new from(array: Array[(K, V)]) =>
@@ -40,7 +40,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _array = _array.create(n)
 
     for i in Range(0, n) do
-      _array.append(_MapEmpty)
+      _array.push(_MapEmpty)
     end
 
     try
@@ -216,7 +216,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _size = 0
 
     for i in Range(0, len) do
-      _array.append(_MapEmpty)
+      _array.push(_MapEmpty)
     end
 
     try
