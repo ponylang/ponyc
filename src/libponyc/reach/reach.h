@@ -63,6 +63,8 @@ reachable_method_name_t* reach_method_name(reachable_type_t* t,
 reachable_method_t* reach_method(reachable_method_name_t* n,
   const char* name);
 
+size_t reach_method_count(reachable_type_t* t);
+
 void reach_dump(reachable_types_t* r);
 
 PONY_EXTERN_C_END

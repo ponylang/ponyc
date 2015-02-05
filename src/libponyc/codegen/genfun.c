@@ -326,7 +326,7 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   return get_prototype(c, g, name, typeargs, fun);
 }
 
-LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
+static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
@@ -358,7 +358,7 @@ LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
+static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
@@ -403,7 +403,7 @@ LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
+static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
@@ -433,7 +433,7 @@ LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
-LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
+static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);

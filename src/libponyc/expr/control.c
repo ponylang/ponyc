@@ -54,8 +54,8 @@ bool expr_seq(ast_t* ast)
         ast_inheritbranch(else_clause, body);
         ast_consolidate_branches(else_clause, 2);
       } else if(else_clause == ast) {
-        // Push our consumes, but not defines, to the then clause. This includes
-        // the consumes from the body.
+        // Push our consumes, but not defines, to the then clause. This
+        // includes the consumes from the body.
         ast_inheritbranch(then_clause, else_clause);
         ast_consolidate_branches(then_clause, 2);
       }
@@ -194,8 +194,8 @@ bool expr_repeat(ast_t* ast)
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
-  // No symbol status is inherited from the loop body or condition. Nothing from
-  // outside can be consumed, and definitions inside may not occur.
+  // No symbol status is inherited from the loop body or condition. Nothing
+  // from outside can be consumed, and definitions inside may not occur.
   type = control_type_add_branch(type, body);
 
   if(else_type != NULL)

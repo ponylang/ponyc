@@ -291,5 +291,26 @@ void symtab_print(symtab_t* symtab)
   symbol_t* sym;
 
   while((sym = symtab_next(symtab, &i)) != NULL)
-    printf("%s\n", sym->name);
+  {
+    printf("%s", sym->name);
+
+    switch(sym->status)
+    {
+      case SYM_UNDEFINED:
+        printf(": undefined\n");
+        break;
+
+      case SYM_DEFINED:
+        printf(": defined\n");
+        break;
+
+      case SYM_CONSUMED:
+        printf(": consumed\n");
+        break;
+
+      default:
+        printf(": UNKNOWN\n");
+        break;
+    }
+  }
 }

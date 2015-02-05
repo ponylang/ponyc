@@ -381,17 +381,14 @@ class String val is Ordered[String box], Stringable
     """
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
-    let ptr: Pointer[U8] tag = _ptr
 
     if (start < _size) and (start <= finish) then
-      recover
-        let len = (finish - start) + 1
-        var str = String(len)
-        ptr._offset(start)._copy_to(str._ptr, len)
-        str._size = len
-        str._set(len, 0)
-        str
-      end
+      let len = (finish - start) + 1
+      var str = recover String(len) end
+      _ptr._offset(start)._copy_to(str._ptr, len)
+      str._size = len
+      str._set(len, 0)
+      str
     else
       recover String end
     end
@@ -570,7 +567,7 @@ class String val is Ordered[String box], Stringable
     let len = _size + that._size
     var s = recover String(len) end
     _ptr._copy_to(s._ptr, _size)
-    that._ptr._copy_to(s._ptr._offset(_size), that._size + 1)
+    that._ptr._copy_to(s._ptr._offset_tag(_size), that._size + 1)
     s._size = len
     s
 
@@ -748,11 +745,11 @@ class String val is Ordered[String box], Stringable
       @memset[Pointer[U8]](str._ptr.u64() + copy_len, U32(' '), len - copy_len)
     | AlignRight =>
       @memset[Pointer[U8]](str._ptr, U32(' '), len - copy_len)
-      _ptr._copy_to(str._ptr._offset(len - copy_len), copy_len)
+      _ptr._copy_to(str._ptr._offset_tag(len - copy_len), copy_len)
     | AlignCenter =>
       let half = (len - copy_len) / 2
       @memset[Pointer[U8]](str._ptr, U32(' '), half)
-      _ptr._copy_to(str._ptr._offset(half), copy_len)
+      _ptr._copy_to(str._ptr._offset_tag(half), copy_len)
       @memset[Pointer[U8]](str._ptr.u64() + copy_len + half, U32(' '),
         len - copy_len - half)
     end

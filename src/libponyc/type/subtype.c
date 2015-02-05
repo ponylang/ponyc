@@ -227,9 +227,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
   while(super_member != NULL)
   {
     ast_t* super_member_id = ast_childidx(super_member, 1);
-
-    sym_status_t s;
-    ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), &s);
+    ast_t* sub_member = ast_get(sub_def, ast_name(super_member_id), NULL);
 
     if(sub_member == NULL)
       return false;

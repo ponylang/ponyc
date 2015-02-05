@@ -89,7 +89,15 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   find = ast_dup(find);
   replace_thistype(&find, orig);
   find = reify(find, typeparams, typeargs);
-  flatten_arrows(&find);
+
+  if(!flatten_arrows(&find, errors))
+  {
+    if(errors)
+      ast_error(from, "can't look this up on a tag");
+
+    ast_free_unattached(find);
+    return NULL;
+  }
 
   return find;
 }
