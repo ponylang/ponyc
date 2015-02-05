@@ -12,7 +12,7 @@ class Array[A]
     """
     _size = 0
     _alloc = len
-    _ptr = Pointer[A]._create(len)
+    _ptr = Pointer[A]._alloc(len)
 
   // TODO:
   // new init[B: (A & A!) = A](from: B, len: U64) =>
@@ -21,7 +21,7 @@ class Array[A]
   //   """
   //  _size = len
   //  _alloc = len
-  //  _ptr = Pointer[A]._create(len)
+  //  _ptr = Pointer[A]._alloc(len)
 
   //  var i: U64 = 0
 
@@ -37,7 +37,7 @@ class Array[A]
     """
     _size = len
     _alloc = len
-    _ptr = Pointer[A]._create(len)
+    _ptr = Pointer[A]._alloc(len)
 
   new from_cstring(ptr: Pointer[A] ref, len: U64) =>
     """
@@ -104,7 +104,7 @@ class Array[A]
     """
     if i < _size then
       reserve(_size + 1)
-      _ptr._insert(i, 1, _size - i)
+      _ptr._offset(i)._insert(1, _size - i)
       _ptr._update(i, consume value)
       _size = _size + 1
       this
@@ -119,7 +119,7 @@ class Array[A]
     """
     if i < _size then
       _size = _size - 1
-      _ptr._delete(i, 1, _size - i)
+      _ptr._offset(i)._delete(1, _size - i)
     else
       error
     end
@@ -183,13 +183,13 @@ class Array[A]
   //     end
   //   end
 
-  // TODO:
-  // fun box clone(): Array[this->A!]^ =>
-  //   """
-  //   Clone the array.
-  //   """
-  //   let out = Array[this->A!](_size)
-  //   out
+  fun box clone(): Array[this->A!]^ =>
+    """
+    Clone the array.
+    """
+    let out = Array[this->A!](_size)
+    _ptr._copy_to(out._ptr, _size)
+    out
 
   fun keys(): ArrayKeys[A, this->Array[A]]^ =>
     """

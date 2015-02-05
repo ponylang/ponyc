@@ -12,7 +12,7 @@ class String val is Ordered[String box], Stringable
     """
     _size = 0
     _alloc = size + 1
-    _ptr = Pointer[U8]._create(_alloc)
+    _ptr = Pointer[U8]._alloc(_alloc)
     _ptr._update(0, 0)
 
   new from_cstring(str: Pointer[U8] ref, len: U64 = 0, copy: Bool = true) =>
@@ -29,8 +29,8 @@ class String val is Ordered[String box], Stringable
 
     if copy then
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
-      @memcpy[Pointer[U8]](_ptr, str, _alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
+      str._copy_to(_ptr, _alloc)
     else
       _alloc = _size + 1
       _ptr = str
@@ -43,18 +43,18 @@ class String val is Ordered[String box], Stringable
     if value < 0x80 then
       _size = 1
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, value.u8())
     elseif value < 0x800 then
       _size = 2
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, ((value >> 6) or 0xC0).u8())
       _ptr._update(1, ((value and 0x3F) or 0x80).u8())
     elseif value < 0xD800 then
       _size = 3
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, ((value >> 12) or 0xE0).u8())
       _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
       _ptr._update(2, ((value and 0x3F) or 0x80).u8())
@@ -62,7 +62,7 @@ class String val is Ordered[String box], Stringable
       // UTF-16 surrogate pairs are not allowed.
       _size = 3
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, 0xEF)
       _ptr._update(1, 0xBF)
       _ptr._update(2, 0xBD)
@@ -70,14 +70,14 @@ class String val is Ordered[String box], Stringable
     elseif value < 0x10000 then
       _size = 3
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, ((value >> 12) or 0xE0).u8())
       _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
       _ptr._update(2, ((value and 0x3F) or 0x80).u8())
     elseif value < 0x110000 then
       _size = 4
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, ((value >> 18) or 0xF0).u8())
       _ptr._update(1, (((value >> 12) and 0x3F) or 0x80).u8())
       _ptr._update(2, (((value >> 6) and 0x3F) or 0x80).u8())
@@ -86,7 +86,7 @@ class String val is Ordered[String box], Stringable
       // Code points beyond 0x10FFFF are not allowed.
       _size = 3
       _alloc = _size + 1
-      _ptr = Pointer[U8]._create(_alloc)
+      _ptr = Pointer[U8]._alloc(_alloc)
       _ptr._update(0, 0xEF)
       _ptr._update(1, 0xBF)
       _ptr._update(2, 0xBD)
@@ -260,7 +260,7 @@ class String val is Ordered[String box], Stringable
     """
     let len = _size
     let str = recover String(len) end
-    @memcpy[Pointer[U8]](str._ptr, _ptr, len + 1)
+    _ptr._copy_to(str._ptr, len + 1)
     str._size = len
     str
 
@@ -369,7 +369,7 @@ class String val is Ordered[String box], Stringable
     if i < _size then
       var n = len.min(_size - i)
       _size = _size - n
-      _ptr._delete(i, n, _size - i)
+      _ptr._offset(i)._delete(n, _size - i)
       _ptr._update(_size, 0)
     end
     this
@@ -381,13 +381,13 @@ class String val is Ordered[String box], Stringable
     """
     let start = offset_to_index(from)
     let finish = offset_to_index(to).min(_size)
-    let ptr = _ptr.u64()
+    let ptr: Pointer[U8] tag = _ptr
 
     if (start < _size) and (start <= finish) then
       recover
         let len = (finish - start) + 1
         var str = String(len)
-        @memcpy[Pointer[U8]](str._ptr, ptr + start, len)
+        ptr._offset(start)._copy_to(str._ptr, len)
         str._size = len
         str._set(len, 0)
         str
@@ -479,7 +479,7 @@ class String val is Ordered[String box], Stringable
     Append that to this.
     """
     reserve(_size + that._size)
-    @memcpy[Pointer[U8]](_ptr.u64() + _size, that._ptr, that._size + 1)
+    that._ptr._copy_to(_ptr._offset(_size), that._size + 1)
     _size = _size + that._size
     this
 
@@ -511,7 +511,7 @@ class String val is Ordered[String box], Stringable
     var index = offset_to_index(offset).min(_size)
     @memmove[Pointer[U8]](_ptr.u64() + index + that._size,
       _ptr.u64() + index, that._size)
-    @memcpy[Pointer[U8]](_ptr.u64() + index, that._ptr, that._size)
+    that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _ptr._update(_size, 0)
     this
@@ -569,8 +569,8 @@ class String val is Ordered[String box], Stringable
     """
     let len = _size + that._size
     var s = recover String(len) end
-    @memcpy[Pointer[U8]](s._ptr, _ptr, _size)
-    @memcpy[Pointer[U8]](s._ptr.u64() + _size, that._ptr, that._size + 1)
+    _ptr._copy_to(s._ptr, _size)
+    that._ptr._copy_to(s._ptr._offset(_size), that._size + 1)
     s._size = len
     s
 
@@ -744,15 +744,15 @@ class String val is Ordered[String box], Stringable
 
     match align
     | AlignLeft =>
-      @memcpy[Pointer[U8]](str._ptr, _ptr, copy_len)
+      _ptr._copy_to(str._ptr, copy_len)
       @memset[Pointer[U8]](str._ptr.u64() + copy_len, U32(' '), len - copy_len)
     | AlignRight =>
       @memset[Pointer[U8]](str._ptr, U32(' '), len - copy_len)
-      @memcpy[Pointer[U8]](str._ptr.u64() + (len - copy_len), _ptr, copy_len)
+      _ptr._copy_to(str._ptr._offset(len - copy_len), copy_len)
     | AlignCenter =>
       let half = (len - copy_len) / 2
       @memset[Pointer[U8]](str._ptr, U32(' '), half)
-      @memcpy[Pointer[U8]](str._ptr.u64() + half, _ptr, copy_len)
+      _ptr._copy_to(str._ptr._offset(half), copy_len)
       @memset[Pointer[U8]](str._ptr.u64() + copy_len + half, U32(' '),
         len - copy_len - half)
     end

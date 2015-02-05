@@ -10,7 +10,7 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  new _create(len: U64) =>
+  new _alloc(len: U64) =>
     """
     Space for len instances of A.
     """
@@ -34,20 +34,31 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun ref _insert(offset: U64, n: U64, len: U64): U64 =>
+  fun tag _offset(n: U64): Pointer[A] tag =>
     """
-    Creates space for n new elements at the given offset, moving following
-    elements. The array length before this should be offset + len, and the
-    available space should be at least offset + n + len. Returns the new
-    length, which is offset + n + len.
+    Return a pointer to the n-th element.
     """
     compiler_intrinsic
 
-  fun ref _delete(offset: U64, n: U64, len: U64): A^ =>
+  fun tag _insert(n: U64, len: U64): Pointer[A] tag =>
     """
-    Delete n elements from pointer + offset, compact remaining elements of
-    the underlying array. The array length before this should be offset + n +
-    len. Returns the first deleted element.
+    Creates space for n new elements at the head, moving following elements.
+    The array length before this should be len, and the available space should
+    be at least n + len.
+    """
+    compiler_intrinsic
+
+  fun tag _delete(n: U64, len: U64): A^ =>
+    """
+    Delete n elements from the head of pointer, compact remaining elements of
+    the underlying array. The array length before this should be n + len.
+    Returns the first deleted element.
+    """
+    compiler_intrinsic
+
+  fun tag _copy_to(that: Pointer[this->A!] tag, n: U64): Pointer[A] tag =>
+    """
+    Copy n elements from this to that.
     """
     compiler_intrinsic
 

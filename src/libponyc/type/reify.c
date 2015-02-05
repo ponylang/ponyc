@@ -76,6 +76,10 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
       {
         AST_GET_CHILDREN(ast, left, right);
         ast = viewpoint_type(left, right);
+
+        if(ast == NULL)
+          return false;
+
         ast_replace(astp, ast);
         return true;
       }

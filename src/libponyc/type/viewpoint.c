@@ -342,7 +342,10 @@ void flatten_arrows(ast_t** astp)
   {
     AST_GET_CHILDREN(ast, left, right);
     ast_t* flat = viewpoint_type(left, right);
-    ast_replace(astp, flat);
+
+    if(flat != NULL)
+      ast_replace(astp, flat);
+
     return;
   }
 
