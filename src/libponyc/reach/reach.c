@@ -162,15 +162,15 @@ static reachable_method_stack_t* add_methods_to_type(
   reachable_method_stack_t* s, reachable_type_t* from, reachable_type_t* to)
 {
   size_t i = HASHMAP_BEGIN;
-  reachable_method_name_t* m;
+  reachable_method_name_t* n;
 
-  while((m = reachable_method_names_next(&from->methods, &i)) != NULL)
+  while((n = reachable_method_names_next(&from->methods, &i)) != NULL)
   {
     size_t j = HASHMAP_BEGIN;
-    reachable_method_t* m2;
+    reachable_method_t* m;
 
-    while((m2 = reachable_methods_next(&m->r_methods, &j)) != NULL)
-      s = add_method(s, to, m->name, m2->typeargs);
+    while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
+      s = add_method(s, to, n->name, m->typeargs);
   }
 
   return s;
@@ -518,11 +518,42 @@ static reachable_method_stack_t* reachable_method(reachable_method_stack_t* s,
   return add_type(s, r, type, name, typeargs);
 }
 
+static void handle_stack(reachable_method_stack_t* s, reachable_types_t* r)
+{
+  while(s != NULL)
+  {
+    reachable_method_t* m;
+    s = reachable_method_stack_pop(s, &m);
+    s = reachable_body(s, r, m->r_fun);
+  }
+}
+
 reachable_types_t* reach_new()
 {
   reachable_types_t* r = POOL_ALLOC(reachable_types_t);
-  reachable_types_init(r, 8);
+  reachable_types_init(r, 64);
   return r;
+}
+
+void reach_primitives(reachable_types_t* r, pass_opt_t* opt, ast_t* from)
+{
+  reachable_method_stack_t* s = NULL;
+
+  s = add_type(s, r, type_builtin(opt, from, "Bool"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "I8"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "I16"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "I32"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "I64"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "I128"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "U8"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "U16"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "U32"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "U64"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "U128"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "F32"), NULL, NULL);
+  s = add_type(s, r, type_builtin(opt, from, "F64"), NULL, NULL);
+
+  handle_stack(s, r);
 }
 
 void reach_free(reachable_types_t* r)
@@ -540,12 +571,7 @@ void reach(reachable_types_t* r, ast_t* type, const char* name,
   reachable_method_stack_t* s = reachable_method(NULL, r, type, name,
     typeargs);
 
-  while(s != NULL)
-  {
-    reachable_method_t* m;
-    s = reachable_method_stack_pop(s, &m);
-    s = reachable_body(s, r, m->r_fun);
-  }
+  handle_stack(s, r);
 }
 
 reachable_type_t* reach_type(reachable_types_t* r, const char* name)

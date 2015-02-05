@@ -41,6 +41,9 @@ struct reachable_type_t
 /// Allocate a new set of reachable types.
 reachable_types_t* reach_new();
 
+/// Add primitive types to the reachable set.
+void reach_primitives(reachable_types_t* r, pass_opt_t* opt, ast_t* from);
+
 /// Free a set of reachable types.
 void reach_free(reachable_types_t* r);
 

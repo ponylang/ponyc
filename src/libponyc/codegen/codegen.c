@@ -285,10 +285,14 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->mpm = mpm;
   c->lpm = lpm;
 
+  // Get the first package and the builtin package.
+  AST_GET_CHILDREN(program, package, builtin);
+
   c->reachable = reach_new();
+  reach_primitives(c->reachable, opt, builtin);
 
   // The name of the first package is the name of the program.
-  c->filename = package_filename(ast_child(program));
+  c->filename = package_filename(package);
 
   // LLVM context and machine settings.
   c->context = LLVMContextCreate();

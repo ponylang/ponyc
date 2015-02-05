@@ -35,6 +35,11 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
   int count = LLVMCountParamTypes(f_type);
 
+  // If it takes no arguments, it's a special number constructor. Don't put it
+  // in the vtable.
+  if(count == 0)
+    return LLVMConstNull(c->void_ptr);
+
   VLA(LLVMTypeRef, params, count);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
