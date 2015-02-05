@@ -334,13 +334,21 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
       case TK_CLASS:
       case TK_ACTOR:
       {
+        // Constraint must be modified with super ephemerality.
+        AST_GET_CHILDREN(super, name, cap, eph);
+        ast_t* r_constraint = set_cap_and_ephemeral(constraint, TK_NONE,
+          ast_id(eph));
+
         // Must be a subtype of the constraint.
-        if(!is_subtype(sub, constraint))
+        bool ok = is_subtype(sub, constraint);
+        ast_free_unattached(r_constraint);
+
+        if(!ok)
           return false;
 
         // Capability must be a subtype of the lower bounds of the typeparam.
         ast_t* lower = viewpoint_lower(super);
-        bool ok = check_cap_and_ephemeral(sub, lower);
+        ok = check_cap_and_ephemeral(sub, lower);
         ast_free_unattached(lower);
         return ok;
       }
@@ -623,7 +631,15 @@ static bool is_typeparam_subtype(ast_t* sub, ast_t* super)
       return false;
   }
 
-  return is_subtype(constraint, super);
+  // Constraint must be modified with sub ephemerality.
+  AST_GET_CHILDREN(sub, name, cap, eph);
+  ast_t* r_constraint = set_cap_and_ephemeral(constraint, TK_NONE,
+    ast_id(eph));
+
+  bool ok = is_subtype(r_constraint, super);
+  ast_free_unattached(r_constraint);
+
+  return ok;
 }
 
 // The subtype is an arrow, the supertype is an arrow.

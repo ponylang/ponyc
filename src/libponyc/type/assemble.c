@@ -403,7 +403,9 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
       type = ast_dup(type);
       AST_GET_CHILDREN(type, package, id, typeargs, tcap, eph);
 
-      ast_setid(tcap, cap);
+      if(cap != TK_NONE)
+        ast_setid(tcap, cap);
+
       ast_setid(eph, ephemeral);
       return type;
     }
@@ -413,7 +415,9 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
       type = ast_dup(type);
       AST_GET_CHILDREN(type, id, tcap, eph);
 
-      ast_setid(tcap, cap);
+      if(cap != TK_NONE)
+        ast_setid(tcap, cap);
+
       ast_setid(eph, ephemeral);
       return type;
     }
