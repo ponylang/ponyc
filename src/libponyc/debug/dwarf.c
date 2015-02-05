@@ -142,20 +142,10 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   symbols_trait(dwarf->symbols, &meta);
 }
 
-void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
+void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods)
 {
   dwarf_frame_t* frame = push_frame(dwarf);
-  frame->size = g->field_count;
-
-  // The field count for non-tuple types does not contain
-  // the methods, which in the dwarf world are subnodes
-  // just like fields.
-  if(g->underlying != TK_TUPLETYPE)
-  {
-    ast_t* def = (ast_t*)ast_data(g->ast);
-    ast_t* members = ast_childidx(def, 4);
-    frame->size += ast_childcount(members) - frame->size;
-  }
+  frame->size = g->field_count + methods;
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, true);

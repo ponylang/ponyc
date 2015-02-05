@@ -162,7 +162,15 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
   memset(s, 0, sizeof(symbols_t));
 
   symbolmap_init(&s->map, 0);
-  s->builder = new DIBuilder(*unwrap(module));
+
+  Module* m = unwrap(module);
+
+  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+
+  m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
+    llvm::DEBUG_METADATA_VERSION);
+
+  s->builder = new DIBuilder(*m);
   s->release = optimised;
 }
 
@@ -266,6 +274,8 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
 
+  assert(frame->size > 0);
+
   nodes->offset = 0;
   nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
   memset(nodes->children, 0, frame->size*sizeof(MDNode*));
@@ -315,10 +325,10 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIType use_type = DIType();
 
-  if(meta->flags & DWARF_CONSTANT)
-    use_type = field_symbol->anchor->qualified;
-  else
-    use_type = field_symbol->anchor->type;
+  //if(meta->flags & DWARF_CONSTANT)
+  //  use_type = field_symbol->anchor->qualified;
+  //else
+  use_type = field_symbol->anchor->type;
 
   DIFile file = get_file(symbols, meta->file);
 
@@ -343,7 +353,10 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
     current = get_anchor(symbols, meta->params[i]);
     assert((current->kind & SYMBOL_NEW) == 0);
 
-    params[i] = current->anchor->qualified;
+    if(i == 0)
+      params[i] = current->anchor->type;
+    else
+      params[i] = current->anchor->qualified;
   }
 
   DIFile file = get_file(symbols, meta->file);

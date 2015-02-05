@@ -113,7 +113,7 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
  * and reside in the same DWARF meta structure as fields. Note that there are
  * also recursive type definitions.
  */
-void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
+void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods);
 
 /**
  * Emit debug symbols for a field of some composite type. This requires to

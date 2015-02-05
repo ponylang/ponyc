@@ -508,7 +508,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // At this point, this can only be TK_CLASS, TK_PRIMITIVE, or TK_ACTOR
     // ast nodes. TK_TYPE has been translated to any of the former during
     // reification.
-    dwarf_forward(&c->dwarf, g);
+    reachable_type_t* r = reach_type(c->reachable, g->type_name);
+    size_t methods = reach_method_count(r);
+    dwarf_forward(&c->dwarf, g, methods);
 
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
@@ -562,7 +564,7 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   setup_tuple_fields(g);
 
-  dwarf_forward(&c->dwarf, g);
+  dwarf_forward(&c->dwarf, g, 0);
 
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
