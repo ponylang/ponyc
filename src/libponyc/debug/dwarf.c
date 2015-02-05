@@ -69,15 +69,24 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     case TK_TUPLETYPE:
       meta->flags |= DWARF_TUPLE;
       break;
-    case TK_CLASS:
-      meta->offset += OFFSET_CLASS;
     case TK_ACTOR:
       meta->offset += OFFSET_ACTOR;
+    case TK_PRIMITIVE:
+    case TK_CLASS:
+      meta->offset += OFFSET_CLASS;
+      break;
     default: {}
   }
 
-  source_t* source = ast_source(ast);
+  bool defined_type = g->underlying != TK_TUPLETYPE &&
+    g->underlying != TK_UNIONTYPE && g->underlying != TK_ISECTTYPE;
 
+  source_t* source;
+
+  if(defined_type)
+    ast = (ast_t*)ast_data(ast);
+
+  source = ast_source(ast);
   meta->file = source->file;
   meta->name = g->type_name;
   meta->line = ast_line(ast);
@@ -129,11 +138,6 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   symbols_trait(dwarf->symbols, &meta);
 }
 
-void dwarf_unspecified(dwarf_t* dwarf, gentype_t* g)
-{
-  symbols_unspecified(dwarf->symbols, g->type_name);
-}
-
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 {
   dwarf_frame_t* frame = push_frame(dwarf);
@@ -164,6 +168,8 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, field, false);
+
+  meta.typearg = field->type_name;
 
   if(composite->underlying == TK_TUPLETYPE)
   {
@@ -211,6 +217,9 @@ void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMTargetDataRef layout,
   dwarf->target_data = layout;
 
   symbols_init(&dwarf->symbols, module, opt->release);
+
+  // Prepare unspecified types.
+  symbols_unspecified(dwarf->symbols, stringtab("$object"));
 }
 
 void dwarf_finalise(dwarf_t* dwarf)

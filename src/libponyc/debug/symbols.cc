@@ -45,18 +45,20 @@ struct symbol_t
 {
   const char* name;
 
-  anchor_t* anchor;
-  DIFile file;
+  union
+  {
+    anchor_t* anchor;
+    MDNode* file;
+  };
 
   uint16_t kind;
 };
 
 struct subnodes_t
 {
-  size_t size;
   size_t offset;
   DIType prelim;
-  DIType* children;
+  MDNode** children;
 };
 
 static uint64_t symbol_hash(symbol_t* symbol);
@@ -135,7 +137,7 @@ static DIFile get_file(symbols_t* symbols, const char* fullpath)
     symbol->kind |= SYMBOL_FILE;
   }
 
-  return symbol->file;
+  return (DIFile)symbol->file;
 }
 
 static symbol_t* get_anchor(symbols_t* symbols, const char* name)
@@ -177,8 +179,6 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(basic->kind & SYMBOL_NEW)
   {
-    printf("%s\n", meta->name);
-
     anchor_t* anchor = basic->anchor;
     uint16_t tag = dwarf::DW_ATE_unsigned;
 
@@ -217,8 +217,6 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
   anchor_t* symbol = pointer->anchor;
   anchor_t* target = typearg->anchor;
 
-  printf("%s\n", meta->name);
-
   // We must have seen the pointers target before. Also the target
   // symbol is not preliminary, because the pointer itself is not
   // preliminary.
@@ -235,8 +233,6 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(trait->kind & SYMBOL_NEW)
   {
-    printf("%s\n", meta->name);
-
     anchor_t* anchor = trait->anchor;
 
     DIFile file = get_file(symbols, meta->file);
@@ -257,30 +253,22 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 {
   symbol_t* type = get_anchor(symbols, name);
 
-  if(type->kind & SYMBOL_NEW)
-  {
-    printf("UNSPEC: %s\n", name);
-
-    anchor_t* unspecified = type->anchor;
-    unspecified->type = symbols->builder->createUnspecifiedType(name);
-    unspecified->qualified = unspecified->type;
-  }
+  anchor_t* unspecified = type->anchor;
+  unspecified->type = symbols->builder->createUnspecifiedType(name);
+  unspecified->qualified = unspecified->type;
 }
 
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("START %s\n", meta->name);
-
   symbol_t* symbol = get_anchor(symbols, meta->name);
 
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
 
-  nodes->size = meta->size;
   nodes->offset = 0;
-  nodes->children = (DIType*)pool_alloc_size(meta->size*sizeof(DIType));
-  memset(nodes->children, 0, meta->size*sizeof(DIType));
+  nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
+  memset(nodes->children, 0, frame->size*sizeof(MDNode*));
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -317,15 +305,13 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("  %s\n", meta->name);
-
   subnodes_t* subnodes = frame->members;
   unsigned visibility = DW_ACCESS_public;
 
   if(meta->flags & DWARF_PRIVATE)
     visibility = DW_ACCESS_private;
 
-  symbol_t* field_symbol = get_anchor(symbols, meta->name);
+  symbol_t* field_symbol = get_anchor(symbols, meta->typearg);
 
   DIType use_type = DIType();
 
@@ -347,8 +333,6 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("END %s\n", meta->name);
-
   // The composite was previously forward declared, and a preliminary
   // debug symbol exists.
   subnodes_t* subnodes = frame->members;
@@ -357,18 +341,21 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   DIType actual = DIType();
   DIArray fields = DIArray();
 
-  if(subnodes->size > 0)
+  if(frame->size > 0)
   {
     Value** members = (Value**)subnodes->children;
 
     fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members,
-      subnodes->size));
+      frame->size));
   }
 
   if(meta->flags & DWARF_TUPLE)
   {
-    actual = symbols->builder->createStructType(symbols->unit, meta->name,
-      DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
+    symbol_t* symbol = get_anchor(symbols, meta->name);
+    anchor_t* tuple = symbol->anchor;
+
+    tuple->type = actual = symbols->builder->createStructType(symbols->unit,
+      meta->name, DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
   } else {
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
       (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
@@ -377,7 +364,7 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  pool_free_size(sizeof(MDNode*) * subnodes->size, subnodes->children);
+  pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
 }
