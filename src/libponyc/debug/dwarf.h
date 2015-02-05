@@ -87,7 +87,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g);
 /**
  * Emit debug symbols for a pointer to some Pony nominal type. Note that
  * this can be Pointer[A], which would be dwarfed as A**. Pointer[U64]
- * instead is dwarfed as U64*...
+ * instead is dwarfed as U64*.
  */
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg);
 
@@ -98,6 +98,12 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg);
  * forward declare a trait dwarf symbol ever.
  */
 void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
+
+/**
+ * Emit debug symbols for compile time unspecified types, i.e. union and
+ * intersection types.
+ */
+void dwarf_unspecified(dwarf_t* dwarf, gentype_t* g);
 
 /**
  * Forward declare a debug symbol for some composite type (tuple or nominal).

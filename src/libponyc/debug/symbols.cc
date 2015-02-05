@@ -30,9 +30,9 @@ typedef struct symbol_t symbol_t;
 
 enum
 {
-  SYMBOL_NEW  = 1 << 0,
+  SYMBOL_NEW    = 1 << 0,
   SYMBOL_ANCHOR = 1 << 1,
-  SYMBOL_FILE = 1 << 2
+  SYMBOL_FILE   = 1 << 2
 };
 
 struct anchor_t
@@ -45,11 +45,8 @@ struct symbol_t
 {
   const char* name;
 
-  union
-  {
-    anchor_t* anchor;
-    MDNode* file;
-  };
+  anchor_t* anchor;
+  DIFile file;
 
   uint16_t kind;
 };
@@ -59,7 +56,7 @@ struct subnodes_t
   size_t size;
   size_t offset;
   DIType prelim;
-  MDNode** children;
+  DIType* children;
 };
 
 static uint64_t symbol_hash(symbol_t* symbol);
@@ -138,7 +135,7 @@ static DIFile get_file(symbols_t* symbols, const char* fullpath)
     symbol->kind |= SYMBOL_FILE;
   }
 
-  return (DIFile)symbol->file;
+  return symbol->file;
 }
 
 static symbol_t* get_anchor(symbols_t* symbols, const char* name)
@@ -180,6 +177,8 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(basic->kind & SYMBOL_NEW)
   {
+    printf("%s\n", meta->name);
+
     anchor_t* anchor = basic->anchor;
     uint16_t tag = dwarf::DW_ATE_unsigned;
 
@@ -218,10 +217,12 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
   anchor_t* symbol = pointer->anchor;
   anchor_t* target = typearg->anchor;
 
+  printf("%s\n", meta->name);
+
   // We must have seen the pointers target before. Also the target
   // symbol is not preliminary, because the pointer itself is not
   // preliminary.
-  assert(pointer->kind & SYMBOL_NEW);
+  assert((pointer->kind & SYMBOL_NEW) != 0);
   assert((typearg->kind & SYMBOL_NEW) == 0);
 
   symbol->type = symbols->builder->createPointerType(target->type, meta->size,
@@ -234,6 +235,8 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(trait->kind & SYMBOL_NEW)
   {
+    printf("%s\n", meta->name);
+
     anchor_t* anchor = trait->anchor;
 
     DIFile file = get_file(symbols, meta->file);
@@ -250,9 +253,25 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
   }
 }
 
+void symbols_unspecified(symbols_t* symbols, const char* name)
+{
+  symbol_t* type = get_anchor(symbols, name);
+
+  if(type->kind & SYMBOL_NEW)
+  {
+    printf("UNSPEC: %s\n", name);
+
+    anchor_t* unspecified = type->anchor;
+    unspecified->type = symbols->builder->createUnspecifiedType(name);
+    unspecified->qualified = unspecified->type;
+  }
+}
+
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
+  printf("START %s\n", meta->name);
+
   symbol_t* symbol = get_anchor(symbols, meta->name);
 
   anchor_t* anchor = symbol->anchor;
@@ -260,8 +279,8 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 
   nodes->size = meta->size;
   nodes->offset = 0;
-  nodes->children = (MDNode**)pool_alloc_size(meta->size*sizeof(MDNode*));
-  memset(nodes->children, 0, meta->size*sizeof(MDNode*));
+  nodes->children = (DIType*)pool_alloc_size(meta->size*sizeof(DIType));
+  memset(nodes->children, 0, meta->size*sizeof(DIType));
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -298,6 +317,8 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
+  printf("  %s\n", meta->name);
+
   subnodes_t* subnodes = frame->members;
   unsigned visibility = DW_ACCESS_public;
 
@@ -326,6 +347,8 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
+  printf("END %s\n", meta->name);
+
   // The composite was previously forward declared, and a preliminary
   // debug symbol exists.
   subnodes_t* subnodes = frame->members;

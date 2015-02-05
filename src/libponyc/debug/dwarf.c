@@ -129,6 +129,11 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   symbols_trait(dwarf->symbols, &meta);
 }
 
+void dwarf_unspecified(dwarf_t* dwarf, gentype_t* g)
+{
+  symbols_unspecified(dwarf->symbols, g->type_name);
+}
+
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 {
   dwarf_frame_t* frame = push_frame(dwarf);
@@ -163,7 +168,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   if(composite->underlying == TK_TUPLETYPE)
   {
     meta.flags |= DWARF_CONSTANT;
-    snprintf(buf, sizeof(buf), "_" __zu, index);
+    snprintf(buf, sizeof(buf), "_" __zu, index + 1);
     meta.name = buf;
   }
   else

@@ -16,6 +16,8 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta);
 
 void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta);
 
+void symbols_unspecified(symbols_t* symbols, const char* name);
+
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta);
 
