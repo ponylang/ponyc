@@ -257,14 +257,11 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 {
   symbol_t* type = get_anchor(symbols, name);
 
-  if(type->kind & SYMBOL_NEW)
-  {
-    printf("UNSPEC: %s\n", name);
+  anchor_t* unspecified = type->anchor;
+  unspecified->type = symbols->builder->createUnspecifiedType(name);
+  unspecified->qualified = unspecified->type;
 
-    anchor_t* unspecified = type->anchor;
-    unspecified->type = symbols->builder->createUnspecifiedType(name);
-    unspecified->qualified = unspecified->type;
-  }
+  printf("UNSPEC: %s [%p]\n", name, (void*)unspecified->type);
 }
 
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
@@ -317,7 +314,7 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("  %s\n", meta->name);
+  printf("  %s [%s]\n", meta->name, meta->typearg);
 
   subnodes_t* subnodes = frame->members;
   unsigned visibility = DW_ACCESS_public;
@@ -325,7 +322,7 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   if(meta->flags & DWARF_PRIVATE)
     visibility = DW_ACCESS_private;
 
-  symbol_t* field_symbol = get_anchor(symbols, meta->name);
+  symbol_t* field_symbol = get_anchor(symbols, meta->typearg);
 
   DIType use_type = DIType();
 
@@ -369,6 +366,10 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   {
     actual = symbols->builder->createStructType(symbols->unit, meta->name,
       DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
+
+    symbol_t* symbol = get_anchor(symbols, meta->name);
+    anchor_t* tuple = symbol->anchor;
+    tuple->type = actual;
   } else {
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
       (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
@@ -377,7 +378,7 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  pool_free_size(sizeof(MDNode*) * subnodes->size, subnodes->children);
+  pool_free_size(sizeof(DIType) * subnodes->size, subnodes->children);
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
 }

@@ -100,12 +100,6 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg);
 void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
 
 /**
- * Emit debug symbols for compile time unspecified types, i.e. union and
- * intersection types.
- */
-void dwarf_unspecified(dwarf_t* dwarf, gentype_t* g);
-
-/**
  * Forward declare a debug symbol for some composite type (tuple or nominal).
  * Once the underlying gentype_t becomes final (i.e. gentype is called without
  * 'prelim' being true), the debug symbols need to be finalised with a call

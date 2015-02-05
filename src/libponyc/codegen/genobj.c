@@ -5,7 +5,7 @@
 const char* genobj(compile_t* c)
 {
   // Finalise the DWARF info.
-  //dwarf_finalise(&c->dwarf);
+  dwarf_finalise(&c->dwarf);
 
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
