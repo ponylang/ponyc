@@ -512,6 +512,12 @@ token_id cap_from_constraint(ast_t* type)
     case TK_TYPEPARAMREF:
       return cap_typeparam(cap_single(type));
 
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+      return cap_from_constraint(right);
+    }
+
     default: {}
   }
 

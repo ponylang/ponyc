@@ -597,6 +597,18 @@ reachable_method_t* reach_method(reachable_method_name_t* n,
   return reachable_methods_get(&n->r_methods, &k);
 }
 
+size_t reach_method_count(reachable_type_t* t)
+{
+  size_t i = HASHMAP_BEGIN;
+  reachable_method_name_t* n;
+  size_t count = 0;
+
+  while((n = reachable_method_names_next(&t->methods, &i)) != NULL)
+    count += reachable_methods_size(&n->r_methods);
+
+  return count;
+}
+
 void reach_dump(reachable_types_t* r)
 {
   printf("REACH\n");

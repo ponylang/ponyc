@@ -30,7 +30,7 @@ actor Main
         var updaters = Array[Updater].reserve(count)
 
         for i in Range(0, count) do
-          updaters.append(Updater(i, size))
+          updaters.push(Updater(i, size))
         end
 
         consume updaters
@@ -116,14 +116,14 @@ actor Streamer
     var list = recover Array[Array[U64] iso](upts) end
 
     for i in Range(0, upts) do
-      list.append(recover Array[U64](chks) end)
+      list.push(recover Array[U64](chks) end)
     end
 
     try
       for i in Range(0, chks) do
         var datum = rand()
         var updater = (datum >> shift) and mask
-        list(updater).append(datum)
+        list(updater).push(datum)
       end
 
       var vlist: Array[Array[U64] iso] val = consume list
@@ -152,7 +152,7 @@ actor Updater
     var offset = index * size
 
     for i in Range(0, size) do
-      table.append(i + offset)
+      table.push(i + offset)
     end
 
   be apply(data: Array[U64] val) =>
@@ -190,7 +190,7 @@ class PolyRand
       last = 1
 
       for i in Range(0, 63) do
-        m2.append(last)
+        m2.push(last)
         apply()
         apply()
       end

@@ -132,6 +132,15 @@ class Array[A]
     _size = _size.min(len)
     this
 
+  fun box copy_to(dst: Array[this->A!], src_idx: U64, dst_idx: U64, len: U64):
+    this->Array[A]^
+  =>
+    """
+    Copy len elements from this(src_idx) to dst(dst_idx).
+    """
+    _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
+    this
+
   fun ref clear(): Array[A]^ =>
     """
     Remove all elements from the array.
@@ -165,12 +174,6 @@ class Array[A]
     Remove an element from the beginning of the array.
     """
     delete(0)
-
-  fun ref append(value: A): Array[A]^ =>
-    """
-    Add an element to the end of the array.
-    """
-    push(consume value)
 
   // TODO:
   // fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>

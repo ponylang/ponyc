@@ -123,11 +123,11 @@ actor Main
 
     // Initial system
     system
-      .append(sun)
-      .append(Body.jupiter())
-      .append(Body.saturn())
-      .append(Body.uranus())
-      .append(Body.neptune())
+      .push(sun)
+      .push(Body.jupiter())
+      .push(Body.saturn())
+      .push(Body.uranus())
+      .push(Body.neptune())
 
     offset_momentum()
     print_energy()

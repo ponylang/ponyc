@@ -36,7 +36,7 @@ primitive DNS
       while not addr.is_null() do
         let ip = recover IPAddress end
         @os_getaddr[None](addr, ip)
-        list.append(consume ip)
+        list.push(consume ip)
         addr = @os_nextaddr[Pointer[_AddrInfo]](addr)
       end
 

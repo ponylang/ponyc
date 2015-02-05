@@ -98,6 +98,9 @@ static bool valid_reference(typecheck_t* t, ast_t* ast, ast_t* type,
       return true;
 
     case SYM_CONSUMED:
+      if(is_assigned_to(ast))
+        return true;
+
       ast_error(ast, "can't use a consumed local in an expression");
       return false;
 

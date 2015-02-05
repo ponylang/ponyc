@@ -225,8 +225,8 @@ actor ContractHost[A, B: Contract[A]]
 
     for i in Range(0, _contract.participants()) do
       var t = recover Token end
-      _ledger.append((t, None))
-      tokens.append(consume t)
+      _ledger.push((t, None))
+      tokens.push(consume t)
     end
 
     // send the isolated array to the initiator
@@ -244,7 +244,7 @@ actor ContractHost[A, B: Contract[A]]
         var a = Array[A]
         for (t', arg') in _ledger.values() do
           match arg
-          | var arg'': A => a.append(arg'')
+          | var arg'': A => a.push(arg'')
           else
             return
           end

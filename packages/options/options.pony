@@ -32,7 +32,7 @@ class Option is Stringable
     _domain.size() > 0
 
   fun ref add_param(value: String, help: (String | None)) =>
-    _domain.append((value, help))
+    _domain.push((value, help))
 
   fun ref accepts(value: String): Bool =>
     try
@@ -76,7 +76,7 @@ class Options is Iterator[_Result]
 
     try
       for i in _env.args.values() do
-        _args.append(i.clone())
+        _args.push(i.clone())
       end
     end
 
@@ -87,13 +87,13 @@ class Options is Iterator[_Result]
   fun ref remaining(): Array[String ref] => _args
 
   fun ref usage_text(s: String): Options =>
-    _configuration.append(s)
+    _configuration.push(s)
     this
 
   fun ref add(name: String, short: (String | None), help: (String | None),
     arg: OptionType): Options
   =>
-    _configuration.append(Option(name, short, help, arg))
+    _configuration.push(Option(name, short, help, arg))
     this
 
   fun ref param(value: String, help: (String | None)): Options =>
@@ -123,7 +123,7 @@ class Options is Iterator[_Result]
       | ParseError => error
       end
     end
-    
+
     error
 
   fun usage() =>

@@ -6,8 +6,8 @@ actor Main
     let group_i = Array[F32](8)
 
     for i in Range(0, 8) do
-      group_r.append(0)
-      group_i.append(0)
+      group_r.push(0)
+      group_i.push(0)
     end
 
     for j in Range(0, 8) do

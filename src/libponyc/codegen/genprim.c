@@ -121,13 +121,14 @@ static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_finishfun(c);
 }
 
-static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g)
+static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
+  const char* name)
 {
   // Set up a constant integer for the allocation size.
   size_t size = LLVMABISizeOfType(c->target_data, elem_g->use_type);
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
-  const char* name = genname_fun(g->type_name, "_offset", NULL);
+  name = genname_fun(g->type_name, name, NULL);
 
   LLVMTypeRef params[3];
   params[0] = g->use_type;
@@ -323,7 +324,8 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_realloc(c, g, &elem_g);
   pointer_apply(c, g, &elem_g);
   pointer_update(c, g, &elem_g);
-  pointer_offset(c, g, &elem_g);
+  pointer_offset(c, g, &elem_g, "_offset");
+  pointer_offset(c, g, &elem_g, "_offset_tag");
   pointer_insert(c, g, &elem_g);
   pointer_delete(c, g, &elem_g);
   pointer_copy_to(c, g, &elem_g);

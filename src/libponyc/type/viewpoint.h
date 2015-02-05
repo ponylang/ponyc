@@ -20,7 +20,7 @@ ast_t* viewpoint_lower(ast_t* type);
 
 void replace_thistype(ast_t** astp, ast_t* type);
 
-void flatten_arrows(ast_t** astp);
+bool flatten_arrows(ast_t** astp, bool errors);
 
 bool safe_to_write(ast_t* ast, ast_t* type);
 

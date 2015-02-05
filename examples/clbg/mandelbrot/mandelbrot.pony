@@ -54,7 +54,7 @@ actor Worker
             end
           until (bitmap == 0) or ((n = n - 1) == 1) end
 
-          view.append(bitmap)
+          view.push(bitmap)
 
           col = col + 8
         end
@@ -85,8 +85,8 @@ actor Main
     var i = recover Array[F32](length) end
 
     for j in Range(0, width) do
-      r.append((recip_width * j.f32()) - 1.5)
-      i.append((recip_width * j.f32()) - 1.0)
+      r.push((recip_width * j.f32()) - 1.5)
+      i.push((recip_width * j.f32()) - 1.0)
     end
 
     real = consume r

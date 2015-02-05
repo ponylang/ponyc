@@ -41,8 +41,17 @@ static bool assign_id(ast_t* ast, bool let, bool need_value)
       return true;
 
     case SYM_CONSUMED:
-      ast_error(ast, "can't assign to a consumed local");
-      return false;
+      if(need_value)
+        ast_error(ast, "the left side is consumed but its value is used");
+
+      if(let)
+        ast_error(ast, "can't assign to a let definition more than once");
+
+      if(need_value || let)
+        return false;
+
+      ast_setstatus(ast, name, SYM_DEFINED);
+      return true;
 
     default: {}
   }

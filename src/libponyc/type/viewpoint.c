@@ -330,32 +330,45 @@ void replace_thistype(ast_t** astp, ast_t* type)
   }
 }
 
-void flatten_arrows(ast_t** astp)
+bool flatten_arrows(ast_t** astp, bool errors)
 {
   ast_t* ast = *astp;
   ast_t* node_type = ast_type(ast);
 
   if(node_type != NULL)
-    flatten_arrows(&node_type);
+  {
+    if(!flatten_arrows(&node_type, errors))
+      return false;
+  }
 
   if(ast_id(ast) == TK_ARROW)
   {
     AST_GET_CHILDREN(ast, left, right);
     ast_t* flat = viewpoint_type(left, right);
 
-    if(flat != NULL)
-      ast_replace(astp, flat);
+    if(flat == NULL)
+    {
+      if(errors)
+        ast_error(ast, "can't flatten arrow type");
 
-    return;
+      return false;
+    }
+
+    ast_replace(astp, flat);
+    return true;
   }
 
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
-    flatten_arrows(&child);
+    if(!flatten_arrows(&child, errors))
+      return false;
+
     child = ast_sibling(child);
   }
+
+  return true;
 }
 
 static bool safe_field_write(token_id cap, ast_t* type)
