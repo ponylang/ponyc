@@ -179,8 +179,6 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(basic->kind & SYMBOL_NEW)
   {
-    printf("%s\n", meta->name);
-
     anchor_t* anchor = basic->anchor;
     uint16_t tag = dwarf::DW_ATE_unsigned;
 
@@ -219,8 +217,6 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
   anchor_t* symbol = pointer->anchor;
   anchor_t* target = typearg->anchor;
 
-  printf("%s\n", meta->name);
-
   // We must have seen the pointers target before. Also the target
   // symbol is not preliminary, because the pointer itself is not
   // preliminary.
@@ -237,8 +233,6 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(trait->kind & SYMBOL_NEW)
   {
-    printf("%s\n", meta->name);
-
     anchor_t* anchor = trait->anchor;
 
     DIFile file = get_file(symbols, meta->file);
@@ -262,15 +256,11 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
   anchor_t* unspecified = type->anchor;
   unspecified->type = symbols->builder->createUnspecifiedType(name);
   unspecified->qualified = unspecified->type;
-
-  printf("UNSPEC: %s [%p]\n", name, (void*)unspecified->type);
 }
 
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("START %s\n", meta->name);
-
   symbol_t* symbol = get_anchor(symbols, meta->name);
 
   anchor_t* anchor = symbol->anchor;
@@ -315,8 +305,6 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("  %s [%s]\n", meta->name, meta->typearg);
-
   subnodes_t* subnodes = frame->members;
   unsigned visibility = DW_ACCESS_public;
 
@@ -345,8 +333,6 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  printf("END %s\n", meta->name);
-
   // The composite was previously forward declared, and a preliminary
   // debug symbol exists.
   subnodes_t* subnodes = frame->members;
