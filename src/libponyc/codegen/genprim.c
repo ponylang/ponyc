@@ -135,7 +135,7 @@ static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
   params[2] = c->i64;
   params[3] = c->i64;
 
-  LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 4, false);
+  LLVMTypeRef ftype = LLVMFunctionType(c->i64, params, 4, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun);
 

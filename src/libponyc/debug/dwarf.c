@@ -35,7 +35,6 @@ static void pop_frame(dwarf_t* dwarf)
 {
   dwarf_frame_t* frame = dwarf->frame;
   dwarf->frame = frame->prev;
-
   POOL_FREE(dwarf_frame_t, frame);
 }
 
@@ -77,8 +76,7 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     default: {}
   }
 
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  source_t* source = (source_t*)ast_data(module);
+  source_t* source = ast_source(ast);
 
   meta->file = source->file;
   meta->name = g->type_name;

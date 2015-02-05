@@ -294,6 +294,11 @@ size_t ast_pos(ast_t* ast)
   return token_line_position(ast->t);
 }
 
+source_t* ast_source(ast_t* ast)
+{
+  return token_source(ast->t);
+}
+
 bool ast_is_first_on_line(ast_t* ast)
 {
   return token_is_first_on_line(ast->t);

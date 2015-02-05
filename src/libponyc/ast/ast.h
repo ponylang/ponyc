@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "token.h"
 #include "symtab.h"
+#include "source.h"
 #include "stringtab.h"
 
 #include <platform.h>
@@ -319,6 +320,7 @@ void ast_setpos(ast_t* ast, size_t line, size_t pos);
 token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
+source_t* ast_source(ast_t* ast);
 bool ast_is_first_on_line(ast_t* ast);
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);

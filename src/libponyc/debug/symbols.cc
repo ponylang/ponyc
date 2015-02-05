@@ -256,7 +256,7 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   symbol_t* symbol = get_anchor(symbols, meta->name);
 
   anchor_t* anchor = symbol->anchor;
-  subnodes_t* nodes = (subnodes_t*)POOL_ALLOC(subnodes_t);
+  subnodes_t* nodes = POOL_ALLOC(subnodes_t);
 
   nodes->size = meta->size;
   nodes->offset = 0;
@@ -356,6 +356,7 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   pool_free_size(sizeof(MDNode*) * subnodes->size, subnodes->children);
   POOL_FREE(subnodes_t, subnodes);
+  frame->members = NULL;
 }
 
 void symbols_finalise(symbols_t* symbols)
