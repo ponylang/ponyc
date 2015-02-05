@@ -286,7 +286,12 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   c->lpm = lpm;
 
   // Get the first package and the builtin package.
-  AST_GET_CHILDREN(program, package, builtin);
+  ast_t* package = ast_child(program);
+  ast_t* builtin = ast_sibling(package);
+
+  // If we have only one package, we are compiling builtin itself.
+  if(builtin == NULL)
+    builtin = package;
 
   c->reachable = reach_new();
   reach_primitives(c->reachable, opt, builtin);
