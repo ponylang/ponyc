@@ -114,6 +114,7 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
 
   while(arg_len < param_len)
   {
+    ast_setid(positional, TK_POSITIONALARGS);
     ast_append(positional, ast_from(positional, TK_NONE));
     arg_len++;
   }
@@ -124,7 +125,7 @@ static bool extend_positional_args(ast_t* params, ast_t* positional)
 static bool apply_named_args(ast_t* params, ast_t* positional,
   ast_t* namedargs)
 {
-  ast_t* namedarg = ast_child(namedargs);
+  ast_t* namedarg = ast_pop(namedargs);
 
   while(namedarg != NULL)
   {
@@ -164,9 +165,10 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
     arg = ast_pop(namedarg);  // Expression
 
     ast_replace(&arg_replace, arg);
-    namedarg = ast_sibling(namedarg);
+    namedarg = ast_pop(namedargs);
   }
 
+  ast_setid(namedargs, TK_NONE);
   return true;
 }
 
@@ -665,10 +667,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
           NODE(TK_REFERENCE, TREE(id))));
 
       // A named argument at the call site.
-      BUILD(call_arg, arg,
-        NODE(TK_NAMEDARG,
-          TREE(p_id)
-          NODE(TK_SEQ, TREE(arg))));
+      BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
 
       // An arg in the call to the original method.
       BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, TREE(id))));
