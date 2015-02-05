@@ -45,18 +45,20 @@ struct symbol_t
 {
   const char* name;
 
-  anchor_t* anchor;
-  DIFile file;
+  union
+  {
+    anchor_t* anchor;
+    MDNode* file;
+  };
 
   uint16_t kind;
 };
 
 struct subnodes_t
 {
-  size_t size;
   size_t offset;
   DIType prelim;
-  DIType* children;
+  MDNode** children;
 };
 
 static uint64_t symbol_hash(symbol_t* symbol);
@@ -135,7 +137,7 @@ static DIFile get_file(symbols_t* symbols, const char* fullpath)
     symbol->kind |= SYMBOL_FILE;
   }
 
-  return symbol->file;
+  return (DIFile)symbol->file;
 }
 
 static symbol_t* get_anchor(symbols_t* symbols, const char* name)
@@ -274,10 +276,9 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
 
-  nodes->size = meta->size;
   nodes->offset = 0;
-  nodes->children = (DIType*)pool_alloc_size(meta->size*sizeof(DIType));
-  memset(nodes->children, 0, meta->size*sizeof(DIType));
+  nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
+  memset(nodes->children, 0, frame->size*sizeof(MDNode*));
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -354,22 +355,21 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   DIType actual = DIType();
   DIArray fields = DIArray();
 
-  if(subnodes->size > 0)
+  if(frame->size > 0)
   {
     Value** members = (Value**)subnodes->children;
 
     fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members,
-      subnodes->size));
+      frame->size));
   }
 
   if(meta->flags & DWARF_TUPLE)
   {
-    actual = symbols->builder->createStructType(symbols->unit, meta->name,
-      DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
-
     symbol_t* symbol = get_anchor(symbols, meta->name);
     anchor_t* tuple = symbol->anchor;
-    tuple->type = actual;
+
+    tuple->type = actual = symbols->builder->createStructType(symbols->unit,
+      meta->name, DIFile(), 0, meta->size, meta->align, 0, DIType(), fields);
   } else {
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
       (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
@@ -378,7 +378,7 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  pool_free_size(sizeof(DIType) * subnodes->size, subnodes->children);
+  pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
 }
