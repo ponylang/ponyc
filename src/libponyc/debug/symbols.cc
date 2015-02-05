@@ -330,6 +330,46 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   frame->index += 1;
 }
 
+void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta, LLVMValueRef ir)
+{
+  // Emit debug info for the subroutine type.
+  VLA(MDNode*, params, meta->size);
+
+  symbol_t* current = NULL;
+
+  for(size_t i = 0; i < meta->size; i++)
+  {
+    current = get_anchor(symbols, meta->params[i]);
+    assert((current->kind & SYMBOL_NEW) == 0);
+
+    params[i] = current->anchor->qualified;
+  }
+
+  DIFile file = get_file(symbols, meta->file);
+
+  DIArray uses = symbols->builder->getOrCreateArray(ArrayRef<Value*>(
+    (Value**)params, meta->size));
+
+  DICompositeType type = symbols->builder->createSubroutineType(file,
+    uses, llvm::DIDescriptor::FlagLValueReference);
+
+  // Emit debug info for the method itself.
+  current = get_anchor(symbols, meta->mangled);
+  assert(current->kind & SYMBOL_NEW);
+
+  DISubprogram fun = symbols->builder->createFunction(symbols->unit,
+    meta->name, meta->mangled, file, (int)meta->line, type, false, true,
+    (int)meta->offset, symbols->release, unwrap(ir));
+
+  if(frame->members != NULL)
+  {
+    subnodes_t* subnodes = frame->members;
+    subnodes->children[frame->index] = fun;
+    frame->index += 1;
+  }
+}
+
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {

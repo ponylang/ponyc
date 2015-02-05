@@ -24,6 +24,9 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta);
 
+void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta, LLVMValueRef ir);
+
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta);
 

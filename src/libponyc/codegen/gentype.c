@@ -478,7 +478,6 @@ static bool make_components(compile_t* c, gentype_t* g)
 
 static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
 {
-  bool composite = false;
   assert(ast_id(ast) == TK_NOMINAL);
   ast_t* def = (ast_t*)ast_data(ast);
   token_id id = ast_id(def);
@@ -509,7 +508,6 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // At this point, this can only be TK_CLASS, TK_PRIMITIVE, or TK_ACTOR
     // ast nodes. TK_TYPE has been translated to any of the former during
     // reification.
-    composite = true;
     dwarf_forward(&c->dwarf, g);
 
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
@@ -550,8 +548,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   }
 
   // Finalise symbols for composite type.
-  if(composite)
-    dwarf_composite(&c->dwarf, g);
+  dwarf_finish(&c->dwarf, g);
 
   free_fields(g);
   return true;
@@ -570,7 +567,7 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
   // Emit debug symbols for tuple type.
-  dwarf_composite(&c->dwarf, g);
+  dwarf_finish(&c->dwarf, g);
 
   // Generate a descriptor.
   gendesc_init(c, g);

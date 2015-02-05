@@ -329,7 +329,11 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
   pointer_copy_to(c, g, &elem_g);
   pointer_u64(c, g);
 
-  return genfun_methods(c, g);
+  ok = genfun_methods(c, g);
+
+  dwarf_finish(&c->dwarf, g);
+
+  return ok;
 }
 
 void genprim_array_trace(compile_t* c, gentype_t* g)

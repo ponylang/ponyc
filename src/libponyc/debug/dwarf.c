@@ -112,6 +112,8 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
 
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 {
+  push_frame(dwarf);
+
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
 
@@ -120,6 +122,8 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
 {
+  push_frame(dwarf);
+
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
 
@@ -194,19 +198,37 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   symbols_field(dwarf->symbols, dwarf->frame, &meta);
 }
 
-void dwarf_method(dwarf_t* dwarf, gentype_t* g, reachable_method_t* m)
-{
-  (void)dwarf;
-  (void)g;
-  (void)m;
-}
-
-void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
+void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
+  const char* mangled, const char** params, size_t count, LLVMValueRef ir)
 {
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, false);
+  memset(&meta, 0, sizeof(dwarf_meta_t));
 
-  symbols_composite(dwarf->symbols, dwarf->frame, &meta);
+  source_t* source = ast_source(fun);
+  ast_t* seq = ast_childidx(fun, 6);
+
+  meta.file = source->file;
+  meta.name = name;
+  meta.mangled = mangled;
+  meta.params = params;
+  meta.line = ast_line(fun);
+  meta.pos = ast_pos(fun);
+  meta.offset = ast_line(seq);
+  meta.size = count;
+
+  symbols_method(dwarf->symbols, dwarf->frame, &meta, ir);
+}
+
+void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
+{
+  if(!is_machine_word(g->ast) && !is_pointer(g->ast))
+  {
+    dwarf_meta_t meta;
+    setup_dwarf(dwarf, &meta, g, false);
+
+    symbols_composite(dwarf->symbols, dwarf->frame, &meta);
+  }
+
   pop_frame(dwarf);
 }
 
@@ -218,7 +240,7 @@ void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMTargetDataRef layout,
 
   symbols_init(&dwarf->symbols, module, opt->release);
 
-  // Prepare unspecified types.
+  // Prepare unspecified types (unions and intersections).
   symbols_unspecified(dwarf->symbols, stringtab("$object"));
 }
 

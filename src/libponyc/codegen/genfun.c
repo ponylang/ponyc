@@ -149,11 +149,15 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   // Count the parameters, including the receiver.
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
+  size_t index = 0;
 
   VLA(LLVMTypeRef, tparams, count);
+  VLA(const char*, uses, count + 1);
   count = 0;
 
   // Get a type for the receiver.
+  uses[index++] = rtype_g.type_name;
+  uses[index++] = g->type_name;
   tparams[count++] = g->use_type;
 
   // Get a type for each parameter.
@@ -170,6 +174,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
       return NULL;
     }
 
+    uses[index++] = ptype_g.type_name;
     tparams[count++] = ptype_g.use_type;
     param = ast_sibling(param);
   }
@@ -206,6 +211,8 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 
     default: {}
   }
+
+  dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
 
   return func;
 }
