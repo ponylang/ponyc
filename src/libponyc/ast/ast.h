@@ -357,6 +357,7 @@ void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
 bool ast_merge(ast_t* dst, ast_t* src);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
+bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner);
 void ast_clear(ast_t* ast);
 void ast_clear_local(ast_t* ast);
 

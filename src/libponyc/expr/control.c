@@ -142,6 +142,10 @@ bool expr_while(ast_t* ast)
     return false;
   }
 
+  // All consumes have to be in scope when the loop body finishes.
+  if(!ast_all_consumes_in_scope(body, body))
+    return false;
+
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
 
@@ -190,6 +194,10 @@ bool expr_repeat(ast_t* ast)
     ast_error(ast, "loop body can never repeat");
     return false;
   }
+
+  // All consumes have to be in scope when the loop body finishes.
+  if(!ast_all_consumes_in_scope(body, body))
+    return false;
 
   // Union with any existing type due to a break expression.
   ast_t* type = ast_type(ast);
@@ -297,6 +305,9 @@ bool expr_break(typecheck_t* t, ast_t* ast)
     return false;
   }
 
+  if(!ast_all_consumes_in_scope(t->frame->loop_body, ast))
+    return false;
+
   if(ast_sibling(ast) != NULL)
   {
     ast_error(ast, "must be the last expression in a sequence");
@@ -324,6 +335,9 @@ bool expr_continue(typecheck_t* t, ast_t* ast)
     ast_error(ast, "must be in a loop");
     return false;
   }
+
+  if(!ast_all_consumes_in_scope(t->frame->loop_body, ast))
+    return false;
 
   if(ast_sibling(ast) != NULL)
   {

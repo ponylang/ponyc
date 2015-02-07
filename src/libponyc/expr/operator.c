@@ -11,7 +11,7 @@
 #include "../type/viewpoint.h"
 #include <assert.h>
 
-static bool assign_id(ast_t* ast, bool let, bool need_value)
+static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
 {
   assert(ast_id(ast) == TK_ID);
   const char* name = ast_name(ast);
@@ -41,17 +41,33 @@ static bool assign_id(ast_t* ast, bool let, bool need_value)
       return true;
 
     case SYM_CONSUMED:
+    {
+      bool ok = true;
+
       if(need_value)
+      {
         ast_error(ast, "the left side is consumed but its value is used");
+        ok = false;
+      }
 
       if(let)
+      {
         ast_error(ast, "can't assign to a let definition more than once");
+        ok = false;
+      }
 
-      if(need_value || let)
-        return false;
+      if(t->frame->try_expr != NULL)
+      {
+        ast_error(ast,
+          "can't reassign to a consumed identifier in a try expression");
+        ok = false;
+      }
 
-      ast_setstatus(ast, name, SYM_DEFINED);
-      return true;
+      if(ok)
+        ast_setstatus(ast, name, SYM_DEFINED);
+
+      return ok;
+    }
 
     default: {}
   }
@@ -76,7 +92,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
       while(id != NULL)
       {
-        if(!assign_id(id, ast_id(ast) == TK_LET, need_value))
+        if(!assign_id(t, id, ast_id(ast) == TK_LET, need_value))
           return false;
 
         id = ast_sibling(id);
@@ -88,7 +104,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
     case TK_VARREF:
     {
       ast_t* id = ast_child(ast);
-      return assign_id(id, false, need_value);
+      return assign_id(t, id, false, need_value);
     }
 
     case TK_LETREF:
@@ -102,7 +118,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
       AST_GET_CHILDREN(ast, left, right);
 
       if(ast_id(left) == TK_THIS)
-        return assign_id(right, false, need_value);
+        return assign_id(t, right, false, need_value);
 
       return true;
     }
@@ -123,7 +139,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
         return false;
       }
 
-      return assign_id(right, true, need_value);
+      return assign_id(t, right, true, need_value);
     }
 
     case TK_TUPLE:
@@ -269,14 +285,6 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
     !ast_within_scope(t->frame->loop_cond, ast, name))
   {
     ast_error(ast, "can't consume from an outer scope in a loop condition");
-    return false;
-  }
-
-  // Can't consume from an outer scope while in a loop body.
-  if((t->frame->loop_body != NULL) &&
-    !ast_within_scope(t->frame->loop_body, ast, name))
-  {
-    ast_error(ast, "can't consume from an outer scope in a loop body");
     return false;
   }
 
