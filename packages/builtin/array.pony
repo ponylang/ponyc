@@ -54,6 +54,12 @@ class Array[A]
     """
     _ptr
 
+  fun _cstring(): Pointer[A] box =>
+    """
+    Internal cstring.
+    """
+    _ptr
+
   fun size(): U64 =>
     """
     The number of elements in the array.
@@ -174,6 +180,49 @@ class Array[A]
     Remove an element from the beginning of the array.
     """
     delete(0)
+
+  fun find(value: A!, offset: U64 = 0, nth: U64 = 0): U64 ? =>
+    """
+    Find the n-th appearance of value in the array, by identity. Return the
+    index, or raise an error if value isn't present.
+    """
+    var i = offset
+    var n = U64(0)
+
+    while i < _size do
+      if _ptr._apply(i) is value then
+        if n == nth then
+          return i
+        end
+
+        n = n + 1
+      end
+
+      i = i + 1
+    end
+
+    error
+
+  fun rfind(value: A!, offset: U64 = -1, nth: U64 = 0): U64 ? =>
+    """
+    As find, but search backwards in the array.
+    """
+    if _size > 0 then
+      var i = if offset >= _size then _size - 1 else offset end
+      var n = U64(0)
+
+      repeat
+        if _ptr._apply(i) is value then
+          if n == nth then
+            return i
+          end
+
+          n = n + 1
+        end
+      until (i = i - 1) == 0 end
+    end
+
+    error
 
   // TODO:
   // fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>

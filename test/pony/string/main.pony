@@ -46,3 +46,6 @@ actor Main
       var idx2 = "123123123".find("3", idx1 + 1)
       env.out.print(idx2.string())
     end
+
+    var j = recover val String.append("  \thi!\r\n").trim() end
+    env.out.print("[" + j.size().string() + ": " + j + "]")

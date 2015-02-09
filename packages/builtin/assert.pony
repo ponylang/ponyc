@@ -13,7 +13,7 @@ primitive Assert
       error
     end
 
-primitive Check
+primitive Fact
   """
   This is an assertion that is always enabled. If the test is false, it will
   print any supplied error message to stderr and raise an error.
