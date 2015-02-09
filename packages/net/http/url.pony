@@ -7,7 +7,8 @@ type URLFormat is
 
 class URL
   """
-  Holds the components of a URL.
+  Holds the components of a URL. These are always stored as valid, URL-encoded
+  values.
   """
   var scheme: String = ""
   var user: String = ""
@@ -20,12 +21,38 @@ class URL
 
   new val create(from: String) ? =>
     """
-    Parse the URL string into its components.
+    Parse the URL string into its components. If it isn't URL encoded, encode
+    it. If existing URL encoding is invalid, raise an error.
     """
-    // TODO: check character set, do % encoding and decoding
     var offset = _parse_scheme(from)
     offset = _parse_authority(from, offset)
     _parse_path(from, offset)
+
+    user = URLEncode.encode(user, false)
+    password = URLEncode.encode(password, false)
+    host = URLEncode.encode(host, false)
+    service = URLEncode.encode(service, false)
+    path = URLEncode.encode(path)
+    query = URLEncode.encode(query, true, true)
+    fragment = URLEncode.encode(fragment)
+
+  new val valid(from: String) ? =>
+    """
+    Parse the URL string into its components. If it isn't URL encoded, raise an
+    error.
+    """
+    var offset = _parse_scheme(from)
+    offset = _parse_authority(from, offset)
+    _parse_path(from, offset)
+
+    Fact(
+      URLEncode.check(user, false) and
+      URLEncode.check(password, false) and
+      URLEncode.check(host, false) and
+      URLEncode.check(service, false) and
+      URLEncode.check(path) and
+      URLEncode.check(query, true, true) and
+      URLEncode.check(fragment))
 
   fun string(fmt: URLFormat = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
@@ -102,7 +129,7 @@ class URL
     while i < from.size().i64() do
       let c = from(i)
 
-      if (c >= 'a') and (c <= 'Z') then
+      if ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z')) then
         // Valid any time.
         i = i + 1
       elseif
@@ -115,6 +142,8 @@ class URL
         if i == 0 then
           return 0
         end
+
+        i = i + 1
       elseif c == ':' then
         // Can't start a URL with a colon.
         if i == 0 then
@@ -124,9 +153,10 @@ class URL
         // Otherwise, we have a scheme. Set it and return the offset.
         scheme = recover from.substring(0, i - 1).lower_in_place() end
         return i + 1
+      else
+        // Anything else is not a scheme.
+        return 0
       end
-
-      i = i + 1
     end
 
     // The whole url is a valid scheme. Treat it as a path instead.
@@ -200,18 +230,4 @@ class URL
 
     if (path.size() == 0) and ((scheme.size() > 0) or (host.size() > 0)) then
       path = "/"
-    end
-
-  fun tag _hex(value: U8): U8 ? =>
-    """
-    Treat an ASCII byte as a hex value.
-    """
-    if (value >= '0') and (value <= '9') then
-      value - '0'
-    elseif (value >= 'A') and (value <= 'F') then
-      (value - 'A') + 10
-    elseif (value >= 'a') and (value <= 'f') then
-      (value - 'a') + 10
-    else
-      error
     end
