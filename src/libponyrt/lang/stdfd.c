@@ -4,6 +4,7 @@
 #ifndef PLATFORM_IS_WINDOWS
 #include <termios.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <strings.h>
 #include <sys/stat.h>
 #endif
@@ -21,6 +22,8 @@ FILE* os_stderr()
 }
 
 #ifndef PLATFORM_IS_WINDOWS
+static struct termios orig_termios;
+
 typedef enum
 {
   FD_TYPE_NONE = 0,
@@ -67,13 +70,18 @@ static fd_type_t fd_type(int fd)
   return type;
 }
 
+static void stdin_tty_restore()
+{
+  tcsetattr(0, TCSAFLUSH, &orig_termios);
+}
+
 static void fd_tty(int fd)
 {
   // Turn off canonical mode if we're reading from a tty.
-  struct termios io;
-
-  if(tcgetattr(fd, &io) != -1)
+  if(tcgetattr(fd, &orig_termios) != -1)
   {
+    struct termios io = orig_termios;
+
     io.c_iflag &= ~(BRKINT | INPCK | ISTRIP | IXON);
     io.c_cflag |= (CS8);
     io.c_lflag &= ~(ECHO | ICANON | IEXTEN);
@@ -81,6 +89,9 @@ static void fd_tty(int fd)
     io.c_cc[VTIME] = 0;
 
     tcsetattr(fd, TCSAFLUSH, &io);
+
+    if(fd == 0)
+      atexit(stdin_tty_restore);
   }
 }
 

@@ -601,7 +601,9 @@ bool genfun_methods(compile_t* c, gentype_t* g)
           fun = genfun_fun(c, g, n->name, m->typeargs);
           break;
 
-        default: {}
+        default:
+          fun = NULL;
+          break;
       }
 
       if(fun == NULL)
