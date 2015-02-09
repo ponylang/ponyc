@@ -2,24 +2,28 @@ use "collections"
 use "net/http"
 
 actor Main
+  let _clients: Map[HostService, Client] = _clients.create()
   let _env: Env
 
   new create(env: Env) =>
     _env = env
 
-    // TODO: parse URLs from the command line
-    try
-      let url = URL(env.args(1))
+    for i in Range(1, env.args.size()) do
+      try
+        let url = URL(env.args(i))
+        Fact(url.scheme == "http")
+        Fact(url.host != "")
 
-      let client = Client(url.host, url.service)
-      let req = Request("GET", url.path, recover this~apply() end)
-      let req' = consume val req
-
-      client(req')
+        let client = _get_client(url.host, url.service)
+        let req = Request("GET", url.path, recover this~apply() end)
+        client(consume req)
+      else
+        try env.out.print("Malformed URL: " + env.args(i)) end
+      end
     end
 
   be apply(request: Request, response: Response) =>
-    _env.out.print("HTTP/1.1 " + response.status().string() + " " +
+    _env.out.print(response.proto() + " " + response.status().string() + " " +
       response.status_text())
 
     try
@@ -29,4 +33,19 @@ actor Main
 
       _env.out.print("")
       _env.out.print(response.body())
+    end
+
+  fun ref _get_client(host: String, service: String = "80"): Client =>
+    let hs = if service.size() == 0 then
+      HostService(host, "80")
+    else
+      HostService(host, service)
+    end
+
+    try
+      _clients(hs)
+    else
+      let client = Client(hs.host, hs.service)
+      _clients(hs) = client
+      client
     end

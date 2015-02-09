@@ -87,6 +87,7 @@ actor Client
     end
 
     _conn = None
+    _send()
 
   fun ref _send() =>
     """
@@ -101,6 +102,10 @@ actor Client
           _conn = None
         end
       end
+      return
+    end
+
+    if (_sent.size() > 0) and not _pipeline then
       return
     end
 
