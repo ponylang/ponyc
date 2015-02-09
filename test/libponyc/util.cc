@@ -124,6 +124,8 @@ void PassTest::SetUp()
 {
   program = NULL;
   package = NULL;
+  module = NULL;
+  walk_ast = NULL;
   _builtin_src = _builtin;
   _first_pkg_path = "prog";
   package_clear_magic();
@@ -137,6 +139,8 @@ void PassTest::TearDown()
   ast_free(program);
   program = NULL;
   package = NULL;
+  module = NULL;
+  walk_ast = NULL;
 }
 
 
@@ -158,6 +162,25 @@ void PassTest::default_package_name(const char* path)
 }
 
 
+size_t PassTest::ref_count(ast_t* ast, const char* name)
+{
+  if(ast == NULL)
+    return 0;
+
+  size_t count = 0;
+  symtab_t* symtab = ast_get_symtab(ast);
+
+  if(symtab != NULL && symtab_find(symtab, stringtab(name), NULL) != NULL)
+    count = 1;
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    count += ref_count(p, name);
+
+  return count;
+}
+
+
+
 // Test methods
 
 void PassTest::test_compile(const char* src, const char* pass)
@@ -167,6 +190,7 @@ void PassTest::test_compile(const char* src, const char* pass)
 
   DO(load_test_program(pass, _first_pkg_path, &program));
   package = ast_child(program);
+  module = ast_child(package);
 }
 
 
@@ -262,4 +286,100 @@ void PassTest::test_package_ast(const char* src, const char* pass, const char* d
   ASSERT_TRUE(r);
 
   builder_free(expect_builder);
+}
+
+
+void PassTest::lookup(ast_t* ast, const char* name, token_id id)
+{
+  ASSERT_NE((void*)NULL, ast);
+  symtab_t* symtab = ast_get_symtab(ast);
+
+  if(symtab == NULL)
+  {
+    printf("Cannot lookup \"%s\", current node has no symbol table\n", name);
+    ASSERT_TRUE(false);
+  }
+
+  walk_ast = (ast_t*)symtab_find(symtab, stringtab(name), NULL);
+
+  if(walk_ast == NULL)
+  {
+    printf("Expected symtab entry for \"%s\" not found\n", name);
+    ASSERT_TRUE(false);
+  }
+
+  ast_t* name_node;
+
+  switch(id)
+  {
+    case TK_ACTOR:
+    case TK_CLASS:
+    case TK_PRIMITIVE:
+    case TK_TRAIT:
+    case TK_INTERFACE:
+    case TK_TYPE:
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_TYPEPARAM:
+    case TK_PARAM:
+      name_node = ast_child(walk_ast);
+      break;
+
+    case TK_BE:
+    case TK_FUN:
+    case TK_NEW:
+      name_node = ast_childidx(walk_ast, 1);
+      break;
+
+    case TK_ID:
+      name_node = walk_ast;
+      break;
+
+    default:
+      printf("Don't know how to find name node for token \"%s\"\n",
+        token_id_desc(id));
+      ASSERT_TRUE(false);
+  }
+
+  ASSERT_NE((void*)NULL, name_node);
+  ASSERT_EQ(TK_ID, ast_id(name_node));
+  ASSERT_STREQ(name, ast_name(name_node));
+}
+
+
+void PassTest::lookup_null(ast_t* ast, const char* name)
+{
+  ASSERT_NE((void*)NULL, ast);
+  symtab_t* symtab = ast_get_symtab(ast);
+
+  if(symtab == NULL)
+  {
+    printf("Cannot lookup \"%s\", current node has no symbol table\n", name);
+    ASSERT_TRUE(false);
+  }
+
+  ast_t* null_ast = (ast_t*)symtab_find(symtab, stringtab(name), NULL);
+
+  if(null_ast != NULL)
+  {
+    printf("Unexpectedly found symtab entry for \"%s\":\n", name);
+    ast_print(null_ast);
+    ASSERT_TRUE(false);
+  }
+}
+
+
+void PassTest::child(size_t index)
+{
+  ASSERT_NE((void*)NULL, walk_ast);
+
+  if(index >= ast_childcount(walk_ast))
+  {
+    printf("Cannot find child index %lu, only %lu children present\n", index,
+      ast_childcount(walk_ast));
+    ASSERT_TRUE(false);
+  }
+
+  walk_ast = ast_childidx(walk_ast, index);
+  ASSERT_NE((void*)NULL, walk_ast);
 }

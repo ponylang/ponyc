@@ -42,13 +42,14 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
     "  fun ref bar(): U32 => 2";
 
   TEST_COMPILE(src);
-  WALK_TREE(body, package,
-    LOOKUP("C")
-    LOOKUP("bar")
-    CHILD(6)
-    CHILD(0));
 
-  ASSERT_EQ(2, ast_int(body));
+  WALK_TREE(package);
+  LOOKUP("C", TK_CLASS);
+  LOOKUP("bar", TK_FUN);
+  METHOD_BODY;
+  CHILD(0);
+
+  ASSERT_EQ(2, ast_int(walk_ast));
 }
 
 
