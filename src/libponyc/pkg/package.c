@@ -202,15 +202,7 @@ static const char* try_path(const char* base, const char* path)
 static const char* find_path(ast_t* from, const char* path)
 {
   // First check for an absolute path
-  bool is_absolute = false;
-
-#ifdef PLATFORM_IS_POSIX_BASED
-  is_absolute = (path[0] == '/');
-#elif defined(PLATFORM_IS_WINDOWS)
-  is_absolute = (path[1] == ':');
-#endif
-
-  if(is_absolute)
+  if(is_path_absolute(path))
     return try_path(NULL, path);
 
   const char* result;
@@ -583,6 +575,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   {
     // Lookup (and hence normalise) path
     name = find_path(from, path);
+
     if(name == NULL)
       return NULL;
   }
@@ -697,4 +690,19 @@ void package_done(pass_opt_t* opt)
   strlist_free(search);
   search = NULL;
   package_clear_magic();
+}
+
+
+bool is_path_absolute(const char* path)
+{
+  // First check for an absolute path
+  bool is_absolute = false;
+
+#ifdef PLATFORM_IS_POSIX_BASED
+  is_absolute = (path[0] == '/');
+#elif defined(PLATFORM_IS_WINDOWS)
+  is_absolute = (path[0] == '\\') || (path[1] == ':');
+#endif
+
+  return is_absolute;
 }

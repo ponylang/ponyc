@@ -102,6 +102,8 @@ const char* package_hygienic_id(typecheck_t* t);
  */
 void package_done(pass_opt_t* opt);
 
+bool is_path_absolute(const char* path);
+
 PONY_EXTERN_C_END
 
 #endif

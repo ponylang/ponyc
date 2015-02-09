@@ -1,4 +1,5 @@
 #include "program.h"
+#include "package.h"
 #include "../ast/stringtab.h"
 #include <string.h>
 #include <assert.h>
@@ -137,8 +138,12 @@ void program_lib_build_args(ast_t* program,
 
   for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
   {
-    append_to_args(data, lib_premable);
-    append_to_args(data, strlist_data(p));
+    const char* lib = strlist_data(p);
+
+    if(!is_path_absolute(lib))
+      append_to_args(data, lib_premable);
+
+    append_to_args(data, lib);
     append_to_args(data, lib_postamble);
     append_to_args(data, " ");
   }
