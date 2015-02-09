@@ -7,6 +7,9 @@
 
 PONY_EXTERN_C_BEGIN
 
+LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,
+  ast_t* typeargs);
+
 LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs);
 

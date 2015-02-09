@@ -122,6 +122,52 @@ static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
   return fun;
 }
 
+static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
+{
+  // Get a type for the result.
+  ast_t* rtype = ast_childidx(fun, 4);
+  gentype_t rtype_g;
+
+  if(!gentype(c, rtype, &rtype_g))
+  {
+    ast_error(rtype, "couldn't generate result type");
+    return NULL;
+  }
+
+  // Count the parameters, including the receiver.
+  ast_t* params = ast_childidx(fun, 3);
+  size_t count = ast_childcount(params) + 1;
+
+  VLA(LLVMTypeRef, tparams, count);
+  count = 0;
+
+  // Get a type for the receiver.
+  tparams[count++] = g->use_type;
+
+  // Get a type for each parameter.
+  ast_t* param = ast_child(params);
+
+  while(param != NULL)
+  {
+    ast_t* ptype = ast_childidx(param, 1);
+    gentype_t ptype_g;
+
+    if(!gentype(c, ptype, &ptype_g))
+    {
+      ast_error(ptype, "couldn't generate parameter type");
+      return NULL;
+    }
+
+    tparams[count++] = ptype_g.use_type;
+    param = ast_sibling(param);
+  }
+
+  LLVMTypeRef result = rtype_g.use_type;
+
+  // Generate the function type.
+  return LLVMFunctionType(result, tparams, (int)count, false);
+}
+
 static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, ast_t* fun)
 {
@@ -174,16 +220,15 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     param = ast_sibling(param);
   }
 
+  LLVMTypeRef ftype = get_signature(c, g, fun);
+
   // If the function exists now, just return it.
   func = LLVMGetNamedFunction(c->module, funname);
 
   if(func != NULL)
     return func;
 
-  LLVMTypeRef result = rtype_g.use_type;
-
-  // Generate the function type and the function prototype.
-  LLVMTypeRef ftype = LLVMFunctionType(result, tparams, (int)count, false);
+  // Generate the function prototype.
   func = codegen_addfun(c, funname, ftype);
   name_params(params, func);
 
@@ -317,6 +362,13 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
 
   // Pause, otherwise the optimiser will run on what we have so far.
   codegen_pausefun(c);
+}
+
+LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,
+  ast_t* typeargs)
+{
+  ast_t* fun = get_fun(g, name, typeargs);
+  return get_signature(c, g, fun);
 }
 
 LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
