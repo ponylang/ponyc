@@ -4,6 +4,7 @@ class Response val
   """
   An HTTP response object.
   """
+  var _proto: String = ""
   var _status: U16 = 0
   var _status_text: String = ""
   let _headers: Map[String, String] = Map[String, String]
@@ -14,6 +15,19 @@ class Response val
     Create a new response, which will be filled in as data is parsed.
     """
     None
+
+  fun proto(): String =>
+    """
+    Get the response protocol.
+    """
+    _proto
+
+  fun ref set_proto(to: String): Response ref^ =>
+    """
+    Set the response protocol.
+    """
+    _proto = to
+    this
 
   fun status(): U16 =>
     """

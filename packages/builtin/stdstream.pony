@@ -68,8 +68,18 @@ actor StdStream
     """
     Write the bytes without explicitly flushing.
     """
-    if Platform.linux() then
-      @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _stream)
-    else
-      @fwrite[U64](data.cstring(), U64(1), data.size(), _stream)
+    let len = data.size()
+    var offset = U64(0)
+
+    while offset < len do
+      let r =
+        if Platform.linux() then
+          @fwrite_unlocked[U64](data.cstring()._offset_tag(offset),
+            U64(1), data.size() - offset, _stream)
+        else
+          @fwrite[U64](data.cstring()._offset_tag(offset),
+            U64(1), data.size() - offset, _stream)
+        end
+
+      offset = offset + r
     end

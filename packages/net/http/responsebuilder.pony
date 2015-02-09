@@ -67,6 +67,7 @@ class _ResponseBuilder is TCPConnectionNotify
 
     if _state is _ResponseReady then
       _client._response(_response = Response)
+      _state = _ResponseStatus
     end
 
   fun ref _close() =>
@@ -88,7 +89,14 @@ class _ResponseBuilder is TCPConnectionNotify
       let line = _buffer.line()
 
       try
-        Fact(line.at("HTTP/1.1 ", 0))
+        if line.at("HTTP/1.1 ", 0) then
+          _response.set_proto("HTTP/1.1")
+        elseif line.at("HTTP/1.0 ", 0) then
+          _response.set_proto("HTTP/1.0")
+        else
+          error
+        end
+
         _response.set_status(line.u16(9))
 
         let offset = line.find(" ", 9)
@@ -122,10 +130,11 @@ class _ResponseBuilder is TCPConnectionNotify
             _close()
           end
         else
-          _state = if _content_length > 0 then
-            _ResponseBody
+          if _content_length > 0 then
+            _state = _ResponseBody
+            _parse()
           else
-            _ResponseReady
+            _state = _ResponseReady
           end
           return
         end

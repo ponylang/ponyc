@@ -198,6 +198,10 @@ class URL
       end
     end
 
+    if (path.size() == 0) and ((scheme.size() > 0) or (host.size() > 0)) then
+      path = "/"
+    end
+
   fun tag _hex(value: U8): U8 ? =>
     """
     Treat an ASCII byte as a hex value.

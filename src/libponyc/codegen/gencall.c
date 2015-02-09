@@ -183,15 +183,15 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, gentype_t* g,
     func = gendesc_vtable(c, l_value, index);
 
     // Cast to the right function type.
-    LLVMValueRef proto = genfun_proto(c, g, method_name, typeargs);
+    LLVMTypeRef f_type = genfun_sig(c, g, method_name, typeargs);
 
-    if(proto == NULL)
+    if(f_type == NULL)
     {
-      ast_error(from, "couldn't locate '%s'", method_name);
+      ast_error(from, "couldn't create a signature for '%s'", method_name);
       return NULL;
     }
 
-    LLVMTypeRef f_type = LLVMTypeOf(proto);
+    f_type = LLVMPointerType(f_type, 0);
     func = LLVMBuildBitCast(c->builder, func, f_type, "method");
   } else {
     // Static, get the actual function.
