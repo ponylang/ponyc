@@ -16,6 +16,31 @@ static LLVMPassManagerBuilderRef pmb;
 static LLVMPassManagerRef mpm;
 static LLVMPassManagerRef lpm;
 
+struct compile_local_t
+{
+  const char* name;
+  LLVMValueRef alloca;
+};
+
+static uint64_t compile_local_hash(compile_local_t* p)
+{
+  return hash_ptr(p->name);
+}
+
+static bool compile_local_cmp(compile_local_t* a, compile_local_t* b)
+{
+  return a->name == b->name;
+}
+
+static void compile_local_free(compile_local_t* p)
+{
+  POOL_FREE(compile_local_t, p);
+}
+
+DEFINE_HASHMAP(compile_locals, compile_local_t, compile_local_hash,
+  compile_local_cmp, pool_alloc_size, pool_free_size, compile_local_free,
+  NULL);
+
 static void fatal_error(const char* reason)
 {
   printf("%s\n", reason);
@@ -26,6 +51,7 @@ static compile_frame_t* push_frame(compile_t* c)
 {
   compile_frame_t* frame = POOL_ALLOC(compile_frame_t);
   memset(frame, 0, sizeof(compile_frame_t));
+  compile_locals_init(&frame->locals, 0);
 
   frame->prev = c->frame;
   c->frame = frame;
@@ -36,6 +62,8 @@ static compile_frame_t* push_frame(compile_t* c)
 static void pop_frame(compile_t* c)
 {
   compile_frame_t* frame = c->frame;
+  compile_locals_destroy(&frame->locals);
+
   c->frame = frame->prev;
   POOL_FREE(compile_frame_t, frame);
 }
@@ -548,6 +576,35 @@ void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target)
 void codegen_poptry(compile_t* c)
 {
   pop_frame(c);
+}
+
+LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
+{
+  compile_frame_t* frame = c->frame;
+
+  compile_local_t k;
+  k.name = name;
+
+  while(frame != NULL)
+  {
+    compile_local_t* p = compile_locals_get(&frame->locals, &k);
+
+    if(p != NULL)
+      return p->alloca;
+
+    frame = frame->prev;
+  }
+
+  return NULL;
+}
+
+void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca)
+{
+  compile_local_t* p = POOL_ALLOC(compile_local_t);
+  p->name = name;
+  p->alloca = alloca;
+
+  compile_locals_put(&c->frame->locals, p);
 }
 
 LLVMValueRef codegen_fun(compile_t* c)
