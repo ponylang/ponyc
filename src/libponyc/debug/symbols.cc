@@ -120,7 +120,7 @@ static debug_sym_t* get_entry(symbols_t* symbols, const char* name)
     return value;
   }
 
-  value->kind &= ~SYMBOL_NEW;
+  value->kind &= (uint16_t)~SYMBOL_NEW;
   return value;
 }
 
