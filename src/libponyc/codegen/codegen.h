@@ -49,6 +49,7 @@ typedef struct compile_t
 {
   pass_opt_t* opt;
 
+  LLVMPassManagerBuilderRef pmb;
   LLVMPassManagerRef mpm;
   LLVMPassManagerRef lpm;
   reachable_types_t* reachable;
