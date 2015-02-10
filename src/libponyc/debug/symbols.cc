@@ -345,11 +345,10 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta, LLVMValueRef ir)
 {
-  printf("method: %s\n", meta->name);
   // Emit debug info for the subroutine type.
   VLA(MDNode*, params, meta->size);
 
-  symbol_t* current = get_anchor(symbols, meta->params[0]);
+  debug_sym_t* current = get_anchor(symbols, meta->params[0]);
   params[0] = current->anchor->type;
 
   for(size_t i = 1; i < meta->size; i++)
@@ -378,10 +377,10 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
 
   if(frame->members != NULL)
   {
+    assert(frame->index <= frame->size);
     subnodes_t* subnodes = frame->members;
     subnodes->children[frame->index] = fun;
     frame->index += 1;
-    assert(frame->index <= frame->size);
   }
 }
 

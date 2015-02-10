@@ -169,7 +169,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
 }
 
 static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, ast_t* fun)
+  ast_t* typeargs, ast_t* fun, bool dwarf)
 {
   // Get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
@@ -257,7 +257,8 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     default: {}
   }
 
-  dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
+  if(dwarf)
+    dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
 
   return func;
 }
@@ -389,14 +390,14 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  return get_prototype(c, g, name, typeargs, fun);
+  return get_prototype(c, g, name, typeargs, fun, false);
 }
 
 static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
     return NULL;
@@ -428,7 +429,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
     return NULL;
@@ -473,7 +474,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
     return NULL;
@@ -503,7 +504,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
     return NULL;
