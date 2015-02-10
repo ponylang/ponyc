@@ -374,6 +374,13 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
 LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
+  // If the function already exists, return its type.
+  const char* funname = genname_fun(g->type_name, name, typeargs);
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
+
+  if(func != NULL)
+    return LLVMGetElementType(LLVMTypeOf(func));
+
   ast_t* fun = get_fun(g, name, typeargs);
   return get_signature(c, g, fun);
 }
