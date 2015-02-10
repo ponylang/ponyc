@@ -7,14 +7,6 @@
 #include <ctype.h>
 #include <assert.h>
 
-typedef struct symbol_t
-{
-  const char* name;
-  void* value;
-  sym_status_t status;
-  size_t branch_count;
-} symbol_t;
-
 static uint64_t sym_hash(symbol_t* sym)
 {
   return hash_ptr(sym->name);
@@ -54,7 +46,6 @@ static const char* name_without_case(const char* name)
   return stringtab(buf);
 }
 
-DECLARE_HASHMAP(symtab, symbol_t);
 DEFINE_HASHMAP(symtab, symbol_t, sym_hash, sym_cmp, pool_alloc_size,
   pool_free_size, sym_free, NULL);
 
@@ -243,27 +234,6 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
       }
 
       symtab_put(dst, dsym);
-    }
-  }
-}
-
-void symtab_consolidate_branches(symtab_t* symtab, size_t count)
-{
-  size_t i = HASHMAP_BEGIN;
-  symbol_t* sym;
-
-  while((sym = symtab_next(symtab, &i)) != NULL)
-  {
-    if(sym->status == SYM_UNDEFINED)
-    {
-      assert(sym->branch_count <= count);
-
-      if(sym->branch_count == count)
-      {
-        sym->status = SYM_DEFINED;
-      } else {
-        sym->branch_count = 0;
-      }
     }
   }
 }

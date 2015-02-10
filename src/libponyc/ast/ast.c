@@ -623,7 +623,29 @@ void ast_inheritbranch(ast_t* dst, ast_t* src)
 
 void ast_consolidate_branches(ast_t* ast, size_t count)
 {
-  symtab_consolidate_branches(ast->symtab, count);
+  size_t i = HASHMAP_BEGIN;
+  symbol_t* sym;
+
+  while((sym = symtab_next(ast->symtab, &i)) != NULL)
+  {
+    sym_status_t status;
+    ast_get(ast->parent, sym->name, &status);
+
+    if(sym->status == SYM_UNDEFINED)
+    {
+      assert(sym->branch_count <= count);
+
+      if((status == SYM_DEFINED) || (sym->branch_count == count))
+      {
+        // If we see it as defined from a parent scope, always end up defined.
+        // If we it's defined in all the branched, it's also defined.
+        sym->status = SYM_DEFINED;
+      } else {
+        // It wasn't defined in all branches. Stay undefined.
+        sym->branch_count = 0;
+      }
+    }
+  }
 }
 
 bool ast_merge(ast_t* dst, ast_t* src)
@@ -654,6 +676,45 @@ bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name)
   } while((inner != NULL) && (token_get_id(inner->t) != TK_PROGRAM));
 
   return false;
+}
+
+bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner)
+{
+  ast_t* from = inner;
+  bool ok = true;
+
+  do
+  {
+    if(inner->symtab != NULL)
+    {
+      size_t i = HASHMAP_BEGIN;
+      symbol_t* sym;
+
+      while((sym = symtab_next(inner->symtab, &i)) != NULL)
+      {
+        // If it's consumed, and has a null value, it's from outside of this
+        // scope. We need to know if it's outside the loop scope.
+        if((sym->status == SYM_CONSUMED) && (sym->value == NULL))
+        {
+          if(!ast_within_scope(outer, inner, sym->name))
+          {
+            ast_t* def = ast_get(inner, sym->name, NULL);
+            ast_error(from, "identifier '%s' is consumed when the loop exits",
+              sym->name);
+            ast_error(def, "consumed identifier is defined here");
+            ok = false;
+          }
+        }
+      }
+    }
+
+    if(inner == outer)
+      break;
+
+    inner = inner->scope;
+  } while((inner != NULL) && (token_get_id(inner->t) != TK_PROGRAM));
+
+  return ok;
 }
 
 void ast_clear(ast_t* ast)

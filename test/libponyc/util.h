@@ -1,6 +1,7 @@
 #ifndef UNIT_UTIL_H
 #define UNIT_UTIL_H
 
+#include <gtest/gtest.h>
 #include <platform.h>
 
 #include <ast/ast.h>
@@ -9,10 +10,6 @@
 
 // Provide a short alias for ASSERT_NO_FATAL_FAILURE
 #define DO(...) ASSERT_NO_FATAL_FAILURE(__VA_ARGS__)
-
-/// Find the first occurance of the specified node ID in the given tree.
-/// @return The found sub tree or NULL if not found
-ast_t* find_sub_tree(ast_t* tree, token_id sub_id);
 
 /** Build an AST based on the given description, checking for errors.
  * Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
@@ -39,6 +36,8 @@ class PassTest : public testing::Test
 protected:
   ast_t* program; // AST produced from given source
   ast_t* package; // AST of first package, cache of ast_child(program)
+  ast_t* module;  // AST of first module in first package
+  ast_t* walk_ast; // AST walked to
 
   virtual void SetUp();
   virtual void TearDown();
@@ -51,6 +50,10 @@ protected:
 
   // Override the default path of the main package (useful for package loops)
   void default_package_name(const char* path);
+
+  // Count the number of symbol table references to the specified name in all
+  // symbol tables in the given tree
+  size_t ref_count(ast_t* ast, const char* name);
 
 
   // Test methods.
@@ -75,10 +78,45 @@ protected:
   // first package
   void test_package_ast(const char* src, const char* pass, const char* desc);
 
+  // Check that the given node is the specified ID and has the specified ID
+  //void check_node(token_id id, const char* name, ast_t* ast);
+
+  // Check that looking up the given name on the specified AST gives a node of
+  // the specified type with the given name.
+  // Walk to the newly looked up node.
+  void lookup(ast_t* ast, const char* name, token_id id);
+
+  // Check that looking up the given name on the specified AST gives NULL
+  void lookup_null(ast_t* ast, const char* name);
+
+  // Walk to the specified child of the current node
+  void child(size_t index);
+
+
 private:
   const char* _builtin_src;
   const char* _first_pkg_path;
 };
+
+
+// Macros to walk an AST and check the resulting node
+
+// Start a tree walk
+#define WALK_TREE(start) walk_ast = (start)
+
+// Walk to the specified symbol table entry at the current node. The specified
+// target must exist and must be of the specified token id.
+#define LOOKUP(name, id) DO(lookup(walk_ast, name, id))
+
+// Check that there is no symbol table entry for the specified name at the
+// current node
+#define LOOKUP_NULL(name) DO(lookup_null(walk_ast, name))
+
+// Walk to the specified child index of the current node
+#define CHILD(n) DO(child(n))
+
+// Walk to the body of the current node, which must be a method
+#define METHOD_BODY CHILD(6)
 
 
 #endif

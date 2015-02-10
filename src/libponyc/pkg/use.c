@@ -275,6 +275,7 @@ void use_register_std()
 {
   use_register_handler("file:", true, use_package);
   use_register_handler("lib:", true, use_library);
+  use_register_handler("path:", true, use_path);
 }
 
 

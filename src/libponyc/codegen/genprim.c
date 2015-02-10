@@ -214,9 +214,9 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef result = LLVMBuildLoad(c->builder, ptr, "");
   result = LLVMBuildBitCast(c->builder, result, elem_g->use_type, "");
 
-  LLVMValueRef src = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
+  LLVMValueRef dst = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
   LLVMValueRef offset = LLVMBuildMul(c->builder, n, l_size, "");
-  LLVMValueRef dst = LLVMBuildAdd(c->builder, src, offset, "");
+  LLVMValueRef src = LLVMBuildAdd(c->builder, dst, offset, "");
   LLVMValueRef elen = LLVMBuildMul(c->builder, len, l_size, "");
 
   LLVMValueRef args[3];
@@ -224,7 +224,7 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
   args[1] = LLVMBuildIntToPtr(c->builder, src, c->void_ptr, "");
   args[2] = elen;
 
-  // memmove(ptr + (n * sizeof(elem)), ptr, len * sizeof(elem))
+  // memmove(ptr, ptr + (n * sizeof(elem)), len * sizeof(elem))
   gencall_runtime(c, "memmove", args, 3, "");
 
   // Return ptr[0].

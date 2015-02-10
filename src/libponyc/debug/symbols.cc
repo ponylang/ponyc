@@ -26,7 +26,7 @@ using namespace llvm;
 using namespace llvm::dwarf;
 
 typedef struct anchor_t anchor_t;
-typedef struct symbol_t symbol_t;
+typedef struct debug_sym_t debug_sym_t;
 
 enum
 {
@@ -41,7 +41,7 @@ struct anchor_t
   DIType qualified;
 };
 
-struct symbol_t
+struct debug_sym_t
 {
   const char* name;
 
@@ -61,12 +61,12 @@ struct subnodes_t
   MDNode** children;
 };
 
-static uint64_t symbol_hash(symbol_t* symbol);
-static bool symbol_cmp(symbol_t* a, symbol_t* b);
-static void symbol_free(symbol_t* symbol);
+static uint64_t symbol_hash(debug_sym_t* symbol);
+static bool symbol_cmp(debug_sym_t* a, debug_sym_t* b);
+static void symbol_free(debug_sym_t* symbol);
 
-DECLARE_HASHMAP(symbolmap, symbol_t);
-DEFINE_HASHMAP(symbolmap, symbol_t, symbol_hash, symbol_cmp,
+DECLARE_HASHMAP(symbolmap, debug_sym_t);
+DEFINE_HASHMAP(symbolmap, debug_sym_t, symbol_hash, symbol_cmp,
   pool_alloc_size, pool_free_size, symbol_free, NULL);
 
 struct symbols_t
@@ -79,17 +79,17 @@ struct symbols_t
   bool release;
 };
 
-static uint64_t symbol_hash(symbol_t* symbol)
+static uint64_t symbol_hash(debug_sym_t* symbol)
 {
   return hash_ptr(symbol->name);
 }
 
-static bool symbol_cmp(symbol_t* a, symbol_t* b)
+static bool symbol_cmp(debug_sym_t* a, debug_sym_t* b)
 {
   return a->name == b->name;
 }
 
-static void symbol_free(symbol_t* symbol)
+static void symbol_free(debug_sym_t* symbol)
 {
   // None of the symbols can be new, because we are not generating debug info
   // for unused types.
@@ -98,20 +98,20 @@ static void symbol_free(symbol_t* symbol)
   if(symbol->kind == SYMBOL_ANCHOR)
     POOL_FREE(anchor_t, symbol->anchor);
 
-  POOL_FREE(symbol_t, symbol);
+  POOL_FREE(debug_sym_t, symbol);
 }
 
-static symbol_t* get_entry(symbols_t* symbols, const char* name)
+static debug_sym_t* get_entry(symbols_t* symbols, const char* name)
 {
-  symbol_t key;
+  debug_sym_t key;
   key.name = name;
 
-  symbol_t* value = symbolmap_get(&symbols->map, &key);
+  debug_sym_t* value = symbolmap_get(&symbols->map, &key);
 
   if(value == NULL)
   {
-    value = POOL_ALLOC(symbol_t);
-    memset(value, 0, sizeof(symbol_t));
+    value = POOL_ALLOC(debug_sym_t);
+    memset(value, 0, sizeof(debug_sym_t));
 
     value->name = key.name;
     value->kind = SYMBOL_NEW;
@@ -120,13 +120,13 @@ static symbol_t* get_entry(symbols_t* symbols, const char* name)
     return value;
   }
 
-  value->kind &= ~SYMBOL_NEW;
+  value->kind &= (uint16_t)~SYMBOL_NEW;
   return value;
 }
 
 static DIFile get_file(symbols_t* symbols, const char* fullpath)
 {
-  symbol_t* symbol = get_entry(symbols, fullpath);
+  debug_sym_t* symbol = get_entry(symbols, fullpath);
 
   if(symbol->kind & SYMBOL_NEW)
   {
@@ -140,9 +140,9 @@ static DIFile get_file(symbols_t* symbols, const char* fullpath)
   return (DIFile)symbol->file;
 }
 
-static symbol_t* get_anchor(symbols_t* symbols, const char* name)
+static debug_sym_t* get_anchor(symbols_t* symbols, const char* name)
 {
-  symbol_t* symbol = get_entry(symbols, name);
+  debug_sym_t* symbol = get_entry(symbols, name);
 
   if(symbol->kind & SYMBOL_NEW)
   {
@@ -183,7 +183,7 @@ void symbols_package(symbols_t* symbols, const char* path, const char* name)
 
 void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* basic = get_anchor(symbols, meta->name);
+  debug_sym_t* basic = get_anchor(symbols, meta->name);
 
   if(basic->kind & SYMBOL_NEW)
   {
@@ -219,8 +219,8 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* pointer = get_anchor(symbols, meta->name);
-  symbol_t* typearg = get_anchor(symbols, meta->typearg);
+  debug_sym_t* pointer = get_anchor(symbols, meta->name);
+  debug_sym_t* typearg = get_anchor(symbols, meta->typearg);
 
   anchor_t* symbol = pointer->anchor;
   anchor_t* target = typearg->anchor;
@@ -237,7 +237,7 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 {
-  symbol_t* trait = get_anchor(symbols, meta->name);
+  debug_sym_t* trait = get_anchor(symbols, meta->name);
 
   if(trait->kind & SYMBOL_NEW)
   {
@@ -259,7 +259,7 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_unspecified(symbols_t* symbols, const char* name)
 {
-  symbol_t* type = get_anchor(symbols, name);
+  debug_sym_t* type = get_anchor(symbols, name);
 
   anchor_t* unspecified = type->anchor;
   unspecified->type = symbols->builder->createUnspecifiedType(name);
@@ -269,7 +269,7 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta)
 {
-  symbol_t* symbol = get_anchor(symbols, meta->name);
+  debug_sym_t* symbol = get_anchor(symbols, meta->name);
 
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
@@ -322,7 +322,7 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
   if(meta->flags & DWARF_PRIVATE)
     visibility = DW_ACCESS_private;
 
-  symbol_t* field_symbol = get_anchor(symbols, meta->typearg);
+  debug_sym_t* field_symbol = get_anchor(symbols, meta->typearg);
 
   DIType use_type = DIType();
 
@@ -406,7 +406,7 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   if(meta->flags & DWARF_TUPLE)
   {
-    symbol_t* symbol = get_anchor(symbols, meta->name);
+    debug_sym_t* symbol = get_anchor(symbols, meta->name);
     anchor_t* tuple = symbol->anchor;
 
     tuple->type = actual = symbols->builder->createStructType(symbols->unit,

@@ -153,11 +153,11 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
     const char* name = ast_name(id);
     LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
+    // Store the alloca to use when we reference this local.
+    codegen_setlocal(c, name, l_value);
+
     // Put the builder back where it was.
     LLVMPositionBuilderAtEnd(c->builder, this_block);
-
-    ast_t* def = ast_get(ast, name, NULL);
-    ast_setdata(def, l_value);
 
     id = ast_sibling(id);
   }
@@ -167,13 +167,10 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_localptr(compile_t* c, ast_t* ast)
 {
-  (void)c;
-
   ast_t* id = ast_child(ast);
   const char* name = ast_name(id);
-  ast_t* def = ast_get(ast, name, NULL);
 
-  LLVMValueRef value = (LLVMValueRef)ast_data(def);
+  LLVMValueRef value = codegen_getlocal(c, name);
   assert(value != NULL);
 
   return value;

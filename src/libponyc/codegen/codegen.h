@@ -28,6 +28,9 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 
 #define GEN_NOTNEEDED (LLVMConstInt(c->i1, 1, false))
 
+typedef struct compile_local_t compile_local_t;
+DECLARE_HASHMAP(compile_locals, compile_local_t);
+
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
@@ -36,6 +39,8 @@ typedef struct compile_frame_t
   LLVMBasicBlockRef break_target;
   LLVMBasicBlockRef continue_target;
   LLVMBasicBlockRef invoke_target;
+
+  compile_locals_t locals;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -149,6 +154,10 @@ void codegen_poploop(compile_t* c);
 void codegen_pushtry(compile_t* c, LLVMBasicBlockRef invoke_target);
 
 void codegen_poptry(compile_t* c);
+
+LLVMValueRef codegen_getlocal(compile_t* c, const char* name);
+
+void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca);
 
 LLVMValueRef codegen_fun(compile_t* c);
 

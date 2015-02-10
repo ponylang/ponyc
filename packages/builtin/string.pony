@@ -140,7 +140,7 @@ class String val is Ordered[String box], Stringable
     null terminator. Does not check for null terminators inside the string.
     """
     _size = len.min(_alloc - 1)
-    _ptr._update(_size + 1, 0)
+    _ptr._update(_size, 0)
     this
 
   fun utf32(offset: I64): (U32, U8) ? =>
@@ -350,15 +350,12 @@ class String val is Ordered[String box], Stringable
     Returns true if the substring s is present at the given offset.
     """
     var i = offset_to_index(offset)
-    var j: U64 = 0
 
-    while j < s._size do
-      if _ptr._apply(i + j) != s._ptr._apply(j) then
-        return false
-      end
-      j = j + 1
+    if (i + s.size()) <= _size then
+      @memcmp[I32](_ptr._offset(i), s._ptr, s._size) == 0
+    else
+      false
     end
-    false
 
   fun ref delete(offset: I64, len: U64): String ref^ =>
     """
@@ -367,7 +364,7 @@ class String val is Ordered[String box], Stringable
     var i = offset_to_index(offset)
 
     if i < _size then
-      var n = len.min(_size - i)
+      let n = len.min(_size - i)
       _size = _size - n
       _ptr._offset(i)._delete(n, _size - i)
       _ptr._update(_size, 0)
@@ -490,6 +487,24 @@ class String val is Ordered[String box], Stringable
     _ptr._update(_size, 0)
     this
 
+  fun ref append_array(array: Array[U8] box, offset: U64 = 0, len: U64 = -1):
+    String ref^
+  =>
+    """
+    Append the bytes from an array, starting from the given offset.
+    """
+    if offset >= array.size() then
+      return this
+    end
+
+    let copy_len = len.min(array.size() - offset)
+    reserve(_size + copy_len)
+
+    array._cstring()._offset(offset)._copy_to(_ptr._offset(_size), copy_len)
+    _size = _size + copy_len
+    _ptr._update(_size, 0)
+    this
+
   fun insert(offset: I64, that: String): String iso^ =>
     """
     Returns a version of the string with the given string inserted at the given
@@ -559,6 +574,45 @@ class String val is Ordered[String box], Stringable
       end
     end
     n
+
+  fun ref trim(): String ref^ =>
+    """
+    Trim leading and trailing whitespace. Whitespace is defined as ' ', \t,
+    \v, \f, \r, \n.
+    """
+    if _size > 0 then
+      var i = U64(0)
+
+      while i < _size do
+        match _ptr._apply(i)
+        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
+        else
+          break
+        end
+
+        i = i + 1
+      end
+
+      if i > 0 then
+        delete(0, i)
+      end
+    end
+
+    if _size > 0 then
+      var i = _size - 1
+
+      repeat
+        match _ptr._apply(i)
+        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
+        else
+          break
+        end
+      until (i = i - 1) == 0 end
+
+      truncate(i + 1)
+    end
+
+    this
 
   fun add(that: String box): String =>
     """

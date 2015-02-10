@@ -138,3 +138,20 @@ actor Main
         _env.out.print(value)
       end
     end
+
+  fun ref test_loop_consume() =>
+    var x: U64 = 0
+
+    while true do
+      x = 1
+      consume x
+
+      // if false then
+      //   break
+      // end
+
+      x = 1
+    else
+      x = 2
+    end
+    x
