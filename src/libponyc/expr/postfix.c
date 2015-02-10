@@ -27,6 +27,72 @@ static bool is_method_called(ast_t* ast)
   return false;
 }
 
+static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
+  ast_t** resultp)
+{
+  switch(ast_id(type))
+  {
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          ast_setid(ast, TK_NEWREF);
+          break;
+
+        case TK_TYPE:
+          ast_error(ast, "can't call a constructor on a type alias: %s",
+            ast_print_type(type));
+          return false;
+
+        case TK_INTERFACE:
+          ast_error(ast, "can't call a constructor on an interface: %s",
+            ast_print_type(type));
+          return false;
+
+        case TK_TRAIT:
+          ast_error(ast, "can't call a constructor on a trait: %s",
+            ast_print_type(type));
+          return false;
+
+        default:
+          assert(0);
+          return false;
+      }
+      return true;
+    }
+
+    case TK_TYPEPARAMREF:
+    {
+      // Alter the return type of the method.
+      type = ast_dup(type);
+
+      AST_GET_CHILDREN(type, tid, tcap, teph);
+      ast_setid(tcap, cap);
+      ast_setid(teph, TK_EPHEMERAL);
+      ast_replace(resultp, type);
+
+      ast_setid(ast, TK_NEWREF);
+      return true;
+    }
+
+    case TK_ARROW:
+    {
+      AST_GET_CHILDREN(type, left, right);
+      return constructor_type(ast, cap, right, resultp);
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
 static bool method_access(ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
@@ -42,60 +108,8 @@ static bool method_access(ast_t* ast, ast_t* method)
       if(type == NULL)
         return false;
 
-      ast_t* def = (ast_t*)ast_data(type);
-
-      switch(ast_id(type))
-      {
-        case TK_NOMINAL:
-        {
-          switch(ast_id(def))
-          {
-            case TK_PRIMITIVE:
-            case TK_CLASS:
-            case TK_ACTOR:
-              ast_setid(ast, TK_NEWREF);
-              break;
-
-            case TK_TYPE:
-              ast_error(ast, "can't call a constructor on a type alias: %s",
-                ast_print_type(type));
-              return false;
-
-            case TK_INTERFACE:
-              ast_error(ast, "can't call a constructor on an interface: %s",
-                ast_print_type(type));
-              return false;
-
-            case TK_TRAIT:
-              ast_error(ast, "can't call a constructor on a trait: %s",
-                ast_print_type(type));
-              return false;
-
-            default:
-              assert(0);
-              return false;
-          }
-          break;
-        }
-
-        case TK_TYPEPARAMREF:
-        {
-          // Alter the return type of the method.
-          type = ast_dup(type);
-
-          AST_GET_CHILDREN(type, tid, tcap, teph);
-          ast_setid(tcap, ast_id(cap));
-          ast_setid(teph, TK_EPHEMERAL);
-          ast_replace(&result, type);
-
-          ast_setid(ast, TK_NEWREF);
-          break;
-        }
-
-        default:
-          assert(0);
-          return false;
-      }
+      if(!constructor_type(ast, ast_id(cap), type, &result))
+        return false;
       break;
     }
 
