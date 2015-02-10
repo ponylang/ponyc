@@ -9,18 +9,22 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct program_t program_t;
 
-/// Create a program_t to add to a TK_PROGRAM AST node
+/// Create a program_t to add to a TK_PROGRAM AST node.
 program_t* program_create();
 
-/// Free the given program_t
+/// Free the given program_t.
 void program_free(program_t* program);
 
 /// Assign the next package ID from the program at the root of the given AST.
 /// The actual AST node passed in may be anywhere in the tree.
 uint32_t program_assign_pkg_id(ast_t* ast);
 
-/// Process a "lib:" scheme use command
+/// Process a "lib:" scheme use command.
 bool use_library(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options);
+
+/// Process a "path:" scheme use command.
+bool use_path(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options);
 
 /** Build the required linker arguments based on the libraries we're using.
