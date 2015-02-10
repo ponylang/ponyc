@@ -10,357 +10,308 @@
 
 #include "util.h"
 
-class ScopeTest: public testing::Test
-{
-protected:
-  ast_t* ast;
-  ast_t* package;
-  ast_t* target;
-  builder_t* builder;
-  pass_opt_t opt;
 
-  virtual void SetUp()
-  {
-    use_clear_handlers();
-    use_register_std();
-    package_add_magic("builtin", "primitive U32");
-    pass_opt_init(&opt);
-    limit_passes(&opt, "scope");
-  }
-
-  virtual void TearDown()
-  {
-    pass_opt_done(&opt);
-    builder_free(builder);
-  }
-
-  void build(const char* desc)
-  {
-    DO(build_ast_from_string(desc, &ast, &builder));
-    target = builder_find_sub_tree(builder, "target");
-    package = find_sub_tree(ast, TK_PACKAGE);
-    ASSERT_NE((void*)NULL, package);
-  }
-
-  void symtab_entry(token_id scope_id, const char* name, ast_t* expect)
-  {
-    ast_t* scope = find_sub_tree(ast, scope_id);
-    ASSERT_NE((void*)NULL, scope);
-    symtab_t* symtab = ast_get_symtab(scope);
-    ASSERT_NE((void*)NULL, symtab);
-    ASSERT_EQ(expect, symtab_find(symtab, stringtab(name), NULL));
-  }
-
-  ast_result_t run_scope()
-  {
-    return ast_visit(&package, pass_scope, NULL, &opt);
-  }
-};
+#define TEST_COMPILE(src) DO(test_compile(src, "scope"))
+#define TEST_ERROR(src) DO(test_error(src, "scope"))
 
 
-TEST_F(ScopeTest, Var)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members (fvar{def target} (id foo) x x))))))";
-
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_CLASS, "foo", target));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, Let)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members (flet{def target} (id foo) x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_CLASS, "foo", target));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, Param)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope} ref (id wombat) x"
-    "        (params"
-    "          (param{def target} (id foo) nominal x))"
-    "        x x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_FUN, "foo", target));
-  DO(symtab_entry(TK_CLASS, "foo", NULL));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, New)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (new{scope}{def target} ref (id foo) x x x x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_NEW, "foo", NULL));
-  DO(symtab_entry(TK_CLASS, "foo", target));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, Be)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (be{scope}{def target} tag (id foo) x x x x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_BE, "foo", NULL));
-  DO(symtab_entry(TK_CLASS, "foo", target));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, Fun)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope}{def target} ref (id foo) x x x x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_FUN, "foo", NULL));
-  DO(symtab_entry(TK_CLASS, "foo", target));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, TypeParam)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope} ref (id wombat)"
-    "        (typeparams (typeparam{def target} (id Foo) x x)) x x x x))))))";
-
-  DO(build(tree));
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_FUN, "Foo", target));
-  DO(symtab_entry(TK_CLASS, "Foo", NULL));
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-}
-
-
-TEST_F(ScopeTest, Local)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope} ref (id wombat) x x x x"
-    "        (seq (= (var (idseq{def target} (id foo))) 3))))))))";
-
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_FUN, "foo", ast_child(target)));
-  DO(symtab_entry(TK_CLASS, "foo", NULL));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-}
-
-
-TEST_F(ScopeTest, MultipleLocals)
-{
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope} ref (id wombat) x x x x"
-    "        (seq (= (var"
-    "          (idseq{def target} (id foo)(id bar)(id aardvark))) 3))))))))";
-
-  DO(build(tree));
-
-  AST_GET_CHILDREN(target, foo_ast, bar_ast, aardvark_ast);
-
-  ASSERT_EQ(AST_OK, run_scope());
-
-  DO(symtab_entry(TK_FUN, "foo", foo_ast));
-  DO(symtab_entry(TK_FUN, "bar", bar_ast));
-  DO(symtab_entry(TK_FUN, "aardvark", aardvark_ast));
-  DO(symtab_entry(TK_CLASS, "foo", NULL));
-  DO(symtab_entry(TK_CLASS, "bar", NULL));
-  DO(symtab_entry(TK_CLASS, "aardvark", NULL));
-  DO(symtab_entry(TK_MODULE, "foo", NULL));
-  DO(symtab_entry(TK_MODULE, "bar", NULL));
-  DO(symtab_entry(TK_MODULE, "aardvark", NULL));
-}
+class ScopeTest : public PassTest
+{};
 
 
 TEST_F(ScopeTest, Actor)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (actor{scope}{def target} (id Foo) x x x x))))";
+  const char* src = "actor Foo";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
-  DO(symtab_entry(TK_ACTOR, "Foo", NULL));
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-  DO(symtab_entry(TK_PACKAGE, "Foo", target));
+  WALK_TREE(package);
+  LOOKUP("Foo", TK_ACTOR);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
 
 TEST_F(ScopeTest, Class)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope}{def target} (id Foo) x x x x))))";
+  const char* src = "class Foo";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
-  DO(symtab_entry(TK_CLASS, "Foo", NULL));
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-  DO(symtab_entry(TK_PACKAGE, "Foo", target));
+  WALK_TREE(package);
+  LOOKUP("Foo", TK_CLASS);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
 
-TEST_F(ScopeTest, Data)
+TEST_F(ScopeTest, Primitive)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (primitive{scope}{def target} (id Foo) x x x x))))";
+  const char* src = "primitive Foo";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
-  DO(symtab_entry(TK_PRIMITIVE, "Foo", NULL));
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-  DO(symtab_entry(TK_PACKAGE, "Foo", target));
+  WALK_TREE(package); 
+  LOOKUP("Foo", TK_PRIMITIVE);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
 
 TEST_F(ScopeTest, Trait)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (trait{scope}{def target} (id Foo) x x x x))))";
+  const char* src = "trait Foo";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
-  DO(symtab_entry(TK_TRAIT, "Foo", NULL));
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-  DO(symtab_entry(TK_PACKAGE, "Foo", target));
+  WALK_TREE(package);
+  LOOKUP("Foo", TK_TRAIT);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
 
-TEST_F(ScopeTest, Type)
+TEST_F(ScopeTest, Interface)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (type{def target} (id Foo) x))))";
+  const char* src = "interface Foo";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
-  DO(symtab_entry(TK_MODULE, "Foo", NULL));
-  DO(symtab_entry(TK_PACKAGE, "Foo", target));
+  WALK_TREE(package);
+  LOOKUP("Foo", TK_INTERFACE);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
+}
+
+
+TEST_F(ScopeTest, TypeAlias)
+{
+  const char* src = "type Foo is Bar";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("Foo", TK_TYPE);
+
+  ASSERT_EQ(1, ref_count(package, "Foo"));
+}
+
+
+TEST_F(ScopeTest, VarField)
+{
+  const char* src = "class C var foo: U32";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("C", TK_CLASS);
+  LOOKUP("foo", TK_FVAR);
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+}
+
+
+TEST_F(ScopeTest, LetField)
+{
+  const char* src = "class C let foo: U32";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("C", TK_CLASS);
+  LOOKUP("foo", TK_FLET);
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+}
+
+
+TEST_F(ScopeTest, Be)
+{
+  const char* src = "actor A be foo() => None";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_BE);
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+}
+
+
+TEST_F(ScopeTest, New)
+{
+  const char* src = "actor A new foo() => None";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_NEW);
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+}
+
+
+TEST_F(ScopeTest, Fun)
+{
+  const char* src = "actor A fun foo() => None";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_FUN);
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+}
+
+
+TEST_F(ScopeTest, FunParam)
+{
+  const char* src = "actor A fun foo(bar: U32) => None";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_FUN);
+  LOOKUP("bar", TK_PARAM);
+
+  ASSERT_EQ(1, ref_count(package, "bar"));
+}
+
+
+TEST_F(ScopeTest, TypeParam)
+{
+  const char* src = "actor A fun foo[T]() => None";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_FUN);
+  LOOKUP("T", TK_TYPEPARAM);
+
+  ASSERT_EQ(1, ref_count(package, "T"));
+}
+
+
+TEST_F(ScopeTest, Local)
+{
+  const char* src = "actor A fun foo() => var bar: U32 = 3";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("foo", TK_FUN);
+  LOOKUP("bar", TK_ID);
+
+  ASSERT_EQ(1, ref_count(package, "bar"));
+}
+
+
+TEST_F(ScopeTest, MultipleLocals)
+{
+  const char* src =
+    "actor A\n"
+    "  fun wombat() =>"
+    "    var (foo, bar, aardvark): U32";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("wombat", TK_FUN);
+  ast_t* wombat_ast = walk_ast;
+
+  DO(lookup(wombat_ast, "foo", TK_ID));
+  DO(lookup(wombat_ast, "bar", TK_ID));
+  DO(lookup(wombat_ast, "aardvark", TK_ID));
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(package, "bar"));
+  ASSERT_EQ(1, ref_count(package, "aardvark"));
 }
 
 
 TEST_F(ScopeTest, SameScopeNameClash)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fvar (id foo) x x)"
-    "      (flet (id foo) x x))))))";
+  const char* src1 =
+    "actor A\n"
+    "  fun foo() =>\n"
+    "    var bar1: U32 = 3\n"
+    "    var bar2: U32 = 4";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_ERROR, run_scope());
+  TEST_COMPILE(src1);
+
+  const char* src2 =
+    "actor A\n"
+    "  fun foo() =>\n"
+    "    var bar: U32 = 3\n"
+    "    var bar: U32 = 4";
+
+  TEST_ERROR(src2);
 }
 
 
 TEST_F(ScopeTest, ParentScopeNameClash)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope}"
-    "  (class{scope} (id Bar) x x x"
-    "    (members"
-    "      (fun{scope} ref (id foo) x"
-    "        (params"
-    "          (param (id foo) nominal x)) x x x))))))";
+  const char* src1 =
+    "actor A\n"
+    "  fun foo(foo2:U32) => 3";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_ERROR, run_scope());
+  TEST_COMPILE(src1);
+
+  const char* src2 =
+    "actor A\n"
+    "  fun foo(foo:U32) => 3";
+
+  TEST_ERROR(src2);
 }
 
 
 TEST_F(ScopeTest, SiblingScopeNoClash)
 {
-  const char* tree =
-    "(program{scope} (package{scope}"
-    "  (module{scope}"
-    "    (class{scope} (id Bar1) x x x"
-    "      (members"
-    "        (fun{scope} ref (id foo) x x x x x)))"
-    "    (class{scope} (id Bar2) x x x"
-    "      (members"
-    "        (fun{scope} ref (id foo) x x x x x))))))";
+  const char* src =
+    "actor A1\n"
+    "  fun foo(foo2:U32) => 3\n"
+    "actor A2\n"
+    "  fun foo(foo2:U32) => 3";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 }
 
 
 TEST_F(ScopeTest, Package)
 {
-  const char* tree =
-    "(program{scope} (package{scope} (module{scope})))";
+  const char* src = "actor A";
 
-  DO(build(tree));
-  ASSERT_EQ(AST_OK, run_scope());
+  TEST_COMPILE(src);
 
   // Builtin types go in the module symbol table
-  ast_t* module = find_sub_tree(ast, TK_MODULE);
-  symtab_t* package_symtab = ast_get_symtab(module);
-  ASSERT_NE((void*)NULL, symtab_find(package_symtab, stringtab("U32"), NULL));
+  WALK_TREE(module);
+  LOOKUP("U32", TK_PRIMITIVE);
+
+  ASSERT_EQ(1, ref_count(package, "U32"));
+}
+
+
+/*
+TEST_F(ScopeTest, Use)
+{
+  const char* src =
+    "use \n"
+    "actor A";
+
+  TEST_COMPILE(src);
+
+  // Builtin types go in the module symbol table
+  WALK_TREE(module);
+  LOOKUP("U32", TK_PRIMITIVE);
+
+  ASSERT_EQ(1, ref_count(package, "U32"));
 }
 
 
@@ -447,3 +398,4 @@ TEST_F(ScopeTest, UseConditionFalse)
   symtab_t* module_symtab = ast_get_symtab(module);
   ASSERT_EQ((void*)NULL, symtab_find(module_symtab, stringtab("Foo"), NULL));
 }
+*/
