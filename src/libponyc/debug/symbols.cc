@@ -273,12 +273,13 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
+  memset(nodes, 0, sizeof(subnodes_t));
 
-  assert(frame->size > 0);
-
-  nodes->offset = 0;
-  nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
-  memset(nodes->children, 0, frame->size*sizeof(MDNode*));
+  if(frame->size > 0)
+  {
+    nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
+    memset(nodes->children, 0, frame->size*sizeof(MDNode*));
+  }
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -338,25 +339,25 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->offset += meta->size;
   frame->index += 1;
+  assert(frame->index <= frame->size);
 }
 
 void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta, LLVMValueRef ir)
 {
+  printf("method: %s\n", meta->name);
   // Emit debug info for the subroutine type.
   VLA(MDNode*, params, meta->size);
 
-  symbol_t* current = NULL;
+  symbol_t* current = get_anchor(symbols, meta->params[0]);
+  params[0] = current->anchor->type;
 
-  for(size_t i = 0; i < meta->size; i++)
+  for(size_t i = 1; i < meta->size; i++)
   {
     current = get_anchor(symbols, meta->params[i]);
     assert((current->kind & SYMBOL_NEW) == 0);
 
-    if(i == 0)
-      params[i] = current->anchor->type;
-    else
-      params[i] = current->anchor->qualified;
+    params[i] = current->anchor->qualified;
   }
 
   DIFile file = get_file(symbols, meta->file);
@@ -380,6 +381,7 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
     subnodes_t* subnodes = frame->members;
     subnodes->children[frame->index] = fun;
     frame->index += 1;
+    assert(frame->index <= frame->size);
   }
 }
 
@@ -418,7 +420,11 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
+  if(frame->size > 0)
+  {
+    pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
+  }
+
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
 }

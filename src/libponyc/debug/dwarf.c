@@ -16,11 +16,13 @@
  * Every call to dwarf_forward causes a dwarf_frame_t to be pushed onto
  * the stack.
  */
-static dwarf_frame_t* push_frame(dwarf_t* dwarf)
+static dwarf_frame_t* push_frame(dwarf_t* dwarf, gentype_t* g, size_t methods)
 {
   dwarf_frame_t* frame = POOL_ALLOC(dwarf_frame_t);
   memset(frame, 0, sizeof(dwarf_frame_t));
 
+  frame->type_name = g->type_name;
+  frame->size = g->field_count + methods;
   frame->prev = dwarf->frame;
   dwarf->frame = frame;
 
@@ -112,7 +114,7 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
 
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 {
-  push_frame(dwarf);
+  push_frame(dwarf, g, 0);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
@@ -122,7 +124,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
 {
-  push_frame(dwarf);
+  push_frame(dwarf, g, 0);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
@@ -144,8 +146,7 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
 
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods)
 {
-  dwarf_frame_t* frame = push_frame(dwarf);
-  frame->size = g->field_count + methods;
+  dwarf_frame_t* frame = push_frame(dwarf, g, methods);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, true);

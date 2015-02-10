@@ -41,6 +41,7 @@ struct dwarf_t
 
 struct dwarf_frame_t
 {
+  const char* type_name;
   size_t size;
   size_t index;
   subnodes_t* members;
