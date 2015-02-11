@@ -5,7 +5,7 @@
 #include <assert.h>
 
 
-// Per program state
+// Per program state.
 typedef struct program_t
 {
   uint32_t next_package_id;
@@ -16,7 +16,7 @@ typedef struct program_t
 } program_t;
 
 
-// Append the given text to the program's lib args, handling reallocs
+// Append the given text to the program's lib args, handling reallocs.
 static void append_to_args(program_t* program, const char* text)
 {
   assert(program != NULL);
@@ -71,7 +71,7 @@ uint32_t program_assign_pkg_id(ast_t* ast)
   return data->next_package_id++;
 }
 
-/// Process a "lib:" scheme use command
+/// Process a "lib:" scheme use command.
 bool use_library(ast_t* use, const char* locator, ast_t* name,
   pass_opt_t* options)
 {
@@ -100,6 +100,20 @@ bool use_library(ast_t* use, const char* locator, ast_t* name,
     return true;
 
   prog->libs = strlist_append(prog->libs, libname);
+  return true;
+}
+
+
+/// Process a "path:" scheme use command.
+bool use_path(ast_t* use, const char* locator, ast_t* name,
+  pass_opt_t* options)
+{
+  assert(locator != NULL);
+  (void)use;
+  (void)name;
+  (void)options;
+
+  package_add_paths(locator);
   return true;
 }
 
@@ -139,12 +153,16 @@ void program_lib_build_args(ast_t* program,
   for(strlist_t* p = data->libs; p != NULL; p = strlist_next(p))
   {
     const char* lib = strlist_data(p);
+    bool amble = !is_path_absolute(lib);
 
-    if(!is_path_absolute(lib))
+    if(amble)
       append_to_args(data, lib_premable);
 
     append_to_args(data, lib);
-    append_to_args(data, lib_postamble);
+
+    if(amble)
+      append_to_args(data, lib_postamble);
+
     append_to_args(data, " ");
   }
 

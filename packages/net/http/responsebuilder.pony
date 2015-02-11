@@ -2,14 +2,24 @@ use "net"
 
 primitive _ResponseStatus
 primitive _ResponseHeaders
+primitive _ResponseContentLength
+primitive _ResponseChunkStart
+primitive _ResponseChunk
+primitive _ResponseChunkEnd
 primitive _ResponseBody
 primitive _ResponseReady
+primitive _ResponseError
 
 type _ResponseState is
   ( _ResponseStatus
   | _ResponseHeaders
+  | _ResponseContentLength
+  | _ResponseChunkStart
+  | _ResponseChunk
+  | _ResponseChunkEnd
   | _ResponseBody
   | _ResponseReady
+  | _ResponseError
   )
 
 class _ResponseBuilder is TCPConnectionNotify
@@ -21,6 +31,7 @@ class _ResponseBuilder is TCPConnectionNotify
   var _response: Response iso = Response
   var _state: _ResponseState = _ResponseStatus
   var _content_length: U64 = 0
+  var _chunked: Bool = false
 
   new iso create(client: Client) =>
     """
@@ -36,10 +47,9 @@ class _ResponseBuilder is TCPConnectionNotify
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     """
-    The connection could not be established. Treat this the same way as a parse
-    failure or a premature disconnect.
+    The connection could not be established. Tell the client not to proceed.
     """
-    _close()
+    _client._connect_failed()
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
@@ -53,20 +63,38 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     The connection has closed, possibly prematurely.
     """
+    if _state is _ResponseBody then
+      _content_length = _buffer.size()
+
+      try
+        let chunk = _buffer.block(_content_length)
+        _response.add_chunk(consume chunk)
+        _state = _ResponseReady
+        _parse()
+      end
+    end
+
     _close()
 
   fun ref _parse() =>
     """
-    Parse available data based on our state.
+    Parse available data based on our state. _ResponseBody is not listed here.
+    In that state, we wait for the connection to close and treat all pending
+    data as the response body.
     """
     match _state
     | _ResponseStatus => _parse_status()
     | _ResponseHeaders => _parse_headers()
-    | _ResponseBody => _parse_body()
-    end
-
-    if _state is _ResponseReady then
+    | _ResponseChunkStart => _parse_chunk_start()
+    | _ResponseChunk => _parse_chunk()
+    | _ResponseChunkEnd => _parse_chunk_end()
+    | _ResponseContentLength => _parse_content_length()
+    | _ResponseReady =>
       _client._response(_response = Response)
+      _state = _ResponseStatus
+    | _ResponseError =>
+      _response = Response
+      _client._response(Response)
       _state = _ResponseStatus
     end
 
@@ -77,6 +105,7 @@ class _ResponseBuilder is TCPConnectionNotify
     _response = Response
     _state = _ResponseStatus
     _content_length = 0
+    _chunked = false
 
     _buffer.clear()
     _client._closed()
@@ -123,30 +152,102 @@ class _ResponseBuilder is TCPConnectionNotify
             let value = recover val line.substring(i + 1, -1).trim() end
             _response(key) = value
 
-            if key == "Content-Length" then
+            match key
+            | "Content-Length" =>
               _content_length = value.u64()
+            | "Transfer-Encoding" =>
+              try
+                value.find("chunked")
+                _chunked = true
+              end
             end
           else
             _close()
           end
         else
-          if _content_length > 0 then
-            _state = _ResponseBody
+          if
+            (_response.status() == 204) or
+            (_response.status() == 304) or
+            ((_response.status() / 100) == 1)
+          then
+            _state = _ResponseReady
+          elseif _chunked then
+            _content_length = 0
+            _state = _ResponseChunkStart
+            _parse()
+          elseif _content_length > 0 then
+            _state = _ResponseContentLength
             _parse()
           else
-            _state = _ResponseReady
+            _state = _ResponseBody
+            _parse()
           end
           return
         end
       end
     end
 
-  fun ref _parse_body() =>
+  fun ref _parse_content_length() =>
     """
     Look for _content_length available bytes.
     """
     try
       let body = _buffer.block(_content_length)
-      _response.set_body(consume body)
+      _response.add_chunk(consume body)
       _state = _ResponseReady
+      _parse()
+    end
+
+  fun ref _parse_chunk_start() =>
+    """
+    Look for the beginning of a chunk.
+    """
+    try
+      let line = _buffer.line()
+
+      if line.size() > 0 then
+        _content_length = line.u64(0, 16)
+
+        if _content_length > 0 then
+          _state = _ResponseChunk
+        else
+          _state = _ResponseChunkEnd
+        end
+      else
+        _content_length = 0
+        _state = _ResponseError
+      end
+
+      _parse()
+    end
+
+  fun ref _parse_chunk() =>
+    """
+    Look for a chunk.
+    """
+    try
+      let chunk = _buffer.block(_content_length)
+      _response.add_chunk(consume chunk)
+      _state = _ResponseChunkEnd
+      _parse()
+    end
+
+  fun ref _parse_chunk_end() =>
+    """
+    Look for a blank line.
+    """
+    try
+      let line = _buffer.line()
+
+      if line.size() == 0 then
+        if _content_length > 0 then
+          _state = _ResponseChunkStart
+        else
+          _state = _ResponseReady
+        end
+      else
+        _state = _ResponseError
+      end
+
+      _parse()
     end

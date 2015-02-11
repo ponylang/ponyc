@@ -162,7 +162,15 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
   memset(s, 0, sizeof(symbols_t));
 
   symbolmap_init(&s->map, 0);
-  s->builder = new DIBuilder(*unwrap(module));
+
+  Module* m = unwrap(module);
+
+  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+
+  m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
+    llvm::DEBUG_METADATA_VERSION);
+
+  s->builder = new DIBuilder(*m);
   s->release = optimised;
 }
 
@@ -265,10 +273,13 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 
   anchor_t* anchor = symbol->anchor;
   subnodes_t* nodes = POOL_ALLOC(subnodes_t);
+  memset(nodes, 0, sizeof(subnodes_t));
 
-  nodes->offset = 0;
-  nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
-  memset(nodes->children, 0, frame->size*sizeof(MDNode*));
+  if(frame->size > 0)
+  {
+    nodes->children = (MDNode**)pool_alloc_size(frame->size*sizeof(MDNode*));
+    memset(nodes->children, 0, frame->size*sizeof(MDNode*));
+  }
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -315,10 +326,10 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIType use_type = DIType();
 
-  if(meta->flags & DWARF_CONSTANT)
-    use_type = field_symbol->anchor->qualified;
-  else
-    use_type = field_symbol->anchor->type;
+  //if(meta->flags & DWARF_CONSTANT)
+  //  use_type = field_symbol->anchor->qualified;
+  //else
+  use_type = field_symbol->anchor->type;
 
   DIFile file = get_file(symbols, meta->file);
 
@@ -328,6 +339,49 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->offset += meta->size;
   frame->index += 1;
+  assert(frame->index <= frame->size);
+}
+
+void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta, LLVMValueRef ir)
+{
+  // Emit debug info for the subroutine type.
+  VLA(MDNode*, params, meta->size);
+
+  debug_sym_t* current = get_anchor(symbols, meta->params[0]);
+  params[0] = current->anchor->type;
+
+  for(size_t i = 1; i < meta->size; i++)
+  {
+    current = get_anchor(symbols, meta->params[i]);
+    assert((current->kind & SYMBOL_NEW) == 0);
+
+    params[i] = current->anchor->qualified;
+  }
+
+  DIFile file = get_file(symbols, meta->file);
+
+  DIArray uses = symbols->builder->getOrCreateArray(ArrayRef<Value*>(
+    (Value**)params, meta->size));
+
+  DICompositeType type = symbols->builder->createSubroutineType(file,
+    uses, llvm::DIDescriptor::FlagLValueReference);
+
+  // Emit debug info for the method itself.
+  current = get_anchor(symbols, meta->mangled);
+  assert(current->kind & SYMBOL_NEW);
+
+  DISubprogram fun = symbols->builder->createFunction(symbols->unit,
+    meta->name, meta->mangled, file, (int)meta->line, type, false, true,
+    (int)meta->offset, symbols->release, unwrap(ir));
+
+  if(frame->members != NULL)
+  {
+    assert(frame->index <= frame->size);
+    subnodes_t* subnodes = frame->members;
+    subnodes->children[frame->index] = fun;
+    frame->index += 1;
+  }
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
@@ -365,7 +419,11 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   subnodes->prelim.replaceAllUsesWith(actual);
 
-  pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
+  if(frame->size > 0)
+  {
+    pool_free_size(sizeof(MDNode*) * frame->size, subnodes->children);
+  }
+
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
 }

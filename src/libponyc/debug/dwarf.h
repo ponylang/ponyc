@@ -41,6 +41,7 @@ struct dwarf_t
 
 struct dwarf_frame_t
 {
+  const char* type_name;
   size_t size;
   size_t index;
   subnodes_t* members;
@@ -51,7 +52,9 @@ struct dwarf_meta_t
 {
   const char* file;
   const char* name;
+  const char* mangled;
   const char* typearg;
+  const char** params;
 
   size_t line;
   size_t pos;
@@ -85,8 +88,8 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program);
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g);
 
 /**
- * Emit debug symbols for a pointer to some Pony nominal type. Note that
- * this can be Pointer[A], which would be dwarfed as A**. Pointer[U64]
+ * Emit debug symbols for a pointer to some Pony type. Note that this can be
+ * Pointer[A], which would be dwarfed as A**. Pointer[U64]
  * instead is dwarfed as U64*.
  */
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg);
@@ -111,7 +114,7 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
  * and reside in the same DWARF meta structure as fields. Note that there are
  * also recursive type definitions.
  */
-void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
+void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods);
 
 /**
  * Emit debug symbols for a field of some composite type. This requires to
@@ -125,14 +128,15 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field);
  * scope. However, a method might have arbitrarily many nested lexical scopes
  * which need to be introduced with a call to dwarf_lexical_scope.
  */
-void dwarf_method(dwarf_t* dwarf, gentype_t* g, reachable_method_t* m);
+void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
+  const char* mangled, const char** params, size_t count, LLVMValueRef ir);
 
 /**
  * Finalise emitting the debug symbols for a composite type. By the nature
  * of how Pony type generation works, a composite type's components will
  * be final, before the type itself becomes final.
  */
-void dwarf_composite(dwarf_t* dwarf, gentype_t* g);
+void dwarf_finish(dwarf_t* dwarf, gentype_t* g);
 
 /**
  * Dump collected debug information into the object file. Debug symols

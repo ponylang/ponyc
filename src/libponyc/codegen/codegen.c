@@ -12,10 +12,6 @@
 #include <string.h>
 #include <assert.h>
 
-static LLVMPassManagerBuilderRef pmb;
-static LLVMPassManagerRef mpm;
-static LLVMPassManagerRef lpm;
-
 struct compile_local_t
 {
   const char* name;
@@ -310,8 +306,6 @@ static void init_runtime(compile_t* c)
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
 {
   c->opt = opt;
-  c->mpm = mpm;
-  c->lpm = lpm;
 
   // Get the first package and the builtin package.
   ast_t* package = ast_child(program);
@@ -341,10 +335,27 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // IR builder.
   c->builder = LLVMCreateBuilderInContext(c->context);
 
+  // Pass manager builder.
+  c->pmb = LLVMPassManagerBuilderCreate();
+  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt->release ? 3 : 0);
+
+  if(opt->release)
+    LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
+
+  // Module pass manager.
+  c->mpm = LLVMCreatePassManager();
+  LLVMAddTargetData(c->target_data, c->mpm);
+  LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, c->mpm);
+
+  // LTO pass manager.
+  c->lpm = LLVMCreatePassManager();
+  LLVMAddTargetData(c->target_data, c->lpm);
+  LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, c->lpm, true, true);
+
   // Function pass manager.
   c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
   LLVMAddTargetData(c->target_data, c->fpm);
-  LLVMPassManagerBuilderPopulateFunctionPassManager(pmb, c->fpm);
+  LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
   LLVMInitializeFunctionPassManager(c->fpm);
 
   // Empty frame stack.
@@ -357,6 +368,9 @@ static void codegen_cleanup(compile_t* c)
     pop_frame(c);
 
   LLVMDisposePassManager(c->fpm);
+  LLVMDisposePassManager(c->mpm);
+  LLVMDisposePassManager(c->lpm);
+  LLVMPassManagerBuilderDispose(c->pmb);
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
@@ -404,43 +418,11 @@ bool codegen_init(pass_opt_t* opt)
   else
     opt->features = LLVMCreateMessage("");
 
-  LLVMTargetMachineRef machine = make_machine(opt);
-
-  if(machine == NULL)
-  {
-    errorf(NULL, "couldn't create target machine");
-    return false;
-  }
-
-  LLVMTargetDataRef target_data = LLVMGetTargetMachineData(machine);
-
-  // Pass manager builder.
-  pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(pmb, opt->release ? 3 : 0);
-
-  if(opt->release)
-    LLVMPassManagerBuilderUseInlinerWithThreshold(pmb, 275);
-
-  // Module pass manager.
-  mpm = LLVMCreatePassManager();
-  LLVMAddTargetData(target_data, mpm);
-  LLVMPassManagerBuilderPopulateModulePassManager(pmb, mpm);
-
-  // LTO pass manager.
-  lpm = LLVMCreatePassManager();
-  LLVMAddTargetData(target_data, lpm);
-  LLVMPassManagerBuilderPopulateLTOPassManager(pmb, lpm, true, true);
-
-  LLVMDisposeTargetMachine(machine);
   return true;
 }
 
 void codegen_shutdown(pass_opt_t* opt)
 {
-  LLVMDisposePassManager(mpm);
-  LLVMDisposePassManager(lpm);
-  LLVMPassManagerBuilderDispose(pmb);
-
   LLVMDisposeMessage(opt->triple);
   LLVMDisposeMessage(opt->cpu);
   LLVMDisposeMessage(opt->features);

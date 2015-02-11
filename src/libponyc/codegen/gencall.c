@@ -259,20 +259,19 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   bool need_receiver = call_needs_receiver(postfix, &g);
 
   // Generate the arguments.
-  LLVMValueRef proto = genfun_proto(c, &g, method_name, typeargs);
+  LLVMTypeRef f_type = genfun_sig(c, &g, method_name, typeargs);
 
-  if(proto == NULL)
+  if(f_type == NULL)
   {
-    ast_error(ast, "couldn't locate '%s'", method_name);
+    ast_error(ast, "couldn't create a signature for '%s'", method_name);
     return NULL;
   }
 
-  LLVMTypeRef f_type = LLVMTypeOf(proto);
   size_t count = ast_childcount(positional) + need_receiver;
 
   VLA(LLVMValueRef, args, count);
   VLA(LLVMTypeRef, params, count);
-  LLVMGetParamTypes(LLVMGetElementType(f_type), params);
+  LLVMGetParamTypes(f_type, params);
 
   ast_t* arg = ast_child(positional);
   int i = need_receiver;
