@@ -276,7 +276,6 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
         break;
 
       default:
-        ast_print(left);
         assert(0);
     }
 

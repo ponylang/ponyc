@@ -216,8 +216,8 @@ TEST_F(ScopeTest, MultipleLocals)
 {
   const char* src =
     "actor A\n"
-    "  fun wombat() =>"
-    "    var (foo, bar, aardvark): Type";
+    "  fun wombat() =>\n"
+    "    (var foo: Type1, var bar: Type2, let aardvark: Type3)";
 
   TEST_COMPILE(src);
 
@@ -241,7 +241,7 @@ TEST_F(ScopeTest, NestedLocals)
   const char* src =
     "actor A\n"
     "  fun wombat() =>"
-    "    var (foo, (bar, aardvark)): Type";
+    "    (var foo: Type1, (var bar: Type2, let aardvark: Type3))";
 
   TEST_COMPILE(src);
 

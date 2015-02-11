@@ -441,28 +441,6 @@ TEST_F(SugarTest, ForWithoutElse)
 }
 
 
-TEST_F(SugarTest, ForWithElseAndIteratorType)
-{
-  const char* short_form =
-    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  for i:U32 in 1 do 2 else 3 end";
-
-  const char* full_form =
-    "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  $seq(\n"
-    "    let hygid = $seq(1)\n"
-    "    while hygid.has_next() do\n"
-    "      let i:U32 = hygid.next()\n"
-    "      $seq(2)\n"
-    "    else\n"
-    "      3\n"
-    "    end\n"
-    "  )";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
 // TODO(andy): Tests for sugar_bang, once that's done
 
 

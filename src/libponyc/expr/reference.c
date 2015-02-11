@@ -539,7 +539,7 @@ static ast_t* infer_local_type(ast_t* ast)
   }
 }
 
-bool expr_local(ast_t* ast)
+bool expr_local(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type);
   assert(type != NULL);
@@ -554,8 +554,17 @@ bool expr_local(ast_t* ast)
 
     if(is_type_literal(type))
     {
-      ast_error(ast, "cannot infer type of local from a literal");
-      return NULL;
+      ast_t* target = ast_parent(type);
+      if(!coerce_literals(&target, NULL, opt))
+        return false;
+
+      type = ast_type(target);  // May have changed due to literals
+
+      if(is_type_literal(type))
+      {
+        ast_error(ast, "cannot infer type of local from a literal");
+        return false;
+      }
     }
 
     // Assignment is based on the alias of the right hand side
