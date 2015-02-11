@@ -213,23 +213,19 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   {
     // Local type inference.
     assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
-    ast_t* i_type = infer(a_type);
-
-    if(i_type != a_type)
-      ast_free_unattached(a_type);
 
     // Returns the right side since there was no previous value to read.
-    ast_settype(ast, i_type);
+    ast_settype(ast, a_type);
 
     // Set the type node.
     AST_GET_CHILDREN(left, idseq, type);
-    ast_replace(&type, i_type);
+    ast_replace(&type, a_type);
 
-    ast_settype(left, i_type);
+    ast_settype(left, a_type);
     ast_inheriterror(ast);
 
     // Set the type for each component.
-    return type_for_idseq(idseq, i_type);
+    return type_for_idseq(idseq, a_type);
   }
 
   if(!is_subtype(a_type, l_type))

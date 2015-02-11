@@ -6,7 +6,7 @@ class ClientSide is TCPConnectionNotify
   new create(env: Env) =>
     _env = env
 
-  fun ref connecting(conn: TCPConnection ref) =>
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
     _env.out.print("connecting")
 
   fun ref connected(conn: TCPConnection ref) =>
