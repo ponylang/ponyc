@@ -138,8 +138,6 @@ PARAMS: {PARAM}
 PARAM: (ID type [infix] | ELLIPSIS)
 The sequence child is the default value tree.
 
-IDSEQ: (ID | IDSEQ) {ID | IDSEQ}
-
 ELLIPSIS: no children
 
 SEQ: {jump | expr}
@@ -202,8 +200,8 @@ in the source. 1 => in parentheses, 0 => not.
 local
 -----
 (
-  VAR: IDSEQ [type]
-  LET: IDSEQ [type]
+  VAR: ID [type]
+  LET: ID [type]
 )
 
 prefix
@@ -251,9 +249,9 @@ control
   Children are (in order) loop body, condition.
   The loop body child does not have a symbol table.
 
-  FOR: IDSEQ [type] SEQ SEQ [SEQ]
-  Children are (in order) iterator(s), iterator type, iterator initialiser,
-  loop body, else body.
+  FOR: (LET | TUPLE) SEQ SEQ [SEQ]
+  Children are (in order) iterator(s), iterator initialiser, loop body,
+  else body.
 
   TRY: SEQ [SEQ] [SEQ]
   the then_clause (index 2) holds the LLVMValueRef for the indirectbr

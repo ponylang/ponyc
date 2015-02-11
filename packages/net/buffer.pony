@@ -39,7 +39,7 @@ class Buffer
 
       while rem > 0 do
         let node = _chunks.head()
-        var (data, offset) = node()
+        (var data, var offset) = node()
         let avail = data.size() - offset
 
         if avail > rem then
@@ -70,7 +70,7 @@ class Buffer
 
     while i < len do
       let node = _chunks.head()
-      let (data, offset) = node()
+      (let data, let offset) = node()
 
       let avail = data.size() - offset
       let need = len - i
@@ -106,7 +106,7 @@ class Buffer
 
     while i < len do
       let node = _chunks.head()
-      let (data, offset) = node()
+      (let data, let offset) = node()
 
       let avail = data.size() - offset
       let need = len - i
@@ -301,7 +301,7 @@ class Buffer
     Get a single byte.
     """
     let node = _chunks.head()
-    var (data, offset) = node()
+    (var data, var offset) = node()
     let r = data(offset)
 
     offset = offset + 1
@@ -322,7 +322,7 @@ class Buffer
     var len = U64(0)
 
     for node in _chunks.nodes() do
-      var (data, offset) = node()
+      (var data, var offset) = node()
 
       try
         return (len + data.find('\n', offset) + 1) - offset

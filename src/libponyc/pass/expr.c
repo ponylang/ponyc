@@ -168,12 +168,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 
     case TK_VAR:
     case TK_LET:
-      if(!expr_local(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_IDSEQ:
-      if(!expr_idseq(ast))
+      if(!expr_local(ast))
         return AST_ERROR;
       break;
 

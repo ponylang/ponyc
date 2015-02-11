@@ -110,7 +110,7 @@ actor Main
     let map = Map[String, (U64, U64)] + ("hi", (1, 2)) + ("bye", (3, 4))
 
     try
-      let (x, y) = map("hi")
+      (let x, let y) = map("hi")
       _env.out.print(x.string() + ", " + y.string())
     end
 

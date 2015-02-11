@@ -86,20 +86,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
     case TK_VAR:
     case TK_LET:
-    {
-      ast_t* idseq = ast_child(ast);
-      ast_t* id = ast_child(idseq);
-
-      while(id != NULL)
-      {
-        if(!assign_id(t, id, ast_id(ast) == TK_LET, need_value))
-          return false;
-
-        id = ast_sibling(id);
-      }
-
-      return true;
-    }
+      return assign_id(t, ast_child(ast), ast_id(ast) == TK_LET, need_value);
 
     case TK_VARREF:
     {
@@ -198,6 +185,8 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  assert(l_type != NULL);
+
   if(!coerce_literals(&right, l_type, opt))
     return false;
 
@@ -208,29 +197,6 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
 
   ast_t* a_type = alias(r_type);
-
-  if(l_type == NULL)
-  {
-    // Local type inference.
-    assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
-    ast_t* i_type = infer(a_type);
-
-    if(i_type != a_type)
-      ast_free_unattached(a_type);
-
-    // Returns the right side since there was no previous value to read.
-    ast_settype(ast, i_type);
-
-    // Set the type node.
-    AST_GET_CHILDREN(left, idseq, type);
-    ast_replace(&type, i_type);
-
-    ast_settype(left, i_type);
-    ast_inheriterror(ast);
-
-    // Set the type for each component.
-    return type_for_idseq(idseq, i_type);
-  }
 
   if(!is_subtype(a_type, l_type))
   {

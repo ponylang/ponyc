@@ -217,7 +217,31 @@ TEST_F(ScopeTest, MultipleLocals)
   const char* src =
     "actor A\n"
     "  fun wombat() =>"
-    "    var (foo, bar, aardvark): U32";
+    "    var (foo, bar, aardvark): Type";
+
+  TEST_COMPILE(src);
+
+  WALK_TREE(package);
+  LOOKUP("A", TK_ACTOR);
+  LOOKUP("wombat", TK_FUN);
+  ast_t* wombat_ast = walk_ast;
+
+  DO(lookup(wombat_ast, "foo", TK_ID));
+  DO(lookup(wombat_ast, "bar", TK_ID));
+  DO(lookup(wombat_ast, "aardvark", TK_ID));
+
+  ASSERT_EQ(1, ref_count(package, "foo"));
+  ASSERT_EQ(1, ref_count(package, "bar"));
+  ASSERT_EQ(1, ref_count(package, "aardvark"));
+}
+
+
+TEST_F(ScopeTest, NestedLocals)
+{
+  const char* src =
+    "actor A\n"
+    "  fun wombat() =>"
+    "    var (foo, (bar, aardvark)): Type";
 
   TEST_COMPILE(src);
 

@@ -154,21 +154,11 @@ static bool scope_method(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-static bool scope_idseq(typecheck_t* t, ast_t* ast)
+static bool scope_local(typecheck_t* t, ast_t* ast)
 {
-  ast_t* child = ast_child(ast);
-  bool r = true;
-
-  while(child != NULL)
-  {
-    // Each ID resolves to itself.
-    if(!set_scope(t, ast_parent(ast), child, child))
-      r = false;
-
-    child = ast_sibling(child);
-  }
-
-  return r;
+  // Local resolves to itself
+  ast_t* id = ast_child(ast);
+  return set_scope(t, ast_parent(ast), id, id);
 }
 
 ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
@@ -218,8 +208,9 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
         return AST_ERROR;
       break;
 
-    case TK_IDSEQ:
-      if(!scope_idseq(t, ast))
+    case TK_LET:
+    case TK_VAR:
+      if(!scope_local(t, ast))
         return AST_ERROR;
       break;
 

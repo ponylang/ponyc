@@ -56,7 +56,7 @@ actor Client
     Call the request's handler and supply the response.
     """
     try
-      let (request, pending) = _sent.shift()
+      (let request, let pending) = _sent.shift()
 
       if pending then
         request._response(response)

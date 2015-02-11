@@ -181,7 +181,6 @@ typedef enum token_id
   TK_NAMEDARG,
 
   TK_SEQ,
-  TK_IDSEQ,
   TK_QUALIFY,
   TK_CALL,
   TK_TUPLE,

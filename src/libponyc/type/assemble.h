@@ -51,12 +51,6 @@ ast_t* type_for_this(typecheck_t* t, ast_t* ast, token_id cap,
 ast_t* type_for_fun(ast_t* ast);
 
 /**
- * Takes an IDSEQ and a TUPLETYPE and assigns each id in idseq a type from the
- * tuple type.
- */
-bool type_for_idseq(ast_t* idseq, ast_t* type);
-
-/**
  * Replaces astp with an ast that removes any elements that are subtypes of
  * other elements and does a capability union on interface types.
  */

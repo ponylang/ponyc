@@ -176,7 +176,7 @@ primitive U128 is UnsignedInteger[U128]
     if Platform.has_i128() then
       this / y
     else
-      let (q, r) = divmod(y)
+      (let q, let r) = divmod(y)
       q
     end
 
@@ -184,7 +184,7 @@ primitive U128 is UnsignedInteger[U128]
     if Platform.has_i128() then
       this % y
     else
-      let (q, r) = divmod(y)
+      (let q, let r) = divmod(y)
       r
     end
 

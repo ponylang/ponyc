@@ -8,7 +8,7 @@ class ServerSide is TCPConnectionNotify
 
   fun ref accepted(conn: TCPConnection ref) =>
     try
-      let (host, service) = conn.remote_address().name()
+      (let host, let service) = conn.remote_address().name()
       _env.out.print("accepted from " + host + ":" + service)
       conn.write("server says hi")
     end

@@ -48,7 +48,7 @@ class HashMap[K, V, H: HashFunction[K] val]
 
       while i > 0 do
         i = i - 1
-        let (k, v) = array.delete(i)
+        (let k, let v) = array.delete(i)
         this(consume k) = consume v
       end
     end
@@ -70,7 +70,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Gets a value from the map. Raises an error if no such item exists.
     """
-    var (index, found) = _search(key)
+    (var index, var found) = _search(key)
 
     if found then
       _array(index) as (_, this->V)
@@ -84,7 +84,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     returns None. If there was no previous value, this may trigger a resize.
     """
     try
-      let (index, found) = _search(key)
+      (let index, let found) = _search(key)
 
       match _array(index) = (consume key, consume value)
       | (_, let v: V) =>
@@ -105,7 +105,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     value for the given key.
     """
     try
-      let (index, found) = _search(key)
+      (let index, let found) = _search(key)
 
       if found then
         _size = _size - 1
@@ -122,7 +122,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Set a value in the map using +. Return the map, allowing chaining.
     """
-    let (k, v) = consume kv
+    (let k, let v) = consume kv
     this(consume k) = consume v
     this
 

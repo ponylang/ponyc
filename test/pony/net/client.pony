@@ -11,7 +11,7 @@ class ClientSide is TCPConnectionNotify
 
   fun ref connected(conn: TCPConnection ref) =>
     try
-      let (host, service) = conn.remote_address().name()
+      (let host, let service) = conn.remote_address().name()
       _env.out.print("connected to " + host + ":" + service)
       conn.set_nodelay(true)
       conn.set_keepalive(10)

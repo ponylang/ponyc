@@ -119,7 +119,7 @@ term
   ;
 
 local
-  :  ('var' | 'let') idseq oftype?
+  :  ('var' | 'let') ID oftype?
   ;
 
 control
@@ -127,7 +127,7 @@ control
   |  'match' seq case* ('else' seq)? 'end'
   |  'while' seq 'do' seq ('else' seq)? 'end'
   |  'repeat' seq 'until' seq ('else' seq)? 'end'
-  |  'for' idseq oftype? 'in' seq 'do' seq ('else' seq)? 'end'
+  |  'for' idseq 'in' seq 'do' seq ('else' seq)? 'end'
   |  'try' seq ('else' seq)? ('then' seq)? 'end'
   |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
   |  'recover' cap? seq 'end'
@@ -144,7 +144,7 @@ case
   ;
 
 withexpr
-  :  idseq oftype '=' seq
+  :  idseq '=' seq
   ;
 
 postfix
@@ -169,16 +169,9 @@ atom
   ;
 
 idseq
-  :  ID | idseq_multi
-  ;
-
-idseq_multi
-  :  '(' idseq_element (',' idseq_element)* ')'
-  ;
-
-idseq_element
   :  ID
-  |  idseq_multi
+  |  '_'
+  |  '(' idseq (',' idseq)* ')'
   ;
 
 tuple

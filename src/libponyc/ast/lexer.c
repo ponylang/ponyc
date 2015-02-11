@@ -202,7 +202,6 @@ static const lexsym_t abstract[] =
   { "namedarg", TK_NAMEDARG },
 
   { "seq", TK_SEQ },
-  { "idseq", TK_IDSEQ },
   { "qualify", TK_QUALIFY },
   { "call", TK_CALL },
   { "tuple", TK_TUPLE },

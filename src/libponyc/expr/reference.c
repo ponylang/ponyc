@@ -430,9 +430,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       if(!valid_reference(t, ast, type, status))
         return false;
 
-      ast_t* idseq = ast_parent(def);
-      ast_t* var = ast_parent(idseq);
-      assert(ast_id(idseq) == TK_IDSEQ);
+      ast_t* var = ast_parent(def);
 
       switch(ast_id(var))
       {
@@ -482,49 +480,91 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-bool expr_local(typecheck_t* t, ast_t* ast)
+static ast_t* infer_local_type(ast_t* ast)
 {
-  ast_t* idseq = ast_child(ast);
-  ast_settype(ast, ast_type(idseq));
+  assert(ast != NULL);
 
-  if((ast_id(ast) == TK_LET) &&
-    (ast_id(ast_parent(ast)) != TK_ASSIGN) &&
-    (t->frame->pattern == NULL)
-    )
+  ast_t* parent = ast_parent(ast);
+  assert(parent != NULL);
+
+  switch(ast_id(parent))
   {
-    ast_error(ast, "can't declare a let local without assigning to it");
-    return false;
-  }
+    case TK_ASSIGN:
+    {
+      ast_t* r_type = ast_type(ast_child(parent));
 
-  return true;
+      if(r_type == NULL)
+        ast_error(ast, "can't declare a let local without assigning to it");
+
+      return r_type;
+    }
+
+    case TK_TUPLE:
+    {
+      ast_t* r_type = infer_local_type(parent);
+
+      if(r_type == NULL)  // Propogate error
+        return NULL;
+
+      if(ast_id(r_type) != TK_TUPLETYPE)
+      {
+        ast_error(ast,
+          "cannot infer type of local, assigned cardinality mismatch");
+        return NULL;
+      }
+
+      size_t decl_index = ast_index(ast);
+      if(decl_index >= ast_childcount(r_type))
+      {
+        ast_error(ast,
+          "cannot infer local type, too few elements in expression");
+        return NULL;
+      }
+
+      return ast_childidx(r_type, decl_index);
+    }
+
+    case TK_SEQ:
+      if(ast_childcount(parent) != 1)
+      {
+        ast_error(ast, "locals must specify a type or be assigned something");
+        return NULL;
+      }
+
+      return infer_local_type(parent);
+
+    default:
+      ast_error(ast, "locals must specify a type or be assigned something");
+      return NULL;
+  }
 }
 
-bool expr_idseq(ast_t* ast)
+bool expr_local(ast_t* ast)
 {
-  assert(ast_id(ast) == TK_IDSEQ);
-  ast_t* type = ast_sibling(ast);
+  AST_GET_CHILDREN(ast, id, type);
+  assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
   {
-    ast_t* parent = ast_parent(ast);
+    // No type specified, infer
+    type = infer_local_type(ast);
 
-    switch(ast_id(parent))
+    if(type == NULL)  // Couldn't infer, error already reported
+      return false;
+
+    if(is_type_literal(type))
     {
-      case TK_VAR:
-      case TK_LET:
-        if(ast_id(ast_parent(parent)) == TK_ASSIGN)
-          return true;
-        break;
-
-      default: {}
+      ast_error(ast, "cannot infer type of local from a literal");
+      return NULL;
     }
 
-    ast_error(ast, "locals must specify a type or be assigned something");
-    return false;
+    // Assignment is based on the alias of the right hand side
+    type = alias(type);
   }
 
+  ast_settype(id, type);
   ast_settype(ast, type);
-  return type_for_idseq(ast, type);
+  return true;
 }
 
 static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
