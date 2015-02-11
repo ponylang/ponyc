@@ -36,10 +36,9 @@ class _ResponseBuilder is TCPConnectionNotify
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     """
-    The connection could not be established. Treat this the same way as a parse
-    failure or a premature disconnect.
+    The connection could not be established. Tell the client not to proceed.
     """
-    _close()
+    _client._connect_failed()
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """

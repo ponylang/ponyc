@@ -19,6 +19,18 @@ class Request val
     _method = method
     _resource = resource
 
+  fun box method(): String =>
+    """
+    Get the request method.
+    """
+    _method
+
+  fun box resource(): String =>
+    """
+    Get the requested resource.
+    """
+    _resource
+
   fun box apply(key: String ): String ? =>
     """
     Retrieve a header.

@@ -71,6 +71,24 @@ actor Client
     """
     _send()
 
+  be _connect_failed() =>
+    """
+    The connection couldn't be established. Cancel all pending requests.
+    """
+    try
+      while true do
+        _unsent.pop()._response(Response)
+      end
+    end
+
+    try
+      while true do
+        _sent.pop()._1._response(Response)
+      end
+    end
+
+    _conn = None
+
   be _closed() =>
     """
     The connection to the server has closed. Reschedule sent requests that

@@ -12,6 +12,38 @@ class List[A]
     """
     _size
 
+  fun apply(i: U64): this->A ? =>
+    """
+    Get the i-th element, raising an error if the index is out of bounds.
+    """
+    index(i)()
+
+  fun ref update(i: U64, value: A): (A^ | None) ? =>
+    """
+    Change the i-th element, raising an error if the index is out of bounds.
+    Returns the previous value, which may be None if the node has been popped
+    but left on the list.
+    """
+    index(i)() = consume value
+
+  fun index(i: U64): this->ListNode[A] ? =>
+    """
+    Gets the i-th node, raising an error if the index is out of bounds.
+    """
+    if i >= _size then
+      error
+    end
+
+    var node = _head as this->ListNode[A]
+    var j = U64(0)
+
+    while j < i do
+      node = node.next() as this->ListNode[A]
+      j = j + 1
+    end
+
+    node
+
   fun ref clear(): List[A]^ =>
     """
     Empties the list.

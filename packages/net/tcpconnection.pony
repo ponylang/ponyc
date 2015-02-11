@@ -12,7 +12,7 @@ actor TCPConnection
   var _readable: Bool = false
   var _writeable: Bool = false
   var _closed: Bool = false
-  var _pending: List[_TCPPendingWrite] = List[_TCPPendingWrite]
+  var _pending: List[(Bytes, U64)] = _pending.create()
   var _last_read: U64 = 64
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String) =>
@@ -142,13 +142,7 @@ actor TCPConnection
             // The connection failed, unsubscribe the event and close.
             Event.unsubscribe(event)
             @os_closesocket[None](fd)
-
-            if _connect_count == 0 then
-              // All connections failed.
-              _notify.connect_failed(this)
-            end
-
-            // We're done.
+            _notify_connecting()
             return
           end
         else
@@ -206,14 +200,14 @@ actor TCPConnection
         var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
 
         if len < data.size() then
-          _pending.push(_TCPPendingWrite(data, len))
+          _pending.push((data, len))
           _writeable = false
         end
       else
         _close()
       end
     elseif not _closed then
-      _pending.push(_TCPPendingWrite(data, 0))
+      _pending.push((data, 0))
     end
 
   fun ref _pending_writes() =>
@@ -223,15 +217,14 @@ actor TCPConnection
     """
     while _writeable and (_pending.size() > 0) do
       try
-        var pending = _pending.head()()
-        var data = pending.data
-        var offset = pending.offset
+        var node = _pending.head()
+        var (data, offset) = node()
 
         var len = @os_send[U64](_fd, data.cstring().u64() + offset,
           data.size() - offset) ?
 
         if (len + offset) < data.size() then
-          pending.offset = len + offset
+          node() = (data, offset + len)
           _writeable = false
         else
           _pending.shift()
@@ -285,9 +278,10 @@ actor TCPConnection
     Inform the notifier that we're connecting.
     """
     if _connect_count > 0 then
-      _notify.connecting(this)
+      _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
+      _close()
     end
 
   fun ref _close() =>
@@ -308,14 +302,3 @@ actor TCPConnection
       @os_closesocket[None](_fd)
       _fd = -1
     end
-
-class _TCPPendingWrite
-  """
-  Unwritten data.
-  """
-  let data: Bytes
-  var offset: U64
-
-  new create(data': Bytes, offset': U64) =>
-    data = data'
-    offset = offset'

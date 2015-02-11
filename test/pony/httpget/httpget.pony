@@ -23,16 +23,22 @@ actor Main
     end
 
   be apply(request: Request, response: Response) =>
-    _env.out.print(response.proto() + " " + response.status().string() + " " +
-      response.status_text())
+    if response.status() != 0 then
+      _env.out.print(
+        response.proto() + " " +
+        response.status().string() + " " +
+        response.status_text())
 
-    try
-      for (k, v) in response.headers().pairs() do
-        _env.out.print(k + ": " + v)
+      try
+        for (k, v) in response.headers().pairs() do
+          _env.out.print(k + ": " + v)
+        end
+
+        _env.out.print("")
+        _env.out.print(response.body())
       end
-
-      _env.out.print("")
-      _env.out.print(response.body())
+    else
+      _env.out.print("Failed: " + request.method() + " " + request.resource())
     end
 
   fun ref _get_client(host: String, service: String = "80"): Client =>
