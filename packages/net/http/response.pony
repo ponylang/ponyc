@@ -7,8 +7,8 @@ class Response val
   var _proto: String = ""
   var _status: U16 = 0
   var _status_text: String = ""
-  let _headers: Map[String, String] = Map[String, String]
-  var _body: (Array[U8] val | None) = None
+  let _headers: Map[String, String] = _headers.create()
+  var _body: Array[Array[U8] val] = _body.create()
 
   new iso create() =>
     """
@@ -78,15 +78,15 @@ class Response val
     end
     this
 
-  fun body(): Array[U8] val ? =>
+  fun body(): this->Array[Array[U8] val] =>
     """
     Get the body.
     """
-    _body as Array[U8] val
+    _body
 
-  fun ref set_body(data: Array[U8] val): Response ref^ =>
+  fun ref add_chunk(data: Array[U8] val): Response ref^ =>
     """
-    Set the body.
+    Add a chunk to the body.
     """
-    _body = data
+    _body.push(data)
     this

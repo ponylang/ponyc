@@ -35,7 +35,10 @@ actor Main
         end
 
         _env.out.print("")
-        _env.out.print(response.body())
+
+        for chunk in response.body().values() do
+          _env.out.print(chunk)
+        end
       end
     else
       _env.out.print("Failed: " + request.method() + " " + request.resource())

@@ -703,61 +703,61 @@ class String val is Ordered[String box], Stringable
   fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-  fun i8(offset: I64 = 0): I8 => i64(offset).i8()
-  fun i16(offset: I64 = 0): I16 => i64(offset).i16()
-  fun i32(offset: I64 = 0): I32 => i64(offset).i32()
+  fun i8(offset: I64 = 0, base: I32 = 0): I8 => i64(offset, base).i8()
+  fun i16(offset: I64 = 0, base: I32 = 0): I16 => i64(offset, base).i16()
+  fun i32(offset: I64 = 0, base: I32 = 0): I32 => i64(offset, base).i32()
 
-  fun i64(offset: I64 = 0): I64 =>
+  fun i64(offset: I64 = 0, base: I32 = 0): I64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
       if Platform.windows() then
-        @_strtoi64[I64](_ptr.u64() + index, U64(0), I32(10))
+        @_strtoi64[I64](_ptr.u64() + index, U64(0), base)
       else
-        @strtol[I64](_ptr.u64() + index, U64(0), I32(10))
+        @strtol[I64](_ptr.u64() + index, U64(0), base)
       end
     else
       0
     end
 
-  fun i128(offset: I64 = 0): I128 =>
+  fun i128(offset: I64 = 0, base: I32 = 0): I128 =>
     var index = offset_to_index(offset)
 
     if index < _size then
       if Platform.windows() then
         i64(offset).i128()
       else
-        @strtoll[I128](_ptr.u64() + index, U64(0), I32(10))
+        @strtoll[I128](_ptr.u64() + index, U64(0), base)
       end
     else
       0
     end
 
-  fun u8(offset: I64 = 0): U8 => u64(offset).u8()
-  fun u16(offset: I64 = 0): U16 => u64(offset).u16()
-  fun u32(offset: I64 = 0): U32 => u64(offset).u32()
+  fun u8(offset: I64 = 0, base: I32 = 0): U8 => u64(offset, base).u8()
+  fun u16(offset: I64 = 0, base: I32 = 0): U16 => u64(offset, base).u16()
+  fun u32(offset: I64 = 0, base: I32 = 0): U32 => u64(offset, base).u32()
 
-  fun u64(offset: I64 = 0): U64 =>
+  fun u64(offset: I64 = 0, base: I32 = 0): U64 =>
     var index = offset_to_index(offset)
 
     if index < _size then
       if Platform.windows() then
-        @_strtoui64[U64](_ptr.u64() + index, U64(0), I32(10))
+        @_strtoui64[U64](_ptr.u64() + index, U64(0), base)
       else
-        @strtoul[U64](_ptr.u64() + index, U64(0), I32(10))
+        @strtoul[U64](_ptr.u64() + index, U64(0), base)
       end
     else
       0
     end
 
-  fun u128(offset: I64 = 0): U128 =>
+  fun u128(offset: I64 = 0, base: I32 = 0): U128 =>
     var index = offset_to_index(offset)
 
     if index < _size then
       if Platform.windows() then
         u64(offset).u128()
       else
-        @strtoull[U128](_ptr.u64() + index, U64(0), I32(10))
+        @strtoull[U128](_ptr.u64() + index, U64(0), base)
       end
     else
       0
