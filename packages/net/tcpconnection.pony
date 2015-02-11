@@ -218,7 +218,7 @@ actor TCPConnection
     while _writeable and (_pending.size() > 0) do
       try
         var node = _pending.head()
-        var (data, offset) = node()
+        (var data, var offset) = node()
 
         var len = @os_send[U64](_fd, data.cstring().u64() + offset,
           data.size() - offset) ?
