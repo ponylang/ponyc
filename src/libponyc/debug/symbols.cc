@@ -371,9 +371,11 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
   current = get_anchor(symbols, meta->mangled);
   assert(current->kind & SYMBOL_NEW);
 
+  Function* f = dyn_cast_or_null<Function>(unwrap(ir));
+
   DISubprogram fun = symbols->builder->createFunction(symbols->unit,
     meta->name, meta->mangled, file, (int)meta->line, type, false, true,
-    (int)meta->offset, symbols->release, unwrap(ir));
+    (int)meta->offset, 0, symbols->release, f);
 
   if(frame->members != NULL)
   {
