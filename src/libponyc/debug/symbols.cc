@@ -362,7 +362,7 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIFile file = get_file(symbols, meta->file);
 
-#if LLVM_VERSION_MAJOR >= 3 && LLVM_VERSION_MINOR > 5
+#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
   DITypeArray uses = symbols->builder->getOrCreateTypeArray(ArrayRef<Value*>(
     (Value**)params, meta->size));
 #else
