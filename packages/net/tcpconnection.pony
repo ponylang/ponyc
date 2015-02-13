@@ -59,7 +59,7 @@ actor TCPConnection
     """
     _write(data)
 
-  be writev(data: BytesList val) =>
+  be writev(data: BytesList) =>
     """
     Write a sequence of sequences of bytes.
     """
