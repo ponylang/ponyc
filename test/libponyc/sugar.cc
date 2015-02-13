@@ -1,12 +1,6 @@
 #include <gtest/gtest.h>
 #include <platform.h>
 
-#include <ast/ast.h>
-#include <ast/builder.h>
-#include <pkg/package.h>
-#include <pass/pass.h>
-#include <pass/sugar.h>
-
 #include "util.h"
 
 #define TEST_COMPILE(src) DO(test_compile(src, "sugar"))
