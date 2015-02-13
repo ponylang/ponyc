@@ -155,6 +155,7 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
+  TK_INFERTYPE,
 
   TK_ISO_BIND,
   TK_TRN_BIND,
@@ -181,7 +182,6 @@ typedef enum token_id
   TK_NAMEDARG,
 
   TK_SEQ,
-  TK_IDSEQ,
   TK_QUALIFY,
   TK_CALL,
   TK_TUPLE,

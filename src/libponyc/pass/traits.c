@@ -388,13 +388,12 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
       ast_set(ast, ast_name(ast_child(ast)), ast, SYM_DEFINED);
       break;
 
-    case TK_IDSEQ:
+    case TK_LET:
+    case TK_VAR:
     {
       ast_t* scope = ast_parent(ast);
-
-      for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
-        ast_set(scope, ast_name(p), p, SYM_DEFINED);
-
+      ast_t* id = ast_child(ast);
+      ast_set(scope, ast_name(id), id, SYM_DEFINED);
       break;
     }
 

@@ -121,8 +121,8 @@ primitive I128 is SignedInteger[I128]
         minus = not minus
       end
 
-      let (q, r) = num.u128().divmod(den.u128())
-      var (q', r') = (q.i128(), r.i128())
+      (let q, let r) = num.u128().divmod(den.u128())
+      (var q', var r') = (q.i128(), r.i128())
 
       if minus then
         q' = -q'
@@ -135,7 +135,7 @@ primitive I128 is SignedInteger[I128]
     if Platform.has_i128() then
       this / y
     else
-      let (q, r) = divmod(y)
+      (let q, let r) = divmod(y)
       q
     end
 
@@ -143,7 +143,7 @@ primitive I128 is SignedInteger[I128]
     if Platform.has_i128() then
       this % y
     else
-      let (q, r) = divmod(y)
+      (let q, let r) = divmod(y)
       r
     end
 

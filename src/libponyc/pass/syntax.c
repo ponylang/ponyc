@@ -657,7 +657,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_BREAK:      r = syntax_return(ast, 1); break;
     case TK_CONTINUE:
     case TK_ERROR:      r = syntax_return(ast, 0); break;
-    case TK_IDSEQ:      r = syntax_local(ast); break;
+    case TK_LET:
+    case TK_VAR:        r = syntax_local(ast); break;
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_USE:        r = syntax_use(ast); break;

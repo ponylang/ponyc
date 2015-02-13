@@ -10,7 +10,7 @@ class Ping is UDPNotify
 
   fun ref listening(sock: UDPSocket ref) =>
     try
-      let (host, service) = sock.local_address().name()
+      (let host, let service) = sock.local_address().name()
       _env.out.print("Ping: listening on " + host + ":" + service)
       sock.write("ping!", _ip)
     else
@@ -25,7 +25,7 @@ class Ping is UDPNotify
   fun ref received(sock: UDPSocket ref, data: Array[U8] iso, from: IPAddress)
   =>
     try
-      let (host, service) = from.name()
+      (let host, let service) = from.name()
       _env.out.print("from " + host + ":" + service)
     end
 

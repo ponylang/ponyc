@@ -172,11 +172,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
         return AST_ERROR;
       break;
 
-    case TK_IDSEQ:
-      if(!expr_idseq(ast))
-        return AST_ERROR;
-      break;
-
     case TK_BREAK:
       if(!expr_break(t, ast))
         return AST_ERROR;
@@ -234,28 +229,28 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_IF:
-      if(!expr_if(ast))
+      if(!expr_if(options, ast))
         return AST_ERROR;
       break;
 
     case TK_WHILE:
-      if(!expr_while(ast))
+      if(!expr_while(options, ast))
         return AST_ERROR;
       break;
 
     case TK_REPEAT:
-      if(!expr_repeat(ast))
+      if(!expr_repeat(options, ast))
         return AST_ERROR;
       break;
 
     case TK_TRY:
     case TK_TRY_NO_CHECK:
-      if(!expr_try(ast))
+      if(!expr_try(options, ast))
         return AST_ERROR;
       break;
 
     case TK_MATCH:
-      if(!expr_match(ast))
+      if(!expr_match(options, ast))
         return AST_ERROR;
       break;
 

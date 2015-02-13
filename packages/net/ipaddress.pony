@@ -30,7 +30,7 @@ class IPAddress val
     """
     Return the host and service name.
     """
-    let (host, serv) =
+    (let host, let serv) =
       @os_nameinfo[(Pointer[U8] iso^, Pointer[U8] iso^)](this) ?
     (recover String.from_cstring(consume host) end,
       recover String.from_cstring(consume serv) end)

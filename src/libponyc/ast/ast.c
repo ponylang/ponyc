@@ -1055,6 +1055,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "function");
       break;
 
+    case TK_INFERTYPE:
+      printbuf(buffer, "to_infer");
+      break;
+
     default:
       assert(0);
   }

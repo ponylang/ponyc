@@ -304,49 +304,6 @@ ast_t* type_for_fun(ast_t* ast)
   return fun;
 }
 
-bool type_for_idseq(ast_t* idseq, ast_t* type)
-{
-  assert(ast_id(idseq) == TK_IDSEQ);
-  ast_t* id = ast_child(idseq);
-
-  if(ast_sibling(id) == NULL)
-  {
-    ast_settype(id, type);
-    return true;
-  }
-
-  if(ast_id(type) != TK_TUPLETYPE)
-  {
-    ast_error(idseq, "must specify a tuple type for multiple identifiers");
-    return false;
-  }
-
-  int index = 0;
-
-  while(id != NULL)
-  {
-    ast_t* t = ast_childidx(type, index);
-
-    if(t == NULL)
-    {
-      ast_error(id, "not enough types specified");
-      return false;
-    }
-
-    ast_settype(id, t);
-    id = ast_sibling(id);
-    index++;
-  }
-
-  if(ast_childidx(type, index) != NULL)
-  {
-    ast_error(idseq, "too many types specified");
-    return false;
-  }
-
-  return true;
-}
-
 bool flatten_union(ast_t** astp)
 {
   ast_t* ast = *astp;

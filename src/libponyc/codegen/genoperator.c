@@ -255,61 +255,41 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
 
   while(child != NULL)
   {
+    ast_t* expr = NULL;
+
     switch(ast_id(child))
     {
       case TK_SEQ:
-      {
         // The actual tuple expression is inside a sequence node.
-        ast_t* expr = ast_child(child);
-
-        // Extract the tuple value.
-        LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
-          i++, "");
-
-        // Recurse, assigning pairwise.
-        if(assign_rvalue(c, expr, rtype_child, rvalue_child) == NULL)
-          return false;
+        expr = ast_child(child);
         break;
-      }
+
+      case TK_LET:
+      case TK_VAR:
+        expr = child;
+        break;
 
       case TK_DONTCARE:
         // Ignore this element.
         break;
 
-      default: assert(0);
+      default:
+        assert(0);
     }
 
+    if(expr != NULL)
+    {
+      // Extract the tuple value.
+      LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value, i,
+        "");
+
+      // Recurse, assigning pairwise.
+      if(assign_rvalue(c, expr, rtype_child, rvalue_child) == NULL)
+        return false;
+    }
+
+    i++;
     child = ast_sibling(child);
-    rtype_child = ast_sibling(rtype_child);
-  }
-
-  assert(rtype_child == NULL);
-  return true;
-}
-
-static bool assign_decl(compile_t* c, ast_t* left, ast_t* r_type,
-  LLVMValueRef r_value)
-{
-  ast_t* idseq = ast_child(left);
-  ast_t* id = ast_child(idseq);
-
-  if(ast_sibling(id) == NULL)
-    return assign_rvalue(c, id, r_type, r_value) != NULL;
-
-  ast_t* rtype_child = ast_child(r_type);
-  int i = 0;
-
-  while(id != NULL)
-  {
-    // Extract the tuple value.
-    LLVMValueRef rvalue_child = LLVMBuildExtractValue(c->builder, r_value,
-      i++, "");
-
-    // Recurse, assigning pairwise.
-    if(assign_rvalue(c, id, rtype_child, rvalue_child) == NULL)
-      return false;
-
-    id = ast_sibling(id);
     rtype_child = ast_sibling(rtype_child);
   }
 
@@ -329,12 +309,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
       if(gen_localdecl(c, left) == NULL)
         return NULL;
 
-      // Treat as a tuple assignment.
-      if(!assign_decl(c, left, r_type, r_value))
-        return NULL;
-
-      // If the l_value is a local declaration, the result is the r_value.
-      return r_value;
+      return assign_rvalue(c, ast_child(left), r_type, r_value);
     }
 
     case TK_FVARREF:
@@ -369,7 +344,7 @@ static LLVMValueRef assign_rvalue(compile_t* c, ast_t* left, ast_t* r_type,
 
     case TK_ID:
     {
-      // We have recursed here from a VAR or LET.
+      // We may have recursed here from a VAR or LET or arrived directly.
       const char* name = ast_name(left);
       LLVMValueRef l_value = codegen_getlocal(c, name);
       return assign_one(c, l_value, r_value, r_type);
@@ -614,8 +589,5 @@ LLVMValueRef gen_assign_value(compile_t* c, ast_t* left, LLVMValueRef right,
     return NULL;
 
   // This is from pattern matching and we should not generate the alloca again.
-  ast_t* idseq = ast_child(left);
-  ast_t* id = ast_child(idseq);
-
-  return assign_rvalue(c, id, right_type, right);
+  return assign_rvalue(c, ast_child(left), right_type, right);
 }

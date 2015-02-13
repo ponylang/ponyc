@@ -31,6 +31,9 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options);
 /// type of the expression will have been set.
 bool literal_call(ast_t* ast, pass_opt_t* options);
 
+/// Combine the literal branches in the given control block, if possible.
+/// Should only be called once all branches have been type checked.
+void literal_unify_control(ast_t* ast, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

@@ -182,6 +182,10 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
 
       return NULL;
 
+    case TK_INFERTYPE:
+      // Can only happen due to a local inference fail earlier
+      return NULL;
+
     default: {}
   }
 

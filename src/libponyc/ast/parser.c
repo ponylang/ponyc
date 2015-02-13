@@ -9,7 +9,7 @@ DECL(seq);
 DECL(assignment);
 DECL(term);
 DECL(infix);
-DECL(idseqmulti);
+DECL(idseq);
 DECL(members);
 
 
@@ -139,7 +139,7 @@ DEF(dontcare);
   TOKEN(NULL, TK_DONTCARE);
   DONE();
 
-// (infixtype | dontcare) (COMMA (infixtype | dontcare))*
+// COMMA (infixtype | dontcare) {COMMA (infixtype | dontcare)}
 DEF(tupletype);
   INFIX_BUILD();
   TOKEN(NULL, TK_COMMA);
@@ -148,7 +148,7 @@ DEF(tupletype);
   WHILE(TK_COMMA, RULE("type", infixtype, dontcare));
   DONE();
 
-// (LPAREN | LPAREN_NEW) tupletype RPAREN
+// (LPAREN | LPAREN_NEW) (infixtype | dontcare) [tupletype] RPAREN
 DEF(groupedtype);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("type", infixtype, dontcare);
@@ -163,7 +163,7 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | typeexpr | nominal | dontcare)
+// (thistype | typeexpr | nominal)
 DEF(atomtype);
   RULE("type", thistype, groupedtype, nominal);
   DONE();
@@ -229,7 +229,7 @@ DEF(array);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// (rawseq | dontcare) (COMMA (rawseq | dontcare))*
+// COMMA (rawseq | dontcare) {COMMA (rawseq | dontcare)}
 DEF(tuple);
   INFIX_BUILD();
   TOKEN(NULL, TK_COMMA);
@@ -238,7 +238,7 @@ DEF(tuple);
   WHILE(TK_COMMA, RULE("value", rawseq, dontcare));
   DONE();
 
-// (LPAREN | LPAREN_NEW) tuple RPAREN
+// (LPAREN | LPAREN_NEW) (rawseq | dontcare) [tuple] RPAREN
 DEF(groupedexpr);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("value", rawseq, dontcare);
@@ -313,40 +313,31 @@ DEF(postfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
-// ID
-DEF(idseqid);
-  TOKEN("variable name", TK_ID);
-  DONE();
-
-// idseqid | idseqmulti
-DEF(idseqelement);
-  RULE("variable name", idseqid, idseqmulti);
-  DONE();
-
-// (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
+// (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
-  AST_NODE(TK_IDSEQ);
+  AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
-  RULE("variable name", idseqelement);
-  WHILE(TK_COMMA, RULE("variable name", idseqelement));
+  RULE("variable name", idseq);
+  WHILE(TK_COMMA, RULE("variable name", idseq));
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// ID
+// ID | '_'
 DEF(idseqsingle);
-  AST_NODE(TK_IDSEQ);
-  TOKEN("variable name", TK_ID);
+  AST_NODE(TK_LET);
+  TOKEN("variable name", TK_ID, TK_DONTCARE);
+  AST_NODE(TK_NONE);  // Type
   DONE();
 
-// ID | (LPAREN | TK_LPAREN_NEW) ID {COMMA ID} RPAREN
+// ID | '_' | (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
   RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
-// (VAR | VAL) idseq [COLON type]
+// (VAR | VAL) ID [COLON type]
 DEF(local);
   TOKEN(NULL, TK_VAR, TK_LET);
-  RULE("variable name", idseq);
+  TOKEN("variable name", TK_ID);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
 
@@ -427,16 +418,15 @@ DEF(repeat);
   SKIP(NULL, TK_END);
   DONE();
 
-// FOR idseq [COLON type] IN rawseq DO rawseq [ELSE seq] END
+// FOR idseq IN rawseq DO rawseq [ELSE seq] END
 // =>
 // (SEQ
 //   (ASSIGN (LET $1) iterator)
 //   (WHILE $1.has_next()
-//     (SEQ (ASSIGN (LET idseq type) $1.next()) body) else))
+//     (SEQ (ASSIGN idseq $1.next()) body) else))
 DEF(forloop);
   TOKEN(NULL, TK_FOR);
   RULE("iterator name", idseq);
-  IF(TK_COLON, RULE("iterator type", type));
   SKIP(NULL, TK_IN);
   RULE("iterator", rawseq);
   SKIP(NULL, TK_DO);
@@ -445,11 +435,10 @@ DEF(forloop);
   SKIP(NULL, TK_END);
   DONE();
 
-// idseq [COLON type] = rawseq
+// idseq = rawseq
 DEF(withelem);
   AST_NODE(TK_SEQ);
   RULE("with name", idseq);
-  IF(TK_COLON, RULE("with type", type));
   SKIP(NULL, TK_ASSIGN);
   RULE("initialiser", rawseq);
   DONE();
@@ -466,8 +455,8 @@ DEF(withexpr);
 // (SEQ
 //   (ASSIGN (LET $1 initialiser))*
 //   (TRY_NO_CHECK
-//     (SEQ (ASSIGN (LET idseq) $1)* body)
-//     (SEQ (ASSIGN (LET idseq) $1)* else)
+//     (SEQ (ASSIGN idseq $1)* body)
+//     (SEQ (ASSIGN idseq $1)* else)
 //     (SEQ $1.dispose()*)))
 DEF(with);
   TOKEN(NULL, TK_WITH);
@@ -564,7 +553,7 @@ DEF(term);
 // (MATCH expr
 //   (CASES
 //     (CASE
-//       (LET (IDSEQ $1) type)
+//       (LET $1 type)
 //       NONE
 //       (SEQ (CONSUME BORROWED $1))))
 //   (SEQ ERROR))

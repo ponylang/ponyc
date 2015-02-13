@@ -17,6 +17,7 @@
 #include <llvm/IR/DataLayout.h>
 #include <llvm/Support/Path.h>
 #include <llvm/IR/Metadata.h>
+#include <llvm/Config/llvm-config.h>
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -361,8 +362,13 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIFile file = get_file(symbols, meta->file);
 
+#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
+  DITypeArray uses = symbols->builder->getOrCreateTypeArray(ArrayRef<Value*>(
+    (Value**)params, meta->size));
+#else
   DIArray uses = symbols->builder->getOrCreateArray(ArrayRef<Value*>(
     (Value**)params, meta->size));
+#endif
 
   DICompositeType type = symbols->builder->createSubroutineType(file,
     uses, llvm::DIDescriptor::FlagLValueReference);
@@ -371,9 +377,11 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
   current = get_anchor(symbols, meta->mangled);
   assert(current->kind & SYMBOL_NEW);
 
+  Function* f = dyn_cast_or_null<Function>(unwrap(ir));
+
   DISubprogram fun = symbols->builder->createFunction(symbols->unit,
     meta->name, meta->mangled, file, (int)meta->line, type, false, true,
-    (int)meta->offset, symbols->release, unwrap(ir));
+    (int)meta->offset, 0, symbols->release, f);
 
   if(frame->members != NULL)
   {

@@ -388,8 +388,7 @@ static ast_result_t sugar_try(ast_t* ast)
 
 static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 {
-  AST_EXTRACT_CHILDREN(*astp, for_idseq, for_type, for_iter, for_body,
-    for_else);
+  AST_EXTRACT_CHILDREN(*astp, for_idseq, for_iter, for_body, for_else);
 
   expand_none(for_else);
   const char* iter_name = package_hygienic_id(t);
@@ -398,7 +397,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
     NODE(TK_SEQ,
       NODE(TK_ASSIGN,
         TREE(for_iter)
-        NODE(TK_LET, NODE(TK_IDSEQ, ID(iter_name)) NONE))
+        NODE(TK_LET, ID(iter_name) NONE))
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
           NODE(TK_CALL,
@@ -411,11 +410,44 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
               NONE
               NONE
               NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next")))
-            NODE(TK_LET, TREE(for_idseq) TREE(for_type)))
+            TREE(for_idseq))
           TREE(for_body))
         TREE(for_else))));
 
   return AST_OK;
+}
+
+
+static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
+{
+  assert(dispose_clause != NULL);
+  assert(idseq != NULL);
+
+  if(ast_id(idseq) == TK_LET)
+  {
+    // Just a single variable
+    ast_t* id = ast_child(idseq);
+    assert(id != NULL);
+
+    // Don't call dispose() on don't cares
+    if(ast_id(id) == TK_DONTCARE)
+      return;
+
+    assert(ast_id(id) == TK_ID);
+    BUILD(dispose, idseq,
+      NODE(TK_CALL,
+        NONE NONE
+        NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
+
+    ast_add(dispose_clause, dispose);
+    return;
+  }
+
+  // We have a list of variables
+  assert(ast_id(idseq) == TK_TUPLE);
+
+  for(ast_t* p = ast_child(idseq); p != NULL; p = ast_sibling(p))
+    build_with_dispose(dispose_clause, p);
 }
 
 
@@ -431,6 +463,7 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
 
   expand_none(else_clause);
 
+  // First build a skeleton try block without the "with" variables
   BUILD(replace, *astp,
     NODE(TK_SEQ,
       NODE(try_token, AST_SCOPE
@@ -443,34 +476,28 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
   ast_t* tryexpr = ast_child(replace);
   AST_GET_CHILDREN(tryexpr, try_body, try_else, try_then);
 
-  ast_t* withelem = ast_child(withexpr);
-
-  while(withelem != NULL)
+  // Add the "with" variables from each with element
+  for(ast_t* p = ast_child(withexpr); p != NULL; p = ast_sibling(p))
   {
-    AST_GET_CHILDREN(withelem, idseq, type, init);
+    assert(ast_id(p) == TK_SEQ);
+    AST_GET_CHILDREN(p, idseq, init);
     const char* init_name = package_hygienic_id(t);
 
     BUILD(assign, idseq,
       NODE(TK_ASSIGN,
         TREE(init)
-        NODE(TK_LET, NODE(TK_IDSEQ, ID(init_name)) NONE)));
+        NODE(TK_LET, ID(init_name) NONE)));
 
     BUILD(local, idseq,
       NODE(TK_ASSIGN,
         NODE(TK_REFERENCE, ID(init_name))
-        NODE(TK_LET, TREE(idseq) TREE(type))));
-
-    BUILD(dispose, idseq,
-      NODE_ERROR_AT(TK_CALL, idseq,
-        NONE NONE
-        NODE(TK_DOT, NODE(TK_REFERENCE, ID(init_name)) ID("dispose"))));
+        TREE(idseq)));
 
     ast_add(replace, assign);
     ast_add(try_body, local);
     ast_add(try_else, local);
-    ast_add(try_then, dispose);
-
-    withelem = ast_sibling(withelem);
+    build_with_dispose(try_then, idseq);
+    ast_add(try_then, local);
   }
 
   ast_replace(astp, replace);
@@ -711,9 +738,7 @@ static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
 
       BUILD(pattern_elem, pattern,
         NODE(TK_SEQ,
-          NODE(TK_LET,
-            NODE(TK_IDSEQ, ID(name))
-            TREE(a_type))));
+          NODE(TK_LET, ID(name) TREE(a_type))));
 
       BUILD(body_elem, body,
         NODE(TK_SEQ,
@@ -830,6 +855,21 @@ static ast_result_t sugar_semi(ast_t** astp)
 }
 
 
+static ast_result_t sugar_let(typecheck_t* t, ast_t* ast)
+{
+  ast_t* id = ast_child(ast);
+
+  if(ast_id(id) == TK_DONTCARE)
+  {
+    // Replace "_" with "$1" in with and for variable lists
+    ast_setid(id, TK_ID);
+    ast_set_name(id, package_hygienic_id(t));
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -882,6 +922,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_FFIDECL:
     case TK_FFICALL:    return sugar_ffi(ast);
     case TK_SEMI:       return sugar_semi(astp);
+    case TK_LET:        return sugar_let(t, ast);
     default:            return AST_OK;
   }
 }

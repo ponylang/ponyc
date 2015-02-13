@@ -12,7 +12,6 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid);
 bool expr_typeref(pass_opt_t* opt, ast_t** astp);
 bool expr_reference(pass_opt_t* opt, ast_t** astp);
 bool expr_local(typecheck_t* t, ast_t* ast);
-bool expr_idseq(ast_t* ast);
 bool expr_addressof(pass_opt_t* opt, ast_t* ast);
 bool expr_dontcare(ast_t* ast);
 bool expr_this(pass_opt_t* opt, ast_t* ast);

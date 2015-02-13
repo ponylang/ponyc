@@ -8,10 +8,10 @@
 PONY_EXTERN_C_BEGIN
 
 bool expr_seq(ast_t* ast);
-bool expr_if(ast_t* ast);
-bool expr_while(ast_t* ast);
-bool expr_repeat(ast_t* ast);
-bool expr_try(ast_t* ast);
+bool expr_if(pass_opt_t* opt, ast_t* ast);
+bool expr_while(pass_opt_t* opt, ast_t* ast);
+bool expr_repeat(pass_opt_t* opt, ast_t* ast);
+bool expr_try(pass_opt_t* opt, ast_t* ast);
 bool expr_recover(ast_t* ast);
 bool expr_break(typecheck_t* t, ast_t* ast);
 bool expr_continue(typecheck_t* t, ast_t* ast);

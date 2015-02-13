@@ -86,20 +86,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 
     case TK_VAR:
     case TK_LET:
-    {
-      ast_t* idseq = ast_child(ast);
-      ast_t* id = ast_child(idseq);
-
-      while(id != NULL)
-      {
-        if(!assign_id(t, id, ast_id(ast) == TK_LET, need_value))
-          return false;
-
-        id = ast_sibling(id);
-      }
-
-      return true;
-    }
+      return assign_id(t, ast_child(ast), ast_id(ast) == TK_LET, need_value);
 
     case TK_VARREF:
     {
@@ -183,6 +170,184 @@ bool expr_identity(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
+
+typedef struct infer_path_t
+{
+  size_t index;
+  struct infer_path_t* next; // Next node
+  struct infer_path_t* root; // Root node in list
+} infer_path_t;
+
+typedef enum infer_ret_t
+{
+  INFER_OK,
+  INFER_NOP,
+  INFER_ERROR
+} infer_ret_t;
+
+static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
+{
+  assert(type != NULL);
+  
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+      if(path == NULL)  // End of path, infer the whole tuple
+        return type;
+
+      if(path->index >= ast_childcount(type)) // Cardinality mismatch
+        return NULL;
+
+      return find_infer_type(ast_childidx(type, path->index), path->next);
+
+    case TK_UNIONTYPE:
+    {
+      // Infer all children
+      ast_t* u_type = NULL;
+
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* t = find_infer_type(p, path);
+
+        if(t == NULL)
+        {
+          // Propogate error
+          ast_free_unattached(u_type);
+          return NULL;
+        }
+
+        u_type = type_union(u_type, t);
+      }
+
+      return u_type;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      // Infer all children
+      ast_t* i_type = NULL;
+
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* t = find_infer_type(p, path);
+
+        if(t == NULL)
+        {
+          // Propogate error
+          ast_free_unattached(i_type);
+          return NULL;
+        }
+
+        i_type = type_isect(i_type, t);
+      }
+
+      return i_type;
+    }
+
+    default:
+      if(path != NULL)  // Type doesn't match path
+        return NULL;
+
+      // Just return whatever this type is
+      return type;
+  }
+}
+
+static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
+  infer_path_t* path)
+{
+  assert(left != NULL);
+  assert(r_type != NULL);
+  assert(path != NULL);
+  assert(path->root != NULL);
+
+  infer_ret_t ret_val = INFER_NOP;
+
+  switch(ast_id(left))
+  {
+    case TK_SEQ:
+    {
+      assert(ast_childcount(left) == 1);
+      infer_ret_t r = infer_local_inner(ast_child(left), r_type, path);
+
+      if(r == INFER_OK) // Update seq type
+        ast_settype(left, ast_type(ast_child(left)));
+
+      return r;
+    }
+
+    case TK_TUPLE:
+    {
+      // Add a new node to the end of the path
+      infer_path_t path_node = { 0, NULL, path->root };
+      path->next = &path_node;
+
+      for(ast_t* p = ast_child(left); p != NULL; p = ast_sibling(p))
+      {
+        infer_ret_t r = infer_local_inner(p, r_type, &path_node);
+
+        if(r == INFER_ERROR)
+          return INFER_ERROR;
+
+        if(r == INFER_OK)
+        {
+          // Update tuple type element to remove infer type
+          ast_t* old_ele = ast_childidx(ast_type(left), path_node.index);
+          ast_replace(&old_ele, ast_type(p));
+          ret_val = INFER_OK;
+        }
+
+        path_node.index++;
+      }
+
+      // Pop our node off the path
+      path->next = NULL;
+      return ret_val;
+    }
+
+    case TK_VAR:
+    case TK_LET:
+    {
+      ast_t* var_type = ast_type(left);
+      assert(var_type != NULL);
+
+      if(ast_id(var_type) != TK_INFERTYPE)  // No inferring needed
+        return INFER_NOP;
+
+      ast_t* infer_type = find_infer_type(r_type, path->root->next);
+
+      if(infer_type == NULL)
+      {
+        ast_error(left, "could not infer type of local");
+        return INFER_ERROR;
+      }
+
+      // Variable type is the alias of the inferred type
+      ast_t* a_type = alias(infer_type);
+      ast_settype(left, a_type);
+      ast_settype(ast_child(left), a_type);
+      ast_free_unattached(infer_type);
+      return INFER_OK;
+    }
+
+    default:
+      // No locals to infer here
+      return INFER_NOP;
+  }
+}
+
+static bool infer_locals(ast_t* left, ast_t* r_type)
+{
+  infer_path_t path_root = { 0, NULL, NULL };
+  path_root.root = &path_root;
+
+  infer_ret_t r = infer_local_inner(left, r_type, &path_root);
+  assert(path_root.next == NULL);
+  assert(path_root.root = &path_root);
+
+  return r != INFER_ERROR;
+}
+
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
 {
   // Left and right are swapped in the AST to make sure we type check the
@@ -198,35 +363,24 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  assert(l_type != NULL);
+
   if(!coerce_literals(&right, l_type, opt))
     return false;
 
-  // Assignment is based on the alias of the right hand side.
   ast_t* r_type = ast_type(right);
 
   if(r_type == NULL)
     return false;
 
+  if(!infer_locals(left, r_type))
+    return false;
+
+  // Inferring locals may have changed the left type.
+  l_type = ast_type(left);
+
+  // Assignment is based on the alias of the right hand side.
   ast_t* a_type = alias(r_type);
-
-  if(l_type == NULL)
-  {
-    // Local type inference.
-    assert((ast_id(left) == TK_VAR) || (ast_id(left) == TK_LET));
-
-    // Returns the right side since there was no previous value to read.
-    ast_settype(ast, a_type);
-
-    // Set the type node.
-    AST_GET_CHILDREN(left, idseq, type);
-    ast_replace(&type, a_type);
-
-    ast_settype(left, a_type);
-    ast_inheriterror(ast);
-
-    // Set the type for each component.
-    return type_for_idseq(idseq, a_type);
-  }
 
   if(!is_subtype(a_type, l_type))
   {

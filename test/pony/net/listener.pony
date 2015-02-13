@@ -8,7 +8,7 @@ class Listener is TCPListenNotify
 
   fun ref listening(listen: TCPListener ref) =>
     try
-      let (host, service) = listen.local_address().name()
+      (let host, let service) = listen.local_address().name()
       _env.out.print("listening on " + host + ":" + service)
 
       let env = _env
