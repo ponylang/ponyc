@@ -517,7 +517,8 @@ void parse_trace(bool enable)
 }
 
 
-bool parse(ast_t* package, source_t* source, rule_t start, const char* expected)
+bool parse(ast_t* package, source_t* source, rule_t start,
+  const char* expected)
 {
   assert(package != NULL);
   assert(source != NULL);

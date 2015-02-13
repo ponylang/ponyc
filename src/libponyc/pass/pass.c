@@ -116,9 +116,10 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
   if(!pass_parse(package, source))
     return false;
 
+  ast_t* module = ast_child(package);
   bool r;
 
-  if(do_pass(&package, &r, options, PASS_SYNTAX, pass_syntax, NULL))
+  if(do_pass(&module, &r, options, PASS_SYNTAX, pass_syntax, NULL))
     return r;
 
   return true;

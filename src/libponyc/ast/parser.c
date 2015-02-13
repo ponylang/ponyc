@@ -93,8 +93,12 @@ DEF(typeargs);
   SKIP(NULL, TK_RSQUARE);
   DONE();
 
-// ID [DOT ID] [typeargs] [ISO | TRN | REF | VAL | BOX | TAG]
-// [EPHEMERAL | BORROWED]
+// CAP
+DEF(cap);
+  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  DONE();
+
+// ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
   TOKEN("name", TK_ID);
@@ -104,7 +108,7 @@ DEF(nominal);
     REORDER(1, 0);
   );
   OPT RULE("type arguments", typeargs);
-  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT RULE("capability", cap);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
@@ -498,14 +502,9 @@ DEF(test_try_block);
 DEF(recover);
   TOKEN(NULL, TK_RECOVER);
   SCOPE();
-  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT RULE("capability", cap);
   RULE("recover body", rawseq);
   SKIP(NULL, TK_END);
-  DONE();
-
-// CAP
-DEF(cap);
-  TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
 // $BORROWED
@@ -664,7 +663,7 @@ DEF(method);
     TK_CLASS, TK_ACTOR, TK_END);
   TOKEN(NULL, TK_FUN, TK_BE, TK_NEW);
   SCOPE();
-  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT RULE("capability", cap);
   TOKEN("method name", TK_ID);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
@@ -709,7 +708,7 @@ DEF(class_def);
   OPT TOKEN(NULL, TK_AT);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
-  OPT TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
+  OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided types", types));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
