@@ -116,6 +116,17 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
     if((ast_id(trait_def) != TK_TRAIT) && (ast_id(trait_def) != TK_INTERFACE))
       return false;
 
+    // Check for duplicates in our provides list
+    // This is just simple compare of each entry against all the other. This is
+    // clearly O(n^2), but since provides lists are likely to be small that
+    // should be OK. If it turns out to be a problem it can be changed later.
+    for(ast_t* p = ast_child(traits); p != t; p = ast_sibling(p))
+    {
+      if(trait_def == (ast_t*)ast_data(p))
+        ast_error(entity, "duplicate type %s in provides list",
+          ast_name(ast_childidx(p, 1)));
+    }
+
     if(!build_entity_def(trait_def))
       return false;
 
@@ -304,8 +315,7 @@ static bool process_provides(ast_t* entity, methods_t* method_info)
     token_id variety = ast_id(m);
 
     if((variety == TK_BE || variety == TK_FUN || variety == TK_NEW) &&
-      ast_id(ast_childidx(m, 6)) != TK_NONE
-      )
+      ast_id(ast_childidx(m, 6)) != TK_NONE)
       ast_setdata(m, entity);
   }
 
