@@ -155,6 +155,7 @@ typedef enum token_id
   TK_NOMINAL,
   TK_THISTYPE,
   TK_FUNTYPE,
+  TK_INFERTYPE,
 
   TK_ISO_BIND,
   TK_TRN_BIND,

@@ -76,9 +76,9 @@ typedef struct lit_chain_t
 static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain);
 
 static bool coerce_literal_to_type(ast_t** literal_expr, ast_t* target_type,
-  lit_chain_t* chain, pass_opt_t* options);
+  lit_chain_t* chain, pass_opt_t* options, bool report_errors);
 
-static bool unify(ast_t* ast, pass_opt_t* options);
+static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors);
 
 
 static void chain_init_head(lit_chain_t* head)
@@ -360,6 +360,9 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
       return uifset_simple_type(opt, type);
 
+    case TK_INFERTYPE:
+      return UIF_NO_TYPES;
+
     default:
       ast_error(type, "Internal error: uif type, node %d", ast_id(type));
       assert(0);
@@ -370,7 +373,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
 // Fill the given UIF type cache
 static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
-  lit_chain_t* chain_head)
+  lit_chain_t* chain_head, bool report_errors)
 {
   assert(chain_head != NULL);
   assert(chain_head->cardinality == CHAIN_CARD_BASE);
@@ -383,7 +386,9 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
 
   if(r == UIF_NO_TYPES)
   {
-    ast_error(literal, "Could not infer literal type, no valid types found");
+    if(report_errors)
+      ast_error(literal, "Could not infer literal type, no valid types found");
+
     return false;
   }
 
@@ -424,7 +429,8 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
 
 // Assign a UIF type from the given target type to the given AST
 static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
-  ast_t* target_type, lit_chain_t* chain, bool require_float)
+  ast_t* target_type, lit_chain_t* chain, bool require_float,
+  bool report_errors)
 {
   assert(literal != NULL);
   assert(chain != NULL);
@@ -436,14 +442,16 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
   if(chain_head->cached_type == NULL)
   {
     // This is the first time we've needed this type, find it
-    if(!uif_type(opt, literal, target_type, chain_head))
+    if(!uif_type(opt, literal, target_type, chain_head, report_errors))
       return false;
   }
 
   if(require_float && !chain_head->valid_for_float)
   {
-    ast_error(literal, "Inferred possibly integer type %s for float literal",
-      chain_head->name);
+    if(report_errors)
+      ast_error(literal, "Inferred possibly integer type %s for float literal",
+        chain_head->name);
+
     return false;
   }
 
@@ -454,7 +462,7 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 
 // Coerce a literal group (tuple or array) to be the specified target type
 static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
-  size_t cardinality, pass_opt_t* options)
+  size_t cardinality, pass_opt_t* options, bool report_errors)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
@@ -485,7 +493,8 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
         link.index = i;
       }
 
-      if(!coerce_literal_to_type(&p, target_type, &link, options))
+      if(!coerce_literal_to_type(&p, target_type, &link, options,
+        report_errors))
         return false;
     }
 
@@ -499,17 +508,14 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
 
 // Coerce a literal control block to be the specified target type
 static bool coerce_control_block(ast_t** astp, ast_t* target_type,
-  lit_chain_t* chain, pass_opt_t* options)
+  lit_chain_t* chain, pass_opt_t* options, bool report_errors)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
   assert(literal_expr != NULL);
 
   ast_t* lit_type = ast_type(literal_expr);
-
-  if(lit_type == NULL)
-    return false;
-
+  assert(lit_type != NULL);
   assert(ast_id(lit_type) == TK_LITERAL);
   ast_t* block_type = ast_type(lit_type);
 
@@ -519,7 +525,8 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
     ast_t* branch = (ast_t*)ast_data(p);
     assert(branch != NULL);
 
-    if(!coerce_literal_to_type(&branch, target_type, chain, options))
+    if(!coerce_literal_to_type(&branch, target_type, chain, options,
+      report_errors))
     {
       ast_free_unattached(block_type);
       return false;
@@ -545,7 +552,7 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
 
 // Coerce a literal expression to given tuple or non-tuple types
 static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
-  lit_chain_t* chain, pass_opt_t* options)
+  lit_chain_t* chain, pass_opt_t* options, bool report_errors)
 {
   assert(astp != NULL);
   ast_t* literal_expr = *astp;
@@ -559,14 +566,16 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     return true;
 
   if(ast_child(lit_type) != NULL) // Control block literal
-    return coerce_control_block(astp, target_type, chain, options);
+    return coerce_control_block(astp, target_type, chain, options,
+      report_errors);
 
   switch(ast_id(literal_expr))
   {
     case TK_TUPLE:  // Tuple literal
     {
       size_t cardinality = ast_childcount(literal_expr);
-      if(!coerce_group(astp, target_type, chain, cardinality, options))
+      if(!coerce_group(astp, target_type, chain, cardinality, options,
+        report_errors))
         return false;
 
       break;
@@ -574,14 +583,15 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
     case TK_INT:
       return uif_type_from_chain(options, literal_expr, target_type, chain,
-        false);
+        false, report_errors);
 
     case TK_FLOAT:
       return uif_type_from_chain(options, literal_expr, target_type, chain,
-        true);
+        true, report_errors);
 
     case TK_ARRAY:
-      if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, options))
+      if(!coerce_group(astp, target_type, chain, CHAIN_CARD_ARRAY, options,
+        report_errors))
         return false;
 
       break;
@@ -591,7 +601,8 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       // Only coerce the last expression in the sequence
       ast_t* last = ast_childlast(literal_expr);
 
-      if(!coerce_literal_to_type(&last, target_type, chain, options))
+      if(!coerce_literal_to_type(&last, target_type, chain, options,
+        report_errors))
         return false;
 
       ast_settype(literal_expr, ast_type(last));
@@ -603,11 +614,13 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
       AST_GET_CHILDREN(literal_expr, positional, named, receiver);
       ast_t* arg = ast_child(positional);
 
-      if(!coerce_literal_to_type(&receiver, target_type, chain, options))
+      if(!coerce_literal_to_type(&receiver, target_type, chain, options,
+        report_errors))
         return false;
 
       if(arg != NULL &&
-        !coerce_literal_to_type(&arg, target_type, chain, options))
+        !coerce_literal_to_type(&arg, target_type, chain, options,
+        report_errors))
         return false;
 
       ast_settype(literal_expr, ast_type(ast_child(receiver)));
@@ -617,7 +630,8 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
     case TK_DOT:
     {
       ast_t* receiver = ast_child(literal_expr);
-      if(!coerce_literal_to_type(&receiver, target_type, chain, options))
+      if(!coerce_literal_to_type(&receiver, target_type, chain, options,
+        report_errors))
         return false;
 
       break;
@@ -652,12 +666,12 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
     ast_id(lit_type) != TK_OPERATORLITERAL)
     return true;
 
-  if(target_type == NULL && !unify(literal_expr, options))
+  if(target_type == NULL && !unify(literal_expr, options, true))
     return false;
 
   lit_chain_t chain;
   chain_init_head(&chain);
-  return coerce_literal_to_type(astp, target_type, &chain, options);
+  return coerce_literal_to_type(astp, target_type, &chain, options, true);
 }
 
 typedef struct lit_op_info_t
@@ -702,7 +716,7 @@ static lit_op_info_t* lookup_literal_op(const char* name)
 
 
 // Unify all the branches of the given AST to the same type
-static bool unify(ast_t* ast, pass_opt_t* options)
+static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors)
 {
   assert(ast != NULL);
   ast_t* type = ast_type(ast);
@@ -719,7 +733,11 @@ static bool unify(ast_t* ast, pass_opt_t* options)
   if(non_literal != NULL)
   {
     // Type has a non-literal element, coerce literals to that
-    return coerce_literals(&ast, non_literal, options);
+    lit_chain_t chain;
+    chain_init_head(&chain);
+    return coerce_literal_to_type(&ast, non_literal, &chain, options,
+      report_errors);
+    //return coerce_literals(&ast, non_literal, options);
   }
 
   // Still a pure literal
@@ -734,7 +752,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options)
 
   AST_GET_CHILDREN(ast, receiver, name_node);
 
-  if(!unify(receiver, options))
+  if(!unify(receiver, options, true))
     return false;
 
   ast_t* recv_type = ast_type(receiver);
@@ -799,7 +817,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   if(arg != NULL)
   {
-    if(!unify(arg, options))
+    if(!unify(arg, options, true))
       return false;
 
     ast_t* arg_type = ast_type(arg);
@@ -827,4 +845,10 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   make_literal_type(ast);
   return true;
+}
+
+
+void literal_unify_control(ast_t* ast, pass_opt_t* options)
+{
+  unify(ast, options, false);
 }

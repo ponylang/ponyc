@@ -67,7 +67,7 @@ bool expr_seq(ast_t* ast)
   return true;
 }
 
-bool expr_if(ast_t* ast)
+bool expr_if(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* cond = ast_child(ast);
   ast_t* left = ast_sibling(cond);
@@ -112,13 +112,14 @@ bool expr_if(ast_t* ast)
   ast_settype(ast, type);
   ast_inheriterror(ast);
   ast_consolidate_branches(ast, branch_count);
+  literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
-bool expr_while(ast_t* ast)
+bool expr_while(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cond, body, else_clause);
 
@@ -165,13 +166,14 @@ bool expr_while(ast_t* ast)
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
-bool expr_repeat(ast_t* ast)
+bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, body, cond, else_clause);
 
@@ -218,13 +220,14 @@ bool expr_repeat(ast_t* ast)
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
+  literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
   return true;
 }
 
-bool expr_try(ast_t* ast)
+bool expr_try(pass_opt_t* opt, ast_t* ast)
 {
   ast_t* body = ast_child(ast);
   ast_t* else_clause = ast_sibling(body);
@@ -266,6 +269,8 @@ bool expr_try(ast_t* ast)
   // Doesn't inherit error from the body.
   if(ast_canerror(else_clause) || ast_canerror(then_clause))
     ast_seterror(ast);
+
+  literal_unify_control(ast, opt);
 
   // Push the symbol status from the then clause to our parent scope.
   ast_inheritstatus(ast_parent(ast), then_clause);

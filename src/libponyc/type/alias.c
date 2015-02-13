@@ -495,6 +495,10 @@ bool sendable(ast_t* type)
     case TK_FUNTYPE:
       return true;
 
+    case TK_INFERTYPE:
+      // Can only happen due to a local inference fail earlier
+      return false;
+
     default: {}
   }
 

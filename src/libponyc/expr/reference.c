@@ -33,39 +33,46 @@ static bool def_before_use(ast_t* def, ast_t* use, const char* name)
   return true;
 }
 
-static bool is_assigned_to(ast_t* ast)
+static bool is_assigned_to(ast_t* ast, bool check_result_needed)
 {
-  ast_t* parent = ast_parent(ast);
-
-  switch(ast_id(parent))
+  while(true)
   {
-    case TK_ASSIGN:
-    {
-      // Has to be the left hand side of an assignment. Left and right sides
-      // are swapped, so we must be the second child.
-      if(ast_childidx(parent, 1) != ast)
-        return false;
+    ast_t* parent = ast_parent(ast);
 
-      // The result of that assignment can't be used.
-      return !is_result_needed(parent);
+    switch(ast_id(parent))
+    {
+      case TK_ASSIGN:
+      {
+        // Has to be the left hand side of an assignment. Left and right sides
+        // are swapped, so we must be the second child.
+        if(ast_childidx(parent, 1) != ast)
+          return false;
+
+        if(!check_result_needed)
+          return true;
+
+        // The result of that assignment can't be used.
+        return !is_result_needed(parent);
+      }
+
+      case TK_SEQ:
+      {
+        // Might be in a tuple on the left hand side.
+        if(ast_childcount(parent) > 1)
+          return false;
+
+        break;
+      }
+
+      case TK_TUPLE:
+        break;
+
+      default:
+        return false;
     }
 
-    case TK_SEQ:
-    {
-      // Might be in a tuple on the left hand side.
-      if(ast_childcount(parent) > 1)
-        return false;
-
-      return is_assigned_to(parent);
-    }
-
-    case TK_TUPLE:
-      return is_assigned_to(parent);
-
-    default: {}
+    ast = parent;
   }
-
-  return false;
 }
 
 static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
@@ -98,14 +105,14 @@ static bool valid_reference(typecheck_t* t, ast_t* ast, ast_t* type,
       return true;
 
     case SYM_CONSUMED:
-      if(is_assigned_to(ast))
+      if(is_assigned_to(ast, true))
         return true;
 
       ast_error(ast, "can't use a consumed local in an expression");
       return false;
 
     case SYM_UNDEFINED:
-      if(is_assigned_to(ast))
+      if(is_assigned_to(ast, true))
         return true;
 
       ast_error(ast, "can't use an undefined variable in an expression");
@@ -480,95 +487,37 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-static ast_t* infer_local_type(ast_t* ast)
+bool expr_local(typecheck_t* t, ast_t* ast)
 {
+  assert(t != NULL);
   assert(ast != NULL);
 
-  ast_t* parent = ast_parent(ast);
-  assert(parent != NULL);
-
-  switch(ast_id(parent))
-  {
-    case TK_ASSIGN:
-    {
-      ast_t* r_type = ast_type(ast_child(parent));
-
-      if(r_type == NULL)
-        ast_error(ast, "can't declare a let local without assigning to it");
-
-      return r_type;
-    }
-
-    case TK_TUPLE:
-    {
-      ast_t* r_type = infer_local_type(parent);
-
-      if(r_type == NULL)  // Propogate error
-        return NULL;
-
-      if(ast_id(r_type) != TK_TUPLETYPE)
-      {
-        ast_error(ast,
-          "cannot infer type of local, assigned cardinality mismatch");
-        return NULL;
-      }
-
-      size_t decl_index = ast_index(ast);
-      if(decl_index >= ast_childcount(r_type))
-      {
-        ast_error(ast,
-          "cannot infer local type, too few elements in expression");
-        return NULL;
-      }
-
-      return ast_childidx(r_type, decl_index);
-    }
-
-    case TK_SEQ:
-      if(ast_childcount(parent) != 1)
-      {
-        ast_error(ast, "locals must specify a type or be assigned something");
-        return NULL;
-      }
-
-      return infer_local_type(parent);
-
-    default:
-      ast_error(ast, "locals must specify a type or be assigned something");
-      return NULL;
-  }
-}
-
-bool expr_local(pass_opt_t* opt, ast_t* ast)
-{
   AST_GET_CHILDREN(ast, id, type);
   assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
   {
-    // No type specified, infer
-    type = infer_local_type(ast);
-
-    if(type == NULL)  // Couldn't infer, error already reported
-      return false;
-
-    if(is_type_literal(type))
+    // No type specified, check we can infer
+    if(!is_assigned_to(ast, false))
     {
-      ast_t* target = ast_parent(type);
-      if(!coerce_literals(&target, NULL, opt))
-        return false;
+      if(t->frame->pattern != NULL)
+        ast_error(ast, "cannot infer type of capture variables");
+      else
+        ast_error(ast, "locals must specify a type or be assigned a value");
 
-      type = ast_type(target);  // May have changed due to literals
-
-      if(is_type_literal(type))
-      {
-        ast_error(ast, "cannot infer type of local from a literal");
-        return false;
-      }
+      return false;
     }
 
-    // Assignment is based on the alias of the right hand side
-    type = alias(type);
+    type = ast_from(id, TK_INFERTYPE);
+  }
+  else if(ast_id(ast) == TK_LET && t->frame->pattern == NULL)
+  {
+    // Let, check we have a value assigned
+    if(!is_assigned_to(ast, false))
+    {
+      ast_error(ast, "can't declare a let local without assigning to it");
+      return false;
+    }
   }
 
   ast_settype(id, type);

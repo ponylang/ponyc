@@ -9,7 +9,7 @@
 #include "../pass/pass.h"
 #include <assert.h>
 
-bool expr_match(ast_t* ast)
+bool expr_match(pass_opt_t* opt, ast_t* ast)
 {
   assert(ast_id(ast) == TK_MATCH);
   AST_GET_CHILDREN(ast, expr, cases, else_clause);
@@ -50,6 +50,7 @@ bool expr_match(ast_t* ast)
   ast_settype(ast, type);
   ast_inheriterror(ast);
   ast_consolidate_branches(ast, branch_count);
+  literal_unify_control(ast, opt);
 
   // Push our symbol status to our parent scope.
   ast_inheritstatus(ast_parent(ast), ast);
