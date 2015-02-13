@@ -123,8 +123,10 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
     for(ast_t* p = ast_child(traits); p != t; p = ast_sibling(p))
     {
       if(trait_def == (ast_t*)ast_data(p))
-        ast_error(entity, "duplicate type %s in provides list",
-          ast_name(ast_childidx(p, 1)));
+      {
+        ast_error(t, "duplicate entry in provides list");
+        ast_error(p, "previous entry here");
+      }
     }
 
     if(!build_entity_def(trait_def))

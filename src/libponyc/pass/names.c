@@ -110,6 +110,10 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
     return false;
   }
 
+  // Maintain the position info of the original reference to aid error
+  // reporting.
+  ast_setpos(r_alias, ast_line(ast), ast_pos(ast));
+
   // Replace this with the alias.
   ast_replace(astp, r_alias);
   return true;
