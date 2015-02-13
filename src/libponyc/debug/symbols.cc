@@ -432,6 +432,7 @@ void symbols_finalise(symbols_t* symbols)
 {
   assert(symbols->unit.Verify());
   symbols->builder->finalize();
+  delete symbols->builder;
 
   symbolmap_destroy(&symbols->map);
   POOL_FREE(symbols_t, symbols);

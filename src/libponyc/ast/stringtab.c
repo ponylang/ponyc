@@ -56,4 +56,5 @@ const char* stringtab(const char* string)
 void stringtab_done()
 {
   strtable_destroy(&table);
+  memset(&table, 0, sizeof(strtable_t));
 }

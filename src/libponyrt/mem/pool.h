@@ -22,6 +22,8 @@ size_t pool_size(size_t index);
 
 bool pool_debug_appears_freed();
 
+size_t pool_leak();
+
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 1)), 1, \

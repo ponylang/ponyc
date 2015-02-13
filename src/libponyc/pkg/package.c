@@ -690,6 +690,7 @@ void package_done(pass_opt_t* opt)
   strlist_free(search);
   search = NULL;
   package_clear_magic();
+  use_clear_handlers();
 }
 
 

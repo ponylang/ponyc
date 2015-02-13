@@ -383,14 +383,18 @@ LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,
     return LLVMGetElementType(LLVMTypeOf(func));
 
   ast_t* fun = get_fun(g, name, typeargs);
-  return get_signature(c, g, fun);
+  LLVMTypeRef type = get_signature(c, g, fun);
+  ast_free_unattached(fun);
+  return type;
 }
 
 LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  return get_prototype(c, g, name, typeargs, fun, false);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, false);
+  ast_free_unattached(fun);
+  return func;
 }
 
 static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
@@ -400,10 +404,16 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   if(LLVMCountBasicBlocks(func) != 0)
+  {
+    ast_free_unattached(fun);
     return func;
+  }
 
   codegen_startfun(c, func);
 
@@ -412,6 +422,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
 
   if(value == NULL)
   {
+    ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
@@ -422,6 +433,8 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_finishfun(c);
+  ast_free_unattached(fun);
+
   return func;
 }
 
@@ -432,7 +445,10 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   codegen_startfun(c, func);
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
@@ -449,7 +465,10 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   codegen_startfun(c, handler);
 
@@ -458,6 +477,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
 
   if(value == NULL)
   {
+    ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
     LLVMBuildRetVoid(c->builder);
@@ -467,6 +487,8 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
 
   // Add the dispatch case.
   add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
+  ast_free_unattached(fun);
+
   return func;
 }
 
@@ -477,18 +499,28 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   if(LLVMCountBasicBlocks(func) != 0)
+  {
+    ast_free_unattached(fun);
     return func;
+  }
 
   codegen_startfun(c, func);
 
   if(!gen_field_init(c, g))
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
+  ast_free_unattached(fun);
 
   if(value == NULL)
     return NULL;
@@ -507,7 +539,10 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
 
   if(func == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   codegen_startfun(c, func);
 
@@ -524,24 +559,35 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef handler = get_handler(c, g, name, typeargs);
 
   if(handler == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   codegen_startfun(c, handler);
 
   if(!gen_field_init(c, g))
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
 
   if(value == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 
   // Add the dispatch case.
   add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
+  ast_free_unattached(fun);
+
   return func;
 }
 

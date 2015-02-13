@@ -214,17 +214,17 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_DOT:
-      if(!expr_dot(options, ast))
+      if(!expr_dot(options, astp))
         return AST_ERROR;
       break;
 
     case TK_TILDE:
-      if(!expr_tilde(options, ast))
+      if(!expr_tilde(options, astp))
         return AST_ERROR;
       break;
 
     case TK_QUALIFY:
-      if(!expr_qualify(options, ast))
+      if(!expr_qualify(options, astp))
         return AST_ERROR;
       break;
 
@@ -280,7 +280,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_REFERENCE:
-      if(!expr_reference(options, ast))
+      if(!expr_reference(options, astp))
         return AST_ERROR;
       break;
 

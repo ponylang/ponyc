@@ -3,10 +3,17 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <assert.h>
 
 #include <platform.h>
+
+#define NVALGRIND
+
+#ifndef NVALGRIND
+#include <valgrind/valgrind.h>
+#endif
 
 #define POOL_MAX_BITS 21
 #define POOL_MAX (1 << POOL_MAX_BITS)
@@ -143,8 +150,12 @@ static pool_item_t* pool_pages(pool_local_t* thread, pool_global_t* global)
   return (pool_item_t*)p;
 }
 
-void* pool_alloc(size_t index)
+static void* pool_get(size_t index)
 {
+#ifndef NVALGRIND
+  VALGRIND_DISABLE_ERROR_REPORTING;
+#endif
+
   pool_local_t* thread = &pool_local[index];
   pool_global_t* global = &pool_global[index];
   pool_item_t* p = thread->pool;
@@ -153,20 +164,42 @@ void* pool_alloc(size_t index)
   {
     thread->pool = p->next;
     thread->length--;
-    return p;
+  } else {
+    p = pool_block(thread, global);
+
+    if(p == NULL)
+    {
+      p = pool_pull(thread, global);
+
+      if(p == NULL)
+        p = pool_pages(thread, global);
+    }
   }
 
-  if((p = pool_block(thread, global)) != NULL)
-    return p;
+#ifndef NVALGRIND
+  VALGRIND_ENABLE_ERROR_REPORTING;
+#endif
 
-  if((p = pool_pull(thread, global)) != NULL)
-    return p;
+  return p;
+}
 
-  return pool_pages(thread, global);
+void* pool_alloc(size_t index)
+{
+  void* p = pool_get(index);
+
+#ifndef NVALGRIND
+  VALGRIND_MALLOCLIKE_BLOCK(p, pool_size(index), 0, 0);
+#endif
+
+  return p;
 }
 
 void pool_free(size_t index, void* p)
 {
+#ifndef NVALGRIND
+  VALGRIND_DISABLE_ERROR_REPORTING;
+#endif
+
   pool_local_t* thread = &pool_local[index];
   pool_global_t* global = &pool_global[index];
 
@@ -177,16 +210,29 @@ void pool_free(size_t index, void* p)
   lp->next = thread->pool;
   thread->pool = (pool_item_t*)p;
   thread->length++;
+
+#ifndef NVALGRIND
+  VALGRIND_ENABLE_ERROR_REPORTING;
+  VALGRIND_FREELIKE_BLOCK(p, 0);
+#endif
 }
 
 void* pool_alloc_size(size_t size)
 {
   size_t index = pool_index(size);
+  void* p;
 
   if(index < POOL_COUNT)
     return pool_alloc(index);
+  //   p = pool_get(index);
+  // else
+    p = virtual_alloc(size);
 
-  return virtual_alloc(size);
+#ifndef NVALGRIND
+  VALGRIND_MALLOCLIKE_BLOCK(p, size, 0, 0);
+#endif
+
+  return p;
 }
 
 void pool_free_size(size_t size, void* p)
@@ -197,6 +243,10 @@ void pool_free_size(size_t size, void* p)
     return pool_free(index, p);
 
   virtual_free(p, size);
+
+#ifndef NVALGRIND
+  VALGRIND_FREELIKE_BLOCK(p, 0);
+#endif
 }
 
 size_t pool_index(size_t size)
@@ -240,4 +290,46 @@ bool pool_debug_appears_freed()
   }
 
   return true;
+}
+
+size_t pool_leak()
+{
+  size_t leak = 0;
+
+  for(int i = 0; i < POOL_COUNT; i++)
+  {
+    pool_local_t* thread = &pool_local[i];
+    pool_global_t* global = &pool_global[i];
+
+    size_t avail = (thread->length * global->size) +
+      (thread->end - thread->start);
+
+    if((avail != 0) && (avail != POOL_MMAP))
+    {
+      size_t amount = POOL_MMAP - avail;
+      leak += amount;
+
+      printf("POOL LEAK, SIZE %zu COUNT %zu\n",
+        global->size, amount / global->size);
+    }
+
+    pool_cmp_t cmp;
+    cmp.dw = global->central;
+    pool_central_t* next = cmp.node;
+
+    while(next != NULL)
+    {
+      if(next->length != global->count)
+      {
+        printf("POOL CENTRAL %zu of %zu\n", next->length, global->count);
+      }
+
+      next = next->central;
+    }
+  }
+
+  if(leak > 0)
+    printf("POOL TOTAL LEAK %zu\n", leak);
+
+  return leak;
 }

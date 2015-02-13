@@ -169,21 +169,6 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   return r_ast;
 }
 
-void reify_cap_and_ephemeral(ast_t* source, ast_t** target)
-{
-  assert(ast_id(source) == TK_NOMINAL);
-  assert(ast_id(*target) == TK_NOMINAL);
-  ast_t* ast = ast_dup(*target);
-
-  AST_GET_CHILDREN(source, pkg, id, typeargs, cap, ephemeral);
-  AST_GET_CHILDREN(ast, t_pkg, t_id, t_typeargs, t_cap, t_ephemeral);
-
-  ast_replace(&t_cap, cap);
-  ast_replace(&t_ephemeral, ephemeral);
-
-  *target = ast;
-}
-
 bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
 {
   // Reify the type parameters with the typeargs.

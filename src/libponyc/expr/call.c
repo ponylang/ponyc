@@ -12,9 +12,10 @@
 #include "../type/viewpoint.h"
 #include <assert.h>
 
-static bool insert_apply(pass_opt_t* opt, ast_t* ast)
+static bool insert_apply(pass_opt_t* opt, ast_t** astp)
 {
   // Sugar .apply()
+  ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
   ast_t* dot = ast_from(ast, TK_DOT);
@@ -22,10 +23,10 @@ static bool insert_apply(pass_opt_t* opt, ast_t* ast)
   ast_swap(lhs, dot);
   ast_add(dot, lhs);
 
-  if(!expr_dot(opt, dot))
+  if(!expr_dot(opt, &dot))
     return false;
 
-  return expr_call(opt, &ast);
+  return expr_call(opt, astp);
 }
 
 static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
@@ -694,10 +695,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   // Typecheck the create call.
-  if(!expr_reference(opt, call_receiver))
+  if(!expr_reference(opt, &call_receiver))
     return false;
 
-  if(!expr_dot(opt, call_dot))
+  if(!expr_dot(opt, &call_dot))
     return false;
 
   if(!expr_call(opt, &call))
@@ -736,5 +737,5 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  return insert_apply(opt, ast);
+  return insert_apply(opt, astp);
 }

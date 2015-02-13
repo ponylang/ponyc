@@ -294,6 +294,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
       {
         ast_error(pattern, "eq is not a function on this pattern element");
         ast_error(fun, "definition of eq is here");
+        ast_free_unattached(fun);
         return MATCHTYPE_DENY;
       }
 
@@ -345,6 +346,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
       if((ok != MATCHTYPE_ACCEPT) && errors)
         ast_error(fun, "definition of eq is here");
 
+      ast_free_unattached(fun);
       return ok;
     }
   }

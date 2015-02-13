@@ -14,6 +14,7 @@ typedef struct typecheck_frame_t
   ast_t* method;
   ast_t* def_arg;
   ast_t* method_body;
+  ast_t* method_params;
   ast_t* method_type;
   ast_t* ffi_type;
   ast_t* local_type;

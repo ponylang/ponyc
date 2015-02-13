@@ -1115,8 +1115,6 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
 
     while(child != NULL)
     {
-      ast_t* next = ast_sibling(child);
-
       switch(ast_visit(&child, pre, post, options))
       {
         case AST_OK:
@@ -1130,10 +1128,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
           return AST_FATAL;
       }
 
-      if(next == NULL)
-        child = ast_sibling(child);
-      else
-        child = next;
+      child = ast_sibling(child);
     }
   }
 

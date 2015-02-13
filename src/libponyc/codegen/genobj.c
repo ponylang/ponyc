@@ -28,7 +28,7 @@ const char* genobj(compile_t* c)
 #ifndef NDEBUG
   printf("Verifying\n");
 
-  char* msg;
+  char* msg = NULL;
 
   if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
   {
@@ -36,6 +36,9 @@ const char* genobj(compile_t* c)
     LLVMDisposeMessage(msg);
     return NULL;
   }
+
+  if(msg != NULL)
+    LLVMDisposeMessage(msg);
 #endif
 
   /*

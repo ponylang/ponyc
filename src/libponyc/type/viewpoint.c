@@ -19,9 +19,12 @@ static ast_t* make_single_arrow(ast_t* left, ast_t* right)
       ast_t* view = viewpoint_type(child, right);
 
       if(view == NULL)
+      {
+        ast_free_unattached(arrow);
         return NULL;
+      }
 
-      ast_replace(&child, right);
+      ast_replace(&child, view);
       return arrow;
     }
 

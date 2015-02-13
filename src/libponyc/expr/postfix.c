@@ -134,9 +134,11 @@ static bool method_access(ast_t* ast, ast_t* method)
   return is_method_called(ast);
 }
 
-static bool package_access(pass_opt_t* opt, ast_t* ast)
+static bool package_access(pass_opt_t* opt, ast_t** astp)
 {
-  // left is a packageref, right is an id
+  ast_t* ast = *astp;
+
+  // Left is a packageref, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
@@ -147,7 +149,7 @@ static bool package_access(pass_opt_t* opt, ast_t* ast)
   assert(ast_id(left) == TK_PACKAGEREF);
   assert(ast_id(right) == TK_ID);
 
-  // must be a type in a package
+  // Must be a type in a package.
   const char* package_name = ast_name(ast_child(left));
   ast_t* package = ast_get(left, package_name, NULL);
 
@@ -170,12 +172,14 @@ static bool package_access(pass_opt_t* opt, ast_t* ast)
 
   ast_settype(ast, type_sugar(ast, package_name, type_name));
   ast_setid(ast, TK_TYPEREF);
-  return expr_typeref(opt, ast);
+
+  return expr_typeref(opt, astp);
 }
 
-static bool type_access(pass_opt_t* opt, ast_t* ast)
+static bool type_access(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
 
   // Left is a typeref, right is an id.
   ast_t* left = ast_child(ast);
@@ -225,13 +229,13 @@ static bool type_access(pass_opt_t* opt, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // named
       ast_add(call, ast_from(ast, TK_NONE)); // positional
 
-      if(!expr_dot(opt, dot))
+      if(!expr_dot(opt, &dot))
         return false;
 
       if(!expr_call(opt, &call))
         return false;
 
-      return expr_dot(opt, ast);
+      return expr_dot(opt, astp);
     }
 
     default:
@@ -352,9 +356,10 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
   return ret;
 }
 
-bool expr_qualify(pass_opt_t* opt, ast_t* ast)
+bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 {
   // Left is a postfix expression, right is a typeargs.
+  ast_t* ast = *astp;
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
@@ -382,7 +387,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(opt, ast);
+      return expr_typeref(opt, astp);
     }
 
     case TK_NEWREF:
@@ -416,9 +421,10 @@ bool expr_qualify(pass_opt_t* opt, ast_t* ast)
   return false;
 }
 
-static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
+static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
 {
   typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
 
   // Left is a postfix expression, right is an id.
   ast_t* left = ast_child(ast);
@@ -426,10 +432,10 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
   switch(ast_id(left))
   {
     case TK_PACKAGEREF:
-      return package_access(opt, ast);
+      return package_access(opt, astp);
 
     case TK_TYPEREF:
-      return type_access(opt, ast);
+      return type_access(opt, astp);
 
     default: {}
   }
@@ -458,15 +464,17 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t* ast, bool partial)
   return member_access(t, ast, partial);
 }
 
-bool expr_dot(pass_opt_t* opt, ast_t* ast)
+bool expr_dot(pass_opt_t* opt, ast_t** astp)
 {
-  return dot_or_tilde(opt, ast, false);
+  return dot_or_tilde(opt, astp, false);
 }
 
-bool expr_tilde(pass_opt_t* opt, ast_t* ast)
+bool expr_tilde(pass_opt_t* opt, ast_t** astp)
 {
-  if(!dot_or_tilde(opt, ast, true))
+  if(!dot_or_tilde(opt, astp, true))
     return false;
+
+  ast_t* ast = *astp;
 
   if(ast_id(ast) == TK_TILDE && ast_type(ast) != NULL &&
     ast_id(ast_type(ast)) == TK_OPERATORLITERAL)

@@ -267,7 +267,15 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
     ast_t* r_trait = reify(trait, typeparams, typeargs);
 
     // Use the cap and ephemerality of the subtype.
-    reify_cap_and_ephemeral(sub, &r_trait);
+    AST_GET_CHILDREN(sub, pkg, name, typeparams, cap, eph);
+    ast_t* rr_trait = set_cap_and_ephemeral(r_trait, ast_id(cap), ast_id(eph));
+
+    if(rr_trait != r_trait)
+    {
+      ast_free_unattached(r_trait);
+      r_trait = rr_trait;
+    }
+
     bool is_sub = is_subtype(r_trait, super);
     ast_free_unattached(r_trait);
 

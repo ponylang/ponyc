@@ -516,30 +516,24 @@ static ast_result_t sugar_update(ast_t** astp)
   // Replace us with:     x.update(y where value = z)
   AST_EXTRACT_CHILDREN(call, positional, named, expr);
 
-  // If there are no named arguments yet, named will be a TK_NONE
+  // If there are no named arguments yet, named will be a TK_NONE.
   ast_setid(named, TK_NAMEDARGS);
 
-  // Embed the value in a SEQ
-  ast_t* value_seq = ast_from(value, TK_SEQ);
-  ast_add(value_seq, value);
-
-  // Build a new namedarg
+  // Build a new namedarg.
   BUILD(namedarg, ast,
     NODE(TK_NAMEDARG,
       ID("value")
-      TREE(value_seq)
-      ));
+      NODE(TK_SEQ, TREE(value))));
 
-  // Append the named arg to our existing list
+  // Append the named arg to our existing list.
   ast_append(named, namedarg);
 
-  // Replace with the update call
+  // Replace with the update call.
   REPLACE(astp,
     NODE(TK_CALL,
       TREE(positional)
       TREE(named)
-      NODE(TK_DOT, TREE(expr) ID("update"))
-      ));
+      NODE(TK_DOT, TREE(expr) ID("update"))));
 
   return AST_OK;
 }

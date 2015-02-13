@@ -171,6 +171,10 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
     return false;
   }
 
+  // Set the type so that it isn't free'd as unattached.
+  ast_setid(ast, tid);
+  ast_settype(ast, type);
+
   if(ast_id(left) == TK_THIS)
   {
     // Handle symbol status if the left side is 'this'.
@@ -184,13 +188,12 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
       return false;
   }
 
-  ast_setid(ast, tid);
-  ast_settype(ast, type);
   return true;
 }
 
-bool expr_typeref(pass_opt_t* opt, ast_t* ast)
+bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 {
+  ast_t* ast = *astp;
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
@@ -217,16 +220,19 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
       ast_swap(ast, dot);
+      *astp = dot;
       ast_add(dot, ast);
 
-      if(!expr_dot(opt, dot))
+      if(!expr_dot(opt, astp))
         return false;
+
+      ast_t* ast = *astp;
 
       // If the default constructor has no parameters, transform to an apply
       // call.
-      if(ast_id(dot) == TK_NEWREF)
+      if(ast_id(ast) == TK_NEWREF)
       {
-        type = ast_type(dot);
+        type = ast_type(ast);
 
         if(type == NULL)
           return false;
@@ -237,11 +243,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
         if(ast_id(params) == TK_NONE)
         {
           // Add a call node.
-          ast_t* call = ast_from(dot, TK_CALL);
+          ast_t* call = ast_from(ast, TK_CALL);
           ast_add(call, ast_from(call, TK_NONE)); // Named
           ast_add(call, ast_from(call, TK_NONE)); // Positional
-          ast_swap(dot, call);
-          ast_append(call, dot);
+          ast_swap(ast, call);
+          ast_append(call, ast);
 
           if(!expr_call(opt, &call))
             return false;
@@ -252,10 +258,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
           ast_swap(call, apply);
           ast_add(apply, call);
 
-          if(!expr_dot(opt, apply))
+          if(!expr_dot(opt, &apply))
             return false;
         }
       }
+
       return true;
     }
 
@@ -278,19 +285,22 @@ bool expr_typeref(pass_opt_t* opt, ast_t* ast)
       ast_add(call, ast_from(ast, TK_NONE)); // Named args.
       ast_add(call, ast_from(ast, TK_NONE)); // Positional args.
 
-      if(!expr_dot(opt, dot))
+      *astp = call;
+
+      if(!expr_dot(opt, &dot))
         return false;
 
-      return expr_call(opt, &call);
+      return expr_call(opt, astp);
     }
   }
 
   return true;
 }
 
-bool expr_reference(pass_opt_t* opt, ast_t* ast)
+bool expr_reference(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
 
   // Everything we reference must be in scope.
   const char* name = ast_name(ast_child(ast));
@@ -335,7 +345,7 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
       ast_settype(ast, type);
       ast_setid(ast, TK_TYPEREF);
 
-      return expr_typeref(opt, ast);
+      return expr_typeref(opt, astp);
     }
 
     case TK_FVAR:
@@ -346,17 +356,17 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
         return false;
 
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
 
       ast_t* self = ast_from(ast, TK_THIS);
       ast_add(dot, self);
-      ast_free(ast);
+
+      ast_replace(astp, dot);
 
       if(!expr_this(opt, self))
         return false;
 
-      return expr_dot(opt, dot);
+      return expr_dot(opt, astp);
     }
 
     case TK_PARAM:
@@ -404,17 +414,17 @@ bool expr_reference(pass_opt_t* opt, ast_t* ast)
     {
       // Transform to "this.f".
       ast_t* dot = ast_from(ast, TK_DOT);
-      ast_swap(ast, dot);
       ast_add(dot, ast_child(ast));
 
       ast_t* self = ast_from(ast, TK_THIS);
       ast_add(dot, self);
-      ast_free(ast);
+
+      ast_replace(astp, dot);
 
       if(!expr_this(opt, self))
         return false;
 
-      return expr_dot(opt, dot);
+      return expr_dot(opt, astp);
     }
 
     case TK_ID:

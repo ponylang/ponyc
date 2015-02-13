@@ -125,8 +125,11 @@ bool frame_push(typecheck_t* t, ast_t* ast)
           AST_GET_CHILDREN(parent,
             cap, id, typeparams, params, result, error, body);
 
-          if(result == ast)
+          if(params == ast)
           {
+            pop = push_frame(t);
+            t->frame->method_params = ast;
+          } else if(result == ast) {
             pop = push_frame(t);
             t->frame->method_type = ast;
           } else if(body == ast) {
