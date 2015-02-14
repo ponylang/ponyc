@@ -99,7 +99,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     None
 
-  fun ref remove(key: K!): V^ ? =>
+  fun ref remove(key: box->K!): V^ ? =>
     """
     Delete a value from the map and return it. Raises an error if there was no
     value for the given key.
@@ -126,7 +126,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     this(consume k) = consume v
     this
 
-  fun ref sub(key: K!): HashMap[K, V, H]^ =>
+  fun ref sub(key: box->K!): HashMap[K, V, H]^ =>
     """
     Remove a value from the map using -. Return the map, allowing chaining.
     """

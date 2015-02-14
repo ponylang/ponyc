@@ -40,7 +40,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     _map(value) = consume value
     this
 
-  fun ref sub(value: A!): A^ ? =>
+  fun ref sub(value: box->A!): A^ ? =>
     """
     Delete a value from the set and return it. Raises an error if the value
     wasn't in the set.
