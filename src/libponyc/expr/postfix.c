@@ -3,6 +3,7 @@
 #include "literal.h"
 #include "call.h"
 #include "../pkg/package.h"
+#include "../pass/expr.h"
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
@@ -105,7 +106,7 @@ static bool method_access(ast_t* ast, ast_t* method)
       AST_GET_CHILDREN(ast, left, right);
       ast_t* type = ast_type(left);
 
-      if(type == NULL)
+      if(is_typecheck_error(type))
         return false;
 
       if(!constructor_type(ast, ast_id(cap), type, &result))
@@ -143,7 +144,7 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   assert(ast_id(left) == TK_PACKAGEREF);
@@ -186,7 +187,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   assert(ast_id(left) == TK_TYPEREF);
@@ -276,7 +277,7 @@ static bool tuple_access(ast_t* ast)
   ast_t* right = ast_sibling(left);
   ast_t* type = ast_type(left);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   // Change the lookup name to an integer index.
@@ -309,7 +310,7 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
   assert(ast_id(right) == TK_ID);
   ast_t* type = ast_type(left);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   ast_t* find = lookup(t, ast, type, ast_name(right));
@@ -365,7 +366,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
   ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   switch(ast_id(left))

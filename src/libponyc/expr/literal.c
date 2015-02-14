@@ -30,7 +30,7 @@ bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name)
 {
   ast_t* type = type_builtin(opt, ast, name);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   ast_settype(ast, type);
@@ -316,7 +316,7 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 {
   assert(chain != NULL);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return UIF_NO_TYPES;
 
   switch(ast_id(type))
@@ -359,9 +359,6 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
         return UIF_NO_TYPES;
 
       return uifset_simple_type(opt, type);
-
-    case TK_INFERTYPE:
-      return UIF_NO_TYPES;
 
     default:
       ast_error(type, "Internal error: uif type, node %d", ast_id(type));
@@ -481,7 +478,7 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
   {
     ast_t* p_type = ast_type(p);
 
-    if(p_type == NULL)
+    if(is_typecheck_error(p_type))
       return false;
 
     if(is_type_literal(p_type))
@@ -535,7 +532,7 @@ static bool coerce_control_block(ast_t** astp, ast_t* target_type,
     block_type = type_union(block_type, ast_type(branch));
   }
 
-  if(block_type == NULL)
+  if(is_typecheck_error(block_type))
     return false;
 
   // block_type may be a sub-tree of the current type of literal_expr.
@@ -562,12 +559,17 @@ static bool coerce_literal_to_type(ast_t** astp, ast_t* target_type,
 
   if(lit_type == NULL ||
     (ast_id(lit_type) != TK_LITERAL && ast_id(lit_type) != TK_OPERATORLITERAL))
+  {
     // Not a literal
     return true;
+  }
 
-  if(ast_child(lit_type) != NULL) // Control block literal
+  if(ast_child(lit_type) != NULL)
+  {
+    // Control block literal
     return coerce_control_block(astp, target_type, chain, options,
       report_errors);
+  }
 
   switch(ast_id(literal_expr))
   {
@@ -721,7 +723,7 @@ static bool unify(ast_t* ast, pass_opt_t* options, bool report_errors)
   assert(ast != NULL);
   ast_t* type = ast_type(ast);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   if(!is_type_literal(type)) // Not literal, nothing to unify
@@ -757,7 +759,7 @@ bool literal_member_access(ast_t* ast, pass_opt_t* options)
 
   ast_t* recv_type = ast_type(receiver);
 
-  if(recv_type == NULL)
+  if(is_typecheck_error(recv_type))
     return false;
 
   if(ast_id(recv_type) != TK_LITERAL) // Literals resolved
@@ -792,7 +794,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
   ast_t* recv_type = ast_type(receiver);
 
-  if(recv_type == NULL)
+  if(is_typecheck_error(recv_type))
     return false;
 
   if(ast_id(recv_type) == TK_LITERAL)
@@ -822,7 +824,7 @@ bool literal_call(ast_t* ast, pass_opt_t* options)
 
     ast_t* arg_type = ast_type(arg);
 
-    if(arg_type == NULL)
+    if(is_typecheck_error(arg_type))
       return false;
 
     if(ast_id(arg_type) != TK_LITERAL)  // Apply argument type to receiver

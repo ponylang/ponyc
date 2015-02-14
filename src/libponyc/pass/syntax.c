@@ -365,12 +365,6 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
     r = AST_ERROR;
   }
 
-  if(t->frame->method_params != NULL)
-  {
-    ast_error(ast, "can't use 'this' as a viewpoint in a parameter");
-    r = AST_ERROR;
-  }
-
   return r;
 }
 

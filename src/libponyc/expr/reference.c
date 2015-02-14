@@ -137,7 +137,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 
     ast_t* init_type = ast_type(init);
 
-    if(init_type == NULL)
+    if(is_typecheck_error(init_type))
       return false;
 
     init_type = alias(init_type);
@@ -164,7 +164,7 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
   AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
 
-  if(l_type == NULL)
+  if(is_typecheck_error(l_type))
     return false;
 
   AST_GET_CHILDREN(find, id, f_type, init);
@@ -204,7 +204,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
   assert(ast_id(ast) == TK_TYPEREF);
   ast_t* type = ast_type(ast);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   switch(ast_id(ast_parent(ast)))
@@ -241,7 +241,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       {
         type = ast_type(ast);
 
-        if(type == NULL)
+        if(is_typecheck_error(type))
           return false;
 
         assert(ast_id(type) == TK_FUNTYPE);
@@ -383,7 +383,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_t* type = ast_type(def);
 
-      if(type == NULL)
+      if(is_typecheck_error(type))
         return false;
 
       if(!valid_reference(t, ast, type, status))
@@ -441,7 +441,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_t* type = ast_type(def);
 
-      if(type == NULL)
+      if(is_typecheck_error(type))
         return false;
 
       if(!valid_reference(t, ast, type, status))
@@ -559,7 +559,7 @@ static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
   // Set the type to Pointer[ast_type(expr)].
   ast_t* expr_type = ast_type(expr);
 
-  if(expr_type == NULL)
+  if(is_typecheck_error(expr_type))
     return false;
 
   ast_t* type = type_pointer_to(opt, expr_type);

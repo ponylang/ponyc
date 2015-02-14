@@ -6,6 +6,7 @@
 #include "../type/alias.h"
 #include "../type/lookup.h"
 #include "../ast/stringtab.h"
+#include "../pass/expr.h"
 #include "../pass/pass.h"
 #include <assert.h>
 
@@ -18,7 +19,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   // again to avoid an assert if we've missed a case
   ast_t* expr_type = ast_type(expr);
 
-  if(expr_type == NULL)
+  if(is_typecheck_error(expr_type))
     return false;
 
   if(is_type_literal(expr_type))
@@ -395,6 +396,9 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  if(is_typecheck_error(match_type))
+    return false;
+
   if(!infer_pattern_type(pattern, match_type, opt))
     return false;
 
@@ -408,7 +412,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   {
     ast_t* guard_type = ast_type(guard);
 
-    if(guard_type == NULL)
+    if(is_typecheck_error(guard_type))
       return false;
 
     if(!is_bool(guard_type))

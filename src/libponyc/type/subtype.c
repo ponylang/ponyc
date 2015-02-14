@@ -657,7 +657,32 @@ static bool is_arrow_sub_arrow(ast_t* sub, ast_t* super)
   AST_GET_CHILDREN(sub, sub_left, sub_right);
   AST_GET_CHILDREN(super, super_left, super_right);
 
-  return is_eqtype(sub_left, super_left) && is_subtype(sub_right, super_right);
+  switch(ast_id(sub_left))
+  {
+    case TK_THISTYPE:
+      switch(ast_id(super_left))
+      {
+        case TK_THISTYPE:
+        case TK_BOXTYPE:
+          break;
+
+        default:
+          return false;
+      }
+      break;
+
+    case TK_BOXTYPE:
+      if(ast_id(super_left) != TK_BOXTYPE)
+        return false;
+      break;
+
+    default:
+      if(!is_eqtype(sub_left, super_left))
+        return false;
+      break;
+  }
+
+  return is_subtype(sub_right, super_right);
 }
 
 // The subtype is an arrow, the supertype could be anything.
@@ -682,19 +707,25 @@ static bool is_arrow_subtype(ast_t* sub, ast_t* super)
       // A->B <: C
       ast_t* right = ast_child(sub);
 
-      if(is_eqtype(right, super))
+      switch(ast_id(right))
       {
-        // C->B <: C
-        // If we are adapted by the supertype, we are a subtype if our lower
-        // bounds is a subtype of super.
-        ast_t* lower = viewpoint_lower(sub);
-        bool ok = is_subtype(lower, super);
-        ast_free_unattached(lower);
-        return ok;
-      }
+        case TK_THISTYPE:
+        case TK_BOXTYPE:
+          break;
 
-      if(ast_id(right) != TK_THISTYPE)
-        return false;
+        default:
+          if(is_eqtype(right, super))
+          {
+            // C->B <: C
+            // If we are adapted by the supertype, we are a subtype if our
+            // lower bounds is a subtype of super.
+            ast_t* lower = viewpoint_lower(sub);
+            bool ok = is_subtype(lower, super);
+            ast_free_unattached(lower);
+            return ok;
+          }
+          break;
+      }
       break;
     }
 
@@ -742,10 +773,8 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_ARROW:
       return is_arrow_subtype(sub, super);
 
-    case TK_THISTYPE:
-      return ast_id(super) == TK_THISTYPE;
-
     case TK_FUNTYPE:
+    case TK_INFERTYPE:
       return false;
 
     case TK_NEW:

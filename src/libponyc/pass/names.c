@@ -257,6 +257,7 @@ static bool names_arrow(ast_t* ast)
 
   switch(ast_id(left))
   {
+    case TK_BOXTYPE:
     case TK_THISTYPE:
     case TK_TYPEPARAMREF:
       return true;
@@ -264,7 +265,7 @@ static bool names_arrow(ast_t* ast)
     default: {}
   }
 
-  ast_error(left, "only type parameters and 'this' can be viewpoints");
+  ast_error(left, "only 'this', 'box' and type parameters can be viewpoints");
   return false;
 }
 

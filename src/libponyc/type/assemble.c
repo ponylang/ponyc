@@ -4,6 +4,7 @@
 #include "../ast/token.h"
 #include "../expr/literal.h"
 #include "../pass/names.h"
+#include "../pass/expr.h"
 #include <assert.h>
 
 static void append_one_to_union(ast_t* ast, ast_t* append)
@@ -185,6 +186,9 @@ ast_t* control_type_add_branch(ast_t* control_type, ast_t* branch)
 
   if(branch_type == NULL)
     return control_type;
+
+  if(is_typecheck_error(branch_type))
+    return branch_type;
 
   if(is_type_literal(branch_type))
   {

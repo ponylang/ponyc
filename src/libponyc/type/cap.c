@@ -335,6 +335,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
       {
         case TK_ISO: return TK_ISO;
         case TK_VAL: return TK_VAL;
+        case TK_BOX_GENERIC: return TK_TAG_GENERIC;
         case TK_TAG_GENERIC: return TK_TAG_GENERIC;
         default: return TK_TAG;
       }
@@ -364,7 +365,7 @@ token_id cap_viewpoint(token_id view, token_id cap)
       {
         case TK_TAG: return TK_TAG;
         case TK_TAG_GENERIC: return TK_TAG_GENERIC;
-        case TK_ANY_GENERIC: return TK_TAG;
+        case TK_ANY_GENERIC: return TK_TAG_GENERIC;
         default: return TK_VAL;
       }
       break;

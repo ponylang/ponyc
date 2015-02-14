@@ -264,6 +264,7 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     }
 
     case TK_ARROW:
+    case TK_BOXTYPE:
     case TK_THISTYPE:
       return make_arrow_type(l_type, r_type);
 

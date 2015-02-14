@@ -337,8 +337,32 @@ static matchtype_t could_subtype_arrow(ast_t* sub, ast_t* super)
     // If we have the same viewpoint, check the right side.
     AST_GET_CHILDREN(sub, sub_left, sub_right);
     AST_GET_CHILDREN(super, super_left, super_right);
+    bool check = false;
 
-    if(is_eqtype(sub_left, super_left))
+    switch(ast_id(sub_left))
+    {
+      case TK_THISTYPE:
+        switch(ast_id(super_left))
+        {
+          case TK_THISTYPE:
+          case TK_BOXTYPE:
+            check = true;
+            break;
+
+          default: {}
+        }
+        break;
+
+      case TK_BOXTYPE:
+        check = ast_id(super_left) == TK_BOXTYPE;
+        break;
+
+      default:
+        check = is_eqtype(sub_left, super_left);
+        break;
+    }
+
+    if(check)
       return could_subtype(sub_right, super_right);
   }
 

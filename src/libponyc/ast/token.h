@@ -154,6 +154,7 @@ typedef enum token_id
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_THISTYPE,
+  TK_BOXTYPE,
   TK_FUNTYPE,
   TK_INFERTYPE,
 

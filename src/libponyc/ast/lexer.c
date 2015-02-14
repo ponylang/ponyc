@@ -174,6 +174,7 @@ static const lexsym_t abstract[] =
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
+  { "boxtype", TK_BOXTYPE },
   { "funtype", TK_FUNTYPE },
   { "infer", TK_INFERTYPE },
 

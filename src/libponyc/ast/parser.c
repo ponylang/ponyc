@@ -163,9 +163,15 @@ DEF(thistype);
   SKIP(NULL, TK_THIS);
   DONE();
 
-// (thistype | typeexpr | nominal)
+// BOX
+DEF(boxtype);
+  AST_NODE(TK_BOXTYPE);
+  SKIP(NULL, TK_BOX);
+  DONE();
+
+// (thistype | boxtype | typeexpr | nominal)
 DEF(atomtype);
-  RULE("type", thistype, groupedtype, nominal);
+  RULE("type", thistype, boxtype, groupedtype, nominal);
   DONE();
 
 // ARROW type

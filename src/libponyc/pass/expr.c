@@ -135,6 +135,17 @@ bool is_method_return(typecheck_t* t, ast_t* ast)
   return is_method_result(t, ast);
 }
 
+bool is_typecheck_error(ast_t* type)
+{
+  if(type == NULL)
+    return true;
+
+  if(ast_id(type) == TK_INFERTYPE)
+    return true;
+
+  return false;
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;

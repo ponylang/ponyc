@@ -5,6 +5,7 @@
 #include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"
+#include "../pass/expr.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -35,6 +36,9 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
       ast_free_unattached(type);
       return false;
     }
+
+    if(is_typecheck_error(c_type))
+      return false;
 
     if(told_type)
     {

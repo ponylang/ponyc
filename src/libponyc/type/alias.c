@@ -265,6 +265,7 @@ ast_t* alias(ast_t* type)
     }
 
     case TK_FUNTYPE:
+    case TK_INFERTYPE:
       return type;
 
     default: {}
@@ -375,6 +376,7 @@ ast_t* consume_type(ast_t* type, token_id cap)
     }
 
     case TK_FUNTYPE:
+    case TK_INFERTYPE:
       return type;
 
     default: {}
@@ -436,6 +438,7 @@ ast_t* recover_type(ast_t* type, token_id cap)
     }
 
     case TK_FUNTYPE:
+    case TK_INFERTYPE:
       return type;
 
     default: {}
@@ -493,10 +496,7 @@ bool sendable(ast_t* type)
     }
 
     case TK_FUNTYPE:
-      return true;
-
     case TK_INFERTYPE:
-      // Can only happen due to a local inference fail earlier
       return false;
 
     default: {}

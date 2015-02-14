@@ -188,7 +188,7 @@ typedef enum infer_ret_t
 static ast_t* find_infer_type(ast_t* type, infer_path_t* path)
 {
   assert(type != NULL);
-  
+
   switch(ast_id(type))
   {
     case TK_TUPLETYPE:
@@ -370,7 +370,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   ast_t* r_type = ast_type(right);
 
-  if(r_type == NULL)
+  if(is_typecheck_error(r_type))
     return false;
 
   if(!infer_locals(left, r_type))
@@ -442,7 +442,7 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
 
   ast_t* type = ast_type(term);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   token_id tcap = ast_id(cap);

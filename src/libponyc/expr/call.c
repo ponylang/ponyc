@@ -74,7 +74,7 @@ static bool check_type_params(ast_t** astp)
   ast_t* lhs = *astp;
   ast_t* type = ast_type(lhs);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   ast_t* typeparams = ast_childidx(type, 1);
@@ -253,6 +253,9 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
       return false;
     }
 
+    if(is_typecheck_error(arg_type))
+      return false;
+
     ast_t* a_type = alias(arg_type);
 
     if(incomplete)
@@ -301,7 +304,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
     {
       ast_t* arg_type = ast_type(arg);
 
-      if(arg_type == NULL)
+      if(is_typecheck_error(arg_type))
         return false;
 
       ast_t* a_type = alias(arg_type);
@@ -324,7 +327,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
   ast_t* type = ast_type(lhs);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
@@ -339,7 +342,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   // Receiver type, alias of receiver type, and target type.
   ast_t* r_type = ast_type(receiver);
 
-  if(r_type == NULL)
+  if(is_typecheck_error(r_type))
     return false;
 
   ast_t* t_type = set_cap_and_ephemeral(r_type, ast_id(cap), TK_NONE);
@@ -408,7 +411,7 @@ static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 
   ast_t* type = ast_type(lhs);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
@@ -446,7 +449,7 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
   ast_t* type = ast_type(lhs);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
@@ -528,7 +531,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // The TK_FUNTYPE of the LHS.
   ast_t* type = ast_type(lhs);
 
-  if(type == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   token_id apply_cap = partial_application_cap(type, receiver, positional);
@@ -595,7 +598,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_t* r_field_id = ast_from_string(receiver, package_hygienic_id(t));
   ast_t* r_type = ast_type(receiver);
 
-  if(r_type == NULL)
+  if(is_typecheck_error(r_type))
     return false;
 
   // A field in the type.

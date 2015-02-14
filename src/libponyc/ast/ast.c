@@ -1047,6 +1047,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "this");
       break;
 
+    case TK_BOXTYPE:
+      printbuf(buffer, "box");
+      break;
+
     case TK_DONTCARE:
       printbuf(buffer, "_");
       break;
