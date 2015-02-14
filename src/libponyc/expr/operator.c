@@ -326,6 +326,13 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
       ast_t* a_type = alias(infer_type);
       ast_settype(left, a_type);
       ast_settype(ast_child(left), a_type);
+
+      // Add the type to the var / let AST as if it had been specified by the
+      // user. Not really needed, but makes testing easier
+      ast_t* speced_type = ast_childidx(left, 1);
+      assert(ast_id(speced_type) == TK_NONE);
+      ast_replace(&speced_type, a_type);
+
       ast_free_unattached(infer_type);
       return INFER_OK;
     }
@@ -341,11 +348,12 @@ static bool infer_locals(ast_t* left, ast_t* r_type)
   infer_path_t path_root = { 0, NULL, NULL };
   path_root.root = &path_root;
 
-  infer_ret_t r = infer_local_inner(left, r_type, &path_root);
+  if(infer_local_inner(left, r_type, &path_root) == INFER_ERROR)
+    return false;
+
   assert(path_root.next == NULL);
   assert(path_root.root = &path_root);
-
-  return r != INFER_ERROR;
+  return true;
 }
 
 bool expr_assign(pass_opt_t* opt, ast_t* ast)

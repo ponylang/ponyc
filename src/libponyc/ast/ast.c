@@ -380,6 +380,8 @@ ast_t* ast_type(ast_t* ast)
 
 void ast_settype(ast_t* ast, ast_t* type)
 {
+  assert(ast != NULL);
+
   if(ast->type == type)
     return;
 
