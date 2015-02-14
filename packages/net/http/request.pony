@@ -19,19 +19,19 @@ class Request val
     _method = method
     _resource = resource
 
-  fun box method(): String =>
+  fun method(): String =>
     """
     Get the request method.
     """
     _method
 
-  fun box resource(): String =>
+  fun resource(): String =>
     """
     Get the requested resource.
     """
     _resource
 
-  fun box apply(key: String ): String ? =>
+  fun apply(key: String ): String ? =>
     """
     Retrieve a header.
     """
@@ -57,7 +57,7 @@ class Request val
     _body = value
     this
 
-  fun box _write(host: String, service: String, conn: TCPConnection) =>
+  fun _write(host: String, service: String, conn: TCPConnection) =>
     """
     Write the request on the supplied TCP connection.
     """

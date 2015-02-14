@@ -273,6 +273,9 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(!is_subtype(a_type, p_type))
     {
+      // TODO: remove this
+      is_subtype(a_type, p_type);
+
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
       ast_error(arg, "argument type: %s", ast_print_type(a_type));

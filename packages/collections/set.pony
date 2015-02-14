@@ -27,7 +27,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     _map.space()
 
-  fun apply(value: this->A!): this->A ? =>
+  fun apply(value: box->A!): this->A ? =>
     """
     Return the value if its in the set, otherwise raise an error.
     """
@@ -107,7 +107,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     end
     r
 
-  fun without[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun without[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
     HashSet[this->A!, K]^
   =>
     """

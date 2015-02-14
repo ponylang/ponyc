@@ -138,7 +138,7 @@ class Array[A]
     _size = _size.min(len)
     this
 
-  fun box copy_to(dst: Array[this->A!], src_idx: U64, dst_idx: U64, len: U64):
+  fun copy_to(dst: Array[this->A!], src_idx: U64, dst_idx: U64, len: U64):
     this->Array[A]^
   =>
     """
@@ -235,7 +235,7 @@ class Array[A]
   //     end
   //   end
 
-  fun box clone(): Array[this->A!]^ =>
+  fun clone(): Array[this->A!]^ =>
     """
     Clone the array.
     """

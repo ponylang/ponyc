@@ -66,7 +66,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _array.space()
 
-  fun apply(key: this->K!): this->V ? =>
+  fun apply(key: box->K!): this->V ? =>
     """
     Gets a value from the map. Raises an error if no such item exists.
     """
@@ -169,7 +169,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     _array = _array.create()
     this
 
-  fun _search(key: this->K!): (U64, Bool) =>
+  fun _search(key: box->K!): (U64, Bool) =>
     """
     Return a slot number and whether or not it's currently occupied.
     """

@@ -34,7 +34,7 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun box _offset(n: U64): this->Pointer[A] =>
+  fun _offset(n: U64): this->Pointer[A] =>
     """
     Return a pointer to the n-th element.
     """
@@ -62,7 +62,7 @@ class Pointer[A]
     """
     compiler_intrinsic
 
-  fun box _copy_to(that: Pointer[this->A!] tag, n: U64): this->Pointer[A] =>
+  fun _copy_to(that: Pointer[this->A!] tag, n: U64): this->Pointer[A] =>
     """
     Copy n elements from this to that.
     """

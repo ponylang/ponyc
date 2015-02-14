@@ -134,16 +134,15 @@ static ast_t* viewpoint_lower_for_typeparam(ast_t* type)
   {
     case TK_ISO:
     case TK_TRN:
+    case TK_REF:
     case TK_VAL:
     case TK_TAG:
       return type;
 
-    case TK_REF:
     case TK_BOX_GENERIC:
       tcap = TK_TRN;
       break;
 
-    case TK_BOX:
     case TK_TAG_GENERIC:
       tcap = TK_VAL;
       break;
@@ -279,7 +278,7 @@ ast_t* viewpoint_upper(ast_t* type)
 {
   if(ast_id(type) == TK_ARROW)
   {
-    ast_t* right = ast_childidx(type, 1);
+    AST_GET_CHILDREN(type, left, right);
     ast_t* r_right = viewpoint_upper(right);
     return viewpoint_cap(TK_BOX, TK_NONE, r_right);
   }
@@ -299,7 +298,14 @@ ast_t* viewpoint_lower(ast_t* type)
 
     case TK_ARROW:
     {
-      ast_t* right = ast_childidx(type, 1);
+      AST_GET_CHILDREN(type, left, right);
+
+      // If left it a boxtype, right's lower bounds is its actual type.
+      if(ast_id(left) == TK_BOXTYPE)
+        return viewpoint_cap(TK_BOX, TK_NONE, right);
+
+      // If left is a thistype or a typeparamref type, right's lower bounds is
+      // calculated on its own.
       return viewpoint_lower(right);
     }
 
@@ -348,7 +354,15 @@ bool flatten_arrows(ast_t** astp, bool errors)
   if(ast_id(ast) == TK_ARROW)
   {
     AST_GET_CHILDREN(ast, left, right);
-    ast_t* flat = viewpoint_type(left, right);
+    ast_t* flat;
+
+    if(!flatten_arrows(&right, errors))
+      return false;
+
+    if((ast_id(left) == TK_BOXTYPE) && (ast_id(right) != TK_ARROW))
+      flat = viewpoint_cap(TK_BOX, TK_NONE, right);
+    else
+      flat = viewpoint_type(left, right);
 
     if(flat == NULL)
     {

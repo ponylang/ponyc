@@ -93,6 +93,9 @@ void free_errors()
 
 void print_errors()
 {
+  if(immediate_report)
+    return;
+
   errormsg_t* e = head;
 
   while(e != NULL)

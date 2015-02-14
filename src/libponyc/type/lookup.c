@@ -87,7 +87,9 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   ast_t* typeargs = ast_childidx(type, 2);
 
   find = ast_dup(find);
+  orig = ast_dup(orig);
   replace_thistype(&find, orig);
+  ast_free_unattached(orig);
 
   ast_t* r_find = reify(find, typeparams, typeargs);
 
