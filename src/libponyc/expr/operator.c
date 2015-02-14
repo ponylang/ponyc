@@ -319,6 +319,7 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
       if(infer_type == NULL)
       {
         ast_error(left, "could not infer type of local");
+        ast_settype(left, NULL);
         return INFER_ERROR;
       }
 
@@ -348,11 +349,64 @@ static bool infer_locals(ast_t* left, ast_t* r_type)
   infer_path_t path_root = { 0, NULL, NULL };
   path_root.root = &path_root;
 
-  infer_ret_t r = infer_local_inner(left, r_type, &path_root);
+  if(infer_local_inner(left, r_type, &path_root) == INFER_ERROR)
+    return false;
+
   assert(path_root.next == NULL);
   assert(path_root.root = &path_root);
+  return true;
+}
 
-  return r != INFER_ERROR;
+static void fail_infers(ast_t* ast)
+{
+  assert(ast != NULL);
+  ast_t* type = ast_type(ast);
+
+  switch(ast_id(ast))
+  {
+    case TK_SEQ:
+      assert(ast_childcount(ast) == 1);
+      fail_infers(ast_child(ast));
+
+      if(type != NULL && ast_id(type) == TK_INFERTYPE)
+        ast_settype(ast, NULL);
+
+      break;
+
+    case TK_TUPLE:
+    {
+      bool any_children_infer = false;
+
+      for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+      {
+        ast_t* child_type = ast_type(p);
+
+        if(child_type != NULL && ast_id(child_type) == TK_INFERTYPE)
+          any_children_infer = true;
+
+        fail_infers(p);
+      }
+
+      if(any_children_infer)
+        ast_settype(ast, NULL);
+
+      break;
+    }
+
+    case TK_VAR:
+    case TK_LET:
+      if(type != NULL && ast_id(type) == TK_INFERTYPE)
+      {
+        ast_error(ast, "could not infer type of local");
+        ast_settype(ast_child(ast), NULL);  // Clear ID node type
+        ast_settype(ast, NULL);  // Clear VAR node type
+      }
+
+      break;
+
+    default:
+      break;
+  }
 }
 
 bool expr_assign(pass_opt_t* opt, ast_t* ast)
@@ -373,15 +427,24 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   assert(l_type != NULL);
 
   if(!coerce_literals(&right, l_type, opt))
+  {
+    fail_infers(left);
     return false;
+  }
 
   ast_t* r_type = ast_type(right);
 
   if(r_type == NULL)
+  {
+    fail_infers(left);
     return false;
+  }
 
   if(!infer_locals(left, r_type))
+  {
+    fail_infers(left);
     return false;
+  }
 
   // Inferring locals may have changed the left type.
   l_type = ast_type(left);
