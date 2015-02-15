@@ -511,3 +511,59 @@ bool safe_to_write(ast_t* ast, ast_t* type)
   assert(0);
   return false;
 }
+
+bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
+{
+  switch(ast_id(receiver_type))
+  {
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(receiver_type);
+
+      while(child != NULL)
+      {
+        if(safe_field_write(cap_single(child), type))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(receiver_type);
+
+      while(child != NULL)
+      {
+        if(!safe_field_write(cap_single(child), type))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_NOMINAL:
+    case TK_TYPEPARAMREF:
+      return safe_field_write(cap_single(receiver_type), type);
+
+    case TK_ARROW:
+    {
+      ast_t* upper = viewpoint_upper(receiver_type);
+      bool ok = safe_to_autorecover(upper, type);
+
+      if(upper != receiver_type)
+        ast_free_unattached(upper);
+
+      return ok;
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}

@@ -292,11 +292,12 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
   return true;
 }
 
-static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
+static bool auto_recover_call(ast_t* ast, ast_t* receiver_type,
+  ast_t* positional, ast_t* result)
 {
   // We can recover the receiver (ie not alias the receiver type) if all
-  // arguments are sendable and the result is either sendable or unused.
-  if(is_result_needed(ast) && !sendable(result))
+  // arguments are safe and the result is either safe or unused.
+  if(is_result_needed(ast) && !safe_to_autorecover(receiver_type, result))
     return false;
 
   ast_t* arg = ast_child(positional);
@@ -311,7 +312,7 @@ static bool auto_recover_call(ast_t* ast, ast_t* positional, ast_t* result)
         return false;
 
       ast_t* a_type = alias(arg_type);
-      bool ok = sendable(a_type);
+      bool ok = safe_to_autorecover(receiver_type, a_type);
       ast_free_unattached(a_type);
 
       if(!ok)
@@ -352,7 +353,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
   ast_t* a_type;
 
   // If we can recover the receiver, we don't alias it here.
-  bool can_recover = auto_recover_call(ast, positional, result);
+  bool can_recover = auto_recover_call(ast, r_type, positional, result);
 
   if(can_recover)
     a_type = r_type;
