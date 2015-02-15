@@ -70,7 +70,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Gets a value from the map. Raises an error if no such item exists.
     """
-    (var index, var found) = _search(key)
+    (let index, let found) = _search(key)
 
     if found then
       _array(index) as (_, this->V)
@@ -84,7 +84,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     returns None. If there was no previous value, this may trigger a resize.
     """
     try
-      (let index, let found) = _search(key)
+      (let index, _) = _search(key)
 
       match _array(index) = (consume key, consume value)
       | (_, let v: V) =>
@@ -98,6 +98,28 @@ class HashMap[K, V, H: HashFunction[K] val]
       end
     end
     None
+
+  fun ref insert(key: K, value: V): V ? =>
+    """
+    Set a value in the map. Returns the new value, allowing reuse.
+    """
+    try
+      (let index, let found) = _search(key)
+      _array(index) = (consume key, consume value)
+
+      if not found then
+        _size = _size + 1
+
+        if (_size * 4) > (_array.size() * 3) then
+          _resize(_array.size() * 2)
+        end
+      end
+
+      _array(index) as (_, V)
+    else
+      // This is unreachable, since index will never be out-of-bounds.
+      error
+    end
 
   fun ref remove(key: box->K!): V^ ? =>
     """
