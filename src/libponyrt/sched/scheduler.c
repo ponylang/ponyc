@@ -5,7 +5,6 @@
 #include "../gc/cycle.h"
 #include "../asio/asio.h"
 #include <string.h>
-#include <stdio.h>
 #include <assert.h>
 
 static DECLARE_THREAD_FN(run_thread);
@@ -41,9 +40,6 @@ static void handle_inject(scheduler_t* sched)
  */
 static pony_actor_t* pop(scheduler_t* sched)
 {
-  // Clear the injection queue.
-  handle_inject(sched);
-
   pony_actor_t* actor = sched->tail;
 
   if(actor != NULL)
@@ -77,6 +73,15 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
     sched->head = actor;
     sched->tail = actor;
   }
+}
+
+/**
+ * Handles the global queue and then pops from the local queue
+ */
+static pony_actor_t* pop_global(scheduler_t* sched)
+{
+  handle_inject(sched);
+  return pop(sched);
 }
 
 /**
@@ -169,7 +174,8 @@ static pony_actor_t* request(scheduler_t* sched)
   bool block = __pony_atomic_compare_exchange_n(&sched->thief, &thief,
     (void*)1, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t);
 
-  __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED, uint32_t);
+  __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
+    uint32_t);
 
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
@@ -199,8 +205,6 @@ static pony_actor_t* request(scheduler_t* sched)
     if((actor = pop(sched)) != NULL)
       break;
   }
-
-  __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED, uint32_t);
 
   if(block)
   {
@@ -234,12 +238,17 @@ static void respond(scheduler_t* sched)
   if(thief <= (scheduler_t*)1)
     return;
 
-  pony_actor_t* actor = pop(sched);
+  pony_actor_t* actor = pop_global(sched);
 
   if(actor != NULL)
   {
     assert(thief->waiting == 1);
     push(thief, actor);
+
+    // Decrement the wait count if we give the thief an actor. We know that
+    // scheduler thread is no longer waiting.
+    __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
+      uint32_t);
   }
 
   __pony_atomic_store_n(&thief->waiting, 0, PONY_ATOMIC_RELEASE,
@@ -259,7 +268,7 @@ static void run(scheduler_t* sched)
   while(true)
   {
     // Get an actor from our queue.
-    pony_actor_t* actor = pop(sched);
+    pony_actor_t* actor = pop_global(sched);
 
     if(actor == NULL)
     {
@@ -268,7 +277,10 @@ static void run(scheduler_t* sched)
 
       // Termination.
       if(actor == NULL)
+      {
+        assert(sched->tail == NULL);
         return;
+      }
     } else {
       // Respond to our thief. We hold an actor for ourself, to make sure we
       // never give away our last actor.
@@ -384,7 +396,7 @@ void scheduler_stop()
 pony_actor_t* scheduler_worksteal()
 {
   // TODO: is this right?
-  return pop(this_scheduler);
+  return pop_global(this_scheduler);
 }
 
 void scheduler_add(pony_actor_t* actor)
