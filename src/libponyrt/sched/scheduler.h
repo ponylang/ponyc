@@ -11,17 +11,19 @@ typedef struct scheduler_t scheduler_t;
 __pony_spec_align__(
   struct scheduler_t
   {
+    // These are rarely changed.
     pony_thread_id_t tid;
     uint32_t cpu;
+    uint32_t node;
     bool finish;
     bool forcecd;
 
-    pony_actor_t* head;
+    // These are changed primarily by the owning scheduler thread.
+    __pony_spec_align__(pony_actor_t* head, 64);
     pony_actor_t* tail;
-
     struct scheduler_t* victim;
 
-    // The following are accessed by other scheduler threads.
+    // These are accessed by other scheduler threads.
     __pony_spec_align__(scheduler_t* thief, 64);
     uint32_t waiting;
   }, 64

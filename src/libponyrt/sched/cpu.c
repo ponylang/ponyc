@@ -142,7 +142,11 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
       node = numa_node_of_cpu(core);
 
       if(numa_bitmask_isbitset(nodes, node))
-        scheduler[thread++].cpu = core;
+      {
+        scheduler[thread].cpu = core;
+        scheduler[thread].node = node;
+        thread++;
+      }
 
       core++;
 
@@ -153,17 +157,23 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 
     numa_bitmask_free(nodes);
   }
-#endif
-
+#else
   // Physical cores come first, so assign in sequence.
   uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
 
   for(uint32_t i = 0; i < count; i++)
+  {
     scheduler[i].cpu = i % max;
+    scheduler[i].node = 0;
+  }
+#endif
 #else
   // Affinity groups rather than processor numbers.
   for(uint32_t i = 0; i < count; i++)
+  {
     scheduler[i].cpu = i;
+    scheduler[i].node = 0;
+  }
 #endif
 }
 

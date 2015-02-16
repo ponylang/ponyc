@@ -133,6 +133,36 @@ static bool quiescent(scheduler_t* sched)
   return false;
 }
 
+static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
+{
+  scheduler_t* victim = sched;
+
+  while(true)
+  {
+    victim--;
+
+    if(victim < scheduler)
+      victim = &scheduler[scheduler_count - 1];
+
+    if(victim == sched)
+      break;
+
+    if(on_node && (victim->node != sched->node))
+      continue;
+
+    scheduler_t* thief = NULL;
+
+    if(__pony_atomic_compare_exchange_n(&victim->thief, &thief,
+      sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
+    {
+      sched->victim = victim;
+      return victim;
+    }
+  }
+
+  return NULL;
+}
+
 static scheduler_t* choose_victim(scheduler_t* sched)
 {
   if(scheduler_count == 1)
@@ -140,27 +170,14 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 
   assert(sched->victim == NULL);
 
-  scheduler_t* victim = sched;
-  scheduler_t* first = victim;
+#ifdef USE_NUMA
+  scheduler_t* victim = choose_on_node(sched, true);
 
-  do
-  {
-    victim--;
+  if(victim != NULL)
+    return victim;
+#endif
 
-    if(victim < scheduler)
-      victim = &scheduler[scheduler_count - 1];
-
-    scheduler_t* thief = NULL;
-
-    if(__pony_atomic_compare_exchange_n(&victim->thief, &thief,
-        sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
-    {
-      sched->victim = victim;
-      return victim;
-    }
-  } while(victim != first);
-
-  return NULL;
+  return choose_on_node(sched, false);
 }
 
 /**
