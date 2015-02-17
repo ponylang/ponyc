@@ -36,6 +36,13 @@ class Config
         return false
       end
     end
+
+    env.out.print(
+      "logtable: " + logtable.string() +
+      "\niterate: " + iterate.string() +
+      "\nlogchunk: " + logchunk.string() +
+      "\nlogactors: " + logactors.string()
+      )
     true
 
 actor Main
@@ -44,7 +51,7 @@ actor Main
 
   var _updates: U64 = 0
   var _confirm: U64 = 0
-  let _start: U64 = Time.nanos()
+  let _start: U64
   var _actors: Array[Updater] val
 
   new create(env: Env) =>
@@ -67,6 +74,7 @@ actor Main
       end
 
       _actors = consume updaters
+      _start = Time.nanos()
 
       try
         for a in _actors.values() do
@@ -74,6 +82,7 @@ actor Main
         end
       end
     else
+      _start = 0
       _actors = recover Array[Updater] end
     end
 
@@ -93,8 +102,10 @@ actor Main
       let elapsed = (Time.nanos() - _start).f64()
       let gups = _updates.f64() / elapsed
 
-      _env.out.print("Time: " + (elapsed / 1e9).string() +
-        " GUPS: " + gups.string())
+      _env.out.print(
+        "Time: " + (elapsed / 1e9).string() +
+        "\nGUPS: " + gups.string()
+        )
     end
 
 actor Updater
@@ -182,7 +193,7 @@ actor Updater
       until _output.size() == 0 end
     end
 
-    if iterate > 0 then
+    if iterate > 1 then
       apply(iterate - 1)
     else
       _main.done()
