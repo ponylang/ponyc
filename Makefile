@@ -28,6 +28,9 @@ ifdef use
     ALL_CFLAGS += -DUSE_NUMA
     LINK_NUMA = true
   endif
+  ifneq (,$(filter $(use), valgrind))
+    ALL_CFLAGS += -DUSE_VALGRIND
+  endif
 endif
 
 ifndef verbose

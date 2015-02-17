@@ -9,9 +9,7 @@
 
 #include <platform.h>
 
-#define NVALGRIND
-
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
 #include <valgrind/valgrind.h>
 #endif
 
@@ -152,7 +150,7 @@ static pool_item_t* pool_pages(pool_local_t* thread, pool_global_t* global)
 
 static void* pool_get(size_t index)
 {
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
@@ -176,7 +174,7 @@ static void* pool_get(size_t index)
     }
   }
 
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_ENABLE_ERROR_REPORTING;
 #endif
 
@@ -187,7 +185,7 @@ void* pool_alloc(size_t index)
 {
   void* p = pool_get(index);
 
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_MALLOCLIKE_BLOCK(p, pool_size(index), 0, 0);
 #endif
 
@@ -196,7 +194,7 @@ void* pool_alloc(size_t index)
 
 void pool_free(size_t index, void* p)
 {
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
@@ -211,7 +209,7 @@ void pool_free(size_t index, void* p)
   thread->pool = (pool_item_t*)p;
   thread->length++;
 
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_ENABLE_ERROR_REPORTING;
   VALGRIND_FREELIKE_BLOCK(p, 0);
 #endif
@@ -228,7 +226,7 @@ void* pool_alloc_size(size_t size)
   // else
     p = virtual_alloc(size);
 
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_MALLOCLIKE_BLOCK(p, size, 0, 0);
 #endif
 
@@ -244,7 +242,7 @@ void pool_free_size(size_t size, void* p)
 
   virtual_free(p, size);
 
-#ifndef NVALGRIND
+#ifdef USE_VALGRIND
   VALGRIND_FREELIKE_BLOCK(p, 0);
 #endif
 }

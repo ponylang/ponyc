@@ -128,12 +128,11 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
-  //array of int[numa_task_nodes]
   if(numa_available() != -1)
   {
     uint32_t cpus = numa_num_task_cpus();
     uint32_t cpu = 0;
-    uint32_t thread = 0;  
+    uint32_t thread = 0;
 
     while(thread < count)
     {
@@ -141,13 +140,13 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
       {
         scheduler[thread].cpu = cpu;
         scheduler[thread].node = numa_node_of_cpu(cpu);
-       
         thread++;
       }
 
-      (void)cpus;
+      cpu++;
 
-      cpu++;  
+      if(thread >= cpus)
+        cpu = 0;
     }
 
     return;
