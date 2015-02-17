@@ -12,6 +12,9 @@
 DECLARE_STACK(reachable_method_stack, reachable_method_t);
 DEFINE_STACK(reachable_method_stack, reachable_method_t);
 
+static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs);
+
 static reachable_method_stack_t* reachable_method(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs);
 
@@ -124,20 +127,20 @@ static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
 }
 
 static reachable_method_stack_t* add_method(reachable_method_stack_t* s,
-  reachable_type_t* r, const char* name, ast_t* typeargs)
+  reachable_type_t* t, const char* name, ast_t* typeargs)
 {
-  reachable_method_name_t* m = reach_method_name(r, name);
+  reachable_method_name_t* n = reach_method_name(t, name);
 
-  if(m == NULL)
+  if(n == NULL)
   {
-    m = POOL_ALLOC(reachable_method_name_t);
-    m->name = name;
-    reachable_methods_init(&m->r_methods, 0);
-    reachable_method_names_put(&r->methods, m);
-    s = add_rmethod(s, r, m, typeargs);
+    n = POOL_ALLOC(reachable_method_name_t);
+    n->name = name;
+    reachable_methods_init(&n->r_methods, 0);
+    reachable_method_names_put(&t->methods, n);
+    s = add_rmethod(s, t, n, typeargs);
 
     // Add to subtypes if we're an interface or trait.
-    ast_t* def = (ast_t*)ast_data(r->type);
+    ast_t* def = (ast_t*)ast_data(t->type);
 
     switch(ast_id(def))
     {
@@ -145,10 +148,10 @@ static reachable_method_stack_t* add_method(reachable_method_stack_t* s,
       case TK_TRAIT:
       {
         size_t i = HASHMAP_BEGIN;
-        reachable_type_t* t;
+        reachable_type_t* t2;
 
-        while((t = reachable_type_cache_next(&r->subtypes, &i)) != NULL)
-          s = add_method(s, t, name, typeargs);
+        while((t2 = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
+          s = add_method(s, t2, name, typeargs);
       }
 
       default: {}
@@ -235,7 +238,7 @@ static reachable_method_stack_t* add_traits_to_type(
   return s;
 }
 
-static reachable_method_stack_t* add_fieldinit(reachable_method_stack_t* s,
+static reachable_method_stack_t* add_fields(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type)
 {
   ast_t* def = (ast_t*)ast_data(type);
@@ -249,14 +252,18 @@ static reachable_method_stack_t* add_fieldinit(reachable_method_stack_t* s,
       case TK_FVAR:
       case TK_FLET:
       {
-        AST_GET_CHILDREN(member, id, ftype, body);
+        const char* name = ast_name(ast_child(member));
+        ast_t* r_member = lookup(NULL, NULL, type, name);
+        assert(r_member != NULL);
+
+        AST_GET_CHILDREN(r_member, id, ftype, body);
+        s = add_type(s, r, ftype, NULL, NULL);
 
         if(ast_id(body) != TK_NONE)
-        {
-          ast_t* var = lookup(NULL, NULL, type, ast_name(id));
-          body = ast_childidx(var, 2);
           s = reachable_expr(s, r, body);
-        }
+
+        if(r_member != member)
+          ast_free_unattached(r_member);
         break;
       }
 
@@ -312,6 +319,15 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
     t->vtable_size = 0;
     reachable_types_put(r, t);
 
+    AST_GET_CHILDREN(type, pkg, id, typeparams);
+    ast_t* typeparam = ast_child(typeparams);
+
+    while(typeparam != NULL)
+    {
+      s = add_type(s, r, typeparam, NULL, NULL);
+      typeparam = ast_sibling(typeparam);
+    }
+
     ast_t* def = (ast_t*)ast_data(type);
 
     switch(ast_id(def))
@@ -324,31 +340,22 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
       case TK_PRIMITIVE:
       case TK_CLASS:
       case TK_ACTOR:
-        s = add_fieldinit(s, r, type);
+        s = add_fields(s, r, type);
         s = add_traits_to_type(s, r, t);
         break;
 
       default: {}
     }
+
+    const char* notify = stringtab("_event_notify");
+    ast_t* find = lookup_try(NULL, NULL, type, notify);
+
+    if(find != NULL)
+      s = add_method(s, t, notify, NULL);
   }
-
-  const char* notify = stringtab("_event_notify");
-  ast_t* find = lookup_try(NULL, NULL, type, notify);
-
-  if(find != NULL)
-    s = add_method(s, t, notify, NULL);
 
   if(name != NULL)
     s = add_method(s, t, name, typeargs);
-
-  AST_GET_CHILDREN(type, pkg, id, typeparams);
-  ast_t* typeparam = ast_child(typeparams);
-
-  while(typeparam != NULL)
-  {
-    s = add_type(s, r, typeparam, NULL, NULL);
-    typeparam = ast_sibling(typeparam);
-  }
 
   return s;
 }
