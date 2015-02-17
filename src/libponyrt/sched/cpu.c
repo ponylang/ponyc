@@ -62,7 +62,9 @@ uint32_t cpu_count()
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
   if(numa_available() != -1)
-    return numa_num_configured_cpus();
+  {
+    return numa_num_task_cpus();
+  }
 #endif
 
   uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
@@ -126,38 +128,31 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
 #ifdef USE_NUMA
+  //array of int[numa_task_nodes]
   if(numa_available() != -1)
   {
-    // Assign only numa-available cores.
-    struct bitmask* nodes = numa_get_run_node_mask();
-
-    uint32_t core = 0;
-    uint32_t thread = 0;
-    uint32_t node = 0;
+    uint32_t cpus = numa_num_task_cpus();
+    uint32_t cpu = 0;
+    uint32_t thread = 0;  
 
     while(thread < count)
     {
-      //check whether we can run on the numa node a core is
-      //belonging to
-      node = numa_node_of_cpu(core);
-
-      if(numa_bitmask_isbitset(nodes, node))
+      if(numa_bitmask_isbitset(numa_all_cpus_ptr, cpu))
       {
-        scheduler[thread].cpu = core;
-        scheduler[thread].node = node;
+        scheduler[thread].cpu = cpu;
+        scheduler[thread].node = numa_node_of_cpu(cpu);
+       
         thread++;
       }
 
-      core++;
+      (void)cpus;
 
-      // Wrap around if we have more threads than usable cores.
-      if(core >= count)
-        core = 0;
+      cpu++;  
     }
 
-    numa_bitmask_free(nodes);
+    return;
   }
-#else
+#endif
   // Physical cores come first, so assign in sequence.
   uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
 
@@ -166,7 +161,6 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
     scheduler[i].cpu = i % max;
     scheduler[i].node = 0;
   }
-#endif
 #else
   // Affinity groups rather than processor numbers.
   for(uint32_t i = 0; i < count; i++)
@@ -186,7 +180,15 @@ void cpu_affinity(uint32_t cpu)
 #ifdef USE_NUMA
   // Allocate memory on the local node.
   if(numa_available() != -1)
+  {
+    struct bitmask* cpumask = numa_allocate_cpumask();
+    numa_bitmask_setbit(cpumask, cpu);
+
+    numa_sched_setaffinity(0, cpumask);
     numa_set_localalloc();
+
+    numa_free_cpumask(cpumask);
+  }
 #endif
 
 #elif defined(PLATFORM_IS_MACOSX)

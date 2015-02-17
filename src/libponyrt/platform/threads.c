@@ -36,7 +36,7 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
 
     pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &set);
 
-#ifdef USE_NUMA
+#ifdef USE_NUMA  
     if(numa_available() != -1)
     {
       struct rlimit limit;
