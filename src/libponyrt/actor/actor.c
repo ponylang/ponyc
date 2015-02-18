@@ -102,6 +102,7 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
 
 bool actor_run(pony_actor_t* actor)
 {
+  assert(actor != NULL);
   pony_msg_t* msg;
   this_actor = actor;
 

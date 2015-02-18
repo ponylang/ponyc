@@ -343,7 +343,10 @@ static void run(scheduler_t* sched)
 
       // Termination.
       if(actor == NULL)
+      {
+        assert(pop(sched) == NULL);
         return;
+      }
     }
 #ifndef USE_MPMCQ
     else

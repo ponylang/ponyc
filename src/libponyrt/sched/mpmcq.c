@@ -32,7 +32,7 @@ void mpmcq_push(mpmcq_t* q, void* data)
   node->data = data;
   node->next = NULL;
 
-  mpmcq_node_t* prev = (mpmcq_node_t*) __pony_atomic_exchange_n(
+  mpmcq_node_t* prev = (mpmcq_node_t*)__pony_atomic_exchange_n(
     &q->head, node, PONY_ATOMIC_RELAXED, intptr_t);
 
   __pony_atomic_store_n(&prev->next, node, PONY_ATOMIC_RELEASE,
@@ -43,9 +43,9 @@ void* mpmcq_pop(mpmcq_t* q)
 {
   mpmcq_dwcas_t cmp, xchg;
   mpmcq_node_t* next;
-  void* data;
 
-  cmp.dw = q->tail.dw;
+  cmp.aba = q->tail.aba;
+  cmp.node = q->tail.node;
 
   do
   {
@@ -55,11 +55,19 @@ void* mpmcq_pop(mpmcq_t* q)
     if(next == NULL)
       return NULL;
 
-    data = next->data;
-    xchg.node = next;
     xchg.aba = cmp.aba + 1;
+    xchg.node = next;
   } while(!__pony_atomic_compare_exchange_n(&q->tail.dw, &cmp.dw, xchg.dw,
-    false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, __int128_t));
+    false, PONY_ATOMIC_ACQ_REL, PONY_ATOMIC_ACQ_REL, __int128_t));
+
+  void* data = __pony_atomic_load_n(&next->data, PONY_ATOMIC_ACQUIRE,
+    PONY_ATOMIC_NO_TYPE);
+
+  __pony_atomic_store_n(&next->data, NULL, PONY_ATOMIC_RELEASE,
+    PONY_ATOMIC_NO_TYPE);
+
+  while(__pony_atomic_load_n(&cmp.node->data, PONY_ATOMIC_ACQUIRE,
+    PONY_ATOMIC_NO_TYPE) != NULL);
 
   POOL_FREE(mpmcq_node_t, cmp.node);
   return data;
