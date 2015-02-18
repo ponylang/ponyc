@@ -60,7 +60,7 @@ static bool cpu_physical(uint32_t cpu)
 uint32_t cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
-#ifdef USE_NUMA
+#if defined(USE_NUMA)
   if(numa_available() != -1)
   {
     return numa_num_task_cpus();
@@ -127,7 +127,7 @@ uint32_t cpu_count()
 void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
-#ifdef USE_NUMA
+#if defined(USE_NUMA)
   if(numa_available() != -1)
   {
     uint32_t cpus = numa_num_task_cpus();
@@ -176,7 +176,7 @@ void cpu_affinity(uint32_t cpu)
   // Affinity is handled when spawning the thread.
   (void)cpu;
 
-#ifdef USE_NUMA
+#if defined(USE_NUMA)
   // Allocate memory on the local node.
   if(numa_available() != -1)
   {

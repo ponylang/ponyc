@@ -177,7 +177,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
     return NULL;
 
 #ifndef USE_MPMCQ
-#ifdef USE_NUMA
+#if 0 && defined(USE_NUMA)
   scheduler_t* victim = choose_on_node(sched, true);
 
   if(victim != NULL)
