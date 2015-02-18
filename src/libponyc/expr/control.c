@@ -37,7 +37,7 @@ bool expr_seq(ast_t* ast)
   ast_inheriterror(ast);
 
   if(!ast_has_scope(ast))
-    return true;
+    return ok;
 
   ast_t* parent = ast_parent(ast);
 
@@ -65,7 +65,7 @@ bool expr_seq(ast_t* ast)
     default: {}
   }
 
-  return true;
+  return ok;
 }
 
 bool expr_if(pass_opt_t* opt, ast_t* ast)
