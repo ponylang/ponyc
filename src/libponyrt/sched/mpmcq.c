@@ -58,7 +58,7 @@ void* mpmcq_pop(mpmcq_t* q)
     xchg.aba = cmp.aba + 1;
     xchg.node = next;
   } while(!__pony_atomic_compare_exchange_n(&q->tail.dw, &cmp.dw, xchg.dw,
-    false, PONY_ATOMIC_ACQ_REL, PONY_ATOMIC_ACQ_REL, __int128_t));
+    false, PONY_ATOMIC_ACQ_REL, PONY_ATOMIC_ACQUIRE, __int128_t));
 
   void* data = __pony_atomic_load_n(&next->data, PONY_ATOMIC_ACQUIRE,
     PONY_ATOMIC_NO_TYPE);
