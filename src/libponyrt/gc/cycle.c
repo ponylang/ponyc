@@ -61,7 +61,7 @@ DEFINE_STACK(viewrefstack, viewref_t);
 
 DECLARE_HASHMAP(viewrefmap, viewref_t);
 DEFINE_HASHMAP(viewrefmap, viewref_t, viewref_hash, viewref_cmp,
-  pool_alloc_size, pool_free_size, viewref_free, NULL);
+  pool_alloc_size, pool_free_size, viewref_free);
 
 typedef enum
 {
@@ -100,8 +100,8 @@ static void view_free(view_t* view)
 
 // no element free for a viewmap. views are kept in many maps.
 DECLARE_HASHMAP(viewmap, view_t);
-DEFINE_HASHMAP(viewmap, view_t, view_hash, view_cmp,
-  pool_alloc_size, pool_free_size, NULL, NULL);
+DEFINE_HASHMAP(viewmap, view_t, view_hash, view_cmp, pool_alloc_size,
+  pool_free_size, NULL);
 
 struct perceived_t
 {
@@ -129,7 +129,7 @@ static void perceived_free(perceived_t* per)
 
 DECLARE_HASHMAP(perceivedmap, perceived_t);
 DEFINE_HASHMAP(perceivedmap, perceived_t, perceived_hash, perceived_cmp,
-  pool_alloc_size, pool_free_size, perceived_free, NULL);
+  pool_alloc_size, pool_free_size, perceived_free);
 
 typedef struct detector_t
 {

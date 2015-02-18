@@ -88,8 +88,8 @@ void object_dec_some(object_t* obj, size_t rc)
   obj->rc -= rc;
 }
 
-DEFINE_HASHMAP(objectmap, object_t, object_hash, object_cmp,
-  pool_alloc_size, pool_free_size, object_free, NULL);
+DEFINE_HASHMAP(objectmap, object_t, object_hash, object_cmp, pool_alloc_size,
+  pool_free_size, object_free);
 
 object_t* objectmap_getobject(objectmap_t* map, void* address)
 {

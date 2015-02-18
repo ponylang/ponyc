@@ -70,11 +70,6 @@ size_t hashmap_size(hashmap_t* map);
  */
 void* hashmap_next(hashmap_t* map, size_t* i);
 
-/** GC trace hashmap.
- *
- */
-void hashmap_trace(hashmap_t* map, pony_trace_fn t);
-
 #define DECLARE_HASHMAP(name, type) \
   typedef struct name##_t { hashmap_t contents; } name##_t; \
   void name##_init(name##_t* map, size_t size); \
@@ -87,7 +82,7 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
   type* name##_next(name##_t* map, size_t* i); \
   void name##_trace(void* map); \
 
-#define DEFINE_HASHMAP(name, type, hash, cmp, alloc, fr, free_elem, trace)\
+#define DEFINE_HASHMAP(name, type, hash, cmp, alloc, fr, free_elem) \
   typedef struct name##_t name##_t; \
   typedef uint64_t (*name##_hash_fn)(type* m); \
   typedef bool (*name##_cmp_fn)(type* a, type* b); \
@@ -136,11 +131,6 @@ void hashmap_trace(hashmap_t* map, pony_trace_fn t);
   type* name##_next(name##_t* map, size_t* i) \
   { \
     return (type*)hashmap_next((hashmap_t*)map, i); \
-  } \
-  void name##_trace(void* map) \
-  { \
-    name##_trace_fn tracef = trace; \
-    hashmap_trace((hashmap_t*)map, (pony_trace_fn)tracef); \
   } \
 
 #define HASHMAP_INIT {0, 0, NULL}

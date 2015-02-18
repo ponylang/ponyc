@@ -24,10 +24,15 @@ ALL_CXXFLAGS = -std=gnu++11
 config ?= debug
 
 ifdef use
+  ifneq (,$(filter $(use), mpmcq))
+    ALL_CFLAGS += -DUSE_MPMCQ
+  endif
+
   ifneq (,$(filter $(use), numa))
     ALL_CFLAGS += -DUSE_NUMA
     LINK_NUMA = true
   endif
+
   ifneq (,$(filter $(use), valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
   endif

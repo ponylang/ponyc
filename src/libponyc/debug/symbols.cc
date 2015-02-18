@@ -68,7 +68,7 @@ static void symbol_free(debug_sym_t* symbol);
 
 DECLARE_HASHMAP(symbolmap, debug_sym_t);
 DEFINE_HASHMAP(symbolmap, debug_sym_t, symbol_hash, symbol_cmp,
-  pool_alloc_size, pool_free_size, symbol_free, NULL);
+  pool_alloc_size, pool_free_size, symbol_free);
 
 struct symbols_t
 {

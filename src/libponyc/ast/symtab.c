@@ -47,7 +47,7 @@ static const char* name_without_case(const char* name)
 }
 
 DEFINE_HASHMAP(symtab, symbol_t, sym_hash, sym_cmp, pool_alloc_size,
-  pool_free_size, sym_free, NULL);
+  pool_free_size, sym_free);
 
 bool is_type_name(const char* name)
 {

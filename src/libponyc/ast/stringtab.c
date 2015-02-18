@@ -26,7 +26,7 @@ DEFINE_LIST(strlist, const char, ptr_cmp, NULL);
 
 DECLARE_HASHMAP(strtable, const char);
 DEFINE_HASHMAP(strtable, const char, hash_str, str_cmp, pool_alloc_size,
-  pool_free_size, str_free, NULL);
+  pool_free_size, str_free);
 
 static strtable_t table;
 

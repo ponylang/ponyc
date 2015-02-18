@@ -32,9 +32,8 @@ class HashMapTest: public testing::Test
     static void free_buckets(size_t size, void* p);
 };
 
-DEFINE_HASHMAP(testmap, elem_t, HashMapTest::hash_tst,
-  HashMapTest::cmp_tst, malloc, HashMapTest::free_buckets,
-  HashMapTest::free_elem, NULL);
+DEFINE_HASHMAP(testmap, elem_t, HashMapTest::hash_tst, HashMapTest::cmp_tst,
+  malloc, HashMapTest::free_buckets, HashMapTest::free_elem);
 
 struct elem_t
 {

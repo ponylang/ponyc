@@ -39,8 +39,8 @@ static void reachable_method_free(reachable_method_t* m)
 }
 
 DEFINE_HASHMAP(reachable_methods, reachable_method_t, reachable_method_hash,
-  reachable_method_cmp, pool_alloc_size, pool_free_size, reachable_method_free,
-  NULL);
+  reachable_method_cmp, pool_alloc_size, pool_free_size, reachable_method_free
+  );
 
 static uint64_t reachable_method_name_hash(reachable_method_name_t* m)
 {
@@ -61,7 +61,7 @@ static void reachable_method_name_free(reachable_method_name_t* m)
 
 DEFINE_HASHMAP(reachable_method_names, reachable_method_name_t,
   reachable_method_name_hash, reachable_method_name_cmp, pool_alloc_size,
-  pool_free_size, reachable_method_name_free, NULL);
+  pool_free_size, reachable_method_name_free);
 
 static uint64_t reachable_type_hash(reachable_type_t* t)
 {
@@ -82,11 +82,10 @@ static void reachable_type_free(reachable_type_t* t)
 }
 
 DEFINE_HASHMAP(reachable_types, reachable_type_t, reachable_type_hash,
-  reachable_type_cmp, pool_alloc_size, pool_free_size, reachable_type_free,
-  NULL);
+  reachable_type_cmp, pool_alloc_size, pool_free_size, reachable_type_free);
 
 DEFINE_HASHMAP(reachable_type_cache, reachable_type_t, reachable_type_hash,
-  reachable_type_cmp, pool_alloc_size, pool_free_size, NULL, NULL);
+  reachable_type_cmp, pool_alloc_size, pool_free_size, NULL);
 
 static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
   reachable_type_t* t, reachable_method_name_t* n, ast_t* typeargs)

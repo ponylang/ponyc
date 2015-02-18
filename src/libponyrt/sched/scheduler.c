@@ -25,21 +25,13 @@ static __pony_thread_local scheduler_t* this_scheduler;
 static void push(scheduler_t* sched, pony_actor_t* actor);
 
 /**
- * Takes all actors off the injection queue and puts them on the scheduler list
- */
-static void handle_inject(scheduler_t* sched)
-{
-  pony_actor_t* actor;
-
-  while((actor = (pony_actor_t*) mpmcq_pop(&inject)) != NULL)
-    push(sched, actor);
-}
-
-/**
  * Gets the next actor from the scheduler queue.
  */
 static pony_actor_t* pop(scheduler_t* sched)
 {
+#ifdef USE_MPMCQ
+  return (pony_actor_t*)mpmcq_pop(&sched->q);
+#else
   pony_actor_t* actor = sched->tail;
 
   if(actor != NULL)
@@ -56,6 +48,7 @@ static pony_actor_t* pop(scheduler_t* sched)
   }
 
   return actor;
+#endif
 }
 
 /**
@@ -63,6 +56,9 @@ static pony_actor_t* pop(scheduler_t* sched)
  */
 static void push(scheduler_t* sched, pony_actor_t* actor)
 {
+#ifdef USE_MPMCQ
+  mpmcq_push(&sched->q, actor);
+#else
   pony_actor_t* head = sched->head;
 
   if(head != NULL)
@@ -73,6 +69,7 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
     sched->head = actor;
     sched->tail = actor;
   }
+#endif
 }
 
 /**
@@ -80,7 +77,11 @@ static void push(scheduler_t* sched, pony_actor_t* actor)
  */
 static pony_actor_t* pop_global(scheduler_t* sched)
 {
-  handle_inject(sched);
+  pony_actor_t* actor = (pony_actor_t*)mpmcq_pop(&inject);
+
+  if(actor != NULL)
+    return actor;
+
   return pop(sched);
 }
 
@@ -109,6 +110,7 @@ static bool quiescent(scheduler_t* sched)
     // eventually call scheduler_terminate().
     if((waiting == scheduler_count) && asio_stop())
     {
+#ifndef USE_MPMCQ
       // It's safe to manipulate our victim, since we know it's paused as well.
       if(sched->victim != NULL)
       {
@@ -118,6 +120,7 @@ static bool quiescent(scheduler_t* sched)
 
       __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
         PONY_ATOMIC_NO_TYPE);
+#endif
 
       // Under these circumstances, the CD will always go on the current
       // scheduler.
@@ -135,7 +138,7 @@ static bool quiescent(scheduler_t* sched)
 
 static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
 {
-  scheduler_t* victim = sched;
+  scheduler_t* victim = sched->last_victim;
 
   while(true)
   {
@@ -144,20 +147,25 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
     if(victim < scheduler)
       victim = &scheduler[scheduler_count - 1];
 
-    if(victim == sched)
+    if(victim == sched->last_victim)
       break;
 
-    if(on_node && (victim->node != sched->node))
+    if((victim == sched) || (on_node && (victim->node != sched->node)))
       continue;
 
+#ifndef USE_MPMCQ
     scheduler_t* thief = NULL;
 
-    if(__pony_atomic_compare_exchange_n(&victim->thief, &thief,
+    if(!__pony_atomic_compare_exchange_n(&victim->thief, &thief,
       sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
-    {
-      sched->victim = victim;
-      return victim;
-    }
+      continue;
+
+    assert(sched->victim == NULL);
+    sched->victim = victim;
+#endif
+
+    sched->last_victim = victim;
+    return victim;
   }
 
   return NULL;
@@ -168,17 +176,56 @@ static scheduler_t* choose_victim(scheduler_t* sched)
   if(scheduler_count == 1)
     return NULL;
 
-  assert(sched->victim == NULL);
-
+#ifndef USE_MPMCQ
 #ifdef USE_NUMA
   scheduler_t* victim = choose_on_node(sched, true);
 
   if(victim != NULL)
     return victim;
 #endif
+#endif
 
   return choose_on_node(sched, false);
 }
+
+#ifdef USE_MPMCQ
+
+/**
+ * Use mpmcqs to allow stealing directly from a victim, without waiting for a
+ * response. However, this makes pushing and popping actors on scheduling
+ * queues significantly more expensive.
+ */
+static pony_actor_t* request(scheduler_t* sched)
+{
+  uint64_t tsc = cpu_rdtsc();
+  pony_actor_t* actor;
+
+  while(true)
+  {
+    scheduler_t* victim = choose_victim(sched);
+
+    if(victim != NULL)
+    {
+      actor = pop(victim);
+
+      if(actor != NULL)
+        break;
+    }
+
+    __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
+      uint32_t);
+
+    if(cpu_core_pause(tsc) && quiescent(sched))
+      return NULL;
+
+    __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
+      uint32_t);
+  }
+
+  return actor;
+}
+
+#else
 
 /**
  * Wait until we receive a stolen actor. Tight spin at first, falling back to
@@ -277,6 +324,8 @@ static void respond(scheduler_t* sched)
     PONY_ATOMIC_NO_TYPE);
 }
 
+#endif
+
 /**
  * Run a scheduler thread until termination.
  */
@@ -294,15 +343,16 @@ static void run(scheduler_t* sched)
 
       // Termination.
       if(actor == NULL)
-      {
-        assert(sched->tail == NULL);
         return;
-      }
-    } else {
+    }
+#ifndef USE_MPMCQ
+    else
+    {
       // Respond to our thief. We hold an actor for ourself, to make sure we
       // never give away our last actor.
       respond(sched);
     }
+#endif
 
     // If this returns true, reschedule the actor on our queue.
     if(actor_run(actor))
@@ -331,6 +381,11 @@ static void scheduler_shutdown()
 
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
+
+#ifdef USE_MPMCQ
+  for(uint32_t i = 0; i < scheduler_count; i++)
+    mpmcq_destroy(&scheduler[i].q);
+#endif
 
   __pony_atomic_store_n(&detect_quiescence, false, PONY_ATOMIC_RELAXED,
     PONY_ATOMIC_NO_TYPE);
@@ -362,6 +417,15 @@ void scheduler_init(uint32_t threads, bool forcecd)
 
   scheduler[0].finish = true;
   scheduler[0].forcecd = forcecd;
+
+  for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    scheduler[i].last_victim = &scheduler[i];
+
+#ifdef USE_MPMCQ
+    mpmcq_init(&scheduler[i].q);
+#endif
+  }
 
   mpmcq_init(&inject);
   asio_init();
@@ -430,9 +494,24 @@ void scheduler_add(pony_actor_t* actor)
 
 void scheduler_respond()
 {
+#ifndef USE_MPMCQ
   // Check for a pending thief.
   if(this_scheduler != NULL)
     respond(this_scheduler);
+#endif
+}
+
+void scheduler_offload()
+{
+  scheduler_t* sched = this_scheduler;
+
+  if(sched == NULL)
+    return;
+
+  pony_actor_t* actor;
+
+  while((actor = pop(sched)) != NULL)
+    mpmcq_push(&inject, actor);
 }
 
 void scheduler_terminate()

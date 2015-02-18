@@ -208,14 +208,3 @@ size_t hashmap_size(hashmap_t* map)
 {
   return map->count;
 }
-
-void hashmap_trace(hashmap_t* map, pony_trace_fn t)
-{
-  void* elem = NULL;
-  size_t i = HASHMAP_BEGIN;
-
-  pony_trace(map->buckets);
-
-  while((elem = hashmap_next(map, &i)) != NULL)
-    pony_traceobject(elem, t);
-}

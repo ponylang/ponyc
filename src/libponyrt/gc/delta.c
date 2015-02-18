@@ -32,8 +32,8 @@ size_t delta_rc(delta_t* delta)
   return delta->rc;
 }
 
-DEFINE_HASHMAP(deltamap, delta_t, delta_hash, delta_cmp,
-  pool_alloc_size, pool_free_size, delta_free, NULL);
+DEFINE_HASHMAP(deltamap, delta_t, delta_hash, delta_cmp, pool_alloc_size,
+  pool_free_size, delta_free);
 
 deltamap_t* deltamap_update(deltamap_t* map, pony_actor_t* actor, size_t rc)
 {

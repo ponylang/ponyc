@@ -98,7 +98,7 @@ void actorref_free(actorref_t* aref)
 }
 
 DEFINE_HASHMAP(actormap, actorref_t, actorref_hash, actorref_cmp,
-  pool_alloc_size, pool_free_size, actorref_free, NULL);
+  pool_alloc_size, pool_free_size, actorref_free);
 
 static actorref_t* move_unmarked_objects(actorref_t* from, size_t mark)
 {
