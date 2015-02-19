@@ -210,7 +210,7 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
     // Eventually, basic builtin types may be used as const, e.g. let field or
     // local, method/behaviour parameter.
-    DIType qualified = symbols->builder->createQualifiedType(DW_TAG_constant,
+    DIType qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
       type);
 
     anchor->type = type;
@@ -234,6 +234,9 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
 
   symbol->type = symbols->builder->createPointerType(target->type, meta->size,
     meta->align);
+
+  symbol->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
+      symbol->type);
 }
 
 void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
@@ -327,10 +330,10 @@ void symbols_field(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIType use_type = DIType();
 
-  //if(meta->flags & DWARF_CONSTANT)
-  //  use_type = field_symbol->anchor->qualified;
-  //else
-  use_type = field_symbol->anchor->type;
+  if(meta->flags & DWARF_CONSTANT)
+    use_type = field_symbol->anchor->qualified;
+  else
+    use_type = field_symbol->anchor->type;
 
   DIFile file = get_file(symbols, meta->file);
 
