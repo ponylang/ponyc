@@ -132,6 +132,16 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   const char* mangled, const char** params, size_t count, LLVMValueRef ir);
 
 /**
+ * Emit debug symbols for a local variable.
+ */
+void dwarf_local(dwarf_t* dwarf);
+
+/**
+ * Introduce a new lexical scope.
+ */
+void dwarf_lexicalscope(dwarf_t* dwarf);
+
+/**
  * Finalise emitting the debug symbols for a composite type. By the nature
  * of how Pony type generation works, a composite type's components will
  * be final, before the type itself becomes final.

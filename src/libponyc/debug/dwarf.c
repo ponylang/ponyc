@@ -210,6 +210,16 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   symbols_method(dwarf->symbols, dwarf->frame, &meta, ir);
 }
 
+void dwarf_local(dwarf_t* dwarf)
+{
+  (void)dwarf;
+}
+
+void dwarf_lexicalscope(dwarf_t* dwarf)
+{
+  (void)dwarf;
+}
+
 void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
 {
   if(!is_machine_word(g->ast) && !is_pointer(g->ast))

@@ -166,10 +166,10 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
 
   Module* m = unwrap(module);
 
-  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+  //m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
 
-  m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
-    llvm::DEBUG_METADATA_VERSION);
+  //m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
+  //  llvm::DEBUG_METADATA_VERSION);
 
   s->builder = new DIBuilder(*m);
   s->release = optimised;

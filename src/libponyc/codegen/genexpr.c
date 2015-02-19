@@ -12,6 +12,9 @@
 
 LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 {
+  // Dwarf a new lexical scope, if necessary.
+  dwarf_lexicalscope(&c->dwarf);
+
   switch(ast_id(ast))
   {
     case TK_SEQ:
