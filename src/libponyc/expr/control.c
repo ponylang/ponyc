@@ -394,8 +394,12 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(t->frame->method))
   {
     case TK_NEW:
-      ast_error(ast, "can't return a value in a constructor");
-      return false;
+      if(!is_none(body_type))
+      {
+        ast_error(ast, "return in a constructor must return None");
+        return false;
+      }
+      return true;
 
     case TK_BE:
       if(!is_none(body_type))
