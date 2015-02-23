@@ -262,6 +262,15 @@ static pony_actor_t* request(scheduler_t* sched)
 
       sched->victim = NULL;
     } else {
+      if((actor = pop_global(sched)) != NULL)
+      {
+        __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
+          PONY_ATOMIC_NO_TYPE);
+        __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
+          uint32_t);
+        break;
+      }
+
       if(cpu_core_pause(tsc) && quiescent(sched))
         return NULL;
     }
