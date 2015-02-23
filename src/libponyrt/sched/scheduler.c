@@ -204,13 +204,13 @@ static pony_actor_t* request(scheduler_t* sched)
   {
     scheduler_t* victim = choose_victim(sched);
 
-    if(victim != NULL)
-    {
-      actor = pop(victim);
+    if(victim == NULL)
+      victim = sched;
 
-      if(actor != NULL)
-        break;
-    }
+    actor = pop_global(victim);
+
+    if(actor != NULL)
+      break;
 
     __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
       uint32_t);
