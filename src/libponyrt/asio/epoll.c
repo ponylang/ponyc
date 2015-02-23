@@ -44,6 +44,8 @@ asio_backend_t* asio_backend_init()
 
   struct epoll_event ep;
   ep.data.ptr = b;
+  ep.events = EPOLLIN | EPOLLRDHUP | EPOLLET;
+
   epoll_ctl(b->epfd, EPOLL_CTL_ADD, b->wakeup, &ep);
 
   return b;
