@@ -147,6 +147,9 @@
 #  define __pony_atomic_compare_exchange_n_relaxed___int128_t(PTR, EXPP, VAL) \
             _InterlockedCompareExchange128((LONGLONG volatile*)PTR, VAL.high, \
               VAL.low, (LONGLONG*)EXPP)
+#  define __pony_atomic_compare_exchange_n_acq_rel___int128_t(PTR, EXPP, VAL) \
+            _InterlockedCompareExchange128((LONGLONG volatile*)PTR, VAL.high, \
+              VAL.low, (LONGLONG*)EXPP)
 #endif
 
 #endif
