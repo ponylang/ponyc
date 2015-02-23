@@ -55,6 +55,7 @@ typedef struct package_t
   const char* filename; // Filename if we are an executable
   const char* symbol; // Wart to use for symbol names
   size_t next_hygienic_id;
+  bool allow_ffi;
 } package_t;
 
 // Per defined magic package sate
@@ -65,8 +66,12 @@ typedef struct magic_package_t
   struct magic_package_t* next;
 } magic_package_t;
 
+// Function that will handle a path in some way.
+typedef bool (*path_fn)(const char* path);
+
 // Global state
 static strlist_t* search = NULL;
+static strlist_t* safe = NULL;
 static magic_package_t* magic_packages = NULL;
 static bool report_build = true;
 
@@ -207,7 +212,7 @@ static const char* find_path(ast_t* from, const char* path)
 
   const char* result;
 
-  if(ast_id(from) == TK_PROGRAM)
+  if((from == NULL) || (ast_id(from) == TK_PROGRAM))
   {
     // Try a path relative to the current working directory
     result = try_path(NULL, path);
@@ -369,12 +374,17 @@ static ast_t* create_package(ast_t* program, const char* name)
   ast_set(program, pkg->path, package, SYM_NONE);
   ast_set(program, pkg->id, package, SYM_NONE);
 
+  if((safe != NULL) && (strlist_find(safe, pkg->path) == NULL))
+    pkg->allow_ffi = false;
+  else
+    pkg->allow_ffi = true;
+
   return package;
 }
 
 
 // Check that the given path exists and add it to our package search paths
-static void add_path(const char* path)
+static bool add_path(const char* path)
 {
 #ifdef PLATFORM_IS_WINDOWS
   // The Windows implementation of stat() cannot cope with trailing a \ on a
@@ -395,7 +405,25 @@ static void add_path(const char* path)
   int err = stat(path, &s);
 
   if((err != -1) && S_ISDIR(s.st_mode))
-    search = strlist_append(search, stringtab(path));
+  {
+    path = stringtab(path);
+
+    if(strlist_find(search, path) == NULL)
+      search = strlist_append(search, path);
+  }
+
+  return true;
+}
+
+
+static bool add_safe(const char* path)
+{
+  path = stringtab(path);
+
+  if(strlist_find(safe, path) == NULL)
+    safe = strlist_append(safe, path);
+
+  return true;
 }
 
 
@@ -464,6 +492,32 @@ bool package_init(pass_opt_t* opt)
 
   add_exec_dir();
   use_register_std();
+
+  // Add builtin as a safe package if there are any.
+  if(safe != NULL)
+    add_safe("builtin");
+
+  // Convert all the safe packages to their full paths.
+  strlist_t* full_safe = NULL;
+
+  while(safe != NULL)
+  {
+    const char* path;
+    safe = strlist_pop(safe, &path);
+
+    // Lookup (and hence normalise) path.
+    path = find_path(NULL, path);
+
+    if(path == NULL)
+    {
+      strlist_free(full_safe);
+      return false;
+    }
+
+    full_safe = strlist_push(full_safe, path);
+  }
+
+  safe = full_safe;
   return true;
 }
 
@@ -474,10 +528,12 @@ strlist_t* package_paths()
 }
 
 
-void package_add_paths(const char* paths)
+static bool handle_path_list(const char* paths, path_fn f)
 {
   if(paths == NULL)
-    return;
+    return true;
+
+  bool ok = true;
 
   while(true)
   {
@@ -497,14 +553,12 @@ void package_add_paths(const char* paths)
     if(len >= FILENAME_MAX)
     {
       errorf(NULL, "Path too long in %s", paths);
-    }
-    else
-    {
+    } else {
       char path[FILENAME_MAX];
 
       strncpy(path, paths, len);
       path[len] = '\0';
-      add_path(path);
+      ok = f(path) && ok;
     }
 
     if(p == NULL) // No more separators
@@ -512,6 +566,19 @@ void package_add_paths(const char* paths)
 
     paths = p + 1;
   }
+
+  return ok;
+}
+
+void package_add_paths(const char* paths)
+{
+  handle_path_list(paths, add_path);
+}
+
+
+bool package_add_safe(const char* paths)
+{
+  return handle_path_list(paths, add_safe);
 }
 
 
@@ -528,6 +595,7 @@ void package_add_magic(const char* path, const char* src)
 void package_clear_magic()
 {
   magic_package_t*p = magic_packages;
+
   while(p != NULL)
   {
     magic_package_t* next = p->next;
@@ -684,13 +752,29 @@ const char* package_hygienic_id(typecheck_t* t)
 }
 
 
+bool package_allow_ffi(typecheck_t* t)
+{
+  assert(t->frame->package != NULL);
+  package_t* pkg = (package_t*)ast_data(t->frame->package);
+  return pkg->allow_ffi;
+}
+
+
 void package_done(pass_opt_t* opt)
 {
   codegen_shutdown(opt);
+
   strlist_free(search);
   search = NULL;
+
+  strlist_free(safe);
+  safe = NULL;
+
   package_clear_magic();
   use_clear_handlers();
+
+  print_errors();
+  free_errors();
 }
 
 
