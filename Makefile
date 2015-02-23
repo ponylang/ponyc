@@ -23,18 +23,25 @@ ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
 config ?= debug
 
-ifdef use
-  ifneq (,$(filter $(use), mpmcq))
-    ALL_CFLAGS += -DUSE_MPMCQ
-  endif
+PONY_BUILD_DIR   ?= build/$(config)
+PONY_SOURCE_DIR  ?= src
+PONY_TEST_DIR ?= test
 
+ifdef use
   ifneq (,$(filter $(use), numa))
     ALL_CFLAGS += -DUSE_NUMA
     LINK_NUMA = true
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-numa
+  endif
+
+  ifneq (,$(filter $(use), mpmcq))
+    ALL_CFLAGS += -DUSE_MPMCQ
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-mpmcq
   endif
 
   ifneq (,$(filter $(use), valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
+    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
 endif
 
@@ -68,10 +75,6 @@ endif
 ifndef LLVM_CONFIG
   $(error No LLVM 3.5 installation found!)
 endif
-
-PONY_BUILD_DIR   ?= build/$(config)
-PONY_SOURCE_DIR  ?= src
-PONY_TEST_DIR ?= test
 
 $(shell mkdir -p $(PONY_BUILD_DIR))
 
@@ -363,17 +366,22 @@ stats:
 	@cloc --read-lang-def=pony.cloc test
 
 clean:
-	@rm -rf build/$(config)
+	@rm -rf $(PONY_BUILD_DIR)
 	-@rmdir build 2>/dev/null ||:
-	@echo 'Repository cleaned ($(config)).'
+	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
 help:
 	@echo
-	@echo 'Usage: make [config=name] [target]'
+	@echo 'Usage: make [config=name] [use=opt,...] [target]'
 	@echo
-	@echo "CONFIGURATIONS:"
-	@echo "  debug"
-	@echo "  release"
+	@echo 'CONFIGURATIONS:'
+	@echo '  debug'
+	@echo '  release'
+	@echo
+	@echo 'USE OPTIONS:'
+	@echo '   mpmcq'
+	@echo '   numa'
+	@echo '   valgrind'
 	@echo
 	@echo 'TARGETS:'
 	@echo '  libponyc          Pony compiler library'
