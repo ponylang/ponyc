@@ -275,6 +275,21 @@ static reachable_method_stack_t* add_fields(reachable_method_stack_t* s,
   return s;
 }
 
+static reachable_method_stack_t* add_special(reachable_method_stack_t* s,
+  reachable_type_t* t, ast_t* type, const char* special)
+{
+  special = stringtab(special);
+  ast_t* find = lookup_try(NULL, NULL, type, special);
+
+  if(find != NULL)
+  {
+    s = add_method(s, t, special, NULL);
+    ast_free_unattached(find);
+  }
+
+  return s;
+}
+
 static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* type, const char* name, ast_t* typeargs)
 {
@@ -338,19 +353,19 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
 
       case TK_PRIMITIVE:
       case TK_CLASS:
-      case TK_ACTOR:
         s = add_fields(s, r, type);
         s = add_traits_to_type(s, r, t);
         break;
 
+      case TK_ACTOR:
+        s = add_fields(s, r, type);
+        s = add_traits_to_type(s, r, t);
+        s = add_special(s, t, type, "_event_notify");
+        s = add_special(s, t, type, "_final");
+        break;
+
       default: {}
     }
-
-    const char* notify = stringtab("_event_notify");
-    ast_t* find = lookup_try(NULL, NULL, type, notify);
-
-    if(find != NULL)
-      s = add_method(s, t, notify, NULL);
   }
 
   if(name != NULL)

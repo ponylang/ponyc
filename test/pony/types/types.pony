@@ -155,3 +155,6 @@ actor Main
       x = 2
     end
     x
+
+  fun ref _final() =>
+    @printf[I32]("FINAL\n".cstring())
