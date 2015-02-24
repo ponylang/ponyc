@@ -129,11 +129,12 @@ static const char* get_link_path()
 
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 {
-  LLVMTypeRef params[2];
+  LLVMTypeRef params[3];
   params[0] = c->i32;
   params[1] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
+  params[2] = LLVMPointerType(LLVMPointerType(c->i8, 0), 0);
 
-  LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 2, false);
+  LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
   codegen_startfun(c, func);
@@ -144,6 +145,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   args[1] = LLVMGetParam(func, 1);
   LLVMSetValueName(args[1], "argv");
+
+  args[2] = LLVMGetParam(func, 2);
+  LLVMSetValueName(args[1], "envp");
 
   // Initialise the pony runtime with argc and argv, getting a new argc.
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
@@ -156,10 +160,14 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
   const char* env_create = genname_fun(env_name, "_create", NULL);
-  args[2] = args[1];
-  args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
-  args[0] = gencall_alloc(c, env_g);
-  LLVMValueRef env = gencall_runtime(c, env_create, args, 3, "env");
+
+  LLVMValueRef env_args[4];
+  env_args[0] = gencall_alloc(c, env_g);
+  env_args[1] = LLVMBuildZExt(c->builder, args[0], c->i64, "");
+  env_args[2] = args[1];
+  env_args[3] = args[2];
+
+  LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
   LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
   // Create a type for the message.
