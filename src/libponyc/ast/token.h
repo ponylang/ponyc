@@ -181,6 +181,7 @@ typedef enum token_id
   TK_POSITIONALARGS,
   TK_NAMEDARGS,
   TK_NAMEDARG,
+  TK_UPDATEARG,
 
   TK_SEQ,
   TK_QUALIFY,
@@ -215,7 +216,8 @@ typedef enum token_id
   TK_TEST_SEQ,
   TK_TEST_SEQ_SCOPE,
   TK_TEST_TRY_NO_CHECK,
-  TK_TEST_BORROWED
+  TK_TEST_BORROWED,
+  TK_TEST_UPDATEARG
 } token_id;
 
 

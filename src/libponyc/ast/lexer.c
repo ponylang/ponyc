@@ -202,6 +202,7 @@ static const lexsym_t abstract[] =
   { "positionalargs", TK_POSITIONALARGS },
   { "namedargs", TK_NAMEDARGS },
   { "namedarg", TK_NAMEDARG },
+  { "updatearg", TK_UPDATEARG },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
@@ -241,6 +242,7 @@ static const lexsym_t test_keywords[] =
   { "$seq", TK_TEST_SEQ },
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
   { "$borrowed", TK_TEST_BORROWED },
+  { "$updatearg", TK_TEST_UPDATEARG },
 
   { NULL, (token_id)0 }
 };
