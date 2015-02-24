@@ -13,9 +13,6 @@
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
-#else
-   //disable warnings of unlink being deprecated
-#  pragma warning(disable:4996)
 #endif
 
 #if defined(PLATFORM_IS_LINUX)
@@ -386,6 +383,11 @@ bool genexe(compile_t* c, ast_t* program)
   if(!link_exe(c, program, file_o))
     return false;
 
+#ifdef PLATFORM_IS_WINDOWS
+  _unlink(file_o);
+#else
   unlink(file_o);
+#endif
+
   return true;
 }
