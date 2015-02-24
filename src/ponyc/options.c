@@ -7,6 +7,7 @@
 #define MATCH_LONG  1
 #define MATCH_SHORT 2
 #define MATCH_NONE  3
+#define PARSE_ARG OPT_ARG_REQUIRED | OPT_ARG_OPTIONAL
 
 static bool end_reached(const opt_arg_t* arg)
 {
@@ -127,7 +128,7 @@ static void parse_long_opt_arg(opt_state_t* s)
     s->arg_val = s->opt_end + 1;
     s->opt_start += strlen(s->opt_start);
   }
-  else
+  else if(s->argv[s->idx + 1][0] != "-")
   {
     s->arg_val = s->argv[s->idx + 1];
     s->opt_start += strlen(s->opt_start);
@@ -219,15 +220,15 @@ int opt_next(opt_state_t* s)
   {
     s->remove++;
 
-    if(m->flag == OPT_ARG_REQUIRED)
-      parse_long_opt_arg(s);
+    if(m->flag & PARSE_ARG)
+      parse_long_opt_arg(s, m->flag & OPT_ARG_REQUIRED);
   }
   else if(s->match_type == MATCH_SHORT)
   {
     parse_short_opt(s);
 
-    if(m->flag == OPT_ARG_REQUIRED)
-      parse_short_opt_arg(s);
+    if(m->flag == PARSE_ARG)
+      parse_short_opt_arg(s, m->flag & OPT_ARG_REQUIRED);
   }
 
   strip_accepted_opts(s);
