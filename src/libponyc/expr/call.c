@@ -148,6 +148,13 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
 
     if(param == NULL)
     {
+      if(ast_id(namedarg) == TK_UPDATEARG)
+      {
+        ast_error(arg_id,
+          "cannot use sugar, update() has no parameter named \"value\"");
+        return false;
+      }
+
       ast_error(arg_id, "not a parameter name");
       return false;
     }

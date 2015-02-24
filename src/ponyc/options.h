@@ -3,8 +3,9 @@
 
 #include <stdint.h>
 
-#define OPT_ARG_REQUIRED 1
-#define OPT_ARG_NONE 2
+#define OPT_ARG_REQUIRED 1 << 0
+#define OPT_ARG_OPTIONAL 1 << 1
+#define OPT_ARG_NONE     1 << 2
 #define OPT_ARGS_FINISH {NULL, 0, UINT32_MAX, UINT32_MAX}
 
 typedef struct opt_arg_t

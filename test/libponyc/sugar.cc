@@ -557,7 +557,7 @@ TEST_F(SugarTest, UpdateNoArgs)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  foo.update(where value = 1)";
+    "  foo.update(where value $updatearg = 1)";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -571,7 +571,7 @@ TEST_F(SugarTest, UpdateWithArgs)
 
   const char* full_form =
     "class Foo ref var y:U32 fun ref f(): U32 val =>\n"
-    "  foo.update(2, 3 where bar = 4, value = 1)";
+    "  foo.update(2, 3 where bar = 4, value $updatearg = 1)";
 
   TEST_EQUIV(short_form, full_form);
 }

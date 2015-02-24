@@ -548,7 +548,7 @@ static ast_result_t sugar_update(ast_t** astp)
 
   // Build a new namedarg.
   BUILD(namedarg, ast,
-    NODE(TK_NAMEDARG,
+    NODE(TK_UPDATEARG,
       ID("value")
       NODE(TK_SEQ, TREE(value))));
 

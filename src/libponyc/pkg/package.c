@@ -493,10 +493,6 @@ bool package_init(pass_opt_t* opt)
   add_exec_dir();
   use_register_std();
 
-  // Add builtin as a safe package if there are any.
-  if(safe != NULL)
-    add_safe("builtin");
-
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
 
@@ -578,6 +574,7 @@ void package_add_paths(const char* paths)
 
 bool package_add_safe(const char* paths)
 {
+  add_safe("builtin");
   return handle_path_list(paths, add_safe);
 }
 

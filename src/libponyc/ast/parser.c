@@ -187,10 +187,14 @@ DEF(type);
   OPT_NO_DFLT RULE("viewpoint", viewpoint);
   DONE();
 
-// ID ASSIGN rawseq
+// ID [$updatearg] ASSIGN rawseq
 DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
   TOKEN("argument name", TK_ID);
+  IFELSE(TK_TEST_UPDATEARG,
+    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(TEST_ONLY),
+    {}
+  );
   SKIP(NULL, TK_ASSIGN);
   RULE("argument value", rawseq);
   DONE();
