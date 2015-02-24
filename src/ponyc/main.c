@@ -43,7 +43,7 @@ static opt_arg_t args[] =
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
 
-  {"safe", 0, OPT_ARG_REQUIRED, OPT_SAFE},
+  {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
   {"restrict", 0, OPT_ARG_NONE, OPT_RESTRICT},
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},

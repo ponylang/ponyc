@@ -7,7 +7,7 @@
 #define MATCH_LONG  1
 #define MATCH_SHORT 2
 #define MATCH_NONE  3
-#define PARSE_ARG OPT_ARG_REQUIRED | OPT_ARG_OPTIONAL
+#define PARSE_ARG (OPT_ARG_REQUIRED | OPT_ARG_OPTIONAL)
 
 static bool end_reached(const opt_arg_t* arg)
 {
@@ -63,10 +63,10 @@ static const opt_arg_t* find_match(opt_state_t* s)
       {
         if(match_length == strlen(match_name))
         {
-          //Exact match found. It is necessary to check for
-          //the length of p->long_opt since there might be
-          //options that are prefixes of another (strncmp),
-          //and short options might be grouped.
+          // Exact match found. It is necessary to check for
+          // the length of p->long_opt since there might be
+          // options that are prefixes of another (strncmp),
+          // and short options might be grouped.
           match = p;
           break;
         }
@@ -128,11 +128,14 @@ static void parse_long_opt_arg(opt_state_t* s)
     s->arg_val = s->opt_end + 1;
     s->opt_start += strlen(s->opt_start);
   }
-  else if(s->argv[s->idx + 1][0] != "-")
+  else if(s->argv[s->idx + 1][0] != '-')
   {
     s->arg_val = s->argv[s->idx + 1];
     s->opt_start += strlen(s->opt_start);
-    s->remove++;
+
+    // Only remove if there actually was an argument
+    if(s->argv[s->idx + 1][0])
+      s->remove++;
   }
 }
 
@@ -158,8 +161,8 @@ static void parse_short_opt_arg(opt_state_t* s)
 
 static void parse_short_opt(opt_state_t* s)
 {
-  //strip out the short option, as short options may be
-  //grouped
+  // Strip out the short option, as short options may be
+  // grouped
   memmove(s->opt_start, s->opt_start + 1, strlen(s->opt_start));
 
   if(*s->opt_start)
@@ -184,17 +187,19 @@ void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv)
 
 int opt_next(opt_state_t* s)
 {
+  s->arg_val = NULL;
+  
   if(s->opt_start == NULL || *s->opt_start == '\0')
   {
-    //Parsing a new option
+    // Parsing a new option
     s->idx++;
 
     if(!skip_non_options(s))
       return -1;
   }
 
-  //Check for known exact match. If the option is known, process it,
-  //otherwise ignore it.
+  // Check for known exact match. If the option is known, process it,
+  // otherwise ignore it.
   const opt_arg_t* m = find_match(s);
 
   if(m == NULL)
@@ -220,15 +225,15 @@ int opt_next(opt_state_t* s)
   {
     s->remove++;
 
-    if(m->flag & PARSE_ARG)
-      parse_long_opt_arg(s, m->flag & OPT_ARG_REQUIRED);
+    if((m->flag & PARSE_ARG) && has_argument(s))
+      parse_long_opt_arg(s);
   }
   else if(s->match_type == MATCH_SHORT)
   {
     parse_short_opt(s);
 
-    if(m->flag == PARSE_ARG)
-      parse_short_opt_arg(s, m->flag & OPT_ARG_REQUIRED);
+    if((m->flag & PARSE_ARG) && has_argument(s))
+      parse_short_opt_arg(s);
   }
 
   strip_accepted_opts(s);
