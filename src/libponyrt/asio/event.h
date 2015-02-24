@@ -68,7 +68,7 @@ void asio_event_update(asio_event_t* ev, uintptr_t data);
  *  After a call to unsubscribe, the caller will not receive any further event
  *  notifications for I/O events on the corresponding resource.
  */
-void asio_event_subscribe(asio_event_t* ev);
+void asio_event_unsubscribe(asio_event_t* ev);
 
 PONY_EXTERN_C_END
 
