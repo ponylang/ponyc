@@ -31,6 +31,14 @@ strlist_t* package_paths();
 void package_add_paths(const char* paths);
 
 /**
+ * Appends a list of paths to the list of packages allowed to do C FFI.
+ * The list is semicolon (;) separated on Windows and colon (:) separated on
+ * Linux and MacOS.
+ * If this is never called, all packages are allowed to do C FFI.
+ */
+bool package_add_safe(const char* paths);
+
+/**
  * Add a magic package. When the package with the specified path is requested
  * the files will not be looked for and the source code given here will be used
  * instead. Each magic package can consist of only a single module.
@@ -96,6 +104,11 @@ const char* package_symbol(ast_t* package);
  * The returned string will be a string table entry and should not be freed.
  */
 const char* package_hygienic_id(typecheck_t* t);
+
+/**
+ * Returns true if the current package is allowed to do C FFI.
+ */
+bool package_allow_ffi(typecheck_t* t);
 
 /**
  * Cleans up the list of search directories and shuts down the code generator.

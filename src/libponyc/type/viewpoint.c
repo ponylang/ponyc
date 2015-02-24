@@ -467,18 +467,6 @@ bool safe_to_write(ast_t* ast, ast_t* type)
 
     case TK_TUPLE:
     {
-      if(ast_id(type) == TK_UNIONTYPE || ast_id(type) == TK_ISECTTYPE)
-      {
-        // We have a union or intersection of tuples, check all children work.
-        for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
-        {
-          if(!safe_to_write(ast, p))
-            return false;
-        }
-
-        return true;
-      }
-
       // At this point, we know these will be the same length.
       assert(ast_id(type) == TK_TUPLETYPE);
       ast_t* child = ast_child(ast);

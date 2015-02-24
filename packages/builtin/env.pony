@@ -7,8 +7,11 @@ class Env val
   let out: StdStream
   let err: StdStream
   let args: Array[String] val
+  let vars: Array[String] val
 
-  new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso) =>
+  new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso,
+    envp: Pointer[Pointer[U8] iso] iso)
+  =>
     """
     Builds an environment from the command line. This is done before the Main
     actor is created.
@@ -19,25 +22,12 @@ class Env val
     out = StdStream._out()
     err = StdStream._err()
 
-    args = recover
-      let array = Array[String](argc)
-      var i: U64 = 0
-
-      while i < argc do
-        array.push(
-          recover
-            String.from_cstring(
-              argv._update(i, recover Pointer[U8] end))
-          end
-          )
-        i = i + 1
-      end
-
-      consume array
-    end
+    args = _strings_from_pointers(consume argv, argc)
+    vars = _strings_from_pointers(consume envp, 0)
 
   new create(input': Stdin, out': StdStream, err': StdStream,
-    args': Array[String] val) =>
+    args': Array[String] val, vars': Array[String] val)
+  =>
     """
     Build an artificial environment.
     """
@@ -45,6 +35,7 @@ class Env val
     out = out'
     err = err'
     args = args'
+    vars = vars'
 
   fun tag exitcode(code: I32) =>
     """
@@ -52,3 +43,22 @@ class Env val
     value set will be the exit code. The exit code defaults to 0.
     """
     @pony_exitcode[None](code)
+
+  fun tag _strings_from_pointers(data: Pointer[Pointer[U8] iso] iso, len: U64):
+    Array[String] iso^
+  =>
+    let array = recover Array[String](len) end
+    var i: U64 = 0
+
+    while true do
+      let entry = data._update(i, recover Pointer[U8] end)
+
+      if entry.is_null() then
+        break
+      end
+
+      array.push(recover String.from_cstring(consume entry) end)
+      i = i + 1
+    end
+
+    array

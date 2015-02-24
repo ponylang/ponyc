@@ -7,9 +7,6 @@
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
-#else
-   //disable warnings of unlink being deprecated
-#  pragma warning(disable:4996)
 #endif
 
 static bool reachable_methods(compile_t* c, ast_t* ast)
@@ -222,6 +219,11 @@ bool genlib(compile_t* c, ast_t* program)
   if(!link_lib(c, file_o))
     return false;
 
+#ifdef PLATFORM_IS_WINDOWS
+  _unlink(file_o);
+#else
   unlink(file_o);
+#endif
+
   return true;
 }

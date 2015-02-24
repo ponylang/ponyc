@@ -1,6 +1,7 @@
 #include "ffi.h"
 #include "literal.h"
 #include "../type/subtype.h"
+#include "../pkg/package.h"
 #include <assert.h>
 
 static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
@@ -92,6 +93,12 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
 bool expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
+  if(!package_allow_ffi(&opt->check))
+  {
+    ast_error(ast, "This package isn't allowed to do C FFI.");
+    return false;
+  }
+
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
   assert(name != NULL);
 

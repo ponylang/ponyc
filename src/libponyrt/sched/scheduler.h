@@ -7,34 +7,32 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct scheduler_t scheduler_t;
+struct scheduler_t
+{
+  // These are rarely changed.
+  pony_thread_id_t tid;
+  uint32_t cpu;
+  uint32_t node;
+  bool finish;
+  bool forcecd;
 
-__pony_spec_align__(
-  struct scheduler_t
-  {
-    // These are rarely changed.
-    pony_thread_id_t tid;
-    uint32_t cpu;
-    uint32_t node;
-    bool finish;
-    bool forcecd;
-
-    // These are changed primarily by the owning scheduler thread.
-    __pony_spec_align__(struct scheduler_t* last_victim, 64);
+  // These are changed primarily by the owning scheduler thread.
+  __pony_spec_align__(struct scheduler_t* last_victim, 64);
 
 #ifdef USE_MPMCQ
-    mpmcq_t q;
+  mpmcq_t q;
 #else
-    pony_actor_t* head;
-    pony_actor_t* tail;
-    struct scheduler_t* victim;
+  pony_actor_t* head;
+  pony_actor_t* tail;
+  struct scheduler_t* victim;
 
-    // These are accessed by other scheduler threads.
-    __pony_spec_align__(scheduler_t* thief, 64);
-    uint32_t waiting;
+  // These are accessed by other scheduler threads.
+  __pony_spec_align__(struct scheduler_t* thief, 64);
+  uint32_t waiting;
 #endif
-  }, 64
-);
+};
+
+typedef struct scheduler_t scheduler_t;
 
 void scheduler_init(uint32_t threads, bool forcecd);
 

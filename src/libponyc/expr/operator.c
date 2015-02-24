@@ -399,6 +399,32 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
+  if((ast_id(left) == TK_TUPLE) && (ast_id(a_type) != TK_TUPLETYPE))
+  {
+    switch(ast_id(a_type))
+    {
+      case TK_UNIONTYPE:
+        ast_error(ast,
+          "can't destructure a union using assignment, use pattern matching "
+          "instead");
+        break;
+
+      case TK_ISECTTYPE:
+        ast_error(ast,
+          "can't destructure an intersection using assignment, use pattern "
+          "matching instead");
+        break;
+
+      default:
+        assert(0);
+        break;
+    }
+
+    ast_error(a_type, "right side type: %s", ast_print_type(a_type));
+    ast_free_unattached(a_type);
+    return false;
+  }
+
   bool ok_safe = safe_to_write(left, a_type);
 
   if(!ok_safe)

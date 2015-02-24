@@ -41,7 +41,6 @@ bool asio_start()
     running_base.backend))
     return false;
 
-  pony_thread_detach(running_base.tid);
   return true;
 }
 
@@ -52,7 +51,11 @@ bool asio_stop()
     return false;
 
   asio_backend_terminate(running_base.backend);
-  memset(&running_base, 0, sizeof(asio_base_t));
+  pony_thread_join(running_base.tid);
+
+  running_base.backend = NULL;
+  running_base.tid = 0;
+
   return true;
 }
 

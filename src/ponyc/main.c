@@ -22,6 +22,7 @@ enum
   OPT_OUTPUT,
   OPT_LIBRARY,
 
+  OPT_SAFE,
   OPT_IEEEMATH,
   OPT_RESTRICT,
   OPT_CPU,
@@ -42,6 +43,7 @@ static opt_arg_t args[] =
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
 
+  {"safe", 0, OPT_ARG_REQUIRED, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
   {"restrict", 0, OPT_ARG_NONE, OPT_RESTRICT},
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
@@ -72,6 +74,8 @@ static void usage()
     "  --library, -l   Generate a C-API compatible static library.\n"
     "\n"
     "Rarely needed options:\n"
+    "  --safe          Allow only the listed packages to use C FFI.\n"
+    "    =this,that    With no packages listed, only builtin is allowed.\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
     "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
@@ -144,21 +148,13 @@ static bool compile_package(const char* path, pass_opt_t* opt, bool print_ast)
   ast_t* program = program_load(path, opt);
 
   if(program == NULL)
-  {
-    print_errors();
-    free_errors();
     return false;
-  }
 
   if(print_ast)
     ast_print(program);
 
   bool ok = generate_passes(program, opt);
   ast_free(program);
-
-  print_errors();
-  free_errors();
-
   return ok;
 }
 
@@ -179,6 +175,8 @@ int main(int argc, char* argv[])
   opt_state_t s;
   opt_init(args, &s, &argc, argv);
 
+  bool ok = true;
+  bool print_usage = false;
   int id;
 
   while((id = opt_next(&s)) != -1)
@@ -189,6 +187,11 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
+
+      case OPT_SAFE:
+        if(!package_add_safe(s.arg_val))
+          ok = false;
+        break;
 
       case OPT_IEEEMATH: opt.ieee_math = true; break;
       case OPT_RESTRICT: opt.no_restrict = false; break;
@@ -203,17 +206,12 @@ int main(int argc, char* argv[])
 
       case OPT_PASSES:
         if(!limit_passes(&opt, s.arg_val))
-        {
-          usage();
-          return -1;
-        }
+          ok = false;
         break;
 
       default: usage(); return -1;
     }
   }
-
-  bool ok = true;
 
   for(int i = 1; i < argc; i++)
   {
@@ -221,13 +219,17 @@ int main(int argc, char* argv[])
     {
       printf("Unrecognised option: %s\n", argv[i]);
       ok = false;
+      print_usage = true;
     }
   }
 
   if(!ok)
   {
-    printf("\n");
-    usage();
+    print_errors();
+
+    if(print_usage)
+      usage();
+
     return -1;
   }
 
@@ -240,10 +242,9 @@ int main(int argc, char* argv[])
       for(int i = 1; i < argc; i++)
         ok &= compile_package(argv[i], &opt, print_ast);
     }
-
-    package_done(&opt);
   }
 
+  package_done(&opt);
   pass_opt_done(&opt);
   stringtab_done();
 

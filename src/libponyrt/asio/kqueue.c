@@ -95,8 +95,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         switch(ep->filter)
         {
           case EVFILT_READ:
-            if(ep->data > 0)
-              asio_event_send(ev, ASIO_READ);
+            asio_event_send(ev, ASIO_READ);
             break;
 
           case EVFILT_WRITE:

@@ -86,7 +86,13 @@ actor Stdin
       while true do
         var len = U64(64)
         var data = recover Array[U8].undefined(len) end
-        len = @read[U64](U64(0), data.cstring(), data.space())
+		
+		if Platform.windows() then
+			len = @_read[U64](U64(0), data.cstring(), data.space())
+		else
+			len = @read[U64](U64(0), data.cstring(), data.space())
+		end
+			
 
         match len
         | -1 =>

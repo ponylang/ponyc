@@ -99,12 +99,7 @@ TEST_F(LocalInferTest, UnionOfTuples)
     "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
     "    (var a, var b) = x";
 
-  const char* full_form =
-    "class C\n"
-    "  fun f(x:((None, U32) | (Bool, U32))) =>\n"
-    "    (var a: (None | Bool), var b: U32) = x";
-
-  TEST_EQUIV(short_form, full_form);
+  TEST_ERROR(short_form);
 }
 
 
