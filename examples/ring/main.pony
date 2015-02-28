@@ -1,12 +1,14 @@
 use "collections"
 
 actor Ring
+  let _id: U32
+  let _env: Env
   var _next: (Ring | None)
-  var _env: Env
 
-  new create(env: Env, neighbor: (Ring | None) = None) =>
-    _next = neighbor
+  new create(id: U32, env: Env, neighbor: (Ring | None) = None) =>
+    _id = id
     _env = env
+    _next = neighbor
 
   be set(neighbor: Ring) =>
     _next = neighbor
@@ -18,7 +20,7 @@ actor Ring
         n.pass(i - 1)
       end
     else
-      _env.out.print("done")
+      _env.out.print(_id.string())
     end
 
 actor Main
@@ -65,11 +67,11 @@ actor Main
     var current: Ring
 
     for j in Range[U32](0, _ring_count) do
-      first = Ring(_env)
+      first = Ring(1, _env)
       next = first
 
       for k in Range[U32](0, _ring_size - 1) do
-        current = Ring(_env, next)
+        current = Ring(_ring_size - k, _env, next)
         next = current
       end
 
