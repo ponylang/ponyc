@@ -88,6 +88,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     }
   }
 
+  argv[argc] = NULL;
   return argc;
 }
 
