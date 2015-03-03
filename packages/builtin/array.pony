@@ -14,21 +14,20 @@ class Array[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  // TODO:
-  // new init[B: (A & A!) = A](from: B, len: U64) =>
-  //   """
-  //   Create an array of len elements, all initialised to the given value.
-  //   """
-  //  _size = len
-  //  _alloc = len
-  //  _ptr = Pointer[A]._alloc(len)
+  new init(from: A^, len: U64) =>
+    """
+    Create an array of len elements, all initialised to the given value.
+    """
+   _size = len
+   _alloc = len
+   _ptr = Pointer[A]._alloc(len)
 
-  //  var i: U64 = 0
+   var i: U64 = 0
 
-  //  while i < len do
-  //    _ptr._update(i, from)
-  //    i = i + 1
-  //  end
+   while i < len do
+     _ptr._update(i, from)
+     i = i + 1
+   end
 
   new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
     """
@@ -224,16 +223,15 @@ class Array[A]
 
     error
 
-  // TODO:
-  // fun ref concat[B: (A & A!) = A](iter: Iterator[B]) =>
-  //   """
-  //   Add a sequence of elements to the end of the array.
-  //   """
-  //   try
-  //     for v in iter do
-  //       push(v)
-  //     end
-  //   end
+  fun ref concat(iter: Iterator[A^]) =>
+    """
+    Add a sequence of elements to the end of the array.
+    """
+    try
+      for v in iter do
+        push(consume v)
+      end
+    end
 
   fun clone(): Array[this->A!]^ =>
     """

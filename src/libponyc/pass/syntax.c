@@ -369,25 +369,6 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 }
 
 
-static ast_result_t syntax_ephemeral(typecheck_t* t, ast_t* ast)
-{
-  assert(ast != NULL);
-
-  if((t->frame->method_type == NULL) &&
-    (t->frame->ffi_type == NULL) &&
-    (t->frame->as_type == NULL))
-  {
-    ast_error(ast,
-      "ephemeral types can only appear in 'as' expression types and function "
-      "return types");
-
-    return AST_ERROR;
-  }
-
-  return AST_OK;
-}
-
-
 static ast_result_t syntax_match(ast_t* ast)
 {
   assert(ast != NULL);
@@ -641,7 +622,6 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
     case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
-    case TK_EPHEMERAL:  r = syntax_ephemeral(t, ast); break;
     case TK_MATCH:      r = syntax_match(ast); break;
     case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
     case TK_FFICALL:    r = syntax_ffi(ast, true); break;

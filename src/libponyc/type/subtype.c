@@ -67,8 +67,10 @@ static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
   switch(t_super_eph)
   {
     case TK_EPHEMERAL:
-      // Sub must be ephemeral.
-      if(t_sub_eph != TK_EPHEMERAL)
+      // Sub must be ephemeral if t_sub_cap != t_alt_cap. Otherwise, we don't
+      // have to be ephemeral, since, for example, a ref can be a subtype of
+      // a ref^, but an iso is not a subtype of an iso^.
+      if((t_sub_cap != t_alt_cap) && (t_sub_eph != TK_EPHEMERAL))
         return false;
 
       // Capability must be a sub-capability.
