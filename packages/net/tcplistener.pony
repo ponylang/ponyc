@@ -4,7 +4,7 @@ actor TCPListener
   """
   var _notify: TCPListenNotify
   var _fd: U32
-  var _event: Pointer[Event] tag = Pointer[Event]
+  var _event: EventID = Event.none()
   var _closed: Bool = false
 
   new create(notify: TCPListenNotify iso, host: String = "",
@@ -57,7 +57,7 @@ actor TCPListener
     """
     _notify = notify
 
-  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """

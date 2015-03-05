@@ -3,7 +3,7 @@ use "collections"
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U32 = -1
-  var _event: Pointer[Event] tag = Pointer[Event]
+  var _event: EventID = Event.none()
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
@@ -89,7 +89,7 @@ actor UDPSocket
     """
     _notify = notify
 
-  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32) =>
     """
     When we are readable, we accept new connections until none remain.
     """

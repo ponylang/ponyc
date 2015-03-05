@@ -15,6 +15,7 @@ actor Main
 
     var test: (U32, U32) = (3, 5)
     (var a: U32, var b: U32) = (1, 2)
+    (_, var c) = test
 
     if _tuple is test then
       env.out.print("is")

@@ -9,7 +9,7 @@ actor Timers
   let _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
   let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
   let _pending: List[Timer] = List[Timer]
-  var _event: Pointer[Event] tag = Pointer[Event]
+  var _event: EventID = Event.none()
 
   new create(slop: U64 = 20) =>
     """
@@ -58,7 +58,7 @@ actor Timers
 
     _event = Event.timer(this, _event, -1)
 
-  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32) =>
     """
     When the event fires, advance the timing wheels.
     """

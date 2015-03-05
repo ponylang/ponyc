@@ -1,19 +1,25 @@
+type EventID is Pointer[Event] tag
+
 interface EventNotify tag
-  be _event_notify(event: Pointer[Event] tag, flags: U32)
+  be _event_notify(event: EventID, flags: U32)
 
 primitive Event
   """
   Functions for asynchronous event notification.
   """
-  fun _stdin(owner: EventNotify): Pointer[Event] tag =>
+  fun none(): EventID =>
+    """
+    An empty event.
+    """
+    Pointer[Event]
+
+  fun _stdin(owner: EventNotify): EventID =>
     """
     Create a socket event for a file descriptor.
     """
     @asio_event_create[Pointer[Event]](owner, U64(0), U32(1), true)
 
-  fun timer(owner: EventNotify, event: Pointer[Event] tag, nsec: U64):
-    Pointer[Event] tag
-  =>
+  fun timer(owner: EventNotify, event: EventID, nsec: U64): EventID =>
     """
     Create or reset a timer. It will fire in nsec nanoseconds. It will not
     fire again unless it is armed again. If it is already armed, the new time
@@ -26,23 +32,23 @@ primitive Event
         event
       else
         @asio_event_unsubscribe[None](event)
-        Pointer[Event]
+        none()
       end
     else
       if nsec != -1 then
         @asio_event_create[Pointer[Event]](owner, nsec, U32(4), true)
       else
-        Pointer[Event]
+        none()
       end
     end
 
-  fun socket(owner: EventNotify, fd: U32): Pointer[Event] tag =>
+  fun socket(owner: EventNotify, fd: U32): EventID =>
     """
     Create a socket event for a file descriptor.
     """
     @asio_event_create[Pointer[Event]](owner, fd.u64(), U32(3), true)
 
-  fun fd(event: Pointer[Event] tag): U32 =>
+  fun fd(event: EventID): U32 =>
     """
     Returns the file descriptor associated with an event.
     """
@@ -70,7 +76,7 @@ primitive Event
     """
     flags == 0
 
-  fun unsubscribe(event: Pointer[Event] tag) =>
+  fun unsubscribe(event: EventID) =>
     """
     Unsubscribes an event.
     """
@@ -78,13 +84,13 @@ primitive Event
       @asio_event_unsubscribe[None](event)
     end
 
-  fun dispose(event: Pointer[Event] tag): Pointer[Event] tag =>
+  fun dispose(event: EventID): EventID =>
     """
     Disposes of an event.
     """
     if not event.is_null() then
       @asio_event_destroy[None](event)
-      Pointer[Event]
+      none()
     else
       event
     end

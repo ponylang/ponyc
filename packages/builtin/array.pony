@@ -18,16 +18,16 @@ class Array[A]
     """
     Create an array of len elements, all initialised to the given value.
     """
-   _size = len
-   _alloc = len
-   _ptr = Pointer[A]._alloc(len)
+    _size = len
+    _alloc = len
+    _ptr = Pointer[A]._alloc(len)
 
-   var i: U64 = 0
+    var i: U64 = 0
 
-   while i < len do
-     _ptr._update(i, from)
-     i = i + 1
-   end
+    while i < len do
+      _ptr._update(i, from)
+      i = i + 1
+    end
 
   new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
     """

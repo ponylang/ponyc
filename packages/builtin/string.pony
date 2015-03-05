@@ -293,7 +293,7 @@ class String val is Ordered[String box], Stringable
     end
     error
 
-  fun rfind(s: String, offset: I64 = -1, nth: U64 = 0): I64 ? =>
+  fun rfind(s: String box, offset: I64 = -1, nth: U64 = 0): I64 ? =>
     """
     Return the index of n-th instance of s in the string starting from the end.
     Raise an error if there is no n-th occurence of s or s is empty.
@@ -322,7 +322,7 @@ class String val is Ordered[String box], Stringable
     end
     error
 
-  fun count(s: String, offset: I64 = 0): U64 =>
+  fun count(s: String box, offset: I64 = 0): U64 =>
     """
     Counts the non-overlapping occurrences of s in the string.
     """
@@ -345,7 +345,7 @@ class String val is Ordered[String box], Stringable
 
     i
 
-  fun at(s: String, offset: I64): Bool =>
+  fun at(s: String box, offset: I64): Bool =>
     """
     Returns true if the substring s is present at the given offset.
     """

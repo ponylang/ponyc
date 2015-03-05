@@ -7,7 +7,7 @@ actor TCPConnection
   var _notify: TCPConnectionNotify
   var _connect_count: U32
   var _fd: U32 = -1
-  var _event: Pointer[Event] tag = Pointer[Event]
+  var _event: EventID = Event.none()
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
@@ -120,7 +120,7 @@ actor TCPConnection
       @os_keepalive[None](_fd, secs)
     end
 
-  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32) =>
     """
     Handle socket events.
     """

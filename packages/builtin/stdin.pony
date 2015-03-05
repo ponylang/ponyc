@@ -20,7 +20,7 @@ actor Stdin
   access is provided only via an environment.
   """
   var _notify: (StdinNotify | None) = None
-  var _event: Pointer[Event] tag = Pointer[Event]
+  var _event: EventID = Event.none()
   let _use_event: Bool
 
   new _create(use_event: Bool) =>
@@ -58,7 +58,7 @@ actor Stdin
       _loop_read()
     end
 
-  be _event_notify(event: Pointer[Event] tag, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32) =>
     """
     When the event fires, read from stdin.
     """
@@ -86,13 +86,13 @@ actor Stdin
       while true do
         var len = U64(64)
         var data = recover Array[U8].undefined(len) end
-		
+
 		if Platform.windows() then
 			len = @_read[U64](U64(0), data.cstring(), data.space())
 		else
 			len = @read[U64](U64(0), data.cstring(), data.space())
 		end
-			
+
 
         match len
         | -1 =>
