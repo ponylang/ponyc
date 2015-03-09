@@ -25,20 +25,38 @@ static token_id current_token_id(parser_t* parser)
 }
 
 
+static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
+{
+  token_t* old_token = parser->token;
+  token_t* new_token = lexer_next(parser->lexer);
+
+  if(old_token != NULL && token_get_id(new_token) == TK_EOF)
+  {
+    // Use location of last token for EOF to get better error reporting
+    token_set_pos(new_token, token_line_number(old_token),
+      token_line_position(old_token));
+  }
+
+  if(free_prev_token)
+    token_free(old_token);
+
+  parser->token = new_token;
+}
+
+
 static ast_t* consume_token(parser_t* parser)
 {
   ast_t* ast = ast_token(parser->token);
   ast_setdata(ast, parser->next_flags);
   parser->next_flags = NULL;
-  parser->token = lexer_next(parser->lexer);
+  fetch_next_lexer_token(parser, false);
   return ast;
 }
 
 
 static void consume_token_no_ast(parser_t* parser)
 {
-  token_free(parser->token);
-  parser->token = lexer_next(parser->lexer);
+  fetch_next_lexer_token(parser, true);
 }
 
 
