@@ -336,9 +336,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       break;
 
     case TK_FFICALL:
-      if(!expr_ffi(options, ast))
-        return AST_ERROR;
-      break;
+      return expr_ffi(options, ast);
 
     case TK_AMP:
       if(!expr_addressof(options, ast))

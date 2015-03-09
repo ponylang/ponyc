@@ -4,7 +4,7 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
-static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
+static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 {
   assert(call != NULL);
   assert(decl != NULL);
@@ -24,7 +24,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     ast_t* p_type = ast_childidx(param, 1);
 
     if(!coerce_literals(&arg, p_type, opt))
-      return false;
+      return AST_ERROR;
 
     ast_t* a_type = ast_type(arg);
 
@@ -33,7 +33,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
       ast_error(arg, "argument type: %s", ast_print_type(a_type));
-      return false;
+      return AST_ERROR;
     }
 
     arg = ast_sibling(arg);
@@ -43,13 +43,13 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   if(arg != NULL && param == NULL)
   {
     ast_error(arg, "too many arguments");
-    return false;
+    return AST_ERROR;
   }
 
   if(param != NULL && ast_id(param) != TK_ELLIPSIS)
   {
     ast_error(named_args, "too few arguments");
-    return false;
+    return AST_ERROR;
   }
 
   for(; arg != NULL; arg = ast_sibling(arg))
@@ -59,7 +59,7 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
     if((a_type != NULL) && is_type_literal(a_type))
     {
       ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
-      return false;
+      return AST_ERROR;
     }
   }
 
@@ -70,14 +70,14 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   if(call_ret_type != NULL && !is_eqtype(call_ret_type, decl_ret_type))
   {
     ast_error(call_ret_type, "call return type does not match declaration");
-    return false;
+    return AST_ERROR;
   }
 
   // Check partiality
   if((ast_id(decl_error) == TK_NONE) && (ast_id(call_error) != TK_NONE))
   {
     ast_error(call_error, "call is partial but the declaration is not");
-    return false;
+    return AST_ERROR;
   }
 
   if((ast_id(decl_error) == TK_QUESTION) ||
@@ -88,15 +88,15 @@ static bool declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
   ast_settype(call, decl_ret_type);
   ast_inheriterror(call);
-  return true;
+  return AST_OK;
 }
 
-bool expr_ffi(pass_opt_t* opt, ast_t* ast)
+ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
   if(!package_allow_ffi(&opt->check))
   {
     ast_error(ast, "This package isn't allowed to do C FFI.");
-    return false;
+    return AST_FATAL;
   }
 
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
@@ -115,7 +115,7 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
     if((a_type != NULL) && is_type_literal(a_type))
     {
       ast_error(arg, "Cannot pass number literals as unchecked FFI arguments");
-      return false;
+      return AST_ERROR;
     }
   }
 
@@ -124,7 +124,7 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
   if(return_type == NULL)
   {
     ast_error(name, "FFIs without declarations must specify return type");
-    return false;
+    return AST_ERROR;
   }
 
   ast_settype(ast, return_type);
@@ -133,5 +133,5 @@ bool expr_ffi(pass_opt_t* opt, ast_t* ast)
   if(ast_id(question) == TK_QUESTION)
     ast_seterror(ast);
 
-  return true;
+  return AST_OK;
 }
