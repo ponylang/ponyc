@@ -293,8 +293,13 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 
   // We do have to store the preliminary dwarf symbol seperately, because
   // of resursive types and the fact that nominal types are used as pointers.
+#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
+  nodes->prelim = symbols->builder->createReplaceableCompositeType(tag,
+    meta->name, symbols->unit, file, (int)meta->line);
+#else
   nodes->prelim = symbols->builder->createReplaceableForwardDecl(tag,
     meta->name, symbols->unit, file, (int)meta->line);
+#endif
 
   if(meta->flags & DWARF_TUPLE)
   {
@@ -366,8 +371,8 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
   DIFile file = get_file(symbols, meta->file);
 
 #if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
-  DITypeArray uses = symbols->builder->getOrCreateTypeArray(ArrayRef<Value*>(
-    (Value**)params, meta->size));
+  DITypeArray uses = symbols->builder->getOrCreateTypeArray(ArrayRef<Metadata*>(
+    (Metadata**)params, meta->size));
 #else
   DIArray uses = symbols->builder->getOrCreateArray(ArrayRef<Value*>(
     (Value**)params, meta->size));
@@ -408,10 +413,17 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   if(frame->size > 0)
   {
+#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
+    Metadata** members = (Metadata**)subnodes->children;
+
+    fields = symbols->builder->getOrCreateArray(ArrayRef<Metadata*>(members,
+      frame->size));
+#else
     Value** members = (Value**)subnodes->children;
 
     fields = symbols->builder->getOrCreateArray(ArrayRef<Value*>(members,
       frame->size));
+#endif
   }
 
   if(meta->flags & DWARF_TUPLE)
