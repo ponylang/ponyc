@@ -68,12 +68,12 @@ ifneq (,$(shell which llvm-config 2> /dev/null))
   LLVM_CONFIG = llvm-config
 endif
 
-ifneq (,$(shell which llvm-config-3.5 2> /dev/null))
-  LLVM_CONFIG = llvm-config-3.5
+ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+  LLVM_CONFIG = llvm-config-3.6
 endif
 
 ifndef LLVM_CONFIG
-  $(error No LLVM 3.5 installation found!)
+  $(error No LLVM 3.6 installation found!)
 endif
 
 $(shell mkdir -p $(PONY_BUILD_DIR))

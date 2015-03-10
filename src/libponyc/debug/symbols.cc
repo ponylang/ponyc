@@ -293,7 +293,7 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
 
   // We do have to store the preliminary dwarf symbol seperately, because
   // of resursive types and the fact that nominal types are used as pointers.
-#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 5)
+#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
   nodes->prelim = symbols->builder->createReplaceableCompositeType(tag,
     meta->name, symbols->unit, file, (int)meta->line);
 #else
