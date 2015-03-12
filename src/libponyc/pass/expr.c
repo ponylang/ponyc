@@ -146,6 +146,29 @@ bool is_typecheck_error(ast_t* type)
   return false;
 }
 
+bool is_control_type(ast_t* type)
+{
+  if(type == NULL)
+    return true;
+
+  switch(ast_id(type))
+  {
+    case TK_IF:
+    case TK_TRY:
+    case TK_MATCH:
+    case TK_CASES:
+    case TK_BREAK:
+    case TK_CONTINUE:
+    case TK_RETURN:
+    case TK_ERROR:
+      return true;
+
+    default: {}
+  }
+
+  return false;
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;

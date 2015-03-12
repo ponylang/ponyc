@@ -743,17 +743,10 @@ bool expr_tuple(ast_t* ast)
     {
       ast_t* c_type = ast_type(child);
 
-      if(c_type == NULL)
+      if(is_control_type(c_type))
       {
-        if(ast_id(child) == TK_DONTCARE)
-        {
-          c_type = child;
-        } else {
-          ast_error(child,
-            "a tuple can't contain a control flow statement that never "
-            "results in a value");
-          return false;
-        }
+        ast_error(child, "a tuple can't contain a control flow expression");
+        return false;
       }
 
       if(is_type_literal(c_type))
@@ -883,9 +876,12 @@ static bool check_return_type(ast_t* ast)
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, type, can_error, body);
   ast_t* body_type = ast_type(body);
 
+  if(is_typecheck_error(body_type))
+    return false;
+
   // The last statement is an error, and we've already checked any return
   // expressions in the method.
-  if(body_type == NULL)
+  if(is_control_type(body_type))
     return true;
 
   // If it's a compiler intrinsic, ignore it.

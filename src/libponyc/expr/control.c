@@ -90,24 +90,29 @@ bool expr_if(pass_opt_t* opt, ast_t* ast)
   ast_t* type = NULL;
   size_t branch_count = 0;
 
-  if(l_type != NULL)
+  if(!is_control_type(l_type))
   {
     type = control_type_add_branch(type, left);
     ast_inheritbranch(ast, left);
     branch_count++;
   }
 
-  if(r_type != NULL)
+  if(!is_control_type(r_type))
   {
     type = control_type_add_branch(type, right);
     ast_inheritbranch(ast, right);
     branch_count++;
   }
 
-  if((type == NULL) && (ast_sibling(ast) != NULL))
+  if(type == NULL)
   {
-    ast_error(ast_sibling(ast), "unreachable code");
-    return false;
+    if(ast_sibling(ast) != NULL)
+    {
+      ast_error(ast_sibling(ast), "unreachable code");
+      return false;
+    }
+
+    type = ast_from(ast, TK_IF);
   }
 
   ast_settype(ast, type);
@@ -137,7 +142,10 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(body_type == NULL)
+  if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
+    return false;
+
+  if(is_control_type(body_type))
   {
     // All body code paths end with return, break, etc
     ast_error(ast, "loop body can never repeat");
@@ -155,7 +163,7 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   // loop body can be consumed, and definitions in the body may not occur.
   type = control_type_add_branch(type, body);
 
-  if(else_type != NULL)
+  if(!is_control_type(else_type))
   {
     type = control_type_add_branch(type, else_clause);
     ast_inheritbranch(ast, body);
@@ -191,7 +199,10 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(body_type == NULL)
+  if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
+    return false;
+
+  if(is_control_type(body_type))
   {
     // All body code paths end with return, break, etc
     ast_error(ast, "loop body can never repeat");
@@ -209,7 +220,7 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   // from outside can be consumed, and definitions inside may not occur.
   type = control_type_add_branch(type, body);
 
-  if(else_type != NULL)
+  if(!is_control_type(else_type))
   {
     type = control_type_add_branch(type, else_clause);
     ast_inheritbranch(ast, else_clause);
@@ -230,9 +241,7 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 
 bool expr_try(pass_opt_t* opt, ast_t* ast)
 {
-  ast_t* body = ast_child(ast);
-  ast_t* else_clause = ast_sibling(body);
-  ast_t* then_clause = ast_sibling(else_clause);
+  AST_GET_CHILDREN(ast, body, else_clause, then_clause);
 
   // It has to be possible for the left side to result in an error.
   if((ast_id(ast) == TK_TRY) && !ast_canerror(body))
@@ -241,19 +250,36 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  ast_t* type = control_type_add_branch(NULL, body);
-  type = control_type_add_branch(type, else_clause);
+  ast_t* body_type = ast_type(body);
+  ast_t* else_type = ast_type(else_clause);
+  ast_t* then_type = ast_type(then_clause);
 
-  if((type == NULL) && (ast_sibling(ast) != NULL))
-  {
-    ast_error(ast_sibling(ast), "unreachable code");
+  if(is_typecheck_error(body_type) ||
+    is_typecheck_error(else_type) ||
+    is_typecheck_error(then_type))
     return false;
+
+  ast_t* type = NULL;
+
+  if(!is_control_type(body_type))
+    type = control_type_add_branch(type, body);
+
+  if(!is_control_type(else_type))
+    type = control_type_add_branch(type, else_clause);
+
+  if(type == NULL)
+  {
+    if(ast_sibling(ast) != NULL)
+    {
+      ast_error(ast_sibling(ast), "unreachable code");
+      return false;
+    }
+
+    type = ast_from(ast, TK_TRY);
   }
 
   // The then clause does not affect the type of the expression.
-  ast_t* then_type = ast_type(then_clause);
-
-  if(then_type == NULL)
+  if(is_control_type(then_type))
   {
     ast_error(then_clause, "then clause always terminates the function");
     return false;
@@ -321,7 +347,7 @@ bool expr_break(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  // Has no type.
+  ast_settype(ast, ast_from(ast, TK_BREAK));
   ast_inheriterror(ast);
 
   // Add type to loop.
@@ -352,7 +378,7 @@ bool expr_continue(typecheck_t* t, ast_t* ast)
     return false;
   }
 
-  // Has no type.
+  ast_settype(ast, ast_from(ast, TK_CONTINUE));
   return true;
 }
 
@@ -430,7 +456,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   ast_free_unattached(a_type);
   ast_free_unattached(a_body_type);
 
-  // Has no type.
+  ast_settype(ast, ast_from(ast, TK_RETURN));
   ast_inheriterror(ast);
   return ok;
 }
@@ -444,6 +470,7 @@ bool expr_error(ast_t* ast)
     return false;
   }
 
+  ast_settype(ast, ast_from(ast, TK_ERROR));
   ast_seterror(ast);
   return true;
 }

@@ -238,25 +238,9 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     ast_t* arg_type = ast_type(arg);
 
-    if(arg_type == NULL)
+    if(is_control_type(arg_type))
     {
-      switch(ast_id(arg))
-      {
-        case TK_BREAK:
-          ast_error(arg, "can't use break in an argument");
-          break;
-
-        case TK_CONTINUE:
-          ast_error(arg, "can't use continue in an argument");
-          break;
-
-        case TK_RETURN:
-          ast_error(arg, "can't use return in an argument");
-          break;
-
-        default: {}
-      }
-
+      ast_error(arg, "can't use a control expression in an argument");
       return false;
     }
 

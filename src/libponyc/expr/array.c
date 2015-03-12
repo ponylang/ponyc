@@ -29,7 +29,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
   {
     ast_t* c_type = ast_type(ele);
 
-    if(c_type == NULL)
+    if(is_control_type(c_type))
     {
       ast_error(ele,
         "can't use an expression without a value in an array constructor");

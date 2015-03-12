@@ -40,7 +40,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   gentype_t phi_type;
 
   // We will have no type if both branches have return statements.
-  if((type != NULL) && !gentype(c, type, &phi_type))
+  if(!is_control_type(type) && !gentype(c, type, &phi_type))
     return NULL;
 
   LLVMValueRef c_value = gen_expr(c, cond);
@@ -67,7 +67,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   LLVMBasicBlockRef post_block = NULL;
 
   // If both branches return, we have no post block.
-  if(type != NULL)
+  if(!is_control_type(type))
     post_block = codegen_block(c, "if_post");
 
   LLVMBuildCondBr(c->builder, c_value, then_block, else_block);
@@ -79,7 +79,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(gen_left)
   {
     l_value = gen_expr(c, left);
-  } else if(type != NULL) {
+  } else if(!is_control_type(type)) {
     l_value = LLVMConstNull(phi_type.use_type);
   } else {
     LLVMBuildUnreachable(c->builder);
@@ -105,7 +105,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   if(gen_right)
   {
     r_value = gen_expr(c, right);
-  } else if(type != NULL) {
+  } else if(!is_control_type(type)) {
     r_value = LLVMConstNull(phi_type.use_type);
   } else {
     LLVMBuildUnreachable(c->builder);
@@ -126,7 +126,7 @@ LLVMValueRef gen_if(compile_t* c, ast_t* ast)
   }
 
   // If both sides return, we return a sentinal value.
-  if(type == NULL)
+  if(is_control_type(type))
     return GEN_NOVALUE;
 
   // Continue in the post block.
@@ -418,14 +418,14 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   gentype_t phi_type;
 
   // We will have no type if both branches have return statements.
-  if((type != NULL) && !gentype(c, type, &phi_type))
+  if(!is_control_type(type) && !gentype(c, type, &phi_type))
     return NULL;
 
   LLVMBasicBlockRef block = LLVMGetInsertBlock(c->builder);
   LLVMBasicBlockRef else_block = codegen_block(c, "try_else");
   LLVMBasicBlockRef post_block = NULL;
 
-  if(type != NULL)
+  if(!is_control_type(type))
     post_block = codegen_block(c, "try_post");
 
   // Keep a reference to the else block.
@@ -481,7 +481,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   }
 
   // If both sides return, we return a sentinal value.
-  if(type == NULL)
+  if(is_control_type(type))
     return GEN_NOVALUE;
 
   // Continue in the post block.

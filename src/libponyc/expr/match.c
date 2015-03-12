@@ -31,21 +31,35 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   ast_t* cases_type = ast_type(cases);
   ast_t* else_type = ast_type(else_clause);
 
+  if(is_typecheck_error(cases_type) || is_typecheck_error(else_type))
+    return false;
+
   ast_t* type = NULL;
   size_t branch_count = 0;
 
-  if(cases_type != NULL)
+  if(!is_control_type(cases_type))
   {
     type = control_type_add_branch(type, cases);
     ast_inheritbranch(ast, cases);
     branch_count++;
   }
 
-  if(else_type != NULL)
+  if(!is_control_type(else_type))
   {
     type = control_type_add_branch(type, else_clause);
     ast_inheritbranch(ast, else_clause);
     branch_count++;
+  }
+
+  if(type == NULL)
+  {
+    if(ast_sibling(ast) != NULL)
+    {
+      ast_error(ast_sibling(ast), "unreachable code");
+      return false;
+    }
+
+    type = ast_from(ast, TK_MATCH);
   }
 
   ast_settype(ast, type);
@@ -77,7 +91,7 @@ bool expr_cases(ast_t* ast)
     AST_GET_CHILDREN(the_case, pattern, guard, body);
     ast_t* body_type = ast_type(body);
 
-    if(body_type != NULL)
+    if(!is_typecheck_error(body_type) && !is_control_type(body_type))
     {
       type = control_type_add_branch(type, body);
       ast_inheritbranch(ast, the_case);
@@ -86,6 +100,9 @@ bool expr_cases(ast_t* ast)
 
     the_case = ast_sibling(the_case);
   }
+
+  if(type == NULL)
+    type = ast_from(ast, TK_CASES);
 
   ast_settype(ast, type);
   ast_inheriterror(ast);
@@ -209,7 +226,9 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
   ast_t* pattern, bool errors)
 {
-  if(ast_type(pattern) == NULL)
+  ast_t* pattern_type = ast_type(pattern);
+
+  if(is_control_type(pattern_type))
   {
     ast_error(pattern, "not a matchable pattern");
     return MATCHTYPE_DENY;
@@ -282,7 +301,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
     default:
     {
       // Structural equality, pattern.eq(match).
-      ast_t* fun = lookup(t, pattern, ast_type(pattern), stringtab("eq"));
+      ast_t* fun = lookup(t, pattern, pattern_type, stringtab("eq"));
 
       if(fun == NULL)
       {
@@ -390,13 +409,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   ast_t* match_expr = ast_child(match);
   ast_t* match_type = ast_type(match_expr);
 
-  if(match_type == NULL)
-  {
-    ast_error(match_expr, "not a matchable expression");
-    return false;
-  }
-
-  if(is_typecheck_error(match_type))
+  if(is_control_type(match_type) || is_typecheck_error(match_type))
     return false;
 
   if(!infer_pattern_type(pattern, match_type, opt))

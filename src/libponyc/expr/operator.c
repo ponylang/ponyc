@@ -445,8 +445,9 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 bool expr_consume(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
+  ast_t* type = ast_type(term);
 
-  if(ast_type(term) == NULL)
+  if(is_typecheck_error(type))
     return false;
 
   switch(ast_id(term))
@@ -473,11 +474,6 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
   }
 
   ast_setstatus(ast, name, SYM_CONSUMED);
-
-  ast_t* type = ast_type(term);
-
-  if(is_typecheck_error(type))
-    return false;
 
   token_id tcap = ast_id(cap);
   ast_t* c_type = consume_type(type, tcap);
