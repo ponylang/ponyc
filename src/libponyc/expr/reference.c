@@ -662,21 +662,13 @@ bool expr_dontcare(ast_t* ast)
 
 bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
-  // If this is the return value of a function, it is ephemeral.
   typecheck_t* t = &opt->check;
-  token_id ephemeral;
-
-  if(is_method_return(t, ast))
-    ephemeral = TK_EPHEMERAL;
-  else
-    ephemeral = TK_NONE;
-
   token_id cap = cap_for_this(t);
 
-  if(!cap_sendable(cap, ephemeral) && (t->frame->recover != NULL))
+  if(!cap_sendable(cap, TK_NONE) && (t->frame->recover != NULL))
     cap = TK_TAG;
 
-  ast_t* type = type_for_this(t, ast, cap, ephemeral);
+  ast_t* type = type_for_this(t, ast, cap, TK_NONE);
 
   if(t->frame->def_arg != NULL)
   {

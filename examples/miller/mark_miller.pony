@@ -1,4 +1,4 @@
-/*use "../collections"*/
+use "collections"
 
 /* A mint is used as a marker object to indicate that purses share a common
  * currency. The tag capability indicates that when the type has no capability
@@ -78,7 +78,7 @@ interface Notify tag
 actor Buyer
   var _purse: Purse
 
-  new create(purse: Purse) =>
+  new create(purse: Purse iso) =>
     _purse = purse
 
   /* This asynchronously attempts to buy a good with a given description from
@@ -103,7 +103,7 @@ actor Seller
   var _inventory: Map[String, (U64, Factory)]
 
   // The seller should also have a mechanism for populating its inventory.
-  new create(purse: Purse) =>
+  new create(purse: Purse iso) =>
     _purse = purse
     _inventory = Map[String, (U64, Factory)]
 
@@ -111,9 +111,9 @@ actor Seller
    * purse containing the payment is supplied along with a result function to
    * receive the good if the purchase is successful.
    */
-  be sell(desc: String, payment: Purse, f: Notify) =>
+  be sell(desc: String, payment: Purse iso, f: Notify) =>
     try
-      var (price, factory) = _inventory(desc)
+      (var price, var factory) = _inventory(desc)
       _purse.deposit(price, payment)
       f(recover factory() end)
     else
@@ -133,7 +133,7 @@ actor ExchangeEscrow
 
   // ex' is shown as a ref here, but since this is an asynchronous method (a
   // behaviour), it must be a sendable subtype of ref at the call-site, ie iso.
-  be submit(ex': Exchange) =>
+  be submit(ex': Exchange iso) =>
     match _first
     | None =>
       _first = ex' // store this, wait for another submission
@@ -196,8 +196,8 @@ class Exchange
  * participant is sent back the purse it provided.
  */
 trait Participant tag
-  be succeed(result: Purse, change: Purse)
-  be fail(provided: Purse)
+  be succeed(result: Purse iso, change: Purse iso)
+  be fail(provided: Purse iso)
 
 // A marker type.
 class Token tag

@@ -28,6 +28,9 @@ class Wombat is T1, T2, K1, K2
   fun apply() =>
     @printf[I32]("apply Wombat %p\n".cstring(), this)
 
+  fun iso celebrate(env: Env) =>
+    env.out.print("hooray!")
+
 actor Wombat2
   be apply(env: Env) =>
     env.out.print("Wombat2")
@@ -56,6 +59,8 @@ actor Main
     wombat.t2(env)
 
     let foo = consume box wombat
+    let wombat2 = Wombat
+    wombat2.celebrate(env)
 
     test_primitive()
     test_actor()
