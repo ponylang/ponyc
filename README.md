@@ -18,7 +18,7 @@
 
 # Building on Linux
 
-First, install LLVM 3.5 using your package manager. You may need to install zlib and ncurses as well.
+First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
 This will build ponyc and compile helloworld:
 
@@ -39,7 +39,7 @@ First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llv
 
 ```
 $ brew tap homebrew/versions
-$ brew install llvm35
+$ brew install llvm36
 ```
 
 This will build ponyc and compile helloworld:
@@ -51,7 +51,7 @@ $ ./build/release/ponyc examples/helloworld
 
 # Building on Windows
 
-The LLVM 3.5 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.5 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM 3.6 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.6 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
 
