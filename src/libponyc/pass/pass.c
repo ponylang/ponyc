@@ -66,6 +66,18 @@ void pass_opt_done(pass_opt_t* options)
   // Pop all the typechecker frames.
   while(options->check.frame != NULL)
     frame_pop(&options->check);
+
+  if(options->print_stats)
+  {
+    printf(
+      "\nStats:"
+      "\n  Names: " __zu
+      "\n  Default caps: " __zu
+      "\n",
+      options->check.stats.names_count,
+      options->check.stats.default_caps_count
+      );
+  }
 }
 
 

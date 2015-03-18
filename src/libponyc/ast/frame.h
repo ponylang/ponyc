@@ -31,9 +31,16 @@ typedef struct typecheck_frame_t
   struct typecheck_frame_t* prev;
 } typecheck_frame_t;
 
+typedef struct typecheck_stats_t
+{
+  size_t names_count;
+  size_t default_caps_count;
+} typecheck_stats_t;
+
 typedef struct typecheck_t
 {
   typecheck_frame_t* frame;
+  typecheck_stats_t stats;
 } typecheck_t;
 
 bool frame_push(typecheck_t* t, ast_t* ast);

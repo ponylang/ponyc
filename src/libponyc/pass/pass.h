@@ -83,6 +83,7 @@ typedef struct pass_opt_t
   bool library;
   bool ieee_math;
   bool no_restrict;
+  bool print_stats;
   const char* output;
 
   char* triple;
