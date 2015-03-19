@@ -148,8 +148,7 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast);
  * Emit debug symbols for a local variable.
  */
 void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
-  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage,
-  bool is_arg);
+  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage, bool is_arg);
 
 /**
  * Finalise emitting debug symbols for a lexical scope.

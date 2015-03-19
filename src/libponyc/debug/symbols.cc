@@ -479,9 +479,10 @@ void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
     type = symbol->anchor->type;
 
   DIVariable info = symbols->builder->createLocalVariable(tag,
-    (DIDescriptor)scope, meta->name, file, (unsigned)meta->line, type, true);
+    (DIDescriptor)scope, meta->name, file, (unsigned)meta->line, type, false,
+    (unsigned)meta->pos + 1);
 
-  DIExpression complex = DIExpression();
+  DIExpression complex = symbols->builder->createExpression(); //TODO?
   Value* ref = unwrap(meta->storage);
 
   if(meta->inst != NULL)
