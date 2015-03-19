@@ -241,6 +241,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   meta.name = ast_name(ast_child(ast));
   meta.mangled = type;
   meta.line = ast_line(ast);
+  meta.pos = ast_pos(ast);
   meta.entry = entry;
   meta.inst = inst;
   meta.storage = storage;

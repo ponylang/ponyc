@@ -483,15 +483,19 @@ void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
 
   DIExpression complex = symbols->builder->createExpression(); //TODO?
   Value* ref = unwrap(meta->storage);
+  Instruction* intrinsic;
 
   if(meta->inst != NULL)
   {
     Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));   
-    symbols->builder->insertDeclare(ref, info, complex, before);
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, before);
   } else {
     BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));
-    symbols->builder->insertDeclare(ref, info, complex, end);
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, end);
   }
+
+  DebugLoc loc = DebugLoc::get((unsigned)meta->line, (unsigned)meta->pos, scope);
+  intrinsic->setDebugLoc(loc);
 }
 
 void symbols_finalise(symbols_t* symbols)
