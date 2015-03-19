@@ -12,118 +12,158 @@
 
 LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 {
+  LLVMValueRef ret;
+  bool has_scope = ast_has_scope(ast);
+
   // Dwarf a new lexical scope, if necessary.
-  dwarf_lexicalscope(&c->dwarf);
+  if(has_scope)
+    dwarf_lexicalscope(&c->dwarf, ast);
 
   switch(ast_id(ast))
   {
     case TK_SEQ:
-      return gen_seq(c, ast);
+      ret = gen_seq(c, ast);
+      break;
 
     case TK_FVARREF:
     case TK_FLETREF:
-      return gen_fieldload(c, ast);
+      ret = gen_fieldload(c, ast);
+      break;
 
     case TK_PARAMREF:
-      return gen_param(c, ast);
+      ret = gen_param(c, ast);
+      break;
 
     case TK_VAR:
     case TK_LET:
-      return gen_localdecl(c, ast);
+      ret = gen_localdecl(c, ast);
+      break;
 
     case TK_VARREF:
     case TK_LETREF:
-      return gen_localload(c, ast);
+      ret = gen_localload(c, ast);
+      break;
 
     case TK_IF:
-      return gen_if(c, ast);
+      ret = gen_if(c, ast);
+      break;
 
     case TK_WHILE:
-      return gen_while(c, ast);
+      ret = gen_while(c, ast);
+      break;
 
     case TK_REPEAT:
-      return gen_repeat(c, ast);
+      ret = gen_repeat(c, ast);
+      break;
 
     case TK_TRY:
     case TK_TRY_NO_CHECK:
-      return gen_try(c, ast);
+      ret = gen_try(c, ast);
+      break;
 
     case TK_MATCH:
-      return gen_match(c, ast);
+      ret = gen_match(c, ast);
+      break;
 
     case TK_CALL:
-      return gen_call(c, ast);
+      ret = gen_call(c, ast);
+      break;
 
     case TK_CONSUME:
-      return gen_expr(c, ast_childidx(ast, 1));
+      ret = gen_expr(c, ast_childidx(ast, 1));
+      break;
 
     case TK_RECOVER:
-      return gen_expr(c, ast_childidx(ast, 1));
+      ret = gen_expr(c, ast_childidx(ast, 1));
+      break;
 
     case TK_BREAK:
-      return gen_break(c, ast);
+      ret = gen_break(c, ast);
+      break;
 
     case TK_CONTINUE:
-      return gen_continue(c, ast);
+      ret = gen_continue(c, ast);
+      break;
 
     case TK_RETURN:
-      return gen_return(c, ast);
+      ret = gen_return(c, ast);
+      break;
 
     case TK_ERROR:
-      return gen_error(c, ast);
+      ret = gen_error(c, ast);
+      break;
 
     case TK_IS:
-      return gen_is(c, ast);
+      ret = gen_is(c, ast);
+      break;
 
     case TK_ISNT:
-      return gen_isnt(c, ast);
+      ret = gen_isnt(c, ast);
+      break;
 
     case TK_ASSIGN:
-      return gen_assign(c, ast);
+      ret = gen_assign(c, ast);
+      break;
 
     case TK_THIS:
-      return gen_this(c, ast);
+      ret = gen_this(c, ast);
+      break;
 
     case TK_TRUE:
-      return LLVMConstInt(c->i1, 1, false);
+      ret = LLVMConstInt(c->i1, 1, false);
+      break;
 
     case TK_FALSE:
-      return LLVMConstInt(c->i1, 0, false);
+      ret = LLVMConstInt(c->i1, 0, false);
+      break;
 
     case TK_INT:
-      return gen_int(c, ast);
+      ret = gen_int(c, ast);
+      break;
 
     case TK_FLOAT:
-      return gen_float(c, ast);
+      ret = gen_float(c, ast);
+      break;
 
     case TK_STRING:
-      return gen_string(c, ast);
+      ret = gen_string(c, ast);
+      break;
 
     case TK_TUPLE:
-      return gen_tuple(c, ast);
+      ret = gen_tuple(c, ast);
+      break;
 
     case TK_FFICALL:
-      return gen_ffi(c, ast);
+      ret = gen_ffi(c, ast);
+      break;
 
     case TK_AMP:
-      return gen_addressof(c, ast);
+      ret = gen_addressof(c, ast);
+      break;
 
     case TK_IDENTITY:
-      return gen_identity(c, ast);
+      ret = gen_identity(c, ast);
+      break;
 
     case TK_DONTCARE:
-      return GEN_NOVALUE;
+      ret = GEN_NOVALUE;
+      break;
 
     case TK_COMPILER_INTRINSIC:
       ast_error(ast, "unimplemented compiler intrinsic");
       LLVMBuildUnreachable(c->builder);
-      return GEN_NOVALUE;
+      ret = GEN_NOVALUE;
+      break;
 
-    default: {}
+    default:
+      ast_error(ast, "not implemented (codegen unknown)");
+      return NULL;
   }
 
-  ast_error(ast, "not implemented (codegen unknown)");
-  return NULL;
+  if(has_scope)
+    dwarf_finish(&c->dwarf, NULL);
+
+  return ret;
 }
 
 static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,

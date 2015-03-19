@@ -166,10 +166,10 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
 
   Module* m = unwrap(module);
 
-  //m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
+  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 3);
 
-  //m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
-  //  llvm::DEBUG_METADATA_VERSION);
+  m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
+    llvm::DEBUG_METADATA_VERSION);
 
   s->builder = new DIBuilder(*m);
   s->release = optimised;
@@ -398,6 +398,8 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
     subnodes->children[frame->index] = fun;
     frame->index += 1;
   }
+
+  frame->scope = fun;
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
@@ -449,6 +451,16 @@ void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
 
   POOL_FREE(subnodes_t, subnodes);
   frame->members = NULL;
+}
+
+void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta)
+{
+  MDNode* parent = (MDNode*)frame->prev->scope;
+  DIFile file = get_file(symbols, meta->file);
+
+  frame->scope = symbols->builder->createLexicalBlock((DIDescriptor)parent, 
+    file, (unsigned)meta->line, (unsigned)meta->pos);
 }
 
 void symbols_finalise(symbols_t* symbols)

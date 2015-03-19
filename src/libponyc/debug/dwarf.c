@@ -21,8 +21,12 @@ static dwarf_frame_t* push_frame(dwarf_t* dwarf, gentype_t* g, size_t methods)
   dwarf_frame_t* frame = POOL_ALLOC(dwarf_frame_t);
   memset(frame, 0, sizeof(dwarf_frame_t));
 
-  frame->type_name = g->type_name;
-  frame->size = g->field_count + methods;
+  if(g != NULL)
+  {
+    frame->type_name = g->type_name;
+    frame->size = g->field_count + methods;
+  }
+  
   frame->prev = dwarf->frame;
   dwarf->frame = frame;
 
@@ -215,14 +219,24 @@ void dwarf_local(dwarf_t* dwarf)
   (void)dwarf;
 }
 
-void dwarf_lexicalscope(dwarf_t* dwarf)
+void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
 {
-  (void)dwarf;
+  dwarf_meta_t meta;
+  memset(&meta, 0, sizeof(dwarf_meta_t));
+
+  dwarf_frame_t* frame = push_frame(dwarf, NULL, 0);
+  source_t* source = ast_source(ast);
+
+  meta.file = source->file;
+  meta.line = ast_line(ast);
+  meta.pos = ast_pos(ast);
+
+  symbols_lexicalscope(dwarf->symbols, frame, &meta);  
 }
 
 void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
 {
-  if(!is_machine_word(g->ast) && !is_pointer(g->ast))
+  if(g != NULL && !is_machine_word(g->ast) && !is_pointer(g->ast))
   {
     dwarf_meta_t meta;
     setup_dwarf(dwarf, &meta, g, false);

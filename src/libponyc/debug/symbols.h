@@ -30,6 +30,9 @@ void symbols_method(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_composite(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta);
 
+void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta);
+
 void symbols_finalise(symbols_t* symbols);
 
 PONY_EXTERN_C_END

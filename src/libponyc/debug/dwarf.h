@@ -42,8 +42,12 @@ struct dwarf_t
 struct dwarf_frame_t
 {
   const char* type_name;
+  
   size_t size;
   size_t index;
+  
+  void* scope;
+  
   subnodes_t* members;
   dwarf_frame_t* prev;
 };
@@ -139,7 +143,12 @@ void dwarf_local(dwarf_t* dwarf);
 /**
  * Introduce a new lexical scope.
  */
-void dwarf_lexicalscope(dwarf_t* dwarf);
+void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast);
+
+/**
+ * Finalise emitting debug symbols for a lexical scope.
+ */
+void dwarf_lexicalscope_finish(dwarf_t* dwarf);
 
 /**
  * Finalise emitting the debug symbols for a composite type. By the nature
