@@ -507,19 +507,6 @@ void codegen_pausefun(compile_t* c)
 
 void codegen_finishfun(compile_t* c)
 {
-  compile_frame_t* frame = c->frame;
-
-#ifndef NDEBUG
-  if(LLVMVerifyFunction(frame->fun, LLVMPrintMessageAction) == 0)
-  {
-    LLVMRunFunctionPassManager(c->fpm, frame->fun);
-  } else {
-    LLVMDumpValue(frame->fun);
-  }
-#else
-  LLVMRunFunctionPassManager(c->fpm, frame->fun);
-#endif
-
   if(c->frame->restore_builder != NULL)
     LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
 

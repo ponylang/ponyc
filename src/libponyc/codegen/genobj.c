@@ -7,6 +7,27 @@ const char* genobj(compile_t* c)
   // Finalise the DWARF info.
   dwarf_finalise(&c->dwarf);
 
+  // Allocate on the stack instead of the heap where possible.
+  stack_alloc(c);
+
+  LLVMValueRef fun = LLVMGetFirstFunction(c->module);
+
+  while(fun != NULL)
+  {
+#ifndef NDEBUG
+    if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) == 0)
+    {
+      LLVMRunFunctionPassManager(c->fpm, fun);
+    } else {
+      LLVMDumpValue(fun);
+    }
+#else
+    LLVMRunFunctionPassManager(c->fpm, fun);
+#endif
+
+    fun = LLVMGetNextFunction(fun);
+  }
+
   // Finalise the function passes.
   LLVMFinalizeFunctionPassManager(c->fpm);
 
@@ -21,9 +42,6 @@ const char* genobj(compile_t* c)
     if(!c->opt->library)
       LLVMRunPassManager(c->lpm, c->module);
   }
-
-  // Allocate on the stack instead of the heap where possible.
-  stack_alloc(c);
 
 #ifndef NDEBUG
   printf("Verifying\n");
