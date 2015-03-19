@@ -466,17 +466,16 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta, bool is_arg)
 {
-  DIType type;
   DIFile file = get_file(symbols, meta->file);
   MDNode* scope = (MDNode*)frame->scope;
 
   unsigned tag = is_arg ? DW_TAG_arg_variable : DW_TAG_auto_variable;
   debug_sym_t* symbol = get_anchor(symbols, meta->mangled);
 
-  if(meta->flags & DWARF_CONSTANT)
+  /*if(meta->flags & DWARF_CONSTANT)
     type = symbol->anchor->qualified;
-  else
-    type = symbol->anchor->type;
+  else*/
+  DIType type = symbol->anchor->type;
 
   DIVariable info = symbols->builder->createLocalVariable(tag,
     (DIDescriptor)scope, meta->name, file, (unsigned)meta->line, type, false,
