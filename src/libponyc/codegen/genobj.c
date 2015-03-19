@@ -14,16 +14,19 @@ const char* genobj(compile_t* c)
 
   while(fun != NULL)
   {
-#ifndef NDEBUG
-    if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) == 0)
+    if(LLVMGetFirstBasicBlock(fun) != NULL)
     {
-      LLVMRunFunctionPassManager(c->fpm, fun);
-    } else {
-      LLVMDumpValue(fun);
-    }
+#ifndef NDEBUG
+      if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) == 0)
+      {
+        LLVMRunFunctionPassManager(c->fpm, fun);
+      } else {
+        LLVMDumpValue(fun);
+      }
 #else
-    LLVMRunFunctionPassManager(c->fpm, fun);
+      LLVMRunFunctionPassManager(c->fpm, fun);
 #endif
+    }
 
     fun = LLVMGetNextFunction(fun);
   }
