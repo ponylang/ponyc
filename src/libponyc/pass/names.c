@@ -185,8 +185,14 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
   if(ast_data(ast) != NULL)
     return true;
 
-  AST_GET_CHILDREN(ast, package_id, type_id);
+  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
   bool local_package;
+
+  // Keep some stats.
+  t->stats.names_count++;
+
+  if(ast_id(cap) == TK_NONE)
+    t->stats.default_caps_count++;
 
   // Find our actual package.
   if(ast_id(package_id) != TK_NONE)

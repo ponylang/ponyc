@@ -28,6 +28,7 @@ enum
   OPT_CPU,
   OPT_FEATURES,
   OPT_TRIPLE,
+  OPT_STATS,
 
   OPT_PASSES,
   OPT_AST,
@@ -49,6 +50,7 @@ static opt_arg_t args[] =
   {"cpu", 0, OPT_ARG_REQUIRED, OPT_CPU},
   {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
+  {"stats", 0, OPT_ARG_NONE, OPT_STATS},
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -84,6 +86,7 @@ static void usage()
     "    =+this,-that  Use + to enable, - to disable.\n"
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
+    "  --stats         Print some compiler stats.\n"
     "\n"
 
 #ifndef NDEBUG
@@ -198,6 +201,7 @@ int main(int argc, char* argv[])
       case OPT_CPU: opt.cpu = s.arg_val; break;
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
+      case OPT_STATS: opt.print_stats = true; break;
 
       case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
