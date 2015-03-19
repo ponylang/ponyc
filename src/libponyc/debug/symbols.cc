@@ -166,7 +166,7 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
 
   Module* m = unwrap(module);
 
-  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 3);
+  m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
 
   m->addModuleFlag(llvm::Module::Error, "Debug Info Version",
     llvm::DEBUG_METADATA_VERSION);
@@ -461,6 +461,37 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
 
   frame->scope = symbols->builder->createLexicalBlock((DIDescriptor)parent, 
     file, (unsigned)meta->line, (unsigned)meta->pos);
+}
+
+void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
+  dwarf_meta_t* meta, bool is_arg)
+{
+  DIType type;
+  DIFile file = get_file(symbols, meta->file);
+  MDNode* scope = (MDNode*)frame->scope;
+
+  unsigned tag = is_arg ? DW_TAG_arg_variable : DW_TAG_auto_variable;
+  debug_sym_t* symbol = get_anchor(symbols, meta->mangled);
+
+  if(meta->flags & DWARF_CONSTANT)
+    type = symbol->anchor->qualified;
+  else
+    type = symbol->anchor->type;
+
+  DIVariable info = symbols->builder->createLocalVariable(tag,
+    (DIDescriptor)scope, meta->name, file, (unsigned)meta->line, type, true);
+
+  DIExpression complex = DIExpression();
+  Value* ref = unwrap(meta->storage);
+
+  if(meta->inst != NULL)
+  {
+    Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));   
+    symbols->builder->insertDeclare(ref, info, complex, before);
+  } else {
+    BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));
+    symbols->builder->insertDeclare(ref, info, complex, end);
+  }
 }
 
 void symbols_finalise(symbols_t* symbols)

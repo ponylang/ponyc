@@ -214,11 +214,6 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   symbols_method(dwarf->symbols, dwarf->frame, &meta, ir);
 }
 
-void dwarf_local(dwarf_t* dwarf)
-{
-  (void)dwarf;
-}
-
 void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
 {
   dwarf_meta_t meta;
@@ -232,6 +227,29 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
   meta.pos = ast_pos(ast);
 
   symbols_lexicalscope(dwarf->symbols, frame, &meta);  
+}
+
+void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage,
+  bool is_arg)
+{
+  dwarf_meta_t meta;
+  memset(&meta, 0, sizeof(dwarf_meta_t));
+
+  source_t* source = ast_source(ast);
+
+  meta.file = source->file;
+  meta.name = ast_name(ast_child(ast));
+  meta.mangled = type;
+  meta.line = ast_line(ast);
+  meta.entry = entry;
+  meta.inst = inst;
+  meta.storage = storage;
+
+  if(ast_id(ast) == TK_LET)
+    meta.flags = DWARF_CONSTANT; 
+
+  symbols_local(dwarf->symbols, dwarf->frame, &meta, is_arg);
 }
 
 void dwarf_finish(dwarf_t* dwarf, gentype_t* g)

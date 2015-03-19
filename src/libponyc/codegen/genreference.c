@@ -3,6 +3,7 @@
 #include "gentype.h"
 #include "genname.h"
 #include "../expr/literal.h"
+#include "../debug/dwarf.h"
 #include <string.h>
 #include <assert.h>
 
@@ -150,6 +151,9 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 
   // Store the alloca to use when we reference this local.
   codegen_setlocal(c, name, l_value);
+
+  // Emit debug info for local variable declaration.
+  dwarf_local(&c->dwarf, ast, g.type_name, entry_block, inst, l_value, false);
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);

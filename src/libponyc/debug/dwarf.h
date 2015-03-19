@@ -60,6 +60,10 @@ struct dwarf_meta_t
   const char* typearg;
   const char** params;
 
+  LLVMBasicBlockRef entry;
+  LLVMValueRef inst;
+  LLVMValueRef storage;
+
   size_t line;
   size_t pos;
   size_t offset;
@@ -136,14 +140,16 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   const char* mangled, const char** params, size_t count, LLVMValueRef ir);
 
 /**
- * Emit debug symbols for a local variable.
- */
-void dwarf_local(dwarf_t* dwarf);
-
-/**
  * Introduce a new lexical scope.
  */
 void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast);
+
+/**
+ * Emit debug symbols for a local variable.
+ */
+void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage,
+  bool is_arg);
 
 /**
  * Finalise emitting debug symbols for a lexical scope.
