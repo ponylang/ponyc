@@ -48,10 +48,13 @@ static compile_frame_t* push_frame(compile_t* c)
   memset(frame, 0, sizeof(compile_frame_t));
   compile_locals_init(&frame->locals, 0);
 
-  frame->has_source = c->frame->has_source;
-  frame->prev = c->frame;
-  c->frame = frame;
+  if(c->frame != NULL)
+  {
+    frame->has_source = c->frame->has_source;
+    frame->prev = c->frame;
+  }
 
+  c->frame = frame;
   return frame;
 }
 
