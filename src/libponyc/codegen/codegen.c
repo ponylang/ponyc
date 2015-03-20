@@ -48,6 +48,7 @@ static compile_frame_t* push_frame(compile_t* c)
   memset(frame, 0, sizeof(compile_frame_t));
   compile_locals_init(&frame->locals, 0);
 
+  frame->has_source = c->frame->has_source;
   frame->prev = c->frame;
   c->frame = frame;
 
@@ -483,26 +484,19 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
   return fun;
 }
 
-void codegen_startfun(compile_t* c, LLVMValueRef fun)
+void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
 {
   compile_frame_t* frame = push_frame(c);
 
   frame->fun = fun;
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
+  frame->has_source = has_source;
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
     LLVMBasicBlockRef block = codegen_block(c, "entry");
     LLVMPositionBuilderAtEnd(c->builder, block);
   }
-}
-
-void codegen_pausefun(compile_t* c)
-{
-  if(c->frame->restore_builder != NULL)
-    LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
-
-  pop_frame(c);
 }
 
 void codegen_finishfun(compile_t* c)
@@ -594,6 +588,11 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
     LLVMSetInstructionCallConv(result, GEN_CALLCONV);
 
   return result;
+}
+
+bool codegen_hassource(compile_t* c)
+{
+  return c->frame->has_source;
 }
 
 const char* suffix_filename(const char* dir, const char* file,

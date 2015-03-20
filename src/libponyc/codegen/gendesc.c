@@ -51,7 +51,7 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   const char* unbox_name = genname_unbox(name);
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
   LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type);
-  codegen_startfun(c, unbox_fun);
+  codegen_startfun(c, unbox_fun, false);
 
   // Extract the primitive type from element 1 and call the real function.
   LLVMValueRef this_ptr = LLVMGetParam(unbox_fun, 0);

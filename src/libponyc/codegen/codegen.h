@@ -41,6 +41,7 @@ typedef struct compile_frame_t
   LLVMBasicBlockRef invoke_target;
 
   compile_locals_t locals;
+  bool has_source;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -141,9 +142,7 @@ bool codegen(ast_t* program, pass_opt_t* opt);
 
 LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type);
 
-void codegen_startfun(compile_t* c, LLVMValueRef fun);
-
-void codegen_pausefun(compile_t* c);
+void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source);
 
 void codegen_finishfun(compile_t* c);
 
@@ -166,6 +165,8 @@ LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
 
 LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
   size_t count);
+
+bool codegen_hassource(compile_t* c);
 
 const char* suffix_filename(const char* dir, const char* file,
   const char* extension);

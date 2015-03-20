@@ -14,7 +14,7 @@ static void pointer_create(compile_t* c, gentype_t* g)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef result = LLVMConstNull(g->use_type);
 
@@ -33,7 +33,7 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, &c->i64, 1, false);
   fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
   LLVMValueRef total = LLVMBuildMul(c->builder, len, l_size, "");
@@ -59,7 +59,7 @@ static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef args[2];
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
@@ -85,7 +85,7 @@ static void pointer_apply(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef index = LLVMGetParam(fun, 1);
@@ -108,7 +108,7 @@ static void pointer_update(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef index = LLVMGetParam(fun, 1);
@@ -136,7 +136,7 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 2, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef n = LLVMGetParam(fun, 1);
@@ -166,7 +166,7 @@ static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef n = LLVMGetParam(fun, 1);
@@ -205,7 +205,7 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(elem_g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef n = LLVMGetParam(fun, 1);
@@ -247,7 +247,7 @@ static void pointer_copy_to(compile_t* c, gentype_t* g, gentype_t* elem_g)
 
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, params, 3, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef ptr2 = LLVMGetParam(fun, 1);
@@ -273,7 +273,7 @@ static void pointer_u64(compile_t* c, gentype_t* g)
 
   LLVMTypeRef ftype = LLVMFunctionType(c->i64, &g->use_type, 1, false);
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
   LLVMValueRef result = LLVMBuildPtrToInt(c->builder, ptr, c->i64, "");
@@ -348,7 +348,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
 
-  codegen_startfun(c, trace_fn);
+  codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
 
@@ -443,7 +443,7 @@ static void number_conversions(compile_t* c)
       LLVMTypeRef f_type = LLVMFunctionType(to->type, &from->type, 1, false);
       LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
-      codegen_startfun(c, fun);
+      codegen_startfun(c, fun, false);
       LLVMValueRef arg = LLVMGetParam(fun, 0);
       LLVMValueRef result;
 
@@ -528,7 +528,7 @@ static void number_constructors(compile_t* c)
     LLVMTypeRef f_type = LLVMFunctionType(con->type, &con->type, 1, false);
     LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
-    codegen_startfun(c, fun);
+    codegen_startfun(c, fun, false);
     LLVMValueRef arg = LLVMGetParam(fun, 0);
     LLVMBuildRet(c->builder, arg);
     codegen_finishfun(c);
@@ -541,7 +541,7 @@ static void special_number_constructors(compile_t* c)
   LLVMTypeRef f_type = LLVMFunctionType(c->f32, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 3.14159265358979323846));
   codegen_finishfun(c);
 
@@ -549,7 +549,7 @@ static void special_number_constructors(compile_t* c)
   f_type = LLVMFunctionType(c->f32, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   LLVMBuildRet(c->builder, LLVMConstReal(c->f32, 2.71828182845904523536));
   codegen_finishfun(c);
 
@@ -557,7 +557,7 @@ static void special_number_constructors(compile_t* c)
   f_type = LLVMFunctionType(c->f64, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   LLVMBuildRet(c->builder, LLVMConstReal(c->f64, 3.14159265358979323846));
   codegen_finishfun(c);
 
@@ -565,7 +565,7 @@ static void special_number_constructors(compile_t* c)
   f_type = LLVMFunctionType(c->f64, NULL, 0, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   LLVMBuildRet(c->builder, LLVMConstReal(c->f64, 2.71828182845904523536));
   codegen_finishfun(c);
 }
@@ -580,7 +580,7 @@ static void fp_as_bits(compile_t* c)
   f_type = LLVMFunctionType(c->f32, &c->i32, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -589,7 +589,7 @@ static void fp_as_bits(compile_t* c)
   f_type = LLVMFunctionType(c->i32, &c->f32, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->i32, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -598,7 +598,7 @@ static void fp_as_bits(compile_t* c)
   f_type = LLVMFunctionType(c->f64, &c->i64, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->f64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -607,7 +607,7 @@ static void fp_as_bits(compile_t* c)
   f_type = LLVMFunctionType(c->i64, &c->f64, 1, false);
   fun = codegen_addfun(c, name, f_type);
 
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
   result = LLVMBuildBitCast(c->builder, LLVMGetParam(fun, 0), c->i64, "");
   LLVMBuildRet(c->builder, result);
   codegen_finishfun(c);
@@ -620,7 +620,7 @@ static void make_cpuid(compile_t* c)
   LLVMTypeRef f_type = LLVMFunctionType(r_type, &c->i32, 1, false);
   LLVMValueRef fun = codegen_addfun(c, "internal.x86.cpuid", f_type);
   LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef cpuid = LLVMConstInlineAsm(f_type,
     "cpuid", "={ax},={bx},={cx},={dx},{ax}", false, false);
@@ -643,7 +643,7 @@ static void make_rdtscp(compile_t* c)
   f_type = LLVMFunctionType(c->i64, &i32_ptr, 1, false);
   LLVMValueRef fun = codegen_addfun(c, "internal.x86.rdtscp", f_type);
   LLVMSetFunctionCallConv(fun, LLVMCCallConv);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   // Cast i32* to i8* and call the intrinsic.
   LLVMValueRef arg = LLVMGetParam(fun, 0);

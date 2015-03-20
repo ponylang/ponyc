@@ -330,7 +330,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
   uint32_t index, LLVMValueRef handler, LLVMTypeRef type)
 {
   // Add a case to the dispatch function to handle this message.
-  codegen_startfun(c, g->dispatch_fn);
+  codegen_startfun(c, g->dispatch_fn, false);
   LLVMBasicBlockRef block = codegen_block(c, "handler");
   LLVMValueRef id = LLVMConstInt(c->i32, index, false);
   LLVMAddCase(g->dispatch_switch, id, block);
@@ -367,9 +367,7 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
   // Call the handler.
   codegen_call(c, handler, args, count);
   LLVMBuildRetVoid(c->builder);
-
-  // Pause, otherwise the optimiser will run on what we have so far.
-  codegen_pausefun(c);
+  codegen_finishfun(c);
 }
 
 LLVMTypeRef genfun_sig(compile_t* c, gentype_t* g, const char *name,
@@ -415,7 +413,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  codegen_startfun(c, func);
+  codegen_startfun(c, func, true);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
@@ -450,7 +448,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func);
+  codegen_startfun(c, func, false);
   LLVMValueRef this_ptr = LLVMGetParam(func, 0);
 
   // Send the arguments in a message to 'this'.
@@ -470,7 +468,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, handler);
+  codegen_startfun(c, handler, true);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
@@ -510,7 +508,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  codegen_startfun(c, func);
+  codegen_startfun(c, func, true);
 
   if(!gen_field_init(c, g))
   {
@@ -544,7 +542,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func);
+  codegen_startfun(c, func, false);
 
   // Send the arguments in a message to 'this'.
   uint32_t index = genfun_vtable_index(c, g, name, typeargs);
@@ -564,7 +562,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, handler);
+  codegen_startfun(c, handler, true);
 
   if(!gen_field_init(c, g))
   {
@@ -600,7 +598,7 @@ static bool genfun_allocator(compile_t* c, gentype_t* g)
   const char* funname = genname_fun(g->type_name, "Alloc", NULL);
   LLVMTypeRef ftype = LLVMFunctionType(g->use_type, NULL, 0, false);
   LLVMValueRef fun = codegen_addfun(c, funname, ftype);
-  codegen_startfun(c, fun);
+  codegen_startfun(c, fun, false);
 
   LLVMValueRef result;
 
