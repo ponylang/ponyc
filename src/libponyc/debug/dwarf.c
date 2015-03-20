@@ -247,7 +247,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   meta.storage = storage;
 
   if(ast_id(ast) == TK_LET)
-    meta.flags = DWARF_CONSTANT; 
+    meta.flags = DWARF_CONSTANT;
 
   symbols_local(dwarf->symbols, dwarf->frame, &meta, is_arg);
 }
@@ -278,9 +278,7 @@ void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
   }
 
   pop_frame(dwarf);
-
-  if(g == NULL)
-    symbols_reset(dwarf->symbols, dwarf->frame);
+  symbols_reset(dwarf->symbols, dwarf->frame);
 }
 
 void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
