@@ -19,6 +19,11 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   if(has_scope)
     dwarf_lexicalscope(&c->dwarf, ast);
 
+  // Set the current debug location, before generating
+  // the actual expressions.
+  if(codegen_hassource(c))
+    dwarf_location(&c->dwarf, ast);
+
   switch(ast_id(ast))
   {
     case TK_SEQ:
