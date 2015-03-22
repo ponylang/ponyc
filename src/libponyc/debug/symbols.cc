@@ -522,9 +522,6 @@ void symbols_reset(symbols_t* symbols, dwarf_frame_t* frame)
   } else {
     symbols->ir->SetCurrentDebugLocation(DebugLoc::get(0, 0, NULL));
   }
-
-  DebugLoc loc = DebugLoc::get((unsigned)meta->line, (unsigned)meta->pos, scope);
-  intrinsic->setDebugLoc(loc);
 }
 
 void symbols_finalise(symbols_t* symbols)
