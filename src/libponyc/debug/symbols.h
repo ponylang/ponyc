@@ -6,7 +6,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised);
+void symbols_init(symbols_t** symbols, LLVMBuilderRef builder, 
+  LLVMModuleRef module, bool optimised);
 
 void symbols_package(symbols_t* symbols, const char* path, const char* name);
 
@@ -35,6 +36,11 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
 
 void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta, bool is_arg);
+
+void symbols_location(symbols_t* symbols, dwarf_frame_t* frame, size_t line,
+  size_t pos);
+
+void symbols_reset(symbols_t* symbols, dwarf_frame_t* frame);
 
 void symbols_finalise(symbols_t* symbols);
 
