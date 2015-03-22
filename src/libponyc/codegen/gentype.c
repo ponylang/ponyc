@@ -277,7 +277,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Create a dispatch function.
   const char* dispatch_name = genname_dispatch(g->type_name);
   g->dispatch_fn = codegen_addfun(c, dispatch_name, c->dispatch_type);
-  codegen_startfun(c, g->dispatch_fn);
+  codegen_startfun(c, g->dispatch_fn, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
   LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
@@ -297,9 +297,7 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   // Mark the default case as unreachable.
   LLVMPositionBuilderAtEnd(c->builder, unreachable);
   LLVMBuildUnreachable(c->builder);
-
-  // Pause, otherwise the optimiser will run on what we have so far.
-  codegen_pausefun(c);
+  codegen_finishfun(c);
 }
 
 static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
@@ -355,7 +353,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
   const char* trace_name = genname_trace(g->type_name);
   LLVMValueRef trace_fn = codegen_addfun(c, trace_name, c->trace_type);
 
-  codegen_startfun(c, trace_fn);
+  codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
   LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
@@ -374,7 +372,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
       trace_tuple_type);
 
-    codegen_startfun(c, trace_tuple_fn);
+    codegen_startfun(c, trace_tuple_fn, false);
     LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
 
     LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
@@ -545,7 +543,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   // Finish off the dispatch function.
   if(g->underlying == TK_ACTOR)
   {
-    codegen_startfun(c, g->dispatch_fn);
+    codegen_startfun(c, g->dispatch_fn, false);
     codegen_finishfun(c);
   }
 

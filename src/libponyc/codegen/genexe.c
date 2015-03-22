@@ -134,7 +134,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef ftype = LLVMFunctionType(c->i32, params, 3, false);
   LLVMValueRef func = LLVMAddFunction(c->module, "main", ftype);
 
-  codegen_startfun(c, func);
+  codegen_startfun(c, func, false);
 
   LLVMValueRef args[3];
   args[0] = LLVMGetParam(func, 0);
