@@ -31,28 +31,18 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    var i: U64 = 1
-
-    while i < _env.args.size() do
-      var arg = _env.args(i)
-      var value = _env.args(i + 1)
-      i = i + 2
-
-      match arg
-      | "--size" =>
-        _size = value.u32()
-      | "--pass" =>
-        _pass = value.u32()
-      else
-        error
-      end
+    try
+      _size = _env.args(1).u32()
+      _pass = _env.args(2).u32()
+    else
+      error
     end
 
   fun ref usage() =>
     _env.out.print(
       """
       mailbox OPTIONS
-        --size N   number of sending actors
-        --pass N   number of messages to pass from each sender to the receiver
+        N   number of sending actors
+        M   number of messages to pass from each sender to the receiver
       """
       )

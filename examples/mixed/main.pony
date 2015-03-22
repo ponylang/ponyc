@@ -16,12 +16,6 @@ actor Worker
     var correct =
       try (result(0) == 86028157) and (result(1) == 329545133) else false end
 
-    /*if (result.size() != 2) or not correct then
-      _env.out.print("factorization error")
-    else
-      _env.out.print("factorization done")
-    end*/
-
   fun ref factorize(bigint: U64) : Array[U64] =>
     var factors = Array[U64]
 
@@ -67,7 +61,6 @@ actor Ring
     | var w: Worker => w.work()
     end
 
-
     _next = spawn_ring(_size, _pass)
 
   new neighbor(n: Ring) =>
@@ -82,10 +75,6 @@ actor Ring
     if i > 0 then
       _next.pass(i - 1)
     else
-      /*match _env
-      | var e: Env => e.out.print("message cycle done")
-      end*/
-
       if _repetitions > 0 then
         _repetitions = _repetitions - 1
 
