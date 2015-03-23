@@ -31,13 +31,9 @@ actor Main
     end
 
   fun ref parse_args() ? =>
-    try
-      _size = _env.args(1).u32()
-      _pass = _env.args(2).u32()
-    else
-      error
-    end
-
+    _size = _env.args(1).u32()
+    _pass = _env.args(2).u32()
+    
   fun ref usage() =>
     _env.out.print(
       """

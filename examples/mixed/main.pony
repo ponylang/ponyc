@@ -1,5 +1,4 @@
 use "collections"
-use "options"
 
 actor Worker
   var _env: Env
@@ -20,12 +19,6 @@ actor Worker
       else
         false
       end
-
-    if correct then
-      _env.out.print("factorization done")
-    else
-      _env.out.print("factorization error")
-    end
 
   fun ref factorize(bigint: U64) : Array[U64] =>
     var factors = Array[U64](2)
@@ -78,7 +71,6 @@ actor Ring
     if i > 0 then
       _next(i - 1)
     else
-      _env.out.print("message cycle done")
       run()
     end
 
@@ -108,28 +100,19 @@ actor Main
   new create(env: Env) =>
     _env = env
 
-    arguments()
-    start_benchmark()
-
-  fun ref arguments() =>
-    let options = Options(_env)
-
-    options
-      .add("size", "s", None, I64Argument)
-      .add("count", "c", None, I64Argument)
-      .add("pass", "p", None, I64Argument)
-      .add("repeat", "r", None, I64Argument)
-
-    for option in options do
-      match option
-      | ("size", var arg: I64) => _size = arg.u32()
-      | ("count", var arg: I64) => _count = arg.u32()
-      | ("pass", var arg: I64) => _pass = arg.u32()
-      | ("repeat", var arg: I64) => _repetitions = arg.u32()
-      | ParseError => usage()
-      end
+    try
+      arguments()
+      start_benchmark()
+    else
+      usage()
     end
 
+  fun ref arguments() ? =>
+    _count = _env.args(1).u32()
+    _size = _env.args(2).u32()
+    _pass = _env.args(3).u32()
+    _repetitions = _env.args(4).u32()
+    
   fun ref start_benchmark() =>
     for i in Range[U32](0, _count) do
       Ring(_env, _size, _pass, _repetitions)
@@ -139,9 +122,9 @@ actor Main
     _env.out.print(
       """
       mixed OPTIONS
-        --size    N   number of actors in each ring"
-        --count   N   number of rings"
-        --pass    N   number of messages to pass around each ring"
-        --repeat  N   number of times to repeat"
+        N   number of actors in each ring"
+        N   number of rings"
+        N   number of messages to pass around each ring"
+        N   number of times to repeat"
       """
       )
