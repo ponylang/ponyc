@@ -335,6 +335,11 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // Set the target triple.
   LLVMSetTarget(c->module, opt->triple);
 
+  // Set the data layout.
+  char* layout = LLVMCopyStringRepOfTargetData(c->target_data);
+  LLVMSetDataLayout(c->module, layout);
+  LLVMDisposeMessage(layout);
+
   // IR builder.
   c->builder = LLVMCreateBuilderInContext(c->context);
 
@@ -494,11 +499,11 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
   frame->fun = fun;
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
   frame->has_source = has_source;
- 
+
   // Turn off debug locations, as non pony source is generated.
-  if(!has_source) 
+  if(!has_source)
     dwarf_location(&c->dwarf, NULL);
-  
+
   if(LLVMCountBasicBlocks(fun) == 0)
   {
     LLVMBasicBlockRef block = codegen_block(c, "entry");
