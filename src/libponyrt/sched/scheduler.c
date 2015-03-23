@@ -58,7 +58,7 @@ static pony_actor_t* pop(scheduler_t* sched)
 static void push(scheduler_t* sched, pony_actor_t* actor)
 {
 #ifdef USE_MPMCQ
-  mpmcq_push(&sched->q, actor);
+  mpmcq_push_single(&sched->q, actor);
 #else
   pony_actor_t* head = sched->head;
 
@@ -163,7 +163,7 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
       sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
     {
       // If the victim is also trying to wait, return no victim.
-      if(thief == (scheduler_t*)1)
+      if(victim == sched->last_victim)
         break;
 
       continue;

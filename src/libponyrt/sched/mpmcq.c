@@ -39,6 +39,18 @@ void mpmcq_push(mpmcq_t* q, void* data)
     PONY_ATOMIC_NO_TYPE);
 }
 
+void mpmcq_push_single(mpmcq_t* q, void* data)
+{
+  mpmcq_node_t* node = POOL_ALLOC(mpmcq_node_t);
+  node->data = data;
+  node->next = NULL;
+
+  // If we have a single produces, don't use an atomic instruction.
+  mpmcq_node_t* prev = q->head;
+  q->head = node;
+  prev->next = node;
+}
+
 void* mpmcq_pop(mpmcq_t* q)
 {
   mpmcq_dwcas_t cmp, xchg;
