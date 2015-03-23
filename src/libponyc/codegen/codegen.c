@@ -445,7 +445,7 @@ bool codegen(ast_t* program, pass_opt_t* opt)
   genprim_builtins(&c);
 
   // Emit debug info for this compile unit.
-  dwarf_init(&c.dwarf, c.opt, c.target_data, c.module);
+  dwarf_init(&c.dwarf, c.opt, c.builder, c.target_data, c.module);
   dwarf_compileunit(&c.dwarf, program);
 
   bool ok;
@@ -494,7 +494,11 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
   frame->fun = fun;
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
   frame->has_source = has_source;
-
+ 
+  // Turn off debug locations, as non pony source is generated.
+  if(!has_source) 
+    dwarf_location(&c->dwarf, NULL);
+  
   if(LLVMCountBasicBlocks(fun) == 0)
   {
     LLVMBasicBlockRef block = codegen_block(c, "entry");

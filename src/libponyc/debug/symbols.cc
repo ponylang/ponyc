@@ -15,6 +15,7 @@
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Path.h>
 #include <llvm/IR/Metadata.h>
 #include <llvm/Config/llvm-config.h>
@@ -75,6 +76,7 @@ struct symbols_t
   symbolmap_t map;
 
   DIBuilder* builder;
+  IRBuilderBase* ir;
   DICompileUnit unit;
 
   bool release;
@@ -157,7 +159,8 @@ static debug_sym_t* get_anchor(symbols_t* symbols, const char* name)
   return symbol;
 }
 
-void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
+void symbols_init(symbols_t** symbols, LLVMBuilderRef builder, 
+  LLVMModuleRef module, bool optimised)
 {
   symbols_t* s = *symbols = POOL_ALLOC(symbols_t);
   memset(s, 0, sizeof(symbols_t));
@@ -172,6 +175,7 @@ void symbols_init(symbols_t** symbols, LLVMModuleRef module, bool optimised)
     llvm::DEBUG_METADATA_VERSION);
 
   s->builder = new DIBuilder(*m);
+  s->ir = unwrap(builder);
   s->release = optimised;
 }
 
@@ -306,7 +310,7 @@ void symbols_declare(symbols_t* symbols, dwarf_frame_t* frame,
     // The actual use type is the structure itself.
     anchor->type = nodes->prelim;
 
-    anchor->qualified = symbols->builder->createQualifiedType(DW_TAG_constant,
+    anchor->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
       nodes->prelim);
   } else {
     // The use type is a pointer to the structure.
@@ -466,31 +470,57 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
 void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
   dwarf_meta_t* meta, bool is_arg)
 {
+  DIType type;
   DIFile file = get_file(symbols, meta->file);
-  MDNode* scope = (MDNode*)frame->scope;
+  DIDescriptor scope = (DIDescriptor)((MDNode*)frame->scope);
 
   unsigned tag = is_arg ? DW_TAG_arg_variable : DW_TAG_auto_variable;
   debug_sym_t* symbol = get_anchor(symbols, meta->mangled);
 
-  /*if(meta->flags & DWARF_CONSTANT)
+  if(meta->flags & DWARF_CONSTANT)
     type = symbol->anchor->qualified;
-  else*/
-  DIType type = symbol->anchor->type;
+  else
+    type = symbol->anchor->type;
 
-  DIVariable info = symbols->builder->createLocalVariable(tag,
-    (DIDescriptor)scope, meta->name, file, (unsigned)meta->line, type, false,
+  DIVariable info = symbols->builder->createLocalVariable(tag, scope,
+    meta->name, file, (unsigned)meta->line, type, false,
     (unsigned)meta->pos + 1);
 
   DIExpression complex = symbols->builder->createExpression(); //TODO?
   Value* ref = unwrap(meta->storage);
+  Instruction* intrinsic;
 
   if(meta->inst != NULL)
   {
     Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));   
-    symbols->builder->insertDeclare(ref, info, complex, before);
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, before);
   } else {
     BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));
-    symbols->builder->insertDeclare(ref, info, complex, end);
+    intrinsic = symbols->builder->insertDeclare(ref, info, complex, end);
+  }
+
+  intrinsic->setDebugLoc(DebugLoc::get((unsigned)meta->line,
+    (unsigned)meta->pos, scope));
+}
+
+void symbols_location(symbols_t* symbols, dwarf_frame_t* frame, size_t line,
+  size_t pos)
+{
+  DebugLoc loc = DebugLoc::get((unsigned)line, (unsigned)pos,
+    (DIDescriptor)((MDNode*)frame->scope));
+
+  frame->location = loc.getAsMDNode();
+  symbols->ir->SetCurrentDebugLocation(loc);
+}
+
+void symbols_reset(symbols_t* symbols, dwarf_frame_t* frame)
+{
+  if(frame != NULL)
+  {
+    DebugLoc loc = DebugLoc::getFromDILocation((MDNode*)frame->location);
+    symbols->ir->SetCurrentDebugLocation(loc);
+  } else {
+    symbols->ir->SetCurrentDebugLocation(DebugLoc::get(0, 0, NULL));
   }
 }
 

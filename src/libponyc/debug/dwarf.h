@@ -47,6 +47,7 @@ struct dwarf_frame_t
   size_t index;
   
   void* scope;
+  void* location;
   
   subnodes_t* members;
   dwarf_frame_t* prev;
@@ -76,8 +77,8 @@ struct dwarf_meta_t
 /**
  * Initialise the debug symbol emitter.
  */
-void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMTargetDataRef layout,
-  LLVMModuleRef module);
+void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
+  LLVMTargetDataRef layout, LLVMModuleRef module);
 
 /**
  * Emit debug symbols for a compilation unit. For Pony, there is always a
@@ -151,9 +152,9 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage, bool is_arg);
 
 /**
- * Finalise emitting debug symbols for a lexical scope.
+ * Set the current debug location.
  */
-void dwarf_lexicalscope_finish(dwarf_t* dwarf);
+void dwarf_location(dwarf_t* dwarf, ast_t* ast);
 
 /**
  * Finalise emitting the debug symbols for a composite type. By the nature

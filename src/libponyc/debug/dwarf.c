@@ -241,14 +241,30 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   meta.name = ast_name(ast_child(ast));
   meta.mangled = type;
   meta.line = ast_line(ast);
+  meta.pos = ast_pos(ast);
   meta.entry = entry;
   meta.inst = inst;
   meta.storage = storage;
 
   if(ast_id(ast) == TK_LET)
-    meta.flags = DWARF_CONSTANT; 
+    meta.flags = DWARF_CONSTANT;
 
   symbols_local(dwarf->symbols, dwarf->frame, &meta, is_arg);
+}
+
+void dwarf_location(dwarf_t* dwarf, ast_t* ast)
+{
+  if(ast != NULL)
+  {
+    size_t line = ast_line(ast);
+    size_t pos = ast_pos(ast);
+
+    symbols_location(dwarf->symbols, dwarf->frame, line, pos);
+  }
+  else if(dwarf->symbols != NULL)
+  {
+    symbols_reset(dwarf->symbols, NULL);
+  }
 }
 
 void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
@@ -262,15 +278,16 @@ void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
   }
 
   pop_frame(dwarf);
+  symbols_reset(dwarf->symbols, dwarf->frame);
 }
 
-void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMTargetDataRef layout,
-  LLVMModuleRef module)
+void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
+  LLVMTargetDataRef layout, LLVMModuleRef module)
 {
   dwarf->opt = opt;
   dwarf->target_data = layout;
 
-  symbols_init(&dwarf->symbols, module, opt->release);
+  symbols_init(&dwarf->symbols, builder, module, opt->release);
 
   // Prepare unspecified types (unions and intersections).
   symbols_unspecified(dwarf->symbols, stringtab("$object"));
