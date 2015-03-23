@@ -5,6 +5,7 @@
 #include "../gc/cycle.h"
 #include "../asio/asio.h"
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
 
 static DECLARE_THREAD_FN(run_thread);
@@ -142,28 +143,37 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
 
   while(true)
   {
+    // Back up one.
     victim--;
 
+    // Wrap around to the end.
     if(victim < scheduler)
       victim = &scheduler[scheduler_count - 1];
 
-    if(victim == sched->last_victim)
-      break;
-
+    // Don't try to steal from ourself, and try to stay on the current NUMA
+    // node if we've been asked to.
     if((victim == sched) || (on_node && (victim->node != sched->node)))
       continue;
 
 #ifndef USE_MPMCQ
     scheduler_t* thief = NULL;
 
+    // Mark that we are the thief. If we can't, keep trying.
     if(!__pony_atomic_compare_exchange_n(&victim->thief, &thief,
       sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
+    {
+      // If the victim is also trying to wait, return no victim.
+      if(thief == (scheduler_t*)1)
+        break;
+
       continue;
+    }
 
     assert(sched->victim == NULL);
     sched->victim = victim;
 #endif
 
+    // Record that this is our victim and return it.
     sched->last_victim = victim;
     return victim;
   }

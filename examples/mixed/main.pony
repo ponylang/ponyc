@@ -7,105 +7,93 @@ actor Worker
   new create(env: Env) =>
     _env = env
 
-  be work() =>
     var a: U64 = 86028157
     var b: U64 = 329545133
 
     var result = factorize(a*b)
 
     var correct =
-      try (result(0) == 86028157) and (result(1) == 329545133) else false end
+      try
+        (result.size() == 2) and
+          (result(0) == 86028157) and
+          (result(1) == 329545133)
+      else
+        false
+      end
 
-    if (result.size() != 2) or not correct then
-      _env.out.print("factorization error")
-    else
+    if correct then
       _env.out.print("factorization done")
+    else
+      _env.out.print("factorization error")
     end
 
   fun ref factorize(bigint: U64) : Array[U64] =>
-    var factors = Array[U64]
+    var factors = Array[U64](2)
 
     if bigint <= 3 then
       factors.push(bigint)
-      return factors
-    end
+    else
+      var d: U64 = 2
+      var i: U64 = 0
+      var n = bigint
 
-    var d: U64 = 2
-    var i: U64 = 0
-    var n = bigint
-
-    while d < n do
-      if (n % d) == 0 then
-        i = i + 1
-        factors.push(d)
-        n = n / d
-      else
-        d = if d == 2 then 3 else (d + 2) end
+      while d < n do
+        if (n % d) == 0 then
+          i = i + 1
+          factors.push(d)
+          n = n / d
+        else
+          d = if d == 2 then 3 else (d + 2) end
+        end
       end
+
+      factors.push(d)
     end
 
-    factors.push(d)
     factors
 
 actor Ring
-  var _env: (Env | None)
+  var _env: Env
   var _size: U32
   var _pass: U32
   var _repetitions: U32
-
-  var _worker: (Worker | None)
   var _next: Ring
 
   new create(env: Env, size: U32, pass: U32, repetitions: U32) =>
     _env = env
-    _worker = Worker(env)
     _size = size
     _pass = pass
     _repetitions = repetitions
+    _next = spawn_ring(_env, _size, _pass)
+    run()
 
-    match _worker
-    | var w: Worker => w.work()
-    end
-
-
-    _next = spawn_ring(_size, _pass)
-
-  new neighbor(n: Ring) =>
-    _env = None
-    _worker = None
-    _next = n
+  new neighbor(env: Env, next: Ring) =>
+    _env = env
+    _next = next
     _size = 0
     _pass = 0
     _repetitions = 0
 
-  be pass(i: U32) =>
+  be apply(i: U32) =>
     if i > 0 then
-      _next.pass(i - 1)
+      _next(i - 1)
     else
-      match _env
-      | var e: Env => e.out.print("message cycle done")
-      end
-
-      if _repetitions > 0 then
-        _repetitions = _repetitions - 1
-
-        match _worker
-        | var w: Worker => w.work()
-        end
-
-        _next = spawn_ring(_size, _pass)
-      end
+      _env.out.print("message cycle done")
+      run()
     end
 
-  fun tag spawn_ring(size: U32, pass': U32) : Ring =>
+  fun ref run() =>
+    if _repetitions > 0 then
+      _repetitions = _repetitions - 1
+      _next(_pass * _size)
+      Worker(_env)
+    end
+
+  fun tag spawn_ring(env: Env, size: U32, pass': U32) : Ring =>
     var next: Ring = this
 
-    for i in Range[U32](0, size - 1) do
-      next = Ring.neighbor(next)
-    end
-
-    if pass' > 0 then
-      pass(pass' * size)
+    for i in Range[U32](0, size) do
+      next = Ring.neighbor(env, next)
     end
 
     next
