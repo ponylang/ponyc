@@ -45,7 +45,7 @@ void mpmcq_push_single(mpmcq_t* q, void* data)
   node->data = data;
   node->next = NULL;
 
-  // If we have a single produces, don't use an atomic instruction.
+  // If we have a single producer, don't use an atomic instruction.
   mpmcq_node_t* prev = q->head;
   q->head = node;
   prev->next = node;
