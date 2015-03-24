@@ -88,7 +88,7 @@ actor Stdin
         var data = recover Array[U8].undefined(len) end
 
         if Platform.windows() then
-          len = @_read[U32](U32(0), data.cstring(), data.space()).u64()
+          len = @_read[U32](U32(0), data.cstring(), data.space().u32()).u64()
         else
           len = @read[U64](U32(0), data.cstring(), data.space())
         end
