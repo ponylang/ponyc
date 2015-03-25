@@ -13,17 +13,17 @@
 LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 {
   LLVMValueRef ret;
-  bool has_scope = ast_has_scope(ast);
-  bool has_source = codegen_hassource(c);
+  //bool has_scope = ast_has_scope(ast);
+  //bool has_source = codegen_hassource(c);
 
   // Dwarf a new lexical scope, if necessary.
-  if(has_source && has_scope)
-    dwarf_lexicalscope(&c->dwarf, ast);
+  //if(has_source && has_scope)
+  //  dwarf_lexicalscope(&c->dwarf, ast);
   
   // Set the current debug location, before generating
   // the actual expressions.
-  if(has_source)
-    dwarf_location(&c->dwarf, ast);
+  //if(has_source)
+  //  dwarf_location(&c->dwarf, ast);
 
   switch(ast_id(ast))
   {
@@ -166,8 +166,8 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return NULL;
   }
 
-  if(has_scope && has_source)
-    dwarf_finish(&c->dwarf, NULL);
+  //if(has_scope && has_source)
+  //  dwarf_finish(&c->dwarf, NULL);
 
   return ret;
 }

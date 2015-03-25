@@ -257,8 +257,9 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     default: {}
   }
 
-  if(dwarf)
-    dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
+  (void)dwarf;
+  //if(dwarf)
+  //  dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
 
   return func;
 }
