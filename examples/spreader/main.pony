@@ -11,7 +11,7 @@ actor Spreader
 
     _count = try env.args(1).u64() else 10 end
 
-    if _count > 0 then
+    if _count > 1 then
       spawn_child()
       spawn_child()
     else
@@ -21,7 +21,7 @@ actor Spreader
   new spread(parent: Spreader, count: U64) =>
     _env = None
 
-    if count == 0 then
+    if count == 1 then
       parent.result(1)
     else
       _parent = parent
