@@ -468,7 +468,7 @@ static bool make_components(compile_t* c, gentype_t* g)
     if(!gentype(c, g->fields[i], &field_g))
       return false;
 
-    dwarf_field(&c->dwarf, g, &field_g);
+    //dwarf_field(&c->dwarf, g, &field_g);
   }
 
   return true;
@@ -487,7 +487,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     case TK_TRAIT:
       g->underlying = id;
       g->use_type = c->object_ptr;
-      dwarf_trait(&c->dwarf, g);
+      //dwarf_trait(&c->dwarf, g);
       return true;
 
     default: {}
@@ -506,9 +506,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     // At this point, this can only be TK_CLASS, TK_PRIMITIVE, or TK_ACTOR
     // ast nodes. TK_TYPE has been translated to any of the former during
     // reification.
-    reachable_type_t* r = reach_type(c->reachable, g->type_name);
-    size_t methods = reach_method_count(r);
-    dwarf_forward(&c->dwarf, g, methods);
+    //reachable_type_t* r = reach_type(c->reachable, g->type_name);
+    //size_t methods = reach_method_count(r);
+    //dwarf_forward(&c->dwarf, g, methods);
 
     bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
@@ -519,7 +519,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     }
   } else {
     // Emit debug symbols for a basic type (U8, U16, U32...)
-    dwarf_basic(&c->dwarf, g);
+    //dwarf_basic(&c->dwarf, g);
 
     // Create a box type.
     make_box_type(c, g);
@@ -548,7 +548,7 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
   }
 
   // Finalise symbols for composite type.
-  dwarf_finish(&c->dwarf, g);
+  //dwarf_finish(&c->dwarf, g);
 
   free_fields(g);
   return true;
@@ -562,12 +562,12 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
 
   setup_tuple_fields(g);
 
-  dwarf_forward(&c->dwarf, g, 0);
+  //dwarf_forward(&c->dwarf, g, 0);
 
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
   // Emit debug symbols for tuple type.
-  dwarf_finish(&c->dwarf, g);
+  //dwarf_finish(&c->dwarf, g);
 
   // Generate a descriptor.
   gendesc_init(c, g);
