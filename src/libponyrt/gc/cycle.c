@@ -155,14 +155,14 @@ typedef struct detector_t
 
 static pony_actor_t* cycle_detector;
 
-static view_t* get_view(detector_t* d, pony_actor_t* actor)
+static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
 {
   view_t key;
   key.actor = actor;
 
   view_t* view = viewmap_get(&d->views, &key);
 
-  if(view == NULL)
+  if((view == NULL) && create)
   {
     view = (view_t*)POOL_ALLOC(view_t);
     memset(view, 0, sizeof(view_t));
@@ -190,10 +190,16 @@ static void apply_delta(detector_t* d, view_t* view)
 
   while((delta = deltamap_next(map, &i)) != NULL)
   {
-    // if the referenced actor has never blocked, we will insert a view_t
-    // that has blocked set to false
-    view_t* find = get_view(d, delta_actor(delta));
+    // If rc is 0, we skip creating a view for the actor.
+    pony_actor_t* actor = delta_actor(delta);
     size_t rc = delta_rc(delta);
+
+    // If the referenced actor has never blocked, we will insert a view_t
+    // that has blocked set to false.
+    view_t* find = get_view(d, actor, rc > 0);
+
+    if(find == NULL)
+      continue;
 
     viewref_t key;
     key.view = find;
@@ -549,7 +555,7 @@ static void collect(detector_t* d, perceived_t* per)
 static void block(detector_t* d, pony_actor_t* actor, size_t rc,
   deltamap_t* map)
 {
-  view_t* view = get_view(d, actor);
+  view_t* view = get_view(d, actor, true);
 
   // apply any previous delta
   apply_delta(d, view);
@@ -762,9 +768,7 @@ void cycle_terminate(bool forcecd)
   if(forcecd)
   {
     pony_sendi(cycle_detector, CYCLE_TERMINATE, forcecd);
-  }
-  else
-  {
+  } else {
     pony_become(cycle_detector);
     final(cycle_detector);
   }
