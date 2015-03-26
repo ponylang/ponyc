@@ -49,11 +49,14 @@ bool asio_stop()
   if(_atomic_load(&running_base.noisy_count, __ATOMIC_ACQUIRE) > 0)
     return false;
 
-  asio_backend_terminate(running_base.backend);
-  pony_thread_join(running_base.tid);
+  if(running_base.backend != NULL)
+  {
+    asio_backend_terminate(running_base.backend);
+    pony_thread_join(running_base.tid);
 
-  running_base.backend = NULL;
-  running_base.tid = 0;
+    running_base.backend = NULL;
+    running_base.tid = 0;
+  }
 
   return true;
 }
