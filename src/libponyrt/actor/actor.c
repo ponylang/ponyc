@@ -157,7 +157,10 @@ void actor_destroy(pony_actor_t* actor)
   messageq_destroy(&actor->q);
   heap_destroy(&actor->heap);
 
-  // free variable sized actors correctly
+  // TODO: remove this
+  printf("ACTOR DELETE %p\n", actor);
+
+  // Free variable sized actors correctly.
   pool_free_size(actor->type->size, actor);
 }
 
@@ -188,6 +191,12 @@ void actor_setpendingdestroy(pony_actor_t* actor)
 
 bool actor_hasfinal(pony_actor_t* actor)
 {
+  // TODO: remove this
+  if(actor->type == NULL)
+  {
+    printf("HASFINAL ERROR %p\n", actor);
+  }
+
   return actor->type->final != NULL;
 }
 

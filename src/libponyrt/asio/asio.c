@@ -46,8 +46,7 @@ bool asio_start()
 
 bool asio_stop()
 {
-  if(__pony_atomic_load_n(
-    &running_base.noisy_count, PONY_ATOMIC_ACQUIRE, uint64_t) > 0)
+  if(_atomic_load(&running_base.noisy_count, __ATOMIC_ACQUIRE) > 0)
     return false;
 
   asio_backend_terminate(running_base.backend);
@@ -61,12 +60,10 @@ bool asio_stop()
 
 void asio_noisy_add()
 {
-  __pony_atomic_fetch_add(&running_base.noisy_count, 1, PONY_ATOMIC_RELEASE,
-    uint64_t);
+  _atomic_add64(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
 }
 
 void asio_noisy_remove()
 {
-  __pony_atomic_fetch_sub(&running_base.noisy_count, 1, PONY_ATOMIC_RELEASE,
-    uint64_t);
+  _atomic_sub64(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
 }

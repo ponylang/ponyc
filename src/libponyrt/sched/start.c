@@ -12,6 +12,7 @@ typedef struct options_t
 {
   // concurrent options
   uint32_t threads;
+  bool mpmcq;
 
   // distributed options
   bool distrib;
@@ -41,6 +42,18 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       if(i < (argc - 1))
       {
         opt->threads = atoi(argv[i + 1]);
+        remove++;
+      }
+    } else if(!strcmp(argv[i], "--ponysched")) {
+      remove++;
+
+      if(i < (argc - 1))
+      {
+        if(!strcmp(argv[i + 1], "coop"))
+          opt->mpmcq = false;
+        else if(!strcmp(argv[i + 1], "mpmcq"))
+          opt->mpmcq = true;
+
         remove++;
       }
     } else if(!strcmp(argv[i], "--ponyforcecd")) {
@@ -96,6 +109,7 @@ int pony_init(int argc, char** argv)
 {
   options_t opt;
   memset(&opt, 0, sizeof(options_t));
+  opt.mpmcq = true;
   argc = parse_opts(argc, argv, &opt);
 
 #ifdef PLATFORM_IS_WINDOWS
@@ -106,7 +120,7 @@ int pony_init(int argc, char** argv)
 #endif
 
   pony_exitcode(0);
-  scheduler_init(opt.threads, opt.forcecd);
+  scheduler_init(opt.threads, opt.forcecd, opt.mpmcq);
   cycle_create();
 
 #if 0
@@ -127,20 +141,17 @@ int pony_start(pony_termination_t termination)
   if(!scheduler_start(termination))
     return -1;
 
-  return __pony_atomic_load_n(&exit_code, PONY_ATOMIC_ACQUIRE,
-    PONY_ATOMIC_NO_TYPE);
+  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
 
 int pony_stop()
 {
   scheduler_stop();
 
-  return __pony_atomic_load_n(&exit_code, PONY_ATOMIC_ACQUIRE,
-    PONY_ATOMIC_NO_TYPE);
+  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
 
 void pony_exitcode(int code)
 {
-  __pony_atomic_store_n(&exit_code, code, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&exit_code, code, __ATOMIC_RELEASE);
 }

@@ -159,7 +159,7 @@ static debug_sym_t* get_anchor(symbols_t* symbols, const char* name)
   return symbol;
 }
 
-void symbols_init(symbols_t** symbols, LLVMBuilderRef builder, 
+void symbols_init(symbols_t** symbols, LLVMBuilderRef builder,
   LLVMModuleRef module, bool optimised)
 {
   symbols_t* s = *symbols = POOL_ALLOC(symbols_t);
@@ -463,7 +463,7 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_frame_t* frame,
   MDNode* parent = (MDNode*)frame->prev->scope;
   DIFile file = get_file(symbols, meta->file);
 
-  frame->scope = symbols->builder->createLexicalBlock((DIDescriptor)parent, 
+  frame->scope = symbols->builder->createLexicalBlock((DIDescriptor)parent,
     file, (unsigned)meta->line, (unsigned)meta->pos);
 }
 
@@ -492,7 +492,7 @@ void symbols_local(symbols_t* symbols, dwarf_frame_t* frame,
 
   if(meta->inst != NULL)
   {
-    Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));   
+    Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));
     intrinsic = symbols->builder->insertDeclare(ref, info, complex, before);
   } else {
     BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));

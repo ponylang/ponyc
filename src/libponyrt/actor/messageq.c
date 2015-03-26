@@ -27,14 +27,12 @@ bool messageq_push(messageq_t* q, pony_msg_t* m)
 {
   m->next = NULL;
 
-  pony_msg_t* prev = (pony_msg_t*)__pony_atomic_exchange_n(&q->head, m,
-    PONY_ATOMIC_RELAXED, intptr_t);
+  pony_msg_t* prev = (pony_msg_t*)_atomic_exch(&q->head, m, __ATOMIC_RELAXED);
 
   bool was_empty = ((uintptr_t)prev & 1) != 0;
   prev = (pony_msg_t*)((uintptr_t)prev & ~(uintptr_t)1);
 
-  __pony_atomic_store_n(&prev->next, m, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&prev->next, m, __ATOMIC_RELEASE);
 
   return was_empty;
 }
@@ -42,8 +40,7 @@ bool messageq_push(messageq_t* q, pony_msg_t* m)
 pony_msg_t* messageq_pop(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* next = __pony_atomic_load_n(&tail->next, PONY_ATOMIC_ACQUIRE,
-    PONY_ATOMIC_NO_TYPE);
+  pony_msg_t* next = _atomic_load(&tail->next, __ATOMIC_ACQUIRE);
 
   if(next != NULL)
   {
@@ -57,8 +54,7 @@ pony_msg_t* messageq_pop(messageq_t* q)
 bool messageq_markempty(messageq_t* q)
 {
   pony_msg_t* tail = q->tail;
-  pony_msg_t* head = __pony_atomic_load_n(&q->head, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
+  pony_msg_t* head = _atomic_load(&q->head, __ATOMIC_RELAXED);
 
   if(((uintptr_t)head & 1) != 0)
     return true;
@@ -68,6 +64,5 @@ bool messageq_markempty(messageq_t* q)
 
   head = (pony_msg_t*)((uintptr_t)head | 1);
 
-  return __pony_atomic_compare_exchange_n(&q->head, &tail, head, false,
-    PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t);
+  return _atomic_cas(&q->head, &tail, head, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }

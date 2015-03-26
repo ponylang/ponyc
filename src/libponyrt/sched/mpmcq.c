@@ -32,11 +32,8 @@ void mpmcq_push(mpmcq_t* q, void* data)
   node->data = data;
   node->next = NULL;
 
-  mpmcq_node_t* prev = (mpmcq_node_t*)__pony_atomic_exchange_n(
-    &q->head, node, PONY_ATOMIC_RELAXED, intptr_t);
-
-  __pony_atomic_store_n(&prev->next, node, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  mpmcq_node_t* prev = _atomic_exch(&q->head, node, __ATOMIC_RELAXED);
+  _atomic_store(&prev->next, node, __ATOMIC_RELEASE);
 }
 
 void mpmcq_push_single(mpmcq_t* q, void* data)
@@ -61,26 +58,32 @@ void* mpmcq_pop(mpmcq_t* q)
 
   do
   {
-    next = (mpmcq_node_t*)__pony_atomic_load_n(&cmp.node->next,
-      PONY_ATOMIC_ACQUIRE, PONY_ATOMIC_NO_TYPE);
+    // Get the next node rather than the tail. The tail is either a stub or has
+    // already been consumed.
+    next = _atomic_load(&cmp.node->next, __ATOMIC_ACQUIRE);
 
+    // Bailout if we have no next node.
     if(next == NULL)
       return NULL;
 
+    // Make the next node the tail, incrementing the aba counter. If this
+    // fails, cmp becomes the new tail and we retry the loop.
     xchg.aba = cmp.aba + 1;
     xchg.node = next;
-  } while(!__pony_atomic_compare_exchange_n(&q->tail.dw, &cmp.dw, xchg.dw,
-    false, PONY_ATOMIC_ACQ_REL, PONY_ATOMIC_ACQUIRE, __int128_t));
+  } while(!_atomic_dwcas(&q->tail.dw, &cmp.dw, xchg.dw,
+    __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE));
 
-  void* data = __pony_atomic_load_n(&next->data, PONY_ATOMIC_ACQUIRE,
-    PONY_ATOMIC_NO_TYPE);
+  // We'll return the data pointer from the next node.
+  void* data = _atomic_load(&next->data, __ATOMIC_ACQUIRE);
 
-  __pony_atomic_store_n(&next->data, NULL, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  // Since we will be freeing the old tail, we need to be sure no other
+  // consumer is still reading the old tail. To do this, we set the data
+  // pointer of our new tail to NULL, and we wait until the data pointer of
+  // the old tail is NULL.
+  _atomic_store(&next->data, NULL, __ATOMIC_RELEASE);
+  while(_atomic_load(&cmp.node->data, __ATOMIC_ACQUIRE) != NULL);
 
-  while(__pony_atomic_load_n(&cmp.node->data, PONY_ATOMIC_ACQUIRE,
-    PONY_ATOMIC_NO_TYPE) != NULL);
-
+  // Free the old tail. The new tail is the next node.
   POOL_FREE(mpmcq_node_t, cmp.node);
   return data;
 }
