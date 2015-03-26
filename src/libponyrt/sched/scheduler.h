@@ -7,7 +7,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-struct scheduler_t
+typedef struct scheduler_t
 {
   // These are rarely changed.
   pony_thread_id_t tid;
@@ -30,9 +30,7 @@ struct scheduler_t
   __pony_spec_align__(struct scheduler_t* thief, 64);
   uint32_t waiting;
 #endif
-};
-
-typedef struct scheduler_t scheduler_t;
+} scheduler_t;
 
 void scheduler_init(uint32_t threads, bool forcecd);
 

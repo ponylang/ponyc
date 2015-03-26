@@ -91,15 +91,24 @@ static pony_actor_t* pop_global(scheduler_t* sched)
  * them will stop the ASIO back end and tell the cycle detector to try to
  * terminate.
  */
-static bool quiescent(scheduler_t* sched)
+static bool quiescent(scheduler_t* sched, uint64_t tsc)
 {
+  // If we should not detect quiscence, pause the core and return false.
   if(!__pony_atomic_load_n(&detect_quiescence, PONY_ATOMIC_RELAXED,
     PONY_ATOMIC_NO_TYPE))
+  {
+    cpu_core_pause(tsc);
     return false;
+  }
 
+  // If the terminate flag is set, return true immediately.
   if(__pony_atomic_load_n(&terminate, PONY_ATOMIC_RELAXED,
     PONY_ATOMIC_NO_TYPE))
     return true;
+
+  // If not enough time has elapsed to bother checking, return false.
+  if(!cpu_core_pause(tsc))
+    return false;
 
   if(sched->finish)
   {
@@ -150,6 +159,14 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
     if(victim < scheduler)
       victim = &scheduler[scheduler_count - 1];
 
+    if(victim == sched->last_victim)
+    {
+      // If we have tried all possible victims, return no victim. Set our last
+      // victim to ourself to indicate we've started over.
+      sched->last_victim = sched;
+      break;
+    }
+
     // Don't try to steal from ourself, and try to stay on the current NUMA
     // node if we've been asked to.
     if((victim == sched) || (on_node && (victim->node != sched->node)))
@@ -162,10 +179,6 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
     if(!__pony_atomic_compare_exchange_n(&victim->thief, &thief,
       sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
     {
-      // If the victim is also trying to wait, return no victim.
-      if(victim == sched->last_victim)
-        break;
-
       continue;
     }
 
@@ -225,7 +238,7 @@ static pony_actor_t* request(scheduler_t* sched)
     __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
       uint32_t);
 
-    if(cpu_core_pause(tsc) && quiescent(sched))
+    if(quiescent(sched, tsc))
       return NULL;
 
     __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
@@ -266,7 +279,7 @@ static pony_actor_t* request(scheduler_t* sched)
       while(__pony_atomic_load_n(&sched->waiting, PONY_ATOMIC_ACQUIRE,
         PONY_ATOMIC_NO_TYPE) == 1)
       {
-        if(cpu_core_pause(tsc) && quiescent(sched))
+        if(quiescent(sched, tsc))
           return NULL;
       }
 
@@ -281,7 +294,7 @@ static pony_actor_t* request(scheduler_t* sched)
         break;
       }
 
-      if(cpu_core_pause(tsc) && quiescent(sched))
+      if(quiescent(sched, tsc))
         return NULL;
     }
 
@@ -329,7 +342,7 @@ static void respond(scheduler_t* sched)
     push(thief, actor);
 
     // Decrement the wait count if we give the thief an actor. We know that
-    // scheduler thread is no longer waiting.
+    // the scheduler thread is no longer waiting.
     __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
       uint32_t);
   }
@@ -350,35 +363,47 @@ static void respond(scheduler_t* sched)
  */
 static void run(scheduler_t* sched)
 {
+  pony_actor_t* actor = pop_global(sched);
+
   while(true)
   {
-    // Get an actor from our queue.
-    pony_actor_t* actor = pop_global(sched);
-
     if(actor == NULL)
     {
-      // Wait until we get an actor.
+      // We had an empty queue and no rescheduled actor. Steal an actor.
       actor = request(sched);
 
-      // Termination.
       if(actor == NULL)
       {
+        // Termination.
         assert(pop(sched) == NULL);
         return;
       }
     }
+
 #ifndef USE_MPMCQ
-    else
-    {
-      // Respond to our thief. We hold an actor for ourself, to make sure we
-      // never give away our last actor.
-      respond(sched);
-    }
+    // Respond to our thief. We hold an actor for ourself, to make sure we
+    // never give away our last actor.
+    respond(sched);
 #endif
 
-    // If this returns true, reschedule the actor on our queue.
-    if(actor_run(actor))
-      push(sched, actor);
+    // Run the current actor and get the next actor.
+    bool reschedule = actor_run(actor);
+    pony_actor_t* next = pop_global(sched);
+
+    if(reschedule)
+    {
+      if(next != NULL)
+      {
+        // If we have a next actor, we go on the back of the queue. Otherwise,
+        // we continue to run this actor.
+        push(sched, actor);
+        actor = next;
+      }
+    } else {
+      // We aren't rescheduling, so run the next actor. This may be NULL if our
+      // queue was empty.
+      actor = next;
+    }
   }
 }
 
@@ -409,14 +434,9 @@ static void scheduler_shutdown()
     mpmcq_destroy(&scheduler[i].q);
 #endif
 
-  __pony_atomic_store_n(&detect_quiescence, false, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
-
-  __pony_atomic_store_n(&terminate, false, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
-
-  __pony_atomic_store_n(&scheduler_waiting, 0, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
+  detect_quiescence = false;
+  terminate = false;
+  scheduler_waiting = 0;
 
   free(scheduler);
   scheduler = NULL;
