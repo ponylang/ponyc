@@ -359,6 +359,8 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
   DIDescriptor parent = symbols->frame->prev->scope;
   DIFile file = get_file(symbols, meta->file);
 
+  assert((MDNode*)parent != NULL);
+
   symbols->frame->scope = symbols->builder->createLexicalBlock(parent, 
     file, (unsigned)meta->line, (unsigned)meta->pos);
 }
