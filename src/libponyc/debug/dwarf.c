@@ -12,38 +12,6 @@
 #define OFFSET_CLASS (sizeof(void*) << 3)
 #define OFFSET_ACTOR (sizeof(pony_actor_pad_t) << 3)
 
-/**
- * Every call to dwarf_forward causes a dwarf_frame_t to be pushed onto
- * the stack.
- */
-static dwarf_frame_t* push_frame(dwarf_t* dwarf, gentype_t* g, size_t methods)
-{
-  dwarf_frame_t* frame = POOL_ALLOC(dwarf_frame_t);
-  memset(frame, 0, sizeof(dwarf_frame_t));
-
-  if(g != NULL)
-  {
-    frame->type_name = g->type_name;
-    frame->size = g->field_count + methods;
-  }
-  
-  frame->prev = dwarf->frame;
-  dwarf->frame = frame;
-
-  return frame;
-}
-
-/**
- * Every call to dwarf_composite causes a dwarf_frame_t to be popped from
- * the stack.
- */
-static void pop_frame(dwarf_t* dwarf)
-{
-  dwarf_frame_t* frame = dwarf->frame;
-  dwarf->frame = frame->prev;
-  POOL_FREE(dwarf_frame_t, frame);
-}
-
 static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
   bool opaque)
 {
@@ -54,6 +22,8 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
 
   if(is_machine_word(ast))
   {
+    meta->flags |= DWARF_MACHINE_WORD;
+
     if(is_float(ast))
       meta->flags |= DWARF_FLOAT;
     else if(is_signed(dwarf->opt, ast))
@@ -118,7 +88,7 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
 
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 {
-  push_frame(dwarf, g, 0);
+  symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
@@ -128,7 +98,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
 {
-  push_frame(dwarf, g, 0);
+  symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
@@ -148,14 +118,14 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   symbols_trait(dwarf->symbols, &meta);
 }
 
-void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods)
+void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 {
-  dwarf_frame_t* frame = push_frame(dwarf, g, methods);
+  symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, true);
 
-  symbols_declare(dwarf->symbols, frame, &meta);
+  symbols_declare(dwarf->symbols, &meta);
 }
 
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
@@ -163,7 +133,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   char buf[32];
   memset(buf, 0, sizeof(buf));
 
-  size_t index = dwarf->frame->index;
+  size_t index = symbols_get_index(dwarf->symbols);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, field, false);
@@ -190,7 +160,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
       meta.flags |= DWARF_PRIVATE;
   }
 
-  symbols_field(dwarf->symbols, dwarf->frame, &meta);
+  symbols_field(dwarf->symbols, &meta);
 }
 
 void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
@@ -211,7 +181,7 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   meta.offset = ast_line(seq);
   meta.size = count;
 
-  symbols_method(dwarf->symbols, dwarf->frame, &meta, ir);
+  symbols_method(dwarf->symbols, &meta, ir);
 }
 
 void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
@@ -219,14 +189,14 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
   dwarf_meta_t meta;
   memset(&meta, 0, sizeof(dwarf_meta_t));
 
-  dwarf_frame_t* frame = push_frame(dwarf, NULL, 0);
+  symbols_push_frame(dwarf->symbols, NULL);
   source_t* source = ast_source(ast);
 
   meta.file = source->file;
   meta.line = ast_line(ast);
   meta.pos = ast_pos(ast);
 
-  symbols_lexicalscope(dwarf->symbols, frame, &meta);  
+  symbols_lexicalscope(dwarf->symbols, &meta);  
 }
 
 void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
@@ -236,7 +206,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   memset(&meta, 0, sizeof(dwarf_meta_t));
 
   source_t* source = ast_source(ast);
-
+  
   meta.file = source->file;
   meta.name = ast_name(ast_child(ast));
   meta.mangled = type;
@@ -248,8 +218,8 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
 
   if(ast_id(ast) == TK_LET)
     meta.flags = DWARF_CONSTANT;
-
-  symbols_local(dwarf->symbols, dwarf->frame, &meta, is_arg);
+  
+  symbols_local(dwarf->symbols, &meta, is_arg);
 }
 
 void dwarf_location(dwarf_t* dwarf, ast_t* ast)
@@ -259,11 +229,11 @@ void dwarf_location(dwarf_t* dwarf, ast_t* ast)
     size_t line = ast_line(ast);
     size_t pos = ast_pos(ast);
 
-    symbols_location(dwarf->symbols, dwarf->frame, line, pos);
+    symbols_location(dwarf->symbols, line, pos);
   }
   else if(dwarf->symbols != NULL)
   {
-    symbols_reset(dwarf->symbols, NULL);
+    symbols_reset(dwarf->symbols, true);
   }
 }
 
@@ -274,11 +244,11 @@ void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
     dwarf_meta_t meta;
     setup_dwarf(dwarf, &meta, g, false);
 
-    symbols_composite(dwarf->symbols, dwarf->frame, &meta);
+    symbols_composite(dwarf->symbols, &meta);
   }
 
-  pop_frame(dwarf);
-  symbols_reset(dwarf->symbols, dwarf->frame);
+  symbols_pop_frame(dwarf->symbols);
+  symbols_reset(dwarf->symbols, false);
 }
 
 void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
@@ -288,8 +258,6 @@ void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
   dwarf->target_data = layout;
 
   symbols_init(&dwarf->symbols, builder, module, opt->release);
-
-  // Prepare unspecified types (unions and intersections).
   symbols_unspecified(dwarf->symbols, stringtab("$object"));
 }
 

@@ -14,21 +14,20 @@
 PONY_EXTERN_C_BEGIN
 
 typedef struct dwarf_t dwarf_t;
-typedef struct dwarf_frame_t dwarf_frame_t;
 typedef struct dwarf_meta_t dwarf_meta_t;
 
 typedef struct gentype_t gentype_t;
 typedef struct symbols_t symbols_t;
-typedef struct subnodes_t subnodes_t;
 
 enum DWARF_FLAGS
 {
-  DWARF_FLOAT    = 1 << 0,
-  DWARF_SIGNED   = 1 << 1,
-  DWARF_BOOLEAN  = 1 << 2,
-  DWARF_TUPLE    = 1 << 3,
-  DWARF_PRIVATE  = 1 << 4,
-  DWARF_CONSTANT = 1 << 5
+  DWARF_MACHINE_WORD = 1 << 0,
+  DWARF_FLOAT        = 1 << 1,
+  DWARF_SIGNED       = 1 << 2,
+  DWARF_BOOLEAN      = 1 << 3,
+  DWARF_TUPLE        = 1 << 4,
+  DWARF_PRIVATE      = 1 << 5,
+  DWARF_CONSTANT     = 1 << 6
 };
 
 struct dwarf_t
@@ -36,21 +35,6 @@ struct dwarf_t
   symbols_t* symbols;
   pass_opt_t* opt;
   LLVMTargetDataRef target_data;
-  dwarf_frame_t* frame;
-};
-
-struct dwarf_frame_t
-{
-  const char* type_name;
-  
-  size_t size;
-  size_t index;
-  
-  void* scope;
-  void* location;
-  
-  subnodes_t* members;
-  dwarf_frame_t* prev;
 };
 
 struct dwarf_meta_t
@@ -123,7 +107,7 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
  * and reside in the same DWARF meta structure as fields. Note that there are
  * also recursive type definitions.
  */
-void dwarf_forward(dwarf_t* dwarf, gentype_t* g, size_t methods);
+void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
 
 /**
  * Emit debug symbols for a field of some composite type. This requires to

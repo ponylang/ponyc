@@ -316,7 +316,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
     return true;
 
   // Emit debug symbol for this pointer type instance.
-  //dwarf_pointer(&c->dwarf, g, elem_g.type_name);
+  dwarf_pointer(&c->dwarf, g, elem_g.type_name);
 
   pointer_create(c, g);
   pointer_alloc(c, g, &elem_g);
@@ -333,7 +333,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ok = genfun_methods(c, g);
 
-  //dwarf_finish(&c->dwarf, g);
+  dwarf_finish(&c->dwarf, g);
 
   return ok;
 }
