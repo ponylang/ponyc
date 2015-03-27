@@ -157,7 +157,7 @@ void actor_destroy(pony_actor_t* actor)
   messageq_destroy(&actor->q);
   heap_destroy(&actor->heap);
 
-  // free variable sized actors correctly
+  // Free variable sized actors correctly.
   pool_free_size(actor->type->size, actor);
 }
 

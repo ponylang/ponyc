@@ -108,8 +108,8 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     p->central = cmp.node;
     xchg.node = p;
     xchg.aba = cmp.aba + 1;
-  } while(!__pony_atomic_compare_exchange_n(&global->central, &cmp.dw, xchg.dw,
-    false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, __int128_t));
+  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw,
+    __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
   thread->pool = NULL;
   thread->length = 0;
@@ -130,8 +130,8 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
     xchg.node = next->central;
     xchg.aba = cmp.aba + 1;
-  } while(!__pony_atomic_compare_exchange_n(&global->central, &cmp.dw, xchg.dw,
-      false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, __int128_t));
+  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw,
+      __ATOMIC_RELAXED, __ATOMIC_RELAXED));
 
   pool_item_t* p = (pool_item_t*)next;
   thread->pool = p->next;

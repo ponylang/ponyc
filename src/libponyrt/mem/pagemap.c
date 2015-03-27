@@ -70,8 +70,7 @@ void pagemap_set(const void* m, void* v)
       p = virtual_alloc(level[i].size);
       void** prev = NULL;
 
-      if(!__pony_atomic_compare_exchange_n(pv, &prev, p, false,
-        PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
+      if(!_atomic_cas(pv, &prev, p, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
       {
         virtual_free(p, level[i].size);
       }

@@ -118,7 +118,7 @@ static DIFile get_file(symbols_t* symbols, const char* fullpath)
   return symbols->builder->createFile(name, path);
 }
 
-void symbols_init(symbols_t** symbols, LLVMBuilderRef builder, 
+void symbols_init(symbols_t** symbols, LLVMBuilderRef builder,
   LLVMModuleRef module, bool optimised)
 {
   symbols_t* s = *symbols = POOL_ALLOC(symbols_t);
@@ -386,7 +386,7 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
 
   if(meta->inst != NULL)
   {
-    Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));   
+    Instruction* before = dyn_cast_or_null<Instruction>(unwrap(meta->inst));
     intrinsic = symbols->builder->insertDeclare(ref, info, complex, before);
   } else {
     BasicBlock* end = dyn_cast_or_null<BasicBlock>(unwrap(meta->entry));

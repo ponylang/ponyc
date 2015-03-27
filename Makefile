@@ -34,11 +34,6 @@ ifdef use
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-numa
   endif
 
-  ifneq (,$(filter $(use), mpmcq))
-    ALL_CFLAGS += -DUSE_MPMCQ
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-mpmcq
-  endif
-
   ifneq (,$(filter $(use), valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
@@ -379,7 +374,6 @@ help:
 	@echo '  release'
 	@echo
 	@echo 'USE OPTIONS:'
-	@echo '   mpmcq'
 	@echo '   numa'
 	@echo '   valgrind'
 	@echo

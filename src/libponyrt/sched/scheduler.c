@@ -17,6 +17,7 @@ static scheduler_t* scheduler;
 static bool detect_quiescence;
 static bool shutdown_on_stop;
 static bool terminate;
+static bool use_mpmcq;
 
 static mpmcq_t inject;
 
@@ -30,9 +31,9 @@ static void push(scheduler_t* sched, pony_actor_t* actor);
  */
 static pony_actor_t* pop(scheduler_t* sched)
 {
-#ifdef USE_MPMCQ
-  return (pony_actor_t*)mpmcq_pop(&sched->q);
-#else
+  if(use_mpmcq)
+    return (pony_actor_t*)mpmcq_pop(&sched->q);
+
   pony_actor_t* actor = sched->tail;
 
   if(actor != NULL)
@@ -49,7 +50,6 @@ static pony_actor_t* pop(scheduler_t* sched)
   }
 
   return actor;
-#endif
 }
 
 /**
@@ -57,20 +57,21 @@ static pony_actor_t* pop(scheduler_t* sched)
  */
 static void push(scheduler_t* sched, pony_actor_t* actor)
 {
-#ifdef USE_MPMCQ
-  mpmcq_push_single(&sched->q, actor);
-#else
-  pony_actor_t* head = sched->head;
-
-  if(head != NULL)
+  if(use_mpmcq)
   {
-    actor_setnext(head, actor);
-    sched->head = actor;
+    mpmcq_push_single(&sched->q, actor);
   } else {
-    sched->head = actor;
-    sched->tail = actor;
+    pony_actor_t* head = sched->head;
+
+    if(head != NULL)
+    {
+      actor_setnext(head, actor);
+      sched->head = actor;
+    } else {
+      sched->head = actor;
+      sched->tail = actor;
+    }
   }
-#endif
 }
 
 /**
@@ -94,16 +95,14 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 static bool quiescent(scheduler_t* sched, uint64_t tsc)
 {
   // If we should not detect quiscence, pause the core and return false.
-  if(!__pony_atomic_load_n(&detect_quiescence, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE))
+  if(!_atomic_load(&detect_quiescence, __ATOMIC_RELAXED))
   {
     cpu_core_pause(tsc);
     return false;
   }
 
   // If the terminate flag is set, return true immediately.
-  if(__pony_atomic_load_n(&terminate, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE))
+  if(_atomic_load(&terminate, __ATOMIC_RELAXED))
     return true;
 
   // If not enough time has elapsed to bother checking, return false.
@@ -112,25 +111,24 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
 
   if(sched->finish)
   {
-    uint32_t waiting = __pony_atomic_load_n(&scheduler_waiting,
-      PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
+    uint32_t waiting = _atomic_load(&scheduler_waiting, __ATOMIC_RELAXED);
 
     // If all scheduler threads are waiting and it is possible to stop the ASIO
     // back end, then we can terminate the cycle detector, which will
     // eventually call scheduler_terminate().
     if((waiting == scheduler_count) && asio_stop())
     {
-#ifndef USE_MPMCQ
-      // It's safe to manipulate our victim, since we know it's paused as well.
-      if(sched->victim != NULL)
+      if(!use_mpmcq)
       {
-        __pony_atomic_store_n(&sched->victim->thief, NULL, PONY_ATOMIC_RELEASE,
-          PONY_ATOMIC_NO_TYPE);
-      }
+        // It's safe to manipulate our victim, since we know it's paused as
+        // well.
+        if(sched->victim != NULL)
+        {
+          _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
+        }
 
-      __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
-        PONY_ATOMIC_NO_TYPE);
-#endif
+        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+      }
 
       // Under these circumstances, the CD will always go on the current
       // scheduler.
@@ -146,7 +144,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
   return false;
 }
 
-static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
+static scheduler_t* choose_victim(scheduler_t* sched)
 {
   scheduler_t* victim = sched->last_victim;
 
@@ -167,24 +165,24 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
       break;
     }
 
-    // Don't try to steal from ourself, and try to stay on the current NUMA
-    // node if we've been asked to.
-    if((victim == sched) || (on_node && (victim->node != sched->node)))
+    // Don't try to steal from ourself.
+    if(victim == sched)
       continue;
 
-#ifndef USE_MPMCQ
-    scheduler_t* thief = NULL;
-
-    // Mark that we are the thief. If we can't, keep trying.
-    if(!__pony_atomic_compare_exchange_n(&victim->thief, &thief,
-      sched, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t))
+    if(!use_mpmcq)
     {
-      continue;
-    }
+      scheduler_t* thief = NULL;
 
-    assert(sched->victim == NULL);
-    sched->victim = victim;
-#endif
+      // Mark that we are the thief. If we can't, keep trying.
+      if(!_atomic_cas(&victim->thief, &thief, sched,
+        __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+      {
+        continue;
+      }
+
+      assert(sched->victim == NULL);
+      sched->victim = victim;
+    }
 
     // Record that this is our victim and return it.
     sched->last_victim = victim;
@@ -194,31 +192,12 @@ static scheduler_t* choose_on_node(scheduler_t* sched, bool on_node)
   return NULL;
 }
 
-static scheduler_t* choose_victim(scheduler_t* sched)
-{
-  if(scheduler_count == 1)
-    return NULL;
-
-#ifndef USE_MPMCQ
-#if 0 && defined(USE_NUMA)
-  scheduler_t* victim = choose_on_node(sched, true);
-
-  if(victim != NULL)
-    return victim;
-#endif
-#endif
-
-  return choose_on_node(sched, false);
-}
-
-#ifdef USE_MPMCQ
-
 /**
  * Use mpmcqs to allow stealing directly from a victim, without waiting for a
  * response. However, this makes pushing and popping actors on scheduling
  * queues significantly more expensive.
  */
-static pony_actor_t* request(scheduler_t* sched)
+static pony_actor_t* steal(scheduler_t* sched)
 {
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
@@ -235,20 +214,16 @@ static pony_actor_t* request(scheduler_t* sched)
     if(actor != NULL)
       break;
 
-    __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
-      uint32_t);
+    _atomic_add32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
 
     if(quiescent(sched, tsc))
       return NULL;
 
-    __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
-      uint32_t);
+    _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
   }
 
   return actor;
 }
-
-#else
 
 /**
  * Wait until we receive a stolen actor. Tight spin at first, falling back to
@@ -258,26 +233,23 @@ static pony_actor_t* request(scheduler_t* sched)
 {
   scheduler_t* thief = NULL;
 
-  bool block = __pony_atomic_compare_exchange_n(&sched->thief, &thief,
-    (void*)1, false, PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t);
+  bool block = _atomic_cas(&sched->thief, &thief, (void*)1,
+    __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 
-  __pony_atomic_fetch_add(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
-    uint32_t);
+  _atomic_add32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
 
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
 
   while(true)
   {
-    __pony_atomic_store_n(&sched->waiting, 1, PONY_ATOMIC_RELEASE,
-      PONY_ATOMIC_NO_TYPE);
+    _atomic_store(&sched->waiting, 1, __ATOMIC_RELEASE);
 
     scheduler_t* victim = choose_victim(sched);
 
     if(victim != NULL)
     {
-      while(__pony_atomic_load_n(&sched->waiting, PONY_ATOMIC_ACQUIRE,
-        PONY_ATOMIC_NO_TYPE) == 1)
+      while(_atomic_load(&sched->waiting, __ATOMIC_ACQUIRE) == 1)
       {
         if(quiescent(sched, tsc))
           return NULL;
@@ -287,10 +259,8 @@ static pony_actor_t* request(scheduler_t* sched)
     } else {
       if((actor = pop_global(sched)) != NULL)
       {
-        __pony_atomic_store_n(&sched->waiting, 0, PONY_ATOMIC_RELEASE,
-          PONY_ATOMIC_NO_TYPE);
-        __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
-          uint32_t);
+        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+        _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
         break;
       }
 
@@ -315,8 +285,8 @@ static pony_actor_t* request(scheduler_t* sched)
 #if defined(PLATFORM_IS_WINDOWS)
 #  pragma warning(disable:4552)
 #endif
-    __pony_atomic_compare_exchange_n(&sched->thief, &thief, NULL, false,
-      PONY_ATOMIC_RELAXED, PONY_ATOMIC_RELAXED, intptr_t);
+    _atomic_cas(&sched->thief, &thief, NULL,
+      __ATOMIC_RELAXED, __ATOMIC_RELAXED);
   }
 
   return actor;
@@ -328,8 +298,7 @@ static pony_actor_t* request(scheduler_t* sched)
  */
 static void respond(scheduler_t* sched)
 {
-  scheduler_t* thief = (scheduler_t*)__pony_atomic_load_n(&sched->thief,
-    PONY_ATOMIC_RELAXED, PONY_ATOMIC_NO_TYPE);
+  scheduler_t* thief = _atomic_load(&sched->thief, __ATOMIC_RELAXED);
 
   if(thief <= (scheduler_t*)1)
     return;
@@ -343,20 +312,15 @@ static void respond(scheduler_t* sched)
 
     // Decrement the wait count if we give the thief an actor. We know that
     // the scheduler thread is no longer waiting.
-    __pony_atomic_fetch_sub(&scheduler_waiting, 1, PONY_ATOMIC_RELAXED,
-      uint32_t);
+    _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
   }
 
-  __pony_atomic_store_n(&thief->waiting, 0, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&thief->waiting, 0, __ATOMIC_RELEASE);
 
   assert(sched->thief == thief);
 
-  __pony_atomic_store_n(&sched->thief, NULL, PONY_ATOMIC_RELEASE,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&sched->thief, NULL, __ATOMIC_RELEASE);
 }
-
-#endif
 
 /**
  * Run a scheduler thread until termination.
@@ -369,8 +333,11 @@ static void run(scheduler_t* sched)
   {
     if(actor == NULL)
     {
-      // We had an empty queue and no rescheduled actor. Steal an actor.
-      actor = request(sched);
+      // We had an empty queue and no rescheduled actor.
+      if(use_mpmcq)
+        actor = steal(sched);
+      else
+        actor = request(sched);
 
       if(actor == NULL)
       {
@@ -380,11 +347,10 @@ static void run(scheduler_t* sched)
       }
     }
 
-#ifndef USE_MPMCQ
     // Respond to our thief. We hold an actor for ourself, to make sure we
     // never give away our last actor.
-    respond(sched);
-#endif
+    if(!use_mpmcq)
+      respond(sched);
 
     // Run the current actor and get the next actor.
     bool reschedule = actor_run(actor);
@@ -429,10 +395,8 @@ static void scheduler_shutdown()
   for(uint32_t i = start; i < scheduler_count; i++)
     pony_thread_join(scheduler[i].tid);
 
-#ifdef USE_MPMCQ
   for(uint32_t i = 0; i < scheduler_count; i++)
     mpmcq_destroy(&scheduler[i].q);
-#endif
 
   detect_quiescence = false;
   terminate = false;
@@ -445,8 +409,10 @@ static void scheduler_shutdown()
   mpmcq_destroy(&inject);
 }
 
-void scheduler_init(uint32_t threads, bool forcecd)
+void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq)
 {
+  use_mpmcq = mpmcq;
+
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
     threads = cpu_count();
@@ -463,10 +429,7 @@ void scheduler_init(uint32_t threads, bool forcecd)
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
     scheduler[i].last_victim = &scheduler[i];
-
-#ifdef USE_MPMCQ
     mpmcq_init(&scheduler[i].q);
-#endif
   }
 
   mpmcq_init(&inject);
@@ -509,8 +472,7 @@ bool scheduler_start(pony_termination_t termination)
 
 void scheduler_stop()
 {
-  __pony_atomic_store_n(&detect_quiescence, true, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&detect_quiescence, true, __ATOMIC_RELAXED);
 
   if(shutdown_on_stop)
     scheduler_shutdown();
@@ -536,11 +498,9 @@ void scheduler_add(pony_actor_t* actor)
 
 void scheduler_respond()
 {
-#ifndef USE_MPMCQ
   // Check for a pending thief.
-  if(this_scheduler != NULL)
+  if(!use_mpmcq && (this_scheduler != NULL))
     respond(this_scheduler);
-#endif
 }
 
 void scheduler_offload()
@@ -558,8 +518,7 @@ void scheduler_offload()
 
 void scheduler_terminate()
 {
-  __pony_atomic_store_n(&terminate, true, PONY_ATOMIC_RELAXED,
-    PONY_ATOMIC_NO_TYPE);
+  _atomic_store(&terminate, true, __ATOMIC_RELAXED);
 }
 
 uint32_t scheduler_cores()

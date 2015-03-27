@@ -18,10 +18,6 @@ typedef struct scheduler_t
 
   // These are changed primarily by the owning scheduler thread.
   __pony_spec_align__(struct scheduler_t* last_victim, 64);
-
-#ifdef USE_MPMCQ
-  mpmcq_t q;
-#else
   pony_actor_t* head;
   pony_actor_t* tail;
   struct scheduler_t* victim;
@@ -29,10 +25,11 @@ typedef struct scheduler_t
   // These are accessed by other scheduler threads.
   __pony_spec_align__(struct scheduler_t* thief, 64);
   uint32_t waiting;
-#endif
+
+  mpmcq_t q;
 } scheduler_t;
 
-void scheduler_init(uint32_t threads, bool forcecd);
+void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq);
 
 bool scheduler_start(pony_termination_t termination);
 
