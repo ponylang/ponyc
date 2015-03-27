@@ -303,7 +303,7 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
 {
-  SmallVector<Metadata*, 32> params;
+  std::vector<Metadata*> params;
 
   // Emit debug info for the subroutine type.
   debug_sym_t* current = get_entry(symbols, meta->params[0]);
@@ -320,12 +320,12 @@ void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
   DICompositeType type = symbols->builder->createSubroutineType(file,
     symbols->builder->getOrCreateTypeArray(params));
 
-  // Emit debug info for the method itself.
-  DISubprogram fun = symbols->builder->createFunction(symbols->unit, meta->name,
-    meta->mangled, file, (int)meta->line, type, false, true, (int)meta->offset,
-    0, symbols->release, dyn_cast_or_null<Function>(unwrap(ir)));
+  Function* f = dyn_cast_or_null<Function>(unwrap(ir));
 
-  symbols->frame->scope = fun;
+  // Emit debug info for the method itself.
+  symbols->frame->scope = symbols->builder->createFunction(symbols->unit,
+    meta->name, meta->mangled, file, (int)meta->line, type, false, true,
+    (int)meta->offset, 0, symbols->release, f);
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
