@@ -234,7 +234,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     return func;
 
   // Generate the function prototype.
-  func = codegen_addfun(c, funname, ftype);
+  LLVMValueRef dbg = func = codegen_addfun(c, funname, ftype);
   name_params(params, func);
 
   // Behaviours and actor constructors also have handler functions.
@@ -249,7 +249,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
       ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
       const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
-      LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
+      LLVMValueRef handler = dbg = codegen_addfun(c, handler_name, ftype);
       name_params(params, handler);
       break;
     }
@@ -258,7 +258,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   }
 
   if(dwarf)
-    dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, func);
+    dwarf_method(&c->dwarf, fun, name, funname, &uses[0], index, dbg);
 
   return func;
 }
