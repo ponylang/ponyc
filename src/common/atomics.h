@@ -85,7 +85,7 @@
 
   #define _atomic_dwcas(PTR, EXPP, VAL, OK, FAIL) \
     (_InterlockedCompareExchange128((LONGLONG volatile*)PTR, VAL.high, \
-      VAL.low, (LONGLONG*)EXPP)
+      VAL.low, (LONGLONG*)EXPP))
 
   #define _atomic_add32(PTR, VAL, MODE) \
     (InterlockedAddNoFence((LONG volatile*)PTR, VAL))

@@ -32,7 +32,7 @@ void mpmcq_push(mpmcq_t* q, void* data)
   node->data = data;
   node->next = NULL;
 
-  mpmcq_node_t* prev = _atomic_exch(&q->head, node, __ATOMIC_RELAXED);
+  mpmcq_node_t* prev = (mpmcq_node_t*)_atomic_exch(&q->head, node, __ATOMIC_RELAXED);
   _atomic_store(&prev->next, node, __ATOMIC_RELEASE);
 }
 
