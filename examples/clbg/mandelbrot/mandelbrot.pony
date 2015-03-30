@@ -5,7 +5,7 @@ use "collections"
 actor Worker
   new mandelbrot(main: Main, x: U64, y: U64, width: U64, iterations: U64,
     limit: F32, real: Array[F32] val, imaginary: Array[F32] val)
-    =>
+  =>
     var view: Array[U8] iso =
       recover
         Array[U8]((y - x) * (width >> 3))

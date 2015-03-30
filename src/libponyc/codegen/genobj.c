@@ -10,33 +10,21 @@ const char* genobj(compile_t* c)
   // Allocate on the stack instead of the heap where possible.
   stack_alloc(c);
 
-  LLVMValueRef fun = LLVMGetFirstFunction(c->module);
-
-  while(fun != NULL)
-  {
-    if(LLVMGetFirstBasicBlock(fun) != NULL)
-    {
-#ifndef NDEBUG
-      if(LLVMVerifyFunction(fun, LLVMPrintMessageAction) == 0)
-      {
-        LLVMRunFunctionPassManager(c->fpm, fun);
-      } else {
-        LLVMDumpValue(fun);
-      }
-#else
-      LLVMRunFunctionPassManager(c->fpm, fun);
-#endif
-    }
-
-    fun = LLVMGetNextFunction(fun);
-  }
-
-  // Finalise the function passes.
-  LLVMFinalizeFunctionPassManager(c->fpm);
-
   if(c->opt->release)
   {
     printf("Optimising\n");
+    LLVMValueRef fun = LLVMGetFirstFunction(c->module);
+
+    while(fun != NULL)
+    {
+      if(LLVMGetFirstBasicBlock(fun) != NULL)
+        LLVMRunFunctionPassManager(c->fpm, fun);
+
+      fun = LLVMGetNextFunction(fun);
+    }
+
+    // Finalise the function passes.
+    LLVMFinalizeFunctionPassManager(c->fpm);
 
     // Module pass manager.
     LLVMRunPassManager(c->mpm, c->module);

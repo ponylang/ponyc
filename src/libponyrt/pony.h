@@ -21,20 +21,6 @@ extern "C" {
  */
 typedef struct pony_actor_t pony_actor_t;
 
-/** Padding for actor types.
- *
- * Actor types must have this as their first field.
- */
-typedef struct pony_actor_pad_t
-{
-  // 64 bytes: initial header
-  // 120 bytes: heap
-  // 80 bytes: gc
-  // 8 bytes: next
-  // 1 byte: flags
-  char pad[273];
-} pony_actor_pad_t;
-
 /** Message header.
  *
  * This must be the first field in any message structure. The ID is used for
@@ -120,6 +106,23 @@ typedef const struct _pony_type_t
   void* vtable;
 #endif
 } pony_type_t;
+
+/** Padding for actor types.
+ *
+ * 56 bytes: initial header, not including the type descriptor
+ * 120 bytes: heap
+ * 80 bytes: gc
+ * 8 bytes: next
+ * 1 byte: flags
+ *
+ */
+#define PONY_ACTOR_PAD_SIZE 265
+
+typedef struct pony_actor_pad_t
+{
+  pony_type_t* type;
+  char pad[PONY_ACTOR_PAD_SIZE];
+} pony_actor_pad_t;
 
 /// This function must be supplied by the program, not the runtime.
 pony_type_t* pony_lookup_type(uint32_t id);

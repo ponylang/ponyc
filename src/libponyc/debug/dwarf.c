@@ -9,9 +9,6 @@
 #include <string.h>
 #include <assert.h>
 
-#define OFFSET_CLASS (sizeof(void*) << 3)
-#define OFFSET_ACTOR (sizeof(pony_actor_pad_t) << 3)
-
 static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
   bool opaque)
 {
@@ -43,12 +40,16 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     case TK_TUPLETYPE:
       meta->flags |= DWARF_TUPLE;
       break;
+
     case TK_ACTOR:
-      meta->offset += OFFSET_ACTOR;
+      meta->offset += (PONY_ACTOR_PAD_SIZE * 8);
+      // Fallthrough.
+
     case TK_PRIMITIVE:
     case TK_CLASS:
-      meta->offset += OFFSET_CLASS;
+      meta->offset += (sizeof(void*) * 8);
       break;
+
     default: {}
   }
 
@@ -215,7 +216,7 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
   meta.line = ast_line(ast);
   meta.pos = ast_pos(ast);
 
-  symbols_lexicalscope(dwarf->symbols, &meta);  
+  symbols_lexicalscope(dwarf->symbols, &meta);
 }
 
 void dwarf_this(dwarf_t* dwarf, ast_t* fun, const char* type,
