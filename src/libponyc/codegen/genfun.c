@@ -70,8 +70,9 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
           body = ast_childidx(var, 2);
 
           // Get the field pointer.
-          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr, index,
-            "");
+          dwarf_location(&c->dwarf, body);
+          LLVMValueRef l_value = LLVMBuildStructGEP(c->builder, this_ptr,
+            index, "");
 
           // Cast the initialiser to the field type.
           LLVMValueRef r_value = gen_expr(c, body);
