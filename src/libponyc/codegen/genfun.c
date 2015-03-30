@@ -169,7 +169,7 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
 }
 
 static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
-  ast_t* typeargs, ast_t* fun, bool dwarf)
+  ast_t* typeargs, ast_t* fun)
 {
   // Get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
@@ -195,15 +195,11 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   // Count the parameters, including the receiver.
   ast_t* params = ast_childidx(fun, 3);
   size_t count = ast_childcount(params) + 1;
-  size_t index = 0;
 
   VLA(LLVMTypeRef, tparams, count);
-  VLA(const char*, uses, count + 1);
   count = 0;
 
   // Get a type for the receiver.
-  uses[index++] = rtype_g.type_name;
-  uses[index++] = g->type_name;
   tparams[count++] = g->use_type;
 
   // Get a type for each parameter.
@@ -220,7 +216,6 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
       return NULL;
     }
 
-    uses[index++] = ptype_g.type_name;
     tparams[count++] = ptype_g.use_type;
     param = ast_sibling(param);
   }
@@ -234,7 +229,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     return func;
 
   // Generate the function prototype.
-  LLVMValueRef dbg = func = codegen_addfun(c, funname, ftype);
+  func = codegen_addfun(c, funname, ftype);
   name_params(params, func);
 
   // Behaviours and actor constructors also have handler functions.
@@ -249,7 +244,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
       ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
       const char* handler_name = genname_handler(g->type_name, name, typeargs);
 
-      LLVMValueRef handler = dbg = codegen_addfun(c, handler_name, ftype);
+      LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
       name_params(params, handler);
       break;
     }
@@ -257,10 +252,56 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
     default: {}
   }
 
-  if(dwarf)
-    dwarf_method(&c->dwarf, fun, name, funname, uses, index, dbg);
-
   return func;
+}
+
+static void prep_dwarf_scope(compile_t* c, gentype_t* g, const char *name,
+  ast_t* typeargs, ast_t* fun)
+{
+  // Get the function.
+  const char* funname = genname_fun(g->type_name, name, typeargs);
+  LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
+  assert(func != NULL);
+
+  // Behaviours and actor constructors have handler functions.
+  switch(ast_id(fun))
+  {
+    case TK_NEW:
+    case TK_BE:
+    {
+      if(g->underlying != TK_ACTOR)
+        break;
+
+      const char* handler_name = genname_handler(g->type_name, name, typeargs);
+      func = LLVMGetNamedFunction(c->module, handler_name);
+      break;
+    }
+
+    default: {}
+  }
+
+  // Count the parameters, including the receiver.
+  ast_t* params = ast_childidx(fun, 3);
+  size_t count = ast_childcount(params) + 1;
+
+  VLA(const char*, pnames, count + 1);
+  count = 0;
+
+  // Return value type name and receiver type name.
+  pnames[count++] = genname_type(ast_childidx(fun, 4));
+  pnames[count++] = g->type_name;
+
+  // Get a type name for each parameter.
+  ast_t* param = ast_child(params);
+
+  while(param != NULL)
+  {
+    ast_t* ptype = ast_childidx(param, 1);
+    pnames[count++] = genname_type(ptype);
+    param = ast_sibling(param);
+  }
+
+  dwarf_method(&c->dwarf, fun, name, funname, pnames, count, func);
 }
 
 static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
@@ -390,7 +431,7 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, false);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
   ast_free_unattached(fun);
   return func;
 }
@@ -399,7 +440,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
   {
@@ -413,6 +454,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
+  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, func, true);
 
   ast_t* body = ast_childidx(fun, 6);
@@ -440,7 +482,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
   {
@@ -468,6 +510,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
+  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, handler, true);
 
   ast_t* body = ast_childidx(fun, 6);
@@ -494,7 +537,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
   {
@@ -508,6 +551,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
+  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, func, true);
 
   if(!gen_field_init(c, g))
@@ -534,7 +578,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs)
 {
   ast_t* fun = get_fun(g, name, typeargs);
-  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun, true);
+  LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   if(func == NULL)
   {
@@ -562,6 +606,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
+  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, handler, true);
 
   if(!gen_field_init(c, g))
