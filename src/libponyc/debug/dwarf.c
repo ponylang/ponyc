@@ -155,10 +155,10 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
 
     if(ast_id(fld) == TK_FLET)
       meta.flags |= DWARF_CONSTANT;
-
-    if(meta.name[0] == '_')
-      meta.flags |= DWARF_PRIVATE;
   }
+
+  if(meta.name[0] == '_')
+      meta.flags |= DWARF_PRIVATE;
 
   symbols_field(dwarf->symbols, &meta);
 }
