@@ -22,8 +22,6 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
 
   if(is_machine_word(ast))
   {
-    meta->flags |= DWARF_MACHINE_WORD;
-
     if(is_float(ast))
       meta->flags |= DWARF_FLOAT;
     else if(is_signed(dwarf->opt, ast))

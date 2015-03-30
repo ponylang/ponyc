@@ -418,7 +418,7 @@ void symbols_reset(symbols_t* symbols, bool disable)
 
 void symbols_finalise(symbols_t* symbols)
 {
-  assert(symbols->unit.Verify());
+  assert(symbols->unit.Verify() && symbols->frame == NULL);
   symbols->builder->finalize();
   delete symbols->builder;
 

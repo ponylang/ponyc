@@ -21,13 +21,12 @@ typedef struct symbols_t symbols_t;
 
 enum DWARF_FLAGS
 {
-  DWARF_MACHINE_WORD = 1 << 0,
-  DWARF_FLOAT        = 1 << 1,
-  DWARF_SIGNED       = 1 << 2,
-  DWARF_BOOLEAN      = 1 << 3,
-  DWARF_TUPLE        = 1 << 4,
-  DWARF_PRIVATE      = 1 << 5,
-  DWARF_CONSTANT     = 1 << 6
+  DWARF_FLOAT        = 1 << 0,
+  DWARF_SIGNED       = 1 << 1,
+  DWARF_BOOLEAN      = 1 << 2,
+  DWARF_TUPLE        = 1 << 3,
+  DWARF_PRIVATE      = 1 << 4,
+  DWARF_CONSTANT     = 1 << 5
 };
 
 struct dwarf_t
