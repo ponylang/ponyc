@@ -33,6 +33,12 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
   else if(is_constructable(ast))
   {
     type = g->structure;
+
+    if(opaque)
+    {
+      type = g->use_type;
+      opaque = false;
+    }
   }
 
   switch(g->underlying)
