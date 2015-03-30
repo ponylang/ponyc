@@ -73,6 +73,27 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
   }
 }
 
+static void meta_local(dwarf_meta_t* meta, ast_t* ast, const char* name,
+  const char* type, LLVMBasicBlockRef entry, LLVMValueRef storage,
+  size_t offset, bool constant)
+{
+  memset(meta, 0, sizeof(dwarf_meta_t));
+
+  source_t* source = ast_source(ast);
+
+  meta->file = source->file;
+  meta->name = name;
+  meta->mangled = type;
+  meta->line = ast_line(ast);
+  meta->pos = ast_pos(ast);
+  meta->offset = offset + 1;
+  meta->entry = entry;
+  meta->storage = storage;
+
+  if(constant)
+    meta->flags = DWARF_CONSTANT;
+}
+
 void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
 {
   assert(ast_id(program) == TK_PROGRAM);
@@ -197,27 +218,37 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
   symbols_lexicalscope(dwarf->symbols, &meta);  
 }
 
-void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
-  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage, bool is_arg)
+void dwarf_this(dwarf_t* dwarf, ast_t* fun, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef storage)
 {
   dwarf_meta_t meta;
-  memset(&meta, 0, sizeof(dwarf_meta_t));
+  meta_local(&meta, fun, stringtab("this"), type, entry, storage, 0, true);
 
-  source_t* source = ast_source(ast);
-  
-  meta.file = source->file;
-  meta.name = ast_name(ast_child(ast));
-  meta.mangled = type;
-  meta.line = ast_line(ast);
-  meta.pos = ast_pos(ast);
-  meta.entry = entry;
+  symbols_local(dwarf->symbols, &meta, true);
+}
+
+void dwarf_parameter(dwarf_t* dwarf, ast_t* param, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef storage, size_t index)
+{
+  const char* name = ast_name(ast_child(param));
+
+  dwarf_meta_t meta;
+  meta_local(&meta, param, name, type, entry, storage, index, true);
+
+  symbols_local(dwarf->symbols, &meta, true);
+}
+
+void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage)
+{
+  const char* name = ast_name(ast_child(ast));
+
+  dwarf_meta_t meta;
+  meta_local(&meta, ast, name, type, entry, storage, 0, ast_id(ast) == TK_LET);
+
   meta.inst = inst;
-  meta.storage = storage;
 
-  if(ast_id(ast) == TK_LET)
-    meta.flags = DWARF_CONSTANT;
-  
-  symbols_local(dwarf->symbols, &meta, is_arg);
+  symbols_local(dwarf->symbols, &meta, false);
 }
 
 void dwarf_location(dwarf_t* dwarf, ast_t* ast)

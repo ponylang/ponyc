@@ -256,7 +256,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   return func;
 }
 
-static void prep_dwarf_scope(compile_t* c, gentype_t* g, const char *name,
+static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, ast_t* fun)
 {
   // Get the function.
@@ -302,7 +302,25 @@ static void prep_dwarf_scope(compile_t* c, gentype_t* g, const char *name,
     param = ast_sibling(param);
   }
 
+  // Dwarf the method type
   dwarf_method(&c->dwarf, fun, name, funname, pnames, count, func);
+
+  LLVMBasicBlockRef entry = LLVMGetEntryBasicBlock(codegen_fun(c));
+  LLVMValueRef argument = LLVMGetParam(func, 0);
+
+  // Dwarf locals for receiver and parameters
+  dwarf_this(&c->dwarf, fun, g->type_name, entry, argument);
+
+  unsigned index = 1;
+  param = ast_child(params);
+  
+  while(param != NULL)
+  {
+    argument = LLVMGetParam(func, index);
+    dwarf_parameter(&c->dwarf, param, pnames[index + 1], entry, argument, index);
+    param = ast_sibling(param);
+    index++;
+  }
 }
 
 static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
@@ -455,8 +473,8 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, func, true);
+  genfun_dwarf(c, g, name, typeargs, fun);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
@@ -511,8 +529,8 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, handler, true);
+  genfun_dwarf(c, g, name, typeargs, fun);
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
@@ -552,8 +570,8 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, func, true);
+  genfun_dwarf(c, g, name, typeargs, fun);
 
   if(!gen_field_init(c, g))
   {
@@ -607,8 +625,8 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  prep_dwarf_scope(c, g, name, typeargs, fun);
   codegen_startfun(c, handler, true);
+  genfun_dwarf(c, g, name, typeargs, fun);
 
   if(!gen_field_init(c, g))
   {

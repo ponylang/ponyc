@@ -129,10 +129,22 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
 void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast);
 
 /**
+ * Emit debug symbol for a methods implicit receiver parameter.
+ */
+void dwarf_this(dwarf_t* dwarf, ast_t* fun, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef storage);
+
+/**
+ * Emit debug symbol for a methods parameters
+ */
+void dwarf_parameter(dwarf_t* dwarf, ast_t* param, const char* type,
+  LLVMBasicBlockRef entry, LLVMValueRef storage, size_t index);
+
+/**
  * Emit debug symbols for a local variable.
  */
 void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
-  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage, bool is_arg);
+  LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage);
 
 /**
  * Set the current debug location.

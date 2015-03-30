@@ -153,7 +153,7 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   codegen_setlocal(c, name, l_value);
 
   // Emit debug info for local variable declaration.
-  dwarf_local(&c->dwarf, ast, g.type_name, entry_block, inst, l_value, false);
+  dwarf_local(&c->dwarf, ast, g.type_name, entry_block, inst, l_value);
 
   // Put the builder back where it was.
   LLVMPositionBuilderAtEnd(c->builder, this_block);

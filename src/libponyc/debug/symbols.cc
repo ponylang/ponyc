@@ -282,7 +282,7 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
 
   unsigned visibility = DW_ACCESS_public;
 
-  if(meta->flags & DWARF_PRIVATE)
+  if((meta->flags & DWARF_PRIVATE) != 0)
     visibility = DW_ACCESS_private;
 
   DIType use_type = d->type;
@@ -367,20 +367,26 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
 {
+  unsigned tag = DW_TAG_auto_variable;
+  unsigned index = 0;
+
   debug_sym_t* d = get_entry(symbols, meta->mangled);
   debug_frame_t* frame = symbols->frame;
 
   DIType type = d->type;
   DIFile file = get_file(symbols, meta->file);
   
-  unsigned tag = is_arg ? DW_TAG_arg_variable : DW_TAG_auto_variable;
+  if(is_arg)
+  {
+    tag = DW_TAG_arg_variable;
+    index = (unsigned)meta->offset;
+  }
     
   if(meta->flags & DWARF_CONSTANT)
     type = d->qualified;
   
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
-    meta->name, file, (unsigned)meta->line, type, false,
-    (unsigned)meta->pos + 1);
+    meta->name, file, (unsigned)meta->line, type, true, 0, index);
 
   DIExpression complex = symbols->builder->createExpression();
   Value* ref = unwrap(meta->storage);
