@@ -257,6 +257,14 @@ static bool link_exe(compile_t* c, ast_t* program,
     errorf(NULL, "unable to link");
     return false;
   }
+
+  size_t dsym_len = 16 + strlen(file_exe);
+  VLA(char, dsym_cmd, dsym_len);
+  snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+
+  if(system(dsym_cmd) != 0)
+    errorf(NULL, "unable to create dsym");
+
 #elif defined(PLATFORM_IS_LINUX)
   const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
