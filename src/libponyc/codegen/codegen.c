@@ -157,7 +157,7 @@ static void init_runtime(compile_t* c)
   c->object_ptr = LLVMPointerType(c->object_type, 0);
 
   // padding required in an actor between the descriptor and fields
-  c->actor_pad = LLVMArrayType(c->i8, 265);
+  c->actor_pad = LLVMArrayType(c->i8, PONY_ACTOR_PAD_SIZE);
 
   // message
   params[0] = c->i32; // size

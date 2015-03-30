@@ -19,7 +19,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   // Dwarf a new lexical scope, if necessary.
   if(has_source && has_scope)
     dwarf_lexicalscope(&c->dwarf, ast);
-  
+
   // Set the current debug location, before generating
   // the actual expressions.
   if(has_source)

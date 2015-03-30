@@ -199,6 +199,8 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   {
     if(ast_visit(&arg, NULL, pass_expr, opt) != AST_OK)
       return false;
+
+    ast_visit(&arg, NULL, pass_clear_linepos, opt);
   } else {
     if(!expr_seq(arg))
       return false;

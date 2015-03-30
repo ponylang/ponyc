@@ -265,7 +265,10 @@ void dwarf_location(dwarf_t* dwarf, ast_t* ast)
     size_t line = ast_line(ast);
     size_t pos = ast_pos(ast);
 
-    symbols_location(dwarf->symbols, line, pos);
+    if(line == 0)
+      symbols_reset(dwarf->symbols, true);
+    else
+      symbols_location(dwarf->symbols, line, pos);
   }
   else if(dwarf->symbols != NULL)
   {
