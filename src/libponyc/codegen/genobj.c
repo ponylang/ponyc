@@ -7,9 +7,6 @@ const char* genobj(compile_t* c)
   // Finalise the DWARF info.
   dwarf_finalise(&c->dwarf);
 
-  // Allocate on the stack instead of the heap where possible.
-  stack_alloc(c);
-
   if(c->opt->release)
   {
     printf("Optimising\n");
@@ -33,6 +30,9 @@ const char* genobj(compile_t* c)
     if(!c->opt->library)
       LLVMRunPassManager(c->lpm, c->module);
   }
+
+  // Allocate on the stack instead of the heap where possible.
+  stack_alloc(c);
 
 #ifndef NDEBUG
   printf("Verifying\n");
