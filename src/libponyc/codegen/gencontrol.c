@@ -461,10 +461,6 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   // Else block.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
 
-
-  // Disable dangling debug location
-  dwarf_location(&c->dwarf, NULL);
-
   // The landing pad is marked as a cleanup, since exceptions are typeless and
   // valueless. The first landing pad is always the destination.
   LLVMTypeRef lp_elements[2];
@@ -487,12 +483,10 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
       return NULL;
 
     gen_expr(c, then_clause);
+
     else_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
-
-  // Disable dangling debug location from before post block
-  dwarf_location(&c->dwarf, NULL);
 
   // If both sides return, we return a sentinal value.
   if(is_control_type(type))
