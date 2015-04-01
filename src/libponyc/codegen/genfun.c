@@ -484,6 +484,9 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
+    // Disable debug locations for implicit return
+    dwarf_location(&c->dwarf, NULL);
+
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
@@ -540,6 +543,9 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
+    // Disable debug location for implicit return
+    dwarf_location(&c->dwarf, NULL);
+
     LLVMBuildRetVoid(c->builder);
   }
 
@@ -585,6 +591,9 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
 
   if(value == NULL)
     return NULL;
+
+  // Disable debug location for implicit return
+  dwarf_location(&c->dwarf, NULL);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
@@ -642,6 +651,9 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   }
+
+  // Disable debug location for implicit return
+  dwarf_location(&c->dwarf, NULL);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);

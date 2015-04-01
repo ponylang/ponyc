@@ -500,9 +500,8 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
   frame->has_source = has_source;
 
-  // Turn off debug locations, as non pony source is generated.
-  if(!has_source)
-    dwarf_location(&c->dwarf, NULL);
+  // Reset debug locations
+  dwarf_location(&c->dwarf, NULL);
 
   if(LLVMCountBasicBlocks(fun) == 0)
   {
