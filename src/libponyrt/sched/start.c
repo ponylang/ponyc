@@ -136,9 +136,9 @@ int pony_init(int argc, char** argv)
   return argc;
 }
 
-int pony_start(pony_termination_t termination)
+int pony_start(bool library)
 {
-  if(!scheduler_start(termination))
+  if(!scheduler_start(library))
     return -1;
 
   return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);

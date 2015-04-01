@@ -4,23 +4,28 @@
 #include "../actor/actor.h"
 #include "../gc/cycle.h"
 #include "../asio/asio.h"
+#include "../mem/pool.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
 
 static DECLARE_THREAD_FN(run_thread);
 
+typedef enum
+{
+  SCHED_BLOCK,
+  SCHED_UNBLOCK,
+  SCHED_CNF,
+  SCHED_ACK,
+  SCHED_TERMINATE
+} sched_msg_t;
+
 // Scheduler global data.
 static uint32_t scheduler_count;
-static uint32_t scheduler_waiting;
 static scheduler_t* scheduler;
 static bool detect_quiescence;
-static bool shutdown_on_stop;
-static bool terminate;
 static bool use_mpmcq;
-
 static mpmcq_t inject;
-
 static __pony_thread_local scheduler_t* this_scheduler;
 
 // Forward declaration.
@@ -88,59 +93,103 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 }
 
 /**
+ * Sends a message to the coordinating thread.
+ */
+static void send_msg(uint32_t to, sched_msg_t msg, uint64_t arg)
+{
+  pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(pony_msgi_t)), msg);
+
+  m->i = arg;
+  messageq_push(&scheduler[to].mq, &m->msg);
+}
+
+static void read_msg(scheduler_t* sched)
+{
+  pony_msgi_t* m;
+
+  while((m = (pony_msgi_t*)messageq_pop(&sched->mq)) != NULL)
+  {
+    switch(m->msg.id)
+    {
+      case SCHED_BLOCK:
+      {
+        sched->block_count++;
+
+        if(detect_quiescence && (sched->block_count == scheduler_count))
+        {
+          // If we think all threads are blocked, send CNF(token) to everyone.
+          for(uint32_t i = 0; i < scheduler_count; i++)
+            send_msg(i, SCHED_CNF, sched->ack_token);
+        }
+        break;
+      }
+
+      case SCHED_UNBLOCK:
+      {
+        // Cancel all acks and increment the ack token, so that any pending
+        // acks in the queue will be dropped when they are received.
+        sched->block_count--;
+        sched->ack_token++;
+        sched->ack_count = 0;
+        break;
+      }
+
+      case SCHED_CNF:
+      {
+        // Echo the token back as ACK(token).
+        send_msg(0, SCHED_ACK, m->i);
+        break;
+      }
+
+      case SCHED_ACK:
+      {
+        // If it's the current token, increment the ack count.
+        if(m->i == sched->ack_token)
+          sched->ack_count++;
+        break;
+      }
+
+      case SCHED_TERMINATE:
+      {
+        sched->terminate = true;
+        break;
+      }
+
+      default: {}
+    }
+  }
+}
+
+/**
  * If we can terminate, return true. If all schedulers are waiting, one of
  * them will stop the ASIO back end and tell the cycle detector to try to
  * terminate.
  */
 static bool quiescent(scheduler_t* sched, uint64_t tsc)
 {
-  // If we should not detect quiscence, pause the core and return false.
-  if(!_atomic_load(&detect_quiescence, __ATOMIC_RELAXED))
-  {
-    cpu_core_pause(tsc);
-    return false;
-  }
+  read_msg(sched);
 
-  // If the terminate flag is set, return true immediately.
-  if(_atomic_load(&terminate, __ATOMIC_RELAXED))
+  if(sched->terminate)
     return true;
 
-  // If not enough time has elapsed to bother checking, return false.
-  if(!cpu_core_pause(tsc))
-    return false;
-
-  if(sched->finish)
+  if((sched->ack_count == scheduler_count) && asio_stop())
   {
-    uint32_t waiting = _atomic_load(&scheduler_waiting, __ATOMIC_RELAXED);
-
-    // If all scheduler threads are waiting and it is possible to stop the ASIO
-    // back end, then we can terminate the cycle detector, which will
-    // eventually call scheduler_terminate().
-    if((waiting == scheduler_count) && asio_stop())
+    if(!use_mpmcq)
     {
-      if(!use_mpmcq)
-      {
-        // It's safe to manipulate our victim, since we know it's paused as
-        // well.
-        if(sched->victim != NULL)
-        {
-          _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
-        }
+      // It's safe to manipulate our victim, since we know it's paused.
+      if(sched->victim != NULL)
+        _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
 
-        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
-      }
-
-      // Under these circumstances, the CD will always go on the current
-      // scheduler.
-      cycle_terminate(sched->forcecd);
-
-      if(sched->forcecd)
-        sched->forcecd = false;
-      else
-        sched->finish = false;
+      _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
     }
+
+    cycle_terminate(sched->forcecd);
+    sched->forcecd = false;
+    sched->ack_count = 0;
   }
 
+  cpu_core_pause(tsc);
   return false;
 }
 
@@ -199,6 +248,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
  */
 static pony_actor_t* steal(scheduler_t* sched)
 {
+  send_msg(0, SCHED_BLOCK, 0);
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
 
@@ -214,14 +264,12 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(actor != NULL)
       break;
 
-    _atomic_add32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
-
     if(quiescent(sched, tsc))
       return NULL;
 
-    _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
   }
 
+  send_msg(0, SCHED_UNBLOCK, 0);
   return actor;
 }
 
@@ -231,12 +279,11 @@ static pony_actor_t* steal(scheduler_t* sched)
  */
 static pony_actor_t* request(scheduler_t* sched)
 {
+  send_msg(0, SCHED_BLOCK, 0);
   scheduler_t* thief = NULL;
 
   bool block = _atomic_cas(&sched->thief, &thief, (void*)1,
     __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-
-  _atomic_add32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
 
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
@@ -260,7 +307,6 @@ static pony_actor_t* request(scheduler_t* sched)
       if((actor = pop_global(sched)) != NULL)
       {
         _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
-        _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
         break;
       }
 
@@ -289,6 +335,7 @@ static pony_actor_t* request(scheduler_t* sched)
       __ATOMIC_RELAXED, __ATOMIC_RELAXED);
   }
 
+  send_msg(0, SCHED_UNBLOCK, 0);
   return actor;
 }
 
@@ -309,16 +356,10 @@ static void respond(scheduler_t* sched)
   {
     assert(thief->waiting == 1);
     push(thief, actor);
-
-    // Decrement the wait count if we give the thief an actor. We know that
-    // the scheduler thread is no longer waiting.
-    _atomic_sub32(&scheduler_waiting, 1, __ATOMIC_RELAXED);
   }
 
-  _atomic_store(&thief->waiting, 0, __ATOMIC_RELEASE);
-
   assert(sched->thief == thief);
-
+  _atomic_store(&thief->waiting, 0, __ATOMIC_RELEASE);
   _atomic_store(&sched->thief, NULL, __ATOMIC_RELEASE);
 }
 
@@ -396,11 +437,10 @@ static void scheduler_shutdown()
     pony_thread_join(scheduler[i].tid);
 
   for(uint32_t i = 0; i < scheduler_count; i++)
+  {
+    messageq_destroy(&scheduler[i].mq);
     mpmcq_destroy(&scheduler[i].q);
-
-  detect_quiescence = false;
-  terminate = false;
-  scheduler_waiting = 0;
+  }
 
   free(scheduler);
   scheduler = NULL;
@@ -418,17 +458,16 @@ void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq)
     threads = cpu_count();
 
   scheduler_count = threads;
-  scheduler_waiting = 0;
   scheduler = (scheduler_t*)calloc(scheduler_count, sizeof(scheduler_t));
 
   cpu_assign(scheduler_count, scheduler);
 
-  scheduler[0].finish = true;
   scheduler[0].forcecd = forcecd;
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
     scheduler[i].last_victim = &scheduler[i];
+    messageq_init(&scheduler[i].mq);
     mpmcq_init(&scheduler[i].q);
   }
 
@@ -436,17 +475,16 @@ void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq)
   asio_init();
 }
 
-bool scheduler_start(pony_termination_t termination)
+bool scheduler_start(bool library)
 {
   if(!asio_start())
     return false;
 
-  detect_quiescence = termination == PONY_DONT_WAIT;
-  shutdown_on_stop = termination == PONY_ASYNC_WAIT;
+  detect_quiescence = !library;
 
   uint32_t start;
 
-  if(termination == PONY_ASYNC_WAIT)
+  if(library)
   {
     start = 0;
   } else {
@@ -461,7 +499,7 @@ bool scheduler_start(pony_termination_t termination)
       return false;
   }
 
-  if(termination != PONY_ASYNC_WAIT)
+  if(!library)
   {
     run_thread(&scheduler[0]);
     scheduler_shutdown();
@@ -473,9 +511,7 @@ bool scheduler_start(pony_termination_t termination)
 void scheduler_stop()
 {
   _atomic_store(&detect_quiescence, true, __ATOMIC_RELAXED);
-
-  if(shutdown_on_stop)
-    scheduler_shutdown();
+  scheduler_shutdown();
 }
 
 pony_actor_t* scheduler_worksteal()
@@ -518,7 +554,8 @@ void scheduler_offload()
 
 void scheduler_terminate()
 {
-  _atomic_store(&terminate, true, __ATOMIC_RELAXED);
+  for(uint32_t i = 0; i < scheduler_count; i++)
+    send_msg(i, SCHED_TERMINATE, 0);
 }
 
 uint32_t scheduler_cores()

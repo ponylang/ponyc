@@ -648,10 +648,6 @@ static void forcecd(detector_t* d)
     d->next_deferred = 0;
     deferred(d);
   }
-
-  // terminate the scheduler
-  if(viewmap_size(&d->views) == 0)
-    scheduler_terminate();
 }
 
 static void final(pony_actor_t* self)

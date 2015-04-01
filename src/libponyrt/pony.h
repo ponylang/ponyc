@@ -297,11 +297,9 @@ void pony_trace_tag_or_actor(void* p);
 /** Initialize the runtime.
  *
  * Call this first. It will strip out command line arguments that you should
- * ignore and will return the remaining argc.
- *
- * Then create an actor and send it a message, so that some initial work exists.
- * Use pony_become() if you need to send messages that require allocation and
- * tracing.
+ * ignore and will return the remaining argc. Then create an actor and send it
+ * a message, so that some initial work exists. Use pony_become() if you need
+ * to send messages that require allocation and tracing.
  *
  * Then call pony_start().
  *
@@ -309,40 +307,25 @@ void pony_trace_tag_or_actor(void* p);
  */
 int pony_init(int argc, char** argv);
 
-/// Termination mode for the runtime.
-typedef enum
-{
-  PONY_DONT_WAIT = 0,
-  PONY_SYNC_WAIT,
-  PONY_ASYNC_WAIT
-} pony_termination_t;
-
 /** Starts the pony runtime.
  *
  * Returns -1 if the scheduler couldn't start, otherwise returns the exit code
  * set with pony_exitcode(), defaulting to 0.
  *
- * If the termination mode is PONY_DONT_WAIT, then this call will return as
- * soon as there is no pending work in the system.
- *
- * If it is PONY_SYNC_WAIT, this call won't return until pony_stop() has been
- * called from elsewhere.
- *
- * If it is PONY_ASYNC_WAIT, this call returns immediately, and the runtime
- * won't terminate until pony_stop() is called. This allows further processing
- * to be done on the current thread. The other two modes use the current thread
- * as a scheduler thread.
+ * If library is false, this call will return when the pony program has
+ * terminated. If library is true, this call will return immediately, with an
+ * exit code of 0, and the runtime won't terminate until pony_stop() is
+ * called. This allows further processing to be done on the current thread.
  *
  * It is not safe to call this again before the runtime has terminated.
  */
-int pony_start(pony_termination_t termination);
+int pony_start(bool library);
 
 /** Signals that the pony runtime may terminate.
  *
- * This only needs to be called if pony_start() was called with a termination
- * mode other than PONY_DONT_WAIT. This returns the exit code, defaulting to
- * zero. For the PONY_SYNC_WAIT mode, this exit code should be ignored, and the
- * code from pony_start() should be used instead.
+ * This only needs to be called if pony_start() was called with library set to
+ * true. This returns the exit code, defaulting to zero. This call won't return
+ * until the runtime actually terminates.
  */
 int pony_stop();
 
