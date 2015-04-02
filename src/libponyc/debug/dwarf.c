@@ -185,18 +185,20 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   if(meta.name[0] == '_')
     meta.flags |= DWARF_PRIVATE;
 
+  LLVMTypeRef structure = composite->primitive;
   int offset = 0;
 
   if(composite->underlying != TK_TUPLETYPE)
   {
+    structure = composite->structure;
     offset++;
 
     if(composite->underlying == TK_ACTOR)
       offset++;
   }
 
-  meta.offset = 8 * LLVMOffsetOfElement(dwarf->target_data,
-    composite->structure, offset + index);
+  meta.offset = 8 * LLVMOffsetOfElement(dwarf->target_data, structure,
+    offset + index);
 
   symbols_field(dwarf->symbols, &meta);
 }
