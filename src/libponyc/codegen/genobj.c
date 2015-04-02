@@ -4,6 +4,9 @@
 
 const char* genobj(compile_t* c)
 {
+  // Finalise the DWARF info.
+  dwarf_finalise(&c->dwarf);
+
   if(c->opt->release)
   {
     printf("Optimising\n");
@@ -30,9 +33,6 @@ const char* genobj(compile_t* c)
 
   // Allocate on the stack instead of the heap where possible.
   stack_alloc(c);
-
-  // Finalise the DWARF info.
-  dwarf_finalise(&c->dwarf);
 
 #ifndef NDEBUG
   printf("Verifying\n");
