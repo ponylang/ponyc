@@ -316,13 +316,13 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   if(func == NULL)
     return NULL;
 
+  // Emit location info for this call
+  dwarf_location(&c->dwarf, ast);
+
   // If we can error out and we have an invoke target, generate an invoke
   // instead of a call.
   if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
     return invoke_fun(c, func, args, i, "", true);
-
-  // Emit location info for this call
-  dwarf_location(&c->dwarf, ast);
 
   return codegen_call(c, func, args, i);
 }
@@ -488,6 +488,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 LLVMValueRef gencall_runtime(compile_t* c, const char *name,
   LLVMValueRef* args, int count, const char* ret)
 {
+  // Disable debug anchor
+  dwarf_location(&c->dwarf, NULL);
+
   LLVMValueRef func = LLVMGetNamedFunction(c->module, name);
 
   if(func == NULL)
@@ -498,6 +501,9 @@ LLVMValueRef gencall_runtime(compile_t* c, const char *name,
 
 LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
 {
+  // Disable debug anchor
+  dwarf_location(&c->dwarf, NULL);
+
   LLVMValueRef args[1];
   args[0] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
 
@@ -527,6 +533,9 @@ LLVMValueRef gencall_alloc(compile_t* c, gentype_t* g)
 
 LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
 {
+  // Disable debug anchor
+  dwarf_location(&c->dwarf, NULL);
+
   // We explicitly want a boxed version.
   // Get the size of the structure.
   size_t size = LLVMABISizeOfType(c->target_data, g->structure);
@@ -547,6 +556,9 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
 
 void gencall_throw(compile_t* c)
 {
+  // Disable debug location for throw calls
+  dwarf_location(&c->dwarf, NULL);
+
   LLVMValueRef func = LLVMGetNamedFunction(c->module, "pony_throw");
 
   if(c->frame->invoke_target != NULL)
