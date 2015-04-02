@@ -515,6 +515,9 @@ void codegen_finishfun(compile_t* c)
   if(c->frame->restore_builder != NULL)
     LLVMPositionBuilderAtEnd(c->builder, c->frame->restore_builder);
 
+  // Reset debug locations
+  dwarf_location(&c->dwarf, NULL);
+
   pop_frame(c);
 }
 

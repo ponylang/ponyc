@@ -163,8 +163,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
   if(has_scope && has_source)
     dwarf_finish(&c->dwarf, NULL);
-
-  dwarf_location(&c->dwarf, NULL);
+  
   return ret;
 }
 
