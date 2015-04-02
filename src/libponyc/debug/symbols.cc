@@ -377,7 +377,7 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
     type = d->qualified;
 
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
-    meta->name, file, (unsigned)meta->line, type, false, 0, index);
+    meta->name, file, (unsigned)meta->line, type, true, 0, index);
 
   DIExpression complex = symbols->builder->createExpression();
   Value* ref = unwrap(meta->storage);

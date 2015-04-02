@@ -377,6 +377,9 @@ LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
   args[0] = l_value;
   args[1] = r_value;
 
+  // Emit debug location for calls to test for structural equality
+  dwarf_location(&c->dwarf, pattern);
+
   return codegen_call(c, func, args, 2);
 }
 
