@@ -558,9 +558,6 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   if(value == NULL)
     return NULL;
 
-  // Disable debug location for implicit return
-  dwarf_location(&c->dwarf, NULL);
-
   // Return 'this'.
   LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
   codegen_finishfun(c);
@@ -597,9 +594,6 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   }
-
-  // Disable debug location for implicit return
-  dwarf_location(&c->dwarf, NULL);
 
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
