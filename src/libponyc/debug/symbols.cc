@@ -43,8 +43,6 @@ struct debug_frame_t
   const char* type_name;
 
   size_t size;
-  size_t index;
-  size_t offset;
 
   DICompositeType prelim;
   std::vector<llvm::Metadata *> members;
@@ -136,11 +134,6 @@ void symbols_init(symbols_t** symbols, LLVMBuilderRef builder,
   s->builder = new DIBuilder(*m);
   s->ir = unwrap(builder);
   s->release = optimised;
-}
-
-size_t symbols_get_index(symbols_t* symbols)
-{
-  return symbols->frame->index;
 }
 
 void symbols_push_frame(symbols_t* symbols, gentype_t* g)
@@ -297,8 +290,6 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
     visibility, use_type);
 
   frame->members.push_back(member);
-  frame->offset += meta->size;
-  frame->index += 1;
 }
 
 void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
@@ -347,7 +338,7 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
       fields);
   } else {
     actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
-      (int)meta->line, meta->size, meta->align, meta->offset, 0, DIType(),
+      (int)meta->line, meta->size, meta->align, 0, 0, DIType(),
       fields);
   }
 
@@ -386,7 +377,7 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
     type = d->qualified;
 
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
-    meta->name, file, (unsigned)meta->line, type, true, 0, index);
+    meta->name, file, (unsigned)meta->line, type, false, 0, index);
 
   DIExpression complex = symbols->builder->createExpression();
   Value* ref = unwrap(meta->storage);

@@ -225,9 +225,6 @@ static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
-  // Emit location info for this call
-  dwarf_location(&c->dwarf, ast);
-
   // Special case calls.
   LLVMValueRef special;
 
@@ -323,6 +320,9 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   // instead of a call.
   if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
     return invoke_fun(c, func, args, i, "", true);
+
+  // Emit location info for this call
+  dwarf_location(&c->dwarf, ast);
 
   return codegen_call(c, func, args, i);
 }

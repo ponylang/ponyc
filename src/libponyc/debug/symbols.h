@@ -9,8 +9,6 @@ PONY_EXTERN_C_BEGIN
 void symbols_init(symbols_t** symbols, LLVMBuilderRef builder, 
   LLVMModuleRef module, bool optimised);
 
-size_t symbols_get_index(symbols_t* symbols);
-
 void symbols_push_frame(symbols_t* symbols, gentype_t* g);
 
 void symbols_pop_frame(symbols_t* symbols);

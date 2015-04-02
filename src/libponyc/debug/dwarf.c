@@ -41,24 +41,6 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     }
   }
 
-  switch(g->underlying)
-  {
-    case TK_TUPLETYPE:
-      meta->flags |= DWARF_TUPLE;
-      break;
-
-    case TK_ACTOR:
-      meta->offset += (PONY_ACTOR_PAD_SIZE * 8);
-      // Fallthrough.
-
-    case TK_PRIMITIVE:
-    case TK_CLASS:
-      meta->offset += (sizeof(void*) * 8);
-      break;
-
-    default: {}
-  }
-
   bool defined_type = g->underlying != TK_TUPLETYPE &&
     g->underlying != TK_UNIONTYPE && g->underlying != TK_ISECTTYPE;
 
