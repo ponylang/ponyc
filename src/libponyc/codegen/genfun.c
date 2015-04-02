@@ -414,6 +414,22 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
 {
   ast_t* fun = get_fun(g, name, typeargs);
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
+
+  switch(ast_id(fun))
+  {
+    case TK_NEW:
+    case TK_BE:
+      if(g->underlying == TK_ACTOR)
+      {
+        const char* fun_name = genname_fun(g->type_name, name, typeargs);
+        const char* be_name = genname_be(fun_name);
+        func = LLVMGetNamedFunction(c->module, be_name);
+      }
+      break;
+
+    default: {}
+  }
+
   ast_free_unattached(fun);
   return func;
 }

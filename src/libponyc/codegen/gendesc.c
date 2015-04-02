@@ -248,6 +248,18 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
       const char* fullname = genname_fun(t->name, n->name, m->typeargs);
+
+      switch(ast_id(m->r_fun))
+      {
+        case TK_NEW:
+        case TK_BE:
+          if(g->underlying == TK_ACTOR)
+            fullname = genname_be(fullname);
+          break;
+
+        default: {}
+      }
+
       uint32_t index = m->vtable_index;
       assert(index != (uint32_t)-1);
       assert(vtable[index] == NULL);
