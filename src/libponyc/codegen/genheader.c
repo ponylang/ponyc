@@ -183,8 +183,25 @@ static void print_method(compile_t* c, printbuf_t* buf, reachable_type_t* t,
 
   // Print the function signature.
   print_type_name(c, buf, rtype);
-  printbuf(buf, " %s(", funname);
+  printbuf(buf, " %s", funname);
 
+  switch(ast_id(fun))
+  {
+    case TK_NEW:
+    case TK_BE:
+    {
+      ast_t* def = (ast_t*)ast_data(t->type);
+
+      if(ast_id(def) == TK_ACTOR)
+        printbuf(buf, "__send");
+
+      break;
+    }
+
+    default: {}
+  }
+
+  printbuf(buf, "(");
   print_type_name(c, buf, t->type);
   printbuf(buf, " self");
 

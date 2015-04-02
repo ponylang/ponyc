@@ -42,8 +42,7 @@ static void typeargs_append(char* name, ast_t* typeargs)
   }
 }
 
-static const char* build_name(const char* a, const char* b,
-  ast_t* typeargs)
+static const char* build_name(const char* a, const char* b, ast_t* typeargs)
 {
   size_t len = typeargs_len(typeargs);
 
@@ -157,17 +156,14 @@ const char* genname_instance(const char* type)
   return build_name(type, "$inst", NULL);
 }
 
-const char* genname_fun(const char* type, const char* name,
-  ast_t* typeargs)
+const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
 {
   return build_name(type, name, typeargs);
 }
 
-const char* genname_handler(const char* type, const char* name,
-  ast_t* typeargs)
+const char* genname_be(const char* name)
 {
-  const char* handler_name = build_name(name, "$handler", NULL);
-  return genname_fun(type, handler_name, typeargs);
+  return build_name(name, "_send", NULL);
 }
 
 const char* genname_box(const char* name)

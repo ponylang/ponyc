@@ -632,6 +632,13 @@ bool gentype(compile_t* c, ast_t* ast, gentype_t* g)
   g->type_name = genname_type(ast);
   g->desc_name = genname_descriptor(g->type_name);
 
+  // TODO: remove this
+  if(!strcmp(g->type_name, "Env"))
+  {
+    int i = 0;
+    i++;
+  }
+
   switch(ast_id(ast))
   {
     case TK_NOMINAL:

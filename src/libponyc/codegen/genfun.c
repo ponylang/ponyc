@@ -172,6 +172,22 @@ static LLVMTypeRef get_signature(compile_t* c, gentype_t* g, ast_t* fun)
 static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, ast_t* fun)
 {
+  // Behaviours and actor constructors also have sender functions.
+  bool sender = false;
+
+  switch(ast_id(fun))
+  {
+    case TK_NEW:
+      sender = g->underlying == TK_ACTOR;
+      break;
+
+    case TK_BE:
+      sender = true;
+      break;
+
+    default: {}
+  }
+
   // Get a fully qualified name: starts with the type name, followed by the
   // type arguments, followed by the function name, followed by the function
   // level type arguments.
@@ -183,45 +199,10 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   if(func != NULL)
     return func;
 
-  // Get a type for the result.
-  ast_t* rtype = ast_childidx(fun, 4);
-  gentype_t rtype_g;
-
-  if(!gentype(c, rtype, &rtype_g))
-  {
-    ast_error(rtype, "couldn't generate result type");
-    return NULL;
-  }
-
-  // Count the parameters, including the receiver.
-  ast_t* params = ast_childidx(fun, 3);
-  size_t count = ast_childcount(params) + 1;
-
-  VLA(LLVMTypeRef, tparams, count);
-  count = 0;
-
-  // Get a type for the receiver.
-  tparams[count++] = g->use_type;
-
-  // Get a type for each parameter.
-  ast_t* param = ast_child(params);
-
-  while(param != NULL)
-  {
-    ast_t* ptype = ast_childidx(param, 1);
-    gentype_t ptype_g;
-
-    if(!gentype(c, ptype, &ptype_g))
-    {
-      ast_error(ptype, "couldn't generate parameter type");
-      return NULL;
-    }
-
-    tparams[count++] = ptype_g.use_type;
-    param = ast_sibling(param);
-  }
-
   LLVMTypeRef ftype = get_signature(c, g, fun);
+
+  if(ftype == NULL)
+    return NULL;
 
   // If the function exists now, just return it.
   func = LLVMGetNamedFunction(c->module, funname);
@@ -229,29 +210,26 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   if(func != NULL)
     return func;
 
+  ast_t* params = ast_childidx(fun, 3);
+
+  if(sender)
+  {
+    // Generate the sender prototype.
+    const char* be_name = genname_be(funname);
+    func = codegen_addfun(c, be_name, ftype);
+    name_params(params, func);
+
+    // Change the return type to void for the handler.
+    size_t count = LLVMCountParamTypes(ftype);
+    VLA(LLVMTypeRef, tparams, count);
+    LLVMGetParamTypes(ftype, tparams);
+
+    ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
+  }
+
   // Generate the function prototype.
   func = codegen_addfun(c, funname, ftype);
   name_params(params, func);
-
-  // Behaviours and actor constructors also have handler functions.
-  switch(ast_id(fun))
-  {
-    case TK_NEW:
-    case TK_BE:
-    {
-      if(g->underlying != TK_ACTOR)
-        break;
-
-      ftype = LLVMFunctionType(c->void_type, tparams, (int)count, false);
-      const char* handler_name = genname_handler(g->type_name, name, typeargs);
-
-      LLVMValueRef handler = codegen_addfun(c, handler_name, ftype);
-      name_params(params, handler);
-      break;
-    }
-
-    default: {}
-  }
 
   return func;
 }
@@ -263,23 +241,6 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   const char* funname = genname_fun(g->type_name, name, typeargs);
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
   assert(func != NULL);
-
-  // Behaviours and actor constructors have handler functions.
-  switch(ast_id(fun))
-  {
-    case TK_NEW:
-    case TK_BE:
-    {
-      if(g->underlying != TK_ACTOR)
-        break;
-
-      const char* handler_name = genname_handler(g->type_name, name, typeargs);
-      func = LLVMGetNamedFunction(c->module, handler_name);
-      break;
-    }
-
-    default: {}
-  }
 
   // Count the parameters, including the receiver.
   ast_t* params = ast_childidx(fun, 3);
@@ -313,21 +274,23 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
 
   unsigned index = 1;
   param = ast_child(params);
-  
+
   while(param != NULL)
   {
     argument = LLVMGetParam(func, index);
-    dwarf_parameter(&c->dwarf, param, pnames[index + 1], entry, argument, index);
+    dwarf_parameter(&c->dwarf, param, pnames[index + 1], entry, argument,
+      index);
     param = ast_sibling(param);
     index++;
   }
 }
 
-static LLVMValueRef get_handler(compile_t* c, gentype_t* g, const char* name,
+static LLVMValueRef get_sender(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs)
 {
-  const char* handler_name = genname_handler(g->type_name, name, typeargs);
-  return LLVMGetNamedFunction(c->module, handler_name);
+  const char* fun_name = genname_fun(g->type_name, name, typeargs);
+  const char* be_name = genname_be(fun_name);
+  return LLVMGetNamedFunction(c->module, be_name);
 }
 
 static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
@@ -509,27 +472,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func, false);
-  LLVMValueRef this_ptr = LLVMGetParam(func, 0);
-
-  // Send the arguments in a message to 'this'.
-  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
-
-  // Return 'this'.
-  LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c);
-
-  // Generate the handler.
-  LLVMValueRef handler = get_handler(c, g, name, typeargs);
-
-  if(handler == NULL)
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
-
-  codegen_startfun(c, handler, true);
+  codegen_startfun(c, func, true);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   ast_t* body = ast_childidx(fun, 6);
@@ -545,8 +488,21 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
 
   codegen_finishfun(c);
 
+  // Generate the sender.
+  LLVMValueRef sender = get_sender(c, g, name, typeargs);
+  codegen_startfun(c, sender, false);
+  LLVMValueRef this_ptr = LLVMGetParam(sender, 0);
+
+  // Send the arguments in a message to 'this'.
+  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, sender, index);
+
+  // Return 'this'.
+  LLVMBuildRet(c->builder, this_ptr);
+  codegen_finishfun(c);
+
   // Add the dispatch case.
-  add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
+  add_dispatch_case(c, g, fun, index, func, msg_type_ptr);
   ast_free_unattached(fun);
 
   return func;
@@ -605,27 +561,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func, false);
-
-  // Send the arguments in a message to 'this'.
-  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
-  LLVMValueRef this_ptr = LLVMGetParam(func, 0);
-  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, func, index);
-
-  // Return 'this'.
-  LLVMBuildRet(c->builder, this_ptr);
-  codegen_finishfun(c);
-
-  // Generate the handler.
-  LLVMValueRef handler = get_handler(c, g, name, typeargs);
-
-  if(handler == NULL)
-  {
-    ast_free_unattached(fun);
-    return NULL;
-  }
-
-  codegen_startfun(c, handler, true);
+  codegen_startfun(c, func, true);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   if(!gen_field_init(c, g))
@@ -646,8 +582,21 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 
+  // Generate the sender.
+  LLVMValueRef sender = get_sender(c, g, name, typeargs);
+  codegen_startfun(c, sender, false);
+  LLVMValueRef this_ptr = LLVMGetParam(sender, 0);
+
+  // Send the arguments in a message to 'this'.
+  uint32_t index = genfun_vtable_index(c, g, name, typeargs);
+  LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, sender, index);
+
+  // Return 'this'.
+  LLVMBuildRet(c->builder, this_ptr);
+  codegen_finishfun(c);
+
   // Add the dispatch case.
-  add_dispatch_case(c, g, fun, index, handler, msg_type_ptr);
+  add_dispatch_case(c, g, fun, index, func, msg_type_ptr);
   ast_free_unattached(fun);
 
   return func;
