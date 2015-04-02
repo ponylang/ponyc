@@ -154,12 +154,11 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
   symbols_declare(dwarf->symbols, &meta);
 }
 
-void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
+void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
+  int index)
 {
   char buf[32];
   memset(buf, 0, sizeof(buf));
-
-  size_t index = symbols_get_index(dwarf->symbols);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, field, false);
@@ -169,7 +168,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   if(composite->underlying == TK_TUPLETYPE)
   {
     meta.flags |= DWARF_CONSTANT;
-    snprintf(buf, sizeof(buf), "_" __zu, index + 1);
+    snprintf(buf, sizeof(buf), "_%d", index + 1);
     meta.name = buf;
   }
   else
@@ -184,7 +183,20 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field)
   }
 
   if(meta.name[0] == '_')
-      meta.flags |= DWARF_PRIVATE;
+    meta.flags |= DWARF_PRIVATE;
+
+  int offset = 0;
+
+  if(composite->underlying != TK_TUPLETYPE)
+  {
+    offset++;
+
+    if(composite->underlying == TK_ACTOR)
+      offset++;
+  }
+
+  meta.offset = 8 * LLVMOffsetOfElement(dwarf->target_data,
+    composite->structure, offset + index);
 
   symbols_field(dwarf->symbols, &meta);
 }

@@ -468,7 +468,7 @@ static bool make_components(compile_t* c, gentype_t* g)
     if(!gentype(c, g->fields[i], &field_g))
       return false;
 
-    dwarf_field(&c->dwarf, g, &field_g);
+    dwarf_field(&c->dwarf, g, &field_g, i);
   }
 
   return true;

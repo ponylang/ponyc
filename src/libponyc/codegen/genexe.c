@@ -260,6 +260,10 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t dsym_len = 16 + strlen(file_exe);
   VLA(char, dsym_cmd, dsym_len);
+
+  snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+  system(dsym_cmd);
+
   snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
   if(system(dsym_cmd) != 0)

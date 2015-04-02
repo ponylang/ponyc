@@ -113,7 +113,8 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
  * have called dwarf_forward beforehand. If the owning type is not forward
  * declared, behaviour is undefined.
  */
-void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field);
+void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
+  int index);
 
 /**
  * Emit debug symbols for a method. A method itself is implicitly a new lexical

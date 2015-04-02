@@ -33,25 +33,25 @@ typedef struct debug_frame_t debug_frame_t;
 struct debug_sym_t
 {
   const char* name;
-  
-  DIType type;    
+
+  DIType type;
   DIType qualified;
 };
 
 struct debug_frame_t
 {
   const char* type_name;
-  
+
   size_t size;
   size_t index;
   size_t offset;
-  
+
   DICompositeType prelim;
   std::vector<llvm::Metadata *> members;
-  
+
   DIDescriptor scope;
   DebugLoc location;
-  
+
   debug_frame_t* prev;
 };
 
@@ -153,7 +153,7 @@ void symbols_push_frame(symbols_t* symbols, gentype_t* g)
     frame->type_name = g->type_name;
     frame->size = g->field_count;
   }
-  
+
   frame->prev = symbols->frame;
   symbols->frame = frame;
 }
@@ -208,7 +208,7 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
 
   pointer->type = symbols->builder->createPointerType(typearg->type, meta->size,
     meta->align);
-  
+
   pointer->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
     pointer->type);
 }
@@ -219,7 +219,7 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 
   DIFile file = get_file(symbols, meta->file);
 
-  DICompositeType composite = symbols->builder->createClassType(symbols->unit, 
+  DICompositeType composite = symbols->builder->createClassType(symbols->unit,
     meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
     0, DIType(), DIArray());
 
@@ -272,7 +272,7 @@ void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)
     // C <type>* const <identifier>.
     d->qualified = symbols->builder->createQualifiedType(qualifier,
       d->type);
-  } 
+  }
 }
 
 void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
@@ -289,13 +289,13 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(meta->flags & DWARF_CONSTANT)
     use_type = d->qualified;
-  
+
   DIFile file = get_file(symbols, meta->file);
-  
+
   DIDerivedType member = symbols->builder->createMemberType(symbols->unit,
-    meta->name, file, (int)meta->line, meta->size, meta->align, frame->offset,
+    meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
     visibility, use_type);
-  
+
   frame->members.push_back(member);
   frame->offset += meta->size;
   frame->index += 1;
@@ -335,13 +335,13 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
   DIFile file = get_file(symbols, meta->file);
   DIArray fields = symbols->builder->getOrCreateArray(symbols->frame->members);
   DIType actual = DIType();
-  
+
   debug_frame_t* frame = symbols->frame;
 
   if(meta->flags & DWARF_TUPLE)
   {
     debug_sym_t* d = get_entry(symbols, meta->name);
-    
+
     actual = d->type = symbols->builder->createStructType(symbols->unit,
       meta->name, file, (int)meta->line, meta->size, meta->align, 0, DIType(),
       fields);
@@ -361,7 +361,7 @@ void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
 
   assert((MDNode*)parent != NULL);
 
-  symbols->frame->scope = symbols->builder->createLexicalBlock(parent, 
+  symbols->frame->scope = symbols->builder->createLexicalBlock(parent,
     file, (unsigned)meta->line, (unsigned)meta->pos);
 }
 
@@ -375,16 +375,16 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
 
   DIType type = d->type;
   DIFile file = get_file(symbols, meta->file);
-  
+
   if(is_arg)
   {
     tag = DW_TAG_arg_variable;
     index = (unsigned)meta->offset;
   }
-    
+
   if(meta->flags & DWARF_CONSTANT)
     type = d->qualified;
-  
+
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
     meta->name, file, (unsigned)meta->line, type, true, 0, index);
 
@@ -409,7 +409,7 @@ void symbols_location(symbols_t* symbols, size_t line, size_t pos)
 {
   DebugLoc loc =  DebugLoc::get((unsigned)line, (unsigned)pos,
     symbols->frame->scope);
-  
+
   symbols->frame->location = loc;
   symbols->ir->SetCurrentDebugLocation(loc);
 }
@@ -420,7 +420,7 @@ void symbols_reset(symbols_t* symbols, bool disable)
   {
     symbols->frame->location = DebugLoc::get(0, 0, NULL);
     symbols->ir->SetCurrentDebugLocation(symbols->frame->location);
-  } 
+  }
   else if(symbols->frame)
   {
     symbols->ir->SetCurrentDebugLocation(symbols->frame->location);
