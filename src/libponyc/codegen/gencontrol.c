@@ -335,6 +335,9 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 {
+  // Emit debug location for break keyword
+  dwarf_location(&c->dwarf, ast);
+
   ast_t* body = ast_child(ast);
   ast_t* body_type = ast_type(body);
 
@@ -372,7 +375,8 @@ LLVMValueRef gen_break(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 {
-  (void)ast;
+  // Emit debug location of continue keyword
+  dwarf_location(&c->dwarf, ast);
 
   // Jump to the continue target.
   LLVMBuildBr(c->builder, c->frame->continue_target);
@@ -381,6 +385,9 @@ LLVMValueRef gen_continue(compile_t* c, ast_t* ast)
 
 LLVMValueRef gen_return(compile_t* c, ast_t* ast)
 {
+  // Emit debug location of return keyword
+  dwarf_location(&c->dwarf, ast);
+
   ast_t* expr = ast_child(ast);
   LLVMValueRef value = gen_expr(c, expr);
 
@@ -476,6 +483,7 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
       return NULL;
 
     gen_expr(c, then_clause);
+
     else_block = LLVMGetInsertBlock(c->builder);
     LLVMBuildBr(c->builder, post_block);
   }
@@ -507,6 +515,9 @@ LLVMValueRef gen_error(compile_t* c, ast_t* ast)
 {
   size_t clause;
   ast_t* try_expr = ast_try_clause(ast, &clause);
+
+  // Emit debug location of error keyword
+  dwarf_location(&c->dwarf, ast);
 
   // Do the then block only if we error out in the else clause.
   if((try_expr != NULL) && (clause == 1))

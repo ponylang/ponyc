@@ -416,10 +416,15 @@ void symbols_location(symbols_t* symbols, size_t line, size_t pos)
 
 void symbols_reset(symbols_t* symbols, bool disable)
 {
-  if(disable)
-    symbols->ir->SetCurrentDebugLocation(DebugLoc::get(0, 0, NULL));
-  else if(symbols->frame)
+  if(disable && (symbols->frame != NULL))
+  {
+    symbols->frame->location = DebugLoc::get(0, 0, NULL);
     symbols->ir->SetCurrentDebugLocation(symbols->frame->location);
+  } 
+  else if(symbols->frame)
+  {
+    symbols->ir->SetCurrentDebugLocation(symbols->frame->location);
+  }
 }
 
 void symbols_finalise(symbols_t* symbols)

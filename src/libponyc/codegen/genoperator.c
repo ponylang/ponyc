@@ -575,6 +575,9 @@ LLVMValueRef gen_assign(compile_t* c, ast_t* ast)
   AST_GET_CHILDREN(ast, right, left);
   LLVMValueRef r_value = gen_expr(c, right);
 
+  // Emit debug location of assignment expression
+  dwarf_location(&c->dwarf, ast);
+
   if(r_value == NULL)
     return NULL;
 

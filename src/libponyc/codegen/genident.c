@@ -123,6 +123,9 @@ LLVMValueRef gen_is(compile_t* c, ast_t* ast)
   ast_t* left_type = ast_type(left);
   ast_t* right_type = ast_type(right);
 
+  // Emit debug location of is keyword
+  dwarf_location(&c->dwarf, ast);
+
   LLVMValueRef l_value = gen_expr(c, left);
   LLVMValueRef r_value = gen_expr(c, right);
 

@@ -225,6 +225,9 @@ static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
 
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
+  // Emit location info for this call
+  dwarf_location(&c->dwarf, ast);
+
   // Special case calls.
   LLVMValueRef special;
 
@@ -387,6 +390,9 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
   // Generate the return type.
   ast_t* type = ast_type(ast);
   gentype_t g;
+
+  // Emit dwarf location of ffi call
+  dwarf_location(&c->dwarf, ast);
 
   if(!gentype(c, type, &g))
     return NULL;
