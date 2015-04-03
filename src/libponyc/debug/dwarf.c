@@ -237,6 +237,7 @@ void dwarf_this(dwarf_t* dwarf, ast_t* fun, const char* type,
 {
   dwarf_meta_t meta;
   meta_local(&meta, fun, stringtab("this"), type, entry, storage, 0, true);
+  meta.flags |= DWARF_ARTIFICIAL;
 
   symbols_local(dwarf->symbols, &meta, true);
 }

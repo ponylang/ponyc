@@ -303,9 +303,10 @@ void symbols_field(symbols_t* symbols, dwarf_meta_t* meta)
 
 void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
 {
+  // Emit debug info for the subroutine type.
   std::vector<Metadata*> params;
 
-  // Emit debug info for the subroutine type.
+  // The return type is not const, so don't use the qualified type.
   debug_sym_t* current = get_entry(symbols, meta->params[0]);
   params.push_back(current->type);
 
@@ -382,6 +383,9 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
 
   if(meta->flags & DWARF_CONSTANT)
     type = d->qualified;
+
+  if(meta->flags & DWARF_ARTIFICIAL)
+    type = symbols->builder->createArtificialType(type);
 
   DIVariable info = symbols->builder->createLocalVariable(tag, frame->scope,
     meta->name, file, (unsigned)meta->line, type, true, 0, index);

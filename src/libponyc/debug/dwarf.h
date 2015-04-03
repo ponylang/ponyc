@@ -26,7 +26,8 @@ enum DWARF_FLAGS
   DWARF_BOOLEAN      = 1 << 2,
   DWARF_TUPLE        = 1 << 3,
   DWARF_PRIVATE      = 1 << 4,
-  DWARF_CONSTANT     = 1 << 5
+  DWARF_CONSTANT     = 1 << 5,
+  DWARF_ARTIFICIAL   = 1 << 6
 };
 
 struct dwarf_t
