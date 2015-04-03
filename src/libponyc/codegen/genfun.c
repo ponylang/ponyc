@@ -429,6 +429,10 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   ast_t* fun = get_fun(g, name, typeargs);
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
+  // Disable debugloc on calls to methods that have no debug info.
+  if(ast_line(fun) == 0)
+    dwarf_location(&c->dwarf, NULL);
+
   switch(ast_id(fun))
   {
     case TK_NEW:

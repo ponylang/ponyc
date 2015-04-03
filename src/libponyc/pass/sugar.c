@@ -1,17 +1,20 @@
 #include "sugar.h"
-#include "../ast/token.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include "../ast/token.h"
 #include <string.h>
 #include <assert.h>
 
 
 static ast_t* make_create(ast_t* ast)
 {
-  BUILD(create, ast,
+  ast_t* basis = ast_from(ast, TK_NONE);
+  ast_setpos(basis, 0, 0);
+
+  BUILD(create, basis,
     NODE(TK_NEW, AST_SCOPE
       NONE          // cap
       ID("create")  // name
@@ -23,6 +26,7 @@ static ast_t* make_create(ast_t* ast)
       NONE
       ));
 
+  ast_free_unattached(basis);
   return create;
 }
 

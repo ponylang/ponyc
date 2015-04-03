@@ -309,15 +309,15 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     }
   }
 
+  // Emit location info for this call.
+  dwarf_location(&c->dwarf, ast);
+
   // Static or virtual dispatch.
   LLVMValueRef func = dispatch_function(c, ast, &g, args[0], method_name,
     typeargs);
 
   if(func == NULL)
     return NULL;
-
-  // Emit location info for this call
-  dwarf_location(&c->dwarf, ast);
 
   // If we can error out and we have an invoke target, generate an invoke
   // instead of a call.
