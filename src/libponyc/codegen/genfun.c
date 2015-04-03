@@ -15,21 +15,35 @@
 #include <string.h>
 #include <assert.h>
 
-static void name_params(ast_t* params, LLVMValueRef func)
+static void name_param(compile_t* c, LLVMValueRef func, const char* name,
+  ast_t* type, int index)
+{
+  gentype_t g;
+  gentype(c, type, &g);
+
+  LLVMValueRef param = LLVMGetParam(func, index);
+  LLVMSetValueName(param, name);
+
+  LLVMValueRef value = LLVMBuildAlloca(c->builder, g.use_type, name);
+  LLVMBuildStore(c->builder, param, value);
+  codegen_setlocal(c, name, value);
+}
+
+static void name_params(compile_t* c, ast_t* type, ast_t* params,
+  LLVMValueRef func)
 {
   int count = 0;
 
   // Name the receiver 'this'.
-  LLVMValueRef fparam = LLVMGetParam(func, count++);
-  LLVMSetValueName(fparam, "this");
+  name_param(c, func, "this", type, count++);
 
   // Name each parameter.
   ast_t* param = ast_child(params);
 
   while(param != NULL)
   {
-    LLVMValueRef fparam = LLVMGetParam(func, count++);
-    LLVMSetValueName(fparam, ast_name(ast_child(param)));
+    AST_GET_CHILDREN(param, id, type);
+    name_param(c, func, ast_name(id), type, count++);
     param = ast_sibling(param);
   }
 }
@@ -210,14 +224,11 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   if(func != NULL)
     return func;
 
-  ast_t* params = ast_childidx(fun, 3);
-
   if(sender)
   {
     // Generate the sender prototype.
     const char* be_name = genname_be(funname);
     func = codegen_addfun(c, be_name, ftype);
-    name_params(params, func);
 
     // Change the return type to void for the handler.
     size_t count = LLVMCountParamTypes(ftype);
@@ -228,10 +239,7 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
   }
 
   // Generate the function prototype.
-  func = codegen_addfun(c, funname, ftype);
-  name_params(params, func);
-
-  return func;
+  return codegen_addfun(c, funname, ftype);
 }
 
 static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
@@ -266,18 +274,18 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   // Dwarf the method type
   dwarf_method(&c->dwarf, fun, name, funname, pnames, count, func);
 
+  // Dwarf the receiver pointer.
   LLVMBasicBlockRef entry = LLVMGetEntryBasicBlock(codegen_fun(c));
-  LLVMValueRef argument = LLVMGetParam(func, 0);
-
-  // Dwarf locals for receiver and parameters
+  LLVMValueRef argument = codegen_getlocal(c, "this");
   dwarf_this(&c->dwarf, fun, g->type_name, entry, argument);
 
-  unsigned index = 1;
+  // Dwarf locals for receiver and parameters
   param = ast_child(params);
+  size_t index = 1;
 
   while(param != NULL)
   {
-    argument = LLVMGetParam(func, index);
+    argument = codegen_getlocal(c, ast_name(ast_child(param)));
     dwarf_parameter(&c->dwarf, param, pnames[index + 1], entry, argument,
       index);
     param = ast_sibling(param);
@@ -288,7 +296,7 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
 static void genfun_dwarf_return(compile_t* c, ast_t* body)
 {
   ast_t* last = ast_childlast(body);
-  dwarf_location(&c->dwarf, last);  
+  dwarf_location(&c->dwarf, last);
 }
 
 static LLVMValueRef get_sender(compile_t* c, gentype_t* g, const char* name,
@@ -459,6 +467,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_startfun(c, func, true);
+  name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   ast_t* body = ast_childidx(fun, 6);
@@ -497,6 +506,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_startfun(c, func, true);
+  name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   ast_t* body = ast_childidx(fun, 6);
@@ -552,6 +562,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_startfun(c, func, true);
+  name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   if(!gen_field_init(c, g))
@@ -589,6 +600,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   }
 
   codegen_startfun(c, func, true);
+  name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
   if(!gen_field_init(c, g))

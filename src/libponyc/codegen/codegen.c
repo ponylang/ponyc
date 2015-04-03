@@ -343,28 +343,29 @@ static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
   // IR builder.
   c->builder = LLVMCreateBuilderInContext(c->context);
 
-  // Pass manager builder.
-  c->pmb = LLVMPassManagerBuilderCreate();
-  LLVMPassManagerBuilderSetOptLevel(c->pmb, opt->release ? 3 : 0);
-
   if(opt->release)
+  {
+    // Pass manager builder.
+    c->pmb = LLVMPassManagerBuilderCreate();
+    LLVMPassManagerBuilderSetOptLevel(c->pmb, 3);
     LLVMPassManagerBuilderUseInlinerWithThreshold(c->pmb, 275);
 
-  // Module pass manager.
-  c->mpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target_data, c->mpm);
-  LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, c->mpm);
+    // Module pass manager.
+    c->mpm = LLVMCreatePassManager();
+    LLVMAddTargetData(c->target_data, c->mpm);
+    LLVMPassManagerBuilderPopulateModulePassManager(c->pmb, c->mpm);
 
-  // LTO pass manager.
-  c->lpm = LLVMCreatePassManager();
-  LLVMAddTargetData(c->target_data, c->lpm);
-  LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, c->lpm, true, true);
+    // LTO pass manager.
+    c->lpm = LLVMCreatePassManager();
+    LLVMAddTargetData(c->target_data, c->lpm);
+    LLVMPassManagerBuilderPopulateLTOPassManager(c->pmb, c->lpm, true, true);
 
-  // Function pass manager.
-  c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
-  LLVMAddTargetData(c->target_data, c->fpm);
-  LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
-  LLVMInitializeFunctionPassManager(c->fpm);
+    // Function pass manager.
+    c->fpm = LLVMCreateFunctionPassManagerForModule(c->module);
+    LLVMAddTargetData(c->target_data, c->fpm);
+    LLVMPassManagerBuilderPopulateFunctionPassManager(c->pmb, c->fpm);
+    LLVMInitializeFunctionPassManager(c->fpm);
+  }
 
   // Empty frame stack.
   c->frame = NULL;
@@ -375,10 +376,14 @@ static void codegen_cleanup(compile_t* c)
   while(c->frame != NULL)
     pop_frame(c);
 
-  LLVMDisposePassManager(c->fpm);
-  LLVMDisposePassManager(c->mpm);
-  LLVMDisposePassManager(c->lpm);
-  LLVMPassManagerBuilderDispose(c->pmb);
+  if(c->opt->release)
+  {
+    LLVMDisposePassManager(c->fpm);
+    LLVMDisposePassManager(c->mpm);
+    LLVMDisposePassManager(c->lpm);
+    LLVMPassManagerBuilderDispose(c->pmb);
+  }
+
   LLVMDisposeBuilder(c->builder);
   LLVMDisposeModule(c->module);
   LLVMContextDispose(c->context);
