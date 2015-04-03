@@ -5,6 +5,10 @@ class Test
     i + j
 
 actor Main
+  let _env: Env
+
   new create(env: Env) =>
+    _env = env
+
     var test = Test
     test.adder(4)
