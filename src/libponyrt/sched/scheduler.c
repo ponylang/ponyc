@@ -438,6 +438,7 @@ static void scheduler_shutdown()
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
+    while(messageq_pop(&scheduler[i].mq) != NULL);
     messageq_destroy(&scheduler[i].mq);
     mpmcq_destroy(&scheduler[i].q);
   }
