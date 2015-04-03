@@ -285,6 +285,12 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   }
 }
 
+static void genfun_dwarf_return(compile_t* c, ast_t* body)
+{
+  ast_t* last = ast_childlast(body);
+  dwarf_location(&c->dwarf, last);  
+}
+
 static LLVMValueRef get_sender(compile_t* c, gentype_t* g, const char* name,
   ast_t* typeargs)
 {
@@ -463,6 +469,8 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
+    genfun_dwarf_return(c, body);
+
     LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(func));
     LLVMTypeRef r_type = LLVMGetReturnType(f_type);
 
@@ -499,6 +507,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     ast_free_unattached(fun);
     return NULL;
   } else if(value != GEN_NOVALUE) {
+    genfun_dwarf_return(c, body);
     LLVMBuildRetVoid(c->builder);
   }
 
@@ -558,6 +567,8 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   if(value == NULL)
     return NULL;
 
+  genfun_dwarf_return(c, body);
+
   // Return 'this'.
   LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
   codegen_finishfun(c);
@@ -606,6 +617,8 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
   // Send the arguments in a message to 'this'.
   uint32_t index = genfun_vtable_index(c, g, name, typeargs);
   LLVMTypeRef msg_type_ptr = send_message(c, fun, this_ptr, sender, index);
+
+  genfun_dwarf_return(c, body);
 
   // Return 'this'.
   LLVMBuildRet(c->builder, this_ptr);
