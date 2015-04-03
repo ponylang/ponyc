@@ -333,7 +333,7 @@ bool genprim_pointer(compile_t* c, gentype_t* g, bool prelim)
 
   ok = genfun_methods(c, g);
 
-  dwarf_finish(&c->dwarf, g);
+  dwarf_finish(&c->dwarf);
 
   return ok;
 }

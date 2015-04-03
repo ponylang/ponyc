@@ -515,6 +515,9 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
       free_fields(g);
       return false;
     }
+
+    // Finalise symbols for composite type.
+    dwarf_composite(&c->dwarf, g);
   } else {
     // Emit debug symbols for a basic type (U8, U16, U32...)
     dwarf_basic(&c->dwarf, g);
@@ -545,8 +548,8 @@ static bool make_nominal(compile_t* c, ast_t* ast, gentype_t* g, bool prelim)
     codegen_finishfun(c);
   }
 
-  // Finalise symbols for composite type.
-  dwarf_finish(&c->dwarf, g);
+  // Finish the dwarf frame.
+  dwarf_finish(&c->dwarf);
 
   free_fields(g);
   return true;
@@ -565,7 +568,8 @@ static bool make_tuple(compile_t* c, ast_t* ast, gentype_t* g)
   bool ok = make_struct(c, g) && make_trace(c, g) && make_components(c, g);
 
   // Finalise debug symbols for tuple type.
-  dwarf_finish(&c->dwarf, g);
+  dwarf_composite(&c->dwarf, g);
+  dwarf_finish(&c->dwarf);
 
   // Generate a descriptor.
   gendesc_init(c, g);

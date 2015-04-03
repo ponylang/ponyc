@@ -136,6 +136,17 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
   symbols_declare(dwarf->symbols, &meta);
 }
 
+void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
+{
+  if(is_machine_word(g->ast) || is_pointer(g->ast))
+    return;
+
+  dwarf_meta_t meta;
+  setup_dwarf(dwarf, &meta, g, false);
+
+  symbols_composite(dwarf->symbols, &meta);
+}
+
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   int index)
 {
@@ -272,16 +283,8 @@ void dwarf_location(dwarf_t* dwarf, ast_t* ast)
   }
 }
 
-void dwarf_finish(dwarf_t* dwarf, gentype_t* g)
+void dwarf_finish(dwarf_t* dwarf)
 {
-  if(g != NULL && !is_machine_word(g->ast) && !is_pointer(g->ast))
-  {
-    dwarf_meta_t meta;
-    setup_dwarf(dwarf, &meta, g, false);
-
-    symbols_composite(dwarf->symbols, &meta);
-  }
-
   symbols_pop_frame(dwarf->symbols);
   symbols_reset(dwarf->symbols, false);
 }

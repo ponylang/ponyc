@@ -108,6 +108,8 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g);
  */
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g);
 
+void dwarf_composite(dwarf_t* dwarf, gentype_t* g);
+
 /**
  * Emit debug symbols for a field of some composite type. This requires to
  * have called dwarf_forward beforehand. If the owning type is not forward
@@ -157,7 +159,7 @@ void dwarf_location(dwarf_t* dwarf, ast_t* ast);
  * of how Pony type generation works, a composite type's components will
  * be final, before the type itself becomes final.
  */
-void dwarf_finish(dwarf_t* dwarf, gentype_t* g);
+void dwarf_finish(dwarf_t* dwarf);
 
 /**
  * Dump collected debug information into the object file. Debug symols

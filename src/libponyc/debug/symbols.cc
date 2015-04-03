@@ -36,6 +36,8 @@ struct debug_sym_t
 
   DIType type;
   DIType qualified;
+  DIType actual;
+  DICompositeType prelim;
 };
 
 struct debug_frame_t
@@ -44,7 +46,6 @@ struct debug_frame_t
 
   size_t size;
 
-  DICompositeType prelim;
   std::vector<llvm::Metadata *> members;
 
   DIDescriptor scope;
@@ -99,9 +100,12 @@ static debug_sym_t* get_entry(symbols_t* symbols, const char* name)
   if(value == NULL)
   {
     value = POOL_ALLOC(debug_sym_t);
-    memset(value, 0, sizeof(debug_sym_t));
-
     value->name = key.name;
+    value->type = DIType();
+    value->qualified = DIType();
+    value->prelim = DICompositeType();
+    value->actual = DIType();
+
     symbolmap_put(&symbols->map, value);
   }
 
@@ -187,6 +191,7 @@ void symbols_basic(symbols_t* symbols, dwarf_meta_t* meta)
 
   d->type = symbols->builder->createBasicType(meta->name, meta->size,
     meta->align, tag);
+  d->actual = d->type;
 
   // Eventually, basic builtin types may be used as const, e.g. let field or
   // local, method/behaviour parameter.
@@ -199,8 +204,10 @@ void symbols_pointer(symbols_t* symbols, dwarf_meta_t* meta)
   debug_sym_t* pointer = get_entry(symbols, meta->name);
   debug_sym_t* typearg = get_entry(symbols, meta->typearg);
 
-  pointer->type = symbols->builder->createPointerType(typearg->type, meta->size,
-    meta->align);
+  pointer->type = symbols->builder->createPointerType(typearg->type,
+    meta->size, meta->align);
+
+  pointer->actual = pointer->type;
 
   pointer->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
     pointer->type);
@@ -219,6 +226,8 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
   d->type = symbols->builder->createPointerType(composite, meta->size,
     meta->align);
 
+  d->actual = d->type;
+
   d->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
     d->type);
 }
@@ -228,13 +237,13 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
   debug_sym_t* d = get_entry(symbols, name);
 
   d->type = symbols->builder->createUnspecifiedType(name);
+  d->actual = d->type;
   d->qualified = d->type;
 }
 
 void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)
 {
   debug_sym_t* d = get_entry(symbols, meta->name);
-  debug_frame_t* frame = symbols->frame;
 
   DIFile file = get_file(symbols, meta->file);
   uint16_t tag = DW_TAG_class_type;
@@ -244,21 +253,21 @@ void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)
     tag = DW_TAG_structure_type;
 
 #if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
-  frame->prelim = symbols->builder->createReplaceableCompositeType(tag,
+  d->prelim = symbols->builder->createReplaceableCompositeType(tag,
     meta->name, symbols->unit, file, (int)meta->line);
 #else
-  frame->prelim = symbols->builder->createReplaceableForwardDecl(tag,
+  d->prelim = symbols->builder->createReplaceableForwardDecl(tag,
     meta->name, symbols->unit, file, (int)meta->line);
 #endif
 
   if(meta->flags & DWARF_TUPLE)
   {
     // The actual use type is the structure itself.
-    d->type = frame->prelim;
+    d->type = d->prelim;
     d->qualified = symbols->builder->createQualifiedType(qualifier, d->type);
   } else {
     // The use type is a pointer to the structure.
-    d->type = symbols->builder->createPointerType(frame->prelim,
+    d->type = symbols->builder->createPointerType(d->prelim,
       meta->size, meta->align);
 
     // A let field or method parameter is equivalent to a
@@ -298,7 +307,7 @@ void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
 
   // Emit debug info for the subroutine type.
   debug_sym_t* current = get_entry(symbols, meta->params[0]);
-  params.push_back(current->qualified);
+  params.push_back(current->type);
 
   for(size_t i = 1; i < meta->size; i++)
   {
@@ -312,11 +321,11 @@ void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
     symbols->builder->getOrCreateTypeArray(params));
 
   Function* f = dyn_cast_or_null<Function>(unwrap(ir));
+  debug_sym_t* d = get_entry(symbols, symbols->frame->type_name);
 
-  // Emit debug info for the method itself.
-  symbols->frame->scope = symbols->builder->createFunction(symbols->unit,
+  symbols->frame->scope = symbols->builder->createMethod(d->actual,
     meta->name, meta->mangled, file, (int)meta->line, type, false, true,
-    (int)meta->offset, 0, symbols->release, f);
+    0, 0, DIType(), 0, symbols->release, f);
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
@@ -325,24 +334,22 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
   // debug symbol exists.
   DIFile file = get_file(symbols, meta->file);
   DIArray fields = symbols->builder->getOrCreateArray(symbols->frame->members);
-  DIType actual = DIType();
 
-  debug_frame_t* frame = symbols->frame;
+  debug_sym_t* d = get_entry(symbols, meta->name);
 
   if(meta->flags & DWARF_TUPLE)
   {
-    debug_sym_t* d = get_entry(symbols, meta->name);
-
-    actual = d->type = symbols->builder->createStructType(symbols->unit,
+    d->actual = symbols->builder->createStructType(symbols->unit,
       meta->name, file, (int)meta->line, meta->size, meta->align, 0, DIType(),
       fields);
+
+    d->type = d->actual;
   } else {
-    actual = symbols->builder->createClassType(symbols->unit, meta->name, file,
-      (int)meta->line, meta->size, meta->align, 0, 0, DIType(),
-      fields);
+    d->actual = symbols->builder->createClassType(symbols->unit, meta->name,
+      file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
   }
 
-  frame->prelim.replaceAllUsesWith(actual);
+  d->prelim.replaceAllUsesWith(d->actual);
 }
 
 void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
