@@ -280,9 +280,11 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   // Dwarf the receiver pointer.
   LLVMBasicBlockRef entry = LLVMGetEntryBasicBlock(codegen_fun(c));
   LLVMValueRef argument = codegen_getlocal(c, "this");
+
+  assert(argument != NULL);
   dwarf_this(&c->dwarf, fun, g->type_name, entry, argument);
 
-  // Dwarf locals for receiver and parameters
+  // Dwarf locals for parameters
   param = ast_child(params);
   size_t index = 1;
 
