@@ -21,6 +21,9 @@
  */
 static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
+  if(ast_line(use) == 0)
+    return true;
+
   if((ast_line(def) > ast_line(use)) ||
      ((ast_line(def) == ast_line(use)) &&
       (ast_pos(def) > ast_pos(use))))

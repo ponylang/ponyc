@@ -434,7 +434,7 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
       return;
 
     assert(ast_id(id) == TK_ID);
-    BUILD_NO_DEBUG(dispose, idseq,
+    BUILD(dispose, idseq,
       NODE(TK_CALL,
         NONE NONE
         NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
