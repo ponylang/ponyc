@@ -303,5 +303,9 @@ void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
 
 void dwarf_finalise(dwarf_t* dwarf)
 {
+#ifndef PLATFORM_IS_WINDOWS
   symbols_finalise(dwarf->symbols);
+#else
+  (void)dwarf;
+#endif
 }
