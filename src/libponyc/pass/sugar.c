@@ -11,10 +11,7 @@
 
 static ast_t* make_create(ast_t* ast)
 {
-  ast_t* basis = ast_from(ast, TK_NONE);
-  ast_setpos(basis, 0, 0);
-
-  BUILD(create, basis,
+  BUILD_NO_DEBUG(create, ast,
     NODE(TK_NEW, AST_SCOPE
       NONE          // cap
       ID("create")  // name
@@ -26,7 +23,6 @@ static ast_t* make_create(ast_t* ast)
       NONE
       ));
 
-  ast_free_unattached(basis);
   return create;
 }
 
@@ -98,7 +94,7 @@ static void add_default_constructor(ast_t* members)
 
 static ast_t* make_nominal(ast_t* id, ast_t* typeargs)
 {
-  BUILD(type, id,
+  BUILD_NO_DEBUG(type, id,
     NODE(TK_NOMINAL,
       NONE
       TREE(id)
@@ -112,7 +108,7 @@ static ast_t* make_nominal(ast_t* id, ast_t* typeargs)
 
 static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 {
-  BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
+  BUILD_NO_DEBUG(typeargs, typeparams, NODE(TK_TYPEARGS));
 
   ast_t* typeparam = ast_child(typeparams);
 
@@ -132,7 +128,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 
   if(!has_member(members, "eq"))
   {
-    BUILD(eq, members,
+    BUILD_NO_DEBUG(eq, members,
       NODE(TK_FUN, AST_SCOPE
         NODE(TK_BOX)
         ID("eq")
@@ -160,7 +156,7 @@ static void add_comparable(ast_t* id, ast_t* typeparams, ast_t* members)
 
   if(!has_member(members, "ne"))
   {
-    BUILD(eq, members,
+    BUILD_NO_DEBUG(eq, members,
       NODE(TK_FUN, AST_SCOPE
         NODE(TK_BOX)
         ID("ne")
@@ -337,7 +333,7 @@ static ast_result_t sugar_fun(ast_t* ast)
   // If the return type is None, add a None at the end of the body.
   if(is_none(result) && (ast_id(body) != TK_NONE))
   {
-    BUILD(ref, body, NODE(TK_REFERENCE, ID("None")));
+    BUILD_NO_DEBUG(ref, body, NODE(TK_REFERENCE, ID("None")));
     ast_append(body, ref);
   }
 
@@ -354,7 +350,7 @@ static void expand_none(ast_t* ast)
 
   ast_setid(ast, TK_SEQ);
   ast_scope(ast);
-  BUILD(ref, ast, NODE(TK_REFERENCE, ID("None")));
+  BUILD_NO_DEBUG(ref, ast, NODE(TK_REFERENCE, ID("None")));
   ast_add(ast, ref);
 }
 
@@ -438,7 +434,7 @@ static void build_with_dispose(ast_t* dispose_clause, ast_t* idseq)
       return;
 
     assert(ast_id(id) == TK_ID);
-    BUILD(dispose, idseq,
+    BUILD_NO_DEBUG(dispose, idseq,
       NODE(TK_CALL,
         NONE NONE
         NODE(TK_DOT, NODE(TK_REFERENCE, TREE(id)) ID("dispose"))));
@@ -551,7 +547,7 @@ static ast_result_t sugar_update(ast_t** astp)
   ast_setid(named, TK_NAMEDARGS);
 
   // Build a new namedarg.
-  BUILD(namedarg, ast,
+  BUILD_NO_DEBUG(namedarg, ast,
     NODE(TK_UPDATEARG,
       ID("value")
       NODE(TK_SEQ, TREE(value))));

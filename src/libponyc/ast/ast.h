@@ -462,6 +462,16 @@ void ast_extract_children(ast_t* parent, size_t child_count,
     var = parent; \
   }
 
+#define BUILD_NO_DEBUG(var, existing, ...) \
+  ast_t* var; \
+  { \
+    ast_t* existing_no_debug = ast_from(existing, ast_id(existing)); \
+    ast_setpos(existing_no_debug, 0, 0); \
+    BUILD(build_ast, existing_no_debug, __VA_ARGS__); \
+    ast_free(existing_no_debug); \
+    var = build_ast; \
+  }
+
 /** Builds an AST to replace the specified existing tree.
  * The provided existing must be an ast_t**.
  */
