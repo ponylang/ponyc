@@ -35,6 +35,7 @@ struct dwarf_t
   symbols_t* symbols;
   pass_opt_t* opt;
   LLVMTargetDataRef target_data;
+  bool has_source;
 };
 
 struct dwarf_meta_t

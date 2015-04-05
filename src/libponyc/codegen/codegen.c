@@ -64,6 +64,12 @@ static void pop_frame(compile_t* c)
   compile_locals_destroy(&frame->locals);
 
   c->frame = frame->prev;
+
+  if(c->frame != NULL)
+    c->dwarf.has_source = c->frame->has_source;
+  else
+    c->dwarf.has_source = true;
+
   POOL_FREE(compile_frame_t, frame);
 }
 
@@ -504,6 +510,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
   frame->fun = fun;
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
   frame->has_source = has_source;
+  c->dwarf.has_source = has_source;
 
   // Reset debug locations
   dwarf_location(&c->dwarf, NULL);

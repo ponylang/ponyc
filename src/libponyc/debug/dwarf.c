@@ -268,7 +268,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
 
 void dwarf_location(dwarf_t* dwarf, ast_t* ast)
 {
-  if(ast != NULL)
+  if(dwarf->has_source && (ast != NULL))
   {
     size_t line = ast_line(ast);
     size_t pos = ast_pos(ast);
@@ -295,6 +295,7 @@ void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
 {
   dwarf->opt = opt;
   dwarf->target_data = layout;
+  dwarf->has_source = false;
 
   symbols_init(&dwarf->symbols, builder, module, opt->release);
   symbols_unspecified(dwarf->symbols, stringtab("$object"));
