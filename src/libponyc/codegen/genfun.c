@@ -245,6 +245,9 @@ static LLVMValueRef get_prototype(compile_t* c, gentype_t* g, const char *name,
 static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
   ast_t* typeargs, ast_t* fun)
 {
+  if(!codegen_hassource(c))
+    return;
+
   // Get the function.
   const char* funname = genname_fun(g->type_name, name, typeargs);
   LLVMValueRef func = LLVMGetNamedFunction(c->module, funname);
@@ -470,7 +473,7 @@ static LLVMValueRef genfun_fun(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  codegen_startfun(c, func, true);
+  codegen_startfun(c, func, ast_line(fun) != 0);
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
@@ -509,7 +512,7 @@ static LLVMValueRef genfun_be(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func, true);
+  codegen_startfun(c, func, ast_line(fun) != 0);
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
@@ -565,7 +568,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
     return func;
   }
 
-  codegen_startfun(c, func, true);
+  codegen_startfun(c, func, ast_line(fun) != 0);
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
@@ -603,7 +606,7 @@ static LLVMValueRef genfun_newbe(compile_t* c, gentype_t* g, const char *name,
     return NULL;
   }
 
-  codegen_startfun(c, func, true);
+  codegen_startfun(c, func, ast_line(fun) != 0);
   name_params(c, g->ast, ast_childidx(fun, 3), func);
   genfun_dwarf(c, g, name, typeargs, fun);
 
