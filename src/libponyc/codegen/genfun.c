@@ -35,7 +35,7 @@ static void name_params(compile_t* c, ast_t* type, ast_t* params,
   int count = 0;
 
   // Name the receiver 'this'.
-  name_param(c, func, "this", type, count++);
+  name_param(c, func, stringtab("this"), type, count++);
 
   // Name each parameter.
   ast_t* param = ast_child(params);
@@ -279,9 +279,8 @@ static void genfun_dwarf(compile_t* c, gentype_t* g, const char *name,
 
   // Dwarf the receiver pointer.
   LLVMBasicBlockRef entry = LLVMGetEntryBasicBlock(codegen_fun(c));
-  LLVMValueRef argument = codegen_getlocal(c, "this");
+  LLVMValueRef argument = codegen_getlocal(c, stringtab("this"));
 
-  assert(argument != NULL);
   dwarf_this(&c->dwarf, fun, g->type_name, entry, argument);
 
   // Dwarf locals for parameters
