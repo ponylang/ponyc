@@ -531,6 +531,9 @@ void ast_extract_children(ast_t* parent, size_t child_count,
 /// Add a symbol table to the enclosing node
 #define AST_SCOPE ast_scope(parent);
 
+/// Turn off debug info for the enclosing node
+#define AST_NODEBUG ast_setdebug(parent, false);
+
 /// Set the data field of the enclosing node
 #define DATA(target) ast_setdata(parent, (void*)(target));
 

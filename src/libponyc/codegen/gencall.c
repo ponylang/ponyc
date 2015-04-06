@@ -309,7 +309,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     }
   }
 
-  // Emit location info for this call.
+  // Always emit location info for a call, to prevent inlining errors. This may
+  // be disabled in dispatch_function, if the target function has no debug
+  // info set.
+  ast_setdebug(ast, true);
   dwarf_location(&c->dwarf, ast);
 
   // Static or virtual dispatch.

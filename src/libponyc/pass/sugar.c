@@ -395,7 +395,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
 
   REPLACE(astp,
     NODE(TK_SEQ,
-      NODE(TK_ASSIGN,
+      NODE(TK_ASSIGN, AST_NODEBUG
         TREE(for_iter)
         NODE(TK_LET, ID(iter_name) NONE))
       NODE(TK_WHILE, AST_SCOPE
@@ -405,7 +405,7 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
             NONE
             NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
         NODE(TK_SEQ, AST_SCOPE
-          NODE_ERROR_AT(TK_ASSIGN, for_idseq,
+          NODE_ERROR_AT(TK_ASSIGN, for_idseq, AST_NODEBUG
             NODE(TK_CALL,
               NONE
               NONE
@@ -484,12 +484,12 @@ static ast_result_t sugar_with(typecheck_t* t, ast_t** astp)
     const char* init_name = package_hygienic_id(t);
 
     BUILD(assign, idseq,
-      NODE(TK_ASSIGN,
+      NODE(TK_ASSIGN, AST_NODEBUG
         TREE(init)
         NODE(TK_LET, ID(init_name) NONE)));
 
     BUILD(local, idseq,
-      NODE(TK_ASSIGN,
+      NODE(TK_ASSIGN, AST_NODEBUG
         NODE(TK_REFERENCE, ID(init_name))
         TREE(idseq)));
 
@@ -585,7 +585,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NONE));
 
   // We will have a create method in the type.
-  BUILD(create, members,
+  BUILD_NO_DEBUG(create, members,
     NODE(TK_NEW, AST_SCOPE
       NONE
       ID("create")
@@ -637,7 +637,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
             NONE));
 
         // The body of create contains: id = consume $0
-        BUILD(assign, init,
+        BUILD_NO_DEBUG(assign, init,
           NODE(TK_ASSIGN,
             NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
             NODE(TK_REFERENCE, TREE(id))));
@@ -672,7 +672,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     ast_setid(def, TK_PRIMITIVE);
 
     // End the constructor with None, since it has no parameters.
-    BUILD(none, ast, NODE(TK_REFERENCE, ID("None")));
+    BUILD_NO_DEBUG(none, ast, NODE(TK_REFERENCE, ID("None")));
     ast_append(create_body, none);
   }
 
