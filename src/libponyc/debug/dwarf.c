@@ -154,7 +154,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   memset(buf, 0, sizeof(buf));
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, field, false);
+  setup_dwarf(dwarf, &meta, field, true);
 
   meta.typearg = field->type_name;
 
