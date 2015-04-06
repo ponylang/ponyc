@@ -238,9 +238,15 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 {
   debug_sym_t* d = get_entry(symbols, name);
 
-  d->type = symbols->builder->createUnspecifiedType(name);
+  DICompositeType type = symbols->builder->createClassType(symbols->unit,
+    name, DIFile(), 0, 0, 0, 0, 0, DIType(), DIArray());
+
+  d->type = symbols->builder->createPointerType(type, 0, 0);
+
   d->actual = d->type;
-  d->qualified = d->type;
+
+  d->qualified = symbols->builder->createQualifiedType(DW_TAG_const_type,
+    d->type);
 }
 
 void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)

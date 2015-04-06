@@ -1075,6 +1075,9 @@ bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
     return false;
   }
 
+  // Disable debuglocs on calls to this method.
+  ast_setpos(t->frame->method, 0, 0);
+
   ast_settype(ast, ast_from(ast, TK_COMPILER_INTRINSIC));
   return true;
 }
