@@ -434,7 +434,7 @@ LLVMValueRef genfun_proto(compile_t* c, gentype_t* g, const char *name,
   LLVMValueRef func = get_prototype(c, g, name, typeargs, fun);
 
   // Disable debugloc on calls to methods that have no debug info.
-  if(!ast_debug(fun) == 0)
+  if(!ast_debug(fun))
     dwarf_location(&c->dwarf, NULL);
 
   switch(ast_id(fun))
