@@ -284,6 +284,9 @@ size_t token_line_position(token_t* token);
 /// Report whether the given token is the first on a line
 bool token_is_first_on_line(token_t* token);
 
+/// Report whether debug info should be genreated.
+bool token_debug(token_t* token);
+
 
 // Write accessors
 
@@ -307,6 +310,9 @@ void token_set_int(token_t* token, __uint128_t value);
 
 /// Set the given token's position within its source file
 void token_set_pos(token_t* token, size_t line, size_t pos);
+
+/// Set whether debug info should be generated.
+void token_set_debug(token_t* token, bool state);
 
 /// Set that the given token is the first on a line
 void token_set_first_on_line(token_t* token);

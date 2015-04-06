@@ -21,9 +21,6 @@
  */
 static bool def_before_use(ast_t* def, ast_t* use, const char* name)
 {
-  if(ast_line(use) == 0)
-    return true;
-
   if((ast_line(def) > ast_line(use)) ||
      ((ast_line(def) == ast_line(use)) &&
       (ast_pos(def) > ast_pos(use))))
@@ -1076,7 +1073,7 @@ bool expr_compiler_intrinsic(typecheck_t* t, ast_t* ast)
   }
 
   // Disable debuglocs on calls to this method.
-  ast_setpos(t->frame->method, 0, 0);
+  ast_setdebug(t->frame->method, false);
 
   ast_settype(ast, ast_from(ast, TK_COMPILER_INTRINSIC));
   return true;

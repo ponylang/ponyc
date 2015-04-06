@@ -15,6 +15,7 @@ typedef struct token_t
   size_t pos;
   char* printed;
   bool first_on_line;
+  bool debug_info;
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
   const char* string;
@@ -37,6 +38,7 @@ token_t* token_new(token_id id, source_t* source)
   memset(t, 0, sizeof(token_t));
   t->id = id;
   t->source = source;
+  t->debug_info = true;
   return t;
 }
 
@@ -203,6 +205,12 @@ bool token_is_first_on_line(token_t* token)
   return token->first_on_line;
 }
 
+bool token_debug(token_t* token)
+{
+  assert(token != NULL);
+  return token->debug_info;
+}
+
 
 // Write accessors
 
@@ -242,6 +250,12 @@ void token_set_pos(token_t* token, size_t line, size_t pos)
   assert(token != NULL);
   token->line = line;
   token->pos = pos;
+}
+
+void token_set_debug(token_t* token, bool state)
+{
+  assert(token != NULL);
+  token->debug_info = state;
 }
 
 void token_set_first_on_line(token_t* token)

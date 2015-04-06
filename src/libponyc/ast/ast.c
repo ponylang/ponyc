@@ -279,6 +279,11 @@ void ast_setpos(ast_t* ast, size_t line, size_t pos)
   token_set_pos(ast->t, line, pos);
 }
 
+void ast_setdebug(ast_t* ast, bool state)
+{
+  token_set_debug(ast->t, state);
+}
+
 token_id ast_id(ast_t* ast)
 {
   return token_get_id(ast->t);
@@ -292,6 +297,11 @@ size_t ast_line(ast_t* ast)
 size_t ast_pos(ast_t* ast)
 {
   return token_line_position(ast->t);
+}
+
+bool ast_debug(ast_t* ast)
+{
+  return token_debug(ast->t);
 }
 
 source_t* ast_source(ast_t* ast)

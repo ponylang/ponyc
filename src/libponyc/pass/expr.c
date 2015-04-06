@@ -377,9 +377,9 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
   return AST_OK;
 }
 
-ast_result_t pass_clear_linepos(ast_t** astp, pass_opt_t* options)
+ast_result_t pass_nodebug(ast_t** astp, pass_opt_t* options)
 {
   (void)options;
-  ast_setpos(*astp, 0, 0);
+  ast_setdebug(*astp, false);
   return AST_OK;
 }

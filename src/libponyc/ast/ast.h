@@ -314,10 +314,12 @@ bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
 void ast_setid(ast_t* ast, token_id id);
 void ast_setpos(ast_t* ast, size_t line, size_t pos);
+void ast_setdebug(ast_t* ast, bool state);
 
 token_id ast_id(ast_t* ast);
 size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
+bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
 bool ast_is_first_on_line(ast_t* ast);
 void* ast_data(ast_t* ast);
@@ -466,7 +468,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
   ast_t* var; \
   { \
     ast_t* existing_no_debug = ast_from(existing, ast_id(existing)); \
-    ast_setpos(existing_no_debug, 0, 0); \
+    ast_setdebug(existing_no_debug, false); \
     BUILD(build_ast, existing_no_debug, __VA_ARGS__); \
     ast_free(existing_no_debug); \
     var = build_ast; \
