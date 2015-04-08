@@ -49,7 +49,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = Event.socket(this, fd)
+    _event = @asio_event_create[Pointer[Event]](this, fd.u64(), U32(3), true)
     _connected = true
     _notify.accepted(this)
 
@@ -127,7 +127,7 @@ actor TCPConnection
     if event isnt _event then
       if Event.writeable(flags) then
         // A connection has completed.
-        var fd = Event.fd(event)
+        var fd = @asio_event_data[U64](event).u32()
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then
@@ -140,14 +140,14 @@ actor TCPConnection
             _notify.connected(this)
           else
             // The connection failed, unsubscribe the event and close.
-            Event.unsubscribe(event)
+            @asio_event_unsubscribe[None](event)
             @os_closesocket[None](fd)
             _notify_connecting()
             return
           end
         else
           // We're already connected, unsubscribe the event and close.
-          Event.unsubscribe(event)
+          @asio_event_unsubscribe[None](event)
           @os_closesocket[None](fd)
 
           // We're done.
@@ -157,7 +157,7 @@ actor TCPConnection
         // It's not our event.
         if Event.disposable(flags) then
           // It's disposable, so dispose of it.
-          Event.dispose(event)
+          @asio_event_destroy[None](event)
         end
 
         // We're done.
@@ -179,7 +179,8 @@ actor TCPConnection
     end
 
     if Event.disposable(flags) then
-      _event = Event.dispose(_event)
+      @asio_event_destroy[None](_event)
+      _event = Event.none()
     end
 
   be _read_again() =>
@@ -292,7 +293,7 @@ actor TCPConnection
       _notify.closed(this)
     end
 
-    Event.unsubscribe(_event)
+    @asio_event_unsubscribe[None](_event)
     _connected = false
     _readable = false
     _writeable = false

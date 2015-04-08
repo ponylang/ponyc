@@ -78,7 +78,8 @@ actor TCPListener
     end
 
     if Event.disposable(flags) then
-      _event = Event.dispose(event)
+      @asio_event_destroy[None](event)
+      _event = Event.none()
     end
 
   fun ref _notify_listening() =>
@@ -95,7 +96,7 @@ actor TCPListener
     """
     Dispose of resources.
     """
-    Event.unsubscribe(_event)
+    @asio_event_unsubscribe[None](_event)
     _closed = true
 
     if _fd != -1 then

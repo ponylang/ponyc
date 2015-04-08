@@ -56,14 +56,17 @@ actor Timers
       _map.clear()
     end
 
-    _event = Event.timer(this, _event, -1)
+    if not _event.is_null() then
+      @asio_event_unsubscribe[None](_event)
+      _event = Event.none()
+    end
 
   be _event_notify(event: EventID, flags: U32) =>
     """
     When the event fires, advance the timing wheels.
     """
     if Event.disposable(flags) then
-      Event.dispose(event)
+      @asio_event_destroy[None](event)
     elseif event is _event then
       _advance()
     end
@@ -88,7 +91,24 @@ actor Timers
     end
 
     _pending.clear()
-    _event = Event.timer(this, _event, _next())
+
+    var nsec = _next()
+
+    if _event.is_null() then
+      if nsec != -1 then
+        // Create a new event.
+        _event = @asio_event_create[Pointer[Event]](this, nsec, U32(4), true)
+      end
+    else
+      if nsec != -1 then
+        // Update an existing event.
+        @asio_event_update[None](_event, nsec)
+      else
+        // Unsubscribe an existing event.
+        @asio_event_unsubscribe[None](_event)
+        _event = Event.none()
+      end
+    end
 
   fun ref _fire(timer: Timer) =>
     """

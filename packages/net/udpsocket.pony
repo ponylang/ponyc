@@ -103,7 +103,8 @@ actor UDPSocket
     end
 
     if Event.disposable(flags) then
-      _event = Event.dispose(event)
+      @asio_event_destroy[None](event)
+      _event = Event.none()
     end
 
   be _read_again() =>
@@ -162,7 +163,7 @@ actor UDPSocket
     """
     Inform the notifier that we've closed.
     """
-    Event.unsubscribe(_event)
+    @asio_event_unsubscribe[None](_event)
     _readable = false
     _closed = true
 

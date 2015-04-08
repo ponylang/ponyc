@@ -34,14 +34,15 @@ actor Stdin
     Replace the notifier.
     """
     if notify is None then
-      if _use_event then
+      if _use_event and not _event.is_null() then
         // Unsubscribe the event.
-        Event.unsubscribe(_event)
+        @asio_event_unsubscribe[None](_event)
+        _event = Event.none()
       end
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = Event._stdin(this)
+        _event = @asio_event_create[Pointer[Event]](this, U64(0), U32(1), true)
       else
         // Start the read loop.
         _loop_read()
@@ -63,7 +64,7 @@ actor Stdin
     When the event fires, read from stdin.
     """
     if Event.disposable(flags) then
-      Event.dispose(event)
+      @asio_event_destroy[None](event)
     elseif (_event is event) and Event.readable(flags) then
       _read()
     end
@@ -99,7 +100,7 @@ actor Stdin
           return true
         | 0 =>
           // EOF. Close everything, stop reading.
-          Event.unsubscribe(_event)
+          @asio_event_unsubscribe[None](_event)
           notify.closed()
           _notify = None
           return false
@@ -109,7 +110,7 @@ actor Stdin
 
         if not notify(consume data) then
           // Notifier is done. Close everything, stop reading.
-          Event.unsubscribe(_event)
+          @asio_event_unsubscribe[None](_event)
           _notify = None
           return false
         end
@@ -127,6 +128,6 @@ actor Stdin
       true
     else
       // No notifier. Stop reading.
-      Event.unsubscribe(_event)
+      @asio_event_unsubscribe[None](_event)
       false
     end
