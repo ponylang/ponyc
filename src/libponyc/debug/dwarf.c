@@ -9,6 +9,8 @@
 #include <string.h>
 #include <assert.h>
 
+#ifndef PLATFORM_IS_WINDOWS
+
 static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
   bool opaque)
 {
@@ -83,8 +85,11 @@ static void meta_local(dwarf_meta_t* meta, ast_t* ast, const char* name,
     meta->flags = DWARF_CONSTANT;
 }
 
+#endif
+
 void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
 {
+#ifndef PLATFORM_IS_WINDOWS
   assert(ast_id(program) == TK_PROGRAM);
   ast_t* package = ast_child(program);
 
@@ -92,20 +97,30 @@ void dwarf_compileunit(dwarf_t* dwarf, ast_t* program)
   const char* name = package_filename(package); //FIX
 
   symbols_package(dwarf->symbols, path, name);
+#else
+  (void)dwarf;
+  (void)program;
+#endif
 }
 
 void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
 {
+#ifndef PLATFORM_IS_WINDOWS
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, false);
 
   symbols_basic(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)g;
+#endif
 }
 
 void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
 {
+#ifndef PLATFORM_IS_WINDOWS
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
@@ -113,10 +128,16 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
 
   meta.typearg = typearg;
   symbols_pointer(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)g;
+  (void)typearg;
+#endif
 }
 
 void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
 {
+#ifndef PLATFORM_IS_WINDOWS
   // Trait definitions have a scope, but are modeled
   // as opaque classes from which other classes may
   // inherit.
@@ -124,20 +145,30 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   setup_dwarf(dwarf, &meta, g, false);
 
   symbols_trait(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)g;
+#endif
 }
 
 void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
 {
+#ifndef PLATFORM_IS_WINDOWS
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
   setup_dwarf(dwarf, &meta, g, true);
 
   symbols_declare(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)g;
+#endif
 }
 
 void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
 {
+#ifndef PLATFORM_IS_WINDOWS
   if(is_machine_word(g->ast) || is_pointer(g->ast))
     return;
 
@@ -145,11 +176,16 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
   setup_dwarf(dwarf, &meta, g, false);
 
   symbols_composite(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)g;
+#endif
 }
 
 void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   int index)
 {
+#ifndef PLATFORM_IS_WINDOWS
   char buf[32];
   memset(buf, 0, sizeof(buf));
 
@@ -194,11 +230,18 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
     offset + index);
 
   symbols_field(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)composite;
+  (void)field;
+  (void)index;
+#endif
 }
 
 void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   const char* mangled, const char** params, size_t count, LLVMValueRef ir)
 {
+#ifndef PLATFORM_IS_WINDOWS
   dwarf_meta_t meta;
   memset(&meta, 0, sizeof(dwarf_meta_t));
 
@@ -215,10 +258,20 @@ void dwarf_method(dwarf_t* dwarf, ast_t* fun, const char* name,
   meta.size = count;
 
   symbols_method(dwarf->symbols, &meta, ir);
+#else
+  (void)dwarf;
+  (void)fun;
+  (void)name;
+  (void)mangled;
+  (void)params;
+  (void)count;
+  (void)ir;
+#endif
 }
 
 void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
 {
+#ifndef PLATFORM_IS_WINDOWS
   dwarf_meta_t meta;
   memset(&meta, 0, sizeof(dwarf_meta_t));
 
@@ -230,32 +283,54 @@ void dwarf_lexicalscope(dwarf_t* dwarf, ast_t* ast)
   meta.pos = ast_pos(ast);
 
   symbols_lexicalscope(dwarf->symbols, &meta);
+#else
+  (void)dwarf;
+  (void)ast;
+#endif
 }
 
 void dwarf_this(dwarf_t* dwarf, ast_t* fun, const char* type,
   LLVMBasicBlockRef entry, LLVMValueRef storage)
 {
+#ifndef PLATFORM_IS_WINDOWS
   dwarf_meta_t meta;
   meta_local(&meta, fun, stringtab("this"), type, entry, storage, 0, true);
   meta.flags |= DWARF_ARTIFICIAL;
 
   symbols_local(dwarf->symbols, &meta, true);
+#else
+  (void)dwarf;
+  (void)fun;
+  (void)type;
+  (void)entry;
+  (void)storage;
+#endif
 }
 
 void dwarf_parameter(dwarf_t* dwarf, ast_t* param, const char* type,
   LLVMBasicBlockRef entry, LLVMValueRef storage, size_t index)
 {
+#ifndef PLATFORM_IS_WINDOWS
   const char* name = ast_name(ast_child(param));
 
   dwarf_meta_t meta;
   meta_local(&meta, param, name, type, entry, storage, index, true);
 
   symbols_local(dwarf->symbols, &meta, true);
+#else
+  (void)dwarf;
+  (void)param;
+  (void)type;
+  (void)entry;
+  (void)storage;
+  (void)index;
+#endif
 }
 
 void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   LLVMBasicBlockRef entry, LLVMValueRef inst, LLVMValueRef storage)
 {
+#ifndef PLATFORM_IS_WINDOWS
   const char* name = ast_name(ast_child(ast));
 
   dwarf_meta_t meta;
@@ -264,10 +339,19 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   meta.inst = inst;
 
   symbols_local(dwarf->symbols, &meta, false);
+#else
+  (void)dwarf;
+  (void)ast;
+  (void)type;
+  (void)entry;
+  (void)ref;
+  (void)storage;
+#endif
 }
 
 void dwarf_location(dwarf_t* dwarf, ast_t* ast)
 {
+#ifndef PLATFORM_IS_WINDOWS
   if(dwarf->has_source && (ast != NULL))
   {
     size_t line = ast_line(ast);
@@ -282,23 +366,39 @@ void dwarf_location(dwarf_t* dwarf, ast_t* ast)
   {
     symbols_reset(dwarf->symbols, true);
   }
+#else
+  (void)dwarf;
+  (void)ast;
+#endif
 }
 
 void dwarf_finish(dwarf_t* dwarf)
 {
+#ifndef PLATFORM_IS_WINDOWS
   symbols_pop_frame(dwarf->symbols);
   symbols_reset(dwarf->symbols, false);
+#else
+  (void)dwarf;
+#endif
 }
 
 void dwarf_init(dwarf_t* dwarf, pass_opt_t* opt, LLVMBuilderRef builder,
   LLVMTargetDataRef layout, LLVMModuleRef module)
 {
+#ifndef PLATFORM_IS_WINDOWS
   dwarf->opt = opt;
   dwarf->target_data = layout;
   dwarf->has_source = false;
 
   symbols_init(&dwarf->symbols, builder, module, opt->release);
   symbols_unspecified(dwarf->symbols, stringtab("$object"));
+#else
+  (void)dwarf;
+  (void)opt;
+  (void)builder;
+  (void)layout;
+  (void)module;
+#endif
 }
 
 void dwarf_finalise(dwarf_t* dwarf)
