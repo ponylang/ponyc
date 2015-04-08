@@ -21,9 +21,11 @@ PONY_EXTERN_C_BEGIN
 
 enum
 {
+  ASIO_DISPOSABLE = 0,
   ASIO_READ  = 1 << 0,
   ASIO_WRITE = 1 << 1,
-  ASIO_TIMER = 1 << 2
+  ASIO_TIMER = 1 << 2,
+  ASIO_DESTROYED = (uint32_t)-1
 };
 
 /** Opaque definition of a backend.

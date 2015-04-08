@@ -54,7 +54,10 @@ static void handle_queue(asio_backend_t* b)
   asio_msg_t* msg;
 
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
-    asio_event_send(msg->event, 0);
+  {
+    msg->event->flags = ASIO_DISPOSABLE;
+    asio_event_send(msg->event, ASIO_DISPOSABLE);
+  }
 }
 
 static void retry_loop(asio_backend_t* b)
@@ -121,6 +124,11 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 
 void asio_event_subscribe(asio_event_t* ev)
 {
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
   asio_backend_t* b = asio_get_backend();
 
   if(ev->noisy)
@@ -157,6 +165,11 @@ void asio_event_subscribe(asio_event_t* ev)
 
 void asio_event_update(asio_event_t* ev, uintptr_t data)
 {
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
   asio_backend_t* b = asio_get_backend();
 
   struct kevent event[1];
@@ -174,6 +187,11 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 
 void asio_event_unsubscribe(asio_event_t* ev)
 {
+  if((ev == NULL) ||
+    (ev->flags == ASIO_DISPOSABLE) ||
+    (ev->flags == ASIO_DESTROYED))
+    return;
+
   asio_backend_t* b = asio_get_backend();
 
   if(ev->noisy)
@@ -181,9 +199,6 @@ void asio_event_unsubscribe(asio_event_t* ev)
     asio_noisy_remove();
     ev->noisy = false;
   }
-
-  if(ev->flags == 0)
-    return;
 
   struct kevent event[3];
   int i = 0;
@@ -211,10 +226,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);
   msg->event = ev;
-  msg->flags = 0;
+  msg->flags = ASIO_DISPOSABLE;
   messageq_push(&b->q, (pony_msg_t*)msg);
-
-  ev->flags = 0;
 }
 
 #endif
