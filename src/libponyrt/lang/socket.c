@@ -203,7 +203,7 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
 #endif
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!BindIoCompletionCallback((HANDLE)s, iocp_callback, 0))
+  if(!BindIoCompletionCallback((HANDLE)fd, iocp_callback, 0))
     r = 1;
 #endif
 
