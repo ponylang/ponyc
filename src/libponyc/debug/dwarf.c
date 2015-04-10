@@ -344,7 +344,7 @@ void dwarf_local(dwarf_t* dwarf, ast_t* ast, const char* type,
   (void)ast;
   (void)type;
   (void)entry;
-  (void)ref;
+  (void)inst;
   (void)storage;
 #endif
 }

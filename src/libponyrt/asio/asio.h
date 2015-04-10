@@ -103,6 +103,15 @@ void asio_backend_terminate(asio_backend_t* backend);
  */
 DECLARE_THREAD_FN(asio_backend_dispatch);
 
+
+#ifdef ASIO_USE_IOCP
+
+// Resume waiting on stdin after a read.
+// Should only be called from stdfd.c.
+void iocp_resume_stdin();
+
+#endif
+
 PONY_EXTERN_C_END
 
 #endif
