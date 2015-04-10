@@ -30,15 +30,6 @@ PONY_EXTERN_C_BEGIN
 
 void os_closesocket(PONYFD fd);
 
-static bool connect_in_progress()
-{
-#ifdef PLATFORM_IS_WINDOWS
-  return WSAGetLastError() == WSAEWOULDBLOCK;
-#else
-  return errno == EINPROGRESS;
-#endif
-}
-
 static bool would_block()
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -48,24 +39,144 @@ static bool would_block()
 #endif
 }
 
-#ifndef PLATFORM_IS_LINUX
+#ifdef PLATFORM_IS_MACOSX
 static int set_nonblocking(SOCKET s)
 {
-#ifdef PLATFORM_IS_WINDOWS
-  u_long flag = 1;
-  return ioctlsocket(s, FIONBIO, &flag);
-#else
   int flags = fcntl(s, F_GETFL, 0);
   return fcntl(s, F_SETFL, flags | O_NONBLOCK);
-#endif
 }
+#endif
+
+#ifdef PLATFORM_IS_WINDOWS
+
+#define IOCP_ACCEPT_ADDR_LEN (sizeof(struct sockaddr_storage) + 16)
+
+static LPFN_CONNECTEX ConnectEx;
+static LPFN_ACCEPTEX AcceptEx;
+
+typedef enum
+{
+  IOCP_CONNECT,
+  IOCP_ACCEPT
+} iocp_op_t;
+
+typedef struct iocp_t
+{
+  OVERLAPPED ov;
+  iocp_op_t op;
+  asio_event_t* ev;
+} iocp_t;
+
+typedef struct iocp_accept_t
+{
+  iocp_t iocp;
+  SOCKET ns;
+  char buf[IOCP_ACCEPT_ADDR_LEN * 2];
+} iocp_accept_t;
+
+static iocp_t* iocp_create(iocp_op_t op, asio_event_t* ev)
+{
+  iocp_t* iocp = POOL_ALLOC(sizeof(iocp_t));
+  memset(&iocp->ov, 0, sizeof(OVERLAPPED));
+  iocp->op = op;
+  iocp->ev = ev;
+
+  return iocp;
+}
+
+static void iocp_destroy(iocp_t* iocp)
+{
+  POOL_FREE(iocp_t, iocp);
+}
+
+static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
+{
+  iocp_accept_t* iocp = POOL_ALLOC(sizeof(iocp_accept_t));
+  memset(&iocp->iocp.ov, 0, sizeof(OVERLAPPED));
+  iocp->iocp.op = IOCP_ACCEPT;
+  iocp->iocp.ev = ev;
+  iocp->ns = s;
+
+  return iocp;
+}
+
+static void iocp_accept_destroy(iocp_accept_t* iocp)
+{
+  POOL_FREE(iocp_accept_t, iocp);
+}
+
+static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
+{
+  switch(iocp->op)
+  {
+    case IOCP_CONNECT:
+    {
+      // Dispatch a write event.
+      iocp_t* iocp = (iocp_t*)ov;
+      asio_event_send(iocp->ev, ASIO_WRITE, 0);
+      iocp_destroy(iocp);
+      break;
+    }
+
+    case IOCP_ACCEPT:
+    {
+      iocp_accept_t* iocp = (iocp_accept_t*)ov;
+
+      if(err == 0)
+      {
+        // Dispatch a read event with the new socket as the argument.
+        asio_event_send(iocp->ev, ASIO_READ, iocp->s);
+      } else {
+        // Close the socket.
+        closesocket(iocp->s);
+      }
+
+      iocp_accept_destroy(iocp);
+      break;
+    }
+  }
+}
+
+static bool iocp_accept(asio_event_t* ev)
+{
+  SOCKET s = (SOCKET)ev->data;
+  WSAPROTOCOL_INFO proto;
+
+  if(WSADuplicateSocket(s, GetCurrentProcessId(), &proto) != 0)
+    return false;
+
+  SOCKET ns = WSASocket(proto.iAddressFamily, proto.iSocketType, proto.
+    iProtocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+
+  if((ns == INVALID_SOCKET) ||
+    !BindIoCompletionCallback((HANDLE)ns, iocp_callback, 0))
+  {
+    return false;
+  }
+
+  iocp_accept_t* iocp = iocp_accept_create(ns, ev);
+  DWORD bytes;
+
+  if(!AcceptEx(s, ns, iocp->buf, 0, IOCP_ACCEPT_ADDR_LEN,
+    IOCP_ACCEPT_ADDR_LEN, &bytes, &iocp->iocp.ov))
+  {
+    if(GetLastError() != ERROR_IO_PENDING)
+      return false;
+  }
+
+  return true;
+}
+
 #endif
 
 static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
 {
-#ifdef PLATFORM_IS_LINUX
+#if defined(PLATFORM_IS_LINUX)
   SOCKET fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
     p->ai_protocol);
+#elif defined(PLATFORM_IS_WINDOWS)
+  SOCKET fd = WSASocket(p->ai_family, p->ai_socktype, p->ai_protocol, NULL, 0,
+    WSA_FLAG_OVERLAPPED);
 #else
   SOCKET fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 #endif
@@ -78,40 +189,98 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
   if(server)
   {
     int reuseaddr = 1;
-    r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-      (const char*)&reuseaddr, sizeof(int));
+    r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr,
+      sizeof(int));
   }
 
 #ifdef PLATFORM_IS_MACOSX
   int nosigpipe = 1;
   r |= setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, sizeof(int));
-#endif
-
-#ifndef PLATFORM_IS_LINUX
   r |= set_nonblocking(fd);
 #endif
 
-  if(r == 0)
-  {
-    if(server)
-    {
-      r |= bind(fd, p->ai_addr, (int)p->ai_addrlen);
-
-      if((r == 0) && (p->ai_socktype == SOCK_STREAM))
-        r |= listen(fd, SOMAXCONN);
-    } else {
-      int ok = connect(fd, p->ai_addr, (int)p->ai_addrlen);
-
-      if((ok != 0) && !connect_in_progress())
-        r |= ok;
-    }
-  }
+#ifdef PLATFORM_IS_WINDOWS
+  if(!BindIoCompletionCallback((HANDLE)s, iocp_callback, 0))
+    r = 1;
+#endif
 
   if(r == 0)
     return (PONYFD)fd;
 
   os_closesocket((PONYFD)fd);
   return -1;
+}
+
+static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
+{
+  if(bind((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen) != 0)
+  {
+    os_closesocket(fd);
+    return false;
+  }
+
+  if(p->ai_socktype == SOCK_STREAM)
+  {
+    if(listen((SOCKET)fd, SOMAXCONN) != 0)
+    {
+      os_closesocket(fd);
+      return false;
+    }
+  }
+
+  // Create an event and subscribe it.
+  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
+    true);
+
+#ifdef PLATFORM_IS_WINDOWS
+  if(!iocp_accept(ev))
+  {
+    asio_event_unsubscribe(ev);
+    os_closesocket(fd);
+    return false;
+  }
+#endif
+
+  // Send a read event, so that it can be unsubscribed before any connections
+  // are accepted.
+  asio_event_send(ev, ASIO_READ, 0);
+  return true;
+}
+
+static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
+{
+#ifdef PLATFORM_IS_WINDOWS
+  // Create an event and subscribe it.
+  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
+    true);
+
+  iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
+
+  if(!ConnectEx((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL,
+    &iocp->ov))
+  {
+    if(GetLastError() != ERROR_IO_PENDING)
+    {
+      asio_event_unsubscribe(ev);
+      iocp_destroy(iocp);
+      os_closesocket(fd);
+      return false;
+    }
+  }
+#else
+  int r = connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen);
+
+  if((r != 0) && (errno != EINPROGRESS))
+  {
+    os_closesocket(fd);
+    return false;
+  }
+
+  // Create an event and subscribe it.
+  asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE, true);
+#endif
+
+  return true;
 }
 
 /**
@@ -149,19 +318,17 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
 
     if(fd != (PONYFD)-1)
     {
-      asio_event_t* ev = asio_event_create(owner, fd,
-        ASIO_READ | ASIO_WRITE, true);
-
       if(server)
       {
-        // Send the event to servers, so that it can be unsubscribed before any
-        // connections are accepted.
-        asio_event_send(ev, ASIO_READ, 0);
+        if(!os_listen(owner, fd, p))
+          fd = -1;
+
         freeaddrinfo(result);
         return fd;
+      } else {
+        if(os_connect(owner, fd, p))
+          count++;
       }
-
-      count++;
     }
 
     p = p->ai_next;
@@ -234,12 +401,19 @@ PONYFD os_connect_tcp6(pony_actor_t* owner, const char* host,
     false);
 }
 
-PONYFD os_accept(PONYFD fd)
+PONYFD os_accept(asio_event_t* ev, uint64_t arg)
 {
-#ifdef PLATFORM_IS_LINUX
-  SOCKET ns = accept4((SOCKET)fd, NULL, NULL, SOCK_NONBLOCK);
+#if defined(PLATFORM_IS_WINDOWS)
+  // The arg is actually the new socket. We'll return that, and also kick off
+  // a new asynchronous accept for this event.
+  SOCKET ns = arg;
+  iocp_accept(ev);
+#elif defined(PLATFORM_IS_LINUX)
+  (void)arg;
+  SOCKET ns = accept4((SOCKET)ev->data, NULL, NULL, SOCK_NONBLOCK);
 #else
-  SOCKET ns = accept((SOCKET)fd, NULL, NULL);
+  (void)arg;
+  SOCKET ns = accept((SOCKET)ev->data, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
@@ -357,6 +531,8 @@ void os_peername(PONYFD fd, ipaddress_t* ipaddr)
 
 size_t os_send(PONYFD fd, const void* buf, size_t len)
 {
+  // TODO: iocp
+
 #if defined(PLATFORM_IS_LINUX)
   ssize_t sent = send((SOCKET)fd, buf, len, MSG_NOSIGNAL);
 #else
@@ -376,6 +552,8 @@ size_t os_send(PONYFD fd, const void* buf, size_t len)
 
 size_t os_recv(PONYFD fd, void* buf, size_t len)
 {
+  // TODO: iocp
+
   ssize_t recvd = recv((SOCKET)fd, (char*)buf, (int)len, 0);
 
   if(recvd < 0)
@@ -393,6 +571,8 @@ size_t os_recv(PONYFD fd, void* buf, size_t len)
 
 size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
 {
+  // TODO: iocp
+
   socklen_t addrlen = address_length(ipaddr);
 
 #if defined(PLATFORM_IS_LINUX)
@@ -416,6 +596,8 @@ size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
 
 size_t os_recvfrom(PONYFD fd, void* buf, size_t len, ipaddress_t* ipaddr)
 {
+  // TODO: iocp
+
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
   ssize_t recvd = recvfrom((SOCKET)fd, (char*)buf, (int)len, 0,
@@ -481,6 +663,69 @@ void os_closesocket(PONYFD fd)
   closesocket((SOCKET)fd);
 #else
   close((SOCKET)fd);
+#endif
+}
+
+bool os_socket_init()
+{
+#ifdef PLATFORM_IS_WINDOWS
+  WORD ver = MAKEWORD(2, 2);
+  WSADATA data;
+
+  // Load the winsock library.
+  int r = WSAStartup(ver, &data);
+
+  if(r != 0)
+    return false;
+
+  // We need a fake socket in order to get the extension functions for IOCP.
+  SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+  if(s == INVALID_SOCKET)
+  {
+    WSACleanup();
+    return false;
+  }
+
+  GUID guid;
+  DWORD dw;
+
+  // Find ConnectEx.
+  guid = WSAID_CONNECTEX;
+
+  r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
+    &ConnectEx, sizeof(ConnectEx), &dw, NULL, NULL);
+
+  if(r == SOCKET_ERROR)
+  {
+    closesocket(s);
+    WSACleanup();
+    return false;
+  }
+
+  // Find AcceptEx.
+  guid = WSAID_ACCEPTEX;
+
+  r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
+    &AcceptEx, sizeof(AcceptEx), &dw, NULL, NULL);
+
+  if(r == SOCKET_ERROR)
+  {
+    closesocket(s);
+    WSACleanup();
+    return false;
+  }
+
+  closesocket(s);
+#endif
+
+  return true;
+}
+
+void os_socket_shutdown()
+{
+#ifdef PLATFORM_IS_WINDOWS
+  WSACleanup();
 #endif
 }
 

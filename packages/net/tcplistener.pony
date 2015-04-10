@@ -66,7 +66,7 @@ actor TCPListener
 
       if Event.readable(flags) then
         while true do
-          var fd = @os_accept[U64](_fd)
+          var fd = @os_accept[U64](_event, arg)
 
           if fd == -1 then
             break

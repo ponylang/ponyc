@@ -1,12 +1,9 @@
 #include "scheduler.h"
 #include "../gc/cycle.h"
 #include "../dist/dist.h"
+#include "../lang/socket.h"
 #include <string.h>
 #include <stdlib.h>
-
-#ifdef PLATFORM_IS_WINDOWS
-#include <Winsock2.h>
-#endif
 
 typedef struct options_t
 {
@@ -112,13 +109,6 @@ int pony_init(int argc, char** argv)
   opt.mpmcq = true;
   argc = parse_opts(argc, argv, &opt);
 
-#ifdef PLATFORM_IS_WINDOWS
-  WORD ver = MAKEWORD(2, 2);
-  WSADATA data;
-
-  WSAStartup(ver, &data);
-#endif
-
   pony_exitcode(0);
   scheduler_init(opt.threads, opt.forcecd, opt.mpmcq);
   cycle_create();
@@ -138,8 +128,14 @@ int pony_init(int argc, char** argv)
 
 int pony_start(bool library)
 {
+  if(!os_socket_init())
+    return -1;
+
   if(!scheduler_start(library))
     return -1;
+
+  if(library)
+    return 0;
 
   return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
@@ -147,6 +143,7 @@ int pony_start(bool library)
 int pony_stop()
 {
   scheduler_stop();
+  os_socket_shutdown();
 
   return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
 }
