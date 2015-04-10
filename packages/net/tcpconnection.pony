@@ -202,19 +202,26 @@ actor TCPConnection
     Write as much as possible to the socket. Set _writeable to false if not
     everything was written. On an error, dispose of the connection.
     """
-    if _writeable then
+    if Platform.windows() then
       try
-        var len = @os_send[U64](_event, data.cstring(), data.size()) ?
-
-        if len < data.size() then
-          _pending.push((data, len))
-          _writeable = false
-        end
-      else
-        _close()
+        @os_send[U64](_event, data.cstring(), data.size()) ?
+        _pending.push((data, 0))
       end
-    elseif not _closed then
-      _pending.push((data, 0))
+    else
+      if _writeable then
+        try
+          var len = @os_send[U64](_event, data.cstring(), data.size()) ?
+
+          if len < data.size() then
+            _pending.push((data, len))
+            _writeable = false
+          end
+        else
+          _close()
+        end
+      elseif not _closed then
+        _pending.push((data, 0))
+      end
     end
 
   fun ref _complete_writes(len: U64) =>
@@ -247,22 +254,24 @@ actor TCPConnection
     Send pending data. If any data can't be sent, keep it and mark as not
     writeable. On an error, dispose of the connection.
     """
-    while _writeable and (_pending.size() > 0) do
-      try
-        let node = _pending.head()
-        (let data, let offset) = node()
+    if not Platform.windows() then
+      while _writeable and (_pending.size() > 0) do
+        try
+          let node = _pending.head()
+          (let data, let offset) = node()
 
-        let len = @os_send[U64](_event, data.cstring().u64() + offset,
-          data.size() - offset) ?
+          let len = @os_send[U64](_event, data.cstring().u64() + offset,
+            data.size() - offset) ?
 
-        if (len + offset) < data.size() then
-          node() = (data, offset + len)
-          _writeable = false
+          if (len + offset) < data.size() then
+            node() = (data, offset + len)
+            _writeable = false
+          else
+            _pending.shift()
+          end
         else
-          _pending.shift()
+          _close()
         end
-      else
-        _close()
       end
     end
 
