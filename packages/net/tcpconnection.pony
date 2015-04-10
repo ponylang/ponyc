@@ -13,7 +13,7 @@ actor TCPConnection
   var _writeable: Bool = false
   var _closed: Bool = false
   var _pending: List[(Bytes, U64)] = _pending.create()
-  var _last_read: U64 = 64
+  var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String) =>
     """
@@ -51,6 +51,8 @@ actor TCPConnection
     _fd = fd
     _event = @asio_event_create[Pointer[Event]](this, fd, U32(3), true)
     _connected = true
+
+    _queue_read()
     _notify.accepted(this)
 
   be write(data: Bytes) =>
@@ -137,6 +139,8 @@ actor TCPConnection
             _fd = fd
             _event = event
             _connected = true
+
+            _queue_read()
             _notify.connected(this)
           else
             // The connection failed, unsubscribe the event and close.
@@ -169,11 +173,13 @@ actor TCPConnection
     if not _closed then
       if Event.writeable(flags) then
         _writeable = true
+        _complete_writes(arg)
         _pending_writes()
       end
 
       if Event.readable(flags) then
         _readable = true
+        _complete_reads(arg)
         _pending_reads()
       end
     end
@@ -198,7 +204,7 @@ actor TCPConnection
     """
     if _writeable then
       try
-        var len = @os_send[U64](_fd, data.cstring(), data.size()) ?
+        var len = @os_send[U64](_event, data.cstring(), data.size()) ?
 
         if len < data.size() then
           _pending.push((data, len))
@@ -211,6 +217,31 @@ actor TCPConnection
       _pending.push((data, 0))
     end
 
+  fun ref _complete_writes(len: U64) =>
+    """
+    The OS has informed as that len bytes of pending writes have completed.
+    This occurs only with IOCP on Windows.
+    """
+    if Platform.windows() then
+      var rem = len
+
+      while rem > 0 do
+        try
+          let node = _pending.head()
+          (let data, let offset) = node()
+          let total = rem + offset
+
+          if total < data.size() then
+            node() = (data, total)
+            rem = 0
+          else
+            _pending.shift()
+            rem = total - data.size()
+          end
+        end
+      end
+    end
+
   fun ref _pending_writes() =>
     """
     Send pending data. If any data can't be sent, keep it and mark as not
@@ -218,10 +249,10 @@ actor TCPConnection
     """
     while _writeable and (_pending.size() > 0) do
       try
-        var node = _pending.head()
-        (var data, var offset) = node()
+        let node = _pending.head()
+        (let data, let offset) = node()
 
-        var len = @os_send[U64](_fd, data.cstring().u64() + offset,
+        let len = @os_send[U64](_event, data.cstring().u64() + offset,
           data.size() - offset) ?
 
         if (len + offset) < data.size() then
@@ -239,39 +270,79 @@ actor TCPConnection
       _close()
     end
 
+  fun ref _complete_reads(len: U64) =>
+    """
+    The OS has informed as that len bytes of pending reads have completed.
+    This occurs only with IOCP on Windows.
+    """
+    if Platform.windows() then
+      var next = len
+
+      match len
+      | 0 =>
+        _close()
+        return
+      | _read_buf.space() =>
+        next = next << 1
+      end
+
+      let data = _read_buf = recover Array[U8].undefined(next) end
+      data.truncate(len)
+
+      _queue_read()
+      _notify.received(this, consume data)
+    end
+
+  fun ref _queue_read() =>
+    """
+    Queue an IOCP read on Windows.
+    """
+    if Platform.windows() then
+      try
+        @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
+      else
+        _close()
+      end
+    end
+
   fun ref _pending_reads() =>
     """
     Read while data is available, guessing the next packet length as we go. If
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    try
-      var sum: U64 = 0
+    if not Platform.windows() then
+      try
+        var sum: U64 = 0
 
-      while _readable do
-        var len = _last_read
-        var data = recover Array[U8].undefined(len) end
-        len = @os_recv[U64](_fd, data.cstring(), data.space()) ?
+        while _readable do
+          let len =
+            @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
 
-        match len
-        | 0 =>
-          _readable = false
-          return
-        | _last_read => _last_read = _last_read << 1
+          var next = len
+
+          match len
+          | 0 =>
+            _readable = false
+            return
+          | _read_buf.space() =>
+            next = next << 1
+          end
+
+          let data = _read_buf = recover Array[U8].undefined(next) end
+          data.truncate(len)
+          _notify.received(this, consume data)
+
+          sum = sum + len
+
+          if sum > (1 << 12) then
+            _read_again()
+            return
+          end
         end
-
-        data.truncate(len)
-        _notify.received(this, consume data)
-
-        sum = sum + len
-
-        if sum > (1 << 12) then
-          _read_again()
-          return
-        end
+      else
+        _close()
       end
-    else
-      _close()
     end
 
   fun ref _notify_connecting() =>

@@ -26,20 +26,15 @@
 typedef int SOCKET;
 #endif
 
+#ifndef PLATFORM_IS_LINUX
+#define MSG_NOSIGNAL 0
+#endif
+
 typedef uintptr_t PONYFD;
 
 PONY_EXTERN_C_BEGIN
 
 void os_closesocket(PONYFD fd);
-
-static bool would_block()
-{
-#ifdef PLATFORM_IS_WINDOWS
-  return WSAGetLastError() == WSAEWOULDBLOCK;
-#else
-  return errno == EWOULDBLOCK;
-#endif
-}
 
 #ifdef PLATFORM_IS_MACOSX
 static int set_nonblocking(SOCKET s)
@@ -59,7 +54,9 @@ static LPFN_ACCEPTEX g_AcceptEx;
 typedef enum
 {
   IOCP_CONNECT,
-  IOCP_ACCEPT
+  IOCP_ACCEPT,
+  IOCP_SEND,
+  IOCP_RECV
 } iocp_op_t;
 
 typedef struct iocp_t
@@ -125,19 +122,66 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
     {
       iocp_accept_t* acc = (iocp_accept_t*)iocp;
 
-      if(err == 0)
+      if(err == ERROR_SUCCESS)
       {
         // Dispatch a read event with the new socket as the argument.
         asio_event_send(iocp->ev, ASIO_READ, acc->ns);
       } else {
-        // Close the socket.
+        // Close the new socket.
         closesocket(acc->ns);
       }
 
       iocp_accept_destroy(acc);
       break;
     }
+
+    case IOCP_SEND:
+    {
+      if(err == ERROR_SUCCESS)
+      {
+        // Dispatch a write event with the number of bytes written.
+        asio_event_send(iocp->ev, ASIO_WRITE, bytes);
+      } else {
+        // Dispatch a read event with zero bytes to indicate a close.
+        asio_event_send(iocp->ev, ASIO_READ, 0);
+      }
+
+      iocp_destroy(iocp);
+      break;
+    }
+
+    case IOCP_RECV:
+    {
+      if(err == ERROR_SUCCESS)
+      {
+        // Dispatch a read event with the number of bytes read.
+        asio_event_send(iocp->ev, ASIO_READ, bytes);
+      } else {
+        // Dispatch a read event with zero bytes to indicate a close.
+        asio_event_send(iocp->ev, ASIO_READ, 0);
+      }
+
+      iocp_destroy(iocp);
+      break;
+    }
   }
+}
+
+static bool iocp_connect(asio_event_t* ev, struct addrinfo *p)
+{
+  SOCKET s = (SOCKET)ev->data;
+  iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
+
+  if(!g_ConnectEx(s, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL, &iocp->ov))
+  {
+    if(GetLastError() != ERROR_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 static bool iocp_accept(asio_event_t* ev)
@@ -164,7 +208,47 @@ static bool iocp_accept(asio_event_t* ev)
     IOCP_ACCEPT_ADDR_LEN, &bytes, &iocp->iocp.ov))
   {
     if(GetLastError() != ERROR_IO_PENDING)
+    {
+      iocp_accept_destroy(iocp);
       return false;
+    }
+  }
+
+  return true;
+}
+
+static bool iocp_send(asio_event_t* ev, const char* buf, size_t len)
+{
+  SOCKET s = (SOCKET)ev->data;
+  iocp_t* iocp = iocp_create(IOCP_SEND, ev);
+  DWORD sent;
+
+  if(WSASend(s, &buf, 1, &sent, 0, &iocp->ov, NULL) != 0)
+  {
+    if(GetLastError() != WSA_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool iocp_recv(asio_event_t* ev, const char* buf, size_t len)
+{
+  SOCKET s = (SOCKET)ev->data;
+  iocp_t* iocp = iocp_create(IOCP_RECV, ev);
+  DWORD received;
+  DWORD flags = 0;
+
+  if(WSARecv(s, &buf, 1, &received, &flags, &iocp->ov, NULL) != 0)
+  {
+    if(GetLastError() != WSA_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
   }
 
   return true;
@@ -257,18 +341,11 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
   asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
     true);
 
-  iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
-
-  if(!g_ConnectEx((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL,
-    &iocp->ov))
+  if(!iocp_connect(ev, p))
   {
-    if(GetLastError() != ERROR_IO_PENDING)
-    {
-      asio_event_unsubscribe(ev);
-      iocp_destroy(iocp);
-      os_closesocket(fd);
-      return false;
-    }
+    asio_event_unsubscribe(ev);
+    os_closesocket(fd);
+    return false;
   }
 #else
   int r = connect((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen);
@@ -532,44 +609,50 @@ void os_peername(PONYFD fd, ipaddress_t* ipaddr)
   getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
 }
 
-size_t os_send(PONYFD fd, const void* buf, size_t len)
+size_t os_send(asio_event_t* ev, const char* buf, size_t len)
 {
-  // TODO: iocp
+#ifdef PLATFORM_IS_WINDOWS
+  if(!iocp_send(ev, buf, len))
+    pony_throw();
 
-#if defined(PLATFORM_IS_LINUX)
-  ssize_t sent = send((SOCKET)fd, buf, len, MSG_NOSIGNAL);
+  return 0;
 #else
-  ssize_t sent = send((SOCKET)fd, (const char*)buf, (int)len, 0);
-#endif
+  ssize_t sent = send((SOCKET)ev->data, buf, len, MSG_NOSIGNAL);
 
   if(sent < 0)
   {
-    if(would_block())
+    if(errno == EWOULDBLOCK)
       return 0;
 
     pony_throw();
   }
 
   return (size_t)sent;
+#endif
 }
 
-size_t os_recv(PONYFD fd, void* buf, size_t len)
+size_t os_recv(asio_event_t* ev, char* buf, size_t len)
 {
-  // TODO: iocp
+#ifdef PLATFORM_IS_WINDOWS
+  if(!iocp_recv(ev, buf, len))
+    pony_throw();
 
-  ssize_t recvd = recv((SOCKET)fd, (char*)buf, (int)len, 0);
+  return 0;
+#else
+  ssize_t received = recv((SOCKET)ev->data, buf, len, 0);
 
-  if(recvd < 0)
+  if(received < 0)
   {
-    if(would_block())
+    if(errno == EWOULDBLOCK)
       return 0;
 
     pony_throw();
-  } else if(recvd == 0) {
+  } else if(received == 0) {
     pony_throw();
   }
 
-  return (size_t)recvd;
+  return (size_t)received;
+#endif
 }
 
 size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
@@ -588,7 +671,7 @@ size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
 
   if(sent < 0)
   {
-    if(would_block())
+    if(errno == EWOULDBLOCK)
       return 0;
 
     pony_throw();
@@ -608,7 +691,7 @@ size_t os_recvfrom(PONYFD fd, void* buf, size_t len, ipaddress_t* ipaddr)
 
   if(recvd < 0)
   {
-    if(would_block())
+    if(errno == EWOULDBLOCK)
       return 0;
 
     pony_throw();
