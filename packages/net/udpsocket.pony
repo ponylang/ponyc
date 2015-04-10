@@ -2,7 +2,7 @@ use "collections"
 
 actor UDPSocket
   var _notify: UDPNotify
-  var _fd: U32 = -1
+  var _fd: U64 = -1
   var _event: EventID = Event.none()
   var _readable: Bool = false
   var _closed: Bool = false
@@ -15,7 +15,7 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_udp[U64](this, host.cstring(), service.cstring())
     _packet_size = size
     _notify_listening()
 
@@ -26,7 +26,7 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp4[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_udp4[U64](this, host.cstring(), service.cstring())
     _packet_size = size
     _notify_listening()
 
@@ -37,7 +37,7 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp6[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_udp6[U64](this, host.cstring(), service.cstring())
     _packet_size = size
     _notify_listening()
 

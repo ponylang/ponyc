@@ -5,8 +5,8 @@ actor TCPConnection
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
   """
   var _notify: TCPConnectionNotify
-  var _connect_count: U32
-  var _fd: U32 = -1
+  var _connect_count: U64
+  var _fd: U64 = -1
   var _event: EventID = Event.none()
   var _connected: Bool = false
   var _readable: Bool = false
@@ -20,7 +20,7 @@ actor TCPConnection
     Connect via IPv4 or IPv6.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp[U32](this, host.cstring(),
+    _connect_count = @os_connect_tcp[U64](this, host.cstring(),
       service.cstring())
     _notify_connecting()
 
@@ -29,7 +29,7 @@ actor TCPConnection
     Connect via IPv4.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp4[U32](this, host.cstring(),
+    _connect_count = @os_connect_tcp4[U64](this, host.cstring(),
       service.cstring())
     _notify_connecting()
 
@@ -38,18 +38,18 @@ actor TCPConnection
     Connect via IPv6.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp6[U32](this, host.cstring(),
+    _connect_count = @os_connect_tcp6[U64](this, host.cstring(),
       service.cstring())
     _notify_connecting()
 
-  new _accept(notify: TCPConnectionNotify iso, fd: U32) =>
+  new _accept(notify: TCPConnectionNotify iso, fd: U64) =>
     """
     A new connection accepted on a server.
     """
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @asio_event_create[Pointer[Event]](this, fd.u64(), U32(3), true)
+    _event = @asio_event_create[Pointer[Event]](this, fd, U32(3), true)
     _connected = true
     _notify.accepted(this)
 
@@ -127,7 +127,7 @@ actor TCPConnection
     if event isnt _event then
       if Event.writeable(flags) then
         // A connection has completed.
-        var fd = @asio_event_data[U64](event).u32()
+        var fd = @asio_event_data[U64](event)
         _connect_count = _connect_count - 1
 
         if not _connected and not _closed then

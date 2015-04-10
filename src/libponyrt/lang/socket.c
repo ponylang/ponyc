@@ -24,9 +24,11 @@
 typedef int SOCKET;
 #endif
 
+typedef uintptr_t PONYFD;
+
 PONY_EXTERN_C_BEGIN
 
-void os_closesocket(int fd);
+void os_closesocket(PONYFD fd);
 
 static bool connect_in_progress()
 {
@@ -59,10 +61,11 @@ static int set_nonblocking(SOCKET s)
 }
 #endif
 
-static int socket_from_addrinfo(struct addrinfo* p, bool server)
+static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
 {
 #ifdef PLATFORM_IS_LINUX
-  int fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol);
+  SOCKET fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
+    p->ai_protocol);
 #else
   SOCKET fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
 #endif
@@ -105,9 +108,9 @@ static int socket_from_addrinfo(struct addrinfo* p, bool server)
   }
 
   if(r == 0)
-    return (int)fd;
+    return (PONYFD)fd;
 
-  os_closesocket((int)fd);
+  os_closesocket((PONYFD)fd);
   return -1;
 }
 
@@ -116,7 +119,7 @@ static int socket_from_addrinfo(struct addrinfo* p, bool server)
  * file descriptor or -1. For a client, this starts Happy Eyeballs and returns
  * the number of connection attempts in-flight, which may be 0.
  */
-static int os_socket(pony_actor_t* owner, const char* host,
+static PONYFD os_socket(pony_actor_t* owner, const char* host,
   const char* service, int family, int socktype, int proto, bool server)
 {
   struct addrinfo hints;
@@ -142,9 +145,9 @@ static int os_socket(pony_actor_t* owner, const char* host,
 
   while(p != NULL)
   {
-    int fd = socket_from_addrinfo(p, server);
+    PONYFD fd = socket_from_addrinfo(p, server);
 
-    if(fd != -1)
+    if(fd != (PONYFD)-1)
     {
       asio_event_t* ev = asio_event_create(owner, fd,
         ASIO_READ | ASIO_WRITE, true);
@@ -168,83 +171,90 @@ static int os_socket(pony_actor_t* owner, const char* host,
   return count;
 }
 
-int os_listen_tcp(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_tcp(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
     true);
 }
 
-int os_listen_tcp4(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_tcp4(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
     true);
 }
 
-int os_listen_tcp6(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_tcp6(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
     true);
 }
 
-int os_listen_udp(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_udp(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP,
     true);
 }
 
-int os_listen_udp4(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_udp4(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP,
     true);
 }
 
-int os_listen_udp6(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_listen_udp6(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP,
     true);
 }
 
-int os_connect_tcp(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_connect_tcp(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
     false);
 }
 
-int os_connect_tcp4(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_connect_tcp4(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
     false);
 }
 
-int os_connect_tcp6(pony_actor_t* owner, const char* host, const char* service)
+PONYFD os_connect_tcp6(pony_actor_t* owner, const char* host,
+  const char* service)
 {
   return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
     false);
 }
 
-int os_accept(int fd)
+PONYFD os_accept(PONYFD fd)
 {
 #ifdef PLATFORM_IS_LINUX
-  int ns = accept4(fd, NULL, NULL, SOCK_NONBLOCK);
+  SOCKET ns = accept4((SOCKET)fd, NULL, NULL, SOCK_NONBLOCK);
 #else
-  SOCKET s = fd;
-  SOCKET ns = accept(s, NULL, NULL);
+  SOCKET ns = accept((SOCKET)fd, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
 #endif
 
-  return (int)ns;
+  return (PONYFD)ns;
 }
 
 // Check this when a connection gets its first writeable event.
-bool os_connected(int fd)
+bool os_connected(PONYFD fd)
 {
-  SOCKET s = fd;
   int val = 0;
   socklen_t len = sizeof(int);
 
-  if(getsockopt(s, SOL_SOCKET, SO_ERROR, (char*)&val, &len) == -1)
+  if(getsockopt((SOCKET)fd, SOL_SOCKET, SO_ERROR, (char*)&val, &len) == -1)
     return false;
 
   return val == 0;
@@ -333,27 +343,24 @@ struct addrinfo* os_nextaddr(struct addrinfo* addr)
   return addr->ai_next;
 }
 
-void os_sockname(int fd, ipaddress_t* ipaddr)
+void os_sockname(PONYFD fd, ipaddress_t* ipaddr)
 {
-  SOCKET s = fd;
   socklen_t len = sizeof(struct sockaddr_storage);
-  getsockname(s, (struct sockaddr*)&ipaddr->addr, &len);
+  getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
 }
 
-void os_peername(int fd, ipaddress_t* ipaddr)
+void os_peername(PONYFD fd, ipaddress_t* ipaddr)
 {
-  SOCKET s = fd;
   socklen_t len = sizeof(struct sockaddr_storage);
-  getpeername(s, (struct sockaddr*)&ipaddr->addr, &len);
+  getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
 }
 
-size_t os_send(int fd, const void* buf, size_t len)
+size_t os_send(PONYFD fd, const void* buf, size_t len)
 {
 #if defined(PLATFORM_IS_LINUX)
-  ssize_t sent = send(fd, buf, len, MSG_NOSIGNAL);
+  ssize_t sent = send((SOCKET)fd, buf, len, MSG_NOSIGNAL);
 #else
-  SOCKET s = fd;
-  ssize_t sent = send(s, (const char*)buf, (int)len, 0);
+  ssize_t sent = send((SOCKET)fd, (const char*)buf, (int)len, 0);
 #endif
 
   if(sent < 0)
@@ -367,10 +374,9 @@ size_t os_send(int fd, const void* buf, size_t len)
   return (size_t)sent;
 }
 
-size_t os_recv(int fd, void* buf, size_t len)
+size_t os_recv(PONYFD fd, void* buf, size_t len)
 {
-  SOCKET s = fd;
-  ssize_t recvd = recv(s, (char*)buf, (int)len, 0);
+  ssize_t recvd = recv((SOCKET)fd, (char*)buf, (int)len, 0);
 
   if(recvd < 0)
   {
@@ -385,16 +391,15 @@ size_t os_recv(int fd, void* buf, size_t len)
   return (size_t)recvd;
 }
 
-size_t os_sendto(int fd, const void* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
 {
   socklen_t addrlen = address_length(ipaddr);
 
 #if defined(PLATFORM_IS_LINUX)
-  ssize_t sent = sendto(fd, buf, len, MSG_NOSIGNAL,
+  ssize_t sent = sendto((SOCKET)fd, buf, len, MSG_NOSIGNAL,
     (struct sockaddr*)&ipaddr->addr, addrlen);
 #else
-  SOCKET s = fd;
-  ssize_t sent = sendto(s, (const char*)buf, (int)len, 0,
+  ssize_t sent = sendto((SOCKET)fd, (const char*)buf, (int)len, 0,
     (struct sockaddr*)&ipaddr->addr, addrlen);
 #endif
 
@@ -409,12 +414,11 @@ size_t os_sendto(int fd, const void* buf, size_t len, ipaddress_t* ipaddr)
   return (size_t)sent;
 }
 
-size_t os_recvfrom(int fd, void* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_recvfrom(PONYFD fd, void* buf, size_t len, ipaddress_t* ipaddr)
 {
-  SOCKET s = fd;
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t recvd = recvfrom(s, (char*)buf, (int)len, 0,
+  ssize_t recvd = recvfrom((SOCKET)fd, (char*)buf, (int)len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
@@ -430,9 +434,10 @@ size_t os_recvfrom(int fd, void* buf, size_t len, ipaddress_t* ipaddr)
   return (size_t)recvd;
 }
 
-void os_keepalive(int fd, int secs)
+void os_keepalive(PONYFD fd, int secs)
 {
-  SOCKET s = fd;
+  SOCKET s = (SOCKET)fd;
+
   int on = (secs > 0) ? 1 : 0;
   setsockopt(s, SOL_SOCKET,  SO_KEEPALIVE, (const char*)&on, sizeof(int));
 
@@ -463,19 +468,19 @@ void os_keepalive(int fd, int secs)
 #endif
 }
 
-void os_nodelay(int fd, bool state)
+void os_nodelay(PONYFD fd, bool state)
 {
-  SOCKET s = fd;
   int val = state;
-  setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (const char*)&val, sizeof(int));
+  setsockopt((SOCKET)fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&val,
+    sizeof(int));
 }
 
-void os_closesocket(int fd)
+void os_closesocket(PONYFD fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
   closesocket((SOCKET)fd);
 #else
-  close(fd);
+  close((SOCKET)fd);
 #endif
 }
 

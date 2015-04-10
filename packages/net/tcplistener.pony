@@ -3,7 +3,7 @@ actor TCPListener
   Listens for new network connections.
   """
   var _notify: TCPListenNotify
-  var _fd: U32
+  var _fd: U64
   var _event: EventID = Event.none()
   var _closed: Bool = false
 
@@ -14,7 +14,7 @@ actor TCPListener
     Listens for both IPv4 and IPv6 connections.
     """
     _notify = consume notify
-    _fd = @os_listen_tcp[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_tcp[U64](this, host.cstring(), service.cstring())
     _notify_listening()
 
   new ip4(notify: TCPListenNotify iso, host: String = "",
@@ -24,7 +24,7 @@ actor TCPListener
     Listens for IPv4 connections.
     """
     _notify = consume notify
-    _fd = @os_listen_tcp4[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_tcp4[U64](this, host.cstring(), service.cstring())
     _notify_listening()
 
   new ip6(notify: TCPListenNotify iso, host: String = "",
@@ -34,7 +34,7 @@ actor TCPListener
     Listens for IPv6 connections.
     """
     _notify = consume notify
-    _fd = @os_listen_tcp6[U32](this, host.cstring(), service.cstring())
+    _fd = @os_listen_tcp6[U64](this, host.cstring(), service.cstring())
     _notify_listening()
 
   be dispose() =>
@@ -66,7 +66,7 @@ actor TCPListener
 
       if Event.readable(flags) then
         while true do
-          var fd = @os_accept[U32](_fd)
+          var fd = @os_accept[U64](_fd)
 
           if fd == -1 then
             break
