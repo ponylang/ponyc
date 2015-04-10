@@ -524,12 +524,6 @@ bool os_connected(PONYFD fd)
 
 typedef struct
 {
-  char* host;
-  char* serv;
-} hostserv_t;
-
-typedef struct
-{
   pony_type_t* type;
   struct sockaddr_storage addr;
 } ipaddress_t;
@@ -551,7 +545,7 @@ static socklen_t address_length(ipaddress_t* ipaddr)
   return 0;
 }
 
-hostserv_t os_nameinfo(ipaddress_t* ipaddr)
+void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv)
 {
   char host[NI_MAXHOST];
   char serv[NI_MAXSERV];
@@ -564,17 +558,13 @@ hostserv_t os_nameinfo(ipaddress_t* ipaddr)
   if(r != 0)
     pony_throw();
 
-  hostserv_t h;
-
   size_t hostlen = strlen(host);
-  h.host = (char*)pony_alloc(hostlen + 1);
-  memcpy(h.host, host, hostlen + 1);
+  *rhost = (char*)pony_alloc(hostlen + 1);
+  memcpy(*rhost, host, hostlen + 1);
 
   size_t servlen = strlen(serv);
-  h.serv = (char*)pony_alloc(servlen + 1);
-  memcpy(h.serv, serv, servlen + 1);
-
-  return h;
+  *rserv = (char*)pony_alloc(servlen + 1);
+  memcpy(*rserv, serv, servlen + 1);
 }
 
 struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
