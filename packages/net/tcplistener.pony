@@ -41,7 +41,7 @@ actor TCPListener
     """
     Stop listening.
     """
-    _close()
+    close()
 
   fun local_address(): IPAddress =>
     """
@@ -65,8 +65,11 @@ actor TCPListener
       _event = event
 
       if Event.readable(flags) then
+        var newfd = arg
+
         while true do
-          var fd = @os_accept[U64](_event, arg)
+          var fd = @os_accept[U64](_event, newfd)
+          newfd = 0
 
           if fd == -1 then
             break
@@ -92,7 +95,7 @@ actor TCPListener
       _notify.not_listening(this)
     end
 
-  fun ref _close() =>
+  fun ref close() =>
     """
     Dispose of resources.
     """

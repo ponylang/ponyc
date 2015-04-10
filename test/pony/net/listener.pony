@@ -15,14 +15,14 @@ class Listener is TCPListenNotify
       TCPConnection(recover ClientSide(env) end, host, service)
     else
       _env.out.print("couldn't get local address")
-      listen.dispose()
+      listen.close()
     end
 
   fun ref not_listening(listen: TCPListener ref) =>
     _env.out.print("not listening")
-    listen.dispose()
+    listen.close()
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     let env = _env
-    listen.dispose()
+    listen.close()
     recover ServerSide(env) end

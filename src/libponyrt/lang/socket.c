@@ -359,7 +359,8 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  const struct sockaddr_storage addr = {0};
+  struct sockaddr_storage addr = {0};
+  addr.ss_family = p->ai_family;
 
   if(bind((SOCKET)fd, (const struct sockaddr*)&addr, (int)p->ai_addrlen) != 0)
   {
