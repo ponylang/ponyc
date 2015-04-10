@@ -14,6 +14,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <mstcpip.h>
+#include <mswsock.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
