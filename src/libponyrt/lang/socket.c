@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #ifdef PLATFORM_IS_WINDOWS
+#include "../mem/pool.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <mstcpip.h>
@@ -52,8 +53,8 @@ static int set_nonblocking(SOCKET s)
 
 #define IOCP_ACCEPT_ADDR_LEN (sizeof(struct sockaddr_storage) + 16)
 
-static LPFN_CONNECTEX ConnectEx;
-static LPFN_ACCEPTEX AcceptEx;
+static LPFN_CONNECTEX g_ConnectEx;
+static LPFN_ACCEPTEX g_AcceptEx;
 
 typedef enum
 {
@@ -158,7 +159,7 @@ static bool iocp_accept(asio_event_t* ev)
   iocp_accept_t* iocp = iocp_accept_create(ns, ev);
   DWORD bytes;
 
-  if(!AcceptEx(s, ns, iocp->buf, 0, IOCP_ACCEPT_ADDR_LEN,
+  if(!g_AcceptEx(s, ns, iocp->buf, 0, IOCP_ACCEPT_ADDR_LEN,
     IOCP_ACCEPT_ADDR_LEN, &bytes, &iocp->iocp.ov))
   {
     if(GetLastError() != ERROR_IO_PENDING)
@@ -257,7 +258,7 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 
   iocp_t* iocp = iocp_create(IOCP_CONNECT, ev);
 
-  if(!ConnectEx((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL,
+  if(!g_ConnectEx((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen, NULL, 0, NULL,
     &iocp->ov))
   {
     if(GetLastError() != ERROR_IO_PENDING)
@@ -695,7 +696,7 @@ bool os_socket_init()
   guid = WSAID_CONNECTEX;
 
   r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
-    &ConnectEx, sizeof(ConnectEx), &dw, NULL, NULL);
+    &g_ConnectEx, sizeof(g_ConnectEx), &dw, NULL, NULL);
 
   if(r == SOCKET_ERROR)
   {
@@ -708,7 +709,7 @@ bool os_socket_init()
   guid = WSAID_ACCEPTEX;
 
   r = WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid, sizeof(guid),
-    &AcceptEx, sizeof(AcceptEx), &dw, NULL, NULL);
+    &g_AcceptEx, sizeof(g_AcceptEx), &dw, NULL, NULL);
 
   if(r == SOCKET_ERROR)
   {
