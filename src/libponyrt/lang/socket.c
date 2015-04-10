@@ -11,6 +11,9 @@
 #include <stdio.h>
 
 #ifdef PLATFORM_IS_WINDOWS
+// Disable warnings about deprecated non-unicode WSA functions.
+#pragma warning(disable:4996)
+
 #include "../mem/pool.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -345,6 +348,14 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  const struct sockaddr_storage addr = {0};
+
+  if(bind((SOCKET)fd, (const struct sockaddr*)&addr, (int)p->ai_addrlen) != 0)
+  {
+    os_closesocket(fd);
+    return false;
+  }
+
   // Create an event and subscribe it.
   asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
     true);
