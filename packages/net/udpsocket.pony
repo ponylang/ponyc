@@ -89,7 +89,7 @@ actor UDPSocket
     """
     _notify = notify
 
-  be _event_notify(event: EventID, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
     When we are readable, we accept new connections until none remain.
     """

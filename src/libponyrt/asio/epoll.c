@@ -26,7 +26,7 @@ static void handle_queue(asio_backend_t* b)
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
   {
     msg->event->flags = ASIO_DISPOSABLE;
-    asio_event_send(msg->event, ASIO_DISPOSABLE);
+    asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
   }
 }
 
@@ -106,7 +106,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
       }
 
       if(flags != 0)
-        asio_event_send(ev, flags);
+        asio_event_send(ev, flags, 0);
     }
 
     handle_queue(b);

@@ -61,7 +61,7 @@ actor Timers
       _event = Event.none()
     end
 
-  be _event_notify(event: EventID, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
     When the event fires, advance the timing wheels.
     """

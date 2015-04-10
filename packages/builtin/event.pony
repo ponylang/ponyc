@@ -1,7 +1,7 @@
 type EventID is Pointer[Event] tag
 
 interface EventNotify tag
-  be _event_notify(event: EventID, flags: U32)
+  be _event_notify(event: EventID, flags: U32, arg: U64)
 
 primitive Event
   """

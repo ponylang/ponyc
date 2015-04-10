@@ -59,12 +59,13 @@ void asio_event_setdata(asio_event_t* ev, uintptr_t data)
   ev->data = data;
 }
 
-void asio_event_send(asio_event_t* ev, uint32_t flags)
+void asio_event_send(asio_event_t* ev, uint32_t flags, uint64_t arg)
 {
   asio_msg_t* m = (asio_msg_t*)pony_alloc_msg(POOL_INDEX(sizeof(asio_msg_t)),
     ev->msg_id);
   m->event = ev;
   m->flags = flags;
+  m->arg = arg;
 
   pony_sendv(ev->owner, &m->msg);
 }

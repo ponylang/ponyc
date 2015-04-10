@@ -52,7 +52,7 @@ atom_type
   :  'this' // only used for viewpoint adaptation
   |  'box' // only used for viewpoint adaptation
   |  '(' tuple_type ')'
-  |  ID ('.' ID)? type_args? cap? '^'? // nominal type
+  |  ID ('.' ID)? type_args? const_args? cap? '^'? // nominal type
   ;
 
 tuple_type
@@ -73,6 +73,18 @@ type_param
 
 type_args
   :  '@[' type (',' type)* ']'
+  ;
+
+const_params
+  :  '{' const_param (',' const_param)* '}'
+  ;
+
+const_param
+  :  ID oftype ('=' infix)?
+  ;
+
+const_args
+  :  '{' infix (',' infix)* '}'
   ;
 
 cap
@@ -153,6 +165,7 @@ postfix
      (  '.' ID // member access
      |  '~' ID // partial application, syntactic sugar
      |  type_args // type arguments
+     |  const_args // constant arguments
      |  '@(' positional? named? ')' // call
      )*
   ;

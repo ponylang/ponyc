@@ -153,7 +153,7 @@ static int os_socket(pony_actor_t* owner, const char* host,
       {
         // Send the event to servers, so that it can be unsubscribed before any
         // connections are accepted.
-        asio_event_send(ev, ASIO_READ);
+        asio_event_send(ev, ASIO_READ, 0);
         freeaddrinfo(result);
         return fd;
       }

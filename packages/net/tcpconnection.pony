@@ -120,7 +120,7 @@ actor TCPConnection
       @os_keepalive[None](_fd, secs)
     end
 
-  be _event_notify(event: EventID, flags: U32) =>
+  be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
     Handle socket events.
     """

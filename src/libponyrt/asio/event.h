@@ -27,6 +27,7 @@ typedef struct asio_msg_t
   pony_msg_t msg;
   asio_event_t* event;
   uint32_t flags;
+  uint64_t arg;
 } asio_msg_t;
 
 /** Create a new event.
@@ -44,7 +45,7 @@ void asio_event_destroy(asio_event_t* ev);
 uintptr_t asio_event_data(asio_event_t* ev);
 
 /// Send a triggered event.
-void asio_event_send(asio_event_t* ev, uint32_t flags);
+void asio_event_send(asio_event_t* ev, uint32_t flags, uint64_t arg);
 
 /* Subscribe and unsubscribe are implemented in the corresponding I/O
  * mechanism. Files epoll.c, kqueue.c, ...
