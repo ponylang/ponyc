@@ -217,11 +217,15 @@ static bool iocp_accept(asio_event_t* ev)
   return true;
 }
 
-static bool iocp_send(asio_event_t* ev, const char* buf, size_t len)
+static bool iocp_send(asio_event_t* ev, const char* data, size_t len)
 {
   SOCKET s = (SOCKET)ev->data;
   iocp_t* iocp = iocp_create(IOCP_SEND, ev);
   DWORD sent;
+
+  WSABUF buf;
+  buf.buf = data;
+  buf.len = len;
 
   if(WSASend(s, &buf, 1, &sent, 0, &iocp->ov, NULL) != 0)
   {
@@ -235,12 +239,16 @@ static bool iocp_send(asio_event_t* ev, const char* buf, size_t len)
   return true;
 }
 
-static bool iocp_recv(asio_event_t* ev, const char* buf, size_t len)
+static bool iocp_recv(asio_event_t* ev, const char* data, size_t len)
 {
   SOCKET s = (SOCKET)ev->data;
   iocp_t* iocp = iocp_create(IOCP_RECV, ev);
   DWORD received;
   DWORD flags = 0;
+
+  WSABUF buf;
+  buf.buf = data;
+  buf.len = len;
 
   if(WSARecv(s, &buf, 1, &received, &flags, &iocp->ov, NULL) != 0)
   {
@@ -655,19 +663,16 @@ size_t os_recv(asio_event_t* ev, char* buf, size_t len)
 #endif
 }
 
-size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
 {
+#ifdef PLATFORM_IS_WINDOWS
   // TODO: iocp
-
+  return 0;
+#else
   socklen_t addrlen = address_length(ipaddr);
 
-#if defined(PLATFORM_IS_LINUX)
   ssize_t sent = sendto((SOCKET)fd, buf, len, MSG_NOSIGNAL,
     (struct sockaddr*)&ipaddr->addr, addrlen);
-#else
-  ssize_t sent = sendto((SOCKET)fd, (const char*)buf, (int)len, 0,
-    (struct sockaddr*)&ipaddr->addr, addrlen);
-#endif
 
   if(sent < 0)
   {
@@ -678,12 +683,15 @@ size_t os_sendto(PONYFD fd, const void* buf, size_t len, ipaddress_t* ipaddr)
   }
 
   return (size_t)sent;
+#endif
 }
 
-size_t os_recvfrom(PONYFD fd, void* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_recvfrom(PONYFD fd, char* buf, size_t len, ipaddress_t* ipaddr)
 {
+#ifdef PLATFORM_IS_WINDOWS
   // TODO: iocp
-
+  return 0;
+#else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
   ssize_t recvd = recvfrom((SOCKET)fd, (char*)buf, (int)len, 0,
@@ -700,6 +708,7 @@ size_t os_recvfrom(PONYFD fd, void* buf, size_t len, ipaddress_t* ipaddr)
   }
 
   return (size_t)recvd;
+#endif
 }
 
 void os_keepalive(PONYFD fd, int secs)
