@@ -78,7 +78,7 @@ typedef struct iocp_accept_t
 
 static iocp_t* iocp_create(iocp_op_t op, asio_event_t* ev)
 {
-  iocp_t* iocp = POOL_ALLOC(sizeof(iocp_t));
+  iocp_t* iocp = POOL_ALLOC(iocp_t);
   memset(&iocp->ov, 0, sizeof(OVERLAPPED));
   iocp->op = op;
   iocp->ev = ev;
@@ -93,7 +93,7 @@ static void iocp_destroy(iocp_t* iocp)
 
 static iocp_accept_t* iocp_accept_create(SOCKET s, asio_event_t* ev)
 {
-  iocp_accept_t* iocp = POOL_ALLOC(sizeof(iocp_accept_t));
+  iocp_accept_t* iocp = POOL_ALLOC(iocp_accept_t);
   memset(&iocp->iocp.ov, 0, sizeof(OVERLAPPED));
   iocp->iocp.op = IOCP_ACCEPT;
   iocp->iocp.ev = ev;
@@ -109,12 +109,13 @@ static void iocp_accept_destroy(iocp_accept_t* iocp)
 
 static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 {
+  iocp_t* iocp = (iocp_t*)ov;
+
   switch(iocp->op)
   {
     case IOCP_CONNECT:
     {
       // Dispatch a write event.
-      iocp_t* iocp = (iocp_t*)ov;
       asio_event_send(iocp->ev, ASIO_WRITE, 0);
       iocp_destroy(iocp);
       break;
@@ -122,18 +123,18 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 
     case IOCP_ACCEPT:
     {
-      iocp_accept_t* iocp = (iocp_accept_t*)ov;
+      iocp_accept_t* acc = (iocp_accept_t*)iocp;
 
       if(err == 0)
       {
         // Dispatch a read event with the new socket as the argument.
-        asio_event_send(iocp->ev, ASIO_READ, iocp->s);
+        asio_event_send(iocp->ev, ASIO_READ, acc->ns);
       } else {
         // Close the socket.
-        closesocket(iocp->s);
+        closesocket(acc->ns);
       }
 
-      iocp_accept_destroy(iocp);
+      iocp_accept_destroy(acc);
       break;
     }
   }
