@@ -115,6 +115,13 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
   {
     case IOCP_CONNECT:
     {
+      if(err == ERROR_SUCCESS)
+      {
+        // Update the connect context.
+        setsockopt((SOCKET)iocp->ev->data, SOL_SOCKET,
+          SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
+      }
+
       // Dispatch a write event.
       asio_event_send(iocp->ev, ASIO_WRITE, 0);
       iocp_destroy(iocp);
@@ -127,6 +134,10 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
 
       if(err == ERROR_SUCCESS)
       {
+        // Update the accept context.
+        setsockopt((SOCKET)acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+          (char*)&iocp->ev->data, sizeof(SOCKET));
+
         // Dispatch a read event with the new socket as the argument.
         asio_event_send(iocp->ev, ASIO_READ, acc->ns);
       } else {
@@ -195,8 +206,8 @@ static bool iocp_accept(asio_event_t* ev)
   if(WSADuplicateSocket(s, GetCurrentProcessId(), &proto) != 0)
     return false;
 
-  SOCKET ns = WSASocket(proto.iAddressFamily, proto.iSocketType, proto.
-    iProtocol, NULL, 0, WSA_FLAG_OVERLAPPED);
+  SOCKET ns = WSASocket(proto.iAddressFamily, proto.iSocketType,
+    proto.iProtocol, NULL, 0, WSA_FLAG_OVERLAPPED);
 
   if((ns == INVALID_SOCKET) ||
     !BindIoCompletionCallback((HANDLE)ns, iocp_callback, 0))
@@ -505,6 +516,9 @@ PONYFD os_accept(asio_event_t* ev, uint64_t arg)
 #if defined(PLATFORM_IS_WINDOWS)
   // The arg is actually the new socket. We'll return that, and also kick off
   // a new asynchronous accept for this event.
+  if(arg == 0)
+    return -1;
+
   SOCKET ns = arg;
   iocp_accept(ev);
 #elif defined(PLATFORM_IS_LINUX)
