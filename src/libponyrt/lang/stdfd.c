@@ -164,7 +164,7 @@ bool os_stdin_setup()
 #endif
 }
 
-uint64_t os_stdin_read(void* buffer, uint64_t space)
+uint64_t os_stdin_read(void* buffer, uint64_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
   uint64_t len = 0;
@@ -222,7 +222,7 @@ uint64_t os_stdin_read(void* buffer, uint64_t space)
   {
     // Not TTY, ie file or pipe. Just use ReadFile.
     DWORD buf_size = (space <= 0xFFFFFFFF) ? (DWORD)space : 0xFFFFFFFF;
-    DWORD actual_len;
+    DWORD actual_len = 0;
 
     BOOL r = ReadFile(stdinHandle, buffer, buf_size, &actual_len, NULL);
 
@@ -232,10 +232,13 @@ uint64_t os_stdin_read(void* buffer, uint64_t space)
       len = 0;
   }
 
-  // Start listening to stdin notifications again
-  iocp_resume_stdin();
+  if(len != 0)  // Start listening to stdin notifications again
+    iocp_resume_stdin();
+
+  *out_again = false;
   return len;
 #else
+  *out_again = true;
   return read(0, buffer, space);
 #endif
 }
