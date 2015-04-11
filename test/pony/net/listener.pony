@@ -17,15 +17,13 @@ class Listener is TCPListenNotify
 
         TCPConnection(
           recover
-            SSLConnection(
-              ClientSide(env),
-              SSL(
-                SSLContext
-                  .set_ca_file("./test/pony/net/cert.pem")
-                  .set_verify(true),
-                false
-                )
-              )
+            let ctx = SSLContext
+              .set_ca_file("./test/pony/net/cert.pem")
+              .set_verify(true)
+
+            let ssl = SSLConnection(ClientSide(env), SSL(ctx, false))
+            ctx.dispose()
+            consume ssl
           end,
           host,
           service
@@ -49,15 +47,13 @@ class Listener is TCPListenNotify
 
     try
       recover
-        SSLConnection(
-          ServerSide(env),
-          SSL(
-            SSLContext
-              .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
-              .set_verify(false),
-            true
-            )
-          )
+        let ctx = SSLContext
+          .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
+          .set_verify(false)
+
+        let ssl = SSLConnection(ServerSide(env), SSL(ctx, true))
+        ctx.dispose()
+        consume ssl
       end
     else
       _env.out.print("couldn't create server side")
