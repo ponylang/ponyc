@@ -66,6 +66,9 @@ class SSLConnection is TCPConnectionNotify
     """
     Forward to the wrapped protocol.
     """
+    _ssl.dispose()
+    _connected = false
+    _pending.clear()
     _notify.closed(conn)
 
   fun ref _poll(conn: TCPConnection ref) =>

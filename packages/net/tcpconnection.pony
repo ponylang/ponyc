@@ -59,18 +59,22 @@ actor TCPConnection
     """
     Write a single sequence of bytes.
     """
-    try
-      write_final(_notify.sent(this, data))
+    if not _closed then
+      try
+        write_final(_notify.sent(this, data))
+      end
     end
 
   be writev(data: BytesList) =>
     """
     Write a sequence of sequences of bytes.
     """
-    try
-      for bytes in data.values() do
-        try
-          write_final(_notify.sent(this, bytes))
+    if not _closed then
+      try
+        for bytes in data.values() do
+          try
+            write_final(_notify.sent(this, bytes))
+          end
         end
       end
     end
