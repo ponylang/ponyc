@@ -53,12 +53,7 @@ ifdef config
 endif
 
 ifeq ($(config),release)
-  BUILD_FLAGS += -O3 -flto -DNDEBUG
-  LINKER_FLAGS += -flto
-
-	ifeq ($(OSTYPE),linux)
-	  LINKER_FLAGS += -fuse-ld=gold
-	endif
+  BUILD_FLAGS += -O3 -DNDEBUG
 else
   BUILD_FLAGS += -g -DDEBUG
 endif
