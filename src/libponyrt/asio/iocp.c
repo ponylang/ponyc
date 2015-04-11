@@ -110,7 +110,7 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 
               if(stdin_event == NULL) // No-one listening, don't wait on stdin
                 handleCount = 1;
-              else  // Someone wants stdin, we'd better include it in the wait set
+              else  // Someone wants stdin, include it in the wait set
                 handleCount = 2;
 
               break;
@@ -274,7 +274,6 @@ void asio_event_unsubscribe(asio_event_t* ev)
   {
     // Need to unsubscribe from stdin
     send_request(EVREQ_STDIN_NOTIFY, NULL, NULL, 0);
-    return;
   }
 
   if((ev->flags & (ASIO_READ | ASIO_WRITE)) != 0)

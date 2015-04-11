@@ -87,7 +87,8 @@ actor Stdin
       while true do
         var len = U64(64)
         var data = recover Array[U8].undefined(len) end
-        len = @os_stdin_read[U64](data.cstring(), data.space())
+        var again: Bool = false
+        len = @os_stdin_read[U64](data.cstring(), data.space(), &again)
 
         match len
         | -1 =>
@@ -108,6 +109,11 @@ actor Stdin
           @asio_event_unsubscribe[None](_event)
           _notify = None
           return false
+        end
+
+        if not again then
+          // Not allowed to call os_stdin_read again yet, exit loop.
+          return true
         end
 
         sum = sum + len
