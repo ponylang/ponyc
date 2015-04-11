@@ -12,7 +12,7 @@ actor TCPConnection
   var _readable: Bool = false
   var _writeable: Bool = false
   var _closed: Bool = false
-  var _pending: List[(Bytes, U64)] = _pending.create()
+  let _pending: List[(Bytes, U64)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String) =>
@@ -59,7 +59,9 @@ actor TCPConnection
     """
     Write a single sequence of bytes.
     """
-    _write(data)
+    try
+      write_final(_notify.sent(this, data))
+    end
 
   be writev(data: BytesList) =>
     """
@@ -67,7 +69,9 @@ actor TCPConnection
     """
     try
       for bytes in data.values() do
-        _write(bytes)
+        try
+          write_final(_notify.sent(this, bytes))
+        end
       end
     end
 
@@ -78,7 +82,7 @@ actor TCPConnection
     _closed = true
 
     if (_connect_count == 0) and (_pending.size() == 0) then
-      _close()
+      close()
     end
 
   fun local_address(): IPAddress =>
@@ -197,10 +201,11 @@ actor TCPConnection
       _pending_reads()
     end
 
-  fun ref _write(data: Bytes) =>
+  fun ref write_final(data: Bytes) =>
     """
     Write as much as possible to the socket. Set _writeable to false if not
-    everything was written. On an error, dispose of the connection.
+    everything was written. On an error, dispose of the connection. This
+    is for data that has already been transformed by the notifier.
     """
     if Platform.windows() then
       try
@@ -217,7 +222,7 @@ actor TCPConnection
             _writeable = false
           end
         else
-          _close()
+          close()
         end
       elseif not _closed then
         _pending.push((data, 0))
@@ -270,13 +275,13 @@ actor TCPConnection
             _pending.shift()
           end
         else
-          _close()
+          close()
         end
       end
     end
 
     if _closed and (_connect_count == 0) and (_pending.size() == 0) then
-      _close()
+      close()
     end
 
   fun ref _complete_reads(len: U64) =>
@@ -285,14 +290,14 @@ actor TCPConnection
     This occurs only with IOCP on Windows.
     """
     if Platform.windows() then
-      var next = len
+      var next = _read_buf.space()
 
       match len
       | 0 =>
-        _close()
+        close()
         return
       | _read_buf.space() =>
-        next = next << 1
+        next = next * 2
       end
 
       let data = _read_buf = recover Array[U8].undefined(next) end
@@ -310,7 +315,7 @@ actor TCPConnection
       try
         @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
       else
-        _close()
+        close()
       end
     end
 
@@ -328,14 +333,14 @@ actor TCPConnection
           let len =
             @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
 
-          var next = len
+          var next = _read_buf.space()
 
           match len
           | 0 =>
             _readable = false
             return
           | _read_buf.space() =>
-            next = next << 1
+            next = next * 2
           end
 
           let data = _read_buf = recover Array[U8].undefined(next) end
@@ -350,7 +355,7 @@ actor TCPConnection
           end
         end
       else
-        _close()
+        close()
       end
     end
 
@@ -362,10 +367,10 @@ actor TCPConnection
       _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
-      _close()
+      close()
     end
 
-  fun ref _close() =>
+  fun ref close() =>
     """
     Notify of disconnection and dispose of resoures.
     """
@@ -378,6 +383,7 @@ actor TCPConnection
     _readable = false
     _writeable = false
     _closed = true
+    _pending.clear()
 
     if _fd != -1 then
       @os_closesocket[None](_fd)

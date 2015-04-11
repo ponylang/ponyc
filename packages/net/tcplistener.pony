@@ -75,7 +75,11 @@ actor TCPListener
             break
           end
 
-          TCPConnection._accept(_notify.connected(this), fd)
+          try
+            TCPConnection._accept(_notify.connected(this), fd)
+          else
+            @os_closesocket[None](fd)
+          end
         end
       end
     end
