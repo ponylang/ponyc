@@ -1015,8 +1015,8 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
   bool is_trait =
     (ast_id(t->frame->type) == TK_TRAIT) ||
     (ast_id(t->frame->type) == TK_INTERFACE) ||
-    (ast_id(ast_data(ast)) == TK_TRAIT) ||
-    (ast_id(ast_data(ast)) == TK_INTERFACE);
+    (ast_id((ast_t*)ast_data(ast)) == TK_TRAIT) ||
+    (ast_id((ast_t*)ast_data(ast)) == TK_INTERFACE);
 
   // Check partial functions.
   if(ast_id(can_error) == TK_QUESTION)
