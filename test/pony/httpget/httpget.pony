@@ -1,20 +1,21 @@
 use "collections"
 use "net/http"
+use "net/ssl"
 
 actor Main
   let _clients: Map[HostService, Client] = _clients.create()
   let _env: Env
 
   new create(env: Env) =>
+    SSLInit
     _env = env
 
     for i in Range(1, env.args.size()) do
       try
         let url = URL(env.args(i))
-        Fact(url.scheme == "http")
         Fact(url.host != "")
 
-        let client = _get_client(url.host, url.service)
+        let client = _get_client(url.scheme, url.host, url.service)
         let req = Request("GET", url.path, recover this~apply() end)
         client(consume req)
       else
@@ -44,17 +45,31 @@ actor Main
       _env.out.print("Failed: " + request.method() + " " + request.resource())
     end
 
-  fun ref _get_client(host: String, service: String = "80"): Client =>
-    let hs = if service.size() == 0 then
-      HostService(host, "80")
+  fun ref _get_client(scheme: String, host: String, service: String): Client ?
+  =>
+    let port = if service.size() == 0 then
+      match scheme
+      | "http" => "80"
+      | "https" => "443"
+      else
+        error
+      end
     else
-      HostService(host, service)
+      service
     end
+
+    let hs = HostService(scheme, host, port)
 
     try
       _clients(hs)
     else
-      let client = Client(hs.host, hs.service)
+      let client = match scheme
+      | "http" => Client(hs.host, hs.service)
+      | "https" => Client(hs.host, hs.service, true)
+      else
+        error
+      end
+
       _clients(hs) = client
       client
     end

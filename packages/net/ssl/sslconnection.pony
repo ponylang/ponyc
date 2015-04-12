@@ -66,6 +66,7 @@ class SSLConnection is TCPConnectionNotify
     """
     Forward to the wrapped protocol.
     """
+    _poll(conn)
     _ssl.dispose()
     _connected = false
     _pending.clear()
@@ -90,9 +91,13 @@ class SSLConnection is TCPConnectionNotify
     end
 
     try
-      _notify.received(conn, _ssl.read())
+      while true do
+        _notify.received(conn, _ssl.read())
+      end
     end
 
     try
-      conn.write_final(_ssl.send())
+      while true do
+        conn.write_final(_ssl.send())
+      end
     end

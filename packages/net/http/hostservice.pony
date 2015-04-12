@@ -1,15 +1,19 @@
 use "collections"
 
 class HostService val is Hashable, Comparable[HostService]
+  let scheme: String
   let host: String
   let service: String
 
-  new val create(host': String, service': String) =>
+  new val create(scheme': String, host': String, service': String) =>
+    scheme = scheme'
     host = host'
     service = service'
 
   fun hash(): U64 =>
-    host.hash() xor service.hash()
+    scheme.hash() xor host.hash() xor service.hash()
 
   fun eq(that: HostService box): Bool =>
-    (host == that.host) and (service == that.service)
+    (scheme == that.scheme) and
+      (host == that.host) and
+      (service == that.service)

@@ -1,5 +1,6 @@
 use "collections"
 use "net"
+use "net/ssl"
 
 actor Client
   """
@@ -7,17 +8,21 @@ actor Client
   """
   let _host: String
   let _service: String
-  var _pipeline: Bool
-  var _unsent: List[Request] = List[Request]
-  var _sent: List[(Request, Bool)] = List[(Request, Bool)]
+  let _ssl: Bool
+  let _pipeline: Bool
+  let _unsent: List[Request] = List[Request]
+  let _sent: List[(Request, Bool)] = List[(Request, Bool)]
   var _conn: (TCPConnection | None) = None
 
-  new create(host: String, service: String, pipeline: Bool = true) =>
+  new create(host: String, service: String, ssl: Bool = false,
+    pipeline: Bool = true)
+  =>
     """
     Create a client for the given host and service.
     """
     _host = host
     _service = service
+    _ssl = ssl
     _pipeline = pipeline
 
     // TODO: use a timer, detect no data from server after N seconds?
@@ -138,5 +143,25 @@ actor Client
         until not _pipeline end
       end
     else
-      _conn = TCPConnection(_ResponseBuilder(this), _host, _service)
+      _new_conn()
     end
+
+  fun ref _new_conn() =>
+    """
+    Creates a new connection.
+    """
+    if _ssl then
+      try
+        let sslconn = recover
+          let ctx = SSLContext.set_verify(false)
+          let ssl = SSL(ctx)
+          ctx.dispose()
+          SSLConnection(_ResponseBuilder(this), ssl)
+        end
+
+        _conn = TCPConnection(consume sslconn, _host, _service)
+        return
+      end
+    end
+
+    _conn = TCPConnection(_ResponseBuilder(this), _host, _service)
