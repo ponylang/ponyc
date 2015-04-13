@@ -82,6 +82,12 @@ actor TCPListener
           end
         end
       end
+    else
+      if Platform.windows() and Event.readable(flags) then
+        // On windows, the unsubscribe is done after the asynchronous accept is
+        // cancelled.
+        @asio_event_unsubscribe[None](_event)
+      end
     end
 
     if Event.disposable(flags) then
@@ -103,10 +109,14 @@ actor TCPListener
     """
     Dispose of resources.
     """
-    @asio_event_unsubscribe[None](_event)
     _closed = true
 
     if _fd != -1 then
       @os_closesocket[None](_fd)
       _fd = -1
+    end
+
+    // When not on windows, the unsubscribe is done immediately.
+    if not Platform.windows() then
+      @asio_event_unsubscribe[None](_event)
     end

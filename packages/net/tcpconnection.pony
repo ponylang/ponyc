@@ -241,6 +241,13 @@ actor TCPConnection
     if Platform.windows() then
       var rem = len
 
+      if rem == 0 then
+        // IOCP reported a failed write on this chunk. Discard it and close.
+        try _pending.shift() end
+        close()
+        return
+      end
+
       while rem > 0 do
         try
           let node = _pending.head()
@@ -298,6 +305,7 @@ actor TCPConnection
 
       match len
       | 0 =>
+        _readable = false
         close()
         return
       | _read_buf.space() =>
@@ -376,20 +384,31 @@ actor TCPConnection
 
   fun ref close() =>
     """
-    Notify of disconnection and dispose of resoures.
+    Notify of disconnection and dispose of resources.
     """
     if _connected then
       _notify.closed(this)
     end
 
-    @asio_event_unsubscribe[None](_event)
+    if Platform.windows() then
+      // On windows, wait until all outstanding IOCP operations have completed
+      // or been cancelled.
+      if not _readable and (_pending.size() == 0) then
+        @asio_event_unsubscribe[None](_event)
+      end
+    else
+      // Unsubscribe immediately and drop all pending writes.
+      @asio_event_unsubscribe[None](_event)
+      _pending.clear()
+      _readable = false
+      _writeable = false
+    end
+
     _connected = false
-    _readable = false
-    _writeable = false
     _closed = true
-    _pending.clear()
 
     if _fd != -1 then
+      // On windows, this will also cancel all outstanding IOCP operations.
       @os_closesocket[None](_fd)
       _fd = -1
     end

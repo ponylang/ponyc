@@ -137,14 +137,14 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
         // Update the accept context.
         setsockopt((SOCKET)acc->ns, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
           (char*)&iocp->ev->data, sizeof(SOCKET));
-
-        // Dispatch a read event with the new socket as the argument.
-        asio_event_send(iocp->ev, ASIO_READ, acc->ns);
       } else {
         // Close the new socket.
         closesocket(acc->ns);
+        acc->ns = 0;
       }
 
+      // Dispatch a read event with the new socket as the argument.
+      asio_event_send(iocp->ev, ASIO_READ, acc->ns);
       iocp_accept_destroy(acc);
       break;
     }
@@ -156,8 +156,8 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
         // Dispatch a write event with the number of bytes written.
         asio_event_send(iocp->ev, ASIO_WRITE, bytes);
       } else {
-        // Dispatch a read event with zero bytes to indicate a close.
-        asio_event_send(iocp->ev, ASIO_READ, 0);
+        // Dispatch a write event with zero bytes to indicate a close.
+        asio_event_send(iocp->ev, ASIO_WRITE, 0);
       }
 
       iocp_destroy(iocp);
@@ -771,6 +771,7 @@ void os_nodelay(PONYFD fd, bool state)
 void os_closesocket(PONYFD fd)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  CancelIoEx((HANDLE)fd, NULL);
   closesocket((SOCKET)fd);
 #else
   close((SOCKET)fd);
