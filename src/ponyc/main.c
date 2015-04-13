@@ -210,7 +210,10 @@ int main(int argc, char* argv[])
 
       case OPT_PASSES:
         if(!limit_passes(&opt, s.arg_val))
+        {
           ok = false;
+          print_usage = true;
+        }
         break;
 
       default: usage(); return -1;
