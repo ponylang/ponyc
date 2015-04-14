@@ -109,7 +109,7 @@ static void usage()
     "  --trace, -t     Enable parse trace.\n"
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
-    "  --immerr        Report errors imemdiately rather than deferring.\n"
+    "  --immerr        Report errors immediately rather than deferring.\n"
     "\n"
 #endif
     );

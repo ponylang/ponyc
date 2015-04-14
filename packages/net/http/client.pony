@@ -8,13 +8,13 @@ actor Client
   """
   let _host: String
   let _service: String
-  let _ssl: Bool
+  let _sslctx: (SSLContext | None)
   let _pipeline: Bool
   let _unsent: List[Request] = List[Request]
   let _sent: List[(Request, Bool)] = List[(Request, Bool)]
   var _conn: (TCPConnection | None) = None
 
-  new create(host: String, service: String, ssl: Bool = false,
+  new create(host: String, service: String, sslctx: (SSLContext | None) = None,
     pipeline: Bool = true)
   =>
     """
@@ -22,7 +22,7 @@ actor Client
     """
     _host = host
     _service = service
-    _ssl = ssl
+    _sslctx = sslctx
     _pipeline = pipeline
 
     // TODO: use a timer, detect no data from server after N seconds?
@@ -80,24 +80,20 @@ actor Client
     """
     The connection couldn't be established. Cancel all pending requests.
     """
-    try
-      while true do
-        _unsent.pop()._response(Response)
-      end
-    end
+    _cancel_all()
+    _conn = None
 
-    try
-      while true do
-        _sent.pop()._1._response(Response)
-      end
-    end
-
+  be _auth_failed() =>
+    """
+    The connection couldn't be authenticated. Cancel all pending requests.
+    """
+    _cancel_all()
     _conn = None
 
   be _closed() =>
     """
-    The connection to the server has closed. Reschedule sent requests that
-    haven't been cancelled.
+    The connection to the server has closed prematurely. Reschedule sent
+    requests that haven't been cancelled.
     """
     try
       for node in _sent.rnodes() do
@@ -150,18 +146,30 @@ actor Client
     """
     Creates a new connection.
     """
-    if _ssl then
+    match _sslctx
+    | var ctx: SSLContext =>
       try
-        let sslconn = recover
-          let ctx = SSLContext.set_verify(false)
-          let ssl = SSL(ctx)
-          ctx.dispose()
-          SSLConnection(_ResponseBuilder(this), ssl)
-        end
-
-        _conn = TCPConnection(consume sslconn, _host, _service)
+        let ssl = ctx.client(_host)
+        _conn = TCPConnection(
+          SSLConnection(_ResponseBuilder(this), consume ssl), _host, _service)
         return
       end
     end
 
     _conn = TCPConnection(_ResponseBuilder(this), _host, _service)
+
+  fun ref _cancel_all() =>
+    """
+    Cancel all pending requests.
+    """
+    try
+      while true do
+        _unsent.pop()._response(Response)
+      end
+    end
+
+    try
+      while true do
+        _sent.pop()._1._response(Response)
+      end
+    end

@@ -93,6 +93,7 @@ actor TCPListener
     if Event.disposable(flags) then
       @asio_event_destroy[None](event)
       _event = Event.none()
+      _notify.closed(this)
     end
 
   fun ref _notify_listening() =>

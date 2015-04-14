@@ -30,6 +30,14 @@ interface TCPConnectionNotify
     """
     None
 
+  fun ref auth_failed(conn: TCPConnection ref) =>
+    """
+    A raw TCPConnection has no authentication mechanism. However, when
+    protocols are wrapped in other protocols, this can be used to report an
+    authentication failure in a lower level protocol (eg. SSL).
+    """
+    None
+
   fun ref sent(conn: TCPConnection ref, data: Bytes): Bytes ? =>
     """
     Called when data is sent on the connection. This gives the notifier an
@@ -63,6 +71,12 @@ interface TCPListenNotify
   fun ref not_listening(listen: TCPListener ref) =>
     """
     Called if it wasn't possible to bind the listener to an address.
+    """
+    None
+
+  fun ref closed(listen: TCPListener ref) =>
+    """
+    Called when the listener is closed.
     """
     None
 

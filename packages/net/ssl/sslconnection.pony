@@ -8,14 +8,15 @@ class SSLConnection is TCPConnectionNotify
   let _notify: TCPConnectionNotify
   let _ssl: SSL
   var _connected: Bool = false
+  var _closed: Bool = false
   let _pending: List[Bytes] = _pending.create()
 
-  new create(notify: TCPConnectionNotify, ssl: SSL) =>
+  new iso create(notify: TCPConnectionNotify iso, ssl: SSL iso) =>
     """
     Initialise with a wrapped protocol and an SSL session.
     """
-    _notify = notify
-    _ssl = ssl
+    _notify = consume notify
+    _ssl = consume ssl
 
   fun ref accepted(conn: TCPConnection ref) =>
     """
@@ -51,6 +52,7 @@ class SSLConnection is TCPConnectionNotify
     else
       _pending.push(data)
     end
+
     _poll(conn)
     error
 
@@ -66,8 +68,11 @@ class SSLConnection is TCPConnectionNotify
     """
     Forward to the wrapped protocol.
     """
+    _closed = true
+
     _poll(conn)
     _ssl.dispose()
+
     _connected = false
     _pending.clear()
     _notify.closed(conn)
@@ -77,8 +82,9 @@ class SSLConnection is TCPConnectionNotify
     Checks for both new application data and new destination data. Informs the
     wrapped protocol that is has connected when the handshake is complete.
     """
-    if not _connected then
-      if _ssl.ready() then
+    match _ssl.state()
+    | SSLReady =>
+      if not _connected then
         _connected = true
         _notify.connected(conn)
 
@@ -88,6 +94,20 @@ class SSLConnection is TCPConnectionNotify
           end
         end
       end
+    | SSLAuthFail =>
+      _notify.auth_failed(conn)
+
+      if not _closed then
+        conn.close()
+      end
+
+      return
+    | SSLError =>
+      if not _closed then
+        conn.close()
+      end
+
+      return
     end
 
     try

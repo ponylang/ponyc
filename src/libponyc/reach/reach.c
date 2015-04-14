@@ -444,8 +444,17 @@ static reachable_method_stack_t* reachable_ffi(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, name, return_typeargs, args, namedargs, question);
-  ast_t* return_type = ast_child(return_typeargs);
+  ast_t* decl = ast_get(ast, ast_name(name), NULL);
 
+  if(decl != NULL)
+  {
+    AST_GET_CHILDREN(decl, decl_name, decl_ret_typeargs, params, named_params,
+      decl_error);
+
+    return_typeargs = decl_ret_typeargs;
+  }
+
+  ast_t* return_type = ast_child(return_typeargs);
   return add_type(s, r, return_type, NULL, NULL);
 }
 

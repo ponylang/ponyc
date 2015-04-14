@@ -3,9 +3,22 @@ use "net/ssl"
 
 class Listener is TCPListenNotify
   let _env: Env
+  let _sslctx: (SSLContext | None)
 
-  new create(env: Env) =>
+  new create(env: Env, ssl: Bool) =>
     _env = env
+
+    _sslctx = if ssl then
+      recover
+        SSLContext
+          .set_ca_file("./test/pony/net/cert.pem")
+          .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
+          // .set_client_verify(false)
+          // .set_server_verify(false)
+      end
+    else
+      None
+    end
 
   fun ref listening(listen: TCPListener ref) =>
     try
@@ -15,19 +28,14 @@ class Listener is TCPListenNotify
       try
         let env = _env
 
-        TCPConnection(
-          recover
-            let ctx = SSLContext
-              .set_ca_file("./test/pony/net/cert.pem")
-              .set_verify(true)
-
-            let ssl = SSLConnection(ClientSide(env), SSL(ctx, false))
-            ctx.dispose()
-            consume ssl
-          end,
-          host,
-          service
-          )
+        match _sslctx
+        | let ctx: SSLContext =>
+          let ssl = ctx.client()
+          TCPConnection(SSLConnection(ClientSide(env), consume ssl), host,
+            service)
+        else
+          TCPConnection(ClientSide(env), host, service)
+        end
       else
         _env.out.print("couldn't create client side")
         listen.close()
@@ -46,14 +54,12 @@ class Listener is TCPListenNotify
     listen.close()
 
     try
-      recover
-        let ctx = SSLContext
-          .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
-          .set_verify(false)
-
-        let ssl = SSLConnection(ServerSide(env), SSL(ctx, true))
-        ctx.dispose()
-        consume ssl
+      match _sslctx
+      | let ctx: SSLContext =>
+        let ssl = ctx.server()
+        SSLConnection(ServerSide(env), consume ssl)
+      else
+        ServerSide(env)
       end
     else
       _env.out.print("couldn't create server side")

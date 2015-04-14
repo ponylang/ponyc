@@ -51,6 +51,12 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     _client._connect_failed()
 
+  fun ref auth_failed(conn: TCPConnection ref) =>
+    """
+    SSL authentication failed. Tell the client not to proceed.
+    """
+    _client._auth_failed()
+
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
     Assemble chunks of data into a response. When we have a whole response,

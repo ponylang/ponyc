@@ -1,22 +1,42 @@
+use @SSL_ctrl[I32](ssl: Pointer[_SSL], op: I32, arg: I32,
+  parg: Pointer[U8] tag) if windows
+
+use @SSL_ctrl[I64](ssl: Pointer[_SSL], op: I32, arg: I64,
+  parg: Pointer[U8] tag) if not windows
+
 primitive _SSL
 primitive _BIO
+
+primitive SSLHandshake
+primitive SSLAuthFail
+primitive SSLReady
+primitive SSLError
+
+type SSLState is (SSLHandshake | SSLAuthFail | SSLReady | SSLError)
 
 class SSL
   """
   An SSL session manages handshakes, encryption and decryption. It is not tied
   to any transport layer.
   """
-  var _ssl: Pointer[_SSL] tag
+  let _hostname: String
+  var _ssl: Pointer[_SSL]
   var _input: Pointer[_BIO] tag
   var _output: Pointer[_BIO] tag
-  var _ready: Bool = false
+  var _state: SSLState = SSLHandshake
   var _last_read: U64 = 64
 
-  new create(ctx: SSLContext box, server: Bool = false) ? =>
+  new _create(ctx: Pointer[_SSLContext] tag, server: Bool,
+    hostname: String = "") ?
+  =>
     """
     Create a client or server SSL session from a context.
     """
-    _ssl = @SSL_new[Pointer[_SSL]](ctx._context())
+    if ctx.is_null() then error end
+    _hostname = hostname
+
+    _ssl = @SSL_new[Pointer[_SSL]](ctx)
+    @SSL_CTX_free[None](ctx)
     if _ssl.is_null() then error end
 
     _input = @BIO_new[Pointer[_BIO]](@BIO_s_mem[Pointer[U8]]())
@@ -27,6 +47,11 @@ class SSL
 
     @SSL_set_bio[None](_ssl, _input, _output)
 
+    if _hostname.size() > 0 then
+      // SSL_set_tlsext_host_name
+      @SSL_ctrl(_ssl, 55, 0, _hostname.cstring())
+    end
+
     if server then
       @SSL_set_accept_state[None](_ssl)
     else
@@ -34,12 +59,11 @@ class SSL
       @SSL_do_handshake[I32](_ssl)
     end
 
-  fun ready(): Bool =>
+  fun state(): SSLState =>
     """
-    Returns true if this SSL session has completed the SSL handshake and send()
-    can be called on it with application data.
+    Returns the SSL session state.
     """
-    _ready
+    _state
 
   fun ref read(): Array[U8] iso^ ? =>
     """
@@ -58,6 +82,9 @@ class SSL
       let r = @SSL_read[I32](_ssl, buf.cstring(), len.i32())
 
       if r <= 0 then
+        match @SSL_get_error[I32](_ssl, r)
+        | 1 | 5 | 6 => _state = SSLError
+        end
         error
       end
 
@@ -74,7 +101,7 @@ class SSL
     When application data is sent, add it to the SSL session. Raises an error
     if the handshake is not complete.
     """
-    if not _ready then error end
+    if _state isnt SSLReady then error end
 
     if data.size() > 0 then
       @SSL_write[I32](_ssl, data.cstring(), data.size().u32())
@@ -86,13 +113,20 @@ class SSL
     """
     @BIO_write[I32](_input, data.cstring(), data.size().u32())
 
-    if not _ready then
-      if @SSL_do_handshake[I32](_ssl) == 1 then
-        _ready = true
+    if _state is SSLHandshake then
+      let r = @SSL_do_handshake[I32](_ssl)
+
+      if r > 0 then
+        _verify_hostname()
+      else
+        match @SSL_get_error[I32](_ssl, r)
+        | 1 => _state = SSLAuthFail
+        | 5 | 6 => _state = SSLError
+        end
       end
     end
 
-  fun ref send(): Array[U8] iso^ ? =>
+  fun ref send(): Array[U8] val ? =>
     """
     Returns encrypted bytes to be passed to the destination. Raises an error
     if no data is available.
@@ -112,3 +146,18 @@ class SSL
       @SSL_free[None](_ssl)
       _ssl = Pointer[_SSL]
     end
+
+  fun ref _verify_hostname() =>
+    """
+    Verify that the certificate is valid for the given hostname.
+    """
+    if _hostname.size() > 0 then
+      // TODO: verify hostname
+      let cert = @SSL_get_peer_certificate[Pointer[U8]](_ssl)
+
+      if not cert.is_null() then
+        @X509_free[None](cert)
+      end
+    end
+
+    _state = SSLReady

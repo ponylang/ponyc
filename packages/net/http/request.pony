@@ -7,17 +7,17 @@ class Request val
   """
   let _handler: HTTPNotify
   let _method: String
-  let _resource: String
+  let _url: URL
   let _headers: Map[String, String] = Map[String, String]
   var _body: Bytes = ""
 
-  new iso create(method: String, resource: String, handler: HTTPNotify) =>
+  new iso create(method: String, url: URL, handler: HTTPNotify) =>
     """
     Creates a request for a given method and resource.
     """
     _handler = handler
     _method = method
-    _resource = resource
+    _url = url
 
   fun method(): String =>
     """
@@ -25,11 +25,11 @@ class Request val
     """
     _method
 
-  fun resource(): String =>
+  fun url(): URL =>
     """
-    Get the requested resource.
+    Get the requested url.
     """
-    _resource
+    _url
 
   fun apply(key: String ): String ? =>
     """
@@ -66,7 +66,7 @@ class Request val
 
     list.push(_method)
     list.push(" ")
-    list.push(_resource)
+    list.push(_url.path)
     list.push(" HTTP/1.1\r\n")
     list.push("Host: ")
     list.push(host)

@@ -5,7 +5,7 @@ type URLFormat is
   | URLNoSlashes
   )
 
-class URL
+class URL val
   """
   Holds the components of a URL. These are always stored as valid, URL-encoded
   values.
@@ -112,7 +112,7 @@ class URL
 
     consume s
 
-  fun join(that: URL): this->URL =>
+  fun val join(that: URL): URL =>
     """
     Using this as a base URL, concatenate with another, possibly relative, URL
     in the same way a browser does for a link.

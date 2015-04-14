@@ -4,11 +4,17 @@ use "net/ssl"
 
 actor Main
   let _clients: Map[HostService, Client] = _clients.create()
+  let _sslctx: SSLContext
   let _env: Env
 
   new create(env: Env) =>
     SSLInit
     _env = env
+    _sslctx = recover
+      SSLContext
+        .set_client_verify(true)
+        .set_ca_file("./test/pony/httpget/cacert.pem")
+      end
 
     for i in Range(1, env.args.size()) do
       try
@@ -16,7 +22,7 @@ actor Main
         Fact(url.host != "")
 
         let client = _get_client(url.scheme, url.host, url.service)
-        let req = Request("GET", url.path, recover this~apply() end)
+        let req = Request("GET", url, recover this~apply() end)
         client(consume req)
       else
         try env.out.print("Malformed URL: " + env.args(i)) end
@@ -42,7 +48,8 @@ actor Main
         end
       end
     else
-      _env.out.print("Failed: " + request.method() + " " + request.resource())
+      _env.out.print("Failed: " + request.method() + " " +
+        request.url().string())
     end
 
   fun ref _get_client(scheme: String, host: String, service: String): Client ?
@@ -65,7 +72,7 @@ actor Main
     else
       let client = match scheme
       | "http" => Client(hs.host, hs.service)
-      | "https" => Client(hs.host, hs.service, true)
+      | "https" => Client(hs.host, hs.service, _sslctx)
       else
         error
       end

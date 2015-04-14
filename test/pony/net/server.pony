@@ -3,7 +3,7 @@ use "net"
 class ServerSide is TCPConnectionNotify
   let _env: Env
 
-  new create(env: Env) =>
+  new iso create(env: Env) =>
     _env = env
 
   fun ref accepted(conn: TCPConnection ref) =>

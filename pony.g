@@ -21,7 +21,7 @@ use_ffi
   ;
 
 class_
-  :  ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? cap? ('is' types)? STRING? members
+  :  ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? const_params? cap? ('is' types)? STRING? members
   ;
 
 members
@@ -33,7 +33,7 @@ field
   ;
 
 method
-  :  ('fun' | 'be' | 'new') cap? ID? type_params? '(' params? ')' oftype? '?'? STRING? ('=>' seq)?
+  :  ('fun' | 'be' | 'new') cap? ID? type_params? const_params? '(' params? ')' oftype? '?'? STRING? ('=>' seq)?
   ;
 
 oftype
