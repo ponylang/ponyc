@@ -359,7 +359,7 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
       file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
   }
 
-  d->prelim.replaceAllUsesWith(d->actual);
+  d->prelim->replaceAllUsesWith(d->actual);
 }
 
 void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
