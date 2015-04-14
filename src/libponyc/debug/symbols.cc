@@ -359,7 +359,11 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
       file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
   }
 
-  d->prelim->replaceAllUsesWith(d->actual);
+  #if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
+    d->prelim->replaceAllUsesWith(d->actual);
+  #else
+    d->prelim.replaceAllUsesWith(d->actual);
+  #endif
 }
 
 void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
