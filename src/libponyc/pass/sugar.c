@@ -330,11 +330,17 @@ static ast_result_t sugar_fun(ast_t* ast)
     ast_replace(&result, type);
   }
 
-  // If the return type is None, add a None at the end of the body.
+  // If the return type is None, add a None at the end of the body, unless it
+  // already ends with an error or return statement
   if(is_none(result) && (ast_id(body) != TK_NONE))
   {
-    BUILD_NO_DEBUG(ref, body, NODE(TK_REFERENCE, ID("None")));
-    ast_append(body, ref);
+    ast_t* last_cmd = ast_childlast(body);
+
+    if(ast_id(last_cmd) != TK_ERROR && ast_id(last_cmd) != TK_RETURN)
+    {
+      BUILD_NO_DEBUG(ref, body, NODE(TK_REFERENCE, ID("None")));
+      ast_append(body, ref);
+    }
   }
 
   sugar_docstring(ast);
