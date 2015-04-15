@@ -150,20 +150,21 @@ actor TCPConnection
 
             _queue_read()
             _notify.connected(this)
+
+            // Don't call _complete_writes, as Windows will see this as a
+            // closed connection.
+            _writeable = true
+            _pending_writes()
           else
             // The connection failed, unsubscribe the event and close.
             @asio_event_unsubscribe[None](event)
             @os_closesocket[None](fd)
             _notify_connecting()
-            return
           end
         else
           // We're already connected, unsubscribe the event and close.
           @asio_event_unsubscribe[None](event)
           @os_closesocket[None](fd)
-
-          // We're done.
-          return
         end
       else
         // It's not our event.
@@ -171,14 +172,9 @@ actor TCPConnection
           // It's disposable, so dispose of it.
           @asio_event_destroy[None](event)
         end
-
-        // We're done.
-        return
       end
-    end
-
-    // At this point, it's our event.
-    if not _closed then
+    else
+      // At this point, it's our event.
       if Event.writeable(flags) then
         _writeable = true
         _complete_writes(arg)
@@ -190,11 +186,11 @@ actor TCPConnection
         _complete_reads(arg)
         _pending_reads()
       end
-    end
 
-    if Event.disposable(flags) then
-      @asio_event_destroy[None](_event)
-      _event = Event.none()
+      if Event.disposable(flags) then
+        @asio_event_destroy[None](_event)
+        _event = Event.none()
+      end
     end
 
   be _read_again() =>
@@ -312,11 +308,13 @@ actor TCPConnection
         next = next * 2
       end
 
-      let data = _read_buf = recover Array[U8].undefined(next) end
-      data.truncate(len)
+      if not _closed then
+        let data = _read_buf = recover Array[U8].undefined(next) end
+        data.truncate(len)
 
-      _queue_read()
-      _notify.received(this, consume data)
+        _queue_read()
+        _notify.received(this, consume data)
+      end
     end
 
   fun ref _queue_read() =>
@@ -341,7 +339,7 @@ actor TCPConnection
       try
         var sum: U64 = 0
 
-        while _readable do
+        while _readable and not _closed do
           let len =
             @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
 
