@@ -12,7 +12,7 @@
 #ifndef PLATFORM_IS_WINDOWS
 
 static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
-  bool opaque)
+  bool opaque, bool field)
 {
   memset(meta, 0, sizeof(dwarf_meta_t));
 
@@ -28,19 +28,13 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     else if(is_bool(ast))
       meta->flags |= DWARF_BOOLEAN;
   }
-  else if(is_pointer(ast) || !is_concrete(ast))
+  else if(is_pointer(ast) || !is_concrete(ast) || (is_constructable(ast) && field))
   {
     type = g->use_type;
   }
   else if(is_constructable(ast))
   {
     type = g->structure;
-
-    if(opaque)
-    {
-      type = g->use_type;
-      opaque = false;
-    }
   }
 
   bool defined_type = g->underlying != TK_TUPLETYPE &&
@@ -109,7 +103,7 @@ void dwarf_basic(dwarf_t* dwarf, gentype_t* g)
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, false);
+  setup_dwarf(dwarf, &meta, g, false, false);
 
   symbols_basic(dwarf->symbols, &meta);
 #else
@@ -124,7 +118,7 @@ void dwarf_pointer(dwarf_t* dwarf, gentype_t* g, const char* typearg)
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, false);
+  setup_dwarf(dwarf, &meta, g, false, false);
 
   meta.typearg = typearg;
   symbols_pointer(dwarf->symbols, &meta);
@@ -142,7 +136,7 @@ void dwarf_trait(dwarf_t* dwarf, gentype_t* g)
   // as opaque classes from which other classes may
   // inherit.
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, false);
+  setup_dwarf(dwarf, &meta, g, false, false);
 
   symbols_trait(dwarf->symbols, &meta);
 #else
@@ -157,7 +151,7 @@ void dwarf_forward(dwarf_t* dwarf, gentype_t* g)
   symbols_push_frame(dwarf->symbols, g);
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, true);
+  setup_dwarf(dwarf, &meta, g, true, false);
 
   symbols_declare(dwarf->symbols, &meta);
 #else
@@ -173,7 +167,7 @@ void dwarf_composite(dwarf_t* dwarf, gentype_t* g)
     return;
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, g, false);
+  setup_dwarf(dwarf, &meta, g, false, false);
 
   symbols_composite(dwarf->symbols, &meta);
 #else
@@ -190,7 +184,7 @@ void dwarf_field(dwarf_t* dwarf, gentype_t* composite, gentype_t* field,
   memset(buf, 0, sizeof(buf));
 
   dwarf_meta_t meta;
-  setup_dwarf(dwarf, &meta, field, true);
+  setup_dwarf(dwarf, &meta, field, false, true);
 
   meta.typearg = field->type_name;
 
