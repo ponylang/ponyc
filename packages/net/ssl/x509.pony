@@ -11,11 +11,7 @@ primitive X509
     Checks if an OpenSSL X509 certificate is valid for a given host.
     """
     try
-      if _match_name(host, common_name(cert)) then
-        return true
-      end
-
-      for name in alt_names(cert).values() do
+      for name in all_names(cert).values() do
         if _match_name(host, name) then
           return true
         end
@@ -51,14 +47,20 @@ primitive X509
 
     common
 
-  fun alt_names(cert: Pointer[X509]): Array[String] val =>
+  fun all_names(cert: Pointer[X509]): Array[String] val =>
     """
-    Returns an array of alternate names for the certificate.
+    Returns an array of all names for the certificate. Any names containing
+    NULL bytes are not included. This includes the common name and all subject
+    alternate names.
     """
     let array = recover Array[String] end
 
     if cert.is_null() then
       return array
+    end
+
+    try
+      array.push(common_name(cert))
     end
 
     let stack = @X509_get_ext_d2i[Pointer[_GeneralNameStack]](cert, I32(85),
