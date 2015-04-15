@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -571,6 +572,23 @@ static socklen_t address_length(ipaddress_t* ipaddr)
   return 0;
 }
 
+static int address_family(int length)
+{
+  switch(length)
+  {
+    case 4:
+      return AF_INET;
+
+    case 16:
+      return AF_INET6;
+
+    default:
+      pony_throw();
+  }
+
+  return 0;
+}
+
 void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv)
 {
   char host[NI_MAXHOST];
@@ -621,6 +639,21 @@ struct addrinfo* os_nextaddr(struct addrinfo* addr)
   return addr->ai_next;
 }
 
+char* os_ip_string(const void* src, int len)
+{
+  char dst[INET6_ADDRSTRLEN];
+  int family = address_family(len);
+
+  if(inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
+    pony_throw();
+
+  size_t dstlen = strlen(dst);
+  char* result = (char*)pony_alloc(dstlen + 1);
+  memcpy(result, dst, dstlen + 1);
+
+  return result;
+}
+
 void os_sockname(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
@@ -631,6 +664,18 @@ void os_peername(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
   getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
+}
+
+bool os_host_ip4(const char* host)
+{
+  struct in_addr addr;
+  return inet_pton(AF_INET, host, &addr) == 1;
+}
+
+bool os_host_ip6(const char* host)
+{
+  struct in6_addr addr;
+  return inet_pton(AF_INET6, host, &addr) == 1;
 }
 
 size_t os_send(asio_event_t* ev, const char* buf, size_t len)

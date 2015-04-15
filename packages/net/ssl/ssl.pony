@@ -1,3 +1,5 @@
+use "net"
+
 use @SSL_ctrl[I32](ssl: Pointer[_SSL], op: I32, arg: I32,
   parg: Pointer[U8] tag) if windows
 
@@ -47,7 +49,10 @@ class SSL
 
     @SSL_set_bio[None](_ssl, _input, _output)
 
-    if _hostname.size() > 0 then
+    if (_hostname.size() > 0) and
+      not DNS.is_ip4(_hostname) and
+      not DNS.is_ip6(_hostname)
+    then
       // SSL_set_tlsext_host_name
       @SSL_ctrl(_ssl, 55, 0, _hostname.cstring())
     end
@@ -152,11 +157,16 @@ class SSL
     Verify that the certificate is valid for the given hostname.
     """
     if _hostname.size() > 0 then
-      // TODO: verify hostname
-      let cert = @SSL_get_peer_certificate[Pointer[U8]](_ssl)
+      let cert = @SSL_get_peer_certificate[Pointer[X509]](_ssl)
+      let ok = X509.valid_for_host(cert, _hostname)
 
       if not cert.is_null() then
         @X509_free[None](cert)
+      end
+
+      if not ok then
+        _state = SSLAuthFail
+        return
       end
     end
 

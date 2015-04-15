@@ -20,6 +20,18 @@ primitive DNS
     """
     _resolve(10, host, service)
 
+  fun is_ip4(host: String): Bool =>
+    """
+    Returns true if the host is a literal IPv4 address.
+    """
+    @os_host_ip4[Bool](host.cstring())
+
+  fun is_ip6(host: String): Bool =>
+    """
+    Returns true if the host is a literal IPv6 address.
+    """
+    @os_host_ip6[Bool](host.cstring())
+
   fun _resolve(family: U32, host: String, service: String):
     Array[IPAddress] iso^
   =>
@@ -27,7 +39,7 @@ primitive DNS
     Turns an addrinfo pointer into an array of addresses.
     """
     var list = recover Array[IPAddress] end
-    var result = @os_addrinfo[Pointer[_AddrInfo]](
+    var result = @os_addrinfo[Pointer[U8]](
       family, host.cstring(), service.cstring())
 
     if not result.is_null() then
@@ -37,12 +49,10 @@ primitive DNS
         let ip = recover IPAddress end
         @os_getaddr[None](addr, ip)
         list.push(consume ip)
-        addr = @os_nextaddr[Pointer[_AddrInfo]](addr)
+        addr = @os_nextaddr[Pointer[U8]](addr)
       end
 
       @freeaddrinfo[None](result)
     end
 
     list
-
-primitive _AddrInfo

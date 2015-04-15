@@ -626,10 +626,10 @@ class String val is Ordered[String box], Stringable
     s
 
   fun compare(that: String box, n: U64, offset: I64 = 0,
-    that_offset: I64 = 0): I32
+    that_offset: I64 = 0, ignore_case: Bool = false): I32
   =>
     """
-    Starting at this + offset, compare n characters with that + offset. Return
+    Starting at this + offset, compare n bytes with that + offset. Return
     zero if the strings are the same. Return a negative number if this is
     less than that, a positive number if this is more than that.
     """
@@ -644,8 +644,15 @@ class String val is Ordered[String box], Stringable
     end
 
     while i > 0 do
-      if _ptr._apply(j) != that._ptr._apply(k) then
-        return _ptr._apply(j).i32() - that._ptr._apply(k).i32()
+      var c1 = _ptr._apply(j)
+      var c2 = that._ptr._apply(k)
+
+      if
+        not ((c1 == c2) or
+          (ignore_case and
+            (c1 >= 0x41) and (c1 <= 0x5A) and ((c1 + 0x20) == c2)))
+      then
+        return c1.i32() - c2.i32()
       end
 
       j = j + 1

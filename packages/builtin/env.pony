@@ -57,7 +57,7 @@ class Env val
         break
       end
 
-      array.push(recover String.from_cstring(consume entry) end)
+      array.push(recover String.from_cstring(consume entry, 0, false) end)
       i = i + 1
     end
 
