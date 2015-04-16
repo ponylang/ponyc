@@ -104,7 +104,7 @@ bool expr_array(pass_opt_t* opt, ast_t** astp)
 
   for(ast_t* ele = ast_childidx(ast, 1); ele != NULL; ele = ast_sibling(ele))
   {
-    BUILD(append_dot, ast, NODE(TK_DOT, TREE(*astp) ID("append")));
+    BUILD(append_dot, ast, NODE(TK_DOT, TREE(*astp) ID("push")));
 
     BUILD(append, ast,
       NODE(TK_CALL,
