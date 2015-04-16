@@ -644,7 +644,7 @@ char* os_ip_string(const void* src, int len)
   char dst[INET6_ADDRSTRLEN];
   int family = address_family(len);
 
-  if(inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
+  if(inet_ntop(family, (PVOID)src, dst, INET6_ADDRSTRLEN))
     pony_throw();
 
   size_t dstlen = strlen(dst);
