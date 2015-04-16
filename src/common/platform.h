@@ -24,6 +24,7 @@
 #  define PLATFORM_IS_LINUX
 #elif defined(_WIN64)
 #  define PLATFORM_IS_WINDOWS
+#  define CAST_PVOID(X) ((PVOID)X)
 #  if defined(_MSC_VER)
 #    define PLATFORM_IS_VISUAL_STUDIO
 /** Disable warnings about default constructors and class operators.
@@ -86,6 +87,7 @@
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX)
 # define PLATFORM_IS_POSIX_BASED
+#  define CAST_PVOID(X) (X)
 #endif
 
 #if defined(PLATFORM_IS_POSIX_BASED) || defined(__MINGW64__)
