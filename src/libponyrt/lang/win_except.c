@@ -80,9 +80,9 @@ void pony_throw()
 EXCEPTION_DISPOSITION pony_personality_v0(EXCEPTION_RECORD *ExcRecord,
   void* EstablisherFrame, _CONTEXT *ContextRecord, DISPATCHER_CONTEXT* DispatcherContext)
 {
-  if(ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS)
+  if(ExcRecord->ExceptionCode != PONY_EXCEPTION_CLASS || IS_UNWINDING(ExcRecord->ExceptionFlags))
     return ExceptionContinueSearch;
-
+  
   if(!(ExcRecord->ExceptionFlags  &
     (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND)))
   {
