@@ -802,9 +802,26 @@ static ast_result_t sugar_binop(ast_t** astp, const char* fn_name)
 {
   AST_GET_CHILDREN(*astp, left, right);
 
+  ast_t* positional = ast_from(right, TK_POSITIONALARGS);
+
+  if(ast_id(right) == TK_TUPLE)
+  {
+    ast_t* value = ast_child(right);
+
+    while(value != NULL)
+    {
+      BUILD(arg, right, NODE(TK_SEQ, TREE(value)));
+      ast_append(positional, arg);
+      value = ast_sibling(value);
+    }
+  } else {
+    BUILD(arg, right, NODE(TK_SEQ, TREE(right)));
+    ast_add(positional, arg);
+  }
+
   REPLACE(astp,
     NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS, NODE(TK_SEQ, TREE(right)))
+      TREE(positional)
       NONE
       NODE(TK_DOT, TREE(left) ID(fn_name))
       ));
