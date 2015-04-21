@@ -180,7 +180,11 @@ cmp_t compare(const UnsignedInt128& lvalue, const UnsignedInt128& rvalue)
 {
   if(lvalue.high == rvalue.high && lvalue.low == rvalue.low)
     return equal;
-  else if(lvalue.high == rvalue.high && lvalue.low < rvalue.low)
+
+  if(lvalue.high < rvalue.high)
+    return less;
+
+  if(lvalue.high == rvalue.high && lvalue.low < rvalue.low)
     return less;
 
   return greater;

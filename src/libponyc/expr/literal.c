@@ -18,12 +18,69 @@
 #define UIF_CONSTRAINED 0x1000
 #define UIF_COUNT       12
 
-static const char* _str_uif_types[UIF_COUNT] =
+static struct
 {
-  "U8", "U16", "U32", "U64", "U128",
-  "I8", "I16", "I32", "I64", "I128",
-  "F32", "F64"
+  const char* name;
+  uint64_t limit_high;  // The lowest positive value that's too big
+  uint64_t limit_low;   // "
+  bool neg_plus_one;    // Is a negated value allowed to be 1 bigger
+} _str_uif_types[UIF_COUNT] =
+{
+  { "U8", 0, 0x100, false },
+  { "U16", 0, 0x10000, false },
+  { "U32", 0, 0x100000000LL, false },
+  { "U64", 1, 0, false },
+  { "U128", 0, 0, false },  // Limit checked by lexer
+  { "I8", 0, 0x80, true },
+  { "I16", 0, 0x8000, true },
+  { "I32", 0, 0x80000000, true },
+  { "I64", 0, 0x8000000000000000ULL, true },
+  { "I128", 0x8000000000000000ULL, 0, true },
+  { "F32", 0, 0, false },
+  { "F64", 0, 0, false }
 };
+
+
+typedef struct lit_op_info_t
+{
+  const char* name;
+  size_t arg_count;
+  bool can_propogate_literal;
+  bool neg_plus_one;
+} lit_op_info_t;
+
+static lit_op_info_t _operator_fns[] =
+{
+  { "add", 1, true, false },
+  { "sub", 1, true, false },
+  { "mul", 1, true, false },
+  { "div", 1, true, false },
+  { "mod", 1, true, false },
+  { "neg", 0, true, true },
+  { "shl", 1, true, false },
+  { "shr", 1, true, false },
+  { "op_and", 1, true, false },
+  { "op_or", 1, true, false },
+  { "op_xor", 1, true, false },
+  { "op_not", 0, true, false },
+  { "eq", 1, false, false },
+  { "ne", 1, false, false },
+  { "lt", 1, false, false },
+  { "le", 1, false, false },
+  { "gt", 1, false, false },
+  { "ge", 1, false, false },
+  { NULL, 0, false, false }  // Terminator
+};
+
+
+static lit_op_info_t* lookup_literal_op(const char* name)
+{
+  for(int i = 0; _operator_fns[i].name != NULL; i++)
+    if(strcmp(name, _operator_fns[i].name) == 0)
+      return &_operator_fns[i];
+
+  return NULL;
+}
 
 
 bool expr_literal(pass_opt_t* opt, ast_t* ast, const char* name)
@@ -68,6 +125,7 @@ typedef struct lit_chain_t
   ast_t* formal;
   ast_t* cached_type;
   const char* name;
+  int cached_uif_index;
   bool valid_for_float;
   struct lit_chain_t* next; // Next node
 } lit_chain_t;
@@ -89,6 +147,7 @@ static void chain_init_head(lit_chain_t* head)
   head->formal = NULL;
   head->cached_type = NULL;
   head->name = NULL;
+  head->cached_uif_index = -1;
   head->valid_for_float = false;
   head->next = head;
 }
@@ -104,6 +163,7 @@ static void chain_clear_cache(lit_chain_t* chain)
   chain->formal = NULL;
   chain->cached_type = NULL;
   chain->name = NULL;
+  chain->cached_uif_index = -1;
   chain->valid_for_float = false;
 }
 
@@ -149,7 +209,7 @@ static int uifset_simple_type(pass_opt_t* opt, ast_t* type)
 
   for(int i = 0; i < UIF_COUNT; i++)
   {
-    ast_t* uif = type_builtin(opt, type, _str_uif_types[i]);
+    ast_t* uif = type_builtin(opt, type, _str_uif_types[i].name);
     ast_setid(ast_childidx(uif, 3), TK_VAL);
     ast_setid(ast_childidx(uif, 4), TK_EPHEMERAL);
 
@@ -204,7 +264,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
 
   for(int i = 0; i < UIF_COUNT; i++)
   {
-    ast_t* uif = type_builtin(opt, type_param, _str_uif_types[i]);
+    ast_t* uif = type_builtin(opt, type_param, _str_uif_types[i].name);
 
     BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
     BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
@@ -396,6 +456,7 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
     // Type is a formal parameter
     assert(chain_head->formal != NULL);
     assert(chain_head->name != NULL);
+    assert(chain_head->cached_uif_index < 0);
 
     BUILD(uif_type, type,
       NODE(TK_TYPEPARAMREF, DATA(chain_head->formal)
@@ -412,9 +473,11 @@ static bool uif_type(pass_opt_t* opt, ast_t* literal, ast_t* type,
     if(r == (1 << i))
     {
       chain_head->valid_for_float = (((1 << i) & UIF_INT_MASK) == 0);
-      chain_head->cached_type = type_builtin(opt, type, _str_uif_types[i]);
+      chain_head->cached_type =
+        type_builtin(opt, type, _str_uif_types[i].name);
       //ast_setid(ast_childidx(chain_head->cached_type, 4), TK_EPHEMERAL);
-      chain_head->name = _str_uif_types[i];
+      chain_head->name = _str_uif_types[i].name;
+      chain_head->cached_uif_index = i;
       return true;
     }
   }
@@ -450,6 +513,58 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
         chain_head->name);
 
     return false;
+  }
+
+  if(ast_id(literal) == TK_INT && chain_head->cached_uif_index >= 0)
+  {
+    // Check for literals that are outside the range of their type.
+    // Note we don't check for types bound to type parameters.
+    int i = chain_head->cached_uif_index;
+
+    if(_str_uif_types[i].limit_low != 0 || _str_uif_types[i].limit_high != 0)
+    {
+#ifdef PLATFORM_IS_VISUAL_STUDIO
+      UnsignedInt128 limit(_str_uif_types[i].limit_high,
+        _str_uif_types[i].limit_low);
+#else
+      __uint128_t limit = (((__uint128_t)_str_uif_types[i].limit_high) << 64) |
+        _str_uif_types[i].limit_low;
+#endif
+
+      // There is a limit specified for this type, the literal must be smaller
+      // than that.
+      bool neg_plus_one = false;
+
+      if(_str_uif_types[i].neg_plus_one)
+      {
+        // If the literal is immediately negated it can be equal to the given
+        // limit. This is because of how the world chooses to encode negative
+        // integers.
+        // For example, the maximum value in an I8 is 127. But the minimum
+        // value is -128.
+        // We don't actually calculate the negative value here, but we have a
+        // looser test if the literal is immediately negated.
+        // We do not do this if the negation is not immediate, eg "-(128)".
+        ast_t* parent = ast_parent(literal);
+        assert(parent != NULL);
+        ast_t* parent_type = ast_type(parent);
+
+        if(parent_type != NULL && ast_id(parent_type) == TK_OPERATORLITERAL &&
+          ast_child(parent) == literal &&
+          ((lit_op_info_t*)ast_data(parent_type))->neg_plus_one)
+          neg_plus_one = true;
+      }
+
+      __uint128_t actual = ast_int(literal);
+
+      if((actual > limit) || (!neg_plus_one && actual == limit))
+      {
+        // Illegal value. Note that we report an error, but don't return an
+        // error, so other errors may be found.
+        ast_error(literal, "Literal value is out of range for type (%s)",
+          chain_head->name);
+      }
+    }
   }
 
   ast_settype(literal, chain_head->cached_type);
@@ -674,46 +789,6 @@ bool coerce_literals(ast_t** astp, ast_t* target_type, pass_opt_t* options)
   lit_chain_t chain;
   chain_init_head(&chain);
   return coerce_literal_to_type(astp, target_type, &chain, options, true);
-}
-
-typedef struct lit_op_info_t
-{
-  const char* name;
-  size_t arg_count;
-  bool can_propogate_literal;
-} lit_op_info_t;
-
-static lit_op_info_t _operator_fns[] =
-{
-  { "add", 1, true },
-  { "sub", 1, true },
-  { "mul", 1, true },
-  { "div", 1, true },
-  { "mod", 1, true },
-  { "neg", 0, true },
-  { "shl", 1, true },
-  { "shr", 1, true },
-  { "op_and", 1, true },
-  { "op_or", 1, true },
-  { "op_xor", 1, true },
-  { "op_not", 0, true },
-  { "eq", 1, false },
-  { "ne", 1, false },
-  { "lt", 1, false },
-  { "le", 1, false },
-  { "gt", 1, false },
-  { "ge", 1, false },
-  { NULL, 0, false }  // Terminator
-};
-
-
-static lit_op_info_t* lookup_literal_op(const char* name)
-{
-  for(int i = 0; _operator_fns[i].name != NULL; i++)
-    if(strcmp(name, _operator_fns[i].name) == 0)
-      return &_operator_fns[i];
-
-  return NULL;
 }
 
 

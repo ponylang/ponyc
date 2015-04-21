@@ -378,7 +378,7 @@ double ast_float(ast_t* ast)
   return token_float(ast->t);
 }
 
-__int128_t ast_int(ast_t* ast)
+__uint128_t ast_int(ast_t* ast)
 {
   return token_int(ast->t);
 }

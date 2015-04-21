@@ -268,7 +268,7 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
   if(!gentype(c, type, &g))
     return NULL;
 
-  __int128_t value = ast_int(ast);
+  __uint128_t value = ast_int(ast);
   uint64_t low = (uint64_t)value;
   uint64_t high = (uint64_t)(value >> 64);
 

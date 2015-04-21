@@ -23,6 +23,13 @@ public:
   uint64_t high;
 
   UnsignedInt128() : low(0), high(0) {};
+
+  UnsignedInt128(uint64_t _high, uint64_t _low)
+  {
+    low = _low;
+    high = _high;
+  }
+
   UnsignedInt128(const UnsignedInt128& value)
   {
     low = value.low;
