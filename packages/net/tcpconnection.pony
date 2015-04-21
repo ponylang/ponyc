@@ -79,6 +79,12 @@ actor TCPConnection
       end
     end
 
+  be set_notify(notify: TCPConnectionNotify iso) =>
+    """
+    Change the notifier.
+    """
+    _notify = consume notify
+
   be dispose() =>
     """
     Close the connection once all writes are sent.
@@ -104,12 +110,6 @@ actor TCPConnection
     let ip = recover IPAddress end
     @os_peername[None](_fd, ip)
     ip
-
-  fun ref set_notify(notify: TCPConnectionNotify ref) =>
-    """
-    Change the notifier.
-    """
-    _notify = notify
 
   fun ref set_nodelay(state: Bool) =>
     """

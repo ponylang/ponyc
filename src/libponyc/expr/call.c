@@ -344,8 +344,26 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
   // If we can recover the receiver, we don't alias it here.
   bool can_recover = auto_recover_call(ast, r_type, positional, result);
+  bool cap_recover = false;
 
-  if(can_recover)
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+    case TK_TAG:
+      break;
+
+    case TK_REF:
+    case TK_BOX:
+      cap_recover = true;
+      break;
+
+    default:
+      assert(0);
+  }
+
+  if(can_recover && cap_recover)
     a_type = r_type;
   else
     a_type = alias(r_type);
@@ -372,7 +390,7 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
     ast_error(receiver, "receiver type: %s", ast_print_type(a_type));
     ast_error(cap, "target type: %s", ast_print_type(t_type));
 
-    if(!can_recover && is_subtype(r_type, t_type))
+    if(!can_recover && cap_recover && is_subtype(r_type, t_type))
     {
       ast_error(ast,
         "this would be possible if the arguments and return value "

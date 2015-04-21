@@ -56,7 +56,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
   return false;
 }
 
-static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t* type)
+static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
   ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
 
@@ -78,7 +78,7 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t* type)
       return false;
   }
 
-  if(ast_visit(&type, NULL, pass_names, opt) != AST_OK)
+  if(ast_visit(type, NULL, pass_names, opt) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
@@ -94,7 +94,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
   AST_GET_CHILDREN(def, alias_id, typeparams, def_cap, provides);
   ast_t* alias = ast_child(provides);
 
-  if(!names_resolvealias(opt, def, alias))
+  if(!names_resolvealias(opt, def, &alias))
     return false;
 
   // Reify the alias.

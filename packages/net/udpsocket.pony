@@ -57,17 +57,11 @@ actor UDPSocket
       end
     end
 
-  fun ref _write(data: Bytes, to: IPAddress) =>
+  be set_notify(notify: UDPNotify iso) =>
     """
-    Write the datagram to the socket.
+    Change the notifier.
     """
-    if not _closed then
-      try
-        @os_sendto[U64](_fd, data.cstring(), data.size(), to) ?
-      else
-        _close()
-      end
-    end
+    _notify = consume notify
 
   be dispose() =>
     """
@@ -82,12 +76,6 @@ actor UDPSocket
     let ip = recover IPAddress end
     @os_sockname[None](_fd, ip)
     ip
-
-  fun ref set_notify(notify: UDPNotify) =>
-    """
-    Change the notifier.
-    """
-    _notify = notify
 
   be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
@@ -148,6 +136,18 @@ actor UDPSocket
       end
     else
       _close()
+    end
+
+  fun ref _write(data: Bytes, to: IPAddress) =>
+    """
+    Write the datagram to the socket.
+    """
+    if not _closed then
+      try
+        @os_sendto[U64](_fd, data.cstring(), data.size(), to) ?
+      else
+        _close()
+      end
     end
 
   fun ref _notify_listening() =>

@@ -18,23 +18,23 @@ actor Main
 
     for i in Range(1, env.args.size()) do
       try
-        let url = URL(env.args(i))
+        let url = URL.build(env.args(i))
         Fact(url.host != "")
 
         let client = _get_client(url.scheme, url.host, url.service)
-        let req = Request("GET", url, recover this~apply() end)
+        let req = Payload.request("GET", url, recover this~apply() end)
         client(consume req)
       else
         try env.out.print("Malformed URL: " + env.args(i)) end
       end
     end
 
-  be apply(request: Request, response: Response) =>
-    if response.status() != 0 then
+  be apply(request: Payload val, response: Payload val) =>
+    if response.status != 0 then
       _env.out.print(
-        response.proto() + " " +
-        response.status().string() + " " +
-        response.status_text())
+        response.proto + " " +
+        response.status.string() + " " +
+        response.method)
 
       try
         for (k, v) in response.headers().pairs() do
@@ -48,8 +48,7 @@ actor Main
         end
       end
     else
-      _env.out.print("Failed: " + request.method() + " " +
-        request.url().string())
+      _env.out.print("Failed: " + request.method + " " + request.url.string())
     end
 
   fun ref _get_client(scheme: String, host: String, service: String): Client ?

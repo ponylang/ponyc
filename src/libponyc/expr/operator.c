@@ -450,20 +450,29 @@ bool expr_consume(typecheck_t* t, ast_t* ast)
   if(is_typecheck_error(type))
     return false;
 
+  const char* name = NULL;
+
   switch(ast_id(term))
   {
     case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:
+    {
+      ast_t* id = ast_child(term);
+      name = ast_name(id);
       break;
+    }
+
+    case TK_THIS:
+    {
+      name = stringtab("this");
+      break;
+    }
 
     default:
-      ast_error(ast, "consume must take a local or parameter");
+      ast_error(ast, "consume must take 'this', a local, or a parameter");
       return false;
   }
-
-  ast_t* id = ast_child(term);
-  const char* name = ast_name(id);
 
   // Can't consume from an outer scope while in a loop condition.
   if((t->frame->loop_cond != NULL) &&
