@@ -51,15 +51,14 @@ class Listener is TCPListenNotify
 
   fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
     let env = _env
-    listen.close()
 
     try
       match _sslctx
       | let ctx: SSLContext =>
         let ssl = ctx.server()
-        SSLConnection(ServerSide(env), consume ssl)
+        SSLConnection(ServerSide(env, listen), consume ssl)
       else
-        ServerSide(env)
+        ServerSide(env, listen)
       end
     else
       _env.out.print("couldn't create server side")
