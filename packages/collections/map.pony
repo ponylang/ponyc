@@ -20,11 +20,13 @@ class HashMap[K, V, H: HashFunction[K] val]
   var _size: U64 = 0
   var _array: Array[((K, V) | _MapEmpty | _MapDeleted)]
 
-  new create(prealloc: U64 = 8) =>
+  new create(prealloc: U64 = 6) =>
     """
-    Defaults to a prealloc of 8.
+    Create an array with space for prealloc elements without triggering a
+    resize. Defaults to 6.
     """
-    let n = prealloc.next_pow2().max(8)
+    let space = (prealloc * 4) / 3
+    let n = space.next_pow2().max(8)
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -36,7 +38,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     Create a map from an array of tuples. Because the value may be isolated,
     this removes the tuples from the array, leaving it empty.
     """
-    let n = array.size().next_pow2().max(8)
+    let space = (array.size() * 4) / 3
+    let n = space.next_pow2().max(8)
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -140,11 +143,10 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
-  fun ref add(kv: (K, V)): HashMap[K, V, H]^ =>
+  fun ref add(k: K, v: V): HashMap[K, V, H]^ =>
     """
     Set a value in the map using +. Return the map, allowing chaining.
     """
-    (let k, let v) = consume kv
     this(consume k) = consume v
     this
 
@@ -182,6 +184,22 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     _resize(((_size * 4) / 3).next_pow2().max(8))
     this
+
+  fun clone[H2: HashFunction[this->K!] val = H]():
+    HashMap[this->K!, this->V!, H2]^
+  =>
+    """
+    Create a clone. The key and value types may be different due to aliasing
+    and viewpoint adaptation.
+    """
+    let r = HashMap[this->K!, this->V!, H2](_size)
+
+    try
+      for (k, v) in pairs() do
+        r(k) = v
+      end
+    end
+    r
 
   fun ref clear(): HashMap[K, V, H]^ =>
     """
