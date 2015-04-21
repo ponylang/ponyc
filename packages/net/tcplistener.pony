@@ -37,6 +37,12 @@ actor TCPListener
     _fd = @os_listen_tcp6[U64](this, host.cstring(), service.cstring())
     _notify_listening()
 
+  be set_notify(notify: TCPListenNotify iso) =>
+    """
+    Change the notifier.
+    """
+    _notify = consume notify
+
   be dispose() =>
     """
     Stop listening.
@@ -50,12 +56,6 @@ actor TCPListener
     let ip = recover IPAddress end
     @os_sockname[None](_fd, ip)
     ip
-
-  fun ref set_notify(notify: TCPListenNotify) =>
-    """
-    Change the notifier.
-    """
-    _notify = notify
 
   be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
