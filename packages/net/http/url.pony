@@ -19,7 +19,13 @@ class URL val
   var query: String = ""
   var fragment: String = ""
 
-  new val create(from: String) ? =>
+  new val create() =>
+    """
+    Create an empty URL.
+    """
+    None
+
+  new val build(from: String) ? =>
     """
     Parse the URL string into its components. If it isn't URL encoded, encode
     it. If existing URL encoding is invalid, raise an error.
@@ -45,14 +51,19 @@ class URL val
     offset = _parse_authority(from, offset)
     _parse_path(from, offset)
 
-    Fact(
-      URLEncode.check(user, false) and
+    Fact(is_valid())
+
+  fun is_valid(): Bool =>
+    """
+    Return true if all elements are correctly URL encoded.
+    """
+    URLEncode.check(user, false) and
       URLEncode.check(password, false) and
       URLEncode.check(host, false) and
       URLEncode.check(service, false) and
       URLEncode.check(path) and
       URLEncode.check(query, true, true) and
-      URLEncode.check(fragment))
+      URLEncode.check(fragment)
 
   fun string(fmt: URLFormat = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
@@ -122,7 +133,7 @@ class URL val
 
   fun ref _parse_scheme(from: String): I64 ? =>
     """
-    The scheme is: [a-zA-Z][a-zA-Z0-9+-.]*
+    The scheme is: [a-zA-Z][a-zA-Z0-9+-.]*:
     """
     var i = I64(0)
 
@@ -196,6 +207,13 @@ class URL val
     else
       // Has no port
       host = from.substring(i, slash - 1)
+
+      service = match scheme
+      | "http" => "80"
+      | "https" => "443"
+      else
+        "0"
+      end
     end
 
     slash

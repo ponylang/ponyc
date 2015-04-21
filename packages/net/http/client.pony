@@ -10,8 +10,8 @@ actor Client
   let _service: String
   let _sslctx: (SSLContext | None)
   let _pipeline: Bool
-  let _unsent: List[Request] = List[Request]
-  let _sent: List[(Request, Bool)] = List[(Request, Bool)]
+  let _unsent: List[Payload] = _unsent.create()
+  let _sent: List[Payload] = _sent.create()
   var _conn: (TCPConnection | None) = None
 
   new create(host: String, service: String, sslctx: (SSLContext | None) = None,
@@ -25,16 +25,14 @@ actor Client
     _sslctx = sslctx
     _pipeline = pipeline
 
-    // TODO: use a timer, detect no data from server after N seconds?
-
-  be apply(request: Request) =>
+  be apply(request: Payload) =>
     """
     Schedule a request.
     """
-    _unsent.push(request)
+    _unsent.push(consume request)
     _send()
 
-  be cancel(request: Request) =>
+  be cancel(request: Payload tag) =>
     """
     Cancel a request.
     """
@@ -42,31 +40,25 @@ actor Client
       for node in _unsent.nodes() do
         if node() is request then
           node.remove()
-          request._response(Response)
+          node.pop()._handle(Payload)
           return
         end
       end
 
       for node in _sent.nodes() do
-        if node()._1 is request then
-          node() = (request, false)
-          request._response(Response)
+        if node() is request then
+          (node.pop() as Payload^)._handle(Payload)
           break
         end
       end
     end
 
-  be _response(response: Response) =>
+  be _response(response: Payload) =>
     """
     Call the request's handler and supply the response.
     """
     try
-      (let request, let pending) = _sent.shift()
-
-      if pending then
-        request._response(response)
-      end
-
+      (_sent.shift() as Payload^)._handle(consume response)
       _send()
     end
 
@@ -99,8 +91,8 @@ actor Client
       for node in _sent.rnodes() do
         node.remove()
 
-        if node()._2 then
-          _unsent.unshift(node()._1)
+        try
+          _unsent.unshift(node.pop() as Payload^)
         end
       end
     end
@@ -134,8 +126,8 @@ actor Client
       try
         repeat
           let request = _unsent.shift()
-          request._write(_host, _service, conn)
-          _sent.push((request, true))
+          request._write(conn)
+          _sent.push(consume request)
         until not _pipeline end
       end
     else
@@ -164,12 +156,12 @@ actor Client
     """
     try
       while true do
-        _unsent.pop()._response(Response)
+        _unsent.pop()._handle(Payload)
       end
     end
 
     try
       while true do
-        _sent.pop()._1._response(Response)
+        (_sent.pop() as Payload^)._handle(Payload)
       end
     end
