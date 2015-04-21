@@ -494,13 +494,17 @@ static ast_result_t syntax_consume(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, term);
 
-  if(ast_id(term) != TK_REFERENCE)
+  switch(ast_id(term))
   {
-    ast_error(term, "Consume expressions must specify a single identifier");
-    return AST_ERROR;
+    case TK_THIS:
+    case TK_REFERENCE:
+      return AST_OK;
+
+    default: {}
   }
 
-  return AST_OK;
+  ast_error(term, "Consume expressions must specify a single identifier");
+  return AST_ERROR;
 }
 
 

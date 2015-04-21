@@ -663,6 +663,17 @@ bool expr_dontcare(ast_t* ast)
 bool expr_this(pass_opt_t* opt, ast_t* ast)
 {
   typecheck_t* t = &opt->check;
+
+  sym_status_t status;
+  ast_get(ast, stringtab("this"), &status);
+
+  if(status == SYM_CONSUMED)
+  {
+    ast_error(ast, "can't use a consumed 'this' in an expression");
+    return false;
+  }
+
+  assert(status == SYM_NONE);
   token_id cap = cap_for_this(t);
 
   if(!cap_sendable(cap, TK_NONE) && (t->frame->recover != NULL))
