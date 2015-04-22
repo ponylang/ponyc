@@ -3,7 +3,7 @@ use "net/http"
 actor Main
   new create(env: Env) =>
     let service = try env.args(1) else "50000" end
-    Server(Info(env), Handle where service = service)
+    Server(Info(env), Handle, CommonLog(env.out) where service = service)
 
 class Info
   let _env: Env

@@ -8,9 +8,10 @@ class _ServerListener is TCPListenNotify
   let _server: Server
   let _sslctx: (SSLContext | None)
   let _handler: RequestHandler
+  let _logger: Logger
 
   new iso create(server: Server, sslctx: (SSLContext | None),
-    handler: RequestHandler)
+    handler: RequestHandler, logger: Logger)
   =>
     """
     Creates a new listening socket manager.
@@ -18,6 +19,7 @@ class _ServerListener is TCPListenNotify
     _server = server
     _sslctx = sslctx
     _handler = handler
+    _logger = logger
 
   fun ref listening(listen: TCPListener ref) =>
     """
@@ -44,7 +46,7 @@ class _ServerListener is TCPListenNotify
     try
       let ctx = _sslctx as SSLContext
       let ssl = ctx.server()
-      SSLConnection(_RequestBuilder(_handler), consume ssl)
+      SSLConnection(_RequestBuilder(_handler, _logger), consume ssl)
     else
-      _RequestBuilder(_handler)
+      _RequestBuilder(_handler, _logger)
     end

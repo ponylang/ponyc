@@ -11,6 +11,30 @@ interface BytesList val
   """
   fun values(): Iterator[Bytes]
 
+interface Stream tag
+  """
+  Asnychronous access to some output stream.
+  """
+  be print(data: Bytes)
+    """
+    Print some bytes and insert a newline afterwards.
+    """
+
+  be write(data: Bytes)
+    """
+    Print some bytes without inserting a newline afterwards.
+    """
+
+  be printv(data: BytesList)
+    """
+    Print an array of Bytes.
+    """
+
+  be writev(data: BytesList)
+    """
+    Write an array of Bytes.
+    """
+
 actor StdStream
   """
   Asynchronous access to stdout and stderr. The constructors are private to

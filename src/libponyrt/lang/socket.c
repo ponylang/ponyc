@@ -589,15 +589,23 @@ static int address_family(int length)
   return 0;
 }
 
-void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv)
+void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
+  bool reversedns, bool servicename)
 {
   char host[NI_MAXHOST];
   char serv[NI_MAXSERV];
 
   socklen_t len = address_length(ipaddr);
+  int flags = 0;
+
+  if(!reversedns)
+    flags |= NI_NUMERICHOST;
+
+  if(!servicename)
+    flags |= NI_NUMERICSERV;
 
   int r = getnameinfo((struct sockaddr*)&ipaddr->addr, len, host, NI_MAXHOST,
-    serv, NI_MAXSERV, 0);
+    serv, NI_MAXSERV, flags);
 
   if(r != 0)
     pony_throw();

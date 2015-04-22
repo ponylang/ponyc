@@ -45,7 +45,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     Delete a value from the set and return it. Raises an error if the value
     wasn't in the set.
     """
-    _map.remove(value)
+    _map.remove(value)._2
 
   fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^

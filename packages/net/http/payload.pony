@@ -79,6 +79,20 @@ class Payload iso
     """
     _body
 
+  fun body_size(): U64 =>
+    """
+    Get the total size of the body.
+    """
+    var len = U64(0)
+
+    try
+      for v in _body.values() do
+        len = len + v.size()
+      end
+    end
+
+    len
+
   fun ref add_chunk(data: Bytes): Payload ref^ =>
     """
     Add a chunk to the body.
@@ -91,7 +105,7 @@ class Payload iso
     Trigger the response handler.
     """
     try
-      let h = handler as ResponseHandler
+      let h = (handler = None) as ResponseHandler
       h(consume this, consume response')
     end
 

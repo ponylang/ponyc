@@ -41,7 +41,7 @@ actor Timers
     Cancels a timer.
     """
     try
-      let timer' = _map.remove(timer)
+      (_, let timer') = _map.remove(timer)
       timer'._cancel()
     end
 

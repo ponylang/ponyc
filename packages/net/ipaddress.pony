@@ -26,13 +26,15 @@ class IPAddress val
     """
     family == 10
 
-  fun name(): (String, String) ? =>
+  fun name(reversedns: Bool = false, servicename: Bool = false):
+    (String, String) ?
+  =>
     """
     Return the host and service name.
     """
     let host: Pointer[U8] iso = recover Pointer[U8] end
     let serv: Pointer[U8] iso = recover Pointer[U8] end
-    @os_nameinfo[None](this, &host, &serv) ?
+    @os_nameinfo[None](this, &host, &serv, reversedns, servicename) ?
 
     (recover String.from_cstring(consume host, 0, false) end,
       recover String.from_cstring(consume serv, 0, false) end)

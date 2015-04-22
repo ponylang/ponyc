@@ -6,19 +6,25 @@ actor _ServerConnection
   Manages a stream of requests to a server, ordering the responses.
   """
   let _handler: RequestHandler
+  let _logger: Logger
   let _conn: TCPConnection
+  let _client_ip: String
   let _pending: List[Payload] = _pending.create()
   let _dispatched: List[Payload tag] = _dispatched.create()
-  let _responses: MapIs[Payload tag, Payload] = _responses.create()
+  let _responses: MapIs[Payload, Payload] = _responses.create()
   var _safe: Bool = true
 
-  new create(handler: RequestHandler, conn: TCPConnection) =>
+  new create(handler: RequestHandler, logger: Logger, conn: TCPConnection,
+    client_ip: String)
+  =>
     """
     The server connection needs to know how to handle requests and the
     connection to write responses on.
     """
     _handler = handler
+    _logger = logger
     _conn = conn
+    _client_ip = client_ip
 
   be dispatch(request: Payload) =>
     """
@@ -55,12 +61,11 @@ actor _ServerConnection
       if _dispatched() is request then
         // If this is next request, write the response and check for any stored
         // responses that can now be written in the correct order.
-        _dispatched.shift()
-        response._write(_conn)
+        _send(consume request, consume response)
         _send_responses()
       else
         // Store the response to be written later.
-        _responses(request) = consume response
+        _responses(consume request) = consume response
       end
     end
 
@@ -100,9 +105,17 @@ actor _ServerConnection
     """
     try
       while _dispatched.size() > 0 do
-        let request = _dispatched()
-        let response = _responses.remove(request)
-        _dispatched.shift()
-        response._write(_conn)
+        (let request, let response) = _responses.remove(_dispatched())
+        _send(consume request, consume response)
       end
+    end
+
+  fun ref _send(request: Payload, response: Payload) =>
+    """
+    Send a single response.
+    """
+    try
+      _dispatched.shift()
+      response._write(_conn)
+      _logger(_client_ip, consume request, consume response)
     end

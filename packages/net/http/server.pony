@@ -8,21 +8,25 @@ actor Server
   for new connections. Existing connections continue to use the old routes.
   """
   let _notify: ServerNotify
+  var _handler: RequestHandler
+  var _logger: Logger
   let _sslctx: (SSLContext | None)
   let _listen: TCPListener
   var _address: IPAddress
   var _dirty_routes: Bool = false
 
   new create(notify: ServerNotify iso, handler: RequestHandler,
-    host: String = "", service: String = "0",
+    logger: Logger, host: String = "", service: String = "0",
     sslctx: (SSLContext | None) = None)
   =>
     """
     Create a server bound to the given host and service.
     """
     _notify = consume notify
+    _handler = handler
+    _logger = logger
     _sslctx = sslctx
-    _listen = TCPListener(_ServerListener(this, sslctx, handler),
+    _listen = TCPListener(_ServerListener(this, sslctx, _handler, _logger),
       host, service)
     _address = recover IPAddress end
 
@@ -30,7 +34,15 @@ actor Server
     """
     Replace the request handler.
     """
-    _listen.set_notify(_ServerListener(this, _sslctx, handler))
+    _handler = handler
+    _listen.set_notify(_ServerListener(this, _sslctx, _handler, _logger))
+
+  be set_logger(logger: Logger) =>
+    """
+    Replace the logger.
+    """
+    _logger = logger
+    _listen.set_notify(_ServerListener(this, _sslctx, _handler, _logger))
 
   be dispose() =>
     """

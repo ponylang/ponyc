@@ -124,7 +124,7 @@ class HashMap[K, V, H: HashFunction[K] val]
       error
     end
 
-  fun ref remove(key: box->K!): V^ ? =>
+  fun ref remove(key: box->K!): (K^, V^) ? =>
     """
     Delete a value from the map and return it. Raises an error if there was no
     value for the given key.
@@ -136,8 +136,8 @@ class HashMap[K, V, H: HashFunction[K] val]
         _size = _size - 1
 
         match _array(index) = _MapDeleted
-        | (_, let v: V) =>
-          return consume v
+        | (let k: K, let v: V) =>
+          return (consume k, consume v)
         end
       end
     end

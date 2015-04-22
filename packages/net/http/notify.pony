@@ -16,6 +16,15 @@ interface RequestHandler val
     Eventually generates a response when handed a request.
     """
 
+interface Logger val
+  """
+  Handles logging request/response pairs.
+  """
+  fun val apply(ip: String, request: Payload, response: Payload): Any =>
+    """
+    Called after the server has handled a request.
+    """
+
 interface ServerNotify
   """
   Notifications for HTTP servers.
