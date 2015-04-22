@@ -29,10 +29,17 @@ class _RequestBuilder is TCPConnectionNotify
     // TODO: inactivity timer
     // add a "reset" API to Timers
     _buffer.append(consume data)
-    _builder.parse(_buffer)
 
-    match _builder.state()
-    | _PayloadReady
-    | _PayloadError =>
-      try (_server as _ServerConnection).dispatch(_builder.done()) end
+    while true do
+      _builder.parse(_buffer)
+
+      match _builder.state()
+      | _PayloadReady =>
+        try (_server as _ServerConnection).dispatch(_builder.done()) end
+      | _PayloadError =>
+        conn.close()
+        break
+      else
+        break
+      end
     end

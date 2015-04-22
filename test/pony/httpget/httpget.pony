@@ -45,8 +45,10 @@ actor Main
         _env.out.print("")
 
         for chunk in response.body().values() do
-          _env.out.print(chunk)
+          _env.out.write(chunk)
         end
+
+        _env.out.print("")
       end
     else
       _env.out.print("Failed: " + request.method + " " + request.url.string())

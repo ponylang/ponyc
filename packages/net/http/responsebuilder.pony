@@ -39,7 +39,6 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     // TODO: inactivity timer
     _buffer.append(consume data)
-    _builder.parse(_buffer)
     _dispatch()
 
   fun ref closed(conn: TCPConnection ref) =>
@@ -53,10 +52,18 @@ class _ResponseBuilder is TCPConnectionNotify
 
   fun ref _dispatch() =>
     """
-    Dispatch a response if we have one.
+    Dispatch responses if we have any.
     """
-    match _builder.state()
-    | _PayloadReady
-    | _PayloadError =>
-      _client._response(_builder.done())
+    while true do
+      _builder.parse(_buffer)
+
+      match _builder.state()
+      | _PayloadReady =>
+        _client._response(_builder.done())
+      | _PayloadError =>
+        _client._closed()
+        break
+      else
+        break
+      end
     end
