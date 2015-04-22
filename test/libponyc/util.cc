@@ -113,7 +113,23 @@ void load_test_program(const char* pass, const char* name, ast_t** out_prog)
 
 
 static const char* _builtin =
+  "primitive U8\n"
+  "primitive I8\n"
+  "  fun neg():I8 => compiler_intrinsic\n"
+  "primitive U16\n"
+  "primitive I16\n"
+  "  fun neg():I16 => compiler_intrinsic\n"
   "primitive U32\n"
+  "primitive I32\n"
+  "  fun neg():I32 => compiler_intrinsic\n"
+  "primitive U64\n"
+  "primitive I64\n"
+  "  fun neg():I64 => compiler_intrinsic\n"
+  "primitive U128\n"
+  "primitive I128\n"
+  "  fun neg():I128 => compiler_intrinsic\n"
+  "primitive F32\n"
+  "primitive F64\n"
   "primitive None\n"
   "primitive Bool";
 
