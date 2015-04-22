@@ -75,7 +75,7 @@ void os_gmtime(date_t* date, int64_t sec, int64_t nsec)
   struct tm tm;
 
 #ifdef PLATFORM_IS_WINDOWS
-  _gmtime_s(&tm, &t);
+  gmtime_s(&tm, &t);
 #else
   gmtime_r(&t, &tm);
 #endif
