@@ -12,7 +12,7 @@ class List[A]
     """
     _size
 
-  fun apply(i: U64): this->A ? =>
+  fun apply(i: U64 = 0): this->A ? =>
     """
     Get the i-th element, raising an error if the index is out of bounds.
     """

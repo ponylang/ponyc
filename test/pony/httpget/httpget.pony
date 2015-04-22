@@ -31,6 +31,7 @@ actor Main
 
   be apply(request: Payload val, response: Payload val) =>
     if response.status != 0 then
+      // TODO: aggregate as a single print
       _env.out.print(
         response.proto + " " +
         response.status.string() + " " +

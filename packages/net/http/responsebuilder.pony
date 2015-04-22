@@ -37,20 +37,26 @@ class _ResponseBuilder is TCPConnectionNotify
     Assemble chunks of data into a response. When we have a whole response,
     give it to the client and start a new one.
     """
+    // TODO: inactivity timer
     _buffer.append(consume data)
     _builder.parse(_buffer)
-
-    match _builder.state()
-    | _PayloadReady
-    | _PayloadError =>
-      _client._response(_builder.done())
-    end
+    _dispatch()
 
   fun ref closed(conn: TCPConnection ref) =>
     """
     The connection has closed, possibly prematurely.
     """
     _builder.closed(_buffer)
-    _client._response(_builder.done())
     _buffer.clear()
+    _dispatch()
     _client._closed()
+
+  fun ref _dispatch() =>
+    """
+    Dispatch a response if we have one.
+    """
+    match _builder.state()
+    | _PayloadReady
+    | _PayloadError =>
+      _client._response(_builder.done())
+    end

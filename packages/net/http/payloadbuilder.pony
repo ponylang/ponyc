@@ -83,12 +83,12 @@ class _PayloadBuilder
       _PayloadRequest
     end
 
-    var payload = _payload = Payload(_client)
+    var payload = _payload = Payload._empty(_client)
     _content_length = 0
     _chunked = false
 
     if result isnt _PayloadReady then
-      payload = Payload(_client)
+      payload = Payload._empty(_client)
     end
 
     payload
@@ -200,8 +200,12 @@ class _PayloadBuilder
             _state = _PayloadContentLength
             parse(buffer)
           else
-            _state = _PayloadBody
-            parse(buffer)
+            if _client then
+              _state = _PayloadBody
+              parse(buffer)
+            else
+              _state = _PayloadReady
+            end
           end
           return
         end

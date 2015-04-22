@@ -6,13 +6,10 @@ interface ResponseHandler val
     """
     Called when a response is available for a request.
     """
-    None
 
 interface RequestHandler val
   """
-  Handles requests to a specific path prefix.
-
-  TODO: inform it when it is mapped or unmapped to a path?
+  Handles requests. May dispatch based on the URL or other rules.
   """
   fun val apply(request: Payload): Any
     """

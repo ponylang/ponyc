@@ -16,16 +16,6 @@ class Payload iso
   let _body: Array[Bytes] = _body.create()
   let _response: Bool
 
-  new iso create(response': Bool = true) =>
-    """
-    Create an empty HTTP payload.
-    """
-    handler = None
-    status = 0
-    method = ""
-    url = URL
-    _response = response'
-
   new iso request(method': String = "GET", url': URL = URL,
     handler': (ResponseHandler | None) = None)
   =>
@@ -49,6 +39,16 @@ class Payload iso
     method = description
     url = URL
     _response = true
+
+  new iso _empty(response': Bool = true) =>
+    """
+    Create an empty HTTP payload.
+    """
+    handler = None
+    status = 0
+    method = ""
+    url = URL
+    _response = response'
 
   fun apply(key: String): String ? =>
     """
@@ -85,6 +85,24 @@ class Payload iso
     """
     _body.push(data)
     this
+
+  fun iso answer(response': Payload) =>
+    """
+    Trigger the response handler.
+    """
+    try
+      let h = handler as ResponseHandler
+      h(consume this, consume response')
+    end
+
+  fun iso fail() =>
+    """
+    Trigger the response handler with an error payload.
+    """
+    try
+      let h = handler as ResponseHandler
+      h(consume this, Payload.response(0))
+    end
 
   fun _write(conn: TCPConnection) =>
     """
@@ -173,6 +191,7 @@ class Payload iso
   fun _add_body(list: Array[Bytes] iso): Array[Bytes] iso^ =>
     """
     Add the body to the list.
+    TODO: don't include the body for HEAD, 204, 304 or 1xx
     """
     try
       if _body.size() > 0 then
@@ -192,12 +211,3 @@ class Payload iso
     end
 
     list
-
-  fun iso _handle(response': Payload) =>
-    """
-    Trigger the response handler.
-    """
-    try
-      let h = handler as ResponseHandler
-      h(consume this, consume response')
-    end

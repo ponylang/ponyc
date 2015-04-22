@@ -7,17 +7,17 @@ class _ServerListener is TCPListenNotify
   """
   let _server: Server
   let _sslctx: (SSLContext | None)
-  let _routes: Routes val
+  let _handler: RequestHandler
 
   new iso create(server: Server, sslctx: (SSLContext | None),
-    routes: Routes val)
+    handler: RequestHandler)
   =>
     """
     Creates a new listening socket manager.
     """
     _server = server
     _sslctx = sslctx
-    _routes = routes
+    _handler = handler
 
   fun ref listening(listen: TCPListener ref) =>
     """
@@ -37,9 +37,14 @@ class _ServerListener is TCPListenNotify
     """
     _server._closed()
 
-  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ ? =>
+  fun ref connected(listen: TCPListener ref): TCPConnectionNotify iso^ =>
     """
     Create a notifier for a specific HTTP socket.
     """
-    // TODO:
-    error
+    try
+      let ctx = _sslctx as SSLContext
+      let ssl = ctx.server()
+      SSLConnection(_RequestBuilder(_handler), consume ssl)
+    else
+      _RequestBuilder(_handler)
+    end

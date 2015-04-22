@@ -40,14 +40,14 @@ actor Client
       for node in _unsent.nodes() do
         if node() is request then
           node.remove()
-          node.pop()._handle(Payload)
+          node.pop().fail()
           return
         end
       end
 
       for node in _sent.nodes() do
         if node() is request then
-          (node.pop() as Payload^)._handle(Payload)
+          node.pop().fail()
           break
         end
       end
@@ -57,10 +57,8 @@ actor Client
     """
     Call the request's handler and supply the response.
     """
-    try
-      (_sent.shift() as Payload^)._handle(consume response)
-      _send()
-    end
+    try _sent.shift().answer(consume response) end
+    _send()
 
   be _connected() =>
     """
@@ -90,10 +88,7 @@ actor Client
     try
       for node in _sent.rnodes() do
         node.remove()
-
-        try
-          _unsent.unshift(node.pop() as Payload^)
-        end
+        try _unsent.unshift(node.pop()) end
       end
     end
 
@@ -138,17 +133,14 @@ actor Client
     """
     Creates a new connection.
     """
-    match _sslctx
-    | var ctx: SSLContext =>
-      try
-        let ssl = ctx.client(_host)
-        _conn = TCPConnection(
-          SSLConnection(_ResponseBuilder(this), consume ssl), _host, _service)
-        return
-      end
+    _conn = try
+      let ctx = _sslctx as SSLContext
+      let ssl = ctx.client(_host)
+      TCPConnection(SSLConnection(_ResponseBuilder(this), consume ssl),
+        _host, _service)
+    else
+      TCPConnection(_ResponseBuilder(this), _host, _service)
     end
-
-    _conn = TCPConnection(_ResponseBuilder(this), _host, _service)
 
   fun ref _cancel_all() =>
     """
@@ -156,12 +148,13 @@ actor Client
     """
     try
       while true do
-        _unsent.pop()._handle(Payload)
+        _unsent.pop().fail()
       end
     end
 
     try
-      while true do
-        (_sent.pop() as Payload^)._handle(Payload)
+      for node in _sent.nodes() do
+        node.remove()
+        try node.pop().fail() end
       end
     end
