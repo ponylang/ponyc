@@ -117,7 +117,7 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
-static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
+static bool is_fun_sub_fun(ast_t* sub, ast_t* super, bool interface)
 {
   // Must be the same type of function.
   if(ast_id(sub) != ast_id(super))
@@ -140,8 +140,9 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super)
       if(!is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap)))
         return false;
 
-      // Covariant results.
-      if(!is_subtype(sub_result, super_result))
+      // Covariant results. Don't check this for interfaces, as it produces
+      // an infinite loop. It will be true if the whole interface is provided.
+      if(!interface && !is_subtype(sub_result, super_result))
         return false;
       break;
 
@@ -238,7 +239,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     ast_t* r_super_member = reify(super_member, super_typeparams,
       super_typeargs);
 
-    bool ok = is_fun_sub_fun(r_sub_member, r_super_member);
+    bool ok = is_fun_sub_fun(r_sub_member, r_super_member, true);
     ast_free_unattached(r_sub_member);
     ast_free_unattached(r_super_member);
 
@@ -782,7 +783,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      return is_fun_sub_fun(sub, super);
+      return is_fun_sub_fun(sub, super, false);
 
     default: {}
   }
