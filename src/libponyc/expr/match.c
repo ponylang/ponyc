@@ -226,6 +226,9 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
   ast_t* pattern, bool errors)
 {
+  if(ast_id(pattern) == TK_NONE)
+    return MATCHTYPE_ACCEPT;
+
   ast_t* pattern_type = ast_type(pattern);
 
   if(is_control_type(pattern_type))

@@ -380,6 +380,7 @@ static reachable_method_stack_t* reachable_pattern(reachable_method_stack_t* s,
   switch(ast_id(ast))
   {
     case TK_DONTCARE:
+    case TK_NONE:
       break;
 
     case TK_VAR:
