@@ -490,10 +490,13 @@ class String val is Ordered[String box], Stringable
     """
     Append an arbitrary byte to the string.
     """
-    reserve(_size + 1)
-    _ptr._update(_size, value)
-    _size = _size + 1
-    _ptr._update(_size, 0)
+    if value != 0 then
+      reserve(_size + 1)
+      _ptr._update(_size, value)
+      _size = _size + 1
+      _ptr._update(_size, 0)
+    end
+
     this
 
   fun ref append_array(array: Array[U8] box, offset: U64 = 0, len: U64 = -1):

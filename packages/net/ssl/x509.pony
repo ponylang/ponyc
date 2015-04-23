@@ -36,7 +36,7 @@ primitive X509
       error
     end
 
-    let common = recover String.reserve(len.u64()) end
+    let common = recover String(len.u64()) end
     @X509_NAME_get_text_by_NID[I32](subject, I32(13), common.cstring(),
       len + 1)
     common.recalc()

@@ -2,6 +2,8 @@ interface Bytes val
   """
   Accept both a String and an Array[U8].
   """
+  new create(size: U64)
+
   fun size(): U64
   fun cstring(): Pointer[U8] tag
 

@@ -27,7 +27,7 @@ actor Main
       let count = _updater_count
 
       _to = recover
-        var updaters = Array[Updater].reserve(count)
+        var updaters = Array[Updater](count)
 
         for i in Range(0, count) do
           updaters.push(Updater(i, size))
