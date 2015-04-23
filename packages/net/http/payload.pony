@@ -100,7 +100,7 @@ class Payload iso
     _body.push(data)
     this
 
-  fun iso answer(response': Payload) =>
+  fun iso respond(response': Payload) =>
     """
     Trigger the response handler.
     """
@@ -112,6 +112,26 @@ class Payload iso
   fun iso fail() =>
     """
     Trigger the response handler with an error payload.
+    """
+    try
+      let h = (handler = None) as ResponseHandler
+      h(consume this, Payload.response(0))
+    end
+
+  fun val _client_respond(response': Payload) =>
+    """
+    Trigger the response handler. This is private to prevent request handlers
+    from responding to a request more than once.
+    """
+    try
+      let h = handler as ResponseHandler
+      h(consume this, consume response')
+    end
+
+  fun val _client_fail() =>
+    """
+    Trigger the response handler with an error payload. This is private to
+    prevent request handlers from responding to a request more than once.
     """
     try
       let h = handler as ResponseHandler

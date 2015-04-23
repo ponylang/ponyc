@@ -1,12 +1,12 @@
 use "time"
 
-class CommonLog
+class CommonLog is Logger
   let _out: Stream
 
   new val create(out: Stream) =>
     _out = out
 
-  fun val apply(ip: String, request: Payload, response: Payload) =>
+  fun val apply(ip: String, request: Payload val, response: Payload val) =>
     let list = recover Array[String](24) end
 
     list.push(ip)

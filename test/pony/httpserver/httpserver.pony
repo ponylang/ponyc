@@ -42,4 +42,4 @@ primitive Handle
       response.add_chunk(request.url.fragment)
     end
 
-    (consume request).answer(consume response)
+    (consume request).respond(consume response)

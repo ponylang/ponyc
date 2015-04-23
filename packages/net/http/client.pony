@@ -4,157 +4,69 @@ use "net/ssl"
 
 actor Client
   """
-  Manages a persistent and possibly pipelined TCP connection to an HTTP server.
+  Manages a collection of client connections.
   """
-  let _host: String
-  let _service: String
-  let _sslctx: (SSLContext | None)
+  let _sslctx: SSLContext
   let _pipeline: Bool
-  let _unsent: List[Payload] = _unsent.create()
-  let _sent: List[Payload] = _sent.create()
-  var _conn: (TCPConnection | None) = None
+  let _clients: Map[_HostService, _ClientConnection] = _clients.create()
 
-  new create(host: String, service: String, sslctx: (SSLContext | None) = None,
-    pipeline: Bool = true)
-  =>
+  new create(sslctx: (SSLContext | None) = None, pipeline: Bool = true) =>
     """
     Create a client for the given host and service.
     """
-    _host = host
-    _service = service
-    _sslctx = sslctx
+    _sslctx = try
+      sslctx as SSLContext
+    else
+      recover SSLContext.set_client_verify(false) end
+    end
+
     _pipeline = pipeline
 
-  be apply(request: Payload) =>
+  be apply(request: Payload val) =>
     """
     Schedule a request.
     """
-    _unsent.push(consume request)
-    _send()
+    try
+      let client = _get_client(request.url)
+      client(request)
+    end
 
-  be cancel(request: Payload tag) =>
+  be cancel(request: Payload val) =>
     """
     Cancel a request.
     """
     try
-      for node in _unsent.nodes() do
-        if node() is request then
-          node.remove()
-          node.pop().fail()
-          return
-        end
-      end
-
-      for node in _sent.nodes() do
-        if node() is request then
-          node.pop().fail()
-          break
-        end
-      end
+      let client = _get_client(request.url)
+      client.cancel(request)
     end
 
-  be _response(response: Payload) =>
+  fun ref _get_client(url: URL): _ClientConnection ? =>
     """
-    Call the request's handler and supply the response.
+    Gets or creates a client for the given URL.
     """
-    try _sent.shift().answer(consume response) end
-    _send()
-
-  be _connected() =>
-    """
-    The connection to the server has been established. Send pending requests.
-    """
-    _send()
-
-  be _connect_failed() =>
-    """
-    The connection couldn't be established. Cancel all pending requests.
-    """
-    _cancel_all()
-    _conn = None
-
-  be _auth_failed() =>
-    """
-    The connection couldn't be authenticated. Cancel all pending requests.
-    """
-    _cancel_all()
-    _conn = None
-
-  be _closed() =>
-    """
-    The connection to the server has closed prematurely. Reschedule sent
-    requests that haven't been cancelled.
-    """
-    try
-      for node in _sent.rnodes() do
-        node.remove()
-        try _unsent.unshift(node.pop()) end
-      end
-    end
-
-    _conn = None
-    _send()
-
-  fun ref _send() =>
-    """
-    Send pending requests. If the connection is closed, open it. If we have
-    nothing to send and we aren't waiting on any responses, close the
-    connection.
-    """
-    if _unsent.size() == 0 then
-      if _sent.size() == 0 then
-        try
-          (_conn as TCPConnection).dispose()
-          _conn = None
-        end
-      end
-      return
-    end
-
-    if (_sent.size() > 0) and not _pipeline then
-      return
-    end
-
-    try
-      let conn = _conn as TCPConnection
-
-      try
-        repeat
-          let request = _unsent.shift()
-          request._write(conn)
-          _sent.push(consume request)
-        until not _pipeline end
+    let port = if url.service.size() == 0 then
+      match url.scheme
+      | "http" => "80"
+      | "https" => "443"
+      else
+        error
       end
     else
-      _new_conn()
+      url.service
     end
 
-  fun ref _new_conn() =>
-    """
-    Creates a new connection.
-    """
-    _conn = try
-      let ctx = _sslctx as SSLContext
-      let ssl = ctx.client(_host)
-      TCPConnection(SSLConnection(_ResponseBuilder(this), consume ssl),
-        _host, _service)
+    let hs = _HostService(url.scheme, url.host, port)
+
+    try
+      _clients(hs)
     else
-      TCPConnection(_ResponseBuilder(this), _host, _service)
-    end
-
-  fun ref _cancel_all() =>
-    """
-    Cancel all pending requests.
-    """
-    try
-      while true do
-        _unsent.pop().fail()
+      let client = match url.scheme
+      | "http" => _ClientConnection(hs.host, hs.service, None, _pipeline)
+      | "https" => _ClientConnection(hs.host, hs.service, _sslctx, _pipeline)
+      else
+        error
       end
-    end
 
-    try
-      for node in _sent.nodes() do
-        node.remove()
-        try node.pop().fail() end
-      end
+      _clients(hs) = client
+      client
     end

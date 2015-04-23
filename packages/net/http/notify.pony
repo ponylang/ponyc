@@ -2,7 +2,7 @@ interface ResponseHandler val
   """
   Handles responses to HTTP requests.
   """
-  fun val apply(request: Payload, response: Payload): Any =>
+  fun val apply(request: Payload val, response: Payload val): Any =>
     """
     Called when a response is available for a request.
     """
@@ -20,7 +20,8 @@ interface Logger val
   """
   Handles logging request/response pairs.
   """
-  fun val apply(ip: String, request: Payload, response: Payload): Any =>
+  fun val apply(ip: String, request: Payload val, response: Payload val): Any
+  =>
     """
     Called after the server has handled a request.
     """

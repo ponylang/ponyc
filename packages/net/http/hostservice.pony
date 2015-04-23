@@ -1,6 +1,6 @@
 use "collections"
 
-class HostService val is Hashable, Comparable[HostService]
+class _HostService val is Hashable, Comparable[_HostService]
   let scheme: String
   let host: String
   let service: String
@@ -13,7 +13,7 @@ class HostService val is Hashable, Comparable[HostService]
   fun hash(): U64 =>
     scheme.hash() xor host.hash() xor service.hash()
 
-  fun eq(that: HostService box): Bool =>
+  fun eq(that: _HostService box): Bool =>
     (scheme == that.scheme) and
       (host == that.host) and
       (service == that.service)

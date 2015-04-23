@@ -11,7 +11,8 @@ actor _ServerConnection
   let _client_ip: String
   let _pending: List[Payload] = _pending.create()
   let _dispatched: List[Payload tag] = _dispatched.create()
-  let _responses: MapIs[Payload, Payload] = _responses.create()
+  let _responses: MapIs[Payload tag, (Payload val, Payload val)] =
+    _responses.create()
   var _safe: Bool = true
 
   new create(handler: RequestHandler, logger: Logger, conn: TCPConnection,
@@ -43,7 +44,7 @@ actor _ServerConnection
       _pending.push(consume request)
     end
 
-  be answer(request: Payload, response: Payload) =>
+  be answer(request: Payload val, response: Payload val) =>
     """
     Associate a response with the given request and send responses in the
     correct order.
@@ -61,11 +62,11 @@ actor _ServerConnection
       if _dispatched() is request then
         // If this is next request, write the response and check for any stored
         // responses that can now be written in the correct order.
-        _send(consume request, consume response)
+        _send(request, response)
         _send_responses()
       else
         // Store the response to be written later.
-        _responses(consume request) = consume response
+        _responses(request) = (request, response)
       end
     end
 
@@ -105,17 +106,17 @@ actor _ServerConnection
     """
     try
       while _dispatched.size() > 0 do
-        (let request, let response) = _responses.remove(_dispatched())
-        _send(consume request, consume response)
+        (let request, let response) = _responses(_dispatched())
+        _send(request, response)
       end
     end
 
-  fun ref _send(request: Payload, response: Payload) =>
+  fun ref _send(request: Payload val, response: Payload val) =>
     """
     Send a single response.
     """
     try
       _dispatched.shift()
       response._write(_conn)
-      _logger(_client_ip, consume request, consume response)
+      _logger(_client_ip, request, response)
     end
