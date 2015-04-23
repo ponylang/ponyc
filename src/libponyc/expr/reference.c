@@ -178,6 +178,9 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
     return false;
   }
 
+  // Set the unadapted field type.
+  ast_settype(right, f_type);
+
   // Set the type so that it isn't free'd as unattached.
   ast_setid(ast, tid);
   ast_settype(ast, type);
