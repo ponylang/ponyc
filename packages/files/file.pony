@@ -89,7 +89,7 @@ class File
         result.recalc()
 
         done = try
-          r.is_null() or (result(result.size().i64() - 1) == '\n')
+          r.is_null() or (result(result.size() - 1) == '\n')
         else
           true
         end

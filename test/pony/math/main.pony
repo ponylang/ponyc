@@ -17,7 +17,7 @@ actor Main
 
   fun ref test_i128_f() =>
     var x: I128 = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-    var y: I128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    var y: I128 = -1
 
     _env.out.print(x.string() + ", " + y.string())
 

@@ -144,7 +144,7 @@ primitive X509
           // something other than a dot.
           let offset = name.find(".", 3)
 
-          if name(offset + 1) == '.' then
+          if name.at_offset(offset + 1) == '.' then
             return false
           end
         end

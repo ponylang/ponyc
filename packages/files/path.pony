@@ -116,9 +116,9 @@ primitive Path
     s.append(volume)
 
     var state: _PathState = _PathOther
-    var i: I64 = volume.size().i64()
-    var backtrack: I64 = -1
-    let n = path.size().i64()
+    var i = volume.size()
+    var backtrack = I64(-1)
+    let n = path.size()
 
     try
       var c = path(i)
@@ -371,7 +371,7 @@ primitive Path
     the path, if there is one. Otherwise, this returns an empty string.
     """
     if Platform.windows() then
-      var offset: I64 = 0
+      var offset = I64(0)
 
       if path.compare("""\\?\""", 4) == 0 then
         offset = 4
@@ -386,7 +386,10 @@ primitive Path
       end
 
       try
-        if is_sep(path(offset)) and is_sep(path(offset + 1)) then
+        if
+          is_sep(path.at_offset(offset)) and
+          is_sep(path.at_offset(offset + 1))
+        then
           return _network_share(path, offset + 2)
         end
       end
@@ -398,10 +401,10 @@ primitive Path
     Look for a drive letter followed by a ':', returning true if we find it.
     """
     try
-      var c = path(offset)
+      var c = path.at_offset(offset)
 
       (((c >= 'A') and (c <= 'Z')) or ((c >= 'a') and (c <= 'z'))) and
-        (path(offset + 1) == ':')
+        (path.at_offset(offset + 1) == ':')
     else
       false
     end
@@ -430,8 +433,8 @@ primitive Path
     """
     if Platform.windows() then
       var s = path.clone()
-      var len = s.size().i64()
-      var i: I64 = 0
+      var len = s.size()
+      var i = U64(0)
 
       try
         while i < len do
@@ -454,8 +457,8 @@ primitive Path
     """
     if Platform.windows() then
       var s = path.clone()
-      var len = s.size().i64()
-      var i: I64 = 0
+      var len = s.size()
+      var i = U64(0)
 
       try
         while i < len do

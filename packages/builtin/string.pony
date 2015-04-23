@@ -229,21 +229,16 @@ class String val is Ordered[String box], Stringable
       err
     end
 
-  fun apply(offset: I64): U8 ? =>
+  fun apply(i: U64): U8 ? =>
     """
-    Returns the byte at the given offset. Raise an error if the offset is out
-    of bounds.
+    Returns the i-th byte. Raise an error if the index is out of bounds.
     """
-    let i = offset_to_index(offset)
     if i < _size then _ptr._apply(i) else error end
 
-  fun ref update(offset: I64, value: U8): U8 ? =>
+  fun ref update(i: U64, value: U8): U8 ? =>
     """
-    Changes a byte in the string, returning the previous byte at that offset.
-    Raise an error if the offset is out of bounds.
+    Change the i-th byte. Raise an error if the index is out of bounds.
     """
-    let i = offset_to_index(offset)
-
     if i < _size then
       if value == 0 then
         _size = i
@@ -253,6 +248,20 @@ class String val is Ordered[String box], Stringable
     else
       error
     end
+
+  fun at_offset(offset: I64): U8 ? =>
+    """
+    Returns the byte at the given offset. Raise an error if the offset is out
+    of bounds.
+    """
+    this(offset_to_index(offset))
+
+  fun ref update_offset(offset: I64, value: U8): U8 ? =>
+    """
+    Changes a byte in the string, returning the previous byte at that offset.
+    Raise an error if the offset is out of bounds.
+    """
+    this(offset_to_index(offset)) = value
 
   fun clone(): String iso^ =>
     """

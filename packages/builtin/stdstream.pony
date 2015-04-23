@@ -5,6 +5,9 @@ interface Bytes val
   fun size(): U64
   fun cstring(): Pointer[U8] tag
 
+  fun apply(i: U64): U8 ?
+  fun ref update(i: U64, value: U8): U8 ?
+
 interface BytesList val
   """
   Accept an iterable collection of String or Array[U8].

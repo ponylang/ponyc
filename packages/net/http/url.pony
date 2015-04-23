@@ -135,9 +135,9 @@ class URL val
     """
     The scheme is: [a-zA-Z][a-zA-Z0-9+-.]*:
     """
-    var i = I64(0)
+    var i = U64(0)
 
-    while i < from.size().i64() do
+    while i < from.size() do
       let c = from(i)
 
       if ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z')) then
@@ -162,8 +162,8 @@ class URL val
         end
 
         // Otherwise, we have a scheme. Set it and return the offset.
-        scheme = recover from.substring(0, i - 1).lower_in_place() end
-        return i + 1
+        scheme = recover from.substring(0, i.i64() - 1).lower_in_place() end
+        return i.i64() + 1
       else
         // Anything else is not a scheme.
         return 0

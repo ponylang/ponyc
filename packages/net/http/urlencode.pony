@@ -9,9 +9,9 @@ primitive URLEncode
     invalid, raise an error.
     """
     let out = recover String(from.size()) end
-    var i = I64(0)
+    var i = U64(0)
 
-    while i < from.size().i64() do
+    while i < from.size() do
       let c = from(i)
 
       if _unreserved(c, path, query) then
@@ -48,9 +48,9 @@ primitive URLEncode
     URL decode a string. Raise an error if it isn't a valid URL encoded string.
     """
     let out = recover String(from.size()) end
-    var i = I64(0)
+    var i = U64(0)
 
-    while i < from.size().i64() do
+    while i < from.size() do
       let c = from(i)
 
       if _unreserved(c, path, query) then
@@ -82,9 +82,9 @@ primitive URLEncode
     an error if anything is %-encoded that shouldn't be.
     """
     try
-      var i = I64(0)
+      var i = U64(0)
 
-      while i < from.size().i64() do
+      while i < from.size() do
         let c = from(i)
 
         if _unreserved(c, path, query) then
