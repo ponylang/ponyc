@@ -17,6 +17,7 @@
 
 enum
 {
+  OPT_VERSION,
   OPT_DEBUG,
   OPT_PATHS,
   OPT_OUTPUT,
@@ -39,6 +40,7 @@ enum
 
 static opt_arg_t args[] =
 {
+  {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
@@ -68,6 +70,7 @@ static void usage()
     "The package directory defaults to the current directory.\n"
     "\n"
     "Options:\n"
+    "  --version, -v   Print the version of the compiler and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
@@ -186,6 +189,11 @@ int main(int argc, char* argv[])
   {
     switch(id)
     {
+      case OPT_VERSION:
+        printf("%d.%d.%d\n",
+          PONY_VERSION_MAJOR, PONY_VERSION_MINOR, PONY_VERSION_PATCH);
+        return 0;
+
       case OPT_DEBUG: opt.release = false; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
