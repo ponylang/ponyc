@@ -88,6 +88,12 @@ primitive Base64
 
     out
 
+  fun decode_url(data: Bytes box): Array[U8] iso^ ? =>
+    """
+    Decode for URLs (RFC 4648).
+    """
+    decode(data, '-', '_')
+
   fun decode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = '='):
     Array[U8] iso^ ?
   =>
