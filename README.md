@@ -1,4 +1,4 @@
-# Getting help [![build status](http://ponylang.org:50000/buildStatus/icon?job=Pony%20Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
+# Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
 
@@ -16,7 +16,7 @@
 
 * Vim: pending.
 
-# Building on Linux
+# Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=Pony%20Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
