@@ -1,3 +1,6 @@
+# Build status
+[![Build Status](http://ponylang.org:50000/buildStatus/icon?job=Pony Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
+
 # Getting help
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
@@ -35,7 +38,7 @@ $ make use=numa config=release
 
 # Building on Mac OSX
 
-First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm35, like this:
+First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 
 ```
 $ brew tap homebrew/versions
