@@ -345,6 +345,10 @@ endef
 
 $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
+test: all
+	@$(PONY_BUILD_DIR)/libponyc.tests
+	@$(PONY_BUILD_DIR)/libponyrt.tests
+
 stats:
 	@echo
 	@echo '------------------------------'
