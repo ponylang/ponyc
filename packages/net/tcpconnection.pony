@@ -15,31 +15,38 @@ actor TCPConnection
   let _pending: List[(Bytes, U64)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
-  new create(notify: TCPConnectionNotify iso, host: String, service: String) =>
+  new create(notify: TCPConnectionNotify iso, host: String, service: String,
+    from: String = "")
+  =>
     """
-    Connect via IPv4 or IPv6.
+    Connect via IPv4 or IPv6. If `from` is a non-empty string, the connection
+    will be made from the specified interface.
     """
     _notify = consume notify
     _connect_count = @os_connect_tcp[U64](this, host.cstring(),
-      service.cstring())
+      service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip4(notify: TCPConnectionNotify iso, host: String, service: String) =>
+  new ip4(notify: TCPConnectionNotify iso, host: String, service: String,
+    from: String = "")
+  =>
     """
     Connect via IPv4.
     """
     _notify = consume notify
     _connect_count = @os_connect_tcp4[U64](this, host.cstring(),
-      service.cstring())
+      service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip6(notify: TCPConnectionNotify iso, host: String, service: String) =>
+  new ip6(notify: TCPConnectionNotify iso, host: String, service: String,
+    from: String = "")
+  =>
     """
     Connect via IPv6.
     """
     _notify = consume notify
     _connect_count = @os_connect_tcp6[U64](this, host.cstring(),
-      service.cstring())
+      service.cstring(), from.cstring())
     _notify_connecting()
 
   new _accept(notify: TCPConnectionNotify iso, fd: U64) =>
