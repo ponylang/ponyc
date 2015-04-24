@@ -63,6 +63,43 @@ actor UDPSocket
     """
     _notify = consume notify
 
+  be set_multicast_interface(from: String = "") =>
+    """
+    By default, the OS will choose which address is used to send packets bound
+    for multicast addresses. This can be used to force a specific interface. To
+    revert to allowing the OS to choose, call with an empty string.
+    """
+    @os_multicast_interface[None](_fd, from.cstring())
+
+  be set_multicast_loopback(loopback: Bool) =>
+    """
+    By default, packets sent to a multicast address will be received by the
+    sending system if it has subscribed to that address. Disabling loopback
+    prevents this.
+    """
+    @os_multicast_loopback[None](_fd, loopback)
+
+  be set_multicast_ttl(ttl: U8) =>
+    """
+    Set the TTL for multicast sends. Defaults to 1.
+    """
+    @os_multicast_ttl[None](_fd, ttl)
+
+  be multicast_join(group: String, to: String = "") =>
+    """
+    Add a multicast group. This can be limited to packets arriving on a
+    specific interface.
+    """
+    @os_multicast_join[None](_fd, group.cstring(), to.cstring())
+
+  be multicast_leave(group: String, to: String = "") =>
+    """
+    Drop a multicast group. This can be limited to packets arriving on a
+    specific interface. No attempt is made to check that this socket has
+    previously added this group.
+    """
+    @os_multicast_leave[None](_fd, group.cstring(), to.cstring())
+
   be dispose() =>
     """
     Stop listening.

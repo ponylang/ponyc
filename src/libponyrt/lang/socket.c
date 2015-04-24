@@ -38,6 +38,9 @@ typedef uintptr_t PONYFD;
 
 PONY_EXTERN_C_BEGIN
 
+struct addrinfo* os_addrinfo(int family, const char* host,
+  const char* service);
+
 void os_closesocket(PONYFD fd);
 
 #ifdef PLATFORM_IS_MACOSX
@@ -279,7 +282,7 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 
 #endif
 
-static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
+static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
 {
 #if defined(PLATFORM_IS_LINUX)
   SOCKET fd = socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK,
@@ -296,7 +299,7 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool server)
 
   int r = 0;
 
-  if(server)
+  if(reuse)
   {
     int reuseaddr = 1;
     r |= setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&reuseaddr,
@@ -357,7 +360,8 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
   return true;
 }
 
-static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
+static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
+  const char* from)
 {
   // Transform "any" addresses into loopback addresses.
   switch(p->ai_addr->sa_family)
@@ -383,14 +387,46 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
     default: {}
   }
 
-#ifdef PLATFORM_IS_WINDOWS
-  struct sockaddr_storage addr = {0};
-  addr.ss_family = p->ai_family;
+  bool need_bind = (from != NULL) && (from[0] != '\0');
 
-  if(bind((SOCKET)fd, (const struct sockaddr*)&addr, (int)p->ai_addrlen) != 0)
+  if(need_bind)
   {
-    os_closesocket(fd);
-    return false;
+    struct addrinfo* result = os_addrinfo(p->ai_family, from, NULL);
+    struct addrinfo* lp = result;
+    bool bound = false;
+
+    while(lp != NULL)
+    {
+      if(bind((SOCKET)fd, lp->ai_addr, (int)lp->ai_addrlen) == 0)
+      {
+        bound = true;
+        break;
+      }
+
+      lp = lp->ai_next;
+    }
+
+    freeaddrinfo(result);
+
+    if(!bound)
+    {
+      os_closesocket(fd);
+      return false;
+    }
+  }
+
+#ifdef PLATFORM_IS_WINDOWS
+  if(!need_bind)
+  {
+    // ConnectEx requires bind.
+    struct sockaddr_storage addr = {0};
+    addr.ss_family = p->ai_family;
+
+    if(bind((SOCKET)fd, (struct sockaddr*)&addr, (int)p->ai_addrlen) != 0)
+    {
+      os_closesocket(fd);
+      return false;
+    }
   }
 
   // Create an event and subscribe it.
@@ -425,8 +461,11 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
  * the number of connection attempts in-flight, which may be 0.
  */
 static PONYFD os_socket(pony_actor_t* owner, const char* host,
-  const char* service, int family, int socktype, int proto, bool server)
+  const char* service, const char* from, int family, int socktype, int proto,
+  bool server)
 {
+  bool reuse = server || ((from != NULL) && (from[0] != '\0'));
+
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_flags = AI_ADDRCONFIG;
@@ -450,7 +489,7 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
 
   while(p != NULL)
   {
-    PONYFD fd = socket_from_addrinfo(p, server);
+    PONYFD fd = socket_from_addrinfo(p, reuse);
 
     if(fd != (PONYFD)-1)
     {
@@ -462,7 +501,7 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
         freeaddrinfo(result);
         return fd;
       } else {
-        if(os_connect(owner, fd, p))
+        if(os_connect(owner, fd, p, from))
           count++;
       }
     }
@@ -477,64 +516,64 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
 PONYFD os_listen_tcp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_UNSPEC, SOCK_STREAM,
+    IPPROTO_TCP, true);
 }
 
 PONYFD os_listen_tcp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_INET, SOCK_STREAM,
+    IPPROTO_TCP, true);
 }
 
 PONYFD os_listen_tcp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_INET6, SOCK_STREAM,
+    IPPROTO_TCP, true);
 }
 
 PONYFD os_listen_udp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_UNSPEC, SOCK_DGRAM,
+    IPPROTO_UDP, true);
 }
 
 PONYFD os_listen_udp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_INET, SOCK_DGRAM, IPPROTO_UDP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_INET, SOCK_DGRAM,
+    IPPROTO_UDP, true);
 }
 
 PONYFD os_listen_udp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, AF_INET6, SOCK_DGRAM, IPPROTO_UDP,
-    true);
+  return os_socket(owner, host, service, NULL, AF_INET6, SOCK_DGRAM,
+    IPPROTO_UDP, true);
 }
 
 PONYFD os_connect_tcp(pony_actor_t* owner, const char* host,
-  const char* service)
+  const char* service, const char* from)
 {
-  return os_socket(owner, host, service, AF_UNSPEC, SOCK_STREAM, IPPROTO_TCP,
-    false);
+  return os_socket(owner, host, service, from, AF_UNSPEC, SOCK_STREAM,
+    IPPROTO_TCP, false);
 }
 
 PONYFD os_connect_tcp4(pony_actor_t* owner, const char* host,
-  const char* service)
+  const char* service, const char* from)
 {
-  return os_socket(owner, host, service, AF_INET, SOCK_STREAM, IPPROTO_TCP,
-    false);
+  return os_socket(owner, host, service, from, AF_INET, SOCK_STREAM,
+    IPPROTO_TCP, false);
 }
 
 PONYFD os_connect_tcp6(pony_actor_t* owner, const char* host,
-  const char* service)
+  const char* service, const char* from)
 {
-  return os_socket(owner, host, service, AF_INET6, SOCK_STREAM, IPPROTO_TCP,
-    false);
+  return os_socket(owner, host, service, from, AF_INET6, SOCK_STREAM,
+    IPPROTO_TCP, false);
 }
 
 PONYFD os_accept(asio_event_t* ev, uint64_t arg)
@@ -684,6 +723,16 @@ char* os_ip_string(void* src, int len)
   memcpy(result, dst, dstlen + 1);
 
   return result;
+}
+
+bool os_ipv4(ipaddress_t* ipaddr)
+{
+  return ipaddr->addr.ss_family == AF_INET;
+}
+
+bool os_ipv6(ipaddress_t* ipaddr)
+{
+  return ipaddr->addr.ss_family == AF_INET6;
 }
 
 void os_sockname(PONYFD fd, ipaddress_t* ipaddr)
@@ -916,6 +965,126 @@ void os_socket_shutdown()
 #ifdef PLATFORM_IS_WINDOWS
   WSACleanup();
 #endif
+}
+
+void os_multicast_interface(PONYFD fd, const char* from)
+{
+  // Use the first reported address.
+  struct addrinfo* p = os_addrinfo(AF_UNSPEC, from, NULL);
+
+  if(p != NULL)
+  {
+    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF, &p->ai_addr,
+      p->ai_addrlen);
+    freeaddrinfo(p);
+  }
+}
+
+void os_multicast_loopback(PONYFD fd, bool loopback)
+{
+  uint8_t loop = loopback ? 1 : 0;
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+}
+
+void os_multicast_ttl(PONYFD fd, uint8_t ttl)
+{
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &ttl, sizeof(ttl));
+}
+
+static uint32_t multicast_interface(int family, const char* host)
+{
+  // Get a multicast interface for a host. For IPv4, this is an IP address.
+  // For IPv6 this is an interface index number.
+  if((host == NULL) || (host[0] == '\0'))
+    return 0;
+
+  struct addrinfo* p = os_addrinfo(family, host, NULL);
+
+  if(p == NULL)
+    return 0;
+
+  uint32_t interface = 0;
+
+  switch(p->ai_family)
+  {
+    case AF_INET:
+    {
+      // Use the address instead of an interface number.
+      interface = ((struct sockaddr_in*)p->ai_addr)->sin_addr.s_addr;
+      break;
+    }
+
+    case AF_INET6:
+    {
+      // Use the sin6_scope_id as the interface number.
+      interface = ((struct sockaddr_in6*)p->ai_addr)->sin6_scope_id;
+      break;
+    }
+
+    default: {}
+  }
+
+  freeaddrinfo(p);
+  return interface;
+}
+
+static void multicast_change(PONYFD fd, const char* group, const char* to,
+  bool join)
+{
+  struct addrinfo* rg = os_addrinfo(AF_UNSPEC, group, NULL);
+
+  if(rg == NULL)
+    return;
+
+  uint32_t interface = multicast_interface(rg->ai_family, to);
+  SOCKET s = (SOCKET)fd;
+
+  switch(rg->ai_family)
+  {
+    case AF_INET:
+    {
+      struct ip_mreq req;
+
+      req.imr_multiaddr = ((struct sockaddr_in*)rg->ai_addr)->sin_addr;
+      req.imr_interface.s_addr = interface;
+
+      if(join)
+        setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &req, sizeof(req));
+      else
+        setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &req, sizeof(req));
+      break;
+    }
+
+    case AF_INET6:
+    {
+      struct ipv6_mreq req;
+
+      memcpy(&req.ipv6mr_multiaddr,
+        &((struct sockaddr_in6*)rg->ai_addr)->sin6_addr,
+        sizeof(struct in6_addr));
+
+      req.ipv6mr_interface = interface;
+
+      if(join)
+        setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, &req, sizeof(req));
+      else
+        setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &req, sizeof(req));
+    }
+
+    default: {}
+  }
+
+  freeaddrinfo(rg);
+}
+
+void os_multicast_join(PONYFD fd, const char* group, const char* to)
+{
+  multicast_change(fd, group, to, true);
+}
+
+void os_multicast_leave(PONYFD fd, const char* group, const char* to)
+{
+  multicast_change(fd, group, to, false);
 }
 
 PONY_EXTERN_C_END

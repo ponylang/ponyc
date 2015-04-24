@@ -5,7 +5,8 @@ class IPAddress val
   addr1-4 fields are the IPv6 address, or invalid for an IPv4 address. The
   scope field is the IPv6 scope, or invalid for an IPv4 address.
   """
-  let family: U16 = 0
+  let length: U8 = 0
+  let family: U8 = 0
   let port: U16 = 0
   let addr: U32 = 0
   let addr1: U32 = 0
@@ -18,13 +19,13 @@ class IPAddress val
     """
     Returns true for an IPv4 address.
     """
-    family == 2
+    @os_ipv4[Bool](this)
 
   fun ip6(): Bool =>
     """
     Returns true for an IPv6 address.
     """
-    family == 10
+    @os_ipv6[Bool](this)
 
   fun name(reversedns: Bool = false, servicename: Bool = false):
     (String, String) ?
