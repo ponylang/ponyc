@@ -359,6 +359,30 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 
 static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
 {
+  // Transform "any" addresses into loopback addresses.
+  switch(p->ai_addr->sa_family)
+  {
+    case AF_INET:
+    {
+      struct sockaddr_in* in = (struct sockaddr_in*)p->ai_addr;
+
+      if(in->sin_addr.s_addr == INADDR_ANY)
+        in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+      break;
+    }
+
+    case AF_INET6:
+    {
+      struct sockaddr_in6* in = (struct sockaddr_in6*)p->ai_addr;
+
+      if(memcmp(&in->sin6_addr, &in6addr_any, sizeof(struct in6_addr)) == 0)
+        memcpy(&in->sin6_addr, &in6addr_loopback, sizeof(struct in6_addr));
+    }
+
+    default: {}
+  }
+
 #ifdef PLATFORM_IS_WINDOWS
   struct sockaddr_storage addr = {0};
   addr.ss_family = p->ai_family;
