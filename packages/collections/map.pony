@@ -25,8 +25,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     Create an array with space for prealloc elements without triggering a
     resize. Defaults to 6.
     """
-    let space = (prealloc * 4) / 3
-    let n = space.next_pow2().max(8)
+    let len = (prealloc * 4) / 3
+    let n = len.next_pow2().max(8)
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -38,8 +38,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     Create a map from an array of tuples. Because the value may be isolated,
     this removes the tuples from the array, leaving it empty.
     """
-    let space = (array.size() * 4) / 3
-    let n = space.next_pow2().max(8)
+    let len = (array.size() * 4) / 3
+    let n = len.next_pow2().max(8)
     _array = _array.create(n)
 
     for i in Range(0, n) do
@@ -73,10 +73,10 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     Gets a value from the map. Raises an error if no such item exists.
     """
-    (let index, let found) = _search(key)
+    (let i, let found) = _search(key)
 
     if found then
-      _array(index) as (_, this->V)
+      _array(i) as (_, this->V)
     else
       error
     end
@@ -87,9 +87,9 @@ class HashMap[K, V, H: HashFunction[K] val]
     returns None. If there was no previous value, this may trigger a resize.
     """
     try
-      (let index, _) = _search(key)
+      (let i, _) = _search(key)
 
-      match _array(index) = (consume key, consume value)
+      match _array(i) = (consume key, consume value)
       | (_, let v: V) =>
         return consume v
       else
@@ -107,8 +107,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     Set a value in the map. Returns the new value, allowing reuse.
     """
     try
-      (let index, let found) = _search(key)
-      _array(index) = (consume key, consume value)
+      (let i, let found) = _search(key)
+      _array(i) = (consume key, consume value)
 
       if not found then
         _size = _size + 1
@@ -118,7 +118,7 @@ class HashMap[K, V, H: HashFunction[K] val]
         end
       end
 
-      _array(index) as (_, V)
+      _array(i) as (_, V)
     else
       // This is unreachable, since index will never be out-of-bounds.
       error
@@ -130,12 +130,12 @@ class HashMap[K, V, H: HashFunction[K] val]
     value for the given key.
     """
     try
-      (let index, let found) = _search(key)
+      (let i, let found) = _search(key)
 
       if found then
         _size = _size - 1
 
-        match _array(index) = _MapDeleted
+        match _array(i) = _MapDeleted
         | (let k: K, let v: V) =>
           return (consume k, consume v)
         end

@@ -154,6 +154,45 @@ static bool scope_method(typecheck_t* t, ast_t* ast)
   return true;
 }
 
+static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, id, typeparams, cap, provides, members);
+
+  if(!set_scope(t, t->frame->package, id, ast))
+    return AST_ERROR;
+
+  // Scope fields and methods immediately, so that the contents of method
+  // signatures and bodies cannot shadow fields and methods.
+  ast_t* member = ast_child(members);
+
+  while(member != NULL)
+  {
+    switch(ast_id(member))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+        if(!set_scope(t, member, ast_child(member), member))
+          return AST_ERROR;
+        break;
+
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+        if(!scope_method(t, member))
+          return AST_ERROR;
+        break;
+
+      default:
+        assert(0);
+        return AST_FATAL;
+    }
+
+    member = ast_sibling(member);
+  }
+
+  return AST_OK;
+}
+
 static bool scope_local(typecheck_t* t, ast_t* ast)
 {
   // Local resolves to itself
@@ -184,22 +223,15 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:
+      return scope_entity(t, ast);
+
     case TK_FFIDECL:
       if(!set_scope(t, t->frame->package, ast_child(ast), ast))
         return AST_ERROR;
       break;
 
-    case TK_FVAR:
-    case TK_FLET:
     case TK_PARAM:
       if(!set_scope(t, ast, ast_child(ast), ast))
-        return AST_ERROR;
-      break;
-
-    case TK_NEW:
-    case TK_BE:
-    case TK_FUN:
-      if(!scope_method(t, ast))
         return AST_ERROR;
       break;
 

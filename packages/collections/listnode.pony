@@ -31,58 +31,58 @@ class ListNode[A]
     """
     (_item = None) as A^
 
-  fun ref prepend(prev: ListNode[A]): ListNode[A]^ =>
+  fun ref prepend(that: ListNode[A]): ListNode[A]^ =>
     """
-    Prepend a node to this one. If prev is already in a list, it is removed
+    Prepend a node to this one. If `that` is already in a list, it is removed
     before it is prepended.
     """
-    if (_prev is prev) or (prev is this) then
+    if (_prev is that) or (this is that) then
       return this
     end
 
     match _list
     | var list': List[A] =>
-      prev.remove()
+      that.remove()
 
       match _prev
       | var  prev': ListNode[A] =>
-        prev'._next = prev
+        prev'._next = that
       else
-        list'._set_head(prev)
+        list'._set_head(that)
       end
 
-      prev._list = list'
-      prev._prev = _prev
-      prev._next = this
-      _prev = prev
+      that._list = list'
+      that._prev = _prev
+      that._next = this
+      _prev = that
       list'._increment()
     end
     this
 
-  fun ref append(next: ListNode[A]): ListNode[A]^ =>
+  fun ref append(that: ListNode[A]): ListNode[A]^ =>
     """
-    Append a node to this one. If next is already in a list, it is removed
+    Append a node to this one. If `that` is already in a list, it is removed
     before it is appended.
     """
-    if (_next is next) or (next is this) then
+    if (_next is that) or (this is that) then
       return this
     end
 
     match _list
     | var list': List[A] =>
-      next.remove()
+      that.remove()
 
       match _next
       | var  next': ListNode[A] =>
-        next'._prev = next
+        next'._prev = that
       else
-        list'._set_tail(next)
+        list'._set_tail(that)
       end
 
-      next._list = list'
-      next._prev = this
-      next._next = _next
-      _next = next
+      that._list = list'
+      that._prev = this
+      that._next = _next
+      _next = that
       list'._increment()
     end
     this

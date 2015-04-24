@@ -112,11 +112,11 @@ primitive Path
     If the result would be empty, "." will be returned instead.
     """
     var s = recover String(path.size()) end
-    var volume = Path.volume(path)
-    s.append(volume)
+    var vol = volume(path)
+    s.append(vol)
 
     var state: _PathState = _PathOther
-    var i = volume.size()
+    var i = vol.size()
     var backtrack = I64(-1)
     let n = path.size()
 
@@ -149,7 +149,7 @@ primitive Path
               try
                 backtrack = s.rfind(sep()) + 1
               else
-                backtrack = volume.size().i64()
+                backtrack = vol.size().i64()
               end
 
               if (s.size() == 0) or (s.compare("../", 3, backtrack) == 0) then
@@ -230,43 +230,43 @@ primitive Path
       join(cwd(), path)
     end
 
-  fun rel(base: String, target: String): String ? =>
+  fun rel(to: String, target: String): String ? =>
     """
-    Returns a path such that Path.join(base, Path.rel(base, target)) == target.
+    Returns a path such that Path.join(to, Path.rel(to, target)) == target.
     Raises an error if this isn't possible.
     """
-    var base_clean = Path.clean(base)
-    var target_clean = Path.clean(target)
+    var to_clean = clean(to)
+    var target_clean = clean(target)
 
-    if base_clean == target_clean then
+    if to_clean == target_clean then
       return "."
     end
 
-    var base_i: I64 = 0
+    var to_i: I64 = 0
 
     if Platform.windows() then
-      base_clean = Path.abs(base_clean)
-      target_clean = Path.abs(target_clean)
+      to_clean = abs(to_clean)
+      target_clean = abs(target_clean)
 
-      var base_vol = Path.volume(base_clean)
-      var target_vol = Path.volume(target_clean)
+      var to_vol = volume(to_clean)
+      var target_vol = volume(target_clean)
 
-      if base_vol != target_vol then
+      if to_vol != target_vol then
         error
       end
 
-      base_i = base_vol.size().i64()
+      to_i = to_vol.size().i64()
     end
 
-    var base_0 = base_i
-    var target_i = base_i
+    var to_0 = to_i
+    var target_i = to_i
     var target_0 = target_i
 
     while true do
-      base_i = try
-        base_clean.find(sep(), base_i)
+      to_i = try
+        to_clean.find(sep(), to_i)
       else
-        base_clean.size().i64()
+        to_clean.size().i64()
       end
 
       target_i = try
@@ -276,38 +276,37 @@ primitive Path
       end
 
       if
-        (base_i != target_i) or
-        (base_clean.compare(
-          target_clean, target_i.u64()) != 0)
+        (to_i != target_i) or
+        (to_clean.compare(target_clean, target_i.u64()) != 0)
       then
         break
       end
 
-      if base_i < base_clean.size().i64() then
-        base_i = base_i + 1
+      if to_i < to_clean.size().i64() then
+        to_i = to_i + 1
       end
 
       if target_i < target_clean.size().i64() then
         target_i = target_i + 1
       end
 
-      base_0 = base_i
+      to_0 = to_i
       target_0 = target_i
     end
 
     if
-      ((base_i - base_0) == 2) and
-      (base_clean.compare("..", 2, base_0) == 0)
+      ((to_i - to_0) == 2) and
+      (to_clean.compare("..", 2, to_0) == 0)
     then
       error
     end
 
-    if base_0.u64() != base_clean.size() then
+    if to_0.u64() != to_clean.size() then
       var result = recover String end
 
       try
         while true do
-          base_i = base_clean.find(sep(), base_i) + 1
+          to_i = to_clean.find(sep(), to_i) + 1
           result.append("..")
           result.append(sep())
         end
@@ -340,7 +339,7 @@ primitive Path
     """
     try
       var i = path.rfind(sep())
-      Path.clean(path.substring(0, i - 1))
+      clean(path.substring(0, i - 1))
     else
       path
     end
@@ -596,11 +595,11 @@ primitive Path
     try
       while true do
         var next = path.find(list_sep(), offset)
-        array.push(Path.clean(path.substring(offset, next - 1)))
+        array.push(clean(path.substring(offset, next - 1)))
         offset = next + 1
       end
     else
-      array.push(Path.clean(path.substring(offset, -1)))
+      array.push(clean(path.substring(offset, -1)))
     end
 
     array

@@ -6,12 +6,12 @@ class String val is Ordered[String box], Stringable
   var _alloc: U64
   var _ptr: Pointer[U8]
 
-  new create(size: U64 = 0) =>
+  new create(len: U64 = 0) =>
     """
-    An empty string. Enough space for size bytes is reserved.
+    An empty string. Enough space for len bytes is reserved.
     """
     _size = 0
-    _alloc = size + 1
+    _alloc = len + 1
     _ptr = Pointer[U8]._alloc(_alloc)
     _ptr._update(0, 0)
 
