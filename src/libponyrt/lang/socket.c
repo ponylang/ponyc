@@ -725,6 +725,16 @@ char* os_ip_string(void* src, int len)
   return result;
 }
 
+bool os_ipv4(ipaddress_t* ipaddr)
+{
+  return ipaddr->addr.ss_family == AF_INET;
+}
+
+bool os_ipv6(ipaddress_t* ipaddr)
+{
+  return ipaddr->addr.ss_family == AF_INET6;
+}
+
 void os_sockname(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
@@ -955,6 +965,126 @@ void os_socket_shutdown()
 #ifdef PLATFORM_IS_WINDOWS
   WSACleanup();
 #endif
+}
+
+void os_multicast_interface(PONYFD fd, const char* from)
+{
+  // Use the first reported address.
+  struct addrinfo* p = os_addrinfo(AF_UNSPEC, from, NULL);
+
+  if(p != NULL)
+  {
+    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF, &p->ai_addr,
+      p->ai_addrlen);
+    freeaddrinfo(p);
+  }
+}
+
+void os_multicast_loopback(PONYFD fd, bool loopback)
+{
+  uint8_t loop = loopback ? 1 : 0;
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+}
+
+void os_multicast_ttl(PONYFD fd, uint8_t ttl)
+{
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &ttl, sizeof(ttl));
+}
+
+static uint32_t multicast_interface(int family, const char* host)
+{
+  // Get a multicast interface for a host. For IPv4, this is an IP address.
+  // For IPv6 this is an interface index number.
+  if((host == NULL) || (host[0] == '\0'))
+    return 0;
+
+  struct addrinfo* p = os_addrinfo(family, host, NULL);
+
+  if(p == NULL)
+    return 0;
+
+  uint32_t interface = 0;
+
+  switch(p->ai_family)
+  {
+    case AF_INET:
+    {
+      // Use the address instead of an interface number.
+      interface = ((struct sockaddr_in*)p->ai_addr)->sin_addr.s_addr;
+      break;
+    }
+
+    case AF_INET6:
+    {
+      // Use the sin6_scope_id as the interface number.
+      interface = ((struct sockaddr_in6*)p->ai_addr)->sin6_scope_id;
+      break;
+    }
+
+    default: {}
+  }
+
+  freeaddrinfo(p);
+  return interface;
+}
+
+static void multicast_change(PONYFD fd, const char* group, const char* to,
+  bool join)
+{
+  struct addrinfo* rg = os_addrinfo(AF_UNSPEC, group, NULL);
+
+  if(rg == NULL)
+    return;
+
+  uint32_t interface = multicast_interface(rg->ai_family, to);
+  SOCKET s = (SOCKET)fd;
+
+  switch(rg->ai_family)
+  {
+    case AF_INET:
+    {
+      struct ip_mreq req;
+
+      req.imr_multiaddr = ((struct sockaddr_in*)rg->ai_addr)->sin_addr;
+      req.imr_interface.s_addr = interface;
+
+      if(join)
+        setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &req, sizeof(req));
+      else
+        setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &req, sizeof(req));
+      break;
+    }
+
+    case AF_INET6:
+    {
+      struct ipv6_mreq req;
+
+      memcpy(&req.ipv6mr_multiaddr,
+        &((struct sockaddr_in6*)rg->ai_addr)->sin6_addr,
+        sizeof(struct in6_addr));
+
+      req.ipv6mr_interface = interface;
+
+      if(join)
+        setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, &req, sizeof(req));
+      else
+        setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &req, sizeof(req));
+    }
+
+    default: {}
+  }
+
+  freeaddrinfo(rg);
+}
+
+void os_multicast_join(PONYFD fd, const char* group, const char* to)
+{
+  multicast_change(fd, group, to, true);
+}
+
+void os_multicast_leave(PONYFD fd, const char* group, const char* to)
+{
+  multicast_change(fd, group, to, false);
 }
 
 PONY_EXTERN_C_END

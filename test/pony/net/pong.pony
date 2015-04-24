@@ -13,7 +13,14 @@ class Pong is UDPNotify
       _env.out.print("Pong: listening on " + host + ":" + service)
 
       let env = _env
-      UDPSocket.ip4(recover Ping(env, ip) end)
+
+      if ip.ip4() then
+        UDPSocket.ip4(recover Ping(env, ip) end)
+      elseif ip.ip6() then
+        UDPSocket.ip6(recover Ping(env, ip) end)
+      else
+        error
+      end
     else
       _env.out.print("Pong: couldn't get local name")
       sock.dispose()
