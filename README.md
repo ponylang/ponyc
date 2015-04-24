@@ -1,4 +1,4 @@
-# Getting help [![build status](http://ponylang.org:50000/buildStatus/icon?job=Pony Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
+# Getting help [![build status](http://ponylang.org:50000/buildStatus/icon?job=Pony%20Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
 
