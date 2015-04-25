@@ -345,6 +345,33 @@ endef
 
 $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
+define EXPAND_RELEASE
+$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
+$(eval ok_code := n)
+ifneq ("$(branch)","release")
+prerelease:
+	$$(error "Releases not allowed on $(branch) branch.")
+else
+ifndef version
+prerelease:
+	$$(error "No version number specified.")
+else
+prerelease: libponyc libponyrt ponyc
+	@while [ -z "$$$$CONTINUE" ]; do \
+	read -r -p "New version number: $(version). Are you sure? [y/N]: " CONTINUE; \
+	done ; \
+	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
+	@echo "Releasing ponyc v$(version)."
+endif
+endif
+endef
+
+$(eval $(call EXPAND_RELEASE))
+
+release: prerelease
+	@git tag $(version)
+	@git push origin $(version)
+
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
