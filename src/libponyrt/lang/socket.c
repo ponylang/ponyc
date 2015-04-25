@@ -974,8 +974,8 @@ void os_multicast_interface(PONYFD fd, const char* from)
 
   if(p != NULL)
   {
-    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF, &p->ai_addr,
-      p->ai_addrlen);
+    setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_IF,
+      (const char*)&p->ai_addr, (int)p->ai_addrlen);
     freeaddrinfo(p);
   }
 }
@@ -983,12 +983,14 @@ void os_multicast_interface(PONYFD fd, const char* from)
 void os_multicast_loopback(PONYFD fd, bool loopback)
 {
   uint8_t loop = loopback ? 1 : 0;
-  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&loop,
+    sizeof(loop));
 }
 
 void os_multicast_ttl(PONYFD fd, uint8_t ttl)
 {
-  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, &ttl, sizeof(ttl));
+  setsockopt((SOCKET)fd, IPPROTO_IP, IP_MULTICAST_LOOP, (const char*)&ttl,
+    sizeof(ttl));
 }
 
 static uint32_t multicast_interface(int family, const char* host)
@@ -1049,9 +1051,11 @@ static void multicast_change(PONYFD fd, const char* group, const char* to,
       req.imr_interface.s_addr = interface;
 
       if(join)
-        setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &req, sizeof(req));
+        setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const char*)&req,
+          sizeof(req));
       else
-        setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &req, sizeof(req));
+        setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, (const char*)&req,
+          sizeof(req));
       break;
     }
 
@@ -1066,9 +1070,11 @@ static void multicast_change(PONYFD fd, const char* group, const char* to,
       req.ipv6mr_interface = interface;
 
       if(join)
-        setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, &req, sizeof(req));
+        setsockopt(s, IPPROTO_IPV6, IPV6_JOIN_GROUP, (const char*)&req,
+          sizeof(req));
       else
-        setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, &req, sizeof(req));
+        setsockopt(s, IPPROTO_IPV6, IPV6_LEAVE_GROUP, (const char*)&req,
+          sizeof(req));
     }
 
     default: {}
