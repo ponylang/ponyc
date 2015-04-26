@@ -447,11 +447,13 @@ bool safe_to_write(ast_t* ast, ast_t* type)
     case TK_FLETREF:
     {
       // If the ast is x.f, we need the type of x, which will be a nominal
-      // type, since we were able to lookup a field on it.
+      // type or an arrow type, since we were able to lookup a field on it.
       AST_GET_CHILDREN(ast, left, right);
-
       ast_t* l_type = ast_type(left);
-      assert(ast_id(l_type) == TK_NOMINAL);
+
+      // Any viewpoint adapted type will not be safe to write to.
+      if(ast_id(l_type) != TK_NOMINAL)
+        return false;
 
       token_id l_cap = cap_single(l_type);
 
