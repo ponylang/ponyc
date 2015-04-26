@@ -9,6 +9,7 @@ class Regex
   attempts to enable JIT matching whenever possible.
 
   TODO: find-all, auto-jit on multiple uses
+  use eq instead of apply
   """
   var _pattern: Pointer[_Pattern]
   var _match: Pointer[_Match]

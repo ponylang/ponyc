@@ -136,25 +136,26 @@ static reachable_method_stack_t* add_method(reachable_method_stack_t* s,
     n->name = name;
     reachable_methods_init(&n->r_methods, 0);
     reachable_method_names_put(&t->methods, n);
-    s = add_rmethod(s, t, n, typeargs);
+  }
 
-    // Add to subtypes if we're an interface or trait.
-    ast_t* def = (ast_t*)ast_data(t->type);
+  s = add_rmethod(s, t, n, typeargs);
 
-    switch(ast_id(def))
+  // Add to subtypes if we're an interface or trait.
+  ast_t* def = (ast_t*)ast_data(t->type);
+
+  switch(ast_id(def))
+  {
+    case TK_INTERFACE:
+    case TK_TRAIT:
     {
-      case TK_INTERFACE:
-      case TK_TRAIT:
-      {
-        size_t i = HASHMAP_BEGIN;
-        reachable_type_t* t2;
+      size_t i = HASHMAP_BEGIN;
+      reachable_type_t* t2;
 
-        while((t2 = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
-          s = add_method(s, t2, name, typeargs);
-      }
-
-      default: {}
+      while((t2 = reachable_type_cache_next(&t->subtypes, &i)) != NULL)
+        s = add_method(s, t2, name, typeargs);
     }
+
+    default: {}
   }
 
   return s;

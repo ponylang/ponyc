@@ -349,7 +349,6 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
 
       if(ast_sibling(param) != NULL)
       {
-        // TODO: transform match tuples to multiple arguments
         ast_error(pattern,
           "eq must take a single argument when pattern matching");
 
