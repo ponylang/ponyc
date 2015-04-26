@@ -14,11 +14,24 @@
 #include <string.h>
 #include <assert.h>
 
+typedef enum
+{
+  AST_CAN_ERROR = 1 << 0,
+  AST_CAN_SEND = 1 << 1,
+
+  AST_ALL_FLAGS = (1 << 2) - 1
+} ast_flags_t;
+
 struct ast_t
 {
   token_t* t;
   symtab_t* symtab;
-  void* data;
+
+  union
+  {
+    void* data;
+    uintptr_t flags;
+  };
 
   struct ast_t* scope;
   struct ast_t* parent;
@@ -329,31 +342,35 @@ void ast_setdata(ast_t* ast, void* data)
 
 bool ast_canerror(ast_t* ast)
 {
-  assert((ast->data == NULL) || (ast->data == (void*)1));
-  return ast->data == (void*)1;
+  assert(ast->flags <= AST_ALL_FLAGS);
+  return (ast->flags & AST_CAN_ERROR) != 0;
 }
 
 void ast_seterror(ast_t* ast)
 {
-  assert(ast->data == NULL);
-  ast->data = (void*)1;
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags |= AST_CAN_ERROR;
 }
 
-void ast_inheriterror(ast_t* ast)
+bool ast_cansend(ast_t* ast)
 {
-  if(ast_canerror(ast))
-    return;
+  assert(ast->flags <= AST_ALL_FLAGS);
+  return (ast->flags & AST_CAN_SEND) != 0;
+}
 
+void ast_setsend(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags |= AST_CAN_SEND;
+}
+
+void ast_inheritflags(ast_t* ast)
+{
   ast_t* child = ast->child;
 
   while(child != NULL)
   {
-    if(ast_canerror(child))
-    {
-      ast_seterror(ast);
-      return;
-    }
-
+    ast->flags |= child->flags;
     child = ast_sibling(child);
   }
 }

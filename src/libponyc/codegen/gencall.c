@@ -239,6 +239,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   switch(ast_id(receiver))
   {
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
       typeargs = method;
@@ -295,6 +296,7 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     switch(ast_id(postfix))
     {
       case TK_NEWREF:
+      case TK_NEWBEREF:
         args[0] = gencall_alloc(c, &g);
         break;
 

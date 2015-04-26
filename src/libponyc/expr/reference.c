@@ -240,7 +240,7 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
       // If the default constructor has no parameters, transform to an apply
       // call.
-      if(ast_id(ast) == TK_NEWREF)
+      if((ast_id(ast) == TK_NEWREF) || (ast_id(ast) == TK_NEWBEREF))
       {
         type = ast_type(ast);
 
@@ -769,7 +769,7 @@ bool expr_tuple(ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   return true;
 }
 
@@ -962,12 +962,9 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
-static bool check_finaliser(typecheck_t* t, ast_t* ast)
+static bool check_finaliser(ast_t* ast)
 {
-  if(ast_id(t->frame->type) != TK_ACTOR)
-    return true;
-
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
 
   if(strcmp(ast_name(id), "_final"))
     return true;
@@ -976,37 +973,43 @@ static bool check_finaliser(typecheck_t* t, ast_t* ast)
 
   if(ast_id(ast) != TK_FUN)
   {
-    ast_error(ast, "actor _final must be a function");
+    ast_error(ast, "_final must be a function");
     ok = false;
   }
 
-  if(ast_id(cap) != TK_REF)
+  if(ast_id(cap) != TK_BOX)
   {
-    ast_error(cap, "actor _final must be ref");
+    ast_error(cap, "_final must be box");
     ok = false;
   }
 
   if(ast_id(typeparams) != TK_NONE)
   {
-    ast_error(typeparams, "actor _final must not be polymorphic");
+    ast_error(typeparams, "_final must not be polymorphic");
     ok = false;
   }
 
   if(ast_childcount(params) != 0)
   {
-    ast_error(params, "actor _final must not have parameters");
+    ast_error(params, "_final must not have parameters");
     ok = false;
   }
 
   if(!is_none(result))
   {
-    ast_error(result, "actor _final must return None");
+    ast_error(result, "_final must return None");
     ok = false;
   }
 
   if(ast_id(can_error) != TK_NONE)
   {
-    ast_error(can_error, "actor _final cannot raise an error");
+    ast_error(can_error, "_final cannot raise an error");
+    ok = false;
+  }
+
+  if(ast_cansend(body))
+  {
+    ast_error(body, "_final cannot create actors or send messages");
     ok = false;
   }
 
@@ -1051,7 +1054,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(!check_finaliser(t, ast))
+  if(!check_finaliser(ast))
     return false;
 
   switch(ast_id(ast))

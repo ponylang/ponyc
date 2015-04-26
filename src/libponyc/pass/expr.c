@@ -355,7 +355,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_NAMEDARGS:
     case TK_NAMEDARG:
     case TK_UPDATEARG:
-      ast_inheriterror(ast);
+      ast_inheritflags(ast);
       break;
 
     case TK_FFICALL:

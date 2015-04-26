@@ -166,7 +166,7 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
 bool expr_identity(pass_opt_t* opt, ast_t* ast)
 {
   ast_settype(ast, type_builtin(opt, ast, "Bool"));
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   return true;
 }
 
@@ -438,7 +438,7 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   ast_free_unattached(a_type);
 
   ast_settype(ast, consume_type(l_type, TK_NONE));
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   return true;
 }
 

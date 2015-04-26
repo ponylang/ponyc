@@ -63,7 +63,7 @@ bool expr_match(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, type);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   ast_consolidate_branches(ast, branch_count);
   literal_unify_control(ast, opt);
 
@@ -105,7 +105,7 @@ bool expr_cases(ast_t* ast)
     type = ast_from(ast, TK_CASES);
 
   ast_settype(ast, type);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   ast_consolidate_branches(ast, branch_count);
   return true;
 }
@@ -349,6 +349,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
 
       if(ast_sibling(param) != NULL)
       {
+        // TODO: transform match tuples to multiple arguments
         ast_error(pattern,
           "eq must take a single argument when pattern matching");
 
@@ -438,6 +439,6 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   return true;
 }

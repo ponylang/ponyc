@@ -87,7 +87,7 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
   }
 
   ast_settype(call, decl_ret_type);
-  ast_inheriterror(call);
+  ast_inheritflags(call);
   return AST_OK;
 }
 
@@ -128,7 +128,7 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_settype(ast, return_type);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
 
   if(ast_id(question) == TK_QUESTION)
     ast_seterror(ast);

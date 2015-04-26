@@ -466,7 +466,17 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
 
   AST_GET_CHILDREN(type, cap, typeparams, params, result);
   ast_settype(ast, result);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
+
+  switch(ast_id(lhs))
+  {
+    case TK_NEWBEREF:
+    case TK_BEREF:
+      ast_setsend(ast);
+      break;
+
+    default: {}
+  }
 
   return true;
 }
@@ -740,6 +750,7 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   switch(ast_id(lhs))
   {
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
       return method_call(opt, ast);

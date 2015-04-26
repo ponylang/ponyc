@@ -734,14 +734,7 @@ const char* package_symbol(ast_t* package)
 
 const char* package_hygienic_id(typecheck_t* t)
 {
-  // TODO: Turn this into an assert. With the new unit testing this should
-  // never happen.
-  if(t->frame->package == NULL)
-  {
-    // We are not within a package, we must be testing
-    return stringtab("hygid");
-  }
-
+  assert(t->frame->package != NULL);
   package_t* pkg = (package_t*)ast_data(t->frame->package);
   size_t id = pkg->next_hygienic_id++;
 

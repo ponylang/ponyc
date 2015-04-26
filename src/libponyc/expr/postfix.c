@@ -41,8 +41,11 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
       {
         case TK_PRIMITIVE:
         case TK_CLASS:
-        case TK_ACTOR:
           ast_setid(ast, TK_NEWREF);
+          break;
+
+        case TK_ACTOR:
+          ast_setid(ast, TK_NEWBEREF);
           break;
 
         case TK_TYPE:
@@ -77,7 +80,8 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
       ast_setid(teph, TK_EPHEMERAL);
       ast_replace(resultp, type);
 
-      ast_setid(ast, TK_NEWREF);
+      // This could this be an actor.
+      ast_setid(ast, TK_NEWBEREF);
       return true;
     }
 
@@ -299,7 +303,7 @@ static bool tuple_access(ast_t* ast)
 
   ast_setid(ast, TK_FLETREF);
   ast_settype(ast, type);
-  ast_inheriterror(ast);
+  ast_inheritflags(ast);
   return true;
 }
 
@@ -352,7 +356,7 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
   ast_free_unattached(find);
 
   if(!partial)
-    ast_inheriterror(ast);
+    ast_inheritflags(ast);
 
   return ret;
 }
@@ -392,6 +396,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     }
 
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
     case TK_NEWAPP:
@@ -411,7 +416,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
       ast_settype(ast, type);
       ast_setid(ast, ast_id(left));
-      ast_inheriterror(ast);
+      ast_inheritflags(ast);
       return true;
     }
 
@@ -487,6 +492,7 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
   switch(ast_id(ast))
   {
     case TK_NEWREF:
+    case TK_NEWBEREF:
       ast_setid(ast, TK_NEWAPP);
       return true;
 

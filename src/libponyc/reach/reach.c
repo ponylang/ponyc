@@ -426,6 +426,7 @@ static reachable_method_stack_t* reachable_call(reachable_method_stack_t* s,
   switch(ast_id(receiver))
   {
     case TK_NEWREF:
+    case TK_NEWBEREF:
     case TK_BEREF:
     case TK_FUNREF:
       typeargs = method;
