@@ -190,8 +190,7 @@ int main(int argc, char* argv[])
     switch(id)
     {
       case OPT_VERSION:
-        printf("%d.%d.%d\n",
-          PONY_VERSION_MAJOR, PONY_VERSION_MINOR, PONY_VERSION_PATCH);
+        printf("%s\n", PONY_VERSION);
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;

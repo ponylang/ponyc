@@ -1,10 +1,6 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-#define PONY_VERSION_MAJOR 0
-#define PONY_VERSION_MINOR 1
-#define PONY_VERSION_PATCH 0
-
 #include <stdbool.h>
 #include <stdint.h>
 
