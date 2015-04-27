@@ -323,6 +323,16 @@ static void init_runtime(compile_t* c)
   // i32 pony_personality_v0(...)
   type = LLVMFunctionType(c->i32, NULL, 0, true);
   c->personality = LLVMAddFunction(c->module, "pony_personality_v0", type);
+
+  // i8* memcpy(...)
+  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
+  value = LLVMAddFunction(c->module, "memcpy", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+
+  // i8* memmove(...)
+  type = LLVMFunctionType(c->void_ptr, NULL, 0, true);
+  value = LLVMAddFunction(c->module, "memmove", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 }
 
 static void init_module(compile_t* c, ast_t* program, pass_opt_t* opt)
