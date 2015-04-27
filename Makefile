@@ -17,12 +17,13 @@ endif
 # Default settings (silent debug build).
 config ?= debug
 arch ?= native
+tag ?= $(shell git describe --tags --always)
 
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS =
-ALL_CFLAGS = -std=gnu11
+ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\"
 ALL_CXXFLAGS = -std=gnu++11
 
 PONY_BUILD_DIR   ?= build/$(config)
@@ -349,7 +350,10 @@ $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 define EXPAND_RELEASE
 $(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
-$(eval ok_code := n)
+$(eval version_string := $(subst ., ,$(version)))
+$(eval major := $(firstword $(version_string)))
+$(eval minor := $(word 2, $(version_string)))
+$(eval patch := $(word 3, $(version_string)))
 ifneq ("$(branch)","release")
 prerelease:
 	$$(error "Releases not allowed on $(branch) branch.")
@@ -358,6 +362,8 @@ ifndef version
 prerelease:
 	$$(error "No version number specified.")
 else
+$(eval ALL_CFLAGS += -DPONY_VERSION_MAJOR=$(major) -DPONY_VERSION_MINOR=$(minor) -DPONY_VERSION_PATCH=$(patch))
+$(eval ALL_CFLAGS = $(subst -DPONY_VERSION=\"$(tag)\", -DPONY_VERSION=\"$(version)\", $(ALL_CFLAGS)))
 prerelease: libponyc libponyrt ponyc
 	@while [ -z "$$$$CONTINUE" ]; do \
 	read -r -p "New version number: $(version). Are you sure? [y/N]: " CONTINUE; \
