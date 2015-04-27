@@ -380,7 +380,7 @@ release: prerelease
 	@git tag $(version)
 	@git push origin $(version)
 
-deb:
+linuxinstaller: test
 ifndef name
 	$(error No installer name specified.)
 ifndef description
