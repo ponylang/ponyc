@@ -387,30 +387,30 @@ ifndef description
 	$(error No package description specified.)
 else 
 	TARGET=$(name)-$(tag) \
-	PACKAGE=$(PONY_BUILD_DIR)/$TARGET
-	mkdir $(PACKAGE)
-	mkdir $PACKAGE/DEBIAN
-	touch $PACKAGE/DEBIAN/control
-	cat <<EOT >> $PACKAGE/DEBIAN/control
-	Package: $(name)
-	Version: $(tag)
-	Section: base
-	Priority: optional
-	Architecture: amd64
-	Maintainer: Pony Buildbot <buildbot@lists.ponylang.org>
-	Description: $(description)
-	EOT
-	mkdir -p $PACKAGE/usr/bin
-	mkdir -p $PACKAGE/usr/include
-	mkdir -p $PACKAGE/usr/lib
-	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/bin
-	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/include
-	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/lib
-	cp $(PONY_BUILD_DIR)/release/libponyc.a $PACKAGE/usr/lib/pony/$(tag)/lib
-	cp $(PONY_BUILD_DIR)/release/libponyrt.a $PACKAGE/usr/lib/pony/$(tag)/lib
-	cp $(PONY_BUILD_DIR)/release/ponyc $PACKAGE/usr/lib/pony/$(tag)/bin
-	cp src/libponyrt/pony.h $PACKAGE/usr/lib/pony/$(tag)/include
-	cp -r packages $PACKAGE/usr/lib/pony/$(tag)/
+	PACKAGE=$(PONY_BUILD_DIR)/$TARGET \
+	mkdir $(PACKAGE) \
+	mkdir $PACKAGE/DEBIAN \
+	touch $PACKAGE/DEBIAN/control \
+	cat <<EOT >> $PACKAGE/DEBIAN/control \
+	Package: $(name) \
+	Version: $(tag) \
+	Section: base \
+	Priority: optional \
+	Architecture: amd64 \
+	Maintainer: Pony Buildbot <buildbot@lists.ponylang.org> \
+	Description: $(description) \
+	EOT \
+	mkdir -p $PACKAGE/usr/bin \
+	mkdir -p $PACKAGE/usr/include \
+	mkdir -p $PACKAGE/usr/lib \
+	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/bin \
+	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/include \
+	mkdir -p $PACKAGE/usr/lib/pony/$(tag)/lib \
+	cp $(PONY_BUILD_DIR)/release/libponyc.a $PACKAGE/usr/lib/pony/$(tag)/lib \
+	cp $(PONY_BUILD_DIR)/release/libponyrt.a $PACKAGE/usr/lib/pony/$(tag)/lib \
+	cp $(PONY_BUILD_DIR)/release/ponyc $PACKAGE/usr/lib/pony/$(tag)/bin \
+	cp src/libponyrt/pony.h $PACKAGE/usr/lib/pony/$(tag)/include \
+	cp -r packages $PACKAGE/usr/lib/pony/$(tag)/ \
 	dpkg-deb --build $PACKAGE $(PONY_BUILD_DIR)
 endif
 endif
