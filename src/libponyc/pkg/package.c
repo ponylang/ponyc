@@ -466,13 +466,24 @@ static void add_exec_dir()
     return;
   }
 
-  p[1] = '\0';
+  p++;
+  *p = '\0';
   add_path(path);
 
+  // Allow ponyc to find the packages directory when it is installed.
 #ifdef PLATFORM_IS_WINDOWS
-  strcat(path, "..\\..\\packages");
+  strcpy(p, "..\\packages");
 #else
-  strcat(path, "../../packages");
+  strcpy(p, "../packages");
+#endif
+  add_path(path);
+
+  // Check two levels up. This allows ponyc to find the packages directory
+  // when it is built from source.
+#ifdef PLATFORM_IS_WINDOWS
+  strcpy(p, "..\\..\\packages");
+#else
+  strcpy(p, "../../packages");
 #endif
   add_path(path);
 }
