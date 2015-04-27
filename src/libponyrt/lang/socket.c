@@ -43,6 +43,65 @@ struct addrinfo* os_addrinfo(int family, const char* host,
 
 void os_closesocket(PONYFD fd);
 
+typedef struct
+{
+  pony_type_t* type;
+  int from_len;
+  struct sockaddr_storage addr;
+} ipaddress_t;
+
+static socklen_t address_length(ipaddress_t* ipaddr)
+{
+  switch(ipaddr->addr.ss_family)
+  {
+    case AF_INET:
+      return sizeof(struct sockaddr_in);
+
+    case AF_INET6:
+      return sizeof(struct sockaddr_in6);
+
+    default:
+      pony_throw();
+  }
+
+  return 0;
+}
+
+// Transform "any" addresses into loopback addresses.
+static bool map_any_to_loopback(struct sockaddr* addr)
+{
+  switch(addr->sa_family)
+  {
+    case AF_INET:
+    {
+      struct sockaddr_in* in = (struct sockaddr_in*)addr;
+
+      if(in->sin_addr.s_addr == INADDR_ANY)
+      {
+        in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        return true;
+      }
+
+      break;
+    }
+
+    case AF_INET6:
+    {
+      struct sockaddr_in6* in = (struct sockaddr_in6*)addr;
+
+      if(memcmp(&in->sin6_addr, &in6addr_any, sizeof(struct in6_addr)) == 0)
+      {
+        memcpy(&in->sin6_addr, &in6addr_loopback, sizeof(struct in6_addr));
+        return true;
+      }
+    }
+
+    default: {}
+  }
+
+  return false;
+}
+
 #ifdef PLATFORM_IS_MACOSX
 static int set_nonblocking(SOCKET s)
 {
@@ -63,7 +122,8 @@ typedef enum
   IOCP_CONNECT,
   IOCP_ACCEPT,
   IOCP_SEND,
-  IOCP_RECV
+  IOCP_RECV,
+  IOCP_NOP
 } iocp_op_t;
 
 typedef struct iocp_t
@@ -182,6 +242,11 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       iocp_destroy(iocp);
       break;
     }
+
+    case IOCP_NOP:
+      // Don't care, do nothing
+      iocp_destroy(iocp);
+      break;
   }
 }
 
@@ -280,6 +345,56 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
   return true;
 }
 
+static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
+  ipaddress_t* ipaddr)
+{
+  iocp_t* iocp = iocp_create(IOCP_NOP, NULL);
+
+  WSABUF buf;
+  buf.buf = (char*)data;
+  buf.len = (u_long)len;
+
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
+
+  if(WSASendTo((SOCKET)fd, &buf, 1, NULL, 0, (struct sockaddr*)&ipaddr->addr,
+    address_length(ipaddr), &iocp->ov, NULL) != 0)
+  {
+    if(GetLastError() != WSA_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool iocp_recvfrom(asio_event_t* ev, char* data, size_t len,
+  ipaddress_t* ipaddr)
+{
+  SOCKET s = (SOCKET)ev->data;
+  iocp_t* iocp = iocp_create(IOCP_RECV, ev);
+  DWORD flags = 0;
+
+  WSABUF buf;
+  buf.buf = data;
+  buf.len = (u_long)len;
+
+  ipaddr->from_len = sizeof(ipaddr->addr);
+
+  if(WSARecvFrom(s, &buf, 1, NULL, &flags, (struct sockaddr*)&ipaddr->addr,
+    &ipaddr->from_len, &iocp->ov, NULL) != 0)
+  {
+    if(GetLastError() != WSA_IO_PENDING)
+    {
+      iocp_destroy(iocp);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 #endif
 
 static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
@@ -324,7 +439,8 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
   return -1;
 }
 
-static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
+static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
+  int proto)
 {
   if(bind((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen) != 0)
   {
@@ -346,46 +462,30 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p)
     true);
 
 #ifdef PLATFORM_IS_WINDOWS
-  if(!iocp_accept(ev))
+  // Start accept for TCP connections, but not for UDP
+  if(proto == IPPROTO_TCP)
   {
-    asio_event_unsubscribe(ev);
-    os_closesocket(fd);
-    return false;
+    if(!iocp_accept(ev))
+    {
+      asio_event_unsubscribe(ev);
+      os_closesocket(fd);
+      return false;
+    }
   }
+#else
+  (void)proto;
 #endif
 
   // Send a read event, so that it can be unsubscribed before any connections
   // are accepted.
-  asio_event_send(ev, ASIO_READ, 0);
+  asio_event_send(ev, ASIO_READ, -1LL);
   return true;
 }
 
 static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
   const char* from)
 {
-  // Transform "any" addresses into loopback addresses.
-  switch(p->ai_addr->sa_family)
-  {
-    case AF_INET:
-    {
-      struct sockaddr_in* in = (struct sockaddr_in*)p->ai_addr;
-
-      if(in->sin_addr.s_addr == INADDR_ANY)
-        in->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-      break;
-    }
-
-    case AF_INET6:
-    {
-      struct sockaddr_in6* in = (struct sockaddr_in6*)p->ai_addr;
-
-      if(memcmp(&in->sin6_addr, &in6addr_any, sizeof(struct in6_addr)) == 0)
-        memcpy(&in->sin6_addr, &in6addr_loopback, sizeof(struct in6_addr));
-    }
-
-    default: {}
-  }
+  map_any_to_loopback(p->ai_addr);
 
   bool need_bind = (from != NULL) && (from[0] != '\0');
 
@@ -495,12 +595,14 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
     {
       if(server)
       {
-        if(!os_listen(owner, fd, p))
+        if(!os_listen(owner, fd, p, proto))
           fd = -1;
 
         freeaddrinfo(result);
         return fd;
-      } else {
+      }
+      else
+      {
         if(os_connect(owner, fd, p, from))
           count++;
       }
@@ -581,7 +683,7 @@ PONYFD os_accept(asio_event_t* ev, uint64_t arg)
 #if defined(PLATFORM_IS_WINDOWS)
   // The arg is actually the new socket. We'll return that, and also kick off
   // a new asynchronous accept for this event.
-  if(arg == 0)
+  if(arg == 0 || arg == -1LL)
     return -1;
 
   SOCKET ns = arg;
@@ -610,29 +712,6 @@ bool os_connected(PONYFD fd)
     return false;
 
   return val == 0;
-}
-
-typedef struct
-{
-  pony_type_t* type;
-  struct sockaddr_storage addr;
-} ipaddress_t;
-
-static socklen_t address_length(ipaddress_t* ipaddr)
-{
-  switch(ipaddr->addr.ss_family)
-  {
-    case AF_INET:
-      return sizeof(struct sockaddr_in);
-
-    case AF_INET6:
-      return sizeof(struct sockaddr_in6);
-
-    default:
-      pony_throw();
-  }
-
-  return 0;
 }
 
 static int address_family(int length)
@@ -808,7 +887,9 @@ size_t os_recv(asio_event_t* ev, char* buf, size_t len)
 size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // TODO: iocp
+  if(!iocp_sendto(fd, buf, len, ipaddr))
+    pony_throw();
+
   return 0;
 #else
   socklen_t addrlen = address_length(ipaddr);
@@ -828,15 +909,18 @@ size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
 #endif
 }
 
-size_t os_recvfrom(PONYFD fd, char* buf, size_t len, ipaddress_t* ipaddr)
+size_t os_recvfrom(asio_event_t* ev, char* buf, size_t len,
+  ipaddress_t* ipaddr)
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // TODO: iocp
+  if(!iocp_recvfrom(ev, buf, len, ipaddr))
+    pony_throw();
+
   return 0;
 #else
   socklen_t addrlen = sizeof(struct sockaddr_storage);
 
-  ssize_t recvd = recvfrom((SOCKET)fd, (char*)buf, (int)len, 0,
+  ssize_t recvd = recvfrom((SOCKET)(ev->data), (char*)buf, (int)len, 0,
     (struct sockaddr*)&ipaddr->addr, &addrlen);
 
   if(recvd < 0)
