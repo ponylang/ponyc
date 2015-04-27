@@ -50,22 +50,30 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
     BasicBlock::iterator iter = i;
 
     if(++iter == i->getParent()->end())
-    {
       return;
-      // i = inst;
-      // break;
-    }
 
     i = iter;
   }
 
   DebugLoc loc = i->getDebugLoc();
+
+#if LLVM_VERSION_MAJOR > 3 || \
+  (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
+  DIScope scope = DIScope(cast_or_null<MDScope>(loc.getScope()));
+#else
   DIScope scope = DIScope(loc.getScope());
+#endif
+
   MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
 
   if(at != NULL)
   {
-    DIScope scope_at = DIScope((MDNode*)at->getScope());
+#if LLVM_VERSION_MAJOR > 3 || \
+  (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
+    DIScope scope_at = DIScope(cast_or_null<MDScope>(at->getScope()));
+#else
+    DIScope scope_at = DIScope(cast_or_null<MDNode>(at->getScope()));
+#endif
 
     errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
       i->getParent()->getParent()->getName().str().c_str(),
