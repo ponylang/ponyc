@@ -63,6 +63,3 @@ $ Release build with Visual Studio (ponyc.sln)
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Known problems
-
-The Windows build does not yet fully support the `net` and `time` packages.
