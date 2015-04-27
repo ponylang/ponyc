@@ -15,13 +15,15 @@ else
 endif
 
 # Default settings (silent debug build).
+config ?= debug
+arch ?= native
+
 LIB_EXT ?= a
-BUILD_FLAGS = -mcx16 -march=native -Werror -Wconversion -Wno-sign-conversion \
-  -Wextra -Wall
+BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
+  -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11
 ALL_CXXFLAGS = -std=gnu++11
-config ?= debug
 
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
@@ -397,11 +399,15 @@ clean:
 
 help:
 	@echo
-	@echo 'Usage: make [config=name] [use=opt,...] [target]'
+	@echo 'Usage: make [config=name] [arch=name] [use=opt,...] [target]'
 	@echo
 	@echo 'CONFIGURATIONS:'
-	@echo '  debug'
+	@echo '  debug (default)'
 	@echo '  release'
+	@echo
+	@echo 'ARCHITECTURE:'
+	@echo '  native (default)'
+	@echo '  [any compiler supported architecture]'
 	@echo
 	@echo 'USE OPTIONS:'
 	@echo '   numa'

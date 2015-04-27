@@ -454,11 +454,17 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         LLVMTypeRef f_type = LLVMFunctionType(r_type, f_params, count,
           false);
         func = LLVMAddFunction(c->module, f_name, f_type);
+
+        if(!ast_canerror(ast))
+          LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
       }
     } else {
       // Make it varargs.
       LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
       func = LLVMAddFunction(c->module, f_name, f_type);
+
+      if(!ast_canerror(ast))
+        LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
     }
   }
 

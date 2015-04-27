@@ -8,6 +8,8 @@
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/Metadata.h>
+#include <llvm/IR/DebugInfo.h>
 #include <llvm/Analysis/CaptureTracking.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/Support/Host.h>
@@ -31,23 +33,73 @@ void LLVMSetUnsafeAlgebra(LLVMValueRef inst)
   unwrap<Instruction>(inst)->setHasUnsafeAlgebra(true);
 }
 
-static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
+void LLVMSetReturnNoAlias(LLVMValueRef fun)
+{
+  unwrap<Function>(fun)->setDoesNotAlias(0);
+}
+
+static void print_transform(compile_t* c, Instruction* inst, const char* s)
+{
+  if(!c->opt->print_stats)
+    return;
+
+  Instruction* i = inst;
+
+  while(i->getDebugLoc().getLine() == 0)
+  {
+    BasicBlock::iterator iter = i;
+
+    if(++iter == i->getParent()->end())
+    {
+      return;
+      // i = inst;
+      // break;
+    }
+
+    i = iter;
+  }
+
+  DebugLoc loc = i->getDebugLoc();
+  DIScope scope = DIScope(loc.getScope());
+  MDLocation* at = cast_or_null<MDLocation>(loc.getInlinedAt());
+
+  if(at != NULL)
+  {
+    DIScope scope_at = DIScope((MDNode*)at->getScope());
+
+    errorf(NULL, "[%s] %s:%u:%u@%s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(),
+      scope_at.getFilename().str().c_str(), at->getLine(), at->getColumn(), s);
+  } else {
+    errorf(NULL, "[%s] %s:%u:%u: %s",
+      i->getParent()->getParent()->getName().str().c_str(),
+      scope.getFilename().str().c_str(), loc.getLine(), loc.getCol(), s);
+  }
+}
+
+static LLVMValueRef stack_alloc_inst(compile_t* c, LLVMValueRef inst)
 {
   CallInst* call = dyn_cast_or_null<CallInst>(unwrap(inst));
 
   if(call == NULL)
-    return;
+    return inst;
 
   Function* fun = call->getCalledFunction();
 
   if(fun == NULL)
-    return;
+    return inst;
 
   if(fun->getName().compare("pony_alloc") != 0)
-    return;
+    return inst;
 
-  if(PointerMayBeCaptured(call, true, true))
-    return;
+  c->opt->check.stats.heap_alloc++;
+
+  if(PointerMayBeCaptured(call, true, false))
+  {
+    print_transform(c, call, "captured allocation");
+    return inst;
+  }
 
   // TODO: what if it's not constant? could we still alloca?
   // https://github.com/ldc-developers/ldc/blob/master/gen/passes/
@@ -56,13 +108,19 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
   ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
 
   if(int_size == NULL)
-    return;
+  {
+    print_transform(c, call, "variable size allocation");
+    return inst;
+  }
 
   size_t alloc_size = int_size->getZExtValue();
 
   // Limit stack allocations to 1 kb each.
   if(alloc_size > 1024)
-    return;
+  {
+    print_transform(c, call, "large allocation");
+    return inst;
+  }
 
   // All alloca should happen in the entry block of a function.
   LLVMBasicBlockRef block = LLVMGetInstructionParent(inst);
@@ -74,9 +132,18 @@ static void stack_alloc_inst(compile_t* c, LLVMValueRef inst)
   LLVMValueRef len = LLVMConstInt(c->i64, alloc_size, false);
   LLVMValueRef alloca = LLVMBuildArrayAlloca(c->builder, c->i8, len, "");
 
-  Value* alloca_value = unwrap(alloca);
+  Instruction* alloca_value = unwrap<Instruction>(alloca);
+  alloca_value->setDebugLoc(call->getDebugLoc());
+
   BasicBlock::iterator iter(call);
   ReplaceInstWithValue(call->getParent()->getInstList(), iter, alloca_value);
+
+  c->opt->check.stats.heap_alloc--;
+  c->opt->check.stats.stack_alloc++;
+
+  print_transform(c, alloca_value, "stack allocation");
+
+  return wrap(alloca_value);
 }
 
 static void stack_alloc_block(compile_t* c, LLVMBasicBlockRef block)
@@ -85,7 +152,7 @@ static void stack_alloc_block(compile_t* c, LLVMBasicBlockRef block)
 
   while(inst != NULL)
   {
-    stack_alloc_inst(c, inst);
+    inst = stack_alloc_inst(c, inst);
     inst = LLVMGetNextInstruction(inst);
   }
 }

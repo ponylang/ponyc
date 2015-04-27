@@ -16,7 +16,7 @@
 
 * Vim: pending.
 
-# Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=Pony%20Compiler)](http://ponylang.org:50000/job/Pony%20Compiler/)
+# Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
@@ -63,6 +63,3 @@ $ Release build with Visual Studio (ponyc.sln)
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Known problems
-
-The Windows build does not yet fully support the `net` and `time` packages.

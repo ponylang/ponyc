@@ -73,9 +73,13 @@ void pass_opt_done(pass_opt_t* options)
       "\nStats:"
       "\n  Names: " __zu
       "\n  Default caps: " __zu
+      "\n  Heap alloc: " __zu
+      "\n  Stack alloc: " __zu
       "\n",
       options->check.stats.names_count,
-      options->check.stats.default_caps_count
+      options->check.stats.default_caps_count,
+      options->check.stats.heap_alloc,
+      options->check.stats.stack_alloc
       );
   }
 }

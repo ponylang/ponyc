@@ -28,10 +28,13 @@ static size_t typeargs_len(ast_t* typeargs)
   return len;
 }
 
-static void typeargs_append(char* name, ast_t* typeargs)
+static void typeargs_append(char* name, ast_t* typeargs, bool function)
 {
   if(typeargs == NULL)
     return;
+
+  if(function)
+    strcat(name, "_");
 
   ast_t* typearg = ast_child(typeargs);
 
@@ -42,7 +45,8 @@ static void typeargs_append(char* name, ast_t* typeargs)
   }
 }
 
-static const char* build_name(const char* a, const char* b, ast_t* typeargs)
+static const char* build_name(const char* a, const char* b, ast_t* typeargs,
+  bool function)
 {
   size_t len = typeargs_len(typeargs);
 
@@ -65,7 +69,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs)
       strcpy(name, b);
   }
 
-  typeargs_append(name, typeargs);
+  typeargs_append(name, typeargs, function);
   return stringtab(name);
 }
 
@@ -77,7 +81,7 @@ static const char* nominal_name(ast_t* ast)
   ast_t* pkg = ast_nearest(def, TK_PACKAGE);
   const char* s = package_symbol(pkg);
 
-  return build_name(s, ast_name(name), typeargs);
+  return build_name(s, ast_name(name), typeargs, false);
 }
 
 const char* genname_type(ast_t* ast)
@@ -89,7 +93,7 @@ const char* genname_type(ast_t* ast)
       return stringtab("$object");
 
     case TK_TUPLETYPE:
-      return build_name(NULL, "$tuple", ast);
+      return build_name(NULL, "$tuple", ast, false);
 
     case TK_NOMINAL:
       return nominal_name(ast);
@@ -103,75 +107,75 @@ const char* genname_type(ast_t* ast)
 
 const char* genname_typeid(const char* type)
 {
-  return build_name(type, "$id", NULL);
+  return build_name(type, "$id", NULL, false);
 }
 
 const char* genname_traitlist(const char* type)
 {
-  return build_name(type, "$traits", NULL);
+  return build_name(type, "$traits", NULL, false);
 }
 
 const char* genname_fieldlist(const char* type)
 {
-  return build_name(type, "$fields", NULL);
+  return build_name(type, "$fields", NULL, false);
 }
 
 const char* genname_trace(const char* type)
 {
-  return build_name(type, "$trace", NULL);
+  return build_name(type, "$trace", NULL, false);
 }
 
 const char* genname_tracetuple(const char* type)
 {
-  return build_name(type, "$tracetuple", NULL);
+  return build_name(type, "$tracetuple", NULL, false);
 }
 
 const char* genname_serialise(const char* type)
 {
-  return build_name(type, "$serialise", NULL);
+  return build_name(type, "$serialise", NULL, false);
 }
 
 const char* genname_deserialise(const char* type)
 {
-  return build_name(type, "$deserialise", NULL);
+  return build_name(type, "$deserialise", NULL, false);
 }
 
 const char* genname_dispatch(const char* type)
 {
-  return build_name(type, "$dispatch", NULL);
+  return build_name(type, "$dispatch", NULL, false);
 }
 
 const char* genname_finalise(const char* type)
 {
-  return build_name(type, "_final", NULL);
+  return build_name(type, "_final", NULL, false);
 }
 
 const char* genname_descriptor(const char* type)
 {
-  return build_name(type, "$desc", NULL);
+  return build_name(type, "$desc", NULL, false);
 }
 
 const char* genname_instance(const char* type)
 {
-  return build_name(type, "$inst", NULL);
+  return build_name(type, "$inst", NULL, false);
 }
 
 const char* genname_fun(const char* type, const char* name, ast_t* typeargs)
 {
-  return build_name(type, name, typeargs);
+  return build_name(type, name, typeargs, true);
 }
 
 const char* genname_be(const char* name)
 {
-  return build_name(name, "_send", NULL);
+  return build_name(name, "_send", NULL, false);
 }
 
 const char* genname_box(const char* name)
 {
-  return build_name(name, "$box", NULL);
+  return build_name(name, "$box", NULL, false);
 }
 
 const char* genname_unbox(const char* name)
 {
-  return build_name(name, "$unbox", NULL);
+  return build_name(name, "$unbox", NULL, false);
 }
