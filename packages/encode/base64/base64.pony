@@ -19,7 +19,7 @@ primitive Base64
     """
     encode(data, '-', '_')
 
-  fun encode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = 0,
+  fun encode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = '=',
     linelen: U64 = 0, linesep: String = "\r\n"): String iso^
   =>
     """
