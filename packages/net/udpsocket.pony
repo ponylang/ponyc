@@ -7,6 +7,8 @@ actor UDPSocket
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
+  var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
+  var _read_from: IPAddress iso = recover IPAddress end
 
   new create(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: U64 = 1024)
@@ -122,10 +124,13 @@ actor UDPSocket
       _event = event
 
       if Event.readable(flags) then
-        // TODO: handle arg
         _readable = true
+        _complete_reads(arg)
         _pending_reads()
       end
+    elseif Platform.windows() and Event.readable(flags) then
+      _readable = false
+      _close()
     end
 
     if Event.disposable(flags) then
@@ -147,32 +152,74 @@ actor UDPSocket
     we read 4 kb of data, send ourself a resume message and stop reading, to
     avoid starving other actors.
     """
-    try
-      var sum: U64 = 0
+    if not Platform.windows() then
+      try
+        var sum: U64 = 0
 
-      while _readable do
-        var len = _packet_size
-        var data = recover Array[U8].undefined(len) end
-        var from = recover IPAddress end
-        len = @os_recvfrom[U64](_fd, data.cstring(), data.space(), from) ?
+        while _readable do
+          var len = _packet_size
+          var data = recover Array[U8].undefined(len) end
+          var from = recover IPAddress end
+          len = @os_recvfrom[U64](_event, data.cstring(), data.space(), from) ?
 
-        if len == 0 then
-          _readable = false
-          return
+          if len == 0 then
+            _readable = false
+            return
+          end
+
+          data.truncate(len)
+          _notify.received(this, consume data, consume from)
+
+          sum = sum + len
+
+          if sum > (1 << 12) then
+            _read_again()
+            return
+          end
         end
+      else
+        _close()
+      end
+    end
+    
+  fun ref _complete_reads(len: U64) =>
+    """
+    The OS has informed as that len bytes of pending reads have completed.
+    This occurs only with IOCP on Windows.
+    """
+    if Platform.windows() then
+      var next = _read_buf.space()
 
+      match len
+      | 0 =>  // Socket has been closed
+        _readable = false
+        _close()
+        return
+      | _read_buf.space() =>
+        // Whole buffer was used this time, next time make it bigger
+        next = next * 2
+      end
+
+      if _closed then
+        return
+      end
+
+      if len != -1 then
+        // Hand back read data
+        let data = _read_buf = recover Array[U8].undefined(next) end
+        let from = _read_from = recover IPAddress end
         data.truncate(len)
         _notify.received(this, consume data, consume from)
-
-        sum = sum + len
-
-        if sum > (1 << 12) then
-          _read_again()
-          return
-        end
       end
-    else
-      _close()
+
+      // Start next read
+      try
+        @os_recvfrom[U64](_event, _read_buf.cstring(), _read_buf.space(),
+          _read_from) ?
+      else
+        _readable = false
+        _close()
+      end
     end
 
   fun ref _write(data: Bytes, to: IPAddress) =>
@@ -201,12 +248,23 @@ actor UDPSocket
     """
     Inform the notifier that we've closed.
     """
-    @asio_event_unsubscribe[None](_event)
-    _readable = false
+    if Platform.windows() then
+      // On windows, wait until IOCP read operation has completed or been
+      // cancelled.
+      if not _readable then
+        @asio_event_unsubscribe[None](_event)
+      end
+    else
+      // Unsubscribe immediately.
+      @asio_event_unsubscribe[None](_event)
+      _readable = false
+    end
+
     _closed = true
 
     if _fd != -1 then
       _notify.closed(this)
+      // On windows, this will also cancel all outstanding IOCP operations.
       @os_closesocket[None](_fd)
       _fd = -1
     end
