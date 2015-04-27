@@ -18,8 +18,9 @@ typedef enum
 {
   AST_CAN_ERROR = 1 << 0,
   AST_CAN_SEND = 1 << 1,
+  AST_MIGHT_SEND = 1 << 2,
 
-  AST_ALL_FLAGS = (1 << 2) - 1
+  AST_ALL_FLAGS = (1 << 3) - 1
 } ast_flags_t;
 
 struct ast_t
@@ -362,6 +363,18 @@ void ast_setsend(ast_t* ast)
 {
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags |= AST_CAN_SEND;
+}
+
+bool ast_mightsend(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  return (ast->flags & AST_MIGHT_SEND) != 0;
+}
+
+void ast_setmightsend(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags |= AST_MIGHT_SEND;
 }
 
 void ast_inheritflags(ast_t* ast)

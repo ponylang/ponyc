@@ -300,6 +300,10 @@ bool expr_try(pass_opt_t* opt, ast_t* ast)
   if(ast_cansend(body) || ast_cansend(else_clause) || ast_cansend(then_clause))
     ast_setsend(ast);
 
+  if(ast_mightsend(body) || ast_mightsend(else_clause) ||
+    ast_mightsend(then_clause))
+    ast_setmightsend(ast);
+
   literal_unify_control(ast, opt);
 
   // Push the symbol status from the then clause to our parent scope.

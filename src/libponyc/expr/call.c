@@ -473,12 +473,21 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
     case TK_NEWBEREF:
     case TK_BEREF:
       ast_setsend(ast);
-      break;
+      return true;
+
+    case TK_NEWREF:
+    case TK_FUNREF:
+    {
+      // TODO: if the lhs is a trait or interface, setsend instead?
+      ast_setmightsend(ast);
+      return true;
+    }
 
     default: {}
   }
 
-  return true;
+  assert(0);
+  return false;
 }
 
 static token_id partial_application_cap(ast_t* ftype, ast_t* receiver,

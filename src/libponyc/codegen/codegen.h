@@ -20,6 +20,7 @@ PONY_EXTERN_C_BEGIN
 // Missing from C API.
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
+void LLVMSetReturnNoAlias(LLVMValueRef fun);
 
 // In case we need to change the internal calling convention.
 #define GEN_CALLCONV LLVMFastCallConv

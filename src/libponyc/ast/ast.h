@@ -322,13 +322,17 @@ size_t ast_pos(ast_t* ast);
 bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
 bool ast_is_first_on_line(ast_t* ast);
+
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);
 bool ast_canerror(ast_t* ast);
 void ast_seterror(ast_t* ast);
 bool ast_cansend(ast_t* ast);
 void ast_setsend(ast_t* ast);
+bool ast_mightsend(ast_t* ast);
+void ast_setmightsend(ast_t* ast);
 void ast_inheritflags(ast_t* ast);
+
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name);

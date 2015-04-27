@@ -35,6 +35,8 @@ typedef struct typecheck_stats_t
 {
   size_t names_count;
   size_t default_caps_count;
+  size_t heap_alloc;
+  size_t stack_alloc;
 } typecheck_stats_t;
 
 typedef struct typecheck_t
