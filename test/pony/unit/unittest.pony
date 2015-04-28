@@ -36,6 +36,14 @@ class TestBase64Decode is UnitTest
     h.expect_eq[String]("foob", _string(Base64.decode("Zm9vYg==")))
     h.expect_eq[String]("fooba", _string(Base64.decode("Zm9vYmE=")))
     h.expect_eq[String]("foobar", _string(Base64.decode("Zm9vYmFy")))
+
+    h.expect_eq[String]("", _string(Base64.decode("")))
+    h.expect_eq[String]("f", _string(Base64.decode("Zg")))
+    h.expect_eq[String]("fo", _string(Base64.decode("Zm8")))
+    h.expect_eq[String]("foo", _string(Base64.decode("Zm9v")))
+    h.expect_eq[String]("foob", _string(Base64.decode("Zm9vYg")))
+    h.expect_eq[String]("fooba", _string(Base64.decode("Zm9vYmE")))
+    h.expect_eq[String]("foobar", _string(Base64.decode("Zm9vYmFy")))
     true
 
   fun _string(data: Array[U8] iso): String =>
