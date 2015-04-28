@@ -184,7 +184,7 @@ primitive Path
             backtrack = s.size().i64()
             s.append("..")
           end
-          s.append_byte(c)
+          s.push(c)
           state = _PathOther
         end
 

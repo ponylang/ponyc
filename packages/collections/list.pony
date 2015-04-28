@@ -1,10 +1,22 @@
-class List[A]
+class List[A] is Seq[A]
   """
   A doubly linked list.
   """
   var _head: (ListNode[A] | None) = None
   var _tail: (ListNode[A] | None) = None
   var _size: U64 = 0
+
+  new create(len: U64 = 0) =>
+    """
+    Do nothing, but be compatible with Seq.
+    """
+    None
+
+  fun ref reserve(len: U64): List[A]^ =>
+    """
+    Do nothing, but be compatible with Seq.
+    """
+    this
 
   fun size(): U64 =>
     """
@@ -65,7 +77,7 @@ class List[A]
     """
     _tail as this->ListNode[A]
 
-  fun ref prepend(node: ListNode[A]): List[A]^ =>
+  fun ref prepend_node(node: ListNode[A]): List[A]^ =>
     """
     Adds a node to the head of the list.
     """
@@ -77,7 +89,7 @@ class List[A]
     end
     this
 
-  fun ref append(node: ListNode[A]): List[A]^ =>
+  fun ref append_node(node: ListNode[A]): List[A]^ =>
     """
     Adds a node to the tail of the list.
     """
@@ -95,7 +107,7 @@ class List[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try append(that.head()) end
+        try append_node(that.head()) end
       end
     end
     this
@@ -106,7 +118,7 @@ class List[A]
     """
     if this isnt that then
       while that._size > 0 do
-        try prepend(that.tail()) end
+        try prepend_node(that.tail()) end
       end
     end
     this
@@ -115,7 +127,7 @@ class List[A]
     """
     Adds a value to the tail of the list.
     """
-    append(ListNode[A](consume a))
+    append_node(ListNode[A](consume a))
 
   fun ref pop(): A^ ? =>
     """
@@ -127,13 +139,37 @@ class List[A]
     """
     Adds a value to the head of the list.
     """
-    prepend(ListNode[A](consume a))
+    prepend_node(ListNode[A](consume a))
 
   fun ref shift(): A^ ? =>
     """
     Removes a value from the head of the list.
     """
     head().remove().pop()
+
+  fun ref append(seq: ReadSeq[A] box, offset: U64 = 0, len: U64 = -1):
+    List[A]^
+  =>
+    """
+    Append the elements from a sequence, starting from the given offset.
+    """
+    if offset >= seq.size() then
+      return this
+    end
+
+    let copy_len = len.min(seq.size() - offset)
+    reserve(_size + copy_len)
+
+    var i = offset
+
+    try
+      while i < copy_len do
+        push(seq(i))
+        i = i + 1
+      end
+    end
+
+    this
 
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """

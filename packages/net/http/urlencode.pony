@@ -15,7 +15,7 @@ primitive URLEncode
       let c = from(i)
 
       if _unreserved(c, path, query) then
-        out.append_byte(c)
+        out.push(c)
         i = i + 1
       elseif c == '%' then
         let hi = from(i + 1)
@@ -23,18 +23,18 @@ primitive URLEncode
         let value = (_unhex(hi) << 8) or _unhex(lo)
 
         if _unreserved(value) then
-          out.append_byte(value)
+          out.push(value)
         else
-          out.append_byte('%')
-          out.append_byte(hi)
-          out.append_byte(lo)
+          out.push('%')
+          out.push(hi)
+          out.push(lo)
         end
 
         i = i + 3
       else
-        out.append_byte('%')
-        out.append_byte(_hex(c >> 4))
-        out.append_byte(_hex(c and 0xF))
+        out.push('%')
+        out.push(_hex(c >> 4))
+        out.push(_hex(c and 0xF))
         i = i + 1
       end
     end
@@ -54,7 +54,7 @@ primitive URLEncode
       let c = from(i)
 
       if _unreserved(c, path, query) then
-        out.append_byte(c)
+        out.push(c)
         i = i + 1
       elseif c == '%' then
         let value = (_hex(from(i + 1)) << 8) or _hex(from(i + 2))
@@ -63,7 +63,7 @@ primitive URLEncode
           error
         end
 
-        out.append_byte(value)
+        out.push(value)
         i = i + 3
       else
         error
