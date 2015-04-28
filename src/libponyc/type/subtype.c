@@ -117,7 +117,24 @@ static bool is_eq_typeargs(ast_t* a, ast_t* b)
   return (a_arg == NULL) && (b_arg == NULL);
 }
 
-static bool is_fun_sub_fun(ast_t* sub, ast_t* super, bool interface)
+static bool is_recursive_interface(ast_t* sub, ast_t* super, ast_t* isub,
+  ast_t* isuper)
+{
+  if(isuper == NULL)
+  {
+    assert(isub == NULL);
+    return false;
+  }
+
+  assert(ast_id(isub) == TK_NOMINAL);
+  assert(ast_id(isuper) == TK_NOMINAL);
+
+  return (ast_id(sub) == TK_NOMINAL) && (ast_id(super) == TK_NOMINAL) &&
+    is_eqtype(sub, isub) && is_eqtype(super, isuper);
+}
+
+static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
+  ast_t* isub, ast_t* isuper)
 {
   // Must be the same type of function.
   if(ast_id(sub) != ast_id(super))
@@ -136,25 +153,32 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, bool interface)
   switch(ast_id(sub))
   {
     case TK_NEW:
+    {
       // Covariant receiver.
       if(!is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap)))
         return false;
 
-      // Covariant results. Don't check this for interfaces, as it produces
+      // Covariant result. Don't check this for interfaces, as it produces
       // an infinite loop. It will be true if the whole interface is provided.
-      if(!interface && !is_subtype(sub_result, super_result))
+      if((isuper == NULL) && !is_subtype(sub_result, super_result))
         return false;
+
       break;
+    }
 
     case TK_FUN:
+    {
       // Contravariant receiver.
       if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
         return false;
 
-      // Covariant results.
-      if(!is_subtype(sub_result, super_result))
+      // Covariant result.
+      if(!is_recursive_interface(sub_result, super_result, isub, isuper) &&
+        !is_subtype(sub_result, super_result))
         return false;
+
       break;
+    }
 
     default: {}
   }
@@ -168,7 +192,8 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, bool interface)
     ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
     ast_t* super_constraint = ast_childidx(super_typeparam, 1);
 
-    if(!is_subtype(super_constraint, sub_constraint))
+    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
+      && !is_subtype(super_constraint, sub_constraint))
       return false;
 
     sub_typeparam = ast_sibling(sub_typeparam);
@@ -195,7 +220,8 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super, bool interface)
       return false;
 
     // Contravariant: the super type must be a subtype of the sub type.
-    if(!is_subtype(super_type, sub_type))
+    if(!is_recursive_interface(super_type, sub_type, isub, isuper) &&
+      !is_subtype(super_type, sub_type))
       return false;
 
     sub_param = ast_sibling(sub_param);
@@ -239,7 +265,7 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     ast_t* r_super_member = reify(super_member, super_typeparams,
       super_typeargs);
 
-    bool ok = is_fun_sub_fun(r_sub_member, r_super_member, true);
+    bool ok = is_fun_sub_fun(r_sub_member, r_super_member, sub, super);
     ast_free_unattached(r_sub_member);
     ast_free_unattached(r_super_member);
 
@@ -313,8 +339,9 @@ static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
       return false;
 
     case TK_INTERFACE:
-      // Check for a structural subtype.
-      return is_nominal_sub_interface(sub, super);
+      // Check for an explicit provide or a structural subtype.
+      return is_nominal_sub_trait(sub, super) ||
+        is_nominal_sub_interface(sub, super);
 
     case TK_TRAIT:
       // Check for a nominal subtype.
@@ -783,7 +810,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      return is_fun_sub_fun(sub, super, false);
+      return is_fun_sub_fun(sub, super, NULL, NULL);
 
     default: {}
   }
@@ -792,8 +819,36 @@ bool is_subtype(ast_t* sub, ast_t* super)
   return false;
 }
 
+static bool is_nominal_eq_nominal(ast_t* sub, ast_t* super)
+{
+  ast_t* sub_cap = fetch_cap(sub);
+  ast_t* sub_eph = ast_sibling(sub_cap);
+  ast_t* super_cap = fetch_cap(super);
+  ast_t* super_eph = ast_sibling(super_cap);
+
+  token_id t_sub_cap = ast_id(sub_cap);
+  token_id t_sub_eph = ast_id(sub_eph);
+  token_id t_super_cap = ast_id(super_cap);
+  token_id t_super_eph = ast_id(super_eph);
+
+  if((t_sub_cap != t_super_cap) || (t_sub_eph != t_super_eph))
+    return false;
+
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
+
+  // If we are the same nominal type, our typeargs must be the same.
+  if(sub_def == super_def)
+    return is_eq_typeargs(sub, super);
+
+  return false;
+}
+
 bool is_eqtype(ast_t* a, ast_t* b)
 {
+  if((ast_id(a) == TK_NOMINAL) && (ast_id(b) == TK_NOMINAL))
+    return is_nominal_eq_nominal(a, b);
+
   return is_subtype(a, b) && is_subtype(b, a);
 }
 

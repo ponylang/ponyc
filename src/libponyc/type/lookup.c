@@ -4,7 +4,7 @@
 #include "viewpoint.h"
 #include "subtype.h"
 #include "../ast/token.h"
-#include <stdio.h>
+#include <string.h>
 #include <assert.h>
 
 static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
@@ -83,6 +83,22 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
     }
   }
 
+  if(!strcmp(name, "_final"))
+  {
+    switch(ast_id(find))
+    {
+      case TK_NEW:
+      case TK_BE:
+      case TK_FUN:
+        if(errors)
+          ast_error(from, "can't lookup a _final function");
+
+        return NULL;
+
+      default: {}
+    }
+  }
+
   ast_t* typeparams = ast_sibling(type_name);
   ast_t* typeargs = ast_childidx(type, 2);
 
@@ -99,7 +115,7 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
     find = r_find;
   }
 
-  if(!flatten_arrows(&find, errors))
+  if((find != NULL) && !flatten_arrows(&find, errors))
   {
     if(errors)
       ast_error(from, "can't look this up on a tag");

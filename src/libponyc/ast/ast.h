@@ -519,6 +519,7 @@ void ast_extract_children(ast_t* parent, size_t child_count,
       ast_t* last_sibling = NULL; \
       ast_t* node = NULL; \
       __VA_ARGS__ \
+      ast_inheritflags(parent); \
       (void)parent; \
       (void)last_sibling; \
       (void)node; \

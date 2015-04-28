@@ -1007,12 +1007,6 @@ static bool check_finaliser(ast_t* ast)
     ok = false;
   }
 
-  if(ast_cansend(body))
-  {
-    ast_error(body, "_final cannot create actors or send messages");
-    ok = false;
-  }
-
   return ok;
 }
 

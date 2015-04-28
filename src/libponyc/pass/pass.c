@@ -7,6 +7,7 @@
 #include "flatten.h"
 #include "traits.h"
 #include "expr.h"
+#include "finalisers.h"
 #include "../codegen/codegen.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -33,21 +34,22 @@ const char* pass_name(pass_id pass)
 {
   switch(pass)
   {
-    case PASS_PARSE:    return "parse";
-    case PASS_SYNTAX:   return "syntax";
-    case PASS_SUGAR:    return "sugar";
-    case PASS_SCOPE:    return "scope";
+    case PASS_PARSE: return "parse";
+    case PASS_SYNTAX: return "syntax";
+    case PASS_SUGAR: return "sugar";
+    case PASS_SCOPE: return "scope";
     case PASS_NAME_RESOLUTION: return "name";
-    case PASS_FLATTEN:  return "flatten";
-    case PASS_TRAITS:   return "traits";
-    case PASS_EXPR:     return "expr";
-    case PASS_AST:      return "ast";
-    case PASS_LLVM_IR:  return "ir";
-    case PASS_BITCODE:  return "bitcode";
-    case PASS_ASM:      return "asm";
-    case PASS_OBJ:      return "obj";
-    case PASS_ALL:      return "all";
-    default:            return "error";
+    case PASS_FLATTEN: return "flatten";
+    case PASS_TRAITS: return "traits";
+    case PASS_EXPR: return "expr";
+    case PASS_FINALISERS: return "expr";
+    case PASS_AST: return "ast";
+    case PASS_LLVM_IR: return "ir";
+    case PASS_BITCODE: return "bitcode";
+    case PASS_ASM: return "asm";
+    case PASS_OBJ: return "obj";
+    case PASS_ALL: return "all";
+    default: return "error";
   }
 }
 
@@ -171,6 +173,12 @@ bool program_passes(ast_t* program, pass_opt_t* options)
 
   if(do_pass(&program, &r, options, PASS_EXPR, NULL, pass_expr))
     return r;
+
+  if(options->limit >= PASS_FINALISERS)
+  {
+    if(!pass_finalisers(program))
+      return false;
+  }
 
   return true;
 }
