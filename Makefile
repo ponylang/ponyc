@@ -17,7 +17,7 @@ endif
 # Default settings (silent debug build).
 config ?= debug
 arch ?= native
-tag ?= $(shell git describe --tags --always)
+tag := $(shell git describe --tags --always)
 
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
