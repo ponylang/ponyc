@@ -124,7 +124,7 @@
       defines {
         -- disables warnings for vsnprintf
         "_CRT_SECURE_NO_WARNINGS",
-        "PONY_VERSION=\\"" .. version .. "\\""
+        "PONY_VERSION=\"" .. version .. "\""
       }
 
     configuration { "not windows" }
