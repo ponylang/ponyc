@@ -13,11 +13,12 @@ primitive Base64
     """
     encode(data, '+', '/', '=', 76)
 
-  fun encode_url(data: Bytes box): String iso^ =>
+  fun encode_url(data: Bytes box, pad: Bool = false): String iso^ =>
     """
-    Encode for URLs (RFC 4648).
+    Encode for URLs (RFC 4648). Padding characters are stripped by default.
     """
-    encode(data, '-', '_')
+    let c: U8 = if pad then '=' else 0 end
+    encode(data, '-', '_', c)
 
   fun encode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = '=',
     linelen: U64 = 0, linesep: String = "\r\n"): String iso^
@@ -105,7 +106,7 @@ primitive Base64
     let len = (data.size() * 4) / 3
     let out = recover Array[U8](len) end
 
-    var state = U64(0)
+    var state = U8(0)
     var input = U8(0)
     var output = U8(0)
 
@@ -147,8 +148,10 @@ primitive Base64
       end
     end
 
-    match state
-    | 1 | 2 => out.push(output)
+    if input != pad then
+      match state
+      | 1 | 2 => out.push(output)
+      end
     end
 
     out

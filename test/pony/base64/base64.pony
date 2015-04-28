@@ -40,3 +40,10 @@ actor Main
       env.out.print(dec1)
       env.out.print(dec2)
     end
+
+    try
+      let src3 = "any carnal pleasure"
+      let enc3 = recover val Base64.encode(src3) end
+      let dec3 = recover val Base64.decode(enc3) end
+      env.out.print((src3.size() == dec3.size()).string())
+    end
