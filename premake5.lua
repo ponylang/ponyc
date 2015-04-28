@@ -119,10 +119,12 @@
       buildoptions "/PROFILE"
 
     configuration "vs*"
+      local version = os.outputof("git describe --tags --always")
       debugdir "."
       defines {
         -- disables warnings for vsnprintf
-        "_CRT_SECURE_NO_WARNINGS"
+        "_CRT_SECURE_NO_WARNINGS",
+        "PONY_VERSION=" .. version
       }
 
     configuration { "not windows" }

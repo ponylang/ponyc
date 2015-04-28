@@ -363,7 +363,6 @@ prerelease:
 	$$(error "No version number specified.")
 else
 $(eval ALL_CFLAGS += -DPONY_VERSION_MAJOR=$(major) -DPONY_VERSION_MINOR=$(minor) -DPONY_VERSION_PATCH=$(patch))
-$(eval ALL_CFLAGS = $(subst -DPONY_VERSION=\"$(tag)\", -DPONY_VERSION=\"$(version)\", $(ALL_CFLAGS)))
 prerelease: libponyc libponyrt ponyc
 	@while [ -z "$$$$CONTINUE" ]; do \
 	read -r -p "New version number: $(version). Are you sure? [y/N]: " CONTINUE; \
