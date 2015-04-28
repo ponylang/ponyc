@@ -55,7 +55,7 @@ interface Seq[A]
     Removes an element from the beginning of the sequence.
     """
 
-  fun ref append(seq: ReadSeq[A] box, offset: U64 = 0, len: U64 = -1): Seq[A]^
+  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): Seq[A]^
     """
     Append the elements from a sequence, starting from the given offset.
     """

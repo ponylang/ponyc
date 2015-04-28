@@ -147,9 +147,7 @@ class List[A] is Seq[A]
     """
     head().remove().pop()
 
-  fun ref append(seq: ReadSeq[A] box, offset: U64 = 0, len: U64 = -1):
-    List[A]^
-  =>
+  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): List[A]^ =>
     """
     Append the elements from a sequence, starting from the given offset.
     """

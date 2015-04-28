@@ -530,8 +530,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
       error
     end
 
-  fun ref append(seq: ReadSeq[U8] box, offset: U64 = 0, len: U64 = -1):
-    String ref^
+  fun ref append(seq: ReadSeq[U8], offset: U64 = 0, len: U64 = -1): String ref^
   =>
     """
     Append the elements from a sequence, starting from the given offset.

@@ -183,9 +183,7 @@ class Array[A] is Seq[A]
     """
     delete(0)
 
-  fun ref append(seq: ReadSeq[A] box, offset: U64 = 0, len: U64 = -1):
-    Array[A]^
-  =>
+  fun ref append(seq: ReadSeq[A], offset: U64 = 0, len: U64 = -1): Array[A]^ =>
     """
     Append the elements from a sequence, starting from the given offset.
     """
