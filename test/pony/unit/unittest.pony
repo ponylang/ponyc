@@ -11,7 +11,11 @@ actor Main
     test.complete()
 
 
-class TestBase64 is UnitTest
+class TestBase64 iso is UnitTest
+  """
+  Test base64 encoding.
+  Using test examples from RFC 4648.
+  """
   fun name():String => "encode.base64"
 
   fun apply(h: TestHelper): Bool =>
@@ -25,10 +29,15 @@ class TestBase64 is UnitTest
     true
     
 
-class TestBase64Decode is UnitTest
+class TestBase64Decode iso is UnitTest
+  """
+  Test base64 decoding. Examples with and without padding are tested.
+  Using test examples from RFC 4648.
+  """
   fun name():String => "encode.base64decode"
 
   fun apply(h: TestHelper): Bool ? =>
+    // Tests with padding
     h.expect_eq[String]("", _string(Base64.decode("")))
     h.expect_eq[String]("f", _string(Base64.decode("Zg==")))
     h.expect_eq[String]("fo", _string(Base64.decode("Zm8=")))
@@ -37,6 +46,7 @@ class TestBase64Decode is UnitTest
     h.expect_eq[String]("fooba", _string(Base64.decode("Zm9vYmE=")))
     h.expect_eq[String]("foobar", _string(Base64.decode("Zm9vYmFy")))
 
+    // Tests without padding
     h.expect_eq[String]("", _string(Base64.decode("")))
     h.expect_eq[String]("f", _string(Base64.decode("Zg")))
     h.expect_eq[String]("fo", _string(Base64.decode("Zm8")))
@@ -47,6 +57,9 @@ class TestBase64Decode is UnitTest
     true
 
   fun _string(data: Array[U8] iso): String =>
+    """
+    Convert the contents of an Array[U8] into a String
+    """
     var s = recover String end
     s.append_array(consume data)
     consume s

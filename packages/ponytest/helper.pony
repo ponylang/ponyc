@@ -82,10 +82,7 @@ class TestHelper val
     """
     Assert that the 2 given expressions are equal.
     """
-    if expect != actual then
-      _tester._assert_failed("Assert EQ failed: " + msg +
-        ". Expected (" + expect.string() + ") == (" +
-        actual.string() + ")")
+    if not _check_eq[A]("Assert", expect, actual, msg) then
       error
     end
 
@@ -95,8 +92,16 @@ class TestHelper val
     """
     Expect that the 2 given expressions are equal.
     """
+    _check_eq[A]("Expect", expect, actual, msg)
+
+  fun _check_eq[A: (Comparable[A] box & Stringable)]
+    (verb: String, expect: A, actual: A, msg: String): Bool
+  =>
+    """
+    Check that the 2 given expressions are equal.
+    """
     if expect != actual then
-      _tester._assert_failed("Expect EQ failed: " + msg +
+      _tester._assert_failed(verb + " EQ failed: " + msg +
         ". Expected (" + expect.string() + ") == (" +
         actual.string() + ")")
       return false

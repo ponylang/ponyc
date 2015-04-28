@@ -1,12 +1,82 @@
+"""
+Each unit test class must provide this trait. Simple tests only need to
+define the name() and apply() functions. The remaining functions specify
+additional test options.
+
+# Test names.
+
+Report the test name, which is used when printing test results and on the
+command line to select tests to run.
+
+# Exclusion groups.
+
+No tests that are in the same exclusion group will be run concurrently.
+
+By default all tests are run concurrently. This may be a problem for some
+tests, eg if they manipulate an external file or use a system resource. To fix
+this issue any number of tests may be put into an exclusion group.
+
+Exclusion groups are identified by name, arbitrary strings may be used.
+Multiple exclusion groups may be used and tests in different groups may run
+concurrently. Tests that do not specify an exclusion group may be run
+concurrently with any other tests.
+
+The command line option "--sequential" prevents any tests from running
+concurrently, regardless of exclusion group. This is intended for debugging
+rather than standard use.
+
+# Long tests.
+
+Simple tests run within a single function. When that function exits, either
+returning a result or throwing an error, the test is complete. This is not
+viable for tests that need to use actors.
+
+Long tests allow for delayed completion. Any test can return LongTest from its
+test function, indicating that the test needs to keep running. When the test is
+finally complete it calls the complete() function on its TestHelper.
+
+
+
+
+to indicate they are finished.
+
+
+
+"""
+
+
 use "collections"
 use "options"
 use "regex"
 
+
+primitive LongTest
+type TestResult is (Bool | LongTest)
+
+
 trait UnitTest
+  """
+  Each unit test class must provide this trait. Simple tests only need to
+  define the name() and apply() functions. The remaining functions specify
+  additional test options.
+  """
+
   fun name(): String
-  fun exclusion_group(): String => ""
-  fun long_test(): Bool => false
-  fun ref apply(t: TestHelper): Bool ?
+    """
+    Report the test name, which is used when printing test results and on the
+    command line to select tests to run.
+    """
+
+  fun exclusion_group(): String =>
+    """
+    Report the test exclusion group, returning an empty string for none.
+    The default body returns an empty string.
+    """
+    ""
+
+  fun ref apply(t: TestHelper): TestResult ?
+    """
+    """
 
 
 type _TestRecord is (String, Bool, (Array[String] val | None))
