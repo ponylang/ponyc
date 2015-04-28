@@ -477,11 +477,8 @@ static bool method_call(pass_opt_t* opt, ast_t* ast)
 
     case TK_NEWREF:
     case TK_FUNREF:
-    {
-      // TODO: if the lhs is a trait or interface, setsend instead?
       ast_setmightsend(ast);
       return true;
-    }
 
     default: {}
   }

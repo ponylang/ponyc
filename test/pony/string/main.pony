@@ -32,7 +32,7 @@ actor Main
     env.out.print(a + " expected: tt")
     env.out.print(b + " expected: st")
     env.out.print(c + " expected: ark")
-    env.out.print(d + " expected: empty string")
+    env.out.print(d + " expected: wombat")
     env.out.print("===")
     env.out.print(e + " expected: tt")
     env.out.print(f + " expected: st")

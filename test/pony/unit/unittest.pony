@@ -37,29 +37,19 @@ class TestBase64Decode iso is UnitTest
   fun name():String => "encode.base64decode"
 
   fun apply(h: TestHelper): Bool ? =>
-    // Tests with padding
-    h.expect_eq[String]("", _string(Base64.decode("")))
-    h.expect_eq[String]("f", _string(Base64.decode("Zg==")))
-    h.expect_eq[String]("fo", _string(Base64.decode("Zm8=")))
-    h.expect_eq[String]("foo", _string(Base64.decode("Zm9v")))
-    h.expect_eq[String]("foob", _string(Base64.decode("Zm9vYg==")))
-    h.expect_eq[String]("fooba", _string(Base64.decode("Zm9vYmE=")))
-    h.expect_eq[String]("foobar", _string(Base64.decode("Zm9vYmFy")))
+    h.expect_eq[String]("", Base64.decode[String iso](""))
+    h.expect_eq[String]("f", Base64.decode[String iso]("Zg=="))
+    h.expect_eq[String]("fo", Base64.decode[String iso]("Zm8="))
+    h.expect_eq[String]("foo", Base64.decode[String iso]("Zm9v"))
+    h.expect_eq[String]("foob", Base64.decode[String iso]("Zm9vYg=="))
+    h.expect_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE="))
+    h.expect_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
 
-    // Tests without padding
-    h.expect_eq[String]("", _string(Base64.decode("")))
-    h.expect_eq[String]("f", _string(Base64.decode("Zg")))
-    h.expect_eq[String]("fo", _string(Base64.decode("Zm8")))
-    h.expect_eq[String]("foo", _string(Base64.decode("Zm9v")))
-    h.expect_eq[String]("foob", _string(Base64.decode("Zm9vYg")))
-    h.expect_eq[String]("fooba", _string(Base64.decode("Zm9vYmE")))
-    h.expect_eq[String]("foobar", _string(Base64.decode("Zm9vYmFy")))
+    h.expect_eq[String]("", Base64.decode[String iso](""))
+    h.expect_eq[String]("f", Base64.decode[String iso]("Zg"))
+    h.expect_eq[String]("fo", Base64.decode[String iso]("Zm8"))
+    h.expect_eq[String]("foo", Base64.decode[String iso]("Zm9v"))
+    h.expect_eq[String]("foob", Base64.decode[String iso]("Zm9vYg"))
+    h.expect_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE"))
+    h.expect_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
     true
-
-  fun _string(data: Array[U8] iso): String =>
-    """
-    Convert the contents of an Array[U8] into a String
-    """
-    var s = recover String end
-    s.append_array(consume data)
-    consume s

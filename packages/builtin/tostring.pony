@@ -145,7 +145,7 @@ primitive ToString
       try
         while value != 0 do
           let index = ((value = value / base) - (value * base))
-          s.append_byte(table(index))
+          s.push(table(index))
           i = i + 1
         end
       end
@@ -177,7 +177,7 @@ primitive ToString
       try
         while value != 0 do
           let index = ((value = value / base) - (value * base)).u64()
-          s.append_byte(table(index))
+          s.push(table(index))
           i = i + 1
         end
       end

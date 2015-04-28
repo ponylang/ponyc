@@ -20,14 +20,15 @@ primitive Base64
     let c: U8 = if pad then '=' else 0 end
     encode(data, '-', '_', c)
 
-  fun encode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = '=',
-    linelen: U64 = 0, linesep: String = "\r\n"): String iso^
+  fun encode[A: Seq[U8] iso = String iso](data: Bytes box, at62: U8 = '+',
+    at63: U8 = '/', pad: U8 = '=', linelen: U64 = 0,
+    linesep: String = "\r\n"): A^
   =>
     """
     Configurable encoding. The defaults are for RFC 4648.
     """
     let len = ((data.size() + 2) / 3) * 4
-    let out = recover String(len) end
+    let out = recover A(len) end
     let lineblocks = linelen / 4
 
     var srclen = data.size()
@@ -45,10 +46,10 @@ primitive Base64
         let out3 = ((in2 and 0x0f) << 2) + (in3 >> 6)
         let out4 = in3 and 0x3f
 
-        out.append_byte(_enc_byte(out1, at62, at63))
-        out.append_byte(_enc_byte(out2, at62, at63))
-        out.append_byte(_enc_byte(out3, at62, at63))
-        out.append_byte(_enc_byte(out4, at62, at63))
+        out.push(_enc_byte(out1, at62, at63))
+        out.push(_enc_byte(out2, at62, at63))
+        out.push(_enc_byte(out3, at62, at63))
+        out.push(_enc_byte(out4, at62, at63))
 
         i = i + 3
         blocks = blocks + 1
@@ -68,35 +69,35 @@ primitive Base64
         let out2 = ((in1 and 0x03) << 4) + (in2 >> 4)
         let out3 = (in2 and 0x0f) << 2
 
-        out.append_byte(_enc_byte(out1, at62, at63))
-        out.append_byte(_enc_byte(out2, at62, at63))
+        out.push(_enc_byte(out1, at62, at63))
+        out.push(_enc_byte(out2, at62, at63))
 
         if srclen == 2 then
-          out.append_byte(_enc_byte(out3, at62, at63))
+          out.push(_enc_byte(out3, at62, at63))
         else
-          out.append_byte(pad)
+          out.push(pad)
         end
 
-        out.append_byte(pad)
+        out.push(pad)
       end
 
       if lineblocks > 0 then
         out.append(linesep)
       end
     else
-      out.truncate(0)
+      out.clear()
     end
 
     out
 
-  fun decode_url(data: Bytes box): Array[U8] iso^ ? =>
+  fun decode_url[A: Seq[U8] iso = Array[U8] iso](data: Bytes box): A^ ? =>
     """
     Decode for URLs (RFC 4648).
     """
-    decode(data, '-', '_')
+    decode[A](data, '-', '_')
 
-  fun decode(data: Bytes box, at62: U8 = '+', at63: U8 = '/', pad: U8 = '='):
-    Array[U8] iso^ ?
+  fun decode[A: Seq[U8] iso = Array[U8] iso](data: Bytes box, at62: U8 = '+',
+    at63: U8 = '/', pad: U8 = '='): A^ ?
   =>
     """
     Configurable decoding. The defaults are for RFC 4648. Missing padding is
@@ -104,7 +105,7 @@ primitive Base64
     any time), is an error.
     """
     let len = (data.size() * 4) / 3
-    let out = recover Array[U8](len) end
+    let out = recover A(len) end
 
     var state = U8(0)
     var input = U8(0)
@@ -148,7 +149,9 @@ primitive Base64
       end
     end
 
-    if input != pad then
+    if output != 0 then
+      Fact(input != pad)
+
       match state
       | 1 | 2 => out.push(output)
       end

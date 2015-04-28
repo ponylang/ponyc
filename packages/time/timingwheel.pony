@@ -33,7 +33,7 @@ class _TimingWheel
 
     try
       let list = _list(slot)
-      _list(slot).append(timer._get_node())
+      _list(slot).append_node(timer._get_node())
       _pending = _pending or (1 << slot)
     end
 

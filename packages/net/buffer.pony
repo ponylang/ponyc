@@ -112,7 +112,7 @@ class Buffer
       let need = len - i
       let copy_len = need.min(avail)
 
-      out.append_array(data, offset, copy_len)
+      out.append(data, offset, copy_len)
 
       if avail > need then
         node() = (data, offset + need)

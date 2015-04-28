@@ -1,4 +1,4 @@
-class Array[A]
+class Array[A] is Seq[A]
   """
   Contiguous memory to store elements of type A.
   """
@@ -168,17 +168,56 @@ class Array[A]
     """
     delete(_size - 1)
 
-  fun ref unshift(value: A): Array[A]^ ? =>
+  fun ref unshift(value: A): Array[A]^ =>
     """
     Add an element to the beginning of the array.
     """
-    insert(0, consume value)
+    try
+      insert(0, consume value)
+    end
+    this
 
   fun ref shift(): A^ ? =>
     """
     Remove an element from the beginning of the array.
     """
     delete(0)
+
+  fun ref append(seq: ReadSeq[A] box, offset: U64 = 0, len: U64 = -1):
+    Array[A]^
+  =>
+    """
+    Append the elements from a sequence, starting from the given offset.
+    """
+    if offset >= seq.size() then
+      return this
+    end
+
+    let copy_len = len.min(seq.size() - offset)
+    reserve(_size + copy_len)
+
+    var i = offset
+
+    try
+      while i < copy_len do
+        push(seq(i))
+        i = i + 1
+      end
+    end
+
+    this
+
+  fun ref concat(iter: Iterator[A^]): Array[A]^ =>
+    """
+    Add iterated elements to the end of the array.
+    """
+    try
+      for v in iter do
+        push(consume v)
+      end
+    end
+
+    this
 
   fun find(value: A!, offset: U64 = 0, nth: U64 = 0): U64 ? =>
     """
@@ -222,16 +261,6 @@ class Array[A]
     end
 
     error
-
-  fun ref concat(iter: Iterator[A^]) =>
-    """
-    Add a sequence of elements to the end of the array.
-    """
-    try
-      for v in iter do
-        push(consume v)
-      end
-    end
 
   fun clone(): Array[this->A!]^ =>
     """

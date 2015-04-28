@@ -1,4 +1,4 @@
-class String val is Ordered[String box], Stringable
+class String val is Seq[U8], Ordered[String box], Stringable
   """
   Strings don't specify an encoding.
   """
@@ -13,7 +13,7 @@ class String val is Ordered[String box], Stringable
     _size = 0
     _alloc = len + 1
     _ptr = Pointer[U8]._alloc(_alloc)
-    _ptr._update(0, 0)
+    _set(0, 0)
 
   new from_cstring(str: Pointer[U8] ref, len: U64 = 0, copy: Bool = true) =>
     """
@@ -44,54 +44,54 @@ class String val is Ordered[String box], Stringable
       _size = 1
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, value.u8())
+      _set(0, value.u8())
     elseif value < 0x800 then
       _size = 2
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, ((value >> 6) or 0xC0).u8())
-      _ptr._update(1, ((value and 0x3F) or 0x80).u8())
+      _set(0, ((value >> 6) or 0xC0).u8())
+      _set(1, ((value and 0x3F) or 0x80).u8())
     elseif value < 0xD800 then
       _size = 3
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, ((value >> 12) or 0xE0).u8())
-      _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(2, ((value and 0x3F) or 0x80).u8())
+      _set(0, ((value >> 12) or 0xE0).u8())
+      _set(1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _set(2, ((value and 0x3F) or 0x80).u8())
     elseif value < 0xE000 then
       // UTF-16 surrogate pairs are not allowed.
       _size = 3
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, 0xEF)
-      _ptr._update(1, 0xBF)
-      _ptr._update(2, 0xBD)
+      _set(0, 0xEF)
+      _set(1, 0xBF)
+      _set(2, 0xBD)
       _size = _size + 3
     elseif value < 0x10000 then
       _size = 3
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, ((value >> 12) or 0xE0).u8())
-      _ptr._update(1, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(2, ((value and 0x3F) or 0x80).u8())
+      _set(0, ((value >> 12) or 0xE0).u8())
+      _set(1, (((value >> 6) and 0x3F) or 0x80).u8())
+      _set(2, ((value and 0x3F) or 0x80).u8())
     elseif value < 0x110000 then
       _size = 4
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, ((value >> 18) or 0xF0).u8())
-      _ptr._update(1, (((value >> 12) and 0x3F) or 0x80).u8())
-      _ptr._update(2, (((value >> 6) and 0x3F) or 0x80).u8())
-      _ptr._update(3, ((value and 0x3F) or 0x80).u8())
+      _set(0, ((value >> 18) or 0xF0).u8())
+      _set(1, (((value >> 12) and 0x3F) or 0x80).u8())
+      _set(2, (((value >> 6) and 0x3F) or 0x80).u8())
+      _set(3, ((value and 0x3F) or 0x80).u8())
     else
       // Code points beyond 0x10FFFF are not allowed.
       _size = 3
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
-      _ptr._update(0, 0xEF)
-      _ptr._update(1, 0xBF)
-      _ptr._update(2, 0xBD)
+      _set(0, 0xEF)
+      _set(1, 0xBF)
+      _set(2, 0xBD)
     end
-    _ptr._update(_size, 0)
+    _set(_size, 0)
 
   fun cstring(): Pointer[U8] tag =>
     """
@@ -140,7 +140,7 @@ class String val is Ordered[String box], Stringable
     null terminator. Does not check for null terminators inside the string.
     """
     _size = len.min(_alloc - 1)
-    _ptr._update(_size, 0)
+    _set(_size, 0)
     this
 
   fun utf32(offset: I64): (U32, U8) ? =>
@@ -244,7 +244,7 @@ class String val is Ordered[String box], Stringable
         _size = i
       end
 
-      _ptr._update(i, value)
+      _set(i, value)
     else
       error
     end
@@ -376,7 +376,7 @@ class String val is Ordered[String box], Stringable
       let n = len.min(_size - i)
       _size = _size - n
       _ptr._offset(i)._delete(n, _size - i)
-      _ptr._update(_size, 0)
+      _set(_size, 0)
     end
     this
 
@@ -469,52 +469,97 @@ class String val is Ordered[String box], Stringable
 
       while i < j do
         let x = _ptr._apply(i)
-        _ptr._update(i, _ptr._apply(j))
-        _ptr._update(j, x)
+        _set(i, _ptr._apply(j))
+        _set(j, x)
         i = i + 1
         j = j - 1
       end
     end
     this
 
-  fun ref append(that: String box): String ref^ =>
+  fun ref push(value: U8): String ref^ =>
     """
-    Append that to this.
-    """
-    reserve(_size + that._size)
-    that._ptr._copy_to(_ptr._offset(_size), that._size + 1)
-    _size = _size + that._size
-    this
-
-  fun ref append_byte(value: U8): String ref^ =>
-    """
-    Append an arbitrary byte to the string.
+    Add a byte to the end of the string.
     """
     if value != 0 then
       reserve(_size + 1)
-      _ptr._update(_size, value)
+      _set(_size, value)
       _size = _size + 1
-      _ptr._update(_size, 0)
+      _set(_size, 0)
     end
 
     this
 
-  fun ref append_array(array: Array[U8] box, offset: U64 = 0, len: U64 = -1):
+  fun ref pop(): U8 ? =>
+    """
+    Remove a byte from the end of the string.
+    """
+    if _size > 0 then
+      _size = _size - 1
+      _ptr._offset(_size)._delete(1, 0)
+    else
+      error
+    end
+
+  fun ref unshift(value: U8): String ref^ =>
+    """
+    Adds a byte to the beginning of the string.
+    """
+    if value != 0 then
+      reserve(_size + 1)
+      @memmove[Pointer[U8]](_ptr.u64() + 1, _ptr.u64(), _size + 1)
+      _set(0, value)
+      _size = _size + 1
+    else
+      _set(0, 0)
+      _size = 0
+    end
+
+    this
+
+  fun ref shift(): U8 ? =>
+    """
+    Removes a byte from the beginning of the string.
+    """
+    if _size > 0 then
+      let value = _ptr._apply(0)
+      @memmove[Pointer[U8]](_ptr.u64(), _ptr.u64() + 1, _size)
+      _size = _size - 1
+      value
+    else
+      error
+    end
+
+  fun ref append(seq: ReadSeq[U8] box, offset: U64 = 0, len: U64 = -1):
     String ref^
   =>
     """
-    Append the bytes from an array, starting from the given offset.
+    Append the elements from a sequence, starting from the given offset.
     """
-    if offset >= array.size() then
+    if offset >= seq.size() then
       return this
     end
 
-    let copy_len = len.min(array.size() - offset)
+    let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
-    array._cstring()._offset(offset)._copy_to(_ptr._offset(_size), copy_len)
-    _size = _size + copy_len
-    _ptr._update(_size, 0)
+    var i = offset
+
+    try
+      while i < copy_len do
+        push(seq(i))
+        i = i + 1
+      end
+    end
+
+    this
+
+  fun ref clear(): String ref^ =>
+    """
+    Truncate the string to zero length.
+    """
+    _set(0, 0)
+    _size = 0
     this
 
   fun insert(offset: I64, that: String): String iso^ =>
@@ -537,7 +582,7 @@ class String val is Ordered[String box], Stringable
       _ptr.u64() + index, that._size)
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
-    _ptr._update(_size, 0)
+    _set(_size, 0)
     this
 
   fun cut(from: I64, to: I64): String iso^ =>
@@ -561,12 +606,12 @@ class String val is Ordered[String box], Stringable
       var j = finish + 1
 
       while j < _size do
-        _ptr._update(start + (j - (finish + 1)), _ptr._apply(j))
+        _set(start + (j - (finish + 1)), _ptr._apply(j))
         j = j + 1
       end
 
       _size = len
-      _ptr._update(len, 0)
+      _set(len, 0)
     end
     this
 
@@ -838,8 +883,28 @@ class String val is Ordered[String box], Stringable
   //
   //   while i < _size do
 
+  fun values(): StringValues^ =>
+    """
+    Return an iterator over the bytes in the string.
+    """
+    StringValues(this)
+
   fun ref _set(i: U64, value: U8): U8 =>
     """
     Unsafe update, used internally.
     """
     _ptr._update(i, value)
+
+class StringValues is Iterator[U8]
+  let _string: String box
+  var _i: U64
+
+  new create(string: String box) =>
+    _string = string
+    _i = 0
+
+  fun has_next(): Bool =>
+    _i < _string.size()
+
+  fun ref next(): U8 ? =>
+    _string(_i = _i + 1)
