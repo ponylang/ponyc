@@ -352,6 +352,16 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
   }
 }
 
+bool heap_ismarked(chunk_t* chunk, void* p)
+{
+  if(chunk->size >= HEAP_SIZECLASSES)
+    return chunk->slots == 0;
+
+  // shift to account for smallest allocation size
+  uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
+  return (chunk->slots & slot) == 0;
+}
+
 void heap_endgc(heap_t* heap)
 {
   size_t used = 0;

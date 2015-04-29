@@ -237,6 +237,15 @@ static void init_runtime(compile_t* c)
   type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMSetReturnNoAlias(value);
+
+  // i8* pony_alloc_final(i64, c->final_fn)
+  params[0] = c->i64;
+  params[1] = c->final_fn;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  value = LLVMAddFunction(c->module, "pony_alloc_final", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMSetReturnNoAlias(value);
 
   // $message* pony_alloc_msg(i32, i32)
   params[0] = c->i32;

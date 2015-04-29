@@ -3,13 +3,15 @@
 #include "../ds/hash.h"
 #include "../ds/fun.h"
 #include "../mem/pool.h"
+#include "../mem/pagemap.h"
 #include <assert.h>
 
 typedef struct object_t
 {
   void* address;
+  pony_final_fn final;
   size_t rc;
-  size_t mark;
+  uint32_t mark;
 } object_t;
 
 static uint64_t object_hash(object_t* obj)
@@ -22,10 +24,11 @@ static bool object_cmp(object_t* a, object_t* b)
   return a->address == b->address;
 }
 
-static object_t* object_alloc(void* address, size_t mark)
+static object_t* object_alloc(void* address, uint32_t mark)
 {
   object_t* obj = (object_t*)POOL_ALLOC(object_t);
   obj->address = address;
+  obj->final = NULL;
   obj->rc = 0;
 
   // a new object is unmarked
@@ -48,12 +51,12 @@ size_t object_rc(object_t* obj)
   return obj->rc;
 }
 
-bool object_marked(object_t* obj, size_t mark)
+bool object_marked(object_t* obj, uint32_t mark)
 {
   return obj->mark == mark;
 }
 
-void object_mark(object_t* obj, size_t mark)
+void object_mark(object_t* obj, uint32_t mark)
 {
   obj->mark = mark;
 }
@@ -99,7 +102,7 @@ object_t* objectmap_getobject(objectmap_t* map, void* address)
   return objectmap_get(map, &obj);
 }
 
-object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark)
+object_t* objectmap_getorput(objectmap_t* map, void* address, uint32_t mark)
 {
   object_t* obj = objectmap_getobject(map, address);
 
@@ -111,8 +114,29 @@ object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark)
   return obj;
 }
 
-void objectmap_mark(objectmap_t* map)
+object_t* objectmap_register_final(objectmap_t* map, void* address,
+  pony_final_fn final, uint32_t mark)
 {
+  object_t* obj = objectmap_getorput(map, address, mark);
+  obj->final = final;
+  return obj;
+}
+
+void objectmap_final(objectmap_t* map)
+{
+  size_t i = HASHMAP_BEGIN;
+  object_t* obj;
+
+  while((obj = objectmap_next(map, &i)) != NULL)
+  {
+    if(obj->final != NULL)
+      obj->final(obj->address);
+  }
+}
+
+size_t objectmap_mark(objectmap_t* map)
+{
+  size_t count = 0;
   size_t i = HASHMAP_BEGIN;
   object_t* obj;
 
@@ -122,8 +146,23 @@ void objectmap_mark(objectmap_t* map)
     {
       pony_trace(obj->address);
     } else {
+      if(obj->final != NULL)
+      {
+        // If we are not free in the heap, don't run the finaliser and don't
+        // remove this entry from the object map.
+        chunk_t* chunk = (chunk_t*)pagemap_get(obj->address);
+
+        if(heap_ismarked(chunk, obj->address))
+          continue;
+
+        obj->final(obj->address);
+        count++;
+      }
+
       objectmap_removeindex(map, i);
       object_free(obj);
     }
   }
+
+  return count;
 }

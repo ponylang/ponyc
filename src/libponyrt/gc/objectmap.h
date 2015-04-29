@@ -12,9 +12,9 @@ void* object_address(object_t* obj);
 
 size_t object_rc(object_t* obj);
 
-bool object_marked(object_t* obj, size_t mark);
+bool object_marked(object_t* obj, uint32_t mark);
 
-void object_mark(object_t* obj, size_t mark);
+void object_mark(object_t* obj, uint32_t mark);
 
 void object_inc(object_t* obj);
 
@@ -30,9 +30,14 @@ DECLARE_HASHMAP(objectmap, object_t);
 
 object_t* objectmap_getobject(objectmap_t* map, void* address);
 
-object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark);
+object_t* objectmap_getorput(objectmap_t* map, void* address, uint32_t mark);
 
-void objectmap_mark(objectmap_t* map);
+object_t* objectmap_register_final(objectmap_t* map, void* address,
+  pony_final_fn final, uint32_t mark);
+
+void objectmap_final(objectmap_t* map);
+
+size_t objectmap_mark(objectmap_t* map);
 
 PONY_EXTERN_C_END
 

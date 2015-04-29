@@ -356,6 +356,7 @@ static reachable_method_stack_t* add_type(reachable_method_stack_t* s,
       case TK_CLASS:
         s = add_fields(s, r, type);
         s = add_traits_to_type(s, r, t);
+        s = add_special(s, t, type, "_final");
         break;
 
       case TK_ACTOR:

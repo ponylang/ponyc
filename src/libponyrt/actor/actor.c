@@ -186,14 +186,14 @@ void actor_setpendingdestroy(pony_actor_t* actor)
   set_flag(actor, FLAG_PENDINGDESTROY);
 }
 
-bool actor_hasfinal(pony_actor_t* actor)
-{
-  return actor->type->final != NULL;
-}
-
 void actor_final(pony_actor_t* actor)
 {
-  actor->type->final(actor);
+  // Run the actor finaliser if it has one.
+  if(actor->type->final != NULL)
+    actor->type->final(actor);
+
+  // Run all outstanding object finalisers.
+  gc_final(&actor->gc);
 }
 
 void actor_sweep(pony_actor_t* actor)
@@ -320,6 +320,13 @@ void* pony_alloc(size_t size)
 void* pony_realloc(void* p, size_t size)
 {
   return heap_realloc(this_actor, &this_actor->heap, p, size);
+}
+
+void* pony_alloc_final(size_t size, pony_final_fn final)
+{
+  void* p = heap_alloc(this_actor, &this_actor->heap, size);
+  gc_register_final(&this_actor->gc, p, final);
+  return p;
 }
 
 void pony_triggergc()
