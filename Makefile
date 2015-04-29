@@ -20,8 +20,10 @@ arch ?= native
 
 ifneq ($(wildcard .git),)
 tag := $(shell git describe --tags --always)
+git := yes
 else
 tag := $(shell cat VERSION)
+git := no
 endif
 
 LIB_EXT ?= a
@@ -406,7 +408,6 @@ endif
 endef
 
 $(eval $(call EXPAND_INSTALL))
-$(eval $(call EXPAND_RELEASE))
 
 uninstall:
 	@rm -rf /usr/local/lib/pony
@@ -419,8 +420,11 @@ test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 
+ifneq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION
+
+$(eval $(call EXPAND_RELEASE))
 
 release: prerelease setversion
 	@echo $(tag) > VERSION
@@ -433,6 +437,7 @@ release: prerelease setversion
 	@git merge master
 	@git push
 	@git checkout $(branch)
+endif
 	
 stats:
 	@echo
