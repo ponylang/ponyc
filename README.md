@@ -4,7 +4,7 @@
 
 * Use the [mailing list](mailto:developers@causality.io).
 
-* A tutorial is pending.
+* A tutorial is available [here](http://tutorial.ponylang.org).
 
 # Editor support
 
