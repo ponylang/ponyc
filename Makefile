@@ -350,11 +350,7 @@ $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
 define EXPAND_RELEASE
 $(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
-$(eval version_string := $(subst ., ,$(version)))
-$(eval major := $(firstword $(version_string)))
-$(eval minor := $(word 2, $(version_string)))
-$(eval patch := $(word 3, $(version_string)))
-ifneq ("$(branch)","release")
+ifneq ($(branch),master)
 prerelease:
 	$$(error "Releases not allowed on $(branch) branch.")
 else
@@ -362,13 +358,13 @@ ifndef version
 prerelease:
 	$$(error "No version number specified.")
 else
-$(eval ALL_CFLAGS += -DPONY_VERSION_MAJOR=$(major) -DPONY_VERSION_MINOR=$(minor) -DPONY_VERSION_PATCH=$(patch))
+$(eval tag := $(version))
 prerelease: libponyc libponyrt ponyc
 	@while [ -z "$$$$CONTINUE" ]; do \
-	read -r -p "New version number: $(version). Are you sure? [y/N]: " CONTINUE; \
+	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
 	done ; \
 	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
-	@echo "Releasing ponyc v$(version)."
+	@echo "Releasing ponyc v$(tag)."
 endif
 endif
 endef
@@ -412,9 +408,21 @@ test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 
-release: prerelease
-	@git tag $(version)
+setversion:
+	@echo $(tag) > VERSION
+
+release: prerelease setversion
+	@echo $(tag) > VERSION
+	@git add VERSION
+	@git commit -m "Releasing version $(tag)"
+	@git tag $(tag)
 	@git push
+	@git stash
+	@git checkout release
+	@git merge master
+	@git push
+	@git checkout $(branch)
+	@git stash pop
 
 stats:
 	@echo
