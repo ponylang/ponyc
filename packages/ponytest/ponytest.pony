@@ -35,14 +35,14 @@ actor Main
 class TestAdd iso is UnitTest
   fun name():String => "addition"
 
-  fun apply(h: TestHelper): Bool =>
+  fun apply(h: TestHelper): TestResult =>
     h.assert_eq[U32](4, 2 + 2)
     true
 
 class TestSub iso is UnitTest
   fun name():String => "subtraction"
 
-  fun apply(h: TestHelper): Bool =>
+  fun apply(h: TestHelper): TestResult =>
     h.assert_eq[U32](4, 4 - 2)
     true
 ```
@@ -161,7 +161,7 @@ actor PonyTest
       _groups(name)
     else
       // Group doesn't exist yet, make it.
-      // We only need one simultanoues group, which we've already made. All new
+      // We only need one simultanous group, which we've already made. All new
       // groups are exclusive.
       var g = _ExclusiveGroup
       _groups(name) = g
