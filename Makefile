@@ -432,6 +432,7 @@ release: prerelease setversion
 	@git commit -m "Releasing version $(tag)"
 	@git tag $(tag)
 	@git push
+	@git push --tags
 	@git checkout release
 	@git pull
 	@git merge master
