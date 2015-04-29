@@ -373,15 +373,41 @@ endif
 endif
 endef
 
+define EXPAND_INSTALL
+ifndef prefix
+$(eval out := usr/lib/pony/$(tag))
+$(eval symlink := yes)
+else
+$(eval out:= $(prefix))
+$(eval symlink := no)
+endif
+install: libponyc libponyrt ponyc
+	@mkdir -p $(out)/bin
+	@mkdir -p $(out)/lib
+	@mkdir -p $(out)/include
+	@cp $(PONY_BUILD_DIR)/libponyrt.a $(out)/lib
+	@cp $(PONY_BUILD_DIR)/libponyc.a $(out)/lib
+	@cp $(PONY_BUILD_DIR)/ponyc $(out)/bin
+	@cp src/libponyrt/pony.h $(out)/include
+	@cp -r packages $(out)/
+ifeq ($(symlink),yes)
+	@ln -s /usr/bin/ponyc $(out)/bin/ponyc
+	@ln -s /usr/lib/libponyrt.a $(out)/lib/libponyrt.a
+	@ln -s /usr/lib/libponyc.a $(out)/lib/libponyc.a
+	@ln -s /usr/include/pony.h $(out)/include/pony.h
+endif
+endef
+
+test: all
+	@$(PONY_BUILD_DIR)/libponyc.tests
+	@$(PONY_BUILD_DIR)/libponyrt.tests
+
+$(eval $(call EXPAND_INSTALL))
 $(eval $(call EXPAND_RELEASE))
 
 release: prerelease
 	@git tag $(version)
 	@git push
-
-test: all
-	@$(PONY_BUILD_DIR)/libponyc.tests
-	@$(PONY_BUILD_DIR)/libponyrt.tests
 
 stats:
 	@echo
@@ -427,6 +453,8 @@ help:
 	@echo '  ponyc             Pony compiler executable'
 	@echo
 	@echo '  all               Build all of the above (default)'
+	@echo '  test              Run test suite'
+	@echo '  install           Install ponyc' 
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'
 	@echo
