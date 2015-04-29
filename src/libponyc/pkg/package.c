@@ -444,9 +444,15 @@ static void add_exec_dir()
   if(success)
     path[r] = '\0';
 #elif defined PLATFORM_IS_MACOSX
-  uint32_t size = sizeof(path);
-  int r = _NSGetExecutablePath(path, &size);
+  char exec_path[FILENAME_MAX];
+  uint32_t size = sizeof(exec_path);
+  int r = _NSGetExecutablePath(exec_path, &size);
   success = (r == 0);
+
+  if(success)
+  {  
+    pony_realpath(exec_path, path);
+  }
 #else
 #  error Unsupported platform for exec_path()
 #endif

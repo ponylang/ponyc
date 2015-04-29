@@ -377,7 +377,7 @@ $(eval $(call EXPAND_RELEASE))
 
 release: prerelease
 	@git tag $(version)
-	@git push origin $(version)
+	@git push
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
