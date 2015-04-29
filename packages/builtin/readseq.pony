@@ -1,4 +1,4 @@
-interface ReadSeq[A]
+interface ReadSeq[A] box
   """
   The readable interface of a sequence.
   """
