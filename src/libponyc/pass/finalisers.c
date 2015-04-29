@@ -1,18 +1,19 @@
 #include "finalisers.h"
 #include "../type/lookup.h"
 #include "../type/subtype.h"
+#include "../type/reify.h"
 #include <string.h>
 #include <stdio.h>
 #include <assert.h>
 
-typedef enum
+enum
 {
   FINAL_NO_SEND = 0,
   FINAL_CAN_SEND = (1 << 0),
   FINAL_RECURSE = (1 << 1)
-} final_send_t;
+};
 
-static final_send_t check_body_send(ast_t* ast);
+static int check_body_send(ast_t* ast, bool in_final);
 
 static void show_send(ast_t* ast)
 {
@@ -30,24 +31,68 @@ static void show_send(ast_t* ast)
   {
     if(ast_cansend(ast))
       ast_error(ast, "a message can be sent here");
-
-    if(ast_mightsend(ast))
+    else if(ast_mightsend(ast))
       ast_error(ast, "a message might be sent here");
   }
 }
 
-static final_send_t check_call_send(ast_t* ast)
+static ast_t* receiver_def(ast_t* type)
+{
+  // We must be a known type at this point.
+  switch(ast_id(type))
+  {
+    case TK_ISECTTYPE:
+    {
+      // Find the first concrete type in the intersection.
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_t* def = receiver_def(child);
+
+        if(def != NULL)
+        {
+          switch(ast_id(def))
+          {
+            case TK_PRIMITIVE:
+            case TK_CLASS:
+            case TK_ACTOR:
+              return def;
+
+            default: {}
+          }
+        }
+
+        child = ast_sibling(child);
+      }
+
+      break;
+    }
+
+    case TK_NOMINAL:
+      // Return the def.
+      return (ast_t*)ast_data(type);
+
+    case TK_ARROW:
+      // Use the right-hand side.
+      return receiver_def(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  return NULL;
+}
+
+static int check_call_send(ast_t* ast, bool in_final)
 {
   AST_GET_CHILDREN(ast, positional, named, lhs);
   AST_GET_CHILDREN(lhs, receiver, method);
-  ast_t* typeargs = NULL;
 
   switch(ast_id(receiver))
   {
     case TK_NEWREF:
     case TK_FUNREF:
       // Qualified. Get the real receiver.
-      typeargs = receiver;
       receiver = ast_child(receiver);
       method = ast_sibling(receiver);
       break;
@@ -62,18 +107,23 @@ static final_send_t check_call_send(ast_t* ast)
   if(!is_known(type))
     return FINAL_CAN_SEND;
 
-  // TODO: if it's an intersection type, we need the method on the concrete
-  // type. we need to set flags on the real one, not this reified one.
-  ast_t* find = lookup(NULL, receiver, type, ast_name(method));
-  assert(find != NULL);
+  ast_t* def = receiver_def(type);
+  assert(def != NULL);
 
-  AST_GET_CHILDREN(find, cap, id, typeparams, params, result, can_error, body);
+  const char* method_name = ast_name(method);
+  ast_t* fun = ast_get(def, method_name, NULL);
+  assert(fun != NULL);
 
-  final_send_t r = check_body_send(body);
+  AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error, body);
+  int r = check_body_send(body, false);
 
   if(r == FINAL_NO_SEND)
   {
     // Mark the call as no send.
+    ast_clearmightsend(ast);
+  } else if(in_final && (r == FINAL_RECURSE)) {
+    // If we're in the finaliser, which can't recurse, we treat a recurse as
+    // a no send.
     ast_clearmightsend(ast);
   } else if((r & FINAL_CAN_SEND) != 0) {
     // Mark the call as can send.
@@ -83,19 +133,19 @@ static final_send_t check_call_send(ast_t* ast)
   return r;
 }
 
-static final_send_t check_expr_send(ast_t* ast)
+static int check_expr_send(ast_t* ast, bool in_final)
 {
-  final_send_t send = FINAL_NO_SEND;
+  int send = FINAL_NO_SEND;
 
   if(ast_id(ast) == TK_CALL)
-    send |= check_call_send(ast);
+    send |= check_call_send(ast, in_final);
 
   ast_t* child = ast_child(ast);
 
   while(child != NULL)
   {
     if(ast_mightsend(child))
-      send |= check_expr_send(child);
+      send |= check_expr_send(child, in_final);
 
     child = ast_sibling(child);
   }
@@ -103,7 +153,7 @@ static final_send_t check_expr_send(ast_t* ast)
   return send;
 }
 
-static final_send_t check_body_send(ast_t* ast)
+static int check_body_send(ast_t* ast, bool in_final)
 {
   if(ast_inprogress(ast))
     return FINAL_RECURSE;
@@ -116,7 +166,7 @@ static final_send_t check_body_send(ast_t* ast)
 
   ast_setinprogress(ast);
 
-  final_send_t r = check_expr_send(ast);
+  int r = check_expr_send(ast, in_final);
 
   if(r == FINAL_NO_SEND)
   {
@@ -139,7 +189,7 @@ static bool entity_finaliser(ast_t* entity, const char* final)
     return true;
 
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
-  final_send_t r = check_body_send(body);
+  int r = check_body_send(body, true);
 
   if((r & FINAL_CAN_SEND) != 0)
   {
@@ -194,9 +244,6 @@ static bool package_finalisers(ast_t* package, const char* final)
 
 bool pass_finalisers(ast_t* program)
 {
-  // TODO: remove this
-  return true;
-
   ast_t* package = ast_child(program);
   const char* final = stringtab("_final");
   bool ok = true;

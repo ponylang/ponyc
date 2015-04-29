@@ -19,7 +19,7 @@ typedef struct dwarf_meta_t dwarf_meta_t;
 typedef struct gentype_t gentype_t;
 typedef struct symbols_t symbols_t;
 
-enum DWARF_FLAGS
+enum
 {
   DWARF_FLOAT        = 1 << 0,
   DWARF_SIGNED       = 1 << 1,
