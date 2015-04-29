@@ -17,7 +17,12 @@ endif
 # Default settings (silent debug build).
 config ?= debug
 arch ?= native
+
+ifneq ($(wildcard .git),)
 tag := $(shell git describe --tags --always)
+else
+tag := $(shell cat VERSION)
+endif
 
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
