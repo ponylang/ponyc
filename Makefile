@@ -360,9 +360,9 @@ prerelease:
 else
 $(eval tag := $(version))
 $(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
-ifneq($(unstaged),0)
+ifneq ($(unstaged),0)
 prerelease:
-	$(error Detected unstaged changes. Release aborted)
+	$$(error "Detected unstaged changes. Release aborted")
 else
 prerelease: libponyc libponyrt ponyc
 	@while [ -z "$$$$CONTINUE" ]; do \
