@@ -14,7 +14,7 @@
 #include <string.h>
 #include <assert.h>
 
-typedef enum
+enum
 {
   AST_CAN_ERROR = 1 << 0,
   AST_CAN_SEND = 1 << 1,
@@ -22,7 +22,7 @@ typedef enum
   AST_IN_PROGRESS = 1 << 3,
 
   AST_ALL_FLAGS = (1 << 4) - 1
-} ast_flags_t;
+};
 
 struct ast_t
 {

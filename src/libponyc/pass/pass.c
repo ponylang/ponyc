@@ -42,7 +42,6 @@ const char* pass_name(pass_id pass)
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
     case PASS_EXPR: return "expr";
-    case PASS_FINALISERS: return "expr";
     case PASS_AST: return "ast";
     case PASS_LLVM_IR: return "ir";
     case PASS_BITCODE: return "bitcode";
@@ -174,7 +173,7 @@ bool program_passes(ast_t* program, pass_opt_t* options)
   if(do_pass(&program, &r, options, PASS_EXPR, NULL, pass_expr))
     return r;
 
-  if(options->limit >= PASS_FINALISERS)
+  if(options->limit >= PASS_EXPR)
   {
     if(!pass_finalisers(program))
       return false;

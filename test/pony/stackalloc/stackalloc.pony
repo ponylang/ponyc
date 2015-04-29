@@ -6,12 +6,14 @@ class Foo
   new create(env: Env) =>
     _env = env
 
-  fun foo(): Bool => true
+  fun foo(): Bool =>
+    // _env.out.print("hi")
+    true
 
   fun _final() =>
-    // foo()
-    // @printf[I32]("Foo died\n".cstring())
-    Array[U8].undefined[U8](0)
+    foo()
+    @printf[I32]("Foo died\n".cstring())
+    Array[U8].undefined[U8](0).reserve(8)
 
 actor Main
   new create(env: Env) =>
