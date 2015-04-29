@@ -1,31 +1,63 @@
 """
-Each unit test class must provide this trait. Simple tests only need to
-define the name() and apply() functions. The remaining functions specify
-additional test options.
+# PonyTest package
 
-# Test names.
+The PonyTest package provides a unit testing framework. It is designed to be as
+simple as possible to use, both for the unit test writer and the user running
+the tests.
 
-Report the test name, which is used when printing test results and on the
-command line to select tests to run.
+Each unit test is a class, with a single test function. By default all tests
+run concurrently.
 
-# Exclusion groups.
+Each test run is provided with a helper object. This provides logging and
+assertion functions. By default log messages are only shown for tests that
+fail.
 
-No tests that are in the same exclusion group will be run concurrently.
+When any assertion function fails the test is counted as a fail. However, tests
+can also indicate failure by return false or throwing errors from the test
+function.
 
-By default all tests are run concurrently. This may be a problem for some
-tests, eg if they manipulate an external file or use a system resource. To fix
-this issue any number of tests may be put into an exclusion group.
+## Example program
 
-Exclusion groups are identified by name, arbitrary strings may be used.
-Multiple exclusion groups may be used and tests in different groups may run
-concurrently. Tests that do not specify an exclusion group may be run
-concurrently with any other tests.
+To use PonyTest simply write a class for each test and provide a list of those
+classes to a PonyTest object. The following is a complete program with 2
+trivial tests.
 
-The command line option "--sequential" prevents any tests from running
-concurrently, regardless of exclusion group. This is intended for debugging
-rather than standard use.
+```
+use "ponytest"
 
-# Long tests.
+actor Main
+  new create(env: Env) =>
+    var test = PonyTest(env)
+    test(recover TestAdd end)
+    test(recover TestSub end)
+    test.complete()
+
+class TestAdd iso is UnitTest
+  fun name():String => "addition"
+
+  fun apply(h: TestHelper): Bool =>
+    h.assert_eq[U32](4, 2 + 2)
+    true
+
+class TestSub iso is UnitTest
+  fun name():String => "subtraction"
+
+  fun apply(h: TestHelper): Bool =>
+    h.assert_eq[U32](4, 4 - 2)
+    true
+```
+
+## Test names
+
+Tests are identified by names, which are used when printing test results and on
+the command line to select which tests to run. These names are independent of
+the names of the test classes in the Pony source code.
+
+Arbitrary strings can be used for these names, but for large projects it is
+strongly recommended to use a hierarchical naming scheme to make it easier to
+select groups of tests.
+
+## Long tests
 
 Simple tests run within a single function. When that function exits, either
 returning a result or throwing an error, the test is complete. This is not
@@ -35,56 +67,44 @@ Long tests allow for delayed completion. Any test can return LongTest from its
 test function, indicating that the test needs to keep running. When the test is
 finally complete it calls the complete() function on its TestHelper.
 
+The complete() function takes a Bool parameter to specify whether the test was
+a success. If any asserts fail then the test will be considered a failure
+regardless of the value of this parameter. However, complete() must still be
+called.
 
+Tests that do not return LongTest can still call complete(), but it is ignored.
 
+## Exclusion groups
 
-to indicate they are finished.
+By default all tests are run concurrently. This may be a problem for some
+tests, eg if they manipulate an external file or use a system resource. To fix
+this issue any number of tests may be put into an exclusion group.
 
+No tests that are in the same exclusion group will be run concurrently.
 
+Exclusion groups are identified by name, arbitrary strings may be used.
+Multiple exclusion groups may be used and tests in different groups may run
+concurrently. Tests that do not specify an exclusion group may be run
+concurrently with any other tests.
 
+The command line option "--sequential" prevents any tests from running
+concurrently, regardless of exclusion groups. This is intended for debugging
+rather than standard use.
 """
-
 
 use "collections"
 use "options"
 use "regex"
 
 
-primitive LongTest
-type TestResult is (Bool | LongTest)
-
-
-trait UnitTest
-  """
-  Each unit test class must provide this trait. Simple tests only need to
-  define the name() and apply() functions. The remaining functions specify
-  additional test options.
-  """
-
-  fun name(): String
-    """
-    Report the test name, which is used when printing test results and on the
-    command line to select tests to run.
-    """
-
-  fun exclusion_group(): String =>
-    """
-    Report the test exclusion group, returning an empty string for none.
-    The default body returns an empty string.
-    """
-    ""
-
-  fun ref apply(t: TestHelper): TestResult ?
-    """
-    """
-
-
-type _TestRecord is (String, Bool, (Array[String] val | None))
-
-
 actor PonyTest
-  let _testers: Map[String, _Tester]
-  let _records: Array[_TestRecord]
+  """
+  Main test framework actor that organises tests, collates information and
+  prints results.
+  """
+
+  let _groups: Map[String, _Group] = Map[String, _Group]
+  let _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
   var _do_nothing: Bool = false
   var _filter: (Regex | None) = None
@@ -92,15 +112,18 @@ actor PonyTest
   var _sequential: Bool = false
   var _started: U64 = 0
   var _finished: U64 = 0
+  var _any_found: Bool = false
   var _all_started: Bool = false
 
   new create(env: Env) =>
-    _testers = Map[String, _Tester]
-    _records = Array[_TestRecord]
     _env = env
     _process_opts()
+    _groups("") = _SimultaneousGroup
 
   be apply(test: UnitTest iso) =>
+    """
+    Run the given test, subject to our filter and options.
+    """
     if _do_nothing then
       return
     end
@@ -115,65 +138,93 @@ actor PonyTest
       end
     end
 
+    _any_found = true
     var index = _records.size()
-    _records.push((name, false, None))
+    _records.push(_TestRecord(_env, name))
     
-    _started = _started + 1
-    _env.out.print("Tests: " + _started.string() + " started, " +
-      _finished.string() + " complete")
+    var group = _find_group(test.exclusion_group())
+    group(TestHelper._create(this, index, consume test, group))
 
-    var tester = _tester_for_group(test.exclusion_group())
-    tester(consume test, index)
-
-  fun ref _tester_for_group(group: String): _Tester =>
-    var g = group
+  fun ref _find_group(group_name: String): _Group =>
+    """
+    Find the group to use for the given group name, subject to the
+    --sequential flag.
+    """
+    var name = group_name
 
     if _sequential then
-      // Use the same tester for all tests
-      g = ""
-    elseif group == "" then
-      // No exclusion group, this test gets its own tester
-      return _Tester(this)
+      // Use the same group for all tests.
+      name = "all"
     end
 
     try
-      _testers(g)
+      _groups(name)
     else
-      // No tester made for group yet, make one
-      var t = _Tester(this)
-      _testers(g) = t
-      t
+      // Group doesn't exist yet, make it.
+      // We only need one simultanoues group, which we've already made. All new
+      // groups are exclusive.
+      var g = _ExclusiveGroup
+      _groups(name) = g
+      g
     end
 
-  be _test_result(index: U64, pass: Bool, log: Array[String] val) =>
+  be _test_started(id: U64) =>
+    """
+    A test has started running, update status info.
+    The id parameter is the test identifier handed out when we created the test
+    helper.
+    """
+    _started = _started + 1
+    _env.out.print(_started.string() + " test" + _plural(_started) +
+      " started, " + _finished.string() + " complete")
+
+  be _test_complete(id: U64, pass: Bool, log: Array[String] val) =>
+    """
+    A test has completed, restore its result and update our status info.
+    The id parameter is the test identifier handed out when we created the test
+    helper.
+    """
     try
-      _records(index) = (_records(index)._1, pass, consume log)
+      _records(id)._result(pass, log)
     end
 
     _finished = _finished + 1
-    _env.out.print("Tests: " + _started.string() + " started, " +
-      _finished.string() + " complete")
+    _env.out.print(_started.string() + " test" + _plural(_started) +
+      " started, " + _finished.string() + " complete")
     
-    if _all_started and (_finished == _started) then
+    if _all_started and (_finished == _records.size()) then
+      // All tests have completed
       _print_report()
     end
 
   be complete() =>
+    """
+    We will be given no more tests to run, print results when ready.
+    """
     if _do_nothing then
       return
     end
 
-    if _started == 0 then
+    if not _any_found then
+      // No tests matched our filter, print special message.
       _env.out.print("No tests found")
       return
     end
 
     _all_started = true
-    if _finished == _started then
+    if _finished == _records.size() then
+      // All tests have completed
       _print_report()
     end
 
   fun ref _process_opts() =>
+    """
+    Process our command line options.
+    All command line arguments given must be recognised and make sense.
+    State for specified options is stored in object fields.
+    """
+    // TODO: Options doesn't currently fully work for printing usage etc, this
+    // may need reworking when it's sorted out
     var opts = Options(_env)
 
     opts.usage_text(
@@ -206,37 +257,52 @@ actor PonyTest
     end
 
   fun _print_report() =>
+    """
+    The tests are all complete, print out the results.
+    """
     var pass_count: U64 = 0
     var fail_count: U64 = 0
 
+    // First we print the result summary for each test, in the order that they
+    // were given to us.
     try
       for rec in _records.values() do
-        var show_log = _log_all
-
-        if rec._2 then
-          // TODO: print colour
-          _env.out.print("---- Test passed: " + rec._1)  // green
+        if rec._report(_log_all) then
           pass_count = pass_count + 1
         else
-          //_env.out.print("\x1b[31m**** Test FAILED: " + rec._1 + "\x1b[39m")
-          _env.out.print("**** Test FAILED: " + rec._1)  // red
           fail_count = fail_count + 1
-          show_log = true
-        end
-
-       if show_log then
-         match rec._3
-         | let log: Array[String] val =>
-            for msg in log.values() do
-              _env.out.print(msg)
-            end
-          end
         end
       end
     end
 
+    // Next we print the pass / fail stats.
     _env.out.print("----")
-    _env.out.print(_records.size().string() + " tests run. " +
-      pass_count.string() + " passed, " + fail_count.string() + " failed.")
+    _env.out.print("---- " + _records.size().string() + " test" +
+      _plural(_records.size()) + " ran.")
+    _env.out.print("---- Passed: " + pass_count.string()) // green
 
-    _env.exitcode(if fail_count == 0 then 0 else -1 end)
+    if fail_count == 0 then
+      // Success, nothing failed.
+      _env.exitcode(0)
+      return
+    end
+
+    // Not everything passed.
+    _env.out.print("**** FAILED: " + fail_count.string() + " test" +
+      _plural(fail_count) + ", listed below:") // red
+
+    // Finally print our list of failed tests.
+    try
+      for rec in _records.values() do
+        rec._list_failed()
+      end
+    end
+
+    _env.exitcode(-1)
+
+  fun _plural(n: U64): String =>
+    """
+    Return a "s" or an empty string depending on whether the given number is 1.
+    For use when printing possibly plural words, eg "test" or "tests".
+    """
+    if n == 1 then "" else "s" end

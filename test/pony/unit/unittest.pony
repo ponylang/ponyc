@@ -5,8 +5,8 @@ actor Main
   new create(env: Env) =>
     var test = PonyTest(env)
 
-    test(recover iso TestBase64 end)
-    test(recover iso TestBase64Decode end)
+    test(recover TestBase64 end)
+    test(recover TestBase64Decode end)
 
     test.complete()
 
@@ -18,7 +18,7 @@ class TestBase64 iso is UnitTest
   """
   fun name():String => "encode.base64"
 
-  fun apply(h: TestHelper): Bool =>
+  fun apply(h: TestHelper): TestResult =>
     h.expect_eq[String]("", Base64.encode(""))
     h.expect_eq[String]("Zg==", Base64.encode("f"))
     h.expect_eq[String]("Zm8=", Base64.encode("fo"))
@@ -36,7 +36,7 @@ class TestBase64Decode iso is UnitTest
   """
   fun name():String => "encode.base64decode"
 
-  fun apply(h: TestHelper): Bool ? =>
+  fun apply(h: TestHelper): TestResult ? =>
     h.expect_eq[String]("", Base64.decode[String iso](""))
     h.expect_eq[String]("f", Base64.decode[String iso]("Zg=="))
     h.expect_eq[String]("fo", Base64.decode[String iso]("Zm8="))
