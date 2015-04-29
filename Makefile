@@ -359,12 +359,18 @@ prerelease:
 	$$(error "No version number specified.")
 else
 $(eval tag := $(version))
+$(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
+ifneq($(unstaged),0)
+prerelease:
+	$(error Detected unstaged changes. Release aborted)
+else
 prerelease: libponyc libponyrt ponyc
 	@while [ -z "$$$$CONTINUE" ]; do \
 	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
 	done ; \
 	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
 	@echo "Releasing ponyc v$(tag)."
+endif
 endif
 endif
 endef
@@ -417,13 +423,12 @@ release: prerelease setversion
 	@git commit -m "Releasing version $(tag)"
 	@git tag $(tag)
 	@git push
-	@git stash
 	@git checkout release
+	@git pull
 	@git merge master
 	@git push
 	@git checkout $(branch)
-	@git stash pop
-
+	
 stats:
 	@echo
 	@echo '------------------------------'
