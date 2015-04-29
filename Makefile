@@ -375,35 +375,42 @@ endef
 
 define EXPAND_INSTALL
 ifndef prefix
-$(eval out := usr/lib/pony/$(tag))
-$(eval symlink := yes)
+$$(eval out := /usr/local/lib/pony/$(tag))
+$$(eval symlink := yes)
 else
-$(eval out:= $(prefix))
-$(eval symlink := no)
+$$(eval out := $(prefix))
+$$(eval symlink := no)
 endif
 install: libponyc libponyrt ponyc
-	@mkdir -p $(out)/bin
-	@mkdir -p $(out)/lib
-	@mkdir -p $(out)/include
-	@cp $(PONY_BUILD_DIR)/libponyrt.a $(out)/lib
-	@cp $(PONY_BUILD_DIR)/libponyc.a $(out)/lib
-	@cp $(PONY_BUILD_DIR)/ponyc $(out)/bin
-	@cp src/libponyrt/pony.h $(out)/include
-	@cp -r packages $(out)/
-ifeq ($(symlink),yes)
-	@ln -s /usr/bin/ponyc $(out)/bin/ponyc
-	@ln -s /usr/lib/libponyrt.a $(out)/lib/libponyrt.a
-	@ln -s /usr/lib/libponyc.a $(out)/lib/libponyc.a
-	@ln -s /usr/include/pony.h $(out)/include/pony.h
+	@mkdir -p $$(out)/bin
+	@mkdir -p $$(out)/lib
+	@mkdir -p $$(out)/include
+	@cp $(PONY_BUILD_DIR)/libponyrt.a $$(out)/lib
+	@cp $(PONY_BUILD_DIR)/libponyc.a $$(out)/lib
+	@cp $(PONY_BUILD_DIR)/ponyc $$(out)/bin
+	@cp src/libponyrt/pony.h $$(out)/include
+	@cp -r packages $$(out)/
+ifeq ($$(symlink),yes)
+	@ln -sf $$(out)/bin/ponyc /usr/local/bin/ponyc
+	@ln -sf $$(out)/lib/libponyrt.a /usr/local/lib/libponyrt.a 
+	@ln -sf $$(out)/lib/libponyc.a /usr/local/lib/libponyc.a 
+	@ln -sf $$(out)/include/pony.h /usr/local/include/pony.h
 endif
 endef
+
+$(eval $(call EXPAND_INSTALL))
+$(eval $(call EXPAND_RELEASE))
+
+uninstall:
+	@rm -rf /usr/local/lib/pony
+	@rm /usr/local/bin/ponyc
+	@rm /usr/local/lib/libponyrt.a
+	@rm /usr/local/lib/libponyc.a
+	@rm /usr/local/include/pony.h
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-
-$(eval $(call EXPAND_INSTALL))
-$(eval $(call EXPAND_RELEASE))
 
 release: prerelease
 	@git tag $(version)
@@ -455,6 +462,7 @@ help:
 	@echo '  all               Build all of the above (default)'
 	@echo '  test              Run test suite'
 	@echo '  install           Install ponyc' 
+	@echo '  uninstall         Remove all versions of ponyc'
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'
 	@echo
