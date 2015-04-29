@@ -3,11 +3,13 @@
 #include "../ds/hash.h"
 #include "../ds/fun.h"
 #include "../mem/pool.h"
+#include "../mem/pagemap.h"
 #include <assert.h>
 
 typedef struct object_t
 {
   void* address;
+  pony_final_fn final;
   size_t rc;
   size_t mark;
 } object_t;
@@ -26,6 +28,7 @@ static object_t* object_alloc(void* address, size_t mark)
 {
   object_t* obj = (object_t*)POOL_ALLOC(object_t);
   obj->address = address;
+  obj->final = NULL;
   obj->rc = 0;
 
   // a new object is unmarked
@@ -111,6 +114,26 @@ object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark)
   return obj;
 }
 
+object_t* objectmap_register_final(objectmap_t* map, void* address,
+  pony_final_fn final, size_t mark)
+{
+  object_t* obj = objectmap_getorput(map, address, mark);
+  obj->final = final;
+  return obj;
+}
+
+void objectmap_final(objectmap_t* map)
+{
+  size_t i = HASHMAP_BEGIN;
+  object_t* obj;
+
+  while((obj = objectmap_next(map, &i)) != NULL)
+  {
+    if(obj->final != NULL)
+      obj->final(obj->address);
+  }
+}
+
 void objectmap_mark(objectmap_t* map)
 {
   size_t i = HASHMAP_BEGIN;
@@ -122,6 +145,18 @@ void objectmap_mark(objectmap_t* map)
     {
       pony_trace(obj->address);
     } else {
+      if(obj->final != NULL)
+      {
+        // If we are not free in the heap, don't run the finaliser and don't
+        // remove this entry from the object map.
+        chunk_t* chunk = (chunk_t*)pagemap_get(obj->address);
+
+        if(heap_ismarked(chunk, obj->address))
+          continue;
+
+        obj->final(obj->address);
+      }
+
       objectmap_removeindex(map, i);
       object_free(obj);
     }

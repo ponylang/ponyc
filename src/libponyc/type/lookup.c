@@ -81,21 +81,21 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
         assert(0);
         return NULL;
     }
-  }
 
-  if(!strcmp(name, "_final"))
-  {
-    switch(ast_id(find))
+    if(!strcmp(name, "_final"))
     {
-      case TK_NEW:
-      case TK_BE:
-      case TK_FUN:
-        if(errors)
-          ast_error(from, "can't lookup a _final function");
+      switch(ast_id(find))
+      {
+        case TK_NEW:
+        case TK_BE:
+        case TK_FUN:
+          if(errors)
+            ast_error(from, "can't lookup a _final function");
 
-        return NULL;
+          return NULL;
 
-      default: {}
+        default: {}
+      }
     }
   }
 

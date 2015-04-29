@@ -32,6 +32,11 @@ object_t* objectmap_getobject(objectmap_t* map, void* address);
 
 object_t* objectmap_getorput(objectmap_t* map, void* address, size_t mark);
 
+object_t* objectmap_register_final(objectmap_t* map, void* address,
+  pony_final_fn final, size_t mark);
+
+void objectmap_final(objectmap_t* map);
+
 void objectmap_mark(objectmap_t* map);
 
 PONY_EXTERN_C_END

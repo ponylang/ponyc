@@ -405,6 +405,16 @@ void gc_sendacquire()
   memset(&acquire, 0, sizeof(actormap_t));
 }
 
+void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
+{
+  objectmap_register_final(&gc->local, p, final, gc->mark);
+}
+
+void gc_final(gc_t* gc)
+{
+  objectmap_final(&gc->local);
+}
+
 void gc_done(gc_t* gc)
 {
   gc->mark++;

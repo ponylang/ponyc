@@ -28,8 +28,6 @@ bool actor_pendingdestroy(pony_actor_t* actor);
 
 void actor_setpendingdestroy(pony_actor_t* actor);
 
-bool actor_hasfinal(pony_actor_t* actor);
-
 void actor_final(pony_actor_t* actor);
 
 void actor_sweep(pony_actor_t* actor);

@@ -55,6 +55,10 @@ size_t gc_rc(gc_t* gc);
 
 deltamap_t* gc_delta(gc_t* gc);
 
+void gc_register_final(gc_t* gc, void* p, pony_final_fn final);
+
+void gc_final(gc_t* gc);
+
 void gc_done(gc_t* gc);
 
 PONY_EXTERN_C_END
