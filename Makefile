@@ -420,7 +420,7 @@ test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
 
-ifneq ($(git),yes)
+ifeq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION
 
