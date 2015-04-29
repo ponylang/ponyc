@@ -19,8 +19,9 @@ typedef enum
   AST_CAN_ERROR = 1 << 0,
   AST_CAN_SEND = 1 << 1,
   AST_MIGHT_SEND = 1 << 2,
+  AST_IN_PROGRESS = 1 << 3,
 
-  AST_ALL_FLAGS = (1 << 3) - 1
+  AST_ALL_FLAGS = (1 << 4) - 1
 } ast_flags_t;
 
 struct ast_t
@@ -377,13 +378,39 @@ void ast_setmightsend(ast_t* ast)
   ast->flags |= AST_MIGHT_SEND;
 }
 
+void ast_clearmightsend(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags &= ~AST_MIGHT_SEND;
+}
+
+bool ast_inprogress(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  return (ast->flags & AST_IN_PROGRESS) != 0;
+}
+
+void ast_setinprogress(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags |= AST_IN_PROGRESS;
+}
+
+void ast_clearinprogress(ast_t* ast)
+{
+  assert(ast->flags <= AST_ALL_FLAGS);
+  ast->flags &= ~AST_IN_PROGRESS;
+}
+
 void ast_inheritflags(ast_t* ast)
 {
   ast_t* child = ast->child;
 
   while(child != NULL)
   {
-    ast->flags |= child->flags;
+    if(child->flags <= AST_ALL_FLAGS)
+      ast->flags |= child->flags;
+
     child = ast_sibling(child);
   }
 }

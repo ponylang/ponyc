@@ -331,6 +331,10 @@ bool ast_cansend(ast_t* ast);
 void ast_setsend(ast_t* ast);
 bool ast_mightsend(ast_t* ast);
 void ast_setmightsend(ast_t* ast);
+void ast_clearmightsend(ast_t* ast);
+bool ast_inprogress(ast_t* ast);
+void ast_setinprogress(ast_t* ast);
+void ast_clearinprogress(ast_t* ast);
 void ast_inheritflags(ast_t* ast);
 
 const char* ast_get_print(ast_t* ast);

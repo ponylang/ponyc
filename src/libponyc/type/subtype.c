@@ -1067,3 +1067,57 @@ bool is_concrete(ast_t* type)
   assert(0);
   return false;
 }
+
+bool is_known(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_UNIONTYPE:
+    case TK_TUPLETYPE:
+    case TK_TYPEPARAMREF:
+      return false;
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_known(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+          return false;
+
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+        case TK_ACTOR:
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_ARROW:
+      return is_known(ast_childidx(type, 1));
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
