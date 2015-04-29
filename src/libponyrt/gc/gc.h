@@ -14,9 +14,10 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct gc_t
 {
-  size_t mark;
+  uint32_t mark;
+  uint32_t rc_mark;
   size_t rc;
-  size_t rc_mark;
+  size_t finalisers;
   objectmap_t local;
   actormap_t foreign;
   deltamap_t* delta;
