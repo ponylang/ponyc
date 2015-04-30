@@ -10,6 +10,7 @@ DEFINE_STACK(gcstack, void);
 
 static __pony_thread_local actormap_t acquire;
 static __pony_thread_local gcstack_t* stack;
+static __pony_thread_local bool finalising;
 
 static void acquire_actor(pony_actor_t* actor)
 {
@@ -407,14 +408,34 @@ void gc_sendacquire()
 
 void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
 {
-  objectmap_register_final(&gc->local, p, final, gc->mark);
-  gc->finalisers++;
+  if(!finalising)
+  {
+    // If we aren't finalising an actor, register the finaliser.
+    objectmap_register_final(&gc->local, p, final, gc->mark);
+    gc->finalisers++;
+  } else {
+    // Otherwise, put the finaliser on the gc stack.
+    stack = gcstack_push(stack, p);
+    stack = gcstack_push(stack, final);
+  }
 }
 
 void gc_final(gc_t* gc)
 {
-  if(gc->finalisers > 0)
-    objectmap_final(&gc->local);
+  if(gc->finalisers == 0)
+    return;
+
+  // Set the finalising flag.
+  finalising = true;
+
+  // Run all finalisers in the object map.
+  objectmap_final(&gc->local);
+
+  // Finalise any objects that were created during finalisation.
+  gc_handlestack();
+
+  // Clear the finalising flag.
+  finalising = false;
 }
 
 void gc_done(gc_t* gc)

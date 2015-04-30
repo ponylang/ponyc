@@ -188,12 +188,20 @@ void actor_setpendingdestroy(pony_actor_t* actor)
 
 void actor_final(pony_actor_t* actor)
 {
+  // This gets run while the cycle detector is handling a message. Set the
+  // current actor before running anything.
+  pony_actor_t* prev = this_actor;
+  this_actor = actor;
+
   // Run the actor finaliser if it has one.
   if(actor->type->final != NULL)
     actor->type->final(actor);
 
   // Run all outstanding object finalisers.
   gc_final(&actor->gc);
+
+  // Restore the current actor.
+  this_actor = prev;
 }
 
 void actor_sweep(pony_actor_t* actor)

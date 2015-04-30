@@ -1,7 +1,12 @@
 use "collections"
 
+class Bar
+  fun _final() =>
+    @printf[I32]("Bar died\n".cstring())
+
 class Foo
   fun _final() =>
+    Bar
     @printf[I32]("Foo died\n".cstring())
 
 actor Main
