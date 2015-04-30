@@ -11,7 +11,7 @@
 
 static ast_t* make_create(ast_t* ast)
 {
-  BUILD_NO_DEBUG(create, ast,
+  BUILD(create, ast,
     NODE(TK_NEW, AST_SCOPE
       NONE          // cap
       ID("create")  // name
