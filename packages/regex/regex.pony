@@ -10,7 +10,7 @@ class Regex
   var _pattern: Pointer[_Pattern]
   let _jit: Bool
 
-  new create(from: Bytes box, jit: Bool = true) =>
+  new create(from: Bytes box, jit: Bool = true) ? =>
     """
     Compile a regular expression. Raises an error for an invalid expression.
     """
@@ -20,19 +20,18 @@ class Regex
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
       opt, &err, &erroffset, Pointer[U8])
-    _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
 
-  fun valid(): Bool =>
-    """
-    Returns true if the regex used to create this was valid.
-    """
-    not _pattern.is_null()
+    if _pattern.is_null() then
+      error
+    end
+
+    _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
 
   fun eq(subject: Bytes box): Bool =>
     """
     Return true on a successful match, false otherwise.
     """
-    if not valid() then
+    if _pattern.is_null() then
       return false
     end
 
@@ -64,7 +63,7 @@ class Regex
 
     TODO: global match
     """
-    if not valid() then
+    if _pattern.is_null() then
       error
     end
 
@@ -78,7 +77,7 @@ class Regex
     a new string using the value as a replacement for what was matched. Raise
     an error if there is no match.
     """
-    if not valid() then
+    if _pattern.is_null() then
       error
     end
 
@@ -124,7 +123,7 @@ class Regex
     """
     Free the underlying PCRE2 data.
     """
-    if valid() then
+    if not _pattern.is_null() then
       @pcre2_code_free_8[None](_pattern)
       _pattern = Pointer[_Pattern]
     end
@@ -133,6 +132,6 @@ class Regex
     """
     Free the underlying PCRE2 data.
     """
-    if valid() then
+    if not _pattern.is_null() then
       @pcre2_code_free_8[None](_pattern)
     end

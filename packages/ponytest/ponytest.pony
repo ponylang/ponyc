@@ -243,10 +243,8 @@ actor PonyTest
       | ("sequential", None) => _sequential = true
       | ("log", None) => _log_all = true
       | ("filter", var arg: String) =>
-        let filter = Regex(arg)
-
-        if filter.valid() then
-          _filter = filter
+        try
+          _filter = Regex(arg)
         else
           _env.out.print("Invalid regular expression \"" + arg + "\"")
           _do_nothing = true
