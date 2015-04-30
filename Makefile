@@ -418,11 +418,11 @@ endef
 $(eval $(call EXPAND_INSTALL))
 
 uninstall:
-	@rm -rf /usr/local/lib/pony
-	@rm /usr/local/bin/ponyc
-	@rm /usr/local/lib/libponyrt.a
-	@rm /usr/local/lib/libponyc.a
-	@rm /usr/local/include/pony.h
+	-@rm -rf /usr/local/lib/pony 2>/dev/null ||:
+	-@rm /usr/local/bin/ponyc 2>/dev/null ||:
+	-@rm /usr/local/lib/libponyrt.a 2>/dev/null ||:
+	-@rm /usr/local/lib/libponyc.a 2>/dev/null ||:
+	-@rm /usr/local/include/pony.h 2>/dev/null ||:
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
