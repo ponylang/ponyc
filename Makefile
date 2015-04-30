@@ -36,6 +36,7 @@ ALL_CXXFLAGS = -std=gnu++11
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
+LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
 ifdef use
   ifneq (,$(filter $(use), numa))
@@ -74,6 +75,10 @@ endif
 
 ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
   LLVM_CONFIG = llvm-config-3.6
+endif
+
+ifneq ("$(wildcard $(LLVM_FALLBACK))","")
+  LLVM_CONFIG = $(LLVM_FALLBACK)
 endif
 
 ifndef LLVM_CONFIG
