@@ -6,18 +6,21 @@ actor Main
     try
       let pattern = env.args(1)
       let data = env.args(2)
+      let regex = Regex(pattern)
 
-      with regex = Regex(pattern) do
-        env.out.print(regex(data).string())
+      env.out.print((regex == data).string())
 
-        for i in Range(0, regex.count()) do
-          env.out.print(regex.index(i))
+      try
+        let r = regex(data)
+
+        for i in Range(0, r.size()) do
+          env.out.print(r(i))
         end
 
         try
-          env.out.print(regex.find("test"))
+          env.out.print(r.find("test"))
         end
-
-        env.out.print(regex(data) = env.args(3))
       end
+
+      env.out.print(regex.replace(data, env.args(3)))
     end

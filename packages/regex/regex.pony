@@ -1,22 +1,16 @@
 use "lib:pcre2-8"
 
 primitive _Pattern
-primitive _Match
 
 class Regex
   """
   A perl compatible regular expression. This uses the PCRE2 library, and
   attempts to enable JIT matching whenever possible.
-
-  TODO: find-all, auto-jit on multiple uses
-  use eq instead of apply
   """
   var _pattern: Pointer[_Pattern]
-  var _match: Pointer[_Match]
   let _jit: Bool
-  var _count: U64 = 0
 
-  new create(from: Bytes, jit: Bool = true) ? =>
+  new create(from: Bytes box, jit: Bool = true) =>
     """
     Compile a regular expression. Raises an error for an invalid expression.
     """
@@ -26,83 +20,94 @@ class Regex
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
       opt, &err, &erroffset, Pointer[U8])
-
-    Fact(not _pattern.is_null())
-
     _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
-    _match = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
-      Pointer[U8])
 
-  fun ref apply(subject: Bytes, offset: U64 = 0): Bool =>
+  fun valid(): Bool =>
     """
-    Match the supplied string, starting at the given offset.
+    Returns true if the regex used to create this was valid.
     """
-    let rc = if _jit then
-      @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
-        offset, U32(0), _match, Pointer[U8])
-    else
-      @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), offset,
-        U32(0), _match, Pointer[U8])
+    not _pattern.is_null()
+
+  fun eq(subject: Bytes box): Bool =>
+    """
+    Return true on a successful match, false otherwise.
+    """
+    if not valid() then
+      return false
     end
 
-    _count = rc.max(0).u64()
+    let m = @pcre2_match_data_create_from_pattern_8[Pointer[_Match]](_pattern,
+      Pointer[U8])
+
+    let rc = if _jit then
+      @pcre2_jit_match_8[I32](_pattern, subject.cstring(), subject.size(),
+        U64(0), U32(0), m, Pointer[U8])
+    else
+      @pcre2_match_8[I32](_pattern, subject.cstring(), subject.size(), U64(0),
+        U32(0), m, Pointer[U8])
+    end
+
+    @pcre2_match_data_free_8[None](m)
     rc > 0
 
-  fun ref update(subject: Bytes, offset: U64 = 0, global: Bool = false,
-    value: Bytes): String iso^
+  fun ne(subject: Bytes box): Bool =>
+    """
+    Return false on a successful match, true otherwise.
+    """
+    not eq(subject)
+
+  fun apply(subject: Bytes, offset: U64 = 0): Match iso^ ? =>
+    """
+    Match the supplied string, starting at the given offset. Returns a Match
+    object that can give precise match details. Raises an error if there is no
+    match.
+
+    TODO: global match
+    """
+    if not valid() then
+      error
+    end
+
+    Match._create(_pattern, _jit, subject, offset)
+
+  fun replace[A: (Seq[U8] iso & Bytes iso) = String iso](subject: Bytes,
+    value: Bytes box, offset: U64 = 0, global: Bool = false): A^ ?
   =>
     """
     Perform a match on the subject, starting at the given offset, and create
-    a new string using the value as a replacement for what was matched.
+    a new string using the value as a replacement for what was matched. Raise
+    an error if there is no match.
     """
+    if not valid() then
+      error
+    end
+
     var opt = U32(0)
     if global then opt = opt or 0x00000100 end // PCRE2_SUBSTITUTE_GLOBAL
 
-    var len = subject.size().next_pow2()
-    let out = recover String(len - 1) end
+    var len = subject.size().max(64)
+    let out = recover A(len) end
     var rc = I32(0)
 
     repeat
       rc = @pcre2_substitute_8[I32](_pattern,
-        subject.cstring(), subject.size(), offset, opt, _match, Pointer[U8],
-        value.cstring(), value.size(), out.cstring(), &len)
+        subject.cstring(), subject.size(), offset, opt, Pointer[U8],
+        Pointer[U8], value.cstring(), value.size(), out.cstring(), &len)
 
       if rc == -48 then
         len = len * 2
-        out.reserve(len - 1)
+        out.reserve(len)
       end
     until rc != -48 end
 
-    _count = rc.max(0).u64()
-    out.truncate(len)
-    out
-
-  fun count(): U64 =>
-    """
-    Returns the capture count of the most recent match. This will be zero if
-    the match failed.
-    """
-    _count
-
-  fun index(i: U64): String iso^ ? =>
-    """
-    Returns a capture by number. Raises an error if the index is out of bounds.
-    """
-    if i >= _count then
+    if rc <= 0 then
       error
     end
 
-    var len = U64(0)
-    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), &len)
-
-    let out = recover String(len) end
-    len = len + 1
-
-    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(), &len)
     out.truncate(len)
     out
 
-  fun index_of(name: String box): U64 ? =>
+  fun index(name: String box): U64 ? =>
     """
     Returns the index of a named capture. Raises an error if the named capture
     does not exist.
@@ -112,37 +117,22 @@ class Regex
     if rc < 0 then
       error
     end
+
     rc.u64()
-
-  fun find(name: String box): String iso^ ? =>
-    """
-    Returns a capture by name. Raises an error if the named capture does not
-    exist.
-    """
-    var len = U64(0)
-    let rc = @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
-      &len)
-
-    if rc != 0 then
-      error
-    end
-
-    let out = recover String(len) end
-    len = len + 1
-
-    @pcre2_substring_copy_byname_8[I32](_match, name.cstring(), out.cstring(),
-      &len)
-    out.truncate(len)
-    out
 
   fun ref dispose() =>
     """
     Free the underlying PCRE2 data.
     """
-    if not _pattern.is_null() then
+    if valid() then
       @pcre2_code_free_8[None](_pattern)
       _pattern = Pointer[_Pattern]
+    end
 
-      @pcre2_match_data_free_8[None](_match)
-      _match = Pointer[_Match]
+  fun _final() =>
+    """
+    Free the underlying PCRE2 data.
+    """
+    if valid() then
+      @pcre2_code_free_8[None](_pattern)
     end

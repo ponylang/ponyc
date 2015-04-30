@@ -60,6 +60,12 @@ interface Seq[A]
     Append the elements from a sequence, starting from the given offset.
     """
 
+  fun ref truncate(len: U64): Seq[A]^
+    """
+    Truncate the sequence to the given length, discarding excess elements.
+    If the sequence is already smaller than len, do nothing.
+    """
+
   fun values(): Iterator[this->A]^
     """
     Returns an iterator over the elements of the sequence.

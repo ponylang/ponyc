@@ -133,7 +133,7 @@ actor PonyTest
     // Ignore any tests that don't satisfy our filter, if we have one
     match _filter
     | var filter: Regex =>
-      if not filter(name) then
+      if filter != name then
         return
       end
     end
@@ -141,7 +141,7 @@ actor PonyTest
     _any_found = true
     var index = _records.size()
     _records.push(_TestRecord(_env, name))
-    
+
     var group = _find_group(test.exclusion_group())
     group(TestHelper._create(this, index, consume test, group))
 
@@ -191,7 +191,7 @@ actor PonyTest
     _finished = _finished + 1
     _env.out.print(_started.string() + " test" + _plural(_started) +
       " started, " + _finished.string() + " complete")
-    
+
     if _all_started and (_finished == _records.size()) then
       // All tests have completed
       _print_report()
@@ -243,8 +243,10 @@ actor PonyTest
       | ("sequential", None) => _sequential = true
       | ("log", None) => _log_all = true
       | ("filter", var arg: String) =>
-        try
-          _filter = Regex(arg)
+        let filter = Regex(arg)
+
+        if filter.valid() then
+          _filter = filter
         else
           _env.out.print("Invalid regular expression \"" + arg + "\"")
           _do_nothing = true

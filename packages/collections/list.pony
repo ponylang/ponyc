@@ -169,6 +169,19 @@ class List[A] is Seq[A]
 
     this
 
+  fun ref truncate(len: U64): List[A]^ =>
+    """
+    Truncate the list to the given length, discarding excess elements.
+    If the list is already smaller than len, do nothing.
+    """
+    try
+      while _size > len do
+        pop()
+      end
+    end
+
+    this
+
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
     Return an iterator on the nodes in the list.
