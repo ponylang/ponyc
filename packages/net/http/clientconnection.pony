@@ -82,20 +82,10 @@ actor _ClientConnection
 
   be _closed() =>
     """
-    The connection to the server has closed prematurely. Reschedule sent
-    requests that haven't been cancelled.
-
-    TODO: cancel them instead?
+    The connection to the server has closed prematurely. Cancel everything.
     """
-    try
-      for node in _sent.rnodes() do
-        node.remove()
-        try _unsent.unshift(node.pop()) end
-      end
-    end
-
+    _cancel_all()
     _conn = None
-    _send()
 
   fun ref _send() =>
     """

@@ -123,8 +123,8 @@ class Buffer
       _chunks.shift()
     end
 
-    out.truncate(out.size() -
-      if (out.size() >= 2) and (out(-2) == '\r') then 2 else 1 end)
+    out.truncate(len -
+      if (len >= 2) and (out.at_offset(-2) == '\r') then 2 else 1 end)
 
     consume out
 
