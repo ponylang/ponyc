@@ -554,11 +554,23 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
   // Get the size of the structure.
   size_t size = LLVMABISizeOfType(c->target_data, g->structure);
 
+  // Get the finaliser, if there is one.
+  const char* final = genname_finalise(g->type_name);
+  LLVMValueRef final_fun = LLVMGetNamedFunction(c->module, final);
+
   // Allocate the object.
-  LLVMValueRef args[1];
+  LLVMValueRef result;
+  LLVMValueRef args[2];
   args[0] = LLVMConstInt(c->i64, size, false);
 
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 1, "");
+  if(final_fun == NULL)
+  {
+    result = gencall_runtime(c, "pony_alloc", args, 1, "");
+  } else {
+    args[1] = LLVMConstBitCast(final_fun, c->final_fn);
+    result = gencall_runtime(c, "pony_alloc_final", args, 2, "");
+  }
+
   result = LLVMBuildBitCast(c->builder, result, g->structure_ptr, "");
 
   // Set the descriptor.

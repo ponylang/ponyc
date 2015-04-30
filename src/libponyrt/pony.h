@@ -78,10 +78,10 @@ typedef void (*pony_trace_fn)(void* p);
  */
 typedef void (*pony_dispatch_fn)(pony_actor_t* actor, pony_msg_t* m);
 
-/** Actor finalizer.
+/** Finalizer.
  *
- *  Each actor supplies a finalizer, which is called
- *  before an actor is collected.
+ * An actor or object can supply a finalizer, which is called before it is
+ * collected.
  */
 typedef void (*pony_final_fn)(void* p);
 
@@ -196,6 +196,13 @@ ATTRIBUTE_MALLOC(void* pony_alloc(size_t size));
  */
 ATTRIBUTE_MALLOC(void* pony_realloc(void* p, size_t size));
 
+/** Allocate memory with a finaliser.
+ *
+ * Attach a finaliser that will be run on memory when it is collected. Such
+ * memory cannot be safely realloc'd.
+ */
+ATTRIBUTE_MALLOC(void* pony_alloc_final(size_t size, pony_final_fn final));
+
 /// Trigger GC next time the current actor is scheduled
 void pony_triggergc();
 
@@ -207,8 +214,8 @@ void pony_triggergc();
 void pony_schedule(pony_actor_t* actor);
 
 /**
- * The current actor will no longer be scheduled. It will not handle messages on
- * its queue until it is rescheduled.
+ * The current actor will no longer be scheduled. It will not handle messages
+ * on its queue until it is rescheduled.
  */
 void pony_unschedule();
 
@@ -233,15 +240,15 @@ bool pony_poll(pony_actor_t* actor);
 
 /** Start gc tracing for sending.
  *
- * Call this before sending a message if it has anything in it that can be GCed.
- * Then trace all the GCable items, then call pony_gc_done.
+ * Call this before sending a message if it has anything in it that can be
+ * GCed. Then trace all the GCable items, then call pony_gc_done.
  */
 void pony_gc_send();
 
 /** Start gc tracing for receiving.
  *
- * Call this when receiving a message if it has anything in it that can be GCed.
- * Then trace all the GCable items, then call pony_gc_done.
+ * Call this when receiving a message if it has anything in it that can be
+ * GCed. Then trace all the GCable items, then call pony_gc_done.
  */
 void pony_gc_recv();
 
@@ -282,15 +289,15 @@ void pony_traceobject(void* p, pony_trace_fn f);
 
 /** Trace unknown.
  *
- * This should be called for fields in an object with an unknown type, but which
- * are not tags.
+ * This should be called for fields in an object with an unknown type, but
+ * which are not tags.
  */
 void pony_traceunknown(void* p);
 
 /** Trace a tag or an actor
  *
- * This should be called for fields in an object that might be an actor or might
- * be a tag.
+ * This should be called for fields in an object that might be an actor or
+ * might be a tag.
  */
 void pony_trace_tag_or_actor(void* p);
 

@@ -14,9 +14,10 @@ PONY_EXTERN_C_BEGIN
 
 typedef struct gc_t
 {
-  size_t mark;
+  uint32_t mark;
+  uint32_t rc_mark;
   size_t rc;
-  size_t rc_mark;
+  size_t finalisers;
   objectmap_t local;
   actormap_t foreign;
   deltamap_t* delta;
@@ -54,6 +55,10 @@ bool gc_release(gc_t* gc, actorref_t* aref);
 size_t gc_rc(gc_t* gc);
 
 deltamap_t* gc_delta(gc_t* gc);
+
+void gc_register_final(gc_t* gc, void* p, pony_final_fn final);
+
+void gc_final(gc_t* gc);
 
 void gc_done(gc_t* gc);
 

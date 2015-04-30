@@ -689,9 +689,6 @@ static bool genfun_allocator(compile_t* c, gentype_t* g)
 
 bool genfun_methods(compile_t* c, gentype_t* g)
 {
-  if(!genfun_allocator(c, g))
-    return false;
-
   reachable_type_t* t = reach_type(c->reachable, g->type_name);
 
   size_t i = HASHMAP_BEGIN;
@@ -731,6 +728,9 @@ bool genfun_methods(compile_t* c, gentype_t* g)
         return false;
     }
   }
+
+  if(!genfun_allocator(c, g))
+    return false;
 
   return true;
 }

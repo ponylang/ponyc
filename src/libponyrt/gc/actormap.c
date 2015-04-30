@@ -12,7 +12,7 @@ typedef struct actorref_t
 {
   pony_actor_t* actor;
   size_t rc;
-  size_t mark;
+  uint32_t mark;
   objectmap_t map;
 } actorref_t;
 
@@ -26,7 +26,7 @@ static bool actorref_cmp(actorref_t* a, actorref_t* b)
   return a->actor == b->actor;
 }
 
-static actorref_t* actorref_alloc(pony_actor_t* actor, size_t mark)
+static actorref_t* actorref_alloc(pony_actor_t* actor, uint32_t mark)
 {
   actorref_t* aref = (actorref_t*)POOL_ALLOC(actorref_t);
   memset(aref, 0, sizeof(actorref_t));
@@ -52,12 +52,12 @@ objectmap_t* actorref_map(actorref_t* aref)
   return &aref->map;
 }
 
-bool actorref_marked(actorref_t* aref, size_t mark)
+bool actorref_marked(actorref_t* aref, uint32_t mark)
 {
   return aref->mark == mark;
 }
 
-void actorref_mark(actorref_t* aref, size_t mark)
+void actorref_mark(actorref_t* aref, uint32_t mark)
 {
   aref->mark = mark;
 }
@@ -86,7 +86,7 @@ object_t* actorref_getobject(actorref_t* aref, void* address)
   return objectmap_getobject(&aref->map, address);
 }
 
-object_t* actorref_getorput(actorref_t* aref, void* address, size_t mark)
+object_t* actorref_getorput(actorref_t* aref, void* address, uint32_t mark)
 {
   return objectmap_getorput(&aref->map, address, mark);
 }
@@ -100,7 +100,7 @@ void actorref_free(actorref_t* aref)
 DEFINE_HASHMAP(actormap, actorref_t, actorref_hash, actorref_cmp,
   pool_alloc_size, pool_free_size, actorref_free);
 
-static actorref_t* move_unmarked_objects(actorref_t* from, size_t mark)
+static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
 {
   size_t size = objectmap_size(&from->map);
 
@@ -150,7 +150,8 @@ actorref_t* actormap_getactor(actormap_t* map, pony_actor_t* actor)
   return actormap_get(map, &key);
 }
 
-actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor, size_t mark)
+actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor,
+  uint32_t mark)
 {
   actorref_t* aref = actormap_getactor(map, actor);
 
@@ -162,7 +163,7 @@ actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor, size_t mark)
   return aref;
 }
 
-deltamap_t* actormap_sweep(actormap_t* map, size_t mark, deltamap_t* delta)
+deltamap_t* actormap_sweep(actormap_t* map, uint32_t mark, deltamap_t* delta)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;

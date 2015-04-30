@@ -331,7 +331,7 @@ void gc_handlestack()
 
 void gc_mark(gc_t* gc)
 {
-  objectmap_mark(&gc->local);
+  gc->finalisers -= objectmap_mark(&gc->local);
 }
 
 void gc_sweep(gc_t* gc)
@@ -403,6 +403,18 @@ void gc_sendacquire()
 
   actormap_destroy(&acquire);
   memset(&acquire, 0, sizeof(actormap_t));
+}
+
+void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
+{
+  objectmap_register_final(&gc->local, p, final, gc->mark);
+  gc->finalisers++;
+}
+
+void gc_final(gc_t* gc)
+{
+  if(gc->finalisers > 0)
+    objectmap_final(&gc->local);
 }
 
 void gc_done(gc_t* gc)

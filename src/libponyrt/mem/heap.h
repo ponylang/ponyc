@@ -35,8 +35,8 @@ __pony_spec_malloc__(
 void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size);
 
 /**
- * Adds to the used memory figure kept by the heap. This allows objects received
- * in messages to count towards the GC heuristic.
+ * Adds to the used memory figure kept by the heap. This allows objects
+ * received in messages to count towards the GC heuristic.
  */
 void heap_used(heap_t* heap, size_t size);
 
@@ -49,10 +49,15 @@ bool heap_startgc(heap_t* heap);
 bool heap_mark(chunk_t* chunk, void* p);
 
 /**
- * Marks an address, but does not affect the return value of heap_mark() for the
- * same address, nor does it indicate previous mark status.
+ * Marks an address, but does not affect the return value of heap_mark() for
+ * the same address, nor does it indicate previous mark status.
  */
 void heap_mark_shallow(chunk_t* chunk, void* p);
+
+/**
+ * Returns true if the address is marked (allocated).
+ */
+bool heap_ismarked(chunk_t* chunk, void* p);
 
 void heap_endgc(heap_t* heap);
 

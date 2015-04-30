@@ -141,7 +141,6 @@ typedef struct detector_t
 
   viewmap_t views;
   viewmap_t deferred;
-  viewmap_t finalise;
   perceivedmap_t perceived;
 
   size_t block_msgs;
@@ -169,9 +168,6 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->actor = actor;
 
     viewmap_put(&d->views, view);
-
-    if(actor_hasfinal(actor))
-      viewmap_put(&d->finalise, view);
   }
 
   return view;
@@ -518,14 +514,9 @@ static void collect(detector_t* d, perceived_t* per)
     if(view->deferred)
       viewmap_remove(&d->deferred, view);
 
-    actor_setpendingdestroy(view->actor);
-
     // invoke the actor's finalizer
-    if(actor_hasfinal(view->actor))
-    {
-      viewmap_remove(&d->finalise, view);
-      actor_final(view->actor);
-    }
+    actor_setpendingdestroy(view->actor);
+    actor_final(view->actor);
   }
 
   // actors being collected that have references to actors that are not in
@@ -658,7 +649,7 @@ static void final(pony_actor_t* self)
 
   // invoke the actor's finalizer. note that system actors and unscheduled
   // actors will not necessarily be finalised.
-  while((view = viewmap_next(&d->finalise, &i)) != NULL)
+  while((view = viewmap_next(&d->views, &i)) != NULL)
     actor_final(view->actor);
 
   // terminate the scheduler

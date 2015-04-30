@@ -10,5 +10,4 @@
 build/
 work/
 output/
-.gitattributes
 _ReSharper.*
