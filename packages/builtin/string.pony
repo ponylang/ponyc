@@ -534,6 +534,8 @@ class String val is Seq[U8], Ordered[String box], Stringable
   =>
     """
     Append the elements from a sequence, starting from the given offset.
+
+    TODO: optimise when it is a string or an array
     """
     if offset >= seq.size() then
       return this
@@ -542,10 +544,11 @@ class String val is Seq[U8], Ordered[String box], Stringable
     let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
+    let cap = copy_len + offset
     var i = offset
 
     try
-      while i < copy_len do
+      while i < cap do
         push(seq(i))
         i = i + 1
       end

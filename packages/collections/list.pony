@@ -158,10 +158,11 @@ class List[A] is Seq[A]
     let copy_len = len.min(seq.size() - offset)
     reserve(_size + copy_len)
 
+    let cap = copy_len + offset
     var i = offset
 
     try
-      while i < copy_len do
+      while i < cap do
         push(seq(i))
         i = i + 1
       end
