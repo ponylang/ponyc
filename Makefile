@@ -405,9 +405,9 @@ install: libponyc libponyrt ponyc
 	@cp src/libponyrt/pony.h $$(out)/include
 	@cp -r packages $$(out)/
 ifeq ($$(symlink),yes)
-	@mkdir -p $$(out)/bin
-	@mkdir -p $$(out)/lib
-	@mkdir -p $$(out)/include
+	@mkdir -p /usr/local/bin
+	@mkdir -p /usr/local/lib
+	@mkdir -p /usr/local/include
 	@ln -sf $$(out)/bin/ponyc /usr/local/bin/ponyc
 	@ln -sf $$(out)/lib/libponyrt.a /usr/local/lib/libponyrt.a 
 	@ln -sf $$(out)/lib/libponyc.a /usr/local/lib/libponyc.a 
