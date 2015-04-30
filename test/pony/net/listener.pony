@@ -9,15 +9,15 @@ class Listener is TCPListenNotify
     _env = env
 
     _sslctx = if ssl then
-      recover
-        SSLContext
-          .set_ca_file("./test/pony/net/cert.pem")
-          .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
-          // .set_client_verify(false)
-          // .set_server_verify(false)
+      try
+        recover
+          SSLContext
+            .set_authority("./test/pony/net/cert.pem")
+            .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
+            .set_client_verify(true)
+            .set_server_verify(true)
+        end
       end
-    else
-      None
     end
 
   fun ref listening(listen: TCPListener ref) =>

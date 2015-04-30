@@ -28,7 +28,7 @@ class SSL
   var _state: SSLState = SSLHandshake
   var _last_read: U64 = 64
 
-  new _create(ctx: Pointer[_SSLContext] tag, server: Bool,
+  new _create(ctx: Pointer[_SSLContext] tag, server: Bool, verify: Bool,
     hostname: String = "") ?
   =>
     """
@@ -38,8 +38,10 @@ class SSL
     _hostname = hostname
 
     _ssl = @SSL_new[Pointer[_SSL]](ctx)
-    @SSL_CTX_free[None](ctx)
     if _ssl.is_null() then error end
+
+    let mode = if verify then I32(3) else I32(0) end
+    @SSL_set_verify[None](_ssl, mode, Pointer[U8])
 
     _input = @BIO_new[Pointer[_BIO]](@BIO_s_mem[Pointer[U8]]())
     if _input.is_null() then error end
@@ -150,6 +152,14 @@ class SSL
     if not _ssl.is_null() then
       @SSL_free[None](_ssl)
       _ssl = Pointer[_SSL]
+    end
+
+  fun _final() =>
+    """
+    Dispose of the session.
+    """
+    if not _ssl.is_null() then
+      @SSL_free[None](_ssl)
     end
 
   fun ref _verify_hostname() =>

@@ -10,11 +10,13 @@ actor Main
     SSLInit
     _env = env
 
-    let sslctx = recover
-      SSLContext
-        .set_client_verify(true)
-        .set_ca_file("./test/pony/httpget/cacert.pem")
+    let sslctx = try
+      recover
+        SSLContext
+          .set_client_verify(true)
+          .set_authority("./test/pony/httpget/cacert.pem")
       end
+    end
 
     _client = Client(consume sslctx)
 
