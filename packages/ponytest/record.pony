@@ -29,11 +29,9 @@ class _TestRecord
     var show_log = log_all
 
     if _pass then
-      // TODO: print colour
-      _env.out.print("---- Passed: " + _name)  // green
+      _env.out.print_color(_env.green(), "---- Passed: " + _name)
     else
-      //_env.out.print("\x1b[31m**** Test FAILED: " + rec._1 + "\x1b[39m")
-      _env.out.print("**** FAILED: " + _name)  // red
+      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
       show_log = true
     end
 
@@ -56,6 +54,6 @@ class _TestRecord
     Print our test name out in the list of failed test, if we failed.
     """
     if not _pass then
-      _env.out.print("**** FAILED: " + _name)  // red
+      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
     end
  

@@ -279,7 +279,7 @@ actor PonyTest
     _env.out.print("----")
     _env.out.print("---- " + _records.size().string() + " test" +
       _plural(_records.size()) + " ran.")
-    _env.out.print("---- Passed: " + pass_count.string()) // green
+    _env.out.print_color(_env.green(), "---- Passed: " + pass_count.string())
 
     if fail_count == 0 then
       // Success, nothing failed.
@@ -288,8 +288,8 @@ actor PonyTest
     end
 
     // Not everything passed.
-    _env.out.print("**** FAILED: " + fail_count.string() + " test" +
-      _plural(fail_count) + ", listed below:") // red
+    _env.out.print_color(_env.red(), "**** FAILED: " + fail_count.string() +
+      " test" + _plural(fail_count) + ", listed below:")
 
     // Finally print our list of failed tests.
     try

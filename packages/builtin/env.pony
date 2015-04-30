@@ -62,3 +62,12 @@ class Env val
     end
 
     array
+
+  fun tag black(): U8 => 0
+  fun tag red(): U8 => 1
+  fun tag green(): U8 => 2
+  fun tag yellow(): U8 => 3
+  fun tag blue(): U8 => 4
+  fun tag magenta(): U8 => 5
+  fun tag cyan(): U8 => 6
+  fun tag white(): U8 => 7

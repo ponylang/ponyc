@@ -1,5 +1,6 @@
 #include <platform.h>
 #include <stdio.h>
+#include <string.h>
 #include "../asio/asio.h"
 
 #ifndef PLATFORM_IS_WINDOWS
@@ -22,10 +23,16 @@ FILE* os_stderr()
   return stderr;
 }
 
+static bool is_stdout_tty = false;
+static bool is_stderr_tty = false;
+static bool is_term_color = false;
+static FILE* changed_stream_color = NULL;
+
 #ifdef PLATFORM_IS_WINDOWS
 
 static HANDLE stdinHandle;
 static bool is_stdin_tty = false;
+static WORD prev_term_color;
 
 #else
 static struct termios orig_termios;
@@ -112,13 +119,34 @@ static void fd_nonblocking(int fd)
 void os_stdout_setup()
 {
 #ifdef PLATFORM_IS_WINDOWS
-  // TODO
+  DWORD type = GetFileType(GetStdHandle(STD_INPUT_HANDLE));
+  is_stdout_tty = (type == FILE_TYPE_CHAR);
+
+  type = GetFileType(GetStdHandle(STD_ERROR_HANDLE));
+  is_stderr_tty = (type == FILE_TYPE_CHAR);
+
+  is_term_color = true;
 #else
   fd_type_t type = fd_type(STDOUT_FILENO);
+  is_stdout_tty = (type == FD_TYPE_TTY);
 
   // Use unbuffered output if we're writing to a tty.
   if(type == FD_TYPE_TTY)
     setvbuf(stdout, NULL, _IONBF, 0);
+
+  is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
+
+  const char* term = getenv("TERM");
+
+  if(term != NULL &&
+    (strcmp(term, "xterm") == 0 ||
+     strcmp(term, "xterm-color") == 0 ||
+     strcmp(term, "xterm-256color") == 0 ||
+     strcmp(term, "screen") == 0 ||
+     strcmp(term, "screen-256color") == 0 ||
+     strcmp(term, "linux") == 0 ||
+     strcmp(term, "cygwin")))
+    is_term_color = true;
 #endif
 }
 
@@ -241,6 +269,89 @@ uint64_t os_stdin_read(void* buffer, uint64_t space, bool* out_again)
   *out_again = true;
   return read(0, buffer, space);
 #endif
+}
+
+#ifdef PLATFORM_IS_WINDOWS
+// Unsurprisingly Windows uses a different order for colors. Map them here.
+// We use the bright versions here, hence the additional 8 on each value.
+static const uint8_t map_color[8] =
+{
+   0, // black
+  12, // red
+  10, // green
+  14, // yellow
+   9, // blue
+  13, // magenta
+  11, // cyan
+  15  // white
+};
+#endif
+
+
+// os_set_color() and os_reset_color() MUST be called in pairs, on the same
+// stream, without any interleaving.
+
+void os_set_color(FILE* stream, uint8_t color)
+{
+  // If stream doesn't support color do nothing
+  changed_stream_color = NULL;
+
+  if(stream == stdout && !is_stdout_tty) return;
+  if(stream == stderr && !is_stderr_tty) return;
+  if(!is_term_color) return;
+
+  if(color > 7) // Invalid color, do nothing
+    return;
+
+  changed_stream_color = stream;
+
+#ifdef PLATFORM_IS_WINDOWS
+  HANDLE stdxxx_handle;
+
+  if(stream == stdout)
+    stdxxx_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+  else
+    stdxxx_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  CONSOLE_SCREEN_BUFFER_INFO buffer_info;
+  GetConsoleScreenBufferInfo(stdxxx_handle, &buffer_info);
+  prev_term_color = buffer_info.wAttributes;
+
+  // The color setting is console wide, so if we're writing to both stdout and
+  // stderr they can interfere with each other. We flush both in an attempt to
+  // avoid this.
+  fflush(stdout);
+  fflush(stderr);
+  SetConsoleTextAttribute(stdxxx_handle, map_color[color]);
+#else
+  uint8_t t[] = {'\033', '[', '0', ';', '3', '#', 'm'};
+  t[5] = (uint8_t)(color + '0');
+  fwrite_unlocked(t, 1, 7, stream);
+#endif
+}
+
+void os_reset_color()
+{
+  // If we haven't set the colour stream do nothing
+  if(changed_stream_color == NULL)
+    return;
+
+#ifdef PLATFORM_IS_WINDOWS
+  HANDLE stdxxx_handle;
+
+  if(changed_stream_color == stdout)
+    stdxxx_handle = GetStdHandle(STD_OUTPUT_HANDLE);
+  else
+    stdxxx_handle = GetStdHandle(STD_ERROR_HANDLE);
+
+  fflush(stdout);
+  fflush(stderr);
+  SetConsoleTextAttribute(stdxxx_handle, prev_term_color);
+#else
+  fwrite_unlocked("\033[m", 1, 3, changed_stream_color);
+#endif
+
+  changed_stream_color = NULL;
 }
 
 PONY_EXTERN_C_END
