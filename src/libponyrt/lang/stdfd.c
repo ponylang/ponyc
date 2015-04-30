@@ -326,7 +326,11 @@ void os_set_color(FILE* stream, uint8_t color)
 #else
   uint8_t t[] = {'\033', '[', '0', ';', '3', '#', 'm'};
   t[5] = (uint8_t)(color + '0');
+#ifdef PLATFORM_IS_LINUX
   fwrite_unlocked(t, 1, 7, stream);
+#else
+  fwrite(t, 1, 7, stream);
+#endif
 #endif
 }
 
@@ -347,8 +351,10 @@ void os_reset_color()
   fflush(stdout);
   fflush(stderr);
   SetConsoleTextAttribute(stdxxx_handle, prev_term_color);
-#else
+#elif defined PLATFORM_IS_LINUX
   fwrite_unlocked("\033[m", 1, 3, changed_stream_color);
+#else
+  fwrite("\033[m", 1, 3, changed_stream_color);
 #endif
 
   changed_stream_color = NULL;
