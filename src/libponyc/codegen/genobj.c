@@ -7,6 +7,22 @@ const char* genobj(compile_t* c)
   // Finalise the DWARF info.
   dwarf_finalise(&c->dwarf);
 
+#if 0
+  printf("Verifying\n");
+
+  char* msg = NULL;
+
+  if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
+  {
+    errorf(NULL, "module verification failed: %s", msg);
+    LLVMDisposeMessage(msg);
+    return NULL;
+  }
+
+  if(msg != NULL)
+    LLVMDisposeMessage(msg);
+#endif
+
   if(c->opt->release)
   {
     printf("Optimising\n");
@@ -33,22 +49,6 @@ const char* genobj(compile_t* c)
 
   // Allocate on the stack instead of the heap where possible.
   stack_alloc(c);
-
-#if 0
-  printf("Verifying\n");
-
-  char* msg = NULL;
-
-  if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
-  {
-    errorf(NULL, "module verification failed: %s", msg);
-    LLVMDisposeMessage(msg);
-    return NULL;
-  }
-
-  if(msg != NULL)
-    LLVMDisposeMessage(msg);
-#endif
 
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
