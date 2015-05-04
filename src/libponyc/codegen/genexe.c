@@ -181,7 +181,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
     NULL);
 
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, msg_type));
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");

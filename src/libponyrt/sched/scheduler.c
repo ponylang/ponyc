@@ -100,7 +100,7 @@ static void send_msg(uint32_t to, sched_msg_t msg, uint64_t arg)
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), msg);
 
-  m->i = arg;
+  m->i = cast_checked(intptr_t, arg);
   messageq_push(&scheduler[to].mq, &m->msg);
 }
 
@@ -145,7 +145,7 @@ static void read_msg(scheduler_t* sched)
       case SCHED_ACK:
       {
         // If it's the current token, increment the ack count.
-        if(m->i == sched->ack_token)
+        if(m->i == (intptr_t)sched->ack_token)
           sched->ack_count++;
         break;
       }

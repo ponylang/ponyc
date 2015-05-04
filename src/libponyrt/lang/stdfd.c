@@ -267,7 +267,7 @@ uint64_t os_stdin_read(void* buffer, uint64_t space, bool* out_again)
   return len;
 #else
   *out_again = true;
-  return read(0, buffer, space);
+  return read(0, buffer, cast_checked(size_t, space));
 #endif
 }
 

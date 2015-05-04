@@ -58,7 +58,7 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
 
 static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 {
-  ast_state_t state = (ast_state_t)((uint64_t)ast_data(def));
+  ast_state_t state = (ast_state_t)((uintptr_t)ast_data(def));
 
   switch(state)
   {

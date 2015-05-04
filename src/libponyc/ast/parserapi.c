@@ -463,7 +463,7 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
 void parse_set_next_flags(parser_t* parser, uint64_t flags)
 {
   assert(parser != NULL);
-  parser->next_flags = (void*)flags;
+  parser->next_flags = (void*)(uintptr_t)flags;
 }
 
 

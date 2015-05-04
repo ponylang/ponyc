@@ -293,7 +293,7 @@ static bool tuple_access(ast_t* ast)
   }
 
   // Make sure our index is in bounds.
-  type = ast_childidx(type, (size_t)ast_int(right));
+  type = ast_childidx(type, ast_size_t(right));
 
   if(type == NULL)
   {

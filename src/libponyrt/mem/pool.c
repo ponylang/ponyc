@@ -20,8 +20,6 @@
 #define POOL_THRESHOLD (POOL_MAX >> 1)
 #define POOL_MMAP (POOL_MAX << 2)
 
-typedef __int128_t pool_aba_t;
-
 typedef struct pool_item_t
 {
   struct pool_item_t* next;
@@ -39,7 +37,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  pool_aba_t central;
+  uintptr2_t central;
 } pool_global_t;
 
 typedef struct pool_central_t
@@ -55,11 +53,11 @@ typedef struct pool_cmp_t
   {
     struct
     {
-      uint64_t aba;
+      uintptr_t aba;
       pool_central_t* node;
     };
 
-    pool_aba_t dw;
+    uintptr2_t dw;
   };
 } pool_cmp_t;
 

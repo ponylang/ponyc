@@ -16,8 +16,8 @@ static void* search(hashmap_t* map, size_t* pos, void* key, hash_fn hash,
   size_t index_del = map->size;
   size_t mask = index_del - 1;
 
-  size_t h = hash(key);
-  size_t index = h & mask;
+  uint64_t h = hash(key);
+  size_t index = (size_t)h & mask;
   void* elem;
 
   for(uint64_t i = 0; i <= mask; i++)
@@ -41,7 +41,7 @@ static void* search(hashmap_t* map, size_t* pos, void* key, hash_fn hash,
       return elem;
     }
 
-    index = (h + ((i + (i * i)) >> 1)) & mask;
+    index = (size_t)(h + ((i + (i * i)) >> 1)) & mask;
   }
 
   *pos = index_del;

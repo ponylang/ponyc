@@ -413,7 +413,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
  *      SET_FLAG(FOO_FLAG);
  */
 #define SET_FLAG(f) \
-  ast_setdata(state.ast, (void*)(f | (uint64_t)ast_data(state.ast)))
+  ast_setdata(state.ast, (void*)(f | (uintptr_t)ast_data(state.ast)))
 
 
 /** Set the data field flags to use for the next token found in the source.

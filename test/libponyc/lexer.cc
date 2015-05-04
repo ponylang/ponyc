@@ -26,7 +26,7 @@ protected:
   {
     char buffer[80];
 
-    snprintf(buffer, sizeof(buffer), "%d @ %lu.%lu %s\"", id, line, pos,
+    snprintf(buffer, sizeof(buffer), "%d @ %zu.%zu %s\"", id, line, pos,
       first_on_line ? "first " : "");
 
     _expected += string(buffer) + print + "\"\n";
@@ -48,7 +48,7 @@ protected:
       id = token_get_id(token);
 
       char buffer[80];
-      snprintf(buffer, sizeof(buffer), "%d @ %lu.%lu %s\"",
+      snprintf(buffer, sizeof(buffer), "%d @ %zu.%zu %s\"",
         token_get_id(token),
         token_line_number(token), token_line_position(token),
         token_is_first_on_line(token) ? "first " : "");

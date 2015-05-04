@@ -472,12 +472,12 @@ static ast_result_t syntax_infix_expr(ast_t* ast)
   assert(left != NULL);
   token_id left_op = ast_id(left);
   bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(left)) == 0);
+    ((AST_IN_PARENS & (uintptr_t)ast_data(left)) == 0);
 
   assert(right != NULL);
   token_id right_op = ast_id(right);
   bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(right)) == 0);
+    ((AST_IN_PARENS & (uintptr_t)ast_data(right)) == 0);
 
   if(left_clash || right_clash)
   {
@@ -540,7 +540,7 @@ static ast_result_t syntax_semi(ast_t* ast)
   bool any_newlines = ast_is_first_on_line(ast);  // Newline before ;
   bool last_in_seq = (ast_sibling(ast) == NULL);
 
-  if((LAST_ON_LINE & (uint64_t)ast_data(ast)) != 0) // Newline after ;
+  if((LAST_ON_LINE & (uintptr_t)ast_data(ast)) != 0) // Newline after ;
     any_newlines = true;
 
   if(any_newlines || last_in_seq)
@@ -607,7 +607,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
     return AST_OK;
 
-  if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
+  if((TEST_ONLY & (uintptr_t)ast_data(ast)) != 0)
   {
     // Test node, not allowed outside parse pass
     ast_error(ast, "Illegal character '$' found");
@@ -646,7 +646,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   if(is_expr_infix(id))
     r = syntax_infix_expr(ast);
 
-  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
+  if((MISSING_SEMI & (uintptr_t)ast_data(ast)) != 0)
   {
     ast_error(ast,
       "Use a semi colon to separate expressions on the same line");

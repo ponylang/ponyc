@@ -70,7 +70,7 @@ void os_gmtime(date_t* date, int64_t sec, int64_t nsec)
     overflow_sec--;
   }
 
-  time_t t = sec + overflow_sec;
+  time_t t = cast_checked(time_t, sec + overflow_sec);
 
   struct tm tm;
 

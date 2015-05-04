@@ -526,6 +526,9 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
 #ifdef PLATFORM_IS_VISUAL_STUDIO
       UnsignedInt128 limit(_str_uif_types[i].limit_high,
         _str_uif_types[i].limit_low);
+#elif defined(HAVE_STRUCT_INT128)
+      __uint128_t limit = { _str_uif_types[i].limit_low,
+			    _str_uif_types[i].limit_high };
 #else
       __uint128_t limit = (((__uint128_t)_str_uif_types[i].limit_high) << 64) |
         _str_uif_types[i].limit_low;
@@ -556,8 +559,24 @@ static bool uif_type_from_chain(pass_opt_t* opt, ast_t* literal,
       }
 
       __uint128_t actual = ast_int(literal);
+      if (!neg_plus_one) {
+#if !defined(HAVE_STRUCT_INT128)
+        actual--;
+#else
+	if (!actual.low--) actual.high--;
+#endif
+      }
+      bool actual_gt_limit =
+#if !defined(HAVE_STRUCT_INT128)
+        actual > limit
+#else
+        actual.high > limit.high ? true :
+	actual.high < limit.high ? false :
+	actual.low > limit.low;
+#endif
+      ;
 
-      if((actual > limit) || (!neg_plus_one && actual == limit))
+      if(actual_gt_limit)
       {
         // Illegal value. Note that we report an error, but don't return an
         // error, so other errors may be found.

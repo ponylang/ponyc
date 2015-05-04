@@ -49,13 +49,11 @@ TEST(DsFunTest, HashSamePointerGivesSameKey)
  */
 TEST(DsFunTest, NumbersToNextPow)
 {
-  uint64_t i = 200;
+  size_t i = 200;
 
   ASSERT_EQ(
     1,
-    __pony_popcount64(
-      (unsigned int)next_pow2(i)
-    )
+    __pony_popcount(next_pow2(i))
   );
 }
 

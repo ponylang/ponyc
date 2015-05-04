@@ -740,13 +740,24 @@ static token_t* string(lexer_t* lexer)
   }
 }
 
+#if defined(HAVE_STRUCT_INT128)
+static inline void __uint128_shift(__uint128_t *v, unsigned char n) {
+	v->high = v->high << n | v->low >> (64-n);
+	v->low = v->low << n;
+}
+static inline void __uint128_add2(__uint128_t *v, const __uint128_t a) {
+	v->low += a.low;
+	if (v->low < a.low) v->high++;
+	v->high += a.high;
+}
+#endif
 
 // Process a character literal, the leading ' of which has been seen, but not
 // consumed
 static token_t* character(lexer_t* lexer)
 {
   consume_chars(lexer, 1);  // Leading '
-  __uint128_t value = 0;
+  __uint128_t value = __UINT128_C(0);
 
   while(true)
   {
@@ -770,8 +781,14 @@ static token_t* character(lexer_t* lexer)
 
     // Just ignore bad escapes here and carry on. They've already been
     // reported and this allows catching later errors.
-    if(c >= 0)
+    if(c >= 0) {
+#if !defined(HAVE_STRUCT_INT128)
       value = (value << 8) | c;
+#else
+      __uint128_shift(&value, 8);
+      value.low |= c;
+#endif
+    }
   }
 }
 
@@ -781,6 +798,7 @@ static token_t* character(lexer_t* lexer)
  */
 static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
 {
+#if !defined(HAVE_STRUCT_INT128)
   __uint128_t v1 = *v;
   __uint128_t v2 = v1 * base;
 
@@ -799,6 +817,38 @@ static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
   }
 
   *v = v2;
+#else
+  __uint128_t w = *v;
+
+  /* avoid long multiplication; base has a small domain */
+  switch (base) {
+  case 10:
+	__uint128_shift(&w, 2);
+	__uint128_add2(&w, *v);
+	__uint128_shift(&w, 1);
+	break;
+  case 2:
+	__uint128_shift(&w, 1);
+	break;
+  case 8:
+	__uint128_shift(&w, 3);
+	break;
+  case 16:
+	__uint128_shift(&w, 4);
+	break;
+  default:
+	lex_error(lexer, "unexpected base in accum()");
+	return false;
+  }
+  w.low += (unsigned)digit;
+  if (w.low < (unsigned)digit)
+      w.high++;
+  if (w.high < v->high) {
+	lex_error(lexer, "overflow in numeric literal");
+	return false;
+  }
+  *v = w;
+#endif
   return true;
 }
 
@@ -866,7 +916,7 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
 static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 {
   __uint128_t significand = integral_value;
-  __int128_t e = 0;
+  double e = 0;
   uint32_t mantissa_digit_count = 0;
   char c = look(lexer);
   assert(c == '.' || c == 'e' || c == 'E');
@@ -903,25 +953,30 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
       consume_chars(lexer, 1);
     }
 
-    __uint128_t exp_value = 0;
+    __uint128_t exp_value = __UINT128_C(0);
     if(!lex_integer(lexer, 10, &exp_value, NULL, false,
       "real number exponent"))
       return make_token(lexer, TK_LEX_ERROR);
 
+#if !defined(HAVE_STRUCT_INT128)
+    e = (double)exp_value;
+#else
+    e = (double)exp_value.high * pow(2.0, 64) + (double)exp_value.low;
+#endif
     if(exp_neg)
-      e = -exp_value;
-    else
-      e = exp_value;
+      e = -e;
   }
 
   e -= mantissa_digit_count;
   token_t* t = make_token(lexer, TK_FLOAT);
 
-#ifdef PLATFORM_IS_VISUAL_STUDIO
-  token_set_float(t, (double)significand * pow(10.0, e));
+  double significand_double;
+#if !defined(HAVE_STRUCT_INT128)
+  significand_double = (double)significand;
 #else
-  token_set_float(t, (double)significand * pow(10.0, (double)e));
+  significand_double = (double)significand.high * pow(2.0, 64) + (double)significand.low;
 #endif
+  token_set_float(t, significand_double * pow(10.0, e));
 
   return t;
 }
@@ -932,7 +987,7 @@ static token_t* real(lexer_t* lexer, __uint128_t integral_value)
 static token_t* nondecimal_number(lexer_t* lexer, int base,
   const char* context)
 {
-  __uint128_t value = 0;
+  __uint128_t value = __UINT128_C(0);
   if(!lex_integer(lexer, base, &value, NULL, false, context))
     return make_token(lexer, TK_LEX_ERROR);
 
@@ -965,7 +1020,7 @@ static token_t* number(lexer_t* lexer)
   }
 
   // Decimal
-  __uint128_t value = 0;
+  __uint128_t value = __UINT128_C(0);
   if(!lex_integer(lexer, 10, &value, NULL, true, "decimal number"))
     return make_token(lexer, TK_LEX_ERROR);
 

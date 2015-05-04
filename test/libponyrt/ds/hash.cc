@@ -244,7 +244,7 @@ TEST_F(HashMapTest, MapIterator)
   while((curr = testmap_next(&_map, &s)) != NULL)
   {
     c++;
-    e += curr->val;
+    e += cast_checked(size_t, curr->val);
   }
 
   ASSERT_EQ(e, expect);

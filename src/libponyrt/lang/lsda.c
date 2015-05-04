@@ -93,10 +93,12 @@ static uintptr_t read_encoded_ptr(const uint8_t** data, uint8_t encoding)
       p += sizeof(uint32_t);
       break;
 
+#if __UINTPTR_MAX__ >= __UINT64_MAX__
     case DW_EH_PE_udata8:
       result = *((uint64_t*)p);
       p += sizeof(uint64_t);
       break;
+#endif
 
     case DW_EH_PE_sdata2:
       result = *((int16_t*)p);
@@ -108,10 +110,12 @@ static uintptr_t read_encoded_ptr(const uint8_t** data, uint8_t encoding)
       p += sizeof(int32_t);
       break;
 
+#if __UINTPTR_MAX__ >= __UINT64_MAX__
     case DW_EH_PE_sdata8:
       result = *((int64_t*)p);
       p += sizeof(int64_t);
       break;
+#endif
 
     case DW_EH_PE_sleb128:
       result = read_sleb128(&p);
