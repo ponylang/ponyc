@@ -144,7 +144,7 @@ $ ./build/release/ponyc examples/helloworld
 
 # Building on Windows
 
-The LLVM 3.6 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.6 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
 
