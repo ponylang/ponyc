@@ -128,6 +128,10 @@ bool parse(ast_t* package, source_t* source, rule_t start,
 
 /* The API for parser rules starts here */
 
+/// Indicate that extra functions for parser are allowed
+#define PARSER
+
+
 /// Rule forward declaration
 #define DECL(rule) \
   static ast_t* rule(parser_t* parser, builder_fn_t *out_builder, \

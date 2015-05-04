@@ -395,16 +395,23 @@ typedef ast_result_t (*ast_visit_t)(ast_t** astp, pass_opt_t* options);
 ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_opt_t* options);
 
-// Foreach macro, will apply macro M to each of up to 16 other arguments
+// Foreach macro, will apply macro M to each of up to 30 other arguments
 #define FOREACH(M, ...) \
   EXPAND(FE(__VA_ARGS__, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, M, \
-    nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop, nop))
+    M, M, M, M, M, M, M, M, M, M, M, M, M, M, NOP, NOP, NOP, NOP, NOP, NOP, \
+    NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, \
+    NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP))
 #define FE( \
   A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, \
-  M0, M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, ...) \
-  M0(A0) M1(A1) M2(A2) M3(A3) M4(A4) M5(A5) M6(A6) \
-  M7(A7) M8(A8) M9(A9) M10(A10) M11(A11) M12(A12) M13(A13) M14(A14) M15(A15)
-#define nop(x)
+  A16, A17, A18, A19, A20, A21, A22, A23, A24, A25, A26, A27, A28, A29, \
+  M0, M1, M2, M3, M4, M5, M6, M7, M8, M9, M10, M11, M12, M13, M14, M15, \
+  M16, M17, M18, M19, M20, M21, M22, M23, M24, M25, M26, M27, M28, M29, ...) \
+  M0(A0) M1(A1) M2(A2) M3(A3) M4(A4) M5(A5) M6(A6) M7(A7) M8(A8) M9(A9) \
+  M10(A10) M11(A11) M12(A12) M13(A13) M14(A14) M15(A15) M16(A16) M17(A17) \
+  M18(A18) M19(A19) M20(A20) M21(A21) M22(A22) M23(A23) M24(A24) M25(A25) \
+  M26(A26) M27(A27) M28(A28) M29(A29)
+
+#define NOP(x)
 // We need this, because MSVC/MSVC++ treats __VA_ARGS__ as single argument if
 // passed to another macro
 #define EXPAND(x) x

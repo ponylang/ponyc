@@ -1,4 +1,5 @@
 #include "../libponyc/ast/parserapi.h"
+#include "../libponyc/ast/bnfprint.h"
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
@@ -35,7 +36,10 @@ enum
   OPT_AST,
   OPT_TRACE,
   OPT_WIDTH,
-  OPT_IMMERR
+  OPT_IMMERR,
+  OPT_BNF,
+  OPT_ANTLR,
+  OPT_ANTLRRAW
 };
 
 static opt_arg_t args[] =
@@ -59,6 +63,9 @@ static opt_arg_t args[] =
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
+  {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
+  {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
+  {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
   OPT_ARGS_FINISH
 };
 
@@ -113,6 +120,8 @@ static void usage()
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
+    "  --bnf           Print out the Pony grammar as human readable BNF.\n"
+    "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
     "\n"
 #endif
     );
@@ -214,6 +223,10 @@ int main(int argc, char* argv[])
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
+
+      case OPT_BNF: print_grammar(false, true); return 0;
+      case OPT_ANTLR: print_grammar(true, true); return 0;
+      case OPT_ANTLRRAW: print_grammar(true, false); return 0;
 
       case OPT_PASSES:
         if(!limit_passes(&opt, s.arg_val))
