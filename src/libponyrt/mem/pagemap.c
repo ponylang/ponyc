@@ -5,14 +5,25 @@
 
 #include <platform.h>
 
-#define PAGEMAP_ADDRESSBITS 48
-#define PAGEMAP_LEVELS 3
+/*
+ * |<---------(SIZEOF_POINTER*8)------------>|
+ *       |<-------PAGEMAP_ADDRESSBITS------->|
+ *       |                  |<-HEAP_MAXBITS->|
+ *       |<-L3-><-L2-><-L1->|
+ */
+#if __SIZEOF_POINTER__*8 == 32
+# define PAGEMAP_ADDRESSBITS 29
+# define PAGEMAP_LEVELS 2
+#else
+# define PAGEMAP_ADDRESSBITS 48
+# define PAGEMAP_LEVELS 3
+#endif
 #define PAGEMAP_BITS (PAGEMAP_ADDRESSBITS - HEAP_MAXBITS) / PAGEMAP_LEVELS
 #define PAGEMAP_EXCESS (PAGEMAP_ADDRESSBITS - HEAP_MAXBITS) % PAGEMAP_LEVELS
 
 #define L1_MASK (PAGEMAP_BITS)
-#define L2_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > 1))
-#define L3_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > 0))
+#define L2_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > (PAGEMAP_LEVELS - 2)))
+#define L3_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > (PAGEMAP_LEVELS - 3)))
 
 #define L1_SHIFT (HEAP_MAXBITS)
 #define L2_SHIFT (L1_SHIFT + L1_MASK)
@@ -35,7 +46,9 @@ typedef struct pagemap_level_t
  */
 static const pagemap_level_t level[PAGEMAP_LEVELS] =
 {
+#if PAGEMAP_LEVELS >= 3
   { L3_SHIFT, (1 << L3_MASK) - 1, (1 << L3_MASK) * sizeof(void*) },
+#endif
   { L2_SHIFT, (1 << L2_MASK) - 1, (1 << L2_MASK) * sizeof(void*) },
   { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*) }
 };
