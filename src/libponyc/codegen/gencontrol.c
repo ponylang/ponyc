@@ -199,15 +199,22 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
   if(l_value == NULL)
     return NULL;
 
-  // The body evaluates the condition itself, jumping either back to the body
-  // or directly to the post block.
-  LLVMValueRef c_value = gen_expr(c, cond);
+  LLVMBasicBlockRef body_from = NULL;
 
-  if(c_value == NULL)
-    return NULL;
+  // If the body can't result in a value, don't generate the conditional
+  // evaluation. This basic block for the body already has a terminator.
+  if(l_value != GEN_NOVALUE)
+  {
+    // The body evaluates the condition itself, jumping either back to the body
+    // or directly to the post block.
+    LLVMValueRef c_value = gen_expr(c, cond);
 
-  LLVMBasicBlockRef body_from = LLVMGetInsertBlock(c->builder);
-  LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
+    if(c_value == NULL)
+      return NULL;
+
+    body_from = LLVMGetInsertBlock(c->builder);
+    LLVMBuildCondBr(c->builder, c_value, body_block, post_block);
+  }
 
   // Don't need loop status for the else block.
   codegen_poploop(c);
@@ -232,7 +239,8 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   if(needed)
   {
-    LLVMAddIncoming(phi, &l_value, &body_from, 1);
+    if(l_value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &l_value, &body_from, 1);
 
     if(r_value != GEN_NOVALUE)
       LLVMAddIncoming(phi, &r_value, &else_from, 1);
@@ -283,15 +291,22 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
   if(value == NULL)
     return NULL;
 
-  // The body evaluates the condition itself, jumping either back to the body
-  // or directly to the post block.
-  LLVMValueRef c_value = gen_expr(c, cond);
+  LLVMBasicBlockRef body_from = NULL;
 
-  if(c_value == NULL)
-    return NULL;
+  // If the body can't result in a value, don't generate the conditional
+  // evaluation. This basic block for the body already has a terminator.
+  if(value != GEN_NOVALUE)
+  {
+    // The body evaluates the condition itself, jumping either back to the body
+    // or directly to the post block.
+    LLVMValueRef c_value = gen_expr(c, cond);
 
-  LLVMBasicBlockRef body_from = LLVMGetInsertBlock(c->builder);
-  LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
+    if(c_value == NULL)
+      return NULL;
+
+    body_from = LLVMGetInsertBlock(c->builder);
+    LLVMBuildCondBr(c->builder, c_value, post_block, body_block);
+  }
 
   // cond block
   // This is only evaluated from a continue, jumping either back to the body
@@ -322,7 +337,8 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   if(needed)
   {
-    LLVMAddIncoming(phi, &value, &body_from, 1);
+    if(value != GEN_NOVALUE)
+      LLVMAddIncoming(phi, &value, &body_from, 1);
 
     if(else_value != GEN_NOVALUE)
       LLVMAddIncoming(phi, &else_value, &else_from, 1);
@@ -445,7 +461,10 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(body_value != GEN_NOVALUE)
   {
     if(needed)
-      body_value = gen_assign_cast(c, phi_type.use_type, body_value, body_type);
+    {
+      body_value = gen_assign_cast(c, phi_type.use_type, body_value,
+        body_type);
+    }
 
     if(body_value == NULL)
       return NULL;
@@ -477,7 +496,10 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   if(else_value != GEN_NOVALUE)
   {
     if(needed)
-      else_value = gen_assign_cast(c, phi_type.use_type, else_value, else_type);
+    {
+      else_value = gen_assign_cast(c, phi_type.use_type, else_value,
+        else_type);
+    }
 
     if(else_value == NULL)
       return NULL;

@@ -52,7 +52,7 @@ atom_type
   :  'this' // only used for viewpoint adaptation
   |  'box' // only used for viewpoint adaptation
   |  '(' tuple_type ')'
-  |  ID ('.' ID)? type_args? const_args? cap? '^'? // nominal type
+  |  ID ('.' ID)? type_args? const_args? cap? ('^' | '!')? // nominal type
   ;
 
 tuple_type

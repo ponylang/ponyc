@@ -16,6 +16,8 @@
 
 * Vim: pending.
 
+* Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
+
 # Installation
 ## Mac OSX using [Homebrew](http://brew.sh)
 

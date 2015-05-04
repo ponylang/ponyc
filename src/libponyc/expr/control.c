@@ -145,13 +145,6 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
     return false;
 
-  if(is_control_type(body_type))
-  {
-    // All body code paths end with return, break, etc
-    ast_error(ast, "loop body can never repeat");
-    return false;
-  }
-
   // All consumes have to be in scope when the loop body finishes.
   if(!ast_all_consumes_in_scope(body, body))
     return false;
@@ -161,7 +154,8 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
 
   // No symbol status is inherited from the loop body. Nothing from outside the
   // loop body can be consumed, and definitions in the body may not occur.
-  type = control_type_add_branch(type, body);
+  if(!is_control_type(body_type))
+    type = control_type_add_branch(type, body);
 
   if(!is_control_type(else_type))
   {
@@ -202,13 +196,6 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(body_type) || is_typecheck_error(else_type))
     return false;
 
-  if(is_control_type(body_type))
-  {
-    // All body code paths end with return, break, etc
-    ast_error(ast, "loop body can never repeat");
-    return false;
-  }
-
   // All consumes have to be in scope when the loop body finishes.
   if(!ast_all_consumes_in_scope(body, body))
     return false;
@@ -218,7 +205,8 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
 
   // No symbol status is inherited from the loop body or condition. Nothing
   // from outside can be consumed, and definitions inside may not occur.
-  type = control_type_add_branch(type, body);
+  if(!is_control_type(body_type))
+    type = control_type_add_branch(type, body);
 
   if(!is_control_type(else_type))
   {
@@ -406,7 +394,7 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(is_method_result(t, ast))
+  if(ast_parent(ast) == t->frame->method_body)
   {
     ast_error(ast,
       "use return only to exit early from a method, not at the end");
@@ -424,44 +412,47 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
   if(is_typecheck_error(body_type))
     return false;
 
+  bool ok = true;
+
   switch(ast_id(t->frame->method))
   {
     case TK_NEW:
       if(!is_none(body_type))
       {
         ast_error(ast, "return in a constructor must return None");
-        return false;
+        ok = false;
       }
-      return true;
+      break;
 
     case TK_BE:
       if(!is_none(body_type))
       {
         ast_error(ast, "return in a behaviour must return None");
-        return false;
+        ok = false;
       }
-      return true;
+      break;
 
-    default: {}
+    default:
+    {
+      // The body type must be a subtype of the return type, and an alias of
+      // the body type must be a subtype of an alias of the return type.
+      ast_t* a_type = alias(type);
+      ast_t* a_body_type = alias(body_type);
+
+      if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
+      {
+        ast_t* last = ast_childlast(body);
+        ast_error(last, "returned value isn't the return type");
+        ast_error(type, "function return type: %s", ast_print_type(type));
+        ast_error(body_type, "returned value type: %s",
+          ast_print_type(body_type));
+        ok = false;
+      }
+
+      ast_free_unattached(a_type);
+      ast_free_unattached(a_body_type);
+    }
   }
-
-  // The body type must be a subtype of the return type, and an alias of the
-  // body type must be a subtype of an alias of the return type.
-  ast_t* a_type = alias(type);
-  ast_t* a_body_type = alias(body_type);
-  bool ok = true;
-
-  if(!is_subtype(body_type, type) || !is_subtype(a_body_type, a_type))
-  {
-    ast_t* last = ast_childlast(body);
-    ast_error(last, "returned value isn't the return type");
-    ast_error(type, "function return type: %s", ast_print_type(type));
-    ast_error(body_type, "returned value type: %s", ast_print_type(body_type));
-    ok = false;
-  }
-
-  ast_free_unattached(a_type);
-  ast_free_unattached(a_body_type);
 
   ast_settype(ast, ast_from(ast, TK_RETURN));
   ast_inheritflags(ast);

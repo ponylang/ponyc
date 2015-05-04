@@ -2,6 +2,16 @@
 #include "parser.h"
 #include <stdio.h>
 
+/* This file contains the definition of  the Pony parser, built from macros
+ * defined in parserapi.h.
+ *
+ * Any normal C functions defined here must be within a preprocessor block:
+ *#ifdef PARSER
+ * ...
+ * #endif
+ */
+
+
 // Forward declarations
 DECL(type);
 DECL(rawseq);
@@ -759,8 +769,13 @@ DEF(module);
     TK_EOF);
   DONE();
 
+
+#ifdef PARSER
+
 // external API
 bool pass_parse(ast_t* package, source_t* source)
 {
   return parse(package, source, module, "class, actor, primitive or trait");
 }
+
+#endif
