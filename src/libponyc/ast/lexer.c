@@ -741,14 +741,18 @@ static token_t* string(lexer_t* lexer)
 }
 
 #if defined(HAVE_STRUCT_INT128)
-static inline void __uint128_shift(__uint128_t *v, unsigned char n) {
+static bool __uint128_shift(__uint128_t *v, unsigned char n) {
+	bool overflow = !!(v->high & ~((UINT64_C(1) << (64 - n)) - 1));
 	v->high = v->high << n | v->low >> (64-n);
 	v->low = v->low << n;
+	return overflow;
 }
-static inline void __uint128_add2(__uint128_t *v, const __uint128_t a) {
+static bool __uint128_add2(__uint128_t *v, const __uint128_t a) {
+	uint64_t high_old = v->high;
 	v->low += a.low;
 	if (v->low < a.low) v->high++;
 	v->high += a.high;
+	return high_old < v->high;
 }
 #endif
 
@@ -819,31 +823,34 @@ static bool accum(lexer_t* lexer, __uint128_t* v, int digit, uint32_t base)
   *v = v2;
 #else
   __uint128_t w = *v;
+  bool overflow;
 
   /* avoid long multiplication; base has a small domain */
   switch (base) {
   case 10:
-	__uint128_shift(&w, 2);
-	__uint128_add2(&w, *v);
-	__uint128_shift(&w, 1);
+	overflow = __uint128_shift(&w, 2);
+	overflow |= __uint128_add2(&w, *v);
+	overflow |= __uint128_shift(&w, 1);
 	break;
   case 2:
-	__uint128_shift(&w, 1);
+	overflow = __uint128_shift(&w, 1);
 	break;
   case 8:
-	__uint128_shift(&w, 3);
+	overflow = __uint128_shift(&w, 3);
 	break;
   case 16:
-	__uint128_shift(&w, 4);
+	overflow = __uint128_shift(&w, 4);
 	break;
   default:
 	lex_error(lexer, "unexpected base in accum()");
 	return false;
   }
   w.low += (unsigned)digit;
-  if (w.low < (unsigned)digit)
+  if (w.low < (unsigned)digit) {
       w.high++;
-  if (w.high < v->high) {
+      overflow |= !w.high;
+  }
+  if (overflow) {
 	lex_error(lexer, "overflow in numeric literal");
 	return false;
   }
