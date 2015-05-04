@@ -25,7 +25,7 @@ static void pointer_create(compile_t* c, gentype_t* g)
 static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   const char* name = genname_fun(g->type_name, "_alloc", NULL);
@@ -48,7 +48,7 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   const char* name = genname_fun(g->type_name, "_realloc", NULL);
@@ -125,7 +125,7 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
   const char* name)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   name = genname_fun(g->type_name, name, NULL);
@@ -154,7 +154,7 @@ static void pointer_offset(compile_t* c, gentype_t* g, gentype_t* elem_g,
 static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   const char* name = genname_fun(g->type_name, "_insert", NULL);
@@ -193,7 +193,7 @@ static void pointer_insert(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   const char* name = genname_fun(g->type_name, "_delete", NULL);
@@ -235,7 +235,7 @@ static void pointer_delete(compile_t* c, gentype_t* g, gentype_t* elem_g)
 static void pointer_copy_to(compile_t* c, gentype_t* g, gentype_t* elem_g)
 {
   // Set up a constant integer for the allocation size.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, elem_g->use_type));
   LLVMValueRef l_size = LLVMConstInt(c->i64, size, false);
 
   const char* name = genname_fun(g->type_name, "_copy_to", NULL);

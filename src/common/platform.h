@@ -103,16 +103,16 @@
   #include <stddef.h>
 #endif
 
-/** Checked integer cast.
- * Aborts if the value would change.
+/** Debug-checked integer cast.
+ * Aborts if the value would change due to a cast.
  */
-#ifdef PLATFORM_IS_CLANG_OR_GCC
-#  define cast_checked(T, expr) \
+#if defined(DEBUG) && defined(PLATFORM_IS_CLANG_OR_GCC)
+#  define pony_downcast(T, expr) \
         ({ typeof(expr) _ret = (expr); \
            if ((typeof(expr))(T)_ret != _ret) abort(); \
            (T)_ret; })
 #else
-#  define cast_checked(T, expr) /*unchecked*/(expr)
+#  define pony_downcast(T, expr) /*unchecked*/(T)(expr)
 #endif
 
 #define PONY_ERRNO uint32_t

@@ -452,9 +452,9 @@ size_t ast_size_t(ast_t* ast)
 {
   __uint128_t val = ast_int(ast);
 #if !defined(HAVE_STRUCT_INT128)
-  return cast_checked(size_t, val);
+  return pony_downcast(size_t, val);
 #else
-  return cast_checked(size_t, val.low);
+  return pony_downcast(size_t, val.low);
 #endif
 }
 

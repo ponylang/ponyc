@@ -552,7 +552,7 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
 
   // We explicitly want a boxed version.
   // Get the size of the structure.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, g->structure));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, g->structure));
 
   // Get the finaliser, if there is one.
   const char* final = genname_finalise(g->type_name);

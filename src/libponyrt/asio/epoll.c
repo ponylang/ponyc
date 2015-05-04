@@ -123,7 +123,7 @@ static void timer_set_nsec(int fd, uint64_t nsec)
 
   ts.it_interval.tv_sec = 0;
   ts.it_interval.tv_nsec = 0;
-  ts.it_value.tv_sec = cast_checked(time_t, nsec / 1000000000);
+  ts.it_value.tv_sec = pony_downcast(time_t, nsec / 1000000000);
   ts.it_value.tv_nsec = (long)(nsec % 1000000000);
 
   timerfd_settime(fd, 0, &ts, NULL);

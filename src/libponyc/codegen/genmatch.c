@@ -39,7 +39,7 @@ static ast_t* eq_param_type(ast_t* pattern)
 static LLVMValueRef pointer_to_fields(compile_t* c, LLVMValueRef object)
 {
   // Skip the descriptor.
-  size_t size = cast_checked(size_t, LLVMABISizeOfType(c->target_data, c->descriptor_ptr));
+  size_t size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, c->descriptor_ptr));
   LLVMValueRef offset = LLVMConstInt(c->intptr, size, false);
 
   LLVMValueRef base = LLVMBuildPtrToInt(c->builder, object, c->intptr, "");
