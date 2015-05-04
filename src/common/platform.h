@@ -103,12 +103,14 @@
   #include <stddef.h>
 #endif
 
-/* Integer cast, aborting if value exceeds max or min int */
-#if __GNUC__
+/** Checked integer cast.
+ * Aborts if the value would change.
+ */
+#ifdef PLATFORM_IS_CLANG_OR_GCC
 #  define cast_checked(T, expr) \
-	({ typeof(expr) _ret = (expr); \
-	   if ((typeof(expr))(T)_ret != _ret) abort(); \
-	   (T)_ret; })
+        ({ typeof(expr) _ret = (expr); \
+           if ((typeof(expr))(T)_ret != _ret) abort(); \
+           (T)_ret; })
 #else
 #  define cast_checked(T, expr) /*unchecked*/(expr)
 #endif
@@ -246,24 +248,24 @@ static __declspec(thread) DWORD lsb;
 #  if __cplusplus /* For GTest */
      struct __int128_t {
           uint64_t low; int64_t high;
-	  bool operator==(const __int128_t a) const {
-	      return a.low == low && a.high == high;
-	  }
-	  bool operator==(const int a) const {
-	      return a < 0 ? high == -1 && low == (uint64_t)a
-	                   : high == 0 && low == (uint64_t)a;
-	  }
-	  __int128_t(int64_t a) : low((uint64_t)a) , high(a < 0 ? -1 : 0) {}
+          bool operator==(const __int128_t a) const {
+              return a.low == low && a.high == high;
+          }
+          bool operator==(const int a) const {
+              return a < 0 ? high == -1 && low == (uint64_t)a
+                           : high == 0 && low == (uint64_t)a;
+          }
+          __int128_t(int64_t a) : low((uint64_t)a) , high(a < 0 ? -1 : 0) {}
      };
      struct __uint128_t {
           uint64_t low, high;
-	  bool operator==(const __uint128_t a) const {
-	      return a.low == low && a.high == high;
-	  }
-	  bool operator==(const int a) const {
-	      return a < 0 && high == 0 && low == (uint64_t)a;
-	  }
-	  __uint128_t(uint64_t a) : low(a), high(0) {}
+          bool operator==(const __uint128_t a) const {
+              return a.low == low && a.high == high;
+          }
+          bool operator==(const int a) const {
+              return a < 0 && high == 0 && low == (uint64_t)a;
+          }
+          __uint128_t(uint64_t a) : low(a), high(0) {}
      };
      inline bool operator==(const int &a, const __uint128_t &b) { return b == a; }
 #  else

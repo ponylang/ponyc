@@ -256,9 +256,9 @@ ast_t* ast_from_int(ast_t* ast, uint64_t value)
 {
   __uint128_t value128 =
 #if !defined(HAVE_STRUCT_INT128)
-	value
+        value
 #else
-	{ value, 0 }
+        { value, 0 }
 #endif
   ;
 
