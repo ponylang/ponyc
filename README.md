@@ -16,6 +16,8 @@
 
 * Vim: pending.
 
+* Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
+
 # Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
