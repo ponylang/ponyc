@@ -305,7 +305,7 @@ size_t pool_leak()
       size_t amount = POOL_MMAP - avail;
       leak += amount;
 
-      printf("POOL LEAK, SIZE %zu COUNT %zu\n",
+      printf("POOL LEAK, SIZE " __zu " COUNT " __zu "\n",
         global->size, amount / global->size);
     }
 
@@ -317,7 +317,7 @@ size_t pool_leak()
     {
       if(next->length != global->count)
       {
-        printf("POOL CENTRAL %zu of %zu\n", next->length, global->count);
+        printf("POOL CENTRAL " __zu " of " __zu "\n", next->length, global->count);
       }
 
       next = next->central;
@@ -325,7 +325,7 @@ size_t pool_leak()
   }
 
   if(leak > 0)
-    printf("POOL TOTAL LEAK %zu\n", leak);
+    printf("POOL TOTAL LEAK " __zu "\n", leak);
 
   return leak;
 }
