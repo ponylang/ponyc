@@ -43,7 +43,7 @@ First, import the public key of ponylang.org:
 $ wget -O - http://www.ponylang.org/releases/buildbot@lists.ponylang.org.gpg.key | sudo apt-key add -
 ```
 
-Add the ponylang.org repository to apt-get:
+Add the ponylang.org repository to apt-get by adding the following line to the end of the /etc/apt/sources.list file:
 
 ```bash
 deb http://ponylang.org/releases/apt ponyc main
