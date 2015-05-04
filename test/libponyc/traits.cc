@@ -49,7 +49,7 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
   METHOD_BODY;
   CHILD(0);
 
-  ASSERT_EQ(2, ast_int(walk_ast));
+  ASSERT_EQ(2, ast_size_t(walk_ast));
 }
 
 
