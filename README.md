@@ -70,7 +70,7 @@ $ ponyc --version
 First, add the ponylang.org repository:
 
 ```bash
-$ sudo zypper ar -f http://www.ponylang.org/releases/yum ponyc
+$ sudo zypper ar -f http://www.ponylang.org/releases/yum/ponyc.repo
 ```
 
 Install ```ponyc```, ```ponyc-noavx``` or ```ponyc-numa```:
