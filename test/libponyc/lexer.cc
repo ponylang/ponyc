@@ -630,8 +630,7 @@ TEST_F(LexerTest, IntHexNoOverflow)
 {
   const char* src = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
 
-  // TODO: This is wrong, that's 2^64 - 1, should be 2^128 - 1
-  expect(1, 1, true, TK_INT, "18446744073709551615");
+  expect(1, 1, true, TK_INT, "340282366920938463463374607431768211455");
   expect(1, 35, false, TK_EOF, "EOF");
   DO(test(src));
 }
