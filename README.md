@@ -31,13 +31,13 @@ A pull request for the ponyc formula to be part of homebrew-core is [pending](ht
 
 ## Linux
 
-* ```ponyc```: This package is the recommended one and should work on most modern ```x86_64``` platforms.
+* ```ponyc```: Recommended. Should work on most modern ```x86_64``` platforms.
 * ```ponyc-noavx```: Ponyc for platforms without AVX support (for example certain virtual machines) 
 * ```ponyc-numa```: A numa-aware version of ```ponyc```.
 
 ### Apt-get and Aptitude
 
-First, you can trust the public key of ponylang.org:
+First, import the public key of ponylang.org:
 
 ```bash
 $ wget -O - http://www.ponylang.org/releases/buildbot@lists.ponylang.org.gpg.key | sudo apt-key add -
