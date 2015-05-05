@@ -17,6 +17,8 @@
 
 PONY_EXTERN_C_BEGIN
 
+#define PONY_LLVM (LLVM_VERSION_MAJOR * 100) + LLVM_VERSION_MINOR
+
 // Missing from C API.
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
@@ -50,10 +52,6 @@ typedef struct compile_frame_t
 typedef struct compile_t
 {
   pass_opt_t* opt;
-
-  LLVMPassManagerBuilderRef pmb;
-  LLVMPassManagerRef mpm;
-  LLVMPassManagerRef lpm;
   reachable_types_t* reachable;
   const char* filename;
   uint32_t next_type_id;
@@ -102,7 +100,6 @@ typedef struct compile_t
   LLVMTargetDataRef target_data;
   LLVMModuleRef module;
   LLVMBuilderRef builder;
-  LLVMPassManagerRef fpm;
 
   LLVMTypeRef void_type;
   LLVMTypeRef i1;
@@ -171,9 +168,6 @@ bool codegen_hassource(compile_t* c);
 
 const char* suffix_filename(const char* dir, const char* file,
   const char* extension);
-
-// Implemented in host.cc.
-void stack_alloc(compile_t* c);
 
 PONY_EXTERN_C_END
 

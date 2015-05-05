@@ -1,5 +1,6 @@
 #include "literal.h"
 #include "reference.h"
+#include "../ast/astbuild.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"

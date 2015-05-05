@@ -1,4 +1,5 @@
 #include "sugar.h"
+#include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"

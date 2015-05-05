@@ -261,7 +261,7 @@ void symbols_declare(symbols_t* symbols, dwarf_meta_t* meta)
   if(meta->flags & DWARF_TUPLE)
     tag = DW_TAG_structure_type;
 
-#if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
+#if PONY_LLVM >= 307
   d->prelim = symbols->builder->createReplaceableCompositeType(tag,
     meta->name, symbols->unit, file, (int)meta->line);
 #else
@@ -359,11 +359,11 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
       file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
   }
 
-  #if LLVM_VERSION_MAJOR > 3 || (LLVM_VERSION_MAJOR == 3 && LLVM_VERSION_MINOR > 6)
-    d->prelim->replaceAllUsesWith(d->actual);
-  #else
-    d->prelim.replaceAllUsesWith(d->actual);
-  #endif
+#if PONY_LLVM >= 307
+  d->prelim->replaceAllUsesWith(d->actual);
+#else
+  d->prelim.replaceAllUsesWith(d->actual);
+#endif
 }
 
 void symbols_lexicalscope(symbols_t* symbols, dwarf_meta_t* meta)
