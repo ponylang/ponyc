@@ -17,10 +17,9 @@ class Circle
 
 actor Main
   new create(env: Env) =>
-    var c: Circle
 
     for i in Range[F32](1.0, 101.0) do
-      c = Circle(i)
+      let c = Circle(i)
 
       var str =
         "Radius: " + c.get_radius().string() + "\n" +

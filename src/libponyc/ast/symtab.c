@@ -268,7 +268,8 @@ bool symtab_check_all_defined(symtab_t* symtab)
     // this scope
     if(sym->def != NULL && sym->status == SYM_UNDEFINED)
     {
-      ast_error(sym->def, "Local variable %s is never initialised", sym->name);
+      ast_error(sym->def,
+        "Local variable %s is not assigned a value in all code paths", sym->name);
       r = false;
     }
   }
