@@ -121,7 +121,7 @@ static LLVMValueRef stack_alloc_inst(compile_t* c, LLVMValueRef inst)
     return inst;
   }
 
-  size_t alloc_size = (size_t)int_size->getZExtValue();
+  size_t alloc_size = pony_downcast(size_t, int_size->getZExtValue());
 
   // Limit stack allocations to 1 kb each.
   if(alloc_size > 1024)
