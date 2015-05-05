@@ -781,7 +781,7 @@ bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner)
       {
         // If it's consumed, and has a null value, it's from outside of this
         // scope. We need to know if it's outside the loop scope.
-        if((sym->status == SYM_CONSUMED) && (sym->value == NULL))
+        if((sym->status == SYM_CONSUMED) && (sym->def == NULL))
         {
           if(!ast_within_scope(outer, inner, sym->name))
           {

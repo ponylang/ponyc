@@ -82,7 +82,7 @@ static bool add_method_to_list(ast_t* method, methods_t* method_info,
     // First instance of this name
     list = ast_blank(TK_ID);
     ast_set_name(list, name);
-    symtab_add(symtab, name, (void*)list, SYM_NONE);
+    symtab_add(symtab, name, list, SYM_NONE);
 
     if(method_info->last_list == NULL)
       ast_add(method_info->name_lists, list);

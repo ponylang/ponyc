@@ -104,7 +104,7 @@ static bool add_subtree_name(build_parser_t* builder, const char* name,
   assert(builder != NULL);
   assert(builder->defs != NULL);
 
-  if(!symtab_add(builder->defs, name, (void*)subtree, SYM_NONE))
+  if(!symtab_add(builder->defs, name, subtree, SYM_NONE))
   {
     build_error(builder, "Multiple {def %s} attributes", name);
     return false;

@@ -62,16 +62,12 @@ actor Main
     end
 
   fun setup_ring() =>
-    var first: Ring
-    var next: Ring
-    var current: Ring
-
     for j in Range[U32](0, _ring_count) do
-      first = Ring(1, _env)
-      next = first
+      let first = Ring(1, _env)
+      var next = first
 
       for k in Range[U32](0, _ring_size - 1) do
-        current = Ring(_ring_size - k, _env, next)
+        let current = Ring(_ring_size - k, _env, next)
         next = current
       end
 
