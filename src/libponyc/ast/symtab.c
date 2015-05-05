@@ -264,7 +264,9 @@ bool symtab_check_all_defined(symtab_t* symtab)
 
   while((sym = symtab_next(symtab, &i)) != NULL)
   {
-    if(sym->status == SYM_UNDEFINED)
+    // Ignore entries with a NULL def field, that means it was not declared in
+    // this scope
+    if(sym->def != NULL && sym->status == SYM_UNDEFINED)
     {
       ast_error(sym->def, "Local variable %s is never initialised", sym->name);
       r = false;
