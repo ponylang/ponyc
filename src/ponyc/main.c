@@ -31,6 +31,7 @@ enum
   OPT_FEATURES,
   OPT_TRIPLE,
   OPT_STATS,
+  OPT_PRINT_PATHS,
 
   OPT_PASSES,
   OPT_AST,
@@ -57,6 +58,7 @@ static opt_arg_t args[] =
   {"features", 0, OPT_ARG_REQUIRED, OPT_FEATURES},
   {"triple", 0, OPT_ARG_REQUIRED, OPT_TRIPLE},
   {"stats", 0, OPT_ARG_NONE, OPT_STATS},
+  {"print-paths", 0, OPT_ARG_NONE, OPT_PRINT_PATHS},
 
   {"pass", 'r', OPT_ARG_REQUIRED, OPT_PASSES},
   {"ast", 'a', OPT_ARG_NONE, OPT_AST},
@@ -97,6 +99,7 @@ static void usage()
     "  --triple        Set the target triple.\n"
     "    =name         Defaults to the host triple.\n"
     "  --stats         Print some compiler stats.\n"
+    "  --print-paths   Print search paths.\n"
     "\n"
 
 #ifndef NDEBUG
@@ -192,6 +195,7 @@ int main(int argc, char* argv[])
 
   bool ok = true;
   bool print_usage = false;
+  bool print_paths = false;
   int id;
 
   while((id = opt_next(&s)) != -1)
@@ -218,6 +222,7 @@ int main(int argc, char* argv[])
       case OPT_FEATURES: opt.features = s.arg_val; break;
       case OPT_TRIPLE: opt.triple = s.arg_val; break;
       case OPT_STATS: opt.print_stats = true; break;
+      case OPT_PRINT_PATHS: print_paths = true; break;
 
       case OPT_AST: print_ast = true; break;
       case OPT_TRACE: parse_trace(true); break;
@@ -244,7 +249,7 @@ int main(int argc, char* argv[])
   {
     if(argv[i][0] == '-')
     {
-      printf("Unrecognised option: %s\n", argv[i]);
+      fprintf(stderr, "Unrecognised option: %s\n", argv[i]);
       ok = false;
       print_usage = true;
     }
@@ -262,6 +267,12 @@ int main(int argc, char* argv[])
 
   if(package_init(&opt))
   {
+    if(print_paths)
+    {
+      for(strlist_t* p = package_paths(); p; p = strlist_next(p))
+        printf("%s\n", strlist_data(p));
+      return 0;
+    }
     if(argc == 1)
     {
       ok &= compile_package(".", &opt, print_ast);
