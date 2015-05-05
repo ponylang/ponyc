@@ -1,5 +1,6 @@
 #include "symtab.h"
 #include "stringtab.h"
+#include "ast.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -87,14 +88,14 @@ void symtab_free(symtab_t* symtab)
   POOL_FREE(symtab_t, symtab);
 }
 
-bool symtab_add(symtab_t* symtab, const char* name, void* value,
+bool symtab_add(symtab_t* symtab, const char* name, ast_t* def,
   sym_status_t status)
 {
   const char* no_case = name_without_case(name);
 
   if(no_case != name)
   {
-    symbol_t s1 = {no_case, value, SYM_NOCASE, 0};
+    symbol_t s1 = {no_case, def, SYM_NOCASE, 0};
     symbol_t* s2 = symtab_get(symtab, &s1);
 
     if(s2 != NULL)
@@ -103,7 +104,7 @@ bool symtab_add(symtab_t* symtab, const char* name, void* value,
     symtab_put(symtab, sym_dup(&s1));
   }
 
-  symbol_t s1 = {name, value, status, 0};
+  symbol_t s1 = {name, def, status, 0};
   symbol_t* s2 = symtab_get(symtab, &s1);
 
   if(s2 != NULL)
@@ -113,7 +114,7 @@ bool symtab_add(symtab_t* symtab, const char* name, void* value,
   return true;
 }
 
-void* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
+ast_t* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
 {
   symbol_t s1 = {name, NULL, SYM_NONE, 0};
   symbol_t* s2 = symtab_get(symtab, &s1);
@@ -126,7 +127,7 @@ void* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
     if(s2->status == SYM_NOCASE)
       return NULL;
 
-    return s2->value;
+    return s2->def;
   }
 
   if(status != NULL)
@@ -135,7 +136,7 @@ void* symtab_find(symtab_t* symtab, const char* name, sym_status_t* status)
   return NULL;
 }
 
-void* symtab_find_case(symtab_t* symtab, const char* name,
+ast_t* symtab_find_case(symtab_t* symtab, const char* name,
   sym_status_t* status)
 {
   // Same as symtab_get, but is partially case insensitive. That is, type names
@@ -148,7 +149,7 @@ void* symtab_find_case(symtab_t* symtab, const char* name,
     if(status != NULL)
       *status = s2->status;
 
-    return s2->value;
+    return s2->def;
   }
 
   const char* no_case = name_without_case(name);
@@ -181,7 +182,7 @@ void symtab_inherit_status(symtab_t* dst, symtab_t* src)
   while((sym = symtab_next(src, &i)) != NULL)
   {
     // Only inherit symbols that were declared in an outer scope.
-    if(sym->value != NULL)
+    if(sym->def != NULL)
       continue;
 
     symbol_t* dsym = symtab_get(dst, sym);
@@ -205,7 +206,7 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
   while((sym = symtab_next(src, &i)) != NULL)
   {
     // Only inherit symbols that were declared in an outer scope.
-    if(sym->value != NULL)
+    if(sym->def != NULL)
       continue;
 
     symbol_t* dsym = symtab_get(dst, sym);
@@ -248,11 +249,29 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
     if((sym->name[0] == '_') || (sym->status == SYM_NOCASE))
       continue;
 
-    if(!symtab_add(dst, sym->name, sym->value, sym->status))
+    if(!symtab_add(dst, sym->name, sym->def, sym->status))
       return false;
   }
 
   return true;
+}
+
+bool symtab_check_all_defined(symtab_t* symtab)
+{
+  bool r = true;
+  size_t i = HASHMAP_BEGIN;
+  symbol_t* sym;
+
+  while((sym = symtab_next(symtab, &i)) != NULL)
+  {
+    if(sym->status == SYM_UNDEFINED)
+    {
+      ast_error(sym->def, "Local variable %s is never initialised", sym->name);
+      r = false;
+    }
+  }
+
+  return r;
 }
 
 void symtab_print(symtab_t* symtab)
