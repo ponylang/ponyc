@@ -31,48 +31,71 @@ static bool file_exists(const char* filename)
   return (err != -1) && S_ISREG(s.st_mode);
 }
 
-static const char* crt_directory()
+/** Searches directories for a file.
+ *  Each dir_pattern is expanded:
+ *     %r => sysroot
+ *     %t => target triple
+ *  Stores the first directory found containing the file in ret[]
+ *  with trailing / and returns true. Returns false if not found.
+ */
+static bool find_directory(compile_t *c, const char **dir_patterns,
+  const char *filename, char ret[static PATH_MAX])
 {
-  static const char* dir[] =
+  for(const char** dp = dir_patterns; *dp != NULL; dp++)
   {
-    "/usr/lib/x86_64-linux-gnu/",
-    "/usr/lib64/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "crt1.o");
-
-    if(file_exists(filename))
-      return *p;
+    char *r = ret;
+    char *endr = ret + PATH_MAX;
+    const char *p;
+    for(p = *dp; *p; p++)
+    {
+      if(*p == '%' && *(p + 1))
+        switch(*++p) {
+	case 't':
+	  r += snprintf(r, endr - r, "%s", c->opt->triple);
+	  break;
+	case '%':
+          if(r + 1 < endr)
+	    *r++ = '%';
+	  break;
+	default:
+	  abort();
+	}
+      else if(r + 1 < endr)
+        *r++ = *p;
+    }
+    if (r + 1 + strlen(filename) < endr) {
+      snprintf(r, endr - r, "/%s", filename);
+      if(file_exists(ret)) {
+        *(r + 1) = '\0';
+	return true;
+      }
+    }
   }
-
-  return NULL;
+  return false;
 }
 
-static const char* gccs_directory()
+static bool crt_directory(compile_t *c, char ret[static PATH_MAX])
 {
-  static const char* dir[] =
+  static const char* dir_patterns[] =
   {
-    "/lib/x86_64-linux-gnu/",
-    "/lib64/",
+    "/usr/lib/%t",
+    "/usr/lib64",
+    "/usr/lib",
     NULL
   };
+  return find_directory(c, dir_patterns, "crt1.o", ret);
+}
 
-  for(const char** p = dir; *p != NULL; p++)
+static bool gccs_directory(compile_t *c, char ret[static PATH_MAX])
+{
+  static const char* dir_patterns[] =
   {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "libgcc_s.so.1");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
+    "/lib/%t",
+    "/lib64",
+    "/lib",
+    NULL
+  };
+  return find_directory(c, dir_patterns, "libgcc_s.so.1", ret);
 }
 #endif
 
@@ -277,30 +300,50 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
 
-  const char* crt_dir = crt_directory();
-  const char* gccs_dir = gccs_directory();
+  char crt_dir[PATH_MAX];
+  char gccs_dir[PATH_MAX];
 
-  if((crt_dir == NULL) || (gccs_dir == NULL))
+  if (!crt_directory(c, crt_dir) ||
+      !gccs_directory(c, gccs_dir))
   {
     errorf(NULL, "could not find CRT");
     return false;
   }
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
-  VLA(char, ld_cmd, ld_len);
+  char ld_cmd[2048];
+  char *ld_ptr = ld_cmd, *end = ld_cmd + sizeof ld_cmd;
 
-  snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
-    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-    "-o %s "
-    "%scrt1.o "
-    "%scrti.o "
-    "%s %s %s -lponyrt %s -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, NUMA_LIB,
-    gccs_dir, crt_dir
-    );
+# define ld_printf(...) ld_ptr += snprintf(ld_ptr, end - ld_ptr, __VA_ARGS__)
 
+  ld_printf("${HOSTCC-gcc}");
+  //ld_printf(" --eh-frame-hdr --hash-style=gnu");
+  ld_printf(" -o %s", file_exe);
+  //ld_printf(" %scrt1.o", crt_dir);
+  //ld_printf(" %scrti.o", crt_dir);
+  ld_printf(" %s", file_o);
+  ld_printf(" %s", link_path);
+  ld_printf(" %s", lib_args);
+  ld_printf(" -lponyrt");
+  ld_printf(" %s", NUMA_LIB);
+  ld_printf(" -L/usr/lib/llvm-3.6/lib -lLLVM-3.6");
+  ld_printf(" -lpthread");
+  ld_printf(" -lm");
+  //ld_printf(" -lc");
+  //ld_printf(" %slibgcc_s.so.1", gccs_dir);
+  //ld_printf(" %scrtn.o", crt_dir);
+  ld_printf(" -Wl,-t"); /* trace */
+  /*ld_printf(" -m elf_x86_64");*/
+  /*ld_printf(" -dynamic-linker /lib64/ld-linux-x86-64.so.2");*/
+
+
+  if(ld_ptr >= end)
+  {
+    errorf(NULL, "link command too long");
+    return false;
+  }
+# undef ld_printf
+
+  fprintf(stderr, "%s\n", ld_cmd);
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
