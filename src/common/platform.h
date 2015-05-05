@@ -272,21 +272,30 @@ static __declspec(thread) DWORD lsb;
      typedef struct __int128_t { uint64_t low; int64_t high; } __int128_t;
      typedef struct __uint128_t { uint64_t low; uint64_t high; } __uint128_t;
 #  endif
-#  define __UINT128_C(n) { __UINT64_C(n), __UINT64_C(0) }
-#  define __INT128_C(n) { __INT64_C(n), __INT64_C(0) }
+#  define __UINT128_C(n) { UINT64_C(n), UINT64_C(0) }
+#  define __INT128_C(n) { (uint64_t)INT64_C(n), \
+                          __pony_choose_expr(INT64_C(n) < 0, INT64_C(-1), INT64_C(0)) }
 #else
-#  define __UINT128_C(n) __UINT64_C(n)
-#  define __INT128_C(n) __INT64_C(n)
+#  define __UINT128_C(n) (__uint128_t)(n)
+#  define __INT128_C(n) (__int128_t)(n)
 #endif
 
-/* intptr2_t - a type that is twice as wide as a pointer */
-#if   2 * 8 * __SIZEOF_POINTER__ == 128
-  typedef __int128 intptr2_t;
-  typedef unsigned __int128 uintptr2_t;
-#elif 2 * 8 * __SIZEOF_POINTER__ == 64
+#if defined(PLATFORM_IS_CLANG_OR_GCC)
+# define SIZEOF_POINTER __SIZEOF_POINTER__
+#elif defined(PLATFORM_IS_WINDOWS)
+# include <limits.h>
+# define SIZEOF_POINTER (_INTEGRAL_MAX_BITS >> 3)
+#endif
+
+/* uintptr2_t - atomic type that is twice as wide as uintptr_t */
+/* intptr2_t  - atomic type that is twice as wide as intptr_t */
+#if   2 * 8 * SIZEOF_POINTER == 128
+  typedef __int128_t intptr2_t;
+  typedef __uint128_t uintptr2_t;
+#elif 2 * 8 * SIZEOF_POINTER == 64
   typedef int64_t intptr2_t;
   typedef uint64_t uintptr2_t;
-#elif 2 * 8 * __SIZEOF_POINTER__ == 32
+#elif 2 * 8 * SIZEOF_POINTER == 32
   typedef int32_t intptr2_t;
   typedef uint32_t uintptr2_t;
 #else

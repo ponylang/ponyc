@@ -11,7 +11,7 @@
  *       |                  |<-HEAP_MAXBITS->|
  *       |<-L3-><-L2-><-L1->|
  */
-#if __SIZEOF_POINTER__*8 == 32
+#if SIZEOF_POINTER * 8 == 32
 # define PAGEMAP_ADDRESSBITS 29
 # define PAGEMAP_LEVELS 2
 #else
