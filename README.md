@@ -4,6 +4,8 @@
 
 * Use the [mailing list](mailto:ponydev@lists.ponylang.org).
 
+* Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
+
 * A tutorial is available [here](http://tutorial.ponylang.org).
 
 # Editor support
