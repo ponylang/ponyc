@@ -31,13 +31,13 @@ A pull request for the ponyc formula to be part of homebrew-core is [pending](ht
 
 ## Linux
 
-* ```ponyc```: This package is the recommended one and should work on most modern ```x86_64``` platforms.
-* ```ponyc-noavx```: Ponyc for platforms without AVX support (for example certain virtual machines) 
-* ```ponyc-numa```: A numa-aware version of ```ponyc```.
+* ```ponyc```: Recommended. Should work on most modern ```x86_64``` platforms.
+* ```ponyc-avx2```: For platforms with AVX2 support. 
+* ```ponyc-numa```: A numa-aware version of ```ponyc-avx2```.
 
 ### Apt-get and Aptitude
 
-First, you can trust the public key of ponylang.org:
+First, import the public key of ponylang.org:
 
 ```bash
 $ wget -O - http://www.ponylang.org/releases/buildbot@lists.ponylang.org.gpg.key | sudo apt-key add -
@@ -46,10 +46,12 @@ $ wget -O - http://www.ponylang.org/releases/buildbot@lists.ponylang.org.gpg.key
 Add the ponylang.org repository to apt-get:
 
 ```bash
-deb http://ponylang.org/releases/apt ponyc main
-deb http://ponylang.org/releases/apt ponyc-numa main
-deb http://ponylang.org/releases/apt ponyc-noavx main
+sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc main"
+sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-avx2 main"
+sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-numa main"
 ```
+
+Note that ```add-apt-repository``` may require to install ```python-software-properties``` or ```software-properties-common```.
 
 Then, update your repository cache:
 
@@ -57,7 +59,7 @@ Then, update your repository cache:
 $ sudo apt-get update
 ```
 
-Install ```ponyc```, ```ponyc-noavx``` or ```ponyc-numa```:
+Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo apt-get install <package name>
@@ -70,10 +72,10 @@ $ ponyc --version
 First, add the ponylang.org repository:
 
 ```bash
-$ sudo zypper ar -f http://www.ponylang.org/releases/yum ponyc
+$ sudo zypper ar -f http://www.ponylang.org/releases/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-noavx``` or ```ponyc-numa```:
+Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo zypper install <package-name>
@@ -89,7 +91,7 @@ First, add the ponylang.org repository:
 $ sudo yum-config-manager --add-repo=http://www.ponylang.org/releases/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-noavx``` or ```ponyc-numa```:
+Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo yum install <package-name>
@@ -144,7 +146,7 @@ $ ./build/release/ponyc examples/helloworld
 
 # Building on Windows
 
-The LLVM 3.6 prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.6 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
+The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
 You will also need to build and install premake5 (not premake4) from source. We need premake5 in order to support current versions of Visual Studio.
 
