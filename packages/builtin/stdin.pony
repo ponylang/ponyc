@@ -49,6 +49,7 @@ actor Stdin
       end
     end
 
+    try (_notify as StdinNotify).closed() end
     _notify = consume notify
 
   be _loop_read() =>

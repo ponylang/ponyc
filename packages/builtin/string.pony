@@ -573,7 +573,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s.insert_in_place(offset, that)
     s
 
-  fun ref insert_in_place(offset: I64, that: String): String ref^ =>
+  fun ref insert_in_place(offset: I64, that: String box): String ref^ =>
     """
     Inserts the given string at the given offset. Appends the string if the
     offset is out of bounds.
@@ -584,6 +584,18 @@ class String val is Seq[U8], Ordered[String box], Stringable
       _ptr.u64() + index, that._size)
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
+    _set(_size, 0)
+    this
+
+  fun ref insert_byte(offset: I64, value: U8): String ref^ =>
+    """
+    Inserts a byte at the given offset. Appends if the offset is out of bounds.
+    """
+    reserve(_size + 1)
+    var index = offset_to_index(offset).min(_size)
+    @memmove[Pointer[U8]](_ptr.u64() + index + 1, _ptr.u64() + index, U64(1))
+    _set(index, value)
+    _size = _size + 1
     _set(_size, 0)
     this
 
@@ -617,7 +629,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
-  fun ref strip(s: String): U64 =>
+  fun ref strip(s: String box): U64 =>
     """
     Remove all instances of s from the string. Returns the count of removed
     instances.

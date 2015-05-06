@@ -53,19 +53,9 @@ class File
     """
     not _handle.is_null()
 
-  fun ref dispose() =>
-    """
-    Close the file. Future operations will do nothing. If this isn't done,
-    the underlying file descriptor will leak.
-    """
-    if not _handle.is_null() then
-      @fclose[I32](_handle)
-      _handle = Pointer[_FileHandle]
-    end
-
   fun ref line(): String iso^ =>
     """
-    Returns a line as a String.
+    Returns a line as a String. The newline is not included in the string.
     """
     if not _handle.is_null() then
       var offset: U64 = 0
@@ -97,6 +87,16 @@ class File
         if not done then
           offset = result.size()
           len = len * 2
+        end
+      end
+
+      try
+        if result.at_offset(-1) == '\n' then
+          result.truncate(result.size() - 1)
+
+          if result.at_offset(-1) == '\r' then
+            result.truncate(result.size() - 1)
+          end
         end
       end
 
@@ -290,6 +290,23 @@ class File
     Returns an iterator for reading lines from the file.
     """
     FileLines(this)
+
+  fun ref dispose() =>
+    """
+    Close the file. Future operations will do nothing.
+    """
+    if not _handle.is_null() then
+      @fclose[I32](_handle)
+      _handle = Pointer[_FileHandle]
+    end
+
+  fun _final() =>
+    """
+    Close the file.
+    """
+    if not _handle.is_null() then
+      @fclose[I32](_handle)
+    end
 
 class FileLines is Iterator[String]
   """
