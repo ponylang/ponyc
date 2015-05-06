@@ -3,6 +3,9 @@ OSTYPE ?=
 
 ifeq ($(OS),Windows_NT)
   OSTYPE = windows
+  GREP := findstr /R
+  WHICH := where
+  DEVNULL := NUL
 else
   UNAME_S := $(shell uname -s)
   ifeq ($(UNAME_S),Linux)
@@ -12,6 +15,10 @@ else
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
   endif
+
+  GREP := grep -v
+  WHICH := which
+  DEVNULL := /dev/null
 endif
 
 # Default settings (silent debug build).
@@ -56,13 +63,13 @@ PONY_TEST_DIR ?= test
 LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
 ifdef use
-  ifneq (,$(filter $(use), numa))
+  ifneq (,$(filter $(use),numa))
     ALL_CFLAGS += -DUSE_NUMA
     LINK_NUMA = true
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-numa
   endif
 
-  ifneq (,$(filter $(use), valgrind))
+  ifneq (,$(filter $(use),valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
@@ -80,11 +87,11 @@ else
   BUILD_FLAGS += -g -DDEBUG
 endif
 
-ifneq (,$(shell which llvm-config 2> /dev/null))
+ifneq (,$(shell $(WHICH) llvm-config 2> $(DEVNULL)))
   LLVM_CONFIG = llvm-config
 endif
 
-ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+ifneq (,$(shell $(WHICH) llvm-config-3.6 2> $(DEVNULL)))
   LLVM_CONFIG = llvm-config-3.6
 endif
 
@@ -204,7 +211,7 @@ libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 
-ifeq ($(OSTYPE), linux)
+ifeq ($(OSTYPE),linux)
   libponyrt-pic.buildoptions += -fpic
 endif
 
@@ -275,16 +282,30 @@ define DIRECTORY
   else
     sourcedir := $(PONY_SOURCE_DIR)/$(1)
   endif
+
+  ifeq ($(OSTYPE),windows)
+    sourcedir := $$(subst /,\,$$(sourcedir))
+  endif
+endef
+
+define FIND
+  $(eval find := )
+
+  ifeq ($(OSTYPE),windows)
+    find := dir $(1)\$(2) $(1)\$(3) /b/s 
+  else
+    find := find $(1) -type f -name $(2) -or -name $(3)
+  endif
 endef
 
 define ENUMERATE
   $(eval sourcefiles := )
+  $(call FIND,$(sourcedir),*.c,*.cc)
 
   ifdef $(1).files
     sourcefiles := $$($(1).files)
   else
-    sourcefiles := $$(shell find $$(sourcedir) -type f -name "*.c" -or -name\
-      "*.cc" | grep -v '.*/\.')
+    sourcefiles := $$(shell $$(find) | $(GREP) '.*/\.')
   endif
 
   ifdef $(1).except
@@ -329,11 +350,18 @@ endef
 define PREPARE
   $(eval $(call DIRECTORY,$(1)))
   $(eval $(call ENUMERATE,$(1)))
+
   $(eval $(call CONFIGURE_LINKER,$(1)))
   $(eval objectfiles  := $(subst $(sourcedir)/,$(outdir)/,$(addsuffix .o,\
     $(sourcefiles))))
   $(eval dependencies := $(subst .c,,$(subst .cc,,$(subst .o,.d,\
     $(objectfiles)))))
+
+  ifeq ($(OSTYPE),windows)
+    $$(eval sourcefiles := $$(subst /,\,$$(sourcefiles)))
+    $$(eval objectfiles := $$(subst /,\,$$(objectfiles)))
+    $$(eval dependencies := $$(subst /,\,$$(dependencies)))
+  endif
 endef
 
 define EXPAND_OBJCMD
@@ -371,32 +399,32 @@ endef
 
 $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
-define EXPAND_RELEASE
-$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
-ifneq ($(branch),master)
-prerelease:
-	$$(error "Releases not allowed on $(branch) branch.")
-else
-ifndef version
-prerelease:
-	$$(error "No version number specified.")
-else
-$(eval tag := $(version))
-$(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
-ifneq ($(unstaged),0)
-prerelease:
-	$$(error "Detected unstaged changes. Release aborted")
-else
-prerelease: libponyc libponyrt ponyc
-	@while [ -z "$$$$CONTINUE" ]; do \
-	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
-	done ; \
-	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
-	@echo "Releasing ponyc v$(tag)."
-endif
-endif
-endif
-endef
+#define EXPAND_RELEASE
+#$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
+#ifneq ($(branch),master)
+#prerelease:
+#	$$(error "Releases not allowed on $(branch) branch.")
+#else
+#ifndef version
+#prerelease:
+#	$$(error "No version number specified.")
+#else
+#$(eval tag := $(version))
+#$(eval unstaged := $(shell git status --porcelain 2>$(DEVNULL) | wc -l))
+#ifneq ($(unstaged),0)
+#prerelease:
+#	$$(error "Detected unstaged changes. Release aborted")
+#else
+#prerelease: libponyc libponyrt ponyc
+#	@while [ -z "$$$$CONTINUE" ]; do \
+#	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
+#	done ; \
+#	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
+#	@echo "Releasing ponyc v$(tag)."
+#endif
+#endif
+#endif
+#endef
 
 define EXPAND_INSTALL
 install: libponyc libponyrt ponyc
@@ -422,11 +450,11 @@ endef
 $(eval $(call EXPAND_INSTALL))
 
 uninstall:
-	-@rm -rf $(destdir) 2>/dev/null ||:
-	-@rm $(prefix)/bin/ponyc 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
-	-@rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
-	-@rm $(prefix)/include/pony.h 2>/dev/null ||:
+	-@rm -rf $(destdir) 2>$(DEVNULL) ||:
+	-@rm $(prefix)/bin/ponyc 2>$(DEVNULL) ||:
+	-@rm $(prefix)/lib/libponyrt.a 2>$(DEVNULL) ||:
+	-@rm $(prefix)/lib/libponyc.a 2>$(DEVNULL) ||:
+	-@rm $(prefix)/include/pony.h 2>$(DEVNULL) ||:
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
@@ -436,20 +464,20 @@ ifeq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION
 
-$(eval $(call EXPAND_RELEASE))
+#$(eval $(call EXPAND_RELEASE))
 
-release: prerelease setversion
-	@echo $(tag) > VERSION
-	@git add VERSION
-	@git commit -m "Releasing version $(tag)"
-	@git tag $(tag)
-	@git push
-	@git push --tags
-	@git checkout release
-	@git pull
-	@git merge master
-	@git push
-	@git checkout $(branch)
+#release: prerelease
+#	@echo $(tag) > VERSION
+#	@git add VERSION
+#	@git commit -m "Releasing version $(tag)"
+#	@git tag $(tag)
+#	@git push
+#	@git push --tags
+#	@git checkout release
+#	@git pull
+#	@git merge master
+#	@git push
+#	@git checkout $(branch)
 endif
 	
 stats:
@@ -468,7 +496,7 @@ stats:
 
 clean:
 	@rm -rf $(PONY_BUILD_DIR)
-	-@rmdir build 2>/dev/null ||:
+	-@rmdir build 2>$(DEVNULL) ||:
 	@echo 'Repository cleaned ($(PONY_BUILD_DIR)).'
 
 help:
