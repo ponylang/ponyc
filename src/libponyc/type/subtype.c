@@ -1076,7 +1076,6 @@ bool is_known(ast_t* type)
   {
     case TK_UNIONTYPE:
     case TK_TUPLETYPE:
-    case TK_TYPEPARAMREF:
       return false;
 
     case TK_ISECTTYPE:
@@ -1116,6 +1115,14 @@ bool is_known(ast_t* type)
 
     case TK_ARROW:
       return is_known(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_known(constraint);
+    }
 
     default: {}
   }
