@@ -3,6 +3,7 @@
 #include "control.h"
 #include "literal.h"
 #include "reference.h"
+#include "../ast/astbuild.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
 #include "../type/alias.h"

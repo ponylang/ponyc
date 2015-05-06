@@ -20,6 +20,7 @@ enum
 {
   OPT_VERSION,
   OPT_DEBUG,
+  OPT_STRIP,
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_LIBRARY,
@@ -37,6 +38,8 @@ enum
   OPT_TRACE,
   OPT_WIDTH,
   OPT_IMMERR,
+  OPT_VERIFY,
+
   OPT_BNF,
   OPT_ANTLR,
   OPT_ANTLRRAW
@@ -46,6 +49,7 @@ static opt_arg_t args[] =
 {
   {"version", 'v', OPT_ARG_NONE, OPT_VERSION},
   {"debug", 'd', OPT_ARG_NONE, OPT_DEBUG},
+  {"strip", 's', OPT_ARG_NONE, OPT_STRIP},
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
@@ -63,9 +67,12 @@ static opt_arg_t args[] =
   {"trace", 't', OPT_ARG_NONE, OPT_TRACE},
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
+  {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
+
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
   {"antlrraw", '\0', OPT_ARG_NONE, OPT_ANTLRRAW},
+
   OPT_ARGS_FINISH
 };
 
@@ -79,6 +86,7 @@ static void usage()
     "Options:\n"
     "  --version, -v   Print the version of the compiler and exit.\n"
     "  --debug, -d     Don't optimise the output.\n"
+    "  --strip, -s     Strip debug info.\n"
     "  --path, -p      Add an additional search path.\n"
     "    =path         Used to find packages and libraries.\n"
     "  --output, -o    Write output to this directory.\n"
@@ -99,7 +107,6 @@ static void usage()
     "  --stats         Print some compiler stats.\n"
     "\n"
 
-#ifndef NDEBUG
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
@@ -120,10 +127,10 @@ static void usage()
     "  --width, -w     Width to target when printing the AST.\n"
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
+    "  --verify        Verify LLVM IR.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
     "\n"
-#endif
     );
 }
 
@@ -203,6 +210,7 @@ int main(int argc, char* argv[])
         return 0;
 
       case OPT_DEBUG: opt.release = false; break;
+      case OPT_STRIP: opt.strip_debug = true; break;
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
@@ -223,6 +231,7 @@ int main(int argc, char* argv[])
       case OPT_TRACE: parse_trace(true); break;
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
+      case OPT_VERIFY: opt.verify = true; break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;

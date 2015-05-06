@@ -1,4 +1,5 @@
 #include "names.h"
+#include "../ast/astbuild.h"
 #include "../type/alias.h"
 #include "../type/reify.h"
 #include "../pkg/package.h"
