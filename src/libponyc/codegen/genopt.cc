@@ -322,7 +322,8 @@ public:
     for(auto iter = def->use_begin(), end = def->use_end();
       iter != end; ++iter)
     {
-      Instruction* user = cast<Instruction>(*iter);
+      Use* use = &(*iter);
+      Instruction* user = cast<Instruction>(use->getUser());
       BasicBlock* user_block = user->getParent();
 
       if((alloc_block != user_block) && dt.dominates(alloc_block, user_block))
@@ -353,7 +354,6 @@ public:
       BasicBlock* bb = w.first;
       BasicBlock::iterator iter = w.second;
 
-#if 0
       if(user_blocks.count(bb))
       {
         if((bb != def_block) && (bb != alloc_block))
@@ -381,7 +381,6 @@ public:
       {
         continue;
       }
-#endif
 
       TerminatorInst* term = bb->getTerminator();
       unsigned count = term->getNumSuccessors();
