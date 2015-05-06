@@ -16,7 +16,7 @@
 
 * Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony).
 
-* Vim: pending.
+* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax).
 
 * Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
 
