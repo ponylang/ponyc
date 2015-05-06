@@ -1,4 +1,5 @@
 #include "genexe.h"
+#include "genopt.h"
 #include "genobj.h"
 #include "gentype.h"
 #include "genfun.h"
@@ -425,6 +426,9 @@ bool genexe(compile_t* c, ast_t* program)
   ast_free_unattached(env_ast);
 
   if(!ok)
+    return false;
+
+  if(!genopt(c))
     return false;
 
   const char* file_o = genobj(c);

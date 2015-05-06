@@ -4,52 +4,6 @@
 
 const char* genobj(compile_t* c)
 {
-  // Finalise the DWARF info.
-  dwarf_finalise(&c->dwarf);
-
-#if 0
-  printf("Verifying\n");
-
-  char* msg = NULL;
-
-  if(LLVMVerifyModule(c->module, LLVMPrintMessageAction, &msg) != 0)
-  {
-    errorf(NULL, "module verification failed: %s", msg);
-    LLVMDisposeMessage(msg);
-    return NULL;
-  }
-
-  if(msg != NULL)
-    LLVMDisposeMessage(msg);
-#endif
-
-  if(c->opt->release)
-  {
-    printf("Optimising\n");
-    LLVMValueRef fun = LLVMGetFirstFunction(c->module);
-
-    while(fun != NULL)
-    {
-      if(LLVMGetFirstBasicBlock(fun) != NULL)
-        LLVMRunFunctionPassManager(c->fpm, fun);
-
-      fun = LLVMGetNextFunction(fun);
-    }
-
-    // Finalise the function passes.
-    LLVMFinalizeFunctionPassManager(c->fpm);
-
-    // Module pass manager.
-    LLVMRunPassManager(c->mpm, c->module);
-
-    // LTO pass manager.
-    if(!c->opt->library)
-      LLVMRunPassManager(c->lpm, c->module);
-  }
-
-  // Allocate on the stack instead of the heap where possible.
-  stack_alloc(c);
-
   /*
    * Could store the pony runtime as a bitcode file. Build an executable by
    * amalgamating the program and the runtime.

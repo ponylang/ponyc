@@ -108,7 +108,7 @@ static reachable_method_stack_t* add_rmethod(reachable_method_stack_t* s,
       AST_GET_CHILDREN(fun, cap, id, typeparams, params, result, can_error,
         body);
 
-      ast_t* r_fun = reify(fun, typeparams, typeargs);
+      ast_t* r_fun = reify(fun, fun, typeparams, typeargs);
       ast_free_unattached(fun);
       fun = r_fun;
     }

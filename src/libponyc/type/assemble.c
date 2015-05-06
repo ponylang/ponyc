@@ -2,6 +2,7 @@
 #include "subtype.h"
 #include "lookup.h"
 #include "../ast/token.h"
+#include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "../pass/names.h"
 #include "../pass/expr.h"

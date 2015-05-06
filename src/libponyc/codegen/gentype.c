@@ -244,7 +244,8 @@ static void setup_type_fields(gentype_t* g)
       case TK_FLET:
       {
         AST_GET_CHILDREN(member, name, type, init);
-        g->fields[index] = reify(ast_type(member), typeparams, typeargs);
+        g->fields[index] = reify(typeparams, ast_type(member), typeparams,
+          typeargs);
         ast_setpos(g->fields[index], ast_line(name), ast_pos(name));
         index++;
         break;

@@ -121,7 +121,7 @@ static ast_t* get_fun(ast_t* type, const char* name, ast_t* typeargs)
   if(typeargs != NULL)
   {
     ast_t* typeparams = ast_childidx(fun, 2);
-    ast_t* r_fun = reify(fun, typeparams, typeargs);
+    ast_t* r_fun = reify(typeparams, fun, typeparams, typeargs);
     ast_free_unattached(fun);
     fun = r_fun;
     assert(fun != NULL);

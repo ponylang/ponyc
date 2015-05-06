@@ -1,5 +1,6 @@
 #include "literal.h"
 #include "reference.h"
+#include "../ast/astbuild.h"
 #include "../pass/expr.h"
 #include "../type/subtype.h"
 #include "../type/assemble.h"
@@ -269,7 +270,7 @@ static int uifset_formal_param(pass_opt_t* opt, ast_t* type_param_ref,
     BUILD(params, type_param, NODE(TK_TYPEPARAMS, TREE(ast_dup(type_param))));
     BUILD(args, type_param, NODE(TK_TYPEARGS, TREE(uif)));
 
-    if(check_constraints(params, args, false))
+    if(check_constraints(NULL, params, args, false))
       uif_set |= (1 << i);
 
     ast_free(args);

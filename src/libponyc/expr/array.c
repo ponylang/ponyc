@@ -2,6 +2,7 @@
 #include "reference.h"
 #include "postfix.h"
 #include "call.h"
+#include "../ast/astbuild.h"
 #include "../expr/literal.h"
 #include "../pkg/package.h"
 #include "../pass/names.h"

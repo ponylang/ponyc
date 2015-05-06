@@ -1,4 +1,5 @@
 #include "genlib.h"
+#include "genopt.h"
 #include "genobj.h"
 #include "genheader.h"
 #include "../reach/paint.h"
@@ -206,6 +207,9 @@ bool genlib(compile_t* c, ast_t* program)
     !generate_actors(c, program) ||
     !genheader(c)
     )
+    return false;
+
+  if(!genopt(c))
     return false;
 
   const char* file_o = genobj(c);
