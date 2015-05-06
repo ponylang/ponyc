@@ -26,6 +26,9 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
+destdir ?= /usr/local/lib/pony/$(tag)
+prefix ?= /usr/local
+
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
@@ -388,31 +391,22 @@ endif
 endef
 
 define EXPAND_INSTALL
-ifndef prefix
-$$(eval out := /usr/local/lib/pony/$(tag))
-$$(eval symlink := yes)
-else
-$$(eval out := $(prefix))
-$$(eval symlink := no)
-endif
 install: libponyc libponyrt ponyc
-	@mkdir -p $$(out)/bin
-	@mkdir -p $$(out)/lib
-	@mkdir -p $$(out)/include
-	@cp $(PONY_BUILD_DIR)/libponyrt.a $$(out)/lib
-	@cp $(PONY_BUILD_DIR)/libponyc.a $$(out)/lib
-	@cp $(PONY_BUILD_DIR)/ponyc $$(out)/bin
-	@cp src/libponyrt/pony.h $$(out)/include
-	@cp -r packages $$(out)/
-ifeq ($$(symlink),yes)
-	@mkdir -p /usr/local/bin
-	@mkdir -p /usr/local/lib
-	@mkdir -p /usr/local/include
-	@ln -sf $$(out)/bin/ponyc /usr/local/bin/ponyc
-	@ln -sf $$(out)/lib/libponyrt.a /usr/local/lib/libponyrt.a 
-	@ln -sf $$(out)/lib/libponyc.a /usr/local/lib/libponyc.a 
-	@ln -sf $$(out)/include/pony.h /usr/local/include/pony.h
-endif
+	@mkdir -p $(destdir)/bin
+	@mkdir -p $(destdir)/lib
+	@mkdir -p $(destdir)/include
+	@cp $(PONY_BUILD_DIR)/libponyrt.a $(destdir)/lib
+	@cp $(PONY_BUILD_DIR)/libponyc.a $(destdir)/lib
+	@cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
+	@cp src/libponyrt/pony.h $(destdir)/include
+	@cp -r packages $(destdir)/
+	@mkdir -p $(prefix)/bin
+	@mkdir -p $(prefix)/lib
+	@mkdir -p $(prefix)/include
+	@ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
+	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a 
+	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a 
+	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endef
 
 $(eval $(call EXPAND_INSTALL))
