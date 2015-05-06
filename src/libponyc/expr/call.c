@@ -86,13 +86,13 @@ static bool check_type_params(ast_t** astp)
 
   BUILD(typeargs, typeparams, NODE(TK_TYPEARGS));
 
-  if(!check_constraints(typeparams, typeargs, true))
+  if(!check_constraints(lhs, typeparams, typeargs, true))
   {
     ast_free_unattached(typeargs);
     return false;
   }
 
-  type = reify(type, typeparams, typeargs);
+  type = reify(lhs, type, typeparams, typeargs);
   typeparams = ast_childidx(type, 1);
   ast_replace(&typeparams, ast_from(typeparams, TK_NONE));
 

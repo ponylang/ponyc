@@ -107,7 +107,7 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   replace_thistype(&find, orig);
   ast_free_unattached(orig);
 
-  ast_t* r_find = reify(find, typeparams, typeargs);
+  ast_t* r_find = reify(from, find, typeparams, typeargs);
 
   if(r_find != find)
   {

@@ -118,7 +118,7 @@ static ast_t* reify_without_defaults(ast_t* ast, ast_t* typeparams,
   return r_ast;
 }
 
-ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
+ast_t* reify(ast_t* orig, ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 {
   assert(
     (ast_id(typeparams) == TK_TYPEPARAMS) ||
@@ -137,7 +137,8 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   if(typearg != NULL)
   {
-    ast_error(typearg, "too many type arguments");
+    ast_error(orig, "too many type arguments");
+    ast_error(typeparams, "definition is here");
     ast_free(r_ast);
     return NULL;
   }
@@ -161,7 +162,8 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
 
   if(typeparam != NULL)
   {
-    ast_error(typeargs, "not enough type arguments");
+    ast_error(orig, "not enough type arguments");
+    ast_error(typeparams, "definition is here");
     ast_free(r_ast);
     return NULL;
   }
@@ -169,10 +171,11 @@ ast_t* reify(ast_t* ast, ast_t* typeparams, ast_t* typeargs)
   return r_ast;
 }
 
-bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
+bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
+  bool report_errors)
 {
   // Reify the type parameters with the typeargs.
-  ast_t* r_typeparams = reify(typeparams, typeparams, typeargs);
+  ast_t* r_typeparams = reify(orig, typeparams, typeparams, typeargs);
 
   if(r_typeparams == NULL)
     return false;
@@ -192,7 +195,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     {
       if(report_errors)
       {
-        ast_error(typearg, "type argument is outside its constraint");
+        ast_error(orig, "type argument is outside its constraint");
         ast_error(typearg, "argument: %s", ast_print_type(typearg));
         ast_error(typeparam, "constraint: %s", ast_print_type(r_constraint));
       }
@@ -211,7 +214,7 @@ bool check_constraints(ast_t* typeparams, ast_t* typeargs, bool report_errors)
     {
       if(report_errors)
       {
-        ast_error(typearg, "a constructable constraint can only be fulfilled "
+        ast_error(orig, "a constructable constraint can only be fulfilled "
           "by a concrete type argument");
         ast_error(typearg, "argument: %s", ast_print_type(typearg));
         ast_error(typeparam, "constraint: %s", ast_print_type(constraint));

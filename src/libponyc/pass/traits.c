@@ -140,7 +140,7 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
     {
       // Reify the method with the type parameters from trait definition and
       // the reified type arguments from trait reference
-      ast_t* r_method = reify(m, type_params, type_args);
+      ast_t* r_method = reify(type_args, m, type_params, type_args);
       const char* entity_name = ast_name(ast_child(entity));
 
       if(ast_id(r_method) == TK_BE || ast_id(r_method) == TK_NEW)

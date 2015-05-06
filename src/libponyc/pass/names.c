@@ -99,7 +99,7 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
     return false;
 
   // Reify the alias.
-  ast_t* r_alias = reify(alias, typeparams, typeargs);
+  ast_t* r_alias = reify(typeparams, alias, typeparams, typeargs);
 
   if(r_alias == NULL)
     return false;

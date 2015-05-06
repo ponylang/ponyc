@@ -222,9 +222,8 @@ void* pool_alloc_size(size_t size)
 
   if(index < POOL_COUNT)
     return pool_alloc(index);
-  //   p = pool_get(index);
-  // else
-    p = virtual_alloc(size);
+
+  p = virtual_alloc(size);
 
 #ifdef USE_VALGRIND
   VALGRIND_MALLOCLIKE_BLOCK(p, size, 0, 0);

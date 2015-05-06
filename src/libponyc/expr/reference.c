@@ -808,7 +808,7 @@ bool expr_nominal(pass_opt_t* opt, ast_t** astp)
   ast_t* typeparams = ast_childidx(def, 1);
   ast_t* typeargs = ast_childidx(ast, 2);
 
-  return check_constraints(typeparams, typeargs, true);
+  return check_constraints(typeargs, typeparams, typeargs, true);
 }
 
 static bool show_partiality(ast_t* ast)
