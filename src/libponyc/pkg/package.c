@@ -450,7 +450,7 @@ static void add_exec_dir()
   success = (r == 0);
 
   if(success)
-  {  
+  {
     pony_realpath(exec_path, path);
   }
 #else
@@ -501,12 +501,6 @@ bool package_init(pass_opt_t* opt)
     return false;
 
   package_add_paths(getenv("PONYPATH"));
-
-#ifndef PLATFORM_IS_WINDOWS
-  add_path("/usr/local/lib/pony");
-  add_path("/usr/local/lib");
-#endif
-
   add_exec_dir();
   use_register_std();
 
