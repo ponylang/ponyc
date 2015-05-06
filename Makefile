@@ -18,12 +18,26 @@ endif
 config ?= debug
 arch ?= native
 
+ifndef verbose
+  SILENT = @
+else
+  SILENT =
+endif
+
 ifneq ($(wildcard .git),)
 tag := $(shell git describe --tags --always)
 git := yes
 else
 tag := $(shell cat VERSION)
 git := no
+endif
+
+symlink := yes
+
+ifdef destdir
+  ifndef prefix
+    symlink := no
+  endif
 endif
 
 destdir ?= /usr/local/lib/pony/$(tag)
@@ -52,12 +66,6 @@ ifdef use
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
-endif
-
-ifndef verbose
-  SILENT = @
-else
-  SILENT =
 endif
 
 ifdef config
@@ -400,6 +408,7 @@ install: libponyc libponyrt ponyc
 	@cp $(PONY_BUILD_DIR)/ponyc $(destdir)/bin
 	@cp src/libponyrt/pony.h $(destdir)/include
 	@cp -r packages $(destdir)/
+ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/bin
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
@@ -407,16 +416,17 @@ install: libponyc libponyrt ponyc
 	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a 
 	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a 
 	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
+endif
 endef
 
 $(eval $(call EXPAND_INSTALL))
 
 uninstall:
-	-@rm -rf /usr/local/lib/pony 2>/dev/null ||:
-	-@rm /usr/local/bin/ponyc 2>/dev/null ||:
-	-@rm /usr/local/lib/libponyrt.a 2>/dev/null ||:
-	-@rm /usr/local/lib/libponyc.a 2>/dev/null ||:
-	-@rm /usr/local/include/pony.h 2>/dev/null ||:
+	-@rm -rf $(destdir) 2>/dev/null ||:
+	-@rm $(prefix)/bin/ponyc 2>/dev/null ||:
+	-@rm $(prefix)/lib/libponyrt.a 2>/dev/null ||:
+	-@rm $(prefix)/lib/libponyc.a 2>/dev/null ||:
+	-@rm $(prefix)/include/pony.h 2>/dev/null ||:
 
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
