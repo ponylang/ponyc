@@ -6,6 +6,8 @@
 #  pragma warning(disable:4267)
 #endif
 
+#include "genopt.h"
+
 #include <llvm/IR/Module.h>
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/CallSite.h>
@@ -17,6 +19,7 @@
 #if PONY_LLVM >= 307
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
 #else
 #include <llvm/PassManager.h>
 #include <llvm/Target/TargetLibraryInfo.h>
@@ -28,8 +31,6 @@
 #include <llvm/ADT/Triple.h>
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
-
-#include "genopt.h"
 
 #ifdef _MSC_VER
 #  pragma warning(pop)
@@ -489,8 +490,6 @@ static void optimise(compile_t* c)
   pmb.SLPVectorize = true;
   pmb.RerollLoops = true;
   pmb.LoadCombine = true;
-  pmb.StripDebug = c->opt->strip_debug;
-  // pmb.MergeFunctions = !c->opt->library;
 
   pmb.addExtension(PassManagerBuilder::EP_LoopOptimizerEnd,
     addHeapToStackPass);
@@ -498,6 +497,9 @@ static void optimise(compile_t* c)
   pmb.populateFunctionPassManager(fpm);
   pmb.populateModulePassManager(mpm);
   pmb.populateLTOPassManager(lpm);
+
+  if(c->opt->strip_debug)
+    lpm.add(createStripSymbolsPass());
 
   fpm.doInitialization();
 
