@@ -35,7 +35,7 @@ typedef struct scheduler_t
   mpmcq_t q;
 } scheduler_t;
 
-void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq);
+void scheduler_init(uint32_t threads, bool noyield, bool forcecd, bool mpmcq);
 
 bool scheduler_start(bool library);
 

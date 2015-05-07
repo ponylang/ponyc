@@ -25,6 +25,7 @@ static uint32_t scheduler_count;
 static scheduler_t* scheduler;
 static bool detect_quiescence;
 static bool use_mpmcq;
+static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
 
@@ -189,7 +190,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
     sched->ack_count = 0;
   }
 
-  cpu_core_pause(tsc);
+  cpu_core_pause(tsc, use_yield);
   return false;
 }
 
@@ -450,9 +451,10 @@ static void scheduler_shutdown()
   mpmcq_destroy(&inject);
 }
 
-void scheduler_init(uint32_t threads, bool forcecd, bool mpmcq)
+void scheduler_init(uint32_t threads, bool noyield, bool forcecd, bool mpmcq)
 {
   use_mpmcq = mpmcq;
+  use_yield = !noyield;
 
   // If no thread count is specified, use the available physical core count.
   if(threads == 0)
