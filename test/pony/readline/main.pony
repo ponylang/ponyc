@@ -31,4 +31,4 @@ class Handler is ReadlineNotify
 actor Main
   new create(env: Env) =>
     env.out.print("Use 'quit' to exit.")
-    env.input(Readline(recover Handler end, env.out, "history.txt"))
+    env.input(Readline(recover Handler end, env.out))
