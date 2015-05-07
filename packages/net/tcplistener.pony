@@ -83,10 +83,9 @@ actor TCPListener
         end
       end
     else
-      if Platform.windows() and Event.readable(flags) then
-        // On windows, the unsubscribe is done after the asynchronous accept is
-        // cancelled.
-        @asio_event_unsubscribe[None](_event)
+      if not Event.disposable(flags) then
+        // If we are closed, unsubscribe any non-disposable event.
+        @asio_event_unsubscribe[None](event)
       end
     end
 
@@ -118,6 +117,6 @@ actor TCPListener
     end
 
     // When not on windows, the unsubscribe is done immediately.
-    if not Platform.windows() then
+    if not Platform.windows() and not _event.is_null() then
       @asio_event_unsubscribe[None](_event)
     end
