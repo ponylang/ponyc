@@ -105,6 +105,29 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     _size
 
+  fun codepoints(from: I64 = 0, to: I64 = -1): U64 =>
+    """
+    Returns the number of unicode code points in the string between the two
+    offsets. From and to are inclusive.
+    """
+    if _size == 0 then
+      return 0
+    end
+
+    var i = offset_to_index(from)
+    var j = offset_to_index(to).min(_size - 1)
+    var n = U64(0)
+
+    while i <= j do
+      if (_ptr._apply(i) and 0xC0) != 0x80 then
+        n = n + 1
+      end
+
+      i = i + 1
+    end
+
+    n
+
   fun space(): U64 =>
     """
     Returns the amount of allocated space.
@@ -581,7 +604,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     reserve(_size + that._size)
     var index = offset_to_index(offset).min(_size)
     @memmove[Pointer[U8]](_ptr.u64() + index + that._size,
-      _ptr.u64() + index, that._size)
+      _ptr.u64() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _set(_size, 0)
@@ -593,7 +616,8 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     reserve(_size + 1)
     var index = offset_to_index(offset).min(_size)
-    @memmove[Pointer[U8]](_ptr.u64() + index + 1, _ptr.u64() + index, U64(1))
+    @memmove[Pointer[U8]](_ptr.u64() + index + 1, _ptr.u64() + index,
+      _size - index)
     _set(index, value)
     _size = _size + 1
     _set(_size, 0)

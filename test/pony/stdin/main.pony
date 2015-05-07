@@ -7,11 +7,11 @@ class Notify is StdinNotify
   fun ref apply(data: Array[U8] iso): Bool =>
     let data' = consume val data
 
-    try
-      if data'(0) == 0x1B then
-        return false
-      end
-    end
+    // try
+    //   if data'(0) == 0x1B then
+    //     return false
+    //   end
+    // end
 
     _env.out.write(data')
     true
