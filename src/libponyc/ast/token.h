@@ -211,6 +211,7 @@ typedef enum token_id
 
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros
+  TK_FLATTEN,  // Used by parser macros for tree building
 
   // Token types for testing
   TK_TEST,

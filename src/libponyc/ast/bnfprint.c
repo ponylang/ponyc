@@ -34,113 +34,104 @@
 // Fixed text to add to printed BNF to make complete antlr file
 static const char* antlr_pre =
   "// ANTLR v3 grammar\n"
-  "grammar pony;\n"
-  "\n"
+  "grammar pony;\n\n"
   "options\n"
   "{\n"
   "  output = AST;\n"
   "  k = 1;\n"
-  "}\n"
-  "\n"
+  "}\n\n"
   "// Parser\n";
 
 static const char* antlr_post =
-  "/* Precedence\n"
-  "\n"
+  "/* Precedence\n\n"
   "Value:\n"
   "1. postfix\n"
   "2. unop\n"
   "3. binop\n"
   "4. =\n"
   "5. seq\n"
-  "6. ,\n"
-  "\n"
+  "6. ,\n\n"
   "Type:\n"
   "1. ->\n"
   "2. & |\n"
   "3. ,\n"
-  "*/\n"
-  "\n"
-  "// Lexer\n"
-  "\n"
+  "*/\n\n"
+  "// Lexer\n\n"
   "ID\n"
-  "  :  LETTER (LETTER | DIGIT | '_' | '\\'')*\n"
-  "  | '_' (LETTER | DIGIT | '_' | '\\'') +\n"
-  "  ;\n"
-  "\n"
+  "  : LETTER (LETTER | DIGIT | '_' | '\\'')*\n"
+  "  | '_' (LETTER | DIGIT | '_' | '\\'')+\n"
+  "  ;\n\n"
   "INT\n"
-  "  :  DIGIT +\n"
-  "  | '0' 'x' HEX +\n"
-  "  | '0' 'b' BINARY +\n"
+  "  : DIGIT+\n"
+  "  | '0' 'x' HEX+\n"
+  "  | '0' 'b' BINARY+\n"
   "  | '\\'' (ESC | ~('\\'' | '\\\\'))* '\\''\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "FLOAT\n"
-  "  :  DIGIT + ('.' DIGIT + ) ? EXP ?\n"
-  "  ;\n"
-  "\n"
-  "LINECOMMENT\n"
-  "  :  '//' ~('\\n' | '\\r')* '\\r'? '\\n' {$channel = HIDDEN;}\n"
-  "  ;\n"
-  "\n"
-  "NESTEDCOMMENT\n"
-  "  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/'"
-    " {$channel = HIDDEN;}\n"
-  "  ;\n"
-  "\n"
-  "WS\n"
-  "  :  ' ' | '\\t' | '\\r' | '\\n' {$channel = HIDDEN;}\n"
-  "  ;\n"
-  "\n"
+  "  : DIGIT+ ('.' DIGIT+)? EXP?\n"
+  "  ;\n\n"
   "STRING\n"
-  "  :  '\"' (ESC | ~('\\\\' | '\"'))* '\"'\n"
+  "  : '\"' (ESC | ~('\\\\' | '\"'))* '\"'\n"
   "  | '\"\"\"' ~('\"\"\"')* '\"\"\"'\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
+  "LPAREN_NEW\n"
+  "  : NEWLINE '('\n"
+  "  ;\n\n"
+  "LSQUARE_NEW\n"
+  "  : NEWLINE '['\n"
+  "  ;\n\n"
+  "MINUS_NEW\n"
+  "  : NEWLINE '-'\n"
+  "  ;\n\n"
+  "LINECOMMENT\n"
+  "  : '//' ~('\\n')* {$channel = HIDDEN;}\n"
+  "  ;\n\n"
+  "NESTEDCOMMENT\n"
+  "  : '/*' (NESTEDCOMMENT | '/' ~'*' | ~('*' | '/') | "
+  "('*'+ ~('*' | '/')))* '*'+ '/' {$channel = HIDDEN;}\n"
+  "  ;\n\n"
+  "WS\n"
+  "  : (' ' | '\\t' | '\\r')+ {$channel = HIDDEN;}\n"
+  "  ;\n\n"
+  "NEWLINE\n"
+  "  : '\\n' (' ' | '\\t' | '\\r')* {$channel = HIDDEN;}\n"
+  "  ;\n\n"
   "fragment\n"
   "EXP\n"
-  "  : ('e' | 'E') ('+' | '-') ? DIGIT +\n"
-  "  ;\n"
-  "\n"
+  "  : ('e' | 'E') ('+' | '-')? DIGIT+\n"
+  "  ;\n\n"
   "fragment\n"
   "LETTER\n"
   "  : 'a'..'z' | 'A'..'Z'\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "BINARY\n"
   "  : '0'..'1'\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "DIGIT\n"
   "  : '0'..'9'\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "HEX\n"
   "  : DIGIT | 'a'..'f' | 'A'..'F'\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "ESC\n"
   "  : '\\\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\\\"' | "
-   "'\\\\' | '0')\n"
+  "'\\\\' | '0')\n"
   "  | HEX_ESC\n"
   "  | UNICODE_ESC\n"
   "  | UNICODE2_ESC\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "HEX_ESC\n"
   "  : '\\\\' 'x' HEX HEX\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "UNICODE_ESC\n"
   "  : '\\\\' 'u' HEX HEX HEX HEX\n"
-  "  ;\n"
-  "\n"
+  "  ;\n\n"
   "fragment\n"
   "UNICODE2_ESC\n"
   "  : '\\\\' 'U' HEX HEX HEX HEX HEX HEX\n"
@@ -168,6 +159,7 @@ typedef struct bnf_t
   const char* name;
   bool optional;
   bool used;
+  bool inline_rule;
 
   // Each node has some number of children arranged in a list, with pointers to
   // the first and last
@@ -179,7 +171,7 @@ typedef struct bnf_t
 
 // Forward declarations
 static void bnf_print_children(bnf_t* bnf, const char* separator,
-  bool parens_ok);
+  bool parens_ok, bool children_rule_top);
 
 static void bnf_simplify_children(bnf_t* tree, bnf_t* list, bool* out_never,
   bool* out_nop, bool *out_changed);
@@ -207,6 +199,28 @@ static void bnf_free(bnf_t* bnf)
 }
 
 
+// Copy a sub tree
+static bnf_t* bnf_copy(bnf_t* bnf, bnf_t** out_last_sibling)
+{
+  if(bnf == NULL)
+    return NULL;
+
+  bnf_t* new_bnf = bnf_create(bnf->id);
+  new_bnf->name = bnf->name;
+  new_bnf->optional = bnf->optional;
+  new_bnf->used = bnf->used;
+  new_bnf->inline_rule = bnf->inline_rule;
+
+  if(out_last_sibling != NULL)
+    *out_last_sibling = new_bnf;
+
+  new_bnf->sibling = bnf_copy(bnf->sibling, out_last_sibling);
+  new_bnf->child = bnf_copy(bnf->child, &new_bnf->last_child);
+
+  return new_bnf;
+}
+
+
 // Add the given new BNF node to the given parent.
 // New children go at the end of the child list.
 static bnf_t* bnf_add(bnf_t* bnf, bnf_t* parent)
@@ -225,10 +239,9 @@ static bnf_t* bnf_add(bnf_t* bnf, bnf_t* parent)
 
 
 // Print out the given node, in ANTLR syntax.
-// The rule_top parameter indicates we are the top level node within a rule
-// definition. This is needed as the top level is formatted slightly
-// differently. This is ignored when calling for a whole tree.
-static void bnf_print(bnf_t* bnf, bool rule_top)
+// The top_format parameter indicates we should use top level node within rule
+// formatting, which is slightly different to normal.
+static void bnf_print(bnf_t* bnf, bool top_format)
 {
   if(bnf == NULL)
     return;
@@ -236,27 +249,27 @@ static void bnf_print(bnf_t* bnf, bool rule_top)
   switch(bnf->id)
   {
     case BNF_TREE:
-      bnf_print_children(bnf, "", true);
+      bnf_print_children(bnf, "", true, true);
       break;
 
     case BNF_DEF:
       if(bnf->used)
       {
-        printf("%s\n: ", bnf->name);
+        printf("%s\n  : ", bnf->name);
         bnf_print(bnf->child, true);
-        printf("\n;\n\n");
+        printf("\n  ;\n\n");
       }
       break;
 
     case BNF_SEQ:
-      bnf_print_children(bnf, " ", rule_top);
+      bnf_print_children(bnf, " ", top_format, false);
       break;
 
     case BNF_OR:
-      if(rule_top && !bnf->optional)
-        bnf_print_children(bnf, "\n| ", rule_top);
+      if(top_format && !bnf->optional)
+        bnf_print_children(bnf, "\n  | ", true, true);
       else
-        bnf_print_children(bnf, " | ", rule_top);
+        bnf_print_children(bnf, " | ", false, false);
 
       if(bnf->optional)
         printf("?");
@@ -293,11 +306,10 @@ static void bnf_print(bnf_t* bnf, bool rule_top)
 
 
 // Print out the children of the given node, in ANTRL syntax.
-// The rule_top parameter indicates we are the top level node within a rule
-// definition. This is needed as the top level is formatted slightly
-// differently.
+// The top_format parameters indicate we should use top level node within rule
+// formatting, which is slightly different to normal.
 static void bnf_print_children(bnf_t* bnf, const char* separator,
-  bool rule_top)
+  bool top_format, bool children_top_format)
 {
   assert(bnf != NULL);
   assert(separator != NULL);
@@ -305,17 +317,17 @@ static void bnf_print_children(bnf_t* bnf, const char* separator,
   bnf_t* child = bnf->child;
   assert(child != NULL);
 
-  bool parens = !rule_top && (child->sibling != NULL);
+  bool parens = !top_format && (child->sibling != NULL);
 
   if(parens)
     printf("(");
 
-  bnf_print(child, false);
+  bnf_print(child, children_top_format);
 
   for(bnf_t* p = child->sibling; p != NULL; p = p->sibling)
   {
     printf("%s", separator);
-    bnf_print(p, false);
+    bnf_print(p, children_top_format);
   }
 
   if(parens)
@@ -333,7 +345,7 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
     bnf_t* p = bnf_add(bnf_create(BNF_TOKEN), bnf);
     assert(p != NULL);
 
-    token_id next = tokens[i + 1];
+    //token_id next = tokens[i + 1];
 
     switch(tokens[i])
     {
@@ -343,46 +355,9 @@ static void bnf_token_set(bnf_t* bnf, token_id* tokens, bool clean)
       case TK_INT: p->name = "INT"; break;
       case TK_FLOAT: p->name = "FLOAT"; break;
       case TK_ID: p->name = "ID"; break;
-
-      // Handle the *_NEW tokens.
-      // Where TK_* and TK_*_NEW appear together we just write the token TK_*
-      // and suppress the TK_*_NEW. Where TK_* appears without TK_*_NEW we
-      // instead use the "@*" symbol indicating not-newline.
-      case TK_LPAREN:
-        p->name = "@(";
-        p->id = BNF_QUOTED_TOKEN;
-
-        if(next == TK_LPAREN_NEW)
-        {
-          p->name = "(";
-          i++;
-        }
-
-        break;
-
-      case TK_LSQUARE:
-        p->name = "@[";
-        p->id = BNF_QUOTED_TOKEN;
-
-        if(next == TK_LSQUARE_NEW)
-        {
-          p->name = "[";
-          i++;
-        }
-
-        break;
-
-      case TK_MINUS:
-        p->name = "@-";
-        p->id = BNF_QUOTED_TOKEN;
-
-        if(next == TK_MINUS_NEW)
-        {
-          p->name = "-";
-          i++;
-        }
-
-        break;
+      case TK_LPAREN_NEW: p->name = "LPAREN_NEW"; break;
+      case TK_LSQUARE_NEW: p->name = "LSQUARE_NEW"; break;
+      case TK_MINUS_NEW: p->name = "MINUS_NEW"; break;
 
       default:
         // Fixed text tokens: keywords, symbols, etc
@@ -549,14 +524,25 @@ static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
       bnf_t* rule = def->child;
       assert(rule != NULL);
 
+      // We inline rules that are nevers, nops, single token / rule references
+      // or have been explicitly marked to inline
       if(rule->id == BNF_NEVER || rule->id == BNF_NOP ||
         rule->id == BNF_TOKEN || rule->id == BNF_QUOTED_TOKEN ||
-        rule->id == BNF_RULE)
+        rule->id == BNF_RULE || def->inline_rule)
       {
-        // Rule is a single node, inline it
+        // Inline rule
         bnf->id = rule->id;
         bnf->name = rule->name;
         bnf->optional = rule->optional;
+        bnf->last_child = NULL;
+        bnf->child = bnf_copy(rule->child, &bnf->last_child);
+
+        // Child of def should only ever have one child, so don't need to worry
+        // about copying siblings
+        assert(rule->sibling == NULL);
+
+        // Don't worry about simplifying children now, leave that til the next
+        // iteration
         *out_changed = true;
       }
 
@@ -683,13 +669,13 @@ static void bnf_mark_used_rules(bnf_t* tree)
 #define SET_FLAG(f)
 #define NEXT_FLAGS(f)
 
-#define DEF(rule) \
+#define DEF(rule_name) \
   { \
-    bnf_t* p = bnf_create(BNF_DEF); \
-    p->name = #rule; \
-    p->sibling = parent->child; \
-    parent->child = p; \
-    bnf_t* parent = bnf_add(bnf_create(BNF_SEQ), p);
+    bnf_t* rule = bnf_create(BNF_DEF); \
+    rule->name = #rule_name; \
+    rule->sibling = parent->child; \
+    parent->child = rule; \
+    bnf_t* parent = bnf_add(bnf_create(BNF_SEQ), rule);
 
 #define OPT optional = true;
 #define OPT_DFLT(id) optional = true;
@@ -753,6 +739,10 @@ static void bnf_mark_used_rules(bnf_t* tree)
 #define DONE()  }
 
 
+// Macros specific to us that do nothing for parsing
+
+// Inline this rule when printing
+#define PRINT_INLINE() rule->inline_rule = true
 
 
 // Prevent other version of macros being included

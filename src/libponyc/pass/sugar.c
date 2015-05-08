@@ -871,10 +871,10 @@ static ast_result_t sugar_semi(ast_t** astp)
   assert(ast_id(ast) == TK_SEMI);
 
   // Semis are pointless, discard them
-  ast_t* expr = ast_pop(ast);
-  assert(expr != NULL);
+  assert(ast_child(ast) == NULL);
+  *astp = ast_sibling(ast);
+  ast_remove(ast);
 
-  ast_replace(astp, expr);
   return AST_OK;
 }
 

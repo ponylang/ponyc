@@ -292,6 +292,11 @@ bool parse(ast_t* package, source_t* source, rule_t start,
  * default AST node (with id TK_NONE) is created.
  * Example:
  *    IF(TK_COLON, RULE("foo", type));
+ *
+ * TK_NEWLINE is a special token that should only be used as the condition for
+ * IF and IFELSE macros. It reports as true if there is a newline before the
+ * next lexer token. Getting true back from this does not count as matching the
+ * containing rule.
  */
 #define IF(id, body) \
   { \
@@ -422,6 +427,10 @@ bool parse(ast_t* package, source_t* source, rule_t start,
  *    NEXT_FLAGS(FOO_FLAG);
  */
 #define NEXT_FLAGS(f)  parse_set_next_flags(parser, f)
+
+
+/// Macros for grammar printing, do nothing while parsing
+#define PRINT_INLINE()
 
 
 /// Must appear at the end of each defined rule

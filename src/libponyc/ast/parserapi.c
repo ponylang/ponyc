@@ -88,6 +88,18 @@ void default_builder(rule_state_t* state, ast_t* new_ast)
 
   // Existing AST goes at the top
 
+  if(ast_id(new_ast) == TK_FLATTEN)
+  {
+    // Add the children of the new node, not the node itself
+    ast_t* new_child;
+
+    while((new_child = ast_pop(new_ast)) != NULL)
+      default_builder(state, new_child);
+
+    ast_free(new_ast);
+    return;
+  }
+
   if(state->last_child == NULL)  // No valid last pointer
     ast_append(state->ast, new_ast);
   else  // Add new AST to end of children
@@ -376,8 +388,19 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   for(const token_id* p = id_set; *p != TK_NONE; p++)
   {
     // Match new line if the next token is the first on a line
-    if(*p == TK_NEWLINE && token_is_first_on_line(parser->token))
-      return handle_found(parser, state, NULL, NULL, out_found);
+    if(*p == TK_NEWLINE)
+    {
+      bool is_newline = token_is_first_on_line(parser->token);
+
+      if(out_found != NULL)
+        *out_found = is_newline;
+
+      if(trace_enable)
+        printf("\\n %smatched\n", is_newline ? "" : "not ");
+
+      state->deflt_id = TK_LEX_ERROR;
+      return PARSE_OK;
+    }
 
     if(id == *p)
     {
