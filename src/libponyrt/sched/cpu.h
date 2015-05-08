@@ -16,7 +16,7 @@ void cpu_affinity(uint32_t cpu);
 
 uint64_t cpu_rdtsc();
 
-bool cpu_core_pause(uint64_t tsc);
+void cpu_core_pause(uint64_t tsc, bool yield);
 
 PONY_EXTERN_C_END
 

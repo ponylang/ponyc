@@ -213,25 +213,35 @@ uint64_t cpu_rdtsc()
 /**
  * Only nanosleep if sufficient cycles have elapsed.
  */
-bool cpu_core_pause(uint64_t tsc)
+void cpu_core_pause(uint64_t tsc, bool yield)
 {
   uint64_t tsc2 = cpu_rdtsc();
 
   // 10m cycles is about 3ms
   if((tsc2 - tsc) < 10000000)
-    return false;
+    return;
 
 #ifndef PLATFORM_IS_WINDOWS
-  // 1000m cycles is about 300ms
   struct timespec ts = {0, 0};
 
-  if((tsc2 - tsc) > 1000000000)
-    ts.tv_nsec = 1000000;
+  if(yield)
+  {
+    // A billion cycles is roughly half a second, depending on clock speed.
+    if((tsc2 - tsc) > 10000000000)
+    {
+      // If it has been 10 billion cycles, pause 30 ms.
+      ts.tv_nsec = 30000000;
+    } else if((tsc2 - tsc) > 3000000000) {
+      // If it has been 3 billion cycles, pause 10 ms.
+      ts.tv_nsec = 10000000;
+    } else if((tsc2 - tsc) > 1000000000) {
+      // If it has been 1 billion cycles, pause 1 ms.
+      ts.tv_nsec = 1000000;
+    }
+  }
 
   nanosleep(&ts, NULL);
 #else
   Sleep(0);
 #endif
-
-  return true;
 }

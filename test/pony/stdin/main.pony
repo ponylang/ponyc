@@ -8,12 +8,12 @@ class Notify is StdinNotify
     let data' = consume val data
 
     try
-      if data'(0) == 0x1B then
-        return false
+      for c in data'.values() do
+        _env.out.write(c.string(IntHex))
       end
     end
+    _env.out.write("\n")
 
-    _env.out.write(data')
     true
 
 actor Main

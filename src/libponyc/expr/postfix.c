@@ -7,6 +7,7 @@
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include <string.h>
 #include <assert.h>
 
 static bool is_method_called(ast_t* ast)
@@ -222,6 +223,12 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
     {
       // Make this a lookup on a default constructed object.
       ast_free_unattached(find);
+
+      if(!strcmp(ast_name(right), "create"))
+      {
+        ast_error(right, "create is not a constructor on this type");
+        return false;
+      }
 
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));

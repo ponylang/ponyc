@@ -157,7 +157,7 @@ public:
       return false;
     }
 
-    size_t alloc_size = int_size->getZExtValue();
+    size_t alloc_size = pony_downcast(size_t, int_size->getZExtValue());
 
     if(alloc_size > 1024)
     {
