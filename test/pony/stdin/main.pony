@@ -7,13 +7,13 @@ class Notify is StdinNotify
   fun ref apply(data: Array[U8] iso): Bool =>
     let data' = consume val data
 
-    // try
-    //   if data'(0) == 0x1B then
-    //     return false
-    //   end
-    // end
+    try
+      for c in data'.values() do
+        _env.out.write(c.string(IntHex))
+      end
+    end
+    _env.out.write("\n")
 
-    _env.out.write(data')
     true
 
 actor Main

@@ -123,6 +123,7 @@ class Readline is StdinNotify
       _refresh_line()
       true
     else
+      _save_history()
       false
     end
 

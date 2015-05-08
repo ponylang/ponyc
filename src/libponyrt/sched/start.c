@@ -10,6 +10,7 @@ typedef struct options_t
   // concurrent options
   uint32_t threads;
   bool mpmcq;
+  bool noyield;
 
   // distributed options
   bool distrib;
@@ -53,6 +54,9 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
         remove++;
       }
+    } else if(!strcmp(argv[i], "--ponynoyield")) {
+      remove++;
+      opt->noyield = true;
     } else if(!strcmp(argv[i], "--ponyforcecd")) {
       remove++;
       opt->forcecd = true;
@@ -110,7 +114,7 @@ int pony_init(int argc, char** argv)
   argc = parse_opts(argc, argv, &opt);
 
   pony_exitcode(0);
-  scheduler_init(opt.threads, opt.forcecd, opt.mpmcq);
+  scheduler_init(opt.threads, opt.noyield, opt.forcecd, opt.mpmcq);
   cycle_create();
 
 #if 0
