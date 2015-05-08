@@ -18,11 +18,9 @@ class Handler is ReadlineNotify
   fun ref tab(line: String): Seq[String] box =>
     let r = Array[String]
 
-    try
-      for command in _commands.values() do
-        if command.at(line, 0) then
-          r.push(command)
-        end
+    for command in _commands.values() do
+      if command.at(line, 0) then
+        r.push(command)
       end
     end
 

@@ -11,8 +11,6 @@ actor Main
 
     list2.append_list(list1)
 
-    try
-      for (s, i) in list2.values() do
-        env.out.print(s + ": " + i.string())
-      end
+    for (s, i) in list2.values() do
+      env.out.print(s + ": " + i.string())
     end

@@ -194,10 +194,8 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     let r = HashMap[this->K!, this->V!, H2](_size)
 
-    try
-      for (k, v) in pairs() do
-        r(k) = v
-      end
+    for (k, v) in pairs() do
+      r(k) = v
     end
     r
 

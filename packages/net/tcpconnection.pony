@@ -77,11 +77,9 @@ actor TCPConnection
     Write a sequence of sequences of bytes.
     """
     if not _closed then
-      try
-        for bytes in data.values() do
-          try
-            write_final(_notify.sent(this, bytes))
-          end
+      for bytes in data.values() do
+        try
+          write_final(_notify.sent(this, bytes))
         end
       end
     end

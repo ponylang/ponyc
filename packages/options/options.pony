@@ -35,10 +35,8 @@ class Option is Stringable
     _domain.push((value, help))
 
   fun ref accepts(value: String): Bool =>
-    try
-      for (v, h) in _domain.values() do
-        if v == value then return true end
-      end
+    for (v, h) in _domain.values() do
+      if v == value then return true end
     end
     false
 
@@ -74,10 +72,8 @@ class Options is Iterator[_Result]
     _env = env
     _args = Array[String ref](_env.args.size())
 
-    try
-      for i in _env.args.values() do
-        _args.push(i.clone())
-      end
+    for i in _env.args.values() do
+      _args.push(i.clone())
     end
 
     _configuration = Array[(String | Option)]
@@ -129,14 +125,12 @@ class Options is Iterator[_Result]
   fun usage() =>
     var help: String iso = recover String end
 
-    try
-      for i in _configuration.values() do
-        var s: Stringable = i
-        help.append(s.string())
-      end
-
-      _env.out.print(consume help)
+    for i in _configuration.values() do
+      var s: Stringable = i
+      help.append(s.string())
     end
+
+    _env.out.print(consume help)
 
   fun ref _skip_non_options(): Bool =>
     while _index < _args.size() do
@@ -157,26 +151,24 @@ class Options is Iterator[_Result]
     var long: (Option | None) = None
     var short: (Option | None) = None
 
-    try
-      for i in _configuration.values() do
-        match i
-        | var opt: Option =>
-          if sopt then
-            match (opt.short, sopt)
-            | (var sn: String, true) =>
-              if sn.compare(s, 1) == 0 then
-                match short
-                | None => short = opt
-                | var prev: Option => return (prev, opt)
-                end
-              end
-            end
-          else
-            if opt.name == s then
-              match long
-              | None => long = opt
+    for i in _configuration.values() do
+      match i
+      | var opt: Option =>
+        if sopt then
+          match (opt.short, sopt)
+          | (var sn: String, true) =>
+            if sn.compare(s, 1) == 0 then
+              match short
+              | None => short = opt
               | var prev: Option => return (prev, opt)
               end
+            end
+          end
+        else
+          if opt.name == s then
+            match long
+            | None => long = opt
+            | var prev: Option => return (prev, opt)
             end
           end
         end

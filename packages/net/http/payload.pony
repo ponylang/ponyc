@@ -85,10 +85,8 @@ class Payload iso
     """
     var len = U64(0)
 
-    try
-      for v in _body.values() do
-        len = len + v.size()
-      end
+    for v in _body.values() do
+      len = len + v.size()
     end
 
     len
@@ -205,18 +203,16 @@ class Payload iso
     """
     Add the headers to the list.
     """
-    try
-      for (k, v) in _headers.pairs() do
-        if
-          (k != "Host") and
-          (k != "Content-Length") and
-          (k != "Transfer-Encoding")
-        then
-          list.push("\r\n")
-          list.push(k)
-          list.push(": ")
-          list.push(v)
-        end
+    for (k, v) in _headers.pairs() do
+      if
+        (k != "Host") and
+        (k != "Content-Length") and
+        (k != "Transfer-Encoding")
+      then
+        list.push("\r\n")
+        list.push(k)
+        list.push(": ")
+        list.push(v)
       end
     end
 
@@ -227,21 +223,19 @@ class Payload iso
     Add the body to the list.
     TODO: don't include the body for HEAD, 204, 304 or 1xx
     """
-    try
-      if _body.size() > 0 then
-        list.push("\r\nTransfer-Encoding: chunked\r\n\r\n")
+    if _body.size() > 0 then
+      list.push("\r\nTransfer-Encoding: chunked\r\n\r\n")
 
-        for v in _body.values() do
-          list.push(v.size().string(IntHexSmallBare))
-          list.push("\r\n")
-          list.push(v)
-          list.push("\r\n")
-        end
-
-        list.push("0\r\n\r\n")
-      else
-        list.push("\r\nContent-Length: 0\r\n\r\n")
+      for v in _body.values() do
+        list.push(v.size().string(IntHexSmallBare))
+        list.push("\r\n")
+        list.push(v)
+        list.push("\r\n")
       end
+
+      list.push("0\r\n\r\n")
+    else
+      list.push("\r\nContent-Length: 0\r\n\r\n")
     end
 
     list

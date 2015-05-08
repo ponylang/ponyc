@@ -265,13 +265,11 @@ actor PonyTest
 
     // First we print the result summary for each test, in the order that they
     // were given to us.
-    try
-      for rec in _records.values() do
-        if rec._report(_log_all) then
-          pass_count = pass_count + 1
-        else
-          fail_count = fail_count + 1
-        end
+    for rec in _records.values() do
+      if rec._report(_log_all) then
+        pass_count = pass_count + 1
+      else
+        fail_count = fail_count + 1
       end
     end
 
@@ -292,10 +290,8 @@ actor PonyTest
       " test" + _plural(fail_count) + ", listed below:")
 
     // Finally print our list of failed tests.
-    try
-      for rec in _records.values() do
-        rec._list_failed()
-      end
+    for rec in _records.values() do
+      rec._list_failed()
     end
 
     _env.exitcode(-1)

@@ -210,10 +210,8 @@ class Array[A] is Seq[A]
     """
     Add iterated elements to the end of the array.
     """
-    try
-      for v in iter do
-        push(consume v)
-      end
+    for v in iter do
+      push(consume v)
     end
 
     this

@@ -96,21 +96,17 @@ actor StdStream
     """
     Print an array of Bytes.
     """
-    try
-      for bytes in data.values() do
-        _write(bytes)
-        _write("\n")
-      end
+    for bytes in data.values() do
+      _write(bytes)
+      _write("\n")
     end
 
   be writev(data: BytesList) =>
     """
     Write an array of Bytes.
     """
-    try
-      for bytes in data.values() do
-        _write(bytes)
-      end
+    for bytes in data.values() do
+      _write(bytes)
     end
 
   fun ref _write(data: Bytes) =>

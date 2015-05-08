@@ -55,10 +55,8 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     let r = clone[K]()
 
-    try
-      for value in that.values() do
-        r + value
-      end
+    for value in that.values() do
+      r + value
     end
     r
 
@@ -70,12 +68,10 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     let r = HashSet[this->A!, K]
 
-    try
-      for value in values() do
-        try
-          that(value)
-          r + value
-        end
+    for value in values() do
+      try
+        that(value)
+        r + value
       end
     end
     r
@@ -88,21 +84,19 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     let r = HashSet[this->A!, K]
 
-    try
-      for value in values() do
-        try
-          that(value)
-        else
-          r + value
-        end
+    for value in values() do
+      try
+        that(value)
+      else
+        r + value
       end
+    end
 
-      for value in that.values() do
-        try
-          this(value)
-        else
-          r + value
-        end
+    for value in that.values() do
+      try
+        this(value)
+      else
+        r + value
       end
     end
     r
@@ -115,13 +109,11 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     let r = HashSet[this->A!, K]
 
-    try
-      for value in values() do
-        try
-          that(value)
-        else
-          r + value
-        end
+    for value in values() do
+      try
+        that(value)
+      else
+        r + value
       end
     end
     r
@@ -133,10 +125,8 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     let r = HashSet[this->A!, K]
 
-    try
-      for value in values() do
-        r + value
-      end
+    for value in values() do
+      r + value
     end
     r
 

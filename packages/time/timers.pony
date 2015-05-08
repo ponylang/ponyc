@@ -49,12 +49,10 @@ actor Timers
     """
     Dipose of this set of timing wheels.
     """
-    try
-      for wheel in _wheel.values() do
-        wheel.clear()
-      end
-      _map.clear()
+    for wheel in _wheel.values() do
+      wheel.clear()
     end
+    _map.clear()
 
     if not _event.is_null() then
       @asio_event_unsubscribe[None](_event)

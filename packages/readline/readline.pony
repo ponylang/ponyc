@@ -297,10 +297,8 @@ class Readline is StdinNotify
     else
       _out.write("\n")
 
-      try
-        for completion in r.values() do
-          _out.print(completion)
-        end
+      for completion in r.values() do
+        _out.print(completion)
       end
     end
 
