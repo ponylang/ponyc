@@ -541,6 +541,26 @@ TEST_F(LexerTest, IntDecimal)
 }
 
 
+TEST_F(LexerTest, IntDecimalWithSeparators)
+{
+  const char* src = "12_3_45";
+
+  expect(1, 1, true, TK_INT, "12345");
+  expect(1, 8, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IntDecimalWithTrailingSeparator)
+{
+  const char* src = "12_3_45_";
+
+  expect(1, 1, true, TK_INT, "12345");
+  expect(1, 9, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, IntDecimalDot)
 {
   const char* src = "12345.foo";
@@ -570,6 +590,16 @@ TEST_F(LexerTest, IntBinary)
 
   expect(1, 1, true, TK_INT, "20");
   expect(1, 8, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, IntBinaryWithSeparators)
+{
+  const char* src = "0b_101_00";
+
+  expect(1, 1, true, TK_INT, "20");
+  expect(1, 10, false, TK_EOF, "EOF");
   DO(test(src));
 }
 
@@ -605,6 +635,16 @@ TEST_F(LexerTest, IntHex)
 }
 
 
+TEST_F(LexerTest, IntHexWithSeparator)
+{
+  const char* src = "0xFF_FE";
+
+  expect(1, 1, true, TK_INT, "65534");
+  expect(1, 8, false, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, IntHexIncomplete)
 {
   const char* src = "0x";
@@ -628,33 +668,33 @@ TEST_F(LexerTest, IntHexBadChar)
 
 TEST_F(LexerTest, IntHexNoOverflow)
 {
-  const char* src = "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+  const char* src = "0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF";
 
   // TODO: This is wrong, that's 2^64 - 1, should be 2^128 - 1
   expect(1, 1, true, TK_INT, "18446744073709551615");
-  expect(1, 35, false, TK_EOF, "EOF");
+  expect(1, 42, false, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, IntHexOverflow)
 {
-  const char* src = "0x100000000000000000000000000000000";
+  const char* src = "0x1_0000_0000_0000_0000_0000_0000_0000_0000";
 
   expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
-  expect(1, 35, false, TK_INT, "0");
-  expect(1, 36, false, TK_EOF, "EOF");
+  expect(1, 43, false, TK_INT, "0");
+  expect(1, 44, false, TK_EOF, "EOF");
   DO(test(src));
 }
 
 
 TEST_F(LexerTest, IntHexDigitOverflow)
 {
-  const char* src = "0x111111111111111111111111111111112";
+  const char* src = "0x1_1111_1111_1111_1111_1111_1111_1111_1112";
 
   expect(1, 1, true, TK_LEX_ERROR, "LEX_ERROR");
-  expect(1, 35, false, TK_INT, "2");
-  expect(1, 36, false, TK_EOF, "EOF");
+  expect(1, 43, false, TK_INT, "2");
+  expect(1, 44, false, TK_EOF, "EOF");
   DO(test(src));
 }
 
@@ -796,7 +836,7 @@ TEST_F(LexerTest, BlockComment)
 {
   const char* src = "/* Comment */+";
 
-  expect(1, 14, true, TK_PLUS, "+");
+  expect(1, 14, false, TK_PLUS, "+");
   expect(1, 15, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -806,7 +846,7 @@ TEST_F(LexerTest, BlockCommentOverMultipleLines)
 {
   const char* src = "/* Foo\nBar */+";
 
-  expect(2, 7, true, TK_PLUS, "+");
+  expect(2, 7, false, TK_PLUS, "+");
   expect(2, 8, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -816,7 +856,7 @@ TEST_F(LexerTest, BlockCommentStartingWith2Stars)
 {
   const char* src = "/** Comment */+";
 
-  expect(1, 15, true, TK_PLUS, "+");
+  expect(1, 15, false, TK_PLUS, "+");
   expect(1, 16, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -826,7 +866,7 @@ TEST_F(LexerTest, BlockCommentEndingWith2Stars)
 {
   const char* src = "/* Comment **/+";
 
-  expect(1, 15, true, TK_PLUS, "+");
+  expect(1, 15, false, TK_PLUS, "+");
   expect(1, 16, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -836,7 +876,7 @@ TEST_F(LexerTest, BlockCommentNested)
 {
   const char* src = "/* Comment /* Inner */ */+";
 
-  expect(1, 26, true, TK_PLUS, "+");
+  expect(1, 26, false, TK_PLUS, "+");
   expect(1, 27, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -846,7 +886,7 @@ TEST_F(LexerTest, BlockCommentNestedStartingWith2Slashes)
 {
   const char* src = "/* Comment //* Inner */ */+";
 
-  expect(1, 27, true, TK_PLUS, "+");
+  expect(1, 27, false, TK_PLUS, "+");
   expect(1, 28, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -856,7 +896,7 @@ TEST_F(LexerTest, BlockCommentNestedStartingWith2Stars)
 {
   const char* src = "/* Comment /** Inner */ */+";
 
-  expect(1, 27, true, TK_PLUS, "+");
+  expect(1, 27, false, TK_PLUS, "+");
   expect(1, 28, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -866,7 +906,7 @@ TEST_F(LexerTest, BlockCommentNestedEndingWith2Stars)
 {
   const char* src = "/* Comment /* Inner **/ */+";
 
-  expect(1, 27, true, TK_PLUS, "+");
+  expect(1, 27, false, TK_PLUS, "+");
   expect(1, 28, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -876,7 +916,7 @@ TEST_F(LexerTest, BlockCommentNestedEndingWith2Slashes)
 {
   const char* src = "/* Comment /* Inner *// */+";
 
-  expect(1, 27, true, TK_PLUS, "+");
+  expect(1, 27, false, TK_PLUS, "+");
   expect(1, 28, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -886,7 +926,7 @@ TEST_F(LexerTest, BlockCommentNestedInnerEmpty)
 {
   const char* src = "/* Comment /**/ */+";
 
-  expect(1, 19, true, TK_PLUS, "+");
+  expect(1, 19, false, TK_PLUS, "+");
   expect(1, 20, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -896,7 +936,7 @@ TEST_F(LexerTest, BlockCommentNestedInner3Stars)
 {
   const char* src = "/* Comment /***/ */+";
 
-  expect(1, 20, true, TK_PLUS, "+");
+  expect(1, 20, false, TK_PLUS, "+");
   expect(1, 21, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -906,7 +946,7 @@ TEST_F(LexerTest, BlockCommentNestedStartsNoWhitespace)
 {
   const char* src = "/*/* Inner */ */+";
 
-  expect(1, 17, true, TK_PLUS, "+");
+  expect(1, 17, false, TK_PLUS, "+");
   expect(1, 18, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -916,7 +956,7 @@ TEST_F(LexerTest, BlockCommentNestedEndsNoWhitespace)
 {
   const char* src = "/* Comment /* Inner */*/+";
 
-  expect(1, 25, true, TK_PLUS, "+");
+  expect(1, 25, false, TK_PLUS, "+");
   expect(1, 26, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -926,7 +966,7 @@ TEST_F(LexerTest, BlockCommentContainsLineComment)
 {
   const char* src = "/* Comment // */+";
 
-  expect(1, 17, true, TK_PLUS, "+");
+  expect(1, 17, false, TK_PLUS, "+");
   expect(1, 18, false, TK_EOF, "EOF");
   DO(test(src));
 }
@@ -936,7 +976,7 @@ TEST_F(LexerTest, BlockCommentNestedDeeper)
 {
   const char* src = "/* /* /* */ /* */ */ */+";
 
-  expect(1, 24, true, TK_PLUS, "+");
+  expect(1, 24, false, TK_PLUS, "+");
   expect(1, 25, false, TK_EOF, "EOF");
   DO(test(src));
 }

@@ -409,6 +409,7 @@ static token_t* nested_comment(lexer_t* lexer)
     }
   }
 
+  lexer->newline = false;
   return NULL;
 }
 
@@ -822,6 +823,13 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
   {
     char c = look(lexer);
     uint32_t digit = 0;
+
+    if(c == '_')
+    {
+      // Ignore underscores in numbers
+      consume_chars(lexer, 1);
+      continue;
+    }
 
     if(end_on_e && ((c == 'e') || (c == 'E')))
       break;
