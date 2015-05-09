@@ -11,6 +11,7 @@ struct parser_t
   lexer_t* lexer;
   token_t* token;
   const char* last_matched;
+  size_t last_token_line;
   void* next_flags;     // Data flags to set on the next token created
   bool failed;
 };
@@ -29,6 +30,9 @@ static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
 {
   token_t* old_token = parser->token;
   token_t* new_token = lexer_next(parser->lexer);
+
+  if(old_token != NULL)
+    parser->last_token_line = token_line_number(old_token);
 
   if(old_token != NULL && token_get_id(new_token) == TK_EOF)
   {
@@ -390,7 +394,10 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
     // Match new line if the next token is the first on a line
     if(*p == TK_NEWLINE)
     {
-      bool is_newline = token_is_first_on_line(parser->token);
+      assert(parser->token != NULL);
+      size_t last_token_line = parser->last_token_line;
+      size_t next_token_line = token_line_number(parser->token);
+      bool is_newline = (next_token_line != last_token_line);
 
       if(out_found != NULL)
         *out_found = is_newline;
@@ -577,6 +584,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
   parser->last_matched = NULL;
+  parser->last_token_line = 0;
   parser->next_flags = NULL;
   parser->failed = false;
 

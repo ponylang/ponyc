@@ -321,7 +321,6 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
-bool ast_is_first_on_line(ast_t* ast);
 
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);
