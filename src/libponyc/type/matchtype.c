@@ -448,6 +448,9 @@ matchtype_t could_subtype(ast_t* sub, ast_t* super)
     case TK_TYPEPARAMREF:
       return could_subtype_typeparam(sub, super);
 
+    case TK_FUNTYPE:
+      return MATCHTYPE_DENY;
+
     default: {}
   }
 

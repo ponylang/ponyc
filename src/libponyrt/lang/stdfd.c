@@ -34,7 +34,195 @@ static HANDLE stdinHandle;
 static bool is_stdin_tty = false;
 static WORD prev_term_color;
 
+static void add_modifier(char* buffer, int* len, DWORD mod)
+{
+  bool alt = ((mod & LEFT_ALT_PRESSED) > 0) ||
+    ((mod & RIGHT_ALT_PRESSED) > 0);
+
+  bool ctrl = ((mod & LEFT_CTRL_PRESSED) > 0) ||
+    ((mod & RIGHT_CTRL_PRESSED) > 0);
+
+  bool shift = (mod & SHIFT_PRESSED) > 0;
+
+  if(!alt && !ctrl && !shift)
+    return;
+
+  int next_len = len;
+  buffer[next_len++] = ';';
+
+  if(shift)
+  {
+    if(ctrl)
+    {
+      if(alt)
+        buffer[next_len++] = '8';
+      else
+        buffer[next_len++] = '6';
+    } else if(alt) {
+      buffer[next_len++] = '4';
+    } else {
+      buffer[next_len++] = '2';
+    }
+  } else if(alt) {
+    if(ctrl)
+      buffer[next_len++] = '7';
+    else
+      buffer[next_len++] = '3';
+  } else if(ctrl) {
+    buffer[next_len++] = '5';
+  }
+
+  *len = next_len;
+}
+
+static int add_ansi_code(char* buffer, const char* pre, const char* post,
+  DWORD mod)
+{
+  int len = (int)strlen(pre);
+  memcpy(buffer, pre, prelen);
+  add_modifier(buffer, &len, mod);
+
+  int len2 = (int)strlen(post);
+  memcpy(&buffer[len], post, len2);
+
+  return len + len2;
+}
+
+static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
+  INPUT_RECORD* rec)
+{
+  // Returns true if the record can be consumed.
+  if(rec->EventType != KEY_EVENT ||
+    rec->Event.KeyEvent.bKeyDown == FALSE)
+  {
+    return true;
+  }
+
+  // This is a key down event. Handle key repeats.
+  DWORD mod = rec->Event.KeyEvent.dwControlKeyState;
+  uint64_t next_len = *len;
+  char out[8];
+  int outlen;
+
+  switch(rec->Event.KeyEvent.wVirtualKeyCode)
+  {
+    case VK_PRIOR: // page up
+      outlen = add_ansi_code(out, "\x1B[5", "~", mod);
+      break;
+
+    case VK_NEXT: // page down
+      outlen = add_ansi_code(out, "\x1B[6", "~", mod);
+      break;
+
+    case VK_END:
+      outlen = add_ansi_code(out, "\x1B[4", "~", mod);
+      break;
+
+    case VK_HOME:
+      outlen = add_ansi_code(out, "\x1B[1", "~", mod);
+      break;
+
+    case VK_LEFT:
+      outlen = add_ansi_code(out, "\x1B[1", "D", mod);
+      break;
+
+    case VK_RIGHT:
+      outlen = add_ansi_code(out, "\x1B[1", "C", mod);
+      break;
+
+    case VK_UP:
+      outlen = add_ansi_code(out, "\x1B[1", "A", mod);
+      break;
+
+    case VK_DOWN:
+      outlen = add_ansi_code(out, "\x1B[1", "B", mod);
+      break;
+
+    case VK_INSERT:
+      outlen = add_ansi_code(out, "\x1B[2", "~", mod);
+      break;
+
+    case VK_DELETE:
+      outlen = add_ansi_code(out, "\x1B[3", "~", mod);
+      break;
+
+    case VK_F1:
+      outlen = add_ansi_code(out, "\x1B[11", "~", mod);
+      break;
+
+    case VK_F2:
+      outlen = add_ansi_code(out, "\x1B[12", "~", mod);
+      break;
+
+    case VK_F3:
+      outlen = add_ansi_code(out, "\x1B[13", "~", mod);
+      break;
+
+    case VK_F4:
+      outlen = add_ansi_code(out, "\x1B[14", "~", mod);
+      break;
+
+    case VK_F5:
+      outlen = add_ansi_code(out, "\x1B[15", "~", mod);
+      break;
+
+    case VK_F6:
+      outlen = add_ansi_code(out, "\x1B[17", "~", mod);
+      break;
+
+    case VK_F7:
+      outlen = add_ansi_code(out, "\x1B[18", "~", mod);
+      break;
+
+    case VK_F8:
+      outlen = add_ansi_code(out, "\x1B[19", "~", mod);
+      break;
+
+    case VK_F9:
+      outlen = add_ansi_code(out, "\x1B[20", "~", mod);
+      break;
+
+    case VK_F10:
+      outlen = add_ansi_code(out, "\x1B[21", "~", mod);
+      break;
+
+    case VK_F11:
+      outlen = add_ansi_code(out, "\x1B[23", "~", mod);
+      break;
+
+    case VK_F12:
+      outlen = add_ansi_code(out, "\x1B[24", "~", mod);
+      break;
+
+    default:
+    {
+      // WCHAR to UTF-8
+      if(rec->Event.KeyEvent.uChar.UnicodeChar != 0)
+      {
+        outlen = WideCharacterToMultibyte(CP_UTF8, 0,
+          &rec->Event.KeyEvent.uChar.UnicodeChar, 1, out, 4,
+          NULL, NULL);
+      }
+    }
+  }
+
+  WORD count = rec->Event.KeyEvent.wRepeatCount;
+
+  if((next_len + (count * outlen)) > space)
+    return false;
+
+  for(WORD i = 0; i < count; i++)
+  {
+    memcpy(&buf[next_len], out, outlen);
+    next_len += outlen;
+  }
+
+  *len = next_len;
+  return true;
+}
+
 #else
+
 static struct termios orig_termios;
 
 typedef enum
@@ -162,7 +350,8 @@ bool os_stdin_setup()
     // TTY
     DWORD mode;
     GetConsoleMode(stdinHandle, &mode);
-    SetConsoleMode(stdinHandle, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    SetConsoleMode(stdinHandle,
+      mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
     is_stdin_tty = true;
   }
 
@@ -192,58 +381,36 @@ bool os_stdin_setup()
 #endif
 }
 
-uint64_t os_stdin_read(void* buffer, uint64_t space, bool* out_again)
+uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
   uint64_t len = 0;
 
   if(is_stdin_tty)
   {
-    // TTY. Read from console input.
-
-    /* Note:
-     * We can only call ReadConsoleInput() once as the second time it might
-     * block. We only get useful data from key downs, which are less than half
-     * the events we get. However, due to copy and paste we may get many key
-     * down events in a row. Furthermore, <Enter> key downs have to expand to
-     * 2 characters in the buffer (an 0xD and an 0xA). This means we can only
-     * read (space / 2) events and guarantee that the data they produce will
-     * fit in the provided buffer. In general this means the buffer will only
-     * be a quarter full, even if there are more events waiting.
-     * AMc, 10/4/15
-     */
+    // TTY. Peel at the console input.
     INPUT_RECORD record[64];
-    DWORD readCount = 32;
-    char* buf = (char*)buffer;
-    uint64_t max_events = space / 2;
-
-    if(max_events < readCount)
-      // Limit events read to buffer size, in case they're all key down events
-      readCount = (DWORD)max_events;
-
-    BOOL r = ReadConsoleInput(stdinHandle, record, readCount, &readCount);
+    DWORD readCount = 64;
+    BOOL r = PeekConsoleInput(stdinHandle, record, readCount, &readCount);
 
     if(r == TRUE)
     {
-      for(DWORD i = 0; i < readCount; i++)
+      DWORD consumed = 0;
+
+      while(consumed < readCount)
       {
-        INPUT_RECORD* rec = &record[i];
+        if(!add_input_record(buffer, space, &len, &record[consumed]))
+          break;
 
-        if(rec->EventType == KEY_EVENT &&
-          rec->Event.KeyEvent.bKeyDown == TRUE &&
-          rec->Event.KeyEvent.uChar.AsciiChar != 0)
-        {
-          // This is a key down event
-          buf[len++] = rec->Event.KeyEvent.uChar.AsciiChar;
-
-          if(rec->Event.KeyEvent.uChar.AsciiChar == 0xD)
-            buf[len++] = 0xA;
-        }
+        consumed++;
       }
+
+      // Pull as many records as we were able to handle.
+      ReadConsoleInput(stdinHandle, record, consumed, &readCount);
     }
 
+    // We have no data, but 0 means EOF, so we return -1 which is try again
     if(len == 0)
-      // We have no data, but 0 means EOF, so we return -1 which is try again
       len = -1;
   }
   else
@@ -268,6 +435,53 @@ uint64_t os_stdin_read(void* buffer, uint64_t space, bool* out_again)
 #else
   *out_again = true;
   return read(0, buffer, space);
+#endif
+}
+
+static bool is_fp_tty(FILE* fp)
+{
+  return
+    ((fp == stdout) && is_stdout_tty) ||
+    ((fp == stderr) && is_stderr_tty);
+}
+
+void os_std_write(FILE* fp, char* buffer, uint64_t len)
+{
+  // TODO: strip ANSI if not a tty
+  // can't strip in place
+#ifdef PLATFORM_IS_WINDOWS
+  // TODO: ANSI to API
+  if(is_fp_tty(fp))
+  {
+    uint64_t last = 0;
+    uint64_t pos = 0;
+
+    while(pos < len)
+    {
+      if(buffer[pos] == '\x1B')
+      {
+        if(pos > last)
+        {
+          fwrite(&buffer[last], pos - last, 1, fp);
+          last = pos;
+        }
+
+        // TODO:
+      }
+    }
+
+    if(pos > last)
+    {
+      fwrite(&buffer[last], pos - last, 1, fp);
+      last = pos;
+    }
+  } else {
+    fwrite(buffer, len, 1, fp);
+  }
+#elif defined PLATFORM_IS_LINUX
+  fwrite_unlocked(buffer, len, 1, fp);
+#else
+  fwrite(buffer, len, 1, fp);
 #endif
 }
 
@@ -296,9 +510,8 @@ void os_set_color(FILE* stream, uint8_t color)
   // If stream doesn't support color do nothing
   changed_stream_color = NULL;
 
-  if(stream == stdout && !is_stdout_tty) return;
-  if(stream == stderr && !is_stderr_tty) return;
-  if(!is_term_color) return;
+  if(!is_fp_tty(stream) || !is_term_color)
+    return;
 
   if(color > 7) // Invalid color, do nothing
     return;
