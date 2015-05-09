@@ -227,7 +227,7 @@ static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
       // WCHAR to UTF-8
       if(rec->Event.KeyEvent.uChar.UnicodeChar != 0)
       {
-        outlen = WideCharToMultibyte(CP_UTF8, 0,
+        outlen = WideCharToMultiByte(CP_UTF8, 0,
           &rec->Event.KeyEvent.uChar.UnicodeChar, 1, out, 4,
           NULL, NULL);
       }
