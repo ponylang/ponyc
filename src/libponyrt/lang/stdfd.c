@@ -47,7 +47,7 @@ static void add_modifier(char* buffer, int* len, DWORD mod)
   if(!alt && !ctrl && !shift)
     return;
 
-  int next_len = len;
+  int next_len = *len;
   buffer[next_len++] = ';';
 
   if(shift)
@@ -78,14 +78,14 @@ static void add_modifier(char* buffer, int* len, DWORD mod)
 static int add_ansi_code(char* buffer, const char* pre, const char* post,
   DWORD mod)
 {
-  int len = (int)strlen(pre);
+  int prelen = (int)strlen(pre);
   memcpy(buffer, pre, prelen);
-  add_modifier(buffer, &len, mod);
+  add_modifier(buffer, &prelen, mod);
 
-  int len2 = (int)strlen(post);
-  memcpy(&buffer[len], post, len2);
+  int postlen = (int)strlen(post);
+  memcpy(&buffer[prelen], post, postlen);
 
-  return len + len2;
+  return prelen + postlen;
 }
 
 static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
@@ -199,7 +199,7 @@ static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
       // WCHAR to UTF-8
       if(rec->Event.KeyEvent.uChar.UnicodeChar != 0)
       {
-        outlen = WideCharacterToMultibyte(CP_UTF8, 0,
+        outlen = WideCharToMultibyte(CP_UTF8, 0,
           &rec->Event.KeyEvent.uChar.UnicodeChar, 1, out, 4,
           NULL, NULL);
       }
@@ -213,7 +213,7 @@ static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
 
   for(WORD i = 0; i < count; i++)
   {
-    memcpy(&buf[next_len], out, outlen);
+    memcpy(&buffer[next_len], out, outlen);
     next_len += outlen;
   }
 
