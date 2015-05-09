@@ -34,6 +34,34 @@ static HANDLE stdinHandle;
 static bool is_stdin_tty = false;
 static WORD prev_term_color;
 
+static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
+  int* argc, int* argv)
+{
+  uint64_t n = *pos;
+  int arg = *argc;
+  char code = -1;
+
+  while(n < len)
+  {
+    char c = buffer[n];
+
+    if((c >= '0') && (c <= '9'))
+    {
+      argv[arg] = (argv[arg] * 10) + (c - '0');
+    } else if(c == ';') {
+      arg = arg + 1;
+
+      if(arg > 5)
+        break;
+    } else {
+      code = c;
+      break;
+    }
+  }
+
+  return code;
+}
+
 static void add_modifier(char* buffer, int* len, DWORD mod)
 {
   bool alt = ((mod & LEFT_ALT_PRESSED) > 0) ||
@@ -451,33 +479,110 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   // can't strip in place
 #ifdef PLATFORM_IS_WINDOWS
   // TODO: ANSI to API
-  if(is_fp_tty(fp))
+  if(!is_fp_tty(fp))
   {
-    uint64_t last = 0;
-    uint64_t pos = 0;
+    fwrite(buffer, len, 1, fp);
+    return;
+  }
 
-    while(pos < len)
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  HANDLE handle = (HANDLE)_get_osfhandle(fileno(fp));
+  GetConsoleScreenBufferInfo(handle, &csbi);
+
+  uint64_t last = 0;
+  uint64_t pos = 0;
+
+  while(pos < (len - 1))
+  {
+    if((buffer[pos] == '\x1B') && (buffer[pos + 1] == '['))
     {
-      if(buffer[pos] == '\x1B')
+      if(pos > last)
       {
-        if(pos > last)
+        // Write any pending data.
+        fwrite(&buffer[last], pos - last, 1, fp);
+        last = pos;
+      }
+
+      int argc = 0;
+      int argv[6] = {0};
+
+      pos += 2;
+      char code = ansi_parse(buffer, &pos, len, &argc, argv);
+
+      switch(code)
+      {
+        case 'H':
         {
-          fwrite(&buffer[last], pos - last, 1, fp);
-          last = pos;
+          // Home.
+          // TODO: could have 2 coords.
+          COORD coord;
+          coord.X = 0;
+          coord.Y = csbi.srWindow.Top;
+          SetConsoleCursorPosition(handle, coord);
+          break;
         }
 
-        // TODO:
-      }
-    }
+        case 'J':
+        {
+          // Clear screen.
+          // TODO: 3 different clear modes, here we always do #2.
+          COORD coord;
+          coord.X = 0;
+          coord.Y = csbi.srWindow.Top;
 
-    if(pos > last)
-    {
-      fwrite(&buffer[last], pos - last, 1, fp);
+          DWORD count = csbi.dwSize.X *
+            (csbi.srWindow.Bottom - csbi.srWindow.Top + 2);
+          DWORD n;
+
+          FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
+          FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
+            &n);
+          SetConsoleCursorPosition(handle, csbi.dwCursorPosition);
+          break;
+        }
+
+        case 'K':
+        {
+          // Erase to the right edge.
+          // TODO: 3 different modes, here we do #0.
+          COORD coord = csbi.dwCursorPosition;
+          DWORD count = csbi.dwSize.X - coord.X;
+          DWORD n;
+
+          FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
+          FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
+            &n);
+          SetConsoleCursorPosition(handle, csbi.dwCursorPosition);
+          break;
+        }
+
+        case 'C':
+        {
+          // Move argv[0] to the right.
+          if(argc > 0)
+          {
+            COORD coord = csbi.dwCursorPosition;
+            coord.X += argv[0];
+            SetConsoleCursorPosition(handle, coord);
+          }
+          break;
+        }
+
+        default:
+          // Unrecognised, skip it.
+          break;
+      }
+
       last = pos;
+    } else {
+      pos++;
     }
-  } else {
-    fwrite(buffer, len, 1, fp);
   }
+
+  // Write any remaining data.
+  if(pos > last)
+    fwrite(&buffer[last], pos - last, 1, fp);
+
 #elif defined PLATFORM_IS_LINUX
   fwrite_unlocked(buffer, len, 1, fp);
 #else
