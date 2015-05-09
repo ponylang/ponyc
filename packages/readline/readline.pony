@@ -4,6 +4,9 @@ use "files"
 class Readline is StdinNotify
   """
   Line editing, history, and tab completion.
+
+  TODO: handle _esc_mod modifiers, i.e. alt, shift, etc.
+  http://invisible-island.net/xterm/ctlseqs/ctlseqs.html
   """
   let _notify: ReadlineNotify
   let _out: StdStream
@@ -16,8 +19,8 @@ class Readline is StdinNotify
   var _cur_line: U64 = 0
   var _cur_pos: I64 = 0
   var _escape: U8 = 0
-  var _esc1: U8 = 0
-  var _esc2: U8 = 0
+  var _esc_num: U8 = 0
+  var _esc_mod: U8 = 0
 
   new iso create(notify: ReadlineNotify iso, out: StdStream,
     path: (String | None) = None, maxlen: U64 = 0)
@@ -79,41 +82,79 @@ class Readline is StdinNotify
             _cur_pos = _cur_pos + 1
           end
         | 1 =>
-          // First escape byte.
-          _esc1 = c
-          _escape = 2
-        | 2 =>
-          // Second escape byte.
-          _esc2 = c
-          _escape = 0
-
-          match _esc1
-          | '[' =>
-            match _esc2
-            | 'A' => _up()
-            | 'B' => _down()
-            | 'C' => _right()
-            | 'D' => _left()
-            | 'H' => _home()
-            | 'F' => _end()
-            | where (_esc2 >= '0') and (_esc2 <= '9') =>
-              // extended escape sequence
-              _escape = 3
-            end
-          | '0' =>
-            match _esc2
-            | 'H' => _home()
-            | 'F' => _end()
-            end
-          end
-        | 3 =>
+          // Escape byte.
           _escape = 0
 
           match c
-          | '~' =>
-            match _esc2
-            | '3' => _delete()
-            end
+          | 'b' =>
+            // alt-left
+            _esc_mod = 3
+            _left()
+          | 'f' =>
+            // alt-right
+            _esc_mod = 3
+            _right()
+          | 'O' =>
+            // SS3
+            _escape = 2
+          | '[' =>
+            // CSI
+            _escape = 3
+            _esc_num = 0
+            _esc_mod = 0
+          end
+        | 2 =>
+          // SS3
+          _escape = 0
+
+          match c
+          | 'A' => _up()
+          | 'B' => _down()
+          | 'C' => _right()
+          | 'D' => _left()
+          | 'H' => _home()
+          | 'F' => _end()
+          | 'P' => _fn_key(1)
+          | 'Q' => _fn_key(2)
+          | 'R' => _fn_key(3)
+          | 'S' => _fn_key(4)
+          end
+        | 3 =>
+          // CSI
+          _escape = 0
+
+          match c
+          | 'A' => _up()
+          | 'B' => _down()
+          | 'C' => _right()
+          | 'D' => _left()
+          | 'H' => _home()
+          | 'F' => _end()
+          | '~' => _keypad()
+          | ';' =>
+            // Escape modifier.
+            _escape = 4
+          | where (c >= '0') and (c <= '9') =>
+            // Escape number.
+            _escape = 3
+            _esc_num = (_esc_num * 10) + (c - '0')
+          end
+        | 4 =>
+          // CSI modifier.
+          _escape = 0
+
+          match c
+          | 'A' => _up()
+          | 'B' => _down()
+          | 'C' => _right()
+          | 'D' => _left()
+          | 'H' => _home()
+          | 'F' => _end()
+          | '~' => _keypad()
+          | where (c >= '0') and (c <= '9') =>
+            // Escape modifier.
+            _escape = 4
+            _esc_mod = (_esc_mod * 10) + (c - '0')
           end
         end
 
@@ -132,6 +173,45 @@ class Readline is StdinNotify
     No more input is available.
     """
     _save_history()
+
+  fun ref _keypad() =>
+    """
+    An extended key.
+    """
+    match _esc_num
+    | 1 => _home()
+    | 2 => None // TODO: insert
+    | 3 => _delete()
+    | 4 => _end()
+    | 5 => None // TODO: page up
+    | 6 => None // TODO: page down
+    | 11 => _fn_key(1)
+    | 12 => _fn_key(2)
+    | 13 => _fn_key(3)
+    | 14 => _fn_key(4)
+    | 15 => _fn_key(5)
+    | 17 => _fn_key(6)
+    | 18 => _fn_key(7)
+    | 19 => _fn_key(8)
+    | 20 => _fn_key(9)
+    | 21 => _fn_key(10)
+    | 23 => _fn_key(11)
+    | 24 => _fn_key(12)
+    | 25 => _fn_key(13)
+    | 26 => _fn_key(14)
+    | 28 => _fn_key(15)
+    | 29 => _fn_key(16)
+    | 31 => _fn_key(17)
+    | 32 => _fn_key(18)
+    | 33 => _fn_key(19)
+    | 34 => _fn_key(20)
+    end
+
+  fun ref _fn_key(i: U8) =>
+    """
+    TODO: Function key.
+    """
+    None
 
   fun ref _up() =>
     """
@@ -247,7 +327,7 @@ class Readline is StdinNotify
     """
     Clear the screen.
     """
-    _out.write("\x1b[H\x1b[2J")
+    _out.write("\x1B[H\x1B[2J")
 
   fun ref _swap() =>
     """
