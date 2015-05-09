@@ -37,16 +37,19 @@ static WORD prev_term_color;
 static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
   int* argc, int* argv)
 {
-  uint64_t n = *pos;
-  int arg = *argc;
+  uint64_t n;
+  int arg = -1;
   char code = -1;
 
-  while(n < len)
+  for(n = *pos; n < len; n++)
   {
     char c = buffer[n];
 
     if((c >= '0') && (c <= '9'))
     {
+      if(arg < 0)
+        arg = 0;
+
       argv[arg] = (argv[arg] * 10) + (c - '0');
     } else if(c == ';') {
       arg = arg + 1;
@@ -58,6 +61,9 @@ static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
       break;
     }
   }
+
+  *pos = n + 1;
+  *argc = arg + 1;
 
   return code;
 }
@@ -478,7 +484,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   // TODO: strip ANSI if not a tty
   // can't strip in place
 #ifdef PLATFORM_IS_WINDOWS
-  // TODO: ANSI to API
+  // TODO: ANSI colours
   if(!is_fp_tty(fp))
   {
     fwrite(buffer, len, 1, fp);
@@ -486,11 +492,11 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   }
 
   CONSOLE_SCREEN_BUFFER_INFO csbi;
-  HANDLE handle = (HANDLE)_get_osfhandle(fileno(fp));
-  GetConsoleScreenBufferInfo(handle, &csbi);
+  HANDLE handle = (HANDLE)_get_osfhandle(_fileno(fp));
 
   uint64_t last = 0;
   uint64_t pos = 0;
+  DWORD n;
 
   while(pos < (len - 1))
   {
@@ -515,6 +521,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         {
           // Home.
           // TODO: could have 2 coords.
+          GetConsoleScreenBufferInfo(handle, &csbi);
           COORD coord;
           coord.X = 0;
           coord.Y = csbi.srWindow.Top;
@@ -526,13 +533,13 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         {
           // Clear screen.
           // TODO: 3 different clear modes, here we always do #2.
+          GetConsoleScreenBufferInfo(handle, &csbi);
           COORD coord;
           coord.X = 0;
           coord.Y = csbi.srWindow.Top;
 
           DWORD count = csbi.dwSize.X *
             (csbi.srWindow.Bottom - csbi.srWindow.Top + 2);
-          DWORD n;
 
           FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
           FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
@@ -545,9 +552,9 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         {
           // Erase to the right edge.
           // TODO: 3 different modes, here we do #0.
+          GetConsoleScreenBufferInfo(handle, &csbi);
           COORD coord = csbi.dwCursorPosition;
           DWORD count = csbi.dwSize.X - coord.X;
-          DWORD n;
 
           FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
           FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
@@ -561,6 +568,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
           // Move argv[0] to the right.
           if(argc > 0)
           {
+            GetConsoleScreenBufferInfo(handle, &csbi);
             COORD coord = csbi.dwCursorPosition;
             coord.X += argv[0];
             SetConsoleCursorPosition(handle, coord);
@@ -580,8 +588,8 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   }
 
   // Write any remaining data.
-  if(pos > last)
-    fwrite(&buffer[last], pos - last, 1, fp);
+  if(len > last)
+    fwrite(&buffer[last], len - last, 1, fp);
 
 #elif defined PLATFORM_IS_LINUX
   fwrite_unlocked(buffer, len, 1, fp);
