@@ -144,9 +144,7 @@ actor _ClientConnection
       end
     end
 
-    try
-      for node in _sent.nodes() do
-        node.remove()
-        try node.pop()._client_fail() end
-      end
+    for node in _sent.nodes() do
+      node.remove()
+      try node.pop()._client_fail() end
     end

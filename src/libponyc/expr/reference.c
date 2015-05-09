@@ -307,6 +307,48 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
   return true;
 }
 
+static const char* suggest_alt_name(ast_t* ast, const char* name)
+{
+  assert(ast != NULL);
+  assert(name != NULL);
+
+  size_t name_len = strlen(name);
+  VLA(char, buf, name_len + 2);
+
+  if(name[0] == '_')
+  {
+    // Try without leading underscore
+    const char* try_name = stringtab(name + 1);
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+  else
+  {
+    // Try with a leading underscore
+    buf[0] = '_';
+    strncpy(buf + 1, name, name_len + 1);
+    const char* try_name = stringtab(buf);
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+
+  // Try with a different case (without crossing type/value boundary)
+  ast_t* case_ast = ast_get_case(ast, name, NULL);
+  if(case_ast != NULL)
+  {
+    assert(ast_child(case_ast) != NULL);
+    const char* try_name = ast_name(ast_child(case_ast));
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+
+  // Give up
+  return NULL;
+}
+
 bool expr_reference(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
@@ -320,7 +362,14 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
   if(def == NULL)
   {
-    ast_error(ast, "can't find declaration of '%s'", name);
+    const char* alt_name = suggest_alt_name(ast, name);
+
+    if(alt_name == NULL)
+      ast_error(ast, "can't find declaration of '%s'", name);
+    else
+      ast_error(ast, "can't find declaration of '%s', did you mean '%s'?",
+        name, alt_name);
+
     return false;
   }
 

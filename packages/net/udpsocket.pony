@@ -53,10 +53,8 @@ actor UDPSocket
     """
     Write a sequence of sequences of bytes.
     """
-    try
-      for bytes in data.values() do
-        _write(bytes, to)
-      end
+    for bytes in data.values() do
+      _write(bytes, to)
     end
 
   be set_notify(notify: UDPNotify iso) =>

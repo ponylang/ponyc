@@ -10,11 +10,9 @@ primitive X509
     """
     Checks if an OpenSSL X509 certificate is valid for a given host.
     """
-    try
-      for name in all_names(cert).values() do
-        if _match_name(host, name) then
-          return true
-        end
+    for name in all_names(cert).values() do
+      if _match_name(host, name) then
+        return true
       end
     end
     false

@@ -39,10 +39,8 @@ class _TestRecord
       match _log
       | let log: Array[String] val =>
         // Print the log. Simply print each string in the array.
-        try
-          for msg in log.values() do
-            _env.out.print(msg)
-          end
+        for msg in log.values() do
+          _env.out.print(msg)
         end
       end
     end
