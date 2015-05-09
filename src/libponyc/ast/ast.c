@@ -324,11 +324,6 @@ source_t* ast_source(ast_t* ast)
   return token_source(ast->t);
 }
 
-bool ast_is_first_on_line(ast_t* ast)
-{
-  return token_is_first_on_line(ast->t);
-}
-
 void* ast_data(ast_t* ast)
 {
   if(ast == NULL)

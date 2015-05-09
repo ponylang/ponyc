@@ -33,9 +33,9 @@ PONY_EXTERN_C_BEGIN
  * Each rule returns one of 4 things:
  * 1. PARSE_ERROR - indicates that an error occurred. Parse errors are
  *    propogated up to the caller without re-reporting them.
- * 2. RULE_NOT_FOUND - indcates that the rule was not found. It is up to the
+ * 2. RULE_NOT_FOUND - indicates that the rule was not found. It is up to the
  *    caller whether this constitutes an error.
- * 3. An AST tree - generated from a successful rule parse. It is the
+ * 3. An AST tree - generated from a successful rule parse. It is the caller's
  *    responsibility to free the tree with ast_free().
  * 4. NULL - indicates a successful rule parse, but that rule generates no AST.
  *    This is perfectly legal for all rules except the top level initial rule.
@@ -53,6 +53,20 @@ PONY_EXTERN_C_BEGIN
  * grammars including left recursive rules (ie a rule where the first element
  * is a recursive call to the same rule). Such rules will lead to infinite
  * loops and/or stack overflow.
+ *
+ * Special tokens:
+ *
+ * TK_NEWLINE.
+ * This should only be used as the condition for IF and IFELSE macros. It
+ * reports as true if there is a newline before the next lexer token. Getting
+ * true back from this does not count as matching the containing rule.
+ *
+ * TK_FLATTEN.
+ * This is used to build flat trees (like you would get from a SEQ() macro)
+ * from recursive rules.
+ * Do do this just return an AST from a rule with a TK_FLATTEN node at its
+ * root. When this is used by the calling rule the flatten node will be thrown
+ * away and all its children will be added to the caller.
  */
 
 typedef struct lexer_t lexer_t;
@@ -292,11 +306,6 @@ bool parse(ast_t* package, source_t* source, rule_t start,
  * default AST node (with id TK_NONE) is created.
  * Example:
  *    IF(TK_COLON, RULE("foo", type));
- *
- * TK_NEWLINE is a special token that should only be used as the condition for
- * IF and IFELSE macros. It reports as true if there is a newline before the
- * next lexer token. Getting true back from this does not count as matching the
- * containing rule.
  */
 #define IF(id, body) \
   { \

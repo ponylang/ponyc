@@ -283,9 +283,6 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
-/// Report whether the given token is the first on a line
-bool token_is_first_on_line(token_t* token);
-
 /// Report whether debug info should be genreated.
 bool token_debug(token_t* token);
 
@@ -315,9 +312,6 @@ void token_set_pos(token_t* token, size_t line, size_t pos);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);
-
-/// Set that the given token is the first on a line
-void token_set_first_on_line(token_t* token);
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }
