@@ -381,9 +381,10 @@ void os_stdout_setup()
   HANDLE handle;
   DWORD type;
 
-  handle = GetStdHandle(STD_INPUT_HANDLE);
+  handle = GetStdHandle(STD_OUTPUT_HANDLE);
   type = GetFileType(handle);
 
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
   GetConsoleScreenBufferInfo(handle, &csbi);
   stdout_reset = csbi.wAttributes;
   is_stdout_tty = (type == FILE_TYPE_CHAR);
@@ -660,7 +661,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
             if(m == 0)
             {
               // reset
-              attr = (fp == stdout) ? stdout_reset : stderr_reset);
+              attr = ((fp == stdout) ? stdout_reset : stderr_reset);
               break;
             } else if((m == 7) || (m == 27)) {
               // reverse
