@@ -109,14 +109,10 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
       switch(ast_id(t->frame->type))
       {
         case TK_CLASS:
-          if(!flatten_constructor(ast))
-            return AST_ERROR;
-          break;
+          return flatten_constructor(ast);
 
         case TK_ACTOR:
-          if(!flatten_async(ast))
-            return AST_ERROR;
-          break;
+          return flatten_async(ast);
 
         default: {}
       }
@@ -124,9 +120,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
     }
 
     case TK_BE:
-      if(!flatten_async(ast))
-        return AST_ERROR;
-      break;
+      return flatten_async(ast);
 
     case TK_UNIONTYPE:
       if(!flatten_union(astp))
