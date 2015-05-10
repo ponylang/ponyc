@@ -798,6 +798,9 @@ bool expr_tuple(ast_t* ast)
     {
       ast_t* c_type = ast_type(child);
 
+      if(c_type == NULL)
+        return false;
+
       if(is_control_type(c_type))
       {
         ast_error(child, "a tuple can't contain a control flow expression");
