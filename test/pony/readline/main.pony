@@ -1,4 +1,4 @@
-use "readline"
+use "term"
 
 class Handler is ReadlineNotify
   let _commands: Array[String] = _commands.create()
@@ -29,4 +29,4 @@ class Handler is ReadlineNotify
 actor Main
   new create(env: Env) =>
     env.out.print("Use 'quit' to exit.")
-    env.input(Readline(recover Handler end, env.out))
+    env.input(ANSITerm(Readline(recover Handler end, env.out)))

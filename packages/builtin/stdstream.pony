@@ -64,33 +64,11 @@ actor StdStream
     _write(data)
     _write("\n")
 
-  be print_color(color: U8, data: Bytes) =>
-    """
-    Print some bytes in the specified color and insert a newline afterwards.
-    The color numbering used is the ANSI escape codes, suitable constant
-    methods are defined in env.
-    """
-    @os_set_color[None](_stream, color)
-    _write(data)
-    @os_reset_color[None]()
-    _write("\n")
-
   be write(data: Bytes) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
     _write(data)
-
-  be write_color(color: U8, data: Bytes) =>
-    """
-    Print some bytes in the specified color without inserting a newline
-    afterwards.
-    The color numbering used is the ANSI escape codes, suitable constant
-    methods are defined in env.
-    """
-    @os_set_color[None](_stream, color)
-    _write(data)
-    @os_reset_color[None]()
 
   be printv(data: BytesList) =>
     """

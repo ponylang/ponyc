@@ -37,5 +37,5 @@ class IPAddress val
     let serv: Pointer[U8] iso = recover Pointer[U8] end
     @os_nameinfo[None](this, &host, &serv, reversedns, servicename) ?
 
-    (recover String.from_cstring(consume host, 0, false) end,
-      recover String.from_cstring(consume serv, 0, false) end)
+    (recover String.from_cstring(consume host) end,
+      recover String.from_cstring(consume serv) end)

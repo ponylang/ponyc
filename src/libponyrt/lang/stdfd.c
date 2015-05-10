@@ -25,14 +25,22 @@ FILE* os_stderr()
 
 static bool is_stdout_tty = false;
 static bool is_stderr_tty = false;
-static bool is_term_color = false;
-static FILE* changed_stream_color = NULL;
 
 #ifdef PLATFORM_IS_WINDOWS
 
-static HANDLE stdinHandle;
+#ifndef FOREGROUND_MASK
+# define FOREGROUND_MASK \
+  (FOREGROUND_RED|FOREGROUND_BLUE|FOREGROUND_GREEN|FOREGROUND_INTENSITY)
+#endif
+
+#ifndef BACKGROUND_MASK
+# define BACKGROUND_MASK \
+  (BACKGROUND_RED|BACKGROUND_BLUE|BACKGROUND_GREEN|BACKGROUND_INTENSITY)
+#endif
+
 static bool is_stdin_tty = false;
-static WORD prev_term_color;
+static WORD stdout_reset;
+static WORD stderr_reset;
 
 static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
   int* argc, int* argv)
@@ -255,6 +263,35 @@ static bool add_input_record(char* buffer, uint64_t space, uint64_t *len,
   return true;
 }
 
+static WORD get_attrib(HANDLE handle)
+{
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  GetConsoleScreenBufferInfo(handle, &csbi);
+  return csbi.wAttributes;
+}
+
+static COORD get_coord(HANDLE handle, CONSOLE_SCREEN_BUFFER_INFO* csbi)
+{
+  GetConsoleScreenBufferInfo(handle, csbi);
+  return csbi->dwCursorPosition;
+}
+
+static void set_coord(HANDLE handle, CONSOLE_SCREEN_BUFFER_INFO* csbi,
+  COORD coord)
+{
+  if(coord.X < csbi->srWindow.Left)
+    coord.X = csbi->srWindow.Left;
+  else if(coord.X > csbi->srWindow.Right)
+    coord.X = csbi->srWindow.Right;
+
+  if(coord.Y < csbi->srWindow.Top)
+    coord.Y = csbi->srWindow.Top;
+  else if(coord.Y > csbi->srWindow.Bottom)
+    coord.Y = csbi->srWindow.Bottom;
+
+  SetConsoleCursorPosition(handle, coord);
+}
+
 #else
 
 static struct termios orig_termios;
@@ -341,13 +378,22 @@ static void fd_nonblocking(int fd)
 void os_stdout_setup()
 {
 #ifdef PLATFORM_IS_WINDOWS
-  DWORD type = GetFileType(GetStdHandle(STD_INPUT_HANDLE));
+  HANDLE handle;
+  DWORD type;
+
+  handle = GetStdHandle(STD_INPUT_HANDLE);
+  type = GetFileType(handle);
+
+  GetConsoleScreenBufferInfo(handle, &csbi);
+  stdout_reset = csbi.wAttributes;
   is_stdout_tty = (type == FILE_TYPE_CHAR);
 
-  type = GetFileType(GetStdHandle(STD_ERROR_HANDLE));
-  is_stderr_tty = (type == FILE_TYPE_CHAR);
+  handle = GetStdHandle(STD_ERROR_HANDLE);
+  type = GetFileType(handle);
 
-  is_term_color = true;
+  GetConsoleScreenBufferInfo(handle, &csbi);
+  stderr_reset = csbi.wAttributes;
+  is_stderr_tty = (type == FILE_TYPE_CHAR);
 #else
   fd_type_t type = fd_type(STDOUT_FILENO);
   is_stdout_tty = (type == FD_TYPE_TTY);
@@ -357,18 +403,6 @@ void os_stdout_setup()
     setvbuf(stdout, NULL, _IONBF, 0);
 
   is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
-
-  const char* term = getenv("TERM");
-
-  if(term != NULL &&
-    (strcmp(term, "xterm") == 0 ||
-     strcmp(term, "xterm-color") == 0 ||
-     strcmp(term, "xterm-256color") == 0 ||
-     strcmp(term, "screen") == 0 ||
-     strcmp(term, "screen-256color") == 0 ||
-     strcmp(term, "linux") == 0 ||
-     strcmp(term, "cygwin")))
-    is_term_color = true;
 #endif
 }
 
@@ -376,15 +410,15 @@ bool os_stdin_setup()
 {
   // Return true if reading stdin should be event based.
 #ifdef PLATFORM_IS_WINDOWS
-  stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
-  DWORD type = GetFileType(stdinHandle);
+  HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+  DWORD type = GetFileType(handle);
 
   if(type == FILE_TYPE_CHAR)
   {
     // TTY
     DWORD mode;
-    GetConsoleMode(stdinHandle, &mode);
-    SetConsoleMode(stdinHandle,
+    GetConsoleMode(handle, &mode);
+    SetConsoleMode(handle,
       mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
     is_stdin_tty = true;
   }
@@ -418,20 +452,22 @@ bool os_stdin_setup()
 uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
 {
 #ifdef PLATFORM_IS_WINDOWS
+  HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
   uint64_t len = 0;
 
   if(is_stdin_tty)
   {
-    // TTY. Peel at the console input.
+    // TTY. Peek at the console input.
     INPUT_RECORD record[64];
-    DWORD readCount = 64;
-    BOOL r = PeekConsoleInput(stdinHandle, record, readCount, &readCount);
+    DWORD count;
+
+    BOOL r = PeekConsoleInput(handle, record, 64, &count);
 
     if(r == TRUE)
     {
       DWORD consumed = 0;
 
-      while(consumed < readCount)
+      while(consumed < count)
       {
         if(!add_input_record(buffer, space, &len, &record[consumed]))
           break;
@@ -440,7 +476,7 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
       }
 
       // Pull as many records as we were able to handle.
-      ReadConsoleInput(stdinHandle, record, consumed, &readCount);
+      ReadConsoleInput(handle, record, consumed, &count);
     }
 
     // We have no data, but 0 means EOF, so we return -1 which is try again
@@ -453,8 +489,7 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
     DWORD buf_size = (space <= 0xFFFFFFFF) ? (DWORD)space : 0xFFFFFFFF;
     DWORD actual_len = 0;
 
-    BOOL r = ReadFile(stdinHandle, buffer, buf_size, &actual_len, NULL);
-
+    BOOL r = ReadFile(handle, buffer, buf_size, &actual_len, NULL);
     len = actual_len;
 
     if(r == FALSE && GetLastError() == ERROR_BROKEN_PIPE)  // Broken pipe
@@ -472,7 +507,7 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
 #endif
 }
 
-static bool is_fp_tty(FILE* fp)
+bool os_fp_tty(FILE* fp)
 {
   return
     ((fp == stdout) && is_stdout_tty) ||
@@ -484,8 +519,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   // TODO: strip ANSI if not a tty
   // can't strip in place
 #ifdef PLATFORM_IS_WINDOWS
-  // TODO: ANSI colours
-  if(!is_fp_tty(fp))
+  if(!os_fp_tty(fp))
   {
     fwrite(buffer, len, 1, fp);
     return;
@@ -520,12 +554,18 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         case 'H':
         {
           // Home.
-          // TODO: could have 2 coords.
-          GetConsoleScreenBufferInfo(handle, &csbi);
-          COORD coord;
-          coord.X = 0;
-          coord.Y = csbi.srWindow.Top;
-          SetConsoleCursorPosition(handle, coord);
+          if(argc >= 2)
+          {
+            COORD coord = get_coord(handle, &csbi);
+            coord.X = argv[0];
+            coord.Y = argv[1];
+            set_coord(handle, &csbi, coord);
+          } else {
+            COORD coord = get_coord(handle, &csbi);
+            coord.X = 0;
+            coord.Y = csbi.srWindow.Top;
+            set_coord(handle, &csbi, coord);
+          }
           break;
         }
 
@@ -533,8 +573,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         {
           // Clear screen.
           // TODO: 3 different clear modes, here we always do #2.
-          GetConsoleScreenBufferInfo(handle, &csbi);
-          COORD coord;
+          COORD coord = get_coord(handle, &csbi);
           coord.X = 0;
           coord.Y = csbi.srWindow.Top;
 
@@ -544,7 +583,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
           FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
           FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
             &n);
-          SetConsoleCursorPosition(handle, csbi.dwCursorPosition);
+          set_coord(handle, &csbi, coord);
           break;
         }
 
@@ -552,27 +591,138 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         {
           // Erase to the right edge.
           // TODO: 3 different modes, here we do #0.
-          GetConsoleScreenBufferInfo(handle, &csbi);
-          COORD coord = csbi.dwCursorPosition;
+          COORD coord = get_coord(handle, &csbi);
           DWORD count = csbi.dwSize.X - coord.X;
 
           FillConsoleOutputCharacter(handle, ' ', count, coord, &n);
           FillConsoleOutputAttribute(handle, csbi.wAttributes, count, coord,
             &n);
-          SetConsoleCursorPosition(handle, csbi.dwCursorPosition);
+          set_coord(handle, &csbi, coord);
+          break;
+        }
+
+        case 'A':
+        {
+          // Move argv[0] up.
+          if(argc > 0)
+          {
+            COORD coord = get_coord(handle, &csbi);
+            coord.Y -= argv[0];
+            set_coord(handle, &csbi, coord);
+          }
+          break;
+        }
+
+        case 'B':
+        {
+          // Move argv[0] down.
+          if(argc > 0)
+          {
+            COORD coord = get_coord(handle, &csbi);
+            coord.Y += argv[0];
+            set_coord(handle, &csbi, coord);
+          }
           break;
         }
 
         case 'C':
         {
-          // Move argv[0] to the right.
+          // Move argv[0] right.
           if(argc > 0)
           {
-            GetConsoleScreenBufferInfo(handle, &csbi);
-            COORD coord = csbi.dwCursorPosition;
+            COORD coord = get_coord(handle, &csbi);
             coord.X += argv[0];
-            SetConsoleCursorPosition(handle, coord);
+            set_coord(handle, &csbi, coord);
           }
+          break;
+        }
+
+        case 'D':
+        {
+          // Move argv[0] left.
+          if(argc > 0)
+          {
+            COORD coord = get_coord(handle, &csbi);
+            coord.X -= argv[0];
+            set_coord(handle, &csbi, coord);
+          }
+          break;
+        }
+
+        case 'm':
+        {
+          WORD attr = get_attrib(handle);
+
+          for(int i = 0; i < argc; i++)
+          {
+            int m = argv[i];
+
+            if(m == 0)
+            {
+              // reset
+              attr = (fp == stdout) ? stdout_reset : stderr_reset);
+              break;
+            } else if((m == 7) || (m == 27)) {
+              // reverse
+              attr =
+                ((attr & FOREGROUND_MASK) << 4) |
+                ((attr & BACKGROUND_MASK) >> 4);
+            } else if((m >= 30) && (m <= 37)) {
+              // foreground
+              attr = attr & BACKGROUND_MASK;
+              m = m - 30;
+
+              if(m & 1)
+                attr |= FOREGROUND_RED;
+
+              if(m & 2)
+                attr |= FOREGROUND_GREEN;
+
+              if(m & 4)
+                attr |= FOREGROUND_BLUE;
+            } else if((m >= 40) && (m <= 47)) {
+              // background
+              attr = attr & FOREGROUND_MASK;
+              m = m - 40;
+
+              if(m & 1)
+                attr |= BACKGROUND_RED;
+
+              if(m & 2)
+                attr |= BACKGROUND_GREEN;
+
+              if(m & 4)
+                attr |= BACKGROUND_BLUE;
+            } else if((m >= 90) && (m <= 97)) {
+              // bright foreground
+              attr = (attr & BACKGROUND_MASK) | FOREGROUND_INTENSITY;
+              m = m - 90;
+
+              if(m & 1)
+                attr |= FOREGROUND_RED;
+
+              if(m & 2)
+                attr |= FOREGROUND_GREEN;
+
+              if(m & 4)
+                attr |= FOREGROUND_BLUE;
+            } else if((m >= 100) && (m <= 107)) {
+              // bright background
+              attr = (attr & FOREGROUND_MASK) | BACKGROUND_INTENSITY;
+              m = m - 100;
+
+              if(m & 1)
+                attr |= BACKGROUND_RED;
+
+              if(m & 2)
+                attr |= BACKGROUND_GREEN;
+
+              if(m & 4)
+                attr |= BACKGROUND_BLUE;
+            }
+          }
+
+          SetConsoleTextAttribute(handle, attr);
           break;
         }
 
@@ -613,77 +763,5 @@ static const uint8_t map_color[8] =
   15  // white
 };
 #endif
-
-
-// os_set_color() and os_reset_color() MUST be called in pairs, on the same
-// stream, without any interleaving.
-
-void os_set_color(FILE* stream, uint8_t color)
-{
-  // If stream doesn't support color do nothing
-  changed_stream_color = NULL;
-
-  if(!is_fp_tty(stream) || !is_term_color)
-    return;
-
-  if(color > 7) // Invalid color, do nothing
-    return;
-
-  changed_stream_color = stream;
-
-#ifdef PLATFORM_IS_WINDOWS
-  HANDLE stdxxx_handle;
-
-  if(stream == stdout)
-    stdxxx_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-  else
-    stdxxx_handle = GetStdHandle(STD_ERROR_HANDLE);
-
-  CONSOLE_SCREEN_BUFFER_INFO buffer_info;
-  GetConsoleScreenBufferInfo(stdxxx_handle, &buffer_info);
-  prev_term_color = buffer_info.wAttributes;
-
-  // The color setting is console wide, so if we're writing to both stdout and
-  // stderr they can interfere with each other. We flush both in an attempt to
-  // avoid this.
-  fflush(stdout);
-  fflush(stderr);
-  SetConsoleTextAttribute(stdxxx_handle, map_color[color]);
-#else
-  uint8_t t[] = {'\033', '[', '0', ';', '3', '#', 'm'};
-  t[5] = (uint8_t)(color + '0');
-#ifdef PLATFORM_IS_LINUX
-  fwrite_unlocked(t, 1, 7, stream);
-#else
-  fwrite(t, 1, 7, stream);
-#endif
-#endif
-}
-
-void os_reset_color()
-{
-  // If we haven't set the colour stream do nothing
-  if(changed_stream_color == NULL)
-    return;
-
-#ifdef PLATFORM_IS_WINDOWS
-  HANDLE stdxxx_handle;
-
-  if(changed_stream_color == stdout)
-    stdxxx_handle = GetStdHandle(STD_OUTPUT_HANDLE);
-  else
-    stdxxx_handle = GetStdHandle(STD_ERROR_HANDLE);
-
-  fflush(stdout);
-  fflush(stderr);
-  SetConsoleTextAttribute(stdxxx_handle, prev_term_color);
-#elif defined PLATFORM_IS_LINUX
-  fwrite_unlocked("\033[m", 1, 3, changed_stream_color);
-#else
-  fwrite("\033[m", 1, 3, changed_stream_color);
-#endif
-
-  changed_stream_color = NULL;
-}
 
 PONY_EXTERN_C_END

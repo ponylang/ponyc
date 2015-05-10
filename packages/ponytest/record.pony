@@ -1,3 +1,5 @@
+use "term"
+
 class _TestRecord
   """
   Store and report the result and log from a single test.
@@ -29,9 +31,9 @@ class _TestRecord
     var show_log = log_all
 
     if _pass then
-      _env.out.print_color(_env.green(), "---- Passed: " + _name)
+      _env.out.print(ANSI.green() + "---- Passed: " + _name + ANSI.reset())
     else
-      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
+      _env.out.print(ANSI.red() + "**** FAILED: " + _name + ANSI.reset())
       show_log = true
     end
 
@@ -52,6 +54,5 @@ class _TestRecord
     Print our test name out in the list of failed test, if we failed.
     """
     if not _pass then
-      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
+      _env.out.print(ANSI.red() + "**** FAILED: " + _name + ANSI.reset())
     end
- 

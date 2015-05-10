@@ -218,7 +218,7 @@ primitive Path
     Returns the program's working directory. Setting the working directory is
     not supported, as it is not concurrency-safe.
     """
-    recover String.from_cstring(@os_cwd[Pointer[U8]](), 0, false) end
+    recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun abs(path: String): String =>
     """
@@ -570,7 +570,7 @@ primitive Path
     if cstring.is_null() then
       error
     else
-      recover String.from_cstring(consume cstring, 0, false) end
+      recover String.from_cstring(consume cstring) end
     end
 
   fun is_list_sep(c: U8): Bool =>

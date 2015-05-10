@@ -41,6 +41,5 @@ class Date
     Format the time as for strftime.
     """
     recover
-      String.from_cstring(@os_formattime[Pointer[U8]](this, fmt.cstring()),
-        0, false)
+      String.from_cstring(@os_formattime[Pointer[U8]](this, fmt.cstring()))
     end
