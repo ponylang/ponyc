@@ -1,4 +1,5 @@
 #include "flatten.h"
+#include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/cap.h"
 #include <assert.h>
@@ -49,6 +50,53 @@ static ast_result_t flatten_noconstraint(typecheck_t* t, ast_t* ast)
   return AST_OK;
 }
 
+static ast_result_t flatten_sendable_params(ast_t* params)
+{
+  ast_t* param = ast_child(params);
+  ast_result_t r = AST_OK;
+
+  while(param != NULL)
+  {
+    AST_GET_CHILDREN(param, id, type, def);
+
+    if(!sendable(type))
+    {
+      ast_error(type, "this parameter must be sendable (iso, val or tag)");
+      r = AST_ERROR;
+    }
+
+    param = ast_sibling(param);
+  }
+
+  return r;
+}
+
+static ast_result_t flatten_constructor(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_VAL:
+      return flatten_sendable_params(params);
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+static ast_result_t flatten_async(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
+    docstring);
+
+  return flatten_sendable_params(params);
+}
+
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -56,6 +104,30 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_NEW:
+    {
+      switch(ast_id(t->frame->type))
+      {
+        case TK_CLASS:
+          if(!flatten_constructor(ast))
+            return AST_ERROR;
+          break;
+
+        case TK_ACTOR:
+          if(!flatten_async(ast))
+            return AST_ERROR;
+          break;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_BE:
+      if(!flatten_async(ast))
+        return AST_ERROR;
+      break;
+
     case TK_UNIONTYPE:
       if(!flatten_union(astp))
         return AST_ERROR;
