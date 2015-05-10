@@ -522,7 +522,34 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
 #ifdef PLATFORM_IS_WINDOWS
   if(!os_fp_tty(fp))
   {
-    fwrite(buffer, len, 1, fp);
+    // Find ANSI codes as normal, but just ignore them
+    uint64_t last = 0;
+    uint64_t pos = 0;
+
+    while(pos < (len - 1))
+    {
+      if((buffer[pos] == '\x1B') && (buffer[pos + 1] == '['))
+      {
+        if(pos > last)  // Write any pending data.
+          fwrite(&buffer[last], pos - last, 1, fp);
+
+        int argc = 0;
+        int argv[6] = {0};
+
+        pos += 2;
+        ansi_parse(buffer, &pos, len, &argc, argv);
+        last = pos;
+      }
+      else
+      {
+        pos++;
+      }
+    }
+
+    // Write any remaining data.
+    if(len > last)
+      fwrite(&buffer[last], len - last, 1, fp);
+
     return;
   }
 
