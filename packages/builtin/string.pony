@@ -934,11 +934,17 @@ class String val is Seq[U8], Ordered[String box], Stringable
   //
   //   while i < _size do
 
-  fun values(): StringValues^ =>
+  fun values(): StringBytes^ =>
     """
     Return an iterator over the bytes in the string.
     """
-    StringValues(this)
+    StringBytes(this)
+
+  fun runes(): StringRunes^ =>
+    """
+    Return an iterator over the codepoints in the string.
+    """
+    StringRunes(this)
 
   fun ref _set(i: U64, value: U8): U8 =>
     """
@@ -946,7 +952,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     _ptr._update(i, value)
 
-class StringValues is Iterator[U8]
+class StringBytes is Iterator[U8]
   let _string: String box
   var _i: U64
 
@@ -959,3 +965,19 @@ class StringValues is Iterator[U8]
 
   fun ref next(): U8 ? =>
     _string(_i = _i + 1)
+
+class StringRunes is Iterator[U32]
+  let _string: String box
+  var _i: U64
+
+  new create(string: String box) =>
+    _string = string
+    _i = 0
+
+  fun has_next(): Bool =>
+    _i < _string.size()
+
+  fun ref next(): U32 ? =>
+    (let rune, let len) = _string.utf32(_i.i64())
+    _i = _i + len.u64()
+    rune
