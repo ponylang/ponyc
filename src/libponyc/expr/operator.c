@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "../ast/lexer.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -429,6 +430,28 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!ok_safe)
   {
+    if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
+      ast_id(ast_child(left)) == TK_THIS)
+    {
+      // We are writing to a field in this
+      ast_t* fn = ast_nearest(left, TK_FUN);
+
+      if(fn != NULL)
+      {
+        ast_t* iso = ast_child(fn);
+        assert(iso != NULL);
+        token_id iso_id = ast_id(iso);
+
+        if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
+        {
+          ast_error(ast, "cannot write to a field in a %s function",
+            lexer_print(iso_id));
+          ast_free_unattached(a_type);
+          return false;
+        }
+      }
+    }
+
     ast_error(ast, "not safe to write right side to left side");
     ast_error(a_type, "right side type: %s", ast_print_type(a_type));
     ast_free_unattached(a_type);
