@@ -23,3 +23,5 @@ All notable changes to the Pony compiler and standard library will be documented
 - Check whether parameters to behaviours, actor constructors and isolated constructors are sendable after flattening, to allow sendable type parameters to be used as parameters.
 
 - Eliminate spurious "control expression" errors when another compile error has occurred.
+
+- Handle circular package dependencies.
