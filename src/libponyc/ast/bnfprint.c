@@ -43,6 +43,8 @@ static const char* antlr_pre =
   "// Parser\n";
 
 static const char* antlr_post =
+  "// Rules of the form antlr_* are only present to avoid a bug in the\n"
+  "// interpreter\n\n"
   "/* Precedence\n\n"
   "Value:\n"
   "1. postfix\n"
@@ -65,13 +67,13 @@ static const char* antlr_post =
   "  : DIGIT+\n"
   "  | '0' 'x' HEX+\n"
   "  | '0' 'b' BINARY+\n"
-  "  | '\\'' (ESC | ~('\\'' | '\\\\'))* '\\''\n"
+  "  | '\\'' CHAR_CHAR* '\\''\n"
   "  ;\n\n"
   "FLOAT\n"
   "  : DIGIT+ ('.' DIGIT+)? EXP?\n"
   "  ;\n\n"
   "STRING\n"
-  "  : '\"' (ESC | ~('\\\\' | '\"'))* '\"'\n"
+  "  : '\"' STRING_CHAR* '\"'\n"
   "  | '\"\"\"' ~('\"\"\"')* '\"\"\"'\n"
   "  ;\n\n"
   "LPAREN_NEW\n"
@@ -95,6 +97,16 @@ static const char* antlr_post =
   "  ;\n\n"
   "NEWLINE\n"
   "  : '\\n' (' ' | '\\t' | '\\r')* {$channel = HIDDEN;}\n"
+  "  ;\n\n"
+  "fragment\n"
+  "CHAR_CHAR\n"
+  "  : ESC\n"
+  "  | ~('\\'' | '\\\\')\n"
+  "  ;\n\n"
+  "fragment\n"
+  "STRING_CHAR\n"
+  "  : ESC\n"
+  "  | ~('\"' | '\\\\')\n"
   "  ;\n\n"
   "fragment\n"
   "EXP\n"
@@ -157,6 +169,7 @@ typedef struct bnf_t
 {
   bnf_id id;
   const char* name;
+  int hack_count;
   bool optional;
   bool used;
   bool inline_rule;
@@ -253,9 +266,14 @@ static void bnf_print(bnf_t* bnf, bool top_format)
       break;
 
     case BNF_DEF:
-      if(bnf->used)
+      // Only print marked rule and hack rules
+      if(bnf->used || bnf->name == NULL)
       {
-        printf("%s\n  : ", bnf->name);
+        if(bnf->name == NULL)
+          printf("antrl_%d\n  : ", bnf->hack_count);
+        else
+          printf("%s\n  : ", bnf->name);
+
         bnf_print(bnf->child, true);
         printf("\n  ;\n\n");
       }
@@ -283,7 +301,10 @@ static void bnf_print(bnf_t* bnf, bool top_format)
 
     case BNF_TOKEN:
     case BNF_RULE:
-      printf("%s", bnf->name);
+      if(bnf->name == NULL)
+        printf("antrl_%d", bnf->hack_count);
+      else
+        printf("%s", bnf->name);
       break;
 
     case BNF_QUOTED_TOKEN:
@@ -518,6 +539,9 @@ static void bnf_simplify_node(bnf_t* tree, bnf_t* bnf, bool *out_changed)
     case BNF_RULE:
     {
       // Check for inlinable rules
+      if(bnf->name == NULL) // Hack rules aren't inlinable
+        break;
+
       bnf_t* def = bnf_find_def(tree, bnf->name);
       assert(def != NULL);
 
@@ -621,6 +645,55 @@ static void bnf_simplify(bnf_t* tree)
 }
 
 
+// Add extra rules to get round the ANTLR interpreter bug
+static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
+{
+  assert(tree != NULL);
+  
+  if(bnf == NULL)
+    return;
+
+  // First recurse into children
+  for(bnf_t* p = bnf->child; p != NULL; p = p->sibling)
+    bnf_avoid_antlr_bug(tree, p);
+
+  // We only care about cases where the 2nd child of an 'or' node immediately
+  // inside a 'repeat' node is a rule or sub-rule
+  if(bnf->id != BNF_REPEAT)
+    return;
+
+  bnf_t* or_node = bnf->child;
+  assert(or_node != NULL);
+
+  if(or_node->id != BNF_OR)
+    return;
+
+  assert(or_node->child != NULL);
+
+  bnf_t* second_child = or_node->child->sibling;
+
+  if(second_child == NULL || second_child->id == BNF_TOKEN ||
+    second_child->id == BNF_QUOTED_TOKEN)
+    return;
+
+  // This is the bug case. Move 'or' node into its own rule.
+  int rule_no = tree->hack_count++;
+
+  assert(tree->last_child != NULL);
+  bnf_t* new_rule = bnf_create(BNF_DEF);
+  new_rule->hack_count = rule_no;
+  new_rule->child = or_node;
+
+  tree->last_child->sibling = new_rule;
+  tree->last_child = new_rule;
+
+  bnf_t* new_ref = bnf_create(BNF_RULE);
+  new_ref->hack_count = rule_no;
+  bnf->child = new_ref;
+  bnf->last_child = new_ref;
+}
+
+
 // Mark rule definitions that are referenced from within the given subtree
 static void bnf_mark_refd_defs(bnf_t* tree, bnf_t* bnf)
 {
@@ -632,7 +705,7 @@ static void bnf_mark_refd_defs(bnf_t* tree, bnf_t* bnf)
     if(p->child != NULL)
       bnf_mark_refd_defs(tree, p->child);
 
-    if(p->id == BNF_RULE)
+    if(p->id == BNF_RULE && p->name != NULL)
     {
       bnf_t* rule = bnf_find_def(tree, p->name);
       assert(rule != NULL);
@@ -769,6 +842,10 @@ void print_grammar(bool antlr, bool clean)
   assert(tree != NULL);
 
   bnf_simplify(tree);
+
+  if(antlr)
+    bnf_avoid_antlr_bug(tree, tree);
+
   bnf_mark_used_rules(tree);  // We only print rules that are used
 
   if(antlr)
