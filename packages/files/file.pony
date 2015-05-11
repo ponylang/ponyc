@@ -151,6 +151,18 @@ class File
     """
     write(data) and write("\n")
 
+  fun ref printv(data: BytesList box): Bool =>
+    """
+    Print an array of Bytes.
+    """
+    var r = true
+
+    for bytes in data.values() do
+      r = r and write(bytes) and write("\n")
+    end
+
+    r
+
   fun ref write(data: Bytes box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
@@ -170,6 +182,18 @@ class File
       dispose()
     end
     false
+
+  fun ref writev(data: BytesList box): Bool =>
+    """
+    Write an array of Bytes.
+    """
+    var r = true
+
+    for bytes in data.values() do
+      r = r and write(bytes)
+    end
+
+    r
 
   fun position(): U64 =>
     """
