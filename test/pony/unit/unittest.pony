@@ -8,7 +8,6 @@ actor Main
 
     test(recover TestBase64 end)
     test(recover TestBase64Decode end)
-    test(recover TestStringRunes end)
 
     test.complete()
 
@@ -54,27 +53,4 @@ class TestBase64Decode iso is UnitTest
     h.expect_eq[String]("foob", Base64.decode[String iso]("Zm9vYg"))
     h.expect_eq[String]("fooba", Base64.decode[String iso]("Zm9vYmE"))
     h.expect_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
-    true
-
-class TestStringRunes iso is UnitTest
-  """
-  Test iterating over the unicode codepoints in a string.
-  """
-  fun name(): String => "string.runes"
-
-  fun apply(h: TestHelper): TestResult ? =>
-    let s = "\u16ddx\ufb04"
-    let expect = [as U32: 0x16dd, 'x', 0xfb04]
-    let result = Array[U32]
-
-    for c in s.runes() do
-      result.push(c)
-    end
-
-    h.expect_eq[U64](expect.size(), result.size())
-
-    for i in Range(0, expect.size()) do
-      h.expect_eq[U32](expect(i), result(i))
-    end
-
     true

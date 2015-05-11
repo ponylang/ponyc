@@ -246,7 +246,9 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
-    if((sym->name[0] == '_') || (sym->status == SYM_NOCASE))
+    if((sym->name[0] == '_') ||
+      (sym->status == SYM_NOCASE) ||
+      !strcmp(sym->name, "Main"))
       continue;
 
     if(!symtab_add(dst, sym->name, sym->def, sym->status))
