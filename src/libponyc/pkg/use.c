@@ -254,12 +254,6 @@ static bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias,
   assert(uri != NULL);
   assert(alias != NULL);
 
-  if(handlers == NULL)
-  {
-    ast_error(uri, "Internal error: no use scheme handlers registered");
-    return false;
-  }
-
   const char* locator;
   int index = find_handler(uri, &locator);
 
