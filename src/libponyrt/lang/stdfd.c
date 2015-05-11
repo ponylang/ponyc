@@ -42,40 +42,6 @@ static bool is_stdin_tty = false;
 static WORD stdout_reset;
 static WORD stderr_reset;
 
-static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
-  int* argc, int* argv)
-{
-  uint64_t n;
-  int arg = -1;
-  char code = -1;
-
-  for(n = *pos; n < len; n++)
-  {
-    char c = buffer[n];
-
-    if((c >= '0') && (c <= '9'))
-    {
-      if(arg < 0)
-        arg = 0;
-
-      argv[arg] = (argv[arg] * 10) + (c - '0');
-    } else if(c == ';') {
-      arg = arg + 1;
-
-      if(arg > 5)
-        break;
-    } else {
-      code = c;
-      break;
-    }
-  }
-
-  *pos = n + 1;
-  *argc = arg + 1;
-
-  return code;
-}
-
 static void add_modifier(char* buffer, int* len, DWORD mod)
 {
   bool alt = ((mod & LEFT_ALT_PRESSED) > 0) ||
@@ -375,6 +341,40 @@ static void fd_nonblocking(int fd)
 }
 #endif
 
+static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
+  int* argc, int* argv)
+{
+  uint64_t n;
+  int arg = -1;
+  char code = -1;
+
+  for(n = *pos; n < len; n++)
+  {
+    char c = buffer[n];
+
+    if((c >= '0') && (c <= '9'))
+    {
+      if(arg < 0)
+        arg = 0;
+
+      argv[arg] = (argv[arg] * 10) + (c - '0');
+    } else if(c == ';') {
+      arg = arg + 1;
+
+      if(arg > 5)
+        break;
+    } else {
+      code = c;
+      break;
+    }
+  }
+
+  *pos = n + 1;
+  *argc = arg + 1;
+
+  return code;
+}
+
 void os_stdout_setup()
 {
 #ifdef PLATFORM_IS_WINDOWS
@@ -517,12 +517,9 @@ bool os_fp_tty(FILE* fp)
 
 void os_std_write(FILE* fp, char* buffer, uint64_t len)
 {
-  // TODO: strip ANSI if not a tty
-  // can't strip in place
-#ifdef PLATFORM_IS_WINDOWS
   if(!os_fp_tty(fp))
   {
-    // Find ANSI codes as normal, but just ignore them
+    // Find ANSI codes and strip them from the output.
     uint64_t last = 0;
     uint64_t pos = 0;
 
@@ -553,6 +550,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
     return;
   }
 
+#ifdef PLATFORM_IS_WINDOWS
   CONSOLE_SCREEN_BUFFER_INFO csbi;
   HANDLE handle = (HANDLE)_get_osfhandle(_fileno(fp));
 
