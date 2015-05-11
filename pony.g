@@ -72,11 +72,11 @@ assignment
   ;
 
 nextinfix
-  : nextterm (binop | ('as' type))*
+  : nextterm antrl_0*
   ;
 
 infix
-  : term (binop | ('as' type))*
+  : term antrl_1*
   ;
 
 binop
@@ -93,12 +93,9 @@ nextterm
   | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
-  | 'consume' (cap | '$borrowed')? term
+  | 'consume' cap? term
   | ('not' | '&' | MINUS_NEW) term
   | nextpostfix
-  | '$seq' '(' rawseq ')'
-  | '$scope' '(' rawseq ')'
-  | '$try_no_check' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   ;
 
 term
@@ -111,12 +108,9 @@ term
   | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
-  | 'consume' (cap | '$borrowed')? term
+  | 'consume' cap? term
   | ('not' | '&' | '-' | MINUS_NEW) term
   | postfix
-  | '$seq' '(' rawseq ')'
-  | '$scope' '(' rawseq ')'
-  | '$try_no_check' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   ;
 
 withelem
@@ -138,11 +132,11 @@ idseq
   ;
 
 nextpostfix
-  : nextatom (dot | tilde | typeargs | call)*
+  : nextatom antrl_2*
   ;
 
 postfix
-  : atom (dot | tilde | typeargs | call)*
+  : atom antrl_3*
   ;
 
 call
@@ -197,7 +191,7 @@ named
   ;
 
 namedarg
-  : ID '$updatearg'? '=' rawseq
+  : ID '=' rawseq
   ;
 
 type
@@ -216,7 +210,7 @@ tupletype
   ;
 
 infixtype
-  : type (uniontype | isecttype)*
+  : type antrl_4*
   ;
 
 isecttype
@@ -264,6 +258,38 @@ types
   : type (',' type)*
   ;
 
+antrl_0
+  : binop
+  | 'as' type
+  ;
+
+antrl_1
+  : binop
+  | 'as' type
+  ;
+
+antrl_2
+  : dot
+  | tilde
+  | typeargs
+  | call
+  ;
+
+antrl_3
+  : dot
+  | tilde
+  | typeargs
+  | call
+  ;
+
+antrl_4
+  : uniontype
+  | isecttype
+  ;
+
+// Rules of the form antlr_* are only present to avoid a bug in the
+// interpreter
+
 /* Precedence
 
 Value:
@@ -291,7 +317,7 @@ INT
   : DIGIT+
   | '0' 'x' HEX+
   | '0' 'b' BINARY+
-  | '\'' (ESC | ~('\'' | '\\'))* '\''
+  | '\'' CHAR_CHAR* '\''
   ;
 
 FLOAT
@@ -299,7 +325,7 @@ FLOAT
   ;
 
 STRING
-  : '"' (ESC | ~('\\' | '"'))* '"'
+  : '"' STRING_CHAR* '"'
   | '"""' ~('"""')* '"""'
   ;
 
@@ -329,6 +355,18 @@ WS
 
 NEWLINE
   : '\n' (' ' | '\t' | '\r')* {$channel = HIDDEN;}
+  ;
+
+fragment
+CHAR_CHAR
+  : ESC
+  | ~('\'' | '\\')
+  ;
+
+fragment
+STRING_CHAR
+  : ESC
+  | ~('"' | '\\')
   ;
 
 fragment
