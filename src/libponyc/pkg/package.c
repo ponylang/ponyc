@@ -502,7 +502,6 @@ bool package_init(pass_opt_t* opt)
 
   package_add_paths(getenv("PONYPATH"));
   add_exec_dir();
-  use_register_std();
 
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
@@ -772,7 +771,6 @@ void package_done(pass_opt_t* opt)
   safe = NULL;
 
   package_clear_magic();
-  use_clear_handlers();
 
   print_errors();
   free_errors();

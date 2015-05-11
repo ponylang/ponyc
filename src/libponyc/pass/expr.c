@@ -168,6 +168,23 @@ bool is_control_type(ast_t* type)
   return false;
 }
 
+ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
+{
+  (void)options;
+  ast_t* ast = *astp;
+
+  switch(ast_id(ast))
+  {
+    case TK_USE:
+      // Don't look in use commands to avoid false type errors from the guard
+      return AST_IGNORE;
+
+    default: {}
+  }
+
+  return AST_OK;
+}
+
 ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;

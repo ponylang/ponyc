@@ -99,6 +99,10 @@
 /// Add a TK_ID node with the given ID name
 #define ID(name) TREE(ast_from_string(basis_ast, name));
 
+/// Add a TK_STRING node with the given string value
+#define STRING(value) \
+  TREE(ast_setid(ast_from_string(basis_ast, value), TK_STRING));
+
 /// Add a TK_INT node with the given integer value
 #define INT(value) TREE(ast_from_int(basis_ast, value));
 

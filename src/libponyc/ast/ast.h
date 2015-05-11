@@ -291,6 +291,7 @@ typedef struct ast_t ast_t;
 typedef enum
 {
   AST_OK,
+  AST_IGNORE,
   AST_ERROR,
   AST_FATAL
 } ast_result_t;
@@ -312,7 +313,7 @@ ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
-void ast_setid(ast_t* ast, token_id id);
+ast_t* ast_setid(ast_t* ast, token_id id);
 void ast_setpos(ast_t* ast, size_t line, size_t pos);
 void ast_setdebug(ast_t* ast, bool state);
 

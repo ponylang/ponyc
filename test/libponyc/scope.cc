@@ -312,7 +312,7 @@ TEST_F(ScopeTest, Package)
 {
   const char* src = "actor A";
 
-  TEST_COMPILE(src);
+  DO(test_compile(src, "import"));
 
   // Builtin types go in the module symbol table
   WALK_TREE(module);

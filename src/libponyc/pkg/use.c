@@ -10,25 +10,52 @@
 #include <assert.h>
 
 
-typedef struct use_t
+/** Use commands are of the form:
+ *   use "[scheme:]locator" [as name] [where condition]
+ *
+ * Each scheme has a handler function. The first handler ("file:") is used as
+ * the default for commands that do not specify a scheme.
+ *
+ * An extra scheme handler for "test:" can be setup for testing.
+ */
+
+
+struct
 {
   const char* scheme; // Interned textual identifier including :
   size_t scheme_len;  // Number of characters in scheme, including :
   bool allow_name;    // Is the name clause allowed
   use_handler_t handler;
-  struct use_t* next;
-} use_t;
+} handlers[] =
+{
+  {"file:", 5, true, use_package},
+  {"lib:", 4, false, use_library},
+  {"path:", 5, false, use_path},
+
+  {"test:", 5, false, NULL},  // For testing
+  {NULL, 0, false, NULL}  // Terminator
+};
+
+
+void use_test_handler(use_handler_t handler, bool allow_alias)
+{
+  for(int i = 0; handlers[i].scheme != NULL; i++)
+  {
+    if(strcmp(handlers[i].scheme, "test:") == 0)
+    {
+      handlers[i].allow_name = allow_alias;
+      handlers[i].handler = handler;
+      return;
+    }
+  }
+}
 
 
 static bool eval_condition(ast_t* ast, bool release, bool* error);
 
 
-static use_t* handlers = NULL;
-static use_t* default_handler = NULL;
-
-
-// Find the handler for the given URI
-static use_t* find_handler(ast_t* uri, const char** out_locator)
+// Find the index of the handler for the given URI
+static int find_handler(ast_t* uri, const char** out_locator)
 {
   assert(uri != NULL);
   assert(out_locator != NULL);
@@ -41,20 +68,23 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
   {
     // No scheme specified, use default
     *out_locator = stringtab(text);
-    return default_handler;
+    return 0;
   }
 
   size_t scheme_len = colon - text + 1;  // +1 for colon
 
   // Search for matching handler
-  for(use_t* p = handlers; p != NULL; p = p->next)
+  for(int i = 0; handlers[i].scheme != NULL; i++)
   {
-    if(p->scheme_len == scheme_len &&
-      strncmp(p->scheme, text, scheme_len) == 0)
+    if(handlers[i].scheme_len == scheme_len &&
+      strncmp(handlers[i].scheme, text, scheme_len) == 0)
     {
+      if(handlers[i].handler == NULL) // No handler provided (probably test:)
+        break;
+
       // Matching scheme found
       *out_locator = stringtab(colon + 1);
-      return p;
+      return i;
     }
   }
 
@@ -65,12 +95,12 @@ static use_t* find_handler(ast_t* uri, const char** out_locator)
     // Special case error message
     ast_error(uri, "Use scheme %c: not found. "
       "If this is an absolute path use prefix \"file:\"", text[0]);
-    return NULL;
+    return -1;
   }
 #endif
 
   ast_error(uri, "Use scheme %.*s not found", (int)scheme_len, text);
-  return NULL;
+  return -1;
 }
 
 
@@ -180,6 +210,12 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
       }
       return true;
 
+    case TK_TRUE:
+      return true;
+
+    case TK_FALSE:
+      return false;
+
     default:
       ast_error(ast, "Invalid use guard expression");
       *error = true;
@@ -189,39 +225,25 @@ static bool eval_condition(ast_t* ast, bool release, bool* error)
 
 
 // Handle condition, if any
-// @return true if we should continue with use, false if we should skip it
-static bool process_condition(ast_t* ast, ast_t* cond, bool release,
-  bool* out_retval)
+static ast_result_t process_condition(ast_t* cond, bool release)
 {
   assert(cond != NULL);
-  assert(out_retval != NULL);
 
   if(ast_id(cond) == TK_NONE) // No condition provided
-    return true;
+    return AST_OK;
 
   // Evaluate condition expression
   bool error = false;
   bool val = eval_condition(cond, release, &error);
 
-  if(error)
-  {
-    // Couldn't evaluate condition, give up compilation
-    *out_retval = false;
-    return false;
-  }
+  if(error) // Couldn't evaluate condition, give up compilation
+    return AST_ERROR;
 
-  if(!val)
-  {
-    // Condition is false, remove whole use command
-    ast_erase(ast);
-    *out_retval = true;
-    return false;
-  }
+  if(!val)  // Condition is false
+    return AST_IGNORE;
 
   // Condition is true
-  // Free condition AST to prevent type check errors
-  ast_erase(cond);
-  return true;
+  return AST_OK;
 }
 
 
@@ -238,21 +260,21 @@ static bool uri_command(ast_t* ast, ast_t* uri, ast_t* alias,
     return false;
   }
 
-  assert(default_handler != NULL);
-
   const char* locator;
-  use_t* handler = find_handler(uri, &locator);
+  int index = find_handler(uri, &locator);
 
-  if(handler == NULL) // Scheme not found
+  if(index < 0) // Scheme not found
     return false;
 
-  if(ast_id(alias) != TK_NONE && !handler->allow_name)
+  if(ast_id(alias) != TK_NONE && !handlers[index].allow_name)
   {
-    ast_error(alias, "Use scheme %s may not have an alias", handler->scheme);
+    ast_error(alias, "Use scheme %s may not have an alias",
+      handlers[index].scheme);
     return false;
   }
 
-  return handler->handler(ast, locator, alias, options);
+  assert(handlers[index].handler != NULL);
+  return handlers[index].handler(ast, locator, alias, options);
 }
 
 
@@ -271,51 +293,7 @@ static bool ffi_command(ast_t* alias)
 }
 
 
-void use_register_std()
-{
-  use_register_handler("file:", true, use_package);
-  use_register_handler("lib:", true, use_library);
-  use_register_handler("path:", true, use_path);
-}
-
-
-void use_register_handler(const char* scheme, bool allow_name,
-  use_handler_t handler)
-{
-  assert(scheme != NULL);
-  assert(handler != NULL);
-
-  use_t* s = POOL_ALLOC(use_t);
-  s->scheme = stringtab(scheme);
-  s->scheme_len = strlen(scheme);
-  s->allow_name = allow_name;
-  s->handler = handler;
-  s->next = handlers;
-
-  handlers = s;
-
-  if(default_handler == NULL)
-    default_handler = s;
-}
-
-
-void use_clear_handlers()
-{
-  use_t* p = handlers;
-
-  while(p != NULL)
-  {
-    use_t* next = p->next;
-    POOL_FREE(use_t, p);
-    p = next;
-  }
-
-  handlers = NULL;
-  default_handler = NULL;
-}
-
-
-bool use_command(ast_t* ast, pass_opt_t* options)
+ast_result_t use_command(ast_t* ast, pass_opt_t* options)
 {
   assert(ast != NULL);
   assert(options != NULL);
@@ -324,18 +302,30 @@ bool use_command(ast_t* ast, pass_opt_t* options)
   assert(spec != NULL);
   assert(condition != NULL);
 
-  bool r;
-  if(!process_condition(ast, condition, options->release, &r))
+  ast_result_t r = process_condition(condition, options->release);
+
+  if(r != AST_OK)
     return r;
 
   // Guard condition is true (or not present)
   switch(ast_id(spec))
   {
-  case TK_STRING:  return uri_command(ast, spec, alias, options);
-  case TK_FFIDECL: return ffi_command(alias);
+  case TK_STRING:
+    if(!uri_command(ast, spec, alias, options))
+      return AST_ERROR;
+
+    break;
+
+  case TK_FFIDECL:
+    if(!ffi_command(alias))
+      return AST_ERROR;
+
+    break;
 
   default:
     assert(0);
-    return false;
+    return AST_ERROR;
   }
+
+  return AST_OK;
 }

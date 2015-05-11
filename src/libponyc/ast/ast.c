@@ -284,9 +284,10 @@ symtab_t* ast_get_symtab(ast_t* ast)
   return ast->symtab;
 }
 
-void ast_setid(ast_t* ast, token_id id)
+ast_t* ast_setid(ast_t* ast, token_id id)
 {
   token_set_id(ast->t, id);
+  return ast;
 }
 
 void ast_setpos(ast_t* ast, size_t line, size_t pos)
@@ -1164,12 +1165,17 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   bool pop = frame_push(t, *ast);
 
   ast_result_t ret = AST_OK;
+  bool ignore = false;
 
   if(pre != NULL)
   {
     switch(pre(ast, options))
     {
       case AST_OK:
+        break;
+
+      case AST_IGNORE:
+        ignore = true;
         break;
 
       case AST_ERROR:
@@ -1181,7 +1187,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if((pre != NULL) || (post != NULL))
+  if(!ignore && ((pre != NULL) || (post != NULL)))
   {
     ast_t* child = ast_child(*ast);
 
@@ -1190,6 +1196,11 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       switch(ast_visit(&child, pre, post, options))
       {
         case AST_OK:
+          break;
+
+        case AST_IGNORE:
+          // Can never happen
+          assert(0);
           break;
 
         case AST_ERROR:
@@ -1204,11 +1215,12 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if(post != NULL)
+  if(!ignore && post != NULL)
   {
     switch(post(ast, options))
     {
       case AST_OK:
+      case AST_IGNORE:
         break;
 
       case AST_ERROR:
