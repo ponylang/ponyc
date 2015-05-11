@@ -1,12 +1,12 @@
 actor FileStream
   """
   Asynchronous access to a File object. Wraps file operations print, write,
-  printv and writev.
+  printv and writev. The File will be disposed through File._final.
   """
   let _file: File
 
-  new create(file: File) =>
-    _file = file
+  new create(file: File iso) =>
+    _file = consume file
 
   be print(data: Bytes) =>
     """
@@ -31,6 +31,3 @@ actor FileStream
     Write an array of Bytes.
     """
     _file.writev(data)
-
-  fun ref _final() =>
-    _file.dispose()
