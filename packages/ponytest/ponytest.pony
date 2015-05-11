@@ -283,7 +283,6 @@ actor PonyTest
 
     if fail_count == 0 then
       // Success, nothing failed.
-      _env.exitcode(0)
       return
     end
 
