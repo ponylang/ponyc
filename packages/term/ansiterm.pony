@@ -1,9 +1,12 @@
+use "time"
+
 class ANSITerm is StdinNotify
   """
   Handles ANSI escape codes from stdin.
   """
   let _notify: ANSINotify
   var _escape: U8 = 0
+  var _esc_time: U64 = 0
   var _esc_num: U8 = 0
   var _esc_mod: U8 = 0
   var _ctrl: Bool = false
@@ -20,6 +23,24 @@ class ANSITerm is StdinNotify
     """
     Receives input from stdin.
     """
+    if (_escape > 0) and ((_esc_time + 25) <= Time.millis()) then
+      // Timed out the escape sequence.
+      match _escape
+      | 1 =>
+        // Pass along ESC.
+        if not _notify(0x1B) then
+          return false
+        end
+      | 2 =>
+        // Pass along ESC O, the SS3 start sequence.
+        if not _notify(0x1B) or not _notify('O') then
+          return false
+        end
+      end
+
+      _escape = 0
+    end
+
     try
       var i = U64(0)
 
@@ -30,6 +51,7 @@ class ANSITerm is StdinNotify
         | 0 =>
           if c == 0x1B then
             _escape = 1
+            _esc_time = Time.millis()
           else
             if not _notify(c) then
               return false
@@ -56,6 +78,11 @@ class ANSITerm is StdinNotify
             _escape = 3
             _esc_num = 0
             _esc_mod = 0
+          else
+            // Not understood, pass along to the notifier.
+            if not _notify(0x1B) or not _notify(c) then
+              return false
+            end
           end
         | 2 =>
           // SS3
