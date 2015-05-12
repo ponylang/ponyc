@@ -116,7 +116,21 @@ actor _ServerConnection
     Send a single response.
     """
     try
+      let keepalive = try
+        request("Connection") != "close"
+      else
+        false
+      end
+
       _dispatched.shift()
-      response._write(_conn)
+      response._write(_conn, keepalive)
+
+      if not keepalive then
+        _conn.dispose()
+        _pending.clear()
+        _dispatched.clear()
+        _responses.clear()
+      end
+
       _logger(_client_ip, request, response)
     end

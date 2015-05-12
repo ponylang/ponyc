@@ -136,17 +136,17 @@ class Payload iso
       h(consume this, Payload.response(0))
     end
 
-  fun _write(conn: TCPConnection) =>
+  fun _write(conn: TCPConnection, keepalive: Bool = true) =>
     """
     Writes the payload to a TCP connection.
     """
     if _response then
-      _write_response(conn)
+      _write_response(conn, keepalive)
     else
-      _write_request(conn)
+      _write_request(conn, keepalive)
     end
 
-  fun _write_request(conn: TCPConnection) =>
+  fun _write_request(conn: TCPConnection, keepalive: Bool) =>
     """
     Writes an an HTTP request.
     """
@@ -169,7 +169,12 @@ class Payload iso
 
     list.push(" ")
     list.push(proto)
-    list.push("\r\nConnection: keep-alive\r\nHost: ")
+
+    if not keepalive then
+      list.push("\r\nConnection: close")
+    end
+
+    list.push("\r\nHost: ")
     list.push(url.host)
     list.push(":")
     list.push(url.service)
@@ -180,7 +185,7 @@ class Payload iso
 
     conn.writev(consume list)
 
-  fun _write_response(conn: TCPConnection) =>
+  fun _write_response(conn: TCPConnection, keepalive: Bool) =>
     """
     Write as an HTTP response.
     """
@@ -192,7 +197,10 @@ class Payload iso
     list.push(status.string())
     list.push(" ")
     list.push(method)
-    list.push("\r\nConnection: keep-alive")
+
+    if keepalive then
+      list.push("\r\nConnection: keep-alive")
+    end
 
     list = _add_headers(consume list)
     list = _add_body(consume list)
@@ -224,16 +232,19 @@ class Payload iso
     TODO: don't include the body for HEAD, 204, 304 or 1xx
     """
     if _body.size() > 0 then
-      list.push("\r\nTransfer-Encoding: chunked\r\n\r\n")
+      var len = U64(0)
 
       for v in _body.values() do
-        list.push(v.size().string(IntHexSmallBare))
-        list.push("\r\n")
-        list.push(v)
-        list.push("\r\n")
+        len = len + v.size()
       end
 
-      list.push("0\r\n\r\n")
+      list.push("\r\nContent-Length: ")
+      list.push(len.string())
+      list.push("\r\n\r\n")
+
+      for v in _body.values() do
+        list.push(v)
+      end
     else
       list.push("\r\nContent-Length: 0\r\n\r\n")
     end
