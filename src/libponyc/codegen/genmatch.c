@@ -690,18 +690,27 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
       // Capture the match expression (or element thereof).
       return static_capture(c, value, type, pattern, next_block);
 
-    case TK_TUPLE:
+    case TK_SEQ:
     {
-      // Treat a one element tuple as its component expression.
+      // Treat a one element sequence as its component expression.
+      // We already checked that the sequence doesn't have multiple elements
+      // during type checking.
       ast_t* child = ast_child(pattern);
 
-      if(ast_sibling(child) == NULL)
-      {
-        // Pass on the element in the seq instead of the seq.
-        assert(ast_id(child) == TK_SEQ);
-        child = ast_child(child);
-        return static_match(c, value, type, child, next_block);
-      }
+      assert(child != NULL);
+      assert(ast_sibling(child) == NULL);
+
+      // Pass on the element in the seq instead of the seq.
+      return static_match(c, value, type, child, next_block);
+    }
+
+    case TK_TUPLE:
+    {
+      // Tuples must have multiple elements, or they aren't tuples.
+      ast_t* child = ast_child(pattern);
+
+      assert(child != NULL);
+      assert(ast_sibling(child) != NULL);
 
       // Destructure the match expression (or element thereof).
       return static_tuple(c, value, type, pattern, next_block);
