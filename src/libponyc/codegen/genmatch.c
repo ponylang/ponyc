@@ -707,10 +707,8 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
     case TK_TUPLE:
     {
       // Tuples must have multiple elements, or they aren't tuples.
-      ast_t* child = ast_child(pattern);
-
-      assert(child != NULL);
-      assert(ast_sibling(child) != NULL);
+      assert(ast_child(pattern) != NULL);
+      assert(ast_sibling(ast_child(pattern)) != NULL);
 
       // Destructure the match expression (or element thereof).
       return static_tuple(c, value, type, pattern, next_block);
