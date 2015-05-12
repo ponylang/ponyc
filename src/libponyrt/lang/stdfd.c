@@ -399,9 +399,11 @@ void os_stdout_setup()
   fd_type_t type = fd_type(STDOUT_FILENO);
   is_stdout_tty = (type == FD_TYPE_TTY);
 
-  // Use unbuffered output if we're writing to a tty.
+  // Use unbuffered output if we're writing to a tty, otherwise line buffered.
   if(type == FD_TYPE_TTY)
     setvbuf(stdout, NULL, _IONBF, 0);
+  else
+    setvbuf(stdout, NULL, _IOLBF, 0);
 
   is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
 #endif
@@ -527,7 +529,8 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
     {
       if((buffer[pos] == '\x1B') && (buffer[pos + 1] == '['))
       {
-        if(pos > last)  // Write any pending data.
+        // Write any pending data.
+        if(pos > last)
           fwrite(&buffer[last], pos - last, 1, fp);
 
         int argc = 0;
