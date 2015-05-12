@@ -20,16 +20,23 @@ class String val is Seq[U8], Ordered[String box], Stringable
     The cstring is not copied. This must be done only with C-FFI functions that
     return null-terminated pony_alloc'd character arrays.
     """
-    _size = len
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
 
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
       end
-    end
 
-    _alloc = _size + 1
-    _ptr = str
+      _alloc = _size + 1
+      _ptr = str
+    end
 
   new copy_cstring(str: Pointer[U8] box, len: U64 = 0) =>
     """
@@ -37,17 +44,24 @@ class String val is Seq[U8], Ordered[String box], Stringable
     can crash. This will only occur if the C-FFI has been used to craft such
     a pointer.
     """
-    _size = len
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
 
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
       end
-    end
 
-    _alloc = _size + 1
-    _ptr = Pointer[U8]._alloc(_alloc)
-    str._copy_to(_ptr, _alloc)
+      _alloc = _size + 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      str._copy_to(_ptr, _alloc)
+    end
 
   new from_utf32(value: U32) =>
     """
