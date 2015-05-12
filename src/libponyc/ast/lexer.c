@@ -191,7 +191,7 @@ static const lextoken_t abstract[] =
   { "ref", TK_REF_BIND },
   { "val", TK_VAL_BIND },
   { "box", TK_BOX_BIND },
-  { "trn", TK_TAG_BIND },
+  { "tag", TK_TAG_BIND },
   { "any", TK_ANY_BIND },
 
   { "boxgen", TK_BOX_GENERIC },
