@@ -8,6 +8,7 @@ actor TCPListener
   var _closed: Bool = false
   let _limit: U64
   var _count: U64 = 0
+  var _paused: Bool = false
 
   new create(notify: TCPListenNotify iso, host: String = "",
     service: String = "0", limit: U64 = 0)
@@ -87,11 +88,11 @@ actor TCPListener
     An accepted connection has closed. If we have dropped below the limit, try
     to accept new connections.
     """
-    if (_limit > 0) and (_count == _limit) then
-      _count = _count - 1
+    _count = _count - 1
+
+    if _paused and (_count < _limit) then
+      _paused = false
       _accept()
-    else
-      _count = _count - 1
     end
 
   fun ref _accept(ns: U64 = 0) =>
@@ -115,6 +116,8 @@ actor TCPListener
       // Queue an accept if we're not at the limit.
       if (_limit == 0) or (_count < _limit) then
         @os_accept[U64](_event)
+      else
+        _paused = true
       end
     else
       while (_limit == 0) or (_count < _limit) do
@@ -122,11 +125,13 @@ actor TCPListener
 
         // On an invalid socket, don't continue.
         if fd == -1 then
-          break
+          return
         end
 
         _spawn(fd)
       end
+
+      _paused = true
     end
 
   fun ref _spawn(ns: U64) =>
