@@ -16,8 +16,8 @@ actor Server
   var _dirty_routes: Bool = false
 
   new create(notify: ServerNotify iso, handler: RequestHandler,
-    logger: Logger, host: String = "", service: String = "0",
-    sslctx: (SSLContext | None) = None)
+    logger: Logger = DiscardLog, host: String = "", service: String = "0",
+    limit: U64 = 0, sslctx: (SSLContext | None) = None)
   =>
     """
     Create a server bound to the given host and service.
@@ -27,7 +27,7 @@ actor Server
     _logger = logger
     _sslctx = sslctx
     _listen = TCPListener(_ServerListener(this, sslctx, _handler, _logger),
-      host, service)
+      host, service, limit)
     _address = recover IPAddress end
 
   be set_handler(handler: RequestHandler) =>

@@ -214,8 +214,7 @@ class Payload iso
     for (k, v) in _headers.pairs() do
       if
         (k != "Host") and
-        (k != "Content-Length") and
-        (k != "Transfer-Encoding")
+        (k != "Content-Length")
       then
         list.push("\r\n")
         list.push(k)
@@ -232,14 +231,8 @@ class Payload iso
     TODO: don't include the body for HEAD, 204, 304 or 1xx
     """
     if _body.size() > 0 then
-      var len = U64(0)
-
-      for v in _body.values() do
-        len = len + v.size()
-      end
-
       list.push("\r\nContent-Length: ")
-      list.push(len.string())
+      list.push(body_size().string())
       list.push("\r\n\r\n")
 
       for v in _body.values() do

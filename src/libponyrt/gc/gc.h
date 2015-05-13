@@ -42,11 +42,11 @@ void gc_createactor(gc_t* gc, pony_actor_t* actor);
 
 void gc_handlestack();
 
-void gc_mark(gc_t* gc);
-
 void gc_sweep(gc_t* gc);
 
 void gc_sendacquire();
+
+void gc_sendrelease(gc_t* gc);
 
 bool gc_acquire(gc_t* gc, actorref_t* aref);
 

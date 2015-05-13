@@ -21,8 +21,8 @@ class _RequestBuilder is TCPConnectionNotify
     """
     Create a server connection to handle response ordering.
     """
-    let client_ip = try conn.remote_address().name()._1 else "-" end
-    _server = _ServerConnection(_handler, _logger, conn, client_ip)
+    (let host, let port) = try conn.remote_address().name() else ("-", "-") end
+    _server = _ServerConnection(_handler, _logger, conn, host)
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """

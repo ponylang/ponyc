@@ -2,8 +2,8 @@ use "collections"
 
 actor UDPSocket
   var _notify: UDPNotify
-  var _fd: U64 = -1
-  var _event: EventID = Event.none()
+  var _fd: U64
+  var _event: EventID
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
@@ -17,7 +17,8 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
 
@@ -28,7 +29,8 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp4[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp4[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
 
@@ -39,7 +41,8 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp6[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp6[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
 
@@ -111,13 +114,17 @@ actor UDPSocket
     Return the bound IP address.
     """
     let ip = recover IPAddress end
-    @os_sockname[None](_fd, ip)
+    @os_sockname[Bool](_fd, ip)
     ip
 
   be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
     When we are readable, we accept new connections until none remain.
     """
+    if event isnt _event then
+      return
+    end
+
     if not _closed then
       _event = event
 
@@ -132,7 +139,7 @@ actor UDPSocket
     end
 
     if Event.disposable(flags) then
-      @asio_event_destroy[None](event)
+      @asio_event_destroy[None](_event)
       _event = Event.none()
     end
 
@@ -179,7 +186,7 @@ actor UDPSocket
         _close()
       end
     end
-    
+
   fun ref _complete_reads(len: U64) =>
     """
     The OS has informed as that len bytes of pending reads have completed.

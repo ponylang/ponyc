@@ -3,7 +3,11 @@ use "net/http"
 actor Main
   new create(env: Env) =>
     let service = try env.args(1) else "50000" end
-    Server(Info(env), Handle, CommonLog(env.out) where service = service)
+    let limit = try env.args(2).u64() else 100 end
+    // Server(Info(env), Handle, CommonLog(env.out) where service = service,
+    //   limit = limit)
+    Server(Info(env), Handle, ContentsLog(env.out) where service = service,
+      limit = limit)
 
 class Info
   let _env: Env

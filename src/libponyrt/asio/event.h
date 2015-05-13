@@ -14,6 +14,7 @@ PONY_EXTERN_C_BEGIN
  */
 typedef struct asio_event_t
 {
+  struct asio_event_t* magic;
   uintptr_t data;       /* file descriptor or other data */
   pony_actor_t* owner;  /* owning actor */
   uint32_t msg_id;      /* I/O handler (actor message) */

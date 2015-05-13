@@ -114,7 +114,6 @@ bool actor_run(pony_actor_t* actor)
       actor->type->trace(actor);
 
     gc_handlestack();
-    gc_mark(&actor->gc);
     gc_sweep(&actor->gc);
     gc_done(&actor->gc);
     heap_endgc(&actor->heap);
@@ -204,9 +203,9 @@ void actor_final(pony_actor_t* actor)
   this_actor = prev;
 }
 
-void actor_sweep(pony_actor_t* actor)
+void actor_sendrelease(pony_actor_t* actor)
 {
-  gc_sweep(&actor->gc);
+  gc_sendrelease(&actor->gc);
 }
 
 void actor_setsystem(pony_actor_t* actor)

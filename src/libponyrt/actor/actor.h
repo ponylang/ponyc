@@ -30,7 +30,7 @@ void actor_setpendingdestroy(pony_actor_t* actor);
 
 void actor_final(pony_actor_t* actor);
 
-void actor_sweep(pony_actor_t* actor);
+void actor_sendrelease(pony_actor_t* actor);
 
 void actor_setsystem(pony_actor_t* actor);
 

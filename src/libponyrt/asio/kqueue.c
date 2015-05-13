@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <assert.h>
 
 struct asio_backend_t
 {
@@ -54,10 +55,7 @@ static void handle_queue(asio_backend_t* b)
   asio_msg_t* msg;
 
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
-  {
-    msg->event->flags = ASIO_DISPOSABLE;
     asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
-  }
 }
 
 static void retry_loop(asio_backend_t* b)
@@ -125,9 +123,13 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 void asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -166,9 +168,13 @@ void asio_event_subscribe(asio_event_t* ev)
 void asio_event_update(asio_event_t* ev, uintptr_t data)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -188,9 +194,13 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 void asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -222,6 +232,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
   }
 
   kevent(b->kq, event, i, NULL, 0, NULL);
+
+  ev->flags = ASIO_DISPOSABLE;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);

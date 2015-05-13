@@ -4,6 +4,7 @@ actor TCPConnection
   """
   A TCP connection. When connecting, the Happy Eyeballs algorithm is used.
   """
+  var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
   var _connect_count: U64
   var _fd: U64 = -1
@@ -12,6 +13,8 @@ actor TCPConnection
   var _readable: Bool = false
   var _writeable: Bool = false
   var _closed: Bool = false
+  var _shutdown: Bool = false
+  var _shutdown_peer: Bool = false
   let _pending: List[(Bytes, U64)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
@@ -49,10 +52,11 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new _accept(notify: TCPConnectionNotify iso, fd: U64) =>
+  new _accept(listen: TCPListener, notify: TCPConnectionNotify iso, fd: U64) =>
     """
     A new connection accepted on a server.
     """
+    _listen = listen
     _notify = consume notify
     _connect_count = 0
     _fd = fd
@@ -92,20 +96,16 @@ actor TCPConnection
 
   be dispose() =>
     """
-    Close the connection once all writes are sent.
+    Close the connection gracefully once all writes are sent.
     """
-    _closed = true
-
-    if (_connect_count == 0) and (_pending.size() == 0) then
-      close()
-    end
+    close()
 
   fun local_address(): IPAddress =>
     """
     Return the local IP address.
     """
     let ip = recover IPAddress end
-    @os_sockname[None](_fd, ip)
+    @os_sockname[Bool](_fd, ip)
     ip
 
   fun remote_address(): IPAddress =>
@@ -113,7 +113,7 @@ actor TCPConnection
     Return the remote IP address.
     """
     let ip = recover IPAddress end
-    @os_peername[None](_fd, ip)
+    @os_peername[Bool](_fd, ip)
     ip
 
   fun ref set_nodelay(state: Bool) =>
@@ -193,44 +193,51 @@ actor TCPConnection
       end
 
       if Event.disposable(flags) then
-        @asio_event_destroy[None](_event)
+        @asio_event_destroy[None](event)
         _event = Event.none()
       end
+
+      _try_shutdown()
     end
 
   be _read_again() =>
     """
     Resume reading.
     """
-    if not _closed then
-      _pending_reads()
-    end
+    _pending_reads()
 
   fun ref write_final(data: Bytes) =>
     """
     Write as much as possible to the socket. Set _writeable to false if not
-    everything was written. On an error, dispose of the connection. This
-    is for data that has already been transformed by the notifier.
+    everything was written. On an error, close the connection. This is for
+    data that has already been transformed by the notifier.
     """
-    if Platform.windows() then
-      try
-        @os_send[U64](_event, data.cstring(), data.size()) ?
-        _pending.push((data, 0))
-      end
-    else
-      if _writeable then
+    if not _closed then
+      if Platform.windows() then
         try
-          var len = @os_send[U64](_event, data.cstring(), data.size()) ?
+          // Add an IOCP write.
+          @os_send[U64](_event, data.cstring(), data.size()) ?
+          _pending.push((data, 0))
+        end
+      else
+        if _writeable then
+          try
+            // Send as much data as possible.
+            var len = @os_send[U64](_event, data.cstring(), data.size()) ?
 
-          if len < data.size() then
-            _pending.push((data, len))
-            _writeable = false
+            if len < data.size() then
+              // Send any remaining data later.
+              _pending.push((data, len))
+              _writeable = false
+            end
+          else
+            // Non-graceful shutdown on error.
+            _hard_close()
           end
         else
-          close()
+          // Send later, when the socket is available for writing.
+          _pending.push((data, 0))
         end
-      elseif not _closed then
-        _pending.push((data, 0))
       end
     end
 
@@ -243,9 +250,9 @@ actor TCPConnection
       var rem = len
 
       if rem == 0 then
-        // IOCP reported a failed write on this chunk. Discard it and close.
+        // IOCP reported a failed write on this chunk. Non-graceful shutdown.
         try _pending.shift() end
-        close()
+        _hard_close()
         return
       end
 
@@ -277,23 +284,23 @@ actor TCPConnection
           let node = _pending.head()
           (let data, let offset) = node()
 
+          // Write as much data as possible.
           let len = @os_send[U64](_event, data.cstring().u64() + offset,
             data.size() - offset) ?
 
           if (len + offset) < data.size() then
+            // Send remaining data later.
             node() = (data, offset + len)
             _writeable = false
           else
+            // This chunk has been fully sent.
             _pending.shift()
           end
         else
-          close()
+          // Non-graceful shutdown on error.
+          _hard_close()
         end
       end
-    end
-
-    if _closed and (_connect_count == 0) and (_pending.size() == 0) then
-      close()
     end
 
   fun ref _complete_reads(len: U64) =>
@@ -306,20 +313,21 @@ actor TCPConnection
 
       match len
       | 0 =>
+        // The socket has been closed from the other side, or a hard close has
+        // cancelled the queued read.
         _readable = false
+        _shutdown_peer = true
         close()
         return
       | _read_buf.space() =>
         next = next * 2
       end
 
-      if not _closed then
-        let data = _read_buf = recover Array[U8].undefined(next) end
-        data.truncate(len)
+      let data = _read_buf = recover Array[U8].undefined(next) end
+      data.truncate(len)
 
-        _queue_read()
-        _notify.received(this, consume data)
-      end
+      _queue_read()
+      _notify.received(this, consume data)
     end
 
   fun ref _queue_read() =>
@@ -330,7 +338,7 @@ actor TCPConnection
       try
         @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
       else
-        close()
+        _hard_close()
       end
     end
 
@@ -344,7 +352,8 @@ actor TCPConnection
       try
         var sum: U64 = 0
 
-        while _readable and not _closed do
+        while _readable and not _shutdown_peer do
+          // Read as much data as possible.
           let len =
             @os_recv[U64](_event, _read_buf.cstring(), _read_buf.space()) ?
 
@@ -352,9 +361,11 @@ actor TCPConnection
 
           match len
           | 0 =>
+            // Would block, try again later.
             _readable = false
             return
           | _read_buf.space() =>
+            // Increase the read buffer size.
             next = next * 2
           end
 
@@ -365,11 +376,14 @@ actor TCPConnection
           sum = sum + len
 
           if sum > (1 << 12) then
+            // If we've read 4 kb, yield and read again later.
             _read_again()
             return
           end
         end
       else
+        // The socket has been closed from the other side.
+        _shutdown_peer = true
         close()
       end
     end
@@ -382,24 +396,66 @@ actor TCPConnection
       _notify.connecting(this, _connect_count)
     else
       _notify.connect_failed(this)
-      close()
+      _hard_close()
     end
 
   fun ref close() =>
     """
-    Notify of disconnection and dispose of resources.
+    Perform a graceful shutdown. Don't accept new writes, but don't finish
+    closing until we get a zero length read.
     """
-    if _connected then
-      _notify.closed(this)
+    _closed = true
+    _try_shutdown()
+
+  fun ref _try_shutdown() =>
+    """
+    If we have closed and we have no remaining writes or pending connections,
+    then shutdown.
+    """
+    if not _closed then
+      return
+    end
+
+    if
+      not _shutdown and
+      (_connect_count == 0) and
+      (_pending.size() == 0)
+    then
+      _shutdown = true
+
+      if _connected then
+        @os_shutdown[None](_fd)
+      else
+        _shutdown_peer = true
+      end
+    end
+
+    if _connected and _shutdown and _shutdown_peer then
+      _hard_close()
     end
 
     if Platform.windows() then
       // On windows, wait until all outstanding IOCP operations have completed
       // or been cancelled.
-      if not _readable and (_pending.size() == 0) then
+      if not _connected and not _readable and (_pending.size() == 0) then
         @asio_event_unsubscribe[None](_event)
       end
-    else
+    end
+
+  fun ref _hard_close() =>
+    """
+    When an error happens, do a non-graceful close.
+    """
+    if not _connected then
+      return
+    end
+
+    _connected = false
+    _closed = true
+    _shutdown = true
+    _shutdown_peer = true
+
+    if not Platform.windows() then
       // Unsubscribe immediately and drop all pending writes.
       @asio_event_unsubscribe[None](_event)
       _pending.clear()
@@ -407,11 +463,10 @@ actor TCPConnection
       _writeable = false
     end
 
-    _connected = false
-    _closed = true
+    // On windows, this will also cancel all outstanding IOCP operations.
+    @os_closesocket[None](_fd)
+    _fd = -1
 
-    if _fd != -1 then
-      // On windows, this will also cancel all outstanding IOCP operations.
-      @os_closesocket[None](_fd)
-      _fd = -1
-    end
+    _notify.closed(this)
+
+    try (_listen as TCPListener)._conn_closed() end

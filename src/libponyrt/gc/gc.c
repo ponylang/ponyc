@@ -330,13 +330,9 @@ void gc_handlestack()
   }
 }
 
-void gc_mark(gc_t* gc)
-{
-  gc->finalisers -= objectmap_mark(&gc->local);
-}
-
 void gc_sweep(gc_t* gc)
 {
+  gc->finalisers -= objectmap_sweep(&gc->local);
   gc->delta = actormap_sweep(&gc->foreign, gc->mark, gc->delta);
 }
 
@@ -404,6 +400,11 @@ void gc_sendacquire()
 
   actormap_destroy(&acquire);
   memset(&acquire, 0, sizeof(actormap_t));
+}
+
+void gc_sendrelease(gc_t* gc)
+{
+  gc->delta = actormap_sweep(&gc->foreign, gc->mark, gc->delta);
 }
 
 void gc_register_final(gc_t* gc, void* p, pony_final_fn final)

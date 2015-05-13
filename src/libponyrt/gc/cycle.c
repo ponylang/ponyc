@@ -524,7 +524,7 @@ static void collect(detector_t* d, perceived_t* per)
   i = HASHMAP_BEGIN;
 
   while((view = viewmap_next(&per->map, &i)) != NULL)
-    actor_sweep(view->actor);
+    actor_sendrelease(view->actor);
 
   // destroy the actor and free the view on the actor
   i = HASHMAP_BEGIN;
