@@ -344,9 +344,9 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
   ipaddress_t* ipaddr)
 {
-  socklet_t socklen = address_length(ipaddr);
+  socklen_t socklen = address_length(ipaddr);
 
-  if(socket == (socklen_t)-1)
+  if(socklen == (socklen_t)-1)
     return false;
 
   iocp_t* iocp = iocp_create(IOCP_NOP, NULL);
