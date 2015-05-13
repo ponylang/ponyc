@@ -280,6 +280,9 @@ int main(int argc, char* argv[])
     }
   }
 
+  if(!ok && get_error_count() == 0)
+    printf("Error: internal failure not reported\n");
+
   package_done(&opt);
   pass_opt_done(&opt);
   stringtab_done();
