@@ -459,7 +459,7 @@ static void deferred(detector_t* d)
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  if((view = viewmap_next(&d->deferred, &i)) != NULL)
+  while((view = viewmap_next(&d->deferred, &i)) != NULL)
   {
     assert(view->deferred == true);
     viewmap_removeindex(&d->deferred, i);
