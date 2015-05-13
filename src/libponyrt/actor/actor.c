@@ -102,8 +102,6 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
 
 bool actor_run(pony_actor_t* actor)
 {
-  assert(actor != NULL);
-  pony_msg_t* msg;
   this_actor = actor;
 
   if(heap_startgc(&actor->heap))
@@ -118,6 +116,8 @@ bool actor_run(pony_actor_t* actor)
     gc_done(&actor->gc);
     heap_endgc(&actor->heap);
   }
+
+  pony_msg_t* msg;
 
   if(actor->continuation != NULL)
   {

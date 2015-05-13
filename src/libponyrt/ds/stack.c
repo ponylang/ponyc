@@ -2,7 +2,7 @@
 #include "../mem/pool.h"
 #include <assert.h>
 
-#define STACK_COUNT 30
+#define STACK_COUNT 62
 
 struct Stack
 {
