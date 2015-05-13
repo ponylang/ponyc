@@ -581,10 +581,12 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
 
   ast_t* body = ast_childidx(fun, 6);
   LLVMValueRef value = gen_expr(c, body);
-  ast_free_unattached(fun);
 
   if(value == NULL)
+  {
+    ast_free_unattached(fun);
     return NULL;
+  }
 
   genfun_dwarf_return(c, body);
 
@@ -592,6 +594,7 @@ static LLVMValueRef genfun_new(compile_t* c, gentype_t* g, const char *name,
   LLVMBuildRet(c->builder, LLVMGetParam(func, 0));
   codegen_finishfun(c);
 
+  ast_free_unattached(fun);
   return func;
 }
 

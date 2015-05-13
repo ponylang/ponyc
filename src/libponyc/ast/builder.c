@@ -182,6 +182,7 @@ static void get_next_token(build_parser_t* builder)
     token_free(builder->token);
 
   builder->token = lexer_next(builder->lexer);
+  assert(builder->token != NULL);
   ast_token_id id;
 
   switch(token_get_id(builder->token))

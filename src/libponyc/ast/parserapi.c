@@ -68,6 +68,7 @@ static void syntax_error(parser_t* parser, const char* expected)
 {
   assert(parser != NULL);
   assert(expected != NULL);
+  assert(parser->token != NULL);
 
   if(parser->last_matched == NULL)
   {
@@ -184,6 +185,8 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 // Add an AST node for the specified token, which may be deferred
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 {
+  assert(parser->token != NULL);
+
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
@@ -545,6 +548,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   if(trace_enable)
     printf("Rule %s: Restart check error\n", state->fn_name);
 
+  assert(parser->token != NULL);
   error(parser->source, token_line_number(parser->token),
     token_line_position(parser->token),
     "syntax error: unexpected token %s after %s", token_print(parser->token),
