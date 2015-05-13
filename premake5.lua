@@ -121,7 +121,7 @@
     configuration "vs*"
       local version, exitcode = os.outputof("git describe --tags --always")
       
-      if exitcode != 0 then
+      if exitcode ~= 0 then
         version = os.outputof("cat VERSION")
       end
       
