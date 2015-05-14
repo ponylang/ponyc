@@ -17,14 +17,14 @@ actor Main
     //   error
     // end
 
-    // internal error
+    // works
     //while a do
     //  return 1
     //else
     //  error
     //end
 
-    // internal error
+    // works
     // repeat
     //   return 1
     // until

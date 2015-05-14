@@ -159,24 +159,33 @@ LLVMValueRef gen_while(compile_t* c, ast_t* ast)
 
   gentype_t phi_type;
 
-  if(!gentype(c, type, &phi_type))
+  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
+  {
+    assert(0);
     return NULL;
+  }
 
   LLVMBasicBlockRef init_block = codegen_block(c, "while_init");
   LLVMBasicBlockRef body_block = codegen_block(c, "while_body");
   LLVMBasicBlockRef else_block = codegen_block(c, "while_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "while_post");
+  LLVMBasicBlockRef post_block = NULL;
   LLVMBuildBr(c->builder, init_block);
+
+  // start the post block so that a break can modify the phi node
+  LLVMValueRef phi = GEN_NOTNEEDED;
+
+  if(!is_control_type(type))
+  {
+    // Start the post block so that a break can modify the phi node.
+    post_block = codegen_block(c, "match_post");
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+    if(needed)
+      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  }
 
   // Push the loop status.
   codegen_pushloop(c, init_block, post_block);
-
-  // start the post block so that a break can modify the phi node
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi = NULL;
-
-  if(needed)
-    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // init
   // This jumps either to the body or the else clause. This is not evaluated
@@ -262,24 +271,33 @@ LLVMValueRef gen_repeat(compile_t* c, ast_t* ast)
 
   gentype_t phi_type;
 
-  if(!gentype(c, type, &phi_type))
+  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
+  {
+    assert(0);
     return NULL;
+  }
 
   LLVMBasicBlockRef body_block = codegen_block(c, "repeat_body");
   LLVMBasicBlockRef cond_block = codegen_block(c, "repeat_cond");
   LLVMBasicBlockRef else_block = codegen_block(c, "repeat_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "repeat_post");
+  LLVMBasicBlockRef post_block = NULL;
   LLVMBuildBr(c->builder, body_block);
+
+  // start the post block so that a break can modify the phi node
+  LLVMValueRef phi = GEN_NOTNEEDED;
+
+  if(!is_control_type(type))
+  {
+    // Start the post block so that a break can modify the phi node.
+    post_block = codegen_block(c, "match_post");
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+    if(needed)
+      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  }
 
   // Push the loop status.
   codegen_pushloop(c, cond_block, post_block);
-
-  // Start the post block so that a break can modify the phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi;
-
-  if(needed)
-    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
 
   // Body.
   LLVMPositionBuilderAtEnd(c->builder, body_block);
