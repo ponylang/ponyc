@@ -38,13 +38,13 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  new from_cstring(ptr: Pointer[A] ref, len: U64) =>
+  new from_cstring(ptr: Pointer[A] ref, len: U64, alloc: U64 = len) =>
     """
     Create an array from a C-style pointer and length. The contents are not
     copied.
     """
     _size = len
-    _alloc = len
+    _alloc = alloc
     _ptr = ptr
 
   fun cstring(): Pointer[A] tag =>
