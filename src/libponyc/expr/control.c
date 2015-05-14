@@ -167,6 +167,9 @@ bool expr_while(pass_opt_t* opt, ast_t* ast)
     ast_consolidate_branches(ast, 2);
   }
 
+  if(type == NULL)
+    type = ast_from(ast, TK_WHILE);
+
   ast_settype(ast, type);
   ast_inheritflags(ast);
   literal_unify_control(ast, opt);
@@ -217,6 +220,9 @@ bool expr_repeat(pass_opt_t* opt, ast_t* ast)
     // consumes, but not any definitions, since definitions may not occur.
     ast_consolidate_branches(ast, 2);
   }
+
+  if(type == NULL)
+    type = ast_from(ast, TK_REPEAT);
 
   ast_settype(ast, type);
   ast_inheritflags(ast);
@@ -335,18 +341,21 @@ bool expr_break(typecheck_t* t, ast_t* ast)
   if(!ast_all_consumes_in_scope(t->frame->loop_body, ast))
     return false;
 
-  if(ast_sibling(ast) != NULL)
-  {
-    ast_error(ast, "must be the last expression in a sequence");
-    ast_error(ast_sibling(ast), "is followed with this expression");
-    return false;
-  }
+  // break is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_BREAK));
   ast_inheritflags(ast);
 
   // Add type to loop.
   ast_t* body = ast_child(ast);
+
+  if(is_control_type(ast_type(body)))
+  {
+    ast_error(body, "break value cannot be a control statement");
+    return false;
+  }
+
   ast_t* loop_type = ast_type(t->frame->loop);
 
   loop_type = control_type_add_branch(loop_type, body);
@@ -366,12 +375,8 @@ bool expr_continue(typecheck_t* t, ast_t* ast)
   if(!ast_all_consumes_in_scope(t->frame->loop_body, ast))
     return false;
 
-  if(ast_sibling(ast) != NULL)
-  {
-    ast_error(ast, "must be the last expression in a sequence");
-    ast_error(ast_sibling(ast), "is followed with this expression");
-    return false;
-  }
+  // continue is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_CONTINUE));
   return true;
@@ -387,12 +392,8 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
     return false;
   }
 
-  if(ast_sibling(ast) != NULL)
-  {
-    ast_error(ast, "must be the last expression in a sequence");
-    ast_error(ast_sibling(ast), "is followed with this expression");
-    return false;
-  }
+  // return is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
 
   if(ast_parent(ast) == t->frame->method_body)
   {
@@ -411,6 +412,12 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
   if(is_typecheck_error(body_type))
     return false;
+
+  if(is_control_type(body_type))
+  {
+    ast_error(body, "return value cannot be a control statement");
+    return false;
+  }
 
   bool ok = true;
 
@@ -461,12 +468,8 @@ bool expr_return(pass_opt_t* opt, ast_t* ast)
 
 bool expr_error(ast_t* ast)
 {
-  if(ast_sibling(ast) != NULL)
-  {
-    ast_error(ast, "error must be the last expression in a sequence");
-    ast_error(ast_sibling(ast), "error is followed with this expression");
-    return false;
-  }
+  // error is always the last expression in a sequence
+  assert(ast_sibling(ast) == NULL);
 
   ast_settype(ast, ast_from(ast, TK_ERROR));
   ast_seterror(ast);
