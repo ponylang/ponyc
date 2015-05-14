@@ -875,7 +875,7 @@ static ast_result_t sugar_ffi(ast_t* ast)
 }
 
 
-static ast_result_t sugar_semi(ast_t** astp)
+static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_SEMI);
@@ -885,7 +885,9 @@ static ast_result_t sugar_semi(ast_t** astp)
   *astp = ast_sibling(ast);
   ast_remove(ast);
 
-  return AST_OK;
+  // Since we've effectively replaced ast with its successor we need to process
+  // that too
+  return pass_sugar(astp, options);
 }
 
 
@@ -955,7 +957,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NOT:        return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
     case TK_FFICALL:    return sugar_ffi(ast);
-    case TK_SEMI:       return sugar_semi(astp);
+    case TK_SEMI:       return sugar_semi(options, astp);
     case TK_LET:        return sugar_let(t, ast);
     default:            return AST_OK;
   }
