@@ -1,7 +1,6 @@
 #include "scheduler.h"
 #include "../mem/heap.h"
 #include "../gc/cycle.h"
-#include "../dist/dist.h"
 #include "../lang/socket.h"
 #include <string.h>
 #include <stdlib.h>
@@ -17,14 +16,6 @@ typedef struct options_t
   double gc_factor;
   bool mpmcq;
   bool noyield;
-
-  // distributed options
-  bool distrib;
-  bool master;
-  uint32_t child_count;
-  char* port;
-  char* parent_host;
-  char* parent_port;
 
   // debugging options
   bool forcecd;
@@ -106,37 +97,6 @@ static int parse_opts(int argc, char** argv, options_t* opt)
     } else if(!strcmp(argv[i], "--ponyforcecd")) {
       remove++;
       opt->forcecd = true;
-    } else if(!strcmp(argv[i], "--ponydistrib")) {
-      remove++;
-      opt->distrib = true;
-    } else if(!strcmp(argv[i], "--ponymaster")) {
-      remove++;
-      opt->master = true;
-    } else if(!strcmp(argv[i], "--ponylisten")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->port = argv[i + 1];
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponychildren")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->child_count = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponyconnect")) {
-      remove++;
-
-      if(i < (argc - 2))
-      {
-        opt->parent_host = argv[i + 1];
-        opt->parent_port = argv[i + 2];
-        remove += 2;
-      }
     }
 
     if(remove > 0)
@@ -173,16 +133,6 @@ int pony_init(int argc, char** argv)
   pony_exitcode(0);
   scheduler_init(opt.threads, opt.noyield, opt.forcecd, opt.mpmcq);
   cycle_create(opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
-
-#if 0
-  if(opt.distrib)
-  {
-    dist_create(opt.port, opt.child_count, opt.master);
-
-    if(!opt.master)
-      dist_join(opt.parent_host, opt.parent_port);
-  }
-#endif
 
   return argc;
 }
