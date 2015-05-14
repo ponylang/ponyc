@@ -14,7 +14,7 @@ typedef struct options_t
   uint32_t cd_max_deferred;
   uint32_t cd_conf_group;
   size_t gc_initial;
-  float gc_factor;
+  double gc_factor;
   bool mpmcq;
   bool noyield;
 
@@ -85,7 +85,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
 
       if(i < (argc - 1))
       {
-        opt->gc_factor = (float)atof(argv[i + 1]);
+        opt->gc_factor = atof(argv[i + 1]);
         remove++;
       }
     } else if(!strcmp(argv[i], "--ponysched")) {

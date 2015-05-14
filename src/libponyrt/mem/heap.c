@@ -56,7 +56,7 @@ static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 };
 
 static size_t heap_initialgc = 1 << 14;
-static float heap_nextgc_factor = 2.0f;
+static double heap_nextgc_factor = 2.0;
 
 static void clear_small(chunk_t* chunk)
 {
@@ -228,7 +228,7 @@ void heap_setinitialgc(size_t size)
   heap_initialgc = size;
 }
 
-void heap_setnextgcfactor(float factor)
+void heap_setnextgcfactor(double factor)
 {
   if(factor < 1.0)
     factor = 1.0;
@@ -402,7 +402,7 @@ void heap_endgc(heap_t* heap)
   // add local object sizes as well and set the next gc point for when memory
   // usage has doubled.
   heap->used += used;
-  heap->next_gc = (size_t)(heap->used * heap_nextgc_factor);
+  heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 
   if(heap->next_gc < heap_initialgc)
     heap->next_gc = heap_initialgc;
