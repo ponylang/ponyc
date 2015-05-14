@@ -43,3 +43,5 @@ actor Main
     // else
     //   error
     // end
+
+    error
