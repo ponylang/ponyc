@@ -18,11 +18,11 @@ actor Main
     // end
 
     // internal error
-    while a do
-      return 1
-    else
-      error
-    end
+    //while a do
+    //  return 1
+    //else
+    //  error
+    //end
 
     // internal error
     // repeat
