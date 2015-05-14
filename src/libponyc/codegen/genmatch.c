@@ -770,31 +770,37 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
+  // We will have no type if all case have control types.
   gentype_t phi_type;
 
-  // We will have no type if all branches have return statements.
-  if((type != NULL) && !gentype(c, type, &phi_type))
+  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
+  {
+    assert(0);
     return NULL;
+  }
 
   ast_t* match_type = alias(ast_type(match_expr));
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
   LLVMBasicBlockRef pattern_block = codegen_block(c, "case_pattern");
   LLVMBasicBlockRef else_block = codegen_block(c, "match_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "match_post");
-  LLVMBasicBlockRef next_block;
+  LLVMBasicBlockRef post_block = NULL;
+  LLVMBasicBlockRef next_block = NULL;
 
   // Jump to the first case.
   LLVMBuildBr(c->builder, pattern_block);
 
-  // Start the post block so that a case can modify the phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi;
+  LLVMValueRef phi = GEN_NOTNEEDED;
 
-  if(needed)
-    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
-  else
-    phi = GEN_NOTNEEDED;
+  if(!is_control_type(type))
+  {
+    // Start the post block so that a case can modify the phi node.
+    post_block = codegen_block(c, "match_post");
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+    if(needed)
+      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  }
 
   // Iterate over the cases.
   ast_t* the_case = ast_child(cases);
@@ -845,6 +851,8 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   if(!case_body(c, else_expr, post_block, phi, phi_type.use_type))
     return NULL;
 
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  if(post_block != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
   return phi;
 }
