@@ -1,14 +1,45 @@
-class Test
-  var i: U32 = 3
-
-  fun ref adder(j: U32): U32 =>
-    i + j
-
 actor Main
-  let _env: Env
-
   new create(env: Env) =>
-    _env = env
+    try foo(true) end
 
-    var test = Test
-    test.adder(4)
+  fun ref foo(a: Bool): U64 ? =>
+    // works
+    // match a
+    // | true => return 1
+    // else
+    //   error
+    // end
+
+    // works
+    // if a then
+    //   return 1
+    // else
+    //   error
+    // end
+
+    // internal error
+    while a do
+      return 1
+    else
+      error
+    end
+
+    // internal error
+    // repeat
+    //   return 1
+    // until
+    //   a
+    // else
+    //   error
+    // end
+
+    // works
+    // try
+    //   if a then
+    //     return 1
+    //   else
+    //     error
+    //   end
+    // else
+    //   error
+    // end
