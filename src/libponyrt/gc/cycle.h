@@ -9,7 +9,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-void cycle_create();
+void cycle_create(uint32_t min_deferred, uint32_t max_deferred,
+  uint32_t conf_group);
 
 void cycle_block(pony_actor_t* actor, gc_t* gc);
 

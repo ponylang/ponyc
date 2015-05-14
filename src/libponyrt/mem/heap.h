@@ -24,6 +24,10 @@ typedef struct heap_t
   size_t next_gc;
 } heap_t;
 
+void heap_setinitialgc(size_t size);
+
+void heap_setnextgcfactor(float factor);
+
 void heap_init(heap_t* heap);
 
 void heap_destroy(heap_t* heap);

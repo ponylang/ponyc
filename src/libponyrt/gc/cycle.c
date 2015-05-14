@@ -10,11 +10,6 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#define CYCLE_MIN_DEFERRED (1 << 4)
-#define CYCLE_MAX_DEFERRED (1 << 20)
-#define CYCLE_CONF_GROUP 64
-#define CYCLE_CONF_MASK (CYCLE_CONF_GROUP - 1)
-
 enum
 {
   CYCLE_INIT,
@@ -23,6 +18,14 @@ enum
   CYCLE_ACK,
   CYCLE_TERMINATE
 };
+
+typedef struct init_msg_t
+{
+  pony_msg_t msg;
+  uint32_t min_deferred;
+  uint32_t max_deferred;
+  uint32_t conf_group;
+} init_msg_t;
 
 typedef struct block_msg_t
 {
@@ -142,6 +145,9 @@ typedef struct detector_t
   pony_actor_pad_t pad;
 
   size_t next_token;
+  size_t min_deferred;
+  size_t max_deferred;
+  size_t conf_group;
   size_t next_deferred;
   size_t since_deferred;
 
@@ -413,7 +419,7 @@ static int collect_white(perceived_t* per, view_t* view, size_t rc)
   return count;
 }
 
-static void send_conf(perceived_t* per)
+static void send_conf(detector_t* d, perceived_t* per)
 {
   size_t i = per->last_conf;
   size_t count = 0;
@@ -424,7 +430,7 @@ static void send_conf(perceived_t* per)
     pony_sendi(view->actor, ACTORMSG_CONF, per->token);
     count++;
 
-    if(count == CYCLE_CONF_GROUP)
+    if(count == d->conf_group)
       break;
   }
 
@@ -455,7 +461,7 @@ static bool detect(detector_t* d, view_t* view)
   assert(count2 == count);
   assert(viewmap_size(&per->map) == (size_t)count);
 
-  send_conf(per);
+  send_conf(d, per);
   return true;
 }
 
@@ -479,14 +485,14 @@ static void deferred(detector_t* d)
     {
       d->detected++;
 
-      if(d->next_deferred > CYCLE_MIN_DEFERRED)
+      if(d->next_deferred > d->min_deferred)
         d->next_deferred >>= 1;
 
       return;
     }
   }
 
-  if(d->next_deferred < CYCLE_MAX_DEFERRED)
+  if(d->next_deferred < d->max_deferred)
     d->next_deferred <<= 1;
 
   d->since_deferred = 0;
@@ -629,8 +635,8 @@ static void ack(detector_t* d, size_t token)
     return;
   }
 
-  if((per->ack & CYCLE_CONF_MASK) == 0)
-    send_conf(per);
+  if((per->ack & (d->conf_group - 1)) == 0)
+    send_conf(d, per);
 }
 
 static void forcecd(detector_t* d)
@@ -676,7 +682,11 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
   {
     case CYCLE_INIT:
     {
-      d->next_deferred = CYCLE_MIN_DEFERRED;
+      init_msg_t* m = (init_msg_t*)msg;
+      d->min_deferred = 1 << m->min_deferred;
+      d->max_deferred = 1 << m->max_deferred;
+      d->conf_group = 1 << m->conf_group;
+      d->next_deferred = d->min_deferred;
       break;
     }
 
@@ -734,17 +744,39 @@ static pony_type_t cycle_type =
   {}
 };
 
-void cycle_create()
+void cycle_create(uint32_t min_deferred, uint32_t max_deferred,
+  uint32_t conf_group)
 {
+  if(min_deferred > 30)
+    min_deferred = 30;
+
+  if(max_deferred > 30)
+    max_deferred = 30;
+
+  if(max_deferred < min_deferred)
+    max_deferred = min_deferred;
+
+  if(conf_group > 30)
+    conf_group = 30;
+
   cycle_detector = pony_create(&cycle_type);
   actor_setsystem(cycle_detector);
-  pony_send(cycle_detector, CYCLE_INIT);
+
+  init_msg_t* m = (init_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(init_msg_t)), CYCLE_INIT);
+
+  m->min_deferred = min_deferred;
+  m->max_deferred = max_deferred;
+  m->conf_group = conf_group;
+
+  pony_sendv(cycle_detector, &m->msg);
 }
 
 void cycle_block(pony_actor_t* actor, gc_t* gc)
 {
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), CYCLE_BLOCK);
+
   m->actor = actor;
   m->rc = gc_rc(gc);
   m->delta = gc_delta(gc);

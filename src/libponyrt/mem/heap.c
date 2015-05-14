@@ -7,7 +7,6 @@
 
 #include <platform.h>
 
-#define HEAP_INITIALGC (1 << 14)
 #define HEAP_MIN (1 << HEAP_MINBITS)
 #define HEAP_MAX (1 << HEAP_MAXBITS)
 
@@ -55,6 +54,9 @@ static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
   5, 5, 5, 5, 5, 5, 5, 5,
   5, 5, 5, 5, 5, 5, 5, 5,
 };
+
+static size_t heap_initialgc = 1 << 14;
+static float heap_nextgc_factor = 2.0f;
 
 static void clear_small(chunk_t* chunk)
 {
@@ -221,10 +223,23 @@ static void* large_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
   return chunk->m;
 }
 
+void heap_setinitialgc(size_t size)
+{
+  heap_initialgc = size;
+}
+
+void heap_setnextgcfactor(float factor)
+{
+  if(factor < 1.0)
+    factor = 1.0;
+
+  heap_nextgc_factor = factor;
+}
+
 void heap_init(heap_t* heap)
 {
   memset(heap, 0, sizeof(heap_t));
-  heap->next_gc = HEAP_INITIALGC;
+  heap->next_gc = heap_initialgc;
 }
 
 void heap_destroy(heap_t* heap)
@@ -300,7 +315,7 @@ void heap_used(heap_t* heap, size_t size)
 
 bool heap_startgc(heap_t* heap)
 {
-  if(heap->used < heap->next_gc)
+  if(heap->used <= heap->next_gc)
     return false;
 
   for(int i = 0; i < HEAP_SIZECLASSES; i++)
@@ -387,10 +402,10 @@ void heap_endgc(heap_t* heap)
   // add local object sizes as well and set the next gc point for when memory
   // usage has doubled.
   heap->used += used;
-  heap->next_gc = heap->used << 1;
+  heap->next_gc = (size_t)(heap->used * heap_nextgc_factor);
 
-  if(heap->next_gc < HEAP_INITIALGC)
-    heap->next_gc = HEAP_INITIALGC;
+  if(heap->next_gc < heap_initialgc)
+    heap->next_gc = heap_initialgc;
 }
 
 pony_actor_t* heap_owner(chunk_t* chunk)
