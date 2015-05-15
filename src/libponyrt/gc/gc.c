@@ -5,6 +5,8 @@
 #include <string.h>
 #include <assert.h>
 
+#define GC_ACTOR_HEAP_EQUIV 1024
+
 DECLARE_STACK(gcstack, void);
 DEFINE_STACK(gcstack, void);
 
@@ -253,8 +255,11 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   }
 }
 
-void gc_sendactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
+void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor)
 {
+  (void)heap;
+
   if(actor == current)
   {
     current_actor_inc(gc);
@@ -277,7 +282,8 @@ void gc_sendactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
   }
 }
 
-void gc_recvactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
+void gc_recvactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor)
 {
   if(actor == current)
   {
@@ -291,11 +297,13 @@ void gc_recvactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
       actorref_mark(aref, gc->mark);
       gc->delta = deltamap_update(gc->delta,
         actorref_actor(aref), actorref_rc(aref));
+      heap_used(heap, GC_ACTOR_HEAP_EQUIV);
     }
   }
 }
 
-void gc_markactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
+void gc_markactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor)
 {
   if(actor == current)
     return;
@@ -306,15 +314,20 @@ void gc_markactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor)
   if(aref == NULL)
     return;
 
+  if(actorref_marked(aref, gc->mark))
+    return;
+
   actorref_mark(aref, gc->mark);
+  heap_used(heap, GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_createactor(gc_t* gc, pony_actor_t* actor)
+void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
 {
   actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
   actorref_inc_more(aref);
   gc->delta = deltamap_update(gc->delta,
     actorref_actor(aref), actorref_rc(aref));
+  heap_used(heap, GC_ACTOR_HEAP_EQUIV);
 }
 
 void gc_handlestack()
@@ -442,4 +455,13 @@ void gc_final(gc_t* gc)
 void gc_done(gc_t* gc)
 {
   gc->mark++;
+}
+
+void gc_destroy(gc_t* gc)
+{
+  objectmap_destroy(&gc->local);
+  actormap_destroy(&gc->foreign);
+
+  if(gc->delta != NULL)
+    deltamap_destroy(gc->delta);
 }

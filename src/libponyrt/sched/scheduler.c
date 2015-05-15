@@ -94,7 +94,7 @@ static pony_actor_t* pop_global(scheduler_t* sched)
 }
 
 /**
- * Sends a message to the coordinating thread.
+ * Sends a message to a thread.
  */
 static void send_msg(uint32_t to, sched_msg_t msg, uint64_t arg)
 {
@@ -174,20 +174,27 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
   if(sched->terminate)
     return true;
 
-  if((sched->ack_count == scheduler_count) && asio_stop())
+  if(sched->ack_count == scheduler_count)
   {
-    if(!use_mpmcq)
+    if(asio_stop())
     {
-      // It's safe to manipulate our victim, since we know it's paused.
-      if(sched->victim != NULL)
-        _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
+      if(!use_mpmcq)
+      {
+        // It's safe to manipulate our victim, since we know it's paused.
+        if(sched->victim != NULL)
+          _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
 
-      _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+      }
+
+      cycle_terminate(sched->forcecd);
+      sched->forcecd = false;
+      sched->ack_count = 0;
+    } else {
+      // TODO: run cycle detector in idle time?
     }
 
-    cycle_terminate(sched->forcecd);
-    sched->forcecd = false;
-    sched->ack_count = 0;
+    return false;
   }
 
   cpu_core_pause(tsc, use_yield);
