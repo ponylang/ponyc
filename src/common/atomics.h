@@ -37,6 +37,15 @@
  */
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
 
+#if defined(__clang__)
+  #if __clang_major__ >= 6
+    #define USE_ATOMIC
+  #endif
+#else
+  #define USE_ATOMIC
+#endif
+
+#ifdef USE_ATOMIC
   #define _atomic_load(PTR, MODE) \
     (__atomic_load_n(PTR, MODE))
 
@@ -64,6 +73,36 @@
   #define _atomic_sub64(PTR, VAL, MODE) \
     (__atomic_sub_fetch(PTR, VAL, MODE))
 
+  #undef USE_ATOMIC
+#else
+  #define _atomic_load(PTR, MODE) \
+    (*(PTR))
+
+  #define _atomic_store(PTR, VAL, MODE) \
+    (*(PTR) = (VAL))
+
+  #define _atomic_exch(PTR, VAL, MODE) \
+    (__sync_lock_test_and_set(PTR, VAL))
+
+  #define _atomic_cas(PTR, EXPP, VAL, OK, FAIL) \
+    (*(EXPP) == (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
+
+  #define _atomic_dwcas(PTR, EXPP, VAL, OK, FAIL) \
+    (*(EXPP) == (*(EXPP) = __sync_val_compare_and_swap(PTR, *(EXPP), VAL)))
+
+  #define _atomic_add32(PTR, VAL, MODE) \
+    (__sync_add_and_fetch(PTR, VAL))
+
+  #define _atomic_sub32(PTR, VAL, MODE) \
+    (__sync_sub_and_fetch(PTR, VAL))
+
+  #define _atomic_add64(PTR, VAL, MODE) \
+    (__sync_add_and_fetch(PTR, VAL))
+
+  #define _atomic_sub64(PTR, VAL, MODE) \
+    (__sync_add_and_fetch(PTR, VAL))
+#endif
+
 #elif defined(PLATFORM_IS_VISUAL_STUDIO)
 
   #pragma intrinsic(_InterlockedExchangePointer)
@@ -80,8 +119,10 @@
     (_InterlockedExchangePointer((volatile PVOID*)PTR, VAL))
 
   #define _atomic_cas(PTR, EXPP, VAL, OK, FAIL) \
-    (_InterlockedCompareExchangePointer((PVOID volatile*)PTR, VAL, *(EXPP)) \
-      == *(EXPP))
+    (*(EXPP) == \
+      (*((PVOID*)(EXPP)) = \
+        _InterlockedCompareExchangePointer( \
+          (PVOID volatile*)PTR, VAL, *(EXPP))))
 
   #define _atomic_dwcas(PTR, EXPP, VAL, OK, FAIL) \
     (_InterlockedCompareExchange128((LONGLONG volatile*)PTR, VAL.high, \

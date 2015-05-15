@@ -248,7 +248,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
+    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.8 "
     "-o %s %s %s %s -lponyrt -lSystem",
     arch_buf, file_exe, file_o, lib_args, link_path
     );
