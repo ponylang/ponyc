@@ -16,7 +16,7 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 
 #ifdef USE_NUMA
   #define NUMA_LIB "-lnuma"
@@ -270,7 +270,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(system(dsym_cmd) != 0)
     errorf(NULL, "unable to create dsym");
 
-#elif defined(PLATFORM_IS_LINUX)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
 

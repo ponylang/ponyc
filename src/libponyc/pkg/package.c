@@ -17,7 +17,7 @@
 #include <errno.h>
 #include <assert.h>
 
-#ifdef PLATFORM_IS_LINUX
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 #include <unistd.h>
 #elif defined PLATFORM_IS_MACOSX
 #include <mach-o/dyld.h>
@@ -439,6 +439,12 @@ static void add_exec_dir()
   success = (GetLastError() == ERROR_SUCCESS);
 #elif defined PLATFORM_IS_LINUX
   ssize_t r = readlink("/proc/self/exe", path, FILENAME_MAX);
+  success = (r >= 0);
+
+  if(success)
+    path[r] = '\0';
+#elif defined PLATFORM_IS_FREEBSD
+  ssize_t r = readlink("/proc/curproc/file", path, FILENAME_MAX);
   success = (r >= 0);
 
   if(success)

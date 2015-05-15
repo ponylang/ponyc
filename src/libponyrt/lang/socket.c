@@ -21,6 +21,7 @@
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -29,7 +30,7 @@
 typedef int SOCKET;
 #endif
 
-#ifndef PLATFORM_IS_LINUX
+#if !defined(PLATFORM_IS_LINUX) && !defined(PLATFORM_IS_FREEBSD)
 #define MSG_NOSIGNAL 0
 #endif
 
@@ -98,7 +99,7 @@ static bool map_any_to_loopback(struct sockaddr* addr)
   return false;
 }
 
-#ifdef PLATFORM_IS_MACOSX
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 static int set_nonblocking(SOCKET s)
 {
   int flags = fcntl(s, F_GETFL, 0);
