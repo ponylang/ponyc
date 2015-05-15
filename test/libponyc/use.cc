@@ -234,7 +234,7 @@ TEST_F(UseTest, AndOpInCondition)
 TEST_F(UseTest, OrOpInCondition)
 {
   const char* src =
-    "use \"test:foo\" if (linux or windows or osx)";
+    "use \"test:foo\" if (linux or windows or osx or freebsd)";
 
   TEST_COMPILE(src);
 
