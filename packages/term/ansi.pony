@@ -146,7 +146,7 @@ primitive ANSI
 
   fun white(): String =>
     """
-    Grey text.
+    White text.
     """
     "\x1B[97m"
 
@@ -248,13 +248,13 @@ primitive ANSI
 
   fun bright_red_bg(): String =>
     """
-    Bright red text.
+    Bright red background.
     """
     "\x1B[101m"
 
   fun bright_green_bg(): String =>
     """
-    Bright green text.
+    Bright green background.
     """
     "\x1B[102m"
 
