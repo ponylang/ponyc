@@ -138,6 +138,7 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
+	ALL_CXXFLAGS += -stdlib=libc++
   libponyrt.except += src/libponyrt/asio/kqueue.c
 endif
 
@@ -413,8 +414,8 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
 	@ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a 
-	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a 
+	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
@@ -451,7 +452,7 @@ release: prerelease setversion
 	@git push
 	@git checkout $(branch)
 endif
-	
+
 stats:
 	@echo
 	@echo '------------------------------'
@@ -497,7 +498,7 @@ help:
 	@echo
 	@echo '  all               Build all of the above (default)'
 	@echo '  test              Run test suite'
-	@echo '  install           Install ponyc' 
+	@echo '  install           Install ponyc'
 	@echo '  uninstall         Remove all versions of ponyc'
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'
