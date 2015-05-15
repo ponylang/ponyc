@@ -5,7 +5,7 @@
 typedef void (*trace_object_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
   void* p, pony_trace_fn f);
 
-typedef void (*trace_actor_fn)(pony_actor_t* current, gc_t* gc,
+typedef void (*trace_actor_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
   pony_actor_t* actor);
 
 static __pony_thread_local trace_object_fn trace_object;
@@ -53,7 +53,7 @@ void pony_trace(void* p)
 void pony_traceactor(pony_actor_t* p)
 {
   pony_actor_t* actor = actor_current();
-  trace_actor(actor, actor_gc(actor), p);
+  trace_actor(actor, actor_heap(actor), actor_gc(actor), p);
 }
 
 void pony_traceobject(void* p, pony_trace_fn f)
@@ -69,7 +69,7 @@ void pony_traceunknown(void* p)
 
   if(type->dispatch != NULL)
   {
-    trace_actor(actor, actor_gc(actor), (pony_actor_t*)p);
+    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
   } else {
     trace_object(actor, actor_heap(actor), actor_gc(actor), p, type->trace);
   }
@@ -81,7 +81,7 @@ void pony_trace_tag_or_actor(void* p)
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
-    trace_actor(actor, actor_gc(actor), (pony_actor_t*)p);
+    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
   else
     trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
 }

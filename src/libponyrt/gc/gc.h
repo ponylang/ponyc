@@ -32,13 +32,16 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
 void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   void* p, pony_trace_fn f);
 
-void gc_sendactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor);
 
-void gc_recvactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_recvactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor);
 
-void gc_markactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_markactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor);
 
-void gc_createactor(gc_t* gc, pony_actor_t* actor);
+void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor);
 
 void gc_handlestack();
 
@@ -61,6 +64,8 @@ void gc_register_final(gc_t* gc, void* p, pony_final_fn final);
 void gc_final(gc_t* gc);
 
 void gc_done(gc_t* gc);
+
+void gc_destroy(gc_t* gc);
 
 PONY_EXTERN_C_END
 

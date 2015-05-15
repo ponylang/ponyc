@@ -115,6 +115,7 @@ void hashmap_destroy(hashmap_t* map, free_size_fn fr, free_fn free_elem)
   if((fr != NULL) && (map->size > 0))
     fr(map->size * sizeof(void*), map->buckets);
 
+  map->count = 0;
   map->size = 0;
   map->buckets = NULL;
 }

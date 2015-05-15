@@ -472,30 +472,34 @@ static void deferred(detector_t* d)
 
   d->attempted++;
 
+  bool found = false;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  if((view = viewmap_next(&d->deferred, &i)) != NULL)
+  while((view = viewmap_next(&d->deferred, &i)) != NULL)
   {
     assert(view->deferred == true);
     viewmap_removeindex(&d->deferred, i);
     view->deferred = false;
 
-    if(detect(d, view))
-    {
-      d->detected++;
+    if(!detect(d, view))
+      break;
 
-      if(d->next_deferred > d->min_deferred)
-        d->next_deferred >>= 1;
-
-      return;
-    }
+    found = true;
   }
 
-  if(d->next_deferred < d->max_deferred)
-    d->next_deferred <<= 1;
+  if(found)
+  {
+    if(d->next_deferred > d->min_deferred)
+      d->next_deferred >>= 1;
 
-  d->since_deferred = 0;
+    d->detected++;
+  } else {
+    if(d->next_deferred < d->max_deferred)
+      d->next_deferred <<= 1;
+
+    d->since_deferred = 0;
+  }
 }
 
 static void expire(detector_t* d, view_t* view)
@@ -578,20 +582,33 @@ static void block(detector_t* d, pony_actor_t* actor, size_t rc,
   // record that we're blocked
   view->blocked = true;
 
-  // add to the deferred set
-  if(!view->deferred)
-  {
-    viewmap_put(&d->deferred, view);
-    view->deferred = true;
-  }
-
-  d->since_deferred++;
-
   // if we're in a perceived cycle, that cycle is invalid
   expire(d, view);
 
-  // look for cycles
-  deferred(d);
+  if(rc == 0)
+  {
+    // remove from the deferred set
+    if(view->deferred)
+    {
+      viewmap_remove(&d->deferred, view);
+      view->deferred = false;
+    }
+
+    // detect from this actor, bypassing deferral
+    detect(d, view);
+  } else {
+    // add to the deferred set
+    if(!view->deferred)
+    {
+      viewmap_put(&d->deferred, view);
+      view->deferred = true;
+    }
+
+    d->since_deferred++;
+
+    // look for cycles
+    deferred(d);
+  }
 }
 
 static void unblock(detector_t* d, pony_actor_t* actor)
