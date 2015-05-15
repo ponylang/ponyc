@@ -120,7 +120,7 @@
 
   #define _atomic_cas(PTR, EXPP, VAL, OK, FAIL) \
     (*(EXPP) == \
-      (*(EXPP) = \
+      (*((PVOID*)(EXPP)) = \
         _InterlockedCompareExchangePointer( \
           (PVOID volatile*)PTR, VAL, *(EXPP))))
 
