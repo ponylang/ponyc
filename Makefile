@@ -59,10 +59,6 @@ PONY_SOURCE_DIR  ?= src
 PONY_TEST_DIR ?= test
 LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
-ifeq ($(OSTYPE),freebsd)
-  LINKER_FLAGS += -mcpu=i486
-endif
-
 ifdef use
   ifneq (,$(filter $(use), numa))
     ALL_CFLAGS += -DUSE_NUMA
