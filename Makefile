@@ -80,6 +80,10 @@ else
   BUILD_FLAGS += -g -DDEBUG
 endif
 
+ifeq ($(OSTYPE),osx)
+	ALL_CXXFLAGS += -stdlib=libc++
+endif
+
 ifneq (,$(shell which llvm-config 2> /dev/null))
   LLVM_CONFIG = llvm-config
 endif
@@ -138,7 +142,6 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-	ALL_CXXFLAGS += -stdlib=libc++
   libponyrt.except += src/libponyrt/asio/kqueue.c
 endif
 
