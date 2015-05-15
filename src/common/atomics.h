@@ -38,11 +38,11 @@
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
 
 #if defined(__clang__)
-  // #define PONY_CLANG_VERSION ((__clang_major__ * 100) + __clang_minor__)
+  #define PONY_CLANG_VERSION ((__clang_major__ * 100) + __clang_minor__)
 
-  // #if PONY_CLANG_VERSION >= 601
-  //   #define USE_ATOMIC
-  // #endif
+  #if PONY_CLANG_VERSION >= 601
+    #define USE_ATOMIC
+  #endif
 #else
   #define USE_ATOMIC
 #endif
