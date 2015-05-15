@@ -38,11 +38,11 @@
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
 
 #if defined(__clang__)
-  #define PONY_CLANG_VERSION ((__clang_major__ * 100) + __clang_minor__)
+  // #define PONY_CLANG_VERSION ((__clang_major__ * 100) + __clang_minor__)
 
-  #if PONY_CLANG_VERSION >= 601
-    #define USE_ATOMIC
-  #endif
+  // #if PONY_CLANG_VERSION >= 601
+  //   #define USE_ATOMIC
+  // #endif
 #else
   #define USE_ATOMIC
 #endif
@@ -102,7 +102,7 @@
     (__sync_add_and_fetch(PTR, VAL))
 
   #define _atomic_sub64(PTR, VAL, MODE) \
-    (__sync_add_and_fetch(PTR, VAL))
+    (__sync_sub_and_fetch(PTR, VAL))
 #endif
 
 #elif defined(PLATFORM_IS_VISUAL_STUDIO)
