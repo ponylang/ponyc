@@ -38,7 +38,9 @@
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
 
 #if defined(__clang__)
-  #if __clang_major__ >= 6
+  #define PONY_CLANG_VERSION ((__clang_major__ * 100) + __clang_minor__)
+
+  #if PONY_CLANG_VERSION >= 601
     #define USE_ATOMIC
   #endif
 #else
