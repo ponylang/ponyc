@@ -296,7 +296,7 @@ class Array[A] is Seq[A]
     DO NOT USE in Pony code. Solely for FFI interaction.
     Forcefully set a size of an array.
     """
-    if len < _alloc then
+    if len <= _alloc then
       _size = len
     else
       error
