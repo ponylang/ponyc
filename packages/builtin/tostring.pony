@@ -159,13 +159,15 @@ primitive ToString
     recover
       var s = String((prec' + 1).max(width.max(31)))
       var value = x
-      var i: I64 = 0
 
       try
-        while value != 0 do
-          let index = ((value = value / base) - (value * base))
-          s.push(table(index))
-          i = i + 1
+        if value == 0 then
+          s.push(table(0))
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base))
+            s.push(table(index))
+          end
         end
       end
 
@@ -192,13 +194,15 @@ primitive ToString
     recover
       var s = String((prec' + 1).max(width.max(31)))
       var value = x
-      var i: I64 = 0
 
       try
-        while value != 0 do
-          let index = ((value = value / base) - (value * base)).u64()
-          s.push(table(index))
-          i = i + 1
+        if value == 0 then
+          s.push(table(0))
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base)).u64()
+            s.push(table(index))
+          end
         end
       end
 
