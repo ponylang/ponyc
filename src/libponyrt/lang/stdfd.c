@@ -396,16 +396,19 @@ void os_stdout_setup()
   stderr_reset = csbi.wAttributes;
   is_stderr_tty = (type == FILE_TYPE_CHAR);
 #else
-  fd_type_t type = fd_type(STDOUT_FILENO);
-  is_stdout_tty = (type == FD_TYPE_TTY);
+  is_stdout_tty = (fd_type(STDOUT_FILENO) == FD_TYPE_TTY);
+  is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
 
   // Use unbuffered output if we're writing to a tty, otherwise line buffered.
-  if(type == FD_TYPE_TTY)
+  if(is_stdout_tty)
     setvbuf(stdout, NULL, _IONBF, 0);
   else
     setvbuf(stdout, NULL, _IOLBF, 0);
 
-  is_stderr_tty = (fd_type(STDERR_FILENO) == FD_TYPE_TTY);
+  if(is_stderr_tty)
+    setvbuf(stderr, NULL, _IONBF, 0);
+  else
+    setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
 }
 
@@ -519,6 +522,9 @@ bool os_fp_tty(FILE* fp)
 
 void os_std_write(FILE* fp, char* buffer, uint64_t len)
 {
+  if(len == 0)
+    return;
+
   if(!os_fp_tty(fp))
   {
     // Find ANSI codes and strip them from the output.
