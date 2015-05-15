@@ -291,6 +291,19 @@ class Array[A] is Seq[A]
     """
     ArrayPairs[A, this->Array[A]](this)
 
+  fun ref unsafe_set_length(len: U64): Array[A]^ ? =>
+    """
+    DO NOT USE in Pony code. Solely for FFI interaction.
+    Forcefully set a size of an array.
+    """
+    if len < _alloc then
+      _size = len
+    else
+      error
+    end
+
+    this
+
 class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
   let _array: B
   var _i: U64
