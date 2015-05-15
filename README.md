@@ -23,10 +23,8 @@
 # Installation
 ## Mac OSX using [Homebrew](http://brew.sh)
 
-```bash
-$ brew install http://www.ponylang.org/releases/ponyc.rb
-$ ponyc --version
-0.1.4
+```bash 
+$ brew install ponyc
 ```
 
 A pull request for the ponyc formula to be part of homebrew-core is [pending](https://github.com/Homebrew/homebrew/pull/39192).
@@ -65,8 +63,6 @@ Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo apt-get install <package name>
-$ ponyc --version
-0.1.4
 ```
 
 ### Zypper
@@ -81,8 +77,6 @@ Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo zypper install <package-name>
-$ ponyc --version
-0.1.4
 ```
 
 ### YUM
@@ -97,8 +91,6 @@ Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
 
 ```bash
 $ sudo yum install <package-name>
-$ ponyc --version
-0.1.4
 ```
 
 ## Windows
