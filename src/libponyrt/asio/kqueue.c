@@ -154,8 +154,13 @@ void asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
+#ifdef PLATFORM_IS_FREEBSD
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      0, ev->data/1000000, ev);
+#else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->data, ev);
+#endif
     i++;
   }
 
@@ -183,8 +188,13 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 
   if(ev->flags & ASIO_TIMER)
   {
+#ifdef PLATFORM_IS_FREEBSD
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      0, data/1000000, ev);
+#else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, data, ev);
+#endif
     i++;
   }
 

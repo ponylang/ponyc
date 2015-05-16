@@ -146,7 +146,9 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-  libponyrt.except += src/libponyrt/asio/kqueue.c
+  ifneq ($(OSTYPE),freebsd)
+    libponyrt.except += src/libponyrt/asio/kqueue.c
+  endif
 endif
 
 libponyrt.except += src/libponyrt/asio/sock.c
