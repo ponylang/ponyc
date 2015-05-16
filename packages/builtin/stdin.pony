@@ -97,7 +97,7 @@ actor Stdin
           return true
         | 0 =>
           // EOF. Close everything, stop reading.
-          @asio_event_unsubscribe[None](_event)
+          _close_event()
           notify.closed()
           _notify = None
           return false
@@ -107,7 +107,7 @@ actor Stdin
 
         if not notify(consume data) then
           // Notifier is done. Close everything, stop reading.
-          @asio_event_unsubscribe[None](_event)
+          _close_event()
           _notify = None
           return false
         end
@@ -130,6 +130,15 @@ actor Stdin
       true
     else
       // No notifier. Stop reading.
-      @asio_event_unsubscribe[None](_event)
+      _close_event()
       false
     end
+
+    fun ref _close_event() =>
+      """
+      Close the event.
+      """
+      if not _event.is_null() then
+        @asio_event_unsubscribe[None](_event)
+        _event = Event.none()
+      end

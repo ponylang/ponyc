@@ -99,17 +99,19 @@ actor TCPListener
     """
     Accept connections as long as we have spawned fewer than our limit.
     """
-    if _closed then
-      return
-    end
-
     if Platform.windows() then
-      match ns
-      | -1 =>
+      if ns == -1 then
         // Unsubscribe when we get an invalid socket in the event.
         @asio_event_unsubscribe[None](_event)
         return
-      | where ns > 0 =>
+      end
+
+      if ns > 0 then
+        if _closed then
+          @os_closesocket[None](ns)
+          return
+        end
+
         _spawn(ns)
       end
 
@@ -120,6 +122,10 @@ actor TCPListener
         _paused = true
       end
     else
+      if _closed then
+        return
+      end
+
       while (_limit == 0) or (_count < _limit) do
         var fd = @os_accept[U64](_event)
 

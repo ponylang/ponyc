@@ -21,6 +21,7 @@ actor UDPSocket
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   new ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: U64 = 1024)
@@ -33,6 +34,7 @@ actor UDPSocket
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   new ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: U64 = 1024)
@@ -45,6 +47,7 @@ actor UDPSocket
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   be write(data: Bytes, to: IPAddress) =>
     """
@@ -209,15 +212,21 @@ actor UDPSocket
         return
       end
 
-      if len != -1 then
-        // Hand back read data
-        let data = _read_buf = recover Array[U8].undefined(next) end
-        let from = _read_from = recover IPAddress end
-        data.truncate(len)
-        _notify.received(this, consume data, consume from)
-      end
+      // Hand back read data
+      let data = _read_buf = recover Array[U8].undefined(next) end
+      let from = _read_from = recover IPAddress end
+      data.truncate(len)
+      _notify.received(this, consume data, consume from)
 
-      // Start next read
+      _start_next_read()
+    end
+
+  fun ref _start_next_read() =>
+    """
+    Start our next receive.
+    This is used only with IOCP on Windows.
+    """
+    if Platform.windows() then
       try
         @os_recvfrom[U64](_event, _read_buf.cstring(), _read_buf.space(),
           _read_from) ?
