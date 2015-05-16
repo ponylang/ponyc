@@ -259,16 +259,19 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  size_t dsym_len = 16 + strlen(file_exe);
-  VLA(char, dsym_cmd, dsym_len);
+  if(!c->opt->strip_debug)
+  {
+    size_t dsym_len = 16 + strlen(file_exe);
+    VLA(char, dsym_cmd, dsym_len);
 
-  snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
-  system(dsym_cmd);
+    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+    system(dsym_cmd);
 
-  snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
-  if(system(dsym_cmd) != 0)
-    errorf(NULL, "unable to create dsym");
+    if(system(dsym_cmd) != 0)
+      errorf(NULL, "unable to create dsym");
+  }
 
 #elif defined(PLATFORM_IS_LINUX)
   const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
