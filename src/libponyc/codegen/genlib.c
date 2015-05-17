@@ -2,6 +2,7 @@
 #include "genopt.h"
 #include "genobj.h"
 #include "genheader.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../type/assemble.h"
 #include <string.h>
@@ -203,6 +204,8 @@ static bool link_lib(compile_t* c, const char* file_o)
 
 bool genlib(compile_t* c, ast_t* program)
 {
+  genprim_reachable_init(c, program);
+
   if(!reachable_actors(c, program) ||
     !generate_actors(c, program) ||
     !genheader(c)

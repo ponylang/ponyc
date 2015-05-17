@@ -7,7 +7,6 @@ actor Main
   let _client: Client
 
   new create(env: Env) =>
-    SSLInit
     _env = env
 
     let sslctx = try

@@ -7,6 +7,7 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../debug/dwarf.h"
+#include "../type/assemble.h"
 
 static void pointer_create(compile_t* c, gentype_t* g)
 {
@@ -662,4 +663,54 @@ void genprim_builtins(compile_t* c)
   fp_as_bits(c);
   make_cpuid(c);
   make_rdtscp(c);
+}
+
+void genprim_reachable_init(compile_t* c, ast_t* program)
+{
+  // Look for primitives in all packages that have _init or _final methods.
+  // Mark them as reachable.
+  const char* init = stringtab("_init");
+  const char* final = stringtab("_final");
+  ast_t* package = ast_child(program);
+
+  while(package != NULL)
+  {
+    ast_t* module = ast_child(package);
+
+    while(module != NULL)
+    {
+      ast_t* entity = ast_child(module);
+
+      while(entity != NULL)
+      {
+        if(ast_id(entity) == TK_PRIMITIVE)
+        {
+          ast_t* id = ast_child(entity);
+          ast_t* type = type_builtin(c->opt, entity, ast_name(id));
+          ast_t* finit = ast_get(entity, init, NULL);
+          ast_t* ffinal = ast_get(entity, final, NULL);
+
+          if(finit != NULL)
+          {
+            reach(c->reachable, type, init, NULL);
+            ast_free_unattached(finit);
+          }
+
+          if(ffinal != NULL)
+          {
+            reach(c->reachable, type, final, NULL);
+            ast_free_unattached(ffinal);
+          }
+
+          ast_free_unattached(type);
+        }
+
+        entity = ast_sibling(entity);
+      }
+
+      module = ast_sibling(module);
+    }
+
+    package = ast_sibling(package);
+  }
 }

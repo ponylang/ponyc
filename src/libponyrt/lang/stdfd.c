@@ -332,13 +332,6 @@ static void fd_tty(int fd)
       atexit(stdin_tty_restore);
   }
 }
-
-static void fd_nonblocking(int fd)
-{
-  // Set to non-blocking.
-  int flags = fcntl(fd, F_GETFL, 0);
-  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
 #endif
 
 static char ansi_parse(const char* buffer, uint64_t* pos, uint64_t len,
@@ -432,28 +425,14 @@ bool os_stdin_setup()
   // Always use events
   return true;
 #else
-  int fd = STDIN_FILENO;
-  fd_type_t type = fd_type(fd);
-
-  switch(type)
+  if(fd_type(STDIN_FILENO) == FD_TYPE_TTY)
   {
-    case FD_TYPE_TTY:
-      if(is_stdout_tty)
-      {
-        fd_nonblocking(fd);
-        fd_tty(fd);
-      }
-      return true;
+    if(is_stdout_tty)
+      fd_tty(STDIN_FILENO);
 
-    case FD_TYPE_PIPE:
-    case FD_TYPE_DEVICE:
-      fd_nonblocking(fd);
-      return true;
-
-    default: {}
+    return true;
   }
 
-  // For a file, directory, or block device, do nothing.
   return false;
 #endif
 }

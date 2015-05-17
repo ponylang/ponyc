@@ -1014,6 +1014,70 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
+static bool check_primitive_init(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_PRIMITIVE)
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "_init"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(ast, "a primitive _init must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_BOX)
+  {
+    ast_error(cap, "a primitive _init must be box");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "a primitive _init must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(params, "a primitive _init must take a single Env parameter");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param != NULL)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!is_env(p_type))
+    {
+      ast_error(p_type, "must be of type Env");
+      ok = false;
+    }
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(result, "a primitive _init must return None");
+    ok = false;
+  }
+
+  if(ast_id(can_error) != TK_NONE)
+  {
+    ast_error(can_error, "a primitive _init cannot raise an error");
+    ok = false;
+  }
+
+  return ok;
+}
+
 static bool check_finaliser(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
@@ -1100,7 +1164,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(!check_finaliser(ast))
+  if(!check_primitive_init(t, ast) || !check_finaliser(ast))
     return false;
 
   switch(ast_id(ast))

@@ -8,6 +8,8 @@ actor Main
       limit = limit)
     // Server(Info(env), Handle, ContentsLog(env.out) where service = service,
     //   limit = limit)
+    // Server(Info(env), Handle, DiscardLog where service = service,
+    //   limit = limit)
 
 class Info
   let _env: Env

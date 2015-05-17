@@ -5,7 +5,6 @@ actor Main
   new create(env: Env) =>
     let ssl = try
       if env.args(1) == "ssl" then
-        SSLInit
         true
       else
         false

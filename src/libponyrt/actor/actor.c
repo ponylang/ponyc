@@ -155,8 +155,6 @@ bool actor_run(pony_actor_t* actor)
 
 void actor_destroy(pony_actor_t* actor)
 {
-  // printf("ACTOR DESTROY\n");
-
   assert(has_flag(actor, FLAG_PENDINGDESTROY));
 
   messageq_destroy(&actor->q);
@@ -255,6 +253,15 @@ pony_actor_t* pony_create(pony_type_t* type)
   }
 
   return actor;
+}
+
+void pony_destroy(pony_actor_t* actor)
+{
+  // This destroy an actor immediately. If any other actor has a reference to
+  // this actor, the program will likely crash.
+  actor_setpendingdestroy(actor);
+  actor_final(actor);
+  actor_destroy(actor);
 }
 
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
