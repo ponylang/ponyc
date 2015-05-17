@@ -2,6 +2,17 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [unreleased] - unreleased
+
+### Added
+
+- Primitive `_init` and `_final` for C library initialisation and shutdown.
+
+### Fixed
+
+- ANSI stripping on zero length writes to stdout/stderr.
+- More OSX 10.8 compatibility.
+
 ## [0.1.5] - 2015-05-15
 
 ### Fixed

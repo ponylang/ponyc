@@ -5,12 +5,14 @@
 #include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
+#include <assert.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
@@ -125,6 +127,57 @@ static const char* get_link_path()
   return stringtab(buf);
 }
 
+static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
+{
+  size_t count = 1;
+
+  if(arg != NULL)
+    count++;
+
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    ast_t* def = (ast_t*)ast_data(t->type);
+
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
+
+    reachable_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    gentype_t g;
+
+    if(!gentype(c, t->type, &g))
+    {
+      assert(0);
+      return;
+    }
+
+    LLVMValueRef fun = genfun_proto(c, &g, method, NULL);
+    assert(fun != NULL);
+
+    LLVMValueRef args[2];
+    args[0] = g.instance;
+    args[1] = arg;
+
+    codegen_call(c, fun, args, count);
+  }
+}
+
+static LLVMValueRef create_main(compile_t* c, gentype_t* g)
+{
+  // Create the main actor and become it.
+  LLVMValueRef actor = gencall_create(c, g);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, actor, c->object_ptr, "");
+  gencall_runtime(c, "pony_become", &object, 1, "");
+
+  return object;
+}
+
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 {
   LLVMTypeRef params[3];
@@ -151,9 +204,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef m = gencall_create(c, main_g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
+  LLVMValueRef main_actor = create_main(c, main_g);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
@@ -168,6 +219,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
   LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
+  // Run primitive initialisers using the main actor's heap.
+  primitive_call(c, stringtab("_init"), env);
+
   // Create a type for the message.
   LLVMTypeRef f_params[4];
   f_params[0] = c->i32;
@@ -179,8 +233,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
-    NULL);
+  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
 
   size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
@@ -202,13 +255,20 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   gencall_runtime(c, "pony_send_done", NULL, 0, "");
 
   // Send the message.
-  args[0] = object;
+  args[0] = main_actor;
   args[1] = msg;
   gencall_runtime(c, "pony_sendv", args, 2, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+
+  // Run primitive finalisers. We create a new main actor as a context to run
+  // the finalisers in, but we do not initialise or schedule it.
+  LLVMValueRef final_actor = create_main(c, main_g);
+  primitive_call(c, stringtab("_final"), NULL);
+  args[0] = final_actor;
+  gencall_runtime(c, "pony_destroy", args, 1, "");
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -367,6 +427,7 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
+  genprim_reachable_init(c, program);
   reach(c->reachable, main_ast, stringtab("create"), NULL);
   reach(c->reachable, env_ast, stringtab("_create"), NULL);
   paint(c->reachable);

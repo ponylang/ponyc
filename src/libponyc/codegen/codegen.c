@@ -217,6 +217,13 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
+  // void pony_destroy($object*)
+  params[0] = c->object_ptr;
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  value = LLVMAddFunction(c->module, "pony_destroy", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMSetReturnNoAlias(value);
+
   // void pony_sendv($object*, $message*);
   params[0] = c->object_ptr;
   params[1] = c->msg_ptr;
