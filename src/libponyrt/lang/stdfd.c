@@ -4,6 +4,7 @@
 #include "../asio/asio.h"
 
 #ifndef PLATFORM_IS_WINDOWS
+#include <poll.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -313,24 +314,22 @@ static void stdin_tty_restore()
   tcsetattr(0, TCSAFLUSH, &orig_termios);
 }
 
-static void fd_tty(int fd)
+static void stdin_tty()
 {
   // Turn off canonical mode if we're reading from a tty.
-  if(tcgetattr(fd, &orig_termios) != -1)
-  {
-    struct termios io = orig_termios;
+  if(tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+    return;
 
-    io.c_iflag &= ~(BRKINT | INPCK | ISTRIP | IXON);
-    io.c_cflag |= (CS8);
-    io.c_lflag &= ~(ECHO | ICANON | IEXTEN);
-    io.c_cc[VMIN] = 1;
-    io.c_cc[VTIME] = 0;
+  struct termios io = orig_termios;
 
-    tcsetattr(fd, TCSAFLUSH, &io);
+  io.c_iflag &= ~(BRKINT | INPCK | ISTRIP | IXON);
+  io.c_cflag |= (CS8);
+  io.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+  io.c_cc[VMIN] = 1;
+  io.c_cc[VTIME] = 0;
 
-    if(fd == 0)
-      atexit(stdin_tty_restore);
-  }
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &io);
+  atexit(stdin_tty_restore);
 }
 #endif
 
@@ -428,7 +427,7 @@ bool os_stdin_setup()
   if(fd_type(STDIN_FILENO) == FD_TYPE_TTY)
   {
     if(is_stdout_tty)
-      fd_tty(STDIN_FILENO);
+      stdin_tty();
 
     return true;
   }
@@ -490,6 +489,19 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
   *out_again = false;
   return len;
 #else
+  struct pollfd pfd;
+  pfd.fd = STDIN_FILENO;
+  pfd.events = POLLIN;
+  pfd.revents = 0;
+
+  int n = poll(&pfd, 1, 0);
+
+  if(n != 1)
+  {
+    *out_again = false;
+    return -1;
+  }
+
   *out_again = true;
   return read(0, buffer, space);
 #endif
