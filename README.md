@@ -1,24 +1,18 @@
 # Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
-
 * Use the [mailing list](mailto:ponydev@lists.ponylang.org).
-
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
-
 * A tutorial is available [here](http://tutorial.ponylang.org).
 
 # Editor support
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
-
 * Atom: [language-pony](https://atom.io/packages/language-pony)
-
-* Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony).
-
-* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax).
-
+* Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony)
+* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
 * Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
+* BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 
 # Installation
 ## Mac OSX using [Homebrew](http://brew.sh)
