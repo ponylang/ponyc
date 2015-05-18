@@ -38,6 +38,8 @@ pony_actor_t* actor_next(pony_actor_t* actor);
 
 void actor_setnext(pony_actor_t* actor, pony_actor_t* next);
 
+void pony_destroy(pony_actor_t* actor);
+
 PONY_EXTERN_C_END
 
 #endif

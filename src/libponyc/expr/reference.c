@@ -666,45 +666,47 @@ bool expr_dontcare(ast_t* ast)
   // of an assignment. It can be embedded in other tuples, which may appear
   // in sequences.
   ast_t* tuple = ast_parent(ast);
-  assert(ast_id(tuple) == TK_TUPLE);
 
-  ast_t* parent = ast_parent(tuple);
-
-  while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
+  if(ast_id(tuple) == TK_TUPLE)
   {
-    tuple = parent;
-    parent = ast_parent(tuple);
-  }
+    ast_t* parent = ast_parent(tuple);
 
-  switch(ast_id(parent))
-  {
-    case TK_ASSIGN:
+    while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
     {
-      AST_GET_CHILDREN(parent, right, left);
-
-      if(tuple == left)
-      {
-        ast_settype(ast, ast);
-        return true;
-      }
-
-      break;
+      tuple = parent;
+      parent = ast_parent(tuple);
     }
 
-    case TK_CASE:
+    switch(ast_id(parent))
     {
-      AST_GET_CHILDREN(parent, pattern, guard, body);
-
-      if(tuple == pattern)
+      case TK_ASSIGN:
       {
-        ast_settype(ast, ast);
-        return true;
+        AST_GET_CHILDREN(parent, right, left);
+
+        if(tuple == left)
+        {
+          ast_settype(ast, ast);
+          return true;
+        }
+
+        break;
       }
 
-      break;
-    }
+      case TK_CASE:
+      {
+        AST_GET_CHILDREN(parent, pattern, guard, body);
 
-    default: {}
+        if(tuple == pattern)
+        {
+          ast_settype(ast, ast);
+          return true;
+        }
+
+        break;
+      }
+
+      default: {}
+    }
   }
 
   ast_error(ast, "the don't care token can only appear in a tuple, either on "
