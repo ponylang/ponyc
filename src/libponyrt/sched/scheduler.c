@@ -171,13 +171,13 @@ static void read_msg(scheduler_t* sched)
             sched->ack_token++;
             sched->ack_count = 0;
           } else if(asio_stop()) {
-            // Run another CNF/ACK cycle.
-            for(uint32_t i = 0; i < scheduler_count; i++)
-              send_msg(i, SCHED_CNF, sched->ack_token);
-
             sched->asio_stopped = true;
             sched->ack_token++;
             sched->ack_count = 0;
+
+            // Run another CNF/ACK cycle.
+            for(uint32_t i = 0; i < scheduler_count; i++)
+              send_msg(i, SCHED_CNF, sched->ack_token);
           }
         }
         break;
