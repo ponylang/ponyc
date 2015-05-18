@@ -146,8 +146,40 @@ static void read_msg(scheduler_t* sched)
       case SCHED_ACK:
       {
         // If it's the current token, increment the ack count.
-        if(m->i == sched->ack_token)
-          sched->ack_count++;
+        if(m->i != sched->ack_token)
+          break;
+
+        sched->ack_count++;
+
+        if(sched->ack_count == scheduler_count)
+        {
+          if(sched->asio_stopped)
+          {
+            // ASIO has already been stopped.
+            if(!use_mpmcq)
+            {
+              // It's safe to manipulate our victim, since we know it's paused.
+              if(sched->victim != NULL)
+                _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
+
+              _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+            }
+
+            // Reset the ACK token in case we are rescheduling ourself.
+            cycle_terminate(sched->forcecd);
+            sched->forcecd = false;
+            sched->ack_token++;
+            sched->ack_count = 0;
+          } else if(asio_stop()) {
+            // Run another CNF/ACK cycle.
+            for(uint32_t i = 0; i < scheduler_count; i++)
+              send_msg(i, SCHED_CNF, sched->ack_token);
+
+            sched->asio_stopped = true;
+            sched->ack_token++;
+            sched->ack_count = 0;
+          }
+        }
         break;
       }
 
@@ -173,29 +205,6 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
 
   if(sched->terminate)
     return true;
-
-  if(sched->ack_count == scheduler_count)
-  {
-    if(asio_stop())
-    {
-      if(!use_mpmcq)
-      {
-        // It's safe to manipulate our victim, since we know it's paused.
-        if(sched->victim != NULL)
-          _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
-
-        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
-      }
-
-      cycle_terminate(sched->forcecd);
-      sched->forcecd = false;
-      sched->ack_count = 0;
-    } else {
-      // TODO: run cycle detector in idle time?
-    }
-
-    return false;
-  }
 
   cpu_core_pause(tsc, use_yield);
   return false;

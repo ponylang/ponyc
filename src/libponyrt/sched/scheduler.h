@@ -16,6 +16,7 @@ typedef struct scheduler_t
   uint32_t node;
   bool forcecd;
   bool terminate;
+  bool asio_stopped;
 
   // These are changed primarily by the owning scheduler thread.
   __pony_spec_align__(struct scheduler_t* last_victim, 64);
