@@ -167,18 +167,18 @@ class _PayloadBuilder
             let value = recover val line.substring(i + 1, -1).trim() end
             _payload(key) = value
 
-            match key
-            | "Content-Length" =>
+            match key.lower()
+            | "content-length" =>
               _content_length = value.u64()
-            | "Transfer-Encoding" =>
+            | "transfer-encoding" =>
               try
                 value.find("chunked")
                 _chunked = true
               end
-            | "Host" =>
+            | "host" =>
               // TODO: set url host and service
               None
-            | "Authorization" =>
+            | "authorization" =>
               // TODO: set url username and password
               None
             end
