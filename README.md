@@ -120,8 +120,8 @@ $ make use=numa config=release
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 
 ```
-$ brew tap homebrew/versions
-$ brew install llvm36
+$ brew update
+$ brew llvm --with-rtti --without-shared
 ```
 
 This will build ponyc and compile helloworld:
