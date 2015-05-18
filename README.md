@@ -23,11 +23,10 @@
 # Installation
 ## Mac OSX using [Homebrew](http://brew.sh)
 
-```bash 
+```bash
+$ brew update 
 $ brew install ponyc
 ```
-
-A pull request for the ponyc formula to be part of homebrew-core is [pending](https://github.com/Homebrew/homebrew/pull/39192).
 
 ## Linux
 
