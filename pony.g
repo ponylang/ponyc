@@ -94,7 +94,7 @@ nextterm
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | '&' | MINUS_NEW) term
+  | ('not' | '&' | MINUS_NEW | 'identityof') term
   | nextpostfix
   ;
 
@@ -109,7 +109,7 @@ term
   | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
   | 'recover' cap? rawseq 'end'
   | 'consume' cap? term
-  | ('not' | '&' | '-' | MINUS_NEW) term
+  | ('not' | '&' | '-' | MINUS_NEW | 'identityof') term
   | postfix
   ;
 

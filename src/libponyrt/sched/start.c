@@ -22,7 +22,7 @@ typedef struct options_t
 } options_t;
 
 // global data
-static int exit_code;
+static int volatile exit_code;
 
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
@@ -148,7 +148,7 @@ int pony_start(bool library)
   if(library)
     return 0;
 
-  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
+  return _atomic_load(&exit_code);
 }
 
 int pony_stop()
@@ -156,10 +156,10 @@ int pony_stop()
   scheduler_stop();
   os_socket_shutdown();
 
-  return _atomic_load(&exit_code, __ATOMIC_ACQUIRE);
+  return _atomic_load(&exit_code);
 }
 
 void pony_exitcode(int code)
 {
-  _atomic_store(&exit_code, code, __ATOMIC_RELEASE);
+  _atomic_store(&exit_code, code);
 }

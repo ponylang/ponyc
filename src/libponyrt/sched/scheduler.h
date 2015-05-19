@@ -29,8 +29,8 @@ typedef struct scheduler_t
   uint32_t ack_count;
 
   // These are accessed by other scheduler threads.
-  __pony_spec_align__(struct scheduler_t* thief, 64);
-  uint32_t waiting;
+  __pony_spec_align__(struct scheduler_t* volatile thief, 64);
+  uint32_t volatile waiting;
 
   messageq_t mq;
   mpmcq_t q;

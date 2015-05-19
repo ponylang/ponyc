@@ -15,7 +15,24 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
 {
   assert(ast_id(type) == TK_NOMINAL);
   ast_t* def = (ast_t*)ast_data(type);
-  ast_t* type_name = ast_child(def);
+  AST_GET_CHILDREN(def, type_id, typeparams);
+  const char* type_name = ast_name(type_id);
+
+  if((type_name[0] == '_') && (from != NULL) && (t != NULL))
+  {
+    if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
+    {
+      if(errors)
+      {
+        ast_error(from,
+          "can't lookup fields or methods on private types from other packages"
+          );
+      }
+
+      return NULL;
+    }
+  }
+
   ast_t* find = ast_get(def, name, NULL);
 
   if(find != NULL)
@@ -37,7 +54,7 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   if(find == NULL)
   {
     if(errors)
-      ast_error(from, "couldn't find '%s' in '%s'", name, ast_name(type_name));
+      ast_error(from, "couldn't find '%s' in '%s'", name, type_name);
 
     return NULL;
   }
@@ -99,7 +116,6 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
     }
   }
 
-  ast_t* typeparams = ast_sibling(type_name);
   ast_t* typeargs = ast_childidx(type, 2);
 
   find = ast_dup(find);
