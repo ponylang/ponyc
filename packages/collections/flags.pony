@@ -22,6 +22,8 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
     fun value(): U64 => 4
 
   type Features is Flags[(SSE | AVX | RDTSCP)]
+
+  Type parameter B is the unlying field used to store the flags.
   """
   var _value: B = 0
 
@@ -36,6 +38,13 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
     Returns true if the flag is set.
     """
     (_value and flag.value()) > 0
+
+  fun ref clear(flag: A): Flags[A, B]^ =>
+    """
+    Unsets all flags.
+    """
+    _value = 0
+    this
 
   fun ref add(flag: A): Flags[A, B]^ =>
     """
@@ -72,15 +81,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
     The symmetric difference of this and that.
     """
     let f = recover Flags[A, B] end
-    f._value = this._value and that._value
-    f
-
-  fun op_not(): Flags[A, B] iso^ =>
-    """
-    The inverse of this.
-    """
-    let f = recover Flags[A, B] end
-    f._value = not this._value
+    f._value = this._value xor that._value
     f
 
   fun without(that: Flags[A, B] box): Flags[A, B] iso^ =>
@@ -107,7 +108,31 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
 
   fun lt(that: Flags[A, B] box): Bool =>
     """
-    Returns true if the flags set on this are a subset of the flags set on
-    that. Flags is an ordered type, so all of the comparison operators work.
+    Returns true if the flags set on this are a strict subset of the flags set
+    on that. Flags is only partially ordered, so lt is not the opposite of ge.
     """
     (_value != that._value) and ((_value and not that._value) == 0)
+
+  fun le(that: Flags[A, B] box): Bool =>
+    """
+    Returns true if the flags set on this are a subset of the flags set on
+    that or they are the same. Flags is only partially ordered, so le is not
+    the opposite of te.
+    """
+    ((_value and not that._value) == 0)
+
+  fun gt(that: Flags[A, B] box): Bool =>
+    """
+    Returns true if the flags set on this are a struct superset of the flags
+    set on that. Flags is only partially ordered, so gt is not the opposite of
+    le.
+    """
+    (_value != that._value) and ((that._value and not _value) == 0)
+
+  fun ge(that: Flags[A, B] box): Bool =>
+    """
+    Returns true if the flags set on this are a superset of the flags set on
+    that or they are the same. Flags is only partially ordered, so ge is not
+    the opposite of lt.
+    """
+    ((that._value and not _value) == 0)
