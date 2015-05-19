@@ -361,7 +361,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 #ifdef PLATFORM_IS_LINUX
     "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
 #else
-    "-m elf_x86_64_fbsd "
+    "-m elf_x86_64_fbsd -L/usr/local/lib "
 #endif
     "-o %s "
     "%scrt1.o "
