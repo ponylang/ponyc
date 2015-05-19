@@ -137,6 +137,8 @@ typedef enum token_id
   TK_OR,
   TK_XOR,
 
+  TK_IDENTITY,
+
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
   TK_PACKAGE,
@@ -190,7 +192,6 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
-  TK_IDENTITY,
 
   TK_REFERENCE,
   TK_PACKAGEREF,

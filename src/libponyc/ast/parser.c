@@ -591,19 +591,19 @@ DEF(consume);
   RULE("expression", term);
   DONE();
 
-// (NOT | AMP | MINUS | MINUS_NEW) term
+// (NOT | AMP | MINUS | MINUS_NEW | IDENTITY) term
 DEF(prefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS, TK_MINUS_NEW);
+  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
   DONE();
 
-// (NOT | AMP | MINUS_NEW) term
+// (NOT | AMP | MINUS_NEW | IDENTITY) term
 DEF(nextprefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS_NEW);
+  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
   DONE();
@@ -714,14 +714,14 @@ DEF(jump);
     TK_COMPILER_INTRINSIC);
   OPT RULE("return value", rawseq);
   DONE();
-  
+
 // SEMI
 DEF(semi);
   IFELSE(TK_NEWLINE, NEXT_FLAGS(BAD_SEMI), NEXT_FLAGS(0));
   TOKEN(NULL, TK_SEMI)
   IF(TK_NEWLINE, SET_FLAG(BAD_SEMI));
   DONE();
-  
+
 // semi (exprseq | jump)
 DEF(semiexpr);
   AST_NODE(TK_FLATTEN);
@@ -734,7 +734,7 @@ DEF(nosemi);
   IFELSE(TK_NEWLINE, NEXT_FLAGS(0), NEXT_FLAGS(MISSING_SEMI));
   RULE("value", nextexprseq, jump);
   DONE();
-  
+
 // nextassignment (semiexpr | nosemi)
 DEF(nextexprseq);
   AST_NODE(TK_FLATTEN);

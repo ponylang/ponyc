@@ -33,8 +33,8 @@ class IPAddress val
     """
     Return the host and service name.
     """
-    let host: Pointer[U8] iso = recover Pointer[U8] end
-    let serv: Pointer[U8] iso = recover Pointer[U8] end
+    var host: Pointer[U8] iso = recover Pointer[U8] end
+    var serv: Pointer[U8] iso = recover Pointer[U8] end
 
     if not @os_nameinfo[Bool](this, &host, &serv, reversedns, servicename) then
       error

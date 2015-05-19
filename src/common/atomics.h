@@ -15,7 +15,11 @@
 
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
   #if defined(__clang__)
-    #define __GNUC_ATOMICS
+    #if __has_extension(c_atomic) || __has_extension(cxx_atomic)
+      #define __GNUC_ATOMICS
+    #else
+      #define __SYNC_ATOMICS
+    #endif
   #elif __GNUC_PREREQ(4, 7)
     #define __GNUC_ATOMICS
   #elif defined(__GNUC__)

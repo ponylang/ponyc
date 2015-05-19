@@ -587,17 +587,46 @@ bool expr_local(typecheck_t* t, ast_t* ast)
   return true;
 }
 
-static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
+bool expr_addressof(pass_opt_t* opt, ast_t* ast)
 {
+  // Check if we're in an FFI call.
+  ast_t* parent = ast_parent(ast);
+  bool ok = false;
+
+  if(ast_id(parent) == TK_SEQ)
+  {
+    parent = ast_parent(parent);
+
+    if(ast_id(parent) == TK_POSITIONALARGS)
+    {
+      parent = ast_parent(parent);
+
+      if(ast_id(parent) == TK_FFICALL)
+        ok = true;
+    }
+  }
+
+  if(!ok)
+  {
+    ast_error(ast, "the & operator can only be used for FFI arguments");
+    return false;
+  }
+
   ast_t* expr = ast_child(ast);
 
   switch(ast_id(expr))
   {
     case TK_FVARREF:
     case TK_VARREF:
-    case TK_FLETREF:
-    case TK_LETREF:
       break;
+
+    case TK_FLETREF:
+      ast_error(ast, "can't take the address of a let field");
+      return false;
+
+    case TK_LETREF:
+      ast_error(ast, "can't take the address of a let local");
+      return false;
 
     case TK_PARAMREF:
       ast_error(ast, "can't take the address of a function parameter");
@@ -619,24 +648,8 @@ static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_addressof(pass_opt_t* opt, ast_t* ast)
+bool expr_identityof(pass_opt_t* opt, ast_t* ast)
 {
-  // Check if we're in an FFI call.
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(parent) == TK_SEQ)
-  {
-    parent = ast_parent(parent);
-
-    if(ast_id(parent) == TK_POSITIONALARGS)
-    {
-      parent = ast_parent(parent);
-
-      if(ast_id(parent) == TK_FFICALL)
-        return expr_addressof_ffi(opt, ast);
-    }
-  }
-
   ast_t* expr = ast_child(ast);
 
   switch(ast_id(expr))
@@ -653,10 +666,9 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Turn this into an identity operation. Set the type to U64.
+  // Set the type to U64.
   ast_t* type = type_builtin(opt, expr, "U64");
   ast_settype(ast, type);
-  ast_setid(ast, TK_IDENTITY);
   return true;
 }
 

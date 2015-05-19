@@ -156,6 +156,8 @@ static const lextoken_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
+  { "identityof", TK_IDENTITY },
+
   { "true", TK_TRUE },
   { "false", TK_FALSE },
 
@@ -220,7 +222,6 @@ static const lextoken_t abstract[] =
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY_NO_CHECK },
-  { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
