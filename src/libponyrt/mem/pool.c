@@ -40,7 +40,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  pool_aba_t volatile central;
+  pool_aba_t central;
 } pool_global_t;
 
 typedef struct pool_central_t
