@@ -8,17 +8,18 @@
 #define REG_VS_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
 #define REG_VC_TOOLS_PATH \
-  TEXT("\\SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
+  TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
 #define MAX_VER_LEN 10
 
+typedef struct search_t search_t;
 typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 
-typedef struct search_t
+struct search_t
 {
   char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
-} search_t;
+};
 
 void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 {
@@ -113,8 +114,10 @@ static bool find_registry_key(char* path, query_callback_fn query,
 
 static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
+  DWORD size = MAX_PATH;
+
   RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
-    NULL, p->path, MAX_PATH); 
+    NULL, p->path, &size); 
 }
 
 static void pick_newest_vs(HKEY key, char* name, search_t* p)
@@ -138,8 +141,8 @@ static void pick_newest_vs(HKEY key, char* name, search_t* p)
     if(status != ERROR_SUCCESS)
       break;
 
-    if((strlen(vs->version) == 0)
-      || (strncmp(vs->version, new_version, strlen(vs->version)) < 0))
+    if((strlen(p->version) == 0)
+      || (strncmp(p->version, new_version, strlen(p->version)) < 0))
     {
       if(RegGetValue(key, NULL, new_version,
         RRF_RT_REG_SZ, NULL, new_path, &path_len) == ERROR_SUCCESS)
@@ -173,8 +176,8 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
     if(RegGetValue(key, NULL, "ProductVersion",
       RRF_RT_REG_SZ, NULL, new_version, &version_len) == ERROR_SUCCESS)
     {
-      if((strlen(sdk->version) == 0)
-        || (strncmp(sdk->version, new_version, strlen(sdk->version)) < 0))
+      if((strlen(p->version) == 0)
+        || (strncmp(p->version, new_version, strlen(p->version)) < 0))
       {
         strcpy(p->path, new_path);
         strcpy(p->version, new_version);
@@ -186,7 +189,7 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
 static bool find_kernel32(vcvars_t* vcvars)
 {
   search_t sdk;
-  memset(sdk, 0, sizeof(search_t));
+  memset(&sdk, 0, sizeof(search_t));
 
   if(!find_registry_key(REG_SDK_INSTALL_PATH, pick_newest_sdk, true, &sdk))
   {
