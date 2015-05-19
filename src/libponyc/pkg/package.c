@@ -17,10 +17,14 @@
 #include <errno.h>
 #include <assert.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX)
 #include <unistd.h>
-#elif defined PLATFORM_IS_MACOSX
+#elif defined(PLATFORM_IS_MACOSX)
 #include <mach-o/dyld.h>
+#elif defined(PLATFORM_IS_FREEBSD)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 
@@ -444,11 +448,15 @@ static void add_exec_dir()
   if(success)
     path[r] = '\0';
 #elif defined PLATFORM_IS_FREEBSD
-  ssize_t r = readlink("/proc/curproc/file", path, FILENAME_MAX);
-  success = (r >= 0);
+  int mib[4];
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = -1;
 
-  if(success)
-    path[r] = '\0';
+  size_t len = FILENAME_MAX;
+  int r = sysctl(mib, 4, path, &len, NULL, 0);
+  success = (r == 0);
 #elif defined PLATFORM_IS_MACOSX
   char exec_path[FILENAME_MAX];
   uint32_t size = sizeof(exec_path);
