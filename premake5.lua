@@ -129,7 +129,8 @@
       defines {
         -- disables warnings for vsnprintf
         "_CRT_SECURE_NO_WARNINGS",
-        "PONY_VERSION=\"" .. string.gsub(version, "\n", "") .. "\""
+        "PONY_VERSION=\"" .. string.gsub(version, "\n", "") .. "\"",
+        "PLATFORM_TOOLS_VERSION=$(PlatformToolsetVersion)"
       }
 
     configuration { "not windows" }
