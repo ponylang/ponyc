@@ -7,15 +7,16 @@
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
 #define REG_VS_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
+#define REG_VC_TOOLS_PATH \
+  TEXT("\\SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
 #define MAX_VER_LEN 10
 
-typedef void(*query_callback_fn)(HKEY key, char* name, void* p);
-typedef void(*file_search_fn)(char* path, void* p);
+typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 
 typedef struct search_t
 {
-  char path[MAX_PATH];
+  char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
 } search_t;
 
@@ -30,7 +31,7 @@ void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 }
 
 bool query_registry(HKEY key, bool query_subkeys,
-  query_callback_fn fn, void* p)
+  query_callback_fn fn, search_t* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
@@ -82,7 +83,7 @@ bool query_registry(HKEY key, bool query_subkeys,
 }
 
 static bool find_registry_key(char* path, query_callback_fn query,
-  bool query_subkeys, void* p)
+  bool query_subkeys, search_t* p)
 {
   bool success = true;
   HKEY key;
@@ -110,16 +111,21 @@ static bool find_registry_key(char* path, query_callback_fn query,
   return success;
 }
 
-static void pick_newest_vs(HKEY key, char* name, void* p)
+static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
-  search_t* vs = (search_t*)p;
+  RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
+    NULL, p->path, MAX_PATH); 
+}
+
+static void pick_newest_vs(HKEY key, char* name, search_t* p)
+{
   DWORD idx = 0;
   DWORD status = 0;
 
-  DWORD ver_size = MAX_VER_LEN + 1;
-  DWORD path_len = MAX_PATH + 1;
+  DWORD ver_size = MAX_VER_LEN;
+  DWORD path_len = MAX_PATH;
 
-  DWORD size = ver_size;
+  DWORD size = MAX_VER_LEN;
 
   //thats a bit fragile
   VLA(char, new_version, ver_size);
@@ -138,8 +144,8 @@ static void pick_newest_vs(HKEY key, char* name, void* p)
       if(RegGetValue(key, NULL, new_version,
         RRF_RT_REG_SZ, NULL, new_path, &path_len) == ERROR_SUCCESS)
       {
-        strcpy(vs->path, new_path);
-        strcpy(vs->version, new_version);
+        strcpy(p->path, new_path);
+        strcpy(p->version, new_version);
       }
     }
 
@@ -148,17 +154,15 @@ static void pick_newest_vs(HKEY key, char* name, void* p)
   };
 }
 
-static void pick_newest_sdk(HKEY key, char* name, void* p)
+static void pick_newest_sdk(HKEY key, char* name, search_t* p)
 {
-  search_t* sdk = (search_t*)p;
-
   //it seems to be the case that sub nodes ending
   //with an 'A' are .NET Framework SDKs
   if(name[strlen(name) - 1] == 'A')
     return;
 
-  DWORD path_len = MAX_PATH + 1;
-  DWORD version_len = MAX_VER_LEN + 1;
+  DWORD path_len = MAX_PATH;
+  DWORD version_len = MAX_VER_LEN;
   VLA(char, new_path, path_len);
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ,
@@ -172,8 +176,8 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
       if((strlen(sdk->version) == 0)
         || (strncmp(sdk->version, new_version, strlen(sdk->version)) < 0))
       {
-        strcpy(sdk->path, new_path);
-        strcpy(sdk->version, new_version);
+        strcpy(p->path, new_path);
+        strcpy(p->version, new_version);
       }
     }
   }
@@ -182,7 +186,7 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
 static bool find_kernel32(vcvars_t* vcvars)
 {
   search_t sdk;
-  memset(sdk.version, 0, MAX_VER_LEN + 1);
+  memset(sdk, 0, sizeof(search_t));
 
   if(!find_registry_key(REG_SDK_INSTALL_PATH, pick_newest_sdk, true, &sdk))
   {
@@ -219,9 +223,15 @@ static bool find_msvcrt_and_linker(vcvars_t* vcvars)
   search_t vs;
   memset(vs.version, 0, MAX_VER_LEN + 1);
 
-  if(!find_registry_key(REG_VS_INSTALL_PATH, pick_newest_vs, false, &vs))
+  if(!find_registry_key(REG_VC_TOOLS_PATH, pick_vc_tools, false, &vs))
   {
-    errorf(NULL, "unable to locate Visual Studio");
+    if(!find_registry_key(REG_VS_INSTALL_PATH, pick_newest_vs, false, &vs))
+    {
+      errorf(NULL, "unable to locate Visual Studio");
+      return false;
+    }
+
+    errorf(NULL, "unable to locate VC tools");
     return false;
   }
 
