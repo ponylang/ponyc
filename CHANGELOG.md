@@ -7,6 +7,11 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Added
 
 - Primitive `_init` and `_final` for C library initialisation and shutdown.
+- collections.Flags
+
+### Changed
+
+- Separated the FFI '&' operator from the identityof operator.
 
 ### Fixed
 

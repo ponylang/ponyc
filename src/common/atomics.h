@@ -15,7 +15,7 @@
 
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
   #if defined(__clang__)
-    #if __has_extension(c_atomic) || __has_extension(cxx_atomic)
+    #if __has_extension(c_atomic)
       #define __GNUC_ATOMICS
     #else
       #define __SYNC_ATOMICS
