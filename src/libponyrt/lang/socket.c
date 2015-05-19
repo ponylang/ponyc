@@ -423,7 +423,7 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
       sizeof(int));
   }
 
-#ifdef PLATFORM_IS_MACOSX
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
   int nosigpipe = 1;
   r |= setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, sizeof(int));
   r |= set_nonblocking(fd);
@@ -947,7 +947,7 @@ void os_keepalive(PONYFD fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 

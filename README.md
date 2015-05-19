@@ -15,6 +15,7 @@
 * BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 
 # Installation
+
 ## Mac OSX using [Homebrew](http://brew.sh)
 
 ```bash
@@ -115,13 +116,30 @@ To build a NUMA-aware runtime, install libnuma-dev using your package manager an
 $ make use=numa config=release
 ```
 
+# Building on FreeBSD
+
+First, install the required dependencies:
+
+```bash
+sudo pkg install gmake
+sudo pkg install llvm36
+sudo pkg install libunwind
+```
+
+This will build ponyc and compile helloworld:
+
+```
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
+```
+
 # Building on Mac OSX
 
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 
 ```
 $ brew update
-$ brew llvm --with-rtti --without-shared
+$ brew install llvm --with-rtti --without-shared
 ```
 
 This will build ponyc and compile helloworld:
