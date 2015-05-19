@@ -120,41 +120,11 @@ static void pick_vc_tools(HKEY key, char* name, search_t* p)
     NULL, p->path, &size); 
 }
 
-static void pick_newest_vs(HKEY key, char* name, search_t* p)
+static void pick_vs_tools(HKEY key, char* name, search_t* p)
 {
-  DWORD idx = 0;
-  DWORD status = 0;
+  DWORD size = MAX_PATH;
 
-  DWORD ver_size = MAX_VER_LEN;
-  DWORD path_len = MAX_PATH;
-
-  DWORD size = MAX_VER_LEN;
-
-  //thats a bit fragile
-  VLA(char, new_version, ver_size);
-  VLA(char, new_path, path_len);
-
-  while(true)
-  {
-    status = RegEnumValue(key, idx, new_version, &size, NULL, NULL, NULL, NULL);
-
-    if(status != ERROR_SUCCESS)
-      break;
-
-    if((strlen(p->version) == 0)
-      || (strncmp(p->version, new_version, strlen(p->version)) < 0))
-    {
-      if(RegGetValue(key, NULL, new_version,
-        RRF_RT_REG_SZ, NULL, new_path, &path_len) == ERROR_SUCCESS)
-      {
-        strcpy(p->path, new_path);
-        strcpy(p->version, new_version);
-      }
-    }
-
-    idx++;
-    size = ver_size;
-  };
+  RegGetValue(key, NULL, p->version, RRF_RT_REG_SZ, NULL, p->path, &size);
 }
 
 static void pick_newest_sdk(HKEY key, char* name, search_t* p)
@@ -224,17 +194,15 @@ static bool find_executable(const char* path, const char* name, char* dest)
 static bool find_msvcrt_and_linker(vcvars_t* vcvars)
 {
   search_t vs;
-  memset(vs.version, 0, MAX_VER_LEN + 1);
 
-  if(!find_registry_key(REG_VC_TOOLS_PATH, pick_vc_tools, false, &vs))
+  snprintf(vs.version, sizeof(vs.version), "%d.%d",
+    PLATFORM_TOOLS_VERSION / 10,
+    PLATFORM_TOOLS_VERSION % 10);
+
+  if(!find_registry_key(REG_VC_TOOLS_PATH, pick_vc_tools, false, &vs) &&
+    !find_registry_key(REG_VS_INSTALL_PATH, pick_vs_tools, false, &vs))
   {
-    if(!find_registry_key(REG_VS_INSTALL_PATH, pick_newest_vs, false, &vs))
-    {
-      errorf(NULL, "unable to locate Visual Studio");
-      return false;
-    }
-
-    errorf(NULL, "unable to locate VC tools");
+    errorf(NULL, "unable to locate VC tools or Visual Studio %s", vs.version);
     return false;
   }
 

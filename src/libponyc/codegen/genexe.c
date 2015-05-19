@@ -398,7 +398,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "cmd /C \"\"%s\" /DEBUG /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
     "/OUT:%s "
     "%s "
     "/LIBPATH:\"%s\" "
