@@ -15,7 +15,10 @@
 
 #if defined(PLATFORM_IS_CLANG_OR_GCC)
   #if defined(__clang__)
-    #if __has_extension(c_atomic)
+    #define PONY_CLANG (__clang_major__ * 100) + __clang_minor__
+    #if defined(__apple_build_version__) && (PONY_CLANG >= 601)
+      #define __GNUC_ATOMICS
+    #elif !defined(__apple_build_version__) && (PONY_CLANG >= 306)
       #define __GNUC_ATOMICS
     #else
       #define __SYNC_ATOMICS
