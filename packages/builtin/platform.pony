@@ -1,4 +1,5 @@
 primitive Platform
+  fun freebsd(): Bool => compiler_intrinsic
   fun linux(): Bool => compiler_intrinsic
   fun osx(): Bool => compiler_intrinsic
   fun posix(): Bool => linux() or osx()

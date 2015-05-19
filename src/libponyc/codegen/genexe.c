@@ -18,7 +18,7 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 
 #ifdef USE_NUMA
   #define NUMA_LIB "-lnuma"
@@ -40,6 +40,7 @@ static const char* crt_directory()
   {
     "/usr/lib/x86_64-linux-gnu/",
     "/usr/lib64/",
+    "/usr/lib/",
     NULL
   };
 
@@ -62,6 +63,7 @@ static const char* gccs_directory()
   {
     "/lib/x86_64-linux-gnu/",
     "/lib64/",
+    "/lib/",
     NULL
   };
 
@@ -333,7 +335,7 @@ static bool link_exe(compile_t* c, ast_t* program,
       errorf(NULL, "unable to create dsym");
   }
 
-#elif defined(PLATFORM_IS_LINUX)
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
   printf("Linking %s\n", file_exe);
 
@@ -355,8 +357,12 @@ static bool link_exe(compile_t* c, ast_t* program,
   VLA(char, ld_cmd, ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
-    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+    "ld --eh-frame-hdr --hash-style=gnu "
+#ifdef PLATFORM_IS_LINUX
+    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+#else
+    "-m elf_x86_64_fbsd "
+#endif
     "-o %s "
     "%scrt1.o "
     "%scrti.o "

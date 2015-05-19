@@ -12,6 +12,10 @@ else
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
   endif
+
+  ifeq ($(UNAME_S),FreeBSD)
+    OSTYPE = freebsd
+  endif
 endif
 
 # Default settings (silent debug build).
@@ -92,6 +96,10 @@ ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
   LLVM_CONFIG = llvm-config-3.6
 endif
 
+ifneq (,$(shell which llvm-config36 2> /dev/null))
+  LLVM_CONFIG = llvm-config36
+endif
+
 ifneq ("$(wildcard $(LLVM_FALLBACK))","")
   LLVM_CONFIG = $(LLVM_FALLBACK)
 endif
@@ -142,7 +150,9 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-  libponyrt.except += src/libponyrt/asio/kqueue.c
+  ifneq ($(OSTYPE),freebsd)
+    libponyrt.except += src/libponyrt/asio/kqueue.c
+  endif
 endif
 
 libponyrt.except += src/libponyrt/asio/sock.c
@@ -176,6 +186,10 @@ llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
+ifeq ($(OSTYPE), freebsd)
+  llvm.libs += -lpthread
+endif
+
 prebuilt := llvm
 
 # Binaries. Defined as
@@ -202,6 +216,10 @@ libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
 ponyc.include := -I src/common/
 libgtest.include := -isystem lib/gtest/
+
+ifeq ($(OSTYPE), freebsd)
+  libponyrt.include += -I /usr/local/include
+endif
 
 # target specific build options
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS

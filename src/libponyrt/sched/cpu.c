@@ -3,7 +3,7 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 #ifdef USE_NUMA
   #include <numa.h>
 #endif
@@ -33,6 +33,15 @@ static uint32_t property(const char* key)
 }
 #endif
 
+#if defined(PLATFORM_IS_FREEBSD)
+static bool cpu_physical(uint32_t cpu)
+{
+  // FIXME: find out how to really do this
+  (void) cpu;
+  return true;
+}
+#endif
+
 #if defined(PLATFORM_IS_LINUX)
 static bool cpu_physical(uint32_t cpu)
 {
@@ -59,7 +68,7 @@ static bool cpu_physical(uint32_t cpu)
 
 uint32_t cpu_count()
 {
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 #if defined(USE_NUMA)
   if(numa_available() != -1)
   {
@@ -172,7 +181,7 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 
 void cpu_affinity(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   // Affinity is handled when spawning the thread.
   (void)cpu;
 

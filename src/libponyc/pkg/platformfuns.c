@@ -9,6 +9,16 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
   assert(attribute != NULL);
   assert(out_is_target != NULL);
 
+  if(!strcmp(attribute, OS_FREEBSD_NAME))
+  {
+#ifdef PLATFORM_IS_FREEBSD
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
   if(!strcmp(attribute, OS_LINUX_NAME))
   {
 #ifdef PLATFORM_IS_LINUX
@@ -41,7 +51,7 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
 
   if(!strcmp(attribute, OS_POSIX_NAME))
   {
-#if defined PLATFORM_IS_LINUX || defined PLATFORM_IS_MACOSX
+#if defined PLATFORM_IS_POSIX_BASED
     *out_is_target = true;
 #else
     *out_is_target = false;
