@@ -10,7 +10,7 @@ struct asio_base_t
 {
   pony_thread_id_t tid;
   asio_backend_t* backend;
-  uint64_t noisy_count;
+  uint64_t volatile noisy_count;
 };
 
 static asio_base_t running_base;
@@ -46,7 +46,7 @@ bool asio_start()
 
 bool asio_stop()
 {
-  if(_atomic_load(&running_base.noisy_count, __ATOMIC_ACQUIRE) > 0)
+  if(_atomic_load(&running_base.noisy_count) > 0)
     return false;
 
   if(running_base.backend != NULL)
@@ -63,10 +63,10 @@ bool asio_stop()
 
 void asio_noisy_add()
 {
-  _atomic_add64(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
+  _atomic_add(&running_base.noisy_count, 1);
 }
 
 void asio_noisy_remove()
 {
-  _atomic_sub64(&running_base.noisy_count, 1, __ATOMIC_RELEASE);
+  _atomic_add(&running_base.noisy_count, -1);
 }

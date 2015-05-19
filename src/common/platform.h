@@ -208,7 +208,6 @@ static __declspec(thread) DWORD lsb;
 
 #include "atomics.h"
 #include "threads.h"
-#include "alloc.h"
 #include "paths.h"
 
 #if defined(PLATFORM_IS_WINDOWS)

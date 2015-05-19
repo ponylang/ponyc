@@ -23,7 +23,7 @@ typedef enum
 // Scheduler global data.
 static uint32_t scheduler_count;
 static scheduler_t* scheduler;
-static bool detect_quiescence;
+static bool volatile detect_quiescence;
 static bool use_mpmcq;
 static bool use_yield;
 static mpmcq_t inject;
@@ -183,9 +183,9 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
       {
         // It's safe to manipulate our victim, since we know it's paused.
         if(sched->victim != NULL)
-          _atomic_store(&sched->victim->thief, NULL, __ATOMIC_RELEASE);
+          _atomic_store(&sched->victim->thief, NULL);
 
-        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+        _atomic_store(&sched->waiting, 0);
       }
 
       // Reset the ACK token in case we are rescheduling ourself.
@@ -238,11 +238,8 @@ static scheduler_t* choose_victim(scheduler_t* sched)
       scheduler_t* thief = NULL;
 
       // Mark that we are the thief. If we can't, keep trying.
-      if(!_atomic_cas(&victim->thief, &thief, sched,
-        __ATOMIC_RELAXED, __ATOMIC_RELAXED))
-      {
+      if(!_atomic_cas_strong(&victim->thief, &thief, sched))
         continue;
-      }
 
       assert(sched->victim == NULL);
       sched->victim = victim;
@@ -297,21 +294,20 @@ static pony_actor_t* request(scheduler_t* sched)
   send_msg(0, SCHED_BLOCK, 0);
   scheduler_t* thief = NULL;
 
-  bool block = _atomic_cas(&sched->thief, &thief, (void*)1,
-    __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+  bool block = _atomic_cas_strong(&sched->thief, &thief, (void*)1);
 
   uint64_t tsc = cpu_rdtsc();
   pony_actor_t* actor;
 
   while(true)
   {
-    _atomic_store(&sched->waiting, 1, __ATOMIC_RELEASE);
+    _atomic_store(&sched->waiting, 1);
 
     scheduler_t* victim = choose_victim(sched);
 
     if(victim != NULL)
     {
-      while(_atomic_load(&sched->waiting, __ATOMIC_ACQUIRE) == 1)
+      while(_atomic_load(&sched->waiting) == 1)
       {
         if(quiescent(sched, tsc))
           return NULL;
@@ -321,7 +317,7 @@ static pony_actor_t* request(scheduler_t* sched)
     } else {
       if((actor = pop_global(sched)) != NULL)
       {
-        _atomic_store(&sched->waiting, 0, __ATOMIC_RELEASE);
+        _atomic_store(&sched->waiting, 0);
         break;
       }
 
@@ -346,8 +342,7 @@ static pony_actor_t* request(scheduler_t* sched)
 #if defined(PLATFORM_IS_WINDOWS)
 #  pragma warning(disable:4552)
 #endif
-    _atomic_cas(&sched->thief, &thief, NULL,
-      __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    _atomic_cas_strong(&sched->thief, &thief, NULL);
   }
 
   send_msg(0, SCHED_UNBLOCK, 0);
@@ -360,7 +355,7 @@ static pony_actor_t* request(scheduler_t* sched)
  */
 static void respond(scheduler_t* sched)
 {
-  scheduler_t* thief = _atomic_load(&sched->thief, __ATOMIC_RELAXED);
+  scheduler_t* thief = _atomic_load(&sched->thief);
 
   if(thief <= (scheduler_t*)1)
     return;
@@ -374,8 +369,8 @@ static void respond(scheduler_t* sched)
   }
 
   assert(sched->thief == thief);
-  _atomic_store(&thief->waiting, 0, __ATOMIC_RELEASE);
-  _atomic_store(&sched->thief, NULL, __ATOMIC_RELEASE);
+  _atomic_store(&thief->waiting, 0);
+  _atomic_store(&sched->thief, NULL);
 }
 
 /**
@@ -527,7 +522,7 @@ bool scheduler_start(bool library)
 
 void scheduler_stop()
 {
-  _atomic_store(&detect_quiescence, true, __ATOMIC_RELAXED);
+  _atomic_store(&detect_quiescence, true);
   scheduler_shutdown();
 }
 

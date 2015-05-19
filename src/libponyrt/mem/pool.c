@@ -1,4 +1,5 @@
 #include "pool.h"
+#include "alloc.h"
 #include "../ds/fun.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -39,7 +40,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  pool_aba_t central;
+  pool_aba_t volatile central;
 } pool_global_t;
 
 typedef struct pool_central_t
@@ -108,8 +109,7 @@ static void pool_push(pool_local_t* thread, pool_global_t* global)
     p->central = cmp.node;
     xchg.node = p;
     xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw,
-    __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+  } while(!_atomic_dwcas_weak(&global->central, &cmp.dw, xchg.dw));
 
   thread->pool = NULL;
   thread->length = 0;
@@ -130,8 +130,7 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
 
     xchg.node = next->central;
     xchg.aba = cmp.aba + 1;
-  } while(!_atomic_dwcas(&global->central, &cmp.dw, xchg.dw,
-      __ATOMIC_RELAXED, __ATOMIC_RELAXED));
+  } while(!_atomic_dwcas_weak(&global->central, &cmp.dw, xchg.dw));
 
   pool_item_t* p = (pool_item_t*)next;
   thread->pool = p->next;
