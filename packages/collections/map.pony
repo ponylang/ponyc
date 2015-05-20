@@ -33,29 +33,6 @@ class HashMap[K, V, H: HashFunction[K] val]
       _array.push(_MapEmpty)
     end
 
-  new from(array: Array[(K, V)]) =>
-    """
-    Create a map from an array of tuples. Because the value may be isolated,
-    this removes the tuples from the array, leaving it empty.
-    """
-    let len = (array.size() * 4) / 3
-    let n = len.next_pow2().max(8)
-    _array = _array.create(n)
-
-    for i in Range(0, n) do
-      _array.push(_MapEmpty)
-    end
-
-    try
-      var i = array.size()
-
-      while i > 0 do
-        i = i - 1
-        (let k, let v) = array.delete(i)
-        this(consume k) = consume v
-      end
-    end
-
   fun size(): U64 =>
     """
     The number of items in the map.
@@ -143,21 +120,33 @@ class HashMap[K, V, H: HashFunction[K] val]
     end
     error
 
-  fun ref add(k: K, v: V): HashMap[K, V, H]^ =>
+  fun ref concat(iter: Iterator[(K^, V^)]) =>
     """
-    Set a value in the map using +. Return the map, allowing chaining.
+    Add K, V pairs from the iterator to the map.
     """
-    this(consume k) = consume v
-    this
-
-  fun ref sub(key: box->K!): HashMap[K, V, H]^ =>
-    """
-    Remove a value from the map using -. Return the map, allowing chaining.
-    """
-    try
-      remove(key)
+    for (k, v) in iter do
+      this(consume k) = consume v
     end
-    this
+
+  fun add[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
+    HashMap[this->K!, this->V!, H2]^
+  =>
+    """
+    This with the new (key, value) mapping.
+    """
+    let r = clone[H2]()
+    r(key) = value
+    r
+
+  fun sub[H2: HashFunction[this->K!] val = H](key: this->K!, value: this->V!):
+    HashMap[this->K!, this->V!, H2]^
+  =>
+    """
+    This without the given key.
+    """
+    let r = clone[H2]()
+    try r.remove(key) end
+    r
 
   fun next_index(prev: U64 = -1): U64 ? =>
     """

@@ -6,13 +6,14 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- FreeBSD 10.1 support, thanks to Ben Laurie.
 - Primitive `_init` and `_final` for C library initialisation and shutdown.
 - collections.Flags
-- FreeBSD 10.1 support.
 
 ### Changed
 
 - Separated the FFI '&' operator from the identityof operator.
+- Operators on Set and Map are now persistent.
 
 ### Fixed
 

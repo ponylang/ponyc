@@ -33,19 +33,116 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     _map(value)
 
-  fun ref add(value: A): HashSet[A, H]^ =>
+  fun ref clear(): HashSet[A, H]^ =>
+    """
+    Remove all elements from the set.
+    """
+    _map.clear()
+    this
+
+  fun ref set(value: A): HashSet[A, H]^ =>
     """
     Add a value to the set.
     """
     _map(value) = consume value
     this
 
-  fun ref sub(value: box->A!): A^ ? =>
+  fun ref unset(value: box->A!): HashSet[A, H]^ =>
     """
-    Delete a value from the set and return it. Raises an error if the value
+    Remove a value from the set.
+    """
+    try _map.remove(value) end
+    this
+
+  fun ref extract(value: box->A!): A^ ? =>
+    """
+    Remove a value from the set and return it. Raises an error if the value
     wasn't in the set.
     """
     _map.remove(value)._2
+
+  fun ref concat(iter: Iterator[A^]): HashSet[A, H]^ =>
+    """
+    Add everything in iter to the set.
+    """
+    for value in iter do
+      set(consume value)
+    end
+
+    this
+
+  fun ref union[K: HashFunction[A^] val = H](that: HashSet[A^, K]):
+    HashSet[A, H]^
+  =>
+    """
+    Add everything in that to the set.
+    """
+    for value in that.values() do
+      set(consume value)
+    end
+
+    this
+
+  fun ref intersect[K: HashFunction[box->A!] val = H](
+    that: HashSet[box->A!, K]): HashSet[A, H]^
+  =>
+    """
+    Remove everything that isn't in that.
+    """
+    for value in values() do
+      try
+        that(value)
+      else
+        unset(value)
+      end
+    end
+
+    this
+
+  fun ref difference[K: HashFunction[A^] val = H](
+    that: HashSet[A^, K]): HashSet[A, H]^
+  =>
+    """
+    Remove elements in this which are also in that. Add elements in that which
+    are not in this.
+    """
+    for value in that.values() do
+      try
+        extract(value)
+      else
+        set(consume value)
+      end
+    end
+
+    this
+
+  fun ref remove[K: HashFunction[box->A!] val = H](
+    that: HashSet[box->A!, K]): HashSet[A, H]^
+  =>
+    """
+    Remove everything that is in that.
+    """
+    for value in that.values() do
+      unset(value)
+    end
+
+    this
+
+  fun add[K: HashFunction[this->A!] val = H](value: this->A!):
+    HashSet[this->A!, K]^
+  =>
+    """
+    Add a value to the set.
+    """
+    clone[K]().set(value)
+
+  fun sub[K: HashFunction[this->A!] val = H](value: this->A!):
+    HashSet[this->A!, K]^
+  =>
+    """
+    Remove a value from the set.
+    """
+    clone[K]().unset(value)
 
   fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
     HashSet[this->A!, K]^
@@ -56,7 +153,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     let r = clone[K]()
 
     for value in that.values() do
-      r + value
+      r.set(value)
     end
     r
 
@@ -66,12 +163,12 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     Create a set with the elements that are in both this and that.
     """
-    let r = HashSet[this->A!, K]
+    let r = HashSet[this->A!, K](size().min(that.size()))
 
     for value in values() do
       try
         that(value)
-        r + value
+        r.set(value)
       end
     end
     r
@@ -82,13 +179,13 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     Create a set with the elements that are in either set but not both.
     """
-    let r = HashSet[this->A!, K]
+    let r = HashSet[this->A!, K](size().max(that.size()))
 
     for value in values() do
       try
         that(value)
       else
-        r + value
+        r.set(value)
       end
     end
 
@@ -96,7 +193,7 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
       try
         this(value)
       else
-        r + value
+        r.set(value)
       end
     end
     r
@@ -107,13 +204,13 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     """
     Create a set with the elements of this that are not in that.
     """
-    let r = HashSet[this->A!, K]
+    let r = HashSet[this->A!, K](size())
 
     for value in values() do
       try
         that(value)
       else
-        r + value
+        r.set(value)
       end
     end
     r
@@ -123,10 +220,10 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     Create a clone. The element type may be different due to aliasing and
     viewpoint adaptation.
     """
-    let r = HashSet[this->A!, K]
+    let r = HashSet[this->A!, K](size())
 
     for value in values() do
-      r + value
+      r.set(value)
     end
     r
 
@@ -188,10 +285,6 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     populated.
     """
     _map.index(i)._2
-
-  fun ref clear(): HashSet[A, H]^ =>
-    _map.clear()
-    this
 
   fun values(): SetValues[A, H, this->HashSet[A, H]]^ =>
     """

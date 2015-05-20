@@ -225,6 +225,18 @@ ast_t* viewpoint_cap(token_id cap, token_id eph, ast_t* type)
     case TK_TYPEPARAMREF:
       return viewpoint_for_type(cap, eph, type, 1);
 
+    case TK_ARROW:
+    {
+      // Adapt the lower bounds.
+      ast_t* lower = viewpoint_lower(type);
+      ast_t* r_type = viewpoint_cap(cap, eph, lower);
+
+      if(r_type != lower)
+        ast_free_unattached(lower);
+
+      return r_type;
+    }
+
     default: {}
   }
 
