@@ -356,8 +356,6 @@ static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
   buf.buf = (char*)data;
   buf.len = (u_long)len;
 
-  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
-
   if(WSASendTo((SOCKET)fd, &buf, 1, NULL, 0, (struct sockaddr*)&ipaddr->addr,
     socklen, &iocp->ov, NULL) != 0)
   {
@@ -776,6 +774,7 @@ struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 void os_getaddr(struct addrinfo* addr, ipaddress_t* ipaddr)
 {
   memcpy(&ipaddr->addr, addr->ai_addr, addr->ai_addrlen);
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
 }
 
 struct addrinfo* os_nextaddr(struct addrinfo* addr)
@@ -814,13 +813,23 @@ bool os_ipv6(ipaddress_t* ipaddr)
 bool os_sockname(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
-  return getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) == 0;
+
+  if(getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) != 0)
+    return false;
+
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
+  return true;
 }
 
 bool os_peername(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
-  return getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) == 0;
+
+  if(getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) != 0)
+    return false;
+
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
+  return true;
 }
 
 bool os_host_ip4(const char* host)
