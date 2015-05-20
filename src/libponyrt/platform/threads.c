@@ -3,10 +3,11 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-#ifdef USE_NUMA
-  #include <numa.h>
+#if defined(PLATFORM_IS_LINUX) && defined(USE_NUMA)
+#include <numa.h>
 #endif
+
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>

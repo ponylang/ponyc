@@ -18,13 +18,13 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-
-#ifdef USE_NUMA
+#if defined(PLATFORM_IS_LINUX) && defined(USE_NUMA)
   #define NUMA_LIB "-lnuma"
 #else
   #define NUMA_LIB ""
 #endif
+
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 
 static bool file_exists(const char* filename)
 {

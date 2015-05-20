@@ -3,42 +3,34 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-#ifdef USE_NUMA
+#if defined(PLATFORM_IS_LINUX) && defined(USE_NUMA)
   #include <numa.h>
 #endif
-#include <sched.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  #include <sched.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <stdio.h>
 #elif defined(PLATFORM_IS_MACOSX)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <mach/mach.h>
-#include <mach/thread_policy.h>
+  #include <unistd.h>
+  #include <sys/types.h>
+  #include <sys/sysctl.h>
+  #include <mach/mach.h>
+  #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
-#include <processtopologyapi.h>
+  #include <processtopologyapi.h>
 #endif
 
 #include "cpu.h"
 
-#if defined(PLATFORM_IS_MACOSX)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 static uint32_t property(const char* key)
 {
   int value;
   size_t len = sizeof(int);
   sysctlbyname(key, &value, &len, NULL, 0);
   return value;
-}
-#endif
-
-#if defined(PLATFORM_IS_FREEBSD)
-static bool cpu_physical(uint32_t cpu)
-{
-  // FIXME: find out how to really do this
-  (void) cpu;
-  return true;
 }
 #endif
 
@@ -68,7 +60,7 @@ static bool cpu_physical(uint32_t cpu)
 
 uint32_t cpu_count()
 {
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX)
 #if defined(USE_NUMA)
   if(numa_available() != -1)
   {
@@ -86,6 +78,8 @@ uint32_t cpu_count()
   }
 
   return count;
+#elif defined(PLATFORM_IS_FREEBSD)
+  return property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   return property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_WINDOWS)
@@ -169,6 +163,15 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
     scheduler[i].cpu = i % max;
     scheduler[i].node = 0;
   }
+#elif defined(PLATFORM_IS_FREEBSD)
+  // Spread across available cores.
+  uint32_t max = property("hw.ncpu");
+
+  for(uint32_t i = 0; i < count; i++)
+  {
+    scheduler[i].cpu = i % max;
+    scheduler[i].node = 0;
+  }
 #else
   // Affinity groups rather than processor numbers.
   for(uint32_t i = 0; i < count; i++)
@@ -181,7 +184,7 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 
 void cpu_affinity(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+#if defined(PLATFORM_IS_LINUX)
   // Affinity is handled when spawning the thread.
   (void)cpu;
 
@@ -198,7 +201,9 @@ void cpu_affinity(uint32_t cpu)
     numa_free_cpumask(cpumask);
   }
 #endif
-
+#elif defined(PLATFORM_IS_FREEBSD)
+  // Affinity is handled when spawning the thread.
+  (void)cpu;
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;
