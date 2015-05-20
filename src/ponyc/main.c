@@ -24,7 +24,6 @@ enum
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_LIBRARY,
-  OPT_INSULT,
 
   OPT_SAFE,
   OPT_IEEEMATH,
@@ -54,7 +53,6 @@ static opt_arg_t args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
-  {"insult", 0, OPT_ARG_NONE, OPT_INSULT},
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
@@ -94,7 +92,6 @@ static void usage()
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
-    "  --insult        Randomly insult the programmer on errors.\n"
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
@@ -234,7 +231,6 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
-      case OPT_INSULT: enable_insults(); break;
 
       case OPT_SAFE:
         if(!package_add_safe(s.arg_val))

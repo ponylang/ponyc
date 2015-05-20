@@ -23,8 +23,6 @@ errormsg_t* get_errors();
 
 size_t get_error_count();
 
-void enable_insults();
-
 void free_errors();
 
 void print_errors();
