@@ -3,13 +3,19 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 #ifdef USE_NUMA
   #include <numa.h>
 #endif
 #include <sched.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#endif
+
+#if defined(PLATFORM_IS_FREEBSD)
+#include <pthread_np.h>
+#include <sys/cpuset.h>
+typedef cpuset_t cpu_set_t;
 #endif
 
 bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
