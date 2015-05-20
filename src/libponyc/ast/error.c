@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #define LINE_LEN 1024
 
@@ -12,6 +13,23 @@ static errormsg_t* head = NULL;
 static errormsg_t* tail = NULL;
 static size_t count = 0;
 static bool immediate_report = false;
+static bool printed_error = false;
+static bool use_insults = false;
+
+static const char* insults[] =
+{
+  "What were you thinking",
+  "No you fool",
+  "You are really stupid",
+  "Computers don't work like that",
+  "Moron",
+  "Muppet",
+  "Oh you really didn't want to do that",
+  "Wrong, wrong, wrong",
+  "Stop that",
+  "Idiot"
+};
+
 
 
 static void print_error(errormsg_t* e)
@@ -29,7 +47,15 @@ static void print_error(errormsg_t* e)
     }
   }
 
+  if(use_insults && (!printed_error || (rand() % 4) == 0))
+  {
+    // Print an insult
+    size_t insult = rand() % (sizeof(insults) / sizeof(char*));
+    printf("%s, ", insults[insult]);
+  }
+
   printf("%s\n", e->msg);
+  printed_error = true;
 
   if(e->source != NULL)
   {
@@ -73,6 +99,12 @@ errormsg_t* get_errors()
 size_t get_error_count()
 {
   return count;
+}
+
+void enable_insults()
+{
+  use_insults = true;
+  srand((unsigned int)time(NULL));
 }
 
 void free_errors()
