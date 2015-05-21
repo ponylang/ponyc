@@ -10,8 +10,6 @@
   #include <stdio.h>
 #elif defined(PLATFORM_IS_MACOSX)
   #include <unistd.h>
-  #include <sys/types.h>
-  #include <sys/sysctl.h>
   #include <mach/mach.h>
   #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
@@ -22,6 +20,10 @@
 #include "../mem/pool.h"
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 static uint32_t property(const char* key)
 {
   int value;
