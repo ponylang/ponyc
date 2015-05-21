@@ -19,6 +19,7 @@
 #endif
 
 #include "cpu.h"
+#include "../mem/pool.h"
 
 #if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 static uint32_t property(const char* key)

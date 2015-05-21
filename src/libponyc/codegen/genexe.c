@@ -358,7 +358,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-m elf_x86_64_fbsd -L/usr/local/lib "
 #endif
     "-o %s %scrt1.o %scrti.o "
-    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    "%s %s %s -lponyrt -lpthread -ldl -lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
     );
 

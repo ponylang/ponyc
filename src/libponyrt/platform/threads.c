@@ -18,6 +18,9 @@ typedef cpuset_t cpu_set_t;
 
 #if defined(PLATFORM_IS_LINUX)
 
+#include <dlfcn.h>
+#include <stdio.h>
+
 struct bitmask
 {
   unsigned long size;
@@ -33,7 +36,7 @@ static void* (*_numa_alloc_onnode)(size_t size, int node);
 static void* (*_numa_alloc)(size_t size);
 static void (*_numa_free)(void* mem, size_t size);
 
-static struct bitmask* _numa_all_nodes_ptr;
+static struct bitmask** _numa_all_nodes_ptr;
 static struct bitmask* (*_numa_allocate_cpumask)();
 static void (*_numa_bitmask_free)(struct bitmask*);
 static int (*_numa_node_to_cpus)(int, struct bitmask*);
@@ -96,14 +99,14 @@ void pony_numa_core_list(uint32_t* list)
   if(!use_numa)
     return;
 
-  uint32_t nodes = _numa_bitmask_weight(_numa_all_nodes_ptr);
+  uint32_t nodes = _numa_bitmask_weight(*_numa_all_nodes_ptr);
   struct bitmask* cpu = _numa_allocate_cpumask();
   uint32_t node_count = 0;
   uint32_t index = 0;
 
   for(uint32_t i = 0; node_count < nodes; i++)
   {
-    if(!_numa_bitmask_isbitset(_numa_all_nodes_ptr, i))
+    if(!_numa_bitmask_isbitset(*_numa_all_nodes_ptr, i))
       continue;
 
     node_count++;
@@ -153,7 +156,7 @@ void* pony_numa_alloc(size_t bytes)
 void pony_numa_free(void* p, size_t bytes)
 {
   if(use_numa)
-    numa_free(p, bytes);
+    _numa_free(p, bytes);
   else
     munmap(p, bytes);
 }
