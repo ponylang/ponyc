@@ -18,12 +18,6 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX) && defined(USE_NUMA)
-  #define NUMA_LIB "-lnuma"
-#else
-  #define NUMA_LIB ""
-#endif
-
 #if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 
 static bool file_exists(const char* filename)
@@ -363,12 +357,9 @@ static bool link_exe(compile_t* c, ast_t* program,
 #else
     "-m elf_x86_64_fbsd -L/usr/local/lib "
 #endif
-    "-o %s "
-    "%scrt1.o "
-    "%scrti.o "
-    "%s %s %s -lponyrt %s -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, NUMA_LIB,
-    gccs_dir, crt_dir
+    "-o %s %scrt1.o %scrti.o "
+    "%s %s %s -lponyrt -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
+    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
     );
 
   if(system(ld_cmd) != 0)

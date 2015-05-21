@@ -127,6 +127,10 @@ int pony_init(int argc, char** argv)
 
   argc = parse_opts(argc, argv, &opt);
 
+#if defined(PLATFORM_IS_LINUX)
+  pony_numa_init();
+#endif
+
   heap_setinitialgc(opt.gc_initial);
   heap_setnextgcfactor(opt.gc_factor);
 
