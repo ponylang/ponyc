@@ -33,7 +33,7 @@ void* virtual_alloc(size_t bytes)
 void virtual_free(void* p, size_t bytes)
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  VirtualFree(p, 0, MEM_RELEASE) != 0;
+  VirtualFree(p, 0, MEM_RELEASE);
 #elif defined(PLATFORM_IS_LINUX)
   pony_numa_free(p, bytes);
 #elif defined(PLATFORM_IS_POSIX_BASED)
