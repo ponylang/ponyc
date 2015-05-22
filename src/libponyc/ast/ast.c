@@ -1129,6 +1129,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "to_infer");
       break;
 
+    case TK_ERRORTYPE:
+      printbuf(buffer, "<type error>");
+      break;
+
     default:
       assert(0);
   }

@@ -159,6 +159,7 @@ typedef enum token_id
   TK_BOXTYPE,
   TK_FUNTYPE,
   TK_INFERTYPE,
+  TK_ERRORTYPE,
 
   TK_ISO_BIND,
   TK_TRN_BIND,

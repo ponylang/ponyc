@@ -494,6 +494,14 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_t* type = ast_type(def);
 
+      if(type != NULL && ast_id(type) == TK_INFERTYPE)
+      {
+        ast_error(ast, "cannot infer type of %s\n", name);
+        ast_settype(def, ast_from(def, TK_ERRORTYPE));
+        ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+        return false;
+      }
+
       if(is_typecheck_error(type))
         return false;
 
@@ -554,13 +562,14 @@ bool expr_local(typecheck_t* t, ast_t* ast)
 {
   assert(t != NULL);
   assert(ast != NULL);
+  assert(ast_type(ast) != NULL);
 
   AST_GET_CHILDREN(ast, id, type);
   assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
   {
-    // No type specified, check we can infer
+    // No type specified, infer it later
     if(!is_assigned_to(ast, false))
     {
       if(t->frame->pattern != NULL)
@@ -570,8 +579,6 @@ bool expr_local(typecheck_t* t, ast_t* ast)
 
       return false;
     }
-
-    type = ast_from(id, TK_INFERTYPE);
   }
   else if(ast_id(ast) == TK_LET && t->frame->pattern == NULL)
   {
@@ -583,8 +590,6 @@ bool expr_local(typecheck_t* t, ast_t* ast)
     }
   }
 
-  ast_settype(id, type);
-  ast_settype(ast, type);
   return true;
 }
 

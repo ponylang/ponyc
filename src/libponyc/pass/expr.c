@@ -139,7 +139,7 @@ bool is_typecheck_error(ast_t* type)
   if(type == NULL)
     return true;
 
-  if(ast_id(type) == TK_INFERTYPE)
+  if(ast_id(type) == TK_INFERTYPE || ast_id(type) == TK_ERRORTYPE)
     return true;
 
   return false;

@@ -267,6 +267,7 @@ ast_t* alias(ast_t* type)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return type;
 
     default: {}
@@ -370,14 +371,15 @@ ast_t* consume_type(ast_t* type, token_id cap)
 
       BUILD(r_type, type,
         NODE(TK_ARROW,
-          TREE(left)
-          TREE(consume_type(right, cap))));
+        TREE(left)
+        TREE(consume_type(right, cap))));
 
       return r_type;
     }
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return type;
 
     default: {}
@@ -440,6 +442,7 @@ ast_t* recover_type(ast_t* type, token_id cap)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return type;
 
     default: {}
@@ -498,6 +501,7 @@ bool sendable(ast_t* type)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return false;
 
     default: {}

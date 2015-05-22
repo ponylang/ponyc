@@ -489,6 +489,27 @@ static bool post_process_methods(ast_t* entity, pass_opt_t* options,
 }
 
 
+// Setup the type, or lack thereof, for local variable declarations.
+// This is not really anything to do with traits, but must be done before the
+// expr pass (to allow initialisation references to the variable type) but
+// after the name pass (to get temporal capabilities).
+static void local_types(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  // Setup type or mark as inferred now to allow calling create on a
+  // non-inferred local to initialise itself
+  AST_GET_CHILDREN(ast, id, type);
+  assert(type != NULL);
+
+  if(ast_id(type) == TK_NONE)
+    type = ast_from(id, TK_INFERTYPE);
+
+  ast_settype(id, type);
+  ast_settype(ast, type);
+}
+
+
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -510,6 +531,11 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
         !post_process_methods(ast, options, true))
         return AST_ERROR;
 
+      break;
+
+    case TK_LET:
+    case TK_VAR:
+      local_types(ast);
       break;
 
     default:

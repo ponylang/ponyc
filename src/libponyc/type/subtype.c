@@ -819,6 +819,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return false;
 
     case TK_NEW:

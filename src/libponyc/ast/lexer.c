@@ -187,6 +187,7 @@ static const lextoken_t abstract[] =
   { "boxtype", TK_BOXTYPE },
   { "funtype", TK_FUNTYPE },
   { "infer", TK_INFERTYPE },
+  { "errortype", TK_ERRORTYPE },
 
   { "iso", TK_ISO_BIND },
   { "trn", TK_TRN_BIND },

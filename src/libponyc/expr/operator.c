@@ -320,6 +320,7 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
       if(infer_type == NULL)
       {
         ast_error(left, "could not infer type of local");
+        ast_settype(left, ast_from(left, TK_ERRORTYPE));
         return INFER_ERROR;
       }
 
