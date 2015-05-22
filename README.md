@@ -26,8 +26,7 @@ $ brew install ponyc
 ## Linux
 
 * ```ponyc```: Recommended. Should work on most modern ```x86_64``` platforms.
-* ```ponyc-avx2```: For platforms with AVX2 support. 
-* ```ponyc-numa```: A numa-aware version of ```ponyc-avx2```.
+* ```ponyc-avx2```: For platforms with AVX2 support.
 
 ### Apt-get and Aptitude
 
@@ -42,7 +41,6 @@ Add the ponylang.org repository to apt-get:
 ```bash
 sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc main"
 sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-avx2 main"
-sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-numa main"
 ```
 
 Note that ```add-apt-repository``` may require to install ```python-software-properties``` or ```software-properties-common```.
@@ -53,7 +51,7 @@ Then, update your repository cache:
 $ sudo apt-get update
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo apt-get install <package name>
@@ -67,7 +65,7 @@ First, add the ponylang.org repository:
 $ sudo zypper ar -f http://www.ponylang.org/releases/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo zypper install <package-name>
@@ -81,7 +79,7 @@ First, add the ponylang.org repository:
 $ sudo yum-config-manager --add-repo=http://www.ponylang.org/releases/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo yum install <package-name>
