@@ -60,12 +60,6 @@ PONY_TEST_DIR ?= test
 LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
 ifdef use
-  ifneq (,$(filter $(use), numa))
-    ALL_CFLAGS += -DUSE_NUMA
-    LINK_NUMA = true
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-numa
-  endif
-
   ifneq (,$(filter $(use), valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
@@ -239,15 +233,9 @@ libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ifeq ($(LINK_NUMA),true)
-    ponyc.links += numa
-		libponyc.tests.links += numa
-		libponyrt.tests.links += numa
-  endif
-
   ponyc.links += pthread dl
   libponyc.tests.links += pthread dl
-  libponyrt.tests.links += pthread
+  libponyrt.tests.links += pthread dl
 endif
 
 # Overwrite the default linker for a target.
@@ -509,7 +497,6 @@ help:
 	@echo '  [any compiler supported architecture]'
 	@echo
 	@echo 'USE OPTIONS:'
-	@echo '   numa'
 	@echo '   valgrind'
 	@echo
 	@echo 'TARGETS:'
