@@ -295,14 +295,15 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
+  size_t arch_len = arch - c->opt->triple;
+  size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args) + strlen(link_path);
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
     "-o %s %s %s %s -lponyrt -lSystem",
-    (int)(arch - c->opt->triple), c->opt->triple,
+    (int)arch_len, c->opt->triple,
     file_exe, file_o, lib_args, link_path
     );
 
