@@ -15,6 +15,7 @@ else
 
   ifeq ($(UNAME_S),FreeBSD)
     OSTYPE = freebsd
+    CXX = c++
   endif
 endif
 
