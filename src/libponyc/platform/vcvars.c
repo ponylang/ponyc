@@ -1,5 +1,6 @@
 #include <platform.h>
 #include "../ast/error.h"
+#include "../../libponyrt/mem/pool.h"
 
 #if defined(PLATFORM_IS_WINDOWS)
 
@@ -54,7 +55,7 @@ bool query_registry(HKEY key, bool query_subkeys,
 
   HKEY node;
   DWORD size = largest_subkey;
-  VLA(char, name, largest_subkey);
+  char* name = (char*)pool_alloc_size(largest_subkey);
 
   for(DWORD i = 0; i < sub_keys; ++i)
   {
@@ -67,6 +68,7 @@ bool query_registry(HKEY key, bool query_subkeys,
       }
       else
       {
+        pool_free_size(largest_subkey, name);
         return false;
       }
 
@@ -74,12 +76,14 @@ bool query_registry(HKEY key, bool query_subkeys,
     }
     else
     {
+      pool_free_size(largest_subkey, name);
       return false;
     }
 
     size = largest_subkey;
   }
 
+  pool_free_size(largest_subkey, name);
   return true;
 }
 
@@ -136,12 +140,12 @@ static void pick_newest_sdk(HKEY key, char* name, search_t* p)
 
   DWORD path_len = MAX_PATH;
   DWORD version_len = MAX_VER_LEN;
-  VLA(char, new_path, path_len);
+  char new_path[MAX_PATH];
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ,
     NULL, new_path, &path_len) == ERROR_SUCCESS)
   {
-    VLA(char, new_version, version_len);
+    char new_version[MAX_VER_LEN];
 
     if(RegGetValue(key, NULL, "ProductVersion",
       RRF_RT_REG_SZ, NULL, new_version, &version_len) == ERROR_SUCCESS)

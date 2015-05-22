@@ -257,9 +257,10 @@ static const char* id_to_string(const char* prefix, size_t id)
     prefix = "";
 
   size_t len = strlen(prefix);
-  VLA(char, buffer, len + 32);
-  snprintf(buffer, len + 32, "%s$"__zu, prefix, id);
-  return stringtab(buffer);
+  size_t buf_size = len + 32;
+  char* buffer = (char*)pool_alloc_size(buf_size);
+  snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
+  return stringtab_consume(buffer, buf_size);
 }
 
 
@@ -293,7 +294,8 @@ static const char* string_to_symbol(const char* string)
   }
 
   size_t len = strlen(string);
-  VLA(char, buf, len + prefix + 1);
+  size_t buf_size = len + prefix + 1;
+  char* buf = (char*)pool_alloc_size(buf_size);
   memcpy(buf + prefix, string, len + 1);
 
   if(prefix)
@@ -317,17 +319,18 @@ static const char* string_to_symbol(const char* string)
     }
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
 }
 
 
 static const char* symbol_suffix(const char* symbol, size_t suffix)
 {
   size_t len = strlen(symbol);
-  VLA(char, buf, len + 32);
-  snprintf(buf, len + 32, "%s" __zu, symbol, suffix);
+  size_t buf_size = len + 32;
+  char* buf = (char*)pool_alloc_size(buf_size);
+  snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
 }
 
 

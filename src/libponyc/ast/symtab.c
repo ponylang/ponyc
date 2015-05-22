@@ -33,7 +33,7 @@ static void sym_free(symbol_t* sym)
 static const char* name_without_case(const char* name)
 {
   size_t len = strlen(name) + 1;
-  VLA(char, buf, len);
+  char* buf = (char*)pool_alloc_size(len);
 
   if(is_type_name(name))
   {
@@ -44,7 +44,7 @@ static const char* name_without_case(const char* name)
       buf[i] = (char)tolower(name[i]);
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, len);
 }
 
 DEFINE_HASHMAP(symtab, symbol_t, sym_hash, sym_cmp, pool_alloc_size,

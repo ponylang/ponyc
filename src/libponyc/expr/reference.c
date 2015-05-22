@@ -12,6 +12,7 @@
 #include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -313,7 +314,6 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   assert(name != NULL);
 
   size_t name_len = strlen(name);
-  VLA(char, buf, name_len + 2);
 
   if(name[0] == '_')
   {
@@ -326,9 +326,10 @@ static const char* suggest_alt_name(ast_t* ast, const char* name)
   else
   {
     // Try with a leading underscore
+    char* buf = (char*)pool_alloc_size(name_len + 2);
     buf[0] = '_';
     strncpy(buf + 1, name, name_len + 1);
-    const char* try_name = stringtab(buf);
+    const char* try_name = stringtab_consume(buf, name_len + 2);
 
     if(ast_get(ast, try_name, NULL) != NULL)
       return try_name;

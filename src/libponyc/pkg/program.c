@@ -1,6 +1,7 @@
 #include "program.h"
 #include "package.h"
 #include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -87,7 +88,20 @@ bool use_library(ast_t* use, const char* locator, ast_t* name,
     return false;
   }
 
-  const char* libname = stringtab(locator);
+  if(strpbrk(locator, "\"'`;$|&<>%*?\\[]{}") != NULL)
+  {
+    ast_error(use, "lib names cannot contain control characters");
+    return false;
+  }
+
+  size_t len = strlen(locator);
+  char* quoted = (char*)pool_alloc_size(len + 3);
+  quoted[0] = '"';
+  memcpy(quoted + 1, locator, len);
+  quoted[len + 1] = '"';
+  quoted[len + 2] = '\0';
+
+  const char* libname = stringtab_consume(quoted, len + 3);
 
   ast_t* p = ast_nearest(use, TK_PROGRAM);
   assert(p != NULL);

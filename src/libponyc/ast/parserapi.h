@@ -396,7 +396,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
     assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
-    ast_reorder_children(state.ast, order); \
+    static ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
+    ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \
   }
 

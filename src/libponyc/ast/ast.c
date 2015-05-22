@@ -942,25 +942,26 @@ void ast_replace(ast_t** prev, ast_t* next)
   *prev = next;
 }
 
-void ast_reorder_children(ast_t* ast, const size_t* new_order)
+void ast_reorder_children(ast_t* ast, const size_t* new_order,
+  ast_t** shuffle_space)
 {
   assert(ast != NULL);
   assert(new_order != NULL);
+  assert(shuffle_space != NULL);
 
   size_t count = ast_childcount(ast);
-  VLA(ast_t*, children, count);
 
   for(size_t i = 0; i < count; i++)
-    children[i] = ast_pop(ast);
+    shuffle_space[i] = ast_pop(ast);
 
   for(size_t i = 0; i < count; i++)
   {
     size_t index = new_order[i];
     assert(index < count);
-    ast_t* t = children[index];
+    ast_t* t = shuffle_space[index];
     assert(t != NULL);
     ast_append(ast, t);
-    children[index] = NULL;
+    shuffle_space[index] = NULL;
   }
 }
 

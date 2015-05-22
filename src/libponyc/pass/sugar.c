@@ -6,6 +6,7 @@
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -864,11 +865,11 @@ static ast_result_t sugar_ffi(ast_t* ast)
   const char* name = ast_name(id);
   size_t len = strlen(name) + 1;
 
-  VLA(char, new_name, len + 1);
+  char* new_name = (char*)pool_alloc_size(len + 1);
   new_name[0] = '@';
   memcpy(new_name + 1, name, len);
 
-  ast_t* new_id = ast_from_string(id, new_name);
+  ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 1));
   ast_replace(&id, new_id);
 
   return AST_OK;

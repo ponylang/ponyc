@@ -100,7 +100,8 @@ static const char* get_link_path()
     paths = strlist_next(paths);
   }
 
-  VLA(char, buf, len + 1);
+  size_t buf_size = len + 1;
+  char* buf = (char*)pool_alloc_size(buf_size);
   char* p = buf;
   paths = package_paths();
 
@@ -126,7 +127,7 @@ static const char* get_link_path()
     paths = strlist_next(paths);
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
 }
 
 static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
@@ -293,13 +294,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
-
-  size_t len = (arch - c->opt->triple);
-  VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, c->opt->triple, len);
-  arch_buf[len] = '\0';
 
   program_lib_build_args(program, "", "", "-l", "");
   const char* link_path = get_link_path();
@@ -307,24 +303,28 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args) + strlen(link_path);
-  VLA(char, ld_cmd, ld_len);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.8 "
+    "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
     "-o %s %s %s %s -lponyrt -lSystem",
-    arch_buf, file_exe, file_o, lib_args, link_path
+    (int)(arch - c->opt->triple), c->opt->triple,
+    file_exe, file_o, lib_args, link_path
     );
 
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 
   if(!c->opt->strip_debug)
   {
     size_t dsym_len = 16 + strlen(file_exe);
-    VLA(char, dsym_cmd, dsym_len);
+    char* dsym_cmd = (char*)pool_alloc_size(dsym_len);
 
     snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
     system(dsym_cmd);
@@ -333,10 +333,12 @@ static bool link_exe(compile_t* c, ast_t* program,
 
     if(system(dsym_cmd) != 0)
       errorf(NULL, "unable to create dsym");
+
+    pool_free_size(dsym_len, dsym_cmd);
   }
 
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
@@ -354,7 +356,7 @@ static bool link_exe(compile_t* c, ast_t* program,
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
     strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
-  VLA(char, ld_cmd, ld_len);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld --eh-frame-hdr --hash-style=gnu "
@@ -374,8 +376,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
@@ -385,7 +390,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, ".exe");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
+    ".exe");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "", "", "", ".lib");
@@ -395,7 +401,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
     strlen(lib_args);
-  VLA(char, ld_cmd, ld_len);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
@@ -410,8 +416,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 #endif
 
   return true;

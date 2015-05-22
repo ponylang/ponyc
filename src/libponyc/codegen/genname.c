@@ -1,6 +1,7 @@
 #include "genname.h"
 #include "../pkg/package.h"
 #include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -56,7 +57,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs,
   if(b != NULL)
     len += strlen(b) + 1;
 
-  VLA(char, name, len);
+  char* name = (char*)pool_alloc_size(len);
 
   if(a != NULL)
     strcpy(name, a);
@@ -70,7 +71,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs,
   }
 
   typeargs_append(name, typeargs, function);
-  return stringtab(name);
+  return stringtab_consume(name, len);
 }
 
 static const char* nominal_name(ast_t* ast)

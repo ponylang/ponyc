@@ -166,8 +166,8 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
 
 bool codegen_hassource(compile_t* c);
 
-const char* suffix_filename(const char* dir, const char* file,
-  const char* extension);
+const char* suffix_filename(const char* dir, const char* prefix,
+  const char* file, const char* extension);
 
 PONY_EXTERN_C_END
 
