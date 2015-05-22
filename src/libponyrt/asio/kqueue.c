@@ -100,7 +100,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
             break;
 
           case EVFILT_WRITE:
-            asio_event_send(ev, ASIO_WRITE, 0);
+            if(ep->flags & EV_EOF)
+            {
+              asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+            } else {
+              asio_event_send(ev, ASIO_WRITE, 0);
+            }
             break;
 
           case EVFILT_TIMER:
@@ -156,7 +161,7 @@ void asio_event_subscribe(asio_event_t* ev)
   {
 #ifdef PLATFORM_IS_FREEBSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, ev->data/1000000, ev);
+      0, ev->data / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->data, ev);
@@ -190,7 +195,7 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
   {
 #ifdef PLATFORM_IS_FREEBSD
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-      0, data/1000000, ev);
+      0, data / 1000000, ev);
 #else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, data, ev);

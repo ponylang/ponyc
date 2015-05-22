@@ -686,6 +686,8 @@ PONYFD os_accept(asio_event_t* ev)
 
   if(ns != -1)
     set_nonblocking(ns);
+  else if(errno == EWOULDBLOCK)
+    ns = 0;
 #endif
 
   return (PONYFD)ns;

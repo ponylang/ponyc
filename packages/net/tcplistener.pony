@@ -129,12 +129,16 @@ actor TCPListener
       while (_limit == 0) or (_count < _limit) do
         var fd = @os_accept[U64](_event)
 
-        // On an invalid socket, don't continue.
-        if fd == -1 then
+        match fd
+        | -1 =>
+          // Something other than EWOULDBLOCK, try again.
+          None
+        | 0 =>
+          // EWOULDBLOCK, don't try again.
           return
+        else
+          _spawn(fd)
         end
-
-        _spawn(fd)
       end
 
       _paused = true

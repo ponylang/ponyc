@@ -3,8 +3,11 @@ use "net/ssl"
 
 actor Main
   new create(env: Env) =>
+    var i = U64(1)
+
     let ssl = try
-      if env.args(1) == "ssl" then
+      if env.args(i) == "ssl" then
+        i = i + 1
         true
       else
         false
@@ -13,5 +16,11 @@ actor Main
       false
     end
 
-    TCPListener(recover Listener(env, ssl) end)
-    UDPSocket(recover Pong(env) end)
+    let limit = try
+      env.args(i).u64()
+    else
+      1
+    end
+
+    TCPListener(recover Listener(env, ssl, limit) end)
+    // UDPSocket(recover Pong(env) end)
