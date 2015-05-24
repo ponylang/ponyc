@@ -112,9 +112,11 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
     ast_t* trait_def = (ast_t*)ast_data(t);
     assert(trait_def != NULL);
 
-    // TODO: Check whether we need an error here
     if((ast_id(trait_def) != TK_TRAIT) && (ast_id(trait_def) != TK_INTERFACE))
+    {
+      ast_error(t, "type \"is\" list can only contain traits and interfaces");
       return false;
+    }
 
     // Check for duplicates in our provides list
     // This is just simple compare of each entry against all the other. This is
