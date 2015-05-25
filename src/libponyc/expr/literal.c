@@ -421,6 +421,9 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
       return uifset_simple_type(opt, type);
 
+    case TK_DONTCARE:
+      return UIF_NO_TYPES;
+
     default:
       ast_error(type, "Internal error: uif type, node %d", ast_id(type));
       assert(0);
