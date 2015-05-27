@@ -832,157 +832,65 @@ class String val is Seq[U8], Ordered[String box], Stringable
   fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
+  fun i8(offset: I64 = 0, base: I32 = 0): I8 => i64(offset, base).i8()
+  fun i16(offset: I64 = 0, base: I32 = 0): I16 => i64(offset, base).i16()
+  fun i32(offset: I64 = 0, base: I32 = 0): I32 => i64(offset, base).i32()
 
-  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base, I8.min_value(), I8.max_value())
-  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base, I16.min_value(), I16.max_value())
-  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base, I32.min_value(), I32.max_value())
-  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base, I64.min_value(), I64.max_value())
-  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base, I128.min_value(), I128.max_value())
-  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base, U8.min_value(), U8.max_value())
-  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base, U16.min_value(), U16.max_value())
-  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base, U32.min_value(), U32.max_value())
-  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base, U64.min_value(), U64.max_value())
-  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base, U128.min_value(), U128.max_value())
-    
+  fun i64(offset: I64 = 0, base: I32 = 0): I64 =>
+    var index = offset_to_index(offset)
 
-  fun _to_int[A: ((Signed | Unsigned) & Integer[A] box)](base: U8,
-    min_value: A, max_value: A): A ? =>
-    // Min and max values only need to be provided here because of issue #220
-    (let v, let d) = read_int[A](0, base, false, 0, min_value, max_value)
-      
-    if d.u64() != _size then error end  // Not all of string used
-    v
-    
-
-  fun read_u16(offset: I64 = 0, base: U8 = 0): (U16, I64) ? =>
-    // Only needed until issue #220 is fixed
-    read_int[U16](offset, base, false, 0, 0, U16.max_value())
-    
-
-  fun read_u64(offset: I64 = 0, base: U8 = 0): (U64, I64) ? =>
-    // Only needed until issue #220 is fixed
-    read_int[U64](offset, base, false, 0, 0, U64.max_value())
-
-
-  fun read_int[A: ((Signed | Unsigned) & Integer[A] box)]
-    (offset: I64 = 0, base: U8 = 0, optional: Bool = false, default: A = 0,
-    min_val: A, max_val: A): (A, I64) ?
-  =>
-    // min_val SHOULD default to A.min_value() are max_val to A.max_value()
-    // This is not currently possible
-    let start_index = offset_to_index(offset)
-    var index = start_index
-    var value: A = 0
-    var had_digit = false
-
-    // Check for leading minus
-    let minus = (index < _size) and (_ptr._apply(index) == '-')
-    if minus then index = index + 1 end
-
-    (let base', let base_chars) = _read_int_base[A](base, index)
-    index = index + base_chars
-
-    // Process characters
-    while index < _size do
-      let char: A = _convert_u8[A](_ptr._apply(index))
-      if char == '_' then
-        index = index + 1
-        continue
+    if index < _size then
+      if Platform.windows() then
+        @_strtoi64[I64](_ptr.u64() + index, U64(0), base)
+      else
+        @strtol[I64](_ptr.u64() + index, U64(0), base)
       end
-      
-      let digit =
-        if (char >= '0') and (char <= '9') then
-          char - '0'
-        elseif (char >= 'A') and (char <= 'Z') then
-          (char - 'A') + 10
-        elseif (char >= 'a') and (char <= 'z') then
-          (char - 'a') + 10
-        else
-          break
-        end
-        
-      if digit >= base' then
-        break
+    else
+      0
+    end
+
+  fun i128(offset: I64 = 0, base: I32 = 0): I128 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        i64(offset).i128()
+      else
+        @strtoll[I128](_ptr.u64() + index, U64(0), base)
       end
+    else
+      0
+    end
 
-      let new_value: A = (value * base') + digit
+  fun u8(offset: I64 = 0, base: I32 = 0): U8 => u64(offset, base).u8()
+  fun u16(offset: I64 = 0, base: I32 = 0): U16 => u64(offset, base).u16()
+  fun u32(offset: I64 = 0, base: I32 = 0): U32 => u64(offset, base).u32()
 
-      if (new_value / base') != value then
-        // Overflow
-        error
+  fun u64(offset: I64 = 0, base: I32 = 0): U64 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        @_strtoui64[U64](_ptr.u64() + index, U64(0), base)
+      else
+        @strtoul[U64](_ptr.u64() + index, U64(0), base)
       end
-
-      value = new_value
-      had_digit = true
-      index = index + 1
+    else
+      0
     end
 
-    // Check result
-    if not had_digit then
-      // No integer found
-      if optional then
-        default
+  fun u128(offset: I64 = 0, base: I32 = 0): U128 =>
+    var index = offset_to_index(offset)
+
+    if index < _size then
+      if Platform.windows() then
+        u64(offset).u128()
+      else
+        @strtoull[U128](_ptr.u64() + index, U64(0), base)
       end
-      error
+    else
+      0
     end
-
-    if minus and (min_val >= 0) then error end  // Includes all U* types
-
-    if minus then value = -value end
-
-    if (value < min_val) or (value > max_val) then
-      error
-    end
-
-    // Success
-    (value, (index - start_index).i64())
-
-
-  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] box)]
-    (base: U8, index: U64): (A, U64 /* chars used */)
-  =>
-    if base > 0 then
-      return (_convert_u8[A](base), 0)
-    end
-    
-    // Determine base from prefix
-    if (index + 2) >= _size then
-      // Not enough characters, must be decimal
-      return (10, 0)
-    end
-
-    let lead_char = _ptr._apply(index)
-    let base_char = _ptr._apply(index + 1) and not 0x20
-
-    if (lead_char == '0') and (base_char == 'B') then
-      return (2, 2)
-    end
-
-    if (lead_char == '0') and (base_char == 'X') then
-      return (16, 2)
-    end
-
-    // No base specified, default to decimal
-    (10, 0)
-
-
-  fun _convert_u8[A: ((Signed | Unsigned) & Integer[A] box)](x: U8): A =>
-    """
-    Convert a U8 to the specified type.
-    Temporary hack until generics are fixed.
-    """
-    var y:A = 0
-
-    if (x and 0x80) != 0 then y = y or 0x80 end
-    if (x and 0x40) != 0 then y = y or 0x40 end
-    if (x and 0x20) != 0 then y = y or 0x20 end
-    if (x and 0x10) != 0 then y = y or 0x10 end
-    if (x and 0x8) != 0 then y = y or 0x8 end
-    if (x and 0x4) != 0 then y = y or 0x4 end
-    if (x and 0x2) != 0 then y = y or 0x2 end
-    if (x and 0x1) != 0 then y = y or 0x1 end
-    y
-
 
   fun f32(offset: I64 = 0): F32 =>
     var index = offset_to_index(offset)

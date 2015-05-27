@@ -65,9 +65,6 @@ trait Real[A: Real[A] box] val is
     x
 
 trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
-  new val min_value()
-  new val max_value()
-
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y

@@ -1,7 +1,5 @@
 primitive I8 is SignedInteger[I8]
   new create(from: I8) => compiler_intrinsic
-  new min_value() => -0x80
-  new max_value() => 0x7F
 
   fun abs(): I8 => if this < 0 then -this else this end
   fun max(that: I8): I8 => if this > that then this else that end
@@ -22,8 +20,6 @@ primitive I8 is SignedInteger[I8]
 
 primitive I16 is SignedInteger[I16]
   new create(from: I16) => compiler_intrinsic
-  new min_value() => -0x8000
-  new max_value() => 0x7FFF
 
   fun abs(): I16 => if this < 0 then -this else this end
   fun max(that: I16): I16 => if this > that then this else that end
@@ -44,8 +40,6 @@ primitive I16 is SignedInteger[I16]
 
 primitive I32 is SignedInteger[I32]
   new create(from: I32) => compiler_intrinsic
-  new min_value() => -0x8000_0000
-  new max_value() => 0x7FFF_FFFF
 
   fun abs(): I32 => if this < 0 then -this else this end
   fun max(that: I32): I32 => if this > that then this else that end
@@ -66,8 +60,6 @@ primitive I32 is SignedInteger[I32]
 
 primitive I64 is SignedInteger[I64]
   new create(from: I64) => compiler_intrinsic
-  new min_value() => -0x8000_0000_0000_0000
-  new max_value() => 0x7FFF_FFFF_FFFF_FFFF
 
   fun abs(): I64 => if this < 0 then -this else this end
   fun max(that: I64): I64 => if this > that then this else that end
@@ -88,8 +80,6 @@ primitive I64 is SignedInteger[I64]
 
 primitive I128 is SignedInteger[I128]
   new create(from: I128) => compiler_intrinsic
-  new min_value() => -0x8000_0000_0000_0000_0000_0000_0000_0000
-  new max_value() => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun abs(): I128 => if this < 0 then -this else this end
   fun max(that: I128): I128 => if this > that then this else that end
