@@ -90,7 +90,7 @@ concurrently with any other tests.
 The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
-"""
+ """
 
 use "collections"
 use "options"
@@ -109,7 +109,7 @@ actor PonyTest
   let _env: Env
   var _do_nothing: Bool = false
   var _filter: (Regex | None) = None
-  var _log_all: Bool = false
+  var _verbose: Bool = false
   var _sequential: Bool = false
   var _started: U64 = 0
   var _finished: U64 = 0
@@ -144,7 +144,7 @@ actor PonyTest
     _records.push(_TestRecord(_env, name))
 
     var group = _find_group(test.exclusion_group())
-    group(TestHelper._create(this, index, consume test, group))
+    group(TestHelper._create(this, index, consume test, group, _verbose))
 
   fun ref _find_group(group_name: String): _Group =>
     """
@@ -235,14 +235,14 @@ actor PonyTest
       Options:
       """)
       .add("sequential", "s", "Tests run sequentially.", None)
-      .add("log", "l", "Show logs for all tests run.", None)
+      .add("verbose", "v", "Show verbose logs.", None)
       .add("filter", "f", "Only run the tests matching the given regex.",
         StringArgument)
 
     for option in opts do
       match option
       | ("sequential", None) => _sequential = true
-      | ("log", None) => _log_all = true
+      | ("verbose", None) => _verbose = true
       | ("filter", var arg: String) =>
         try
           _filter = Regex(arg)
@@ -267,7 +267,7 @@ actor PonyTest
     // First we print the result summary for each test, in the order that they
     // were given to us.
     for rec in _records.values() do
-      if rec._report(_log_all) then
+      if rec._report(_verbose) then
         pass_count = pass_count + 1
       else
         fail_count = fail_count + 1
