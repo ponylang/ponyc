@@ -1,5 +1,7 @@
 primitive U8 is UnsignedInteger[U8]
   new create(from: U8) => compiler_intrinsic
+  new min_value() => 0
+  new max_value() => 0xFF
 
   fun next_pow2(): U8 =>
     var x = this - 1
@@ -27,6 +29,8 @@ primitive U8 is UnsignedInteger[U8]
 
 primitive U16 is UnsignedInteger[U16]
   new create(from: U16) => compiler_intrinsic
+  new min_value() => 0
+  new max_value() => 0xFFFF
 
   fun next_pow2(): U16 =>
     var x = this - 1
@@ -55,6 +59,8 @@ primitive U16 is UnsignedInteger[U16]
 
 primitive U32 is UnsignedInteger[U32]
   new create(from: U32) => compiler_intrinsic
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF
 
   fun next_pow2(): U32 =>
     var x = this - 1
@@ -84,6 +90,8 @@ primitive U32 is UnsignedInteger[U32]
 
 primitive U64 is UnsignedInteger[U64]
   new create(from: U64) => compiler_intrinsic
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U64 =>
     var x = this - 1
@@ -114,6 +122,8 @@ primitive U64 is UnsignedInteger[U64]
 
 primitive U128 is UnsignedInteger[U128]
   new create(from: U128) => compiler_intrinsic
+  new min_value() => 0
+  new max_value() => 0xFFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun next_pow2(): U128 =>
     var x = this - 1

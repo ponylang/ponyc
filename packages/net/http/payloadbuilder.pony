@@ -140,7 +140,7 @@ class _PayloadBuilder
       try
         let proto_end = line.find(" ")
         _payload.proto = line.substring(0, proto_end - 1)
-        _payload.status = line.u16(proto_end + 1)
+        _payload.status = line.read_u16(proto_end + 1)._1
 
         let status_end = line.find(" ", proto_end + 1)
         _payload.method = line.substring(status_end + 1, -1)
@@ -169,7 +169,7 @@ class _PayloadBuilder
 
             match key.lower()
             | "content-length" =>
-              _content_length = value.u64()
+              _content_length = value.read_u64()._1
             | "transfer-encoding" =>
               try
                 value.find("chunked")
@@ -230,7 +230,7 @@ class _PayloadBuilder
       let line = buffer.line()
 
       if line.size() > 0 then
-        _content_length = line.u64(0, 16)
+        _content_length = line.read_u64(0, 16)._1
 
         if _content_length > 0 then
           _state = _PayloadChunk
