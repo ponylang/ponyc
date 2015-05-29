@@ -3,7 +3,7 @@
 
 #include <platform.h>
 
-#ifdef PLATFORM_IS_CLANG_OR_GCC
+#if defined(PLATFORM_IS_CLANG_OR_GCC)
 #include <unwind.h>
 #endif
 

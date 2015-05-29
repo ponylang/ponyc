@@ -3,27 +3,27 @@
 #endif
 #include <platform.h>
 
-#if defined(PLATFORM_IS_LINUX)
-#ifdef USE_NUMA
-  #include <numa.h>
-#endif
-#include <sched.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  #include <sched.h>
+  #include <stdlib.h>
+  #include <unistd.h>
+  #include <stdio.h>
 #elif defined(PLATFORM_IS_MACOSX)
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <mach/mach.h>
-#include <mach/thread_policy.h>
+  #include <unistd.h>
+  #include <mach/mach.h>
+  #include <mach/thread_policy.h>
 #elif defined(PLATFORM_IS_WINDOWS)
-#include <processtopologyapi.h>
+  #include <processtopologyapi.h>
 #endif
 
 #include "cpu.h"
+#include "../mem/pool.h"
 
-#if defined(PLATFORM_IS_MACOSX)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
 static uint32_t property(const char* key)
 {
   int value;
@@ -60,15 +60,13 @@ static bool cpu_physical(uint32_t cpu)
 uint32_t cpu_count()
 {
 #if defined(PLATFORM_IS_LINUX)
-#if defined(USE_NUMA)
-  if(numa_available() != -1)
-  {
-    return numa_num_task_cpus();
-  }
-#endif
+  uint32_t count = pony_numa_cores();
+
+  if(count > 0)
+    return count;
 
   uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
-  uint32_t count = 0;
+  count = 0;
 
   for(uint32_t i = 0; i < max; i++)
   {
@@ -77,6 +75,8 @@ uint32_t cpu_count()
   }
 
   return count;
+#elif defined(PLATFORM_IS_FREEBSD)
+  return property("hw.ncpu");
 #elif defined(PLATFORM_IS_MACOSX)
   return property("hw.physicalcpu");
 #elif defined(PLATFORM_IS_WINDOWS)
@@ -127,37 +127,39 @@ uint32_t cpu_count()
 void cpu_assign(uint32_t count, scheduler_t* scheduler)
 {
 #if defined(PLATFORM_IS_LINUX)
-#if defined(USE_NUMA)
-  if(numa_available() != -1)
+  uint32_t cpu_count = pony_numa_cores();
+
+  if(cpu_count > 0)
   {
-    uint32_t cpus = numa_num_task_cpus();
-    uint32_t cpu = 0;
-    uint32_t thread = 0;
+    uint32_t* list = pool_alloc_size(cpu_count * sizeof(uint32_t));
+    pony_numa_core_list(list);
 
-    while(thread < count)
+    for(uint32_t i = 0; i < count; i++)
     {
-      if(numa_bitmask_isbitset(numa_all_cpus_ptr, cpu))
-      {
-        scheduler[thread].cpu = cpu;
-        scheduler[thread].node = numa_node_of_cpu(cpu);
-        thread++;
-      }
-
-      cpu++;
-
-      if(thread >= cpus)
-        cpu = 0;
+      uint32_t cpu = list[i % cpu_count];
+      scheduler[i].cpu = cpu;
+      scheduler[i].node = pony_numa_node_of_cpu(cpu);
     }
 
+    pool_free_size(cpu_count * sizeof(uint32_t), list);
     return;
   }
-#endif
+
   // Physical cores come first, so assign in sequence.
-  uint32_t max = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
+  cpu_count = (uint32_t)sysconf(_SC_NPROCESSORS_ONLN);
 
   for(uint32_t i = 0; i < count; i++)
   {
-    scheduler[i].cpu = i % max;
+    scheduler[i].cpu = i % cpu_count;
+    scheduler[i].node = 0;
+  }
+#elif defined(PLATFORM_IS_FREEBSD)
+  // Spread across available cores.
+  uint32_t cpu_count = property("hw.ncpu");
+
+  for(uint32_t i = 0; i < count; i++)
+  {
+    scheduler[i].cpu = i % cpu_count;
     scheduler[i].node = 0;
   }
 #else
@@ -172,24 +174,9 @@ void cpu_assign(uint32_t count, scheduler_t* scheduler)
 
 void cpu_affinity(uint32_t cpu)
 {
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   // Affinity is handled when spawning the thread.
   (void)cpu;
-
-#if defined(USE_NUMA)
-  // Allocate memory on the local node.
-  if(numa_available() != -1)
-  {
-    struct bitmask* cpumask = numa_allocate_cpumask();
-    numa_bitmask_setbit(cpumask, cpu);
-
-    numa_sched_setaffinity(0, cpumask);
-    numa_set_localalloc();
-
-    numa_free_cpumask(cpumask);
-  }
-#endif
-
 #elif defined(PLATFORM_IS_MACOSX)
   thread_affinity_policy_data_t policy;
   policy.affinity_tag = cpu;

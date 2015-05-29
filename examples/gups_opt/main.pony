@@ -76,10 +76,8 @@ actor Main
       _actors = consume updaters
       _start = Time.nanos()
 
-      try
-        for a in _actors.values() do
-          a.start(_actors, _config.iterate)
-        end
+      for a in _actors.values() do
+        a.start(_actors, _config.iterate)
       end
     else
       _start = 0
@@ -88,10 +86,8 @@ actor Main
 
   be done() =>
     if (_confirm = _confirm - 1) == 1 then
-      try
-        for a in _actors.values() do
-          a.done()
-        end
+      for a in _actors.values() do
+        a.done()
       end
     end
 

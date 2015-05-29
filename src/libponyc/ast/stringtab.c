@@ -53,6 +53,23 @@ const char* stringtab(const char* string)
   return n;
 }
 
+const char* stringtab_consume(const char* string, size_t buf_size)
+{
+  if(string == NULL)
+    return NULL;
+
+  const char* prev = strtable_get(&table, string);
+
+  if(prev != NULL)
+  {
+    pool_free_size(buf_size, (void*)string);
+    return prev;
+  }
+
+  strtable_put(&table, string);
+  return string;
+}
+
 void stringtab_done()
 {
   strtable_destroy(&table);

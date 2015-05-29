@@ -8,7 +8,6 @@
 #include "../asio/event.h"
 #include <stdbool.h>
 #include <string.h>
-#include <stdio.h>
 
 #ifdef PLATFORM_IS_WINDOWS
 // Disable warnings about deprecated non-unicode WSA functions.
@@ -22,6 +21,7 @@
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -30,7 +30,7 @@
 typedef int SOCKET;
 #endif
 
-#ifndef PLATFORM_IS_LINUX
+#if !defined(PLATFORM_IS_LINUX) && !defined(PLATFORM_IS_FREEBSD)
 #define MSG_NOSIGNAL 0
 #endif
 
@@ -59,12 +59,9 @@ static socklen_t address_length(ipaddress_t* ipaddr)
 
     case AF_INET6:
       return sizeof(struct sockaddr_in6);
-
-    default:
-      pony_throw();
   }
 
-  return 0;
+  return (socklen_t)-1;
 }
 
 // Transform "any" addresses into loopback addresses.
@@ -102,7 +99,7 @@ static bool map_any_to_loopback(struct sockaddr* addr)
   return false;
 }
 
-#ifdef PLATFORM_IS_MACOSX
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 static int set_nonblocking(SOCKET s)
 {
   int flags = fcntl(s, F_GETFL, 0);
@@ -204,7 +201,7 @@ static void CALLBACK iocp_callback(DWORD err, DWORD bytes, OVERLAPPED* ov)
       } else {
         // Close the new socket.
         closesocket(acc->ns);
-        acc->ns = 0;
+        acc->ns = INVALID_SOCKET;
       }
 
       // Dispatch a read event with the new socket as the argument.
@@ -348,16 +345,19 @@ static bool iocp_recv(asio_event_t* ev, char* data, size_t len)
 static bool iocp_sendto(PONYFD fd, const char* data, size_t len,
   ipaddress_t* ipaddr)
 {
+  socklen_t socklen = address_length(ipaddr);
+
+  if(socklen == (socklen_t)-1)
+    return false;
+
   iocp_t* iocp = iocp_create(IOCP_NOP, NULL);
 
   WSABUF buf;
   buf.buf = (char*)data;
   buf.len = (u_long)len;
 
-  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
-
   if(WSASendTo((SOCKET)fd, &buf, 1, NULL, 0, (struct sockaddr*)&ipaddr->addr,
-    address_length(ipaddr), &iocp->ov, NULL) != 0)
+    socklen, &iocp->ov, NULL) != 0)
   {
     if(GetLastError() != WSA_IO_PENDING)
     {
@@ -421,7 +421,7 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
       sizeof(int));
   }
 
-#ifdef PLATFORM_IS_MACOSX
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
   int nosigpipe = 1;
   r |= setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, sizeof(int));
   r |= set_nonblocking(fd);
@@ -439,13 +439,13 @@ static PONYFD socket_from_addrinfo(struct addrinfo* p, bool reuse)
   return -1;
 }
 
-static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
-  int proto)
+static asio_event_t* os_listen(pony_actor_t* owner, PONYFD fd,
+  struct addrinfo *p, int proto)
 {
   if(bind((SOCKET)fd, p->ai_addr, (int)p->ai_addrlen) != 0)
   {
     os_closesocket(fd);
-    return false;
+    return NULL;
   }
 
   if(p->ai_socktype == SOCK_STREAM)
@@ -453,7 +453,7 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
     if(listen((SOCKET)fd, SOMAXCONN) != 0)
     {
       os_closesocket(fd);
-      return false;
+      return NULL;
     }
   }
 
@@ -462,24 +462,21 @@ static bool os_listen(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
     true);
 
 #ifdef PLATFORM_IS_WINDOWS
-  // Start accept for TCP connections, but not for UDP
+  // Start accept for TCP connections, but not for UDP.
   if(proto == IPPROTO_TCP)
   {
     if(!iocp_accept(ev))
     {
       asio_event_unsubscribe(ev);
       os_closesocket(fd);
-      return false;
+      return NULL;
     }
   }
 #else
   (void)proto;
 #endif
 
-  // Send a read event, so that it can be unsubscribed before any connections
-  // are accepted.
-  asio_event_send(ev, ASIO_READ, -1LL);
-  return true;
+  return ev;
 }
 
 static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
@@ -595,11 +592,9 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
     {
       if(server)
       {
-        if(!os_listen(owner, fd, p, proto))
-          fd = -1;
-
+        asio_event_t* ev = os_listen(owner, fd, p, proto);
         freeaddrinfo(result);
-        return fd;
+        return (uintptr_t)ev;
       }
       else
       {
@@ -615,46 +610,46 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
   return count;
 }
 
-PONYFD os_listen_tcp(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_tcp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_UNSPEC, SOCK_STREAM,
-    IPPROTO_TCP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_UNSPEC,
+    SOCK_STREAM, IPPROTO_TCP, true);
 }
 
-PONYFD os_listen_tcp4(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_tcp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_INET, SOCK_STREAM,
-    IPPROTO_TCP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET,
+    SOCK_STREAM, IPPROTO_TCP, true);
 }
 
-PONYFD os_listen_tcp6(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_tcp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_INET6, SOCK_STREAM,
-    IPPROTO_TCP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET6,
+    SOCK_STREAM, IPPROTO_TCP, true);
 }
 
-PONYFD os_listen_udp(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_udp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_UNSPEC, SOCK_DGRAM,
-    IPPROTO_UDP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_UNSPEC,
+    SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
-PONYFD os_listen_udp4(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_udp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_INET, SOCK_DGRAM,
-    IPPROTO_UDP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET,
+    SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
-PONYFD os_listen_udp6(pony_actor_t* owner, const char* host,
+asio_event_t* os_listen_udp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return os_socket(owner, host, service, NULL, AF_INET6, SOCK_DGRAM,
-    IPPROTO_UDP, true);
+  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET6,
+    SOCK_DGRAM, IPPROTO_UDP, true);
 }
 
 PONYFD os_connect_tcp(pony_actor_t* owner, const char* host,
@@ -678,25 +673,21 @@ PONYFD os_connect_tcp6(pony_actor_t* owner, const char* host,
     IPPROTO_TCP, false);
 }
 
-PONYFD os_accept(asio_event_t* ev, uint64_t arg)
+PONYFD os_accept(asio_event_t* ev)
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  // The arg is actually the new socket. We'll return that, and also kick off
-  // a new asynchronous accept for this event.
-  if(arg == 0 || arg == -1LL)
-    return -1;
-
-  SOCKET ns = arg;
+  // Queue an IOCP accept and return an INVALID_SOCKET.
+  SOCKET ns = INVALID_SOCKET;
   iocp_accept(ev);
 #elif defined(PLATFORM_IS_LINUX)
-  (void)arg;
   SOCKET ns = accept4((SOCKET)ev->data, NULL, NULL, SOCK_NONBLOCK);
 #else
-  (void)arg;
   SOCKET ns = accept((SOCKET)ev->data, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
+  else if(errno == EWOULDBLOCK)
+    ns = 0;
 #endif
 
   return (PONYFD)ns;
@@ -723,21 +714,22 @@ static int address_family(int length)
 
     case 16:
       return AF_INET6;
-
-    default:
-      pony_throw();
   }
 
-  return 0;
+  return -1;
 }
 
-void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
+bool os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
   bool reversedns, bool servicename)
 {
   char host[NI_MAXHOST];
   char serv[NI_MAXSERV];
 
   socklen_t len = address_length(ipaddr);
+
+  if(len == (socklen_t)-1)
+    return false;
+
   int flags = 0;
 
   if(!reversedns)
@@ -750,7 +742,7 @@ void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
     serv, NI_MAXSERV, flags);
 
   if(r != 0)
-    pony_throw();
+    return false;
 
   size_t hostlen = strlen(host);
   *rhost = (char*)pony_alloc(hostlen + 1);
@@ -759,6 +751,8 @@ void os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
   size_t servlen = strlen(serv);
   *rserv = (char*)pony_alloc(servlen + 1);
   memcpy(*rserv, serv, servlen + 1);
+
+  return true;
 }
 
 struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
@@ -782,6 +776,7 @@ struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 void os_getaddr(struct addrinfo* addr, ipaddress_t* ipaddr)
 {
   memcpy(&ipaddr->addr, addr->ai_addr, addr->ai_addrlen);
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
 }
 
 struct addrinfo* os_nextaddr(struct addrinfo* addr)
@@ -794,8 +789,11 @@ char* os_ip_string(void* src, int len)
   char dst[INET6_ADDRSTRLEN];
   int family = address_family(len);
 
+  if(family == -1)
+    return NULL;
+
   if(inet_ntop(family, src, dst, INET6_ADDRSTRLEN))
-    pony_throw();
+    return NULL;
 
   size_t dstlen = strlen(dst);
   char* result = (char*)pony_alloc(dstlen + 1);
@@ -814,16 +812,26 @@ bool os_ipv6(ipaddress_t* ipaddr)
   return ipaddr->addr.ss_family == AF_INET6;
 }
 
-void os_sockname(PONYFD fd, ipaddress_t* ipaddr)
+bool os_sockname(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
-  getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
+
+  if(getsockname((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) != 0)
+    return false;
+
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
+  return true;
 }
 
-void os_peername(PONYFD fd, ipaddress_t* ipaddr)
+bool os_peername(PONYFD fd, ipaddress_t* ipaddr)
 {
   socklen_t len = sizeof(struct sockaddr_storage);
-  getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len);
+
+  if(getpeername((SOCKET)fd, (struct sockaddr*)&ipaddr->addr, &len) != 0)
+    return false;
+
+  map_any_to_loopback((struct sockaddr*)&ipaddr->addr);
+  return true;
 }
 
 bool os_host_ip4(const char* host)
@@ -894,6 +902,9 @@ size_t os_sendto(PONYFD fd, const char* buf, size_t len, ipaddress_t* ipaddr)
 #else
   socklen_t addrlen = address_length(ipaddr);
 
+  if(addrlen == (socklen_t)-1)
+    pony_throw();
+
   ssize_t sent = sendto((SOCKET)fd, buf, len, MSG_NOSIGNAL,
     (struct sockaddr*)&ipaddr->addr, addrlen);
 
@@ -947,7 +958,7 @@ void os_keepalive(PONYFD fd, int secs)
   if(on == 0)
     return;
 
-#if defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   int probes = secs / 2;
   setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, &probes, sizeof(int));
 
@@ -976,6 +987,11 @@ void os_nodelay(PONYFD fd, bool state)
   int val = state;
   setsockopt((SOCKET)fd, IPPROTO_TCP, TCP_NODELAY, (const char*)&val,
     sizeof(int));
+}
+
+void os_shutdown(PONYFD fd)
+{
+  shutdown((SOCKET)fd, 1);
 }
 
 void os_closesocket(PONYFD fd)

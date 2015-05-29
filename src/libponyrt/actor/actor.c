@@ -46,19 +46,18 @@ static void unset_flag(pony_actor_t* actor, uint8_t flag)
   actor->flags &= (uint8_t)~flag;
 }
 
-static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
+static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
 {
   switch(msg->id)
   {
     case ACTORMSG_ACQUIRE:
     {
-      // if we are blocked and our rc changes, block again
       pony_msgp_t* m = (pony_msgp_t*)msg;
 
       if(gc_acquire(&actor->gc, (actorref_t*)m->p) &&
         has_flag(actor, FLAG_BLOCKED))
       {
-        cycle_block(actor, &actor->gc);
+        *notify = true;
       }
 
       return false;
@@ -66,13 +65,12 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
 
     case ACTORMSG_RELEASE:
     {
-      // if we are blocked and our rc changes, block again
       pony_msgp_t* m = (pony_msgp_t*)msg;
 
       if(gc_release(&actor->gc, (actorref_t*)m->p) &&
         has_flag(actor, FLAG_BLOCKED))
       {
-        cycle_block(actor, &actor->gc);
+        *notify = true;
       }
 
       return false;
@@ -89,7 +87,7 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
     {
       if(has_flag(actor, FLAG_BLOCKED))
       {
-        // if we are blocked and we get an application message, unblock
+        *notify = false;
         cycle_unblock(actor);
         unset_flag(actor, FLAG_BLOCKED);
       }
@@ -102,8 +100,6 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg)
 
 bool actor_run(pony_actor_t* actor)
 {
-  assert(actor != NULL);
-  pony_msg_t* msg;
   this_actor = actor;
 
   if(heap_startgc(&actor->heap))
@@ -114,17 +110,19 @@ bool actor_run(pony_actor_t* actor)
       actor->type->trace(actor);
 
     gc_handlestack();
-    gc_mark(&actor->gc);
     gc_sweep(&actor->gc);
     gc_done(&actor->gc);
     heap_endgc(&actor->heap);
   }
 
+  pony_msg_t* msg;
+  bool notify = false;
+
   if(actor->continuation != NULL)
   {
     msg = actor->continuation;
     actor->continuation = NULL;
-    bool ret = handle_message(actor, msg);
+    bool ret = handle_message(actor, msg, &notify);
     pool_free(msg->size, msg);
 
     if(ret)
@@ -133,18 +131,23 @@ bool actor_run(pony_actor_t* actor)
 
   while((msg = messageq_pop(&actor->q)) != NULL)
   {
-    if(handle_message(actor, msg))
+    if(handle_message(actor, msg, &notify))
       return !has_flag(actor, FLAG_UNSCHEDULED);
   }
 
-  if(!has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM | FLAG_UNSCHEDULED))
+  if(has_flag(actor, FLAG_UNSCHEDULED))
+  {
+    // When unscheduling, don't mark the queue as empty, since we don't want
+    // to get rescheduled if we receive a message.
+    return false;
+  }
+
+  // If we are just now blocking, or we received an acquire or a release
+  // message, tell the cycle detector.
+  if(notify || !has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
   {
     cycle_block(actor, &actor->gc);
     set_flag(actor, FLAG_BLOCKED);
-  } else if(has_flag(actor, FLAG_UNSCHEDULED)) {
-    // when unscheduling, don't mark the queue as empty, since we don't want
-    // to get rescheduled if we receive a message
-    return false;
   }
 
   return !messageq_markempty(&actor->q);
@@ -155,6 +158,7 @@ void actor_destroy(pony_actor_t* actor)
   assert(has_flag(actor, FLAG_PENDINGDESTROY));
 
   messageq_destroy(&actor->q);
+  gc_destroy(&actor->gc);
   heap_destroy(&actor->heap);
 
   // Free variable sized actors correctly.
@@ -204,9 +208,9 @@ void actor_final(pony_actor_t* actor)
   this_actor = prev;
 }
 
-void actor_sweep(pony_actor_t* actor)
+void actor_sendrelease(pony_actor_t* actor)
 {
-  gc_sweep(&actor->gc);
+  gc_sendrelease(&actor->gc);
 }
 
 void actor_setsystem(pony_actor_t* actor)
@@ -227,6 +231,7 @@ void actor_setnext(pony_actor_t* actor, pony_actor_t* next)
 pony_actor_t* pony_create(pony_type_t* type)
 {
   assert(type != NULL);
+  pony_actor_t* current = this_actor;
 
   // allocate variable sized actors correctly
   pony_actor_t* actor = (pony_actor_t*)pool_alloc_size(type->size);
@@ -241,13 +246,22 @@ pony_actor_t* pony_create(pony_type_t* type)
   {
     // actors begin unblocked and referenced by the creating actor
     actor->gc.rc = GC_INC_MORE;
-    gc_createactor(&this_actor->gc, actor);
+    gc_createactor(&current->heap, &current->gc, actor);
   } else {
     // no creator, so the actor isn't referenced by anything
     actor->gc.rc = 0;
   }
 
   return actor;
+}
+
+void pony_destroy(pony_actor_t* actor)
+{
+  // This destroy an actor immediately. If any other actor has a reference to
+  // this actor, the program will likely crash.
+  actor_setpendingdestroy(actor);
+  actor_final(actor);
+  actor_destroy(actor);
 }
 
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
@@ -290,25 +304,6 @@ void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i)
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), id);
   m->i = i;
-
-  pony_sendv(to, &m->msg);
-}
-
-void pony_sendd(pony_actor_t* to, uint32_t id, double d)
-{
-  pony_msgd_t* m = (pony_msgd_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_msgd_t)), id);
-  m->d = d;
-
-  pony_sendv(to, &m->msg);
-}
-
-void pony_sendargs(pony_actor_t* to, uint32_t id, int argc, char** argv)
-{
-  pony_main_msg_t* m = (pony_main_msg_t*)pony_alloc_msg(
-    POOL_INDEX(sizeof(pony_main_msg_t)), id);
-  m->argc = argc;
-  m->argv = argv;
 
   pony_sendv(to, &m->msg);
 }

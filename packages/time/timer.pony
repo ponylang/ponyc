@@ -9,14 +9,15 @@ class Timer
   let _notify: TimerNotify
   let _node: ListNode[Timer]
 
-  new create(notify: TimerNotify, expiration: U64, interval: U64 = 0) =>
+  new iso create(notify: TimerNotify iso, expiration: U64, interval: U64 = 0)
+  =>
     """
     Create a new timer. The expiration time should be a nanosecond count
     until the first expiration. The interval should also be in nanoseconds.
     """
     _expiration = expiration + Time.nanos()
     _interval = interval
-    _notify = notify
+    _notify = consume notify
     _node = ListNode[Timer]
     _node() = this
 

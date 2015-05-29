@@ -17,10 +17,14 @@
 #include <errno.h>
 #include <assert.h>
 
-#ifdef PLATFORM_IS_LINUX
+#if defined(PLATFORM_IS_LINUX)
 #include <unistd.h>
-#elif defined PLATFORM_IS_MACOSX
+#elif defined(PLATFORM_IS_MACOSX)
 #include <mach-o/dyld.h>
+#elif defined(PLATFORM_IS_FREEBSD)
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #endif
 
 
@@ -253,9 +257,10 @@ static const char* id_to_string(const char* prefix, size_t id)
     prefix = "";
 
   size_t len = strlen(prefix);
-  VLA(char, buffer, len + 32);
-  snprintf(buffer, len + 32, "%s$"__zu, prefix, id);
-  return stringtab(buffer);
+  size_t buf_size = len + 32;
+  char* buffer = (char*)pool_alloc_size(buf_size);
+  snprintf(buffer, buf_size, "%s$" __zu, prefix, id);
+  return stringtab_consume(buffer, buf_size);
 }
 
 
@@ -289,7 +294,8 @@ static const char* string_to_symbol(const char* string)
   }
 
   size_t len = strlen(string);
-  VLA(char, buf, len + prefix + 1);
+  size_t buf_size = len + prefix + 1;
+  char* buf = (char*)pool_alloc_size(buf_size);
   memcpy(buf + prefix, string, len + 1);
 
   if(prefix)
@@ -313,17 +319,18 @@ static const char* string_to_symbol(const char* string)
     }
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
 }
 
 
 static const char* symbol_suffix(const char* symbol, size_t suffix)
 {
   size_t len = strlen(symbol);
-  VLA(char, buf, len + 32);
-  snprintf(buf, len + 32, "%s" __zu, symbol, suffix);
+  size_t buf_size = len + 32;
+  char* buf = (char*)pool_alloc_size(buf_size);
+  snprintf(buf, buf_size, "%s" __zu, symbol, suffix);
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
 }
 
 
@@ -443,6 +450,16 @@ static void add_exec_dir()
 
   if(success)
     path[r] = '\0';
+#elif defined PLATFORM_IS_FREEBSD
+  int mib[4];
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = -1;
+
+  size_t len = FILENAME_MAX;
+  int r = sysctl(mib, 4, path, &len, NULL, 0);
+  success = (r == 0);
 #elif defined PLATFORM_IS_MACOSX
   char exec_path[FILENAME_MAX];
   uint32_t size = sizeof(exec_path);
@@ -502,7 +519,6 @@ bool package_init(pass_opt_t* opt)
 
   package_add_paths(getenv("PONYPATH"));
   add_exec_dir();
-  use_register_std();
 
   // Convert all the safe packages to their full paths.
   strlist_t* full_safe = NULL;
@@ -772,7 +788,6 @@ void package_done(pass_opt_t* opt)
   safe = NULL;
 
   package_clear_magic();
-  use_clear_handlers();
 
   print_errors();
   free_errors();

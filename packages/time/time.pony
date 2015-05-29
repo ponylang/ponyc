@@ -13,7 +13,7 @@ primitive Time
       var ts: (I64, I64) = (0, 0)
       @gettimeofday[I32](&ts, U64(0))
       (ts._1, ts._2 * 1000)
-    elseif Platform.linux() then
+    elseif Platform.linux() or Platform.freebsd() then
       var ts: (I64, I64) = (0, 0)
       @clock_gettime[I32](U64(0), &ts)
       ts
@@ -41,7 +41,7 @@ primitive Time
     """
     if Platform.osx() then
       @mach_absolute_time[U64]() / 1000000
-    elseif Platform.linux() then
+    elseif Platform.linux() or Platform.freebsd() then
       var ts: (U64, U64) = (0, 0)
       @clock_gettime[I32](U64(1), &ts)
       (ts._1 * 1000) + (ts._2 / 1000000)
@@ -63,7 +63,7 @@ primitive Time
     """
     if Platform.osx() then
       @mach_absolute_time[U64]() / 1000
-    elseif Platform.linux() then
+    elseif Platform.linux() or Platform.freebsd() then
       var ts: (U64, U64) = (0, 0)
       @clock_gettime[I32](U64(1), &ts)
       (ts._1 * 1000000) + (ts._2 / 1000)
@@ -85,7 +85,7 @@ primitive Time
     """
     if Platform.osx() then
       @mach_absolute_time[U64]()
-    elseif Platform.linux() then
+    elseif Platform.linux() or Platform.freebsd() then
       var ts: (U64, U64) = (0, 0)
       @clock_gettime[I32](U64(1), &ts)
       (ts._1 * 1000000000) + ts._2

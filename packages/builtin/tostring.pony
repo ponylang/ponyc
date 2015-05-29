@@ -5,6 +5,24 @@ interface Stringable box
   fun string(fmt: FormatDefault = FormatDefault,
     prefix: PrefixDefault = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
+    """
+    Generate a string representation of this object.
+
+    * fmt. Format to use. Since this must be valid for all Stringable types
+    this must be set to FormatDefault.
+    * prefix. Prefix to use. Since this must be valid for all Stringable types
+    this must be set to PrefixDefault.
+    * prec. Precision to use. The exact meaning of this depends on the type,
+    but is generally the number of characters used for all, or part, of the
+    string. A value of -1 indicates that the default for the type should be
+    used.
+    * width. The minimum number of characters that will be in the produced
+    string. If necessary the string will be padded with the fill character to
+    make it long enough.
+    *align. Specify whether fill characters should be added at the beginning or
+    end of the generated string, or both.
+    *fill: The character to pad a string with if is is shorter than width.
+    """
 
 primitive FormatDefault
 primitive PrefixDefault
@@ -136,22 +154,25 @@ primitive ToString
 
     (var base: U64, var typestring: String, var table: String) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
+    var prec' = if prec == -1 then 0 else prec end
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
-      var i: I64 = 0
 
       try
-        while value != 0 do
-          let index = ((value = value / base) - (value * base))
-          s.push(table(index))
-          i = i + 1
+        if value == 0 then
+          s.push(table(0))
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base))
+            s.push(table(index))
+          end
         end
       end
 
       s.append(typestring)
-      _extend_digits(s, prec)
+      _extend_digits(s, prec')
       s.append(prestring)
       _pad(s, width, align, fill)
       s
@@ -168,22 +189,25 @@ primitive ToString
     (var base': U64, var typestring: String, var table: String) = _fmt_int(fmt)
     var prestring = _prefix(neg, prefix)
     var base = base'.u128()
+    var prec' = if prec == -1 then 0 else prec end
 
     recover
-      var s = String((prec + 1).max(width.max(31)))
+      var s = String((prec' + 1).max(width.max(31)))
       var value = x
-      var i: I64 = 0
 
       try
-        while value != 0 do
-          let index = ((value = value / base) - (value * base)).u64()
-          s.push(table(index))
-          i = i + 1
+        if value == 0 then
+          s.push(table(0))
+        else
+          while value != 0 do
+            let index = ((value = value / base) - (value * base)).u64()
+            s.push(table(index))
+          end
         end
       end
 
       s.append(typestring)
-      _extend_digits(s, prec)
+      _extend_digits(s, prec')
       s.append(prestring)
       _pad(s, width, align, fill)
       s
@@ -194,12 +218,14 @@ primitive ToString
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     // TODO: prefix, align, fill
+    var prec' = if prec == -1 then 6 else prec end
+
     recover
-      var s = String((prec + 8).max(width.max(31)))
+      var s = String((prec' + 8).max(width.max(31)))
       var f = String(31).append("%")
 
       if width > 0 then f.append(width.string()) end
-      f.append(".").append(prec.string())
+      f.append(".").append(prec'.string())
 
       match fmt
       | FloatExp => f.append("e")

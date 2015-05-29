@@ -13,26 +13,31 @@
  *     provides. These methods are sorted into a list per method name.
  *
  * 2.  For each method name M we found in stage 1 we perform one of two
- *     actions, depending on whether T contains a local definition of M.
+ *     checks, depending on whether T contains a local definition of M.
  *
  * 2A. If T does contain a local definition of M then we check that all the
- *     methods from stage 1 with name M are a super types of T.M. Any that are
+ *     methods from stage 1 with name M are super types of T.M. Any that are
  *     not are flagged as errors.
  *
- * 2B. If T does not contain a local definition of M then we find the most
- *     general method G from the list found in stage 1. The most general method
- *     is any that is a sub type of all other methods in the list. It is an
- *     error if no such method exists. Method G is added to type T.
+ * 2B. If T does not contain a local definition of M then we check that all
+ *     methods from stage 1 with name M have exactly the same signature, with
+ *     no contra- or co-variance. Any differing methods are flagged as errors.
+ *     One of these methods is added to type T (it doesn't matter which since
+ *     they are all identical).
  *
  * 3.  For each method name M we found in stage 1 we now find a suitable body.
  *     If T contains a local body definition that is used. Otherwise we find
- *     all methods in the list from stage 1 that have exactly the same type as
- *     T.M and which provide a body. Each body is tagged with the trait it
- *     originated from, so diamond inheritance only counts as a single body.
- *     If there are no such bodies then T gets no body, this is fine for traits
- *     but not for concrete types.
- *     If there are multiple such bodies then T is marked as having a body
+ *     all methods in the list from stage 1 that provide a body. Each body is
+ *     tagged with the trait it originated from, so diamond inheritance only
+ *     counts as a single body.
+ *     If there are no bodies then T gets no body, this is fine for traits but
+ *     not for concrete types.
+ *     If there are multiple bodies then T is marked as having a body
  *     ambiguity. Again this is fine for traits but not for concrete types.
+ *     If there is exactly one body, and that body has the same signature as
+ *     T.M, then T gets that body. This is the only legal option for concrete
+ *     types. If there is one body, but it has a different signature to that
+ *     provided by the trait then the method gets no body.
  *
  * 4.  If T is a concrete type we check that all its methods have exactly one
  *     body each.
@@ -99,6 +104,7 @@ static bool add_method_to_list(ast_t* method, methods_t* method_info,
 
 // Add all methods from the provides list of the given entity into lists in the
 // given symbol table.
+// Stage 1 in the comment at the start of this file.
 static bool collate_provided(ast_t* entity, methods_t* method_info)
 {
   assert(entity != NULL);
@@ -112,9 +118,11 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
     ast_t* trait_def = (ast_t*)ast_data(t);
     assert(trait_def != NULL);
 
-    // TODO: Check whether we need an error here
     if((ast_id(trait_def) != TK_TRAIT) && (ast_id(trait_def) != TK_INTERFACE))
+    {
+      ast_error(t, "type \"is\" list can only contain traits and interfaces");
       return false;
+    }
 
     // Check for duplicates in our provides list
     // This is just simple compare of each entry against all the other. This is
@@ -141,6 +149,10 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
       // Reify the method with the type parameters from trait definition and
       // the reified type arguments from trait reference
       ast_t* r_method = reify(type_args, m, type_params, type_args);
+
+      if(r_method == NULL)  // Reification error already reported
+        return false;
+
       const char* entity_name = ast_name(ast_child(entity));
 
       if(ast_id(r_method) == TK_BE || ast_id(r_method) == TK_NEW)
@@ -163,46 +175,35 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
 }
 
 
-// Find the most general method from the given list (if any)
-// Return NULL if no most general found
-static ast_t* most_general_method(ast_t* list, ast_t* entity, const char* name)
+// Check that all methods in the given list have the same signature.
+// Stage 2B in the comment at the start of this file.
+// Return any method from the list, NULL on error
+static ast_t* check_same_sig(ast_t* list, ast_t* entity, const char* name)
 {
   assert(list != NULL);
   assert(entity != NULL);
   assert(name != NULL);
 
-  for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
+  ast_t* comparand = ast_child(list);
+  assert(comparand != NULL);
+
+  for(ast_t* p = ast_sibling(comparand); p != NULL; p = ast_sibling(p))
   {
-    bool is_p_best = true;
-
-    for(ast_t* q = ast_child(list); q != NULL; q = ast_sibling(q))
+    if(!is_eqtype(comparand, p))
     {
-      if(ast_id(p) != ast_id(q))
-      {
-        ast_error(entity, "Clashing types for method %s provided by traits",
-          name);
-        return NULL;
-      }
-
-      if(!is_subtype(p, q))
-      {
-        // p is less general than q
-        is_p_best = false;
-        break;
-      }
+      ast_error(entity, "Clashing types for method %s provided by traits",
+        name);
+      return NULL;
     }
-
-    if(is_p_best)
-      return p;
   }
 
-  ast_error(entity, "Clashing types for method %s provided by traits", name);
-  return NULL;
+  return comparand;
 }
 
 
 // Check that all the methods in the given list are compatible with the given
-// method
+// method.
+// Stage 2A in the comment at the start of this file.
 static bool methods_compatible(ast_t* list, ast_t* method, const char* name,
   ast_t* entity)
 {
@@ -230,36 +231,46 @@ static bool methods_compatible(ast_t* list, ast_t* method, const char* name,
 
 
 // Attach the appropriate body (if any) from the given method list to the given
-// entity method
+// entity method.
+// Stage 3 in the comment at the start of this file.
 static void attach_body_from_list(ast_t* list, ast_t* entity_method)
 {
   assert(list != NULL);
   assert(entity_method != NULL);
 
-  void* data = ast_data(entity_method);
+  // The data field of an entity method contains a pointer to the entity that
+  // provided the method body used
+  void* body_entity = ast_data(entity_method);
+  ast_t* body_method = NULL;
 
   for(ast_t* p = ast_child(list); p != NULL; p = ast_sibling(p))
   {
-    void* p_data = ast_data(p);
+    void* p_body_entity = ast_data(p);
 
-    if(p_data != NULL && p_data != data && is_eqtype(entity_method, p))
+    if(p_body_entity != NULL && p_body_entity != body_entity)
     {
       // p has a valid (and different) body
 
-      if(data != NULL || p_data == BODY_AMBIGUOUS)
+      if(body_entity != NULL || p_body_entity == BODY_AMBIGUOUS)
       {
         // Multiple possible bodies
         ast_setdata(entity_method, BODY_AMBIGUOUS);
         return;
       }
 
-      // This is the first valid body, use it
-      ast_t* old_body = ast_childidx(entity_method, 6);
-      assert(ast_id(old_body) == TK_NONE);
-      ast_replace(&old_body, ast_childidx(p, 6));
-      ast_setdata(entity_method, p_data);
-      data = p_data;
+      // This is the first valid body, remember it
+      body_method = p;
+      body_entity = p_body_entity;
     }
+  }
+
+  if(body_method != NULL && is_eqtype(entity_method, body_method))
+  {
+    // We have a new body to use
+    ast_t* old_body = ast_childidx(entity_method, 6);
+    assert(ast_id(old_body) == TK_NONE);
+    ast_replace(&old_body, ast_childidx(body_method, 6));
+    ast_setdata(entity_method, body_entity);
   }
 }
 
@@ -283,12 +294,12 @@ static bool process_method_name(ast_t* list, ast_t* entity)
       return false;
   } else {
     // Method is not defined in entity
-    existing = most_general_method(list, entity, name);
+    existing = check_same_sig(list, entity, name);
 
     if(existing == NULL)
       return false;
 
-    // Add the most general method from the list to the entity
+    // Add the given method from the list to the entity
     existing = ast_dup(existing);
     ast_append(ast_childidx(entity, 4), existing);
     ast_set(entity, name, existing, SYM_NONE);
@@ -417,7 +428,8 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 
 
 // Check resulting methods are compatible with the containing entity and patch
-// up symbol tables
+// up symbol tables.
+// Stage 4 in the comment at the start of this file.
 static bool post_process_methods(ast_t* entity, pass_opt_t* options,
   bool is_concrete)
 {
@@ -442,7 +454,8 @@ static bool post_process_methods(ast_t* entity, pass_opt_t* options,
           break;
 
         case TK_CLASS:
-          ast_error(entity, "classes can't have provide that have behaviours");
+          ast_error(entity,
+            "classes can't provide traits that have behaviours");
           r = false;
           break;
 
@@ -489,6 +502,27 @@ static bool post_process_methods(ast_t* entity, pass_opt_t* options,
 }
 
 
+// Setup the type, or lack thereof, for local variable declarations.
+// This is not really anything to do with traits, but must be done before the
+// expr pass (to allow initialisation references to the variable type) but
+// after the name pass (to get temporal capabilities).
+static void local_types(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  // Setup type or mark as inferred now to allow calling create on a
+  // non-inferred local to initialise itself
+  AST_GET_CHILDREN(ast, id, type);
+  assert(type != NULL);
+
+  if(ast_id(type) == TK_NONE)
+    type = ast_from(id, TK_INFERTYPE);
+
+  ast_settype(id, type);
+  ast_settype(ast, type);
+}
+
+
 ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 {
   ast_t* ast = *astp;
@@ -510,6 +544,11 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
         !post_process_methods(ast, options, true))
         return AST_ERROR;
 
+      break;
+
+    case TK_LET:
+    case TK_VAR:
+      local_types(ast);
       break;
 
     default:

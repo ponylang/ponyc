@@ -137,6 +137,8 @@ typedef enum token_id
   TK_OR,
   TK_XOR,
 
+  TK_IDENTITY,
+
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
   TK_PACKAGE,
@@ -157,6 +159,7 @@ typedef enum token_id
   TK_BOXTYPE,
   TK_FUNTYPE,
   TK_INFERTYPE,
+  TK_ERRORTYPE,
 
   TK_ISO_BIND,
   TK_TRN_BIND,
@@ -190,7 +193,6 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
-  TK_IDENTITY,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -211,6 +213,7 @@ typedef enum token_id
 
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros
+  TK_FLATTEN,  // Used by parser macros for tree building
 
   // Token types for testing
   TK_TEST,
@@ -282,9 +285,6 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
-/// Report whether the given token is the first on a line
-bool token_is_first_on_line(token_t* token);
-
 /// Report whether debug info should be genreated.
 bool token_debug(token_t* token);
 
@@ -314,9 +314,6 @@ void token_set_pos(token_t* token, size_t line, size_t pos);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);
-
-/// Set that the given token is the first on a line
-void token_set_first_on_line(token_t* token);
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

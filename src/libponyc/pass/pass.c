@@ -3,6 +3,7 @@
 #include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
+#include "import.h"
 #include "names.h"
 #include "flatten.h"
 #include "traits.h"
@@ -38,6 +39,7 @@ const char* pass_name(pass_id pass)
     case PASS_SYNTAX: return "syntax";
     case PASS_SUGAR: return "sugar";
     case PASS_SCOPE: return "scope";
+    case PASS_IMPORT: return "import";
     case PASS_NAME_RESOLUTION: return "name";
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
@@ -161,6 +163,9 @@ bool program_passes(ast_t* program, pass_opt_t* options)
 {
   bool r;
 
+  if(do_pass(&program, &r, options, PASS_IMPORT, pass_import, NULL))
+    return r;
+
   if(do_pass(&program, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
     return r;
 
@@ -170,7 +175,7 @@ bool program_passes(ast_t* program, pass_opt_t* options)
   if(do_pass(&program, &r, options, PASS_TRAITS, pass_traits, NULL))
     return r;
 
-  if(do_pass(&program, &r, options, PASS_EXPR, NULL, pass_expr))
+  if(do_pass(&program, &r, options, PASS_EXPR, pass_pre_expr, pass_expr))
     return r;
 
   if(options->limit >= PASS_EXPR)

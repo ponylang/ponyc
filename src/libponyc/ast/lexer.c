@@ -156,6 +156,8 @@ static const lextoken_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
+  { "identityof", TK_IDENTITY },
+
   { "true", TK_TRUE },
   { "false", TK_FALSE },
 
@@ -185,13 +187,14 @@ static const lextoken_t abstract[] =
   { "boxtype", TK_BOXTYPE },
   { "funtype", TK_FUNTYPE },
   { "infer", TK_INFERTYPE },
+  { "errortype", TK_ERRORTYPE },
 
   { "iso", TK_ISO_BIND },
   { "trn", TK_TRN_BIND },
   { "ref", TK_REF_BIND },
   { "val", TK_VAL_BIND },
   { "box", TK_BOX_BIND },
-  { "trn", TK_TAG_BIND },
+  { "tag", TK_TAG_BIND },
   { "any", TK_ANY_BIND },
 
   { "boxgen", TK_BOX_GENERIC },
@@ -220,7 +223,6 @@ static const lextoken_t abstract[] =
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY_NO_CHECK },
-  { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
@@ -409,6 +411,7 @@ static token_t* nested_comment(lexer_t* lexer)
     }
   }
 
+  lexer->newline = false;
   return NULL;
 }
 
@@ -880,6 +883,13 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
     char c = look(lexer);
     uint32_t digit = 0;
 
+    if(c == '_')
+    {
+      // Ignore underscores in numbers
+      consume_chars(lexer, 1);
+      continue;
+    }
+
     if(end_on_e && ((c == 'e') || (c == 'E')))
       break;
 
@@ -1243,9 +1253,6 @@ token_t* lexer_next(lexer_t* lexer)
         }
     }
   }
-
-  if(lexer->newline)
-    token_set_first_on_line(t);
 
   lexer->newline = false; // We've found a symbol, so no longer a new line
   return t;

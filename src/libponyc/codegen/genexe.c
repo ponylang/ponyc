@@ -5,99 +5,17 @@
 #include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
+#include <assert.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
-#endif
-
-#if defined(PLATFORM_IS_LINUX)
-
-#ifdef USE_NUMA
-  #define NUMA_LIB "-lnuma"
-#else
-  #define NUMA_LIB ""
-#endif
-
-static bool file_exists(const char* filename)
-{
-  struct stat s;
-  int err = stat(filename, &s);
-
-  return (err != -1) && S_ISREG(s.st_mode);
-}
-
-/** Searches directories for a file.
- *  Each dir_pattern is expanded:
- *     %r => sysroot
- *     %t => target triple
- *  Stores the first directory found containing the file in ret[]
- *  with trailing / and returns true. Returns false if not found.
- */
-static bool find_directory(compile_t *c, const char **dir_patterns,
-  const char *filename, char ret[static PATH_MAX])
-{
-  for(const char** dp = dir_patterns; *dp != NULL; dp++)
-  {
-    char *r = ret;
-    char *endr = ret + PATH_MAX;
-    const char *p;
-    for(p = *dp; *p; p++)
-    {
-      if(*p == '%' && *(p + 1))
-        switch(*++p) {
-	case 't':
-	  r += snprintf(r, endr - r, "%s", c->opt->triple);
-	  break;
-	case '%':
-          if(r + 1 < endr)
-	    *r++ = '%';
-	  break;
-	default:
-	  abort();
-	}
-      else if(r + 1 < endr)
-        *r++ = *p;
-    }
-    if (r + 1 + strlen(filename) < endr) {
-      snprintf(r, endr - r, "/%s", filename);
-      if(file_exists(ret)) {
-        *(r + 1) = '\0';
-	return true;
-      }
-    }
-  }
-  return false;
-}
-
-static bool crt_directory(compile_t *c, char ret[static PATH_MAX])
-{
-  static const char* dir_patterns[] =
-  {
-    "/usr/lib/%t",
-    "/usr/lib64",
-    "/usr/lib",
-    NULL
-  };
-  return find_directory(c, dir_patterns, "crt1.o", ret);
-}
-
-static bool gccs_directory(compile_t *c, char ret[static PATH_MAX])
-{
-  static const char* dir_patterns[] =
-  {
-    "/lib/%t",
-    "/lib64",
-    "/lib",
-    NULL
-  };
-  return find_directory(c, dir_patterns, "libgcc_s.so.1", ret);
-}
 #endif
 
 static const char* get_link_path()
@@ -119,7 +37,8 @@ static const char* get_link_path()
     paths = strlist_next(paths);
   }
 
-  VLA(char, buf, len + 1);
+  size_t buf_size = len + 1;
+  char* buf = (char*)pool_alloc_size(buf_size);
   char* p = buf;
   paths = package_paths();
 
@@ -145,7 +64,58 @@ static const char* get_link_path()
     paths = strlist_next(paths);
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, buf_size);
+}
+
+static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
+{
+  size_t count = 1;
+
+  if(arg != NULL)
+    count++;
+
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    ast_t* def = (ast_t*)ast_data(t->type);
+
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
+
+    reachable_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    gentype_t g;
+
+    if(!gentype(c, t->type, &g))
+    {
+      assert(0);
+      return;
+    }
+
+    LLVMValueRef fun = genfun_proto(c, &g, method, NULL);
+    assert(fun != NULL);
+
+    LLVMValueRef args[2];
+    args[0] = g.instance;
+    args[1] = arg;
+
+    codegen_call(c, fun, args, count);
+  }
+}
+
+static LLVMValueRef create_main(compile_t* c, gentype_t* g)
+{
+  // Create the main actor and become it.
+  LLVMValueRef actor = gencall_create(c, g);
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, actor, c->object_ptr, "");
+  gencall_runtime(c, "pony_become", &object, 1, "");
+
+  return object;
 }
 
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
@@ -174,9 +144,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef m = gencall_create(c, main_g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
+  LLVMValueRef main_actor = create_main(c, main_g);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
@@ -191,6 +159,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
   LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
+  // Run primitive initialisers using the main actor's heap.
+  primitive_call(c, stringtab("_init"), env);
+
   // Create a type for the message.
   LLVMTypeRef f_params[4];
   f_params[0] = c->i32;
@@ -202,8 +173,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
-    NULL);
+  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
 
   size_t msg_size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, msg_type));
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
@@ -225,13 +195,20 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   gencall_runtime(c, "pony_send_done", NULL, 0, "");
 
   // Send the message.
-  args[0] = object;
+  args[0] = main_actor;
   args[1] = msg;
   gencall_runtime(c, "pony_sendv", args, 2, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+
+  // Run primitive finalisers. We create a new main actor as a context to run
+  // the finalisers in, but we do not initialise or schedule it.
+  LLVMValueRef final_actor = create_main(c, main_g);
+  primitive_call(c, stringtab("_final"), NULL);
+  args[0] = final_actor;
+  gencall_runtime(c, "pony_destroy", args, 1, "");
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -254,62 +231,57 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
-
-  size_t len = (arch - c->opt->triple);
-  VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, c->opt->triple, len);
-  arch_buf[len] = '\0';
 
   program_lib_build_args(program, "", "", "-l", "");
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
+  size_t arch_len = arch - c->opt->triple;
+  size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
     strlen(lib_args) + strlen(link_path);
-  VLA(char, ld_cmd, ld_len);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
+    "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
     "-o %s %s %s %s -lponyrt -lSystem",
-    arch_buf, file_exe, file_o, lib_args, link_path
+    (int)arch_len, c->opt->triple,
+    file_exe, file_o, lib_args, link_path
     );
 
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
 
-  size_t dsym_len = 16 + strlen(file_exe);
-  VLA(char, dsym_cmd, dsym_len);
+  pool_free_size(ld_len, ld_cmd);
 
-  snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
-  system(dsym_cmd);
+  if(!c->opt->strip_debug)
+  {
+    size_t dsym_len = 16 + strlen(file_exe);
+    char* dsym_cmd = (char*)pool_alloc_size(dsym_len);
 
-  snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+    system(dsym_cmd);
 
-  if(system(dsym_cmd) != 0)
-    errorf(NULL, "unable to create dsym");
+    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
-#elif defined(PLATFORM_IS_LINUX)
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+    if(system(dsym_cmd) != 0)
+      errorf(NULL, "unable to create dsym");
+
+    pool_free_size(dsym_len, dsym_cmd);
+  }
+
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
-
-  char crt_dir[PATH_MAX];
-  char gccs_dir[PATH_MAX];
-
-  if (!crt_directory(c, crt_dir) ||
-      !gccs_directory(c, gccs_dir))
-  {
-    errorf(NULL, "could not find CRT");
-    return false;
-  }
 
   char ld_cmd[2048];
   char *ld_ptr = ld_cmd, *end = ld_cmd + sizeof ld_cmd;
@@ -319,19 +291,13 @@ static bool link_exe(compile_t* c, ast_t* program,
   ld_printf("${HOSTCC-gcc}");
   //ld_printf(" --eh-frame-hdr --hash-style=gnu");
   ld_printf(" -o %s", file_exe);
-  //ld_printf(" %scrt1.o", crt_dir);
-  //ld_printf(" %scrti.o", crt_dir);
   ld_printf(" %s", file_o);
   ld_printf(" %s", link_path);
   ld_printf(" %s", lib_args);
   ld_printf(" -lponyrt");
-  ld_printf(" %s", NUMA_LIB);
   ld_printf(" -L/usr/lib/llvm-3.6/lib -lLLVM-3.6");
   ld_printf(" -lpthread");
   ld_printf(" -lm");
-  //ld_printf(" -lc");
-  //ld_printf(" %slibgcc_s.so.1", gccs_dir);
-  //ld_printf(" %scrtn.o", crt_dir);
   ld_printf(" -Wl,-t"); /* trace */
   /*ld_printf(" -m elf_x86_64");*/
   /*ld_printf(" -dynamic-linker /lib64/ld-linux-x86-64.so.2");*/
@@ -350,6 +316,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     errorf(NULL, "unable to link");
     return false;
   }
+
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
@@ -359,7 +326,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, ".exe");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
+    ".exe");
   printf("Linking %s\n", file_exe);
 
   program_lib_build_args(program, "", "", "", ".lib");
@@ -369,10 +337,10 @@ static bool link_exe(compile_t* c, ast_t* program,
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
     strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
     strlen(lib_args);
-  VLA(char, ld_cmd, ld_len);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "cmd /C \"\"%s\" /DEBUG /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
     "/OUT:%s "
     "%s "
     "/LIBPATH:\"%s\" "
@@ -384,8 +352,11 @@ static bool link_exe(compile_t* c, ast_t* program,
   if(system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 #endif
 
   return true;
@@ -410,6 +381,7 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
+  genprim_reachable_init(c, program);
   reach(c->reachable, main_ast, stringtab("create"), NULL);
   reach(c->reachable, env_ast, stringtab("_create"), NULL);
   paint(c->reachable);

@@ -2,11 +2,9 @@ use "net"
 
 class ServerSide is TCPConnectionNotify
   let _env: Env
-  let _listen: TCPListener
 
-  new iso create(env: Env, listen: TCPListener) =>
+  new iso create(env: Env) =>
     _env = env
-    _listen = listen
 
   fun ref accepted(conn: TCPConnection ref) =>
     try
@@ -18,7 +16,6 @@ class ServerSide is TCPConnectionNotify
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     _env.out.print(consume data)
     conn.dispose()
-    _listen.dispose()
 
   fun ref closed(conn: TCPConnection ref) =>
     _env.out.print("server closed")

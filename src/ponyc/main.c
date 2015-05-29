@@ -109,7 +109,6 @@ static void usage()
     "  --stats         Print some compiler stats.\n"
     "  --print-paths   Print search paths.\n"
     "\n"
-
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
@@ -134,6 +133,24 @@ static void usage()
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
     "\n"
+    "Runtime options for Pony programs (not for use with ponyc):\n"
+    "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
+    "                  cores (not hyperthreads) available.\n"
+    "  --ponycdmin     Defer cycle detection until 2^N actors have blocked.\n"
+    "                  Defaults to 2^4.\n"
+    "  --ponycdmax     Always cycle detect when 2^N actors have blocked.\n"
+    "                  Defaults to 2^18.\n"
+    "  --ponycdconf    Send cycle detection CNF messages in groups of 2^N.\n"
+    "                  Defaults to 2^6.\n"
+    "  --ponygcinitial Defer garbage collection until an actor is using at\n"
+    "                  least 2^N bytes. Defaults to 2^14.\n"
+    "  --ponygcfactor  After GC, an actor will next be GC'd at a heap memory\n"
+    "                  usage N times its current value. This is a floating\n"
+    "                  point value. Defaults to 2.0.\n"
+    "  --ponysched     Use an alternate scheduling algorithm.\n"
+    "    =mpmcq        The default scheduler.\n"
+    "    =coop         An experimental cooperative scheduler.\n"
+    "  --ponynoyield   Do not yield the CPU when no work is available.\n"
     );
 }
 
@@ -264,6 +281,10 @@ int main(int argc, char* argv[])
     }
   }
 
+#ifdef PLATFORM_IS_WINDOWS
+  opt.strip_debug = true;
+#endif
+
   if(!ok)
   {
     print_errors();
@@ -290,6 +311,9 @@ int main(int argc, char* argv[])
         ok &= compile_package(argv[i], &opt, print_ast);
     }
   }
+
+  if(!ok && get_error_count() == 0)
+    printf("Error: internal failure not reported\n");
 
   package_done(&opt);
   pass_opt_done(&opt);

@@ -241,14 +241,14 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     ast_t* arg_type = ast_type(arg);
 
+    if(is_typecheck_error(arg_type))
+      return false;
+
     if(is_control_type(arg_type))
     {
       ast_error(arg, "can't use a control expression in an argument");
       return false;
     }
-
-    if(is_typecheck_error(arg_type))
-      return false;
 
     ast_t* a_type = alias(arg_type);
 

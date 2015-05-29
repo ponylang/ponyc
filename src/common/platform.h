@@ -22,6 +22,8 @@
 #  define PLATFORM_IS_MACOSX
 #elif defined(__linux__)
 #  define PLATFORM_IS_LINUX
+#elif defined(__FreeBSD__)
+#  define PLATFORM_IS_FREEBSD
 #elif defined(_WIN64)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
@@ -84,7 +86,7 @@
 #  error PLATFORM NOT SUPPORTED!
 #endif
 
-#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX)
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_LINUX) || defined (PLATFORM_IS_FREEBSD)
 #  define PLATFORM_IS_POSIX_BASED
 #endif
 
@@ -220,7 +222,6 @@ static __declspec(thread) DWORD lsb;
 
 #include "atomics.h"
 #include "threads.h"
-#include "alloc.h"
 #include "paths.h"
 
 #if defined(PLATFORM_IS_WINDOWS)

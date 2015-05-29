@@ -10,11 +10,6 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#define CYCLE_MIN_DEFERRED (1 << 4)
-#define CYCLE_MAX_DEFERRED (1 << 20)
-#define CYCLE_CONF_GROUP 32
-#define CYCLE_CONF_MASK (CYCLE_CONF_GROUP - 1)
-
 enum
 {
   CYCLE_INIT,
@@ -23,6 +18,14 @@ enum
   CYCLE_ACK,
   CYCLE_TERMINATE
 };
+
+typedef struct init_msg_t
+{
+  pony_msg_t msg;
+  uint32_t min_deferred;
+  uint32_t max_deferred;
+  uint32_t conf_group;
+} init_msg_t;
 
 typedef struct block_msg_t
 {
@@ -63,7 +66,7 @@ DECLARE_HASHMAP(viewrefmap, viewref_t);
 DEFINE_HASHMAP(viewrefmap, viewref_t, viewref_hash, viewref_cmp,
   pool_alloc_size, pool_free_size, viewref_free);
 
-typedef enum
+enum
 {
   COLOR_BLACK,
   COLOR_GREY,
@@ -74,9 +77,10 @@ struct view_t
 {
   pony_actor_t* actor;
   size_t rc;
+  uint32_t view_rc;
   bool blocked;
   bool deferred;
-  color_t color;
+  uint8_t color;
   viewrefmap_t map;
   deltamap_t* delta;
   perceived_t* perceived;
@@ -94,8 +98,13 @@ static bool view_cmp(view_t* a, view_t* b)
 
 static void view_free(view_t* view)
 {
-  viewrefmap_destroy(&view->map);
-  POOL_FREE(view_t, view);
+  view->view_rc--;
+
+  if(view->view_rc == 0)
+  {
+    viewrefmap_destroy(&view->map);
+    POOL_FREE(view_t, view);
+  }
 }
 
 // no element free for a viewmap. views are kept in many maps.
@@ -136,6 +145,9 @@ typedef struct detector_t
   pony_actor_pad_t pad;
 
   size_t next_token;
+  size_t min_deferred;
+  size_t max_deferred;
+  size_t conf_group;
   size_t next_deferred;
   size_t since_deferred;
 
@@ -166,6 +178,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view = (view_t*)POOL_ALLOC(view_t);
     memset(view, 0, sizeof(view_t));
     view->actor = actor;
+    view->view_rc = 1;
 
     viewmap_put(&d->views, view);
   }
@@ -209,6 +222,7 @@ static void apply_delta(detector_t* d, view_t* view)
         ref = (viewref_t*)POOL_ALLOC(viewref_t);
         ref->view = find;
         viewrefmap_put(&view->map, ref);
+        find->view_rc++;
       }
 
       ref->rc = rc;
@@ -216,7 +230,10 @@ static void apply_delta(detector_t* d, view_t* view)
       viewref_t* ref = viewrefmap_remove(&view->map, &key);
 
       if(ref != NULL)
+      {
         viewref_free(ref);
+        view_free(find);
+      }
     }
   }
 
@@ -226,7 +243,7 @@ static void apply_delta(detector_t* d, view_t* view)
 
 static bool mark_grey(detector_t* d, view_t* view, size_t rc)
 {
-  if(!view->blocked)
+  if(!view->blocked || (view->actor == NULL))
     return false;
 
   // apply any stored reference delta
@@ -273,7 +290,7 @@ static void scan_grey(detector_t* d, view_t* view, size_t rc)
 
 static bool mark_black(view_t* view, size_t rc, int* count)
 {
-  if(!view->blocked)
+  if(!view->blocked || (view->actor == NULL))
   {
     assert(view->color == COLOR_BLACK);
     return false;
@@ -402,7 +419,7 @@ static int collect_white(perceived_t* per, view_t* view, size_t rc)
   return count;
 }
 
-static void send_conf(perceived_t* per)
+static void send_conf(detector_t* d, perceived_t* per)
 {
   size_t i = per->last_conf;
   size_t count = 0;
@@ -413,7 +430,7 @@ static void send_conf(perceived_t* per)
     pony_sendi(view->actor, ACTORMSG_CONF, per->token);
     count++;
 
-    if(count == CYCLE_CONF_GROUP)
+    if(count == d->conf_group)
       break;
   }
 
@@ -444,7 +461,7 @@ static bool detect(detector_t* d, view_t* view)
   assert(count2 == count);
   assert(viewmap_size(&per->map) == (size_t)count);
 
-  send_conf(per);
+  send_conf(d, per);
   return true;
 }
 
@@ -454,30 +471,35 @@ static void deferred(detector_t* d)
     return;
 
   d->attempted++;
-  d->since_deferred = 0;
 
+  bool found = false;
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  if((view = viewmap_next(&d->deferred, &i)) != NULL)
+  while((view = viewmap_next(&d->deferred, &i)) != NULL)
   {
     assert(view->deferred == true);
     viewmap_removeindex(&d->deferred, i);
     view->deferred = false;
 
-    if(detect(d, view))
-    {
-      d->detected++;
+    if(!detect(d, view))
+      break;
 
-      if(d->next_deferred > CYCLE_MIN_DEFERRED)
-        d->next_deferred >>= 1;
-
-      return;
-    }
+    found = true;
   }
 
-  if(d->next_deferred < CYCLE_MAX_DEFERRED)
-    d->next_deferred <<= 1;
+  if(found)
+  {
+    if(d->next_deferred > d->min_deferred)
+      d->next_deferred >>= 1;
+
+    d->detected++;
+  } else {
+    if(d->next_deferred < d->max_deferred)
+      d->next_deferred <<= 1;
+
+    d->since_deferred = 0;
+  }
 }
 
 static void expire(detector_t* d, view_t* view)
@@ -524,7 +546,7 @@ static void collect(detector_t* d, perceived_t* per)
   i = HASHMAP_BEGIN;
 
   while((view = viewmap_next(&per->map, &i)) != NULL)
-    actor_sweep(view->actor);
+    actor_sendrelease(view->actor);
 
   // destroy the actor and free the view on the actor
   i = HASHMAP_BEGIN;
@@ -534,7 +556,7 @@ static void collect(detector_t* d, perceived_t* per)
     actor_destroy(view->actor);
     viewmap_remove(&d->views, view);
 
-    // no other actor has a viewref to this view
+    view->actor = NULL;
     view_free(view);
   }
 
@@ -560,20 +582,33 @@ static void block(detector_t* d, pony_actor_t* actor, size_t rc,
   // record that we're blocked
   view->blocked = true;
 
-  // add to the deferred set
-  if(!view->deferred)
-  {
-    viewmap_put(&d->deferred, view);
-    view->deferred = true;
-  }
-
-  d->since_deferred++;
-
   // if we're in a perceived cycle, that cycle is invalid
   expire(d, view);
 
-  // look for cycles
-  deferred(d);
+  if(rc == 0)
+  {
+    // remove from the deferred set
+    if(view->deferred)
+    {
+      viewmap_remove(&d->deferred, view);
+      view->deferred = false;
+    }
+
+    // detect from this actor, bypassing deferral
+    detect(d, view);
+  } else {
+    // add to the deferred set
+    if(!view->deferred)
+    {
+      viewmap_put(&d->deferred, view);
+      view->deferred = true;
+    }
+
+    d->since_deferred++;
+
+    // look for cycles
+    deferred(d);
+  }
 }
 
 static void unblock(detector_t* d, pony_actor_t* actor)
@@ -617,8 +652,8 @@ static void ack(detector_t* d, size_t token)
     return;
   }
 
-  if((per->ack & CYCLE_CONF_MASK) == 0)
-    send_conf(per);
+  if((per->ack & (d->conf_group - 1)) == 0)
+    send_conf(d, per);
 }
 
 static void forcecd(detector_t* d)
@@ -664,7 +699,11 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
   {
     case CYCLE_INIT:
     {
-      d->next_deferred = CYCLE_MIN_DEFERRED;
+      init_msg_t* m = (init_msg_t*)msg;
+      d->min_deferred = (size_t)1 << m->min_deferred;
+      d->max_deferred = (size_t)1 << m->max_deferred;
+      d->conf_group = (size_t)1 << m->conf_group;
+      d->next_deferred = d->min_deferred;
       break;
     }
 
@@ -722,17 +761,39 @@ static pony_type_t cycle_type =
   {}
 };
 
-void cycle_create()
+void cycle_create(uint32_t min_deferred, uint32_t max_deferred,
+  uint32_t conf_group)
 {
+  if(min_deferred > 30)
+    min_deferred = 30;
+
+  if(max_deferred > 30)
+    max_deferred = 30;
+
+  if(max_deferred < min_deferred)
+    max_deferred = min_deferred;
+
+  if(conf_group > 30)
+    conf_group = 30;
+
   cycle_detector = pony_create(&cycle_type);
   actor_setsystem(cycle_detector);
-  pony_send(cycle_detector, CYCLE_INIT);
+
+  init_msg_t* m = (init_msg_t*)pony_alloc_msg(
+    POOL_INDEX(sizeof(init_msg_t)), CYCLE_INIT);
+
+  m->min_deferred = min_deferred;
+  m->max_deferred = max_deferred;
+  m->conf_group = conf_group;
+
+  pony_sendv(cycle_detector, &m->msg);
 }
 
 void cycle_block(pony_actor_t* actor, gc_t* gc)
 {
   block_msg_t* m = (block_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(block_msg_t)), CYCLE_BLOCK);
+
   m->actor = actor;
   m->rc = gc_rc(gc);
   m->delta = gc_delta(gc);

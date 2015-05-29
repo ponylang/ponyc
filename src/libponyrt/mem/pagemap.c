@@ -1,4 +1,5 @@
 #include "pagemap.h"
+#include "alloc.h"
 #include "heap.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -83,7 +84,7 @@ void pagemap_set(const void* m, void* v)
       p = virtual_alloc(level[i].size);
       void** prev = NULL;
 
-      if(!_atomic_cas(pv, &prev, p, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
+      if(!_atomic_cas_strong(pv, &prev, p))
       {
         virtual_free(p, level[i].size);
       }

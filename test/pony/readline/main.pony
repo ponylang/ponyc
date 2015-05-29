@@ -1,4 +1,4 @@
-use "readline"
+use "term"
 
 class Handler is ReadlineNotify
   let _commands: Array[String] = _commands.create()
@@ -18,11 +18,9 @@ class Handler is ReadlineNotify
   fun ref tab(line: String): Seq[String] box =>
     let r = Array[String]
 
-    try
-      for command in _commands.values() do
-        if command.at(line, 0) then
-          r.push(command)
-        end
+    for command in _commands.values() do
+      if command.at(line, 0) then
+        r.push(command)
       end
     end
 
@@ -31,4 +29,4 @@ class Handler is ReadlineNotify
 actor Main
   new create(env: Env) =>
     env.out.print("Use 'quit' to exit.")
-    env.input(Readline(recover Handler end, env.out))
+    env.input(ANSITerm(Readline(recover Handler end, env.out)))

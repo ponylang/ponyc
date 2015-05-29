@@ -217,6 +217,13 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
+  // void pony_destroy($object*)
+  params[0] = c->object_ptr;
+  type = LLVMFunctionType(c->void_type, params, 1, false);
+  value = LLVMAddFunction(c->module, "pony_destroy", type);
+  LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
+  LLVMSetReturnNoAlias(value);
+
   // void pony_sendv($object*, $message*);
   params[0] = c->object_ptr;
   params[1] = c->msg_ptr;
@@ -621,15 +628,16 @@ bool codegen_hassource(compile_t* c)
   return c->frame->has_source;
 }
 
-const char* suffix_filename(const char* dir, const char* file,
-  const char* extension)
+const char* suffix_filename(const char* dir, const char* prefix,
+  const char* file, const char* extension)
 {
   // Copy to a string with space for a suffix.
-  size_t len = strlen(dir) + strlen(file) + strlen(extension) + 3;
-  VLA(char, filename, len + 1);
+  size_t len = strlen(dir) + strlen(prefix) + strlen(file) + strlen(extension)
+    + 4;
+  char* filename = (char*)pool_alloc_size(len);
 
   // Start with no suffix.
-  snprintf(filename, len, "%s/%s%s", dir, file, extension);
+  snprintf(filename, len, "%s/%s%s%s", dir, prefix, file, extension);
   int suffix = 0;
 
   while(suffix < 100)
@@ -641,14 +649,16 @@ const char* suffix_filename(const char* dir, const char* file,
     if((err == -1) || !S_ISDIR(s.st_mode))
       break;
 
-    snprintf(filename, len, "%s/%s%d%s", dir, file, ++suffix, extension);
+    snprintf(filename, len, "%s/%s%s%d%s", dir, prefix, file, ++suffix,
+      extension);
   }
 
   if(suffix >= 100)
   {
     errorf(NULL, "couldn't pick an unused file name");
+    pool_free_size(len, filename);
     return NULL;
   }
 
-  return stringtab(filename);
+  return stringtab_consume(filename, len);
 }

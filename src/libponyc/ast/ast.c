@@ -292,9 +292,10 @@ symtab_t* ast_get_symtab(ast_t* ast)
   return ast->symtab;
 }
 
-void ast_setid(ast_t* ast, token_id id)
+ast_t* ast_setid(ast_t* ast, token_id id)
 {
   token_set_id(ast->t, id);
+  return ast;
 }
 
 void ast_setpos(ast_t* ast, size_t line, size_t pos)
@@ -330,11 +331,6 @@ bool ast_debug(ast_t* ast)
 source_t* ast_source(ast_t* ast)
 {
   return token_source(ast->t);
-}
-
-bool ast_is_first_on_line(ast_t* ast)
-{
-  return token_is_first_on_line(ast->t);
 }
 
 void* ast_data(ast_t* ast)
@@ -964,25 +960,26 @@ void ast_replace(ast_t** prev, ast_t* next)
   *prev = next;
 }
 
-void ast_reorder_children(ast_t* ast, const size_t* new_order)
+void ast_reorder_children(ast_t* ast, const size_t* new_order,
+  ast_t** shuffle_space)
 {
   assert(ast != NULL);
   assert(new_order != NULL);
+  assert(shuffle_space != NULL);
 
   size_t count = ast_childcount(ast);
-  VLA(ast_t*, children, count);
 
   for(size_t i = 0; i < count; i++)
-    children[i] = ast_pop(ast);
+    shuffle_space[i] = ast_pop(ast);
 
   for(size_t i = 0; i < count; i++)
   {
     size_t index = new_order[i];
     assert(index < count);
-    ast_t* t = children[index];
+    ast_t* t = shuffle_space[index];
     assert(t != NULL);
     ast_append(ast, t);
-    children[index] = NULL;
+    shuffle_space[index] = NULL;
   }
 }
 
@@ -1150,6 +1147,10 @@ static void print_type(printbuf_t* buffer, ast_t* type)
       printbuf(buffer, "to_infer");
       break;
 
+    case TK_ERRORTYPE:
+      printbuf(buffer, "<type error>");
+      break;
+
     default:
       assert(0);
   }
@@ -1187,12 +1188,17 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   bool pop = frame_push(t, *ast);
 
   ast_result_t ret = AST_OK;
+  bool ignore = false;
 
   if(pre != NULL)
   {
     switch(pre(ast, options))
     {
       case AST_OK:
+        break;
+
+      case AST_IGNORE:
+        ignore = true;
         break;
 
       case AST_ERROR:
@@ -1204,7 +1210,7 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if((pre != NULL) || (post != NULL))
+  if(!ignore && ((pre != NULL) || (post != NULL)))
   {
     ast_t* child = ast_child(*ast);
 
@@ -1213,6 +1219,11 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
       switch(ast_visit(&child, pre, post, options))
       {
         case AST_OK:
+          break;
+
+        case AST_IGNORE:
+          // Can never happen
+          assert(0);
           break;
 
         case AST_ERROR:
@@ -1227,11 +1238,12 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
     }
   }
 
-  if(post != NULL)
+  if(!ignore && post != NULL)
   {
     switch(post(ast, options))
     {
       case AST_OK:
+      case AST_IGNORE:
         break;
 
       case AST_ERROR:

@@ -11,6 +11,7 @@ struct parser_t
   lexer_t* lexer;
   token_t* token;
   const char* last_matched;
+  size_t last_token_line;
   void* next_flags;     // Data flags to set on the next token created
   bool failed;
 };
@@ -29,6 +30,9 @@ static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
 {
   token_t* old_token = parser->token;
   token_t* new_token = lexer_next(parser->lexer);
+
+  if(old_token != NULL)
+    parser->last_token_line = token_line_number(old_token);
 
   if(old_token != NULL && token_get_id(new_token) == TK_EOF)
   {
@@ -64,6 +68,7 @@ static void syntax_error(parser_t* parser, const char* expected)
 {
   assert(parser != NULL);
   assert(expected != NULL);
+  assert(parser->token != NULL);
 
   if(parser->last_matched == NULL)
   {
@@ -87,6 +92,18 @@ void default_builder(rule_state_t* state, ast_t* new_ast)
   assert(new_ast != NULL);
 
   // Existing AST goes at the top
+
+  if(ast_id(new_ast) == TK_FLATTEN)
+  {
+    // Add the children of the new node, not the node itself
+    ast_t* new_child;
+
+    while((new_child = ast_pop(new_ast)) != NULL)
+      default_builder(state, new_child);
+
+    ast_free(new_ast);
+    return;
+  }
 
   if(state->last_child == NULL)  // No valid last pointer
     ast_append(state->ast, new_ast);
@@ -168,6 +185,8 @@ static void add_ast(parser_t* parser, rule_state_t* state, ast_t* new_ast,
 // Add an AST node for the specified token, which may be deferred
 void add_deferrable_ast(parser_t* parser, rule_state_t* state, token_id id)
 {
+  assert(parser->token != NULL);
+
   if(!state->matched && state->ast == NULL && !state->deferred)
   {
     // This is the first AST node, defer creation
@@ -376,8 +395,22 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
   for(const token_id* p = id_set; *p != TK_NONE; p++)
   {
     // Match new line if the next token is the first on a line
-    if(*p == TK_NEWLINE && token_is_first_on_line(parser->token))
-      return handle_found(parser, state, NULL, NULL, out_found);
+    if(*p == TK_NEWLINE)
+    {
+      assert(parser->token != NULL);
+      size_t last_token_line = parser->last_token_line;
+      size_t next_token_line = token_line_number(parser->token);
+      bool is_newline = (next_token_line != last_token_line);
+
+      if(out_found != NULL)
+        *out_found = is_newline;
+
+      if(trace_enable)
+        printf("\\n %smatched\n", is_newline ? "" : "not ");
+
+      state->deflt_id = TK_LEX_ERROR;
+      return PARSE_OK;
+    }
 
     if(id == *p)
     {
@@ -515,6 +548,7 @@ ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state)
   if(trace_enable)
     printf("Rule %s: Restart check error\n", state->fn_name);
 
+  assert(parser->token != NULL);
   error(parser->source, token_line_number(parser->token),
     token_line_position(parser->token),
     "syntax error: unexpected token %s after %s", token_print(parser->token),
@@ -554,6 +588,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   parser->lexer = lexer;
   parser->token = lexer_next(lexer);
   parser->last_matched = NULL;
+  parser->last_token_line = 0;
   parser->next_flags = NULL;
   parser->failed = false;
 

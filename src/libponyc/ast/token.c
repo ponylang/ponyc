@@ -14,7 +14,6 @@ typedef struct token_t
   size_t line;
   size_t pos;
   char* printed;
-  bool first_on_line;
   bool debug_info;
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
@@ -224,11 +223,6 @@ size_t token_line_position(token_t* token)
   return token->pos;
 }
 
-bool token_is_first_on_line(token_t* token)
-{
-  assert(token != NULL);
-  return token->first_on_line;
-}
 
 bool token_debug(token_t* token)
 {
@@ -281,10 +275,4 @@ void token_set_debug(token_t* token, bool state)
 {
   assert(token != NULL);
   token->debug_info = state;
-}
-
-void token_set_first_on_line(token_t* token)
-{
-  assert(token != NULL);
-  token->first_on_line = true;
 }

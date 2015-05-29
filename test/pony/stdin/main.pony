@@ -7,10 +7,8 @@ class Notify is StdinNotify
   fun ref apply(data: Array[U8] iso): Bool =>
     let data' = consume val data
 
-    try
-      for c in data'.values() do
-        _env.out.write(c.string(IntHex))
-      end
+    for c in data'.values() do
+      _env.out.write(c.string(IntHex))
     end
     _env.out.write("\n")
 

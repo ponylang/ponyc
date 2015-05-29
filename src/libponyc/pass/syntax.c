@@ -537,15 +537,8 @@ static ast_result_t syntax_semi(ast_t* ast)
   assert(ast_parent(ast) != NULL);
   assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
-  bool any_newlines = ast_is_first_on_line(ast);  // Newline before ;
-  bool last_in_seq = (ast_sibling(ast) == NULL);
-
-  if((LAST_ON_LINE & (uintptr_t)ast_data(ast)) != 0) // Newline after ;
-    any_newlines = true;
-
-  if(any_newlines || last_in_seq)
+  if((BAD_SEMI & (uintptr_t)ast_data(ast)) != 0)
   {
-    // Unnecessary ;
     ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
       " the same line");
     return AST_ERROR;

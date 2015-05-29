@@ -291,6 +291,7 @@ typedef struct ast_t ast_t;
 typedef enum
 {
   AST_OK,
+  AST_IGNORE,
   AST_ERROR,
   AST_FATAL
 } ast_result_t;
@@ -312,7 +313,7 @@ ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
-void ast_setid(ast_t* ast, token_id id);
+ast_t* ast_setid(ast_t* ast, token_id id);
 void ast_setpos(ast_t* ast, size_t line, size_t pos);
 void ast_setdebug(ast_t* ast, bool state);
 
@@ -321,7 +322,6 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
-bool ast_is_first_on_line(ast_t* ast);
 
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);
@@ -379,7 +379,8 @@ ast_t* ast_append(ast_t* parent, ast_t* child);
 void ast_remove(ast_t* ast);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);
-void ast_reorder_children(ast_t* ast, const size_t* new_order);
+void ast_reorder_children(ast_t* ast, const size_t* new_order,
+  ast_t** shuffle_space);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 

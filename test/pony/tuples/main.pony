@@ -34,8 +34,6 @@ actor Main
 
     var array = Array[String].push("Hello").push("World").push("!")
 
-    try
-      for (index, value) in array.pairs() do
-        env.out.print(index.string() + ": " + value)
-      end
+    for (index, value) in array.pairs() do
+      env.out.print(index.string() + ": " + value)
     end

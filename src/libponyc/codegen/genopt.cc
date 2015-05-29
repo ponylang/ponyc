@@ -439,7 +439,6 @@ static void addHeapToStackPass(const PassManagerBuilder& pmb,
 
 static void optimise(compile_t* c)
 {
-  printf("Optimising\n");
   the_compiler = c;
 
   Module* m = unwrap(c->module);
@@ -479,6 +478,7 @@ static void optimise(compile_t* c)
 
   if(c->opt->release)
   {
+    printf("Optimising\n");
     pmb.OptLevel = 3;
     pmb.Inliner = createFunctionInliningPass(275);
   } else {

@@ -31,16 +31,8 @@ typedef struct pony_msg_t
 {
   uint32_t size;
   uint32_t id;
-  struct pony_msg_t* next;
+  struct pony_msg_t* volatile next;
 } pony_msg_t;
-
-/// Message type for argc and argv.
-typedef struct pony_main_msg_t
-{
-  pony_msg_t msg;
-  int argc;
-  char** argv;
-} pony_main_msg_t;
 
 /// Convenience message for sending an integer.
 typedef struct pony_msgi_t
@@ -48,13 +40,6 @@ typedef struct pony_msgi_t
   pony_msg_t msg;
   intptr_t i;
 } pony_msgi_t;
-
-/// Convenience message for sending a float.
-typedef struct pony_msgd_t
-{
-  pony_msg_t msg;
-  double d;
-} pony_msgd_t;
 
 /// Convenience message for sending a pointer.
 typedef struct pony_msgp_t
@@ -159,18 +144,6 @@ void pony_sendp(pony_actor_t* to, uint32_t id, void* p);
  * The dispatch function receives a pony_msgi_t.
  */
 void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i);
-
-/** Convenience function to send a floating point argument in a message
- *
- * The dispatch function receives a pony_msgd_t.
- */
-void pony_sendd(pony_actor_t* to, uint32_t id, double d);
-
-/** Convenience function to send argc and argv in a message.
- *
- * The dispatch function receives a pony_main_msg_t.
- */
-void pony_sendargs(pony_actor_t* to, uint32_t id, int argc, char** argv);
 
 /** Store a continuation.
  *

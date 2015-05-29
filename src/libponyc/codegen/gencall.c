@@ -8,6 +8,7 @@
 #include "../pkg/platformfuns.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -269,9 +270,10 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   }
 
   size_t count = ast_childcount(positional) + need_receiver;
+  size_t buf_size = count * sizeof(void*);
 
-  VLA(LLVMValueRef, args, count);
-  VLA(LLVMTypeRef, params, count);
+  LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
+  LLVMTypeRef* params = (LLVMTypeRef*)pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, params);
 
   ast_t* arg = ast_child(positional);
@@ -282,7 +284,11 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
     LLVMValueRef value = make_arg(c, params[i], arg);
 
     if(value == NULL)
+    {
+      pool_free_size(buf_size, args);
+      pool_free_size(buf_size, params);
       return NULL;
+    }
 
     args[i] = value;
     arg = ast_sibling(arg);
@@ -321,15 +327,21 @@ LLVMValueRef gen_call(compile_t* c, ast_t* ast)
   LLVMValueRef func = dispatch_function(c, ast, &g, args[0], method_name,
     typeargs);
 
-  if(func == NULL)
-    return NULL;
+  LLVMValueRef r = NULL;
 
-  // If we can error out and we have an invoke target, generate an invoke
-  // instead of a call.
-  if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
-    return invoke_fun(c, func, args, i, "", true);
+  if(func != NULL)
+  {
+    // If we can error out and we have an invoke target, generate an invoke
+    // instead of a call.
+    if(ast_canerror(ast) && (c->frame->invoke_target != NULL))
+      r = invoke_fun(c, func, args, i, "", true);
+    else
+      r = codegen_call(c, func, args, i);
+  }
 
-  return codegen_call(c, func, args, i);
+  pool_free_size(buf_size, args);
+  pool_free_size(buf_size, params);
+  return r;
 }
 
 LLVMValueRef gen_pattern_eq(compile_t* c, ast_t* pattern, LLVMValueRef r_value)
@@ -415,7 +427,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     {
       // Intrinsic, so use the exact types we supply.
       int count = (int)ast_childcount(args);
-      VLA(LLVMTypeRef, f_params, count);
+      size_t buf_size = count * sizeof(LLVMTypeRef);
+      LLVMTypeRef* f_params = (LLVMTypeRef*)pool_alloc_size(buf_size);
       count = 0;
 
       ast_t* arg = ast_child(args);
@@ -443,10 +456,12 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         {
           // Can't use the named type. Build an unnamed type with the same
           // elements.
-          int count = LLVMCountStructElementTypes(g.use_type);
-          VLA(LLVMTypeRef, e_types, count);
+          unsigned int count = LLVMCountStructElementTypes(g.use_type);
+          size_t buf_size = count * sizeof(LLVMTypeRef);
+          LLVMTypeRef* e_types = (LLVMTypeRef*)pool_alloc_size(buf_size);
           LLVMGetStructElementTypes(g.use_type, e_types);
           r_type = LLVMStructTypeInContext(c->context, e_types, count, false);
+          pool_free_size(buf_size, e_types);
         } else {
           r_type = g.use_type;
         }
@@ -458,6 +473,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
         if(!ast_canerror(ast))
           LLVMAddFunctionAttr(func, LLVMNoUnwindAttribute);
       }
+
+      pool_free_size(buf_size, f_params);
     } else {
       // Make it varargs.
       LLVMTypeRef f_type = LLVMFunctionType(g.use_type, NULL, 0, true);
@@ -470,7 +487,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
 
   // Generate the arguments.
   int count = (int)ast_childcount(args);
-  VLA(LLVMValueRef, f_args, count);
+  size_t buf_size = count * sizeof(LLVMValueRef);
+  LLVMValueRef* f_args = (LLVMValueRef*)pool_alloc_size(buf_size);
   ast_t* arg = ast_child(args);
 
   for(int i = 0; i < count; i++)
@@ -478,7 +496,10 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     f_args[i] = gen_expr(c, arg);
 
     if(f_args[i] == NULL)
+    {
+      pool_free_size(buf_size, f_args);
       return NULL;
+    }
 
     arg = ast_sibling(arg);
   }
@@ -491,6 +512,8 @@ LLVMValueRef gen_ffi(compile_t* c, ast_t* ast)
     result = invoke_fun(c, func, f_args, count, "", false);
   else
     result = LLVMBuildCall(c->builder, func, f_args, count, "");
+
+  pool_free_size(buf_size, f_args);
 
   // Special case a None return value, which is used for void functions.
   if(is_none(type))

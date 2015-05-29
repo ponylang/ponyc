@@ -227,6 +227,8 @@ int opt_next(opt_state_t* s)
 
     if((m->flag & PARSE_ARG) && has_argument(s))
       parse_long_opt_arg(s);
+
+    s->opt_start = NULL;
   }
   else if(s->match_type == MATCH_SHORT)
   {

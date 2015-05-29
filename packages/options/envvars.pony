@@ -8,16 +8,14 @@ primitive EnvVars
     """
     let map = recover Map[String, String](from.size()) end
 
-    try
-      for kv in from.values() do
-        try
-          let delim = kv.find("=")
-          let k = kv.substring(0, delim - 1)
-          let v = kv.substring(delim + 1, -1)
-          map(consume k) = consume v
-        else
-          map(kv) = ""
-        end
+    for kv in from.values() do
+      try
+        let delim = kv.find("=")
+        let k = kv.substring(0, delim - 1)
+        let v = kv.substring(delim + 1, -1)
+        map(consume k) = consume v
+      else
+        map(kv) = ""
       end
     end
 

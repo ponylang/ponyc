@@ -5,6 +5,7 @@
 #include "../ast/symtab.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
+#include "../ast/astbuild.h"
 #include <string.h>
 #include <assert.h>
 
@@ -93,20 +94,23 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
     return set_scope(NULL, ast, name, package);
 
-  // We do not have an alias
-  if(!ast_merge(ast, package))
-  {
-    ast_error(ast, "can't merge symbols from '%s'", path);
-    return false;
-  }
-
+  // Store the package so we can import it later without having to look it up
+  // again
+  ast_setdata(ast, (void*)package);
   return true;
 }
 
-static bool scope_module(ast_t* ast, pass_opt_t* options)
+static bool scope_module(ast_t* ast)
 {
   // Every module has an implicit use "builtin" command
-  return use_package(ast, stringtab("builtin"), NULL, options);
+  BUILD(builtin, ast,
+    NODE(TK_USE,
+      NONE
+      STRING(stringtab("builtin"))
+      NONE));
+
+  ast_add(ast, builtin);
+  return true;
 }
 
 static void set_fields_undefined(ast_t* ast)
@@ -208,14 +212,12 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_MODULE:
-      if(!scope_module(ast, options))
+      if(!scope_module(ast))
         return AST_FATAL;
       break;
 
     case TK_USE:
-      if(!use_command(ast, options))
-        return AST_FATAL;
-      break;
+      return use_command(ast, options);
 
     case TK_TYPE:
     case TK_INTERFACE:

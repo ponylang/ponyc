@@ -15,25 +15,52 @@ class String val is Seq[U8], Ordered[String box], Stringable
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
-  new from_cstring(str: Pointer[U8] ref, len: U64 = 0, copy: Bool = true) =>
+  new from_cstring(str: Pointer[U8], len: U64 = 0) =>
     """
-    If the cstring is not copied, this should be done with care.
+    The cstring is not copied. This must be done only with C-FFI functions that
+    return null-terminated pony_alloc'd character arrays.
     """
-    _size = len
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
 
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
       end
+
+      _alloc = _size + 1
+      _ptr = str
     end
 
-    if copy then
+  new copy_cstring(str: Pointer[U8] box, len: U64 = 0) =>
+    """
+    If the cstring is not null terminated and a length isn't specified, this
+    can crash. This will only occur if the C-FFI has been used to craft such
+    a pointer.
+    """
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
+
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
+      end
+
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
       str._copy_to(_ptr, _alloc)
-    else
-      _alloc = _size + 1
-      _ptr = str
     end
 
   new from_utf32(value: U32) =>
@@ -805,65 +832,159 @@ class String val is Seq[U8], Ordered[String box], Stringable
   fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-  fun i8(offset: I64 = 0, base: I32 = 0): I8 => i64(offset, base).i8()
-  fun i16(offset: I64 = 0, base: I32 = 0): I16 => i64(offset, base).i16()
-  fun i32(offset: I64 = 0, base: I32 = 0): I32 => i64(offset, base).i32()
 
-  fun i64(offset: I64 = 0, base: I32 = 0): I64 =>
-    var index = offset_to_index(offset)
+  // The following functions convert the *whole* string to the specified type.
+  // If there are any other characters in the string, or the integer found is
+  // out of range for the target type then an error is thrown.
+  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
+  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
+  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
+  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)
+  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)
+  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)
+  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)
+  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
+  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
+  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
+    
 
-    if index < _size then
-      if Platform.windows() then
-        @_strtoi64[I64](_ptr.u64() + index, U64(0), base)
-      else
-        @strtol[I64](_ptr.u64() + index, U64(0), base)
+  fun _to_int[A: ((Signed | Unsigned) & Integer[A] box)](base: U8): A ? =>
+    (let v, let d) = read_int[A](0, base)
+    if (d == 0) or (d.u64() != _size) then error end  // Not all of string used
+    v
+    
+
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] box)](offset: I64 = 0,
+    base: U8 = 0): (A, I64 /* chars used */) ?
+  =>
+    """
+    Read an integer from the specified location in this string. The integer
+    value read and the number of characters consumed are reported.
+
+    The base parameter specifies the base to use, 0 indicates using the prefix
+    (if any to detect base 2, 10 or 16).
+
+    If no integer is found at the specified location, then (0, 0) is returned,
+    since no characters have been used.
+
+    An integer out of range for the target type throws an error.
+    """
+
+    let start_index = offset_to_index(offset)
+    var index = start_index
+    var value: A = 0
+    var had_digit = false
+
+    // Check for leading minus
+    let minus = (index < _size) and (_ptr._apply(index) == '-')
+    if minus then
+      // Named variables need until issue #220 is fixed
+      // if A(-1) > A(0) then
+      let neg: A = -1
+      let zero: A = 0
+      if neg > zero then
+        // We're reading an unsigned type, negative not allowed, int not found
+        return (0, 0)
       end
-    else
-      0
+
+      index = index + 1
     end
 
-  fun i128(offset: I64 = 0, base: I32 = 0): I128 =>
-    var index = offset_to_index(offset)
+    (let base', let base_chars) = _read_int_base[A](base, index)
+    index = index + base_chars
 
-    if index < _size then
-      if Platform.windows() then
-        i64(offset).i128()
-      else
-        @strtoll[I128](_ptr.u64() + index, U64(0), base)
+    // Process characters
+    while index < _size do
+      let char: A = _convert_u8[A](_ptr._apply(index))
+      if char == '_' then
+        index = index + 1
+        continue
       end
-    else
-      0
+      
+      let digit =
+        if (char >= '0') and (char <= '9') then
+          char - '0'
+        elseif (char >= 'A') and (char <= 'Z') then
+          (char - 'A') + 10
+        elseif (char >= 'a') and (char <= 'z') then
+          (char - 'a') + 10
+        else
+          break
+        end
+        
+      if digit >= base' then
+        break
+      end
+
+      let new_value: A = (value * base') + digit
+
+      if (new_value / base') != value then
+        // Overflow
+        error
+      end
+
+      value = new_value
+      had_digit = true
+      index = index + 1
+    end
+    
+    if minus then value = -value end
+
+    // Check result
+    if not had_digit then
+      // No integer found
+      return (0, 0)
     end
 
-  fun u8(offset: I64 = 0, base: I32 = 0): U8 => u64(offset, base).u8()
-  fun u16(offset: I64 = 0, base: I32 = 0): U16 => u64(offset, base).u16()
-  fun u32(offset: I64 = 0, base: I32 = 0): U32 => u64(offset, base).u32()
+    // Success
+    (value, (index - start_index).i64())
 
-  fun u64(offset: I64 = 0, base: I32 = 0): U64 =>
-    var index = offset_to_index(offset)
 
-    if index < _size then
-      if Platform.windows() then
-        @_strtoui64[U64](_ptr.u64() + index, U64(0), base)
-      else
-        @strtoul[U64](_ptr.u64() + index, U64(0), base)
-      end
-    else
-      0
+  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] box)]
+    (base: U8, index: U64): (A, U64 /* chars used */)
+  =>
+    if base > 0 then
+      return (_convert_u8[A](base), 0)
+    end
+    
+    // Determine base from prefix
+    if (index + 2) >= _size then
+      // Not enough characters, must be decimal
+      return (10, 0)
     end
 
-  fun u128(offset: I64 = 0, base: I32 = 0): U128 =>
-    var index = offset_to_index(offset)
+    let lead_char = _ptr._apply(index)
+    let base_char = _ptr._apply(index + 1) and not 0x20
 
-    if index < _size then
-      if Platform.windows() then
-        u64(offset).u128()
-      else
-        @strtoull[U128](_ptr.u64() + index, U64(0), base)
-      end
-    else
-      0
+    if (lead_char == '0') and (base_char == 'B') then
+      return (2, 2)
     end
+
+    if (lead_char == '0') and (base_char == 'X') then
+      return (16, 2)
+    end
+
+    // No base specified, default to decimal
+    (10, 0)
+
+
+  fun _convert_u8[A: ((Signed | Unsigned) & Integer[A] box)](x: U8): A =>
+    """
+    Convert a U8 to the specified type.
+    Temporary hack until generics are fixed.
+    """
+    var y:A = 0
+
+    if (x and 0x80) != 0 then y = y or 0x80 end
+    if (x and 0x40) != 0 then y = y or 0x40 end
+    if (x and 0x20) != 0 then y = y or 0x20 end
+    if (x and 0x10) != 0 then y = y or 0x10 end
+    if (x and 0x8) != 0 then y = y or 0x8 end
+    if (x and 0x4) != 0 then y = y or 0x4 end
+    if (x and 0x2) != 0 then y = y or 0x2 end
+    if (x and 0x1) != 0 then y = y or 0x1 end
+    y
+
 
   fun f32(offset: I64 = 0): F32 =>
     var index = offset_to_index(offset)
@@ -921,11 +1042,17 @@ class String val is Seq[U8], Ordered[String box], Stringable
   //
   //   while i < _size do
 
-  fun values(): StringValues^ =>
+  fun values(): StringBytes^ =>
     """
     Return an iterator over the bytes in the string.
     """
-    StringValues(this)
+    StringBytes(this)
+
+  fun runes(): StringRunes^ =>
+    """
+    Return an iterator over the codepoints in the string.
+    """
+    StringRunes(this)
 
   fun ref _set(i: U64, value: U8): U8 =>
     """
@@ -933,7 +1060,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     _ptr._update(i, value)
 
-class StringValues is Iterator[U8]
+class StringBytes is Iterator[U8]
   let _string: String box
   var _i: U64
 
@@ -946,3 +1073,19 @@ class StringValues is Iterator[U8]
 
   fun ref next(): U8 ? =>
     _string(_i = _i + 1)
+
+class StringRunes is Iterator[U32]
+  let _string: String box
+  var _i: U64
+
+  new create(string: String box) =>
+    _string = string
+    _i = 0
+
+  fun has_next(): Bool =>
+    _i < _string.size()
+
+  fun ref next(): U32 ? =>
+    (let rune, let len) = _string.utf32(_i.i64())
+    _i = _i + len.u64()
+    rune

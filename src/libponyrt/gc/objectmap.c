@@ -134,7 +134,7 @@ void objectmap_final(objectmap_t* map)
   }
 }
 
-size_t objectmap_mark(objectmap_t* map)
+size_t objectmap_sweep(objectmap_t* map)
 {
   size_t count = 0;
   size_t i = HASHMAP_BEGIN;

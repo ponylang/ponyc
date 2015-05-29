@@ -1,7 +1,7 @@
 use "collections"
 use "files"
 
-class Readline is StdinNotify
+class Readline is ANSINotify
   """
   Line editing, history, and tab completion.
   """
@@ -15,9 +15,6 @@ class Readline is StdinNotify
   var _cur_prompt: String
   var _cur_line: U64 = 0
   var _cur_pos: I64 = 0
-  var _escape: U8 = 0
-  var _esc1: U8 = 0
-  var _esc2: U8 = 0
 
   new iso create(notify: ReadlineNotify iso, out: StdStream,
     path: (String | None) = None, maxlen: U64 = 0)
@@ -36,91 +33,42 @@ class Readline is StdinNotify
     _load_history()
     _refresh_line()
 
-  fun ref apply(data: Array[U8] iso): Bool =>
+  fun ref apply(input: U8): Bool =>
     """
     Receives input.
     """
     try
-      var i = U64(0)
-
-      while i < data.size() do
-        var c = data(i)
-
-        match _escape
-        | 0 =>
-          match c
-          | 0x01 => _home() // ctrl-a
-          | 0x02 => _left() // ctrl-b
-          | 0x04 => _delete() // ctrl-d
-          | 0x05 => _end() // ctrl-e
-          | 0x06 => _right() // ctrl-f
-          | 0x08 => _backspace() // ctrl-h
-          | 0x09 => _tab()
-          | 0x0A => _dispatch() // LF
-          | 0x0B =>
-            // ctrl-k, delete to the end of the line.
-            _edit.truncate(_cur_pos.u64())
-          | 0x0C => _clear() // ctrl-l
-          | 0x0D => _dispatch() // CR
-          | 0x0E => _down() // ctrl-n
-          | 0x10 => _up() // ctrl-p
-          | 0x14 => _swap() // ctrl-t
-          | 0x15 =>
-            // ctrl-u, delete the whole line.
-            _edit.clear()
-            _home()
-          | 0x17 => _delete_prev_word() // ctrl-w
-          | 0x1B => _escape = 1 // escape
-          | 0x7F => _backspace() // backspace
-          | where c < 0x20 => None // unknown control character
-          else
-            // Insert.
-            _edit.insert_byte(_cur_pos, c)
-            _cur_pos = _cur_pos + 1
-          end
-        | 1 =>
-          // First escape byte.
-          _esc1 = c
-          _escape = 2
-        | 2 =>
-          // Second escape byte.
-          _esc2 = c
-          _escape = 0
-
-          match _esc1
-          | '[' =>
-            match _esc2
-            | 'A' => _up()
-            | 'B' => _down()
-            | 'C' => _right()
-            | 'D' => _left()
-            | 'H' => _home()
-            | 'F' => _end()
-            | where (_esc2 >= '0') and (_esc2 <= '9') =>
-              // extended escape sequence
-              _escape = 3
-            end
-          | '0' =>
-            match _esc2
-            | 'H' => _home()
-            | 'F' => _end()
-            end
-          end
-        | 3 =>
-          _escape = 0
-
-          match c
-          | '~' =>
-            match _esc2
-            | '3' => _delete()
-            end
-          end
-        end
-
-        i = i + 1
+      match input
+      | 0x01 => home() // ctrl-a
+      | 0x02 => left() // ctrl-b
+      | 0x04 => delete() // ctrl-d
+      | 0x05 => end_key() // ctrl-e
+      | 0x06 => right() // ctrl-f
+      | 0x08 => _backspace() // ctrl-h
+      | 0x09 => _tab()
+      | 0x0A => _dispatch() // LF
+      | 0x0B =>
+        // ctrl-k, delete to the end of the line.
+        _edit.truncate(_cur_pos.u64())
+      | 0x0C => _clear() // ctrl-l
+      | 0x0D => _dispatch() // CR
+      | 0x0E => down() // ctrl-n
+      | 0x10 => up() // ctrl-p
+      | 0x14 => _swap() // ctrl-t
+      | 0x15 =>
+        // ctrl-u, delete the whole line.
+        _edit.clear()
+        home()
+      | 0x17 => _delete_prev_word() // ctrl-w
+      | 0x7F => _backspace() // backspace
+      | where input < 0x20 => None // unknown control character
+      else
+        // Insert.
+        _edit.insert_byte(_cur_pos, input)
+        _cur_pos = _cur_pos + 1
+        _refresh_line()
       end
 
-      _refresh_line()
       true
     else
       _save_history()
@@ -133,7 +81,7 @@ class Readline is StdinNotify
     """
     _save_history()
 
-  fun ref _up() =>
+  fun ref up(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Previous line.
     """
@@ -141,11 +89,11 @@ class Readline is StdinNotify
       if _cur_line > 0 then
         _cur_line = _cur_line - 1
         _edit = _history(_cur_line).clone()
-        _end()
+        end_key()
       end
     end
 
-  fun ref _down() =>
+  fun ref down(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Next line.
     """
@@ -154,13 +102,14 @@ class Readline is StdinNotify
         _cur_line = _cur_line + 1
         _edit = _history(_cur_line).clone()
       else
+        _cur_line = _history.size()
         _edit.clear()
       end
 
-      _end()
+      end_key()
     end
 
-  fun ref _left() =>
+  fun ref left(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Move left.
     """
@@ -175,9 +124,11 @@ class Readline is StdinNotify
         (_cur_pos == 0) or
         ((_edit.at_offset(_cur_pos) and 0xC0) != 0x80)
       end
+
+      _refresh_line()
     end
 
-  fun ref _right() =>
+  fun ref right(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Move right.
     """
@@ -192,19 +143,24 @@ class Readline is StdinNotify
       do
         _cur_pos = _cur_pos + 1
       end
+
+      _refresh_line()
     end
 
-  fun ref _home() =>
+  fun ref home(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Beginning of the line.
     """
     _cur_pos = 0
+    _refresh_line()
 
-  fun ref _end() =>
+  fun ref end_key(ctrl: Bool = false, alt: Bool = false, shift: Bool = false)
+  =>
     """
     End of the line.
     """
     _cur_pos = _edit.size().i64()
+    _refresh_line()
 
   fun ref _backspace() =>
     """
@@ -224,9 +180,11 @@ class Readline is StdinNotify
       until
         (_cur_pos == 0) or ((c and 0xC0) != 0x80)
       end
+
+      _refresh_line()
     end
 
-  fun ref _delete() =>
+  fun ref delete(ctrl: Bool = false, alt: Bool = false, shift: Bool = false) =>
     """
     Forward delete.
     """
@@ -241,13 +199,16 @@ class Readline is StdinNotify
       do
         _edit.delete(_cur_pos, 1)
       end
+
+      _refresh_line()
     end
 
   fun ref _clear() =>
     """
     Clear the screen.
     """
-    _out.write("\x1b[H\x1b[2J")
+    _out.write(ANSI.clear())
+    _refresh_line()
 
   fun ref _swap() =>
     """
@@ -259,6 +220,8 @@ class Readline is StdinNotify
           _edit((_cur_pos - 1).u64()) =
             _edit(_cur_pos.u64())
       end
+
+      _refresh_line()
     end
 
   fun ref _delete_prev_word() =>
@@ -277,6 +240,7 @@ class Readline is StdinNotify
       end
 
       _edit.delete(_cur_pos, (old - _cur_pos).u64())
+      _refresh_line()
     end
 
   fun ref _tab() =>
@@ -292,16 +256,16 @@ class Readline is StdinNotify
     | 1 =>
       try
         _edit = r(0).clone()
-        _end()
+        end_key()
       end
     else
       _out.write("\n")
 
-      try
-        for completion in r.values() do
-          _out.print(completion)
-        end
+      for completion in r.values() do
+        _out.print(completion)
       end
+
+      _refresh_line()
     end
 
   fun ref _dispatch() ? =>
@@ -309,13 +273,14 @@ class Readline is StdinNotify
     Send a finished line to the notifier.
     """
     if _edit.size() > 0 then
-      _home()
-      _refresh_line()
-      _out.write("\n")
-
       let line: String = _edit = recover String end
       _add_history(line)
+      _out.write("\n")
+
       _cur_prompt = _notify(line)
+      _cur_pos = 0
+
+      _refresh_line()
     end
 
   fun ref _refresh_line() =>
@@ -335,7 +300,7 @@ class Readline is StdinNotify
     out.append(_edit.clone())
 
     // Erase to the right edge.
-    out.append("\x1B[0K")
+    out.append(ANSI.erase())
 
     // Set the cursor position.
     var pos = _cur_prompt.codepoints()
@@ -344,10 +309,8 @@ class Readline is StdinNotify
       pos = pos + _edit.codepoints(0, _cur_pos - 1)
     end
 
-    out.append("\r\x1B[")
-    out.append(pos.string())
-    out.append("C")
-
+    out.append("\r")
+    out.append(ANSI.right(pos))
     _out.write(consume out)
 
   fun ref _add_history(line: String) =>

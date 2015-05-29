@@ -43,10 +43,8 @@ actor Main
 
   be streamer_done() =>
     if (_streamer_count = _streamer_count - 1) == 1 then
-      try
-        for u in _to.values() do
-          u.done(this)
-        end
+      for u in _to.values() do
+        u.done(this)
       end
     end
 

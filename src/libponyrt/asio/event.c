@@ -3,6 +3,7 @@
 #include "../actor/actor.h"
 #include "../mem/pool.h"
 #include <string.h>
+#include <assert.h>
 
 asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   uint32_t flags, bool noisy)
@@ -18,6 +19,7 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
 
   asio_event_t* ev = POOL_ALLOC(asio_event_t);
 
+  ev->magic = ev;
   ev->data = data;
   ev->owner = owner;
   ev->msg_id = msg_id;
@@ -35,8 +37,11 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
 
 void asio_event_destroy(asio_event_t* ev)
 {
-  if((ev == NULL) || (ev->flags != ASIO_DISPOSABLE))
+  if((ev == NULL) || (ev->magic != ev) || (ev->flags != ASIO_DISPOSABLE))
+  {
+    assert(0);
     return;
+  }
 
   ev->flags = ASIO_DESTROYED;
 
@@ -51,6 +56,9 @@ void asio_event_destroy(asio_event_t* ev)
 
 uintptr_t asio_event_data(asio_event_t* ev)
 {
+  if(ev == NULL)
+    return (uintptr_t)-1;
+
   return ev->data;
 }
 

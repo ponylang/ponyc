@@ -1,3 +1,8 @@
+use "collections"
+
+interface ITest
+  fun apply()?
+
 actor TestHelper
   """
   Per unit test actor that runs the test and provides logging and assertion
@@ -26,11 +31,13 @@ actor TestHelper
   let _id: U64
   let _group: _Group
   let _test: UnitTest iso
+  let _log_verbose: Bool
   var _test_log: Array[String] iso = recover Array[String] end
   var _pass: Bool = false
   var _completed: Bool = false
 
-  new _create(ponytest: PonyTest, id: U64, test: UnitTest iso, group: _Group)
+  new _create(ponytest: PonyTest, id: U64, test: UnitTest iso, group: _Group,
+    verbose: Bool)
   =>
     """
     Create a new TestHelper.
@@ -43,6 +50,7 @@ actor TestHelper
     _id = id
     _test = consume test
     _group = group
+    _log_verbose = verbose
 
   be _run() =>
     """
@@ -56,6 +64,8 @@ actor TestHelper
       // If the test throws then pass will keep its value of false, no extra
       // processing is needed.
       pass = _test(recover tag this end)
+    else
+      log("Test threw an error")
     end
 
     match pass
@@ -66,17 +76,21 @@ actor TestHelper
       complete(p)
     end
     
-  be log(msg: String) =>
+  be log(msg: String, verbose: Bool = false) =>
     """
     Log the given message.
     
-    Test logs are usually only printed for tests that fail. The --log command
-    line options overrides this and displays logs for all tests.
+    The verbose parameter allows messages to be printed only when the --verbose
+    command line option is used. For example, by default assert and expect
+    failures are logged, but passes are not. With --verbose both passes and
+    fails are reported.
 
     Logs are printed one test at a time to avoid interleaving log lines from
     concurrent tests.
     """
-    _test_log.push(msg)
+    if not verbose or _log_verbose then
+      _test_log.push(msg)
+    end
 
   be fail() =>
     """
@@ -88,46 +102,84 @@ actor TestHelper
     """
     _pass = false
 
-  fun tag assert_true(actual: Bool, msg: String = "Error") ? =>
+  be assert_failed(msg: String) =>
+    """
+    Assert failure of the test.
+    Record that an assert failed and log the given message.
+    """
+    _test_log.push(msg)
+    _pass = false
+
+  fun tag assert_true(actual: Bool, msg: String = "") ? =>
     """
     Assert that the given expression is true.
     """
     if not actual then
-      _assert_failed("Assert true failed: " + msg)
+      assert_failed("Assert true failed. " + msg)
       error
     end
+    log("Assert true passed. " + msg, true)
 
-  fun tag expect_true(actual: Bool, msg: String = "Error"): Bool =>
+  fun tag expect_true(actual: Bool, msg: String = ""): Bool =>
     """
     Expect that the given expression is true.
     """
     if not actual then
-      _assert_failed("Expect true failed: " + msg)
+      assert_failed("Expect true failed. " + msg)
       return false
     end
+    log("Expect true passed. " + msg, true)
     true
 
-  fun tag assert_false(actual: Bool, msg: String = "Error") ? =>
+  fun tag assert_false(actual: Bool, msg: String = "") ? =>
     """
     Assert that the given expression is false.
     """
     if actual then
-      _assert_failed("Assert false failed: " + msg)
+      assert_failed("Assert false failed. " + msg)
       error
     end
+    log("Assert false passed. " + msg, true)
 
-  fun tag expect_false(actual: Bool, msg: String = "Error"): Bool =>
+  fun tag expect_false(actual: Bool, msg: String = ""): Bool =>
     """
     Expect that the given expression is false.
     """
     if actual then
-      _assert_failed("Expect false failed: " + msg)
+      assert_failed("Expect false failed. " + msg)
       return false
     end
+    log("Expect false passed. " + msg, true)
     true
 
+  fun tag assert_error(test: ITest, msg: String = "") ? =>
+    """
+    Assert that the given test function throws an error when run.
+    """
+    try
+      test()
+      assert_failed("Assert error failed. " + msg)
+    else
+      log("Assert error passed. " + msg, true)
+      return
+    end
+    error
+
+  fun tag expect_error(test: ITest box, msg: String = ""): Bool =>
+    """
+    Expect that the given test function throws an error when run.
+    """
+    try
+      test()
+      assert_failed("Expect error failed. " + msg)
+      false
+    else
+      log("Expect error passed. " + msg, true)
+      true
+    end
+
   fun tag assert_eq[A: (Comparable[A] box & Stringable)]
-    (expect: A, actual: A, msg: String = "Error") ?
+    (expect: A, actual: A, msg: String = "") ?
   =>
     """
     Assert that the 2 given expressions are equal.
@@ -137,7 +189,7 @@ actor TestHelper
     end
 
   fun tag expect_eq[A: (Comparable[A] box & Stringable)]
-    (expect: A, actual: A, msg: String = "Error"): Bool
+    (expect: A, actual: A, msg: String = ""): Bool
   =>
     """
     Expect that the 2 given expressions are equal.
@@ -151,19 +203,68 @@ actor TestHelper
     Check that the 2 given expressions are equal.
     """
     if expect != actual then
-      _assert_failed(verb + " EQ failed: " + msg +
-        ". Expected (" + expect.string() + ") == (" +
-        actual.string() + ")")
+      assert_failed(verb + " EQ failed. " + msg +
+        " Expected (" + expect.string() + ") == (" + actual.string() + ")")
       return false
     end
+    
+    log(verb + " EQ passed. " + msg +
+      " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
     
-  be _assert_failed(msg: String) =>
+  fun tag assert_array_eq[A: (Comparable[A] box & Stringable)]
+    (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "Error") ?
+  =>
     """
-    Record that an assert failed and log the given message
+    Assert that the contents of the 2 given ReadSeqs are equal.
     """
-    _test_log.push(msg)
-    _pass = false
+    var ok = true
+
+    if expect.size() != actual.size() then
+      ok = false
+    else
+      try
+        for i in Range(0, expect.size()) do
+          if expect(i) != actual (i) then
+            ok = false
+            break
+          end
+        end
+      else
+        ok = false
+      end
+    end
+
+    if not ok then
+      assert_failed("Assert EQ failed. " + msg + " Expected (" +
+        _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")")
+      error
+    end
+
+    log("Assert EQ passed. " + msg + " Got (" +
+      _print_array[A](expect) + ") == (" + _print_array[A](actual) + ")", true)
+
+  fun tag _print_array[A: (Comparable[A] box & Stringable)](array: ReadSeq[A]):
+    String
+  =>
+    """
+    Generate a printable string of the contents of the given readseq to use in
+    error messages.
+    """
+    var s = "[len=" + array.size().string() + ": "
+    var first = true
+
+    for a in array.values() do
+      if not first then
+        s = s + ", "
+      end
+        
+      first = false
+      var sa: String val = a.string(where prec = 1)
+      s = s + sa 
+    end
+    s = s + "]"
+    s
 
   be complete(success: Bool) =>
     """

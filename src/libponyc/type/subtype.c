@@ -264,8 +264,17 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     ast_t* r_sub_member = reify(sub_typeargs, sub_member, sub_typeparams,
       sub_typeargs);
 
+    if(r_sub_member== NULL)
+      return false;
+
     ast_t* r_super_member = reify(super_typeargs, super_member,
       super_typeparams, super_typeargs);
+
+    if(r_super_member == NULL)
+    {
+      ast_free_unattached(r_sub_member);
+      return false;
+    }
 
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, sub, super);
     ast_free_unattached(r_sub_member);
@@ -296,6 +305,9 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
   {
     // Reify the trait with our typeargs.
     ast_t* r_trait = reify(typeargs, trait, typeparams, typeargs);
+
+    if(r_trait == NULL)
+      return false;
 
     // Use the cap and ephemerality of the subtype.
     AST_GET_CHILDREN(sub, pkg, name, typeparams, cap, eph);
@@ -807,6 +819,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return false;
 
     case TK_NEW:

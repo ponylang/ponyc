@@ -6,6 +6,7 @@
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -400,6 +401,19 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
   expand_none(for_else);
   const char* iter_name = package_hygienic_id(t);
 
+  BUILD(try_next, for_iter,
+    NODE(TK_TRY_NO_CHECK,
+      NODE(TK_SEQ, AST_SCOPE
+        NODE(TK_CALL,
+          NONE
+          NONE
+          NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next"))))
+      NODE(TK_SEQ, AST_SCOPE
+        NODE(TK_CONTINUE, NONE))
+      NONE));
+
+  sugar_try(try_next);
+
   REPLACE(astp,
     NODE(TK_SEQ,
       NODE(TK_ASSIGN, AST_NODEBUG
@@ -407,16 +421,13 @@ static ast_result_t sugar_for(typecheck_t* t, ast_t** astp)
         NODE(TK_LET, ID(iter_name) NONE))
       NODE(TK_WHILE, AST_SCOPE
         NODE(TK_SEQ,
-          NODE(TK_CALL,
+          NODE_ERROR_AT(TK_CALL, for_iter,
             NONE
             NONE
             NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("has_next"))))
         NODE(TK_SEQ, AST_SCOPE
           NODE_ERROR_AT(TK_ASSIGN, for_idseq, AST_NODEBUG
-            NODE(TK_CALL,
-              NONE
-              NONE
-              NODE(TK_DOT, NODE(TK_REFERENCE, ID(iter_name)) ID("next")))
+            TREE(try_next)
             TREE(for_idseq))
           TREE(for_body))
         TREE(for_else))));
@@ -854,28 +865,30 @@ static ast_result_t sugar_ffi(ast_t* ast)
   const char* name = ast_name(id);
   size_t len = strlen(name) + 1;
 
-  VLA(char, new_name, len + 1);
+  char* new_name = (char*)pool_alloc_size(len + 1);
   new_name[0] = '@';
   memcpy(new_name + 1, name, len);
 
-  ast_t* new_id = ast_from_string(id, new_name);
+  ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 1));
   ast_replace(&id, new_id);
 
   return AST_OK;
 }
 
 
-static ast_result_t sugar_semi(ast_t** astp)
+static ast_result_t sugar_semi(pass_opt_t* options, ast_t** astp)
 {
   ast_t* ast = *astp;
   assert(ast_id(ast) == TK_SEMI);
 
   // Semis are pointless, discard them
-  ast_t* expr = ast_pop(ast);
-  assert(expr != NULL);
+  assert(ast_child(ast) == NULL);
+  *astp = ast_sibling(ast);
+  ast_remove(ast);
 
-  ast_replace(astp, expr);
-  return AST_OK;
+  // Since we've effectively replaced ast with its successor we need to process
+  // that too
+  return pass_sugar(astp, options);
 }
 
 
@@ -945,7 +958,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_NOT:        return sugar_unop(astp, "op_not");
     case TK_FFIDECL:
     case TK_FFICALL:    return sugar_ffi(ast);
-    case TK_SEMI:       return sugar_semi(astp);
+    case TK_SEMI:       return sugar_semi(options, astp);
     case TK_LET:        return sugar_let(t, ast);
     default:            return AST_OK;
   }

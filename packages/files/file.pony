@@ -53,58 +53,63 @@ class File
     """
     not _handle.is_null()
 
-  fun ref line(): String iso^ =>
+  fun ref line(): String iso^ ? =>
     """
-    Returns a line as a String. The newline is not included in the string.
+    Returns a line as a String. The newline is not included in the string. If
+    there is no more data, this raises an error.
     """
-    if not _handle.is_null() then
-      var offset: U64 = 0
-      var len = _last_line_length
-      var result = recover String end
-      var done = false
-
-      while not done do
-        result.reserve(len)
-
-        var r = if Platform.linux() then
-          @fgets_unlocked[Pointer[U8]](
-            result.cstring().u64() + offset, len - offset, _handle
-            )
-        else
-          @fgets[Pointer[U8]](
-            result.cstring().u64() + offset, len - offset, _handle
-            )
-        end
-
-        result.recalc()
-
-        done = try
-          r.is_null() or (result(result.size() - 1) == '\n')
-        else
-          true
-        end
-
-        if not done then
-          offset = result.size()
-          len = len * 2
-        end
-      end
-
-      try
-        if result.at_offset(-1) == '\n' then
-          result.truncate(result.size() - 1)
-
-          if result.at_offset(-1) == '\r' then
-            result.truncate(result.size() - 1)
-          end
-        end
-      end
-
-      _last_line_length = len
-      result
-    else
-      recover String end
+    if _handle.is_null() then
+      error
     end
+
+    var offset: U64 = 0
+    var len = _last_line_length
+    var result = recover String end
+    var done = false
+
+    while not done do
+      result.reserve(len)
+
+      var r = if Platform.linux() then
+        @fgets_unlocked[Pointer[U8]](
+          result.cstring().u64() + offset, len - offset, _handle
+          )
+      else
+        @fgets[Pointer[U8]](
+          result.cstring().u64() + offset, len - offset, _handle
+          )
+      end
+
+      result.recalc()
+
+      done = try
+        r.is_null() or (result.at_offset(-1) == '\n')
+      else
+        true
+      end
+
+      if not done then
+        offset = result.size()
+        len = len * 2
+      end
+    end
+
+    if result.size() == 0 then
+      error
+    end
+
+    try
+      if result.at_offset(-1) == '\n' then
+        result.truncate(result.size() - 1)
+
+        if result.at_offset(-1) == '\r' then
+          result.truncate(result.size() - 1)
+        end
+      end
+    end
+
+    _last_line_length = len
+    result
 
   fun ref read(len: U64): Array[U8] iso^ =>
     """
@@ -151,6 +156,18 @@ class File
     """
     write(data) and write("\n")
 
+  fun ref printv(data: BytesList box): Bool =>
+    """
+    Print an array of Bytes.
+    """
+    var r = true
+
+    for bytes in data.values() do
+      r = r and write(bytes) and write("\n")
+    end
+
+    r
+
   fun ref write(data: Bytes box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
@@ -170,6 +187,18 @@ class File
       dispose()
     end
     false
+
+  fun ref writev(data: BytesList box): Bool =>
+    """
+    Write an array of Bytes.
+    """
+    var r = true
+
+    for bytes in data.values() do
+      r = r and write(bytes)
+    end
+
+    r
 
   fun position(): U64 =>
     """
@@ -312,13 +341,28 @@ class FileLines is Iterator[String]
   """
   Iterate over the lines in a file.
   """
-  var file: File
-  var line: String
+  var _file: File
+  var _line: String = ""
+  var _next: Bool = false
 
-  new create(from: File) =>
-    file = from
-    line = file.line()
+  new create(file: File) =>
+    _file = file
 
-  fun ref has_next(): Bool => line.size() > 0
+    try
+      _line = file.line()
+      _next = true
+    end
 
-  fun ref next(): String => line = file.line()
+  fun ref has_next(): Bool =>
+    _next
+
+  fun ref next(): String =>
+    let r = _line
+
+    try
+      _line = _file.line()
+    else
+      _next = false
+    end
+
+    r

@@ -82,7 +82,7 @@ trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
 
 trait SignedInteger[A: SignedInteger[A] box] val is Integer[A]
   fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
@@ -90,7 +90,7 @@ trait SignedInteger[A: SignedInteger[A] box] val is Integer[A]
 
 trait UnsignedInteger[A: UnsignedInteger[A] box] val is Integer[A]
   fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+    prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)

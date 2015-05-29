@@ -1,6 +1,6 @@
 #include "names.h"
 #include "../ast/astbuild.h"
-#include "../type/alias.h"
+// #include "../type/alias.h"
 #include "../type/reify.h"
 #include "../pkg/package.h"
 #include <assert.h>
@@ -280,56 +280,9 @@ static bool names_arrow(ast_t* ast)
   return false;
 }
 
-static bool names_sendable_params(ast_t* params)
-{
-  ast_t* param = ast_child(params);
-  bool ok = true;
-
-  while(param != NULL)
-  {
-    AST_GET_CHILDREN(param, id, type, def);
-
-    if(!sendable(type))
-    {
-      ast_error(type, "this parameter must be sendable (iso, val or tag)");
-      ok = false;
-    }
-
-    param = ast_sibling(param);
-  }
-
-  return ok;
-}
-
-static bool names_constructor(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
-    docstring);
-
-  switch(ast_id(cap))
-  {
-    case TK_ISO:
-    case TK_TRN:
-    case TK_VAL:
-      return names_sendable_params(params);
-
-    default: {}
-  }
-
-  return true;
-}
-
-static bool names_async(ast_t* ast)
-{
-  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body,
-    docstring);
-
-  return names_sendable_params(params);
-}
-
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
+  (void)options;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
@@ -341,30 +294,6 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
 
     case TK_ARROW:
       if(!names_arrow(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_NEW:
-    {
-      switch(ast_id(t->frame->type))
-      {
-        case TK_CLASS:
-          if(!names_constructor(ast))
-            return AST_ERROR;
-          break;
-
-        case TK_ACTOR:
-          if(!names_async(ast))
-            return AST_ERROR;
-          break;
-
-        default: {}
-      }
-      break;
-    }
-
-    case TK_BE:
-      if(!names_async(ast))
         return AST_ERROR;
       break;
 

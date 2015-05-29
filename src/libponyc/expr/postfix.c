@@ -147,10 +147,6 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
   // Left is a packageref, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
-  ast_t* type = ast_type(left);
-
-  if(is_typecheck_error(type))
-    return false;
 
   assert(ast_id(left) == TK_PACKAGEREF);
   assert(ast_id(right) == TK_ID);
@@ -167,7 +163,7 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
   assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  type = ast_get(package, type_name, NULL);
+  ast_t* type = ast_get(package, type_name, NULL);
 
   if(type == NULL)
   {

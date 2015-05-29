@@ -7,7 +7,6 @@ actor Main
   let _client: Client
 
   new create(env: Env) =>
-    SSLInit
     _env = env
 
     let sslctx = try
@@ -40,19 +39,17 @@ actor Main
         response.status.string() + " " +
         response.method)
 
-      try
-        for (k, v) in response.headers().pairs() do
-          _env.out.print(k + ": " + v)
-        end
-
-        _env.out.print("")
-
-        for chunk in response.body().values() do
-          _env.out.write(chunk)
-        end
-
-        _env.out.print("")
+      for (k, v) in response.headers().pairs() do
+        _env.out.print(k + ": " + v)
       end
+
+      _env.out.print("")
+
+      for chunk in response.body().values() do
+        _env.out.write(chunk)
+      end
+
+      _env.out.print("")
     else
       _env.out.print("Failed: " + request.method + " " + request.url.string())
     end

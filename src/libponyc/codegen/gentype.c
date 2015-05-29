@@ -8,6 +8,7 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../debug/dwarf.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -428,7 +429,8 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying == TK_ACTOR)
     extra++;
 
-  VLA(LLVMTypeRef, elements, g->field_count + extra);
+  size_t buf_size = (g->field_count + extra) * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
   if(g->underlying != TK_TUPLETYPE)
@@ -446,7 +448,10 @@ static bool make_struct(compile_t* c, gentype_t* g)
     gentype_t field_g;
 
     if(!gentype_prelim(c, g->fields[i], &field_g))
+    {
+      pool_free_size(buf_size, elements);
       return false;
+    }
 
     elements[i + extra] = field_g.use_type;
   }
@@ -457,6 +462,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying == TK_TUPLETYPE)
     make_box_type(c, g);
 
+  pool_free_size(buf_size, elements);
   return true;
 }
 

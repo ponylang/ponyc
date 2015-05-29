@@ -9,8 +9,8 @@ class Env val
   let args: Array[String] val
   let vars: Array[String] val
 
-  new _create(argc: U64, argv: Pointer[Pointer[U8] iso] iso,
-    envp: Pointer[Pointer[U8] iso] iso)
+  new _create(argc: U64, argv: Pointer[Pointer[U8]] val,
+    envp: Pointer[Pointer[U8]] val)
   =>
     """
     Builds an environment from the command line. This is done before the Main
@@ -22,8 +22,8 @@ class Env val
     out = StdStream._out()
     err = StdStream._err()
 
-    args = _strings_from_pointers(consume argv, argc)
-    vars = _strings_from_pointers(consume envp, 0)
+    args = _strings_from_pointers(argv, argc)
+    vars = _strings_from_pointers(envp, 0)
 
   new create(input': Stdin, out': StdStream, err': StdStream,
     args': Array[String] val, vars': Array[String] val)
@@ -44,30 +44,21 @@ class Env val
     """
     @pony_exitcode[None](code)
 
-  fun tag _strings_from_pointers(data: Pointer[Pointer[U8] iso] iso, len: U64):
+  fun tag _strings_from_pointers(data: Pointer[Pointer[U8]] val, len: U64):
     Array[String] iso^
   =>
     let array = recover Array[String](len) end
     var i: U64 = 0
 
     while true do
-      let entry = data._update(i, recover Pointer[U8] end)
+      let entry = data._apply(i)
 
       if entry.is_null() then
         break
       end
 
-      array.push(recover String.from_cstring(consume entry, 0, false) end)
+      array.push(recover String.copy_cstring(entry) end)
       i = i + 1
     end
 
     array
-
-  fun tag black(): U8 => 0
-  fun tag red(): U8 => 1
-  fun tag green(): U8 => 2
-  fun tag yellow(): U8 => 3
-  fun tag blue(): U8 => 4
-  fun tag magenta(): U8 => 5
-  fun tag cyan(): U8 => 6
-  fun tag white(): U8 => 7

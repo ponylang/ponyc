@@ -119,12 +119,18 @@
       buildoptions "/PROFILE"
 
     configuration "vs*"
-      local version = os.outputof("git describe --tags --always")
+      local version, exitcode = os.outputof("git describe --tags --always")
+      
+      if exitcode ~= 0 then
+        version = os.outputof("cat VERSION")
+      end
+      
       debugdir "."
       defines {
         -- disables warnings for vsnprintf
         "_CRT_SECURE_NO_WARNINGS",
-        "PONY_VERSION=\"" .. string.gsub(version, "\n", "") .. "\""
+        "PONY_VERSION=\"" .. string.gsub(version, "\n", "") .. "\"",
+        "PLATFORM_TOOLS_VERSION=$(PlatformToolsetVersion)"
       }
 
     configuration { "not windows" }

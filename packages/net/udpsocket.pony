@@ -2,8 +2,8 @@ use "collections"
 
 actor UDPSocket
   var _notify: UDPNotify
-  var _fd: U64 = -1
-  var _event: EventID = Event.none()
+  var _fd: U64
+  var _event: EventID
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
@@ -17,9 +17,11 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   new ip4(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: U64 = 1024)
@@ -28,9 +30,11 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp4[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp4[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   new ip6(notify: UDPNotify iso, host: String = "", service: String = "0",
     size: U64 = 1024)
@@ -39,9 +43,11 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _fd = @os_listen_udp6[U64](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp6[EventID](this, host.cstring(), service.cstring())
+    _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
+    _start_next_read()
 
   be write(data: Bytes, to: IPAddress) =>
     """
@@ -53,10 +59,8 @@ actor UDPSocket
     """
     Write a sequence of sequences of bytes.
     """
-    try
-      for bytes in data.values() do
-        _write(bytes, to)
-      end
+    for bytes in data.values() do
+      _write(bytes, to)
     end
 
   be set_notify(notify: UDPNotify iso) =>
@@ -113,13 +117,17 @@ actor UDPSocket
     Return the bound IP address.
     """
     let ip = recover IPAddress end
-    @os_sockname[None](_fd, ip)
+    @os_sockname[Bool](_fd, ip)
     ip
 
   be _event_notify(event: EventID, flags: U32, arg: U64) =>
     """
     When we are readable, we accept new connections until none remain.
     """
+    if event isnt _event then
+      return
+    end
+
     if not _closed then
       _event = event
 
@@ -134,7 +142,7 @@ actor UDPSocket
     end
 
     if Event.disposable(flags) then
-      @asio_event_destroy[None](event)
+      @asio_event_destroy[None](_event)
       _event = Event.none()
     end
 
@@ -181,7 +189,7 @@ actor UDPSocket
         _close()
       end
     end
-    
+
   fun ref _complete_reads(len: U64) =>
     """
     The OS has informed as that len bytes of pending reads have completed.
@@ -204,15 +212,21 @@ actor UDPSocket
         return
       end
 
-      if len != -1 then
-        // Hand back read data
-        let data = _read_buf = recover Array[U8].undefined(next) end
-        let from = _read_from = recover IPAddress end
-        data.truncate(len)
-        _notify.received(this, consume data, consume from)
-      end
+      // Hand back read data
+      let data = _read_buf = recover Array[U8].undefined(next) end
+      let from = _read_from = recover IPAddress end
+      data.truncate(len)
+      _notify.received(this, consume data, consume from)
 
-      // Start next read
+      _start_next_read()
+    end
+
+  fun ref _start_next_read() =>
+    """
+    Start our next receive.
+    This is used only with IOCP on Windows.
+    """
+    if Platform.windows() then
       try
         @os_recvfrom[U64](_event, _read_buf.cstring(), _read_buf.space(),
           _read_from) ?
