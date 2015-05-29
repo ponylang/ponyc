@@ -152,13 +152,13 @@ actor TCPConnection
             _fd = fd
             _event = event
             _connected = true
+            _writeable = true
 
             _queue_read()
             _notify.connected(this)
 
             // Don't call _complete_writes, as Windows will see this as a
             // closed connection.
-            _writeable = true
             _pending_writes()
           else
             // The connection failed, unsubscribe the event and close.
