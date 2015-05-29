@@ -121,7 +121,32 @@ const char* token_print(token_t* token)
       if (token->printed == NULL)
         token->printed = (char*)pool_alloc_size(64);
 
-      snprintf(token->printed, 64, __zu, (size_t)token->integer);
+      {
+        uint64_t low, high;
+#if !defined(HAVE_STRUCT_INT128)
+        low = token->integer;
+        high = token->integer >> 64;
+#else
+        low = token->integer.low;
+        high = token->integer.high;
+#endif
+        char *ret = token->printed + 63;
+        *ret = '\0';
+        if (!low && !high) {
+            *--ret = '0';
+        }
+        while (low || high) {
+            unsigned char high_r = (unsigned char)(high % 10);
+            unsigned char low_r = (unsigned char)(low % 10);
+            unsigned char unit = (unsigned char)(((6 * high_r + low_r) % 10));
+            *--ret = (char)('0' + unit); /* 6 == (1<<64) % 10 */
+            high /= 10;
+            uint64_t h = UINT64_C(1844674407370955161) * high_r + low / 10;
+            low = h + (high_r * 6 + low % 10) / 10;
+        }
+        for (unsigned int i = 0; (token->printed[i] = *ret); i++, ret++)
+                ;
+      }
       return token->printed;
 
     case TK_FLOAT:

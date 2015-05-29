@@ -43,7 +43,7 @@ static LLVMValueRef make_fieldptr(compile_t* c, LLVMValueRef l_value,
     case TK_TUPLETYPE:
     {
       assert(ast_id(right) == TK_INT);
-      int index = (int)ast_int(right);
+      size_t index = ast_size_t(right);
 
       return LLVMBuildExtractValue(c->builder, l_value, index, "");
     }
@@ -269,8 +269,15 @@ LLVMValueRef gen_int(compile_t* c, ast_t* ast)
     return NULL;
 
   __uint128_t value = ast_int(ast);
-  uint64_t low = (uint64_t)value;
-  uint64_t high = (uint64_t)(value >> 64);
+
+  uint64_t low, high;
+#if !defined(HAVE_STRUCT_INT128)
+  low = (uint64_t)value;
+  high = (uint64_t)(value >> 64);
+#else
+  low = value.low;
+  high = value.high;
+#endif
 
   LLVMValueRef vlow = LLVMConstInt(c->i128, low, false);
   LLVMValueRef vhigh = LLVMConstInt(c->i128, high, false);

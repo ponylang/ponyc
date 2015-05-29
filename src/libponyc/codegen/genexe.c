@@ -18,63 +18,6 @@
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
-
-static bool file_exists(const char* filename)
-{
-  struct stat s;
-  int err = stat(filename, &s);
-
-  return (err != -1) && S_ISREG(s.st_mode);
-}
-
-static const char* crt_directory()
-{
-  static const char* dir[] =
-  {
-    "/usr/lib/x86_64-linux-gnu/",
-    "/usr/lib64/",
-    "/usr/lib/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "crt1.o");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-
-static const char* gccs_directory()
-{
-  static const char* dir[] =
-  {
-    "/lib/x86_64-linux-gnu/",
-    "/lib64/",
-    "/lib/",
-    NULL
-  };
-
-  for(const char** p = dir; *p != NULL; p++)
-  {
-    char filename[PATH_MAX];
-    strcpy(filename, *p);
-    strcat(filename, "libgcc_s.so.1");
-
-    if(file_exists(filename))
-      return *p;
-  }
-
-  return NULL;
-}
-#endif
-
 static const char* get_link_path()
 {
   strlist_t* paths = package_paths();
@@ -232,7 +175,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   // Allocate the message, setting its size and ID.
   uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
 
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, msg_type));
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
   LLVMValueRef msg = gencall_runtime(c, "pony_alloc_msg", args, 2, "");
@@ -340,43 +283,40 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* link_path = get_link_path();
   const char* lib_args = program_lib_args(program);
 
-  const char* crt_dir = crt_directory();
-  const char* gccs_dir = gccs_directory();
+  char ld_cmd[2048];
+  char *ld_ptr = ld_cmd, *end = ld_cmd + sizeof ld_cmd;
 
-  if((crt_dir == NULL) || (gccs_dir == NULL))
+# define ld_printf(...) ld_ptr += snprintf(ld_ptr, end - ld_ptr, __VA_ARGS__)
+
+  ld_printf("${HOSTCC-gcc}");
+  //ld_printf(" --eh-frame-hdr --hash-style=gnu");
+  ld_printf(" -o %s", file_exe);
+  ld_printf(" %s", file_o);
+  ld_printf(" %s", link_path);
+  ld_printf(" %s", lib_args);
+  ld_printf(" -lponyrt");
+  ld_printf(" -L/usr/lib/llvm-3.6/lib -lLLVM-3.6");
+  ld_printf(" -lpthread");
+  ld_printf(" -lm");
+  ld_printf(" -Wl,-t"); /* trace */
+  /*ld_printf(" -m elf_x86_64");*/
+  /*ld_printf(" -dynamic-linker /lib64/ld-linux-x86-64.so.2");*/
+
+
+  if(ld_ptr >= end)
   {
-    errorf(NULL, "could not find CRT");
+    errorf(NULL, "link command too long");
     return false;
   }
+# undef ld_printf
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
-  char* ld_cmd = (char*)pool_alloc_size(ld_len);
-
-  snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr --hash-style=gnu "
-#ifdef PLATFORM_IS_LINUX
-    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-#else
-    "-m elf_x86_64_fbsd -L/usr/local/lib "
-#endif
-    "-o %s %scrt1.o %scrti.o "
-    "%s %s %s -lponyrt -lpthread "
-#ifdef PLATFORM_IS_LINUX
-    "-ldl "
-#endif
-    "-lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
-    );
-
+  fprintf(stderr, "%s\n", ld_cmd);
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
-    pool_free_size(ld_len, ld_cmd);
     return false;
   }
 
-  pool_free_size(ld_len, ld_cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 

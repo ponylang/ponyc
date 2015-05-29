@@ -15,7 +15,7 @@ typedef struct chunk_t
   // immutable
   pony_actor_t* actor;
   char* m;
-  uint64_t size;
+  size_t size;
 
   // mutable
   uint32_t slots;

@@ -391,7 +391,7 @@ void PassTest::child(size_t index)
 
   if(index >= ast_childcount(walk_ast))
   {
-    printf("Cannot find child index %lu, only %lu children present\n", index,
+    printf("Cannot find child index " __zu ", only " __zu " children present\n", index,
       ast_childcount(walk_ast));
     ASSERT_TRUE(false);
   }

@@ -357,7 +357,7 @@ static bool build_entity_def(ast_t* entity)
 {
   assert(entity != NULL);
 
-  ast_state_t state = (ast_state_t)(uint64_t)ast_data(entity);
+  ast_state_t state = (ast_state_t)(uintptr_t)ast_data(entity);
 
   // Check for recursive definitions
   switch(state)

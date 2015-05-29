@@ -254,9 +254,17 @@ ast_t* ast_from_string(ast_t* ast, const char* name)
 
 ast_t* ast_from_int(ast_t* ast, uint64_t value)
 {
+  __uint128_t value128 =
+#if !defined(HAVE_STRUCT_INT128)
+        value
+#else
+        { value, 0 }
+#endif
+  ;
+
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
-  token_set_int(t, value);
+  token_set_int(t, value128);
 
   ast_t* new_ast = ast_token(t);
   new_ast->scope = ast->scope;
@@ -434,6 +442,16 @@ double ast_float(ast_t* ast)
 __uint128_t ast_int(ast_t* ast)
 {
   return token_int(ast->t);
+}
+
+size_t ast_size_t(ast_t* ast)
+{
+  __uint128_t val = ast_int(ast);
+#if !defined(HAVE_STRUCT_INT128)
+  return pony_downcast(size_t, val);
+#else
+  return pony_downcast(size_t, val.low);
+#endif
 }
 
 ast_t* ast_type(ast_t* ast)

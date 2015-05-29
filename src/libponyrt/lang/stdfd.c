@@ -503,7 +503,7 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
   }
 
   *out_again = true;
-  return read(0, buffer, space);
+  return read(0, buffer, pony_downcast(size_t, space));
 #endif
 }
 
@@ -531,7 +531,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
       {
         // Write any pending data.
         if(pos > last)
-          fwrite(&buffer[last], pos - last, 1, fp);
+          fwrite(&buffer[last], pony_downcast(size_t, pos - last), 1, fp);
 
         int argc = 0;
         int argv[6] = {0};
@@ -542,13 +542,18 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
       }
       else
       {
+        if (pos - last >= SIZE_MAX)
+        {
+          fwrite(&buffer[last], pony_downcast(size_t, pos - last), 1, fp);
+	  last = pos;
+        }
         pos++;
       }
     }
 
     // Write any remaining data.
     if(len > last)
-      fwrite(&buffer[last], len - last, 1, fp);
+      fwrite(&buffer[last], pony_downcast(size_t, len - last), 1, fp);
 
     return;
   }
@@ -762,6 +767,11 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
 
       last = pos;
     } else {
+      if (pos - last >= SIZE_MAX)
+      {
+        fwrite(&buffer[last], pos - last, 1, fp);
+        last = pos;
+      }
       pos++;
     }
   }
@@ -771,7 +781,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
     fwrite(&buffer[last], len - last, 1, fp);
 
 #elif defined PLATFORM_IS_LINUX
-  fwrite_unlocked(buffer, len, 1, fp);
+  fwrite_unlocked(buffer, pony_downcast(size_t, len), 1, fp);
 #else
   fwrite(buffer, len, 1, fp);
 #endif

@@ -21,8 +21,6 @@
 #define POOL_THRESHOLD (POOL_MAX >> 1)
 #define POOL_MMAP (POOL_MAX << 2)
 
-typedef __int128_t pool_aba_t;
-
 typedef struct pool_item_t
 {
   struct pool_item_t* next;
@@ -40,7 +38,7 @@ typedef struct pool_global_t
 {
   size_t size;
   size_t count;
-  pool_aba_t central;
+  uintptr2_t central;
 } pool_global_t;
 
 typedef struct pool_central_t
@@ -56,11 +54,11 @@ typedef struct pool_cmp_t
   {
     struct
     {
-      uint64_t aba;
+      uintptr_t aba;
       pool_central_t* node;
     };
 
-    pool_aba_t dw;
+    uintptr2_t dw;
   };
 } pool_cmp_t;
 
@@ -305,7 +303,7 @@ size_t pool_leak()
       size_t amount = POOL_MMAP - avail;
       leak += amount;
 
-      printf("POOL LEAK, SIZE %zu COUNT %zu\n",
+      printf("POOL LEAK, SIZE " __zu " COUNT " __zu "\n",
         global->size, amount / global->size);
     }
 
@@ -317,7 +315,7 @@ size_t pool_leak()
     {
       if(next->length != global->count)
       {
-        printf("POOL CENTRAL %zu of %zu\n", next->length, global->count);
+        printf("POOL CENTRAL " __zu " of " __zu "\n", next->length, global->count);
       }
 
       next = next->central;
@@ -325,7 +323,7 @@ size_t pool_leak()
   }
 
   if(leak > 0)
-    printf("POOL TOTAL LEAK %zu\n", leak);
+    printf("POOL TOTAL LEAK " __zu "\n", leak);
 
   return leak;
 }

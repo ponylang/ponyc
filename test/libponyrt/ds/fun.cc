@@ -49,14 +49,11 @@ TEST(DsFunTest, HashSamePointerGivesSameKey)
  */
 TEST(DsFunTest, NumbersToNextPow)
 {
-  uint64_t i = 200;
-
-  ASSERT_EQ(
-    1,
-    __pony_popcount64(
-      (unsigned int)next_pow2(i)
-    )
-  );
+  ASSERT_EQ(1, next_pow2(0));
+  ASSERT_EQ(4, next_pow2(3));
+  ASSERT_EQ(256, next_pow2(129));
+  ASSERT_EQ(256, next_pow2(200));
+  ASSERT_EQ(256, next_pow2(255));
 }
 
 /** Powers of two are not rounded.
@@ -64,5 +61,7 @@ TEST(DsFunTest, NumbersToNextPow)
  */
 TEST(DsFunTest, PowersOfTwoAreNotRounded)
 {
-  ASSERT_EQ((size_t)128, next_pow2(128));
+  ASSERT_EQ(1, next_pow2(1));
+  ASSERT_EQ(2, next_pow2(2));
+  ASSERT_EQ(128, next_pow2(128));
 }

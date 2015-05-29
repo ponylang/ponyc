@@ -700,9 +700,9 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
     case CYCLE_INIT:
     {
       init_msg_t* m = (init_msg_t*)msg;
-      d->min_deferred = 1ULL << m->min_deferred;
-      d->max_deferred = 1ULL << m->max_deferred;
-      d->conf_group = 1ULL << m->conf_group;
+      d->min_deferred = (size_t)1 << m->min_deferred;
+      d->max_deferred = (size_t)1 << m->max_deferred;
+      d->conf_group = (size_t)1 << m->conf_group;
       d->next_deferred = d->min_deferred;
       break;
     }

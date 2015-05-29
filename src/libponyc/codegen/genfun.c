@@ -342,7 +342,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   pool_free_size(buf_size, f_params);
 
   // Allocate the message, setting its size and ID.
-  size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
+  size_t msg_size = pony_downcast(size_t, LLVMABISizeOfType(c->target_data, msg_type));
   LLVMValueRef args[2];
 
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
