@@ -4,6 +4,7 @@
 #include "alias.h"
 #include "assemble.h"
 #include "viewpoint.h"
+#include "../ast/astbuild.h"
 #include "../ast/stringtab.h"
 #include "../expr/literal.h"
 #include <assert.h>
@@ -133,44 +134,14 @@ static bool is_recursive_interface(ast_t* sub, ast_t* super, ast_t* isub,
     is_eqtype(sub, isub) && is_eqtype(super, isuper);
 }
 
-static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
+static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   ast_t* isub, ast_t* isuper)
 {
-  // Must be the same type of function.
-  if(ast_id(sub) != ast_id(super))
-    return false;
-
   AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params,
     sub_result, sub_throws);
 
   AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params,
     super_result, super_throws);
-
-  // Must have the same name.
-  if(ast_name(sub_id) != ast_name(super_id))
-    return false;
-
-  // Contravariant type parameter constraints.
-  ast_t* sub_typeparam = ast_child(sub_typeparams);
-  ast_t* super_typeparam = ast_child(super_typeparams);
-
-  while((sub_typeparam != NULL) && (super_typeparam != NULL))
-  {
-    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
-    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
-
-    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
-      && !is_subtype(super_constraint, sub_constraint))
-      return false;
-
-    sub_typeparam = ast_sibling(sub_typeparam);
-    super_typeparam = ast_sibling(super_typeparam);
-  }
-
-  if((sub_typeparam != NULL) || (super_typeparam != NULL))
-    return false;
-
-  // TODO: positional reification?
 
   switch(ast_id(sub))
   {
@@ -239,6 +210,75 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
     return false;
 
   return true;
+}
+
+static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
+  ast_t* isub, ast_t* isuper)
+{
+  // Must be the same type of function.
+  if(ast_id(sub) != ast_id(super))
+    return false;
+
+  AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams);
+  AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams);
+
+  // Must have the same name.
+  if(ast_name(sub_id) != ast_name(super_id))
+    return false;
+
+  // Contravariant type parameter constraints.
+  ast_t* sub_typeparam = ast_child(sub_typeparams);
+  ast_t* super_typeparam = ast_child(super_typeparams);
+
+  while((sub_typeparam != NULL) && (super_typeparam != NULL))
+  {
+    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
+    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
+
+    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
+      && !is_subtype(super_constraint, sub_constraint))
+      return false;
+
+    sub_typeparam = ast_sibling(sub_typeparam);
+    super_typeparam = ast_sibling(super_typeparam);
+  }
+
+  if((sub_typeparam != NULL) || (super_typeparam != NULL))
+    return false;
+
+  ast_t* r_sub = sub;
+
+  if(ast_id(super_typeparams) != TK_NONE)
+  {
+    // Reify sub with the type parameters of super.
+    BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
+    super_typeparam = ast_child(super_typeparams);
+
+    while(super_typeparam != NULL)
+    {
+      AST_GET_CHILDREN(super_typeparam, super_id, super_constraint);
+      token_id cap = cap_from_constraint(super_constraint);
+
+      BUILD(typearg, super_typeparam,
+        NODE(TK_TYPEPARAMREF, TREE(super_id) NODE(cap) NONE));
+
+      ast_t* def = ast_get(super_typeparam, ast_name(super_id), NULL);
+      ast_setdata(typearg, def);
+      ast_append(typeargs, typearg);
+
+      super_typeparam = ast_sibling(super_typeparam);
+    }
+
+    r_sub = reify(sub, sub, sub_typeparams, typeargs);
+    ast_free_unattached(typeargs);
+  }
+
+  bool ok = is_reified_fun_sub_fun(r_sub, super, isub, isuper);
+
+  if(r_sub != sub)
+    ast_free_unattached(r_sub);
+
+  return ok;
 }
 
 static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
