@@ -533,6 +533,7 @@ static reachable_method_stack_t* reachable_method(reachable_method_stack_t* s,
     case TK_NOMINAL:
       break;
 
+    case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(type);

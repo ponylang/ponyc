@@ -172,10 +172,48 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      if(errors)
-        ast_error(from, "can't lookup by name on a union type");
+    {
+      ast_t* child = ast_child(type);
+      ast_t* result = NULL;
+      bool ok = true;
 
-      return NULL;
+      while(child != NULL)
+      {
+        ast_t* r = lookup_base(t, from, orig, child, name, errors);
+
+        if(r == NULL)
+        {
+          ok = false;
+        } else if(result == NULL) {
+          result = r;
+        } else {
+          if(!is_subtype(r, result))
+          {
+            if(errors)
+            {
+              ast_error(from,
+                "a member of the union type has an incompatible method "
+                "signature");
+              ast_error(result, "first implementation is here");
+              ast_error(r, "second implementation is here");
+            }
+
+            ast_free_unattached(r);
+            ok = false;
+          }
+        }
+
+        child = ast_sibling(child);
+      }
+
+      if(!ok)
+      {
+        ast_free_unattached(result);
+        result = NULL;
+      }
+
+      return result;
+    }
 
     case TK_ISECTTYPE:
     {

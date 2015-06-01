@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Allow method calls on union types when the signatures are compatible.
 - FreeBSD 10.1 support, thanks to Ben Laurie.
 - Primitive `_init` and `_final` for C library initialisation and shutdown.
 - collections.Flags

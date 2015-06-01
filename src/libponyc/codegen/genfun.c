@@ -121,7 +121,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
 static ast_t* get_fun(gentype_t* g, const char* name, ast_t* typeargs)
 {
   ast_t* this_type = set_cap_and_ephemeral(g->ast, TK_REF, TK_NONE);
-  ast_t* fun = lookup(NULL, NULL, this_type, name);
+  ast_t* fun = lookup_try(NULL, NULL, this_type, name);
   ast_free_unattached(this_type);
   assert(fun != NULL);
 
@@ -796,6 +796,7 @@ uint32_t genfun_vtable_index(compile_t* c, gentype_t* g, const char* name,
     case TK_NOMINAL:
       return vtable_index(c, g->type_name, name, typeargs);
 
+    case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(g->ast);
