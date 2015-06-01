@@ -18,19 +18,19 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     Tell the client we have connected.
     """
-    _client._connected()
+    _client._connected(conn)
 
   fun ref connect_failed(conn: TCPConnection ref) =>
     """
     The connection could not be established. Tell the client not to proceed.
     """
-    _client._connect_failed()
+    _client._connect_failed(conn)
 
   fun ref auth_failed(conn: TCPConnection ref) =>
     """
     SSL authentication failed. Tell the client not to proceed.
     """
-    _client._auth_failed()
+    _client._auth_failed(conn)
 
   fun ref received(conn: TCPConnection ref, data: Array[U8] iso) =>
     """
@@ -39,7 +39,7 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     // TODO: inactivity timer
     _buffer.append(consume data)
-    _dispatch()
+    _dispatch(conn)
 
   fun ref closed(conn: TCPConnection ref) =>
     """
@@ -47,10 +47,10 @@ class _ResponseBuilder is TCPConnectionNotify
     """
     _builder.closed(_buffer)
     _buffer.clear()
-    _dispatch()
-    _client._closed()
+    _dispatch(conn)
+    _client._closed(conn)
 
-  fun ref _dispatch() =>
+  fun ref _dispatch(conn: TCPConnection ref) =>
     """
     Dispatch responses if we have any.
     """
@@ -61,7 +61,7 @@ class _ResponseBuilder is TCPConnectionNotify
       | _PayloadReady =>
         _client._response(_builder.done())
       | _PayloadError =>
-        _client._closed()
+        _client._closed(conn)
         break
       else
         break

@@ -60,32 +60,34 @@ actor _ClientConnection
     try _sent.shift()._client_respond(consume response) end
     _send()
 
-  be _connected() =>
+  be _connected(conn: TCPConnection) =>
     """
     The connection to the server has been established. Send pending requests.
     """
     _send()
 
-  be _connect_failed() =>
+  be _connect_failed(conn: TCPConnection) =>
     """
     The connection couldn't be established. Cancel all pending requests.
     """
     _cancel_all()
     _conn = None
 
-  be _auth_failed() =>
+  be _auth_failed(conn: TCPConnection) =>
     """
     The connection couldn't be authenticated. Cancel all pending requests.
     """
     _cancel_all()
     _conn = None
 
-  be _closed() =>
+  be _closed(conn: TCPConnection) =>
     """
     The connection to the server has closed prematurely. Cancel everything.
     """
-    _cancel_all()
-    _conn = None
+    if conn is _conn then
+      _cancel_all()
+      _conn = None
+    end
 
   fun ref _send() =>
     """
