@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdio.h>
 #include <assert.h>
 
 struct asio_backend_t
@@ -96,7 +97,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
         switch(ep->filter)
         {
           case EVFILT_READ:
-            asio_event_send(ev, ASIO_READ, 0);
+            if(ep->flags & EV_EOF)
+            {
+              asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+            } else {
+              asio_event_send(ev, ASIO_READ, 0);
+            }
             break;
 
           case EVFILT_WRITE:

@@ -458,8 +458,7 @@ static asio_event_t* os_listen(pony_actor_t* owner, PONYFD fd,
   }
 
   // Create an event and subscribe it.
-  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ | ASIO_WRITE,
-    true);
+  asio_event_t* ev = asio_event_create(owner, fd, ASIO_READ, true);
 
 #ifdef PLATFORM_IS_WINDOWS
   // Start accept for TCP connections, but not for UDP.
