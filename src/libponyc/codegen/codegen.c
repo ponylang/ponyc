@@ -490,21 +490,31 @@ LLVMValueRef codegen_addfun(compile_t* c, const char* name, LLVMTypeRef type)
   if(!c->opt->library)
     LLVMSetFunctionCallConv(fun, GEN_CALLCONV);
 
-  if(c->opt->no_restrict)
-    return fun;
-
-  // Set the noalias attribute on all arguments. This is fortran-like semantics
-  // for parameter aliasing, similar to C restrict.
   LLVMValueRef arg = LLVMGetFirstParam(fun);
+  uint32_t i = 1;
 
   while(arg != NULL)
   {
     LLVMTypeRef type = LLVMTypeOf(arg);
 
     if(LLVMGetTypeKind(type) == LLVMPointerTypeKind)
-      LLVMAddAttribute(arg, LLVMNoAliasAttribute);
+    {
+      LLVMTypeRef elem = LLVMGetElementType(type);
+
+      if(LLVMGetTypeKind(elem) == LLVMStructTypeKind)
+      {
+        uint64_t size = LLVMABISizeOfType(c->target_data, elem);
+        LLVMSetDereferenceable(fun, i, size);
+      }
+
+      // Set the noalias attribute on all arguments. This is fortran-like
+      // semantics for parameter aliasing, similar to C restrict.
+      if(!c->opt->no_restrict)
+        LLVMAddAttribute(arg, LLVMNoAliasAttribute);
+    }
 
     arg = LLVMGetNextParam(arg);
+    i++;
   }
 
   return fun;

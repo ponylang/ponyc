@@ -32,3 +32,13 @@ void LLVMSetReturnNoAlias(LLVMValueRef fun)
 {
   unwrap<Function>(fun)->setDoesNotAlias(0);
 }
+
+void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, uint64_t size)
+{
+  Function* f = unwrap<Function>(fun);
+
+  AttrBuilder attr;
+  attr.addDereferenceableAttr(size);
+
+  f->addAttributes(i, AttributeSet::get(f->getContext(), i, attr));
+}
