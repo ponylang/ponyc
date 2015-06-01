@@ -661,27 +661,27 @@ ast_t* program_load(const char* path, pass_opt_t* options)
 ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 {
   const char* magic = find_magic_package(path);
-  const char* name = path;
+  const char* full_path = path;
 
   if(magic == NULL)
   {
     // Lookup (and hence normalise) path
-    name = find_path(from, path);
+    full_path = find_path(from, path);
 
-    if(name == NULL)
+    if(full_path == NULL)
       return NULL;
   }
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
-  ast_t* package = ast_get(program, name, NULL);
+  ast_t* package = ast_get(program, full_path, NULL);
 
   if(package != NULL) // Package already loaded
     return package;
 
-  package = create_package(program, name);
+  package = create_package(program, full_path);
 
   if(report_build)
-    printf("Building %s\n", path);
+    printf("Building %s -> %s\n", path, full_path);
 
   if(magic != NULL)
   {
@@ -690,7 +690,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   }
   else
   {
-    if(!parse_files_in_dir(package, name, options))
+    if(!parse_files_in_dir(package, full_path, options))
       return NULL;
   }
 
