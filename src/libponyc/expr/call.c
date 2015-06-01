@@ -181,7 +181,7 @@ static bool apply_named_args(ast_t* params, ast_t* positional,
   return true;
 }
 
-static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
+static bool apply_default_arg(ast_t* param, ast_t* arg)
 {
   // Pick up a default argument.
   ast_t* def_arg = ast_childidx(param, 2);
@@ -195,17 +195,8 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   ast_setid(arg, TK_SEQ);
   ast_add(arg, def_arg);
 
-  // Type check the arg.
-  if(ast_type(def_arg) == NULL)
-  {
-    if(ast_visit(&arg, NULL, pass_expr, opt) != AST_OK)
-      return false;
-
-    ast_visit(&arg, NULL, pass_nodebug, opt);
-  } else {
-    if(!expr_seq(arg))
-      return false;
-  }
+  if(!expr_seq(arg))
+    return false;
 
   return true;
 }
@@ -229,7 +220,7 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
         continue;
       } else {
         // Pick up a default argument if we can.
-        if(!apply_default_arg(opt, param, arg))
+        if(!apply_default_arg(param, arg))
           return false;
       }
     }

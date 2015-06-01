@@ -99,7 +99,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
   return false;
 }
 
-static bool method_access(ast_t* ast, ast_t* method)
+static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
     body);
@@ -130,6 +130,24 @@ static bool method_access(ast_t* ast, ast_t* method)
     default:
       assert(0);
       return false;
+  }
+
+  // Typecheck default args immediately.
+  ast_t* param = ast_child(params);
+
+  while(param != NULL)
+  {
+    AST_GET_CHILDREN(param, name, type, def_arg);
+
+    if(ast_type(def_arg) == NULL)
+    {
+      if(ast_visit(&def_arg, NULL, pass_expr, opt) != AST_OK)
+        return false;
+
+      ast_visit(&def_arg, NULL, pass_nodebug, opt);
+    }
+
+    param = ast_sibling(param);
   }
 
   ast_settype(ast, type_for_fun(method));
@@ -209,7 +227,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       break;
 
     case TK_NEW:
-      ret = method_access(ast, find);
+      ret = method_access(opt, ast, find);
       break;
 
     case TK_FVAR:
@@ -310,8 +328,10 @@ static bool tuple_access(ast_t* ast)
   return true;
 }
 
-static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
+static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
 {
+  typecheck_t* t = &opt->check;
+
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
   assert(ast_id(right) == TK_ID);
@@ -347,7 +367,7 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      ret = method_access(ast, find);
+      ret = method_access(opt, ast, find);
       break;
 
     default:
@@ -432,7 +452,6 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 
 static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   // Left is a postfix expression, right is an id.
@@ -470,7 +489,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);
 
-  return member_access(t, ast, partial);
+  return member_access(opt, ast, partial);
 }
 
 bool expr_dot(pass_opt_t* opt, ast_t** astp)

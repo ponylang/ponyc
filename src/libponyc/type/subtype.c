@@ -150,6 +150,28 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   if(ast_name(sub_id) != ast_name(super_id))
     return false;
 
+  // Contravariant type parameter constraints.
+  ast_t* sub_typeparam = ast_child(sub_typeparams);
+  ast_t* super_typeparam = ast_child(super_typeparams);
+
+  while((sub_typeparam != NULL) && (super_typeparam != NULL))
+  {
+    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
+    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
+
+    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
+      && !is_subtype(super_constraint, sub_constraint))
+      return false;
+
+    sub_typeparam = ast_sibling(sub_typeparam);
+    super_typeparam = ast_sibling(super_typeparam);
+  }
+
+  if((sub_typeparam != NULL) || (super_typeparam != NULL))
+    return false;
+
+  // TODO: positional reification?
+
   switch(ast_id(sub))
   {
     case TK_NEW:
@@ -182,26 +204,6 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
 
     default: {}
   }
-
-  // Contravariant type parameter constraints.
-  ast_t* sub_typeparam = ast_child(sub_typeparams);
-  ast_t* super_typeparam = ast_child(super_typeparams);
-
-  while((sub_typeparam != NULL) && (super_typeparam != NULL))
-  {
-    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
-    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
-
-    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
-      && !is_subtype(super_constraint, sub_constraint))
-      return false;
-
-    sub_typeparam = ast_sibling(sub_typeparam);
-    super_typeparam = ast_sibling(super_typeparam);
-  }
-
-  if((sub_typeparam != NULL) || (super_typeparam != NULL))
-    return false;
 
   // Contravariant parameters.
   ast_t* sub_param = ast_child(sub_params);
