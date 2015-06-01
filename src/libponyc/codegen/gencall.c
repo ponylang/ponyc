@@ -210,8 +210,15 @@ static LLVMValueRef dispatch_function(compile_t* c, ast_t* from, gentype_t* g,
 
 static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
 {
-  if(ast_id(postfix) != TK_NEWREF)
-    return true;
+  switch(ast_id(postfix))
+  {
+    case TK_NEWREF:
+    case TK_NEWBEREF:
+      break;
+
+    default:
+      return true;
+  }
 
   // No receiver if a new primitive.
   if(g->primitive != NULL)
