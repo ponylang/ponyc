@@ -98,22 +98,25 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
   }
 }
 
+static void try_gc(pony_actor_t* actor)
+{
+  if(!heap_startgc(&actor->heap))
+    return;
+
+  pony_gc_mark();
+
+  if(actor->type->trace != NULL)
+    actor->type->trace(actor);
+
+  gc_handlestack();
+  gc_sweep(&actor->gc);
+  gc_done(&actor->gc);
+  heap_endgc(&actor->heap);
+}
+
 bool actor_run(pony_actor_t* actor)
 {
   this_actor = actor;
-
-  if(heap_startgc(&actor->heap))
-  {
-    pony_gc_mark();
-
-    if(actor->type->trace != NULL)
-      actor->type->trace(actor);
-
-    gc_handlestack();
-    gc_sweep(&actor->gc);
-    gc_done(&actor->gc);
-    heap_endgc(&actor->heap);
-  }
 
   pony_msg_t* msg;
   bool notify = false;
@@ -126,14 +129,25 @@ bool actor_run(pony_actor_t* actor)
     pool_free(msg->size, msg);
 
     if(ret)
+    {
+      // If we handle an application message, try to gc and then return.
+      try_gc(actor);
       return !has_flag(actor, FLAG_UNSCHEDULED);
+    }
   }
 
   while((msg = messageq_pop(&actor->q)) != NULL)
   {
     if(handle_message(actor, msg, &notify))
+    {
+      // If we handle an application message, try to gc and then return.
+      try_gc(actor);
       return !has_flag(actor, FLAG_UNSCHEDULED);
+    }
   }
+
+  // No application messages were in the queue.
+  try_gc(actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
   {
