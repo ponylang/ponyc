@@ -527,6 +527,7 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source)
   frame->fun = fun;
   frame->restore_builder = LLVMGetInsertBlock(c->builder);
   frame->has_source = has_source;
+  frame->is_function = true;
   c->dwarf.has_source = has_source;
 
   // Reset debug locations
@@ -596,6 +597,9 @@ LLVMValueRef codegen_getlocal(compile_t* c, const char* name)
 
     if(p != NULL)
       return p->alloca;
+
+    if(frame->is_function)
+      return NULL;
 
     frame = frame->prev;
   }

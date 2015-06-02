@@ -46,6 +46,7 @@ typedef struct compile_frame_t
 
   compile_locals_t locals;
   bool has_source;
+  bool is_function;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
