@@ -181,6 +181,19 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
       {
         ast_t* r = lookup_base(t, from, orig, child, name, errors);
 
+        switch(ast_id(r))
+        {
+          case TK_FVAR:
+          case TK_FLET:
+            if(errors)
+              ast_error(from, "can't lookup a field on a union type");
+
+            ok = false;
+            break;
+
+          default: {}
+        }
+
         if(r == NULL)
         {
           ok = false;
@@ -189,17 +202,23 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
         } else {
           if(!is_subtype(r, result))
           {
-            if(errors)
+            if(is_subtype(result, r))
             {
-              ast_error(from,
-                "a member of the union type has an incompatible method "
-                "signature");
-              ast_error(result, "first implementation is here");
-              ast_error(r, "second implementation is here");
-            }
+              ast_free_unattached(result);
+              result = r;
+            } else {
+              if(errors)
+              {
+                ast_error(from,
+                  "a member of the union type has an incompatible method "
+                  "signature");
+                ast_error(result, "first implementation is here");
+                ast_error(r, "second implementation is here");
+              }
 
-            ast_free_unattached(r);
-            ok = false;
+              ast_free_unattached(r);
+              ok = false;
+            }
           }
         }
 
