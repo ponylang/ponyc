@@ -131,6 +131,16 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   ast_t* type = ast_type(id);
+  const char* name = ast_name(id);
+
+  // If this local has already been generated, don't create another copy. This
+  // can happen when the same ast node is generated more than once, such as
+  // the condition block of a while expression.
+  LLVMValueRef value = codegen_getlocal(c, name);
+
+  if(value != NULL)
+    return GEN_NOVALUE;
+
   gentype_t g;
 
   if(!gentype(c, type, &g))
@@ -146,7 +156,6 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   else
     LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
-  const char* name = ast_name(id);
   LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
   // Store the alloca to use when we reference this local.

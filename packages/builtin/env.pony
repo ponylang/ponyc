@@ -50,15 +50,11 @@ class Env val
     let array = recover Array[String](len) end
     var i: U64 = 0
 
-    while true do
-      let entry = data._apply(i)
-
-      if entry.is_null() then
-        break
-      end
-
+    while
+      let entry = data._apply(i = i + 1)
+      not entry.is_null()
+    do
       array.push(recover String.copy_cstring(entry) end)
-      i = i + 1
     end
 
     array
