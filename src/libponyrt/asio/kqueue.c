@@ -4,9 +4,7 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
-#include <sys/types.h>
 #include <sys/event.h>
-#include <sys/time.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -89,10 +87,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
           close(b->wakeup[0]);
           close(b->wakeup[1]);
           b->kq = -1;
-          break;
         }
       } else {
         asio_event_t* ev = ep->udata;
+
+        if(ep->flags & EV_ERROR)
+          continue;
 
         switch(ep->filter)
         {

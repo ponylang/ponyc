@@ -682,12 +682,16 @@ static void final(pony_actor_t* self)
   size_t i = HASHMAP_BEGIN;
   view_t* view;
 
-  // invoke the actor's finalizer. note that system actors and unscheduled
-  // actors will not necessarily be finalised.
+  // Invoke the actor's finalizer. Note that system actors and unscheduled
+  // actors will not necessarily be finalised. If the actor isn't marked as
+  // blocked, it has already been destroyed.
   while((view = viewmap_next(&d->views, &i)) != NULL)
-    actor_final(view->actor);
+  {
+    if(view->blocked)
+      actor_final(view->actor);
+  }
 
-  // terminate the scheduler
+  // Terminate the scheduler.
   scheduler_terminate();
 }
 
