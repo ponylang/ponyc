@@ -818,22 +818,17 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     // Check the pattern.
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
-
-    if(!static_match(c, match_value, match_type, pattern, next_block))
-    {
-      ast_free_unattached(match_type);
-      return NULL;
-    }
+    codegen_pushscope(c);
+    bool ok = static_match(c, match_value, match_type, pattern, next_block);
 
     // Check the guard.
-    if(!guard_match(c, guard, next_block))
-    {
-      ast_free_unattached(match_type);
-      return NULL;
-    }
+    ok = ok && guard_match(c, guard, next_block);
 
     // Case body.
-    if(!case_body(c, body, post_block, phi, phi_type.use_type))
+    ok = ok && case_body(c, body, post_block, phi, phi_type.use_type);
+    codegen_popscope(c);
+
+    if(!ok)
     {
       ast_free_unattached(match_type);
       return NULL;
@@ -847,8 +842,11 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   // Else body.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
+  codegen_pushscope(c);
+  bool ok = case_body(c, else_expr, post_block, phi, phi_type.use_type);
+  codegen_popscope(c);
 
-  if(!case_body(c, else_expr, post_block, phi, phi_type.use_type))
+  if(!ok)
     return NULL;
 
   if(post_block != NULL)

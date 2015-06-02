@@ -551,6 +551,22 @@ void codegen_finishfun(compile_t* c)
   pop_frame(c);
 }
 
+void codegen_pushscope(compile_t* c)
+{
+  compile_frame_t* frame = push_frame(c);
+
+  frame->fun = frame->prev->fun;
+  frame->restore_builder = frame->prev->restore_builder;
+  frame->break_target = frame->prev->break_target;
+  frame->continue_target = frame->prev->continue_target;
+  frame->invoke_target = frame->prev->invoke_target;
+}
+
+void codegen_popscope(compile_t* c)
+{
+  pop_frame(c);
+}
+
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   LLVMBasicBlockRef break_target)
 {

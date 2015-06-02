@@ -146,6 +146,10 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source);
 
 void codegen_finishfun(compile_t* c);
 
+void codegen_pushscope(compile_t* c);
+
+void codegen_popscope(compile_t* c);
+
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   LLVMBasicBlockRef break_target);
 
