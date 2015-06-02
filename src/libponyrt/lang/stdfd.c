@@ -503,7 +503,7 @@ uint64_t os_stdin_read(char* buffer, uint64_t space, bool* out_again)
   }
 
   *out_again = true;
-  return read(0, buffer, space);
+  return read(STDIN_FILENO, buffer, space);
 #endif
 }
 
@@ -522,10 +522,11 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
   if(!os_fp_tty(fp))
   {
     // Find ANSI codes and strip them from the output.
+    const uint64_t final = len - 1;
     uint64_t last = 0;
     uint64_t pos = 0;
 
-    while(pos < (len - 1))
+    while(pos < final)
     {
       if((buffer[pos] == '\x1B') && (buffer[pos + 1] == '['))
       {
