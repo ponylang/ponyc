@@ -108,12 +108,6 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-To build a NUMA-aware runtime, install libnuma-dev using your package manager and build as follows:
-
-```
-$ make use=numa config=release
-```
-
 # Building on FreeBSD
 
 First, install the required dependencies:
@@ -137,7 +131,7 @@ First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llv
 
 ```
 $ brew update
-$ brew install llvm --with-rtti --without-shared
+$ brew install llvm --with-rtti
 ```
 
 This will build ponyc and compile helloworld:
