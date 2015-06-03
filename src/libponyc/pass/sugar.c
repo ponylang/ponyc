@@ -305,6 +305,7 @@ static ast_result_t sugar_new(typecheck_t* t, ast_t* ast)
 static ast_result_t sugar_be(typecheck_t* t, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
+  ast_setid(cap, TK_TAG);
 
   if(ast_id(result) == TK_NONE)
   {

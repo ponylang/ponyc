@@ -160,6 +160,7 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     }
 
     case TK_FUN:
+    case TK_BE:
     {
       // Contravariant receiver.
       if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
@@ -215,8 +216,11 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   ast_t* isub, ast_t* isuper)
 {
-  // Must be the same type of function.
-  if(ast_id(sub) != ast_id(super))
+  token_id tsub = ast_id(sub);
+  token_id tsuper = ast_id(super);
+
+  // A constructor can only be a subtype of a constructor.
+  if(((tsub == TK_NEW) || (tsuper == TK_NEW)) && (tsub != tsuper))
     return false;
 
   AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams);
