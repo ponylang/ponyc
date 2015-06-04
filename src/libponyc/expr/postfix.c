@@ -388,8 +388,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 {
   // Left is a postfix expression, right is a typeargs.
   ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
 
@@ -446,8 +445,16 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
-  return false;
+  // Sugar .apply()
+  ast_t* dot = ast_from(left, TK_DOT);
+  ast_add(dot, ast_from_string(left, "apply"));
+  ast_swap(left, dot);
+  ast_add(dot, left);
+
+  if(!expr_dot(opt, &dot))
+    return false;
+
+  return expr_qualify(opt, astp);
 }
 
 static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
