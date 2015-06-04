@@ -236,6 +236,28 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   token_id tsub = ast_id(sub);
   token_id tsuper = ast_id(super);
 
+  switch(tsub)
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      break;
+
+    default:
+      return false;
+  }
+
+  switch(tsuper)
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      break;
+
+    default:
+      return false;
+  }
+
   // A constructor can only be a subtype of a constructor.
   if(((tsub == TK_NEW) || (tsuper == TK_NEW)) && (tsub != tsuper))
     return false;
