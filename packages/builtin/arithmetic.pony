@@ -35,7 +35,8 @@ trait _ArithmeticConvertible val
 
 trait Real[A: Real[A] box] val is
   Stringable, _ArithmeticConvertible, Arithmetic[A], Ordered[A]
-  new val create(from: A)
+  new val create(value: A)
+  fun tag from[B: (Number & Real[B] box)](a: B): A
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y

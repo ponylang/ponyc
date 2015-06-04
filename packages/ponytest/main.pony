@@ -9,6 +9,8 @@ actor Main
     test(recover _TestStringToU8 end)
     test(recover _TestStringToI8 end)
     test(recover _TestStringToIntLarge end)
+    test(recover _TestSpecialValuesF32 end)
+    test(recover _TestSpecialValuesF64 end)
 
     test.complete()
 
@@ -170,3 +172,62 @@ class _TestStringToIntLarge iso is UnitTest
 
     true
 
+
+class _TestSpecialValuesF32 iso is UnitTest
+  """
+  Test whether a F32 is infinite or NaN.
+  """
+  fun name(): String => "specialvalue.F32"
+
+  fun apply(h: TestHelper): TestResult =>
+    // 1
+    h.expect_true(F32(1.0).finite())
+    h.expect_false(F32(1.0).nan())
+
+    // -1
+    h.expect_true(F32(-1.0).finite())
+    h.expect_false(F32(-1.0).nan())
+
+    // Infinity
+    h.expect_false(F32(1.0 / 0.0).finite())
+    h.expect_false(F32(1.0 / 0.0).nan())
+
+    // - infinity
+    h.expect_false(F32(-1.0 / 0.0).finite())
+    h.expect_false(F32(-1.0 / 0.0).nan())
+    
+    // NaN
+    h.expect_false(F32(0.0 / 0.0).finite())
+    h.expect_true(F32(0.0 / 0.0).nan())
+
+    true
+
+
+class _TestSpecialValuesF64 iso is UnitTest
+  """
+  Test whether a F64 is infinite or NaN.
+  """
+  fun name(): String => "specialvalue.F64"
+
+  fun apply(h: TestHelper): TestResult =>
+    // 1
+    h.expect_true(F64(1.0).finite())
+    h.expect_false(F64(1.0).nan())
+
+    // -1
+    h.expect_true(F64(-1.0).finite())
+    h.expect_false(F64(-1.0).nan())
+
+    // Infinity
+    h.expect_false(F64(1.0 / 0.0).finite())
+    h.expect_false(F64(1.0 / 0.0).nan())
+
+    // - infinity
+    h.expect_false(F64(-1.0 / 0.0).finite())
+    h.expect_false(F64(-1.0 / 0.0).nan())
+    
+    // NaN
+    h.expect_false(F64(0.0 / 0.0).finite())
+    h.expect_true(F64(0.0 / 0.0).nan())
+
+    true

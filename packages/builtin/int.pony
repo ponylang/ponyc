@@ -1,5 +1,9 @@
 primitive I8 is SignedInteger[I8]
-  new create(from: I8) => compiler_intrinsic
+  new create(value: I8 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] box)](a: A): I8 => a.i8()
+
+  fun tag min_value(): I8 => -0x80
+  fun tag max_value(): I8 => 0x7F
 
   fun abs(): I8 => if this < 0 then -this else this end
   fun max(that: I8): I8 => if this > that then this else that end
@@ -19,7 +23,11 @@ primitive I8 is SignedInteger[I8]
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
 primitive I16 is SignedInteger[I16]
-  new create(from: I16) => compiler_intrinsic
+  new create(value: I16 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] box)](a: A): I16 => a.i16()
+
+  fun tag min_value(): I16 => -0x8000
+  fun tag max_value(): I16 => 0x7FFF
 
   fun abs(): I16 => if this < 0 then -this else this end
   fun max(that: I16): I16 => if this > that then this else that end
@@ -39,7 +47,11 @@ primitive I16 is SignedInteger[I16]
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
 primitive I32 is SignedInteger[I32]
-  new create(from: I32) => compiler_intrinsic
+  new create(value: I32 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] box)](a: A): I32 => a.i32()
+
+  fun tag min_value(): I32 => -0x8000_0000
+  fun tag max_value(): I32 => 0x7FFF_FFFF
 
   fun abs(): I32 => if this < 0 then -this else this end
   fun max(that: I32): I32 => if this > that then this else that end
@@ -59,7 +71,11 @@ primitive I32 is SignedInteger[I32]
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
 primitive I64 is SignedInteger[I64]
-  new create(from: I64) => compiler_intrinsic
+  new create(value: I64 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] box)](a: A): I64 => a.i64()
+
+  fun tag min_value(): I64 => -0x8000_0000_0000_0000
+  fun tag max_value(): I64 => 0x7FFF_FFFF_FFFF_FFFF
 
   fun abs(): I64 => if this < 0 then -this else this end
   fun max(that: I64): I64 => if this > that then this else that end
@@ -79,7 +95,11 @@ primitive I64 is SignedInteger[I64]
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
 primitive I128 is SignedInteger[I128]
-  new create(from: I128) => compiler_intrinsic
+  new create(value: I128 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] box)](a: A): I128 => a.i128()
+
+  fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000
+  fun tag max_value(): I128 => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
   fun abs(): I128 => if this < 0 then -this else this end
   fun max(that: I128): I128 => if this > that then this else that end

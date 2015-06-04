@@ -832,10 +832,6 @@ class String val is Seq[U8], Ordered[String box], Stringable
   fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-
-  // The following functions convert the *whole* string to the specified type.
-  // If there are any other characters in the string, or the integer found is
-  // out of range for the target type then an error is thrown.
   fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
   fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
   fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
@@ -846,13 +842,16 @@ class String val is Seq[U8], Ordered[String box], Stringable
   fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
   fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
   fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
-    
 
   fun _to_int[A: ((Signed | Unsigned) & Integer[A] box)](base: U8): A ? =>
+    """
+    Convert the *whole* string to the specified type.
+    If there are any other characters in the string, or the integer found is
+    out of range for the target type then an error is thrown.
+    """
     (let v, let d) = read_int[A](0, base)
     if (d == 0) or (d.u64() != _size) then error end  // Not all of string used
     v
-    
 
   fun read_int[A: ((Signed | Unsigned) & Integer[A] box)](offset: I64 = 0,
     base: U8 = 0): (A, I64 /* chars used */) ?
@@ -860,16 +859,14 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     Read an integer from the specified location in this string. The integer
     value read and the number of characters consumed are reported.
-
-    The base parameter specifies the base to use, 0 indicates using the prefix
-    (if any to detect base 2, 10 or 16).
-
+    The base parameter specifies the base to use, 0 indicates using the prefix,
+    if any, to detect base 2, 10 or 16.
     If no integer is found at the specified location, then (0, 0) is returned,
     since no characters have been used.
-
     An integer out of range for the target type throws an error.
+    A leading minus is allowed for signed integer types.
+    Underscore characters are allowed throughout the integer and are ignored.
     """
-
     let start_index = offset_to_index(offset)
     var index = start_index
     var value: A = 0
@@ -895,12 +892,12 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
     // Process characters
     while index < _size do
-      let char: A = _convert_u8[A](_ptr._apply(index))
+      let char: A = A(0).from[U8](_ptr._apply(index))
       if char == '_' then
         index = index + 1
         continue
       end
-      
+
       let digit =
         if (char >= '0') and (char <= '9') then
           char - '0'
@@ -911,7 +908,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
         else
           break
         end
-        
+
       if digit >= base' then
         break
       end
@@ -927,7 +924,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
       had_digit = true
       index = index + 1
     end
-    
+
     if minus then value = -value end
 
     // Check result
@@ -939,14 +936,21 @@ class String val is Seq[U8], Ordered[String box], Stringable
     // Success
     (value, (index - start_index).i64())
 
-
   fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] box)]
     (base: U8, index: U64): (A, U64 /* chars used */)
   =>
+    """
+    Determine the base of an integer starting at the specified index.
+    If a non-0 base is given use that. If given base is 0 read the base
+    specifying prefix, if any, to detect base 2 or 16.
+    If no base is specified and no prefix is found default to decimal.
+    Note that a leading 0 does NOT imply octal.
+    Report the base found and the number of characters in the prefix.
+    """
     if base > 0 then
-      return (_convert_u8[A](base), 0)
+      return (A(0).from[U8](base), 0)
     end
-    
+
     // Determine base from prefix
     if (index + 2) >= _size then
       // Not enough characters, must be decimal
@@ -966,25 +970,6 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
     // No base specified, default to decimal
     (10, 0)
-
-
-  fun _convert_u8[A: ((Signed | Unsigned) & Integer[A] box)](x: U8): A =>
-    """
-    Convert a U8 to the specified type.
-    Temporary hack until generics are fixed.
-    """
-    var y:A = 0
-
-    if (x and 0x80) != 0 then y = y or 0x80 end
-    if (x and 0x40) != 0 then y = y or 0x40 end
-    if (x and 0x20) != 0 then y = y or 0x20 end
-    if (x and 0x10) != 0 then y = y or 0x10 end
-    if (x and 0x8) != 0 then y = y or 0x8 end
-    if (x and 0x4) != 0 then y = y or 0x4 end
-    if (x and 0x2) != 0 then y = y or 0x2 end
-    if (x and 0x1) != 0 then y = y or 0x1 end
-    y
-
 
   fun f32(offset: I64 = 0): F32 =>
     var index = offset_to_index(offset)
