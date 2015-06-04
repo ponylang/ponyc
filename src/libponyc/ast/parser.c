@@ -229,13 +229,29 @@ DEF(positional);
   RULE("argument", rawseq);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
-
-// LBRACE [IS types] members RBRACE
+  
+// OBJECT [IS types] members END
 DEF(object);
   PRINT_INLINE();
   TOKEN(NULL, TK_OBJECT);
   IF(TK_IS, RULE("provided type", types));
   RULE("object member", members);
+  SKIP(NULL, TK_END);
+  DONE();
+
+// LAMBDA [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type]
+// [QUESTION] ARROW rawseq END
+DEF(lambda);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_LAMBDA);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", params);
+  SKIP(NULL, TK_RPAREN);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_DBLARROW);
+  RULE("method body", rawseq);
   SKIP(NULL, TK_END);
   DONE();
 
@@ -324,14 +340,14 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | literal | tuple | array | object | ffi
+// ref | literal | tuple | array | object | lambda | ffi
 DEF(atom);
-  RULE("value", ref, literal, groupedexpr, array, object, ffi);
+  RULE("value", ref, literal, groupedexpr, array, object, lambda, ffi);
   DONE();
 
-// ref | literal | tuple | array | object | ffi
+// ref | literal | tuple | array | object | lambda | ffi
 DEF(nextatom);
-  RULE("value", ref, literal, nextgroupedexpr, nextarray, object, ffi);
+RULE("value", ref, literal, nextgroupedexpr, nextarray, object, lambda, ffi);
   DONE();
 
 // DOT ID

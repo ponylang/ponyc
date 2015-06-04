@@ -609,7 +609,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NONE
       ID("create")
       NONE
-      NODE(TK_PARAMS)
+      NONE
       NONE
       NONE
       NODE(TK_SEQ)
@@ -618,7 +618,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
-      NODE(TK_POSITIONALARGS)
+      NONE
       NONE
       NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
 
@@ -661,6 +661,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
             NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
             NODE(TK_REFERENCE, TREE(id))));
 
+        ast_setid(create_params, TK_PARAMS);
+        ast_setid(call_args, TK_POSITIONALARGS);
+
         ast_append(class_members, field);
         ast_append(create_params, param);
         ast_append(create_body, assign);
@@ -690,9 +693,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     // Change the type from a class to a primitive.
     ast_setid(def, TK_PRIMITIVE);
 
-    // End the constructor with None, since it has no parameters.
-    BUILD_NO_DEBUG(none, ast, NODE(TK_REFERENCE, ID("None")));
-    ast_append(create_body, none);
+    // End the constructor with 'true', since it has no parameters.
+    BUILD_NO_DEBUG(true_node, ast, NODE(TK_TRUE));
+    ast_append(create_body, true_node);
   }
 
   if(has_behaviours)
@@ -714,6 +717,31 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Sugar the call.
   return ast_visit(astp, pass_sugar, NULL, opt);
 }
+
+
+static ast_result_t sugar_lambda(pass_opt_t* opt, ast_t** astp)
+{
+  AST_EXTRACT_CHILDREN(*astp, type_params, params, ret_type, error, body);
+
+  // Create object literal
+  REPLACE(astp,
+    NODE(TK_OBJECT,
+      NONE  // is types
+      NODE(TK_MEMBERS,
+      NODE(TK_FUN, AST_SCOPE
+          NONE  // capability
+          ID("apply")
+          TREE(type_params)
+          TREE(params)
+          TREE(ret_type)
+          TREE(error)
+          TREE(body)
+          NONE  // docstring
+          ))));
+
+  return sugar_object(opt, astp);
+}
+
 
 static void add_as_type(typecheck_t* t, ast_t* type, ast_t* pattern,
   ast_t* body)
@@ -938,6 +966,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);
+    case TK_LAMBDA:     return sugar_lambda(options, astp);
     case TK_AS:         return sugar_as(options, astp);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");

@@ -978,3 +978,80 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
 
   TEST_EQUIV(short_form, full_form);
 }
+
+
+TEST_F(SugarTest, ObjectSimple)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    object fun foo() => 4 end";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create()\n"
+    "    None\n"
+    "  new ref create(): Foo ref^ => true\n"
+
+    "primitive hygid val\n"
+    "  fun box foo(): None =>\n"
+    "    4\n"
+    "    None\n"
+    "  new val create(): hygid val^ => true\n"
+    "  fun box eq(that: hygid): Bool => this is that\n"
+    "  fun box ne(that: hygid): Bool => this isnt that";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaMinimal)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    lambda() => 4 end";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create()\n"
+    "    None\n"
+    "  new ref create(): Foo ref^ => true\n"
+
+    "primitive hygid val\n"
+    "  fun box apply(): None =>\n"
+    "    4\n"
+    "    None\n"
+    "  new val create(): hygid val^ => true\n"
+    "  fun box eq(that: hygid): Bool => this is that\n"
+    "  fun box ne(that: hygid): Bool => this isnt that";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, LambdaFull)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    lambda[A: T](a: A, b: B): U32 ? => 4 end";
+
+  const char* full_form =
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create()\n"
+    "    None\n"
+    "  new ref create(): Foo ref^ => true\n"
+
+    "primitive hygid val\n"
+    "  fun box apply[A: T](a: A, b: B): U32 ? =>\n"
+    "    4\n"
+    "  new val create(): hygid val^ => true\n"
+    "  fun box eq(that: hygid): Bool => this is that\n"
+    "  fun box ne(that: hygid): Bool => this isnt that";
+
+  TEST_EQUIV(short_form, full_form);
+}

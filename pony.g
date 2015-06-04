@@ -156,6 +156,7 @@ nextatom
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
+  | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
   | 'object' ('is' types)? members 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
@@ -166,6 +167,7 @@ atom
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
   | 'object' ('is' types)? members 'end'
+  | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 

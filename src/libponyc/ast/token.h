@@ -89,6 +89,7 @@ typedef enum token_id
   TK_CLASS,
   TK_ACTOR,
   TK_OBJECT,
+  TK_LAMBDA,
 
   TK_AS,
   TK_IS,
