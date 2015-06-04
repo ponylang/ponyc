@@ -177,6 +177,23 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
     default: {}
   }
 
+  // Contravariant type parameter constraints.
+  ast_t* sub_typeparam = ast_child(sub_typeparams);
+  ast_t* super_typeparam = ast_child(super_typeparams);
+
+  while((sub_typeparam != NULL) && (super_typeparam != NULL))
+  {
+    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
+    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
+
+    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
+      && !is_subtype(super_constraint, sub_constraint))
+      return false;
+
+    sub_typeparam = ast_sibling(sub_typeparam);
+    super_typeparam = ast_sibling(super_typeparam);
+  }
+
   // Contravariant parameters.
   ast_t* sub_param = ast_child(sub_params);
   ast_t* super_param = ast_child(super_params);
@@ -223,31 +240,16 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   if(((tsub == TK_NEW) || (tsuper == TK_NEW)) && (tsub != tsuper))
     return false;
 
-  AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams);
-  AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams);
+  AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params);
+  AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params);
 
   // Must have the same name.
   if(ast_name(sub_id) != ast_name(super_id))
     return false;
 
-  // Contravariant type parameter constraints.
-  ast_t* sub_typeparam = ast_child(sub_typeparams);
-  ast_t* super_typeparam = ast_child(super_typeparams);
-
-  while((sub_typeparam != NULL) && (super_typeparam != NULL))
-  {
-    ast_t* sub_constraint = ast_childidx(sub_typeparam, 1);
-    ast_t* super_constraint = ast_childidx(super_typeparam, 1);
-
-    if(!is_recursive_interface(super_constraint, sub_constraint, isub, isuper)
-      && !is_subtype(super_constraint, sub_constraint))
-      return false;
-
-    sub_typeparam = ast_sibling(sub_typeparam);
-    super_typeparam = ast_sibling(super_typeparam);
-  }
-
-  if((sub_typeparam != NULL) || (super_typeparam != NULL))
+  // Must have the same number of type parameters and parameters.
+  if((ast_childcount(sub_typeparams) != ast_childcount(super_typeparams)) ||
+    (ast_childcount(sub_params) != ast_childcount(super_params)))
     return false;
 
   ast_t* r_sub = sub;
@@ -256,7 +258,7 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   {
     // Reify sub with the type parameters of super.
     BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
-    super_typeparam = ast_child(super_typeparams);
+    ast_t* super_typeparam = ast_child(super_typeparams);
 
     while(super_typeparam != NULL)
     {
