@@ -153,7 +153,7 @@ TEST_F(SugarTest, ActorWithCreateBehaviour)
     "actor Foo be create() => 3";
 
   const char* full_form =
-    "actor Foo tag be create():Foo tag => 3";
+    "actor Foo tag be tag create():Foo tag => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -275,7 +275,7 @@ TEST_F(SugarTest, ConstructorInGenericClass)
 TEST_F(SugarTest, BehaviourReturnType)
 {
   const char* short_form = "actor Foo     var y:U32 be foo()         => 3";
-  const char* full_form =  "actor Foo tag var y:U32 be foo():Foo tag => 3";
+  const char* full_form =  "actor Foo tag var y:U32 be tag foo():Foo tag => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
