@@ -22,7 +22,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   AST_GET_CHILDREN(def, type_id, typeparams);
   const char* type_name = ast_name(type_id);
 
-  if((type_name[0] == '_') && (from != NULL) && (t != NULL))
+  if((type_name[0] == '_') && (from != NULL) && (opt != NULL))
   {
     if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
     {
@@ -87,7 +87,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
     return NULL;
   }
 
-  if((name[0] == '_') && (from != NULL) && (t != NULL))
+  if((name[0] == '_') && (from != NULL) && (opt != NULL))
   {
     switch(ast_id(find))
     {
