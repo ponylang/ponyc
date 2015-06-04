@@ -99,7 +99,7 @@ static bool constructor_type(ast_t* ast, token_id cap, ast_t* type,
   return false;
 }
 
-static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
+static bool method_access(ast_t* ast, ast_t* method)
 {
   AST_GET_CHILDREN(method, cap, id, typeparams, params, result, can_error,
     body);
@@ -130,24 +130,6 @@ static bool method_access(pass_opt_t* opt, ast_t* ast, ast_t* method)
     default:
       assert(0);
       return false;
-  }
-
-  // Typecheck default args immediately.
-  ast_t* param = ast_child(params);
-
-  while(param != NULL)
-  {
-    AST_GET_CHILDREN(param, name, type, def_arg);
-
-    if(ast_type(def_arg) == NULL)
-    {
-      if(ast_visit(&def_arg, NULL, pass_expr, opt) != AST_OK)
-        return false;
-
-      ast_visit(&def_arg, NULL, pass_nodebug, opt);
-    }
-
-    param = ast_sibling(param);
   }
 
   ast_settype(ast, type_for_fun(method));
@@ -198,7 +180,6 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
 static bool type_access(pass_opt_t* opt, ast_t** astp)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   // Left is a typeref, right is an id.
@@ -212,7 +193,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(t, ast, type, ast_name(right));
+  ast_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -227,7 +208,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
       break;
 
     case TK_NEW:
-      ret = method_access(opt, ast, find);
+      ret = method_access(ast, find);
       break;
 
     case TK_FVAR:
@@ -330,8 +311,6 @@ static bool tuple_access(ast_t* ast)
 
 static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
 {
-  typecheck_t* t = &opt->check;
-
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
   assert(ast_id(right) == TK_ID);
@@ -340,7 +319,7 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
   if(is_typecheck_error(type))
     return false;
 
-  ast_t* find = lookup(t, ast, type, ast_name(right));
+  ast_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -355,19 +334,19 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
       break;
 
     case TK_FVAR:
-      if(!expr_fieldref(t, ast, find, TK_FVARREF))
+      if(!expr_fieldref(opt, ast, find, TK_FVARREF))
         return false;
       break;
 
     case TK_FLET:
-      if(!expr_fieldref(t, ast, find, TK_FLETREF))
+      if(!expr_fieldref(opt, ast, find, TK_FLETREF))
         return false;
       break;
 
     case TK_NEW:
     case TK_BE:
     case TK_FUN:
-      ret = method_access(opt, ast, find);
+      ret = method_access(ast, find);
       break;
 
     default:

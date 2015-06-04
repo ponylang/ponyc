@@ -739,8 +739,11 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   if(!literal_call(ast, opt))
     return false;
 
-  // Type already set by literal handler
-  if(ast_type(ast) != NULL)
+  // Type already set by literal handler. Check for infertype, which is a
+  // marker for typechecking default arguments.
+  ast_t* type = ast_type(ast);
+
+  if((type != NULL) && (ast_id(type) != TK_INFERTYPE))
     return true;
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);

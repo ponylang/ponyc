@@ -11,6 +11,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Subtyping of polymorphic methods.
 - Primitive `_init` and `_final` for C library initialisation and shutdown.
 - collections.Flags
+- lambda sugar.
 
 ### Changed
 

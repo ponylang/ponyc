@@ -76,7 +76,7 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
   }
 }
 
-static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
+static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
 {
   ast_t* parent = ast_parent(ast);
 
@@ -84,7 +84,7 @@ static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
     return false;
 
   AST_GET_CHILDREN(parent, left, right);
-  ast_t* find = lookup_try(t, parent, type, ast_name(right));
+  ast_t* find = lookup_try(opt, parent, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -94,10 +94,10 @@ static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
   return ok;
 }
 
-static bool valid_reference(typecheck_t* t, ast_t* ast, ast_t* type,
+static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
   sym_status_t status)
 {
-  if(is_constructed_from(t, ast, type))
+  if(is_constructed_from(opt, ast, type))
     return true;
 
   switch(status)
@@ -160,7 +160,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
+bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 {
   AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
@@ -195,7 +195,7 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
     sym_status_t status;
     ast_get(ast, name, &status);
 
-    if(!valid_reference(t, ast, type, status))
+    if(!valid_reference(opt, ast, type, status))
       return false;
   }
 
@@ -439,7 +439,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       if(is_typecheck_error(type))
         return false;
 
-      if(!valid_reference(t, ast, type, status))
+      if(!valid_reference(opt, ast, type, status))
         return false;
 
       if(t->frame->def_arg != NULL)
@@ -505,7 +505,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       if(is_typecheck_error(type))
         return false;
 
-      if(!valid_reference(t, ast, type, status))
+      if(!valid_reference(opt, ast, type, status))
         return false;
 
       ast_t* var = ast_parent(def);

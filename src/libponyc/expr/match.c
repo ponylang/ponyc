@@ -110,10 +110,10 @@ bool expr_cases(ast_t* ast)
   return true;
 }
 
-static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
+static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
   ast_t* pattern, bool errors);
 
-static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
+static matchtype_t is_valid_tuple_pattern(pass_opt_t* opt, ast_t* match_type,
   ast_t* pattern, bool errors)
 {
   switch(ast_id(match_type))
@@ -126,7 +126,7 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        matchtype_t sub_ok = is_valid_tuple_pattern(t, match_child, pattern,
+        matchtype_t sub_ok = is_valid_tuple_pattern(opt, match_child, pattern,
           false);
 
         if(sub_ok != MATCHTYPE_REJECT)
@@ -160,7 +160,7 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        matchtype_t ok = is_valid_tuple_pattern(t, match_child, pattern,
+        matchtype_t ok = is_valid_tuple_pattern(opt, match_child, pattern,
           errors);
 
         if(ok != MATCHTYPE_ACCEPT)
@@ -192,7 +192,7 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
 
       while(match_child != NULL)
       {
-        matchtype_t ok = is_valid_pattern(t, match_child, pattern_child,
+        matchtype_t ok = is_valid_pattern(opt, match_child, pattern_child,
           errors);
 
         if(ok != MATCHTYPE_ACCEPT)
@@ -223,7 +223,7 @@ static matchtype_t is_valid_tuple_pattern(typecheck_t* t, ast_t* match_type,
   return MATCHTYPE_REJECT;
 }
 
-static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
+static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
   ast_t* pattern, bool errors)
 {
   if(ast_id(pattern) == TK_NONE)
@@ -277,9 +277,9 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
       ast_t* child = ast_child(pattern);
 
       if(ast_sibling(child) == NULL)
-        return is_valid_pattern(t, match_type, child, errors);
+        return is_valid_pattern(opt, match_type, child, errors);
 
-      return is_valid_tuple_pattern(t, match_type, pattern, errors);
+      return is_valid_tuple_pattern(opt, match_type, pattern, errors);
     }
 
     case TK_SEQ:
@@ -294,7 +294,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
         return MATCHTYPE_DENY;
       }
 
-      return is_valid_pattern(t, match_type, child, errors);
+      return is_valid_pattern(opt, match_type, child, errors);
     }
 
     case TK_DONTCARE:
@@ -304,7 +304,7 @@ static matchtype_t is_valid_pattern(typecheck_t* t, ast_t* match_type,
     default:
     {
       // Structural equality, pattern.eq(match).
-      ast_t* fun = lookup(t, pattern, pattern_type, stringtab("eq"));
+      ast_t* fun = lookup(opt, pattern, pattern_type, stringtab("eq"));
 
       if(fun == NULL)
       {
@@ -418,7 +418,7 @@ bool expr_case(pass_opt_t* opt, ast_t* ast)
   if(!infer_pattern_type(pattern, match_type, opt))
     return false;
 
-  matchtype_t is_valid = is_valid_pattern(&opt->check, match_type, pattern,
+  matchtype_t is_valid = is_valid_pattern(opt, match_type, pattern,
     true);
 
   if(is_valid != MATCHTYPE_ACCEPT)

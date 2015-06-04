@@ -7,9 +7,9 @@
 
 PONY_EXTERN_C_BEGIN
 
-ast_t* lookup(typecheck_t* t, ast_t* from, ast_t* type, const char* name);
+ast_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name);
 
-ast_t* lookup_try(typecheck_t* t, ast_t* from, ast_t* type, const char* name);
+ast_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name);
 
 PONY_EXTERN_C_END
 
