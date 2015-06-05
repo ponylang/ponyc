@@ -13,17 +13,15 @@ static matchtype_t could_subtype_with_union(ast_t* sub, ast_t* super)
 
   while(child != NULL)
   {
-    child = ast_sibling(child);
-
     matchtype_t ok = could_subtype(sub, child);
 
-    if(ok != MATCHTYPE_ACCEPT)
-      return ok;
+    if(ok == MATCHTYPE_ACCEPT)
+      return MATCHTYPE_ACCEPT;
 
     child = ast_sibling(child);
   }
 
-  return MATCHTYPE_ACCEPT;
+  return MATCHTYPE_REJECT;
 }
 
 static matchtype_t could_subtype_with_isect(ast_t* sub, ast_t* super)
@@ -32,8 +30,6 @@ static matchtype_t could_subtype_with_isect(ast_t* sub, ast_t* super)
 
   while(child != NULL)
   {
-    child = ast_sibling(child);
-
     matchtype_t ok = could_subtype(sub, child);
 
     if(ok != MATCHTYPE_ACCEPT)
