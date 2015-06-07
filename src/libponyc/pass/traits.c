@@ -114,13 +114,20 @@ static bool collate_provided(ast_t* entity, methods_t* method_info)
 
   for(ast_t* t = ast_child(traits); t != NULL; t = ast_sibling(t))
   {
-    assert(ast_id(t) == TK_NOMINAL);
+    if(ast_id(t) != TK_NOMINAL)
+    {
+      ast_error(traits, "type \"is\" list cannot contain type expressions");
+      ast_error(t, "type expression is defined here");
+      return false;
+    }
+
     ast_t* trait_def = (ast_t*)ast_data(t);
     assert(trait_def != NULL);
 
     if((ast_id(trait_def) != TK_TRAIT) && (ast_id(trait_def) != TK_INTERFACE))
     {
-      ast_error(t, "type \"is\" list can only contain traits and interfaces");
+      ast_error(traits,
+        "type \"is\" list can only contain traits and interfaces");
       return false;
     }
 
