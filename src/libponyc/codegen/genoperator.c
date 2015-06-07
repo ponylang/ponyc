@@ -266,6 +266,7 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
 
       case TK_LET:
       case TK_VAR:
+      case TK_TUPLE:
         expr = child;
         break;
 

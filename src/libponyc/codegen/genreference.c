@@ -118,9 +118,10 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // We'll have an undefined element if one of our source elements is a
     // variable declaration. This is ok, since the tuple value will never be
     // used.
-    if(value != GEN_NOVALUE)
-      tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
+    if(value == GEN_NOVALUE)
+      return GEN_NOVALUE;
 
+    tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
   }
 
