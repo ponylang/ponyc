@@ -121,6 +121,18 @@ class ListNode[A]
     end
     this
 
+  fun has_prev(): Bool =>
+    """
+    Return true if there is a previous node.
+    """
+    _prev isnt None
+
+  fun has_next(): Bool =>
+    """
+    Return true if there is a next node.
+    """
+    _next isnt None
+
   fun prev(): (this->ListNode[A] | None) =>
     """
     Return the previous node.
