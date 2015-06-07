@@ -282,7 +282,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
     default: {}
   }
 
-  assert(0);
   return NULL;
 }
 
