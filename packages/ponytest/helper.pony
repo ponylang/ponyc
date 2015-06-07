@@ -75,11 +75,11 @@ actor TestHelper
       // ourselves a complete() message so we know when we're done.
       complete(p)
     end
-    
+
   be log(msg: String, verbose: Bool = false) =>
     """
     Log the given message.
-    
+
     The verbose parameter allows messages to be printed only when the --verbose
     command line option is used. For example, by default assert and expect
     failures are logged, but passes are not. With --verbose both passes and
@@ -207,11 +207,11 @@ actor TestHelper
         " Expected (" + expect.string() + ") == (" + actual.string() + ")")
       return false
     end
-    
+
     log(verb + " EQ passed. " + msg +
       " Got (" + expect.string() + ") == (" + actual.string() + ")", true)
     true
-    
+
   fun tag assert_array_eq[A: (Comparable[A] box & Stringable)]
     (expect: ReadSeq[A], actual: ReadSeq[A], msg: String = "Error") ?
   =>
@@ -258,10 +258,10 @@ actor TestHelper
       if not first then
         s = s + ", "
       end
-        
+
       first = false
       var sa: String val = a.string(where prec = 1)
-      s = s + sa 
+      s = s + sa
     end
     s = s + "]"
     s

@@ -6,6 +6,8 @@ class Buffer
   """
   let _chunks: List[(Array[U8] val, U64)] = _chunks.create()
   var _available: U64 = 0
+  var _line_node: (ListNode[(Array[U8] val, U64)] | None) = None
+  var _line_len: U64 = 0
 
   fun size(): U64 =>
     """
@@ -191,7 +193,7 @@ class Buffer
     Get a little-endian U32.
     """
     if _available >= 4 then
-      u16_be().u32() or (u16_be().u32() << 16)
+      u16_le().u32() or (u16_le().u32() << 16)
     else
       error
     end
@@ -319,15 +321,40 @@ class Buffer
     Get the length of a pending line. Raise an error if there is no pending
     line.
     """
-    var len = U64(0)
+    if _chunks.size() == 0 then
+      error
+    end
 
-    for node in _chunks.nodes() do
+    var node = if _line_len > 0 then
+      let prev = _line_node as ListNode[(Array[U8] val, U64)]
+
+      if not prev.has_next() then
+        error
+      end
+
+      prev.next() as ListNode[(Array[U8] val, U64)]
+    else
+      _chunks.head()
+    end
+
+    while true do
       (var data, var offset) = node()
 
       try
-        return (len + data.find('\n', offset) + 1) - offset
+        let len = (_line_len + data.find('\n', offset) + 1) - offset
+        _line_node = None
+        _line_len = 0
+        return len
       end
 
-      len = len + (data.size() - offset)
+      _line_len = _line_len + (data.size() - offset)
+
+      if not node.has_next() then
+        break
+      end
+
+      node = node.next() as ListNode[(Array[U8] val, U64)]
     end
+
+    _line_node = node
     error
