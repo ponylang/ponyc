@@ -56,6 +56,13 @@ class List[A] is Seq[A]
 
     node
 
+  fun ref remove(i: U64): List[A]^ ? =>
+    """
+    Remove the i-th node, raising an error if the index is out of bounds.
+    """
+    index(i).remove()
+    this
+
   fun ref clear(): List[A]^ =>
     """
     Empties the list.
@@ -182,6 +189,18 @@ class List[A] is Seq[A]
     end
 
     this
+
+  fun clone(): List[this->A!]^ =>
+    """
+    Clone the list.
+    """
+    let out = List[this->A!]
+
+    for v in values() do
+      out.push(v)
+    end
+
+    out
 
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
