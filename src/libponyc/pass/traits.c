@@ -198,7 +198,7 @@ static ast_t* check_same_sig(ast_t* list, ast_t* entity, const char* name)
   {
     if(!is_eqtype(comparand, p))
     {
-      ast_error(entity, "Clashing types for method %s provided by traits",
+      ast_error(entity, "clashing types for method '%s' provided by traits",
         name);
       return NULL;
     }
@@ -226,7 +226,7 @@ static bool methods_compatible(ast_t* list, ast_t* method, const char* name,
     if(!is_subtype(method, p))
     {
       ast_error(method,
-        "Clashing type for method %s provided by trait to %s %s",
+        "clashing type for method '%s' provided by trait to %s %s",
         name, ast_get_print(entity), ast_name(ast_child(entity)));
       ast_error(p, "clashing method here");
       r = false;
@@ -296,6 +296,25 @@ static bool process_method_name(ast_t* list, ast_t* entity)
 
   if(existing != NULL)
   {
+    switch(ast_id(existing))
+    {
+      case TK_FVAR:
+      case TK_FLET:
+      {
+        ast_error(entity, "field '%s' clashes with trait method", name);
+        ast_error(existing, "field is defined here");
+        return false;
+      }
+
+      case TK_NEW:
+      case TK_FUN:
+      case TK_BE:
+        break;
+
+      default:
+        assert(0);
+    }
+
     // Method is explicitly defined in entity
     if(!methods_compatible(list, existing, name, entity))
       return false;
