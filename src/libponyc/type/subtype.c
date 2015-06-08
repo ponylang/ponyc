@@ -40,7 +40,7 @@ static ast_t* fetch_cap(ast_t* type)
   return NULL;
 }
 
-static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
+bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super)
 {
   ast_t* sub_cap = fetch_cap(sub);
   ast_t* sub_eph = ast_sibling(sub_cap);
@@ -404,7 +404,7 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
 // Both sub and super are nominal types.
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 {
-  if(!check_cap_and_ephemeral(sub, super))
+  if(!is_sub_cap_and_ephemeral(sub, super))
     return false;
 
   ast_t* sub_def = (ast_t*)ast_data(sub);
@@ -468,7 +468,7 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
 
         // Capability must be a subtype of the lower bounds of the typeparam.
         ast_t* lower = viewpoint_lower(super);
-        ok = check_cap_and_ephemeral(sub, lower);
+        ok = is_sub_cap_and_ephemeral(sub, lower);
         ast_free_unattached(lower);
         return ok;
       }
@@ -639,7 +639,7 @@ static bool is_pointer_subtype(ast_t* sub, ast_t* super)
       // Must be a Pointer, and the type argument must be the same.
       return is_pointer(super) &&
         is_eq_typeargs(sub, super) &&
-        check_cap_and_ephemeral(sub, super);
+        is_sub_cap_and_ephemeral(sub, super);
     }
 
     case TK_TYPEPARAMREF:
@@ -708,7 +708,7 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super)
   if(sub_def != super_def)
     return false;
 
-  return check_cap_and_ephemeral(sub, super);
+  return is_sub_cap_and_ephemeral(sub, super);
 }
 
 // The subtype is a typeparam, the supertype could be anything.

@@ -53,6 +53,40 @@ static matchtype_t could_subtype_with_arrow(ast_t* sub, ast_t* super)
   return ok;
 }
 
+static bool could_subtype_typearg(ast_t* sub, ast_t* super)
+{
+  token_id tsub = ast_id(sub);
+  token_id tsup = ast_id(super);
+
+  if(tsub == TK_TYPEPARAMREF)
+    return could_subtype(sub, super) == MATCHTYPE_ACCEPT;
+
+  if(tsup == TK_TYPEPARAMREF)
+    return could_subtype(super, sub) == MATCHTYPE_ACCEPT;
+
+  if((tsub == TK_TUPLETYPE) && (tsup == TK_TUPLETYPE))
+  {
+    ast_t* sub_child = ast_child(sub);
+    ast_t* sup_child = ast_child(super);
+
+    while((sub_child != NULL) && (sup_child != NULL))
+    {
+      if(!could_subtype_typearg(sub_child, sup_child))
+        return false;
+
+      sub_child = ast_sibling(sub_child);
+      sup_child = ast_sibling(sup_child);
+    }
+
+    if((sub_child != NULL) || (sup_child != NULL))
+      return false;
+
+    return true;
+  }
+
+  return is_eqtype(sub, super);
+}
+
 static matchtype_t could_subtype_or_deny(ast_t* sub, ast_t* super)
 {
   // At this point, sub must be a subtype of super.
@@ -86,11 +120,46 @@ static matchtype_t could_subtype_or_deny(ast_t* sub, ast_t* super)
       return MATCHTYPE_DENY;
   }
 
+  ast_t* sub_def = (ast_t*)ast_data(sub);
+  ast_t* super_def = (ast_t*)ast_data(super);
   ast_t* r_type = set_cap_and_ephemeral(sub, cap, eph);
+
   matchtype_t ok = MATCHTYPE_REJECT;
 
   if(is_subtype(r_type, super))
+  {
+    // Sub would be a subtype of super if their capabilities were the same.
+    // Deny any match, since this would break capabilities.
     ok = MATCHTYPE_DENY;
+  } else if(sub_def != super_def) {
+    // Sub and super are unrelated types and sub is not a subtype of super.
+    ok = MATCHTYPE_REJECT;
+  } else if((sub_def == super_def) && is_sub_cap_and_ephemeral(sub, super)) {
+    // Sub and super are the same base type, but have different type args.
+    // Only accept if sub's type args are typeparamrefs and they could be a
+    // subtype of super's type args.
+    assert(ast_id(sub) == TK_NOMINAL);
+    assert(ast_id(super) == TK_NOMINAL);
+
+    AST_GET_CHILDREN(sub, sub_pkg, sub_id, sub_typeargs);
+    AST_GET_CHILDREN(super, sup_pkg, sup_id, sup_typeargs);
+
+    ast_t* sub_typearg = ast_child(sub_typeargs);
+    ast_t* sup_typearg = ast_child(sup_typeargs);
+    ok = MATCHTYPE_ACCEPT;
+
+    while(sub_typearg != NULL)
+    {
+      if(!could_subtype_typearg(sub_typearg, sup_typearg))
+      {
+        ok = MATCHTYPE_REJECT;
+        break;
+      }
+
+      sub_typearg = ast_sibling(sub_typearg);
+      sup_typearg = ast_sibling(sup_typearg);
+    }
+  }
 
   ast_free_unattached(r_type);
   return ok;
