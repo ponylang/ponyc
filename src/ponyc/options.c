@@ -171,6 +171,14 @@ static void parse_short_opt(opt_state_t* s)
     s->remove++;
 }
 
+static int missing_argument(opt_state_t* s)
+{
+   printf("%s: '%s' option requires an argument!\n", s->argv[0],
+      s->argv[s->idx]);
+
+    return -2;
+}
+
 void opt_init(const opt_arg_t* args, opt_state_t* s, int* argc, char** argv)
 {
   s->argc = argc;
@@ -214,19 +222,19 @@ int opt_next(opt_state_t* s)
   }
 
   if ((m->flag == OPT_ARG_REQUIRED) && !has_argument(s))
-  {
-    printf("%s: '%s' option requires an argument!\n", s->argv[0],
-      s->argv[s->idx]);
-
-    return -2;
-  }
-
+    return missing_argument(s);
+  
   if(s->match_type == MATCH_LONG)
   {
     s->remove++;
 
     if((m->flag & PARSE_ARG) && has_argument(s))
+    {
       parse_long_opt_arg(s);
+
+      if(s->arg_val == NULL && (m->flag & OPT_ARG_REQUIRED))
+        return missing_argument(s);
+    }
 
     s->opt_start = NULL;
   }
@@ -235,7 +243,12 @@ int opt_next(opt_state_t* s)
     parse_short_opt(s);
 
     if((m->flag & PARSE_ARG) && has_argument(s))
+    {
       parse_short_opt_arg(s);
+      
+      if(s->arg_val == NULL && (m->flag & OPT_ARG_REQUIRED))
+        return missing_argument(s);
+    }
   }
 
   strip_accepted_opts(s);
