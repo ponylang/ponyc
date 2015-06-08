@@ -9,7 +9,7 @@
 #include "../type/alias.h"
 #include <assert.h>
 
-bool expr_seq(ast_t* ast)
+bool expr_seq(pass_opt_t* opt, ast_t* ast)
 {
   bool ok = true;
 
@@ -30,6 +30,9 @@ bool expr_seq(ast_t* ast)
   // We might already have a type due to a return expression.
   ast_t* type = ast_type(ast);
   ast_t* last = ast_childlast(ast);
+
+  if((type != NULL) && !coerce_literals(&last, type, opt))
+    return false;
 
   // Type is unioned with the type of the last child.
   type = control_type_add_branch(type, last);

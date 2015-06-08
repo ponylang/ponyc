@@ -200,7 +200,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_NEW:
     case TK_BE:
     case TK_FUN:        r = expr_fun(options, ast); break;
-    case TK_SEQ:        r = expr_seq(ast); break;
+    case TK_SEQ:        r = expr_seq(options, ast); break;
     case TK_VAR:
     case TK_LET:        r = expr_local(t, ast); break;
     case TK_BREAK:      r = expr_break(t, ast); break;

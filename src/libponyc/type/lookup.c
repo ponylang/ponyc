@@ -4,6 +4,7 @@
 #include "viewpoint.h"
 #include "subtype.h"
 #include "../ast/token.h"
+#include "../expr/literal.h"
 #include "../pass/pass.h"
 #include "../pass/expr.h"
 #include <string.h>
@@ -64,6 +65,9 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
             ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
 
             if(ast_visit(&def_arg, NULL, pass_expr, opt) != AST_OK)
+              return false;
+
+            if(!coerce_literals(&def_arg, type, opt))
               return false;
 
             ast_visit(&def_arg, NULL, pass_nodebug, opt);
