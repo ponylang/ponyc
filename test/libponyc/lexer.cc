@@ -406,6 +406,36 @@ TEST_F(LexerTest, TripleStringContaining2DoubleQuotes)
 }
 
 
+TEST_F(LexerTest, TripleStringEndingWithExtraDoubleQuotes)
+{
+  const char* src = "\"\"\"Foobar\"\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foobar\"");
+  expect(1, 14, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringEndingWith3ExtraDoubleQuotes)
+{
+  const char* src = "\"\"\"Foobar\"\"\"\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foobar\"\"\"");
+  expect(1, 16, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
+TEST_F(LexerTest, TripleStringEndingWith4ExtraDoubleQuotes)
+{
+  const char* src = "\"\"\"Foobar\"\"\"\"\"\"\"";
+
+  expect(1, 1, TK_STRING, "Foobar\"\"\"\"");
+  expect(1, 17, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, TripleStringMultipleLines)
 {
   const char* src = "\"\"\"Foo\nbar\"\"\"";

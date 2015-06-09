@@ -555,6 +555,15 @@ static token_t* triple_string(lexer_t* lexer)
     if((c == '\"') && (lookn(lexer, 2) == '\"') && (lookn(lexer, 3) == '\"'))
     {
       consume_chars(lexer, 3);
+
+      // Triple strings can end with 3 or more "s. If there are more than 3
+      // the extra ones are part of the string contents
+      while(look(lexer) == '\"')
+      {
+        append_to_token(lexer, '\"');
+        consume_chars(lexer, 1);
+      }
+
       normalise_string(lexer);
       return make_token_with_text(lexer, TK_STRING);
     }
