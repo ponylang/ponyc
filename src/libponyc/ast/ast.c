@@ -1243,6 +1243,20 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   return ret;
 }
 
+ast_result_t ast_visit_scope(ast_t** ast, ast_visit_t pre, ast_visit_t post,
+  pass_opt_t* options)
+{
+  typecheck_t* t = &options->check;
+  bool pop = frame_push(t, NULL);
+
+  ast_result_t ret = ast_visit(ast, pre, post, options);
+
+  if(pop)
+    frame_pop(t);
+
+  return ret;
+}
+
 void ast_get_children(ast_t* parent, size_t child_count,
   ast_t*** out_children)
 {

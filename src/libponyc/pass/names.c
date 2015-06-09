@@ -79,7 +79,7 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
       return false;
   }
 
-  if(ast_visit(type, NULL, pass_names, opt) != AST_OK)
+  if(ast_visit_scope(type, NULL, pass_names, opt) != AST_OK)
     return false;
 
   ast_setdata(def, (void*)AST_STATE_DONE);
