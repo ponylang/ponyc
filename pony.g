@@ -316,14 +316,14 @@ ID
   ;
 
 INT
-  : DIGIT+
-  | '0' 'x' HEX+
-  | '0' 'b' BINARY+
+  : DIGIT (DIGIT | '_')*
+  | '0' 'x' (HEX | '_')+
+  | '0' 'b' (BINARY | '_')+
   | '\'' CHAR_CHAR* '\''
   ;
 
 FLOAT
-  : DIGIT+ ('.' DIGIT+)? EXP?
+  : DIGIT (DIGIT | '_')* ('.' (DIGIT | '_')+)? EXP?
   ;
 
 STRING
@@ -373,7 +373,7 @@ STRING_CHAR
 
 fragment
 EXP
-  : ('e' | 'E') ('+' | '-')? DIGIT+
+  : ('e' | 'E') ('+' | '-')? (DIGIT | '_')+
   ;
 
 fragment
