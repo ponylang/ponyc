@@ -74,7 +74,7 @@ static const char* antlr_post =
   "  ;\n\n"
   "STRING\n"
   "  : '\"' STRING_CHAR* '\"'\n"
-  "  | '\"\"\"' ~('\"\"\"')* '\"\"\"'\n"
+  "  | '\"\"\"' (('\"' | '\"\"') ? ~'\"')* '\"\"\"' '\"'*\n"
   "  ;\n\n"
   "LPAREN_NEW\n"
   "  : NEWLINE '('\n"
