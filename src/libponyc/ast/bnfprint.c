@@ -17,7 +17,7 @@
  * We generate a BNF tree structure from the parser source. To do this we
  * define an alternative set of the parse macros defined in parserapi.h, and
  * then #include parser.c within this file.
- * 
+ *
  * Having done that we tidy up the BNF somewhat. This is mainly required
  * because the macros include extra information for building the AST, which we
  * do not require.
@@ -70,7 +70,7 @@ static const char* antlr_post =
   "  | '\\'' CHAR_CHAR* '\\''\n"
   "  ;\n\n"
   "FLOAT\n"
-  "  : DIGIT (DIGIT | '_')* ('.' (DIGIT | '_')+)? EXP?\n"
+  "  : DIGIT (DIGIT | '_')* ('.' DIGIT (DIGIT | '_')*)? EXP?\n"
   "  ;\n\n"
   "STRING\n"
   "  : '\"' STRING_CHAR* '\"'\n"
@@ -649,7 +649,7 @@ static void bnf_simplify(bnf_t* tree)
 static void bnf_avoid_antlr_bug(bnf_t* tree, bnf_t* bnf)
 {
   assert(tree != NULL);
-  
+
   if(bnf == NULL)
     return;
 

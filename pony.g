@@ -323,7 +323,7 @@ INT
   ;
 
 FLOAT
-  : DIGIT (DIGIT | '_')* ('.' (DIGIT | '_')+)? EXP?
+  : DIGIT (DIGIT | '_')* ('.' DIGIT (DIGIT | '_')*)? EXP?
   ;
 
 STRING
