@@ -13,8 +13,8 @@
 /** Use commands are of the form:
  *   use "[scheme:]locator" [as name] [where condition]
  *
- * Each scheme has a handler function. The first handler ("file:") is used as
- * the default for commands that do not specify a scheme.
+ * Each scheme has a handler function. The first handler ("package:") is used
+ * as the default for commands that do not specify a scheme.
  *
  * An extra scheme handler for "test:" can be setup for testing.
  */
@@ -28,7 +28,7 @@ struct
   use_handler_t handler;
 } handlers[] =
 {
-  {"file:", 5, true, use_package},
+  {"package:", 5, true, use_package},
   {"lib:", 4, false, use_library},
   {"path:", 5, false, use_path},
 
@@ -94,7 +94,7 @@ static int find_handler(ast_t* uri, const char** out_locator)
   {
     // Special case error message
     ast_error(uri, "Use scheme %c: not found. "
-      "If this is an absolute path use prefix \"file:\"", text[0]);
+      "If this is an absolute path use prefix \"package:\"", text[0]);
     return -1;
   }
 #endif
