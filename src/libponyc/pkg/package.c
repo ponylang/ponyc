@@ -55,6 +55,7 @@
 typedef struct package_t
 {
   const char* path; // Absolute path
+  const char* qualified_name; // For pretty printing, eg "builtin/U32"
   const char* id; // Hygienic identifier
   const char* filename; // Filename if we are an executable
   const char* symbol; // Wart to use for symbol names
@@ -100,6 +101,11 @@ static bool parse_source_file(ast_t* package, const char* file_path,
 {
   assert(package != NULL);
   assert(file_path != NULL);
+  assert(options != NULL);
+
+  if(options->print_filenames)
+    printf("Opening %s\n", file_path);
+
   source_t* source = source_open(file_path);
 
   if(source == NULL)
@@ -118,6 +124,11 @@ static bool parse_source_code(ast_t* package, const char* src,
   pass_opt_t* options)
 {
   assert(src != NULL);
+  assert(options != NULL);
+
+  if(options->print_filenames)
+    printf("Opening magic source\n");
+
   source_t* source = source_open_string(src);
   assert(source != NULL);
 
@@ -187,7 +198,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
 }
 
 
-// Check whether the directory specified by catting the given abse and path
+// Check whether the directory specified by catting the given base and path
 // exists
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
@@ -208,8 +219,12 @@ static const char* try_path(const char* base, const char* path)
 // Attempt to find the specified package directory in our search path
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
-static const char* find_path(ast_t* from, const char* path)
+static const char* find_path(ast_t* from, const char* path,
+  bool* out_is_relative)
 {
+  if(out_is_relative != NULL)
+    *out_is_relative = false;
+
   // First check for an absolute path
   if(is_path_absolute(path))
     return try_path(NULL, path);
@@ -232,7 +247,12 @@ static const char* find_path(ast_t* from, const char* path)
     result = try_path(pkg->path, path);
 
     if(result != NULL)
+    {
+      if(out_is_relative != NULL)
+        *out_is_relative = true;
+
       return result;
+    }
   }
 
   // Try the search paths
@@ -350,13 +370,15 @@ static const char* create_package_symbol(ast_t* program, const char* filename)
 
 
 // Create a package AST, set up its state and add it to the given program
-static ast_t* create_package(ast_t* program, const char* name)
+static ast_t* create_package(ast_t* program, const char* name,
+  const char* qualified_name)
 {
   ast_t* package = ast_blank(TK_PACKAGE);
   uint32_t pkg_id = program_assign_pkg_id(program);
 
   package_t* pkg = POOL_ALLOC(package_t);
   pkg->path = name;
+  pkg->qualified_name = qualified_name;
   pkg->id = id_to_string(NULL, pkg_id);
 
   const char* p = strrchr(pkg->path, PATH_SLASH);
@@ -529,7 +551,7 @@ bool package_init(pass_opt_t* opt)
     safe = strlist_pop(safe, &path);
 
     // Lookup (and hence normalise) path.
-    path = find_path(NULL, path);
+    path = find_path(NULL, path, NULL);
 
     if(path == NULL)
     {
@@ -662,14 +684,32 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
 {
   const char* magic = find_magic_package(path);
   const char* full_path = path;
+  const char* qualified_name = path;
 
   if(magic == NULL)
   {
     // Lookup (and hence normalise) path
-    full_path = find_path(from, path);
+    bool is_relative = false;
+    full_path = find_path(from, path, &is_relative);
 
     if(full_path == NULL)
       return NULL;
+
+    if(is_relative)
+    {
+      // Package to load is relative to from, build the qualified name
+      package_t* from_pkg = (package_t*)ast_data(from);
+      const char* base_name = from_pkg->path;
+      size_t base_name_len = strlen(base_name);
+      size_t path_len = strlen(path);
+      size_t len = base_name_len + path_len + 2;
+      char* q_name = (char*)pool_alloc_size(len);
+      memcpy(q_name, base_name, base_name_len);
+      q_name[base_name_len] = '/';
+      memcpy(q_name + base_name_len + 1, path, path_len);
+      q_name[len - 1] = '\0';
+      qualified_name = stringtab_consume(q_name, len);
+    }
   }
 
   ast_t* program = ast_nearest(from, TK_PROGRAM);
@@ -678,7 +718,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   if(package != NULL) // Package already loaded
     return package;
 
-  package = create_package(program, full_path);
+  package = create_package(program, full_path, qualified_name);
 
   if(report_build)
     printf("Building %s -> %s\n", path, full_path);
@@ -734,6 +774,16 @@ const char* package_path(ast_t* package)
   package_t* pkg = (package_t*)ast_data(package);
 
   return pkg->path;
+}
+
+
+const char* package_qualified_name(ast_t* package)
+{
+  assert(package != NULL);
+  assert(ast_id(package) == TK_PACKAGE);
+  package_t* pkg = (package_t*)ast_data(package);
+
+  return pkg->qualified_name;
 }
 
 

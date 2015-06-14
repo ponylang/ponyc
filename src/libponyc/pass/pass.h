@@ -87,6 +87,8 @@ typedef struct pass_opt_t
   bool print_stats;
   bool verify;
   bool strip_debug;
+  bool print_filenames;
+  bool docs;
   const char* output;
 
   char* triple;

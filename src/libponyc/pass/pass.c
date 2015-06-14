@@ -9,6 +9,7 @@
 #include "traits.h"
 #include "expr.h"
 #include "finalisers.h"
+#include "docgen.h"
 #include "../codegen/codegen.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -175,14 +176,14 @@ bool program_passes(ast_t* program, pass_opt_t* options)
   if(do_pass(&program, &r, options, PASS_TRAITS, pass_traits, NULL))
     return r;
 
+  if(options->docs)
+    generate_docs(program, options->output);
+
   if(do_pass(&program, &r, options, PASS_EXPR, pass_pre_expr, pass_expr))
     return r;
 
-  if(options->limit >= PASS_EXPR)
-  {
-    if(!pass_finalisers(program))
-      return false;
-  }
+  if(!pass_finalisers(program))
+    return false;
 
   return true;
 }

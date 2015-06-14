@@ -89,6 +89,11 @@ ast_t* package_id(ast_t* ast);
 const char* package_path(ast_t* package);
 
 /**
+ * Gets the package qualified name.
+ */
+const char* package_qualified_name(ast_t* package);
+
+/**
  * Gets the last component of the package path.
  */
 const char* package_filename(ast_t* package);

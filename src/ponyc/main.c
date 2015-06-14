@@ -24,6 +24,7 @@ enum
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_LIBRARY,
+  OPT_DOCS,
 
   OPT_SAFE,
   OPT_IEEEMATH,
@@ -39,6 +40,7 @@ enum
   OPT_WIDTH,
   OPT_IMMERR,
   OPT_VERIFY,
+  OPT_FILENAMES,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -53,6 +55,7 @@ static opt_arg_t args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
+  {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
@@ -68,6 +71,7 @@ static opt_arg_t args[] =
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
   {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
+  {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -92,6 +96,7 @@ static void usage()
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
+    "  --docs, -g      Generate code documentation.\n"
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
@@ -127,6 +132,7 @@ static void usage()
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
     "  --verify        Verify LLVM IR.\n"
+    "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
     "\n"
@@ -231,6 +237,7 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
+      case OPT_DOCS: opt.docs = true; break;
 
       case OPT_SAFE:
         if(!package_add_safe(s.arg_val))
@@ -249,6 +256,7 @@ int main(int argc, char* argv[])
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
       case OPT_VERIFY: opt.verify = true; break;
+      case OPT_FILENAMES: opt.print_filenames = true; break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
