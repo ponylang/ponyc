@@ -6,6 +6,15 @@ static HANDLE* locks;
 static pthread_mutex_t* locks;
 #endif
 
+
+PONY_EXTERN_C_BEGIN
+
+// Forward declaration to avoid C++ name mangling
+void* os_ssl_multithreading(uint32_t count);
+
+PONY_EXTERN_C_END
+
+
 static void locking_callback(int mode, int type, const char* file, int line)
 {
   (void)file;
@@ -30,7 +39,7 @@ static void locking_callback(int mode, int type, const char* file, int line)
 void* os_ssl_multithreading(uint32_t count)
 {
 #if defined(PLATFORM_IS_WINDOWS)
-  locks = malloc(count * sizeof(HANDLE*));
+  locks = (HANDLE*)malloc(count * sizeof(HANDLE*));
 
   for(uint32_t i = 0; i < count; i++)
     locks[i] = CreateMutex(NULL, FALSE, NULL);
