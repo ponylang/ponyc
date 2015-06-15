@@ -202,8 +202,13 @@ class URL val
 
     try
       let colon = from.find(":", i)
-      host = from.substring(i, colon - 1)
-      service = from.substring(colon + 1, slash - 1)
+
+      if colon < slash then
+        host = from.substring(i, colon - 1)
+        service = from.substring(colon + 1, slash - 1)
+      else
+        error
+      end
     else
       // Has no port
       host = from.substring(i, slash - 1)

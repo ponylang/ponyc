@@ -8,7 +8,7 @@ actor Main
 
 class _TestList iso is UnitTest
   new iso create() => None
-  fun name(): String => "collections.list"
+  fun name(): String => "collections/List"
 
   fun apply(h: TestHelper): TestResult ? =>
     let a = List[U32]

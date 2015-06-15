@@ -6,6 +6,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Automatic documentation generator in the compiler.
 - FreeBSD 10.1 support, thanks to Ben Laurie.
 - Allow method calls on union types when the signatures are compatible.
 - Subtyping of polymorphic methods.
@@ -17,11 +18,18 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Separated the FFI '&' operator from the identityof operator.
 - Operators on Set and Map are now persistent.
+- use "file:..." becomes use "package:..."
+- Allow "s at the end of triple-quoted strings.
+- Allow behaviours and functions to be subtypes of each other.
 
 ### Fixed
 
 - ANSI stripping on zero length writes to stdout/stderr.
 - More OSX 10.8 compatibility.
+- SSL multithreading support.
+- Nested tuple code generation.
+- Only finalise blocked actors when detecting quiescence.
+- URL parse error.
 
 ## [0.1.5] - 2015-05-15
 

@@ -15,7 +15,7 @@ class _TestBase64 iso is UnitTest
   Test base64 encoding.
   Using test examples from RFC 4648.
   """
-  fun name(): String => "encode.base64"
+  fun name(): String => "encode/Base64.encode"
 
   fun apply(h: TestHelper): TestResult =>
     h.expect_eq[String]("", Base64.encode(""))
@@ -32,7 +32,7 @@ class _TestBase64Decode iso is UnitTest
   Test base64 decoding. Examples with and without padding are tested.
   Using test examples from RFC 4648.
   """
-  fun name(): String => "encode.base64decode"
+  fun name(): String => "encode/Base64.decode"
 
   fun apply(h: TestHelper): TestResult ? =>
     h.expect_eq[String]("", Base64.decode[String iso](""))

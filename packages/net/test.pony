@@ -12,7 +12,7 @@ class _TestBuffer iso is UnitTest
   """
   new iso create() => None
 
-  fun name(): String => "net.buffer"
+  fun name(): String => "net/Buffer"
 
   fun apply(h: TestHelper): TestResult ? =>
     let b = Buffer
