@@ -438,7 +438,7 @@ static bool add_path(const char* path)
     path = stringtab(path);
 
     if(strlist_find(search, path) == NULL)
-      search = strlist_append(search, path);
+      search = strlist_push(search, path);
   }
 
   return true;

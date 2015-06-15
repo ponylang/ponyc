@@ -304,7 +304,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
     "-o %s %s %s %s -lponyrt -lSystem",
     (int)arch_len, c->opt->triple,
-    file_exe, file_o, lib_args, link_path
+    file_exe, file_o, link_path, lib_args
     );
 
   if(system(ld_cmd) != 0)
