@@ -31,3 +31,14 @@ class _TestURL iso is UnitTest
     h.expect_eq[String](url.path, "/wiki/Category%3APony")
     h.expect_eq[String](url.query, "")
     h.expect_eq[String](url.fragment, "")
+
+    url = URL.build(
+      "https://en.wikipedia.org/wiki/Polymorphism_(computer_science)#Parametric_polymorphism")
+    h.expect_eq[String](url.scheme, "https")
+    h.expect_eq[String](url.user, "")
+    h.expect_eq[String](url.password, "")
+    h.expect_eq[String](url.host, "en.wikipedia.org")
+    h.expect_eq[String](url.service, "443")
+    h.expect_eq[String](url.path, "/wiki/Polymorphism_%28computer_science%29")
+    h.expect_eq[String](url.query, "")
+    h.expect_eq[String](url.fragment, "Parametric_polymorphism")
