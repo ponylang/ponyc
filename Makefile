@@ -209,7 +209,7 @@ libponyrt-pic.include := $(libponyrt.include)
 libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/
+ponyc.include := -I src/common/ -I src/libponyrt/
 libgtest.include := -isystem lib/gtest/
 
 ifeq ($(OSTYPE), freebsd)

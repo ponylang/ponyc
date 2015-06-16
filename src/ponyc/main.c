@@ -4,8 +4,7 @@
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
 #include <platform.h>
-
-#include "options.h"
+#include <options/options.h>
 
 #include <stdlib.h>
 #include <stdio.h>

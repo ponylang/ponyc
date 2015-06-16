@@ -2,6 +2,7 @@
 #include "../mem/heap.h"
 #include "../gc/cycle.h"
 #include "../lang/socket.h"
+#include "../options/options.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -24,91 +25,59 @@ typedef struct options_t
 // global data
 static int volatile exit_code;
 
+enum
+{
+  OPT_THREADS,
+  OPT_CDMIN,
+  OPT_CDMAX,
+  OPT_CDCONF,
+  OPT_GCINITIAL,
+  OPT_GCFACTOR,
+  OPT_SCHED,
+  OPT_NOYIELD,
+  OPT_FORCECD
+};
+
+static opt_arg_t args[] =
+{
+  {"ponythreads", 0, OPT_ARG_REQUIRED, OPT_THREADS},
+  {"ponycdmin", 0, OPT_ARG_REQUIRED, OPT_CDMIN},
+  {"ponycdmax", 0, OPT_ARG_REQUIRED, OPT_CDMAX},
+  {"ponycdconf", 0, OPT_ARG_REQUIRED, OPT_CDCONF},
+  {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
+  {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
+  {"ponysched", 0, OPT_ARG_REQUIRED, OPT_SCHED},
+  {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
+  {"ponyforcecd", 0, OPT_ARG_NONE, OPT_FORCECD}
+};
+
 static int parse_opts(int argc, char** argv, options_t* opt)
 {
-  int remove = 0;
+  opt_state_t s;
+  int id;
+  opt_init(args, &s, &argc, argv);
 
-  for(int i = 0; i < argc; i++)
+  while((id = opt_next(&s)) != -1)
   {
-    if(!strcmp(argv[i], "--ponythreads"))
+    switch(id)
     {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->threads = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponycdmin")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->cd_min_deferred = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponycdmax")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->cd_max_deferred = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponycdconf")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->cd_conf_group = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponygcinitial")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->gc_initial = atoi(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponygcfactor")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        opt->gc_factor = atof(argv[i + 1]);
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponysched")) {
-      remove++;
-
-      if(i < (argc - 1))
-      {
-        if(!strcmp(argv[i + 1], "coop"))
+      case OPT_THREADS: opt->threads = atoi(s.arg_val); break;
+      case OPT_CDMIN: opt->cd_min_deferred = atoi(s.arg_val); break;
+      case OPT_CDMAX: opt->cd_max_deferred = atoi(s.arg_val); break;
+      case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
+      case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
+      case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
+      case OPT_SCHED: 
+        if(!strcmp(s.arg_val, "coop"))
           opt->mpmcq = false;
-        else if(!strcmp(argv[i + 1], "mpmcq"))
+        else if(!strcmp(s.arg_val, "mpmcq"))
           opt->mpmcq = true;
-
-        remove++;
-      }
-    } else if(!strcmp(argv[i], "--ponynoyield")) {
-      remove++;
-      opt->noyield = true;
-    } else if(!strcmp(argv[i], "--ponyforcecd")) {
-      remove++;
-      opt->forcecd = true;
-    }
-
-    if(remove > 0)
-    {
-      argc -= remove;
-      memmove(&argv[i], &argv[i + remove], (argc - i) * sizeof(char*));
-      remove = 0;
-      i--;
+        break;
+      case OPT_NOYIELD: opt->noyield = true; break;
+      case OPT_FORCECD: opt->forcecd = true; break;
     }
   }
 
-  argv[argc] = NULL;
   return argc;
 }
 

@@ -1,5 +1,5 @@
-#ifndef PONYC_OPTIONS_H
-#define PONYC_OPTIONS_H
+#ifndef OPTIONS_H
+#define OPTIONS_H
 
 #include <stdint.h>
 
