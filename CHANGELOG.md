@@ -2,6 +2,16 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [unreleased] - unreleased
+
+### Added
+
+- Pass Pony function pointers to C FFI.
+
+### Fixed
+
+- Viewpoint adaptation with a type expression on the left-hand side.
+
 ## [0.1.6] - 2015-06-15
 
 ### Added
