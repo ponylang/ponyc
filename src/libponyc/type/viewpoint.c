@@ -248,13 +248,20 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
 {
   switch(ast_id(l_type))
   {
+    case TK_TUPLETYPE:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      // Only occurs in codegen.
+      return r_type;
+    }
+
     case TK_NOMINAL:
     {
-      AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
-
       if(ast_id(r_type) == TK_ARROW)
         return make_arrow_type(l_type, r_type);
 
+      AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
       return viewpoint_cap(ast_id(cap), ast_id(eph), r_type);
     }
 
@@ -301,6 +308,23 @@ ast_t* viewpoint_lower(ast_t* type)
 {
   switch(ast_id(type))
   {
+    case TK_TUPLETYPE:
+    case TK_UNIONTYPE:
+    case TK_ISECTTYPE:
+    {
+      // Adapt all elements.
+      ast_t* r_type = ast_from(type, ast_id(type));
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        ast_append(r_type, viewpoint_lower(child));
+        child = ast_sibling(child);
+      }
+
+      return r_type;
+    }
+
     case TK_NOMINAL:
       return viewpoint_lower_for_nominal(type);
 
@@ -323,7 +347,6 @@ ast_t* viewpoint_lower(ast_t* type)
     default: {}
   }
 
-  assert(0);
   return NULL;
 }
 
