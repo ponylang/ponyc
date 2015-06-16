@@ -8,6 +8,10 @@ All notable changes to the Pony compiler and standard library will be documented
 
 - Pass Pony function pointers to C FFI.
 
+### Changed
+
+- The pony runtime now uses the same option parser as ponyc. A pony program exits if bad runtime args are provided.
+
 ### Fixed
 
 - Viewpoint adaptation with a type expression on the left-hand side.
