@@ -536,12 +536,14 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
   AST_GET_CHILDREN(lhs, receiver, method);
+  ast_t* qualify = NULL;
 
   switch(ast_id(receiver))
   {
     case TK_NEWAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
+      qualify = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
 
@@ -643,12 +645,26 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_append(create_body, r_assign);
   ast_append(call_namedargs, r_call_arg);
 
+  // Qualify the method call if necessary.
+  BUILD(apply_method, ast,
+    NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method)));
+
+  if(qualify != NULL)
+  {
+    BUILD(apply_qualified, ast,
+      NODE(TK_QUALIFY)
+      TREE(apply_method)
+      TREE(qualify));
+
+    apply_method = apply_qualified;
+  }
+
   // Add a call to the original method to the apply body.
   BUILD(apply_call, ast,
     NODE(TK_CALL,
       NODE(TK_POSITIONALARGS)
       NONE
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method))));
+      TREE(apply_method)));
 
   ast_append(apply_body, apply_call);
   ast_t* apply_args = ast_child(apply_call);

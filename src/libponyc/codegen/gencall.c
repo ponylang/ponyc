@@ -231,6 +231,36 @@ static bool call_needs_receiver(ast_t* postfix, gentype_t* g)
   return true;
 }
 
+LLVMValueRef gen_funptr(compile_t* c, ast_t* ast)
+{
+  assert((ast_id(ast) == TK_FUNREF) || (ast_id(ast) == TK_BEREF));
+  AST_GET_CHILDREN(ast, receiver, method);
+  ast_t* typeargs = NULL;
+
+  // Dig through function qualification.
+  switch(ast_id(receiver))
+  {
+    case TK_BEREF:
+    case TK_FUNREF:
+      typeargs = method;
+      AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
+      break;
+
+    default: {}
+  }
+
+  // Generate the receiver type.
+  const char* method_name = ast_name(method);
+  ast_t* type = ast_type(receiver);
+  gentype_t g;
+
+  if(!gentype(c, type, &g))
+    return NULL;
+
+  LLVMValueRef value = gen_expr(c, receiver);
+  return dispatch_function(c, ast, &g, value, method_name, typeargs);
+}
+
 LLVMValueRef gen_call(compile_t* c, ast_t* ast)
 {
   // Special case calls.

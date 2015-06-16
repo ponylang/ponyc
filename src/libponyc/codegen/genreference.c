@@ -2,6 +2,7 @@
 #include "genexpr.h"
 #include "gentype.h"
 #include "genname.h"
+#include "gencall.h"
 #include "../expr/literal.h"
 #include "../debug/dwarf.h"
 #include <string.h>
@@ -198,12 +199,14 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   switch(ast_id(expr))
   {
     case TK_VARREF:
-    case TK_LETREF:
       return gen_localptr(c, expr);
 
     case TK_FVARREF:
-    case TK_FLETREF:
       return gen_fieldptr(c, expr);
+
+    case TK_FUNREF:
+    case TK_BEREF:
+      return gen_funptr(c, expr);
 
     default: {}
   }

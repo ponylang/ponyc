@@ -423,11 +423,10 @@ static reachable_method_stack_t* reachable_pattern(reachable_method_stack_t* s,
   return s;
 }
 
-static reachable_method_stack_t* reachable_call(reachable_method_stack_t* s,
+static reachable_method_stack_t* reachable_fun(reachable_method_stack_t* s,
   reachable_types_t* r, ast_t* ast)
 {
-  AST_GET_CHILDREN(ast, positional, named, postfix);
-  AST_GET_CHILDREN(postfix, receiver, method);
+  AST_GET_CHILDREN(ast, receiver, method);
   ast_t* typeargs = NULL;
 
   // Dig through function qualification.
@@ -448,6 +447,30 @@ static reachable_method_stack_t* reachable_call(reachable_method_stack_t* s,
   const char* method_name = ast_name(method);
 
   return reachable_method(s, r, type, method_name, typeargs);
+}
+
+static reachable_method_stack_t* reachable_addressof(
+  reachable_method_stack_t* s, reachable_types_t* r, ast_t* ast)
+{
+  ast_t* expr = ast_child(ast);
+
+  switch(ast_id(expr))
+  {
+    case TK_FUNREF:
+    case TK_BEREF:
+      return reachable_fun(s, r, expr);
+
+    default: {}
+  }
+
+  return s;
+}
+
+static reachable_method_stack_t* reachable_call(reachable_method_stack_t* s,
+  reachable_types_t* r, ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, positional, named, postfix);
+  return reachable_fun(s, r, postfix);
 }
 
 static reachable_method_stack_t* reachable_ffi(reachable_method_stack_t* s,
@@ -501,6 +524,10 @@ static reachable_method_stack_t* reachable_expr(reachable_method_stack_t* s,
 
     case TK_FFICALL:
       s = reachable_ffi(s, r, ast);
+      break;
+
+    case TK_AMP:
+      s = reachable_addressof(s, r, ast);
       break;
 
     default: {}

@@ -624,6 +624,8 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
   {
     case TK_FVARREF:
     case TK_VARREF:
+    case TK_FUNREF:
+    case TK_BEREF:
       break;
 
     case TK_FLETREF:
@@ -639,7 +641,7 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
 
     default:
-      ast_error(ast, "can only take the address of a field or local variable");
+      ast_error(ast, "can only take the address of a local, field or method");
       return false;
   }
 
