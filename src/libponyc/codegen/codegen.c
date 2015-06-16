@@ -459,6 +459,7 @@ void codegen_shutdown(pass_opt_t* opt)
 bool codegen(ast_t* program, pass_opt_t* opt)
 {
   printf("Generating\n");
+  pony_mkdir(opt->output);
 
   compile_t c;
   memset(&c, 0, sizeof(compile_t));
