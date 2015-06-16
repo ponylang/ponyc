@@ -10,21 +10,28 @@
 // functions below.
 // The doc directory is the root directory that we put our generated files
 // into. This is supplied by the caller, presumably from a command line arg.
-// Most of the time we have 2 files open:
+// Most of the time we have 3 files open:
 // 1. The index file. This is the mkdocs yaml file that specifies the structure
 // of the document and lives in the doc directory.
 // This file is opened in the top level function before any processing occurs
 // and is closed by the same function once we've processed everything.
-// 2. The type file. This is the md file for a specific type and lives in the
+// 2. The home file. This is the page that is used as the top level. It
+// contains a contents list of the packages documented (with links).
+// This file is opened in the top level function before any processing occurs
+// and is closed by the same function once we've processed everything.
+// 3. The type file. This is the md file for a specific type and lives in the
 // "docs" sub directory of the doc directory. We have one file per type.
 // This file is opened and closed by the functions that handles the type. When
 // closed the file pointer should always be put back to NULL.
 typedef struct docgen_t
 {
   FILE* index_file;
+  FILE* home_file;
   FILE* type_file;
-  const char* doc_dir;
-  size_t doc_dir_len;
+  const char* base_dir;
+  const char* sub_dir;
+  size_t base_dir_buf_len;
+  size_t sub_dir_buf_len;
 } docgen_t;
 
 
@@ -121,8 +128,49 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
 }
 
 
-// Functions to handle full qualified type names (TQFNs)
+// Utilities
 
+// Cat together the given strings into a newly allocated buffer.
+// Any unneeded strings should be passed as "", not NULL.
+// The returned buffer must be freed with pool_free_size() when no longer
+// needed.
+// The out_buf_size parameter returns the size of the buffer (which is needed
+// for freeing), not the length of the string.
+static char* doc_cat(const char* a, const char* b, const char* c,
+  const char* d, const char* e, size_t* out_buf_size)
+{
+  assert(a != NULL);
+  assert(b != NULL);
+  assert(c != NULL);
+  assert(d != NULL);
+  assert(e != NULL);
+  assert(out_buf_size != NULL);
+
+  size_t a_len = strlen(a);
+  size_t b_len = strlen(b);
+  size_t c_len = strlen(c);
+  size_t d_len = strlen(d);
+  size_t e_len = strlen(e);
+  size_t buf_len = a_len + b_len + c_len + d_len + e_len + 1;
+
+  char* buffer = (char*)pool_alloc_size(buf_len);
+  char *p = buffer;
+
+  if(a_len > 0) { memcpy(p, a, a_len); p += a_len; }
+  if(b_len > 0) { memcpy(p, b, b_len); p += b_len; }
+  if(c_len > 0) { memcpy(p, c, c_len); p += c_len; }
+  if(d_len > 0) { memcpy(p, d, d_len); p += d_len; }
+  if(e_len > 0) { memcpy(p, e, e_len); p += e_len; }
+
+  *(p++) = '\0';
+
+  assert(p == (buffer + buf_len));
+  *out_buf_size = buf_len;
+  return buffer;
+}
+
+
+// Fully qualified type names (TQFNs).
 // We need unique names for types, for use in file names and links. The format
 // we use is:
 //      qualfied_package_name-type_name
@@ -130,65 +178,69 @@ static void doc_list_add_named(ast_list_t* list, ast_t* ast, size_t id_index,
 // This may fail if there are 2 or more packages with the same qualified name.
 // This is unlikely, but possible and needs to be fixed later.
 
-
-// Report the length of the TQFN for the given type (excluding terminator)
-static size_t tqfn_length(ast_t* type)
+// Write the TQFN for the given type to a new buffer.
+// By default the type name is taken from the given AST, however this can be
+// overridden by the type_name parameter. Pass NULL to use the default.
+// The returned buffer must be freed using pool_free_size when no longer
+// needed. Note that the size reported is the size of the buffer and includes a
+// terminator.
+static char* write_tqfn(ast_t* type, const char* type_name, size_t* out_size)
 {
   assert(type != NULL);
+  assert(out_size != NULL);
 
   ast_t* package = ast_nearest(type, TK_PACKAGE);
   assert(package != NULL);
 
   // We need the qualified package name and the type name
   const char* pkg_qual_name = package_qualified_name(package);
-  const char* type_name = ast_name(ast_child(type));
+
+  if(type_name == NULL)
+    type_name = ast_name(ast_child(type));
 
   assert(pkg_qual_name != NULL);
   assert(type_name != NULL);
 
-  size_t pkg_name_len = strlen(pkg_qual_name);
-  size_t type_name_len = strlen(type_name);
-  size_t len = pkg_name_len + 1 + type_name_len;  // +1 for extra dash
+  char* buffer = doc_cat(pkg_qual_name, "-", type_name, "", "", out_size);
 
-  return len;
+  // Change slashes to dashes
+  for(char* p = buffer; *p != '\0'; p++)
+  {
+    if(*p == '/')
+      *p = '-';
+  }
+
+  return buffer;
 }
 
 
-// Write the TQFN for the given type to the given buffer.
-// Note that a terminator will be written and the given buffer MUST be big
-// enough to accomodate this.
-static void write_tqfn(ast_t* type, char* buffer)
+// Open a file with the specified info.
+// The given filename extension should include a dot if one is needed.
+// The returned file handle must be fclosed() with no longer needed.
+// If the specified file cannot be opened an error will be generated and NULL
+// returned.
+static FILE* doc_open_file(docgen_t* docgen, bool in_sub_dir,
+  const char* filename, const char* extn)
 {
-  assert(type != NULL);
-  assert(buffer != NULL);
+  assert(docgen != NULL);
+  assert(filename != NULL);
+  assert(extn != NULL);
 
-  ast_t* package = ast_nearest(type, TK_PACKAGE);
-  assert(package != NULL);
+  // Build the type file name in a buffer.
+  // Full file name is:
+  //   directory/filenameextn
+  const char* dir = in_sub_dir ? docgen->sub_dir : docgen->base_dir;
+  size_t buf_len;
+  char* buffer = doc_cat(dir, filename, extn, "", "", &buf_len);
 
-  // We need the qualified package name and the type name
-  const char* pkg_qual_name = package_qualified_name(package);
-  const char* type_name = ast_name(ast_child(type));
+  // Now we have the file name open the file
+  FILE* file = fopen(buffer, "w");
 
-  assert(pkg_qual_name != NULL);
-  assert(type_name != NULL);
+  if(file == NULL)
+    errorf(NULL, "Could not write documentation to file %s", buffer);
 
-  // Package qualified name
-  for(const char* p = pkg_qual_name; *p != '\0'; p++)
-  {
-    if(*p == '/')
-      *(buffer++) = '-';
-    else
-      *(buffer++) = *p;
-  }
-
-  // Dash
-  *(buffer++) = '-';
-
-  // Type name
-  for(const char* p = type_name; *p != '\0'; p++)
-    *(buffer++) = *p;
-
-  *buffer = '\0';
+  pool_free_size(buf_len, buffer);
+  return file;
 }
 
 
@@ -196,6 +248,36 @@ static void write_tqfn(ast_t* type, char* buffer)
 
 static void doc_type_list(docgen_t* docgen, ast_t* list, const char* preamble,
   const char* separator, const char* postamble);
+
+
+// Report the human readable description for the given capability node.
+// The returned string is valid forever and should not be freed.
+// NULL is returned for no description.
+static const char* doc_get_cap(ast_t* cap)
+{
+  if(cap == NULL)
+    return NULL;
+
+  switch(ast_id(cap))
+  {
+    case TK_ISO:
+    case TK_TRN:
+    case TK_REF:
+    case TK_VAL:
+    case TK_BOX:
+    case TK_TAG:
+      return ast_get_print(cap);
+
+    case TK_BOX_GENERIC:
+      return "box";
+
+    case TK_TAG_GENERIC:
+      return "tag";
+
+    default:
+      return NULL;
+  }
+}
 
 
 // Write the given type to the current type file
@@ -215,18 +297,18 @@ static void doc_type(docgen_t* docgen, ast_t* type)
       ast_t* target = (ast_t*)ast_data(type);
       assert(target != NULL);
 
-      size_t link_len = tqfn_length(target) + 1;  // +1 for terminator
-      char* buf = (char*)pool_alloc_size(link_len);
-      write_tqfn(target, buf);
+      size_t link_len;
+      char* tqfn = write_tqfn(target, NULL, &link_len);
 
       // Links are of the form: [text](target)
-      fprintf(docgen->type_file, "[%s](%s)", ast_name(id), buf);
-      pool_free_size(link_len, buf);
+      fprintf(docgen->type_file, "[%s](%s)", ast_name(id), tqfn);
+      pool_free_size(link_len, tqfn);
 
       doc_type_list(docgen, tparams, "\\[", ", ", "\\]");
 
-      if(ast_id(cap) != TK_NONE)
-        fprintf(docgen->type_file, " %s", ast_get_print(cap));
+      const char* cap_text = doc_get_cap(cap);
+      if(cap_text != NULL)
+        fprintf(docgen->type_file, " %s", cap_text);
 
       if(ast_id(ephemeral) != TK_NONE)
         fprintf(docgen->type_file, "%s", ast_get_print(ephemeral));
@@ -251,8 +333,9 @@ static void doc_type(docgen_t* docgen, ast_t* type)
       AST_GET_CHILDREN(type, id, cap, ephemeral);
       fprintf(docgen->type_file, "%s", ast_name(id));
 
-      if(ast_id(cap) != TK_NONE)
-        fprintf(docgen->type_file, " %s", ast_get_print(cap));
+      const char* cap_text = doc_get_cap(cap);
+      if(cap_text != NULL)
+        fprintf(docgen->type_file, " %s", cap_text);
 
       if(ast_id(ephemeral) != TK_NONE)
         fprintf(docgen->type_file, "%s", ast_get_print(ephemeral));
@@ -439,7 +522,11 @@ static void doc_method(docgen_t* docgen, ast_t* method)
   fprintf(docgen->type_file, "%s", ast_get_print(method));
 
   if(ast_id(method) == TK_FUN)
-    fprintf(docgen->type_file, " %s\n", ast_get_print(cap));
+  {
+    const char* cap_text = doc_get_cap(cap);
+    if(cap_text != NULL)
+      fprintf(docgen->type_file, " %s\n", cap_text);
+  }
 
   fprintf(docgen->type_file, " %s", name);
   doc_type_params(docgen, t_params);
@@ -490,60 +577,35 @@ static void doc_methods(docgen_t* docgen, ast_list_t* methods,
 }
 
 
-// Write a description of the given entity to the current type file.
+// Write a description of the given entity to its own type file.
 // The containing package is handed in to save looking it up again.
 static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
 {
   assert(docgen != NULL);
   assert(docgen->index_file != NULL);
   assert(docgen->type_file == NULL);
-  assert(docgen->doc_dir != NULL);
   assert(ast != NULL);
   assert(package != NULL);
 
+  // First open a file
+  size_t tqfn_len;
+  char* tqfn = write_tqfn(ast, NULL, &tqfn_len);
+
+  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+
+  if(docgen->type_file == NULL)
+    return;
+
+  // Add reference to new file to index file
   AST_GET_CHILDREN(ast, id, tparams, cap, provides, members, c_api, doc);
 
   const char* name = ast_name(id);
   assert(name != NULL);
 
-  // Build the type file name in a buffer.
-  // Full file name is:
-  //   doc_directory/docs/tqfn.md
-  const char* sub_dir = "/docs/";
-  const char* extn = ".md";
-  size_t doc_dir_len = docgen->doc_dir_len;
-  size_t sub_dir_len = strlen(sub_dir);
-  size_t tqfn_len = tqfn_length(ast);
-  size_t extn_len = strlen(extn);
-  size_t sub_dir_start = doc_dir_len;
-  size_t tqfn_start = sub_dir_start + sub_dir_len;
-  size_t extn_start = tqfn_start + tqfn_len;
-  size_t filename_len = extn_start + extn_len + 1;  // +1 for terminator
+  fprintf(docgen->index_file, "- [\"%s.md\", \"package %s\", \"%s %s\"]\n",
+    tqfn, package_qualified_name(package), ast_get_print(ast), name);
 
-  char* buf = (char*)pool_alloc_size(filename_len);
-
-  memcpy(buf, docgen->doc_dir, doc_dir_len);
-  memcpy(buf + sub_dir_start, sub_dir, sub_dir_len);
-  write_tqfn(ast, buf + tqfn_start);
-  memcpy(buf + extn_start, extn, extn_len);
-  buf[filename_len - 1] = '\0';
-
-  // Now we have the file name open the file
-  docgen->type_file = fopen(buf, "w");
-
-  if(docgen->type_file == NULL)
-  {
-    ast_error(ast, "Could not write documentation to file %s", buf);
-    pool_free_size(filename_len, buf);
-    return;
-  }
-
-  // Add reference to new file to index file
-  fprintf(docgen->index_file, "- [\"%.*s.md\", \"package %s\", \"%s %s\"]\n",
-    (int)tqfn_len, buf + tqfn_start, package_qualified_name(package),
-    ast_get_print(ast), name);
-
-  pool_free_size(filename_len, buf);
+  pool_free_size(tqfn_len, tqfn);
 
   // Now we can write the actual documentation for the entity
   fprintf(docgen->type_file, "%s %s", ast_get_print(ast), name);
@@ -552,14 +614,21 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   fprintf(docgen->type_file, "\n\nIn package \"%s\".\n\n",
     package_qualified_name(package));
 
-  if(ast_id(doc) != TK_NONE)
-    fprintf(docgen->type_file, "%s\n", ast_name(doc));
+  fprintf(docgen->type_file, "%s", (name[0] == '_') ? "Private" : "Public");
 
-  fprintf(docgen->type_file, "%s, default capability %s.\n",
-    (name[0] == '_') ? "Private" : "Public", ast_get_print(cap));
+  const char* cap_text = doc_get_cap(cap);
+  if(cap_text != NULL)
+    fprintf(docgen->type_file, ", default capability %s", cap_text);
+
+  fprintf(docgen->type_file, ".\n\n");
 
   if(ast_id(c_api) == TK_AT)
     fprintf(docgen->type_file, "May be called from C.\n");
+
+  if(ast_id(doc) != TK_NONE)
+    fprintf(docgen->type_file, "%s\n\n", ast_name(doc));
+  else
+    fprintf(docgen->type_file, "No doc string provided.\n\n");
 
   // Sort members into varieties
   ast_list_t pub_fields = { NULL, NULL, NULL };
@@ -597,13 +666,60 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   // Handle member variety lists
   doc_fields(docgen, &pub_fields, "Public fields");
   doc_methods(docgen, &news, "Constructors");
-  doc_methods(docgen, &bes, "Behavious");
+  doc_methods(docgen, &bes, "Behaviours");
   doc_methods(docgen, &funs, "Functions");
 
   doc_list_free(&pub_fields);
   doc_list_free(&news);
   doc_list_free(&bes);
   doc_list_free(&funs);
+
+  fclose(docgen->type_file);
+  docgen->type_file = NULL;
+}
+
+
+// Write the given package home page to its own file
+static void doc_package_home(docgen_t* docgen, ast_t* package,
+  ast_t* doc_string)
+{
+  assert(docgen != NULL);
+  assert(docgen->index_file != NULL);
+  assert(docgen->home_file != NULL);
+  assert(docgen->type_file == NULL);
+  assert(package != NULL);
+  assert(ast_id(package) == TK_PACKAGE);
+
+  // First open a file
+  size_t tqfn_len;
+  char* tqfn = write_tqfn(package, "-index", &tqfn_len);
+
+  docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
+
+  if(docgen->type_file == NULL)
+    return;
+
+  // Add reference to new file to index file
+  fprintf(docgen->index_file, "- [\"%s.md\", \"package %s\", \"package\"]\n",
+    tqfn, package_qualified_name(package));
+
+  // Add reference to package to home file
+  fprintf(docgen->home_file, "* [%s](%s)\n", package_qualified_name(package),
+    tqfn);
+
+  // Now we can write the actual documentation for the package
+  if(doc_string != NULL)
+  {
+    assert(ast_id(doc_string) == TK_STRING);
+    fprintf(docgen->type_file, "%s", ast_name(doc_string));
+  }
+  else
+  {
+    fprintf(docgen->type_file, "No package doc string provided for %s.",
+      package_qualified_name(package));
+  }
+
+  pool_free_size(tqfn_len, tqfn);
 
   fclose(docgen->type_file);
   docgen->type_file = NULL;
@@ -617,30 +733,36 @@ static void doc_package(docgen_t* docgen, ast_t* ast)
   assert(ast_id(ast) == TK_PACKAGE);
 
   ast_list_t types = { NULL, NULL, NULL };
+  ast_t* package_doc = NULL;
 
-  // Find and sort types
+  // Find and sort package contents
   for(ast_t* m = ast_child(ast); m != NULL; m = ast_sibling(m))
   {
     if(ast_id(m) == TK_STRING)
     {
-      // Package docstring, TODO
-      continue;
+      // Package docstring
+      assert(package_doc == NULL);
+      package_doc = m;
     }
-
-    assert(ast_id(m) == TK_MODULE);
-
-    for(ast_t* t = ast_child(m); t != NULL; t = ast_sibling(t))
+    else
     {
-      if(ast_id(t) != TK_USE)
+      assert(ast_id(m) == TK_MODULE);
+
+      for(ast_t* t = ast_child(m); t != NULL; t = ast_sibling(t))
       {
-        assert(ast_id(t) == TK_TYPE || ast_id(t) == TK_INTERFACE ||
-          ast_id(t) == TK_TRAIT || ast_id(t) == TK_PRIMITIVE ||
-          ast_id(t) == TK_CLASS || ast_id(t) == TK_ACTOR);
-        // We have a type
-        doc_list_add_named(&types, t, 0, true, true);
+        if(ast_id(t) != TK_USE)
+        {
+          assert(ast_id(t) == TK_TYPE || ast_id(t) == TK_INTERFACE ||
+            ast_id(t) == TK_TRAIT || ast_id(t) == TK_PRIMITIVE ||
+            ast_id(t) == TK_CLASS || ast_id(t) == TK_ACTOR);
+          // We have a type
+          doc_list_add_named(&types, t, 0, true, true);
+        }
       }
     }
   }
+
+  doc_package_home(docgen, ast, package_doc);
 
   // Process types
   for(ast_list_t* p = types.next; p != NULL; p = p->next)
@@ -685,46 +807,120 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
 }
 
 
-void generate_docs(ast_t* ast, const char* dir)
+// Delete all the files in the specified directory
+static void doc_rm_star(const char* path)
 {
-  assert(ast != NULL);
-  assert(ast_id(ast) == TK_PROGRAM);
-  assert(dir != NULL);
+  assert(path != NULL);
 
-  // Build the index file name in a buffer
-  const char* filename = "/mkdocs.yml";
-  size_t dir_len = strlen(dir);
-  size_t filename_len = strlen(filename);
-  size_t buf_len = dir_len + filename_len + 1;  // +1 for terminator
+  PONY_ERRNO err;
+  PONY_DIRINFO entry;
+  PONY_DIRINFO* result;
 
-  char* buf = (char*)pool_alloc_size(buf_len);
+  PONY_DIR* dir = pony_opendir(path, &err);
 
-  memcpy(buf, dir, dir_len);
-  memcpy(buf + dir_len, filename, filename_len);
-  buf[buf_len - 1] = '\0';
-
-  // Now we have the file name open the file
-  docgen_t docgen;
-  docgen.index_file = fopen(buf, "w");
-
-  if(docgen.index_file == NULL)
-  {
-    ast_error(ast, "Could not write documentation to file %s", buf);
-    pool_free_size(buf_len, buf);
+  if(dir == NULL)
     return;
+
+  while(pony_dir_entry_next(dir, &entry, &result) && (result != NULL))
+  {
+    char* name = pony_dir_info_name(result);
+
+    if(strcmp(name, ".") != 0 && strcmp(name, "..") != 0)
+    {
+      // Delete this file
+      size_t buf_len;
+      char* buf = doc_cat(path, name, "", "", "", &buf_len);
+
+#ifdef PLATFORM_IS_WINDOWS
+      DeleteFile(buf);
+#else
+      remove(buf);
+#endif
+      pool_free_size(buf_len, buf);
+    }
   }
 
-  pool_free_size(buf_len, buf);
+  pony_closedir(dir);
+}
 
-  fprintf(docgen.index_file, "site_name: Pony Generated Docs\n");
-  fprintf(docgen.index_file, "pages:\n");
 
-  // Process program
-  docgen.doc_dir = dir;
-  docgen.doc_dir_len = dir_len;
+/* Ensure that the directories we need exist and are empty.
+ *
+ * Our base directory has the name:
+ *    output/progname-docs/
+ * where output/progname is the executable we are producing (without any
+ * extension).
+ *
+ * Within this base directory we have the following:
+ *    mkdocs.yml
+ *    docs/
+ *      *.md
+ */
+static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
+{
+  assert(docgen != NULL);
+  assert(program != NULL);
+  assert(opt != NULL);
+
+  // First build our directory strings
+  const char* output = opt->output;
+  const char* progname = package_filename(ast_child(program));
+
+  docgen->base_dir = doc_cat(output, "/", progname, "-docs/", "",
+    &docgen->base_dir_buf_len);
+
+  docgen->sub_dir = doc_cat(docgen->base_dir, "docs/", "", "", "",
+    &docgen->sub_dir_buf_len);
+
+  printf("Writing docs to %s\n", docgen->base_dir);
+
+  // Create and clear out base directory
+  pony_mkdir(docgen->base_dir);
+  doc_rm_star(docgen->base_dir);
+
+  // Create and clear out sub directory
+  pony_mkdir(docgen->sub_dir);
+  doc_rm_star(docgen->sub_dir);
+}
+
+
+void generate_docs(ast_t* program, pass_opt_t* options)
+{
+  assert(program != NULL);
+  assert(ast_id(program) == TK_PROGRAM);
+
+  docgen_t docgen;
+  doc_setup_dirs(&docgen, program, options);
+
+  // Open the index and home files
+  docgen.index_file = doc_open_file(&docgen, false, "mkdocs", ".yml");
+  docgen.home_file = doc_open_file(&docgen, true, "index", ".md");
   docgen.type_file = NULL;
-  doc_packages(&docgen, ast);
 
-  fprintf(docgen.index_file, "theme: readthedocs\n");
-  fclose(docgen.index_file);
+  // Write documentation files
+  if(docgen.index_file != NULL && docgen.home_file != NULL)
+  {
+    fprintf(docgen.home_file, "Packages\n\n");
+
+    fprintf(docgen.index_file, "site_name: Pony Generated Docs\n");
+    fprintf(docgen.index_file, "pages:\n");
+    fprintf(docgen.index_file, "- [\"index.md\", Home]\n");
+
+    doc_packages(&docgen, program);
+
+    fprintf(docgen.index_file, "theme: readthedocs\n");
+  }
+
+  // Tidy up
+  if(docgen.index_file != NULL)
+    fclose(docgen.index_file);
+
+  if(docgen.home_file != NULL)
+   fclose(docgen.home_file);
+
+  if(docgen.base_dir != NULL)
+    pool_free_size(docgen.base_dir_buf_len, (void*)docgen.base_dir);
+
+  if(docgen.sub_dir != NULL)
+    pool_free_size(docgen.sub_dir_buf_len, (void*)docgen.sub_dir);
 }

@@ -1,5 +1,6 @@
 #include <platform.h>
 #include "../../libponyrt/mem/pool.h"
+#include <string.h>
 
 PONY_DIR* pony_opendir(const char* path, PONY_ERRNO* err)
 {
@@ -86,14 +87,52 @@ bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry, PONY_DIRINFO** res)
   if (FindNextFile(dir->ptr, &dir->info) != 0)
   {
     *res = &dir->info;
-    return false;
+    return true;
   }
 
   *res = NULL;
-  return true;
+  return false;
 #elif defined(PLATFORM_IS_POSIX_BASED)
-  return readdir_r(dir, entry, res) != 0;
+  return readdir_r(dir, entry, res) == 0;
 #else
   return false;
 #endif
+}
+
+void pony_mkdir(const char* path)
+{
+  // Copy the given path into a new buffer, one directory at a time, creating
+  // each as we go
+  size_t path_len = strlen(path);
+  char* buf = (char*)pool_alloc_size(path_len + 1); // + 1 for terminator
+
+  for(size_t i = 0; i < path_len; i++)
+  {
+    buf[i] = path[i];
+
+    if(path[i] == '/'
+#ifdef PLATFORM_IS_WINDOWS
+      || path[i] == '\\'
+#endif
+      )
+    {
+      // Create an intermediate dir
+      buf[i + 1] = '\0';
+
+#ifdef PLATFORM_IS_WINDOWS
+      CreateDirectory(buf, NULL);
+#else
+      mkdir(buf, 0777);
+#endif
+    }
+  }
+
+  // Create final directory
+#ifdef PLATFORM_IS_WINDOWS
+  CreateDirectory(path, NULL);
+#else
+  mkdir(path, 0777);
+#endif
+
+  pool_free_size(path_len + 1, buf);
 }

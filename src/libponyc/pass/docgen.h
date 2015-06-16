@@ -7,8 +7,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-// Generate docs for the given program, to the specified directory.
-void generate_docs(ast_t* ast, const char* dir);
+// Generate docs for the given program
+void generate_docs(ast_t* program, pass_opt_t* options);
 
 PONY_EXTERN_C_END
 

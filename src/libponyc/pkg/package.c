@@ -179,7 +179,7 @@ static bool parse_files_in_dir(ast_t* package, const char* dir_path,
   PONY_DIRINFO* d;
   bool r = true;
 
-  while(!pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
+  while(pony_dir_entry_next(dir, &dirent, &d) && (d != NULL))
   {
     // Handle only files with the specified extension
     char* name = pony_dir_info_name(d);

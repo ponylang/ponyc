@@ -177,7 +177,7 @@ bool program_passes(ast_t* program, pass_opt_t* options)
     return r;
 
   if(options->docs)
-    generate_docs(program, options->output);
+    generate_docs(program, options);
 
   if(do_pass(&program, &r, options, PASS_EXPR, pass_pre_expr, pass_expr))
     return r;

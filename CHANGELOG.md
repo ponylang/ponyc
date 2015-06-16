@@ -11,6 +11,8 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Changed
 
 - The pony runtime now uses the same option parser as ponyc. A pony program exits if bad runtime args are provided.
+- Output directory now created if it doesn't already exist.
+- Improvements to automatic documentation generator.
 
 ### Fixed
 
