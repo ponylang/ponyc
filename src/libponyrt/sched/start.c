@@ -75,6 +75,8 @@ static int parse_opts(int argc, char** argv, options_t* opt)
         break;
       case OPT_NOYIELD: opt->noyield = true; break;
       case OPT_FORCECD: opt->forcecd = true; break;
+
+      default: exit(-1);
     }
   }
 
