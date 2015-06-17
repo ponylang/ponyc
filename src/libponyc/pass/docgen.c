@@ -602,8 +602,8 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
   const char* name = ast_name(id);
   assert(name != NULL);
 
-  fprintf(docgen->index_file, "- [\"%s.md\", \"package %s\", \"%s %s\"]\n",
-    tqfn, package_qualified_name(package), ast_get_print(ast), name);
+  fprintf(docgen->index_file, "  - %s %s: \"%s.md\"\n",
+    ast_get_print(ast), name, tqfn);
 
   pool_free_size(tqfn_len, tqfn);
 
@@ -694,14 +694,17 @@ static void doc_package_home(docgen_t* docgen, ast_t* package,
   size_t tqfn_len;
   char* tqfn = write_tqfn(package, "-index", &tqfn_len);
 
+  // Package group
+  fprintf(docgen->index_file, "- package %s:\n",
+    package_qualified_name(package));
+
   docgen->type_file = doc_open_file(docgen, true, tqfn, ".md");
 
   if(docgen->type_file == NULL)
     return;
 
   // Add reference to new file to index file
-  fprintf(docgen->index_file, "- [\"%s.md\", \"package %s\", \"package\"]\n",
-    tqfn, package_qualified_name(package));
+  fprintf(docgen->index_file, "  - Package: \"%s.md\"\n", tqfn);
 
   // Add reference to package to home file
   fprintf(docgen->home_file, "* [%s](%s)\n", package_qualified_name(package),
@@ -902,15 +905,17 @@ void generate_docs(ast_t* program, pass_opt_t* options)
   // Write documentation files
   if(docgen.index_file != NULL && docgen.home_file != NULL)
   {
+    ast_t* package = ast_child(program);
+    const char* name = package_filename(package);
+
     fprintf(docgen.home_file, "Packages\n\n");
 
-    fprintf(docgen.index_file, "site_name: Pony Generated Docs\n");
+    fprintf(docgen.index_file, "site_name: %s\n", name);
+    fprintf(docgen.index_file, "theme: readthedocs\n");
     fprintf(docgen.index_file, "pages:\n");
-    fprintf(docgen.index_file, "- [\"index.md\", Home]\n");
+    fprintf(docgen.index_file, "- %s: index.md\n", name);
 
     doc_packages(&docgen, program);
-
-    fprintf(docgen.index_file, "theme: readthedocs\n");
   }
 
   // Tidy up
