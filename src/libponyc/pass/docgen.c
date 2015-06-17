@@ -887,7 +887,9 @@ static void doc_setup_dirs(docgen_t* docgen, ast_t* program, pass_opt_t* opt)
 void generate_docs(ast_t* program, pass_opt_t* options)
 {
   assert(program != NULL);
-  assert(ast_id(program) == TK_PROGRAM);
+
+  if(ast_id(program) != TK_PROGRAM)
+    return;
 
   docgen_t docgen;
   doc_setup_dirs(&docgen, program, options);
