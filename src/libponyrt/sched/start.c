@@ -48,7 +48,9 @@ static opt_arg_t args[] =
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
   {"ponysched", 0, OPT_ARG_REQUIRED, OPT_SCHED},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
-  {"ponyforcecd", 0, OPT_ARG_NONE, OPT_FORCECD}
+  {"ponyforcecd", 0, OPT_ARG_NONE, OPT_FORCECD},
+
+  OPT_ARGS_FINISH
 };
 
 static int parse_opts(int argc, char** argv, options_t* opt)
@@ -67,7 +69,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
-      case OPT_SCHED: 
+      case OPT_SCHED:
         if(!strcmp(s.arg_val, "coop"))
           opt->mpmcq = false;
         else if(!strcmp(s.arg_val, "mpmcq"))

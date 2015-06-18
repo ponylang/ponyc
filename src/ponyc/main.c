@@ -99,7 +99,7 @@ static void usage()
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
-    "    =this,that    With no packages listed, only builtin is allowed.\n"
+    "    =package      With no packages listed, only builtin is allowed.\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
     "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
