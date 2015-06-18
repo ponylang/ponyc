@@ -2,7 +2,7 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.1.7] - 2015-06-18
 
 ### Added
 
@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - The pony runtime now uses the same option parser as ponyc. A pony program exits if bad runtime args are provided.
 - Output directory now created if it doesn't already exist.
 - Improvements to automatic documentation generator.
+- Union type for String.compare result.
 
 ### Fixed
 
