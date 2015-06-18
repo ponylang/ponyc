@@ -123,7 +123,7 @@ primitive X509
       return host == name
     end
 
-    if host.compare(name, name.size(), 0, 0, true) == 0 then
+    if host.compare(name, name.size(), 0, 0, true) is Equal then
       // If the names are the same ignoring case, they match.
       return true
     end
@@ -150,7 +150,7 @@ primitive X509
         let domain = host.find(".")
 
         // If the host domain is the wildcard domain ignoring case, they match.
-        return host.compare(name, name.size() - 1, domain, 1, true) == 0
+        return host.compare(name, name.size() - 1, domain, 1, true) is Equal
       end
     end
 

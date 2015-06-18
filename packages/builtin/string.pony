@@ -748,21 +748,19 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s
 
   fun compare(that: String box, n: U64, offset: I64 = 0,
-    that_offset: I64 = 0, ignore_case: Bool = false): I32
+    that_offset: I64 = 0, ignore_case: Bool = false): Compare
   =>
     """
-    Starting at this + offset, compare n bytes with that + offset. Return
-    zero if the strings are the same. Return a negative number if this is
-    less than that, a positive number if this is more than that.
+    Starting at this + offset, compare n bytes with that + offset.
     """
     var i = n
     var j: U64 = offset_to_index(offset)
     var k: U64 = offset_to_index(that_offset)
 
     if (j + n) > _size then
-      return -1
+      return Less
     elseif (k + n) > that._size then
-      return 1
+      return Greater
     end
 
     while i > 0 do
@@ -774,14 +772,14 @@ class String val is Seq[U8], Ordered[String box], Stringable
           (ignore_case and
             (c1 >= 0x41) and (c1 <= 0x5A) and ((c1 + 0x20) == c2)))
       then
-        return c1.i32() - c2.i32()
+        return if c1.i32() > c2.i32() then Greater else Less end
       end
 
       j = j + 1
       k = k + 1
       i = i - 1
     end
-    0
+    Equal
 
   fun eq(that: String box): Bool =>
     """

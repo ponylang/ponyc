@@ -157,7 +157,7 @@ class Options is Iterator[_Result]
         if sopt then
           match (opt.short, sopt)
           | (var sn: String, true) =>
-            if sn.compare(s, 1) == 0 then
+            if sn.compare(s, 1) is Equal then
               match short
               | None => short = opt
               | var prev: Option => return (prev, opt)

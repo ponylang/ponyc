@@ -152,7 +152,9 @@ primitive Path
                 backtrack = vol.size().i64()
               end
 
-              if (s.size() == 0) or (s.compare("../", 3, backtrack) == 0) then
+              if
+                (s.size() == 0) or (s.compare("../", 3, backtrack) is Equal)
+              then
                 backtrack = -1
               end
             end
@@ -277,7 +279,7 @@ primitive Path
 
       if
         (to_i != target_i) or
-        (to_clean.compare(target_clean, target_i.u64()) != 0)
+        (to_clean.compare(target_clean, target_i.u64()) isnt Equal)
       then
         break
       end
@@ -296,7 +298,7 @@ primitive Path
 
     if
       ((to_i - to_0) == 2) and
-      (to_clean.compare("..", 2, to_0) == 0)
+      (to_clean.compare("..", 2, to_0) is Equal)
     then
       error
     end
@@ -372,10 +374,10 @@ primitive Path
     if Platform.windows() then
       var offset = I64(0)
 
-      if path.compare("""\\?\""", 4) == 0 then
+      if path.compare("""\\?\""", 4) is Equal then
         offset = 4
 
-        if path.compare("""UNC\""", 4, offset) == 0 then
+        if path.compare("""UNC\""", 4, offset) is Equal then
           return _network_share(path, offset + 4)
         end
       end
