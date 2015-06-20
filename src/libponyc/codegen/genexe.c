@@ -304,7 +304,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   snprintf(ld_cmd, ld_len,
     "ld --eh-frame-hdr --hash-style=gnu "
 #if defined(PLATFORM_IS_LINUX)
-    "-m elf_x86_64 "
+    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
 #elif defined(PLATFORM_IS_FREEBSD)
     "-m elf_x86_64_fbsd "
 #endif
@@ -315,6 +315,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
     );
+
+  printf("%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
   {
