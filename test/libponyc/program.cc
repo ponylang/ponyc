@@ -29,8 +29,8 @@ TEST(ProgramTest, NoLibs)
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
 
-  program_lib_build_args(prog, "pre", "post", "", "");
-  ASSERT_STREQ("", program_lib_args(prog));
+  program_lib_build_args(prog, "", "pre", "post", "", "");
+  ASSERT_STREQ("prepost", program_lib_args(prog));
 
   ast_free(prog);
 }
@@ -43,9 +43,9 @@ TEST(ProgramTest, OneLib)
 
   ASSERT_TRUE(use_library(prog, "foo", NULL, NULL));
 
-  program_lib_build_args(prog, "", "", "", "");
+  program_lib_build_args(prog, "", "", "", "", "");
 
-  const char* expect = " \"foo\" ";
+  const char* expect = "\"foo\" ";
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -59,9 +59,9 @@ TEST(ProgramTest, OneLibWithAmbles)
 
   ASSERT_TRUE(use_library(prog, "foo", NULL, NULL));
 
-  program_lib_build_args(prog, "pre", "post", "lpre", "lpost");
+  program_lib_build_args(prog, "", "pre", "post", "lpre", "lpost");
 
-  const char* expect = " prelpre\"foo\"lpost post";
+  const char* expect = "prelpre\"foo\"lpost post";
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -77,9 +77,9 @@ TEST(ProgramTest, MultipleLibs)
   ASSERT_TRUE(use_library(prog, "bar", NULL, NULL));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, NULL));
 
-  program_lib_build_args(prog, "", "", "", "");
+  program_lib_build_args(prog, "", "", "", "", "");
 
-  const char* expect = " \"foo\" \"bar\" \"wombat\" ";
+  const char* expect = "\"foo\" \"bar\" \"wombat\" ";
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -95,10 +95,10 @@ TEST(ProgramTest, MultipleLibsWithAmbles)
   ASSERT_TRUE(use_library(prog, "bar", NULL, NULL));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, NULL));
 
-  program_lib_build_args(prog, "pre", "post", "lpre", "lpost");
+  program_lib_build_args(prog, "", "pre", "post", "lpre", "lpost");
 
   const char* expect =
-    " prelpre\"foo\"lpost lpre\"bar\"lpost lpre\"wombat\"lpost post";
+    "prelpre\"foo\"lpost lpre\"bar\"lpost lpre\"wombat\"lpost post";
 
   ASSERT_STREQ(expect, program_lib_args(prog));
 
@@ -117,9 +117,9 @@ TEST(ProgramTest, RepeatedLibs)
   ASSERT_TRUE(use_library(prog, "foo", NULL, NULL));
   ASSERT_TRUE(use_library(prog, "wombat", NULL, NULL));
 
-  program_lib_build_args(prog, "", "", "", "");
+  program_lib_build_args(prog, "", "" "", "", "", "");
 
-  const char* expect = " \"foo\" \"bar\" \"wombat\" ";
+  const char* expect = "\"foo\" \"bar\" \"wombat\" ";
   ASSERT_STREQ(expect, program_lib_args(prog));
 
   ast_free(prog);
@@ -131,7 +131,7 @@ TEST(ProgramTest, BadLibName)
   ast_t* prog = ast_blank(TK_PROGRAM);
   ASSERT_NE((void*)NULL, prog);
 
-  ASSERT_FALSE(use_library(prog, "foo bar", NULL, NULL));
+  ASSERT_FALSE(use_library(prog, "foo\nbar", NULL, NULL));
   ASSERT_FALSE(use_library(prog, "foo\tbar", NULL, NULL));
   ASSERT_FALSE(use_library(prog, "foo;bar", NULL, NULL));
   ASSERT_FALSE(use_library(prog, "foo$bar", NULL, NULL));

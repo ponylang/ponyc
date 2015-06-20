@@ -75,55 +75,6 @@ static const char* gccs_directory()
 }
 #endif
 
-static const char* get_link_path()
-{
-  strlist_t* paths = package_paths();
-  size_t len = 0;
-
-  while(paths != NULL)
-  {
-    const char* path = strlist_data(paths);
-    len += strlen(path);
-
-#ifdef PLATFORM_IS_POSIX_BASED
-    len += 6;
-#else
-    len += 12;
-#endif
-
-    paths = strlist_next(paths);
-  }
-
-  size_t buf_size = len + 1;
-  char* buf = (char*)pool_alloc_size(buf_size);
-  char* p = buf;
-  paths = package_paths();
-
-  while(paths != NULL)
-  {
-    const char* path = strlist_data(paths);
-    len = strlen(path);
-
-#ifdef PLATFORM_IS_POSIX_BASED
-    strcpy(p, " -L \"");
-    p += 5;
-#else
-    strcpy(p, " /LIBPATH:\"");
-    p += 11;
-#endif
-
-    memcpy(p, path, len + 1);
-    p += len;
-
-    strcpy(p, "\"");
-    p++;
-
-    paths = strlist_next(paths);
-  }
-
-  return stringtab_consume(buf, buf_size);
-}
-
 static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 {
   size_t count = 1;
@@ -291,20 +242,18 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  program_lib_build_args(program, "", "", "-l", "");
-  const char* link_path = get_link_path();
+  program_lib_build_args(program, "-L", "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
   size_t arch_len = arch - c->opt->triple;
   size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
-    strlen(lib_args) + strlen(link_path);
+    strlen(lib_args);
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
-    "-o %s %s %s %s -lponyrt -lSystem",
-    (int)arch_len, c->opt->triple,
-    file_exe, file_o, link_path, lib_args
+    "-o %s %s %s -lponyrt -lSystem",
+    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)
@@ -336,10 +285,9 @@ static bool link_exe(compile_t* c, ast_t* program,
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
-  const char* link_path = get_link_path();
+  program_lib_build_args(program, "-L", "--start-group ", "--end-group ",
+    "-l", "");
   const char* lib_args = program_lib_args(program);
-
   const char* crt_dir = crt_directory();
   const char* gccs_dir = gccs_directory();
 
@@ -349,24 +297,23 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(lib_args) +
+    strlen(gccs_dir) + (3 * strlen(crt_dir));
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
     "ld --eh-frame-hdr --hash-style=gnu "
-#ifdef PLATFORM_IS_LINUX
-    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-#else
-    "-m elf_x86_64_fbsd -L/usr/local/lib "
+#if defined(PLATFORM_IS_LINUX)
+    "-m elf_x86_64 "
+#elif defined(PLATFORM_IS_FREEBSD)
+    "-m elf_x86_64_fbsd "
 #endif
-    "-o %s %scrt1.o %scrti.o "
-    "%s %s %s -lponyrt -lpthread "
+    "-o %s %scrt1.o %scrti.o %s %s -lponyrt -lpthread "
 #ifdef PLATFORM_IS_LINUX
     "-ldl "
 #endif
     "-lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, gccs_dir, crt_dir
+    file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
     );
 
   if(system(ld_cmd) != 0)
@@ -390,13 +337,11 @@ static bool link_exe(compile_t* c, ast_t* program,
     ".exe");
   printf("Linking %s\n", file_exe);
 
-  program_lib_build_args(program, "", "", "", ".lib");
-  const char* link_path = get_link_path();
+  program_lib_build_args(program, "/LIBPATH:", "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
-    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
-    strlen(lib_args);
+    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
@@ -405,8 +350,8 @@ static bool link_exe(compile_t* c, ast_t* program,
     "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
-    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
+    "%s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
+    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
 
   if(system(ld_cmd) == -1)

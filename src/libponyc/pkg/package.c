@@ -438,7 +438,7 @@ static bool add_path(const char* path)
     path = stringtab(path);
 
     if(strlist_find(search, path) == NULL)
-      search = strlist_push(search, path);
+      search = strlist_append(search, path);
   }
 
   return true;
@@ -539,6 +539,9 @@ bool package_init(pass_opt_t* opt)
   if(!codegen_init(opt))
     return false;
 
+  // package_add_paths for command line paths has already been done. Here, we
+  // append the paths from an optional environment variable, and then the paths
+  // that are relative to the compiler location on disk.
   package_add_paths(getenv("PONYPATH"));
   add_exec_dir();
 
