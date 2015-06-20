@@ -77,7 +77,6 @@ uint32_t program_assign_pkg_id(ast_t* ast)
 
 static const char* quoted_locator(ast_t* use, const char* locator)
 {
-  assert(use != NULL);
   assert(locator != NULL);
 
   if(strpbrk(locator, "\t\r\n\"'`;$|&<>%*?\\[]{}()") != NULL)
