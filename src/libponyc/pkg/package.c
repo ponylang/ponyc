@@ -962,7 +962,7 @@ bool is_path_relative(const char* path)
       return true;
 
 #if defined(PLATFORM_IS_WINDOWS)
-    // Begins with .\
+    // Begins with .\ on windows
     if(path[1] == '\\')
       return true;
 #endif
@@ -974,7 +974,7 @@ bool is_path_relative(const char* path)
         return true;
 
 #if defined(PLATFORM_IS_WINDOWS)
-      // Begins with ..\
+      // Begins with ..\ on windows
       if(path[2] == '\\')
         return true;
 #endif
