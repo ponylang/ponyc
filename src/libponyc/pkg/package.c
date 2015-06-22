@@ -701,7 +701,9 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     if(is_relative)
     {
       // Package to load is relative to from, build the qualified name
-      package_t* from_pkg = (package_t*)ast_data(from);
+      package_t* from_pkg =
+        (package_t*)ast_data(ast_nearest(from, TK_PACKAGE));
+
       const char* base_name = from_pkg->path;
       size_t base_name_len = strlen(base_name);
       size_t path_len = strlen(path);
