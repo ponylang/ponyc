@@ -33,11 +33,9 @@
 
 #ifdef PLATFORM_IS_WINDOWS
 # define PATH_SLASH '\\'
-# define PATH_SLASH_STR "\\"
 # define PATH_LIST_SEPARATOR ';'
 #else
 # define PATH_SLASH '/'
-# define PATH_SLASH_STR "/"
 # define PATH_LIST_SEPARATOR ':'
 #endif
 
@@ -141,14 +139,30 @@ static bool parse_source_code(ast_t* package, const char* src,
 static void path_cat(const char* part1, const char* part2,
   char result[FILENAME_MAX])
 {
+  size_t len1 = 0;
+  size_t lensep = 0;
+
   if(part1 != NULL)
   {
-    strcpy(result, part1);
-    strcat(result, PATH_SLASH_STR);
-    strcat(result, part2);
+    len1 = strlen(part1);
+    lensep = 1;
   }
-  else {
-    strcpy(result, part2);
+
+  size_t len2 = strlen(part2);
+
+  if((len1 + lensep + len2) >= FILENAME_MAX)
+  {
+    result[0] = '\0';
+    return;
+  }
+
+  if(part1 != NULL)
+  {
+    memcpy(result, part1, len1);
+    result[len1] = PATH_SLASH;
+    memcpy(&result[len1 + 1], part2, len2 + 1);
+  } else {
+    memcpy(result, part2, len2 + 1);
   }
 }
 
@@ -216,6 +230,50 @@ static const char* try_path(const char* base, const char* path)
 }
 
 
+static bool is_root(const char* path)
+{
+  if((path[0] == '/') && (path[1] == '\0'))
+    return true;
+
+#if defined(PLATFORM_IS_WINDOWS)
+  if((path[0] == '\\') && (path[1] == '\0'))
+    return true;
+
+  if((path[0] != '\0') && (path[1] == ':') && is_root(&path[2]))
+    return true;
+#endif
+
+  return false;
+}
+
+
+// Try base/../pony_packages/path, and keep adding .. to look another level up
+// until we are looking in /pony_packages/path
+static const char* try_package_path(const char* base, const char* path)
+{
+  char path1[FILENAME_MAX];
+  char path2[FILENAME_MAX];
+  path_cat(NULL, base, path1);
+
+  do
+  {
+    path_cat(path1, "..", path2);
+
+    if(pony_realpath(path2, path1) != path1)
+      break;
+
+    path_cat(path1, "pony_packages", path2);
+
+    const char* result = try_path(path2, path);
+
+    if(result != NULL)
+      return result;
+  } while(!is_root(path1));
+
+  return NULL;
+}
+
+
 // Attempt to find the specified package directory in our search path
 // @return The resulting directory path, which should not be deleted and is
 // valid indefinitely. NULL is directory cannot be found.
@@ -229,39 +287,62 @@ static const char* find_path(ast_t* from, const char* path,
   if(is_path_absolute(path))
     return try_path(NULL, path);
 
-  const char* result;
+  // Get the base directory
+  const char* base;
 
   if((from == NULL) || (ast_id(from) == TK_PROGRAM))
   {
-    // Try a path relative to the current working directory
-    result = try_path(NULL, path);
-
-    if(result != NULL)
-      return result;
-  }
-  else
-  {
-    // Try a path relative to the importing package
+    base = NULL;
+  } else {
     from = ast_nearest(from, TK_PACKAGE);
     package_t* pkg = (package_t*)ast_data(from);
-    result = try_path(pkg->path, path);
-
-    if(result != NULL)
-    {
-      if(out_is_relative != NULL)
-        *out_is_relative = true;
-
-      return result;
-    }
+    base = pkg->path;
   }
 
-  // Try the search paths
-  for(strlist_t* p = search; p != NULL; p = strlist_next(p))
-  {
-    result = try_path(strlist_data(p), path);
+  // Try a path relative to the base
+  const char* result = try_path(base, path);
 
-    if(result != NULL)
-      return result;
+  if(result != NULL)
+  {
+    if(out_is_relative != NULL)
+      *out_is_relative = true;
+
+    return result;
+  }
+
+  // If it's a relative path, don't try elsewhere
+  if(!is_path_relative(path))
+  {
+    // Check ../pony_packages and further up the tree
+    if(base != NULL)
+    {
+      result = try_package_path(base, path);
+
+      if(result != NULL)
+        return result;
+
+      // Check ../pony_packages from the compiler target
+      if((from != NULL) && (ast_id(from) == TK_PACKAGE))
+      {
+        ast_t* target = ast_child(ast_parent(from));
+        package_t* pkg = (package_t*)ast_data(target);
+        base = pkg->path;
+
+        result = try_package_path(base, path);
+
+        if(result != NULL)
+          return result;
+      }
+    }
+
+    // Try the search paths
+    for(strlist_t* p = search; p != NULL; p = strlist_next(p))
+    {
+      result = try_path(strlist_data(p), path);
+
+      if(result != NULL)
+        return result;
+    }
   }
 
   errorf(path, "couldn't locate this path");
@@ -688,6 +769,7 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   const char* magic = find_magic_package(path);
   const char* full_path = path;
   const char* qualified_name = path;
+  ast_t* program = ast_nearest(from, TK_PROGRAM);
 
   if(magic == NULL)
   {
@@ -698,29 +780,32 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
     if(full_path == NULL)
       return NULL;
 
-    if(is_relative)
+    if((from != NULL) && is_relative)
     {
       // Package to load is relative to from, build the qualified name
-      package_t* from_pkg =
-        (package_t*)ast_data(ast_nearest(from, TK_PACKAGE));
+      // The qualified name should be relative to the program being built
+      package_t* from_pkg = (package_t*)ast_data(ast_child(program));
 
-      const char* base_name = from_pkg->path;
-      size_t base_name_len = strlen(base_name);
-      size_t path_len = strlen(path);
-      size_t len = base_name_len + path_len + 2;
-      char* q_name = (char*)pool_alloc_size(len);
-      memcpy(q_name, base_name, base_name_len);
-      q_name[base_name_len] = '/';
-      memcpy(q_name + base_name_len + 1, path, path_len);
-      q_name[len - 1] = '\0';
-      qualified_name = stringtab_consume(q_name, len);
+      if(from_pkg != NULL)
+      {
+        const char* base_name = from_pkg->qualified_name;
+        size_t base_name_len = strlen(base_name);
+        size_t path_len = strlen(path);
+        size_t len = base_name_len + path_len + 2;
+        char* q_name = (char*)pool_alloc_size(len);
+        memcpy(q_name, base_name, base_name_len);
+        q_name[base_name_len] = '/';
+        memcpy(q_name + base_name_len + 1, path, path_len);
+        q_name[len - 1] = '\0';
+        qualified_name = stringtab_consume(q_name, len);
+      }
     }
   }
 
-  ast_t* program = ast_nearest(from, TK_PROGRAM);
   ast_t* package = ast_get(program, full_path, NULL);
 
-  if(package != NULL) // Package already loaded
+  // Package already loaded
+  if(package != NULL)
     return package;
 
   package = create_package(program, full_path, qualified_name);
@@ -851,14 +936,50 @@ void package_done(pass_opt_t* opt)
 
 bool is_path_absolute(const char* path)
 {
-  // First check for an absolute path
-  bool is_absolute = false;
+  // Begins with /
+  if(path[0] == '/')
+    return true;
 
-#ifdef PLATFORM_IS_POSIX_BASED
-  is_absolute = (path[0] == '/');
-#elif defined(PLATFORM_IS_WINDOWS)
-  is_absolute = (path[0] == '\\') || (path[1] == ':');
+#if defined(PLATFORM_IS_WINDOWS)
+  // Begins with \ or ?:
+  if(path[0] == '\\')
+    return true;
+
+  if((path[0] != '\0') && (path[1] == ':'))
+    return true;
 #endif
 
-  return is_absolute;
+  return false;
+}
+
+
+bool is_path_relative(const char* path)
+{
+  if(path[0] == '.')
+  {
+    // Begins with ./
+    if(path[1] == '/')
+      return true;
+
+#if defined(PLATFORM_IS_WINDOWS)
+    // Begins with .\
+    if(path[1] == '\\')
+      return true;
+#endif
+
+    if(path[1] == '.')
+    {
+      // Begins with ../
+      if(path[2] == '/')
+        return true;
+
+#if defined(PLATFORM_IS_WINDOWS)
+      // Begins with ..\
+      if(path[2] == '\\')
+        return true;
+#endif
+    }
+  }
+
+  return false;
 }

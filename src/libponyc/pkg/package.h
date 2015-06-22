@@ -122,6 +122,8 @@ void package_done(pass_opt_t* opt);
 
 bool is_path_absolute(const char* path);
 
+bool is_path_relative(const char* path);
+
 PONY_EXTERN_C_END
 
 #endif

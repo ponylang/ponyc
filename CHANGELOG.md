@@ -2,6 +2,17 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
+## [unreleased] - unreleased
+
+### Added
+
+- Apply can be sugared with type arguments.
+- Search pony_packages directories for use commands.
+
+### Fixed
+
+- use "path:" now correctly adds link paths only for the current build.
+
 ## [0.1.7] - 2015-06-18
 
 ### Added
