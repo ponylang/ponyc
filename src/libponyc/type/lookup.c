@@ -211,6 +211,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
 
         if(r == NULL)
         {
+          // All possible types in the union must have this.
           if(errors)
           {
             ast_error(from, "couldn't find %s in %s",
@@ -236,10 +237,15 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
             default:
               if(result == NULL)
               {
+                // If we don't have a result yet, use this one.
                 result = r;
               } else if(!is_subtype(r, result)) {
                 if(is_subtype(result, r))
                 {
+                  // Use the supertype function. Require the most specific
+                  // arguments and return the least specific result.
+                  // TODO: union the signatures, to handle arg names and
+                  // default arguments.
                   ast_free_unattached(result);
                   result = r;
                 } else {
@@ -288,38 +294,26 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
           {
             case TK_FVAR:
             case TK_FLET:
-              if(errors)
-              {
-                ast_error(from,
-                  "can't lookup field %s in %s in an intersection type",
-                  name, ast_print_type(child));
-              }
-
-              ok = false;
+              // Ignore fields.
               break;
 
             default:
               if(result == NULL)
               {
+                // If we don't have a result yet, use this one.
                 result = r;
               } else if(!is_subtype(result, r)) {
                 if(is_subtype(r, result))
                 {
+                  // Use the subtype function. Require the least specific
+                  // arguments and return the most specific result.
                   ast_free_unattached(result);
                   result = r;
-                } else {
-                  if(errors)
-                  {
-                    ast_error(from,
-                      "a member of the intersection type has an incompatible "
-                      "method signature");
-                    ast_error(result, "first implementation is here");
-                    ast_error(r, "second implementation is here");
-                  }
-
-                  ast_free_unattached(r);
-                  ok = false;
                 }
+
+                // TODO: isect the signatures, to handle arg names and
+                // default arguments. This is done even when the functions have
+                // no subtype relationship.
               }
               break;
           }

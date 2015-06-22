@@ -4,6 +4,7 @@
 #include "call.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/names.h"
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
@@ -382,10 +383,18 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       // Qualify the type.
       assert(ast_id(type) == TK_NOMINAL);
 
-      if(ast_id(ast_childidx(type, 2)) != TK_NONE)
+      // If the type isn't polymorphic or the type is already qualified,
+      // sugar .apply().
+      ast_t* def = names_def(type);
+      ast_t* typeparams = ast_childidx(def, 1);
+
+      if((ast_id(typeparams) == TK_NONE) ||
+        (ast_id(ast_childidx(type, 2)) != TK_NONE))
       {
-        ast_error(ast, "can't qualify an already qualified type");
-        return false;
+        if(!expr_nominal(opt, &type))
+          return false;
+
+        break;
       }
 
       type = ast_dup(type);

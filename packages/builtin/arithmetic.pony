@@ -36,7 +36,11 @@ trait _ArithmeticConvertible val
 trait Real[A: Real[A] box] val is
   Stringable, _ArithmeticConvertible, Arithmetic[A], Ordered[A]
   new val create(value: A)
+
   fun tag from[B: (Number & Real[B] box)](a: B): A
+  fun tag min_value(): A
+  fun tag max_value(): A
+
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
@@ -78,6 +82,7 @@ trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
   fun clz(): A
   fun ctz(): A
   fun bitwidth(): A
+
   fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
   fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
@@ -97,6 +102,54 @@ trait UnsignedInteger[A: UnsignedInteger[A] box] val is Integer[A]
     ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
 trait FloatingPoint[A: FloatingPoint[A] box] val is Real[A]
+  fun tag epsilon(): A
+  fun tag radix(): U8
+  fun tag precision2(): U8
+  fun tag precision10(): U8
+  fun tag min_exp2(): I16
+  fun tag min_exp10(): I16
+  fun tag max_exp2(): I16
+  fun tag max_exp10(): I16
+
+  fun ceil(): A
+  fun floor(): A
+  fun round(): A
+  fun trunc(): A
+
+  fun finite(): Bool
+  fun nan(): Bool
+
+  fun frexp(): (A, U32)
+  fun log(): A
+  fun log2(): A
+  fun log10(): A
+  fun logb(): A
+
+  fun pow(y: A): A
+  fun powi(y: I32): A
+
+  fun sqrt(): A
+  fun cbrt(): A
+  fun exp(): A
+  fun exp2(): A
+
+  fun cos(): A
+  fun sin(): A
+  fun tan(): A
+
+  fun cosh(): A
+  fun sinh(): A
+  fun tanh(): A
+
+  fun acos(): A
+  fun asin(): A
+  fun atan(): A
+  fun atan2(y: A): A
+
+  fun acosh(): A
+  fun asinh(): A
+  fun atanh(): A
+
   fun string(fmt: FloatFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^

@@ -178,22 +178,10 @@ static bool names_type(typecheck_t* t, ast_t** astp, ast_t* def)
   return true;
 }
 
-bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
+static ast_t* get_package_scope(ast_t* scope, ast_t* ast)
 {
-  typecheck_t* t = &opt->check;
-  ast_t* ast = *astp;
-
-  if(ast_data(ast) != NULL)
-    return true;
-
-  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
-  bool local_package;
-
-  // Keep some stats.
-  t->stats.names_count++;
-
-  if(ast_id(cap) == TK_NONE)
-    t->stats.default_caps_count++;
+  assert(ast_id(ast) == TK_NOMINAL);
+  ast_t* package_id = ast_child(ast);
 
   // Find our actual package.
   if(ast_id(package_id) != TK_NONE)
@@ -208,32 +196,67 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
     if((scope == NULL) || (ast_id(scope) != TK_PACKAGE))
     {
       ast_error(package_id, "can't find package '%s'", name);
-      return false;
+      return NULL;
     }
-
-    local_package = scope == ast_nearest(ast, TK_PACKAGE);
-  } else {
-    local_package = true;
   }
 
-  // Check for a private type.
-  const char* name = ast_name(type_id);
-  bool r = true;
+  return scope;
+}
 
-  if(!local_package && (name[0] == '_'))
-  {
-    ast_error(type_id, "can't access a private type from another package");
-    r = false;
-  }
+ast_t* names_def(ast_t* ast)
+{
+  ast_t* def = (ast_t*)ast_data(ast);
+
+  if(def != NULL)
+    return def;
+
+  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
+  ast_t* scope = get_package_scope(ast, ast);
+
+  return ast_get(scope, ast_name(type_id), NULL);
+}
+
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
+{
+  typecheck_t* t = &opt->check;
+  ast_t* ast = *astp;
+
+  if(ast_data(ast) != NULL)
+    return true;
+
+  AST_GET_CHILDREN(ast, package_id, type_id, typeparams, cap, eph);
+
+  // Keep some stats.
+  t->stats.names_count++;
+
+  if(ast_id(cap) == TK_NONE)
+    t->stats.default_caps_count++;
+
+  ast_t* r_scope = get_package_scope(scope, ast);
+
+  if(r_scope == NULL)
+    return false;
+
+  bool local_package =
+    (r_scope == scope) || (r_scope == ast_nearest(ast, TK_PACKAGE));
 
   // Find our definition.
-  ast_t* def = ast_get(scope, name, NULL);
+  const char* name = ast_name(type_id);
+  ast_t* def = ast_get(r_scope, name, NULL);
+  bool r = true;
 
   if(def == NULL)
   {
     ast_error(type_id, "can't find definition of '%s'", name);
     r = false;
   } else {
+    // Check for a private type.
+    if(!local_package && (name[0] == '_'))
+    {
+      ast_error(type_id, "can't access a private type from another package");
+      r = false;
+    }
+
     switch(ast_id(def))
     {
       case TK_TYPE:
