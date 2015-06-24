@@ -680,58 +680,67 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
-  fun ref strip(s: String box): U64 =>
+  fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Remove all instances of s from the string. Returns the count of removed
-    instances.
+    Remove all characters within s from the string. 
     """
-    var i: I64 = 0
-    var n: U64 = 0
+    lstrip(s).rstrip(s)
 
-    try
-      while true do
-        i = find(s, i)
-        cut_in_place(i, (i + s.size().i64()) - 1)
-        n = n + 1
-      end
-    end
-    n
-
-  fun ref trim(): String ref^ =>
+  fun ref rstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Trim leading and trailing whitespace. Whitespace is defined as ' ', \t,
-    \v, \f, \r, \n.
+    Remove all trailing characters within s from the string. By default,
+    trailing whitespace is removed.
     """
     if _size > 0 then
-      var i = U64(0)
-
-      while i < _size do
-        match _ptr._apply(i)
-        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
-        else
-          break
-        end
-
-        i = i + 1
-      end
-
-      if i > 0 then
-        delete(0, i)
-      end
-    end
-
-    if _size > 0 then
+      let chars = Array[U32](s.size())
       var i = _size - 1
 
+      for rune in s.runes() do
+        chars.push(rune)
+      end
+
       repeat
-        match _ptr._apply(i)
-        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
+        try
+          match utf32(i.i64())
+          | (0xFFFD, 1) => None
+          | (let c: U32, _) => chars.find(c)
+          end
         else
           break
         end
       until (i = i - 1) == 0 end
 
       truncate(i + 1)
+    end
+
+    this
+
+  fun ref lstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+    """
+    Remove all leading characters within s from the string. By default,
+    leading whitespace is removed.
+    """
+    if _size > 0 then
+      let chars = Array[U32](s.size())
+      var i = U64(0)
+
+      for rune in s.runes() do
+        chars.push(rune)
+      end
+
+      while i < _size do
+        try
+          (let c, let len) = utf32(i.i64())
+          chars.find(c)
+          i = i + len.u64()
+        else
+          break
+        end
+      end
+
+      if i > 0 then
+        delete(0, i)
+      end
     end
 
     this
