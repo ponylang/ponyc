@@ -163,7 +163,7 @@ void program_lib_build_args(ast_t* program, const char* path_preamble,
 #if defined(PLATFORM_IS_FREEBSD)
   const char* local_lib = stringtab("/usr/local/lib");
 
-  if(!strlist_find(prog->libpaths, local_lib))
+  if(!strlist_find(data->libpaths, local_lib))
     data->libpaths = strlist_append(data->libpaths, local_lib);
 #endif
 
