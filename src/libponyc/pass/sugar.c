@@ -62,8 +62,8 @@ static bool has_member(ast_t* members, const char* name)
 
 static void add_default_constructor(ast_t* members)
 {
-  // If we have no uninitialised fields and no "create" member, add a "create"
-  // constructor
+  // If we have no uninitialised fields, no constructors, and no "create"
+  // member, add a "create" constructor.
   if(has_member(members, "create"))
     return;
 
@@ -83,6 +83,9 @@ static void add_default_constructor(ast_t* members)
 
         break;
       }
+
+      case TK_NEW:
+        return;
 
       default: {}
     }
