@@ -12,6 +12,10 @@ class Directory val
     This will raise an error if the path doesn't exist or it is not a
     directory.
     """
+    if not from.caps(FileRead) then
+      error
+    end
+
     path = from
     entries = recover
       let list = Array[String]

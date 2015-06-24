@@ -39,6 +39,13 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
     """
     (_value and flag.value()) > 0
 
+  fun ref all(): Flags[A, B]^ =>
+    """
+    Sets all bits, including undefined flags.
+    """
+    _value = -1
+    this
+
   fun ref clear(): Flags[A, B]^ =>
     """
     Unsets all flags.

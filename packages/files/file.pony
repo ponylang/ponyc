@@ -14,7 +14,11 @@ class File
     Open for read/write, creating if it doesn't exist, truncating it if it
     does exist.
     """
-    if from.readonly then
+    if
+      not from.caps(FileRead) or
+      not from.caps(FileWrite) or
+      (not from.caps(FileCreate) and not from.exists())
+    then
       error
     end
 
@@ -31,6 +35,10 @@ class File
     """
     Open for read only, failing if it doesn't exist.
     """
+    if not from.caps(FileRead) then
+      error
+    end
+
     path = from
     writeable = false
     _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), "rb".cstring())
@@ -44,7 +52,11 @@ class File
     Open for read/write, creating if it doesn't exist, preserving the contents
     if it does exist.
     """
-    if from.readonly then
+    if
+      not from.caps(FileRead) or
+      not from.caps(FileWrite) or
+      (not from.caps(FileCreate) and not from.exists())
+    then
       error
     end
 
@@ -229,21 +241,17 @@ class File
     Return the total length of the file.
     """
     var pos = position()
-    seek_end(0)
+    _seek(0, 2)
     var len = position()
-    seek_start(pos)
+    _seek(pos.i64(), 0)
     len
 
   fun ref seek_start(offset: U64): File =>
     """
     Set the cursor position relative to the start of the file.
     """
-    if not _handle.is_null() then
-      if Platform.windows() then
-        @_fseeki64[I32](_handle, offset, I32(0))
-      else
-        @fseek[I32](_handle, offset, I32(0))
-      end
+    if path.caps(FileSeek) then
+      _seek(offset.i64(), 0)
     end
     this
 
@@ -251,12 +259,8 @@ class File
     """
     Set the cursor position relative to the end of the file.
     """
-    if not _handle.is_null() then
-      if Platform.windows() then
-        @_fseeki64[I32](_handle, -offset, I32(2))
-      else
-        @fseek[I32](_handle, -offset, I32(2))
-      end
+    if path.caps(FileSeek) then
+      _seek(-offset.i64(), 2)
     end
     this
 
@@ -264,12 +268,8 @@ class File
     """
     Move the cursor position.
     """
-    if not _handle.is_null() then
-      if Platform.windows() then
-        @_fseeki64[I32](_handle, offset, I32(1))
-      else
-        @fseek[I32](_handle, offset, I32(1))
-      end
+    if path.caps(FileSeek) then
+      _seek(offset, 1)
     end
     this
 
@@ -290,7 +290,7 @@ class File
     """
     Sync the file contents to physical storage.
     """
-    if not _handle.is_null() then
+    if path.caps(FileSync) and not _handle.is_null() then
       if Platform.windows() then
         var fd = @_fileno[I32](_handle)
         var h = @_get_osfhandle[U64](fd)
@@ -306,7 +306,7 @@ class File
     """
     Change the file size. If it is made larger, the new contents are undefined.
     """
-    if writeable and (not _handle.is_null()) then
+    if path.caps(FileTruncate) and writeable and (not _handle.is_null()) then
       flush()
       var pos = position()
       var success = if Platform.windows() then
@@ -318,7 +318,7 @@ class File
       end
 
       if pos >= len then
-        seek_end(0)
+        _seek(0, 2)
       end
       success
     end
@@ -337,6 +337,18 @@ class File
     if not _handle.is_null() then
       @fclose[I32](_handle)
       _handle = Pointer[_FileHandle]
+    end
+
+  fun ref _seek(offset: I64, base: I32) =>
+    """
+    Move the cursor position.
+    """
+    if not _handle.is_null() then
+      if Platform.windows() then
+        @_fseeki64[I32](_handle, offset, base)
+      else
+        @fseek[I32](_handle, offset, base)
+      end
     end
 
   fun _final() =>

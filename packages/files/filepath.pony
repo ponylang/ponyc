@@ -7,10 +7,10 @@ class FilePath val
   can only be used to create further readonly capabilities.
   """
   let path: String
-  let readonly: Bool
+  let caps: FileCaps = FileCaps
 
   new val create(base: (FilePath | Root | None), path': String,
-    readonly': Bool = false) ?
+    caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
     """
     Create a new path. The caller must either provide the root capability or an
@@ -20,43 +20,49 @@ class FilePath val
     working directory. Otherwise, it will be relative to the existing FilePath,
     and the existing FilePath must be a prefix of the resulting path.
 
-    The resulting FilePath will be readonly if either the readonly parameter
-    is true or the base FilePath is readonly.
+    The resulting FilePath will have capabilities that are the intersection of
+    the supplied capabilities and the capabilities on the parent.
     """
+    caps.union(caps')
+
     match base
     | let b: FilePath =>
+      if not b.caps(FileLookup) then
+        error
+      end
+
       path = Path.join(b.path, path')
-      readonly = readonly' or b.readonly
+      caps.intersect(b.caps)
 
       if not path.at(b.path, 0) then
         error
       end
     | let b: Root =>
       path = Path.abs(path')
-      readonly = readonly'
     else
       error
     end
 
-  new val _create(path': String, readonly': Bool) =>
+  new val _create(path': String, caps': FileCaps val) =>
     """
     Internal constructor.
     """
     path = path'
-    readonly = readonly'
+    caps.union(caps')
 
-  fun val join(path': String, readonly': Bool = false): FilePath ? =>
+  fun val join(path': String,
+    caps': FileCaps val = recover val FileCaps.all() end): FilePath ? =>
     """
     Return a new path relative to this one.
     """
-    create(this, path', readonly')
+    create(this, path', caps')
 
   fun val canonical(): FilePath ? =>
     """
     Return the equivalent canonical absolute path. Raise an error if there
     isn't one.
     """
-    _create(Path.canonical(path), readonly)
+    _create(Path.canonical(path), caps)
 
   fun val exists(): Bool =>
     """
@@ -71,8 +77,14 @@ class FilePath val
   fun val mkdir(): Bool =>
     """
     Creates the directory. Will recursively create each element. Returns true
-    if the directory exists when we're done, false if it does not.
+    if the directory exists when we're done, false if it does not. If we do not
+    have the FileStat permission, this will return false even if the directory
+    does exist.
     """
+    if not caps(FileCreate) then
+      return false
+    end
+
     var offset: I64 = 0
 
     repeat
@@ -98,6 +110,10 @@ class FilePath val
     Remove the file or directory. The directory contents will be removed as
     well, recursively. Symlinks will be removed but not traversed.
     """
+    if not caps(FileRemove) then
+      return false
+    end
+
     try
       var info = FileInfo(this)
 
@@ -132,12 +148,20 @@ class FilePath val
     """
     Rename a file or directory.
     """
+    if not caps(FileRename) or not new_path.caps(FileCreate) then
+      return false
+    end
+
     @rename[I32](path.cstring(), new_path.path.cstring()) == 0
 
   fun symlink(link_name: FilePath): Bool =>
     """
     Create a symlink to a file or directory.
     """
+    if not caps(FileLink) or not link_name.caps(FileCreate) then
+      return false
+    end
+
     if Platform.windows() then
       @CreateSymbolicLink[U8](link_name.path.cstring(), path.cstring()) != 0
     else
@@ -148,7 +172,7 @@ class FilePath val
     """
     Set the FileMode for a path.
     """
-    if readonly then
+    if not caps(FileChmod) then
       return false
     end
 
@@ -164,7 +188,7 @@ class FilePath val
     """
     Set the owner and group for a path. Does nothing on Windows.
     """
-    if readonly or Platform.windows() then
+    if not caps(FileChown) or Platform.windows() then
       false
     else
       @chown[I32](path.cstring(), uid, gid) == 0
@@ -180,7 +204,7 @@ class FilePath val
     """
     Set the last access and modification times of a path to the given values.
     """
-    if readonly then
+    if not caps(FileTime) then
       return false
     end
 

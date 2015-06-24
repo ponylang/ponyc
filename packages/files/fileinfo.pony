@@ -31,6 +31,10 @@ class FileInfo val
     """
     This will raise an error if the path doesn't exist.
     """
+    if not from.caps(FileStat) then
+      error
+    end
+
     path = from
 
     if not @os_stat[Bool](from.path.cstring(), this) then
