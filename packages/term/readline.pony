@@ -7,7 +7,7 @@ class Readline is ANSINotify
   """
   let _notify: ReadlineNotify
   let _out: StdStream
-  let _path: (String | None)
+  let _path: (FilePath | None)
   let _history: Array[String]
   let _maxlen: U64
 
@@ -17,7 +17,7 @@ class Readline is ANSINotify
   var _cur_pos: I64 = 0
 
   new iso create(notify: ReadlineNotify iso, out: StdStream,
-    path: (String | None) = None, maxlen: U64 = 0)
+    path: (FilePath | None) = None, maxlen: U64 = 0)
   =>
     """
     Create a readline handler to be passed to stdin.
@@ -339,7 +339,7 @@ class Readline is ANSINotify
     _history.clear()
 
     try
-      with file = File.open(_path as String) do
+      with file = File.open(_path as FilePath) do
         for line in file.lines() do
           _add_history(line)
         end
@@ -351,7 +351,7 @@ class Readline is ANSINotify
     Write the history back to a file.
     """
     try
-      with file = File(_path as String) do
+      with file = File(_path as FilePath) do
         for line in _history.values() do
           file.print(line)
         end

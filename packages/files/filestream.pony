@@ -1,4 +1,4 @@
-actor FileStream
+actor FileStream is Stream
   """
   Asynchronous access to a File object. Wraps file operations print, write,
   printv and writev. The File will be disposed through File._final.

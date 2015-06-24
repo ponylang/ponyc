@@ -4,10 +4,10 @@ class Directory val
   will be relative to the directory, so it will contain no directory
   separators. The entries will not include "." or "..".
   """
-  let path: String
+  let path: FilePath
   let entries: Array[String] val
 
-  new create(from: String) ? =>
+  new create(from: FilePath) ? =>
     """
     This will raise an error if the path doesn't exist or it is not a
     directory.
@@ -16,7 +16,7 @@ class Directory val
     entries = recover
       let list = Array[String]
 
-      @os_opendir[None](from.cstring()) ?
+      @os_opendir[None](from.path.cstring()) ?
 
       while true do
         let entry = @os_readdir[Pointer[U8] iso^]()

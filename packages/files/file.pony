@@ -4,44 +4,54 @@ class File
   """
   Operations on a file.
   """
-  let path: String
+  let path: FilePath
   let writeable: Bool
   var _handle: Pointer[_FileHandle]
   var _last_line_length: U64 = 256
 
-  new create(path': String) ? =>
+  new create(from: FilePath) ? =>
     """
     Open for read/write, creating if it doesn't exist, truncating it if it
     does exist.
     """
-    path = path'
+    if from.readonly then
+      error
+    end
+
+    path = from
     writeable = true
-    _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "w+b".cstring())
+    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
+      "w+b".cstring())
 
     if _handle.is_null() then
       error
     end
 
-  new open(path': String) ? =>
+  new open(from: FilePath) ? =>
     """
     Open for read only, failing if it doesn't exist.
     """
-    path = path'
+    path = from
     writeable = false
-    _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "rb".cstring())
+    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), "rb".cstring())
 
     if _handle.is_null() then
       error
     end
 
-  new modify(path': String) ? =>
+  new modify(from: FilePath) ? =>
     """
     Open for read/write, creating if it doesn't exist, preserving the contents
     if it does exist.
     """
-    path = path'
+    if from.readonly then
+      error
+    end
+
+    path = from
     writeable = true
-    _handle = @fopen[Pointer[_FileHandle]](path.cstring(), "r+b".cstring())
+    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
+      "r+b".cstring())
 
     if _handle.is_null() then
       error

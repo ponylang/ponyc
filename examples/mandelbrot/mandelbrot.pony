@@ -148,7 +148,8 @@ actor Main
       | ("limit", var arg: F64) => limit = arg.f32()
       | ("chunks", var arg: I64) => chunks = arg.u64()
       | ("width", var arg: I64) => width = arg.u64()
-      | ("output", var arg: String) => outfile = try File(arg) end
+      | ("output", var arg: String) =>
+        outfile = try File(FilePath(env.root, arg)) end
       | ParseError => usage(env)
       end
     end

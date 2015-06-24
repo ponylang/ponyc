@@ -3,11 +3,13 @@ class Env val
   An environment holds the command line and other values injected into the
   program by default by the runtime.
   """
+  let root: (Root | None)
   let input: Stdin
   let out: StdStream
   let err: StdStream
   let args: Array[String] val
   let vars: Array[String] val
+  let cwd: String
 
   new _create(argc: U64, argv: Pointer[Pointer[U8]] val,
     envp: Pointer[Pointer[U8]] val)
@@ -16,6 +18,7 @@ class Env val
     Builds an environment from the command line. This is done before the Main
     actor is created.
     """
+    root = Root._create()
     @os_stdout_setup[None]()
 
     input = Stdin._create(@os_stdin_setup[Bool]())
@@ -24,18 +27,23 @@ class Env val
 
     args = _strings_from_pointers(argv, argc)
     vars = _strings_from_pointers(envp, 0)
+    cwd = recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
-  new create(input': Stdin, out': StdStream, err': StdStream,
-    args': Array[String] val, vars': Array[String] val)
+  new create(root': (Root | None), input': Stdin, out': StdStream,
+    err': StdStream, args': Array[String] val, vars': Array[String] val)
   =>
     """
-    Build an artificial environment.
+    Build an artificial environment. A root capability must be supplied. The
+    current working directory cannot be changed, as it it not concurrency safe
+    to do so.
     """
+    root = root'
     input = input'
     out = out'
     err = err'
     args = args'
     vars = vars'
+    cwd = recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun tag exitcode(code: I32) =>
     """
