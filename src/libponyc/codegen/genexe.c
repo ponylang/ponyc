@@ -281,13 +281,13 @@ static bool link_exe(compile_t* c, ast_t* program,
     pool_free_size(dsym_len, dsym_cmd);
   }
 
-#ifdef PLATFORM_IS_FREEBSD
-  use_library(program, "/usr/local/lib", NULL, NULL);
-#endif
-
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
+
+#ifdef PLATFORM_IS_FREEBSD
+  use_path(program, "/usr/local/lib", NULL, NULL);
+#endif
 
   program_lib_build_args(program, "-L", "--start-group ", "--end-group ",
     "-l", "");
@@ -319,8 +319,6 @@ static bool link_exe(compile_t* c, ast_t* program,
     "-lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
     );
-
-  printf("%s\n", ld_cmd);
 
   if(system(ld_cmd) != 0)
   {
