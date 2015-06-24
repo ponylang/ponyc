@@ -680,15 +680,32 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
+  fun ref remove(s: String box): U64 =>
+    """
+    Remove all instances of s from the string. Returns the count of removed
+    instances.
+    """
+    var i: I64 = 0
+    var n: U64 = 0
+
+    try
+      while true do
+        i = find(s, i)
+        cut_in_place(i, (i + s.size().i64()) - 1)
+        n = n + 1
+      end
+    end
+    n
+
   fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Remove all characters within s from the string. 
+    Remove all leading and trailing characters from the string that are in s. 
     """
     lstrip(s).rstrip(s)
 
   fun ref rstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Remove all trailing characters within s from the string. By default,
+    Remove all trailing characters within the string that are in s. By default,
     trailing whitespace is removed.
     """
     if _size > 0 then
@@ -717,7 +734,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
   fun ref lstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Remove all leading characters within s from the string. By default,
+    Remove all leading characters within the string that are in s. By default,
     leading whitespace is removed.
     """
     if _size > 0 then
