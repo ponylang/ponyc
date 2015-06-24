@@ -281,6 +281,10 @@ static bool link_exe(compile_t* c, ast_t* program,
     pool_free_size(dsym_len, dsym_cmd);
   }
 
+#ifdef PLATFORM_IS_FREEBSD
+  use_library(program, "/usr/local/lib", NULL, NULL);
+#endif
+
 #elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
   const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
