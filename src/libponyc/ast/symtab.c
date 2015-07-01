@@ -239,6 +239,25 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
   }
 }
 
+bool symtab_can_merge_public(symtab_t* dst, symtab_t* src)
+{
+  size_t i = HASHMAP_BEGIN;
+  symbol_t* sym;
+
+  while((sym = symtab_next(src, &i)) != NULL)
+  {
+    if((sym->name[0] == '_') ||
+      (sym->status == SYM_NOCASE) ||
+      !strcmp(sym->name, "Main"))
+      continue;
+
+    if(symtab_find_case(dst, sym->name, NULL) != NULL)
+      return false;
+  }
+
+  return true;
+}
+
 bool symtab_merge_public(symtab_t* dst, symtab_t* src)
 {
   size_t i = HASHMAP_BEGIN;

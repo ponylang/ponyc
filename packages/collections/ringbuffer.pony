@@ -1,4 +1,4 @@
-class Ring[A]
+class RingBuffer[A]
   """
   A ring buffer.
   """
@@ -53,7 +53,7 @@ class Ring[A]
 
     _array(i and _mod)
 
-  fun ref push(value: A): Ring[A]^ =>
+  fun ref push(value: A): RingBuffer[A]^ =>
     """
     Add an element to the ring. If the ring is full, this will drop the oldest
     element in the ring.
@@ -67,7 +67,7 @@ class Ring[A]
     _write = _write + 1
     this
 
-  fun ref clear(): Ring[A]^ =>
+  fun ref clear(): RingBuffer[A]^ =>
     """
     Clear the queue.
     """

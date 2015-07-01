@@ -7,12 +7,18 @@ static bool import_use(ast_t* ast)
 {
   assert(ast != NULL);
 
-  ast_t* package = (ast_t*)ast_data(ast);
+  ast_t* import = (ast_t*)ast_data(ast);
 
-  if(package == NULL) // Nothing to import
+  if(import == NULL) // Nothing to import
     return true;
 
-  if(!ast_merge(ast, package))
+  ast_t* module = ast_parent(ast);
+  assert(ast_id(module) == TK_MODULE);
+
+  ast_t* package = ast_parent(module);
+  assert(ast_id(package) == TK_PACKAGE);
+
+  if(!ast_canmerge(package, import) || !ast_merge(module, import))
   {
     ast_t* uri_child = ast_childidx(ast, 1);
     assert(uri_child != NULL);

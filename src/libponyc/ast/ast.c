@@ -713,6 +713,14 @@ void ast_consolidate_branches(ast_t* ast, size_t count)
   }
 }
 
+bool ast_canmerge(ast_t* dst, ast_t* src)
+{
+  while(dst->symtab == NULL)
+    dst = dst->scope;
+
+  return symtab_can_merge_public(dst->symtab, src->symtab);
+}
+
 bool ast_merge(ast_t* dst, ast_t* src)
 {
   while(dst->symtab == NULL)

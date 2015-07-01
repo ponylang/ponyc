@@ -102,6 +102,13 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
 
 static bool scope_module(ast_t* ast)
 {
+  // Don't do this for this builtin package.
+  ast_t* package = ast_parent(ast);
+  assert(ast_id(package) == TK_PACKAGE);
+
+  if(!strcmp(package_name(package), "$1"))
+    return true;
+
   // Every module has an implicit use "builtin" command
   BUILD(builtin, ast,
     NODE(TK_USE,

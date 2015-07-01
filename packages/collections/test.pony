@@ -29,10 +29,10 @@ class _TestList iso is UnitTest
 
 class _TestRing iso is UnitTest
   new iso create() => None
-  fun name(): String => "collections/Ring"
+  fun name(): String => "collections/RingBuffer"
 
   fun apply(h: TestHelper): TestResult ? =>
-    let a = Ring[U64](4)
+    let a = RingBuffer[U64](4)
     a.push(0).push(1).push(2).push(3)
 
     h.expect_eq[U64](a(0), 0)
