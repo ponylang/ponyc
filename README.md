@@ -101,6 +101,8 @@ All installers can also be downloaded from ponylang.org's servers:
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
+ > Note that Gentoo Linux users are currently affected by Gentoo [bug 457530](https://bugs.gentoo.org/show_bug.cgi?id=457530#c7) (hotfix linked.)
+
 This will build ponyc and compile helloworld:
 
 ```
