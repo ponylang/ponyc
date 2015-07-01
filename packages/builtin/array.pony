@@ -152,6 +152,17 @@ class Array[A] is Seq[A]
     _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
     this
 
+  fun ref remove(i: U64, n: U64): Array[A]^ =>
+    """
+    Remove n elements from the array, beginning at index i.
+    """
+    if i < _size then
+      let count = n.min(_size - i)
+      _size = _size - count
+      _ptr._offset(i)._delete(count, _size - i)
+    end
+    this
+
   fun ref clear(): Array[A]^ =>
     """
     Remove all elements from the array.
