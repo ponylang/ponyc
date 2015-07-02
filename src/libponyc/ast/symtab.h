@@ -52,6 +52,8 @@ void symtab_inherit_status(symtab_t* dst, symtab_t* src);
 
 void symtab_inherit_branch(symtab_t* dst, symtab_t* src);
 
+bool symtab_can_merge_public(symtab_t* dst, symtab_t* src);
+
 bool symtab_merge_public(symtab_t* dst, symtab_t* src);
 
 bool symtab_check_all_defined(symtab_t* symtab);

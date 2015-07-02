@@ -245,7 +245,10 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     if(incomplete)
     {
-      ast_t* expr = ast_child(arg);
+      ast_t* expr = arg;
+
+      if(ast_id(arg) == TK_SEQ)
+        expr = ast_child(arg);
 
       // If 'this' is incomplete and the arg is 'this', change the type to tag.
       if((ast_id(expr) == TK_THIS) && (ast_sibling(expr) == NULL))

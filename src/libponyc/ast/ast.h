@@ -365,6 +365,7 @@ void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
 void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
+bool ast_canmerge(ast_t* dst, ast_t* src);
 bool ast_merge(ast_t* dst, ast_t* src);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner);

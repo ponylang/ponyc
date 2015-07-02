@@ -14,6 +14,8 @@ static __pony_thread_local DIR* opendir_handle;
 
 PONY_EXTERN_C_BEGIN
 
+const char* cwd;
+
 static bool skip_entry(const char* entry, size_t len)
 {
   if((len == 1) && (entry[0] == '.'))
@@ -27,16 +29,21 @@ static bool skip_entry(const char* entry, size_t len)
 
 char* os_cwd()
 {
+  if(cwd == NULL)
+  {
 #if defined(PLATFORM_IS_WINDOWS)
-  char* cwd = _getcwd(NULL, 0);
+    cwd = _getcwd(NULL, 0);
 #else
-  char* cwd = getcwd(NULL, 0);
+    cwd = getcwd(NULL, 0);
 #endif
+
+    if(cwd == NULL)
+      cwd = strdup(".");
+  }
 
   size_t len = strlen(cwd) + 1;
   char* cstring = (char*)pony_alloc(len);
   memcpy(cstring, cwd, len);
-  free(cwd);
 
   return cstring;
 }
