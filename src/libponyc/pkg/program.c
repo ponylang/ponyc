@@ -79,7 +79,7 @@ static const char* quoted_locator(ast_t* use, const char* locator)
 {
   assert(locator != NULL);
 
-  if(strpbrk(locator, "\t\r\n\"'`;$|&<>%*?\\[]{}()") != NULL)
+  if(strpbrk(locator, "\t\r\n\"'`;$|&<>%*?[]{}()") != NULL)
   {
     if(use != NULL)
       ast_error(use, "use URI contains invalid characters");

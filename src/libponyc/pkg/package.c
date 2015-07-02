@@ -232,14 +232,19 @@ static const char* try_path(const char* base, const char* path)
 
 static bool is_root(const char* path)
 {
-  if((path[0] == '/') && (path[1] == '\0'))
-    return true;
+  assert(path != NULL);
 
 #if defined(PLATFORM_IS_WINDOWS)
-  if((path[0] == '\\') && (path[1] == '\0'))
+  assert(path[0] != '\0');
+  assert(path[1] == ':');
+
+  if((path[2] == '\0'))
     return true;
 
-  if((path[0] != '\0') && (path[1] == ':') && is_root(&path[2]))
+  if((path[2] == '\\') && (path[3] == '\0'))
+    return true;
+#else
+  if((path[0] == '/') && (path[1] == '\0'))
     return true;
 #endif
 
