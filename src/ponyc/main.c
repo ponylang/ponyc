@@ -149,9 +149,6 @@ static void usage()
     "  --ponygcfactor  After GC, an actor will next be GC'd at a heap memory\n"
     "                  usage N times its current value. This is a floating\n"
     "                  point value. Defaults to 2.0.\n"
-    "  --ponysched     Use an alternate scheduling algorithm.\n"
-    "    =mpmcq        The default scheduler.\n"
-    "    =coop         An experimental cooperative scheduler.\n"
     "  --ponynoyield   Do not yield the CPU when no work is available.\n"
     );
 }

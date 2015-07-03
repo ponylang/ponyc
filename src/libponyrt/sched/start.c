@@ -15,11 +15,7 @@ typedef struct options_t
   uint32_t cd_conf_group;
   size_t gc_initial;
   double gc_factor;
-  bool mpmcq;
   bool noyield;
-
-  // debugging options
-  bool forcecd;
 } options_t;
 
 // global data
@@ -33,9 +29,7 @@ enum
   OPT_CDCONF,
   OPT_GCINITIAL,
   OPT_GCFACTOR,
-  OPT_SCHED,
-  OPT_NOYIELD,
-  OPT_FORCECD
+  OPT_NOYIELD
 };
 
 static opt_arg_t args[] =
@@ -46,9 +40,7 @@ static opt_arg_t args[] =
   {"ponycdconf", 0, OPT_ARG_REQUIRED, OPT_CDCONF},
   {"ponygcinitial", 0, OPT_ARG_REQUIRED, OPT_GCINITIAL},
   {"ponygcfactor", 0, OPT_ARG_REQUIRED, OPT_GCFACTOR},
-  {"ponysched", 0, OPT_ARG_REQUIRED, OPT_SCHED},
   {"ponynoyield", 0, OPT_ARG_NONE, OPT_NOYIELD},
-  {"ponyforcecd", 0, OPT_ARG_NONE, OPT_FORCECD},
 
   OPT_ARGS_FINISH
 };
@@ -69,14 +61,7 @@ static int parse_opts(int argc, char** argv, options_t* opt)
       case OPT_CDCONF: opt->cd_conf_group = atoi(s.arg_val); break;
       case OPT_GCINITIAL: opt->gc_initial = atoi(s.arg_val); break;
       case OPT_GCFACTOR: opt->gc_factor = atof(s.arg_val); break;
-      case OPT_SCHED:
-        if(!strcmp(s.arg_val, "coop"))
-          opt->mpmcq = false;
-        else if(!strcmp(s.arg_val, "mpmcq"))
-          opt->mpmcq = true;
-        break;
       case OPT_NOYIELD: opt->noyield = true; break;
-      case OPT_FORCECD: opt->forcecd = true; break;
 
       default: exit(-1);
     }
@@ -92,7 +77,6 @@ int pony_init(int argc, char** argv)
   memset(&opt, 0, sizeof(options_t));
 
   // Defaults.
-  opt.mpmcq = true;
   opt.cd_min_deferred = 4;
   opt.cd_max_deferred = 18;
   opt.cd_conf_group = 6;
@@ -109,7 +93,7 @@ int pony_init(int argc, char** argv)
   heap_setnextgcfactor(opt.gc_factor);
 
   pony_exitcode(0);
-  scheduler_init(opt.threads, opt.noyield, opt.forcecd, opt.mpmcq);
+  scheduler_init(opt.threads, opt.noyield);
   cycle_create(opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
 
   return argc;
