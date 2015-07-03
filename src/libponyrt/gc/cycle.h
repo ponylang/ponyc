@@ -18,7 +18,9 @@ void cycle_unblock(pony_actor_t* actor);
 
 void cycle_ack(size_t token);
 
-void cycle_terminate(bool forcecd);
+void cycle_terminate();
+
+bool is_cycle(pony_actor_t* actor);
 
 PONY_EXTERN_C_END
 

@@ -15,8 +15,7 @@ enum
   CYCLE_INIT,
   CYCLE_BLOCK,
   CYCLE_UNBLOCK,
-  CYCLE_ACK,
-  CYCLE_TERMINATE
+  CYCLE_ACK
 };
 
 typedef struct init_msg_t
@@ -656,26 +655,6 @@ static void ack(detector_t* d, size_t token)
     send_conf(d, per);
 }
 
-static void forcecd(detector_t* d)
-{
-  // add everything to the deferred set
-  size_t i = HASHMAP_BEGIN;
-  view_t* view;
-
-  while((view = viewmap_next(&d->views, &i)) != NULL)
-  {
-    viewmap_put(&d->deferred, view);
-    view->deferred = true;
-  }
-
-  // handle all deferred detections
-  while(viewmap_size(&d->deferred) > 0)
-  {
-    d->next_deferred = 0;
-    deferred(d);
-  }
-}
-
 static void final(pony_actor_t* self)
 {
   detector_t* d = (detector_t*)self;
@@ -732,17 +711,6 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
       pony_msgi_t* m = (pony_msgi_t*)msg;
       d->ack_msgs++;
       ack(d, m->i);
-      break;
-    }
-
-    case CYCLE_TERMINATE:
-    {
-      pony_msgi_t* m = (pony_msgi_t*)msg;
-
-      if(m->i != 0)
-        forcecd(d);
-      else
-        final(self);
       break;
     }
   }
@@ -815,13 +783,13 @@ void cycle_ack(size_t token)
   pony_sendi(cycle_detector, CYCLE_ACK, token);
 }
 
-void cycle_terminate(bool forcecd)
+void cycle_terminate()
 {
-  if(forcecd)
-  {
-    pony_sendi(cycle_detector, CYCLE_TERMINATE, forcecd);
-  } else {
-    pony_become(cycle_detector);
-    final(cycle_detector);
-  }
+  pony_become(cycle_detector);
+  final(cycle_detector);
+}
+
+bool is_cycle(pony_actor_t* actor)
+{
+  return actor == cycle_detector;
 }
