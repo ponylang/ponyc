@@ -9,6 +9,10 @@ actor Main
     test(recover _TestStringToU8 end)
     test(recover _TestStringToI8 end)
     test(recover _TestStringToIntLarge end)
+    test(recover _TestStringLstrip end)
+    test(recover _TestStringRstrip end)
+    test(recover _TestStringStrip end)
+    test(recover _TestStringRemove end)
     test(recover _TestSpecialValuesF32 end)
     test(recover _TestSpecialValuesF64 end)
 
@@ -172,6 +176,77 @@ class _TestStringToIntLarge iso is UnitTest
 
     true
 
+class _TestStringLstrip iso is UnitTest
+  """
+  Test stripping leading characters from a string.
+  """
+  fun name(): String => "builtin/String.lstrip"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String](recover "foobar".clone().lstrip("foo") end, "bar")
+    h.expect_eq[String](recover "fooooooobar".clone().lstrip("foo") end, "bar")
+    h.expect_eq[String](recover "   foobar".clone().lstrip() end, "foobar")
+    h.expect_eq[String](recover "  foobar  ".clone().lstrip() end, "foobar  ")
+
+    true
+
+class _TestStringRstrip iso is UnitTest
+  """
+  Test stripping trailing characters from a string.
+  """
+  fun name(): String => "builtin/String.rstrip"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String](recover "foobar".clone().rstrip("bar") end, "foo")
+    h.expect_eq[String](recover "foobaaaaaar".clone().rstrip("bar") end, "foo")
+    h.expect_eq[String](recover "foobar  ".clone().rstrip() end, "foobar")
+    h.expect_eq[String](recover "  foobar  ".clone().rstrip() end, "  foobar")
+
+    true
+
+class _TestStringStrip iso is UnitTest
+  """
+  Test stripping leading and trailing characters from a string.
+  """
+  fun name(): String => "builtin/String.strip"
+
+  fun apply(h: TestHelper): TestResult =>
+    h.expect_eq[String](recover "  foobar  ".clone().strip() end, "foobar")
+    h.expect_eq[String](recover "barfoobar".clone().strip("bar") end, "foo")
+    h.expect_eq[String](recover "foobarfoo".clone().strip("foo") end, "bar")
+    h.expect_eq[String](recover "foobarfoo".clone().strip("bar") end,
+      "foobarfoo")
+
+    true
+
+class _TestStringRemove iso is UnitTest
+  """
+  Test removing characters from a string (independent of leading or trailing).
+  """
+  fun name(): String => "builtin/String.remove"
+
+  fun apply(h: TestHelper): TestResult =>
+    let s1 = recover "  foo   bar  ".clone() end
+    let s2 = recover "barfoobar".clone() end
+    let s3 = recover "f-o-o-b-a-r!".clone() end
+    let s4 = recover "f-o-o-b-a-r!".clone() end
+
+    let r1 = s1.remove(" ")
+    let r2 = s2.remove("foo")
+    let r3 = s3.remove("-")
+    let r4 = s4.remove("-!")
+
+    h.expect_eq[U64](r1, 7)
+    h.expect_eq[U64](r2, 1)
+    h.expect_eq[U64](r3, 5)
+    h.expect_eq[U64](r4, 0)
+
+    h.expect_eq[String](consume s1, "foobar")
+    h.expect_eq[String](consume s2, "barbar")
+    h.expect_eq[String](consume s3, "foobar!")
+    h.expect_eq[String](consume s4, "f-o-o-b-a-r!")
+
+    true
 
 class _TestSpecialValuesF32 iso is UnitTest
   """
