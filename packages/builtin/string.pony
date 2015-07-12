@@ -290,10 +290,6 @@ class String val is Seq[U8], Ordered[String box], Stringable
     Change the i-th byte. Raise an error if the index is out of bounds.
     """
     if i < _size then
-      if value == 0 then
-        _size = i
-      end
-
       _set(i, value)
     else
       error
@@ -531,13 +527,10 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     Add a byte to the end of the string.
     """
-    if value != 0 then
-      reserve(_size + 1)
-      _set(_size, value)
-      _size = _size + 1
-      _set(_size, 0)
-    end
-
+    reserve(_size + 1)
+    _set(_size, value)
+    _size = _size + 1
+    _set(_size, 0)
     this
 
   fun ref pop(): U8 ? =>
