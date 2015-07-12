@@ -316,6 +316,161 @@ class Buffer
     end
     r
 
+  fun box peek_u8(offset: U64 = 0): U8 ? =>
+    """
+    Peek at a U8 at the given offset. Raise an error if there isn't enough data.
+    """
+    _peek_byte(offset)
+
+  fun box peek_i8(offset: U64 = 0): I8 ? =>
+    """
+    Peek at an I8.
+    """
+    peek_u8(offset).i8()
+
+  fun box peek_u16_be(offset: U64 = 0): U16 ? =>
+    """
+    Peek at a big-endian U16.
+    """
+    (peek_u8(offset).u16() << 8) or peek_u8(offset + 1).u16()
+
+  fun box peek_u16_le(offset: U64 = 0): U16 ? =>
+    """
+    Peek at a little-endian U16.
+    """
+    peek_u8(offset).u16() or (peek_u8(offset + 1).u16() << 8)
+
+  fun box peek_i16_be(offset: U64 = 0): I16 ? =>
+    """
+    Peek at a big-endian I16.
+    """
+    peek_u16_be(offset).i16()
+
+  fun box peek_i16_le(offset: U64 = 0): I16 ? =>
+    """
+    Peek at a little-endian I16.
+    """
+    peek_u16_le(offset).i16()
+
+  fun box peek_u32_be(offset: U64 = 0): U32 ? =>
+    """
+    Peek at a big-endian U32.
+    """
+    (peek_u16_be(offset).u32() << 16) or peek_u16_be(offset + 2).u32()
+
+  fun box peek_u32_le(offset: U64 = 0): U32 ? =>
+    """
+    Peek at a little-endian U32.
+    """
+    peek_u16_le(offset).u32() or (peek_u16_le(offset + 2).u32() << 16)
+
+  fun box peek_i32_be(offset: U64 = 0): I32 ? =>
+    """
+    Peek at a big-endian I32.
+    """
+    peek_u32_be(offset).i32()
+
+  fun box peek_i32_le(offset: U64 = 0): I32 ? =>
+    """
+    Peek at a little-endian I32.
+    """
+    peek_u32_le(offset).i32()
+
+  fun box peek_u64_be(offset: U64 = 0): U64 ? =>
+    """
+    Peek at a big-endian U64.
+    """
+    (peek_u32_be(offset).u64() << 32) or peek_u32_be(offset + 4).u64()
+
+  fun box peek_u64_le(offset: U64 = 0): U64 ? =>
+    """
+    Peek at a little-endian U64.
+    """
+    peek_u32_le(offset).u64() or (peek_u32_le(offset + 4).u64() << 32)
+
+  fun box peek_i64_be(offset: U64 = 0): I64 ? =>
+    """
+    Peek at a big-endian I64.
+    """
+    peek_u64_be(offset).i64()
+
+  fun box peek_i64_le(offset: U64 = 0): I64 ? =>
+    """
+    Peek at a little-endian I64.
+    """
+    peek_u64_le(offset).i64()
+
+  fun box peek_u128_be(offset: U64 = 0): U128 ? =>
+    """
+    Peek at a big-endian U128.
+    """
+    (peek_u64_be(offset).u128() << 64) or peek_u64_be(offset + 8).u128()
+
+  fun box peek_u128_le(offset: U64 = 0): U128 ? =>
+    """
+    Peek at a little-endian U128.
+    """
+    peek_u64_le(offset).u128() or (peek_u64_le(offset + 8).u128() << 64)
+
+  fun box peek_i128_be(offset: U64 = 0): I128 ? =>
+    """
+    Peek at a big-endian I129.
+    """
+    peek_u128_be(offset).i128()
+
+  fun box peek_i128_le(offset: U64 = 0): I128 ? =>
+    """
+    Peek at a little-endian I128.
+    """
+    peek_u128_le(offset).i128()
+
+  fun box peek_f32_be(offset: U64 = 0): F32 ? =>
+    """
+    Peek at a big-endian F32.
+    """
+    F32.from_bits(peek_u32_be(offset))
+
+  fun box peek_f32_le(offset: U64 = 0): F32 ? =>
+    """
+    Peek at a little-endian F32.
+    """
+    F32.from_bits(peek_u32_le(offset))
+
+  fun box peek_f64_be(offset: U64 = 0): F64 ? =>
+    """
+    Peek at a big-endian F64.
+    """
+    F64.from_bits(peek_u64_be(offset))
+
+  fun box peek_f64_le(offset: U64 = 0): F64 ? =>
+    """
+    Peek at a little-endian F64.
+    """
+    F64.from_bits(peek_u64_le(offset))
+
+  fun box _peek_byte(offset': U64 = 0): U8 ? =>
+    """
+    Get the byte at the given offset without moving the cursor forward.
+    Raise an error if the given offset is not yet available.
+    """
+    var offset = offset'
+    var iter = _chunks.nodes()
+
+    while true do
+      let node = iter.next()
+      (var data, var node_offset) = node()
+      offset = offset + node_offset
+
+      let data_size = data.size()
+      if offset >= data_size then
+        offset = offset - data_size
+      else
+        return data(offset)
+      end
+    end
+
+    error
+
   fun ref _line_length(): U64 ? =>
     """
     Get the length of a pending line. Raise an error if there is no pending
