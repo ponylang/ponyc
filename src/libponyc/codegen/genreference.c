@@ -316,7 +316,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   const char* name = ast_name(ast);
-  size_t len = strlen(name);
+  size_t len = ast_name_len(ast);
 
   LLVMValueRef args[4];
   args[0] = LLVMConstInt(c->i32, 0, false);

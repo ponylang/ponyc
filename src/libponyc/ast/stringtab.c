@@ -50,6 +50,9 @@ void stringtab_init()
 
 const char* stringtab(const char* string)
 {
+  if(string == NULL)
+    return NULL;
+
   return stringtab_len(string, strlen(string));
 }
 
@@ -65,7 +68,8 @@ const char* stringtab_len(const char* string, size_t len)
     return n->str;
 
   char* dst = (char*)pool_alloc_size(len + 1);
-  memcpy(dst, string, len + 1);
+  memcpy(dst, string, len);
+  dst[len] = '\0';
 
   n = POOL_ALLOC(stringtab_entry_t);
   n->str = dst;

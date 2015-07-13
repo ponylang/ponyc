@@ -95,11 +95,11 @@ TEST(BuilderTest, DifferingNames)
   source_t* src = source_open_string("Test");
 
   token_t* t = token_new(TK_ID, src);
-  token_set_string(t, "foo");
+  token_set_string(t, "foo", 0);
   ast_t* expected = ast_token(t);
 
   token_t* t2 = token_new(TK_ID, src);
-  token_set_string(t2, "bar");
+  token_set_string(t2, "bar", 0);
   ast_t* actual = ast_token(t2);
 
   free_errors();
@@ -118,11 +118,11 @@ TEST(BuilderTest, HygenicNameMatch)
   source_t* src = source_open_string("Test");
 
   token_t* t = token_new(TK_ID, src);
-  token_set_string(t, "hygid");
+  token_set_string(t, "hygid", 0);
   ast_t* expected = ast_token(t);
 
   token_t* t2 = token_new(TK_ID, src);
-  token_set_string(t2, "$37");
+  token_set_string(t2, "$37", 0);
   ast_t* actual = ast_token(t2);
 
   ASSERT_TRUE(build_compare_asts(expected, actual));

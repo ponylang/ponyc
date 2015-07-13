@@ -893,15 +893,23 @@ static ast_result_t sugar_ffi(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, typeargs, args, named_args);
 
-  // Prefix '@' to the name.
   const char* name = ast_name(id);
-  size_t len = strlen(name) + 1;
+  size_t len = ast_name_len(id);
 
-  char* new_name = (char*)pool_alloc_size(len + 1);
+  // Check for \0 in ffi name (it may be a string literal)
+  if(memchr(name, '\0', len) != NULL)
+  {
+    ast_error(ast, "FFI function names cannot include nul characters");
+    return AST_ERROR;
+  }
+
+  // Prefix '@' to the name
+  char* new_name = (char*)pool_alloc_size(len + 2);
   new_name[0] = '@';
   memcpy(new_name + 1, name, len);
+  new_name[len + 1] = '\0';
 
-  ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 1));
+  ast_t* new_id = ast_from_string(id, stringtab_consume(new_name, len + 2));
   ast_replace(&id, new_id);
 
   return AST_OK;

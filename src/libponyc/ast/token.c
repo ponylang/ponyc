@@ -18,12 +18,17 @@ typedef struct token_t
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
   const char* string;
+  size_t str_length;
   double real;
   __uint128_t integer;
 #else
   union
   {
-    const char* string;
+    struct
+    {
+      const char* string;
+      size_t str_length;
+    };
     double real;
     __uint128_t integer;
   };
@@ -85,6 +90,14 @@ const char* token_string(token_t* token)
   assert(token != NULL);
   assert(token->id == TK_STRING || token->id == TK_ID);
   return token->string;
+}
+
+
+size_t token_string_len(token_t* token)
+{
+  assert(token != NULL);
+  assert(token->id == TK_STRING || token->id == TK_ID);
+  return token->str_length;
 }
 
 
@@ -215,12 +228,17 @@ void token_set_id(token_t* token, token_id id)
 }
 
 
-void token_set_string(token_t* token, const char* value)
+void token_set_string(token_t* token, const char* value, size_t length)
 {
   assert(token != NULL);
   assert(token->id == TK_STRING || token->id == TK_ID);
   assert(value != NULL);
-  token->string = stringtab(value);
+
+  if(length == 0)
+    length = strlen(value);
+
+  token->string = stringtab_len(value, length);
+  token->str_length = length;
 }
 
 
