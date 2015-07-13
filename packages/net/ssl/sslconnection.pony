@@ -24,7 +24,7 @@ class SSLConnection is TCPConnectionNotify
     """
     _notify.accepted(conn)
 
-  fun ref connecting(conn: TCPConnection ref, count: U64) =>
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
     """
     Forward to the wrapped protocol.
     """

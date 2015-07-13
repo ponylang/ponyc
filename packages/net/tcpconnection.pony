@@ -6,7 +6,7 @@ actor TCPConnection
   """
   var _listen: (TCPListener | None) = None
   var _notify: TCPConnectionNotify
-  var _connect_count: U64
+  var _connect_count: U32
   var _fd: U64 = -1
   var _event: EventID = Event.none()
   var _connected: Bool = false
@@ -26,7 +26,7 @@ actor TCPConnection
     will be made from the specified interface.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp[U64](this, host.cstring(),
+    _connect_count = @os_connect_tcp[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
@@ -37,7 +37,7 @@ actor TCPConnection
     Connect via IPv4.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp4[U64](this, host.cstring(),
+    _connect_count = @os_connect_tcp4[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
@@ -48,7 +48,7 @@ actor TCPConnection
     Connect via IPv6.
     """
     _notify = consume notify
-    _connect_count = @os_connect_tcp6[U64](this, host.cstring(),
+    _connect_count = @os_connect_tcp6[U32](this, host.cstring(),
       service.cstring(), from.cstring())
     _notify_connecting()
 
