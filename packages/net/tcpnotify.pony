@@ -8,7 +8,7 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref connecting(conn: TCPConnection ref, count: U64) =>
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
     """
     Called if name resolution succeeded for a TCPConnection and we are now
     waiting for a connection to the server to succeed. The count is the number

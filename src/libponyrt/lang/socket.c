@@ -551,17 +551,9 @@ static bool os_connect(pony_actor_t* owner, PONYFD fd, struct addrinfo *p,
   return true;
 }
 
-/**
- * For a server, this finds an address to listen on and returns either a valid
- * file descriptor or -1. For a client, this starts Happy Eyeballs and returns
- * the number of connection attempts in-flight, which may be 0.
- */
-static PONYFD os_socket(pony_actor_t* owner, const char* host,
-  const char* service, const char* from, int family, int socktype, int proto,
-  bool server)
+static struct addrinfo* os_addrinfo_intern(int family, int socktype,
+  int proto, const char* host, const char* service, bool passive)
 {
-  bool reuse = server || ((from != NULL) && (from[0] != '\0'));
-
   struct addrinfo hints;
   memset(&hints, 0, sizeof(struct addrinfo));
   hints.ai_flags = AI_ADDRCONFIG;
@@ -569,7 +561,7 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
   hints.ai_socktype = socktype;
   hints.ai_protocol = proto;
 
-  if(server)
+  if(passive)
     hints.ai_flags |= AI_PASSIVE;
 
   if((host != NULL) && (host[0] == '\0'))
@@ -578,7 +570,52 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
   struct addrinfo *result;
 
   if(getaddrinfo(host, service, &hints, &result) != 0)
-    return server ? -1 : 0;
+    return NULL;
+
+  return result;
+}
+
+/**
+ * This finds an address to listen on and returns either an asio_event_t or
+ * null.
+ */
+static asio_event_t* os_socket_listen(pony_actor_t* owner, const char* host,
+  const char* service, int family, int socktype, int proto)
+{
+  struct addrinfo* result = os_addrinfo_intern(family, socktype, proto, host,
+    service, true);
+
+  struct addrinfo* p = result;
+
+  while(p != NULL)
+  {
+    PONYFD fd = socket_from_addrinfo(p, true);
+
+    if(fd != (PONYFD)-1)
+    {
+      asio_event_t* ev = os_listen(owner, fd, p, proto);
+      freeaddrinfo(result);
+      return ev;
+    }
+
+    p = p->ai_next;
+  }
+
+  freeaddrinfo(result);
+  return NULL;
+}
+
+/**
+ * This starts Happy Eyeballs and returns * the number of connection attempts
+ * in-flight, which may be 0.
+ */
+static int os_socket_connect(pony_actor_t* owner, const char* host,
+  const char* service, const char* from, int family, int socktype, int proto)
+{
+  bool reuse = (from == NULL) || (from[0] != '\0');
+
+  struct addrinfo* result = os_addrinfo_intern(family, socktype, proto, host,
+    service, false);
 
   struct addrinfo* p = result;
   int count = 0;
@@ -589,17 +626,8 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
 
     if(fd != (PONYFD)-1)
     {
-      if(server)
-      {
-        asio_event_t* ev = os_listen(owner, fd, p, proto);
-        freeaddrinfo(result);
-        return (uintptr_t)ev;
-      }
-      else
-      {
-        if(os_connect(owner, fd, p, from))
-          count++;
-      }
+      if(os_connect(owner, fd, p, from))
+        count++;
     }
 
     p = p->ai_next;
@@ -612,64 +640,64 @@ static PONYFD os_socket(pony_actor_t* owner, const char* host,
 asio_event_t* os_listen_tcp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_UNSPEC,
-    SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket_listen(owner, host, service, AF_UNSPEC, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
 asio_event_t* os_listen_tcp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET,
-    SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket_listen(owner, host, service, AF_INET, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
 asio_event_t* os_listen_tcp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET6,
-    SOCK_STREAM, IPPROTO_TCP, true);
+  return os_socket_listen(owner, host, service, AF_INET6, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
 asio_event_t* os_listen_udp(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_UNSPEC,
-    SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket_listen(owner, host, service, AF_UNSPEC, SOCK_DGRAM,
+    IPPROTO_UDP);
 }
 
 asio_event_t* os_listen_udp4(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET,
-    SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket_listen(owner, host, service, AF_INET, SOCK_DGRAM,
+    IPPROTO_UDP);
 }
 
 asio_event_t* os_listen_udp6(pony_actor_t* owner, const char* host,
   const char* service)
 {
-  return (asio_event_t*)os_socket(owner, host, service, NULL, AF_INET6,
-    SOCK_DGRAM, IPPROTO_UDP, true);
+  return os_socket_listen(owner, host, service, AF_INET6, SOCK_DGRAM,
+    IPPROTO_UDP);
 }
 
-PONYFD os_connect_tcp(pony_actor_t* owner, const char* host,
+int os_connect_tcp(pony_actor_t* owner, const char* host,
   const char* service, const char* from)
 {
-  return os_socket(owner, host, service, from, AF_UNSPEC, SOCK_STREAM,
-    IPPROTO_TCP, false);
+  return os_socket_connect(owner, host, service, from, AF_UNSPEC, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
-PONYFD os_connect_tcp4(pony_actor_t* owner, const char* host,
+int os_connect_tcp4(pony_actor_t* owner, const char* host,
   const char* service, const char* from)
 {
-  return os_socket(owner, host, service, from, AF_INET, SOCK_STREAM,
-    IPPROTO_TCP, false);
+  return os_socket_connect(owner, host, service, from, AF_INET, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
-PONYFD os_connect_tcp6(pony_actor_t* owner, const char* host,
+int os_connect_tcp6(pony_actor_t* owner, const char* host,
   const char* service, const char* from)
 {
-  return os_socket(owner, host, service, from, AF_INET6, SOCK_STREAM,
-    IPPROTO_TCP, false);
+  return os_socket_connect(owner, host, service, from, AF_INET6, SOCK_STREAM,
+    IPPROTO_TCP);
 }
 
 PONYFD os_accept(asio_event_t* ev)
@@ -756,20 +784,7 @@ bool os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
 
 struct addrinfo* os_addrinfo(int family, const char* host, const char* service)
 {
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_flags = AI_ADDRCONFIG | AI_PASSIVE;
-  hints.ai_family = family;
-
-  if((host != NULL) && (host[0] == '\0'))
-    host = NULL;
-
-  struct addrinfo *result;
-
-  if(getaddrinfo(host, service, &hints, &result) != 0)
-    return NULL;
-
-  return result;
+  return os_addrinfo_intern(family, 0, 0, host, service, true);
 }
 
 void os_getaddr(struct addrinfo* addr, ipaddress_t* ipaddr)
