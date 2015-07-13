@@ -219,13 +219,23 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     case TK_DOT:
       // Has to be valid.
-      return expr_nominal(opt, &type);
+      if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
+        return false;
+      }
+      break;
 
     case TK_CALL:
     {
       // Has to be valid.
       if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -235,7 +245,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       ast_add(dot, ast);
 
       if(!expr_dot(opt, astp))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       ast_t* ast = *astp;
 
@@ -261,7 +275,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_append(call, ast);
 
           if(!expr_call(opt, &call))
+          {
+            ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+            ast_free_unattached(type);
             return false;
+          }
 
           // Add a dot node.
           ast_t* apply = ast_from(call, TK_DOT);
@@ -270,7 +288,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_add(apply, call);
 
           if(!expr_dot(opt, &apply))
+          {
+            ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+            ast_free_unattached(type);
             return false;
+          }
         }
       }
 
@@ -281,7 +303,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Has to be valid.
       if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -299,9 +325,18 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       *astp = call;
 
       if(!expr_dot(opt, &dot))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
-      return expr_call(opt, astp);
+      if(!expr_call(opt, astp))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
+      }
+      break;
     }
   }
 
