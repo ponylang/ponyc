@@ -2,6 +2,7 @@
 #include "../../libponyrt/ds/hash.h"
 #include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <platform.h>
@@ -11,22 +12,34 @@ static bool ptr_cmp(const char* a, const char* b)
   return a == b;
 }
 
-static bool str_cmp(const char* a, const char* b)
-{
-  return !strcmp(a, b);
-}
-
-static void str_free(const char* a)
-{
-  size_t len = strlen(a) + 1;
-  pool_free_size(len, (char*)a);
-}
-
 DEFINE_LIST(strlist, const char, ptr_cmp, NULL);
 
-DECLARE_HASHMAP(strtable, const char);
-DEFINE_HASHMAP(strtable, const char, hash_str, str_cmp, pool_alloc_size,
-  pool_free_size, str_free);
+typedef struct stringtab_entry_t
+{
+  const char* str;
+  size_t len;
+  size_t buf_size;
+} stringtab_entry_t;
+
+static uint64_t stringtab_hash(stringtab_entry_t* a)
+{
+  return hash_block(a->str, a->len);
+}
+
+static bool stringtab_cmp(stringtab_entry_t* a, stringtab_entry_t* b)
+{
+  return (a->len == b->len) && (memcmp(a->str, b->str, a->len) == 0);
+}
+
+static void stringtab_free(stringtab_entry_t* a)
+{
+  pool_free_size(a->buf_size, (char*)a->str);
+  POOL_FREE(stringtab_entry_t, a);
+}
+
+DECLARE_HASHMAP(strtable, stringtab_entry_t);
+DEFINE_HASHMAP(strtable, stringtab_entry_t, stringtab_hash, stringtab_cmp,
+  pool_alloc_size, pool_free_size, stringtab_free);
 
 static strtable_t table;
 
@@ -37,20 +50,30 @@ void stringtab_init()
 
 const char* stringtab(const char* string)
 {
+  return stringtab_len(string, strlen(string));
+}
+
+const char* stringtab_len(const char* string, size_t len)
+{
   if(string == NULL)
     return NULL;
 
-  const char* prev = strtable_get(&table, string);
+  stringtab_entry_t key = {string, len, 0};
+  stringtab_entry_t* n = strtable_get(&table, &key);
 
-  if(prev != NULL)
-    return prev;
+  if(n != NULL)
+    return n->str;
 
-  size_t len = strlen(string) + 1;
-  char* n = (char*)pool_alloc_size(len);
-  memcpy(n, string, len);
+  char* dst = (char*)pool_alloc_size(len + 1);
+  memcpy(dst, string, len + 1);
+
+  n = POOL_ALLOC(stringtab_entry_t);
+  n->str = dst;
+  n->len = len;
+  n->buf_size = len + 1;
 
   strtable_put(&table, n);
-  return n;
+  return n->str;
 }
 
 const char* stringtab_consume(const char* string, size_t buf_size)
@@ -58,16 +81,23 @@ const char* stringtab_consume(const char* string, size_t buf_size)
   if(string == NULL)
     return NULL;
 
-  const char* prev = strtable_get(&table, string);
+  size_t len = strlen(string);
+  stringtab_entry_t key = {string, len, 0};
+  stringtab_entry_t* n = strtable_get(&table, &key);
 
-  if(prev != NULL)
+  if(n != NULL)
   {
-    pool_free_size(buf_size, (void*)string);
-    return prev;
+    pool_free_size(len, (void*)string);
+    return n->str;
   }
 
-  strtable_put(&table, string);
-  return string;
+  n = POOL_ALLOC(stringtab_entry_t);
+  n->str = string;
+  n->len = len;
+  n->buf_size = buf_size;
+
+  strtable_put(&table, n);
+  return n->str;
 }
 
 void stringtab_done()
