@@ -339,6 +339,7 @@ void ast_inheritflags(ast_t* ast);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
+size_t ast_name_len(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name);
 double ast_float(ast_t* ast);
 __uint128_t ast_int(ast_t* ast);

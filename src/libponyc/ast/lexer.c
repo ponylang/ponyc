@@ -321,8 +321,13 @@ static token_t* make_token(lexer_t* lexer, token_id id)
 static token_t* make_token_with_text(lexer_t* lexer, token_id id)
 {
   token_t* t = make_token(lexer, id);
-  append_to_token(lexer, '\0');
-  token_set_string(t, stringtab(lexer->buffer));
+
+  if(lexer->buffer == NULL) // No text for token
+    token_set_string(t, stringtab(""), 0);
+  else
+    token_set_string(t, stringtab_len(lexer->buffer, lexer->buflen),
+      lexer->buflen);
+
   return t;
 }
 
@@ -456,9 +461,6 @@ static void normalise_string(lexer_t* lexer)
   if(lexer->buflen == 0)
     return;
 
-  // Make sure we have a null terminated string.
-  append_to_token(lexer, '\0');
-
   // If we aren't multiline, do nothing.
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
     return;
@@ -504,7 +506,7 @@ static void normalise_string(lexer_t* lexer)
 
     while(rem > 0)
     {
-      char* line_end = strchr(line_start, '\n');
+      char* line_end = (char*)memchr(line_start, '\n', rem);
       size_t line_len =
         (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
 
@@ -521,6 +523,7 @@ static void normalise_string(lexer_t* lexer)
 
       line_start += line_len;
       rem -= line_len;
+      lexer->buflen -= ws;
     }
   }
 
@@ -1017,7 +1020,11 @@ static size_t read_id(lexer_t* lexer)
     len++;
   }
 
+  // Add a nul terminator to our name so we can use strcmp(), but don't count
+  // it in the text length
   append_to_token(lexer, '\0');
+  lexer->buflen--;
+
   return len;
 }
 

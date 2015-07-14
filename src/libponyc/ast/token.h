@@ -260,6 +260,11 @@ token_id token_get_id(token_t* token);
   */
 const char* token_string(token_t* token);
 
+/** Report the given token's literal string length.
+  * Only valid for TK_STRING and TK_ID tokens.
+  */
+size_t token_string_len(token_t* token);
+
 /// Report the given token's literal value. Only valid for TK_FLOAT tokens.
 double token_float(token_t* token);
 
@@ -301,8 +306,10 @@ void token_set_id(token_t* token, token_id id);
   * Only valid for TK_STRING and TK_ID tokens.
   * The given string will be interned and hence only needs to be valid for the
   * duration of this call.
+  * If the given string is nul terminated then 0 may be passed for length, in
+  * which case strlen will be called on the string.
   */
-void token_set_string(token_t* token, const char* value);
+void token_set_string(token_t* token, const char* value, size_t length);
 
 /// Set the given token's literal value. Only valid for TK_FLOAT tokens.
 void token_set_float(token_t* token, double value);

@@ -245,7 +245,7 @@ ast_t* ast_from_string(ast_t* ast, const char* name)
 
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_ID);
-  token_set_string(t, name);
+  token_set_string(t, name, 0);
 
   ast_t* new_ast = ast_token(t);
   new_ast->scope = ast->scope;
@@ -254,6 +254,7 @@ ast_t* ast_from_string(ast_t* ast, const char* name)
 
 ast_t* ast_from_int(ast_t* ast, uint64_t value)
 {
+  assert(ast != NULL);
   token_t* t = token_dup(ast->t);
   token_set_id(t, TK_INT);
   token_set_int(t, value);
@@ -270,11 +271,13 @@ ast_t* ast_dup(ast_t* ast)
 
 void ast_scope(ast_t* ast)
 {
+  assert(ast != NULL);
   ast->symtab = symtab_new();
 }
 
 bool ast_has_scope(ast_t* ast)
 {
+  assert(ast != NULL);
   return ast->symtab != NULL;
 }
 
@@ -286,42 +289,50 @@ symtab_t* ast_get_symtab(ast_t* ast)
 
 ast_t* ast_setid(ast_t* ast, token_id id)
 {
+  assert(ast != NULL);
   token_set_id(ast->t, id);
   return ast;
 }
 
 void ast_setpos(ast_t* ast, size_t line, size_t pos)
 {
+  assert(ast != NULL);
   token_set_pos(ast->t, line, pos);
 }
 
 void ast_setdebug(ast_t* ast, bool state)
 {
+  assert(ast != NULL);
   token_set_debug(ast->t, state);
 }
 
 token_id ast_id(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_get_id(ast->t);
 }
 
 size_t ast_line(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_line_number(ast->t);
 }
 
 size_t ast_pos(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_line_position(ast->t);
 }
 
 bool ast_debug(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_debug(ast->t);
 }
 
 source_t* ast_source(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_source(ast->t);
 }
 
@@ -335,71 +346,83 @@ void* ast_data(ast_t* ast)
 
 void ast_setdata(ast_t* ast, void* data)
 {
+  assert(ast != NULL);
   ast->data = data;
 }
 
 bool ast_canerror(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   return (ast->flags & AST_CAN_ERROR) != 0;
 }
 
 void ast_seterror(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags |= AST_CAN_ERROR;
 }
 
 bool ast_cansend(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   return (ast->flags & AST_CAN_SEND) != 0;
 }
 
 void ast_setsend(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags |= AST_CAN_SEND;
 }
 
 bool ast_mightsend(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   return (ast->flags & AST_MIGHT_SEND) != 0;
 }
 
 void ast_setmightsend(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags |= AST_MIGHT_SEND;
 }
 
 void ast_clearmightsend(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags &= ~AST_MIGHT_SEND;
 }
 
 bool ast_inprogress(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   return (ast->flags & AST_IN_PROGRESS) != 0;
 }
 
 void ast_setinprogress(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags |= AST_IN_PROGRESS;
 }
 
 void ast_clearinprogress(ast_t* ast)
 {
+  assert(ast != NULL);
   assert(ast->flags <= AST_ALL_FLAGS);
   ast->flags &= ~AST_IN_PROGRESS;
 }
 
 void ast_inheritflags(ast_t* ast)
 {
+  assert(ast != NULL);
   ast_t* child = ast->child;
 
   while(child != NULL)
@@ -413,31 +436,43 @@ void ast_inheritflags(ast_t* ast)
 
 const char* ast_get_print(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_print(ast->t);
 }
 
 const char* ast_name(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_string(ast->t);
+}
+
+size_t ast_name_len(ast_t* ast)
+{
+  assert(ast != NULL);
+  return token_string_len(ast->t);
 }
 
 void ast_set_name(ast_t* ast, const char* name)
 {
-  token_set_string(ast->t, name);
+  assert(ast != NULL);
+  token_set_string(ast->t, name, 0);
 }
 
 double ast_float(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_float(ast->t);
 }
 
 __uint128_t ast_int(ast_t* ast)
 {
+  assert(ast != NULL);
   return token_int(ast->t);
 }
 
 ast_t* ast_type(ast_t* ast)
 {
+  assert(ast != NULL);
   return ast->type;
 }
 
