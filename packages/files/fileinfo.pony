@@ -10,7 +10,7 @@ class FileInfo val
   will be the size of the target. A broken symlink will report as much as it
   can and will set the broken flag.
   """
-  let path: FilePath
+  let filepath: FilePath
 
   let mode: FileMode val = recover FileMode end
   let hard_links: U32 = 0
@@ -27,16 +27,43 @@ class FileInfo val
   let symlink: Bool = false
   let broken: Bool = false
 
-  new create(from: FilePath) ? =>
+  new val create(from: FilePath) ? =>
     """
-    This will raise an error if the path doesn't exist.
+    This will raise an error if the FileStat capability isn't available or the
+    path doesn't exist.
     """
     if not from.caps(FileStat) then
       error
     end
 
-    path = from
+    filepath = from
 
-    if not @os_stat[Bool](from.path.cstring(), this) then
+    if not @os_stat[Bool](filepath.path.cstring(), this) then
+      error
+    end
+
+  new val _descriptor(fd: I32, path: FilePath) ? =>
+    """
+    This will raise an error if the FileStat capability isn't available or the
+    file descriptor is invalid.
+    """
+    if not path.caps(FileStat) or (fd == -1) then
+      error
+    end
+
+    filepath = path
+
+    if not @os_fstat[Bool](fd, this) then
+      error
+    end
+
+  new val _relative(fd: I32, path: FilePath, from: String) ? =>
+    if not path.caps(FileStat) or (fd == -1) then
+      error
+    end
+
+    filepath = path
+
+    if not @os_fstatat[Bool](fd, from.cstring(), this) then
       error
     end
