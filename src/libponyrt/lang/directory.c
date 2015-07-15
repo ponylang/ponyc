@@ -118,11 +118,17 @@ const char* unix_readdir(DIR* dir)
     if(d == NULL)
       break;
 
-    if(skip_entry(d->d_name, d->d_namlen))
+#if defined(PLATFORM_IS_LINUX)
+    size_t len = strlen(d->d_name);
+#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX)
+    size_t len = d->d_namlen;
+#endif
+
+    if(skip_entry(d->d_name, len))
       continue;
 
-    char* cstring = pony_alloc(d->d_namlen + 1);
-    memcpy(cstring, d->d_name, d->d_namlen + 1);
+    char* cstring = pony_alloc(len + 1);
+    memcpy(cstring, d->d_name, len + 1);
     return cstring;
   }
 
