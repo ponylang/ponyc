@@ -110,7 +110,7 @@ class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
     f._value = this._value or flag.value()
     f
 
-  fun sub(flag: A): Flags[A, B]^ =>
+  fun sub(flag: A): Flags[A, B] iso^ =>
     """
     This with the flag unset.
     """

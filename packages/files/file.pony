@@ -6,30 +6,39 @@ class File
   """
   let path: FilePath
   let writeable: Bool
+  var _fd: I32
   var _handle: Pointer[_FileHandle]
   var _last_line_length: U64 = 256
 
   new create(from: FilePath) ? =>
     """
-    Open for read/write, creating if it doesn't exist, truncating it if it
-    does exist.
+    Open for read/write, creating if it doesn't exist, preserving the contents
+    if it does exist.
     """
-    if
-      not from.caps(FileRead) or
-      not from.caps(FileWrite) or
-      (not from.caps(FileCreate) and not from.exists())
-    then
+    if not from.caps(FileRead) or not from.caps(FileWrite) then
       error
+    end
+
+    let mode = if not from.exists() then
+      if not from.caps(FileCreate) then
+        error
+      end
+
+      "w+b"
+    else
+      "r+b"
     end
 
     path = from
     writeable = true
-    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
-      "w+b".cstring())
+    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(), mode.cstring())
 
     if _handle.is_null() then
       error
     end
+
+    _fd = _get_fd(_handle)
+    _FileDes.set_rights(_fd, path, writeable)
 
   new open(from: FilePath) ? =>
     """
@@ -47,27 +56,32 @@ class File
       error
     end
 
-  new modify(from: FilePath) ? =>
+    _fd = _get_fd(_handle)
+    _FileDes.set_rights(_fd, path, writeable)
+
+  new _descriptor(fd: I32, from: FilePath) ? =>
     """
-    Open for read/write, creating if it doesn't exist, preserving the contents
-    if it does exist.
+    Internal constructor from a file descriptor and a path.
     """
-    if
-      not from.caps(FileRead) or
-      not from.caps(FileWrite) or
-      (not from.caps(FileCreate) and not from.exists())
-    then
+    if not from.caps(FileRead) or (fd == -1) then
       error
     end
 
     path = from
-    writeable = true
-    _handle = @fopen[Pointer[_FileHandle]](from.path.cstring(),
-      "r+b".cstring())
+    writeable = from.caps(FileRead)
+    _fd = fd
+
+    if writeable then
+      _handle = @fdopen[Pointer[_FileHandle]](fd, "r+b".cstring())
+    else
+      _handle = @fdopen[Pointer[_FileHandle]](fd, "rb".cstring())
+    end
 
     if _handle.is_null() then
       error
     end
+
+    _FileDes.set_rights(_fd, path, writeable)
 
   fun valid(): Bool =>
     """
@@ -92,7 +106,7 @@ class File
     while not done do
       result.reserve(len)
 
-      var r = if Platform.linux() then
+      let r = if Platform.linux() then
         @fgets_unlocked[Pointer[U8]](
           result.cstring().u64() + offset, len - offset, _handle
           )
@@ -138,9 +152,9 @@ class File
     Returns up to len bytes.
     """
     if not _handle.is_null() then
-      var result = recover Array[U8].undefined(len) end
+      let result = recover Array[U8].undefined(len) end
 
-      var r = if Platform.linux() then
+      let r = if Platform.linux() then
         @fread_unlocked[U64](result.cstring(), U64(1), len, _handle)
       else
         @fread[U64](result.cstring(), U64(1), len, _handle)
@@ -158,9 +172,9 @@ class File
     characters.
     """
     if not _handle.is_null() then
-      var result = recover String(len) end
+      let result = recover String(len) end
 
-      var r = if Platform.linux() then
+      let r = if Platform.linux() then
         @fread_unlocked[U64](result.cstring(), U64(1), len, _handle)
       else
         @fread[U64](result.cstring(), U64(1), len, _handle)
@@ -182,13 +196,12 @@ class File
     """
     Print an array of Bytes.
     """
-    var r = true
-
     for bytes in data.values() do
-      r = r and write(bytes) and write("\n")
+      if not print(bytes) then
+        return false
+      end
     end
-
-    r
+    true
 
   fun ref write(data: Bytes box): Bool =>
     """
@@ -196,7 +209,7 @@ class File
     Returns false and closes the file if not all the bytes were written.
     """
     if writeable and (not _handle.is_null()) then
-      var len = if Platform.linux() then
+      let len = if Platform.linux() then
         @fwrite_unlocked[U64](data.cstring(), U64(1), data.size(), _handle)
       else
         @fwrite[U64](data.cstring(), U64(1), data.size(), _handle)
@@ -214,13 +227,12 @@ class File
     """
     Write an array of Bytes.
     """
-    var r = true
-
     for bytes in data.values() do
-      r = r and write(bytes)
+      if not write(bytes) then
+        return false
+      end
     end
-
-    r
+    true
 
   fun position(): U64 =>
     """
@@ -240,9 +252,9 @@ class File
     """
     Return the total length of the file.
     """
-    var pos = position()
+    let pos = position()
     _seek(0, 2)
-    var len = position()
+    let len = position()
     _seek(pos.i64(), 0)
     len
 
@@ -292,12 +304,10 @@ class File
     """
     if path.caps(FileSync) and not _handle.is_null() then
       if Platform.windows() then
-        var fd = @_fileno[I32](_handle)
-        var h = @_get_osfhandle[U64](fd)
+        let h = @_get_osfhandle[U64](_fd)
         @FlushFileBuffers[I32](h)
       else
-        var fd = @fileno[I32](_handle)
-        @fsync[I32](fd)
+        @fsync[I32](_fd)
       end
     end
     this
@@ -308,13 +318,11 @@ class File
     """
     if path.caps(FileTruncate) and writeable and (not _handle.is_null()) then
       flush()
-      var pos = position()
-      var success = if Platform.windows() then
-        var fd = @_fileno[I32](_handle)
-        @_chsize_s[I32](fd, len) == 0
+      let pos = position()
+      let success = if Platform.windows() then
+        @_chsize_s[I32](_fd, len) == 0
       else
-        var fd = @fileno[I32](_handle)
-        @ftruncate[I32](fd, len) == 0
+        @ftruncate[I32](_fd, len) == 0
       end
 
       if pos >= len then
@@ -323,6 +331,38 @@ class File
       success
     end
     false
+
+  fun info(): FileInfo ? =>
+    """
+    Return a FileInfo for this directory. Raise an error if the fd is invalid
+    or if we don't have FileStat permission.
+    """
+    FileInfo._descriptor(_fd, path)
+
+  fun chmod(mode: FileMode box): Bool =>
+    """
+    Set the FileMode for this directory.
+    """
+    _FileDes.chmod(_fd, path, mode)
+
+  fun chown(uid: U32, gid: U32): Bool =>
+    """
+    Set the owner and group for this directory. Does nothing on Windows.
+    """
+    _FileDes.chown(_fd, path, uid, gid)
+
+  fun touch(): Bool =>
+    """
+    Set the last access and modification times of the directory to now.
+    """
+    _FileDes.touch(_fd, path)
+
+  fun set_time(atime: (I64, I64), mtime: (I64, I64)): Bool =>
+    """
+    Set the last access and modification times of the directory to the given
+    values.
+    """
+    _FileDes.set_time(_fd, path, atime, mtime)
 
   fun ref lines(): FileLines =>
     """
@@ -337,6 +377,7 @@ class File
     if not _handle.is_null() then
       @fclose[I32](_handle)
       _handle = Pointer[_FileHandle]
+      _fd = -1
     end
 
   fun ref _seek(offset: I64, base: I32) =>
@@ -349,6 +390,20 @@ class File
       else
         @fseek[I32](_handle, offset, base)
       end
+    end
+
+  fun tag _get_fd(handle: Pointer[_FileHandle]): I32 =>
+    """
+    Get the file descriptor associated with the file handle.
+    """
+    if not handle.is_null() then
+      if Platform.windows() then
+        @_fileno[I32](handle)
+      else
+        @fileno[I32](handle)
+      end
+    else
+      -1
     end
 
   fun _final() =>

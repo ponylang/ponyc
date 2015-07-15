@@ -15,32 +15,35 @@ primitive FileLink
 primitive FileLookup
   fun value(): U64 => 1 << 4
 
-primitive FileRead
+primitive FileMkdir
   fun value(): U64 => 1 << 5
 
-primitive FileRemove
+primitive FileRead
   fun value(): U64 => 1 << 6
 
-primitive FileRename
+primitive FileRemove
   fun value(): U64 => 1 << 7
 
-primitive FileSeek
+primitive FileRename
   fun value(): U64 => 1 << 8
 
-primitive FileStat
+primitive FileSeek
   fun value(): U64 => 1 << 9
 
-primitive FileSync
+primitive FileStat
   fun value(): U64 => 1 << 10
 
-primitive FileTime
+primitive FileSync
   fun value(): U64 => 1 << 11
 
-primitive FileTruncate
+primitive FileTime
   fun value(): U64 => 1 << 12
 
-primitive FileWrite
+primitive FileTruncate
   fun value(): U64 => 1 << 13
+
+primitive FileWrite
+  fun value(): U64 => 1 << 14
 
 type FileCaps is Flags[
   ( FileCreate
@@ -48,6 +51,7 @@ type FileCaps is Flags[
   | FileChown
   | FileLink
   | FileLookup
+  | FileMkdir
   | FileRead
   | FileRemove
   | FileRename

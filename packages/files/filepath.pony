@@ -3,8 +3,8 @@ use "time"
 class FilePath val
   """
   A FilePath represents a capability to access a path. The path will be
-  represented as an absolute path. If the FilePath is marked as readonly, it
-  can only be used to create further readonly capabilities.
+  represented as an absolute path and a set of capabilities for operations on
+  that path.
   """
   let path: String
   let caps: FileCaps = FileCaps
@@ -81,14 +81,14 @@ class FilePath val
     have the FileStat permission, this will return false even if the directory
     does exist.
     """
-    if not caps(FileCreate) then
+    if not caps(FileMkdir) then
       return false
     end
 
     var offset: I64 = 0
 
     repeat
-      var element = try
+      let element = try
         offset = path.find(Path.sep(), offset) + 1
         path.substring(0, offset - 2)
       else
@@ -103,7 +103,11 @@ class FilePath val
       end
     until offset < 0 end
 
-    exists()
+    try
+      FileInfo(this).directory
+    else
+      false
+    end
 
   fun val remove(): Bool =>
     """
@@ -115,12 +119,12 @@ class FilePath val
     end
 
     try
-      var info = FileInfo(this)
+      let info = FileInfo(this)
 
       if info.directory and not info.symlink then
-        var directory = Directory(this)
+        let directory = Directory(this)
 
-        for entry in directory.entries.values() do
+        for entry in directory.entries().values() do
           if not join(entry).remove() then
             return false
           end
@@ -176,7 +180,7 @@ class FilePath val
       return false
     end
 
-    var m = mode._os()
+    let m = mode._os()
 
     if Platform.windows() then
       @_chmod[I32](path.cstring(), m) == 0
@@ -210,9 +214,9 @@ class FilePath val
 
     if Platform.windows() then
       var tv: (I64, I64) = (atime._1, mtime._1)
-      @_utime64[I32](path.cstring(), tv) == 0
+      @_utime64[I32](path.cstring(), &tv) == 0
     else
       var tv: (I64, I64, I64, I64) =
         (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
-      @utimes[I32](path.cstring(), tv) == 0
+      @utimes[I32](path.cstring(), &tv) == 0
     end
