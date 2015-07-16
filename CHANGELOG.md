@@ -6,12 +6,23 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Added
 
+- Root authority capability in Env.
+- Fine grained capabilities for files and directories.
+- Use Capsicum on FreeBSD.
 - Apply can be sugared with type arguments.
 - Search pony_packages directories for use commands.
+- Buffer peek functions (@jemc)
+- collections/Ring
+
+### Changed
+
+- Scheduler steals when only the CD is on a scheduler thread queue.
+- use commands searches ../pony_packages recursively similar to Node.js
 
 ### Fixed
 
-- use "path:" now correctly adds link paths only for the current build.
+- use "path:" adds link paths only for the current build.
+- Handle null characters in Strings and string literals.
 
 ## [0.1.7] - 2015-06-18
 
