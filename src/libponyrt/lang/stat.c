@@ -147,7 +147,11 @@ static void unix_stat(pony_stat_t* p, struct stat* st)
 
 bool os_fstatat(int fd, const char* path, pony_stat_t* p)
 {
-#if defined(PLATFORM_IS_WINDOWS)
+#if defined(PLATFORM_IS_WINDOWS) || defined(PLATFORM_IS_MACOSX)
+  (void)fd;
+  (void)path;
+  (void)p;
+
   return false;
 #elif defined(PLATFORM_IS_POSIX_BASED)
   struct stat st;

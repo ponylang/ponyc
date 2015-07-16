@@ -100,10 +100,12 @@ int o_cloexec()
   return O_CLOEXEC;
 }
 
+#if !defined(PLATFORM_IS_MACOSX)
 int at_removedir()
 {
   return AT_REMOVEDIR;
 }
+#endif
 
 const char* unix_readdir(DIR* dir)
 {

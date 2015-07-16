@@ -15,6 +15,11 @@ primitive _DirectoryEntry
 class Directory
   """
   Operations on a directory.
+
+  The directory-relative functions (open, etc) use the *at interface on FreeBSD
+  and Linux. This isn't available on OSX prior to 10.10, so it is not used. On
+  FreeBSD, this allows the directory-relative functions to take advantage of
+  Capsicum.
   """
   let path: FilePath
   var _fd: I32 = -1
@@ -125,7 +130,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() then
+    if Platform.windows() or Platform.osx() then
       recover create(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -149,7 +154,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.mkdir()
       else
         var offset: I64 = 0
@@ -188,7 +193,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() then
+    if Platform.windows() or Platform.osx() then
       recover File(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -209,7 +214,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps - FileWrite)
 
-    if Platform.windows() then
+    if Platform.windows() or Platform.osx() then
       recover File(path') end
     else
       let fd' = @openat[I32](_fd, target.cstring(),
@@ -263,7 +268,7 @@ class Directory
 
     let path' = FilePath(path, target, path.caps)
 
-    if Platform.windows() then
+    if Platform.windows() or Platform.osx() then
       FileInfo(path')
     else
       FileInfo._relative(_fd, path', target)
@@ -284,7 +289,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.chmod(mode)
       else
         @fchmodat[I32](_fd, target.cstring(), mode._os(), I32(0)) == 0
@@ -308,7 +313,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.chown(uid, gid)
       else
         @fchownat[I32](_fd, target.cstring(), uid, gid, I32(0)) == 0
@@ -340,7 +345,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.set_time(atime, mtime)
       else
         var tv: (I64, I64, I64, I64) =
@@ -369,7 +374,7 @@ class Directory
     try
       let path' = FilePath(path, link_name, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         source.symlink(path')
       else
         @symlinkat[I32](source.path.cstring(), _fd, link_name.cstring()) == 0
@@ -394,7 +399,7 @@ class Directory
     try
       let path' = FilePath(path, target, path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.remove()
       else
         let fi = FileInfo(path')
@@ -436,7 +441,7 @@ class Directory
       let path' = FilePath(path, source, path.caps)
       let path'' = FilePath(to.path, target, to.path.caps)
 
-      if Platform.windows() then
+      if Platform.windows() or Platform.osx() then
         path'.rename(path'')
       else
         @renameat[I32](_fd, source.cstring(), to._fd, target.cstring()) == 0
