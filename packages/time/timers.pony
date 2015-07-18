@@ -43,6 +43,12 @@ actor Timers
     try
       (_, let timer') = _map.remove(timer)
       timer'._cancel()
+
+      if (_map.size() == 0) and (not _event.is_null()) then
+        // Unsubscribe an existing event.
+        @asio_event_unsubscribe[None](_event)
+        _event = Event.none()
+      end
     end
 
   be dispose() =>

@@ -4,15 +4,14 @@ class Notify is StdinNotify
   new iso create(env: Env) =>
     _env = env
 
-  fun ref apply(data: Array[U8] iso): Bool =>
+  fun ref apply(data: Array[U8] iso) =>
     let data' = consume val data
 
     for c in data'.values() do
       _env.out.write(c.string(IntHex))
     end
-    _env.out.write("\n")
 
-    true
+    _env.out.write("\n")
 
 actor Main
   new create(env: Env) =>

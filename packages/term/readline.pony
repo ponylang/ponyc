@@ -1,26 +1,30 @@
 use "collections"
 use "files"
+use "promises"
 
 class Readline is ANSINotify
   """
   Line editing, history, and tab completion.
   """
   let _notify: ReadlineNotify
-  let _out: StdStream
+  let _out: Stream
   let _path: (FilePath | None)
   let _history: Array[String]
+  let _queue: Array[String] = Array[String]
   let _maxlen: U64
 
   var _edit: String iso = recover String end
-  var _cur_prompt: String
+  var _cur_prompt: String = ""
   var _cur_line: U64 = 0
   var _cur_pos: I64 = 0
+  var _blocked: Bool = true
 
-  new iso create(notify: ReadlineNotify iso, out: StdStream,
+  new iso create(notify: ReadlineNotify iso, out: Stream,
     path: (FilePath | None) = None, maxlen: U64 = 0)
   =>
     """
-    Create a readline handler to be passed to stdin.
+    Create a readline handler to be passed to stdin. It begins blocked. Set an
+    initial prompt on the ANSITerm to begin processing.
     """
     _notify = consume notify
     _out = out
@@ -28,51 +32,57 @@ class Readline is ANSINotify
     _history = Array[String](maxlen)
     _maxlen = maxlen
 
-    _cur_prompt = try _notify("") else "> " end
-
     _load_history()
-    _refresh_line()
 
-  fun ref apply(input: U8): Bool =>
+  fun ref apply(term: ANSITerm ref, input: U8) =>
     """
     Receives input.
     """
-    try
-      match input
-      | 0x01 => home() // ctrl-a
-      | 0x02 => left() // ctrl-b
-      | 0x04 => delete() // ctrl-d
-      | 0x05 => end_key() // ctrl-e
-      | 0x06 => right() // ctrl-f
-      | 0x08 => _backspace() // ctrl-h
-      | 0x09 => _tab()
-      | 0x0A => _dispatch() // LF
-      | 0x0B =>
-        // ctrl-k, delete to the end of the line.
-        _edit.truncate(_cur_pos.u64())
-      | 0x0C => _clear() // ctrl-l
-      | 0x0D => _dispatch() // CR
-      | 0x0E => down() // ctrl-n
-      | 0x10 => up() // ctrl-p
-      | 0x14 => _swap() // ctrl-t
-      | 0x15 =>
-        // ctrl-u, delete the whole line.
-        _edit.clear()
-        home()
-      | 0x17 => _delete_prev_word() // ctrl-w
-      | 0x7F => _backspace() // backspace
-      | where input < 0x20 => None // unknown control character
-      else
-        // Insert.
-        _edit.insert_byte(_cur_pos, input)
-        _cur_pos = _cur_pos + 1
-        _refresh_line()
-      end
-
-      true
+    match input
+    | 0x01 => home() // ctrl-a
+    | 0x02 => left() // ctrl-b
+    | 0x04 => delete() // ctrl-d
+    | 0x05 => end_key() // ctrl-e
+    | 0x06 => right() // ctrl-f
+    | 0x08 => _backspace() // ctrl-h
+    | 0x09 => _tab()
+    | 0x0A => _dispatch(term) // LF
+    | 0x0B =>
+      // ctrl-k, delete to the end of the line.
+      _edit.truncate(_cur_pos.u64())
+    | 0x0C => _clear() // ctrl-l
+    | 0x0D => _dispatch(term) // CR
+    | 0x0E => down() // ctrl-n
+    | 0x10 => up() // ctrl-p
+    | 0x14 => _swap() // ctrl-t
+    | 0x15 =>
+      // ctrl-u, delete the whole line.
+      _edit.clear()
+      home()
+    | 0x17 => _delete_prev_word() // ctrl-w
+    | 0x7F => _backspace() // backspace
+    | where input < 0x20 => None // unknown control character
     else
-      _save_history()
-      false
+      // Insert.
+      _edit.insert_byte(_cur_pos, input)
+      _cur_pos = _cur_pos + 1
+      _refresh_line()
+    end
+
+  fun ref prompt(term: ANSITerm ref, value: String) =>
+    """
+    Set a new prompt, unblock, and handle the pending queue.
+    """
+    _cur_prompt = value
+    _blocked = false
+
+    try
+      let line = _queue.shift()
+      _add_history(line)
+      _out.print(_cur_prompt + line)
+      _handle_line(term, line)
+    else
+      _refresh_line()
     end
 
   fun ref closed() =>
@@ -268,50 +278,83 @@ class Readline is ANSINotify
       _refresh_line()
     end
 
-  fun ref _dispatch() ? =>
+  fun ref _dispatch(term: ANSITerm) =>
     """
     Send a finished line to the notifier.
     """
     if _edit.size() > 0 then
       let line: String = _edit = recover String end
-      _add_history(line)
-      _out.write("\n")
 
-      _cur_prompt = _notify(line)
-      _cur_pos = 0
-
-      _refresh_line()
+      if _blocked then
+        _queue.push(line)
+      else
+        _add_history(line)
+        _out.write("\n")
+        _handle_line(term, line)
+      end
     end
+
+  fun ref _handle_line(term: ANSITerm, line: String) =>
+    """
+    Dispatch a single line.
+    """
+    let promise = Promise[String]
+
+    promise.next[String](
+      recover this~_fulfill_prompt(term) end,
+      recover this~_reject_prompt(term) end
+      )
+
+    _notify(line, promise)
+    _cur_pos = 0
+    _blocked = true
+
+  fun tag _fulfill_prompt(term: ANSITerm, value: String): String =>
+    """
+    Tell the terminal, which will call `this.prompt(value)`.
+    """
+    term.prompt(value)
+    value
+
+  fun tag _reject_prompt(term: ANSITerm): String ? =>
+    """
+    Tell the terminal we've closed. Raise an error to reject any remaining
+    promise chain.
+    """
+    term.dispose()
+    error
 
   fun ref _refresh_line() =>
     """
     Refresh the line on screen.
     """
-    let len = 40 + _cur_prompt.size() + _edit.size()
-    let out = recover String(len) end
+    if not _blocked then
+      let len = 40 + _cur_prompt.size() + _edit.size()
+      let out = recover String(len) end
 
-    // Move to the left edge.
-    out.append("\r")
+      // Move to the left edge.
+      out.append("\r")
 
-    // Print the prompt.
-    out.append(_cur_prompt)
+      // Print the prompt.
+      out.append(_cur_prompt)
 
-    // Print the current line.
-    out.append(_edit.clone())
+      // Print the current line.
+      out.append(_edit.clone())
 
-    // Erase to the right edge.
-    out.append(ANSI.erase())
+      // Erase to the right edge.
+      out.append(ANSI.erase())
 
-    // Set the cursor position.
-    var pos = _cur_prompt.codepoints()
+      // Set the cursor position.
+      var pos = _cur_prompt.codepoints()
 
-    if _cur_pos > 0 then
-      pos = pos + _edit.codepoints(0, _cur_pos - 1)
+      if _cur_pos > 0 then
+        pos = pos + _edit.codepoints(0, _cur_pos - 1)
+      end
+
+      out.append("\r")
+      out.append(ANSI.right(pos))
+      _out.write(consume out)
     end
-
-    out.append("\r")
-    out.append(ANSI.right(pos))
-    _out.write(consume out)
 
   fun ref _add_history(line: String) =>
     """

@@ -2,8 +2,8 @@ interface ANSINotify
   """
   Receive input from an ANSITerm.
   """
-  fun ref apply(input: U8): Bool =>
-    true
+  fun ref apply(term: ANSITerm ref, input: U8) =>
+    None
 
   fun ref up(ctrl: Bool, alt: Bool, shift: Bool) =>
     None
@@ -36,6 +36,9 @@ interface ANSINotify
     None
 
   fun ref fn_key(i: U8, ctrl: Bool, alt: Bool, shift: Bool) =>
+    None
+
+  fun ref prompt(term: ANSITerm ref, value: String) =>
     None
 
   fun ref closed() =>

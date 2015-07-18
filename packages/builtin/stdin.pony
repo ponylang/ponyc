@@ -2,17 +2,23 @@ interface StdinNotify
   """
   Notification for data arriving via stdin.
   """
-  fun ref apply(data: Array[U8] iso): Bool =>
+  fun ref apply(data: Array[U8] iso) =>
     """
     Called when data is available on stdin.
     """
-    true
+    None
 
   fun ref closed() =>
     """
     Called when no more data will arrive on stdin.
     """
     None
+
+interface DisposeableActor tag
+  """
+  An interface used to asynchronously dispose of an actor.
+  """
+  be dispose()
 
 actor Stdin
   """
@@ -31,7 +37,19 @@ actor Stdin
 
   be apply(notify: (StdinNotify iso | None)) =>
     """
-    Replace the notifier.
+    Set the notifier.
+    """
+    _set_notify(consume notify)
+
+  be dispose() =>
+    """
+    Clear the notifier in order to shut down input.
+    """
+    _set_notify(None)
+
+  fun ref _set_notify(notify: (StdinNotify iso | None)) =>
+    """
+    Set the notifier.
     """
     if notify is None then
       if _use_event and not _event.is_null() then
@@ -104,13 +122,7 @@ actor Stdin
         end
 
         data.truncate(len)
-
-        if not notify(consume data) then
-          // Notifier is done. Close everything, stop reading.
-          _close_event()
-          _notify = None
-          return false
-        end
+        notify(consume data)
 
         if not again then
           // Not allowed to call os_stdin_read again yet, exit loop.
