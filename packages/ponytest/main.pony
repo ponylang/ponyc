@@ -9,6 +9,7 @@ actor Main
     test(recover _TestStringToU8 end)
     test(recover _TestStringToI8 end)
     test(recover _TestStringToIntLarge end)
+    test(recover _TestStringReplace end)
     test(recover _TestSpecialValuesF32 end)
     test(recover _TestSpecialValuesF64 end)
 
@@ -230,4 +231,16 @@ class _TestSpecialValuesF64 iso is UnitTest
     h.expect_false(F64(0.0 / 0.0).finite())
     h.expect_true(F64(0.0 / 0.0).nan())
 
+    true
+
+class _TestStringReplace iso is UnitTest
+  """
+  Test String.replace
+  """
+  fun name(): String => "builtin/String.replace"
+
+  fun apply(h: TestHelper): TestResult =>
+    let s = String.append("this is a robbery, this is a stickup")
+    s.replace("is a", "is not a")
+    h.expect_eq[String box](s, "this is not a robbery, this is not a stickup")
     true

@@ -690,6 +690,31 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     n
 
+  fun ref replace(from: String, to: String, n: U64 = 0): String ref^ =>
+    """
+    Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
+    occurrences will be replaced.
+    """
+    let from_len = from.size().i64() - 1
+    let to_len = to.size().i64()
+    var offset = I64(0)
+    var occur = U64(0)
+
+    try
+      while true do
+        offset = find(from, offset)
+        cut_in_place(offset, offset + from_len)
+        insert_in_place(offset, to)
+        offset = offset + to_len
+        occur = occur + 1
+
+        if (n > 0) and (occur >= n) then
+          break
+        end
+      end
+    end
+    this
+
   fun ref trim(): String ref^ =>
     """
     Trim leading and trailing whitespace. Whitespace is defined as ' ', \t,
