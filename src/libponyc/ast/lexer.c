@@ -515,15 +515,17 @@ static void normalise_string(lexer_t* lexer)
         size_t trim = (line_len < ws) ? line_len : ws;
         memmove(compacted, line_start + trim, line_len - trim);
         compacted += line_len - trim;
+        lexer->buflen -= trim;
       }
-      else {
+      else
+      {
         memmove(compacted, line_start, line_len);
         compacted += line_len;
+        lexer->buflen -= ws;
       }
 
       line_start += line_len;
       rem -= line_len;
-      lexer->buflen -= ws;
     }
   }
 

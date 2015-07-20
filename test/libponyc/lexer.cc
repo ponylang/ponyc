@@ -517,6 +517,16 @@ TEST_F(LexerTest, TripleStringStripsVariableLeadingWhitespace)
 }
 
 
+TEST_F(LexerTest, TripleStringStripsVariableLeadingWhitespaceWithBlankLines)
+{
+  const char* src = "\"\"\"   Foo\n     bar\n    \n   bat\n \"\"\"";
+
+  expect(1, 1, TK_STRING, "Foo\n  bar\n \nbat\n");
+  expect(5, 5, TK_EOF, "EOF");
+  DO(test(src));
+}
+
+
 TEST_F(LexerTest, TripleStringWithLeadingEmptyLine)
 {
   const char* src = "\"\"\"\nFoo\nbar\"\"\"";
@@ -576,6 +586,8 @@ TEST_F(LexerTest, EmptyStringAtEndOfSource)
   DO(test(src));
 }
 
+
+// Symbols after errors
 
 TEST_F(LexerTest, KeywordAfterError)
 {
