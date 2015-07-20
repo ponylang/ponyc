@@ -690,7 +690,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     n
 
-  fun ref replace(from: String, to: String, n: U64 = 0): String ref^ =>
+  fun ref replace(from: String box, to: String box, n: U64 = 0): String ref^ =>
     """
     Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
     occurrences will be replaced.
@@ -715,9 +715,70 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
+  fun split(delim: String = " \t\v\f\r\n", n: U64 = 0): Array[String] iso^ =>
+    """
+    Split the string into an array of strings. Any character in the delimiter
+    string is accepted as a delimiter. If `n > 0`, then the split count is
+    limited to n.
+
+    Adjacent delimiters result in a zero length entry in the array. For
+    example, `"1,,2".split(",") => ["1", "", "2"]`.
+    """
+    let result = recover Array[String] end
+
+    if _size > 0 then
+      let chars = Array[U32](delim.size())
+
+      for rune in delim.runes() do
+        chars.push(rune)
+      end
+
+      var cur = recover String end
+      var i = U64(0)
+      var occur = U64(0)
+
+      try
+        while i < _size do
+          (let c, let len) = utf32(i.i64())
+
+          try
+            // If we find a delimeter, add the current string to the array.
+            chars.find(c)
+            occur = occur + 1
+
+            if (n > 0) and (occur >= n) then
+              break
+            end
+
+            result.push(cur = recover String end)
+          else
+            // Add bytes to the current string.
+            var j = U8(0)
+
+            while j < len do
+              cur.push(_ptr._apply(i + j.u64()))
+              j = j + 1
+            end
+          end
+
+          i = i + len.u64()
+        end
+      end
+
+      // Add all remaining bytes to the current string.
+      while i < _size do
+        cur.push(_ptr._apply(i))
+        i = i + 1
+      end
+
+      result.push(consume cur)
+    end
+
+    consume result
+
   fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
     """
-    Remove all leading and trailing characters from the string that are in s. 
+    Remove all leading and trailing characters from the string that are in s.
     """
     lstrip(s).rstrip(s)
 

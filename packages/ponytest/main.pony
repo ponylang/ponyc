@@ -14,6 +14,7 @@ actor Main
     test(recover _TestStringStrip end)
     test(recover _TestStringRemove end)
     test(recover _TestStringReplace end)
+    test(recover _TestStringSplit end)
     test(recover _TestSpecialValuesF32 end)
     test(recover _TestSpecialValuesF64 end)
 
@@ -319,3 +320,30 @@ class _TestStringReplace iso is UnitTest
     s.replace("is a", "is not a")
     h.expect_eq[String box](s, "this is not a robbery, this is not a stickup")
     true
+
+class _TestStringSplit iso is UnitTest
+  """
+  Test String.split
+  """
+  fun name(): String => "builtin/String.split"
+
+  fun apply(h: TestHelper): TestResult =>
+    try
+      var r = "1 2 3  4".split()
+      h.expect_eq[U64](r.size(), 5)
+      h.expect_eq[String](r(0), "1")
+      h.expect_eq[String](r(1), "2")
+      h.expect_eq[String](r(2), "3")
+      h.expect_eq[String](r(3), "")
+      h.expect_eq[String](r(4), "4")
+
+      r = "1 2 3  4".split(where n = 3)
+      h.expect_eq[U64](r.size(), 3)
+      h.expect_eq[String](r(0), "1")
+      h.expect_eq[String](r(1), "2")
+      h.expect_eq[String](r(2), "3  4")
+
+      true
+    else
+      false
+    end
