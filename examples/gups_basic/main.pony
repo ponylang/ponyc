@@ -61,11 +61,11 @@ actor Main
     var options = Options(_env)
 
     options
-      .add("logtable", "l", None, I64Argument)
-      .add("iterate", "i", None, I64Argument)
-      .add("chunk", "c", None, I64Argument)
-      .add("streamers", "s", None, I64Argument)
-      .add("updaters", "u", None, I64Argument)
+      .add("logtable", "l", I64Argument)
+      .add("iterate", "i", I64Argument)
+      .add("chunk", "c", I64Argument)
+      .add("streamers", "s", I64Argument)
+      .add("updaters", "u", I64Argument)
 
     for option in options do
       match option
@@ -74,7 +74,7 @@ actor Main
       | ("chunk", var arg: I64) => _chunk = arg.u64()
       | ("streamers", var arg: I64) => _streamer_count = arg.u64()
       | ("updaters", var arg: I64) => _updater_count = arg.u64()
-      | ParseError => usage() ; error
+      | let err: ParseError => err.report(_env.out) ; usage() ; error
       end
     end
 

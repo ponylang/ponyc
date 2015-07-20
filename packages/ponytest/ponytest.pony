@@ -228,15 +228,15 @@ actor PonyTest
     // may need reworking when it's sorted out
     var opts = Options(_env)
 
-    opts.usage_text(
+    opts/*.usage_text(
       """
       ponytest [OPTIONS]
 
       Options:
-      """)
-      .add("sequential", "s", "Tests run sequentially.", None)
-      .add("verbose", "v", "Show verbose logs.", None)
-      .add("filter", "f", "Only run the tests matching the given regex.",
+      """)*/
+      .add("sequential", "s"/*, "Tests run sequentially."*/, None)
+      .add("verbose", "v"/*, "Show verbose logs."*/, None)
+      .add("filter", "f"/*,"Only run the tests matching the given regex."*/,
         StringArgument)
 
     for option in opts do
@@ -250,9 +250,9 @@ actor PonyTest
           _env.out.print("Invalid regular expression \"" + arg + "\"")
           _do_nothing = true
         end
-      | (None, None) => None
-      else
-        opts.usage()
+      | let failure: ParseError =>
+        //opts.usage()
+        failure.report(_env.out)
         _do_nothing = true
       end
     end

@@ -47,5 +47,5 @@ actor Main
       env.out.print(idx2.string())
     end
 
-    var j = recover val String.append("  \thi!\r\n").trim() end
+    var j = recover val String.append("  \thi!\r\n").strip() end
     env.out.print("[" + j.size().string() + ": " + j + "]")

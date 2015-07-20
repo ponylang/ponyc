@@ -2,77 +2,59 @@ use "options"
 
 actor Main
   new create(env: Env) =>
+    // defaults to fatal error, to continue parsing supply 'false' as second
+    // param.
     var opt = Options(env)
 
     opt
-      .usage_text(
-        """
-        ponyc [OPTIONS] <package directory>
-
-        The package directory defaults to the current directory.
-
-        Often needed options:
-        """
-        )
-      .add("opt", "O", "Optimise the output.", None)
-      .add("path", "p", "Add an additional search path.", StringArgument)
-      .add("output", "o", "Write output to this directory.", StringArgument)
-      .usage_text("Rarely needed options:")
-      .add("ieee-math", None, "Force strict IEEE 754 compliance.", None)
-      .add("cpu", "c", "Set the target CPU.", StringArgument)
-      .add("features", "f", "CPU features to enable or disable.",
-        StringArgument)
-      .add("triple", None, "Set the target triple.", None)
-      .usage_text("Debugging options:")
-      .add("pass", "r", "Restrict phases.", StringArgument)
-        .param("parse", None)
-        .param("parsefix", None)
-        .param("sugar", None)
-        .param("scope1", None)
-        .param("name", None)
-        .param("flatten", None)
-        .param("traits", None)
-        .param("scope2", None)
-        .param("expr", None)
-        .param("ir", "Output LLVM IR.")
-        .param("bitcode", "Output LLVM bitcode.")
-        .param("asm", "Output assembly")
-        .param("obj", "Output an object file.")
-        .param("all", "The default: generate an executable.")
-      .add("ast", "a", "Output an abstract syntax tree.", None)
-      .add("trace", "t", "Enable parse trace.", None)
-      .add("width", "w", "Width to target when printing the AST.", I64Argument)
-      .add("immerr", None, "Report errors immediately rather than deferring.",
-        None)
+      .add("version", "v")
+      .add("debug", "d")
+      .add("strip", "s")
+      .add("path", "p", StringArgument)
+      .add("output", "o", StringArgument) 
+      .add("library", "l")
+      .add("safe", None, StringArgument, Optional)
+      .add("ieee-math")
+      .add("restrict")
+      .add("cpu", None, StringArgument)
+      .add("features", None, StringArgument)
+      .add("triple", None, StringArgument)
+      .add("stats")
+      .add("pass", "r", StringArgument)
+      .add("ast", "a")
+      .add("trace", "t")
+      .add("width", "w", I64Argument)
+      .add("immerr")
+      .add("verify")
+      .add("bnf")
+      .add("antlr")
+      .add("antlrraw")
 
     for option in opt do
-      //Since short option names are optional, matching is based on the
-      //long opt.
       match option
-      | ("opt", None) =>
-          env.out.print("Output will be optimised!")
-      | ("path", var arg: String) =>
-          env.out.print("Search path: " + arg)
-      | ("output", var arg: String) =>
-          env.out.print("Output path: " + arg)
-      | ("ieee-math", None) =>
-          env.out.print("Enforce IEEE 754 math")
-      | ("cpu", var arg: String) =>
-          env.out.print("Target CPU: " + arg)
-      | ("features", var arg: String) =>
-          env.out.print("Feature settings: " + arg)
-      | ("triple", var arg: String) =>
-          env.out.print("Target triple: " + arg)
-      | ("pass", var arg: String) =>
-          env.out.print("Restrict phase to: " + arg)
-      | ("ast", None) =>
-          env.out.print("Printing an AST!")
-      | ("trace", None) =>
-          env.out.print("Enable trace parse!")
-      | ("width", var arg: I64) =>
-          env.out.print("Target AST width: " + arg.string())
-      | ("immerr", None) =>
-          env.out.print("Errors will be reported immediately!")
-      | ParseError => env.out.print("Giving up!") //opt.usage()
+      | ("version", None) => env.out.print("Print version!")
+      | ("debug", None) => env.out.print("Output will be not optimised!")
+      | ("strip", None) => env.out.print("Strip debug symbols!")
+      | ("path", let arg: String) => env.out.print("Search path: " + arg)
+      | ("output", let arg: String) => env.out.print("Output path: " + arg)
+      | ("library", None) => env.out.print("A library will be produced!")
+      | ("safe", None) => env.out.print("C-FFI: builtin")
+      | ("safe", let arg: String) => env.out.print("C-FFI: " + arg)
+      | ("ieee-math", None) => env.out.print("Enforce IEEE 754 math")
+      | ("restrict", None) => env.out.print("Fortran pointer semantics!")
+      | ("cpu", let arg: String) => env.out.print("Target CPU: " + arg)
+      | ("features", let arg: String) => env.out.print("Features: " + arg)
+      | ("triple", let arg: String) => env.out.print("Target triple: " + arg)
+      | ("stats", None) => env.out.print("Print compilation stats!")
+      | ("pass", let arg: String) => env.out.print("Pass limit: " + arg)
+      | ("ast", None) => env.out.print("Printing an AST!")
+      | ("trace", None) => env.out.print("Enable trace parse!")
+      | ("width", let arg: I64) => env.out.print("AST width: " + arg.string())
+      | ("immerr", None) => env.out.print("Report errors immediately!")
+      | ("verify", None) => env.out.print("Verify LLVM IR!")
+      | ("bnf", None) => env.out.print("Output human readable BNF!")
+      | ("antlr", None) => env.out.print("Produce ANTLR output!")
+      | ("antlrraw", None) => env.out.print("ANTLRRAW")
+      | let failure: ParseError => failure.report(env.out) ; env.exitcode(-1)
       end
     end
