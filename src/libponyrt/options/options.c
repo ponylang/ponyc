@@ -28,7 +28,10 @@ static bool has_argument(opt_state_t* s)
 
 static void parse_option_name(opt_state_t* s)
 {
-  s->opt_start = (s->argv[s->idx] + 1 + (s->argv[s->idx][1] == '-'));
+  bool is_long_opt = s->argv[s->idx][1] == '-';
+
+  s->match_type = is_long_opt ? MATCH_LONG : MATCH_SHORT;
+  s->opt_start = (s->argv[s->idx] + 1 + is_long_opt);
 
   for(s->opt_end = s->opt_start; *s->opt_end && *s->opt_end != '=';
     s->opt_end++);
@@ -36,7 +39,6 @@ static void parse_option_name(opt_state_t* s)
 
 static const opt_arg_t* find_match(opt_state_t* s)
 {
-  bool ambig = false;
   size_t match_length;
 
   const char* match_name;
@@ -44,47 +46,36 @@ static const opt_arg_t* find_match(opt_state_t* s)
 
   parse_option_name(s);
 
-  for(s->match_type = MATCH_LONG; s->match_type <= MATCH_SHORT; ++s->match_type)
+  for(const opt_arg_t* p = s->args; !end_reached(p); ++p)
   {
-    for(const opt_arg_t* p = s->args; !end_reached(p); ++p)
+    if(s->match_type == MATCH_LONG)
     {
-      if(s->match_type == MATCH_LONG)
-      {
-        match_name = p->long_opt;
-        match_length = (size_t)(s->opt_end - s->opt_start);
-      }
-      else
-      {
-        match_name = &p->short_opt;
-        match_length = 1;
-      }
-
-      if(!strncmp(match_name, s->opt_start, match_length))
-      {
-        if(match_length == strlen(match_name))
-        {
-          // Exact match found. It is necessary to check for
-          // the length of p->long_opt since there might be
-          // options that are prefixes of another (strncmp),
-          // and short options might be grouped.
-          match = p;
-          break;
-        }
-        else if((match != NULL) && (match->id != p->id))
-        {
-          ambig = true;
-        }
-      }
+      match_name = p->long_opt;
+      match_length = (size_t)(s->opt_end - s->opt_start);
+    }
+    else
+    {
+      match_name = &p->short_opt;
+      match_length = 1;
     }
 
-    if(ambig && s->match_type == MATCH_SHORT)
-      return (opt_arg_t*)1;
-    else if(match != NULL)
-      return match;
+    if(!strncmp(match_name, s->opt_start, match_length))
+    {
+      if(match_length == strlen(match_name))
+      {
+        // Exact match found. It is necessary to check for
+        // the length of p->long_opt since there might be
+        // options that are prefixes of another (strncmp),
+        // and short options might be grouped.
+        if((match != NULL) && (match->id != p->id))
+          return (opt_arg_t*)1;
+        
+        match = p;
+      }
+    }
   }
 
-  s->match_type = MATCH_NONE;
-  return NULL;
+  return match;
 }
 
 static bool is_positional(const opt_state_t* s)
