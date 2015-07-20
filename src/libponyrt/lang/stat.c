@@ -60,6 +60,11 @@ void filetime_to_ts(FILETIME* ft, int64_t* s, int64_t* ns)
 static void windows_stat(pony_stat_t* p, struct __stat64* st,
   DWORD attr, FILETIME* access, FILETIME* write, FILETIME* create)
 {
+  WIN32_FILE_ATTRIBUTE_DATA fa;
+
+  if(!GetFileAttributesEx((char*)p->path, GetFileExInfoStandard, &fa))
+    return;
+
   p->symlink = (attr & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
   p->broken = false;
 

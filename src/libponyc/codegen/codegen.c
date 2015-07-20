@@ -668,7 +668,12 @@ const char* suffix_filename(const char* dir, const char* prefix,
   char* filename = (char*)pool_alloc_size(len);
 
   // Start with no suffix.
+#ifdef PLATFORM_IS_WINDOWS
+  snprintf(filename, len, "%s\\%s%s%s", dir, prefix, file, extension);
+#else
   snprintf(filename, len, "%s/%s%s%s", dir, prefix, file, extension);
+#endif
+
   int suffix = 0;
 
   while(suffix < 100)
@@ -680,8 +685,13 @@ const char* suffix_filename(const char* dir, const char* prefix,
     if((err == -1) || !S_ISDIR(s.st_mode))
       break;
 
+#ifdef PLATFORM_IS_WINDOWS
+    snprintf(filename, len, "%s\\%s%s%d%s", dir, prefix, file, ++suffix,
+      extension);
+#else
     snprintf(filename, len, "%s/%s%s%d%s", dir, prefix, file, ++suffix,
       extension);
+#endif
   }
 
   if(suffix >= 100)
