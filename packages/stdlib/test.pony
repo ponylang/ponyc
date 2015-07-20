@@ -1,9 +1,35 @@
-use "collections"
+"""
+# Pony Standard Library
+
+This package represents the test suite for the Pony standard library.
+
+For every new package, please add a Main actor and tests to the package in a 
+file called 'test.pony'. Then add a corresponding use directive and a line to 
+the main actor constructor of this package to invoke those tests.
+
+All tests can be run by compiling and running packages/stdlib.  
+"""
+use "ponytest"
+use capsicum = "capsicum"
+use collections = "collections"
+use base64 = "encode/base64"
+use files = "files"
+use math = "math"
+use net = "net"
+use http = "net/http"
+use ssl = "net/ssl"
+use options = "options"
+use random = "random"
+use promises = "promises"
+use regex = "regex"
+use term = "term"
+use time = "time"
 
 actor Main
   new create(env: Env) =>
     var test = PonyTest(env)
-
+    
+    // Tests for the builtin package.
     test(recover _TestStringRunes end)
     test(recover _TestIntToString end)
     test(recover _TestStringToU8 end)
@@ -17,6 +43,13 @@ actor Main
     test(recover _TestStringSplit end)
     test(recover _TestSpecialValuesF32 end)
     test(recover _TestSpecialValuesF64 end)
+
+    // Tests for all other packages.
+    collections.Main(env)
+    base64.Main(env)
+    net.Main(env)
+    http.Main(env)
+    options.Main(env)
 
     test.complete()
 
@@ -38,7 +71,7 @@ class _TestStringRunes iso is UnitTest
 
     h.expect_eq[U64](expect.size(), result.size())
 
-    for i in Range(0, expect.size()) do
+    for i in collections.Range(0, expect.size()) do
       h.expect_eq[U32](expect(i), result(i))
     end
 

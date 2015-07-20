@@ -442,9 +442,9 @@ uninstall:
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -s test/pony/unit
-	@./unit
-	@rm unit
+	@$(PONY_BUILD_DIR)/ponyc -s packages/stdlib
+	@./stdlib
+	@rm stdlib
 
 ifeq ($(git),yes)
 setversion:
