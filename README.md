@@ -97,7 +97,7 @@ All installers can also be downloaded from ponylang.org's servers:
 * [RPM](http://ponylang.org/releases/yum)
 * [Windows](http://ponylang.org/releases/windows)
 
-# Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
+# Building on Linux [![build status](http://ci.ponylang.org/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
