@@ -400,7 +400,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
     i
 
-  fun at(s: String box, offset: I64): Bool =>
+  fun at(s: String box, offset: I64 = 0): Bool =>
     """
     Returns true if the substring s is present at the given offset.
     """
@@ -412,7 +412,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
       false
     end
 
-  fun ref delete(offset: I64, len: U64): String ref^ =>
+  fun ref delete(offset: I64, len: U64 = 1): String ref^ =>
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
@@ -426,7 +426,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
-  fun substring(from: I64, to: I64): String iso^ =>
+  fun substring(from: I64, to: I64 = -1): String iso^ =>
     """
     Returns a substring. From and to are inclusive. Returns an empty string if
     nothing is in the range.
@@ -643,7 +643,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     _set(_size, 0)
     this
 
-  fun cut(from: I64, to: I64): String iso^ =>
+  fun cut(from: I64, to: I64 = -1): String iso^ =>
     """
     Returns a version of the string with the given range deleted. The range is
     inclusive.
@@ -652,7 +652,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: I64, to: I64): String ref^ =>
+  fun ref cut_in_place(from: I64, to: I64 = -1): String ref^ =>
     """
     Cuts the given range out of the string.
     """
