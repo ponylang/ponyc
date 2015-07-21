@@ -515,18 +515,18 @@ static void normalise_string(lexer_t* lexer)
         size_t trim = (line_len < ws) ? line_len : ws;
         memmove(compacted, line_start + trim, line_len - trim);
         compacted += line_len - trim;
-        lexer->buflen -= trim;
       }
       else
       {
         memmove(compacted, line_start, line_len);
         compacted += line_len;
-        lexer->buflen -= ws;
       }
 
       line_start += line_len;
       rem -= line_len;
     }
+
+    lexer->buflen = compacted - lexer->buffer;
   }
 
   // Trim a leading newline if there is one.
@@ -537,7 +537,8 @@ static void normalise_string(lexer_t* lexer)
     lexer->buflen -= 2;
     memmove(&buf[0], &buf[2], lexer->buflen);
   }
-  else if(buf[0] == '\n') {
+  else if(buf[0] == '\n')
+  {
     lexer->buflen--;
     memmove(&buf[0], &buf[1], lexer->buflen);
   }
