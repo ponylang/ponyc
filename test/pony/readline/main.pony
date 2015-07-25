@@ -44,7 +44,7 @@ actor Main
         fun ref apply(data: Array[U8] iso) =>
           term(consume data)
 
-        fun ref closed() =>
+        fun ref dispose() =>
           term.dispose()
       end
     end
