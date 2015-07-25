@@ -18,7 +18,7 @@ actor ANSITerm
   """
   Handles ANSI escape codes from stdin.
   """
-  let _timers: Timers = Timers
+  let _timers: Timers
   var _timer: (Timer tag | None) = None
   let _notify: ANSINotify
   let _source: DisposeableActor
@@ -28,10 +28,13 @@ actor ANSITerm
   let _esc_buf: Array[U8] = Array[U8]
   var _closed: Bool = false
 
-  new create(notify: ANSINotify iso, source: DisposeableActor) =>
+  new create(notify: ANSINotify iso, source: DisposeableActor,
+    timers: Timers = Timers)
+  =>
     """
     Create a new ANSI term.
     """
+    _timers = timers
     _notify = consume notify
     _source = source
 
