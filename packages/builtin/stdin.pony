@@ -8,7 +8,7 @@ interface StdinNotify
     """
     None
 
-  fun ref closed() =>
+  fun ref dispose() =>
     """
     Called when no more data will arrive on stdin.
     """
@@ -67,7 +67,7 @@ actor Stdin
       end
     end
 
-    try (_notify as StdinNotify).closed() end
+    try (_notify as StdinNotify).dispose() end
     _notify = consume notify
 
   be _loop_read() =>
@@ -116,7 +116,7 @@ actor Stdin
         | 0 =>
           // EOF. Close everything, stop reading.
           _close_event()
-          notify.closed()
+          notify.dispose()
           _notify = None
           return false
         end
