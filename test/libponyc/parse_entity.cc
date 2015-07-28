@@ -56,7 +56,8 @@ TEST_F(ParseEntityTest, ActorMaximal)
     "  let f1:T1"
     "  let f2:T2 = 5"
     "  var f3:P3.T3"
-    "  var f4:T4 delegate T5 = 9"
+    //"  var f4:T4 delegate T5 = 9"
+    "  var f4:T4 = 9"
     "  new m1() => 1"
     "  be m2() => 2"
     "  fun ref m3() => 3";
@@ -108,7 +109,8 @@ TEST_F(ParseEntityTest, ClassMaximal)
     "  let f1:T1"
     "  let f2:T2 = 5"
     "  var f3:P3.T3"
-    "  var f4:T4 delegate T5 = 9"
+    //"  var f4:T4 delegate T5 = 9"
+    "  var f4:T4 = 9"
     "  new m1() => 1"
     "  fun ref m2() => 2";
 
@@ -595,6 +597,7 @@ TEST_F(ParseEntityTest, LetFieldMustHaveType)
 }
 
 
+/*
 TEST_F(ParseEntityTest, FieldDelegate)
 {
   const char* src =
@@ -653,6 +656,7 @@ TEST_F(ParseEntityTest, FieldDelegateCannotHaveCapability)
 
   TEST_ERROR(src);
 }
+*/
 
 
 // Use command
