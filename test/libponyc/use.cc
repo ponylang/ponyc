@@ -60,31 +60,6 @@ protected:
     _options.release = true;
     use_test_handler(handler, false);
   }
-
-  /*
-  void test_use(const char* before, const char* after, bool expect)
-  {
-    free_errors();
-
-    // Build the before description into an AST
-    builder_t* builder;
-    ast_t* actual_ast;
-    DO(build_ast_from_string(before, &actual_ast, &builder));
-    ASSERT_NE((void*)NULL, actual_ast);
-
-    ASSERT_EQ(expect, use_command(actual_ast, &_options));
-
-    if(call_a_count > 0 || call_b_count > 0)
-    {
-      ASSERT_EQ(actual_ast, received_ast);
-      ASSERT_EQ(&_options, received_options);
-    }
-
-    DO(check_tree(after, actual_ast));
-
-    builder_free(builder);
-  }
-  */
 };
 
 

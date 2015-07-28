@@ -345,11 +345,8 @@ TEST_F(TraitsTest, ClassBodyNotOverriddenByTrait)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("C", TK_CLASS);
-  LOOKUP("f", TK_FUN);
-  METHOD_BODY;
-  CHILD(0);
+  DO(lookup_member("C", "f", TK_FUN));
+  DO(child(6); child(0));
 
   ASSERT_EQ(2, ast_int(walk_ast));
 }
@@ -484,11 +481,9 @@ TEST_F(TraitsTest, ReverseContravariantBodyNotInheritted)
     "  fun f(x: AB)";
 
   TEST_COMPILE(src);
-
-  WALK_TREE(package);
-  LOOKUP("T2", TK_TRAIT);
-  LOOKUP("f", TK_FUN);
-  METHOD_BODY;
+  
+  DO(lookup_member("T2", "f", TK_FUN));
+  DO(child(6));
 
   ASSERT_EQ(TK_NONE, ast_id(walk_ast));
 }
