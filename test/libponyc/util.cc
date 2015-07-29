@@ -11,6 +11,7 @@
 #include "util.h"
 #include <string.h>
 #include <string>
+#include <assert.h>
 
 using std::string;
 
@@ -35,6 +36,44 @@ static const char* _builtin =
   "primitive F64\n"
   "primitive None\n"
   "primitive Bool";
+
+
+// Replace any underscores in the given type string with "DontCare" and append
+// it to the other given string
+static void append_type(const char* type, string* target)
+{
+  assert(type != NULL);
+  assert(target != NULL);
+
+  for(const char* p = type; *p != '\0'; p++)
+  {
+    if(*p == '_')
+      target->append("DontCare");
+    else
+      target->push_back(*p);
+  }
+}
+
+
+// Replace any nominal references to "DontCare" in the given AST with
+// TK_DONTCAREs
+static void replace_dontcares(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  if(ast_id(ast) == TK_NOMINAL)
+  {
+    if(strcmp(ast_name(ast_childidx(ast, 1)), "DontCare") == 0)
+    {
+      ast_erase(ast);
+      ast_setid(ast, TK_DONTCARE);
+      return;
+    }
+  }
+
+  for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
+    replace_dontcares(p);
+}
 
 
 // class PassTest
@@ -128,48 +167,60 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
 
 
 void PassTest::generate_types(const char* extra_src, const char* type1,
-  const char* type2, const char* type3, const char* type4)
+  const char* type2, const char* type3,
+  const char* typeparam1_name, const char* tp1_constraint,
+  const char* typeparam2_name, const char* tp2_constraint)
 {
-  ASSERT_NE((void*)NULL, extra_src);
+  assert(extra_src != NULL);
+  assert(type1 != NULL);
 
-  string t1 = (type1 == NULL) ? "None" : type1;
-  string t2 = (type2 == NULL) ? "None" : type2;
-  string t3 = (type3 == NULL) ? "None" : type3;
-  string t4 = (type4 == NULL) ? "None" : type4;
+  if(type2 == NULL) type2 = "None";
+  if(type3 == NULL) type3 = "None";
+  if(typeparam1_name == NULL) typeparam1_name = "TP1";
+  if(typeparam2_name == NULL) typeparam2_name = "TP2";
 
   // First setup our program source
-  string program =
-    "actor GenTypes\n"
-    "  fun f("
-    "    t1: " + t1 + ","
-    "    t2: " + t2 + ","
-    "    t3: " + t3 + ","
-    "    t4: " + t4 + ")\n"
-    "  =>\n"
-    "    None\n"
-    "\n";
+  string prog_src =
+    "primitive DontCare\n"
+    "actor GenTypes[";
 
-  program += extra_src;
+  prog_src += typeparam1_name;
+
+  if(tp1_constraint != NULL)
+    prog_src += string(": ") + tp1_constraint;
+
+  prog_src += string(", ") + typeparam2_name;
+
+  if(tp2_constraint != NULL)
+    prog_src += string(": ") + tp2_constraint;
+
+  prog_src += "]\n";
+  prog_src += "  fun f(p1: ";
+  append_type(type1, &prog_src);
+  prog_src += ", p2: ";
+  append_type(type2, &prog_src);
+  prog_src += ", p3: ";
+  append_type(type3, &prog_src);
+  prog_src += ") => None\n\n";
+  prog_src += extra_src;
 
   // Next build our program
-  DO(test_compile(program.c_str(), "expr"));
+  DO(test_compile(prog_src.c_str(), "expr"));
 
   // Finally, extract the resulting type ASTs
   DO(lookup_member("GenTypes", "f", TK_FUN));
   DO(child(3); check(TK_PARAMS));
-  ast_t* vars = walk_ast;
+  ast_t* params = walk_ast;
+  replace_dontcares(params);
 
-  DO(child(0); check(TK_PARAM); child(1));
+  DO(child(0); child(1));
   prog_type_1 = walk_ast;
 
-  DO(walk(vars); child(1); check(TK_PARAM); child(1));
+  DO(walk(params); child(1); child(1));
   prog_type_2 = walk_ast;
 
-  DO(walk(vars); child(2); check(TK_PARAM); child(1));
+  DO(walk(params); child(2); child(1));
   prog_type_3 = walk_ast;
-
-  DO(walk(vars); child(3); check(TK_PARAM); child(1));
-  prog_type_4 = walk_ast;
 }
 
 

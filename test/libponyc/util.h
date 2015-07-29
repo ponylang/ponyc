@@ -43,14 +43,16 @@ protected:
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void check_ast_same(ast_t* expect, ast_t* actual);
 
-  // Generate a program containing the specified types. The resulting ASTs are
-  // stored in the prog_type_* members.
-  // Pass NULL for any unneeded types.
+  // Generate a program containing the specified types.
+  // Note that types may include don't cares.
+  // The resulting ASTs are stored in the prog_type_* members.
   // The extra_src param gives any extra Pony src, such as typedefs, needed.
   // Pass "" for this if not needed.
   // Errors are checked with ASSERTs, call in ASSERT_NO_FATAL_FAILURE.
   void generate_types(const char* extra_src, const char* type1,
-    const char* type2, const char* type3, const char* type4);
+    const char* type2 = NULL, const char* type3 = NULL,
+    const char* typeparam1_name = NULL, const char* tp1_constraint = NULL,
+    const char* typeparam2_name = NULL, const char* tp2_constraint = NULL);
 
 
   // Test methods.

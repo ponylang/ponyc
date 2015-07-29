@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 
-const char* src =
+static const char* src =
   "trait T1\n"
   "  fun f()\n"
 
@@ -56,7 +56,7 @@ protected:
     ASSERT_NE((void*)NULL, fn);
     ASSERT_NE((void*)NULL, type);
 
-    DO(generate_types(src, type, NULL, NULL, NULL));
+    DO(generate_types(src, type));
     ASSERT_EQ(expect, fn(prog_type_1));
     TearDown();
   }
@@ -68,7 +68,7 @@ protected:
     ASSERT_NE((void*)NULL, type_a);
     ASSERT_NE((void*)NULL, type_b);
 
-    DO(generate_types(src, type_a, type_b, NULL, NULL));
+    DO(generate_types(src, type_a, type_b));
     ASSERT_EQ(expect, fn(prog_type_1, prog_type_2));
     TearDown();
   }
@@ -154,6 +154,24 @@ TEST_F(SubTypeTest, IsSubType)
   DO(test_binary(is_subtype, "(C1, C2)", "(T2, T1)", false));
   DO(test_binary(is_subtype, "(T1, T2)", "(T1, T2)", true));
   DO(test_binary(is_subtype, "(T1, T2)", "(C1, C2)", false));
+
+  // capabilitites
+  DO(test_binary(is_subtype, "C1 ref", "T1 ref", true));
+  DO(test_binary(is_subtype, "C1 val", "T1 val", true));
+  DO(test_binary(is_subtype, "C1 box", "T1 box", true));
+  DO(test_binary(is_subtype, "C1 ref", "T1 box", true));
+  DO(test_binary(is_subtype, "C1 val", "T1 box", true));
+  DO(test_binary(is_subtype, "C1 ref", "T1 tag", true));
+  DO(test_binary(is_subtype, "C1 iso", "T1 ref", true));
+  DO(test_binary(is_subtype, "C1 iso", "T1 val", true));
+  DO(test_binary(is_subtype, "C1 iso", "T1 box", true));
+  DO(test_binary(is_subtype, "C1 iso", "T1 tag", true));
+  DO(test_binary(is_subtype, "C1 ref", "T1 val", false));
+  DO(test_binary(is_subtype, "C1 val", "T1 ref", false));
+  DO(test_binary(is_subtype, "C1 box", "T1 ref", false));
+  DO(test_binary(is_subtype, "C1 box", "T1 val", false));
+  DO(test_binary(is_subtype, "C1 tag", "T1 box", false));
+  DO(test_binary(is_subtype, "C1 tag", "T1 iso", false));
 }
 
 
@@ -179,6 +197,17 @@ TEST_F(SubTypeTest, IsEqType)
 
   DO(test_binary(is_eqtype, "C1", "T1", false));
   DO(test_binary(is_eqtype, "T1", "C1", false));
+
+  DO(test_binary(is_eqtype, "C1 iso", "C1 iso", true));
+  DO(test_binary(is_eqtype, "C1 ref", "C1 ref", true));
+  DO(test_binary(is_eqtype, "C1 val", "C1 val", true));
+  DO(test_binary(is_eqtype, "C1 box", "C1 box", true));
+  DO(test_binary(is_eqtype, "C1 tag", "C1 tag", true));
+  DO(test_binary(is_eqtype, "C1 iso", "C1 ref", false));
+  DO(test_binary(is_eqtype, "C1 ref", "C1 val", false));
+  DO(test_binary(is_eqtype, "C1 val", "C1 ref", false));
+  DO(test_binary(is_eqtype, "C1 box", "C1 val", false));
+  DO(test_binary(is_eqtype, "C1 box", "C1 ref", false));
 }
 
 
