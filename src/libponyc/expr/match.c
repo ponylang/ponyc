@@ -261,7 +261,13 @@ static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
 
       if((ok != MATCHTYPE_ACCEPT) && errors)
       {
-        ast_error(pattern, "this capture can never match");
+        if(ok == MATCHTYPE_DENY)
+          ast_error(pattern, "this capture could violate capabilities, "
+            "variable %s may make more guarantees than the match operand",
+            ast_name(ast_child(pattern)));
+        else
+          ast_error(pattern, "this capture can never match");
+
         ast_error(a_type, "match type alias: %s", ast_print_type(a_type));
         ast_error(capture_type, "capture type: %s",
           ast_print_type(capture_type));
