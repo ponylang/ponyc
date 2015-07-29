@@ -94,7 +94,6 @@ rather than standard use.
 
 use "collections"
 use "options"
-use "regex"
 use "term"
 
 
@@ -108,7 +107,7 @@ actor PonyTest
   let _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
   var _do_nothing: Bool = false
-  var _filter: (Regex | None) = None
+  var _filter: String = ""
   var _verbose: Bool = false
   var _sequential: Bool = false
   var _started: U64 = 0
@@ -131,12 +130,9 @@ actor PonyTest
 
     var name = test.name()
 
-    // Ignore any tests that don't satisfy our filter, if we have one
-    match _filter
-    | var filter: Regex =>
-      if filter != name then
-        return
-      end
+    // Ignore any tests that don't satisfy our filter
+    if not name.at(_filter, 0) then
+      return
     end
 
     _any_found = true
@@ -236,20 +232,15 @@ actor PonyTest
       """)*/
       .add("sequential", "s"/*, "Tests run sequentially."*/, None)
       .add("verbose", "v"/*, "Show verbose logs."*/, None)
-      .add("filter", "f"/*,"Only run the tests matching the given regex."*/,
+      .add("filter", "f"
+        /*,"Only run the tests whose names start with the given prefix."*/,
         StringArgument)
 
     for option in opts do
       match option
       | ("sequential", None) => _sequential = true
       | ("verbose", None) => _verbose = true
-      | ("filter", var arg: String) =>
-        try
-          _filter = Regex(arg)
-        else
-          _env.out.print("Invalid regular expression \"" + arg + "\"")
-          _do_nothing = true
-        end
+      | ("filter", var arg: String) => _filter = arg
       | let failure: ParseError =>
         //opts.usage()
         failure.report(_env.out)
