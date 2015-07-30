@@ -13,9 +13,14 @@
 
 static ast_t* make_create(ast_t* ast)
 {
+  assert(ast != NULL);
+
+  // Default constructors on classes can be iso, on actors they must be tag
+  token_id cap = (ast_id(ast) == TK_CLASS) ? TK_ISO : TK_NONE;
+
   BUILD(create, ast,
     NODE(TK_NEW, AST_SCOPE
-      NONE          // cap
+      NODE(cap)
       ID("create")  // name
       NONE          // typeparams
       NONE          // params
@@ -60,8 +65,12 @@ static bool has_member(ast_t* members, const char* name)
 }
 
 
-static void add_default_constructor(ast_t* members)
+static void add_default_constructor(ast_t* ast)
 {
+  assert(ast != NULL);
+
+  ast_t* members = ast_childidx(ast, 4);
+
   // If we have no uninitialised fields, no constructors, and no "create"
   // member, add a "create" constructor.
   if(has_member(members, "create"))
@@ -93,7 +102,7 @@ static void add_default_constructor(ast_t* members)
     member = ast_sibling(member);
   }
 
-  ast_append(members, make_create(members));
+  ast_append(members, make_create(ast));
 }
 
 
@@ -220,7 +229,7 @@ static ast_result_t sugar_member(ast_t* ast, bool add_create, bool add_eq,
   AST_GET_CHILDREN(ast, id, typeparams, defcap, traits, members);
 
   if(add_create)
-    add_default_constructor(members);
+    add_default_constructor(ast);
 
   if(ast_id(defcap) == TK_NONE)
     ast_setid(defcap, def_def_cap);

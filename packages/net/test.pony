@@ -1,17 +1,16 @@
 use "ponytest"
 
-actor Main
-  new create(env: Env) =>
-    let test = PonyTest(env)
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
     test(_TestBuffer)
-    test.complete()
 
 class _TestBuffer iso is UnitTest
   """
   Test adding to and reading from a Buffer.
   """
-  new iso create() => None
-
   fun name(): String => "net/Buffer"
 
   fun apply(h: TestHelper): TestResult ? =>

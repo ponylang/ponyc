@@ -1,13 +1,13 @@
 use "ponytest"
 
-actor Main
-  new create(env: Env) =>
-    let test = PonyTest(env)
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
     test(_TestURL)
-    test.complete()
 
 class _TestURL iso is UnitTest
-  new iso create() => None
   fun name(): String => "net/http/URL.build"
 
   fun apply(h: TestHelper): TestResult ? =>

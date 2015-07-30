@@ -18,34 +18,48 @@ function.
 
 ## Example program
 
-To use PonyTest simply write a class for each test and provide a list of those
-classes to a PonyTest object. The following is a complete program with 2
-trivial tests.
+To use PonyTest simply write a class for each test and a TestList type that
+tells the PonyTest object about the tests. Typically the TestList will be Main
+for the package.
+
+The following is a complete program with 2 trivial tests.
 
 ```
 use "ponytest"
 
-actor Main
+actor Main is TestList
   new create(env: Env) =>
-    var test = PonyTest(env)
-    test(recover TestAdd end)
-    test(recover TestSub end)
-    test.complete()
+    PonyTest(env, this)
 
-class TestAdd iso is UnitTest
+  new make() =>
+    None
+
+  fun tag tests(test: PonyTest) =>
+    test(_TestAdd)
+    test(_TestSub)
+
+class _TestAdd iso is UnitTest
   fun name():String => "addition"
 
   fun apply(h: TestHelper): TestResult =>
     h.assert_eq[U32](4, 2 + 2)
     true
 
-class TestSub iso is UnitTest
+class _TestSub iso is UnitTest
   fun name():String => "subtraction"
 
   fun apply(h: TestHelper): TestResult =>
-    h.assert_eq[U32](4, 4 - 2)
+    h.assert_eq[U32](2, 4 - 2)
     true
 ```
+
+The make() constructor is not needed for this example. However, it allows for
+easy aggregation of tests (see below) so it is recommended that all test Mains
+provide it.
+
+Main.create() is called only for program invocations on the current pacakge.
+Main.make() is called during aggregation. If so desired extra code can be added
+to either of these constructors to perform additional tasks.
 
 ## Test names
 
@@ -56,6 +70,36 @@ the names of the test classes in the Pony source code.
 Arbitrary strings can be used for these names, but for large projects it is
 strongly recommended to use a hierarchical naming scheme to make it easier to
 select groups of tests.
+
+## Aggregation
+
+Often it is desirable to run a collection of unit tests from multiple different
+source files. For example, if several packages within a bundle each have their
+own unit tests it may be useful to run all tests for the bundle together.
+
+This can be achieved by writing an aggregate test list class, which calls the
+list function for each package. The following is an example that aggregates the
+tests from packages `foo` and `bar`.
+
+```
+use "ponytest"
+use foo = "foo"
+use bar = "bar"
+
+actor Main is TestList
+  new create(env: Env) =>
+    PonyTest(env, this)
+
+  new make() =>
+    None
+
+  fun tag tests(test: PonyTest) =>
+    foo.Main.make().tests(test)
+    bar.Main.make().tests(test)
+```
+
+Aggregate test classes may themselves be aggregated. Every test list class may
+contain any combination of its own tests and aggregated lists.
 
 ## Long tests
 
@@ -90,7 +134,7 @@ concurrently with any other tests.
 The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
- """
+"""
 
 use "collections"
 use "options"
@@ -115,10 +159,16 @@ actor PonyTest
   var _any_found: Bool = false
   var _all_started: Bool = false
 
-  new create(env: Env) =>
+  new create(env: Env, list: TestList tag) =>
+    """
+    Create a PonyTest object and use it to run the tests from the given
+    TestList
+    """
     _env = env
     _process_opts()
     _groups("") = _SimultaneousGroup
+    list.tests(this)
+    _run()
 
   be apply(test: UnitTest iso) =>
     """
@@ -194,9 +244,9 @@ actor PonyTest
       _print_report()
     end
 
-  be complete() =>
+  be _run() =>
     """
-    We will be given no more tests to run, print results when ready.
+    We've been given all the tests to run, now run them.
     """
     if _do_nothing then
       return
