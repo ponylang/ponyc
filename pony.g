@@ -72,11 +72,11 @@ assignment
   ;
 
 nextinfix
-  : nextterm antrl_0*
+  : nextterm antlr_0*
   ;
 
 infix
-  : term antrl_1*
+  : term antlr_1*
   ;
 
 binop
@@ -132,11 +132,11 @@ idseq
   ;
 
 nextpostfix
-  : nextatom antrl_2*
+  : nextatom antlr_2*
   ;
 
 postfix
-  : atom antrl_3*
+  : atom antlr_3*
   ;
 
 call
@@ -212,7 +212,7 @@ tupletype
   ;
 
 infixtype
-  : type antrl_4*
+  : type antlr_4*
   ;
 
 isecttype
@@ -260,31 +260,31 @@ types
   : type (',' type)*
   ;
 
-antrl_0
+antlr_0
   : binop
   | 'as' type
   ;
 
-antrl_1
+antlr_1
   : binop
   | 'as' type
   ;
 
-antrl_2
+antlr_2
   : dot
   | tilde
   | typeargs
   | call
   ;
 
-antrl_3
+antlr_3
   : dot
   | tilde
   | typeargs
   | call
   ;
 
-antrl_4
+antlr_4
   : uniontype
   | isecttype
   ;

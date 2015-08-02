@@ -9,6 +9,7 @@ the main actor constructor of this package to invoke those tests.
 
 All tests can be run by compiling and running packages/stdlib.  
 """
+
 use "ponytest"
 use capsicum = "capsicum"
 use collections = "collections"
@@ -25,33 +26,33 @@ use regex = "regex"
 use term = "term"
 use time = "time"
 
-actor Main
-  new create(env: Env) =>
-    var test = PonyTest(env)
-    
+
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
     // Tests for the builtin package.
-    test(recover _TestStringRunes end)
-    test(recover _TestIntToString end)
-    test(recover _TestStringToU8 end)
-    test(recover _TestStringToI8 end)
-    test(recover _TestStringToIntLarge end)
-    test(recover _TestStringLstrip end)
-    test(recover _TestStringRstrip end)
-    test(recover _TestStringStrip end)
-    test(recover _TestStringRemove end)
-    test(recover _TestStringReplace end)
-    test(recover _TestStringSplit end)
-    test(recover _TestSpecialValuesF32 end)
-    test(recover _TestSpecialValuesF64 end)
+    test(_TestStringRunes)
+    test(_TestIntToString)
+    test(_TestStringToU8)
+    test(_TestStringToI8)
+    test(_TestStringToIntLarge)
+    test(_TestStringLstrip)
+    test(_TestStringRstrip)
+    test(_TestStringStrip)
+    test(_TestStringRemove)
+    test(_TestStringReplace)
+    test(_TestStringSplit)
+    test(_TestSpecialValuesF32)
+    test(_TestSpecialValuesF64)
 
     // Tests for all other packages.
-    collections.Main(env)
-    base64.Main(env)
-    net.Main(env)
-    http.Main(env)
-    options.Main(env)
-
-    test.complete()
+    collections.Main.make().tests(test)
+    base64.Main.make().tests(test)
+    net.Main.make().tests(test)
+    http.Main.make().tests(test)
+    options.Main.make().tests(test)
 
 
 class _TestStringRunes iso is UnitTest
@@ -164,7 +165,7 @@ class _TestStringToIntLarge iso is UnitTest
   """
   Test converting strings to I* and U* types bigger than 8 bit.
   """
-  fun name(): String => "builtin/String-toint"
+  fun name(): String => "builtin/String.toint"
 
   fun apply(h: TestHelper): TestResult ? =>
     h.expect_eq[U16](0, "0".u16())

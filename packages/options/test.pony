@@ -1,9 +1,10 @@
 use "ponytest"
 
-actor Main
-  new create(env: Env) =>
-    let test = PonyTest(env)
-    
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
     test(_TestLongOptions)
     test(_TestShortOptions)
     test(_TestCombineShortOptions)
@@ -12,18 +13,13 @@ actor Main
     test(_TestArgSpace)
     test(_TestArgLeadingDash)
 
-    test.complete()
-
 class _TestLongOptions iso is UnitTest
   """
   Long options start with two leading dashes.
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-longOptions"
+  fun name(): String => "options/Options.longOptions"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -34,10 +30,7 @@ class _TestShortOptions iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-shortOptions"
+  fun name(): String => "options/Options.shortOptions"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -48,10 +41,7 @@ class _TestCombineShortOptions iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-combineShort"
+  fun name(): String => "options/Options.combineShort"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -62,10 +52,7 @@ class _TestCombineShortArg iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-combineShortArg"
+  fun name(): String => "options/Options.combineShortArg"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -76,10 +63,7 @@ class _TestArgEquals iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-testArgEquals"
+  fun name(): String => "options/Options.testArgEquals"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -90,10 +74,7 @@ class _TestArgSpace iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options-testArgSpace"
+  fun name(): String => "options/Options.testArgSpace"
 
   fun apply(h: TestHelper): TestResult =>
     true
@@ -105,10 +86,7 @@ class _TestArgLeadingDash iso is UnitTest
   """
   //let _env: Env
 
-  new iso create() =>
-    None
-
-  fun name(): String => "options/Options/testArgLeadingDash"
+  fun name(): String => "options/Options.testArgLeadingDash"
 
   fun apply(h: TestHelper): TestResult =>
     true

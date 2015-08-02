@@ -1,14 +1,15 @@
 use "ponytest"
 use "collections"
 
-actor Main
-  new create(env: Env) =>
-    var test = PonyTest(env)
 
-    test(recover _TestBase64 end)
-    test(recover _TestBase64Decode end)
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
 
-    test.complete()
+  fun tag tests(test: PonyTest) =>
+    test(_TestBase64)
+    test(_TestBase64Decode)
+
 
 class _TestBase64 iso is UnitTest
   """

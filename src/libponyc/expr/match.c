@@ -257,11 +257,17 @@ static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
         return MATCHTYPE_DENY;
       }
 
-      matchtype_t ok = could_subtype(a_type, capture_type);
+      matchtype_t ok = is_matchtype(a_type, capture_type);
 
       if((ok != MATCHTYPE_ACCEPT) && errors)
       {
-        ast_error(pattern, "this capture can never match");
+        if(ok == MATCHTYPE_DENY)
+          ast_error(pattern, "this capture could violate capabilities, "
+            "variable %s may make more guarantees than the match operand",
+            ast_name(ast_child(pattern)));
+        else
+          ast_error(pattern, "this capture can never match");
+
         ast_error(a_type, "match type alias: %s", ast_print_type(a_type));
         ast_error(capture_type, "capture type: %s",
           ast_print_type(capture_type));
@@ -356,7 +362,7 @@ static matchtype_t is_valid_pattern(pass_opt_t* opt, ast_t* match_type,
       } else {
         ast_t* param_type = ast_childidx(param, 1);
         ast_t* a_type = alias(match_type);
-        ok = could_subtype(a_type, param_type);
+        ok = is_matchtype(a_type, param_type);
         ast_free_unattached(a_type);
 
         if((ok != MATCHTYPE_ACCEPT) && errors)

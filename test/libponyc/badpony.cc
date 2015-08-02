@@ -5,7 +5,7 @@
 
 
 /** Pony code that parses, but is erroneous. Typically type check errors and
- * things used is invalid contexts.
+ * things used in invalid contexts.
  *
  * We build all the way up to and including code gen and check that we do not
  * assert, segfault, etc but that the build fails and at least one error is

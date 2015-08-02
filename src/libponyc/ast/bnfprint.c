@@ -270,7 +270,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
       if(bnf->used || bnf->name == NULL)
       {
         if(bnf->name == NULL)
-          printf("antrl_%d\n  : ", bnf->hack_count);
+          printf("antlr_%d\n  : ", bnf->hack_count);
         else
           printf("%s\n  : ", bnf->name);
 
@@ -302,7 +302,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
     case BNF_TOKEN:
     case BNF_RULE:
       if(bnf->name == NULL)
-        printf("antrl_%d", bnf->hack_count);
+        printf("antlr_%d", bnf->hack_count);
       else
         printf("%s", bnf->name);
       break;
@@ -326,7 +326,7 @@ static void bnf_print(bnf_t* bnf, bool top_format)
 }
 
 
-// Print out the children of the given node, in ANTRL syntax.
+// Print out the children of the given node, in ANTLR syntax.
 // The top_format parameters indicate we should use top level node within rule
 // formatting, which is slightly different to normal.
 static void bnf_print_children(bnf_t* bnf, const char* separator,

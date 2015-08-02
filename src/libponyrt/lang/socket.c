@@ -708,12 +708,15 @@ PONYFD os_accept(asio_event_t* ev)
   iocp_accept(ev);
 #elif defined(PLATFORM_IS_LINUX)
   SOCKET ns = accept4((SOCKET)ev->data, NULL, NULL, SOCK_NONBLOCK);
+
+  if(ns == -1 && (errno == EWOULDBLOCK || errno == EAGAIN))
+    ns = 0;
 #else
   SOCKET ns = accept((SOCKET)ev->data, NULL, NULL);
 
   if(ns != -1)
     set_nonblocking(ns);
-  else if(errno == EWOULDBLOCK)
+  else if(errno == EWOULDBLOCK || errno == EAGAIN)
     ns = 0;
 #endif
 

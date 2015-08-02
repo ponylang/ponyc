@@ -31,9 +31,10 @@ TEST_F(SugarTest, ClassWithField)
 {
   // Create constructor should not be added if there are uninitialsed fields
   const char* short_form =
-    "class Foo iso let m:U32";
+    "class Foo iso\n"
+    "  let m:U32";
 
-  TEST_COMPILE(short_form);
+  TEST_EQUIV(short_form, short_form);
 }
 
 
@@ -41,10 +42,13 @@ TEST_F(SugarTest, ClassWithInitialisedField)
 {
   // Create constructor should be added if there are only initialised fields
   const char* short_form =
-    "class Foo iso let m:U32 = 3";
+    "class Foo iso\n"
+    "  let m:U32 = 3";
 
   const char* full_form =
-    "class Foo iso let m:U32 = 3 new ref create(): Foo ref^ => true";
+    "class Foo iso\n"
+    "  let m:U32 = 3\n"
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -54,10 +58,12 @@ TEST_F(SugarTest, ClassWithCreateConstructor)
 {
   // Create constructor should not be added if it's already there
   const char* short_form =
-    "class Foo iso new create() => 3";
+    "class Foo iso\n"
+    "  new create() => 3";
 
   const char* full_form =
-    "class Foo iso new ref create(): Foo ref^ => 3";
+    "class Foo iso\n"
+    "  new ref create(): Foo ref^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -67,10 +73,12 @@ TEST_F(SugarTest, ClassWithCreateFunction)
 {
   // Create function doesn't clash with create constructor
   const char* short_form =
-    "class Foo fun ref create():U32 => 3";
+    "class Foo\n"
+    "  fun ref create():U32 => 3";
 
   const char* full_form =
-    "class Foo ref fun ref create():U32 => 3";
+    "class Foo ref\n"
+    "  fun ref create():U32 => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -82,7 +90,8 @@ TEST_F(SugarTest, ClassWithoutFieldOrCreate)
     "class Foo iso";
 
   const char* full_form =
-    "class Foo iso new ref create(): Foo ref^ => true";
+    "class Foo iso\n"
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -111,10 +120,13 @@ TEST_F(SugarTest, ActorWithInitialisedField)
 {
   // Create constructor should be added if there are only initialsed fields
   const char* short_form =
-    "actor Foo let m:U32 = 3";
+    "actor Foo\n"
+    "  let m:U32 = 3";
 
   const char* full_form =
-    "actor Foo tag let m:U32 = 3 new tag create(): Foo tag^ => true";
+    "actor Foo tag\n"
+    "  let m:U32 = 3\n"
+    "  new tag create(): Foo tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -124,10 +136,12 @@ TEST_F(SugarTest, ActorWithCreateConstructor)
 {
   // Create constructor should not be added if it's already there
   const char* short_form =
-    "actor Foo new create() => 3";
+    "actor Foo\n"
+    " new create() => 3";
 
   const char* full_form =
-    "actor Foo tag new tag create(): Foo tag^ => 3";
+    "actor Foo tag\n"
+    "  new tag create(): Foo tag^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -137,10 +151,12 @@ TEST_F(SugarTest, ActorWithCreateFunction)
 {
   // Create function doesn't clash with create constructor
   const char* short_form =
-    "actor Foo fun ref create():U32 => 3";
+    "actor Foo\n"
+    "  fun ref create():U32 => 3";
 
   const char* full_form =
-    "actor Foo tag fun ref create():U32 => 3";
+    "actor Foo tag\n"
+    "  fun ref create():U32 => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -150,10 +166,12 @@ TEST_F(SugarTest, ActorWithCreateBehaviour)
 {
   // Create behaviour doesn't clash with create constructor
   const char* short_form =
-    "actor Foo be create() => 3";
+    "actor Foo\n"
+    "  be create() => 3";
 
   const char* full_form =
-    "actor Foo tag be tag create():Foo tag => 3";
+    "actor Foo tag\n"
+    "  be tag create():Foo tag => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -165,7 +183,8 @@ TEST_F(SugarTest, ActorWithoutFieldOrCreate)
     "actor Foo";
 
   const char* full_form =
-    "actor Foo tag new tag create(): Foo tag^ => true";
+    "actor Foo tag\n"
+    "  new tag create(): Foo tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -877,7 +896,7 @@ TEST_F(SugarTest, As)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new ref create(): Foo ref^ => true";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -898,7 +917,7 @@ TEST_F(SugarTest, AsTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new ref create(): Foo ref^ => true";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -921,7 +940,7 @@ TEST_F(SugarTest, AsNestedTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new ref create(): Foo ref^ => true";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -952,7 +971,7 @@ TEST_F(SugarTest, AsDontCare2Tuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new ref create(): Foo ref^ => true";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -974,7 +993,7 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
     "    else\n"
     "      error\n"
     "    end\n"
-    "  new ref create(): Foo ref^ => true";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -992,7 +1011,7 @@ TEST_F(SugarTest, ObjectSimple)
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
-    "  new ref create(): Foo ref^ => true\n"
+    "  new iso create(): Foo iso^ => true\n"
 
     "primitive hygid val\n"
     "  fun box foo(): None =>\n"
@@ -1018,7 +1037,7 @@ TEST_F(SugarTest, LambdaMinimal)
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
-    "  new ref create(): Foo ref^ => true\n"
+    "  new iso create(): Foo iso^ => true\n"
 
     "primitive hygid val\n"
     "  fun box apply(): None =>\n"
@@ -1044,7 +1063,7 @@ TEST_F(SugarTest, LambdaFull)
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
-    "  new ref create(): Foo ref^ => true\n"
+    "  new iso create(): Foo iso^ => true\n"
 
     "primitive hygid val\n"
     "  fun box apply[A: T](a: A, b: B): U32 ? =>\n"

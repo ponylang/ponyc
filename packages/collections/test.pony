@@ -1,14 +1,14 @@
 use "ponytest"
 
-actor Main
-  new create(env: Env) =>
-    let test = PonyTest(env)
+actor Main is TestList
+  new create(env: Env) => PonyTest(env, this)
+  new make() => None
+
+  fun tag tests(test: PonyTest) =>
     test(_TestList)
     test(_TestRing)
-    test.complete()
 
 class _TestList iso is UnitTest
-  new iso create() => None
   fun name(): String => "collections/List"
 
   fun apply(h: TestHelper): TestResult ? =>
@@ -28,7 +28,6 @@ class _TestList iso is UnitTest
     true
 
 class _TestRing iso is UnitTest
-  new iso create() => None
   fun name(): String => "collections/RingBuffer"
 
   fun apply(h: TestHelper): TestResult ? =>
