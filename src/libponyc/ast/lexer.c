@@ -111,6 +111,7 @@ static const lextoken_t keywords[] =
   { "object", TK_OBJECT },
   { "lambda", TK_LAMBDA },
 
+  { "delegate", TK_DELEGATE },
   { "as", TK_AS },
   { "is", TK_IS },
   { "isnt", TK_ISNT },

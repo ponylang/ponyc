@@ -2,6 +2,7 @@
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../pkg/package.h"
+#include "../type/assemble.h"
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../../libponyrt/mem/pool.h"
@@ -87,10 +88,10 @@
  * a method_t struct. A lot of the information stored is only used to generate
  * helpful error messages.
  *
- * For delegation we record the name of the field to delegate the method to, if
- * any. If multiple fields want to delegate the same method this is an error.
- * We record the names of the first 2 fields for use in the error message and
- * ignore subsequent fields.
+ * For delegation we record the field to delegate the method to, if any. If
+ * multiple fields want to delegate the same method this is an error. We record
+ * the first 2 fields for use in the error message and ignore any subsequent
+ * fields.
  *
  * Similarly for default bodies we want to store a single body to use and a
  * second for error reporting. However, for use we need a reified body and for
@@ -101,16 +102,40 @@
  */
 typedef struct method_t
 {
-  ast_t* body_donor;            // Type our body was defined in. Copied to data
-                                // pointer when this structure is deleted
-  ast_t* reified_default;       // Reified default body
-  ast_t* default_body_src_1;    // Method definitions providing default body
+  ast_t* body_donor;          // Type our body was defined in. Copied to data
+                              // pointer when this structure is deleted
+  ast_t* delegate_field_1;    // Fields to delegate to
+  ast_t* delegate_field_2;
+  ast_t* delegate_target_1;   // Types to delegate field to
+  ast_t* delegate_target_2;
+  ast_t* reified_default;     // Reified default body
+  ast_t* default_body_src_1;  // Method definitions providing default body
   ast_t* default_body_src_2;
-  bool local_def;               // Is there a local definition for this method
+  bool local_def;             // Is there a local definition for this method
 } method_t;
 
 
 static bool trait_entity(ast_t* entity, pass_opt_t* options);
+
+
+// Report whether the given node is a field
+static bool is_field(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  token_id variety = ast_id(ast);
+  return (variety == TK_FVAR) || (variety == TK_FLET);
+}
+
+
+// Report whether the given node is a method
+static bool is_method(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  token_id variety = ast_id(ast);
+  return (variety == TK_BE) || (variety == TK_FUN) || (variety == TK_NEW);
+}
 
 
 // Attach a new method_t structure to the given method
@@ -120,6 +145,10 @@ static void attach_method_t(ast_t* method, ast_t* body_donor, bool local_def)
 
   method_t* p = POOL_ALLOC(method_t);
   p->body_donor = body_donor;
+  p->delegate_field_1 = NULL;
+  p->delegate_field_2 = NULL;
+  p->delegate_target_1 = NULL;
+  p->delegate_target_2 = NULL;
   p->reified_default = NULL;
   p->default_body_src_1 = NULL;
   p->default_body_src_2 = NULL;
@@ -139,9 +168,7 @@ static void setup_local_methods(ast_t* ast)
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
-    token_id variety = ast_id(p);
-
-    if(variety == TK_FUN || variety == TK_NEW || variety == TK_BE)
+    if(is_method(p))
       attach_method_t(p, ast, true);
   }
 }
@@ -157,9 +184,7 @@ static void tidy_up(ast_t* ast)
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
-    token_id variety = ast_id(p);
-
-    if(variety == TK_FUN || variety == TK_NEW || variety == TK_BE)
+    if(is_method(p))
     {
       method_t* info = (method_t*)ast_data(p);
       assert(info != NULL);
@@ -461,27 +486,12 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
 
   ast_t* existing = ast_get(entity, name, NULL);
 
-  if(existing != NULL)
+  if(existing != NULL && is_field(existing))
   {
-    switch(ast_id(existing))
-    {
-      case TK_FVAR:
-      case TK_FLET:
-      {
-        ast_error(existing, "field '%s' clashes with provided method", name);
-        ast_error(raw_method, "method is defined here");
-        ast_free_unattached(reified_method);
-        return false;
-      }
-
-      case TK_NEW:
-      case TK_FUN:
-      case TK_BE:
-        break;
-
-      default:
-        assert(0);
-    }
+    ast_error(existing, "field '%s' clashes with provided method", name);
+    ast_error(raw_method, "method is defined here");
+    ast_free_unattached(reified_method);
+    return false;
   }
 
   existing = add_method(entity, existing, reified_method, last_method);
@@ -526,8 +536,6 @@ static bool provided_methods(ast_t* entity)
     // Run through the methods of each provided type
     for(ast_t* m = ast_child(members); m != NULL; m = ast_sibling(m))
     {
-      token_id variety = ast_id(m);
-
       // Check behaviour compatability
       if(ast_id(m) == TK_BE)
       {
@@ -541,7 +549,7 @@ static bool provided_methods(ast_t* entity)
         }
       }
 
-      if(variety == TK_BE || variety == TK_NEW || variety == TK_FUN)
+      if(is_method(m))
       {
         // We have a provided method
         // Reify the method with the type parameters from trait definition and type
@@ -561,7 +569,107 @@ static bool provided_methods(ast_t* entity)
 }
 
 
-// TODO: Stage 3
+// Check that the given delegate target is in the entity's provides list and 
+// is a legal type for the field
+static bool check_delegate(ast_t* entity, ast_t* field_type,
+  ast_t* delegated)
+{
+  assert(entity != NULL);
+  assert(field_type != NULL);
+  assert(delegated != NULL);
+
+  if(!is_subtype(field_type, delegated))
+  {
+    ast_error(delegated, "field not a subtype of delegate");
+    ast_error(field_type, "field type: %s", ast_print_type(field_type));
+    ast_error(delegated, "delegate type: %s", ast_print_type(delegated));
+    return false;
+  }
+
+  ast_t* provides = ast_childidx(entity, 3);
+  void* del_def = ast_data(delegated);
+
+  for(ast_t* p = ast_child(provides); p != NULL; p = ast_sibling(p))
+  {
+    if(ast_data(p) == del_def)
+      return true;
+  }
+
+  assert(ast_id(delegated) == TK_NOMINAL);
+  ast_error(delegated,
+    "cannot delegate to %s, containing entity does not provide it",
+    ast_name(ast_childidx(delegated, 1)));
+  return false;
+}
+
+
+// Process all field delegations in the given type.
+// Stage 3.
+static bool field_delegations(ast_t* entity)
+{
+  assert(entity != NULL);
+
+  ast_t* members = ast_childidx(entity, 4);
+  assert(members != NULL);
+
+  bool r = true;
+
+  // Check all fields
+  for(ast_t* f = ast_child(members); f != NULL; f = ast_sibling(f))
+  {
+    if(is_field(f))
+    {
+      AST_GET_CHILDREN(f, id, f_type, value, delegates);
+
+      // Check all delegates for field
+      for(ast_t* d = ast_child(delegates); d != NULL; d = ast_sibling(d))
+      {
+        if(!check_delegate(entity, f_type, d))
+        {
+          r = false;
+          continue;
+        }
+
+        // Mark all methods in delegate trait as targets for this field
+        ast_t* trait = (ast_t*)ast_data(d);
+        assert(trait != NULL);
+        ast_t* t_members = ast_childidx(trait, 4);
+
+        for(ast_t* m = ast_child(t_members); m != NULL; m = ast_sibling(m))
+        {
+          if(is_method(m))
+          {
+            // Mark method as delegate target for this field
+            const char* method_name = ast_name(ast_childidx(m, 1));
+            assert(method_name != NULL);
+
+            ast_t* local_method = ast_get(entity, method_name, NULL);
+            assert(local_method != NULL);
+
+            method_t* info = (method_t*)ast_data(local_method);
+            assert(info != NULL);
+
+            if(info->delegate_field_1 == NULL)
+            {
+              // First delegate field for this method
+              info->delegate_field_1 = f;
+              info->delegate_target_1 = d;
+            }
+            else if(info->delegate_field_2 == NULL &&
+              info->delegate_field_1 != f)
+            {
+              // We already have one delegate field, record second
+              info->delegate_field_2 = f;
+              info->delegate_target_2 = d;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return r;
+}
 
 
 // Sort out symbol table for copied method body
@@ -599,6 +707,131 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
 }
 
 
+#define BODY_ERROR  (ast_t*)1
+
+
+// Resolve the field delegate body to use for the given method, if any.
+// Return the body to use, NULL if none found or BODY_ERROR on error.
+static ast_t* resolve_delegate_body(ast_t* entity, ast_t* method,
+  method_t* info, const char* name)
+{
+  assert(entity != NULL);
+  assert(method != NULL);
+  assert(info != NULL);
+  assert(name != NULL);
+
+  if(info->delegate_field_2 != NULL)
+  {
+    // Ambiguous delegate
+    assert(info->delegate_field_1 != NULL);
+    assert(info->delegate_target_1 != NULL);
+    assert(info->delegate_target_2 != NULL);
+
+    ast_error(entity,
+      "clashing delegates for method %s, local disambiguation required", name);
+    ast_error(info->delegate_field_1, "field %s delegates to %s via %s",
+      ast_name(ast_child(info->delegate_field_1)), name,
+      ast_name(ast_child(info->delegate_target_1)));
+    ast_error(info->delegate_field_2, "field %s delegates to %s via %s",
+      ast_name(ast_child(info->delegate_field_2)), name,
+      ast_name(ast_child(info->delegate_target_2)));
+
+    return BODY_ERROR;
+  }
+
+  if(info->delegate_field_1 == NULL)  // No delegation needed
+    return NULL;
+
+  // We have a delegation, make a redirection body
+  const char* field_name = ast_name(ast_child(info->delegate_field_1));
+  ast_t* args = ast_from(info->delegate_field_1, TK_NONE);
+  ast_t* last_arg = NULL;
+
+  AST_GET_CHILDREN(method, cap, id, t_params, params, result, error, old_body);
+
+  for(ast_t* p = ast_child(params); p != NULL; p = ast_sibling(p))
+  {
+    const char* param_name = ast_name(ast_child(p));
+
+    BUILD(arg, info->delegate_field_1,
+      NODE(TK_SEQ,
+        NODE(TK_CONSUME,
+          NONE
+          NODE(TK_REFERENCE, ID(param_name)))));
+
+    ast_list_append(args, &last_arg, arg);
+    ast_setid(args, TK_POSITIONALARGS);
+  }
+
+  BUILD(body, info->delegate_field_1,
+    NODE(TK_SEQ,
+      NODE(TK_CALL,
+        TREE(args)    // Positional args
+        NODE(TK_NONE) // Named args
+        NODE(TK_DOT,  // Receiver
+          NODE(TK_REFERENCE, ID(field_name))
+          ID(name)))));
+
+  if(is_none(result))
+  {
+    // Add None to end of body. Whilst the call generated above will return
+    // None anyway in this case, without this extra None testing is very hard
+    // since a directly written version of this body will have the None.
+    BUILD(none, info->delegate_field_1,
+      NODE(TK_REFERENCE, ID("None")));
+
+    ast_append(body, none);
+  }
+
+  info->body_donor = entity;
+  return body;
+}
+
+
+// Resolve the default body to use for the given method, if any.
+// Return the body to use, NULL if none found or BODY_ERROR on error.
+static ast_t* resolve_default_body(ast_t* entity, ast_t* method,
+  method_t* info, const char* name, bool concrete)
+{
+  assert(entity != NULL);
+  assert(method != NULL);
+  assert(info != NULL);
+  assert(name != NULL);
+
+  if(info->default_body_src_2 != NULL)
+  {
+    // Ambiguous body, store info for use by any types that provide this one
+    assert(info->default_body_src_1 != NULL);
+
+    ast_t* err = ast_childidx(method, 5);
+    ast_t* body = ast_childidx(method, 6);
+
+    // Ditch whatever body we have, if any
+    ast_erase(body);
+
+    ast_setdata(body, info->default_body_src_1);
+    ast_setdata(err, info->default_body_src_2);
+
+    if(!concrete)
+      return NULL;
+
+    ast_error(entity, "multiple possible bodies for method %s, local "
+      "disambiguation required", name);
+    ast_error(info->default_body_src_1, "one possible body here");
+    ast_error(info->default_body_src_2, "another possible body here");
+    return BODY_ERROR;
+  }
+
+  if(info->default_body_src_1 == NULL)  // Nod efault body found
+    return NULL;
+
+  // We have a default body, use it
+  assert(info->reified_default != NULL);
+  info->body_donor = (ast_t*)ast_data(info->default_body_src_1);
+  return ast_childidx(info->reified_default, 6);
+}
+
+
 // Determine which body to use for the given method
 static bool resolve_body(ast_t* entity, ast_t* method, pass_opt_t* options)
 {
@@ -618,52 +851,28 @@ static bool resolve_body(ast_t* entity, ast_t* method, pass_opt_t* options)
   const char* name = ast_name(ast_childidx(method, 1));
   assert(name != NULL);
 
-  // Not a locally defined method, check delegation bodies
-  // TODO
+  // NExt try a delegate body
+  ast_t* r = resolve_delegate_body(entity, method, info, name);
 
-  // Check for a default body from a parent trait
-  if(info->default_body_src_2 != NULL)
+  if(r == BODY_ERROR)
+    return false;
+
+  if(r == NULL) // And finally a default body
+    r = resolve_default_body(entity, method, info, name, concrete);
+
+  if(r == BODY_ERROR)
+    return false;
+
+  if(r != NULL)
   {
-    // Ambiguous body, store info for use by any types that provide this one
-    assert(info->default_body_src_1 != NULL);
-
-    ast_t* err = ast_childidx(method, 5);
-    ast_t* body = ast_childidx(method, 6);
-
-    // Ditch whatever body we have, if any
-    ast_erase(body);
-
-    ast_setdata(body, info->default_body_src_1);
-    ast_setdata(err, info->default_body_src_2);
-
-    if(concrete)
-    {
-      ast_error(entity, "multiple possible bodies for method %s, local "
-        "disambiguation required", name);
-      ast_error(info->default_body_src_1, "one possible body here");
-      ast_error(info->default_body_src_2, "another possible body here");
-
-      return false;
-    }
-
-    return true;
-  }
-
-  if(info->default_body_src_1 != NULL)
-  {
-    // We have a default body
-    assert(info->reified_default != NULL);
-
-    // Replace whole method and patch up symbol tables
-    ast_replace(&method, info->reified_default);
-    ast_set(entity, name, info->reified_default, SYM_DEFINED);
+    // We have a body, use it and patch up symbol tables
+    ast_t* old_body = ast_childidx(method, 6);
+    ast_replace(&old_body, r);
     ast_visit(&method, rescope, NULL, options);
-
-    info->reified_default = NULL;
-    info->body_donor = (ast_t*)ast_data(info->default_body_src_1);
     return true;
   }
-  
+
+  // Nowhere left to get a body from
   if(concrete)
   {
     ast_error(entity, "no body found for method %s", name);
@@ -688,13 +897,8 @@ static bool resolve_methods(ast_t* ast, pass_opt_t* options)
 
   for(ast_t* p = ast_child(members); p != NULL; p = ast_sibling(p))
   {
-    token_id variety = ast_id(p);
-
-    if(variety == TK_FUN || variety == TK_NEW || variety == TK_BE)
-    {
-      if(!resolve_body(ast, p, options))
-        r = false;
-    }
+    if(is_method(p) && !resolve_body(ast, p, options))
+      r = false;
   }
 
   return r;
@@ -736,6 +940,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
   bool r =
     provides_list(entity, options) && // Stage 1
     provided_methods(entity) &&       // Stage 2
+    field_delegations(entity) &&      // Stage 3
     resolve_methods(entity, options); // Stage 4
 
   tidy_up(entity);
