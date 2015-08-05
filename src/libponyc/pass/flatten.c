@@ -97,6 +97,77 @@ static ast_result_t flatten_async(ast_t* ast)
   return flatten_sendable_params(params);
 }
 
+// Process the given provides type
+static bool flatten_provided_type(ast_t* provides_type, ast_t* error_at,
+  ast_t* list_parent, ast_t** list_end)
+{
+  assert(error_at != NULL);
+  assert(provides_type != NULL);
+  assert(list_parent != NULL);
+  assert(list_end != NULL);
+
+  switch(ast_id(provides_type))
+  {
+    case TK_PROVIDES:
+    case TK_ISECTTYPE:
+      // Flatten all children
+      for(ast_t* p = ast_child(provides_type); p != NULL; p = ast_sibling(p))
+      {
+        if(!flatten_provided_type(p, error_at, list_parent, list_end))
+          return false;
+      }
+
+      return true;
+
+    case TK_NOMINAL:
+    {
+      // Check type is a trait or interface
+      ast_t* def = (ast_t*)ast_data(provides_type);
+      assert(def != NULL);
+
+      if(ast_id(def) != TK_TRAIT && ast_id(def) != TK_INTERFACE)
+      {
+        ast_error(error_at, "can only provide traits and interfaces");
+        ast_error(provides_type, "invalid type here");
+        return false;
+      }
+
+      // Add type to new provides list
+      ast_list_append(list_parent, list_end, provides_type);
+      ast_setdata(*list_end, ast_data(provides_type));
+
+      return true;
+    }
+
+    default:
+      ast_error(error_at,
+        "provides type may only be an intersect of traits and interfaces");
+      ast_error(provides_type, "invalid type here");
+      return false;
+  }
+}
+
+// Flatten a provides type into a list, checking all types are traits or
+// interfaces
+static ast_result_t flatten_provides_list(ast_t* provider, int index)
+{
+  assert(provider != NULL);
+
+  ast_t* provides = ast_childidx(provider, index);
+  ast_t* list = ast_from(provides, TK_PROVIDES);
+  ast_t* list_end = NULL;
+
+  if(ast_id(provides) != TK_NONE &&
+    !flatten_provided_type(provides, provider, list, &list_end))
+  {
+    ast_free(list);
+    return AST_ERROR;
+  }
+
+  ast_replace(&provides, list);
+  return AST_OK;
+}
+
 ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -138,6 +209,16 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_TYPEPARAMREF:
       return flatten_typeparamref(ast);
+
+    case TK_ACTOR:
+    case TK_CLASS:
+    case TK_PRIMITIVE:
+    case TK_TRAIT:
+    case TK_INTERFACE:
+      return flatten_provides_list(ast, 3);
+
+    case TK_OBJECT:
+      return flatten_provides_list(ast, 0);
 
     default: {}
   }

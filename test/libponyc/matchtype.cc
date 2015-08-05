@@ -27,7 +27,7 @@ static const char* src =
 
   "class C2\n"
 
-  "class C3 is T1, T2\n"
+  "class C3 is (T1 & T2)\n"
   "  fun f() => None\n"
   "  fun g() => None";
 

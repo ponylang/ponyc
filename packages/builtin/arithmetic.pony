@@ -34,7 +34,7 @@ trait _ArithmeticConvertible val
   fun f64(): F64 => compiler_intrinsic
 
 trait Real[A: Real[A] box] val is
-  Stringable, _ArithmeticConvertible, Arithmetic[A], Ordered[A]
+  (Stringable & _ArithmeticConvertible & Arithmetic[A] & Ordered[A])
   new val create(value: A)
 
   fun tag from[B: (Number & Real[B] box)](a: B): A
@@ -69,7 +69,7 @@ trait Real[A: Real[A] box] val is
     x = x + (x << 31)
     x
 
-trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
+trait Integer[A: Integer[A] box] val is (Real[A] & Logical[A] & Bits[A])
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y

@@ -779,7 +779,7 @@ static void doc_packages(docgen_t* docgen, ast_t* ast)
   assert(ast != NULL);
   assert(ast_id(ast) == TK_PROGRAM);
 
-  // The Main package apepars first, other packages in alphabetical order
+  // The Main package appears first, other packages in alphabetical order
   ast_t* package_1 = NULL;
 
   ast_list_t packages = { NULL, NULL, NULL };

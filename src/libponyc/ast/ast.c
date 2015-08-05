@@ -922,7 +922,7 @@ ast_t* ast_append(ast_t* parent, ast_t* child)
   return child;
 }
 
-void ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
+ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
 {
   assert(parent != NULL);
   assert(last_pointer != NULL);
@@ -931,15 +931,18 @@ void ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child)
   if(*last_pointer == NULL)
   {
     // This is the first child for the parent
-    ast_add(parent, new_child);
+    assert(parent->child == NULL);
+    *last_pointer = ast_add(parent, new_child);
   }
   else
   {
     // This is not the first child, append to list
-    ast_add_sibling(*last_pointer, new_child);
+    assert(parent->child != NULL);
+    assert((*last_pointer)->sibling == NULL);
+    *last_pointer = ast_add_sibling(*last_pointer, new_child);
   }
 
-  *last_pointer = new_child;
+  return *last_pointer;
 }
 
 void ast_remove(ast_t* ast)

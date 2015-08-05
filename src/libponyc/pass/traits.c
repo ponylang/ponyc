@@ -173,14 +173,18 @@ static void tidy_up(ast_t* ast)
 }
 
 
-// Process the given provides type for the given entity
-static bool provided_type(ast_t* provides_type, pass_opt_t* options)
+// Process the provides list for the given entity.
+// Stage 1.
+static bool provides_list(ast_t* entity, pass_opt_t* options)
 {
-  assert(provides_type != NULL);
+  assert(entity != NULL);
+
+  ast_t* provides = ast_childidx(entity, 3);
+  assert(provides != NULL);
   
   bool r = true;
 
-  for(ast_t* p = ast_child(provides_type); p != NULL; p = ast_sibling(p))
+  for(ast_t* p = ast_child(provides); p != NULL; p = ast_sibling(p))
   {
     if(ast_id(p) != TK_NOMINAL)
     {
@@ -204,17 +208,6 @@ static bool provided_type(ast_t* provides_type, pass_opt_t* options)
   }
 
   return r;
-}
-
-
-// Process the provides list for the given entity.
-// Stage 1.
-static bool provides_list(ast_t* entity, pass_opt_t* options)
-{
-  assert(entity != NULL);
-
-  ast_t* provides = ast_childidx(entity, 3);
-  return provided_type(provides, options);
 }
 
 
@@ -477,7 +470,7 @@ static bool provided_method(ast_t* entity, ast_t* reified_method,
       {
         ast_error(existing, "field '%s' clashes with provided method", name);
         ast_error(raw_method, "method is defined here");
-        //ast_free_unattached(reified_method);
+        ast_free_unattached(reified_method);
         return false;
       }
 

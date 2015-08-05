@@ -69,10 +69,14 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
 
     case AST_STATE_INPROGRESS:
       ast_error(def, "type aliases can't be recursive");
+      ast_setdata(def, (void*)AST_STATE_ERROR);
       return false;
 
     case AST_STATE_DONE:
       return true;
+
+    case AST_STATE_ERROR:
+      return false;
 
     default:
       assert(0);

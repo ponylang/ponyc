@@ -151,7 +151,7 @@ typedef enum token_id
   TK_FFIDECL,
   TK_FFICALL,
 
-  TK_TYPES,
+  TK_PROVIDES,
   TK_UNIONTYPE,
   TK_ISECTTYPE,
   TK_TUPLETYPE,

@@ -132,7 +132,7 @@ TEST_F(TraitsTest, MultiInheritNoLocal)
     "trait T2\n"
     "  fun f(x: A, y: U32 = 1): B\n"
 
-    "trait T3 is T1, T2";
+    "trait T3 is (T1 & T2)";
 
   const char* expect =
     "trait A\n"
@@ -144,7 +144,7 @@ TEST_F(TraitsTest, MultiInheritNoLocal)
     "trait T2\n"
     "  fun f(x: A, y: U32 = 1): B\n"
 
-    "trait T3 is T1, T2\n"
+    "trait T3 is (T1 & T2)\n"
     "  fun f(x: A, y: U32 = 1): B";
 
     TEST_EQUIV(src, expect);
@@ -330,7 +330,7 @@ TEST_F(TraitsTest, MultiParamContravariance)
     "trait T2\n"
     "  fun f(x: AB)\n"
 
-    "trait T3 is T1, T2\n"
+    "trait T3 is (T1 & T2)\n"
     "  fun f(x: AB)";
 
   TEST_COMPILE(src);
@@ -350,7 +350,7 @@ TEST_F(TraitsTest, MultiParamCovarianceFail)
     "trait T2\n"
     "  fun f(x: AB)\n"
 
-    "trait T3 is T1, T2\n"
+    "trait T3 is (T1 & T2)\n"
     "  fun f(x: A)";
 
   TEST_ERROR(src);
@@ -370,7 +370,7 @@ TEST_F(TraitsTest, IndependentParamContravariance)
     "trait T2\n"
     "  fun f(x: B)\n"
 
-    "trait T3 is T1, T2\n"
+    "trait T3 is (T1 & T2)\n"
     "  fun f(x: AB)";
 
   TEST_COMPILE(src);
@@ -472,7 +472,7 @@ TEST_F(TraitsTest, AmbiguousBodyTrait)
     "trait T2\n"
     "  fun f(): U32 => 2\n"
 
-    "trait T3 is T1, T2";
+    "trait T3 is (T1 & T2)";
 
   const char* expect =
     "trait T1\n"
@@ -481,7 +481,7 @@ TEST_F(TraitsTest, AmbiguousBodyTrait)
     "trait T2\n"
     "  fun f(): U32 => 2\n"
 
-    "trait T3 is T1, T2\n"
+    "trait T3 is (T1 & T2)\n"
     "  fun f(): U32\n";
 
   TEST_EQUIV(src, expect);
@@ -495,7 +495,7 @@ TEST_F(TraitsTest, AmbiguousBodyClassFail)
     "  fun f(): U32 => 1\n"
     "trait T2\n"
     "  fun f(): U32 => 2\n"
-    "class C is T1, T2";
+    "class C is (T1 & T2)";
 
   TEST_ERROR(src);
 }
@@ -511,9 +511,9 @@ TEST_F(TraitsTest, AmbiguousBodyPropogates)
     "trait T3\n"
     "  fun f(): U32 => 3\n"
 
-    "trait T12 is T1, T2\n"
+    "trait T12 is (T1 & T2)\n"
 
-    "class C is T12, T3";
+    "class C is (T12 & T3)";
 
   TEST_ERROR(src);
 }
@@ -555,7 +555,7 @@ TEST_F(TraitsTest, DiamondInheritance)
     "trait T2 is T1\n"
     "trait T3 is T1\n"
 
-    "class C is T2, T3\n"
+    "class C is (T2 & T3)\n"
     "  new create() => true";
 
   const char* expect =
@@ -568,7 +568,7 @@ TEST_F(TraitsTest, DiamondInheritance)
     "trait T3 is T1\n"
     "  fun f(): U32 => 1\n"
 
-    "class C is T2, T3\n"
+    "class C is (T2 & T3)\n"
     "  new create() => true\n"
     "  fun f(): U32 => 1";
 

@@ -119,38 +119,48 @@ static bool is_expr_infix(token_id id)
 }
 
 
-static bool check_traits(ast_t* traits)
+// Check whether the given node is a valid provides type
+static bool check_provides_type(ast_t* type)
 {
-  assert(traits != NULL);
-  ast_t* trait = ast_child(traits);
-  bool r = true;
+  assert(type != NULL);
 
-  while(trait != NULL)
+  switch(ast_id(type))
   {
-    if(ast_id(trait) != TK_NOMINAL)
+    case TK_NOMINAL:
     {
-      ast_error(trait, "traits must be nominal types");
-      r = false;
+      AST_GET_CHILDREN(type, ignore0, ignore1, ignore2, cap, ephemeral);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap, "can't specify a capability in a provides type");
+        return false;
+      }
+
+      if(ast_id(ephemeral) != TK_NONE)
+      {
+        ast_error(ephemeral, "can't specify ephemeral in a provides type");
+        return false;
+      }
+
+      return true;
     }
 
-    AST_GET_CHILDREN(trait, ignore0, ignore1, ignore2, cap, ephemeral);
+    case TK_PROVIDES:
+    case TK_ISECTTYPE:
+      // Check all our children are also legal
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        if(!check_provides_type(p))
+          return false;
+      }
 
-    if(ast_id(cap) != TK_NONE)
-    {
-      ast_error(cap, "can't specify a capability on a trait");
-      r = false;
-    }
+      return true;
 
-    if(ast_id(ephemeral) != TK_NONE)
-    {
-      ast_error(ephemeral, "a trait can't be ephemeral");
-      r = false;
-    }
-
-    trait = ast_sibling(trait);
+    default:
+      ast_error(type, "invalid provides type. Can only provide "
+        "interfaces, traits and intersects of those.");
+      return false;
   }
-
-  return r;
 }
 
 
@@ -325,15 +335,15 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
-    if(!check_traits(provides))
+    if(ast_id(provides) != TK_NONE && !check_provides_type(provides))
       r = AST_ERROR;
   }
   else
   {
-    // Check for a single type alias
-    if(ast_childcount(provides) != 1)
+    // Check for a type alias
+    if(ast_id(provides) == TK_NONE)
     {
-      ast_error(provides, "a type alias must specify a single type");
+      ast_error(provides, "a type alias must specify a type");
       r = AST_ERROR;
     }
   }

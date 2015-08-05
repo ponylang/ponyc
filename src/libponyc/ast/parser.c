@@ -46,16 +46,16 @@ DECL(members);
  *  viewpoint (->) - right associative, highest precedence
  *  infix (& |)
  *  tuple elements (,) - lowest precedence
-*/
+ */
 
 
 // Parse rules
 
-// type {COMMA type}
-DEF(types);
-  AST_NODE(TK_TYPES);
-  RULE("type", type);
-  WHILE(TK_COMMA, RULE("type", type));
+// type
+DEF(provides);
+  PRINT_INLINE();
+  AST_NODE(TK_PROVIDES);
+  RULE("provided type", type);
   DONE();
 
 // ID COLON type [ASSIGN infix]
@@ -230,11 +230,11 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
   
-// OBJECT [IS types] members END
+// OBJECT [IS type] members END
 DEF(object);
   PRINT_INLINE();
   TOKEN(NULL, TK_OBJECT);
-  IF(TK_IS, RULE("provided type", types));
+  IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
@@ -818,7 +818,7 @@ DEF(members);
   DONE();
 
 // (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
-// [CAP] [IS types] [STRING] members
+// [CAP] [IS type] [STRING] members
 DEF(class_def);
   RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
@@ -828,7 +828,7 @@ DEF(class_def);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
   OPT RULE("capability", cap);
-  IF(TK_IS, RULE("provided types", types));
+  IF(TK_IS, RULE("provided type", provides));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
   // Order should be:

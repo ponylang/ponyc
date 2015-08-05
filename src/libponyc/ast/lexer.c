@@ -179,7 +179,7 @@ static const lextoken_t abstract[] =
   { "ffidecl", TK_FFIDECL },
   { "fficall", TK_FFICALL },
 
-  { "types", TK_TYPES },
+  { "provides", TK_PROVIDES },
   { "uniontype", TK_UNIONTYPE },
   { "isecttype", TK_ISECTTYPE },
   { "tupletype", TK_TUPLETYPE },
