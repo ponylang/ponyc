@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? ID typeparams? cap? ('is' types)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? ID typeparams? cap? ('is' type)? STRING? members
   ;
 
 members
@@ -156,7 +156,7 @@ nextatom
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' ('is' types)? members 'end'
+  | 'object' ('is' type)? members 'end'
   | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
@@ -166,7 +166,7 @@ atom
   | literal
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' ('is' types)? members 'end'
+  | 'object' ('is' type)? members 'end'
   | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
@@ -254,10 +254,6 @@ typeparam
 
 param
   : ID ':' type ('=' infix)?
-  ;
-
-types
-  : type (',' type)*
   ;
 
 antlr_0
