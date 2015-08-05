@@ -6,13 +6,13 @@ class _TestRecord
   """
 
   let _env: Env
-  let _name: String
+  let name: String
   var _pass: Bool = false
   var _log: (Array[String] val | None) = None
 
-  new create(env: Env, name: String) =>
+  new create(env: Env, name': String) =>
     _env = env
-    _name = name
+    name = name'
 
   fun ref _result(pass: Bool, log: Array[String] val) =>
     """
@@ -31,10 +31,10 @@ class _TestRecord
     var show_log = log_all
 
     if _pass then
-      _env.out.print(ANSI.bright_green() + "---- Passed: " + _name +
+      _env.out.print(ANSI.bright_green() + "---- Passed: " + name +
         ANSI.reset())
     else
-      _env.out.print(ANSI.bright_red() + "**** FAILED: " + _name +
+      _env.out.print(ANSI.bright_red() + "**** FAILED: " + name +
         ANSI.reset())
       show_log = true
     end
@@ -56,6 +56,6 @@ class _TestRecord
     Print our test name out in the list of failed test, if we failed.
     """
     if not _pass then
-      _env.out.print(ANSI.bright_red() + "**** FAILED: " + _name +
+      _env.out.print(ANSI.bright_red() + "**** FAILED: " + name +
         ANSI.reset())
     end
