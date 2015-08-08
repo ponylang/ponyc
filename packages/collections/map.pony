@@ -175,13 +175,14 @@ class HashMap[K, V, H: HashFunction[K] val]
     this
 
   fun clone[H2: HashFunction[this->K!] val = H]():
-    HashMap[this->K!, this->V!, H2]^
+    HashMap[this->K!, this->V!, H2] iso^
   =>
     """
     Create a clone. The key and value types may be different due to aliasing
     and viewpoint adaptation.
     """
-    let r = HashMap[this->K!, this->V!, H2](_size)
+    let size' = _size
+    let r = recover iso HashMap[this->K!, this->V!, H2](size') end
 
     for (k, v) in pairs() do
       r(k) = v

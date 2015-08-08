@@ -215,12 +215,13 @@ class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
     end
     r
 
-  fun clone[K: HashFunction[this->A!] val = H](): HashSet[this->A!, K]^ =>
+  fun clone[K: HashFunction[this->A!] val = H](): HashSet[this->A!, K] iso^ =>
     """
     Create a clone. The element type may be different due to aliasing and
     viewpoint adaptation.
     """
-    let r = HashSet[this->A!, K](size())
+    let size' = size()
+    let r = recover HashSet[this->A!, K](size') end
 
     for value in values() do
       r.set(value)

@@ -190,11 +190,11 @@ class List[A] is Seq[A]
 
     this
 
-  fun clone(): List[this->A!]^ =>
+  fun clone(): List[this->A!] iso^ =>
     """
     Clone the list.
     """
-    let out = List[this->A!]
+    let out = recover iso List[this->A!] end
 
     for v in values() do
       out.push(v)
