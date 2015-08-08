@@ -276,11 +276,12 @@ class Array[A] is Seq[A]
 
     error
 
-  fun clone(): Array[this->A!]^ =>
+  fun clone(): Array[this->A!] iso^ =>
     """
     Clone the array.
     """
-    let out = Array[this->A!](_size)
+    let size' = _size
+    let out = recover iso Array[this->A!](size') end
     _ptr._copy_to(out._ptr, _size)
     out
 
