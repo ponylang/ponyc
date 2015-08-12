@@ -15,6 +15,7 @@ use capsicum = "capsicum"
 use collections = "collections"
 use base64 = "encode/base64"
 use files = "files"
+use json = "json"
 use math = "math"
 use net = "net"
 use http = "net/http"
@@ -53,6 +54,7 @@ actor Main is TestList
     net.Main.make().tests(test)
     http.Main.make().tests(test)
     options.Main.make().tests(test)
+    json.Main.make().tests(test)
 
 
 class _TestStringRunes iso is UnitTest
