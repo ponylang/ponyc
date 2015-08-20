@@ -658,6 +658,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
           NODE(ast_id(member),
             TREE(id)
             TREE(type)
+            NONE
             NONE));
 
         // The param is: $0: type

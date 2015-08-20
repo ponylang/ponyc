@@ -91,6 +91,7 @@ typedef enum token_id
   TK_OBJECT,
   TK_LAMBDA,
 
+  TK_DELEGATE,
   TK_AS,
   TK_IS,
   TK_ISNT,
@@ -151,7 +152,7 @@ typedef enum token_id
   TK_FFIDECL,
   TK_FFICALL,
 
-  TK_TYPES,
+  TK_PROVIDES,
   TK_UNIONTYPE,
   TK_ISECTTYPE,
   TK_TUPLETYPE,

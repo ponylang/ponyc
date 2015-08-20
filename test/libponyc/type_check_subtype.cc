@@ -17,7 +17,7 @@ static const char* src =
   "trait T2\n"
   "  fun g()\n"
 
-  "trait T3 is T1, T2\n"
+  "trait T3 is (T1 & T2)\n"
 
   "interface I1\n"
   "  fun f()\n"

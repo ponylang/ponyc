@@ -300,7 +300,8 @@ typedef enum
 {
   AST_STATE_INITIAL = 0,
   AST_STATE_INPROGRESS,
-  AST_STATE_DONE
+  AST_STATE_DONE,
+  AST_STATE_ERROR
 } ast_state_t;
 
 ast_t* ast_new(token_t* t, token_id id);
@@ -377,6 +378,7 @@ ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
+ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child);
 void ast_remove(ast_t* ast);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);

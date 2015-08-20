@@ -193,7 +193,13 @@ class HashMap[K, V, H: HashFunction[K] val]
     Remove all entries.
     """
     _size = 0
-    _array = _array.create()
+    // Our default prealloc of 6 corresponds to an array alloc size of 8.
+    let n: U64 = 8
+    _array = _array.create(n)
+
+    for i in Range(0, n) do
+      _array.push(_MapEmpty)
+    end
     this
 
   fun _search(key: box->K!): (U64, Bool) =>

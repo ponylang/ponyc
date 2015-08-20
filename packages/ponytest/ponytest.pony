@@ -134,7 +134,7 @@ concurrently with any other tests.
 The command line option "--sequential" prevents any tests from running
 concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
-"""
+ """
 
 use "collections"
 use "options"
@@ -154,6 +154,7 @@ actor PonyTest
   var _filter: String = ""
   var _verbose: Bool = false
   var _sequential: Bool = false
+  var _no_prog: Bool = false
   var _started: U64 = 0
   var _finished: U64 = 0
   var _any_found: Bool = false
@@ -168,7 +169,7 @@ actor PonyTest
     _process_opts()
     _groups("") = _SimultaneousGroup
     list.tests(this)
-    _run()
+    _all_tests_applied()
 
   be apply(test: UnitTest iso) =>
     """
@@ -222,8 +223,14 @@ actor PonyTest
     helper.
     """
     _started = _started + 1
-    _env.out.print(_started.string() + " test" + _plural(_started) +
-      " started, " + _finished.string() + " complete")
+
+    try
+      if not _no_prog then
+        _env.out.print(_started.string() + " test" + _plural(_started) +
+          " started, " + _finished.string() + " complete: " +
+          _records(id).name + " started")
+      end
+    end
 
   be _test_complete(id: U64, pass: Bool, log: Array[String] val) =>
     """
@@ -231,22 +238,26 @@ actor PonyTest
     The id parameter is the test identifier handed out when we created the test
     helper.
     """
+    _finished = _finished + 1
+
     try
       _records(id)._result(pass, log)
-    end
 
-    _finished = _finished + 1
-    _env.out.print(_started.string() + " test" + _plural(_started) +
-      " started, " + _finished.string() + " complete")
+      if not _no_prog then
+        _env.out.print(_started.string() + " test" + _plural(_started) +
+          " started, " + _finished.string() + " complete: " +
+          _records(id).name + " complete")
+      end
+    end
 
     if _all_started and (_finished == _records.size()) then
       // All tests have completed
       _print_report()
     end
 
-  be _run() =>
+  be _all_tests_applied() =>
     """
-    We've been given all the tests to run, now run them.
+    All our tests have been handed to apply(), setup for finishing
     """
     if _do_nothing then
       return
@@ -285,12 +296,14 @@ actor PonyTest
       .add("filter", "f"
         /*,"Only run the tests whose names start with the given prefix."*/,
         StringArgument)
+      .add("noprog", "n"/*, "Do not print progress messages"*/, None)
 
     for option in opts do
       match option
       | ("sequential", None) => _sequential = true
       | ("verbose", None) => _verbose = true
       | ("filter", var arg: String) => _filter = arg
+      | ("noprog", None) => _no_prog = true
       | let failure: ParseError =>
         //opts.usage()
         failure.report(_env.out)

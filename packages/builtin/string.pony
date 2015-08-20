@@ -1,4 +1,4 @@
-class String val is Seq[U8], Ordered[String box], Stringable
+class String val is (Seq[U8] & Ordered[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """
@@ -874,8 +874,8 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
       if
         not ((c1 == c2) or
-          (ignore_case and
-            (c1 >= 0x41) and (c1 <= 0x5A) and ((c1 + 0x20) == c2)))
+          (ignore_case and ((c1 or 0x20) == (c2 or 0x20)) and
+            ((c1 or 0x20) >= 'a') and ((c1 or 0x20) <= 'z')))
       then
         return if c1.i32() > c2.i32() then Greater else Less end
       end

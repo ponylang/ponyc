@@ -627,7 +627,8 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
     return false;
 
   // A field in the type.
-  BUILD(r_field, receiver, NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE));
+  BUILD(r_field, receiver,
+    NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE NONE));
 
   // A parameter of the constructor.
   BUILD(r_ctor_param, receiver, NODE(TK_PARAM, TREE(r_id) TREE(r_type) NONE));
@@ -698,7 +699,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
 
       // A field in the type.
-      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(p_type) NONE));
+      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(p_type) NONE NONE));
 
       // A parameter of the constructor.
       BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(p_type) NONE));
