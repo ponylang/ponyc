@@ -15,20 +15,26 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 
 bool limit_passes(pass_opt_t* opt, const char* pass)
 {
-  for(pass_id i = PASS_PARSE; i <= PASS_ALL; i++)
+  pass_id i = PASS_PARSE;
+  
+  while(true)
   {
     if(strcmp(pass, pass_name(i)) == 0)
     {
       opt->limit = i;
       return true;
     }
-  }
 
-  return false;
+    if(i == PASS_ALL)
+      return false;
+
+    i = pass_next(i);
+  }
 }
 
 
@@ -44,8 +50,9 @@ const char* pass_name(pass_id pass)
     case PASS_NAME_RESOLUTION: return "name";
     case PASS_FLATTEN: return "flatten";
     case PASS_TRAITS: return "traits";
+    case PASS_DOCS: return "docs";
     case PASS_EXPR: return "expr";
-    case PASS_AST: return "ast";
+    case PASS_FINALISER: return "final";
     case PASS_LLVM_IR: return "ir";
     case PASS_BITCODE: return "bitcode";
     case PASS_ASM: return "asm";
@@ -53,6 +60,24 @@ const char* pass_name(pass_id pass)
     case PASS_ALL: return "all";
     default: return "error";
   }
+}
+
+
+pass_id pass_next(pass_id pass)
+{
+  if(pass == PASS_ALL)  // Limit end of list
+    return PASS_ALL;
+
+  return (pass_id)(pass + 1);
+}
+
+
+pass_id pass_prev(pass_id pass)
+{
+  if(pass == PASS_PARSE)  // Limit start of list
+    return PASS_PARSE;
+
+  return (pass_id)(pass - 1);
 }
 
 
@@ -89,39 +114,117 @@ void pass_opt_done(pass_opt_t* options)
 }
 
 
-// Do a single pass, if the limit allows
-static bool do_pass(ast_t** astp, bool* out_result, pass_opt_t* options,
-  pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
+// Check whether we have reached the maximum pass we should currently perform.
+// We check against both the specified last pass and the limit set in the
+// options, if any.
+// Returns true if we should perform the specified pass, false if we shouldn't.
+static bool check_limit(ast_t** astp, pass_opt_t* options, pass_id pass,
+  pass_id last_pass)
 {
-  if(options->limit < pass)
-  {
-    *out_result = true;
-    return true;
-  }
+  assert(astp != NULL);
+  assert(*astp != NULL);
+  assert(options != NULL);
 
-  if(ast_visit(astp, pre_fn, post_fn, options) != AST_OK)
-  {
-    *out_result = false;
-    return true;
-  }
+  if(last_pass < pass || options->limit < pass)
+    return false;
 
-  return false;
+  if(ast_id(*astp) == TK_PROGRAM) // Record pass program AST has reached
+    options->program_pass = pass;
+
+  return true;
 }
 
 
-bool type_passes(ast_t* type, pass_opt_t* options)
+// Perform an ast_visit pass, after checking the pass limits
+static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
+  pass_id pass, ast_visit_t pre_fn, ast_visit_t post_fn)
 {
-  ast_t* module = ast_parent(type);
+  if(!check_limit(astp, options, pass, last_pass))
+    return true;
+
+  return ast_visit(astp, pre_fn, post_fn, options) == AST_OK;
+}
+
+
+bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
+{
+  if(!pass_parse(package, source))
+    return false;
+
+  if(options->limit < PASS_SYNTAX)
+    return true;
+
+  ast_t* module = ast_child(package);
+  return ast_visit(&module, pass_syntax, NULL, options) == AST_OK;
+}
+
+
+// Peform the AST passes on the given AST up to the speficied last pass
+static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
+{
+  assert(astp != NULL);
+
+  if(!visit_pass(astp, options, last, PASS_SUGAR, pass_sugar, NULL))
+    return false;
+
+  if(!visit_pass(astp, options, last, PASS_SCOPE, pass_scope, NULL))
+    return false;
+
+  if(!visit_pass(astp, options, last, PASS_IMPORT, pass_import, NULL))
+    return false;
+
+  if(!visit_pass(astp, options, last, PASS_NAME_RESOLUTION, NULL, pass_names))
+    return false;
+
+  if(!visit_pass(astp, options, last, PASS_FLATTEN, NULL, pass_flatten))
+    return false;
+
+  if(!visit_pass(astp, options, last, PASS_TRAITS, pass_traits, NULL))
+    return false;
+
+  if(check_limit(astp, options, PASS_DOCS, last))
+  {
+    if(options->docs && ast_id(*astp) == TK_PROGRAM)
+      generate_docs(*astp, options);
+  }
+
+  if(!visit_pass(astp, options, last, PASS_EXPR, pass_pre_expr, pass_expr))
+    return false;
+
+  if(check_limit(astp, options, PASS_FINALISER, last))
+  {
+    if(!pass_finalisers(*astp))
+      return false;
+  }
+
+  return true;
+}
+
+
+bool ast_passes_program(ast_t* ast, pass_opt_t* options)
+{
+  return ast_passes(&ast, options, PASS_ALL);
+}
+
+
+bool ast_passes_type(ast_t** astp, pass_opt_t* options)
+{
+  ast_t* ast = *astp;
+  
+  assert(ast_id(ast) == TK_ACTOR || ast_id(ast) == TK_CLASS ||
+    ast_id(ast) == TK_PRIMITIVE || ast_id(ast) == TK_TRAIT ||
+    ast_id(ast) == TK_INTERFACE);
+
+  // We don't have the right frame stack for an entity, set up appropriate
+  // frames
+  ast_t* module = ast_parent(ast);
   ast_t* package = ast_parent(module);
 
   frame_push(&options->check, NULL);
   frame_push(&options->check, package);
   frame_push(&options->check, module);
 
-  bool ok = package_passes(type, options);
-
-  if(ok)
-    ok = program_passes(type, options);
+  bool ok = ast_passes(astp, options, options->program_pass);
 
   frame_pop(&options->check);
   frame_pop(&options->check);
@@ -131,61 +234,9 @@ bool type_passes(ast_t* type, pass_opt_t* options)
 }
 
 
-bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
+bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 {
-  if(!pass_parse(package, source))
-    return false;
-
-  ast_t* module = ast_child(package);
-  bool r;
-
-  if(do_pass(&module, &r, options, PASS_SYNTAX, pass_syntax, NULL))
-    return r;
-
-  return true;
-}
-
-
-bool package_passes(ast_t* package, pass_opt_t* options)
-{
-  bool r;
-
-  if(do_pass(&package, &r, options, PASS_SUGAR, pass_sugar, NULL))
-    return r;
-
-  if(do_pass(&package, &r, options, PASS_SCOPE, pass_scope, NULL))
-    return r;
-
-  return true;
-}
-
-
-bool program_passes(ast_t* program, pass_opt_t* options)
-{
-  bool r;
-
-  if(do_pass(&program, &r, options, PASS_IMPORT, pass_import, NULL))
-    return r;
-
-  if(do_pass(&program, &r, options, PASS_NAME_RESOLUTION, NULL, pass_names))
-    return r;
-
-  if(do_pass(&program, &r, options, PASS_FLATTEN, NULL, pass_flatten))
-    return r;
-
-  if(do_pass(&program, &r, options, PASS_TRAITS, pass_traits, NULL))
-    return r;
-
-  if(options->docs)
-    generate_docs(program, options);
-
-  if(do_pass(&program, &r, options, PASS_EXPR, pass_pre_expr, pass_expr))
-    return r;
-
-  if(!pass_finalisers(program))
-    return false;
-
-  return true;
+  return ast_passes(astp, options, last_pass);
 }
 
 

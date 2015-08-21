@@ -204,10 +204,24 @@ static ast_result_t sugar_module(ast_t* ast)
 {
   ast_t* docstring = ast_child(ast);
 
+  ast_t* package = ast_parent(ast);
+  assert(ast_id(package) == TK_PACKAGE);
+
+  if(strcmp(package_name(package), "$1") != 0)
+  {
+    // Every module not in builtin has an implicit use builtin command
+    BUILD(builtin, ast,
+      NODE(TK_USE,
+      NONE
+      STRING(stringtab("builtin"))
+      NONE));
+
+    ast_add(ast, builtin);
+  }
+
   if((docstring == NULL) || (ast_id(docstring) != TK_STRING))
     return AST_OK;
 
-  ast_t* package = ast_parent(ast);
   ast_t* package_docstring = ast_childlast(package);
 
   if(ast_id(package_docstring) == TK_STRING)
