@@ -82,9 +82,6 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
 
   ast_t* package = package_load(ast, path, options);
 
-  if(package == ast)  // Stop builtin recursing
-    return true;
-
   if(package == NULL)
   {
     ast_error(ast, "can't load package '%s'", path);
@@ -97,26 +94,6 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   // Store the package so we can import it later without having to look it up
   // again
   ast_setdata(ast, (void*)package);
-  return true;
-}
-
-static bool scope_module(ast_t* ast)
-{
-  // Don't do this for this builtin package.
-  ast_t* package = ast_parent(ast);
-  assert(ast_id(package) == TK_PACKAGE);
-
-  if(!strcmp(package_name(package), "$1"))
-    return true;
-
-  // Every module has an implicit use "builtin" command
-  BUILD(builtin, ast,
-    NODE(TK_USE,
-      NONE
-      STRING(stringtab("builtin"))
-      NONE));
-
-  ast_add(ast, builtin);
   return true;
 }
 
@@ -218,11 +195,6 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_MODULE:
-      if(!scope_module(ast))
-        return AST_FATAL;
-      break;
-
     case TK_USE:
       return use_command(ast, options);
 

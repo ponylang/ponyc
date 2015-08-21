@@ -822,7 +822,7 @@ static ast_t* resolve_default_body(ast_t* entity, ast_t* method,
     return BODY_ERROR;
   }
 
-  if(info->default_body_src_1 == NULL)  // Nod efault body found
+  if(info->default_body_src_1 == NULL)  // No default body found
     return NULL;
 
   // We have a default body, use it

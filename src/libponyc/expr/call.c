@@ -734,7 +734,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   // Typecheck the anonymous type.
   ast_add(t->frame->module, def);
 
-  if(!type_passes(def, opt))
+  if(!ast_passes_type(&def, opt))
     return false;
 
   // Typecheck the create call.
