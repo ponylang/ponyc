@@ -43,7 +43,7 @@ class FileMode
     """
     any_read = false
     any_write = false
-    any_read = false
+    any_exec = false
     this
 
   fun ref private(): FileMode =>
@@ -55,7 +55,7 @@ class FileMode
     group_exec = false
     any_read = false
     any_write = false
-    any_read = false
+    any_exec = false
     this
 
   fun _os(): U32 =>
