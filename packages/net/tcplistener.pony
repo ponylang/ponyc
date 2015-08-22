@@ -4,7 +4,7 @@ actor TCPListener
   """
   var _notify: TCPListenNotify
   var _fd: U64
-  var _event: EventID = Event.none()
+  var _event: AsioEventID = AsioEvent.none()
   var _closed: Bool = false
   let _limit: U64
   var _count: U64 = 0
@@ -18,7 +18,7 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @os_listen_tcp[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_tcp[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _notify_listening()
 
@@ -30,7 +30,7 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @os_listen_tcp4[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_tcp4[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _notify_listening()
 
@@ -42,7 +42,7 @@ actor TCPListener
     """
     _limit = limit
     _notify = consume notify
-    _event = @os_listen_tcp6[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_tcp6[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _notify_listening()
 
@@ -66,7 +66,7 @@ actor TCPListener
     @os_sockname[Bool](_fd, ip)
     ip
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     When we are readable, we accept new connections until none remain.
     """
@@ -74,13 +74,13 @@ actor TCPListener
       return
     end
 
-    if Event.readable(flags) then
+    if AsioEvent.readable(flags) then
       _accept(arg)
     end
 
-    if Event.disposable(flags) then
+    if AsioEvent.disposable(flags) then
       @asio_event_destroy[None](_event)
-      _event = Event.none()
+      _event = AsioEvent.none()
     end
 
   be _conn_closed() =>

@@ -26,7 +26,7 @@ actor Stdin
   access is provided only via an environment.
   """
   var _notify: (StdinNotify | None) = None
-  var _event: EventID = Event.none()
+  var _event: AsioEventID = AsioEvent.none()
   let _use_event: Bool
 
   new _create(use_event: Bool) =>
@@ -55,12 +55,12 @@ actor Stdin
       if _use_event and not _event.is_null() then
         // Unsubscribe the event.
         @asio_event_unsubscribe[None](_event)
-        _event = Event.none()
+        _event = AsioEvent.none()
       end
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = @asio_event_create[Pointer[Event]](this, U64(0), U32(1), true)
+        _event = @asio_event_create[Pointer[AsioEvent]](this, U64(0), U32(1), true)
       else
         // Start the read loop.
         _loop_read()
@@ -78,13 +78,13 @@ actor Stdin
       _loop_read()
     end
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     When the event fires, read from stdin.
     """
-    if Event.disposable(flags) then
+    if AsioEvent.disposable(flags) then
       @asio_event_destroy[None](event)
-    elseif (_event is event) and Event.readable(flags) then
+    elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end
 
@@ -152,5 +152,5 @@ actor Stdin
       """
       if not _event.is_null() then
         @asio_event_unsubscribe[None](_event)
-        _event = Event.none()
+        _event = AsioEvent.none()
       end

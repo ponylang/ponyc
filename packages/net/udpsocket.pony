@@ -3,7 +3,7 @@ use "collections"
 actor UDPSocket
   var _notify: UDPNotify
   var _fd: U64
-  var _event: EventID
+  var _event: AsioEventID
   var _readable: Bool = false
   var _closed: Bool = false
   var _packet_size: U64
@@ -17,7 +17,7 @@ actor UDPSocket
     Listens for both IPv4 and IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
@@ -30,7 +30,7 @@ actor UDPSocket
     Listens for IPv4 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp4[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp4[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
@@ -43,7 +43,7 @@ actor UDPSocket
     Listens for IPv6 datagrams.
     """
     _notify = consume notify
-    _event = @os_listen_udp6[EventID](this, host.cstring(), service.cstring())
+    _event = @os_listen_udp6[AsioEventID](this, host.cstring(), service.cstring())
     _fd = @asio_event_data[U64](_event)
     _packet_size = size
     _notify_listening()
@@ -120,7 +120,7 @@ actor UDPSocket
     @os_sockname[Bool](_fd, ip)
     ip
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     When we are readable, we accept new connections until none remain.
     """
@@ -131,19 +131,19 @@ actor UDPSocket
     if not _closed then
       _event = event
 
-      if Event.readable(flags) then
+      if AsioEvent.readable(flags) then
         _readable = true
         _complete_reads(arg)
         _pending_reads()
       end
-    elseif Platform.windows() and Event.readable(flags) then
+    elseif Platform.windows() and AsioEvent.readable(flags) then
       _readable = false
       _close()
     end
 
-    if Event.disposable(flags) then
+    if AsioEvent.disposable(flags) then
       @asio_event_destroy[None](_event)
-      _event = Event.none()
+      _event = AsioEvent.none()
     end
 
   be _read_again() =>

@@ -8,7 +8,7 @@ actor TCPConnection
   var _notify: TCPConnectionNotify
   var _connect_count: U32
   var _fd: U64 = -1
-  var _event: EventID = Event.none()
+  var _event: AsioEventID = AsioEvent.none()
   var _connected: Bool = false
   var _readable: Bool = false
   var _writeable: Bool = false
@@ -60,7 +60,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @asio_event_create[Pointer[Event]](this, fd, U32(3), true)
+    _event = @asio_event_create[Pointer[AsioEvent]](this, fd, U32(3), true)
     _connected = true
 
     _queue_read()
@@ -135,12 +135,12 @@ actor TCPConnection
       @os_keepalive[None](_fd, secs)
     end
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     Handle socket events.
     """
     if event isnt _event then
-      if Event.writeable(flags) then
+      if AsioEvent.writeable(flags) then
         // A connection has completed.
         var fd = @asio_event_data[U64](event)
         _connect_count = _connect_count - 1
@@ -173,28 +173,28 @@ actor TCPConnection
         end
       else
         // It's not our event.
-        if Event.disposable(flags) then
+        if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
           @asio_event_destroy[None](event)
         end
       end
     else
       // At this point, it's our event.
-      if Event.writeable(flags) then
+      if AsioEvent.writeable(flags) then
         _writeable = true
         _complete_writes(arg)
         _pending_writes()
       end
 
-      if Event.readable(flags) then
+      if AsioEvent.readable(flags) then
         _readable = true
         _complete_reads(arg)
         _pending_reads()
       end
 
-      if Event.disposable(flags) then
+      if AsioEvent.disposable(flags) then
         @asio_event_destroy[None](event)
-        _event = Event.none()
+        _event = AsioEvent.none()
       end
 
       _try_shutdown()
