@@ -85,18 +85,6 @@ static pool_global_t pool_global[POOL_COUNT] =
 
 static __pony_thread_local pool_local_t pool_local[POOL_COUNT];
 
-static pool_item_t* pool_block(pool_local_t* thread, pool_global_t* global)
-{
-  if(thread->start < thread->end)
-  {
-    pool_item_t* p = (pool_item_t*)thread->start;
-    thread->start += global->size;
-    return p;
-  }
-
-  return NULL;
-}
-
 static void pool_push(pool_local_t* thread, pool_global_t* global)
 {
   pool_cmp_t cmp, xchg;
@@ -139,6 +127,20 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   return p;
 }
 
+static pool_item_t* pool_block(pool_local_t* thread, pool_global_t* global)
+{
+  // Heap blocks must be aligned for the pagemap, so they can't be pulled off
+  // the free block of another size class.
+  if(thread->start < thread->end)
+  {
+    pool_item_t* p = (pool_item_t*)thread->start;
+    thread->start += global->size;
+    return p;
+  }
+
+  return NULL;
+}
+
 static pool_item_t* pool_pages(pool_local_t* thread, pool_global_t* global)
 {
   char* p = (char*)virtual_alloc(POOL_MMAP);
@@ -162,11 +164,11 @@ static void* pool_get(size_t index)
     thread->pool = p->next;
     thread->length--;
   } else {
-    p = pool_block(thread, global);
+    p = pool_pull(thread, global);
 
     if(p == NULL)
     {
-      p = pool_pull(thread, global);
+      p = pool_block(thread, global);
 
       if(p == NULL)
         p = pool_pages(thread, global);

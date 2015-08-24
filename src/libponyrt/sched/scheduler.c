@@ -199,10 +199,9 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 
 /**
  * Use mpmcqs to allow stealing directly from a victim, without waiting for a
- * response. However, this makes pushing and popping actors on scheduling
- * queues significantly more expensive.
+ * response.
  */
-static pony_actor_t* steal(scheduler_t* sched)
+static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
   send_msg(0, SCHED_BLOCK, 0);
   uint64_t tsc = cpu_rdtsc();
@@ -223,6 +222,11 @@ static pony_actor_t* steal(scheduler_t* sched)
     if(quiescent(sched, tsc))
       return NULL;
 
+    if(prev != NULL)
+    {
+      actor = prev;
+      break;
+    }
   }
 
   send_msg(0, SCHED_UNBLOCK, 0);
@@ -241,7 +245,7 @@ static void run(scheduler_t* sched)
     if(actor == NULL)
     {
       // We had an empty queue and no rescheduled actor.
-      actor = steal(sched);
+      actor = steal(sched, NULL);
 
       if(actor == NULL)
       {
@@ -266,7 +270,7 @@ static void run(scheduler_t* sched)
       } else if(is_cycle(actor)) {
         // If all we have is the cycle detector, try to steal something else to
         // run as well.
-        next = steal(sched);
+        next = steal(sched, actor);
 
         if(next == NULL)
         {
@@ -275,8 +279,11 @@ static void run(scheduler_t* sched)
         }
 
         // Push the cycle detector and run the actor we stole.
-        push(sched, actor);
-        actor = next;
+        if(actor != next)
+        {
+          push(sched, actor);
+          actor = next;
+        }
       }
     } else {
       // We aren't rescheduling, so run the next actor. This may be NULL if our

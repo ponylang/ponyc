@@ -80,7 +80,9 @@ static void destroy_small(chunk_t* chunk)
 static void destroy_large(chunk_t* chunk)
 {
   // We could clear the pagemap here.
-  pool_free_size(chunk->size, chunk->m);
+  if(chunk->m != NULL)
+    pool_free_size(chunk->size, chunk->m);
+
   POOL_FREE(chunk_t, chunk);
 }
 
@@ -377,6 +379,20 @@ bool heap_ismarked(chunk_t* chunk, void* p)
   return (chunk->slots & slot) == 0;
 }
 
+void heap_free(chunk_t* chunk, void* p)
+{
+  if(chunk->size >= HEAP_SIZECLASSES)
+  {
+    pool_free_size(chunk->size, chunk->m);
+    chunk->m = NULL;
+    chunk->slots = 1;
+    return;
+  }
+
+  uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
+  chunk->slots |= slot;
+}
+
 void heap_endgc(heap_t* heap)
 {
   size_t used = 0;
@@ -398,9 +414,9 @@ void heap_endgc(heap_t* heap)
 
   heap->large = sweep_large(heap->large, &used);
 
-  // foreign object sizes will have been added to heap->used already. here we
+  // Foreign object sizes will have been added to heap->used already. Here we
   // add local object sizes as well and set the next gc point for when memory
-  // usage has doubled.
+  // usage has increased.
   heap->used += used;
   heap->next_gc = (size_t)((double)heap->used * heap_nextgc_factor);
 

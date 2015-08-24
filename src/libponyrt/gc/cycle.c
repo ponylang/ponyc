@@ -161,6 +161,9 @@ typedef struct detector_t
   size_t attempted;
   size_t detected;
   size_t collected;
+
+  size_t created;
+  size_t destroyed;
 } detector_t;
 
 static pony_actor_t* cycle_detector;
@@ -180,6 +183,7 @@ static view_t* get_view(detector_t* d, pony_actor_t* actor, bool create)
     view->view_rc = 1;
 
     viewmap_put(&d->views, view);
+    d->created++;
   }
 
   return view;
@@ -433,6 +437,7 @@ static void send_conf(detector_t* d, perceived_t* per)
       break;
   }
 
+  d->conf_msgs += count;
   per->last_conf = i;
 }
 
@@ -446,6 +451,8 @@ static bool detect(detector_t* d, view_t* view)
 
   if(count == 0)
     return false;
+
+  d->detected++;
 
   perceived_t* per = (perceived_t*)POOL_ALLOC(perceived_t);
   per->token = d->next_token++;
@@ -491,8 +498,6 @@ static void deferred(detector_t* d)
   {
     if(d->next_deferred > d->min_deferred)
       d->next_deferred >>= 1;
-
-    d->detected++;
   } else {
     if(d->next_deferred < d->max_deferred)
       d->next_deferred <<= 1;
@@ -558,6 +563,8 @@ static void collect(detector_t* d, perceived_t* per)
     view->actor = NULL;
     view_free(view);
   }
+
+  d->destroyed += viewmap_size(&per->map);
 
   // free the perceived cycle
   perceived_free(per);
@@ -674,6 +681,60 @@ static void final(pony_actor_t* self)
   scheduler_terminate();
 }
 
+static void dump_view(view_t* view)
+{
+  printf("%p: %lu (%s)\n",
+    view->actor, view->rc, view->blocked ? "blocked" : "unblocked");
+
+  size_t i = HASHMAP_BEGIN;
+  viewref_t* p;
+
+  while((p = viewrefmap_next(&view->map, &i)) != NULL)
+  {
+    printf("\t%p: %lu\n", p->view->actor, p->rc);
+  }
+}
+
+void dump_views()
+{
+  detector_t* d = (detector_t*)cycle_detector;
+  size_t i = HASHMAP_BEGIN;
+  view_t* view;
+
+  while((view = viewmap_next(&d->views, &i)) != NULL)
+  {
+    apply_delta(d, view);
+    dump_view(view);
+  }
+}
+
+void check_view(detector_t* d, view_t* view)
+{
+  if(view->perceived != NULL)
+  {
+    printf("%p: in a cycle\n", view->actor);
+    return;
+  }
+
+  scan_grey(d, view, 0);
+  int count = scan_white(view);
+  assert(count >= 0);
+
+  printf("%p: %s\n", view->actor, count > 0 ? "COLLECTABLE" : "uncollectable");
+}
+
+void check_views()
+{
+  detector_t* d = (detector_t*)cycle_detector;
+  size_t i = HASHMAP_BEGIN;
+  view_t* view;
+
+  while((view = viewmap_next(&d->views, &i)) != NULL)
+  {
+    check_view(d, view);
+  }
+}
+
 static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
 {
   detector_t* d = (detector_t*)self;
@@ -713,6 +774,13 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
       ack(d, m->i);
       break;
     }
+
+    default:
+    {
+      // Never happens, used to keep debug functions.
+      dump_views();
+      check_views();
+    }
   }
 }
 
@@ -730,7 +798,7 @@ static pony_type_t cycle_type =
   0,
   NULL,
   NULL,
-  {}
+  NULL
 };
 
 void cycle_create(uint32_t min_deferred, uint32_t max_deferred,

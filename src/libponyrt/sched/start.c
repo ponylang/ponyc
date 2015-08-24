@@ -78,9 +78,9 @@ int pony_init(int argc, char** argv)
 
   // Defaults.
   opt.cd_min_deferred = 4;
-  opt.cd_max_deferred = 18;
+  opt.cd_max_deferred = 8;
   opt.cd_conf_group = 6;
-  opt.gc_initial = 1 << 14;
+  opt.gc_initial = 14;
   opt.gc_factor = 2.0f;
 
   argc = parse_opts(argc, argv, &opt);

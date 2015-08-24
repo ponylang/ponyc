@@ -85,11 +85,7 @@ typedef const struct _pony_type_t
   uint32_t event_notify;
   uint32_t** traits;
   void* fields;
-#ifndef _MSC_VER
-  void* vtable[0];
-#else
   void* vtable;
-#endif
 } pony_type_t;
 
 /** Padding for actor types.
@@ -97,11 +93,8 @@ typedef const struct _pony_type_t
  * 56 bytes: initial header, not including the type descriptor
  * 120 bytes: heap
  * 80 bytes: gc
- * 8 bytes: next
- * 1 byte: flags
- *
  */
-#define PONY_ACTOR_PAD_SIZE 265
+#define PONY_ACTOR_PAD_SIZE 256
 
 typedef struct pony_actor_pad_t
 {

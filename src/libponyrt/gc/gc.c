@@ -149,9 +149,11 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
 
     if(!object_marked(obj, gc->mark))
     {
-      // dec, mark and recurse
+      // Dec, mark and recurse. Mark as reachable from the actor, since a
+      // release message for this object could arrive before a gc pass.
       object_dec(obj);
       object_mark(obj, gc->mark);
+      object_markreachable(obj);
 
       if(f != NULL)
       {
@@ -381,7 +383,20 @@ bool gc_release(gc_t* gc, actorref_t* aref)
   while((obj = objectmap_next(map, &i)) != NULL)
   {
     object_t* obj_local = objectmap_getobject(&gc->local, object_address(obj));
-    object_dec_some(obj_local, object_rc(obj));
+
+    if(object_dec_some(obj_local, object_rc(obj)))
+    {
+      // The local rc for this object has dropped to zero. We keep track of
+      // whether or not the object was reachable. If we go to 0 rc and it
+      // wasn't reachable, we free it. If we receive the object in a message,
+      // mark it as reachable again.
+      if(!object_reachable(obj_local))
+      {
+        void* p = object_address(obj_local);
+        chunk_t* chunk = (chunk_t*)pagemap_get(p);
+        heap_free(chunk, p);
+      }
+    }
   }
 
   actorref_free(aref);
@@ -463,5 +478,8 @@ void gc_destroy(gc_t* gc)
   actormap_destroy(&gc->foreign);
 
   if(gc->delta != NULL)
-    deltamap_destroy(gc->delta);
+  {
+    deltamap_free(gc->delta);
+    gc->delta = NULL;
+  }
 }

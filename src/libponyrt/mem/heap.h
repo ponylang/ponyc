@@ -63,6 +63,11 @@ void heap_mark_shallow(chunk_t* chunk, void* p);
  */
 bool heap_ismarked(chunk_t* chunk, void* p);
 
+/**
+ * Forcibly free this address.
+ */
+void heap_free(chunk_t* chunk, void* p);
+
 void heap_endgc(heap_t* heap);
 
 pony_actor_t* heap_owner(chunk_t* chunk);

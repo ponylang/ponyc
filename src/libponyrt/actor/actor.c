@@ -21,12 +21,11 @@ typedef struct pony_actor_t
   pony_type_t* type;
   messageq_t q;
   pony_msg_t* continuation;
+  uint8_t flags;
 
   // keep things accessed by other actors on a separate cache line
-  __pony_spec_align__(heap_t heap, 64);
-  gc_t gc;
-  struct pony_actor_t* next;
-  uint8_t flags;
+  __pony_spec_align__(heap_t heap, 64); // 120 bytes
+  gc_t gc; // 80 bytes
 } pony_actor_t;
 
 static __pony_thread_local pony_actor_t* this_actor;
@@ -78,6 +77,12 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
 
     case ACTORMSG_CONF:
     {
+      if(*notify)
+      {
+        *notify = false;
+        cycle_block(actor, &actor->gc);
+      }
+
       pony_msgi_t* m = (pony_msgi_t*)msg;
       cycle_ack(m->i);
       return false;
@@ -171,6 +176,15 @@ void actor_destroy(pony_actor_t* actor)
 {
   assert(has_flag(actor, FLAG_PENDINGDESTROY));
 
+  // Make sure the actor being destroyed has finished marking its queue
+  // as empty. Otherwise, it may spuriously see that tail and head are not
+  // the same and fail to mark the queue as empty, resulting in it getting
+  // rescheduled.
+  pony_msg_t* head = _atomic_load(&actor->q.head);
+
+  while(((uintptr_t)head & (uintptr_t)1) != (uintptr_t)1)
+    head = _atomic_load(&actor->q.head);
+
   messageq_destroy(&actor->q);
   gc_destroy(&actor->gc);
   heap_destroy(&actor->heap);
@@ -230,16 +244,6 @@ void actor_sendrelease(pony_actor_t* actor)
 void actor_setsystem(pony_actor_t* actor)
 {
   set_flag(actor, FLAG_SYSTEM);
-}
-
-pony_actor_t* actor_next(pony_actor_t* actor)
-{
-  return actor->next;
-}
-
-void actor_setnext(pony_actor_t* actor, pony_actor_t* next)
-{
-  actor->next = next;
 }
 
 pony_actor_t* pony_create(pony_type_t* type)
