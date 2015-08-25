@@ -17,7 +17,7 @@ class Directory
   Operations on a directory.
 
   The directory-relative functions (open, etc) use the *at interface on FreeBSD
-  and Linux. This isn't available on OSX prior to 10.10, so it is not used. On
+  and Linux. This isn't available on OS X prior to 10.10, so it is not used. On
   FreeBSD, this allows the directory-relative functions to take advantage of
   Capsicum.
   """

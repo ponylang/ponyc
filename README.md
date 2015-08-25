@@ -16,7 +16,7 @@
 
 # Installation
 
-## Mac OSX using [Homebrew](http://brew.sh)
+## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
 $ brew update 
@@ -127,7 +127,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Mac OSX
+# Building on Mac OS X
 
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 

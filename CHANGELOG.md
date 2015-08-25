@@ -66,7 +66,7 @@ All notable changes to the Pony compiler and standard library will be documented
 ### Fixed
 
 - ANSI stripping on zero length writes to stdout/stderr.
-- More OSX 10.8 compatibility.
+- More OS X 10.8 compatibility.
 - SSL multithreading support.
 - Nested tuple code generation.
 - Only finalise blocked actors when detecting quiescence.
@@ -76,7 +76,7 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Fixed
 
-- OSX 10.8 compatibility.
+- OS X 10.8 compatibility.
 
 ## [0.1.4] - 2015-05-14
 
