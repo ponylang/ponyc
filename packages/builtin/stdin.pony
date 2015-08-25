@@ -60,7 +60,7 @@ actor Stdin
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = @asio_event_create[Pointer[AsioEvent]](this, U64(0), U32(1), true)
+        _event = @asio_event_create[AsioEventID](this, U64(0), U32(1), true)
       else
         // Start the read loop.
         _loop_read()

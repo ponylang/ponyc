@@ -11,7 +11,7 @@ primitive AsioEvent
     """
     An empty event.
     """
-    Pointer[AsioEvent]
+    AsioEventID
 
   fun readable(flags: U32): Bool =>
     """

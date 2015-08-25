@@ -60,7 +60,7 @@ actor TCPConnection
     _notify = consume notify
     _connect_count = 0
     _fd = fd
-    _event = @asio_event_create[Pointer[AsioEvent]](this, fd, U32(3), true)
+    _event = @asio_event_create[AsioEventID](this, fd, U32(3), true)
     _connected = true
 
     _queue_read()

@@ -101,7 +101,7 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @asio_event_create[Pointer[AsioEvent]](this, nsec, U32(4), true)
+        _event = @asio_event_create[AsioEventID](this, nsec, U32(4), true)
       end
     else
       if nsec != -1 then
