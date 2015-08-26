@@ -13,14 +13,14 @@ primitive AmbiguousMatch
 primitive MissingArgument
 primitive InvalidArgument
 
-type ArgumentType is 
-  ( None 
-  | StringArgument 
-  | I64Argument 
+type ArgumentType is
+  ( None
+  | StringArgument
+  | I64Argument
   | F64Argument)
 
-type ErrorReason is 
-  ( UnrecognisedOption 
+type ErrorReason is
+  ( UnrecognisedOption
   | MissingArgument
   | InvalidArgument
   | AmbiguousMatch)
@@ -37,15 +37,15 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
   var _configuration: Array[_Option] = _configuration.create()
   var _index: U64 = 0
   var _error: Bool = false
-  
+
   new create(env: Env, fatal: Bool = true) =>
     _arguments = _arguments.create(env.args.size())
     _fatal = fatal
-    
+
     for arg in env.args.values() do
       _arguments.push(arg.clone())
     end
-    
+
   fun ref add(long: String, short: (None | String) = None,
     arg: ArgumentType = None, mode: (Required | Optional) = Required): Options
   =>
@@ -58,7 +58,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
   fun ref remaining(): Array[String ref] =>
     """
     Returns all unprocessed command line arguments. After parsing all options,
-    this will only include positional arguments, potentially unrecognised and 
+    this will only include positional arguments, potentially unrecognised and
     ambiguous options and invalid arguments.
     """
     _arguments
@@ -82,7 +82,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     end
 
   fun ref _select(candidate: String ref, start: I64, offset: I64,
-    finish: I64): (_Option | ParseError) 
+    finish: I64): (_Option | ParseError)
   =>
     """
     Selects an option from the configuration depending on the current command
@@ -91,7 +91,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     let name: String box = candidate.substring(start, finish)
     var matches = Array[_Option]
     var selected: (_Option | None) = None
-    
+
     for opt in _configuration.values() do
       if opt.matches(name, start == 1) then
         matches.push(opt)
@@ -158,14 +158,14 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
     end
 
     (opt.long, None)
- 
+
   fun has_next(): Bool =>
     """
     Parsing options is done if either an error occurs and fatal error reporting
     is turned on, or if all command line arguments have been processed.
     """
     not (_error and _fatal) and (_index < _arguments.size())
-  
+
   fun ref next(): (ParsedOption | ParseError | None) =>
     """
     Skips all positional arguments and attemps to match named options. Returns
@@ -184,7 +184,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
             (0, 0) // unreachable
           end
 
-        let finish: I64 = 
+        let finish: I64 =
           try
             candidate.find("=") - 1
           else
@@ -199,7 +199,7 @@ class Options is Iterator[(ParsedOption | ParseError | None)]
         end
       end
     end
-  
+
 //TODO: Refactor
 class _Option
   let long: String
@@ -217,7 +217,7 @@ class _Option
 
   fun matches(name: String box, shortmatch: Bool): Bool =>
     match (short, shortmatch)
-    | (var x: String, true) => return name.compare(x, 1) is Equal
+    | (var x: String, true) => return name.compare_sub(x, 1) is Equal
     end
 
     long == name
@@ -235,7 +235,7 @@ class _Option
       end
     end
     false
-    
+
   fun accepts(argument: String box): Bool =>
     true
 
@@ -246,7 +246,7 @@ class _ErrorPrinter
   new _ambiguous(matches: Array[_Option]) =>
     let m = recover String end
     m.append("Ambiguous options:\n")
-    
+
     for opt in matches.values() do
       m.append("  --" + opt.long)
       try m.append(", -" + (opt.short as String)) end
@@ -255,7 +255,7 @@ class _ErrorPrinter
 
     _message = consume m
     _reason = AmbiguousMatch
-    
+
   new _unrecognised(option: String box) =>
     _message = "Unrecognised option: " + option
     _reason = UnrecognisedOption

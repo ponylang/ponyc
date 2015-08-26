@@ -3,11 +3,11 @@
 
 This package represents the test suite for the Pony standard library.
 
-For every new package, please add a Main actor and tests to the package in a 
-file called 'test.pony'. Then add a corresponding use directive and a line to 
+For every new package, please add a Main actor and tests to the package in a
+file called 'test.pony'. Then add a corresponding use directive and a line to
 the main actor constructor of this package to invoke those tests.
 
-All tests can be run by compiling and running packages/stdlib.  
+All tests can be run by compiling and running packages/stdlib.
  """
 
 use "ponytest"
@@ -395,20 +395,20 @@ class _TestStringCompare iso is UnitTest
     test(h, Equal, "foo", "foo", 3)
     test(h, Greater, "foo", "bar", 3)
     test(h, Less, "bar", "foo", 3)
-    
+
     test(h, Equal, "foobar", "foo", 3)
     test(h, Greater, "foobar", "foo", 4)
-    
+
     test(h, Less, "foobar", "oob", 3, 0)
     test(h, Equal, "foobar", "oob", 3, 1)
-    
+
     test(h, Equal, "ab", "ab", 2 where ignore_case = false)
     test(h, Greater, "ab", "Ab", 2 where ignore_case = false)
     test(h, Greater, "ab", "aB", 2 where ignore_case = false)
     test(h, Greater, "ab", "AB", 2 where ignore_case = false)
     test(h, Less, "AB", "ab", 2 where ignore_case = false)
     test(h, Equal, "AB", "AB", 2 where ignore_case = false)
-    
+
     test(h, Equal, "ab", "ab", 2 where ignore_case = true)
     test(h, Equal, "ab", "Ab", 2 where ignore_case = true)
     test(h, Equal, "ab", "aB", 2 where ignore_case = true)
@@ -422,14 +422,15 @@ class _TestStringCompare iso is UnitTest
     that: String box, n: U64, offset: I64 = 0, that_offset: I64 = 0,
     ignore_case: Bool = false)
   =>
-    let actual = receiver.compare(that, n, offset, that_offset, ignore_case)
+    let actual = receiver.compare_sub(that, n, offset, that_offset,
+      ignore_case)
 
     if expect is actual then
       return
     end
 
     h.assert_failed("Expected " + string(expect) + " got " + string(actual) +
-      " for \"" + receiver + "\".compare(\"" + that + "\", " + n.string() +
+      " for \"" + receiver + "\".compare_sub(\"" + that + "\", " + n.string() +
       ", " + offset.string() + ", " + that_offset.string() + ", " +
       ignore_case.string() + ")")
 

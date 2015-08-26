@@ -7,7 +7,7 @@ interface Flag[A: (Unsigned & Integer[A] box)] val
   fun value(): A
 
 class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
-  Ordered[Flags[A, B] box]
+  Comparable[Flags[A, B] box]
   """
   Flags is a set of flags. The flags that are recognised should be passed as
   a union type for type parameter A. For example:

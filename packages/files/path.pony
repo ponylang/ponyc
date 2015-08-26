@@ -114,9 +114,9 @@ primitive Path
 
               if
                 (s.size() == 0) or
-                (s.compare("../", 3, backtrack) is Equal) or
+                (s.compare_sub("../", 3, backtrack) is Equal) or
                 (Platform.windows() and
-                  (s.compare("..\\", 3, backtrack) is Equal))
+                  (s.compare_sub("..\\", 3, backtrack) is Equal))
               then
                 backtrack = -1
               end
@@ -242,7 +242,7 @@ primitive Path
 
       if
         (to_i != target_i) or
-        (to_clean.compare(target_clean, target_i.u64()) isnt Equal)
+        (to_clean.compare_sub(target_clean, target_i.u64()) isnt Equal)
       then
         break
       end
@@ -261,7 +261,7 @@ primitive Path
 
     if
       ((to_i - to_0) == 2) and
-      (to_clean.compare("..", 2, to_0) is Equal)
+      (to_clean.compare_sub("..", 2, to_0) is Equal)
     then
       error
     end
@@ -337,10 +337,10 @@ primitive Path
     if Platform.windows() then
       var offset = I64(0)
 
-      if path.compare("""\\?\""", 4) is Equal then
+      if path.compare_sub("""\\?\""", 4) is Equal then
         offset = 4
 
-        if path.compare("""UNC\""", 4, offset) is Equal then
+        if path.compare_sub("""UNC\""", 4, offset) is Equal then
           return _network_share(path, offset + 4)
         end
       end

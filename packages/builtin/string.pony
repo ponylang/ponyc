@@ -1,4 +1,4 @@
-class String val is (Seq[U8] & Ordered[String box] & Stringable)
+class String val is (Seq[U8] & Comparable[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """
@@ -852,7 +852,13 @@ class String val is (Seq[U8] & Ordered[String box] & Stringable)
     s._size = len
     s
 
-  fun compare(that: String box, n: U64, offset: I64 = 0,
+  fun compare(that: String box): Compare =>
+    """
+    Lexically compare two strings.
+    """
+    compare_sub(that, _size)
+
+  fun compare_sub(that: String box, n: U64, offset: I64 = 0,
     that_offset: I64 = 0, ignore_case: Bool = false): Compare
   =>
     """

@@ -3,11 +3,11 @@ use "lib:rt" if linux
 primitive Time
   """
   A collection of ways to fetch the current time.
-  Return: (seconds, nanoseconds)
   """
   fun now(): (I64 /*sec*/, I64 /*nsec*/) =>
     """
     The wall-clock adjusted system time with nanoseconds.
+    Return: (seconds, nanoseconds)
     """
     if Platform.osx() then
       var ts: (I64, I64) = (0, 0)

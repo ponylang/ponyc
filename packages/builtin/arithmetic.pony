@@ -34,7 +34,7 @@ trait _ArithmeticConvertible val
   fun f64(): F64 => compiler_intrinsic
 
 trait Real[A: Real[A] box] val is
-  (Stringable & _ArithmeticConvertible & Arithmetic[A] & Ordered[A])
+  (Stringable & _ArithmeticConvertible & Arithmetic[A] & Comparable[A])
   new val create(value: A)
 
   fun tag from[B: (Number & Real[B] box)](a: B): A

@@ -1,6 +1,6 @@
 use "collections"
 
-class _HostService val is (Hashable & Comparable[_HostService])
+class _HostService val is (Hashable & Equatable[_HostService])
   let scheme: String
   let host: String
   let service: String

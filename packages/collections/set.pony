@@ -1,8 +1,8 @@
-type Set[A: (Hashable box & Comparable[A] box)] is HashSet[A, HashEq[A]]
+type Set[A: (Hashable box & Equatable[A] box)] is HashSet[A, HashEq[A]]
 
 type SetIs[A] is HashSet[A, HashIs[A!]]
 
-class HashSet[A, H: HashFunction[A!] val] is Ordered[HashSet[A, H] box]
+class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
   """
   A set, built on top of a HashMap. This is implemented as map of an alias of
   a type to itself

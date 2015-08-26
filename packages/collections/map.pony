@@ -1,7 +1,7 @@
 primitive _MapEmpty
 primitive _MapDeleted
 
-type Map[K: (Hashable box & Comparable[K] box), V] is HashMap[K, V, HashEq[K]]
+type Map[K: (Hashable box & Equatable[K] box), V] is HashMap[K, V, HashEq[K]]
   """
   This is a map that uses structural equality on the key.
   """
