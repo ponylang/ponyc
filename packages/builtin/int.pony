@@ -1,4 +1,4 @@
-primitive I8 is SignedInteger[I8]
+primitive I8 is _SignedInteger[I8]
   new create(value: I8 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I8 => a.i8()
 
@@ -22,7 +22,7 @@ primitive I8 is SignedInteger[I8]
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
-primitive I16 is SignedInteger[I16]
+primitive I16 is _SignedInteger[I16]
   new create(value: I16 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I16 => a.i16()
 
@@ -46,7 +46,7 @@ primitive I16 is SignedInteger[I16]
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
-primitive I32 is SignedInteger[I32]
+primitive I32 is _SignedInteger[I32]
   new create(value: I32 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I32 => a.i32()
 
@@ -70,7 +70,7 @@ primitive I32 is SignedInteger[I32]
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
-primitive I64 is SignedInteger[I64]
+primitive I64 is _SignedInteger[I64]
   new create(value: I64 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I64 => a.i64()
 
@@ -94,7 +94,7 @@ primitive I64 is SignedInteger[I64]
   fun mulc(y: I64): (I64, Bool) =>
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
-primitive I128 is SignedInteger[I128]
+primitive I128 is _SignedInteger[I128]
   new create(value: I128 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I128 => a.i128()
 

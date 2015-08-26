@@ -7,7 +7,7 @@ primitive None is Stringable
   =>
     "None".string(fmt, prefix, prec, width, align, fill)
 
-primitive Bool is (Logical[Bool] & Stringable)
+primitive Bool is Stringable
   new create(from: Bool) => compiler_intrinsic
 
   fun eq(y: Bool): Bool => this == y
