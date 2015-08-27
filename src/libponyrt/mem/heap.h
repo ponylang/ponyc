@@ -72,12 +72,7 @@ void heap_endgc(heap_t* heap);
 
 pony_actor_t* heap_owner(chunk_t* chunk);
 
-/**
- * Given a pointer to somewhere internal to a block of allocated memory, this
- * adjusts it to be the base pointer to the block and returns the size of the
- * block.
- */
-size_t heap_base(chunk_t* chunk, void** p);
+size_t heap_size(chunk_t* chunk);
 
 PONY_EXTERN_C_END
 

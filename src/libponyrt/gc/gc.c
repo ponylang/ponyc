@@ -52,12 +52,19 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
   (void)heap;
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
-  // don't gc memory that wasn't pony_allocated
+  // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
+  {
+    if(f != NULL)
+    {
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
+    }
+
     return;
+  }
 
   pony_actor_t* actor = heap_owner(chunk);
-  heap_base(chunk, &p);
 
   if(actor == current)
   {
@@ -132,12 +139,19 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
-  // don't gc memory that wasn't pony_allocated
+  // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
+  {
+    if(f != NULL)
+    {
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
+    }
+
     return;
+  }
 
   pony_actor_t* actor = heap_owner(chunk);
-  size_t objsize = heap_base(chunk, &p);
 
   if(actor == current)
   {
@@ -181,7 +195,7 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
     {
       // if this is our first reference, add to our heap used size
       if(object_rc(obj) == 0)
-        heap_used(heap, objsize);
+        heap_used(heap, heap_size(chunk));
 
       // inc, mark and recurse
       object_inc(obj);
@@ -201,12 +215,19 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
-  // don't gc memory that wasn't pony_allocated
+  // Don't gc memory that wasn't pony_allocated, but do recurse.
   if(chunk == NULL)
+  {
+    if(f != NULL)
+    {
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
+    }
+
     return;
+  }
 
   pony_actor_t* actor = heap_owner(chunk);
-  size_t objsize = heap_base(chunk, &p);
 
   if(actor == current)
   {
@@ -243,7 +264,7 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
     if(!object_marked(obj, gc->mark))
     {
       // add to heap used size
-      heap_used(heap, objsize);
+      heap_used(heap, heap_size(chunk));
 
       // mark and recurse
       object_mark(obj, gc->mark);

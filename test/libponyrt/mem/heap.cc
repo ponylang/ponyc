@@ -19,9 +19,7 @@ TEST(Heap, Init)
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
   ASSERT_EQ(actor, heap_owner(chunk));
 
-  void* internal = (char*)p + 9;
-  size_t size = heap_base(chunk, &internal);
-  ASSERT_EQ(p, internal);
+  size_t size = heap_size(chunk);
   ASSERT_EQ(size, (size_t)128);
 
   void* p2 = heap_alloc(actor, &heap, 99);
@@ -54,9 +52,7 @@ TEST(Heap, Init)
   chunk_t* chunk5 = (chunk_t*)pagemap_get(p5);
   ASSERT_EQ(actor, heap_owner(chunk5));
 
-  void* internal5 = (char*)p5 + (large_size >> 1);
-  size_t size5 = heap_base(chunk5, &internal5);
-  ASSERT_EQ(p5, internal5);
+  size_t size5 = heap_size(chunk5);
   ASSERT_EQ(large_size, size5);
   ASSERT_EQ(256 + large_size, heap.used);
 

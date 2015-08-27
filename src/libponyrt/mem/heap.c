@@ -37,6 +37,16 @@ static const uint32_t sizeclass_size[HEAP_SIZECLASSES] =
   HEAP_MIN << 5
 };
 
+static const uintptr_t sizeclass_mask[HEAP_SIZECLASSES] =
+{
+  ~((HEAP_MIN << 0) - 1),
+  ~((HEAP_MIN << 1) - 1),
+  ~((HEAP_MIN << 2) - 1),
+  ~((HEAP_MIN << 3) - 1),
+  ~((HEAP_MIN << 4) - 1),
+  ~((HEAP_MIN << 5) - 1)
+};
+
 static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
 {
   0xFFFFFFFF,
@@ -278,7 +288,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
   {
     // Get new memory and copy from the old memory.
     void* q = heap_alloc(actor, heap, size);
-    memcpy(q, p, 1 << (chunk->size + HEAP_MINBITS));
+    memcpy(q, p, size);
     return q;
   }
 
@@ -296,7 +306,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
 
     // Get new memory and copy from the old memory.
     void* q = heap_alloc(actor, heap, size);
-    memcpy(q, p, 1 << (chunk->size + HEAP_MINBITS));
+    memcpy(q, p, sizeclass_size[chunk->size]);
     return q;
   }
 
@@ -335,21 +345,34 @@ bool heap_startgc(heap_t* heap)
 
 bool heap_mark(chunk_t* chunk, void* p)
 {
+  // If it's an internal pointer, we shallow mark it instead. This will
+  // preserve the external pointer, but allow us to mark and recurse the
+  // external pointer in the same pass.
   bool marked;
 
   if(chunk->size >= HEAP_SIZECLASSES)
   {
     marked = chunk->slots == 0;
-    chunk->slots = 0;
-  } else {
-    // shift to account for smallest allocation size
-    uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
 
-    // check if it was already marked
+    if(p == chunk->m)
+      chunk->slots = 0;
+    else
+      chunk->shallow = 0;
+  } else {
+    // Calculate the external pointer.
+    void* ext = (void*)((uintptr_t)p & sizeclass_mask[chunk->size]);
+
+    // Shift to account for smallest allocation size.
+    uint32_t slot = 1 << ((uintptr_t)((char*)ext - chunk->m) >> HEAP_MINBITS);
+
+    // Check if it was already marked.
     marked = (chunk->slots & slot) == 0;
 
-    // a clear bit is in-use, a set bit is available
-    chunk->slots &= ~slot;
+    // A clear bit is in-use, a set bit is available.
+    if(p == ext)
+      chunk->slots &= ~slot;
+    else
+      chunk->shallow &= ~slot;
   }
 
   return marked;
@@ -361,10 +384,13 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
   {
     chunk->shallow = 0;
   } else {
-    // shift to account for smallest allocation size
-    uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
+    // Calculate the external pointer.
+    void* ext = (void*)((uintptr_t)p & sizeclass_mask[chunk->size]);
 
-    // a clear bit is in-use, a set bit is available
+    // Shift to account for smallest allocation size.
+    uint32_t slot = 1 << ((uintptr_t)((char*)ext - chunk->m) >> HEAP_MINBITS);
+
+    // A clear bit is in-use, a set bit is available.
     chunk->shallow &= ~slot;
   }
 }
@@ -436,15 +462,10 @@ pony_actor_t* heap_owner(chunk_t* chunk)
   return chunk->actor;
 }
 
-size_t heap_base(chunk_t* chunk, void** p)
+size_t heap_size(chunk_t* chunk)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
-  {
-    *p = chunk->m;
     return chunk->size;
-  }
 
-  size_t size = sizeclass_size[chunk->size];
-  *p = (void*)((uintptr_t)(*p) & ~(size - 1));
-  return size;
+  return sizeclass_size[chunk->size];
 }
