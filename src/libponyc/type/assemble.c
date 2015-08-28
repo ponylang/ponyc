@@ -402,6 +402,7 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     {
       ast_t* child = ast_child(type);
       type = ast_from(type, ast_id(type));

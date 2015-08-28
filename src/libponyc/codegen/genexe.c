@@ -87,6 +87,9 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 
   while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
+    if(ast_id(t->type) == TK_TUPLETYPE)
+      continue;
+
     ast_t* def = (ast_t*)ast_data(t->type);
 
     if(ast_id(def) != TK_PRIMITIVE)

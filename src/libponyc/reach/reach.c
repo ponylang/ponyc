@@ -183,6 +183,9 @@ static void add_types_to_trait(reachable_method_stack_t** s,
 
   while((t2 = reachable_types_next(r, &i)) != NULL)
   {
+    if(ast_id(t2->type) == TK_TUPLETYPE)
+      continue;
+
     ast_t* def = (ast_t*)ast_data(t2->type);
 
     switch(ast_id(def))
@@ -211,6 +214,9 @@ static void add_traits_to_type(reachable_method_stack_t** s,
 
   while((t2 = reachable_types_next(r, &i)) != NULL)
   {
+    if(ast_id(t2->type) == TK_TUPLETYPE)
+      continue;
+
     ast_t* def = (ast_t*)ast_data(t2->type);
 
     switch(ast_id(def))
@@ -281,6 +287,113 @@ static void add_special(reachable_method_stack_t** s, reachable_type_t* t,
   }
 }
 
+static reachable_type_t* add_reachable_type(reachable_types_t* r, ast_t* type,
+  const char* type_name)
+{
+  reachable_type_t* t = POOL_ALLOC(reachable_type_t);
+  t->name = type_name;
+
+  t->type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
+  reachable_method_names_init(&t->methods, 0);
+  reachable_type_cache_init(&t->subtypes, 0);
+  t->vtable_size = 0;
+  reachable_types_put(r, t);
+
+  return t;
+}
+
+static reachable_type_t* add_isect_or_union(reachable_method_stack_t** s,
+  reachable_types_t* r, ast_t* type)
+{
+  ast_t* child = ast_child(type);
+
+  while(child != NULL)
+  {
+    add_type(s, r, child);
+    child = ast_sibling(child);
+  }
+
+  return NULL;
+}
+
+static reachable_type_t* add_tuple(reachable_method_stack_t** s,
+  reachable_types_t* r, ast_t* type)
+{
+  const char* type_name = genname_type(type);
+  reachable_type_t* t = reach_type(r, type_name);
+
+  if(t != NULL)
+    return t;
+
+  // TODO: why does storing this cause gendesc_init to die for the tuple?
+  t = add_reachable_type(r, type, type_name);
+
+  ast_t* child = ast_child(type);
+
+  while(child != NULL)
+  {
+    add_type(s, r, child);
+    child = ast_sibling(child);
+  }
+
+  return t;
+}
+
+static reachable_type_t* add_nominal(reachable_method_stack_t** s,
+  reachable_types_t* r, ast_t* type)
+{
+  const char* type_name = genname_type(type);
+  reachable_type_t* t = reach_type(r, type_name);
+
+  if(t != NULL)
+    return t;
+
+  t = add_reachable_type(r, type, type_name);
+
+  AST_GET_CHILDREN(type, pkg, id, typeparams);
+  ast_t* typeparam = ast_child(typeparams);
+
+  while(typeparam != NULL)
+  {
+    add_type(s, r, typeparam);
+    typeparam = ast_sibling(typeparam);
+  }
+
+  ast_t* def = (ast_t*)ast_data(type);
+
+  switch(ast_id(def))
+  {
+    case TK_INTERFACE:
+    case TK_TRAIT:
+      add_types_to_trait(s, r, t);
+      break;
+
+    case TK_PRIMITIVE:
+      add_fields(s, r, type);
+      add_traits_to_type(s, r, t);
+      add_special(s, t, type, "_init");
+      add_special(s, t, type, "_final");
+      break;
+
+    case TK_CLASS:
+      add_fields(s, r, type);
+      add_traits_to_type(s, r, t);
+      add_special(s, t, type, "_final");
+      break;
+
+    case TK_ACTOR:
+      add_fields(s, r, type);
+      add_traits_to_type(s, r, t);
+      add_special(s, t, type, "_event_notify");
+      add_special(s, t, type, "_final");
+      break;
+
+    default: {}
+  }
+
+  return t;
+}
+
 static reachable_type_t* add_type(reachable_method_stack_t** s,
   reachable_types_t* r, ast_t* type)
 {
@@ -288,84 +401,19 @@ static reachable_type_t* add_type(reachable_method_stack_t** s,
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
+      return add_isect_or_union(s, r, type);
+
     case TK_TUPLETYPE:
-    {
-      ast_t* child = ast_child(type);
-
-      while(child != NULL)
-      {
-        add_type(s, r, child);
-        child = ast_sibling(child);
-      }
-
-      // TODO: add tuple types to the reachable set
-      return NULL;
-    }
+      return add_tuple(s, r, type);
 
     case TK_NOMINAL:
-      break;
+      return add_nominal(s, r, type);
 
     default:
       assert(0);
-      return NULL;
   }
 
-  const char* type_name = genname_type(type);
-  reachable_type_t* t = reach_type(r, type_name);
-
-  if(t == NULL)
-  {
-    t = POOL_ALLOC(reachable_type_t);
-    t->name = type_name;
-    t->type = set_cap_and_ephemeral(type, TK_REF, TK_NONE);
-    reachable_method_names_init(&t->methods, 0);
-    reachable_type_cache_init(&t->subtypes, 0);
-    t->vtable_size = 0;
-    reachable_types_put(r, t);
-
-    AST_GET_CHILDREN(type, pkg, id, typeparams);
-    ast_t* typeparam = ast_child(typeparams);
-
-    while(typeparam != NULL)
-    {
-      add_type(s, r, typeparam);
-      typeparam = ast_sibling(typeparam);
-    }
-
-    ast_t* def = (ast_t*)ast_data(type);
-
-    switch(ast_id(def))
-    {
-      case TK_INTERFACE:
-      case TK_TRAIT:
-        add_types_to_trait(s, r, t);
-        break;
-
-      case TK_PRIMITIVE:
-        add_fields(s, r, type);
-        add_traits_to_type(s, r, t);
-        add_special(s, t, type, "_init");
-        add_special(s, t, type, "_final");
-        break;
-
-      case TK_CLASS:
-        add_fields(s, r, type);
-        add_traits_to_type(s, r, t);
-        add_special(s, t, type, "_final");
-        break;
-
-      case TK_ACTOR:
-        add_fields(s, r, type);
-        add_traits_to_type(s, r, t);
-        add_special(s, t, type, "_event_notify");
-        add_special(s, t, type, "_final");
-        break;
-
-      default: {}
-    }
-  }
-
-  return t;
+  return NULL;
 }
 
 static void reachable_pattern(reachable_method_stack_t** s,
