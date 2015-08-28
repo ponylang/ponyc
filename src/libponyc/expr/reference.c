@@ -130,6 +130,13 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
 
+  // An embedded field must be of concrete type.
+  if((ast_id(ast) == TK_EMBED) && !is_concrete(type))
+  {
+    ast_error(ast, "embedded fields must be of concrete type");
+    return false;
+  }
+
   if(ast_id(init) != TK_NONE)
   {
     // Initialiser type must match declared type.
@@ -151,6 +158,18 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
       ast_error(init, "initialiser type: %s", ast_print_type(init_type));
       ast_free_unattached(init_type);
       return false;
+    }
+
+    // If it's an embedded field, check for a constructor result.
+    if(ast_id(ast) == TK_EMBED)
+    {
+      if((ast_id(init) != TK_CALL) ||
+        (ast_id(ast_childidx(init, 2)) != TK_NEWREF))
+      {
+        ast_error(ast,
+          "an embedded field must be initialised using a constructor");
+        return false;
+      }
     }
 
     ast_free_unattached(init_type);
@@ -445,6 +464,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
     {
       // Transform to "this.f".
       if(!def_before_use(def, ast, name))
@@ -667,6 +687,10 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       ast_error(ast, "can't take the address of a let field");
       return false;
 
+    case TK_EMBEDREF:
+      ast_error(ast, "can't take the address of an embed field");
+      return false;
+
     case TK_LETREF:
       ast_error(ast, "can't take the address of a let local");
       return false;
@@ -698,8 +722,9 @@ bool expr_identityof(pass_opt_t* opt, ast_t* ast)
   switch(ast_id(expr))
   {
     case TK_FVARREF:
-    case TK_VARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
+    case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:
       break;
@@ -959,6 +984,7 @@ static bool check_fields_defined(ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         sym_status_t status;
         ast_t* id = ast_child(member);

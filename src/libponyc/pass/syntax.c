@@ -255,6 +255,7 @@ static bool check_members(ast_t* members, int entity_def_index)
     {
       case TK_FLET:
       case TK_FVAR:
+      case TK_EMBED:
         if(def->permissions[ENTITY_FIELD] == 'N')
         {
           ast_error(member, "Can't have fields in %s", def->desc);
@@ -567,6 +568,18 @@ static ast_result_t syntax_local(ast_t* ast)
 }
 
 
+static ast_result_t syntax_embed(ast_t* ast)
+{
+  if(ast_id(ast_parent(ast)) != TK_MEMBERS)
+  {
+    ast_error(ast, "Local variables cannot be embedded");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_param(ast_t* ast)
 {
   if(!check_id_param(ast_child(ast)))
@@ -640,6 +653,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:      r = syntax_return(ast, 0); break;
     case TK_LET:
     case TK_VAR:        r = syntax_local(ast); break;
+    case TK_EMBED:      r = syntax_embed(ast); break;
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_USE:        r = syntax_use(ast); break;

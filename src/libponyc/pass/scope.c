@@ -47,6 +47,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
       status = SYM_DEFINED;
       break;
 
@@ -110,6 +111,7 @@ static void set_fields_undefined(ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         AST_GET_CHILDREN(member, id, type, expr);
 
@@ -159,6 +161,7 @@ static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         if(!set_scope(t, member, ast_child(member), member))
           return AST_ERROR;
         break;

@@ -78,6 +78,7 @@ MEMBERS: {FVAR | FLET | method}
 
 FVAR: ID [type] [infix]
 FLET: ID [type] [infix]
+EMBED: ID [type] [infix]
 
 method
 ------

@@ -123,8 +123,17 @@ static bool is_field(ast_t* ast)
 {
   assert(ast != NULL);
 
-  token_id variety = ast_id(ast);
-  return (variety == TK_FVAR) || (variety == TK_FLET);
+  switch(ast_id(ast))
+  {
+    case TK_FVAR:
+    case TK_FLET:
+    case TK_EMBED:
+      return true;
+
+    default: {}
+  }
+
+  return false;
 }
 
 
@@ -206,7 +215,7 @@ static bool provides_list(ast_t* entity, pass_opt_t* options)
 
   ast_t* provides = ast_childidx(entity, 3);
   assert(provides != NULL);
-  
+
   bool r = true;
 
   for(ast_t* p = ast_child(provides); p != NULL; p = ast_sibling(p))
@@ -442,7 +451,7 @@ static bool record_default_body(ast_t* reified_method, ast_t* raw_method,
     info->default_body_src_1 = raw_method;
     return true;
   }
-  
+
   info->default_body_src_2 = raw_method;
   return false;
 }
@@ -569,7 +578,7 @@ static bool provided_methods(ast_t* entity)
 }
 
 
-// Check that the given delegate target is in the entity's provides list and 
+// Check that the given delegate target is in the entity's provides list and
 // is a legal type for the field
 static bool check_delegate(ast_t* entity, ast_t* field_type,
   ast_t* delegated)
@@ -685,6 +694,7 @@ static ast_result_t rescope(ast_t** astp, pass_opt_t* options)
   {
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
     case TK_PARAM:
     case TK_TYPEPARAM:
       assert(ast_child(ast) != NULL);

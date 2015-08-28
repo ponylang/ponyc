@@ -212,6 +212,7 @@ ast_result_t pass_flatten(ast_t** astp, pass_opt_t* options)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
       return flatten_provides_list(ast, 3);
 
     case TK_ACTOR:

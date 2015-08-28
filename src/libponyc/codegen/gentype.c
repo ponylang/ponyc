@@ -218,6 +218,7 @@ static void setup_type_fields(gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         g->field_count++;
         break;
@@ -243,6 +244,7 @@ static void setup_type_fields(gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         AST_GET_CHILDREN(member, name, type, init);
         g->fields[index] = reify(typeparams, ast_type(member), typeparams,
@@ -369,8 +371,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   {
     // Create another function that traces the tuple members.
     const char* trace_tuple_name = genname_tracetuple(g->type_name);
-    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type, &g->primitive,
-      1, false);
+    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type,
+      &g->primitive, 1, false);
     LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
       trace_tuple_type);
 

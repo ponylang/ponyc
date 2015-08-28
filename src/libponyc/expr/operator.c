@@ -35,7 +35,8 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
     case SYM_DEFINED:
       if(let)
       {
-        ast_error(ast, "can't assign to a let definition more than once");
+        ast_error(ast,
+          "can't assign to a let or embed definition more than once");
         return false;
       }
 
@@ -53,7 +54,8 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
 
       if(let)
       {
-        ast_error(ast, "can't assign to a let definition more than once");
+        ast_error(ast,
+          "can't assign to a let or embed definition more than once");
         ok = false;
       }
 
@@ -124,6 +126,25 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
       if(t->frame->loop_body != NULL)
       {
         ast_error(ast, "can't assign to a let field in a loop");
+        return false;
+      }
+
+      return assign_id(t, right, true, need_value);
+    }
+
+    case TK_EMBEDREF:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) != TK_THIS)
+      {
+        ast_error(ast, "can't assign to an embed field");
+        return false;
+      }
+
+      if(t->frame->loop_body != NULL)
+      {
+        ast_error(ast, "can't assign to an embed field in a loop");
         return false;
       }
 
@@ -460,6 +481,17 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_free_unattached(a_type);
+
+  // If it's an embedded field, check for a constructor result.
+  if(ast_id(left) == TK_EMBEDREF)
+  {
+    if((ast_id(right) != TK_CALL) ||
+      (ast_id(ast_childidx(right, 2)) != TK_NEWREF))
+    {
+      ast_error(ast, "an embedded field must be assigned using a constructor");
+      return false;
+    }
+  }
 
   ast_settype(ast, consume_type(l_type, TK_NONE));
   ast_inheritflags(ast);
