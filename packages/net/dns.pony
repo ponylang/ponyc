@@ -2,23 +2,23 @@ primitive DNS
   """
   Helper functions for resolving DNS queries.
   """
-  fun apply(host: String, service: String): Array[IPAddress] iso^ =>
+  fun apply(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv4 and IPv6 addresses for a host and service.
     """
-    _resolve(0, host, service)
+    _resolve(0, host, service, root)
 
-  fun ip4(host: String, service: String): Array[IPAddress] iso^ =>
+  fun ip4(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv4 addresses for a host and service.
     """
-    _resolve(2, host, service)
+    _resolve(2, host, service, root)
 
-  fun ip6(host: String, service: String): Array[IPAddress] iso^ =>
+  fun ip6(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv6 addresses for a host and service.
     """
-    _resolve(10, host, service)
+    _resolve(10, host, service, root)
 
   fun is_ip4(host: String): Bool =>
     """
@@ -32,7 +32,7 @@ primitive DNS
     """
     @os_host_ip6[Bool](host.cstring())
 
-  fun _resolve(family: U32, host: String, service: String):
+  fun _resolve(family: U32, host: String, service: String, root: Root):
     Array[IPAddress] iso^
   =>
     """
