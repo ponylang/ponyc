@@ -27,12 +27,17 @@ class IPAddress val
     """
     @os_ipv6[Bool](this)
 
-  fun name(reversedns: Bool = false, servicename: Bool = false):
+  fun name(reversedns: Bool = false, servicename: Bool = false,
+	   root: (Root | None) = None):
     (String, String) ?
   =>
     """
     Return the host and service name.
     """
+    match root
+    | None => if reversedns then error end
+    end
+
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
 
