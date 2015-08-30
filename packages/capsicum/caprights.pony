@@ -41,62 +41,42 @@ class CapRights0
     """
     Initialises with the rights on the given file descriptor.
     """
-    if Platform.freebsd() then
-      @__cap_rights_get[Pointer[U64]](I32(0), fd, &_r0)
-    end
+    @__cap_rights_get[Pointer[U64]](I32(0), fd, &_r0)
 
   fun ref set(cap: U64): CapRights0^ =>
-    if Platform.freebsd() then
-      @__cap_rights_set[Pointer[U64]](&_r0, cap, U64(0))
-    end
+    @__cap_rights_set[Pointer[U64]](&_r0, cap, U64(0))
     this
 
   fun ref unset(cap: U64): CapRights0^ =>
-    if Platform.freebsd() then
-      @__cap_rights_clear[Pointer[U64]](&_r0, cap, U64(0))
-    end
+    @__cap_rights_clear[Pointer[U64]](&_r0, cap, U64(0))
     this
 
   fun limit(fd: I32): Bool =>
     """
     Limits the fd to the encoded rights.
     """
-    if Platform.freebsd() then
-      @cap_rights_limit[I32](fd, &_r0) == 0
-    else
-      true
-    end
+    @cap_rights_limit[I32](fd, &_r0) == 0
 
   fun ref merge(that: CapRights0) =>
     """
     Merge the rights in that into this.
     """
-    if Platform.freebsd() then
-      @cap_rights_merge[Pointer[U64]](&_r0, &that._r0)
-    end
+    @cap_rights_merge[Pointer[U64]](&_r0, &that._r0)
 
   fun ref remove(that: CapRights0) =>
     """
     Remove the rights in that from this.
     """
-    if Platform.freebsd() then
-      @cap_rights_remove[Pointer[U64]](&_r0, &that._r0)
-    end
+    @cap_rights_remove[Pointer[U64]](&_r0, &that._r0)
 
   fun ref clear() =>
     """
     Clear all rights.
     """
-    if Platform.freebsd() then
-      @__cap_rights_init[Pointer[U64]](I32(0), &_r0, U64(0))
-    end
+    @__cap_rights_init[Pointer[U64]](I32(0), &_r0, U64(0))
 
   fun contains(that: CapRights0): Bool =>
     """
     Check that this is a superset of the rights in that.
     """
-    if Platform.freebsd() then
-      @cap_rights_contains[Bool](&_r0, &that._r0)
-    else
-      true
-    end
+    @cap_rights_contains[Bool](&_r0, &that._r0)
