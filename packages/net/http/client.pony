@@ -9,8 +9,12 @@ actor Client
   let _sslctx: SSLContext
   let _pipeline: Bool
   let _clients: Map[_HostService, _ClientConnection] = _clients.create()
+  let _root: Root // TODO: reduce scope
 
-  new create(sslctx: (SSLContext | None) = None, pipeline: Bool = true) =>
+  new create(root: Root,
+    sslctx: (SSLContext | None) = None,
+    pipeline: Bool = true)
+  =>
     """
     Create a client for the given host and service.
     """
@@ -21,6 +25,7 @@ actor Client
     end
 
     _pipeline = pipeline
+    _root = root
 
   be apply(request: Payload val) =>
     """
@@ -61,8 +66,8 @@ actor Client
       _clients(hs)
     else
       let client = match url.scheme
-      | "http" => _ClientConnection(hs.host, hs.service, None, _pipeline)
-      | "https" => _ClientConnection(hs.host, hs.service, _sslctx, _pipeline)
+      | "http" => _ClientConnection(_root, hs.host, hs.service, None, _pipeline)
+      | "https" => _ClientConnection(_root, hs.host, hs.service, _sslctx, _pipeline)
       else
         error
       end
