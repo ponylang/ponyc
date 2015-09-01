@@ -3,12 +3,19 @@ use "net/http"
 use "net/ssl"
 
 actor Main
+
+  new create(env: Env) =>
+    match env.root
+    | let r: Root => _Client(env, r)
+    | None => env.out.print("No Root!")
+    end
+
+actor _Client
   let _env: Env
   let _client: Client
 
-  new create(env: Env) =>
+  new create(env: Env, root: Root) =>
     _env = env
-
     let sslctx = try
       recover
         SSLContext
@@ -17,7 +24,7 @@ actor Main
       end
     end
 
-    _client = Client(consume sslctx)
+    _client = Client(root, consume sslctx)
 
     for i in Range(1, env.args.size()) do
       try
