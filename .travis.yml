@@ -1,6 +1,5 @@
 language: 
   - c
-  - cpp
 
 os:
   - linux
@@ -11,15 +10,16 @@ compiler:
   - gcc
 
 before_script:
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu precise main" | sudo tee -a /etc/apt/sources.list; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb-src http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu precise main" | sudo tee -a /etc/apt/sources.list; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y --force-yes clang-3.6 gcc-4.9 libllvm3.6 llvm-3.6 llvm-3.6-dev; fi
-  - if [[ "$TRAViS_OS_NAME" == "linux" ]]; then sudo ln -fs /usr/bin/gcc-4.9 /usr/bin/gcc &&  sudo ln -fs /usr/bin/g++-4.9 /usr/bin/g++ && sudo ln -fs /usr/bin/clang-3.6 /usr/bin/clang && sudo ln -fs /usr/bin/clang++-3.6 /usr/bin/clang++; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then echo "deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then echo "deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then echo "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu precise main" | sudo tee -a /etc/apt/sources.list; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then echo "deb-src http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu precise main" | sudo tee -a /etc/apt/sources.list; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then sudo apt-get update -qq; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" ]]; then sudo apt-get -y --force-yes -qq install libllvm3.6 llvm-3.6 llvm-3.6-dev; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" && "$CC" -eq "clang" ]]; then sudo apt-get -y --force-yes -qq install clang-3.6 && export CC=clang-3.6 && export CXX=clang++-3.6; fi
+  - if [[ "$TRAVIS_OS_NAME" -eq "linux" && "$CC" -eq "gcc" ]]; then sudo apt-get -y --force-yes -qq install gcc-4.9 && export CC=gcc-4.9 && export CXX=g++-4.9; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install -v llvm --with-rtti; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install pcre2; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install pcre2 libressl; fi
 
 script: make test && make config=release test
