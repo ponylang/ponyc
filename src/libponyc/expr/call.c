@@ -50,6 +50,7 @@ static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
     {
       case TK_FLET:
       case TK_FVAR:
+      case TK_EMBED:
       {
         sym_status_t status;
         ast_t* id = ast_child(member);

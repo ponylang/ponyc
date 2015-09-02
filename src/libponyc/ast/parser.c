@@ -229,7 +229,7 @@ DEF(positional);
   RULE("argument", rawseq);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
-  
+
 // OBJECT [IS type] members END
 DEF(object);
   PRINT_INLINE();
@@ -393,7 +393,7 @@ DEF(nextpostfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
-// (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
+// (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
   PRINT_INLINE();
   AST_NODE(TK_TUPLE);
@@ -411,15 +411,15 @@ DEF(idseqsingle);
   AST_NODE(TK_NONE);  // Type
   DONE();
 
-// ID | '_' | (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
+// ID | '_' | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
   RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
-// (VAR | VAL) ID [COLON type]
+// (VAR | LET | EMBED) ID [COLON type]
 DEF(local);
   PRINT_INLINE();
-  TOKEN(NULL, TK_VAR, TK_LET);
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
   TOKEN("variable name", TK_ID);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
@@ -799,9 +799,9 @@ DEF(method);
   REORDER(0, 1, 2, 3, 4, 5, 7, 6);
   DONE();
 
-// (VAR | VAL) ID [COLON type] [ASSIGN infix]
+// (VAR | LET | EMBED) ID [COLON type] [ASSIGN infix]
 DEF(field);
-  TOKEN(NULL, TK_VAR, TK_LET);
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
   MAP_ID(TK_VAR, TK_FVAR);
   MAP_ID(TK_LET, TK_FLET);
   TOKEN("field name", TK_ID);

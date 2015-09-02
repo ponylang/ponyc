@@ -34,6 +34,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_FVARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
       ret = gen_fieldload(c, ast);
       break;
 

@@ -479,6 +479,7 @@ bool safe_to_write(ast_t* ast, ast_t* type)
 
     case TK_FVARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
     {
       // If the ast is x.f, we need the type of x, which will be a nominal
       // type or an arrow type, since we were able to lookup a field on it.

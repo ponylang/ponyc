@@ -26,7 +26,8 @@ static void setup_dwarf(dwarf_t* dwarf, dwarf_meta_t* meta, gentype_t* g,
     else if(is_bool(ast))
       meta->flags |= DWARF_BOOLEAN;
   }
-  else if(is_pointer(ast) || !is_concrete(ast) || (is_constructable(ast) && field))
+  else if(is_pointer(ast) || !is_concrete(ast) ||
+    (is_constructable(ast) && field))
   {
     type = g->use_type;
   }

@@ -45,6 +45,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         break;
 
       case TK_NEW:
@@ -93,6 +94,7 @@ static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         if(t->frame->type != def)
         {
           if(errors)
@@ -224,6 +226,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
           {
             case TK_FVAR:
             case TK_FLET:
+            case TK_EMBED:
               if(errors)
               {
                 ast_error(from,
@@ -294,6 +297,7 @@ static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
           {
             case TK_FVAR:
             case TK_FLET:
+            case TK_EMBED:
               // Ignore fields.
               break;
 

@@ -1,3 +1,6 @@
+* Linux and OS X x64 with clang-3.6/gcc-4.9: [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+* Windows x64 VS2013: [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+
 # Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
@@ -97,7 +100,7 @@ All installers can also be downloaded from ponylang.org's servers:
 * [RPM](http://releases.ponylang.org/yum)
 * [Windows](http://releases.ponylang.org/windows)
 
-# Building on Linux [![build status](http://ci.ponylang.org/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
+# Building on Linux
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 

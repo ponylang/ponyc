@@ -215,6 +215,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
     case TK_BE:
     case TK_FUN:
     {
@@ -342,6 +343,11 @@ static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
 
     case TK_FLET:
       if(!expr_fieldref(opt, ast, find, TK_FLETREF))
+        return false;
+      break;
+
+    case TK_EMBED:
+      if(!expr_fieldref(opt, ast, find, TK_EMBEDREF))
         return false;
       break;
 
@@ -528,6 +534,7 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
       ast_error(ast, "can't do partial application of a field");
       return false;
 

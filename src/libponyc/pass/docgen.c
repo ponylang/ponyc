@@ -423,9 +423,17 @@ static void doc_fields(docgen_t* docgen, ast_list_t* fields, const char* title)
     assert(name != NULL);
 
     // Don't want ast_get_print() as that will give us flet or fvar
-    fprintf(docgen->type_file, "* %s %s: ",
-      (ast_id(field) == TK_VAR) ? "var" : "let", name);
+    const char* ftype = NULL;
 
+    switch(ast_id(field))
+    {
+      case TK_FVAR: ftype = "var"; break;
+      case TK_FLET: ftype = "let"; break;
+      case TK_EMBED: ftype = "embed"; break;
+      default: assert(0);
+    }
+
+    fprintf(docgen->type_file, "* %s %s: ", ftype, name);
     doc_type(docgen, type);
     fprintf(docgen->type_file, "\n");
   }
@@ -642,6 +650,7 @@ static void doc_entity(docgen_t* docgen, ast_t* ast, ast_t* package)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         doc_list_add_named(&pub_fields, p, 0, true, false);
         break;
 

@@ -118,6 +118,7 @@ static const lextoken_t keywords[] =
 
   { "var", TK_VAR },
   { "let", TK_LET },
+  { "embed", TK_EMBED },
   { "new", TK_NEW },
   { "fun", TK_FUN },
   { "be", TK_BE },
@@ -236,6 +237,7 @@ static const lextoken_t abstract[] =
   { "funref", TK_FUNREF },
   { "fvarref", TK_FVARREF },
   { "fletref", TK_FLETREF },
+  { "embedref", TK_EMBEDREF },
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },

@@ -69,6 +69,7 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         // Skip this field if it has no initialiser.
         AST_GET_CHILDREN(member, id, type, body);
@@ -82,6 +83,8 @@ static bool gen_field_init(compile_t* c, gentype_t* g)
 
           assert(var != NULL);
           body = ast_childidx(var, 2);
+
+          // TODO: embed fields
 
           // Get the field pointer.
           dwarf_location(&c->dwarf, body);

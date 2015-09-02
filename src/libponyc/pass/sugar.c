@@ -47,6 +47,7 @@ static bool has_member(ast_t* members, const char* name)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         id = ast_child(member);
         break;
 
@@ -84,6 +85,7 @@ static void add_default_constructor(ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         ast_t* init = ast_childidx(member, 2);
 
@@ -663,11 +665,12 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         AST_GET_CHILDREN(member, id, type, init);
         ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
 
-        // The field is: var/let id: type
+        // The field is: var/let/embed id: type
         BUILD(field, member,
           NODE(ast_id(member),
             TREE(id)

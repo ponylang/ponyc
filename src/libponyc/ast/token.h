@@ -98,6 +98,7 @@ typedef enum token_id
 
   TK_VAR,
   TK_LET,
+  TK_EMBED,
   TK_NEW,
   TK_FUN,
   TK_BE,
@@ -206,6 +207,7 @@ typedef enum token_id
   TK_FUNREF,
   TK_FVARREF,
   TK_FLETREF,
+  TK_EMBEDREF,
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
