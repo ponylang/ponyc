@@ -27,6 +27,7 @@ before_script:
       wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.20.tar.bz2;
       tar -xjvf pcre2-10.20.tar.bz2;
       cd pcre2-10.20 && ./configure --prefix=/usr && make && sudo make install;
+      cd -;
     fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
       brew update;
