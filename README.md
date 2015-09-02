@@ -143,7 +143,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Windows
+# Building on Windows [![build status](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
 
 The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
