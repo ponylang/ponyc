@@ -17,7 +17,7 @@ before_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -y --force-yes -qq install libllvm3.6 llvm-3.6 llvm-3.6-dev; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" && "$CC" == "clang" ]]; then sudo apt-get -y --force-yes -qq install clang-3.6 && export CC=clang-3.6 && export CXX=clang++-3.6; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" && "$CC" == "gcc" ]]; then sudo apt-get -y --force-yes -qq install gcc-4.9 && export CC=gcc-4.9 && export CXX=g++-4.9; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" && "$CC" == "gcc" ]]; then sudo apt-get -y --force-yes -qq install gcc-4.9 g++-4.9 && export CC=gcc-4.9 && export CXX=g++-4.9; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install -v llvm --with-rtti; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install pcre2 libressl; fi
