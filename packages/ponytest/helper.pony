@@ -1,5 +1,3 @@
-use "collections"
-
 interface ITest
   fun apply()?
 
@@ -224,11 +222,14 @@ actor TestHelper
       ok = false
     else
       try
-        for i in Range(0, expect.size()) do
-          if expect(i) != actual (i) then
+        var i: U64 = 0
+        while i < expect.size() do
+          if expect(i) != actual(i) then
             ok = false
             break
           end
+
+          i = i + 1
         end
       else
         ok = false

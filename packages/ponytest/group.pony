@@ -1,5 +1,3 @@
-use "collections"
-
 trait _Group tag
   """
   Test exclusion is achieved by organising tests into groups. Each group can be
@@ -22,7 +20,8 @@ actor _ExclusiveGroup is _Group
   Test group in which we only ever have one test running at a time.
   """
 
-  let _tests: List[TestHelper] = List[TestHelper]
+  let _tests: Array[TestHelper] = Array[TestHelper]
+  var _next: U64 = 0
   var _in_test:Bool = false
 
   be apply(test: TestHelper) =>
@@ -38,10 +37,11 @@ actor _ExclusiveGroup is _Group
   be _test_complete(test: TestHelper) =>
     _in_test = false
 
-    if _tests.size() > 0 then
+    if _next < _tests.size() then
       // We have queued tests, run the next one
       try
-        var next_test = _tests.shift()
+        let next_test = _tests(_next)
+        _next = _next + 1
         _in_test = true
         next_test._run()
       end

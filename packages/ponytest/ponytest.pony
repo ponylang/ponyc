@@ -5,6 +5,9 @@ The PonyTest package provides a unit testing framework. It is designed to be as
 simple as possible to use, both for the unit test writer and the user running
 the tests.
 
+To help simplify test writing and distribution this package depends on no other
+packages (except builtin).
+
 Each unit test is a class, with a single test function. By default all tests
 run concurrently.
 
@@ -136,10 +139,6 @@ concurrently, regardless of exclusion groups. This is intended for debugging
 rather than standard use.
  """
 
-use "collections"
-use "options"
-use "term"
-
 
 actor PonyTest
   """
@@ -147,7 +146,7 @@ actor PonyTest
   prints results.
   """
 
-  let _groups: Map[String, _Group] = Map[String, _Group]
+  let _groups: Array[(String, _Group)] = Array[(String, _Group)]
   let _records: Array[_TestRecord] = Array[_TestRecord]
   let _env: Env
   var _do_nothing: Bool = false
@@ -167,7 +166,7 @@ actor PonyTest
     """
     _env = env
     _process_opts()
-    _groups("") = _SimultaneousGroup
+    _groups.push(("", _SimultaneousGroup))
     list.tests(this)
     _all_tests_applied()
 
@@ -205,16 +204,18 @@ actor PonyTest
       name = "all"
     end
 
-    try
-      _groups(name)
-    else
-      // Group doesn't exist yet, make it.
-      // We only need one simultanous group, which we've already made. All new
-      // groups are exclusive.
-      var g = _ExclusiveGroup
-      _groups(name) = g
-      g
+    for g in _groups.values() do
+      if g._1 == name then
+        return g._2
+      end
     end
+
+    // Group doesn't exist yet, make it.
+    // We only need one simultanous group, which we've already made. All new
+    // groups are exclusive.
+    let g = _ExclusiveGroup
+    _groups.push((name, g))
+    g
 
   be _test_started(id: U64) =>
     """
@@ -280,34 +281,38 @@ actor PonyTest
     Process our command line options.
     All command line arguments given must be recognised and make sense.
     State for specified options is stored in object fields.
+    We don't use the options package because we aren't already dependencies.
     """
-    // TODO: Options doesn't currently fully work for printing usage etc, this
-    // may need reworking when it's sorted out
-    var opts = Options(_env)
+    var exe_name = ""
 
-    opts/*.usage_text(
-      """
-      ponytest [OPTIONS]
+    for arg in _env.args.values() do
+      if exe_name == "" then
+        exe_name = arg
+        continue
+      end
 
-      Options:
-      """)*/
-      .add("sequential", "s"/*, "Tests run sequentially."*/, None)
-      .add("verbose", "v"/*, "Show verbose logs."*/, None)
-      .add("filter", "f"
-        /*,"Only run the tests whose names start with the given prefix."*/,
-        StringArgument)
-      .add("noprog", "n"/*, "Do not print progress messages"*/, None)
-
-    for option in opts do
-      match option
-      | ("sequential", None) => _sequential = true
-      | ("verbose", None) => _verbose = true
-      | ("filter", var arg: String) => _filter = arg
-      | ("noprog", None) => _no_prog = true
-      | let failure: ParseError =>
-        //opts.usage()
-        failure.report(_env.out)
+      if arg == "--sequential" then
+        _sequential = true
+      elseif arg == "--verbose" then
+        _verbose = true
+      elseif arg == "--noprog" then
+        _no_prog = true
+      elseif arg.compare_sub("--filter=", 9) is Equal then
+        _filter = arg.substring(9)
+      else
+        _env.out.print("Unrecognised argument \"" + arg + "\"")
+        _env.out.print("")
+        _env.out.print("Usage:")
+        _env.out.print("  " + exe_name + " [options]")
+        _env.out.print("")
+        _env.out.print("Options:")
+        _env.out.print("  --filter=prefix   - Only run tests whose names " +
+          "start with the given prefix.")
+        _env.out.print("  --verbose         - Show all test output.")
+        _env.out.print("  --sequential      - Run tests sequentially.")
+        _env.out.print("  --no_prog         - Do not print progress messages.")
         _do_nothing = true
+        return
       end
     end
 
@@ -332,8 +337,8 @@ actor PonyTest
     _env.out.print("----")
     _env.out.print("---- " + _records.size().string() + " test" +
       _plural(_records.size()) + " ran.")
-    _env.out.print(ANSI.bright_green() + "---- Passed: " +
-      pass_count.string() + ANSI.reset())
+    _env.out.print(_Color.green() + "---- Passed: " + pass_count.string() +
+      _Color.reset())
 
     if fail_count == 0 then
       // Success, nothing failed.
@@ -341,8 +346,8 @@ actor PonyTest
     end
 
     // Not everything passed.
-    _env.out.print(ANSI.bright_red() + "**** FAILED: " + fail_count.string() +
-      " test" + _plural(fail_count) + ", listed below:" + ANSI.reset())
+    _env.out.print(_Color.red() + "**** FAILED: " + fail_count.string() +
+      " test" + _plural(fail_count) + ", listed below:" + _Color.reset())
 
     // Finally print our list of failed tests.
     for rec in _records.values() do
