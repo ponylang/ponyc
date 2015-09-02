@@ -9,8 +9,8 @@ compiler:
   - gcc
 
 before_install:
-  sudo apt-get update
-  sudo apt-get install llvm-3.6-dev
+  - sudo apt-get update
+  - sudo apt-get install llvm-3.6-dev
 
 script: make test && make config=release test
 
