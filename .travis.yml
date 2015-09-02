@@ -12,7 +12,7 @@ before_script:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then echo "deb-src http://llvm.org/apt/precise/ llvm-toolchain-precise-3.6 main" | sudo tee -a /etc/apt/sources.list; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y llvm-3.6-dev; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y -f llvm-3.6-dev; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install llvm --with-rtti; fi
 

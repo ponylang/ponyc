@@ -1,3 +1,7 @@
+# Build Status 
+[![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+[![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+
 # Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
@@ -97,7 +101,7 @@ All installers can also be downloaded from ponylang.org's servers:
 * [RPM](http://releases.ponylang.org/yum)
 * [Windows](http://releases.ponylang.org/windows)
 
-# Building on Linux [![build status](http://ci.ponylang.org/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
+# Building on Linux
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
@@ -143,7 +147,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Windows [![build status](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+# Building on Windows
 
 The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
