@@ -36,3 +36,10 @@ before_script:
     fi
 
 script: make test && make config=release test
+
+cache:
+  directories:
+  - /usr/local/Cellar/llvm
+
+notifications:
+  irc: "irc.freenode.org#ponylang"
