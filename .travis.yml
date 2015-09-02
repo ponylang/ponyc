@@ -1,0 +1,18 @@
+language: c
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - clang
+  - gcc
+
+before_install:
+  sudo apt-get update
+  sudo apt-get install llvm-3.6-dev
+
+script: make test && make config=release test
+
+notifications:
+  irc: "irc.freenode.org#ponylang"
