@@ -1,5 +1,5 @@
-* Linux and OS X x64 with clang-3.6/gcc-4.9: [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
-* Windows x64 VS2013: [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
+[![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+[![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
 
 # Getting help 
 
@@ -100,7 +100,9 @@ All installers can also be downloaded from ponylang.org's servers:
 * [RPM](http://releases.ponylang.org/yum)
 * [Windows](http://releases.ponylang.org/windows)
 
-# Building on Linux
+# Building ponyc from source
+## Building on Linux [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
 
@@ -130,7 +132,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Mac OS X
+# Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
 
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 
@@ -146,7 +148,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Windows
+# Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
 
 The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 
