@@ -46,6 +46,6 @@ notifications:
     channels:
       - "chat.freenode.net#ponylang"
     template:
-      - "%{repository} (%{commit}) : %{message} (%{author}) : %{result}"
+      - "%{repository} (%{commit}) : %{commit_message} (%{author}) : %{result}"
 
 
