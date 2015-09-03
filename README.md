@@ -1,6 +1,3 @@
-[![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
-[![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
-
 # Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)

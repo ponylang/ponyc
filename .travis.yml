@@ -42,4 +42,10 @@ cache:
   - /usr/local/Cellar/llvm
 
 notifications:
-  irc: "irc.freenode.org#ponylang"
+  irc: 
+    channels:
+      - "chat.freenode.net#ponylang"
+    template:
+      - "%{repository} (%{commit}) : %{message} (%{author}) : %{result}"
+
+
