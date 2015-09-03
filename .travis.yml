@@ -47,5 +47,7 @@ notifications:
       - "chat.freenode.net#ponylang"
     template:
       - "%{repository} (%{commit}) : %{commit_message} (%{author}) : %{result}"
+  email:
+    - buildbot@lists.ponylang.org
 
 
