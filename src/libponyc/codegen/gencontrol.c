@@ -505,8 +505,13 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
   lp_elements[1] = c->i32;
   LLVMTypeRef lp_type = LLVMStructTypeInContext(c->context, lp_elements, 2,
     false);
+#if PONY_LLVM >= 307
+  LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type, 1, "");
+  LLVMSetPersonalityFn(landing, c->personality);
+#else
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 1, "");
+#endif
   LLVMAddClause(landing, LLVMConstNull(c->void_ptr));
 
   LLVMValueRef else_value = gen_expr(c, else_clause);
