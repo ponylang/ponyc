@@ -1,3 +1,5 @@
+use "files"
+
 use @SSL_CTX_ctrl[I32](ctx: Pointer[_SSLContext] tag, op: I32, arg: I32,
   parg: Pointer[U8] tag) if windows
 
@@ -62,15 +64,25 @@ class SSLContext val
     end
     this
 
-  fun ref set_authority(file: String, path: String = ""): SSLContext ref^ ? =>
+  fun ref set_authority(file: (FilePath | None),
+                        path: (FilePath | None) = None):
+    SSLContext ref^ ?
+  =>
     """
     Use a PEM file and/or a directory of PEM files to specify certificate
-    authorities. Clients must set this. For servers, it is optional. Use an
-    empty string to indicate no file or no path. Raises an error if these
-    verify locations aren't valid, or if both are empty strings.
+    authorities. Clients must set this. For servers, it is optional. Use
+    None to indicate no file or no path. Raises an error if these
+    verify locations aren't valid, or if both are None.
     """
-    let f = if file.size() > 0 then file.cstring() else Pointer[U8] end
-    let p = if path.size() > 0 then path.cstring() else Pointer[U8] end
+    let extract = lambda(fspec: (FilePath | None)): Pointer[U8] tag
+	    => match fspec
+	    | let fp: FilePath => fp.path.cstring()
+            else
+              Pointer[U8]
+            end
+          end
+    let f = extract(file)
+    let p = extract(path)
 
     if
       _ctx.is_null() or

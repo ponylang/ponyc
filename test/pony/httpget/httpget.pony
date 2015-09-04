@@ -1,4 +1,5 @@
 use "collections"
+use "files"
 use "net/http"
 use "net/ssl"
 
@@ -21,7 +22,7 @@ actor Go
       recover
         SSLContext
           .set_client_verify(true)
-          .set_authority("./test/pony/httpget/cacert.pem")
+          .set_authority(FilePath(root, "./test/pony/httpget/cacert.pem"))
       end
     end
 
