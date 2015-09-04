@@ -37,17 +37,15 @@ before_script:
 
 script: make test && make config=release test
 
-cache:
-  directories:
-  - /usr/local/Cellar/llvm
+branches:
+  only:
+    - master
 
 notifications:
+ email:
+    - buildbot@lists.ponylang.org
   irc: 
     channels:
       - "chat.freenode.net#ponylang"
     template:
       - "%{repository} (%{commit}) : %{commit_message} (%{author}) : %{result}"
-  email:
-    - buildbot@lists.ponylang.org
-
-

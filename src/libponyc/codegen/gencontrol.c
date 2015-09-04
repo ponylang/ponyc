@@ -507,8 +507,9 @@ LLVMValueRef gen_try(compile_t* c, ast_t* ast)
     false);
 
 #if PONY_LLVM >= 307
+  assert((c->frame->fun != NULL) && "No function in current frame!");
+  LLVMSetPersonalityFn(c->frame->fun, c->personality);
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type, 1, "");
-  LLVMSetPersonalityFn(landing, c->personality);
 #else
   LLVMValueRef landing = LLVMBuildLandingPad(c->builder, lp_type,
     c->personality, 1, "");

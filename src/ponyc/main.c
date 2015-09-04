@@ -283,10 +283,6 @@ int main(int argc, char* argv[])
     }
   }
 
-#ifdef PLATFORM_IS_WINDOWS
-  opt.strip_debug = true;
-#endif
-
   if(!ok)
   {
     print_errors();
