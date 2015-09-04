@@ -530,6 +530,8 @@ void symbols_local(symbols_t* symbols, dwarf_meta_t* meta, bool is_arg)
 #if PONY_LLVM < 307
   intrinsic->setDebugLoc(DebugLoc::get((unsigned)meta->line,
     (unsigned)meta->pos, frame->scope));
+#else
+  (void)intrinsic;
 #endif
 }
 

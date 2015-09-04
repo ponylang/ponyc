@@ -83,16 +83,18 @@ ifeq ($(OSTYPE),osx)
 	ALL_CXXFLAGS += -stdlib=libc++
 endif
 
-ifneq (,$(shell which llvm-config 2> /dev/null))
-  LLVM_CONFIG = llvm-config
-endif
+ifndef LLVM_CONFIG
+  ifneq (,$(shell which llvm-config 2> /dev/null))
+    LLVM_CONFIG = llvm-config
+  endif
 
-ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
-  LLVM_CONFIG = llvm-config-3.6
-endif
+  ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.6
+  endif
 
-ifneq (,$(shell which llvm-config36 2> /dev/null))
-  LLVM_CONFIG = llvm-config36
+  ifneq (,$(shell which llvm-config36 2> /dev/null))
+    LLVM_CONFIG = llvm-config36
+  endif
 endif
 
 ifneq ("$(wildcard $(LLVM_FALLBACK))","")
