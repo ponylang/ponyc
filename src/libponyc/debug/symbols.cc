@@ -10,6 +10,7 @@
 #  pragma warning(disable:4800)
 #  pragma warning(disable:4267)
 #  pragma warning(disable:4291)
+#  pragma warning(disable:4624) //TODO: CHECK
 #endif
 
 #include <llvm/IR/Module.h>
@@ -53,7 +54,6 @@ struct debug_frame_t
   const char* type_name;
 
   size_t size;
-
   std::vector<llvm::Metadata *> members;
 
 #if PONY_LLVM >= 307
