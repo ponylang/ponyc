@@ -284,7 +284,7 @@ int main(int argc, char* argv[])
     }
   }
 
-#if PONY_LLVM >= 307
+#if PONY_LLVM < 307 && defined(PLATFORM_IS_WINDOWS)
   opt.strip_debug = true;
 #endif
 
