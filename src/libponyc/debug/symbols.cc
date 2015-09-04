@@ -153,12 +153,10 @@ void symbols_init(symbols_t** symbols, LLVMBuilderRef builder,
 
   Module* m = unwrap(module);
 
-#ifndef PLATFORM_IS_WINDOWS
   unsigned version = llvm::DEBUG_METADATA_VERSION;
 
   m->addModuleFlag(llvm::Module::Warning, "Dwarf Version", version);
   m->addModuleFlag(llvm::Module::Error, "Debug Info Version", version);
-#endif
 
   s->builder = new DIBuilder(*m);
   s->ir = unwrap(builder);
