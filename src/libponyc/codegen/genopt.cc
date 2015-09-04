@@ -52,7 +52,16 @@ static void print_transform(compile_t* c, Instruction* inst, const char* s)
 
   Instruction* i = inst;
 
+  /* Starting with LLVM 3.7.0-final getDebugLog may return a
+   * DebugLoc without a valid underlying MDNode* for instructions 
+   * that have no direct source location, instead of returning 0 
+   * for getLine().
+   */
+#if PONY_LLVM >= 307
+  while(!i->getDebugLoc())
+#else
   while(i->getDebugLoc().getLine() == 0)
+#endif
   {
     BasicBlock::iterator iter = i;
 
