@@ -251,11 +251,11 @@ void symbols_trait(symbols_t* symbols, dwarf_meta_t* meta)
 #if PONY_LLVM >= 307
   DICompositeType* composite = symbols->builder->createClassType(symbols->unit,
     meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
-    0, nullptr, DINodeArray());
+    0, NULL, DINodeArray());
 #else
   DICompositeType composite = symbols->builder->createClassType(symbols->unit,
     meta->name, file, (int)meta->line, meta->size, meta->align, meta->offset,
-    0, nullptr, DIArray());
+    0, DIType(), DIArray());
 #endif
 
   d->type = symbols->builder->createPointerType(composite, meta->size,
@@ -273,10 +273,10 @@ void symbols_unspecified(symbols_t* symbols, const char* name)
 
 #if PONY_LLVM >= 307
   DICompositeType* type = symbols->builder->createClassType(symbols->unit,
-    name, nullptr, 0, 0, 0, 0, 0, nullptr, DINodeArray());
+    name, NULL, 0, 0, 0, 0, 0, NULL, DINodeArray());
 #else
   DICompositeType type = symbols->builder->createClassType(symbols->unit,
-    name, nullptr, 0, 0, 0, 0, 0, nullptr, DIArray());
+    name, DIFile(), 0, 0, 0, 0, 0, DIDerivedType(), DIArray());
 #endif
 
   d->type = symbols->builder->createPointerType(type, 0, 0);
@@ -395,9 +395,15 @@ void symbols_method(symbols_t* symbols, dwarf_meta_t* meta, LLVMValueRef ir)
   Function* f = dyn_cast_or_null<Function>(unwrap(ir));
   debug_sym_t* d = get_entry(symbols, symbols->frame->type_name);
 
+#if PONY_LLVM >= 307
   symbols->frame->scope = symbols->builder->createMethod(d->actual,
     meta->name, meta->mangled, file, (int)meta->line, type, false, true,
-    0, 0, nullptr, 0, symbols->release, f);
+    0, 0, NULL, 0, symbols->release, f);
+#else
+  symbols->frame->scope = symbols->builder->createMethod(d->actual,
+    meta->name, meta->mangled, file, (int)meta->line, type, false, true,
+    0, 0, DIType(), 0, symbols->release, f);
+#endif
 }
 
 void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
@@ -416,14 +422,25 @@ void symbols_composite(symbols_t* symbols, dwarf_meta_t* meta)
 
   if(meta->flags & DWARF_TUPLE)
   {
+#if PONY_LLVM >= 307
     d->actual = symbols->builder->createStructType(symbols->unit,
-      meta->name, file, (int)meta->line, meta->size, meta->align, 0, nullptr,
+      meta->name, file, (int)meta->line, meta->size, meta->align, 0, NULL,
       fields);
+#else
+    d->actual = symbols->builder->createStructType(symbols->unit,
+      meta->name, file, (int)meta->line, meta->size, meta->align, 0, DIType(),
+      fields);
+#endif
 
     d->type = d->actual;
   } else {
+#if PONY_LLVM >= 307
     d->actual = symbols->builder->createClassType(symbols->unit, meta->name,
-      file, (int)meta->line, meta->size, meta->align, 0, 0, nullptr, fields);
+      file, (int)meta->line, meta->size, meta->align, 0, 0, NULL, fields);
+#else    
+    d->actual = symbols->builder->createClassType(symbols->unit, meta->name,
+      file, (int)meta->line, meta->size, meta->align, 0, 0, DIType(), fields);
+#endif
   }
 
 #if PONY_LLVM >= 307
