@@ -283,6 +283,10 @@ int main(int argc, char* argv[])
     }
   }
 
+#if PONY_LLVM < 307
+  opt.strip_debug = true;
+#endif
+
   if(!ok)
   {
     print_errors();
