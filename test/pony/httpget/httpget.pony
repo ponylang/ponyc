@@ -6,11 +6,12 @@ actor Main
 
   new create(env: Env) =>
     match env.root
-    | let r: Root => _Client(env, r)
-    | None => env.out.print("No Root!")
+    | None => env.out.print("No root!")
+    | let r: Root => Go(env, r)
     end
 
-actor _Client
+
+actor Go
   let _env: Env
   let _client: Client
 
@@ -24,7 +25,7 @@ actor _Client
       end
     end
 
-    _client = Client(root, consume sslctx)
+    _client = Client(recover RootTCPConnector(root) end, consume sslctx)
 
     for i in Range(1, env.args.size()) do
       try
