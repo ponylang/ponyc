@@ -3,6 +3,7 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
+#include "../libponyc/codegen/codegen.h"
 #include <platform.h>
 #include "../libponyrt/options/options.h"
 
@@ -283,7 +284,7 @@ int main(int argc, char* argv[])
     }
   }
 
-#if PONY_LLVM < 307
+#if PONY_LLVM >= 307
   opt.strip_debug = true;
 #endif
 
