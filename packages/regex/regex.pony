@@ -1,4 +1,4 @@
-use "lib:pcre2-8"
+use "lib:pcre"
 
 primitive _Pattern
 
