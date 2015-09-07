@@ -1,3 +1,4 @@
+use "files"
 use "net"
 use "net/ssl"
 
@@ -22,5 +23,7 @@ actor Main
       1
     end
 
-    TCPListener(recover Listener(env, ssl, limit) end)
+    try
+      TCPListener(recover Listener(env, ssl, limit) end)
+    end
     // UDPSocket(recover Pong(env) end)

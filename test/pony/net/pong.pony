@@ -2,9 +2,15 @@ use "net"
 
 class Pong is UDPNotify
   let _env: Env
+  let _root: Root
 
-  new create(env: Env) =>
+  new create(env: Env) ? =>
     _env = env
+    _root = match env.root
+	  | let r: Root => r
+	  else
+	    error
+	  end
 
   fun ref listening(sock: UDPSocket ref) =>
     try
@@ -15,9 +21,9 @@ class Pong is UDPNotify
       let env = _env
 
       if ip.ip4() then
-        UDPSocket.ip4(recover Ping(env, ip) end)
+        UDPSocket.ip4(_root, recover Ping(env, ip) end)
       elseif ip.ip6() then
-        UDPSocket.ip6(recover Ping(env, ip) end)
+        UDPSocket.ip6(_root, recover Ping(env, ip) end)
       else
         error
       end

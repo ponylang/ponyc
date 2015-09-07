@@ -1,3 +1,4 @@
+use "files"
 use "net"
 use "net/ssl"
 
@@ -8,17 +9,26 @@ class Listener is TCPListenNotify
   var _host: String = ""
   var _service: String = ""
   var _count: U64 = 0
+  let _root: Root
 
-  new create(env: Env, ssl: Bool, limit: U64) =>
+  new create(env: Env, ssl: Bool, limit: U64) ? =>
     _env = env
+    _root = match env.root
+	  | let r: Root => r
+	  else
+	    error
+	  end
     _limit = limit
+
+    let cert = try FilePath(_root, "./test/pony/net/cert.pem") else error end
+    let key = try FilePath(_root, "./test/pony/net/key.pem") else error end
 
     _sslctx = if ssl then
       try
         recover
           SSLContext
-            .set_authority("./test/pony/net/cert.pem")
-            .set_cert("./test/pony/net/cert.pem", "./test/pony/net/key.pem")
+            .set_authority(cert)
+            .set_cert(cert, key)
             .set_client_verify(true)
             .set_server_verify(true)
         end
@@ -73,10 +83,10 @@ class Listener is TCPListenNotify
       match _sslctx
       | let ctx: SSLContext =>
         let ssl = ctx.client()
-        TCPConnection(SSLConnection(ClientSide(env), consume ssl), _host,
-          _service)
+        TCPConnection(_root, SSLConnection(ClientSide(env), consume ssl),
+		_host, _service)
       else
-        TCPConnection(ClientSide(env), _host, _service)
+        TCPConnection(_root, ClientSide(env), _host, _service)
       end
     else
       _env.out.print("couldn't create client side")
