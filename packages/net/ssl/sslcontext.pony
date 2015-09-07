@@ -47,17 +47,20 @@ class SSLContext val
     let verify = _server_verify
     recover SSL._create(ctx, true, verify) end
 
-  fun ref set_cert(cert: String, key: String): SSLContext ref^ ? =>
+  fun ref set_cert(cert: FilePath, key: FilePath): SSLContext ref^ ? =>
     """
     The cert file is a PEM certificate chain. The key file is a private key.
     Servers must set this. For clients, it is optional.
     """
+    let cert' = cert.path
+    let key' = key.path
+
     if
       _ctx.is_null() or
-      (cert.size() == 0) or
-      (key.size() == 0) or
-      (@SSL_CTX_use_certificate_chain_file[I32](_ctx, cert.cstring()) == 0) or
-      (@SSL_CTX_use_PrivateKey_file[I32](_ctx, key.cstring(), I32(1)) == 0) or
+      (cert'.size() == 0) or
+      (key'.size() == 0) or
+      (@SSL_CTX_use_certificate_chain_file[I32](_ctx, cert'.cstring()) == 0) or
+      (@SSL_CTX_use_PrivateKey_file[I32](_ctx, key'.cstring(), I32(1)) == 0) or
       (@SSL_CTX_check_private_key[I32](_ctx) == 0)
     then
       error
