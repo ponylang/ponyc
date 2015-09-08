@@ -128,8 +128,9 @@ static bool check_limit(ast_t** astp, pass_opt_t* options, pass_id pass,
   if(last_pass < pass || options->limit < pass)
     return false;
 
-  if(ast_id(*astp) == TK_PROGRAM) // Record pass program AST has reached
-    options->program_pass = pass;
+  if(ast_id(*astp) == TK_PROGRAM || ast_id(*astp) == TK_PACKAGE)
+    // Update pass to catch types up to
+    options->type_catchup_pass = pass;
 
   return true;
 }
@@ -143,6 +144,19 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
     return true;
 
   return ast_visit(astp, pre_fn, post_fn, options) == AST_OK;
+}
+
+
+// Generic pre handler that just protects TK_PRESERVE, for use by any passes
+// that don't otherwise need one
+static ast_result_t pass_pre(ast_t** astp, pass_opt_t* options)
+{
+  (void)options;
+
+  if(ast_id(*astp) == TK_PRESERVE)
+    return AST_IGNORE;
+
+  return AST_OK;
 }
 
 
@@ -173,10 +187,11 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!visit_pass(astp, options, last, PASS_IMPORT, pass_import, NULL))
     return false;
 
-  if(!visit_pass(astp, options, last, PASS_NAME_RESOLUTION, NULL, pass_names))
+  if(!visit_pass(astp, options, last, PASS_NAME_RESOLUTION, pass_pre,
+    pass_names))
     return false;
 
-  if(!visit_pass(astp, options, last, PASS_FLATTEN, NULL, pass_flatten))
+  if(!visit_pass(astp, options, last, PASS_FLATTEN, pass_pre, pass_flatten))
     return false;
 
   if(!visit_pass(astp, options, last, PASS_TRAITS, pass_traits, NULL))
@@ -224,7 +239,7 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options)
   frame_push(&options->check, package);
   frame_push(&options->check, module);
 
-  bool ok = ast_passes(astp, options, options->program_pass);
+  bool ok = ast_passes(astp, options, pass_prev(options->type_catchup_pass));
 
   frame_pop(&options->check);
   frame_pop(&options->check);
@@ -236,7 +251,15 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options)
 
 bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass)
 {
-  return ast_passes(astp, options, last_pass);
+  // If the given AST is a package then processing it will change the stored
+  // type catch up pass. Once we've finished processing the package we need to
+  // restore the previous value. We actually do this regardless of what the AST
+  // is since if it isn't a package then the stored value won't change and this
+  // will make no difference.
+  pass_id saved_pass = options->type_catchup_pass;
+  bool r = ast_passes(astp, options, last_pass);
+  options->type_catchup_pass = saved_pass;
+  return r;
 }
 
 

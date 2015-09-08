@@ -737,39 +737,18 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   // Add the create function at the end.
   ast_append(class_members, create);
 
-  // Add the new type to the current module.
-  ast_t* module = ast_nearest(ast, TK_MODULE);
-  ast_append(module, def);
-
   // Replace object..end with $0.create(...)
   ast_replace(astp, call);
 
+  // Add new type to current module and bring it up to date with passes.
+  ast_t* module = ast_nearest(ast, TK_MODULE);
+  ast_append(module, def);
+
+  if(!ast_passes_type(&def, opt))
+    return AST_ERROR;
+
   // Sugar the call.
-  return ast_visit(astp, pass_sugar, NULL, opt);
-}
-
-
-static ast_result_t sugar_lambda(pass_opt_t* opt, ast_t** astp)
-{
-  AST_EXTRACT_CHILDREN(*astp, type_params, params, ret_type, error, body);
-
-  // Create object literal
-  REPLACE(astp,
-    NODE(TK_OBJECT,
-      NONE  // is types
-      NODE(TK_MEMBERS,
-      NODE(TK_FUN, AST_SCOPE
-          NONE  // capability
-          ID("apply")
-          TREE(type_params)
-          TREE(params)
-          TREE(ret_type)
-          TREE(error)
-          TREE(body)
-          NONE  // docstring
-          ))));
-
-  return sugar_object(opt, astp);
+  return ast_passes_subtree(astp, opt, PASS_SUGAR) ? AST_OK : AST_ERROR;
 }
 
 
@@ -982,6 +961,7 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_PRESERVE:   return AST_IGNORE;
     case TK_MODULE:     return sugar_module(ast);
     case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);
@@ -1004,7 +984,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
     case TK_CASE:       return sugar_case(ast);
     case TK_ASSIGN:     return sugar_update(astp);
     case TK_OBJECT:     return sugar_object(options, astp);
-    case TK_LAMBDA:     return sugar_lambda(options, astp);
     case TK_AS:         return sugar_as(options, astp);
     case TK_PLUS:       return sugar_binop(astp, "add");
     case TK_MINUS:      return sugar_binop(astp, "sub");

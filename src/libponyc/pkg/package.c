@@ -753,7 +753,7 @@ ast_t* program_load(const char* path, pass_opt_t* options)
   ast_t* program = ast_blank(TK_PROGRAM);
   ast_scope(program);
 
-  options->program_pass = PASS_PARSE;
+  options->type_catchup_pass = PASS_PARSE;
 
   if(package_load(program, path, options) == NULL ||
     !ast_passes_program(program, options))
@@ -835,7 +835,8 @@ ast_t* package_load(ast_t* from, const char* path, pass_opt_t* options)
   // We add new packages to the end of the program, so they will be reached by
   // the current pass processing. This means we need to catch up the new
   // package to the previous pass
-  if(!ast_passes_subtree(&package, options, pass_prev(options->program_pass)))
+  if(!ast_passes_subtree(&package, options,
+    pass_prev(options->type_catchup_pass)))
     return NULL;
 
   return package;

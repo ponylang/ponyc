@@ -8,6 +8,7 @@
 #include "../expr/match.h"
 #include "../expr/array.h"
 #include "../expr/ffi.h"
+#include "../expr/lambda.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -175,6 +176,9 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_PRESERVE:
+      return AST_IGNORE;
+
     case TK_USE:
       // Don't look in use commands to avoid false type errors from the guard
       return AST_IGNORE;
@@ -216,6 +220,7 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TILDE:      r = expr_tilde(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
     case TK_CALL:       r = expr_call(options, astp); break;
+    case TK_LAMBDA:     r = expr_lambda(options, astp); break;
     case TK_IF:         r = expr_if(options, ast); break;
     case TK_WHILE:      r = expr_while(options, ast); break;
     case TK_REPEAT:     r = expr_repeat(options, ast); break;

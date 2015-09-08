@@ -609,6 +609,21 @@ static ast_result_t syntax_use(ast_t* ast)
 }
 
 
+static ast_result_t syntax_lambda_capture(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, name, type, value);
+
+  if(ast_id(type) != TK_NONE && ast_id(value) == TK_NONE)
+  {
+    ast_error(ast, "value missing for lambda expression capture (cannot "
+      "specify type without value)");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -657,6 +672,8 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_USE:        r = syntax_use(ast); break;
+    case TK_LAMBDACAPTURE:
+                        r = syntax_lambda_capture(ast); break;
     default: break;
   }
 
