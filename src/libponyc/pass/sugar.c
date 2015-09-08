@@ -617,7 +617,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
-  AST_GET_CHILDREN(ast, provides, members);
+  ast_result_t r = AST_OK;
+
+  AST_GET_CHILDREN(ast, cap, provides, members);
   ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
 
   // Create a new anonymous type.
@@ -685,6 +687,11 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
             TREE(type)
             NONE));
 
+        // The arg is: $seq init
+        BUILD(arg, init,
+          NODE(TK_SEQ,
+            TREE(init)));
+
         // The body of create contains: id = consume $0
         BUILD_NO_DEBUG(assign, init,
           NODE(TK_ASSIGN,
@@ -697,9 +704,9 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         ast_append(class_members, field);
         ast_append(create_params, param);
         ast_append(create_body, assign);
-        ast_append(call_args, init);
+        ast_append(call_args, arg);
 
-        has_fields = true;
+        has_fields = true; 
         break;
       }
 
@@ -720,18 +727,37 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
 
   if(!has_fields)
   {
-    // Change the type from a class to a primitive.
-    ast_setid(def, TK_PRIMITIVE);
-
     // End the constructor with 'true', since it has no parameters.
     BUILD_NO_DEBUG(true_node, ast, NODE(TK_TRUE));
     ast_append(create_body, true_node);
   }
 
+  // Handle capability and whether the anonymous type is a class, primitive or
+  // actor.
+  token_id cap_id = ast_id(cap);
+
   if(has_behaviours)
   {
     // Change the type to an actor.
     ast_setid(def, TK_ACTOR);
+
+    if(cap_id != TK_NONE && cap_id != TK_TAG)
+    {
+      ast_error(cap, "object literals with behaviours are actors and so must "
+        "have tag capability");
+      r = AST_ERROR;
+    }
+  }
+  else if(!has_fields && (cap_id == TK_NONE || cap_id == TK_TAG ||
+    cap_id == TK_BOX || cap_id == TK_VAL))
+  {
+    // Change the type from a class to a primitive.
+    ast_setid(def, TK_PRIMITIVE);
+  }
+  else
+  {
+    // Type is a class, set the create capability as specified
+    ast_setid(ast_child(create), cap_id);
   }
 
   // Add the create function at the end.
@@ -745,10 +771,13 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   ast_append(module, def);
 
   if(!ast_passes_type(&def, opt))
-    return AST_ERROR;
+    return AST_FATAL;
 
   // Sugar the call.
-  return ast_passes_subtree(astp, opt, PASS_SUGAR) ? AST_OK : AST_ERROR;
+  if(!ast_passes_subtree(astp, opt, PASS_SUGAR))
+    return AST_FATAL;
+
+  return r;
 }
 
 

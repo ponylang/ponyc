@@ -254,6 +254,10 @@ bool ast_passes_program(ast_t* program, pass_opt_t* options);
  * The current pass that types should be caught up to is stored in pass_opt_t.
  * Due to the above assumptions we catch up type sub-ASTs by applying all
  * passes BEFORE the stored value, not including it.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_type(ast_t** astp, pass_opt_t* options);
 
@@ -281,6 +285,10 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options);
  * If the previous pass needs to be specified it is recommended to use
  * pass_prev() rather than hardcoding, as this will protect against any future
  * changes in the pass order.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
 

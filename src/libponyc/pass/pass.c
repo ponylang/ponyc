@@ -143,6 +143,9 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
   if(!check_limit(astp, options, pass, last_pass))
     return true;
 
+  //printf("Pass %s (last %s) on %s\n", pass_name(pass), pass_name(last_pass),
+  //  ast_get_print(*astp));
+
   return ast_visit(astp, pre_fn, post_fn, options) == AST_OK;
 }
 

@@ -97,6 +97,17 @@ TEST_F(ParseExprTest, Lambda)
 }
 
 
+TEST_F(ParseExprTest, LambdaCap)
+{
+  const char* src =
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    lambda iso() => None end";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(ParseExprTest, LambdaCaptureVariable)
 {
   const char* src =

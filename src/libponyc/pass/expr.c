@@ -220,7 +220,6 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_TILDE:      r = expr_tilde(options, astp); break;
     case TK_QUALIFY:    r = expr_qualify(options, astp); break;
     case TK_CALL:       r = expr_call(options, astp); break;
-    case TK_LAMBDA:     r = expr_lambda(options, astp); break;
     case TK_IF:         r = expr_if(options, ast); break;
     case TK_WHILE:      r = expr_while(options, ast); break;
     case TK_REPEAT:     r = expr_repeat(options, ast); break;
@@ -245,6 +244,11 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
     case TK_AMP:        r = expr_addressof(options, ast); break;
     case TK_IDENTITY:   r = expr_identityof(options, ast); break;
     case TK_DONTCARE:   r = expr_dontcare(ast); break;
+
+    case TK_LAMBDA:
+      if(!expr_lambda(options, astp))
+        return AST_FATAL;
+      break;
 
     case TK_INT:
       // Integer literals can be integers or floats

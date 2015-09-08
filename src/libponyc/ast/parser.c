@@ -230,10 +230,11 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
 
-// OBJECT [IS type] members END
+// OBJECT [CAP] [IS type] members END
 DEF(object);
   PRINT_INLINE();
   TOKEN(NULL, TK_OBJECT);
+  OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
   SKIP(NULL, TK_END);
@@ -256,11 +257,12 @@ DEF(lambdacaptures);
   SKIP(NULL, TK_RPAREN);
   DONE();
 
-// LAMBDA [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [lambdacaptures]
-// [COLON type] [QUESTION] ARROW rawseq END
+// LAMBDA [CAP] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
 DEF(lambda);
   PRINT_INLINE();
   TOKEN(NULL, TK_LAMBDA);
+  OPT RULE("capability", cap);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
@@ -271,10 +273,10 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   SKIP(NULL, TK_END);
-  WRAP(0, TK_PRESERVE); // Type parameters
-  WRAP(1, TK_PRESERVE); // Parameters
-  WRAP(3, TK_PRESERVE); // Return type
-  WRAP(5, TK_PRESERVE); // Body
+  WRAP(1, TK_PRESERVE); // Type parameters
+  WRAP(2, TK_PRESERVE); // Parameters
+  WRAP(4, TK_PRESERVE); // Return type
+  WRAP(6, TK_PRESERVE); // Body
   DONE();
 
 // AS type ':'

@@ -56,8 +56,8 @@ TEST_F(SugarExprTest, LambdaFull)
     "trait D2 is D\n"
 
     "class Foo\n"
-    "  fun f(c: C, d: D2) =>\n"
-    "    lambda(a: A, b: B)(c, _c = c, _d: D = d): A => a end";
+    "  fun f(c: C val, d: D2 val) =>\n"
+    "    lambda iso (a: A, b: B)(c, _c = c, _d: D val = d): A => a end";
 
   const char* full_form =
     "trait A\n"
@@ -67,11 +67,11 @@ TEST_F(SugarExprTest, LambdaFull)
     "trait D2 is D\n"
 
     "class Foo\n"
-    "  fun f(c: C, d: D2) =>\n"
-    "    object\n"
-    "      let c: C = c\n"
-    "      let _c: C = c\n"
-    "      let _d: D = d\n"
+    "  fun f(c: C val, d: D2 val) =>\n"
+    "    object iso\n"
+    "      let c: C val = c\n"
+    "      let _c: C val = c\n"
+    "      let _d: D val = d\n"
     "      fun apply(a: A, b: B): A => a\n"
     "    end";
 

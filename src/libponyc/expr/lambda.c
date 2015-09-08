@@ -78,7 +78,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_GET_CHILDREN(ast, preserved_t_params, preserved_params, captures,
+  AST_GET_CHILDREN(ast, cap, preserved_t_params, preserved_params, captures,
     preserved_ret_type, raises, preserved_body);
 
   ast_t* members = ast_from(ast, TK_MEMBERS);
@@ -125,6 +125,7 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   // Replace lambda with object literal
   REPLACE(astp,
     NODE(TK_OBJECT,
+      TREE(cap);
       NONE  // Provides list
       TREE(members)));
 
