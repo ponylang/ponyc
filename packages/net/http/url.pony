@@ -1,3 +1,5 @@
+use "assert"
+
 primitive URLNoSlashes
 
 type URLFormat is
