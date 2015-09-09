@@ -30,9 +30,9 @@ before_script:
       cd -;
     fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-      wget http://releases.ponylang.org/llvm/llvm362-x86_64-osx-release.zip
-      unzip llvm362-x86_64-osx-release.zip
-      export PATH=$PATH:$(pwd)/LLVM/bin
+      wget http://releases.ponylang.org/llvm/llvm362-x86_64-osx-release.zip;
+      unzip llvm362-x86_64-osx-release.zip;
+      export PATH=$PATH:$(pwd)/LLVM/bin;
       brew update;
       brew install pcre2 libressl;
     fi
