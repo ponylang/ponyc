@@ -930,7 +930,7 @@ static bool trait_entity(ast_t* entity, pass_opt_t* options)
       break;
 
     case AST_STATE_INPROGRESS:
-      ast_error(entity, "trait and interfaces can't be recursive");
+      ast_error(entity, "traits and interfaces can't be recursive");
       ast_setdata(entity, (void*)AST_STATE_ERROR);
       return false;
 
@@ -987,6 +987,9 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
+    case TK_PRESERVE:
+      return AST_IGNORE;
+
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:

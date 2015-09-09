@@ -181,7 +181,7 @@ typedef enum pass_id
 typedef struct pass_opt_t
 {
   pass_id limit;
-  pass_id program_pass;
+  pass_id type_catchup_pass;
   bool release;
   bool library;
   bool ieee_math;
@@ -239,14 +239,25 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source);
  */
 bool ast_passes_program(ast_t* program, pass_opt_t* options);
 
-/** Catch up the given, newly created type definition sub-AST to whichever pass
- * the program is currently performing.
+/** Catch up the given newly created type definition sub-AST to whichever pass
+ * its containing package has reached.
  * Returns true on success, false on failure.
  *
  * Note that the insertion point considerations discussed for
- * ast_passes_subtree() also apply here. For this reason type definition
- * sub-ASTs should always be added to the start of the module, not appended to
- * the end of it.
+ * ast_passes_subtree() also apply here. To allow for this we make the
+ * following assumptions:
+ * 1. Types are only ever added to the current module.
+ * 2. Types are always added to the end of the current module, ie efter the
+ *    generating node.
+ * 3. Packages are always added to the end of the program.
+ *
+ * The current pass that types should be caught up to is stored in pass_opt_t.
+ * Due to the above assumptions we catch up type sub-ASTs by applying all
+ * passes BEFORE the stored value, not including it.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_type(ast_t** astp, pass_opt_t* options);
 
@@ -274,6 +285,10 @@ bool ast_passes_type(ast_t** astp, pass_opt_t* options);
  * If the previous pass needs to be specified it is recommended to use
  * pass_prev() rather than hardcoding, as this will protect against any future
  * changes in the pass order.
+ *
+ * A fail should be treated as an AST_FATAL, since some of the AST may not have
+ * been through some passes and so may not be in a state that the current pass
+ * expects.
  */
 bool ast_passes_subtree(ast_t** astp, pass_opt_t* options, pass_id last_pass);
 

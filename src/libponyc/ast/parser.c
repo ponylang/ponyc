@@ -230,29 +230,53 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
 
-// OBJECT [IS type] members END
+// OBJECT [CAP] [IS type] members END
 DEF(object);
   PRINT_INLINE();
   TOKEN(NULL, TK_OBJECT);
+  OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
+  
+// ID [COLON type] [ASSIGN infix]
+DEF(lambdacapture);
+  AST_NODE(TK_LAMBDACAPTURE);
+  TOKEN("name", TK_ID);
+  IF(TK_COLON, RULE("capture type", type));
+  IF(TK_ASSIGN, RULE("capture value", infix));
+  DONE();
 
-// LAMBDA [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN [COLON type]
-// [QUESTION] ARROW rawseq END
+// (LPAREN | LPAREN_NEW) lambdacapture {COMMA lambdacapture} RPAREN
+DEF(lambdacaptures);
+  AST_NODE(TK_LAMBDACAPTURES);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  RULE("capture", lambdacapture);
+  WHILE(TK_COMMA, RULE("capture", lambdacapture));
+  SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// LAMBDA [CAP] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
 DEF(lambda);
   PRINT_INLINE();
   TOKEN(NULL, TK_LAMBDA);
+  OPT RULE("capability", cap);
   OPT RULE("type parameters", typeparams);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   OPT RULE("parameters", params);
   SKIP(NULL, TK_RPAREN);
+  OPT RULE("captures", lambdacaptures);
   IF(TK_COLON, RULE("return type", type));
   OPT TOKEN(NULL, TK_QUESTION);
   SKIP(NULL, TK_DBLARROW);
-  RULE("method body", rawseq);
+  RULE("lambda body", rawseq);
   SKIP(NULL, TK_END);
+  WRAP(1, TK_PRESERVE); // Type parameters
+  WRAP(2, TK_PRESERVE); // Parameters
+  WRAP(4, TK_PRESERVE); // Return type
+  WRAP(6, TK_PRESERVE); // Body
   DONE();
 
 // AS type ':'
@@ -347,7 +371,7 @@ DEF(atom);
 
 // ref | literal | tuple | array | object | lambda | ffi
 DEF(nextatom);
-RULE("value", ref, literal, nextgroupedexpr, nextarray, object, lambda, ffi);
+  RULE("value", ref, literal, nextgroupedexpr, nextarray, object, lambda, ffi);
   DONE();
 
 // DOT ID

@@ -733,7 +733,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_append(class_members, apply);
 
   // Typecheck the anonymous type.
-  ast_add(t->frame->module, def);
+  ast_append(t->frame->module, def);
 
   if(!ast_passes_type(&def, opt))
     return false;

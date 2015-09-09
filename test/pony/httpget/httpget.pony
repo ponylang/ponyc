@@ -1,3 +1,4 @@
+use "assert"
 use "collections"
 use "net/http"
 use "net/ssl"

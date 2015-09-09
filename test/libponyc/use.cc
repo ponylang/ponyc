@@ -2,7 +2,6 @@
 #include <platform.h>
 
 #include <ast/ast.h>
-#include <ast/builder.h>
 #include <pass/pass.h>
 #include <pkg/use.h>
 

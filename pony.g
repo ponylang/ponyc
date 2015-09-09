@@ -30,7 +30,7 @@ members
   ;
 
 field
-  : ('var' | 'let') ID ':' type ('=' infix)?
+  : ('var' | 'let' | 'embed') ID ':' type ('delegate' type)? ('=' infix)?
   ;
 
 method
@@ -84,7 +84,7 @@ binop
   ;
 
 nextterm
-  : ('var' | 'let') ID (':' type)?
+  : ('var' | 'let' | 'embed') ID (':' type)?
   | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
@@ -99,7 +99,7 @@ nextterm
   ;
 
 term
-  : ('var' | 'let') ID (':' type)?
+  : ('var' | 'let' | 'embed') ID (':' type)?
   | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
   | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
   | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
@@ -156,8 +156,8 @@ nextatom
   | literal
   | LPAREN_NEW (rawseq | '_') tuple? ')'
   | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' ('is' type)? members 'end'
-  | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' cap? ('is' type)? members 'end'
+  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 
@@ -166,8 +166,8 @@ atom
   | literal
   | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
   | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
-  | 'object' ('is' type)? members 'end'
-  | 'lambda' typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? '=>' rawseq 'end'
+  | 'object' cap? ('is' type)? members 'end'
+  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
   | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
   ;
 
@@ -182,6 +182,14 @@ literal
 
 tuple
   : ',' (rawseq | '_') (',' (rawseq | '_'))*
+  ;
+
+lambdacaptures
+  : ('(' | LPAREN_NEW) lambdacapture (',' lambdacapture)* ')'
+  ;
+
+lambdacapture
+  : ID (':' type)? ('=' infix)?
   ;
 
 positional

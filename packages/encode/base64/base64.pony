@@ -1,4 +1,5 @@
 use "collections"
+use "assert"
 
 primitive Base64
   fun encode_pem(data: Bytes box): String iso^ =>
