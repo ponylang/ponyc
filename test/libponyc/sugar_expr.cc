@@ -117,3 +117,126 @@ TEST_F(SugarExprTest, LambdaWithTypeArgs)
 
   TEST_EQUIV(short_form, full_form);
 }
+
+
+TEST_F(SugarExprTest, LambdaCaptureLocalLet)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    let x: U32 = 4\n"
+    "    lambda()(x) => None end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    let x: U32 = 4\n"
+    "    object\n"
+    "      let x: U32 = x"
+    "      fun apply() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LambdaCaptureLocalVar)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    var x: U32 = 4\n"
+    "    lambda()(x) => None end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo\n"
+    "  fun f() =>\n"
+    "    var x: U32 = 4\n"
+    "    object\n"
+    "      let x: U32 = x"
+    "      fun apply() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LambdaCaptureParameter)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo ref\n"
+    "  fun f(x: U32) =>\n"
+    "    lambda()(x) => None end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo\n"
+    "  fun f(x: U32) =>\n"
+    "    object\n"
+    "      let x: U32 = x"
+    "      fun apply() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LambdaCaptureFieldLet)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo ref\n"
+    "  let x: U32 = 4\n"
+    "  fun f() =>\n"
+    "    lambda()(x) => None end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo\n"
+    "  let x: U32 = 4\n"
+    "  fun f() =>\n"
+    "    object\n"
+    "      let x: U32 = x"
+    "      fun apply() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarExprTest, LambdaCaptureFieldVar)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo ref\n"
+    "  var x: U32 = 4\n"
+    "  fun f() =>\n"
+    "    lambda()(x) => None end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo\n"
+    "  var x: U32 = 4\n"
+    "  fun f() =>\n"
+    "    object\n"
+    "      let x: U32 = x"
+    "      fun apply() => None\n"
+    "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
