@@ -34,10 +34,10 @@ static ast_t* make_capture_field(ast_t* capture)
       return NULL;
     }
 
-    token_id def_id = ast_id(ast_parent(def));
+    token_id def_id = ast_id(def);
 
-    if(def_id != TK_VAR && def_id != TK_LET && def_id != TK_EMBED &&
-      def_id != TK_FVAR && def_id != TK_FLET && ast_id(def) != TK_PARAM)
+    if(def_id != TK_ID && def_id != TK_FVAR && def_id != TK_FLET &&
+      def_id != TK_PARAM)
     {
       ast_error(id_node, "cannot capture \"%s\", can only capture fields, "
         "parameters and local variables", name);
