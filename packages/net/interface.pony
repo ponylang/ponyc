@@ -1,0 +1,37 @@
+class NetworkInterface
+  """
+  Access to TCP/IP networking.
+  """
+  let name: String
+
+  new create(root: Root, name': String = "") =>
+    name = name'
+
+  fun connect(notify: TCPConnectionNotify iso,
+    host: String, service: String, v: IPVersion = None): TCPConnection =>
+    match v
+    | IPv4 => TCPConnection._ip4(consume notify, host, service where from=name)
+    | IPv6 => TCPConnection._ip6(consume notify, host, service where from=name)
+    else
+      TCPConnection._create(consume notify, host, service where from=name)
+    end
+
+  fun listen(notify: TCPListenNotify iso, host: String = "",
+    service: String = "0", limit: U64 = 0,
+    v: IPVersion = None): TCPListener =>
+    match v
+    | IPv4 => TCPListener._ip4(consume notify, host, service, limit)
+    | IPv6 => TCPListener._ip6(consume notify, host, service, limit)
+    else
+      TCPListener._create(consume notify, host, service, limit)
+    end
+
+  fun udp_socket(notify: UDPNotify iso,
+    host: String = "", service: String = "0",
+    size: U64 = 1024, v: IPVersion = None): UDPSocket =>
+    match v
+    | IPv4 => UDPSocket._ip4(consume notify, host, service, size)
+    | IPv6 => UDPSocket._ip6(consume notify, host, service, size)
+    else
+      UDPSocket._create(consume notify, host, service, size)
+    end

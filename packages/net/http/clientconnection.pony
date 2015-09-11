@@ -13,9 +13,9 @@ actor _ClientConnection
   let _unsent: List[Payload val] = _unsent.create()
   let _sent: List[Payload val] = _sent.create()
   var _conn: (TCPConnection | None) = None
-  let _mktcp: TCPConnector val
+  let _network: NetworkInterface val
 
-  new create(mktcp: TCPConnector val,
+  new create(network: NetworkInterface val,
     host: String, service: String, sslctx: (SSLContext | None) = None,
     pipeline: Bool = true)
   =>
@@ -26,7 +26,7 @@ actor _ClientConnection
     _service = service
     _sslctx = sslctx
     _pipeline = pipeline
-    _mktcp = mktcp
+    _network = network
 
   be apply(request: Payload val) =>
     """
@@ -133,10 +133,10 @@ actor _ClientConnection
     _conn = try
       let ctx = _sslctx as SSLContext
       let ssl = ctx.client(_host)
-      _mktcp(SSLConnection(_ResponseBuilder(this), consume ssl),
+      _network.connect(SSLConnection(_ResponseBuilder(this), consume ssl),
         _host, _service)
     else
-      _mktcp(_ResponseBuilder(this), _host, _service)
+      _network.connect(_ResponseBuilder(this), _host, _service)
     end
 
   fun ref _cancel_all() =>

@@ -27,6 +27,18 @@ class IPAddress val
     """
     @os_ipv6[Bool](this)
 
+  fun version(): IPVersion =>
+    """
+    Returns IP version of this address.
+    """
+    if this.ip4() then
+      IPv4
+    elseif this.ip6() then
+      IPv6
+    else
+      None
+    end
+    
   fun name(reversedns: Bool = false, servicename: Bool = false,
 	   root: (Root | None) = None):
     (String, String) ?
@@ -47,3 +59,7 @@ class IPAddress val
 
     (recover String.from_cstring(consume host) end,
       recover String.from_cstring(consume serv) end)
+
+primitive IPv4
+primitive IPv6
+type IPVersion is (IPv4 | IPv6 | None)

@@ -10,7 +10,7 @@ actor TCPListener
   var _count: U64 = 0
   var _paused: Bool = false
 
-  new create(notify: TCPListenNotify iso, host: String = "",
+  new _create(notify: TCPListenNotify iso, host: String = "",
     service: String = "0", limit: U64 = 0)
   =>
     """
@@ -22,7 +22,7 @@ actor TCPListener
     _fd = @asio_event_data[U64](_event)
     _notify_listening()
 
-  new ip4(notify: TCPListenNotify iso, host: String = "",
+  new _ip4(notify: TCPListenNotify iso, host: String = "",
     service: String = "0", limit: U64 = 0)
   =>
     """
@@ -34,7 +34,7 @@ actor TCPListener
     _fd = @asio_event_data[U64](_event)
     _notify_listening()
 
-  new ip6(notify: TCPListenNotify iso, host: String = "",
+  new _ip6(notify: TCPListenNotify iso, host: String = "",
     service: String = "0", limit: U64 = 0)
   =>
     """

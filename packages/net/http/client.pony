@@ -2,27 +2,6 @@ use "collections"
 use "net"
 use "net/ssl"
 
-interface TCPConnector
-  """
-  Capability to create a TCPConnection
-  """
-  fun apply(notify: TCPConnectionNotify iso,
-    host: String, service: String): TCPConnection tag
-
-class RootTCPConnector is TCPConnector
-  """
-  Capability to create a TCPConnection, given a Root.
-  """
-  let _root: Root
-
-  new create(root: Root) =>
-    _root = root
-
-  fun apply(notify: TCPConnectionNotify iso,
-    host: String, service: String): TCPConnection tag =>
-    TCPConnection(_root, consume notify, host, service)
-
-
 actor Client
   """
   Manages a collection of client connections.
@@ -30,9 +9,9 @@ actor Client
   let _sslctx: SSLContext
   let _pipeline: Bool
   let _clients: Map[_HostService, _ClientConnection] = _clients.create()
-  let _mktcp: TCPConnector val
+  let _network: NetworkInterface val
 
-  new create(mktcp: TCPConnector val,
+  new create(network: NetworkInterface val,
     sslctx: (SSLContext | None) = None,
     pipeline: Bool = true)
   =>
@@ -46,7 +25,7 @@ actor Client
     end
 
     _pipeline = pipeline
-    _mktcp = mktcp
+    _network = network
 
   be apply(request: Payload val) =>
     """
@@ -87,8 +66,8 @@ actor Client
       _clients(hs)
     else
       let client = match url.scheme
-      | "http" => _ClientConnection(_mktcp, hs.host, hs.service, None, _pipeline)
-      | "https" => _ClientConnection(_mktcp, hs.host, hs.service, _sslctx, _pipeline)
+      | "http" => _ClientConnection(_network, hs.host, hs.service, None, _pipeline)
+      | "https" => _ClientConnection(_network, hs.host, hs.service, _sslctx, _pipeline)
       else
         error
       end

@@ -18,7 +18,7 @@ actor TCPConnection
   let _pending: List[(Bytes, U64)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
-  new create(root: Root, notify: TCPConnectionNotify iso,
+  new _create(notify: TCPConnectionNotify iso,
     host: String, service: String,
     from: String = "")
   =>
@@ -31,7 +31,7 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip4(notify: TCPConnectionNotify iso, host: String, service: String,
+  new _ip4(notify: TCPConnectionNotify iso, host: String, service: String,
     from: String = "")
   =>
     """
@@ -42,7 +42,7 @@ actor TCPConnection
       service.cstring(), from.cstring())
     _notify_connecting()
 
-  new ip6(notify: TCPConnectionNotify iso, host: String, service: String,
+  new _ip6(notify: TCPConnectionNotify iso, host: String, service: String,
     from: String = "")
   =>
     """

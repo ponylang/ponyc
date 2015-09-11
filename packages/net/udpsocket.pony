@@ -10,7 +10,7 @@ actor UDPSocket
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
   var _read_from: IPAddress iso = recover IPAddress end
 
-  new create(root: Root, notify: UDPNotify iso,
+  new _create(notify: UDPNotify iso,
     host: String = "", service: String = "0",
     size: U64 = 1024)
   =>
@@ -24,7 +24,7 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip4(root: Root, notify: UDPNotify iso,
+  new _ip4(notify: UDPNotify iso,
     host: String = "", service: String = "0",
     size: U64 = 1024)
   =>
@@ -38,7 +38,7 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  new ip6(root: Root, notify: UDPNotify iso,
+  new _ip6(notify: UDPNotify iso,
     host: String = "", service: String = "0",
     size: U64 = 1024)
   =>
