@@ -2,12 +2,12 @@ use "net"
 
 class Pong is UDPNotify
   let _env: Env
-  let _root: Root
+  let _network: NetworkInterface val
 
   new create(env: Env) ? =>
     _env = env
-    _root = match env.root
-	  | let r: Root => r
+    _network = match env.root
+	  | let r: Root => recover NetworkInterface(r) end
 	  else
 	    error
 	  end
@@ -20,13 +20,7 @@ class Pong is UDPNotify
 
       let env = _env
 
-      if ip.ip4() then
-        UDPSocket.ip4(_root, recover Ping(env, ip) end)
-      elseif ip.ip6() then
-        UDPSocket.ip6(_root, recover Ping(env, ip) end)
-      else
-        error
-      end
+      _network.udp_socket(recover Ping(env, ip) end where v=ip.version())
     else
       _env.out.print("Pong: couldn't get local name")
       sock.dispose()

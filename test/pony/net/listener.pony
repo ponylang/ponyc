@@ -80,13 +80,14 @@ class Listener is TCPListenNotify
     try
       let env = _env
 
+     let network = NetworkInterface(_root)
       match _sslctx
       | let ctx: SSLContext =>
         let ssl = ctx.client()
-        TCPConnection(_root, SSLConnection(ClientSide(env), consume ssl),
+        network.connect(SSLConnection(ClientSide(env), consume ssl),
 		_host, _service)
       else
-        TCPConnection(_root, ClientSide(env), _host, _service)
+        network.connect(ClientSide(env), _host, _service)
       end
     else
       _env.out.print("couldn't create client side")

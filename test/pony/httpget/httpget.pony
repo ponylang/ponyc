@@ -1,5 +1,6 @@
 use "collections"
 use "files"
+use "net"
 use "net/http"
 use "net/ssl"
 
@@ -26,7 +27,7 @@ actor Go
       end
     end
 
-    _client = Client(recover RootTCPConnector(root) end, consume sslctx)
+    _client = Client(recover NetworkInterface(root) end, consume sslctx)
 
     for i in Range(1, env.args.size()) do
       try
