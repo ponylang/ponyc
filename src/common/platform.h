@@ -24,7 +24,7 @@
 #  define PLATFORM_IS_LINUX
 #elif defined(__FreeBSD__)
 #  define PLATFORM_IS_FREEBSD
-#elif defined(_WIN64)
+#elif defined(_WIN32)
 #  define PLATFORM_IS_WINDOWS
 #  if defined(_MSC_VER)
 #    define PLATFORM_IS_VISUAL_STUDIO
@@ -92,6 +92,17 @@
 
 #if defined(PLATFORM_IS_POSIX_BASED) || defined(__MINGW64__)
 #  define PLATFORM_IS_CLANG_OR_GCC
+#endif
+
+/** The platform's programming model.
+ *
+ */
+#if defined(__LP64__)
+#  define PLATFORM_IS_LP64
+#elif defined(_WIN64)
+#  define PLATFORM_IS_LLP64
+#else
+#  define PLATFORM_IS_ILP32
 #endif
 
 /** Data types.
