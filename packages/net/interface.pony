@@ -1,4 +1,20 @@
-class NetworkInterface
+trait TCPClient
+  fun connect(notify: TCPConnectionNotify iso,
+    host: String, service: String, v: IPVersion = None): TCPConnection
+
+
+trait TCPServer
+  fun listen(notify: TCPListenNotify iso, host: String = "",
+    service: String = "0", limit: U64 = 0,
+    v: IPVersion = None): TCPListener
+
+trait UDPEndpoint
+  fun udp_socket(notify: UDPNotify iso,
+    host: String = "", service: String = "0",
+    size: U64 = 1024, v: IPVersion = None): UDPSocket
+
+
+class NetworkInterface is (TCPClient & TCPServer & UDPEndpoint)
   """
   Access to TCP/IP networking.
   """

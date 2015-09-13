@@ -9,9 +9,9 @@ actor Client
   let _sslctx: SSLContext
   let _pipeline: Bool
   let _clients: Map[_HostService, _ClientConnection] = _clients.create()
-  let _network: NetworkInterface val
+  let _tcp: TCPClient val
 
-  new create(network: NetworkInterface val,
+  new create(tcp: TCPClient val,
     sslctx: (SSLContext | None) = None,
     pipeline: Bool = true)
   =>
@@ -25,7 +25,7 @@ actor Client
     end
 
     _pipeline = pipeline
-    _network = network
+    _tcp = tcp
 
   be apply(request: Payload val) =>
     """
@@ -66,8 +66,8 @@ actor Client
       _clients(hs)
     else
       let client = match url.scheme
-      | "http" => _ClientConnection(_network, hs.host, hs.service, None, _pipeline)
-      | "https" => _ClientConnection(_network, hs.host, hs.service, _sslctx, _pipeline)
+      | "http" => _ClientConnection(_tcp, hs.host, hs.service, None, _pipeline)
+      | "https" => _ClientConnection(_tcp, hs.host, hs.service, _sslctx, _pipeline)
       else
         error
       end

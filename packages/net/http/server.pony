@@ -15,7 +15,7 @@ actor Server
   var _address: IPAddress
   var _dirty_routes: Bool = false
 
-  new create(network: NetworkInterface val,
+  new create(tcp: TCPServer val,
     notify: ServerNotify iso, handler: RequestHandler,
     logger: Logger = DiscardLog, host: String = "", service: String = "0",
     limit: U64 = 0, sslctx: (SSLContext | None) = None)
@@ -27,7 +27,7 @@ actor Server
     _handler = handler
     _logger = logger
     _sslctx = sslctx
-    _listen = network.listen(_ServerListener(this, sslctx, _handler, _logger),
+    _listen = tcp.listen(_ServerListener(this, sslctx, _handler, _logger),
       host, service, limit)
     _address = recover IPAddress end
 
