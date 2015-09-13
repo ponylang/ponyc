@@ -2,7 +2,7 @@ use "net"
 
 class Pong is UDPNotify
   let _env: Env
-  let _network: NetworkInterface val
+  let _network: UDPEndpoint val
 
   new create(env: Env) ? =>
     _env = env
