@@ -28,7 +28,7 @@ TEST(Pagemap, SubAddressing)
   pagemap_set(m, m);
 
   char* p = m;
-  char* end = p + 2048;
+  char* end = p + 1024;
 
   while(p < end)
   {
