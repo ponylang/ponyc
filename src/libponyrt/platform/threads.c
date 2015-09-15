@@ -136,31 +136,6 @@ uint32_t pony_numa_node_of_cpu(uint32_t cpu)
   return 0;
 }
 
-void* pony_numa_alloc(size_t bytes)
-{
-  if(use_numa)
-    return _numa_alloc(bytes);
-
-  void* p = mmap(0, bytes,
-    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-
-  if(p == MAP_FAILED)
-  {
-    perror("out of memory: ");
-    abort();
-  }
-
-  return p;
-}
-
-void pony_numa_free(void* p, size_t bytes)
-{
-  if(use_numa)
-    _numa_free(p, bytes);
-  else
-    munmap(p, bytes);
-}
-
 #endif
 
 bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
@@ -196,7 +171,9 @@ bool pony_thread_create(pony_thread_id_t* thread, thread_fn start,
       {
         int node = _numa_node_of_cpu(cpu);
         void* stack = _numa_alloc_onnode(limit.rlim_cur, node);
-        pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+        if (stack != NULL) {
+          pthread_attr_setstack(&attr, stack, limit.rlim_cur);
+        }
       }
     }
 #endif

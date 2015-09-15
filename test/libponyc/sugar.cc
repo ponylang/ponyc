@@ -1106,12 +1106,62 @@ TEST_F(SugarTest, ObjectSimple)
 }
 
 
-TEST_F(SugarTest, LambdaMinimal)
+TEST_F(SugarTest, ObjectWithField)
 {
   const char* short_form =
     "class Foo ref\n"
     "  fun f() =>\n"
-    "    lambda() => 4 end";
+    "    object let x: T = 3 fun foo() => 4 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create(3)\n"
+    "    None\n"
+    "  new iso create(): Foo iso^ => true\n"
+
+    "class hygid ref\n"
+    "  let x: T\n"
+    "  fun box foo(): None =>\n"
+    "    4\n"
+    "    None\n"
+    "  new ref create(hygid: T): hygid ref^ => x = consume hygid";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ObjectWithBehaviour)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    object be foo() => 4 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create()\n"
+    "    None\n"
+    "  new iso create(): Foo iso^ => true\n"
+
+    "actor hygid tag\n"
+    "  be tag foo(): hygid tag =>\n"
+    "    4\n"
+    "  new tag create(): hygid tag^ => true";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ObjectBox)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    object box fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
@@ -1122,7 +1172,7 @@ TEST_F(SugarTest, LambdaMinimal)
     "  new iso create(): Foo iso^ => true\n"
 
     "primitive hygid val\n"
-    "  fun box apply(): None =>\n"
+    "  fun box foo(): None =>\n"
     "    4\n"
     "    None\n"
     "  new val create(): hygid val^ => true\n"
@@ -1133,12 +1183,12 @@ TEST_F(SugarTest, LambdaMinimal)
 }
 
 
-TEST_F(SugarTest, LambdaFull)
+TEST_F(SugarTest, ObjectRef)
 {
   const char* short_form =
     "class Foo ref\n"
     "  fun f() =>\n"
-    "    lambda[A: T](a: A, b: B): U32 ? => 4 end";
+    "    object ref fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
@@ -1148,12 +1198,46 @@ TEST_F(SugarTest, LambdaFull)
     "    None\n"
     "  new iso create(): Foo iso^ => true\n"
 
-    "primitive hygid val\n"
-    "  fun box apply[A: T](a: A, b: B): U32 ? =>\n"
+    "class hygid ref\n"
+    "  fun box foo(): None =>\n"
     "    4\n"
-    "  new val create(): hygid val^ => true\n"
-    "  fun box eq(that: hygid): Bool => this is that\n"
-    "  fun box ne(that: hygid): Bool => this isnt that";
+    "    None\n"
+    "  new ref create(): hygid ref^ => true";
 
   TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ObjectTagWithBehaviour)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    object tag be foo() => 4 end";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class Foo ref\n"
+    "  fun box f(): None =>\n"
+    "    hygid.create()\n"
+    "    None\n"
+    "  new iso create(): Foo iso^ => true\n"
+
+    "actor hygid tag\n"
+    "  be tag foo(): hygid tag =>\n"
+    "    4\n"
+    "  new tag create(): hygid tag^ => true";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ObjectRefWithBehaviour)
+{
+  const char* short_form =
+    "class Foo ref\n"
+    "  fun f() =>\n"
+    "    object ref be foo() => 4 end";
+
+  TEST_ERROR(short_form);
 }

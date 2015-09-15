@@ -8,8 +8,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-#define HEAP_MINBITS 6
-#define HEAP_MAXBITS 11
+#define HEAP_MINBITS 5
+#define HEAP_MAXBITS 10
 #define HEAP_SIZECLASSES (HEAP_MAXBITS - HEAP_MINBITS + 1)
 
 typedef struct chunk_t chunk_t;

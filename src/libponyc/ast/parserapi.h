@@ -402,6 +402,21 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   }
 
 
+/** Add an extra node, with the specified token id, as a wrapper around the
+ * specified child.
+ *
+ * Example:
+ *    WRAP(3, TK_PRESERVE)
+ */
+#define WRAP(child_idx, id) \
+  { \
+    ast_t* child = ast_childidx(state.ast, child_idx); \
+    ast_t* wrapper = ast_from(child, id); \
+    ast_swap(child, wrapper); \
+    ast_add(wrapper, child); \
+  }
+
+
 /** Execute arbitrary C code to rewrite the AST as desired or perform any other
  * task.
  * The local variable "ast" is available as both an in and out parameter for

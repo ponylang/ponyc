@@ -2,7 +2,6 @@
 #include <platform.h>
 
 #include <ast/ast.h>
-#include <ast/builder.h>
 #include <ast/source.h>
 #include <ast/stringtab.h>
 #include <pass/pass.h>
@@ -73,6 +72,103 @@ static void replace_dontcares(ast_t* ast)
 
   for(ast_t* p = ast_child(ast); p != NULL; p = ast_sibling(p))
     replace_dontcares(p);
+}
+
+
+// Check whether the 2 given ASTs are identical
+static bool compare_asts(ast_t* expected, ast_t* actual)
+{
+  assert(expected != NULL);
+  assert(actual != NULL);
+
+  token_id expected_id = ast_id(expected);
+  token_id actual_id = ast_id(actual);
+
+  if(expected_id != actual_id)
+  {
+    ast_error(expected, "AST ID mismatch, got %d (%s), expected %d (%s)",
+      ast_id(actual), ast_get_print(actual),
+      ast_id(expected), ast_get_print(expected));
+    return false;
+  }
+
+  if(ast_id(expected) == TK_ID && ast_name(actual)[0] == '$' &&
+    (strncmp(ast_name(expected), "hygid", 5) == 0 ||
+    strncmp(ast_name(expected), "Hygid", 5) == 0))
+  {
+    // Allow expected name starting "hygid" to match any hygenic ID
+  }
+  else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
+  {
+    ast_error(expected, "AST text mismatch, got %s, expected %s",
+      ast_get_print(actual), ast_get_print(expected));
+    return false;
+  }
+
+  if(ast_has_scope(expected) && !ast_has_scope(actual))
+  {
+    ast_error(expected, "AST missing scope");
+    return false;
+  }
+
+  if(!ast_has_scope(expected) && ast_has_scope(actual))
+  {
+    ast_error(actual, "Unexpected AST scope");
+    return false;
+  }
+
+  // Check types
+  ast_t* expected_type = ast_type(expected);
+  ast_t* actual_type = ast_type(actual);
+
+  if(expected_type != NULL || actual_type != NULL)
+  {
+    if(expected_type == NULL)
+    {
+      ast_error(actual, "Unexpected type found, %s",
+        ast_get_print(actual_type));
+      return false;
+    }
+
+    if(actual_type == NULL)
+    {
+      ast_error(actual, "Expected type not found, %s",
+        ast_get_print(expected_type));
+      return false;
+    }
+
+    if(!compare_asts(expected_type, actual_type))
+      return false;
+  }
+
+  // Check children
+  ast_t* expected_child = ast_child(expected);
+  ast_t* actual_child = ast_child(actual);
+
+  while(expected_child != NULL && actual_child != NULL)
+  {
+    if(!compare_asts(expected_child, actual_child))
+      return false;
+
+    expected_child = ast_sibling(expected_child);
+    actual_child = ast_sibling(actual_child);
+  }
+
+  if(expected_child != NULL)
+  {
+    ast_error(expected, "Expected child %s not found",
+      ast_get_print(expected));
+    return false;
+  }
+
+  if(actual_child != NULL)
+  {
+    ast_error(actual, "Unexpected child node found, %s",
+      ast_get_print(actual));
+    return false;
+  }
+
+  return true;
 }
 
 
@@ -151,18 +247,15 @@ void PassTest::check_ast_same(ast_t* expect, ast_t* actual)
   ASSERT_NE((void*)NULL, expect);
   ASSERT_NE((void*)NULL, actual);
 
-  bool r = build_compare_asts(expect, actual);
-
-  if(!r)
+  if(!compare_asts(expect, actual))
   {
     printf("Expected:\n");
     ast_print(expect);
     printf("Got:\n");
     ast_print(actual);
     print_errors();
+    ASSERT_TRUE(false);
   }
-
-  ASSERT_TRUE(r);
 }
 
 
