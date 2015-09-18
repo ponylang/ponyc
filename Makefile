@@ -80,7 +80,8 @@ else
 endif
 
 ifeq ($(OSTYPE),osx)
-	ALL_CXXFLAGS += -stdlib=libc++
+	ALL_CFLAGS += -mmacosx-version-min=10.8
+	ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
 ifneq (,$(shell which llvm-config 2> /dev/null))

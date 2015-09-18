@@ -39,6 +39,8 @@ bool is_concrete(ast_t* type);
 
 bool is_known(ast_t* type);
 
+bool is_actor(ast_t* type);
+
 PONY_EXTERN_C_END
 
 #endif

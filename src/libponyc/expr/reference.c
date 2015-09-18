@@ -130,11 +130,14 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
 
-  // An embedded field must be of concrete type.
-  if((ast_id(ast) == TK_EMBED) && !is_concrete(type))
+  // An embedded field must have a known, non-actor type.
+  if(ast_id(ast) == TK_EMBED)
   {
-    ast_error(ast, "embedded fields must be of concrete type");
-    return false;
+    if(!is_known(type) || is_actor(type))
+    {
+      ast_error(ast, "embedded fields must always be primitives or classes");
+      return false;
+    }
   }
 
   if(ast_id(init) != TK_NONE)
