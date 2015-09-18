@@ -45,15 +45,15 @@ ifdef destdir
   endif
 endif
 
-destdir ?= /usr/local/lib/pony/$(tag)
 prefix ?= /usr/local
+destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
 LINKER_FLAGS =
 ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\"
-ALL_CXXFLAGS = -std=gnu++11
+ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
@@ -310,6 +310,11 @@ define CONFIGURE_COMPILER
   ifeq ($(suffix $(1)),.cc)
     compiler := $(CXX)
     flags := $(ALL_CXXFLAGS)
+  endif
+
+  ifeq ($(suffix $(1)),.c)
+    compiler := $(CC)
+    flags := $(ALL_CFLAGS)
   endif
 endef
 
