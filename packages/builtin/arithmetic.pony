@@ -67,7 +67,8 @@ trait Integer[A: Integer[A] box] val is Real[A]
   fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
   fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
-trait _SignedInteger[A: _SignedInteger[A,C] box, C: _UnsignedInteger[C] box] val is Integer[A]
+trait _SignedInteger[A: _SignedInteger[A,C] box,
+    C: _UnsignedInteger[C] box] val is Integer[A]
   fun abs(): C
   fun string(fmt: IntFormat = FormatDefault,
     prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
@@ -94,6 +95,7 @@ trait FloatingPoint[A: FloatingPoint[A] box] val is Real[A]
   fun tag max_exp2(): I16
   fun tag max_exp10(): I16
 
+  fun abs(): A
   fun ceil(): A
   fun floor(): A
   fun round(): A
