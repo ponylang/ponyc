@@ -3,6 +3,7 @@
 #include "../pkg/package.h"
 #include "../type/alias.h"
 #include "../type/assemble.h"
+#include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../ast/token.h"
@@ -622,11 +623,15 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
   AST_GET_CHILDREN(ast, cap, provides, members);
   ast_t* c_id = ast_from_string(ast, package_hygienic_id(t));
 
+  ast_t* t_params;
+  ast_t* t_args;
+  collect_type_params(ast, &t_params, &t_args);
+
   // Create a new anonymous type.
   BUILD(def, ast,
     NODE(TK_CLASS, AST_SCOPE
       TREE(c_id)
-      NONE
+      TREE(t_params)
       NONE
       TREE(provides)
       NODE(TK_MEMBERS)
@@ -645,12 +650,25 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
       NODE(TK_SEQ)
       NONE));
 
+  BUILD(type_ref, ast, NODE(TK_REFERENCE, TREE(c_id)));
+
+  if(ast_id(t_args) != TK_NONE)
+  {
+    // Need to add type args to our type reference
+    BUILD(t, ast, NODE(TK_QUALIFY, TREE(type_ref) TREE(t_args)));
+    type_ref = t;
+  }
+
+  ast_free_unattached(t_args);
+
   // We will replace object..end with $0.create(...)
   BUILD(call, ast,
     NODE(TK_CALL,
       NONE
       NONE
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(c_id)) ID("create"))));
+      NODE(TK_DOT,
+        TREE(type_ref)
+        ID("create"))));
 
   ast_t* create_params = ast_childidx(create, 3);
   ast_t* create_body = ast_childidx(create, 6);

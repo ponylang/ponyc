@@ -429,9 +429,16 @@ bool codegen_init(pass_opt_t* opt)
 
   // Default triple, cpu and features.
   if(opt->triple != NULL)
+  {
     opt->triple = LLVMCreateMessage(opt->triple);
-  else
+  } else {
+#ifdef PLATFORM_IS_MACOSX
+    // This is to prevent XCode 7+ from claiming OSX 14.5 is required.
+    opt->triple = LLVMCreateMessage("x86_64-apple-macosx");
+#else
     opt->triple = LLVMGetDefaultTargetTriple();
+#endif
+  }
 
   if(opt->cpu != NULL)
     opt->cpu = LLVMCreateMessage(opt->cpu);

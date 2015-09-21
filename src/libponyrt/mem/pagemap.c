@@ -1,6 +1,7 @@
 #include "pagemap.h"
 #include "alloc.h"
 #include "heap.h"
+#include "pool.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -24,6 +25,7 @@ typedef struct pagemap_level_t
   int shift;
   int mask;
   size_t size;
+  size_t size_index;
 } pagemap_level_t;
 
 /* Constructed for a 48 bit address space where we are interested in memory
@@ -36,9 +38,12 @@ typedef struct pagemap_level_t
  */
 static const pagemap_level_t level[PAGEMAP_LEVELS] =
 {
-  { L3_SHIFT, (1 << L3_MASK) - 1, (1 << L3_MASK) * sizeof(void*) },
-  { L2_SHIFT, (1 << L2_MASK) - 1, (1 << L2_MASK) * sizeof(void*) },
-  { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*) }
+  { L3_SHIFT, (1 << L3_MASK) - 1, (1 << L3_MASK) * sizeof(void*),
+    POOL_INDEX((1 << L3_MASK) * sizeof(void*)) },
+  { L2_SHIFT, (1 << L2_MASK) - 1, (1 << L2_MASK) * sizeof(void*),
+    POOL_INDEX((1 << L3_MASK) * sizeof(void*)) },
+  { L1_SHIFT, (1 << L1_MASK) - 1, (1 << L1_MASK) * sizeof(void*),
+    POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
 static void** root = NULL;
@@ -68,12 +73,12 @@ void pagemap_set(const void* m, void* v)
   {
     if(*pv == NULL)
     {
-      p = virtual_alloc(level[i].size);
+      p = pool_alloc(level[i].size_index);
       void** prev = NULL;
 
       if(!_atomic_cas_strong(pv, &prev, p))
       {
-        virtual_free(p, level[i].size);
+        pool_free(level[i].size_index, p);
       }
     }
 

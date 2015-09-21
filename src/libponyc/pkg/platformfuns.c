@@ -51,7 +51,37 @@ bool os_is_target(const char* attribute, bool release, bool* out_is_target)
 
   if(!strcmp(attribute, OS_POSIX_NAME))
   {
-#if defined PLATFORM_IS_POSIX_BASED
+#ifdef PLATFORM_IS_POSIX_BASED
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_LP64_NAME))
+  {
+#ifdef PLATFORM_IS_LP64
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_LLP64_NAME))
+  {
+#ifdef PLATFORM_IS_LLP64
+    *out_is_target = true;
+#else
+    *out_is_target = false;
+#endif
+    return true;
+  }
+
+  if(!strcmp(attribute, OS_ILP32_NAME))
+  {
+#ifdef PLATFORM_IS_ILP32
     *out_is_target = true;
 #else
     *out_is_target = false;

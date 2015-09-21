@@ -547,7 +547,7 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
 
       while(child != NULL)
       {
-        if(safe_field_write(cap_single(child), type))
+        if(safe_to_autorecover(child, type))
           return true;
 
         child = ast_sibling(child);
@@ -562,7 +562,7 @@ bool safe_to_autorecover(ast_t* receiver_type, ast_t* type)
 
       while(child != NULL)
       {
-        if(!safe_field_write(cap_single(child), type))
+        if(!safe_to_autorecover(child, type))
           return false;
 
         child = ast_sibling(child);

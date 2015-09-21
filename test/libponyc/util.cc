@@ -93,9 +93,10 @@ static bool compare_asts(ast_t* expected, ast_t* actual)
   }
 
   if(ast_id(expected) == TK_ID && ast_name(actual)[0] == '$' &&
-    strcmp(ast_name(expected), "hygid") == 0)
+    (strncmp(ast_name(expected), "hygid", 5) == 0 ||
+    strncmp(ast_name(expected), "Hygid", 5) == 0))
   {
-    // Allow expected "hygid" to match any hygenic ID
+    // Allow expected name starting "hygid" to match any hygenic ID
   }
   else if(strcmp(ast_get_print(expected), ast_get_print(actual)) != 0)
   {

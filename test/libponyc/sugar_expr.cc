@@ -28,15 +28,17 @@ TEST_F(SugarExprTest, PartialWithTypeArgs)
 */
 
 
+// Lambdas
+
 TEST_F(SugarExprTest, LambdaMinimal)
 {
   const char* short_form =
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    lambda() => None end";
 
   const char* full_form =
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    object\n"
     "      fun apply() => None\n"
@@ -82,12 +84,12 @@ TEST_F(SugarExprTest, LambdaFull)
 TEST_F(SugarExprTest, LambdaThrow)
 {
   const char* short_form =
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    lambda() ? => error end";
 
   const char* full_form =
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    object\n"
     "      fun apply() ? => error\n"
@@ -102,7 +104,7 @@ TEST_F(SugarExprTest, LambdaWithTypeArgs)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    lambda[A: T]() => None end";
 
@@ -124,7 +126,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalLet)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    let x: U32 = 4\n"
     "    lambda()(x) => None end";
@@ -149,7 +151,7 @@ TEST_F(SugarExprTest, LambdaCaptureLocalVar)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f() =>\n"
     "    var x: U32 = 4\n"
     "    lambda()(x) => None end";
@@ -174,7 +176,7 @@ TEST_F(SugarExprTest, LambdaCaptureParameter)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  fun f(x: U32) =>\n"
     "    lambda()(x) => None end";
 
@@ -197,7 +199,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldLet)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  let x: U32 = 4\n"
     "  fun f() =>\n"
     "    lambda()(x) => None end";
@@ -222,7 +224,7 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
   const char* short_form =
     "trait T\n"
 
-    "class Foo ref\n"
+    "class Foo\n"
     "  var x: U32 = 4\n"
     "  fun f() =>\n"
     "    lambda()(x) => None end";
@@ -237,6 +239,33 @@ TEST_F(SugarExprTest, LambdaCaptureFieldVar)
     "      let x: U32 = x"
     "      fun apply() => None\n"
     "    end";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+// Early sugar that may cause errors in type checking
+
+TEST_F(SugarExprTest, ObjectLiteralReferencingTypeParameters)
+{
+  const char* short_form =
+    "trait T\n"
+
+    "class Foo[A: T]\n"
+    "  fun f(x: A) =>\n"
+    "    object let _x: A = consume x end";
+
+  const char* full_form =
+    "trait T\n"
+
+    "class Foo[A: T]\n"
+    "  fun f(x: A) =>\n"
+    "    Hygid[A].create(consume x)\n"
+
+    "class Hygid[A: T]\n"
+    "  let _x: A\n"
+    "  new create(hygid: A) =>\n"
+    "    _x = consume hygid";
 
   TEST_EQUIV(short_form, full_form);
 }

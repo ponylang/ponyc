@@ -28,7 +28,10 @@ static void collect_type_param(ast_t* orig_param, ast_t* params, ast_t* args)
 
   // New type arguments binds to old type parameter
   BUILD(new_arg, orig_param,
-    NODE(TK_TYPEPARAMREF, DATA(orig_param)));
+    NODE(TK_TYPEPARAMREF, DATA(orig_param)  
+      ID(name)
+      NONE  // cap
+      NONE)); // ephemeral
 
   ast_append(args, new_arg);
 
@@ -65,13 +68,13 @@ void collect_type_params(ast_t* ast, ast_t** out_params, ast_t** out_args)
   ast_t* entity_t_params = ast_childidx(entity, 1);
 
   // Collect type parameters defined on the entity
-  for(ast_t* p = entity_t_params; p != NULL; p = ast_sibling(p))
+  for(ast_t* p = ast_child(entity_t_params); p != NULL; p = ast_sibling(p))
     collect_type_param(p, params, args);
 
   ast_t* method_t_params = ast_childidx(method, 1);
 
   // Collect type parameters defined on the method
-  for(ast_t* p = method_t_params; p != NULL; p = ast_sibling(p))
+  for(ast_t* p = ast_child(method_t_params); p != NULL; p = ast_sibling(p))
     collect_type_param(p, params, args);
 
   *out_params = params;

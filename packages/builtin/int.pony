@@ -1,11 +1,11 @@
-primitive I8 is _SignedInteger[I8]
+primitive I8 is _SignedInteger[I8, U8]
   new create(value: I8 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I8 => a.i8()
 
   fun tag min_value(): I8 => -0x80
   fun tag max_value(): I8 => 0x7F
 
-  fun abs(): I8 => if this < 0 then -this else this end
+  fun abs(): U8 => if this < 0 then (-this).u8() else this.u8() end
   fun max(that: I8): I8 => if this > that then this else that end
   fun min(that: I8): I8 => if this < that then this else that end
 
@@ -22,14 +22,14 @@ primitive I8 is _SignedInteger[I8]
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
-primitive I16 is _SignedInteger[I16]
+primitive I16 is _SignedInteger[I16, U16]
   new create(value: I16 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I16 => a.i16()
 
   fun tag min_value(): I16 => -0x8000
   fun tag max_value(): I16 => 0x7FFF
 
-  fun abs(): I16 => if this < 0 then -this else this end
+  fun abs(): U16 => if this < 0 then (-this).u16() else this.u16() end
   fun max(that: I16): I16 => if this > that then this else that end
   fun min(that: I16): I16 => if this < that then this else that end
 
@@ -46,14 +46,14 @@ primitive I16 is _SignedInteger[I16]
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
-primitive I32 is _SignedInteger[I32]
+primitive I32 is _SignedInteger[I32, U32]
   new create(value: I32 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I32 => a.i32()
 
   fun tag min_value(): I32 => -0x8000_0000
   fun tag max_value(): I32 => 0x7FFF_FFFF
 
-  fun abs(): I32 => if this < 0 then -this else this end
+  fun abs(): U32 => if this < 0 then (-this).u32() else this.u32() end
   fun max(that: I32): I32 => if this > that then this else that end
   fun min(that: I32): I32 => if this < that then this else that end
 
@@ -70,14 +70,14 @@ primitive I32 is _SignedInteger[I32]
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
-primitive I64 is _SignedInteger[I64]
+primitive I64 is _SignedInteger[I64, U64]
   new create(value: I64 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I64 => a.i64()
 
   fun tag min_value(): I64 => -0x8000_0000_0000_0000
   fun tag max_value(): I64 => 0x7FFF_FFFF_FFFF_FFFF
 
-  fun abs(): I64 => if this < 0 then -this else this end
+  fun abs(): U64 => if this < 0 then (-this).u64() else this.u64() end
   fun max(that: I64): I64 => if this > that then this else that end
   fun min(that: I64): I64 => if this < that then this else that end
 
@@ -94,14 +94,14 @@ primitive I64 is _SignedInteger[I64]
   fun mulc(y: I64): (I64, Bool) =>
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
-primitive I128 is _SignedInteger[I128]
+primitive I128 is _SignedInteger[I128, U128]
   new create(value: I128 = 0) => compiler_intrinsic
   fun tag from[A: (Number & Real[A] box)](a: A): I128 => a.i128()
 
   fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000
   fun tag max_value(): I128 => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
 
-  fun abs(): I128 => if this < 0 then -this else this end
+  fun abs(): U128 => if this < 0 then (-this).u128() else this.u128() end
   fun max(that: I128): I128 => if this > that then this else that end
   fun min(that: I128): I128 => if this < that then this else that end
 
