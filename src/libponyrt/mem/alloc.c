@@ -9,6 +9,10 @@
 #include <sys/mman.h>
 #endif
 
+#if defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+#include <mach/vm_statistics.h>
+#endif
+
 void* virtual_alloc(size_t bytes)
 {
   void* p;
@@ -19,8 +23,9 @@ void* virtual_alloc(size_t bytes)
 #if defined(PLATFORM_IS_LINUX)
   p = mmap(0, bytes, PROT_READ | PROT_WRITE,
     MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-#else
-  p = mmap(0, bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+#elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
+  p = mmap(0, bytes, PROT_READ | PROT_WRITE,
+    MAP_PRIVATE | MAP_ANON | VM_FLAGS_SUPERPAGE_SIZE_ANY, -1, 0);
 #endif
 
   if(p == MAP_FAILED)

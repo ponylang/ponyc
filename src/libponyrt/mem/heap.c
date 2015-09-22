@@ -7,9 +7,6 @@
 
 #include <platform.h>
 
-#define HEAP_MIN (1 << HEAP_MINBITS)
-#define HEAP_MAX (1 << HEAP_MAXBITS)
-
 typedef struct chunk_t
 {
   // immutable
@@ -164,47 +161,6 @@ static void chunk_list(chunk_fn f, chunk_t* current)
   }
 }
 
-static void* small_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
-{
-  // size is in range 1..HEAP_MAX
-  // change to 0..((HEAP_MAX / HEAP_MIN) - 1) and look up in table
-  uint32_t sizeclass = sizeclass_table[(size - 1) >> HEAP_MINBITS];
-  chunk_t* chunk = heap->small_free[sizeclass];
-
-  // if there are none in this size class, get a new one
-  if(chunk == NULL)
-  {
-    chunk_t* n = (chunk_t*) POOL_ALLOC(chunk_t);
-    n->actor = actor;
-    n->m = (char*) POOL_ALLOC(block_t);
-    n->size = sizeclass;
-    n->slots = sizeclass_empty[sizeclass];
-    n->shallow = sizeclass_empty[sizeclass];
-    n->next = NULL;
-
-    pagemap_set(n->m, n);
-
-    heap->small_free[sizeclass] = n;
-    chunk = n;
-  }
-
-  // get the first available slot and clear it
-  uint32_t bit = __pony_ffs(chunk->slots) - 1;
-  chunk->slots &= ~(1 << bit);
-  void* m = chunk->m + (bit << HEAP_MINBITS);
-
-  // if we're full, move us to the full list
-  if(chunk->slots == 0)
-  {
-    heap->small_free[sizeclass] = chunk->next;
-    chunk->next = heap->small_full[sizeclass];
-    heap->small_full[sizeclass] = chunk;
-  }
-
-  heap->used += sizeclass_size[sizeclass];
-  return m;
-}
-
 static void large_pagemap(chunk_t* chunk)
 {
   char* p = chunk->m;
@@ -217,22 +173,11 @@ static void large_pagemap(chunk_t* chunk)
   }
 }
 
-static void* large_malloc(pony_actor_t* actor, heap_t* heap, size_t size)
+uint32_t heap_index(size_t size)
 {
-  chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
-  chunk->actor = actor;
-  chunk->size = size;
-  chunk->m = (char*) pool_alloc_size(size);
-  chunk->slots = 0;
-  chunk->shallow = 0;
-
-  large_pagemap(chunk);
-
-  chunk->next = heap->large;
-  heap->large = chunk;
-  heap->used += chunk->size;
-
-  return chunk->m;
+  // size is in range 1..HEAP_MAX
+  // change to 0..((HEAP_MAX / HEAP_MIN) - 1) and look up in table
+  return sizeclass_table[(size - 1) >> HEAP_MINBITS];
 }
 
 void heap_setinitialgc(size_t size)
@@ -271,10 +216,73 @@ void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
   {
     return NULL;
   } else if(size <= sizeof(block_t)) {
-    return small_malloc(actor, heap, size);
+    return heap_alloc_small(actor, heap, heap_index(size));
   } else {
-    return large_malloc(actor, heap, size);
+    return heap_alloc_large(actor, heap, size);
   }
+}
+
+void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
+  uint32_t sizeclass)
+{
+  chunk_t* chunk = heap->small_free[sizeclass];
+  void* m;
+
+  // If there are none in this size class, get a new one.
+  if(chunk == NULL)
+  {
+    chunk_t* n = (chunk_t*) POOL_ALLOC(chunk_t);
+    n->actor = actor;
+    n->m = (char*) POOL_ALLOC(block_t);
+    n->size = sizeclass;
+
+    // Clear the first bit.
+    n->slots = sizeclass_empty[sizeclass] & ~1;
+    n->shallow = sizeclass_empty[sizeclass];
+    n->next = NULL;
+
+    pagemap_set(n->m, n);
+
+    heap->small_free[sizeclass] = n;
+    chunk = n;
+
+    // Use the first slot.
+    m = chunk->m;
+  } else {
+    // Clear and use the first available slot.
+    uint32_t bit = __pony_ffs(chunk->slots) - 1;
+    chunk->slots &= ~(1 << bit);
+    m = chunk->m + (bit << HEAP_MINBITS);
+  }
+
+  // if we're full, move us to the full list
+  if(chunk->slots == 0)
+  {
+    heap->small_free[sizeclass] = chunk->next;
+    chunk->next = heap->small_full[sizeclass];
+    heap->small_full[sizeclass] = chunk;
+  }
+
+  heap->used += sizeclass_size[sizeclass];
+  return m;
+}
+
+void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
+{
+  chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
+  chunk->actor = actor;
+  chunk->size = size;
+  chunk->m = (char*) pool_alloc_size(size);
+  chunk->slots = 0;
+  chunk->shallow = 0;
+
+  large_pagemap(chunk);
+
+  chunk->next = heap->large;
+  heap->large = chunk;
+  heap->used += chunk->size;
+
+  return chunk->m;
 }
 
 void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
@@ -294,7 +302,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
 
   if(chunk->size < HEAP_SIZECLASSES)
   {
-    // Previous allocation was a small_malloc.
+    // Previous allocation was a heap_alloc_small.
     if(size <= sizeof(block_t))
     {
       uint32_t sizeclass = sizeclass_table[(size - 1) >> HEAP_MINBITS];
@@ -310,7 +318,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
     return q;
   }
 
-  // Previous allocation was a large_malloc.
+  // Previous allocation was a heap_alloc_large.
   if(size <= chunk->size)
     return p;
 

@@ -11,6 +11,18 @@ PONY_EXTERN_C_BEGIN
 #define HEAP_MINBITS 5
 #define HEAP_MAXBITS 10
 #define HEAP_SIZECLASSES (HEAP_MAXBITS - HEAP_MINBITS + 1)
+#define HEAP_MIN (1 << HEAP_MINBITS)
+#define HEAP_MAX (1 << HEAP_MAXBITS)
+
+#define HEAP_INDEX(SIZE) \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 0)), 0, \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 1)), 1, \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 2)), 2, \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 3)), 3, \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 4)), 4, \
+  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 5)), 5, \
+    EXPR_NONE \
+    ))))))
 
 typedef struct chunk_t chunk_t;
 
@@ -24,6 +36,8 @@ typedef struct heap_t
   size_t next_gc;
 } heap_t;
 
+uint32_t heap_index(size_t size);
+
 void heap_setinitialgc(size_t size);
 
 void heap_setnextgcfactor(double factor);
@@ -34,6 +48,15 @@ void heap_destroy(heap_t* heap);
 
 __pony_spec_malloc__(
   void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
+  );
+
+__pony_spec_malloc__(
+void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
+  uint32_t sizeclass)
+  );
+
+__pony_spec_malloc__(
+void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
   );
 
 void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size);
