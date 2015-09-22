@@ -50,11 +50,10 @@ typedef struct pony_msgp_t
 
 /** Trace function.
  *
- * Each type supplies a trace function. It is invoked with the object being
- * traced. In this function, pony_trace() should be called for each field in
- * the object.
+ * Each type supplies a trace function. It is invoked with the currently
+ * executing actor and the object being traced.
  */
-typedef void (*pony_trace_fn)(void* p);
+typedef void (*pony_trace_fn)(pony_actor_t* actor, void* p);
 
 /** Dispatch function.
  *
@@ -102,8 +101,8 @@ typedef struct pony_actor_pad_t
   char pad[PONY_ACTOR_PAD_SIZE];
 } pony_actor_pad_t;
 
-/// This function must be supplied by the program, not the runtime.
-pony_type_t* pony_lookup_type(uint32_t id);
+/// The currently executing actor.
+pony_actor_t* pony_current();
 
 /** Create a new actor.
  *
@@ -114,7 +113,7 @@ pony_type_t* pony_lookup_type(uint32_t id);
  */
 ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_type_t* type));
 
-/// Allocates a message and sets up the header.
+/// Allocates a message and sets up the header. The size is a POOL_INDEX.
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
 
 /// Sends a message to an actor.
@@ -144,7 +143,7 @@ void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i);
  * back. This is not concurrency safe: only a single actor should push a
  * continuation to another actor.
  *
- * Not used in pony.
+ * Not used in Pony.
  */
 void pony_continuation(pony_actor_t* to, pony_msg_t* m);
 
@@ -154,6 +153,12 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m);
  * handling a message, so that there is a current actor.
  */
 ATTRIBUTE_MALLOC(void* pony_alloc(size_t size));
+
+/// Allocate using a HEAP_INDEX instead of a size in bytes.
+ATTRIBUTE_MALLOC(void* pony_alloc_small(uint32_t sizeclass));
+
+/// Allocate when we know it's larger than HEAP_MAX.
+ATTRIBUTE_MALLOC(void* pony_alloc_large(size_t size));
 
 /** Reallocate memory on the current actor's heap.
  *
@@ -220,28 +225,28 @@ void pony_gc_recv();
 
 /** Finish gc tracing for sending.
  *
- * Call this after tracing the GCable contents.
+ * Call this after tracing the GC-able contents.
  */
-void pony_send_done();
+void pony_send_done(pony_actor_t* current);
 
 /** Finish gc tracing for receiving.
  *
  * Call this after tracing the GCable contents.
  */
-void pony_recv_done();
+void pony_recv_done(pony_actor_t* current);
 
 /** Trace memory
  *
  * Call this on allocated memory that contains no pointers to other allocated
  * memory. Also use this to mark tag aliases.
  */
-void pony_trace(void* p);
+void pony_trace(pony_actor_t* current, void* p);
 
 /** Trace an actor
  *
  * This should be called for fields in an object that point to an actor.
  */
-void pony_traceactor(pony_actor_t* p);
+void pony_traceactor(pony_actor_t* current, pony_actor_t* p);
 
 /** Trace an object.
  *
@@ -251,21 +256,21 @@ void pony_traceactor(pony_actor_t* p);
  * @param p The pointer being traced.
  * @param f The trace function for the object pointed to.
  */
-void pony_traceobject(void* p, pony_trace_fn f);
+void pony_traceobject(pony_actor_t* current, void* p, pony_trace_fn f);
 
 /** Trace unknown.
  *
  * This should be called for fields in an object with an unknown type, but
  * which are not tags.
  */
-void pony_traceunknown(void* p);
+void pony_traceunknown(pony_actor_t* current, void* p);
 
 /** Trace a tag or an actor
  *
  * This should be called for fields in an object that might be an actor or
  * might be a tag.
  */
-void pony_trace_tag_or_actor(void* p);
+void pony_trace_tag_or_actor(pony_actor_t* current, void* p);
 
 /** Initialize the runtime.
  *

@@ -28,9 +28,6 @@ static bool use_yield;
 static mpmcq_t inject;
 static __pony_thread_local scheduler_t* this_scheduler;
 
-// Forward declaration.
-static void push(scheduler_t* sched, pony_actor_t* actor);
-
 /**
  * Gets the next actor from the scheduler queue.
  */

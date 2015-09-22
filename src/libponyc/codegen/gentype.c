@@ -304,8 +304,8 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
-  int extra)
+static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef actor,
+  LLVMValueRef object, int extra)
 {
   bool need_trace = false;
 
@@ -314,20 +314,21 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
       "");
     LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gentrace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, actor, value, g->fields[i]);
   }
 
   return need_trace;
 }
 
-static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef tuple)
+static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef actor,
+  LLVMValueRef tuple)
 {
   bool need_trace = false;
 
   for(int i = 0; i < g->field_count; i++)
   {
     LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
-    need_trace |= gentrace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, actor, value, g->fields[i]);
   }
 
   return need_trace;
@@ -360,7 +361,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef this_actor = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
     "object");
 
@@ -371,16 +373,22 @@ static bool make_trace(compile_t* c, gentype_t* g)
   {
     // Create another function that traces the tuple members.
     const char* trace_tuple_name = genname_tracetuple(g->type_name);
+
+    LLVMTypeRef param_types[2];
+    param_types[0] = c->object_ptr;
+    param_types[1] = g->primitive;
+
     LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type,
-      &g->primitive, 1, false);
+      param_types, 2, false);
+
     LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
       trace_tuple_type);
 
     codegen_startfun(c, trace_tuple_fn, false);
     LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
 
-    LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
-    need_trace = trace_elements(c, g, arg);
+    need_trace = trace_elements(c, g, LLVMGetParam(trace_tuple_fn, 0),
+      LLVMGetParam(trace_tuple_fn, 1));
 
     LLVMBuildRetVoid(c->builder);
     codegen_finishfun(c);
@@ -392,7 +400,11 @@ static bool make_trace(compile_t* c, gentype_t* g)
       LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
 
       // Call the tuple trace function with the unboxed primitive type.
-      LLVMBuildCall(c->builder, trace_tuple_fn, &tuple, 1, "");
+      LLVMValueRef args[2];
+      args[0] = this_actor;
+      args[1] = tuple;
+
+      LLVMBuildCall(c->builder, trace_tuple_fn, args, 2, "");
     } else {
       LLVMDeleteFunction(trace_tuple_fn);
     }
@@ -403,7 +415,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     if(g->underlying == TK_ACTOR)
       extra++;
 
-    need_trace = trace_fields(c, g, object, extra);
+    need_trace = trace_fields(c, g, this_actor, object, extra);
   }
 
   LLVMBuildRetVoid(c->builder);

@@ -19,18 +19,13 @@ typedef struct scheduler_t
 
   // These are changed primarily by the owning scheduler thread.
   __pony_spec_align__(struct scheduler_t* last_victim, 64);
-  // pony_actor_t* head;
-  // pony_actor_t* tail;
-  // struct scheduler_t* victim;
+  pony_actor_t* current;
 
   uint32_t block_count;
   uint32_t ack_token;
   uint32_t ack_count;
 
   // These are accessed by other scheduler threads.
-  // __pony_spec_align__(struct scheduler_t* volatile thief, 64);
-  // uint32_t volatile waiting;
-
   messageq_t mq;
   mpmcq_t q;
 } scheduler_t;

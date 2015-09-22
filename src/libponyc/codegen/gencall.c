@@ -9,6 +9,7 @@
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../../libponyrt/mem/heap.h"
 #include <string.h>
 #include <assert.h>
 
@@ -620,13 +621,21 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
 
   // Allocate the object.
   LLVMValueRef result;
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
 
   if(final_fun == NULL)
   {
-    result = gencall_runtime(c, "pony_alloc", args, 1, "");
+    if(size <= HEAP_MAX)
+    {
+      uint32_t index = heap_index(size);
+      LLVMValueRef arg = LLVMConstInt(c->i32, index, false);
+      result = gencall_runtime(c, "pony_alloc_small", &arg, 1, "");
+    } else {
+      LLVMValueRef arg = LLVMConstInt(c->i64, size, false);
+      result = gencall_runtime(c, "pony_alloc_large", &arg, 1, "");
+    }
   } else {
+    LLVMValueRef args[2];
+    args[0] = LLVMConstInt(c->i64, size, false);
     args[1] = LLVMConstBitCast(final_fun, c->final_fn);
     result = gencall_runtime(c, "pony_alloc_final", args, 2, "");
   }

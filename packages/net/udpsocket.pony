@@ -142,7 +142,7 @@ actor UDPSocket
     end
 
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](_event)
+      @asio_event_destroy[None](this, _event)
       _event = AsioEvent.none()
     end
 

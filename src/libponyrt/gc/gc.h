@@ -43,7 +43,7 @@ void gc_markactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
 
 void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor);
 
-void gc_handlestack();
+void gc_handlestack(pony_actor_t* actor);
 
 void gc_sweep(gc_t* gc);
 

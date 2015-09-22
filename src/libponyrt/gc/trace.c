@@ -29,59 +29,57 @@ void pony_gc_mark()
   trace_actor = gc_markactor;
 }
 
-void pony_send_done()
+void pony_send_done(pony_actor_t* current)
 {
-  pony_actor_t* actor = actor_current();
-  gc_handlestack();
+  gc_handlestack(current);
   gc_sendacquire();
-  gc_done(actor_gc(actor));
+  gc_done(actor_gc(current));
 }
 
-void pony_recv_done()
+void pony_recv_done(pony_actor_t* current)
 {
-  pony_actor_t* actor = actor_current();
-  gc_handlestack();
-  gc_done(actor_gc(actor));
+  gc_handlestack(current);
+  gc_done(actor_gc(current));
 }
 
-void pony_trace(void* p)
+void pony_trace(pony_actor_t* current, void* p)
 {
-  pony_actor_t* actor = actor_current();
-  trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
+  trace_object(current, actor_heap(current), actor_gc(current), p, NULL);
 }
 
-void pony_traceactor(pony_actor_t* p)
+void pony_traceactor(pony_actor_t* current, pony_actor_t* p)
 {
-  pony_actor_t* actor = actor_current();
-  trace_actor(actor, actor_heap(actor), actor_gc(actor), p);
+  trace_actor(current, actor_heap(current), actor_gc(current), p);
 }
 
-void pony_traceobject(void* p, pony_trace_fn f)
+void pony_traceobject(pony_actor_t* current, void* p, pony_trace_fn f)
 {
-  pony_actor_t* actor = actor_current();
-  trace_object(actor, actor_heap(actor), actor_gc(actor), p, f);
+  trace_object(current, actor_heap(current), actor_gc(current), p, f);
 }
 
-void pony_traceunknown(void* p)
+void pony_traceunknown(pony_actor_t* current, void* p)
 {
-  pony_actor_t* actor = actor_current();
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
   {
-    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
+    trace_actor(current, actor_heap(current), actor_gc(current),
+      (pony_actor_t*)p);
   } else {
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, type->trace);
+    trace_object(current, actor_heap(current), actor_gc(current), p,
+      type->trace);
   }
 }
 
-void pony_trace_tag_or_actor(void* p)
+void pony_trace_tag_or_actor(pony_actor_t* current, void* p)
 {
-  pony_actor_t* actor = actor_current();
   pony_type_t* type = *(pony_type_t**)p;
 
   if(type->dispatch != NULL)
-    trace_actor(actor, actor_heap(actor), actor_gc(actor), (pony_actor_t*)p);
-  else
-    trace_object(actor, actor_heap(actor), actor_gc(actor), p, NULL);
+  {
+    trace_actor(current, actor_heap(current), actor_gc(current),
+      (pony_actor_t*)p);
+  } else {
+    trace_object(current, actor_heap(current), actor_gc(current), p, NULL);
+  }
 }

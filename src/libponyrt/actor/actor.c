@@ -111,9 +111,9 @@ static void try_gc(pony_actor_t* actor)
   pony_gc_mark();
 
   if(actor->type->trace != NULL)
-    actor->type->trace(actor);
+    actor->type->trace(actor, actor);
 
-  gc_handlestack();
+  gc_handlestack(actor);
   gc_sweep(&actor->gc);
   gc_done(&actor->gc);
   heap_endgc(&actor->heap);
@@ -193,11 +193,6 @@ void actor_destroy(pony_actor_t* actor)
   pool_free_size(actor->type->size, actor);
 }
 
-pony_actor_t* actor_current()
-{
-  return this_actor;
-}
-
 gc_t* actor_gc(pony_actor_t* actor)
 {
   return &actor->gc;
@@ -246,6 +241,11 @@ void actor_setsystem(pony_actor_t* actor)
   set_flag(actor, FLAG_SYSTEM);
 }
 
+pony_actor_t* pony_current()
+{
+  return this_actor;
+}
+
 pony_actor_t* pony_create(pony_type_t* type)
 {
   assert(type != NULL);
@@ -260,7 +260,7 @@ pony_actor_t* pony_create(pony_type_t* type)
   heap_init(&actor->heap);
   gc_done(&actor->gc);
 
-  if(this_actor != NULL)
+  if(current != NULL)
   {
     // actors begin unblocked and referenced by the creating actor
     actor->gc.rc = GC_INC_MORE;
@@ -333,18 +333,33 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m)
 
 void* pony_alloc(size_t size)
 {
-  return heap_alloc(this_actor, &this_actor->heap, size);
+  pony_actor_t* current = this_actor;
+  return heap_alloc(current, &current->heap, size);
+}
+
+void* pony_alloc_small(uint32_t sizeclass)
+{
+  pony_actor_t* current = this_actor;
+  return heap_alloc_small(current, &current->heap, sizeclass);
+}
+
+void* pony_alloc_large(size_t size)
+{
+  pony_actor_t* current = this_actor;
+  return heap_alloc_large(current, &current->heap, size);
 }
 
 void* pony_realloc(void* p, size_t size)
 {
-  return heap_realloc(this_actor, &this_actor->heap, p, size);
+  pony_actor_t* current = this_actor;
+  return heap_realloc(current, &current->heap, p, size);
 }
 
 void* pony_alloc_final(size_t size, pony_final_fn final)
 {
-  void* p = heap_alloc(this_actor, &this_actor->heap, size);
-  gc_register_final(&this_actor->gc, p, final);
+  pony_actor_t* current = this_actor;
+  void* p = heap_alloc(current, &current->heap, size);
+  gc_register_final(&current->gc, p, final);
   return p;
 }
 

@@ -353,7 +353,7 @@ void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
   heap_used(heap, GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_handlestack()
+void gc_handlestack(pony_actor_t* current)
 {
   pony_trace_fn f;
   void *p;
@@ -362,7 +362,7 @@ void gc_handlestack()
   {
     stack = gcstack_pop(stack, (void**)&f);
     stack = gcstack_pop(stack, &p);
-    f(p);
+    f(current, p);
   }
 }
 
@@ -482,7 +482,15 @@ void gc_final(gc_t* gc)
   objectmap_final(&gc->local);
 
   // Finalise any objects that were created during finalisation.
-  gc_handlestack();
+  pony_final_fn f;
+  void *p;
+
+  while(stack != NULL)
+  {
+    stack = gcstack_pop(stack, (void**)&f);
+    stack = gcstack_pop(stack, &p);
+    f(p);
+  }
 
   // Clear the finalising flag.
   finalising = false;

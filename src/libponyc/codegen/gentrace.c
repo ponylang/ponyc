@@ -38,31 +38,38 @@ static bool trace_as_tag(compile_t* c, LLVMValueRef value, ast_t* type)
   return false;
 }
 
-static void trace_tag(compile_t* c, LLVMValueRef value)
+static void trace_tag(compile_t* c, LLVMValueRef actor, LLVMValueRef value)
 {
   // Cast the value to a void pointer.
-  LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
+  LLVMValueRef args[2];
+  args[0] = actor;
+  args[1] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
 
-  gencall_runtime(c, "pony_trace", args, 1, "");
+  gencall_runtime(c, "pony_trace", args, 2, "");
 }
 
-static void trace_tag_or_actor(compile_t* c, LLVMValueRef value)
+static void trace_tag_or_actor(compile_t* c, LLVMValueRef actor,
+  LLVMValueRef value)
 {
   // We're an object.
-  gencall_runtime(c, "pony_trace_tag_or_actor", &value, 1, "");
+  LLVMValueRef args[2];
+  args[0] = actor;
+  args[0] = value;
+  gencall_runtime(c, "pony_trace_tag_or_actor", args, 2, "");
 }
 
-static void trace_actor(compile_t* c, LLVMValueRef value)
+static void trace_actor(compile_t* c, LLVMValueRef actor, LLVMValueRef value)
 {
   // Cast the value to an object pointer.
-  LLVMValueRef args[1];
-  args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
+  LLVMValueRef args[2];
+  args[0] = actor;
+  args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
 
-  gencall_runtime(c, "pony_traceactor", args, 1, "");
+  gencall_runtime(c, "pony_traceactor", args, 2, "");
 }
 
-static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
+static bool trace_known(compile_t* c, LLVMValueRef actor, LLVMValueRef value,
+  ast_t* type)
 {
   gentype_t g;
 
@@ -72,31 +79,37 @@ static bool trace_known(compile_t* c, LLVMValueRef value, ast_t* type)
   // Get the trace function statically.
   const char* fun = genname_trace(g.type_name);
 
-  LLVMValueRef args[2];
-  args[1] = LLVMGetNamedFunction(c->module, fun);
+  LLVMValueRef args[3];
+  args[0] = actor;
+  args[2] = LLVMGetNamedFunction(c->module, fun);
 
   // If this type has no trace function, don't try to recurse in the runtime.
-  if(args[1] != NULL)
+  if(args[2] != NULL)
   {
     // Cast the value to an object pointer.
-    args[0] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
-    gencall_runtime(c, "pony_traceobject", args, 2, "");
+    args[1] = LLVMBuildBitCast(c->builder, value, c->object_ptr, "");
+    gencall_runtime(c, "pony_traceobject", args, 3, "");
   } else {
     // Cast the value to a void pointer.
-    args[0] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
-    gencall_runtime(c, "pony_trace", args, 1, "");
+    args[1] = LLVMBuildBitCast(c->builder, value, c->void_ptr, "");
+    gencall_runtime(c, "pony_trace", args, 2, "");
   }
 
   return true;
 }
 
-static void trace_unknown(compile_t* c, LLVMValueRef value)
+static void trace_unknown(compile_t* c, LLVMValueRef actor, LLVMValueRef value)
 {
   // We're an object.
-  gencall_runtime(c, "pony_traceunknown", &value, 1, "");
+  LLVMValueRef args[2];
+  args[0] = actor;
+  args[1] = value;
+
+  gencall_runtime(c, "pony_traceunknown", args, 2, "");
 }
 
-static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
+static bool trace_tuple(compile_t* c, LLVMValueRef actor, LLVMValueRef value,
+  ast_t* type)
 {
   // Invoke the trace function directly. Do not trace the address of the tuple.
   const char* type_name = genname_type(type);
@@ -107,10 +120,15 @@ static bool trace_tuple(compile_t* c, LLVMValueRef value, ast_t* type)
   if(trace_fn == NULL)
     return false;
 
-  return (LLVMBuildCall(c->builder, trace_fn, &value, 1, "") != NULL);
+  LLVMValueRef args[2];
+  args[0] = actor;
+  args[1] = value;
+
+  return (LLVMBuildCall(c->builder, trace_fn, args, 2, "") != NULL);
 }
 
-bool gentrace(compile_t* c, LLVMValueRef value, ast_t* type)
+bool gentrace(compile_t* c, LLVMValueRef actor, LLVMValueRef value,
+  ast_t* type)
 {
   bool tag = trace_as_tag(c, value, type);
 
@@ -120,15 +138,15 @@ bool gentrace(compile_t* c, LLVMValueRef value, ast_t* type)
     case TK_ISECTTYPE:
     {
       if(tag)
-        trace_tag_or_actor(c, value);
+        trace_tag_or_actor(c, actor, value);
       else
-        trace_unknown(c, value);
+        trace_unknown(c, actor, value);
 
       return true;
     }
 
     case TK_TUPLETYPE:
-      return trace_tuple(c, value, type);
+      return trace_tuple(c, actor, value, type);
 
     case TK_NOMINAL:
     {
@@ -137,9 +155,9 @@ bool gentrace(compile_t* c, LLVMValueRef value, ast_t* type)
         case TK_INTERFACE:
         case TK_TRAIT:
           if(tag)
-            trace_tag_or_actor(c, value);
+            trace_tag_or_actor(c, actor, value);
           else
-            trace_unknown(c, value);
+            trace_unknown(c, actor, value);
 
           return true;
 
@@ -150,14 +168,14 @@ bool gentrace(compile_t* c, LLVMValueRef value, ast_t* type)
         case TK_CLASS:
           if(tag)
           {
-            trace_tag(c, value);
+            trace_tag(c, actor, value);
             return true;
           }
 
-          return trace_known(c, value, type);
+          return trace_known(c, actor, value, type);
 
         case TK_ACTOR:
-          trace_actor(c, value);
+          trace_actor(c, actor, value);
           return true;
 
         default: {}
