@@ -8,8 +8,8 @@ class Env val
   let out: StdStream
   let err: StdStream
   let args: Array[String] val
-  let vars: Array[String] val
-  let cwd: String
+  let _envp: Pointer[Pointer[U8]] val
+  let _vars: (Array[String] val | None)
 
   new _create(argc: U64, argv: Pointer[Pointer[U8]] val,
     envp: Pointer[Pointer[U8]] val)
@@ -26,24 +26,38 @@ class Env val
     err = StdStream._err()
 
     args = _strings_from_pointers(argv, argc)
-    vars = _strings_from_pointers(envp, 0)
-    cwd = recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
+    _envp = envp
+    _vars = None
 
   new create(root': (Root | None), input': Stdin, out': StdStream,
-    err': StdStream, args': Array[String] val, vars': Array[String] val)
+    err': StdStream, args': Array[String] val,
+    vars': (Array[String] val | None))
   =>
     """
-    Build an artificial environment. A root capability must be supplied. The
-    current working directory cannot be changed, as it it not concurrency safe
-    to do so.
+    Build an artificial environment. A root capability may be supplied.
     """
     root = root'
     input = input'
     out = out'
     err = err'
     args = args'
-    vars = vars'
-    cwd = recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
+    _envp = recover val Pointer[Pointer[U8]]._alloc(0) end
+    _vars = vars'
+
+  fun vars(): Array[String] val =>
+    """
+    Return the environment variables as an array of strings of the form
+    "key=value".
+    """
+    match _vars
+      | let v: Array[String] val => v
+    else
+      if not _envp.is_null() then
+        _strings_from_pointers(_envp, _count_strings(_envp))
+      else
+        recover Array[String] end
+      end
+    end
 
   fun tag exitcode(code: I32) =>
     """
@@ -51,6 +65,17 @@ class Env val
     value set will be the exit code. The exit code defaults to 0.
     """
     @pony_exitcode[None](code)
+
+  fun tag _count_strings(data: Pointer[Pointer[U8]] val): U64 =>
+    var i: U64 = 0
+
+    while
+      let entry = data._apply(i)
+      not entry.is_null()
+    do
+      i = i + 1
+    end
+    i
 
   fun tag _strings_from_pointers(data: Pointer[Pointer[U8]] val, len: U64):
     Array[String] iso^

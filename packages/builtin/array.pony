@@ -1,6 +1,6 @@
 class Array[A] is Seq[A]
   """
-  Contiguous memory to store elements of type A.
+  Contiguous, resizable memory to store elements of type A.
   """
   var _size: U64
   var _alloc: U64
