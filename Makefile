@@ -74,7 +74,8 @@ ifdef config
 endif
 
 ifeq ($(config),release)
-  BUILD_FLAGS += -O3 -DNDEBUG
+  BUILD_FLAGS += -O3 -DNDEBUG -flto
+  LINKER_FLAGS += -flto
 else
   BUILD_FLAGS += -g -DDEBUG
 endif
@@ -202,7 +203,7 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ $(llvm.include)/
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
 libponycc.include := -I src/common/ $(llvm.include)/
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
