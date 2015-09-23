@@ -141,7 +141,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   codegen_startfun(c, func, false);
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[4];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -200,13 +200,15 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   gencall_runtime(c, "pony_gc_send", NULL, 0, "");
   const char* env_trace = genname_trace(env_name);
 
-  args[0] = main_actor;
-  args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[2] = LLVMGetNamedFunction(c->module, env_trace);
-  gencall_runtime(c, "pony_traceobject", args, 3, "");
+  args[0] = LLVMConstNull(c->void_ptr);
+  args[1] = main_actor;
+  args[2] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
+  args[3] = LLVMGetNamedFunction(c->module, env_trace);
+  LLVMValueRef stack = gencall_runtime(c, "pony_traceobject", args, 4, "");
 
-  args[0] = main_actor;
-  gencall_runtime(c, "pony_send_done", args, 1, "");
+  args[0] = stack;
+  args[1] = main_actor;
+  gencall_runtime(c, "pony_send_done", args, 2, "");
 
   // Send the message.
   args[0] = main_actor;

@@ -1,18 +1,15 @@
 #include "gc.h"
 #include "../actor/actor.h"
-#include "../ds/stack.h"
 #include "../mem/pagemap.h"
 #include <string.h>
 #include <assert.h>
 
 #define GC_ACTOR_HEAP_EQUIV 1024
 
-DECLARE_STACK(gcstack, void);
 DEFINE_STACK(gcstack, void);
 
 static __pony_thread_local actormap_t acquire;
-static __pony_thread_local gcstack_t* stack;
-static __pony_thread_local bool finalising;
+static __pony_thread_local gcstack_t* finaliser_stack;
 
 static void acquire_actor(pony_actor_t* actor)
 {
@@ -46,8 +43,8 @@ static void current_actor_dec(gc_t* gc)
   }
 }
 
-void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f)
+gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
+  heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   (void)heap;
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
@@ -61,7 +58,7 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       stack = gcstack_push(stack, f);
     }
 
-    return;
+    return stack;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -85,57 +82,61 @@ void gc_sendobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
         stack = gcstack_push(stack, f);
       }
     }
-  } else {
-    // get the actor
-    actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
-    // we've reached this by tracing a tag through a union
-    if(aref == NULL)
-      return;
+    return stack;
+  }
 
-    // get the object
-    object_t* obj = actorref_getobject(aref, p);
+  // get the actor
+  actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
-    // we've reached this by tracing a tag through a union
-    if(obj == NULL)
-      return;
+  // we've reached this by tracing a tag through a union
+  if(aref == NULL)
+    return stack;
 
-    if(!actorref_marked(aref, gc->mark))
+  // get the object
+  object_t* obj = actorref_getobject(aref, p);
+
+  // we've reached this by tracing a tag through a union
+  if(obj == NULL)
+    return stack;
+
+  if(!actorref_marked(aref, gc->mark))
+  {
+    // dec. if we can't, we need to build an acquire message
+    if(!actorref_dec(aref))
     {
-      // dec. if we can't, we need to build an acquire message
-      if(!actorref_dec(aref))
-      {
-        actorref_inc_more(aref);
-        acquire_actor(actor);
-      }
-
-      actorref_mark(aref, gc->mark);
-      gc->delta = deltamap_update(gc->delta,
-        actorref_actor(aref), actorref_rc(aref));
+      actorref_inc_more(aref);
+      acquire_actor(actor);
     }
 
-    if(!object_marked(obj, gc->mark))
+    actorref_mark(aref, gc->mark);
+    gc->delta = deltamap_update(gc->delta,
+      actorref_actor(aref), actorref_rc(aref));
+  }
+
+  if(!object_marked(obj, gc->mark))
+  {
+    // dec. if we can't, we need to build an acquire message
+    if(!object_dec(obj))
     {
-      // dec. if we can't, we need to build an acquire message
-      if(!object_dec(obj))
-      {
-        object_inc_more(obj);
-        acquire_object(actor, p);
-      }
+      object_inc_more(obj);
+      acquire_object(actor, p);
+    }
 
-      object_mark(obj, gc->mark);
+    object_mark(obj, gc->mark);
 
-      if(f != NULL)
-      {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
-      }
+    if(f != NULL)
+    {
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
     }
   }
+
+  return stack;
 }
 
-void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f)
+gcstack_t* gc_recvobject(gcstack_t* stack, pony_actor_t* current,
+  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
@@ -148,7 +149,7 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       stack = gcstack_push(stack, f);
     }
 
-    return;
+    return stack;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -175,43 +176,47 @@ void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
         stack = gcstack_push(stack, f);
       }
     }
-  } else {
-    // get the actor
-    actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
 
-    if(!actorref_marked(aref, gc->mark))
+    return stack;
+  }
+
+  // get the actor
+  actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
+
+  if(!actorref_marked(aref, gc->mark))
+  {
+    // inc and mark
+    actorref_inc(aref);
+    actorref_mark(aref, gc->mark);
+    gc->delta = deltamap_update(gc->delta,
+      actorref_actor(aref), actorref_rc(aref));
+  }
+
+  // get the object
+  object_t* obj = actorref_getorput(aref, p, gc->mark);
+
+  if(!object_marked(obj, gc->mark))
+  {
+    // if this is our first reference, add to our heap used size
+    if(object_rc(obj) == 0)
+      heap_used(heap, heap_size(chunk));
+
+    // inc, mark and recurse
+    object_inc(obj);
+    object_mark(obj, gc->mark);
+
+    if(f != NULL)
     {
-      // inc and mark
-      actorref_inc(aref);
-      actorref_mark(aref, gc->mark);
-      gc->delta = deltamap_update(gc->delta,
-        actorref_actor(aref), actorref_rc(aref));
-    }
-
-    // get the object
-    object_t* obj = actorref_getorput(aref, p, gc->mark);
-
-    if(!object_marked(obj, gc->mark))
-    {
-      // if this is our first reference, add to our heap used size
-      if(object_rc(obj) == 0)
-        heap_used(heap, heap_size(chunk));
-
-      // inc, mark and recurse
-      object_inc(obj);
-      object_mark(obj, gc->mark);
-
-      if(f != NULL)
-      {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
-      }
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
     }
   }
+
+  return stack;
 }
 
-void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f)
+gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
+  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
@@ -224,7 +229,7 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       stack = gcstack_push(stack, f);
     }
 
-    return;
+    return stack;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -244,38 +249,42 @@ void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
       // later marked with a recurse function, it will recurse.
       heap_mark_shallow(chunk, p);
     }
-  } else {
-    // mark the owner
-    actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
-    // we've reached this by tracing a tag through a union
-    if(aref == NULL)
-      return;
+    return stack;
+  }
 
-    // get the object
-    object_t* obj = actorref_getobject(aref, p);
+  // mark the owner
+  actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
-    // we've reached this by tracing a tag through a union
-    if(obj == NULL)
-      return;
+  // we've reached this by tracing a tag through a union
+  if(aref == NULL)
+    return stack;
 
-    actorref_mark(aref, gc->mark);
+  // get the object
+  object_t* obj = actorref_getobject(aref, p);
 
-    if(!object_marked(obj, gc->mark))
+  // we've reached this by tracing a tag through a union
+  if(obj == NULL)
+    return stack;
+
+  actorref_mark(aref, gc->mark);
+
+  if(!object_marked(obj, gc->mark))
+  {
+    // add to heap used size
+    heap_used(heap, heap_size(chunk));
+
+    // mark and recurse
+    object_mark(obj, gc->mark);
+
+    if(f != NULL)
     {
-      // add to heap used size
-      heap_used(heap, heap_size(chunk));
-
-      // mark and recurse
-      object_mark(obj, gc->mark);
-
-      if(f != NULL)
-      {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
-      }
+      stack = gcstack_push(stack, p);
+      stack = gcstack_push(stack, f);
     }
   }
+
+  return stack;
 }
 
 void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
@@ -353,7 +362,7 @@ void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
   heap_used(heap, GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_handlestack(pony_actor_t* current)
+void gc_handlestack(gcstack_t* stack, pony_actor_t* current)
 {
   pony_trace_fn f;
   void *p;
@@ -362,7 +371,7 @@ void gc_handlestack(pony_actor_t* current)
   {
     stack = gcstack_pop(stack, (void**)&f);
     stack = gcstack_pop(stack, &p);
-    f(current, p);
+    stack = f(stack, current, p);
   }
 }
 
@@ -458,7 +467,9 @@ void gc_sendrelease(gc_t* gc)
 
 void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
 {
-  if(!finalising)
+  gcstack_t* stack = finaliser_stack;
+
+  if(stack == NULL)
   {
     // If we aren't finalising an actor, register the finaliser.
     objectmap_register_final(&gc->local, p, final, gc->mark);
@@ -467,6 +478,7 @@ void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
     // Otherwise, put the finaliser on the gc stack.
     stack = gcstack_push(stack, p);
     stack = gcstack_push(stack, final);
+    finaliser_stack = stack;
   }
 }
 
@@ -476,12 +488,15 @@ void gc_final(gc_t* gc)
     return;
 
   // Set the finalising flag.
-  finalising = true;
+  gcstack_t* stack = gcstack_push(NULL, NULL);
+  stack = gcstack_push(stack, NULL);
+  finaliser_stack = stack;
 
   // Run all finalisers in the object map.
   objectmap_final(&gc->local);
 
   // Finalise any objects that were created during finalisation.
+  stack = finaliser_stack;
   pony_final_fn f;
   void *p;
 
@@ -489,11 +504,12 @@ void gc_final(gc_t* gc)
   {
     stack = gcstack_pop(stack, (void**)&f);
     stack = gcstack_pop(stack, &p);
-    f(p);
+
+    if(f != NULL)
+      f(p);
   }
 
-  // Clear the finalising flag.
-  finalising = false;
+  finaliser_stack = NULL;
 }
 
 void gc_done(gc_t* gc)

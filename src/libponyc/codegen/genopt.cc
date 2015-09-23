@@ -102,6 +102,7 @@ public:
   HeapToStack() : FunctionPass(ID)
   {
     c = the_compiler;
+    module = NULL;
   }
 
   bool doInitialization(Module& m)

@@ -53,7 +53,7 @@ typedef struct pony_msgp_t
  * Each type supplies a trace function. It is invoked with the currently
  * executing actor and the object being traced.
  */
-typedef void (*pony_trace_fn)(pony_actor_t* actor, void* p);
+typedef void* (*pony_trace_fn)(void* stack, pony_actor_t* actor, void* p);
 
 /** Dispatch function.
  *
@@ -227,13 +227,13 @@ void pony_gc_recv();
  *
  * Call this after tracing the GC-able contents.
  */
-void pony_send_done(pony_actor_t* current);
+void pony_send_done(void* stack, pony_actor_t* current);
 
 /** Finish gc tracing for receiving.
  *
  * Call this after tracing the GCable contents.
  */
-void pony_recv_done(pony_actor_t* current);
+void pony_recv_done(void* stack, pony_actor_t* current);
 
 /** Trace memory
  *
@@ -256,14 +256,15 @@ void pony_traceactor(pony_actor_t* current, pony_actor_t* p);
  * @param p The pointer being traced.
  * @param f The trace function for the object pointed to.
  */
-void pony_traceobject(pony_actor_t* current, void* p, pony_trace_fn f);
+void* pony_traceobject(void* stack, pony_actor_t* current, void* p,
+  pony_trace_fn f);
 
 /** Trace unknown.
  *
  * This should be called for fields in an object with an unknown type, but
  * which are not tags.
  */
-void pony_traceunknown(pony_actor_t* current, void* p);
+void* pony_traceunknown(void* stack, pony_actor_t* current, void* p);
 
 /** Trace a tag or an actor
  *

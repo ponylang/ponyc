@@ -109,11 +109,12 @@ static void try_gc(pony_actor_t* actor)
     return;
 
   pony_gc_mark();
+  void* stack = NULL;
 
   if(actor->type->trace != NULL)
-    actor->type->trace(actor, actor);
+    stack = actor->type->trace(stack, actor, actor);
 
-  gc_handlestack(actor);
+  gc_handlestack((gcstack_t*)stack, actor);
   gc_sweep(&actor->gc);
   gc_done(&actor->gc);
   heap_endgc(&actor->heap);

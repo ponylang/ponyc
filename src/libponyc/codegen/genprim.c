@@ -351,8 +351,13 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
-  LLVMValueRef this_actor = LLVMGetParam(trace_fn, 0);
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
+  LLVMValueRef stack = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef this_actor = LLVMGetParam(trace_fn, 1);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 2);
+
+  // Store the stack pointer.
+  LLVMValueRef stack_ptr = LLVMBuildAlloca(c->builder, c->void_ptr, "");
+  LLVMBuildStore(c->builder, stack, stack_ptr);
 
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
@@ -387,7 +392,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
   elem = LLVMBuildLoad(c->builder, elem, "");
-  gentrace(c, this_actor, elem, typearg);
+  gentrace(c, &stack, this_actor, elem, typearg);
+  LLVMBuildStore(c->builder, stack, stack_ptr);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
@@ -397,7 +403,8 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMBuildBr(c->builder, cond_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMBuildRetVoid(c->builder);
+  stack = LLVMBuildLoad(c->builder, stack_ptr, "");
+  LLVMBuildRet(c->builder, stack);
 
   codegen_finishfun(c);
 }
