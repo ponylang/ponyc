@@ -546,7 +546,7 @@ static bool add_safe(const char* path)
 // and add it to our search path
 static void add_exec_dir()
 {
-  char path[FILENAME_MAX];
+  char path[FILENAME_MAX + 1];
   bool success;
 
 #ifdef PLATFORM_IS_WINDOWS
