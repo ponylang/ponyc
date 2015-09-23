@@ -54,7 +54,7 @@ static void trace_tag_or_actor(compile_t* c, LLVMValueRef actor,
   // We're an object.
   LLVMValueRef args[2];
   args[0] = actor;
-  args[0] = value;
+  args[1] = value;
   gencall_runtime(c, "pony_trace_tag_or_actor", args, 2, "");
 }
 
