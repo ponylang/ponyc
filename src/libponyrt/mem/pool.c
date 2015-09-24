@@ -270,10 +270,10 @@ static pool_item_t* pool_pull(pool_local_t* thread, pool_global_t* global)
   return p;
 }
 
-static void* pool_get(size_t index)
+static void* pool_get(pool_local_t* pool, size_t index)
 {
   // Try per-size thread-local free list first.
-  pool_local_t* thread = &pool_local[index];
+  pool_local_t* thread = &pool[index];
   pool_global_t* global = &pool_global[index];
   pool_item_t* p = thread->pool;
 
@@ -302,7 +302,7 @@ static void* pool_get(size_t index)
 
     // Use the pool allocator to get a block POOL_ALIGN bytes in size
     // and treat it as a free block.
-    char* block = (char*)pool_get(POOL_ALIGN_INDEX);
+    char* block = (char*)pool_get(pool, POOL_ALIGN_INDEX);
     thread->start = block + global->size;
     thread->end = block + POOL_ALIGN;
     return (pool_item_t*)block;
@@ -319,7 +319,8 @@ void* pool_alloc(size_t index)
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
-  void* p = pool_get(index);
+  pool_local_t* pool = pool_local;
+  void* p = pool_get(pool, index);
 
 #ifdef USE_VALGRIND
   VALGRIND_ENABLE_ERROR_REPORTING;

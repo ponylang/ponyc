@@ -229,8 +229,23 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
   void* m;
 
   // If there are none in this size class, get a new one.
-  if(chunk == NULL)
+  if(chunk != NULL)
   {
+    // Clear and use the first available slot.
+    uint32_t slots = chunk->slots;
+    uint32_t bit = __pony_ffs(slots) - 1;
+    slots &= ~(1 << bit);
+
+    m = chunk->m + (bit << HEAP_MINBITS);
+    chunk->slots = slots;
+
+    if(slots == 0)
+    {
+      heap->small_free[sizeclass] = chunk->next;
+      chunk->next = heap->small_full[sizeclass];
+      heap->small_full[sizeclass] = chunk;
+    }
+  } else {
     chunk_t* n = (chunk_t*) POOL_ALLOC(chunk_t);
     n->actor = actor;
     n->m = (char*) POOL_ALLOC(block_t);
@@ -248,19 +263,6 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
 
     // Use the first slot.
     m = chunk->m;
-  } else {
-    // Clear and use the first available slot.
-    uint32_t bit = __pony_ffs(chunk->slots) - 1;
-    chunk->slots &= ~(1 << bit);
-    m = chunk->m + (bit << HEAP_MINBITS);
-  }
-
-  // if we're full, move us to the full list
-  if(chunk->slots == 0)
-  {
-    heap->small_free[sizeclass] = chunk->next;
-    chunk->next = heap->small_full[sizeclass];
-    heap->small_full[sizeclass] = chunk;
   }
 
   heap->used += sizeclass_size[sizeclass];
