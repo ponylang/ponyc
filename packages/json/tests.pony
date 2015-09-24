@@ -32,15 +32,17 @@ class _TestParseBasic iso is UnitTest
   fun name(): String => "JSON/parse.basic"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc = JsonParser.parse("true")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse("true")
     h.expect_eq[Bool](true, doc.data as Bool)
     
-    doc = JsonParser.parse(" true   ")
+    doc.parse(" true   ")
     h.expect_eq[Bool](true, doc.data as Bool)
 
-    h.expect_error(lambda()? => JsonParser.parse("") end)
-    h.expect_error(lambda()? => JsonParser.parse("   ") end)
-    h.expect_error(lambda()? => JsonParser.parse("true true") end)
+    h.expect_error(lambda()? => JsonDoc.parse("") end)
+    h.expect_error(lambda()? => JsonDoc.parse("   ") end)
+    h.expect_error(lambda()? => JsonDoc.parse("true true") end)
 
     true
 
@@ -52,19 +54,21 @@ class _TestParseKeyword iso is UnitTest
   fun name(): String => "JSON/parse.keyword"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc = JsonParser.parse("true")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse("true")
     h.expect_eq[Bool](true, doc.data as Bool)
     
-    doc = JsonParser.parse("false")
+    doc.parse("false")
     h.expect_eq[Bool](false, doc.data as Bool)
     
-    doc = JsonParser.parse("null")
+    doc.parse("null")
     h.expect_eq[None](None, doc.data as None)
 
-    h.expect_error(lambda()? => JsonParser.parse("tru e") end)
-    h.expect_error(lambda()? => JsonParser.parse("truw") end)
-    h.expect_error(lambda()? => JsonParser.parse("truez") end)
-    h.expect_error(lambda()? => JsonParser.parse("TRUE") end)
+    h.expect_error(lambda()? => JsonDoc.parse("tru e") end)
+    h.expect_error(lambda()? => JsonDoc.parse("truw") end)
+    h.expect_error(lambda()? => JsonDoc.parse("truez") end)
+    h.expect_error(lambda()? => JsonDoc.parse("TRUE") end)
 
     true
 
@@ -76,38 +80,40 @@ class _TestParseNumber iso is UnitTest
   fun name(): String => "JSON/parse.number"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc = JsonParser.parse("0")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse("0")
     h.expect_eq[I64](0, doc.data as I64)
 
-    doc = JsonParser.parse("13")
+    doc.parse("13")
     h.expect_eq[I64](13, doc.data as I64)
     
-    doc = JsonParser.parse("-13")
+    doc.parse("-13")
     h.expect_eq[I64](-13, doc.data as I64)
     
-    doc = JsonParser.parse("1.5")
+    doc.parse("1.5")
     h.expect_eq[F64](1.5, doc.data as F64)
     
-    doc = JsonParser.parse("-1.125")
+    doc.parse("-1.125")
     h.expect_eq[F64](-1.125, doc.data as F64)
     
-    doc = JsonParser.parse("1e3")
+    doc.parse("1e3")
     h.expect_eq[F64](1000, doc.data as F64)
     
-    doc = JsonParser.parse("1e+3")
+    doc.parse("1e+3")
     h.expect_eq[F64](1000, doc.data as F64)
     
-    doc = JsonParser.parse("1e-3")
+    doc.parse("1e-3")
     h.expect_eq[F64](0.001, doc.data as F64)
     
-    doc = JsonParser.parse("1.23e3")
+    doc.parse("1.23e3")
     h.expect_eq[F64](1230, doc.data as F64)
     
-    h.expect_error(lambda()? => JsonParser.parse("0x4") end)
-    h.expect_error(lambda()? => JsonParser.parse("+1") end)
-    h.expect_error(lambda()? => JsonParser.parse("1.") end)
-    h.expect_error(lambda()? => JsonParser.parse("1.-3") end)
-    h.expect_error(lambda()? => JsonParser.parse("1e") end)
+    h.expect_error(lambda()? => JsonDoc.parse("0x4") end)
+    h.expect_error(lambda()? => JsonDoc.parse("+1") end)
+    h.expect_error(lambda()? => JsonDoc.parse("1.") end)
+    h.expect_error(lambda()? => JsonDoc.parse("1.-3") end)
+    h.expect_error(lambda()? => JsonDoc.parse("1e") end)
 
     true
 
@@ -119,37 +125,39 @@ class _TestParseString iso is UnitTest
   fun name(): String => "JSON/parse.string"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc = JsonParser.parse(""""Foo"""")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse(""""Foo"""")
     h.expect_eq[String]("Foo", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\tbar" """)
+    doc.parse(""" "Foo\tbar" """)
     h.expect_eq[String]("Foo\tbar", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\"bar" """)
+    doc.parse(""" "Foo\"bar" """)
     h.expect_eq[String]("""Foo"bar""", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\\bar" """)
+    doc.parse(""" "Foo\\bar" """)
     h.expect_eq[String]("""Foo\bar""", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\u0020bar" """)
+    doc.parse(""" "Foo\u0020bar" """)
     h.expect_eq[String]("""Foo bar""", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\u004Fbar" """)
+    doc.parse(""" "Foo\u004Fbar" """)
     h.expect_eq[String]("""FooObar""", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\u004fbar" """)
+    doc.parse(""" "Foo\u004fbar" """)
     h.expect_eq[String]("""FooObar""", doc.data as String)
 
-    doc = JsonParser.parse(""" "Foo\uD834\uDD1Ebar" """)
+    doc.parse(""" "Foo\uD834\uDD1Ebar" """)
     h.expect_eq[String]("Foo\U01D11Ebar", doc.data as String)
     
-    h.expect_error(lambda()? => JsonParser.parse(""" "Foo """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "Foo\z" """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "\u" """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "\u37" """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "\u037g" """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "\uD834" """) end)
-    h.expect_error(lambda()? => JsonParser.parse(""" "\uDD1E" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "Foo """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "Foo\z" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "\u" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "\u37" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "\u037g" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "\uD834" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse(""" "\uDD1E" """) end)
 
     true
 
@@ -161,32 +169,34 @@ class _TestParseArray iso is UnitTest
   fun name(): String => "JSON/parse.array"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc: JsonDoc ref = JsonParser.parse("[]")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse("[]")
     h.expect_eq[U64](0, (doc.data as JsonArray).data.size())
 
-    doc = JsonParser.parse("[ ]")
+    doc.parse("[ ]")
     h.expect_eq[U64](0, (doc.data as JsonArray).data.size())
     
-    doc = JsonParser.parse("[true]")
+    doc.parse("[true]")
     h.expect_eq[U64](1, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     
-    doc = JsonParser.parse("[ true ]")
+    doc.parse("[ true ]")
     h.expect_eq[U64](1, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     
-    doc = JsonParser.parse("[true, false]")
+    doc.parse("[true, false]")
     h.expect_eq[U64](2, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     h.expect_eq[Bool](false, (doc.data as JsonArray).data(1) as Bool)
     
-    doc = JsonParser.parse("[true , 13,null]")
+    doc.parse("[true , 13,null]")
     h.expect_eq[U64](3, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     h.expect_eq[I64](13, (doc.data as JsonArray).data(1) as I64)
     h.expect_eq[None](None, (doc.data as JsonArray).data(2) as None)
     
-    doc = JsonParser.parse("[true, [52, null]]")
+    doc.parse("[true, [52, null]]")
     h.expect_eq[U64](2, (doc.data as JsonArray).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonArray).data(0) as Bool)
     h.expect_eq[U64](2,
@@ -196,13 +206,13 @@ class _TestParseArray iso is UnitTest
     h.expect_eq[None](None,
       ((doc.data as JsonArray).data(1) as JsonArray).data(1) as None)
     
-    h.expect_error(lambda()? => JsonParser.parse("[true true]") end)
-    h.expect_error(lambda()? => JsonParser.parse("[,]") end)
-    h.expect_error(lambda()? => JsonParser.parse("[true,]") end)
-    h.expect_error(lambda()? => JsonParser.parse("[,true]") end)
-    h.expect_error(lambda()? => JsonParser.parse("[") end)
-    h.expect_error(lambda()? => JsonParser.parse("[true") end)
-    h.expect_error(lambda()? => JsonParser.parse("[true,") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[true true]") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[,]") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[true,]") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[,true]") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[true") end)
+    h.expect_error(lambda()? => JsonDoc.parse("[true,") end)
 
     true
 
@@ -214,32 +224,34 @@ class _TestParseObject iso is UnitTest
   fun name(): String => "JSON/parse.object"
 
   fun apply(h: TestHelper): TestResult ? =>
-    var doc: JsonDoc ref = JsonParser.parse("{}")
+    let doc: JsonDoc = JsonDoc
+
+    doc.parse("{}")
     h.expect_eq[U64](0, (doc.data as JsonObject).data.size())
 
-    doc = JsonParser.parse("{ }")
+    doc.parse("{ }")
     h.expect_eq[U64](0, (doc.data as JsonObject).data.size())
     
-    doc = JsonParser.parse("""{"foo": true}""")
+    doc.parse("""{"foo": true}""")
     h.expect_eq[U64](1, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("foo") as Bool)
     
-    doc = JsonParser.parse("""{ "foo" :"true" }""")
+    doc.parse("""{ "foo" :"true" }""")
     h.expect_eq[U64](1, (doc.data as JsonObject).data.size())
     h.expect_eq[String]("true", (doc.data as JsonObject).data("foo") as String)
     
-    doc = JsonParser.parse("""{"a": true, "b": false}""")
+    doc.parse("""{"a": true, "b": false}""")
     h.expect_eq[U64](2, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
     h.expect_eq[Bool](false, (doc.data as JsonObject).data("b") as Bool)
     
-    doc = JsonParser.parse("""{"a": true , "b": 13,"c":null}""")
+    doc.parse("""{"a": true , "b": 13,"c":null}""")
     h.expect_eq[U64](3, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
     h.expect_eq[I64](13, (doc.data as JsonObject).data("b") as I64)
     h.expect_eq[None](None, (doc.data as JsonObject).data("c") as None)
     
-    doc = JsonParser.parse("""{"a": true, "b": {"c": 52, "d": null}}""")
+    doc.parse("""{"a": true, "b": {"c": 52, "d": null}}""")
     h.expect_eq[U64](2, (doc.data as JsonObject).data.size())
     h.expect_eq[Bool](true, (doc.data as JsonObject).data("a") as Bool)
     h.expect_eq[U64](2,
@@ -249,17 +261,17 @@ class _TestParseObject iso is UnitTest
     h.expect_eq[None](None,
       ((doc.data as JsonObject).data("b") as JsonObject).data("d") as None)
     
-    h.expect_error(lambda()? => JsonParser.parse("""{"a": 1 "b": 2}""") end)
-    h.expect_error(lambda()? => JsonParser.parse("{,}") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a": true,}""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{,"a": true}""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a" """) end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a": """) end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a": true""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a": true,""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{"a" true}""") end)
-    h.expect_error(lambda()? => JsonParser.parse("""{:true}""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a": 1 "b": 2}""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("{,}") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a": true,}""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{,"a": true}""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a" """) end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a": """) end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a": true""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a": true,""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{"a" true}""") end)
+    h.expect_error(lambda()? => JsonDoc.parse("""{:true}""") end)
 
     true
 
@@ -289,7 +301,9 @@ class _TestParseRFC1 iso is UnitTest
       }
       """
 
-    let doc: JsonDoc ref = JsonParser.parse(src)
+    let doc: JsonDoc = JsonDoc
+    doc.parse(src)
+
     let obj1 = doc.data as JsonObject
 
     h.expect_eq[U64](1, obj1.data.size())
@@ -354,7 +368,9 @@ class _TestParseRFC2 iso is UnitTest
       ]
       """
 
-    let doc: JsonDoc ref = JsonParser.parse(src)
+    let doc: JsonDoc = JsonDoc
+    doc.parse(src)
+
     let array = doc.data as JsonArray
 
     h.expect_eq[U64](2, array.data.size())
@@ -393,7 +409,7 @@ class _TestPrintKeyword iso is UnitTest
   fun name(): String => "JSON/print.keyword"
 
   fun apply(h: TestHelper): TestResult =>
-    var doc = JsonDoc
+    let doc: JsonDoc = JsonDoc
 
     doc.data = true
     h.expect_eq[String]("true", doc.string())
@@ -414,7 +430,7 @@ class _TestPrintNumber iso is UnitTest
   fun name(): String => "JSON/print.number"
 
   fun apply(h: TestHelper): TestResult =>
-    var doc = JsonDoc
+    let doc: JsonDoc = JsonDoc
 
     doc.data = I64(0)
     h.expect_eq[String]("0", doc.string())
@@ -446,7 +462,7 @@ class _TestPrintString iso is UnitTest
   fun name(): String => "JSON/print.string"
 
   fun apply(h: TestHelper): TestResult =>
-    var doc = JsonDoc
+    let doc: JsonDoc = JsonDoc
 
     doc.data = "Foo"
     h.expect_eq[String](""""Foo"""", doc.string())
@@ -579,7 +595,8 @@ class _TestParsePrint iso is UnitTest
         }
       ]"""
 
-    let doc: JsonDoc ref = JsonParser.parse(src)
+    let doc: JsonDoc = JsonDoc
+    doc.parse(src)
     let printed = doc.string()
 
     // TODO: Sort out line endings on different platforms. For now normalise

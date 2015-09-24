@@ -1,30 +1,33 @@
 use "collections"
 
+class JsonDoc
+  """
+  Top level JSON type containing an entire document.
+  A JSON document consists of exactly 1 value.
+  """
+  var data: JsonType
 
-type _JsonIso is (F64 | I64 | Bool | None | String | JsonArray iso^ |
-  JsonObject iso^)
-
-
-class JsonParser
-  var _source: String
-  var _index: U64
-  var _line: U64
-  var _err_line: U64    // Error information from last parse
-  var _err_msg: String  // ..
-  var _last_index: U64  // Last source index we peeked or got, for errors
+  // Internal state for parsing
+  var _source: String = ""
+  var _index: U64 = 0
+  var _line: U64 = 1
+  var _err_line: U64 = 0    // Error information from last parse
+  var _err_msg: String = "" // ..
+  var _last_index: U64 = 0  // Last source index we peeked or got, for errors
 
   new iso create() =>
     """
-    Default parser constructor.
+    Default constructor building a document containing a single null.
     """
-    _source = ""
-    _index = 0
-    _line = 0
-    _err_line = 0
-    _err_msg = ""
-    _last_index = 0
+    data = None
 
-  fun ref parse(source: String): JsonDoc iso^ ? =>
+  fun string(): String =>
+    """
+    Generate string representation of this document.
+    """
+    _JsonPrint._string(data, "")
+
+  fun ref parse(source: String) ? =>
     """
     Parse the given string as a JSON file, building a document.
     Raise error on invalid JSON in given source.
@@ -36,8 +39,7 @@ class JsonParser
     _err_msg = ""
     _last_index = 0
 
-    let doc = JsonDoc
-    doc.data = _parse_value("top level value")
+    data = _parse_value("top level value")
 
     // Make sure there's no trailing text
     _dump_whitespace()
@@ -47,16 +49,14 @@ class JsonParser
       error
     end
 
-    consume doc
-
-  fun report(): (U64 /* line */, String /*message */) =>
+  fun parse_report(): (U64 /* line */, String /*message */) =>
     """
     Give details of the error that occured last time we attempted to parse.
     If parse was successful returns (0, "").
     """
     (_err_line, _err_msg)
 
-  fun ref _parse_value(context: String): _JsonIso ? =>
+  fun ref _parse_value(context: String): JsonType ? =>
     """
     Parse a single JSON value of any type, which MUST be present.
     Raise error on invalid or missing value.
@@ -170,7 +170,7 @@ class JsonParser
 
     (value, digit_count)
 
-  fun ref _parse_object(): JsonObject iso^ ? =>
+  fun ref _parse_object(): JsonObject ? =>
     """
     Parse a JSON object, the leading { of which has already been peeked.
     """
@@ -183,7 +183,7 @@ class JsonParser
       return JsonObject
     end
     
-    let map = recover iso Map[String, JsonType] end
+    let map = Map[String, JsonType]
 
     // Find elements in object
     while true do
@@ -211,11 +211,9 @@ class JsonParser
       end
     end
     
-    let obj = JsonObject
-    obj.data = consume map
-    consume obj
+    JsonObject.from_map(map)
 
-  fun ref _parse_array(): JsonArray iso^ ? =>
+  fun ref _parse_array(): JsonArray ? =>
     """
     Parse an array, the leading [ of which has already been peeked.
     """
@@ -228,7 +226,7 @@ class JsonParser
       return JsonArray
     end
     
-    let array = recover iso Array[JsonType] end
+    let array = Array[JsonType]
     
     // Find elements in array
     while true do
@@ -246,9 +244,7 @@ class JsonParser
       end
     end
     
-    let array_obj = JsonArray
-    array_obj.data = consume array
-    consume array_obj
+    JsonArray.from_array(array)
 
   fun ref _parse_string(context: String): String ? =>
     """
