@@ -4,6 +4,24 @@
 #include "../pkg/package.h"
 #include <assert.h>
 
+static bool void_star_param(ast_t* param_type, ast_t* arg_type)
+{
+  assert(param_type != NULL);
+  assert(arg_type != NULL);
+
+  if(is_pointer(param_type) && is_pointer(arg_type))
+  {
+    ast_t* type_args = ast_childidx(param_type, 2);
+
+    if(ast_childcount(type_args) == 1 && is_none(ast_child(type_args)))
+      // Parameter type is Pointer[None] and argument type is
+      // Pointer[Something]. Allow argument.
+      return true;
+  }
+
+  return false;
+}
+
 static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 {
   assert(call != NULL);
@@ -28,7 +46,8 @@ static ast_result_t declared_ffi(pass_opt_t* opt, ast_t* call, ast_t* decl)
 
     ast_t* a_type = ast_type(arg);
 
-    if((a_type != NULL) && !is_subtype(a_type, p_type))
+    if((a_type != NULL) && !void_star_param(p_type, a_type) &&
+      !is_subtype(a_type, p_type))
     {
       ast_error(arg, "argument not a subtype of parameter");
       ast_error(param, "parameter type: %s", ast_print_type(p_type));
@@ -95,7 +114,7 @@ ast_result_t expr_ffi(pass_opt_t* opt, ast_t* ast)
 {
   if(!package_allow_ffi(&opt->check))
   {
-    ast_error(ast, "This package isn't allowed to do C FFI.");
+    ast_error(ast, "This package isn't allowed to do C FFI");
     return AST_FATAL;
   }
 
