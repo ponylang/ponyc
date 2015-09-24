@@ -9,15 +9,19 @@ static bool void_star_param(ast_t* param_type, ast_t* arg_type)
   assert(param_type != NULL);
   assert(arg_type != NULL);
 
-  if(is_pointer(param_type) && is_pointer(arg_type))
-  {
-    ast_t* type_args = ast_childidx(param_type, 2);
+  if(!is_pointer(param_type))
+    return false;
 
-    if(ast_childcount(type_args) == 1 && is_none(ast_child(type_args)))
-      // Parameter type is Pointer[None] and argument type is
-      // Pointer[Something]. Allow argument.
+  ast_t* type_args = ast_childidx(param_type, 2);
+
+  if(ast_childcount(type_args) != 1 || !is_none(ast_child(type_args)))
+    return false;
+
+  // Parameter type is Pointer[None]
+
+  if(is_pointer(arg_type) || is_literal(arg_type, "U64"))
+    // Argument is Pointer[Something] or U64, allow it
       return true;
-  }
 
   return false;
 }

@@ -182,13 +182,26 @@ TEST_F(FFITest, DeclarationVoidStarPointer)
 }
 
 
+TEST_F(FFITest, DeclarationVoidStarU64)
+{
+  const char* src =
+    "use @foo[U32](a: Pointer[None])\n"
+
+    "class Foo\n"
+    "  fun f(x: U64) =>\n"
+    "    @foo[U32](x)";
+
+  TEST_COMPILE(src);
+}
+
+
 TEST_F(FFITest, DeclarationVoidStarNotPointer)
 {
   const char* src =
     "use @foo[U32](a: Pointer[None])\n"
 
     "class Foo\n"
-    "  fun f(x: U32) =>\n"
+    "  fun f(x: U8) =>\n"
     "    @foo[U32](x)";
 
   TEST_ERROR(src);
