@@ -380,6 +380,28 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
 }
 
 
+static ast_result_t syntax_arrowtype(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* rhs = ast_childidx(ast, 1);
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_THISTYPE)
+  {
+    ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_BOXTYPE)
+  {
+    ast_error(ast, "'box' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 static ast_result_t syntax_match(ast_t* ast)
 {
   assert(ast != NULL);
@@ -657,6 +679,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
     case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
+    case TK_ARROW:      r = syntax_arrowtype(ast); break;
     case TK_MATCH:      r = syntax_match(ast); break;
     case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
     case TK_FFICALL:    r = syntax_ffi(ast, true); break;
