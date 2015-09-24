@@ -2,13 +2,13 @@ class ContentsLog
   """
   Logs the contents of HTTP requests and responses.
   """
-  let _out: Stream
+  let _out: OutStream
 
-  new val create(out: Stream) =>
+  new val create(out: OutStream) =>
     _out = out
 
   fun val apply(ip: String, request: Payload val, response: Payload val) =>
-    let list = recover Array[Bytes] end
+    let list = recover Array[ByteSeq] end
 
     list.push("REQUEST\n")
     list.push(request.method)

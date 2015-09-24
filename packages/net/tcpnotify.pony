@@ -38,7 +38,7 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref sent(conn: TCPConnection ref, data: Bytes): Bytes ? =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
     """
     Called when data is sent on the connection. This gives the notifier an
     opportunity to modify sent data before it is written. The notifier can

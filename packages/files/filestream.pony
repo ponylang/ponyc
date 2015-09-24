@@ -1,4 +1,4 @@
-actor FileStream is Stream
+actor FileStream is OutStream
   """
   Asynchronous access to a File object. Wraps file operations print, write,
   printv and writev. The File will be disposed through File._final.
@@ -8,26 +8,26 @@ actor FileStream is Stream
   new create(file: File iso) =>
     _file = consume file
 
-  be print(data: Bytes) =>
+  be print(data: ByteSeq) =>
     """
     Print some bytes and insert a newline afterwards.
     """
     _file.print(data)
 
-  be write(data: Bytes) =>
+  be write(data: ByteSeq) =>
     """
     Print some bytes without inserting a newline afterwards.
     """
     _file.write(data)
 
-  be printv(data: BytesList) =>
+  be printv(data: ByteSeqIter) =>
     """
-    Print an array of Bytes.
+    Print an iterable collection of ByteSeqs.
     """
     _file.printv(data)
 
-  be writev(data: BytesList) =>
+  be writev(data: ByteSeqIter) =>
     """
-    Write an array of Bytes.
+    Write an iterable collection of ByteSeqs.
     """
     _file.writev(data)

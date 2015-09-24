@@ -111,11 +111,11 @@ primitive I128 is _SignedInteger[I128, U128]
   fun ctz(): I128 => @"llvm.cttz.i128"[I128](this, false)
   fun bitwidth(): I128 => 128
 
-  fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+  fun string(fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
+    _ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
       fill)
 
   fun divmod(y: I128): (I128, I128) =>

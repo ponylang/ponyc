@@ -9,7 +9,7 @@ class SSLConnection is TCPConnectionNotify
   let _ssl: SSL
   var _connected: Bool = false
   var _closed: Bool = false
-  let _pending: List[Bytes] = _pending.create()
+  let _pending: List[ByteSeq] = _pending.create()
 
   new iso create(notify: TCPConnectionNotify iso, ssl: SSL iso) =>
     """
@@ -42,7 +42,7 @@ class SSLConnection is TCPConnectionNotify
     """
     _notify.connect_failed(conn)
 
-  fun ref sent(conn: TCPConnection ref, data: Bytes): Bytes ? =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
     """
     Pass the data to the SSL session and check for both new application data
     and new destination data.

@@ -15,7 +15,7 @@ actor TCPConnection
   var _closed: Bool = false
   var _shutdown: Bool = false
   var _shutdown_peer: Bool = false
-  let _pending: List[(Bytes, U64)] = _pending.create()
+  let _pending: List[(ByteSeq, U64)] = _pending.create()
   var _read_buf: Array[U8] iso = recover Array[U8].undefined(64) end
 
   new create(notify: TCPConnectionNotify iso, host: String, service: String,
@@ -66,7 +66,7 @@ actor TCPConnection
     _queue_read()
     _notify.accepted(this)
 
-  be write(data: Bytes) =>
+  be write(data: ByteSeq) =>
     """
     Write a single sequence of bytes.
     """
@@ -76,7 +76,7 @@ actor TCPConnection
       end
     end
 
-  be writev(data: BytesList) =>
+  be writev(data: ByteSeqIter) =>
     """
     Write a sequence of sequences of bytes.
     """
@@ -206,7 +206,7 @@ actor TCPConnection
     """
     _pending_reads()
 
-  fun ref write_final(data: Bytes) =>
+  fun ref write_final(data: ByteSeq) =>
     """
     Write as much as possible to the socket. Set _writeable to false if not
     everything was written. On an error, close the connection. This is for

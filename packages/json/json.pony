@@ -141,14 +141,14 @@ primitive _JsonPrint
           out.push(c.u8())
         elseif c < 0x10000 then
           out.append("\\u")
-          out.append(c.string(IntHexBare where width = 4, fill = '0'))
+          out.append(c.string(FormatHexBare where width = 4, fill = '0'))
         else
           let high = (((c - 0x10000) >> 10) and 0x3FF) + 0xD800
           let low = ((c - 0x10000) and 0x3FF) + 0xDC00
           out.append("\\u")
-          out.append(high.string(IntHexBare where width = 4))
+          out.append(high.string(FormatHexBare where width = 4))
           out.append("\\u")
-          out.append(low.string(IntHexBare where width = 4))
+          out.append(low.string(FormatHexBare where width = 4))
         end
       end
     end

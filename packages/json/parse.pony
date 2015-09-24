@@ -317,8 +317,8 @@ class JsonParser
 
     if (value >= 0xDC00) or (trailing < 0xDC00) or (trailing >= 0xE000) then
       _error("Expected UTF-16 surrogate pair, got \\u" +
-        value.string(IntHexBare where width = 4) + " \\u" +
-        trailing.string(IntHexBare where width = 4))
+        value.string(FormatHexBare where width = 4) + " \\u" +
+        trailing.string(FormatHexBare where width = 4))
       error
     end
 
