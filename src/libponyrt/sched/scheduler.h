@@ -9,11 +9,11 @@
 
 PONY_EXTERN_C_BEGIN
 
-typedef gcstack_t* (*trace_object_fn)(gcstack_t*, pony_actor_t* current,
+typedef void (*trace_object_fn)(pony_ctx_t* ctx, pony_actor_t* current,
   heap_t* heap, gc_t* gc, void* p, pony_trace_fn f);
 
-typedef void (*trace_actor_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  pony_actor_t* actor);
+typedef void (*trace_actor_fn)(pony_ctx_t* ctx, pony_actor_t* current,
+  heap_t* heap, gc_t* gc, pony_actor_t* actor);
 
 typedef struct scheduler_t scheduler_t;
 
@@ -24,6 +24,7 @@ typedef struct pony_ctx_t
   trace_object_fn trace_object;
   trace_actor_fn trace_actor;
   gcstack_t* stack;
+  actormap_t acquire;
 } pony_ctx_t;
 
 struct scheduler_t

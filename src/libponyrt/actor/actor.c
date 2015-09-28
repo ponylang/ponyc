@@ -360,9 +360,9 @@ void* pony_alloc_final(size_t size, pony_final_fn final)
   return p;
 }
 
-void pony_triggergc()
+void pony_triggergc(pony_actor_t* actor)
 {
-  this_actor->heap.next_gc = 0;
+  actor->heap.next_gc = 0;
 }
 
 void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)

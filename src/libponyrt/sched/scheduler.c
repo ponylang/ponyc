@@ -319,7 +319,7 @@ static void scheduler_shutdown()
     mpmcq_destroy(&scheduler[i].q);
   }
 
-  free(scheduler);
+  pool_free_size(scheduler_count * sizeof(scheduler_t), scheduler);
   scheduler = NULL;
   scheduler_count = 0;
 
@@ -335,7 +335,9 @@ pony_ctx_t* scheduler_init(uint32_t threads, bool noyield)
     threads = cpu_count();
 
   scheduler_count = threads;
-  scheduler = (scheduler_t*)calloc(scheduler_count, sizeof(scheduler_t));
+  scheduler = (scheduler_t*)pool_alloc_size(
+    scheduler_count * sizeof(scheduler_t));
+  memset(scheduler, 0, scheduler_count * sizeof(scheduler_t));
 
   cpu_assign(scheduler_count, scheduler);
 

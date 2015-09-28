@@ -9,18 +9,17 @@
 
 DEFINE_STACK(gcstack, void);
 
-static __pony_thread_local actormap_t acquire;
 static __pony_thread_local gcstack_t* finaliser_stack;
 
-static void acquire_actor(pony_actor_t* actor)
+static void acquire_actor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  actorref_t* aref = actormap_getorput(&acquire, actor, 0);
+  actorref_t* aref = actormap_getorput(&ctx->acquire, actor, 0);
   actorref_inc_more(aref);
 }
 
-static void acquire_object(pony_actor_t* actor, void* address)
+static void acquire_object(pony_ctx_t* ctx, pony_actor_t* actor, void* address)
 {
-  actorref_t* aref = actormap_getorput(&acquire, actor, 0);
+  actorref_t* aref = actormap_getorput(&ctx->acquire, actor, 0);
   object_t* obj = actorref_getorput(aref, address, 0);
   object_inc_more(obj);
 }
@@ -44,7 +43,7 @@ static void current_actor_dec(gc_t* gc)
   }
 }
 
-gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
+void gc_sendobject(pony_ctx_t* ctx, pony_actor_t* current, heap_t*
   heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   (void)heap;
@@ -55,11 +54,11 @@ gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
   {
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
 
-    return stack;
+    return;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -79,12 +78,12 @@ gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
 
       if(f != NULL)
       {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
+        ctx->stack = gcstack_push(ctx->stack, p);
+        ctx->stack = gcstack_push(ctx->stack, f);
       }
     }
 
-    return stack;
+    return;
   }
 
   // get the actor
@@ -92,14 +91,14 @@ gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
 
   // we've reached this by tracing a tag through a union
   if(aref == NULL)
-    return stack;
+    return;
 
   // get the object
   object_t* obj = actorref_getobject(aref, p);
 
   // we've reached this by tracing a tag through a union
   if(obj == NULL)
-    return stack;
+    return;
 
   if(!actorref_marked(aref, gc->mark))
   {
@@ -107,7 +106,7 @@ gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
     if(!actorref_dec(aref))
     {
       actorref_inc_more(aref);
-      acquire_actor(actor);
+      acquire_actor(ctx, actor);
     }
 
     actorref_mark(aref, gc->mark);
@@ -121,22 +120,20 @@ gcstack_t* gc_sendobject(gcstack_t* stack, pony_actor_t* current, heap_t*
     if(!object_dec(obj))
     {
       object_inc_more(obj);
-      acquire_object(actor, p);
+      acquire_object(ctx, actor, p);
     }
 
     object_mark(obj, gc->mark);
 
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
   }
-
-  return stack;
 }
 
-gcstack_t* gc_recvobject(gcstack_t* stack, pony_actor_t* current,
+void gc_recvobject(pony_ctx_t* ctx, pony_actor_t* current,
   heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
@@ -146,11 +143,11 @@ gcstack_t* gc_recvobject(gcstack_t* stack, pony_actor_t* current,
   {
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
 
-    return stack;
+    return;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -173,12 +170,12 @@ gcstack_t* gc_recvobject(gcstack_t* stack, pony_actor_t* current,
 
       if(f != NULL)
       {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
+        ctx->stack = gcstack_push(ctx->stack, p);
+        ctx->stack = gcstack_push(ctx->stack, f);
       }
     }
 
-    return stack;
+    return;
   }
 
   // get the actor
@@ -208,15 +205,13 @@ gcstack_t* gc_recvobject(gcstack_t* stack, pony_actor_t* current,
 
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
   }
-
-  return stack;
 }
 
-gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
+void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
   heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
@@ -226,11 +221,11 @@ gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
   {
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
 
-    return stack;
+    return;
   }
 
   pony_actor_t* actor = heap_owner(chunk);
@@ -242,8 +237,8 @@ gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
       // mark in our heap and recurse if it wasn't already marked
       if(!heap_mark(chunk, p))
       {
-        stack = gcstack_push(stack, p);
-        stack = gcstack_push(stack, f);
+        ctx->stack = gcstack_push(ctx->stack, p);
+        ctx->stack = gcstack_push(ctx->stack, f);
       }
     } else {
       // no recurse function, so do a shallow mark. if the same address is
@@ -251,7 +246,7 @@ gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
       heap_mark_shallow(chunk, p);
     }
 
-    return stack;
+    return;
   }
 
   // mark the owner
@@ -259,14 +254,14 @@ gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
 
   // we've reached this by tracing a tag through a union
   if(aref == NULL)
-    return stack;
+    return;
 
   // get the object
   object_t* obj = actorref_getobject(aref, p);
 
   // we've reached this by tracing a tag through a union
   if(obj == NULL)
-    return stack;
+    return;
 
   actorref_mark(aref, gc->mark);
 
@@ -280,16 +275,14 @@ gcstack_t* gc_markobject(gcstack_t* stack, pony_actor_t* current,
 
     if(f != NULL)
     {
-      stack = gcstack_push(stack, p);
-      stack = gcstack_push(stack, f);
+      ctx->stack = gcstack_push(ctx->stack, p);
+      ctx->stack = gcstack_push(ctx->stack, f);
     }
   }
-
-  return stack;
 }
 
-void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  pony_actor_t* actor)
+void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
+  gc_t* gc, pony_actor_t* actor)
 {
   (void)heap;
 
@@ -305,7 +298,7 @@ void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
       if(!actorref_dec(aref))
       {
         actorref_inc_more(aref);
-        acquire_actor(actor);
+        acquire_actor(ctx, actor);
       }
 
       actorref_mark(aref, gc->mark);
@@ -315,9 +308,11 @@ void gc_sendactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
   }
 }
 
-void gc_recvactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  pony_actor_t* actor)
+void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
+  gc_t* gc, pony_actor_t* actor)
 {
+  (void)ctx;
+
   if(actor == current)
   {
     current_actor_dec(gc);
@@ -335,9 +330,11 @@ void gc_recvactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
   }
 }
 
-void gc_markactor(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  pony_actor_t* actor)
+void gc_markactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
+  gc_t* gc, pony_actor_t* actor)
 {
+  (void)ctx;
+
   if(actor == current)
     return;
 
@@ -451,14 +448,14 @@ void gc_sendacquire(pony_ctx_t* ctx)
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
 
-  while((aref = actormap_next(&acquire, &i)) != NULL)
+  while((aref = actormap_next(&ctx->acquire, &i)) != NULL)
   {
-    actormap_removeindex(&acquire, i);
+    actormap_removeindex(&ctx->acquire, i);
     pony_sendp(ctx, actorref_actor(aref), ACTORMSG_ACQUIRE, aref);
   }
 
-  actormap_destroy(&acquire);
-  memset(&acquire, 0, sizeof(actormap_t));
+  actormap_destroy(&ctx->acquire);
+  memset(&ctx->acquire, 0, sizeof(actormap_t));
 }
 
 void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)

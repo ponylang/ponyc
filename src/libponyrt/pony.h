@@ -181,7 +181,7 @@ ATTRIBUTE_MALLOC(void* pony_realloc(void* p, size_t size));
 ATTRIBUTE_MALLOC(void* pony_alloc_final(size_t size, pony_final_fn final));
 
 /// Trigger GC next time the current actor is scheduled
-void pony_triggergc();
+void pony_triggergc(pony_actor_t* actor);
 
 /**
  * If an actor is currently unscheduled, this will reschedule it. This is not
