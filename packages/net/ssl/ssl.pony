@@ -103,7 +103,7 @@ class SSL
       buf
     end
 
-  fun ref write(data: Bytes) ? =>
+  fun ref write(data: ByteSeq) ? =>
     """
     When application data is sent, add it to the SSL session. Raises an error
     if the handshake is not complete.
@@ -114,7 +114,7 @@ class SSL
       @SSL_write[I32](_ssl, data.cstring(), data.size().u32())
     end
 
-  fun ref receive(data: Bytes) =>
+  fun ref receive(data: ByteSeq) =>
     """
     When data is received, add it to the SSL session.
     """

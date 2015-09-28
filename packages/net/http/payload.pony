@@ -13,7 +13,7 @@ class Payload iso
   var url: URL
 
   let _headers: Map[String, String] = _headers.create()
-  let _body: Array[Bytes] = _body.create()
+  let _body: Array[ByteSeq] = _body.create()
   let _response: Bool
 
   new iso request(method': String = "GET", url': URL = URL,
@@ -73,7 +73,7 @@ class Payload iso
     """
     _headers
 
-  fun body(): this->Array[Bytes] =>
+  fun body(): this->Array[ByteSeq] =>
     """
     Get the body.
     """
@@ -91,7 +91,7 @@ class Payload iso
 
     len
 
-  fun ref add_chunk(data: Bytes): Payload ref^ =>
+  fun ref add_chunk(data: ByteSeq): Payload ref^ =>
     """
     Add a chunk to the body.
     """
@@ -151,7 +151,7 @@ class Payload iso
     Writes an an HTTP request.
     """
     let len = 15 + (4 * _headers.size()) + (4 * _body.size())
-    var list = recover Array[Bytes](len) end
+    var list = recover Array[ByteSeq](len) end
 
     list.push(method)
     list.push(" ")
@@ -190,7 +190,7 @@ class Payload iso
     Write as an HTTP response.
     """
     let len = 8 + (4 * _headers.size()) + (4 * _body.size())
-    var list = recover Array[Bytes](len) end
+    var list = recover Array[ByteSeq](len) end
 
     list.push(proto)
     list.push(" ")
@@ -207,7 +207,7 @@ class Payload iso
 
     conn.writev(consume list)
 
-  fun _add_headers(list: Array[Bytes] iso): Array[Bytes] iso^ =>
+  fun _add_headers(list: Array[ByteSeq] iso): Array[ByteSeq] iso^ =>
     """
     Add the headers to the list.
     """
@@ -225,7 +225,7 @@ class Payload iso
 
     list
 
-  fun _add_body(list: Array[Bytes] iso): Array[Bytes] iso^ =>
+  fun _add_body(list: Array[ByteSeq] iso): Array[ByteSeq] iso^ =>
     """
     Add the body to the list.
     TODO: don't include the body for HEAD, 204, 304 or 1xx

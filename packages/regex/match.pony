@@ -5,10 +5,10 @@ class Match
   Contains match data for a combination of a regex and a subject.
   """
   var _match: Pointer[_Match]
-  let _subject: Bytes
+  let _subject: ByteSeq
   let _size: U64
 
-  new iso _create(pattern: Pointer[_Pattern] tag, jit: Bool, subject: Bytes,
+  new iso _create(pattern: Pointer[_Pattern] tag, jit: Bool, subject: ByteSeq,
     offset: U64) ?
   =>
     """
@@ -39,7 +39,7 @@ class Match
     """
     _size
 
-  fun apply[A: (Bytes iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
+  fun apply[A: (ByteSeq iso & Seq[U8] iso) = String iso](i: U64): A^ ? =>
     """
     Returns a capture by number. Raises an error if the index is out of bounds.
     """
@@ -56,7 +56,7 @@ class Match
     out.truncate(len)
     out
 
-  fun find[A: (Bytes iso & Seq[U8] iso) = String iso](name: String box): A^ ?
+  fun find[A: (ByteSeq iso & Seq[U8] iso) = String iso](name: String box): A^ ?
   =>
     """
     Returns a capture by name. Raises an error if the named capture does not

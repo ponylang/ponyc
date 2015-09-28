@@ -11,7 +11,7 @@
 
 static bool is_isect_subtype(ast_t* sub, ast_t* super);
 
-static bool is_literal(ast_t* type, const char* name)
+bool is_literal(ast_t* type, const char* name)
 {
   if(type == NULL)
     return false;

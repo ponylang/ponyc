@@ -9,7 +9,7 @@ class FilePath val
   let path: String
   let caps: FileCaps = FileCaps
 
-  new val create(base: (FilePath | Root | None), path': String,
+  new val create(base: (FilePath | AmbientAuth | None), path': String,
     caps': FileCaps val = recover val FileCaps.all() end) ?
   =>
     """
@@ -37,7 +37,7 @@ class FilePath val
       if not path.at(b.path, 0) then
         error
       end
-    | let b: Root =>
+    | let b: AmbientAuth =>
       path = Path.abs(path')
     else
       error

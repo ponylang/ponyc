@@ -34,7 +34,8 @@ static const char* _builtin =
   "primitive F32\n"
   "primitive F64\n"
   "primitive None\n"
-  "primitive Bool";
+  "primitive Bool\n"
+  "class Pointer[A]";
 
 
 // Replace any underscores in the given type string with "DontCare" and append

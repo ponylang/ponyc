@@ -3,7 +3,7 @@ class Env val
   An environment holds the command line and other values injected into the
   program by default by the runtime.
   """
-  let root: (Root | None)
+  let root: (AmbientAuth | None)
   let input: Stdin
   let out: StdStream
   let err: StdStream
@@ -18,7 +18,7 @@ class Env val
     Builds an environment from the command line. This is done before the Main
     actor is created.
     """
-    root = Root._create()
+    root = AmbientAuth._create()
     @os_stdout_setup[None]()
 
     input = Stdin._create(@os_stdin_setup[Bool]())
@@ -29,7 +29,7 @@ class Env val
     _envp = envp
     _vars = None
 
-  new create(root': (Root | None), input': Stdin, out': StdStream,
+  new create(root': (AmbientAuth | None), input': Stdin, out': StdStream,
     err': StdStream, args': Array[String] val,
     vars': (Array[String] val | None))
   =>
