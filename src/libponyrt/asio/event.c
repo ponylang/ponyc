@@ -27,15 +27,16 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   ev->noisy = noisy;
 
   // The event is effectively being sent to another thread, so mark it here.
-  pony_gc_send();
-  pony_traceactor(owner, owner);
-  pony_send_done(NULL, owner);
+  pony_ctx_t* ctx = pony_ctx();
+  pony_gc_send(ctx);
+  pony_traceactor(ctx, owner);
+  pony_send_done(ctx);
 
   asio_event_subscribe(ev);
   return ev;
 }
 
-void asio_event_destroy(pony_actor_t* current, asio_event_t* ev)
+void asio_event_destroy(asio_event_t* ev)
 {
   if((ev == NULL) || (ev->magic != ev) || (ev->flags != ASIO_DISPOSABLE))
   {
@@ -47,9 +48,10 @@ void asio_event_destroy(pony_actor_t* current, asio_event_t* ev)
 
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
-  pony_gc_recv();
-  pony_traceactor(current, ev->owner);
-  pony_recv_done(NULL, current);
+  pony_ctx_t* ctx = pony_ctx();
+  pony_gc_recv(ctx);
+  pony_traceactor(ctx, ev->owner);
+  pony_recv_done(ctx);
 
   POOL_FREE(asio_event_t, ev);
 }

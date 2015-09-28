@@ -1,6 +1,7 @@
 #ifndef mem_heap_h
 #define mem_heap_h
 
+#include "pool.h"
 #include <pony.h>
 #include <platform.h>
 #include <stdlib.h>
@@ -9,20 +10,10 @@
 PONY_EXTERN_C_BEGIN
 
 #define HEAP_MINBITS 5
-#define HEAP_MAXBITS 10
+#define HEAP_MAXBITS (POOL_ALIGN_BITS - 1)
 #define HEAP_SIZECLASSES (HEAP_MAXBITS - HEAP_MINBITS + 1)
 #define HEAP_MIN (1 << HEAP_MINBITS)
 #define HEAP_MAX (1 << HEAP_MAXBITS)
-
-#define HEAP_INDEX(SIZE) \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 0)), 0, \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 1)), 1, \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 2)), 2, \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 3)), 3, \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 4)), 4, \
-  __pony_choose_expr(SIZE <= (1 << (HEAP_MINBITS + 5)), 5, \
-    EXPR_NONE \
-    ))))))
 
 typedef struct chunk_t chunk_t;
 

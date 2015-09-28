@@ -83,7 +83,7 @@ actor Stdin
     When the event fires, read from stdin.
     """
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](this, event)
+      @asio_event_destroy[None](event)
     elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end

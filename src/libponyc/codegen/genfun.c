@@ -354,9 +354,8 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Trace while populating the message contents.
-  LLVMValueRef this_actor = gencall_runtime(c, "pony_current", NULL, 0, "");
-  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", NULL, 0, "");
-  LLVMValueRef stack = LLVMConstNull(c->void_ptr);
+  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);
   bool need_trace = false;
@@ -367,18 +366,16 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
     LLVMValueRef arg_ptr = LLVMBuildStructGEP(c->builder, msg_ptr, i, "");
     LLVMBuildStore(c->builder, arg, arg_ptr);
 
-    need_trace |= gentrace(c, &stack, this_actor, arg, ast_type(param));
+    need_trace |= gentrace(c, ctx, arg, ast_type(param));
     param = ast_sibling(param);
   }
 
   if(need_trace)
   {
-    args[0] = stack;
-    args[1] = this_actor;
-    gencall_runtime(c, "pony_send_done", args, 2, "");
+    gencall_runtime(c, "pony_send_done", &ctx, 1, "");
   } else {
-    LLVMInstructionEraseFromParent(this_actor);
     LLVMInstructionEraseFromParent(start_trace);
+    LLVMInstructionEraseFromParent(ctx);
   }
 
   // Send the message.
@@ -410,8 +407,8 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
   // Trace the message.
-  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", NULL, 0, "");
-  LLVMValueRef stack = LLVMConstNull(c->void_ptr);
+  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);
   bool need_trace = false;
@@ -421,18 +418,16 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, msg, i + 2, "");
     args[i] = LLVMBuildLoad(c->builder, field, "");
 
-    need_trace |= gentrace(c, &stack, this_ptr, args[i], ast_type(param));
+    need_trace |= gentrace(c, ctx, args[i], ast_type(param));
     param = ast_sibling(param);
   }
 
   if(need_trace)
   {
-    LLVMValueRef recv_args[2];
-    recv_args[0] = stack;
-    recv_args[1] = this_ptr;
-    gencall_runtime(c, "pony_recv_done", recv_args, 2, "");
+    gencall_runtime(c, "pony_recv_done", &ctx, 1, "");
   } else {
     LLVMInstructionEraseFromParent(start_trace);
+    LLVMInstructionEraseFromParent(ctx);
   }
 
   // Call the handler.

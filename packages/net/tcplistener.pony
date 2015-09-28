@@ -79,7 +79,7 @@ actor TCPListener
     end
 
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](this, _event)
+      @asio_event_destroy[None](_event)
       _event = AsioEvent.none()
     end
 

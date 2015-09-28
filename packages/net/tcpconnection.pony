@@ -175,7 +175,7 @@ actor TCPConnection
         // It's not our event.
         if AsioEvent.disposable(flags) then
           // It's disposable, so dispose of it.
-          @asio_event_destroy[None](this, event)
+          @asio_event_destroy[None](event)
         end
       end
     else
@@ -193,7 +193,7 @@ actor TCPConnection
       end
 
       if AsioEvent.disposable(flags) then
-        @asio_event_destroy[None](this, event)
+        @asio_event_destroy[None](event)
         _event = AsioEvent.none()
       end
 

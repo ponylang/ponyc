@@ -14,7 +14,7 @@ PONY_EXTERN_C_BEGIN
 #define  ACTORMSG_RELEASE (UINT32_MAX - 2)
 #define  ACTORMSG_CONF (UINT32_MAX - 1)
 
-bool actor_run(pony_actor_t* actor);
+bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void actor_destroy(pony_actor_t* actor);
 

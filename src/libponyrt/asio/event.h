@@ -34,14 +34,14 @@ typedef struct asio_msg_t
 /** Create a new event.
  *
  *  An event is noisy, if it should prevent the runtime system from terminating
- *  based on quiescence. The owner must also be the currently executing actor.
+ *  based on quiescence.
  */
 asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   uint32_t flags, bool noisy);
 
 /** Deallocates an ASIO event.
  */
-void asio_event_destroy(pony_actor_t* current, asio_event_t* ev);
+void asio_event_destroy(asio_event_t* ev);
 
 uintptr_t asio_event_data(asio_event_t* ev);
 

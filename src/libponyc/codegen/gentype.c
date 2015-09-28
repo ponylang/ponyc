@@ -304,8 +304,8 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef* stack,
-  LLVMValueRef actor, LLVMValueRef object, int extra)
+static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
+  LLVMValueRef object, int extra)
 {
   bool need_trace = false;
 
@@ -314,21 +314,21 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef* stack,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
       "");
     LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gentrace(c, stack, actor, value, g->fields[i]);
+    need_trace |= gentrace(c, ctx, value, g->fields[i]);
   }
 
   return need_trace;
 }
 
-static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef* stack,
-  LLVMValueRef actor, LLVMValueRef tuple)
+static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef ctx,
+  LLVMValueRef tuple)
 {
   bool need_trace = false;
 
   for(int i = 0; i < g->field_count; i++)
   {
     LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
-    need_trace |= gentrace(c, stack, actor, value, g->fields[i]);
+    need_trace |= gentrace(c, ctx, value, g->fields[i]);
   }
 
   return need_trace;
@@ -361,9 +361,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
-  LLVMValueRef stack = LLVMGetParam(trace_fn, 0);
-  LLVMValueRef this_actor = LLVMGetParam(trace_fn, 1);
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 2);
+  LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
     "object");
 
@@ -377,11 +376,10 @@ static bool make_trace(compile_t* c, gentype_t* g)
 
     LLVMTypeRef param_types[3];
     param_types[0] = c->void_ptr;
-    param_types[1] = c->object_ptr;
-    param_types[2] = g->primitive;
+    param_types[1] = g->primitive;
 
-    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_ptr,
-      param_types, 3, false);
+    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type,
+      param_types, 2, false);
 
     LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
       trace_tuple_type);
@@ -389,13 +387,12 @@ static bool make_trace(compile_t* c, gentype_t* g)
     codegen_startfun(c, trace_tuple_fn, false);
     LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
 
-    LLVMValueRef tuple_stack = LLVMGetParam(trace_tuple_fn, 0);
-    LLVMValueRef tuple_actor = LLVMGetParam(trace_tuple_fn, 1);
-    LLVMValueRef tuple_value = LLVMGetParam(trace_tuple_fn, 2);
+    LLVMValueRef tuple_ctx = LLVMGetParam(trace_tuple_fn, 0);
+    LLVMValueRef tuple_value = LLVMGetParam(trace_tuple_fn, 1);
 
-    need_trace = trace_elements(c, g, &tuple_stack, tuple_actor, tuple_value);
+    need_trace = trace_elements(c, g, tuple_ctx, tuple_value);
 
-    LLVMBuildRet(c->builder, tuple_stack);
+    LLVMBuildRetVoid(c->builder);
     codegen_finishfun(c);
 
     if(need_trace)
@@ -405,12 +402,11 @@ static bool make_trace(compile_t* c, gentype_t* g)
       LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
 
       // Call the tuple trace function with the unboxed primitive type.
-      LLVMValueRef args[3];
-      args[0] = stack;
-      args[1] = this_actor;
-      args[2] = tuple;
+      LLVMValueRef args[2];
+      args[0] = ctx;
+      args[1] = tuple;
 
-      stack = LLVMBuildCall(c->builder, trace_tuple_fn, args, 3, "");
+      LLVMBuildCall(c->builder, trace_tuple_fn, args, 2, "");
     } else {
       LLVMDeleteFunction(trace_tuple_fn);
     }
@@ -421,10 +417,10 @@ static bool make_trace(compile_t* c, gentype_t* g)
     if(g->underlying == TK_ACTOR)
       extra++;
 
-    need_trace = trace_fields(c, g, &stack, this_actor, object, extra);
+    need_trace = trace_fields(c, g, ctx, object, extra);
   }
 
-  LLVMBuildRet(c->builder, stack);
+  LLVMBuildRetVoid(c->builder);
   codegen_finishfun(c);
 
   if(!need_trace)

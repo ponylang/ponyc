@@ -143,7 +143,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
     if(sched->asio_stopped)
     {
       // Reset the ACK token in case we are rescheduling ourself.
-      cycle_terminate();
+      cycle_terminate(&sched->ctx);
       sched->ack_token++;
       sched->ack_count = 0;
     } else if(asio_stop()) {
@@ -253,7 +253,7 @@ static void run(scheduler_t* sched)
     }
 
     // Run the current actor and get the next actor.
-    bool reschedule = actor_run(actor);
+    bool reschedule = actor_run(&sched->ctx, actor);
     pony_actor_t* next = pop_global(sched);
 
     if(reschedule)
@@ -293,6 +293,7 @@ static void run(scheduler_t* sched)
 static DECLARE_THREAD_FN(run_thread)
 {
   scheduler_t* sched = (scheduler_t*) arg;
+  sched->ctx.scheduler = sched;
   this_scheduler = sched;
   cpu_affinity(sched->cpu);
   run(sched);
@@ -346,12 +347,15 @@ void scheduler_init(uint32_t threads, bool noyield)
     mpmcq_init(&scheduler[i].q);
   }
 
+  this_scheduler = &scheduler[0];
   mpmcq_init(&inject);
   asio_init();
 }
 
 bool scheduler_start(bool library)
 {
+  this_scheduler = NULL;
+
   if(!asio_start())
     return false;
 
@@ -429,4 +433,9 @@ void scheduler_terminate()
 uint32_t scheduler_cores()
 {
   return scheduler_count;
+}
+
+pony_ctx_t* pony_ctx()
+{
+  return &this_scheduler->ctx;
 }

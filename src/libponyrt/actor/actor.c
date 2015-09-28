@@ -24,7 +24,7 @@ typedef struct pony_actor_t
   uint8_t flags;
 
   // keep things accessed by other actors on a separate cache line
-  __pony_spec_align__(heap_t heap, 64); // 120 bytes
+  __pony_spec_align__(heap_t heap, 64); // 104 bytes
   gc_t gc; // 80 bytes
 } pony_actor_t;
 
@@ -103,25 +103,25 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
   }
 }
 
-static void try_gc(pony_actor_t* actor)
+static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(!heap_startgc(&actor->heap))
     return;
 
-  pony_gc_mark();
-  void* stack = NULL;
+  pony_gc_mark(ctx);
 
   if(actor->type->trace != NULL)
-    stack = actor->type->trace(stack, actor, actor);
+    actor->type->trace(ctx, actor);
 
-  gc_handlestack((gcstack_t*)stack, actor);
+  gc_handlestack(ctx);
   gc_sweep(&actor->gc);
   gc_done(&actor->gc);
   heap_endgc(&actor->heap);
 }
 
-bool actor_run(pony_actor_t* actor)
+bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 {
+  ctx->current = actor;
   this_actor = actor;
 
   pony_msg_t* msg;
@@ -137,7 +137,7 @@ bool actor_run(pony_actor_t* actor)
     if(ret)
     {
       // If we handle an application message, try to gc and then return.
-      try_gc(actor);
+      try_gc(ctx, actor);
       return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
@@ -147,13 +147,13 @@ bool actor_run(pony_actor_t* actor)
     if(handle_message(actor, msg, &notify))
     {
       // If we handle an application message, try to gc and then return.
-      try_gc(actor);
+      try_gc(ctx, actor);
       return !has_flag(actor, FLAG_UNSCHEDULED);
     }
   }
 
   // No application messages were in the queue.
-  try_gc(actor);
+  try_gc(ctx, actor);
 
   if(has_flag(actor, FLAG_UNSCHEDULED))
   {
@@ -240,11 +240,6 @@ void actor_sendrelease(pony_actor_t* actor)
 void actor_setsystem(pony_actor_t* actor)
 {
   set_flag(actor, FLAG_SYSTEM);
-}
-
-pony_actor_t* pony_current()
-{
-  return this_actor;
 }
 
 pony_actor_t* pony_create(pony_type_t* type)
@@ -389,12 +384,13 @@ void pony_unschedule()
   set_flag(this_actor, FLAG_UNSCHEDULED);
 }
 
-void pony_become(pony_actor_t* actor)
+void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
+  ctx->current = actor;
   this_actor = actor;
 }
 
-bool pony_poll(pony_actor_t* actor)
+bool pony_poll(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  return actor_run(actor);
+  return actor_run(ctx, actor);
 }

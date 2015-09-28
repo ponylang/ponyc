@@ -9,6 +9,7 @@
 PONY_EXTERN_C_BEGIN
 
 #define POOL_MIN_BITS 5
+#define POOL_ALIGN_BITS 10
 
 __pony_spec_malloc__(void* pool_alloc(size_t index));
 void pool_free(size_t index, void* p);

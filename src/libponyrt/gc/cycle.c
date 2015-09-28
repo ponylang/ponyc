@@ -851,9 +851,9 @@ void cycle_ack(size_t token)
   pony_sendi(cycle_detector, CYCLE_ACK, token);
 }
 
-void cycle_terminate()
+void cycle_terminate(pony_ctx_t* ctx)
 {
-  pony_become(cycle_detector);
+  pony_become(ctx, cycle_detector);
   final(cycle_detector);
 }
 

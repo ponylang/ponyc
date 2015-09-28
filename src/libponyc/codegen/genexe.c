@@ -119,12 +119,16 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
   }
 }
 
-static LLVMValueRef create_main(compile_t* c, gentype_t* g)
+static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
 {
   // Create the main actor and become it.
   LLVMValueRef actor = gencall_create(c, g);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, actor, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
+
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = object;
+  gencall_runtime(c, "pony_become", args, 2, "");
 
   return object;
 }
@@ -155,7 +159,8 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef main_actor = create_main(c, main_g);
+  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  LLVMValueRef main_actor = create_main(c, main_g, ctx);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
@@ -197,18 +202,17 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
-  gencall_runtime(c, "pony_gc_send", NULL, 0, "");
+  args[0] = ctx;
+  gencall_runtime(c, "pony_gc_send", args, 1, "");
+
   const char* env_trace = genname_trace(env_name);
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
+  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  gencall_runtime(c, "pony_traceobject", args, 3, "");
 
-  args[0] = LLVMConstNull(c->void_ptr);
-  args[1] = main_actor;
-  args[2] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[3] = LLVMGetNamedFunction(c->module, env_trace);
-  LLVMValueRef stack = gencall_runtime(c, "pony_traceobject", args, 4, "");
-
-  args[0] = stack;
-  args[1] = main_actor;
-  gencall_runtime(c, "pony_send_done", args, 2, "");
+  args[0] = ctx;
+  gencall_runtime(c, "pony_send_done", args, 1, "");
 
   // Send the message.
   args[0] = main_actor;
@@ -221,7 +225,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  LLVMValueRef final_actor = create_main(c, main_g);
+  LLVMValueRef final_actor = create_main(c, main_g, ctx);
   primitive_call(c, stringtab("_final"), NULL);
   args[0] = final_actor;
   gencall_runtime(c, "pony_destroy", args, 1, "");

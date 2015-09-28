@@ -1,5 +1,6 @@
 #include "gc.h"
 #include "../actor/actor.h"
+#include "../sched/scheduler.h"
 #include "../mem/pagemap.h"
 #include <string.h>
 #include <assert.h>
@@ -362,16 +363,16 @@ void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
   heap_used(heap, GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_handlestack(gcstack_t* stack, pony_actor_t* current)
+void gc_handlestack(pony_ctx_t* ctx)
 {
   pony_trace_fn f;
   void *p;
 
-  while(stack != NULL)
+  while(ctx->stack != NULL)
   {
-    stack = gcstack_pop(stack, (void**)&f);
-    stack = gcstack_pop(stack, &p);
-    stack = f(stack, current, p);
+    ctx->stack = gcstack_pop(ctx->stack, (void**)&f);
+    ctx->stack = gcstack_pop(ctx->stack, &p);
+    f(ctx, p);
   }
 }
 

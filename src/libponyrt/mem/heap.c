@@ -1,5 +1,4 @@
 #include "heap.h"
-#include "pool.h"
 #include "pagemap.h"
 #include "../ds/fun.h"
 #include <string.h>
@@ -21,7 +20,7 @@ typedef struct chunk_t
   struct chunk_t* next;
 } chunk_t;
 
-typedef char block_t[HEAP_MAX];
+typedef char block_t[HEAP_MAX << 1];
 typedef void (*chunk_fn)(chunk_t* chunk);
 
 static const uint32_t sizeclass_size[HEAP_SIZECLASSES] =
@@ -31,7 +30,7 @@ static const uint32_t sizeclass_size[HEAP_SIZECLASSES] =
   HEAP_MIN << 2,
   HEAP_MIN << 3,
   HEAP_MIN << 4,
-  HEAP_MIN << 5
+  // HEAP_MIN << 5
 };
 
 static const uintptr_t sizeclass_mask[HEAP_SIZECLASSES] =
@@ -41,7 +40,7 @@ static const uintptr_t sizeclass_mask[HEAP_SIZECLASSES] =
   ~((HEAP_MIN << 2) - 1),
   ~((HEAP_MIN << 3) - 1),
   ~((HEAP_MIN << 4) - 1),
-  ~((HEAP_MIN << 5) - 1)
+  // ~((HEAP_MIN << 5) - 1)
 };
 
 static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
@@ -51,15 +50,15 @@ static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
   0x11111111,
   0x01010101,
   0x00010001,
-  0x00000001
+  // 0x00000001
 };
 
 static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 {
   0, 1, 2, 2, 3, 3, 3, 3,
   4, 4, 4, 4, 4, 4, 4, 4,
-  5, 5, 5, 5, 5, 5, 5, 5,
-  5, 5, 5, 5, 5, 5, 5, 5,
+  // 5, 5, 5, 5, 5, 5, 5, 5,
+  // 5, 5, 5, 5, 5, 5, 5, 5,
 };
 
 static size_t heap_initialgc = 1 << 14;
@@ -182,7 +181,7 @@ uint32_t heap_index(size_t size)
 
 void heap_setinitialgc(size_t size)
 {
-  heap_initialgc = size;
+  heap_initialgc = 1ULL << size;
 }
 
 void heap_setnextgcfactor(double factor)
@@ -215,7 +214,7 @@ void* heap_alloc(pony_actor_t* actor, heap_t* heap, size_t size)
   if(size == 0)
   {
     return NULL;
-  } else if(size <= sizeof(block_t)) {
+  } else if(size <= HEAP_MAX) {
     return heap_alloc_small(actor, heap, heap_index(size));
   } else {
     return heap_alloc_large(actor, heap, size);

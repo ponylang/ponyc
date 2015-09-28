@@ -21,6 +21,12 @@ extern "C" {
  */
 typedef struct pony_actor_t pony_actor_t;
 
+/** Opaque definition of a context.
+ *
+ * The internals of a context aren't visible to the programmer.
+ */
+typedef struct pony_ctx_t pony_ctx_t;
+
 /** Message header.
  *
  * This must be the first field in any message structure. The ID is used for
@@ -51,9 +57,9 @@ typedef struct pony_msgp_t
 /** Trace function.
  *
  * Each type supplies a trace function. It is invoked with the currently
- * executing actor and the object being traced.
+ * executing context and the object being traced.
  */
-typedef void* (*pony_trace_fn)(void* stack, pony_actor_t* actor, void* p);
+typedef void (*pony_trace_fn)(pony_ctx_t* ctx, void* p);
 
 /** Dispatch function.
  *
@@ -90,10 +96,10 @@ typedef const struct _pony_type_t
 /** Padding for actor types.
  *
  * 56 bytes: initial header, not including the type descriptor
- * 120 bytes: heap
+ * 104 bytes: heap
  * 80 bytes: gc
  */
-#define PONY_ACTOR_PAD_SIZE 256
+#define PONY_ACTOR_PAD_SIZE 240
 
 typedef struct pony_actor_pad_t
 {
@@ -101,8 +107,8 @@ typedef struct pony_actor_pad_t
   char pad[PONY_ACTOR_PAD_SIZE];
 } pony_actor_pad_t;
 
-/// The currently executing actor.
-pony_actor_t* pony_current();
+/// The currently executing context.
+pony_ctx_t* pony_ctx();
 
 /** Create a new actor.
  *
@@ -191,7 +197,7 @@ void pony_schedule(pony_actor_t* actor);
 void pony_unschedule();
 
 /**
- * Call this to "become" an actor on a non-scheduler thread, i.e. from outside
+ * Call this to "become" an actor on a non-scheduler context, i.e. from outside
  * the pony runtime. Following this, pony API calls can be made as if the actor
  * in question were the current actor, eg. pony_alloc, pony_send, pony_create,
  * etc.
@@ -199,7 +205,7 @@ void pony_unschedule();
  * This can be called with NULL to make no actor the "current" actor for a
  * thread.
  */
-void pony_become(pony_actor_t* actor);
+void pony_become(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /**
  * Call this to handle an application message on an actor. This will do two
@@ -207,71 +213,71 @@ void pony_become(pony_actor_t* actor);
  * pending application message. If an application message is handled, it will
  * return true, otherwise false.
  */
-bool pony_poll(pony_actor_t* actor);
+bool pony_poll(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /** Start gc tracing for sending.
  *
  * Call this before sending a message if it has anything in it that can be
  * GCed. Then trace all the GCable items, then call pony_gc_done.
  */
-void pony_gc_send();
+void pony_gc_send(pony_ctx_t* ctx);
 
 /** Start gc tracing for receiving.
  *
  * Call this when receiving a message if it has anything in it that can be
  * GCed. Then trace all the GCable items, then call pony_gc_done.
  */
-void pony_gc_recv();
+void pony_gc_recv(pony_ctx_t* ctx);
 
 /** Finish gc tracing for sending.
  *
  * Call this after tracing the GC-able contents.
  */
-void pony_send_done(void* stack, pony_actor_t* current);
+void pony_send_done(pony_ctx_t* ctx);
 
 /** Finish gc tracing for receiving.
  *
  * Call this after tracing the GCable contents.
  */
-void pony_recv_done(void* stack, pony_actor_t* current);
+void pony_recv_done(pony_ctx_t* ctx);
 
 /** Trace memory
  *
  * Call this on allocated memory that contains no pointers to other allocated
  * memory. Also use this to mark tag aliases.
  */
-void pony_trace(pony_actor_t* current, void* p);
+void pony_trace(pony_ctx_t* ctx, void* p);
 
 /** Trace an actor
  *
  * This should be called for fields in an object that point to an actor.
  */
-void pony_traceactor(pony_actor_t* current, pony_actor_t* p);
+void pony_traceactor(pony_ctx_t* ctx, pony_actor_t* p);
 
 /** Trace an object.
  *
  * This should be called for every pointer field in an object when the object's
  * trace function is invoked.
  *
+ * @param ctx The current context.
  * @param p The pointer being traced.
  * @param f The trace function for the object pointed to.
  */
-void* pony_traceobject(void* stack, pony_actor_t* current, void* p,
-  pony_trace_fn f);
+void pony_traceobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
 
 /** Trace unknown.
  *
  * This should be called for fields in an object with an unknown type, but
  * which are not tags.
  */
-void* pony_traceunknown(void* stack, pony_actor_t* current, void* p);
+void pony_traceunknown(pony_ctx_t* ctx, void* p);
 
 /** Trace a tag or an actor
  *
  * This should be called for fields in an object that might be an actor or
  * might be a tag.
  */
-void pony_trace_tag_or_actor(pony_actor_t* current, void* p);
+void pony_trace_tag_or_actor(pony_ctx_t* ctx, void* p);
 
 /** Initialize the runtime.
  *

@@ -4,11 +4,29 @@
 #include <pony.h>
 #include <platform.h>
 #include "actor/messageq.h"
+#include "gc/gc.h"
 #include "mpmcq.h"
 
 PONY_EXTERN_C_BEGIN
 
-typedef struct scheduler_t
+typedef gcstack_t* (*trace_object_fn)(gcstack_t*, pony_actor_t* current,
+  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f);
+
+typedef void (*trace_actor_fn)(pony_actor_t* current, heap_t* heap, gc_t* gc,
+  pony_actor_t* actor);
+
+typedef struct scheduler_t scheduler_t;
+
+typedef struct pony_ctx_t
+{
+  scheduler_t* scheduler;
+  pony_actor_t* current;
+  trace_object_fn trace_object;
+  trace_actor_fn trace_actor;
+  gcstack_t* stack;
+} pony_ctx_t;
+
+struct scheduler_t
 {
   // These are rarely changed.
   pony_thread_id_t tid;
@@ -19,16 +37,16 @@ typedef struct scheduler_t
 
   // These are changed primarily by the owning scheduler thread.
   __pony_spec_align__(struct scheduler_t* last_victim, 64);
-  pony_actor_t* current;
 
+  pony_ctx_t ctx;
   uint32_t block_count;
   uint32_t ack_token;
   uint32_t ack_count;
 
-  // These are accessed by other scheduler threads.
-  messageq_t mq;
+  // These are accessed by other scheduler threads. The mpmcq_t is aligned.
   mpmcq_t q;
-} scheduler_t;
+  messageq_t mq;
+};
 
 void scheduler_init(uint32_t threads, bool noyield);
 

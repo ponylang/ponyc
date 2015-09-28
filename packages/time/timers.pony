@@ -70,7 +70,7 @@ actor Timers
     When the event fires, advance the timing wheels.
     """
     if AsioEvent.disposable(flags) then
-      @asio_event_destroy[None](this, event)
+      @asio_event_destroy[None](event)
     elseif event is _event then
       _advance()
     end

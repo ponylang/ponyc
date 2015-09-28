@@ -1,6 +1,5 @@
 #include "pagemap.h"
 #include "alloc.h"
-#include "heap.h"
 #include "pool.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -9,14 +8,14 @@
 
 #define PAGEMAP_ADDRESSBITS 48
 #define PAGEMAP_LEVELS 3
-#define PAGEMAP_BITS (PAGEMAP_ADDRESSBITS - HEAP_MAXBITS) / PAGEMAP_LEVELS
-#define PAGEMAP_EXCESS (PAGEMAP_ADDRESSBITS - HEAP_MAXBITS) % PAGEMAP_LEVELS
+#define PAGEMAP_BITS (PAGEMAP_ADDRESSBITS - POOL_ALIGN_BITS) / PAGEMAP_LEVELS
+#define PAGEMAP_EXCESS (PAGEMAP_ADDRESSBITS - POOL_ALIGN_BITS) % PAGEMAP_LEVELS
 
 #define L1_MASK (PAGEMAP_BITS)
 #define L2_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > 1))
 #define L3_MASK (PAGEMAP_BITS + (PAGEMAP_EXCESS > 0))
 
-#define L1_SHIFT (HEAP_MAXBITS)
+#define L1_SHIFT (POOL_ALIGN_BITS)
 #define L2_SHIFT (L1_SHIFT + L1_MASK)
 #define L3_SHIFT (L2_SHIFT + L2_MASK)
 
@@ -29,7 +28,7 @@ typedef struct pagemap_level_t
 } pagemap_level_t;
 
 /* Constructed for a 48 bit address space where we are interested in memory
- * with 11 bit (2048 byte) granularity.
+ * with POOL_ALIGN_BITS granularity.
  *
  * At the first level, we shift 35 and mask on the low 13 bits, giving us bits
  * 35-47. At the second level, we shift 23 and mask on the low 12 bits, giving

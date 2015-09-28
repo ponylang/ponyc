@@ -25,7 +25,6 @@
 
 /// Allocations this size and above are aligned on this size. This is needed
 /// so that the pagemap for the heap is aligned.
-#define POOL_ALIGN_BITS 10
 #define POOL_ALIGN_INDEX (POOL_ALIGN_BITS - POOL_MIN_BITS)
 #define POOL_ALIGN (1 << POOL_ALIGN_BITS)
 #define POOL_ALIGN_MASK (POOL_ALIGN - 1)
