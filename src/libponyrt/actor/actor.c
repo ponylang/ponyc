@@ -28,8 +28,6 @@ typedef struct pony_actor_t
   gc_t gc; // 80 bytes
 } pony_actor_t;
 
-static __pony_thread_local pony_actor_t* this_actor;
-
 static bool has_flag(pony_actor_t* actor, uint8_t flag)
 {
   return (actor->flags & flag) != 0;
@@ -123,7 +121,6 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
 bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
-  this_actor = actor;
 
   pony_msg_t* msg;
   bool notify = false;
@@ -215,22 +212,22 @@ void actor_setpendingdestroy(pony_actor_t* actor)
   set_flag(actor, FLAG_PENDINGDESTROY);
 }
 
-void actor_final(pony_actor_t* actor)
+void actor_final(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   // This gets run while the cycle detector is handling a message. Set the
   // current actor before running anything.
-  pony_actor_t* prev = this_actor;
-  this_actor = actor;
+  pony_actor_t* prev = ctx->current;
+  ctx->current = actor;
 
   // Run the actor finaliser if it has one.
   if(actor->type->final != NULL)
     actor->type->final(actor);
 
   // Run all outstanding object finalisers.
-  gc_final(&actor->gc);
+  gc_final(ctx, &actor->gc);
 
   // Restore the current actor.
-  this_actor = prev;
+  ctx->current = prev;
 }
 
 void actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor)
@@ -246,7 +243,7 @@ void actor_setsystem(pony_actor_t* actor)
 pony_actor_t* pony_create(pony_type_t* type)
 {
   assert(type != NULL);
-  pony_actor_t* current = this_actor;
+  pony_ctx_t* ctx = pony_ctx();
 
   // allocate variable sized actors correctly
   pony_actor_t* actor = (pony_actor_t*)pool_alloc_size(type->size);
@@ -257,11 +254,11 @@ pony_actor_t* pony_create(pony_type_t* type)
   heap_init(&actor->heap);
   gc_done(&actor->gc);
 
-  if(current != NULL)
+  if(ctx->current != NULL)
   {
     // actors begin unblocked and referenced by the creating actor
     actor->gc.rc = GC_INC_MORE;
-    gc_createactor(&current->heap, &current->gc, actor);
+    gc_createactor(ctx->current, actor);
   } else {
     // no creator, so the actor isn't referenced by anything
     actor->gc.rc = 0;
@@ -329,33 +326,33 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m)
 
 void* pony_alloc(size_t size)
 {
-  pony_actor_t* current = this_actor;
+  pony_actor_t* current = pony_ctx()->current;
   return heap_alloc(current, &current->heap, size);
 }
 
 void* pony_alloc_small(uint32_t sizeclass)
 {
-  pony_actor_t* current = this_actor;
+  pony_actor_t* current = pony_ctx()->current;
   return heap_alloc_small(current, &current->heap, sizeclass);
 }
 
 void* pony_alloc_large(size_t size)
 {
-  pony_actor_t* current = this_actor;
+  pony_actor_t* current = pony_ctx()->current;
   return heap_alloc_large(current, &current->heap, size);
 }
 
 void* pony_realloc(void* p, size_t size)
 {
-  pony_actor_t* current = this_actor;
+  pony_actor_t* current = pony_ctx()->current;
   return heap_realloc(current, &current->heap, p, size);
 }
 
 void* pony_alloc_final(size_t size, pony_final_fn final)
 {
-  pony_actor_t* current = this_actor;
-  void* p = heap_alloc(current, &current->heap, size);
-  gc_register_final(&current->gc, p, final);
+  pony_ctx_t* ctx = pony_ctx();
+  void* p = heap_alloc(ctx->current, &ctx->current->heap, size);
+  gc_register_final(ctx, p, final);
   return p;
 }
 
@@ -387,7 +384,6 @@ void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
 void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   ctx->current = actor;
-  this_actor = actor;
 }
 
 bool pony_poll(pony_ctx_t* ctx, pony_actor_t* actor)

@@ -542,7 +542,7 @@ static void collect(pony_ctx_t* ctx, detector_t* d, perceived_t* per)
 
     // invoke the actor's finalizer
     actor_setpendingdestroy(view->actor);
-    actor_final(view->actor);
+    actor_final(ctx, view->actor);
   }
 
   // actors being collected that have references to actors that are not in
@@ -662,7 +662,7 @@ static void ack(pony_ctx_t* ctx, detector_t* d, size_t token)
     send_conf(ctx, d, per);
 }
 
-static void final(pony_actor_t* self)
+static void final(pony_ctx_t* ctx, pony_actor_t* self)
 {
   detector_t* d = (detector_t*)self;
   size_t i = HASHMAP_BEGIN;
@@ -674,7 +674,7 @@ static void final(pony_actor_t* self)
   while((view = viewmap_next(&d->views, &i)) != NULL)
   {
     if(view->blocked)
-      actor_final(view->actor);
+      actor_final(ctx, view->actor);
   }
 
   // Terminate the scheduler.
@@ -855,7 +855,7 @@ void cycle_ack(pony_ctx_t* ctx, size_t token)
 void cycle_terminate(pony_ctx_t* ctx)
 {
   pony_become(ctx, cycle_detector);
-  final(cycle_detector);
+  final(ctx, cycle_detector);
 }
 
 bool is_cycle(pony_actor_t* actor)

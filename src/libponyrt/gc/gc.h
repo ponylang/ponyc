@@ -38,7 +38,7 @@ void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor);
+void gc_createactor(pony_actor_t* current, pony_actor_t* actor);
 
 void gc_handlestack(pony_ctx_t* ctx);
 
@@ -56,9 +56,9 @@ size_t gc_rc(gc_t* gc);
 
 deltamap_t* gc_delta(gc_t* gc);
 
-void gc_register_final(gc_t* gc, void* p, pony_final_fn final);
+void gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final);
 
-void gc_final(gc_t* gc);
+void gc_final(pony_ctx_t* ctx, gc_t* gc);
 
 void gc_done(gc_t* gc);
 

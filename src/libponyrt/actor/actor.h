@@ -26,7 +26,7 @@ bool actor_pendingdestroy(pony_actor_t* actor);
 
 void actor_setpendingdestroy(pony_actor_t* actor);
 
-void actor_final(pony_actor_t* actor);
+void actor_final(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
 

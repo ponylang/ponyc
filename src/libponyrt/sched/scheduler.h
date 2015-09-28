@@ -23,6 +23,7 @@ typedef struct pony_ctx_t
   trace_actor_fn trace_actor;
   gcstack_t* stack;
   actormap_t acquire;
+  bool finalising;
 } pony_ctx_t;
 
 struct scheduler_t

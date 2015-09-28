@@ -9,8 +9,6 @@
 
 DEFINE_STACK(gcstack, void);
 
-static __pony_thread_local gcstack_t* finaliser_stack;
-
 static void acquire_actor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   actorref_t* aref = actormap_getorput(&ctx->acquire, actor, 0);
@@ -346,13 +344,14 @@ void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
   heap_used(actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
-void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
+void gc_createactor(pony_actor_t* current, pony_actor_t* actor)
 {
+  gc_t* gc = actor_gc(current);
   actorref_t* aref = actormap_getorput(&gc->foreign, actor, gc->mark);
   actorref_inc_more(aref);
   gc->delta = deltamap_update(gc->delta,
     actorref_actor(aref), actorref_rc(aref));
-  heap_used(heap, GC_ACTOR_HEAP_EQUIV);
+  heap_used(actor_heap(current), GC_ACTOR_HEAP_EQUIV);
 }
 
 void gc_handlestack(pony_ctx_t* ctx)
@@ -458,51 +457,44 @@ void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
   gc->delta = actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
-void gc_register_final(gc_t* gc, void* p, pony_final_fn final)
+void gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final)
 {
-  gcstack_t* stack = finaliser_stack;
-
-  if(stack == NULL)
+  if(!ctx->finalising)
   {
     // If we aren't finalising an actor, register the finaliser.
+    gc_t* gc = actor_gc(ctx->current);
     objectmap_register_final(&gc->local, p, final, gc->mark);
     gc->finalisers++;
   } else {
     // Otherwise, put the finaliser on the gc stack.
-    stack = gcstack_push(stack, p);
-    stack = gcstack_push(stack, final);
-    finaliser_stack = stack;
+    ctx->stack = gcstack_push(ctx->stack, p);
+    ctx->stack = gcstack_push(ctx->stack, final);
   }
 }
 
-void gc_final(gc_t* gc)
+void gc_final(pony_ctx_t* ctx, gc_t* gc)
 {
   if(gc->finalisers == 0)
     return;
 
   // Set the finalising flag.
-  gcstack_t* stack = gcstack_push(NULL, NULL);
-  stack = gcstack_push(stack, NULL);
-  finaliser_stack = stack;
+  ctx->finalising = true;
 
   // Run all finalisers in the object map.
   objectmap_final(&gc->local);
 
   // Finalise any objects that were created during finalisation.
-  stack = finaliser_stack;
   pony_final_fn f;
   void *p;
 
-  while(stack != NULL)
+  while(ctx->stack != NULL)
   {
-    stack = gcstack_pop(stack, (void**)&f);
-    stack = gcstack_pop(stack, &p);
-
-    if(f != NULL)
-      f(p);
+    ctx->stack = gcstack_pop(ctx->stack, (void**)&f);
+    ctx->stack = gcstack_pop(ctx->stack, &p);
+    f(p);
   }
 
-  finaliser_stack = NULL;
+  ctx->finalising = false;
 }
 
 void gc_done(gc_t* gc)
