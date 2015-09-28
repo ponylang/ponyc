@@ -43,10 +43,8 @@ static void current_actor_dec(gc_t* gc)
   }
 }
 
-void gc_sendobject(pony_ctx_t* ctx, pony_actor_t* current, heap_t*
-  heap, gc_t* gc, void* p, pony_trace_fn f)
+void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f)
 {
-  (void)heap;
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
   // Don't gc memory that wasn't pony_allocated, but do recurse.
@@ -62,8 +60,9 @@ void gc_sendobject(pony_ctx_t* ctx, pony_actor_t* current, heap_t*
   }
 
   pony_actor_t* actor = heap_owner(chunk);
+  gc_t* gc = actor_gc(ctx->current);
 
-  if(actor == current)
+  if(actor == ctx->current)
   {
     current_actor_inc(gc);
 
@@ -133,8 +132,7 @@ void gc_sendobject(pony_ctx_t* ctx, pony_actor_t* current, heap_t*
   }
 }
 
-void gc_recvobject(pony_ctx_t* ctx, pony_actor_t* current,
-  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
+void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
@@ -151,8 +149,9 @@ void gc_recvobject(pony_ctx_t* ctx, pony_actor_t* current,
   }
 
   pony_actor_t* actor = heap_owner(chunk);
+  gc_t* gc = actor_gc(ctx->current);
 
-  if(actor == current)
+  if(actor == ctx->current)
   {
     current_actor_dec(gc);
 
@@ -197,7 +196,7 @@ void gc_recvobject(pony_ctx_t* ctx, pony_actor_t* current,
   {
     // if this is our first reference, add to our heap used size
     if(object_rc(obj) == 0)
-      heap_used(heap, heap_size(chunk));
+      heap_used(actor_heap(ctx->current), heap_size(chunk));
 
     // inc, mark and recurse
     object_inc(obj);
@@ -211,8 +210,7 @@ void gc_recvobject(pony_ctx_t* ctx, pony_actor_t* current,
   }
 }
 
-void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
-  heap_t* heap, gc_t* gc, void* p, pony_trace_fn f)
+void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f)
 {
   chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
@@ -230,7 +228,7 @@ void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
 
   pony_actor_t* actor = heap_owner(chunk);
 
-  if(actor == current)
+  if(actor == ctx->current)
   {
     if(f != NULL)
     {
@@ -250,6 +248,7 @@ void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
   }
 
   // mark the owner
+  gc_t* gc = actor_gc(ctx->current);
   actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
   // we've reached this by tracing a tag through a union
@@ -268,7 +267,7 @@ void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
   if(!object_marked(obj, gc->mark))
   {
     // add to heap used size
-    heap_used(heap, heap_size(chunk));
+    heap_used(actor_heap(ctx->current), heap_size(chunk));
 
     // mark and recurse
     object_mark(obj, gc->mark);
@@ -281,12 +280,11 @@ void gc_markobject(pony_ctx_t* ctx, pony_actor_t* current,
   }
 }
 
-void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
-  gc_t* gc, pony_actor_t* actor)
+void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  (void)heap;
+  gc_t* gc = actor_gc(ctx->current);
 
-  if(actor == current)
+  if(actor == ctx->current)
   {
     current_actor_inc(gc);
   } else {
@@ -308,12 +306,11 @@ void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
   }
 }
 
-void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
-  gc_t* gc, pony_actor_t* actor)
+void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  (void)ctx;
+  gc_t* gc = actor_gc(ctx->current);
 
-  if(actor == current)
+  if(actor == ctx->current)
   {
     current_actor_dec(gc);
   } else {
@@ -325,19 +322,17 @@ void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
       actorref_mark(aref, gc->mark);
       gc->delta = deltamap_update(gc->delta,
         actorref_actor(aref), actorref_rc(aref));
-      heap_used(heap, GC_ACTOR_HEAP_EQUIV);
+      heap_used(actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
     }
   }
 }
 
-void gc_markactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
-  gc_t* gc, pony_actor_t* actor)
+void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  (void)ctx;
-
-  if(actor == current)
+  if(actor == ctx->current)
     return;
 
+  gc_t* gc = actor_gc(ctx->current);
   actorref_t* aref = actormap_getactor(&gc->foreign, actor);
 
   // we've reached this by tracing a tag through a union
@@ -348,7 +343,7 @@ void gc_markactor(pony_ctx_t* ctx, pony_actor_t* current, heap_t* heap,
     return;
 
   actorref_mark(aref, gc->mark);
-  heap_used(heap, GC_ACTOR_HEAP_EQUIV);
+  heap_used(actor_heap(ctx->current), GC_ACTOR_HEAP_EQUIV);
 }
 
 void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor)
