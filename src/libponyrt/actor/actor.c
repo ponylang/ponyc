@@ -98,7 +98,7 @@ static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
         unset_flag(actor, FLAG_BLOCKED);
       }
 
-      actor->type->dispatch(actor, msg);
+      actor->type->dispatch(ctx, actor, msg);
       return true;
     }
   }

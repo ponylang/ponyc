@@ -181,10 +181,11 @@ static void init_runtime(compile_t* c)
   c->trace_fn = LLVMPointerType(c->trace_type, 0);
 
   // dispatch
-  // void (*)($object*, $message*)
-  params[0] = c->object_ptr;
-  params[1] = c->msg_ptr;
-  c->dispatch_type = LLVMFunctionType(c->void_type, params, 2, false);
+  // void (*)(i8*, $object*, $message*)
+  params[0] = c->void_ptr;
+  params[1] = c->object_ptr;
+  params[2] = c->msg_ptr;
+  c->dispatch_type = LLVMFunctionType(c->void_type, params, 3, false);
   c->dispatch_fn = LLVMPointerType(c->dispatch_type, 0);
 
   // void (*)($object*)

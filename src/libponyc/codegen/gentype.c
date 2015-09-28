@@ -284,14 +284,10 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_startfun(c, g->dispatch_fn, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
-  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
-  LLVMSetValueName(this_ptr, "this");
-
-  g->dispatch_msg = LLVMGetParam(g->dispatch_fn, 1);
-  LLVMSetValueName(g->dispatch_msg, "msg");
 
   // Read the message ID.
-  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, g->dispatch_msg, 1, "");
+  LLVMValueRef msg = LLVMGetParam(g->dispatch_fn, 2);
+  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, msg, 1, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we

@@ -398,16 +398,17 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
 
   // Destructure the message.
   LLVMPositionBuilderAtEnd(c->builder, block);
-  LLVMValueRef msg = LLVMBuildBitCast(c->builder, g->dispatch_msg, type, "");
+  LLVMValueRef ctx = LLVMGetParam(g->dispatch_fn, 0);
+  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 1);
+  LLVMValueRef msg = LLVMBuildBitCast(c->builder,
+    LLVMGetParam(g->dispatch_fn, 2), type, "");
 
   int count = LLVMCountParams(handler);
-  size_t buf_size = count *sizeof(LLVMValueRef);
+  size_t buf_size = count * sizeof(LLVMValueRef);
   LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
-  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
   args[0] = LLVMBuildBitCast(c->builder, this_ptr, g->use_type, "");
 
   // Trace the message.
-  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
   LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_recv", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);
@@ -427,7 +428,6 @@ static void add_dispatch_case(compile_t* c, gentype_t* g, ast_t* fun,
     gencall_runtime(c, "pony_recv_done", &ctx, 1, "");
   } else {
     LLVMInstructionEraseFromParent(start_trace);
-    LLVMInstructionEraseFromParent(ctx);
   }
 
   // Call the handler.

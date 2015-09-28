@@ -735,7 +735,8 @@ void check_views()
   }
 }
 
-static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
+static void cycle_dispatch(pony_ctx_t* ctx, pony_actor_t* self,
+  pony_msg_t* msg)
 {
   detector_t* d = (detector_t*)self;
 
@@ -753,7 +754,6 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
 
     case CYCLE_BLOCK:
     {
-      pony_ctx_t* ctx = pony_ctx();
       block_msg_t* m = (block_msg_t*)msg;
       d->block_msgs++;
       block(ctx, d, m->actor, m->rc, m->delta);
@@ -770,7 +770,6 @@ static void cycle_dispatch(pony_actor_t* self, pony_msg_t* msg)
 
     case CYCLE_ACK:
     {
-      pony_ctx_t* ctx = pony_ctx();
       pony_msgi_t* m = (pony_msgi_t*)msg;
       d->ack_msgs++;
       ack(ctx, d, m->i);
