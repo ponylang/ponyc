@@ -154,6 +154,7 @@ actor PonyTest
   var _verbose: Bool = false
   var _sequential: Bool = false
   var _no_prog: Bool = false
+  var _list_only: Bool = false
   var _started: U64 = 0
   var _finished: U64 = 0
   var _any_found: Bool = false
@@ -186,6 +187,13 @@ actor PonyTest
     end
 
     _any_found = true
+
+    if _list_only then
+      // Don't actually run tests, just list them
+      _env.out.print(name)
+      return
+    end
+
     var index = _records.size()
     _records.push(_TestRecord(_env, name))
 
@@ -270,6 +278,11 @@ actor PonyTest
       return
     end
 
+    if _list_only then
+      // No tests to run
+      return
+    end
+
     _all_started = true
     if _finished == _records.size() then
       // All tests have completed
@@ -297,6 +310,8 @@ actor PonyTest
         _verbose = true
       elseif arg == "--noprog" then
         _no_prog = true
+      elseif arg == "--list" then
+        _list_only = true
       elseif arg.compare_sub("--filter=", 9) is Equal then
         _filter = arg.substring(9)
       else
@@ -311,6 +326,7 @@ actor PonyTest
         _env.out.print("  --verbose         - Show all test output.")
         _env.out.print("  --sequential      - Run tests sequentially.")
         _env.out.print("  --no_prog         - Do not print progress messages.")
+        _env.out.print("  --list            - List but do not run tests.")
         _do_nothing = true
         return
       end
