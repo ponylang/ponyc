@@ -273,9 +273,8 @@ pony_actor_t* pony_create(pony_type_t* type)
 void pony_destroy(pony_actor_t* actor)
 {
   // This destroy an actor immediately. If any other actor has a reference to
-  // this actor, the program will likely crash.
+  // this actor, the program will likely crash. The finaliser is not called.
   actor_setpendingdestroy(actor);
-  actor_final(actor);
   actor_destroy(actor);
 }
 

@@ -75,6 +75,32 @@ static const char* gccs_directory()
 }
 #endif
 
+static bool need_primitive_call(compile_t* c, const char* method)
+{
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
+  {
+    if(ast_id(t->type) == TK_TUPLETYPE)
+      continue;
+
+    ast_t* def = (ast_t*)ast_data(t->type);
+
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
+
+    reachable_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    return true;
+  }
+
+  return false;
+}
+
 static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 {
   size_t count = 1;
@@ -226,10 +252,13 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   // Run primitive finalisers. We create a new main actor as a context to run
   // the finalisers in, but we do not initialise or schedule it.
-  LLVMValueRef final_actor = create_main(c, main_g, ctx);
-  primitive_call(c, stringtab("_final"), NULL);
-  args[0] = final_actor;
-  gencall_runtime(c, "pony_destroy", args, 1, "");
+  if(need_primitive_call(c, stringtab("_final")))
+  {
+    LLVMValueRef final_actor = create_main(c, main_g, ctx);
+    primitive_call(c, stringtab("_final"), NULL);
+    args[0] = final_actor;
+    gencall_runtime(c, "pony_destroy", args, 1, "");
+  }
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
