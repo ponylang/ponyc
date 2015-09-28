@@ -346,7 +346,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
 
   // Allocate the message, setting its size and ID.
   size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
 
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
   args[1] = LLVMConstInt(c->i32, index, false);
@@ -375,13 +375,13 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
     gencall_runtime(c, "pony_send_done", &ctx, 1, "");
   } else {
     LLVMInstructionEraseFromParent(start_trace);
-    LLVMInstructionEraseFromParent(ctx);
   }
 
   // Send the message.
-  args[0] = LLVMBuildBitCast(c->builder, to, c->object_ptr, "");
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, to, c->object_ptr, "");
+  args[2] = msg;
+  gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Return the type of the message.
   return msg_type_ptr;

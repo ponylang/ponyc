@@ -215,9 +215,10 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   gencall_runtime(c, "pony_send_done", args, 1, "");
 
   // Send the message.
-  args[0] = main_actor;
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  args[0] = ctx;
+  args[1] = main_actor;
+  args[2] = msg;
+  gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);

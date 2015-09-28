@@ -230,10 +230,11 @@ static void init_runtime(compile_t* c)
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   //LLVMSetReturnNoAlias(value);
 
-  // void pony_sendv($object*, $message*);
-  params[0] = c->object_ptr;
-  params[1] = c->msg_ptr;
-  type = LLVMFunctionType(c->void_type, params, 2, false);
+  // void pony_sendv(i8*, $object*, $message*);
+  params[0] = c->void_ptr;
+  params[1] = c->object_ptr;
+  params[2] = c->msg_ptr;
+  type = LLVMFunctionType(c->void_type, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_sendv", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 

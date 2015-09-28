@@ -48,11 +48,11 @@ void gc_createactor(heap_t* heap, gc_t* gc, pony_actor_t* actor);
 
 void gc_handlestack(pony_ctx_t* ctx);
 
-void gc_sweep(gc_t* gc);
+void gc_sweep(pony_ctx_t* ctx, gc_t* gc);
 
-void gc_sendacquire();
+void gc_sendacquire(pony_ctx_t* ctx);
 
-void gc_sendrelease(gc_t* gc);
+void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc);
 
 bool gc_acquire(gc_t* gc, actorref_t* aref);
 

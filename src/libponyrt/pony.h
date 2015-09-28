@@ -123,25 +123,25 @@ ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_type_t* type));
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
 
 /// Sends a message to an actor.
-void pony_sendv(pony_actor_t* to, pony_msg_t* m);
+void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m);
 
 /** Convenience function to send a message with no arguments.
  *
  * The dispatch function receives a pony_msg_t.
  */
-void pony_send(pony_actor_t* to, uint32_t id);
+void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id);
 
 /** Convenience function to send a pointer argument in a message
  *
  * The dispatch function receives a pony_msgp_t.
  */
-void pony_sendp(pony_actor_t* to, uint32_t id, void* p);
+void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, void* p);
 
 /** Convenience function to send an integer argument in a message
  *
  * The dispatch function receives a pony_msgi_t.
  */
-void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i);
+void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i);
 
 /** Store a continuation.
  *
@@ -188,13 +188,14 @@ void pony_triggergc();
  * concurrency safe: only a single actor should reschedule another actor, and
  * it should be sure the target actor is actually unscheduled.
  */
-void pony_schedule(pony_actor_t* actor);
+void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /**
- * The current actor will no longer be scheduled. It will not handle messages
- * on its queue until it is rescheduled.
+ * The actor will no longer be scheduled. It will not handle messages on its
+ * queue until it is rescheduled, or polled on a context. This is not
+ * concurrency safe: this should be done on the current actor only.
  */
-void pony_unschedule();
+void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor);
 
 /**
  * Call this to "become" an actor on a non-scheduler context, i.e. from outside

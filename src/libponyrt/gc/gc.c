@@ -376,10 +376,10 @@ void gc_handlestack(pony_ctx_t* ctx)
   }
 }
 
-void gc_sweep(gc_t* gc)
+void gc_sweep(pony_ctx_t* ctx, gc_t* gc)
 {
   gc->finalisers -= objectmap_sweep(&gc->local);
-  gc->delta = actormap_sweep(&gc->foreign, gc->mark, gc->delta);
+  gc->delta = actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
 bool gc_acquire(gc_t* gc, actorref_t* aref)
@@ -446,7 +446,7 @@ deltamap_t* gc_delta(gc_t* gc)
   return delta;
 }
 
-void gc_sendacquire()
+void gc_sendacquire(pony_ctx_t* ctx)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
@@ -454,16 +454,16 @@ void gc_sendacquire()
   while((aref = actormap_next(&acquire, &i)) != NULL)
   {
     actormap_removeindex(&acquire, i);
-    pony_sendp(actorref_actor(aref), ACTORMSG_ACQUIRE, aref);
+    pony_sendp(ctx, actorref_actor(aref), ACTORMSG_ACQUIRE, aref);
   }
 
   actormap_destroy(&acquire);
   memset(&acquire, 0, sizeof(actormap_t));
 }
 
-void gc_sendrelease(gc_t* gc)
+void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc)
 {
-  gc->delta = actormap_sweep(&gc->foreign, gc->mark, gc->delta);
+  gc->delta = actormap_sweep(ctx, &gc->foreign, gc->mark, gc->delta);
 }
 
 void gc_register_final(gc_t* gc, void* p, pony_final_fn final)

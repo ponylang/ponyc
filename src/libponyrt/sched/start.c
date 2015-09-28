@@ -93,8 +93,9 @@ int pony_init(int argc, char** argv)
   heap_setnextgcfactor(opt.gc_factor);
 
   pony_exitcode(0);
-  scheduler_init(opt.threads, opt.noyield);
-  cycle_create(opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
+  pony_ctx_t* ctx = scheduler_init(opt.threads, opt.noyield);
+  cycle_create(ctx,
+    opt.cd_min_deferred, opt.cd_max_deferred, opt.cd_conf_group);
 
   return argc;
 }

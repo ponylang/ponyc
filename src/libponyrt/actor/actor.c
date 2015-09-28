@@ -45,7 +45,8 @@ static void unset_flag(pony_actor_t* actor, uint8_t flag)
   actor->flags &= (uint8_t)~flag;
 }
 
-static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
+static bool handle_message(pony_ctx_t* ctx, pony_actor_t* actor,
+  pony_msg_t* msg, bool* notify)
 {
   switch(msg->id)
   {
@@ -80,11 +81,11 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
       if(*notify)
       {
         *notify = false;
-        cycle_block(actor, &actor->gc);
+        cycle_block(ctx, actor, &actor->gc);
       }
 
       pony_msgi_t* m = (pony_msgi_t*)msg;
-      cycle_ack(m->i);
+      cycle_ack(ctx, m->i);
       return false;
     }
 
@@ -93,7 +94,7 @@ static bool handle_message(pony_actor_t* actor, pony_msg_t* msg, bool* notify)
       if(has_flag(actor, FLAG_BLOCKED))
       {
         *notify = false;
-        cycle_unblock(actor);
+        cycle_unblock(ctx, actor);
         unset_flag(actor, FLAG_BLOCKED);
       }
 
@@ -114,7 +115,7 @@ static void try_gc(pony_ctx_t* ctx, pony_actor_t* actor)
     actor->type->trace(ctx, actor);
 
   gc_handlestack(ctx);
-  gc_sweep(&actor->gc);
+  gc_sweep(ctx, &actor->gc);
   gc_done(&actor->gc);
   heap_endgc(&actor->heap);
 }
@@ -131,7 +132,7 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   {
     msg = actor->continuation;
     actor->continuation = NULL;
-    bool ret = handle_message(actor, msg, &notify);
+    bool ret = handle_message(ctx, actor, msg, &notify);
     pool_free(msg->size, msg);
 
     if(ret)
@@ -144,7 +145,7 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
 
   while((msg = messageq_pop(&actor->q)) != NULL)
   {
-    if(handle_message(actor, msg, &notify))
+    if(handle_message(ctx, actor, msg, &notify))
     {
       // If we handle an application message, try to gc and then return.
       try_gc(ctx, actor);
@@ -166,7 +167,7 @@ bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor)
   // message, tell the cycle detector.
   if(notify || !has_flag(actor, FLAG_BLOCKED | FLAG_SYSTEM))
   {
-    cycle_block(actor, &actor->gc);
+    cycle_block(ctx, actor, &actor->gc);
     set_flag(actor, FLAG_BLOCKED);
   }
 
@@ -232,9 +233,9 @@ void actor_final(pony_actor_t* actor)
   this_actor = prev;
 }
 
-void actor_sendrelease(pony_actor_t* actor)
+void actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  gc_sendrelease(&actor->gc);
+  gc_sendrelease(ctx, &actor->gc);
 }
 
 void actor_setsystem(pony_actor_t* actor)
@@ -287,37 +288,37 @@ pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id)
   return msg;
 }
 
-void pony_sendv(pony_actor_t* to, pony_msg_t* m)
+void pony_sendv(pony_ctx_t* ctx, pony_actor_t* to, pony_msg_t* m)
 {
   if(messageq_push(&to->q, m))
   {
     if(!has_flag(to, FLAG_UNSCHEDULED))
-      scheduler_add(to);
+      scheduler_add(ctx, to);
   }
 }
 
-void pony_send(pony_actor_t* to, uint32_t id)
+void pony_send(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id)
 {
   pony_msg_t* m = pony_alloc_msg(POOL_INDEX(sizeof(pony_msg_t)), id);
-  pony_sendv(to, m);
+  pony_sendv(ctx, to, m);
 }
 
-void pony_sendp(pony_actor_t* to, uint32_t id, void* p)
+void pony_sendp(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, void* p)
 {
   pony_msgp_t* m = (pony_msgp_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgp_t)), id);
   m->p = p;
 
-  pony_sendv(to, &m->msg);
+  pony_sendv(ctx, to, &m->msg);
 }
 
-void pony_sendi(pony_actor_t* to, uint32_t id, intptr_t i)
+void pony_sendi(pony_ctx_t* ctx, pony_actor_t* to, uint32_t id, intptr_t i)
 {
   pony_msgi_t* m = (pony_msgi_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(pony_msgi_t)), id);
   m->i = i;
 
-  pony_sendv(to, &m->msg);
+  pony_sendv(ctx, to, &m->msg);
 }
 
 void pony_continuation(pony_actor_t* to, pony_msg_t* m)
@@ -364,24 +365,24 @@ void pony_triggergc()
   this_actor->heap.next_gc = 0;
 }
 
-void pony_schedule(pony_actor_t* actor)
+void pony_schedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
   if(!has_flag(actor, FLAG_UNSCHEDULED))
     return;
 
   unset_flag(actor, FLAG_UNSCHEDULED);
-  scheduler_add(actor);
+  scheduler_add(ctx, actor);
 }
 
-void pony_unschedule()
+void pony_unschedule(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  if(has_flag(this_actor, FLAG_BLOCKED))
+  if(has_flag(actor, FLAG_BLOCKED))
   {
-    cycle_unblock(this_actor);
-    unset_flag(this_actor, FLAG_BLOCKED);
+    cycle_unblock(ctx, actor);
+    unset_flag(actor, FLAG_BLOCKED);
   }
 
-  set_flag(this_actor, FLAG_UNSCHEDULED);
+  set_flag(actor, FLAG_UNSCHEDULED);
 }
 
 void pony_become(pony_ctx_t* ctx, pony_actor_t* actor)

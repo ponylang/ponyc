@@ -293,7 +293,6 @@ static void run(scheduler_t* sched)
 static DECLARE_THREAD_FN(run_thread)
 {
   scheduler_t* sched = (scheduler_t*) arg;
-  sched->ctx.scheduler = sched;
   this_scheduler = sched;
   cpu_affinity(sched->cpu);
   run(sched);
@@ -327,7 +326,7 @@ static void scheduler_shutdown()
   mpmcq_destroy(&inject);
 }
 
-void scheduler_init(uint32_t threads, bool noyield)
+pony_ctx_t* scheduler_init(uint32_t threads, bool noyield)
 {
   use_yield = !noyield;
 
@@ -342,6 +341,7 @@ void scheduler_init(uint32_t threads, bool noyield)
 
   for(uint32_t i = 0; i < scheduler_count; i++)
   {
+    scheduler[i].ctx.scheduler = &scheduler[i];
     scheduler[i].last_victim = &scheduler[i];
     messageq_init(&scheduler[i].mq);
     mpmcq_init(&scheduler[i].q);
@@ -350,6 +350,8 @@ void scheduler_init(uint32_t threads, bool noyield)
   this_scheduler = &scheduler[0];
   mpmcq_init(&inject);
   asio_init();
+
+  return &scheduler[0].ctx;
 }
 
 bool scheduler_start(bool library)
@@ -393,35 +395,16 @@ void scheduler_stop()
   scheduler_shutdown();
 }
 
-pony_actor_t* scheduler_worksteal()
+void scheduler_add(pony_ctx_t* ctx, pony_actor_t* actor)
 {
-  // TODO: is this right?
-  return pop_global(this_scheduler);
-}
-
-void scheduler_add(pony_actor_t* actor)
-{
-  if(this_scheduler != NULL)
+  if(ctx != NULL)
   {
     // Add to the current scheduler thread.
-    push(this_scheduler, actor);
+    push(ctx->scheduler, actor);
   } else {
     // Put on the shared mpmcq.
     mpmcq_push(&inject, actor);
   }
-}
-
-void scheduler_offload()
-{
-  scheduler_t* sched = this_scheduler;
-
-  if(sched == NULL)
-    return;
-
-  pony_actor_t* actor;
-
-  while((actor = pop(sched)) != NULL)
-    mpmcq_push(&inject, actor);
 }
 
 void scheduler_terminate()

@@ -28,7 +28,7 @@ void pony_gc_mark(pony_ctx_t* ctx)
 void pony_send_done(pony_ctx_t* ctx)
 {
   gc_handlestack(ctx);
-  gc_sendacquire();
+  gc_sendacquire(ctx);
   gc_done(actor_gc(ctx->current));
 }
 

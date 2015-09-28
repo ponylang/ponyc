@@ -48,17 +48,13 @@ struct scheduler_t
   messageq_t mq;
 };
 
-void scheduler_init(uint32_t threads, bool noyield);
+pony_ctx_t* scheduler_init(uint32_t threads, bool noyield);
 
 bool scheduler_start(bool library);
 
 void scheduler_stop();
 
-pony_actor_t* scheduler_worksteal();
-
-void scheduler_add(pony_actor_t* actor);
-
-void scheduler_offload();
+void scheduler_add(pony_ctx_t* ctx, pony_actor_t* actor);
 
 uint32_t scheduler_cores();
 
