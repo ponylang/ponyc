@@ -23,25 +23,14 @@ typedef struct chunk_t
 typedef char block_t[HEAP_MAX << 1];
 typedef void (*chunk_fn)(chunk_t* chunk);
 
-static const uint32_t sizeclass_size[HEAP_SIZECLASSES] =
-{
-  HEAP_MIN << 0,
-  HEAP_MIN << 1,
-  HEAP_MIN << 2,
-  HEAP_MIN << 3,
-  HEAP_MIN << 4,
-  // HEAP_MIN << 5
-};
+#define SIZECLASS_SIZE(sizeclass) (HEAP_MIN << (sizeclass))
+#define SIZECLASS_MASK(sizeclass) (~(SIZECLASS_SIZE(sizeclass) - 1))
 
-static const uintptr_t sizeclass_mask[HEAP_SIZECLASSES] =
-{
-  ~((HEAP_MIN << 0) - 1),
-  ~((HEAP_MIN << 1) - 1),
-  ~((HEAP_MIN << 2) - 1),
-  ~((HEAP_MIN << 3) - 1),
-  ~((HEAP_MIN << 4) - 1),
-  // ~((HEAP_MIN << 5) - 1)
-};
+#define EXTERNAL_PTR(p, sizeclass) \
+  ((void*)((uintptr_t)p & SIZECLASS_MASK(sizeclass)))
+
+#define FIND_SLOT(ext, base) \
+  (1 << ((uintptr_t)((char*)(ext) - (char*)(base)) >> HEAP_MINBITS))
 
 static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
 {
@@ -49,16 +38,22 @@ static const uint32_t sizeclass_empty[HEAP_SIZECLASSES] =
   0x55555555,
   0x11111111,
   0x01010101,
-  0x00010001,
-  // 0x00000001
+  0x00010001
+};
+
+static const uint32_t sizeclass_init[HEAP_SIZECLASSES] =
+{
+  0xFFFFFFFE,
+  0x55555554,
+  0x11111110,
+  0x01010100,
+  0x00010000
 };
 
 static const uint8_t sizeclass_table[HEAP_MAX / HEAP_MIN] =
 {
   0, 1, 2, 2, 3, 3, 3, 3,
-  4, 4, 4, 4, 4, 4, 4, 4,
-  // 5, 5, 5, 5, 5, 5, 5, 5,
-  // 5, 5, 5, 5, 5, 5, 5, 5,
+  4, 4, 4, 4, 4, 4, 4, 4
 };
 
 static size_t heap_initialgc = 1 << 14;
@@ -112,7 +107,7 @@ static size_t sweep_small(chunk_t* chunk, chunk_t** avail, chunk_t** full,
       destroy_small(chunk);
     } else {
       used += sizeof(block_t) -
-        (__pony_popcount(chunk->slots) * sizeclass_size[chunk->size]);
+        (__pony_popcount(chunk->slots) * SIZECLASS_SIZE(chunk->size));
       chunk->next = *avail;
       *avail = chunk;
     }
@@ -251,8 +246,7 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     n->size = sizeclass;
 
     // Clear the first bit.
-    n->slots = sizeclass_empty[sizeclass] & ~1;
-    n->shallow = sizeclass_empty[sizeclass];
+    n->shallow = n->slots = sizeclass_init[sizeclass];
     n->next = NULL;
 
     pagemap_set(n->m, n);
@@ -264,7 +258,7 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
     m = chunk->m;
   }
 
-  heap->used += sizeclass_size[sizeclass];
+  heap->used += SIZECLASS_SIZE(sizeclass);
   return m;
 }
 
@@ -306,7 +300,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
     // Previous allocation was a heap_alloc_small.
     if(size <= sizeof(block_t))
     {
-      uint32_t sizeclass = sizeclass_table[(size - 1) >> HEAP_MINBITS];
+      uint32_t sizeclass = heap_index(size);
 
       // If the new allocation is the same size or smaller, return the old one.
       if(sizeclass <= chunk->size)
@@ -315,7 +309,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
 
     // Get new memory and copy from the old memory.
     void* q = heap_alloc(actor, heap, size);
-    memcpy(q, p, sizeclass_size[chunk->size]);
+    memcpy(q, p, SIZECLASS_SIZE(chunk->size));
     return q;
   }
 
@@ -369,10 +363,10 @@ bool heap_mark(chunk_t* chunk, void* p)
       chunk->shallow = 0;
   } else {
     // Calculate the external pointer.
-    void* ext = (void*)((uintptr_t)p & sizeclass_mask[chunk->size]);
+    void* ext = EXTERNAL_PTR(p, chunk->size);
 
     // Shift to account for smallest allocation size.
-    uint32_t slot = 1 << ((uintptr_t)((char*)ext - chunk->m) >> HEAP_MINBITS);
+    uint32_t slot = FIND_SLOT(ext, chunk->m);
 
     // Check if it was already marked.
     marked = (chunk->slots & slot) == 0;
@@ -394,10 +388,10 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
     chunk->shallow = 0;
   } else {
     // Calculate the external pointer.
-    void* ext = (void*)((uintptr_t)p & sizeclass_mask[chunk->size]);
+    void* ext = EXTERNAL_PTR(p, chunk->size);
 
     // Shift to account for smallest allocation size.
-    uint32_t slot = 1 << ((uintptr_t)((char*)ext - chunk->m) >> HEAP_MINBITS);
+    uint32_t slot = FIND_SLOT(ext, chunk->m);
 
     // A clear bit is in-use, a set bit is available.
     chunk->shallow &= ~slot;
@@ -409,8 +403,8 @@ bool heap_ismarked(chunk_t* chunk, void* p)
   if(chunk->size >= HEAP_SIZECLASSES)
     return chunk->slots == 0;
 
-  // shift to account for smallest allocation size
-  uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
+  // Shift to account for smallest allocation size.
+  uint32_t slot = FIND_SLOT(p, chunk->m);
   return (chunk->slots & slot) == 0;
 }
 
@@ -424,7 +418,7 @@ void heap_free(chunk_t* chunk, void* p)
     return;
   }
 
-  uint32_t slot = 1 << ((uintptr_t)((char*)p - chunk->m) >> HEAP_MINBITS);
+  uint32_t slot = FIND_SLOT(p, chunk->m);
   chunk->slots |= slot;
 }
 
@@ -476,5 +470,5 @@ size_t heap_size(chunk_t* chunk)
   if(chunk->size >= HEAP_SIZECLASSES)
     return chunk->size;
 
-  return sizeclass_size[chunk->size];
+  return SIZECLASS_SIZE(chunk->size);
 }
