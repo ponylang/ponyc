@@ -354,7 +354,7 @@ static LLVMTypeRef send_message(compile_t* c, ast_t* fun, LLVMValueRef to,
   LLVMValueRef msg_ptr = LLVMBuildBitCast(c->builder, msg, msg_type_ptr, "");
 
   // Trace while populating the message contents.
-  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  LLVMValueRef ctx = codegen_ctx(c);
   LLVMValueRef start_trace = gencall_runtime(c, "pony_gc_send", &ctx, 1, "");
   ast_t* params = ast_childidx(fun, 3);
   ast_t* param = ast_child(params);

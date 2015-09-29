@@ -4,6 +4,7 @@
 #include "genprim.h"
 #include "genname.h"
 #include "gendesc.h"
+#include "gencall.h"
 #include "../pkg/package.h"
 #include "../../libponyrt/mem/pool.h"
 
@@ -217,9 +218,10 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_ctx", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // $object* pony_create($desc*)
-  params[0] = c->descriptor_ptr;
-  type = LLVMFunctionType(c->object_ptr, params, 1, false);
+  // $object* pony_create(i8*, $desc*)
+  params[0] = c->void_ptr;
+  params[1] = c->descriptor_ptr;
+  type = LLVMFunctionType(c->object_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_create", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
@@ -239,39 +241,44 @@ static void init_runtime(compile_t* c)
   value = LLVMAddFunction(c->module, "pony_sendv", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
 
-  // i8* pony_alloc(i64)
-  params[0] = c->i64;
-  type = LLVMFunctionType(c->void_ptr, params, 1, false);
+  // i8* pony_alloc(i8*, i64)
+  params[0] = c->void_ptr;
+  params[1] = c->i64;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_alloc_small(i32)
-  params[0] = c->i32;
-  type = LLVMFunctionType(c->void_ptr, params, 1, false);
+  // i8* pony_alloc_small(i8*, i32)
+  params[0] = c->void_ptr;
+  params[1] = c->i32;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_small", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_alloc_large(i64)
-  params[0] = c->i64;
-  type = LLVMFunctionType(c->void_ptr, params, 1, false);
+  // i8* pony_alloc_large(i8*, i64)
+  params[0] = c->void_ptr;
+  params[1] = c->i64;
+  type = LLVMFunctionType(c->void_ptr, params, 2, false);
   value = LLVMAddFunction(c->module, "pony_alloc_large", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_realloc(i8*, i64)
+  // i8* pony_realloc(i8*, i8*, i64)
   params[0] = c->void_ptr;
-  params[1] = c->i64;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  params[1] = c->void_ptr;
+  params[2] = c->i64;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_realloc", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
 
-  // i8* pony_alloc_final(i64, c->final_fn)
-  params[0] = c->i64;
-  params[1] = c->final_fn;
-  type = LLVMFunctionType(c->void_ptr, params, 2, false);
+  // i8* pony_alloc_final(i8*, i64, c->final_fn)
+  params[0] = c->void_ptr;
+  params[1] = c->i64;
+  params[2] = c->final_fn;
+  type = LLVMFunctionType(c->void_ptr, params, 3, false);
   value = LLVMAddFunction(c->module, "pony_alloc_final", type);
   LLVMAddFunctionAttr(value, LLVMNoUnwindAttribute);
   LLVMSetReturnNoAlias(value);
@@ -670,6 +677,41 @@ void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca)
   p->alloca = alloca;
 
   compile_locals_put(&c->frame->locals, p);
+}
+
+LLVMValueRef codegen_ctx(compile_t* c)
+{
+  compile_frame_t* frame = c->frame;
+
+  while(!frame->is_function)
+    frame = frame->prev;
+
+  if(frame->ctx == NULL)
+  {
+    LLVMBasicBlockRef this_block = LLVMGetInsertBlock(c->builder);
+    LLVMBasicBlockRef entry_block = LLVMGetEntryBasicBlock(frame->fun);
+    LLVMValueRef inst = LLVMGetFirstInstruction(entry_block);
+
+    if(inst != NULL)
+      LLVMPositionBuilderBefore(c->builder, inst);
+    else
+      LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+    frame->ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+    LLVMPositionBuilderAtEnd(c->builder, this_block);
+  }
+
+  return frame->ctx;
+}
+
+void codegen_setctx(compile_t* c, LLVMValueRef ctx)
+{
+  compile_frame_t* frame = c->frame;
+
+  while(!frame->is_function)
+    frame = frame->prev;
+
+  frame->ctx = ctx;
 }
 
 LLVMValueRef codegen_fun(compile_t* c)

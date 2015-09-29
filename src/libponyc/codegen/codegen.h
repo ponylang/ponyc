@@ -38,6 +38,7 @@ DECLARE_HASHMAP(compile_locals, compile_local_t);
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
+  LLVMValueRef ctx;
   LLVMBasicBlockRef restore_builder;
 
   LLVMBasicBlockRef break_target;
@@ -162,6 +163,10 @@ void codegen_poptry(compile_t* c);
 LLVMValueRef codegen_getlocal(compile_t* c, const char* name);
 
 void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca);
+
+LLVMValueRef codegen_ctx(compile_t* c);
+
+void codegen_setctx(compile_t* c, LLVMValueRef ctx);
 
 LLVMValueRef codegen_fun(compile_t* c);
 

@@ -148,15 +148,16 @@ static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
 static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
 {
   // Create the main actor and become it.
-  LLVMValueRef actor = gencall_create(c, g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, actor, c->object_ptr, "");
-
   LLVMValueRef args[2];
   args[0] = ctx;
-  args[1] = object;
+  args[1] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+  LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
+
+  args[0] = ctx;
+  args[1] = actor;
   gencall_runtime(c, "pony_become", args, 2, "");
 
-  return object;
+  return actor;
 }
 
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
@@ -186,6 +187,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   // Create the main actor and become it.
   LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  codegen_setctx(c, ctx);
   LLVMValueRef main_actor = create_main(c, main_g, ctx);
 
   // Create an Env on the main actor's heap.

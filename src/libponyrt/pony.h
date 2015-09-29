@@ -118,7 +118,8 @@ pony_ctx_t* pony_ctx();
  * and arguments an actor is able to receive, and the dispatch function that
  * handles received messages.
  */
-ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_type_t* type));
+ATTRIBUTE_MALLOC(pony_actor_t* pony_create(pony_ctx_t* ctx,
+  pony_type_t* type));
 
 /// Allocates a message and sets up the header. The size is a POOL_INDEX.
 pony_msg_t* pony_alloc_msg(uint32_t size, uint32_t id);
@@ -159,27 +160,28 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m);
  * This is garbage collected memory. This can only be done while an actor is
  * handling a message, so that there is a current actor.
  */
-ATTRIBUTE_MALLOC(void* pony_alloc(size_t size));
+ATTRIBUTE_MALLOC(void* pony_alloc(pony_ctx_t* ctx, size_t size));
 
 /// Allocate using a HEAP_INDEX instead of a size in bytes.
-ATTRIBUTE_MALLOC(void* pony_alloc_small(uint32_t sizeclass));
+ATTRIBUTE_MALLOC(void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass));
 
 /// Allocate when we know it's larger than HEAP_MAX.
-ATTRIBUTE_MALLOC(void* pony_alloc_large(size_t size));
+ATTRIBUTE_MALLOC(void* pony_alloc_large(pony_ctx_t* ctx, size_t size));
 
 /** Reallocate memory on the current actor's heap.
  *
  * Take heap memory and expand it. This is a no-op if there's already enough
  * space, otherwise it allocates and copies.
  */
-ATTRIBUTE_MALLOC(void* pony_realloc(void* p, size_t size));
+ATTRIBUTE_MALLOC(void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size));
 
 /** Allocate memory with a finaliser.
  *
  * Attach a finaliser that will be run on memory when it is collected. Such
  * memory cannot be safely realloc'd.
  */
-ATTRIBUTE_MALLOC(void* pony_alloc_final(size_t size, pony_final_fn final));
+ATTRIBUTE_MALLOC(void* pony_alloc_final(pony_ctx_t* ctx, size_t size,
+  pony_final_fn final));
 
 /// Trigger GC next time the current actor is scheduled
 void pony_triggergc(pony_actor_t* actor);

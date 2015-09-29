@@ -817,7 +817,7 @@ void cycle_create(pony_ctx_t* ctx, uint32_t min_deferred,
   if(conf_group > 30)
     conf_group = 30;
 
-  cycle_detector = pony_create(&cycle_type);
+  cycle_detector = pony_create(ctx, &cycle_type);
   actor_setsystem(cycle_detector);
 
   init_msg_t* m = (init_msg_t*)pony_alloc_msg(

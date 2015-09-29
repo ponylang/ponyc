@@ -27,7 +27,7 @@ char* os_realpath(const char* path)
     resolved[len - 1] = '\0';
 #endif
 
-  char* cstring = (char*)pony_alloc(len);
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
   memcpy(cstring, resolved, len);
   return cstring;
 }

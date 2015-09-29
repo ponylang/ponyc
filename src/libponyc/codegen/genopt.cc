@@ -146,19 +146,20 @@ public:
     if(fun == NULL)
       return false;
 
+    Value* size;
     bool small = false;
 
-    if(fun->getName().compare("pony_alloc") != 0)
+    if(fun->getName().compare("pony_alloc") == 0)
     {
-      if(fun->getName().compare("pony_alloc_small") != 0)
-        return false;
-
+      // Nothing.
+    } else if(fun->getName().compare("pony_alloc_small") == 0) {
       small = true;
+    } else {
+      return false;
     }
 
+    size = call.getArgument(1);
     c->opt->check.stats.heap_alloc++;
-
-    Value* size = call.getArgument(0);
     ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
 
     if(int_size == NULL)

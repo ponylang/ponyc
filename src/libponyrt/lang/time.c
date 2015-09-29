@@ -85,12 +85,13 @@ void os_gmtime(date_t* date, int64_t sec, int64_t nsec)
 
 char* os_formattime(date_t* date, const char* fmt)
 {
+  pony_ctx_t* ctx = pony_ctx();
   char* buffer;
 
   // Bail out on strftime formats that can produce a zero-length string.
   if((fmt[0] == '\0') || !strcmp(fmt, "%p") || !strcmp(fmt, "%P"))
   {
-    buffer = (char*)pony_alloc(1);
+    buffer = (char*)pony_alloc(ctx, 1);
     buffer[0] = '\0';
     return buffer;
   }
@@ -103,7 +104,7 @@ char* os_formattime(date_t* date, const char* fmt)
 
   while(r == 0)
   {
-    buffer = (char*)pony_alloc(len);
+    buffer = (char*)pony_alloc(ctx, len);
     r = strftime(buffer, len, fmt, &tm);
     len <<= 1;
   }

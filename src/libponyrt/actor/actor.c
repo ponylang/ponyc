@@ -240,10 +240,9 @@ void actor_setsystem(pony_actor_t* actor)
   set_flag(actor, FLAG_SYSTEM);
 }
 
-pony_actor_t* pony_create(pony_type_t* type)
+pony_actor_t* pony_create(pony_ctx_t* ctx, pony_type_t* type)
 {
   assert(type != NULL);
-  pony_ctx_t* ctx = pony_ctx();
 
   // allocate variable sized actors correctly
   pony_actor_t* actor = (pony_actor_t*)pool_alloc_size(type->size);
@@ -324,33 +323,28 @@ void pony_continuation(pony_actor_t* to, pony_msg_t* m)
   to->continuation = m;
 }
 
-void* pony_alloc(size_t size)
+void* pony_alloc(pony_ctx_t* ctx, size_t size)
 {
-  pony_actor_t* current = pony_ctx()->current;
-  return heap_alloc(current, &current->heap, size);
+  return heap_alloc(ctx->current, &ctx->current->heap, size);
 }
 
-void* pony_alloc_small(uint32_t sizeclass)
+void* pony_alloc_small(pony_ctx_t* ctx, uint32_t sizeclass)
 {
-  pony_actor_t* current = pony_ctx()->current;
-  return heap_alloc_small(current, &current->heap, sizeclass);
+  return heap_alloc_small(ctx->current, &ctx->current->heap, sizeclass);
 }
 
-void* pony_alloc_large(size_t size)
+void* pony_alloc_large(pony_ctx_t* ctx, size_t size)
 {
-  pony_actor_t* current = pony_ctx()->current;
-  return heap_alloc_large(current, &current->heap, size);
+  return heap_alloc_large(ctx->current, &ctx->current->heap, size);
 }
 
-void* pony_realloc(void* p, size_t size)
+void* pony_realloc(pony_ctx_t* ctx, void* p, size_t size)
 {
-  pony_actor_t* current = pony_ctx()->current;
-  return heap_realloc(current, &current->heap, p, size);
+  return heap_realloc(ctx->current, &ctx->current->heap, p, size);
 }
 
-void* pony_alloc_final(size_t size, pony_final_fn final)
+void* pony_alloc_final(pony_ctx_t* ctx, size_t size, pony_final_fn final)
 {
-  pony_ctx_t* ctx = pony_ctx();
   void* p = heap_alloc(ctx->current, &ctx->current->heap, size);
   gc_register_final(ctx, p, final);
   return p;

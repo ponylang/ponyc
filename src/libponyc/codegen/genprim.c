@@ -37,9 +37,12 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_startfun(c, fun, false);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
-  LLVMValueRef total = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total, 1, "");
+  LLVMValueRef args[2];
+  args[0] = codegen_ctx(c);
+  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 2, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
@@ -62,14 +65,16 @@ static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
+  args[0] = codegen_ctx(c);
+
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
 
   LLVMValueRef len = LLVMGetParam(fun, 1);
-  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+  args[2] = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 2, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 3, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
