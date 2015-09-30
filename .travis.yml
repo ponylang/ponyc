@@ -35,6 +35,10 @@ before_script:
       export PATH=$PATH:$(pwd)/LLVM/bin;
       brew update;
       brew install pcre2 libressl;
+
+      if [[ "$CC" == "gcc" ]]; then
+        export CC=gcc && export CXX=g++;
+      fi
     fi
 
 script: make test && make config=release test
