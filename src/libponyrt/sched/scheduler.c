@@ -131,7 +131,7 @@ static void read_msg(scheduler_t* sched)
  * them will stop the ASIO back end and tell the cycle detector to try to
  * terminate.
  */
-static bool quiescent(scheduler_t* sched, uint64_t tsc)
+static bool quiescent(scheduler_t* sched, uint64_t tsc, uint64_t tsc2)
 {
   read_msg(sched);
 
@@ -157,7 +157,7 @@ static bool quiescent(scheduler_t* sched, uint64_t tsc)
     }
   }
 
-  cpu_core_pause(tsc, use_yield);
+  cpu_core_pause(tsc, tsc2, use_yield);
   return false;
 }
 
@@ -201,7 +201,7 @@ static scheduler_t* choose_victim(scheduler_t* sched)
 static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
 {
   send_msg(0, SCHED_BLOCK, 0);
-  uint64_t tsc = cpu_rdtsc();
+  uint64_t tsc = __pony_rdtsc();
   pony_actor_t* actor;
 
   while(true)
@@ -216,10 +216,15 @@ static pony_actor_t* steal(scheduler_t* sched, pony_actor_t* prev)
     if(actor != NULL)
       break;
 
-    if(quiescent(sched, tsc))
+    uint64_t tsc2 = __pony_rdtsc();
+
+    if(quiescent(sched, tsc, tsc2))
       return NULL;
 
-    if(prev != NULL)
+    // If we have been passed an actor (implicitly, the cycle detector), and
+    // enough time has elapsed without stealing or quiescing, return the actor
+    // we were passed (allowing the cycle detector to run).
+    if((prev != NULL) && ((tsc2 - tsc) > 10000000000))
     {
       actor = prev;
       break;
