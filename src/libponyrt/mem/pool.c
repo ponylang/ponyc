@@ -199,7 +199,7 @@ static void* pool_alloc_pages(size_t size)
   if(size >= POOL_MMAP)
     return virtual_alloc(size);
 
-  pool_block_t* block = virtual_alloc(POOL_MMAP);
+  pool_block_t* block = (pool_block_t*)virtual_alloc(POOL_MMAP);
   size_t rem = POOL_MMAP - size;
 
   block->size = rem;

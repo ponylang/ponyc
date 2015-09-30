@@ -2,7 +2,7 @@
 #define mem_heap_h
 
 #include "pool.h"
-#include <pony.h>
+#include "../pony.h"
 #include <platform.h>
 #include <stdlib.h>
 #include <stdbool.h>
