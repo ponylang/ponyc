@@ -92,14 +92,14 @@ ifeq ($(config),release)
 
   ifeq ($(lto),yes)
     BUILD_FLAGS += -flto
-    LINKER_FLAGS += -flto -fuse-linker-plugin
+    LINKER_FLAGS += -flto
 
     ifdef LTO
       AR_FLAGS += --plugin $(LTO)
     endif
 
     ifeq ($(OSTYPE),linux)
-      LINKER_FLAGS += -fuse-ld=gold
+      LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
     endif
   endif
 else
