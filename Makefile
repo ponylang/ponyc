@@ -5,18 +5,30 @@ ifeq ($(OS),Windows_NT)
   OSTYPE = windows
 else
   UNAME_S := $(shell uname -s)
+
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
-    AR = gcc-ar
+    lto := no
+
+    ifneq (,$(shell which gcc-ar 2> /dev/null))
+      AR = gcc-ar
+      lto := yes
+    endif
+
+    ifdef LTO
+      lto := yes
+    endif
   endif
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
+    lto := yes
   endif
 
   ifeq ($(UNAME_S),FreeBSD)
     OSTYPE = freebsd
     CXX = c++
+    lto := yes
   endif
 endif
 
@@ -52,8 +64,9 @@ destdir ?= $(prefix)/lib/pony/$(tag)
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS =
-ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\"
+LINKER_FLAGS = -mcx16 -march=$(arch)
+AR_FLAGS =
+ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
 ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 PONY_BUILD_DIR   ?= build/$(config)
@@ -77,12 +90,15 @@ endif
 ifeq ($(config),release)
   BUILD_FLAGS += -O3 -DNDEBUG
 
-  ifndef nolto
+  ifeq ($(lto),yes)
     BUILD_FLAGS += -flto
-    LINKER_FLAGS += -flto
+    LINKER_FLAGS += -flto -fuse-linker-plugin
+
+    ifdef LTO
+      AR_FLAGS += --plugin $(LTO)
+    endif
 
     ifeq ($(OSTYPE),linux)
-      AR = gcc-ar
       LINKER_FLAGS += -fuse-ld=gold
     endif
   endif
@@ -384,7 +400,7 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	$(SILENT)$(AR) -rcs $$@ $(ofiles)
+	$(SILENT)$(AR) -rcs $$@ $(ofiles) $(AR_FLAGS)
 $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)

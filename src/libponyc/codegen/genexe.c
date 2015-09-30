@@ -333,7 +333,7 @@ static bool link_exe(compile_t* c, ast_t* program,
   use_path(program, "/usr/local/lib", NULL, NULL);
 #endif
 
-  program_lib_build_args(program, "-L", "--start-group ", "--end-group ",
+  program_lib_build_args(program, "-L", "-Wl,--start-group ", "-Wl,--end-group ",
     "-l", "");
   const char* lib_args = program_lib_args(program);
   const char* crt_dir = crt_directory();
@@ -349,6 +349,7 @@ static bool link_exe(compile_t* c, ast_t* program,
     strlen(gccs_dir) + (3 * strlen(crt_dir));
   char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
+#if 0
   snprintf(ld_cmd, ld_len,
     "ld --eh-frame-hdr --hash-style=gnu "
 #if defined(PLATFORM_IS_LINUX)
@@ -362,6 +363,20 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
     "-lm -lc %slibgcc_s.so.1 %scrtn.o",
     file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
+    );
+#endif
+
+  snprintf(ld_cmd, ld_len,
+    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 -flto -fuse-linker-plugin "
+#ifdef PLATFORM_IS_LINUX
+    "-fuse-ld=gold "
+#endif
+    "%s %s -lponyrt -lpthread "
+#ifdef PLATFORM_IS_LINUX
+    "-ldl "
+#endif
+    "-lm",
+    file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)
