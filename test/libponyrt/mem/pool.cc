@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-typedef char block_t[64];
+typedef char block_t[32];
 
 TEST(Pool, Fifo)
 {
@@ -21,9 +21,9 @@ TEST(Pool, Size)
   void* p1 = pool_alloc(0);
   pool_free(0, p1);
 
-  void* p2 = pool_alloc_size(33);
+  void* p2 = pool_alloc_size(17);
   ASSERT_EQ(p1, p2);
-  pool_free_size(33, p2);
+  pool_free_size(17, p2);
 
   void* p3 = pool_alloc(0);
   ASSERT_EQ(p2, p3);
