@@ -7,6 +7,7 @@ else
   UNAME_S := $(shell uname -s)
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
+    AR = gcc-ar
   endif
 
   ifeq ($(UNAME_S),Darwin)
@@ -74,15 +75,24 @@ ifdef config
 endif
 
 ifeq ($(config),release)
-  BUILD_FLAGS += -O3 -DNDEBUG -flto
-  LINKER_FLAGS += -flto
+  BUILD_FLAGS += -O3 -DNDEBUG
+
+  ifndef nolto
+    BUILD_FLAGS += -flto
+    LINKER_FLAGS += -flto
+
+    ifeq ($(OSTYPE),linux)
+      AR = gcc-ar
+      LINKER_FLAGS += -fuse-ld=gold
+    endif
+  endif
 else
   BUILD_FLAGS += -g -DDEBUG
 endif
 
 ifeq ($(OSTYPE),osx)
-	ALL_CFLAGS += -mmacosx-version-min=10.8
-	ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
+  ALL_CFLAGS += -mmacosx-version-min=10.8
+  ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
 ifneq (,$(shell which llvm-config 2> /dev/null))
