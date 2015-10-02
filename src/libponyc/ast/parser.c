@@ -167,7 +167,7 @@ DEF(groupedtype);
   RULE("type", infixtype, dontcare);
   OPT_NO_DFLT RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_IN_PARENS);
+  SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
 // THIS
@@ -208,7 +208,7 @@ DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
   TOKEN("argument name", TK_ID);
   IFELSE(TK_TEST_UPDATEARG,
-    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(TEST_ONLY),
+    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(AST_FLAG_TEST_ONLY),
     {}
   );
   SKIP(NULL, TK_ASSIGN);
@@ -325,7 +325,7 @@ DEF(groupedexpr);
   RULE("value", rawseq, dontcare);
   OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_IN_PARENS);
+  SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
 // LPAREN_NEW (rawseq | dontcare) [tuple] RPAREN
@@ -335,7 +335,7 @@ DEF(nextgroupedexpr);
   RULE("value", rawseq, dontcare);
   OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_IN_PARENS);
+  SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
 // THIS | TRUE | FALSE | INT | FLOAT | STRING
@@ -602,7 +602,7 @@ DEF(test_try_block);
   IF(TK_ELSE, RULE("try else body", seq));
   IF(TK_THEN, RULE("try then body", seq));
   SKIP(NULL, TK_END);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // RECOVER [CAP] rawseq END
@@ -620,7 +620,7 @@ DEF(test_borrowed);
   PRINT_INLINE();
   TOKEN(NULL, TK_TEST_BORROWED);
   MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // CONSUME [cap | test_borrowed] term
@@ -656,7 +656,7 @@ DEF(test_seq);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // $SCOPE '(' rawseq ')'
@@ -667,7 +667,7 @@ DEF(test_seq_scope);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   SCOPE();
   DONE();
 
@@ -757,9 +757,9 @@ DEF(jump);
 
 // SEMI
 DEF(semi);
-  IFELSE(TK_NEWLINE, NEXT_FLAGS(BAD_SEMI), NEXT_FLAGS(0));
-  TOKEN(NULL, TK_SEMI)
-  IF(TK_NEWLINE, SET_FLAG(BAD_SEMI));
+  IFELSE(TK_NEWLINE, NEXT_FLAGS(AST_FLAG_BAD_SEMI), NEXT_FLAGS(0));
+  TOKEN(NULL, TK_SEMI);
+  IF(TK_NEWLINE, SET_FLAG(AST_FLAG_BAD_SEMI));
   DONE();
 
 // semi (exprseq | jump)
@@ -771,7 +771,7 @@ DEF(semiexpr);
 
 // nextexprseq | jump
 DEF(nosemi);
-  IFELSE(TK_NEWLINE, NEXT_FLAGS(0), NEXT_FLAGS(MISSING_SEMI));
+  IFELSE(TK_NEWLINE, NEXT_FLAGS(0), NEXT_FLAGS(AST_FLAG_MISSING_SEMI));
   RULE("value", nextexprseq, jump);
   DONE();
 

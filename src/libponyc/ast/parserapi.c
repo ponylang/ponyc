@@ -12,7 +12,7 @@ struct parser_t
   token_t* token;
   const char* last_matched;
   size_t last_token_line;
-  void* next_flags;     // Data flags to set on the next token created
+  uint32_t next_flags;  // Data flags to set on the next token created
   bool failed;
 };
 
@@ -51,8 +51,8 @@ static void fetch_next_lexer_token(parser_t* parser, bool free_prev_token)
 static ast_t* consume_token(parser_t* parser)
 {
   ast_t* ast = ast_token(parser->token);
-  ast_setdata(ast, parser->next_flags);
-  parser->next_flags = NULL;
+  ast_setflag(ast, parser->next_flags);
+  parser->next_flags = 0;
   fetch_next_lexer_token(parser, false);
   return ast;
 }
@@ -493,10 +493,10 @@ ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
 
 
 // Set the data flags to use for the next token consumed from the source
-void parse_set_next_flags(parser_t* parser, uint64_t flags)
+void parse_set_next_flags(parser_t* parser, uint32_t flags)
 {
   assert(parser != NULL);
-  parser->next_flags = (void*)flags;
+  parser->next_flags = flags;
 }
 
 
@@ -589,7 +589,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   parser->token = lexer_next(lexer);
   parser->last_matched = NULL;
   parser->last_token_line = 0;
-  parser->next_flags = NULL;
+  parser->next_flags = 0;
   parser->failed = false;
 
   // Parse given start rule

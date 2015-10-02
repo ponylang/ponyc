@@ -301,8 +301,17 @@ ast_t* type_for_fun(ast_t* ast)
   if(fcap == TK_NONE)
     fcap = TK_TAG;
 
+  // The params may already have types attached. If we build the function type
+  // directly from those we'll get nested types which can mess things up. To
+  // avoid this make a clean version of the params without types.
+  ast_t* clean_params = ast_dup(params);
+
+  for(ast_t* p = ast_child(clean_params); p != NULL; p = ast_sibling(p))
+    ast_settype(p, NULL);
+
   BUILD(fun, ast,
-    NODE(TK_FUNTYPE, NODE(fcap) TREE(typeparams) TREE(params) TREE(result)));
+    NODE(TK_FUNTYPE,
+      NODE(fcap) TREE(typeparams) TREE(clean_params) TREE(result)));
 
   return fun;
 }

@@ -9,6 +9,7 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
+#include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
 #include <assert.h>
@@ -597,7 +598,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ID("apply")
       NONE
       NODE(TK_PARAMS)
-      TREE(result)
+      TREE(sanitise_type(result))
       NODE(can_error)
       NODE(TK_SEQ)
       NONE));
@@ -625,7 +626,10 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_t* r_type = ast_type(receiver);
 
   if(is_typecheck_error(r_type))
+    // TODO: well that's a memory leak then, r_id etc
     return false;
+
+  r_type = sanitise_type(r_type);
 
   // A field in the type.
   BUILD(r_field, receiver,
@@ -652,7 +656,9 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // Qualify the method call if necessary.
   BUILD(apply_method, ast,
-    NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method)));
+    NODE(TK_DOT,
+      NODE(TK_REFERENCE, TREE(r_field_id))
+      TREE_CLEAR_PASS(method)));
 
   if(qualify != NULL)
   {
@@ -681,26 +687,28 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   while(arg != NULL)
   {
     AST_GET_CHILDREN(param, id, p_type);
+    const char* name = ast_name(id);
 
     if(ast_id(arg) == TK_NONE)
     {
       // A parameter of the apply method, using the same name, type and default
       // argument.
-      ast_append(apply_params, param);
+      ast_append(apply_params, sanitise_type(param));
 
       // An arg in the call to the original method.
       BUILD(apply_arg, param,
         NODE(TK_SEQ,
           NODE(TK_CONSUME,
             NODE(TK_NONE)
-            NODE(TK_REFERENCE, TREE(id)))));
+            NODE(TK_REFERENCE, ID(name)))));
 
       ast_append(apply_args, apply_arg);
     } else {
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
+      p_type = sanitise_type(p_type);
 
       // A field in the type.
-      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(p_type) NONE NONE));
+      BUILD(field, arg, NODE(TK_FLET, ID(name) TREE(p_type) NONE NONE));
 
       // A parameter of the constructor.
       BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(p_type) NONE));
@@ -709,13 +717,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
           NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-          NODE(TK_REFERENCE, TREE(id))));
+          NODE(TK_REFERENCE, ID(name))));
 
       // A named argument at the call site.
       BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
 
       // An arg in the call to the original method.
-      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, TREE(id))));
+      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, ID(name))));
 
       ast_append(class_members, field);
       ast_append(create_params, ctor_param);

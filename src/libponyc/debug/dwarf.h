@@ -2,6 +2,7 @@
 #define DEBUG_DWARF_H
 
 #include "../ast/ast.h"
+#include "../pass/pass.h"
 #include "../reach/reach.h"
 
 #include <platform.h>
