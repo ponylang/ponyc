@@ -86,6 +86,17 @@ bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super)
       if(t_sub_cap == t_super_cap)
         return true;
 
+      if(t_sub_eph == TK_BORROWED)
+      {
+        // iso! <: iso_bind!
+        if((t_sub_cap == TK_ISO) && (t_super_cap == TK_ISO_BIND))
+          return true;
+
+        // iso! <: iso_bind!
+        if((t_sub_cap == TK_TRN) && (t_super_cap == TK_TRN_BIND))
+          return true;
+      }
+
       // Or alias a capability.
       return is_cap_sub_cap(t_alt_cap, t_super_cap);
 
