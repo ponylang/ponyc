@@ -35,77 +35,77 @@ type Align is
   | AlignRight
   | AlignCenter)
 
-primitive IntUTF32
-primitive IntBinary
-primitive IntBinaryBare
-primitive IntOctal
-primitive IntOctalBare
-primitive IntHex
-primitive IntHexBare
-primitive IntHexSmall
-primitive IntHexSmallBare
+primitive FormatUTF32
+primitive FormatBinary
+primitive FormatBinaryBare
+primitive FormatOctal
+primitive FormatOctalBare
+primitive FormatHex
+primitive FormatHexBare
+primitive FormatHexSmall
+primitive FormatHexSmallBare
 
-type IntFormat is
+type FormatInt is
   ( FormatDefault
-  | IntUTF32
-  | IntBinary
-  | IntBinaryBare
-  | IntOctal
-  | IntOctalBare
-  | IntHex
-  | IntHexBare
-  | IntHexSmall
-  | IntHexSmallBare)
+  | FormatUTF32
+  | FormatBinary
+  | FormatBinaryBare
+  | FormatOctal
+  | FormatOctalBare
+  | FormatHex
+  | FormatHexBare
+  | FormatHexSmall
+  | FormatHexSmallBare)
 
-primitive NumberSpacePrefix
-primitive NumberSignPrefix
+primitive PrefixSpace
+primitive PrefixSign
 
-type NumberPrefix is
+type PrefixNumber is
   ( PrefixDefault
-  | NumberSpacePrefix
-  | NumberSignPrefix)
+  | PrefixSpace
+  | PrefixSign)
 
-primitive FloatExp
-primitive FloatExpLarge
-primitive FloatFix
-primitive FloatFixLarge
-primitive FloatGeneral
-primitive FloatGeneralLarge
+primitive FormatExp
+primitive FormatExpLarge
+primitive FormatFix
+primitive FormatFixLarge
+primitive FormatGeneral
+primitive FormatGeneralLarge
 
-type FloatFormat is
+type FormatFloat is
   ( FormatDefault
-  | FloatExp
-  | FloatExpLarge
-  | FloatFix
-  | FloatFixLarge
-  | FloatGeneral
-  | FloatGeneralLarge)
+  | FormatExp
+  | FormatExpLarge
+  | FormatFix
+  | FormatFixLarge
+  | FormatGeneral
+  | FormatGeneralLarge)
 
-primitive ToString
+primitive _ToString
   fun _large(): String => "0123456789ABCDEF"
   fun _small(): String => "0123456789abcdef"
 
-  fun _fmt_int(fmt: IntFormat): (U64, String, String) =>
+  fun _fmt_int(fmt: FormatInt): (U64, String, String) =>
     match fmt
-    | IntBinary => (2, "b0", _large())
-    | IntBinaryBare => (2, "", _large())
-    | IntOctal => (8, "o0", _large())
-    | IntOctalBare => (8, "", _large())
-    | IntHex => (16, "x0", _large())
-    | IntHexBare => (16, "", _large())
-    | IntHexSmall => (16, "x0", _small())
-    | IntHexSmallBare => (16, "", _small())
+    | FormatBinary => (2, "b0", _large())
+    | FormatBinaryBare => (2, "", _large())
+    | FormatOctal => (8, "o0", _large())
+    | FormatOctalBare => (8, "", _large())
+    | FormatHex => (16, "x0", _large())
+    | FormatHexBare => (16, "", _large())
+    | FormatHexSmall => (16, "x0", _small())
+    | FormatHexSmallBare => (16, "", _small())
     else
       (10, "", _large())
     end
 
-  fun _prefix(neg: Bool, prefix: NumberPrefix): String =>
+  fun _prefix(neg: Bool, prefix: PrefixNumber): String =>
     if neg then
       "-"
     else
       match prefix
-      | NumberSpacePrefix => " "
-      | NumberSignPrefix => "+"
+      | PrefixSpace => " "
+      | PrefixSign => "+"
       else
         ""
       end
@@ -145,11 +145,11 @@ primitive ToString
       s.reverse_in_place()
     end
 
-  fun _u64(x: U64, neg: Bool, fmt: IntFormat, prefix: NumberPrefix,
+  fun _u64(x: U64, neg: Bool, fmt: FormatInt, prefix: PrefixNumber,
     prec: U64, width: U64, align: Align, fill: U32): String iso^
   =>
     match fmt
-    | IntUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
     (var base: U64, var typestring: String, var table: String) = _fmt_int(fmt)
@@ -178,12 +178,12 @@ primitive ToString
       s
     end
 
-  fun _u128(x: U128, neg: Bool, fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = -1, width: U64 = 0,
+  fun _u128(x: U128, neg: Bool, fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignLeft, fill: U32 = ' '): String iso^
   =>
     match fmt
-    | IntUTF32 => return recover String.from_utf32(x.u32()) end
+    | FormatUTF32 => return recover String.from_utf32(x.u32()) end
     end
 
     (var base': U64, var typestring: String, var table: String) = _fmt_int(fmt)
@@ -213,8 +213,8 @@ primitive ToString
       s
     end
 
-  fun _f64(x: F64, fmt: FloatFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+  fun _f64(x: F64, fmt: FormatFloat = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
     // TODO: prefix, align, fill
@@ -228,12 +228,12 @@ primitive ToString
       f.append(".").append(prec'.string())
 
       match fmt
-      | FloatExp => f.append("e")
-      | FloatExpLarge => f.append("E")
-      | FloatFix => f.append("f")
-      | FloatFixLarge => f.append("F")
-      | FloatGeneral => f.append("g")
-      | FloatGeneralLarge => f.append("G")
+      | FormatExp => f.append("e")
+      | FormatExpLarge => f.append("E")
+      | FormatFix => f.append("f")
+      | FormatFixLarge => f.append("F")
+      | FormatGeneral => f.append("g")
+      | FormatGeneralLarge => f.append("G")
       else
         f.append("g")
       end

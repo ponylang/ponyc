@@ -774,12 +774,14 @@ bool os_nameinfo(ipaddress_t* ipaddr, char** rhost, char** rserv,
   if(r != 0)
     return false;
 
+  pony_ctx_t* ctx = pony_ctx();
+
   size_t hostlen = strlen(host);
-  *rhost = (char*)pony_alloc(hostlen + 1);
+  *rhost = (char*)pony_alloc(ctx, hostlen + 1);
   memcpy(*rhost, host, hostlen + 1);
 
   size_t servlen = strlen(serv);
-  *rserv = (char*)pony_alloc(servlen + 1);
+  *rserv = (char*)pony_alloc(ctx, servlen + 1);
   memcpy(*rserv, serv, servlen + 1);
 
   return true;
@@ -813,7 +815,7 @@ char* os_ip_string(void* src, int len)
     return NULL;
 
   size_t dstlen = strlen(dst);
-  char* result = (char*)pony_alloc(dstlen + 1);
+  char* result = (char*)pony_alloc(pony_ctx(), dstlen + 1);
   memcpy(result, dst, dstlen + 1);
 
   return result;

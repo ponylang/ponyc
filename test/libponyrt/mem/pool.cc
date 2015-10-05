@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-typedef char block_t[64];
+typedef char block_t[32];
 
 TEST(Pool, Fifo)
 {
@@ -14,8 +14,6 @@ TEST(Pool, Fifo)
   void* p2 = POOL_ALLOC(block_t);
   ASSERT_EQ(p1, p2);
   POOL_FREE(block_t, p2);
-
-  //ASSERT_TRUE(pool_debug_appears_freed());
 }
 
 TEST(Pool, Size)
@@ -23,15 +21,13 @@ TEST(Pool, Size)
   void* p1 = pool_alloc(0);
   pool_free(0, p1);
 
-  void* p2 = pool_alloc_size(33);
+  void* p2 = pool_alloc_size(17);
   ASSERT_EQ(p1, p2);
-  pool_free_size(33, p2);
+  pool_free_size(17, p2);
 
   void* p3 = pool_alloc(0);
   ASSERT_EQ(p2, p3);
   pool_free(0, p3);
-
-  //ASSERT_TRUE(pool_debug_appears_freed());
 }
 
 TEST(Pool, ExceedBlock)
@@ -66,8 +62,6 @@ TEST(Pool, ExceedBlock)
 
   for(int i = 2047; i >= 0; i--)
     POOL_FREE(block_t, q[i]);
-
-  //ASSERT_TRUE(pool_debug_appears_freed());
 }
 
 TEST(Pool, LargeAlloc)
@@ -75,6 +69,4 @@ TEST(Pool, LargeAlloc)
   void* p = pool_alloc_size(1 << 20);
   ASSERT_TRUE(p != NULL);
   pool_free_size(1 << 20, p);
-
-  //ASSERT_TRUE(pool_debug_appears_freed());
 }

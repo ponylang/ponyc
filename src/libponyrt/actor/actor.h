@@ -14,11 +14,9 @@ PONY_EXTERN_C_BEGIN
 #define  ACTORMSG_RELEASE (UINT32_MAX - 2)
 #define  ACTORMSG_CONF (UINT32_MAX - 1)
 
-bool actor_run(pony_actor_t* actor);
+bool actor_run(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void actor_destroy(pony_actor_t* actor);
-
-pony_actor_t* actor_current();
 
 gc_t* actor_gc(pony_actor_t* actor);
 
@@ -28,9 +26,9 @@ bool actor_pendingdestroy(pony_actor_t* actor);
 
 void actor_setpendingdestroy(pony_actor_t* actor);
 
-void actor_final(pony_actor_t* actor);
+void actor_final(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void actor_sendrelease(pony_actor_t* actor);
+void actor_sendrelease(pony_ctx_t* ctx, pony_actor_t* actor);
 
 void actor_setsystem(pony_actor_t* actor);
 

@@ -192,18 +192,11 @@ void cpu_affinity(uint32_t cpu)
 #endif
 }
 
-uint64_t cpu_rdtsc()
-{
-  return __pony_rdtsc();
-}
-
 /**
  * Only nanosleep if sufficient cycles have elapsed.
  */
-void cpu_core_pause(uint64_t tsc, bool yield)
+void cpu_core_pause(uint64_t tsc, uint64_t tsc2, bool yield)
 {
-  uint64_t tsc2 = cpu_rdtsc();
-
   // 10m cycles is about 3ms
   if((tsc2 - tsc) < 10000000)
     return;

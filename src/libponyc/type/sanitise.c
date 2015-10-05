@@ -90,6 +90,8 @@ static void sanitise(ast_t** astp)
   ast_t* type = *astp;
   assert(type != NULL);
 
+  ast_clearflag(*astp, AST_FLAG_PASS_MASK);
+
   if(ast_id(type) == TK_PARAMREF)
   {
     // We have a type param reference, convert to a nominal
@@ -103,6 +105,7 @@ static void sanitise(ast_t** astp)
       NODE(TK_NOMINAL,
         NONE      // Package name
         ID(name)
+        NONE      // Type args
         NONE      // Capability
         NONE));   // Ephemeral
 

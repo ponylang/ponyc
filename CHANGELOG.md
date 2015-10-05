@@ -2,10 +2,13 @@
 
 All notable changes to the Pony compiler and standard library will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/) and [Keep a CHANGELOG](http://keepachangelog.com/).
 
-## [unreleased] - unreleased
+## [0.2.0] - 2015-10-05
 
 ### Added
 
+- Platform indicators for LP64, LLP64, ILP32.
+- Compile and link with LTO.
+- Use Pointer[None] for void* in FFI.
 - Root authority capability in Env.
 - Fine grained capabilities for files and directories.
 - Use Capsicum on FreeBSD.
@@ -17,12 +20,19 @@ All notable changes to the Pony compiler and standard library will be documented
 
 ### Changed
 
+- Renamed some builtin types.
+- abs() now returns an unsigned integer.
+- Improved memory allocation speed.
+- Reduced memory pressure.
 - Scheduler steals when only the CD is on a scheduler thread queue.
 - use commands searches ../pony_packages recursively similar to Node.js
 - Readline uses a Promise to handle async reponses.
 
 ### Fixed
 
+- Handle internal pointers and recursion.
+- Allow recursing through non-pony alloc'd memory in GC.
+- Set an LLVM triple with no version stamp to prevent XCode 7 link warnings.
 - use "path:" adds link paths only for the current build.
 - Handle null characters in Strings and string literals.
 

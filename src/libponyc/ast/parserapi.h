@@ -120,7 +120,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found);
 
-void parse_set_next_flags(parser_t* parser, uint64_t flags);
+void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
@@ -443,7 +443,7 @@ bool parse(ast_t* package, source_t* source, rule_t start,
  *      SET_FLAG(FOO_FLAG);
  */
 #define SET_FLAG(f) \
-  ast_setdata(state.ast, (void*)(f | (uint64_t)ast_data(state.ast)))
+  ast_setflag(state.ast, f)
 
 
 /** Set the data field flags to use for the next token found in the source.

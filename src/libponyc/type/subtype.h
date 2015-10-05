@@ -3,8 +3,11 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
+
+bool is_literal(ast_t* type, const char* name);
 
 bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super);
 

@@ -63,6 +63,4 @@ TEST(Heap, Init)
   ASSERT_EQ(large_size, heap.used);
 
   heap_destroy(&heap);
-
-  //ASSERT_TRUE(pool_debug_appears_freed());
 }

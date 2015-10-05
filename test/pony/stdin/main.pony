@@ -8,7 +8,7 @@ class Notify is StdinNotify
     let data' = consume val data
 
     for c in data'.values() do
-      _env.out.write(c.string(IntHex))
+      _env.out.write(c.string(FormatHex))
     end
 
     _env.out.write("\n")

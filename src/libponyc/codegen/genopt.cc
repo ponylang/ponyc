@@ -33,6 +33,8 @@
 #include <llvm/ADT/SmallSet.h>
 #include <llvm/ADT/SmallVector.h>
 
+#include "../../libponyrt/mem/heap.h"
+
 #ifdef _MSC_VER
 #  pragma warning(pop)
 #endif
@@ -124,6 +126,7 @@ public:
   HeapToStack() : FunctionPass(ID)
   {
     c = the_compiler;
+    module = NULL;
   }
 
   bool doInitialization(Module& m)
@@ -167,12 +170,20 @@ public:
     if(fun == NULL)
       return false;
 
-    if(fun->getName().compare("pony_alloc") != 0)
+    Value* size;
+    bool small = false;
+
+    if(fun->getName().compare("pony_alloc") == 0)
+    {
+      // Nothing.
+    } else if(fun->getName().compare("pony_alloc_small") == 0) {
+      small = true;
+    } else {
       return false;
+    }
 
+    size = call.getArgument(1);
     c->opt->check.stats.heap_alloc++;
-
-    Value* size = call.getArgument(0);
     ConstantInt* int_size = dyn_cast_or_null<ConstantInt>(size);
 
     if(int_size == NULL)
@@ -183,10 +194,17 @@ public:
 
     size_t alloc_size = int_size->getZExtValue();
 
-    if(alloc_size > 1024)
+    if(small)
     {
-      print_transform(c, inst, "large allocation");
-      return false;
+      // Convert a heap index to a size.
+      int_size = ConstantInt::get(builder.getInt64Ty(),
+        1 << (alloc_size + HEAP_MINBITS));
+    } else {
+      if(alloc_size > 1024)
+      {
+        print_transform(c, inst, "large allocation");
+        return false;
+      }
     }
 
     SmallVector<CallInst*, 4> tail;

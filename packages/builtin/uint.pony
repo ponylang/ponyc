@@ -156,11 +156,11 @@ primitive U128 is _UnsignedInteger[U128]
   fun ctz(): U128 => @"llvm.cttz.i128"[U128](this, false)
   fun bitwidth(): U128 => 128
 
-  fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+  fun string(fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
+    _ToString._u128(this, false, fmt, prefix, prec, width, align, fill)
 
   fun divmod(y: U128): (U128, U128) =>
     if Platform.has_i128() then

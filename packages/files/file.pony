@@ -186,15 +186,15 @@ class File
       recover String end
     end
 
-  fun ref print(data: Bytes box): Bool =>
+  fun ref print(data: ByteSeq box): Bool =>
     """
     Same as write, buts adds a newline.
     """
     write(data) and write("\n")
 
-  fun ref printv(data: BytesList box): Bool =>
+  fun ref printv(data: ByteSeqIter box): Bool =>
     """
-    Print an array of Bytes.
+    Print an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       if not print(bytes) then
@@ -203,7 +203,7 @@ class File
     end
     true
 
-  fun ref write(data: Bytes box): Bool =>
+  fun ref write(data: ByteSeq box): Bool =>
     """
     Returns false if the file wasn't opened with write permission.
     Returns false and closes the file if not all the bytes were written.
@@ -223,9 +223,9 @@ class File
     end
     false
 
-  fun ref writev(data: BytesList box): Bool =>
+  fun ref writev(data: ByteSeqIter box): Bool =>
     """
-    Write an array of Bytes.
+    Write an iterable collection of ByteSeqs.
     """
     for bytes in data.values() do
       if not write(bytes) then

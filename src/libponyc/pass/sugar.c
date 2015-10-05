@@ -891,7 +891,7 @@ static ast_result_t sugar_as(pass_opt_t* opt, ast_t** astp)
           TREE(body)))
       NODE(TK_SEQ, AST_SCOPE NODE(TK_ERROR, NONE))));
 
-  return ast_visit(astp, pass_sugar, NULL, opt);
+  return ast_visit(astp, pass_sugar, NULL, opt, PASS_SUGAR);
 }
 
 

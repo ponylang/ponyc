@@ -49,13 +49,13 @@ actor UDPSocket
     _notify_listening()
     _start_next_read()
 
-  be write(data: Bytes, to: IPAddress) =>
+  be write(data: ByteSeq, to: IPAddress) =>
     """
     Write a single sequence of bytes.
     """
     _write(data, to)
 
-  be writev(data: BytesList val, to: IPAddress) =>
+  be writev(data: ByteSeqIter val, to: IPAddress) =>
     """
     Write a sequence of sequences of bytes.
     """
@@ -236,7 +236,7 @@ actor UDPSocket
       end
     end
 
-  fun ref _write(data: Bytes, to: IPAddress) =>
+  fun ref _write(data: ByteSeq, to: IPAddress) =>
     """
     Write the datagram to the socket.
     """

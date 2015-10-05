@@ -40,7 +40,7 @@ char* os_cwd()
   }
 
   size_t len = strlen(cwd) + 1;
-  char* cstring = (char*)pony_alloc(len);
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
   memcpy(cstring, cwd, len);
 
   return cstring;
@@ -60,7 +60,7 @@ const char* windows_readdir(WIN32_FIND_DATA* find)
   if(skip_entry(find->cFileName, len - 1))
     return NULL;
 
-  char* cstring = (char*)pony_alloc(len);
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
   memcpy(cstring, find->cFileName, len);
 
   return cstring;
@@ -129,7 +129,7 @@ const char* unix_readdir(DIR* dir)
     if(skip_entry(d->d_name, len))
       continue;
 
-    char* cstring = pony_alloc(len + 1);
+    char* cstring = pony_alloc(pony_ctx(), len + 1);
     memcpy(cstring, d->d_name, len + 1);
     return cstring;
   }

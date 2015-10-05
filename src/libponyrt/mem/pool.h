@@ -8,7 +8,8 @@
 
 PONY_EXTERN_C_BEGIN
 
-#define POOL_MIN_BITS 6
+#define POOL_MIN_BITS 5
+#define POOL_ALIGN_BITS 10
 
 __pony_spec_malloc__(void* pool_alloc(size_t index));
 void pool_free(size_t index, void* p);
@@ -19,10 +20,6 @@ void pool_free_size(size_t size, void* p);
 size_t pool_index(size_t size);
 
 size_t pool_size(size_t index);
-
-bool pool_debug_appears_freed();
-
-size_t pool_leak();
 
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
@@ -40,8 +37,9 @@ size_t pool_leak();
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 12)), 12, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 13)), 13, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 14)), 14, \
+  __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 15)), 15, \
     EXPR_NONE \
-    )))))))))))))))
+    ))))))))))))))))
 
 #define POOL_ALLOC(TYPE) \
   (TYPE*) pool_alloc(POOL_INDEX(sizeof(TYPE)))

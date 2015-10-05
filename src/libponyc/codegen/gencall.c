@@ -9,6 +9,7 @@
 #include "../type/subtype.h"
 #include "../ast/stringtab.h"
 #include "../../libponyrt/mem/pool.h"
+#include "../../libponyrt/mem/heap.h"
 #include <string.h>
 #include <assert.h>
 
@@ -578,10 +579,11 @@ LLVMValueRef gencall_create(compile_t* c, gentype_t* g)
   // Disable debug anchor
   dwarf_location(&c->dwarf, NULL);
 
-  LLVMValueRef args[1];
-  args[0] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+  LLVMValueRef args[2];
+  args[0] = codegen_ctx(c);
+  args[1] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
 
-  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 1, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_create", args, 2, "");
   return LLVMBuildBitCast(c->builder, result, g->use_type, "");
 }
 
@@ -619,16 +621,26 @@ LLVMValueRef gencall_allocstruct(compile_t* c, gentype_t* g)
   LLVMValueRef final_fun = LLVMGetNamedFunction(c->module, final);
 
   // Allocate the object.
+  LLVMValueRef args[3];
+  args[0] = codegen_ctx(c);
+
   LLVMValueRef result;
-  LLVMValueRef args[2];
-  args[0] = LLVMConstInt(c->i64, size, false);
 
   if(final_fun == NULL)
   {
-    result = gencall_runtime(c, "pony_alloc", args, 1, "");
+    if(size <= HEAP_MAX)
+    {
+      uint32_t index = heap_index(size);
+      args[1] = LLVMConstInt(c->i32, index, false);
+      result = gencall_runtime(c, "pony_alloc_small", args, 2, "");
+    } else {
+      args[1] = LLVMConstInt(c->i64, size, false);
+      result = gencall_runtime(c, "pony_alloc_large", args, 2, "");
+    }
   } else {
-    args[1] = LLVMConstBitCast(final_fun, c->final_fn);
-    result = gencall_runtime(c, "pony_alloc_final", args, 2, "");
+    args[1] = LLVMConstInt(c->i64, size, false);
+    args[2] = LLVMConstBitCast(final_fun, c->final_fn);
+    result = gencall_runtime(c, "pony_alloc_final", args, 3, "");
   }
 
   result = LLVMBuildBitCast(c->builder, result, g->structure_ptr, "");

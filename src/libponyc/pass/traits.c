@@ -878,7 +878,7 @@ static bool resolve_body(ast_t* entity, ast_t* method, pass_opt_t* options)
     // We have a body, use it and patch up symbol tables
     ast_t* old_body = ast_childidx(method, 6);
     ast_replace(&old_body, r);
-    ast_visit(&method, rescope, NULL, options);
+    ast_visit(&method, rescope, NULL, options, PASS_ALL);
     return true;
   }
 

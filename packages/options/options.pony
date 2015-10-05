@@ -29,7 +29,7 @@ type ParsedOption is (String, (None | String | I64 | F64))
 
 interface ParseError
   fun reason(): ErrorReason
-  fun report(out: Stream)
+  fun report(out: OutStream)
 
 class Options is Iterator[(ParsedOption | ParseError | None)]
   let _arguments: Array[String ref]
@@ -271,5 +271,5 @@ class _ErrorPrinter
   fun reason(): ErrorReason =>
     _reason
 
-  fun report(out: Stream) =>
+  fun report(out: OutStream) =>
     out.print(_message)
