@@ -50,9 +50,8 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
-release = ponyc-$(tag)-$(config)
-archive = $(release).tar.bz2
-package = build/$(release)
+archive = ponyc-$(tag).tar
+package = build/ponyc-$(tag)
 
 symlink := yes
 
@@ -506,41 +505,30 @@ release: prerelease setversion
 	@git checkout $(branch)
 endif
 
-deploy: test
-##	@mkdir -p $(package)/DEBIAN
-##	@touch $(package)/DEBIAN/control
-##	@echo "Package: ponyc-$(config)" >> $(package)/DEBIAN/control
-##	@echo "Version: $(tag)" >> $(package)/DEBIAN/control
-##	@echo "Section: base" >> $(package)/DEBIAN/control
-##	@echo "Priority: optional" >> $(package)/DEBIAN/control
-##	@echo "Architecture: amd64" >> $(package)/DEBIAN/control
-##	@echo "Conflicts: ponyc-avx2,ponyc-numa" >> $(package)/DEBIAN/control
-##	@echo "Maintainer: Pony Buildbot <buildbot@lists.ponylang.org>" >> $(package)/DEBIAN/control
-##	@echo "Description: The Pony Compiler" >> $(package)/DEBIAN/control
+deploy:
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
 	@mkdir -p $(package)/usr/lib
 	@mkdir -p $(package)/usr/lib/pony/$(tag)/bin
 	@mkdir -p $(package)/usr/lib/pony/$(tag)/include
 	@mkdir -p $(package)/usr/lib/pony/$(tag)/lib
-	@cp build/$(config)/libponyc.a $(package)/usr/lib/pony/$(tag)/lib
-	@cp build/$(config)/libponyrt.a $(package)/usr/lib/pony/$(tag)/lib
-	@cp build/$(config)/ponyc $(package)/usr/lib/pony/$(tag)/bin
+	@cp build/release/libponyc.a $(package)/usr/lib/pony/$(tag)/lib
+	@cp build/release/libponyrt.a $(package)/usr/lib/pony/$(tag)/lib
+	@cp build/release/ponyc $(package)/usr/lib/pony/$(tag)/bin
 	@cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(tag)/include
 	@ln -s /usr/lib/pony/$(tag)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
 	@ln -s /usr/lib/pony/$(tag)/lib/libponyc.a $(package)/usr/lib/libponyc.a
 	@ln -s /usr/lib/pony/$(tag)/bin/ponyc $(package)/usr/bin/ponyc
 	@ln -s /usr/lib/pony/$(tag)/include/pony.h $(package)/usr/include/pony.h
 	@cp -r packages $(package)/usr/lib/pony/$(tag)/
-##	@cp -r stdlib-docs $(package)/usr/lib/pony/$(tag)/
-	@cd build
-	@fpm -s dir -t deb -C $(package) --name ponyc-$(config) --version $(tag) --description "The Pony Compiler" .
-##	@fakeroot dpkg-deb --build $(package) build
-	@fpm -s deb -t rpm -n "ponyc-$(config)" -v $(tag) *.deb
-	@cd ..
-	@rm -rf $(package)
-	@git archive release | bzip2 >$(archive)
-##	@tar rvf $(archive) stdlib-docs/
+	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(tag)
+	@fpm -s dir -t deb -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler" 
+	@fpm -s dir -t rpm -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler"
+	@git archive release > $(archive)
+	@cp -r $(package)/usr/lib/pony/$(tag)/stdlib-docs stdlib-docs
+	@tar rvf $(archive) stdlib-docs
+	@bzip2 $(archive)
+	@rm -rf $(package) $(archive) stdlib-docs
 
 stats:
 	@echo
