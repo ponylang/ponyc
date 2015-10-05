@@ -92,7 +92,7 @@ ifeq ($(config),release)
 
   ifeq ($(lto),yes)
     BUILD_FLAGS += -flto -DPONY_USE_LTO
-    LINKER_FLAGS += -flto -fuse-ld=gold
+    LINKER_FLAGS += -flto
 
     ifdef LTO
       AR_FLAGS += --plugin $(LTO)
