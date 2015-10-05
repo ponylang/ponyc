@@ -533,11 +533,12 @@ deploy: test
 	@ln -s /usr/lib/pony/$(tag)/include/pony.h $(package)/usr/include/pony.h
 	@cp -r packages $(package)/usr/lib/pony/$(tag)/
 ##	@cp -r stdlib-docs $(package)/usr/lib/pony/$(tag)/
-	@fpm -s dir -t deb -C $(package) --name project_name --version $(tag) --description "The Pony Compiler" .
-##	@fakeroot dpkg-deb --build $(package) build
-	@rm -rf $(package)
 	@cd build
+	@fpm -s dir -t deb -C $(package) --name ponyc-$(config) --version $(tag) --description "The Pony Compiler" .
+##	@fakeroot dpkg-deb --build $(package) build
 	@fpm -s deb -t rpm -n "ponyc-$(config)" -v $(tag) *.deb
+	@cd ..
+	@rm -rf $(package)
 	@git archive release | bzip2 >$(archive)
 ##	@tar rvf $(archive) stdlib-docs/
 
