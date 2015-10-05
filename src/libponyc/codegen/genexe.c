@@ -367,7 +367,11 @@ static bool link_exe(compile_t* c, ast_t* program,
 #endif
 
   snprintf(ld_cmd, ld_len,
-    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 -flto -fuse-linker-plugin "
+    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 "
+#ifdef PONY_USE_LTO
+    "-flto -fuse-linker-plugin "
+#endif
+
 #ifdef PLATFORM_IS_LINUX
     "-fuse-ld=gold "
 #endif

@@ -28,7 +28,7 @@ else
   ifeq ($(UNAME_S),FreeBSD)
     OSTYPE = freebsd
     CXX = c++
-    lto := yes
+    lto := no
   endif
 endif
 
@@ -91,8 +91,8 @@ ifeq ($(config),release)
   BUILD_FLAGS += -O3 -DNDEBUG
 
   ifeq ($(lto),yes)
-    BUILD_FLAGS += -flto
-    LINKER_FLAGS += -flto
+    BUILD_FLAGS += -flto -DPONY_USE_LTO
+    LINKER_FLAGS += -flto -fuse-ld=gold
 
     ifdef LTO
       AR_FLAGS += --plugin $(LTO)
