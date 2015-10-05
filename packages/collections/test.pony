@@ -23,7 +23,16 @@ class _TestList iso is UnitTest
 
     b.remove(1)
     h.expect_eq[U64](b.size(), 2)
+    h.expect_eq[U32](b(0), 0)
     h.expect_eq[U32](b(1), 2)
+
+    b.append_list(a)
+    h.expect_eq[U64](b.size(), 5)
+    h.expect_eq[U32](b(0), 0)
+    h.expect_eq[U32](b(1), 2)
+    h.expect_eq[U32](b(2), 0)
+    h.expect_eq[U32](b(3), 1)
+    h.expect_eq[U32](b(4), 2)
 
     true
 
