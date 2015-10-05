@@ -50,6 +50,9 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
+archive = ponyc-$(tag).tar
+package = build/ponyc-$(tag)
+
 symlink := yes
 
 ifdef destdir
@@ -111,16 +114,18 @@ ifeq ($(OSTYPE),osx)
   ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
-ifneq (,$(shell which llvm-config 2> /dev/null))
-  LLVM_CONFIG = llvm-config
-endif
+ifndef LLVM_CONFIG
+  ifneq (,$(shell which llvm-config 2> /dev/null))
+    LLVM_CONFIG = llvm-config
+  endif
 
-ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
-  LLVM_CONFIG = llvm-config-3.6
-endif
+  ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.6
+  endif
 
-ifneq (,$(shell which llvm-config36 2> /dev/null))
-  LLVM_CONFIG = llvm-config36
+  ifneq (,$(shell which llvm-config36 2> /dev/null))
+    LLVM_CONFIG = llvm-config36
+  endif
 endif
 
 ifneq ("$(wildcard $(LLVM_FALLBACK))","")
@@ -237,7 +242,7 @@ libponyrt-pic.include := $(libponyrt.include)
 libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/ -I src/libponyrt/
+ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
 libgtest.include := -isystem lib/gtest/
 
 ifeq ($(OSTYPE), freebsd)
@@ -248,6 +253,8 @@ endif
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
+
+ponyc.buildoptions = $(libponyc.buildoptions)
 
 ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic
@@ -425,7 +432,7 @@ ifndef version
 prerelease:
 	$$(error "No version number specified.")
 else
-$(eval tag := $(version))
+$$(eval tag := $(version))
 $(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
 ifneq ($(unstaged),0)
 prerelease:
@@ -486,7 +493,6 @@ setversion:
 $(eval $(call EXPAND_RELEASE))
 
 release: prerelease setversion
-	@echo $(tag) > VERSION
 	@git add VERSION
 	@git commit -m "Releasing version $(tag)"
 	@git tag $(tag)
@@ -498,6 +504,31 @@ release: prerelease setversion
 	@git push
 	@git checkout $(branch)
 endif
+
+deploy:
+	@mkdir -p $(package)/usr/bin
+	@mkdir -p $(package)/usr/include
+	@mkdir -p $(package)/usr/lib
+	@mkdir -p $(package)/usr/lib/pony/$(tag)/bin
+	@mkdir -p $(package)/usr/lib/pony/$(tag)/include
+	@mkdir -p $(package)/usr/lib/pony/$(tag)/lib
+	@cp build/release/libponyc.a $(package)/usr/lib/pony/$(tag)/lib
+	@cp build/release/libponyrt.a $(package)/usr/lib/pony/$(tag)/lib
+	@cp build/release/ponyc $(package)/usr/lib/pony/$(tag)/bin
+	@cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(tag)/include
+	@ln -s /usr/lib/pony/$(tag)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+	@ln -s /usr/lib/pony/$(tag)/lib/libponyc.a $(package)/usr/lib/libponyc.a
+	@ln -s /usr/lib/pony/$(tag)/bin/ponyc $(package)/usr/bin/ponyc
+	@ln -s /usr/lib/pony/$(tag)/include/pony.h $(package)/usr/include/pony.h
+	@cp -r packages $(package)/usr/lib/pony/$(tag)/
+	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(tag)
+	@fpm -s dir -t deb -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler" 
+	@fpm -s dir -t rpm -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler"
+	@git archive release > $(archive)
+	@cp -r $(package)/usr/lib/pony/$(tag)/stdlib-docs stdlib-docs
+	@tar rvf $(archive) stdlib-docs
+	@bzip2 $(archive)
+	@rm -rf $(package) $(archive) stdlib-docs
 
 stats:
 	@echo
