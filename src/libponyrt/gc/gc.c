@@ -404,7 +404,8 @@ bool gc_release(gc_t* gc, actorref_t* aref)
 
   while((obj = objectmap_next(map, &i)) != NULL)
   {
-    object_t* obj_local = objectmap_getobject(&gc->local, object_address(obj));
+    void* p = object_address(obj);
+    object_t* obj_local = objectmap_getobject(&gc->local, p);
 
     if(object_dec_some(obj_local, object_rc(obj)))
     {
@@ -414,7 +415,6 @@ bool gc_release(gc_t* gc, actorref_t* aref)
       // mark it as reachable again.
       if(!object_reachable(obj_local))
       {
-        void* p = object_address(obj_local);
         chunk_t* chunk = (chunk_t*)pagemap_get(p);
         heap_free(chunk, p);
       }

@@ -401,11 +401,13 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
 bool heap_ismarked(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
-    return chunk->slots == 0;
+    return (chunk->slots & chunk->shallow) == 0;
 
   // Shift to account for smallest allocation size.
   uint32_t slot = FIND_SLOT(p, chunk->m);
-  return (chunk->slots & slot) == 0;
+
+  // Check if the slot is marked or shallow marked.
+  return (chunk->slots & chunk->shallow & slot) == 0;
 }
 
 void heap_free(chunk_t* chunk, void* p)
