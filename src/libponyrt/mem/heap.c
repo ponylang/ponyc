@@ -264,6 +264,8 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
 
 void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
 {
+  size = pool_adjust_size(size);
+
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
   chunk->actor = actor;
   chunk->size = size;
@@ -298,7 +300,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
   if(chunk->size < HEAP_SIZECLASSES)
   {
     // Previous allocation was a heap_alloc_small.
-    if(size <= sizeof(block_t))
+    if(size <= HEAP_MAX)
     {
       uint32_t sizeclass = heap_index(size);
 
