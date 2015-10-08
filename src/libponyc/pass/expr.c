@@ -176,9 +176,6 @@ ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_PRESERVE:
-      return AST_IGNORE;
-
     case TK_USE:
       // Don't look in use commands to avoid false type errors from the guard
       return AST_IGNORE;

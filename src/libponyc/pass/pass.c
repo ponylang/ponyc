@@ -1,5 +1,6 @@
 #include "pass.h"
 #include "../ast/parser.h"
+#include "../ast/treecheck.h"
 #include "syntax.h"
 #include "sugar.h"
 #include "scope.h"
@@ -162,19 +163,6 @@ static bool visit_pass(ast_t** astp, pass_opt_t* options, pass_id last_pass,
 }
 
 
-// Generic pre handler that just protects TK_PRESERVE, for use by any passes
-// that don't otherwise need one
-static ast_result_t pass_pre(ast_t** astp, pass_opt_t* options)
-{
-  (void)options;
-
-  if(ast_id(*astp) == TK_PRESERVE)
-    return AST_IGNORE;
-
-  return AST_OK;
-}
-
-
 bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
 {
   if(!pass_parse(package, source))
@@ -184,7 +172,12 @@ bool module_passes(ast_t* package, pass_opt_t* options, source_t* source)
     return true;
 
   ast_t* module = ast_child(package);
-  return ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) == AST_OK;
+
+  if(ast_visit(&module, pass_syntax, NULL, options, PASS_SYNTAX) != AST_OK)
+    return false;
+
+  check_tree(module);
+  return true;
 }
 
 
@@ -203,12 +196,11 @@ static bool ast_passes(ast_t** astp, pass_opt_t* options, pass_id last)
   if(!visit_pass(astp, options, last, &r, PASS_IMPORT, pass_import, NULL))
     return r;
 
-  if(!visit_pass(astp, options, last, &r, PASS_NAME_RESOLUTION, pass_pre,
+  if(!visit_pass(astp, options, last, &r, PASS_NAME_RESOLUTION, NULL,
     pass_names))
     return r;
 
-  if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, pass_pre,
-    pass_flatten))
+  if(!visit_pass(astp, options, last, &r, PASS_FLATTEN, NULL, pass_flatten))
     return r;
 
   if(!visit_pass(astp, options, last, &r, PASS_TRAITS, pass_traits, NULL))
@@ -302,6 +294,9 @@ ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
   pass_id ast_pass = (pass_id)ast_checkflag(*ast, AST_FLAG_PASS_MASK);
 
   if(ast_pass >= pass)  // This pass already done for this AST node
+    return AST_OK;
+
+  if(ast_checkflag(*ast, AST_FLAG_PRESERVE))  // Do not process this subtree
     return AST_OK;
 
   typecheck_t* t = &options->check;

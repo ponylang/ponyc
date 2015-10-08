@@ -78,8 +78,8 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
   ast_t* ast = *astp;
   assert(ast != NULL);
 
-  AST_GET_CHILDREN(ast, cap, preserved_t_params, preserved_params, captures,
-    preserved_ret_type, raises, preserved_body);
+  AST_GET_CHILDREN(ast, cap, t_params, params, captures, ret_type, raises,
+    body);
 
   ast_t* members = ast_from(ast, TK_MEMBERS);
   ast_t* last_member = NULL;
@@ -102,11 +102,11 @@ bool expr_lambda(pass_opt_t* opt, ast_t** astp)
     return false;
   }
 
-  // Get the actual elements from their preserve wrappers
-  ast_t* t_params = ast_pop(preserved_t_params);
-  ast_t* params = ast_pop(preserved_params);
-  ast_t* ret_type = ast_pop(preserved_ret_type);
-  ast_t* body = ast_pop(preserved_body);
+  // Stop the various elements being marked as preserve
+  ast_clearflag(t_params, AST_FLAG_PRESERVE);
+  ast_clearflag(params, AST_FLAG_PRESERVE);
+  ast_clearflag(ret_type, AST_FLAG_PRESERVE);
+  ast_clearflag(body, AST_FLAG_PRESERVE);
 
   // Make the apply function
   BUILD(apply, ast,
