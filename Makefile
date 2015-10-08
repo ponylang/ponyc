@@ -50,8 +50,8 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
-archive = ponyc-$(tag).tar
 package_version := $(tag)
+archive = ponyc-$(package_version).tar
 package = build/ponyc-$(package_version)
 
 symlink := yes
