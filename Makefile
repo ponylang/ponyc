@@ -506,7 +506,7 @@ release: prerelease setversion
 	@git checkout $(branch)
 endif
 
-deploy:
+deploy: test
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
 	@mkdir -p $(package)/usr/lib
