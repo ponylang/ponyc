@@ -18,7 +18,8 @@ script:
 - |-
   make test;
 - |- 
-  if [[ "$TRAVIS_OS_NAME" == "linux" && "$UPLOAD" == "yes" ]]; then make config=release deploy; else make config=release; fi;
+  if [[ "$UPLOAD" == "yes" ]]; then cat VERSION | xargs sh .bintray.sh debian $1; cat VERSION | xargs sh .bintray.sh rpm $1; cat VERSION | xargs sh .bintray.sh source $1; make config=release deploy; else make config=release; fi;
+
 notifications:
   email:
     on_success: always
@@ -30,24 +31,27 @@ deploy:
   - provider: bintray
     user: "pony-buildbot"
     file: "bintray_debian.yml"
+    dry_run: true
     on: 
-      branch: "release"
+#      branch: "release"
       condition: "$UPLOAD = yes"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
   - provider: bintray
     user: "pony-buildbot"
     file: "bintray_rpm.yml"
+    dry_run: true
     on: 
-      branch: "release"
+#      branch: "release"
       condition: "$UPLOAD = yes"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
   - provider: bintray
     user: "pony-buildbot"
     file: "bintray_source.yml"
+    dry_run: true
     on: 
-      branch: "release"
+#      branch: "release"
       condition: "$UPLOAD = yes"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
