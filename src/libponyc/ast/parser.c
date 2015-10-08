@@ -273,10 +273,10 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   SKIP(NULL, TK_END);
-  WRAP(1, TK_PRESERVE); // Type parameters
-  WRAP(2, TK_PRESERVE); // Parameters
-  WRAP(4, TK_PRESERVE); // Return type
-  WRAP(6, TK_PRESERVE); // Body
+  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(6, AST_FLAG_PRESERVE); // Body
   DONE();
 
 // AS type ':'
@@ -492,7 +492,7 @@ DEF(caseexpr);
 DEF(cases);
   PRINT_INLINE();
   AST_NODE(TK_CASES);
-  SCOPE();
+  SCOPE();  // TODO: Why is cases a scope?
   SEQ("cases", caseexpr);
   DONE();
 

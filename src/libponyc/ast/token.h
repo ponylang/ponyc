@@ -190,7 +190,6 @@ typedef enum token_id
   TK_UPDATEARG,
   TK_LAMBDACAPTURES,
   TK_LAMBDACAPTURE,
-  TK_PRESERVE,  // Do not process
 
   TK_SEQ,
   TK_QUALIFY,

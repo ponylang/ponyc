@@ -987,9 +987,6 @@ ast_result_t pass_traits(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_PRESERVE:
-      return AST_IGNORE;
-
     case TK_PRIMITIVE:
     case TK_CLASS:
     case TK_ACTOR:

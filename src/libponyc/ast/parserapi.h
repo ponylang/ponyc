@@ -402,21 +402,6 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   }
 
 
-/** Add an extra node, with the specified token id, as a wrapper around the
- * specified child.
- *
- * Example:
- *    WRAP(3, TK_PRESERVE)
- */
-#define WRAP(child_idx, id) \
-  { \
-    ast_t* child = ast_childidx(state.ast, child_idx); \
-    ast_t* wrapper = ast_from(child, id); \
-    ast_swap(child, wrapper); \
-    ast_add(wrapper, child); \
-  }
-
-
 /** Execute arbitrary C code to rewrite the AST as desired or perform any other
  * task.
  * The local variable "ast" is available as both an in and out parameter for
@@ -435,18 +420,27 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   }
 
 
-/** Set a data field flag, which are used to communicate extra information
- * between the parser and syntax pass.
+/** Set a flag on the current AST node.
  * The value specified is the flag value, not the flag index.
  *
  * Example:
  *      SET_FLAG(FOO_FLAG);
  */
-#define SET_FLAG(f) \
-  ast_setflag(state.ast, f)
+#define SET_FLAG(flag) \
+  ast_setflag(state.ast, flag)
 
 
-/** Set the data field flags to use for the next token found in the source.
+/** Set a flag on the specified child of the current AST node.
+* The value specified is the flag value, not the flag index.
+*
+* Example:
+*      SET_CHILD_FLAG(3, FOO_FLAG);
+*/
+#define SET_CHILD_FLAG(child_idx, flag) \
+  ast_setflag(ast_childidx(state.ast, child_idx), flag)
+
+
+/** Set the AST flags to use for the next token found in the source.
  *
  * Example:
  *    NEXT_FLAGS(FOO_FLAG);

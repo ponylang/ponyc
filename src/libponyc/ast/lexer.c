@@ -219,7 +219,6 @@ static const lextoken_t abstract[] =
   { "updatearg", TK_UPDATEARG },
   { "lambdacaptures", TK_LAMBDACAPTURES },
   { "lambdacapture", TK_LAMBDACAPTURE },
-  { "preserve", TK_PRESERVE },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
