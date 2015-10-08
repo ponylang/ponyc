@@ -12,7 +12,7 @@ before_script:
   if [[ "$CC" == "clang" ]]; then sudo apt-get -y --force-yes -qq install clang-3.6 && export CC=clang-3.6 && export CXX=clang++-3.6; elif [[ "$CC" == "gcc" ]]; then sudo apt-get -y --force-yes -qq install gcc-4.9 g++-4.9 && export CC=gcc-4.9 && export CXX=g++-4.9; fi
   wget ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre2-10.20.tar.bz2; tar -xjvf pcre2-10.20.tar.bz2; cd pcre2-10.20 && ./configure --prefix=/usr && make && sudo make install; cd -; fi
 - |-
-  if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then wget http://releases.ponylang.org/llvm/llvm362-x86_64-osx-release.zip; unzip llvm362-x86_64-osx-release.zip; export PATH=$PATH:$(pwd)/LLVM/bin; brew update; brew install pcre2 libressl gnu-tar ruby; gem install fpm
+  if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then wget http://releases.ponylang.org/llvm/llvm362-x86_64-osx-release.zip; unzip llvm362-x86_64-osx-release.zip; export PATH=$PATH:$(pwd)/LLVM/bin; brew update; brew install pcre2 libressl gnu-tar ruby rpm; gem install fpm
   if [[ "$CC" == "gcc" ]]; then export CC=gcc && export CXX=g++; fi fi
 script: make test && make config=release test
 notifications:
@@ -21,15 +21,15 @@ notifications:
     on_failure: always
     recipients:
     - buildbot@lists.ponylang.org
-  irc:
-    on_success: always
-    on_failure: always
-    channels:
-    - chat.freenode.net#ponylang
-    template:
-    - 'Build #%{build_number}: %{repository} %{branch} (%{commit}) %{author} - %{message}'
-    - 'Build details: %{build_url}'
-    - 'Code Changes: %{compare_url}'
+#  irc:
+#    on_success: always
+#    on_failure: always
+#   channels:
+#    - chat.freenode.net#ponylang
+#    template:
+#    - 'Build #%{build_number}: %{repository} %{branch} (%{commit}) %{author} - %{message}'
+#    - 'Build details: %{build_url}'
+#    - 'Code Changes: %{compare_url}'
 before_deploy:
   - make deploy config=release
   - cat VERSION | xargs sh .bintray.sh debian $1 
@@ -41,17 +41,20 @@ deploy:
     user: "pony-buildbot"
     file: "bintray_debian.yml"
     dry_run: true
+ #   on: "release"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
   - provider: bintray
     user: "pony-buildbot"
     file: "bintray_rpm.yml"
     dry_run: true
+#    on: "release"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
   - provider: bintray
     user: "pony-buildbot"
     file: "bintray_source.yml"
     dry_run: true
+#    on: "release"
     key:
       secure: lHcuHpEj2N/P5SajENhVOT+mH1pwlInlBfk0l09fUuvoqLAIJI6Gb1OHGbNnazxxxH/ANVmP14XIU8hGWwQBGMTjUkJ8/FyyzGCHJlMiSSBzdAozLp1rG4A5IaNg9KvHgwljjerGp1FcTDjySV7v+I4eouhIravc6223xOrpPIQo8U0ZXm6vIIP4g8CVqMzBBsJh6O79GiGceV9x4G1nky40Tf1ulA0BmDiv1k1NEjMQKq04PX/OzQSSF/eHeVXOHFVmbz7dwngKtdMoZodsZDLfSJgG7aCH7k6opg0M+OkitB+RHR7O8cpPcbbOVuJTYcbiKeHvctN2yVXXiwNiawuGGw6M2ik+fSqrPg5POr+vbbXruGlr55ZmTP1WMbF750heKjNsSvrSAdsdquCv3vVvAbBykVO0cDrYWrMnik7cbT5nzFSwrZYiQorKC6HrBHQ6LFaK4hKNh0xVPu8WTCmWQBGtDjpEIlKDuLH2A0K3mz+DJGgn4Y+TIHJeKwp6yPZTaa6h+w0afDmA9cHzG73mp8S9u1NIc4P2HObIdkTnvb/5EoQ0r+46uPVETmRnspxlYZYPg/76jrrRTeAfEj8OI57IeRi2Yxa5iUyiA6/Pe/Kyfxkly8fV/JBQYjgDKmB9zUjKT7RAvSk1adSL69+PKWeU6Y6zYrz+c92CMGA=
