@@ -507,6 +507,7 @@ release: prerelease setversion
 endif
 
 deploy: test
+	@mkdir build/bin
 	@mkdir -p $(package)/usr/bin
 	@mkdir -p $(package)/usr/include
 	@mkdir -p $(package)/usr/lib
@@ -523,13 +524,13 @@ deploy: test
 	@ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
 	@cp -r packages $(package)/usr/lib/pony/$(package_version)/
 	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
-	@fpm -s dir -t deb -C $(package) --name ponyc --version $(package_version) --description "The Pony Compiler"
-	@fpm -s dir -t rpm -C $(package) --name ponyc --version $(package_version) --description "The Pony Compiler"
-	@git archive release > $(archive)
+	@fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	@fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	@git archive release > build/bin/$(archive)
 	@cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
-	@tar rvf $(archive) stdlib-docs
-	@bzip2 $(archive)
-	@rm -rf $(package) $(archive) stdlib-docs
+	@tar rvf build/bin/$(archive) stdlib-docs
+	@bzip2 build/bin/$(archive)
+	@rm -rf $(package) build/bin/$(archive) stdlib-docs
 
 stats:
 	@echo
