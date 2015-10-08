@@ -50,14 +50,8 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
-<<<<<<< HEAD
-release = ponyc-$(tag)-$(config)
-archive = $(release).tar.bz2
-package = build/$(release)
-=======
 archive = ponyc-$(tag).tar
 package = build/ponyc-$(tag)
->>>>>>> 8cce853d0e792f8a139b8f734920683659f6758a
 
 symlink := yes
 
