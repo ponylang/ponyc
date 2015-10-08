@@ -526,7 +526,7 @@ deploy: test
 	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
 	@fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
 	@fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
-	@git archive master > build/bin/$(archive)
+	@git archive release > build/bin/$(archive)
 	@cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
 	@tar rvf build/bin/$(archive) stdlib-docs
 	@bzip2 build/bin/$(archive)
