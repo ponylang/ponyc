@@ -46,4 +46,4 @@ esac
 
 YAML=$YAML$FILES"}"  
 
-echo $YAML >> .bintray_$1.yml
+echo $YAML >> bintray_$1.yml

@@ -32,7 +32,9 @@ notifications:
     - 'Code Changes: %{compare_url}'
 before_deploy:
   - make deploy config=release
-  - cat VERSION | xargs sh .bintray.sh debian $1 && sh .bintray.sh rpm $1 && sh .bintray.sh source $1 
+  - cat VERSION | xargs sh .bintray.sh debian $1 
+  - cat VERSION | xargs sh .bintray.sh rpm $1 
+  - cat VERSION | xargs sh .bintray.sh source $1 
 
 deploy:
   - provider: bintray
