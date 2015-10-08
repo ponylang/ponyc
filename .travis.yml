@@ -18,7 +18,7 @@ script:
 - |-
   make test;
 - |- 
-  if [[ "$UPLOAD" == "yes" ]]; then cat VERSION | xargs sh .bintray.sh debian $1; cat VERSION | xargs sh .bintray.sh rpm $1; cat VERSION | xargs sh .bintray.sh source $1; make config=release deploy; else make test config=release; fi;
+  if [[ "$UPLOAD" == "yes" && "$TRAVIS_BRANCH" == "release" ]]; then cat VERSION | xargs sh .bintray.sh debian $1; cat VERSION | xargs sh .bintray.sh rpm $1; cat VERSION | xargs sh .bintray.sh source $1; make config=release deploy; else make test config=release; fi;
 
 notifications:
   email:
