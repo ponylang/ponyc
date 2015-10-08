@@ -251,7 +251,7 @@ libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
 libgtest.include := -isystem lib/gtest/
 
-ifeq ($(OSTYPE), freebsd)
+ifneq (,$(filter $(OSTYPE), osx freebsd))
   libponyrt.include += -I /usr/local/include
 endif
 
@@ -438,7 +438,7 @@ ifndef version
 prerelease:
 	$$(error "No version number specified.")
 else
-$$(eval tag := $(version))
+$(eval tag := $(version))
 $(eval unstaged := $(shell git status --porcelain 2>/dev/null | wc -l))
 ifneq ($(unstaged),0)
 prerelease:
@@ -528,7 +528,7 @@ deploy:
 	@ln -s /usr/lib/pony/$(tag)/include/pony.h $(package)/usr/include/pony.h
 	@cp -r packages $(package)/usr/lib/pony/$(tag)/
 	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(tag)
-	@fpm -s dir -t deb -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler" 
+	@fpm -s dir -t deb -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler"
 	@fpm -s dir -t rpm -C $(package) --name ponyc --version $(tag) --description "The Pony Compiler"
 	@git archive release > $(archive)
 	@cp -r $(package)/usr/lib/pony/$(tag)/stdlib-docs stdlib-docs

@@ -602,7 +602,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         case 'J':
         {
           // Clear screen.
-          // TODO: 3 different clear modes, here we always do #2.
+          // 3 different clear modes, here we always do #2.
           COORD coord = get_coord(handle, &csbi);
           coord.X = 0;
           coord.Y = csbi.srWindow.Top;
@@ -620,7 +620,7 @@ void os_std_write(FILE* fp, char* buffer, uint64_t len)
         case 'K':
         {
           // Erase to the right edge.
-          // TODO: 3 different modes, here we do #0.
+          // 3 different modes, here we do #0.
           COORD coord = get_coord(handle, &csbi);
           DWORD count = csbi.dwSize.X - coord.X;
 

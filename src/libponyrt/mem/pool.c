@@ -363,9 +363,7 @@ void* pool_alloc_size(size_t size)
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
-  if((size & POOL_ALIGN_MASK) != 0)
-    size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
-
+  size = pool_adjust_size(size);
   void* p = pool_alloc_pages(size);
 
 #ifdef USE_VALGRIND
@@ -387,9 +385,7 @@ void pool_free_size(size_t size, void* p)
   VALGRIND_DISABLE_ERROR_REPORTING;
 #endif
 
-  if((size & POOL_ALIGN_MASK) != 0)
-    size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
-
+  size = pool_adjust_size(size);
   pool_free_pages(p, size);
 
 #ifdef USE_VALGRIND
@@ -413,4 +409,12 @@ size_t pool_index(size_t size)
 size_t pool_size(size_t index)
 {
   return (size_t)1 << (POOL_MIN_BITS + index);
+}
+
+size_t pool_adjust_size(size_t size)
+{
+  if((size & POOL_ALIGN_MASK) != 0)
+    size = (size & ~POOL_ALIGN_MASK) + POOL_ALIGN;
+
+  return size;
 }
