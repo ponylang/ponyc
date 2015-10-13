@@ -1,8 +1,7 @@
 #include "pagemap.h"
 #include "alloc.h"
 #include "pool.h"
-#include <stddef.h>
-#include <stdint.h>
+#include <string.h>
 
 #include <platform.h>
 
@@ -45,7 +44,7 @@ static const pagemap_level_t level[PAGEMAP_LEVELS] =
     POOL_INDEX((1 << L1_MASK) * sizeof(void*)) }
 };
 
-static void** root = NULL;
+static void** root;
 
 void* pagemap_get(const void* m)
 {
@@ -73,6 +72,7 @@ void pagemap_set(const void* m, void* v)
     if(*pv == NULL)
     {
       p = pool_alloc(level[i].size_index);
+      memset(p, 0, level[i].size);
       void** prev = NULL;
 
       if(!_atomic_cas_strong(pv, &prev, p))

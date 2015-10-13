@@ -412,7 +412,6 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
 static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
-  // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
   if(!check_type_params(&lhs))

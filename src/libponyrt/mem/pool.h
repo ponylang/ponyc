@@ -21,6 +21,8 @@ size_t pool_index(size_t size);
 
 size_t pool_size(size_t index);
 
+size_t pool_adjust_size(size_t size);
+
 #define POOL_INDEX(SIZE) \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 0)), 0, \
   __pony_choose_expr(SIZE <= (1 << (POOL_MIN_BITS + 1)), 1, \

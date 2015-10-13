@@ -264,6 +264,8 @@ void* heap_alloc_small(pony_actor_t* actor, heap_t* heap,
 
 void* heap_alloc_large(pony_actor_t* actor, heap_t* heap, size_t size)
 {
+  size = pool_adjust_size(size);
+
   chunk_t* chunk = (chunk_t*) POOL_ALLOC(chunk_t);
   chunk->actor = actor;
   chunk->size = size;
@@ -298,7 +300,7 @@ void* heap_realloc(pony_actor_t* actor, heap_t* heap, void* p, size_t size)
   if(chunk->size < HEAP_SIZECLASSES)
   {
     // Previous allocation was a heap_alloc_small.
-    if(size <= sizeof(block_t))
+    if(size <= HEAP_MAX)
     {
       uint32_t sizeclass = heap_index(size);
 
@@ -401,11 +403,13 @@ void heap_mark_shallow(chunk_t* chunk, void* p)
 bool heap_ismarked(chunk_t* chunk, void* p)
 {
   if(chunk->size >= HEAP_SIZECLASSES)
-    return chunk->slots == 0;
+    return (chunk->slots & chunk->shallow) == 0;
 
   // Shift to account for smallest allocation size.
   uint32_t slot = FIND_SLOT(p, chunk->m);
-  return (chunk->slots & slot) == 0;
+
+  // Check if the slot is marked or shallow marked.
+  return (chunk->slots & chunk->shallow & slot) == 0;
 }
 
 void heap_free(chunk_t* chunk, void* p)
