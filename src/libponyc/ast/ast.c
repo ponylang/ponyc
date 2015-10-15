@@ -260,7 +260,7 @@ ast_t* ast_new(token_t* t, token_id id)
 
 ast_t* ast_blank(token_id id)
 {
-  return ast_token(token_new(id, NULL));
+  return ast_token(token_new(id));
 }
 
 ast_t* ast_token(token_t* t)
@@ -346,10 +346,10 @@ ast_t* ast_setid(ast_t* ast, token_id id)
   return ast;
 }
 
-void ast_setpos(ast_t* ast, size_t line, size_t pos)
+void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos)
 {
   assert(ast != NULL);
-  token_set_pos(ast->t, line, pos);
+  token_set_pos(ast->t, source, line, pos);
 }
 
 void ast_setdebug(ast_t* ast, bool state)

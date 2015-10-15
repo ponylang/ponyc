@@ -36,12 +36,11 @@ typedef struct token_t
 } token_t;
 
 
-token_t* token_new(token_id id, source_t* source)
+token_t* token_new(token_id id)
 {
   token_t* t = POOL_ALLOC(token_t);
   memset(t, 0, sizeof(token_t));
   t->id = id;
-  t->source = source;
   t->debug_info = true;
   return t;
 }
@@ -257,9 +256,13 @@ void token_set_int(token_t* token, __uint128_t value)
   token->integer = value;
 }
 
-void token_set_pos(token_t* token, size_t line, size_t pos)
+void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 {
   assert(token != NULL);
+
+  if(source != NULL)
+    token->source = source;
+
   token->line = line;
   token->pos = pos;
 }
