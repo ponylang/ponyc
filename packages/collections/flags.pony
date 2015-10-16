@@ -1,4 +1,4 @@
-interface Flag[A: (Unsigned & Integer[A] val)] val
+interface val Flag[A: (Unsigned & Integer[A] val)]
   """
   A flag should be a primitive with a value method that returns the bits that
   represent the flag. This allows a flag to encode a single bit, or any

@@ -1,4 +1,4 @@
-class String val is (Seq[U8] & Comparable[String box] & Stringable)
+class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """

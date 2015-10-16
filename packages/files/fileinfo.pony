@@ -1,4 +1,4 @@
-class FileInfo val
+class val FileInfo
   """
   This contains file system metadata for a path. The times are in the same
   format as Time.now(), i.e. seconds and nanoseconds since the epoch.

@@ -1,4 +1,4 @@
-trait _ArithmeticConvertible val
+trait val _ArithmeticConvertible
   fun i8(): I8 => compiler_intrinsic
   fun i16(): I16 => compiler_intrinsic
   fun i32(): I32 => compiler_intrinsic
@@ -14,7 +14,7 @@ trait _ArithmeticConvertible val
   fun f32(): F32 => compiler_intrinsic
   fun f64(): F64 => compiler_intrinsic
 
-trait Real[A: Real[A] val] val is
+trait val Real[A: Real[A] val] is
   (Stringable & _ArithmeticConvertible & Comparable[A])
   new val create(value: A)
 
@@ -50,7 +50,7 @@ trait Real[A: Real[A] val] val is
     x = x + (x << 31)
     x
 
-trait Integer[A: Integer[A] val] val is Real[A]
+trait val Integer[A: Integer[A] val] is Real[A]
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y
@@ -67,8 +67,8 @@ trait Integer[A: Integer[A] val] val is Real[A]
   fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
   fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
-trait _SignedInteger[A: _SignedInteger[A,C] val,
-    C: _UnsignedInteger[C] val] val is Integer[A]
+trait val _SignedInteger[A: _SignedInteger[A,C] val,
+    C: _UnsignedInteger[C] val] is Integer[A]
   fun abs(): C
   fun string(fmt: FormatInt = FormatDefault,
     prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
@@ -77,7 +77,7 @@ trait _SignedInteger[A: _SignedInteger[A,C] val,
     _ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
       fill)
 
-trait _UnsignedInteger[A: _UnsignedInteger[A] val] val is Integer[A]
+trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
   fun abs(): A
   fun string(fmt: FormatInt = FormatDefault,
     prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
@@ -85,7 +85,7 @@ trait _UnsignedInteger[A: _UnsignedInteger[A] val] val is Integer[A]
   =>
     _ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
-trait FloatingPoint[A: FloatingPoint[A] val] val is Real[A]
+trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
   fun tag epsilon(): A
   fun tag radix(): U8
   fun tag precision2(): U8

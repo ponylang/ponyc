@@ -249,7 +249,8 @@ static void setup_type_fields(gentype_t* g)
         AST_GET_CHILDREN(member, name, type, init);
         g->fields[index] = reify(typeparams, ast_type(member), typeparams,
           typeargs);
-        ast_setpos(g->fields[index], ast_line(name), ast_pos(name));
+        // TODO: Are we sure the AST source file is correct?
+        ast_setpos(g->fields[index], NULL, ast_line(name), ast_pos(name));
         index++;
         break;
       }

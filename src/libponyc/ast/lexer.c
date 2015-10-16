@@ -326,8 +326,8 @@ static void append_to_token(lexer_t* lexer, char c)
 // Make a token with the specified ID and no token text
 static token_t* make_token(lexer_t* lexer, token_id id)
 {
-  token_t* t = token_new(id, lexer->source);
-  token_set_pos(t, lexer->token_line, lexer->token_pos);
+  token_t* t = token_new(id);
+  token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
   return t;
 }
 

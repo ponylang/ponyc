@@ -13,7 +13,7 @@ actor Main is TestList
     test(_TestArgSpace)
     test(_TestArgLeadingDash)
 
-class _TestLongOptions iso is UnitTest
+class iso _TestLongOptions is UnitTest
   """
   Long options start with two leading dashes.
   """
@@ -24,7 +24,7 @@ class _TestLongOptions iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestShortOptions iso is UnitTest
+class iso _TestShortOptions is UnitTest
   """
   Short options start with a single leading dash.
   """
@@ -35,7 +35,7 @@ class _TestShortOptions iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestCombineShortOptions iso is UnitTest
+class iso _TestCombineShortOptions is UnitTest
   """
   Short options can be combined to one string with a single leading dash. 
   """
@@ -46,7 +46,7 @@ class _TestCombineShortOptions iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestCombineShortArg iso is UnitTest
+class iso _TestCombineShortArg is UnitTest
   """
   Short options can be combined up to the first option that takes an argument.
   """
@@ -57,7 +57,7 @@ class _TestCombineShortArg iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestArgEquals iso is UnitTest
+class iso _TestArgEquals is UnitTest
   """
   Arguments can be distinguished from long and short options using '='.
   """
@@ -68,7 +68,7 @@ class _TestArgEquals iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestArgSpace iso is UnitTest
+class iso _TestArgSpace is UnitTest
   """
   Arguments can be distinguished from long and short options using space.
   """
@@ -79,7 +79,7 @@ class _TestArgSpace iso is UnitTest
   fun apply(h: TestHelper): TestResult =>
     true
 
-class _TestArgLeadingDash iso is UnitTest
+class iso _TestArgLeadingDash is UnitTest
   """
   Arguments can only start with a leading dash, if they are seperated from
   the option using '=', otherwise they will be interpreted as named options.

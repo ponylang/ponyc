@@ -22,7 +22,7 @@ use_ffi
   ;
 
 class_def
-  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? ID typeparams? cap? ('is' type)? STRING? members
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members

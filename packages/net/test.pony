@@ -7,7 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestBuffer)
 
-class _TestBuffer iso is UnitTest
+class iso _TestBuffer is UnitTest
   """
   Test adding to and reading from a Buffer.
   """

@@ -1,4 +1,4 @@
-interface ResponseHandler val
+interface val ResponseHandler
   """
   Handles responses to HTTP requests.
   """
@@ -7,7 +7,7 @@ interface ResponseHandler val
     Called when a response is available for a request.
     """
 
-interface RequestHandler val
+interface val RequestHandler
   """
   Handles requests. May dispatch based on the URL or other rules.
   """
@@ -16,7 +16,7 @@ interface RequestHandler val
     Eventually generates a response when handed a request.
     """
 
-interface Logger val
+interface val Logger
   """
   Handles logging request/response pairs.
   """

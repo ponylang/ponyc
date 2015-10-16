@@ -240,7 +240,7 @@ typedef enum token_id
 /** Create a new token.
   * The created token must be freed later with token_free().
   */
-token_t* token_new(token_id id, source_t* source);
+token_t* token_new(token_id id);
 
 /** Create a duplicate of the given token.
   * The duplicate must be freed later with token_free().
@@ -328,8 +328,10 @@ void token_set_float(token_t* token, double value);
 /// Set the given token's literal value. Only valid for TK_INT tokens.
 void token_set_int(token_t* token, __uint128_t value);
 
-/// Set the given token's position within its source file
-void token_set_pos(token_t* token, size_t line, size_t pos);
+/// Set the given token's position within its source file and optionally the
+/// source file.
+/// Set source to NULL to keep current file.
+void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);

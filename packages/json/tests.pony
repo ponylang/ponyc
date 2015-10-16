@@ -25,7 +25,7 @@ actor Main is TestList
     test(_TestParsePrint)
 
 
-class _TestParseBasic iso is UnitTest
+class iso _TestParseBasic is UnitTest
   """
   Test Json basic parsing, eg allowing whitespace.
   """
@@ -47,7 +47,7 @@ class _TestParseBasic iso is UnitTest
     true
 
 
-class _TestParseKeyword iso is UnitTest
+class iso _TestParseKeyword is UnitTest
   """
   Test Json parsing of keywords.
   """
@@ -73,7 +73,7 @@ class _TestParseKeyword iso is UnitTest
     true
 
 
-class _TestParseNumber iso is UnitTest
+class iso _TestParseNumber is UnitTest
   """
   Test Json parsing of numbers.
   """
@@ -118,7 +118,7 @@ class _TestParseNumber iso is UnitTest
     true
 
 
-class _TestParseString iso is UnitTest
+class iso _TestParseString is UnitTest
   """
   Test Json parsing of strings.
   """
@@ -162,7 +162,7 @@ class _TestParseString iso is UnitTest
     true
 
 
-class _TestParseArray iso is UnitTest
+class iso _TestParseArray is UnitTest
   """
   Test Json parsing of arrays.
   """
@@ -217,7 +217,7 @@ class _TestParseArray iso is UnitTest
     true
 
 
-class _TestParseObject iso is UnitTest
+class iso _TestParseObject is UnitTest
   """
   Test Json parsing of objects.
   """
@@ -276,7 +276,7 @@ class _TestParseObject iso is UnitTest
     true
 
 
-class _TestParseRFC1 iso is UnitTest
+class iso _TestParseRFC1 is UnitTest
   """
   Test Json parsing of first example from RFC7159.
   """
@@ -335,7 +335,7 @@ class _TestParseRFC1 iso is UnitTest
     true
 
 
-class _TestParseRFC2 iso is UnitTest
+class iso _TestParseRFC2 is UnitTest
   """
   Test Json parsing of second example from RFC7159.
   """
@@ -402,7 +402,7 @@ class _TestParseRFC2 iso is UnitTest
     true
 
 
-class _TestPrintKeyword iso is UnitTest
+class iso _TestPrintKeyword is UnitTest
   """
   Test Json printing of keywords.
   """
@@ -423,7 +423,7 @@ class _TestPrintKeyword iso is UnitTest
     true
 
 
-class _TestPrintNumber iso is UnitTest
+class iso _TestPrintNumber is UnitTest
   """
   Test Json printing of numbers.
   """
@@ -455,7 +455,7 @@ class _TestPrintNumber iso is UnitTest
     true
 
 
-class _TestPrintString iso is UnitTest
+class iso _TestPrintString is UnitTest
   """
   Test Json printing of strings.
   """
@@ -488,7 +488,7 @@ class _TestPrintString iso is UnitTest
     true
 
 
-class _TestPrintArray iso is UnitTest
+class iso _TestPrintArray is UnitTest
   """
   Test Json printing of arrays.
   """
@@ -528,7 +528,7 @@ class _TestPrintArray iso is UnitTest
     true
 
 
-class _TestPrintObject iso is UnitTest
+class iso _TestPrintObject is UnitTest
   """
   Test Json printing of objects.
   """
@@ -557,7 +557,7 @@ class _TestPrintObject iso is UnitTest
     true
 
 
-class _TestParsePrint iso is UnitTest
+class iso _TestParsePrint is UnitTest
   """
   Test Json parsing a complex example and then reprinting it.
   """
