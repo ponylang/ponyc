@@ -1,7 +1,7 @@
 use "collections"
 use "net"
 
-class Payload iso
+class iso Payload
   """
   An HTTP payload. For a response, the method indicates the status text. For a
   request, the status is meaningless.

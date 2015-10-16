@@ -6,7 +6,7 @@ use @SSL_CTX_ctrl[I64](ctx: Pointer[_SSLContext] tag, op: I32, arg: I64,
 
 primitive _SSLContext
 
-class SSLContext val
+class val SSLContext
   """
   An SSL context is used to create SSL sessions.
   """

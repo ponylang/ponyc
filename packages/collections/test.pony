@@ -8,7 +8,7 @@ actor Main is TestList
     test(_TestList)
     test(_TestRing)
 
-class _TestList iso is UnitTest
+class iso _TestList is UnitTest
   fun name(): String => "collections/List"
 
   fun apply(h: TestHelper): TestResult ? =>
@@ -36,7 +36,7 @@ class _TestList iso is UnitTest
 
     true
 
-class _TestRing iso is UnitTest
+class iso _TestRing is UnitTest
   fun name(): String => "collections/RingBuffer"
 
   fun apply(h: TestHelper): TestResult ? =>

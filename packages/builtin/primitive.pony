@@ -1,4 +1,4 @@
-interface Any tag
+interface tag Any
 
 primitive None is Stringable
   fun string(fmt: FormatDefault = FormatDefault,

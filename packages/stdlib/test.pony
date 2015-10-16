@@ -58,7 +58,7 @@ actor Main is TestList
     options.Main.make().tests(test)
     json.Main.make().tests(test)
 
-class _TestAbs iso is UnitTest
+class iso _TestAbs is UnitTest
   """
   Test abs function
   """
@@ -101,7 +101,7 @@ class _TestAbs iso is UnitTest
 
     true
 
-class _TestStringRunes iso is UnitTest
+class iso _TestStringRunes is UnitTest
   """
   Test iterating over the unicode codepoints in a string.
   """
@@ -125,7 +125,7 @@ class _TestStringRunes iso is UnitTest
     true
 
 
-class _TestIntToString iso is UnitTest
+class iso _TestIntToString is UnitTest
   """
   Test converting integers to strings.
   """
@@ -142,7 +142,7 @@ class _TestIntToString iso is UnitTest
     true
 
 
-class _TestStringToU8 iso is UnitTest
+class iso _TestStringToU8 is UnitTest
   """
   Test converting strings to U8s.
   """
@@ -174,7 +174,7 @@ class _TestStringToU8 iso is UnitTest
     true
 
 
-class _TestStringToI8 iso is UnitTest
+class iso _TestStringToI8 is UnitTest
   """
   Test converting strings to I8s.
   """
@@ -207,7 +207,7 @@ class _TestStringToI8 iso is UnitTest
     true
 
 
-class _TestStringToIntLarge iso is UnitTest
+class iso _TestStringToIntLarge is UnitTest
   """
   Test converting strings to I* and U* types bigger than 8 bit.
   """
@@ -258,7 +258,7 @@ class _TestStringToIntLarge iso is UnitTest
 
     true
 
-class _TestStringLstrip iso is UnitTest
+class iso _TestStringLstrip is UnitTest
   """
   Test stripping leading characters from a string.
   """
@@ -272,7 +272,7 @@ class _TestStringLstrip iso is UnitTest
 
     true
 
-class _TestStringRstrip iso is UnitTest
+class iso _TestStringRstrip is UnitTest
   """
   Test stripping trailing characters from a string.
   """
@@ -286,7 +286,7 @@ class _TestStringRstrip iso is UnitTest
 
     true
 
-class _TestStringStrip iso is UnitTest
+class iso _TestStringStrip is UnitTest
   """
   Test stripping leading and trailing characters from a string.
   """
@@ -301,7 +301,7 @@ class _TestStringStrip iso is UnitTest
 
     true
 
-class _TestStringRemove iso is UnitTest
+class iso _TestStringRemove is UnitTest
   """
   Test removing characters from a string (independent of leading or trailing).
   """
@@ -330,7 +330,7 @@ class _TestStringRemove iso is UnitTest
 
     true
 
-class _TestSpecialValuesF32 iso is UnitTest
+class iso _TestSpecialValuesF32 is UnitTest
   """
   Test whether a F32 is infinite or NaN.
   """
@@ -360,7 +360,7 @@ class _TestSpecialValuesF32 iso is UnitTest
     true
 
 
-class _TestSpecialValuesF64 iso is UnitTest
+class iso _TestSpecialValuesF64 is UnitTest
   """
   Test whether a F64 is infinite or NaN.
   """
@@ -389,7 +389,7 @@ class _TestSpecialValuesF64 iso is UnitTest
 
     true
 
-class _TestStringReplace iso is UnitTest
+class iso _TestStringReplace is UnitTest
   """
   Test String.replace
   """
@@ -401,7 +401,7 @@ class _TestStringReplace iso is UnitTest
     h.expect_eq[String box](s, "this is not a robbery, this is not a stickup")
     true
 
-class _TestStringSplit iso is UnitTest
+class iso _TestStringSplit is UnitTest
   """
   Test String.split
   """
@@ -428,7 +428,7 @@ class _TestStringSplit iso is UnitTest
       false
     end
 
-class _TestStringCompare iso is UnitTest
+class iso _TestStringCompare is UnitTest
   """
   Test comparing strings.
   """

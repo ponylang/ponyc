@@ -1,4 +1,4 @@
-class Env val
+class val Env
   """
   An environment holds the command line and other values injected into the
   program by default by the runtime.

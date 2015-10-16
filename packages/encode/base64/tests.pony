@@ -13,7 +13,7 @@ actor Main is TestList
     test(_TestBase64Quote)
 
 
-class _TestBase64Encode iso is UnitTest
+class iso _TestBase64Encode is UnitTest
   """
   Test base64 encoding.
   Using test examples from RFC 4648.
@@ -30,7 +30,7 @@ class _TestBase64Encode iso is UnitTest
     h.expect_eq[String]("Zm9vYmFy", Base64.encode("foobar"))
     true
 
-class _TestBase64Decode iso is UnitTest
+class iso _TestBase64Decode is UnitTest
   """
   Test base64 decoding. Examples with and without padding are tested.
   Using test examples from RFC 4648.
@@ -55,7 +55,7 @@ class _TestBase64Decode iso is UnitTest
     h.expect_eq[String]("foobar", Base64.decode[String iso]("Zm9vYmFy"))
     true
 
-class _TestBase64EncodeDecode iso is UnitTest
+class iso _TestBase64EncodeDecode is UnitTest
   """
   Test base64 encoding.
   Check encoding then decoding gives back original.
@@ -70,7 +70,7 @@ class _TestBase64EncodeDecode iso is UnitTest
     h.expect_eq[String](src, dec)
     true
 
-class _TestBase64Quote iso is UnitTest
+class iso _TestBase64Quote is UnitTest
   """
   Test base64 encoding.
   Check encoding then decoding something a bit longer.

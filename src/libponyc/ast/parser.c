@@ -853,15 +853,15 @@ DEF(class_def);
     TK_ACTOR);
   SCOPE();
   OPT TOKEN(NULL, TK_AT);
+  OPT RULE("capability", cap);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
-  OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided type", provides));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
   // Order should be:
   // id type_params cap provides members c_api docstring
-  REORDER(1, 2, 3, 4, 6, 0, 5);
+  REORDER(2, 3, 1, 4, 6, 0, 5);
   DONE();
 
 // STRING

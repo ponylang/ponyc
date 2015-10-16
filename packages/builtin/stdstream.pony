@@ -1,4 +1,4 @@
-interface ByteSeq val
+interface val ByteSeq
   """
   Accept both a String and an Array[U8].
   """
@@ -6,13 +6,13 @@ interface ByteSeq val
   fun cstring(): Pointer[U8] tag
   fun apply(i: U64): U8 ?
 
-interface ByteSeqIter val
+interface val ByteSeqIter
   """
   Accept an iterable collection of String or Array[U8].
   """
   fun values(): Iterator[ByteSeq]
 
-interface OutStream tag
+interface tag OutStream
   """
   Asnychronous access to some output stream.
   """
