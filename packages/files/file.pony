@@ -14,26 +14,28 @@ primitive CreateFile
   Open a File for read/write, creating if it doesn't exist, preserving the
   contents if it does exist.
   """
-  fun apply(from: FilePath): File ? =>
+  fun apply(from: FilePath): (File | FileErrNo) =>
     let file = File(from)
+    let err = file.errno()
     
-    match file.errno()
+    match err
     | FileOK => file
     else
-      error
+      err
     end
     
 primitive OpenFile
   """
   Open a File for read only.
   """
-  fun apply(from: FilePath): File ? =>
+  fun apply(from: FilePath): (File | FileErrNo) =>
     let file = File.open(from)
-
-    match file.errno()
+    let err = file.errno()
+    
+    match err
     | FileOK => file
     else
-      error
+      err
     end
 
 class File
