@@ -1,4 +1,4 @@
-interface Flag[A: (Unsigned & Integer[A] box)] val
+interface Flag[A: (Unsigned & Integer[A] val)] val
   """
   A flag should be a primitive with a value method that returns the bits that
   represent the flag. This allows a flag to encode a single bit, or any
@@ -6,7 +6,7 @@ interface Flag[A: (Unsigned & Integer[A] box)] val
   """
   fun value(): A
 
-class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] box) = U64] is
+class Flags[A: Flag[B] val, B: (Unsigned & Integer[B] val) = U64] is
   Comparable[Flags[A, B] box]
   """
   Flags is a set of flags. The flags that are recognised should be passed as

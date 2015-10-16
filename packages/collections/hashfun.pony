@@ -26,7 +26,7 @@ trait HashFunction[A] val
     in a box fun without consuming keys.
     """
 
-primitive HashEq[A: (Hashable box & Equatable[A] box)] is HashFunction[A]
+primitive HashEq[A: (Hashable #read & Equatable[A] #read)] is HashFunction[A]
   fun hash(x: box->A): U64 =>
     """
     Use the hash function from the type parameter.

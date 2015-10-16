@@ -1,4 +1,4 @@
-class Range[A: (Real[A] box & Number) = U64] is Iterator[A]
+class Range[A: (Real[A] val & Number) = U64] is Iterator[A]
   """
   Produces [min, max).
   """

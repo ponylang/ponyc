@@ -188,7 +188,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   {
     // Use the reified constraint.
     ast_t* r_constraint = ast_childidx(r_typeparam, 1);
-    r_constraint = alias_bind(r_constraint);
+    r_constraint = bind_type(r_constraint);
 
     // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, r_constraint))

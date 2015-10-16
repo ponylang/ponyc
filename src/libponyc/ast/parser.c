@@ -110,6 +110,12 @@ DEF(cap);
   TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
+// GENCAP
+DEF(gencap);
+  TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
+    TK_CAP_ANY);
+  DONE();
+
 // ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
@@ -120,7 +126,7 @@ DEF(nominal);
     REORDER(1, 0);
   );
   OPT RULE("type arguments", typeargs);
-  OPT RULE("capability", cap);
+  OPT RULE("capability", cap, gencap);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
@@ -239,7 +245,7 @@ DEF(object);
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
-  
+
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);

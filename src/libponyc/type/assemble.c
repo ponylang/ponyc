@@ -341,9 +341,9 @@ ast_t* type_isect_fun(ast_t* a, ast_t* b)
   token_id a_tcap = ast_id(a_cap);
   token_id b_tcap = ast_id(b_cap);
 
-  if(is_cap_sub_cap(b_tcap, a_tcap))
+  if(is_cap_sub_cap(b_tcap, TK_NONE, a_tcap, TK_NONE))
     tcap = a_tcap;
-  else if(is_cap_sub_cap(a_tcap, b_tcap))
+  else if(is_cap_sub_cap(a_tcap, TK_NONE, b_tcap, TK_NONE))
     tcap = b_tcap;
   else
     tcap = TK_BOX;

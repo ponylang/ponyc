@@ -244,7 +244,7 @@ class List[A] is Seq[A]
     _tail = node
     _size = 1
 
-class ListNodes[A, N: ListNode[A] box] is Iterator[N]
+class ListNodes[A, N: ListNode[A] #read] is Iterator[N]
   """
   Iterate over the nodes in a list.
   """
@@ -281,7 +281,7 @@ class ListNodes[A, N: ListNode[A] box] is Iterator[N]
       error
     end
 
-class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
+class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
   """
   Iterate over the values in a list.
   """

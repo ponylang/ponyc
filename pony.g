@@ -232,7 +232,14 @@ uniontype
   ;
 
 nominal
-  : ID ('.' ID)? typeargs? cap? ('^' | '!')?
+  : ID ('.' ID)? typeargs? (cap | gencap)? ('^' | '!')?
+  ;
+
+gencap
+  : '#read'
+  | '#send'
+  | '#share'
+  | '#any'
   ;
 
 cap

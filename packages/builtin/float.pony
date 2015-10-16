@@ -5,7 +5,7 @@ primitive F32 is FloatingPoint[F32]
 
   new from_bits(i: U32) => compiler_intrinsic
   fun bits(): U32 => compiler_intrinsic
-  fun tag from[B: (Number & Real[B] box)](a: B): F32 => a.f32()
+  fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
 
   fun tag min_value(): F32 =>
     """
@@ -148,7 +148,7 @@ primitive F64 is FloatingPoint[F64]
 
   new from_bits(i: U64) => compiler_intrinsic
   fun bits(): U64 => compiler_intrinsic
-  fun tag from[B: (Number & Real[B] box)](a: B): F64 => a.f64()
+  fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
 
   fun tag min_value(): F64 =>
     """

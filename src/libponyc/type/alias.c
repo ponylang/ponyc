@@ -25,7 +25,8 @@ static ast_t* alias_for_type(ast_t* type, int index)
       {
         case TK_ISO:
         case TK_TRN:
-        case TK_ANY_GENERIC:
+        case TK_CAP_SEND:
+        case TK_CAP_ANY:
         case TK_NONE:
           type = ast_dup(type);
           ephemeral = ast_childidx(type, index + 1);
@@ -48,7 +49,7 @@ static ast_t* alias_for_type(ast_t* type, int index)
   return NULL;
 }
 
-static ast_t* alias_bind_for_type(ast_t* type, int index)
+static ast_t* bind_for_type(ast_t* type, int index)
 {
   type = ast_dup(type);
   ast_t* cap = ast_childidx(type, index);
@@ -62,9 +63,10 @@ static ast_t* alias_bind_for_type(ast_t* type, int index)
     case TK_VAL: tcap = TK_VAL_BIND; break;
     case TK_BOX: tcap = TK_BOX_BIND; break;
     case TK_TAG: tcap = TK_TAG_BIND; break;
-    case TK_BOX_GENERIC: tcap = TK_BOX_BIND; break;
-    case TK_TAG_GENERIC: tcap = TK_TAG_BIND; break;
-    case TK_ANY_GENERIC: tcap = TK_ANY_BIND; break;
+    case TK_CAP_READ: tcap = TK_CAP_READ_BIND; break;
+    case TK_CAP_SEND: tcap = TK_CAP_SEND_BIND; break;
+    case TK_CAP_SHARE: tcap = TK_CAP_SHARE_BIND; break;
+    case TK_CAP_ANY: tcap = TK_CAP_ANY_BIND; break;
 
     default:
       assert(0);
@@ -99,77 +101,50 @@ static ast_t* recover_for_type(ast_t* type, int index, token_id rcap)
 
     case TK_TRN:
     case TK_REF:
-      // These recovers as iso, so any rcap is acceptable.
+      // These recover as iso, so any rcap is acceptable.
       if(rcap == TK_NONE)
         rcap = TK_ISO;
       break;
 
     case TK_VAL:
     case TK_BOX:
+    case TK_CAP_READ:
       // These recover as val, so mutable rcaps are not acceptable.
       if(rcap == TK_NONE)
         rcap = TK_VAL;
 
-      if(rcap < TK_VAL)
-        return NULL;
+      switch(rcap)
+      {
+        case TK_ISO:
+        case TK_TRN:
+        case TK_REF:
+        case TK_CAP_READ:
+        case TK_CAP_SEND:
+        case TK_CAP_ANY:
+          return NULL;
+
+        case TK_VAL:
+        case TK_BOX:
+        case TK_TAG:
+        case TK_CAP_SHARE:
+          break;
+
+        default:
+          assert(0);
+          return NULL;
+      }
       break;
 
     case TK_TAG:
-      // Recovers as tag only.
+    case TK_CAP_SEND:
+    case TK_CAP_SHARE:
+    case TK_CAP_ANY:
+      // Recovers as tag or itself only.
       if(rcap == TK_NONE)
-        rcap = TK_TAG;
+        rcap = tcap;
 
-      if(rcap != TK_TAG)
+      if((rcap != TK_TAG) && (rcap != tcap))
         return NULL;
-      break;
-
-    case TK_BOX_GENERIC:
-      // Could be ref or val, recovers as box or itself.
-      if(rcap == TK_NONE)
-        rcap = TK_BOX_GENERIC;
-
-      switch(rcap)
-      {
-        case TK_BOX:
-        case TK_TAG:
-        case TK_BOX_GENERIC:
-          break;
-
-        default:
-          return NULL;
-      }
-      break;
-
-    case TK_TAG_GENERIC:
-      // Could be val or tag, recovers as tag or itself.
-      if(rcap == TK_NONE)
-        rcap = TK_TAG_GENERIC;
-
-      switch(rcap)
-      {
-        case TK_TAG:
-        case TK_TAG_GENERIC:
-          break;
-
-        default:
-          return NULL;
-      }
-      break;
-
-    case TK_ANY_GENERIC:
-      // Could be anything, recovers as tag or itself.
-      if(rcap == TK_NONE)
-        rcap = TK_ANY_GENERIC;
-
-      switch(rcap)
-      {
-        case TK_TAG:
-        case TK_ANY_GENERIC:
-          break;
-
-        default:
-          return NULL;
-      }
       break;
 
     default:
@@ -214,7 +189,7 @@ static ast_t* consume_for_type(ast_t* type, int index, token_id ccap)
     default: {}
   }
 
-  if(!is_cap_sub_cap(tcap, ccap))
+  if(!is_cap_sub_cap(tcap, TK_NONE, ccap, TK_NONE))
   {
     ast_free_unattached(type);
     return NULL;
@@ -277,21 +252,24 @@ ast_t* alias(ast_t* type)
   return NULL;
 }
 
-ast_t* alias_bind(ast_t* type)
+ast_t* bind_type(ast_t* type)
 {
+  // A bind type is only ever used when checking constraints.
+  // We change tha capabilities to a bind capability. For example:
+  // ref <: #read when binding, but not when assigning.
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
     {
-      // Alias each element.
+      // bind each element
       ast_t* r_type = ast_from(type, ast_id(type));
       ast_t* child = ast_child(type);
 
       while(child != NULL)
       {
-        ast_append(r_type, alias_bind(child));
+        ast_append(r_type, bind_type(child));
         child = ast_sibling(child);
       }
 
@@ -299,24 +277,29 @@ ast_t* alias_bind(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return alias_bind_for_type(type, 3);
+      return bind_for_type(type, 3);
 
     case TK_TYPEPARAMREF:
-      return alias_bind_for_type(type, 1);
+      return bind_for_type(type, 1);
 
     case TK_ARROW:
     {
-      // Alias just the right side. The left side is either 'this' or a type
+      // Bind just the right side. The left side is either 'this' or a type
       // parameter, and stays the same.
       AST_GET_CHILDREN(type, left, right);
 
       BUILD(r_type, type,
         NODE(TK_ARROW,
           TREE(left)
-          TREE(alias_bind(right))));
+          TREE(bind_type(right))));
 
       return r_type;
     }
+
+    case TK_FUNTYPE:
+    case TK_INFERTYPE:
+    case TK_ERRORTYPE:
+      return type;
 
     default: {}
   }
@@ -490,13 +473,13 @@ bool sendable(ast_t* type)
     case TK_NOMINAL:
     {
       AST_GET_CHILDREN(type, pkg, id, typeparams, cap, eph);
-      return cap_sendable(ast_id(cap), ast_id(eph));
+      return cap_sendable(ast_id(cap));
     }
 
     case TK_TYPEPARAMREF:
     {
       AST_GET_CHILDREN(type, id, cap, eph);
-      return cap_sendable(ast_id(cap), ast_id(eph));
+      return cap_sendable(ast_id(cap));
     }
 
     case TK_FUNTYPE:

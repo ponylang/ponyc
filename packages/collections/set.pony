@@ -1,4 +1,4 @@
-type Set[A: (Hashable box & Equatable[A] box)] is HashSet[A, HashEq[A]]
+type Set[A: (Hashable #read & Equatable[A] #read)] is HashSet[A, HashEq[A]]
 
 type SetIs[A] is HashSet[A, HashIs[A!]]
 
@@ -71,7 +71,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     this
 
-  fun ref union[K: HashFunction[A^] val = H](that: HashSet[A^, K]):
+  fun ref union[K: HashFunction[A] val = H](that: HashSet[A^, K]):
     HashSet[A, H]^
   =>
     """
@@ -99,7 +99,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
 
     this
 
-  fun ref difference[K: HashFunction[A^] val = H](
+  fun ref difference[K: HashFunction[A] val = H](
     that: HashSet[A^, K]): HashSet[A, H]^
   =>
     """
@@ -292,7 +292,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     SetValues[A, H, this->HashSet[A, H]](this)
 
-class SetValues[A, H: HashFunction[A!] val, S: HashSet[A, H] box] is
+class SetValues[A, H: HashFunction[A!] val, S: HashSet[A, H] #read] is
   Iterator[S->A]
   """
   An iterator over the values in a set.
