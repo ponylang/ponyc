@@ -80,6 +80,9 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
         if(ast == NULL)
           return false;
 
+        if(ast == right)
+          ast = ast_dup(ast);
+
         ast_replace(astp, ast);
         return true;
       }
