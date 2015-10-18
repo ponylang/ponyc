@@ -176,6 +176,28 @@ actor TestHelper
       true
     end
 
+  fun tag assert_is[A]
+    (expect: A, actual: A, msg: String = "") ?
+  =>
+  """
+  Assert that the 2 given expressions resolve to the same instance
+  """
+  let expect' = identityof expect
+  let actual' = identityof actual
+  if not _check_eq[U64]("Assert", expect', actual', msg) then
+    error
+  end
+
+  fun tag expect_is[A]
+    (expect: A, actual: A, msg: String = ""): Bool
+  =>
+    """
+    Expect that the 2 given expressions resolve to the same instance
+    """
+    let expect' = identityof expect
+    let actual' = identityof actual
+    _check_eq[U64]("Expect", expect', actual', msg)
+
   fun tag assert_eq[A: (Equatable[A] #read & Stringable)]
     (expect: A, actual: A, msg: String = "") ?
   =>
