@@ -273,6 +273,18 @@ static void cap_aliasing(token_id* cap, token_id* eph)
           *cap = TK_BOX;
           break;
 
+        case TK_ISO_BIND:
+          *cap = TK_TAG_BIND;
+          break;
+
+        case TK_TRN_BIND:
+          *cap = TK_BOX_BIND;
+          break;
+
+        case TK_CAP_SEND_BIND:
+          *cap = TK_CAP_SHARE_BIND;
+          break;
+
         default: {}
       }
 
