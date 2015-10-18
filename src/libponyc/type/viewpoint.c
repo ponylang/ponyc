@@ -82,9 +82,9 @@ static ast_t* make_arrow_type(ast_t* left, ast_t* right)
   return NULL;
 }
 
-static ast_t* viewpoint_lower_for_nominal(ast_t* type)
+static ast_t* viewpoint_lower_for_type(ast_t* type, int cap_index)
 {
-  ast_t* cap = ast_childidx(type, 3);
+  ast_t* cap = ast_childidx(type, cap_index);
   token_id tcap = ast_id(cap);
 
   // For any chain of arrows, return a capability that is a subtype of the
@@ -95,6 +95,10 @@ static ast_t* viewpoint_lower_for_nominal(ast_t* type)
   // ref->val = val, val->val = val, box->val = val => val
   // ref->box = box, val->box = val, box->box = box => val
   // ref->tag = tag, val->tag = tag, box->tag = tag => tag
+  // #read: ref = trn, val = val, box = val => trn
+  // #send: iso = iso, val = val, tag = tag => iso
+  // #share: val = val, tag = tag => val
+  // #any: iso = iso => iso
   switch(tcap)
   {
     case TK_ISO:
@@ -104,47 +108,11 @@ static ast_t* viewpoint_lower_for_nominal(ast_t* type)
       return type;
 
     case TK_REF:
-      tcap = TK_TRN;
-      break;
-
-    case TK_BOX:
-      tcap = TK_VAL;
-      break;
-
-    default:
-      assert(0);
-      return NULL;
-  }
-
-  type = ast_dup(type);
-  cap = ast_childidx(type, 3);
-  ast_setid(cap, tcap);
-  return type;
-}
-
-static ast_t* viewpoint_lower_for_typeparam(ast_t* type)
-{
-  AST_GET_CHILDREN(type, id, cap, eph);
-  token_id tcap = ast_id(cap);
-
-  // What's a subtype of every possible result?
-  // ref->#read = trn, val->#read = val, box->#read = val => trn
-  // ref->#share = val, val->#share = val, box->#share = val => val
-  // ref->#any = iso, val->#any = val, box->#any = val => iso
-  switch(tcap)
-  {
-    case TK_ISO:
-    case TK_TRN:
-    case TK_REF:
-    case TK_VAL:
-    case TK_BOX:
-    case TK_TAG:
-      return type;
-
     case TK_CAP_READ:
       tcap = TK_TRN;
       break;
 
+    case TK_BOX:
     case TK_CAP_SHARE:
       tcap = TK_VAL;
       break;
@@ -160,7 +128,7 @@ static ast_t* viewpoint_lower_for_typeparam(ast_t* type)
   }
 
   type = ast_dup(type);
-  cap = ast_childidx(type, 1);
+  cap = ast_childidx(type, cap_index);
   ast_setid(cap, tcap);
   return type;
 }
@@ -268,7 +236,12 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
         return make_arrow_type(l_type, r_type);
 
       AST_GET_CHILDREN(l_type, pkg, id, typeargs, cap, eph);
-      return viewpoint_cap(ast_id(cap), ast_id(eph), r_type);
+      token_id tcap = ast_id(cap);
+
+      if(tcap == TK_CAP_READ)
+        return make_arrow_type(l_type, r_type);
+
+      return viewpoint_cap(tcap, ast_id(eph), r_type);
     }
 
     case TK_TYPEPARAMREF:
@@ -276,8 +249,6 @@ ast_t* viewpoint_type(ast_t* l_type, ast_t* r_type)
       if(ast_id(r_type) == TK_ARROW)
         return make_arrow_type(l_type, r_type);
 
-      // If the left side is a type parameter, return an arrow type if the
-      // capability is #read, otherwise adapt the type.
       AST_GET_CHILDREN(l_type, id, cap, eph);
       token_id tcap = ast_id(cap);
 
@@ -332,16 +303,16 @@ ast_t* viewpoint_lower(ast_t* type)
     }
 
     case TK_NOMINAL:
-      return viewpoint_lower_for_nominal(type);
+      return viewpoint_lower_for_type(type, 3);
 
     case TK_TYPEPARAMREF:
-      return viewpoint_lower_for_typeparam(type);
+      return viewpoint_lower_for_type(type, 1);
 
     case TK_ARROW:
     {
       AST_GET_CHILDREN(type, left, right);
 
-      // If left it a boxtype, right's lower bounds is its actual type.
+      // If left is a boxtype, right's lower bounds is its actual type.
       if(ast_id(left) == TK_BOXTYPE)
         return viewpoint_cap(TK_BOX, TK_NONE, right);
 
