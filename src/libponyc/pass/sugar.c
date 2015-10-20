@@ -724,7 +724,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         ast_append(create_body, assign);
         ast_append(call_args, arg);
 
-        has_fields = true; 
+        has_fields = true;
         break;
       }
 

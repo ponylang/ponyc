@@ -91,7 +91,8 @@ static bool names_resolvealias(pass_opt_t* opt, ast_t* def, ast_t** type)
   return true;
 }
 
-static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
+static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def,
+  bool expr)
 {
   ast_t* ast = *astp;
   AST_GET_CHILDREN(ast, pkg, id, typeargs, cap, eph);
@@ -102,6 +103,13 @@ static bool names_typealias(pass_opt_t* opt, ast_t** astp, ast_t* def)
 
   if(!names_resolvealias(opt, def, &alias))
     return false;
+
+  // TODO: check constraints
+  if(expr)
+  {
+    if(!check_constraints(typeargs, typeparams, typeargs, true))
+      return false;
+  }
 
   // Reify the alias.
   ast_t* r_alias = reify(typeparams, alias, typeparams, typeargs);
@@ -218,7 +226,7 @@ ast_t* names_def(ast_t* ast)
   return ast_get(scope, ast_name(type_id), NULL);
 }
 
-bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr)
 {
   typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
@@ -262,7 +270,7 @@ bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp)
     switch(ast_id(def))
     {
       case TK_TYPE:
-        r = names_typealias(opt, astp, def);
+        r = names_typealias(opt, astp, def, expr);
         break;
 
       case TK_TYPEPARAM:
@@ -313,7 +321,7 @@ ast_result_t pass_names(ast_t** astp, pass_opt_t* options)
   switch(ast_id(ast))
   {
     case TK_NOMINAL:
-      if(!names_nominal(options, ast, astp))
+      if(!names_nominal(options, ast, astp, false))
         return AST_ERROR;
       break;
 

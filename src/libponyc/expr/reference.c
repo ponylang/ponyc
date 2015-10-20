@@ -912,8 +912,8 @@ bool expr_tuple(ast_t* ast)
 
 bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 {
-  // Resolve typealiases and typeparam references.
-  if(!names_nominal(opt, *astp, astp))
+  // Resolve type aliases and typeparam references.
+  if(!names_nominal(opt, *astp, astp, true))
     return false;
 
   ast_t* ast = *astp;
