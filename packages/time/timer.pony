@@ -19,7 +19,7 @@ class Timer
     _interval = interval
     _notify = consume notify
     _node = ListNode[Timer]
-    _node() = this
+    try _node() = this end
 
   new abs(notify: TimerNotify, expiration: (I64, I64), interval: U64 = 0) =>
     """
@@ -30,7 +30,7 @@ class Timer
     _interval = interval
     _notify = notify
     _node = ListNode[Timer]
-    _node() = this
+    try _node() = this end
 
   fun ref _cancel() =>
     """
