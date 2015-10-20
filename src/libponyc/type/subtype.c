@@ -108,8 +108,18 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
 
       // Covariant result. Don't check this for interfaces, as it produces
       // an infinite loop. It will be true if the whole interface is provided.
-      if((isuper == NULL) && !is_subtype(sub_result, super_result))
-        return false;
+      if(isuper == NULL)
+      {
+        if(!is_subtype(sub_result, super_result))
+         return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
@@ -122,9 +132,18 @@ static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
         return false;
 
       // Covariant result.
-      if(!is_recursive_interface(sub_result, super_result, isub, isuper) &&
-        !is_subtype(sub_result, super_result))
-        return false;
+      if(!is_recursive_interface(sub_result, super_result, isub, isuper))
+      {
+        if(!is_subtype(sub_result, super_result))
+          return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
