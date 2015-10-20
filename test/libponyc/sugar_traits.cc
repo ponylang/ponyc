@@ -22,6 +22,7 @@ TEST_F(SugarTraitTest, FieldDelegate)
     "  fun f()\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T";
 
   const char* full_form =
@@ -29,6 +30,7 @@ TEST_F(SugarTraitTest, FieldDelegate)
     "  fun f()\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f() => bar.f()";
 
@@ -82,6 +84,7 @@ TEST_F(SugarTraitTest, FieldDelegateParamsReturn)
     "  fun f(x: U32, y: U32): Bool\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T";
 
   const char* full_form =
@@ -89,6 +92,7 @@ TEST_F(SugarTraitTest, FieldDelegateParamsReturn)
     "  fun f(x: U32, y: U32): Bool\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f(x: U32, y: U32): Bool => bar.f(consume x, consume y)";
 
@@ -105,6 +109,7 @@ TEST_F(SugarTraitTest, FieldDelegateMultipleMethods)
     "  fun f3(x: T)\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T";
 
   const char* full_form =
@@ -114,6 +119,7 @@ TEST_F(SugarTraitTest, FieldDelegateMultipleMethods)
     "  fun f3(x: T)\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f1() => bar.f1()\n"
     "  fun f2(x: U32, y: U32): Bool => bar.f2(consume x, consume y)\n"
@@ -132,6 +138,7 @@ TEST_F(SugarTraitTest, FieldDelegateMaskedMethods)
     "  fun f3(x: T)\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f2(x: U32, y: U32): Bool => true\n"
     "  fun f3(x: T) => None";
@@ -143,6 +150,7 @@ TEST_F(SugarTraitTest, FieldDelegateMaskedMethods)
     "  fun f3(x: T)\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f2(x: U32, y: U32): Bool => true\n"
     "  fun f3(x: T) => None\n"
@@ -164,6 +172,7 @@ TEST_F(SugarTraitTest, FieldDelegateDuplicateMethodsAddedOnce)
     "  fun f2(x: U32, y: U32): Bool\n"
 
     "class Foo is (T & I)\n"
+    "  var create: U32\n"
     "  var bar: (T & I) delegate (T & I)";
 
   const char* full_form =
@@ -176,6 +185,7 @@ TEST_F(SugarTraitTest, FieldDelegateDuplicateMethodsAddedOnce)
     "  fun f2(x: U32, y: U32): Bool\n"
 
     "class Foo is (T & I)\n"
+    "  var create: U32\n"
     "  var bar: (T & I) delegate (T & I)\n"
     "  fun f1() => bar.f1()\n"
     "  fun f2(x: U32, y: U32): Bool => bar.f2(consume x, consume y)\n"
@@ -211,6 +221,7 @@ TEST_F(SugarTraitTest, FieldDelegateMultipleDelegations)
     "  fun g() => None\n"
 
     "class Foo is (T1 & T2)\n"
+    "  var create: U32\n"
     "  var bar1: T1 delegate T1\n"
     "  var bar2: T2 delegate T2";
 
@@ -222,6 +233,7 @@ TEST_F(SugarTraitTest, FieldDelegateMultipleDelegations)
     "  fun g() => None\n"
 
     "class Foo is (T1 & T2)\n"
+    "  var create: U32\n"
     "  var bar1: T1 delegate T1\n"
     "  var bar2: T2 delegate T2\n"
     "  fun f() => bar1.f()\n"
@@ -255,6 +267,7 @@ TEST_F(SugarTraitTest, FieldDelegatePolymorphicTrait)
     "  fun f()\n"
 
     "class Foo is T[U32]\n"
+    "  var create: U32\n"
     "  var bar: T[U32] delegate T[U32]";
 
   const char* full_form =
@@ -262,6 +275,7 @@ TEST_F(SugarTraitTest, FieldDelegatePolymorphicTrait)
     "  fun f()\n"
 
     "class Foo is T[U32]\n"
+    "  var create: U32\n"
     "  var bar: T[U32] delegate T[U32]\n"
     "  fun f() => bar.f()";
 
@@ -289,6 +303,7 @@ TEST_F(SugarTraitTest, FieldDelegatePolymorphicMethod)
     "  fun f[A]()\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T";
 
   const char* full_form =
@@ -296,6 +311,7 @@ TEST_F(SugarTraitTest, FieldDelegatePolymorphicMethod)
     "  fun f[A]()\n"
 
     "class Foo is T\n"
+    "  var create: U32\n"
     "  var bar: T delegate T\n"
     "  fun f[A]() => bar.f()";
 

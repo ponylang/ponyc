@@ -28,25 +28,9 @@ TEST_F(SugarTest, DataType)
 }
 
 
-TEST_F(SugarTest, ClassWithField)
+TEST_F(SugarTest, ClassWithoutCreate)
 {
-  // Create constructor should not be added if there are uninitialsed fields
-  const char* short_form =
-    "class iso Foo\n"
-    "  let m:U32";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "class iso Foo\n"
-    "  let m:U32";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ClassWithInitialisedField)
-{
-  // Create constructor should be added if there are only initialised fields
+  // Create constructor should be added if there isn't a create
   const char* short_form =
     "class iso Foo\n"
     "  let m:U32 = 3";
@@ -72,6 +56,22 @@ TEST_F(SugarTest, ClassWithCreateConstructor)
     "use \"builtin\"\n"
     "class iso Foo\n"
     "  new ref create(): Foo ref^ => 3";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ClassWithConstructor)
+{
+  // Create constructor should not be added if there's already a constructor
+  const char* short_form =
+    "class iso Foo\n"
+    "  new make() => 3";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "class iso Foo\n"
+    "  new ref make(): Foo ref^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -110,29 +110,12 @@ TEST_F(SugarTest, ClassWithoutFieldOrCreate)
 TEST_F(SugarTest, ClassWithoutDefCap)
 {
   const char* short_form =
-    "class Foo\n"
-    "  let m:U32";
+    "class Foo";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  let m:U32";
-
-  TEST_EQUIV(short_form, full_form);
-}
-
-
-TEST_F(SugarTest, ActorWithField)
-{
-  // Create constructor should not be added if there are uninitialsed fields
-  const char* short_form =
-    "actor Foo\n"
-    "  let m:U32";
-
-  const char* full_form =
-    "use \"builtin\"\n"
-    "actor tag Foo\n"
-    "  let m:U32";
+    "  new iso create(): Foo iso^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -140,15 +123,13 @@ TEST_F(SugarTest, ActorWithField)
 
 TEST_F(SugarTest, ActorWithInitialisedField)
 {
-  // Create constructor should be added if there are only initialsed fields
+  // Create constructor should be added
   const char* short_form =
-    "actor Foo\n"
-    "  let m:U32 = 3";
+    "actor Foo";
 
   const char* full_form =
     "use \"builtin\"\n"
     "actor tag Foo\n"
-    "  let m:U32 = 3\n"
     "  new tag create(): Foo tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
@@ -166,6 +147,22 @@ TEST_F(SugarTest, ActorWithCreateConstructor)
     "use \"builtin\"\n"
     "actor tag Foo\n"
     "  new tag create(): Foo tag^ => 3";
+
+  TEST_EQUIV(short_form, full_form);
+}
+
+
+TEST_F(SugarTest, ActorWithConstructor)
+{
+  // Create constructor should not be added if there's already a constructor
+  const char* short_form =
+    "actor Foo\n"
+    " new make() => 3";
+
+  const char* full_form =
+    "use \"builtin\"\n"
+    "actor tag Foo\n"
+    "  new tag make(): Foo tag^ => 3";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -220,13 +217,12 @@ TEST_F(SugarTest, ActorWithoutFieldOrCreate)
 TEST_F(SugarTest, ActorWithoutDefCap)
 {
   const char* short_form =
-    "actor Foo\n"
-    "  let m:U32";
+    "actor Foo";
 
   const char* full_form =
     "use \"builtin\"\n"
     "actor tag Foo\n"
-    "  let m:U32";
+    "  new tag create(): Foo tag^ => true";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -257,7 +253,7 @@ TEST_F(SugarTest, TypeParamWithConstraint)
 {
   const char* short_form =
     "class ref Foo[A: U32]\n"
-    "  var y:U32";
+    "  var create: U32";
 
   TEST_COMPILE(short_form);
 }
@@ -267,12 +263,12 @@ TEST_F(SugarTest, TypeParamWithoutConstraint)
 {
   const char* short_form =
     "class ref Foo[A]\n"
-    "  var y:U32";
+  "  var create: U32";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo[A: A]\n"
-    "  var y:U32";
+    "  var create: U32";
 
   TEST_EQUIV(short_form, full_form);
 }
@@ -344,13 +340,13 @@ TEST_F(SugarTest, BehaviourReturnType)
 {
   const char* short_form =
     "actor Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  be foo() => 3";
 
   const char* full_form =
     "use \"builtin\"\n"
     "actor tag Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  be tag foo():Foo tag => 3";
 
   TEST_EQUIV(short_form, full_form);
@@ -361,7 +357,6 @@ TEST_F(SugarTest, FunctionComplete)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
     "  fun box foo(): U32 val => 3";
 
   TEST_COMPILE(short_form);
@@ -403,14 +398,14 @@ TEST_F(SugarTest, IfWithoutElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    if 1 then 2 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    if 1 then 2 else None end";
 
@@ -422,7 +417,7 @@ TEST_F(SugarTest, IfWithElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    if 1 then 2 else 3 end";
 
@@ -434,14 +429,14 @@ TEST_F(SugarTest, WhileWithoutElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    while 1 do 2 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    while 1 do 2 else None end";
 
@@ -453,7 +448,7 @@ TEST_F(SugarTest, WhileWithElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    while 1 do 2 else 3 end";
 
@@ -465,7 +460,7 @@ TEST_F(SugarTest, TryWithElseAndThen)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    try 1 else 2 then 3 end";
 
@@ -477,14 +472,14 @@ TEST_F(SugarTest, TryWithoutElseOrThen)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    try 1 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    try 1 else None then None end";
 
@@ -496,14 +491,14 @@ TEST_F(SugarTest, TryWithoutElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    try 1 then 2 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    $try_no_check 1 else None then 2 end";
 
@@ -515,14 +510,14 @@ TEST_F(SugarTest, TryWithoutThen)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    try 1 else 2 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    try 1 else 2 then None end";
 
@@ -534,14 +529,14 @@ TEST_F(SugarTest, ForWithoutElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    for i in 1 do 2 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "  $seq(\n"
     "    let hygid = $seq(1)\n"
@@ -565,14 +560,14 @@ TEST_F(SugarTest, ForWithElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    for i in 1 do 2 else 3 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "  $seq(\n"
     "    let hygid = $seq(1)\n"
@@ -596,7 +591,7 @@ TEST_F(SugarTest, CaseWithBody)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 2\n"
@@ -612,7 +607,7 @@ TEST_F(SugarTest, CaseWithBodyAndFollowingCase)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 2\n"
@@ -629,7 +624,7 @@ TEST_F(SugarTest, CaseWithNoBody)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
     "    |1\n"
@@ -641,7 +636,7 @@ TEST_F(SugarTest, CaseWithNoBody)
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 3\n"
@@ -658,7 +653,7 @@ TEST_F(SugarTest, CaseWithNoBodyMultiple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
     "    |1\n"
@@ -672,7 +667,7 @@ TEST_F(SugarTest, CaseWithNoBodyMultiple)
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 5\n"
@@ -691,7 +686,7 @@ TEST_F(SugarTest, MatchWithNoElse)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    match(x)\n"
     "    |1=> 2\n"
@@ -700,7 +695,7 @@ TEST_F(SugarTest, MatchWithNoElse)
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    match(x)\n"
     "    |1 => 2\n"
@@ -716,7 +711,7 @@ TEST_F(SugarTest, UpdateLhsNotCall)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    foo = 1";
 
@@ -728,14 +723,14 @@ TEST_F(SugarTest, UpdateNoArgs)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    foo() = 1";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    foo.update(where value $updatearg = 1)";
 
@@ -747,14 +742,14 @@ TEST_F(SugarTest, UpdateWithArgs)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    foo(2, 3 where bar = 4) = 1";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    foo.update(2, 3 where bar = 4, value $updatearg = 1)";
 
@@ -768,14 +763,14 @@ TEST_F(SugarTest, Add)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 + 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.add(2)";
 
@@ -787,14 +782,14 @@ TEST_F(SugarTest, Sub)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 - 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.sub(2)";
 
@@ -806,14 +801,14 @@ TEST_F(SugarTest, Multiply)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 * 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.mul(2)";
 
@@ -825,14 +820,14 @@ TEST_F(SugarTest, Divide)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 / 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.div(2)";
 
@@ -844,14 +839,14 @@ TEST_F(SugarTest, Mod)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 % 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.mod(2)";
 
@@ -863,14 +858,14 @@ TEST_F(SugarTest, UnaryMinus)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    -1";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.neg()";
 
@@ -882,14 +877,14 @@ TEST_F(SugarTest, ShiftLeft)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 << 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.shl(2)";
 
@@ -901,14 +896,14 @@ TEST_F(SugarTest, ShiftRight)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 >> 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.shr(2)";
 
@@ -920,14 +915,14 @@ TEST_F(SugarTest, And)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 and 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.op_and(2)";
 
@@ -939,14 +934,14 @@ TEST_F(SugarTest, Or)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 or 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.op_or(2)";
 
@@ -958,14 +953,14 @@ TEST_F(SugarTest, Xor)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 xor 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.op_xor(2)";
 
@@ -977,14 +972,14 @@ TEST_F(SugarTest, Not)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    not 1";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.op_not()";
 
@@ -996,14 +991,14 @@ TEST_F(SugarTest, Eq)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 == 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.eq(2)";
 
@@ -1015,14 +1010,14 @@ TEST_F(SugarTest, Ne)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 != 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.ne(2)";
 
@@ -1034,14 +1029,14 @@ TEST_F(SugarTest, Lt)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 < 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.lt(2)";
 
@@ -1053,14 +1048,14 @@ TEST_F(SugarTest, Le)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 <= 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.le(2)";
 
@@ -1072,14 +1067,14 @@ TEST_F(SugarTest, Gt)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 > 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.gt(2)";
 
@@ -1091,14 +1086,14 @@ TEST_F(SugarTest, Ge)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(): U32 val =>\n"
     "    1 >= 2";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): U32 val =>\n"
     "    1.ge(2)";
 
@@ -1110,14 +1105,14 @@ TEST_F(SugarTest, As)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(a: (Foo | Bar)): Foo ? =>\n"
     "    a as Foo ref";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(a: (Foo | Bar)): Foo ? =>\n"
     "    match a\n"
     "    | let hygid: Foo ref => consume $borrowed hygid\n"
@@ -1133,14 +1128,14 @@ TEST_F(SugarTest, AsTuple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    a as (Foo ref, Bar ref)";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): (Foo, Bar) ? =>\n"
     "    match a\n"
     "    | (let hygid: Foo ref, let hygid: Bar ref) =>\n"
@@ -1157,14 +1152,14 @@ TEST_F(SugarTest, AsNestedTuple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    a as (Foo ref, (Bar ref, Baz ref))";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(a: (Foo, (Bar, Baz))): (Foo, (Bar, Baz)) ? =>\n"
     "    match a\n"
     "    | (let hygid: Foo ref, (let hygid: Bar ref, let hygid: Baz ref)) =>\n"
@@ -1182,7 +1177,6 @@ TEST_F(SugarTest, AsDontCare)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
     "  fun f(a: Foo): Foo ? =>\n"
     "    a as (_)";
 
@@ -1194,14 +1188,14 @@ TEST_F(SugarTest, AsDontCare2Tuple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(a: (Foo, Bar)): Foo ? =>\n"
     "    a as (Foo ref, _)";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(a: (Foo, Bar)): Foo ? =>\n"
     "    match a\n"
     "    | (let hygid: Foo ref, _) =>\n"
@@ -1218,14 +1212,14 @@ TEST_F(SugarTest, AsDontCareMultiTuple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    a as (Foo ref, _, Baz ref)";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(a: (Foo, Bar, Baz)): (Foo, Baz) ? =>\n"
     "    match a\n"
     "    | (let hygid: Foo ref, _, let hygid: Baz ref) =>\n"
@@ -1242,14 +1236,14 @@ TEST_F(SugarTest, ObjectSimple)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
@@ -1270,14 +1264,14 @@ TEST_F(SugarTest, ObjectWithField)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object let x: T = 3 fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create(3)\n"
     "    None\n"
@@ -1297,14 +1291,14 @@ TEST_F(SugarTest, ObjectWithBehaviour)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object be foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
@@ -1322,14 +1316,14 @@ TEST_F(SugarTest, ObjectBox)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object box fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
@@ -1350,14 +1344,14 @@ TEST_F(SugarTest, ObjectRef)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object ref fun foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
@@ -1376,14 +1370,14 @@ TEST_F(SugarTest, ObjectTagWithBehaviour)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object tag be foo() => 4 end";
 
   const char* full_form =
     "use \"builtin\"\n"
     "class ref Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun box f(): None =>\n"
     "    hygid.create()\n"
     "    None\n"
@@ -1401,7 +1395,7 @@ TEST_F(SugarTest, ObjectRefWithBehaviour)
 {
   const char* short_form =
     "class Foo\n"
-    "  var y:U32\n"
+    "  var create: U32\n"
     "  fun f() =>\n"
     "    object ref be foo() => 4 end";
 
