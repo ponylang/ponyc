@@ -483,7 +483,7 @@ uninstall:
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
-	@$(PONY_BUILD_DIR)/ponyc -s packages/stdlib
+	@$(PONY_BUILD_DIR)/ponyc -d -s packages/stdlib
 	@./stdlib
 	@rm stdlib
 
