@@ -25,18 +25,21 @@ static bool names_applycap(ast_t* ast, ast_t* cap, ast_t* ephemeral)
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
     case TK_TUPLETYPE:
+    case TK_TYPEPARAMREF:
     {
       if(ast_id(cap) != TK_NONE)
       {
         ast_error(cap,
-          "can't specify a capability for an alias to a type expression");
+          "can't specify a capability for an alias to a type expression or "
+          "type parameter");
         return false;
       }
 
       if(ast_id(ephemeral) != TK_NONE)
       {
         ast_error(ephemeral,
-          "can't specify ephemerality for an alias to a type expression");
+          "can't specify a capability for an alias to a type expression or "
+          "type parameter");
         return false;
       }
 
