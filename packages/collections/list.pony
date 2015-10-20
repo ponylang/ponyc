@@ -30,7 +30,7 @@ class List[A] is Seq[A]
     """
     index(i)()
 
-  fun ref update(i: U64, value: A): (A^ | None) ? =>
+  fun ref update(i: U64, value: A): A^ ? =>
     """
     Change the i-th element, raising an error if the index is out of bounds.
     Returns the previous value, which may be None if the node has been popped
