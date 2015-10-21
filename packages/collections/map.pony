@@ -1,7 +1,8 @@
 primitive _MapEmpty
 primitive _MapDeleted
 
-type Map[K: (Hashable box & Equatable[K] box), V] is HashMap[K, V, HashEq[K]]
+type Map[K: (Hashable #read & Equatable[K] #read), V] is
+  HashMap[K, V, HashEq[K]]
   """
   This is a map that uses structural equality on the key.
   """
@@ -279,7 +280,7 @@ class HashMap[K, V, H: HashFunction[K] val]
     """
     MapPairs[K, V, H, this->HashMap[K, V, H]](this)
 
-class MapKeys[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] box] is
+class MapKeys[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   Iterator[M->K]
   """
   An iterator over the keys in a map.
@@ -310,7 +311,7 @@ class MapKeys[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] box] is
     _count = _count + 1
     _map.index(_i)._1
 
-class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] box] is
+class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   Iterator[M->V]
   """
   An iterator over the values in a map.
@@ -341,7 +342,7 @@ class MapValues[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] box] is
     _count = _count + 1
     _map.index(_i)._2
 
-class MapPairs[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] box] is
+class MapPairs[K, V, H: HashFunction[K] val, M: HashMap[K, V, H] #read] is
   Iterator[(M->K, M->V)]
   """
   An iterator over the keys and values in a map.

@@ -142,7 +142,7 @@ ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 {
   ast_t* ast = type_base(from, NULL, name);
 
-  if(!names_nominal(opt, from, &ast))
+  if(!names_nominal(opt, from, &ast, false))
   {
     ast_error(from, "unable to validate '%s'", name);
     ast_free(ast);
@@ -165,7 +165,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
       NONE // Ephemeral
       ));
 
-  if(!names_nominal(opt, to, &pointer))
+  if(!names_nominal(opt, to, &pointer, false))
   {
     ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
     ast_free(pointer);
@@ -341,9 +341,9 @@ ast_t* type_isect_fun(ast_t* a, ast_t* b)
   token_id a_tcap = ast_id(a_cap);
   token_id b_tcap = ast_id(b_cap);
 
-  if(is_cap_sub_cap(b_tcap, a_tcap))
+  if(is_cap_sub_cap(b_tcap, TK_NONE, a_tcap, TK_NONE))
     tcap = a_tcap;
-  else if(is_cap_sub_cap(a_tcap, b_tcap))
+  else if(is_cap_sub_cap(a_tcap, TK_NONE, b_tcap, TK_NONE))
     tcap = b_tcap;
   else
     tcap = TK_BOX;

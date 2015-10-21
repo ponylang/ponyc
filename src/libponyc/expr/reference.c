@@ -813,7 +813,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   assert(status == SYM_NONE);
   token_id cap = cap_for_this(t);
 
-  if(!cap_sendable(cap, TK_NONE) && (t->frame->recover != NULL))
+  if(!cap_sendable(cap) && (t->frame->recover != NULL))
     cap = TK_TAG;
 
   ast_t* type = type_for_this(t, ast, cap, TK_NONE);
@@ -912,8 +912,8 @@ bool expr_tuple(ast_t* ast)
 
 bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 {
-  // Resolve typealiases and typeparam references.
-  if(!names_nominal(opt, *astp, astp))
+  // Resolve type aliases and typeparam references.
+  if(!names_nominal(opt, *astp, astp, true))
     return false;
 
   ast_t* ast = *astp;

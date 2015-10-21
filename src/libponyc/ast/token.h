@@ -110,6 +110,23 @@ typedef enum token_id
   TK_BOX,
   TK_TAG,
 
+  TK_CAP_READ,
+  TK_CAP_SEND,
+  TK_CAP_SHARE,
+  TK_CAP_ANY,
+
+  TK_ISO_BIND,
+  TK_TRN_BIND,
+  TK_REF_BIND,
+  TK_VAL_BIND,
+  TK_BOX_BIND,
+  TK_TAG_BIND,
+
+  TK_CAP_READ_BIND,
+  TK_CAP_SEND_BIND,
+  TK_CAP_SHARE_BIND,
+  TK_CAP_ANY_BIND,
+
   TK_THIS,
   TK_RETURN,
   TK_BREAK,
@@ -164,17 +181,6 @@ typedef enum token_id
   TK_INFERTYPE,
   TK_ERRORTYPE,
 
-  TK_ISO_BIND,
-  TK_TRN_BIND,
-  TK_REF_BIND,
-  TK_VAL_BIND,
-  TK_BOX_BIND,
-  TK_TAG_BIND,
-  TK_ANY_BIND,
-  TK_BOX_GENERIC,
-  TK_TAG_GENERIC,
-  TK_ANY_GENERIC,
-
   TK_LITERAL, // A literal expression whose type is not yet inferred
   TK_LITERALBRANCH, // Literal branch of a control structure
   TK_OPERATORLITERAL, // Operator function access to a literal
@@ -190,7 +196,6 @@ typedef enum token_id
   TK_UPDATEARG,
   TK_LAMBDACAPTURES,
   TK_LAMBDACAPTURE,
-  TK_PRESERVE,  // Do not process
 
   TK_SEQ,
   TK_QUALIFY,
@@ -235,7 +240,7 @@ typedef enum token_id
 /** Create a new token.
   * The created token must be freed later with token_free().
   */
-token_t* token_new(token_id id, source_t* source);
+token_t* token_new(token_id id);
 
 /** Create a duplicate of the given token.
   * The duplicate must be freed later with token_free().
@@ -323,8 +328,10 @@ void token_set_float(token_t* token, double value);
 /// Set the given token's literal value. Only valid for TK_INT tokens.
 void token_set_int(token_t* token, __uint128_t value);
 
-/// Set the given token's position within its source file
-void token_set_pos(token_t* token, size_t line, size_t pos);
+/// Set the given token's position within its source file and optionally the
+/// source file.
+/// Set source to NULL to keep current file.
+void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);

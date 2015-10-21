@@ -316,7 +316,8 @@ enum
   AST_FLAG_IN_PARENS    = 0x100,
   AST_FLAG_TEST_ONLY    = 0x200,
   AST_FLAG_BAD_SEMI     = 0x400,
-  AST_FLAG_MISSING_SEMI = 0x800
+  AST_FLAG_MISSING_SEMI = 0x800,
+  AST_FLAG_PRESERVE     = 0x1000  // Do not process
 };
 
 
@@ -331,7 +332,7 @@ void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
 ast_t* ast_setid(ast_t* ast, token_id id);
-void ast_setpos(ast_t* ast, size_t line, size_t pos);
+void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
 void ast_setdebug(ast_t* ast, bool state);
 
 token_id ast_id(ast_t* ast);

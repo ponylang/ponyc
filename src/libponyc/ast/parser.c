@@ -110,6 +110,12 @@ DEF(cap);
   TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
+// GENCAP
+DEF(gencap);
+  TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
+    TK_CAP_ANY);
+  DONE();
+
 // ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
@@ -120,7 +126,7 @@ DEF(nominal);
     REORDER(1, 0);
   );
   OPT RULE("type arguments", typeargs);
-  OPT RULE("capability", cap);
+  OPT RULE("capability", cap, gencap);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
@@ -239,7 +245,7 @@ DEF(object);
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
-  
+
 // ID [COLON type] [ASSIGN infix]
 DEF(lambdacapture);
   AST_NODE(TK_LAMBDACAPTURE);
@@ -273,10 +279,10 @@ DEF(lambda);
   SKIP(NULL, TK_DBLARROW);
   RULE("lambda body", rawseq);
   SKIP(NULL, TK_END);
-  WRAP(1, TK_PRESERVE); // Type parameters
-  WRAP(2, TK_PRESERVE); // Parameters
-  WRAP(4, TK_PRESERVE); // Return type
-  WRAP(6, TK_PRESERVE); // Body
+  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(6, AST_FLAG_PRESERVE); // Body
   DONE();
 
 // AS type ':'
@@ -492,7 +498,7 @@ DEF(caseexpr);
 DEF(cases);
   PRINT_INLINE();
   AST_NODE(TK_CASES);
-  SCOPE();
+  SCOPE();  // TODO: Why is cases a scope?
   SEQ("cases", caseexpr);
   DONE();
 
@@ -853,15 +859,15 @@ DEF(class_def);
     TK_ACTOR);
   SCOPE();
   OPT TOKEN(NULL, TK_AT);
+  OPT RULE("capability", cap);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
-  OPT RULE("capability", cap);
   IF(TK_IS, RULE("provided type", provides));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
   // Order should be:
   // id type_params cap provides members c_api docstring
-  REORDER(1, 2, 3, 4, 6, 0, 5);
+  REORDER(2, 3, 1, 4, 6, 0, 5);
   DONE();
 
 // STRING

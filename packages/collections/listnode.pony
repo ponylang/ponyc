@@ -19,11 +19,12 @@ class ListNode[A]
     """
     _item as this->A
 
-  fun ref update(value: (A | None)): (A^ | None) =>
+  fun ref update(value: (A | None)): A^ ? =>
     """
-    Replace the item and return the previous one.
+    Replace the item and return the previous one. Raise an error if we have no
+    previous value.
     """
-    _item = consume value
+    (_item = consume value) as A^
 
   fun ref pop(): A^ ? =>
     """

@@ -1,6 +1,6 @@
 use "time"
 
-class FilePath val
+class val FilePath
   """
   A FilePath represents a capability to access a path. The path will be
   represented as an absolute path and a set of capabilities for operations on

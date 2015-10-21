@@ -7,7 +7,7 @@ actor Main is TestList
   fun tag tests(test: PonyTest) =>
     test(_TestURL)
 
-class _TestURL iso is UnitTest
+class iso _TestURL is UnitTest
   fun name(): String => "net/http/URL.build"
 
   fun apply(h: TestHelper): TestResult ? =>

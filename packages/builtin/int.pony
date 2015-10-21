@@ -1,6 +1,6 @@
 primitive I8 is _SignedInteger[I8, U8]
   new create(value: I8 = 0) => compiler_intrinsic
-  fun tag from[A: (Number & Real[A] box)](a: A): I8 => a.i8()
+  fun tag from[A: (Number & Real[A] val)](a: A): I8 => a.i8()
 
   fun tag min_value(): I8 => -0x80
   fun tag max_value(): I8 => 0x7F
@@ -24,7 +24,7 @@ primitive I8 is _SignedInteger[I8, U8]
 
 primitive I16 is _SignedInteger[I16, U16]
   new create(value: I16 = 0) => compiler_intrinsic
-  fun tag from[A: (Number & Real[A] box)](a: A): I16 => a.i16()
+  fun tag from[A: (Number & Real[A] val)](a: A): I16 => a.i16()
 
   fun tag min_value(): I16 => -0x8000
   fun tag max_value(): I16 => 0x7FFF
@@ -48,7 +48,7 @@ primitive I16 is _SignedInteger[I16, U16]
 
 primitive I32 is _SignedInteger[I32, U32]
   new create(value: I32 = 0) => compiler_intrinsic
-  fun tag from[A: (Number & Real[A] box)](a: A): I32 => a.i32()
+  fun tag from[A: (Number & Real[A] val)](a: A): I32 => a.i32()
 
   fun tag min_value(): I32 => -0x8000_0000
   fun tag max_value(): I32 => 0x7FFF_FFFF
@@ -72,7 +72,7 @@ primitive I32 is _SignedInteger[I32, U32]
 
 primitive I64 is _SignedInteger[I64, U64]
   new create(value: I64 = 0) => compiler_intrinsic
-  fun tag from[A: (Number & Real[A] box)](a: A): I64 => a.i64()
+  fun tag from[A: (Number & Real[A] val)](a: A): I64 => a.i64()
 
   fun tag min_value(): I64 => -0x8000_0000_0000_0000
   fun tag max_value(): I64 => 0x7FFF_FFFF_FFFF_FFFF
@@ -96,7 +96,7 @@ primitive I64 is _SignedInteger[I64, U64]
 
 primitive I128 is _SignedInteger[I128, U128]
   new create(value: I128 = 0) => compiler_intrinsic
-  fun tag from[A: (Number & Real[A] box)](a: A): I128 => a.i128()
+  fun tag from[A: (Number & Real[A] val)](a: A): I128 => a.i128()
 
   fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000
   fun tag max_value(): I128 => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF

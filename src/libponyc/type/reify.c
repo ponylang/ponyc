@@ -80,6 +80,9 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
         if(ast == NULL)
           return false;
 
+        if(ast == right)
+          ast = ast_dup(ast);
+
         ast_replace(astp, ast);
         return true;
       }
@@ -188,7 +191,7 @@ bool check_constraints(ast_t* orig, ast_t* typeparams, ast_t* typeargs,
   {
     // Use the reified constraint.
     ast_t* r_constraint = ast_childidx(r_typeparam, 1);
-    r_constraint = alias_bind(r_constraint);
+    r_constraint = bind_type(r_constraint);
 
     // A bound type must be a subtype of the constraint.
     if(!is_subtype(typearg, r_constraint))

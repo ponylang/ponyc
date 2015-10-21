@@ -7,7 +7,7 @@ type URLFormat is
   | URLNoSlashes
   )
 
-class URL val
+class val URL
   """
   Holds the components of a URL. These are always stored as valid, URL-encoded
   values.

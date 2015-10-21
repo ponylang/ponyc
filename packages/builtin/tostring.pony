@@ -1,4 +1,4 @@
-interface Stringable box
+interface box Stringable
   """
   Things that can be turned into a String.
   """

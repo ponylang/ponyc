@@ -70,11 +70,10 @@ static bool has_member(ast_t* members, const char* name)
 static void add_default_constructor(ast_t* ast)
 {
   assert(ast != NULL);
-
   ast_t* members = ast_childidx(ast, 4);
 
-  // If we have no uninitialised fields, no constructors, and no "create"
-  // member, add a "create" constructor.
+  // If we have no constructors and no "create" member, add a "create"
+  // constructor.
   if(has_member(members, "create"))
     return;
 
@@ -84,18 +83,6 @@ static void add_default_constructor(ast_t* ast)
   {
     switch(ast_id(member))
     {
-      case TK_FVAR:
-      case TK_FLET:
-      case TK_EMBED:
-      {
-        ast_t* init = ast_childidx(member, 2);
-
-        if(ast_id(init) == TK_NONE)
-          return;
-
-        break;
-      }
-
       case TK_NEW:
         return;
 
@@ -724,7 +711,7 @@ static ast_result_t sugar_object(pass_opt_t* opt, ast_t** astp)
         ast_append(create_body, assign);
         ast_append(call_args, arg);
 
-        has_fields = true; 
+        has_fields = true;
         break;
       }
 
@@ -1008,7 +995,6 @@ ast_result_t pass_sugar(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_PRESERVE:   return AST_IGNORE;
     case TK_MODULE:     return sugar_module(ast);
     case TK_PRIMITIVE:  return sugar_member(ast, true, true, TK_VAL);
     case TK_CLASS:      return sugar_member(ast, true, false, TK_REF);

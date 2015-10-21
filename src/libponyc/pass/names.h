@@ -9,7 +9,7 @@ PONY_EXTERN_C_BEGIN
 
 ast_t* names_def(ast_t* ast);
 
-bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp);
+bool names_nominal(pass_opt_t* opt, ast_t* scope, ast_t** astp, bool expr);
 
 ast_result_t pass_names(ast_t** astp, pass_opt_t* options);
 

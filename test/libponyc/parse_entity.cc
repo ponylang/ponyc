@@ -104,7 +104,7 @@ TEST_F(ParseEntityTest, ClassMinimal)
 TEST_F(ParseEntityTest, ClassMaximal)
 {
   const char* src =
-    "class Foo[A] box is T"
+    "class box Foo[A] is T"
     "  \"Doc\""
     "  let f1:T1"
     "  let f2:T2 = 5"
@@ -218,7 +218,7 @@ TEST_F(ParseEntityTest, TraitMinimal)
 TEST_F(ParseEntityTest, TraitMaximal)
 {
   const char* src =
-    "trait Foo[A] box is T"
+    "trait box Foo[A] is T"
     "  \"Doc\""
     "  be m1() => 1"
     "  fun ref m2() => 2";
@@ -272,7 +272,7 @@ TEST_F(ParseEntityTest, InterfaceMinimal)
 TEST_F(ParseEntityTest, InterfaceMaximal)
 {
   const char* src =
-    "interface Foo[A] box is T"
+    "interface box Foo[A] is T"
     "  \"Doc\""
     "  be m1() => 1"
     "  fun ref m2() => 2";
