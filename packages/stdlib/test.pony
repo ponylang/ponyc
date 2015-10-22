@@ -11,7 +11,7 @@ All tests can be run by compiling and running packages/stdlib.
  """
 
 use "ponytest"
-use capsicum = "capsicum"
+use capsicum = "capsicum" if freebsd or linux
 use collections = "collections"
 use base64 = "encode/base64"
 use files = "files"

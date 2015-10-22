@@ -1,5 +1,5 @@
 use "time"
-use "capsicum"
+use "capsicum" if freebsd or linux
 
 primitive _FileDes
   """
@@ -57,7 +57,7 @@ primitive _FileDes
     """
     Set the Capsicum rights on the file descriptor.
     """
-    if Platform.freebsd() and (fd != -1) then
+    if (Platform.freebsd() or Platform.linux()) and (fd != -1) then
       let cap = CapRights.from(path.caps)
 
       if not writeable then
