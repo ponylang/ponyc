@@ -107,7 +107,8 @@ actor Stdin
         var len = U64(64)
         var data = recover Array[U8].undefined(len) end
         var again: Bool = false
-        len = @os_stdin_read[U64](data.cstring(), data.space(), &again)
+        len = @os_stdin_read[U64](data.cstring(), data.space(),
+          addressof again)
 
         match len
         | -1 =>

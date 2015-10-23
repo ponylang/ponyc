@@ -13,6 +13,7 @@ All notable changes to the Pony compiler and standard library will be documented
 - Improved realloc behaviour after heap_alloc_large.
 - Set-based upper bounds for generic constraints.
 - Moved the position of a default capability in a type specification.
+- Replaced '&' with 'addressof' for taking address in FFI calls.
 
 ## [0.2.1] - 2015-10-06
 

@@ -64,7 +64,7 @@ typedef enum token_id
   TK_NE,
 
   TK_PIPE,
-  TK_AMP,
+  TK_ISECTTYPE,
   TK_EPHEMERAL,
   TK_BORROWED,
 
@@ -158,6 +158,7 @@ typedef enum token_id
   TK_XOR,
 
   TK_IDENTITY,
+  TK_ADDRESS,
 
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
@@ -172,7 +173,6 @@ typedef enum token_id
 
   TK_PROVIDES,
   TK_UNIONTYPE,
-  TK_ISECTTYPE,
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_THISTYPE,

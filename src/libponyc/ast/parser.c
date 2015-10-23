@@ -141,8 +141,7 @@ DEF(uniontype);
 // AMP type
 DEF(isecttype);
   INFIX_BUILD();
-  AST_NODE(TK_ISECTTYPE);
-  SKIP(NULL, TK_AMP);
+  TOKEN(NULL, TK_ISECTTYPE);
   RULE("type", type);
   DONE();
 
@@ -640,7 +639,7 @@ DEF(consume);
 // (NOT | AMP | MINUS | MINUS_NEW | IDENTITY) term
 DEF(prefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
@@ -649,7 +648,7 @@ DEF(prefix);
 // (NOT | AMP | MINUS_NEW | IDENTITY) term
 DEF(nextprefix);
   PRINT_INLINE();
-  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS_NEW, TK_IDENTITY);
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
   DONE();

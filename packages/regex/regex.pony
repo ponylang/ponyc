@@ -19,7 +19,7 @@ class Regex
     var erroffset: U64 = 0
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
-      opt, &err, &erroffset, Pointer[U8])
+      opt, addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
       error
@@ -91,7 +91,8 @@ class Regex
     repeat
       rc = @pcre2_substitute_8[I32](_pattern,
         subject.cstring(), subject.size(), offset, opt, Pointer[U8],
-        Pointer[U8], value.cstring(), value.size(), out.cstring(), &len)
+        Pointer[U8], value.cstring(), value.size(), out.cstring(),
+        addressof len)
 
       if rc == -48 then
         len = len * 2

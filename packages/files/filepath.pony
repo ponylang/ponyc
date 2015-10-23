@@ -214,9 +214,9 @@ class val FilePath
 
     if Platform.windows() then
       var tv: (I64, I64) = (atime._1, mtime._1)
-      @_utime64[I32](path.cstring(), &tv) == 0
+      @_utime64[I32](path.cstring(), addressof tv) == 0
     else
       var tv: (I64, I64, I64, I64) =
         (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
-      @utimes[I32](path.cstring(), &tv) == 0
+      @utimes[I32](path.cstring(), addressof tv) == 0
     end

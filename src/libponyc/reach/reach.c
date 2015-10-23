@@ -557,7 +557,7 @@ static void reachable_expr(reachable_method_stack_t** s, reachable_types_t* r,
       reachable_ffi(s, r, ast);
       break;
 
-    case TK_AMP:
+    case TK_ADDRESS:
       reachable_addressof(s, r, ast);
       break;
 
