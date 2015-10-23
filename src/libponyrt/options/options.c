@@ -61,7 +61,7 @@ static const opt_arg_t* find_match(opt_state_t* s)
 
     if(!strncmp(match_name, s->opt_start, match_length))
     {
-      if(match_length == strlen(match_name))
+      if(match_length == strnlen(match_name, match_length))
       {
         // Exact match found. It is necessary to check for
         // the length of p->long_opt since there might be
