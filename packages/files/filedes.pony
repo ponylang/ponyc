@@ -50,7 +50,7 @@ primitive _FileDes
     else
       var tv: (I64, I64, I64, I64) =
         (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
-      @futimes[I32](fd, &tv) == 0
+      @futimes[I32](fd, addressof tv) == 0
     end
 
   fun set_rights(fd: I32, path: FilePath, writeable: Bool = true) ? =>

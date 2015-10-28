@@ -42,18 +42,18 @@ class CapRights0
     Initialises with the rights on the given file descriptor.
     """
     if Platform.freebsd() then
-      @__cap_rights_get[Pointer[U64]](I32(0), fd, &_r0)
+      @__cap_rights_get[Pointer[U64]](I32(0), fd, addressof _r0)
     end
 
   fun ref set(cap: U64): CapRights0^ =>
     if Platform.freebsd() then
-      @__cap_rights_set[Pointer[U64]](&_r0, cap, U64(0))
+      @__cap_rights_set[Pointer[U64]](addressof _r0, cap, U64(0))
     end
     this
 
   fun ref unset(cap: U64): CapRights0^ =>
     if Platform.freebsd() then
-      @__cap_rights_clear[Pointer[U64]](&_r0, cap, U64(0))
+      @__cap_rights_clear[Pointer[U64]](addressof _r0, cap, U64(0))
     end
     this
 
@@ -62,7 +62,7 @@ class CapRights0
     Limits the fd to the encoded rights.
     """
     if Platform.freebsd() then
-      @cap_rights_limit[I32](fd, &_r0) == 0
+      @cap_rights_limit[I32](fd, addressof _r0) == 0
     else
       true
     end
@@ -72,7 +72,7 @@ class CapRights0
     Merge the rights in that into this.
     """
     if Platform.freebsd() then
-      @cap_rights_merge[Pointer[U64]](&_r0, &that._r0)
+      @cap_rights_merge[Pointer[U64]](addressof _r0, addressof that._r0)
     end
 
   fun ref remove(that: CapRights0) =>
@@ -80,7 +80,7 @@ class CapRights0
     Remove the rights in that from this.
     """
     if Platform.freebsd() then
-      @cap_rights_remove[Pointer[U64]](&_r0, &that._r0)
+      @cap_rights_remove[Pointer[U64]](addressof _r0, addressof that._r0)
     end
 
   fun ref clear() =>
@@ -88,7 +88,7 @@ class CapRights0
     Clear all rights.
     """
     if Platform.freebsd() then
-      @__cap_rights_init[Pointer[U64]](I32(0), &_r0, U64(0))
+      @__cap_rights_init[Pointer[U64]](I32(0), addressof _r0, U64(0))
     end
 
   fun contains(that: CapRights0): Bool =>
@@ -96,7 +96,7 @@ class CapRights0
     Check that this is a superset of the rights in that.
     """
     if Platform.freebsd() then
-      @cap_rights_contains[Bool](&_r0, &that._r0)
+      @cap_rights_contains[Bool](addressof _r0, addressof that._r0)
     else
       true
     end

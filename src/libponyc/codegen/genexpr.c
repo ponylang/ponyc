@@ -145,7 +145,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_ffi(c, ast);
       break;
 
-    case TK_AMP:
+    case TK_ADDRESS:
       ret = gen_addressof(c, ast);
       break;
 

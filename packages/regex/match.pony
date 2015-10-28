@@ -48,11 +48,12 @@ class Match
     end
 
     var len = U64(0)
-    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), &len)
+    @pcre2_substring_length_bynumber_8[I32](_match, i.u32(), addressof len)
     len = len + 1
 
     let out = recover A(len) end
-    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(), &len)
+    @pcre2_substring_copy_bynumber_8[I32](_match, i.u32(), out.cstring(),
+      addressof len)
     out.truncate(len)
     out
 
@@ -64,7 +65,7 @@ class Match
     """
     var len = U64(0)
     let rc = @pcre2_substring_length_byname_8[I32](_match, name.cstring(),
-      &len)
+      addressof len)
 
     if rc != 0 then
       error
@@ -74,7 +75,7 @@ class Match
     let out = recover A(len) end
 
     @pcre2_substring_copy_byname_8[I32](_match, name.cstring(), out.cstring(),
-      &len)
+      addressof len)
     out.truncate(len)
     out
 

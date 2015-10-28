@@ -21,7 +21,7 @@ static bool is_method_called(ast_t* ast)
       return is_method_called(parent);
 
     case TK_CALL:
-    case TK_AMP:
+    case TK_ADDRESS:
       return true;
 
     default: {}

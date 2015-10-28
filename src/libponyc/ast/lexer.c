@@ -82,7 +82,7 @@ static const lextoken_t symbols[] =
   { ">", TK_GT },
 
   { "|", TK_PIPE },
-  { "&", TK_AMP },
+  { "&", TK_ISECTTYPE },
   { "^", TK_EPHEMERAL },
   { "!", TK_BORROWED },
 
@@ -160,6 +160,7 @@ static const lextoken_t keywords[] =
   { "xor", TK_XOR },
 
   { "identityof", TK_IDENTITY },
+  { "addressof", TK_ADDRESS },
 
   { "true", TK_TRUE },
   { "false", TK_FALSE },
@@ -183,7 +184,7 @@ static const lextoken_t abstract[] =
 
   { "provides", TK_PROVIDES },
   { "uniontype", TK_UNIONTYPE },
-  { "isecttype", TK_ISECTTYPE },
+  //{ "isecttype", TK_ISECTTYPE },  // Now treated as the symbol '&'
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },

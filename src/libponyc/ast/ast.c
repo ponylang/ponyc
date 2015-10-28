@@ -37,10 +37,10 @@
 // The private bits of the flags values
 enum
 {
-  AST_ORPHAN = 0x1000,
+  AST_ORPHAN = 0x2000,
   AST_INHERIT_FLAGS = (AST_FLAG_CAN_ERROR | AST_FLAG_CAN_SEND |
     AST_FLAG_MIGHT_SEND | AST_FLAG_IN_PROGRESS),
-  AST_ALL_FLAGS = 0x1FFF
+  AST_ALL_FLAGS = 0x3FFF
 };
 
 
@@ -1070,13 +1070,11 @@ void ast_replace(ast_t** prev, ast_t* next)
   if(*prev == next)
     return;
 
-  if(hasparent(*prev))
-  {
-    if(hasparent(next))
-      next = ast_dup(next);
+  if(hasparent(next))
+    next = ast_dup(next);
 
+  if(hasparent(*prev))
     ast_swap(*prev, next);
-  }
 
   ast_free(*prev);
   *prev = next;

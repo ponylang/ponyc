@@ -36,7 +36,8 @@ class val IPAddress
     var host: Pointer[U8] iso = recover Pointer[U8] end
     var serv: Pointer[U8] iso = recover Pointer[U8] end
 
-    if not @os_nameinfo[Bool](this, &host, &serv, reversedns, servicename) then
+    if not @os_nameinfo[Bool](this, addressof host, addressof serv, reversedns,
+      servicename) then
       error
     end
 
