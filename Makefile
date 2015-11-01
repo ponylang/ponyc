@@ -451,32 +451,32 @@ endef
 
 $(foreach target,$(targets),$(eval $(call EXPAND_COMMAND,$(target))))
 
-#define EXPAND_RELEASE
-#$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
-#ifneq ($(branch),master)
-#prerelease:
-#	$$(error "Releases not allowed on $(branch) branch.")
-#else
-#ifndef version
-#prerelease:
-#	$$(error "No version number specified.")
-#else
-#$(eval tag := $(version))
-#$(eval unstaged := $(shell git status --porcelain 2>$(DEVNULL) | wc -l))
-#ifneq ($(unstaged),0)
-#prerelease:
-#	$$(error "Detected unstaged changes. Release aborted")
-#else
-#prerelease: libponyc libponyrt ponyc
-#	@while [ -z "$$$$CONTINUE" ]; do \
-#	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
-#	done ; \
-#	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
-#	@echo "Releasing ponyc v$(tag)."
-#endif
-#endif
-#endif
-#endef
+define EXPAND_RELEASE
+$(eval branch := $(shell git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,'))
+ifneq ($(branch),master)
+prerelease:
+	$$(error "Releases not allowed on $(branch) branch.")
+else
+ifndef version
+prerelease:
+	$$(error "No version number specified.")
+else
+$(eval tag := $(version))
+$(eval unstaged := $(shell git status --porcelain 2>$(DEVNULL) | wc -l))
+ifneq ($(unstaged),0)
+prerelease:
+	$$(error "Detected unstaged changes. Release aborted")
+else
+prerelease: libponyc libponyrt ponyc
+	@while [ -z "$$$$CONTINUE" ]; do \
+	read -r -p "New version number: $(tag). Are you sure? [y/N]: " CONTINUE; \
+	done ; \
+	[ $$$$CONTINUE = "y" ] || [ $$$$CONTINUE = "Y" ] || (echo "Release aborted."; exit 1;)
+	@echo "Releasing ponyc v$(tag)."
+endif
+endif
+endif
+endef
 
 define EXPAND_INSTALL
 install: libponyc libponyrt ponyc
