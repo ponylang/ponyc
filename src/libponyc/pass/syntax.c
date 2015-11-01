@@ -119,38 +119,48 @@ static bool is_expr_infix(token_id id)
 }
 
 
-static bool check_traits(ast_t* traits)
+// Check whether the given node is a valid provides type
+static bool check_provides_type(ast_t* type)
 {
-  assert(traits != NULL);
-  ast_t* trait = ast_child(traits);
-  bool r = true;
+  assert(type != NULL);
 
-  while(trait != NULL)
+  switch(ast_id(type))
   {
-    if(ast_id(trait) != TK_NOMINAL)
+    case TK_NOMINAL:
     {
-      ast_error(trait, "traits must be nominal types");
-      r = false;
+      AST_GET_CHILDREN(type, ignore0, ignore1, ignore2, cap, ephemeral);
+
+      if(ast_id(cap) != TK_NONE)
+      {
+        ast_error(cap, "can't specify a capability in a provides type");
+        return false;
+      }
+
+      if(ast_id(ephemeral) != TK_NONE)
+      {
+        ast_error(ephemeral, "can't specify ephemeral in a provides type");
+        return false;
+      }
+
+      return true;
     }
 
-    AST_GET_CHILDREN(trait, ignore0, ignore1, ignore2, cap, ephemeral);
+    case TK_PROVIDES:
+    case TK_ISECTTYPE:
+      // Check all our children are also legal
+      for(ast_t* p = ast_child(type); p != NULL; p = ast_sibling(p))
+      {
+        if(!check_provides_type(p))
+          return false;
+      }
 
-    if(ast_id(cap) != TK_NONE)
-    {
-      ast_error(cap, "can't specify a capability on a trait");
-      r = false;
-    }
+      return true;
 
-    if(ast_id(ephemeral) != TK_NONE)
-    {
-      ast_error(ephemeral, "a trait can't be ephemeral");
-      r = false;
-    }
-
-    trait = ast_sibling(trait);
+    default:
+      ast_error(type, "invalid provides type. Can only provide "
+        "interfaces, traits and intersects of those.");
+      return false;
   }
-
-  return r;
 }
 
 
@@ -245,6 +255,7 @@ static bool check_members(ast_t* members, int entity_def_index)
     {
       case TK_FLET:
       case TK_FVAR:
+      case TK_EMBED:
         if(def->permissions[ENTITY_FIELD] == 'N')
         {
           ast_error(member, "Can't have fields in %s", def->desc);
@@ -325,15 +336,15 @@ static ast_result_t syntax_entity(ast_t* ast, int entity_def_index)
   if(entity_def_index != DEF_TYPEALIAS)
   {
     // Check referenced traits
-    if(!check_traits(provides))
+    if(ast_id(provides) != TK_NONE && !check_provides_type(provides))
       r = AST_ERROR;
   }
   else
   {
-    // Check for a single type alias
-    if(ast_childcount(provides) != 1)
+    // Check for a type alias
+    if(ast_id(provides) == TK_NONE)
     {
-      ast_error(provides, "a type alias must specify a single type");
+      ast_error(provides, "a type alias must specify a type");
       r = AST_ERROR;
     }
   }
@@ -366,6 +377,28 @@ static ast_result_t syntax_thistype(typecheck_t* t, ast_t* ast)
   }
 
   return r;
+}
+
+
+static ast_result_t syntax_arrowtype(ast_t* ast)
+{
+  assert(ast != NULL);
+
+  ast_t* rhs = ast_childidx(ast, 1);
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_THISTYPE)
+  {
+    ast_error(ast, "'this' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  if(ast_child(rhs) == NULL && ast_id(rhs) == TK_BOXTYPE)
+  {
+    ast_error(ast, "'box' cannot appear to the right of a viewpoint");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
 }
 
 
@@ -472,12 +505,12 @@ static ast_result_t syntax_infix_expr(ast_t* ast)
   assert(left != NULL);
   token_id left_op = ast_id(left);
   bool left_clash = (left_op != op) && is_expr_infix(left_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(left)) == 0);
+    !ast_checkflag(left, AST_FLAG_IN_PARENS);
 
   assert(right != NULL);
   token_id right_op = ast_id(right);
   bool right_clash = (right_op != op) && is_expr_infix(right_op) &&
-    ((AST_IN_PARENS & (uint64_t)ast_data(right)) == 0);
+    !ast_checkflag(right, AST_FLAG_IN_PARENS);
 
   if(left_clash || right_clash)
   {
@@ -537,15 +570,8 @@ static ast_result_t syntax_semi(ast_t* ast)
   assert(ast_parent(ast) != NULL);
   assert(ast_id(ast_parent(ast)) == TK_SEQ);
 
-  bool any_newlines = ast_is_first_on_line(ast);  // Newline before ;
-  bool last_in_seq = (ast_sibling(ast) == NULL);
-
-  if((LAST_ON_LINE & (uint64_t)ast_data(ast)) != 0) // Newline after ;
-    any_newlines = true;
-
-  if(any_newlines || last_in_seq)
+  if(ast_checkflag(ast, AST_FLAG_BAD_SEMI))
   {
-    // Unnecessary ;
     ast_error(ast, "Unexpected semi colon, only use to separate expressions on"
       " the same line");
     return AST_ERROR;
@@ -559,6 +585,18 @@ static ast_result_t syntax_local(ast_t* ast)
 {
   if(!check_id_local(ast_child(ast)))
     return AST_ERROR;
+
+  return AST_OK;
+}
+
+
+static ast_result_t syntax_embed(ast_t* ast)
+{
+  if(ast_id(ast_parent(ast)) != TK_MEMBERS)
+  {
+    ast_error(ast, "Local variables cannot be embedded");
+    return AST_ERROR;
+  }
 
   return AST_OK;
 }
@@ -593,6 +631,21 @@ static ast_result_t syntax_use(ast_t* ast)
 }
 
 
+static ast_result_t syntax_lambda_capture(ast_t* ast)
+{
+  AST_GET_CHILDREN(ast, name, type, value);
+
+  if(ast_id(type) != TK_NONE && ast_id(value) == TK_NONE)
+  {
+    ast_error(ast, "value missing for lambda expression capture (cannot "
+      "specify type without value)");
+    return AST_ERROR;
+  }
+
+  return AST_OK;
+}
+
+
 ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
 {
   typecheck_t* t = &options->check;
@@ -607,7 +660,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
   if(id == TK_PROGRAM || id == TK_PACKAGE || id == TK_MODULE)
     return AST_OK;
 
-  if((TEST_ONLY & (uint64_t)ast_data(ast)) != 0)
+  if(ast_checkflag(ast, AST_FLAG_TEST_ONLY))
   {
     // Test node, not allowed outside parse pass
     ast_error(ast, "Illegal character '$' found");
@@ -626,6 +679,7 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_TRAIT:      r = syntax_entity(ast, DEF_TRAIT); break;
     case TK_INTERFACE:  r = syntax_entity(ast, DEF_INTERFACE); break;
     case TK_THISTYPE:   r = syntax_thistype(t, ast); break;
+    case TK_ARROW:      r = syntax_arrowtype(ast); break;
     case TK_MATCH:      r = syntax_match(ast); break;
     case TK_FFIDECL:    r = syntax_ffi(ast, false); break;
     case TK_FFICALL:    r = syntax_ffi(ast, true); break;
@@ -637,23 +691,24 @@ ast_result_t pass_syntax(ast_t** astp, pass_opt_t* options)
     case TK_ERROR:      r = syntax_return(ast, 0); break;
     case TK_LET:
     case TK_VAR:        r = syntax_local(ast); break;
+    case TK_EMBED:      r = syntax_embed(ast); break;
     case TK_PARAM:      r = syntax_param(ast); break;
     case TK_TYPEPARAM:  r = syntax_type_param(ast); break;
     case TK_USE:        r = syntax_use(ast); break;
+    case TK_LAMBDACAPTURE:
+                        r = syntax_lambda_capture(ast); break;
     default: break;
   }
 
   if(is_expr_infix(id))
     r = syntax_infix_expr(ast);
 
-  if((MISSING_SEMI & (uint64_t)ast_data(ast)) != 0)
+  if(ast_checkflag(ast, AST_FLAG_MISSING_SEMI))
   {
     ast_error(ast,
       "Use a semi colon to separate expressions on the same line");
     r = AST_ERROR;
   }
 
-  // Clear parse info flags
-  ast_setdata(ast, 0);
   return r;
 }

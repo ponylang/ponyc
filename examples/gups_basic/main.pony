@@ -43,10 +43,8 @@ actor Main
 
   be streamer_done() =>
     if (_streamer_count = _streamer_count - 1) == 1 then
-      try
-        for u in _to.values() do
-          u.done(this)
-        end
+      for u in _to.values() do
+        u.done(this)
       end
     end
 
@@ -63,20 +61,20 @@ actor Main
     var options = Options(_env)
 
     options
-      .add("logtable", "l", None, I64Argument)
-      .add("iterate", "i", None, I64Argument)
-      .add("chunk", "c", None, I64Argument)
-      .add("streamers", "s", None, I64Argument)
-      .add("updaters", "u", None, I64Argument)
+      .add("table", "t", I64Argument)
+      .add("iterate", "i", I64Argument)
+      .add("chunk", "c", I64Argument)
+      .add("streamers", "s", I64Argument)
+      .add("updaters", "u", I64Argument)
 
     for option in options do
       match option
-      | ("logtable", var arg: I64) => _logtable = arg.u64()
+      | ("table", var arg: I64) => _logtable = arg.u64()
       | ("iterate", var arg: I64) => _iterate = arg.u64()
       | ("chunk", var arg: I64) => _chunk = arg.u64()
       | ("streamers", var arg: I64) => _streamer_count = arg.u64()
       | ("updaters", var arg: I64) => _updater_count = arg.u64()
-      | ParseError => usage() ; error
+      | let err: ParseError => err.report(_env.out) ; usage() ; error
       end
     end
 
@@ -84,7 +82,7 @@ actor Main
     _env.out.print(
       """
       gups_basic [OPTIONS]
-        --logtable  N   log2 of the total table size. Defaults to 20.
+        --table     N   log2 of the total table size. Defaults to 20.
         --iterate   N   number of iterations. Defaults to 10000.
         --chunk     N   chunk size. Defaults to 1024.
         --streamers N   number of streamers. Defaults to 4.

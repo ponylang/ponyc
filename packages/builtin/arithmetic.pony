@@ -1,23 +1,4 @@
-interface Arithmetic[A: Arithmetic[A] box] val
-  fun add(y: A): A
-  fun sub(y: A): A
-  fun mul(y: A): A
-  fun div(y: A): A
-  fun mod(y: A): A
-  fun divmod(y: A): (A, A) => (this / y, this % y)
-  fun neg(): A
-
-interface Logical[A: Logical[A] box] val
-  fun op_and(y: A): A
-  fun op_or(y: A): A
-  fun op_xor(y: A): A
-  fun op_not(): A
-
-interface Bits[A: Bits[A] box] val is Logical[A]
-  fun shl(y: A): A
-  fun shr(y: A): A
-
-trait _ArithmeticConvertible val
+trait val _ArithmeticConvertible
   fun i8(): I8 => compiler_intrinsic
   fun i16(): I16 => compiler_intrinsic
   fun i32(): I32 => compiler_intrinsic
@@ -33,13 +14,19 @@ trait _ArithmeticConvertible val
   fun f32(): F32 => compiler_intrinsic
   fun f64(): F64 => compiler_intrinsic
 
-trait Real[A: Real[A] box] val is
-  Stringable, _ArithmeticConvertible, Arithmetic[A], Ordered[A]
-  new val create(from: A)
+trait val Real[A: Real[A] val] is
+  (Stringable & _ArithmeticConvertible & Comparable[A])
+  new val create(value: A)
+
+  fun tag from[B: (Number & Real[B] val)](a: B): A
+  fun tag min_value(): A
+  fun tag max_value(): A
+
   fun add(y: A): A => this + y
   fun sub(y: A): A => this - y
   fun mul(y: A): A => this * y
   fun div(y: A): A => this / y
+  fun divmod(y: A): (A, A) => (this / y, this % y)
   fun mod(y: A): A => this % y
   fun neg(): A => -this
   fun eq(y: box->A): Bool => this == y
@@ -49,7 +36,6 @@ trait Real[A: Real[A] box] val is
   fun ge(y: box->A): Bool => this >= y
   fun gt(y: box->A): Bool => this > y
 
-  fun abs(): A
   fun max(that: A): A
   fun min(that: A): A
 
@@ -64,7 +50,7 @@ trait Real[A: Real[A] box] val is
     x = x + (x << 31)
     x
 
-trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
+trait val Integer[A: Integer[A] val] is Real[A]
   fun op_and(y: A): A => this and y
   fun op_or(y: A): A => this or y
   fun op_xor(y: A): A => this xor y
@@ -77,30 +63,83 @@ trait Integer[A: Integer[A] box] val is Real[A], Logical[A], Bits[A]
   fun clz(): A
   fun ctz(): A
   fun bitwidth(): A
+
   fun rotl(y: A): A => (this << y) or (this >> (bitwidth() - y))
   fun rotr(y: A): A => (this >> y) or (this << (bitwidth() - y))
 
-trait SignedInteger[A: SignedInteger[A] box] val is Integer[A]
-  fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+trait val _SignedInteger[A: _SignedInteger[A,C] val,
+    C: _UnsignedInteger[C] val] is Integer[A]
+  fun abs(): C
+  fun string(fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
+    _ToString._u64(abs().u64(), i64() < 0, fmt, prefix, prec, width, align,
       fill)
 
-trait UnsignedInteger[A: UnsignedInteger[A] box] val is Integer[A]
-  fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+trait val _UnsignedInteger[A: _UnsignedInteger[A] val] is Integer[A]
+  fun abs(): A
+  fun string(fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = -1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
+    _ToString._u64(u64(), false, fmt, prefix, prec, width, align, fill)
 
-trait FloatingPoint[A: FloatingPoint[A] box] val is Real[A]
-  fun string(fmt: FloatFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 6, width: U64 = 0,
+trait val FloatingPoint[A: FloatingPoint[A] val] is Real[A]
+  fun tag epsilon(): A
+  fun tag radix(): U8
+  fun tag precision2(): U8
+  fun tag precision10(): U8
+  fun tag min_exp2(): I16
+  fun tag min_exp10(): I16
+  fun tag max_exp2(): I16
+  fun tag max_exp10(): I16
+
+  fun abs(): A
+  fun ceil(): A
+  fun floor(): A
+  fun round(): A
+  fun trunc(): A
+
+  fun finite(): Bool
+  fun nan(): Bool
+
+  fun frexp(): (A, U32)
+  fun log(): A
+  fun log2(): A
+  fun log10(): A
+  fun logb(): A
+
+  fun pow(y: A): A
+  fun powi(y: I32): A
+
+  fun sqrt(): A
+  fun cbrt(): A
+  fun exp(): A
+  fun exp2(): A
+
+  fun cos(): A
+  fun sin(): A
+  fun tan(): A
+
+  fun cosh(): A
+  fun sinh(): A
+  fun tanh(): A
+
+  fun acos(): A
+  fun asin(): A
+  fun atan(): A
+  fun atan2(y: A): A
+
+  fun acosh(): A
+  fun asinh(): A
+  fun atanh(): A
+
+  fun string(fmt: FormatFloat = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = 6, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
+    _ToString._f64(f64(), fmt, prefix, prec, width, align, fill)
 
 type Number is (Signed | Unsigned | Float)
 

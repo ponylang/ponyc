@@ -82,7 +82,7 @@ static const lextoken_t symbols[] =
   { ">", TK_GT },
 
   { "|", TK_PIPE },
-  { "&", TK_AMP },
+  { "&", TK_ISECTTYPE },
   { "^", TK_EPHEMERAL },
   { "!", TK_BORROWED },
 
@@ -109,13 +109,16 @@ static const lextoken_t keywords[] =
   { "class", TK_CLASS },
   { "actor", TK_ACTOR },
   { "object", TK_OBJECT },
+  { "lambda", TK_LAMBDA },
 
+  { "delegate", TK_DELEGATE },
   { "as", TK_AS },
   { "is", TK_IS },
   { "isnt", TK_ISNT },
 
   { "var", TK_VAR },
   { "let", TK_LET },
+  { "embed", TK_EMBED },
   { "new", TK_NEW },
   { "fun", TK_FUN },
   { "be", TK_BE },
@@ -156,6 +159,9 @@ static const lextoken_t keywords[] =
   { "or", TK_OR },
   { "xor", TK_XOR },
 
+  { "identityof", TK_IDENTITY },
+  { "addressof", TK_ADDRESS },
+
   { "true", TK_TRUE },
   { "false", TK_FALSE },
 
@@ -176,27 +182,28 @@ static const lextoken_t abstract[] =
   { "ffidecl", TK_FFIDECL },
   { "fficall", TK_FFICALL },
 
-  { "types", TK_TYPES },
+  { "provides", TK_PROVIDES },
   { "uniontype", TK_UNIONTYPE },
-  { "isecttype", TK_ISECTTYPE },
+  //{ "isecttype", TK_ISECTTYPE },  // Now treated as the symbol '&'
   { "tupletype", TK_TUPLETYPE },
   { "nominal", TK_NOMINAL },
   { "thistype", TK_THISTYPE },
   { "boxtype", TK_BOXTYPE },
   { "funtype", TK_FUNTYPE },
   { "infer", TK_INFERTYPE },
+  { "errortype", TK_ERRORTYPE },
 
   { "iso", TK_ISO_BIND },
   { "trn", TK_TRN_BIND },
   { "ref", TK_REF_BIND },
   { "val", TK_VAL_BIND },
   { "box", TK_BOX_BIND },
-  { "trn", TK_TAG_BIND },
-  { "any", TK_ANY_BIND },
+  { "tag", TK_TAG_BIND },
 
-  { "boxgen", TK_BOX_GENERIC },
-  { "taggen", TK_TAG_GENERIC },
-  { "anygen", TK_ANY_GENERIC },
+  { "#read", TK_CAP_READ_BIND },
+  { "#send", TK_CAP_SEND_BIND },
+  { "#share", TK_CAP_SHARE_BIND },
+  { "#any", TK_CAP_ANY_BIND },
 
   { "literal", TK_LITERAL },
   { "branch", TK_LITERALBRANCH },
@@ -211,6 +218,8 @@ static const lextoken_t abstract[] =
   { "namedargs", TK_NAMEDARGS },
   { "namedarg", TK_NAMEDARG },
   { "updatearg", TK_UPDATEARG },
+  { "lambdacaptures", TK_LAMBDACAPTURES },
+  { "lambdacapture", TK_LAMBDACAPTURE },
 
   { "seq", TK_SEQ },
   { "qualify", TK_QUALIFY },
@@ -220,7 +229,6 @@ static const lextoken_t abstract[] =
   { "cases", TK_CASES },
   { "case", TK_CASE },
   { "try", TK_TRY_NO_CHECK },
-  { "identity", TK_IDENTITY },
 
   { "reference", TK_REFERENCE },
   { "packageref", TK_PACKAGEREF },
@@ -232,6 +240,7 @@ static const lextoken_t abstract[] =
   { "funref", TK_FUNREF },
   { "fvarref", TK_FVARREF },
   { "fletref", TK_FLETREF },
+  { "embedref", TK_EMBEDREF },
   { "varref", TK_VARREF },
   { "letref", TK_LETREF },
   { "paramref", TK_PARAMREF },
@@ -252,6 +261,16 @@ static const lextoken_t test_keywords[] =
   { "$try_no_check", TK_TEST_TRY_NO_CHECK },
   { "$borrowed", TK_TEST_BORROWED },
   { "$updatearg", TK_TEST_UPDATEARG },
+
+  { NULL, (token_id)0 }
+};
+
+static const lextoken_t hash_keywords[] =
+{
+  { "#read", TK_CAP_READ },
+  { "#send", TK_CAP_SEND },
+  { "#share", TK_CAP_SHARE },
+  { "#any", TK_CAP_ANY },
 
   { NULL, (token_id)0 }
 };
@@ -308,8 +327,8 @@ static void append_to_token(lexer_t* lexer, char c)
 // Make a token with the specified ID and no token text
 static token_t* make_token(lexer_t* lexer, token_id id)
 {
-  token_t* t = token_new(id, lexer->source);
-  token_set_pos(t, lexer->token_line, lexer->token_pos);
+  token_t* t = token_new(id);
+  token_set_pos(t, lexer->source, lexer->token_line, lexer->token_pos);
   return t;
 }
 
@@ -318,8 +337,13 @@ static token_t* make_token(lexer_t* lexer, token_id id)
 static token_t* make_token_with_text(lexer_t* lexer, token_id id)
 {
   token_t* t = make_token(lexer, id);
-  append_to_token(lexer, '\0');
-  token_set_string(t, stringtab(lexer->buffer));
+
+  if(lexer->buffer == NULL) // No text for token
+    token_set_string(t, stringtab(""), 0);
+  else
+    token_set_string(t, stringtab_len(lexer->buffer, lexer->buflen),
+      lexer->buflen);
+
   return t;
 }
 
@@ -409,6 +433,7 @@ static token_t* nested_comment(lexer_t* lexer)
     }
   }
 
+  lexer->newline = false;
   return NULL;
 }
 
@@ -451,9 +476,6 @@ static void normalise_string(lexer_t* lexer)
 {
   if(lexer->buflen == 0)
     return;
-
-  // Make sure we have a null terminated string.
-  append_to_token(lexer, '\0');
 
   // If we aren't multiline, do nothing.
   if(memchr(lexer->buffer, '\n', lexer->buflen) == NULL)
@@ -500,7 +522,7 @@ static void normalise_string(lexer_t* lexer)
 
     while(rem > 0)
     {
-      char* line_end = strchr(line_start, '\n');
+      char* line_end = (char*)memchr(line_start, '\n', rem);
       size_t line_len =
         (line_end == NULL) ? rem : (size_t)(line_end - line_start + 1);
 
@@ -510,7 +532,8 @@ static void normalise_string(lexer_t* lexer)
         memmove(compacted, line_start + trim, line_len - trim);
         compacted += line_len - trim;
       }
-      else {
+      else
+      {
         memmove(compacted, line_start, line_len);
         compacted += line_len;
       }
@@ -518,6 +541,8 @@ static void normalise_string(lexer_t* lexer)
       line_start += line_len;
       rem -= line_len;
     }
+
+    lexer->buflen = compacted - lexer->buffer;
   }
 
   // Trim a leading newline if there is one.
@@ -528,7 +553,8 @@ static void normalise_string(lexer_t* lexer)
     lexer->buflen -= 2;
     memmove(&buf[0], &buf[2], lexer->buflen);
   }
-  else if(buf[0] == '\n') {
+  else if(buf[0] == '\n')
+  {
     lexer->buflen--;
     memmove(&buf[0], &buf[1], lexer->buflen);
   }
@@ -551,6 +577,15 @@ static token_t* triple_string(lexer_t* lexer)
     if((c == '\"') && (lookn(lexer, 2) == '\"') && (lookn(lexer, 3) == '\"'))
     {
       consume_chars(lexer, 3);
+
+      // Triple strings can end with 3 or more "s. If there are more than 3
+      // the extra ones are part of the string contents
+      while(look(lexer) == '\"')
+      {
+        append_to_token(lexer, '\"');
+        consume_chars(lexer, 1);
+      }
+
       normalise_string(lexer);
       return make_token_with_text(lexer, TK_STRING);
     }
@@ -823,6 +858,13 @@ static bool lex_integer(lexer_t* lexer, uint32_t base,
     char c = look(lexer);
     uint32_t digit = 0;
 
+    if(c == '_')
+    {
+      // Ignore underscores in numbers
+      consume_chars(lexer, 1);
+      continue;
+    }
+
     if(end_on_e && ((c == 'e') || (c == 'E')))
       break;
 
@@ -997,7 +1039,11 @@ static size_t read_id(lexer_t* lexer)
     len++;
   }
 
+  // Add a nul terminator to our name so we can use strcmp(), but don't count
+  // it in the text length
   append_to_token(lexer, '\0');
+  lexer->buflen--;
+
   return len;
 }
 
@@ -1016,6 +1062,30 @@ static token_t* identifier(lexer_t* lexer)
   }
 
   return make_token_with_text(lexer, TK_ID);
+}
+
+
+// Process a hash identifier the leading # of which has been seen, but not
+// consumed
+static token_t* hash_identifier(lexer_t* lexer)
+{
+  // # already found, find rest of symbol.
+  // Only consume the remaining characters if we have a match.
+  consume_chars(lexer, 1);
+  append_to_token(lexer, '#');
+  size_t len = read_id(lexer);
+
+  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
+  {
+    if(!strcmp(lexer->buffer, p->text))
+    {
+      consume_chars(lexer, len);
+      return make_token(lexer, p->id);
+    }
+  }
+
+  lex_error(lexer, "Unrecognized character: #");
+  return make_token(lexer, TK_LEX_ERROR);
 }
 
 
@@ -1162,6 +1232,10 @@ token_t* lexer_next(lexer_t* lexer)
         t = character(lexer);
         break;
 
+      case '#':
+        t = hash_identifier(lexer);
+        break;
+
       case '$':
         t = test_identifier(lexer);
         break;
@@ -1181,9 +1255,6 @@ token_t* lexer_next(lexer_t* lexer)
         }
     }
   }
-
-  if(lexer->newline)
-    token_set_first_on_line(t);
 
   lexer->newline = false; // We've found a symbol, so no longer a new line
   return t;
@@ -1205,6 +1276,12 @@ const char* lexer_print(token_id id)
   }
 
   for(const lextoken_t* p = symbols; p->text != NULL; p++)
+  {
+    if(id == p->id)
+      return p->text;
+  }
+
+  for(const lextoken_t* p = hash_keywords; p->text != NULL; p++)
   {
     if(id == p->id)
       return p->text;

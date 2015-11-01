@@ -8,6 +8,7 @@
 #include "../expr/match.h"
 #include "../expr/array.h"
 #include "../expr/ffi.h"
+#include "../expr/lambda.h"
 #include <assert.h>
 
 bool is_result_needed(ast_t* ast)
@@ -139,7 +140,7 @@ bool is_typecheck_error(ast_t* type)
   if(type == NULL)
     return true;
 
-  if(ast_id(type) == TK_INFERTYPE)
+  if(ast_id(type) == TK_INFERTYPE || ast_id(type) == TK_ERRORTYPE)
     return true;
 
   return false;
@@ -168,159 +169,82 @@ bool is_control_type(ast_t* type)
   return false;
 }
 
-ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
+ast_result_t pass_pre_expr(ast_t** astp, pass_opt_t* options)
 {
-  typecheck_t* t = &options->check;
+  (void)options;
   ast_t* ast = *astp;
 
   switch(ast_id(ast))
   {
-    case TK_NOMINAL:
-      if(!expr_nominal(options, astp))
-        return AST_ERROR;
-      break;
+    case TK_USE:
+      // Don't look in use commands to avoid false type errors from the guard
+      return AST_IGNORE;
 
+    default: {}
+  }
+
+  return AST_OK;
+}
+
+ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
+{
+  typecheck_t* t = &options->check;
+  ast_t* ast = *astp;
+  bool r = true;
+
+  switch(ast_id(ast))
+  {
+    case TK_NOMINAL:    r = expr_nominal(options, astp); break;
     case TK_FVAR:
     case TK_FLET:
-    case TK_PARAM:
-      if(!expr_field(options, ast))
-        return AST_ERROR;
-      break;
-
+    case TK_EMBED:
+    case TK_PARAM:      r = expr_field(options, ast); break;
     case TK_NEW:
     case TK_BE:
-    case TK_FUN:
-      if(!expr_fun(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_SEQ:
-      if(!expr_seq(ast))
-        return AST_ERROR;
-      break;
-
+    case TK_FUN:        r = expr_fun(options, ast); break;
+    case TK_SEQ:        r = expr_seq(options, ast); break;
     case TK_VAR:
-    case TK_LET:
-      if(!expr_local(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_BREAK:
-      if(!expr_break(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_CONTINUE:
-      if(!expr_continue(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_RETURN:
-      if(!expr_return(options, ast))
-        return AST_ERROR;
-      break;
-
+    case TK_LET:        r = expr_local(t, ast); break;
+    case TK_BREAK:      r = expr_break(t, ast); break;
+    case TK_CONTINUE:   r = expr_continue(t, ast); break;
+    case TK_RETURN:     r = expr_return(options, ast); break;
     case TK_IS:
-    case TK_ISNT:
-      if(!expr_identity(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_ASSIGN:
-      if(!expr_assign(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_CONSUME:
-      if(!expr_consume(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_RECOVER:
-      if(!expr_recover(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_DOT:
-      if(!expr_dot(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_TILDE:
-      if(!expr_tilde(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_QUALIFY:
-      if(!expr_qualify(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_CALL:
-      if(!expr_call(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_IF:
-      if(!expr_if(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_WHILE:
-      if(!expr_while(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_REPEAT:
-      if(!expr_repeat(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_TRY:
+    case TK_ISNT:       r = expr_identity(options, ast); break;
+    case TK_ASSIGN:     r = expr_assign(options, ast); break;
+    case TK_CONSUME:    r = expr_consume(t, ast); break;
+    case TK_RECOVER:    r = expr_recover(ast); break;
+    case TK_DOT:        r = expr_dot(options, astp); break;
+    case TK_TILDE:      r = expr_tilde(options, astp); break;
+    case TK_QUALIFY:    r = expr_qualify(options, astp); break;
+    case TK_CALL:       r = expr_call(options, astp); break;
+    case TK_IF:         r = expr_if(options, ast); break;
+    case TK_WHILE:      r = expr_while(options, ast); break;
+    case TK_REPEAT:     r = expr_repeat(options, ast); break;
     case TK_TRY_NO_CHECK:
-      if(!expr_try(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_MATCH:
-      if(!expr_match(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_CASES:
-      if(!expr_cases(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_CASE:
-      if(!expr_case(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_TUPLE:
-      if(!expr_tuple(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_ARRAY:
-      if(!expr_array(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_REFERENCE:
-      if(!expr_reference(options, astp))
-        return AST_ERROR;
-      break;
-
-    case TK_THIS:
-      if(!expr_this(options, ast))
-        return AST_ERROR;
-      break;
-
+    case TK_TRY:        r = expr_try(options, ast); break;
+    case TK_MATCH:      r = expr_match(options, ast); break;
+    case TK_CASES:      r = expr_cases(ast); break;
+    case TK_CASE:       r = expr_case(options, ast); break;
+    case TK_TUPLE:      r = expr_tuple(ast); break;
+    case TK_ARRAY:      r = expr_array(options, astp); break;
+    case TK_REFERENCE:  r = expr_reference(options, astp); break;
+    case TK_THIS:       r = expr_this(options, ast); break;
     case TK_TRUE:
-    case TK_FALSE:
-      if(!expr_literal(options, ast, "Bool"))
-        return AST_ERROR;
+    case TK_FALSE:      r = expr_literal(options, ast, "Bool"); break;
+    case TK_ERROR:      r = expr_error(ast); break;
+    case TK_COMPILER_INTRINSIC:
+                        r = expr_compiler_intrinsic(t, ast); break;
+    case TK_POSITIONALARGS:
+    case TK_NAMEDARGS:
+    case TK_NAMEDARG:
+    case TK_UPDATEARG:  ast_inheritflags(ast); break;
+    case TK_ADDRESS:    r = expr_addressof(options, ast); break;
+    case TK_IDENTITY:   r = expr_identityof(options, ast); break;
+    case TK_DONTCARE:   r = expr_dontcare(ast); break;
+
+    case TK_LAMBDA:
+      if(!expr_lambda(options, astp))
+        return AST_FATAL;
       break;
 
     case TK_INT:
@@ -336,41 +260,19 @@ ast_result_t pass_expr(ast_t** astp, pass_opt_t* options)
       if(ast_id(ast_parent(ast)) == TK_PACKAGE)
         return AST_OK;
 
-      if(!expr_literal(options, ast, "String"))
-        return AST_ERROR;
-      break;
-
-    case TK_ERROR:
-      if(!expr_error(ast))
-        return AST_ERROR;
-      break;
-
-    case TK_COMPILER_INTRINSIC:
-      if(!expr_compiler_intrinsic(t, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_POSITIONALARGS:
-    case TK_NAMEDARGS:
-    case TK_NAMEDARG:
-    case TK_UPDATEARG:
-      ast_inheritflags(ast);
+      r = expr_literal(options, ast, "String");
       break;
 
     case TK_FFICALL:
       return expr_ffi(options, ast);
 
-    case TK_AMP:
-      if(!expr_addressof(options, ast))
-        return AST_ERROR;
-      break;
-
-    case TK_DONTCARE:
-      if(!expr_dontcare(ast))
-        return AST_ERROR;
-      break;
-
     default: {}
+  }
+
+  if(!r)
+  {
+    assert(get_error_count() > 0);
+    return AST_ERROR;
   }
 
   // Can't use ast here, it might have changed

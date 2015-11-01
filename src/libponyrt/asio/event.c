@@ -3,6 +3,7 @@
 #include "../actor/actor.h"
 #include "../mem/pool.h"
 #include <string.h>
+#include <assert.h>
 
 asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   uint32_t flags, bool noisy)
@@ -18,6 +19,7 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
 
   asio_event_t* ev = POOL_ALLOC(asio_event_t);
 
+  ev->magic = ev;
   ev->data = data;
   ev->owner = owner;
   ev->msg_id = msg_id;
@@ -25,9 +27,10 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
   ev->noisy = noisy;
 
   // The event is effectively being sent to another thread, so mark it here.
-  pony_gc_send();
-  pony_traceactor(owner);
-  pony_send_done();
+  pony_ctx_t* ctx = pony_ctx();
+  pony_gc_send(ctx);
+  pony_traceactor(ctx, owner);
+  pony_send_done(ctx);
 
   asio_event_subscribe(ev);
   return ev;
@@ -35,22 +38,29 @@ asio_event_t* asio_event_create(pony_actor_t* owner, uintptr_t data,
 
 void asio_event_destroy(asio_event_t* ev)
 {
-  if((ev == NULL) || (ev->flags != ASIO_DISPOSABLE))
+  if((ev == NULL) || (ev->magic != ev) || (ev->flags != ASIO_DISPOSABLE))
+  {
+    assert(0);
     return;
+  }
 
   ev->flags = ASIO_DESTROYED;
 
   // When we let go of an event, we treat it as if we had received it back from
   // the asio thread.
-  pony_gc_recv();
-  pony_traceactor(ev->owner);
-  pony_recv_done();
+  pony_ctx_t* ctx = pony_ctx();
+  pony_gc_recv(ctx);
+  pony_traceactor(ctx, ev->owner);
+  pony_recv_done(ctx);
 
   POOL_FREE(asio_event_t, ev);
 }
 
 uintptr_t asio_event_data(asio_event_t* ev)
 {
+  if(ev == NULL)
+    return (uintptr_t)-1;
+
   return ev->data;
 }
 
@@ -67,5 +77,5 @@ void asio_event_send(asio_event_t* ev, uint32_t flags, uint64_t arg)
   m->flags = flags;
   m->arg = arg;
 
-  pony_sendv(ev->owner, &m->msg);
+  pony_sendv(NULL, ev->owner, &m->msg);
 }

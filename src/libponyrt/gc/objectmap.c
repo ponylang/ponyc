@@ -12,6 +12,7 @@ typedef struct object_t
   pony_final_fn final;
   size_t rc;
   uint32_t mark;
+  bool reachable;
 } object_t;
 
 static uint64_t object_hash(object_t* obj)
@@ -30,6 +31,7 @@ static object_t* object_alloc(void* address, uint32_t mark)
   obj->address = address;
   obj->final = NULL;
   obj->rc = 0;
+  obj->reachable = true;
 
   // a new object is unmarked
   obj->mark = mark - 1;
@@ -85,10 +87,22 @@ bool object_dec(object_t* obj)
   return obj->rc > 0;
 }
 
-void object_dec_some(object_t* obj, size_t rc)
+bool object_dec_some(object_t* obj, size_t rc)
 {
   assert(obj->rc >= rc);
   obj->rc -= rc;
+
+  return obj->rc == 0;
+}
+
+bool object_reachable(object_t* obj)
+{
+  return obj->reachable;
+}
+
+void object_markreachable(object_t* obj)
+{
+  obj->reachable = true;
 }
 
 DEFINE_HASHMAP(objectmap, object_t, object_hash, object_cmp, pool_alloc_size,
@@ -134,7 +148,7 @@ void objectmap_final(objectmap_t* map)
   }
 }
 
-size_t objectmap_mark(objectmap_t* map)
+size_t objectmap_sweep(objectmap_t* map)
 {
   size_t count = 0;
   size_t i = HASHMAP_BEGIN;
@@ -142,20 +156,27 @@ size_t objectmap_mark(objectmap_t* map)
 
   while((obj = objectmap_next(map, &i)) != NULL)
   {
+    void* p = obj->address;
+
     if(obj->rc > 0)
     {
-      pony_trace(obj->address);
+      // Keep track of whether or not the object was reachable.
+      chunk_t* chunk = (chunk_t*)pagemap_get(p);
+      obj->reachable = heap_ismarked(chunk, p);
+
+      if(!obj->reachable)
+        heap_mark_shallow(chunk, p);
     } else {
       if(obj->final != NULL)
       {
         // If we are not free in the heap, don't run the finaliser and don't
         // remove this entry from the object map.
-        chunk_t* chunk = (chunk_t*)pagemap_get(obj->address);
+        chunk_t* chunk = (chunk_t*)pagemap_get(p);
 
-        if(heap_ismarked(chunk, obj->address))
+        if(heap_ismarked(chunk, p))
           continue;
 
-        obj->final(obj->address);
+        obj->final(p);
         count++;
       }
 

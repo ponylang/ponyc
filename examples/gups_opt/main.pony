@@ -12,10 +12,10 @@ class Config
     var options = Options(env)
 
     options
-      .add("logtable", "l", None, I64Argument)
-      .add("iterate", "i", None, I64Argument)
-      .add("chunk", "c", None, I64Argument)
-      .add("actors", "a", None, I64Argument)
+      .add("table", "t", I64Argument)
+      .add("iterate", "i", I64Argument)
+      .add("chunk", "c", I64Argument)
+      .add("actors", "a", I64Argument)
 
     for option in options do
       match option
@@ -23,7 +23,8 @@ class Config
       | ("iterate", var arg: I64) => iterate = arg.u64()
       | ("chunk", var arg: I64) => logchunk = arg.u64()
       | ("actors", var arg: I64) => logactors = arg.u64()
-      | ParseError =>
+      | let err: ParseError =>
+        err.report(env.out)
         env.out.print(
           """
           gups_opt [OPTIONS]
@@ -76,10 +77,8 @@ actor Main
       _actors = consume updaters
       _start = Time.nanos()
 
-      try
-        for a in _actors.values() do
-          a.start(_actors, _config.iterate)
-        end
+      for a in _actors.values() do
+        a.start(_actors, _config.iterate)
       end
     else
       _start = 0
@@ -88,10 +87,8 @@ actor Main
 
   be done() =>
     if (_confirm = _confirm - 1) == 1 then
-      try
-        for a in _actors.values() do
-          a.done()
-        end
+      for a in _actors.values() do
+        a.done()
       end
     end
 

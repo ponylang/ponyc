@@ -1,147 +1,119 @@
-use "collections"
+"""
+## PonyOptions package
+"""
 
 primitive StringArgument
 primitive I64Argument
 primitive F64Argument
-primitive ParseError
+primitive Required
+primitive Optional
 
-primitive _Ambiguous
+primitive UnrecognisedOption
+primitive AmbiguousMatch
+primitive MissingArgument
+primitive InvalidArgument
 
-type _Match is (None | Option | _Ambiguous)
-type OptionType is (None | StringArgument | I64Argument | F64Argument)
-type _ParsedOption is ((String | None), (None | String | I64 | F64))
-type _Result is (_ParsedOption | ParseError)
+type ArgumentType is
+  ( None
+  | StringArgument
+  | I64Argument
+  | F64Argument)
 
-class Option is Stringable
-  var name: String
-  var short: (String | None)
-  var arg: OptionType
-  var _help: (String | None)
-  var _domain: Array[(String, (String | None))]
+type ErrorReason is
+  ( UnrecognisedOption
+  | MissingArgument
+  | InvalidArgument
+  | AmbiguousMatch)
 
-  new create(name': String, short': (String | None), help: (String | None),
-    arg': OptionType)
+type ParsedOption is (String, (None | String | I64 | F64))
+
+interface ParseError
+  fun reason(): ErrorReason
+  fun report(out: OutStream)
+
+class Options is Iterator[(ParsedOption | ParseError | None)]
+  let _arguments: Array[String ref]
+  let _fatal: Bool
+  var _configuration: Array[_Option] = _configuration.create()
+  var _index: U64 = 0
+  var _error: Bool = false
+
+  new create(env: Env, fatal: Bool = true) =>
+    _arguments = _arguments.create(env.args.size())
+    _fatal = fatal
+
+    for arg in env.args.values() do
+      _arguments.push(arg.clone())
+    end
+
+  fun ref add(long: String, short: (None | String) = None,
+    arg: ArgumentType = None, mode: (Required | Optional) = Required): Options
   =>
-    name = name'
-    short = short'
-    arg = arg'
-    _help = help
-    _domain = Array[(String, (String | None))]
+    """
+    Adds a new named option to the parser configuration.
+    """
+    _configuration.push(_Option(long, short, arg, mode))
+    this
 
-  fun ref has_domain(): Bool =>
-    _domain.size() > 0
+  fun ref remaining(): Array[String ref] =>
+    """
+    Returns all unprocessed command line arguments. After parsing all options,
+    this will only include positional arguments, potentially unrecognised and
+    ambiguous options and invalid arguments.
+    """
+    _arguments
 
-  fun ref add_param(value: String, help: (String | None)) =>
-    _domain.push((value, help))
+  fun ref _strip(opt: _Option, matched: String ref, start: I64, finish: I64) =>
+    """
+    Strips accepted options from the copied array of command line arguments.
+    """
+    matched.cut_in_place(start, finish)
 
-  fun ref accepts(value: String): Bool =>
+    if opt.has_argument() then
+      // If 'matched' is non-empty, then the rest (without - or =) must be the
+      // argument.
+      matched.lstrip("-").remove("=")
+    end
+
     try
-      for (v, h) in _domain.values() do
-        if v == value then return true end
+      if matched.size() == 0 then
+        _arguments.delete(_index)
       end
     end
-    false
 
-  fun ref requires_arg(): Bool =>
-    match arg
-    | None => false
+  fun ref _select(candidate: String ref, start: I64, offset: I64,
+    finish: I64): (_Option | ParseError)
+  =>
+    """
+    Selects an option from the configuration depending on the current command
+    line argument.
+    """
+    let name: String box = candidate.substring(start, finish)
+    var matches = Array[_Option]
+    var selected: (_Option | None) = None
+
+    for opt in _configuration.values() do
+      if opt.matches(name, start == 1) then
+        matches.push(opt)
+        selected = opt
+      end
+    end
+
+    match (selected, matches.size())
+    | (let opt: _Option, 1) => _strip(opt, candidate, offset, finish) ; opt
+    | (let opt: _Option, _) => _ErrorPrinter._ambiguous(matches)
     else
-      true
+      _ErrorPrinter._unrecognised(candidate.substring(0, finish))
     end
 
-  fun token(): String =>
-    match (name, short)
-    | (String, var s: String) => "(" + name + ", " + s + ")"
-    else
-      "\"" + name + "\""
-    end
-
-  //TODO: Requires proper string formatter
-  fun string(fmt: FormatDefault = FormatDefault,
-    prefix: PrefixDefault = PrefixDefault, prec: U64 = -1,
-    width: U64 = 0, align: Align = AlignLeft, fill: U32 = ' '): String iso^
-  =>
-    recover String end
-
-class Options is Iterator[_Result]
-  var _env: Env
-  var _args: Array[String ref]
-  var _configuration: Array[(String | Option)]
-  var _index: U64
-  var _error: Bool
-
-  new create(env: Env) =>
-    _env = env
-    _args = Array[String ref](_env.args.size())
-
-    try
-      for i in _env.args.values() do
-        _args.push(i.clone())
-      end
-    end
-
-    _configuration = Array[(String | Option)]
-    _index = 0
-    _error = false
-
-  fun ref remaining(): Array[String ref] => _args
-
-  fun ref usage_text(s: String): Options =>
-    _configuration.push(s)
-    this
-
-  fun ref add(name: String, short: (String | None), help: (String | None),
-    arg: OptionType): Options
-  =>
-    _configuration.push(Option(name, short, help, arg))
-    this
-
-  fun ref param(value: String, help: (String | None)): Options =>
-    for i in Reverse(_configuration.size(), 0) do
+  fun ref _skip(): Bool =>
+    """
+    Skips all non-options. Returns true if a named option has been found, false
+    otherwise.
+    """
+    while _index < _arguments.size() do
       try
-        match _configuration(i)
-        | var option: Option =>
-          option.add_param(value, help)
-          return this
-        end
-      else
-        return this
-      end
-    end
-
-    _error = true
-
-    _env.out.print("[Options Error]: Attempt to attach parameter \""
-        + value + "\" without an option")
-
-    this
-
-  fun ref get(long: String): _Result ? =>
-    for option in this do
-      match option
-      | (long, _) => return option
-      | ParseError => error
-      end
-    end
-
-    error
-
-  fun usage() =>
-    var help: String iso = recover String end
-
-    try
-      for i in _configuration.values() do
-        var s: Stringable = i
-        help.append(s.string())
-      end
-
-      _env.out.print(consume help)
-    end
-
-  fun ref _skip_non_options(): Bool =>
-    while _index < _args.size() do
-      try
-        let current = _args(_index)
+        let current = _arguments(_index)
 
         if (current(0) == '-') and (current(1) != 0) then
           return true
@@ -153,136 +125,151 @@ class Options is Iterator[_Result]
 
     false
 
-  fun ref _select(s: String, sopt: Bool) : ((Option | None), (Option | None)) =>
-    var long: (Option | None) = None
-    var short: (Option | None) = None
+  fun ref _verify(opt: _Option, combined: Bool): (ParsedOption | ParseError) =>
+    """
+    Verifies whether a parsed option from the command line is well-formed. That
+    is, checking whether required or optional arguments are supplied. Returns
+    a ParsedOption on success, a ParseError otherwise.
+    """
+    if opt.has_argument() then
+      try
+        let argument = _arguments(_index)
+        let invalid = not combined and (argument(0) == '-')
 
-    try
-      for i in _configuration.values() do
-        match i
-        | var opt: Option =>
-          if sopt then
-            match (opt.short, sopt)
-            | (var sn: String, true) =>
-              if sn.compare(s, 1) == 0 then
-                match short
-                | None => short = opt
-                | var prev: Option => return (prev, opt)
-                end
-              end
-            end
-          else
-            if opt.name == s then
-              match long
-              | None => long = opt
-              | var prev: Option => return (prev, opt)
-              end
-            end
+        if not opt.accepts(argument) or invalid then
+          if opt.mode isnt Optional then
+            return _ErrorPrinter._invalid(argument, opt)
           end
-        end
-      end
-    end
-
-    (long, short)
-
-  fun ref _strip_accepted(option: Option) =>
-    try
-      let current = _args(_index)
-
-      if option.requires_arg() then
-        // If current is non-empty the rest (without - or =) must be the arg.
-        current.strip("-")
-        current.strip("=")
-      end
-
-      let len = current.size()
-      let short = if len == 1 then (current(0) == '-') else false end
-
-      if (len == 0) or short then
-        _args.delete(_index)
-      end
-    end
-
-  fun ref _find_match(): _Match =>
-    try
-      let current = _args(_index)
-
-      let start: I64 =
-        match (current(0), current(1))
-        | ('-', '-') => 2
-        | ('-', var some: U8) => 1
-        else
-          // Cannot happen, otherwise current would have been identified by
-          // _skip_non_options
           error
         end
 
-      let finish: I64 = try current.find("=") else -1 end
-      let sub_end = if finish == -1 then finish else finish - 1 end
-      let name: String = current.substring(start, sub_end)
+        _arguments.delete(_index)
 
-      match _select(name, (start == 1))
-      | (var x: Option, var y: Option) =>
-        _env.out.print("[Options Error]: The two options " +
-          x.token() + " and " + y.token() + " are ambiguous!")
-        _Ambiguous
-      | (None, var y: Option) =>
-        _args(_index) = current.cut_in_place(1, 1)
-        _strip_accepted(y)
-        y
-      | (var x: Option, None) =>
-        _args(_index) = current.cut_in_place(0, finish)
-        _strip_accepted(x)
-        x
+        match opt.arg
+        | StringArgument => return (opt.long, argument.clone())
+        | I64Argument => return (opt.long, argument.i64())
+        | F64Argument => return (opt.long, argument.f64())
+        end
       else
-        error
+        if opt.requires_argument() then
+          return _ErrorPrinter._missing(opt)
+        end
       end
-    else
-      None
     end
+
+    (opt.long, None)
 
   fun has_next(): Bool =>
-    not _error and (_index < _args.size())
+    """
+    Parsing options is done if either an error occurs and fatal error reporting
+    is turned on, or if all command line arguments have been processed.
+    """
+    not (_error and _fatal) and (_index < _arguments.size())
 
-  fun ref next(): _Result =>
-    if _skip_non_options() then
-      match _find_match()
-      | _Ambiguous =>
-        _error = true
-        ParseError
-      | None =>
-        _index = _index + 1
-        if has_next() then
-          return next()
-        else
-          return (None, None)
-        end
-      | var m: Option =>
-        if m.requires_arg() then
-          var argument: String = "None"
+  fun ref next(): (ParsedOption | ParseError | None) =>
+    """
+    Skips all positional arguments and attemps to match named options. Returns
+    a ParsedOption on success, a ParseError on error, or None if no named
+    options are found.
+    """
+    if _skip() then
+      try
+        let candidate = _arguments(_index)
 
-          try
-            argument = _args(_index).clone()
-
-            if m.has_domain() and not m.accepts(argument) then error end
-
-            try _args.delete(_index) end
-
-            match m.arg
-            | StringArgument => return (m.name, argument)
-            | I64Argument => return (m.name, argument.i64())
-            | F64Argument => return (m.name, argument.f64())
-            end
+        (let start: I64, let offset: I64) =
+          match (candidate(0), candidate(1))
+          | ('-', '-') => (2, 0)
+          | ('-', var char: U8) => (1, 1)
           else
-            _error = true
-            _env.out.print("[Options Error]:" +
-              " No argument supplied or the supplied argument is not in the" +
-              " option's domain: --" + m.name + "[=| ]" + argument)
-            return ParseError
+            (0, 0) // unreachable
           end
+
+        let finish: I64 =
+          try
+            candidate.find("=") - 1
+          else
+            if start == 1 then start else -1 end
+          end
+
+        let combined = (finish != start) and (finish != -1)
+
+        match _select(candidate, start, offset, finish)
+        | let err: ParseError => _error = true ; _index = _index + 1 ; err
+        | let opt: _Option => _verify(opt, combined)
         end
-        return (m.name, None)
       end
     end
 
-    (None, None)
+//TODO: Refactor
+class _Option
+  let long: String
+  let short: (String | None)
+  let arg: ArgumentType
+  let mode: (Required | Optional)
+
+  new create(long': String, short': (String | None), arg': ArgumentType,
+    mode': (Required | Optional))
+  =>
+    long = long'
+    short = short'
+    arg = arg'
+    mode = mode'
+
+  fun matches(name: String box, shortmatch: Bool): Bool =>
+    match (short, shortmatch)
+    | (var x: String, true) => return name.compare_sub(x, 1) is Equal
+    end
+
+    long == name
+
+  fun has_argument(): Bool =>
+    match arg
+    | None => return false
+    end
+    true
+
+  fun requires_argument(): Bool =>
+    if arg isnt None then
+      match mode
+      | Required => return true
+      end
+    end
+    false
+
+  fun accepts(argument: String box): Bool =>
+    true
+
+class _ErrorPrinter
+  var _message: String
+  var _reason: ErrorReason
+
+  new _ambiguous(matches: Array[_Option]) =>
+    let m = recover String end
+    m.append("Ambiguous options:\n")
+
+    for opt in matches.values() do
+      m.append("  --" + opt.long)
+      try m.append(", -" + (opt.short as String)) end
+      m.append("\n")
+    end
+
+    _message = consume m
+    _reason = AmbiguousMatch
+
+  new _unrecognised(option: String box) =>
+    _message = "Unrecognised option: " + option
+    _reason = UnrecognisedOption
+
+  new _invalid(argument: String box, option: _Option) =>
+    _message = "Invalid argument: --" + option.long
+    _reason = InvalidArgument
+
+  new _missing(option: _Option) =>
+    _message = "Missing argument: --" + option.long
+    _reason = MissingArgument
+
+  fun reason(): ErrorReason =>
+    _reason
+
+  fun report(out: OutStream) =>
+    out.print(_message)

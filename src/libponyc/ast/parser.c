@@ -16,6 +16,8 @@
 DECL(type);
 DECL(rawseq);
 DECL(seq);
+DECL(exprseq);
+DECL(nextexprseq);
 DECL(assignment);
 DECL(term);
 DECL(infix);
@@ -44,16 +46,16 @@ DECL(members);
  *  viewpoint (->) - right associative, highest precedence
  *  infix (& |)
  *  tuple elements (,) - lowest precedence
-*/
+ */
 
 
 // Parse rules
 
-// type {COMMA type}
-DEF(types);
-  AST_NODE(TK_TYPES);
-  RULE("type", type);
-  WHILE(TK_COMMA, RULE("type", type));
+// type
+DEF(provides);
+  PRINT_INLINE();
+  AST_NODE(TK_PROVIDES);
+  RULE("provided type", type);
   DONE();
 
 // ID COLON type [ASSIGN infix]
@@ -108,6 +110,12 @@ DEF(cap);
   TOKEN("capability", TK_ISO, TK_TRN, TK_REF, TK_VAL, TK_BOX, TK_TAG);
   DONE();
 
+// GENCAP
+DEF(gencap);
+  TOKEN("generic capability", TK_CAP_READ, TK_CAP_SEND, TK_CAP_SHARE,
+    TK_CAP_ANY);
+  DONE();
+
 // ID [DOT ID] [typeargs] [CAP] [EPHEMERAL | BORROWED]
 DEF(nominal);
   AST_NODE(TK_NOMINAL);
@@ -118,7 +126,7 @@ DEF(nominal);
     REORDER(1, 0);
   );
   OPT RULE("type arguments", typeargs);
-  OPT RULE("capability", cap);
+  OPT RULE("capability", cap, gencap);
   OPT TOKEN(NULL, TK_EPHEMERAL, TK_BORROWED);
   DONE();
 
@@ -133,8 +141,7 @@ DEF(uniontype);
 // AMP type
 DEF(isecttype);
   INFIX_BUILD();
-  AST_NODE(TK_ISECTTYPE);
-  SKIP(NULL, TK_AMP);
+  TOKEN(NULL, TK_ISECTTYPE);
   RULE("type", type);
   DONE();
 
@@ -160,21 +167,24 @@ DEF(tupletype);
 
 // (LPAREN | LPAREN_NEW) (infixtype | dontcare) [tupletype] RPAREN
 DEF(groupedtype);
+  PRINT_INLINE();
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("type", infixtype, dontcare);
   OPT_NO_DFLT RULE("type", tupletype);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_IN_PARENS);
+  SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
 // THIS
 DEF(thistype);
+  PRINT_INLINE();
   AST_NODE(TK_THISTYPE);
   SKIP(NULL, TK_THIS);
   DONE();
 
 // BOX
 DEF(boxtype);
+  PRINT_INLINE();
   AST_NODE(TK_BOXTYPE);
   SKIP(NULL, TK_BOX);
   DONE();
@@ -186,6 +196,7 @@ DEF(atomtype);
 
 // ARROW type
 DEF(viewpoint);
+  PRINT_INLINE();
   INFIX_BUILD();
   TOKEN(NULL, TK_ARROW);
   RULE("viewpoint", type);
@@ -202,7 +213,7 @@ DEF(namedarg);
   AST_NODE(TK_NAMEDARG);
   TOKEN("argument name", TK_ID);
   IFELSE(TK_TEST_UPDATEARG,
-    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(TEST_ONLY),
+    MAP_ID(TK_NAMEDARG, TK_UPDATEARG); SET_FLAG(AST_FLAG_TEST_ONLY),
     {}
   );
   SKIP(NULL, TK_ASSIGN);
@@ -224,16 +235,58 @@ DEF(positional);
   WHILE(TK_COMMA, RULE("argument", rawseq));
   DONE();
 
-// LBRACE [IS types] members RBRACE
+// OBJECT [CAP] [IS type] members END
 DEF(object);
+  PRINT_INLINE();
   TOKEN(NULL, TK_OBJECT);
-  IF(TK_IS, RULE("provided type", types));
+  OPT RULE("capability", cap);
+  IF(TK_IS, RULE("provided type", provides));
   RULE("object member", members);
   SKIP(NULL, TK_END);
   DONE();
 
+// ID [COLON type] [ASSIGN infix]
+DEF(lambdacapture);
+  AST_NODE(TK_LAMBDACAPTURE);
+  TOKEN("name", TK_ID);
+  IF(TK_COLON, RULE("capture type", type));
+  IF(TK_ASSIGN, RULE("capture value", infix));
+  DONE();
+
+// (LPAREN | LPAREN_NEW) lambdacapture {COMMA lambdacapture} RPAREN
+DEF(lambdacaptures);
+  AST_NODE(TK_LAMBDACAPTURES);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  RULE("capture", lambdacapture);
+  WHILE(TK_COMMA, RULE("capture", lambdacapture));
+  SKIP(NULL, TK_RPAREN);
+  DONE();
+
+// LAMBDA [CAP] [typeparams] (LPAREN | LPAREN_NEW) [params] RPAREN
+// [lambdacaptures] [COLON type] [QUESTION] ARROW rawseq END
+DEF(lambda);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_LAMBDA);
+  OPT RULE("capability", cap);
+  OPT RULE("type parameters", typeparams);
+  SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
+  OPT RULE("parameters", params);
+  SKIP(NULL, TK_RPAREN);
+  OPT RULE("captures", lambdacaptures);
+  IF(TK_COLON, RULE("return type", type));
+  OPT TOKEN(NULL, TK_QUESTION);
+  SKIP(NULL, TK_DBLARROW);
+  RULE("lambda body", rawseq);
+  SKIP(NULL, TK_END);
+  SET_CHILD_FLAG(1, AST_FLAG_PRESERVE); // Type parameters
+  SET_CHILD_FLAG(2, AST_FLAG_PRESERVE); // Parameters
+  SET_CHILD_FLAG(4, AST_FLAG_PRESERVE); // Return type
+  SET_CHILD_FLAG(6, AST_FLAG_PRESERVE); // Body
+  DONE();
+
 // AS type ':'
 DEF(arraytype);
+  PRINT_INLINE();
   SKIP(NULL, TK_AS);
   RULE("type", type);
   SKIP(NULL, TK_COLON);
@@ -241,8 +294,20 @@ DEF(arraytype);
 
 // (LSQUARE | LSQUARE_NEW) rawseq {COMMA rawseq} RSQUARE
 DEF(array);
+  PRINT_INLINE();
   AST_NODE(TK_ARRAY);
   SKIP(NULL, TK_LSQUARE, TK_LSQUARE_NEW);
+  OPT RULE("element type", arraytype);
+  RULE("array element", rawseq);
+  WHILE(TK_COMMA, RULE("array element", rawseq));
+  SKIP(NULL, TK_RSQUARE);
+  DONE();
+
+// LSQUARE_NEW rawseq {COMMA rawseq} RSQUARE
+DEF(nextarray);
+  PRINT_INLINE();
+  AST_NODE(TK_ARRAY);
+  SKIP(NULL, TK_LSQUARE_NEW);
   OPT RULE("element type", arraytype);
   RULE("array element", rawseq);
   WHILE(TK_COMMA, RULE("array element", rawseq));
@@ -260,11 +325,22 @@ DEF(tuple);
 
 // (LPAREN | LPAREN_NEW) (rawseq | dontcare) [tuple] RPAREN
 DEF(groupedexpr);
+  PRINT_INLINE();
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("value", rawseq, dontcare);
   OPT_NO_DFLT RULE("value", tuple);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(AST_IN_PARENS);
+  SET_FLAG(AST_FLAG_IN_PARENS);
+  DONE();
+
+// LPAREN_NEW (rawseq | dontcare) [tuple] RPAREN
+DEF(nextgroupedexpr);
+  PRINT_INLINE();
+  SKIP(NULL, TK_LPAREN_NEW);
+  RULE("value", rawseq, dontcare);
+  OPT_NO_DFLT RULE("value", tuple);
+  SKIP(NULL, TK_RPAREN);
+  SET_FLAG(AST_FLAG_IN_PARENS);
   DONE();
 
 // THIS | TRUE | FALSE | INT | FLOAT | STRING
@@ -273,6 +349,7 @@ DEF(literal);
   DONE();
 
 DEF(ref);
+  PRINT_INLINE();
   AST_NODE(TK_REFERENCE);
   TOKEN("name", TK_ID);
   DONE();
@@ -280,6 +357,7 @@ DEF(ref);
 // AT (ID | STRING) typeargs (LPAREN | LPAREN_NEW) [positional] RPAREN
 // [QUESTION]
 DEF(ffi);
+  PRINT_INLINE();
   TOKEN(NULL, TK_AT);
   MAP_ID(TK_AT, TK_FFICALL);
   TOKEN("ffi name", TK_ID, TK_STRING);
@@ -291,9 +369,14 @@ DEF(ffi);
   OPT TOKEN(NULL, TK_QUESTION);
   DONE();
 
-// ref | literal | tuple | array | object | ffi
+// ref | literal | tuple | array | object | lambda | ffi
 DEF(atom);
-  RULE("value", ref, literal, groupedexpr, array, object, ffi);
+  RULE("value", ref, literal, groupedexpr, array, object, lambda, ffi);
+  DONE();
+
+// ref | literal | tuple | array | object | lambda | ffi
+DEF(nextatom);
+  RULE("value", ref, literal, nextgroupedexpr, nextarray, object, lambda, ffi);
   DONE();
 
 // DOT ID
@@ -333,8 +416,15 @@ DEF(postfix);
   SEQ("postfix expression", dot, tilde, qualify, call);
   DONE();
 
-// (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
+// atom {dot | tilde | qualify | call}
+DEF(nextpostfix);
+  RULE("value", nextatom);
+  SEQ("postfix expression", dot, tilde, qualify, call);
+  DONE();
+
+// (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseqmulti);
+  PRINT_INLINE();
   AST_NODE(TK_TUPLE);
   SKIP(NULL, TK_LPAREN, TK_LPAREN_NEW);
   RULE("variable name", idseq);
@@ -344,25 +434,28 @@ DEF(idseqmulti);
 
 // ID | '_'
 DEF(idseqsingle);
+  PRINT_INLINE();
   AST_NODE(TK_LET);
   TOKEN("variable name", TK_ID, TK_DONTCARE);
   AST_NODE(TK_NONE);  // Type
   DONE();
 
-// ID | '_' | (LPAREN | TK_LPAREN_NEW) idseq {COMMA idseq} RPAREN
+// ID | '_' | (LPAREN | LPAREN_NEW) idseq {COMMA idseq} RPAREN
 DEF(idseq);
   RULE("variable name", idseqsingle, idseqmulti);
   DONE();
 
-// (VAR | VAL) ID [COLON type]
+// (VAR | LET | EMBED) ID [COLON type]
 DEF(local);
-  TOKEN(NULL, TK_VAR, TK_LET);
+  PRINT_INLINE();
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
   TOKEN("variable name", TK_ID);
   IF(TK_COLON, RULE("variable type", type));
   DONE();
 
 // ELSE seq END
 DEF(elseclause);
+  PRINT_INLINE();
   SKIP(NULL, TK_ELSE);
   RULE("else value", seq);
   DONE();
@@ -380,6 +473,7 @@ DEF(elseif);
 
 // IF rawseq THEN seq {elseif} [ELSE seq] END
 DEF(cond);
+  PRINT_INLINE();
   TOKEN(NULL, TK_IF);
   SCOPE();
   RULE("condition expression", rawseq);
@@ -401,13 +495,15 @@ DEF(caseexpr);
 
 // {caseexpr}
 DEF(cases);
+  PRINT_INLINE();
   AST_NODE(TK_CASES);
-  SCOPE();
+  SCOPE();  // TODO: Why is cases a scope?
   SEQ("cases", caseexpr);
   DONE();
 
 // MATCH rawseq cases [ELSE seq] END
 DEF(match);
+  PRINT_INLINE();
   TOKEN(NULL, TK_MATCH);
   SCOPE();
   RULE("match expression", rawseq);
@@ -418,6 +514,7 @@ DEF(match);
 
 // WHILE rawseq DO seq [ELSE seq] END
 DEF(whileloop);
+  PRINT_INLINE();
   TOKEN(NULL, TK_WHILE);
   SCOPE();
   RULE("condition expression", rawseq);
@@ -429,6 +526,7 @@ DEF(whileloop);
 
 // REPEAT seq UNTIL seq [ELSE seq] END
 DEF(repeat);
+  PRINT_INLINE();
   TOKEN(NULL, TK_REPEAT);
   SCOPE();
   RULE("repeat body", seq);
@@ -445,6 +543,7 @@ DEF(repeat);
 //   (WHILE $1.has_next()
 //     (SEQ (ASSIGN idseq $1.next()) body) else))
 DEF(forloop);
+  PRINT_INLINE();
   TOKEN(NULL, TK_FOR);
   RULE("iterator name", idseq);
   SKIP(NULL, TK_IN);
@@ -465,6 +564,7 @@ DEF(withelem);
 
 // withelem {COMMA withelem}
 DEF(withexpr);
+  PRINT_INLINE();
   AST_NODE(TK_SEQ);
   RULE("with expression", withelem);
   WHILE(TK_COMMA, RULE("with expression", withelem));
@@ -479,6 +579,7 @@ DEF(withexpr);
 //     (SEQ (ASSIGN idseq $1)* else)
 //     (SEQ $1.dispose()*)))
 DEF(with);
+  PRINT_INLINE();
   TOKEN(NULL, TK_WITH);
   RULE("with expression", withexpr);
   SKIP(NULL, TK_DO);
@@ -489,6 +590,7 @@ DEF(with);
 
 // TRY seq [ELSE seq] [THEN seq] END
 DEF(try_block);
+  PRINT_INLINE();
   TOKEN(NULL, TK_TRY);
   RULE("try body", seq);
   IF(TK_ELSE, RULE("try else body", seq));
@@ -498,17 +600,19 @@ DEF(try_block);
 
 // $TRY_NO_CHECK seq [ELSE seq] [THEN seq] END
 DEF(test_try_block);
+  PRINT_INLINE();
   TOKEN(NULL, TK_TEST_TRY_NO_CHECK);
   MAP_ID(TK_TEST_TRY_NO_CHECK, TK_TRY_NO_CHECK);
   RULE("try body", seq);
   IF(TK_ELSE, RULE("try else body", seq));
   IF(TK_THEN, RULE("try then body", seq));
   SKIP(NULL, TK_END);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // RECOVER [CAP] rawseq END
 DEF(recover);
+  PRINT_INLINE();
   TOKEN(NULL, TK_RECOVER);
   SCOPE();
   OPT RULE("capability", cap);
@@ -518,22 +622,33 @@ DEF(recover);
 
 // $BORROWED
 DEF(test_borrowed);
+  PRINT_INLINE();
   TOKEN(NULL, TK_TEST_BORROWED);
   MAP_ID(TK_TEST_BORROWED, TK_BORROWED);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // CONSUME [cap | test_borrowed] term
 DEF(consume);
+  PRINT_INLINE();
   TOKEN("consume", TK_CONSUME);
   OPT RULE("capability", cap, test_borrowed);
   RULE("expression", term);
   DONE();
 
-// (NOT | AMP | MINUS | MINUS_NEW) term
+// (NOT | AMP | MINUS | MINUS_NEW | IDENTITY) term
 DEF(prefix);
-  TOKEN("prefix", TK_NOT, TK_AMP, TK_MINUS, TK_MINUS_NEW);
+  PRINT_INLINE();
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS, TK_UNARY_MINUS);
+  MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
+  RULE("expression", term);
+  DONE();
+
+// (NOT | AMP | MINUS_NEW | IDENTITY) term
+DEF(nextprefix);
+  PRINT_INLINE();
+  TOKEN("prefix", TK_NOT, TK_ADDRESS, TK_MINUS_NEW, TK_IDENTITY);
   MAP_ID(TK_MINUS_NEW, TK_UNARY_MINUS);
   RULE("expression", term);
   DONE();
@@ -541,29 +656,39 @@ DEF(prefix);
 // $SEQ '(' rawseq ')'
 // For testing only, thrown out by syntax pass
 DEF(test_seq);
+  PRINT_INLINE();
   SKIP(NULL, TK_TEST_SEQ);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   DONE();
 
 // $SCOPE '(' rawseq ')'
 // For testing only, thrown out by syntax pass
 DEF(test_seq_scope);
+  PRINT_INLINE();
   SKIP(NULL, TK_TEST_SEQ_SCOPE);
   SKIP(NULL, TK_LPAREN);
   RULE("sequence", rawseq);
   SKIP(NULL, TK_RPAREN);
-  SET_FLAG(TEST_ONLY);
+  SET_FLAG(AST_FLAG_TEST_ONLY);
   SCOPE();
   DONE();
 
 // local | cond | match | whileloop | repeat | forloop | with | try | recover |
-// consume | prefix | prefixminus | postfix | test_SCOPE()
+// consume | prefix | postfix | test_<various>
 DEF(term);
   RULE("value", local, cond, match, whileloop, repeat, forloop, with,
     try_block, recover, consume, prefix, postfix, test_seq,
+    test_seq_scope, test_try_block);
+  DONE();
+
+// local | cond | match | whileloop | repeat | forloop | with | try | recover |
+// consume | prefix | postfix | test_<various>
+DEF(nextterm);
+  RULE("value", local, cond, match, whileloop, repeat, forloop, with,
+    try_block, recover, consume, nextprefix, nextpostfix, test_seq,
     test_seq_scope, test_try_block);
   DONE();
 
@@ -578,6 +703,7 @@ DEF(term);
 //       (SEQ (CONSUME BORROWED $1))))
 //   (SEQ ERROR))
 DEF(asop);
+  PRINT_INLINE();
   INFIX_BUILD();
   TOKEN("as", TK_AS);
   RULE("type", type);
@@ -601,8 +727,15 @@ DEF(infix);
   SEQ("value", binop, asop);
   DONE();
 
+// term {binop | asop}
+DEF(nextinfix);
+  RULE("value", nextterm);
+  SEQ("value", binop, asop);
+  DONE();
+
 // ASSIGNOP assignment
 DEF(assignop);
+  PRINT_INLINE();
   INFIX_REVERSE();
   TOKEN("assign operator", TK_ASSIGN);
   RULE("assign rhs", assignment);
@@ -611,6 +744,12 @@ DEF(assignop);
 // term [assignop]
 DEF(assignment);
   RULE("value", infix);
+  OPT_NO_DFLT RULE("value", assignop);
+  DONE();
+
+// term [assignop]
+DEF(nextassignment);
+  RULE("value", nextinfix);
   OPT_NO_DFLT RULE("value", assignop);
   DONE();
 
@@ -623,40 +762,44 @@ DEF(jump);
 
 // SEMI
 DEF(semi);
-  INFIX_BUILD();
-  TOKEN(NULL, TK_SEMI)
-  IFELSE(TK_NEWLINE, SET_FLAG(LAST_ON_LINE),);
+  IFELSE(TK_NEWLINE, NEXT_FLAGS(AST_FLAG_BAD_SEMI), NEXT_FLAGS(0));
+  TOKEN(NULL, TK_SEMI);
+  IF(TK_NEWLINE, SET_FLAG(AST_FLAG_BAD_SEMI));
   DONE();
 
-// Always matches, consumes no tokens
+// semi (exprseq | jump)
+DEF(semiexpr);
+  AST_NODE(TK_FLATTEN);
+  RULE("semi", semi);
+  RULE("value", exprseq, jump);
+  DONE();
+
+// nextexprseq | jump
 DEF(nosemi);
-  IFELSE(TK_NEWLINE, , NEXT_FLAGS(MISSING_SEMI));
+  IFELSE(TK_NEWLINE, NEXT_FLAGS(0), NEXT_FLAGS(AST_FLAG_MISSING_SEMI));
+  RULE("value", nextexprseq, jump);
   DONE();
 
-// assignment [semi]
-DEF(expr);
-  RULE("value", assignment);
-  RULE(";", semi, nosemi);
-  DONE();
-
-// expr {expr} [jump]
-DEF(longseq);
-  AST_NODE(TK_SEQ);
-  RULE("value", expr);
-  SEQ("value", expr);
-  OPT_NO_DFLT RULE("value", jump);
+// nextassignment (semiexpr | nosemi)
+DEF(nextexprseq);
+  AST_NODE(TK_FLATTEN);
+  RULE("value", nextassignment);
+  OPT_NO_DFLT RULE("value", semiexpr, nosemi);
   NEXT_FLAGS(0);
   DONE();
 
-// jump
-DEF(jumpseq);
-  AST_NODE(TK_SEQ);
-  RULE("value", jump);
+// assignment (semiexpr | nosemi)
+DEF(exprseq);
+  AST_NODE(TK_FLATTEN);
+  RULE("value", assignment);
+  OPT_NO_DFLT RULE("value", semiexpr, nosemi);
+  NEXT_FLAGS(0);
   DONE();
 
-// (longseq | jumpseq)
+// (exprseq | jump)
 DEF(rawseq);
-  RULE("value", longseq, jumpseq);
+  AST_NODE(TK_SEQ);
+  RULE("value", exprseq, jump);
   DONE();
 
 // rawseq
@@ -685,15 +828,19 @@ DEF(method);
   REORDER(0, 1, 2, 3, 4, 5, 7, 6);
   DONE();
 
-// (VAR | VAL) ID [COLON type] [ASSIGN infix]
+// (VAR | LET | EMBED) ID [COLON type] [ASSIGN infix]
 DEF(field);
-  TOKEN(NULL, TK_VAR, TK_LET);
+  TOKEN(NULL, TK_VAR, TK_LET, TK_EMBED);
   MAP_ID(TK_VAR, TK_FVAR);
   MAP_ID(TK_LET, TK_FLET);
   TOKEN("field name", TK_ID);
   SKIP(NULL, TK_COLON);
   RULE("field type", type);
+  IF(TK_DELEGATE, RULE("delegated type", provides));
   IF(TK_ASSIGN, RULE("field value", infix));
+  // Order should be:
+  // id type value delegate_type
+  REORDER(0, 1, 3, 2);
   DONE();
 
 // {field} {method}
@@ -704,26 +851,27 @@ DEF(members);
   DONE();
 
 // (TYPE | INTERFACE | TRAIT | PRIMITIVE | CLASS | ACTOR) [AT] ID [typeparams]
-// [CAP] [IS types] [STRING] members
+// [CAP] [IS type] [STRING] members
 DEF(class_def);
   RESTART(TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS, TK_ACTOR);
   TOKEN("entity", TK_TYPE, TK_INTERFACE, TK_TRAIT, TK_PRIMITIVE, TK_CLASS,
     TK_ACTOR);
   SCOPE();
   OPT TOKEN(NULL, TK_AT);
+  OPT RULE("capability", cap);
   TOKEN("name", TK_ID);
   OPT RULE("type parameters", typeparams);
-  OPT RULE("capability", cap);
-  IF(TK_IS, RULE("provided types", types));
+  IF(TK_IS, RULE("provided type", provides));
   OPT TOKEN("docstring", TK_STRING);
   RULE("members", members);
   // Order should be:
   // id type_params cap provides members c_api docstring
-  REORDER(1, 2, 3, 4, 6, 0, 5);
+  REORDER(2, 3, 1, 4, 6, 0, 5);
   DONE();
 
 // STRING
 DEF(use_uri);
+  PRINT_INLINE();
   TOKEN(NULL, TK_STRING);
   DONE();
 
@@ -743,6 +891,7 @@ DEF(use_ffi);
 
 // ID ASSIGN
 DEF(use_name);
+  PRINT_INLINE();
   TOKEN(NULL, TK_ID);
   SKIP(NULL, TK_ASSIGN);
   DONE();

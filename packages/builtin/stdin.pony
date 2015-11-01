@@ -2,17 +2,23 @@ interface StdinNotify
   """
   Notification for data arriving via stdin.
   """
-  fun ref apply(data: Array[U8] iso): Bool =>
+  fun ref apply(data: Array[U8] iso) =>
     """
     Called when data is available on stdin.
     """
-    true
+    None
 
-  fun ref closed() =>
+  fun ref dispose() =>
     """
     Called when no more data will arrive on stdin.
     """
     None
+
+interface tag DisposeableActor
+  """
+  An interface used to asynchronously dispose of an actor.
+  """
+  be dispose()
 
 actor Stdin
   """
@@ -20,7 +26,7 @@ actor Stdin
   access is provided only via an environment.
   """
   var _notify: (StdinNotify | None) = None
-  var _event: EventID = Event.none()
+  var _event: AsioEventID = AsioEvent.none()
   let _use_event: Bool
 
   new _create(use_event: Bool) =>
@@ -31,24 +37,37 @@ actor Stdin
 
   be apply(notify: (StdinNotify iso | None)) =>
     """
-    Replace the notifier.
+    Set the notifier.
+    """
+    _set_notify(consume notify)
+
+  be dispose() =>
+    """
+    Clear the notifier in order to shut down input.
+    """
+    _set_notify(None)
+
+  fun ref _set_notify(notify: (StdinNotify iso | None)) =>
+    """
+    Set the notifier.
     """
     if notify is None then
       if _use_event and not _event.is_null() then
         // Unsubscribe the event.
         @asio_event_unsubscribe[None](_event)
-        _event = Event.none()
+        _event = AsioEvent.none()
       end
     elseif _notify is None then
       if _use_event then
         // Create a new event.
-        _event = @asio_event_create[Pointer[Event]](this, U64(0), U32(1), true)
+        _event = @asio_event_create[AsioEventID](this, U64(0), U32(1), true)
       else
         // Start the read loop.
         _loop_read()
       end
     end
 
+    try (_notify as StdinNotify).dispose() end
     _notify = consume notify
 
   be _loop_read() =>
@@ -59,13 +78,13 @@ actor Stdin
       _loop_read()
     end
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     When the event fires, read from stdin.
     """
-    if Event.disposable(flags) then
+    if AsioEvent.disposable(flags) then
       @asio_event_destroy[None](event)
-    elseif (_event is event) and Event.readable(flags) then
+    elseif (_event is event) and AsioEvent.readable(flags) then
       _read()
     end
 
@@ -88,7 +107,8 @@ actor Stdin
         var len = U64(64)
         var data = recover Array[U8].undefined(len) end
         var again: Bool = false
-        len = @os_stdin_read[U64](data.cstring(), data.space(), &again)
+        len = @os_stdin_read[U64](data.cstring(), data.space(),
+          addressof again)
 
         match len
         | -1 =>
@@ -96,20 +116,14 @@ actor Stdin
           return true
         | 0 =>
           // EOF. Close everything, stop reading.
-          @asio_event_unsubscribe[None](_event)
-          notify.closed()
+          _close_event()
+          notify.dispose()
           _notify = None
           return false
         end
 
         data.truncate(len)
-
-        if not notify(consume data) then
-          // Notifier is done. Close everything, stop reading.
-          @asio_event_unsubscribe[None](_event)
-          _notify = None
-          return false
-        end
+        notify(consume data)
 
         if not again then
           // Not allowed to call os_stdin_read again yet, exit loop.
@@ -129,6 +143,15 @@ actor Stdin
       true
     else
       // No notifier. Stop reading.
-      @asio_event_unsubscribe[None](_event)
+      _close_event()
       false
     end
+
+    fun ref _close_event() =>
+      """
+      Close the event.
+      """
+      if not _event.is_null() then
+        @asio_event_unsubscribe[None](_event)
+        _event = AsioEvent.none()
+      end

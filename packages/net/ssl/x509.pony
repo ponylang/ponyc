@@ -10,11 +10,9 @@ primitive X509
     """
     Checks if an OpenSSL X509 certificate is valid for a given host.
     """
-    try
-      for name in all_names(cert).values() do
-        if _match_name(host, name) then
-          return true
-        end
+    for name in all_names(cert).values() do
+      if _match_name(host, name) then
+        return true
       end
     end
     false
@@ -74,7 +72,8 @@ primitive X509
 
     while not name.is_null() do
       var ptype = I32(0)
-      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name, &ptype)
+      let value = @GENERAL_NAME_get0_value[Pointer[U8] tag](name,
+        addressof ptype)
 
       match ptype
       | 2 => // GEN_DNS
@@ -86,7 +85,7 @@ primitive X509
                 // Build a String from the ASN1 data.
                 let data = @ASN1_STRING_data[Pointer[U8]](value)
                 let len = @ASN1_STRING_length[I32](value)
-                let s = String.from_cstring(data)
+                let s = String.copy_cstring(data)
 
                 // If it contains NULL bytes, don't include it.
                 if s.size() != len.u64() then
@@ -104,8 +103,7 @@ primitive X509
             // Build a String from the ASN1 data.
             let data = @ASN1_STRING_data[Pointer[U8]](value)
             let len = @ASN1_STRING_length[I32](value)
-            String.from_cstring(
-              @os_ip_string[Pointer[U8]](data, len), 0, false)
+            String.from_cstring(@os_ip_string[Pointer[U8]](data, len))
           end)
       end
 
@@ -126,7 +124,7 @@ primitive X509
       return host == name
     end
 
-    if host.compare(name, name.size(), 0, 0, true) == 0 then
+    if host.compare_sub(name, name.size(), 0, 0, true) is Equal then
       // If the names are the same ignoring case, they match.
       return true
     end
@@ -153,7 +151,8 @@ primitive X509
         let domain = host.find(".")
 
         // If the host domain is the wildcard domain ignoring case, they match.
-        return host.compare(name, name.size() - 1, domain, 1, true) == 0
+        return
+          host.compare_sub(name, name.size() - 1, domain, 1, true) is Equal
       end
     end
 

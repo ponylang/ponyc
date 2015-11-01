@@ -14,17 +14,21 @@ typedef struct token_t
   size_t line;
   size_t pos;
   char* printed;
-  bool first_on_line;
   bool debug_info;
 
 #ifdef PLATFORM_IS_VISUAL_STUDIO
   const char* string;
+  size_t str_length;
   double real;
   __uint128_t integer;
 #else
   union
   {
-    const char* string;
+    struct
+    {
+      const char* string;
+      size_t str_length;
+    };
     double real;
     __uint128_t integer;
   };
@@ -32,12 +36,11 @@ typedef struct token_t
 } token_t;
 
 
-token_t* token_new(token_id id, source_t* source)
+token_t* token_new(token_id id)
 {
   token_t* t = POOL_ALLOC(token_t);
   memset(t, 0, sizeof(token_t));
   t->id = id;
-  t->source = source;
   t->debug_info = true;
   return t;
 }
@@ -86,6 +89,14 @@ const char* token_string(token_t* token)
   assert(token != NULL);
   assert(token->id == TK_STRING || token->id == TK_ID);
   return token->string;
+}
+
+
+size_t token_string_len(token_t* token)
+{
+  assert(token != NULL);
+  assert(token->id == TK_STRING || token->id == TK_ID);
+  return token->str_length;
 }
 
 
@@ -199,11 +210,6 @@ size_t token_line_position(token_t* token)
   return token->pos;
 }
 
-bool token_is_first_on_line(token_t* token)
-{
-  assert(token != NULL);
-  return token->first_on_line;
-}
 
 bool token_debug(token_t* token)
 {
@@ -221,12 +227,17 @@ void token_set_id(token_t* token, token_id id)
 }
 
 
-void token_set_string(token_t* token, const char* value)
+void token_set_string(token_t* token, const char* value, size_t length)
 {
   assert(token != NULL);
   assert(token->id == TK_STRING || token->id == TK_ID);
   assert(value != NULL);
-  token->string = stringtab(value);
+
+  if(length == 0)
+    length = strlen(value);
+
+  token->string = stringtab_len(value, length);
+  token->str_length = length;
 }
 
 
@@ -245,9 +256,13 @@ void token_set_int(token_t* token, __uint128_t value)
   token->integer = value;
 }
 
-void token_set_pos(token_t* token, size_t line, size_t pos)
+void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos)
 {
   assert(token != NULL);
+
+  if(source != NULL)
+    token->source = source;
+
   token->line = line;
   token->pos = pos;
 }
@@ -256,10 +271,4 @@ void token_set_debug(token_t* token, bool state)
 {
   assert(token != NULL);
   token->debug_info = state;
-}
-
-void token_set_first_on_line(token_t* token)
-{
-  assert(token != NULL);
-  token->first_on_line = true;
 }

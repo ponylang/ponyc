@@ -4,12 +4,12 @@
 
 #include "../actor/messageq.h"
 #include "../mem/pool.h"
-#include <sys/types.h>
 #include <sys/event.h>
-#include <sys/time.h>
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <assert.h>
 
 struct asio_backend_t
 {
@@ -54,10 +54,7 @@ static void handle_queue(asio_backend_t* b)
   asio_msg_t* msg;
 
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
-  {
-    msg->event->flags = ASIO_DISPOSABLE;
     asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
-  }
 }
 
 static void retry_loop(asio_backend_t* b)
@@ -90,10 +87,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
           close(b->wakeup[0]);
           close(b->wakeup[1]);
           b->kq = -1;
-          break;
         }
       } else {
         asio_event_t* ev = ep->udata;
+
+        if(ep->flags & EV_ERROR)
+          continue;
 
         switch(ep->filter)
         {
@@ -102,7 +101,12 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
             break;
 
           case EVFILT_WRITE:
-            asio_event_send(ev, ASIO_WRITE, 0);
+            if(ep->flags & EV_EOF)
+            {
+              asio_event_send(ev, ASIO_READ | ASIO_WRITE, 0);
+            } else {
+              asio_event_send(ev, ASIO_WRITE, 0);
+            }
             break;
 
           case EVFILT_TIMER:
@@ -125,9 +129,13 @@ DECLARE_THREAD_FN(asio_backend_dispatch)
 void asio_event_subscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -152,8 +160,13 @@ void asio_event_subscribe(asio_event_t* ev)
 
   if(ev->flags & ASIO_TIMER)
   {
+#ifdef PLATFORM_IS_FREEBSD
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      0, ev->data / 1000000, ev);
+#else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, ev->data, ev);
+#endif
     i++;
   }
 
@@ -166,9 +179,13 @@ void asio_event_subscribe(asio_event_t* ev)
 void asio_event_update(asio_event_t* ev, uintptr_t data)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -177,8 +194,13 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 
   if(ev->flags & ASIO_TIMER)
   {
+#ifdef PLATFORM_IS_FREEBSD
+    EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+      0, data / 1000000, ev);
+#else
     EV_SET(&event[i], (uintptr_t)ev, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
       NOTE_NSECONDS, data, ev);
+#endif
     i++;
   }
 
@@ -188,9 +210,13 @@ void asio_event_update(asio_event_t* ev, uintptr_t data)
 void asio_event_unsubscribe(asio_event_t* ev)
 {
   if((ev == NULL) ||
+    (ev->magic != ev) ||
     (ev->flags == ASIO_DISPOSABLE) ||
     (ev->flags == ASIO_DESTROYED))
+  {
+    assert(0);
     return;
+  }
 
   asio_backend_t* b = asio_get_backend();
 
@@ -222,6 +248,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
   }
 
   kevent(b->kq, event, i, NULL, 0, NULL);
+
+  ev->flags = ASIO_DISPOSABLE;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);

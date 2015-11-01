@@ -1,9 +1,12 @@
 use "time"
 
 class CommonLog is Logger
-  let _out: Stream
+  """
+  Logs HTTP requests in the common log format.
+  """
+  let _out: OutStream
 
-  new val create(out: Stream) =>
+  new val create(out: OutStream) =>
     _out = out
 
   fun val apply(ip: String, request: Payload val, response: Payload val) =>

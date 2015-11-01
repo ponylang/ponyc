@@ -77,6 +77,13 @@ static ast_t* receiver_def(ast_t* type)
       // Use the right-hand side.
       return receiver_def(ast_childidx(type, 1));
 
+    case TK_TYPEPARAMREF:
+    {
+      // Use the constraint.
+      ast_t* def = (ast_t*)ast_data(type);
+      return receiver_def(ast_childidx(def, 1));
+    }
+
     default: {}
   }
 

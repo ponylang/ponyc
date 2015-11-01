@@ -28,6 +28,16 @@ typedef uint32_t(__stdcall *thread_fn) (void* arg);
 #  define __pony_thread_local __thread
 #endif
 
+#if defined(PLATFORM_IS_LINUX)
+void pony_numa_init();
+
+uint32_t pony_numa_cores();
+
+void pony_numa_core_list(uint32_t* list);
+
+uint32_t pony_numa_node_of_cpu(uint32_t cpu);
+#endif
+
 bool pony_thread_create(pony_thread_id_t* thread, thread_fn start, uint32_t cpu,
   void* arg);
 

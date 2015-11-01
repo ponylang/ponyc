@@ -690,18 +690,25 @@ static bool static_match(compile_t* c, LLVMValueRef value, ast_t* type,
       // Capture the match expression (or element thereof).
       return static_capture(c, value, type, pattern, next_block);
 
-    case TK_TUPLE:
+    case TK_SEQ:
     {
-      // Treat a one element tuple as its component expression.
+      // Treat a one element sequence as its component expression.
+      // We already checked that the sequence doesn't have multiple elements
+      // during type checking.
       ast_t* child = ast_child(pattern);
 
-      if(ast_sibling(child) == NULL)
-      {
-        // Pass on the element in the seq instead of the seq.
-        assert(ast_id(child) == TK_SEQ);
-        child = ast_child(child);
-        return static_match(c, value, type, child, next_block);
-      }
+      assert(child != NULL);
+      assert(ast_sibling(child) == NULL);
+
+      // Pass on the element in the seq instead of the seq.
+      return static_match(c, value, type, child, next_block);
+    }
+
+    case TK_TUPLE:
+    {
+      // Tuples must have multiple elements, or they aren't tuples.
+      assert(ast_child(pattern) != NULL);
+      assert(ast_sibling(ast_child(pattern)) != NULL);
 
       // Destructure the match expression (or element thereof).
       return static_tuple(c, value, type, pattern, next_block);
@@ -763,31 +770,37 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
   ast_t* type = ast_type(ast);
   AST_GET_CHILDREN(ast, match_expr, cases, else_expr);
 
+  // We will have no type if all case have control types.
   gentype_t phi_type;
 
-  // We will have no type if all branches have return statements.
-  if((type != NULL) && !gentype(c, type, &phi_type))
+  if(needed && !is_control_type(type) && !gentype(c, type, &phi_type))
+  {
+    assert(0);
     return NULL;
+  }
 
   ast_t* match_type = alias(ast_type(match_expr));
   LLVMValueRef match_value = gen_expr(c, match_expr);
 
   LLVMBasicBlockRef pattern_block = codegen_block(c, "case_pattern");
   LLVMBasicBlockRef else_block = codegen_block(c, "match_else");
-  LLVMBasicBlockRef post_block = codegen_block(c, "match_post");
-  LLVMBasicBlockRef next_block;
+  LLVMBasicBlockRef post_block = NULL;
+  LLVMBasicBlockRef next_block = NULL;
 
   // Jump to the first case.
   LLVMBuildBr(c->builder, pattern_block);
 
-  // Start the post block so that a case can modify the phi node.
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
-  LLVMValueRef phi;
+  LLVMValueRef phi = GEN_NOTNEEDED;
 
-  if(needed)
-    phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
-  else
-    phi = GEN_NOTNEEDED;
+  if(!is_control_type(type))
+  {
+    // Start the post block so that a case can modify the phi node.
+    post_block = codegen_block(c, "match_post");
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
+    if(needed)
+      phi = LLVMBuildPhi(c->builder, phi_type.use_type, "");
+  }
 
   // Iterate over the cases.
   ast_t* the_case = ast_child(cases);
@@ -805,22 +818,17 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
     // Check the pattern.
     LLVMPositionBuilderAtEnd(c->builder, pattern_block);
-
-    if(!static_match(c, match_value, match_type, pattern, next_block))
-    {
-      ast_free_unattached(match_type);
-      return NULL;
-    }
+    codegen_pushscope(c);
+    bool ok = static_match(c, match_value, match_type, pattern, next_block);
 
     // Check the guard.
-    if(!guard_match(c, guard, next_block))
-    {
-      ast_free_unattached(match_type);
-      return NULL;
-    }
+    ok = ok && guard_match(c, guard, next_block);
 
     // Case body.
-    if(!case_body(c, body, post_block, phi, phi_type.use_type))
+    ok = ok && case_body(c, body, post_block, phi, phi_type.use_type);
+    codegen_popscope(c);
+
+    if(!ok)
     {
       ast_free_unattached(match_type);
       return NULL;
@@ -834,10 +842,15 @@ LLVMValueRef gen_match(compile_t* c, ast_t* ast)
 
   // Else body.
   LLVMPositionBuilderAtEnd(c->builder, else_block);
+  codegen_pushscope(c);
+  bool ok = case_body(c, else_expr, post_block, phi, phi_type.use_type);
+  codegen_popscope(c);
 
-  if(!case_body(c, else_expr, post_block, phi, phi_type.use_type))
+  if(!ok)
     return NULL;
 
-  LLVMPositionBuilderAtEnd(c->builder, post_block);
+  if(post_block != NULL)
+    LLVMPositionBuilderAtEnd(c->builder, post_block);
+
   return phi;
 }

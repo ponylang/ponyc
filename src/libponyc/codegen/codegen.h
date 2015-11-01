@@ -23,6 +23,7 @@ PONY_EXTERN_C_BEGIN
 char* LLVMGetHostCPUName();
 void LLVMSetUnsafeAlgebra(LLVMValueRef inst);
 void LLVMSetReturnNoAlias(LLVMValueRef fun);
+void LLVMSetDereferenceable(LLVMValueRef fun, uint32_t i, uint64_t size);
 
 // In case we need to change the internal calling convention.
 #define GEN_CALLCONV LLVMFastCallConv
@@ -37,6 +38,7 @@ DECLARE_HASHMAP(compile_locals, compile_local_t);
 typedef struct compile_frame_t
 {
   LLVMValueRef fun;
+  LLVMValueRef ctx;
   LLVMBasicBlockRef restore_builder;
 
   LLVMBasicBlockRef break_target;
@@ -45,6 +47,7 @@ typedef struct compile_frame_t
 
   compile_locals_t locals;
   bool has_source;
+  bool is_function;
 
   struct compile_frame_t* prev;
 } compile_frame_t;
@@ -144,6 +147,10 @@ void codegen_startfun(compile_t* c, LLVMValueRef fun, bool has_source);
 
 void codegen_finishfun(compile_t* c);
 
+void codegen_pushscope(compile_t* c);
+
+void codegen_popscope(compile_t* c);
+
 void codegen_pushloop(compile_t* c, LLVMBasicBlockRef continue_target,
   LLVMBasicBlockRef break_target);
 
@@ -157,6 +164,10 @@ LLVMValueRef codegen_getlocal(compile_t* c, const char* name);
 
 void codegen_setlocal(compile_t* c, const char* name, LLVMValueRef alloca);
 
+LLVMValueRef codegen_ctx(compile_t* c);
+
+void codegen_setctx(compile_t* c, LLVMValueRef ctx);
+
 LLVMValueRef codegen_fun(compile_t* c);
 
 LLVMBasicBlockRef codegen_block(compile_t* c, const char* name);
@@ -166,8 +177,8 @@ LLVMValueRef codegen_call(compile_t* c, LLVMValueRef fun, LLVMValueRef* args,
 
 bool codegen_hassource(compile_t* c);
 
-const char* suffix_filename(const char* dir, const char* file,
-  const char* extension);
+const char* suffix_filename(const char* dir, const char* prefix,
+  const char* file, const char* extension);
 
 PONY_EXTERN_C_END
 

@@ -9,50 +9,9 @@ type _PathState is (_PathSep | _PathDot | _PathDot2 | _PathOther)
 
 primitive Path
   """
-  Operations on paths that do not require an open file or directory.
+  Operations on paths that do not require a capability. The operations can be
+  used to manipulate path names, but give no access to the resulting paths.
   """
-
-  fun chmod(path: String, mode: FileMode box): Bool =>
-    """
-    Set the FileMode for a path.
-    """
-    var m = mode._os()
-
-    if Platform.windows() then
-      @_chmod[I32](path.cstring(), m) == 0
-    else
-      @chmod[I32](path.cstring(), m) == 0
-    end
-
-  fun chown(path: String, uid: U32, gid: U32): Bool =>
-    """
-    Set the owner and group for a path. Does nothing on Windows.
-    """
-    if Platform.windows() then
-      false
-    else
-      @chown[I32](path.cstring(), uid, gid) == 0
-    end
-
-  fun touch(path: String): Bool =>
-    """
-    Set the last access and modification times of a path to now.
-    """
-    set_time(path, Time.now(), Time.now())
-
-  fun set_time(path: String, atime: (I64, I64), mtime: (I64, I64)): Bool =>
-    """
-    Set the last access and modification times of a path to the given values.
-    """
-    if Platform.windows() then
-      var tv: (I64, I64) = (atime._1, mtime._1)
-      @_utime64[I32](path.cstring(), tv) == 0
-    else
-      var tv: (I64, I64, I64, I64) =
-        (atime._1, atime._2 / 1000, mtime._1, mtime._2 / 1000)
-      @utimes[I32](path.cstring(), tv) == 0
-    end
-
   fun is_sep(c: U8): Bool =>
     """
     Determine if a byte is a path separator.
@@ -106,6 +65,7 @@ primitive Path
   fun clean(path: String): String =>
     """
     Replace multiple separators with a single separator.
+    Convert / to the OS separator.
     Remove instances of . from the path.
     Remove instances of .. and the preceding path element from the path.
     The result will have no trailing slash unless it is a root directory.
@@ -152,7 +112,12 @@ primitive Path
                 backtrack = vol.size().i64()
               end
 
-              if (s.size() == 0) or (s.compare("../", 3, backtrack) == 0) then
+              if
+                (s.size() == 0) or
+                (s.compare_sub("../", 3, backtrack) is Equal) or
+                (Platform.windows() and
+                  (s.compare_sub("..\\", 3, backtrack) is Equal))
+              then
                 backtrack = -1
               end
             end
@@ -218,7 +183,7 @@ primitive Path
     Returns the program's working directory. Setting the working directory is
     not supported, as it is not concurrency-safe.
     """
-    recover String.from_cstring(@os_cwd[Pointer[U8]](), 0, false) end
+    recover String.from_cstring(@os_cwd[Pointer[U8]]()) end
 
   fun abs(path: String): String =>
     """
@@ -277,7 +242,7 @@ primitive Path
 
       if
         (to_i != target_i) or
-        (to_clean.compare(target_clean, target_i.u64()) != 0)
+        (to_clean.compare_sub(target_clean, target_i.u64()) isnt Equal)
       then
         break
       end
@@ -296,7 +261,7 @@ primitive Path
 
     if
       ((to_i - to_0) == 2) and
-      (to_clean.compare("..", 2, to_0) == 0)
+      (to_clean.compare_sub("..", 2, to_0) is Equal)
     then
       error
     end
@@ -372,10 +337,10 @@ primitive Path
     if Platform.windows() then
       var offset = I64(0)
 
-      if path.compare("""\\?\""", 4) == 0 then
+      if path.compare_sub("""\\?\""", 4) is Equal then
         offset = 4
 
-        if path.compare("""UNC\""", 4, offset) == 0 then
+        if path.compare_sub("""UNC\""", 4, offset) is Equal then
           return _network_share(path, offset + 4)
         end
       end
@@ -474,92 +439,6 @@ primitive Path
       path
     end
 
-  fun exists(path: String): Bool =>
-    """
-    Returns true if the path exists. Returns false for a broken symlink.
-    """
-    try
-      not FileInfo(path).broken
-    else
-      false
-    end
-
-  fun mkdir(path: String): Bool =>
-    """
-    Creates the directory. Will recursively create each element. Returns true
-    if the directory exists when we're done, false if it does not.
-    """
-    var offset: I64 = 0
-
-    repeat
-      var element = try
-        offset = path.find(sep(), offset) + 1
-        path.substring(0, offset - 2)
-      else
-        offset = -1
-        path
-      end
-
-      if Platform.windows() then
-        @_mkdir[I32](element.cstring())
-      else
-        @mkdir[I32](element.cstring(), U32(0x1FF))
-      end
-    until offset < 0 end
-
-    exists(path)
-
-  fun remove(path: String): Bool =>
-    """
-    Remove the file or directory. The directory contents will be removed as
-    well, recursively. Symlinks will be removed but not traversed.
-    """
-    try
-      var info = FileInfo(path)
-
-      if info.directory and not info.symlink then
-        var directory = Directory(path)
-
-        for entry in directory.entries.values() do
-          if not remove(join(path, entry)) then
-            return false
-          end
-        end
-      end
-
-      if Platform.windows() then
-        if info.directory and not info.symlink then
-          @_rmdir[I32](path.cstring()) == 0
-        else
-          @_unlink[I32](path.cstring()) == 0
-        end
-      else
-        if info.directory and not info.symlink then
-          @rmdir[I32](path.cstring()) == 0
-        else
-          @unlink[I32](path.cstring()) == 0
-        end
-      end
-    else
-      false
-    end
-
-  fun rename(path: String, new_path: String): Bool =>
-    """
-    Rename a file or directory.
-    """
-    @rename[I32](path.cstring(), new_path.cstring()) == 0
-
-  fun symlink(target: String, link_name: String): Bool =>
-    """
-    Create a symlink to a file or directory.
-    """
-    if Platform.windows() then
-      @CreateSymbolicLink[U8](link_name.cstring(), target.cstring()) != 0
-    else
-      @symlink[I32](target.cstring(), link_name.cstring()) == 0
-    end
-
   fun canonical(path: String): String ? =>
     """
     Return the equivalent canonical absolute path. Raise an error if there
@@ -570,7 +449,7 @@ primitive Path
     if cstring.is_null() then
       error
     else
-      recover String.from_cstring(consume cstring, 0, false) end
+      recover String.from_cstring(consume cstring) end
     end
 
   fun is_list_sep(c: U8): Bool =>

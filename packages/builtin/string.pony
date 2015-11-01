@@ -1,4 +1,4 @@
-class String val is Seq[U8], Ordered[String box], Stringable
+class val String is (Seq[U8] & Comparable[String box] & Stringable)
   """
   Strings don't specify an encoding.
   """
@@ -15,25 +15,52 @@ class String val is Seq[U8], Ordered[String box], Stringable
     _ptr = Pointer[U8]._alloc(_alloc)
     _set(0, 0)
 
-  new from_cstring(str: Pointer[U8] ref, len: U64 = 0, copy: Bool = true) =>
+  new from_cstring(str: Pointer[U8], len: U64 = 0) =>
     """
-    If the cstring is not copied, this should be done with care.
+    The cstring is not copied. This must be done only with C-FFI functions that
+    return null-terminated pony_alloc'd character arrays.
     """
-    _size = len
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
 
-    if len == 0 then
-      while str._apply(_size) != 0 do
-        _size = _size + 1
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
       end
+
+      _alloc = _size + 1
+      _ptr = str
     end
 
-    if copy then
+  new copy_cstring(str: Pointer[U8] box, len: U64 = 0) =>
+    """
+    If the cstring is not null terminated and a length isn't specified, this
+    can crash. This will only occur if the C-FFI has been used to craft such
+    a pointer.
+    """
+    if str.is_null() then
+      _size = 0
+      _alloc = 1
+      _ptr = Pointer[U8]._alloc(_alloc)
+      _set(0, 0)
+    else
+      _size = len
+
+      if len == 0 then
+        while str._apply(_size) != 0 do
+          _size = _size + 1
+        end
+      end
+
       _alloc = _size + 1
       _ptr = Pointer[U8]._alloc(_alloc)
       str._copy_to(_ptr, _alloc)
-    else
-      _alloc = _size + 1
-      _ptr = str
     end
 
   new from_utf32(value: U32) =>
@@ -104,6 +131,29 @@ class String val is Seq[U8], Ordered[String box], Stringable
     Returns the length of the string.
     """
     _size
+
+  fun codepoints(from: I64 = 0, to: I64 = -1): U64 =>
+    """
+    Returns the number of unicode code points in the string between the two
+    offsets. From and to are inclusive.
+    """
+    if _size == 0 then
+      return 0
+    end
+
+    var i = offset_to_index(from)
+    var j = offset_to_index(to).min(_size - 1)
+    var n = U64(0)
+
+    while i <= j do
+      if (_ptr._apply(i) and 0xC0) != 0x80 then
+        n = n + 1
+      end
+
+      i = i + 1
+    end
+
+    n
 
   fun space(): U64 =>
     """
@@ -240,10 +290,6 @@ class String val is Seq[U8], Ordered[String box], Stringable
     Change the i-th byte. Raise an error if the index is out of bounds.
     """
     if i < _size then
-      if value == 0 then
-        _size = i
-      end
-
       _set(i, value)
     else
       error
@@ -354,7 +400,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
     i
 
-  fun at(s: String box, offset: I64): Bool =>
+  fun at(s: String box, offset: I64 = 0): Bool =>
     """
     Returns true if the substring s is present at the given offset.
     """
@@ -366,7 +412,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
       false
     end
 
-  fun ref delete(offset: I64, len: U64): String ref^ =>
+  fun ref delete(offset: I64, len: U64 = 1): String ref^ =>
     """
     Delete len bytes at the supplied offset, compacting the string in place.
     """
@@ -380,7 +426,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
-  fun substring(from: I64, to: I64): String iso^ =>
+  fun substring(from: I64, to: I64 = -1): String iso^ =>
     """
     Returns a substring. From and to are inclusive. Returns an empty string if
     nothing is in the range.
@@ -481,13 +527,10 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     Add a byte to the end of the string.
     """
-    if value != 0 then
-      reserve(_size + 1)
-      _set(_size, value)
-      _size = _size + 1
-      _set(_size, 0)
-    end
-
+    reserve(_size + 1)
+    _set(_size, value)
+    _size = _size + 1
+    _set(_size, 0)
     this
 
   fun ref pop(): U8 ? =>
@@ -573,7 +616,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s.insert_in_place(offset, that)
     s
 
-  fun ref insert_in_place(offset: I64, that: String): String ref^ =>
+  fun ref insert_in_place(offset: I64, that: String box): String ref^ =>
     """
     Inserts the given string at the given offset. Appends the string if the
     offset is out of bounds.
@@ -581,13 +624,26 @@ class String val is Seq[U8], Ordered[String box], Stringable
     reserve(_size + that._size)
     var index = offset_to_index(offset).min(_size)
     @memmove[Pointer[U8]](_ptr.u64() + index + that._size,
-      _ptr.u64() + index, that._size)
+      _ptr.u64() + index, _size - index)
     that._ptr._copy_to(_ptr._offset(index), that._size)
     _size = _size + that._size
     _set(_size, 0)
     this
 
-  fun cut(from: I64, to: I64): String iso^ =>
+  fun ref insert_byte(offset: I64, value: U8): String ref^ =>
+    """
+    Inserts a byte at the given offset. Appends if the offset is out of bounds.
+    """
+    reserve(_size + 1)
+    var index = offset_to_index(offset).min(_size)
+    @memmove[Pointer[U8]](_ptr.u64() + index + 1, _ptr.u64() + index,
+      _size - index)
+    _set(index, value)
+    _size = _size + 1
+    _set(_size, 0)
+    this
+
+  fun cut(from: I64, to: I64 = -1): String iso^ =>
     """
     Returns a version of the string with the given range deleted. The range is
     inclusive.
@@ -596,7 +652,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s.cut_in_place(from, to)
     s
 
-  fun ref cut_in_place(from: I64, to: I64): String ref^ =>
+  fun ref cut_in_place(from: I64, to: I64 = -1): String ref^ =>
     """
     Cuts the given range out of the string.
     """
@@ -617,7 +673,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     this
 
-  fun ref strip(s: String): U64 =>
+  fun ref remove(s: String box): U64 =>
     """
     Remove all instances of s from the string. Returns the count of removed
     instances.
@@ -634,41 +690,153 @@ class String val is Seq[U8], Ordered[String box], Stringable
     end
     n
 
-  fun ref trim(): String ref^ =>
+  fun ref replace(from: String box, to: String box, n: U64 = 0): String ref^ =>
     """
-    Trim leading and trailing whitespace. Whitespace is defined as ' ', \t,
-    \v, \f, \r, \n.
+    Replace up to n occurrences of `from` in `this` with `to`. If n is 0, all
+    occurrences will be replaced.
     """
-    if _size > 0 then
-      var i = U64(0)
+    let from_len = from.size().i64() - 1
+    let to_len = to.size().i64()
+    var offset = I64(0)
+    var occur = U64(0)
 
-      while i < _size do
-        match _ptr._apply(i)
-        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
-        else
+    try
+      while true do
+        offset = find(from, offset)
+        cut_in_place(offset, offset + from_len)
+        insert_in_place(offset, to)
+        offset = offset + to_len
+        occur = occur + 1
+
+        if (n > 0) and (occur >= n) then
           break
         end
+      end
+    end
+    this
 
+  fun split(delim: String = " \t\v\f\r\n", n: U64 = 0): Array[String] iso^ =>
+    """
+    Split the string into an array of strings. Any character in the delimiter
+    string is accepted as a delimiter. If `n > 0`, then the split count is
+    limited to n.
+
+    Adjacent delimiters result in a zero length entry in the array. For
+    example, `"1,,2".split(",") => ["1", "", "2"]`.
+    """
+    let result = recover Array[String] end
+
+    if _size > 0 then
+      let chars = Array[U32](delim.size())
+
+      for rune in delim.runes() do
+        chars.push(rune)
+      end
+
+      var cur = recover String end
+      var i = U64(0)
+      var occur = U64(0)
+
+      try
+        while i < _size do
+          (let c, let len) = utf32(i.i64())
+
+          try
+            // If we find a delimeter, add the current string to the array.
+            chars.find(c)
+            occur = occur + 1
+
+            if (n > 0) and (occur >= n) then
+              break
+            end
+
+            result.push(cur = recover String end)
+          else
+            // Add bytes to the current string.
+            var j = U8(0)
+
+            while j < len do
+              cur.push(_ptr._apply(i + j.u64()))
+              j = j + 1
+            end
+          end
+
+          i = i + len.u64()
+        end
+      end
+
+      // Add all remaining bytes to the current string.
+      while i < _size do
+        cur.push(_ptr._apply(i))
         i = i + 1
       end
 
-      if i > 0 then
-        delete(0, i)
-      end
+      result.push(consume cur)
     end
 
+    consume result
+
+  fun ref strip(s: String box = " \t\v\f\r\n"): String ref^ =>
+    """
+    Remove all leading and trailing characters from the string that are in s.
+    """
+    lstrip(s).rstrip(s)
+
+  fun ref rstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+    """
+    Remove all trailing characters within the string that are in s. By default,
+    trailing whitespace is removed.
+    """
     if _size > 0 then
+      let chars = Array[U32](s.size())
       var i = _size - 1
 
+      for rune in s.runes() do
+        chars.push(rune)
+      end
+
       repeat
-        match _ptr._apply(i)
-        | ' ' | '\t' | '\v' | '\f' | '\n' | '\r' => None
+        try
+          match utf32(i.i64())
+          | (0xFFFD, 1) => None
+          | (let c: U32, _) => chars.find(c)
+          end
         else
           break
         end
       until (i = i - 1) == 0 end
 
       truncate(i + 1)
+    end
+
+    this
+
+  fun ref lstrip(s: String box = " \t\v\f\r\n"): String ref^ =>
+    """
+    Remove all leading characters within the string that are in s. By default,
+    leading whitespace is removed.
+    """
+    if _size > 0 then
+      let chars = Array[U32](s.size())
+      var i = U64(0)
+
+      for rune in s.runes() do
+        chars.push(rune)
+      end
+
+      while i < _size do
+        try
+          (let c, let len) = utf32(i.i64())
+          chars.find(c)
+          i = i + len.u64()
+        else
+          break
+        end
+      end
+
+      if i > 0 then
+        delete(0, i)
+      end
     end
 
     this
@@ -684,22 +852,26 @@ class String val is Seq[U8], Ordered[String box], Stringable
     s._size = len
     s
 
-  fun compare(that: String box, n: U64, offset: I64 = 0,
-    that_offset: I64 = 0, ignore_case: Bool = false): I32
+  fun compare(that: String box): Compare =>
+    """
+    Lexically compare two strings.
+    """
+    compare_sub(that, _size)
+
+  fun compare_sub(that: String box, n: U64, offset: I64 = 0,
+    that_offset: I64 = 0, ignore_case: Bool = false): Compare
   =>
     """
-    Starting at this + offset, compare n bytes with that + offset. Return
-    zero if the strings are the same. Return a negative number if this is
-    less than that, a positive number if this is more than that.
+    Starting at this + offset, compare n bytes with that + offset.
     """
     var i = n
     var j: U64 = offset_to_index(offset)
     var k: U64 = offset_to_index(that_offset)
 
     if (j + n) > _size then
-      return -1
+      return Less
     elseif (k + n) > that._size then
-      return 1
+      return Greater
     end
 
     while i > 0 do
@@ -708,17 +880,17 @@ class String val is Seq[U8], Ordered[String box], Stringable
 
       if
         not ((c1 == c2) or
-          (ignore_case and
-            (c1 >= 0x41) and (c1 <= 0x5A) and ((c1 + 0x20) == c2)))
+          (ignore_case and ((c1 or 0x20) == (c2 or 0x20)) and
+            ((c1 or 0x20) >= 'a') and ((c1 or 0x20) <= 'z')))
       then
-        return c1.i32() - c2.i32()
+        return if c1.i32() > c2.i32() then Greater else Less end
       end
 
       j = j + 1
       k = k + 1
       i = i - 1
     end
-    0
+    Equal
 
   fun eq(that: String box): Bool =>
     """
@@ -769,65 +941,144 @@ class String val is Seq[U8], Ordered[String box], Stringable
   fun offset_to_index(i: I64): U64 =>
     if i < 0 then i.u64() + _size else i.u64() end
 
-  fun i8(offset: I64 = 0, base: I32 = 0): I8 => i64(offset, base).i8()
-  fun i16(offset: I64 = 0, base: I32 = 0): I16 => i64(offset, base).i16()
-  fun i32(offset: I64 = 0, base: I32 = 0): I32 => i64(offset, base).i32()
+  fun i8(base: U8 = 0): I8 ? => _to_int[I8](base)
+  fun i16(base: U8 = 0): I16 ? => _to_int[I16](base)
+  fun i32(base: U8 = 0): I32 ? => _to_int[I32](base)
+  fun i64(base: U8 = 0): I64 ? => _to_int[I64](base)
+  fun i128(base: U8 = 0): I128 ? => _to_int[I128](base)
+  fun u8(base: U8 = 0): U8 ? => _to_int[U8](base)
+  fun u16(base: U8 = 0): U16 ? => _to_int[U16](base)
+  fun u32(base: U8 = 0): U32 ? => _to_int[U32](base)
+  fun u64(base: U8 = 0): U64 ? => _to_int[U64](base)
+  fun u128(base: U8 = 0): U128 ? => _to_int[U128](base)
 
-  fun i64(offset: I64 = 0, base: I32 = 0): I64 =>
-    var index = offset_to_index(offset)
+  fun _to_int[A: ((Signed | Unsigned) & Integer[A] val)](base: U8): A ? =>
+    """
+    Convert the *whole* string to the specified type.
+    If there are any other characters in the string, or the integer found is
+    out of range for the target type then an error is thrown.
+    """
+    (let v, let d) = read_int[A](0, base)
+    if (d == 0) or (d.u64() != _size) then error end  // Not all of string used
+    v
 
-    if index < _size then
-      if Platform.windows() then
-        @_strtoi64[I64](_ptr.u64() + index, U64(0), base)
-      else
-        @strtol[I64](_ptr.u64() + index, U64(0), base)
+  fun read_int[A: ((Signed | Unsigned) & Integer[A] val)](offset: I64 = 0,
+    base: U8 = 0): (A, I64 /* chars used */) ?
+  =>
+    """
+    Read an integer from the specified location in this string. The integer
+    value read and the number of characters consumed are reported.
+    The base parameter specifies the base to use, 0 indicates using the prefix,
+    if any, to detect base 2, 10 or 16.
+    If no integer is found at the specified location, then (0, 0) is returned,
+    since no characters have been used.
+    An integer out of range for the target type throws an error.
+    A leading minus is allowed for signed integer types.
+    Underscore characters are allowed throughout the integer and are ignored.
+    """
+    let start_index = offset_to_index(offset)
+    var index = start_index
+    var value: A = 0
+    var had_digit = false
+
+    // Check for leading minus
+    let minus = (index < _size) and (_ptr._apply(index) == '-')
+    if minus then
+      // Named variables need until issue #220 is fixed
+      // if A(-1) > A(0) then
+      let neg: A = -1
+      let zero: A = 0
+      if neg > zero then
+        // We're reading an unsigned type, negative not allowed, int not found
+        return (0, 0)
       end
-    else
-      0
+
+      index = index + 1
     end
 
-  fun i128(offset: I64 = 0, base: I32 = 0): I128 =>
-    var index = offset_to_index(offset)
+    (let base', let base_chars) = _read_int_base[A](base, index)
+    index = index + base_chars
 
-    if index < _size then
-      if Platform.windows() then
-        i64(offset).i128()
-      else
-        @strtoll[I128](_ptr.u64() + index, U64(0), base)
+    // Process characters
+    while index < _size do
+      let char: A = A(0).from[U8](_ptr._apply(index))
+      if char == '_' then
+        index = index + 1
+        continue
       end
-    else
-      0
+
+      let digit =
+        if (char >= '0') and (char <= '9') then
+          char - '0'
+        elseif (char >= 'A') and (char <= 'Z') then
+          (char - 'A') + 10
+        elseif (char >= 'a') and (char <= 'z') then
+          (char - 'a') + 10
+        else
+          break
+        end
+
+      if digit >= base' then
+        break
+      end
+
+      let new_value: A = (value * base') + digit
+
+      if (new_value / base') != value then
+        // Overflow
+        error
+      end
+
+      value = new_value
+      had_digit = true
+      index = index + 1
     end
 
-  fun u8(offset: I64 = 0, base: I32 = 0): U8 => u64(offset, base).u8()
-  fun u16(offset: I64 = 0, base: I32 = 0): U16 => u64(offset, base).u16()
-  fun u32(offset: I64 = 0, base: I32 = 0): U32 => u64(offset, base).u32()
+    if minus then value = -value end
 
-  fun u64(offset: I64 = 0, base: I32 = 0): U64 =>
-    var index = offset_to_index(offset)
-
-    if index < _size then
-      if Platform.windows() then
-        @_strtoui64[U64](_ptr.u64() + index, U64(0), base)
-      else
-        @strtoul[U64](_ptr.u64() + index, U64(0), base)
-      end
-    else
-      0
+    // Check result
+    if not had_digit then
+      // No integer found
+      return (0, 0)
     end
 
-  fun u128(offset: I64 = 0, base: I32 = 0): U128 =>
-    var index = offset_to_index(offset)
+    // Success
+    (value, (index - start_index).i64())
 
-    if index < _size then
-      if Platform.windows() then
-        u64(offset).u128()
-      else
-        @strtoull[U128](_ptr.u64() + index, U64(0), base)
-      end
-    else
-      0
+  fun _read_int_base[A: ((Signed | Unsigned) & Integer[A] val)]
+    (base: U8, index: U64): (A, U64 /* chars used */)
+  =>
+    """
+    Determine the base of an integer starting at the specified index.
+    If a non-0 base is given use that. If given base is 0 read the base
+    specifying prefix, if any, to detect base 2 or 16.
+    If no base is specified and no prefix is found default to decimal.
+    Note that a leading 0 does NOT imply octal.
+    Report the base found and the number of characters in the prefix.
+    """
+    if base > 0 then
+      return (A(0).from[U8](base), 0)
     end
+
+    // Determine base from prefix
+    if (index + 2) >= _size then
+      // Not enough characters, must be decimal
+      return (10, 0)
+    end
+
+    let lead_char = _ptr._apply(index)
+    let base_char = _ptr._apply(index + 1) and not 0x20
+
+    if (lead_char == '0') and (base_char == 'B') then
+      return (2, 2)
+    end
+
+    if (lead_char == '0') and (base_char == 'X') then
+      return (16, 2)
+    end
+
+    // No base specified, default to decimal
+    (10, 0)
 
   fun f32(offset: I64 = 0): F32 =>
     var index = offset_to_index(offset)
@@ -885,11 +1136,17 @@ class String val is Seq[U8], Ordered[String box], Stringable
   //
   //   while i < _size do
 
-  fun values(): StringValues^ =>
+  fun values(): StringBytes^ =>
     """
     Return an iterator over the bytes in the string.
     """
-    StringValues(this)
+    StringBytes(this)
+
+  fun runes(): StringRunes^ =>
+    """
+    Return an iterator over the codepoints in the string.
+    """
+    StringRunes(this)
 
   fun ref _set(i: U64, value: U8): U8 =>
     """
@@ -897,7 +1154,7 @@ class String val is Seq[U8], Ordered[String box], Stringable
     """
     _ptr._update(i, value)
 
-class StringValues is Iterator[U8]
+class StringBytes is Iterator[U8]
   let _string: String box
   var _i: U64
 
@@ -910,3 +1167,19 @@ class StringValues is Iterator[U8]
 
   fun ref next(): U8 ? =>
     _string(_i = _i + 1)
+
+class StringRunes is Iterator[U32]
+  let _string: String box
+  var _i: U64
+
+  new create(string: String box) =>
+    _string = string
+    _i = 0
+
+  fun has_next(): Bool =>
+    _i < _string.size()
+
+  fun ref next(): U32 ? =>
+    (let rune, let len) = _string.utf32(_i.i64())
+    _i = _i + len.u64()
+    rune

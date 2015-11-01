@@ -1,56 +1,46 @@
 # Getting help 
 
 * [Open an issue!](https://github.com/CausalityLtd/ponyc/issues)
-
 * Use the [mailing list](mailto:ponydev@lists.ponylang.org).
-
 * Join ```#ponylang``` on [freenode](http://freenode.net/irc_servers.shtml).
-
 * A tutorial is available [here](http://tutorial.ponylang.org).
 
 # Editor support
 
 * Sublime Text: [Pony Language](https://packagecontrol.io/packages/Pony%20Language)
-
 * Atom: [language-pony](https://atom.io/packages/language-pony)
-
-* Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony).
-
-* Vim: pending.
-
+* Visual Studio: [VS-pony](https://github.com/CausalityLtd/VS-pony)
+* Vim: [pony.vim](https://github.com/dleonard0/pony-vim-syntax)
 * Emacs: [ponylang-mode](https://github.com/abingham/ponylang-mode)
+* BBEdit: [bbedit-pony](https://github.com/TheMue/bbedit-pony)
 
 # Installation
-## Mac OSX using [Homebrew](http://brew.sh)
+
+## Mac OS X using [Homebrew](http://brew.sh)
 
 ```bash
-$ brew install http://www.ponylang.org/releases/ponyc.rb
-$ ponyc --version
-0.1.2
+$ brew update 
+$ brew install ponyc
 ```
-
-A pull request for the ponyc formula to be part of homebrew-core is [pending](https://github.com/Homebrew/homebrew/pull/39192).
 
 ## Linux
 
 * ```ponyc```: Recommended. Should work on most modern ```x86_64``` platforms.
-* ```ponyc-avx2```: For platforms with AVX2 support. 
-* ```ponyc-numa```: A numa-aware version of ```ponyc-avx2```.
+* ```ponyc-avx2```: For platforms with AVX2 support.
 
 ### Apt-get and Aptitude
 
 First, import the public key of ponylang.org:
 
 ```bash
-$ wget -O - http://www.ponylang.org/releases/buildbot@lists.ponylang.org.gpg.key | sudo apt-key add -
+$ wget -O - http://releases.ponylang.org/buildbot@lists.ponylang.org.gpg.key | sudo apt-key add -
 ```
 
 Add the ponylang.org repository to apt-get:
 
 ```bash
-sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc main"
-sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-avx2 main"
-sudo add-apt-repository "deb http://ponylang.org/releases/apt ponyc-numa main"
+sudo add-apt-repository "deb http://releases.ponylang.org/apt ponyc main"
+sudo add-apt-repository "deb http://releases.ponylang.org/apt ponyc-avx2 main"
 ```
 
 Note that ```add-apt-repository``` may require to install ```python-software-properties``` or ```software-properties-common```.
@@ -61,12 +51,10 @@ Then, update your repository cache:
 $ sudo apt-get update
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo apt-get install <package name>
-$ ponyc --version
-0.1.2
 ```
 
 ### Zypper
@@ -74,15 +62,13 @@ $ ponyc --version
 First, add the ponylang.org repository:
 
 ```bash
-$ sudo zypper ar -f http://www.ponylang.org/releases/yum/ponyc.repo
+$ sudo zypper ar -f http://releases.ponylang.org/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo zypper install <package-name>
-$ ponyc --version
-0.1.2
 ```
 
 ### YUM
@@ -90,15 +76,13 @@ $ ponyc --version
 First, add the ponylang.org repository:
 
 ```bash
-$ sudo yum-config-manager --add-repo=http://www.ponylang.org/releases/yum/ponyc.repo
+$ sudo yum-config-manager --add-repo=http://releases.ponylang.org/yum/ponyc.repo
 ```
 
-Install ```ponyc```, ```ponyc-avx2``` or ```ponyc-numa```:
+Install ```ponyc``` or ```ponyc-avx2```:
 
 ```bash
 $ sudo yum install <package-name>
-$ ponyc --version
-0.1.2
 ```
 
 ## Windows
@@ -109,13 +93,17 @@ $ ponyc --version
 
 All installers can also be downloaded from ponylang.org's servers:
 
-* [Ubuntu/Debian](http://ponylang.org/releases/debian)
-* [RPM](http://ponylang.org/releases/yum)
-* [Windows](http://ponylang.org/releases/windows)
+* [Ubuntu/Debian](http://releases.ponylang.org/debian)
+* [RPM](http://releases.ponylang.org/yum)
+* [Windows](http://releases.ponylang.org/windows)
 
-# Building on Linux [![build status](http://ponylang.org:50000/buildStatus/icon?job=ponyc)](http://ci.ponylang.org/job/ponyc/)
+# Building ponyc from source
+## Building on Linux [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
+
 
 First, install LLVM 3.6 using your package manager. You may need to install zlib and ncurses as well.
+
+ > Note that Gentoo Linux users are currently affected by Gentoo [bug 457530](https://bugs.gentoo.org/show_bug.cgi?id=457530#c7) (hotfix linked.)
 
 This will build ponyc and compile helloworld:
 
@@ -124,19 +112,30 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-To build a NUMA-aware runtime, install libnuma-dev using your package manager and build as follows:
+# Building on FreeBSD
+
+First, install the required dependencies:
+
+```bash
+sudo pkg install gmake
+sudo pkg install llvm36
+sudo pkg install libunwind
+```
+
+This will build ponyc and compile helloworld:
 
 ```
-$ make use=numa config=release
+$ make config=release
+$ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Mac OSX
+# Building on Mac OS X [![Linux and OS X](https://travis-ci.org/CausalityLtd/ponyc.svg?branch=master)](https://travis-ci.org/CausalityLtd/ponyc)
 
 First, install [homebrew](http://brew.sh) if you haven't already. Then, brew llvm36, like this:
 
 ```
-$ brew tap homebrew/versions
-$ brew install llvm36
+$ brew update
+$ brew install llvm --with-rtti
 ```
 
 This will build ponyc and compile helloworld:
@@ -146,7 +145,7 @@ $ make config=release
 $ ./build/release/ponyc examples/helloworld
 ```
 
-# Building on Windows
+# Building on Windows [![Windows](https://ci.appveyor.com/api/projects/status/8q026e7byvaflvei?svg=true)](https://ci.appveyor.com/project/pony-buildbot/ponyc)
 
 The LLVM 3.7 (not 3.6!) prebuilt binaries for Windows do NOT include the LLVM development tools and libraries. Instead, you will have to build and install LLVM 3.7 from source. You will need to make sure that the path to LLVM/bin (location of llvm-config) is in your PATH variable.
 

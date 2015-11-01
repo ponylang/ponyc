@@ -60,7 +60,6 @@
     ast_replace(existing, parent); \
   }
 
-
 /** Add an existing subtree.
  * If the given tree is already part of another tree it will be copied
  * automatically. If it is a complete tree it will not.
@@ -70,6 +69,17 @@
     if(parent == NULL) parent = tree; \
     else if(last_sibling == NULL) last_sibling = ast_add(parent, tree); \
     else last_sibling = ast_add_sibling(last_sibling, tree); \
+  }
+
+/** Add an existing subtree, clearing the recorded pass reached.
+ * If the given tree is already part of another tree it will be copied
+ * automatically. If it is a complete tree it will not.
+ */
+#define TREE_CLEAR_PASS(tree) \
+  { \
+    if(ast_parent(tree) != NULL) tree = ast_dup(tree); \
+    ast_resetpass(tree); \
+    TREE(tree); \
   }
 
 /// Add a new node with the specified token ID and optionally children
@@ -98,6 +108,10 @@
 
 /// Add a TK_ID node with the given ID name
 #define ID(name) TREE(ast_from_string(basis_ast, name));
+
+/// Add a TK_STRING node with the given string value
+#define STRING(value) \
+  TREE(ast_setid(ast_from_string(basis_ast, value), TK_STRING));
 
 /// Add a TK_INT node with the given integer value
 #define INT(value) TREE(ast_from_int(basis_ast, value));

@@ -89,6 +89,11 @@ ast_t* package_id(ast_t* ast);
 const char* package_path(ast_t* package);
 
 /**
+ * Gets the package qualified name.
+ */
+const char* package_qualified_name(ast_t* package);
+
+/**
  * Gets the last component of the package path.
  */
 const char* package_filename(ast_t* package);
@@ -116,6 +121,8 @@ bool package_allow_ffi(typecheck_t* t);
 void package_done(pass_opt_t* opt);
 
 bool is_path_absolute(const char* path);
+
+bool is_path_relative(const char* path);
 
 PONY_EXTERN_C_END
 

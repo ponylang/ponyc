@@ -1,10 +1,74 @@
 primitive F32 is FloatingPoint[F32]
-  new create(from: F32) => compiler_intrinsic
+  new create(value: F32 = 0) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 
   new from_bits(i: U32) => compiler_intrinsic
   fun bits(): U32 => compiler_intrinsic
+  fun tag from[B: (Number & Real[B] val)](a: B): F32 => a.f32()
+
+  fun tag min_value(): F32 =>
+    """
+    Minimum positive value representable at full precision (ie a normalised
+    number).
+    """
+    from_bits(0x00800000)
+
+  fun tag max_value(): F32 =>
+    """
+    Maximum positive value representable.
+    """
+    from_bits(0x7F7FFFFF)
+
+  fun tag epsilon(): F32 =>
+    """
+    Minimum positive value such that (1 + epsilon) != 1.
+    """
+    from_bits(0x34000000)
+
+  fun tag radix(): U8 =>
+    """
+    Exponent radix.
+    """
+    2
+
+  fun tag precision2(): U8 =>
+    """
+    Mantissa precision in bits.
+    """
+    24
+
+  fun tag precision10(): U8 =>
+    """
+    Mantissa precision in decimal digits.
+    """
+    6
+
+  fun tag min_exp2(): I16 =>
+    """
+    Minimum exponent value such that (2^exponent) - 1 is representable at full
+    precision (ie a normalised number).
+    """
+    -125
+
+  fun tag min_exp10(): I16 =>
+    """
+    Minimum exponent value such that (10^exponent) - 1 is representable at full
+    precision (ie a normalised number).
+    """
+    -37
+
+  fun tag max_exp2(): I16 =>
+    """
+    Maximum exponent value such that (2^exponent) - 1 is representable.
+    """
+    128
+
+  fun tag max_exp10(): I16 =>
+    """
+    Maximum exponent value such that (10^exponent) - 1 is representable.
+    """
+    38
 
   fun abs(): F32 => @"llvm.fabs.f32"[F32](this)
   fun min(y: F32): F32 => if this < y then this else y end
@@ -18,26 +82,23 @@ primitive F32 is FloatingPoint[F32]
   fun trunc(): F32 => @"llvm.trunc.f32"[F32](this)
 
   fun finite(): Bool =>
-    if Platform.windows() then
-      @_finite[I32](this.f64()) != 0
-    elseif Platform.osx() then
-      @finite[I32](this.f64()) != 0
-    else
-      @finitef[I32](this) != 0
-    end
+    """
+    Check whether this number is finite, ie not +/-infinity and not NaN.
+    """
+    // True if exponent is not all 1s
+    (bits() and 0x7F800000) != 0x7F800000
 
   fun nan(): Bool =>
-    if Platform.windows() then
-      @_isnan[I32](this.f64()) != 0
-    elseif Platform.osx() then
-      @isnan[I32](this.f64()) != 0
-    else
-      @isnanf[I32](this) != 0
-    end
+    """
+    Check whether this number is NaN.
+    """
+    // True if exponent is all 1s and mantissa is non-0
+    ((bits() and 0x7F800000) == 0x7F800000) and  // exp
+    ((bits() and 0x007FFFFF) != 0)  // mantissa
 
   fun frexp(): (F32, U32) =>
     var exponent: U32 = 0
-    var mantissa = @frexp[F64](f64(), &exponent)
+    var mantissa = @frexp[F64](f64(), addressof exponent)
     (mantissa.f32(), exponent)
 
   fun log(): F32 => @"llvm.log.f32"[F32](this)
@@ -81,12 +142,76 @@ primitive F32 is FloatingPoint[F32]
   fun u128(): U128 => f64().u128()
 
 primitive F64 is FloatingPoint[F64]
-  new create(from: F64) => compiler_intrinsic
+  new create(value: F64 = 0) => compiler_intrinsic
   new pi() => compiler_intrinsic
   new e() => compiler_intrinsic
 
   new from_bits(i: U64) => compiler_intrinsic
   fun bits(): U64 => compiler_intrinsic
+  fun tag from[B: (Number & Real[B] val)](a: B): F64 => a.f64()
+
+  fun tag min_value(): F64 =>
+    """
+    Minimum positive value representable at full precision (ie a normalised
+    number).
+    """
+    from_bits(0x0010_0000_0000_0000)
+
+  fun tag max_value(): F64 =>
+    """
+    Maximum positive value representable.
+    """
+    from_bits(0x7FEF_FFFF_FFFF_FFFF)
+
+  fun tag epsilon(): F64 =>
+    """
+    Minimum positive value such that (1 + epsilon) != 1.
+    """
+    from_bits(0x3CB0_0000_0000_0000)
+
+  fun tag radix(): U8 =>
+    """
+    Exponent radix.
+    """
+    2
+
+  fun tag precision2(): U8 =>
+    """
+    Mantissa precision in bits.
+    """
+    53
+
+  fun tag precision10(): U8 =>
+    """
+    Mantissa precision in decimal digits.
+    """
+    15
+
+  fun tag min_exp2(): I16 =>
+    """
+    Minimum exponent value such that (2^exponent) - 1 is representable at full
+    precision (ie a normalised number).
+    """
+    -1021
+
+  fun tag min_exp10(): I16 =>
+    """
+    Minimum exponent value such that (10^exponent) - 1 is representable at full
+    precision (ie a normalised number).
+    """
+    -307
+
+  fun tag max_exp2(): I16 =>
+    """
+    Maximum exponent value such that (2^exponent) - 1 is representable.
+    """
+    1024
+
+  fun tag max_exp10(): I16 =>
+    """
+    Maximum exponent value such that (10^exponent) - 1 is representable.
+    """
+    308
 
   fun abs(): F64 => @"llvm.fabs.f64"[F64](this)
   fun min(y: F64): F64 => if this < y then this else y end
@@ -100,22 +225,23 @@ primitive F64 is FloatingPoint[F64]
   fun trunc(): F64 => @"llvm.trunc.f64"[F64](this)
 
   fun finite(): Bool =>
-    if Platform.windows() then
-      @_finite[I32](this) != 0
-    else
-      @finite[I32](this) != 0
-    end
+    """
+    Check whether this number is finite, ie not +/-infinity and not NaN.
+    """
+    // True if exponent is not all 1s
+    (bits() and 0x7FF0_0000_0000_0000) != 0x7FF0_0000_0000_0000
 
   fun nan(): Bool =>
-    if Platform.windows() then
-      @_isnan[I32](this) != 0
-    else
-      @isnan[I32](this) != 0
-    end
+    """
+    Check whether this number is NaN.
+    """
+    // True if exponent is all 1s and mantissa is non-0
+    ((bits() and 0x7FF0_0000_0000_0000) == 0x7FF0_0000_0000_0000) and  // exp
+    ((bits() and 0x000F_FFFF_FFFF_FFFF) != 0)  // mantissa
 
   fun frexp(): (F64, U32) =>
     var exponent: U32 = 0
-    var mantissa = @frexp[F64](this, &exponent)
+    var mantissa = @frexp[F64](this, addressof exponent)
     (mantissa, exponent)
 
   fun log(): F64 => @"llvm.log.f64"[F64](this)

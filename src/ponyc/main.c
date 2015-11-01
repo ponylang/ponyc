@@ -3,9 +3,9 @@
 #include "../libponyc/pkg/package.h"
 #include "../libponyc/pass/pass.h"
 #include "../libponyc/ast/stringtab.h"
+#include "../libponyc/ast/treecheck.h"
 #include <platform.h>
-
-#include "options.h"
+#include "../libponyrt/options/options.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,6 +24,7 @@ enum
   OPT_PATHS,
   OPT_OUTPUT,
   OPT_LIBRARY,
+  OPT_DOCS,
 
   OPT_SAFE,
   OPT_IEEEMATH,
@@ -39,6 +40,8 @@ enum
   OPT_WIDTH,
   OPT_IMMERR,
   OPT_VERIFY,
+  OPT_FILENAMES,
+  OPT_CHECKTREE,
 
   OPT_BNF,
   OPT_ANTLR,
@@ -53,6 +56,7 @@ static opt_arg_t args[] =
   {"path", 'p', OPT_ARG_REQUIRED, OPT_PATHS},
   {"output", 'o', OPT_ARG_REQUIRED, OPT_OUTPUT},
   {"library", 'l', OPT_ARG_NONE, OPT_LIBRARY},
+  {"docs", 'g', OPT_ARG_NONE, OPT_DOCS},
 
   {"safe", 0, OPT_ARG_OPTIONAL, OPT_SAFE},
   {"ieee-math", 0, OPT_ARG_NONE, OPT_IEEEMATH},
@@ -68,6 +72,8 @@ static opt_arg_t args[] =
   {"width", 'w', OPT_ARG_REQUIRED, OPT_WIDTH},
   {"immerr", '\0', OPT_ARG_NONE, OPT_IMMERR},
   {"verify", '\0', OPT_ARG_NONE, OPT_VERIFY},
+  {"files", '\0', OPT_ARG_NONE, OPT_FILENAMES},
+  {"checktree", '\0', OPT_ARG_NONE, OPT_CHECKTREE},
 
   {"bnf", '\0', OPT_ARG_NONE, OPT_BNF},
   {"antlr", '\0', OPT_ARG_NONE, OPT_ANTLR},
@@ -92,10 +98,11 @@ static void usage()
     "  --output, -o    Write output to this directory.\n"
     "    =path         Defaults to the current directory.\n"
     "  --library, -l   Generate a C-API compatible static library.\n"
+    "  --docs, -g      Generate code documentation.\n"
     "\n"
     "Rarely needed options:\n"
     "  --safe          Allow only the listed packages to use C FFI.\n"
-    "    =this,that    With no packages listed, only builtin is allowed.\n"
+    "    =package      With no packages listed, only builtin is allowed.\n"
     "  --ieee-math     Force strict IEEE 754 compliance.\n"
     "  --restrict      FORTRAN pointer semantics.\n"
     "  --cpu           Set the target CPU.\n"
@@ -106,17 +113,19 @@ static void usage()
     "    =name         Defaults to the host triple.\n"
     "  --stats         Print some compiler stats.\n"
     "\n"
-
     "Debugging options:\n"
     "  --pass, -r      Restrict phases.\n"
     "    =parse\n"
     "    =syntax\n"
     "    =sugar\n"
     "    =scope\n"
+    "    =import\n"
     "    =name\n"
     "    =flatten\n"
     "    =traits\n"
+    "    =docs\n"
     "    =expr\n"
+    "    =final\n"
     "    =ir           Output LLVM IR.\n"
     "    =bitcode      Output LLVM bitcode.\n"
     "    =asm          Output assembly.\n"
@@ -128,9 +137,25 @@ static void usage()
     "    =columns      Defaults to the terminal width.\n"
     "  --immerr        Report errors immediately rather than deferring.\n"
     "  --verify        Verify LLVM IR.\n"
+    "  --files         Print source file names as each is processed.\n"
     "  --bnf           Print out the Pony grammar as human readable BNF.\n"
     "  --antlr         Print out the Pony grammar as an ANTLR file.\n"
     "\n"
+    "Runtime options for Pony programs (not for use with ponyc):\n"
+    "  --ponythreads   Use N scheduler threads. Defaults to the number of\n"
+    "                  cores (not hyperthreads) available.\n"
+    "  --ponycdmin     Defer cycle detection until 2^N actors have blocked.\n"
+    "                  Defaults to 2^4.\n"
+    "  --ponycdmax     Always cycle detect when 2^N actors have blocked.\n"
+    "                  Defaults to 2^18.\n"
+    "  --ponycdconf    Send cycle detection CNF messages in groups of 2^N.\n"
+    "                  Defaults to 2^6.\n"
+    "  --ponygcinitial Defer garbage collection until an actor is using at\n"
+    "                  least 2^N bytes. Defaults to 2^14.\n"
+    "  --ponygcfactor  After GC, an actor will next be GC'd at a heap memory\n"
+    "                  usage N times its current value. This is a floating\n"
+    "                  point value. Defaults to 2.0.\n"
+    "  --ponynoyield   Do not yield the CPU when no work is available.\n"
     );
 }
 
@@ -214,6 +239,7 @@ int main(int argc, char* argv[])
       case OPT_PATHS: package_add_paths(s.arg_val); break;
       case OPT_OUTPUT: opt.output = s.arg_val; break;
       case OPT_LIBRARY: opt.library = true; break;
+      case OPT_DOCS: opt.docs = true; break;
 
       case OPT_SAFE:
         if(!package_add_safe(s.arg_val))
@@ -232,6 +258,8 @@ int main(int argc, char* argv[])
       case OPT_WIDTH: ast_setwidth(atoi(s.arg_val)); break;
       case OPT_IMMERR: error_set_immediate(true); break;
       case OPT_VERIFY: opt.verify = true; break;
+      case OPT_FILENAMES: opt.print_filenames = true; break;
+      case OPT_CHECKTREE: enable_check_tree(true); break;
 
       case OPT_BNF: print_grammar(false, true); return 0;
       case OPT_ANTLR: print_grammar(true, true); return 0;
@@ -259,6 +287,10 @@ int main(int argc, char* argv[])
     }
   }
 
+#ifdef PLATFORM_IS_WINDOWS
+  opt.strip_debug = true;
+#endif
+
   if(!ok)
   {
     print_errors();
@@ -279,6 +311,9 @@ int main(int argc, char* argv[])
         ok &= compile_package(argv[i], &opt, print_ast);
     }
   }
+
+  if(!ok && get_error_count() == 0)
+    printf("Error: internal failure not reported\n");
 
   package_done(&opt);
   pass_opt_done(&opt);

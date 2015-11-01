@@ -126,7 +126,7 @@ static actorref_t* move_unmarked_objects(actorref_t* from, uint32_t mark)
   return to;
 }
 
-static void send_release(actorref_t* aref)
+static void send_release(pony_ctx_t* ctx, actorref_t* aref)
 {
   if(aref == NULL)
     return;
@@ -139,7 +139,7 @@ static void send_release(actorref_t* aref)
     return;
   }
 
-  pony_sendp(aref->actor, ACTORMSG_RELEASE, aref);
+  pony_sendp(ctx, aref->actor, ACTORMSG_RELEASE, aref);
 }
 
 actorref_t* actormap_getactor(actormap_t* map, pony_actor_t* actor)
@@ -163,7 +163,8 @@ actorref_t* actormap_getorput(actormap_t* map, pony_actor_t* actor,
   return aref;
 }
 
-deltamap_t* actormap_sweep(actormap_t* map, uint32_t mark, deltamap_t* delta)
+deltamap_t* actormap_sweep(pony_ctx_t* ctx, actormap_t* map, uint32_t mark,
+  deltamap_t* delta)
 {
   size_t i = HASHMAP_BEGIN;
   actorref_t* aref;
@@ -178,7 +179,7 @@ deltamap_t* actormap_sweep(actormap_t* map, uint32_t mark, deltamap_t* delta)
       delta = deltamap_update(delta, aref->actor, 0);
     }
 
-    send_release(aref);
+    send_release(ctx, aref);
   }
 
   return delta;

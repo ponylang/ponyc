@@ -4,13 +4,13 @@ class _TestRecord
   """
 
   let _env: Env
-  let _name: String
+  let name: String
   var _pass: Bool = false
   var _log: (Array[String] val | None) = None
 
-  new create(env: Env, name: String) =>
+  new create(env: Env, name': String) =>
     _env = env
-    _name = name
+    name = name'
 
   fun ref _result(pass: Bool, log: Array[String] val) =>
     """
@@ -29,9 +29,9 @@ class _TestRecord
     var show_log = log_all
 
     if _pass then
-      _env.out.print_color(_env.green(), "---- Passed: " + _name)
+      _env.out.print(_Color.green() + "---- Passed: " + name + _Color.reset())
     else
-      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
+      _env.out.print(_Color.red() + "**** FAILED: " + name + _Color.reset())
       show_log = true
     end
 
@@ -39,10 +39,8 @@ class _TestRecord
       match _log
       | let log: Array[String] val =>
         // Print the log. Simply print each string in the array.
-        try
-          for msg in log.values() do
-            _env.out.print(msg)
-          end
+        for msg in log.values() do
+          _env.out.print(msg)
         end
       end
     end
@@ -54,6 +52,5 @@ class _TestRecord
     Print our test name out in the list of failed test, if we failed.
     """
     if not _pass then
-      _env.out.print_color(_env.red(), "**** FAILED: " + _name)
+      _env.out.print(_Color.red() + "**** FAILED: " + name + _Color.reset())
     end
- 

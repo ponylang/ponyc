@@ -6,7 +6,7 @@
 
 PONY_EXTERN_C_BEGIN
 
-void pony_gc_mark();
+void pony_gc_mark(pony_ctx_t* ctx);
 
 PONY_EXTERN_C_END
 

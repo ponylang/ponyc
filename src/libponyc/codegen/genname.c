@@ -1,13 +1,33 @@
 #include "genname.h"
 #include "../pkg/package.h"
 #include "../ast/stringtab.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
+
+static const char* build_name(const char* a, const char* b, ast_t* typeargs,
+  bool function);
 
 static void name_append(char* name, const char* append)
 {
   strcat(name, "_");
   strcat(name, append);
+}
+
+static const char* typearg_name(ast_t* typearg)
+{
+  switch(ast_id(typearg))
+  {
+    case TK_UNIONTYPE:
+      return build_name(NULL, "$union", typearg, false);
+
+    case TK_ISECTTYPE:
+      return build_name(NULL, "$isect", typearg, false);
+
+    default: {}
+  }
+
+  return genname_type(typearg);
 }
 
 static size_t typeargs_len(ast_t* typeargs)
@@ -20,7 +40,7 @@ static size_t typeargs_len(ast_t* typeargs)
 
   while(typearg != NULL)
   {
-    const char* argname = genname_type(typearg);
+    const char* argname = typearg_name(typearg);
     len += strlen(argname) + 1;
     typearg = ast_sibling(typearg);
   }
@@ -40,7 +60,7 @@ static void typeargs_append(char* name, ast_t* typeargs, bool function)
 
   while(typearg != NULL)
   {
-    name_append(name, genname_type(typearg));
+    name_append(name, typearg_name(typearg));
     typearg = ast_sibling(typearg);
   }
 }
@@ -56,7 +76,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs,
   if(b != NULL)
     len += strlen(b) + 1;
 
-  VLA(char, name, len);
+  char* name = (char*)pool_alloc_size(len);
 
   if(a != NULL)
     strcpy(name, a);
@@ -70,7 +90,7 @@ static const char* build_name(const char* a, const char* b, ast_t* typeargs,
   }
 
   typeargs_append(name, typeargs, function);
-  return stringtab(name);
+  return stringtab_consume(name, len);
 }
 
 static const char* nominal_name(ast_t* ast)

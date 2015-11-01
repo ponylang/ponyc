@@ -2,6 +2,7 @@
 #include "genexpr.h"
 #include "gentype.h"
 #include "genname.h"
+#include "gencall.h"
 #include "../expr/literal.h"
 #include "../debug/dwarf.h"
 #include <string.h>
@@ -118,9 +119,10 @@ LLVMValueRef gen_tuple(compile_t* c, ast_t* ast)
     // We'll have an undefined element if one of our source elements is a
     // variable declaration. This is ok, since the tuple value will never be
     // used.
-    if(value != GEN_NOVALUE)
-      tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
+    if(value == GEN_NOVALUE)
+      return GEN_NOVALUE;
 
+    tuple = LLVMBuildInsertValue(c->builder, tuple, value, i++, "");
     child = ast_sibling(child);
   }
 
@@ -131,6 +133,16 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
 {
   ast_t* id = ast_child(ast);
   ast_t* type = ast_type(id);
+  const char* name = ast_name(id);
+
+  // If this local has already been generated, don't create another copy. This
+  // can happen when the same ast node is generated more than once, such as
+  // the condition block of a while expression.
+  LLVMValueRef value = codegen_getlocal(c, name);
+
+  if(value != NULL)
+    return GEN_NOVALUE;
+
   gentype_t g;
 
   if(!gentype(c, type, &g))
@@ -146,7 +158,6 @@ LLVMValueRef gen_localdecl(compile_t* c, ast_t* ast)
   else
     LLVMPositionBuilderAtEnd(c->builder, entry_block);
 
-  const char* name = ast_name(id);
   LLVMValueRef l_value = LLVMBuildAlloca(c->builder, g.use_type, name);
 
   // Store the alloca to use when we reference this local.
@@ -188,12 +199,14 @@ LLVMValueRef gen_addressof(compile_t* c, ast_t* ast)
   switch(ast_id(expr))
   {
     case TK_VARREF:
-    case TK_LETREF:
       return gen_localptr(c, expr);
 
     case TK_FVARREF:
-    case TK_FLETREF:
       return gen_fieldptr(c, expr);
+
+    case TK_FUNREF:
+    case TK_BEREF:
+      return gen_funptr(c, expr);
 
     default: {}
   }
@@ -303,7 +316,7 @@ LLVMValueRef gen_string(compile_t* c, ast_t* ast)
 {
   ast_t* type = ast_type(ast);
   const char* name = ast_name(ast);
-  size_t len = strlen(name);
+  size_t len = ast_name_len(ast);
 
   LLVMValueRef args[4];
   args[0] = LLVMConstInt(c->i32, 0, false);

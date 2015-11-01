@@ -1,6 +1,6 @@
 class Array[A] is Seq[A]
   """
-  Contiguous memory to store elements of type A.
+  Contiguous, resizable memory to store elements of type A.
   """
   var _size: U64
   var _alloc: U64
@@ -29,7 +29,7 @@ class Array[A] is Seq[A]
       i = i + 1
     end
 
-  new undefined[B: (A & Real[B] box & Number) = A](len: U64) =>
+  new undefined[B: (A & Real[B] val & Number) = A](len: U64) =>
     """
     Create an array of len elements, populating them with random memory. This
     is only allowed for an array of numbers.
@@ -38,13 +38,19 @@ class Array[A] is Seq[A]
     _alloc = len
     _ptr = Pointer[A]._alloc(len)
 
-  new from_cstring(ptr: Pointer[A] ref, len: U64) =>
+  new from_cstring(ptr: Pointer[A] ref, len: U64, alloc: U64 = 0) =>
     """
     Create an array from a C-style pointer and length. The contents are not
     copied.
     """
     _size = len
-    _alloc = len
+
+    if alloc > len then
+      _alloc = alloc
+    else
+      _alloc = len
+    end
+
     _ptr = ptr
 
   fun cstring(): Pointer[A] tag =>
@@ -146,6 +152,17 @@ class Array[A] is Seq[A]
     _ptr._offset(src_idx)._copy_to(dst._ptr._offset(dst_idx), len)
     this
 
+  fun ref remove(i: U64, n: U64): Array[A]^ =>
+    """
+    Remove n elements from the array, beginning at index i.
+    """
+    if i < _size then
+      let count = n.min(_size - i)
+      _size = _size - count
+      _ptr._offset(i)._delete(count, _size - i)
+    end
+    this
+
   fun ref clear(): Array[A]^ =>
     """
     Remove all elements from the array.
@@ -210,10 +227,8 @@ class Array[A] is Seq[A]
     """
     Add iterated elements to the end of the array.
     """
-    try
-      for v in iter do
-        push(consume v)
-      end
+    for v in iter do
+      push(consume v)
     end
 
     this
@@ -287,7 +302,7 @@ class Array[A] is Seq[A]
     """
     ArrayPairs[A, this->Array[A]](this)
 
-class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
+class ArrayKeys[A, B: Array[A] #read] is Iterator[U64]
   let _array: B
   var _i: U64
 
@@ -305,7 +320,7 @@ class ArrayKeys[A, B: Array[A] box] is Iterator[U64]
       _i
     end
 
-class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
+class ArrayValues[A, B: Array[A] #read] is Iterator[B->A]
   let _array: B
   var _i: U64
 
@@ -319,7 +334,7 @@ class ArrayValues[A, B: Array[A] box] is Iterator[B->A]
   fun ref next(): B->A ? =>
     _array(_i = _i + 1)
 
-class ArrayPairs[A, B: Array[A] box] is Iterator[(U64, B->A)]
+class ArrayPairs[A, B: Array[A] #read] is Iterator[(U64, B->A)]
   let _array: B
   var _i: U64
 

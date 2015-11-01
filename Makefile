@@ -8,12 +8,30 @@ ifeq ($(OS),Windows_NT)
   DEVNULL := NUL
 else
   UNAME_S := $(shell uname -s)
+
   ifeq ($(UNAME_S),Linux)
     OSTYPE = linux
+    lto := no
+
+    ifneq (,$(shell which gcc-ar 2> /dev/null))
+      AR = gcc-ar
+      lto := yes
+    endif
+
+    ifdef LTO
+      lto := yes
+    endif
   endif
 
   ifeq ($(UNAME_S),Darwin)
     OSTYPE = osx
+    lto := yes
+  endif
+
+  ifeq ($(UNAME_S),FreeBSD)
+    OSTYPE = freebsd
+    CXX = c++
+    lto := no
   endif
 
   GREP := grep -v
@@ -39,6 +57,10 @@ tag := $(shell cat VERSION)
 git := no
 endif
 
+package_version := $(tag)
+archive = ponyc-$(package_version).tar
+package = build/ponyc-$(package_version)
+
 symlink := yes
 
 ifdef destdir
@@ -47,15 +69,16 @@ ifdef destdir
   endif
 endif
 
-destdir ?= /usr/local/lib/pony/$(tag)
 prefix ?= /usr/local
+destdir ?= $(prefix)/lib/pony/$(tag)
 
 LIB_EXT ?= a
 BUILD_FLAGS = -mcx16 -march=$(arch) -Werror -Wconversion \
   -Wno-sign-conversion -Wextra -Wall
-LINKER_FLAGS =
-ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\"
-ALL_CXXFLAGS = -std=gnu++11
+LINKER_FLAGS = -mcx16 -march=$(arch)
+AR_FLAGS =
+ALL_CFLAGS = -std=gnu11 -DPONY_VERSION=\"$(tag)\" -DPONY_COMPILER=\"$(CC)\" -DPONY_ARCH=\"$(arch)\"
+ALL_CXXFLAGS = -std=gnu++11 -fno-rtti
 
 PONY_BUILD_DIR   ?= build/$(config)
 PONY_SOURCE_DIR  ?= src
@@ -63,13 +86,7 @@ PONY_TEST_DIR ?= test
 LLVM_FALLBACK := /usr/local/opt/llvm/bin/llvm-config
 
 ifdef use
-  ifneq (,$(filter $(use),numa))
-    ALL_CFLAGS += -DUSE_NUMA
-    LINK_NUMA = true
-    PONY_BUILD_DIR := $(PONY_BUILD_DIR)-numa
-  endif
-
-  ifneq (,$(filter $(use),valgrind))
+  ifneq (,$(filter $(use), valgrind))
     ALL_CFLAGS += -DUSE_VALGRIND
     PONY_BUILD_DIR := $(PONY_BUILD_DIR)-valgrind
   endif
@@ -83,16 +100,40 @@ endif
 
 ifeq ($(config),release)
   BUILD_FLAGS += -O3 -DNDEBUG
+
+  ifeq ($(lto),yes)
+    BUILD_FLAGS += -flto -DPONY_USE_LTO
+    LINKER_FLAGS += -flto
+
+    ifdef LTO
+      AR_FLAGS += --plugin $(LTO)
+    endif
+
+    ifeq ($(OSTYPE),linux)
+      LINKER_FLAGS += -fuse-linker-plugin -fuse-ld=gold
+    endif
+  endif
 else
   BUILD_FLAGS += -g -DDEBUG
 endif
 
-ifneq (,$(shell $(WHICH) llvm-config 2> $(DEVNULL)))
-  LLVM_CONFIG = llvm-config
+ifeq ($(OSTYPE),osx)
+  ALL_CFLAGS += -mmacosx-version-min=10.8
+  ALL_CXXFLAGS += -stdlib=libc++ -mmacosx-version-min=10.8
 endif
 
-ifneq (,$(shell $(WHICH) llvm-config-3.6 2> $(DEVNULL)))
-  LLVM_CONFIG = llvm-config-3.6
+ifndef LLVM_CONFIG
+  ifneq (,$(shell which llvm-config 2> /dev/null))
+    LLVM_CONFIG = llvm-config
+  endif
+
+  ifneq (,$(shell which llvm-config-3.6 2> /dev/null))
+    LLVM_CONFIG = llvm-config-3.6
+  endif
+
+  ifneq (,$(shell which llvm-config36 2> /dev/null))
+    LLVM_CONFIG = llvm-config36
+  endif
 endif
 
 ifneq ("$(wildcard $(LLVM_FALLBACK))","")
@@ -145,7 +186,9 @@ ifneq ($(OSTYPE),linux)
 endif
 
 ifneq ($(OSTYPE),osx)
-  libponyrt.except += src/libponyrt/asio/kqueue.c
+  ifneq ($(OSTYPE),freebsd)
+    libponyrt.except += src/libponyrt/asio/kqueue.c
+  endif
 endif
 
 libponyrt.except += src/libponyrt/asio/sock.c
@@ -179,6 +222,10 @@ llvm.ldflags := $(shell $(LLVM_CONFIG) --ldflags)
 llvm.include := -isystem $(shell $(LLVM_CONFIG) --includedir)
 llvm.libs    := $(shell $(LLVM_CONFIG) --libs) -lz -lncurses
 
+ifeq ($(OSTYPE), freebsd)
+  llvm.libs += -lpthread
+endif
+
 prebuilt := llvm
 
 # Binaries. Defined as
@@ -195,7 +242,7 @@ tests := libponyc.tests libponyrt.tests
 
 # Define include paths for targets if necessary. Note that these include paths
 # will automatically apply to the test suite of a target as well.
-libponyc.include := -I src/common/ $(llvm.include)/
+libponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
 libponycc.include := -I src/common/ $(llvm.include)/
 libponyrt.include := -I src/common/ -I src/libponyrt/
 libponyrt-pic.include := $(libponyrt.include)
@@ -203,15 +250,21 @@ libponyrt-pic.include := $(libponyrt.include)
 libponyc.tests.include := -I src/common/ -I src/libponyc/ -isystem lib/gtest/
 libponyrt.tests.include := -I src/common/ -I src/libponyrt/ -isystem lib/gtest/
 
-ponyc.include := -I src/common/
+ponyc.include := -I src/common/ -I src/libponyrt/ $(llvm.include)/
 libgtest.include := -isystem lib/gtest/
+
+ifneq (,$(filter $(OSTYPE), osx freebsd))
+  libponyrt.include += -I /usr/local/include
+endif
 
 # target specific build options
 libponyc.buildoptions = -D__STDC_CONSTANT_MACROS
 libponyc.buildoptions += -D__STDC_FORMAT_MACROS
 libponyc.buildoptions += -D__STDC_LIMIT_MACROS
 
-ifeq ($(OSTYPE),linux)
+ponyc.buildoptions = $(libponyc.buildoptions)
+
+ifeq ($(OSTYPE), linux)
   libponyrt-pic.buildoptions += -fpic
 endif
 
@@ -224,15 +277,9 @@ libponyc.tests.links = libgtest libponyc libponyrt llvm
 libponyrt.tests.links = libgtest libponyrt
 
 ifeq ($(OSTYPE),linux)
-  ifeq ($(LINK_NUMA),true)
-    ponyc.links += numa
-		libponyc.tests.links += numa
-		libponyrt.tests.links += numa
-  endif
-
   ponyc.links += pthread dl
   libponyc.tests.links += pthread dl
-  libponyrt.tests.links += pthread
+  libponyrt.tests.links += pthread dl
 endif
 
 # Overwrite the default linker for a target.
@@ -321,6 +368,11 @@ define CONFIGURE_COMPILER
     compiler := $(CXX)
     flags := $(ALL_CXXFLAGS)
   endif
+
+  ifeq ($(suffix $(1)),.c)
+    compiler := $(CC)
+    flags := $(ALL_CFLAGS)
+  endif
 endef
 
 define CONFIGURE_LIBS
@@ -384,7 +436,7 @@ $(foreach d,$($(1).depends),$(eval depends += $($(d))/$(d).$(LIB_EXT)))
 ifneq ($(filter $(1),$(libraries)),)
 $($(1))/$(1).$(LIB_EXT): $(depends) $(ofiles)
 	@echo 'Linking $(1)'
-	$(SILENT)$(AR) -rcs $$@ $(ofiles)
+	$(SILENT)$(AR) -rcs $$@ $(ofiles) $(AR_FLAGS)
 $(1): $($(1))/$(1).$(LIB_EXT)
 else
 $($(1))/$(1): $(depends) $(ofiles)
@@ -441,8 +493,8 @@ ifeq ($$(symlink),yes)
 	@mkdir -p $(prefix)/lib
 	@mkdir -p $(prefix)/include
 	@ln -sf $(destdir)/bin/ponyc $(prefix)/bin/ponyc
-	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a 
-	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a 
+	@ln -sf $(destdir)/lib/libponyrt.a $(prefix)/lib/libponyrt.a
+	@ln -sf $(destdir)/lib/libponyc.a $(prefix)/lib/libponyc.a
 	@ln -sf $(destdir)/include/pony.h $(prefix)/include/pony.h
 endif
 endef
@@ -459,27 +511,55 @@ uninstall:
 test: all
 	@$(PONY_BUILD_DIR)/libponyc.tests
 	@$(PONY_BUILD_DIR)/libponyrt.tests
+	@$(PONY_BUILD_DIR)/ponyc -d -s packages/stdlib
+	@./stdlib
+	@rm stdlib
 
 ifeq ($(git),yes)
 setversion:
 	@echo $(tag) > VERSION
 
-#$(eval $(call EXPAND_RELEASE))
+$(eval $(call EXPAND_RELEASE))
 
-#release: prerelease
-#	@echo $(tag) > VERSION
-#	@git add VERSION
-#	@git commit -m "Releasing version $(tag)"
-#	@git tag $(tag)
-#	@git push
-#	@git push --tags
-#	@git checkout release
-#	@git pull
-#	@git merge master
-#	@git push
-#	@git checkout $(branch)
+release: prerelease setversion
+	@git add VERSION
+	@git commit -m "Releasing version $(tag)"
+	@git tag $(tag)
+	@git push
+	@git push --tags
+	@git checkout release
+	@git pull
+	@git merge master
+	@git push
+	@git checkout $(branch)
 endif
-	
+
+deploy: test
+	@mkdir build/bin
+	@mkdir -p $(package)/usr/bin
+	@mkdir -p $(package)/usr/include
+	@mkdir -p $(package)/usr/lib
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/bin
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/include
+	@mkdir -p $(package)/usr/lib/pony/$(package_version)/lib
+	@cp build/release/libponyc.a $(package)/usr/lib/pony/$(package_version)/lib
+	@cp build/release/libponyrt.a $(package)/usr/lib/pony/$(package_version)/lib
+	@cp build/release/ponyc $(package)/usr/lib/pony/$(package_version)/bin
+	@cp src/libponyrt/pony.h $(package)/usr/lib/pony/$(package_version)/include
+	@ln -s /usr/lib/pony/$(package_version)/lib/libponyrt.a $(package)/usr/lib/libponyrt.a
+	@ln -s /usr/lib/pony/$(package_version)/lib/libponyc.a $(package)/usr/lib/libponyc.a
+	@ln -s /usr/lib/pony/$(package_version)/bin/ponyc $(package)/usr/bin/ponyc
+	@ln -s /usr/lib/pony/$(package_version)/include/pony.h $(package)/usr/include/pony.h
+	@cp -r packages $(package)/usr/lib/pony/$(package_version)/
+	@build/release/ponyc packages/stdlib -rexpr -g -o $(package)/usr/lib/pony/$(package_version)
+	@fpm -s dir -t deb -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	@fpm -s dir -t rpm -C $(package) -p build/bin --name ponyc --version $(package_version) --description "The Pony Compiler"
+	@git archive release > build/bin/$(archive)
+	@cp -r $(package)/usr/lib/pony/$(package_version)/stdlib-docs stdlib-docs
+	@tar rvf build/bin/$(archive) stdlib-docs
+	@bzip2 build/bin/$(archive)
+	@rm -rf $(package) build/bin/$(archive) stdlib-docs
+
 stats:
 	@echo
 	@echo '------------------------------'
@@ -512,7 +592,6 @@ help:
 	@echo '  [any compiler supported architecture]'
 	@echo
 	@echo 'USE OPTIONS:'
-	@echo '   numa'
 	@echo '   valgrind'
 	@echo
 	@echo 'TARGETS:'
@@ -525,7 +604,7 @@ help:
 	@echo
 	@echo '  all               Build all of the above (default)'
 	@echo '  test              Run test suite'
-	@echo '  install           Install ponyc' 
+	@echo '  install           Install ponyc'
 	@echo '  uninstall         Remove all versions of ponyc'
 	@echo '  stats             Print Pony cloc statistics'
 	@echo '  clean             Delete all build files'

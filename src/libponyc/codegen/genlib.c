@@ -2,8 +2,10 @@
 #include "genopt.h"
 #include "genobj.h"
 #include "genheader.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../type/assemble.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
@@ -150,31 +152,27 @@ static bool generate_actors(compile_t* c, ast_t* program)
 
 static bool link_lib(compile_t* c, const char* file_o)
 {
-  size_t len = strlen(c->filename);
-
 #if defined(PLATFORM_IS_POSIX_BASED)
-  VLA(char, libname, len + 4);
-  memcpy(libname, "lib", 3);
-  memcpy(libname + 3, c->filename, len + 1);
-
-  const char* file_lib = suffix_filename(c->opt->output, libname, ".a");
+  const char* file_lib = suffix_filename(c->opt->output, "lib", c->filename,
+    ".a");
   printf("Archiving %s\n", file_lib);
 
-  len = 32 + strlen(file_lib) + strlen(file_o);
-  VLA(char, cmd, len);
+  size_t len = 32 + strlen(file_lib) + strlen(file_o);
+  char* cmd = (char*)pool_alloc_size(len);
 
   snprintf(cmd, len, "ar -rcs %s %s", file_lib, file_o);
 
   if(system(cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(len, cmd);
     return false;
   }
-#elif defined(PLATFORM_IS_WINDOWS)
-  VLA(char, libname, len + 1);
-  memcpy(libname, c->filename, len + 1);
 
-  const char* file_lib = suffix_filename(c->opt->output, libname, ".lib");
+  pool_free_size(len, cmd);
+#elif defined(PLATFORM_IS_WINDOWS)
+  const char* file_lib = suffix_filename(c->opt->output, "", c->filename,
+    ".lib");
   printf("Archiving %s\n", file_lib);
 
   vcvars_t vcvars;
@@ -185,8 +183,8 @@ static bool link_lib(compile_t* c, const char* file_o)
     return false;
   }
 
-  len = 128 + strlen(file_lib) + strlen(file_o);
-  VLA(char, cmd, len);
+  size_t len = 128 + strlen(file_lib) + strlen(file_o);
+  char* cmd = (char*)pool_alloc_size(len);
 
   snprintf(cmd, len, "cmd /C \"\"%s\" /NOLOGO /OUT:%s %s\"", vcvars.ar,
     file_lib, file_o);
@@ -194,8 +192,11 @@ static bool link_lib(compile_t* c, const char* file_o)
   if(system(cmd) == -1)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(len, cmd);
     return false;
   }
+
+  pool_free_size(len, cmd);
 #endif
 
   return true;
@@ -203,6 +204,8 @@ static bool link_lib(compile_t* c, const char* file_o)
 
 bool genlib(compile_t* c, ast_t* program)
 {
+  genprim_reachable_init(c, program);
+
   if(!reachable_actors(c, program) ||
     !generate_actors(c, program) ||
     !genheader(c)

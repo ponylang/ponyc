@@ -9,7 +9,7 @@ actor Timers
   let _map: MapIs[Timer tag, Timer] = MapIs[Timer tag, Timer]
   let _wheel: Array[_TimingWheel] = Array[_TimingWheel](_wheels())
   let _pending: List[Timer] = List[Timer]
-  var _event: EventID = Event.none()
+  var _event: AsioEventID = AsioEvent.none()
 
   new create(slop: U64 = 20) =>
     """
@@ -43,29 +43,33 @@ actor Timers
     try
       (_, let timer') = _map.remove(timer)
       timer'._cancel()
+
+      if (_map.size() == 0) and (not _event.is_null()) then
+        // Unsubscribe an existing event.
+        @asio_event_unsubscribe[None](_event)
+        _event = AsioEvent.none()
+      end
     end
 
   be dispose() =>
     """
     Dipose of this set of timing wheels.
     """
-    try
-      for wheel in _wheel.values() do
-        wheel.clear()
-      end
-      _map.clear()
+    for wheel in _wheel.values() do
+      wheel.clear()
     end
+    _map.clear()
 
     if not _event.is_null() then
       @asio_event_unsubscribe[None](_event)
-      _event = Event.none()
+      _event = AsioEvent.none()
     end
 
-  be _event_notify(event: EventID, flags: U32, arg: U64) =>
+  be _event_notify(event: AsioEventID, flags: U32, arg: U64) =>
     """
     When the event fires, advance the timing wheels.
     """
-    if Event.disposable(flags) then
+    if AsioEvent.disposable(flags) then
       @asio_event_destroy[None](event)
     elseif event is _event then
       _advance()
@@ -97,7 +101,7 @@ actor Timers
     if _event.is_null() then
       if nsec != -1 then
         // Create a new event.
-        _event = @asio_event_create[Pointer[Event]](this, nsec, U32(4), true)
+        _event = @asio_event_create[AsioEventID](this, nsec, U32(4), true)
       end
     else
       if nsec != -1 then
@@ -106,7 +110,7 @@ actor Timers
       else
         // Unsubscribe an existing event.
         @asio_event_unsubscribe[None](_event)
-        _event = Event.none()
+        _event = AsioEvent.none()
       end
     end
 

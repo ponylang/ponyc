@@ -7,6 +7,7 @@
 #include "../pkg/platformfuns.h"
 #include "../pass/names.h"
 #include "../debug/dwarf.h"
+#include "../type/assemble.h"
 
 static void pointer_create(compile_t* c, gentype_t* g)
 {
@@ -36,9 +37,12 @@ static void pointer_alloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   codegen_startfun(c, fun, false);
 
   LLVMValueRef len = LLVMGetParam(fun, 0);
-  LLVMValueRef total = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_alloc", &total, 1, "");
+  LLVMValueRef args[2];
+  args[0] = codegen_ctx(c);
+  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+
+  LLVMValueRef result = gencall_runtime(c, "pony_alloc", args, 2, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
@@ -61,14 +65,16 @@ static void pointer_realloc(compile_t* c, gentype_t* g, gentype_t* elem_g)
   LLVMValueRef fun = codegen_addfun(c, name, ftype);
   codegen_startfun(c, fun, false);
 
-  LLVMValueRef args[2];
+  LLVMValueRef args[3];
+  args[0] = codegen_ctx(c);
+
   LLVMValueRef ptr = LLVMGetParam(fun, 0);
-  args[0] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
+  args[1] = LLVMBuildBitCast(c->builder, ptr, c->void_ptr, "");
 
   LLVMValueRef len = LLVMGetParam(fun, 1);
-  args[1] = LLVMBuildMul(c->builder, len, l_size, "");
+  args[2] = LLVMBuildMul(c->builder, len, l_size, "");
 
-  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 2, "");
+  LLVMValueRef result = gencall_runtime(c, "pony_realloc", args, 3, "");
   result = LLVMBuildBitCast(c->builder, result, g->use_type, "");
 
   LLVMBuildRet(c->builder, result);
@@ -350,22 +356,26 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
 
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
 
   LLVMBasicBlockRef cond_block = codegen_block(c, "cond");
   LLVMBasicBlockRef body_block = codegen_block(c, "body");
   LLVMBasicBlockRef post_block = codegen_block(c, "post");
 
   // Read the count and the base pointer.
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type, "array");
+  LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->use_type,
+    "array");
   LLVMValueRef count_ptr = LLVMBuildStructGEP(c->builder, object, 1, "");
   LLVMValueRef count = LLVMBuildLoad(c->builder, count_ptr, "count");
   LLVMValueRef pointer_ptr = LLVMBuildStructGEP(c->builder, object, 3, "");
   LLVMValueRef pointer = LLVMBuildLoad(c->builder, pointer_ptr, "pointer");
 
   // Trace the base pointer.
-  LLVMValueRef address = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
-  gencall_runtime(c, "pony_trace", &address, 1, "");
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, pointer, c->void_ptr, "");
+  gencall_runtime(c, "pony_trace", args, 2, "");
   LLVMBuildBr(c->builder, cond_block);
 
   // While the index is less than the count, trace an element. The initial
@@ -382,7 +392,7 @@ void genprim_array_trace(compile_t* c, gentype_t* g)
   LLVMPositionBuilderAtEnd(c->builder, body_block);
   LLVMValueRef elem = LLVMBuildGEP(c->builder, pointer, &phi, 1, "elem");
   elem = LLVMBuildLoad(c->builder, elem, "");
-  gentrace(c, elem, typearg);
+  gentrace(c, ctx, elem, typearg);
 
   // Add one to the phi node and branch back to the cond block.
   LLVMValueRef one = LLVMConstInt(c->i64, 1, false);
@@ -662,4 +672,54 @@ void genprim_builtins(compile_t* c)
   fp_as_bits(c);
   make_cpuid(c);
   make_rdtscp(c);
+}
+
+void genprim_reachable_init(compile_t* c, ast_t* program)
+{
+  // Look for primitives in all packages that have _init or _final methods.
+  // Mark them as reachable.
+  const char* init = stringtab("_init");
+  const char* final = stringtab("_final");
+  ast_t* package = ast_child(program);
+
+  while(package != NULL)
+  {
+    ast_t* module = ast_child(package);
+
+    while(module != NULL)
+    {
+      ast_t* entity = ast_child(module);
+
+      while(entity != NULL)
+      {
+        if(ast_id(entity) == TK_PRIMITIVE)
+        {
+          ast_t* id = ast_child(entity);
+          ast_t* type = type_builtin(c->opt, entity, ast_name(id));
+          ast_t* finit = ast_get(entity, init, NULL);
+          ast_t* ffinal = ast_get(entity, final, NULL);
+
+          if(finit != NULL)
+          {
+            reach(c->reachable, type, init, NULL);
+            ast_free_unattached(finit);
+          }
+
+          if(ffinal != NULL)
+          {
+            reach(c->reachable, type, final, NULL);
+            ast_free_unattached(ffinal);
+          }
+
+          ast_free_unattached(type);
+        }
+
+        entity = ast_sibling(entity);
+      }
+
+      module = ast_sibling(module);
+    }
+
+    package = ast_sibling(package);
+  }
 }

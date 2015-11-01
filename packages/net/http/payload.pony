@@ -1,7 +1,7 @@
 use "collections"
 use "net"
 
-class Payload iso
+class iso Payload
   """
   An HTTP payload. For a response, the method indicates the status text. For a
   request, the status is meaningless.
@@ -13,7 +13,7 @@ class Payload iso
   var url: URL
 
   let _headers: Map[String, String] = _headers.create()
-  let _body: Array[Bytes] = _body.create()
+  let _body: Array[ByteSeq] = _body.create()
   let _response: Bool
 
   new iso request(method': String = "GET", url': URL = URL,
@@ -73,7 +73,7 @@ class Payload iso
     """
     _headers
 
-  fun body(): this->Array[Bytes] =>
+  fun body(): this->Array[ByteSeq] =>
     """
     Get the body.
     """
@@ -85,15 +85,13 @@ class Payload iso
     """
     var len = U64(0)
 
-    try
-      for v in _body.values() do
-        len = len + v.size()
-      end
+    for v in _body.values() do
+      len = len + v.size()
     end
 
     len
 
-  fun ref add_chunk(data: Bytes): Payload ref^ =>
+  fun ref add_chunk(data: ByteSeq): Payload ref^ =>
     """
     Add a chunk to the body.
     """
@@ -138,22 +136,22 @@ class Payload iso
       h(consume this, Payload.response(0))
     end
 
-  fun _write(conn: TCPConnection) =>
+  fun _write(conn: TCPConnection, keepalive: Bool = true) =>
     """
     Writes the payload to a TCP connection.
     """
     if _response then
-      _write_response(conn)
+      _write_response(conn, keepalive)
     else
-      _write_request(conn)
+      _write_request(conn, keepalive)
     end
 
-  fun _write_request(conn: TCPConnection) =>
+  fun _write_request(conn: TCPConnection, keepalive: Bool) =>
     """
     Writes an an HTTP request.
     """
     let len = 15 + (4 * _headers.size()) + (4 * _body.size())
-    var list = recover Array[Bytes](len) end
+    var list = recover Array[ByteSeq](len) end
 
     list.push(method)
     list.push(" ")
@@ -171,7 +169,12 @@ class Payload iso
 
     list.push(" ")
     list.push(proto)
-    list.push("\r\nConnection: keep-alive\r\nHost: ")
+
+    if not keepalive then
+      list.push("\r\nConnection: close")
+    end
+
+    list.push("\r\nHost: ")
     list.push(url.host)
     list.push(":")
     list.push(url.service)
@@ -182,66 +185,61 @@ class Payload iso
 
     conn.writev(consume list)
 
-  fun _write_response(conn: TCPConnection) =>
+  fun _write_response(conn: TCPConnection, keepalive: Bool) =>
     """
     Write as an HTTP response.
     """
     let len = 8 + (4 * _headers.size()) + (4 * _body.size())
-    var list = recover Array[Bytes](len) end
+    var list = recover Array[ByteSeq](len) end
 
     list.push(proto)
     list.push(" ")
     list.push(status.string())
     list.push(" ")
     list.push(method)
-    list.push("\r\nConnection: keep-alive")
+
+    if keepalive then
+      list.push("\r\nConnection: keep-alive")
+    end
 
     list = _add_headers(consume list)
     list = _add_body(consume list)
 
     conn.writev(consume list)
 
-  fun _add_headers(list: Array[Bytes] iso): Array[Bytes] iso^ =>
+  fun _add_headers(list: Array[ByteSeq] iso): Array[ByteSeq] iso^ =>
     """
     Add the headers to the list.
     """
-    try
-      for (k, v) in _headers.pairs() do
-        if
-          (k != "Host") and
-          (k != "Content-Length") and
-          (k != "Transfer-Encoding")
-        then
-          list.push("\r\n")
-          list.push(k)
-          list.push(": ")
-          list.push(v)
-        end
+    for (k, v) in _headers.pairs() do
+      if
+        (k != "Host") and
+        (k != "Content-Length")
+      then
+        list.push("\r\n")
+        list.push(k)
+        list.push(": ")
+        list.push(v)
       end
     end
 
     list
 
-  fun _add_body(list: Array[Bytes] iso): Array[Bytes] iso^ =>
+  fun _add_body(list: Array[ByteSeq] iso): Array[ByteSeq] iso^ =>
     """
     Add the body to the list.
     TODO: don't include the body for HEAD, 204, 304 or 1xx
     """
-    try
-      if _body.size() > 0 then
-        list.push("\r\nTransfer-Encoding: chunked\r\n\r\n")
+    if _body.size() > 0 then
+      list.push("\r\nContent-Length: ")
+      list.push(body_size().string())
+      list.push("\r\n\r\n")
 
-        for v in _body.values() do
-          list.push(v.size().string(IntHexSmallBare))
-          list.push("\r\n")
-          list.push(v)
-          list.push("\r\n")
-        end
-
-        list.push("0\r\n\r\n")
-      else
-        list.push("\r\nContent-Length: 0\r\n\r\n")
+      for v in _body.values() do
+        list.push(v)
       end
+    else
+      list.push("\r\nContent-Length: 0\r\n\r\n")
     end
 
     list

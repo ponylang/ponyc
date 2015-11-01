@@ -5,6 +5,7 @@
 #include "../type/subtype.h"
 #include "../type/reify.h"
 #include "../ast/printbuf.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -97,7 +98,8 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
     // Smash trailing primes to underscores.
     const char* name = ast_name(id);
     size_t len = strlen(name) + 1;
-    VLA(char, buffer, len);
+    size_t buf_size = len;
+    char* buffer = (char*)pool_alloc_size(buf_size);
     memcpy(buffer, name, len);
 
     len--;
@@ -108,6 +110,7 @@ static void print_params(compile_t* c, printbuf_t* buf, ast_t* params)
     printbuf(buf, " %s", buffer);
 
     param = ast_sibling(param);
+    pool_free_size(buf_size, buffer);
   }
 }
 
@@ -261,7 +264,7 @@ static void print_types(compile_t* c, FILE* fp, printbuf_t* buf)
 bool genheader(compile_t* c)
 {
   // Open a header file.
-  const char* file_h = suffix_filename(c->opt->output, c->filename, ".h");
+  const char* file_h = suffix_filename(c->opt->output, "", c->filename, ".h");
   FILE* fp = fopen(file_h, "wt");
 
   if(fp == NULL)

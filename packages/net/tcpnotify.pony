@@ -8,7 +8,7 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref connecting(conn: TCPConnection ref, count: U64) =>
+  fun ref connecting(conn: TCPConnection ref, count: U32) =>
     """
     Called if name resolution succeeded for a TCPConnection and we are now
     waiting for a connection to the server to succeed. The count is the number
@@ -38,7 +38,7 @@ interface TCPConnectionNotify
     """
     None
 
-  fun ref sent(conn: TCPConnection ref, data: Bytes): Bytes ? =>
+  fun ref sent(conn: TCPConnection ref, data: ByteSeq): ByteSeq ? =>
     """
     Called when data is sent on the connection. This gives the notifier an
     opportunity to modify sent data before it is written. The notifier can

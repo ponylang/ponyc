@@ -8,6 +8,7 @@
 #include "genreference.h"
 #include "gencall.h"
 #include "../type/subtype.h"
+#include "../../libponyrt/mem/pool.h"
 #include <assert.h>
 
 LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
@@ -16,9 +17,14 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
   bool has_scope = ast_has_scope(ast);
   bool has_source = codegen_hassource(c);
 
-  // Dwarf a new lexical scope, if necessary.
-  if(has_source && has_scope)
-    dwarf_lexicalscope(&c->dwarf, ast);
+  if(has_scope)
+  {
+    codegen_pushscope(c);
+
+    // Dwarf a new lexical scope, if necessary.
+    if(has_source)
+      dwarf_lexicalscope(&c->dwarf, ast);
+  }
 
   switch(ast_id(ast))
   {
@@ -28,6 +34,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
 
     case TK_FVARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
       ret = gen_fieldload(c, ast);
       break;
 
@@ -138,7 +145,7 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       ret = gen_ffi(c, ast);
       break;
 
-    case TK_AMP:
+    case TK_ADDRESS:
       ret = gen_addressof(c, ast);
       break;
 
@@ -161,8 +168,13 @@ LLVMValueRef gen_expr(compile_t* c, ast_t* ast)
       return NULL;
   }
 
-  if(has_scope && has_source)
-    dwarf_finish(&c->dwarf);
+  if(has_scope)
+  {
+    codegen_popscope(c);
+
+    if(has_source)
+      dwarf_finish(&c->dwarf);
+  }
 
   return ret;
 }
@@ -174,7 +186,8 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
   assert(ast_id(type) == TK_TUPLETYPE);
 
   int count = LLVMCountStructElementTypes(l_type);
-  VLA(LLVMTypeRef, elements, count);
+  size_t buf_size = count * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
   LLVMGetStructElementTypes(l_type, elements);
 
   LLVMValueRef result = LLVMGetUndef(l_type);
@@ -189,13 +202,17 @@ static LLVMValueRef assign_to_tuple(compile_t* c, LLVMTypeRef l_type,
       type_child);
 
     if(cast_value == NULL)
+    {
+      pool_free_size(buf_size, elements);
       return NULL;
+    }
 
     result = LLVMBuildInsertValue(c->builder, result, cast_value, i, "");
     type_child = ast_sibling(type_child);
     i++;
   }
 
+  pool_free_size(buf_size, elements);
   return result;
 }
 

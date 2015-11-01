@@ -9,6 +9,7 @@
 #include "../type/alias.h"
 #include "../type/assemble.h"
 #include "../type/reify.h"
+#include "../type/sanitise.h"
 #include "../type/subtype.h"
 #include "../type/viewpoint.h"
 #include <assert.h>
@@ -50,6 +51,7 @@ static bool is_this_incomplete(typecheck_t* t, ast_t* ast)
     {
       case TK_FLET:
       case TK_FVAR:
+      case TK_EMBED:
       {
         sym_status_t status;
         ast_t* id = ast_child(member);
@@ -195,17 +197,8 @@ static bool apply_default_arg(pass_opt_t* opt, ast_t* param, ast_t* arg)
   ast_setid(arg, TK_SEQ);
   ast_add(arg, def_arg);
 
-  // Type check the arg.
-  if(ast_type(def_arg) == NULL)
-  {
-    if(ast_visit(&arg, NULL, pass_expr, opt) != AST_OK)
-      return false;
-
-    ast_visit(&arg, NULL, pass_nodebug, opt);
-  } else {
-    if(!expr_seq(arg))
-      return false;
-  }
+  if(!expr_seq(opt, arg))
+    return false;
 
   return true;
 }
@@ -241,20 +234,23 @@ static bool check_arg_types(pass_opt_t* opt, ast_t* params, ast_t* positional,
 
     ast_t* arg_type = ast_type(arg);
 
+    if(is_typecheck_error(arg_type))
+      return false;
+
     if(is_control_type(arg_type))
     {
       ast_error(arg, "can't use a control expression in an argument");
       return false;
     }
 
-    if(is_typecheck_error(arg_type))
-      return false;
-
     ast_t* a_type = alias(arg_type);
 
     if(incomplete)
     {
-      ast_t* expr = ast_child(arg);
+      ast_t* expr = arg;
+
+      if(ast_id(arg) == TK_SEQ)
+        expr = ast_child(arg);
 
       // If 'this' is incomplete and the arg is 'this', change the type to tag.
       if((ast_id(expr) == TK_THIS) && (ast_sibling(expr) == NULL))
@@ -416,7 +412,6 @@ static bool check_receiver_cap(ast_t* ast, bool incomplete)
 
 static bool method_application(pass_opt_t* opt, ast_t* ast, bool partial)
 {
-  // TODO: use args to decide unbound type parameters
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);
 
   if(!check_type_params(&lhs))
@@ -545,12 +540,14 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
 
   // LHS must be a TK_TILDE, possibly contained in a TK_QUALIFY.
   AST_GET_CHILDREN(lhs, receiver, method);
+  ast_t* qualify = NULL;
 
   switch(ast_id(receiver))
   {
     case TK_NEWAPP:
     case TK_BEAPP:
     case TK_FUNAPP:
+      qualify = method;
       AST_GET_CHILDREN_NO_DECL(receiver, receiver, method);
       break;
 
@@ -600,7 +597,7 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       ID("apply")
       NONE
       NODE(TK_PARAMS)
-      TREE(result)
+      TREE(sanitise_type(result))
       NODE(can_error)
       NODE(TK_SEQ)
       NONE));
@@ -628,10 +625,14 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_t* r_type = ast_type(receiver);
 
   if(is_typecheck_error(r_type))
+    // TODO: well that's a memory leak then, r_id etc
     return false;
 
+  r_type = sanitise_type(r_type);
+
   // A field in the type.
-  BUILD(r_field, receiver, NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE));
+  BUILD(r_field, receiver,
+    NODE(TK_FLET, TREE(r_field_id) TREE(r_type) NONE NONE));
 
   // A parameter of the constructor.
   BUILD(r_ctor_param, receiver, NODE(TK_PARAM, TREE(r_id) TREE(r_type) NONE));
@@ -652,12 +653,28 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_append(create_body, r_assign);
   ast_append(call_namedargs, r_call_arg);
 
+  // Qualify the method call if necessary.
+  BUILD(apply_method, ast,
+    NODE(TK_DOT,
+      NODE(TK_REFERENCE, TREE(r_field_id))
+      TREE_CLEAR_PASS(method)));
+
+  if(qualify != NULL)
+  {
+    BUILD(apply_qualified, ast,
+      NODE(TK_QUALIFY)
+      TREE(apply_method)
+      TREE(qualify));
+
+    apply_method = apply_qualified;
+  }
+
   // Add a call to the original method to the apply body.
   BUILD(apply_call, ast,
     NODE(TK_CALL,
       NODE(TK_POSITIONALARGS)
       NONE
-      NODE(TK_DOT, NODE(TK_REFERENCE, TREE(r_field_id)) TREE(method))));
+      TREE(apply_method)));
 
   ast_append(apply_body, apply_call);
   ast_t* apply_args = ast_child(apply_call);
@@ -669,26 +686,28 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   while(arg != NULL)
   {
     AST_GET_CHILDREN(param, id, p_type);
+    const char* name = ast_name(id);
 
     if(ast_id(arg) == TK_NONE)
     {
       // A parameter of the apply method, using the same name, type and default
       // argument.
-      ast_append(apply_params, param);
+      ast_append(apply_params, sanitise_type(param));
 
       // An arg in the call to the original method.
       BUILD(apply_arg, param,
         NODE(TK_SEQ,
           NODE(TK_CONSUME,
             NODE(TK_NONE)
-            NODE(TK_REFERENCE, TREE(id)))));
+            NODE(TK_REFERENCE, ID(name)))));
 
       ast_append(apply_args, apply_arg);
     } else {
       ast_t* p_id = ast_from_string(id, package_hygienic_id(t));
+      p_type = sanitise_type(p_type);
 
       // A field in the type.
-      BUILD(field, arg, NODE(TK_FLET, TREE(id) TREE(p_type) NONE));
+      BUILD(field, arg, NODE(TK_FLET, ID(name) TREE(p_type) NONE NONE));
 
       // A parameter of the constructor.
       BUILD(ctor_param, arg, NODE(TK_PARAM, TREE(p_id) TREE(p_type) NONE));
@@ -697,13 +716,13 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
       BUILD(assign, arg,
         NODE(TK_ASSIGN,
           NODE(TK_CONSUME, NODE(TK_NONE) NODE(TK_REFERENCE, TREE(p_id)))
-          NODE(TK_REFERENCE, TREE(id))));
+          NODE(TK_REFERENCE, ID(name))));
 
       // A named argument at the call site.
       BUILD(call_arg, arg, NODE(TK_NAMEDARG, TREE(p_id) TREE(arg)));
 
       // An arg in the call to the original method.
-      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, TREE(id))));
+      BUILD(apply_arg, arg, NODE(TK_SEQ, NODE(TK_REFERENCE, ID(name))));
 
       ast_append(class_members, field);
       ast_append(create_params, ctor_param);
@@ -721,9 +740,9 @@ static bool partial_application(pass_opt_t* opt, ast_t** astp)
   ast_append(class_members, apply);
 
   // Typecheck the anonymous type.
-  ast_add(t->frame->module, def);
+  ast_append(t->frame->module, def);
 
-  if(!type_passes(def, opt))
+  if(!ast_passes_type(&def, opt))
     return false;
 
   // Typecheck the create call.
@@ -748,8 +767,11 @@ bool expr_call(pass_opt_t* opt, ast_t** astp)
   if(!literal_call(ast, opt))
     return false;
 
-  // Type already set by literal handler
-  if(ast_type(ast) != NULL)
+  // Type already set by literal handler. Check for infertype, which is a
+  // marker for typechecking default arguments.
+  ast_t* type = ast_type(ast);
+
+  if((type != NULL) && (ast_id(type) != TK_INFERTYPE))
     return true;
 
   AST_GET_CHILDREN(ast, positional, namedargs, lhs);

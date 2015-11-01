@@ -1,4 +1,4 @@
-class IPAddress val
+class val IPAddress
   """
   Represents an IPv4 or IPv6 address. The family field indicates the address
   type. The addr field is either the IPv4 address or the IPv6 flow info. The
@@ -33,9 +33,13 @@ class IPAddress val
     """
     Return the host and service name.
     """
-    let host: Pointer[U8] iso = recover Pointer[U8] end
-    let serv: Pointer[U8] iso = recover Pointer[U8] end
-    @os_nameinfo[None](this, &host, &serv, reversedns, servicename) ?
+    var host: Pointer[U8] iso = recover Pointer[U8] end
+    var serv: Pointer[U8] iso = recover Pointer[U8] end
 
-    (recover String.from_cstring(consume host, 0, false) end,
-      recover String.from_cstring(consume serv, 0, false) end)
+    if not @os_nameinfo[Bool](this, addressof host, addressof serv, reversedns,
+      servicename) then
+      error
+    end
+
+    (recover String.from_cstring(consume host) end,
+      recover String.from_cstring(consume serv) end)

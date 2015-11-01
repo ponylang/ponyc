@@ -64,7 +64,7 @@ typedef enum token_id
   TK_NE,
 
   TK_PIPE,
-  TK_AMP,
+  TK_ISECTTYPE,
   TK_EPHEMERAL,
   TK_BORROWED,
 
@@ -89,13 +89,16 @@ typedef enum token_id
   TK_CLASS,
   TK_ACTOR,
   TK_OBJECT,
+  TK_LAMBDA,
 
+  TK_DELEGATE,
   TK_AS,
   TK_IS,
   TK_ISNT,
 
   TK_VAR,
   TK_LET,
+  TK_EMBED,
   TK_NEW,
   TK_FUN,
   TK_BE,
@@ -106,6 +109,23 @@ typedef enum token_id
   TK_VAL,
   TK_BOX,
   TK_TAG,
+
+  TK_CAP_READ,
+  TK_CAP_SEND,
+  TK_CAP_SHARE,
+  TK_CAP_ANY,
+
+  TK_ISO_BIND,
+  TK_TRN_BIND,
+  TK_REF_BIND,
+  TK_VAL_BIND,
+  TK_BOX_BIND,
+  TK_TAG_BIND,
+
+  TK_CAP_READ_BIND,
+  TK_CAP_SEND_BIND,
+  TK_CAP_SHARE_BIND,
+  TK_CAP_ANY_BIND,
 
   TK_THIS,
   TK_RETURN,
@@ -137,6 +157,9 @@ typedef enum token_id
   TK_OR,
   TK_XOR,
 
+  TK_IDENTITY,
+  TK_ADDRESS,
+
   // Abstract tokens which don't directly appear in the source
   TK_PROGRAM,
   TK_PACKAGE,
@@ -148,26 +171,15 @@ typedef enum token_id
   TK_FFIDECL,
   TK_FFICALL,
 
-  TK_TYPES,
+  TK_PROVIDES,
   TK_UNIONTYPE,
-  TK_ISECTTYPE,
   TK_TUPLETYPE,
   TK_NOMINAL,
   TK_THISTYPE,
   TK_BOXTYPE,
   TK_FUNTYPE,
   TK_INFERTYPE,
-
-  TK_ISO_BIND,
-  TK_TRN_BIND,
-  TK_REF_BIND,
-  TK_VAL_BIND,
-  TK_BOX_BIND,
-  TK_TAG_BIND,
-  TK_ANY_BIND,
-  TK_BOX_GENERIC,
-  TK_TAG_GENERIC,
-  TK_ANY_GENERIC,
+  TK_ERRORTYPE,
 
   TK_LITERAL, // A literal expression whose type is not yet inferred
   TK_LITERALBRANCH, // Literal branch of a control structure
@@ -182,6 +194,8 @@ typedef enum token_id
   TK_NAMEDARGS,
   TK_NAMEDARG,
   TK_UPDATEARG,
+  TK_LAMBDACAPTURES,
+  TK_LAMBDACAPTURE,
 
   TK_SEQ,
   TK_QUALIFY,
@@ -190,7 +204,6 @@ typedef enum token_id
   TK_ARRAY,
   TK_CASES,
   TK_CASE,
-  TK_IDENTITY,
 
   TK_REFERENCE,
   TK_PACKAGEREF,
@@ -202,6 +215,7 @@ typedef enum token_id
   TK_FUNREF,
   TK_FVARREF,
   TK_FLETREF,
+  TK_EMBEDREF,
   TK_VARREF,
   TK_LETREF,
   TK_PARAMREF,
@@ -211,6 +225,7 @@ typedef enum token_id
 
   // Pseudo tokens that never actually exist
   TK_NEWLINE,  // Used by parser macros
+  TK_FLATTEN,  // Used by parser macros for tree building
 
   // Token types for testing
   TK_TEST,
@@ -225,7 +240,7 @@ typedef enum token_id
 /** Create a new token.
   * The created token must be freed later with token_free().
   */
-token_t* token_new(token_id id, source_t* source);
+token_t* token_new(token_id id);
 
 /** Create a duplicate of the given token.
   * The duplicate must be freed later with token_free().
@@ -256,6 +271,11 @@ token_id token_get_id(token_t* token);
   */
 const char* token_string(token_t* token);
 
+/** Report the given token's literal string length.
+  * Only valid for TK_STRING and TK_ID tokens.
+  */
+size_t token_string_len(token_t* token);
+
 /// Report the given token's literal value. Only valid for TK_FLOAT tokens.
 double token_float(token_t* token);
 
@@ -282,9 +302,6 @@ size_t token_line_number(token_t* token);
 /// Report the position within the line that the given token was found at
 size_t token_line_position(token_t* token);
 
-/// Report whether the given token is the first on a line
-bool token_is_first_on_line(token_t* token);
-
 /// Report whether debug info should be genreated.
 bool token_debug(token_t* token);
 
@@ -300,8 +317,10 @@ void token_set_id(token_t* token, token_id id);
   * Only valid for TK_STRING and TK_ID tokens.
   * The given string will be interned and hence only needs to be valid for the
   * duration of this call.
+  * If the given string is nul terminated then 0 may be passed for length, in
+  * which case strlen will be called on the string.
   */
-void token_set_string(token_t* token, const char* value);
+void token_set_string(token_t* token, const char* value, size_t length);
 
 /// Set the given token's literal value. Only valid for TK_FLOAT tokens.
 void token_set_float(token_t* token, double value);
@@ -309,14 +328,13 @@ void token_set_float(token_t* token, double value);
 /// Set the given token's literal value. Only valid for TK_INT tokens.
 void token_set_int(token_t* token, __uint128_t value);
 
-/// Set the given token's position within its source file
-void token_set_pos(token_t* token, size_t line, size_t pos);
+/// Set the given token's position within its source file and optionally the
+/// source file.
+/// Set source to NULL to keep current file.
+void token_set_pos(token_t* token, source_t* source, size_t line, size_t pos);
 
 /// Set whether debug info should be generated.
 void token_set_debug(token_t* token, bool state);
-
-/// Set that the given token is the first on a line
-void token_set_first_on_line(token_t* token);
 
 #if defined(PLATFORM_IS_POSIX_BASED) && defined(__cplusplus)
 }

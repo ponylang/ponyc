@@ -10,7 +10,7 @@ class Regex
   var _pattern: Pointer[_Pattern]
   let _jit: Bool
 
-  new create(from: Bytes box, jit: Bool = true) ? =>
+  new create(from: ByteSeq box, jit: Bool = true) ? =>
     """
     Compile a regular expression. Raises an error for an invalid expression.
     """
@@ -19,7 +19,7 @@ class Regex
     var erroffset: U64 = 0
 
     _pattern = @pcre2_compile_8[Pointer[_Pattern]](from.cstring(), from.size(),
-      opt, &err, &erroffset, Pointer[U8])
+      opt, addressof err, addressof erroffset, Pointer[U8])
 
     if _pattern.is_null() then
       error
@@ -27,7 +27,7 @@ class Regex
 
     _jit = jit and (@pcre2_jit_compile_8[I32](_pattern, U32(1)) == 0)
 
-  fun eq(subject: Bytes box): Bool =>
+  fun eq(subject: ByteSeq box): Bool =>
     """
     Return true on a successful match, false otherwise.
     """
@@ -49,13 +49,13 @@ class Regex
     @pcre2_match_data_free_8[None](m)
     rc > 0
 
-  fun ne(subject: Bytes box): Bool =>
+  fun ne(subject: ByteSeq box): Bool =>
     """
     Return false on a successful match, true otherwise.
     """
     not eq(subject)
 
-  fun apply(subject: Bytes, offset: U64 = 0): Match iso^ ? =>
+  fun apply(subject: ByteSeq, offset: U64 = 0): Match iso^ ? =>
     """
     Match the supplied string, starting at the given offset. Returns a Match
     object that can give precise match details. Raises an error if there is no
@@ -69,8 +69,8 @@ class Regex
 
     Match._create(_pattern, _jit, subject, offset)
 
-  fun replace[A: (Seq[U8] iso & Bytes iso) = String iso](subject: Bytes,
-    value: Bytes box, offset: U64 = 0, global: Bool = false): A^ ?
+  fun replace[A: (Seq[U8] iso & ByteSeq iso) = String iso](subject: ByteSeq,
+    value: ByteSeq box, offset: U64 = 0, global: Bool = false): A^ ?
   =>
     """
     Perform a match on the subject, starting at the given offset, and create
@@ -91,7 +91,8 @@ class Regex
     repeat
       rc = @pcre2_substitute_8[I32](_pattern,
         subject.cstring(), subject.size(), offset, opt, Pointer[U8],
-        Pointer[U8], value.cstring(), value.size(), out.cstring(), &len)
+        Pointer[U8], value.cstring(), value.size(), out.cstring(),
+        addressof len)
 
       if rc == -48 then
         len = len * 2

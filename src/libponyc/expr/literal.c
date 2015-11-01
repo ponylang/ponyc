@@ -421,6 +421,9 @@ static int uifset(pass_opt_t* opt, ast_t* type, lit_chain_t* chain)
 
       return uifset_simple_type(opt, type);
 
+    case TK_DONTCARE:
+      return UIF_NO_TYPES;
+
     default:
       ast_error(type, "Internal error: uif type, node %d", ast_id(type));
       assert(0);
@@ -590,7 +593,15 @@ static bool coerce_group(ast_t** astp, ast_t* target_type, lit_chain_t* chain,
   chain_add(chain, &link, cardinality);
 
   // Process each group element separately
-  for(ast_t* p = ast_child(literal_expr); p != NULL; p = ast_sibling(p))
+  ast_t* p = ast_child(literal_expr);
+
+  if(ast_id(literal_expr) == TK_ARRAY)
+  {
+    // The first child of an array AST is the forced type, skip it
+    p = ast_sibling(p);
+  }
+
+  for(; p != NULL; p = ast_sibling(p))
   {
     ast_t* p_type = ast_type(p);
 

@@ -4,18 +4,39 @@
 #include "viewpoint.h"
 #include "subtype.h"
 #include "../ast/token.h"
+#include "../pass/pass.h"
+#include "../pass/expr.h"
 #include <string.h>
 #include <assert.h>
 
-static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
+static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors);
 
-static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
+static ast_t* lookup_nominal(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
 {
   assert(ast_id(type) == TK_NOMINAL);
+  typecheck_t* t = &opt->check;
+
   ast_t* def = (ast_t*)ast_data(type);
-  ast_t* type_name = ast_child(def);
+  AST_GET_CHILDREN(def, type_id, typeparams);
+  const char* type_name = ast_name(type_id);
+
+  if((type_name[0] == '_') && (from != NULL) && (opt != NULL))
+  {
+    if(ast_nearest(def, TK_PACKAGE) != t->frame->package)
+    {
+      if(errors)
+      {
+        ast_error(from,
+          "can't lookup fields or methods on private types from other packages"
+          );
+      }
+
+      return NULL;
+    }
+  }
+
   ast_t* find = ast_get(def, name, NULL);
 
   if(find != NULL)
@@ -24,10 +45,36 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
+        break;
+
       case TK_NEW:
       case TK_BE:
       case TK_FUN:
+      {
+        // Typecheck default args immediately.
+        AST_GET_CHILDREN(find, cap, id, typeparams, params);
+        ast_t* param = ast_child(params);
+
+        while(param != NULL)
+        {
+          AST_GET_CHILDREN(param, name, type, def_arg);
+
+          if((ast_id(def_arg) != TK_NONE) && (ast_type(def_arg) == NULL))
+          {
+            ast_settype(def_arg, ast_from(def_arg, TK_INFERTYPE));
+
+            if(ast_visit_scope(&def_arg, NULL, pass_expr, opt,
+              PASS_EXPR) != AST_OK)
+              return false;
+
+            ast_visit_scope(&def_arg, NULL, pass_nodebug, opt, PASS_ALL);
+          }
+
+          param = ast_sibling(param);
+        }
         break;
+      }
 
       default:
         find = NULL;
@@ -37,17 +84,18 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   if(find == NULL)
   {
     if(errors)
-      ast_error(from, "couldn't find '%s' in '%s'", name, ast_name(type_name));
+      ast_error(from, "couldn't find '%s' in '%s'", name, type_name);
 
     return NULL;
   }
 
-  if((name[0] == '_') && (from != NULL) && (t != NULL))
+  if((name[0] == '_') && (from != NULL) && (opt != NULL))
   {
     switch(ast_id(find))
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         if(t->frame->type != def)
         {
           if(errors)
@@ -99,7 +147,6 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
     }
   }
 
-  ast_t* typeparams = ast_sibling(type_name);
   ast_t* typeargs = ast_childidx(type, 2);
 
   find = ast_dup(find);
@@ -127,7 +174,7 @@ static ast_t* lookup_nominal(typecheck_t* t, ast_t* from, ast_t* orig,
   return find;
 }
 
-static ast_t* lookup_typeparam(typecheck_t* t, ast_t* from, ast_t* orig,
+static ast_t* lookup_typeparam(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
 {
   ast_t* def = (ast_t*)ast_data(type);
@@ -147,36 +194,149 @@ static ast_t* lookup_typeparam(typecheck_t* t, ast_t* from, ast_t* orig,
   }
 
   // Lookup on the constraint instead.
-  return lookup_base(t, from, orig, constraint, name, errors);
+  return lookup_base(opt, from, orig, constraint, name, errors);
 }
 
-static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
+static ast_t* lookup_base(pass_opt_t* opt, ast_t* from, ast_t* orig,
   ast_t* type, const char* name, bool errors)
 {
   switch(ast_id(type))
   {
     case TK_UNIONTYPE:
-      if(errors)
-        ast_error(from, "can't lookup by name on a union type");
-
-      return NULL;
-
-    case TK_ISECTTYPE:
     {
       ast_t* child = ast_child(type);
+      ast_t* result = NULL;
+      bool ok = true;
 
       while(child != NULL)
       {
-        ast_t* result = lookup_base(t, from, orig, child, name, false);
+        ast_t* r = lookup_base(opt, from, orig, child, name, errors);
 
-        if(result != NULL)
-          return result;
+        if(r == NULL)
+        {
+          // All possible types in the union must have this.
+          if(errors)
+          {
+            ast_error(from, "couldn't find %s in %s",
+              name, ast_print_type(child));
+          }
+
+          ok = false;
+        } else {
+          switch(ast_id(r))
+          {
+            case TK_FVAR:
+            case TK_FLET:
+            case TK_EMBED:
+              if(errors)
+              {
+                ast_error(from,
+                  "can't lookup field %s in %s in a union type",
+                  name, ast_print_type(child));
+              }
+
+              ok = false;
+              break;
+
+            default:
+              if(result == NULL)
+              {
+                // If we don't have a result yet, use this one.
+                result = r;
+              } else if(!is_subtype(r, result)) {
+                if(is_subtype(result, r))
+                {
+                  // Use the supertype function. Require the most specific
+                  // arguments and return the least specific result.
+                  // TODO: union the signatures, to handle arg names and
+                  // default arguments.
+                  ast_free_unattached(result);
+                  result = r;
+                } else {
+                  if(errors)
+                  {
+                    ast_error(from,
+                      "a member of the union type has an incompatible method "
+                      "signature");
+                    ast_error(result, "first implementation is here");
+                    ast_error(r, "second implementation is here");
+                  }
+
+                  ast_free_unattached(r);
+                  ok = false;
+                }
+              }
+              break;
+          }
+        }
 
         child = ast_sibling(child);
       }
 
-      ast_error(from, "couldn't find '%s'", name);
-      return NULL;
+      if(!ok)
+      {
+        ast_free_unattached(result);
+        result = NULL;
+      }
+
+      return result;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+      ast_t* result = NULL;
+      bool ok = true;
+
+      while(child != NULL)
+      {
+        ast_t* r = lookup_base(opt, from, orig, child, name, false);
+
+        if(r != NULL)
+        {
+          switch(ast_id(r))
+          {
+            case TK_FVAR:
+            case TK_FLET:
+            case TK_EMBED:
+              // Ignore fields.
+              break;
+
+            default:
+              if(result == NULL)
+              {
+                // If we don't have a result yet, use this one.
+                result = r;
+              } else if(!is_subtype(result, r)) {
+                if(is_subtype(r, result))
+                {
+                  // Use the subtype function. Require the least specific
+                  // arguments and return the most specific result.
+                  ast_free_unattached(result);
+                  result = r;
+                }
+
+                // TODO: isect the signatures, to handle arg names and
+                // default arguments. This is done even when the functions have
+                // no subtype relationship.
+              }
+              break;
+          }
+        }
+
+        child = ast_sibling(child);
+      }
+
+      if(errors && (result == NULL))
+        ast_error(from, "couldn't find '%s'", name);
+
+      if(!ok)
+      {
+        ast_free_unattached(result);
+        result = NULL;
+      }
+
+      return result;
     }
 
     case TK_TUPLETYPE:
@@ -186,13 +346,13 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
       return NULL;
 
     case TK_NOMINAL:
-      return lookup_nominal(t, from, orig, type, name, errors);
+      return lookup_nominal(opt, from, orig, type, name, errors);
 
     case TK_ARROW:
-      return lookup_base(t, from, orig, ast_childidx(type, 1), name, errors);
+      return lookup_base(opt, from, orig, ast_childidx(type, 1), name, errors);
 
     case TK_TYPEPARAMREF:
-      return lookup_typeparam(t, from, orig, type, name, errors);
+      return lookup_typeparam(opt, from, orig, type, name, errors);
 
     case TK_FUNTYPE:
       if(errors)
@@ -201,6 +361,7 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
       return NULL;
 
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       // Can only happen due to a local inference fail earlier
       return NULL;
 
@@ -211,12 +372,12 @@ static ast_t* lookup_base(typecheck_t* t, ast_t* from, ast_t* orig,
   return NULL;
 }
 
-ast_t* lookup(typecheck_t* t, ast_t* from, ast_t* type, const char* name)
+ast_t* lookup(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name)
 {
-  return lookup_base(t, from, type, type, name, true);
+  return lookup_base(opt, from, type, type, name, true);
 }
 
-ast_t* lookup_try(typecheck_t* t, ast_t* from, ast_t* type, const char* name)
+ast_t* lookup_try(pass_opt_t* opt, ast_t* from, ast_t* type, const char* name)
 {
-  return lookup_base(t, from, type, type, name, false);
+  return lookup_base(opt, from, type, type, name, false);
 }

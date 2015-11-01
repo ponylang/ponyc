@@ -78,6 +78,7 @@ MEMBERS: {FVAR | FLET | method}
 
 FVAR: ID [type] [infix]
 FLET: ID [type] [infix]
+EMBED: ID [type] [infix]
 
 method
 ------
@@ -291,6 +292,7 @@ typedef struct ast_t ast_t;
 typedef enum
 {
   AST_OK,
+  AST_IGNORE,
   AST_ERROR,
   AST_FATAL
 } ast_result_t;
@@ -299,8 +301,25 @@ typedef enum
 {
   AST_STATE_INITIAL = 0,
   AST_STATE_INPROGRESS,
-  AST_STATE_DONE
+  AST_STATE_DONE,
+  AST_STATE_ERROR
 } ast_state_t;
+
+
+enum
+{
+  AST_FLAG_PASS_MASK    = 0x0F,
+  AST_FLAG_CAN_ERROR    = 0x10,
+  AST_FLAG_CAN_SEND     = 0x20,
+  AST_FLAG_MIGHT_SEND   = 0x40,
+  AST_FLAG_IN_PROGRESS  = 0x80,
+  AST_FLAG_IN_PARENS    = 0x100,
+  AST_FLAG_TEST_ONLY    = 0x200,
+  AST_FLAG_BAD_SEMI     = 0x400,
+  AST_FLAG_MISSING_SEMI = 0x800,
+  AST_FLAG_PRESERVE     = 0x1000  // Do not process
+};
+
 
 ast_t* ast_new(token_t* t, token_id id);
 ast_t* ast_blank(token_id id);
@@ -312,8 +331,8 @@ ast_t* ast_dup(ast_t* ast);
 void ast_scope(ast_t* ast);
 bool ast_has_scope(ast_t* ast);
 symtab_t* ast_get_symtab(ast_t* ast);
-void ast_setid(ast_t* ast, token_id id);
-void ast_setpos(ast_t* ast, size_t line, size_t pos);
+ast_t* ast_setid(ast_t* ast, token_id id);
+void ast_setpos(ast_t* ast, source_t* source, size_t line, size_t pos);
 void ast_setdebug(ast_t* ast, bool state);
 
 token_id ast_id(ast_t* ast);
@@ -321,7 +340,6 @@ size_t ast_line(ast_t* ast);
 size_t ast_pos(ast_t* ast);
 bool ast_debug(ast_t* ast);
 source_t* ast_source(ast_t* ast);
-bool ast_is_first_on_line(ast_t* ast);
 
 void* ast_data(ast_t* ast);
 void ast_setdata(ast_t* ast, void* data);
@@ -336,9 +354,14 @@ bool ast_inprogress(ast_t* ast);
 void ast_setinprogress(ast_t* ast);
 void ast_clearinprogress(ast_t* ast);
 void ast_inheritflags(ast_t* ast);
+int ast_checkflag(ast_t* ast, uint32_t flag);
+void ast_setflag(ast_t* ast, uint32_t flag);
+void ast_clearflag(ast_t* ast, uint32_t flag);
+void ast_resetpass(ast_t* ast);
 
 const char* ast_get_print(ast_t* ast);
 const char* ast_name(ast_t* ast);
+size_t ast_name_len(ast_t* ast);
 void ast_set_name(ast_t* ast, const char* name);
 double ast_float(ast_t* ast);
 __uint128_t ast_int(ast_t* ast);
@@ -365,6 +388,7 @@ void ast_setstatus(ast_t* ast, const char* name, sym_status_t status);
 void ast_inheritstatus(ast_t* dst, ast_t* src);
 void ast_inheritbranch(ast_t* dst, ast_t* src);
 void ast_consolidate_branches(ast_t* ast, size_t count);
+bool ast_canmerge(ast_t* dst, ast_t* src);
 bool ast_merge(ast_t* dst, ast_t* src);
 bool ast_within_scope(ast_t* outer, ast_t* inner, const char* name);
 bool ast_all_consumes_in_scope(ast_t* outer, ast_t* inner);
@@ -375,10 +399,12 @@ ast_t* ast_add(ast_t* parent, ast_t* child);
 ast_t* ast_add_sibling(ast_t* older_sibling, ast_t* new_sibling);
 ast_t* ast_pop(ast_t* ast);
 ast_t* ast_append(ast_t* parent, ast_t* child);
+ast_t* ast_list_append(ast_t* parent, ast_t** last_pointer, ast_t* new_child);
 void ast_remove(ast_t* ast);
 void ast_swap(ast_t* prev, ast_t* next);
 void ast_replace(ast_t** prev, ast_t* next);
-void ast_reorder_children(ast_t* ast, const size_t* new_order);
+void ast_reorder_children(ast_t* ast, const size_t* new_order,
+  ast_t** shuffle_space);
 void ast_free(ast_t* ast);
 void ast_free_unattached(ast_t* ast);
 
@@ -388,12 +414,6 @@ void ast_setwidth(size_t w);
 
 void ast_error(ast_t* ast, const char* fmt, ...)
   __attribute__((format(printf, 2, 3)));
-
-typedef struct pass_opt_t pass_opt_t;
-typedef ast_result_t (*ast_visit_t)(ast_t** astp, pass_opt_t* options);
-
-ast_result_t ast_visit(ast_t** ast, ast_visit_t pre, ast_visit_t post,
-  pass_opt_t* options);
 
 // Foreach macro, will apply macro M to each of up to 30 other arguments
 #define FOREACH(M, ...) \

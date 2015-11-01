@@ -1,3 +1,4 @@
+// ANTLR v3 grammar
 grammar pony;
 
 options
@@ -9,207 +10,298 @@ options
 // Parser
 
 module
-  :  STRING? use* class_*
+  : STRING? use* class_def* 
   ;
 
 use
-  :  'use' (ID '=')? (STRING | use_ffi) ('if' expr)?
+  : 'use' (ID '=')? (STRING | use_ffi) ('if' infix)?
   ;
 
 use_ffi
-  :  '@' (ID | STRING) type_args '(' params? ')' '?'?
+  : '@' (ID | STRING) typeargs ('(' | LPAREN_NEW) params? ')' '?'?
   ;
 
-class_
-  :  ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') ID type_params? const_params? cap? ('is' types)? STRING? members
+class_def
+  : ('type' | 'interface' | 'trait' | 'primitive' | 'class' | 'actor') '@'? cap? ID typeparams? ('is' type)? STRING? members
   ;
 
 members
-  :  field* method*
+  : field* method*
   ;
 
 field
-  :  ('var' | 'let') ID oftype ('=' infix)?
+  : ('var' | 'let' | 'embed') ID ':' type ('delegate' type)? ('=' infix)?
   ;
 
 method
-  :  ('fun' | 'be' | 'new') cap? ID? type_params? const_params? '(' params? ')' oftype? '?'? STRING? ('=>' seq)?
+  : ('fun' | 'be' | 'new') cap? ID typeparams? ('(' | LPAREN_NEW) params? ')' (':' type)? '?'? STRING? ('=>' rawseq)?
   ;
 
-oftype
-  :  ':' type
+rawseq
+  : exprseq
+  | jump
   ;
 
-types
-  :  type (',' type)*
+exprseq
+  : assignment (semiexpr | nosemi)?
   ;
 
-type
-  :  atom_type ('->' type)?
+nextexprseq
+  : nextassignment (semiexpr | nosemi)?
   ;
 
-atom_type
-  :  'this' // only used for viewpoint adaptation
-  |  'box' // only used for viewpoint adaptation
-  |  '(' tuple_type ')'
-  |  ID ('.' ID)? type_args? const_args? cap? ('^' | '!')? // nominal type
+nosemi
+  : nextexprseq
+  | jump
   ;
 
-tuple_type
-  :  (infix_type | '_') (',' (infix_type | '_'))*
-  ;
-
-infix_type
-  :  type (('|' | '&') type)*
-  ;
-
-type_params
-  :  '[' type_param (',' type_param)* ']'
-  ;
-
-type_param
-  :  ID oftype? ('=' type)?
-  ;
-
-type_args
-  :  '@[' type (',' type)* ']'
-  ;
-
-const_params
-  :  '{' const_param (',' const_param)* '}'
-  ;
-
-const_param
-  :  ID oftype ('=' infix)?
-  ;
-
-const_args
-  :  '{' infix (',' infix)* '}'
-  ;
-
-cap
-  :  'iso' | 'trn' | 'ref' | 'val' | 'box' | 'tag'
-  ;
-
-params
-  :  param (',' param)*
-  ;
-
-param
-  :  ID oftype ('=' infix)?
-  |  '...'
-  ;
-
-seq
-  :  expr+ jump?
-  |  jump
-  ;
-
-expr
-  :  assignment ';'?
+semiexpr
+  : ';' (exprseq | jump)
   ;
 
 jump
-  :  'return' seq? // more than one expr here is an error
-  |  'break' seq? // more than one expr here is an error
-  |  'continue' seq? // sequences here are errors
-  |  'error' seq? // sequences here are errors
+  : ('return' | 'break' | 'continue' | 'error' | 'compiler_intrinsic') rawseq?
+  ;
+
+nextassignment
+  : nextinfix ('=' assignment)?
   ;
 
 assignment
-  :  infix ('=' assignment)?
+  : infix ('=' assignment)?
+  ;
+
+nextinfix
+  : nextterm antlr_0*
   ;
 
 infix
-  :  term ((binop term) | ('as' type))*
-  ;
-
-term
-  :  local
-  |  control
-  |  postfix
-  |  unop term
-  ;
-
-local
-  :  ('var' | 'let') ID oftype?
-  ;
-
-control
-  :  'if' seq 'then' seq (elseif | ('else' seq))? 'end'
-  |  'match' seq case* ('else' seq)? 'end'
-  |  'while' seq 'do' seq ('else' seq)? 'end'
-  |  'repeat' seq 'until' seq ('else' seq)? 'end'
-  |  'for' idseq 'in' seq 'do' seq ('else' seq)? 'end'
-  |  'try' seq ('else' seq)? ('then' seq)? 'end'
-  |  'with' withexpr (',' withexpr)* 'do' seq ('else' seq)? 'end'
-  |  'recover' cap? seq 'end'
-  |  '$scope' '(' (expr)+ ')' // For testing only
-  |  '$seq' '(' (expr)+ ')' // For testing only
-  ;
-
-elseif
-  :  'elseif' seq 'then' seq (elseif | ('else' seq))?
-  ;
-
-case
-  :  '|' infix? ('where' seq)? ('=>' seq)?
-  ;
-
-withexpr
-  :  idseq '=' seq
-  ;
-
-postfix
-  :  atom
-     (  '.' ID // member access
-     |  '~' ID // partial application, syntactic sugar
-     |  type_args // type arguments
-     |  const_args // constant arguments
-     |  '@(' positional? named? ')' // call
-     )*
-  ;
-
-atom
-  :  INT
-  |  FLOAT
-  |  STRING
-  |  ID
-  |  'this'
-  |  '(' tuple ')' // tuple
-  |  '[' ('as' type ':')? positional ']' // array
-  |  'object' ('is' types)? members 'end' // object
-  |  '@' (ID | STRING) type_args? '(' positional? ')' '?'? // ffi
-  ;
-
-idseq
-  :  ID
-  |  '_'
-  |  '(' idseq (',' idseq)* ')'
-  ;
-
-tuple
-  :  (seq | '_') (',' (seq | '_'))*
-  ;
-
-positional
-  :  seq (',' seq)*
-  ;
-
-named
-  :  'where' ID '=' seq (',' ID '=' seq)*
-  ;
-
-unop
-  :  'not' | '-' | 'consume' (cap | '$borrowed')? | '&'
+  : term antlr_1*
   ;
 
 binop
-  :  'and' | 'or' | 'xor' // logic
-  |  '+' | '@-' | '*' | '/' | '%' // arithmetic
-  |  '<<' | '>>' // shift
-  |  'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>' // comparison
+  : ('and' | 'or' | 'xor' | '+' | '-' | '*' | '/' | '%' | '<<' | '>>' | 'is' | 'isnt' | '==' | '!=' | '<' | '<=' | '>=' | '>') term
   ;
+
+nextterm
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
+  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
+  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
+  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
+  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
+  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
+  | 'recover' cap? rawseq 'end'
+  | 'consume' cap? term
+  | ('not' | 'addressof' | MINUS_NEW | 'identityof') term
+  | nextpostfix
+  ;
+
+term
+  : ('var' | 'let' | 'embed') ID (':' type)?
+  | 'if' rawseq 'then' rawseq (elseif | ('else' rawseq))? 'end'
+  | 'match' rawseq caseexpr* ('else' rawseq)? 'end'
+  | 'while' rawseq 'do' rawseq ('else' rawseq)? 'end'
+  | 'repeat' rawseq 'until' rawseq ('else' rawseq)? 'end'
+  | 'for' idseq 'in' rawseq 'do' rawseq ('else' rawseq)? 'end'
+  | 'with' (withelem (',' withelem)*) 'do' rawseq ('else' rawseq)? 'end'
+  | 'try' rawseq ('else' rawseq)? ('then' rawseq)? 'end'
+  | 'recover' cap? rawseq 'end'
+  | 'consume' cap? term
+  | ('not' | 'addressof' | '-' | MINUS_NEW | 'identityof') term
+  | postfix
+  ;
+
+withelem
+  : idseq '=' rawseq
+  ;
+
+caseexpr
+  : '|' infix? ('where' rawseq)? ('=>' rawseq)?
+  ;
+
+elseif
+  : 'elseif' rawseq 'then' rawseq (elseif | ('else' rawseq))?
+  ;
+
+idseq
+  : ID
+  | '_'
+  | ('(' | LPAREN_NEW) idseq (',' idseq)* ')'
+  ;
+
+nextpostfix
+  : nextatom antlr_2*
+  ;
+
+postfix
+  : atom antlr_3*
+  ;
+
+call
+  : '(' positional? named? ')'
+  ;
+
+tilde
+  : '~' ID
+  ;
+
+dot
+  : '.' ID
+  ;
+
+nextatom
+  : ID
+  | literal
+  | LPAREN_NEW (rawseq | '_') tuple? ')'
+  | LSQUARE_NEW ('as' type ':')? rawseq (',' rawseq)* ']'
+  | 'object' cap? ('is' type)? members 'end'
+  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
+  ;
+
+atom
+  : ID
+  | literal
+  | ('(' | LPAREN_NEW) (rawseq | '_') tuple? ')'
+  | ('[' | LSQUARE_NEW) ('as' type ':')? rawseq (',' rawseq)* ']'
+  | 'object' cap? ('is' type)? members 'end'
+  | 'lambda' cap? typeparams? ('(' | LPAREN_NEW) params? ')' lambdacaptures? (':' type)? '?'? '=>' rawseq 'end'
+  | '@' (ID | STRING) typeargs? ('(' | LPAREN_NEW) positional? named? ')' '?'?
+  ;
+
+literal
+  : 'this'
+  | 'true'
+  | 'false'
+  | INT
+  | FLOAT
+  | STRING
+  ;
+
+tuple
+  : ',' (rawseq | '_') (',' (rawseq | '_'))*
+  ;
+
+lambdacaptures
+  : ('(' | LPAREN_NEW) lambdacapture (',' lambdacapture)* ')'
+  ;
+
+lambdacapture
+  : ID (':' type)? ('=' infix)?
+  ;
+
+positional
+  : rawseq (',' rawseq)*
+  ;
+
+named
+  : 'where' namedarg (',' namedarg)*
+  ;
+
+namedarg
+  : ID '=' rawseq
+  ;
+
+type
+  : atomtype ('->' type)?
+  ;
+
+atomtype
+  : 'this'
+  | 'box'
+  | ('(' | LPAREN_NEW) (infixtype | '_') tupletype? ')'
+  | nominal
+  ;
+
+tupletype
+  : ',' (infixtype | '_') (',' (infixtype | '_'))*
+  ;
+
+infixtype
+  : type antlr_4*
+  ;
+
+isecttype
+  : '&' type
+  ;
+
+uniontype
+  : '|' type
+  ;
+
+nominal
+  : ID ('.' ID)? typeargs? (cap | gencap)? ('^' | '!')?
+  ;
+
+gencap
+  : '#read'
+  | '#send'
+  | '#share'
+  | '#any'
+  ;
+
+cap
+  : 'iso'
+  | 'trn'
+  | 'ref'
+  | 'val'
+  | 'box'
+  | 'tag'
+  ;
+
+typeargs
+  : '[' type (',' type)* ']'
+  ;
+
+typeparams
+  : ('[' | LSQUARE_NEW) typeparam (',' typeparam)* ']'
+  ;
+
+params
+  : (param | '...') (',' (param | '...'))*
+  ;
+
+typeparam
+  : ID (':' type)? ('=' type)?
+  ;
+
+param
+  : ID ':' type ('=' infix)?
+  ;
+
+antlr_0
+  : binop
+  | 'as' type
+  ;
+
+antlr_1
+  : binop
+  | 'as' type
+  ;
+
+antlr_2
+  : dot
+  | tilde
+  | typeargs
+  | call
+  ;
+
+antlr_3
+  : dot
+  | tilde
+  | typeargs
+  | call
+  ;
+
+antlr_4
+  : uniontype
+  | isecttype
+  ;
+
+// Rules of the form antlr_* are only present to avoid a bug in the
+// interpreter
 
 /* Precedence
 
@@ -230,82 +322,111 @@ Type:
 // Lexer
 
 ID
-  :  LETTER (LETTER | DIGIT | '_' | '\'')*
-  |  '_' (LETTER | DIGIT | '_' | '\'')+
+  : LETTER (LETTER | DIGIT | '_' | '\'')*
+  | '_' (LETTER | DIGIT | '_' | '\'')+
   ;
 
 INT
-  :  DIGIT+
-  |  '0' 'x' HEX+
-  |  '0' 'b' BINARY+
-  |  '\'' (ESC | ~('\'' | '\\'))* '\''
+  : DIGIT (DIGIT | '_')*
+  | '0' 'x' (HEX | '_')+
+  | '0' 'b' (BINARY | '_')+
+  | '\'' CHAR_CHAR* '\''
   ;
 
 FLOAT
-  :  DIGIT+ ('.' DIGIT+)? EXP?
-  ;
-
-LINECOMMENT
-  :  '//' ~('\n' | '\r')* '\r'? '\n' {$channel=HIDDEN;}
-  ;
-
-NESTEDCOMMENT
-  :  '/*' ( ('/*') => NESTEDCOMMENT | ~'*' | '*' ~'/')* '*/'
-  ;
-
-WS
-  :  ' ' | '\t' | '\r' | '\n'
+  : DIGIT (DIGIT | '_')* ('.' DIGIT (DIGIT | '_')*)? EXP?
   ;
 
 STRING
-  :  '"' ( ESC | ~('\\'|'"') )* '"'
-  |  '"""' ~('"""')* '"""'
+  : '"' STRING_CHAR* '"'
+  | '"""' (('"' | '""') ? ~'"')* '"""' '"'*
+  ;
+
+LPAREN_NEW
+  : NEWLINE '('
+  ;
+
+LSQUARE_NEW
+  : NEWLINE '['
+  ;
+
+MINUS_NEW
+  : NEWLINE '-'
+  ;
+
+LINECOMMENT
+  : '//' ~('\n')* {$channel = HIDDEN;}
+  ;
+
+NESTEDCOMMENT
+  : '/*' (NESTEDCOMMENT | '/' ~'*' | ~('*' | '/') | ('*'+ ~('*' | '/')))* '*'+ '/' {$channel = HIDDEN;}
+  ;
+
+WS
+  : (' ' | '\t' | '\r')+ {$channel = HIDDEN;}
+  ;
+
+NEWLINE
+  : '\n' (' ' | '\t' | '\r')* {$channel = HIDDEN;}
+  ;
+
+fragment
+CHAR_CHAR
+  : ESC
+  | ~('\'' | '\\')
+  ;
+
+fragment
+STRING_CHAR
+  : ESC
+  | ~('"' | '\\')
   ;
 
 fragment
 EXP
-  :  ('e' | 'E') ('+' | '-')? DIGIT+
+  : ('e' | 'E') ('+' | '-')? (DIGIT | '_')+
   ;
 
 fragment
 LETTER
-  :  'a'..'z' | 'A'..'Z'
+  : 'a'..'z' | 'A'..'Z'
   ;
 
 fragment
 BINARY
-  :  '0'..'1'
+  : '0'..'1'
   ;
 
 fragment
 DIGIT
-  :  '0'..'9'
+  : '0'..'9'
   ;
 
 fragment
 HEX
-  :  DIGIT | 'a'..'f' | 'A'..'F'
+  : DIGIT | 'a'..'f' | 'A'..'F'
   ;
 
 fragment
 ESC
-  :  '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
-  |  HEX_ESC
-  |  UNICODE_ESC
-  |  UNICODE2_ESC
+  : '\\' ('a' | 'b' | 'e' | 'f' | 'n' | 'r' | 't' | 'v' | '\"' | '\\' | '0')
+  | HEX_ESC
+  | UNICODE_ESC
+  | UNICODE2_ESC
   ;
 
 fragment
 HEX_ESC
-  :  '\\' 'x' HEX HEX
+  : '\\' 'x' HEX HEX
   ;
 
 fragment
 UNICODE_ESC
-  :  '\\' 'u' HEX HEX HEX HEX
+  : '\\' 'u' HEX HEX HEX HEX
   ;
 
 fragment
 UNICODE2_ESC
-  :  '\\' 'U' HEX HEX HEX HEX HEX HEX
+  : '\\' 'U' HEX HEX HEX HEX HEX HEX
   ;
+

@@ -3,6 +3,7 @@
 #include "postfix.h"
 #include "control.h"
 #include "reference.h"
+#include "../ast/lexer.h"
 #include "../pass/expr.h"
 #include "../type/assemble.h"
 #include "../type/subtype.h"
@@ -34,7 +35,8 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
     case SYM_DEFINED:
       if(let)
       {
-        ast_error(ast, "can't assign to a let definition more than once");
+        ast_error(ast,
+          "can't assign to a let or embed definition more than once");
         return false;
       }
 
@@ -52,7 +54,8 @@ static bool assign_id(typecheck_t* t, ast_t* ast, bool let, bool need_value)
 
       if(let)
       {
-        ast_error(ast, "can't assign to a let definition more than once");
+        ast_error(ast,
+          "can't assign to a let or embed definition more than once");
         ok = false;
       }
 
@@ -123,6 +126,25 @@ static bool is_lvalue(typecheck_t* t, ast_t* ast, bool need_value)
       if(t->frame->loop_body != NULL)
       {
         ast_error(ast, "can't assign to a let field in a loop");
+        return false;
+      }
+
+      return assign_id(t, right, true, need_value);
+    }
+
+    case TK_EMBEDREF:
+    {
+      AST_GET_CHILDREN(ast, left, right);
+
+      if(ast_id(left) != TK_THIS)
+      {
+        ast_error(ast, "can't assign to an embed field");
+        return false;
+      }
+
+      if(t->frame->loop_body != NULL)
+      {
+        ast_error(ast, "can't assign to an embed field in a loop");
         return false;
       }
 
@@ -319,6 +341,7 @@ static infer_ret_t infer_local_inner(ast_t* left, ast_t* r_type,
       if(infer_type == NULL)
       {
         ast_error(left, "could not infer type of local");
+        ast_settype(left, ast_from(left, TK_ERRORTYPE));
         return INFER_ERROR;
       }
 
@@ -429,6 +452,28 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
 
   if(!ok_safe)
   {
+    if(ast_id(left) == TK_FVARREF && ast_child(left) != NULL &&
+      ast_id(ast_child(left)) == TK_THIS)
+    {
+      // We are writing to a field in this
+      ast_t* fn = ast_nearest(left, TK_FUN);
+
+      if(fn != NULL)
+      {
+        ast_t* iso = ast_child(fn);
+        assert(iso != NULL);
+        token_id iso_id = ast_id(iso);
+
+        if(iso_id == TK_BOX || iso_id == TK_VAL || iso_id == TK_TAG)
+        {
+          ast_error(ast, "cannot write to a field in a %s function",
+            lexer_print(iso_id));
+          ast_free_unattached(a_type);
+          return false;
+        }
+      }
+    }
+
     ast_error(ast, "not safe to write right side to left side");
     ast_error(a_type, "right side type: %s", ast_print_type(a_type));
     ast_free_unattached(a_type);
@@ -436,6 +481,17 @@ bool expr_assign(pass_opt_t* opt, ast_t* ast)
   }
 
   ast_free_unattached(a_type);
+
+  // If it's an embedded field, check for a constructor result.
+  if(ast_id(left) == TK_EMBEDREF)
+  {
+    if((ast_id(right) != TK_CALL) ||
+      (ast_id(ast_childidx(right, 2)) != TK_NEWREF))
+    {
+      ast_error(ast, "an embedded field must be assigned using a constructor");
+      return false;
+    }
+  }
 
   ast_settype(ast, consume_type(l_type, TK_NONE));
   ast_inheritflags(ast);

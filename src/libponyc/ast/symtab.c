@@ -33,7 +33,7 @@ static void sym_free(symbol_t* sym)
 static const char* name_without_case(const char* name)
 {
   size_t len = strlen(name) + 1;
-  VLA(char, buf, len);
+  char* buf = (char*)pool_alloc_size(len);
 
   if(is_type_name(name))
   {
@@ -44,7 +44,7 @@ static const char* name_without_case(const char* name)
       buf[i] = (char)tolower(name[i]);
   }
 
-  return stringtab(buf);
+  return stringtab_consume(buf, len);
 }
 
 DEFINE_HASHMAP(symtab, symbol_t, sym_hash, sym_cmp, pool_alloc_size,
@@ -239,6 +239,25 @@ void symtab_inherit_branch(symtab_t* dst, symtab_t* src)
   }
 }
 
+bool symtab_can_merge_public(symtab_t* dst, symtab_t* src)
+{
+  size_t i = HASHMAP_BEGIN;
+  symbol_t* sym;
+
+  while((sym = symtab_next(src, &i)) != NULL)
+  {
+    if((sym->name[0] == '_') ||
+      (sym->status == SYM_NOCASE) ||
+      !strcmp(sym->name, "Main"))
+      continue;
+
+    if(symtab_find_case(dst, sym->name, NULL) != NULL)
+      return false;
+  }
+
+  return true;
+}
+
 bool symtab_merge_public(symtab_t* dst, symtab_t* src)
 {
   size_t i = HASHMAP_BEGIN;
@@ -246,7 +265,9 @@ bool symtab_merge_public(symtab_t* dst, symtab_t* src)
 
   while((sym = symtab_next(src, &i)) != NULL)
   {
-    if((sym->name[0] == '_') || (sym->status == SYM_NOCASE))
+    if((sym->name[0] == '_') ||
+      (sym->status == SYM_NOCASE) ||
+      !strcmp(sym->name, "Main"))
       continue;
 
     if(!symtab_add(dst, sym->name, sym->def, sym->status))

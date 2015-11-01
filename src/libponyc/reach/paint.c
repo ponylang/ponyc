@@ -351,6 +351,9 @@ static void distribute_info(painter_t* painter, reachable_types_t* types)
   // Iterate over all types
   while((type = reachable_types_next(types, &i)) != NULL)
   {
+    if(reachable_method_names_size(&type->methods) == 0)
+      continue;
+
     size_t j = HASHMAP_BEGIN;
     reachable_method_name_t* mn;
     uint32_t max_colour = 0;

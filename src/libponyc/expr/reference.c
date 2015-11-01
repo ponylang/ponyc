@@ -12,6 +12,7 @@
 #include "../type/cap.h"
 #include "../type/reify.h"
 #include "../type/lookup.h"
+#include "../../libponyrt/mem/pool.h"
 #include <string.h>
 #include <assert.h>
 
@@ -75,7 +76,7 @@ static bool is_assigned_to(ast_t* ast, bool check_result_needed)
   }
 }
 
-static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
+static bool is_constructed_from(pass_opt_t* opt, ast_t* ast, ast_t* type)
 {
   ast_t* parent = ast_parent(ast);
 
@@ -83,7 +84,7 @@ static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
     return false;
 
   AST_GET_CHILDREN(parent, left, right);
-  ast_t* find = lookup_try(t, parent, type, ast_name(right));
+  ast_t* find = lookup_try(opt, parent, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -93,10 +94,10 @@ static bool is_constructed_from(typecheck_t* t, ast_t* ast, ast_t* type)
   return ok;
 }
 
-static bool valid_reference(typecheck_t* t, ast_t* ast, ast_t* type,
+static bool valid_reference(pass_opt_t* opt, ast_t* ast, ast_t* type,
   sym_status_t status)
 {
-  if(is_constructed_from(t, ast, type))
+  if(is_constructed_from(opt, ast, type))
     return true;
 
   switch(status)
@@ -129,6 +130,16 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
 {
   AST_GET_CHILDREN(ast, id, type, init);
 
+  // An embedded field must have a known, non-actor type.
+  if(ast_id(ast) == TK_EMBED)
+  {
+    if(!is_known(type) || is_actor(type))
+    {
+      ast_error(ast, "embedded fields must always be primitives or classes");
+      return false;
+    }
+  }
+
   if(ast_id(init) != TK_NONE)
   {
     // Initialiser type must match declared type.
@@ -152,6 +163,18 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
       return false;
     }
 
+    // If it's an embedded field, check for a constructor result.
+    if(ast_id(ast) == TK_EMBED)
+    {
+      if((ast_id(init) != TK_CALL) ||
+        (ast_id(ast_childidx(init, 2)) != TK_NEWREF))
+      {
+        ast_error(ast,
+          "an embedded field must be initialised using a constructor");
+        return false;
+      }
+    }
+
     ast_free_unattached(init_type);
   }
 
@@ -159,7 +182,7 @@ bool expr_field(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
+bool expr_fieldref(pass_opt_t* opt, ast_t* ast, ast_t* find, token_id tid)
 {
   AST_GET_CHILDREN(ast, left, right);
   ast_t* l_type = ast_type(left);
@@ -194,7 +217,7 @@ bool expr_fieldref(typecheck_t* t, ast_t* ast, ast_t* find, token_id tid)
     sym_status_t status;
     ast_get(ast, name, &status);
 
-    if(!valid_reference(t, ast, type, status))
+    if(!valid_reference(opt, ast, type, status))
       return false;
   }
 
@@ -218,13 +241,23 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
 
     case TK_DOT:
       // Has to be valid.
-      return expr_nominal(opt, &type);
+      if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
+        return false;
+      }
+      break;
 
     case TK_CALL:
     {
       // Has to be valid.
       if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -234,7 +267,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       ast_add(dot, ast);
 
       if(!expr_dot(opt, astp))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       ast_t* ast = *astp;
 
@@ -260,7 +297,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_append(call, ast);
 
           if(!expr_call(opt, &call))
+          {
+            ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+            ast_free_unattached(type);
             return false;
+          }
 
           // Add a dot node.
           ast_t* apply = ast_from(call, TK_DOT);
@@ -269,7 +310,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
           ast_add(apply, call);
 
           if(!expr_dot(opt, &apply))
+          {
+            ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+            ast_free_unattached(type);
             return false;
+          }
         }
       }
 
@@ -280,7 +325,11 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
     {
       // Has to be valid.
       if(!expr_nominal(opt, &type))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
       // Transform to a default constructor.
       ast_t* dot = ast_from(ast, TK_DOT);
@@ -298,13 +347,64 @@ bool expr_typeref(pass_opt_t* opt, ast_t** astp)
       *astp = call;
 
       if(!expr_dot(opt, &dot))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
         return false;
+      }
 
-      return expr_call(opt, astp);
+      if(!expr_call(opt, astp))
+      {
+        ast_settype(ast, ast_from(type, TK_ERRORTYPE));
+        ast_free_unattached(type);
+      }
+      break;
     }
   }
 
   return true;
+}
+
+static const char* suggest_alt_name(ast_t* ast, const char* name)
+{
+  assert(ast != NULL);
+  assert(name != NULL);
+
+  size_t name_len = strlen(name);
+
+  if(name[0] == '_')
+  {
+    // Try without leading underscore
+    const char* try_name = stringtab(name + 1);
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+  else
+  {
+    // Try with a leading underscore
+    char* buf = (char*)pool_alloc_size(name_len + 2);
+    buf[0] = '_';
+    strncpy(buf + 1, name, name_len + 1);
+    const char* try_name = stringtab_consume(buf, name_len + 2);
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+
+  // Try with a different case (without crossing type/value boundary)
+  ast_t* case_ast = ast_get_case(ast, name, NULL);
+  if(case_ast != NULL)
+  {
+    assert(ast_child(case_ast) != NULL);
+    const char* try_name = ast_name(ast_child(case_ast));
+
+    if(ast_get(ast, try_name, NULL) != NULL)
+      return try_name;
+  }
+
+  // Give up
+  return NULL;
 }
 
 bool expr_reference(pass_opt_t* opt, ast_t** astp)
@@ -320,7 +420,14 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
   if(def == NULL)
   {
-    ast_error(ast, "can't find declaration of '%s'", name);
+    const char* alt_name = suggest_alt_name(ast, name);
+
+    if(alt_name == NULL)
+      ast_error(ast, "can't find declaration of '%s'", name);
+    else
+      ast_error(ast, "can't find declaration of '%s', did you mean '%s'?",
+        name, alt_name);
+
     return false;
   }
 
@@ -360,6 +467,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
     {
       // Transform to "this.f".
       if(!def_before_use(def, ast, name))
@@ -389,7 +497,7 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
       if(is_typecheck_error(type))
         return false;
 
-      if(!valid_reference(t, ast, type, status))
+      if(!valid_reference(opt, ast, type, status))
         return false;
 
       if(t->frame->def_arg != NULL)
@@ -444,10 +552,18 @@ bool expr_reference(pass_opt_t* opt, ast_t** astp)
 
       ast_t* type = ast_type(def);
 
+      if(type != NULL && ast_id(type) == TK_INFERTYPE)
+      {
+        ast_error(ast, "cannot infer type of %s\n", name);
+        ast_settype(def, ast_from(def, TK_ERRORTYPE));
+        ast_settype(ast, ast_from(ast, TK_ERRORTYPE));
+        return false;
+      }
+
       if(is_typecheck_error(type))
         return false;
 
-      if(!valid_reference(t, ast, type, status))
+      if(!valid_reference(opt, ast, type, status))
         return false;
 
       ast_t* var = ast_parent(def);
@@ -504,13 +620,14 @@ bool expr_local(typecheck_t* t, ast_t* ast)
 {
   assert(t != NULL);
   assert(ast != NULL);
+  assert(ast_type(ast) != NULL);
 
   AST_GET_CHILDREN(ast, id, type);
   assert(type != NULL);
 
   if(ast_id(type) == TK_NONE)
   {
-    // No type specified, check we can infer
+    // No type specified, infer it later
     if(!is_assigned_to(ast, false))
     {
       if(t->frame->pattern != NULL)
@@ -520,8 +637,6 @@ bool expr_local(typecheck_t* t, ast_t* ast)
 
       return false;
     }
-
-    type = ast_from(id, TK_INFERTYPE);
   }
   else if(ast_id(ast) == TK_LET && t->frame->pattern == NULL)
   {
@@ -533,29 +648,62 @@ bool expr_local(typecheck_t* t, ast_t* ast)
     }
   }
 
-  ast_settype(id, type);
-  ast_settype(ast, type);
   return true;
 }
 
-static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
+bool expr_addressof(pass_opt_t* opt, ast_t* ast)
 {
+  // Check if we're in an FFI call.
+  ast_t* parent = ast_parent(ast);
+  bool ok = false;
+
+  if(ast_id(parent) == TK_SEQ)
+  {
+    parent = ast_parent(parent);
+
+    if(ast_id(parent) == TK_POSITIONALARGS)
+    {
+      parent = ast_parent(parent);
+
+      if(ast_id(parent) == TK_FFICALL)
+        ok = true;
+    }
+  }
+
+  if(!ok)
+  {
+    ast_error(ast, "the & operator can only be used for FFI arguments");
+    return false;
+  }
+
   ast_t* expr = ast_child(ast);
 
   switch(ast_id(expr))
   {
     case TK_FVARREF:
     case TK_VARREF:
-    case TK_FLETREF:
-    case TK_LETREF:
+    case TK_FUNREF:
+    case TK_BEREF:
       break;
+
+    case TK_FLETREF:
+      ast_error(ast, "can't take the address of a let field");
+      return false;
+
+    case TK_EMBEDREF:
+      ast_error(ast, "can't take the address of an embed field");
+      return false;
+
+    case TK_LETREF:
+      ast_error(ast, "can't take the address of a let local");
+      return false;
 
     case TK_PARAMREF:
       ast_error(ast, "can't take the address of a function parameter");
       return false;
 
     default:
-      ast_error(ast, "can only take the address of a field or local variable");
+      ast_error(ast, "can only take the address of a local, field or method");
       return false;
   }
 
@@ -570,31 +718,16 @@ static bool expr_addressof_ffi(pass_opt_t* opt, ast_t* ast)
   return true;
 }
 
-bool expr_addressof(pass_opt_t* opt, ast_t* ast)
+bool expr_identityof(pass_opt_t* opt, ast_t* ast)
 {
-  // Check if we're in an FFI call.
-  ast_t* parent = ast_parent(ast);
-
-  if(ast_id(parent) == TK_SEQ)
-  {
-    parent = ast_parent(parent);
-
-    if(ast_id(parent) == TK_POSITIONALARGS)
-    {
-      parent = ast_parent(parent);
-
-      if(ast_id(parent) == TK_FFICALL)
-        return expr_addressof_ffi(opt, ast);
-    }
-  }
-
   ast_t* expr = ast_child(ast);
 
   switch(ast_id(expr))
   {
     case TK_FVARREF:
-    case TK_VARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
+    case TK_VARREF:
     case TK_LETREF:
     case TK_PARAMREF:
       break;
@@ -604,10 +737,9 @@ bool expr_addressof(pass_opt_t* opt, ast_t* ast)
       return false;
   }
 
-  // Turn this into an identity operation. Set the type to U64.
+  // Set the type to U64.
   ast_t* type = type_builtin(opt, expr, "U64");
   ast_settype(ast, type);
-  ast_setid(ast, TK_IDENTITY);
   return true;
 }
 
@@ -617,45 +749,47 @@ bool expr_dontcare(ast_t* ast)
   // of an assignment. It can be embedded in other tuples, which may appear
   // in sequences.
   ast_t* tuple = ast_parent(ast);
-  assert(ast_id(tuple) == TK_TUPLE);
 
-  ast_t* parent = ast_parent(tuple);
-
-  while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
+  if(ast_id(tuple) == TK_TUPLE)
   {
-    tuple = parent;
-    parent = ast_parent(tuple);
-  }
+    ast_t* parent = ast_parent(tuple);
 
-  switch(ast_id(parent))
-  {
-    case TK_ASSIGN:
+    while((ast_id(parent) == TK_TUPLE) || (ast_id(parent) == TK_SEQ))
     {
-      AST_GET_CHILDREN(parent, right, left);
-
-      if(tuple == left)
-      {
-        ast_settype(ast, ast);
-        return true;
-      }
-
-      break;
+      tuple = parent;
+      parent = ast_parent(tuple);
     }
 
-    case TK_CASE:
+    switch(ast_id(parent))
     {
-      AST_GET_CHILDREN(parent, pattern, guard, body);
-
-      if(tuple == pattern)
+      case TK_ASSIGN:
       {
-        ast_settype(ast, ast);
-        return true;
+        AST_GET_CHILDREN(parent, right, left);
+
+        if(tuple == left)
+        {
+          ast_settype(ast, ast);
+          return true;
+        }
+
+        break;
       }
 
-      break;
-    }
+      case TK_CASE:
+      {
+        AST_GET_CHILDREN(parent, pattern, guard, body);
 
-    default: {}
+        if(tuple == pattern)
+        {
+          ast_settype(ast, ast);
+          return true;
+        }
+
+        break;
+      }
+
+      default: {}
+    }
   }
 
   ast_error(ast, "the don't care token can only appear in a tuple, either on "
@@ -679,7 +813,7 @@ bool expr_this(pass_opt_t* opt, ast_t* ast)
   assert(status == SYM_NONE);
   token_id cap = cap_for_this(t);
 
-  if(!cap_sendable(cap, TK_NONE) && (t->frame->recover != NULL))
+  if(!cap_sendable(cap) && (t->frame->recover != NULL))
     cap = TK_TAG;
 
   ast_t* type = type_for_this(t, ast, cap, TK_NONE);
@@ -749,6 +883,9 @@ bool expr_tuple(ast_t* ast)
     {
       ast_t* c_type = ast_type(child);
 
+      if(c_type == NULL)
+        return false;
+
       if(is_control_type(c_type))
       {
         ast_error(child, "a tuple can't contain a control flow expression");
@@ -775,8 +912,8 @@ bool expr_tuple(ast_t* ast)
 
 bool expr_nominal(pass_opt_t* opt, ast_t** astp)
 {
-  // Resolve typealiases and typeparam references.
-  if(!names_nominal(opt, *astp, astp))
+  // Resolve type aliases and typeparam references.
+  if(!names_nominal(opt, *astp, astp, true))
     return false;
 
   ast_t* ast = *astp;
@@ -850,6 +987,7 @@ static bool check_fields_defined(ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         sym_status_t status;
         ast_t* id = ast_child(member);
@@ -962,6 +1100,70 @@ static bool check_main_create(typecheck_t* t, ast_t* ast)
   return ok;
 }
 
+static bool check_primitive_init(typecheck_t* t, ast_t* ast)
+{
+  if(ast_id(t->frame->type) != TK_PRIMITIVE)
+    return true;
+
+  AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error);
+
+  if(strcmp(ast_name(id), "_init"))
+    return true;
+
+  bool ok = true;
+
+  if(ast_id(ast) != TK_FUN)
+  {
+    ast_error(ast, "a primitive _init must be a function");
+    ok = false;
+  }
+
+  if(ast_id(cap) != TK_BOX)
+  {
+    ast_error(cap, "a primitive _init must be box");
+    ok = false;
+  }
+
+  if(ast_id(typeparams) != TK_NONE)
+  {
+    ast_error(typeparams, "a primitive _init must not be polymorphic");
+    ok = false;
+  }
+
+  if(ast_childcount(params) != 1)
+  {
+    ast_error(params, "a primitive _init must take a single Env parameter");
+    ok = false;
+  }
+
+  ast_t* param = ast_child(params);
+
+  if(param != NULL)
+  {
+    ast_t* p_type = ast_childidx(param, 1);
+
+    if(!is_env(p_type))
+    {
+      ast_error(p_type, "must be of type Env");
+      ok = false;
+    }
+  }
+
+  if(!is_none(result))
+  {
+    ast_error(result, "a primitive _init must return None");
+    ok = false;
+  }
+
+  if(ast_id(can_error) != TK_NONE)
+  {
+    ast_error(can_error, "a primitive _init cannot raise an error");
+    ok = false;
+  }
+
+  return ok;
+}
+
 static bool check_finaliser(ast_t* ast)
 {
   AST_GET_CHILDREN(ast, cap, id, typeparams, params, result, can_error, body);
@@ -1048,7 +1250,7 @@ bool expr_fun(pass_opt_t* opt, ast_t* ast)
     }
   }
 
-  if(!check_finaliser(ast))
+  if(!check_primitive_init(t, ast) || !check_finaliser(ast))
     return false;
 
   switch(ast_id(ast))

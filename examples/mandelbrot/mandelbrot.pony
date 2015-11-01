@@ -76,24 +76,26 @@ actor Main
   var outfile: (File | None) = None
 
   new create(env: Env) =>
-    arguments(env)
+    try
+      arguments(env)
 
-    let length = width
-    let recip_width = 2.0 / width.f32()
+      let length = width
+      let recip_width = 2.0 / width.f32()
 
-    var r = recover Array[F32](length) end
-    var i = recover Array[F32](length) end
+      var r = recover Array[F32](length) end
+      var i = recover Array[F32](length) end
 
-    for j in Range(0, width) do
-      r.push((recip_width * j.f32()) - 1.5)
-      i.push((recip_width * j.f32()) - 1.0)
+      for j in Range(0, width) do
+        r.push((recip_width * j.f32()) - 1.5)
+        i.push((recip_width * j.f32()) - 1.0)
+      end
+
+      real = consume r
+      imaginary = consume i
+
+      spawn_actors()
+      create_outfile()
     end
-
-    real = consume r
-    imaginary = consume i
-
-    spawn_actors()
-    create_outfile()
 
   be draw(offset: U64, pixels: Array[U8] val) =>
     match outfile
@@ -132,15 +134,15 @@ actor Main
     Worker.mandelbrot(this, y, y + rest, width, iterations, limit, real,
       imaginary)
 
-  fun ref arguments(env: Env) =>
+  fun ref arguments(env: Env) ? =>
     let options = Options(env)
 
     options
-      .add("iterations", "i", None, I64Argument)
-      .add("limit", "l", None, F64Argument)
-      .add("chunks", "c", None, I64Argument)
-      .add("width", "w", None, I64Argument)
-      .add("output", "o", None, StringArgument)
+      .add("iterations", "i", I64Argument)
+      .add("limit", "l", F64Argument)
+      .add("chunks", "c", I64Argument)
+      .add("width", "w", I64Argument)
+      .add("output", "o", StringArgument)
 
     for option in options do
       match option
@@ -148,8 +150,9 @@ actor Main
       | ("limit", var arg: F64) => limit = arg.f32()
       | ("chunks", var arg: I64) => chunks = arg.u64()
       | ("width", var arg: I64) => width = arg.u64()
-      | ("output", var arg: String) => outfile = try File(arg) end
-      | ParseError => usage(env)
+      | ("output", var arg: String) =>
+        outfile = try File(FilePath(env.root, arg)) end
+      | let err: ParseError => err.report(env.out) ; usage(env) ; error
       end
     end
 

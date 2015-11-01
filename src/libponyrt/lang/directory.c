@@ -5,14 +5,14 @@
 
 #if defined(PLATFORM_IS_WINDOWS)
 #include <direct.h>
-static __pony_thread_local HANDLE opendir_handle = INVALID_HANDLE_VALUE;
-static __pony_thread_local WIN32_FIND_DATA opendir_data;
 #elif defined(PLATFORM_IS_POSIX_BASED)
 #include <unistd.h>
-static __pony_thread_local DIR* opendir_handle;
+#include <stdio.h>
 #endif
 
 PONY_EXTERN_C_BEGIN
+
+const char* cwd;
 
 static bool skip_entry(const char* entry, size_t len)
 {
@@ -27,114 +27,116 @@ static bool skip_entry(const char* entry, size_t len)
 
 char* os_cwd()
 {
+  if(cwd == NULL)
+  {
 #if defined(PLATFORM_IS_WINDOWS)
-  char* cwd = _getcwd(NULL, 0);
+    cwd = _getcwd(NULL, 0);
 #else
-  char* cwd = getcwd(NULL, 0);
+    cwd = getcwd(NULL, 0);
 #endif
+
+    if(cwd == NULL)
+      cwd = strdup(".");
+  }
 
   size_t len = strlen(cwd) + 1;
-  char* cstring = (char*)pony_alloc(len);
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
   memcpy(cstring, cwd, len);
-  free(cwd);
 
   return cstring;
 }
 
-void os_opendir(const char* path)
-{
 #if defined(PLATFORM_IS_WINDOWS)
-  size_t path_len = strlen(path);
 
-  if(path_len > (MAX_PATH - 3))
-    return;
+WIN32_FIND_DATA* windows_find_data()
+{
+  return (WIN32_FIND_DATA*)malloc(sizeof(WIN32_FIND_DATA));
+}
 
-  TCHAR win_path[MAX_PATH];
-  memcpy(win_path, path, path_len);
-  memcpy(win_path + path_len, "\\*", 3);
+const char* windows_readdir(WIN32_FIND_DATA* find)
+{
+  size_t len = strlen(find->cFileName) + 1;
 
-  opendir_handle = FindFirstFile(win_path, &opendir_data);
+  if(skip_entry(find->cFileName, len - 1))
+    return NULL;
 
-  if(opendir_handle == INVALID_HANDLE_VALUE)
-    pony_throw();
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  opendir_handle = opendir(path);
+  char* cstring = (char*)pony_alloc(pony_ctx(), len);
+  memcpy(cstring, find->cFileName, len);
 
-  if(opendir_handle == NULL)
-    pony_throw();
-#else
-  pony_throw();
+  return cstring;
+}
+
 #endif
+
+#if defined(PLATFORM_IS_POSIX_BASED)
+
+int o_rdonly()
+{
+  return O_RDONLY;
 }
 
-void os_closedir()
+int o_rdwr()
 {
-#if defined(PLATFORM_IS_WINDOWS)
-  if(opendir_handle != INVALID_HANDLE_VALUE)
-  {
-    FindClose(opendir_handle);
-    opendir_handle = INVALID_HANDLE_VALUE;
-  }
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  if(opendir_handle != NULL)
-  {
-    closedir(opendir_handle);
-    opendir_handle = NULL;
-  }
+  return O_RDWR;
+}
+
+int o_creat()
+{
+  return O_CREAT;
+}
+
+int o_trunc()
+{
+  return O_TRUNC;
+}
+
+int o_directory()
+{
+  return O_DIRECTORY;
+}
+
+int o_cloexec()
+{
+  return O_CLOEXEC;
+}
+
+#if !defined(PLATFORM_IS_MACOSX)
+int at_removedir()
+{
+  return AT_REMOVEDIR;
+}
 #endif
-}
 
-const char* os_readdir()
+const char* unix_readdir(DIR* dir)
 {
-#if defined(PLATFORM_IS_WINDOWS)
-  if(opendir_handle == INVALID_HANDLE_VALUE)
-    return NULL;
+  struct dirent de;
+  struct dirent* d;
 
-  size_t len = strlen(opendir_data.cFileName) + 1;
-
-  if(skip_entry(opendir_data.cFileName, len - 1))
+  while(true)
   {
-    if(!FindNextFile(opendir_handle, &opendir_data))
-    {
-      os_closedir();
-      return NULL;
-    }
+    if(readdir_r(dir, &de, &d) != 0)
+      break;
 
-    return os_readdir();
+    if(d == NULL)
+      break;
+
+#if defined(PLATFORM_IS_LINUX)
+    size_t len = strlen(d->d_name);
+#elif defined(PLATFORM_IS_FREEBSD) || defined(PLATFORM_IS_MACOSX)
+    size_t len = d->d_namlen;
+#endif
+
+    if(skip_entry(d->d_name, len))
+      continue;
+
+    char* cstring = pony_alloc(pony_ctx(), len + 1);
+    memcpy(cstring, d->d_name, len + 1);
+    return cstring;
   }
 
-  char* cstring = (char*)pony_alloc(len);
-  memcpy(cstring, opendir_data.cFileName, len);
-
-  if(!FindNextFile(opendir_handle, &opendir_data))
-    os_closedir();
-
-  return cstring;
-#elif defined(PLATFORM_IS_POSIX_BASED)
-  if(opendir_handle == NULL)
-    return NULL;
-
-  struct dirent entry;
-  struct dirent* result;
-
-  if(readdir_r(opendir_handle, &entry, &result) != 0)
-    return NULL;
-
-  if(result == NULL)
-    return NULL;
-
-  size_t len = strlen(result->d_name) + 1;
-
-  if(skip_entry(result->d_name, len - 1))
-    return os_readdir();
-
-  char* cstring = pony_alloc(len);
-  memcpy(cstring, result->d_name, len);
-
-  return cstring;
-#else
   return NULL;
-#endif
 }
+
+#endif
 
 PONY_EXTERN_C_END

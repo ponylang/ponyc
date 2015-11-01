@@ -4,7 +4,7 @@ interface Hashable
   """
   fun hash(): U64
 
-trait HashFunction[A] val
+trait val HashFunction[A]
   """
   A pluggable hash function.
   """
@@ -26,7 +26,7 @@ trait HashFunction[A] val
     in a box fun without consuming keys.
     """
 
-primitive HashEq[A: (Hashable box & Comparable[A] box)] is HashFunction[A]
+primitive HashEq[A: (Hashable #read & Equatable[A] #read)] is HashFunction[A]
   fun hash(x: box->A): U64 =>
     """
     Use the hash function from the type parameter.
@@ -44,7 +44,7 @@ primitive HashIs[A] is HashFunction[A]
     """
     Hash the identity rather than the contents.
     """
-    (&x).hash()
+    (identityof x).hash()
 
   fun eq(x: box->A!, y: box->A!): Bool =>
     """

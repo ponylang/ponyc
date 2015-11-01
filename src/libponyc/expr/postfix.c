@@ -4,9 +4,11 @@
 #include "call.h"
 #include "../pkg/package.h"
 #include "../pass/expr.h"
+#include "../pass/names.h"
 #include "../type/reify.h"
 #include "../type/assemble.h"
 #include "../type/lookup.h"
+#include <string.h>
 #include <assert.h>
 
 static bool is_method_called(ast_t* ast)
@@ -19,6 +21,7 @@ static bool is_method_called(ast_t* ast)
       return is_method_called(parent);
 
     case TK_CALL:
+    case TK_ADDRESS:
       return true;
 
     default: {}
@@ -146,10 +149,6 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
   // Left is a packageref, right is an id.
   ast_t* left = ast_child(ast);
   ast_t* right = ast_sibling(left);
-  ast_t* type = ast_type(left);
-
-  if(is_typecheck_error(type))
-    return false;
 
   assert(ast_id(left) == TK_PACKAGEREF);
   assert(ast_id(right) == TK_ID);
@@ -166,7 +165,7 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
   assert(ast_id(package) == TK_PACKAGE);
   const char* type_name = ast_name(right);
-  type = ast_get(package, type_name, NULL);
+  ast_t* type = ast_get(package, type_name, NULL);
 
   if(type == NULL)
   {
@@ -183,7 +182,6 @@ static bool package_access(pass_opt_t* opt, ast_t** astp)
 
 static bool type_access(pass_opt_t* opt, ast_t** astp)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   // Left is a typeref, right is an id.
@@ -197,7 +195,7 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
   assert(ast_id(left) == TK_TYPEREF);
   assert(ast_id(right) == TK_ID);
 
-  ast_t* find = lookup(t, ast, type, ast_name(right));
+  ast_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -217,11 +215,18 @@ static bool type_access(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
     case TK_BE:
     case TK_FUN:
     {
       // Make this a lookup on a default constructed object.
       ast_free_unattached(find);
+
+      if(!strcmp(ast_name(right), "create"))
+      {
+        ast_error(right, "create is not a constructor on this type");
+        return false;
+      }
 
       ast_t* dot = ast_from(ast, TK_DOT);
       ast_add(dot, ast_from_string(ast, "create"));
@@ -307,7 +312,7 @@ static bool tuple_access(ast_t* ast)
   return true;
 }
 
-static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
+static bool member_access(pass_opt_t* opt, ast_t* ast, bool partial)
 {
   // Left is a postfix expression, right is an id.
   AST_GET_CHILDREN(ast, left, right);
@@ -317,7 +322,7 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
   if(is_typecheck_error(type))
     return false;
 
-  ast_t* find = lookup(t, ast, type, ast_name(right));
+  ast_t* find = lookup(opt, ast, type, ast_name(right));
 
   if(find == NULL)
     return false;
@@ -332,12 +337,17 @@ static bool member_access(typecheck_t* t, ast_t* ast, bool partial)
       break;
 
     case TK_FVAR:
-      if(!expr_fieldref(t, ast, find, TK_FVARREF))
+      if(!expr_fieldref(opt, ast, find, TK_FVARREF))
         return false;
       break;
 
     case TK_FLET:
-      if(!expr_fieldref(t, ast, find, TK_FLETREF))
+      if(!expr_fieldref(opt, ast, find, TK_FLETREF))
+        return false;
+      break;
+
+    case TK_EMBED:
+      if(!expr_fieldref(opt, ast, find, TK_EMBEDREF))
         return false;
       break;
 
@@ -365,8 +375,7 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
 {
   // Left is a postfix expression, right is a typeargs.
   ast_t* ast = *astp;
-  ast_t* left = ast_child(ast);
-  ast_t* right = ast_sibling(left);
+  AST_GET_CHILDREN(ast, left, right);
   ast_t* type = ast_type(left);
   assert(ast_id(right) == TK_TYPEARGS);
 
@@ -380,10 +389,18 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
       // Qualify the type.
       assert(ast_id(type) == TK_NOMINAL);
 
-      if(ast_id(ast_childidx(type, 2)) != TK_NONE)
+      // If the type isn't polymorphic or the type is already qualified,
+      // sugar .apply().
+      ast_t* def = names_def(type);
+      ast_t* typeparams = ast_childidx(def, 1);
+
+      if((ast_id(typeparams) == TK_NONE) ||
+        (ast_id(ast_childidx(type, 2)) != TK_NONE))
       {
-        ast_error(ast, "can't qualify an already qualified type");
-        return false;
+        if(!expr_nominal(opt, &type))
+          return false;
+
+        break;
       }
 
       type = ast_dup(type);
@@ -423,13 +440,20 @@ bool expr_qualify(pass_opt_t* opt, ast_t** astp)
     default: {}
   }
 
-  assert(0);
-  return false;
+  // Sugar .apply()
+  ast_t* dot = ast_from(left, TK_DOT);
+  ast_add(dot, ast_from_string(left, "apply"));
+  ast_swap(left, dot);
+  ast_add(dot, left);
+
+  if(!expr_dot(opt, &dot))
+    return false;
+
+  return expr_qualify(opt, astp);
 }
 
 static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
 {
-  typecheck_t* t = &opt->check;
   ast_t* ast = *astp;
 
   // Left is a postfix expression, right is an id.
@@ -467,7 +491,7 @@ static bool dot_or_tilde(pass_opt_t* opt, ast_t** astp, bool partial)
   if(ast_id(type) == TK_TUPLETYPE)
     return tuple_access(ast);
 
-  return member_access(t, ast, partial);
+  return member_access(opt, ast, partial);
 }
 
 bool expr_dot(pass_opt_t* opt, ast_t** astp)
@@ -510,6 +534,7 @@ bool expr_tilde(pass_opt_t* opt, ast_t** astp)
 
     case TK_FVARREF:
     case TK_FLETREF:
+    case TK_EMBEDREF:
       ast_error(ast, "can't do partial application of a field");
       return false;
 

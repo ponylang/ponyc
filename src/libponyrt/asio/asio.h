@@ -7,7 +7,7 @@
 
 #if defined(PLATFORM_IS_LINUX)
 #  define ASIO_USE_EPOLL
-#elif defined(PLATFORM_IS_MACOSX)
+#elif defined(PLATFORM_IS_MACOSX) || defined(PLATFORM_IS_FREEBSD)
 #  define ASIO_USE_KQUEUE
 #elif defined(PLATFORM_IS_WINDOWS)
 #  define ASIO_USE_IOCP

@@ -25,9 +25,7 @@ TEST_F(ScopeTest, Actor)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("Foo", TK_ACTOR);
-
+  DO(lookup_type("Foo", TK_ACTOR));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -38,9 +36,7 @@ TEST_F(ScopeTest, Class)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("Foo", TK_CLASS);
-
+  DO(lookup_type("Foo", TK_CLASS));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -51,9 +47,7 @@ TEST_F(ScopeTest, Primitive)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package); 
-  LOOKUP("Foo", TK_PRIMITIVE);
-
+  DO(lookup_type("Foo", TK_PRIMITIVE));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -64,9 +58,7 @@ TEST_F(ScopeTest, Trait)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("Foo", TK_TRAIT);
-
+  DO(lookup_type("Foo", TK_TRAIT));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -77,9 +69,7 @@ TEST_F(ScopeTest, Interface)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("Foo", TK_INTERFACE);
-
+  DO(lookup_type("Foo", TK_INTERFACE));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -90,9 +80,7 @@ TEST_F(ScopeTest, TypeAlias)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("Foo", TK_TYPE);
-
+  DO(lookup_type("Foo", TK_TYPE));
   ASSERT_EQ(1, ref_count(package, "Foo"));
 }
 
@@ -103,10 +91,7 @@ TEST_F(ScopeTest, VarField)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("C", TK_CLASS);
-  LOOKUP("foo", TK_FVAR);
-
+  DO(lookup_member("C", "foo", TK_FVAR));
   ASSERT_EQ(1, ref_count(package, "foo"));
 }
 
@@ -117,10 +102,7 @@ TEST_F(ScopeTest, LetField)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("C", TK_CLASS);
-  LOOKUP("foo", TK_FLET);
-
+  DO(lookup_member("C", "foo", TK_FLET));
   ASSERT_EQ(1, ref_count(package, "foo"));
 }
 
@@ -131,10 +113,7 @@ TEST_F(ScopeTest, Be)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_BE);
-
+  DO(lookup_member("A", "foo", TK_BE));
   ASSERT_EQ(1, ref_count(package, "foo"));
 }
 
@@ -145,10 +124,7 @@ TEST_F(ScopeTest, New)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_NEW);
-
+  DO(lookup_member("A", "foo", TK_NEW));
   ASSERT_EQ(1, ref_count(package, "foo"));
 }
 
@@ -159,10 +135,7 @@ TEST_F(ScopeTest, Fun)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_FUN);
-
+  DO(lookup_member("A", "foo", TK_FUN));
   ASSERT_EQ(1, ref_count(package, "foo"));
 }
 
@@ -173,11 +146,8 @@ TEST_F(ScopeTest, FunParam)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_FUN);
-  LOOKUP("bar", TK_PARAM);
-
+  DO(lookup_member("A", "foo", TK_FUN));
+  DO(lookup("bar", TK_PARAM));
   ASSERT_EQ(1, ref_count(package, "bar"));
 }
 
@@ -188,11 +158,8 @@ TEST_F(ScopeTest, TypeParam)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_FUN);
-  LOOKUP("T", TK_TYPEPARAM);
-
+  DO(lookup_member("A", "foo", TK_FUN));
+  DO(lookup("T", TK_TYPEPARAM));
   ASSERT_EQ(1, ref_count(package, "T"));
 }
 
@@ -203,11 +170,8 @@ TEST_F(ScopeTest, Local)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("foo", TK_FUN);
-  LOOKUP("bar", TK_ID);
-
+  DO(lookup_member("A", "foo", TK_FUN));
+  DO(lookup("bar", TK_ID));
   ASSERT_EQ(1, ref_count(package, "bar"));
 }
 
@@ -221,14 +185,12 @@ TEST_F(ScopeTest, MultipleLocals)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("wombat", TK_FUN);
+  DO(lookup_member("A", "wombat", TK_FUN));
   ast_t* wombat_ast = walk_ast;
 
-  DO(lookup(wombat_ast, "foo", TK_ID));
-  DO(lookup(wombat_ast, "bar", TK_ID));
-  DO(lookup(wombat_ast, "aardvark", TK_ID));
+  DO(lookup_in(wombat_ast, "foo", TK_ID));
+  DO(lookup_in(wombat_ast, "bar", TK_ID));
+  DO(lookup_in(wombat_ast, "aardvark", TK_ID));
 
   ASSERT_EQ(1, ref_count(package, "foo"));
   ASSERT_EQ(1, ref_count(package, "bar"));
@@ -245,14 +207,12 @@ TEST_F(ScopeTest, NestedLocals)
 
   TEST_COMPILE(src);
 
-  WALK_TREE(package);
-  LOOKUP("A", TK_ACTOR);
-  LOOKUP("wombat", TK_FUN);
+  DO(lookup_member("A", "wombat", TK_FUN));
   ast_t* wombat_ast = walk_ast;
 
-  DO(lookup(wombat_ast, "foo", TK_ID));
-  DO(lookup(wombat_ast, "bar", TK_ID));
-  DO(lookup(wombat_ast, "aardvark", TK_ID));
+  DO(lookup_in(wombat_ast, "foo", TK_ID));
+  DO(lookup_in(wombat_ast, "bar", TK_ID));
+  DO(lookup_in(wombat_ast, "aardvark", TK_ID));
 
   ASSERT_EQ(1, ref_count(package, "foo"));
   ASSERT_EQ(1, ref_count(package, "bar"));
@@ -312,12 +272,10 @@ TEST_F(ScopeTest, Package)
 {
   const char* src = "actor A";
 
-  TEST_COMPILE(src);
+  DO(test_compile(src, "import"));
 
   // Builtin types go in the module symbol table
-  WALK_TREE(module);
-  LOOKUP("U32", TK_PRIMITIVE);
-
+  DO(lookup_in(module, "U32", TK_PRIMITIVE));
   ASSERT_EQ(1, ref_count(package, "U32"));
 }
 

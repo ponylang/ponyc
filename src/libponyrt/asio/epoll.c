@@ -24,10 +24,7 @@ static void handle_queue(asio_backend_t* b)
   asio_msg_t* msg;
 
   while((msg = (asio_msg_t*)messageq_pop(&b->q)) != NULL)
-  {
-    msg->event->flags = ASIO_DISPOSABLE;
     asio_event_send(msg->event, ASIO_DISPOSABLE, 0);
-  }
 }
 
 asio_backend_t* asio_backend_init()
@@ -200,6 +197,8 @@ void asio_event_unsubscribe(asio_event_t* ev)
       ev->data = -1;
     }
   }
+
+  ev->flags = ASIO_DISPOSABLE;
 
   asio_msg_t* msg = (asio_msg_t*)pony_alloc_msg(
     POOL_INDEX(sizeof(asio_msg_t)), 0);

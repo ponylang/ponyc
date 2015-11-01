@@ -1,6 +1,7 @@
 #include "assemble.h"
 #include "subtype.h"
 #include "lookup.h"
+#include "cap.h"
 #include "../ast/token.h"
 #include "../ast/astbuild.h"
 #include "../expr/literal.h"
@@ -141,7 +142,7 @@ ast_t* type_builtin(pass_opt_t* opt, ast_t* from, const char* name)
 {
   ast_t* ast = type_base(from, NULL, name);
 
-  if(!names_nominal(opt, from, &ast))
+  if(!names_nominal(opt, from, &ast, false))
   {
     ast_error(from, "unable to validate '%s'", name);
     ast_free(ast);
@@ -164,7 +165,7 @@ ast_t* type_pointer_to(pass_opt_t* opt, ast_t* to)
       NONE // Ephemeral
       ));
 
-  if(!names_nominal(opt, to, &pointer))
+  if(!names_nominal(opt, to, &pointer, false))
   {
     ast_error(to, "unable to create Pointer[%s]", ast_print_type(to));
     ast_free(pointer);
@@ -300,9 +301,75 @@ ast_t* type_for_fun(ast_t* ast)
   if(fcap == TK_NONE)
     fcap = TK_TAG;
 
-  BUILD(fun, ast,
-    NODE(TK_FUNTYPE, NODE(fcap) TREE(typeparams) TREE(params) TREE(result)));
+  // The params may already have types attached. If we build the function type
+  // directly from those we'll get nested types which can mess things up. To
+  // avoid this make a clean version of the params without types.
+  ast_t* clean_params = ast_dup(params);
 
+  for(ast_t* p = ast_child(clean_params); p != NULL; p = ast_sibling(p))
+    ast_settype(p, NULL);
+
+  BUILD(fun, ast,
+    NODE(TK_FUNTYPE,
+      NODE(fcap) TREE(typeparams) TREE(clean_params) TREE(result)));
+
+  return fun;
+}
+
+ast_t* type_isect_fun(ast_t* a, ast_t* b)
+{
+  token_id ta = ast_id(a);
+  token_id tb = ast_id(b);
+
+  if(((ta == TK_NEW) || (tb == TK_NEW)) && (ta != tb))
+    return NULL;
+
+  AST_GET_CHILDREN(a, a_cap, a_id, a_typeparams, a_params, a_result, a_throw);
+  AST_GET_CHILDREN(b, b_cap, b_id, b_typeparams, b_params, b_result, b_throw);
+
+  // Must have the same name.
+  if(ast_name(a_id) != ast_name(b_id))
+    return NULL;
+
+  // Must have the same number of type parameters and parameters.
+  if((ast_childcount(a_typeparams) != ast_childcount(b_typeparams)) ||
+    (ast_childcount(a_params) != ast_childcount(b_params)))
+    return NULL;
+
+  // Contravariant receiver cap.
+  token_id tcap;
+  token_id a_tcap = ast_id(a_cap);
+  token_id b_tcap = ast_id(b_cap);
+
+  if(is_cap_sub_cap(b_tcap, TK_NONE, a_tcap, TK_NONE))
+    tcap = a_tcap;
+  else if(is_cap_sub_cap(a_tcap, TK_NONE, b_tcap, TK_NONE))
+    tcap = b_tcap;
+  else
+    tcap = TK_BOX;
+
+  // Result is the intersection of the results.
+  ast_t* result = type_isect(a_result, b_result);
+
+  // Covariant throws.
+  token_id throws;
+
+  if((ast_id(a_throw) == TK_NONE) || (ast_id(b_throw) == TK_NONE))
+    throws = TK_NONE;
+  else
+    throws = TK_QUESTION;
+
+  BUILD(fun, a,
+    NODE(tcap)
+    TREE(a_id)
+    NODE(TK_TYPEPARAMS)
+    NODE(TK_PARAMS)
+    TREE(result)
+    NODE(throws)
+    );
+
+  // TODO: union typeparams and params
+  // handling typeparam names is tricky
   return fun;
 }
 
@@ -344,6 +411,7 @@ ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
   {
     case TK_UNIONTYPE:
     case TK_ISECTTYPE:
+    case TK_TUPLETYPE:
     {
       ast_t* child = ast_child(type);
       type = ast_from(type, ast_id(type));

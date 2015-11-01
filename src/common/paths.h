@@ -40,5 +40,7 @@ void pony_closedir(PONY_DIR* dir);
 bool pony_dir_entry_next(PONY_DIR* dir, PONY_DIRINFO* entry,
   PONY_DIRINFO** res);
 
+// Make the specified directory, including any intermediate directories
+void pony_mkdir(const char* path);
 
 #endif

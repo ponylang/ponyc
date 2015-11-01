@@ -5,6 +5,7 @@
 #include "actormap.h"
 #include "delta.h"
 #include "../mem/heap.h"
+#include "../ds/stack.h"
 #include <pony.h>
 #include <platform.h>
 
@@ -23,30 +24,29 @@ typedef struct gc_t
   deltamap_t* delta;
 } gc_t;
 
-void gc_sendobject(pony_actor_t* actor, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f);
+DECLARE_STACK(gcstack, void);
 
-void gc_recvobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f);
+void gc_sendobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
 
-void gc_markobject(pony_actor_t* current, heap_t* heap, gc_t* gc,
-  void* p, pony_trace_fn f);
+void gc_recvobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
 
-void gc_sendactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_markobject(pony_ctx_t* ctx, void* p, pony_trace_fn f);
 
-void gc_recvactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_sendactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void gc_markactor(pony_actor_t* current, gc_t* gc, pony_actor_t* actor);
+void gc_recvactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void gc_createactor(gc_t* gc, pony_actor_t* actor);
+void gc_markactor(pony_ctx_t* ctx, pony_actor_t* actor);
 
-void gc_handlestack();
+void gc_createactor(pony_actor_t* current, pony_actor_t* actor);
 
-void gc_mark(gc_t* gc);
+void gc_handlestack(pony_ctx_t* ctx);
 
-void gc_sweep(gc_t* gc);
+void gc_sweep(pony_ctx_t* ctx, gc_t* gc);
 
-void gc_sendacquire();
+void gc_sendacquire(pony_ctx_t* ctx);
+
+void gc_sendrelease(pony_ctx_t* ctx, gc_t* gc);
 
 bool gc_acquire(gc_t* gc, actorref_t* aref);
 
@@ -56,11 +56,13 @@ size_t gc_rc(gc_t* gc);
 
 deltamap_t* gc_delta(gc_t* gc);
 
-void gc_register_final(gc_t* gc, void* p, pony_final_fn final);
+void gc_register_final(pony_ctx_t* ctx, void* p, pony_final_fn final);
 
-void gc_final(gc_t* gc);
+void gc_final(pony_ctx_t* ctx, gc_t* gc);
 
 void gc_done(gc_t* gc);
+
+void gc_destroy(gc_t* gc);
 
 PONY_EXTERN_C_END
 

@@ -8,6 +8,7 @@
 #include "../type/reify.h"
 #include "../type/subtype.h"
 #include "../debug/dwarf.h"
+#include "../../libponyrt/mem/pool.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -217,6 +218,7 @@ static void setup_type_fields(gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         g->field_count++;
         break;
@@ -242,11 +244,13 @@ static void setup_type_fields(gentype_t* g)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         AST_GET_CHILDREN(member, name, type, init);
         g->fields[index] = reify(typeparams, ast_type(member), typeparams,
           typeargs);
-        ast_setpos(g->fields[index], ast_line(name), ast_pos(name));
+        // TODO: Are we sure the AST source file is correct?
+        ast_setpos(g->fields[index], NULL, ast_line(name), ast_pos(name));
         index++;
         break;
       }
@@ -281,14 +285,10 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_startfun(c, g->dispatch_fn, false);
 
   LLVMBasicBlockRef unreachable = codegen_block(c, "unreachable");
-  LLVMValueRef this_ptr = LLVMGetParam(g->dispatch_fn, 0);
-  LLVMSetValueName(this_ptr, "this");
-
-  g->dispatch_msg = LLVMGetParam(g->dispatch_fn, 1);
-  LLVMSetValueName(g->dispatch_msg, "msg");
 
   // Read the message ID.
-  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, g->dispatch_msg, 1, "");
+  LLVMValueRef msg = LLVMGetParam(g->dispatch_fn, 2);
+  LLVMValueRef id_ptr = LLVMBuildStructGEP(c->builder, msg, 1, "");
   LLVMValueRef id = LLVMBuildLoad(c->builder, id_ptr, "id");
 
   // Store a reference to the dispatch switch. When we build behaviours, we
@@ -301,8 +301,8 @@ static void make_dispatch(compile_t* c, gentype_t* g)
   codegen_finishfun(c);
 }
 
-static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
-  int extra)
+static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef ctx,
+  LLVMValueRef object, int extra)
 {
   bool need_trace = false;
 
@@ -311,20 +311,21 @@ static bool trace_fields(compile_t* c, gentype_t* g, LLVMValueRef object,
     LLVMValueRef field = LLVMBuildStructGEP(c->builder, object, i + extra,
       "");
     LLVMValueRef value = LLVMBuildLoad(c->builder, field, "");
-    need_trace |= gentrace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, ctx, value, g->fields[i]);
   }
 
   return need_trace;
 }
 
-static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef tuple)
+static bool trace_elements(compile_t* c, gentype_t* g, LLVMValueRef ctx,
+  LLVMValueRef tuple)
 {
   bool need_trace = false;
 
   for(int i = 0; i < g->field_count; i++)
   {
     LLVMValueRef value = LLVMBuildExtractValue(c->builder, tuple, i, "");
-    need_trace |= gentrace(c, value, g->fields[i]);
+    need_trace |= gentrace(c, ctx, value, g->fields[i]);
   }
 
   return need_trace;
@@ -357,7 +358,8 @@ static bool make_trace(compile_t* c, gentype_t* g)
   codegen_startfun(c, trace_fn, false);
   LLVMSetFunctionCallConv(trace_fn, LLVMCCallConv);
 
-  LLVMValueRef arg = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef ctx = LLVMGetParam(trace_fn, 0);
+  LLVMValueRef arg = LLVMGetParam(trace_fn, 1);
   LLVMValueRef object = LLVMBuildBitCast(c->builder, arg, g->structure_ptr,
     "object");
 
@@ -368,16 +370,24 @@ static bool make_trace(compile_t* c, gentype_t* g)
   {
     // Create another function that traces the tuple members.
     const char* trace_tuple_name = genname_tracetuple(g->type_name);
-    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type, &g->primitive,
-      1, false);
+
+    LLVMTypeRef param_types[3];
+    param_types[0] = c->void_ptr;
+    param_types[1] = g->primitive;
+
+    LLVMTypeRef trace_tuple_type = LLVMFunctionType(c->void_type,
+      param_types, 2, false);
+
     LLVMValueRef trace_tuple_fn = codegen_addfun(c, trace_tuple_name,
       trace_tuple_type);
 
     codegen_startfun(c, trace_tuple_fn, false);
     LLVMSetFunctionCallConv(trace_tuple_fn, LLVMCCallConv);
 
-    LLVMValueRef arg = LLVMGetParam(trace_tuple_fn, 0);
-    need_trace = trace_elements(c, g, arg);
+    LLVMValueRef tuple_ctx = LLVMGetParam(trace_tuple_fn, 0);
+    LLVMValueRef tuple_value = LLVMGetParam(trace_tuple_fn, 1);
+
+    need_trace = trace_elements(c, g, tuple_ctx, tuple_value);
 
     LLVMBuildRetVoid(c->builder);
     codegen_finishfun(c);
@@ -389,7 +399,11 @@ static bool make_trace(compile_t* c, gentype_t* g)
       LLVMValueRef tuple = LLVMBuildLoad(c->builder, tuple_ptr, "");
 
       // Call the tuple trace function with the unboxed primitive type.
-      LLVMBuildCall(c->builder, trace_tuple_fn, &tuple, 1, "");
+      LLVMValueRef args[2];
+      args[0] = ctx;
+      args[1] = tuple;
+
+      LLVMBuildCall(c->builder, trace_tuple_fn, args, 2, "");
     } else {
       LLVMDeleteFunction(trace_tuple_fn);
     }
@@ -400,7 +414,7 @@ static bool make_trace(compile_t* c, gentype_t* g)
     if(g->underlying == TK_ACTOR)
       extra++;
 
-    need_trace = trace_fields(c, g, object, extra);
+    need_trace = trace_fields(c, g, ctx, object, extra);
   }
 
   LLVMBuildRetVoid(c->builder);
@@ -428,7 +442,8 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying == TK_ACTOR)
     extra++;
 
-  VLA(LLVMTypeRef, elements, g->field_count + extra);
+  size_t buf_size = (g->field_count + extra) * sizeof(LLVMTypeRef);
+  LLVMTypeRef* elements = (LLVMTypeRef*)pool_alloc_size(buf_size);
 
   // Create the type descriptor as element 0.
   if(g->underlying != TK_TUPLETYPE)
@@ -446,7 +461,10 @@ static bool make_struct(compile_t* c, gentype_t* g)
     gentype_t field_g;
 
     if(!gentype_prelim(c, g->fields[i], &field_g))
+    {
+      pool_free_size(buf_size, elements);
       return false;
+    }
 
     elements[i + extra] = field_g.use_type;
   }
@@ -457,6 +475,7 @@ static bool make_struct(compile_t* c, gentype_t* g)
   if(g->underlying == TK_TUPLETYPE)
     make_box_type(c, g);
 
+  pool_free_size(buf_size, elements);
   return true;
 }
 

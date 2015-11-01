@@ -27,7 +27,7 @@ __pony_spec_align__(
 __pony_spec_align__(
   typedef struct mpmcq_t
   {
-    mpmcq_node_t* head;
+    mpmcq_node_t* volatile head;
     mpmcq_dwcas_t tail;
   } mpmcq_t, 64
 );

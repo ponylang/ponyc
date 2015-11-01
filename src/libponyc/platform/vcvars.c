@@ -1,5 +1,6 @@
 #include <platform.h>
 #include "../ast/error.h"
+#include "../../libponyrt/mem/pool.h"
 
 #if defined(PLATFORM_IS_WINDOWS)
 
@@ -7,17 +8,19 @@
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\Microsoft SDKs\\Windows\\")
 #define REG_VS_INSTALL_PATH \
   TEXT("SOFTWARE\\Wow6432Node\\Microsoft\\VisualStudio\\SxS\\VS7")
+#define REG_VC_TOOLS_PATH \
+  TEXT("SOFTWARE\\Microsoft\\DevDiv\\VCForPython\\9.0")
 
 #define MAX_VER_LEN 10
 
-typedef void(*query_callback_fn)(HKEY key, char* name, void* p);
-typedef void(*file_search_fn)(char* path, void* p);
+typedef struct search_t search_t;
+typedef void(*query_callback_fn)(HKEY key, char* name, search_t* p);
 
-typedef struct search_t
+struct search_t
 {
-  char path[MAX_PATH];
+  char path[MAX_PATH + 1];
   char version[MAX_VER_LEN + 1];
-} search_t;
+};
 
 void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 {
@@ -30,7 +33,7 @@ void get_child_count(HKEY key, DWORD* count, DWORD* largest_subkey)
 }
 
 bool query_registry(HKEY key, bool query_subkeys,
-  query_callback_fn fn, void* p)
+  query_callback_fn fn, search_t* p)
 {
   DWORD sub_keys;
   DWORD largest_subkey;
@@ -52,7 +55,7 @@ bool query_registry(HKEY key, bool query_subkeys,
 
   HKEY node;
   DWORD size = largest_subkey;
-  VLA(char, name, largest_subkey);
+  char* name = (char*)pool_alloc_size(largest_subkey);
 
   for(DWORD i = 0; i < sub_keys; ++i)
   {
@@ -65,6 +68,7 @@ bool query_registry(HKEY key, bool query_subkeys,
       }
       else
       {
+        pool_free_size(largest_subkey, name);
         return false;
       }
 
@@ -72,17 +76,19 @@ bool query_registry(HKEY key, bool query_subkeys,
     }
     else
     {
+      pool_free_size(largest_subkey, name);
       return false;
     }
 
     size = largest_subkey;
   }
 
+  pool_free_size(largest_subkey, name);
   return true;
 }
 
 static bool find_registry_key(char* path, query_callback_fn query,
-  bool query_subkeys, void* p)
+  bool query_subkeys, search_t* p)
 {
   bool success = true;
   HKEY key;
@@ -110,70 +116,45 @@ static bool find_registry_key(char* path, query_callback_fn query,
   return success;
 }
 
-static void pick_newest_vs(HKEY key, char* name, void* p)
+static void pick_vc_tools(HKEY key, char* name, search_t* p)
 {
-  search_t* vs = (search_t*)p;
-  DWORD idx = 0;
-  DWORD status = 0;
+  DWORD size = MAX_PATH;
 
-  DWORD ver_size = MAX_VER_LEN + 1;
-  DWORD path_len = MAX_PATH + 1;
-
-  DWORD size = ver_size;
-
-  //thats a bit fragile
-  VLA(char, new_version, ver_size);
-  VLA(char, new_path, path_len);
-
-  while(true)
-  {
-    status = RegEnumValue(key, idx, new_version, &size, NULL, NULL, NULL, NULL);
-
-    if(status != ERROR_SUCCESS)
-      break;
-
-    if((strlen(vs->version) == 0)
-      || (strncmp(vs->version, new_version, strlen(vs->version)) < 0))
-    {
-      if(RegGetValue(key, NULL, new_version,
-        RRF_RT_REG_SZ, NULL, new_path, &path_len) == ERROR_SUCCESS)
-      {
-        strcpy(vs->path, new_path);
-        strcpy(vs->version, new_version);
-      }
-    }
-
-    idx++;
-    size = ver_size;
-  };
+  RegGetValue(key, NULL, "InstallDir", RRF_RT_REG_SZ,
+    NULL, p->path, &size); 
 }
 
-static void pick_newest_sdk(HKEY key, char* name, void* p)
+static void pick_vs_tools(HKEY key, char* name, search_t* p)
 {
-  search_t* sdk = (search_t*)p;
+  DWORD size = MAX_PATH;
 
+  RegGetValue(key, NULL, p->version, RRF_RT_REG_SZ, NULL, p->path, &size);
+}
+
+static void pick_newest_sdk(HKEY key, char* name, search_t* p)
+{
   //it seems to be the case that sub nodes ending
   //with an 'A' are .NET Framework SDKs
   if(name[strlen(name) - 1] == 'A')
     return;
 
-  DWORD path_len = MAX_PATH + 1;
-  DWORD version_len = MAX_VER_LEN + 1;
-  VLA(char, new_path, path_len);
+  DWORD path_len = MAX_PATH;
+  DWORD version_len = MAX_VER_LEN;
+  char new_path[MAX_PATH];
 
   if(RegGetValue(key, NULL, "InstallationFolder", RRF_RT_REG_SZ,
     NULL, new_path, &path_len) == ERROR_SUCCESS)
   {
-    VLA(char, new_version, version_len);
+    char new_version[MAX_VER_LEN];
 
     if(RegGetValue(key, NULL, "ProductVersion",
       RRF_RT_REG_SZ, NULL, new_version, &version_len) == ERROR_SUCCESS)
     {
-      if((strlen(sdk->version) == 0)
-        || (strncmp(sdk->version, new_version, strlen(sdk->version)) < 0))
+      if((strlen(p->version) == 0)
+        || (strncmp(p->version, new_version, strlen(p->version)) < 0))
       {
-        strcpy(sdk->path, new_path);
-        strcpy(sdk->version, new_version);
+        strcpy(p->path, new_path);
+        strcpy(p->version, new_version);
       }
     }
   }
@@ -182,7 +163,7 @@ static void pick_newest_sdk(HKEY key, char* name, void* p)
 static bool find_kernel32(vcvars_t* vcvars)
 {
   search_t sdk;
-  memset(sdk.version, 0, MAX_VER_LEN + 1);
+  memset(&sdk, 0, sizeof(search_t));
 
   if(!find_registry_key(REG_SDK_INSTALL_PATH, pick_newest_sdk, true, &sdk))
   {
@@ -217,11 +198,15 @@ static bool find_executable(const char* path, const char* name, char* dest)
 static bool find_msvcrt_and_linker(vcvars_t* vcvars)
 {
   search_t vs;
-  memset(vs.version, 0, MAX_VER_LEN + 1);
 
-  if(!find_registry_key(REG_VS_INSTALL_PATH, pick_newest_vs, false, &vs))
+  snprintf(vs.version, sizeof(vs.version), "%d.%d",
+    PLATFORM_TOOLS_VERSION / 10,
+    PLATFORM_TOOLS_VERSION % 10);
+
+  if(!find_registry_key(REG_VC_TOOLS_PATH, pick_vc_tools, false, &vs) &&
+    !find_registry_key(REG_VS_INSTALL_PATH, pick_vs_tools, false, &vs))
   {
-    errorf(NULL, "unable to locate Visual Studio");
+    errorf(NULL, "unable to locate VC tools or Visual Studio %s", vs.version);
     return false;
   }
 

@@ -196,34 +196,72 @@ static LLVMValueRef make_cmp(compile_t* c, ast_t* left, ast_t* right,
 LLVMValueRef make_short_circuit(compile_t* c, ast_t* left, ast_t* right,
   bool is_and)
 {
+  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef left_block = codegen_block(c, "sc_left");
+  LLVMValueRef branch = LLVMBuildBr(c->builder, left_block);
+
+  LLVMPositionBuilderAtEnd(c->builder, left_block);
   LLVMValueRef l_value = gen_expr(c, left);
 
   if(l_value == NULL)
     return NULL;
 
-  LLVMBasicBlockRef entry_block = LLVMGetInsertBlock(c->builder);
-  LLVMBasicBlockRef next_block = codegen_block(c, "sc_next");
+  if(is_constant_i1(c, l_value))
+  {
+    LLVMInstructionEraseFromParent(branch);
+    LLVMDeleteBasicBlock(left_block);
+    LLVMPositionBuilderAtEnd(c->builder, entry_block);
+
+    if(is_and)
+    {
+      if(is_always_false(c, l_value))
+        return gen_expr(c, left);
+    } else {
+      if(is_always_true(c, l_value))
+        return gen_expr(c, left);
+    }
+
+    return gen_expr(c, right);
+  }
+
+  LLVMBasicBlockRef left_exit_block = LLVMGetInsertBlock(c->builder);
+
+  LLVMBasicBlockRef right_block = codegen_block(c, "sc_right");
   LLVMBasicBlockRef post_block = codegen_block(c, "sc_post");
 
   if(is_and)
-    LLVMBuildCondBr(c->builder, l_value, next_block, post_block);
+    LLVMBuildCondBr(c->builder, l_value, right_block, post_block);
   else
-    LLVMBuildCondBr(c->builder, l_value, post_block, next_block);
+    LLVMBuildCondBr(c->builder, l_value, post_block, right_block);
 
-  LLVMPositionBuilderAtEnd(c->builder, next_block);
+  LLVMPositionBuilderAtEnd(c->builder, right_block);
   LLVMValueRef r_value = gen_expr(c, right);
 
   if(r_value == NULL)
     return NULL;
 
-  next_block = LLVMGetInsertBlock(c->builder);
+  LLVMBasicBlockRef right_exit_block = LLVMGetInsertBlock(c->builder);
   LLVMBuildBr(c->builder, post_block);
 
   LLVMPositionBuilderAtEnd(c->builder, post_block);
   LLVMValueRef phi = LLVMBuildPhi(c->builder, c->i1, "");
 
-  LLVMAddIncoming(phi, &l_value, &entry_block, 1);
-  LLVMAddIncoming(phi, &r_value, &next_block, 1);
+  LLVMAddIncoming(phi, &l_value, &left_exit_block, 1);
+  LLVMAddIncoming(phi, &r_value, &right_exit_block, 1);
+
+  if(is_constant_i1(c, r_value))
+  {
+    if(is_and)
+    {
+      if(is_always_false(c, r_value))
+        return r_value;
+    } else {
+      if(is_always_true(c, r_value))
+        return r_value;
+    }
+
+    return l_value;
+  }
 
   return phi;
 }
@@ -266,6 +304,7 @@ static bool assign_tuple(compile_t* c, ast_t* left, ast_t* r_type,
 
       case TK_LET:
       case TK_VAR:
+      case TK_TUPLE:
         expr = child;
         break;
 

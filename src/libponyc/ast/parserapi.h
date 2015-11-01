@@ -33,9 +33,9 @@ PONY_EXTERN_C_BEGIN
  * Each rule returns one of 4 things:
  * 1. PARSE_ERROR - indicates that an error occurred. Parse errors are
  *    propogated up to the caller without re-reporting them.
- * 2. RULE_NOT_FOUND - indcates that the rule was not found. It is up to the
+ * 2. RULE_NOT_FOUND - indicates that the rule was not found. It is up to the
  *    caller whether this constitutes an error.
- * 3. An AST tree - generated from a successful rule parse. It is the
+ * 3. An AST tree - generated from a successful rule parse. It is the caller's
  *    responsibility to free the tree with ast_free().
  * 4. NULL - indicates a successful rule parse, but that rule generates no AST.
  *    This is perfectly legal for all rules except the top level initial rule.
@@ -53,6 +53,20 @@ PONY_EXTERN_C_BEGIN
  * grammars including left recursive rules (ie a rule where the first element
  * is a recursive call to the same rule). Such rules will lead to infinite
  * loops and/or stack overflow.
+ *
+ * Special tokens:
+ *
+ * TK_NEWLINE.
+ * This should only be used as the condition for IF and IFELSE macros. It
+ * reports as true if there is a newline before the next lexer token. Getting
+ * true back from this does not count as matching the containing rule.
+ *
+ * TK_FLATTEN.
+ * This is used to build flat trees (like you would get from a SEQ() macro)
+ * from recursive rules.
+ * Do do this just return an AST from a rule with a TK_FLATTEN node at its
+ * root. When this is used by the calling rule the flatten node will be thrown
+ * away and all its children will be added to the caller.
  */
 
 typedef struct lexer_t lexer_t;
@@ -106,7 +120,7 @@ ast_t* parse_token_set(parser_t* parser, rule_state_t* state, const char* desc,
 ast_t* parse_rule_set(parser_t* parser, rule_state_t* state, const char* desc,
   const rule_t* rule_set, bool* out_found);
 
-void parse_set_next_flags(parser_t* parser, uint64_t flags);
+void parse_set_next_flags(parser_t* parser, uint32_t flags);
 
 ast_t* parse_rule_complete(parser_t* parser, rule_state_t* state);
 
@@ -382,7 +396,8 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   { \
     static const size_t order[] = { __VA_ARGS__ }; \
     assert(ast_childcount(state.ast) == (sizeof(order) / sizeof(size_t))); \
-    ast_reorder_children(state.ast, order); \
+    static ast_t* shuffle[sizeof(order) / sizeof(size_t)]; \
+    ast_reorder_children(state.ast, order, shuffle); \
     state.last_child = NULL; \
   }
 
@@ -405,23 +420,36 @@ bool parse(ast_t* package, source_t* source, rule_t start,
   }
 
 
-/** Set a data field flag, which are used to communicate extra information
- * between the parser and syntax pass.
+/** Set a flag on the current AST node.
  * The value specified is the flag value, not the flag index.
  *
  * Example:
  *      SET_FLAG(FOO_FLAG);
  */
-#define SET_FLAG(f) \
-  ast_setdata(state.ast, (void*)(f | (uint64_t)ast_data(state.ast)))
+#define SET_FLAG(flag) \
+  ast_setflag(state.ast, flag)
 
 
-/** Set the data field flags to use for the next token found in the source.
+/** Set a flag on the specified child of the current AST node.
+* The value specified is the flag value, not the flag index.
+*
+* Example:
+*      SET_CHILD_FLAG(3, FOO_FLAG);
+*/
+#define SET_CHILD_FLAG(child_idx, flag) \
+  ast_setflag(ast_childidx(state.ast, child_idx), flag)
+
+
+/** Set the AST flags to use for the next token found in the source.
  *
  * Example:
  *    NEXT_FLAGS(FOO_FLAG);
  */
 #define NEXT_FLAGS(f)  parse_set_next_flags(parser, f)
+
+
+/// Macros for grammar printing, do nothing while parsing
+#define PRINT_INLINE()
 
 
 /// Must appear at the end of each defined rule

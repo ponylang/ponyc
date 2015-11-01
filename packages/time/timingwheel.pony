@@ -84,11 +84,9 @@ class _TimingWheel
     """
     Cancels all pending timers.
     """
-    try
-      for list in _list.values() do
-        for timer in list.values() do
-          timer._cancel()
-        end
+    for list in _list.values() do
+      for timer in list.values() do
+        timer._cancel()
       end
     end
 

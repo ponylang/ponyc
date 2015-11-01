@@ -5,24 +5,20 @@
 #include "genfun.h"
 #include "gencall.h"
 #include "genname.h"
+#include "genprim.h"
 #include "../reach/paint.h"
 #include "../pkg/package.h"
 #include "../pkg/program.h"
 #include "../type/assemble.h"
 #include "../../libponyrt/mem/pool.h"
 #include <string.h>
+#include <assert.h>
 
 #ifdef PLATFORM_IS_POSIX_BASED
 #  include <unistd.h>
 #endif
 
-#if defined(PLATFORM_IS_LINUX)
-
-#ifdef USE_NUMA
-  #define NUMA_LIB "-lnuma"
-#else
-  #define NUMA_LIB ""
-#endif
+#if defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
 
 static bool file_exists(const char* filename)
 {
@@ -38,6 +34,7 @@ static const char* crt_directory()
   {
     "/usr/lib/x86_64-linux-gnu/",
     "/usr/lib64/",
+    "/usr/lib/",
     NULL
   };
 
@@ -60,6 +57,7 @@ static const char* gccs_directory()
   {
     "/lib/x86_64-linux-gnu/",
     "/lib64/",
+    "/lib/",
     NULL
   };
 
@@ -77,52 +75,89 @@ static const char* gccs_directory()
 }
 #endif
 
-static const char* get_link_path()
+static bool need_primitive_call(compile_t* c, const char* method)
 {
-  strlist_t* paths = package_paths();
-  size_t len = 0;
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
 
-  while(paths != NULL)
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    const char* path = strlist_data(paths);
-    len += strlen(path);
+    if(ast_id(t->type) == TK_TUPLETYPE)
+      continue;
 
-#ifdef PLATFORM_IS_POSIX_BASED
-    len += 6;
-#else
-    len += 12;
-#endif
+    ast_t* def = (ast_t*)ast_data(t->type);
 
-    paths = strlist_next(paths);
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
+
+    reachable_method_name_t* n = reach_method_name(t, method);
+
+    if(n == NULL)
+      continue;
+
+    return true;
   }
 
-  VLA(char, buf, len + 1);
-  char* p = buf;
-  paths = package_paths();
+  return false;
+}
 
-  while(paths != NULL)
+static void primitive_call(compile_t* c, const char* method, LLVMValueRef arg)
+{
+  size_t count = 1;
+
+  if(arg != NULL)
+    count++;
+
+  size_t i = HASHMAP_BEGIN;
+  reachable_type_t* t;
+
+  while((t = reachable_types_next(c->reachable, &i)) != NULL)
   {
-    const char* path = strlist_data(paths);
-    len = strlen(path);
+    if(ast_id(t->type) == TK_TUPLETYPE)
+      continue;
 
-#ifdef PLATFORM_IS_POSIX_BASED
-    strcpy(p, " -L \"");
-    p += 5;
-#else
-    strcpy(p, " /LIBPATH:\"");
-    p += 11;
-#endif
+    ast_t* def = (ast_t*)ast_data(t->type);
 
-    memcpy(p, path, len + 1);
-    p += len;
+    if(ast_id(def) != TK_PRIMITIVE)
+      continue;
 
-    strcpy(p, "\"");
-    p++;
+    reachable_method_name_t* n = reach_method_name(t, method);
 
-    paths = strlist_next(paths);
+    if(n == NULL)
+      continue;
+
+    gentype_t g;
+
+    if(!gentype(c, t->type, &g))
+    {
+      assert(0);
+      return;
+    }
+
+    LLVMValueRef fun = genfun_proto(c, &g, method, NULL);
+    assert(fun != NULL);
+
+    LLVMValueRef args[2];
+    args[0] = g.instance;
+    args[1] = arg;
+
+    codegen_call(c, fun, args, count);
   }
+}
 
-  return stringtab(buf);
+static LLVMValueRef create_main(compile_t* c, gentype_t* g, LLVMValueRef ctx)
+{
+  // Create the main actor and become it.
+  LLVMValueRef args[2];
+  args[0] = ctx;
+  args[1] = LLVMConstBitCast(g->desc, c->descriptor_ptr);
+  LLVMValueRef actor = gencall_runtime(c, "pony_create", args, 2, "");
+
+  args[0] = ctx;
+  args[1] = actor;
+  gencall_runtime(c, "pony_become", args, 2, "");
+
+  return actor;
 }
 
 static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
@@ -137,7 +172,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
 
   codegen_startfun(c, func, false);
 
-  LLVMValueRef args[3];
+  LLVMValueRef args[4];
   args[0] = LLVMGetParam(func, 0);
   LLVMSetValueName(args[0], "argc");
 
@@ -151,9 +186,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   args[0] = gencall_runtime(c, "pony_init", args, 2, "argc");
 
   // Create the main actor and become it.
-  LLVMValueRef m = gencall_create(c, main_g);
-  LLVMValueRef object = LLVMBuildBitCast(c->builder, m, c->object_ptr, "");
-  gencall_runtime(c, "pony_become", &object, 1, "");
+  LLVMValueRef ctx = gencall_runtime(c, "pony_ctx", NULL, 0, "");
+  codegen_setctx(c, ctx);
+  LLVMValueRef main_actor = create_main(c, main_g, ctx);
 
   // Create an Env on the main actor's heap.
   const char* env_name = "Env";
@@ -168,6 +203,9 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMValueRef env = gencall_runtime(c, env_create, env_args, 4, "env");
   LLVMSetInstructionCallConv(env, GEN_CALLCONV);
 
+  // Run primitive initialisers using the main actor's heap.
+  primitive_call(c, stringtab("_init"), env);
+
   // Create a type for the message.
   LLVMTypeRef f_params[4];
   f_params[0] = c->i32;
@@ -179,8 +217,7 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMTypeRef msg_type_ptr = LLVMPointerType(msg_type, 0);
 
   // Allocate the message, setting its size and ID.
-  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"),
-    NULL);
+  uint32_t index = genfun_vtable_index(c, main_g, stringtab("create"), NULL);
 
   size_t msg_size = LLVMABISizeOfType(c->target_data, msg_type);
   args[0] = LLVMConstInt(c->i32, pool_index(msg_size), false);
@@ -193,22 +230,37 @@ static void gen_main(compile_t* c, gentype_t* main_g, gentype_t* env_g)
   LLVMBuildStore(c->builder, env, env_ptr);
 
   // Trace the message.
-  gencall_runtime(c, "pony_gc_send", NULL, 0, "");
-  const char* env_trace = genname_trace(env_name);
+  args[0] = ctx;
+  gencall_runtime(c, "pony_gc_send", args, 1, "");
 
-  args[0] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
-  args[1] = LLVMGetNamedFunction(c->module, env_trace);
-  gencall_runtime(c, "pony_traceobject", args, 2, "");
-  gencall_runtime(c, "pony_send_done", NULL, 0, "");
+  const char* env_trace = genname_trace(env_name);
+  args[0] = ctx;
+  args[1] = LLVMBuildBitCast(c->builder, env, c->object_ptr, "");
+  args[2] = LLVMGetNamedFunction(c->module, env_trace);
+  gencall_runtime(c, "pony_traceobject", args, 3, "");
+
+  args[0] = ctx;
+  gencall_runtime(c, "pony_send_done", args, 1, "");
 
   // Send the message.
-  args[0] = object;
-  args[1] = msg;
-  gencall_runtime(c, "pony_sendv", args, 2, "");
+  args[0] = ctx;
+  args[1] = main_actor;
+  args[2] = msg;
+  gencall_runtime(c, "pony_sendv", args, 3, "");
 
   // Start the runtime.
   LLVMValueRef zero = LLVMConstInt(c->i32, 0, false);
   LLVMValueRef rc = gencall_runtime(c, "pony_start", &zero, 1, "");
+
+  // Run primitive finalisers. We create a new main actor as a context to run
+  // the finalisers in, but we do not initialise or schedule it.
+  if(need_primitive_call(c, stringtab("_final")))
+  {
+    LLVMValueRef final_actor = create_main(c, main_g, ctx);
+    primitive_call(c, stringtab("_final"), NULL);
+    args[0] = final_actor;
+    gencall_runtime(c, "pony_destroy", args, 1, "");
+  }
 
   // Return the runtime exit code.
   LLVMBuildRet(c->builder, rc);
@@ -231,53 +283,59 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  size_t len = (arch - c->opt->triple);
-  VLA(char, arch_buf, len + 1);
-  memcpy(arch_buf, c->opt->triple, len);
-  arch_buf[len] = '\0';
-
-  program_lib_build_args(program, "", "", "-l", "");
-  const char* link_path = get_link_path();
+  program_lib_build_args(program, "-L", "", "", "-l", "");
   const char* lib_args = program_lib_args(program);
 
-  size_t ld_len = 128 + len + strlen(file_exe) + strlen(file_o) +
-    strlen(lib_args) + strlen(link_path);
-  VLA(char, ld_cmd, ld_len);
+  size_t arch_len = arch - c->opt->triple;
+  size_t ld_len = 128 + arch_len + strlen(file_exe) + strlen(file_o) +
+    strlen(lib_args);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "ld -execute -no_pie -dead_strip -arch %s -macosx_version_min 10.9.0 "
-    "-o %s %s %s %s -lponyrt -lSystem",
-    arch_buf, file_exe, file_o, lib_args, link_path
+    "ld -execute -no_pie -dead_strip -arch %.*s -macosx_version_min 10.8 "
+    "-o %s %s %s -lponyrt -lSystem",
+    (int)arch_len, c->opt->triple, file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
 
-  size_t dsym_len = 16 + strlen(file_exe);
-  VLA(char, dsym_cmd, dsym_len);
+  pool_free_size(ld_len, ld_cmd);
 
-  snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
-  system(dsym_cmd);
+  if(!c->opt->strip_debug)
+  {
+    size_t dsym_len = 16 + strlen(file_exe);
+    char* dsym_cmd = (char*)pool_alloc_size(dsym_len);
 
-  snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
+    snprintf(dsym_cmd, dsym_len, "rm -rf %s.dSYM", file_exe);
+    system(dsym_cmd);
 
-  if(system(dsym_cmd) != 0)
-    errorf(NULL, "unable to create dsym");
+    snprintf(dsym_cmd, dsym_len, "dsymutil %s", file_exe);
 
-#elif defined(PLATFORM_IS_LINUX)
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, "");
+    if(system(dsym_cmd) != 0)
+      errorf(NULL, "unable to create dsym");
+
+    pool_free_size(dsym_len, dsym_cmd);
+  }
+
+#elif defined(PLATFORM_IS_LINUX) || defined(PLATFORM_IS_FREEBSD)
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename, "");
   printf("Linking %s\n", file_exe);
 
-  program_lib_build_args(program, "--start-group ", "--end-group ", "-l", "");
-  const char* link_path = get_link_path();
-  const char* lib_args = program_lib_args(program);
+#ifdef PLATFORM_IS_FREEBSD
+  use_path(program, "/usr/local/lib", NULL, NULL);
+#endif
 
+  program_lib_build_args(program, "-L", "-Wl,--start-group ", "-Wl,--end-group ",
+    "-l", "");
+  const char* lib_args = program_lib_args(program);
   const char* crt_dir = crt_directory();
   const char* gccs_dir = gccs_directory();
 
@@ -287,26 +345,52 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(link_path) +
-    strlen(lib_args) + strlen(gccs_dir) + (3 * strlen(crt_dir));
-  VLA(char, ld_cmd, ld_len);
+  size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) + strlen(lib_args) +
+    strlen(gccs_dir) + (3 * strlen(crt_dir));
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
+
+#if 0
+  snprintf(ld_cmd, ld_len,
+    "ld --eh-frame-hdr --hash-style=gnu "
+#if defined(PLATFORM_IS_LINUX)
+    "-m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 "
+#elif defined(PLATFORM_IS_FREEBSD)
+    "-m elf_x86_64_fbsd "
+#endif
+    "-o %s %scrt1.o %scrti.o %s %s -lponyrt -lpthread "
+#ifdef PLATFORM_IS_LINUX
+    "-ldl "
+#endif
+    "-lm -lc %slibgcc_s.so.1 %scrtn.o",
+    file_exe, crt_dir, crt_dir, file_o, lib_args, gccs_dir, crt_dir
+    );
+#endif
 
   snprintf(ld_cmd, ld_len,
-    "ld --eh-frame-hdr -m elf_x86_64 --hash-style=gnu "
-    "-dynamic-linker /lib64/ld-linux-x86-64.so.2 "
-    "-o %s "
-    "%scrt1.o "
-    "%scrti.o "
-    "%s %s %s -lponyrt %s -lpthread -lm -lc %slibgcc_s.so.1 %scrtn.o",
-    file_exe, crt_dir, crt_dir, file_o, link_path, lib_args, NUMA_LIB,
-    gccs_dir, crt_dir
+    PONY_COMPILER " -o %s -O3 -march=" PONY_ARCH " -mcx16 "
+#ifdef PONY_USE_LTO
+    "-flto -fuse-linker-plugin "
+#endif
+
+#ifdef PLATFORM_IS_LINUX
+    "-fuse-ld=gold "
+#endif
+    "%s %s -lponyrt -lpthread "
+#ifdef PLATFORM_IS_LINUX
+    "-ldl "
+#endif
+    "-lm",
+    file_exe, file_o, lib_args
     );
 
   if(system(ld_cmd) != 0)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 #elif defined(PLATFORM_IS_WINDOWS)
   vcvars_t vcvars;
 
@@ -316,33 +400,35 @@ static bool link_exe(compile_t* c, ast_t* program,
     return false;
   }
 
-  const char* file_exe = suffix_filename(c->opt->output, c->filename, ".exe");
+  const char* file_exe = suffix_filename(c->opt->output, "", c->filename,
+    ".exe");
   printf("Linking %s\n", file_exe);
 
-  program_lib_build_args(program, "", "", "", ".lib");
-  const char* link_path = get_link_path();
+  program_lib_build_args(program, "/LIBPATH:", "", "", "", ".lib");
   const char* lib_args = program_lib_args(program);
 
   size_t ld_len = 256 + strlen(file_exe) + strlen(file_o) +
-    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(link_path) +
-    strlen(lib_args);
-  VLA(char, ld_cmd, ld_len);
+    strlen(vcvars.kernel32) + strlen(vcvars.msvcrt) + strlen(lib_args);
+  char* ld_cmd = (char*)pool_alloc_size(ld_len);
 
   snprintf(ld_cmd, ld_len,
-    "cmd /C \"\"%s\" /DEBUG /NOLOGO /NODEFAULTLIB /MACHINE:X64 "
+    "cmd /C \"\"%s\" /DEBUG /NOLOGO /MACHINE:X64 "
     "/OUT:%s "
     "%s "
     "/LIBPATH:\"%s\" "
     "/LIBPATH:\"%s\" "
-    "%s %s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
-    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, link_path, lib_args
+    "%s ponyrt.lib kernel32.lib msvcrt.lib Ws2_32.lib \"",
+    vcvars.link, file_exe, file_o, vcvars.kernel32, vcvars.msvcrt, lib_args
     );
 
   if(system(ld_cmd) == -1)
   {
     errorf(NULL, "unable to link");
+    pool_free_size(ld_len, ld_cmd);
     return false;
   }
+
+  pool_free_size(ld_len, ld_cmd);
 #endif
 
   return true;
@@ -367,6 +453,7 @@ bool genexe(compile_t* c, ast_t* program)
   ast_t* main_ast = type_builtin(c->opt, main_def, main_actor);
   ast_t* env_ast = type_builtin(c->opt, main_def, env_class);
 
+  genprim_reachable_init(c, program);
   reach(c->reachable, main_ast, stringtab("create"), NULL);
   reach(c->reachable, env_ast, stringtab("_create"), NULL);
   paint(c->reachable);

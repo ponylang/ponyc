@@ -3,11 +3,11 @@
 
 #include <platform.h>
 #include "../ast/ast.h"
-#include "../ast/frame.h"
+#include "../pass/pass.h"
 
 PONY_EXTERN_C_BEGIN
 
-bool expr_seq(ast_t* ast);
+bool expr_seq(pass_opt_t* opt, ast_t* ast);
 bool expr_if(pass_opt_t* opt, ast_t* ast);
 bool expr_while(pass_opt_t* opt, ast_t* ast);
 bool expr_repeat(pass_opt_t* opt, ast_t* ast);

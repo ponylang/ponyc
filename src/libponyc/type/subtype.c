@@ -4,13 +4,14 @@
 #include "alias.h"
 #include "assemble.h"
 #include "viewpoint.h"
+#include "../ast/astbuild.h"
 #include "../ast/stringtab.h"
 #include "../expr/literal.h"
 #include <assert.h>
 
 static bool is_isect_subtype(ast_t* sub, ast_t* super);
 
-static bool is_literal(ast_t* type, const char* name)
+bool is_literal(ast_t* type, const char* name)
 {
   if(type == NULL)
     return false;
@@ -39,60 +40,15 @@ static ast_t* fetch_cap(ast_t* type)
   return NULL;
 }
 
-static bool check_cap_and_ephemeral(ast_t* sub, ast_t* super)
+bool is_sub_cap_and_ephemeral(ast_t* sub, ast_t* super)
 {
   ast_t* sub_cap = fetch_cap(sub);
   ast_t* sub_eph = ast_sibling(sub_cap);
   ast_t* super_cap = fetch_cap(super);
   ast_t* super_eph = ast_sibling(super_cap);
 
-  token_id t_sub_cap = ast_id(sub_cap);
-  token_id t_sub_eph = ast_id(sub_eph);
-  token_id t_super_cap = ast_id(super_cap);
-  token_id t_super_eph = ast_id(super_eph);
-  token_id t_alt_cap = t_sub_cap;
-
-  // Adjusted for borrowing.
-  if(t_sub_eph == TK_BORROWED)
-  {
-    switch(t_alt_cap)
-    {
-      case TK_ISO: t_alt_cap = TK_TAG; break;
-      case TK_TRN: t_alt_cap = TK_BOX; break;
-      case TK_ANY_GENERIC: t_alt_cap = TK_TAG; break;
-      default: {}
-    }
-  }
-
-  switch(t_super_eph)
-  {
-    case TK_EPHEMERAL:
-      // Sub must be ephemeral if t_sub_cap != t_alt_cap. Otherwise, we don't
-      // have to be ephemeral, since, for example, a ref can be a subtype of
-      // a ref^, but an iso is not a subtype of an iso^.
-      if((t_sub_cap != t_alt_cap) && (t_sub_eph != TK_EPHEMERAL))
-        return false;
-
-      // Capability must be a sub-capability.
-      return is_cap_sub_cap(t_sub_cap, t_super_cap);
-
-    case TK_NONE:
-      // Check the adjusted capability.
-      return is_cap_sub_cap(t_alt_cap, t_super_cap);
-
-    case TK_BORROWED:
-      // Borrow a capability.
-      if(t_sub_cap == t_super_cap)
-        return true;
-
-      // Or alias a capability.
-      return is_cap_sub_cap(t_alt_cap, t_super_cap);
-
-    default: {}
-  }
-
-  assert(0);
-  return false;
+  return is_cap_sub_cap(ast_id(sub_cap), ast_id(sub_eph), ast_id(super_cap),
+    ast_id(super_eph));
 }
 
 static bool is_eq_typeargs(ast_t* a, ast_t* b)
@@ -133,49 +89,61 @@ static bool is_recursive_interface(ast_t* sub, ast_t* super, ast_t* isub,
     is_eqtype(sub, isub) && is_eqtype(super, isuper);
 }
 
-static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
+static bool is_reified_fun_sub_fun(ast_t* sub, ast_t* super,
   ast_t* isub, ast_t* isuper)
 {
-  // Must be the same type of function.
-  if(ast_id(sub) != ast_id(super))
-    return false;
-
   AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params,
     sub_result, sub_throws);
 
   AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params,
     super_result, super_throws);
 
-  // Must have the same name.
-  if(ast_name(sub_id) != ast_name(super_id))
-    return false;
-
   switch(ast_id(sub))
   {
     case TK_NEW:
     {
       // Covariant receiver.
-      if(!is_cap_sub_cap(ast_id(sub_cap), ast_id(super_cap)))
+      if(!is_cap_sub_cap(ast_id(sub_cap), TK_NONE, ast_id(super_cap), TK_NONE))
         return false;
 
       // Covariant result. Don't check this for interfaces, as it produces
       // an infinite loop. It will be true if the whole interface is provided.
-      if((isuper == NULL) && !is_subtype(sub_result, super_result))
-        return false;
+      if(isuper == NULL)
+      {
+        if(!is_subtype(sub_result, super_result))
+         return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
 
     case TK_FUN:
+    case TK_BE:
     {
       // Contravariant receiver.
-      if(!is_cap_sub_cap(ast_id(super_cap), ast_id(sub_cap)))
+      if(!is_cap_sub_cap(ast_id(super_cap), TK_NONE, ast_id(sub_cap), TK_NONE))
         return false;
 
       // Covariant result.
-      if(!is_recursive_interface(sub_result, super_result, isub, isuper) &&
-        !is_subtype(sub_result, super_result))
-        return false;
+      if(!is_recursive_interface(sub_result, super_result, isub, isuper))
+      {
+        if(!is_subtype(sub_result, super_result))
+          return false;
+
+        // If either result type is a machine word, the other must be as well.
+        if(is_machine_word(sub_result) && !is_machine_word(super_result))
+          return false;
+
+        if(is_machine_word(super_result) && !is_machine_word(sub_result))
+          return false;
+      }
 
       break;
     }
@@ -199,9 +167,6 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
     sub_typeparam = ast_sibling(sub_typeparam);
     super_typeparam = ast_sibling(super_typeparam);
   }
-
-  if((sub_typeparam != NULL) || (super_typeparam != NULL))
-    return false;
 
   // Contravariant parameters.
   ast_t* sub_param = ast_child(sub_params);
@@ -239,6 +204,85 @@ static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
   return true;
 }
 
+static bool is_fun_sub_fun(ast_t* sub, ast_t* super,
+  ast_t* isub, ast_t* isuper)
+{
+  token_id tsub = ast_id(sub);
+  token_id tsuper = ast_id(super);
+
+  switch(tsub)
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      break;
+
+    default:
+      return false;
+  }
+
+  switch(tsuper)
+  {
+    case TK_NEW:
+    case TK_BE:
+    case TK_FUN:
+      break;
+
+    default:
+      return false;
+  }
+
+  // A constructor can only be a subtype of a constructor.
+  if(((tsub == TK_NEW) || (tsuper == TK_NEW)) && (tsub != tsuper))
+    return false;
+
+  AST_GET_CHILDREN(sub, sub_cap, sub_id, sub_typeparams, sub_params);
+  AST_GET_CHILDREN(super, super_cap, super_id, super_typeparams, super_params);
+
+  // Must have the same name.
+  if(ast_name(sub_id) != ast_name(super_id))
+    return false;
+
+  // Must have the same number of type parameters and parameters.
+  if((ast_childcount(sub_typeparams) != ast_childcount(super_typeparams)) ||
+    (ast_childcount(sub_params) != ast_childcount(super_params)))
+    return false;
+
+  ast_t* r_sub = sub;
+
+  if(ast_id(super_typeparams) != TK_NONE)
+  {
+    // Reify sub with the type parameters of super.
+    BUILD(typeargs, super_typeparams, NODE(TK_TYPEARGS));
+    ast_t* super_typeparam = ast_child(super_typeparams);
+
+    while(super_typeparam != NULL)
+    {
+      AST_GET_CHILDREN(super_typeparam, super_id, super_constraint);
+      token_id cap = cap_from_constraint(super_constraint);
+
+      BUILD(typearg, super_typeparam,
+        NODE(TK_TYPEPARAMREF, TREE(super_id) NODE(cap) NONE));
+
+      ast_t* def = ast_get(super_typeparam, ast_name(super_id), NULL);
+      ast_setdata(typearg, def);
+      ast_append(typeargs, typearg);
+
+      super_typeparam = ast_sibling(super_typeparam);
+    }
+
+    r_sub = reify(sub, sub, sub_typeparams, typeargs);
+    ast_free_unattached(typeargs);
+  }
+
+  bool ok = is_reified_fun_sub_fun(r_sub, super, isub, isuper);
+
+  if(r_sub != sub)
+    ast_free_unattached(r_sub);
+
+  return ok;
+}
+
 static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
 {
   ast_t* sub_def = (ast_t*)ast_data(sub);
@@ -264,8 +308,17 @@ static bool is_nominal_sub_interface(ast_t* sub, ast_t* super)
     ast_t* r_sub_member = reify(sub_typeargs, sub_member, sub_typeparams,
       sub_typeargs);
 
+    if(r_sub_member== NULL)
+      return false;
+
     ast_t* r_super_member = reify(super_typeargs, super_member,
       super_typeparams, super_typeargs);
+
+    if(r_super_member == NULL)
+    {
+      ast_free_unattached(r_sub_member);
+      return false;
+    }
 
     bool ok = is_fun_sub_fun(r_sub_member, r_super_member, sub, super);
     ast_free_unattached(r_sub_member);
@@ -297,6 +350,9 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
     // Reify the trait with our typeargs.
     ast_t* r_trait = reify(typeargs, trait, typeparams, typeargs);
 
+    if(r_trait == NULL)
+      return false;
+
     // Use the cap and ephemerality of the subtype.
     AST_GET_CHILDREN(sub, pkg, name, typeparams, cap, eph);
     ast_t* rr_trait = set_cap_and_ephemeral(r_trait, ast_id(cap), ast_id(eph));
@@ -322,7 +378,7 @@ static bool is_nominal_sub_trait(ast_t* sub, ast_t* super)
 // Both sub and super are nominal types.
 static bool is_nominal_sub_nominal(ast_t* sub, ast_t* super)
 {
-  if(!check_cap_and_ephemeral(sub, super))
+  if(!is_sub_cap_and_ephemeral(sub, super))
     return false;
 
   ast_t* sub_def = (ast_t*)ast_data(sub);
@@ -386,7 +442,7 @@ static bool is_nominal_sub_typeparam(ast_t* sub, ast_t* super)
 
         // Capability must be a subtype of the lower bounds of the typeparam.
         ast_t* lower = viewpoint_lower(super);
-        ok = check_cap_and_ephemeral(sub, lower);
+        ok = is_sub_cap_and_ephemeral(sub, lower);
         ast_free_unattached(lower);
         return ok;
       }
@@ -557,7 +613,7 @@ static bool is_pointer_subtype(ast_t* sub, ast_t* super)
       // Must be a Pointer, and the type argument must be the same.
       return is_pointer(super) &&
         is_eq_typeargs(sub, super) &&
-        check_cap_and_ephemeral(sub, super);
+        is_sub_cap_and_ephemeral(sub, super);
     }
 
     case TK_TYPEPARAMREF:
@@ -626,7 +682,7 @@ static bool is_typeparam_sub_typeparam(ast_t* sub, ast_t* super)
   if(sub_def != super_def)
     return false;
 
-  return check_cap_and_ephemeral(sub, super);
+  return is_sub_cap_and_ephemeral(sub, super);
 }
 
 // The subtype is a typeparam, the supertype could be anything.
@@ -807,6 +863,7 @@ bool is_subtype(ast_t* sub, ast_t* super)
 
     case TK_FUNTYPE:
     case TK_INFERTYPE:
+    case TK_ERRORTYPE:
       return false;
 
     case TK_NEW:
@@ -1076,7 +1133,6 @@ bool is_known(ast_t* type)
   {
     case TK_UNIONTYPE:
     case TK_TUPLETYPE:
-    case TK_TYPEPARAMREF:
       return false;
 
     case TK_ISECTTYPE:
@@ -1116,6 +1172,89 @@ bool is_known(ast_t* type)
 
     case TK_ARROW:
       return is_known(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_known(constraint);
+    }
+
+    default: {}
+  }
+
+  assert(0);
+  return false;
+}
+
+bool is_actor(ast_t* type)
+{
+  switch(ast_id(type))
+  {
+    case TK_TUPLETYPE:
+      return false;
+
+    case TK_UNIONTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(!is_actor(child))
+          return false;
+
+        child = ast_sibling(child);
+      }
+
+      return true;
+    }
+
+    case TK_ISECTTYPE:
+    {
+      ast_t* child = ast_child(type);
+
+      while(child != NULL)
+      {
+        if(is_actor(child))
+          return true;
+
+        child = ast_sibling(child);
+      }
+
+      return false;
+    }
+
+    case TK_NOMINAL:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+
+      switch(ast_id(def))
+      {
+        case TK_INTERFACE:
+        case TK_TRAIT:
+        case TK_PRIMITIVE:
+        case TK_CLASS:
+          return false;
+
+        case TK_ACTOR:
+          return true;
+
+        default: {}
+      }
+      break;
+    }
+
+    case TK_ARROW:
+      return is_actor(ast_childidx(type, 1));
+
+    case TK_TYPEPARAMREF:
+    {
+      ast_t* def = (ast_t*)ast_data(type);
+      ast_t* constraint = ast_childidx(def, 1);
+
+      return is_actor(constraint);
+    }
 
     default: {}
   }

@@ -5,6 +5,7 @@
 #include "../ast/symtab.h"
 #include "../ast/token.h"
 #include "../ast/stringtab.h"
+#include "../ast/astbuild.h"
 #include <string.h>
 #include <assert.h>
 
@@ -46,6 +47,7 @@ static bool set_scope(typecheck_t* t, ast_t* scope, ast_t* name, ast_t* value)
 
     case TK_FVAR:
     case TK_FLET:
+    case TK_EMBED:
       status = SYM_DEFINED;
       break;
 
@@ -81,9 +83,6 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
 
   ast_t* package = package_load(ast, path, options);
 
-  if(package == ast)  // Stop builtin recursing
-    return true;
-
   if(package == NULL)
   {
     ast_error(ast, "can't load package '%s'", path);
@@ -93,20 +92,10 @@ bool use_package(ast_t* ast, const char* path, ast_t* name,
   if(name != NULL && ast_id(name) == TK_ID) // We have an alias
     return set_scope(NULL, ast, name, package);
 
-  // We do not have an alias
-  if(!ast_merge(ast, package))
-  {
-    ast_error(ast, "can't merge symbols from '%s'", path);
-    return false;
-  }
-
+  // Store the package so we can import it later without having to look it up
+  // again
+  ast_setdata(ast, (void*)package);
   return true;
-}
-
-static bool scope_module(ast_t* ast, pass_opt_t* options)
-{
-  // Every module has an implicit use "builtin" command
-  return use_package(ast, stringtab("builtin"), NULL, options);
 }
 
 static void set_fields_undefined(ast_t* ast)
@@ -122,6 +111,7 @@ static void set_fields_undefined(ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
       {
         AST_GET_CHILDREN(member, id, type, expr);
 
@@ -171,6 +161,7 @@ static ast_result_t scope_entity(typecheck_t* t, ast_t* ast)
     {
       case TK_FVAR:
       case TK_FLET:
+      case TK_EMBED:
         if(!set_scope(t, member, ast_child(member), member))
           return AST_ERROR;
         break;
@@ -207,15 +198,8 @@ ast_result_t pass_scope(ast_t** astp, pass_opt_t* options)
 
   switch(ast_id(ast))
   {
-    case TK_MODULE:
-      if(!scope_module(ast, options))
-        return AST_FATAL;
-      break;
-
     case TK_USE:
-      if(!use_command(ast, options))
-        return AST_FATAL;
-      break;
+      return use_command(ast, options);
 
     case TK_TYPE:
     case TK_INTERFACE:

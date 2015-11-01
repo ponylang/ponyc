@@ -30,7 +30,7 @@ class List[A] is Seq[A]
     """
     index(i)()
 
-  fun ref update(i: U64, value: A): (A^ | None) ? =>
+  fun ref update(i: U64, value: A): A^ ? =>
     """
     Change the i-th element, raising an error if the index is out of bounds.
     Returns the previous value, which may be None if the node has been popped
@@ -55,6 +55,13 @@ class List[A] is Seq[A]
     end
 
     node
+
+  fun ref remove(i: U64): List[A]^ ? =>
+    """
+    Remove the i-th node, raising an error if the index is out of bounds.
+    """
+    index(i).remove()
+    this
 
   fun ref clear(): List[A]^ =>
     """
@@ -183,6 +190,18 @@ class List[A] is Seq[A]
 
     this
 
+  fun clone(): List[this->A!]^ =>
+    """
+    Clone the list.
+    """
+    let out = List[this->A!]
+
+    for v in values() do
+      out.push(v)
+    end
+
+    out
+
   fun nodes(): ListNodes[A, this->ListNode[A]]^ =>
     """
     Return an iterator on the nodes in the list.
@@ -225,7 +244,7 @@ class List[A] is Seq[A]
     _tail = node
     _size = 1
 
-class ListNodes[A, N: ListNode[A] box] is Iterator[N]
+class ListNodes[A, N: ListNode[A] #read] is Iterator[N]
   """
   Iterate over the nodes in a list.
   """
@@ -262,7 +281,7 @@ class ListNodes[A, N: ListNode[A] box] is Iterator[N]
       error
     end
 
-class ListValues[A, N: ListNode[A] box] is Iterator[N->A]
+class ListValues[A, N: ListNode[A] #read] is Iterator[N->A]
   """
   Iterate over the values in a list.
   """

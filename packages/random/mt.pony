@@ -1,8 +1,15 @@
 class MT is Random
+  """
+  A Mersenne Twister. This is a non-cryptographic random number generator.
+  """
   var _state: Array[U64]
   var _index: U64
 
   new create(seed: U64 = 5489) =>
+    """
+    Create with the specified seed. Returned values are deterministic for a
+    given seed.
+    """
     _state = Array[U64](_n())
     _index = _n()
 
@@ -17,8 +24,10 @@ class MT is Random
       i = i + 1
     end
 
-  // A random integer in [0, 2^64 - 1]
   fun ref next(): U64 =>
+    """
+    A random integer in [0, 2^64 - 1]
+    """
     if _index >= _n() then
       _populate()
     end
@@ -36,6 +45,9 @@ class MT is Random
     end
 
   fun ref _populate() =>
+    """
+    Repopulates the state array.
+    """
     try
       _index = 0
       var x = _state(0)

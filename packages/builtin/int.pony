@@ -1,7 +1,11 @@
-primitive I8 is SignedInteger[I8]
-  new create(from: I8) => compiler_intrinsic
+primitive I8 is _SignedInteger[I8, U8]
+  new create(value: I8 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] val)](a: A): I8 => a.i8()
 
-  fun abs(): I8 => if this < 0 then -this else this end
+  fun tag min_value(): I8 => -0x80
+  fun tag max_value(): I8 => 0x7F
+
+  fun abs(): U8 => if this < 0 then (-this).u8() else this.u8() end
   fun max(that: I8): I8 => if this > that then this else that end
   fun min(that: I8): I8 => if this < that then this else that end
 
@@ -18,10 +22,14 @@ primitive I8 is SignedInteger[I8]
   fun mulc(y: I8): (I8, Bool) =>
     @"llvm.smul.with.overflow.i8"[(I8, Bool)](this, y)
 
-primitive I16 is SignedInteger[I16]
-  new create(from: I16) => compiler_intrinsic
+primitive I16 is _SignedInteger[I16, U16]
+  new create(value: I16 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] val)](a: A): I16 => a.i16()
 
-  fun abs(): I16 => if this < 0 then -this else this end
+  fun tag min_value(): I16 => -0x8000
+  fun tag max_value(): I16 => 0x7FFF
+
+  fun abs(): U16 => if this < 0 then (-this).u16() else this.u16() end
   fun max(that: I16): I16 => if this > that then this else that end
   fun min(that: I16): I16 => if this < that then this else that end
 
@@ -38,10 +46,14 @@ primitive I16 is SignedInteger[I16]
   fun mulc(y: I16): (I16, Bool) =>
     @"llvm.smul.with.overflow.i16"[(I16, Bool)](this, y)
 
-primitive I32 is SignedInteger[I32]
-  new create(from: I32) => compiler_intrinsic
+primitive I32 is _SignedInteger[I32, U32]
+  new create(value: I32 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] val)](a: A): I32 => a.i32()
 
-  fun abs(): I32 => if this < 0 then -this else this end
+  fun tag min_value(): I32 => -0x8000_0000
+  fun tag max_value(): I32 => 0x7FFF_FFFF
+
+  fun abs(): U32 => if this < 0 then (-this).u32() else this.u32() end
   fun max(that: I32): I32 => if this > that then this else that end
   fun min(that: I32): I32 => if this < that then this else that end
 
@@ -58,10 +70,14 @@ primitive I32 is SignedInteger[I32]
   fun mulc(y: I32): (I32, Bool) =>
     @"llvm.smul.with.overflow.i32"[(I32, Bool)](this, y)
 
-primitive I64 is SignedInteger[I64]
-  new create(from: I64) => compiler_intrinsic
+primitive I64 is _SignedInteger[I64, U64]
+  new create(value: I64 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] val)](a: A): I64 => a.i64()
 
-  fun abs(): I64 => if this < 0 then -this else this end
+  fun tag min_value(): I64 => -0x8000_0000_0000_0000
+  fun tag max_value(): I64 => 0x7FFF_FFFF_FFFF_FFFF
+
+  fun abs(): U64 => if this < 0 then (-this).u64() else this.u64() end
   fun max(that: I64): I64 => if this > that then this else that end
   fun min(that: I64): I64 => if this < that then this else that end
 
@@ -78,10 +94,14 @@ primitive I64 is SignedInteger[I64]
   fun mulc(y: I64): (I64, Bool) =>
     @"llvm.smul.with.overflow.i64"[(I64, Bool)](this, y)
 
-primitive I128 is SignedInteger[I128]
-  new create(from: I128) => compiler_intrinsic
+primitive I128 is _SignedInteger[I128, U128]
+  new create(value: I128 = 0) => compiler_intrinsic
+  fun tag from[A: (Number & Real[A] val)](a: A): I128 => a.i128()
 
-  fun abs(): I128 => if this < 0 then -this else this end
+  fun tag min_value(): I128 => -0x8000_0000_0000_0000_0000_0000_0000_0000
+  fun tag max_value(): I128 => 0x7FFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF_FFFF
+
+  fun abs(): U128 => if this < 0 then (-this).u128() else this.u128() end
   fun max(that: I128): I128 => if this > that then this else that end
   fun min(that: I128): I128 => if this < that then this else that end
 
@@ -91,11 +111,11 @@ primitive I128 is SignedInteger[I128]
   fun ctz(): I128 => @"llvm.cttz.i128"[I128](this, false)
   fun bitwidth(): I128 => 128
 
-  fun string(fmt: IntFormat = FormatDefault,
-    prefix: NumberPrefix = PrefixDefault, prec: U64 = 1, width: U64 = 0,
+  fun string(fmt: FormatInt = FormatDefault,
+    prefix: PrefixNumber = PrefixDefault, prec: U64 = 1, width: U64 = 0,
     align: Align = AlignRight, fill: U32 = ' '): String iso^
   =>
-    ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
+    _ToString._u128(abs().u128(), this < 0, fmt, prefix, prec, width, align,
       fill)
 
   fun divmod(y: I128): (I128, I128) =>

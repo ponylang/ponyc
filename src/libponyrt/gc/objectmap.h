@@ -24,7 +24,11 @@ void object_inc_some(object_t* obj, size_t rc);
 
 bool object_dec(object_t* obj);
 
-void object_dec_some(object_t* obj, size_t rc);
+bool object_dec_some(object_t* obj, size_t rc);
+
+bool object_reachable(object_t* obj);
+
+void object_markreachable(object_t* obj);
 
 DECLARE_HASHMAP(objectmap, object_t);
 
@@ -37,7 +41,7 @@ object_t* objectmap_register_final(objectmap_t* map, void* address,
 
 void objectmap_final(objectmap_t* map);
 
-size_t objectmap_mark(objectmap_t* map);
+size_t objectmap_sweep(objectmap_t* map);
 
 PONY_EXTERN_C_END
 
