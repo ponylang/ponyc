@@ -42,3 +42,7 @@ class iso _TestURL is UnitTest
     h.expect_eq[String](url.path, "/wiki/Polymorphism_%28computer_science%29")
     h.expect_eq[String](url.query, "")
     h.expect_eq[String](url.fragment, "Parametric_polymorphism")
+
+    url = URL.build("http://user@host")
+    h.expect_eq[String](url.user, "user")
+    h.expect_eq[String](url.password, "")
