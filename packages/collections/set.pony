@@ -144,7 +144,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     """
     clone[K]().unset(value)
 
-  fun op_or[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun op_or[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
     HashSet[this->A!, K]^
   =>
     """
@@ -157,7 +157,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_and[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun op_and[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
     HashSet[this->A!, K]^
   =>
     """
@@ -173,7 +173,7 @@ class HashSet[A, H: HashFunction[A!] val] is Comparable[HashSet[A, H] box]
     end
     r
 
-  fun op_xor[K: HashFunction[this->A!] val = H](that: this->HashSet[A, H]):
+  fun op_xor[K: HashFunction[this->A!] val = H](that: HashSet[A, H] box):
     HashSet[this->A!, K]^
   =>
     """
