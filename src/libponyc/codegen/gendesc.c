@@ -25,7 +25,7 @@
 #define DESC_LENGTH 13
 
 static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
-  const char* name)
+  const char* name, token_id t)
 {
   LLVMValueRef fun = LLVMGetNamedFunction(c->module, name);
 
@@ -36,21 +36,27 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMTypeRef f_type = LLVMGetElementType(LLVMTypeOf(fun));
   int count = LLVMCountParamTypes(f_type);
 
-  // If it takes no arguments, it's a special number constructor. Don't put it
-  // in the vtable.
-  if(count == 0)
-    return LLVMConstNull(c->void_ptr);
-
-  size_t buf_size = count *sizeof(LLVMTypeRef);
+  // Leave space for a receiver if it's a constructor vtable entry.
+  size_t buf_size = (count + 1) * sizeof(LLVMTypeRef);
   LLVMTypeRef* params = (LLVMTypeRef*)pool_alloc_size(buf_size);
   LLVMGetParamTypes(f_type, params);
   LLVMTypeRef ret_type = LLVMGetReturnType(f_type);
 
-  // It's the same type, but it takes the boxed type instead of the primitive
-  // type as the receiver.
-  params[0] = g->structure_ptr;
-
   const char* unbox_name = genname_unbox(name);
+
+  if(t != TK_NEW)
+  {
+    // It's the same type, but it takes the boxed type instead of the primitive
+    // type as the receiver.
+    params[0] = g->structure_ptr;
+  } else {
+    // For a constructor, the unbox_fun has a receiver, even though the real
+    // method does not.
+    memmove(&params[1], &params[0], count * sizeof(LLVMTypeRef*));
+    params[0] = g->structure_ptr;
+    count++;
+  }
+
   LLVMTypeRef unbox_type = LLVMFunctionType(ret_type, params, count, false);
   LLVMValueRef unbox_fun = codegen_addfun(c, unbox_name, unbox_type);
   codegen_startfun(c, unbox_fun, false);
@@ -61,10 +67,20 @@ static LLVMValueRef make_unbox_function(compile_t* c, gentype_t* g,
   LLVMValueRef primitive = LLVMBuildLoad(c->builder, primitive_ptr, "");
 
   LLVMValueRef* args = (LLVMValueRef*)pool_alloc_size(buf_size);
-  args[0] = primitive;
 
-  for(int i = 1; i < count; i++)
-    args[i] = LLVMGetParam(unbox_fun, i);
+  if(t != TK_NEW)
+  {
+    // If it's not a constructor, pass the extracted primitive as the receiver.
+    args[0] = primitive;
+
+    for(int i = 1; i < count; i++)
+      args[i] = LLVMGetParam(unbox_fun, i);
+  } else {
+    count--;
+
+    for(int i = 0; i < count; i++)
+      args[i] = LLVMGetParam(unbox_fun, i + 1);
+  }
 
   LLVMValueRef result = codegen_call(c, fun, args, count);
   LLVMBuildRet(c->builder, result);
@@ -257,8 +273,9 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
     while((m = reachable_methods_next(&n->r_methods, &j)) != NULL)
     {
       const char* fullname = genname_fun(t->name, n->name, m->typeargs);
+      token_id t = ast_id(m->r_fun);
 
-      switch(ast_id(m->r_fun))
+      switch(t)
       {
         case TK_NEW:
         case TK_BE:
@@ -274,7 +291,7 @@ static LLVMValueRef make_vtable(compile_t* c, gentype_t* g)
       assert(vtable[index] == NULL);
 
       if(g->primitive != NULL)
-        vtable[index] = make_unbox_function(c, g, fullname);
+        vtable[index] = make_unbox_function(c, g, fullname, t);
       else
         vtable[index] = make_function_ptr(c, fullname, c->void_ptr);
     }
