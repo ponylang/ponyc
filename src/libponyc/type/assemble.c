@@ -373,38 +373,6 @@ ast_t* type_isect_fun(ast_t* a, ast_t* b)
   return fun;
 }
 
-bool flatten_union(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_t* child = ast_child(ast);
-  ast_t* type = NULL;
-
-  while(child != NULL)
-  {
-    type = type_union(type, child);
-    child = ast_sibling(child);
-  }
-
-  ast_replace(astp, type);
-  return true;
-}
-
-bool flatten_isect(ast_t** astp)
-{
-  ast_t* ast = *astp;
-  ast_t* child = ast_child(ast);
-  ast_t* type = NULL;
-
-  while(child != NULL)
-  {
-    type = type_isect(type, child);
-    child = ast_sibling(child);
-  }
-
-  ast_replace(astp, type);
-  return true;
-}
-
 ast_t* set_cap_and_ephemeral(ast_t* type, token_id cap, token_id ephemeral)
 {
   switch(ast_id(type))

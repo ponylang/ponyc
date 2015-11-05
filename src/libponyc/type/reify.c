@@ -64,14 +64,6 @@ static bool reify_one(ast_t** astp, ast_t* typeparam, ast_t* typearg)
   {
     switch(ast_id(ast))
     {
-      case TK_UNIONTYPE:
-        flatten_union(astp);
-        return true;
-
-      case TK_ISECTTYPE:
-        flatten_isect(astp);
-        return true;
-
       case TK_ARROW:
       {
         AST_GET_CHILDREN(ast, left, right);
