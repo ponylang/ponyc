@@ -2,19 +2,19 @@ primitive DNS
   """
   Helper functions for resolving DNS queries.
   """
-  fun apply(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
+  fun apply(root: AmbientAuth, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv4 and IPv6 addresses for a host and service.
     """
     _resolve(0, host, service, root)
 
-  fun ip4(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
+  fun ip4(root: AmbientAuth, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv4 addresses for a host and service.
     """
     _resolve(2, host, service, root)
 
-  fun ip6(root: Root, host: String, service: String): Array[IPAddress] iso^ =>
+  fun ip6(root: AmbientAuth, host: String, service: String): Array[IPAddress] iso^ =>
     """
     Gets all IPv6 addresses for a host and service.
     """
@@ -32,7 +32,7 @@ primitive DNS
     """
     @os_host_ip6[Bool](host.cstring())
 
-  fun _resolve(family: U32, host: String, service: String, root: Root):
+  fun _resolve(family: U32, host: String, service: String, root: AmbientAuth):
     Array[IPAddress] iso^
   =>
     """

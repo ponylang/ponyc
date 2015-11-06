@@ -20,7 +20,7 @@ class NetworkInterface is (TCPClient & TCPServer & UDPEndpoint)
   """
   let name: String
 
-  new create(root: Root, name': String = "") =>
+  new create(root: AmbientAuth, name': String = "") =>
     name = name'
 
   fun connect(notify: TCPConnectionNotify iso,

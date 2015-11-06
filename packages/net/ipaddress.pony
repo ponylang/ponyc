@@ -40,7 +40,7 @@ class val IPAddress
     end
     
   fun name(reversedns: Bool = false, servicename: Bool = false,
-	   root: (Root | None) = None):
+	   root: (AmbientAuth | None) = None):
     (String, String) ?
   =>
     """
